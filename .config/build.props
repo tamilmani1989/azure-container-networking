@@ -1,0 +1,48 @@
+<!--
+***********************************************************************************************
+Environment.props
+
+This file overrides shipped msbuild settings to work well in an isolated no-install drop
+
+Environment.Custom.props should be configured by the build environment administrators to
+  * Setup paths to local SDKs and Tools
+  * Add the necessary extensibility hooks for customization from consumers
+
+Build environment administrators must call Environment.{cmd|ps1} from this directory to
+setup the build environment properly.
+
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+***********************************************************************************************
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>    
+    <AssemblyCompany>Microsoft CoreXT</AssemblyCompany>  
+    <AssemblyDescription>Microsoft CoreXT</AssemblyDescription>
+  </PropertyGroup>
+  
+  <!-- Auto generate NuGet packages from projects. This is temporary stopgap solution 
+    to help with migrations until we can get a permanant packaging system in place. -->
+  <PropertyGroup>    
+    <InstallPkgLocal Condition="'$(InstallPkgLocal)'==''">false</InstallPkgLocal>
+  </PropertyGroup>
+
+  <!-- Turning off CLS compliance warnings/errors -->
+  <PropertyGroup>    
+    <AssemblyCLSCompliant>false</AssemblyCLSCompliant> 
+  </PropertyGroup>
+  
+  <!-- Required for using Nuproj targets since we don't check in NuGet.exe -->
+  <PropertyGroup>
+    <NuProjToolPath>$(PkgNuGet_CommandLine)\tools</NuProjToolPath>
+  </PropertyGroup> 
+
+  <!-- Add in StyleCop -->
+  <PropertyGroup>
+    <StyleCopEnabled>true</StyleCopEnabled>
+    <StyleCopVersion Condition="'$(StyleCopVersion)' == ''">4.3.0.8</StyleCopVersion>
+  </PropertyGroup>
+	
+</Project>

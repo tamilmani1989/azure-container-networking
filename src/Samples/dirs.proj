@@ -1,0 +1,15 @@
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <ItemGroup>
+    <ProjectFile Include="Azure\dirs.proj" />
+    <ProjectFile Include="ClassLibrary\ClassLibrary.csproj" />
+    <ProjectFile Include="ClassLibrary.UnitTest\ClassLibrary.UnitTest.csproj" />
+    <ProjectFile Include="ConsoleApplication\consoleapplication.csproj" />
+    <ProjectFile Include="EntityFramework\EntityFrameworkTest.csproj" />
+    <ProjectFile Include="Robocopy\robocopy.proj" />
+    <ProjectFile Include="WcfServiceApp\WcfServiceApp.csproj" />
+    <ProjectFile Include="XmlTransform\XmlTransform.proj" />
+    <ProjectFile Include="WaesRobocopy\WaesRobocopy.proj" />
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Traversal.targets" />
+</Project>

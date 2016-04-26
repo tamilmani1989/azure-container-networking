@@ -1,0 +1,17 @@
+<Project ToolsVersion="4.0" DefaultTargets="PostBuild" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<Import Project="$(EnvironmentConfig)" />
+    
+    <!-- ******************************************************************************************** -->
+    <!-- Import WAES targets from the WAES package --> 
+    <Import Project="$(PkgWAES)\WAES.targets" />
+
+    <PropertyGroup>
+        <WAES_WaitForWAESToComplete>true</WAES_WaitForWAESToComplete>
+        <WAES_MailQueuedByUser>true</WAES_MailQueuedByUser>
+        <WAES_FailBuildOnWAESJobFailure>true<WAES_FailBuildOnWAESJobFailure>
+    </PropertyGroup>
+    
+    <Target Name="PostBuild">
+        <CallTarget Targets="WAES_PostBuild" />
+    </Target>
+</Project>

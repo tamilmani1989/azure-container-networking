@@ -1,0 +1,26 @@
+<!--
+***********************************************************************************************
+_AfterAll.targets
+
+Override _AfterAll.targets imported from CustomExtendedTargets dynamically.
+Used to do any final overrides after all other targets have completed
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+***********************************************************************************************
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  
+  <!-- Inject custom build dependencies here. -->
+  <PropertyGroup>
+    <BuildDependsOn Condition="'$(BuildingInsideVisualStudio)' != 'true'">
+      $(BuildDependsOn);Hello_AfterBuild
+    </BuildDependsOn>
+    <Loaded_AfterAll>true</Loaded_AfterAll>
+  </PropertyGroup>
+
+  <!-- Hello _AfterBuild -->
+  <Target Name="Hello_AfterBuild">
+	<Message Text="Hello, I am the _AfterBuild target running from \.config\.targets\$(MSBuildThisFile)" />
+  </Target>
+</Project>

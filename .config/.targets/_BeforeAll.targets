@@ -1,0 +1,26 @@
+<!--
+***********************************************************************************************
+_BeforeAll.targets
+
+Override _BeforeAll.targets imported from CustomExtendedTargets dynamically.
+Used to do any final overrides after all other targets have completed
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+***********************************************************************************************
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  
+  <!-- Inject custom build dependencies here. -->
+  <PropertyGroup>
+    <BeforeBuildDependsOn Condition="'$(BuildingInsideVisualStudio)' != 'true'">
+      Hello_BeforeBuild;$(BeforeBuildDependsOn)
+    </BeforeBuildDependsOn>
+    <Loaded_BeforeAll>true</Loaded_BeforeAll>
+  </PropertyGroup>
+
+  <!-- Hello _BeforeBuild -->
+  <Target Name="Hello_BeforeBuild">
+	<Message Text="Hello, I am the _BeforeBuild target running from \.config\.targets\$(MSBuildThisFile)" />
+  </Target>
+</Project>

@@ -1,0 +1,18 @@
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <PropertyGroup>
+    <TestProjectType>UnitTest</TestProjectType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Robocopy Include="$(CONFROOT)\.waes">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\CloudUnitTests</DestinationFolder>
+    </Robocopy>
+    <Robocopy Include="$(PkgTAEF_x86)\Binaries\Release\x86\TestExecution">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\Taef</DestinationFolder>
+    </Robocopy>
+    <Robocopy Include="$(CONFROOT)\.tools\wttlog.dll">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)</DestinationFolder>
+    </Robocopy>
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
+</Project>

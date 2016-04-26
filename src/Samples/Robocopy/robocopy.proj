@@ -1,0 +1,74 @@
+﻿<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <Import Project="$(EnvironmentConfig)" />
+
+  <PropertyGroup>
+    <TargetName>RobocopyFiles</TargetName>
+  </PropertyGroup>
+
+  <!--
+    * Robocopy files
+    *
+    * - Create Robocopy item(s)
+    * - Copy is performed in a RobocopyFiles task at the end of the build
+  -->
+  <ItemGroup>
+
+    <!-- Copy a single file -->
+    <Robocopy Include="content\robocopy_test.txt">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\RoboCopyFiles</DestinationFolder>
+    </Robocopy>
+
+    <!-- Copy the *.txt files in a directory, exclude the xxx.txt file and the 'two' directory -->
+    <Robocopy Include="content\deep">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\RobocopyFiles\deep</DestinationFolder>
+      <FileMatch>*.txt</FileMatch>
+      <FileExclude>robocopy_deep_xxx.txt</FileExclude>
+      <DirExclude>two</DirExclude>
+    </Robocopy>
+
+    <!-- Exclude 'two' directory using subdir -->
+    <Robocopy Include="content\deep2">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\RobocopyFiles\deep2_dirsub</DestinationFolder>
+      <DirExclude>one\two</DirExclude>
+    </Robocopy>
+
+    <!-- Exclude 'two' dir using partial regex -->
+    <Robocopy Include="content\deep2">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\RobocopyFiles\deep2_dirpartreg</DestinationFolder>
+      <DirExclude>*\two</DirExclude>
+    </Robocopy>
+
+    <!-- Exclude 'two' file using full path -->
+    <Robocopy Include="content\deep2">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\RobocopyFiles\deep2_filefull</DestinationFolder>
+      <FileExclude>$(MsBuildProjectDirectory)\content\deep2\one\two\robocopy_deep2_one_two.txt</FileExclude>
+    </Robocopy>
+
+    <!-- Exclude 'two' file using partial regex -->
+    <Robocopy Include="content\deep2">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)RobocopyFiles\deep2_filepartreg</DestinationFolder>
+      <FileExclude>*\two\*</FileExclude>
+    </Robocopy>
+
+  </ItemGroup>
+
+  <!--  ** FROM tools\build\msbuild\v4.0\_afterall.targets **
+    ============================================================
+    * RobocopyFiles : Run a robocopy-like task on Robocopy items
+    * [IN]
+    * $(RobocopyRetryCount)          : Number of attempts to make on copy failure
+    * $(RobocopyRetryWait)           : Time to wait between attempts on copy failure
+    * $(RobocopyShowDiagnosticTrace) : True to output rich diagnostic trace information
+    * $(RobocopyShowErrorOnRetry)    : True to show an error on retry, regardless of retry success
+    * @(Robocopy)            : File or Directory to copy
+    *   %(DestinationFolder) : Target destination, rooted (can be semicolon delimited for multiple paths)
+    *   %(FileMatch)         : Space delimited match strings, using batch wildcards (e.g., foo* ba*r b?az)
+    *   %(FileExclude)       : Space delimited file exclude matches, using batch wildcards
+    *   %(DirExclude)        : Space delimited dir exclude matches, using batch wildcards
+    *   %(IsRecursive)       : True if robocopy should be recursive
+    *   %(VerifyExists)      : False to ignore file-missing errors
+  -->
+
+  <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
+</Project>

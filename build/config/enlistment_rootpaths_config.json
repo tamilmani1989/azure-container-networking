@@ -1,0 +1,4 @@
+{
+  "SourceRootDirs":["src"],
+  "OutputRootDirs":["target","out"]
+}

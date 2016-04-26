@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <PropertyGroup>
+    <ProjectGuid>090257d8-4846-4162-a903-f116ef7a23e1</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>WindowsAzureTest</RootNamespace>
+    <AssemblyName>WindowsAzureTest</AssemblyName>
+    <StartDevelopmentStorage>True</StartDevelopmentStorage>
+    <Name>WindowsAzureTest23</Name>
+    <AssemblyClsCompliant>false</AssemblyClsCompliant>
+    <AzureVersion>2.4</AzureVersion>
+    <ProductVersion>2.4</ProductVersion>
+    <!-- Call the publish target during the build. -->
+    <IsExecutingPublishTarget>true</IsExecutingPublishTarget>
+  </PropertyGroup>
+  <!-- Items for the project -->
+  <ItemGroup>
+    <ServiceDefinition Include="ServiceDefinition.csdef" />
+    <ServiceConfiguration Include="ServiceConfiguration.Local.cscfg" />
+    <ServiceConfiguration Include="ServiceConfiguration.Cloud.cscfg" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WebRole1\WebRole1.csproj">
+      <Name>WebRole1</Name>
+      <Project>{5f66c03d-38d1-4cc2-a126-c6b021c19618}</Project>
+      <Private>True</Private>
+      <RoleType>Web</RoleType>
+      <RoleName>WebRole1</RoleName>
+      <UpdateDiagnosticsConnectionStringOnPublish>True</UpdateDiagnosticsConnectionStringOnPublish>
+    </ProjectReference>
+    <ProjectReference Include="..\WorkerRole1\WorkerRole1.csproj">
+      <Name>WorkerRole1</Name>
+      <Project>{afc4565b-614f-4422-8717-7856eea86eb9}</Project>
+      <Private>True</Private>
+      <RoleType>Worker</RoleType>
+      <RoleName>WorkerRole1</RoleName>
+      <UpdateDiagnosticsConnectionStringOnPublish>True</UpdateDiagnosticsConnectionStringOnPublish>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.WindowsAzure.targets" />
+  <PropertyGroup>
+    <!-- Workaround for publishing cloud projects in Visual Studio. Must happen after CoreXT extension target import. -->
+    <ServiceOutputDirectory Condition="'$(BuildingInsideVisualStudio)' == 'true'">csx\VSMSBuild\</ServiceOutputDirectory>
+    <OutDir Condition="'$(BuildingInsideVisualStudio)' == 'true'">$(MSBuildProjectDirectory)\obj\$(BuildArchitecture)\</OutDir>
+  </PropertyGroup>
+</Project>

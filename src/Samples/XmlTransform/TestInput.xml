@@ -1,0 +1,7 @@
+<NodeLevel1>
+  <NodeLevel2>
+    <NodeLevel3 ID="1"/>
+    <NodeLevel3 ID="2">Some old message</NodeLevel3>
+    <NodeLevel3 Name="Some old value" ID="3"></NodeLevel3>
+  </NodeLevel2>
+</NodeLevel1>

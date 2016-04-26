@@ -1,0 +1,28 @@
+﻿<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <Import Project="$(EnvironmentConfig)" />
+
+  <PropertyGroup>
+    <OutputType>library</OutputType>
+    <AssemblyName>Basic.ClassLibrary</AssemblyName>
+    <ProjectGuid>{0852A7CA-7A48-4A46-9C84-6CB063257272}</ProjectGuid>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <NuspecFiles Include="$(MSBuildProjectDirectory)\NugetIncludeFile.txt">
+      <NuspecFilesTarget>lib/net40</NuspecFilesTarget>
+    </NuspecFiles>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Simple.cs" />
+  </ItemGroup>
+
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.CSharp.targets" />
+  
+  <ItemGroup>
+    <QCustomInput Include="@(NuspecFiles)">
+      <Visible>false</Visible>
+    </QCustomInput>
+  </ItemGroup>
+</Project>

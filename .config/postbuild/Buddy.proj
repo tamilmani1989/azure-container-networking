@@ -1,0 +1,20 @@
+<Project ToolsVersion="4.0" DefaultTargets="PostBuild" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<Import Project="$(EnvironmentConfig)" />
+    <!-- Import custom target files
+    <Import Project="$(PkgWAES)\PostBuild.target" />
+    <Import Project="$(PkgWARM)\PostBuild.target" />
+    -->
+
+    <PropertyGroup>
+      <PostBuildDependsOn>StartPostBuild;StopPostBuild</PostBuildDependsOn>
+    </PropertyGroup>
+
+    <Target Name="StartPostBuild">
+        <Message Text="Starting Postbuild." />
+    </Target>
+    <Target Name="StopPostBuild">
+        <Message Text="Stopped Postbuild." />
+    </Target>
+
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.CSharp.targets" />
+</Project>

@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<ESTasksCriteria>
+  <PassRates>
+    <PassRate>
+      <Stage>Unittest</Stage>
+      <Rate>100.0</Rate>
+    </PassRate>
+  </PassRates>
+</ESTasksCriteria>

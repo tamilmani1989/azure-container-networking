@@ -1,0 +1,54 @@
+﻿<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+
+  <!-- Add Xml Transform in Build workflow -->
+  <PropertyGroup>
+    <BuildDependsOn>
+      $(BuildDependsOn);
+      ApplyXmlTransform
+    </BuildDependsOn>
+  </PropertyGroup>
+
+  <Target Name="ApplyXmlTransform">
+    <!-- Xml file content parameter settings -->
+    <PropertyGroup>
+      <!-- version info -->
+      <AttributeValue>$(ProductMajorVersion).$(ProductMinorVersion).$(BuildMajorVersion).$(BuildMinorVersion)</AttributeValue>
+      <InnerTextValue>$(AssemblyFileVersion)</InnerTextValue>
+      <!-- repo and branch info. Only Official Build has the following two properties. Not available locally -->
+      <InnerTextValue Condition="'$(GitRepositoryName)'!='' and '$(GitBranchName)'!=''">$(GitRepositoryName) $(GitBranchName) $(InnerTextValue)</InnerTextValue>
+      <TransformParameters>$(TransformParameters)&lt;Parameter Name='XsltParamAttributeValue' Value='$(AttributeValue)'/&gt;</TransformParameters>
+      <TransformParameters>$(TransformParameters)&lt;Parameter Name='XsltParamInnerTextValue' Value='$(InnerTextValue)'/&gt;</TransformParameters>
+    </PropertyGroup>
+
+    <!-- project input and output settings -->
+    <PropertyGroup>
+      <XmlTransformFile>Template.xslt</XmlTransformFile>
+      <TargetDestination>TransformedXml</TargetDestination>
+    </PropertyGroup>
+    <!-- Can transform multiple base files -->
+    <ItemGroup>
+      <InputFile Include="TestInput.xml"/>
+    </ItemGroup>
+
+    <XSLTransformation XslInputPath="$(XmlTransformFile)" XmlInputPaths="@(InputFile)"
+                    OutputPaths="$(IntermediateOutputPath)%(RecursiveDir)%(FileName).Output.xml"
+                    Parameters="$(TransformParameters)"/>
+    <ItemGroup>
+      <OutputFile Include="$(IntermediateOutputPath)\**\*.Output.xml"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(OutputFile)" DestinationFolder="$(OutDir)$(TargetDestination)"/>
+  </Target>
+
+  <!-- This can be replaced by any valid targets such as csharp targets -->
+  <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
+  
+  <ItemGroup>
+    <QCustomInput Include=".\Template.xslt">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include=".\TestInput.xml">
+      <Visible>false</Visible>
+    </QCustomInput>
+  </ItemGroup>
+</Project>

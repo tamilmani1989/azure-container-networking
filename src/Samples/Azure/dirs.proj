@@ -1,0 +1,9 @@
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <ItemGroup>
+    <ProjectFile Include="WebRole1\WebRole1.csproj" />
+    <ProjectFile Include="WindowsAzureTest\WindowsAzureTest.ccproj" />
+    <ProjectFile Include="WorkerRole1\WorkerRole1.csproj" />
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Traversal.targets" />
+</Project>

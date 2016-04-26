@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ValidationDescription xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <BranchName>CoreXT</BranchName>
+  <OwnerName>magitbldsup@microsoft.com</OwnerName>
+  <JobExecutionHints>
+    <DelayExecutionByUploadOldFiles>false</DelayExecutionByUploadOldFiles>
+    <DelayExecutionByReimageVMAfterTestFailure>false</DelayExecutionByReimageVMAfterTestFailure>
+  </JobExecutionHints>
+  <TaskGroup>
+    <TaskDescriptionTemplate>UnitTestWS2012</TaskDescriptionTemplate>
+    <ValidationReportTaskDescriptions>
+      <OwnerName>magitbldsup</OwnerName>
+      <TaskName>ClassLibrary.UnitTest</TaskName>
+      <TaskCommand>Taef\te.exe ClassLibrary.UnitTest\ClassLibrary.UnitTest.dll /unicodeoutput:false /enableWttLogging /logfile:ClassLibrary.UnitTestReport.xml</TaskCommand>
+      <TaskExecutionHints>
+        <MinimumVMSize>Large</MinimumVMSize>
+        <CollectUnmodifiedLogFiles>false</CollectUnmodifiedLogFiles>
+        <UseJunctionForPathMapping>false</UseJunctionForPathMapping>
+        <FileEndingsToInclude />
+        <DisableStrongNameVerification>true</DisableStrongNameVerification>
+      </TaskExecutionHints>
+      <PreTaskCommand />
+      <PostTaskCommand />
+      <ValidationReportDescriptions>
+        <ValidationReportFilename>ClassLibrary.UnitTestReport.xml</ValidationReportFilename>
+        <TestFramework>TAEF</TestFramework>
+      </ValidationReportDescriptions>
+      <TestCategories>
+        <CategoryName>UnitTest</CategoryName>
+      </TestCategories>
+      <DisableBugFiling>false</DisableBugFiling>
+      <CustomAttributes />
+    </ValidationReportTaskDescriptions>
+  </TaskGroup>
+  <PerTaskBugFile>false</PerTaskBugFile>
+  <UseTaskOwnerForBugFile>false</UseTaskOwnerForBugFile>
+  <UseTestNumberAsPassCriteria>false</UseTestNumberAsPassCriteria>
+</ValidationDescription>
