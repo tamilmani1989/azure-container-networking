@@ -1,19 +1,12 @@
 /****************************** Module Header ******************************\
-* Module Name:  CppWindowsService.cpp
-* Project:      CppWindowsService
+* Module Name:  Main.cpp
+* Project:      WinInstaller
 * Copyright (c) Microsoft Corporation.
 * 
 * The file defines the entry point of the application. According to the 
 * arguments in the command line, the function installs or uninstalls or 
 * starts the service by calling into different routines.
 * 
-* This source is subject to the Microsoft Public License.
-* See http://www.microsoft.com/en-us/openness/resources/licenses.aspx#MPL.
-* All other rights reserved.
-* 
-* THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
-* EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED 
-* WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \***************************************************************************/
 
 #pragma region Includes

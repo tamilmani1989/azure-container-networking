@@ -1,17 +1,10 @@
 /****************************** Module Header ******************************\
-* Module Name:  ServiceInstaller.cpp
-* Project:      CppWindowsService
+* Module Name:  AqInstaller.cpp
+* Project:      WinInstaller
 * Copyright (c) Microsoft Corporation.
 * 
 * The file implements functions that install and uninstall the service.
 * 
-* This source is subject to the Microsoft Public License.
-* See http://www.microsoft.com/en-us/openness/resources/licenses.aspx#MPL.
-* All other rights reserved.
-* 
-* THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
-* EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED 
-* WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 \***************************************************************************/
 
 #pragma region "Includes"
