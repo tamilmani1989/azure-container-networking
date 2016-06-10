@@ -14,7 +14,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{9423C797-BDDE-4411-8AEA-6396F4A97F3B}</ProjectGuid>
     <RootNamespace>Aquarius</RootNamespace>
-    <ProjectName>WinInstaller</ProjectName>
+    <ProjectName>Aquarius</ProjectName>
     <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
     <Platform Condition="'$(Platform)' == ''">x64</Platform>
     <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
@@ -154,15 +154,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AqInstaller.cpp" />
+    <ClCompile Include="AquariusInstaller.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="SampleService.cpp" />
-    <ClCompile Include="ServiceBase.cpp" />
+    <ClCompile Include="AquariusService.cpp" />
+    <ClCompile Include="AquariusSvcBase.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AqInstaller.h" />
-    <ClInclude Include="SampleService.h" />
-    <ClInclude Include="ServiceBase.h" />
+    <ClInclude Include="AquariusInstaller.h" />
+    <ClInclude Include="AquariusService.h" />
+    <ClInclude Include="AquariusSvcBase.h" />
     <ClInclude Include="ThreadPool.h" />
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />

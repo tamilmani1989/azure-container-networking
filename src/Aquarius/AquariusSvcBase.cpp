@@ -4,13 +4,13 @@
 * Copyright (c) Microsoft Corporation.
 * 
 * Provides a base class for a service that will exist as part of a service 
-* application. CServiceBase must be derived from when creating a new service 
+* application. AquariusSvcBase must be derived from when creating a new service 
 * class.
 * 
 \***************************************************************************/
 
 #pragma region Includes
-#include "ServiceBase.h"
+#include "AquariusSvcBase.h"
 #include <assert.h>
 #include <strsafe.h>
 #pragma endregion
@@ -19,11 +19,11 @@
 #pragma region Static Members
 
 // Initialize the singleton service instance.
-CServiceBase *CServiceBase::s_service = NULL;
+AquariusSvcBase *AquariusSvcBase::s_service = NULL;
 
 
 //
-//   FUNCTION: CServiceBase::Run(CServiceBase &)
+//   FUNCTION: AquariusSvcBase::Run(AquariusSvcBase &)
 //
 //   PURPOSE: Register the executable for a service with the Service Control 
 //   Manager (SCM). After you call Run(ServiceBase), the SCM issues a Start 
@@ -31,14 +31,14 @@ CServiceBase *CServiceBase::s_service = NULL;
 //   This method blocks until the service has stopped.
 //
 //   PARAMETERS:
-//   * service - the reference to a CServiceBase object. It will become the 
+//   * service - the reference to a AquariusSvcBase object. It will become the 
 //     singleton service instance of this service application.
 //
 //   RETURN VALUE: If the function succeeds, the return value is TRUE. If the 
 //   function fails, the return value is FALSE. To get extended error 
 //   information, call GetLastError.
 //
-BOOL CServiceBase::Run(CServiceBase &service)
+BOOL AquariusSvcBase::Run(AquariusSvcBase &service)
 {
     s_service = &service;
     SERVICE_TABLE_ENTRY serviceTable[] = 
@@ -56,7 +56,7 @@ BOOL CServiceBase::Run(CServiceBase &service)
 
 
 //
-//   FUNCTION: CServiceBase::ServiceMain(DWORD, PWSTR *)
+//   FUNCTION: AquariusSvcBase::ServiceMain(DWORD, PWSTR *)
 //
 //   PURPOSE: Entry point for the service. It registers the handler function 
 //   for the service and starts the service.
@@ -65,7 +65,7 @@ BOOL CServiceBase::Run(CServiceBase &service)
 //   * dwArgc   - number of command line arguments
 //   * lpszArgv - array of command line arguments
 //
-void WINAPI CServiceBase::ServiceMain(DWORD dwArgc, PWSTR *pszArgv)
+void WINAPI AquariusSvcBase::ServiceMain(DWORD dwArgc, PWSTR *pszArgv)
 {
     assert(s_service != NULL);
     
@@ -84,7 +84,7 @@ void WINAPI CServiceBase::ServiceMain(DWORD dwArgc, PWSTR *pszArgv)
 
 
 //
-//   FUNCTION: CServiceBase::ServiceCtrlHandler(DWORD)
+//   FUNCTION: AquariusSvcBase::ServiceCtrlHandler(DWORD)
 //
 //   PURPOSE: The function is called by the SCM whenever a control code is 
 //   sent to the service. 
@@ -106,7 +106,7 @@ void WINAPI CServiceBase::ServiceMain(DWORD dwArgc, PWSTR *pszArgv)
 //   This parameter can also be a user-defined control code ranges from 128 
 //   to 255.
 //
-void WINAPI CServiceBase::ServiceCtrlHandler(DWORD dwCtrl)
+void WINAPI AquariusSvcBase::ServiceCtrlHandler(DWORD dwCtrl)
 {
     switch (dwCtrl)
     {
@@ -125,10 +125,10 @@ void WINAPI CServiceBase::ServiceCtrlHandler(DWORD dwCtrl)
 #pragma region Service Constructor and Destructor
 
 //
-//   FUNCTION: CServiceBase::CServiceBase(PWSTR, BOOL, BOOL, BOOL)
+//   FUNCTION: AquariusSvcBase::AquariusSvcBase(PWSTR, BOOL, BOOL, BOOL)
 //
-//   PURPOSE: The constructor of CServiceBase. It initializes a new instance 
-//   of the CServiceBase class. The optional parameters (fCanStop, 
+//   PURPOSE: The constructor of AquariusSvcBase. It initializes a new instance 
+//   of the AquariusSvcBase class. The optional parameters (fCanStop, 
 ///  fCanShutdown and fCanPauseContinue) allow you to specify whether the 
 //   service can be stopped, paused and continued, or be notified when system 
 //   shutdown occurs.
@@ -139,7 +139,7 @@ void WINAPI CServiceBase::ServiceCtrlHandler(DWORD dwCtrl)
 //   * fCanShutdown - the service is notified when system shutdown occurs
 //   * fCanPauseContinue - the service can be paused and continued
 //
-CServiceBase::CServiceBase(PWSTR pszServiceName, 
+AquariusSvcBase::AquariusSvcBase(PWSTR pszServiceName, 
                            BOOL fCanStop, 
                            BOOL fCanShutdown, 
                            BOOL fCanPauseContinue)
@@ -173,11 +173,11 @@ CServiceBase::CServiceBase(PWSTR pszServiceName,
 
 
 //
-//   FUNCTION: CServiceBase::~CServiceBase()
+//   FUNCTION: AquariusSvcBase::~AquariusSvcBase()
 //
-//   PURPOSE: The virtual destructor of CServiceBase. 
+//   PURPOSE: The virtual destructor of AquariusSvcBase. 
 //
-CServiceBase::~CServiceBase(void)
+AquariusSvcBase::~AquariusSvcBase(void)
 {
 }
 
@@ -187,7 +187,7 @@ CServiceBase::~CServiceBase(void)
 #pragma region Service Start, Stop, Pause, Continue, and Shutdown
 
 //
-//   FUNCTION: CServiceBase::Start(DWORD, PWSTR *)
+//   FUNCTION: AquariusSvcBase::Start(DWORD, PWSTR *)
 //
 //   PURPOSE: The function starts the service. It calls the OnStart virtual 
 //   function in which you can specify the actions to take when the service 
@@ -198,7 +198,7 @@ CServiceBase::~CServiceBase(void)
 //   * dwArgc   - number of command line arguments
 //   * lpszArgv - array of command line arguments
 //
-void CServiceBase::Start(DWORD dwArgc, PWSTR *pszArgv)
+void AquariusSvcBase::Start(DWORD dwArgc, PWSTR *pszArgv)
 {
     try
     {
@@ -238,13 +238,13 @@ void CServiceBase::Start(DWORD dwArgc, PWSTR *pszArgv)
 
 
 //
-//   FUNCTION: CServiceBase::OnStart(DWORD, PWSTR *)
+//   FUNCTION: AquariusSvcBase::OnStart(DWORD, PWSTR *)
 //
 //   PURPOSE: When implemented in a derived class, executes when a Start 
 //   command is sent to the service by the SCM or when the operating system 
 //   starts (for a service that starts automatically). Specifies actions to 
 //   take when the service starts. Be sure to periodically call 
-//   CServiceBase::SetServiceStatus() with SERVICE_START_PENDING if the 
+//   AquariusSvcBase::SetServiceStatus() with SERVICE_START_PENDING if the 
 //   procedure is going to take long time. You may also consider spawning a 
 //   new thread in OnStart to perform time-consuming initialization tasks.
 //
@@ -252,20 +252,20 @@ void CServiceBase::Start(DWORD dwArgc, PWSTR *pszArgv)
 //   * dwArgc   - number of command line arguments
 //   * lpszArgv - array of command line arguments
 //
-void CServiceBase::OnStart(DWORD dwArgc, PWSTR *pszArgv)
+void AquariusSvcBase::OnStart(DWORD dwArgc, PWSTR *pszArgv)
 {
 }
 
 
 //
-//   FUNCTION: CServiceBase::Stop()
+//   FUNCTION: AquariusSvcBase::Stop()
 //
 //   PURPOSE: The function stops the service. It calls the OnStop virtual 
 //   function in which you can specify the actions to take when the service 
 //   stops. If an error occurs, the error will be logged in the Application 
 //   event log, and the service will be restored to the original state.
 //
-void CServiceBase::Stop()
+void AquariusSvcBase::Stop()
 {
     DWORD dwOriginalState = m_status.dwCurrentState;
     try
@@ -299,21 +299,21 @@ void CServiceBase::Stop()
 
 
 //
-//   FUNCTION: CServiceBase::OnStop()
+//   FUNCTION: AquariusSvcBase::OnStop()
 //
 //   PURPOSE: When implemented in a derived class, executes when a Stop 
 //   command is sent to the service by the SCM. Specifies actions to take 
 //   when a service stops running. Be sure to periodically call 
-//   CServiceBase::SetServiceStatus() with SERVICE_STOP_PENDING if the 
+//   AquariusSvcBase::SetServiceStatus() with SERVICE_STOP_PENDING if the 
 //   procedure is going to take long time. 
 //
-void CServiceBase::OnStop()
+void AquariusSvcBase::OnStop()
 {
 }
 
 
 //
-//   FUNCTION: CServiceBase::Pause()
+//   FUNCTION: AquariusSvcBase::Pause()
 //
 //   PURPOSE: The function pauses the service if the service supports pause 
 //   and continue. It calls the OnPause virtual function in which you can 
@@ -321,7 +321,7 @@ void CServiceBase::OnStop()
 //   the error will be logged in the Application event log, and the service 
 //   will become running.
 //
-void CServiceBase::Pause()
+void AquariusSvcBase::Pause()
 {
     try
     {
@@ -354,19 +354,19 @@ void CServiceBase::Pause()
 
 
 //
-//   FUNCTION: CServiceBase::OnPause()
+//   FUNCTION: AquariusSvcBase::OnPause()
 //
 //   PURPOSE: When implemented in a derived class, executes when a Pause 
 //   command is sent to the service by the SCM. Specifies actions to take 
 //   when a service pauses.
 //
-void CServiceBase::OnPause()
+void AquariusSvcBase::OnPause()
 {
 }
 
 
 //
-//   FUNCTION: CServiceBase::Continue()
+//   FUNCTION: AquariusSvcBase::Continue()
 //
 //   PURPOSE: The function resumes normal functioning after being paused if
 //   the service supports pause and continue. It calls the OnContinue virtual 
@@ -374,7 +374,7 @@ void CServiceBase::OnPause()
 //   continues. If an error occurs, the error will be logged in the 
 //   Application event log, and the service will still be paused.
 //
-void CServiceBase::Continue()
+void AquariusSvcBase::Continue()
 {
     try
     {
@@ -407,26 +407,26 @@ void CServiceBase::Continue()
 
 
 //
-//   FUNCTION: CServiceBase::OnContinue()
+//   FUNCTION: AquariusSvcBase::OnContinue()
 //
 //   PURPOSE: When implemented in a derived class, OnContinue runs when a 
 //   Continue command is sent to the service by the SCM. Specifies actions to 
 //   take when a service resumes normal functioning after being paused.
 //
-void CServiceBase::OnContinue()
+void AquariusSvcBase::OnContinue()
 {
 }
 
 
 //
-//   FUNCTION: CServiceBase::Shutdown()
+//   FUNCTION: AquariusSvcBase::Shutdown()
 //
 //   PURPOSE: The function executes when the system is shutting down. It 
 //   calls the OnShutdown virtual function in which you can specify what 
 //   should occur immediately prior to the system shutting down. If an error 
 //   occurs, the error will be logged in the Application event log.
 //
-void CServiceBase::Shutdown()
+void AquariusSvcBase::Shutdown()
 {
     try
     {
@@ -450,13 +450,13 @@ void CServiceBase::Shutdown()
 
 
 //
-//   FUNCTION: CServiceBase::OnShutdown()
+//   FUNCTION: AquariusSvcBase::OnShutdown()
 //
 //   PURPOSE: When implemented in a derived class, executes when the system 
 //   is shutting down. Specifies what should occur immediately prior to the 
 //   system shutting down.
 //
-void CServiceBase::OnShutdown()
+void AquariusSvcBase::OnShutdown()
 {
 }
 
@@ -466,7 +466,7 @@ void CServiceBase::OnShutdown()
 #pragma region Helper Functions
 
 //
-//   FUNCTION: CServiceBase::SetServiceStatus(DWORD, DWORD, DWORD)
+//   FUNCTION: AquariusSvcBase::SetServiceStatus(DWORD, DWORD, DWORD)
 //
 //   PURPOSE: The function sets the service status and reports the status to 
 //   the SCM.
@@ -476,7 +476,7 @@ void CServiceBase::OnShutdown()
 //   * dwWin32ExitCode - error code to report
 //   * dwWaitHint - estimated time for pending operation, in milliseconds
 //
-void CServiceBase::SetServiceStatus(DWORD dwCurrentState, 
+void AquariusSvcBase::SetServiceStatus(DWORD dwCurrentState, 
                                     DWORD dwWin32ExitCode, 
                                     DWORD dwWaitHint)
 {
@@ -499,7 +499,7 @@ void CServiceBase::SetServiceStatus(DWORD dwCurrentState,
 
 
 //
-//   FUNCTION: CServiceBase::WriteEventLogEntry(PWSTR, WORD)
+//   FUNCTION: AquariusSvcBase::WriteEventLogEntry(PWSTR, WORD)
 //
 //   PURPOSE: Log a message to the Application event log.
 //
@@ -515,7 +515,7 @@ void CServiceBase::SetServiceStatus(DWORD dwCurrentState,
 //     EVENTLOG_INFORMATION_TYPE
 //     EVENTLOG_WARNING_TYPE
 //
-void CServiceBase::WriteEventLogEntry(PWSTR pszMessage, WORD wType)
+void AquariusSvcBase::WriteEventLogEntry(PWSTR pszMessage, WORD wType)
 {
     HANDLE hEventSource = NULL;
     LPCWSTR lpszStrings[2] = { NULL, NULL };
@@ -543,7 +543,7 @@ void CServiceBase::WriteEventLogEntry(PWSTR pszMessage, WORD wType)
 
 
 //
-//   FUNCTION: CServiceBase::WriteErrorLogEntry(PWSTR, DWORD)
+//   FUNCTION: AquariusSvcBase::WriteErrorLogEntry(PWSTR, DWORD)
 //
 //   PURPOSE: Log an error message to the Application event log.
 //
@@ -551,7 +551,7 @@ void CServiceBase::WriteEventLogEntry(PWSTR pszMessage, WORD wType)
 //   * pszFunction - the function that gives the error
 //   * dwError - the error code
 //
-void CServiceBase::WriteErrorLogEntry(PWSTR pszFunction, DWORD dwError)
+void AquariusSvcBase::WriteErrorLogEntry(PWSTR pszFunction, DWORD dwError)
 {
     wchar_t szMessage[260];
     StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 

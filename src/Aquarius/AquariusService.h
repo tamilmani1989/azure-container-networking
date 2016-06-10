@@ -3,7 +3,7 @@
 * Project:      WinInstaller
 * Copyright (c) Microsoft Corporation.
 * 
-* Class that derives from the service base class CServiceBase. 
+* Class that derives from the service base class AquariusSvcBase. 
 * It logs the service start and stop 
 * information to the Application event log, and shows how to run the main 
 * function of the service in a thread pool worker thread.
@@ -12,18 +12,18 @@
 
 #pragma once
 
-#include "ServiceBase.h"
+#include "AquariusSvcBase.h"
 
 
-class CSampleService : public CServiceBase
+class AquariusService : public AquariusSvcBase
 {
 public:
 
-    CSampleService(PWSTR pszServiceName, 
+    AquariusService(PWSTR pszServiceName, 
         BOOL fCanStop = TRUE, 
         BOOL fCanShutdown = TRUE, 
         BOOL fCanPauseContinue = TRUE);
-    virtual ~CSampleService(void);
+    virtual ~AquariusService(void);
 
 protected:
 

@@ -1,5 +1,5 @@
 /****************************** Module Header ******************************\
-* Module Name:  AqInstaller.h
+* Module Name:  AquariusInstaller.h
 * Project:      WinInstaller
 * Copyright (c) Microsoft Corporation.
 * 

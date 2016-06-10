@@ -4,26 +4,26 @@
 * Copyright (c) Microsoft Corporation.
 * 
 * Provides a sample service class that derives from the service base class - 
-* CServiceBase. The sample service logs the service start and stop 
+* AquariusSvcBase. The sample service logs the service start and stop 
 * information to the Application event log, and shows how to run the main 
 * function of the service in a thread pool worker thread.
 * 
 \***************************************************************************/
 
 #pragma region Includes
-#include "SampleService.h"
+#include "AquariusService.h"
 #include "ThreadPool.h"
 #pragma endregion
 
 
-CSampleService::CSampleService(PWSTR pszServiceName, 
+AquariusService::AquariusService(PWSTR pszServiceName, 
                                BOOL fCanStop, 
                                BOOL fCanShutdown, 
                                BOOL fCanPauseContinue)
-: CServiceBase(pszServiceName, fCanStop, fCanShutdown, fCanPauseContinue)
+: AquariusSvcBase(pszServiceName, fCanStop, fCanShutdown, fCanPauseContinue)
 {
     m_fStopping = FALSE;
-    WriteEventLogEntry(L"Going to send a reset event to Aq.Kernel", EVENTLOG_INFORMATION_TYPE);
+    WriteEventLogEntry(L"Going to send a reset event to AquariusSvc", EVENTLOG_INFORMATION_TYPE);
     // Create a manual-reset event that is not signaled at first to indicate 
     // the stopped signal of the service.
     m_hStoppedEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -35,7 +35,7 @@ CSampleService::CSampleService(PWSTR pszServiceName,
 }
 
 
-CSampleService::~CSampleService(void)
+AquariusService::~AquariusService(void)
 {
     if (m_hStoppedEvent)
     {
@@ -46,7 +46,7 @@ CSampleService::~CSampleService(void)
 
 
 //
-//   FUNCTION: CSampleService::OnStart(DWORD, LPWSTR *)
+//   FUNCTION: AquariusService::OnStart(DWORD, LPWSTR *)
 //
 //   PURPOSE: The function is executed when a Start command is sent to the 
 //   service by the SCM or when the operating system starts (for a service 
@@ -70,31 +70,31 @@ CSampleService::~CSampleService(void)
 //   other solution is to spawn a new thread to perform the main service 
 //   functions, which is demonstrated in this code sample.
 //
-void CSampleService::OnStart(DWORD dwArgc, LPWSTR *lpszArgv)
+void AquariusService::OnStart(DWORD dwArgc, LPWSTR *lpszArgv)
 {
     // Log a service start message to the Application log.
-    WriteEventLogEntry(L"Aq.Kernel in OnStart", 
+    WriteEventLogEntry(L"AquariusSvc in OnStart", 
         EVENTLOG_INFORMATION_TYPE);
 
     // Queue the main service function for execution in a worker thread.
-    CThreadPool::QueueUserWorkItem(&CSampleService::ServiceWorkerThread, this);
+    CThreadPool::QueueUserWorkItem(&AquariusService::ServiceWorkerThread, this);
     WriteEventLogEntry(L"Enqueued the worker", EVENTLOG_INFORMATION_TYPE);
 }
 
 
 //
-//   FUNCTION: CSampleService::ServiceWorkerThread(void)
+//   FUNCTION: AquariusService::ServiceWorkerThread(void)
 //
 //   PURPOSE: The method performs the main function of the service. It runs 
 //   on a thread pool worker thread.
 //
-void CSampleService::ServiceWorkerThread(void)
+void AquariusService::ServiceWorkerThread(void)
 {
     // Periodically check if the service is stopping.
     while (!m_fStopping)
     {
         // Perform main service function here...
-        WriteEventLogEntry(L"Aq.Kernel doing work", 
+        WriteEventLogEntry(L"AquariusSvc doing work", 
         EVENTLOG_INFORMATION_TYPE);
         ::Sleep(2000);  // Simulate some lengthy operations.
     }
@@ -105,7 +105,7 @@ void CSampleService::ServiceWorkerThread(void)
 
 
 //
-//   FUNCTION: CSampleService::OnStop(void)
+//   FUNCTION: AquariusService::OnStop(void)
 //
 //   PURPOSE: The function is executed when a Stop command is sent to the 
 //   service by SCM. It specifies actions to take when a service stops 
@@ -116,10 +116,10 @@ void CSampleService::ServiceWorkerThread(void)
 //   Be sure to periodically call ReportServiceStatus() with 
 //   SERVICE_STOP_PENDING if the procedure is going to take long time. 
 //
-void CSampleService::OnStop()
+void AquariusService::OnStop()
 {
     // Log a service stop message to the Application log.
-    WriteEventLogEntry(L"Aq.Kernel in OnStop", 
+    WriteEventLogEntry(L"AquariusSvc in OnStop", 
         EVENTLOG_INFORMATION_TYPE);
 
     // Indicate that the service is stopping and wait for the finish of the 

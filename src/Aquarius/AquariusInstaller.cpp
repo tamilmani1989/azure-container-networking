@@ -1,5 +1,5 @@
 /****************************** Module Header ******************************\
-* Module Name:  AqInstaller.cpp
+* Module Name:  AquariusInstaller.cpp
 * Project:      WinInstaller
 * Copyright (c) Microsoft Corporation.
 * 
@@ -10,7 +10,7 @@
 #pragma region "Includes"
 #include <stdio.h>
 #include <windows.h>
-#include "AqInstaller.h"
+#include "AquariusInstaller.h"
 #pragma endregion
 
 
@@ -53,8 +53,7 @@ void InstallService(PWSTR pszServiceName,
     }
 
     // Open the local default service control manager database
-    schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT | 
-        SC_MANAGER_CREATE_SERVICE);
+    schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (schSCManager == NULL)
     {
         wprintf(L"OpenSCManager failed w/err 0x%08lx\n", GetLastError());
@@ -84,6 +83,15 @@ void InstallService(PWSTR pszServiceName,
     }
 
     wprintf(L"%s is installed.\n", pszServiceName);
+    
+    schService = OpenService(schSCManager, pszServiceName, SERVICE_CHANGE_CONFIG);
+    SERVICE_DESCRIPTION sd;
+    LPTSTR szDesc = TEXT("Microsoft Azure VM Network Agent");
+    sd.lpDescription = szDesc;
+    if(!ChangeServiceConfig2(schService, SERVICE_CONFIG_DESCRIPTION, &sd))
+    {
+        wprintf(L"Unable to set the description for Azure Service w/err 0x%081x\n", GetLastError());
+    }
 
 Cleanup:
     // Centralized cleanup for all allocated resources.

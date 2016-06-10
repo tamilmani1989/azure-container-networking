@@ -12,9 +12,9 @@
 #pragma region Includes
 #include <stdio.h>
 #include <windows.h>
-#include "AqInstaller.h"
-#include "ServiceBase.h"
-#include "SampleService.h"
+#include "AquariusInstaller.h"
+#include "AquariusSvcBase.h"
+#include "AquariusService.h"
 #pragma endregion
 
 
@@ -23,10 +23,10 @@
 // 
 
 // Internal name of the service
-#define SERVICE_NAME             L"Aq.Kernel"
+#define SERVICE_NAME             L"AquariusSvc"
 
 // Displayed name of the service
-#define SERVICE_DISPLAY_NAME     L"Aquarius Kernel"
+#define SERVICE_DISPLAY_NAME     L"Azure Aquarius"
 
 // Service start options.
 #define SERVICE_START_TYPE       SERVICE_AUTO_START
@@ -86,8 +86,8 @@ int wmain(int argc, wchar_t *argv[])
         wprintf(L" -install  to install the service.\n");
         wprintf(L" -remove   to remove the service.\n");
 
-        CSampleService service(SERVICE_NAME);
-        if (!CServiceBase::Run(service))
+        AquariusService service(SERVICE_NAME);
+        if (!AquariusSvcBase::Run(service))
         {
             wprintf(L"Service failed to run w/err 0x%08lx\n", GetLastError());
         }

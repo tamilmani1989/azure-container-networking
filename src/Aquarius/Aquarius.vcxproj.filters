@@ -1,39 +1,39 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="AqInstaller.cpp">
+    <ClCompile Include="AquariusInstaller.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SampleService.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ServiceBase.cpp">
+    <ClCompile Include="AquariusService.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="AquariusSvcBase.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AqInstaller.h">
+    <ClInclude Include="AquariusInstaller.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SampleService.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ServiceBase.h">
+    <ClInclude Include="AquariusService.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ThreadPool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="AquariusSvcBase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{49fa8140-8572-41ae-b54f-6df4e527ff68}</UniqueIdentifier>
+      <UniqueIdentifier>{ca446abc-ba7d-432d-b58c-d89a2e9f2361}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{4dd447d2-f1d3-471c-b945-91af491ea630}</UniqueIdentifier>
+      <UniqueIdentifier>{b0eb8f86-9f12-4326-8fe1-4b1a37f67117}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
