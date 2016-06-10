@@ -41,12 +41,11 @@ CServiceBase *CServiceBase::s_service = NULL;
 BOOL CServiceBase::Run(CServiceBase &service)
 {
     s_service = &service;
-
     SERVICE_TABLE_ENTRY serviceTable[] = 
     {
         { service.m_name, ServiceMain },
         { NULL, NULL }
-    };
+    };    
 
     // Connects the main thread of a service process to the service control 
     // manager, which causes the thread to be the service control dispatcher 
@@ -69,10 +68,11 @@ BOOL CServiceBase::Run(CServiceBase &service)
 void WINAPI CServiceBase::ServiceMain(DWORD dwArgc, PWSTR *pszArgv)
 {
     assert(s_service != NULL);
-
+    
     // Register the handler function for the service
     s_service->m_statusHandle = RegisterServiceCtrlHandler(
         s_service->m_name, ServiceCtrlHandler);
+
     if (s_service->m_statusHandle == NULL)
     {
         throw GetLastError();
@@ -202,14 +202,21 @@ void CServiceBase::Start(DWORD dwArgc, PWSTR *pszArgv)
 {
     try
     {
+        
+       WriteEventLogEntry(L"Going to set status as pending", EVENTLOG_INFORMATION_TYPE);
+
         // Tell SCM that the service is starting.
         SetServiceStatus(SERVICE_START_PENDING);
 
+        WriteEventLogEntry(L"Going to call on start", EVENTLOG_INFORMATION_TYPE);
         // Perform service-specific initialization.
         OnStart(dwArgc, pszArgv);
 
+        WriteEventLogEntry(L"Going to mark service as running", EVENTLOG_INFORMATION_TYPE);
         // Tell SCM that the service is started.
         SetServiceStatus(SERVICE_RUNNING);
+
+        WriteEventLogEntry(L"Successfully marked as running.", EVENTLOG_INFORMATION_TYPE);
     }
     catch (DWORD dwError)
     {

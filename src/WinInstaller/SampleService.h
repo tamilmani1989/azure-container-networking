@@ -22,7 +22,7 @@ public:
     CSampleService(PWSTR pszServiceName, 
         BOOL fCanStop = TRUE, 
         BOOL fCanShutdown = TRUE, 
-        BOOL fCanPauseContinue = FALSE);
+        BOOL fCanPauseContinue = TRUE);
     virtual ~CSampleService(void);
 
 protected:

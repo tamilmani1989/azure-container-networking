@@ -29,7 +29,7 @@
 #define SERVICE_DISPLAY_NAME     L"Aquarius Kernel"
 
 // Service start options.
-#define SERVICE_START_TYPE       SERVICE_DEMAND_START
+#define SERVICE_START_TYPE       SERVICE_AUTO_START
 
 // List of service dependencies - "dep1\0dep2\0\0"
 #define SERVICE_DEPENDENCIES     L""
@@ -71,7 +71,7 @@ int wmain(int argc, wchar_t *argv[])
                 SERVICE_DEPENDENCIES,       // Dependencies
                 SERVICE_ACCOUNT,            // Service running account
                 SERVICE_PASSWORD            // Password of the account
-                );
+                );           
         }
         else if (_wcsicmp(L"remove", argv[1] + 1) == 0)
         {

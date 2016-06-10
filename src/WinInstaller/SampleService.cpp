@@ -23,12 +23,13 @@ CSampleService::CSampleService(PWSTR pszServiceName,
 : CServiceBase(pszServiceName, fCanStop, fCanShutdown, fCanPauseContinue)
 {
     m_fStopping = FALSE;
-
+    WriteEventLogEntry(L"Going to send a reset event to Aq.Kernel", EVENTLOG_INFORMATION_TYPE);
     // Create a manual-reset event that is not signaled at first to indicate 
     // the stopped signal of the service.
     m_hStoppedEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (m_hStoppedEvent == NULL)
     {
+        WriteEventLogEntry(L"Got a null event. Going to throw the last error.", EVENTLOG_INFORMATION_TYPE);
         throw GetLastError();
     }
 }
@@ -72,11 +73,12 @@ CSampleService::~CSampleService(void)
 void CSampleService::OnStart(DWORD dwArgc, LPWSTR *lpszArgv)
 {
     // Log a service start message to the Application log.
-    WriteEventLogEntry(L"CppWindowsService in OnStart", 
+    WriteEventLogEntry(L"Aq.Kernel in OnStart", 
         EVENTLOG_INFORMATION_TYPE);
 
     // Queue the main service function for execution in a worker thread.
     CThreadPool::QueueUserWorkItem(&CSampleService::ServiceWorkerThread, this);
+    WriteEventLogEntry(L"Enqueued the worker", EVENTLOG_INFORMATION_TYPE);
 }
 
 
@@ -92,7 +94,8 @@ void CSampleService::ServiceWorkerThread(void)
     while (!m_fStopping)
     {
         // Perform main service function here...
-
+        WriteEventLogEntry(L"Aq.Kernel doing work", 
+        EVENTLOG_INFORMATION_TYPE);
         ::Sleep(2000);  // Simulate some lengthy operations.
     }
 
@@ -116,7 +119,7 @@ void CSampleService::ServiceWorkerThread(void)
 void CSampleService::OnStop()
 {
     // Log a service stop message to the Application log.
-    WriteEventLogEntry(L"CppWindowsService in OnStop", 
+    WriteEventLogEntry(L"Aq.Kernel in OnStop", 
         EVENTLOG_INFORMATION_TYPE);
 
     // Indicate that the service is stopping and wait for the finish of the 
