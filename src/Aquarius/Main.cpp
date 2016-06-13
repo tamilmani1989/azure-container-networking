@@ -1,6 +1,6 @@
 /****************************** Module Header ******************************\
 * Module Name:  Main.cpp
-* Project:      WinInstaller
+* Project:      Aquarius
 * Copyright (c) Microsoft Corporation.
 * 
 * The file defines the entry point of the application. According to the 
@@ -38,7 +38,7 @@
 #define SERVICE_ACCOUNT          L"NT AUTHORITY\\LocalService"
 
 // The password to the service account name
-#define SERVICE_PASSWORD         NULL
+#define SERVICE_PASSWORD         nullptr
 
 
 //

@@ -1,6 +1,6 @@
 /****************************** Module Header ******************************\
 * Module Name:  AquariusInstaller.cpp
-* Project:      WinInstaller
+* Project:      Aquarius
 * Copyright (c) Microsoft Corporation.
 * 
 * The file implements functions that install and uninstall the service.
@@ -43,18 +43,18 @@ void InstallService(PWSTR pszServiceName,
                     PWSTR pszPassword)
 {
     wchar_t szPath[MAX_PATH];
-    SC_HANDLE schSCManager = NULL;
-    SC_HANDLE schService = NULL;
+    SC_HANDLE schSCManager = nullptr;
+    SC_HANDLE schService = nullptr;
 
-    if (GetModuleFileName(NULL, szPath, ARRAYSIZE(szPath)) == 0)
+    if (GetModuleFileName(nullptr, szPath, ARRAYSIZE(szPath)) == 0)
     {
         wprintf(L"GetModuleFileName failed w/err 0x%08lx\n", GetLastError());
         goto Cleanup;
     }
 
     // Open the local default service control manager database
-    schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
-    if (schSCManager == NULL)
+    schSCManager = OpenSCManager(nullptr, nullptr, SC_MANAGER_ALL_ACCESS);
+    if (schSCManager == nullptr)
     {
         wprintf(L"OpenSCManager failed w/err 0x%08lx\n", GetLastError());
         goto Cleanup;
@@ -70,13 +70,13 @@ void InstallService(PWSTR pszServiceName,
         dwStartType,                    // Service start type
         SERVICE_ERROR_NORMAL,           // Error control type
         szPath,                         // Service's binary
-        NULL,                           // No load ordering group
-        NULL,                           // No tag identifier
+        nullptr,                           // No load ordering group
+        nullptr,                           // No tag identifier
         pszDependencies,                // Dependencies
         pszAccount,                     // Service running account
         pszPassword                     // Password of the account
         );
-    if (schService == NULL)
+    if (schService == nullptr)
     {
         wprintf(L"CreateService failed w/err 0x%08lx\n", GetLastError());
         goto Cleanup;
@@ -98,12 +98,12 @@ Cleanup:
     if (schSCManager)
     {
         CloseServiceHandle(schSCManager);
-        schSCManager = NULL;
+        schSCManager = nullptr;
     }
     if (schService)
     {
         CloseServiceHandle(schService);
-        schService = NULL;
+        schService = nullptr;
     }
 }
 
@@ -122,13 +122,13 @@ Cleanup:
 //
 void UninstallService(PWSTR pszServiceName)
 {
-    SC_HANDLE schSCManager = NULL;
-    SC_HANDLE schService = NULL;
+    SC_HANDLE schSCManager = nullptr;
+    SC_HANDLE schService = nullptr;
     SERVICE_STATUS ssSvcStatus = {};
 
     // Open the local default service control manager database
-    schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
-    if (schSCManager == NULL)
+    schSCManager = OpenSCManager(nullptr, nullptr, SC_MANAGER_CONNECT);
+    if (schSCManager == nullptr)
     {
         wprintf(L"OpenSCManager failed w/err 0x%08lx\n", GetLastError());
         goto Cleanup;
@@ -137,7 +137,7 @@ void UninstallService(PWSTR pszServiceName)
     // Open the service with delete, stop, and query status permissions
     schService = OpenService(schSCManager, pszServiceName, SERVICE_STOP | 
         SERVICE_QUERY_STATUS | DELETE);
-    if (schService == NULL)
+    if (schService == nullptr)
     {
         wprintf(L"OpenService failed w/err 0x%08lx\n", GetLastError());
         goto Cleanup;
@@ -183,11 +183,11 @@ Cleanup:
     if (schSCManager)
     {
         CloseServiceHandle(schSCManager);
-        schSCManager = NULL;
+        schSCManager = nullptr;
     }
     if (schService)
     {
         CloseServiceHandle(schService);
-        schService = NULL;
+        schService = nullptr;
     }
 }

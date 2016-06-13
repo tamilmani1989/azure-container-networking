@@ -1,6 +1,6 @@
 /****************************** Module Header ******************************\
 * Module Name:  SampleService.h
-* Project:      WinInstaller
+* Project:      Aquarius
 * Copyright (c) Microsoft Corporation.
 * 
 * Class that derives from the service base class AquariusSvcBase. 
@@ -14,7 +14,6 @@
 
 #include "AquariusSvcBase.h"
 
-
 class AquariusService : public AquariusSvcBase
 {
 public:
@@ -27,8 +26,8 @@ public:
 
 protected:
 
-    virtual void OnStart(DWORD dwArgc, PWSTR *pszArgv);
-    virtual void OnStop();
+	void OnStart(DWORD dwArgc, PWSTR *pszArgv) override;
+	void OnStop() override;
 
     void ServiceWorkerThread(void);
 

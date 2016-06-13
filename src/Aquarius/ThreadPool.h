@@ -1,6 +1,6 @@
 /****************************** Module Header ******************************\
 * Module Name:  ThreadPool.h
-* Project:      WinInstaller
+* Project:      Aquarius
 * Copyright (c) Microsoft Corporation.
 \***************************************************************************/
 

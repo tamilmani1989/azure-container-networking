@@ -1,6 +1,6 @@
 /****************************** Module Header ******************************\
 * Module Name:  AquariusInstaller.h
-* Project:      WinInstaller
+* Project:      Aquarius
 * Copyright (c) Microsoft Corporation.
 * 
 * The file declares functions that install and uninstall the service.

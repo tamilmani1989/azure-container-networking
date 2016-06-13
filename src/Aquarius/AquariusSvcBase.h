@@ -1,9 +1,9 @@
 /****************************** Module Header ******************************\
-* Module Name:  ServiceBase.h
-* Project:      WinInstaller
+* Module Name:  AquariusSvcBase.h
+* Project:      Aquarius
 * Copyright (c) Microsoft Corporation.
 * 
-* Provides a base class for a service that will exist as part of a service 
+* Provides a base class for Aquarius service that will exist as part of a service 
 * application. AquariusSvcBase must be derived from when creating a new service 
 * class.
 * 
@@ -18,16 +18,9 @@ class AquariusSvcBase
 {
 public:
 
-    // Register the executable for a service with the Service Control Manager 
-    // (SCM). After you call Run(ServiceBase), the SCM issues a Start command, 
-    // which results in a call to the OnStart method in the service. This 
-    // method blocks until the service has stopped.
-    static BOOL Run(AquariusSvcBase &service);
-
-    // Service object constructor. The optional parameters (fCanStop, 
-    // fCanShutdown and fCanPauseContinue) allow you to specify whether the 
-    // service can be stopped, paused and continued, or be notified when 
-    // system shutdown occurs.
+    // The optional parameters (fCanStop, fCanShutdown and fCanPauseContinue) 
+	// indicate whether the service can be stopped, paused and continued, or 
+	// be notified when system shutdown occurs.
     AquariusSvcBase(PWSTR pszServiceName, 
         BOOL fCanStop = TRUE, 
         BOOL fCanShutdown = TRUE, 
@@ -35,6 +28,12 @@ public:
 
     // Service object destructor. 
     virtual ~AquariusSvcBase(void);
+
+    // Register the executable for a service with the Service Control Manager 
+    // (SCM). After you call Run(ServiceBase), the SCM issues a Start command, 
+    // which results in a call to the OnStart method in the service. This 
+    // method blocks until the service has stopped.
+    static BOOL Run(AquariusSvcBase &service);
 
     // Stop the service.
     void Stop();
@@ -73,11 +72,11 @@ protected:
         DWORD dwWaitHint = 0);
 
     // Log a message to the Application event log.
-    void WriteEventLogEntry(PWSTR pszMessage, WORD wType);
-
-    // Log an error message to the Application event log.
+    void WriteEventLogEntry(PWSTR pszMessage, WORD wType) const;
+	void WriteErrorLogEntry(PWSTR pszFunction, DWORD dwError);
+	// Log an error message to the Application event log.
     void WriteErrorLogEntry(PWSTR pszFunction, 
-        DWORD dwError = GetLastError());
+        DWORD dwError = GetLastError()) const;
 
 private:
 

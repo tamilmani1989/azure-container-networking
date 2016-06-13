@@ -1,6 +1,6 @@
 /****************************** Module Header ******************************\
-* Module Name:  ServiceBase.cpp
-* Project:      WinInstaller
+* Module Name:  AquariusSvcBase.cpp
+* Project:      Aquarius
 * Copyright (c) Microsoft Corporation.
 * 
 * Provides a base class for a service that will exist as part of a service 
@@ -19,13 +19,13 @@
 #pragma region Static Members
 
 // Initialize the singleton service instance.
-AquariusSvcBase *AquariusSvcBase::s_service = NULL;
+AquariusSvcBase *AquariusSvcBase::s_service = nullptr;
 
 
 //
 //   FUNCTION: AquariusSvcBase::Run(AquariusSvcBase &)
 //
-//   PURPOSE: Register the executable for a service with the Service Control 
+//   PURPOSE: Register the executable for Aquarius with the Service Control 
 //   Manager (SCM). After you call Run(ServiceBase), the SCM issues a Start 
 //   command, which results in a call to the OnStart method in the service. 
 //   This method blocks until the service has stopped.
@@ -44,16 +44,11 @@ BOOL AquariusSvcBase::Run(AquariusSvcBase &service)
     SERVICE_TABLE_ENTRY serviceTable[] = 
     {
         { service.m_name, ServiceMain },
-        { NULL, NULL }
-    };    
+        { nullptr, nullptr }
+    };  
 
-    // Connects the main thread of a service process to the service control 
-    // manager, which causes the thread to be the service control dispatcher 
-    // thread for the calling process. This call returns when the service has 
-    // stopped. The process should simply terminate when the call returns.
     return StartServiceCtrlDispatcher(serviceTable);
 }
-
 
 //
 //   FUNCTION: AquariusSvcBase::ServiceMain(DWORD, PWSTR *)
@@ -67,13 +62,13 @@ BOOL AquariusSvcBase::Run(AquariusSvcBase &service)
 //
 void WINAPI AquariusSvcBase::ServiceMain(DWORD dwArgc, PWSTR *pszArgv)
 {
-    assert(s_service != NULL);
+    assert(s_service != nullptr);
     
     // Register the handler function for the service
     s_service->m_statusHandle = RegisterServiceCtrlHandler(
         s_service->m_name, ServiceCtrlHandler);
 
-    if (s_service->m_statusHandle == NULL)
+    if (s_service->m_statusHandle == nullptr)
     {
         throw GetLastError();
     }
@@ -144,10 +139,10 @@ AquariusSvcBase::AquariusSvcBase(PWSTR pszServiceName,
                            BOOL fCanShutdown, 
                            BOOL fCanPauseContinue)
 {
-    // Service name must be a valid string and cannot be NULL.
-    m_name = (pszServiceName == NULL) ? L"" : pszServiceName;
+    // Service name must be a valid string and cannot be nullptr.
+    m_name = (pszServiceName == nullptr) ? L"" : pszServiceName;
 
-    m_statusHandle = NULL;
+    m_statusHandle = nullptr;
 
     // The service runs in its own process.
     m_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
@@ -515,12 +510,12 @@ void AquariusSvcBase::SetServiceStatus(DWORD dwCurrentState,
 //     EVENTLOG_INFORMATION_TYPE
 //     EVENTLOG_WARNING_TYPE
 //
-void AquariusSvcBase::WriteEventLogEntry(PWSTR pszMessage, WORD wType)
+void AquariusSvcBase::WriteEventLogEntry(PWSTR pszMessage, WORD wType) const
 {
-    HANDLE hEventSource = NULL;
-    LPCWSTR lpszStrings[2] = { NULL, NULL };
+    HANDLE hEventSource;
+    LPCWSTR lpszStrings[2] = { nullptr, nullptr };
 
-    hEventSource = RegisterEventSource(NULL, m_name);
+    hEventSource = RegisterEventSource(nullptr, m_name);
     if (hEventSource)
     {
         lpszStrings[0] = m_name;
@@ -530,11 +525,11 @@ void AquariusSvcBase::WriteEventLogEntry(PWSTR pszMessage, WORD wType)
             wType,                 // Event type
             0,                     // Event category
             0,                     // Event identifier
-            NULL,                  // No security identifier
+            nullptr,                  // No security identifier
             2,                     // Size of lpszStrings array
             0,                     // No binary data
             lpszStrings,           // Array of strings
-            NULL                   // No binary data
+            nullptr                   // No binary data
             );
 
         DeregisterEventSource(hEventSource);

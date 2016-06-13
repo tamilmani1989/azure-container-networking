@@ -1,6 +1,6 @@
 /****************************** Module Header ******************************\
-* Module Name:  SampleService.cpp
-* Project:      WinInstaller
+* Module Name:  AquariusService.cpp
+* Project:      Aquarius
 * Copyright (c) Microsoft Corporation.
 * 
 * Provides a sample service class that derives from the service base class - 
@@ -26,8 +26,8 @@ AquariusService::AquariusService(PWSTR pszServiceName,
     WriteEventLogEntry(L"Going to send a reset event to AquariusSvc", EVENTLOG_INFORMATION_TYPE);
     // Create a manual-reset event that is not signaled at first to indicate 
     // the stopped signal of the service.
-    m_hStoppedEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (m_hStoppedEvent == NULL)
+    m_hStoppedEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+    if (m_hStoppedEvent == nullptr)
     {
         WriteEventLogEntry(L"Got a null event. Going to throw the last error.", EVENTLOG_INFORMATION_TYPE);
         throw GetLastError();
@@ -40,7 +40,7 @@ AquariusService::~AquariusService(void)
     if (m_hStoppedEvent)
     {
         CloseHandle(m_hStoppedEvent);
-        m_hStoppedEvent = NULL;
+        m_hStoppedEvent = nullptr;
     }
 }
 
@@ -51,29 +51,12 @@ AquariusService::~AquariusService(void)
 //   PURPOSE: The function is executed when a Start command is sent to the 
 //   service by the SCM or when the operating system starts (for a service 
 //   that starts automatically). It specifies actions to take when the 
-//   service starts. In this code sample, OnStart logs a service-start 
-//   message to the Application log, and queues the main service function for 
-//   execution in a thread pool worker thread.
-//
-//   PARAMETERS:
-//   * dwArgc   - number of command line arguments
-//   * lpszArgv - array of command line arguments
-//
-//   NOTE: A service application is designed to be long running. Therefore, 
-//   it usually polls or monitors something in the system. The monitoring is 
-//   set up in the OnStart method. However, OnStart does not actually do the 
-//   monitoring. The OnStart method must return to the operating system after 
-//   the service's operation has begun. It must not loop forever or block. To 
-//   set up a simple monitoring mechanism, one general solution is to create 
-//   a timer in OnStart. The timer would then raise events in your code 
-//   periodically, at which time your service could do its monitoring. The 
-//   other solution is to spawn a new thread to perform the main service 
-//   functions, which is demonstrated in this code sample.
+//   service starts.
 //
 void AquariusService::OnStart(DWORD dwArgc, LPWSTR *lpszArgv)
 {
     // Log a service start message to the Application log.
-    WriteEventLogEntry(L"AquariusSvc in OnStart", 
+    WriteEventLogEntry(L"AquariusSvc is going to start.", 
         EVENTLOG_INFORMATION_TYPE);
 
     // Queue the main service function for execution in a worker thread.
