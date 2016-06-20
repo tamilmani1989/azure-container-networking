@@ -13,6 +13,7 @@
 #pragma once
 
 #include "AquariusSvcBase.h"
+#include "../Kernel/Kernel.h"
 
 class AquariusService : public AquariusSvcBase
 {
@@ -22,17 +23,25 @@ public:
         BOOL fCanStop = TRUE, 
         BOOL fCanShutdown = TRUE, 
         BOOL fCanPauseContinue = TRUE);
-    virtual ~AquariusService(void);
 
+	~AquariusService(void);
 protected:
+	AquariusKernel *aquariusKernel = nullptr;	
 
 	void OnStart(DWORD dwArgc, PWSTR *pszArgv) override;
 	void OnStop() override;
 
     void ServiceWorkerThread(void);
+	void InitializeServices(void);
 
 private:
 
     BOOL m_fStopping;
-    HANDLE m_hStoppedEvent;
+    HANDLE m_hStoppedEvent;	
+
+	wchar_t *defaultPackageStoreLocation = L"C:\\ProgramData\\Microsoft\\Aquarius\\Plugins\\";		
+	void GetPackageStoreLocation(wchar_t *packageStorePath, DWORD *size);
+	HKEY OpenRegistryKey(HKEY hRootKey, wchar_t* strKey);
+	void GetStringFromRegistry(HKEY configKey, wchar_t* key, wchar_t *returnValue, DWORD* size);
+	void HandleRegistryError(HKEY rootKey, wchar_t* subKey, LONG nError);
 };

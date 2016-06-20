@@ -26,9 +26,6 @@ public:
         BOOL fCanShutdown = TRUE, 
         BOOL fCanPauseContinue = FALSE);
 
-    // Service object destructor. 
-    virtual ~AquariusSvcBase(void);
-
     // Register the executable for a service with the Service Control Manager 
     // (SCM). After you call Run(ServiceBase), the SCM issues a Start command, 
     // which results in a call to the OnStart method in the service. This 
@@ -37,6 +34,9 @@ public:
 
     // Stop the service.
     void Stop();
+
+	// Service object destructor. 
+	virtual ~AquariusSvcBase(void);
 
 protected:
 
@@ -73,10 +73,7 @@ protected:
 
     // Log a message to the Application event log.
     void WriteEventLogEntry(PWSTR pszMessage, WORD wType) const;
-	void WriteErrorLogEntry(PWSTR pszFunction, DWORD dwError);
-	// Log an error message to the Application event log.
-    void WriteErrorLogEntry(PWSTR pszFunction, 
-        DWORD dwError = GetLastError()) const;
+	void WriteErrorLogEntry(PWSTR pszFunction, DWORD dwError);	
 
 private:
 

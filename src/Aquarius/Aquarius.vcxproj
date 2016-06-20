@@ -165,5 +165,10 @@
     <ClInclude Include="AquariusSvcBase.h" />
     <ClInclude Include="ThreadPool.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kernel\Kernel.vcxproj">
+      <Project>{eedb15ad-49c7-46c7-998a-fea8ce7fdd1b}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
