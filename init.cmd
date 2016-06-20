@@ -56,22 +56,30 @@ ECHO Generating Expanded CoreXT config
 
 SET ExpandedCoreXTConfigFile=%ROOT%\.gen\corext.expanded.config
 SET ResolveCorextConfig=%ROOT%\.config\corext.ResolveCorext.config
+@REM To Prevent updating the ResovleCoreXTConfig in the repo, try to use one in the NugetMachineInstallRoot
+IF EXIST "%NugetMachineInstallRoot%" (
+  IF NOT EXIST %NugetMachineInstallRoot%\corext.ResolveCorext.config COPY %ROOT%\.config\corext.ResolveCorext.config %NugetMachineInstallRoot%\corext.ResolveCorext.config
+  SET "ResolveCorextConfig=%NugetMachineInstallRoot%\corext.ResolveCorext.config"
+)
 SET TEMPCoreXTConfigFile=%CoreXTConfigFile%
 SET CoreXTConfigFile=%ResolveCorextConfig%
 
 SET OnlineCommand=
 SET Pipe=
+
 IF /I "%IsOfficialBuild%"=="true" SET OnlineCommand=--Online
-IF DEFINED NugetMachineInstallRoot SET PIPE= ^> nul
+IF /I "%QBUILD_DISTRIBUTED%"=="1" SET UpdatePackageVersionCommand=--DoNotUpdatePackageVersion
 
 REM Piping to null to keep the output clean, but still show warnings and errors
-CALL :BootstrapCorext %PIPE%
+CALL :BootstrapCorext || (
+    SET CoreXTConfigFile=%TEMPCoreXTConfigFile%
+    EXIT /B 1
+)
 
 SET CoreXTConfigFile=%TEMPCoreXTConfigFile%
-CALL ResolveCorextConfig --SourceRoot %ROOT%\src --ExpandedCorextConfig %ExpandedCoreXTConfigFile% %OnlineCommand% --ExpandPackages --AutoUpdateResolveCoreXTConfig > nul
+CALL ResolveCorextConfig --SourceRoot %ROOT%\src --ExpandedCorextConfig %ExpandedCoreXTConfigFile% %OnlineCommand% --ExpandPackages --AutoUpdateResolveCoreXTConfig %UpdatePackageVersionCommand%
 SET CoreXTConfigFile=%ExpandedCoreXTConfigFile%
 GOTO :EOF
-
 
 @REM -----------------------------------------------------------------------------------
 @REM -----------------------------------------------------------------------------------
