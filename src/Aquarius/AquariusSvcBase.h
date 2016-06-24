@@ -71,10 +71,6 @@ protected:
         DWORD dwWin32ExitCode = NO_ERROR, 
         DWORD dwWaitHint = 0);
 
-    // Log a message to the Application event log.
-    void WriteEventLogEntry(PWSTR pszMessage, WORD wType) const;
-	void WriteErrorLogEntry(PWSTR pszFunction, DWORD dwError);	
-
 private:
 
     // Entry point for the service. It registers the handler function for the 

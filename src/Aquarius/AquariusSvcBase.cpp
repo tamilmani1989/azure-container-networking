@@ -13,6 +13,7 @@
 #include "AquariusSvcBase.h"
 #include <assert.h>
 #include <strsafe.h>
+#include "../Shared/Utilities.h"
 #pragma endregion
 
 
@@ -198,25 +199,25 @@ void AquariusSvcBase::Start(DWORD dwArgc, PWSTR *pszArgv)
     try
     {
         
-       WriteEventLogEntry(L"Going to set status as pending", EVENTLOG_INFORMATION_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Going to set status as pending", EVENTLOG_INFORMATION_TYPE);
 
         // Tell SCM that the service is starting.
         SetServiceStatus(SERVICE_START_PENDING);
 
-        WriteEventLogEntry(L"Going to call on start", EVENTLOG_INFORMATION_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Going to call on start", EVENTLOG_INFORMATION_TYPE);
         // Perform service-specific initialization.
         OnStart(dwArgc, pszArgv);
 
-        WriteEventLogEntry(L"Going to mark service as running", EVENTLOG_INFORMATION_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Going to mark service as running", EVENTLOG_INFORMATION_TYPE);
         // Tell SCM that the service is started.
         SetServiceStatus(SERVICE_RUNNING);
 
-        WriteEventLogEntry(L"Successfully marked as running.", EVENTLOG_INFORMATION_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Successfully marked as running.", EVENTLOG_INFORMATION_TYPE);
     }
     catch (DWORD dwError)
     {
         // Log the error.
-        WriteErrorLogEntry(L"Service Start", dwError);
+		AquariusUtilities::WriteErrorLogEntry(L"Service Start", dwError);
 
         // Set the service status to be stopped.
         SetServiceStatus(SERVICE_STOPPED, dwError);
@@ -224,7 +225,7 @@ void AquariusSvcBase::Start(DWORD dwArgc, PWSTR *pszArgv)
     catch (...)
     {
         // Log the error.
-        WriteEventLogEntry(L"Service failed to start.", EVENTLOG_ERROR_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Service failed to start.", EVENTLOG_ERROR_TYPE);
 
         // Set the service status to be stopped.
         SetServiceStatus(SERVICE_STOPPED);
@@ -277,7 +278,7 @@ void AquariusSvcBase::Stop()
     catch (DWORD dwError)
     {
         // Log the error.
-        WriteErrorLogEntry(L"Service Stop", dwError);
+		AquariusUtilities::WriteErrorLogEntry(L"Service Stop", dwError);
 
         // Set the orginal service status.
         SetServiceStatus(dwOriginalState);
@@ -285,7 +286,7 @@ void AquariusSvcBase::Stop()
     catch (...)
     {
         // Log the error.
-        WriteEventLogEntry(L"Service failed to stop.", EVENTLOG_ERROR_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Service failed to stop.", EVENTLOG_ERROR_TYPE);
 
         // Set the orginal service status.
         SetServiceStatus(dwOriginalState);
@@ -332,7 +333,7 @@ void AquariusSvcBase::Pause()
     catch (DWORD dwError)
     {
         // Log the error.
-        WriteErrorLogEntry(L"Service Pause", dwError);
+		AquariusUtilities::WriteErrorLogEntry(L"Service Pause", dwError);
 
         // Tell SCM that the service is still running.
         SetServiceStatus(SERVICE_RUNNING);
@@ -340,7 +341,7 @@ void AquariusSvcBase::Pause()
     catch (...)
     {
         // Log the error.
-        WriteEventLogEntry(L"Service failed to pause.", EVENTLOG_ERROR_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Service failed to pause.", EVENTLOG_ERROR_TYPE);
 
         // Tell SCM that the service is still running.
         SetServiceStatus(SERVICE_RUNNING);
@@ -385,7 +386,7 @@ void AquariusSvcBase::Continue()
     catch (DWORD dwError)
     {
         // Log the error.
-        WriteErrorLogEntry(L"Service Continue", dwError);
+		AquariusUtilities::WriteErrorLogEntry(L"Service Continue", dwError);
 
         // Tell SCM that the service is still paused.
         SetServiceStatus(SERVICE_PAUSED);
@@ -393,7 +394,7 @@ void AquariusSvcBase::Continue()
     catch (...)
     {
         // Log the error.
-        WriteEventLogEntry(L"Service failed to resume.", EVENTLOG_ERROR_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Service failed to resume.", EVENTLOG_ERROR_TYPE);
 
         // Tell SCM that the service is still paused.
         SetServiceStatus(SERVICE_PAUSED);
@@ -434,12 +435,12 @@ void AquariusSvcBase::Shutdown()
     catch (DWORD dwError)
     {
         // Log the error.
-        WriteErrorLogEntry(L"Service Shutdown", dwError);
+		AquariusUtilities::WriteErrorLogEntry(L"Service Shutdown", dwError);
     }
     catch (...)
     {
         // Log the error.
-        WriteEventLogEntry(L"Service failed to shut down.", EVENTLOG_ERROR_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Service failed to shut down.", EVENTLOG_ERROR_TYPE);
     }
 }
 
@@ -493,65 +494,6 @@ void AquariusSvcBase::SetServiceStatus(DWORD dwCurrentState,
 }
 
 
-//
-//   FUNCTION: AquariusSvcBase::WriteEventLogEntry(PWSTR, WORD)
-//
-//   PURPOSE: Log a message to the Application event log.
-//
-//   PARAMETERS:
-//   * pszMessage - string message to be logged.
-//   * wType - the type of event to be logged. The parameter can be one of 
-//     the following values.
-//
-//     EVENTLOG_SUCCESS
-//     EVENTLOG_AUDIT_FAILURE
-//     EVENTLOG_AUDIT_SUCCESS
-//     EVENTLOG_ERROR_TYPE
-//     EVENTLOG_INFORMATION_TYPE
-//     EVENTLOG_WARNING_TYPE
-//
-void AquariusSvcBase::WriteEventLogEntry(PWSTR pszMessage, WORD wType) const
-{
-    HANDLE hEventSource;
-    LPCWSTR lpszStrings[2] = { nullptr, nullptr };
 
-    hEventSource = RegisterEventSource(nullptr, m_name);
-    if (hEventSource)
-    {
-        lpszStrings[0] = m_name;
-        lpszStrings[1] = pszMessage;
-
-        ReportEvent(hEventSource,  // Event log handle
-            wType,                 // Event type
-            0,                     // Event category
-            0,                     // Event identifier
-            nullptr,                  // No security identifier
-            2,                     // Size of lpszStrings array
-            0,                     // No binary data
-            lpszStrings,           // Array of strings
-            nullptr                   // No binary data
-            );
-
-        DeregisterEventSource(hEventSource);
-    }
-}
-
-
-//
-//   FUNCTION: AquariusSvcBase::WriteErrorLogEntry(PWSTR, DWORD)
-//
-//   PURPOSE: Log an error message to the Application event log.
-//
-//   PARAMETERS:
-//   * pszFunction - the function that gives the error
-//   * dwError - the error code
-//
-void AquariusSvcBase::WriteErrorLogEntry(PWSTR pszFunction, DWORD dwError)
-{
-    wchar_t szMessage[260];
-    StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-        L"%s failed w/err 0x%08lx", pszFunction, dwError);
-    WriteEventLogEntry(szMessage, EVENTLOG_ERROR_TYPE);
-}
 
 #pragma endregion

@@ -8,12 +8,8 @@
 *
 \***************************************************************************/
 
-
-#include <stdio.h>
-#include <wchar.h>
 #include "Kernel.h"
 
-void fun(){}
 AquariusKernel::AquariusKernel(wchar_t* storeLocation): packageStoreLocation(nullptr) 
 {	
 	int len = wcslen(storeLocation);
@@ -55,7 +51,7 @@ void AquariusKernel::RetrievePackageDeploymentJobs()
 	
 }
 
-void AquariusKernel::UpdatePackageStoreLocation(wchar_t* storeLocation)
+void AquariusKernel::UpdateCurrentPackageStoreLocation(wchar_t* storeLocation)
 {
 	// we need to lock as this got read when we populate package/plugin deployment jobs
 	kernel_objects_mutex._Lock();
@@ -66,11 +62,10 @@ void AquariusKernel::UpdatePackageStoreLocation(wchar_t* storeLocation)
 	}
 	packageStoreLocation = new wchar_t[len];
 	wcscpy(packageStoreLocation, storeLocation);
-	kernel_objects_mutex._Unlock();
-	
+	kernel_objects_mutex._Unlock();	
 }
 
-wchar_t* AquariusKernel::GetPackageStoreLocation()
+wchar_t* AquariusKernel::GetCurrentPackageStoreLocation()
 {	
 	return packageStoreLocation;
 }

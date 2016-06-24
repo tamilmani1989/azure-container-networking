@@ -14,6 +14,7 @@
 
 #include "AquariusSvcBase.h"
 #include "../Kernel/Kernel.h"
+#include "../PackMan/AqPackageManager.h"
 
 class AquariusService : public AquariusSvcBase
 {
@@ -26,22 +27,19 @@ public:
 
 	~AquariusService(void);
 protected:
-	AquariusKernel *aquariusKernel = nullptr;	
+	AquariusKernel *aquariusKernel = nullptr;
+	AqPackageManager *aqPackageManager = nullptr;
 
 	void OnStart(DWORD dwArgc, PWSTR *pszArgv) override;
 	void OnStop() override;
 
-    void ServiceWorkerThread(void);
+	void ProcessPlugins(wchar_t* pluginDirectory);
+	void ServiceWorkerThread(void);
 	void InitializeServices(void);
 
 private:
 
     BOOL m_fStopping;
     HANDLE m_hStoppedEvent;	
-
-	wchar_t *defaultPackageStoreLocation = L"C:\\ProgramData\\Microsoft\\Aquarius\\Plugins\\";		
-	void GetPackageStoreLocation(wchar_t *packageStorePath, DWORD *size);
-	HKEY OpenRegistryKey(HKEY hRootKey, wchar_t* strKey);
-	void GetStringFromRegistry(HKEY configKey, wchar_t* key, wchar_t *returnValue, DWORD* size);
-	void HandleRegistryError(HKEY rootKey, wchar_t* subKey, LONG nError);
+	
 };

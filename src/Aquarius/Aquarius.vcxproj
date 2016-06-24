@@ -169,6 +169,9 @@
     <ProjectReference Include="..\Kernel\Kernel.vcxproj">
       <Project>{eedb15ad-49c7-46c7-998a-fea8ce7fdd1b}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\PackMan\PackMan.vcxproj">
+      <Project>{031d7578-bd04-45c2-bb91-5355b7f4c714}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

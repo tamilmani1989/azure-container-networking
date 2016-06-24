@@ -5,34 +5,29 @@
 \***************************************************************************/
 
 #include <iostream>
-
-class PackageDeploymentJob
-{
-public:
-
-};
+#include "../Shared/PackageDeploymentJob.h"
 
 class AquariusKernel
 {
 public:	
-	void UpdatePackageStoreLocation(wchar_t *packageStoreLocation);
-	wchar_t *GetPackageStoreLocation();
+	void UpdateCurrentPackageStoreLocation(wchar_t *packageStoreLocation);
+	wchar_t *GetCurrentPackageStoreLocation();
 	AquariusKernel(wchar_t *packagerStoreLocation);
 	~AquariusKernel();
 
 protected:
 
 private:
-	// location of the packages for all teh plugins that Aquarius supports
+	// location of the packages for all the plugins that Aquarius supports
 	wchar_t *packageStoreLocation = nullptr;
-
-	// mutex for kernel objects	
-	
-	std::_Mutex kernel_objects_mutex;
 
 	// all jobs that we need to process. These could be CRUD operations
 	// on modules in the customer's VM.
 	PackageDeploymentJob *packageDeploymentJobs = nullptr;
+
+	// mutex for kernel objects	
+	
+	std::_Mutex kernel_objects_mutex;
 
 	// whether the kernel is initialized or not
 	bool initialized = false;
