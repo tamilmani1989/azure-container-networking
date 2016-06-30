@@ -1,0 +1,160 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A4A6E35C-ADBD-4196-8263-2C659067C1ED}</ProjectGuid>
+    <RootNamespace>Aquarius</RootNamespace>
+    <ProjectName>AquariusGaExt</ProjectName>
+    <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
+    <Platform Condition="'$(Platform)' == ''">x64</Platform>
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <TrackFileAccess>false</TrackFileAccess>
+    <DDK_LIB_PATH>$(WindowsWDKTargetsPath)\lib\win8\km\$(Platform)</DDK_LIB_PATH>
+  </PropertyGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <MinimalRebuild>false</MinimalRebuild>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <UseFullPaths>true</UseFullPaths>
+      <OmitDefaultLibName>true</OmitDefaultLibName>
+      <StringPooling>true</StringPooling>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <StructMemberAlignment>8Bytes</StructMemberAlignment>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
+      <DisableSpecificWarnings>4986;4987;4471;4369;4309;4603;4627</DisableSpecificWarnings>
+      <ForcedIncludeFiles>$(PUBLIC_SHARED)\inc\warning.h;$(PUBLIC_INTERNAL_BASE)\inc\warning_x.h</ForcedIncludeFiles>
+      <PreprocessorDefinitions>CONDITION_HANDLING=1;NT_UP=1;NT_INST=0;WIN32=100;_NT1X_=100;WINNT=1;_WIN32_WINNT=0x0600;WINVER=0x0600;_WIN32_IE=0x0700;WIN32_LEAN_AND_MEAN=1;DEVL=1;_STATIC_CPPLIB;_STL70_;_DLL=1;_MT=1;STRICT;UNICODE;_UNICODE;_APISET_WINDOWS_VERSION=0x601;_APISET_MINWIN_VERSION=0x0100;_APISET_MINCORE_VERSION=0x0100;NTDDI_VERSION=0x06000100;BUILD_WINDOWS;__WRL_CONFIGURATION_LEGACY__;_USE_DECLSPECS_FOR_SAL=1;_ATL_STATIC_REGISTRY</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>
+        $(VERSIONPATH)\;
+        amd64\;
+        .;
+        $(PUBLIC_SDK)\inc\atlmfc;
+        $(PkgMicrosoft_WindowsAzure_EngSys_Internal_longhorn_rd_os142_OS_redist)\content\redist;
+        $(PkgMDS_MA)\lib\native\include;
+        $(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\inc;
+        $(SrcRoot)\V2NMAgent\Core;
+        $(PUBLIC_DDK)\inc;
+        $(PUBLIC_INTERNAL_SDK)\inc\minwin;
+        $(PUBLIC_INTERNAL_BASE)\inc;
+        $(SrcRoot)\External\Sapphire;
+        $(PUBLIC_OAK)\inc;
+        $(PUBLIC_SDK)\inc;
+        $(PUBLIC_SDK)\inc\minwin;
+        $(PUBLIC_SDK)\inc\mincore;
+        $(PUBLIC_SHARED)\inc;
+        $(PUBLIC_SHARED)\inc\minwin;
+        $(PUBLIC_INTERNAL_SDK)\inc;
+        $(PUBLIC_INTERNAL_OAK)\inc;
+        $(PUBLIC_SDK)\inc\crt;
+        $(PUBLIC_SDK)\inc\crt\stl70
+      </AdditionalIncludeDirectories>
+      <AdditionalOptions>/d1import_no_registry /d1nodatetime /d2AllowCompatibleILVersions /d2Zi+ /favor:AMD64 </AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>DBG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <Optimization>Full</Optimization>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <PreprocessorDefinitions>NDEBUG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>_WIN64=1;_AMD64_=1;AMD64=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <CreateHotPatchableImage>X64Image</CreateHotPatchableImage>
+      <SubSystem>console</SubSystem>
+      <StackCommitSize>0x2000</StackCommitSize>
+      <StackReserveSize>0x80000</StackReserveSize>
+      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
+      <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
+      <RandomizedBaseAddress>true</RandomizedBaseAddress>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalOptions>/MERGE:_PAGE=PAGE /MERGE:_TEXT=.text /OPT:REF /OPT:ICF /IGNORE:4010,4037,4039,4065,4070,4078,4087,4089,4221,4198 /INCREMENTAL:NO /release /WX /debug /debugtype:cv,fixup,pdata /version:6.0 /osversion:6.0 /merge:.rdata=.text /NOOPTIDATA /pdbcompress  /tsaware /highentropyva</AdditionalOptions>
+      <AdditionalDependencies>
+        $(PUBLIC_SDK)\lib\amd64\delayimp.lib;
+        $(PUBLIC_SDK)\lib\amd64\advapi32.lib;
+        $(PUBLIC_SDK)\lib\amd64\kernel32.lib;
+        $(PUBLIC_SDK)\lib\amd64\atls.lib;
+        $(PUBLIC_SDK)\lib\amd64\atlthunk.lib;
+        $(PUBLIC_SDK)\lib\amd64\ntstc_msvcrt.lib;
+        $(PUBLIC_SDK)\lib\amd64\msvcrt.lib;
+        $(PUBLIC_INTERNAL_SDK)\lib\amd64\clr40\mscoree.lib;
+        $(PUBLIC_SDK)\lib\amd64\cfgmgr32.lib;
+        $(PUBLIC_SDK)\lib\amd64\crypt32.lib;
+        $(PUBLIC_SDK)\lib\amd64\dbghelp.lib;
+        $(PUBLIC_SDK)\lib\amd64\Dnsapi.lib;
+        $(PUBLIC_SDK)\lib\amd64\httpapi.lib;
+        $(PUBLIC_SDK)\lib\amd64\iphlpapi.lib;
+        $(PUBLIC_SDK)\lib\amd64\Netapi32.lib;
+        $(PUBLIC_SDK)\lib\amd64\ntdll.lib;
+        $(PUBLIC_SDK)\lib\amd64\ole32.lib;
+        $(PUBLIC_SDK)\lib\amd64\rpcrt4.lib;
+        $(PUBLIC_SDK)\lib\amd64\SetupApi.lib;
+        $(PUBLIC_SDK)\lib\amd64\shlwapi.lib;
+        $(PUBLIC_SDK)\lib\amd64\user32.lib;
+        $(PUBLIC_SDK)\lib\amd64\uuid.lib;
+        $(PUBLIC_SDK)\lib\amd64\version.lib;
+        $(PUBLIC_SDK)\lib\amd64\ws2_32.lib;
+        $(PUBLIC_SDK)\lib\amd64\xmllite.lib;
+        $(PUBLIC_SDK)\lib\amd64\pdh.lib;
+        $(PUBLIC_SDK)\lib\amd64\wevtapi.lib;
+        $(PUBLIC_SDK)\lib\amd64\oleaut32.lib;
+        $(PUBLIC_SDK)\lib\amd64\wbemuuid.lib;
+        $(PUBLIC_SDK)\lib\amd64\ahadmin.lib;
+        $(PUBLIC_SDK)\lib\amd64\ncrypt.lib;
+        $(PUBLIC_SDK)\lib\amd64\vds_uuid.lib;
+        $(PUBLIC_SDK)\lib\amd64\shell32.lib;
+        $(PUBLIC_SDK)\lib\amd64\Fwpuclnt.lib;
+        $(PUBLIC_SDK)\lib\amd64\userenv.lib;
+        $(PUBLIC_SDK)\lib\amd64\Secur32.lib;
+        $(PUBLIC_SDK)\lib\amd64\psapi.lib;
+        $(PUBLIC_SDK)\lib\amd64\difxapi.lib;
+        $(PUBLIC_SDK)\lib\amd64\pathcch.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsupp.lib;
+        WebServices.lib;
+        $(PkgPolicyAgent_HSClient_Release)\HealthReportingClientLib.lib;
+      </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Main.cpp" />
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
