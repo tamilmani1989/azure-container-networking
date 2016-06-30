@@ -199,25 +199,25 @@ void AquariusSvcBase::Start(DWORD dwArgc, PWSTR *pszArgv)
     try
     {
         
-		AquariusUtilities::WriteEventLogEntry(L"Going to set status as pending", EVENTLOG_INFORMATION_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Going to set status as pending");
 
         // Tell SCM that the service is starting.
         SetServiceStatus(SERVICE_START_PENDING);
 
-		AquariusUtilities::WriteEventLogEntry(L"Going to call on start", EVENTLOG_INFORMATION_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Going to call on start");
         // Perform service-specific initialization.
         OnStart(dwArgc, pszArgv);
 
-		AquariusUtilities::WriteEventLogEntry(L"Going to mark service as running", EVENTLOG_INFORMATION_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Going to mark service as running");
         // Tell SCM that the service is started.
         SetServiceStatus(SERVICE_RUNNING);
 
-		AquariusUtilities::WriteEventLogEntry(L"Successfully marked as running.", EVENTLOG_INFORMATION_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Successfully marked as running.");
     }
     catch (DWORD dwError)
     {
         // Log the error.
-		AquariusUtilities::WriteErrorLogEntry(L"Service Start", dwError);
+		AquariusUtilities::WriteErrorLogEntry(L"Error during Service Start");
 
         // Set the service status to be stopped.
         SetServiceStatus(SERVICE_STOPPED, dwError);
@@ -225,7 +225,7 @@ void AquariusSvcBase::Start(DWORD dwArgc, PWSTR *pszArgv)
     catch (...)
     {
         // Log the error.
-		AquariusUtilities::WriteEventLogEntry(L"Service failed to start.", EVENTLOG_ERROR_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Service failed to start.");
 
         // Set the service status to be stopped.
         SetServiceStatus(SERVICE_STOPPED);
@@ -278,7 +278,7 @@ void AquariusSvcBase::Stop()
     catch (DWORD dwError)
     {
         // Log the error.
-		AquariusUtilities::WriteErrorLogEntry(L"Service Stop", dwError);
+		AquariusUtilities::WriteErrorLogEntry(L"Error during Service Stop");
 
         // Set the orginal service status.
         SetServiceStatus(dwOriginalState);
@@ -286,7 +286,7 @@ void AquariusSvcBase::Stop()
     catch (...)
     {
         // Log the error.
-		AquariusUtilities::WriteEventLogEntry(L"Service failed to stop.", EVENTLOG_ERROR_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Service failed to stop.");
 
         // Set the orginal service status.
         SetServiceStatus(dwOriginalState);
@@ -333,7 +333,7 @@ void AquariusSvcBase::Pause()
     catch (DWORD dwError)
     {
         // Log the error.
-		AquariusUtilities::WriteErrorLogEntry(L"Service Pause", dwError);
+		AquariusUtilities::WriteErrorLogEntry(L"Service Pause");
 
         // Tell SCM that the service is still running.
         SetServiceStatus(SERVICE_RUNNING);
@@ -341,7 +341,7 @@ void AquariusSvcBase::Pause()
     catch (...)
     {
         // Log the error.
-		AquariusUtilities::WriteEventLogEntry(L"Service failed to pause.", EVENTLOG_ERROR_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Service failed to pause.");
 
         // Tell SCM that the service is still running.
         SetServiceStatus(SERVICE_RUNNING);
@@ -386,7 +386,7 @@ void AquariusSvcBase::Continue()
     catch (DWORD dwError)
     {
         // Log the error.
-		AquariusUtilities::WriteErrorLogEntry(L"Service Continue", dwError);
+		AquariusUtilities::WriteErrorLogEntry(L"Service Continue");
 
         // Tell SCM that the service is still paused.
         SetServiceStatus(SERVICE_PAUSED);
@@ -394,7 +394,7 @@ void AquariusSvcBase::Continue()
     catch (...)
     {
         // Log the error.
-		AquariusUtilities::WriteEventLogEntry(L"Service failed to resume.", EVENTLOG_ERROR_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Service failed to resume.");
 
         // Tell SCM that the service is still paused.
         SetServiceStatus(SERVICE_PAUSED);
@@ -435,12 +435,12 @@ void AquariusSvcBase::Shutdown()
     catch (DWORD dwError)
     {
         // Log the error.
-		AquariusUtilities::WriteErrorLogEntry(L"Service Shutdown", dwError);
+		AquariusUtilities::WriteErrorLogEntry(L"Error during Service Shutdown");
     }
     catch (...)
     {
         // Log the error.
-		AquariusUtilities::WriteEventLogEntry(L"Service failed to shut down.", EVENTLOG_ERROR_TYPE);
+		AquariusUtilities::WriteErrorLogEntry(L"Service failed to shut down.");
     }
 }
 

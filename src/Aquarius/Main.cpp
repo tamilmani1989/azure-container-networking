@@ -8,7 +8,9 @@
 * starts the service by calling into different routines.
 * 
 \***************************************************************************/
-
+#define CRTDBG_MAP_ALLOC
+#include<stdlib.h>
+#include<crtdbg.h>
 #pragma region Includes
 #include <stdio.h>
 #include <windows.h>

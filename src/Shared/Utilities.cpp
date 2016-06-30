@@ -12,6 +12,8 @@
 // Name of the service
 #define SERVICE_NAME             L"AquariusSvc"
 
+int AquariusUtilities::allocator = 0;
+
 //
 //   FUNCTION: AquariusSvcBase::WriteEventLogEntry(PWSTR, WORD)
 //
@@ -29,8 +31,9 @@
 //     EVENTLOG_INFORMATION_TYPE
 //     EVENTLOG_WARNING_TYPE
 //
-void AquariusUtilities::WriteEventLogEntry(PWSTR pszMessage, WORD wType)
+void AquariusUtilities::WriteEventLogEntry(PWSTR pszMessage)
 {
+	WORD wType = EVENTLOG_INFORMATION_TYPE;
 	HANDLE hEventSource;
 	LPCWSTR lpszStrings[2] = { nullptr, nullptr };
 
@@ -64,10 +67,53 @@ void AquariusUtilities::WriteEventLogEntry(PWSTR pszMessage, WORD wType)
 //   * pszFunction - the function that gives the error
 //   * dwError - the error code
 //
-void AquariusUtilities::WriteErrorLogEntry(PWSTR pszFunction, DWORD dwError)
+void AquariusUtilities::WriteErrorLogEntry(PWSTR pszFunction)
 {
+	WORD wType = EVENTLOG_ERROR_TYPE;
 	wchar_t szMessage[260];
 	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-		L"%s failed w/err 0x%08lx", pszFunction, dwError);
-	WriteEventLogEntry(szMessage, EVENTLOG_ERROR_TYPE);
+		L"%s failed w/err 0x%08lx", pszFunction, wType);
+
+	HANDLE hEventSource;
+	LPCWSTR lpszStrings[2] = { nullptr, nullptr };
+
+	hEventSource = RegisterEventSource(nullptr, SERVICE_NAME);
+	if (hEventSource)
+	{
+		lpszStrings[0] = SERVICE_NAME;
+		lpszStrings[1] = szMessage;
+
+		ReportEvent(hEventSource,  // Event log handle
+			wType,                 // Event type
+			0,                     // Event category
+			0,                     // Event identifier
+			nullptr,                  // No security identifier
+			2,                     // Size of lpszStrings array
+			0,                     // No binary data
+			lpszStrings,           // Array of strings
+			nullptr                   // No binary data
+		);
+
+		DeregisterEventSource(hEventSource);
+	}
+}
+
+void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * pluginsMetadata)
+{
+	if (pluginsMetadata == nullptr)
+	{
+		AquariusUtilities::WriteErrorLogEntry((PWSTR)("Received a request to free null pluginMetadata"));
+		return;
+	}
+	for (int i = 0; i<count; i++)
+	{
+		if (pluginsMetadata[i].location != nullptr) {
+			delete pluginsMetadata[i].location;
+			pluginsMetadata[i].location = nullptr;
+			AquariusUtilities::allocator--;
+		}
+	}
+	delete[] pluginsMetadata;
+	pluginsMetadata = nullptr;
+	AquariusUtilities::allocator--;
 }

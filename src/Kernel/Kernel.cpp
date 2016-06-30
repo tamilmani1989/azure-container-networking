@@ -9,13 +9,15 @@
 \***************************************************************************/
 
 #include "Kernel.h"
+#include "../Shared/Utilities.h"
 
 AquariusKernel::AquariusKernel(wchar_t* storeLocation): packageStoreLocation(nullptr) 
 {	
 	int len = wcslen(storeLocation);
 	packageStoreLocation = new wchar_t[len];
+	AquariusUtilities::allocator++;
 	wcscpy(packageStoreLocation, storeLocation);
-	packageDeploymentJobs = nullptr;
+	pluginsMetadata = nullptr;
 	
 }
 
@@ -27,9 +29,9 @@ AquariusKernel::~AquariusKernel()
 	{
 		delete(packageStoreLocation);
 	}
-	if(packageDeploymentJobs != nullptr)
+	if(pluginsMetadata != nullptr)
 	{
-		delete(packageDeploymentJobs);
+		delete(pluginsMetadata);
 	}
 	kernel_objects_mutex._Unlock();
 	
@@ -43,9 +45,9 @@ void AquariusKernel::RetrievePackageDeploymentJobs()
 	// get the real job count
 	int jobcount = 1; 
 
-	PackageDeploymentJob *jobs = new PackageDeploymentJob[jobcount];	
+	//PluginMetadata *jobs = new PluginMetadata[jobcount];
 	
-	packageDeploymentJobs = jobs;
+	//pluginsMetadata = jobs;
 
 	kernel_objects_mutex._Unlock();
 	
@@ -58,9 +60,11 @@ void AquariusKernel::UpdateCurrentPackageStoreLocation(wchar_t* storeLocation)
 	int len = wcslen(storeLocation);
 	if(packageStoreLocation != nullptr)
 	{
-		delete(packageStoreLocation);
+		delete[] packageStoreLocation;
+		AquariusUtilities::allocator--;
 	}
 	packageStoreLocation = new wchar_t[len];
+	AquariusUtilities::allocator++;
 	wcscpy(packageStoreLocation, storeLocation);
 	kernel_objects_mutex._Unlock();	
 }
@@ -68,4 +72,9 @@ void AquariusKernel::UpdateCurrentPackageStoreLocation(wchar_t* storeLocation)
 wchar_t* AquariusKernel::GetCurrentPackageStoreLocation()
 {	
 	return packageStoreLocation;
+}
+
+void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
+{
+	
 }

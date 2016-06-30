@@ -1,11 +1,17 @@
 /****************************** Module Header ******************************\
-* Module Name:  PackageDeploymentJob.h
+* Module Name:  PluginMetadata.h
 * Project:      Aquarius
 * Copyright (c) Microsoft Corporation.
 \***************************************************************************/
 
-class PackageDeploymentJob
+#pragma once
+
+#include <iostream>
+
+class PluginMetadata
 {
 public:
-
+	// This is the version that should be running in the VM
+	wchar_t *currentVersion = nullptr;
+	wchar_t *location = nullptr;
 };

@@ -25,13 +25,13 @@ AquariusService::AquariusService(PWSTR pszServiceName,
 : AquariusSvcBase(pszServiceName, fCanStop, fCanShutdown, fCanPauseContinue)
 {
     m_fStopping = FALSE;
-	AquariusUtilities::WriteEventLogEntry(L"Going to send a reset event to AquariusSvc", EVENTLOG_INFORMATION_TYPE);
+	AquariusUtilities::WriteEventLogEntry(L"Going to send a reset event to AquariusSvc");
     // Create a manual-reset event that is not signaled at first to indicate 
     // the stopped signal of the service.
     m_hStoppedEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
     if (m_hStoppedEvent == nullptr)
     {
-		AquariusUtilities::WriteEventLogEntry(L"Got a null event. Going to throw the last error.", EVENTLOG_INFORMATION_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Got a null event. Going to throw the last error.");
         throw GetLastError();
     }
 }
@@ -57,12 +57,11 @@ AquariusService::~AquariusService(void)
 void AquariusService::OnStart(DWORD dwArgc, LPWSTR *lpszArgv)
 {
     // Log a service start message to the Application log.
-	AquariusUtilities::WriteEventLogEntry(L"AquariusSvc is going to start.",
-        EVENTLOG_INFORMATION_TYPE);
+	AquariusUtilities::WriteEventLogEntry(L"AquariusSvc is going to start.");
 	InitializeServices();
     // Queue the main service function for execution in a worker thread.
     CThreadPool::QueueUserWorkItem(&AquariusService::ServiceWorkerThread, this);
-	AquariusUtilities::WriteEventLogEntry(L"Enqueued the worker", EVENTLOG_INFORMATION_TYPE);
+	AquariusUtilities::WriteEventLogEntry(L"Enqueued the worker");
 }
 
 void AquariusService::InitializeServices(void)
@@ -76,6 +75,7 @@ void AquariusService::InitializeServices(void)
 	if (aquariusKernel == nullptr)
 	{		
 		aquariusKernel = new AquariusKernel(packageStoreLocation);
+		AquariusUtilities::allocator++;
 	}
 	else
 	{
@@ -84,6 +84,7 @@ void AquariusService::InitializeServices(void)
 	if(aqPackageManager == nullptr)
 	{
 		aqPackageManager = new AqPackageManager();
+		AquariusUtilities::allocator++;
 	}
 }
 
@@ -94,17 +95,28 @@ void AquariusService::ServiceWorkerThread(void)
     // Periodically check if the service is stopping.
     while (!m_fStopping)
     {
-		if(aquariusKernel != nullptr)
-		{
-			AquariusUtilities::WriteEventLogEntry(L"Aquarius Kernel is loaded", EVENTLOG_INFORMATION_TYPE);
-			wchar_t* pluginDirectory = aquariusKernel->GetCurrentPackageStoreLocation();
-			AquariusUtilities::WriteEventLogEntry((PWSTR)(pluginDirectory), EVENTLOG_INFORMATION_TYPE);
-			ProcessPlugins(pluginDirectory);
-		}
-        // Perform main service function here...
-		AquariusUtilities::WriteEventLogEntry(L"AquariusSvc doing work", EVENTLOG_INFORMATION_TYPE);
+		wchar_t szMessage[260];
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"# of allocations that are not deleted yet: %d.",
+			AquariusUtilities::allocator);
+		AquariusUtilities::WriteEventLogEntry(szMessage);
 
-        ::Sleep(2000);  // Simulate some lengthy operations.
+		try 
+		{
+			if (aquariusKernel != nullptr)
+			{
+				AquariusUtilities::WriteEventLogEntry(L"Aquarius Kernel is loaded");
+				wchar_t* pluginDirectory = aquariusKernel->GetCurrentPackageStoreLocation();
+				AquariusUtilities::WriteEventLogEntry((PWSTR)(pluginDirectory));
+				ProcessPlugins(pluginDirectory);
+			}
+			// Perform main service function here...
+			AquariusUtilities::WriteEventLogEntry(L"AquariusSvc doing work");
+		}
+		catch(const char *err)
+		{
+			AquariusUtilities::WriteErrorLogEntry((PWSTR)(err));
+		}
+        ::Sleep(1000);  // Simulate some lengthy operations.
     }
 
     // Signal the stopped event.
@@ -114,36 +126,59 @@ void AquariusService::ServiceWorkerThread(void)
 void AquariusService::OnStop()
 {
     // Log a service stop message to the Application log.
-	AquariusUtilities::WriteEventLogEntry(L"AquariusSvc in going to stop: OnStop is called",
-        EVENTLOG_INFORMATION_TYPE);
+	AquariusUtilities::WriteEventLogEntry(L"AquariusSvc in going to stop: OnStop is called");
 
 	if (aquariusKernel != nullptr)
 	{
-		AquariusUtilities::WriteEventLogEntry(L"Going to first unload Aquarius kernel", EVENTLOG_INFORMATION_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Going to first unload Aquarius kernel");
 		delete(aquariusKernel);
 		aquariusKernel = nullptr;
+		AquariusUtilities::allocator--;
 	}
 
 	if(aqPackageManager != nullptr)
 	{
-		AquariusUtilities::WriteEventLogEntry(L"Going to unload Aquarius PackageManager", EVENTLOG_INFORMATION_TYPE);
+		AquariusUtilities::WriteEventLogEntry(L"Going to unload Aquarius PackageManager");
 		delete(aqPackageManager);
+		AquariusUtilities::allocator--;
 		aqPackageManager = nullptr;
 	}
 
     // Indicate that the service is stopping and wait for the finish of the 
     // main service function (ServiceWorkerThread).
     m_fStopping = TRUE;
+
+	wchar_t szMessage[260];
+	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"# of allocations that were nto deleted: %d.",
+		AquariusUtilities::allocator);
+	AquariusUtilities::WriteEventLogEntry(szMessage);
+
     if (WaitForSingleObject(m_hStoppedEvent, INFINITE) != WAIT_OBJECT_0)
     {
         throw GetLastError();
     }
 }
 
+void AquariusService::DisplayPluginsMetadata(PluginMetadata* allPluginsMetadata, int pluginCount)
+{
+	wchar_t szMessage[260];
+	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Received %d plugins to process", pluginCount);
+	AquariusUtilities::WriteEventLogEntry(szMessage);
+	for(int i=0; i<pluginCount; i++)
+	{
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Plugin to process. Location: %s", allPluginsMetadata[i].location);
+		AquariusUtilities::WriteEventLogEntry(szMessage);
+	}
+}
+
 void AquariusService::ProcessPlugins(wchar_t* pluginDirectory)
 {
 	//  Get the goal state: 
-	// i.e., Get the current plugin versions to be in from Package Manager
-
+	// i.e., Get the plugin versions that should be current from Package Manager
+	PluginMetadata *allPluginsMetadata = nullptr;
+	int pluginCount = aqPackageManager->RetrievePluginsMetadata(&allPluginsMetadata);
+	DisplayPluginsMetadata(allPluginsMetadata, pluginCount);
+	aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata);
+	AquariusUtilities::ReleasePluginMetadata(pluginCount, allPluginsMetadata);
 	// Forward these to Kernel (retries are okay)
 }

@@ -9,12 +9,18 @@
 
 #include <windows.h>
 #include <strsafe.h>
+#include "PluginMetadata.h"
 
 class AquariusUtilities
 {
 public:
-	static void WriteEventLogEntry(PWSTR pszMessage, WORD wType);
+	static void WriteEventLogEntry(PWSTR pszMessage);
 
 	// Log a message to the Application event log.
-	static void WriteErrorLogEntry(PWSTR pszFunction, DWORD dwError);
+	static void WriteErrorLogEntry(PWSTR pszFunction);
+
+	static int allocator;
+
+	static void ReleasePluginMetadata(int count, PluginMetadata * pluginsMetadata);
+
 };

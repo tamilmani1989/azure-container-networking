@@ -32,7 +32,7 @@ protected:
 
 	void OnStart(DWORD dwArgc, PWSTR *pszArgv) override;
 	void OnStop() override;
-
+	void DisplayPluginsMetadata(PluginMetadata* allPluginsMetadata, int pluginCount);
 	void ProcessPlugins(wchar_t* pluginDirectory);
 	void ServiceWorkerThread(void);
 	void InitializeServices(void);

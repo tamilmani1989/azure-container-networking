@@ -5,15 +5,16 @@
 \***************************************************************************/
 
 #include <iostream>
-#include "../Shared/PackageDeploymentJob.h"
+#include "../Shared/PluginMetadata.h"
 
 class AquariusKernel
 {
 public:	
-	void UpdateCurrentPackageStoreLocation(wchar_t *packageStoreLocation);
-	wchar_t *GetCurrentPackageStoreLocation();
 	AquariusKernel(wchar_t *packagerStoreLocation);
 	~AquariusKernel();
+	void UpdateCurrentPackageStoreLocation(wchar_t *packageStoreLocation);
+	wchar_t *GetCurrentPackageStoreLocation();
+	void LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad);
 
 protected:
 
@@ -23,10 +24,9 @@ private:
 
 	// all jobs that we need to process. These could be CRUD operations
 	// on modules in the customer's VM.
-	PackageDeploymentJob *packageDeploymentJobs = nullptr;
+	PluginMetadata *pluginsMetadata = nullptr;
 
-	// mutex for kernel objects	
-	
+	// mutex for kernel objects		
 	std::_Mutex kernel_objects_mutex;
 
 	// whether the kernel is initialized or not

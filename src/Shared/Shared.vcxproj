@@ -101,7 +101,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="PackageDeploymentJob.h" />
+    <ClInclude Include="PluginMetadata.h" />
     <ClInclude Include="Utilities.h" />
   </ItemGroup>
   <ItemGroup>
