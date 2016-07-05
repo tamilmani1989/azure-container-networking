@@ -17,10 +17,6 @@ class AqPackageManager
 	protected:
 
 	private:
-		const static wchar_t *defaultPackageStoreLocation;
-		const static wchar_t *codeDirectoryName;
-		const static wchar_t *configFileName;
-		const static wchar_t *manifestFileName;
 
 		// mutex for package manager objects		
 		std::_Mutex packman_objects_mutex;

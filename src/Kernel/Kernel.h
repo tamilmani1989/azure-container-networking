@@ -24,7 +24,8 @@ private:
 
 	// all jobs that we need to process. These could be CRUD operations
 	// on modules in the customer's VM.
-	PluginMetadata *pluginsMetadata = nullptr;
+	int alreadyLoadedPluginCount = 0;
+	PluginMetadata *alreadyLoadedPluginsMetadata = nullptr;
 
 	// mutex for kernel objects		
 	std::_Mutex kernel_objects_mutex;

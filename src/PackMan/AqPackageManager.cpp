@@ -15,10 +15,6 @@
 
 #define PLUGIN_DIRECTORY_LEN 1024
 
-const wchar_t* AqPackageManager::defaultPackageStoreLocation = L"C:\\ProgramData\\Microsoft\\Aquarius\\Plugins";
-const wchar_t * AqPackageManager::codeDirectoryName = L"code";
-const wchar_t * AqPackageManager::configFileName = L"config.txt";
-const wchar_t * AqPackageManager::manifestFileName = L"manifest.xml";
 
 void AqPackageManager::GetPackageStoreLocation(wchar_t *packageStoreLocation, DWORD *size)
 {
@@ -28,7 +24,7 @@ void AqPackageManager::GetPackageStoreLocation(wchar_t *packageStoreLocation, DW
 	if (configKey == nullptr)
 	{
 		AquariusUtilities::WriteEventLogEntry(L"Registry key does not exist. Returning default package location.");		
-		wcscpy(packageStoreLocation, defaultPackageStoreLocation);
+		wcscpy(packageStoreLocation, AquariusUtilities::defaultPackageStoreLocation);
 		wchar_t szMessage[260];
 		StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Successfully returned default package location: %s", packageStoreLocation);
 		AquariusUtilities::WriteEventLogEntry(szMessage);
@@ -61,9 +57,10 @@ void AqPackageManager::CopyPluginsMetadata(PluginMetadata **allPluginsMetadata)
 int AqPackageManager::RetrievePluginsMetadata(PluginMetadata **allPluginsMetadata)
 {
 	AquariusUtilities::WriteEventLogEntry(L"Going to populate metadata for plugins.");
-	int pluginCount = 0;
+	int pluginCount;
 	packman_objects_mutex._Lock();
-	try {
+	try 
+	{
 		wchar_t packageStoreLocation[PLUGIN_DIRECTORY_LEN];
 		DWORD size = PLUGIN_DIRECTORY_LEN;
 		GetPackageStoreLocation(packageStoreLocation, &size);
@@ -137,20 +134,19 @@ void AqPackageManager::HandleRegistryError(HKEY rootKey, wchar_t* subKey, LONG n
 
 static int GetPluginCount(wchar_t* packageStoreLocation)
 {
+	HANDLE findHandle = nullptr;
 	wchar_t szMessage[260];
 	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"PackageStore Location in GetPluginCount: %s.",
 		packageStoreLocation);
 	AquariusUtilities::WriteEventLogEntry(szMessage);
 
 	int pluginCount = 0;
-	wchar_t *pluginDirectory = nullptr;
-	pluginDirectory = new wchar_t[wcslen(packageStoreLocation) + wcslen(L"\\*") + 1];
+	wchar_t *pluginDirectory = new wchar_t[wcslen(packageStoreLocation) + wcslen(L"\\*") + 1];
 	wcscpy(pluginDirectory, packageStoreLocation);
 	wcscat(pluginDirectory, L"\\*");
 	try {
 		AquariusUtilities::WriteEventLogEntry((PWSTR)(pluginDirectory));
 		WIN32_FIND_DATA findData;
-		HANDLE findHandle;		
 		findHandle = FindFirstFile(pluginDirectory, &findData);
 		if (findHandle == INVALID_HANDLE_VALUE)
 		{
@@ -175,19 +171,16 @@ static int GetPluginCount(wchar_t* packageStoreLocation)
 	}
 	catch(...)
 	{
-		if (pluginDirectory != nullptr) 
+		if(findHandle != nullptr && findHandle != INVALID_HANDLE_VALUE)
 		{
-			delete [] pluginDirectory;
-			pluginDirectory = nullptr;
+			FindClose(findHandle);
 		}
+		delete [] pluginDirectory;	
 		throw;
 	}
 
-	if (pluginDirectory != nullptr)
-	{
-		delete[] pluginDirectory;
-		pluginDirectory = nullptr;
-	}
+	FindClose(findHandle);
+	delete[] pluginDirectory;	
 	return pluginCount;
 }
 
@@ -195,16 +188,17 @@ static int GetPluginCount(wchar_t* packageStoreLocation)
 void AqPackageManager::PopulatePluginMetadataFromStore(wchar_t* packageStoreLocation)
 {
 	wchar_t szMessage[260];
+	HANDLE findHandle = nullptr;
+
 	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
 		L"PackageStore Location in PopulatePluginMetadataFromStore: %s.",
 		packageStoreLocation);
 	AquariusUtilities::WriteEventLogEntry(szMessage);
-
-	wchar_t *pluginDirectory = nullptr;
-	pluginDirectory = new wchar_t[wcslen(packageStoreLocation) + wcslen(L"\\*") + 1];
+	wchar_t *pluginDirectory = new wchar_t[wcslen(packageStoreLocation) + wcslen(L"\\*")];
 	AquariusUtilities::allocator++;
 	wcscpy(pluginDirectory, packageStoreLocation);
 	wcscat(pluginDirectory, L"\\*");
+	
 	try 
 	{
 		AquariusUtilities::WriteEventLogEntry((PWSTR)(pluginDirectory));
@@ -221,7 +215,6 @@ void AqPackageManager::PopulatePluginMetadataFromStore(wchar_t* packageStoreLoca
 		AquariusUtilities::allocator++;
 		// plugin count can change after we obtain the count, but thats okay
 		WIN32_FIND_DATA findData;
-		HANDLE findHandle;
 		findHandle = FindFirstFile(pluginDirectory, &findData);
 		if (findHandle == INVALID_HANDLE_VALUE)
 		{
@@ -246,14 +239,14 @@ void AqPackageManager::PopulatePluginMetadataFromStore(wchar_t* packageStoreLoca
 						L"Going to populate information for plugin: %s.", findData.cFileName);
 					AquariusUtilities::WriteEventLogEntry(szMessage);
 					packmanCurrentPluginsMetadata[processedCount].location = new wchar_t[
-						wcslen(packageStoreLocation) + wcslen(L"\\") + wcslen(findData.cFileName) + 1];
+						wcslen(packageStoreLocation) + wcslen(L"\\") + wcslen(findData.cFileName)];
 					AquariusUtilities::allocator++;
 					wcscpy(packmanCurrentPluginsMetadata[processedCount].location, packageStoreLocation);
 					wcscat(packmanCurrentPluginsMetadata[processedCount].location, L"\\");
 					wcscat(packmanCurrentPluginsMetadata[processedCount].location, findData.cFileName);
 					StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Obtained plugin path: %s", 
 						packmanCurrentPluginsMetadata[processedCount].location);
-					AquariusUtilities::WriteEventLogEntry(szMessage);					
+					AquariusUtilities::WriteEventLogEntry(szMessage);			
 					processedCount++;
 				}
 			}
@@ -264,26 +257,23 @@ void AqPackageManager::PopulatePluginMetadataFromStore(wchar_t* packageStoreLoca
 				// remaining will be picked up during next iteration.
 				break;
 			}
-
+			
 		} while (FindNextFile(findHandle, &findData));
 	}
 	catch(...)
 	{
-		if (pluginDirectory != nullptr)
+		if (findHandle != INVALID_HANDLE_VALUE && findHandle != nullptr) 
 		{
-			delete[] pluginDirectory;
-			pluginDirectory = nullptr;
-			AquariusUtilities::allocator--;
+			FindClose(findHandle);
 		}
+		delete[] pluginDirectory;
+		AquariusUtilities::allocator--;		
 		throw;
 	}
-
-	if (pluginDirectory != nullptr)
-	{
-		delete[] pluginDirectory;
-		pluginDirectory = nullptr;
-		AquariusUtilities::allocator--;
-	}
+	
+	FindClose(findHandle);
+	delete[] pluginDirectory;
+	AquariusUtilities::allocator--;	
 }
 
 AqPackageManager::~AqPackageManager()

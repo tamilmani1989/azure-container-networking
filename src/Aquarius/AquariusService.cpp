@@ -79,7 +79,7 @@ void AquariusService::InitializeServices(void)
 	}
 	else
 	{
-		aquariusKernel->UpdateCurrentPackageStoreLocation(packageStoreLocation);
+		//aquariusKernel->UpdateCurrentPackageStoreLocation(packageStoreLocation);
 	}
 	if(aqPackageManager == nullptr)
 	{
@@ -93,9 +93,10 @@ void AquariusService::InitializeServices(void)
 void AquariusService::ServiceWorkerThread(void)
 {
     // Periodically check if the service is stopping.
+	wchar_t szMessage[260];
+
     while (!m_fStopping)
     {
-		wchar_t szMessage[260];
 		StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"# of allocations that are not deleted yet: %d.",
 			AquariusUtilities::allocator);
 		AquariusUtilities::WriteEventLogEntry(szMessage);
@@ -105,8 +106,8 @@ void AquariusService::ServiceWorkerThread(void)
 			if (aquariusKernel != nullptr)
 			{
 				AquariusUtilities::WriteEventLogEntry(L"Aquarius Kernel is loaded");
-				wchar_t* pluginDirectory = aquariusKernel->GetCurrentPackageStoreLocation();
-				AquariusUtilities::WriteEventLogEntry((PWSTR)(pluginDirectory));
+				wchar_t* pluginDirectory = nullptr; // aquariusKernel->GetCurrentPackageStoreLocation();
+				//AquariusUtilities::WriteEventLogEntry((PWSTR)(pluginDirectory));
 				ProcessPlugins(pluginDirectory);
 			}
 			// Perform main service function here...
@@ -116,7 +117,7 @@ void AquariusService::ServiceWorkerThread(void)
 		{
 			AquariusUtilities::WriteErrorLogEntry((PWSTR)(err));
 		}
-        ::Sleep(1000);  // Simulate some lengthy operations.
+        ::Sleep(5000);  // Simulate some lengthy operations.
     }
 
     // Signal the stopped event.
@@ -127,22 +128,31 @@ void AquariusService::OnStop()
 {
     // Log a service stop message to the Application log.
 	AquariusUtilities::WriteEventLogEntry(L"AquariusSvc in going to stop: OnStop is called");
-
-	if (aquariusKernel != nullptr)
+	service_objects_mutex._Lock();
+	try
 	{
-		AquariusUtilities::WriteEventLogEntry(L"Going to first unload Aquarius kernel");
-		delete(aquariusKernel);
-		aquariusKernel = nullptr;
-		AquariusUtilities::allocator--;
-	}
+		if (aquariusKernel != nullptr)
+		{
+			AquariusUtilities::WriteEventLogEntry(L"Going to first unload Aquarius kernel");
+			delete(aquariusKernel);
+			aquariusKernel = nullptr;
+			AquariusUtilities::allocator--;
+		}
 
-	if(aqPackageManager != nullptr)
-	{
-		AquariusUtilities::WriteEventLogEntry(L"Going to unload Aquarius PackageManager");
-		delete(aqPackageManager);
-		AquariusUtilities::allocator--;
-		aqPackageManager = nullptr;
+		if (aqPackageManager != nullptr)
+		{
+			AquariusUtilities::WriteEventLogEntry(L"Going to unload Aquarius PackageManager");
+			delete(aqPackageManager);
+			AquariusUtilities::allocator--;
+			aqPackageManager = nullptr;
+		}
 	}
+	catch(...)
+	{
+		service_objects_mutex._Unlock();
+		throw;
+	}
+	service_objects_mutex._Unlock();
 
     // Indicate that the service is stopping and wait for the finish of the 
     // main service function (ServiceWorkerThread).
@@ -176,9 +186,22 @@ void AquariusService::ProcessPlugins(wchar_t* pluginDirectory)
 	//  Get the goal state: 
 	// i.e., Get the plugin versions that should be current from Package Manager
 	PluginMetadata *allPluginsMetadata = nullptr;
-	int pluginCount = aqPackageManager->RetrievePluginsMetadata(&allPluginsMetadata);
-	DisplayPluginsMetadata(allPluginsMetadata, pluginCount);
-	aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata);
-	AquariusUtilities::ReleasePluginMetadata(pluginCount, allPluginsMetadata);
-	// Forward these to Kernel (retries are okay)
+	service_objects_mutex._Lock();
+	try 
+	{
+		if (aqPackageManager != nullptr)
+		{
+			int pluginCount = aqPackageManager->RetrievePluginsMetadata(&allPluginsMetadata);
+			//DisplayPluginsMetadata(allPluginsMetadata, pluginCount);
+			aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata);
+			AquariusUtilities::ReleasePluginMetadata(pluginCount, allPluginsMetadata);
+			// Forward these to Kernel (retries are okay)
+		}
+	}
+	catch(...)
+	{
+		service_objects_mutex._Unlock();
+		throw;
+	}
+	service_objects_mutex._Unlock();
 }

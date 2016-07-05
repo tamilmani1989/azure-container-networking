@@ -10,6 +10,7 @@
 
 #include "Kernel.h"
 #include "../Shared/Utilities.h"
+#include "../Shared/XmlParser.h"
 
 AquariusKernel::AquariusKernel(wchar_t* storeLocation): packageStoreLocation(nullptr) 
 {	
@@ -17,7 +18,7 @@ AquariusKernel::AquariusKernel(wchar_t* storeLocation): packageStoreLocation(nul
 	packageStoreLocation = new wchar_t[len];
 	AquariusUtilities::allocator++;
 	wcscpy(packageStoreLocation, storeLocation);
-	pluginsMetadata = nullptr;
+	alreadyLoadedPluginsMetadata = nullptr;
 	
 }
 
@@ -29,9 +30,9 @@ AquariusKernel::~AquariusKernel()
 	{
 		delete(packageStoreLocation);
 	}
-	if(pluginsMetadata != nullptr)
+	if(alreadyLoadedPluginsMetadata != nullptr)
 	{
-		delete(pluginsMetadata);
+		delete(alreadyLoadedPluginsMetadata);
 	}
 	kernel_objects_mutex._Unlock();
 	
@@ -43,7 +44,7 @@ void AquariusKernel::RetrievePackageDeploymentJobs()
 	kernel_objects_mutex._Lock();
 
 	// get the real job count
-	int jobcount = 1; 
+	//int jobcount = 1; 
 
 	//PluginMetadata *jobs = new PluginMetadata[jobcount];
 	
@@ -76,5 +77,50 @@ wchar_t* AquariusKernel::GetCurrentPackageStoreLocation()
 
 void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
 {
-	
+	if (alreadyLoadedPluginCount <= 0) 
+	{
+		for (int i = 0; i < pluginCount; i++)
+		{
+			wchar_t * codeDirectory = nullptr;
+			wchar_t * manifestFile = nullptr;
+			try 
+			{
+				int locationLen = wcslen(pluginsToLoad[i].location);
+				codeDirectory = new wchar_t[ locationLen + wcslen(L"\\") + wcslen(AquariusUtilities::codeDirectoryName) + 1];
+				wcscpy(codeDirectory, pluginsToLoad[i].location);
+				wcscat(codeDirectory, L"\\");
+				wcscat(codeDirectory, AquariusUtilities::codeDirectoryName);
+
+				manifestFile = new wchar_t[locationLen + wcslen(L"\\") + 
+					wcslen(AquariusUtilities::manifestFileName) + 1];
+				wcscpy(manifestFile, pluginsToLoad[i].location);
+				wcscat(manifestFile, L"\\");
+				wcscat(manifestFile, AquariusUtilities::manifestFileName);
+
+				//CreateJobObject(nullptr, )
+				wchar_t *entryPoint = nullptr;
+				XmlParser::ParseManifest(manifestFile, &entryPoint);
+				if(entryPoint != nullptr)
+				{
+					wchar_t szMessage[260];
+					StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+						L"Kernel received entrypoint %s in %s",
+						entryPoint, codeDirectory);
+					AquariusUtilities::WriteEventLogEntry(szMessage);
+					delete[] entryPoint;
+				}
+			}
+			catch(...)
+			{
+				delete[] codeDirectory;
+				delete[] manifestFile;
+				throw;
+			}
+			delete[] manifestFile;
+			delete[] codeDirectory;
+		}
+	}else
+	{
+		// we may have to upgrade or remove some of the loaded plugins
+	}
 }

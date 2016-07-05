@@ -14,6 +14,10 @@
 
 int AquariusUtilities::allocator = 0;
 
+const wchar_t* AquariusUtilities::defaultPackageStoreLocation = L"C:\\Aquarius\\Plugins";
+const wchar_t * AquariusUtilities::codeDirectoryName = L"code";
+const wchar_t * AquariusUtilities::configFileName = L"config.txt";
+const wchar_t * AquariusUtilities::manifestFileName = L"manifest.xml";
 //
 //   FUNCTION: AquariusSvcBase::WriteEventLogEntry(PWSTR, WORD)
 //
@@ -107,9 +111,16 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 	}
 	for (int i = 0; i<count; i++)
 	{
-		if (pluginsMetadata[i].location != nullptr) {
-			delete pluginsMetadata[i].location;
+		if (pluginsMetadata[i].location != nullptr) 
+		{
+			delete [] pluginsMetadata[i].location;
 			pluginsMetadata[i].location = nullptr;
+			AquariusUtilities::allocator--;
+		}
+		if (pluginsMetadata[i].currentVersion != nullptr) 
+		{
+			delete [] pluginsMetadata[i].currentVersion;
+			pluginsMetadata[i].currentVersion = nullptr;
 			AquariusUtilities::allocator--;
 		}
 	}

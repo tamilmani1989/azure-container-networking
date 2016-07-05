@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="Utilities.cpp" />
+    <ClCompile Include="XmlParser.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="PluginMetadata.h" />
+    <ClInclude Include="Utilities.h" />
+    <ClInclude Include="XmlParser.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Windows">
+      <UniqueIdentifier>{b0448496-c52a-4879-bc30-d117bab63335}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

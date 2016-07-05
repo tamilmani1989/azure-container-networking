@@ -38,7 +38,7 @@ protected:
 	void InitializeServices(void);
 
 private:
-
+	std::_Mutex service_objects_mutex;
     BOOL m_fStopping;
     HANDLE m_hStoppedEvent;	
 	
