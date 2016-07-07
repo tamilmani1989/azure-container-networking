@@ -13,19 +13,35 @@
 #include <iostream>
 #include "../Shared/Utilities.h"
 
-#define PLUGIN_DIRECTORY_LEN 1024
-
-
 void AqPackageManager::GetPackageStoreLocation(wchar_t *packageStoreLocation, DWORD *size)
 {
 	AquariusUtilities::WriteEventLogEntry(L"Going to get package store location.");
 	AquariusUtilities::WriteEventLogEntry(L"Trying to open registry key that contains config.");
 	HKEY configKey = OpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Aquarius\\Config");
+	wchar_t szMessage[260];
 	if (configKey == nullptr)
 	{
 		AquariusUtilities::WriteEventLogEntry(L"Registry key does not exist. Returning default package location.");		
-		wcscpy(packageStoreLocation, AquariusUtilities::defaultPackageStoreLocation);
-		wchar_t szMessage[260];
+
+		if (GetModuleFileName(nullptr, packageStoreLocation, MAX_PATH) == 0)
+		{			
+			StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
+				L"Failed to get location of the plugins w/err 0x%08lx Returning %s\n", 
+				GetLastError(), AquariusUtilities::defaultPackageStoreLocation);
+			AquariusUtilities::WriteEventLogEntry(szMessage);			
+			wcscpy(packageStoreLocation, AquariusUtilities::defaultPackageStoreLocation);
+			return;
+		}
+		
+		int i = wcslen(packageStoreLocation);
+		wchar_t c = '\0';
+		do
+		{
+			c = packageStoreLocation[i - 1];
+			packageStoreLocation[i - 1] = packageStoreLocation[i];
+			i--;
+		} while (c != '\\' && i > 0);
+		wcscat(packageStoreLocation, L"\\Plugins");				
 		StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Successfully returned default package location: %s", packageStoreLocation);
 		AquariusUtilities::WriteEventLogEntry(szMessage);
 		return;
@@ -61,8 +77,8 @@ int AqPackageManager::RetrievePluginsMetadata(PluginMetadata **allPluginsMetadat
 	packman_objects_mutex._Lock();
 	try 
 	{
-		wchar_t packageStoreLocation[PLUGIN_DIRECTORY_LEN];
-		DWORD size = PLUGIN_DIRECTORY_LEN;
+		wchar_t packageStoreLocation[MAX_PATH];
+		DWORD size = MAX_PATH;
 		GetPackageStoreLocation(packageStoreLocation, &size);
 		PopulatePluginMetadataFromStore(packageStoreLocation);
 		CopyPluginsMetadata(allPluginsMetadata);

@@ -69,7 +69,7 @@ void AquariusService::InitializeServices(void)
 {
 	// check if initialization is needed
 	// take initialization lock
-	wchar_t packageStoreLocation[1024];
+	wchar_t packageStoreLocation[MAX_PATH];
 	DWORD size = 1024;
 	aqPackageManager->GetPackageStoreLocation(packageStoreLocation, &size);
 

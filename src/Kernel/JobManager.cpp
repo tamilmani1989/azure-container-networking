@@ -8,7 +8,6 @@
 
 #include "JobManager.h"
 #include <handleapi.h>
-//#include <winbase.h>
 #include "../Shared/Utilities.h"
 
  JobObject *JobManager::jobObjectCollection = nullptr;
