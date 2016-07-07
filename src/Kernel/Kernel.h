@@ -19,6 +19,9 @@ public:
 protected:
 
 private:
+	// mutex for kernel objects		
+	std::_Mutex kernel_objects_mutex;
+
 	// location of the packages for all the plugins that Aquarius supports
 	wchar_t *packageStoreLocation = nullptr;
 
@@ -26,9 +29,6 @@ private:
 	// on modules in the customer's VM.
 	int alreadyLoadedPluginCount = 0;
 	PluginMetadata *alreadyLoadedPluginsMetadata = nullptr;
-
-	// mutex for kernel objects		
-	std::_Mutex kernel_objects_mutex;
 
 	// whether the kernel is initialized or not
 	bool initialized = false;

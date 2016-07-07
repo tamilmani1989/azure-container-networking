@@ -101,12 +101,14 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="JobManager.cpp" />
     <ClCompile Include="Kernel.cpp" />
     <!--ClCompile Include="stdafx.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile-->
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="JobManager.h" />
     <ClInclude Include="Kernel.h" />
   </ItemGroup>
   <ItemGroup>

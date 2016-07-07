@@ -15,6 +15,7 @@
 #include "ThreadPool.h"
 #include <strsafe.h>
 #include "../Shared/Utilities.h"
+#include "../Kernel/JobManager.h"
 #pragma endregion
 
 

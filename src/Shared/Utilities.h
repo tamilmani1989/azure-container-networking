@@ -12,6 +12,8 @@
 #include <msxml6.h>
 #include "PluginMetadata.h"
 
+#define SAFE_DELETE(p)     do { if ((p!=nullptr)) { delete[] p; p = nullptr; } } while(0)\
+
 class AquariusUtilities
 {
 public:
