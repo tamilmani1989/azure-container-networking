@@ -56,27 +56,27 @@ void JobManager::EnsureJobIsRunning(wchar_t* directory, wchar_t* entryPoint)
 		if (!QueryInformationJobObject(handle, JobObjectBasicProcessIdList, &processIdList, sizeof(processIdList), nullptr))
 		{
 			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-				L"Unable to query information for the job object associated with %s", entryPoint);
+				L"Unable to query information for the job object associated with jobName->%s. It should not happen.", entryPoint);
 			AquariusUtilities::WriteEventLogEntry(szMessage);
+			return;
 		}
-		else
-		{
-			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-				L"Retrieved values from job %d %d %d",
-				processIdList.NumberOfAssignedProcesses,
-				processIdList.NumberOfProcessIdsInList,
-				processIdList.ProcessIdList[0]);
-			AquariusUtilities::WriteEventLogEntry(szMessage);
-			if (processIdList.NumberOfAssignedProcesses == 0)
-			{
-				// some how the process got killed
 
-				StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-					L"Could not find the process associated with the job object named %s. Going to recreate the process.", entryPoint);
-				AquariusUtilities::WriteEventLogEntry(szMessage);
-				shouldReturn = FALSE;
-			}
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+			L"Retrieved values from job %d %d %d",
+			processIdList.NumberOfAssignedProcesses,
+			processIdList.NumberOfProcessIdsInList,
+			processIdList.ProcessIdList[0]);
+		AquariusUtilities::WriteEventLogEntry(szMessage);
+		if (processIdList.NumberOfAssignedProcesses == 0)
+		{
+			// some how the process got killed
+
+			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+				L"Could not find the process associated with the job object named %s. Going to recreate the process.", entryPoint);
+			AquariusUtilities::WriteEventLogEntry(szMessage);
+			shouldReturn = FALSE;
 		}
+		
 		if (shouldReturn) 
 		{
 			return;
@@ -164,15 +164,63 @@ void JobManager::SaveJobHandle(HANDLE handle)
 }
 
 
+void TerminateProcessInJob(HANDLE jobHandle)
+{
+	wchar_t szMessage[260];
+	JOBOBJECT_BASIC_PROCESS_ID_LIST processIdList;
+	if (!QueryInformationJobObject(jobHandle, JobObjectBasicProcessIdList, &processIdList, sizeof(processIdList), nullptr))
+	{
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+			L"Unable to query information for the job object associated with job during release. It should not happen.");
+		AquariusUtilities::WriteEventLogEntry(szMessage);
+		return;
+	}
+	
+	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+		L"Retrieved process Id %d from the job.",
+		processIdList.ProcessIdList[0]);
+	AquariusUtilities::WriteEventLogEntry(szMessage);
+
+	if (processIdList.NumberOfAssignedProcesses > 0)
+	{
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+			L"Going to terminate process Id %d.",
+			processIdList.ProcessIdList[0]);
+		AquariusUtilities::WriteEventLogEntry(szMessage);
+		HANDLE pHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, (DWORD)processIdList.ProcessIdList[0]);
+		if(TerminateProcess(pHandle, 0) == 0)
+		{
+			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+				L"Failed to terminated process Id %d. ErrorCode:%d",
+				processIdList.ProcessIdList[0], GetLastError());
+			AquariusUtilities::WriteEventLogEntry(szMessage);				
+		}
+		else 
+		{
+			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+				L"Successfully terminated process Id %d.",
+				processIdList.ProcessIdList[0]);
+			AquariusUtilities::WriteEventLogEntry(szMessage);
+		}
+	}
+	else
+	{	
+		AquariusUtilities::WriteEventLogEntry(L"Retrieved zero processes with the job. Nothing to terminate.");
+	}
+	
+}
+
 static void Delete(JobObject *list)
 {
 	if (list != nullptr) {
 		Delete(list->next);
+		TerminateProcessInJob(list->value);
 		CloseHandle(list->value);
 		delete list;
 	}
 }
 
+// Call this method within the lock
 void JobManager::ReleaseAllJobs()
 {
 	if(jobObjectCollection!=nullptr)
