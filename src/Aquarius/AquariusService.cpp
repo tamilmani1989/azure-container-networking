@@ -166,6 +166,9 @@ void AquariusService::OnStop()
 
     if (WaitForSingleObject(m_hStoppedEvent, INFINITE) != WAIT_OBJECT_0)
     {
+        DWORD error = GetLastError();
+        StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Going to throw error  0x%08lx", error);
+        AquariusUtilities::WriteEventLogEntry(szMessage);
         throw GetLastError();
     }
 }

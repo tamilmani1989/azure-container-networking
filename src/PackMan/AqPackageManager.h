@@ -26,10 +26,7 @@ class AqPackageManager
 
 		int installedPluginCount = 0;
 		PluginMetadata *packmanInstalledPluginsMetadata = nullptr;
-
-		static HKEY OpenRegistryKey(HKEY hRootKey, wchar_t* strKey);
-		static void GetStringFromRegistry(HKEY configKey, wchar_t* key, wchar_t *returnValue, DWORD* size);
-		static void HandleRegistryError(HKEY rootKey, wchar_t* subKey, LONG nError);
+		
 		void CopyPluginsMetadata(PluginMetadata** allPluginsMetadata);
 		void PopulatePluginMetadataFromStore(wchar_t* packageStoreLocation);
 };

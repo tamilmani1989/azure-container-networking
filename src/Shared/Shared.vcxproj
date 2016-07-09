@@ -101,11 +101,13 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="RegistryOps.h" />
     <ClInclude Include="XmlParser.h" />
     <ClInclude Include="PluginMetadata.h" />
     <ClInclude Include="Utilities.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="RegistryOps.cpp" />
     <ClCompile Include="XmlParser.cpp" />
     <ClCompile Include="Utilities.cpp" />
   </ItemGroup>

@@ -12,43 +12,30 @@
 #include <strsafe.h>
 #include <iostream>
 #include "../Shared/Utilities.h"
+#include "../Shared/RegistryOps.h"
+
 
 void AqPackageManager::GetPackageStoreLocation(wchar_t *packageStoreLocation, DWORD *size)
 {
 	AquariusUtilities::WriteEventLogEntry(L"Going to get package store location.");
 	AquariusUtilities::WriteEventLogEntry(L"Trying to open registry key that contains config.");
-	HKEY configKey = OpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Aquarius\\Config");
-	wchar_t szMessage[260];
-	if (configKey == nullptr)
-	{
-		AquariusUtilities::WriteEventLogEntry(L"Registry key does not exist. Returning default package location.");		
+	HKEY configKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
+    if(configKey != nullptr)
+    {
+        AquariusUtilities::WriteEventLogEntry(L"Found registry key.");
+        RegistryOps::GetStringFromRegistry(configKey, L"PackageStoreLocation", packageStoreLocation, size);
+        if(wcsnlen(packageStoreLocation, MAX_PATH)>0)
+        {
+            return;
+        }
+    }
+	wchar_t szMessage[260];    
+	
+	AquariusUtilities::WriteEventLogEntry(L"Registry key does not exist. Returning default package location.");
 
-		if (GetModuleFileName(nullptr, packageStoreLocation, MAX_PATH) == 0)
-		{			
-			StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-				L"Failed to get location of the plugins w/err 0x%08lx Returning %s\n", 
-				GetLastError(), AquariusUtilities::defaultPackageStoreLocation);
-			AquariusUtilities::WriteEventLogEntry(szMessage);			
-			wcscpy(packageStoreLocation, AquariusUtilities::defaultPackageStoreLocation);
-			return;
-		}
-		
-		int i = wcslen(packageStoreLocation);
-		wchar_t c = '\0';
-		do
-		{
-			c = packageStoreLocation[i - 1];
-			packageStoreLocation[i - 1] = packageStoreLocation[i];
-			i--;
-		} while (c != '\\' && i > 0);
-		wcscat(packageStoreLocation, L"\\Plugins");				
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Successfully returned default package location: %s", packageStoreLocation);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
-		return;
-	}
-	AquariusUtilities::WriteEventLogEntry(L"Found registry key.");
-
-	GetStringFromRegistry(configKey, L"PackageStoreLocation", packageStoreLocation, size);
+	AquariusUtilities::PopulatePluginLocation(packageStoreLocation);
+	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Successfully returned default package location: %s", packageStoreLocation);
+	AquariusUtilities::WriteEventLogEntry(szMessage);	
 }
 
 void AqPackageManager::CopyPluginsMetadata(PluginMetadata **allPluginsMetadata)
@@ -58,13 +45,13 @@ void AqPackageManager::CopyPluginsMetadata(PluginMetadata **allPluginsMetadata)
 	for(int i=0; i<currentPluginCount; i++)
 	{
 		if (packmanCurrentPluginsMetadata[i].location != nullptr) {
-			(*allPluginsMetadata)[i].location = new wchar_t[wcslen(packmanCurrentPluginsMetadata[i].location)+1];
-			AquariusUtilities::allocator++;
+			(*allPluginsMetadata)[i].location = new wchar_t[wcsnlen(packmanCurrentPluginsMetadata[i].location, MAX_PATH)];
+            AquariusUtilities::allocator++;
 			wcscpy((*allPluginsMetadata)[i].location, packmanCurrentPluginsMetadata[i].location);
 		}
 		if (packmanCurrentPluginsMetadata[i].currentVersion != nullptr) {
-			(*allPluginsMetadata)[i].currentVersion = new wchar_t[wcslen(packmanCurrentPluginsMetadata[i].currentVersion) + 1];
-			AquariusUtilities::allocator++;
+			(*allPluginsMetadata)[i].currentVersion = new wchar_t[wcsnlen(packmanCurrentPluginsMetadata[i].currentVersion, MAX_PATH)];
+            AquariusUtilities::allocator++;
 			wcscpy((*allPluginsMetadata)[i].currentVersion, packmanCurrentPluginsMetadata[i].currentVersion);
 		}
 	}
@@ -94,59 +81,6 @@ int AqPackageManager::RetrievePluginsMetadata(PluginMetadata **allPluginsMetadat
 	return pluginCount;
 }
 
-HKEY AqPackageManager::OpenRegistryKey(HKEY rootKey, wchar_t* subKey)
-{
-	HKEY returnKey;
-
-	LONG nError = RegOpenKeyEx(rootKey, subKey, NULL, KEY_ALL_ACCESS, &returnKey);
-	AquariusUtilities::WriteEventLogEntry(L"Open key operation executed.");
-	if (nError == ERROR_FILE_NOT_FOUND)
-	{
-		AquariusUtilities::WriteEventLogEntry(L"Config key does not exist.");
-		nError = RegCreateKeyEx(rootKey, subKey, NULL, nullptr, REG_OPTION_NON_VOLATILE,
-			KEY_ALL_ACCESS, nullptr, &returnKey, nullptr);
-		AquariusUtilities::WriteEventLogEntry(L"Created config key with default location.");
-	}
-
-	if (nError)
-	{
-		AquariusUtilities::WriteEventLogEntry(L"Some error happnned during config key creation with default location.");		
-		returnKey = nullptr;
-	}
-
-	return returnKey;
-}
-
-void AqPackageManager::GetStringFromRegistry(HKEY configKey, wchar_t* key, wchar_t* returnValue, DWORD* size)
-{
-	DWORD type = REG_SZ;
-	LONG nError = RegQueryValueEx(configKey, key, nullptr, &type, (LPBYTE)returnValue, size);
-
-	if (nError)
-	{
-		HandleRegistryError(configKey, key, nError);
-	}
-}
-
-void AqPackageManager::HandleRegistryError(HKEY rootKey, wchar_t* subKey, LONG nError)
-{
-	wchar_t szMessage[260];
-	try
-	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Reg Open of %s %s failed w/err 0x%08lx", rootKey, subKey, nError);
-		AquariusUtilities::WriteErrorLogEntry(szMessage);
-	}
-	catch (const exception &ex)
-	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"%s", ex.what());
-		AquariusUtilities::WriteErrorLogEntry(szMessage);
-	}
-	catch (...)
-	{
-		AquariusUtilities::WriteErrorLogEntry(L"Unknown error happenned while creating registry key");
-	}
-}
 
 static int GetPluginCount(wchar_t* packageStoreLocation)
 {
@@ -157,8 +91,8 @@ static int GetPluginCount(wchar_t* packageStoreLocation)
 	AquariusUtilities::WriteEventLogEntry(szMessage);
 
 	int pluginCount = 0;
-	wchar_t *pluginDirectory = new wchar_t[wcslen(packageStoreLocation) + wcslen(L"\\*") + 1];
-	wcscpy(pluginDirectory, packageStoreLocation);
+	wchar_t *pluginDirectory = new wchar_t[wcsnlen(packageStoreLocation, MAX_PATH) + wcsnlen(L"\\*", 2)];
+    wcscpy(pluginDirectory, packageStoreLocation);
 	wcscat(pluginDirectory, L"\\*");
 	try {
 		AquariusUtilities::WriteEventLogEntry((PWSTR)(pluginDirectory));
@@ -210,8 +144,8 @@ void AqPackageManager::PopulatePluginMetadataFromStore(wchar_t* packageStoreLoca
 		L"PackageStore Location in PopulatePluginMetadataFromStore: %s.",
 		packageStoreLocation);
 	AquariusUtilities::WriteEventLogEntry(szMessage);
-	wchar_t *pluginDirectory = new wchar_t[wcslen(packageStoreLocation) + wcslen(L"\\*")];
-	AquariusUtilities::allocator++;
+	wchar_t *pluginDirectory = new wchar_t[wcsnlen(packageStoreLocation, MAX_PATH) + wcsnlen(L"\\*", 2)];
+    AquariusUtilities::allocator++;
 	wcscpy(pluginDirectory, packageStoreLocation);
 	wcscat(pluginDirectory, L"\\*");
 	
@@ -255,7 +189,7 @@ void AqPackageManager::PopulatePluginMetadataFromStore(wchar_t* packageStoreLoca
 						L"Going to populate information for plugin: %s.", findData.cFileName);
 					AquariusUtilities::WriteEventLogEntry(szMessage);
 					packmanCurrentPluginsMetadata[processedCount].location = new wchar_t[
-						wcslen(packageStoreLocation) + wcslen(L"\\") + wcslen(findData.cFileName)];
+						wcsnlen(packageStoreLocation, MAX_PATH) + wcsnlen(L"\\", 2) + wcsnlen(findData.cFileName, MAX_PATH)];                        
 					AquariusUtilities::allocator++;
 					wcscpy(packmanCurrentPluginsMetadata[processedCount].location, packageStoreLocation);
 					wcscat(packmanCurrentPluginsMetadata[processedCount].location, L"\\");
@@ -294,8 +228,12 @@ void AqPackageManager::PopulatePluginMetadataFromStore(wchar_t* packageStoreLoca
 
 AqPackageManager::~AqPackageManager()
 {
+    wchar_t szMessage[260];
 	if(packmanCurrentPluginsMetadata != nullptr)
 	{
+        StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+            L"Going to Release plugin metadata.. plugin count=%d", currentPluginCount);
+        AquariusUtilities::WriteEventLogEntry(szMessage);
 		AquariusUtilities::ReleasePluginMetadata(currentPluginCount, packmanCurrentPluginsMetadata);
 		currentPluginCount = 0;
 	}	

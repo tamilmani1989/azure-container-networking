@@ -15,8 +15,8 @@
 
 AquariusKernel::AquariusKernel(wchar_t* storeLocation): packageStoreLocation(nullptr) 
 {	
-	int len = wcslen(storeLocation);
-	packageStoreLocation = new wchar_t[len];
+	int len = wcsnlen(storeLocation, MAX_PATH);
+    packageStoreLocation = new wchar_t[len];
 	AquariusUtilities::allocator++;
 	wcscpy(packageStoreLocation, storeLocation);
 	alreadyLoadedPluginsMetadata = nullptr;
@@ -59,8 +59,8 @@ void AquariusKernel::UpdateCurrentPackageStoreLocation(wchar_t* storeLocation)
 {
 	// we need to lock as this got read when we populate package/plugin deployment jobs
 	kernel_objects_mutex._Lock();
-	int len = wcslen(storeLocation);
-	if(packageStoreLocation != nullptr)
+	int len = wcsnlen(storeLocation, MAX_PATH);
+    if(packageStoreLocation != nullptr)
 	{
 		delete[] packageStoreLocation;
 		AquariusUtilities::allocator--;
@@ -89,15 +89,14 @@ void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
 				wchar_t *entryPoint = nullptr;
 				try
 				{
-					int locationLen = wcslen(pluginsToLoad[i].location);
-					codeDirectory = new wchar_t[locationLen + wcslen(L"\\") + wcslen(AquariusUtilities::codeDirectoryName) + 1];
-					wcscpy(codeDirectory, pluginsToLoad[i].location);
+					int locationLen = wcsnlen(pluginsToLoad[i].location, MAX_PATH);
+                    codeDirectory = new wchar_t[locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::codeDirectoryName, MAX_PATH) + 1];
+                    wcscpy(codeDirectory, pluginsToLoad[i].location);
 					wcscat(codeDirectory, L"\\");
 					wcscat(codeDirectory, AquariusUtilities::codeDirectoryName);
 
-					manifestFile = new wchar_t[locationLen + wcslen(L"\\") +
-						wcslen(AquariusUtilities::manifestFileName) + 1];
-					wcscpy(manifestFile, pluginsToLoad[i].location);
+					manifestFile = new wchar_t[locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::manifestFileName, MAX_PATH)];
+                    wcscpy(manifestFile, pluginsToLoad[i].location);
 					wcscat(manifestFile, L"\\");
 					wcscat(manifestFile, AquariusUtilities::manifestFileName);
 

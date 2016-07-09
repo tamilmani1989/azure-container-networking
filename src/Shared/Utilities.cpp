@@ -49,8 +49,8 @@ void AquariusUtilities::WriteEventLogEntry(PWSTR pszMessage)
 
 		ReportEvent(hEventSource,  // Event log handle
 			wType,                 // Event type
-			0,                     // Event category
-			0,                     // Event identifier
+            0x00000001L,                     // Event category
+            0x40020100L,                     // Event identifier
 			nullptr,                  // No security identifier
 			2,                     // Size of lpszStrings array
 			0,                     // No binary data
@@ -89,8 +89,8 @@ void AquariusUtilities::WriteErrorLogEntry(PWSTR pszFunction)
 
 		ReportEvent(hEventSource,  // Event log handle
 			wType,                 // Event type
-			0,                     // Event category
-			0,                     // Event identifier
+            0x00000001L,                     // Event category
+            0x40020100L,                     // Event identifier
 			nullptr,                  // No security identifier
 			2,                     // Size of lpszStrings array
 			0,                     // No binary data
@@ -109,16 +109,25 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 		AquariusUtilities::WriteErrorLogEntry((PWSTR)("Received a request to free null pluginMetadata"));
 		return;
 	}
+
+    wchar_t szMessage[260];
+
 	for (int i = 0; i<count; i++)
 	{
 		if (pluginsMetadata[i].location != nullptr) 
 		{
+            StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+                L"Going to Release location %s", pluginsMetadata[i].location);
+            WriteEventLogEntry(szMessage);
 			delete [] pluginsMetadata[i].location;
 			pluginsMetadata[i].location = nullptr;
 			AquariusUtilities::allocator--;
 		}
 		if (pluginsMetadata[i].currentVersion != nullptr) 
 		{
+            StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+                L"Going to Release version %s", pluginsMetadata[i].currentVersion);
+            WriteEventLogEntry(szMessage);
 			delete [] pluginsMetadata[i].currentVersion;
 			pluginsMetadata[i].currentVersion = nullptr;
 			AquariusUtilities::allocator--;
@@ -127,4 +136,35 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 	delete[] pluginsMetadata;
 	pluginsMetadata = nullptr;
 	AquariusUtilities::allocator--;
+}
+
+
+
+void AquariusUtilities::PopulateServiceExeLocation(wchar_t* packageStoreLocation)
+{
+	wchar_t szMessage[260];
+	if (GetModuleFileName(nullptr, packageStoreLocation, MAX_PATH) == 0)
+	{
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+			L"Failed to get location of the plugins w/err 0x%08lx Returning %s\n",
+			GetLastError(), AquariusUtilities::defaultPackageStoreLocation);
+		AquariusUtilities::WriteEventLogEntry(szMessage);
+		wcscpy(packageStoreLocation, AquariusUtilities::defaultPackageStoreLocation);
+		return;
+	}
+
+	int i = wcsnlen(packageStoreLocation, MAX_PATH);
+	wchar_t c = '\0';
+	do
+	{
+		c = packageStoreLocation[i - 1];
+		packageStoreLocation[i - 1] = packageStoreLocation[i];
+		i--;
+	} while (c != '\\' && i > 0);
+}
+
+void AquariusUtilities::PopulatePluginLocation(wchar_t* packageStoreLocation)
+{
+	PopulateServiceExeLocation(packageStoreLocation);
+	wcscat(packageStoreLocation, L"\\Plugins");
 }

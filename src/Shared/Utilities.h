@@ -30,5 +30,7 @@ public:
 	static void WriteErrorLogEntry(PWSTR pszFunction);
 
 	static void ReleasePluginMetadata(int count, PluginMetadata * pluginsMetadata);
+	static void PopulatePluginLocation(wchar_t* packageStoreLocation);
+	static void PopulateServiceExeLocation(wchar_t* packageStoreLocation);
 
 };

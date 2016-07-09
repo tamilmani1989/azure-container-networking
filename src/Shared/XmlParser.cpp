@@ -155,8 +155,8 @@ void RetrieveEntryPointFromManifest(wchar_t* xmlFilePath, wchar_t **entryPoint)
 										{
 											delete[](*entryPoint);
 										}
-										(*entryPoint) = new wchar_t[wcslen(programName)];
-										wcscpy((*entryPoint), programName);
+										(*entryPoint) = new wchar_t[wcsnlen(programName, MAX_PATH)];
+                                        wcscpy((*entryPoint), programName);
 										SysFreeString(programName);
 									}
 									SAFE_RELEASE(pXMLEntryPointChildNode);

@@ -2,6 +2,7 @@
   <Import Project="$(EnvironmentConfig)" />
   <ItemGroup>
     <ProjectFile Include="Aquarius\Aquarius.vcxproj" />
+    <ProjectFile Include="EventMessage\EventMessage.proj" />
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Traversal.targets" />
 </Project>

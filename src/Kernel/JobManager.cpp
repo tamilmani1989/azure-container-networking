@@ -96,8 +96,8 @@ void JobManager::EnsureJobIsRunning(wchar_t* directory, wchar_t* entryPoint)
 	wchar_t *processPath = nullptr;
 	try 
 	{		
-		processPath = new wchar_t[wcslen(directory) + wcslen(L"\\") + wcslen(entryPoint)];
-		wcscpy(processPath, directory);
+		processPath = new wchar_t[wcsnlen(directory, MAX_PATH) + wcsnlen(L"\\", 2) + wcsnlen(entryPoint, MAX_PATH)];
+        wcscpy(processPath, directory);
 		wcscat(processPath, L"\\");
 		wcscat(processPath, entryPoint);
 		
@@ -163,7 +163,7 @@ void JobManager::SaveJobHandle(HANDLE handle)
 }
 
 
-void TerminateProcessInJob(HANDLE jobHandle)
+bool TerminateProcessInJob(HANDLE jobHandle)
 {
 	wchar_t szMessage[260];
 	JOBOBJECT_BASIC_PROCESS_ID_LIST processIdList;
@@ -172,7 +172,7 @@ void TerminateProcessInJob(HANDLE jobHandle)
 		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
 			L"Unable to query information for the job object associated with job during release. It should not happen.");
 		AquariusUtilities::WriteEventLogEntry(szMessage);
-		return;
+		return false;
 	}
 	
 	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
@@ -206,15 +206,17 @@ void TerminateProcessInJob(HANDLE jobHandle)
 	{	
 		AquariusUtilities::WriteEventLogEntry(L"Retrieved zero processes with the job. Nothing to terminate.");
 	}
-	
+    return true;
 }
 
 static void Delete(JobObject *list)
 {
 	if (list != nullptr) {
 		Delete(list->next);
-		TerminateProcessInJob(list->value);
-		CloseHandle(list->value);
+        if (TerminateProcessInJob(list->value)) 
+        {
+            CloseHandle(list->value);
+        }
 		delete list;
 	}
 }

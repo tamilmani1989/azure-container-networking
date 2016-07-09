@@ -17,6 +17,8 @@
 #include "AquariusInstaller.h"
 #include "AquariusSvcBase.h"
 #include "AquariusService.h"
+#include "../Shared/RegistryOps.h"
+#include "../Shared/Utilities.h"
 #pragma endregion
 
 
@@ -43,6 +45,26 @@
 #define SERVICE_PASSWORD         nullptr
 
 
+void SetupEventLogging()
+{
+    HKEY configKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, 
+        L"SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\AquariusSvc");
+    if (configKey == nullptr)
+    {
+        AquariusUtilities::WriteEventLogEntry(L"Unable to create registry entry so that events from Aquarius can be written properly..");
+        return;
+    }
+	wchar_t *aquariusLocation = new wchar_t[MAX_PATH];
+	AquariusUtilities::PopulateServiceExeLocation(aquariusLocation);
+	wcsncat(aquariusLocation, L"\\AqEventMessage.dll", MAX_PATH);
+	RegistryOps::PutStringInRegistry(configKey, L"CategoryMessageFile", aquariusLocation);
+	RegistryOps::PutStringInRegistry(configKey, L"EventMessageFile", aquariusLocation);
+	RegistryOps::PutStringInRegistry(configKey, L"ParameterMessageFile", aquariusLocation);
+	RegistryOps::PutDWORDInRegistry(configKey, L"TypesSupported", 0x7);
+	RegistryOps::PutDWORDInRegistry(configKey, L"CategoryCount", 0x1);
+	delete[] aquariusLocation;
+}
+
 //
 //  FUNCTION: wmain(int, wchar_t *[])
 //
@@ -64,6 +86,12 @@ int wmain(int argc, wchar_t *argv[])
     {
         if (_wcsicmp(L"install", argv[1] + 1) == 0)
         {
+            SetupEventLogging();
+            HKEY configKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
+            if (configKey == nullptr)
+            {
+                AquariusUtilities::WriteEventLogEntry(L"Unable to create config key for Aquarius..");
+            }
             // Install the service when the command is 
             // "-install" or "/install".
             InstallService(

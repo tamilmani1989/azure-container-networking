@@ -5,11 +5,17 @@
     <ClCompile Include="XmlParser.cpp">
       <Filter>Windows</Filter>
     </ClCompile>
+    <ClCompile Include="RegistryOps.cpp">
+      <Filter>Windows</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PluginMetadata.h" />
     <ClInclude Include="Utilities.h" />
     <ClInclude Include="XmlParser.h">
+      <Filter>Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="RegistryOps.h">
       <Filter>Windows</Filter>
     </ClInclude>
   </ItemGroup>
