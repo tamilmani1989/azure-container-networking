@@ -4,7 +4,7 @@
     <Import Project="$(PkgWAES)\PostBuild.target" />
     <Import Project="$(PkgWARM)\PostBuild.target" />
     -->
-
+    <Import Project="CopyEventMessageDll.targets" />
     <PropertyGroup>
       <PostBuildDependsOn>StartPostBuild;StopPostBuild</PostBuildDependsOn>
     </PropertyGroup>
