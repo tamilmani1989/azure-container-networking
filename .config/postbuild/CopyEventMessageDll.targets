@@ -1,7 +1,11 @@
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
       <Robocopy Include="$(srvreleaseshare)\retail-AMD64\AqEventMessage.dll">
-          <DestinationFolder>$(srvreleaseshare)\retail-AMD64\Aquarius</DestinationFolder>
+          <DestinationFolder>$(srvreleaseshare)\retail-AMD64\AquariusPackage</DestinationFolder>
       </Robocopy>
+      <Robocopy Include="$(srvreleaseshare)\retail-AMD64\Aquarius\*.*">
+          <DestinationFolder>$(srvreleaseshare)\retail-AMD64\AquariusPackage</DestinationFolder>
+      </Robocopy>
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
 </Project>
