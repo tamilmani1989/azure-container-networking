@@ -45,14 +45,16 @@ void AqPackageManager::CopyPluginsMetadata(PluginMetadata **allPluginsMetadata)
 	for(int i=0; i<currentPluginCount; i++)
 	{
 		if (packmanCurrentPluginsMetadata[i].location != nullptr) {
-			(*allPluginsMetadata)[i].location = new wchar_t[wcsnlen(packmanCurrentPluginsMetadata[i].location, MAX_PATH) + 1];
+			size_t len = wcsnlen(packmanCurrentPluginsMetadata[i].location, MAX_PATH) + 1;
+			(*allPluginsMetadata)[i].location = new wchar_t[len];
             AquariusUtilities::allocator++;
-			wcscpy((*allPluginsMetadata)[i].location, packmanCurrentPluginsMetadata[i].location);
+			wcscpy_s((*allPluginsMetadata)[i].location, len, packmanCurrentPluginsMetadata[i].location);
 		}
 		if (packmanCurrentPluginsMetadata[i].currentVersion != nullptr) {
-			(*allPluginsMetadata)[i].currentVersion = new wchar_t[wcsnlen(packmanCurrentPluginsMetadata[i].currentVersion, MAX_PATH) + 1];
+			size_t len = wcsnlen(packmanCurrentPluginsMetadata[i].currentVersion, MAX_PATH) + 1;
+			(*allPluginsMetadata)[i].currentVersion = new wchar_t[len];
             AquariusUtilities::allocator++;
-			wcscpy((*allPluginsMetadata)[i].currentVersion, packmanCurrentPluginsMetadata[i].currentVersion);
+			wcscpy_s((*allPluginsMetadata)[i].currentVersion, len, packmanCurrentPluginsMetadata[i].currentVersion);
 		}
 	}
 }
@@ -91,9 +93,10 @@ static int GetPluginCount(wchar_t* packageStoreLocation)
 	AquariusUtilities::WriteEventLogEntry(szMessage);
 
 	int pluginCount = 0;
-	wchar_t *pluginDirectory = new wchar_t[wcsnlen(packageStoreLocation, MAX_PATH) + wcsnlen(L"\\*", 2) + 1];
-    wcscpy(pluginDirectory, packageStoreLocation);
-	wcscat(pluginDirectory, L"\\*");
+	size_t len = wcsnlen(packageStoreLocation, MAX_PATH) + wcsnlen(L"\\*", 2) + 1;
+	wchar_t *pluginDirectory = new wchar_t[len];
+    wcscpy_s(pluginDirectory, len, packageStoreLocation);
+	wcscat_s(pluginDirectory, len, L"\\*");
 	try {
 		AquariusUtilities::WriteEventLogEntry((PWSTR)(pluginDirectory));
 		WIN32_FIND_DATA findData;
@@ -144,10 +147,11 @@ void AqPackageManager::PopulatePluginMetadataFromStore(wchar_t* packageStoreLoca
 		L"PackageStore Location in PopulatePluginMetadataFromStore: %s.",
 		packageStoreLocation);
 	AquariusUtilities::WriteEventLogEntry(szMessage);
-	wchar_t *pluginDirectory = new wchar_t[wcsnlen(packageStoreLocation, MAX_PATH) + wcsnlen(L"\\*", 2) + 1];
+	size_t len = wcsnlen(packageStoreLocation, MAX_PATH) + wcsnlen(L"\\*", 2) + 1;
+	wchar_t *pluginDirectory = new wchar_t[len];
     AquariusUtilities::allocator++;
-	wcscpy(pluginDirectory, packageStoreLocation);
-	wcscat(pluginDirectory, L"\\*");
+	wcscpy_s(pluginDirectory, len, packageStoreLocation);
+	wcscat_s(pluginDirectory, len, L"\\*");
 	
 	try 
 	{
@@ -188,12 +192,12 @@ void AqPackageManager::PopulatePluginMetadataFromStore(wchar_t* packageStoreLoca
 					StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
 						L"Going to populate information for plugin: %s.", findData.cFileName);
 					AquariusUtilities::WriteEventLogEntry(szMessage);
-					packmanCurrentPluginsMetadata[processedCount].location = new wchar_t[
-						wcsnlen(packageStoreLocation, MAX_PATH) + wcsnlen(L"\\", 2) + wcsnlen(findData.cFileName, MAX_PATH) + 1];                        
+					size_t len = wcsnlen(packageStoreLocation, MAX_PATH) + wcsnlen(L"\\", 2) + wcsnlen(findData.cFileName, MAX_PATH) + 1;
+					packmanCurrentPluginsMetadata[processedCount].location = new wchar_t[len];                        
 					AquariusUtilities::allocator++;
-					wcscpy(packmanCurrentPluginsMetadata[processedCount].location, packageStoreLocation);
-					wcscat(packmanCurrentPluginsMetadata[processedCount].location, L"\\");
-					wcscat(packmanCurrentPluginsMetadata[processedCount].location, findData.cFileName);
+					wcscpy_s(packmanCurrentPluginsMetadata[processedCount].location, len, packageStoreLocation);
+					wcscat_s(packmanCurrentPluginsMetadata[processedCount].location, len, L"\\");
+					wcscat_s(packmanCurrentPluginsMetadata[processedCount].location, len, findData.cFileName);
 					StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Obtained plugin path: %s", 
 						packmanCurrentPluginsMetadata[processedCount].location);
 					AquariusUtilities::WriteEventLogEntry(szMessage);			

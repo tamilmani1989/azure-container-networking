@@ -24,7 +24,7 @@ private:
 public:	
 	static void EnqueueJob(wchar_t* directory, wchar_t* entryPoint);
 	static void RemoveJob(wchar_t* directory, wchar_t* entryPoint);
-	static void EnsureJobIsRunning(wchar_t* directory, wchar_t* entryPoint);	
+	static void EnsureJobIsRunning(wchar_t* directory, wchar_t* entryPoint, LPTSTR lpCommandLine);
 	static void SaveJobHandle(HANDLE handle);
 	static void ReleaseAllJobs();
 };

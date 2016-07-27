@@ -15,10 +15,10 @@
 
 AquariusKernel::AquariusKernel(wchar_t* storeLocation): packageStoreLocation(nullptr) 
 {	
-	int len = wcsnlen(storeLocation, MAX_PATH);
-    packageStoreLocation = new wchar_t[len + 1];
+	int len = wcsnlen(storeLocation, MAX_PATH) + 1;
+    packageStoreLocation = new wchar_t[len];
 	AquariusUtilities::allocator++;
-	wcscpy(packageStoreLocation, storeLocation);
+	wcscpy_s(packageStoreLocation, len, storeLocation);
 	alreadyLoadedPluginsMetadata = nullptr;
 	
 }
@@ -59,15 +59,15 @@ void AquariusKernel::UpdateCurrentPackageStoreLocation(wchar_t* storeLocation)
 {
 	// we need to lock as this got read when we populate package/plugin deployment jobs
 	kernel_objects_mutex._Lock();
-	int len = wcsnlen(storeLocation, MAX_PATH);
+	int len = wcsnlen(storeLocation, MAX_PATH) + 1;
     if(packageStoreLocation != nullptr)
 	{
 		delete[] packageStoreLocation;
 		AquariusUtilities::allocator--;
 	}
-	packageStoreLocation = new wchar_t[len + 1];
+	packageStoreLocation = new wchar_t[len];
 	AquariusUtilities::allocator++;
-	wcscpy(packageStoreLocation, storeLocation);
+	wcscpy_s(packageStoreLocation, len, storeLocation);
 	kernel_objects_mutex._Unlock();	
 }
 
@@ -87,21 +87,22 @@ void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
 				wchar_t * codeDirectory = nullptr;
 				wchar_t * manifestFile = nullptr;
 				wchar_t *entryPoint = nullptr;
+
 				try
 				{
 					int locationLen = wcsnlen(pluginsToLoad[i].location, MAX_PATH);
-                    codeDirectory = new wchar_t[locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::codeDirectoryName, MAX_PATH) + 1];
-                    wcscpy(codeDirectory, pluginsToLoad[i].location);
-					wcscat(codeDirectory, L"\\");
-					wcscat(codeDirectory, AquariusUtilities::codeDirectoryName);
+					size_t len = locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::codeDirectoryName, MAX_PATH) + 1;
+                    codeDirectory = new wchar_t[len];
+                    wcscpy_s(codeDirectory, len, pluginsToLoad[i].location);
+					wcscat_s(codeDirectory, len, L"\\");
+					wcscat_s(codeDirectory, len, AquariusUtilities::codeDirectoryName);
 
-					manifestFile = new wchar_t[locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::manifestFileName, MAX_PATH) + 1];
-                    wcscpy(manifestFile, pluginsToLoad[i].location);
-					wcscat(manifestFile, L"\\");
-					wcscat(manifestFile, AquariusUtilities::manifestFileName);
-
-					//CreateJobObject(nullptr, )
-					
+					len = locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::manifestFileName, MAX_PATH) + 1;
+					manifestFile = new wchar_t[len];
+                    wcscpy_s(manifestFile, len, pluginsToLoad[i].location);
+					wcscat_s(manifestFile, len, L"\\");
+					wcscat_s(manifestFile, len, AquariusUtilities::manifestFileName);
+										
 					XmlParser::ParseManifest(manifestFile, &entryPoint);
 					if (entryPoint != nullptr)
 					{
@@ -110,7 +111,7 @@ void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
 							L"Kernel received entrypoint %s in %s",
 							entryPoint, codeDirectory);
 						AquariusUtilities::WriteEventLogEntry(szMessage);
-						JobManager::EnsureJobIsRunning(codeDirectory, entryPoint);						
+						JobManager::EnsureJobIsRunning(codeDirectory, entryPoint, nullptr);				
 					}
 				}
 				catch (...)

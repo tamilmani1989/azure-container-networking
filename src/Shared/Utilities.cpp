@@ -149,7 +149,9 @@ void AquariusUtilities::PopulateServiceExeLocation(wchar_t* packageStoreLocation
 			L"Failed to get location of the plugins w/err 0x%08lx Returning %s\n",
 			GetLastError(), AquariusUtilities::defaultPackageStoreLocation);
 		AquariusUtilities::WriteEventLogEntry(szMessage);
-		wcscpy(packageStoreLocation, AquariusUtilities::defaultPackageStoreLocation);
+		wcscpy_s(packageStoreLocation, 
+			wcsnlen(defaultPackageStoreLocation, MAX_PATH) + 1, 
+			defaultPackageStoreLocation);
 		return;
 	}
 
@@ -166,5 +168,5 @@ void AquariusUtilities::PopulateServiceExeLocation(wchar_t* packageStoreLocation
 void AquariusUtilities::PopulatePluginLocation(wchar_t* packageStoreLocation)
 {
 	PopulateServiceExeLocation(packageStoreLocation);
-	wcscat(packageStoreLocation, L"\\Plugins");
+	wcscat_s(packageStoreLocation, MAX_PATH, L"\\Plugins");
 }

@@ -23,7 +23,7 @@ void JobManager::RemoveJob(wchar_t* directory, wchar_t* entryPoint)
 
 }
 
-void JobManager::EnsureJobIsRunning(wchar_t* directory, wchar_t* entryPoint)
+void JobManager::EnsureJobIsRunning(wchar_t* directory, wchar_t* entryPoint, LPTSTR lpCommandLine)
 {		
 	/*SECURITY_ATTRIBUTES jobSec;
 	jobSec.nLength = sizeof(jobSec);
@@ -96,10 +96,11 @@ void JobManager::EnsureJobIsRunning(wchar_t* directory, wchar_t* entryPoint)
 	wchar_t *processPath = nullptr;
 	try 
 	{		
-		processPath = new wchar_t[wcsnlen(directory, MAX_PATH) + wcsnlen(L"\\", 2) + wcsnlen(entryPoint, MAX_PATH) + 1];
-        wcscpy(processPath, directory);
-		wcscat(processPath, L"\\");
-		wcscat(processPath, entryPoint);
+		size_t len = wcsnlen(directory, MAX_PATH) + wcsnlen(L"\\", 2) + wcsnlen(entryPoint, MAX_PATH) + 1;
+		processPath = new wchar_t[len];
+        wcscpy_s(processPath, len, directory);
+		wcscat_s(processPath, len, L"\\");
+		wcscat_s(processPath, len, entryPoint);
 		
 		STARTUPINFO si;
 		PROCESS_INFORMATION pi;
@@ -111,7 +112,7 @@ void JobManager::EnsureJobIsRunning(wchar_t* directory, wchar_t* entryPoint)
 			L"Creating process for following exe: %s", processPath);
 		AquariusUtilities::WriteEventLogEntry(szMessage);
 
-		if(!CreateProcess(processPath, nullptr, nullptr, nullptr, FALSE, 0, nullptr, directory, &si, &pi))
+		if(!CreateProcess(processPath, lpCommandLine, nullptr, nullptr, FALSE, 0, nullptr, directory, &si, &pi))
 		{
 			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
 				L"Create process failed for %s", processPath);
