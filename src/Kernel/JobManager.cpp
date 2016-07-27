@@ -96,7 +96,7 @@ void JobManager::EnsureJobIsRunning(wchar_t* directory, wchar_t* entryPoint)
 	wchar_t *processPath = nullptr;
 	try 
 	{		
-		processPath = new wchar_t[wcsnlen(directory, MAX_PATH) + wcsnlen(L"\\", 2) + wcsnlen(entryPoint, MAX_PATH)];
+		processPath = new wchar_t[wcsnlen(directory, MAX_PATH) + wcsnlen(L"\\", 2) + wcsnlen(entryPoint, MAX_PATH) + 1];
         wcscpy(processPath, directory);
 		wcscat(processPath, L"\\");
 		wcscat(processPath, entryPoint);

@@ -16,7 +16,7 @@
 AquariusKernel::AquariusKernel(wchar_t* storeLocation): packageStoreLocation(nullptr) 
 {	
 	int len = wcsnlen(storeLocation, MAX_PATH);
-    packageStoreLocation = new wchar_t[len];
+    packageStoreLocation = new wchar_t[len + 1];
 	AquariusUtilities::allocator++;
 	wcscpy(packageStoreLocation, storeLocation);
 	alreadyLoadedPluginsMetadata = nullptr;
@@ -65,7 +65,7 @@ void AquariusKernel::UpdateCurrentPackageStoreLocation(wchar_t* storeLocation)
 		delete[] packageStoreLocation;
 		AquariusUtilities::allocator--;
 	}
-	packageStoreLocation = new wchar_t[len];
+	packageStoreLocation = new wchar_t[len + 1];
 	AquariusUtilities::allocator++;
 	wcscpy(packageStoreLocation, storeLocation);
 	kernel_objects_mutex._Unlock();	
@@ -95,7 +95,7 @@ void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
 					wcscat(codeDirectory, L"\\");
 					wcscat(codeDirectory, AquariusUtilities::codeDirectoryName);
 
-					manifestFile = new wchar_t[locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::manifestFileName, MAX_PATH)];
+					manifestFile = new wchar_t[locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::manifestFileName, MAX_PATH) + 1];
                     wcscpy(manifestFile, pluginsToLoad[i].location);
 					wcscat(manifestFile, L"\\");
 					wcscat(manifestFile, AquariusUtilities::manifestFileName);

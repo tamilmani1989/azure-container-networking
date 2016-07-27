@@ -291,3 +291,12 @@ FakesAssemblies/
 /*
 /*/
 !/src/
+/src/Aquarius/objd/AMD64/aquariusservice.obj.oacr.corext_swi.debug.pft.xml
+/src/Aquarius/objd/AMD64/AquariusService.obj
+/src/Aquarius/objd/AMD64/aquariusinstaller.obj.oacr.corext_swi.debug.pft.xml
+/src/Aquarius/objd/AMD64/AquariusInstaller.obj
+/src/Aquarius/objd/AMD64/Aquarius.tlog/rc.command.1.tlog
+/src/Aquarius/objd/AMD64/Aquarius.tlog/link.command.1.tlog
+/src/Aquarius/objd/AMD64/Aquarius.tlog/cl.write.1.tlog
+/src/Aquarius/objd/AMD64/Aquarius.tlog/cl.command.1.tlog
+/src/Aquarius/objd/AMD64/Aquarius.tlog/Aquarius.lastbuildstate

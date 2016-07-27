@@ -155,28 +155,33 @@ void RetrieveEntryPointFromManifest(wchar_t* xmlFilePath, wchar_t **entryPoint)
 										{
 											delete[](*entryPoint);
 										}
-										(*entryPoint) = new wchar_t[wcsnlen(programName, MAX_PATH)];
+										(*entryPoint) = new wchar_t[wcsnlen(programName, MAX_PATH) + 1];
                                         wcscpy((*entryPoint), programName);
 										SysFreeString(programName);
+										programName = nullptr;
 									}
 									SAFE_RELEASE(pXMLEntryPointChildNode);
 									SysFreeString(entryPointChildNodeName);
+									entryPointChildNodeName = nullptr;
 								}
 								SAFE_RELEASE(pXMLEntryPointChildList);
 							}
 							SAFE_RELEASE(pXMLEntryPointNode);
 							SysFreeString(entryPointNodeName);
+							entryPointNodeName = nullptr;
 						}
 						SAFE_RELEASE(pXMLEntryPointList);
 					}
 					SAFE_RELEASE(pXMLChildNode);
 					SysFreeString(childNodeName);
+					childNodeName = nullptr;
 				}
 				SAFE_RELEASE(pXMLChildNodeList);
 			}
 			// cleanup the node
 			SAFE_RELEASE(pXMLNode);
 			SysFreeString(nodeName);
+			nodeName = nullptr;
 		}
 	}
 	else
@@ -204,11 +209,37 @@ CleanUp:
 	SAFE_RELEASE(pXMLNodeList);
 	SysFreeString(bstrXML);
 	SysFreeString(bstrErr);	
+	
 	SysFreeString(nodeName);
+	
 	SysFreeString(childNodeName);
+	
 	SysFreeString(entryPointNodeName);
+	
 	SysFreeString(entryPointChildNodeName);
+	
 	SysFreeString(programName);
+	
+	/*if (nodeName != nullptr) 
+	{
+		SysFreeString(nodeName);
+	}
+	if (childNodeName != nullptr) 
+	{
+		SysFreeString(childNodeName);
+	}
+	if (entryPointNodeName != nullptr) 
+	{
+		SysFreeString(entryPointNodeName);
+	}
+	if (entryPointChildNodeName != nullptr)
+	{
+		SysFreeString(entryPointChildNodeName);
+	}
+	if (programName != nullptr)
+	{
+		SysFreeString(programName);
+	}*/
 	VariantClear(&varFileName);
 }
 
