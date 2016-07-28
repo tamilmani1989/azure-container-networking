@@ -1,0 +1,9 @@
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+      <Robocopy Include="$(NetAnalytics)\content\*.*">
+      <DestinationFolder>$(srvreleaseshare)\retail-AMD64\AquariusPackage</DestinationFolder>
+      <NoSymbols>true</NoSymbols>
+    </Robocopy>
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
+</Project>
