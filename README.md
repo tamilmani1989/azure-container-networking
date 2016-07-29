@@ -5,7 +5,7 @@ Aquarius is the VM Network Agent that helps manage lifecycle of first party netw
 ### Windows: Plugins within JobObjects
 ### Linux:
 
-## Pacakage Manager
+## Package Manager
 
 ## Shared
 
