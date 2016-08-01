@@ -1,8 +1,13 @@
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(EnvironmentConfig)" />
   <ItemGroup>
-    <ProjectFile Include="Aquarius\Aquarius.vcxproj" />
-    <ProjectFile Include="EventMessage\CreatePackage.proj" />
+    <ProjectReference Include="Aquarius\Aquarius.vcxproj" />
+    <ProjectReference Include="EventMessage\CreatePackage.proj" />
+    <ProjectReference Include="SignLocalFiles\SignLocalFiles.proj" />
   </ItemGroup>
-  <Import Project="$(ExtendedTargetsPath)\Traversal.targets" />
+  <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
+  <PropertyGroup>
+    <BuildDependsOn>ResolveReferences</BuildDependsOn>
+  </PropertyGroup>
+  <Target Name="VerifyAlteredTargetsUsed" />
 </Project>

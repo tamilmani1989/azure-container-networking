@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <Import Project="$(PkgLocalSigning)\LocalSigning.targets" />
+  <ItemGroup>
+    <ProjectReference Include="$(SrcRoot)\Aquarius\Aquarius.vcxproj" />
+    <ProjectReference Include="$(SrcRoot)\EventMessage\CreatePackage.proj" />
+    <ProjectReference Include="$(SrcRoot)\Kernel\Kernel.vcxproj" />
+    <ProjectReference Include="$(SrcRoot)\PackMan\PackMan.vcxproj" />
+    <ProjectReference Include="$(SrcRoot)\Shared\Shared.vcxproj" />
+  </ItemGroup>
+  
+  <Target Name="GetFilesToSign" BeforeTargets="LocalSignFiles">
+    <Message Text="Codesign project started" Importance="high"/>
+    <CreateItem 
+      Include="$(BinariesBuildTypeArchDirectory)\**\*.exe;$(BinariesBuildTypeArchDirectory)\**\*.ps1;$(BinariesBuildTypeArchDirectory)\**\*.dll;$(BinariesBuildTypeArchDirectory)\**\*.psm1"
+      AdditionalMetadata="Cert=AzureEngBuildAuthenticodeCert">
+      <Output TaskParameter="Include" ItemName="FilesToSign"/>
+    </CreateItem>
+    <Message Text="Files to sign @(FilesToSign)"/>
+  </Target>
+  <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
+  
+  <PropertyGroup>
+     <!-- Don't code instrument the binaries under this project -->
+    <QInstrumentForCoverage>false</QInstrumentForCoverage>
+    <BuildDependsOn>ResolveReferences</BuildDependsOn>
+  </PropertyGroup>
+</Project>
