@@ -19,7 +19,8 @@ void AqPackageManager::GetPackageStoreLocation(wchar_t *packageStoreLocation, DW
 {
 	AquariusUtilities::WriteEventLogEntry(L"Going to get package store location.");
 	AquariusUtilities::WriteEventLogEntry(L"Trying to open registry key that contains config.");
-	HKEY configKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
+	HKEY configKey = nullptr;
+	//RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
     if(configKey != nullptr)
     {
         AquariusUtilities::WriteEventLogEntry(L"Found registry key.");
