@@ -244,15 +244,44 @@ CleanUp:
 	VariantClear(&varFileName);
 }
 
+bool IsValidEntryPoint(wchar_t **entryPoint)
+{
+	wchar_t *ep = (*entryPoint);
+	if(ep != nullptr)
+	{
+		if(wcsstr(ep, L".."))
+		{
+			return 0;
+		}
+		return 1;
+	}
+	return 0;
+}
+
 int XmlParser::ParseManifest(wchar_t* xmlFilePath, wchar_t **entryPoint)
 {
 	HRESULT hr = CoInitialize(nullptr);
 	if (SUCCEEDED(hr))
 	{
-		RetrieveEntryPointFromManifest(xmlFilePath, entryPoint);
+		try 
+		{
+			RetrieveEntryPointFromManifest(xmlFilePath, entryPoint);
+		}
+		catch(...)
+		{
+			CoUninitialize();
+			throw;
+		}
 		CoUninitialize();
+		if (!IsValidEntryPoint(entryPoint))
+		{
+			wchar_t errMsg[256];
+			StringCchPrintf(errMsg, ARRAYSIZE(errMsg),
+				L"Invalid entry point %s Relative/empty paths not allowed in entry point.", entryPoint);
+			AquariusUtilities::WriteEventLogEntry(errMsg);
+			throw errMsg;
+		}
 		return 1;
-	}
-
+	}	
 	return 0;
 }
