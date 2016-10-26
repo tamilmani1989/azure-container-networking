@@ -3,7 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="Aquarius\Aquarius.vcxproj" />
     <ProjectReference Include="EventMessage\CreatePackage.proj" />
-    <ProjectReference Include="SignLocalFiles\SignLocalFiles.proj" />
+    <ProjectReference Include="SignLocalFiles\SignLocalFiles.proj" Condition="'$(IsOfficialBuild)' != ''" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
   <PropertyGroup>

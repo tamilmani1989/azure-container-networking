@@ -17,4 +17,9 @@
      <Exec Command="mc -U AqEventMessage.mc &amp; rc AqEventMessage.rc &amp; link -dll -noentry /MACHINE:x86 AqEventMessage.res"/>
      <Exec Command="md $(BinariesBuildTypeArchDirectory)\AquariusPackage &amp; md $(BinariesBuildTypeArchDirectory)\AquariusPackage\Plugins &amp; cp AqEventMessage.dll $(BinariesBuildTypeArchDirectory)\AquariusPackage &amp; xcopy /s $(NetAnalytics)\content $(BinariesBuildTypeArchDirectory)\AquariusPackage\Plugins"/>
   </Target>
+
+  <ItemGroup>
+    <QCustomInput Include="AqEventMessage.mc" />
+    <QCustomOutput Include="AqEventMessage.rc" />
+  </ItemGroup>
 </Project>
