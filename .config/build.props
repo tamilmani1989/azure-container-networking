@@ -44,5 +44,11 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <StyleCopEnabled>true</StyleCopEnabled>
     <StyleCopVersion Condition="'$(StyleCopVersion)' == ''">4.3.0.8</StyleCopVersion>
   </PropertyGroup>
-	
+
+  <ItemGroup>
+    <!-- Global header files -->
+    <QCustomInput Include="$(SRCROOT)\shared\*.h" >
+      <Visible>false</Visible>
+    </QCustomInput>
+  </ItemGroup>
 </Project>

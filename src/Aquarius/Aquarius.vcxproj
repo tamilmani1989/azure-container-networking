@@ -176,5 +176,13 @@
       <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\kernel\*.h" >
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\packman\*.h" >
+      <Visible>false</Visible>
+    </QCustomInput>
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
