@@ -15,8 +15,8 @@ Aquarius is the VM Network Agent that helps manage lifecycle of first party netw
 
 ## Deployment
 ### Deployment Engine
-#### GA Extension via Storage Blob-
-#### Rollout to Nodes (self managed deployment)-
+#### GA Extension via Storage Blob
+#### Rollout to Nodes (self managed deployment)
 
 ## Work in partner components for self managed deployment
 
