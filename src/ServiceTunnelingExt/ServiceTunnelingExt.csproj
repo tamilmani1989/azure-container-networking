@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--MACHINE GENERATED DO NOT EDIT.-->
+<!--Create or modify QueryRnm.razzle.settings.targets and Utilities.razzle.targets to customize.-->
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <PropertyGroup>
+    <RunCodeAnalysis>$(RunCA)</RunCodeAnalysis>
+  </PropertyGroup>
+  <!--Required before anything else.-->
+  <PropertyGroup>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Razzle|Win32'">
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <!--Import local settings file if present.-->
+  <Import Project="ServiceTunnleingExt.settings.targets" Condition="Exists('Utilities.settings.targets')" />
+  <PropertyGroup>
+    <ProjectGuid>{4D20F94D-7762-413C-9D15-84E31B2443D6}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Microsoft.WindowsAzure.Networking.Aquarius.ServiceTunnelingExt</RootNamespace>
+    <AssemblyName>ServiceTunnelingExt</AssemblyName>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!--<DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>-->
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.ServiceModel" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceProcess" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Service References\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ServiceTunnelingExt.cs" />
+  </ItemGroup>  
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.CSharp.targets" />
+  <!--Import local targets file if present.-->
+  <Import Project="QueryRnm.targets" Condition="Exists('Utilities.targets')" />
+</Project>
