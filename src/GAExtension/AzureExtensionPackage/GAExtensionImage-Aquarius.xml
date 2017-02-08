@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ExtensionImage xmlns="http://schemas.microsoft.com/windowsazure" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">   
+  <ProviderNameSpace>Microsoft.Azure.Networking.SDN</ProviderNameSpace>
+  <Type>Aquarius</Type>
+  <Version>0.983</Version>
+  <Label>QXF1YXJpdXM=</Label> <!-- this is base64 encoded name of teh extension, i.e., Aquarius -->
+  <HostingResources>VmRole</HostingResources>
+  <MediaLink>https://vmnetworkagent.blob.core.windows.net/networkagent/Aquarius.zip</MediaLink> <!-- URl where package is uploaded -->
+  <Description>Aquarius - Azure VM Network Agent</Description>
+  <PublishedDate>2016-09-24</PublishedDate>
+  <IsInternalExtension>true</IsInternalExtension>
+  <SampleConfig>Q29uZmlndXJhdGlvbg==</SampleConfig> <!-- Base 64 encoded configuration. This is random config right now as we are not using it.-->
+  <Eula>https://www.microsoft.com/en-us/</Eula>
+  <PrivacyUri>https://privacy.microsoft.com/en-us/privacystatement</PrivacyUri>
+  <HomepageUri>http://aka.ms/Aquarius</HomepageUri>
+  <IsJsonExtension>true</IsJsonExtension>
+  <DisallowMajorVersionUpgrade>false</DisallowMajorVersionUpgrade>
+  <SupportedOS>Windows</SupportedOS>
+  <CompanyName>Microsoft</CompanyName>
+ </ExtensionImage>
