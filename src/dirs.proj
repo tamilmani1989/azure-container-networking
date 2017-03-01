@@ -3,6 +3,9 @@
   <ItemGroup>
     <ProjectReference Include="Aquarius\Aquarius.vcxproj" />
     <ProjectReference Include="EventMessage\CreatePackage.proj" />
+    <ProjectReference Include="Common\XmlParseHelper\XmlParserHelper.vcxproj" />
+    <ProjectReference Include="LoopbackAdapterInstaller\LoopbackAdapterInstaller.vcxproj" />
+    <ProjectReference Include="ServiceTunnelExtension\ServiceTunnelExtension.vcxproj" />
     <ProjectReference Include="SignLocalFiles\SignLocalFiles.proj" Condition="'$(IsOfficialBuild)' != ''" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
