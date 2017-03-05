@@ -186,7 +186,7 @@ Cleanup:
 HRESULT 
 LoopbackAdapterInstaller::ReleaseINetCfgWithLock(
     __in INetCfg* NetCfg
-	)
+    )
 /*++
 
 Routine Description:
@@ -230,7 +230,7 @@ LoopbackAdapterInstaller::UpdateInterfaceDisplayName(
     __in LPWSTR InterfaceName,
     __in LPWSTR InterfaceNewName,
     __out LPGUID InstanceGuid
-	)
+    )
 /*++
 
 Routine Description:
@@ -358,7 +358,7 @@ HRESULT
 LoopbackAdapterInstaller::CreateLoopbackAdapter(
     __in LPWSTR InterfaceName,
     __inout LPGUID InstanceGuid
-	)
+    )
 /*++
 
 Routine Description:
@@ -389,6 +389,7 @@ Return Value:
     GUID classGuid = { 0 };
     GUID instanceGuid = { 0 };
     wchar_t friendlyName[MAX_PATH];
+    bool setupDiGetDevRegPropResult = false;
 
     if (!GetWindowsDirectory(windowsDirectory, MAX_PATH)) 
     {
@@ -437,7 +438,7 @@ Return Value:
         hr = HRESULT_FROM_WIN32(GetLastError());
         RD_TRACE_E_HR((RD_TRACE_ERROR,
             L"Failed to SetupDiCreateDeviceInfoList for class '%s'. Error:[0x%x]",
-            &classGuid,
+            classGuidString,
             hr),
             hr,
             Cleanup);
@@ -457,7 +458,7 @@ Return Value:
         hr = HRESULT_FROM_WIN32(GetLastError());
         RD_TRACE_E_HR((RD_TRACE_ERROR,
             L"Failed to SetupDiCreateDeviceInfo for class '%s'. Error:[0x%x]",
-            &classGuid,
+            classGuidString,
             hr),
             hr,
             Cleanup);
@@ -473,7 +474,7 @@ Return Value:
         hr = HRESULT_FROM_WIN32(GetLastError());
         RD_TRACE_E_HR((RD_TRACE_ERROR,
             L"Failed to SetupDiSetDeviceRegistryProperty for class '%s'. Error:[0x%x]",
-            &classGuid,
+            classGuidString,
             hr),
             hr,
             Cleanup);
@@ -484,7 +485,7 @@ Return Value:
         hr = HRESULT_FROM_WIN32(GetLastError());
         RD_TRACE_E_HR((RD_TRACE_ERROR,
             L"Failed to SetupDiCallClassInstaller for class '%s'. Error:[0x%x]",
-            &classGuid,
+            classGuidString,
             hr),
             hr,
             Cleanup);
@@ -500,7 +501,7 @@ Return Value:
         hr = HRESULT_FROM_WIN32(GetLastError());
         RD_TRACE_E_HR((RD_TRACE_ERROR,
             L"Failed to UpdateDriverForPlugAndPlayDevices for class '%s', Error:[0x%x]",
-            &classGuid,
+            classGuidString,
             hr),
             hr,
             Cleanup);
@@ -508,19 +509,36 @@ Return Value:
 
     RD_TRACE_LOG((RD_TRACE_INFO, L"Loopback adapter successfully installed"));
 
-    if(!SetupDiGetDeviceRegistryProperty(deviceInfoSet,
+    setupDiGetDevRegPropResult = SetupDiGetDeviceRegistryProperty(
+        deviceInfoSet,
         &deviceInfoData,
         SPDRP_FRIENDLYNAME,
         NULL,
         (PBYTE)friendlyName,
         sizeof(friendlyName),
-        NULL))
+        NULL);
+    if(!setupDiGetDevRegPropResult)
     {
-        hr = HRESULT_FROM_WIN32(GetLastError());
-        RD_TRACE_E_HR((RD_TRACE_ERROR,
-            L"SetupDiGetDeviceRegistryProperty failed. Error:[0x%x]", hr),
-            hr,
-            Cleanup);
+        RD_TRACE_LOG((RD_TRACE_WARNING,
+            L"SetupDiGetDeviceRegistryProperty failed when using SPDRP_FRIENDLYNAME. " 
+            L"Will retry using device description. Error:[0x%x]", 
+            GetLastError()));
+
+        if (!SetupDiGetDeviceRegistryProperty(
+            deviceInfoSet,
+            &deviceInfoData,
+            SPDRP_DEVICEDESC,
+            NULL,
+            (PBYTE)friendlyName,
+            sizeof(friendlyName),
+            NULL))
+        {
+            hr = HRESULT_FROM_WIN32(GetLastError());
+            RD_TRACE_E_HR((RD_TRACE_ERROR,
+                L"SetupDiGetDeviceRegistryProperty failed using SPDRP_DEVICEDESC. Error:[0x%x]", hr),
+                hr,
+                Cleanup);
+        }
     }
 
     RD_TRACE_LOG((RD_TRACE_INFO, L"Display name for the newly created loopback adapter:%s", friendlyName));
@@ -566,8 +584,8 @@ Cleanup:
 
 HRESULT 
 LoopbackAdapterInstaller::GetOrCreateLoopbackAdapter(
-	__in LPWSTR InterfaceName, 
-	__inout int& InterfaceIndex
+    __in LPWSTR InterfaceName, 
+    __inout int& InterfaceIndex
 )
 /*++
 
@@ -616,7 +634,7 @@ Return Value:
 
     if ((HRESULT_FROM_WIN32(ERROR_NOT_FOUND) != hr))
     {
-		RD_TRACE_LOG((RD_TRACE_INFO, L"Failed to query for the presence of loopback adapter %s. Error[%0x]", InterfaceName, hr));
+        RD_TRACE_LOG((RD_TRACE_INFO, L"Failed to query for the presence of loopback adapter %s. Error[%0x]", InterfaceName, hr));
         goto Cleanup;
     }
 
@@ -755,7 +773,7 @@ Arguments:
 
     DeviceInfoSet - The handle associated with the interface to be enabled/disabled.
 
-	DeviceInfoData - The device info data associated with the interface.
+    DeviceInfoData - The device info data associated with the interface.
 
 Return Value:
 
@@ -785,7 +803,7 @@ Return Value:
     {
         hr = HRESULT_FROM_WIN32(GetLastError());
         RD_TRACE_E_HR((RD_TRACE_ERROR,
-            L"SetupDiSetClassInstallParams failedi %0x", hr),
+            L"SetupDiSetClassInstallParams failed %0x", hr),
             hr,
             Cleanup);
     }
