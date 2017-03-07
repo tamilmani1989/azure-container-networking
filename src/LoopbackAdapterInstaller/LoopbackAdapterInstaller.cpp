@@ -389,7 +389,7 @@ Return Value:
     GUID classGuid = { 0 };
     GUID instanceGuid = { 0 };
     wchar_t friendlyName[MAX_PATH];
-    bool setupDiGetDevRegPropResult = false;
+    BOOL setupDiGetDevRegPropResult = false;
 
     if (!GetWindowsDirectory(windowsDirectory, MAX_PATH)) 
     {
