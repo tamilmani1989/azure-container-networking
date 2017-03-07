@@ -8,7 +8,7 @@ Module Name:
 
 Abstract:
 
-	Implements helpers to support for parsing of Xml documents.
+    Implements helpers to support for parsing of Xml documents.
 
 Environment:
 
@@ -19,7 +19,7 @@ Environment:
 #include "XmlParserHelper.h"
 
 XmlParserHelper::XmlParserHelper(
-	)
+    )
 /*++
 
 Routine Description:
@@ -32,7 +32,7 @@ Arguments:
     
 Return Value:
 
-	None.
+    None.
 
 --*/
 {
@@ -41,13 +41,13 @@ Return Value:
 
 void 
 XmlParserHelper::UnInitialize(
-	)
+    )
 /*++
 
 Routine Description:
 
     Uninitialize the XML parser helper.
-	Frees up resources allocated to the XML Parser helper.
+    Frees up resources allocated to the XML Parser helper.
 
 Arguments:
 
@@ -55,7 +55,7 @@ Arguments:
     
 Return Value:
 
-	None.
+    None.
 
 --*/
 {
@@ -65,8 +65,8 @@ Return Value:
 
 HRESULT 
 XmlParserHelper::VariantFromString(
-	__in PCWSTR Value, 
-	__out VARIANT &Variant)
+    __in PCWSTR Value, 
+    __out VARIANT &Variant)
 /*++
 
 Routine Description:
@@ -77,11 +77,11 @@ Arguments:
 
     Value - Null terminated string.
 
-	Varaint - Out varaibale for the created  VT_BSTR variant.
+    Varaint - Out varaibale for the created  VT_BSTR variant.
     
 Return Value:
 
-	S_OK on success. On failure appropriate HRESULT is returned.
+    S_OK on success. On failure appropriate HRESULT is returned.
 
 --*/
 {
@@ -99,7 +99,7 @@ Cleanup:
 //  
 HRESULT 
 XmlParserHelper::CreateAndInitDOM(
-	__inout IXMLDOMDocument** Document)
+    __inout IXMLDOMDocument** Document)
 /*++
 
 Routine Description:
@@ -108,11 +108,11 @@ Routine Description:
 
 Arguments:
 
-	Document - Out parameter to hold the reference to the create DOM instance.
+    Document - Out parameter to hold the reference to the create DOM instance.
     
 Return Value:
 
-	S_OK on success. On failure appropriate HRESULT is returned.
+    S_OK on success. On failure appropriate HRESULT is returned.
 
 --*/
 {
@@ -135,8 +135,8 @@ Cleanup:
 
 HRESULT 
 XmlParserHelper::ReportParseError(
-	IXMLDOMDocument *Document, 
-	LPCWSTR Description)
+    IXMLDOMDocument *Document, 
+    LPCWSTR Description)
 /*++
 
 Routine Description:
@@ -145,54 +145,54 @@ Routine Description:
 
 Arguments:
 
-	Document - Reference to the DOM instance.
+    Document - Reference to the DOM instance.
 
-	Description - Additional parameter used for logging.
+    Description - Additional parameter used for logging.
 
 Return Value:
 
-	S_OK on success. On failure appropriate HRESULT is returned.
+    S_OK on success. On failure appropriate HRESULT is returned.
 
 --*/
 {
-    HRESULT hr = S_OK;
-    HRESULT hrRet = E_FAIL; // Default error code if failed to get from parse error.
-    IXMLDOMParseError *pXMLErr = NULL;
-    BSTR bstrReason = NULL;
+HRESULT hr = S_OK;
+HRESULT hrRet = E_FAIL; // Default error code if failed to get from parse error.
+IXMLDOMParseError *pXMLErr = NULL;
+BSTR bstrReason = NULL;
 
-    hr = Document->get_parseError(&pXMLErr);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"ReportParseError:get_parseError failed with error [%0x]", hr),
-        hr,
-        Cleanup);
-    hr = pXMLErr->get_errorCode(&hrRet);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"ReportParseError:get_errorCode failed with error [%0x]", hr),
-        hr,
-        Cleanup);
+hr = Document->get_parseError(&pXMLErr);
+RD_TRACE_E_HR((RD_TRACE_ERROR,
+    L"ReportParseError:get_parseError failed with error [%0x]", hr),
+    hr,
+    Cleanup);
+hr = pXMLErr->get_errorCode(&hrRet);
+RD_TRACE_E_HR((RD_TRACE_ERROR,
+    L"ReportParseError:get_errorCode failed with error [%0x]", hr),
+    hr,
+    Cleanup);
 
-    hr = pXMLErr->get_reason(&bstrReason);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"ReportParseError:get_reason failed with error [%0x] - Description - [%s]", hr, Description),
-        hr,
-        Cleanup);
+hr = pXMLErr->get_reason(&bstrReason);
+RD_TRACE_E_HR((RD_TRACE_ERROR,
+    L"ReportParseError:get_reason failed with error [%0x] - Description - [%s]", hr, Description),
+    hr,
+    Cleanup);
 
 Cleanup:
 
-    RELEASE(pXMLErr);
+RELEASE(pXMLErr);
 
-	if (bstrReason != NULL)
-	{
-		SysFreeString(bstrReason);
-	}
-
-    return hrRet;
+if (bstrReason != NULL)
+{
+    SysFreeString(bstrReason);
 }
 
-HRESULT 
+return hrRet;
+}
+
+HRESULT
 XmlParserHelper::Initialize(
-	LPCWSTR XmlFileName
-	)
+    LPCWSTR XmlFileName
+)
 /*++
 
 Routine Description:
@@ -201,11 +201,11 @@ Routine Description:
 
 Arguments:
 
-	XmlFileName - Full path to the XML file to be parsed.
+    XmlFileName - Full path to the XML file to be parsed.
 
 Return Value:
 
-	S_OK on success. On failure appropriate HRESULT is returned.
+    S_OK on success. On failure appropriate HRESULT is returned.
 
 --*/
 {
@@ -248,30 +248,29 @@ Cleanup:
 
 HRESULT 
 XmlParserHelper::QueryNodeAttributeValues(
-    __in LPWSTR NodeName,
-    __in LPWSTR AttributeName,
+    __in LPCWSTR NodePathQuery,
+    __in LPCWSTR AttributeName,
     __inout std::set<wstring>& AttributeValues
-	)
+    )
 /*++
 
 Routine Description:
 
-    Helper to query the values associated wit a given node and an attribute.
+    Helper to query the values associated with a given node and an attribute.
 
 Arguments:
 
-	NodeName - Name of the node.
+    NodePathQuery - Node path query in Xpath format.
 
-	AttirbuteName = Name of the attribute to be queried
+    AttirbuteName = Name of the attribute to be queried
 
-	AttributeValues - Set to hold the list of values associated with the attribute.
+    AttributeValues - Set to hold the list of values associated with the attribute.
 
 Return Value:
 
-	S_OK on success. On failure appropriate HRESULT is returned.
+    S_OK on success. On failure appropriate HRESULT is returned.
 
 --*/
-
 {
     HRESULT hr = S_OK;
     DWORD error;
@@ -290,15 +289,10 @@ Return Value:
     VARIANT_BOOL varStatus;
     VARIANT varFileName;
     VariantInit(&varFileName);
-    PWSTR nodeString = NULL;
     std::wstring attributeValue;
-    error = AppendStrings(&nodeString,
-        2,
-        L"//",
-        NodeName);
-    RD_E_WIN32(error, Cleanup);
+    RD_TRACE_LOG((RD_TRACE_INFO, L"NodeQuery:%s, Attribute:%s.", NodePathQuery, AttributeName));
 
-    nodeQuery = SysAllocString(nodeString);
+    nodeQuery = SysAllocString(NodePathQuery);
     RD_TRACE_M_EXIT(nodeQuery, 
         (RD_TRACE_ERROR, 
         L"QueryNodeAttributeValues:SysAllocString Allocation failed for node query."), 
@@ -351,12 +345,13 @@ Return Value:
                     bstrAttributeValue = V_BSTR(&variantAttributeValue);
                     attributeValue.clear();
                     attributeValue.assign(bstrAttributeValue, SysStringLen(bstrAttributeValue));
-                    wprintf(L"Attribute value, <%s>:\n", attributeValue.c_str());
+                    wprintf(L"Attribute value, <%s>\n", attributeValue.c_str());
                     AttributeValues.insert(attributeValue);
                     RELEASE(pIXMLDOMNode);
                 }
                 RELEASE(pIXMLDOMNamedNodeMap);
             }
+
             RELEASE(pNode);
         }
     }
@@ -369,11 +364,10 @@ Cleanup:
 
     RELEASE(pNodes);
     RELEASE(pNode);
-
     if (nodeQuery != NULL)
     {
         SysFreeString(nodeQuery);
-	}
+    }
 
     if (bstrNodeName != NULL)
     {
@@ -385,7 +379,38 @@ Cleanup:
         SysFreeString(bstrAttributeName);
     }
 
-    STR_FREE(nodeString);
-
     return hr;
+}
+
+std::wstring 
+XmlParserHelper::PrepareAttributeQuery(
+    std::wstring Name,
+    std::wstring Value)
+    /*++
+
+    Routine Description:
+
+    Helper to prepare an attribute query.
+
+    Arguments:
+
+    Name - Name of the attribute.
+
+    Value - Value of the attribute.
+
+    Return Value:
+
+    string representing the attribute query in the format to be used in Xpath queries.
+
+    --*/
+{
+    std::wstring query;
+
+    query.append(L"[@");
+    query.append(Name);
+    query.append(L"='");
+    query.append(Value);
+    query.append(L"']");
+
+    return query;
 }

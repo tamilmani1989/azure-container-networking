@@ -28,27 +28,37 @@ Environment:
 #include <windows.h>
 #include <regex>
 #include <set>
+#include <map>
 #include <iostream>
 #include "RdCommon.h"
 #include "RdTrace.h"
 
 using namespace std;
 
+#define XPATH_ROOT_START_TAG L"//"
+#define XPATH_PATH_SEPARATOR_TAG L"/"
+
 class XmlParserHelper
 {
     public:
+
         XmlParserHelper();
+
         HRESULT Initialize(__in LPCWSTR XmlFile);
-        HRESULT QueryNodeAttributeValues(
-            __in LPWSTR NodeName,
-            __in LPWSTR AttrtbuteName,
-            __inout std::set<wstring>& AttributeValues);
+
+        HRESULT QueryNodeAttributeValues(__in LPCWSTR NodeName, __in LPCWSTR AttrtbuteName, __inout std::set<wstring>& AttributeValues);
+
         void UnInitialize();
 
+        std::wstring PrepareAttributeQuery(std::wstring Name, std::wstring Value);
+
     private:
+
         IXMLDOMDocument* XMLDom;
 
         HRESULT VariantFromString(__in PCWSTR Value, __out VARIANT &Variant);
+
         HRESULT CreateAndInitDOM(__inout IXMLDOMDocument **Document);
+
         HRESULT ReportParseError(__in IXMLDOMDocument *Document, __in LPCWSTR Description);
 };

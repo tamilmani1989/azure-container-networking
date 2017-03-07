@@ -34,6 +34,25 @@ Environment:
 
 #define ENDPOINT_NODE_NAME L"Endpoint"
 #define SERVICE_TUNNEL_IPV6_ATTRIBUTE_NAME L"serviceTunnelIPv6Address"
+#define INCARNATION_NODE_NAME L"Incarnation"
+#define INSTANCE_ATTRIBUTE_NAME L"instance"
+#define INSTANCE_NODE_NAME L"Instance"
+#define ID_ATRRIBUTE_NAME L"id"
+#define ADDRESS_ATTRIBUTE_NAME L"address"
 
 HRESULT SetupLogging();
+
+HRESULT GetInstanceId(
+    __in XmlParserHelper* xmlParserHelper, 
+    __inout std::wstring& InstanceName);
+
+HRESULT GetInstanceAddress(
+    __in XmlParserHelper* xmlParserHelper, 
+    __in std::wstring InstanceName, 
+    __inout std::wstring& InstanceAddress);
+
+HRESULT GetServiceTunnelIpv6Addresses(
+    __in XmlParserHelper* xmlParserHelper,
+    __in std::wstring InstanceName,
+    __inout std::set<std::wstring>& ServiceTunnelIpv6Addresses);
 
