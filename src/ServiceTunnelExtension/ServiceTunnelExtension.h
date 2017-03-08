@@ -27,6 +27,8 @@ Environment:
 #include "ServiceTunnelConfigurator.h"
 #include <iostream>
 #include "XmlParserHelper.h"
+#include <sstream>
+#include <string>
 
 
 #define AGENT_TRACE_FLAGS (RD_TRACE_ALL & ~RD_TRACE_PAINFUL)
@@ -43,16 +45,16 @@ Environment:
 HRESULT SetupLogging();
 
 HRESULT GetInstanceId(
-    __in XmlParserHelper* xmlParserHelper, 
+    __in XmlParserHelper* XmlParserHelper, 
     __inout std::wstring& InstanceName);
 
 HRESULT GetInstanceAddress(
-    __in XmlParserHelper* xmlParserHelper, 
+    __in XmlParserHelper* XmlParserHelper,
     __in std::wstring InstanceName, 
     __inout std::wstring& InstanceAddress);
 
 HRESULT GetServiceTunnelIpv6Addresses(
-    __in XmlParserHelper* xmlParserHelper,
+    __in XmlParserHelper* XmlParserHelper,
     __in std::wstring InstanceName,
     __inout std::set<std::wstring>& ServiceTunnelIpv6Addresses);
 

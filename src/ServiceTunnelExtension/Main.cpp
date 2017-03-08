@@ -143,7 +143,7 @@ Return Value:
     incarnationNodePath.append(XPATH_ROOT_START_TAG);
     incarnationNodePath.append(INCARNATION_NODE_NAME);
 
-    hr = xmlParserHelper->QueryNodeAttributeValues(
+    hr = XmlParserHelper->QueryNodeAttributeValues(
         (LPWSTR)incarnationNodePath.c_str(),
         INSTANCE_ATTRIBUTE_NAME,
         instanceValues);
@@ -185,7 +185,7 @@ Cleanup:
 }
 
 HRESULT GetInstanceAddress(
-    __in XmlParserHelper* xmlParserHelper,
+    __in XmlParserHelper* XmlParserHelper,
     __in std::wstring InstanceName,
     __inout std::wstring& InstanceAddress)
 /*++
@@ -196,7 +196,7 @@ Routine Description:
 
 Arguments:
 
-    XmlParserHelper - XmlParserHelepr object which has the RCF file loaded.
+    XmlParserHelper - XmlParserHelper object which has the RCF file loaded.
 
     InstanceName - Instance name whose address to be retrieved from RCF.
 
@@ -219,7 +219,7 @@ Return Value:
     instanceAddressNodePath.append(InstanceName);
     instanceAddressNodePath.append(L"']");
 
-    hr = xmlParserHelper->QueryNodeAttributeValues(
+    hr = XmlParserHelper->QueryNodeAttributeValues(
         (LPWSTR)instanceAddressNodePath.c_str(),
         ADDRESS_ATTRIBUTE_NAME,
         instanceValues);
@@ -261,7 +261,7 @@ Cleanup:
 }
 
 HRESULT GetServiceTunnelIpv6Addresses(
-    __in XmlParserHelper* xmlParserHelper,
+    __in XmlParserHelper* XmlParserHelper,
     __in std::wstring InstanceName,
     __inout std::set<std::wstring>& ServiceTunnelIpv6Addresses)
 /*++
@@ -272,7 +272,7 @@ Routine Description:
 
 Arguments:
 
-    XmlParserHelper - XmlParserHelepr object which has the RCF file loaded.
+    XmlParserHelper - XmlParserHelper object which has the RCF file loaded.
 
     InstanceName - Instance name whose address to be retrieved from RCF.
 
@@ -291,13 +291,13 @@ Return Value:
 
     serviceTunnelAddressNodePath.append(XPATH_ROOT_START_TAG);
     serviceTunnelAddressNodePath.append(INSTANCE_NODE_NAME);
-    serviceTunnelAddressNodePath.append(xmlParserHelper->PrepareAttributeQuery(ID_ATRRIBUTE_NAME, InstanceName));
+    serviceTunnelAddressNodePath.append(XmlParserHelper->PrepareAttributeQuery(ID_ATRRIBUTE_NAME, InstanceName));
     serviceTunnelAddressNodePath.append(XPATH_PATH_SEPARATOR_TAG);
     serviceTunnelAddressNodePath.append(L"InputEndpoints");
     serviceTunnelAddressNodePath.append(XPATH_PATH_SEPARATOR_TAG);
     serviceTunnelAddressNodePath.append(ENDPOINT_NODE_NAME);
 
-    hr = xmlParserHelper->QueryNodeAttributeValues(
+    hr = XmlParserHelper->QueryNodeAttributeValues(
         serviceTunnelAddressNodePath.c_str(),
         SERVICE_TUNNEL_IPV6_ATTRIBUTE_NAME,
         instanceValues);
@@ -321,6 +321,47 @@ Return Value:
 Cleanup:
 
     return hr;
+}
+
+std::wstring
+GetSTIpv6AddrFromInstanceIpv4Addr(
+	__in std::wstring InstanceIpv4Addr
+	)
+/*++
+
+Routine Description:
+
+    Helper to retrieve IPV6 address from IPV4 address.
+
+Arguments:
+
+    InstanceIpv4Addr - IPV4 Address to which IPV6 address has to be computed.
+
+Return Value:
+
+    std::wstring - Returns corresponding IPV6 address for IPV4 address
+
+--*/
+{
+	wchar_t *wipToken, *tmp;
+	unsigned short ip[4];
+	std::string result[4];
+	std::string ipv6Addr;
+	
+	swscanf(InstanceIpv4Addr.c_str(), L"%hu.%hu.%hu.%hu", &ip[0], &ip[1], &ip[2], &ip[3]);
+
+	for (int i = 0; i < 4; i++)
+	{
+		std::stringstream sstream;
+		sstream << std::hex << ip[i];
+		result[i] = sstream.str();
+	}
+
+	ipv6Addr = SERVICE_TUNNEL_IPV6_ADDRESS_PREFIX + result[0] + result[1] + ":" + result[2] + result[3];
+	std::wstring wsIpValue(ipv6Addr.begin(), ipv6Addr.end());
+	RD_TRACE_LOG((RD_TRACE_INFO, L"Derived Ipv6 Address :%s from %s", wsIpValue.c_str(), InstanceIpv4Addr.c_str()));
+
+	return wsIpValue;
 }
 
 int wmain(
@@ -353,6 +394,7 @@ Return Value:
     bool traceInitialized = false;
     std::wstring instanceName;
     std::wstring instanceAddress;
+	std::wstring instanceDerviedIpv6Address;
     ServiceTunnelConfigurator serviceTunnelConfigurator;
 
     hr = SetupLogging();
@@ -413,14 +455,18 @@ Return Value:
         RD_TRACE_LOG((RD_TRACE_INFO, L"ServiceTunnelIpv6Address:%s", serviceTunnelIpv6AddressesIter->c_str()));
     }
 
-    if (serviceTunnelIpv6Addresses.size() > 0)
-    {
-        serviceTunnelConfigurator.SetupLoopbackAdapter(serviceTunnelIpv6Addresses);
-    }
-    else
-    {
-        RD_TRACE_LOG((RD_TRACE_INFO, L"Skipped configuring service tunnel adapter as there was no endpoint enabled for service tunnelling"));
-    }
+	if (serviceTunnelIpv6Addresses.size() == 0)
+	{
+		RD_TRACE_LOG((RD_TRACE_INFO, L"Configuring service tunnel adapter with IPV6 address derived implicitly from Instance Ipv4 address"));
+		instanceDerviedIpv6Address = GetSTIpv6AddrFromInstanceIpv4Addr(instanceAddress);
+		serviceTunnelIpv6Addresses.insert(instanceDerviedIpv6Address);
+	}
+
+	hr = serviceTunnelConfigurator.SetupLoopbackAdapter(serviceTunnelIpv6Addresses);
+	RD_TRACE_E_HR((RD_TRACE_ERROR,
+		L"SetupLoopbackAdapter failed with error [%0x]. ", hr),
+		hr,
+		Cleanup);
 
 Cleanup:
 
