@@ -498,13 +498,23 @@ Return Value:
         NULL, 
         false)) 
     {
-        hr = HRESULT_FROM_WIN32(GetLastError());
-        RD_TRACE_E_HR((RD_TRACE_ERROR,
-            L"Failed to UpdateDriverForPlugAndPlayDevices for class '%s', Error:[0x%x]",
-            classGuidString,
-            hr),
-            hr,
-            Cleanup);
+        error = GetLastError();
+        if(error == ERROR_NO_MORE_ITEMS)
+        {
+            RD_TRACE_LOG((RD_TRACE_WARNING,
+                L"UpdateDriverForPlugAndPlayDevices failed with error:[0x%x]. Ignoring it",
+                error));
+        }
+        else
+        {
+            hr = HRESULT_FROM_WIN32(error);
+            RD_TRACE_E_HR((RD_TRACE_ERROR,
+                L"Failed to UpdateDriverForPlugAndPlayDevices for class '%s', Error:[0x%x]",
+                classGuidString,
+                hr),
+                hr,
+                Cleanup);
+         }
     }
 
     RD_TRACE_LOG((RD_TRACE_INFO, L"Loopback adapter successfully installed"));

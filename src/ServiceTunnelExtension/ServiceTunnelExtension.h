@@ -29,7 +29,7 @@ Environment:
 #include "XmlParserHelper.h"
 #include <sstream>
 #include <string>
-
+#include <iomanip>
 
 #define AGENT_TRACE_FLAGS (RD_TRACE_ALL & ~RD_TRACE_PAINFUL)
 #define LOG_FILE_PREFIX L"ServiceTunnelExtension"

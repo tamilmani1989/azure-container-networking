@@ -325,8 +325,8 @@ Cleanup:
 
 std::wstring
 GetSTIpv6AddrFromInstanceIpv4Addr(
-	__in std::wstring InstanceIpv4Addr
-	)
+    __in std::wstring InstanceIpv4Addr
+    )
 /*++
 
 Routine Description:
@@ -343,25 +343,32 @@ Return Value:
 
 --*/
 {
-	wchar_t *wipToken, *tmp;
-	unsigned short ip[4];
-	std::string result[4];
-	std::string ipv6Addr;
-	
-	swscanf(InstanceIpv4Addr.c_str(), L"%hu.%hu.%hu.%hu", &ip[0], &ip[1], &ip[2], &ip[3]);
+    wchar_t *wipToken, *tmp;
+    unsigned short ip[4];
+    std::string result[4];
+    std::string ipv6Addr;
+    
+    swscanf(InstanceIpv4Addr.c_str(), L"%hu.%hu.%hu.%hu", &ip[0], &ip[1], &ip[2], &ip[3]);
 
-	for (int i = 0; i < 4; i++)
-	{
-		std::stringstream sstream;
-		sstream << std::hex << ip[i];
-		result[i] = sstream.str();
-	}
+    for (int i = 0; i < 4; i++)
+    {
+        std::stringstream sstream;
+        if (i % 2 == 0)
+        {
+            sstream << std::hex << ip[i];
+        }
+        else
+        {
+            sstream<< std::setw(2) << std::setfill('0') << std::hex << ip[i];
+        }
+        result[i] = sstream.str();
+    }
 
-	ipv6Addr = SERVICE_TUNNEL_IPV6_ADDRESS_PREFIX + result[0] + result[1] + ":" + result[2] + result[3];
-	std::wstring wsIpValue(ipv6Addr.begin(), ipv6Addr.end());
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Derived Ipv6 Address :%s from %s", wsIpValue.c_str(), InstanceIpv4Addr.c_str()));
+    ipv6Addr = SERVICE_TUNNEL_IPV6_ADDRESS_PREFIX + result[0] + result[1] + ":" + result[2] + result[3];
+    std::wstring wsIpValue(ipv6Addr.begin(), ipv6Addr.end());
+    RD_TRACE_LOG((RD_TRACE_INFO, L"Derived Ipv6 Address :%s from %s", wsIpValue.c_str(), InstanceIpv4Addr.c_str()));
 
-	return wsIpValue;
+    return wsIpValue;
 }
 
 int wmain(
@@ -394,7 +401,7 @@ Return Value:
     bool traceInitialized = false;
     std::wstring instanceName;
     std::wstring instanceAddress;
-	std::wstring instanceDerviedIpv6Address;
+    std::wstring instanceDerviedIpv6Address;
     ServiceTunnelConfigurator serviceTunnelConfigurator;
 
     hr = SetupLogging();
@@ -455,18 +462,18 @@ Return Value:
         RD_TRACE_LOG((RD_TRACE_INFO, L"ServiceTunnelIpv6Address:%s", serviceTunnelIpv6AddressesIter->c_str()));
     }
 
-	if (serviceTunnelIpv6Addresses.size() == 0)
-	{
-		RD_TRACE_LOG((RD_TRACE_INFO, L"Configuring service tunnel adapter with IPV6 address derived implicitly from Instance Ipv4 address"));
-		instanceDerviedIpv6Address = GetSTIpv6AddrFromInstanceIpv4Addr(instanceAddress);
-		serviceTunnelIpv6Addresses.insert(instanceDerviedIpv6Address);
-	}
+    if (serviceTunnelIpv6Addresses.size() == 0)
+    {
+        RD_TRACE_LOG((RD_TRACE_INFO, L"Configuring service tunnel adapter with IPV6 address derived implicitly from Instance Ipv4 address"));
+        instanceDerviedIpv6Address = GetSTIpv6AddrFromInstanceIpv4Addr(instanceAddress);
+        serviceTunnelIpv6Addresses.insert(instanceDerviedIpv6Address);
+    }
 
-	hr = serviceTunnelConfigurator.SetupLoopbackAdapter(serviceTunnelIpv6Addresses);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"SetupLoopbackAdapter failed with error [%0x]. ", hr),
-		hr,
-		Cleanup);
+    hr = serviceTunnelConfigurator.SetupLoopbackAdapter(serviceTunnelIpv6Addresses);
+    RD_TRACE_E_HR((RD_TRACE_ERROR,
+        L"SetupLoopbackAdapter failed with error [%0x]. ", hr),
+        hr,
+        Cleanup);
 
 Cleanup:
 

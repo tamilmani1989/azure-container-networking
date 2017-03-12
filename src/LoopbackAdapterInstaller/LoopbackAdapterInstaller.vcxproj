@@ -66,7 +66,6 @@
         WIN32_LEAN_AND_MEAN=1;
         DEVL=1;
         _STL100_;
-        _DLL=1;
         _MT=1;
         STRICT;
         UNICODE;
