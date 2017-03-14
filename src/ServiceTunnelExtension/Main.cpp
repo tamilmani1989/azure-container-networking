@@ -469,7 +469,7 @@ Return Value:
         serviceTunnelIpv6Addresses.insert(instanceDerviedIpv6Address);
     }
 
-    hr = serviceTunnelConfigurator.SetupLoopbackAdapter(serviceTunnelIpv6Addresses);
+    hr = serviceTunnelConfigurator.SetupLoopbackAdapter(instanceAddress, serviceTunnelIpv6Addresses);
     RD_TRACE_E_HR((RD_TRACE_ERROR,
         L"SetupLoopbackAdapter failed with error [%0x]. ", hr),
         hr,

@@ -54,7 +54,7 @@ class ServiceTunnelConfigurator
 
     public:
 
-        HRESULT SetupLoopbackAdapter(__in std::set<std::wstring> Ipv6AddressList);
+        HRESULT SetupLoopbackAdapter(__in std::wstring instanceAddress, __in std::set<std::wstring> Ipv6AddressList);
 
         HRESULT NetIfEnableWeakHostRouting(__in ULONG IfIndex);
 

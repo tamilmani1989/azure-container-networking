@@ -563,9 +563,119 @@ Cleanup:
     return hr;
 }
 
+/**/
+
+
+HRESULT GetInterfaceByIpAddress(
+	__in ULONG IpAddress, 
+	__out int& InterfaceIndex
+	)
+/*++
+
+Routine Description:
+
+	Gets the Interface Index for corresponding IPV4 Address
+
+Arguments:
+
+	IpAddress - IPV4 address whose interface index has to be found.
+	InterfaceIndex - To store the Interface Index
+
+Return Value:
+
+	S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	/* Variables used by GetIpAddrTable */
+	PMIB_IPADDRTABLE pIPAddrTable;
+	DWORD dwSize = 0;
+	DWORD dwRetVal = 0;
+	int i;
+	HRESULT hr = S_OK;
+	bool ipFound = false;
+
+	pIPAddrTable = (MIB_IPADDRTABLE *)malloc(sizeof(MIB_IPADDRTABLE));
+
+	if (pIPAddrTable == NULL)
+	{
+
+		hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+		RD_TRACE_E_HR((RD_TRACE_ERROR,
+			L"GetInterfaceByIpAddress:: Failed to allocate memory for pIPAddrTable ",
+			hr),
+			hr,
+			Cleanup);		
+	}
+
+	// Make an initial call to GetIpAddrTable to get the
+	// necessary size into the dwSize variable
+
+	if (GetIpAddrTable(pIPAddrTable, &dwSize, false) == ERROR_INSUFFICIENT_BUFFER)
+	{
+		free(pIPAddrTable);
+		pIPAddrTable = (MIB_IPADDRTABLE *)malloc(dwSize);
+
+	}
+
+	if (pIPAddrTable == NULL)
+	{
+		hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+		RD_TRACE_E_HR((RD_TRACE_ERROR,
+			L"GetInterfaceByIpAddress:: Failed to allocate memory for pIPAddrTable ",
+			hr),
+			hr,
+			Cleanup);
+	}
+
+	// Make a second call to GetIpAddrTable to get the
+	// actual data we want
+	if ((dwRetVal = GetIpAddrTable(pIPAddrTable, &dwSize, false)) != NO_ERROR)
+	{
+		HRESULT_FROM_WIN32(dwRetVal);
+		RD_TRACE_E_HR((RD_TRACE_ERROR,
+			L"GetInterfaceByIpAddress:: GetIpAddrTable returned error code :%d",
+			dwRetVal,
+			hr),
+			hr,
+			Cleanup);
+	}
+
+	for (i = 0; i < (int)pIPAddrTable->dwNumEntries; i++)
+	{
+		if (htonl(pIPAddrTable->table[i].dwAddr) == IpAddress)
+		{
+			InterfaceIndex = pIPAddrTable->table[i].dwIndex;
+			ipFound = true;
+			break;
+		}
+	}
+
+	if (!ipFound)
+	{
+		hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
+		RD_TRACE_E_HR((RD_TRACE_ERROR,
+			L"GetInterfaceByIpAddress:: Ipaddress %d not found in IpAddr Table",
+			IpAddress,
+			hr),
+			hr,
+			Cleanup);
+	}
+
+Cleanup:
+
+	if (pIPAddrTable)
+	{
+		free(pIPAddrTable);
+		pIPAddrTable = NULL;
+	}
+	return hr;
+}
+
 
 HRESULT
 ServiceTunnelConfigurator::SetupLoopbackAdapter(
+	__in std::wstring InstanceAddress,
     __in std::set<std::wstring> Ipv6AddressList
     )
 /*++
@@ -580,13 +690,20 @@ Arguments:
     
 Return Value:
 
-S_OK on success. On failure appropriate HRESULT is returned.
+	S_OK on success. On failure appropriate HRESULT is returned.
 
 --*/
 {
     HRESULT hr = S_OK;
     int interfaceIndex = 0;
+	int ipv4interfaceIndex = 0;
     std::set<wstring>::iterator ipv6AddressListIterator;
+	ULONG ipv4Addr;
+	PCHAR buffer=NULL;
+	LPCWSTR wipv4;
+	int ret;
+	int wlen;
+
     hr = installer.GetOrCreateLoopbackAdapter(SERVICE_TUNNEL_INTERFACE_NAME, interfaceIndex);
     RD_TRACE_E_HR((RD_TRACE_ERROR,
         L"SetupLoopbackAdapter:: Failed to set up loopback adapter [%0x]",
@@ -613,23 +730,49 @@ S_OK on success. On failure appropriate HRESULT is returned.
     }
 
     hr = NetIfEnableWeakHostRouting(interfaceIndex);
+	RD_TRACE_E_HR((RD_TRACE_ERROR,
+		L"SetupLoopbackAdapter:: Failed to set weak host routing on interface with index [%d]. Error:[%0x]",
+		interfaceIndex,
+		hr),
+		hr,
+		Cleanup);
 
+	wipv4 = InstanceAddress.c_str();
+	wlen = wcslen(wipv4) + 1;
+	buffer = (char *) malloc(wlen);
+	ret = wcstombs(buffer, wipv4, wlen);
+
+	ipv4Addr = ntohl(inet_addr(buffer));
+
+	hr = GetInterfaceByIpAddress(ipv4Addr, ipv4interfaceIndex);
+	RD_TRACE_E_HR((RD_TRACE_ERROR,
+		L"SetupLoopbackAdapter:: GetInterfaceByIpAddress function failed to find Interface Index for %s address",
+		wipv4,
+		hr),
+		hr,
+		Cleanup);
+
+	RD_TRACE_LOG((RD_TRACE_INFO, L"Interface Index for %s address is %d",
+		wipv4,
+		ipv4interfaceIndex));
+
+	hr = NetIfEnableWeakHostRouting(ipv4interfaceIndex);
     RD_TRACE_E_HR((RD_TRACE_ERROR,
         L"SetupLoopbackAdapter:: Failed to set weak host routing on interface with index [%d]. Error:[%0x]",
-        interfaceIndex,
+		ipv4interfaceIndex,
         hr),
         hr,
         Cleanup);
     //
     // Add fake GW
     //
-    hr = NetIfAddDeleteIPv6Route(interfaceIndex,
+    hr = NetIfAddDeleteIPv6Route(ipv4interfaceIndex,
         SERVICE_TUNNEL_SOURCE_PREFIX,
         SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS,
         TRUE);
     RD_TRACE_E_HR((RD_TRACE_ERROR,
         L"SetupLoopbackAdapter:: Failed to add fake GW on interface with index [%d]. Error:[%0x]",
-        interfaceIndex,
+		ipv4interfaceIndex,
         hr),
         hr,
         Cleanup);
@@ -637,18 +780,22 @@ S_OK on success. On failure appropriate HRESULT is returned.
     //
     // Add fake neighbor
     //
-    hr = NetIfAddDeleteNeighbor(interfaceIndex,
+    hr = NetIfAddDeleteNeighbor(ipv4interfaceIndex,
         SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS,
         SERVICE_TUNNEL_ENDPOINT_FAKE_GW_MAC_ADDRESS,
         TRUE);
     RD_TRACE_E_HR((RD_TRACE_ERROR,
         L"RuntimeServiceTunnelInterface:: Failed to add fake GW MAC to neighbor table for "
         L"interface with index [%d]. Error:[%0x]",
-        interfaceIndex,
+		ipv4interfaceIndex,
         hr),
         hr,
         Cleanup);
 
 Cleanup:
+	if (buffer)
+	{
+		free(buffer);
+	}
     return hr;
 }
