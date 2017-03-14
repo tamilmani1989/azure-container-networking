@@ -2,10 +2,6 @@
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(EnvironmentConfig)" />
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|x64">
-      <Configuration>Debug</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|x64">
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
@@ -134,7 +130,7 @@ $(PkgVisualCpp_Corext)\Include;
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalOptions>/MERGE:_PAGE=PAGE /MERGE:_TEXT=.text /OPT:REF /OPT:ICF /IGNORE:4010,4037,4039,4065,4070,4078,4087,4089,4221,4198 /INCREMENTAL:NO /release /WX /debug /debugtype:cv,fixup,pdata /version:6.0 /osversion:6.0 /merge:.rdata=.text /NOOPTIDATA /pdbcompress  /tsaware /highentropyva</AdditionalOptions>
+      <AdditionalOptions>/MERGE:_PAGE=PAGE /MERGE:_TEXT=.text /OPT:REF /OPT:ICF /IGNORE:4010,4037,4039,4065,4070,4078,4087,4089,4221,4198 /INCREMENTAL:NO /release /WX /debug /debugtype:cv,fixup,pdata /version:6.0 /osversion:6.0 /merge:.rdata=.text /NOOPTIDATA /pdbcompress  /tsaware /highentropyva /Zi</AdditionalOptions>
       <AdditionalDependencies>
       $(PUBLIC_SDK)\lib\amd64\msvcrt.lib;
       $(PkgMicrosoft_WindowsAzure_EngSys_External_Windows_sdk)\lib\$(BuildArchitecture)\wincrt10_msvcprt.lib;  $(PkgVisualCpp_Corext)\lib\$(Platform)\msvcprt.lib;    
