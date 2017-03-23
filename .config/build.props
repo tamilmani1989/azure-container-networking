@@ -29,6 +29,41 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <InstallPkgLocal Condition="'$(InstallPkgLocal)'==''">false</InstallPkgLocal>
   </PropertyGroup>
 
+  <!-- use x64 toolset -->
+  <PropertyGroup>
+     <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+     <_IsNativeEnvironment>true</_IsNativeEnvironment>
+     <_VcUseNativex64CompilerTools>true</_VcUseNativex64CompilerTools>
+     <VCToolArchitecture>Native64Bit</VCToolArchitecture>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <!--Target windows 8 for most things -->
+    <TargetVersion>Windows8</TargetVersion>
+    <!--Drvier packaging breaks CloudBuild and unecessarily calls MSBuild from packaging targets-->
+    <SupportsPackaging>false</SupportsPackaging>
+    <!--We will have verifier errors since we don't use catalogue files in our .inf configuration files-->
+    <SkipPackageVerification>true</SkipPackageVerification>
+    <!--Disable test signing everywhere-->
+    <SignMode>Off</SignMode>
+    <!--Set .NET to 4.5 everywhere-->
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+      <!--Due to CoreXT compatability issues in VS these need to get set-->
+    <BaseBuildType Condition="'$(BuildType)'=='debug'">debug</BaseBuildType>
+    <BaseBuildType Condition="'$(BuildType)'=='retail'">retail</BaseBuildType>
+  </PropertyGroup>
+
+  <!--C++ compiler settings-->
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <MinimalRebuild>true</MinimalRebuild>
+      <MultiProcessorCompilation>false</MultiProcessorCompilation>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  
   <!-- Turning off CLS compliance warnings/errors -->
   <PropertyGroup>    
     <AssemblyCLSCompliant>false</AssemblyCLSCompliant> 
@@ -45,6 +80,23 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <StyleCopVersion Condition="'$(StyleCopVersion)' == ''">4.3.0.8</StyleCopVersion>
   </PropertyGroup>
 
+  <PropertyGroup Label="Globals">
+    <Platform Condition="'$(Platform)' == ''">x64</Platform>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <RobocopyRetryCount>3</RobocopyRetryCount>
+    <RobocopyRetryWait>200</RobocopyRetryWait>
+    <RobocopyShowErrorOnRetry>false</RobocopyShowErrorOnRetry>
+  </PropertyGroup>
+
+  <!-- Drop the .covsym files in the desired location -->
+  <PropertyGroup>
+    <CoverageCovsymPath>$(BinariesBuildTypeArchDirectory)\covsym</CoverageCovsymPath>
+  </PropertyGroup>
+
+  
   <ItemGroup>
     <!-- Global header files -->
     <QCustomInput Include="$(SRCROOT)\shared\*.h" >
