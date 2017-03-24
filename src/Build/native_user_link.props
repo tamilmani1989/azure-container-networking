@@ -13,7 +13,7 @@
       <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
       <!-- TBD: remove the 4099 IGNORE warning -->
-      <AdditionalOptions>%(AdditionalOptions) /highentropyva /NODEFAULTLIB:LIBCMT /IGNORE:4099 /guard:cf</AdditionalOptions>
+      <AdditionalOptions>%(AdditionalOptions) /highentropyva /NODEFAULTLIB:LIBCMT /IGNORE:4099 </AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
 </Project>

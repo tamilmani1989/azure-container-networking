@@ -9,6 +9,21 @@
     <TargetVersion>Windows8</TargetVersion>
   </PropertyGroup>
 
+  <Choose>
+    <When Condition="'$(BuildType)' == 'retail'">
+      <PropertyGroup>
+        <CRuntimeLibrary>MultiThreadedDLL</CRuntimeLibrary>
+        <UseDebugLibraries>false</UseDebugLibraries>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(BuildType)' == 'debug'">
+      <PropertyGroup>
+        <CRuntimeLibrary>MultiThreadedDebugDLL</CRuntimeLibrary>
+        <UseDebugLibraries>true</UseDebugLibraries>
+      </PropertyGroup>
+    </When>
+  </Choose>
+
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.props" />
 
   <!-- 
@@ -68,7 +83,6 @@
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <ForceConformanceInForLoopScope>true</ForceConformanceInForLoopScope>
       <BufferSecurityCheck>true</BufferSecurityCheck>
-      <ControlFlowGuard>Guard</ControlFlowGuard>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>$(CRuntimeLibrary)</RuntimeLibrary>
