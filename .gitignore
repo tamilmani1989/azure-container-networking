@@ -306,3 +306,10 @@ FakesAssemblies/
 /src/EventMessage/AqEventMessage.rc
 /src/EventMessage/AqEventMessage.res
 /src/EventMessage/MSG00409.bin
+
+*.opendb
+*.db
+*.o
+*.so
+*.so.1.0
+a.out
