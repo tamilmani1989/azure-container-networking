@@ -23,6 +23,8 @@ Environment:
 //
 #include "LoopbackAdapterInstaller.h"
 
+// RD_TRACE_E_WIN32_EXIT has unavoidable constant conditional expression
+#pragma warning ( disable : 4127 )
 
 HRESULT
 LoopbackAdapterInstaller::GetINetCfgWithWriteLock(
@@ -45,7 +47,6 @@ Return Value:
 --*/
 {
     HRESULT hr = S_OK;
-    HRESULT localHr = S_OK;
     INetCfg* netCfg;
     bool lockAcquired = false;
     
@@ -258,7 +259,6 @@ Return Value:
     IEnumNetCfgComponent* netCfgComponentEnum = NULL;
     INetCfgComponent* netCfgComponent = NULL;
     LPWSTR interfaceDisplayName = NULL;
-    bool lockAcquired = false;
     GUID instanceGuid = { 0 };
     bool updated = false;
     *InstanceGuid = { 0 };
@@ -469,7 +469,7 @@ Return Value:
         &deviceInfoData,
         SPDRP_HARDWAREID,
         (const BYTE *)LOOPBACK_ADAPTER_HARDWARE_ID,
-        (wcslen(LOOPBACK_ADAPTER_HARDWARE_ID) + 1 + 1) * sizeof(WCHAR)))
+        (DWORD) (wcslen(LOOPBACK_ADAPTER_HARDWARE_ID) + 1 + 1) * sizeof(WCHAR)))
     {
         hr = HRESULT_FROM_WIN32(GetLastError());
         RD_TRACE_E_HR((RD_TRACE_ERROR,
@@ -749,8 +749,8 @@ Return Value:
         RD_TRACE_E_WIN32_EXIT((RD_TRACE_ERROR,
             L"NetInstallLoopbackAdapter: Can't find IfIndex "
             L"for installed loopback adapter"),
-        ERROR_NOT_FOUND,
-        Cleanup);
+            ERROR_NOT_FOUND,
+            Cleanup);
     }
 
 Cleanup:
