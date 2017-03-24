@@ -1,12 +1,59 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"> 
+  <Import Project="$(EnvironmentConfig)" />
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.Default.props" />
 
    <!--Defaults-->
-   <PropertyGroup>
-      <UseAwait Condition="'$(CLRSupport)' != 'true'">/await</UseAwait>
-      <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
-   </PropertyGroup>
-   <ItemDefinitionGroup>
+  <PropertyGroup>
+    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
+    <CharacterSet>Unicode</CharacterSet>
+    <TargetVersion>Windows8</TargetVersion>
+  </PropertyGroup>
+
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.props" />
+
+  <!-- 
+    When msbuild is invoked from the command line the 64 bit version of msbuild is being used.
+    This loads the 64 bit version of FileTracker.dll from the gitcache 
+    which is used to provide support for incremental builds
+    
+    When msbuild is invoked from Visual Studio, the 32 bit version is launched (as VS is 32 bit)
+    Based on the logic in FileTrackerUtility.cs in the MSBuild source, it picks the 32 bit version of 
+    FileTracker to load. It also does loads this DLL from the C:\programfiles (x86) dir which is where 
+    the 14.0 version of MSBuild is installed by default
+    
+    This implies that when 64 bit CL actually runs it crashes.
+    
+    In order to fix for our build this there are two changes that havve been made:
+    
+    Telling MSBuild the correct location of the tracker: The props file has been updated by specifying the
+    proper location of the FileTracker.dll that is installed in the gitcache
+    
+    Using the appropriate bitness: Since there is no way to workaround 32 bit MSBuild the 64 bit file is copied
+    into 32 bit paths. This copies FileTracker.dll to FileTracker32.dll (in the MSBuild bin folder) and the
+    corresponding 64 bit FileTrackerUI.dll into FileTracker32UI.dll in the 1033 folder. 
+    See developer\aprameyr\SetupVisualStudio.bat for details
+    
+    Finally, these customizations are enabled only when building inside VS
+  -->
+  <PropertyGroup>
+    <TrackerPathBase>$(MSBuildToolsPath_140)\amd64</TrackerPathBase>
+    <BSCMakeTrackerFrameworkPath Condition="'$(BuildingInsideVisualStudio)' == 'true'">$(TrackerPathBase)</BSCMakeTrackerFrameworkPath>
+    <CLTrackerFrameworkPath Condition="'$(BuildingInsideVisualStudio)' == 'true'">$(TrackerPathBase)</CLTrackerFrameworkPath>
+    <CustomBuildTrackerFrameworkPath Condition="'$(BuildingInsideVisualStudio)' == 'true'">$(TrackerPathBase)</CustomBuildTrackerFrameworkPath>
+    <LibTrackerFrameworkPath Condition="'$(BuildingInsideVisualStudio)' == 'true'">$(TrackerPathBase)</LibTrackerFrameworkPath>
+    <LinkTrackerFrameworkPath Condition="'$(BuildingInsideVisualStudio)' == 'true'">$(TrackerPathBase)</LinkTrackerFrameworkPath>
+    <ManifestTrackerFrameworkPath Condition="'$(BuildingInsideVisualStudio)' == 'true'">$(TrackerPathBase)</ManifestTrackerFrameworkPath>
+    <MidlTrackerCFrameworkPath Condition="'$(BuildingInsideVisualStudio)' == 'true'">$(TrackerPathBase)</MidlTrackerCFrameworkPath>
+    <RCTrackerFrameworkPath Condition="'$(BuildingInsideVisualStudio)' == 'true'">$(TrackerPathBase)</RCTrackerFrameworkPath>
+    <ResGenTrackerFrameworkPath Condition="'$(BuildingInsideVisualStudio)' == 'true'">$(TrackerPathBase)</ResGenTrackerFrameworkPath>
+    <XDCMakeTrackerFrameworkPath Condition="'$(BuildingInsideVisualStudio)' == 'true'">$(TrackerPathBase)</XDCMakeTrackerFrameworkPath>
+    <XSDTrackerFrameworkPath Condition="'$(BuildingInsideVisualStudio)' == 'true'">$(TrackerPathBase)</XSDTrackerFrameworkPath>
+    <IntDir>$(IntermediateOutputPath)</IntDir>      
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
     <ClCompile>
+      <MinimalRebuild>false</MinimalRebuild>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <!-- disable warning related to redefinition in inner scope -->
@@ -16,8 +63,6 @@
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <ExceptionHandling>sync</ExceptionHandling>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <UseFullPaths>true</UseFullPaths>
       <StructMemberAlignment>8Bytes</StructMemberAlignment>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
@@ -43,18 +88,13 @@
         _APISET_WINDOWS_VERSION=0x601;
       </PreprocessorDefinitions>
       <AdditionalIncludeDirectories>
-        %(AdditionalIncludeDirectories)
-        $(PkgMicrosoft_WindowsAzure_DirectDrive_External_Windows_Internal_sdk)\inc;
-        $(PkgMicrosoft_WindowsAzure_DirectDrive_External_Windows_Internal_sdk)\inc\minwin;
-        $(PkgMicrosoft_WindowsAzure_DirectDrive_External_Windows_Internal_minwin)\priv_sdk\inc\dbg;
-        $(KM_IncludePath);
-        $(KtlIncludePath);
-        $(SrcRoot)\prod\src;
-        $(SrcRoot)\prod\shared;
-        $(SrcRoot)\prod\src\idl\public\$(O);
-        $(SrcRoot)\prod\src\idl\internal\$(O);
-        $(SrcRoot)\prod\shared\ktlwf\com\inc;
-        $(SrcRoot)\prod\shared\serialization\inc;
+        %(AdditionalIncludeDirectories);
+        $(SrcRoot)\Common\Inc;
+        $(PkgWindowsSdk_Corext)\Include\$(WindowsTargetPlatformVersion)\shared;
+        $(PkgWindowsSdk_Corext)\Include\$(WindowsTargetPlatformVersion)\ucrt;
+        $(PkgVisualCpp_Corext)\Inclue;
+        $(PkgVisualCpp_Corext)\crt\src\concrt;
+        $(PkgCFX_Binaries)\headers
       </AdditionalIncludeDirectories>
       <AdditionalOptions>$(UseAwait) /Zm200 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>

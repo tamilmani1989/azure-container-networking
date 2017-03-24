@@ -96,7 +96,6 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <CoverageCovsymPath>$(BinariesBuildTypeArchDirectory)\covsym</CoverageCovsymPath>
   </PropertyGroup>
 
-  
   <ItemGroup>
     <!-- Global header files -->
     <QCustomInput Include="$(SRCROOT)\shared\*.h" >

@@ -1,17 +1,22 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(EnvironmentConfig)" />
-  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
-  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.Default.props" />
-  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup>
     <TargetName>XmlParserHelper</TargetName>
     <ProjectGuid>{78962BC6-361C-4630-8995-91D0C054C82E}</ProjectGuid>
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories);
+        $(PkgMicrosoft_WindowsAzure_EngSys_Internal_rd_fabric_stable_fc_Redist)\content\redist;
+        $(PkgMicrosoft_WindowsAzure_EngSys_Internal_longhorn_rd_os142_OS_redist)\content\redist;
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="XmlParserHelper.cpp" />
   </ItemGroup>
-  <Target Name="_PrepareBuildEnvironment" />
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
