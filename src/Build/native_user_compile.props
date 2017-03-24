@@ -2,13 +2,14 @@
   <Import Project="$(EnvironmentConfig)" />
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.Default.props" />
 
-   <!--Defaults-->
+  <!--Defaults-->
   <PropertyGroup>
     <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
     <CharacterSet>Unicode</CharacterSet>
     <TargetVersion>Windows8</TargetVersion>
   </PropertyGroup>
 
+  <!-- Set retail vs debug properties with the correct CRT -->
   <Choose>
     <When Condition="'$(BuildType)' == 'retail'">
       <PropertyGroup>

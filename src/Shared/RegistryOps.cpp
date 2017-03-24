@@ -39,7 +39,7 @@ HKEY RegistryOps::OpenRegistryKey(HKEY rootKey, wchar_t* subKey)
 void RegistryOps::PutStringInRegistry(HKEY configKey, wchar_t* key, wchar_t* value)
 {
 	DWORD type = REG_SZ;
-	LONG nError = RegSetKeyValue(configKey, nullptr, key, type, value, (wcsnlen(value, MAX_PATH) + 1) * sizeof(wchar_t));
+	LONG nError = RegSetKeyValue(configKey, nullptr, key, type, value, (DWORD) (wcsnlen(value, MAX_PATH) + 1) * sizeof(wchar_t));
 	if (nError)
 	{
 		HandleRegistryError(configKey, key, nError);
@@ -75,7 +75,7 @@ void RegistryOps::HandleRegistryError(HKEY rootKey, wchar_t* subKey, LONG nError
             L"Reg Open of %s %s failed w/err 0x%08lx", rootKey, subKey, nError);
         AquariusUtilities::WriteErrorLogEntry(szMessage);
     }
-    catch (const exception &ex)
+    catch (const std::exception &ex)
     {
         StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"%s", ex.what());
         AquariusUtilities::WriteErrorLogEntry(szMessage);
