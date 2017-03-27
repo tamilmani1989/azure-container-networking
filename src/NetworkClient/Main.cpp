@@ -77,11 +77,16 @@ int main()
     printf("ip2 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
+
+	ReleaseIpReservation("ip1");
+	ip = GetReservedIpAddress("ip1");
+	printf("ip1 (without reservation) = %d\n", ip);
+	getchar();
+
 	ReleaseIpReservation("ip2");
 	ip = GetReservedIpAddress("ip2");
 	printf("ip2 (without reservation) = %d\n", ip);
 	getchar();
-    
     free(nnr.ips);
 	return 0;
 }

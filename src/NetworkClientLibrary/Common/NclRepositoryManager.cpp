@@ -91,16 +91,23 @@ void ReleaseReservedRepositoryIp(char *reservationId)
 	int i;
 	if (repositoryIpAllocations)
 	{
+		printf("Going to try to release %s\n", reservationId);
 		for (i = 0; i<repositoryIpAllocations->count; i++)
 		{
 			IpStatus *retval = &repositoryIpAllocations->statusForAllIpAddresses[i];
-			if (strcmp(retval->id, reservationId) == 0)
+			printf("Checking if %s should be released\n", retval->id);
+			if (retval->isReserved == 1)
 			{
-				free(repositoryIpAllocations->statusForAllIpAddresses[i].id);
-				repositoryIpAllocations->statusForAllIpAddresses[i].id = NULL;
-				repositoryIpAllocations->statusForAllIpAddresses[i].isReserved = 0;
-				break;
+				if (strcmp(retval->id, reservationId) == 0) 
+				{
+					printf("yes\n");
+					free(repositoryIpAllocations->statusForAllIpAddresses[i].id);
+					repositoryIpAllocations->statusForAllIpAddresses[i].id = NULL;
+					repositoryIpAllocations->statusForAllIpAddresses[i].isReserved = 0;
+					break;
+				}
 			}
+			printf("no\n");
 		}
 	}
 }
