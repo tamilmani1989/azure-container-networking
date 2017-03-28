@@ -169,8 +169,6 @@ SOCKET connectToHost(char *host, USHORT port)
 	struct sockaddr_in addr;
 	SOCKET sock;	
 
-	initWsa();
-	
 	if ((hp = gethostbyname(host)) == nullptr)
 	{
 		fprintf(stderr, "gethostbyname failed %d:%s", WSAGetLastError(),host);
@@ -260,13 +258,86 @@ void wsaCleanUp()
 	}
 }
 
-int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
+char* httpSendResponse(SOCKET sock, char *payload)
 {
-	char buffer[BUFFER_SIZE];
+
 	int bytesRead;
 	char *recvBuffer = nullptr;
 	char *responseLocation = nullptr;
 	int byteCount = 0;
+
+	int bytesWritten = send(sock, payload, strlen(payload), 0);
+	if (bytesWritten == SOCKET_ERROR)
+	{
+		fprintf(stderr, "Writing to socket failed errno=%d\n", errno);
+	}
+	else
+	{
+		printf("Sent %d bytes on the connection.\nNow ", bytesWritten);
+		//bzero(buffer, BUFFER_SIZE);
+		do
+		{
+			char c;
+			bytesRead = recv(sock, &c, 1, 0);
+			if (bytesRead == 1)
+			{
+				byteCount++;
+				if (!InsertIntoBuffer(&recvBuffer, byteCount, c))
+				{
+					fprintf(stderr, "Failed to insert a char into buffer");
+					return NULL;
+				}
+			}
+		} while (bytesRead > 0);
+
+		if (bytesRead == -1)
+		{
+			fprintf(stderr, "Reading failed. errno=%d \n", errno);
+		}
+		else if (bytesRead == 0)
+		{
+			printf("Read finished\n");
+			if (!InsertIntoBuffer(&recvBuffer, byteCount + 1, '\0'))
+			{
+				fprintf(stderr, "Failed to insert EOL into buffer");
+				return NULL;
+			}
+			return recvBuffer;
+		}
+	}
+	return NULL;
+}
+
+int retrieveHttpStatus(char *recvBuffer)
+{
+	int i = 0;
+	int k = 0;
+	char status[8];
+	int ret = 0;
+	while (recvBuffer[i] != ' ')
+	{
+		i++;
+	}
+	
+	i++;
+
+	while (recvBuffer[i] != ' ')
+	{
+		status[k] = recvBuffer[i];
+		k++;
+		i++;
+	}
+	status[k] = '\0';
+	if (k > 0)
+	{
+		ret = atoi(status);
+	}
+	return ret;
+}
+int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
+{
+	char *recvBuffer = nullptr;
+	char *responseLocation = nullptr;
 
 	if (!wsaInitialize())
 	{
@@ -281,62 +352,33 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 		fprintf(stderr, "Connect to host failed.\n");
 		return -1;
 	}
+	
+	recvBuffer = httpSendResponse(sock, HostSuffix);
+	if (!recvBuffer) {
+		printf("Error while retrieving xml file from NMAgent");
+		goto cleanup_subgw;
+	}
+	//printf("xml recv buf:%s\n", recvBuffer);
 
-	int bytesWritten = send(sock, HostSuffix, strlen(HostSuffix), 0);
-	if (bytesWritten == SOCKET_ERROR)
+	int ret = retrieveHttpStatus(recvBuffer);
+	printf("status:%d\n", ret);
+	if (ret != 200)
 	{
-		fprintf(stderr, "Writing to socket failed errno=%d\n", errno);
+		printf("Error while retrieving xml file from NMAgent. Invalid Status code:%s\n", recvBuffer);
+		goto cleanup_subgw;
+	}
+	
+	responseLocation = strstr(recvBuffer, HttpResponseHeaderSeparator);
+	responseLocation += strlen(HttpResponseHeaderSeparator);
+	printf(responseLocation);
+		
+	if (responseLocation != nullptr)
+	{
+		ParseSubnetGwIp(responseLocation, subnetIp, gwIp);
 	}
 	else
 	{
-		printf("Sent %d bytes on the connection.\nNow ", bytesWritten);
-		//bzero(buffer, BUFFER_SIZE);
-		memset((buffer), '\0', (BUFFER_SIZE));
-		printf("Reading into buffer..\n");
-		do
-		{
-			memset((buffer), '\0', (BUFFER_SIZE));
-			char c;
-			bytesRead = recv(sock, &c, 1, 0);
-			if (bytesRead == 1)
-			{
-				byteCount++;
-				if (!InsertIntoBuffer(&recvBuffer, byteCount, c))
-				{
-					fprintf(stderr, "Failed to insert a char into buffer");
-					goto cleanup_subgw;
-				}
-			}
-		} while (bytesRead > 0);
-
-		if (bytesRead == -1)
-		{
-			fprintf(stderr, "Reading failed. errno=%d \n", errno);
-		}
-		else if (bytesRead == 0)
-		{
-			if (!InsertIntoBuffer(&recvBuffer, byteCount + 1, '\0'))
-			{
-				fprintf(stderr, "Failed to insert EOL into buffer");
-				goto cleanup_subgw;
-			}
-
-			printf("\nSuccessfully finished reading. Printing response below..\n");
-			responseLocation = strstr(recvBuffer, HttpResponseHeaderSeparator);
-			responseLocation += strlen(HttpResponseHeaderSeparator);
-			printf(responseLocation);
-		}
-		if (responseLocation != nullptr)
-		{
-				//ipCount = ParseSecondaryIpAddresses(responseLocation, 1, ips);
-			ParseSubnetGwIp(responseLocation, subnetIp, gwIp);
-		}
-		else
-		{
-			fprintf(stderr, "Unable to find portion of http response header that contains valid nm agent response response %s", recvBuffer);
-		}
-		free(recvBuffer);
-		recvBuffer = nullptr;
+		fprintf(stderr, "Unable to find portion of http response header that contains valid nm agent response response %s", recvBuffer);
 	}
 
 cleanup_subgw:
@@ -347,8 +389,8 @@ cleanup_subgw:
 	}
 	shutdown(sock, SD_BOTH);
 	_close((int)sock);
-
 	wsaCleanUp();
+
 	return 0;
 }
 
@@ -553,56 +595,6 @@ DllExport void ReleaseIpReservation(char *reservationId)
 }
 
 
-char* httpSendResponse(SOCKET sock, char *payload)
-{
-
-	char buffer[BUFFER_SIZE];
-	int bytesRead;
-	char *recvBuffer = nullptr;
-	char *responseLocation = nullptr;
-	int byteCount = 0;
-
-	int bytesWritten = send(sock, payload, strlen(payload), 0);
-	if (bytesWritten == SOCKET_ERROR)
-	{
-		fprintf(stderr, "Writing to socket failed errno=%d\n", errno);
-	}
-	else
-	{
-		printf("Sent %d bytes on the connection.\nNow ", bytesWritten);
-		//bzero(buffer, BUFFER_SIZE);
-		do
-		{
-			char c;
-			bytesRead = recv(sock, &c, 1, 0);
-			if (bytesRead == 1)
-			{
-				byteCount++;
-				if (!InsertIntoBuffer(&recvBuffer, byteCount, c))
-				{
-					fprintf(stderr, "Failed to insert a char into buffer");
-					return NULL;
-				}
-			}
-		} while (bytesRead > 0);
-
-		if (bytesRead == -1)
-		{
-			fprintf(stderr, "Reading failed. errno=%d \n", errno);
-		}
-		else if (bytesRead == 0)
-		{
-			printf("Read finished\n");
-			if (!InsertIntoBuffer(&recvBuffer, byteCount + 1, '\0'))
-			{
-				fprintf(stderr, "Failed to insert EOL into buffer");
-				return NULL;
-			}
-			return recvBuffer;
-		}
-	}
-	return NULL;
-}
 
 
 int isNetworkExist(SOCKET sock, char *networkName)
@@ -611,24 +603,26 @@ int isNetworkExist(SOCKET sock, char *networkName)
 	char *recvBuf=nullptr;
 	int payloadLen;
 	char *httpreq = "HTTP/1.1\r\nHost:127.0.0.1\r\nContent-Type:application/json\r\nConnection:close\r\n\r\n";
+	
+	printf("in network exist fn\n");
 
 	payloadLen = strlen(DockerNwGet) + strlen(networkName) + strlen(httpreq);
 	payload = (char *)malloc(payloadLen+1);
-
 	sprintf(payload, "%s%s %s", DockerNwGet, networkName, httpreq);
 
 	recvBuf = httpSendResponse(sock, payload);
 	if (!recvBuf)
 	{
-		printf("Unexpected error\n");
+		printf("Unexpected error while check for existing network:%s\n",networkName);
 		free(payload);
 		return -1;
 	}
 	else {
 		printf("receive buf:%s\n", recvBuf);
-		char *token = strtok(recvBuf, "\r\n");
-		if (token!=NULL && strstr(token,"200"))
+		int ret = retrieveHttpStatus(recvBuf);
+		if (ret == 200)
 		{
+			printf("Network Initialized already\n");
 			free(recvBuf);
 			return -1;
 		}
@@ -658,6 +652,11 @@ DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
 	
 	printf("Initialize network called\n");
 
+	if (!wsaInitialize())
+	{
+		return;
+	}
+
 	SOCKET sock = connectToHost("localhost", 2375);
 	if (sock == INVALID_SOCKET)
 	{
@@ -665,8 +664,8 @@ DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
 		return;
 	}
 	
+
 	if (isNetworkExist(sock, clusterConfig->networkName) < 0) {
-		printf("clenaup code\n");
 		goto cleanup2;
 	}
 	
@@ -675,7 +674,13 @@ DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
 	wsaCleanUp();
 
 	getSubnetGwIpfromNMAgent(&subnetIp, &gwIp);
-/*	"IPAM": {
+	if (subnetIp == NULL || gwIp == NULL)
+	{
+		printf("Error while retrieving subnet/gateway IP\n");
+		goto cleanup2;
+	}
+	
+	/*	"IPAM": {
 		"Driver": "default",
 			"Config" : [
 		{
@@ -692,6 +697,11 @@ DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
 	sprintf(ipamConfig, "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}",subnetIp,gwIp);
 	printf("ipamconfig:%s\n", ipamConfig);
 
+	if (!wsaInitialize())
+	{
+		return;
+	}
+
 	sock = connectToHost("localhost", 2375);
 	
 	ipamLength = strlen(ipamConfig);
@@ -704,11 +714,16 @@ DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
 	printf("Now going to get create network driver... cmd:%s:%d:%d:%d\n", nwCreateReq,totalLength,strlen(nwCreateReq), conLength);
 	
 	recvBuf = httpSendResponse(sock, nwCreateReq);
+	if (!recvBuf) {
+		printf("Error while creating docker network");
+		goto cleanup2;
+	}
 
-	char *token = strtok(recvBuf, "\r\n");
-	if (token != NULL && strstr(token, "201"))
+	int ret = retrieveHttpStatus(recvBuf);
+	printf("status:%d\n", ret);
+	if (ret==201)
 	{
-		printf("docker create network succeeded\n");
+		printf("docker network create succeeded\n");
 	}
 	else
 	{
@@ -716,12 +731,19 @@ DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
 	}
 
 
-	
 cleanup2:
 	if (nwCreateReq)
 		free(nwCreateReq);
 	if (recvBuf)
 		free(recvBuf);
+	if (subnetIp)
+		free(subnetIp);
+	if (gwIp)
+		free(gwIp);
+
+	shutdown(sock, SD_BOTH);
+	_close((int)sock);
+	wsaCleanUp();
 }
 /*
 DllExport void InitializeNetwork(ClusterConfig *clusterConfig)

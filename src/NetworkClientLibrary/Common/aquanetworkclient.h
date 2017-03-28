@@ -53,7 +53,6 @@ typedef struct ClusterConfig
 {
     enum Environment env;
     enum NetworkType net;
-	char *hostAddress;
 	char *networkName;
     int nodeCount;
     NodeConfig *nodeConfigs;       

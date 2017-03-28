@@ -102,7 +102,6 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 	BSTR childNodeName = nullptr;
 	BSTR ipSubnetNodeName = nullptr;
 	BSTR ipAddressNodeName = nullptr;
-	BSTR programName = nullptr;
 	BSTR ipAddress = nullptr;
 	BSTR ipType = nullptr;
 	VARIANT_BOOL varStatus = 0;
@@ -142,8 +141,6 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 
 					if (wcscmp(childNodeName, L"Interface") == 0)
 					{
-						printf("Located an interface. \n");
-
 						//TM
 						CHK_HR(pXMLChildNode->get_attributes(&pXMLInterfaceAttributes));
 						CHK_HR(pXMLInterfaceAttributes->getNamedItem(L"IsPrimary", &primaryAttribute));
@@ -153,7 +150,7 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 
 						if (wcscmp(primary, L"true") == 0)
 						{
-							printf("***found primary interface***\n");
+							printf("***Found primary interface***\n");
 							break;
 						}
 					}
@@ -253,17 +250,11 @@ CleanUp:
 	SysFreeString(childNodeName);
 	SysFreeString(ipSubnetNodeName);
 	SysFreeString(ipAddressNodeName);
-	SysFreeString(programName);
 	SysFreeString(ipAddress);
 	SysFreeString(ipType);
 
 	VariantClear(&varFileName);
 }
-
-
-
-
-
 
 
 
