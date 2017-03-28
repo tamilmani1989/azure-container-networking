@@ -17,11 +17,18 @@ int wmain(int argc, wchar_t *argv[])
 int main()
 #endif
 {
+
+	struct ClusterConfig cfg;
     NodeNetworkResources nnr;
     int ipCount = -1;
     int i;
     struct in_addr ipaddr;
     char ipInString[INET_ADDRSTRLEN];
+
+	cfg.networkName = (char *) malloc(32);
+	strcpy(cfg.networkName, "chumma");
+	cfg.net = UnderLay;
+	InitializeNetwork(&cfg);
 
 	unsigned int ip = ReserveAvailableIpAddress("ip0");
 	printf("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
@@ -88,5 +95,6 @@ int main()
 	printf("ip2 (without reservation) = %d\n", ip);
 	getchar();
     free(nnr.ips);
+
 	return 0;
 }

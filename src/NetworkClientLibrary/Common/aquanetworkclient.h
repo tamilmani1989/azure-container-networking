@@ -53,6 +53,8 @@ typedef struct ClusterConfig
 {
     enum Environment env;
     enum NetworkType net;
+	char *hostAddress;
+	char *networkName;
     int nodeCount;
     NodeConfig *nodeConfigs;       
 }ClusterConfig;
@@ -86,3 +88,5 @@ DllExport unsigned int GetReservedIpAddress(char *reservationId);
 
 // Releases reservation of an ip address if exists
 DllExport void ReleaseIpReservation(char *reservationId);
+
+DllExport void InitializeNetwork(ClusterConfig *clusterConfig);
