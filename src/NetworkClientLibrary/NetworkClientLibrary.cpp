@@ -674,7 +674,11 @@ DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
 	wsaCleanUp();
 
 	getSubnetGwIpfromNMAgent(&subnetIp, &gwIp);
-
+	if (subnetIp == NULL || gwIp == NULL)
+	{
+		printf("Error while retrieving subnet/gateway IP\n");
+		goto cleanup2;
+	}
 	
 	/*	"IPAM": {
 		"Driver": "default",
@@ -727,7 +731,6 @@ DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
 	}
 
 
-	
 cleanup2:
 	if (nwCreateReq)
 		free(nwCreateReq);

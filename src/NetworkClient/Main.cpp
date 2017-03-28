@@ -25,10 +25,11 @@ int main()
     struct in_addr ipaddr;
     char ipInString[INET_ADDRSTRLEN];
 
-	cfg.networkName = (char *) malloc(32);
+	cfg.networkName = (char *) malloc(16);
 	strcpy(cfg.networkName, "chumma");
 	cfg.net = UnderLay;
 	InitializeNetwork(&cfg);
+	getchar();
 
 	unsigned int ip = ReserveAvailableIpAddress("ip0");
 	printf("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
