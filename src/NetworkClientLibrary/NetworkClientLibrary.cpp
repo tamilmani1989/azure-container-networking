@@ -18,6 +18,8 @@
 #include <io.h>
 #include <iostream>
 #define HostSuffix "GET /machine/plugins?comp=nmagent&type=getinterfaceinfov1 HTTP/1.1\r\nHost: 169.254.169.254\r\nConnection: close\r\n\r\n"
+#define DockerNwCreatePost "POST /networks/create HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nConnection: close\r\n"
+#define DockerNwGet "GET /networks/"
 #define HttpResponseHeaderSeparator "\r\n\r\n"
 #define BUFFER_SIZE 1024
 std::_Mutex initWsaMutex;
@@ -27,6 +29,8 @@ int wsaInitialized = 0;
 #include <curl/curl.h>
 #endif
 
+//using namespace HttpServer;
+//using namespace HttpCommon;
 
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 extern void UpdateRepositoryIpList(int ipCount, unsigned int *ips);
@@ -163,12 +167,15 @@ SOCKET connectToHost(char *host, USHORT port)
 	struct hostent *hp;
 	struct sockaddr_in addr;
 	SOCKET sock;	
+
+	initWsa();
 	
 	if ((hp = gethostbyname(host)) == nullptr)
 	{
-		fprintf(stderr, "gethostbyname failed %d", WSAGetLastError());
+		fprintf(stderr, "gethostbyname failed %d:%s", WSAGetLastError(),host);
 		return INVALID_SOCKET;
 	}
+	
 
 	memcpy(&addr.sin_addr, hp->h_addr, hp->h_length);
 	addr.sin_port = htons(port);
@@ -450,3 +457,249 @@ DllExport void ReleaseIpReservation(char *reservationId)
 {
 	ReleaseRepositoryIpAddress(reservationId);
 }
+
+
+char* httpSendResponse(SOCKET sock, char *payload)
+{
+
+	char buffer[BUFFER_SIZE];
+	int bytesRead;
+	char *recvBuffer = nullptr;
+	char *responseLocation = nullptr;
+	int byteCount = 0;
+
+	int bytesWritten = send(sock, payload, strlen(payload), 0);
+	if (bytesWritten == SOCKET_ERROR)
+	{
+		fprintf(stderr, "Writing to socket failed errno=%d\n", errno);
+	}
+	else
+	{
+		printf("Sent %d bytes on the connection.\nNow ", bytesWritten);
+		//bzero(buffer, BUFFER_SIZE);
+		printf("Reading into buffer..\n");
+		do
+		{
+			char c;
+			bytesRead = recv(sock, &c, 1, 0);
+			if (bytesRead == 1)
+			{
+				byteCount++;
+				if (!InsertIntoBuffer(&recvBuffer, byteCount, c))
+				{
+					fprintf(stderr, "Failed to insert a char into buffer");
+					return NULL;
+				}
+			}
+		} while (bytesRead > 0);
+
+		if (bytesRead == -1)
+		{
+			fprintf(stderr, "Reading failed. errno=%d \n", errno);
+		}
+		else if (bytesRead == 0)
+		{
+			if (!InsertIntoBuffer(&recvBuffer, byteCount + 1, '\0'))
+			{
+				fprintf(stderr, "Failed to insert EOL into buffer");
+				return NULL;
+			}
+
+			printf("\nSuccessfully finished reading. Printing response below..\n");
+			responseLocation = strstr(recvBuffer, HttpResponseHeaderSeparator);
+			responseLocation += strlen(HttpResponseHeaderSeparator);
+			return responseLocation;
+		}
+	}
+	return NULL;
+}
+
+
+int isNetworkExist(SOCKET sock, char *networkName)
+{
+	char *payload=nullptr;
+	char *recvBuf=nullptr;
+	int payloadLen;
+	char *httpreq = "HTTP/1.1\r\nHost:127.0.0.1\r\nContent-Type:application/json\r\nConnection:close\r\n\r\n";
+
+	payloadLen = strlen(DockerNwGet) + strlen(networkName) + strlen(httpreq);
+	payload = (char *)malloc(payloadLen);
+
+	sprintf(payload, "%s%s %s", DockerNwGet, networkName, httpreq);
+
+	recvBuf = httpSendResponse(sock, payload);
+	if (!recvBuf)
+	{
+		printf("Unexpected error\n");
+		free(payload);
+		return -1;
+	}
+	else {
+		printf("receive buf:%s\n", recvBuf);
+		free(recvBuf);
+		return 0;
+	}
+	if(payload)
+		free(payload);
+	return 0;
+}
+
+DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
+{
+	int conLength = 0;
+	char *nwCreateReq=nullptr;
+	char *recvBuf = nullptr;
+
+	if (clusterConfig->net == OverLay)
+	{
+		printf("OverLay Network currently not supported\n");
+		return;
+	}
+	
+	printf("Initialize network called\n");
+
+	SOCKET sock = connectToHost("localhost", 2375);
+	if (sock == INVALID_SOCKET)
+	{
+		fprintf(stderr, "Connect to host failed.\n");
+		return;
+	}
+	
+	if (isNetworkExist(sock, clusterConfig->networkName) < 0) {
+		printf("clenaup code\n");
+		goto cleanup2;
+	}
+	
+	shutdown(sock, SD_BOTH);
+	_close((int)sock);
+	wsaCleanUp();
+	
+	sock = connectToHost("localhost", 2375);
+	
+	conLength = strlen(clusterConfig->networkName) + 9 + 19 + 3;
+	nwCreateReq = (char *)malloc(strlen(DockerNwCreatePost) + conLength);
+
+	sprintf(nwCreateReq, "%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\"}", DockerNwCreatePost, conLength, clusterConfig->networkName, "l2tunnel");
+
+	printf("Now going to get create network driver... cmd:%s\n", nwCreateReq);
+	
+	recvBuf = httpSendResponse(sock, nwCreateReq);
+
+	printf("done:%s\n",recvBuf);
+
+	if (strstr(recvBuf, "ok"))
+		printf("Docker network create success\n");
+	else
+		printf("Docker Network creation error\n");
+	
+cleanup2:
+	//if (nwCreateReq)
+		//free(nwCreateReq);
+	if (recvBuf)
+		free(recvBuf);
+}
+/*
+DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
+{
+	wstring uri = wformatString("{0}/networks/create", hostAddress);
+	string requestString = "\"name\":\"test-nw\"";
+	AutoResetEvent event;
+
+	IHttpClientRequestSPtr clientRequest;
+	IHttpClientSPtr client;
+	
+	auto error = client->CreateHttpRequest(
+		uri,
+		timeout,
+		timeout,
+		timeout,
+		clientRequest);
+
+	clientRequest->SetVerb(*HttpConstants::HttpPostVerb);
+	
+	auto requestBody = GetBytesToSend(requestString);
+
+	clientRequest->SetRequestHeader(*HttpConstants::ContentTypeHeader, L"application/json");
+
+	auto operation = clientRequest->BeginSendRequest(
+		move(requestBody),
+		[&event](AsyncOperationSPtr const &)
+	{
+		event.Set();
+	},
+		root->CreateAsyncOperationRoot());
+
+	event.WaitOne();
+	ULONG winHttpError;
+
+	error = clientRequest->EndSendRequest(operation, &winHttpError);
+
+	if (!error.IsSuccess())
+	{
+		if (winHttpError == ERROR_WINHTTP_CANNOT_CONNECT)
+		{
+			printf("Client request failed because it cannot connect to the server\n");
+			return;
+		}
+		else if (winHttpError == ERROR_WINHTTP_TIMEOUT)
+		{
+			Assert::CodingError("Client request failed because the server didnt respond on time");
+			return;
+		}
+		else if (winHttpError == ERROR_WINHTTP_CONNECTION_ERROR)
+		{
+			printf("Client request failed because of connection error\n");
+			return;
+		}
+		Assert::CodingError("Client request failed with winHttpError - {0}", winHttpError);
+	}
+
+	operation = clientRequest->BeginGetResponseBody(
+		[&event](AsyncOperationSPtr const &)
+	{
+		event.Set();
+	},
+		root->CreateAsyncOperationRoot());
+
+	event.WaitOne();
+	ByteBufferUPtr body;
+	error = clientRequest->EndGetResponseBody(operation, body);
+
+	if (error.IsError(ErrorCodeValue::NotFound) || !error.IsSuccess())
+	{
+		USHORT statusCode;
+		wstring description;
+		clientRequest->GetResponseStatusCode(&statusCode, description);
+		Assert::CodingError("Client request failed with {0}", statusCode);
+	}
+
+}
+
+
+void OnRequestCompleted(
+	IHttpClientRequestSPtr const & clientRequest,
+	char *networkName,
+	AsyncOperationSPtr const & operation,
+	bool expectedCompletedSynchronously)
+{
+	if (operation->CompletedSynchronously != expectedCompletedSynchronously)
+	{
+		return;
+	}
+	ULONG winHttpError;
+	auto error = clientRequest->EndSendRequest(operation, &winHttpError);
+	if (!error.IsSuccess())
+	{
+		WriteWarning(
+			TraceType_Activator,
+			owner_.Root.TraceId,
+			"EndSendRequest Error {0}, volumeName {1}, winHttpError {2}",
+			error,
+			volumeName,
+			winHttpError);
+		DecrementAndCheckPendingOperations(operation->Parent, error, networkName);
+		return;
+	}
+	GetHttpResponse(networkName, clientRequest, operation->Parent);
+}
+*/
