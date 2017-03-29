@@ -30,7 +30,14 @@ int main()
 	cfg.networkName[8] = '\0';
 	
 	cfg.net = UnderLay;
-	InitializeNetwork(&cfg);
+	cfg.env = Azure;
+	printf("Initialization result for Azure/Underlay: %d\n",InitializeNetwork(&cfg));
+	free(cfg.networkName);
+	getchar();
+
+	cfg.net = OverLay;
+	cfg.env = StandAlone;
+	printf("Initialization result for StandAlone/Overlay: %d\n", InitializeNetwork(&cfg));
 	getchar();
 
 	unsigned int ip = ReserveAvailableIpAddress("ip0");
@@ -93,7 +100,6 @@ int main()
 	getchar();
     
     free(nnr.ips);
-	free(cfg.networkName);
 
 	return 0;
 }

@@ -9,6 +9,7 @@
 \***************************************************************************/
 
 #include "Common/aquanetworkclient.h"
+#include "Common/aquaerrorcodes.h"
 #include <stdlib.h>
 #include <string.h>
 #include "Common/nclcore.h"
@@ -119,6 +120,11 @@ int getIpsFromNmAgent(unsigned int *ips)
 	}
 
 	return ipCount;
+}
+
+DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
+{
+	return UNSUPPORTED_ENVIRONMENT;
 }
 #endif
 
@@ -496,6 +502,127 @@ int getIpsFromNmAgent(unsigned int *ips)
 	return ipCount;
 }
 
+
+int networkExists(SOCKET sock, char *networkName)
+{
+	char *payload = nullptr;
+	char *recvBuf = nullptr;
+	int payloadLen;
+	char *httpreq = "HTTP/1.1\r\nHost:127.0.0.1\r\nContent-Type:application/json\r\nConnection:close\r\n\r\n";
+
+	printf("Checking if network already exists..\n");
+
+	payloadLen = strlen(DockerNwGet) + strlen(networkName) + strlen(httpreq);
+	payload = (char *)malloc(payloadLen + 1);
+	sprintf(payload, "%s%s %s", DockerNwGet, networkName, httpreq);
+
+	recvBuf = httpSendResponse(sock, payload);
+	if (!recvBuf)
+	{
+		printf("Unexpected error while check for existing network:%s\n", networkName);
+		free(payload);
+		return 0;
+	}
+
+	printf("receive buf:%s\n", recvBuf);
+	int ret = retrieveHttpStatus(recvBuf);
+	if (ret == 200)
+	{
+		printf("Network Initialized already\n");
+		free(recvBuf);
+		return 0;
+	}
+	free(recvBuf);
+
+	if (payload)
+		free(payload);
+	return 1;
+}
+
+DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
+{
+	int conLength = 0, ipamLength = 0;
+	char *nwCreateReq = nullptr;
+	char *recvBuf = nullptr;
+	char *responseLocation = nullptr;
+	int totalLength = 0;
+	char *subnetIp = nullptr;
+	char *gwIp = nullptr;
+	char ipamConfig[512];
+	unsigned long retval = 0;
+
+
+	if (!wsaInitialize())
+	{
+		return UNEXPECTED_ERROR;
+	}
+
+	SOCKET sock = connectToHost("localhost", 2375);
+	if (sock == INVALID_SOCKET)
+	{
+		fprintf(stderr, "Connect to host failed.\n");
+		return UNREACHABLE_HOST;
+	}
+
+	if (networkExists(sock, clusterConfig->networkName))
+	{
+		shutdown(sock, SD_BOTH);
+		_close((int)sock);
+		wsaCleanUp();
+
+		getSubnetGwIpfromNMAgent(&subnetIp, &gwIp);
+
+		sprintf(ipamConfig, "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gwIp);
+		printf("ipamconfig:%s\n", ipamConfig);
+
+		sock = connectToHost("localhost", 2375);
+
+		ipamLength = strlen(ipamConfig);
+		conLength = strlen(clusterConfig->networkName) + 9 + 19 + 4 + ipamLength;
+		totalLength = strlen(DockerNwCreatePost) + conLength + ipamLength + 64;
+		nwCreateReq = (char *)malloc(totalLength + 1);
+
+		sprintf(nwCreateReq, "%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", DockerNwCreatePost, conLength, clusterConfig->networkName, "l2tunnel", ipamConfig);
+
+		printf("Now going to get create network driver... cmd:%s:%d:%llu:%d\n", nwCreateReq, totalLength, strlen(nwCreateReq), conLength);
+
+		recvBuf = httpSendResponse(sock, nwCreateReq);
+		if (!recvBuf) 
+		{
+			printf("Error while creating docker network");
+			retval = UNEXPECTED_ERROR;
+			goto cleanup2;
+		}
+
+		int ret = retrieveHttpStatus(recvBuf);
+		printf("status:%d\n", ret);
+		if (ret == 201)
+		{
+			printf("docker network create succeeded\n");
+		}
+		else
+		{
+			printf("docker network create failed:%s\n", recvBuf);
+			retval = UNEXPECTED_ERROR;
+		}
+	}
+
+cleanup2:
+	if (nwCreateReq)
+		free(nwCreateReq);
+	if (recvBuf)
+		free(recvBuf);
+	if (subnetIp)
+		free(subnetIp);
+	if (gwIp)
+		free(gwIp);
+
+	shutdown(sock, SD_BOTH);
+	_close((int)sock);
+	wsaCleanUp();
+	return retval;
+}
+
 #endif
 
 // Returns the number of ip addresses that were returned
@@ -591,255 +718,38 @@ DllExport void ReleaseIpReservation(char *reservationId)
 	ReleaseRepositoryIpAddress(reservationId);
 }
 
-
-
-
-int isNetworkExist(SOCKET sock, char *networkName)
+DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 {
-	char *payload=nullptr;
-	char *recvBuf=nullptr;
-	int payloadLen;
-	char *httpreq = "HTTP/1.1\r\nHost:127.0.0.1\r\nContent-Type:application/json\r\nConnection:close\r\n\r\n";
-	
-	printf("in network exist fn\n");
-
-	payloadLen = strlen(DockerNwGet) + strlen(networkName) + strlen(httpreq);
-	payload = (char *)malloc(payloadLen+1);
-	sprintf(payload, "%s%s %s", DockerNwGet, networkName, httpreq);
-
-	recvBuf = httpSendResponse(sock, payload);
-	if (!recvBuf)
+	if (!clusterConfig)
 	{
-		printf("Unexpected error while check for existing network:%s\n",networkName);
-		free(payload);
-		return -1;
+		return INVALID_PARAMETER;
 	}
-	else {
-		printf("receive buf:%s\n", recvBuf);
-		int ret = retrieveHttpStatus(recvBuf);
-		if (ret == 200)
-		{
-			printf("Network Initialized already\n");
-			free(recvBuf);
-			return -1;
-		}
-		free(recvBuf);
-	}
-	if(payload)
-		free(payload);
-	return 0;
-}
 
-DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
-{
-	int conLength = 0, ipamLength = 0;
-	char *nwCreateReq=nullptr;
-	char *recvBuf = nullptr;
-	char *responseLocation = nullptr;
-	int totalLength = 0;
-	char *subnetIp=nullptr;
-	char *gwIp=nullptr;
-	char ipamConfig[512];
+	printf("Going to initialize network ..\n");
 
-	if (clusterConfig->net == OverLay)
+	switch(clusterConfig->net)
 	{
-		printf("OverLay Network currently not supported\n");
-		return;
-	}
-	
-	printf("Initialize network called\n");
+		case OverLay: 
+			printf("OverLay Network currently not supported\n");
+			return UNSUPPORTED_NETWORK;
 
-	if (!wsaInitialize())
-	{
-		return;
-	}
+		case UnderLay: 
+			printf("Going to setup underlay network");
 
-	SOCKET sock = connectToHost("localhost", 2375);
-	if (sock == INVALID_SOCKET)
-	{
-		fprintf(stderr, "Connect to host failed.\n");
-		return;
-	}
-	
+			switch(clusterConfig->env)
+			{
+			case Azure: 
+				return setupUnderlayInAzure(clusterConfig);
 
-	if (isNetworkExist(sock, clusterConfig->networkName) < 0) {
-		goto cleanup2;
-	}
-	
-	shutdown(sock, SD_BOTH);
-	_close((int)sock);
-	wsaCleanUp();
+			case StandAlone: 		
+				printf("Underlay in StandAlone is not a supportedconfig");
 
-	getSubnetGwIpfromNMAgent(&subnetIp, &gwIp);
-
-	
-	/*	"IPAM": {
-		"Driver": "default",
-			"Config" : [
-		{
-			"Subnet": "172.19.0.0/16",
-				"Gateway" : "172.19.0.1"
-		}
-			],
-			"Options": {
-				"foo": "bar"
+			default:
+				printf("Unsupported environment %d\n", clusterConfig->env);
+				return UNSUPPORTED_NETWORK;
 			}
-	},
-	*/
-	
-	sprintf(ipamConfig, "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}",subnetIp,gwIp);
-	printf("ipamconfig:%s\n", ipamConfig);
-
-	if (!wsaInitialize())
-	{
-		return;
+		default:
+			printf("Unknown network type %d\n", clusterConfig->net);
+			return UNSUPPORTED_NETWORK;
 	}
-
-	sock = connectToHost("localhost", 2375);
-	
-	ipamLength = strlen(ipamConfig);
-	conLength = strlen(clusterConfig->networkName) + 9 + 19 + 4+ipamLength;
-	totalLength = strlen(DockerNwCreatePost) + conLength + ipamLength+ 64;
-	nwCreateReq = (char *)malloc(totalLength + 1);
-
-	sprintf(nwCreateReq, "%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", DockerNwCreatePost, conLength, clusterConfig->networkName, "l2tunnel", ipamConfig);
-
-	printf("Now going to get create network driver... cmd:%s:%d:%d:%d\n", nwCreateReq,totalLength,strlen(nwCreateReq), conLength);
-	
-	recvBuf = httpSendResponse(sock, nwCreateReq);
-	if (!recvBuf) {
-		printf("Error while creating docker network");
-		goto cleanup2;
-	}
-
-	int ret = retrieveHttpStatus(recvBuf);
-	printf("status:%d\n", ret);
-	if (ret==201)
-	{
-		printf("docker network create succeeded\n");
-	}
-	else
-	{
-		printf("docker network create failed:%s\n", recvBuf);
-	}
-
-
-cleanup2:
-	if (nwCreateReq)
-		free(nwCreateReq);
-	if (recvBuf)
-		free(recvBuf);
-	if (subnetIp)
-		free(subnetIp);
-	if (gwIp)
-		free(gwIp);
-
-	shutdown(sock, SD_BOTH);
-	_close((int)sock);
-	wsaCleanUp();
 }
-/*
-DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
-{
-	wstring uri = wformatString("{0}/networks/create", hostAddress);
-	string requestString = "\"name\":\"test-nw\"";
-	AutoResetEvent event;
-
-	IHttpClientRequestSPtr clientRequest;
-	IHttpClientSPtr client;
-	
-	auto error = client->CreateHttpRequest(
-		uri,
-		timeout,
-		timeout,
-		timeout,
-		clientRequest);
-
-	clientRequest->SetVerb(*HttpConstants::HttpPostVerb);
-	
-	auto requestBody = GetBytesToSend(requestString);
-
-	clientRequest->SetRequestHeader(*HttpConstants::ContentTypeHeader, L"application/json");
-
-	auto operation = clientRequest->BeginSendRequest(
-		move(requestBody),
-		[&event](AsyncOperationSPtr const &)
-	{
-		event.Set();
-	},
-		root->CreateAsyncOperationRoot());
-
-	event.WaitOne();
-	ULONG winHttpError;
-
-	error = clientRequest->EndSendRequest(operation, &winHttpError);
-
-	if (!error.IsSuccess())
-	{
-		if (winHttpError == ERROR_WINHTTP_CANNOT_CONNECT)
-		{
-			printf("Client request failed because it cannot connect to the server\n");
-			return;
-		}
-		else if (winHttpError == ERROR_WINHTTP_TIMEOUT)
-		{
-			Assert::CodingError("Client request failed because the server didnt respond on time");
-			return;
-		}
-		else if (winHttpError == ERROR_WINHTTP_CONNECTION_ERROR)
-		{
-			printf("Client request failed because of connection error\n");
-			return;
-		}
-		Assert::CodingError("Client request failed with winHttpError - {0}", winHttpError);
-	}
-
-	operation = clientRequest->BeginGetResponseBody(
-		[&event](AsyncOperationSPtr const &)
-	{
-		event.Set();
-	},
-		root->CreateAsyncOperationRoot());
-
-	event.WaitOne();
-	ByteBufferUPtr body;
-	error = clientRequest->EndGetResponseBody(operation, body);
-
-	if (error.IsError(ErrorCodeValue::NotFound) || !error.IsSuccess())
-	{
-		USHORT statusCode;
-		wstring description;
-		clientRequest->GetResponseStatusCode(&statusCode, description);
-		Assert::CodingError("Client request failed with {0}", statusCode);
-	}
-
-}
-
-
-void OnRequestCompleted(
-	IHttpClientRequestSPtr const & clientRequest,
-	char *networkName,
-	AsyncOperationSPtr const & operation,
-	bool expectedCompletedSynchronously)
-{
-	if (operation->CompletedSynchronously != expectedCompletedSynchronously)
-	{
-		return;
-	}
-	ULONG winHttpError;
-	auto error = clientRequest->EndSendRequest(operation, &winHttpError);
-	if (!error.IsSuccess())
-	{
-		WriteWarning(
-			TraceType_Activator,
-			owner_.Root.TraceId,
-			"EndSendRequest Error {0}, volumeName {1}, winHttpError {2}",
-			error,
-			volumeName,
-			winHttpError);
-		DecrementAndCheckPendingOperations(operation->Parent, error, networkName);
-		return;
-	}
-	GetHttpResponse(networkName, clientRequest, operation->Parent);
-}
-*/
