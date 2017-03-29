@@ -257,7 +257,7 @@ int GetAvailableIpsfromRepository(unsigned int *ips)
 
 unsigned int GetReservedIpFromRepository(const char *reservationId)
 {
-	unsigned int returnIp = -1;
+	unsigned int returnIp = 0;
 	LockMutex;
 
 	if (repositoryIpAllocations)

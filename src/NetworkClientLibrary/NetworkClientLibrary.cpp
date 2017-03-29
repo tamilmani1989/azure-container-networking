@@ -723,7 +723,7 @@ DllExport void InitializeOverlayAddressSpace(ClusterConfig *clusterConfig)
 DllExport DWORD GetReservedIpAddress(const char *reservationId, unsigned int *ipAddress)
 {
 	unsigned int reservedIp =  GetReservedIpFromRepository(reservationId);
-	if(reservedIp == -1)
+	if(reservedIp == 0)
 	{
 		return UNEXPECTED_ERROR;
 	}
