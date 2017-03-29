@@ -8,14 +8,17 @@
 *
 \***************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
+#pragma once
+
+#ifdef _WIN32
+#include <windows.h>
+#define DllExport   __declspec( dllexport )  
+#endif
+
 #ifdef __linux__
 #include <pthread.h>
-#define DllExport  
-#endif
-#ifdef _WIN32
-#define DllExport   __declspec( dllexport )   
+#define DllExport   
+#define DWORD unsigned long
 #endif
 
 typedef struct NodeNetworkResources
@@ -51,9 +54,23 @@ enum NetworkType
  
 typedef struct ClusterConfig
 {
+	// Target Environment
     enum Environment env;
+
+	// Target Network Type
     enum NetworkType net;
+
+	// Name of the network. Container will join network with this name.
+	char *networkName;
+
+	// Number of container hosts
     int nodeCount;
+
+	// The overall subnet space from where smaller subnets for individual nodes are carved out
+	// This is applicable to overlay network type only
+	Ipv4Subnet *overlaySubnet; 
+
+	//Config for individual nodes
     NodeConfig *nodeConfigs;       
 }ClusterConfig;
 
@@ -65,24 +82,26 @@ typedef struct ClusterConfig
 // Returns the number of ip addresses that were returned
 // If nodeNetworkResources is null, the available number of ip addresses is returned
 // Otherwise, the nonreserved ip addresses are populated
-DllExport int GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResources);
+DllExport DWORD GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResources, int *count);
 
 // This method selects an ip address from the available pool 
 // of ip addresses and reserves it against the reservationId
-// The reserved ip address is returned
-// If no ip addresses are available to be returned, -1 is returned
+// The reserved ip address is populated in out parameter ipAddress
+// If no ip addresses are available to be returned, ErrorCode is returned
 // This method is idempotent.
-DllExport unsigned int ReserveAvailableIpAddress(char *reservationId);
+DllExport DWORD ReserveAvailableIpAddress(char *reservationId, unsigned int *ipAddress);
 
 // Returns a single ip address
-DllExport unsigned int GetIpAddressForContainer(char *containerId);
+DllExport DWORD GetIpAddressForContainer(char *containerId, unsigned int ipAddress);
 
-// To initialize the ip address space on the node for overlay network
-DllExport void InitializeOverlayAddressSpace(ClusterConfig *clusterConfig);
-
-// Returns an ip address reserved correspoiding to the reservation id
+// Populates an ip address reserved correspoiding to the reservation id
 // returns -1 if reservation id does not exist
-DllExport unsigned int GetReservedIpAddress(char *reservationId);
+DllExport DWORD GetReservedIpAddress(const char *reservationId, unsigned int *ipAddress);
 
 // Releases reservation of an ip address if exists
-DllExport void ReleaseIpReservation(char *reservationId);
+// Return value 0 indicates that reservation was there and was released
+// RESERVATION_NOT_FOUND indicates that reservation was not there, so nothing was released
+DllExport DWORD ReleaseIpReservation(const char *reservationId);
+
+// Initialize network for a specific environment and config
+DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig);

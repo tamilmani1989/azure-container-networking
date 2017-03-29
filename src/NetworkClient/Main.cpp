@@ -7,8 +7,19 @@
 #endif
 #ifdef __linux__
 #include <arpa/inet.h>
+#include <string.h>
+#include <cstdlib>
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
+
+
+void assert(unsigned long value)
+{
+	if (value == 0) return;
+	printf("assert failed");
+	getchar();
+	throw "assert failed";
+}
 
 #ifdef _WIN32
 int wmain(int argc, wchar_t *argv[])
@@ -17,23 +28,51 @@ int wmain(int argc, wchar_t *argv[])
 int main()
 #endif
 {
+
+	ClusterConfig cfg;
     NodeNetworkResources nnr;
     int ipCount = -1;
     int i;
     struct in_addr ipaddr;
     char ipInString[INET_ADDRSTRLEN];
 
-	unsigned int ip = ReserveAvailableIpAddress("ip0");
+	cfg.networkName = (char *) malloc(strlen("azurenet") +1);
+	strncpy(cfg.networkName, "azurenet", 8);
+	cfg.networkName[8] = '\0';	
+	cfg.net = UnderLay;
+	cfg.env = Azure;
+
+        int retval = 0;
+	#ifdef __linux__
+	retval = InitializeNetwork(&cfg);
+	#endif
+
+	#ifdef __WIN32
+	assert(InitializeNetwork(&cfg));
+	#endif
+
+	printf("Successfully initialized Azure/Underlay. retval = %d\n", retval);
+	free(cfg.networkName);
+	getchar();
+
+	cfg.net = OverLay;
+	cfg.env = StandAlone;
+	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
+	getchar();
+
+	unsigned int ip;
+	printf("going to reserve available ip with ip0");
+	assert(ReserveAvailableIpAddress("ip0", &ip));
 	printf("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
     nnr.ips = NULL;
-    ipCount = GetAvailableIpAddresses(&nnr);
+    assert(GetAvailableIpAddresses(&nnr, &ipCount));
 	printf("Retrieved ipCount = %d\n", ipCount);
 	getchar();
 
     nnr.ips = (unsigned int *) malloc(ipCount * sizeof(unsigned int));
-    ipCount = GetAvailableIpAddresses(&nnr);
+    assert(GetAvailableIpAddresses(&nnr, &ipCount));
     printf("Printing available ip addresses count = %d\n", ipCount);
     for(i = 0; i < ipCount ; i++)
     {
@@ -41,11 +80,11 @@ int main()
     }
 	getchar();
     
-	ip = ReserveAvailableIpAddress("ip1");
+	assert(ReserveAvailableIpAddress("ip1", &ip));
     printf("ip1 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
-    ipCount = GetAvailableIpAddresses(&nnr);
+    assert(GetAvailableIpAddresses(&nnr, &ipCount));
     printf("Printing available ip addresses count = %d\n", ipCount);
     for(i = 0; i < ipCount ; i++)
     {
@@ -53,19 +92,19 @@ int main()
     }
 	getchar();
 
-    ip = GetReservedIpAddress("ip1");
+    assert(GetReservedIpAddress("ip1", &ip));
     printf("ip1 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
-    ip = GetReservedIpAddress("ip2");
-    printf("ip2 (without reservation) = %d\n", ip);
+	retval = GetReservedIpAddress("ip2", &ip);
+    printf("ip2 (without reservation). retval = %d\n", retval);
 	getchar();
     
-    ip = ReserveAvailableIpAddress("ip2");
+    assert(ReserveAvailableIpAddress("ip2", &ip));
     printf("ip2 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
-    ipCount = GetAvailableIpAddresses(&nnr);
+    assert(GetAvailableIpAddresses(&nnr, &ipCount));
     printf("Printing available ip addresses count = %d\n", ipCount);
     for(i = 0; i < ipCount ; i++)
     {
@@ -73,20 +112,21 @@ int main()
     }
 	getchar();
 
-    ip = GetReservedIpAddress("ip2");
+	assert(GetReservedIpAddress("ip2", &ip));
     printf("ip2 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
 
-	ReleaseIpReservation("ip1");
-	ip = GetReservedIpAddress("ip1");
-	printf("ip1 (without reservation) = %d\n", ip);
+	assert(ReleaseIpReservation("ip1"));
+	retval = GetReservedIpAddress("ip1", &ip);
+	printf("ip1 (without reservation). retval = %d\n", retval);
 	getchar();
 
-	ReleaseIpReservation("ip2");
-	ip = GetReservedIpAddress("ip2");
-	printf("ip2 (without reservation) = %d\n", ip);
+	assert(ReleaseIpReservation("ip2"));
+	retval = GetReservedIpAddress("ip2", &ip);
+	printf("ip2 (without reservation). retval =  %d\n", retval);
 	getchar();
     free(nnr.ips);
+
 	return 0;
 }

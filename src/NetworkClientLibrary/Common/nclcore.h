@@ -7,7 +7,6 @@
 *
 \***************************************************************************/
 #pragma once
-
 typedef struct IpStatus
 {
     unsigned int ip;

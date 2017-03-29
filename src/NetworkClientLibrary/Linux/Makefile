@@ -6,7 +6,7 @@ sdn:	../NetworkClientLibrary.cpp ../Common/aquanetworkclient.h ../Common/nclcore
 	ln -sf  libAquaNetworkClient.so.1.0 libAquaNetworkClient.so
 
 example:	../../NetworkClient/Main.cpp
-	gcc ../../NetworkClient/Main.cpp -L. -lAquaNetworkClient -lcurl -lxml2
+	gcc ../../NetworkClient/Main.cpp -L. -lAquaNetworkClient -lcurl -lxml2 -lstdc++
 
 clean:	
 	rm -f $(TARGET)

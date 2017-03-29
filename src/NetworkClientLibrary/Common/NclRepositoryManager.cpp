@@ -7,11 +7,12 @@
 * It needs to be integrated with IPAM.
 *
 \***************************************************************************/
+#pragma once
 
-#include "nclcore.h"
 #include <stdlib.h>
 #include <string.h>
 #include <iostream>
+#include "nclcore.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -46,7 +47,7 @@ void FreeStatusInRepositoryIpAllocations(IpAllocations *repositoryIpAllocations)
 	}
 }
 
-IpStatus *GetRepositoryReservedIp(char *reservationId)
+IpStatus *GetRepositoryReservedIp(const char *reservationId)
 {
 	int i;
 	if (repositoryIpAllocations)
@@ -86,30 +87,37 @@ IpStatus *ReserveRepositoryIp(char *reservationId)
 	return NULL;
 }
 
-void ReleaseReservedRepositoryIp(char *reservationId)
+unsigned long ReleaseReservedRepositoryIp(const char *reservationId)
 {
 	int i;
+	unsigned long reservationFound = 0;
 	if (repositoryIpAllocations)
 	{
 		printf("Going to try to release %s\n", reservationId);
 		for (i = 0; i<repositoryIpAllocations->count; i++)
 		{
 			IpStatus *retval = &repositoryIpAllocations->statusForAllIpAddresses[i];
-			printf("Checking if %s should be released\n", retval->id);
+			printf("Checking if reservation for %d should be released\n", retval->ip);
 			if (retval->isReserved == 1)
 			{
 				if (strcmp(retval->id, reservationId) == 0) 
 				{
-					printf("yes\n");
+					printf("yes, going to release reservation\n");
 					free(repositoryIpAllocations->statusForAllIpAddresses[i].id);
 					repositoryIpAllocations->statusForAllIpAddresses[i].id = NULL;
 					repositoryIpAllocations->statusForAllIpAddresses[i].isReserved = 0;
+					reservationFound = 1;
 					break;
 				}
+				printf("no, not the target");
 			}
-			printf("no\n");
+			else
+			{
+				printf("no, not reserved)\n");
+			}
 		}
 	}
+	return reservationFound;
 }
 
 IpStatus *GetRepositoryIpAllocationStatus(unsigned int ip)
@@ -189,7 +197,7 @@ void UpdateRepositoryIpList(int ipCount, unsigned int *ips)
 
 unsigned int ReserveRepositoryIpAddress(char *reservationId)
 {
-	unsigned int returnIp = -1;
+	unsigned int returnIp = 0;
 	LockMutex;
 
 	if (repositoryIpAllocations)
@@ -212,11 +220,13 @@ unsigned int ReserveRepositoryIpAddress(char *reservationId)
 	return returnIp;
 }
 
-void ReleaseRepositoryIpAddress(char *reservationId)
+unsigned long ReleaseRepositoryIpAddress(const char *reservationId)
 {
+	unsigned long reservationStatus;
 	LockMutex;
-	ReleaseReservedRepositoryIp(reservationId);		
+	reservationStatus = ReleaseReservedRepositoryIp(reservationId);		
 	UnlockMutex;
+	return reservationStatus;
 }
 
 int GetAvailableIpsfromRepository(unsigned int *ips)
@@ -245,9 +255,9 @@ int GetAvailableIpsfromRepository(unsigned int *ips)
 }
 
 
-unsigned int GetReservedIpFromRepository(char *reservationId)
+unsigned int GetReservedIpFromRepository(const char *reservationId)
 {
-	unsigned int returnIp = -1;
+	unsigned int returnIp = 0;
 	LockMutex;
 
 	if (repositoryIpAllocations)
