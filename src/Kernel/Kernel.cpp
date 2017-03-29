@@ -15,7 +15,7 @@
 
 AquariusKernel::AquariusKernel(wchar_t* storeLocation): packageStoreLocation(nullptr) 
 {	
-	int len = wcsnlen(storeLocation, MAX_PATH) + 1;
+	size_t len = wcsnlen(storeLocation, MAX_PATH) + 1;
     packageStoreLocation = new wchar_t[len];
 	AquariusUtilities::allocator++;
 	wcscpy_s(packageStoreLocation, len, storeLocation);
@@ -59,7 +59,7 @@ void AquariusKernel::UpdateCurrentPackageStoreLocation(wchar_t* storeLocation)
 {
 	// we need to lock as this got read when we populate package/plugin deployment jobs
 	kernel_objects_mutex.lock();
-	int len = wcsnlen(storeLocation, MAX_PATH) + 1;
+	size_t len = wcsnlen(storeLocation, MAX_PATH) + 1;
     if(packageStoreLocation != nullptr)
 	{
 		delete[] packageStoreLocation;
@@ -90,7 +90,7 @@ void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
 
 				try
 				{
-					int locationLen = wcsnlen(pluginsToLoad[i].location, MAX_PATH);
+					size_t locationLen = wcsnlen(pluginsToLoad[i].location, MAX_PATH);
 					size_t len = locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::codeDirectoryName, MAX_PATH) + 1;
                     codeDirectory = new wchar_t[len];
                     wcscpy_s(codeDirectory, len, pluginsToLoad[i].location);
