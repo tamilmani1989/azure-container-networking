@@ -197,7 +197,7 @@ void UpdateRepositoryIpList(int ipCount, unsigned int *ips)
 
 unsigned int ReserveRepositoryIpAddress(char *reservationId)
 {
-	unsigned int returnIp = -1;
+	unsigned int returnIp = 0;
 	LockMutex;
 
 	if (repositoryIpAllocations)

@@ -648,16 +648,15 @@ int GetAllIpAddresses(NodeNetworkResources *nodeNetworkResources)
 // Returns the number of ip addresses that were returned
 // If nodeNetworkResources->ips is null, the available number of ip addresses is returned
 // Otherwise, the nonreserved ip addresses are populated
-DllExport int GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResources)
+DllExport DWORD GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResources, int *count)
 {
-	int ipCount = 0;
+	int ipCount;
 	unsigned int *ips;
 	ipCount = getIpsFromNmAgent(NULL);
 
 	if (ipCount <= 0)
 	{
-		ipCount = 0;
-		return ipCount;
+		return UNEXPECTED_ERROR;
 	}
 
 	ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
@@ -679,7 +678,8 @@ DllExport int GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResources
 		ipCount = GetAvailableIpsfromRepository(nodeNetworkResources->ips);
 	}
 	
-	return ipCount;
+	*count = ipCount;
+	return 0;
 }
 
 // This method selects an ip address from the available pool 
@@ -687,18 +687,27 @@ DllExport int GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResources
 // The reserved ip address is returned
 // If no ip addresses are available to be returned, 0 is returned
 // This method is idempotent.
-DllExport unsigned int ReserveAvailableIpAddress(char *reservationId)
+DllExport DWORD ReserveAvailableIpAddress(char *reservationId, unsigned int *ipAddress)
 {
-	if (GetAvailableIpAddresses(NULL) > 0)
+	unsigned int reservedIp = 0;
+	int count = 0;
+	GetAvailableIpAddresses(NULL, &count);
+	if ( count > 0)
 	{
-		return ReserveRepositoryIpAddress(reservationId);
+		 reservedIp = ReserveRepositoryIpAddress(reservationId);
 	}
 
+	if(reservedIp == 0)
+	{
+		return UNEXPECTED_ERROR;
+	}
+
+	*ipAddress = reservedIp;
 	return 0;	
 }
 
 // Returns a single ip address
-DllExport unsigned int GetIpAddressForContainer(char *containerId)
+DllExport  DWORD GetIpAddressForContainer(char *containerId, unsigned int ipAddress)
 {
 	return 0;
 }
@@ -711,9 +720,16 @@ DllExport void InitializeOverlayAddressSpace(ClusterConfig *clusterConfig)
 
 // Returns an ip address reserved correspoiding to the reservation id
 // returns -1 if reservation id does not exist
-DllExport unsigned int GetReservedIpAddress(const char *reservationId)
+DllExport DWORD GetReservedIpAddress(const char *reservationId, unsigned int *ipAddress)
 {
-	return GetReservedIpFromRepository(reservationId);
+	unsigned int reservedIp =  GetReservedIpFromRepository(reservationId);
+	if(reservedIp == -1)
+	{
+		return UNEXPECTED_ERROR;
+	}
+
+	*ipAddress = reservedIp;
+	return 0;
 }
 
 // Releases reservation of an ip address if exists
