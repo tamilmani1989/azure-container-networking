@@ -5,6 +5,7 @@
         that is compiled with /GL. This forces the linker to restart with /LTCG option.
      -->
     <UuidLib>$(NugetMachineInstallRoot)\WindowsSdk.Corext.10.0.10586\Lib\10.0.10586.0\um\x64\uuid.lib</UuidLib>
+    <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
 
    <ItemDefinitionGroup>

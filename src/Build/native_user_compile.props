@@ -110,7 +110,7 @@
         $(PkgWindowsSdk_Corext)\Include\$(WindowsTargetPlatformVersion)\ucrt;
         $(PkgVisualCpp_Corext)\Inclue;
         $(PkgVisualCpp_Corext)\crt\src\concrt;
-        $(PkgCFX_Binaries)\headers
+        $(FC_Redist)\content\redist
       </AdditionalIncludeDirectories>
       <AdditionalOptions>$(UseAwait) /Zm200 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
