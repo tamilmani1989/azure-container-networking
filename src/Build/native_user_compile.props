@@ -82,6 +82,7 @@
       <UseFullPaths>true</UseFullPaths>
       <StructMemberAlignment>8Bytes</StructMemberAlignment>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <ProgramDatabaseFileName>$(OutDir)$(TargetName).pdb</ProgramDatabaseFileName>
       <ForceConformanceInForLoopScope>true</ForceConformanceInForLoopScope>
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <FunctionLevelLinking>true</FunctionLevelLinking>

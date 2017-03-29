@@ -9,6 +9,7 @@
 
    <ItemDefinitionGroup>
     <Link>
+      <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
       <CreateHotPatchableImage>X64Image</CreateHotPatchableImage>
       <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
