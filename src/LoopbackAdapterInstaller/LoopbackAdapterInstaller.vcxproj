@@ -3,10 +3,9 @@
   <PropertyGroup>
     <ProjectGuid>{695A017C-867D-4E13-8670-CD25D4BC971B}</ProjectGuid>
     <TargetName>LoopbackAdapterInstaller</TargetName>
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(SRCROOT)\build\native_user_compile.props" />
-  <Import Project="$(SRCROOT)\build\native_user_link.props" />
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>
