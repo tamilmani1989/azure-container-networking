@@ -97,7 +97,8 @@
     <ClCompile Include="Windows\ResponseParser.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Common\aquanetworkclient.h" />
+    <ClInclude Include="Common\aquanetworkclient.h" />  
+    <ClInclude Include="Common\aquaerrorcodes.h" />
     <ClInclude Include="Common\nclcore.h" />
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />

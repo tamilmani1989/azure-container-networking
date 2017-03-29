@@ -2,10 +2,6 @@
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(EnvironmentConfig)" />
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|x64">
-      <Configuration>Debug</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|x64">
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
@@ -105,17 +101,11 @@ $(PkgVisualCpp_Corext)\Include;
       <AdditionalOptions>/d1import_no_registry /d1nodatetime /d2AllowCompatibleILVersions /d2Zi+ /favor:AMD64 </AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
-    <ClCompile>
-      <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>DBG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>
       <Optimization>Full</Optimization>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <PreprocessorDefinitions>NDEBUG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!--PreprocessorDefinitions>NDEBUG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions-->
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
@@ -134,8 +124,8 @@ $(PkgVisualCpp_Corext)\Include;
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalOptions>/MERGE:_PAGE=PAGE /MERGE:_TEXT=.text /OPT:REF /OPT:ICF /IGNORE:4010,4037,4039,4065,4070,4078,4087,4089,4221,4198 /INCREMENTAL:NO /release /WX /debug /debugtype:cv,fixup,pdata /version:6.0 /osversion:6.0 /merge:.rdata=.text /NOOPTIDATA /pdbcompress  /tsaware /highentropyva</AdditionalOptions>
-      <AdditionalDependencies>
+    <AdditionalOptions>/MERGE:_PAGE=PAGE /MERGE:_TEXT=.text /OPT:REF /OPT:ICF /IGNORE:4010,4037,4039,4065,4070,4078,4087,4089,4221,4198 /INCREMENTAL:NO /release /WX /debug /debugtype:cv,fixup,pdata /version:6.0 /osversion:6.0 /merge:.rdata=.text /NOOPTIDATA /pdbcompress  /tsaware /highentropyva</AdditionalOptions>
+         <AdditionalDependencies>
       $(PUBLIC_SDK)\lib\amd64\msvcrt.lib;
       $(PkgMicrosoft_WindowsAzure_EngSys_External_Windows_sdk)\lib\$(BuildArchitecture)\wincrt10_msvcprt.lib;
       $(PkgVisualCpp_Corext)\lib\$(Platform)\msvcprt.lib;    

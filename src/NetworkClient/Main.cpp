@@ -7,6 +7,7 @@
 #endif
 #ifdef __linux__
 #include <arpa/inet.h>
+#include <string.h>
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
 
@@ -17,11 +18,28 @@ int wmain(int argc, wchar_t *argv[])
 int main()
 #endif
 {
+
+	ClusterConfig cfg;
     NodeNetworkResources nnr;
     int ipCount = -1;
     int i;
     struct in_addr ipaddr;
     char ipInString[INET_ADDRSTRLEN];
+
+	cfg.networkName = (char *) malloc(strlen("azurenet") +1);
+	strncpy(cfg.networkName, "azurenet", 8);
+	cfg.networkName[8] = '\0';
+	
+	cfg.net = UnderLay;
+	cfg.env = Azure;
+	printf("Initialization result for Azure/Underlay: %d\n",InitializeNetwork(&cfg));
+	free(cfg.networkName);
+	getchar();
+
+	cfg.net = OverLay;
+	cfg.env = StandAlone;
+	printf("Initialization result for StandAlone/Overlay: %d\n", InitializeNetwork(&cfg));
+	getchar();
 
 	unsigned int ip = ReserveAvailableIpAddress("ip0");
 	printf("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
@@ -88,5 +106,6 @@ int main()
 	printf("ip2 (without reservation) = %d\n", ip);
 	getchar();
     free(nnr.ips);
+
 	return 0;
 }

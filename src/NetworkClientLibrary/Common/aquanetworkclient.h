@@ -8,14 +8,17 @@
 *
 \***************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
+#pragma once
+
+#ifdef _WIN32
+#include <windows.h>
+#define DllExport   __declspec( dllexport )  
+#endif
+
 #ifdef __linux__
 #include <pthread.h>
-#define DllExport  
-#endif
-#ifdef _WIN32
-#define DllExport   __declspec( dllexport )   
+#define DllExport   
+#define DWORD unsigned long
 #endif
 
 typedef struct NodeNetworkResources
@@ -53,6 +56,7 @@ typedef struct ClusterConfig
 {
     enum Environment env;
     enum NetworkType net;
+	char *networkName;
     int nodeCount;
     NodeConfig *nodeConfigs;       
 }ClusterConfig;
@@ -77,12 +81,14 @@ DllExport unsigned int ReserveAvailableIpAddress(char *reservationId);
 // Returns a single ip address
 DllExport unsigned int GetIpAddressForContainer(char *containerId);
 
-// To initialize the ip address space on the node for overlay network
-DllExport void InitializeOverlayAddressSpace(ClusterConfig *clusterConfig);
-
 // Returns an ip address reserved correspoiding to the reservation id
 // returns -1 if reservation id does not exist
-DllExport unsigned int GetReservedIpAddress(char *reservationId);
+DllExport unsigned int GetReservedIpAddress(const char *reservationId);
 
 // Releases reservation of an ip address if exists
-DllExport void ReleaseIpReservation(char *reservationId);
+// Return value 0 indicates that reservation was there and was released
+// RESERVATION_NOT_FOUND indicates that reservation was not there, so nothing was released
+DllExport DWORD ReleaseIpReservation(const char *reservationId);
+
+// Initialize network for a specific environment and config
+DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig);
