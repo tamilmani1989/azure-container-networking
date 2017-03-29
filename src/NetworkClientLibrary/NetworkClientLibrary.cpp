@@ -8,6 +8,7 @@
 *
 \***************************************************************************/
 
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include "Common/aquanetworkclient.h"
 #include "Common/aquaerrorcodes.h"
 #include <stdlib.h>
@@ -23,7 +24,8 @@
 #define DockerNwGet "GET /networks/"
 #define HttpResponseHeaderSeparator "\r\n\r\n"
 #define BUFFER_SIZE 1024
-std::_Mutex initWsaMutex;
+#include <mutex>
+std::mutex initWsaMutex;
 int wsaInitialized = 0;
 #endif
 #ifdef __linux__
@@ -173,12 +175,12 @@ SOCKET connectToHost(char *host, USHORT port)
 	struct sockaddr_in addr;
 	SOCKET sock;	
 
+	// Using depricated gethostbyname which is ipv4 only
 	if ((hp = gethostbyname(host)) == nullptr)
 	{
 		fprintf(stderr, "gethostbyname failed %d : %s", WSAGetLastError(),host);
 		return INVALID_SOCKET;
 	}
-	
 
 	memcpy(&addr.sin_addr, hp->h_addr, hp->h_length);
 	addr.sin_port = htons(port);
@@ -229,18 +231,18 @@ int wsaInitialize()
 {
 	if (!wsaInitialized)
 	{
-		initWsaMutex._Lock();
+		initWsaMutex.lock();
 		if (!wsaInitialized)
 		{
 			if (initWsa())
 			{
 				wsaInitialized = 1;
-				initWsaMutex._Unlock();
+				initWsaMutex.unlock();
 			}
 			else
 			{
 				fprintf(stderr, "wsa initialization failed\n");
-				initWsaMutex._Unlock();
+				initWsaMutex.unlock();
 				return 0;
 			}
 		}
@@ -252,13 +254,13 @@ void wsaCleanUp()
 {
 	if (wsaInitialized)
 	{
-		initWsaMutex._Lock();
+		initWsaMutex.lock();
 		if (wsaInitialized)
 		{
 			WSACleanup();
 			wsaInitialized = 0;
 		}
-		initWsaMutex._Unlock();
+		initWsaMutex.unlock();
 	}
 }
 
@@ -267,10 +269,9 @@ char* httpSendResponse(SOCKET sock, char *payload)
 
 	int bytesRead;
 	char *recvBuffer = nullptr;
-	char *responseLocation = nullptr;
 	int byteCount = 0;
 
-	int bytesWritten = send(sock, payload, strlen(payload), 0);
+	int bytesWritten = send(sock, payload, (int) strlen(payload), 0);
 	if (bytesWritten == SOCKET_ERROR)
 	{
 		fprintf(stderr, "Writing to socket failed errno=%d\n", errno);
@@ -422,7 +423,7 @@ int getIpsFromNmAgent(unsigned int *ips)
 		return -1;
 	}
 	printf("Now going to get ips from nm agent... fd: %llu\n", sock);
-	int bytesWritten = send(sock, HostSuffix, strlen(HostSuffix), 0);
+	int bytesWritten = send(sock, HostSuffix, (int) strlen(HostSuffix), 0);
 	if(bytesWritten == SOCKET_ERROR)
 	{
 		fprintf(stderr, "Writing to socket failed errno=%d\n", errno );
@@ -507,14 +508,14 @@ int networkExists(SOCKET sock, char *networkName)
 {
 	char *payload = nullptr;
 	char *recvBuf = nullptr;
-	int payloadLen;
+	size_t payloadLen;
 	char *httpreq = "HTTP/1.1\r\nHost:127.0.0.1\r\nContent-Type:application/json\r\nConnection:close\r\n\r\n";
 
 	printf("Checking if network already exists..\n");
 
 	payloadLen = strlen(DockerNwGet) + strlen(networkName) + strlen(httpreq);
 	payload = (char *)malloc(payloadLen + 1);
-	sprintf(payload, "%s%s %s", DockerNwGet, networkName, httpreq);
+	sprintf_s(payload, payloadLen, "%s%s %s", DockerNwGet, networkName, httpreq);
 
 	recvBuf = httpSendResponse(sock, payload);
 	if (!recvBuf)
@@ -541,11 +542,10 @@ int networkExists(SOCKET sock, char *networkName)
 
 DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 {
-	int conLength = 0, ipamLength = 0;
+	size_t conLength = 0, ipamLength = 0;
 	char *nwCreateReq = nullptr;
 	char *recvBuf = nullptr;
-	char *responseLocation = nullptr;
-	int totalLength = 0;
+	size_t totalLength = 0;
 	char *subnetIp = nullptr;
 	char *gwIp = nullptr;
 	char ipamConfig[512];
@@ -572,7 +572,7 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 
 		getSubnetGwIpfromNMAgent(&subnetIp, &gwIp);
 
-		sprintf(ipamConfig, "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gwIp);
+		sprintf_s(ipamConfig, ipamLength, "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gwIp);
 		printf("ipamconfig:%s\n", ipamConfig);
 		if (!wsaInitialize())
 		{
@@ -586,9 +586,9 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 		totalLength = strlen(DockerNwCreatePost) + conLength + ipamLength + 64;
 		nwCreateReq = (char *)malloc(totalLength + 1);
 
-		sprintf(nwCreateReq, "%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", DockerNwCreatePost, conLength, clusterConfig->networkName, "l2tunnel", ipamConfig);
+		sprintf_s(nwCreateReq, totalLength, "%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", DockerNwCreatePost, (int) conLength, clusterConfig->networkName, "l2tunnel", ipamConfig);
 
-		printf("Now going to get create network driver... cmd:%s:%d:%llu:%d\n", nwCreateReq, totalLength, strlen(nwCreateReq), conLength);
+		printf("Now going to get create network driver... cmd:%s:%d:%llu:%d\n", nwCreateReq, (int) totalLength, strlen(nwCreateReq), (int) conLength);
 
 		recvBuf = httpSendResponse(sock, nwCreateReq);
 		if (!recvBuf) 
@@ -709,12 +709,16 @@ DllExport DWORD ReserveAvailableIpAddress(char *reservationId, unsigned int *ipA
 // Returns a single ip address
 DllExport  DWORD GetIpAddressForContainer(char *containerId, unsigned int ipAddress)
 {
+	// Reivew: UNREFERENCED_PARAMETER works in linux?
+	UNREFERENCED_PARAMETER(containerId);
+	UNREFERENCED_PARAMETER(ipAddress);
 	return 0;
 }
 
 // To initialize the ip address space on the node for overlay network
 DllExport void InitializeOverlayAddressSpace(ClusterConfig *clusterConfig)
 {
+	UNREFERENCED_PARAMETER(clusterConfig);
 	return;
 }
 

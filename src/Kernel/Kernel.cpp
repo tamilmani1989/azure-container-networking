@@ -25,7 +25,7 @@ AquariusKernel::AquariusKernel(wchar_t* storeLocation): packageStoreLocation(nul
 
 AquariusKernel::~AquariusKernel()
 {	
-	kernel_objects_mutex._Lock();
+	kernel_objects_mutex.lock();
 	if (packageStoreLocation != nullptr) 
 	{
 		delete(packageStoreLocation);
@@ -35,14 +35,14 @@ AquariusKernel::~AquariusKernel()
 		delete(alreadyLoadedPluginsMetadata);
 	}
 	JobManager::ReleaseAllJobs();
-	kernel_objects_mutex._Unlock();
+	kernel_objects_mutex.unlock();
 	
 }
 
 void AquariusKernel::RetrievePackageDeploymentJobs()
 {
 	
-	kernel_objects_mutex._Lock();
+	kernel_objects_mutex.lock();
 
 	// get the real job count
 	//int jobcount = 1; 
@@ -51,14 +51,14 @@ void AquariusKernel::RetrievePackageDeploymentJobs()
 	
 	//pluginsMetadata = jobs;
 
-	kernel_objects_mutex._Unlock();
+	kernel_objects_mutex.unlock();
 	
 }
 
 void AquariusKernel::UpdateCurrentPackageStoreLocation(wchar_t* storeLocation)
 {
 	// we need to lock as this got read when we populate package/plugin deployment jobs
-	kernel_objects_mutex._Lock();
+	kernel_objects_mutex.lock();
 	int len = wcsnlen(storeLocation, MAX_PATH) + 1;
     if(packageStoreLocation != nullptr)
 	{
@@ -68,7 +68,7 @@ void AquariusKernel::UpdateCurrentPackageStoreLocation(wchar_t* storeLocation)
 	packageStoreLocation = new wchar_t[len];
 	AquariusUtilities::allocator++;
 	wcscpy_s(packageStoreLocation, len, storeLocation);
-	kernel_objects_mutex._Unlock();	
+	kernel_objects_mutex.unlock();	
 }
 
 wchar_t* AquariusKernel::GetCurrentPackageStoreLocation()
@@ -78,7 +78,7 @@ wchar_t* AquariusKernel::GetCurrentPackageStoreLocation()
 
 void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
 {
-	kernel_objects_mutex._Lock();
+	kernel_objects_mutex.lock();
 	try {
 		if (alreadyLoadedPluginCount <= 0)
 		{
@@ -133,8 +133,8 @@ void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
 	}
 	catch(...)
 	{
-		kernel_objects_mutex._Unlock();
+		kernel_objects_mutex.unlock();
 		throw;
 	}
-	kernel_objects_mutex._Unlock();
+	kernel_objects_mutex.unlock();
 }

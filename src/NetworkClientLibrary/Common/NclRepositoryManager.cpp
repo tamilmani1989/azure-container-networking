@@ -16,9 +16,10 @@
 
 #ifdef _WIN32
 #include <windows.h>
-std::_Mutex ipAllocationsMutex;
-#define LockMutex ipAllocationsMutex._Lock();
-#define UnlockMutex ipAllocationsMutex._Lock();
+#include <mutex>
+std::mutex ipAllocationsMutex;
+#define LockMutex ipAllocationsMutex.lock();
+#define UnlockMutex ipAllocationsMutex.unlock();
 #endif
 
 #ifdef __linux__
@@ -30,19 +31,19 @@ pthread_mutex_t ipAllocationsLock = PTHREAD_MUTEX_INITIALIZER;
 
 IpAllocations *repositoryIpAllocations;
 
-void FreeStatusInRepositoryIpAllocations(IpAllocations *repositoryIpAllocations)
+void FreeStatusInRepositoryIpAllocations(IpAllocations *myRepositoryIpAllocations)
 {
 	int i;
-	if (repositoryIpAllocations)
+	if (myRepositoryIpAllocations)
 	{
-		for (i = 0; i<repositoryIpAllocations->count; i++)
+		for (i = 0; i<myRepositoryIpAllocations->count; i++)
 		{
-			IpStatus tempStatus = repositoryIpAllocations->statusForAllIpAddresses[i];
+			IpStatus tempStatus = myRepositoryIpAllocations->statusForAllIpAddresses[i];
 			free(tempStatus.id);
 		}
-		if (repositoryIpAllocations->statusForAllIpAddresses)
+		if (myRepositoryIpAllocations->statusForAllIpAddresses)
 		{
-			free(repositoryIpAllocations->statusForAllIpAddresses);
+			free(myRepositoryIpAllocations->statusForAllIpAddresses);
 		}
 	}
 }
@@ -77,8 +78,9 @@ IpStatus *ReserveRepositoryIp(char *reservationId)
 			IpStatus *retval = &repositoryIpAllocations->statusForAllIpAddresses[i];
 			if (!retval->id)
 			{
-				retval->id = (char *)malloc(strlen(reservationId) * sizeof(char));
-				strcpy(retval->id, reservationId);
+				size_t resSize = strlen(reservationId) * sizeof(char);
+				retval->id = (char *)malloc(resSize);
+				strcpy_s(retval->id, resSize, reservationId);
 				retval->isReserved = 1;
 				return retval;
 			}
@@ -166,8 +168,9 @@ void UpdateRepositoryIpList(int ipCount, unsigned int *ips)
 			if (repositoryIpStatus->id != NULL)
 			{
 				printf("id= %s\n", repositoryIpStatus->id);
-				localIpStatus[i].id = (char *)malloc(strlen(repositoryIpStatus->id) * sizeof(char));
-				strcpy(localIpStatus[i].id, repositoryIpStatus->id);
+				size_t idLen = strlen(repositoryIpStatus->id) * sizeof(char);
+				localIpStatus[i].id = (char *)malloc(idLen);
+				strcpy_s(localIpStatus[i].id, idLen, repositoryIpStatus->id);
 			}
 			else
 			{

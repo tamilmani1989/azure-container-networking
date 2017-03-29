@@ -101,7 +101,6 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 	VARIANT_BOOL varStatus = 0;
 	VARIANT varFileName;
 	VariantInit(&varFileName);
-	wchar_t *entryPoint = nullptr;
 	CreateAndInitDOM(&pXMLDom);
 	printf("Going to load xml from string->\n %s\n", xmlResponse);
 	CComBSTR combstr(xmlResponse);
@@ -175,10 +174,10 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 
 					CHK_HR(pXMLSubnetAttributes->getNamedItem(L"Prefix", &prefixAttribute));
 					CHK_HR(prefixAttribute->get_text(&subnetAddress));
-					int wlen = wcslen(subnetAddress) + 1;
+					size_t wlen = wcslen(subnetAddress) + 1;
 					*subnetIp = (char *)malloc(wlen);
-					
-					wcstombs(*subnetIp, subnetAddress, wlen);
+					size_t bytesCopied = 0;
+					wcstombs_s(&bytesCopied, *subnetIp, wlen, subnetAddress, wlen);
 					printf("Subnet ip=%s\n", *subnetIp);
 					SAFE_RELEASE(prefixAttribute);
 					SAFE_RELEASE(pXMLSubnetAttributes);
@@ -203,9 +202,10 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 								CHK_HR(pXMLIPAddressNode->get_attributes(&pXMLIPAddressAttributes));
 								CHK_HR(pXMLIPAddressAttributes->getNamedItem(L"Address", &ipAttribute));
 								CHK_HR(ipAttribute->get_text(&ipAddress));
-								int wlen = wcslen(ipAddress) + 1;
+								size_t wlen = wcslen(ipAddress) + 1;
 								*gatewayIp = (char *)malloc(wlen);
-								wcstombs(*gatewayIp, ipAddress, wlen);
+								size_t bytesCopied = 0;
+								wcstombs_s(&bytesCopied, *gatewayIp, wlen, ipAddress, wlen);
 								printf("Gateway ip ch=%s\n", *gatewayIp);
 								SAFE_RELEASE(ipAttribute);
 								break;
@@ -219,8 +219,8 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 					SAFE_RELEASE(pXMLIPAddressList);
 					
 					char *subTemp, *gwTemp;
-					int len = strlen(*subnetIp);
-					printf("len:%d\n", len);
+					size_t len = strlen(*subnetIp);
+					printf("len:%d\n", (int) len);
 					*gatewayIp = (char *)malloc(len+1);
 					int dotCount = 0;
 					int k = 0;
@@ -501,7 +501,6 @@ int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ip
 
 void ParseSubnetAndGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayIp)
 {
-	unsigned int ipCount = 0;
 	HRESULT hr = CoInitialize(nullptr);
 	if (SUCCEEDED(hr))
 	{

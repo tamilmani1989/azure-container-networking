@@ -3,43 +3,31 @@
   <PropertyGroup>
     <ProjectGuid>{97F3B949-54EC-40C4-B9A4-6A338B2A4767}</ProjectGuid>
     <TargetName>NetworkClientLibrary</TargetName>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
   </PropertyGroup>
   
   <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>
-        %(AdditionalIncludeDirectories);
-        $(PkgMicrosoft_WindowsAzure_EngSys_Internal_rd_fabric_stable_fc_Redist)\content\redist;
-        $(PkgMicrosoft_WindowsAzure_EngSys_Internal_longhorn_rd_os142_OS_redist)\content\redist;
-		$(PUBLIC_SDK)\inc\atlmfc;
-        $(PUBLIC_SDK)\inc;
-        $(PUBLIC_SDK)\inc\minwin;
-        $(PUBLIC_SDK)\inc\mincore;
-        $(PUBLIC_INTERNAL_SDK)\inc;
-        $(PUBLIC_SDK)\inc\crt;
-        $(PUBLIC_SDK)\inc\crt\stl70
-
+        %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
-    </ClCompile>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Debug'">MultiThreadedDebugDll</RuntimeLibrary>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Release'">MultiThreadedDll</RuntimeLibrary>    </ClCompile>
   </ItemDefinitionGroup>
    <ItemDefinitionGroup>
     <Link>
-      <CreateHotPatchableImage>X64Image</CreateHotPatchableImage>
       <SubSystem>console</SubSystem>
-      <StackCommitSize>0x2000</StackCommitSize>
-      <StackReserveSize>0x80000</StackReserveSize>
       <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
       <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
       <AdditionalDependencies>
-        $(PUBLIC_SDK)\lib\amd64\kernel32.lib;
-        $(PUBLIC_SDK)\lib\amd64\ntstc_msvcrt.lib;
-        $(PUBLIC_SDK)\lib\amd64\msvcrt.lib;
-        $(PUBLIC_SDK)\lib\amd64\ole32.lib;
-        $(PUBLIC_SDK)\lib\amd64\ws2_32.lib;
-        $(PUBLIC_SDK)\lib\amd64\oleaut32.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsupp.lib;
+        %(AdditionalDependencies);
+        $(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

@@ -129,7 +129,7 @@ void AquariusService::OnStop()
 {
     // Log a service stop message to the Application log.
 	AquariusUtilities::WriteEventLogEntry(L"AquariusSvc in going to stop: OnStop is called");
-	service_objects_mutex._Lock();
+	service_objects_mutex.lock();
 	try
 	{
 		if (aquariusKernel != nullptr)
@@ -150,10 +150,10 @@ void AquariusService::OnStop()
 	}
 	catch(...)
 	{
-		service_objects_mutex._Unlock();
+		service_objects_mutex.unlock();
 		throw;
 	}
-	service_objects_mutex._Unlock();
+	service_objects_mutex.unlock();
 
     // Indicate that the service is stopping and wait for the finish of the 
     // main service function (ServiceWorkerThread).
@@ -190,7 +190,7 @@ void AquariusService::ProcessPlugins(wchar_t* pluginDirectory)
 	//  Get the goal state: 
 	// i.e., Get the plugin versions that should be current from Package Manager
 	PluginMetadata *allPluginsMetadata = nullptr;
-	service_objects_mutex._Lock();
+	service_objects_mutex.lock();
 	try 
 	{
 		if (aqPackageManager != nullptr)
@@ -204,8 +204,8 @@ void AquariusService::ProcessPlugins(wchar_t* pluginDirectory)
 	}
 	catch(...)
 	{
-		service_objects_mutex._Unlock();
+		service_objects_mutex.unlock();
 		throw;
 	}
-	service_objects_mutex._Unlock();
+	service_objects_mutex.unlock();
 }

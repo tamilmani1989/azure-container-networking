@@ -4,8 +4,8 @@
         Use UUID.LIB from WindowsSDK. The aggregate SDK package contains the lib from WindowsWDK 
         that is compiled with /GL. This forces the linker to restart with /LTCG option.
      -->
-    <UuidLib>$(NugetMachineInstallRoot)\WindowsSdk.Corext.10.0.10586\Lib\10.0.10586.0\um\x64\uuid.lib</UuidLib>
     <LinkIncremental>false</LinkIncremental>
+    <WindowsSdk64LibPath>$(PkgWindowsSdk_Corext)\Lib\10.0.10586.0\um\x64</WindowsSdk64LibPath>
   </PropertyGroup>
 
    <ItemDefinitionGroup>
@@ -14,6 +14,8 @@
       <CreateHotPatchableImage>X64Image</CreateHotPatchableImage>
       <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
+      <StackCommitSize>0x2000</StackCommitSize>
+      <StackReserveSize>0x80000</StackReserveSize>
       <!-- TBD: remove the 4099 IGNORE warning -->
       <AdditionalOptions>%(AdditionalOptions) /highentropyva /NODEFAULTLIB:LIBCMT /IGNORE:4099 </AdditionalOptions>
     </Link>
