@@ -220,7 +220,7 @@ unsigned int ReserveRepositoryIpAddress(char *reservationId)
 	return returnIp;
 }
 
-DWORD ReleaseRepositoryIpAddress(const char *reservationId)
+unsigned long ReleaseRepositoryIpAddress(const char *reservationId)
 {
 	unsigned long reservationStatus;
 	LockMutex;

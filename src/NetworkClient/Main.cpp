@@ -7,6 +7,7 @@
 #endif
 #ifdef __linux__
 #include <arpa/inet.h>
+#include <string.h>
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
 

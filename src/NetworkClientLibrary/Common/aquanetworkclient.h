@@ -12,12 +12,13 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#define DllExport   __declspec( dllexport )   
+#define DllExport   __declspec( dllexport )  
 #endif
 
 #ifdef __linux__
 #include <pthread.h>
-#define DllExport  
+#define DllExport   
+#define DWORD unsigned long
 #endif
 
 typedef struct NodeNetworkResources
