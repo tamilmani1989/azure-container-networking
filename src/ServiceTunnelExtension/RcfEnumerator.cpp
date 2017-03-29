@@ -100,9 +100,11 @@ Return Value:
                 WINDOWS_AZURE_VM_TYPE_KEY,
                 VM_TYPE_VALUE,
                 error));
+			wprintf(L"hello");
         }
         else
         {
+			wprintf(L"vmtype:%s\n", vmType);
             if (wcsncmp(IAAS_STRING, vmType, wcslen(IAAS_STRING)) == 0)
             {
                 isPaas = false;
@@ -157,7 +159,8 @@ Return Value:
 --*/
 {
     HRESULT hr = S_OK;
-    wregex pattern(L"\\w{32}.\\w{32}.\\w+.\\d+.xml");
+//  wregex pattern(L"\\w{32}.\\w{32}.\\w+.\\d+.xml");
+	wregex pattern(L"\\w+.\\w+.\\w+.xml");
     std::vector<WIN32_FIND_DATA> fdata;
     WIN32_FIND_DATA fd;
     DWORD error;

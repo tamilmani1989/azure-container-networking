@@ -17,7 +17,7 @@
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
-  <ItemGroup>
+ <ItemGroup>
     <ClCompile Include="ServiceTunnelConfigurator.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="RcfEnumerator.cpp" />

@@ -6,6 +6,8 @@
     <ProjectReference Include="Common\XmlParseHelper\XmlParserHelper.vcxproj" />
     <ProjectReference Include="LoopbackAdapterInstaller\LoopbackAdapterInstaller.vcxproj" />
     <ProjectReference Include="ServiceTunnelExtension\ServiceTunnelExtension.vcxproj" />
+    <ProjectReference Include="NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
+    <ProjectReference Include="NetworkClient\NetworkClient.vcxproj" />
     <ProjectReference Include="SignLocalFiles\SignLocalFiles.proj" Condition="'$(IsOfficialBuild)' != ''" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
