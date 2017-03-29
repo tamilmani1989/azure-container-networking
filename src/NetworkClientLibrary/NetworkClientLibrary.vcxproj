@@ -13,15 +13,13 @@
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
-      <RuntimeLibrary Condition="'$(Configuration)'=='Debug'">MultiThreadedDebugDll</RuntimeLibrary>
-      <RuntimeLibrary Condition="'$(Configuration)'=='Release'">MultiThreadedDll</RuntimeLibrary>    </ClCompile>
+    </ClCompile>
   </ItemDefinitionGroup>
    <ItemDefinitionGroup>
     <Link>
       <SubSystem>console</SubSystem>
       <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
       <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
-      <RandomizedBaseAddress>true</RandomizedBaseAddress>
       <AdditionalDependencies>
         %(AdditionalDependencies);
         $(WindowsSdk64LibPath)\ole32.lib;

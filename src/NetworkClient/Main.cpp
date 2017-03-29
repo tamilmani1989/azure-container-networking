@@ -22,7 +22,7 @@ void assert(unsigned long value)
 }
 
 #ifdef _WIN32
-int wmain(int argc, wchar_t *argv[])
+int wmain()
 #endif
 #ifdef __linux__
 int main()
@@ -33,11 +33,11 @@ int main()
     NodeNetworkResources nnr;
     int ipCount = -1;
     int i;
-    struct in_addr ipaddr;
     char ipInString[INET_ADDRSTRLEN];
 
-	cfg.networkName = (char *) malloc(strlen("azurenet") +1);
-	strncpy(cfg.networkName, "azurenet", 8);
+	size_t netLen = strlen("azurenet") + sizeof(char);
+	cfg.networkName = (char *) malloc(netLen);
+	strncpy_s(cfg.networkName, netLen, "azurenet", 8);
 	cfg.networkName[8] = '\0';	
 	cfg.net = UnderLay;
 	cfg.env = Azure;
