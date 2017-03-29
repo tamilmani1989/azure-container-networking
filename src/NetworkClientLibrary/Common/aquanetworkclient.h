@@ -8,14 +8,16 @@
 *
 \***************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
+#pragma once
+
+#ifdef _WIN32
+#include <windows.h>
+#define DllExport   __declspec( dllexport )   
+#endif
+
 #ifdef __linux__
 #include <pthread.h>
 #define DllExport  
-#endif
-#ifdef _WIN32
-#define DllExport   __declspec( dllexport )   
 #endif
 
 typedef struct NodeNetworkResources
@@ -88,4 +90,4 @@ DllExport unsigned int GetReservedIpAddress(char *reservationId);
 // Releases reservation of an ip address if exists
 DllExport void ReleaseIpReservation(char *reservationId);
 
-DllExport void InitializeNetwork(ClusterConfig *clusterConfig);
+DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig);
