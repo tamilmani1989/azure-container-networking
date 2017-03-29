@@ -8,6 +8,7 @@
 #ifdef __linux__
 #include <arpa/inet.h>
 #include <string.h>
+#include <cstdlib>
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
 
@@ -41,14 +42,22 @@ int main()
 	cfg.net = UnderLay;
 	cfg.env = Azure;
 
+    int retval;
+	#ifdef __linux__
+	retval = InitializeNetwork(&cfg);
+	#endif
+
+	#ifdef __WIN32
 	assert(InitializeNetwork(&cfg));
-	printf("Successfully initialized Azure/Underlay.\n");
+	#endif
+
+	printf("Successfully initialized Azure/Underlay. retval = %d\n", retval);
 	free(cfg.networkName);
 	getchar();
 
 	cfg.net = OverLay;
 	cfg.env = StandAlone;
-	printf("Initialization result for StandAlone/Overlay: %d\n", InitializeNetwork(&cfg));
+	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	getchar();
 
 	unsigned int ip;
@@ -87,7 +96,7 @@ int main()
     printf("ip1 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
-	int retval = GetReservedIpAddress("ip2", &ip);
+	retval = GetReservedIpAddress("ip2", &ip);
     printf("ip2 (without reservation). retval = %d\n", retval);
 	getchar();
     
