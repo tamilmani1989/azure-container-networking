@@ -34,9 +34,9 @@ int wsaInitialized = 0;
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 extern void UpdateRepositoryIpList(int ipCount, unsigned int *ips);
 extern unsigned int ReserveRepositoryIpAddress(char *reservationId);
-extern void ReleaseRepositoryIpAddress(char *reservationId);
+extern unsigned long ReleaseRepositoryIpAddress(const char *reservationId);
 extern int GetAvailableIpsfromRepository(unsigned int *ips);
-extern unsigned int GetReservedIpFromRepository(char *reservationId);
+extern unsigned int GetReservedIpFromRepository(const char *reservationId);
 extern void ParseSubnetAndGatewayIp(char *xmlResponse, char **sunbetIp, char **gatewayIp);
 
 #ifdef __linux__
@@ -574,6 +574,10 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 
 		sprintf(ipamConfig, "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gwIp);
 		printf("ipamconfig:%s\n", ipamConfig);
+		if (!wsaInitialize())
+		{
+			return UNEXPECTED_ERROR;
+		}
 
 		sock = connectToHost("localhost", 2375);
 
@@ -707,15 +711,20 @@ DllExport void InitializeOverlayAddressSpace(ClusterConfig *clusterConfig)
 
 // Returns an ip address reserved correspoiding to the reservation id
 // returns -1 if reservation id does not exist
-DllExport unsigned int GetReservedIpAddress(char *reservationId)
+DllExport unsigned int GetReservedIpAddress(const char *reservationId)
 {
 	return GetReservedIpFromRepository(reservationId);
 }
 
 // Releases reservation of an ip address if exists
-DllExport void ReleaseIpReservation(char *reservationId)
+DllExport DWORD ReleaseIpReservation(const char *reservationId)
 {
-	ReleaseRepositoryIpAddress(reservationId);
+	if(!ReleaseRepositoryIpAddress(reservationId))
+	{
+		return RESERVATION_NOT_FOUND;
+	}
+
+	return 0;
 }
 
 DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)

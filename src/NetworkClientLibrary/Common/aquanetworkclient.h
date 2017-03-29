@@ -80,14 +80,14 @@ DllExport unsigned int ReserveAvailableIpAddress(char *reservationId);
 // Returns a single ip address
 DllExport unsigned int GetIpAddressForContainer(char *containerId);
 
-// To initialize the ip address space on the node for overlay network
-DllExport void InitializeOverlayAddressSpace(ClusterConfig *clusterConfig);
-
 // Returns an ip address reserved correspoiding to the reservation id
 // returns -1 if reservation id does not exist
-DllExport unsigned int GetReservedIpAddress(char *reservationId);
+DllExport unsigned int GetReservedIpAddress(const char *reservationId);
 
 // Releases reservation of an ip address if exists
-DllExport void ReleaseIpReservation(char *reservationId);
+// Return value 0 indicates that reservation was there and was released
+// RESERVATION_NOT_FOUND indicates that reservation was not there, so nothing was released
+DllExport DWORD ReleaseIpReservation(const char *reservationId);
 
+// Initialize network for a specific environment and config
 DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig);
