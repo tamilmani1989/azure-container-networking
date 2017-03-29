@@ -177,6 +177,7 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 					CHK_HR(prefixAttribute->get_text(&subnetAddress));
 					int wlen = wcslen(subnetAddress) + 1;
 					*subnetIp = (char *)malloc(wlen);
+					
 					wcstombs(*subnetIp, subnetAddress, wlen);
 					printf("Subnet ip=%s\n", *subnetIp);
 					SAFE_RELEASE(prefixAttribute);
@@ -216,6 +217,31 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 						SysFreeString(ipAddressNodeName);
 					}
 					SAFE_RELEASE(pXMLIPAddressList);
+					
+					char *subTemp, *gwTemp;
+					int len = strlen(*subnetIp);
+					printf("len:%d\n", len);
+					*gatewayIp = (char *)malloc(len+1);
+					int dotCount = 0;
+					int k = 0;
+					subTemp = *subnetIp;
+					gwTemp = *gatewayIp;
+					for (k = 0; k < len+1; k++)
+					{
+						if (subTemp[k] == '.') {
+							dotCount++;
+						}
+
+						gwTemp[k] = subTemp[k];
+
+						if (dotCount == 3)
+						{
+							break;
+						}
+					}
+					gwTemp[++k] = '1';
+					gwTemp[++k] = '\0';
+					printf("gateway Ip=%s\n", gwTemp);
 				}
 				
 				SysFreeString(ipSubnetNodeName);

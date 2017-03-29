@@ -740,6 +740,7 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 			{
 			case Azure: 
 				return setupUnderlayInAzure(clusterConfig);
+
 			case StandAlone: 		
 				printf("Underlay in StandAlone is not a supportedconfig");
 
