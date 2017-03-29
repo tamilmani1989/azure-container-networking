@@ -18,17 +18,20 @@ int main()
 #endif
 {
 
-	struct ClusterConfig cfg;
+	ClusterConfig cfg;
     NodeNetworkResources nnr;
     int ipCount = -1;
     int i;
     struct in_addr ipaddr;
     char ipInString[INET_ADDRSTRLEN];
 
-	cfg.networkName = (char *) malloc(32);
-	strcpy(cfg.networkName, "chumma");
+	cfg.networkName = (char *) malloc(strlen("azurenet") +1);
+	strncpy(cfg.networkName, "azurenet", 8);
+	cfg.networkName[8] = '\0';
+	
 	cfg.net = UnderLay;
 	InitializeNetwork(&cfg);
+	getchar();
 
 	unsigned int ip = ReserveAvailableIpAddress("ip0");
 	printf("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
@@ -90,6 +93,7 @@ int main()
 	getchar();
     
     free(nnr.ips);
+	free(cfg.networkName);
 
 	return 0;
 }
