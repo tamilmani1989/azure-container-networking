@@ -42,7 +42,7 @@ int main()
 	cfg.net = UnderLay;
 	cfg.env = Azure;
 
-    int retval;
+        int retval = 0;
 	#ifdef __linux__
 	retval = InitializeNetwork(&cfg);
 	#endif
