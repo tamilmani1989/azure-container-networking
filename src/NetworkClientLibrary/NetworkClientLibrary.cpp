@@ -29,8 +29,6 @@ int wsaInitialized = 0;
 #include <curl/curl.h>
 #endif
 
-//using namespace HttpServer;
-//using namespace HttpCommon;
 
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 extern void UpdateRepositoryIpList(int ipCount, unsigned int *ips);
@@ -38,7 +36,7 @@ extern unsigned int ReserveRepositoryIpAddress(char *reservationId);
 extern void ReleaseRepositoryIpAddress(char *reservationId);
 extern int GetAvailableIpsfromRepository(unsigned int *ips);
 extern unsigned int GetReservedIpFromRepository(char *reservationId);
-extern void ParseSubnetGwIp(char *xmlResponse, char **sunbetIp, char **gwIp);
+extern void ParseSubnetAndGatewayIp(char *xmlResponse, char **sunbetIp, char **gatewayIp);
 
 #ifdef __linux__
 typedef struct string
@@ -171,7 +169,7 @@ SOCKET connectToHost(char *host, USHORT port)
 
 	if ((hp = gethostbyname(host)) == nullptr)
 	{
-		fprintf(stderr, "gethostbyname failed %d:%s", WSAGetLastError(),host);
+		fprintf(stderr, "gethostbyname failed %d : %s", WSAGetLastError(),host);
 		return INVALID_SOCKET;
 	}
 	
@@ -274,7 +272,6 @@ char* httpSendResponse(SOCKET sock, char *payload)
 	else
 	{
 		printf("Sent %d bytes on the connection.\nNow ", bytesWritten);
-		//bzero(buffer, BUFFER_SIZE);
 		do
 		{
 			char c;
@@ -374,7 +371,7 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 		
 	if (responseLocation != nullptr)
 	{
-		ParseSubnetGwIp(responseLocation, subnetIp, gwIp);
+		ParseSubnetAndGatewayIp(responseLocation, subnetIp, gwIp);
 	}
 	else
 	{
@@ -674,11 +671,7 @@ DllExport void InitializeNetwork(ClusterConfig *clusterConfig)
 	wsaCleanUp();
 
 	getSubnetGwIpfromNMAgent(&subnetIp, &gwIp);
-	if (subnetIp == NULL || gwIp == NULL)
-	{
-		printf("Error while retrieving subnet/gateway IP\n");
-		goto cleanup2;
-	}
+
 	
 	/*	"IPAM": {
 		"Driver": "default",
