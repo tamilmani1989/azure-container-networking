@@ -514,8 +514,9 @@ int networkExists(SOCKET sock, char *networkName)
 	printf("Checking if network already exists..\n");
 
 	payloadLen = strlen(DockerNwGet) + strlen(networkName) + strlen(httpreq);
-	payload = (char *)malloc(payloadLen + 1);
-	sprintf_s(payload, payloadLen, "%s%s %s", DockerNwGet, networkName, httpreq);
+	
+	payload = (char *)malloc(payloadLen + 2);
+	sprintf_s(payload, payloadLen+2, "%s%s %s", DockerNwGet, networkName, httpreq);
 
 	recvBuf = httpSendResponse(sock, payload);
 	if (!recvBuf)
@@ -572,7 +573,7 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 
 		getSubnetGwIpfromNMAgent(&subnetIp, &gwIp);
 
-		sprintf_s(ipamConfig, ipamLength, "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gwIp);
+		sprintf_s(ipamConfig, sizeof(ipamConfig), "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gwIp);
 		printf("ipamconfig:%s\n", ipamConfig);
 		if (!wsaInitialize())
 		{
@@ -586,7 +587,7 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 		totalLength = strlen(DockerNwCreatePost) + conLength + ipamLength + 64;
 		nwCreateReq = (char *)malloc(totalLength + 1);
 
-		sprintf_s(nwCreateReq, totalLength, "%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", DockerNwCreatePost, (int) conLength, clusterConfig->networkName, "l2tunnel", ipamConfig);
+		sprintf_s(nwCreateReq, totalLength+1, "%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", DockerNwCreatePost, (int) conLength, clusterConfig->networkName, "l2tunnel", ipamConfig);
 
 		printf("Now going to get create network driver... cmd:%s:%d:%llu:%d\n", nwCreateReq, (int) totalLength, strlen(nwCreateReq), (int) conLength);
 

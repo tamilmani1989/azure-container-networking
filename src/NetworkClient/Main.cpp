@@ -41,7 +41,7 @@ int main()
 	cfg.networkName[8] = '\0';	
 	cfg.net = UnderLay;
 	cfg.env = Azure;
-
+	printf("nw main name:%s\n",cfg.networkName);
         int retval = 0;
 	#ifdef __linux__
 	retval = InitializeNetwork(&cfg);
@@ -55,8 +55,8 @@ int main()
 	free(cfg.networkName);
 	getchar();
 
-	cfg.net = OverLay;
-	cfg.env = StandAlone;
+	cfg.net = UnderLay;
+	cfg.env = Azure;
 	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	getchar();
 
