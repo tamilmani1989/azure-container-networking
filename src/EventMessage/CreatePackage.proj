@@ -20,7 +20,7 @@
   <Target Name="Build">
      <Message Importance="high" Text="Going to build event message dll for eventviewer to work." />
      <Exec Command="$(McPath) -U AqEventMessage.mc &amp; $(RcPath) AqEventMessage.rc &amp; $(LinkPath) -dll -noentry /MACHINE:x86 AqEventMessage.res"/>
-     <Exec Command="md $(BinariesBuildTypeArchDirectory)\AquariusPackage &amp; md $(BinariesBuildTypeArchDirectory)\AquariusPackage\Plugins &amp; $(CpPath) AqEventMessage.dll $(BinariesBuildTypeArchDirectory)\AquariusPackage &amp; xcopy /s $(NetAnalytics)\content $(BinariesBuildTypeArchDirectory)\AquariusPackage\Plugins"/>
+     <Exec Command="md $(BinariesBuildTypeArchDirectory)\AquariusPackage &amp; md $(BinariesBuildTypeArchDirectory)\AquariusPackage\Plugins &amp; $(CpPath) AqEventMessage.dll $(BinariesBuildTypeArchDirectory)\AquariusPackage &amp; xcopy /y /s $(NetAnalytics)\content $(BinariesBuildTypeArchDirectory)\AquariusPackage\Plugins"/>
   </Target>
 
   <ItemGroup>
