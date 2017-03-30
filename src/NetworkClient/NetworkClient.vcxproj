@@ -4,7 +4,7 @@
     <ProjectGuid>{44E41C2F-CADA-4C2A-B8EC-3147A34EBEE4}</ProjectGuid>
     <RootNamespace>Aquarius</RootNamespace>
     <ProjectName>NetworkClient</ProjectName>
-    <ConfigurationType>Program</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(SRCROOT)\build\native_user_compile.props"/>
   <Import Project="$(SRCROOT)\build\native_user_link.props"/>
