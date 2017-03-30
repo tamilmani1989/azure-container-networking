@@ -19,3 +19,11 @@ typedef struct IpAllocations
     int count;
     IpStatus *statusForAllIpAddresses;     
 }IpAllocations;
+
+
+#define UNSUPPORTED_NETWORK  1
+#define INVALID_PARAMETER 2
+#define UNSUPPORTED_ENVIRONMENT 3
+#define UNREACHABLE_HOST 4
+#define RESERVATION_NOT_FOUND 5
+#define UNEXPECTED_ERROR 99

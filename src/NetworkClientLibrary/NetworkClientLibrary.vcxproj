@@ -33,6 +33,8 @@
     <ClCompile Include="NetworkClientLibrary.cpp" />
     <ClCompile Include="Common\NclRepositoryManager.cpp" />
     <ClCompile Include="Windows\ResponseParser.cpp" />
+    <ClCompile Include="Windows\Network.cpp" />
+    <ClCompile Include="Common\NetworkCommon.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common\aquanetworkclient.h" />  
