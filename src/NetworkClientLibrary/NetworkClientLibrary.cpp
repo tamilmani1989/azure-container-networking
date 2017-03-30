@@ -572,9 +572,7 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 		printf("Netowrk %s does not exist, going to create it\n", clusterConfig->networkName);
 
 		shutdown(sock, SD_BOTH);
-		printf("1");
 		closesocket(sock);
-		printf("2");
 		wsaCleanUp();
 		printf("wsa cleanup finished\n");
 
