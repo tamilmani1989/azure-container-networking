@@ -22,7 +22,7 @@ void assert(unsigned long value)
 }
 
 #ifdef _WIN32
-int wmain(int argc, wchar_t *argv[])
+int wmain()
 #endif
 #ifdef __linux__
 int main()
@@ -33,31 +33,32 @@ int main()
     NodeNetworkResources nnr;
     int ipCount = -1;
     int i;
-    struct in_addr ipaddr;
     char ipInString[INET_ADDRSTRLEN];
 
-	cfg.networkName = (char *) malloc(strlen("azurenet") +1);
-	strncpy(cfg.networkName, "azurenet", 8);
+	size_t netLen = strlen("azurenet") + sizeof(char);
+	cfg.networkName = (char *) malloc(netLen);
+	printf("%llu", netLen);
+	strncpy_s(cfg.networkName, netLen, "azurenet", 9);
 	cfg.networkName[8] = '\0';	
 	cfg.net = UnderLay;
 	cfg.env = Azure;
-
+	printf("nw main name:%s\n",cfg.networkName);
         int retval = 0;
 	#ifdef __linux__
 	retval = InitializeNetwork(&cfg);
 	#endif
 
-	#ifdef __WIN32
+	#ifdef _WIN32
 	assert(InitializeNetwork(&cfg));
 	#endif
 
 	printf("Successfully initialized Azure/Underlay. retval = %d\n", retval);
-	free(cfg.networkName);
 	getchar();
 
 	cfg.net = OverLay;
-	cfg.env = StandAlone;
+	cfg.env = Azure;
 	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
+	free(cfg.networkName);
 	getchar();
 
 	unsigned int ip;

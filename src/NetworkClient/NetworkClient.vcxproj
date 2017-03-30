@@ -1,96 +1,32 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(EnvironmentConfig)" />
-  <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|x64">
-      <Configuration>Debug</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|x64">
-      <Configuration>Release</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-  </ItemGroup>
-  <PropertyGroup Label="Globals">
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
     <ProjectGuid>{44E41C2F-CADA-4C2A-B8EC-3147A34EBEE4}</ProjectGuid>
     <RootNamespace>Aquarius</RootNamespace>
     <ProjectName>NetworkClient</ProjectName>
-    <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
-    <Platform Condition="'$(Platform)' == ''">x64</Platform>
-    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
-  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <TrackFileAccess>false</TrackFileAccess>
-    <DDK_LIB_PATH>$(WindowsWDKTargetsPath)\lib\win8\km\$(Platform)</DDK_LIB_PATH>
   </PropertyGroup>
-  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(SRCROOT)\build\native_user_compile.props"/>
+  <Import Project="$(SRCROOT)\build\native_user_link.props"/>
   <ItemDefinitionGroup>
     <ClCompile>
-      <MinimalRebuild>false</MinimalRebuild>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup>
-    <ClCompile>
-      <UseFullPaths>true</UseFullPaths>
-      <OmitDefaultLibName>true</OmitDefaultLibName>
-      <StringPooling>true</StringPooling>
-      <BufferSecurityCheck>true</BufferSecurityCheck>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <ExceptionHandling>Sync</ExceptionHandling>
-      <StructMemberAlignment>8Bytes</StructMemberAlignment>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
-      <DisableSpecificWarnings>4986;4987;4471;4369;4309;4603;4627</DisableSpecificWarnings>
-      <ForcedIncludeFiles>$(PUBLIC_SHARED)\inc\warning.h;$(PUBLIC_INTERNAL_BASE)\inc\warning_x.h</ForcedIncludeFiles>
       <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
-      <AdditionalOptions>/d1import_no_registry /d1nodatetime /d2AllowCompatibleILVersions /d2Zi+ /favor:AMD64 </AdditionalOptions>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
-    <ClCompile>
-      <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>DBG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
-    <ClCompile>
-      <Optimization>Full</Optimization>
-      <WholeProgramOptimization>true</WholeProgramOptimization>
-      <PreprocessorDefinitions>NDEBUG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
-    <ClCompile>
-      <PreprocessorDefinitions>_WIN64=1;_AMD64_=1;AMD64=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <Link>
-      <CreateHotPatchableImage>X64Image</CreateHotPatchableImage>
       <SubSystem>console</SubSystem>
-      <StackCommitSize>0x2000</StackCommitSize>
-      <StackReserveSize>0x80000</StackReserveSize>
       <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
       <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
-      <RandomizedBaseAddress>true</RandomizedBaseAddress>
-      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalOptions>/MERGE:_PAGE=PAGE /MERGE:_TEXT=.text /OPT:REF /OPT:ICF /IGNORE:4010,4037,4039,4065,4070,4078,4087,4089,4221,4198 /INCREMENTAL:NO /release /WX /debug /debugtype:cv,fixup,pdata /version:6.0 /osversion:6.0 /merge:.rdata=.text /NOOPTIDATA /pdbcompress  /tsaware /highentropyva</AdditionalOptions>
       <AdditionalDependencies>
-        $(PUBLIC_SDK)\lib\amd64\kernel32.lib;
-        $(PUBLIC_SDK)\lib\amd64\ntstc_msvcrt.lib;
-        $(PUBLIC_SDK)\lib\amd64\msvcrt.lib;
-        $(PUBLIC_SDK)\lib\amd64\ole32.lib;
-        $(PUBLIC_SDK)\lib\amd64\ws2_32.lib;
-        $(PUBLIC_SDK)\lib\amd64\oleaut32.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsupp.lib;
+        %(AdditionalDependencies);
+        $(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

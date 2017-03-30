@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include "../Shared/PluginMetadata.h"
+#include<mutex>
 
 class AquariusKernel
 {
@@ -20,7 +21,7 @@ protected:
 
 private:
 	// mutex for kernel objects		
-	std::_Mutex kernel_objects_mutex;
+	std::mutex kernel_objects_mutex;
 
 	// location of the packages for all the plugins that Aquarius supports
 	wchar_t *packageStoreLocation = nullptr;

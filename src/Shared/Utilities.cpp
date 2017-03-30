@@ -155,10 +155,13 @@ void AquariusUtilities::PopulateServiceExeLocation(wchar_t* packageStoreLocation
 		return;
 	}
 
-	int i = wcsnlen(packageStoreLocation, MAX_PATH);
+	size_t i = wcsnlen(packageStoreLocation, MAX_PATH);
 	wchar_t c = '\0';
 	do
 	{
+		// Review: i - 1 isn't safe in the first iteration of the loop
+		// needs error handling for 0 length string: wcsnlen does not include
+		// the null terminator
 		c = packageStoreLocation[i - 1];
 		packageStoreLocation[i - 1] = packageStoreLocation[i];
 		i--;

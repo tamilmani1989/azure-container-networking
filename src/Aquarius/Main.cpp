@@ -56,7 +56,7 @@ void SetupEventLogging()
     }
 	wchar_t *aquariusLocation = new wchar_t[MAX_PATH];
 	AquariusUtilities::PopulateServiceExeLocation(aquariusLocation);
-	wcsncat(aquariusLocation, L"\\AqEventMessage.dll", MAX_PATH);
+	wcsncat_s(aquariusLocation, MAX_PATH, L"\\AqEventMessage.dll", MAX_PATH);
 	RegistryOps::PutStringInRegistry(configKey, L"CategoryMessageFile", aquariusLocation);
 	RegistryOps::PutStringInRegistry(configKey, L"EventMessageFile", aquariusLocation);
 	RegistryOps::PutStringInRegistry(configKey, L"ParameterMessageFile", aquariusLocation);

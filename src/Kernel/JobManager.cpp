@@ -16,11 +16,14 @@
 
 void JobManager::EnqueueJob(wchar_t* directory, wchar_t* entryPoint)
 {
+	UNREFERENCED_PARAMETER(directory);
+	UNREFERENCED_PARAMETER(entryPoint);
 }
 
 void JobManager::RemoveJob(wchar_t* directory, wchar_t* entryPoint)
 {
-
+		UNREFERENCED_PARAMETER(directory);
+		UNREFERENCED_PARAMETER(entryPoint);
 }
 
 HANDLE GetOrCreateJobObject(wchar_t *entryPoint)
@@ -118,7 +121,7 @@ void ApplyLimitsOnJobObject(HANDLE handle, int cpuPercentageLimit, int memoryLim
 {	
 	// limit cpu usage
 	JOBOBJECT_CPU_RATE_CONTROL_INFORMATION cpuLimits =
-					{ JOB_OBJECT_CPU_RATE_CONTROL_ENABLE | JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP, cpuPercentageLimit * 100 }; // 20%
+					{ JOB_OBJECT_CPU_RATE_CONTROL_ENABLE | JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP, DWORD(cpuPercentageLimit) * 100 }; // 20%
 	SetInformationJobObject(handle, 
 		JobObjectCpuRateControlInformation, 
 		&cpuLimits, 

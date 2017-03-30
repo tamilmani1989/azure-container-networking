@@ -15,6 +15,7 @@
 #include "AquariusSvcBase.h"
 #include "../Kernel/Kernel.h"
 #include "../PackMan/AqPackageManager.h"
+#include <mutex>
 
 class AquariusService : public AquariusSvcBase
 {
@@ -38,7 +39,7 @@ protected:
 	void InitializeServices(void);
 
 private:
-	std::_Mutex service_objects_mutex;
+	std::mutex service_objects_mutex;
     BOOL m_fStopping;
     HANDLE m_hStoppedEvent;	
 	
