@@ -57,6 +57,9 @@ AquariusService::~AquariusService(void)
 //
 void AquariusService::OnStart(DWORD dwArgc, LPWSTR *lpszArgv)
 {
+	UNREFERENCED_PARAMETER(dwArgc);
+	UNREFERENCED_PARAMETER(lpszArgv);
+
     // Log a service start message to the Application log.
 	AquariusUtilities::WriteEventLogEntry(L"AquariusSvc is going to start.");
 	InitializeServices();
@@ -187,7 +190,9 @@ void AquariusService::DisplayPluginsMetadata(PluginMetadata* allPluginsMetadata,
 
 void AquariusService::ProcessPlugins(wchar_t* pluginDirectory)
 {
-	//  Get the goal state: 
+	UNREFERENCED_PARAMETER(pluginDirectory);
+	
+	// Get the goal state: 
 	// i.e., Get the plugin versions that should be current from Package Manager
 	PluginMetadata *allPluginsMetadata = nullptr;
 	service_objects_mutex.lock();

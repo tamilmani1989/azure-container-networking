@@ -250,6 +250,8 @@ void AquariusSvcBase::Start(DWORD dwArgc, PWSTR *pszArgv)
 //
 void AquariusSvcBase::OnStart(DWORD dwArgc, PWSTR *pszArgv)
 {
+	UNREFERENCED_PARAMETER(dwArgc);
+	UNREFERENCED_PARAMETER(pszArgv);
 }
 
 
@@ -275,7 +277,7 @@ void AquariusSvcBase::Stop()
         // Tell SCM that the service is stopped.
         SetServiceStatus(SERVICE_STOPPED);
     }
-    catch (DWORD dwError)
+    catch (DWORD)
     {
         // Log the error.
 		AquariusUtilities::WriteErrorLogEntry(L"Error during Service Stop");
@@ -330,7 +332,7 @@ void AquariusSvcBase::Pause()
         // Tell SCM that the service is paused.
         SetServiceStatus(SERVICE_PAUSED);
     }
-    catch (DWORD dwError)
+    catch (DWORD)
     {
         // Log the error.
 		AquariusUtilities::WriteErrorLogEntry(L"Service Pause");
@@ -383,7 +385,7 @@ void AquariusSvcBase::Continue()
         // Tell SCM that the service is running.
         SetServiceStatus(SERVICE_RUNNING);
     }
-    catch (DWORD dwError)
+    catch (DWORD)
     {
         // Log the error.
 		AquariusUtilities::WriteErrorLogEntry(L"Service Continue");
@@ -432,7 +434,7 @@ void AquariusSvcBase::Shutdown()
         // Tell SCM that the service is stopped.
         SetServiceStatus(SERVICE_STOPPED);
     }
-    catch (DWORD dwError)
+    catch (DWORD)
     {
         // Log the error.
 		AquariusUtilities::WriteErrorLogEntry(L"Error during Service Shutdown");

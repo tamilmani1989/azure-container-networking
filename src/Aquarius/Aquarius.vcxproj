@@ -16,17 +16,12 @@
         $(PkgMDS_MA)\lib\native\include;
         $(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\inc;
       </AdditionalIncludeDirectories>
-      <AdditionalOptions>/d1import_no_registry /d1nodatetime /d2AllowCompatibleILVersions /d2Zi+ /favor:AMD64 </AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <Link>
       <AdditionalDependencies>
         %(AdditionalDependencies);
-        $(WindowsSdk64LibPath)\ole32.lib;
-        $(WindowsSdk64LibPath)\ws2_32.lib;
-        $(WindowsSdk64LibPath)\oleaut32.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
