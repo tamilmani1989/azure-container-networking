@@ -37,17 +37,19 @@ int main()
 
 	size_t netLen = strlen("azurenet") + sizeof(char);
 	cfg.networkName = (char *) malloc(netLen);
-	strncpy_s(cfg.networkName, netLen, "azurenet", 8);
+	printf("%llu", netLen);
+	strncpy_s(cfg.networkName, netLen, "azurenet", 9);
 	cfg.networkName[8] = '\0';	
 	cfg.net = UnderLay;
 	cfg.env = Azure;
 	printf("nw main name:%s\n",cfg.networkName);
-        int retval = 0;
+    int retval = 0;
+
 	#ifdef __linux__
 	retval = InitializeNetwork(&cfg);
 	#endif
 
-	#ifdef __WIN32
+	#ifdef _WIN32
 	assert(InitializeNetwork(&cfg));
 	#endif
 
@@ -55,7 +57,7 @@ int main()
 	free(cfg.networkName);
 	getchar();
 
-	cfg.net = UnderLay;
+	cfg.net = OverLay;
 	cfg.env = Azure;
 	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	getchar();

@@ -202,12 +202,12 @@ SOCKET connectToHost(char *host, USHORT port)
 		}
 		else
 		{
-			fprintf(stderr, "Connection to host failed with error code %d", error);
+			fprintf(stderr, "Connection to host failed with error code %d\n", error);
 		}
 		return INVALID_SOCKET;
 	}
 
-	printf("Connected successfully to host.");
+	printf("Connected successfully to host.\n");
 	return sock;
 }
 
@@ -229,6 +229,7 @@ int InsertIntoBuffer(char **recvBuffer, int byteCount, char c)
 
 int wsaInitialize()
 {
+	int retval = 1;
 	if (!wsaInitialized)
 	{
 		initWsaMutex.lock();
@@ -237,17 +238,17 @@ int wsaInitialize()
 			if (initWsa())
 			{
 				wsaInitialized = 1;
-				initWsaMutex.unlock();
+				retval = 1;
 			}
 			else
 			{
 				fprintf(stderr, "wsa initialization failed\n");
-				initWsaMutex.unlock();
-				return 0;
+				retval = 0;
 			}
 		}
+		initWsaMutex.unlock();
 	}
-	return 1;
+	return retval;
 }
 
 void wsaCleanUp()
@@ -336,6 +337,7 @@ int retrieveHttpStatus(char *recvBuffer)
 	{
 		ret = atoi(status);
 	}
+	printf("returning %d as http response\n", ret);
 	return ret;
 }
 int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
@@ -392,7 +394,7 @@ cleanup_subgw:
 		recvBuffer = nullptr;
 	}
 	shutdown(sock, SD_BOTH);
-	_close((int)sock);
+	closesocket((int)sock);
 	wsaCleanUp();
 
 	return 0;
@@ -497,7 +499,7 @@ int getIpsFromNmAgent(unsigned int *ips)
 		recvBuffer = nullptr;
 	}
 	shutdown(sock, SD_BOTH);
-	_close((int)sock);
+	closesocket(sock);
 
 	wsaCleanUp();
 	return ipCount;
@@ -511,13 +513,13 @@ int networkExists(SOCKET sock, char *networkName)
 	size_t payloadLen;
 	char *httpreq = "HTTP/1.1\r\nHost:127.0.0.1\r\nContent-Type:application/json\r\nConnection:close\r\n\r\n";
 
-	printf("Checking if network already exists..\n");
+	printf("Checking if network already exists.. %s\n", networkName);
 
 	payloadLen = strlen(DockerNwGet) + strlen(networkName) + strlen(httpreq);
 	
 	payload = (char *)malloc(payloadLen + 2);
 	sprintf_s(payload, payloadLen+2, "%s%s %s", DockerNwGet, networkName, httpreq);
-
+	payload[payloadLen + 1] = '\0';
 	recvBuf = httpSendResponse(sock, payload);
 	if (!recvBuf)
 	{
@@ -531,13 +533,13 @@ int networkExists(SOCKET sock, char *networkName)
 	if (ret == 200)
 	{
 		printf("Network Initialized already\n");
+		if (payload) free(payload);
 		free(recvBuf);
 		return 0;
 	}
-	free(recvBuf);
 
-	if (payload)
-		free(payload);
+	if (payload) free(payload);
+	free(recvBuf);
 	return 1;
 }
 
@@ -549,7 +551,7 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 	size_t totalLength = 0;
 	char *subnetIp = nullptr;
 	char *gwIp = nullptr;
-	char ipamConfig[512];
+	char ipamConfig[2048];
 	unsigned long retval = 0;
 
 
@@ -557,7 +559,7 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 	{
 		return UNEXPECTED_ERROR;
 	}
-
+	printf("wsa initialization finished\n");
 	SOCKET sock = connectToHost("localhost", 2375);
 	if (sock == INVALID_SOCKET)
 	{
@@ -567,13 +569,21 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 
 	if (networkExists(sock, clusterConfig->networkName))
 	{
+		printf("Netowrk %s does not exist, going to create it\n", clusterConfig->networkName);
+
 		shutdown(sock, SD_BOTH);
-		_close((int)sock);
+		printf("1");
+		closesocket(sock);
+		printf("2");
 		wsaCleanUp();
+		printf("wsa cleanup finished\n");
 
 		getSubnetGwIpfromNMAgent(&subnetIp, &gwIp);
 
+		printf("retrieved subnet and gateway %s %s\n", subnetIp, gwIp);
+
 		sprintf_s(ipamConfig, sizeof(ipamConfig), "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gwIp);
+
 		printf("ipamconfig:%s\n", ipamConfig);
 		if (!wsaInitialize())
 		{
@@ -623,7 +633,7 @@ cleanup2:
 		free(gwIp);
 
 	shutdown(sock, SD_BOTH);
-	_close((int)sock);
+	closesocket(sock);
 	wsaCleanUp();
 	return retval;
 }
@@ -752,6 +762,7 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 {
 	if (!clusterConfig)
 	{
+
 		return INVALID_PARAMETER;
 	}
 

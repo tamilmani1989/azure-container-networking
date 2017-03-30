@@ -250,8 +250,6 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 			// cleanup the node
 			SAFE_RELEASE(pXMLNode);
 			SAFE_RELEASE(pXMLIPSubnetNode);
-			SysFreeString(nodeName);
-			nodeName = nullptr;
 		}
 
 	}
@@ -262,6 +260,9 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 		CHK_HR(pXMLErr->get_reason(&bstrErr));
 		printf("Failed to load/parse the xml document from string %s. Error: %ls\n", xmlResponse, bstrErr);
 	}
+
+	SysFreeString(nodeName);
+	nodeName = nullptr;
 
 CleanUp:
 	SAFE_RELEASE(pXMLDom);
@@ -286,7 +287,6 @@ CleanUp:
 	SysFreeString(ipAddressNodeName);
 	SysFreeString(ipAddress);
 	SysFreeString(ipType);
-
 	VariantClear(&varFileName);
 }
 
