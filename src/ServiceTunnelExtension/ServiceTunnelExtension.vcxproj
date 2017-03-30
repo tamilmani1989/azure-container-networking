@@ -17,6 +17,8 @@
         $(MSBuildThisFileDirectory);
         ..\LoopbackAdapterInstaller
       </AdditionalIncludeDirectories>
+      <!-- Override default from native_user_compile for compat with RdCommon.lib -->
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
