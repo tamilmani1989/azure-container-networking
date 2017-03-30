@@ -54,12 +54,12 @@ int main()
 	#endif
 
 	printf("Successfully initialized Azure/Underlay. retval = %d\n", retval);
-	free(cfg.networkName);
 	getchar();
 
 	cfg.net = OverLay;
 	cfg.env = Azure;
 	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
+	free(cfg.networkName);
 	getchar();
 
 	unsigned int ip;

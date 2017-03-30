@@ -79,8 +79,8 @@ IpStatus *ReserveRepositoryIp(char *reservationId)
 			if (!retval->id)
 			{
 				size_t resSize = strlen(reservationId) * sizeof(char);
-				retval->id = (char *)malloc(resSize);
-				strcpy_s(retval->id, resSize, reservationId);
+				retval->id = (char *)malloc(resSize+1);
+				strcpy_s(retval->id, resSize+1, reservationId);
 				retval->isReserved = 1;
 				return retval;
 			}
@@ -169,8 +169,8 @@ void UpdateRepositoryIpList(int ipCount, unsigned int *ips)
 			{
 				printf("id= %s\n", repositoryIpStatus->id);
 				size_t idLen = strlen(repositoryIpStatus->id) * sizeof(char);
-				localIpStatus[i].id = (char *)malloc(idLen);
-				strcpy_s(localIpStatus[i].id, idLen, repositoryIpStatus->id);
+				localIpStatus[i].id = (char *)malloc(idLen+1);
+				strcpy_s(localIpStatus[i].id, idLen+1, repositoryIpStatus->id);
 			}
 			else
 			{
