@@ -8,14 +8,46 @@
     <ConfigurationType>Application</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>%(PreProcessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>  
         %(AdditionalIncludeDirectories);
         $(MSBuildThisFileDirectory);
         ..\LoopbackAdapterInstaller
       </AdditionalIncludeDirectories>
     </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
+      <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        $(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(WindowsSdk64LibPath)\setupapi.lib;
+        $(WindowsSdk64LibPath)\strsafe.lib;
+        $(WindowsSdk64LibPath)\iphlpapi.lib;
+        $(WindowsSdk64LibPath)\Rpcrt4.lib;
+        $(WindowsSdk64LibPath)\Uuid.lib;
+        $(WindowsSdk64LibPath)\kernel32.lib;
+        $(WindowsSdk64LibPath)\ntdll.lib;
+        $(WindowsSdk64LibPath)\pathcch.lib;
+        $(WindowsSdk64LibPath)\newdev.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsupp.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
+        $(PkgVisualCpp_x64_Corext)\lib\x64\legacy_stdio_definitions.lib;
+        $(FC_Redist)\content\redist\SacApi.lib;
+        $(FC_Redist)\content\redist\DCM.RegUtil.lib;
+        $(FC_Redist)\content\redist\RdCommon.lib;
+        $(PkgPolicyAgent_HSClient_Release)\HealthReportingClientLib.lib
+      </AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
  <ItemGroup>
     <ClCompile Include="ServiceTunnelConfigurator.cpp" />

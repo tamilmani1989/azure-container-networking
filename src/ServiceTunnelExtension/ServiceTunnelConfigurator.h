@@ -16,7 +16,8 @@ Environment:
 
 --*/
 #pragma once
-
+// uses inet_addr which is depricated
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <stdio.h>
 #include <wchar.h>
 #include <ws2tcpip.h>

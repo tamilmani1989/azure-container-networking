@@ -80,7 +80,7 @@
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <ExceptionHandling>sync</ExceptionHandling>
-      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
       <UseFullPaths>true</UseFullPaths>
       <StructMemberAlignment>8Bytes</StructMemberAlignment>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
