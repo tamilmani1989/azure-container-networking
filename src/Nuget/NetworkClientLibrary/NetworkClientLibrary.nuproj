@@ -29,6 +29,12 @@
       <TargetPath>content</TargetPath>
       <Recursive>true</Recursive>
     </Folder>
+    <Content Include="$(SRCROOT)\NetworkClientLibrary\Common\aquanetworkclient.h">
+       <TargetPath>inc</TargetPath>
+    </Content>
+    <Content Include="$(SRCROOT)\NetworkClientLibrary\Common\aquaerrorcodes.h">
+       <TargetPath>inc</TargetPath>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
