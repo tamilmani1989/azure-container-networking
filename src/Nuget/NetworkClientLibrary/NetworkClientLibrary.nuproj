@@ -35,6 +35,9 @@
     <Content Include="$(SRCROOT)\NetworkClientLibrary\Common\aquaerrorcodes.h">
        <TargetPath>inc</TargetPath>
     </Content>
+    <Content Include="$(SRCROOT)\NetworkClientLibrary\Common\aqualoglevels.h">
+       <TargetPath>inc</TargetPath>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
