@@ -272,3 +272,12 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 			return UNSUPPORTED_NETWORK;
 	}
 }
+
+DllExport DWORD GetHostLocalIp(unsigned int *ipAddress)
+{
+        if(ipAddress == NULL)
+        {
+               printf("NULL ip address passed\n");
+        }
+	return 0;
+}

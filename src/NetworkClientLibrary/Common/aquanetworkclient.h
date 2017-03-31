@@ -105,3 +105,7 @@ DllExport DWORD ReleaseIpReservation(const char *reservationId);
 
 // Initialize network for a specific environment and config
 DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig);
+
+// To retrieve the ip address used for communicating with host
+DllExport DWORD GetHostLocalIp(unsigned int *ipAddress);
+
