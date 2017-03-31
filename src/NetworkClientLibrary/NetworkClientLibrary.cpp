@@ -275,9 +275,16 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 
 DllExport DWORD GetHostLocalIp(unsigned int *ipAddress)
 {
-        if(ipAddress == NULL)
-        {
-               printf("NULL ip address passed\n");
-        }
+    if(ipAddress == NULL)
+    {
+            printf("NULL ip address passed\n");
+    }
+	return 0;
+}
+
+DllExport DWORD SetupNetworkLogging(void(*log)(int, char*))
+{
+	char *text = "ab"; // to supress warning of unused parameter
+	log(2, text);
 	return 0;
 }

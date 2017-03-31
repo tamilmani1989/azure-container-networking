@@ -109,3 +109,7 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig);
 // To retrieve the ip address used for communicating with host
 DllExport DWORD GetHostLocalIp(unsigned int *ipAddress);
 
+// This passes in a function pointer that can be used to log text string
+// first parameter is the logging level and second is the text to log
+DllExport DWORD SetupNetworkLogging(void(*log)(int, char*));
+

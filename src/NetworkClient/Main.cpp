@@ -21,6 +21,11 @@ void assert(unsigned long value)
 	throw "assert failed";
 }
 
+void logstuff(int level, char *text)
+{
+	printf("%d: %s", level, text);
+}
+
 #ifdef _WIN32
 int wmain()
 #endif
@@ -34,6 +39,8 @@ int main()
     int ipCount = -1;
     int i;
     char ipInString[INET_ADDRSTRLEN];
+	
+	assert(SetupNetworkLogging(logstuff));
 
 	size_t netLen = strlen("azurenet") + sizeof(char);
 	cfg.networkName = (char *) malloc(netLen);
