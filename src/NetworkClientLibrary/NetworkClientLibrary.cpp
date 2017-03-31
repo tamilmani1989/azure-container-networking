@@ -19,6 +19,7 @@
 #endif
 #ifdef __linux__
 #include <curl/curl.h>
+#define UNREFERENCED_PARAMETER(param) do { (void)(param); } while (0)
 #endif
 
 extern DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig);
@@ -198,7 +199,6 @@ DllExport DWORD ReserveAvailableIpAddress(char *reservationId, unsigned int *ipA
 // Returns a single ip address
 DllExport  DWORD GetIpAddressForContainer(char *containerId, unsigned int ipAddress)
 {
-	// Reivew: UNREFERENCED_PARAMETER works in linux?
 	UNREFERENCED_PARAMETER(containerId);
 	UNREFERENCED_PARAMETER(ipAddress);
 	return 0;
@@ -275,16 +275,12 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 
 DllExport DWORD GetHostLocalIp(unsigned int *ipAddress)
 {
-    if(ipAddress == NULL)
-    {
-            printf("NULL ip address passed\n");
-    }
+	UNREFERENCED_PARAMETER(ipAddress);
 	return 0;
 }
 
 DllExport DWORD SetupNetworkLogging(void(*log)(int, char*))
 {
-	char *text = "ab"; // to supress warning of unused parameter
-	log(2, text);
+	UNREFERENCED_PARAMETER(log);
 	return 0;
 }
