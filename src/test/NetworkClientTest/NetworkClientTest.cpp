@@ -33,7 +33,7 @@ using namespace WEX::TestExecution;
 HRESULT
 InternalInitialize()
 {
-	ClusterConfig cfg;
+	/*ClusterConfig cfg;
 	size_t netLen = strlen("azurenet") + sizeof(char);
 	cfg.networkName = (char *) malloc(netLen);
 	printf("%llu", netLen);
@@ -43,7 +43,7 @@ InternalInitialize()
 	cfg.env = Azure;
 	printf("nw main name:%s\n",cfg.networkName);
  
-	InitializeNetwork(&cfg);
+	//InitializeNetwork(&cfg);*/
 	return S_OK;
 }
 
@@ -65,13 +65,13 @@ Return Value:
 
 --*/
 {
-    HRESULT hr = S_OK;
+	HRESULT hr = S_OK;
 
     //
     // Only produce the logs on failure for Verify functions.
     //
 
-	hr = InternalInitialize();
+	//hr = InternalInitialize();
 
     VERIFY_ARE_EQUAL(S_OK, hr, L"NetworkClientTest Works!");
 }
@@ -114,7 +114,7 @@ Return Value:
         "HelloWorldTestEvent",              // Event Name that should uniquely identify your event.
         TraceLoggingValue(sampleValue, "TestMessage")); // Field for your event in the form of (value, field name).
 
-	TraceLoggingWrite(g_hMyComponentProvider, // handle to my provider
+/*	TraceLoggingWrite(g_hMyComponentProvider, // handle to my provider
 		"HelloWorldTestEvent",              // Event Name that should uniquely identify your event.
 		TraceLoggingValue("Visible msg", "TestMessage")); 
 
@@ -125,6 +125,7 @@ Return Value:
 		TraceLoggingWideString(L"LString2", "String (wide char)"),
 		TraceLoggingChar('A', "Single char")
 	);
+	*/
 
     return true;
 }
