@@ -20,5 +20,6 @@
     <TestCategories>
       <CategoryName>UnitTest</CategoryName>
     </TestCategories>
+	</ValidationReportTaskDescriptions>
   </TaskGroup>
 </ValidationDescription>
