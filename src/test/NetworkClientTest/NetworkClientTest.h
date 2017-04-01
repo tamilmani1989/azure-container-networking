@@ -4,16 +4,15 @@ Copyright (c) 2011  Microsoft Corporation
 
 Module Name:
 
-    NetworkAgentMock.h
-
+	NetworkClientTest.h
 Abstract:
 
-        Mock implementation of NmAgent WCF Contracts
+        Test NetworkClient Functionalities
 
 
 Author:
 
-    T.Venketesan (thvenket) 01-May-2011
+    Tamilmani 04-01-2017
 
 --*/
 
@@ -45,6 +44,9 @@ public:
 
     TEST_CLASS_CLEANUP(TestCleanup);
 
-    TEST_METHOD(InitializeNetwork);
+    TEST_METHOD(TestInitializeNetwork);
+	TEST_METHOD(TestReserveIpAddress);
+	TEST_METHOD(TestGetReservedIpAddress);
+	TEST_METHOD(TestReleaseIpReservation);
 
 };

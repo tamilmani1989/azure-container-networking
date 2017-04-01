@@ -27,14 +27,9 @@
         %(AdditionalDependencies);
 		$(TAEF_SDK)\build\Library\x64\TE.Common.lib;
 		$(TAEF_SDK)\build\Library\x64\Wex.Common.lib;
-		$(TAEF_SDK)\build\Library\x64\Wex.Logger.lib;      
-     	$(PkgVisualCpp_x64_Corext)\lib\x64\legacy_stdio_definitions.lib;
-        $(FC_Redist)\content\redist\SacApi.lib;
-        $(FC_Redist)\content\redist\RdCommon.lib;        
-		$(WindowsSdk64LibPath)\Rpcrt4.lib;
-        $(WindowsSdk64LibPath)\ntdll.lib;
-	    $(WindowsSdk64LibPath)\ws2_32.lib;		
-      </AdditionalDependencies>
+		$(TAEF_SDK)\build\Library\x64\Wex.Logger.lib;  
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+	  </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

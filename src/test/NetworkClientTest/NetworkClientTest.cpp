@@ -7,15 +7,12 @@
 
 #include <stdio.h>
 #include <string>
-#include "stdafx.h"
+#include <WinSock2.h>
+#include <ws2ipdef.h>
+#include <ws2tcpip.h>
 
 #include "NetworkClientTest.h"
 #include "aquanetworkclient.h"
-#define RDPRINT_VALUE(ElementName, Value) if (Value != NULL) {                              \
-                                                                                            \
-                                              wprintf(L"%ws - %ws\n", ElementName, Value);  \
-                                          }
-#define AGENT_TRACE_FLAGS (RD_TRACE_ALL & ~RD_TRACE_PAINFUL)
 
 #include "TraceLogging.h"
 
@@ -30,25 +27,9 @@ using namespace WEX::TestExecution;
 
 
 
-HRESULT
-InternalInitialize()
-{
-	/*ClusterConfig cfg;
-	size_t netLen = strlen("azurenet") + sizeof(char);
-	cfg.networkName = (char *) malloc(netLen);
-	printf("%llu", netLen);
-	strncpy_s(cfg.networkName, netLen, "azurenet", 9);
-	cfg.networkName[8] = '\0';	
-	cfg.net = UnderLay;
-	cfg.env = Azure;
-	printf("nw main name:%s\n",cfg.networkName);
- 
-	//InitializeNetwork(&cfg);*/
-	return S_OK;
-}
 
 void
-NetworkClientTest::InitializeNetwork()
+NetworkClientTest::TestInitializeNetwork()
 /*++
 
 Routine Description:
@@ -65,18 +46,199 @@ Return Value:
 
 --*/
 {
-	HRESULT hr = S_OK;
+	ClusterConfig cfg;
+	DWORD ret = 0;
+	size_t netLen = strlen("azurenet") + sizeof(char);
+	cfg.networkName = (char *) malloc(netLen);
+	strncpy_s(cfg.networkName, netLen, "azurenet", 9);
+	cfg.networkName[8] = '\0';
+	cfg.net = UnderLay;
+	cfg.env = Azure;
 
-    //
-    // Only produce the logs on failure for Verify functions.
-    //
+	ret = InitializeNetwork(&cfg);
 
-	//hr = InternalInitialize();
+    VERIFY_ARE_EQUAL((DWORD)0, ret, L"Azure Underlay Passed!");
+	TraceLoggingWrite(g_hMyComponentProvider, 
+		"AzureUnderlay",              
+		TraceLoggingValue(ret, "InitializeNetwork ret"));
 
-    VERIFY_ARE_EQUAL(S_OK, hr, L"NetworkClientTest Works!");
+	cfg.net = OverLay;
+	cfg.env = Azure;
+
+	ret = InitializeNetwork(&cfg);
+
+	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"Azure Overlay Passed!");
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"AzureOverlay",
+		TraceLoggingValue(ret, "InitializeNetwork ret"));
+	free(cfg.networkName);
+
+}
+void testReserveIp(char *reservationId)
+{
+	unsigned int ip;
+	NodeNetworkResources nnr;
+	int ipCountBefore = -1;
+	int ipCountAfter = -1;
+	DWORD ret = 0;
+	char ipInString[INET_ADDRSTRLEN] = { 0 };
+	char availableIpString[INET_ADDRSTRLEN * 100] = { 0 };
+
+	nnr.ips = NULL;
+
+	ret = GetAvailableIpAddresses(&nnr, &ipCountBefore);
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReserveIpAddress",
+		TraceLoggingValue(reservationId, "ReservationId"),
+		TraceLoggingValue(ret, "GetAvailable Ret"),
+		TraceLoggingValue(ipCountBefore, "IPCount Before"));
+
+	VERIFY_ARE_EQUAL((DWORD)0, ret, L"GetAvailableAddress Passed");
+
+
+	ret = ReserveAvailableIpAddress(reservationId, &ip);
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReserveIpAddress",
+		TraceLoggingValue(reservationId, "ReservationId"),
+		TraceLoggingValue(ret, "ReservedAvailable Ret")); 
+
+	VERIFY_ARE_EQUAL((DWORD)0, ret, L"ReserveAvailableIpAddress for Ip0 Passed!");
+
+
+	ret = GetAvailableIpAddresses(&nnr, &ipCountAfter);
+	VERIFY_ARE_EQUAL((DWORD)0, ret, L"GetAvailableAddress Passed");
+	VERIFY_ARE_EQUAL(ipCountAfter, ipCountBefore - 1, L"Ip Reservation Passed");
+
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReserveIpAddress",
+		TraceLoggingValue(reservationId, "ReservationId"),
+		TraceLoggingValue(ret, "GetAvailable Ret"),
+		TraceLoggingValue(ipCountBefore, "IPCount Before"),
+		TraceLoggingValue(ipCountAfter, "IPCount After"));
+
+
+	nnr.ips = (unsigned int *)malloc(ipCountAfter * sizeof(unsigned int));
+	GetAvailableIpAddresses(&nnr, &ipCountAfter);
+	VERIFY_IS_NOT_NULL(nnr.ips);
+	
+
+	for (int i = 0; i < ipCountAfter; i++)
+	{
+		inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN);
+		strcat_s(availableIpString, sizeof(availableIpString), ipInString);
+		strcat_s(availableIpString, sizeof(availableIpString),  ",");
+	}
+
+	TraceLoggingWrite(
+		g_hMyComponentProvider,
+		"TestReserveIpAddress",
+		TraceLoggingValue(reservationId, "ReservationId"),
+		TraceLoggingString(availableIpString, "AvailableIpList"));
+
 }
 
+void
+NetworkClientTest::TestReserveIpAddress()
+{
 
+	testReserveIp("ip0");
+	testReserveIp("ip1");
+}
+
+void 
+NetworkClientTest::TestGetReservedIpAddress()
+{
+	unsigned int ip;
+	DWORD ret;
+	char ipInString[INET_ADDRSTRLEN];
+
+	ret = GetReservedIpAddress("ip1", &ip);
+	TraceLoggingWrite(
+		g_hMyComponentProvider,
+		"TestGetReservedIpAddress",
+		TraceLoggingValue("ip1", "ReservationId"),
+		TraceLoggingValue(ret, "GetReserved Ret"));
+
+	VERIFY_ARE_EQUAL((DWORD)0, ret, L"GetReserveIp Passed");
+	
+	inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN);
+	TraceLoggingWrite(
+		g_hMyComponentProvider,
+		"TestGetReservedIpAddress",
+		TraceLoggingValue("ip1", "ReservationId"),
+		TraceLoggingValue(ret, "GetReserved Ret"),
+		TraceLoggingString(ipInString, "ReservedIpAddr"));
+
+
+	ret = GetReservedIpAddress("ip2", &ip);
+	TraceLoggingWrite(
+		g_hMyComponentProvider,
+		"TestGetReservedIpAddress",
+		TraceLoggingValue("ip2", "ReservationId"),
+		TraceLoggingValue(ret, "GetReserved Ret"));
+
+	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"GetReserveIp Passed for not reserved IP");
+
+	testReserveIp("ip2");
+	
+	ret = GetReservedIpAddress("ip2", &ip);
+	TraceLoggingWrite(
+		g_hMyComponentProvider,
+		"TestGetReservedIpAddress",
+		TraceLoggingValue("ip2", "ReservationId"),
+		TraceLoggingValue(ret, "GetReserved Ret"));
+
+
+	VERIFY_ARE_EQUAL((DWORD)0, ret, L"GetReserveIp Passed");
+	inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN);
+	TraceLoggingWrite(
+		g_hMyComponentProvider,
+		"TestGetReservedIpAddress",
+		TraceLoggingValue("ip2", "ReservationId"),
+		TraceLoggingValue(ret, "GetReserved Ret"),
+		TraceLoggingString(ipInString, "ReservedIpAddr"));
+
+}
+
+void
+NetworkClientTest::TestReleaseIpReservation()
+{
+	unsigned int ip;
+	DWORD ret;
+
+	ret = ReleaseIpReservation("ip1");
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReleaseIpReservation",
+		TraceLoggingValue("ip1", "ReservationId"),
+		TraceLoggingValue(ret, "ReleaseIp Ret"));
+
+	VERIFY_ARE_EQUAL((DWORD)0, ret, L"ReleaseIP for ip1 Passed");
+
+	ret = GetReservedIpAddress("ip1", &ip);
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReleaseIpReservation",
+		TraceLoggingValue("ip1", "ReservationId"),
+		TraceLoggingValue(ret, "GetReservedIp Ret"));
+
+	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"GetReserveAddr for Released Ip1 Passed");
+
+	ret = ReleaseIpReservation("ip2");
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReleaseIpReservation",
+		TraceLoggingValue("ip2", "ReservationId"),
+		TraceLoggingValue(ret, "ReleaseIp Ret"));
+
+	VERIFY_ARE_EQUAL((DWORD)0, ret, L"ReleaseIP for ip2 Passed");
+
+	ret = GetReservedIpAddress("ip2", &ip);
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReleaseIpReservation",
+		TraceLoggingValue("ip2", "ReservationId"),
+		TraceLoggingValue(ret, "ReleaseIp Ret"));
+
+	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"GetReserveAddr for Released Ip2 Passed");
+
+}
 
 
 bool NetworkClientTest::TestSetup()
@@ -99,33 +261,8 @@ Return Value:
     //
     // Initialize tracing.
     //
-   char sampleValue[] = "Sample value";
 
-/*    RD_TRACE_INITIALIZE(RD_TRACE_OUTPUT_FILE | RD_TRACE_OUTPUT_CONSOLE,
-                        AGENT_TRACE_FLAGS,
-                        NULL,
-                        NULL,
-                        0,
-                        NULL);
-						*/
     TraceLoggingRegister(g_hMyComponentProvider);
-    // Log an event
-    TraceLoggingWrite(g_hMyComponentProvider, // handle to my provider
-        "HelloWorldTestEvent",              // Event Name that should uniquely identify your event.
-        TraceLoggingValue(sampleValue, "TestMessage")); // Field for your event in the form of (value, field name).
-
-/*	TraceLoggingWrite(g_hMyComponentProvider, // handle to my provider
-		"HelloWorldTestEvent",              // Event Name that should uniquely identify your event.
-		TraceLoggingValue("Visible msg", "TestMessage")); 
-
-	TraceLoggingWrite(
-		g_hMyComponentProvider,
-		"Strings and Chars",
-		TraceLoggingString("String1", "String (char)"),
-		TraceLoggingWideString(L"LString2", "String (wide char)"),
-		TraceLoggingChar('A', "Single char")
-	);
-	*/
 
     return true;
 }
@@ -200,10 +337,13 @@ int wmain(int argc, wchar_t *argv[])
     UNREFERENCED_PARAMETER(argc);
     UNREFERENCED_PARAMETER(argv);
 
-    NetworkClientTest* parserTest = new NetworkClientTest();
-    parserTest->TestSetup();
-    parserTest->InitializeNetwork();
-    parserTest->TestCleanup();
+    NetworkClientTest* clientTest = new NetworkClientTest();
+    clientTest->TestSetup();
+    clientTest->TestInitializeNetwork();
+	clientTest->TestReserveIpAddress();
+	clientTest->TestGetReservedIpAddress();
+	clientTest->TestReleaseIpReservation();
+    clientTest->TestCleanup();
 
     return 0;
 }
