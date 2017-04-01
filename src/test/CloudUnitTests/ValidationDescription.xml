@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ValidationDescription>
+  <UseTaskOwnerForBugFile>true</UseTaskOwnerForBugFile>
+  <PerTaskBugFile>true</PerTaskBugFile>
+
+  <!-- Aquarius Unit Tests -->
+  <!-- Tests with a dependency on NUnit require .NET 4.5 to be installed to run on WS2012. -->
+  <TaskGroup>
+    <TaskDescriptionTemplate>AquariusCloudUnitTest</TaskDescriptionTemplate>
+    <ValidationReportTaskDescriptions>
+    <TaskName>NetworkClientTest</TaskName>
+    <OwnerName>Tamilmani Manoharan</OwnerName>
+    <TaskCommand>test\Taef\TE.exe test\NetworkClientTest\NetworkClientTest.dll /enableWttLogging /logFile:NetworkClientTest.xml </TaskCommand>
+    <PreTaskCommand />
+    <PostTaskCommand />
+    <ValidationReportDescriptions>
+      <ValidationReportFilename>NetworkClientTest.xml</ValidationReportFilename>
+      <TestFramework>TAEF</TestFramework>
+    </ValidationReportDescriptions>
+    <TestCategories>
+      <CategoryName>UnitTest</CategoryName>
+    </TestCategories>
+  </TaskGroup>
+</ValidationDescription>
