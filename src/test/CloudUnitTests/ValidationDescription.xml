@@ -10,7 +10,7 @@
     <ValidationReportTaskDescriptions>
     <TaskName>NetworkClientTest</TaskName>
     <OwnerName>Tamilmani Manoharan</OwnerName>
-    <TaskCommand>test\Taef\TE.exe test\NetworkClientTest\NetworkClientTest.dll /logFile:NetworkClientTest.xml></TaskCommand>
+    <TaskCommand>test\Taef\TE.exe test\NetworkClientTest\NetworkClientTest.dll</TaskCommand>
     <PreTaskCommand />
     <PostTaskCommand />
     <ValidationReportDescriptions>
