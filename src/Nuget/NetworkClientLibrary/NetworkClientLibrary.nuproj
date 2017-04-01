@@ -31,7 +31,7 @@
     </Folder>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.csproj" />
+    <ProjectReference Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
   </ItemGroup>
   <Import Project="$(PkgNuProj)\NuProj.Targets" />
 </Project>
