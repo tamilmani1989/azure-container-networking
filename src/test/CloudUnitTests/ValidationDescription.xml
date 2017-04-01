@@ -6,7 +6,7 @@
   <!-- Aquarius Unit Tests -->
   <!-- Tests with a dependency on NUnit require .NET 4.5 to be installed to run on WS2012. -->
   <TaskGroup>
-    <TaskDescriptionTemplate>AquariusCloudUnitTest</TaskDescriptionTemplate>
+   <TaskDescriptionTemplate>UnitTestNet451WS2012</TaskDescriptionTemplate>
     <ValidationReportTaskDescriptions>
     <TaskName>NetworkClientTest</TaskName>
     <OwnerName>Tamilmani Manoharan</OwnerName>
