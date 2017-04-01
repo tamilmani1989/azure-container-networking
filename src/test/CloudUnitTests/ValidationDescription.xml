@@ -10,13 +10,16 @@
     <ValidationReportTaskDescriptions>
     <TaskName>NetworkClientTest</TaskName>
     <OwnerName>Tamilmani Manoharan</OwnerName>
-    <TaskCommand>test\Taef\TE.exe test\NetworkClientTest\NetworkClientTest.dll /enableWttLogging /logFile:NetworkClientTest.xml </TaskCommand>
+    <TaskCommand><![CDATA[test\Taef\TE.exe test\NetworkClientTest\NetworkClientTest.dll /logFile:NetworkClientTest.xml]]></TaskCommand>
     <PreTaskCommand />
     <PostTaskCommand />
     <ValidationReportDescriptions>
       <ValidationReportFilename>NetworkClientTest.xml</ValidationReportFilename>
       <TestFramework>TAEF</TestFramework>
     </ValidationReportDescriptions>
+    <ReimageHints>
+	  <Behavior>None</Behavior>
+    </ReimageHints>
     <TestCategories>
       <CategoryName>UnitTest</CategoryName>
     </TestCategories>
