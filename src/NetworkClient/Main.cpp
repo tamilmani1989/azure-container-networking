@@ -50,7 +50,7 @@ int main()
 	cfg.net = UnderLay;
 	cfg.env = Azure;
 	printf("nw main name:%s\n",cfg.networkName);
-        int retval = 0;
+    int retval = 0;
 	#ifdef __linux__
 	retval = InitializeNetwork(&cfg);
 	#endif

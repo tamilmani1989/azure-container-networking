@@ -23,6 +23,7 @@
 #endif
 
 extern DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig);
+extern DWORD setupOverlay(ClusterConfig *clusterConfig);
 extern int getIpsFromNmAgent(unsigned int *ips);
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 extern void UpdateRepositoryIpList(int ipCount, unsigned int *ips);
@@ -116,6 +117,11 @@ int getIpsFromNmAgent(unsigned int *ips)
 }
 
 DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
+{
+	return UNSUPPORTED_ENVIRONMENT;
+}
+
+DWORD setupOverlay(ClusterConfig *clusterConfig)
 {
 	return UNSUPPORTED_ENVIRONMENT;
 }
@@ -250,6 +256,7 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 	{
 		case OverLay: 
 			printf("OverLay Network currently not supported\n");
+			setupOverlay(clusterConfig);
 			return UNSUPPORTED_NETWORK;
 
 		case UnderLay: 

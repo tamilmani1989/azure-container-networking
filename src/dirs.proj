@@ -9,6 +9,8 @@
     <ProjectReference Include="NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
     <ProjectReference Include="NetworkClient\NetworkClient.vcxproj" />
     <ProjectReference Include="Nuget\dirs.proj" Condition="'$(IsOfficialBuild)'!='' Or '$(BuildRDPackage)'=='true' Or '$(BuildNugetPackage)'=='true'" />
+    <ProjectReference Include="HNSOverlayPlugin\HNSOverlayPlugin.vcxproj" />
+    <ProjectReference Include="HNSClient\HNSClient.vcxproj" />
     <ProjectReference Include="SignLocalFiles\SignLocalFiles.proj" Condition="'$(IsOfficialBuild)' != ''" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />

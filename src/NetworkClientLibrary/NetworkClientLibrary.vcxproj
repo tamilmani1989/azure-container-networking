@@ -41,5 +41,10 @@
     <ClInclude Include="Common\aquaerrorcodes.h" />
     <ClInclude Include="Common\nclcore.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HNSClient\HNSClient.vcxproj">
+      <Project>{a8f4b949-54ec-40c4-b9a4-6a338b2a4767}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

@@ -41,6 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
+    <ProjectReference Include="$(SRCROOT)\HNSOverlayPlugin\HNSOverlayPlugin.vcxproj" />
   </ItemGroup>
   <Import Project="$(PkgNuProj)\NuProj.Targets" />
 </Project>

@@ -524,4 +524,27 @@ cleanup2:
 	return retval;
 }
 
+DWORD installHNSOverlayPlugin()
+{
+	int retval;
+	
+	system("start powershell.exe Set-ExecutionPolicy RemoteSigned \n");
+	retval = system("start powershell.exe InstallPlugin.ps1");
+	
+	return retval;
+}
+
+DWORD setupOverlay(ClusterConfig *clusterConfig)
+{
+	UNREFERENCED_PARAMETER(clusterConfig);
+	int retval = installHNSOverlayPlugin();
+	if(retval != 0)
+	{
+		printf("Return value from setup overlay %d", retval);
+		return OVERLAYPLUGIN_INSTALL_FAILED;
+	}
+
+	return 0;
+}
+
 #endif

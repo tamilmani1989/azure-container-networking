@@ -12,6 +12,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <functional>
 #define DllExport   __declspec( dllexport )  
 #endif
 
