@@ -1,0 +1,22 @@
+<Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <PropertyGroup>
+    <TargetName>RobocopyFiles</TargetName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Robocopy Include="$(TAEF_SDK)\build\Binaries\Release\x64">
+      <FileMatch>*.*</FileMatch>
+      <DirExclude>[a-zA-Z1-9]*</DirExclude>
+      <FileExclude>
+        AutofailTestMode.dll
+      </FileExclude>
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\Taef</DestinationFolder>
+      <NoSymbols>true</NoSymbols>
+    </Robocopy>
+    <Robocopy Include="$(SRCROOT)\test\CloudUnitTests">
+      <FileMatch>*.*</FileMatch>
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\CloudUnitTests</DestinationFolder>
+    </Robocopy>
+  </ItemGroup>
+<Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
+</Project>

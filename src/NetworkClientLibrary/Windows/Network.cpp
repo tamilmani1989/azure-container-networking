@@ -244,6 +244,7 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 	if (sock == INVALID_SOCKET)
 	{
 		fprintf(stderr, "Connect to host failed.\n");
+		wsaCleanUp();
 		return -1;
 	}
 
@@ -293,9 +294,8 @@ cleanup_subgw:
 int getIpsFromNmAgent(unsigned int *ips)
 {
 	int ipCount = 0;
-	char buffer[BUFFER_SIZE];
-	int bytesRead;
 	char *recvBuffer = nullptr;
+	int bytesRead;
 	char *responseLocation = nullptr;
 	int byteCount = 0;
 
@@ -310,6 +310,7 @@ int getIpsFromNmAgent(unsigned int *ips)
 	if (sock == INVALID_SOCKET)
 	{
 		fprintf(stderr, "Connect to host failed.\n");
+		wsaCleanUp();
 		return -1;
 	}
 	printf("Now going to get ips from nm agent... fd: %llu\n", sock);
@@ -321,12 +322,10 @@ int getIpsFromNmAgent(unsigned int *ips)
 	else
 	{
 		printf("Sent %d bytes on the connection.\nNow ", bytesWritten);
-		//bzero(buffer, BUFFER_SIZE);
-		memset((buffer), '\0', (BUFFER_SIZE));
+
 		printf("Reading into buffer..\n");
 		do
 		{
-			memset((buffer), '\0', (BUFFER_SIZE));
 			char c;
 			bytesRead = recv(sock, &c, 1, 0);
 			if (bytesRead == 1)
@@ -387,7 +386,11 @@ cleanup:
 		recvBuffer = nullptr;
 	}
 	shutdown(sock, SD_BOTH);
-	closesocket(sock);
+
+	if (closesocket(sock) != 0)
+	{
+		printf("+++++++++ERROR While closing Socket!+++++++++++++++++\n");
+	}
 
 	wsaCleanUp();
 	return ipCount;
@@ -452,6 +455,7 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 	if (sock == INVALID_SOCKET)
 	{
 		fprintf(stderr, "Connect to host failed.\n");
+		wsaCleanUp();
 		return UNREACHABLE_HOST;
 	}
 

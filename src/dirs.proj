@@ -12,6 +12,7 @@
     <ProjectReference Include="HNSOverlayPlugin\HNSOverlayPlugin.vcxproj" />
     <ProjectReference Include="HNSClient\HNSClient.vcxproj" />
     <ProjectReference Include="SignLocalFiles\SignLocalFiles.proj" Condition="'$(IsOfficialBuild)' != ''" />
+     <ProjectReference Include="test\dirs.proj" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
   <PropertyGroup>

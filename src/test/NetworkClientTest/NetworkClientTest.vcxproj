@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+	<TargetName>NetworkClientTest</TargetName>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ProjectGuid>{84a60e97-c9a4-4149-949e-90312e48dd0b}</ProjectGuid>
+	<OutDirSuffix>test\$(TargetName)\</OutDirSuffix>
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories);
+		$(SRCROOT)\NetworkClientLibrary\Common;
+		$(SRCROOT)\test\TraceLogging;
+      </AdditionalIncludeDirectories>
+      <!-- Override default from native_user_compile for compat with RdCommon.lib -->
+	  <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+		$(TAEF_SDK)\build\Library\x64\TE.Common.lib;
+		$(TAEF_SDK)\build\Library\x64\Wex.Common.lib;
+		$(TAEF_SDK)\build\Library\x64\Wex.Logger.lib;  
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+	  </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="NetworkClientTest.cpp" />
+  </ItemGroup>
+    <ItemGroup>
+    <ClInclude Include="stdafx.h" />
+  </ItemGroup>
+   <ItemGroup>
+    <ProjectReference Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
+   </ItemGroup>
+     <ItemGroup>
+    <Robocopy Include="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\NetworkClientLibrary.dll">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkClientTest\</DestinationFolder>
+    </Robocopy>
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

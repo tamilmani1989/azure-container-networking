@@ -111,7 +111,8 @@
         $(PkgWindowsSdk_Corext)\Include\$(WindowsTargetPlatformVersion)\ucrt;
         $(PkgVisualCpp_Corext)\Inclue;
         $(PkgVisualCpp_Corext)\crt\src\concrt;
-        $(FC_Redist)\content\redist
+        $(FC_Redist)\content\redist;
+	$(TAEF_SDK)\build\include;
       </AdditionalIncludeDirectories>
       <AdditionalOptions>$(UseAwait) /Zm200 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
