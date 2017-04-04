@@ -164,7 +164,7 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 	{
 		case OverLay: 
 			printf("OverLay Network currently not supported\n");
-			setupOverlay(clusterConfig);
+			//setupOverlay(clusterConfig);
 			return UNSUPPORTED_NETWORK;
 
 		case UnderLay: 
