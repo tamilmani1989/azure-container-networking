@@ -134,6 +134,8 @@ void testReserveIp(char *reservationId)
 		"TestReserveIpAddress",
 		TraceLoggingValue(reservationId, "ReservationId"),
 		TraceLoggingString(availableIpString, "AvailableIpList"));
+	
+	free(nnr.ips);
 
 }
 

@@ -78,26 +78,19 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 	IXMLDOMNode* pXMLChildNode = nullptr;
 	IXMLDOMNodeList* pXMLChildNodeList = nullptr;
 	IXMLDOMNodeList* pXMLIPSubnetList = nullptr;
-	IXMLDOMNodeList* pXMLIPAddressList = nullptr;
 	IXMLDOMNode* pXMLIPSubnetNode = nullptr;
-	IXMLDOMNode* pXMLIPAddressNode = nullptr;
-	IXMLDOMNamedNodeMap*  pXMLIPAddressAttributes = nullptr;
 	IXMLDOMNamedNodeMap*  pXMLInterfaceAttributes = nullptr;
 	IXMLDOMNode *primaryAttribute = nullptr;
-	BSTR primary = nullptr;
 	IXMLDOMNamedNodeMap*  pXMLSubnetAttributes = nullptr;
 	IXMLDOMNode *prefixAttribute = nullptr;
+	
 	BSTR subnetAddress = nullptr;
-	IXMLDOMNode *ipAttribute = nullptr;
-
 	BSTR bstrXML = nullptr;
 	BSTR bstrErr = nullptr;
 	BSTR nodeName = nullptr;
 	BSTR childNodeName = nullptr;
 	BSTR ipSubnetNodeName = nullptr;
-	BSTR ipAddressNodeName = nullptr;
-	BSTR ipAddress = nullptr;
-	BSTR ipType = nullptr;
+	BSTR primary = nullptr;
 	VARIANT_BOOL varStatus = 0;
 	VARIANT varFileName;
 	VariantInit(&varFileName);
@@ -144,6 +137,9 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 							printf("***Found primary interface***\n");
 							SysFreeString(primary);
 							primary = nullptr;
+							SysFreeString(childNodeName);
+							childNodeName = nullptr;
+
 							break; // remember to free up the memory
 						}
 						SysFreeString(primary);
@@ -155,14 +151,9 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 					childNodeName = nullptr;
 				}
 
-				SysFreeString(primary);
-				primary = nullptr;
-				SysFreeString(childNodeName);
-				childNodeName = nullptr;
-				SAFE_RELEASE(pXMLChildNodeList);
-
 				CHK_HR(pXMLChildNode->get_childNodes(&pXMLIPSubnetList));
 				SAFE_RELEASE(pXMLChildNode);
+
 				long subnetCount;
 				CHK_HR(pXMLIPSubnetList->get_length(&subnetCount));
 				
@@ -179,45 +170,12 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 					size_t bytesCopied = 0;
 					wcstombs_s(&bytesCopied, *subnetIp, wlen, subnetAddress, wlen);
 					printf("Subnet ip=%s\n", *subnetIp);
+
+					SysFreeString(subnetAddress);
+					subnetAddress = nullptr;
 					SAFE_RELEASE(prefixAttribute);
 					SAFE_RELEASE(pXMLSubnetAttributes);
 
-					CHK_HR(pXMLIPSubnetNode->get_childNodes(&pXMLIPAddressList));
-					long ipAddressCount;
-					CHK_HR(pXMLIPAddressList->get_length(&ipAddressCount));
-					for (int l = 0; l < ipAddressCount; l++)
-					{
-						CHK_HR(pXMLIPAddressList->get_item(l, &pXMLIPAddressNode));
-						CHK_HR(pXMLIPAddressNode->get_nodeName(&ipAddressNodeName));
-						if (wcscmp(ipAddressNodeName, L"IPAddress") == 0)
-						{
-							CHK_HR(pXMLIPAddressNode->get_attributes(&pXMLIPAddressAttributes));
-							CHK_HR(pXMLIPAddressAttributes->getNamedItem(L"IsPrimary", &ipAttribute));
-							CHK_HR(ipAttribute->get_text(&ipType));
-							printf("isPrimary==%S ", ipType);
-							SAFE_RELEASE(ipAttribute);
-
-							if (wcscmp(ipType, L"true") == 0)
-							{
-								CHK_HR(pXMLIPAddressNode->get_attributes(&pXMLIPAddressAttributes));
-								CHK_HR(pXMLIPAddressAttributes->getNamedItem(L"Address", &ipAttribute));
-								CHK_HR(ipAttribute->get_text(&ipAddress));
-								size_t wlen = wcslen(ipAddress) + 1;
-								*gatewayIp = (char *)malloc(wlen);
-								size_t bytesCopied = 0;
-								wcstombs_s(&bytesCopied, *gatewayIp, wlen, ipAddress, wlen);
-								printf("Gateway ip ch=%s\n", *gatewayIp);
-								SAFE_RELEASE(ipAttribute);
-								break;
-							}
-							SAFE_RELEASE(pXMLIPAddressAttributes);
-							SysFreeString(ipType);
-						}
-						SAFE_RELEASE(pXMLIPAddressNode);
-						SysFreeString(ipAddressNodeName);
-					}
-					SAFE_RELEASE(pXMLIPAddressList);
-					
 					char *subTemp, *gwTemp;
 					size_t len = strlen(*subnetIp);
 					printf("len:%d\n", (int) len);
@@ -244,12 +202,18 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 					printf("gateway Ip=%s\n", gwTemp);
 				}
 				
+				SAFE_RELEASE(pXMLChildNodeList);
+				SAFE_RELEASE(pXMLIPSubnetList);
+				SAFE_RELEASE(pXMLIPSubnetNode);
 				SysFreeString(ipSubnetNodeName);
+				ipSubnetNodeName = nullptr;
 			}
 
 			// cleanup the node
 			SAFE_RELEASE(pXMLNode);
-			SAFE_RELEASE(pXMLIPSubnetNode);
+			SysFreeString(nodeName);
+			nodeName = nullptr;
+			//SAFE_RELEASE(pXMLIPSubnetNode);
 		}
 
 	}
@@ -261,8 +225,6 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 		printf("Failed to load/parse the xml document from string %s. Error: %ls\n", xmlResponse, bstrErr);
 	}
 
-	SysFreeString(nodeName);
-	nodeName = nullptr;
 
 CleanUp:
 	SAFE_RELEASE(pXMLDom);
@@ -270,23 +232,18 @@ CleanUp:
 	SAFE_RELEASE(pXMLChildNode);
 	SAFE_RELEASE(pXMLChildNodeList);
 	SAFE_RELEASE(pXMLIPSubnetNode);
-	SAFE_RELEASE(pXMLIPAddressNode);
-	SAFE_RELEASE(pXMLIPAddressList);
 	SAFE_RELEASE(pXMLIPSubnetList);
 	SAFE_RELEASE(pXMLNode);
 	SAFE_RELEASE(pXMLNodeList);
-	SAFE_RELEASE(pXMLIPAddressAttributes);
 	SAFE_RELEASE(pXMLSubnetAttributes);
-	SAFE_RELEASE(ipAttribute);
 
+	SysFreeString(combstr);
 	SysFreeString(bstrXML);
 	SysFreeString(bstrErr);
 	SysFreeString(nodeName);
 	SysFreeString(childNodeName);
+	SysFreeString(subnetAddress);
 	SysFreeString(ipSubnetNodeName);
-	SysFreeString(ipAddressNodeName);
-	SysFreeString(ipAddress);
-	SysFreeString(ipType);
 	VariantClear(&varFileName);
 }
 
@@ -312,13 +269,11 @@ void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int 
 	BSTR childNodeName = nullptr;
 	BSTR ipSubnetNodeName = nullptr;
 	BSTR ipAddressNodeName = nullptr;
-	BSTR programName = nullptr;
 	BSTR ipAddress = nullptr;
 	BSTR ipType = nullptr;
 	VARIANT_BOOL varStatus = 0;
 	VARIANT varFileName;
 	VariantInit(&varFileName);
-	wchar_t *entryPoint = nullptr;
 	CreateAndInitDOM(&pXMLDom);
 	printf("Going to load xml from string->\n %s\n", xmlResponse);
 	CComBSTR combstr(xmlResponse);
@@ -349,7 +304,7 @@ void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int 
 					CHK_HR(pXMLChildNode->get_nodeName(&childNodeName));
 					printf("Response -> Node %ls -> ChildNode -> %ls. \n", nodeName, childNodeName);
 
-				if (wcscmp(childNodeName, L"Interface") == 0)
+					if (wcscmp(childNodeName, L"Interface") == 0)
 					{
 						printf("Located an interface. \n");
 						
@@ -405,18 +360,6 @@ void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int 
 										delete[] ipStr;
 										delete[] primary;
 
-										//printf(_bstr_t(varValue));
-										CHK_HR(pXMLIPAddressNode->get_text(&programName));
-										//printf("IP Address is [%S] \n", programName);
-										if ((entryPoint) != nullptr)
-										{
-											delete[](entryPoint);
-										}
-										size_t len = wcsnlen(programName, MAX_PATH) + 1;
-										(entryPoint) = new wchar_t[len];
-										wcscpy_s((entryPoint), len, programName);
-										SysFreeString(programName);
-										programName = nullptr;
 										SAFE_RELEASE(pXMLIPAddressAttributes);
 									}
 									SAFE_RELEASE(pXMLIPAddressNode);
@@ -442,7 +385,6 @@ void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int 
 			SysFreeString(nodeName);
 			nodeName = nullptr;
 		}
-
 	}
 	else
 	{
@@ -465,14 +407,14 @@ CleanUp:
 	SAFE_RELEASE(pXMLNodeList);
 	SAFE_RELEASE(pXMLIPAddressAttributes);
 	SAFE_RELEASE(ipAttribute);
-
+	
+	SysFreeString(combstr);
 	SysFreeString(bstrXML);
 	SysFreeString(bstrErr);
 	SysFreeString(nodeName);
 	SysFreeString(childNodeName);
 	SysFreeString(ipSubnetNodeName);
 	SysFreeString(ipAddressNodeName);
-	SysFreeString(programName);
 	SysFreeString(ipAddress);
 	SysFreeString(ipType);
 
