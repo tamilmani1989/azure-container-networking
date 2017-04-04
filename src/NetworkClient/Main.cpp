@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <cstdlib>
+#define strncpy_s(dst, count, src, cp) strncpy(dst, src, count)
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
 
@@ -19,6 +20,11 @@ void assert(unsigned long value)
 	printf("assert failed");
 	getchar();
 	throw "assert failed";
+}
+
+void logstuff(int level, char *text)
+{
+	printf("%d: %s", level, text);
 }
 
 #ifdef _WIN32
@@ -34,6 +40,8 @@ int main()
     int ipCount = -1;
     int i;
     char ipInString[INET_ADDRSTRLEN];
+	
+	assert(SetupNetworkLogging(logstuff));
 
 	size_t netLen = strlen("azurenet") + sizeof(char);
 	cfg.networkName = (char *) malloc(netLen);
@@ -43,7 +51,7 @@ int main()
 	cfg.net = UnderLay;
 	cfg.env = Azure;
 	printf("nw main name:%s\n",cfg.networkName);
-        int retval = 0;
+    int retval = 0;
 	#ifdef __linux__
 	retval = InitializeNetwork(&cfg);
 	#endif
