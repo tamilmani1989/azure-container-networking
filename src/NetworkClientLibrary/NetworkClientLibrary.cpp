@@ -19,6 +19,7 @@
 #endif
 #ifdef __linux__
 #include <curl/curl.h>
+#include <string.h>
 #define UNREFERENCED_PARAMETER(param) do { (void)(param); } while (0)
 #endif
 

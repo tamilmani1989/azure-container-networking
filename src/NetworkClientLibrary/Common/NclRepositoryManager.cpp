@@ -7,7 +7,6 @@
 * It needs to be integrated with IPAM.
 *
 \***************************************************************************/
-#pragma once
 
 #include <stdlib.h>
 #include <string.h>
@@ -27,6 +26,7 @@ std::mutex ipAllocationsMutex;
 pthread_mutex_t ipAllocationsLock = PTHREAD_MUTEX_INITIALIZER;
 #define LockMutex pthread_mutex_lock(&ipAllocationsLock);
 #define UnlockMutex pthread_mutex_unlock(&ipAllocationsLock);
+#define strcpy_s(dst, count, src) strncpy(dst, src, count)
 #endif
 
 IpAllocations *repositoryIpAllocations;
@@ -79,8 +79,8 @@ IpStatus *ReserveRepositoryIp(char *reservationId)
 			if (!retval->id)
 			{
 				size_t resSize = strlen(reservationId) * sizeof(char);
-				retval->id = (char *)malloc(resSize+1);
-				strcpy_s(retval->id, resSize+1, reservationId);
+				retval->id = (char *)malloc(resSize + 1);
+				strcpy_s(retval->id, resSize + 1, reservationId);
 				retval->isReserved = 1;
 				return retval;
 			}

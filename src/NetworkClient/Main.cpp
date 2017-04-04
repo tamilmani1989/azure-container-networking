@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <cstdlib>
+#define strncpy_s(dst, count, src, cp) strncpy(dst, src, count)
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
 
