@@ -53,8 +53,8 @@
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 <Target Name="AfterBuild">
-    <Copy SourceFiles="$(OutputPath)\HNSOverlayPlugin.dll; $(OutputPath)\HNSOverlayPlugin.pdb" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
-    <Copy SourceFiles="InstallPlugin.ps1;" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
-    <Copy SourceFiles="$(AQ_Tools)\content\sfpcopy.exe;" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
+    <Copy SourceFiles="$(OutputPath)\HNSOverlayPlugin.dll; $(OutputPath)\HNSOverlayPlugin.pdb; $(OutputPath)\HNSOverlayPlugin.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
+    <Copy SourceFiles="InstallPlugin.ps1;" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
+    <Copy SourceFiles="$(AQ_Tools)\content\sfpcopy.exe;" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
  </Target>
 </Project>
