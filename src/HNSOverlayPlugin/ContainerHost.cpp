@@ -12,6 +12,7 @@
 
 using namespace Microsoft::Azure::Networking::OverlayPlugin;
 
+
 ////////////////////////////////////////////////////////////////////////////////
 // ContainerHost::HandleNetworkNotification
 ////////////////////////////////////////////////////////////////////////////////
@@ -177,7 +178,7 @@ bool retrieveEndpointDetails(
 	{
 		PC_THROW_IF_FAILED_LOG(RequestObject->GetString(L"MacAddress", &macAddress));
 		// let other's know about the mac address
-		LogInFile(macAddress);
+		//LogInFile(macAddress);
 	}
 
 	// Retrieve PA
@@ -192,7 +193,7 @@ bool retrieveEndpointDetails(
 		if (S_OK == obj->PropertyExists(L"PA"))
 		{
 			obj->GetString(L"PA", &pa);
-			LogInFile(pa);
+			//LogInFile(pa);
 		}
 	}
 
@@ -200,7 +201,7 @@ bool retrieveEndpointDetails(
 	if (S_OK == RequestObject->PropertyExists(L"IPAddress"))
 	{
 		PC_THROW_IF_FAILED_LOG(RequestObject->GetString(L"IPAddress", &containerAddress));
-		LogInFile(containerAddress);
+		//LogInFile(containerAddress);
 	}
 	return false;
 }
