@@ -3,40 +3,72 @@
   <PropertyGroup>
     <ProjectGuid>{A8F4B949-54EC-40C4-B9A4-6A338B2A4767}</ProjectGuid>
     <TargetName>HnsClient</TargetName>
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
+    <!--ConfigurationType>DynamicLibrary</ConfigurationType-->
   </PropertyGroup>
   <Import Project="$(SRCROOT)\build\native_user_compile.props" />
   <Import Project="$(SRCROOT)\build\native_user_link.props" />
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>
-        %(AdditionalIncludeDirectories)
+        %(AdditionalIncludeDirectories);
+	$(INTERNAL_SDK)\inc; 
+        $(boost)\lib\native\include;
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <Link>
       <SubSystem>console</SubSystem>
-      <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
+      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
+      <!--EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol-->
       <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
       <AdditionalDependencies>
         %(AdditionalDependencies);
         $(WindowsSdk64LibPath)\ole32.lib;
         $(WindowsSdk64LibPath)\ws2_32.lib;
         $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(WindowsSdk64LibPath)\Crypt32.lib;
         $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Config.Containers.cpp" />
+    <ClCompile Include="Config.Containers.HNS.cpp" />
+    <ClCompile Include="cpprest\asyncrt_utils.cpp" />
+    <ClCompile Include="cpprest\json.cpp" />
+    <ClCompile Include="cpprest\json_parsing.cpp" />
+    <ClCompile Include="cpprest\json_serialization.cpp" />
     <ClCompile Include="HnsClient.cpp" />
+    <ClCompile Include="marshal\MarshalBase.cpp" />
+    <ClCompile Include="marshal\MarshalJson.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\NetworkClientLibrary\Common\aquanetworkclient.h" />
     <ClInclude Include="..\NetworkClientLibrary\Common\aquaerrorcodes.h" />
     <ClInclude Include="..\NetworkClientLibrary\Common\nclcore.h" />
+    <ClInclude Include="Config.Containers.h" />
+    <ClInclude Include="Config.Containers.HNS.h" />
+    <ClInclude Include="cpprest\asyncrt_utils.h" />
+    <ClInclude Include="cpprest\basic_types.h" />
+    <ClInclude Include="cpprest\globals.h" />
+    <ClInclude Include="cpprest\json.h" />
+    <ClInclude Include="cpprest\safeint3.hpp" />
+    <ClInclude Include="cpprest\stdafx.h" />
+    <ClInclude Include="cpprest\windows_compat.h" />
+    <ClInclude Include="cpprest\xxpublic.h" />
     <ClInclude Include="hnsApi.h" />
     <ClInclude Include="hnsApi_i.c" />
+    <ClInclude Include="MacAddressUtils.h" />
+    <ClInclude Include="marshal\inc\MarshalBase.h" />
+    <ClInclude Include="marshal\inc\MarshalJson.h" />
+    <ClInclude Include="marshal\inc\vmoptional.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="config_cpp.json" />
+    <None Include="HNS.mof" />
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$(boost)\build\native\boost.targets" />
 </Project>
