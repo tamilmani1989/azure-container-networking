@@ -237,7 +237,6 @@ CleanUp:
 	SAFE_RELEASE(pXMLNodeList);
 	SAFE_RELEASE(pXMLSubnetAttributes);
 
-	SysFreeString(combstr);
 	SysFreeString(bstrXML);
 	SysFreeString(bstrErr);
 	SysFreeString(nodeName);
@@ -357,6 +356,8 @@ void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int 
 										}
 										SysFreeString(ipAddress);
 										SysFreeString(ipType);
+										ipAddress=nullptr;
+										ipType=nullptr;
 										delete[] ipStr;
 										delete[] primary;
 
@@ -408,7 +409,6 @@ CleanUp:
 	SAFE_RELEASE(pXMLIPAddressAttributes);
 	SAFE_RELEASE(ipAttribute);
 	
-	SysFreeString(combstr);
 	SysFreeString(bstrXML);
 	SysFreeString(bstrErr);
 	SysFreeString(nodeName);
