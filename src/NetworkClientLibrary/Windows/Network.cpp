@@ -8,6 +8,9 @@
 #include <WinSock2.h>
 #include <stdio.h>
 #include <iostream>
+#include <WinSock2.h>
+#include <ws2ipdef.h>
+#include <ws2tcpip.h>
 #define HostSuffix "GET /machine/plugins?comp=nmagent&type=getinterfaceinfov1 HTTP/1.1\r\nHost: 169.254.169.254\r\nConnection: close\r\n\r\n"
 #define DockerNwCreatePost "POST /networks/create HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nConnection: close\r\n"
 #define DockerNwGet "GET /networks/"
@@ -19,6 +22,7 @@ int wsaInitialized = 0;
 
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 extern void ParseSubnetAndGatewayIp(char *xmlResponse, char **sunbetIp, char **gatewayIp);
+extern bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp);
 
 int initWsa()
 {
@@ -461,7 +465,7 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 
 	if (networkExists(sock, clusterConfig->networkName))
 	{
-		printf("Netowrk %s does not exist, going to create it\n", clusterConfig->networkName);
+		printf("Network %s does not exist, going to create it\n", clusterConfig->networkName);
 
 		shutdown(sock, SD_BOTH);
 		closesocket(sock);
@@ -538,17 +542,156 @@ DWORD installHNSOverlayPlugin()
 	return retval;
 }
 
-DWORD setupOverlay(ClusterConfig *clusterConfig)
+unsigned long CreateDockerNetwork(char *networkName, char ipamConfig[2048])
 {
-	UNREFERENCED_PARAMETER(clusterConfig);
-	int retval = installHNSOverlayPlugin();
-	if(retval != 0)
+	char *recvBuf = NULL;
+	unsigned long retval = 0;
+	SOCKET sock = connectToHost("localhost", 2375);
+	if(sock == INVALID_SOCKET)
 	{
-		printf("Return value from setup overlay %d", retval);
-		return OVERLAYPLUGIN_INSTALL_FAILED;
+		return UNREACHABLE_DOCKER_DAEMON;
 	}
 
-	return 0;
+	size_t ipamLength = strlen(ipamConfig);
+	size_t conLength = strlen(networkName) + 9 + 19 + 4 + ipamLength;
+	size_t totalLength = strlen(DockerNwCreatePost) + conLength + ipamLength + 64;
+	char *nwCreateReq = (char *)malloc(totalLength + 1);
+
+	sprintf_s(nwCreateReq, totalLength + 1, 
+	          "%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", 
+	          DockerNwCreatePost, (int)conLength, networkName, "l2tunnel", ipamConfig);
+
+	printf("Now going to get create network driver... cmd:%s:%d:%llu:%d\n", nwCreateReq, (int)totalLength, strlen(nwCreateReq), (int)conLength);
+
+	recvBuf = httpSendResponse(sock, nwCreateReq);
+	if (!recvBuf)
+	{
+		printf("Error while creating docker network");
+		retval = UNEXPECTED_ERROR;
+	}
+	else
+	{
+		int ret = retrieveHttpStatus(recvBuf);
+		printf("status:%d\n", ret);
+		if (ret == 201)
+		{
+			printf("docker network create succeeded\n");
+		}
+		else
+		{
+			printf("docker network create failed:%s\n", recvBuf);
+			retval = UNEXPECTED_ERROR;
+		}
+	}
+
+	if (recvBuf)
+	{
+		free(recvBuf);
+	}
+	if (nwCreateReq)
+	{
+		free(nwCreateReq);
+	}
+
+	shutdown(sock, SD_BOTH);
+	closesocket(sock);
+	return retval;
+}
+
+DWORD setupOverlay(ClusterConfig *clusterConfig)
+{
+
+	size_t conLength = 0, ipamLength = 0;
+	char *recvBuf = nullptr;
+	size_t totalLength = 0;
+	char *gwIp = nullptr;
+	char ipamConfig[2048];
+	unsigned long retval = 0;
+
+	if (clusterConfig->networkName == NULL)
+	{
+		return UNSPECIFIED_NETWORK_NAME;
+	}
+
+	if (!wsaInitialize())
+	{
+		return UNEXPECTED_ERROR;
+	}
+
+	printf("wsa initialization finished to setup overlay\n");
+
+	SOCKET sock = connectToHost("localhost", 2375);
+	if (sock == INVALID_SOCKET)
+	{
+		fprintf(stderr, "Connect to host failed (overlay).\n");
+		wsaCleanUp();
+		return UNREACHABLE_DOCKER_DAEMON;
+	}
+
+	if (networkExists(sock, clusterConfig->networkName))
+	{
+		printf("Overlay Network %s does not exist, going to create it\n", clusterConfig->networkName);
+
+		shutdown(sock, SD_BOTH);
+		closesocket(sock);
+		wsaCleanUp();
+		printf("wsa cleanup finished\n");
+
+		if(clusterConfig->overlaySubnet == NULL)
+		{
+			return OVERLAY_SUBNET_NOT_SPECIFIED;
+		}
+
+		if(clusterConfig->overlaySubnet->prefixLength > 28)
+		{
+			return SUBNET_SIZE_TOO_SMALL;
+		}
+
+		printf("Going to get gateway ip from %d\n", clusterConfig->overlaySubnet->ipAddress);
+		char gatewayIp[INET_ADDRSTRLEN];
+		if(inet_ntop(AF_INET, &clusterConfig->overlaySubnet->ipAddress, gatewayIp, INET_ADDRSTRLEN)==NULL)
+		{
+			return MALFORMED_SUBNET_IP;
+		}
+
+		if(RetrieveGatewayFromSubnet(gatewayIp, &gwIp) == false)
+		{
+			return MALFORMED_SUBNET_IP;
+		}
+
+		printf("retrieved subnet and gateway %s/%d %s\n", gatewayIp, clusterConfig->overlaySubnet->prefixLength, gwIp);
+
+		sprintf_s(ipamConfig, sizeof(ipamConfig), 
+			"\"IPAM\":{\"Config\":[{\"Subnet\":\"%s/%d\",\"Gateway\":\"%s\"}]}", 
+			gatewayIp, clusterConfig->overlaySubnet->prefixLength, gwIp);
+
+		printf("ipamconfig:%s\n", ipamConfig);
+		if (!wsaInitialize())
+		{
+			return UNEXPECTED_ERROR;
+		}
+
+		retval = CreateDockerNetwork(clusterConfig->networkName, ipamConfig);
+	}
+	else 
+	{
+		if (recvBuf)
+		{
+			free(recvBuf);
+			recvBuf = NULL;
+		}
+		shutdown(sock, SD_BOTH);
+		closesocket(sock);
+	}
+
+	if (gwIp)
+	{
+		free(gwIp);
+		gwIp = NULL;
+	}
+
+	wsaCleanUp();
+	return retval;
 }
 
 #endif

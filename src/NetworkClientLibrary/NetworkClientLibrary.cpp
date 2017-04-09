@@ -118,13 +118,6 @@ DllExport  DWORD GetIpAddressForContainer(char *containerId, unsigned int ipAddr
 	return 0;
 }
 
-// To initialize the ip address space on the node for overlay network
-DllExport void InitializeOverlayAddressSpace(ClusterConfig *clusterConfig)
-{
-	UNREFERENCED_PARAMETER(clusterConfig);
-	return;
-}
-
 // Returns an ip address reserved correspoiding to the reservation id
 // returns -1 if reservation id does not exist
 DllExport DWORD GetReservedIpAddress(const char *reservationId, unsigned int *ipAddress)
@@ -154,7 +147,6 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 {
 	if (!clusterConfig)
 	{
-
 		return INVALID_PARAMETER;
 	}
 
@@ -163,13 +155,11 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 	switch(clusterConfig->net)
 	{
 		case OverLay: 
-			printf("OverLay Network currently not supported\n");
-			//setupOverlay(clusterConfig);
-			return UNSUPPORTED_NETWORK;
+			printf("Going to setup overlay network\n");
+			return setupOverlay(clusterConfig);		
 
 		case UnderLay: 
-			printf("Going to setup underlay network");
-
+			printf("Going to setup underlay network\n");
 			switch(clusterConfig->env)
 			{
 			case Azure: 

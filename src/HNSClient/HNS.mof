@@ -20,6 +20,7 @@ class HNSNetwork
     // Type is extensible. Therefore leave it as string type.
     // Change it to NetworkMode enum type when we have a better enum support
     [OmitEmpty] string Type;
+    [OmitEmpty] string HNSNetworkType;
     [OmitEmpty] string NetworkAdapterName;
     [OmitEmpty] string SourceMac;
     [OmitEmpty] Any    Policies[];
@@ -66,6 +67,13 @@ class HNSEndpointResponse
     [Required] bool Success;
     [OmitEmpty] string Error;
     [OmitEmpty] HNSEndpoint Output;
+};
+
+class HNSEndpointsResponse
+{
+    [Required] bool Success;
+    [OmitEmpty] string Error;
+    [OmitEmpty] HNSEndpoint Output[];
 };
 
 class HNSEndpointStatsResponse

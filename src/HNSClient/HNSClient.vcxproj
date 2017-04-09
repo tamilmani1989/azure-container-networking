@@ -28,7 +28,8 @@
         $(WindowsSdk64LibPath)\ole32.lib;
         $(WindowsSdk64LibPath)\ws2_32.lib;
         $(WindowsSdk64LibPath)\oleaut32.lib;
-        $(WindowsSdk64LibPath)\Crypt32.lib;
+	$(WindowsSdk64LibPath)\Crypt32.lib;
+	$(WindowsSdk64LibPath)\RpcRT4.Lib;
         $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
       </AdditionalDependencies>
     </Link>
@@ -69,6 +70,8 @@
     <None Include="config_cpp.json" />
     <None Include="HNS.mof" />
   </ItemGroup>
+  <ItemGroup>
+    <Midl Include="hnsApi.idl" />
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
-  <Import Project="$(boost)\build\native\boost.targets" />
 </Project>

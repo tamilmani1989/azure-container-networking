@@ -352,23 +352,23 @@ namespace Marshal
 	{
 		return ToSimpleValueGuid(Value, false);
 	}
-	/*
+	
 	/// Converts a GUID from a string in xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx format.
-	bool
+	bool 
 		FromSimpleValue(
 			_In_ const std::wstring& Value,
 			_Inout_ GUID* Result,
-			_In_ const UnmarshalContext& Context
-		)
+			_In_ const UnmarshalContext& Context)
 	{
-		if (UuidFromStringW(const_cast<RPC_WSTR>(Value.c_str()), Result) != RPC_S_OK)
+		if (UuidFromStringW((RPC_WSTR)Value.c_str(), Result) != RPC_S_OK)
 		{
 			Context.ReportError(UnmarshalError::InvalidGuidValue);
 			return false;
 		}
 
 		return true;
-	}*/
+	}
+
 
 	/// Converts a GUID to a string in {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx} format.
 	std::wstring

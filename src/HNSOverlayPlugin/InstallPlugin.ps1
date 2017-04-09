@@ -10,8 +10,9 @@ param(
 )
 
 $agentpath = $path    # gets overwritten later, but still keep it user-friendly
+sc.exe config hns type=own
 
-if(!$remove)
+if(!$remove.IsPresent)
 {
   function enable-privilege {
     param(
@@ -119,7 +120,7 @@ if(!$remove)
 $pluginLocation = $env:SystemDrive+"\windows\system32\HNSOverlayPlugin.dll"
 if([System.IO.File]::Exists($pluginLocation) -eq $true)
 {
-    Write-Host "Plugin dll already exists. Replacing using sfpcopy."
+     Write-Host "Plugin dll already exists. Replacing using sfpcopy."
     .\sfpcopy.exe HNSOverlayPlugin.dll $pluginLocation
 }
 else
@@ -168,16 +169,19 @@ if ($addr -and $port -and $format -and $agentpath)
     $null = New-ItemProperty -Path $pluginpath -name "AgentPath" -value $agentpath
   }
 }
-
-$data = @(
-[psobject]@{ Path="HKLM:Software\Classes\CLSID\{$clsid_plugin}";
-             Values = @{ "(default)" = "Overlay HNS Plugin"; }; };
-[psobject]@{ Path="HKLM:Software\Classes\CLSID\{$clsid_plugin}\InprocServer32";
-             Values = @{"(default)" = $pluginLocation; "ThreadingModel"="Both";}; };
-);
-
-if($remove)
+if($remove.IsPresent)
 {
+
+
+    $data = @(
+    [psobject]@{ Path="HKLM:Software\Classes\CLSID\{$clsid_plugin}";
+                 Values = @{ "(default)" = "Overlay HNS Plugin"; }; };
+    [psobject]@{ Path="HKLM:Software\Classes\CLSID\{$clsid_plugin}\InprocServer32";
+                 Values = @{"(default)" = $pluginLocation; "ThreadingModel"="Both";}; };
+    [psobject]@{ Path="HKLM:System\CurrentControlSet\Services\hns\Parameters\Plugins\$clsid_plugin";
+                  };
+    );
+  #stop-service hns
   $keys = @($data.Path);
   [array]::Reverse($keys);
   foreach($key in $keys)
@@ -188,6 +192,12 @@ if($remove)
 }
 else
 {
+    $data = @(
+    [psobject]@{ Path="HKLM:Software\Classes\CLSID\{$clsid_plugin}";
+                 Values = @{ "(default)" = "Overlay HNS Plugin"; }; };
+    [psobject]@{ Path="HKLM:Software\Classes\CLSID\{$clsid_plugin}\InprocServer32";
+                 Values = @{"(default)" = $pluginLocation; "ThreadingModel"="Both";}; };
+    );
   foreach($r in $data)
   {
     $path = $r.Path;

@@ -74,6 +74,15 @@ namespace Config
 
 			const Marshal::Details::ArrayView<Marshal::FieldData> HNSEndpointResponse::FieldData{ HNSEndpointResponse_FieldData };
 
+			const Marshal::FieldData HNSEndpointsResponse_FieldData[]
+			{
+				{ L"Success", offsetof(::Config::Containers::HNS::HNSEndpointsResponse, Success), Marshal::FieldOption::Required },
+				{ L"Error", offsetof(::Config::Containers::HNS::HNSEndpointsResponse, Error), Marshal::FieldOption::OmitEmpty },
+				{ L"Output", offsetof(::Config::Containers::HNS::HNSEndpointsResponse, Output), Marshal::FieldOption::OmitEmpty },
+			};
+
+			const Marshal::Details::ArrayView<Marshal::FieldData> HNSEndpointsResponse::FieldData{ HNSEndpointsResponse_FieldData };
+
 			const Marshal::FieldData HNSEndpointStatsResponse_FieldData[]
 			{
 				{ L"Success", offsetof(::Config::Containers::HNS::HNSEndpointStatsResponse, Success), Marshal::FieldOption::Required },

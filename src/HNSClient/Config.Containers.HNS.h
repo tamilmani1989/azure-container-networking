@@ -137,6 +137,22 @@ namespace Config
 
 			std::true_type CanMarshalObject(const HNSEndpointResponse&);
 
+			struct HNSEndpointsResponse
+			{
+				bool Success = bool{};
+				std::wstring Error = std::wstring{};
+				std::vector<HNSEndpoint> Output = std::vector<::Config::Containers::HNS::HNSEndpoint>{};
+
+				static const Marshal::Details::ArrayView<Marshal::FieldData> FieldData;
+				using FieldTypes = Marshal::TypeList<
+					bool,
+					std::wstring,
+					std::vector<::Config::Containers::HNS::HNSEndpoint>
+				>;
+			};
+
+			std::true_type CanMarshalObject(const HNSEndpointsResponse&);
+
 			struct HNSEndpointStatsResponse
 			{
 				bool Success = bool{};
