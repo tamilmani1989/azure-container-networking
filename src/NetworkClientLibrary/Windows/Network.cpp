@@ -600,10 +600,7 @@ unsigned long CreateDockerNetwork(char *networkName, char ipamConfig[2048])
 
 DWORD setupOverlay(ClusterConfig *clusterConfig)
 {
-
-	size_t conLength = 0, ipamLength = 0;
 	char *recvBuf = nullptr;
-	size_t totalLength = 0;
 	char *gwIp = nullptr;
 	char ipamConfig[2048];
 	unsigned long retval = 0;
