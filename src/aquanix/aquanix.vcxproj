@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{d16a456d-9371-4055-afa7-276cd8cc32b9}</ProjectGuid>
+    <TargetName>aquanix</TargetName>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
+      <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        $(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(WindowsSdk64LibPath)\Rpcrt4.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
+      </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="aquanix.cpp" />
+    <ClCompile Include="Common\Message.cpp" />
+    <ClCompile Include="Common\MessageQueue.cpp" />
+    <ClCompile Include="Common\MessageExchange.cpp" />
+    <ClCompile Include="Common\MessageSender.cpp" />
+    <ClCompile Include="Common\RawMessage.cpp" />
+    <ClCompile Include="Windows\WinMessageExchange.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Common\Inc\aquabase.h" />
+    <ClInclude Include="..\Common\Inc\aquaError.h" />
+    <ClInclude Include="Common\aquanix.h" />
+    <ClInclude Include="Common\aquanixext.h" />
+    <ClInclude Include="Common\Message.h" />
+    <ClInclude Include="Common\MessageQueue.h" />
+    <ClInclude Include="Common\MessageSender.h" />
+    <ClInclude Include="Common\MessageExchange.h" />
+    <ClInclude Include="Common\RawMessage.h" />
+    <ClInclude Include="ContainerNetworkInfo.h" />
+    <ClInclude Include="Windows\WinMessageExchange.h" />
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
