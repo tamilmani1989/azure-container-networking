@@ -63,6 +63,11 @@ void Message::Init(UCHAR *buffer)
 	m_id = string(reinterpret_cast<char*>(cur));
 	cur += segmentLength;
 
+	if (m_messageCode == MessageCode::AckMapping)
+	{
+		return;
+	}
+
 	segmentLength = *cur;
 	cur++;
 	m_endpointId = string(reinterpret_cast<char*>(cur));
@@ -82,6 +87,11 @@ void Message::Init(UCHAR *buffer)
 	cur++;
 	m_hostAddress = string(reinterpret_cast<char*>(cur));
 	cur += segmentLength;
+}
+
+RawMessage *Message::CreateAckRawMessage()
+{
+	return CreateAckRawMessage(m_id.c_str(), (UCHAR)m_id.length());
 }
 
 RawMessage * Message::CreateAckRawMessage(const char *id, UCHAR idLen)
@@ -181,9 +191,9 @@ RawMessage * Message::CreateRawMessage()
 	return new RawMessage(buffer, bufSize, false);
 }
 
-string Message::GetMessageId()
+const char *Message::GetMessageId()
 {
-	return m_id;
+	return m_id.c_str();
 }
 
 const char *Message::GetEndpointId()
@@ -209,4 +219,9 @@ const char *Message::GetMacAddress()
 void Message::SetHostAddress(string hostAddress)
 {
 	m_hostAddress = hostAddress;
+}
+
+MessageCode Message::GetMessageCode()
+{
+	return m_messageCode;
 }

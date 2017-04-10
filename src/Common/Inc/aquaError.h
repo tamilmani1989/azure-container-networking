@@ -47,6 +47,10 @@ namespace aqua
 	iResult = (int)X; \
 	if(iResult != A) E_WSA_FAIL(Y,Z)
 
+#define E_WSA_SOCKET_ERROR(X,Y,Z) \
+	iResult = (int)X; \
+	if(iResult == SOCKET_ERROR) E_WSA_FAIL(Y,Z)
+
 #define E_WSA_FAILFOR(A,X,Y,Z) \
 	iResult = (int)X; \
 	if(iResult == A) E_WSA_FAIL(Y,Z)
@@ -55,7 +59,7 @@ namespace aqua
 
 #define E_WSA_FAIL(Y,Z) \
 	{\
-		cout << Y << result << " WSAGetLastError=" << WSAGetLastError() << '\n'; \
+		cout << Y << iResult << " WSAGetLastError=" << WSAGetLastError() << '\n'; \
 		result = Z; \
 		goto AquaError; \
 	} \

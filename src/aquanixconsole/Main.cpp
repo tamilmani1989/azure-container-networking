@@ -30,13 +30,13 @@ int main()
 	char **remoteHostAddresses = new char*{"172.18.80.212"};
 
 
-	InitializeAquaNix(localHostAddress, remoteHostAddresses, ReceiveMapping, 10050, 10501);
-
-	//DWORD result = SendMapping("endpoint_012345", "172.2.3.4", "6E-34-21-56-31");
-	//cout << result;
-
+	InitializeAquaNix(localHostAddress, remoteHostAddresses, ReceiveMapping, 10050, 10050);
 	string myinput;
 	cin >> myinput;
+	DWORD result = SendMapping("endpoint_012345", "172.2.3.4", "6E-34-21-56-31");
+	cout << result;
+	cin >> myinput;
+	
 	return 0;
 }
 

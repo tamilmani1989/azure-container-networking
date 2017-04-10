@@ -30,7 +30,7 @@ DWORD MessageSender::Send(Message message)
 		pSendMap->insert(pair<string, int>(m_remoteHostAddresses[i], 0));
 	}
 	tuple<RawMessage*, map<string, int>*>* messageMapTuple = new tuple<RawMessage*, map<string, int>*>(pRawMessage, pSendMap);
-	const char *msgId = message.GetMessageId().c_str();
+	const char *msgId = message.GetMessageId();
 	UpdateMessageMap(msgId, messageMapTuple);
 	m_conditionSendMessage.notify_one();
 
@@ -38,10 +38,57 @@ DWORD MessageSender::Send(Message message)
 	return result;
 }
 
+DWORD MessageSender::SendAck(Message message, char *destination)
+{
+	DWORD result = E_SUCCESS;
+
+	RawMessage *pRawMessage = message.CreateAckRawMessage();
+	m_pMessageExchange->Send(destination, (const char *)pRawMessage->GetData(), pRawMessage->GetDataSize());
+	delete pRawMessage;
+
+	//AquaError:
+	return result;
+}
+
 void MessageSender::UpdateMessageMap(const char *id, tuple<RawMessage*, map<string, int>*>* messageMapTuple)
 {
 	lock_guard<mutex> lockGuard(m_mapLock);
 	m_messageMap[string(id)] = messageMapTuple;
+}
+DWORD MessageSender::RemoveAckedMessage(Message message, char *destination)
+{
+	DWORD result = E_SUCCESS;
+	RemoveAckedMessageFromMap(message.GetMessageId(), destination);
+	//AquaError:
+	return result;
+}
+
+void MessageSender::RemoveAckedMessageFromMap(string msgId, char *destination)
+{
+	lock_guard<mutex> lockGuard(m_mapLock);
+	map<string, tuple<RawMessage*, map<string, int>*>*>::iterator it;
+
+	it = m_messageMap.find(msgId);
+	if (it == m_messageMap.end())
+	{
+		return;
+	}
+	map<string, int>* pPerServerMessageMap = get<1>(*it->second);
+
+	map<string, int>::iterator it2;
+	it2 = pPerServerMessageMap->find(destination);
+	if (it2 == pPerServerMessageMap->end())
+	{
+		return;
+	}
+	pPerServerMessageMap->erase(it2);
+	if (pPerServerMessageMap->size() == 0)
+	{
+		delete get<0>(*it->second);
+		delete pPerServerMessageMap;
+		delete it->second;
+		m_messageMap.erase(it);
+	}
 }
 
 void MessageSender::SendMessagesDaemon(MessageSender *pMessageSender)
