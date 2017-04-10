@@ -7,6 +7,9 @@
 *
 \***************************************************************************/
 #pragma once
+#include "aquanetworkclient.h"
+//#include <ws2ipdef.h>
+//#include <ws2tcpip.h>
 typedef struct IpStatus
 {
     unsigned int ip;
@@ -19,7 +22,6 @@ typedef struct IpAllocations
     int count;
     IpStatus *statusForAllIpAddresses;     
 }IpAllocations;
-
 
 #define UNSUPPORTED_NETWORK  1
 #define INVALID_PARAMETER 2

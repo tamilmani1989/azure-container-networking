@@ -122,36 +122,43 @@ int InsertIntoBuffer(char **recvBuffer, int byteCount, char c)
 int wsaInitialize()
 {
 	int retval = 1;
-	if (!wsaInitialized)
+	
+	initWsaMutex.lock();
+	if (wsaInitialized==0)
 	{
-		initWsaMutex.lock();
-		if (!wsaInitialized)
+		if (initWsa())
 		{
-			if (initWsa())
-			{
-				wsaInitialized = 1;
-				retval = 1;
-			}
-			else
-			{
-				fprintf(stderr, "wsa initialization failed\n");
-				retval = 0;
-			}
+			wsaInitialized = 1;
+			retval = 1;
 		}
-		initWsaMutex.unlock();
+		else
+		{
+			fprintf(stderr, "wsa initialization failed\n");
+			retval = 0;
+		}
 	}
+	else
+	{
+		wsaInitialized++;
+	}
+	initWsaMutex.unlock();
+	
 	return retval;
 }
 
 void wsaCleanUp()
 {
-	if (wsaInitialized)
+	if (wsaInitialized > 0)
 	{
 		initWsaMutex.lock();
-		if (wsaInitialized)
+		if (wsaInitialized > 0)
 		{
-			WSACleanup();
-			wsaInitialized = 0;
+			wsaInitialized--;
+
+			if (wsaInitialized == 0)
+			{
+				WSACleanup();
+			}
 		}
 		initWsaMutex.unlock();
 	}
@@ -171,7 +178,7 @@ char* httpSendResponse(SOCKET sock, char *payload)
 	}
 	else
 	{
-		printf("Sent %d bytes on the connection.\nNow ", bytesWritten);
+		printf("Sent %d bytes on the connection.\nReading response (may take some time).... ", bytesWritten);
 		do
 		{
 			char c;
@@ -293,8 +300,6 @@ cleanup_subgw:
 	return 0;
 }
 
-
-
 int getIpsFromNmAgent(unsigned int *ips)
 {
 	int ipCount = 0;
@@ -400,6 +405,38 @@ cleanup:
 	return ipCount;
 }
 
+DWORD GetHostIp(unsigned int *ip)
+{
+	struct hostent *hp;
+	char hostName[255]; //RFC says it cannot exceed 255 chars
+	unsigned long retval = 0;
+
+	if (!wsaInitialize())
+	{
+		return UNEXPECTED_ERROR;
+	}
+	
+	if(gethostname(hostName, 255) !=0)
+	{
+		printf("error happenned during hethostname() %d\n", WSAGetLastError());
+		retval=  UNEXPECTED_ERROR;
+	}
+	else
+	if ((hp = gethostbyname(hostName)) == nullptr)
+	{
+		fprintf(stderr, "gethostbyname failed %d : %s", WSAGetLastError(), hostName);
+		retval = UNEXPECTED_ERROR;
+	}
+	else 
+	{
+		(*ip) = *(u_long*)hp->h_addr_list[0];
+		printf("h_name = %s\n", hp->h_name);
+	}
+	printf("retrieved hostip 0x%08x", *ip);
+	wsaCleanUp();
+	printf("GetHostIp returning %d\n", retval);
+	return retval;
+}
 
 int networkExists(SOCKET sock, char *networkName)
 {
@@ -529,6 +566,7 @@ cleanup2:
 	shutdown(sock, SD_BOTH);
 	closesocket(sock);
 	wsaCleanUp();
+	printf("setup underlay returning %d", retval);
 	return retval;
 }
 
@@ -595,6 +633,8 @@ unsigned long CreateDockerNetwork(char *networkName, char ipamConfig[2048])
 
 	shutdown(sock, SD_BOTH);
 	closesocket(sock);
+
+	printf("create docker network returning %d\n", retval);
 	return retval;
 }
 
@@ -639,7 +679,7 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 			return OVERLAY_SUBNET_NOT_SPECIFIED;
 		}
 
-		if(clusterConfig->overlaySubnet->prefixLength > 28)
+		if(clusterConfig->overlaySubnet->prefixLength > 30)
 		{
 			return SUBNET_SIZE_TOO_SMALL;
 		}
@@ -680,7 +720,6 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 		shutdown(sock, SD_BOTH);
 		closesocket(sock);
 	}
-
 	if (gwIp)
 	{
 		free(gwIp);
@@ -688,6 +727,7 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 	}
 
 	wsaCleanUp();
+	printf("setupOverlay returning %d\n", retval);
 	return retval;
 }
 

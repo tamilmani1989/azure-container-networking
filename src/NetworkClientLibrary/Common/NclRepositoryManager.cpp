@@ -12,6 +12,7 @@
 #include <string.h>
 #include <iostream>
 #include "nclcore.h"
+#include <WinSock2.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -99,7 +100,7 @@ unsigned long ReleaseReservedRepositoryIp(const char *reservationId)
 		for (i = 0; i<repositoryIpAllocations->count; i++)
 		{
 			IpStatus *retval = &repositoryIpAllocations->statusForAllIpAddresses[i];
-			printf("Checking if reservation for %d should be released\n", retval->ip);
+			printf("Checking if reservation for %u should be released\n", retval->ip);
 			if (retval->isReserved == 1)
 			{
 				if (strcmp(retval->id, reservationId) == 0) 
@@ -111,7 +112,7 @@ unsigned long ReleaseReservedRepositoryIp(const char *reservationId)
 					reservationFound = 1;
 					break;
 				}
-				printf("no, not the target");
+				printf("no, not the target\n");
 			}
 			else
 			{
@@ -139,9 +140,8 @@ IpStatus *GetRepositoryIpAllocationStatus(unsigned int ip)
 	return NULL;
 }
 
-void UpdateRepositoryIpList(int ipCount, unsigned int *ips)
+void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips)
 {
-	LockMutex
 	fprintf(stdout, "Inside repository lock ipCount=%d\n", ipCount);
 	int i;
 	// non performant but okay for now, since this will move to ipam anyways
@@ -157,13 +157,13 @@ void UpdateRepositoryIpList(int ipCount, unsigned int *ips)
 	for (i = 0; i<ipCount; i++)
 	{
 		localIpStatus[i].ip = ips[i];
-		printf("Going to get status for ip %d\n", ips[i]);
+		printf("Going to get status for ip %u\n", ips[i]);
 		IpStatus *repositoryIpStatus = GetRepositoryIpAllocationStatus(ips[i]);
-		printf("Successfully retrieved status for ip %d\n", ips[i]);
+		printf("Successfully retrieved status for ip %u\n", ips[i]);
 		if (repositoryIpStatus)
 		{
-			printf("Received ip from repository %d isReserved=%d\n",
-				repositoryIpStatus->ip, repositoryIpStatus->isReserved);
+			printf("Received ip from repository %u isReserved=%d\n",
+			       repositoryIpStatus->ip, repositoryIpStatus->isReserved);
 			localIpStatus[i].isReserved = repositoryIpStatus->isReserved;
 			if (repositoryIpStatus->id != NULL)
 			{
@@ -183,6 +183,11 @@ void UpdateRepositoryIpList(int ipCount, unsigned int *ips)
 			localIpStatus[i].id = NULL;
 			localIpStatus[i].isReserved = 0;
 		}
+		if(i==0 || i==1)
+		{
+			localIpStatus[i].isReserved = 1;
+			localIpStatus[i].id = "Sys_Reserved";
+		}
 	}
 
 	printf("Going to free current ip status from repository\n");
@@ -194,7 +199,12 @@ void UpdateRepositoryIpList(int ipCount, unsigned int *ips)
 	}
 	repositoryIpAllocations->statusForAllIpAddresses = localIpStatus;
 	repositoryIpAllocations->count = ipCount;
-	printf("Going to unlock\n");
+}
+
+void UpdateRepositoryIpList(int ipCount, unsigned int *ips)
+{
+	LockMutex
+	UpdateRepositoryIpListWithoutLock(ipCount, ips);
 	UnlockMutex
 }
 
@@ -257,7 +267,6 @@ int GetAvailableIpsfromRepository(unsigned int *ips)
 	return ipCount;
 }
 
-
 unsigned int GetReservedIpFromRepository(const char *reservationId)
 {
 	unsigned int returnIp = 0;
@@ -273,4 +282,53 @@ unsigned int GetReservedIpFromRepository(const char *reservationId)
 	}
 	UnlockMutex;
 	return returnIp;
+}
+
+unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist)
+{
+	LockMutex
+	unsigned int mask = 0xFFFFFFFF;
+	int leftShiftCount = 32 - subnetToPersist->prefixLength;
+	mask = mask << leftShiftCount;
+	printf("mask=0x%08X\n", mask);
+	printf("ipAddress=0x%08X\n", subnetToPersist->ipAddress);
+	
+	unsigned int startingIp = (mask) & ntohl(subnetToPersist->ipAddress);
+
+	printf("starting ip=0x%08X\n", startingIp);
+	getchar();
+	unsigned int ipCount = 1;
+	for( int i = 0; i<leftShiftCount ;i++)
+	{
+		ipCount = (ipCount << 1);
+		ipCount = ipCount | 0x1;
+	}
+	printf("ipCount=%d\n", ipCount);
+	unsigned int *ips = (unsigned int*)malloc(ipCount *(sizeof(unsigned int)));
+	unsigned int i = 0;
+	while(i < ipCount)
+	{
+		ips[i] = htonl(startingIp);
+		printf("Saving 0x%08X\n", ips[i]);
+		startingIp++;
+		i++;
+	}
+	UpdateRepositoryIpListWithoutLock(ipCount, ips);
+	free(ips);
+	printf("Updated ip repository with %d ips", ipCount);
+	UnlockMutex
+	return 0;
+}
+
+unsigned int PersistedIpCountInRepository()
+{
+	int count = 0;
+	LockMutex
+	if (repositoryIpAllocations != NULL)
+	{
+		count = repositoryIpAllocations->count;
+	}
+	UnlockMutex
+		return count;
+
 }
