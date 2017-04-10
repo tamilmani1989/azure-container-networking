@@ -45,6 +45,10 @@ namespace aqua
 
 #define E_WSA_EX(A,X,Y,Z) \
 	iResult = (int)X; \
+	if(iResult != A) E_WSA_FAIL(Y,Z)
+
+#define E_WSA_FAILFOR(A,X,Y,Z) \
+	iResult = (int)X; \
 	if(iResult == A) E_WSA_FAIL(Y,Z)
 
 #define E_WSA(X,Y,Z) E_WSA_EX(0,X,Y,Z)

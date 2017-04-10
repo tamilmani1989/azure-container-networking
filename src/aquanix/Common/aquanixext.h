@@ -12,9 +12,9 @@
 
 #include "aquabase.h"
 
-DllExport typedef DWORD(*ReceiveMapping) (char *hostAddress, char *containerAddress, char *macAddress);
+DllExport typedef DWORD(*ReceiveMappingCallback) (char *endpointId, char *hostAddress, char *containerAddress, char *macAddress);
 
-DllExport DWORD InitializeAquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMapping receiveMapping, USHORT servicePort);
+DllExport DWORD InitializeAquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort);
 
-DllExport DWORD SendMapping(char *containerAddress, char *macAddress);
+DllExport DWORD SendMapping(char *endpointId, char *containerAddress, char *macAddress);
 
