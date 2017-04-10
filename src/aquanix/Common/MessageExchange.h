@@ -16,10 +16,11 @@ namespace aqua
 	protected:
 		Protocol m_protocol;
 		USHORT m_port;
+		USHORT m_remotePort;
 		ReceiveFunc Receive;
 
 	public:
-		MessageExchange(Protocol protocol, USHORT port, ReceiveFunc receiveFunc);
+		MessageExchange(Protocol protocol, USHORT port, USHORT remotePort, ReceiveFunc receiveFunc);
 		virtual ~MessageExchange();
 
 		virtual DWORD Initialize() = 0;

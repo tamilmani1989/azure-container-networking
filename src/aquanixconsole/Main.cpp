@@ -12,7 +12,7 @@
 #endif
 #include "../aquanix/Common/aquanixext.h"
 
-DWORD ReceiveMapping(char *endpointId, char *hostAddress, char *containerAddress, char *macAddress)
+DWORD ReceiveMapping(const char *endpointId, const char *hostAddress, const char *containerAddress, const char *macAddress)
 {
 	cout << endpointId << hostAddress << containerAddress << macAddress;
 	return 0;
@@ -30,10 +30,10 @@ int main()
 	char **remoteHostAddresses = new char*{"172.18.80.212"};
 
 
-	InitializeAquaNix(localHostAddress, remoteHostAddresses, ReceiveMapping, 10050);
+	InitializeAquaNix(localHostAddress, remoteHostAddresses, ReceiveMapping, 10050, 10501);
 
-	DWORD result = SendMapping("endpoint_012345", "172.2.3.4", "6E-34-21-56-31");
-	cout << result;
+	//DWORD result = SendMapping("endpoint_012345", "172.2.3.4", "6E-34-21-56-31");
+	//cout << result;
 
 	string myinput;
 	cin >> myinput;

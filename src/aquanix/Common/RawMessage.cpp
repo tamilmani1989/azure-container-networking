@@ -25,9 +25,9 @@ RawMessage::~RawMessage()
 	m_size = 0;
 }
 
-UCHAR *RawMessage::GetData()
+const char *RawMessage::GetData()
 {
-	return m_data;
+	return (const char *)m_data;
 }
 
 USHORT RawMessage::GetDataSize()

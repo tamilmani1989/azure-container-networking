@@ -14,7 +14,7 @@ namespace aqua
 		RawMessage(UCHAR *data, USHORT messageSize, bool copyBuffer);
 		~RawMessage();
 
-		UCHAR *GetData();
+		const char *GetData();
 		USHORT GetDataSize();
 	};
 }

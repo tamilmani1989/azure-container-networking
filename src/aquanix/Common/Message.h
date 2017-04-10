@@ -25,7 +25,14 @@ namespace aqua
 		Message(UCHAR *buffer, USHORT bufferLen);
 		Message(RawMessage rawMessage);
 		Message(string endpointId, string hostAddress, string containerAddress, string macAddress);
+		
 		string GetMessageId();
+		const char *GetEndpointId();
+		const char *GetHostAddress();
+		const char *GetContainerAddress();
+		const char *GetMacAddress();
+		void SetHostAddress(string hostAddress);
+
 
 		RawMessage* CreateRawMessage();
 		RawMessage* CreateAckRawMessage(const char *id, UCHAR idLen);
