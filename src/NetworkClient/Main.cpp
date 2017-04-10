@@ -71,7 +71,7 @@ int main()
 
 	unsigned int ip;
 	printf("going to reserve available ip with ip0");
-	assert(ReserveAvailableIpAddress("ip0", &ip));
+	assert(ReserveAvailableIpAddress((char *)"ip0", &ip));
 	printf("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
@@ -89,7 +89,7 @@ int main()
     }
 	getchar();
     
-	assert(ReserveAvailableIpAddress("ip1", &ip));
+	assert(ReserveAvailableIpAddress((char *)"ip1", &ip));
     printf("ip1 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
@@ -109,7 +109,7 @@ int main()
     printf("ip2 (without reservation). retval = %d\n", retval);
 	getchar();
     
-    assert(ReserveAvailableIpAddress("ip2", &ip));
+    assert(ReserveAvailableIpAddress((char *)"ip2", &ip));
     printf("ip2 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
@@ -135,6 +135,10 @@ int main()
 	retval = GetReservedIpAddress("ip2", &ip);
 	printf("ip2 (without reservation). retval =  %d\n", retval);
 	getchar();
+
+	assert(ReleaseIpReservation("ip0"));
+	retval = GetReservedIpAddress("ip0", &ip);
+	printf("ip0 (without reservation). retval =  %d\n", retval);
     free(nnr.ips);
 
 	return 0;
