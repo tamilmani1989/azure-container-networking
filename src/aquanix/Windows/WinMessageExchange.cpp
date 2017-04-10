@@ -90,7 +90,7 @@ void WinMessageExchange::ReceiveMessage(void *param)
 DWORD WinMessageExchange::Send(const char *receiver, const char *buffer, USHORT bufLength)
 {
 	DWORD result = E_SUCCESS;
-	int iResult;
+	int iResult = 0;
 
 	sockaddr_in recvAddress;
 	recvAddress.sin_family = AF_INET;
@@ -101,7 +101,7 @@ DWORD WinMessageExchange::Send(const char *receiver, const char *buffer, USHORT 
 		E_WSA_FAIL("sendto failed", E_SendFailed);
 	}
 
-	E_WSA_EX(SOCKET_ERROR, sendto(m_clientSocket, buffer, bufLength, 0, (SOCKADDR *)& recvAddress, sizeof(recvAddress)), "sendto failed", E_SendFailed);
+	E_WSA_SOCKET_ERROR(sendto(m_clientSocket, buffer, bufLength, 0, (SOCKADDR *)& recvAddress, sizeof(recvAddress)), "sendto failed", E_SendFailed);
 
 AquaError:
 	return result;

@@ -97,18 +97,27 @@ DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 {
 	UNREFERENCED_PARAMETER(sender);
 	DWORD result = E_SUCCESS;
-	Message message = Message((UCHAR *)buffer, (USHORT)bufLength);
 	AquaNix *aquaNix = AquaNixFactory::GetInstance();
-	const char *host = message.GetHostAddress();
-	if (strcmp(host, "127.0.0.1") == 0)
+
+	Message message = Message((UCHAR *)buffer, (USHORT)bufLength);
+	if (message.GetMessageCode() == MessageCode::AckMapping)
 	{
-		//need to send this to remote servers
-		message.SetHostAddress(aquaNix->m_localHostAddress);
-		E_AQUA(aquaNix->m_pMessageSender->Send(message), "Message send failed.");
+		aquaNix->m_pMessageSender->RemoveAckedMessage(message, sender);
 	}
 	else
 	{
-		aquaNix->ReceiveMapping(message.GetEndpointId(), message.GetHostAddress(), message.GetContainerAddress(), message.GetMacAddress());
+		const char *host = message.GetHostAddress();
+		if (strcmp(host, "127.0.0.1") == 0)
+		{
+			//need to send this to remote servers
+			message.SetHostAddress(aquaNix->m_localHostAddress);
+			E_AQUA(aquaNix->m_pMessageSender->Send(message), "Message send failed.");
+		}
+		else
+		{
+			aquaNix->ReceiveMapping(message.GetEndpointId(), message.GetHostAddress(), message.GetContainerAddress(), message.GetMacAddress());
+		}
+		aquaNix->m_pMessageSender->SendAck(message, sender);
 	}
 
 AquaError:
