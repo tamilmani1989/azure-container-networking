@@ -38,7 +38,7 @@ Message::Message(UCHAR *buffer, USHORT bufferLen)
 
 Message::Message(RawMessage rawMessage)
 {
-	Init(rawMessage.GetData());
+	Init((UCHAR *)rawMessage.GetData());
 }
 
 
@@ -184,4 +184,29 @@ RawMessage * Message::CreateRawMessage()
 string Message::GetMessageId()
 {
 	return m_id;
+}
+
+const char *Message::GetEndpointId()
+{
+	return m_endpointId.c_str();
+}
+
+const char *Message::GetHostAddress()
+{
+	return m_hostAddress.c_str();
+}
+
+const char *Message::GetContainerAddress()
+{
+	return m_containerAddress.c_str();
+}
+
+const char *Message::GetMacAddress()
+{
+	return m_macAddress.c_str();
+}
+
+void Message::SetHostAddress(string hostAddress)
+{
+	m_hostAddress = hostAddress;
 }

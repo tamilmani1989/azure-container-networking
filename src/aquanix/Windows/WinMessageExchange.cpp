@@ -1,8 +1,8 @@
 #include "WinMessageExchange.h"
 #include <process.h>
 
-WinMessageExchange::WinMessageExchange(Protocol protocol, USHORT port, ReceiveFunc receiveFunc)
-	:MessageExchange::MessageExchange(protocol, port, receiveFunc)
+WinMessageExchange::WinMessageExchange(Protocol protocol, USHORT port, USHORT remotePort, ReceiveFunc receiveFunc)
+	:MessageExchange::MessageExchange(protocol, port, remotePort, receiveFunc)
 {
 	m_portString = to_string(m_port);
 	m_wsaInitialized = false;
@@ -94,7 +94,7 @@ DWORD WinMessageExchange::Send(const char *receiver, const char *buffer, USHORT 
 
 	sockaddr_in recvAddress;
 	recvAddress.sin_family = AF_INET;
-	recvAddress.sin_port = htons(m_port);
+	recvAddress.sin_port = htons(m_remotePort);
 	//recvAddress.sin_addr.s_addr = inet_addr(receiver);
 	if (1 != inet_pton(AF_INET, receiver, &recvAddress.sin_addr.s_addr))
 	{

@@ -23,7 +23,7 @@ namespace aqua
 		static void ReceiveMessage(void *params);
 
 	public:
-		WinMessageExchange(Protocol protocol, USHORT port, ReceiveFunc receiveFunc);
+		WinMessageExchange(Protocol protocol, USHORT port, USHORT remotePort, ReceiveFunc receiveFunc);
 		virtual ~WinMessageExchange();
 
 		DWORD Initialize();

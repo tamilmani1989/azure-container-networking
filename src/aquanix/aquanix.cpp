@@ -14,11 +14,11 @@
 
 AquaNix *AquaNixFactory::s_pAquaNix = NULL;
 
-DllExport DWORD InitializeAquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort)
+DllExport DWORD InitializeAquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort, USHORT remotePort)
 {
 	DWORD result = E_SUCCESS;
 
-	E_AQUA(AquaNixFactory::Create(localHostAddress, remoteHostAddresses, receiveMapping, servicePort), "AquaNix create failed.");
+	E_AQUA(AquaNixFactory::Create(localHostAddress, remoteHostAddresses, receiveMapping, servicePort, remotePort), "AquaNix create failed.");
 
 AquaError:
 	return result;
@@ -35,16 +35,17 @@ AquaError:
 	return result;
 }
 
-DWORD AquaNixFactory::Create(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort)
+DWORD AquaNixFactory::Create(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort, USHORT remoteServicePort)
 {
 	DWORD result = E_SUCCESS;
 
 	E_NULL(localHostAddress, E_InvalidArguments, "localHostAddress is NULL");
 	E_NULL(remoteHostAddresses, E_InvalidArguments, "remoteHostAddresses is NULL");
 	E_NULL(receiveMapping, E_InvalidArguments, "receiveMapping is NULL");
-	E_NULL(servicePort, E_InvalidArguments, "remoteHostAddresses is NULL");
+	E_NULL(servicePort, E_InvalidArguments, "servicePort is NULL");
+	E_NULL(remoteServicePort, E_InvalidArguments, "remoteServicePort is NULL");
 
-	s_pAquaNix = new (nothrow) AquaNix(localHostAddress, remoteHostAddresses, receiveMapping, servicePort);
+	s_pAquaNix = new (nothrow) AquaNix(localHostAddress, remoteHostAddresses, receiveMapping, servicePort, remoteServicePort);
 	E_NULLPTR(s_pAquaNix, E_CreateAquaNixFailed, "CreateAquaNixFailed");
 
 AquaError:
@@ -56,7 +57,7 @@ AquaNix *AquaNixFactory::GetInstance()
 	return s_pAquaNix;
 }
 
-AquaNix::AquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort)
+AquaNix::AquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort, USHORT remoteServicePort)
 {
 	m_localHostAddress = string(localHostAddress);
 	m_remoteHostsCount = sizeof(remoteHostAddresses) / sizeof(remoteHostAddresses[0]);
@@ -68,9 +69,10 @@ AquaNix::AquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMap
 
 	ReceiveMapping = receiveMapping;
 	m_servicePort = servicePort;
+	m_remoteServicePort = remoteServicePort;
 
 #ifdef _WIN32
-	m_pMessageExchange = new WinMessageExchange(Protocol::Udp, servicePort, ReceiveMessage);
+	m_pMessageExchange = new WinMessageExchange(Protocol::Udp, servicePort, remoteServicePort, ReceiveMessage);
 #endif
 
 	// create the sender
@@ -96,7 +98,20 @@ DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 	UNREFERENCED_PARAMETER(sender);
 	DWORD result = E_SUCCESS;
 	Message message = Message((UCHAR *)buffer, (USHORT)bufLength);
+	AquaNix *aquaNix = AquaNixFactory::GetInstance();
+	const char *host = message.GetHostAddress();
+	if (strcmp(host, "127.0.0.1") == 0)
+	{
+		//need to send this to remote servers
+		message.SetHostAddress(aquaNix->m_localHostAddress);
+		E_AQUA(aquaNix->m_pMessageSender->Send(message), "Message send failed.");
+	}
+	else
+	{
+		aquaNix->ReceiveMapping(message.GetEndpointId(), message.GetHostAddress(), message.GetContainerAddress(), message.GetMacAddress());
+	}
 
+AquaError:
 	return result;
 }
 
