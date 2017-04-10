@@ -136,7 +136,7 @@ void ContainerHost::HandleEndpointPreCreate(
 	CloseHandle(hFile); \
 }
 
-bool retrieveEndpointDetails(
+bool retrieveLocalEndpointDetails(
 	_Inout_ HNSProviderPtr& PluginProvider, 
 	_Inout_ HNSObjPtr& RequestObject, 
 	_Inout_ PCStringPtr& vNetName, 
@@ -144,7 +144,8 @@ bool retrieveEndpointDetails(
 	_Inout_ PCStringPtr& hnsNetworkType, 
 	_Inout_ PCStringPtr& macAddress, 
 	_Inout_ PCStringPtr& pa, 
-	_Inout_ PCStringPtr& containerAddress)
+	_Inout_ PCStringPtr& containerAddress, 
+	_Inout_ PCStringPtr& ID)
 {
 	std::pair<std::wstring, std::wstring> endPtPair;
 
@@ -178,7 +179,7 @@ bool retrieveEndpointDetails(
 	{
 		PC_THROW_IF_FAILED_LOG(RequestObject->GetString(L"MacAddress", &macAddress));
 		// let other's know about the mac address
-		//LogInFile(macAddress);
+		LogInFile(macAddress);
 	}
 
 	// Retrieve PA
@@ -193,7 +194,7 @@ bool retrieveEndpointDetails(
 		if (S_OK == obj->PropertyExists(L"PA"))
 		{
 			obj->GetString(L"PA", &pa);
-			//LogInFile(pa);
+			LogInFile(pa);
 		}
 	}
 
@@ -201,8 +202,17 @@ bool retrieveEndpointDetails(
 	if (S_OK == RequestObject->PropertyExists(L"IPAddress"))
 	{
 		PC_THROW_IF_FAILED_LOG(RequestObject->GetString(L"IPAddress", &containerAddress));
-		//LogInFile(containerAddress);
+		LogInFile(containerAddress);		
 	}
+
+	//Retrieve ID
+	if (S_OK == RequestObject->PropertyExists(L"ID"))
+	{
+		PC_THROW_IF_FAILED_LOG(RequestObject->GetString(L"ID", &ID));
+		LogInFile(containerAddress);
+	}/*
+	PCStringPtr newLine = (wil::unique_cotaskmem_string) L"\n";
+	LogInFile(newLine);*/
 	return false;
 }
 
@@ -222,8 +232,9 @@ void ContainerHost::HandleEndpointPostCreate(
 	PCStringPtr macAddress;
 	PCStringPtr pa;
 	PCStringPtr containerAddress;
-
-	retrieveEndpointDetails(
+	PCStringPtr ID;
+	/*
+	retrieveLocalEndpointDetails(
 		PluginProvider,
 		RequestObject,
 		vNetName,
@@ -231,7 +242,8 @@ void ContainerHost::HandleEndpointPostCreate(
 		hnsNetworkType,
 		macAddress,
 		pa,
-		containerAddress);
+		containerAddress,
+		ID);*/
 
 		// inform other nodes in overlay about macAddress, pa, and containerAddress 
 }
@@ -252,8 +264,9 @@ void ContainerHost::HandleEndpointPostDelete(
 	PCStringPtr macAddress;
 	PCStringPtr pa;
 	PCStringPtr containerAddress;
-
-	retrieveEndpointDetails(
+	PCStringPtr ID;
+	/*
+	retrieveLocalEndpointDetails(
 		PluginProvider,
 		RequestObject,
 		vNetName,
@@ -261,7 +274,8 @@ void ContainerHost::HandleEndpointPostDelete(
 		hnsNetworkType,
 		macAddress,
 		pa,
-		containerAddress);
+		containerAddress,
+		ID);*/
 
 	// inform other nodes in overlay about deletion of macAddress, pa, and containerAddress 
 }

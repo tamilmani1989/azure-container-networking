@@ -12,6 +12,7 @@
 #define strncpy_s(dst, count, src, cp) strncpy(dst, src, count)
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
+#include "../Shared/Utilities.h"
 
 
 void assert(unsigned long value)
@@ -34,6 +35,7 @@ int wmain()
 int main()
 #endif
 {
+	AquariusUtilities::WriteEventLogEntry(L"Working or not");
 
 	ClusterConfig cfg;
     NodeNetworkResources nnr;
@@ -57,7 +59,7 @@ int main()
 	#endif
 
 	#ifdef _WIN32
-	assert(InitializeNetwork(&cfg));
+	//assert(InitializeNetwork(&cfg));
 	#endif
 
 	printf("Successfully initialized Azure/Underlay. retval = %d\n", retval);
@@ -65,6 +67,22 @@ int main()
 
 	cfg.net = OverLay;
 	cfg.env = Azure;
+	cfg.nodeCount = 1;
+	Ipv4Subnet ovSubnet;
+	struct in_addr ipAdd;
+	inet_pton(AF_INET, "12.10.0.0", &ipAdd);
+	ovSubnet.ipAddress = ipAdd.s_addr;
+
+	printf("converted ip prefix %s\n", inet_ntop(AF_INET, &ovSubnet.ipAddress, ipInString, INET_ADDRSTRLEN));
+	getchar();
+	ovSubnet.prefixLength = 24;
+	cfg.overlaySubnet = &ovSubnet;
+	cfg.nodeConfigs = (NodeConfig *)malloc(sizeof(NodeConfig));
+
+	inet_pton(AF_INET, "11.1.0.114", &ipAdd);
+	cfg.nodeConfigs[0].nodeIp = ipAdd.s_addr;
+	cfg.nodeConfigs[0].nodeId = "Id";
+	cfg.nodeConfigs[0].subnet = &ovSubnet;
 	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	free(cfg.networkName);
 	getchar();

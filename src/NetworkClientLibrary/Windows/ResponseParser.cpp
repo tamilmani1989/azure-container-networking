@@ -342,7 +342,7 @@ void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int 
 										char *primary = _com_util::ConvertBSTRToString(ipType);;
 										if(strncmp(primary, "false", 5) == 0)
 										{
-											int ipInt = ConvertToIPAddress((unsigned char *)ipStr);
+											unsigned int ipInt = ConvertToIPAddress((unsigned char *)ipStr);
 											if(!countOnly)
 											{
 												ips[*count] = ipInt;

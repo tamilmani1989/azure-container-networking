@@ -12,6 +12,7 @@
 #include "Common/aquanetworkclient.h"
 #include <stdlib.h>
 #include "Common/nclcore.h"
+#include <WinSock2.h>
 #ifdef _WIN32
 #include <stdio.h>
 #include <iostream>
@@ -33,7 +34,11 @@ extern unsigned long ReleaseRepositoryIpAddress(const char *reservationId);
 extern int GetAvailableIpsfromRepository(unsigned int *ips);
 extern unsigned int GetReservedIpFromRepository(const char *reservationId);
 extern void ParseSubnetAndGatewayIp(char *xmlResponse, char **sunbetIp, char **gatewayIp);
+extern unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist);
+extern unsigned int PersistedIpCountInRepository();
+extern DWORD GetHostIp(unsigned int *ip);
 
+NetworkType networkTypeProvided = UnderLay;
 
 // Returns the number of ip addresses that were returned
 // If nodeNetworkResources is null, only the number of ip addresses is returned
@@ -56,8 +61,19 @@ DllExport DWORD GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResourc
 {
 	int ipCount;
 	unsigned int *ips;
-	ipCount = getIpsFromNmAgent(NULL);
+	
+	if(networkTypeProvided == OverLay)
+	{
+		// overlay ips are persisted during network init
+		if(nodeNetworkResources != NULL)
+		{
+			GetAvailableIpsfromRepository(nodeNetworkResources->ips);
+		}
+		*count = PersistedIpCountInRepository();
+		return 0;
+	}
 
+	ipCount = getIpsFromNmAgent(NULL);	
 	if (ipCount <= 0)
 	{
 		return UNEXPECTED_ERROR;
@@ -118,13 +134,6 @@ DllExport  DWORD GetIpAddressForContainer(char *containerId, unsigned int ipAddr
 	return 0;
 }
 
-// To initialize the ip address space on the node for overlay network
-DllExport void InitializeOverlayAddressSpace(ClusterConfig *clusterConfig)
-{
-	UNREFERENCED_PARAMETER(clusterConfig);
-	return;
-}
-
 // Returns an ip address reserved correspoiding to the reservation id
 // returns -1 if reservation id does not exist
 DllExport DWORD GetReservedIpAddress(const char *reservationId, unsigned int *ipAddress)
@@ -150,11 +159,48 @@ DllExport DWORD ReleaseIpReservation(const char *reservationId)
 	return 0;
 }
 
+bool IsLocalNodeIp(unsigned int ip)
+{
+	UNREFERENCED_PARAMETER(ip);
+
+	unsigned int hostIp;
+	if(GetHostIp(&hostIp) != 0)
+	{
+		return false;
+	}
+	if(hostIp == ip)
+	{
+		return true;
+	}
+	return false;
+}
+
+unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
+{
+	if(clusterConfig->nodeConfigs == NULL)
+	{
+		return UNEXPECTED_ERROR;
+	}
+	for(int i= 0 ; i<clusterConfig->nodeCount ; i++)
+	{
+		NodeConfig nc = clusterConfig->nodeConfigs[i];
+		
+		if(IsLocalNodeIp(nc.nodeIp))
+		{
+			printf("Found my own node config nodeIp=0x%08X prefix=0x%08X prefix-len%d\n", nc.nodeIp, nc.subnet->ipAddress, nc.subnet->prefixLength);
+			PersistSubnetInRepository(nc.subnet);
+			printf("persisted ip space for my own node\n");
+			break;
+		}
+	}
+	return 0;
+}
+
 DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 {
+	unsigned long failed = 0;
 	if (!clusterConfig)
 	{
-
 		return INVALID_PARAMETER;
 	}
 
@@ -163,13 +209,25 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 	switch(clusterConfig->net)
 	{
 		case OverLay: 
-			printf("OverLay Network currently not supported\n");
-			//setupOverlay(clusterConfig);
-			return UNSUPPORTED_NETWORK;
+			printf("Going to setup overlay network\n");
+			networkTypeProvided = OverLay; // save the type
+			failed = setupOverlay(clusterConfig);
+			if(failed == 0)
+			{
+				printf("Going to persist overlay address space\n");
+				saveOverlayAddressSpace(clusterConfig);
+				printf("Successfully persisted Overlay Address Space\n");
+			}
+			else
+			{
+				printf("setup Overlay returned non zero value %d. None of the ips were saved.", failed);
+			}
+			printf("Initialize network finished. retunring %d\n", failed);
+			return failed;
 
 		case UnderLay: 
-			printf("Going to setup underlay network");
-
+			printf("Going to setup underlay network\n");
+			networkTypeProvided = UnderLay;
 			switch(clusterConfig->env)
 			{
 			case Azure: 
