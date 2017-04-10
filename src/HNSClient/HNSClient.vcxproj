@@ -3,8 +3,8 @@
   <PropertyGroup>
     <ProjectGuid>{A8F4B949-54EC-40C4-B9A4-6A338B2A4767}</ProjectGuid>
     <TargetName>HnsClient</TargetName>
-    <ConfigurationType>Application</ConfigurationType>
-    <!--ConfigurationType>DynamicLibrary</ConfigurationType-->
+    <!--ConfigurationType>Application</ConfigurationType-->
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(SRCROOT)\build\native_user_compile.props" />
   <Import Project="$(SRCROOT)\build\native_user_link.props" />
@@ -20,8 +20,8 @@
   <ItemDefinitionGroup>
     <Link>
       <SubSystem>console</SubSystem>
-      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
-      <!--EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol-->
+      <!--EntryPointSymbol>wmainCRTStartup</EntryPointSymbol-->
+      <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
       <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
       <AdditionalDependencies>
         %(AdditionalDependencies);
@@ -74,4 +74,7 @@
     <Midl Include="hnsApi.idl" />
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="AfterBuild">
+    <Copy SourceFiles="$(OutputPath)\HNSClient.dll; $(OutputPath)\HNSClient.pdb; $(OutputPath)\HNSClient.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
+ </Target>
 </Project>

@@ -14,6 +14,7 @@
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
 #include "../Shared/Utilities.h"
 
+extern DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostLocalIp);
 
 void assert(unsigned long value)
 {
@@ -70,7 +71,7 @@ int main()
 	cfg.nodeCount = 1;
 	Ipv4Subnet ovSubnet;
 	struct in_addr ipAdd;
-	inet_pton(AF_INET, "12.10.0.0", &ipAdd);
+	inet_pton(AF_INET, "10.10.0.0", &ipAdd);
 	ovSubnet.ipAddress = ipAdd.s_addr;
 
 	printf("converted ip prefix %s\n", inet_ntop(AF_INET, &ovSubnet.ipAddress, ipInString, INET_ADDRSTRLEN));
@@ -87,6 +88,17 @@ int main()
 	free(cfg.networkName);
 	getchar();
 
+	unsigned int hostLocalIp;
+	GetHostLocalIp(&hostLocalIp);
+	printf("Recevied host local as %s\n", inet_ntop(AF_INET, &hostLocalIp, ipInString, INET_ADDRSTRLEN));
+	getchar();
+
+	printf("Going ot detach hostlocal directly in HNS\n");
+	wchar_t ipInStringw[INET_ADDRSTRLEN];
+	size_t converted;
+	mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN);
+	DeleteLocalEndpointWithIp(ipInStringw, true);
+	getchar();
 	unsigned int ip;
 	printf("going to reserve available ip with ip0");
 	assert(ReserveAvailableIpAddress("ip0", &ip));

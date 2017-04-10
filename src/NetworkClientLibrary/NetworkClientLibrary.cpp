@@ -13,6 +13,10 @@
 #include <stdlib.h>
 #include "Common/nclcore.h"
 #include <WinSock2.h>
+#include <ws2ipdef.h>
+#include <ws2tcpip.h>
+#include "../aquanix/Common/aquanixext.h"
+#include <Mstcpip.h>
 #ifdef _WIN32
 #include <stdio.h>
 #include <iostream>
@@ -37,8 +41,9 @@ extern void ParseSubnetAndGatewayIp(char *xmlResponse, char **sunbetIp, char **g
 extern unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist);
 extern unsigned int PersistedIpCountInRepository();
 extern DWORD GetHostIp(unsigned int *ip);
-
 NetworkType networkTypeProvided = UnderLay;
+std::mutex hostLocalMutex;
+bool hostLocalIpProvisionedInHNS = false;
 
 // Returns the number of ip addresses that were returned
 // If nodeNetworkResources is null, only the number of ip addresses is returned
@@ -175,6 +180,7 @@ bool IsLocalNodeIp(unsigned int ip)
 	return false;
 }
 
+
 unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 {
 	if(clusterConfig->nodeConfigs == NULL)
@@ -194,6 +200,53 @@ unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 		}
 	}
 	return 0;
+}
+
+extern DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std::wstring ca, std::wstring pa, std::wstring isRemoteEndpoint);
+
+DWORD MappingsForOverlayDriver(char *endpointId, char *hostAddress, char *containerAddress, char *macAddress)
+{
+	if(strlen(endpointId) > 50)
+	{
+		return UNEXPECTED_ERROR;
+	}
+	wchar_t endPointIdW[50]; //GUID cannot exceed 38
+	size_t converted;
+	mbstowcs_s(&converted, endPointIdW, endpointId, 50);
+	
+	wchar_t hostAddressW[INET_ADDRSTRLEN];
+	mbstowcs_s(&converted, hostAddressW, hostAddress, INET_ADDRSTRLEN);
+
+	wchar_t containerAddressW[INET_ADDRSTRLEN]; //GUID cannot exceed 38
+	mbstowcs_s(&converted, containerAddressW, containerAddress, INET_ADDRSTRLEN);
+
+	wchar_t macAddressW[50]; //MAC cannot exceed 24
+	mbstowcs_s(&converted, macAddressW, macAddress, 50);
+
+	return AddEndpoint(endPointIdW, macAddressW, containerAddressW, hostAddressW, L"true");
+}
+
+void provideConfigToNIX(ClusterConfig *clusterConfig)
+{
+
+	printf("Informing nix about the other nodes in the network");
+	unsigned int localIp;
+	GetHostIp(&localIp);
+	char ipInString[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, &localIp, ipInString, INET_ADDRSTRLEN);
+	char**remoteHostAddresses = new char *[clusterConfig->nodeCount - 1]; //-1 for local address
+	for (int i = 0; i < clusterConfig->nodeCount; i++)
+	{
+		NodeConfig cnc = clusterConfig->nodeConfigs[i];
+		if (cnc.nodeIp != localIp)
+		{
+			char remoteIpInString[INET_ADDRSTRLEN];
+			inet_ntop(AF_INET, &localIp, remoteIpInString, INET_ADDRSTRLEN);
+			remoteHostAddresses[0] = remoteIpInString;
+		}
+	}
+	//InitializeAquaNix(ipInString, remoteHostAddresses, MappingsForOverlayDriver, 1050);
+	delete []remoteHostAddresses;
 }
 
 DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
@@ -216,12 +269,14 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 			{
 				printf("Going to persist overlay address space\n");
 				saveOverlayAddressSpace(clusterConfig);
+				provideConfigToNIX(clusterConfig);
 				printf("Successfully persisted Overlay Address Space\n");
 			}
 			else
 			{
 				printf("setup Overlay returned non zero value %d. None of the ips were saved.", failed);
 			}
+
 			printf("Initialize network finished. retunring %d\n", failed);
 			return failed;
 
@@ -246,10 +301,40 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 	}
 }
 
-DllExport DWORD GetHostLocalIp(unsigned int *ipAddress)
+extern DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp);
+DllExport DWORD GetHostLocalIp(unsigned int *hostLocalIp)
 {
-	UNREFERENCED_PARAMETER(ipAddress);
-	return 0;
+	unsigned long retval = 0;
+	if(networkTypeProvided == OverLay)
+	{
+		retval = ReserveAvailableIpAddress("HostLocalIp", hostLocalIp);
+		if (retval == 0)
+		{
+			if (!hostLocalIpProvisionedInHNS)
+			{
+				hostLocalMutex.lock();
+				if (!hostLocalIpProvisionedInHNS)
+				{
+					char ipInString[INET_ADDRSTRLEN];
+					wchar_t ipInStringw[INET_ADDRSTRLEN];
+					inet_ntop(AF_INET, hostLocalIp, ipInString, INET_ADDRSTRLEN);
+					size_t converted;
+					mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN);
+					AddHostLocalEndpoint(ipInStringw);
+					hostLocalIpProvisionedInHNS = true;
+				}
+			}
+		}
+		else
+		{
+			printf("Reserve Available for host local returned non-zero %d", retval);
+		}
+	}
+	else
+	{
+		retval = GetHostIp(hostLocalIp);
+	}
+	return retval;
 }
 
 DllExport DWORD SetupNetworkLogging(void(*log)(int, char*))

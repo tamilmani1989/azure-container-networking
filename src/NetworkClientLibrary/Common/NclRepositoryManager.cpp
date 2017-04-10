@@ -296,7 +296,6 @@ unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist)
 	unsigned int startingIp = (mask) & ntohl(subnetToPersist->ipAddress);
 
 	printf("starting ip=0x%08X\n", startingIp);
-	getchar();
 	unsigned int ipCount = 1;
 	for( int i = 0; i<leftShiftCount ;i++)
 	{

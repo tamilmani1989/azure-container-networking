@@ -415,22 +415,24 @@ DWORD GetHostIp(unsigned int *ip)
 	{
 		return UNEXPECTED_ERROR;
 	}
-	
-	if(gethostname(hostName, 255) !=0)
+
+	if (gethostname(hostName, 255) != 0)
 	{
 		printf("error happenned during hethostname() %d\n", WSAGetLastError());
-		retval=  UNEXPECTED_ERROR;
-	}
-	else
-	if ((hp = gethostbyname(hostName)) == nullptr)
-	{
-		fprintf(stderr, "gethostbyname failed %d : %s", WSAGetLastError(), hostName);
 		retval = UNEXPECTED_ERROR;
 	}
-	else 
+	else
 	{
-		(*ip) = *(u_long*)hp->h_addr_list[0];
-		printf("h_name = %s\n", hp->h_name);
+		if ((hp = gethostbyname(hostName)) == nullptr)
+		{
+			fprintf(stderr, "gethostbyname failed %d : %s", WSAGetLastError(), hostName);
+			retval = UNEXPECTED_ERROR;
+		}
+		else
+		{
+			(*ip) = *(u_long*)hp->h_addr_list[0];
+			printf("h_name = %s\n", hp->h_name);
+		}
 	}
 	printf("retrieved hostip 0x%08x", *ip);
 	wsaCleanUp();

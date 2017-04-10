@@ -210,7 +210,9 @@ bool retrieveLocalEndpointDetails(
 	{
 		PC_THROW_IF_FAILED_LOG(RequestObject->GetString(L"ID", &ID));
 		LogInFile(containerAddress);
-	}/*
+	}
+	
+	/*
 	PCStringPtr newLine = (wil::unique_cotaskmem_string) L"\n";
 	LogInFile(newLine);*/
 	return false;

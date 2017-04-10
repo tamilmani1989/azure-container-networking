@@ -36,6 +36,9 @@
     <ClCompile Include="Common\NetworkCommon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\aquanix\Common\aquanixext.h" />
+    <ClInclude Include="..\Common\Inc\aquabase.h" />
+    <ClInclude Include="..\Common\Inc\aquaError.h" />
     <ClInclude Include="Common\aqualoglevels.h" />
     <ClInclude Include="Common\aquanetworkclient.h" />
     <ClInclude Include="Common\aquaerrorcodes.h" />
