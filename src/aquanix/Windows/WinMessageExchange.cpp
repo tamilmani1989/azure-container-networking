@@ -68,6 +68,7 @@ AquaError:
 
 void WinMessageExchange::ReceiveMessage(void *param)
 {
+	wstring logMsg;
 	WinMessageExchange *pWinSocket = (WinMessageExchange*)param;
 
 	const int bufferLength = 1024;
@@ -80,10 +81,13 @@ void WinMessageExchange::ReceiveMessage(void *param)
 	int iResult = recvfrom(pWinSocket->m_serverSocket, recvBuffer, bufferLength, 0, (SOCKADDR *)&senderAddress, &senderAddressSize);
 	while (iResult > 0)
 	{
+		WinLogger::LogInformation(L"Received Message");
 		inet_ntop(senderAddress.sin_family, &senderAddress.sin_addr, &senderAddressString[0], 256);
+		WinLogger::LogInformation(L"Calling receive");
 		pWinSocket->Receive(senderAddressString, &recvBuffer[0], bufferLength);
 		iResult = recvfrom(pWinSocket->m_serverSocket, recvBuffer, bufferLength, 0, (SOCKADDR *)&senderAddress, &senderAddressSize);
 	}
+	
 	_endthread();
 }
 

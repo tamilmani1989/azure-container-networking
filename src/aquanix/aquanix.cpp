@@ -99,10 +99,11 @@ DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 	UNREFERENCED_PARAMETER(sender);
 	DWORD result = E_SUCCESS;
 	AquaNix *aquaNix = AquaNixFactory::GetInstance();
-
+	WinLogger::LogInformation(L"AquaNix Messsage");
 	Message message = Message((UCHAR *)buffer, (USHORT)bufLength);
 	if (message.GetMessageCode() == MessageCode::AckMapping)
 	{
+		WinLogger::LogInformation(L"Removing Acked Messsage");
 		aquaNix->m_pMessageSender->RemoveAckedMessage(message, sender);
 	}
 	else
@@ -110,15 +111,21 @@ DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 		const char *host = message.GetHostAddress();
 		if (strcmp(host, "127.0.0.1") == 0)
 		{
+			WinLogger::LogInformation(L"Message received to be forwarded o remote servers");
 			//need to send this to remote servers
 			message.SetHostAddress(aquaNix->m_localHostAddress);
 			E_AQUA(aquaNix->m_pMessageSender->Send(message), "Message send failed.");
+			WinLogger::LogInformation(L"Message set to be forwarded to remote servers");
 		}
 		else
 		{
+			WinLogger::LogInformation(L"External receive callback");
 			aquaNix->ReceiveMapping(message.GetEndpointId(), message.GetHostAddress(), message.GetContainerAddress(), message.GetMacAddress());
+			WinLogger::LogInformation(L"External receive callback returned");
 		}
+		WinLogger::LogInformation(L"Sending ack");
 		aquaNix->m_pMessageSender->SendAck(message, sender);
+		WinLogger::LogInformation(L"Ack sent");
 	}
 
 AquaError:
