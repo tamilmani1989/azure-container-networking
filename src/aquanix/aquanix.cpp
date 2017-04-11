@@ -70,6 +70,7 @@ AquaNix::AquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMap
 	ReceiveMapping = receiveMapping;
 	m_servicePort = servicePort;
 	m_remoteServicePort = remoteServicePort;
+	Message::SetServiceResponsePort(servicePort);
 
 #ifdef _WIN32
 	m_pMessageExchange = new WinMessageExchange(Protocol::Udp, servicePort, remoteServicePort, ReceiveMessage);

@@ -1,4 +1,5 @@
 #include "Message.h"
+#include <winsock2.h>
 
 extern "C"
 {
@@ -50,6 +51,14 @@ Message::Message(string endpointId, string hostAddress, string containerAddress,
 	m_hostAddress = hostAddress;
 	m_containerAddress = containerAddress;
 	m_macAddress = macAddress;
+	m_messageResponsePort = s_serviceResponsePort;
+}
+
+USHORT Message::s_serviceResponsePort = 0;
+
+void Message::SetServiceResponsePort(USHORT serviceResponsePort)
+{
+	s_serviceResponsePort = serviceResponsePort;
 }
 
 void Message::Init(UCHAR *buffer)
@@ -57,6 +66,12 @@ void Message::Init(UCHAR *buffer)
 	UCHAR *cur = buffer;
 	m_messageCode = (MessageCode)*cur;
 	cur += 1;
+
+	USHORT nPort;
+	char nPortSize = sizeof(nPort);
+	memcpy(&nPort, cur, nPortSize);
+	m_messageResponsePort = ntohs(nPort);
+	cur += nPortSize;
 
 	UCHAR segmentLength = *cur;
 	cur++;
@@ -99,14 +114,23 @@ RawMessage * Message::CreateAckRawMessage(const char *id, UCHAR idLen)
 	USHORT bufSize = idLen + 2;//account for null termination and one char for size
 	
 	UCHAR msgCode = (UCHAR)MessageCode::AckMapping;
-	char messageCodeSize = sizeof(msgCode);
+	char messageCodeSize = sizeof(UCHAR);
 	bufSize += messageCodeSize;
+
+	//message response port
+	USHORT nPort = htons(m_messageResponsePort);
+	char nPortSize = sizeof(nPort);
+	bufSize += nPortSize;
 
 	UCHAR *buffer = new UCHAR[bufSize];
 	
 	//copy msg code
 	memcpy(buffer, &msgCode, messageCodeSize);
 	UCHAR *cur = buffer + messageCodeSize;
+
+	//copy msg response port in network byte order
+	memcpy(cur, &nPort, nPortSize);
+	cur += nPortSize;
 
 	//copy msg Id with its size
 	UCHAR segmentLength = (UCHAR)(idLen + 1);
@@ -131,6 +155,11 @@ RawMessage * Message::CreateRawMessage()
 	char messageCodeSize = sizeof(msgCode);
 	bufSize += messageCodeSize;
 
+	//message response port
+	USHORT nPort = htons(m_messageResponsePort);
+	char nPortSize = sizeof(nPort);
+	bufSize += nPortSize;
+
 	//endpoint id
 	bufSize += (UCHAR)m_endpointId.length() + 2;
 
@@ -152,6 +181,10 @@ RawMessage * Message::CreateRawMessage()
 	//copy msg code
 	memcpy(cur, &msgCode, messageCodeSize);
 	cur += messageCodeSize;
+
+	//copy msg response port in network byte order
+	memcpy(cur, &nPort, nPortSize);
+	cur += nPortSize;
 
 	//copy msg Id with its size
 	segmentLength = (UCHAR)m_id.length() + 1;
@@ -224,4 +257,9 @@ void Message::SetHostAddress(string hostAddress)
 MessageCode Message::GetMessageCode()
 {
 	return m_messageCode;
+}
+
+USHORT Message::GetMessageResponsePort()
+{
+	return m_messageResponsePort;
 }

@@ -87,14 +87,14 @@ void WinMessageExchange::ReceiveMessage(void *param)
 	_endthread();
 }
 
-DWORD WinMessageExchange::Send(const char *receiver, const char *buffer, USHORT bufLength)
+DWORD WinMessageExchange::Send(const char *receiver, USHORT responsePort, const char *buffer, USHORT bufLength)
 {
 	DWORD result = E_SUCCESS;
 	int iResult = 0;
 
 	sockaddr_in recvAddress;
 	recvAddress.sin_family = AF_INET;
-	recvAddress.sin_port = htons(m_remotePort);
+	recvAddress.sin_port = htons(responsePort);
 	//recvAddress.sin_addr.s_addr = inet_addr(receiver);
 	if (1 != inet_pton(AF_INET, receiver, &recvAddress.sin_addr.s_addr))
 	{
@@ -106,6 +106,16 @@ DWORD WinMessageExchange::Send(const char *receiver, const char *buffer, USHORT 
 AquaError:
 	return result;
 }
+
+DWORD WinMessageExchange::Send(const char *receiver, const char *buffer, USHORT bufLength)
+{
+	DWORD result = E_SUCCESS;
+	E_AQUA(Send(receiver, m_remotePort, buffer, bufLength), "Send Failed.")
+
+AquaError:
+	return result;
+}
+
 
 void WinMessageExchange::Cleanup()
 {
