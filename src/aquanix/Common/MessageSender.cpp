@@ -42,8 +42,10 @@ DWORD MessageSender::SendAck(Message message, char *destination)
 {
 	DWORD result = E_SUCCESS;
 
+	USHORT responsePort = message.GetMessageResponsePort();
 	RawMessage *pRawMessage = message.CreateAckRawMessage();
-	m_pMessageExchange->Send(destination, (const char *)pRawMessage->GetData(), pRawMessage->GetDataSize());
+
+	m_pMessageExchange->Send(destination, responsePort, (const char *)pRawMessage->GetData(), pRawMessage->GetDataSize());
 	delete pRawMessage;
 
 	//AquaError:

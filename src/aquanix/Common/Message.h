@@ -18,6 +18,10 @@ namespace aqua
 		string m_hostAddress;
 		string m_containerAddress;
 		string m_macAddress;
+		
+		static USHORT s_serviceResponsePort;
+		USHORT m_messageResponsePort;
+
 		string CreateUuid();
 		void Message::Init(UCHAR *buffer);
 
@@ -33,6 +37,8 @@ namespace aqua
 		const char *GetMacAddress();
 		void SetHostAddress(string hostAddress);
 		MessageCode GetMessageCode();
+		USHORT GetMessageResponsePort();
+		static void SetServiceResponsePort(USHORT serviceResponsePort);
 
 
 		RawMessage *CreateRawMessage();

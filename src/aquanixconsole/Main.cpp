@@ -26,8 +26,8 @@ int main()
 #endif
 {
 	printf("hello nisheeth");
-	char *localHostAddress = "172.18.80.212";
-	char **remoteHostAddresses = new char*{"172.18.80.212"};
+	char *localHostAddress = "172.27.18.40";
+	char **remoteHostAddresses = new char*{"172.27.18.40"};
 
 
 	InitializeAquaNix(localHostAddress, remoteHostAddresses, ReceiveMapping, 10050, 10050);

@@ -29,5 +29,6 @@ namespace aqua
 		DWORD Initialize();
 
 		virtual DWORD Send(const char *receiver, const char *buffer, USHORT bufLength);
+		virtual DWORD Send(const char *receiver, USHORT responsePort, const char *buffer, USHORT bufLength);
 	};
 }
