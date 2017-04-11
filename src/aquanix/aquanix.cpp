@@ -34,7 +34,7 @@ AquaError:
 	return result;
 }
 
-DllExport DWORD SendLocalMapping(char *endpointId, char *containerAddress, char *macAddress)
+DllExport DWORD SendLocalMapping(const char *endpointId, const char *containerAddress, const char *macAddress)
 {
 	WinLogger::LogInformation(L"Enter SendLocalMapping");
 
