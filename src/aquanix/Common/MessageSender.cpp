@@ -23,8 +23,8 @@ DWORD MessageSender::Send(Message message)
 	LogMessage(L"Enter MessageSender::Send");
 
 	DWORD result = E_SUCCESS;
-
 	RawMessage *pRawMessage = message.CreateRawMessage();
+	E_NULL(pRawMessage, E_CouldNotCreateRawMessage, "Failed to create raw message.");
 	map<string, int>* pSendMap = new map<string, int>();
 	for (int i = 0; i < m_remoteHostsCount; i++)
 	{
@@ -35,7 +35,7 @@ DWORD MessageSender::Send(Message message)
 	UpdateMessageMap(msgId, messageMapTuple);
 	m_conditionSendMessage.notify_one();
 
-//AquaError:
+AquaError:
 	LogMessage(L"Exit MessageSender::Send");
 	return result;
 }

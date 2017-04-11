@@ -12,6 +12,7 @@ namespace aqua
 	const DWORD E_InvalidArguments = 6;
 	const DWORD E_CreateAquaNixFailed = 7;
 	const DWORD E_InsufficientMemory = 8;
+	const DWORD E_CouldNotCreateRawMessage = 9;
 }
 
 #define TraceLog(message) \
