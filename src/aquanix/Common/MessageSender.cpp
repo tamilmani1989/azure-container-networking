@@ -16,11 +16,12 @@ MessageSender::~MessageSender()
 	m_pMessageExchange = NULL;
 	m_remoteHostAddresses = NULL;
 	m_remoteHostsCount = 0;
-	//need to cleanup more stuff here
 }
 
 DWORD MessageSender::Send(Message message)
 {
+	LogMessage(L"Enter MessageSender::Send");
+
 	DWORD result = E_SUCCESS;
 
 	RawMessage *pRawMessage = message.CreateRawMessage();
@@ -35,20 +36,23 @@ DWORD MessageSender::Send(Message message)
 	m_conditionSendMessage.notify_one();
 
 //AquaError:
+	LogMessage(L"Exit MessageSender::Send");
 	return result;
 }
 
 DWORD MessageSender::SendAck(Message message, char *destination)
 {
+	LogMessage(L"Enter MessageSender::SendAck");
 	DWORD result = E_SUCCESS;
 
 	USHORT responsePort = message.GetMessageResponsePort();
 	RawMessage *pRawMessage = message.CreateAckRawMessage();
 
-	m_pMessageExchange->Send(destination, responsePort, (const char *)pRawMessage->GetData(), pRawMessage->GetDataSize());
+	E_AQUA(m_pMessageExchange->Send(destination, responsePort, (const char *)pRawMessage->GetData(), pRawMessage->GetDataSize()), "Send ack failed");
 	delete pRawMessage;
 
-	//AquaError:
+AquaError:
+	LogMessage(L"Exit MessageSender::SendAck");
 	return result;
 }
 
@@ -59,14 +63,17 @@ void MessageSender::UpdateMessageMap(const char *id, tuple<RawMessage*, map<stri
 }
 DWORD MessageSender::RemoveAckedMessage(Message message, char *destination)
 {
+	LogMessage(L"Enter MessageSender::RemoveAckedMessage");
 	DWORD result = E_SUCCESS;
 	RemoveAckedMessageFromMap(message.GetMessageId(), destination);
 	//AquaError:
+	LogMessage(L"Exit MessageSender::RemoveAckedMessage");
 	return result;
 }
 
 void MessageSender::RemoveAckedMessageFromMap(string msgId, char *destination)
 {
+	LogMessage(L"Enter MessageSender::RemoveAckedMessageFromMap");
 	lock_guard<mutex> lockGuard(m_mapLock);
 	map<string, tuple<RawMessage*, map<string, int>*>*>::iterator it;
 
@@ -91,29 +98,36 @@ void MessageSender::RemoveAckedMessageFromMap(string msgId, char *destination)
 		delete it->second;
 		m_messageMap.erase(it);
 	}
+	LogMessage(L"Exit MessageSender::RemoveAckedMessageFromMap");
 }
 
 void MessageSender::SendMessagesDaemon(MessageSender *pMessageSender)
 {
+	pMessageSender->LogMessage(L"Enter SendMessagesDaemon");
 	unique_lock<mutex> mlock(pMessageSender->m_mapLock);
 	pMessageSender->m_messageSendingStopped = false;
 	do
 	{
 		pMessageSender->m_conditionSendMessage.wait(mlock);
+		pMessageSender->LogMessage(L"SendMessagesDaemon notified");
 		if (pMessageSender->m_exitMessageSending)
 		{
+			pMessageSender->LogMessage(L"SendMessagesDaemon stop notification");
 			pMessageSender->m_messageSendingStopped = true;
 			pMessageSender->m_conditionSendingStopped.notify_all();
 			break;
 		}
+		pMessageSender->LogMessage(L"SendMessagesDaemon ProcessMessage");
 		//process message
 		pMessageSender->ProcessMessages();
 		//pMessageSender->m_pMessageExchange->Send()
 	} while (true);
+	pMessageSender->LogMessage(L"Exit SendMessagesDaemon");
 }
 
 void MessageSender::ProcessMessages()
 {
+	LogMessage(L"Enter MessageSender::ProcessMessages");
 	for (map<string, tuple<RawMessage*, map<string, int>*>*>::iterator it = m_messageMap.begin(); it != m_messageMap.end(); ++it)
 	{
 		string msgId = it->first;
@@ -125,4 +139,5 @@ void MessageSender::ProcessMessages()
 			m_pMessageExchange->Send(it2->first.c_str(), (const char *)pRawMessage->GetData(), pRawMessage->GetDataSize());
 		}
 	}
+	LogMessage(L"Exit MessageSender::ProcessMessages");
 }

@@ -14,13 +14,14 @@ namespace aqua
 	class MessageExchange
 	{
 	protected:
+		string m_localHostIPAddress;
 		Protocol m_protocol;
 		USHORT m_port;
 		USHORT m_remotePort;
 		ReceiveFunc Receive;
 
 	public:
-		MessageExchange(Protocol protocol, USHORT port, USHORT remotePort, ReceiveFunc receiveFunc);
+		MessageExchange(string localHostIPAddress,Protocol protocol, USHORT port, USHORT remotePort, ReceiveFunc receiveFunc);
 		virtual ~MessageExchange();
 
 		virtual DWORD Initialize() = 0;

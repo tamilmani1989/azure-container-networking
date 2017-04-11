@@ -27,6 +27,7 @@ namespace aqua
 		static void SendMessagesDaemon(MessageSender *pMessageSender);
 		void ProcessMessages();
 		void RemoveAckedMessageFromMap(string msgId, char *destination);
+		virtual void LogMessage(wstring logMessage) = 0;
 
 	public:
 		MessageSender(MessageExchange *pMessageExchange, string *remoteHostAddresses, int remoteHostsCount);

@@ -16,15 +16,17 @@ namespace aqua
 	private:
 		SOCKET m_clientSocket;
 		SOCKET m_serverSocket;
+		SOCKET m_serverLocalHostSocket;
 		string m_portString;
 		bool m_wsaInitialized;
 		struct addrinfo *m_addressInfo;
 
 		void Cleanup();
 		static void ReceiveMessage(void *params);
+		static void ReceiveMessageLocalServer(void *params);
 
 	public:
-		WinMessageExchange(Protocol protocol, USHORT port, USHORT remotePort, ReceiveFunc receiveFunc);
+		WinMessageExchange(string localHostIPAddress, Protocol protocol, USHORT port, USHORT remotePort, ReceiveFunc receiveFunc);
 		virtual ~WinMessageExchange();
 
 		DWORD Initialize();

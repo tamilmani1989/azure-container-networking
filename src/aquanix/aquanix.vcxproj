@@ -38,6 +38,7 @@
     <ClCompile Include="Common\RawMessage.cpp" />
     <ClCompile Include="Windows\WinLogger.cpp" />
     <ClCompile Include="Windows\WinMessageExchange.cpp" />
+    <ClCompile Include="Windows\WinMessageSender.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Common\Inc\aquabase.h" />
@@ -53,6 +54,7 @@
     <ClInclude Include="ContainerNetworkInfo.h" />
     <ClInclude Include="Windows\WinLogger.h" />
     <ClInclude Include="Windows\WinMessageExchange.h" />
+    <ClInclude Include="Windows\WinMessageSender.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.vcxproj">
