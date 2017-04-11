@@ -11,7 +11,7 @@ namespace aqua
 		string m_localHostAddress;
 		string *m_remoteHostAddresses;
 		int m_remoteHostsCount;
-		ReceiveMappingCallback ReceiveMapping;
+		AddRemoteMappingCallback ReceiveMapping;
 		USHORT m_servicePort;
 		USHORT m_remoteServicePort;
 		MessageExchange *m_pMessageExchange;
@@ -19,7 +19,7 @@ namespace aqua
 		static DWORD ReceiveMessage(char *sender, void *buffer, int bufLength);
 
 	public:
-		AquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort, USHORT remoteServicePort);
+		AquaNix(char *localHostAddress, char *remoteHostAddresses[], AddRemoteMappingCallback receiveMapping, USHORT servicePort, USHORT remoteServicePort);
 		~AquaNix();
 
 		DWORD SendMapping(string endpointId, string containerAddress, string macAddress);
@@ -30,7 +30,7 @@ namespace aqua
 	private:
 		static AquaNix *s_pAquaNix;
 	public:
-		static DWORD Create(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort, USHORT remotePort);
+		static DWORD Create(char *localHostAddress, char *remoteHostAddresses[], AddRemoteMappingCallback receiveMapping, USHORT servicePort, USHORT remotePort);
 		static AquaNix *GetInstance();
 		//static DWORD Cleanup();
 	};

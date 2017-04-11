@@ -15,8 +15,15 @@
 
 AquaNix *AquaNixFactory::s_pAquaNix = NULL;
 
-DllExport DWORD InitializeAquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort, USHORT remotePort)
+DllExport DWORD InitializeAquaNix(
+	char *localHostAddress, 
+	char *remoteHostAddresses[], 
+	AddRemoteMappingCallback receiveMapping,
+	DeleteRemoteMappingCallback deleteMapping,
+	USHORT servicePort, 
+	USHORT remotePort)
 {
+	UNREFERENCED_PARAMETER(deleteMapping);
 	WinLogger::LogInformation(L"InitializeAquaNix");
 
 	DWORD result = E_SUCCESS;
@@ -27,9 +34,9 @@ AquaError:
 	return result;
 }
 
-DllExport DWORD SendMapping(char *endpointId, char *containerAddress, char *macAddress)
+DllExport DWORD SendLocalMapping(char *endpointId, char *containerAddress, char *macAddress)
 {
-	WinLogger::LogInformation(L"Enter SendMapping");
+	WinLogger::LogInformation(L"Enter SendLocalMapping");
 
 	DWORD result = E_SUCCESS;
 	AquaNix *pAquaNix = AquaNixFactory::GetInstance();
@@ -37,11 +44,38 @@ DllExport DWORD SendMapping(char *endpointId, char *containerAddress, char *macA
 	E_AQUA(pAquaNix->SendMapping(string(endpointId), string(containerAddress), string(macAddress)), "AquaNix create failed.");
 
 AquaError:
-	WinLogger::LogInformation(L"Exit SendMapping");
+	WinLogger::LogInformation(L"Exit SendLocalMapping");
 	return result;
 }
 
-DWORD AquaNixFactory::Create(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort, USHORT remoteServicePort)
+DllExport DWORD DeleteLocalMapping(
+	const char *endpointId)
+{
+	UNREFERENCED_PARAMETER(endpointId);
+	WinLogger::LogInformation(L"Enter DeleteLocalMapping");
+	DWORD result = E_SUCCESS;
+
+//AquaError:
+	WinLogger::LogInformation(L"Exit DeleteLocalMapping");
+	return result;
+}
+
+DllExport DWORD RequestRemoteMappings()
+{
+	WinLogger::LogInformation(L"Enter RequestRemoteMappings");
+	DWORD result = E_SUCCESS;
+
+//AquaError:
+	WinLogger::LogInformation(L"Exit RequestRemoteMappings");
+	return result;
+}
+
+DWORD AquaNixFactory::Create(
+	char *localHostAddress, 
+	char *remoteHostAddresses[], 
+	AddRemoteMappingCallback receiveMapping,
+	USHORT servicePort, 
+	USHORT remoteServicePort)
 {
 	WinLogger::LogInformation(L"Enter Create AquaNix");
 	DWORD result = E_SUCCESS;
@@ -65,7 +99,7 @@ AquaNix *AquaNixFactory::GetInstance()
 	return s_pAquaNix;
 }
 
-AquaNix::AquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort, USHORT remoteServicePort)
+AquaNix::AquaNix(char *localHostAddress, char *remoteHostAddresses[], AddRemoteMappingCallback receiveMapping, USHORT servicePort, USHORT remoteServicePort)
 {
 	m_localHostAddress = string(localHostAddress);
 	m_remoteHostsCount = sizeof(remoteHostAddresses) / sizeof(remoteHostAddresses[0]);
@@ -82,13 +116,15 @@ AquaNix::AquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMap
 
 #ifdef _WIN32
 	m_pMessageExchange = new WinMessageExchange(m_localHostAddress, Protocol::Udp, servicePort, remoteServicePort, ReceiveMessage);
-	// create the sender
-	m_pMessageSender = new WinMessageSender(m_pMessageExchange, m_remoteHostAddresses, m_remoteHostsCount);
 #endif
-
 
 	//Initialize the exchange
 	m_pMessageExchange->Initialize();
+
+#ifdef _WIN32
+	// create the sender
+	m_pMessageSender = new WinMessageSender(m_pMessageExchange, m_remoteHostAddresses, m_remoteHostsCount);
+#endif
 }
 
 DWORD AquaNix::SendMapping(string endpointId, string containerAddress, string macAddress)

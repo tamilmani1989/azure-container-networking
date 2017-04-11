@@ -18,6 +18,12 @@ DWORD ReceiveMapping(const char *endpointId, const char *hostAddress, const char
 	return 0;
 }
 
+DWORD DeleteRemoteMapping(
+	const char *endpointId)
+{
+	cout << endpointId;
+}
+
 #ifdef _WIN32
 int wmain()
 #endif
@@ -30,10 +36,10 @@ int main()
 	char **remoteHostAddresses = new char*{"172.27.18.40"};
 
 
-	InitializeAquaNix(localHostAddress, remoteHostAddresses, ReceiveMapping, 10050, 10050);
+	InitializeAquaNix(localHostAddress, remoteHostAddresses, ReceiveMapping, DeleteRemoteMapping, 10050, 10050);
 	string myinput;
 	cin >> myinput;
-	DWORD result = SendMapping("endpoint_012345", "172.2.3.4", "6E-34-21-56-31");
+	DWORD result = SendLocalMapping("endpoint_012345", "172.2.3.4", "6E-34-21-56-31");
 	cout << result;
 	cin >> myinput;
 	

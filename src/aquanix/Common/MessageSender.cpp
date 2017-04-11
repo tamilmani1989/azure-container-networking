@@ -103,13 +103,13 @@ void MessageSender::RemoveAckedMessageFromMap(string msgId, char *destination)
 
 void MessageSender::SendMessagesDaemon(MessageSender *pMessageSender)
 {
-	pMessageSender->LogMessage(L"Enter SendMessagesDaemon");
 	unique_lock<mutex> mlock(pMessageSender->m_mapLock);
 	pMessageSender->m_messageSendingStopped = false;
+	//pMessageSender->LogMessage(L"Enter SendMessagesDaemon");
 	do
 	{
 		pMessageSender->m_conditionSendMessage.wait(mlock);
-		pMessageSender->LogMessage(L"SendMessagesDaemon notified");
+		//pMessageSender->LogMessage(L"SendMessagesDaemon notified");
 		if (pMessageSender->m_exitMessageSending)
 		{
 			pMessageSender->LogMessage(L"SendMessagesDaemon stop notification");
