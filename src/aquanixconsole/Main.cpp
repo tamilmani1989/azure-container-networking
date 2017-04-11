@@ -22,6 +22,7 @@ DWORD DeleteRemoteMapping(
 	const char *endpointId)
 {
 	cout << endpointId;
+	return 0;
 }
 
 #ifdef _WIN32
