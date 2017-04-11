@@ -10,12 +10,15 @@
 
 #ifdef _WIN32
 #include "Windows\WinMessageExchange.h"
+#include "Windows\WinMessageSender.h"
 #endif
 
 AquaNix *AquaNixFactory::s_pAquaNix = NULL;
 
 DllExport DWORD InitializeAquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort, USHORT remotePort)
 {
+	WinLogger::LogInformation(L"InitializeAquaNix");
+
 	DWORD result = E_SUCCESS;
 
 	E_AQUA(AquaNixFactory::Create(localHostAddress, remoteHostAddresses, receiveMapping, servicePort, remotePort), "AquaNix create failed.");
@@ -26,17 +29,21 @@ AquaError:
 
 DllExport DWORD SendMapping(char *endpointId, char *containerAddress, char *macAddress)
 {
+	WinLogger::LogInformation(L"Enter SendMapping");
+
 	DWORD result = E_SUCCESS;
 	AquaNix *pAquaNix = AquaNixFactory::GetInstance();
 	
 	E_AQUA(pAquaNix->SendMapping(string(endpointId), string(containerAddress), string(macAddress)), "AquaNix create failed.");
 
 AquaError:
+	WinLogger::LogInformation(L"Exit SendMapping");
 	return result;
 }
 
 DWORD AquaNixFactory::Create(char *localHostAddress, char *remoteHostAddresses[], ReceiveMappingCallback receiveMapping, USHORT servicePort, USHORT remoteServicePort)
 {
+	WinLogger::LogInformation(L"Enter Create AquaNix");
 	DWORD result = E_SUCCESS;
 
 	E_NULL(localHostAddress, E_InvalidArguments, "localHostAddress is NULL");
@@ -49,6 +56,7 @@ DWORD AquaNixFactory::Create(char *localHostAddress, char *remoteHostAddresses[]
 	E_NULLPTR(s_pAquaNix, E_CreateAquaNixFailed, "CreateAquaNixFailed");
 
 AquaError:
+	WinLogger::LogInformation(L"Exit Create AquaNix");
 	return result;
 }
 
@@ -73,11 +81,11 @@ AquaNix::AquaNix(char *localHostAddress, char *remoteHostAddresses[], ReceiveMap
 	Message::SetServiceResponsePort(servicePort);
 
 #ifdef _WIN32
-	m_pMessageExchange = new WinMessageExchange(Protocol::Udp, servicePort, remoteServicePort, ReceiveMessage);
+	m_pMessageExchange = new WinMessageExchange(m_localHostAddress, Protocol::Udp, servicePort, remoteServicePort, ReceiveMessage);
+	// create the sender
+	m_pMessageSender = new WinMessageSender(m_pMessageExchange, m_remoteHostAddresses, m_remoteHostsCount);
 #endif
 
-	// create the sender
-	m_pMessageSender = new MessageSender(m_pMessageExchange, m_remoteHostAddresses, m_remoteHostsCount);
 
 	//Initialize the exchange
 	m_pMessageExchange->Initialize();
@@ -96,6 +104,8 @@ AquaError:
 
 DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 {
+	WinLogger::LogInformation(L"Enter AquaNix::ReceiveMessage");
+
 	UNREFERENCED_PARAMETER(sender);
 	DWORD result = E_SUCCESS;
 	AquaNix *aquaNix = AquaNixFactory::GetInstance();
@@ -103,6 +113,7 @@ DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 	Message message = Message((UCHAR *)buffer, (USHORT)bufLength);
 	if (message.GetMessageCode() == MessageCode::AckMapping)
 	{
+		WinLogger::LogInformation(L"Removing Acked Messsage");
 		aquaNix->m_pMessageSender->RemoveAckedMessage(message, sender);
 	}
 	else
@@ -110,18 +121,25 @@ DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 		const char *host = message.GetHostAddress();
 		if (strcmp(host, "127.0.0.1") == 0)
 		{
+			WinLogger::LogInformation(L"Message received to be forwarded o remote servers");
 			//need to send this to remote servers
 			message.SetHostAddress(aquaNix->m_localHostAddress);
 			E_AQUA(aquaNix->m_pMessageSender->Send(message), "Message send failed.");
+			WinLogger::LogInformation(L"Message set to be forwarded to remote servers");
 		}
 		else
 		{
+			WinLogger::LogInformation(L"External receive callback");
 			aquaNix->ReceiveMapping(message.GetEndpointId(), message.GetHostAddress(), message.GetContainerAddress(), message.GetMacAddress());
+			WinLogger::LogInformation(L"External receive callback returned");
 		}
+		WinLogger::LogInformation(L"Sending ack");
 		aquaNix->m_pMessageSender->SendAck(message, sender);
+		WinLogger::LogInformation(L"Ack sent");
 	}
 
 AquaError:
+	WinLogger::LogInformation(L"Exit AquaNix::ReceiveMessage");
 	return result;
 }
 

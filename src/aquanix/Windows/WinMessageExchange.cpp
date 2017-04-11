@@ -1,13 +1,14 @@
 #include "WinMessageExchange.h"
 #include <process.h>
 
-WinMessageExchange::WinMessageExchange(Protocol protocol, USHORT port, USHORT remotePort, ReceiveFunc receiveFunc)
-	:MessageExchange::MessageExchange(protocol, port, remotePort, receiveFunc)
+WinMessageExchange::WinMessageExchange(string localHostIPAddress, Protocol protocol, USHORT port, USHORT remotePort, ReceiveFunc receiveFunc)
+	:MessageExchange::MessageExchange(localHostIPAddress, protocol, port, remotePort, receiveFunc)
 {
 	m_portString = to_string(m_port);
 	m_wsaInitialized = false;
 	m_serverSocket = INVALID_SOCKET;
 	m_clientSocket = INVALID_SOCKET;
+	m_serverLocalHostSocket = INVALID_SOCKET;
 }
 
 DWORD WinMessageExchange::Initialize()
@@ -44,19 +45,54 @@ DWORD WinMessageExchange::Initialize()
 	// Resolve the local address and port to be used by the server
 	E_WSA(getaddrinfo(NULL, m_portString.c_str(), &hints, &m_addressInfo), "getaddrinfo failed: ", E_GetAddrFailed);
 
+	sockaddr_in recvAddress;
+	recvAddress.sin_family = AF_INET;
+	recvAddress.sin_port = htons(m_port);
+	if (1 != inet_pton(AF_INET, m_localHostIPAddress.c_str(), &recvAddress.sin_addr.s_addr))
+	{
+		E_WSA_FAIL("conversion failed", E_SendFailed);
+	}
+
 	//create socket
 	m_serverSocket = socket(m_addressInfo->ai_family, m_addressInfo->ai_socktype, m_addressInfo->ai_protocol);
 	E_WSA_FAILFOR(INVALID_SOCKET, m_serverSocket,"Server Socket failed.",E_SocketFailed);
 
 	//bind
 	E_WSA_FAILFOR(SOCKET_ERROR, bind(m_serverSocket, m_addressInfo->ai_addr, (int)m_addressInfo->ai_addrlen), "bind failed: ", E_BindFailed);
+	//E_WSA_FAILFOR(SOCKET_ERROR, bind(m_serverSocket, (const sockaddr *)&recvAddress, sizeof(recvAddress)), "bind failed: ", E_BindFailed);
+
+	//receive
+	_beginthread(ReceiveMessage, 0, this);
+
+	///Create local host socket if needed
+	/*
+	if (0 != m_localHostIPAddress.compare("127.0.0.1"))
+	{
+		sockaddr_in recvAddress1;
+		recvAddress1.sin_family = AF_INET;
+		recvAddress1.sin_port = htons(m_port);
+		if (1 != inet_pton(AF_INET, "127.0.0.1", &recvAddress1.sin_addr.s_addr))
+		{
+			E_WSA_FAIL("conversion failed", E_SendFailed);
+		}
+
+		//create socket
+		m_serverLocalHostSocket = socket(m_addressInfo->ai_family, m_addressInfo->ai_socktype, m_addressInfo->ai_protocol);
+		E_WSA_FAILFOR(INVALID_SOCKET, m_serverLocalHostSocket, "Server Socket failed.", E_SocketFailed);
+
+		//bind
+		//E_WSA_FAILFOR(SOCKET_ERROR, bind(m_serverSocket, m_addressInfo->ai_addr, (int)m_addressInfo->ai_addrlen), "bind failed: ", E_BindFailed);
+		E_WSA_FAILFOR(SOCKET_ERROR, bind(m_serverLocalHostSocket, (const sockaddr *)&recvAddress1, sizeof(recvAddress1)), "bind failed: ", E_BindFailed);
+
+		_beginthread(ReceiveMessageLocalServer, 0, this);
+	}
+	*/
 
 	//create send socket
 	m_clientSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	E_WSA_FAILFOR(INVALID_SOCKET, m_clientSocket, "Client Socket failed.", E_SocketFailed);
 
-	//receive
-	_beginthread(ReceiveMessage, 0, this);
+
 
 AquaError:
 	if (result != E_SUCCESS)
@@ -68,6 +104,7 @@ AquaError:
 
 void WinMessageExchange::ReceiveMessage(void *param)
 {
+	wstring logMsg;
 	WinMessageExchange *pWinSocket = (WinMessageExchange*)param;
 
 	const int bufferLength = 1024;
@@ -77,13 +114,43 @@ void WinMessageExchange::ReceiveMessage(void *param)
 	sockaddr_in senderAddress;
 	int senderAddressSize = sizeof(senderAddress);
 
+	WinLogger::LogInformation(L"going to receive.");
 	int iResult = recvfrom(pWinSocket->m_serverSocket, recvBuffer, bufferLength, 0, (SOCKADDR *)&senderAddress, &senderAddressSize);
 	while (iResult > 0)
 	{
+		WinLogger::LogInformation(L"Received Message");
 		inet_ntop(senderAddress.sin_family, &senderAddress.sin_addr, &senderAddressString[0], 256);
+		WinLogger::LogInformation(L"Calling receive");
 		pWinSocket->Receive(senderAddressString, &recvBuffer[0], bufferLength);
 		iResult = recvfrom(pWinSocket->m_serverSocket, recvBuffer, bufferLength, 0, (SOCKADDR *)&senderAddress, &senderAddressSize);
 	}
+	WinLogger::LogInformation(L"Receiver exiting.");
+	
+	_endthread();
+}
+
+void WinMessageExchange::ReceiveMessageLocalServer(void *param)
+{
+	wstring logMsg;
+	WinMessageExchange *pWinSocket = (WinMessageExchange*)param;
+
+	const int bufferLength = 1024;
+	char recvBuffer[bufferLength];
+
+	char senderAddressString[256];
+	sockaddr_in senderAddress;
+	int senderAddressSize = sizeof(senderAddress);
+
+	int iResult = recvfrom(pWinSocket->m_serverLocalHostSocket, recvBuffer, bufferLength, 0, (SOCKADDR *)&senderAddress, &senderAddressSize);
+	while (iResult > 0)
+	{
+		WinLogger::LogInformation(L"Received Message");
+		inet_ntop(senderAddress.sin_family, &senderAddress.sin_addr, &senderAddressString[0], 256);
+		WinLogger::LogInformation(L"Calling receive");
+		pWinSocket->Receive(senderAddressString, &recvBuffer[0], bufferLength);
+		iResult = recvfrom(pWinSocket->m_serverLocalHostSocket, recvBuffer, bufferLength, 0, (SOCKADDR *)&senderAddress, &senderAddressSize);
+	}
+
 	_endthread();
 }
 
