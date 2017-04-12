@@ -282,7 +282,7 @@ PCPlugin::HandleRequest(
             case RequestActivityServiceStart:
                 // Optionally create a network, if this is needed.
                 // After this point it is allowed to create networks / endpoints.
-               // m_host.Initialize(PluginProvider);
+               m_host.Initialize(PluginProvider);
                 break;
             case RequestActivityServiceStop:
                 // After this point it is no longer allowed to create objects.

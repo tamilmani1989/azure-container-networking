@@ -17,6 +17,8 @@
 #include <ws2tcpip.h>
 #include "../aquanix/Common/aquanixext.h"
 #include <Mstcpip.h>
+#include "../Logging/Logging.h"
+#include "Common/aqualoglevels.h"
 #ifdef _WIN32
 #include <stdio.h>
 #include <iostream>
@@ -190,8 +192,8 @@ unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 	for(int i= 0 ; i<clusterConfig->nodeCount ; i++)
 	{
 		NodeConfig nc = clusterConfig->nodeConfigs[i];
-		
-		if(IsLocalNodeIp(nc.nodeIp))
+		printf("Comparing %d %d", nc.nodeIp, clusterConfig->localNodeIp);
+		if(nc.nodeIp == clusterConfig->localNodeIp)
 		{
 			printf("Found my own node config nodeIp=0x%08X prefix=0x%08X prefix-len%d\n", nc.nodeIp, nc.subnet->ipAddress, nc.subnet->prefixLength);
 			PersistSubnetInRepository(nc.subnet);
@@ -203,16 +205,12 @@ unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 }
 
 extern DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std::wstring ca, std::wstring pa, std::wstring isRemoteEndpoint);
-
-DWORD MappingsForOverlayDriver(char *endpointId, char *hostAddress, char *containerAddress, char *macAddress)
+DWORD AddRemoteMapping(const char *endpointId, const char *hostAddress, const char *containerAddress, const char *macAddress)
 {
-	if(strlen(endpointId) > 50)
-	{
-		return UNEXPECTED_ERROR;
-	}
-	wchar_t endPointIdW[50]; //GUID cannot exceed 38
+	printf("Call back to add endpoint received... success\n");
+	wchar_t endPointIdW[150]; //GUID cannot exceed 38
 	size_t converted;
-	mbstowcs_s(&converted, endPointIdW, endpointId, 50);
+	mbstowcs_s(&converted, endPointIdW, endpointId, 150);
 	
 	wchar_t hostAddressW[INET_ADDRSTRLEN];
 	mbstowcs_s(&converted, hostAddressW, hostAddress, INET_ADDRSTRLEN);
@@ -223,29 +221,49 @@ DWORD MappingsForOverlayDriver(char *endpointId, char *hostAddress, char *contai
 	wchar_t macAddressW[50]; //MAC cannot exceed 24
 	mbstowcs_s(&converted, macAddressW, macAddress, 50);
 
+	printf("%s %s %s %s\n", endpointId, macAddress, containerAddress, macAddress);
 	return AddEndpoint(endPointIdW, macAddressW, containerAddressW, hostAddressW, L"true");
 }
 
+extern DllExport int DeleteEndpoint(std::wstring endpointId);
+DWORD DeleteRemoteMapping (const char *endpointId)
+{
+	wchar_t endpointIdW[150]; //GUID cannot exceed 38
+	size_t converted;
+	mbstowcs_s(&converted, endpointIdW, endpointId, 150);
+	return DeleteEndpoint(endpointIdW);
+}
 void provideConfigToNIX(ClusterConfig *clusterConfig)
 {
 
 	printf("Informing nix about the other nodes in the network");
 	unsigned int localIp;
 	GetHostIp(&localIp);
+	localIp = clusterConfig->localNodeIp;
 	char ipInString[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, &localIp, ipInString, INET_ADDRSTRLEN);
 	char**remoteHostAddresses = new char *[clusterConfig->nodeCount - 1]; //-1 for local address
+	int cntr = 0;
 	for (int i = 0; i < clusterConfig->nodeCount; i++)
 	{
+		
 		NodeConfig cnc = clusterConfig->nodeConfigs[i];
-		if (cnc.nodeIp != localIp)
+		char remoteIpInString[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &cnc.nodeIp, remoteIpInString, INET_ADDRSTRLEN);
+
+		printf("--------from cluster config remote ip = %s %s %u---------\n", remoteIpInString, cnc.nodeId, cnc.subnet->ipAddress);
+		if (cnc.nodeIp != clusterConfig->localNodeIp)
 		{
-			char remoteIpInString[INET_ADDRSTRLEN];
-			inet_ntop(AF_INET, &localIp, remoteIpInString, INET_ADDRSTRLEN);
-			remoteHostAddresses[0] = remoteIpInString;
+			char remoteIpInString2[INET_ADDRSTRLEN];
+			inet_ntop(AF_INET, &cnc.nodeIp, remoteIpInString2, INET_ADDRSTRLEN);
+			remoteHostAddresses[cntr] = remoteIpInString2;
+			printf("saved remote ip = %s\n", remoteIpInString2);
+			cntr++;
 		}
 	}
-	//InitializeAquaNix(ipInString, remoteHostAddresses, MappingsForOverlayDriver, 1050);
+
+	printf("giving remote ip as %s local=%s", remoteHostAddresses[0], ipInString);
+	InitializeAquaNix(ipInString, remoteHostAddresses, AddRemoteMapping, DeleteRemoteMapping, 10050, 10050);
 	delete []remoteHostAddresses;
 }
 
@@ -257,7 +275,7 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 		return INVALID_PARAMETER;
 	}
 
-	printf("Going to initialize network ..\n");
+	AquaLogging::Log(info, "Going to initialize network ..\n");
 
 	switch(clusterConfig->net)
 	{
@@ -339,6 +357,12 @@ DllExport DWORD GetHostLocalIp(unsigned int *hostLocalIp)
 
 DllExport DWORD SetupNetworkLogging(void(*log)(int, char*))
 {
-	UNREFERENCED_PARAMETER(log);
+	AquaLogging::InitLogging(log);
+	return 0;
+}
+
+DllExport DWORD SetupNetworkEtwLogging(bool additionConsoleLoggingEnabled)
+{
+	AquaLogging::InitLogging(additionConsoleLoggingEnabled);
 	return 0;
 }

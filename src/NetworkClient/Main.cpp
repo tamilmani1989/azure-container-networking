@@ -29,6 +29,8 @@ void logstuff(int level, char *text)
 	printf("%d: %s", level, text);
 }
 
+extern DllExport DWORD SetupNetworkEtwLogging(bool additionConsoleLoggingEnabled);
+
 #ifdef _WIN32
 int wmain()
 #endif
@@ -44,6 +46,7 @@ int main()
     int i;
     char ipInString[INET_ADDRSTRLEN];
 	
+	assert(SetupNetworkEtwLogging(true));
 	assert(SetupNetworkLogging(logstuff));
 
 	size_t netLen = strlen("azurenet") + sizeof(char);
@@ -68,7 +71,9 @@ int main()
 
 	cfg.net = OverLay;
 	cfg.env = Azure;
-	cfg.nodeCount = 1;
+	cfg.nodeCount = 2;
+
+
 	Ipv4Subnet ovSubnet;
 	struct in_addr ipAdd;
 	inet_pton(AF_INET, "10.10.0.0", &ipAdd);
@@ -76,14 +81,44 @@ int main()
 
 	printf("converted ip prefix %s\n", inet_ntop(AF_INET, &ovSubnet.ipAddress, ipInString, INET_ADDRSTRLEN));
 	getchar();
-	ovSubnet.prefixLength = 24;
+	ovSubnet.prefixLength = 16;
 	cfg.overlaySubnet = &ovSubnet;
-	cfg.nodeConfigs = (NodeConfig *)malloc(sizeof(NodeConfig));
 
+	cfg.nodeConfigs = (NodeConfig *)malloc(2*sizeof(NodeConfig));
+	/*
+	Ipv4Subnet localSubnet;
+
+	inet_pton(AF_INET, "10.10.1.0", &ipAdd);
+	localSubnet.ipAddress = ipAdd.s_addr;
+	localSubnet.prefixLength = 24;
 	inet_pton(AF_INET, "11.1.0.114", &ipAdd);
 	cfg.nodeConfigs[0].nodeIp = ipAdd.s_addr;
-	cfg.nodeConfigs[0].nodeId = "Id";
-	cfg.nodeConfigs[0].subnet = &ovSubnet;
+	cfg.nodeConfigs[0].nodeId = "Id114";
+	cfg.nodeConfigs[0].subnet = &localSubnet;
+	cfg.localNodeIp = ipAdd.s_addr;
+	*/
+	
+	Ipv4Subnet localSubnet2;
+	inet_pton(AF_INET, "10.10.2.0", &ipAdd);
+	localSubnet2.ipAddress = ipAdd.s_addr;
+	localSubnet2.prefixLength = 24;
+	inet_pton(AF_INET, "11.1.0.124", &ipAdd);
+	cfg.nodeConfigs[0].nodeIp = ipAdd.s_addr;
+	cfg.nodeConfigs[0].nodeId = "Id124";
+	cfg.nodeConfigs[0].subnet = &localSubnet2;
+	//cfg.localNodeIp = ipAdd.s_addr;
+
+	
+	Ipv4Subnet localSubnet3;
+	inet_pton(AF_INET, "10.10.3.0", &ipAdd);
+	localSubnet3.ipAddress = ipAdd.s_addr;
+	localSubnet3.prefixLength = 24;
+	inet_pton(AF_INET, "11.1.0.134", &ipAdd);
+	cfg.nodeConfigs[1].nodeIp = ipAdd.s_addr;
+	cfg.nodeConfigs[1].nodeId = "Id134";
+	cfg.nodeConfigs[1].subnet = &localSubnet3;
+	cfg.localNodeIp = ipAdd.s_addr;
+
 	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	free(cfg.networkName);
 	getchar();

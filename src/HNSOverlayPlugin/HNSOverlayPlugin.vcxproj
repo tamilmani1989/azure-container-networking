@@ -51,10 +51,15 @@
   <ItemGroup>
     <None Include="InstallPlugin.ps1" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\aquanix\aquanix.vcxproj">
+      <Project>{d16a456d-9371-4055-afa7-276cd8cc32b9}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
-<Target Name="AfterBuild">
+  <Target Name="AfterBuild">
     <Copy SourceFiles="$(OutputPath)\HNSOverlayPlugin.dll; $(OutputPath)\HNSOverlayPlugin.pdb; $(OutputPath)\HNSOverlayPlugin.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
     <Copy SourceFiles="InstallPlugin.ps1;" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
     <Copy SourceFiles="$(AQ_Tools)\content\sfpcopy.exe;" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
- </Target>
+  </Target>
 </Project>

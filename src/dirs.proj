@@ -8,9 +8,12 @@
     <ProjectReference Include="ServiceTunnelExtension\ServiceTunnelExtension.vcxproj" />
     <ProjectReference Include="NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
     <ProjectReference Include="NetworkClient\NetworkClient.vcxproj" />
+    <ProjectReference Include="Logging\Logging.vcxproj" />
     <ProjectReference Include="Nuget\dirs.proj" Condition="'$(IsOfficialBuild)'!='' Or '$(BuildRDPackage)'=='true' Or '$(BuildNugetPackage)'=='true'" />
     <ProjectReference Include="HNSOverlayPlugin\HNSOverlayPlugin.vcxproj" />
     <ProjectReference Include="HNSClient\HNSClient.vcxproj" />
+    <ProjectReference Include="aquanix\aquanix.vcxproj" />
+    <ProjectReference Include="aquanixconsole\aquanixconsole.vcxproj" />
     <ProjectReference Include="SignLocalFiles\SignLocalFiles.proj" Condition="'$(IsOfficialBuild)' != ''" />
      <ProjectReference Include="test\dirs.proj" />
   </ItemGroup>

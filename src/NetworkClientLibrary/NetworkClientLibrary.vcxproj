@@ -45,9 +45,22 @@
     <ClInclude Include="Common\nclcore.h" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\aquanix\aquanix.vcxproj">
+      <Project>{d16a456d-9371-4055-afa7-276cd8cc32b9}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\HNSClient\HNSClient.vcxproj">
       <Project>{a8f4b949-54ec-40c4-b9a4-6a338b2a4767}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Shared\Shared.vcxproj">
+      <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+<Target Name="AfterBuild">
+    <Copy SourceFiles="$(OutputPath)\NetworkClientLibrary.dll; $(OutputPath)\NetworkClientLibrary.pdb; $(OutputPath)\NetworkClientLibrary.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClient" />
+  </Target>
+
 </Project>

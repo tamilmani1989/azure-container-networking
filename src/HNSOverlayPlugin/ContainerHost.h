@@ -64,6 +64,12 @@ namespace Microsoft { namespace Azure { namespace Networking { namespace Overlay
 			_Inout_ HNSProviderPtr PluginProvider,
 			_Inout_ HNSObjPtr RequestObject
 		);
+		/// <summary>Handles HNSinitialization.</summary>
+		/// <param name='PluginProvider'>HNS provider object.</param>
+		/// <param name='RequestObject'>HNS endpoint object.</param>
+		void Initialize(
+			_Inout_ HNSProviderPtr PluginProvider
+		);
     };
 }}}}
 
