@@ -62,6 +62,13 @@ Message::Message(string endpointId)
 	m_messageResponsePort = s_serviceResponsePort;
 }
 
+Message::Message(MessageCode messageCode)
+{
+	m_id = CreateUuid();
+	m_messageCode = messageCode;
+	m_messageResponsePort = s_serviceResponsePort;
+}
+
 USHORT Message::s_serviceResponsePort = 0;
 
 void Message::SetServiceResponsePort(USHORT serviceResponsePort)
@@ -91,25 +98,27 @@ void Message::Init(UCHAR *buffer)
 		return;
 	}
 
-	segmentLength = *cur;
-	cur++;
-	m_endpointId = string(reinterpret_cast<char*>(cur));
-	cur += segmentLength;
-
-	if (m_messageCode == MessageCode::DeleteMapping)
+	if (m_messageCode == MessageCode::SetMapping ||
+		m_messageCode == MessageCode::DeleteMapping)
 	{
-		return;
+		segmentLength = *cur;
+		cur++;
+		m_endpointId = string(reinterpret_cast<char*>(cur));
+		cur += segmentLength;
 	}
 
-	segmentLength = *cur;
-	cur++;
-	m_containerAddress = string(reinterpret_cast<char*>(cur));
-	cur += segmentLength;
+	if (m_messageCode == MessageCode::SetMapping)
+	{
+		segmentLength = *cur;
+		cur++;
+		m_containerAddress = string(reinterpret_cast<char*>(cur));
+		cur += segmentLength;
 
-	segmentLength = *cur;
-	cur++;
-	m_macAddress = string(reinterpret_cast<char*>(cur));
-	cur += segmentLength;
+		segmentLength = *cur;
+		cur++;
+		m_macAddress = string(reinterpret_cast<char*>(cur));
+		cur += segmentLength;
+	}
 
 	segmentLength = *cur;
 	cur++;
@@ -249,6 +258,9 @@ RawMessage *Message::CreateDeleteMappingRawMessage()
 	//endpoint id
 	bufSize += (UCHAR)m_endpointId.length() + 2;
 
+	//host address
+	bufSize += (UCHAR)m_hostAddress.length() + 2;
+
 	//create buffer
 	UCHAR *buffer = new UCHAR[bufSize];
 	UCHAR *cur = buffer;
@@ -276,6 +288,50 @@ RawMessage *Message::CreateDeleteMappingRawMessage()
 	memcpy(cur, m_endpointId.c_str(), segmentLength);
 	cur += segmentLength;
 
+	//copy m_hostAddress with its size
+	segmentLength = (UCHAR)m_hostAddress.length() + 1;
+	memcpy(cur, &segmentLength, 1);
+	cur += 1;
+	memcpy(cur, m_hostAddress.c_str(), segmentLength);
+	cur += segmentLength;
+
+	return new RawMessage(buffer, bufSize, false);
+}
+
+RawMessage *Message::CreateRequestAllRemoteMappingsRawMessage()
+{
+	UCHAR bufSize = (UCHAR)m_id.length() + 2;//account for null termination and one char for size
+
+	//message code
+	UCHAR msgCode = (UCHAR)MessageCode::RequestAllRemoteMappings;
+	char messageCodeSize = sizeof(msgCode);
+	bufSize += messageCodeSize;
+
+	//message response port
+	USHORT nPort = htons(m_messageResponsePort);
+	char nPortSize = sizeof(nPort);
+	bufSize += nPortSize;
+
+	//create buffer
+	UCHAR *buffer = new UCHAR[bufSize];
+	UCHAR *cur = buffer;
+	UCHAR segmentLength;
+
+	//copy msg code
+	memcpy(cur, &msgCode, messageCodeSize);
+	cur += messageCodeSize;
+
+	//copy msg response port in network byte order
+	memcpy(cur, &nPort, nPortSize);
+	cur += nPortSize;
+
+	//copy msg Id with its size
+	segmentLength = (UCHAR)m_id.length() + 1;
+	memcpy(cur, &segmentLength, 1);
+	cur += 1;
+	memcpy(cur, m_id.c_str(), segmentLength);
+	cur += segmentLength;
+
 	return new RawMessage(buffer, bufSize, false);
 }
 
@@ -292,6 +348,10 @@ RawMessage *Message::CreateRawMessage()
 	else if (m_messageCode == MessageCode::DeleteMapping)
 	{
 		return CreateDeleteMappingRawMessage();
+	}
+	else if (m_messageCode == MessageCode::RequestAllRemoteMappings)
+	{
+		return CreateRequestAllRemoteMappingsRawMessage();
 	}
 
 	return NULL;

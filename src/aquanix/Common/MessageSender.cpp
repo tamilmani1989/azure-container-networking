@@ -40,18 +40,54 @@ AquaError:
 	return result;
 }
 
+DWORD MessageSender::Send(
+	Message message,
+	char *recipientIPAddress,
+	bool notifyLater)
+{
+	LogMessage(L"Enter MessageSender::Send");
+
+	DWORD result = E_SUCCESS;
+	RawMessage *pRawMessage = message.CreateRawMessage();
+	E_NULL(pRawMessage, E_CouldNotCreateRawMessage, "Failed to create raw message.");
+	map<string, int>* pSendMap = new map<string, int>();
+	pSendMap->insert(pair<string, int>(string(recipientIPAddress), 0));
+	tuple<RawMessage*, map<string, int>*>* messageMapTuple = new tuple<RawMessage*, map<string, int>*>(pRawMessage, pSendMap);
+	const char *msgId = message.GetMessageId();
+	UpdateMessageMap(msgId, messageMapTuple);
+	if (!notifyLater)
+	{
+		m_conditionSendMessage.notify_one();
+	}
+
+AquaError:
+	LogMessage(L"Exit MessageSender::Send");
+	return result;
+}
+
+void MessageSender::NotifySender()
+{
+	m_conditionSendMessage.notify_one();
+}
+
 DWORD MessageSender::SendAck(Message message, char *destination)
 {
 	LogMessage(L"Enter MessageSender::SendAck");
 	DWORD result = E_SUCCESS;
+	RawMessage *pRawMessage = NULL;
 
 	USHORT responsePort = message.GetMessageResponsePort();
-	RawMessage *pRawMessage = message.CreateAckRawMessage();
+	pRawMessage = message.CreateAckRawMessage();
 
 	E_AQUA(m_pMessageExchange->Send(destination, responsePort, (const char *)pRawMessage->GetData(), pRawMessage->GetDataSize()), "Send ack failed");
-	delete pRawMessage;
 
 AquaError:
+	if (pRawMessage != NULL)
+	{
+		delete pRawMessage;
+		pRawMessage = NULL;
+	}
+
 	LogMessage(L"Exit MessageSender::SendAck");
 	return result;
 }

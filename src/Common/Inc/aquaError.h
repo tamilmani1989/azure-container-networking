@@ -13,6 +13,7 @@ namespace aqua
 	const DWORD E_CreateAquaNixFailed = 7;
 	const DWORD E_InsufficientMemory = 8;
 	const DWORD E_CouldNotCreateRawMessage = 9;
+	const DWORD E_GetLocalMappingsFailed = 10;
 }
 
 #define TraceLog(message) \
@@ -35,13 +36,15 @@ namespace aqua
 		goto AquaError; \
 	} \
 
-#define E_WIN32(X,Y) \
+#define E_ZERO(X,Y,Z) \
 	result = X; \
-	if(result != 0) E_FAIL(result, Y) \
+	if(result != 0) E_AQ_FAIL(Z,Y) \
+
+#define E_WIN32(X,Y,Z) E_ZERO(X,Y,Z)
 
 #define E_WIN32_EX2(A,X,Y,Z) \
 	result = X; \
-	if(result != A) E_FAIL(Z,Y) \
+	if(result != A) E_AQ_FAIL(Z,Y) \
 
 #define E_WIN32_EX(X,Y,Z) E_WIN32_EX2(0,X,Y,Z)
 
