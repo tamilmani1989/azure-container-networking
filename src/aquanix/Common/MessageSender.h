@@ -34,7 +34,9 @@ namespace aqua
 		~MessageSender();
 
 		DWORD Send(Message message);
+		DWORD Send(Message message, char *recipientIPAddress, bool notifyLater);
 		DWORD SendAck(Message message, char *destination);
 		DWORD RemoveAckedMessage(Message message, char *destination);
+		void NotifySender();
 	};
 }

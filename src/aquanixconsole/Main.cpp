@@ -25,6 +25,15 @@ DWORD DeleteRemoteMapping(
 	return 0;
 }
 
+DWORD GetLocalMappings(
+	EndpointMapping *endpointMappings,
+	USHORT *mappingsCount)
+{
+	endpointMappings = NULL;
+	*mappingsCount = 0;
+	return 0;
+}
+
 #ifdef _WIN32
 int wmain()
 #endif
@@ -35,9 +44,10 @@ int main()
 	printf("hello nisheeth");
 	char *localHostAddress = "172.27.18.40";
 	char **remoteHostAddresses = new char*{"172.27.18.40"};
+	char *mappingsSenderIP = "127.0.0.1";
 
 
-	InitializeAquaNix(localHostAddress, remoteHostAddresses, ReceiveMapping, DeleteRemoteMapping, 10050, 10050);
+	InitializeAquaNix(localHostAddress, remoteHostAddresses, mappingsSenderIP, ReceiveMapping, DeleteRemoteMapping, GetLocalMappings, 10050, 10050);
 	string myinput;
 	cin >> myinput;
 	DWORD result = SendLocalMapping("endpoint_012345", "172.2.3.4", "6E-34-21-56-31");
