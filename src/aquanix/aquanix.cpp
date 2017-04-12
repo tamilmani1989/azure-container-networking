@@ -28,7 +28,7 @@ DllExport DWORD InitializeAquaNix(
 
 	DWORD result = E_SUCCESS;
 
-	E_AQUA(AquaNixFactory::Create(localHostAddress, remoteHostAddresses, receiveMapping, servicePort, remotePort), "AquaNix create failed.");
+	E_AQUA(AquaNixFactory::Create(localHostAddress, remoteHostAddresses, receiveMapping, deleteMapping, servicePort, remotePort), "AquaNix create failed.");
 
 AquaError:
 	return result;
@@ -37,10 +37,9 @@ AquaError:
 DllExport DWORD SendLocalMapping(const char *endpointId, const char *containerAddress, const char *macAddress)
 {
 	WinLogger::LogInformation(L"Enter SendLocalMapping");
-
 	DWORD result = E_SUCCESS;
-	AquaNix *pAquaNix = AquaNixFactory::GetInstance();
 	
+	AquaNix *pAquaNix = AquaNixFactory::GetInstance();
 	E_AQUA(pAquaNix->SendMapping(string(endpointId), string(containerAddress), string(macAddress)), "AquaNix create failed.");
 
 AquaError:
@@ -55,7 +54,10 @@ DllExport DWORD DeleteLocalMapping(
 	WinLogger::LogInformation(L"Enter DeleteLocalMapping");
 	DWORD result = E_SUCCESS;
 
-//AquaError:
+	AquaNix *pAquaNix = AquaNixFactory::GetInstance();
+	E_AQUA(pAquaNix->DeleteMapping(string(endpointId)), "AquaNix delete local mapping failed.");
+
+AquaError:
 	WinLogger::LogInformation(L"Exit DeleteLocalMapping");
 	return result;
 }
@@ -74,6 +76,7 @@ DWORD AquaNixFactory::Create(
 	char *localHostAddress, 
 	char *remoteHostAddresses[], 
 	AddRemoteMappingCallback receiveMapping,
+	DeleteRemoteMappingCallback deleteRemoteMapping,
 	USHORT servicePort, 
 	USHORT remoteServicePort)
 {
@@ -86,7 +89,7 @@ DWORD AquaNixFactory::Create(
 	E_NULL(servicePort, E_InvalidArguments, "servicePort is NULL");
 	E_NULL(remoteServicePort, E_InvalidArguments, "remoteServicePort is NULL");
 
-	s_pAquaNix = new (nothrow) AquaNix(localHostAddress, remoteHostAddresses, receiveMapping, servicePort, remoteServicePort);
+	s_pAquaNix = new (nothrow) AquaNix(localHostAddress, remoteHostAddresses, receiveMapping, deleteRemoteMapping, servicePort, remoteServicePort);
 	E_NULLPTR(s_pAquaNix, E_CreateAquaNixFailed, "CreateAquaNixFailed");
 
 AquaError:
@@ -99,7 +102,7 @@ AquaNix *AquaNixFactory::GetInstance()
 	return s_pAquaNix;
 }
 
-AquaNix::AquaNix(char *localHostAddress, char *remoteHostAddresses[], AddRemoteMappingCallback receiveMapping, USHORT servicePort, USHORT remoteServicePort)
+AquaNix::AquaNix(char *localHostAddress, char *remoteHostAddresses[], AddRemoteMappingCallback receiveMapping, DeleteRemoteMappingCallback deleteRemoteMapping, USHORT servicePort, USHORT remoteServicePort)
 {
 	m_localHostAddress = string(localHostAddress);
 	m_remoteHostsCount = sizeof(remoteHostAddresses) / sizeof(remoteHostAddresses[0]);
@@ -110,6 +113,7 @@ AquaNix::AquaNix(char *localHostAddress, char *remoteHostAddresses[], AddRemoteM
 	}
 
 	ReceiveMapping = receiveMapping;
+	DeleteRemoteMapping = deleteRemoteMapping;
 	m_servicePort = servicePort;
 	m_remoteServicePort = remoteServicePort;
 	Message::SetServiceResponsePort(servicePort);
@@ -138,6 +142,17 @@ AquaError:
 	return result;
 }
 
+DWORD AquaNix::DeleteMapping(string endpointId)
+{
+	DWORD result = E_SUCCESS;
+
+	Message message = Message(endpointId);
+	E_AQUA(m_pMessageSender->Send(message), "Message send failed.");
+
+AquaError:
+	return result;
+}
+
 DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 {
 	WinLogger::LogInformation(L"Enter AquaNix::ReceiveMessage");
@@ -147,7 +162,8 @@ DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 	AquaNix *aquaNix = AquaNixFactory::GetInstance();
 
 	Message message = Message((UCHAR *)buffer, (USHORT)bufLength);
-	if (message.GetMessageCode() == MessageCode::AckMapping)
+	MessageCode messageCode = message.GetMessageCode();
+	if (messageCode == MessageCode::AckMapping)
 	{
 		WinLogger::LogInformation(L"Removing Acked Messsage");
 		aquaNix->m_pMessageSender->RemoveAckedMessage(message, sender);
@@ -166,7 +182,14 @@ DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 		else
 		{
 			WinLogger::LogInformation(L"External receive callback");
-			aquaNix->ReceiveMapping(message.GetEndpointId(), message.GetHostAddress(), message.GetContainerAddress(), message.GetMacAddress());
+			if (messageCode == MessageCode::SetMapping)
+			{
+				aquaNix->ReceiveMapping(message.GetEndpointId(), message.GetHostAddress(), message.GetContainerAddress(), message.GetMacAddress());
+			}
+			else if (messageCode == MessageCode::DeleteMapping)
+			{
+				aquaNix->DeleteRemoteMapping(message.GetEndpointId());
+			}
 			WinLogger::LogInformation(L"External receive callback returned");
 		}
 		WinLogger::LogInformation(L"Sending ack");

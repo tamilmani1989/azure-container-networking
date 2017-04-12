@@ -7,6 +7,7 @@ namespace aqua
 	{
 		SetMapping = 0,
 		AckMapping = 1,
+		DeleteMapping = 2,
 	};
 
 	class Message
@@ -29,6 +30,7 @@ namespace aqua
 		Message(UCHAR *buffer, USHORT bufferLen);
 		Message(RawMessage rawMessage);
 		Message(string endpointId, string hostAddress, string containerAddress, string macAddress);
+		Message(string endpointId);
 		
 		const char *GetMessageId();
 		const char *GetEndpointId();
@@ -44,5 +46,7 @@ namespace aqua
 		RawMessage *CreateRawMessage();
 		RawMessage *CreateAckRawMessage();
 		RawMessage *CreateAckRawMessage(const char *id, UCHAR idLen);
+		RawMessage *CreateSendMappingRawMessage();
+		RawMessage *CreateDeleteMappingRawMessage();
 	};
 }
