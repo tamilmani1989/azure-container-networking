@@ -26,17 +26,17 @@ namespace aqua
 		void UpdateMessageMap(const char *, tuple<RawMessage*, map<string, int>*>* messageMapTuple);
 		static void SendMessagesDaemon(MessageSender *pMessageSender);
 		void ProcessMessages();
-		void RemoveAckedMessageFromMap(string msgId, char *destination);
+		DWORD RemoveAckedMessageFromMap(string msgId, char *destination);
 		virtual void LogMessage(wstring logMessage) = 0;
 
 	public:
 		MessageSender(MessageExchange *pMessageExchange, string *remoteHostAddresses, int remoteHostsCount);
 		~MessageSender();
 
-		DWORD Send(Message message);
-		DWORD Send(Message message, char *recipientIPAddress, bool notifyLater);
-		DWORD SendAck(Message message, char *destination);
-		DWORD RemoveAckedMessage(Message message, char *destination);
+		DWORD Send(Message &message);
+		DWORD Send(Message &message, char *recipientIPAddress, bool notifyLater);
+		DWORD SendAck(Message &message, char *destination);
+		DWORD RemoveAckedMessage(Message &message, char *destination);
 		void NotifySender();
 	};
 }
