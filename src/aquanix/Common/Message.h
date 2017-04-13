@@ -20,20 +20,21 @@ namespace aqua
 		string m_hostAddress;
 		string m_containerAddress;
 		string m_macAddress;
-		string m_targetHostAddress;
 
 		static USHORT s_serviceResponsePort;
+		static string s_localHostAddress;
 		USHORT m_messageResponsePort;
 
 		string CreateUuid();
 		void Message::Init(UCHAR *buffer);
 
 	public:
+		Message(const Message& message);
 		Message(MessageCode messageCode);
 		Message(UCHAR *buffer, USHORT bufferLen);
 		Message(RawMessage rawMessage);
 		Message(string endpointId, string hostAddress, string containerAddress, string macAddress);
-		Message(string endpointId);
+		Message(string endpointId, string hostAddress);
 
 		const char *GetMessageId();
 		const char *GetEndpointId();
@@ -43,7 +44,7 @@ namespace aqua
 		void SetHostAddress(string hostAddress);
 		MessageCode GetMessageCode();
 		USHORT GetMessageResponsePort();
-		static void SetServiceResponsePort(USHORT serviceResponsePort);
+		static void SetLocalSettings(USHORT serviceResponsePort, string localHostAddress);
 
 
 		RawMessage *CreateRawMessage();
