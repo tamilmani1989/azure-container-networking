@@ -26,7 +26,7 @@ void assert(unsigned long value)
 
 void logstuff(int level, char *text)
 {
-	printf("%d: %s", level, text);
+	printf("%d: %s\n", level, text);
 }
 
 extern DllExport DWORD SetupNetworkEtwLogging(bool additionConsoleLoggingEnabled);
@@ -41,30 +41,30 @@ int main()
 	AquariusUtilities::WriteEventLogEntry(L"Working or not");
 
 	ClusterConfig cfg;
-    NodeNetworkResources nnr;
-    int ipCount = -1;
-    int i;
-    char ipInString[INET_ADDRSTRLEN];
-	
-	assert(SetupNetworkEtwLogging(true));
+	NodeNetworkResources nnr;
+	int ipCount = -1;
+	int i;
+	char ipInString[INET_ADDRSTRLEN];
+
+	//assert(SetupNetworkEtwLogging(true));
 	assert(SetupNetworkLogging(logstuff));
 
 	size_t netLen = strlen("azurenet") + sizeof(char);
-	cfg.networkName = (char *) malloc(netLen);
+	cfg.networkName = (char *)malloc(netLen);
 	printf("%llu", netLen);
 	strncpy_s(cfg.networkName, netLen, "azurenet", 9);
-	cfg.networkName[8] = '\0';	
+	cfg.networkName[8] = '\0';
 	cfg.net = UnderLay;
 	cfg.env = Azure;
-	printf("nw main name:%s\n",cfg.networkName);
-    int retval = 0;
-	#ifdef __linux__
+	printf("nw main name:%s\n", cfg.networkName);
+	int retval = 0;
+#ifdef __linux__
 	retval = InitializeNetwork(&cfg);
-	#endif
+#endif
 
-	#ifdef _WIN32
+#ifdef _WIN32
 	//assert(InitializeNetwork(&cfg));
-	#endif
+#endif
 
 	printf("Successfully initialized Azure/Underlay. retval = %d\n", retval);
 	getchar();
@@ -84,7 +84,7 @@ int main()
 	ovSubnet.prefixLength = 16;
 	cfg.overlaySubnet = &ovSubnet;
 
-	cfg.nodeConfigs = (NodeConfig *)malloc(2*sizeof(NodeConfig));
+	cfg.nodeConfigs = (NodeConfig *)malloc(2 * sizeof(NodeConfig));
 	/*
 	Ipv4Subnet localSubnet;
 
@@ -97,7 +97,7 @@ int main()
 	cfg.nodeConfigs[0].subnet = &localSubnet;
 	cfg.localNodeIp = ipAdd.s_addr;
 	*/
-	
+
 	Ipv4Subnet localSubnet2;
 	inet_pton(AF_INET, "10.10.2.0", &ipAdd);
 	localSubnet2.ipAddress = ipAdd.s_addr;
@@ -106,9 +106,9 @@ int main()
 	cfg.nodeConfigs[0].nodeIp = ipAdd.s_addr;
 	cfg.nodeConfigs[0].nodeId = "Id124";
 	cfg.nodeConfigs[0].subnet = &localSubnet2;
-	//cfg.localNodeIp = ipAdd.s_addr;
+	// cfg.localNodeIp = ipAdd.s_addr;
 
-	
+
 	Ipv4Subnet localSubnet3;
 	inet_pton(AF_INET, "10.10.3.0", &ipAdd);
 	localSubnet3.ipAddress = ipAdd.s_addr;

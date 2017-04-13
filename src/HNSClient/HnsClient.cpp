@@ -10,6 +10,9 @@
 #include "Config.Containers.HNS.h"
 #include <wil/Resource.h>
 #include <ifdef.h>
+#include "../NetworkClientLibrary/Common/nclcore.h"
+#include "../aquanix/Common/aquanixext.h"
+#include "../Logging/Logging.h"
 #define SUCCESS L"\"Success\" : true"
 using namespace std::string_literals; 
 
@@ -305,6 +308,173 @@ DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp)
 	return failed;
 }
 
+void printm()
+{
+	wil::unique_cotaskmem_ptr<WCHAR> endpointsResponseJson;
+	std::wstring request = L"";
+
+	printf("%S\n", request.c_str());
+	bool failed = ExecuteHNSRequest(wil::out_param(endpointsResponseJson), L"GET", L"/endpoints/", request.c_str());
+	if (!failed)
+	{
+		Config::Containers::HNS::HNSEndpointsResponse endpointsResponse;
+		int hr = Marshal::FromJson(endpointsResponseJson.get(), &endpointsResponse).first;
+		if (hr != 1) //failed
+		{
+
+		}
+		printf("\nhrval=%d successed=%d\n\n", hr, endpointsResponse.Success);
+
+		for (std::vector<Config::Containers::HNS::HNSEndpoint>::iterator ep = endpointsResponse.Output.begin(); ep != endpointsResponse.Output.end(); ++ep)
+		{
+			printf("Checking IP=%ws\n", (*ep).IPAddress.c_str());
+			printf("Name=%ws\n", (*ep).Name.c_str());
+			printf("VnetName=%ws\n", (*ep).VirtualNetworkName.c_str());
+			printf("Gateway=%ws\n", (*ep).GatewayAddress.c_str());			
+		}
+	}
+
+	if (endpointsResponseJson != NULL)
+	{
+		endpointsResponseJson.release();
+	}
+}
+
+
+unsigned long getEndpointCount(USHORT *epCount)
+{
+	printm();
+
+	AquaLogging::Log(info, "Enter getEndpointCount");
+	wil::unique_cotaskmem_ptr<WCHAR> endpointsResponseJson;
+	std::wstring request = L"";
+	(*epCount) = 0;
+	unsigned long retval = 0;
+	char logMsg[2048];
+	size_t msgSize = 2048;
+
+	printf("%S\n", request.c_str());
+	bool failed = ExecuteHNSRequest(wil::out_param(endpointsResponseJson), L"GET", L"/endpoints/", request.c_str());
+	if (!failed)
+	{
+		Config::Containers::HNS::HNSEndpointsResponse endpointsResponse;
+		int hr = Marshal::FromJson(endpointsResponseJson.get(), &endpointsResponse).first;
+		if (hr != 0) //failed
+		{
+		}
+
+		sprintf_s(logMsg, msgSize, "hrval=%d successed=%d", hr, endpointsResponse.Success);
+		AquaLogging::Log(info, logMsg);
+
+		for (std::vector<Config::Containers::HNS::HNSEndpoint>::iterator ep = endpointsResponse.Output.begin(); ep != endpointsResponse.Output.end(); ++ep)
+		{
+			sprintf_s(logMsg, msgSize, "Endpoint received %ls", (*ep).IPAddress.c_str());
+			AquaLogging::Log(verbose, logMsg);
+			(*epCount) += 1;			
+		}
+	}
+	else
+	{
+		retval = 1;
+	}
+
+	if (endpointsResponseJson != NULL)
+	{
+		endpointsResponseJson.release();
+	}
+	AquaLogging::Log(info, "Exit getEndpointCount");
+	return retval;
+}
+
+char *ConvertWideToNarrow(const wchar_t *widestr)
+{
+	AquaLogging::Log(verbose, "Goign to convert wide string to narrow");
+	size_t length = wcslen(widestr);
+	size_t converted;	
+	char *narrowStr = (char *)malloc( (length +1) * sizeof(wchar_t));
+	wcstombs_s(&converted, narrowStr, length * sizeof(wchar_t), widestr, length);
+	narrowStr[length] = '\0';
+	AquaLogging::Log(verbose, "Successfully converted wide string to narrow");
+	return narrowStr;
+}
+
+DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, USHORT *mappingsCount)
+{
+	AquaLogging::Log(info, "Enter GetLocalEndpoints");
+	wil::unique_cotaskmem_ptr<WCHAR> endpointsResponseJson;
+	std::wstring request = L"";
+	(*endpointMappings) = NULL;
+	*mappingsCount = 0;
+	getEndpointCount(mappingsCount);
+	if(*mappingsCount == 0)
+	{
+		AquaLogging::Log(info, "GetEndpoints from HNS returned 0");
+		return 0;
+	}
+
+	printf("%S\n", request.c_str());
+	bool failed = ExecuteHNSRequest(wil::out_param(endpointsResponseJson), L"GET", L"/endpoints/", request.c_str());
+	if (failed == 0)
+	{
+		(*endpointMappings) = (EndpointMapping *)malloc((int)(*mappingsCount) * sizeof(EndpointMapping));
+		Config::Containers::HNS::HNSEndpointsResponse endpointsResponse;
+		int hr = Marshal::FromJson(endpointsResponseJson.get(), &endpointsResponse).first;
+		if (hr != 1) //failed
+		{
+		}
+		printf("\nhrval=%d successed=%d\n\n", hr, endpointsResponse.Success);
+		int counter = 0;
+		for (std::vector<Config::Containers::HNS::HNSEndpoint>::iterator ep = endpointsResponse.Output.begin(); ep != endpointsResponse.Output.end(); ++ep)
+		{
+			if(counter > *mappingsCount)
+			{
+				AquaLogging::Log(info, "Count has reached limit for mappings.. breaking out.");
+				break;
+			}
+
+			char *ip = ConvertWideToNarrow((*ep).IPAddress.c_str());
+			(*endpointMappings)[counter].containerAddress = ip;
+
+			WCHAR * epwb;
+			StringFromCLSID((*ep).ID, &epwb);
+			WCHAR *epwtb = epwb + 1;
+			epwtb[wcslen(epwb) - 2] = L'\0';
+			(*endpointMappings)[counter].endpointId = ConvertWideToNarrow(epwtb);
+			(*endpointMappings)[counter].macAddress = ConvertWideToNarrow((*ep).MacAddress.c_str());
+			counter++;
+		}
+	}
+
+	if (endpointsResponseJson != NULL)
+	{
+		endpointsResponseJson.release();
+	}
+	AquaLogging::Log(info, "Exit GetLocalEndpoints");
+	return failed;
+}
+
+void Release(EndpointMapping endpointMappings)
+{
+	free(endpointMappings.endpointId);
+	free(endpointMappings.macAddress);
+	free(endpointMappings.containerAddress);
+}
+
+DllExport unsigned long FreeMemoryForLocalEndpoints(EndpointMapping *endpointMappings, USHORT mappingsCount)
+{
+	if(endpointMappings == NULL)
+	{
+		AquaLogging::Log(verbose, "FreeMemoryForLocalEndpoints asked to free NULL ptr");
+		return 0;
+	}
+	for(int i = 0 ; i<(mappingsCount); i++)
+	{
+		Release(endpointMappings[i]);
+	}
+	free(endpointMappings);
+	return 0;
+}
+
 DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostLocalIp)
 {
 	wil::unique_cotaskmem_ptr<WCHAR> endpointsResponseJson;
@@ -324,11 +494,11 @@ DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostL
 		printf("\nhrval=%d successed=%d\n\n", hr, endpointsResponse.Success);
 
 		for (std::vector<Config::Containers::HNS::HNSEndpoint>::iterator ep = endpointsResponse.Output.begin(); ep != endpointsResponse.Output.end(); ++ep)
-		{
-			printf("Checking IP=%S\n", (*ep).IPAddress.c_str());
-			printf("Name=%S\n", (*ep).Name.c_str());
+		{			
+			printf("Checking IP=%ws\n", (*ep).IPAddress.c_str());
+			printf("Name=%ws\n", (*ep).Name.c_str());
 			printf("VnetName=%ws\n", (*ep).VirtualNetworkName.c_str());
-			printf("Gateway=%S\n", (*ep).GatewayAddress.c_str());
+			printf("Gateway=%ws\n", (*ep).GatewayAddress.c_str());
 			if (_wcsicmp((*ep).IPAddress.c_str(), hostLocalIp) == 0)
 			{
 				printf("Endpoint with IP=%S will be deleted as per request..\n", (*ep).IPAddress.c_str());

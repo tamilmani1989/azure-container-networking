@@ -73,8 +73,13 @@
   <ItemGroup>
     <Midl Include="hnsApi.idl" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="AfterBuild">
     <Copy SourceFiles="$(OutputPath)\HNSClient.dll; $(OutputPath)\HNSClient.pdb; $(OutputPath)\HNSClient.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
- </Target>
+  </Target>
 </Project>

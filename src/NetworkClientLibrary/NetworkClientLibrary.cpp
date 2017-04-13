@@ -18,7 +18,6 @@
 #include "../aquanix/Common/aquanixext.h"
 #include <Mstcpip.h>
 #include "../Logging/Logging.h"
-#include "Common/aqualoglevels.h"
 #ifdef _WIN32
 #include <stdio.h>
 #include <iostream>
@@ -68,6 +67,8 @@ DllExport DWORD GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResourc
 {
 	int ipCount;
 	unsigned int *ips;
+	char logMsg[2048];
+	size_t msgSize = 2048;
 	
 	if(networkTypeProvided == OverLay)
 	{
@@ -88,11 +89,12 @@ DllExport DWORD GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResourc
 
 	ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
 	ipCount = getIpsFromNmAgent(ips);
-	printf("Retrieved %d ips fron nm agent along with details\n", ipCount);
-	
+	sprintf_s(logMsg, msgSize, "Retrieved %d ips fron nm agent along with details\n", ipCount);
+	AquaLogging::Log(info, logMsg);
 	for(int i = 0; i<ipCount; i++)
 	{
-		printf("%d\n", ips[i]);
+		sprintf_s(logMsg, msgSize, "%d\n", ips[i]);
+		AquaLogging::Log(info, logMsg);
 	}
 	if(ips)
 	{
@@ -185,6 +187,8 @@ bool IsLocalNodeIp(unsigned int ip)
 
 unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 {
+	char logMsg[2048];
+	size_t msgSize = 2048;
 	if(clusterConfig->nodeConfigs == NULL)
 	{
 		return UNEXPECTED_ERROR;
@@ -192,12 +196,15 @@ unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 	for(int i= 0 ; i<clusterConfig->nodeCount ; i++)
 	{
 		NodeConfig nc = clusterConfig->nodeConfigs[i];
-		printf("Comparing %d %d", nc.nodeIp, clusterConfig->localNodeIp);
+		sprintf_s(logMsg, msgSize, "Comparing %d %d", nc.nodeIp, clusterConfig->localNodeIp);
+		AquaLogging::Log(info, logMsg);
 		if(nc.nodeIp == clusterConfig->localNodeIp)
 		{
-			printf("Found my own node config nodeIp=0x%08X prefix=0x%08X prefix-len%d\n", nc.nodeIp, nc.subnet->ipAddress, nc.subnet->prefixLength);
+			sprintf_s(logMsg, msgSize, "Found my own node config nodeIp=0x%08X prefix=0x%08X prefix-len%d\n", nc.nodeIp, nc.subnet->ipAddress, nc.subnet->prefixLength);
+			AquaLogging::Log(info, logMsg);
 			PersistSubnetInRepository(nc.subnet);
-			printf("persisted ip space for my own node\n");
+			sprintf_s(logMsg, msgSize, "persisted ip space for my own node\n");
+			AquaLogging::Log(info, logMsg);
 			break;
 		}
 	}
@@ -207,7 +214,10 @@ unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 extern DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std::wstring ca, std::wstring pa, std::wstring isRemoteEndpoint);
 DWORD AddRemoteMapping(const char *endpointId, const char *hostAddress, const char *containerAddress, const char *macAddress)
 {
-	printf("Call back to add endpoint received... success\n");
+	char logMsg[2048];
+	size_t msgSize = 2048;
+	sprintf_s(logMsg, msgSize, "Call back to add endpoint received... success\n");
+	AquaLogging::Log(info, logMsg);
 	wchar_t endPointIdW[150]; //GUID cannot exceed 38
 	size_t converted;
 	mbstowcs_s(&converted, endPointIdW, endpointId, 150);
@@ -221,7 +231,8 @@ DWORD AddRemoteMapping(const char *endpointId, const char *hostAddress, const ch
 	wchar_t macAddressW[50]; //MAC cannot exceed 24
 	mbstowcs_s(&converted, macAddressW, macAddress, 50);
 
-	printf("%s %s %s %s\n", endpointId, macAddress, containerAddress, macAddress);
+	sprintf_s(logMsg, msgSize, "%s %s %s %s\n", endpointId, macAddress, containerAddress, macAddress);
+	AquaLogging::Log(info, logMsg);
 	return AddEndpoint(endPointIdW, macAddressW, containerAddressW, hostAddressW, L"true");
 }
 
@@ -230,13 +241,42 @@ DWORD DeleteRemoteMapping (const char *endpointId)
 {
 	wchar_t endpointIdW[150]; //GUID cannot exceed 38
 	size_t converted;
+	char logMsg[2048];
+	size_t msgSize = 2048;
+	sprintf_s(logMsg, msgSize, "Call back to delete endpoint received...\n");
+	AquaLogging::Log(info, logMsg);
 	mbstowcs_s(&converted, endpointIdW, endpointId, 150);
-	return DeleteEndpoint(endpointIdW);
+	unsigned long retval =  DeleteEndpoint(endpointIdW);
+	sprintf_s(logMsg, msgSize, "Call back to delete endpoint finished with %u...\n", retval);
+	AquaLogging::Log(info, logMsg);
+	return retval;
 }
+
+extern DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, USHORT *mappingsCount);
+DWORD GetLocalMappings(EndpointMapping **endpointMappings, USHORT *mappingsCount)
+{
+	AquaLogging::Log(info, "Enter GetLocalMappings");
+	GetLocalEndpoints(endpointMappings, mappingsCount);
+	AquaLogging::Log(info, "Exit GetLocalMappings");
+	return 0;
+}
+
+DllExport unsigned long FreeMemoryForLocalEndpoints(EndpointMapping *endpointMappings, USHORT mappingsCount);
+DWORD FreeEndpointMappings(EndpointMapping *endpointMappings, USHORT mappingsCount)
+{
+	AquaLogging::Log(info, "Enter FreeEndpointMappings");
+	FreeMemoryForLocalEndpoints(endpointMappings, mappingsCount);
+	AquaLogging::Log(info, "Enter FreeEndpointMappings");
+	return 0;
+}
+
 void provideConfigToNIX(ClusterConfig *clusterConfig)
 {
+	char logMsg[2048];
+	size_t msgSize = 2048;
 
-	printf("Informing nix about the other nodes in the network");
+	sprintf_s(logMsg, msgSize, "Informing nix about the other nodes in the network");
+	AquaLogging::Log(info, logMsg);
 	unsigned int localIp;
 	GetHostIp(&localIp);
 	localIp = clusterConfig->localNodeIp;
@@ -251,55 +291,69 @@ void provideConfigToNIX(ClusterConfig *clusterConfig)
 		char remoteIpInString[INET_ADDRSTRLEN];
 		inet_ntop(AF_INET, &cnc.nodeIp, remoteIpInString, INET_ADDRSTRLEN);
 
-		printf("--------from cluster config remote ip = %s %s %u---------\n", remoteIpInString, cnc.nodeId, cnc.subnet->ipAddress);
+		sprintf_s(logMsg, msgSize, "--------from cluster config remote ip = %s %s %u---------\n", remoteIpInString, cnc.nodeId, cnc.subnet->ipAddress);
+		AquaLogging::Log(info, logMsg);
 		if (cnc.nodeIp != clusterConfig->localNodeIp)
 		{
 			char remoteIpInString2[INET_ADDRSTRLEN];
 			inet_ntop(AF_INET, &cnc.nodeIp, remoteIpInString2, INET_ADDRSTRLEN);
 			remoteHostAddresses[cntr] = remoteIpInString2;
-			printf("saved remote ip = %s\n", remoteIpInString2);
+			sprintf_s(logMsg, msgSize, "saved remote ip = %s\n", remoteIpInString2);
+			AquaLogging::Log(info, logMsg);
 			cntr++;
 		}
 	}
 
-	printf("giving remote ip as %s local=%s", remoteHostAddresses[0], ipInString);
-	InitializeAquaNix(ipInString, remoteHostAddresses, AddRemoteMapping, DeleteRemoteMapping, 10050, 10050);
+	sprintf_s(logMsg, msgSize, "giving remote ip as %s local=%s", remoteHostAddresses[0], ipInString);
+	AquaLogging::Log(info, logMsg);
+
+	InitializeAquaNix(ipInString, remoteHostAddresses, "127.0.0.1", AddRemoteMapping, DeleteRemoteMapping, 
+		GetLocalMappings, FreeEndpointMappings, 10050, 10050);
+	RequestRemoteMappings();
 	delete []remoteHostAddresses;
 }
 
 DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 {
 	unsigned long failed = 0;
+	char logMsg[2048];
+	size_t msgSize = 2048;
+
 	if (!clusterConfig)
 	{
 		return INVALID_PARAMETER;
 	}
 
 	AquaLogging::Log(info, "Going to initialize network ..\n");
-
 	switch(clusterConfig->net)
 	{
 		case OverLay: 
-			printf("Going to setup overlay network\n");
+			sprintf_s(logMsg, msgSize, "Going to setup overlay network\n");
+			AquaLogging::Log(info, logMsg);
 			networkTypeProvided = OverLay; // save the type
 			failed = setupOverlay(clusterConfig);
 			if(failed == 0)
 			{
-				printf("Going to persist overlay address space\n");
+				sprintf_s(logMsg, msgSize, "Going to persist overlay address space\n");
+				AquaLogging::Log(info, logMsg);
 				saveOverlayAddressSpace(clusterConfig);
 				provideConfigToNIX(clusterConfig);
-				printf("Successfully persisted Overlay Address Space\n");
+				sprintf_s(logMsg, msgSize, "Successfully persisted Overlay Address Space\n");
+				AquaLogging::Log(info, logMsg);
 			}
 			else
 			{
-				printf("setup Overlay returned non zero value %d. None of the ips were saved.", failed);
+				sprintf_s(logMsg, msgSize, "setup Overlay returned non zero value %d. None of the ips were saved.", failed);
+				AquaLogging::Log(err, logMsg);
 			}
 
-			printf("Initialize network finished. retunring %d\n", failed);
+			sprintf_s(logMsg, msgSize, "Initialize network finished. retunring %d\n", failed);
+			AquaLogging::Log(info, logMsg);
 			return failed;
 
 		case UnderLay: 
-			printf("Going to setup underlay network\n");
+			sprintf_s(logMsg, msgSize, "Going to setup underlay network\n");
+			AquaLogging::Log(info, logMsg);
 			networkTypeProvided = UnderLay;
 			switch(clusterConfig->env)
 			{
@@ -307,14 +361,17 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 				return setupUnderlayInAzure(clusterConfig);
 
 			case StandAlone: 		
-				printf("Underlay in StandAlone is not a supportedconfig");
+				sprintf_s(logMsg, msgSize, "Underlay in StandAlone is not a supportedconfig");
+				AquaLogging::Log(warn, logMsg);
 
 			default:
-				printf("Unsupported environment %d\n", clusterConfig->env);
+				sprintf_s(logMsg, msgSize, "Unsupported environment %d\n", clusterConfig->env);
+				AquaLogging::Log(warn, logMsg);
 				return UNSUPPORTED_NETWORK;
 			}
 		default:
-			printf("Unknown network type %d\n", clusterConfig->net);
+			sprintf_s(logMsg, msgSize, "Unknown network type %d\n", clusterConfig->net);
+			AquaLogging::Log(err, logMsg);
 			return UNSUPPORTED_NETWORK;
 	}
 }
@@ -323,6 +380,9 @@ extern DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp);
 DllExport DWORD GetHostLocalIp(unsigned int *hostLocalIp)
 {
 	unsigned long retval = 0;
+	char logMsg[2048];
+	size_t msgSize = 2048;
+
 	if(networkTypeProvided == OverLay)
 	{
 		retval = ReserveAvailableIpAddress("HostLocalIp", hostLocalIp);
@@ -345,7 +405,8 @@ DllExport DWORD GetHostLocalIp(unsigned int *hostLocalIp)
 		}
 		else
 		{
-			printf("Reserve Available for host local returned non-zero %d", retval);
+			sprintf_s(logMsg, msgSize, "Reserving Available for host local returned non-zero %d", retval);
+			AquaLogging::Log(info, logMsg);
 		}
 	}
 	else

@@ -1,12 +1,16 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "../../Logging/Logging.h"
 
 bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp)
 {
 	size_t len = strlen(subnet);
-	printf("retrieved subnet %s with length:%d for gateway retrieval.\n", 
+	char logMsg[2048];
+	size_t msgSize = 2048;
+	sprintf_s(logMsg, msgSize, "retrieved subnet %s with length:%d for gateway retrieval.\n", 
 		subnet, static_cast<int>(len));
+	AquaLogging::Log(info, logMsg);
 	*gatewayIp = static_cast<char *>(malloc(len + 1));
 	int dotCount = 0;
 	int k;
@@ -32,6 +36,6 @@ bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp)
 	
 	(*gatewayIp)[++k] = '1';
 	(*gatewayIp)[++k] = '\0';
-	printf("gateway Ip=%s\n", *gatewayIp);
+	sprintf_s(logMsg, msgSize, "gateway Ip=%s\n", *gatewayIp);
 	return true;
 }

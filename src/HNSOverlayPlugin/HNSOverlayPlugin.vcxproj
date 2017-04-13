@@ -55,6 +55,9 @@
     <ProjectReference Include="..\aquanix\aquanix.vcxproj">
       <Project>{d16a456d-9371-4055-afa7-276cd8cc32b9}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="AfterBuild">
