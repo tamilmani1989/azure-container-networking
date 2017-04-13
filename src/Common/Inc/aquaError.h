@@ -16,15 +16,19 @@ namespace aqua
 	const DWORD E_GetLocalMappingsFailed = 10;
 }
 
-#define ENTER(methodName) \
+#define ENTER(method) \
+	wchar_t *methodName = method; \
 	wchar_t logMsg[2048]; \
 	size_t msgSize = 2048; \
 	DWORD result = E_SUCCESS; \
 	LogXA(L"Enter %s", methodName) \
 
-#define EXIT(methodName) \
-	LogXA(L"Exit %s", methodName) \
+#define EXIT() \
+	LogXAB(L"Exit %s. Result:%d", methodName, result) \
 	return result; \
+
+#define EXITNORETURN() \
+	LogXAB(L"Exit %s. Result:%d", methodName, result) \
 
 #define LogX(X) \
 	WinLogger::LogInformation(X); \
@@ -39,26 +43,26 @@ namespace aqua
 
 #define LogXABC(X, A, B, C) \
 	swprintf_s(logMsg,msgSize,X,A,B,C); \
-	WinLogger::LogInformation(logMsg); \
+	LogX(logMsg); \
 
 #define LogXABCD(X, A, B, C, D) \
 	swprintf_s(logMsg,msgSize,X,A,B,C,D); \
-	WinLogger::LogInformation(logMsg); \
+	LogX(logMsg); \
 
 #define LogXABCDE(X, A, B, C, D, E) \
 	swprintf_s(logMsg,msgSize,X,A,B,C,D,E); \
-	WinLogger::LogInformation(logMsg); \
+	LogX(logMsg); \
 
 #define LogXABCDEF(X, A, B, C, D, E, F) \
 	swprintf_s(logMsg,msgSize,X,A,B,C,D,E,F); \
-	WinLogger::LogInformation(logMsg); \
+	LogX(logMsg); \
 
 #define TraceLog(message) \
 	cout << message; \
 
 #define E_AQUA(X, message) \
 	result = X; \
-	if(result != E_SUCCESS) E_AQ_FAIL(result, message)
+	if(result != E_SUCCESS) E_AQ_FAIL(result, message) \
 
 #define E_NULLPTR(X, error,message) \
 	if(X == nullptr) E_AQ_FAIL(error, message)
@@ -68,7 +72,7 @@ namespace aqua
 
 #define E_AQ_FAIL(error,message) \
 	{ \
-		cout << message << '\n'; \
+		LogXAB(L"%s . Error:%d", message, error); \
 		result = error; \
 		goto AquaError; \
 	} \

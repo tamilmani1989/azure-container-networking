@@ -34,10 +34,11 @@ DWORD MessageSender::Send(Message &message)
 		messageId, msgResponsePort, endpointId, hostAddress, containerAddress, macAddress);
 
 	RawMessage *pRawMessage = message.CreateRawMessage();
-	E_NULL(pRawMessage, E_CouldNotCreateRawMessage, "Failed to create raw message.");
+	E_NULL(pRawMessage, E_CouldNotCreateRawMessage, L"Failed to create raw message.");
 	map<string, int>* pSendMap = new map<string, int>();
 	for (int i = 0; i < m_remoteHostsCount; i++)
 	{
+		LogXA(L"Adding send message for remote host:%S", m_remoteHostAddresses[i].c_str());
 		pSendMap->insert(pair<string, int>(m_remoteHostAddresses[i], 0));
 	}
 	tuple<RawMessage*, map<string, int>*>* messageMapTuple = new tuple<RawMessage*, map<string, int>*>(pRawMessage, pSendMap);
@@ -46,8 +47,7 @@ DWORD MessageSender::Send(Message &message)
 	m_conditionSendMessage.notify_one();
 
 AquaError:
-	LogMessage(L"Exit MessageSender::Send");
-	return result;
+	EXIT();
 }
 
 DWORD MessageSender::Send(
@@ -55,11 +55,10 @@ DWORD MessageSender::Send(
 	char *recipientIPAddress,
 	bool notifyLater)
 {
-	LogMessage(L"Enter MessageSender::Send");
+	ENTER(L"MessageSender::Send");
 
-	DWORD result = E_SUCCESS;
 	RawMessage *pRawMessage = message.CreateRawMessage();
-	E_NULL(pRawMessage, E_CouldNotCreateRawMessage, "Failed to create raw message.");
+	E_NULL(pRawMessage, E_CouldNotCreateRawMessage, L"Failed to create raw message.");
 	map<string, int>* pSendMap = new map<string, int>();
 	pSendMap->insert(pair<string, int>(string(recipientIPAddress), 0));
 	tuple<RawMessage*, map<string, int>*>* messageMapTuple = new tuple<RawMessage*, map<string, int>*>(pRawMessage, pSendMap);
@@ -71,8 +70,7 @@ DWORD MessageSender::Send(
 	}
 
 AquaError:
-	LogMessage(L"Exit MessageSender::Send");
-	return result;
+	EXIT();
 }
 
 void MessageSender::NotifySender()
@@ -90,7 +88,8 @@ DWORD MessageSender::SendAck(Message &message, char *destination)
 	LogXABC(L"Sending ack for MessageId:%S on responsePort: %d to %S", messageId, responsePort, destination);
 
 	pRawMessage = message.CreateAckRawMessage();
-	E_AQUA(m_pMessageExchange->Send(destination, responsePort, (const char *)pRawMessage->GetData(), pRawMessage->GetDataSize()), "Send ack failed");
+	E_AQUA(m_pMessageExchange->Send(destination, responsePort, (const char *)pRawMessage->GetData(), pRawMessage->GetDataSize()), 
+		L"Send ack failed");
 
 AquaError:
 	if (pRawMessage != NULL)
@@ -99,8 +98,7 @@ AquaError:
 		pRawMessage = NULL;
 	}
 
-	LogMessage(L"Exit MessageSender::SendAck");
-	return result;
+	EXIT();
 }
 
 void MessageSender::UpdateMessageMap(const char *id, tuple<RawMessage*, map<string, int>*>* messageMapTuple)
@@ -150,7 +148,7 @@ DWORD MessageSender::RemoveAckedMessageFromMap(string msgId, char *destination)
 		delete it->second;
 		m_messageMap.erase(it);
 	}
-	EXIT(L"MessageSender::RemoveAckedMessageFromMap");
+	EXIT();
 }
 
 void MessageSender::SendMessagesDaemon(MessageSender *pMessageSender)

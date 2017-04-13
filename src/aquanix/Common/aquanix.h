@@ -26,6 +26,7 @@ namespace aqua
 		AquaNix(
 			char *localHostAddress, 
 			char *remoteHostAddresses[], 
+			USHORT numberOfRemoteHosts,
 			char *mappingsSenderIP, 
 			AddRemoteMappingCallback receiveMapping, 
 			DeleteRemoteMappingCallback deleteRemoteMapping,
@@ -47,7 +48,8 @@ namespace aqua
 	public:
 		static DWORD Create(
 			char *localHostAddress, 
-			char *remoteHostAddresses[], 
+			char *remoteHostAddresses[],
+			USHORT numberOfRemoteHosts,
 			char *mappingsSenderIP, 
 			AddRemoteMappingCallback receiveMapping, 
 			DeleteRemoteMappingCallback deleteRemoteMapping, 

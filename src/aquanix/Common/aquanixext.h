@@ -39,6 +39,7 @@ DllExport typedef DWORD(*FreeEndpointMappingsCallback) (
 DllExport DWORD InitializeAquaNix(
 	char *localHostAddress,
 	char *remoteHostAddresses[],
+	USHORT numberOfRemoteHosts,
 	char *mappingsSenderIP,
 	AddRemoteMappingCallback receiveMapping,
 	DeleteRemoteMappingCallback deleteMapping,

@@ -13,11 +13,11 @@ WinMessageExchange::WinMessageExchange(string localHostIPAddress, Protocol proto
 
 DWORD WinMessageExchange::Initialize()
 {
-	DWORD result = E_SUCCESS;
+	ENTER(L"WinMessageExchange::Initialize")
 	int iResult;
 	WSAData wsaData;
 	
-	E_WSA(WSAStartup(MAKEWORD(2, 2), &wsaData), "WSAStartup failed: ", E_WSAStartupFailed);
+	E_WSA(WSAStartup(MAKEWORD(2, 2), &wsaData), L"WSAStartup failed: ", E_WSAStartupFailed);
 	m_wsaInitialized = true;
 
 	//setup server socket
@@ -43,22 +43,22 @@ DWORD WinMessageExchange::Initialize()
 	hints.ai_flags = AI_PASSIVE;
 
 	// Resolve the local address and port to be used by the server
-	E_WSA(getaddrinfo(NULL, m_portString.c_str(), &hints, &m_addressInfo), "getaddrinfo failed: ", E_GetAddrFailed);
+	E_WSA(getaddrinfo(NULL, m_portString.c_str(), &hints, &m_addressInfo), L"getaddrinfo failed: ", E_GetAddrFailed);
 
 	sockaddr_in recvAddress;
 	recvAddress.sin_family = AF_INET;
 	recvAddress.sin_port = htons(m_port);
 	if (1 != inet_pton(AF_INET, m_localHostIPAddress.c_str(), &recvAddress.sin_addr.s_addr))
 	{
-		E_WSA_FAIL("conversion failed", E_SendFailed);
+		E_WSA_FAIL(L"conversion failed", E_SendFailed);
 	}
 
 	//create socket
 	m_serverSocket = socket(m_addressInfo->ai_family, m_addressInfo->ai_socktype, m_addressInfo->ai_protocol);
-	E_WSA_FAILFOR(INVALID_SOCKET, m_serverSocket,"Server Socket failed.",E_SocketFailed);
+	E_WSA_FAILFOR(INVALID_SOCKET, m_serverSocket,L"Server Socket failed.",E_SocketFailed);
 
 	//bind
-	E_WSA_FAILFOR(SOCKET_ERROR, bind(m_serverSocket, m_addressInfo->ai_addr, (int)m_addressInfo->ai_addrlen), "bind failed: ", E_BindFailed);
+	E_WSA_FAILFOR(SOCKET_ERROR, bind(m_serverSocket, m_addressInfo->ai_addr, (int)m_addressInfo->ai_addrlen), L"bind failed: ", E_BindFailed);
 	//E_WSA_FAILFOR(SOCKET_ERROR, bind(m_serverSocket, (const sockaddr *)&recvAddress, sizeof(recvAddress)), "bind failed: ", E_BindFailed);
 
 	//receive
@@ -90,7 +90,7 @@ DWORD WinMessageExchange::Initialize()
 
 	//create send socket
 	m_clientSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	E_WSA_FAILFOR(INVALID_SOCKET, m_clientSocket, "Client Socket failed.", E_SocketFailed);
+	E_WSA_FAILFOR(INVALID_SOCKET, m_clientSocket, L"Client Socket failed.", E_SocketFailed);
 
 
 
@@ -99,7 +99,7 @@ AquaError:
 	{
 		Cleanup();
 	}
-	return result;
+	EXIT();
 }
 
 void WinMessageExchange::ReceiveMessage(void *param)
@@ -156,7 +156,7 @@ void WinMessageExchange::ReceiveMessageLocalServer(void *param)
 
 DWORD WinMessageExchange::Send(const char *receiver, USHORT responsePort, const char *buffer, USHORT bufLength)
 {
-	DWORD result = E_SUCCESS;
+	ENTER(L"WinMessageExchange::Send");
 	int iResult = 0;
 
 	sockaddr_in recvAddress;
@@ -165,22 +165,23 @@ DWORD WinMessageExchange::Send(const char *receiver, USHORT responsePort, const 
 	//recvAddress.sin_addr.s_addr = inet_addr(receiver);
 	if (1 != inet_pton(AF_INET, receiver, &recvAddress.sin_addr.s_addr))
 	{
-		E_WSA_FAIL("sendto failed", E_SendFailed);
+		E_WSA_FAIL(L"sendto failed", E_SendFailed);
 	}
 
-	E_WSA_SOCKET_ERROR(sendto(m_clientSocket, buffer, bufLength, 0, (SOCKADDR *)& recvAddress, sizeof(recvAddress)), "sendto failed", E_SendFailed);
+	E_WSA_SOCKET_ERROR(sendto(m_clientSocket, buffer, bufLength, 0, (SOCKADDR *)& recvAddress, sizeof(recvAddress)), L"sendto failed", E_SendFailed);
 
 AquaError:
-	return result;
+	EXIT();
 }
 
 DWORD WinMessageExchange::Send(const char *receiver, const char *buffer, USHORT bufLength)
 {
-	DWORD result = E_SUCCESS;
-	E_AQUA(Send(receiver, m_remotePort, buffer, bufLength), "Send Failed.")
+	ENTER(L"WinMessageExchange::Send");
+	LogXAB(L"Sending message to %S on port:%d", receiver, m_remotePort);
+	E_AQUA(Send(receiver, m_remotePort, buffer, bufLength), L"Send Failed.");
 
 AquaError:
-	return result;
+	EXIT();
 }
 
 

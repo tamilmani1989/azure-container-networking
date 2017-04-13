@@ -56,7 +56,7 @@ int main()
 	char *mappingsSenderIP = "127.0.0.1";
 
 
-	InitializeAquaNix(localHostAddress, remoteHostAddresses, mappingsSenderIP, ReceiveMapping, DeleteRemoteMapping, GetLocalMappings, FreeEndpointMappings, 10050, 10050);
+	InitializeAquaNix(localHostAddress, remoteHostAddresses, 1, mappingsSenderIP, ReceiveMapping, DeleteRemoteMapping, GetLocalMappings, FreeEndpointMappings, 10050, 10050);
 	string myinput;
 	cin >> myinput;
 	DWORD result = SendLocalMapping("endpoint_012345", "172.2.3.4", "6E-34-21-56-31");
