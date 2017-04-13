@@ -389,7 +389,7 @@ void ContainerHost::Initialize(_Inout_ HNSProviderPtr PluginProvider)
 	LogStringInFile(L"Initialize Called");
 	//AquaLogging::Log(info, "Initializing HNS Overlay Plugin");
 	char **remoteHostAddresses = new char*{ "127.0.0.1" };
-	InitializeAquaNix("127.0.0.1", remoteHostAddresses, 1, NULL, ReceiveMapping, DeleteRemoteMapping, GetLocalMappings, FreeEndpointMappings, 10051, 10050);
+	InitializeAquaNix("127.0.0.1", remoteHostAddresses, 1, NULL, ReceiveMapping, DeleteRemoteMapping, GetLocalMappings, FreeEndpointMappings, 10988, 10987);
 	//GetLocalMappings()
 	delete []remoteHostAddresses;
 	LogStringInFile(L"Initialize finished");

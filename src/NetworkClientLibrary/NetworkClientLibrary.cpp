@@ -315,7 +315,7 @@ void provideConfigToNIX(ClusterConfig *clusterConfig)
 	}
 
 	InitializeAquaNix(ipInString, remoteHostAddresses, cntr, "127.0.0.1", AddRemoteMapping, DeleteRemoteMapping, 
-		GetLocalMappings, FreeEndpointMappings, 10050, 10050);
+		GetLocalMappings, FreeEndpointMappings, 10987, 10987);
 	RequestRemoteMappings();
 	for(int k = 0; k<cntr; k++)
 	{
