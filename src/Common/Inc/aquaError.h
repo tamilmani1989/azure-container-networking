@@ -37,6 +37,22 @@ namespace aqua
 	swprintf_s(logMsg,msgSize,X,A,B); \
 	WinLogger::LogInformation(logMsg); \
 
+#define LogXABC(X, A, B, C) \
+	swprintf_s(logMsg,msgSize,X,A,B,C); \
+	WinLogger::LogInformation(logMsg); \
+
+#define LogXABCD(X, A, B, C, D) \
+	swprintf_s(logMsg,msgSize,X,A,B,C,D); \
+	WinLogger::LogInformation(logMsg); \
+
+#define LogXABCDE(X, A, B, C, D, E) \
+	swprintf_s(logMsg,msgSize,X,A,B,C,D,E); \
+	WinLogger::LogInformation(logMsg); \
+
+#define LogXABCDEF(X, A, B, C, D, E, F) \
+	swprintf_s(logMsg,msgSize,X,A,B,C,D,E,F); \
+	WinLogger::LogInformation(logMsg); \
+
 #define TraceLog(message) \
 	cout << message; \
 

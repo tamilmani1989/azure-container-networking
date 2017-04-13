@@ -210,7 +210,6 @@ DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 {
 	ENTER(L"AquaNix::ReceiveMessage");
 
-	UNREFERENCED_PARAMETER(sender);
 	EndpointMapping *endpointMappings = NULL;
 	USHORT mappingsCount = 0;
 	AquaNix *aquaNix = AquaNixFactory::GetInstance();
@@ -218,7 +217,7 @@ DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 	Message message = Message((UCHAR *)buffer, (USHORT)bufLength);
 	MessageCode messageCode = message.GetMessageCode();
 	const char *messageId = message.GetMessageId();
-	LogXAB(L"Received message for messageCode=%d MessageId:%S", messageCode, messageId);
+	LogXABC(L"Received message for messageCode=%d MessageId:%S from:%S", messageCode, messageId, sender);
 	if (messageCode == MessageCode::AckMapping)
 	{
 		LogXAB(L"Received ack for messageCode=%d MessageId:%S", messageCode, messageId);
@@ -227,7 +226,8 @@ DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 	else
 	{
 		const char *host = message.GetHostAddress();
-		LogXAB(L"Received ack for messageCode=%d MessageId:%S", messageCode, messageId);
+		USHORT msgResponsePort = message.GetMessageResponsePort();
+		LogXABC(L"Received non-ack message for messageCode=%d MessageId:%S msgResponsePort:%d", messageCode, messageId, msgResponsePort);
 		if (aquaNix->m_mappingsSenderIP.compare(host) == 0)
 		{
 			LogX(L"Message received to be forwarded to remote servers");
@@ -241,50 +241,56 @@ DWORD AquaNix::ReceiveMessage(char *sender, void *buffer, int bufLength)
 			WinLogger::LogInformation(L"External receive callback");
 			if (messageCode == MessageCode::SetMapping)
 			{
-				WinLogger::LogInformation(L"External recieve ...");
 				const char *endpointId = message.GetEndpointId();
 				const char *hostAddress = message.GetHostAddress();
 				const char *containerAddress = message.GetContainerAddress();
-				const char* macAddress = message.GetMacAddress();
-				LogXA(L"Calling external receive mapping for MessageId:%S", messageId);
+				const char *macAddress = message.GetMacAddress();
+				LogXABCDE(L"Calling external receive mapping for MessageId:%S endpointId:%S hostAddress:%S containerAddress:%S macAddress:%S", 
+					messageId, endpointId, hostAddress, containerAddress, macAddress);
 				aquaNix->ReceiveMapping(endpointId, hostAddress, containerAddress, macAddress);
 				WinLogger::LogInformation(L"External receive mapping returned");
 			}
 			else if (messageCode == MessageCode::DeleteMapping)
 			{
-				WinLogger::LogInformation(L"External delete ...");
+				const char *endpointId = message.GetEndpointId();
+				const char *hostAddress = message.GetHostAddress();
+				LogXABC(L"Calling external delete mapping for MessageId:%S endpointId:%S hostAddress:%S",
+					messageId, endpointId, hostAddress);
 				aquaNix->DeleteRemoteMapping(message.GetEndpointId());
 				WinLogger::LogInformation(L"External delete returned");
 			}
 			else if (messageCode == MessageCode::RequestAllRemoteMappings)
 			{
-				WinLogger::LogInformation(L"External GetLocalMappings 0 ...");
+				LogX(L"External GetLocalMappings callback...");
 				E_ZERO(aquaNix->GetLocalMappings(&endpointMappings, &mappingsCount), "Get local mappings failed.", E_GetLocalMappingsFailed);
-				WinLogger::LogInformation(L"External GetLocalMappings 0 returned");
-
-				for (int i = 0; i < mappingsCount; i++)
+				LogXA(L"External GetLocalMappings returned %d mappings", mappingsCount);
+				if (mappingsCount > 0)
 				{
-					Message specificMessage = Message(
-						endpointMappings[i].endpointId,
-						aquaNix->m_localHostAddress,
-						endpointMappings[i].containerAddress,
-						endpointMappings[i].macAddress);
-					E_AQUA(aquaNix->m_pMessageSender->Send(specificMessage), "Message send failed.");
+					for (int i = 0; i < mappingsCount; i++)
+					{
+						LogX(L"Creating send message for local mapping to be sent to remote server.");
+						Message specificMessage = Message(
+							endpointMappings[i].endpointId,
+							aquaNix->m_localHostAddress,
+							endpointMappings[i].containerAddress,
+							endpointMappings[i].macAddress);
+						E_AQUA(aquaNix->m_pMessageSender->Send(specificMessage, sender, true), "Message send failed.");
+					}
+					aquaNix->m_pMessageSender->NotifySender();
 				}
-				aquaNix->m_pMessageSender->NotifySender();
 			}
 			WinLogger::LogInformation(L"External receive callback returned");
 		}
-		WinLogger::LogInformation(L"Sending ack");
 		aquaNix->m_pMessageSender->SendAck(message, sender);
-		WinLogger::LogInformation(L"Ack sent");
 	}
 
 AquaError:
 
 	if (endpointMappings != NULL)
 	{
+		LogXA(L"External FreeEndpointMappings for %d mappings", mappingsCount);
 		aquaNix->FreeEndpointMappings(endpointMappings, mappingsCount);
+		LogX(L"External FreeEndpointMappings completed");
 		endpointMappings = NULL;
 	}
 

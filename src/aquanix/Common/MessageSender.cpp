@@ -1,5 +1,7 @@
 #include "MessageSender.h"
 
+#include "..\Windows\WinLogger.h"
+
 MessageSender::MessageSender(MessageExchange *pMessageExchange, string *remoteHostAddresses, int remoteHostsCount)
 {
 	m_pMessageExchange = pMessageExchange;
@@ -18,11 +20,19 @@ MessageSender::~MessageSender()
 	m_remoteHostsCount = 0;
 }
 
-DWORD MessageSender::Send(Message message)
+DWORD MessageSender::Send(Message &message)
 {
-	LogMessage(L"Enter MessageSender::Send");
+	ENTER(L"MessageSender::Send");
 
-	DWORD result = E_SUCCESS;
+	const char *messageId = message.GetMessageId();
+	const char *endpointId = message.GetEndpointId();
+	const char *hostAddress = message.GetHostAddress();
+	const char *containerAddress = message.GetContainerAddress();
+	const char *macAddress = message.GetMacAddress();
+	USHORT msgResponsePort = message.GetMessageResponsePort();
+	LogXABCDEF(L"Adding send message for MessageId:%S msgResponsePort:%d endpointId:%S hostAddress:%S containerAddress:%S macAddress:%S",
+		messageId, msgResponsePort, endpointId, hostAddress, containerAddress, macAddress);
+
 	RawMessage *pRawMessage = message.CreateRawMessage();
 	E_NULL(pRawMessage, E_CouldNotCreateRawMessage, "Failed to create raw message.");
 	map<string, int>* pSendMap = new map<string, int>();
@@ -41,7 +51,7 @@ AquaError:
 }
 
 DWORD MessageSender::Send(
-	Message message,
+	Message &message,
 	char *recipientIPAddress,
 	bool notifyLater)
 {
@@ -70,15 +80,16 @@ void MessageSender::NotifySender()
 	m_conditionSendMessage.notify_one();
 }
 
-DWORD MessageSender::SendAck(Message message, char *destination)
+DWORD MessageSender::SendAck(Message &message, char *destination)
 {
-	LogMessage(L"Enter MessageSender::SendAck");
-	DWORD result = E_SUCCESS;
+	ENTER(L"MessageSender::SendAck");
 	RawMessage *pRawMessage = NULL;
 
 	USHORT responsePort = message.GetMessageResponsePort();
-	pRawMessage = message.CreateAckRawMessage();
+	const char *messageId = message.GetMessageId();
+	LogXABC(L"Sending ack for MessageId:%S on responsePort: %d to %S", messageId, responsePort, destination);
 
+	pRawMessage = message.CreateAckRawMessage();
 	E_AQUA(m_pMessageExchange->Send(destination, responsePort, (const char *)pRawMessage->GetData(), pRawMessage->GetDataSize()), "Send ack failed");
 
 AquaError:
@@ -97,26 +108,29 @@ void MessageSender::UpdateMessageMap(const char *id, tuple<RawMessage*, map<stri
 	lock_guard<mutex> lockGuard(m_mapLock);
 	m_messageMap[string(id)] = messageMapTuple;
 }
-DWORD MessageSender::RemoveAckedMessage(Message message, char *destination)
+
+DWORD MessageSender::RemoveAckedMessage(Message &message, char *destination)
 {
-	LogMessage(L"Enter MessageSender::RemoveAckedMessage");
-	DWORD result = E_SUCCESS;
-	RemoveAckedMessageFromMap(message.GetMessageId(), destination);
+	ENTER(L"MessageSender::RemoveAckedMessage");
+
+	const char *messageId = message.GetMessageId();
+	LogXAB(L"Removing send message for messageId:%S destination:%S", messageId, destination);
+	RemoveAckedMessageFromMap(messageId, destination);
 	//AquaError:
 	LogMessage(L"Exit MessageSender::RemoveAckedMessage");
 	return result;
 }
 
-void MessageSender::RemoveAckedMessageFromMap(string msgId, char *destination)
+DWORD MessageSender::RemoveAckedMessageFromMap(string msgId, char *destination)
 {
-	LogMessage(L"Enter MessageSender::RemoveAckedMessageFromMap");
+	ENTER(L"MessageSender::RemoveAckedMessageFromMap");
 	lock_guard<mutex> lockGuard(m_mapLock);
 	map<string, tuple<RawMessage*, map<string, int>*>*>::iterator it;
 
 	it = m_messageMap.find(msgId);
 	if (it == m_messageMap.end())
 	{
-		return;
+		return E_SUCCESS;
 	}
 	map<string, int>* pPerServerMessageMap = get<1>(*it->second);
 
@@ -124,17 +138,19 @@ void MessageSender::RemoveAckedMessageFromMap(string msgId, char *destination)
 	it2 = pPerServerMessageMap->find(destination);
 	if (it2 == pPerServerMessageMap->end())
 	{
-		return;
+		return E_SUCCESS;
 	}
+	LogXA(L"Erasing server:%S from send msg map", destination);
 	pPerServerMessageMap->erase(it2);
 	if (pPerServerMessageMap->size() == 0)
 	{
+		LogXA(L"Erasing msgid:%S from send msg map", msgId.c_str());
 		delete get<0>(*it->second);
 		delete pPerServerMessageMap;
 		delete it->second;
 		m_messageMap.erase(it);
 	}
-	LogMessage(L"Exit MessageSender::RemoveAckedMessageFromMap");
+	EXIT(L"MessageSender::RemoveAckedMessageFromMap");
 }
 
 void MessageSender::SendMessagesDaemon(MessageSender *pMessageSender)
