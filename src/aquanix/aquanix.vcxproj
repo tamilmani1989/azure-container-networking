@@ -62,4 +62,8 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="AfterBuild">
+    <Copy SourceFiles="$(OutputPath)\aquanix.dll; $(OutputPath)\aquanix.pdb; $(OutputPath)\aquanix.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
+    <Copy SourceFiles="$(OutputPath)\aquanix.dll; $(OutputPath)\aquanix.pdb; $(OutputPath)\aquanix.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
+  </Target>
 </Project>

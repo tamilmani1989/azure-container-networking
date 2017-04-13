@@ -24,48 +24,6 @@ extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned 
 extern void ParseSubnetAndGatewayIp(char *xmlResponse, char **sunbetIp, char **gatewayIp);
 extern bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp);
 
-int initWsa()
-{
-	char logMsg[2048];
-	size_t msgSize = 2048;
-	WORD wVersionRequested;
-	WSADATA wsaData;
-	int wsaerr;
-	int success = 1;
-
-	wVersionRequested = MAKEWORD(2, 2);
-
-	wsaerr = WSAStartup(wVersionRequested, &wsaData);
-	if (wsaerr != 0)
-	{
-		// could not find a usable Winsock DLL.  
-		sprintf_s(logMsg, msgSize, "WSAStartup failed with error: %d\n", wsaerr);
-		AquaLogging::Log(info, logMsg);
-		success = 0;
-	}
-
-	/* If the DLL supports versions greater
-	* than 2.2 in addition to 2.2, it will still return
-	* 2.2 in wVersion since that is the version we
-	* requested.
-	* */
-
-	if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2)
-	{
-		sprintf_s(logMsg, msgSize, "Could not find a usable version of Winsock.dll\n");
-		AquaLogging::Log(info, logMsg);
-		WSACleanup();
-		success = 0;
-	}
-	else
-	{
-		sprintf_s(logMsg, msgSize, "The Winsock 2.2 dll was found okay\n");
-		AquaLogging::Log(info, logMsg);
-	}
-
-	return success;
-}
-
 SOCKET connectToHost(char *host, USHORT port)
 {
 	char logMsg[2048];
@@ -130,41 +88,35 @@ int InsertIntoBuffer(char **recvBuffer, int byteCount, char c)
 	return 1;
 }
 
-int wsaInitialize()
+int WsaInitialize()
 {
-	int retval = 1;
 	char logMsg[2048];
 	size_t msgSize = 2048;
-	
-	initWsaMutex.lock();
-	if (wsaInitialized==0)
-	{
-		if (initWsa())
-		{
-			wsaInitialized = 1;
-			retval = 1;
-		}
-		else
-		{
-			sprintf_s(logMsg, msgSize,  "wsa initialization failed\n");
-			AquaLogging::Log(info, logMsg);
-			retval = 0;
-		}
+	WSADATA wsaData;
+	int wsaerr;
+
+	wsaerr = WSAStartup(MAKEWORD(2, 2), &wsaData);
+
+	if (wsaerr != 0)
+	{		
+		sprintf_s(logMsg, msgSize, "WSAStartup failed with error: %d\n", wsaerr);
+		AquaLogging::Log(info, logMsg);		
 	}
 	else
 	{
-		wsaInitialized++;
+		sprintf_s(logMsg, msgSize, "WSA initialization finished successfully. \n");
+		AquaLogging::Log(info, logMsg);
 	}
-	initWsaMutex.unlock();
 	
-	return retval;
+	return wsaerr;
 }
 
 void wsaCleanUp()
 {
+	/*
 	if (wsaInitialized > 0)
 	{
-		initWsaMutex.lock();
+		//initWsaMutex.lock();
 		if (wsaInitialized > 0)
 		{
 			wsaInitialized--;
@@ -174,8 +126,8 @@ void wsaCleanUp()
 				WSACleanup();
 			}
 		}
-		initWsaMutex.unlock();
-	}
+		//initWsaMutex.unlock();
+	}*/
 }
 
 char* httpSendResponse(SOCKET sock, char *payload)
@@ -270,11 +222,6 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 	char logMsg[2048];
 	size_t msgSize = 2048;
 
-	if (!wsaInitialize())
-	{
-		return -1;
-	}
-
 	sprintf_s(logMsg, msgSize, "Trying to connect to nm agent.\n");
 	AquaLogging::Log(info, logMsg);
 	SOCKET sock = connectToHost("169.254.169.254", 80);
@@ -341,12 +288,7 @@ int getIpsFromNmAgent(unsigned int *ips)
 	int byteCount = 0;
 	char logMsg[2048];
 	size_t msgSize = 2048;
-
-	if (!wsaInitialize())
-	{
-		return -1;
-	}
-
+	
 	sprintf_s(logMsg, msgSize, "Trying to connect to nm agent.\n");
 	AquaLogging::Log(info, logMsg);
 	SOCKET sock = connectToHost("169.254.169.254", 80);
@@ -457,12 +399,7 @@ DWORD GetHostIp(unsigned int *ip)
 	unsigned long retval = 0;
 	char logMsg[2048];
 	size_t msgSize = 2048;
-
-	if (!wsaInitialize())
-	{
-		return UNEXPECTED_ERROR;
-	}
-
+	
 	if (gethostname(hostName, 255) != 0)
 	{
 		sprintf_s(logMsg, msgSize, "error happenned during hethostname() %d\n", WSAGetLastError());
@@ -547,10 +484,6 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 	char logMsg[2048];
 	size_t msgSize = 2048;
 
-	if (!wsaInitialize())
-	{
-		return UNEXPECTED_ERROR;
-	}
 	sprintf_s(logMsg, msgSize, "wsa initialization finished\n");
 	AquaLogging::Log(info, logMsg);
 	SOCKET sock = connectToHost("localhost", 2375);
@@ -583,11 +516,7 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 
 		sprintf_s(logMsg, msgSize, "ipamconfig:%s\n", ipamConfig);
 		AquaLogging::Log(info, logMsg);
-		if (!wsaInitialize())
-		{
-			return UNEXPECTED_ERROR;
-		}
-
+		
 		sock = connectToHost("localhost", 2375);
 
 		ipamLength = strlen(ipamConfig);
@@ -739,13 +668,8 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 		return UNSPECIFIED_NETWORK_NAME;
 	}
 
-	if (!wsaInitialize())
-	{
-		return UNEXPECTED_ERROR;
-	}
-
 	sprintf_s(logMsg, msgSize, "wsa initialization finished to setup overlay\n");
-	AquaLogging::Log(info, logMsg);
+	AquaLogging::Log(info, logMsg);	
 
 	SOCKET sock = connectToHost("localhost", 2375);
 	if (sock == INVALID_SOCKET)
@@ -799,11 +723,7 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 		AquaLogging::Log(info, logMsg);
 
 		sprintf_s(logMsg, msgSize, "ipamconfig:%s\n", ipamConfig);
-		AquaLogging::Log(info, logMsg);
-		if (!wsaInitialize())
-		{
-			return UNEXPECTED_ERROR;
-		}
+		AquaLogging::Log(info, logMsg);	
 
 		retval = CreateDockerNetwork(clusterConfig->networkName, ipamConfig);
 	}

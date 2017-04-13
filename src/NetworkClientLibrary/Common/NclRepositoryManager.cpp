@@ -318,7 +318,7 @@ unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist)
 
 	sprintf_s(logMsg, msgSize, "starting ip=0x%08X\n", startingIp);
 	unsigned int ipCount = 1;
-	for( int i = 0; i<leftShiftCount ;i++)
+	for( int i = 0; i<leftShiftCount-1 ;i++)
 	{
 		ipCount = (ipCount << 1);
 		ipCount = ipCount | 0x1;

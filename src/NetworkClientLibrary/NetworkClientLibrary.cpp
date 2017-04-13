@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <mutex>
+extern int WsaInitialize();
 #endif
 #ifdef __linux__
 #include <curl/curl.h>
@@ -196,7 +197,7 @@ unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 	for(int i= 0 ; i<clusterConfig->nodeCount ; i++)
 	{
 		NodeConfig nc = clusterConfig->nodeConfigs[i];
-		sprintf_s(logMsg, msgSize, "Comparing %d %d", nc.nodeIp, clusterConfig->localNodeIp);
+		sprintf_s(logMsg, msgSize, "Comparing %u %u", nc.nodeIp, clusterConfig->localNodeIp);
 		AquaLogging::Log(info, logMsg);
 		if(nc.nodeIp == clusterConfig->localNodeIp)
 		{
@@ -283,7 +284,7 @@ void provideConfigToNIX(ClusterConfig *clusterConfig)
 	char ipInString[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, &localIp, ipInString, INET_ADDRSTRLEN);
 	char**remoteHostAddresses = new char *[clusterConfig->nodeCount - 1]; //-1 for local address
-	int cntr = 0;
+	USHORT cntr = 0;
 	for (int i = 0; i < clusterConfig->nodeCount; i++)
 	{
 		
@@ -297,19 +298,29 @@ void provideConfigToNIX(ClusterConfig *clusterConfig)
 		{
 			char remoteIpInString2[INET_ADDRSTRLEN];
 			inet_ntop(AF_INET, &cnc.nodeIp, remoteIpInString2, INET_ADDRSTRLEN);
-			remoteHostAddresses[cntr] = remoteIpInString2;
-			sprintf_s(logMsg, msgSize, "saved remote ip = %s\n", remoteIpInString2);
+			remoteHostAddresses[cntr] = (char *) malloc(sizeof(char)* INET_ADDRSTRLEN);
+			strcpy_s(remoteHostAddresses[cntr], INET_ADDRSTRLEN, remoteIpInString2);
+			sprintf_s(logMsg, msgSize, "saved remote ip = %s\n", remoteHostAddresses[cntr]);
 			AquaLogging::Log(info, logMsg);
 			cntr++;
 		}
 	}
 
-	sprintf_s(logMsg, msgSize, "giving remote ip as %s local=%s", remoteHostAddresses[0], ipInString);
+	sprintf_s(logMsg, msgSize, "Local Host provided to NIX: %s", ipInString);
 	AquaLogging::Log(info, logMsg);
+	for(int j=0; j<cntr; j++)
+	{
+		sprintf_s(logMsg, msgSize, "Remote Host %d provided to NIX: %s", j, remoteHostAddresses[j]);
+		AquaLogging::Log(info, logMsg);
+	}
 
-	InitializeAquaNix(ipInString, remoteHostAddresses, "127.0.0.1", AddRemoteMapping, DeleteRemoteMapping, 
+	InitializeAquaNix(ipInString, remoteHostAddresses, cntr, "127.0.0.1", AddRemoteMapping, DeleteRemoteMapping, 
 		GetLocalMappings, FreeEndpointMappings, 10050, 10050);
 	RequestRemoteMappings();
+	for(int k = 0; k<cntr; k++)
+	{
+		free(remoteHostAddresses[k]);
+	}
 	delete []remoteHostAddresses;
 }
 
@@ -319,12 +330,21 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 	char logMsg[2048];
 	size_t msgSize = 2048;
 
-	if (!clusterConfig)
+	if (clusterConfig == NULL)
 	{
 		return INVALID_PARAMETER;
 	}
 
 	AquaLogging::Log(info, "Going to initialize network ..\n");
+
+#ifdef _WIN32
+	AquaLogging::Log(info, "Going to init wsa.");
+	if (WsaInitialize() != 0)
+	{
+		return UNEXPECTED_ERROR;
+	}
+	AquaLogging::Log(info, "WSA init successfully done.");
+#endif
 	switch(clusterConfig->net)
 	{
 		case OverLay: 
