@@ -15,6 +15,7 @@ namespace aqua
 		AddRemoteMappingCallback ReceiveMapping;
 		DeleteRemoteMappingCallback DeleteRemoteMapping;
 		GetLocalMappingsCallback GetLocalMappings;
+		FreeEndpointMappingsCallback FreeEndpointMappings;
 		USHORT m_servicePort;
 		USHORT m_remoteServicePort;
 		MessageExchange *m_pMessageExchange;
@@ -29,6 +30,7 @@ namespace aqua
 			AddRemoteMappingCallback receiveMapping, 
 			DeleteRemoteMappingCallback deleteRemoteMapping,
 			GetLocalMappingsCallback getLocalMappings,
+			FreeEndpointMappingsCallback freeEndpointMappings,
 			USHORT servicePort, 
 			USHORT remoteServicePort);
 		~AquaNix();
@@ -50,6 +52,7 @@ namespace aqua
 			AddRemoteMappingCallback receiveMapping, 
 			DeleteRemoteMappingCallback deleteRemoteMapping, 
 			GetLocalMappingsCallback getLocalMappings,
+			FreeEndpointMappingsCallback freeEndpointMappings,
 			USHORT servicePort, 
 			USHORT remotePort);
 

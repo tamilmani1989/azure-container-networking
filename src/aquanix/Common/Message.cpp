@@ -31,6 +31,18 @@ string Message::CreateUuid()
 	return s;
 }
 
+
+Message::Message(const Message& message)
+{
+	m_messageCode = message.m_messageCode;
+	m_id = message.m_id;
+	m_endpointId = message.m_endpointId;
+	m_containerAddress = message.m_containerAddress;
+	m_macAddress = message.m_macAddress;
+	m_hostAddress = s_localHostAddress;
+	m_messageResponsePort = s_serviceResponsePort;
+}
+
 Message::Message(UCHAR *buffer, USHORT bufferLen)
 {
 	UNREFERENCED_PARAMETER(bufferLen);
@@ -54,11 +66,12 @@ Message::Message(string endpointId, string hostAddress, string containerAddress,
 	m_messageResponsePort = s_serviceResponsePort;
 }
 
-Message::Message(string endpointId)
+Message::Message(string endpointId, string hostAddress)
 {
 	m_id = CreateUuid();
 	m_messageCode = MessageCode::DeleteMapping;
 	m_endpointId = endpointId;
+	m_hostAddress = hostAddress;
 	m_messageResponsePort = s_serviceResponsePort;
 }
 
@@ -70,10 +83,12 @@ Message::Message(MessageCode messageCode)
 }
 
 USHORT Message::s_serviceResponsePort = 0;
+string Message::s_localHostAddress;
 
-void Message::SetServiceResponsePort(USHORT serviceResponsePort)
+void Message::SetLocalSettings(USHORT serviceResponsePort, string localHostAddress)
 {
 	s_serviceResponsePort = serviceResponsePort;
+	s_localHostAddress = localHostAddress;
 }
 
 void Message::Init(UCHAR *buffer)
@@ -312,6 +327,9 @@ RawMessage *Message::CreateRequestAllRemoteMappingsRawMessage()
 	char nPortSize = sizeof(nPort);
 	bufSize += nPortSize;
 
+	//host address
+	bufSize += (UCHAR)m_hostAddress.length() + 2;
+
 	//create buffer
 	UCHAR *buffer = new UCHAR[bufSize];
 	UCHAR *cur = buffer;
@@ -330,6 +348,13 @@ RawMessage *Message::CreateRequestAllRemoteMappingsRawMessage()
 	memcpy(cur, &segmentLength, 1);
 	cur += 1;
 	memcpy(cur, m_id.c_str(), segmentLength);
+	cur += segmentLength;
+
+	//copy m_hostAddress with its size
+	segmentLength = (UCHAR)m_hostAddress.length() + 1;
+	memcpy(cur, &segmentLength, 1);
+	cur += 1;
+	memcpy(cur, m_hostAddress.c_str(), segmentLength);
 	cur += segmentLength;
 
 	return new RawMessage(buffer, bufSize, false);

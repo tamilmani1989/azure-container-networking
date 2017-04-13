@@ -28,15 +28,13 @@ DllExport typedef DWORD(*AddRemoteMappingCallback) (
 DllExport typedef DWORD(*DeleteRemoteMappingCallback) (
 	const char *endpointId);
 
-/***********************
-Memory is allocated by the caller and mappingsCount indicate number of elements endpointMappings argument can hold.
-Initially it is set to 0 and callee is expected to fill mappingsCount to 
-required number of elements.
-In subsequent call, caller will allocate memory and is responsible to free the memory.
-**********************/
 DllExport typedef DWORD(*GetLocalMappingsCallback) (
-	EndpointMapping *endpointMappings,
+	EndpointMapping **endpointMappings,
 	USHORT *mappingsCount);
+
+DllExport typedef DWORD(*FreeEndpointMappingsCallback) (
+	EndpointMapping *endpointMappings,
+	USHORT mappingsCount);
 
 DllExport DWORD InitializeAquaNix(
 	char *localHostAddress,
@@ -45,6 +43,7 @@ DllExport DWORD InitializeAquaNix(
 	AddRemoteMappingCallback receiveMapping,
 	DeleteRemoteMappingCallback deleteMapping,
 	GetLocalMappingsCallback getLocalMappings,
+	FreeEndpointMappingsCallback freeEndpointMappings,
 	USHORT servicePort,
 	USHORT remoteServicePort);
 

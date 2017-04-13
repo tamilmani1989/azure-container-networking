@@ -16,6 +16,27 @@ namespace aqua
 	const DWORD E_GetLocalMappingsFailed = 10;
 }
 
+#define ENTER(methodName) \
+	wchar_t logMsg[2048]; \
+	size_t msgSize = 2048; \
+	DWORD result = E_SUCCESS; \
+	LogXA(L"Enter %s", methodName) \
+
+#define EXIT(methodName) \
+	LogXA(L"Exit %s", methodName) \
+	return result; \
+
+#define LogX(X) \
+	WinLogger::LogInformation(X); \
+
+#define LogXA(X, A) \
+	swprintf_s(logMsg,msgSize,X,A); \
+	WinLogger::LogInformation(logMsg); \
+
+#define LogXAB(X, A, B) \
+	swprintf_s(logMsg,msgSize,X,A,B); \
+	WinLogger::LogInformation(logMsg); \
+
 #define TraceLog(message) \
 	cout << message; \
 
