@@ -34,13 +34,13 @@ extern DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig);
 extern DWORD setupOverlay(ClusterConfig *clusterConfig);
 extern int getIpsFromNmAgent(unsigned int *ips);
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
-extern void UpdateRepositoryIpList(int ipCount, unsigned int *ips);
+extern void UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkType networkType);
 extern unsigned int ReserveRepositoryIpAddress(char *reservationId);
 extern unsigned long ReleaseRepositoryIpAddress(const char *reservationId);
 extern int GetAvailableIpsfromRepository(unsigned int *ips);
 extern unsigned int GetReservedIpFromRepository(const char *reservationId);
 extern void ParseSubnetAndGatewayIp(char *xmlResponse, char **sunbetIp, char **gatewayIp);
-extern unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist);
+extern unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist, NetworkType networkType);
 extern unsigned int PersistedIpCountInRepository();
 extern DWORD GetHostIp(unsigned int *ip);
 NetworkType networkTypeProvided = UnderLay;
@@ -50,13 +50,13 @@ bool hostLocalIpProvisionedInHNS = false;
 // Returns the number of ip addresses that were returned
 // If nodeNetworkResources is null, only the number of ip addresses is returned
 // Otherwise, all the ip addresses (reserved + nonreserved) are populated
-int GetAllIpAddresses(NodeNetworkResources *nodeNetworkResources)
+int GetAllIpAddresses(NodeNetworkResources *nodeNetworkResources, NetworkType networkType)
 {
 	int ipCount = getIpsFromNmAgent(nodeNetworkResources->ips);
 	
 	if (nodeNetworkResources->ips)
 	{
-		UpdateRepositoryIpList(ipCount, nodeNetworkResources->ips);
+		UpdateRepositoryIpList(ipCount, nodeNetworkResources->ips, networkType);
 	}
 	return ipCount;
 }
@@ -99,7 +99,7 @@ DllExport DWORD GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResourc
 	}
 	if(ips)
 	{
-		UpdateRepositoryIpList(ipCount, ips);
+		UpdateRepositoryIpList(ipCount, ips, networkTypeProvided);
 		free(ips);
 	}
 	if (nodeNetworkResources) 
@@ -190,6 +190,10 @@ unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 {
 	char logMsg[2048];
 	size_t msgSize = 2048;
+	if(clusterConfig->nodeCount <= 0)
+	{
+		return UNEXPECTED_ERROR;
+	}
 	if(clusterConfig->nodeConfigs == NULL)
 	{
 		return UNEXPECTED_ERROR;
@@ -203,7 +207,7 @@ unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 		{
 			sprintf_s(logMsg, msgSize, "Found my own node config nodeIp=0x%08X prefix=0x%08X prefix-len%d\n", nc.nodeIp, nc.subnet->ipAddress, nc.subnet->prefixLength);
 			AquaLogging::Log(info, logMsg);
-			PersistSubnetInRepository(nc.subnet);
+			PersistSubnetInRepository(nc.subnet, clusterConfig->net);
 			sprintf_s(logMsg, msgSize, "persisted ip space for my own node\n");
 			AquaLogging::Log(info, logMsg);
 			break;

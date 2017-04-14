@@ -156,7 +156,7 @@ IpStatus *GetRepositoryIpAllocationStatus(unsigned int ip)
 	return NULL;
 }
 
-void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips)
+void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips, NetworkType networkType)
 {
 	char logMsg[2048];
 	size_t msgSize = 2048;
@@ -206,7 +206,7 @@ void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips)
 			localIpStatus[i].id = NULL;
 			localIpStatus[i].isReserved = 0;
 		}
-		if(i==0 || i==1)
+		if( networkType == OverLay && (i==0 || i==1))
 		{
 			localIpStatus[i].isReserved = 1;
 			localIpStatus[i].id = "Sys_Reserved";
@@ -226,10 +226,10 @@ void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips)
 	repositoryIpAllocations->count = ipCount;
 }
 
-void UpdateRepositoryIpList(int ipCount, unsigned int *ips)
+void UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkType networkType)
 {
 	LockMutex
-	UpdateRepositoryIpListWithoutLock(ipCount, ips);
+	UpdateRepositoryIpListWithoutLock(ipCount, ips, networkType);
 	UnlockMutex
 }
 
@@ -309,7 +309,7 @@ unsigned int GetReservedIpFromRepository(const char *reservationId)
 	return returnIp;
 }
 
-unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist)
+unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist, NetworkType networkType)
 {
 	LockMutex
 	char logMsg[2048];
@@ -342,7 +342,7 @@ unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist)
 		startingIp++;
 		i++;
 	}
-	UpdateRepositoryIpListWithoutLock(ipCount, ips);
+	UpdateRepositoryIpListWithoutLock(ipCount, ips, networkType);
 	free(ips);
 	sprintf_s(logMsg, msgSize, "Updated ip repository with %d ips", ipCount);
 	AquaLogging::Log(info, logMsg);
