@@ -12,7 +12,9 @@
 #define strncpy_s(dst, count, src, cp) strncpy(dst, src, count)
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
+//#include "../Shared/Utilities.h"
 
+extern DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostLocalIp);
 
 void assert(unsigned long value)
 {
@@ -24,8 +26,10 @@ void assert(unsigned long value)
 
 void logstuff(int level, char *text)
 {
-	printf("%d: %s", level, text);
+	printf("%d: %s\n", level, text);
 }
+
+extern DllExport DWORD SetupNetworkEtwLogging(bool additionConsoleLoggingEnabled);
 
 #ifdef _WIN32
 int wmain()
@@ -34,41 +38,102 @@ int wmain()
 int main()
 #endif
 {
+	//AquariusUtilities::WriteEventLogEntry(L"Working or not");
 
 	ClusterConfig cfg;
-    NodeNetworkResources nnr;
-    int ipCount = -1;
-    int i;
-    char ipInString[INET_ADDRSTRLEN];
-	
+	NodeNetworkResources nnr;
+	int ipCount = -1;
+	int i;
+	char ipInString[INET_ADDRSTRLEN];
+
+	//assert(SetupNetworkEtwLogging(true));
 	assert(SetupNetworkLogging(logstuff));
 
 	size_t netLen = strlen("azurenet") + sizeof(char);
-	cfg.networkName = (char *) malloc(netLen);
+	cfg.networkName = (char *)malloc(netLen);
 	printf("%llu", netLen);
 	strncpy_s(cfg.networkName, netLen, "azurenet", 9);
-	cfg.networkName[8] = '\0';	
+	cfg.networkName[8] = '\0';
 	cfg.net = UnderLay;
 	cfg.env = Azure;
-	printf("nw main name:%s\n",cfg.networkName);
-    int retval = 0;
-	#ifdef __linux__
+	printf("nw main name:%s\n", cfg.networkName);
+	int retval = 0;
+#ifdef __linux__
 	retval = InitializeNetwork(&cfg);
-	#endif
+#endif
 
-	#ifdef _WIN32
-	assert(InitializeNetwork(&cfg));
-	#endif
+#ifdef _WIN32
+	//assert(InitializeNetwork(&cfg));
+#endif
 
 	printf("Successfully initialized Azure/Underlay. retval = %d\n", retval);
 	getchar();
 
 	cfg.net = OverLay;
 	cfg.env = Azure;
+	cfg.nodeCount = 3;
+
+
+	Ipv4Subnet ovSubnet;
+	struct in_addr ipAdd;
+	inet_pton(AF_INET, "10.10.0.0", &ipAdd);
+	ovSubnet.ipAddress = ipAdd.s_addr;
+
+	printf("converted ip prefix %s\n", inet_ntop(AF_INET, &ovSubnet.ipAddress, ipInString, INET_ADDRSTRLEN));
+	getchar();
+	ovSubnet.prefixLength = 16;
+	cfg.overlaySubnet = &ovSubnet;
+
+	cfg.nodeConfigs = (NodeConfig *)malloc(cfg.nodeCount * sizeof(NodeConfig));
+	
+	Ipv4Subnet localSubnet;
+
+	inet_pton(AF_INET, "10.10.1.0", &ipAdd);
+	localSubnet.ipAddress = ipAdd.s_addr;
+	localSubnet.prefixLength = 24;
+	inet_pton(AF_INET, "11.1.0.164", &ipAdd);
+	cfg.nodeConfigs[0].nodeIp = ipAdd.s_addr;
+	cfg.nodeConfigs[0].nodeId = "Id114";
+	cfg.nodeConfigs[0].subnet = &localSubnet;
+	//cfg.localNodeIp = ipAdd.s_addr;
+	
+
+	Ipv4Subnet localSubnet2;
+	inet_pton(AF_INET, "10.10.2.0", &ipAdd);
+	localSubnet2.ipAddress = ipAdd.s_addr;
+	localSubnet2.prefixLength = 24;
+	inet_pton(AF_INET, "11.1.0.124", &ipAdd);
+	cfg.nodeConfigs[1].nodeIp = ipAdd.s_addr;
+	cfg.nodeConfigs[1].nodeId = "Id124";
+	cfg.nodeConfigs[1].subnet = &localSubnet2;
+	//cfg.localNodeIp = ipAdd.s_addr;
+
+
+	Ipv4Subnet localSubnet3;
+	inet_pton(AF_INET, "10.10.3.0", &ipAdd);
+	localSubnet3.ipAddress = ipAdd.s_addr;
+	localSubnet3.prefixLength = 24;
+	inet_pton(AF_INET, "11.1.0.134", &ipAdd);
+	cfg.nodeConfigs[2].nodeIp = ipAdd.s_addr;
+	cfg.nodeConfigs[2].nodeId = "Id134";
+	cfg.nodeConfigs[2].subnet = &localSubnet3;
+	cfg.localNodeIp = ipAdd.s_addr;
+
 	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	free(cfg.networkName);
 	getchar();
+/*
+	unsigned int hostLocalIp;
+	GetHostLocalIp(&hostLocalIp);
+	printf("Recevied host local as %s\n", inet_ntop(AF_INET, &hostLocalIp, ipInString, INET_ADDRSTRLEN));
+	getchar();
 
+	printf("Going ot detach hostlocal directly in HNS\n");
+	wchar_t ipInStringw[INET_ADDRSTRLEN];
+	size_t converted;
+	mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN);
+	DeleteLocalEndpointWithIp(ipInStringw, true);
+	getchar();
 	unsigned int ip;
 	printf("going to reserve available ip with ip0");
 	assert(ReserveAvailableIpAddress((char *)"ip0", &ip));
@@ -140,6 +205,6 @@ int main()
 	retval = GetReservedIpAddress("ip0", &ip);
 	printf("ip0 (without reservation). retval =  %d\n", retval);
     free(nnr.ips);
-
+*/
 	return 0;
 }

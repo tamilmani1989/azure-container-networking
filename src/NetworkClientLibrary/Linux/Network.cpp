@@ -4,6 +4,10 @@
 #include "../Common/nclcore.h"
 #include <curl/curl.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #define UNREFERENCED_PARAMETER(param) do { (void)(param); } while (0)
 #define DockerHostNetwork "http://127.0.0.1:2375/networks/"
 #define NAME_CONST_LEN 9
@@ -140,6 +144,54 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gatewayIp)
 	return retval;
 }
 
+int getSubnetGwIpfromConfig(ClusterConfig *clusterConfig, char *subnetCidr, int subnetSize, char *nodeGwIp, int gwSize)
+{
+	int i;
+	bool found=false;
+	struct in_addr addr;
+	char *subnetIpTemp=NULL;
+	char nodeSubnetIp[32];
+	int k,dotCount=0,len=0;
+	
+	for (i=0; i<clusterConfig->nodeCount; i++)
+	{
+		if(clusterConfig->localNodeIp == clusterConfig->nodeConfigs[i].nodeIp)
+		{
+			found = true;
+			break;
+		}
+	}
+	
+	if(found)
+	{
+		addr.s_addr = clusterConfig->nodeConfigs[i].subnet->ipAddress;
+		subnetIpTemp = inet_ntoa(addr);
+		strncpy(nodeSubnetIp,subnetIpTemp, sizeof(nodeSubnetIp)-1);
+		snprintf(subnetCidr, subnetSize, "%s/%d",nodeSubnetIp,  clusterConfig->nodeConfigs[i].subnet->prefixLength);
+		len = strlen(nodeSubnetIp);
+		for (k = 0; k < len && k < gwSize; k++)
+		{
+			if (nodeSubnetIp[k] == '.') {
+				dotCount++;
+			}
+
+			nodeGwIp[k] = nodeSubnetIp[k];
+
+			if (dotCount == 3)
+			{
+				break;
+			}
+		}
+	
+		nodeGwIp[++k] = '1';
+		nodeGwIp[++k] = '\0';
+	}
+		
+	else
+		return 0;
+	
+	return 1;
+}
 
 int networkNotExists(char *networkName)
 {
@@ -307,8 +359,173 @@ cleanup_setupunderlay:
   return retval;
 }
 
+char* constructOptionFields(ClusterConfig *clusterConfig)
+{
+	char *nodeList=NULL;
+	char *nodeListOption = NULL;
+	int nodeListLen=0,nodeListOptionLen=0;
+	int i=0;
+	char *nodeId=NULL;
+	char nodeSubnetIp[32];
+	char nodeRemoteIp[64];
+	char **nodeInfoOption;
+	int nodeInfoOptionLen=0;
+	char *remoteIpTemp=NULL;
+	char *subnetIpTemp=NULL;
+	struct in_addr addr;
+	int totalNodeInfoLen=0;
+	char *optionFields=NULL;
+	int optionFieldsLen=0;
+	char *mergeNodeInfo=NULL;
+	int mergeNodeInfoLen=0;
+
+	printf("Node count:%d\n",clusterConfig->nodeCount);
+	nodeListLen = clusterConfig->nodeCount * 256 + clusterConfig->nodeCount-1 + sizeof(char);
+	nodeList = (char *)malloc(nodeListLen);
+	memset(nodeList,0,nodeListLen);
+	for(i=0;i<clusterConfig->nodeCount-1;i++)
+	{
+		nodeId = clusterConfig->nodeConfigs[i].nodeId;
+		//printf("inside for nodeid:%s\n",nodeId);
+		if(clusterConfig->localNodeIp == clusterConfig->nodeConfigs[i].nodeIp)
+			continue;
+		strcat(nodeList,nodeId );
+		strcat(nodeList, ",");
+	}
+	
+	if(clusterConfig->localNodeIp != clusterConfig->nodeConfigs[i].nodeIp)
+		strcat(nodeList,clusterConfig->nodeConfigs[clusterConfig->nodeCount-1].nodeId);
+	else
+		nodeList[strlen(nodeList)-1]='\0';
+	
+	printf("nodeList:%s\n", nodeList);
+	
+	nodeListOptionLen = strlen(nodeList) + 16;
+	nodeListOption = (char *) malloc(nodeListOptionLen);
+	snprintf(nodeListOption, nodeListOptionLen, "\"nodeList\":\"%s\"",nodeList);
+	
+	nodeInfoOption = (char **) malloc(clusterConfig->nodeCount * sizeof(char *));
+	memset(nodeInfoOption, 0, clusterConfig->nodeCount * sizeof(char *));
+	
+	for(i=0;i<clusterConfig->nodeCount;i++)
+	{
+		addr.s_addr = clusterConfig->nodeConfigs[i].nodeIp;
+		
+		if(clusterConfig->localNodeIp == addr.s_addr)
+		{
+				continue;
+		}
+		
+		remoteIpTemp = inet_ntoa(addr);
+		strncpy(nodeRemoteIp, remoteIpTemp, sizeof(nodeRemoteIp)-1);
+		
+		addr.s_addr = clusterConfig->nodeConfigs[i].subnet->ipAddress;
+		subnetIpTemp = inet_ntoa(addr);
+		strncpy(nodeSubnetIp,subnetIpTemp, sizeof(nodeSubnetIp)-1);
+		
+		nodeInfoOptionLen = strlen(clusterConfig->nodeConfigs[i].nodeId) + strlen(nodeSubnetIp) + strlen(nodeRemoteIp) + 16;
+		nodeInfoOption[i] = (char *)malloc(nodeInfoOptionLen);
+		snprintf(nodeInfoOption[i], nodeInfoOptionLen, "\"%s\":\"%s,%s/%d\"", clusterConfig->nodeConfigs[i].nodeId, nodeRemoteIp, nodeSubnetIp,
+					clusterConfig->nodeConfigs[i].subnet->prefixLength);
+		totalNodeInfoLen += strlen(nodeInfoOption[i]);			
+		printf("node info:%s\n", nodeInfoOption[i]);
+	}
+	
+
+	mergeNodeInfo = (char *)malloc(totalNodeInfoLen + sizeof(char) + clusterConfig->nodeCount-1);
+	memset(mergeNodeInfo, 0, totalNodeInfoLen + sizeof(char));
+	
+	for(i=0;i<clusterConfig->nodeCount;i++)
+	{
+		if(nodeInfoOption[i]){
+			strcat(mergeNodeInfo, nodeInfoOption[i]);
+			strcat(mergeNodeInfo, ",");
+		}
+	}
+	
+	mergeNodeInfoLen = strlen(mergeNodeInfo);
+	
+	mergeNodeInfo[mergeNodeInfoLen-1]='\0';
+
+
+	optionFieldsLen = strlen(nodeListOption) + mergeNodeInfoLen-1 + 16 + sizeof(char);
+	optionFields = (char *) malloc(optionFieldsLen);
+	snprintf(optionFields, optionFieldsLen,"\"Options\":{%s,%s}",nodeListOption,mergeNodeInfo);
+
+
+	if(nodeList)
+	  free(nodeList);	
+	if(nodeListOption)
+	  free(nodeListOption);	
+	for(i=0;i<clusterConfig->nodeCount;i++)
+	{
+	  if(nodeInfoOption[i])
+		  free(nodeInfoOption[i]);
+	}
+	if(nodeInfoOption)
+	  free(nodeInfoOption);
+	if(mergeNodeInfo)
+	  free(mergeNodeInfo);
+	
+	return optionFields;
+}
+
 DWORD setupOverlay(ClusterConfig *clusterConfig)
 {
-	return UNSUPPORTED_ENVIRONMENT;
+	int retval=0;
+	char subnetIp[32], gatewayIp[32];
+	size_t conLength = 0, ipamLength = 0;
+	char *postFields = NULL;
+	char ipamConfig[2048];
+	const char *driver="azure-overlay";
+	int postFieldsLen=0;
+	char *optionFields=NULL;
+
+	if(networkNotExists(clusterConfig->networkName))
+	{
+
+		printf("Netowrk %s does not exist, going to create it\n", clusterConfig->networkName);
+
+		if(!getSubnetGwIpfromConfig(clusterConfig, subnetIp, sizeof(subnetIp), gatewayIp, sizeof(gatewayIp)))
+		{
+			retval=1;
+			printf("Error in retrieving subnet and gw ip\n");
+			goto cleanup_setupoverlay;
+		}
+		printf("retrieved subnet and gateway %s %s\n", subnetIp, gatewayIp);
+
+		snprintf(ipamConfig, sizeof(ipamConfig), "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gatewayIp);
+
+		ipamLength = strlen(ipamConfig);
+		conLength = strlen(clusterConfig->networkName) + NAME_CONST_LEN + DRIVER_CONST_LEN + 12 + ipamLength + strlen(driver) ;
+
+		optionFields = constructOptionFields(clusterConfig);
+
+		postFieldsLen = conLength + strlen(optionFields) + sizeof(char);
+		postFields = (char *)malloc(postFieldsLen);
+
+		snprintf(postFields, postFieldsLen, "\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s,%s}",clusterConfig->networkName, driver, ipamConfig,optionFields);
+
+		printf("postfields:%s\n",postFields);
+
+		printf("Now going to get create network driver... cmd:%s\n", postFields);
+
+		if(!createUnderlayNetworkDriver(postFields))
+		{
+			printf("Creating Overlay Network in Azure failed\n");
+			retval=1;
+		}
+		else
+			printf("Docker Overlay network create succeeded\n");
+	}
+
+	cleanup_setupoverlay:
+
+	if(postFields)
+	  free(postFields);
+	if(optionFields)
+	  free(optionFields);
+	return retval;
+
 }
 #endif

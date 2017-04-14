@@ -72,7 +72,11 @@ typedef struct ClusterConfig
 	Ipv4Subnet *overlaySubnet; 
 
 	//Config for individual nodes
-    NodeConfig *nodeConfigs;       
+    NodeConfig *nodeConfigs;    
+	
+	// IP address of the node to which cluster config is being provided
+	// To etablish overlay tunnels
+	unsigned int localNodeIp;
 }ClusterConfig;
 
 // Returns the number of ip addresses that were returned
