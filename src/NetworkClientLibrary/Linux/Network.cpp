@@ -247,7 +247,7 @@ int networkNotExists(char *networkName)
 	return retval;
 }
 
-int createUnderlayNetworkDriver(char *postFields)
+int createDockerNetworkDriver(char *postFields)
 {
 	CURL *handle;
 	CURLcode res;
@@ -339,7 +339,7 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 
 		printf("Now going to get create network driver... cmd:%s\n", postFields);
 		
-		if(!createUnderlayNetworkDriver(postFields))
+		if(!createDockerNetworkDriver(postFields))
 		{
 			printf("Creating Underlay Network in Azure failed\n");
 			retval=1;
@@ -510,7 +510,7 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 
 		printf("Now going to get create network driver... cmd:%s\n", postFields);
 
-		if(!createUnderlayNetworkDriver(postFields))
+		if(!createDockerNetworkDriver(postFields))
 		{
 			printf("Creating Overlay Network in Azure failed\n");
 			retval=1;
