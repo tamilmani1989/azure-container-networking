@@ -512,7 +512,7 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 
 		if(!createDockerNetworkDriver(postFields))
 		{
-			printf("Creating Overlay Network in Azure failed\n");
+			printf("Creating Overlay Network failed\n");
 			retval=1;
 		}
 		else
