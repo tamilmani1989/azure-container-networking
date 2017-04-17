@@ -87,8 +87,7 @@ func (plugin *Plugin) ParseOptions(options OptionMap) OptionMap {
 	for key, value := range options {
 		fmt.Println("Key:", key, "Value:", value)
 	}
-	temp, _ := options[genericData].(map[string]interface{})
-
+	
 	return opt
 }
 
