@@ -8,8 +8,7 @@
 \***************************************************************************/
 #pragma once
 #include "aquanetworkclient.h"
-//#include <ws2ipdef.h>
-//#include <ws2tcpip.h>
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 typedef struct IpStatus
 {
     unsigned int ip;
@@ -35,3 +34,5 @@ typedef struct IpAllocations
 #define UNSPECIFIED_NETWORK_NAME 10
 #define SUBNET_SIZE_TOO_SMALL 11
 #define UNEXPECTED_ERROR 99
+
+} } } } }

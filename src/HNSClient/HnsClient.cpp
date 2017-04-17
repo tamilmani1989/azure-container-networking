@@ -16,6 +16,7 @@
 #define SUCCESS L"\"Success\" : true"
 using namespace std::string_literals; 
 
+
 // {c8a58877-c594-47fe-9197-bd808576f1da} as defined in idl file
 static const GUID server_clsid =
 { 0xc8a58877, 0xc594, 0x47fe, { 0x91, 0x97, 0xbd, 0x80, 0x85, 0x76, 0xf1, 0xda } };

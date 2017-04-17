@@ -4,6 +4,7 @@
 #include <WinSock2.h>
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
+#include "../Shared/Utilities.h"
 #endif
 #ifdef __linux__
 #include <arpa/inet.h>
@@ -12,8 +13,10 @@
 #define strncpy_s(dst, count, src, cp) strncpy(dst, src, count)
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
-//#include "../Shared/Utilities.h"
 #include "../Logging/Logging.h"
+
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
+
 extern DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostLocalIp);
 
 void assert(unsigned long value)
@@ -89,7 +92,7 @@ void testM()
 	cfg.nodeConfigs[0].nodeIp = ipAdd.s_addr;
 	cfg.nodeConfigs[0].nodeId = "Id114";
 	cfg.nodeConfigs[0].subnet = &localSubnet;
-	//cfg.localNodeIp = ipAdd.s_addr;
+	cfg.localNodeIp = ipAdd.s_addr;
 	
 
 	Ipv4Subnet localSubnet2;
@@ -111,7 +114,7 @@ void testM()
 	cfg.nodeConfigs[2].nodeIp = ipAdd.s_addr;
 	cfg.nodeConfigs[2].nodeId = "Id134";
 	cfg.nodeConfigs[2].subnet = &localSubnet3;
-	cfg.localNodeIp = ipAdd.s_addr;
+	//cfg.localNodeIp = ipAdd.s_addr;
 
 	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	free(cfg.networkName);

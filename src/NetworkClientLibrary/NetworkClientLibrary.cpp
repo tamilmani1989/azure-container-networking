@@ -8,31 +8,39 @@
 *
 \***************************************************************************/
 
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-#include "Common/aquanetworkclient.h"
 #include <stdlib.h>
+#include "Common/aquanetworkclient.h"
 #include "Common/nclcore.h"
 #include "../Logging/Logging.h"
+
 #ifdef _WIN32
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <stdio.h>
+#include <iostream>
+#include <mutex>
 #include <WinSock2.h>
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
 #include <Mstcpip.h>
-#include <stdio.h>
-#include <iostream>
-#include <mutex>
-extern void ProvideConfigToNIX(ClusterConfig *clusterConfig);
-extern DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp);
-extern int WsaInitialize();
-std::mutex hostLocalMutex;
-bool hostLocalIpProvisionedInHNS = false;
+#include "../aquanix/Common/aquanixext.h"
 #endif
+
 #ifdef __linux__
 #include <curl/curl.h>
 #include <string.h>
 #define UNREFERENCED_PARAMETER(param) do { (void)(param); } while (0)
 #endif
 #define lInfo 1
+
+#ifdef _WIN32
+extern DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, USHORT *mappingsCount);
+extern DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std::wstring ca, std::wstring pa, std::wstring isRemoteEndpoint);
+extern DllExport int DeleteEndpoint(std::wstring endpointId);
+extern DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp);
+extern DllExport unsigned long FreeMemoryForLocalEndpoints(EndpointMapping *endpointMappings, USHORT mappingsCount);
+#endif
+
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 
 extern DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig);
 extern DWORD setupOverlay(ClusterConfig *clusterConfig);
@@ -47,6 +55,7 @@ extern void ParseSubnetAndGatewayIp(char *xmlResponse, char **sunbetIp, char **g
 extern unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist, NetworkType networkType);
 extern unsigned int PersistedIpCountInRepository();
 extern DWORD GetHostIp(unsigned int *ip);
+extern int WsaInitialize();
 NetworkType networkTypeProvided = UnderLay;
 
 // Returns the number of ip addresses that were returned
@@ -222,7 +231,6 @@ unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 	return 0;
 }
 
-
 DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 {
 	unsigned long failed = 0;
@@ -353,3 +361,5 @@ DllExport DWORD SetupNetworkEtwLogging(bool additionConsoleLoggingEnabled)
 	AquaLogging::InitLogging(additionConsoleLoggingEnabled);
 	return 0;
 }
+
+} } } } }

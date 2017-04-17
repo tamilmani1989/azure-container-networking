@@ -1,23 +1,33 @@
+/****************************** Module Header ******************************\
+* Module Name:  Network.cpp
+* Project:      Aquarius
+* Copyright (c) Microsoft Corporation.
+*
+* Setup network in windows
+*
+\***************************************************************************/
+
 #ifdef _WIN32
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
-#include <stdlib.h>
-#include <string.h>
-#include <WinSock2.h>
 #include <stdio.h>
 #include <iostream>
+#include <mutex>
+#include <stdlib.h>
+#include <string.h>
 #include <WinSock2.h>
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
 #include "../Common/aquanetworkclient.h"
 #include "../Common/nclcore.h"
-#include "../../aquanix/Common/aquanixext.h"
+#include "../../Logging/Logging.h"
 #define HostSuffix "GET /machine/plugins?comp=nmagent&type=getinterfaceinfov1 HTTP/1.1\r\nHost: 169.254.169.254\r\nConnection: close\r\n\r\n"
 #define DockerNwCreatePost "POST /networks/create HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nConnection: close\r\n"
 #define DockerNwGet "GET /networks/"
 #define HttpResponseHeaderSeparator "\r\n\r\n"
 #define BUFFER_SIZE 1024
-#include <mutex>
-#include "../../Logging/Logging.h"
+
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
+
 std::mutex initWsaMutex;
 int wsaInitialized = 0;
 
@@ -112,24 +122,7 @@ int WsaInitialize()
 	return wsaerr;
 }
 
-void wsaCleanUp()
-{
-	/*
-	if (wsaInitialized > 0)
-	{
-		//initWsaMutex.lock();
-		if (wsaInitialized > 0)
-		{
-			wsaInitialized--;
-
-			if (wsaInitialized == 0)
-			{
-				WSACleanup();
-			}
-		}
-		//initWsaMutex.unlock();
-	}*/
-}
+void wsaCleanUp(){}
 
 char* httpSendResponse(SOCKET sock, char *payload)
 {
@@ -749,7 +742,7 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 	AquaLogging::Log(info, logMsg);
 	return retval;
 }
-extern DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std::wstring ca, std::wstring pa, std::wstring isRemoteEndpoint);
+
 DWORD AddRemoteMapping(const char *endpointId, const char *hostAddress, const char *containerAddress, const char *macAddress)
 {
 	char logMsg[2048];
@@ -774,7 +767,6 @@ DWORD AddRemoteMapping(const char *endpointId, const char *hostAddress, const ch
 	return AddEndpoint(endPointIdW, macAddressW, containerAddressW, hostAddressW, L"true");
 }
 
-extern DllExport int DeleteEndpoint(std::wstring endpointId);
 DWORD DeleteRemoteMapping (const char *endpointId)
 {
 	wchar_t endpointIdW[150]; //GUID cannot exceed 38
@@ -790,7 +782,7 @@ DWORD DeleteRemoteMapping (const char *endpointId)
 	return retval;
 }
 
-extern DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, USHORT *mappingsCount);
+
 DWORD GetLocalMappings(EndpointMapping **endpointMappings, USHORT *mappingsCount)
 {
 	AquaLogging::Log(info, "Enter GetLocalMappings");
@@ -799,7 +791,6 @@ DWORD GetLocalMappings(EndpointMapping **endpointMappings, USHORT *mappingsCount
 	return 0;
 }
 
-DllExport unsigned long FreeMemoryForLocalEndpoints(EndpointMapping *endpointMappings, USHORT mappingsCount);
 DWORD FreeEndpointMappings(EndpointMapping *endpointMappings, USHORT mappingsCount)
 {
 	AquaLogging::Log(info, "Enter FreeEndpointMappings");
@@ -808,7 +799,7 @@ DWORD FreeEndpointMappings(EndpointMapping *endpointMappings, USHORT mappingsCou
 	return 0;
 }
 
-void ProvideConfigToNIX(ClusterConfig *clusterConfig)
+void provideConfigToNIX(ClusterConfig *clusterConfig)
 {
 	char logMsg[2048];
 	size_t msgSize = 2048;
@@ -850,7 +841,7 @@ void ProvideConfigToNIX(ClusterConfig *clusterConfig)
 		sprintf_s(logMsg, msgSize, "Remote Host %d provided to NIX: %s", j, remoteHostAddresses[j]);
 		AquaLogging::Log(info, logMsg);
 	}
-        #ifdef _WIN32
+
 	InitializeAquaNix(ipInString, remoteHostAddresses, cntr, "127.0.0.1", AddRemoteMapping, DeleteRemoteMapping, 
 		GetLocalMappings, FreeEndpointMappings, 10987, 10987);
 	RequestRemoteMappings();
@@ -859,7 +850,7 @@ void ProvideConfigToNIX(ClusterConfig *clusterConfig)
 		free(remoteHostAddresses[k]);
 	}
 	delete []remoteHostAddresses;
-        #endif
 }
 
+} } } } }
 #endif

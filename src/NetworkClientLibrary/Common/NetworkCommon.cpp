@@ -1,7 +1,17 @@
+/****************************** Module Header ******************************\
+* Module Name:  NetworkCommon.c
+* Project:      Aquarius
+* Copyright (c) Microsoft Corporation.
+*
+*
+\***************************************************************************/
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "../../Logging/Logging.h"
+
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 
 bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp)
 {
@@ -39,3 +49,5 @@ bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp)
 	sprintf_s(logMsg, msgSize, "gateway Ip=%s\n", *gatewayIp);
 	return true;
 }
+
+} } } } }
