@@ -183,40 +183,44 @@ void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips, NetworkType n
 	for (i = 0; i<ipCount; i++)
 	{
 		localIpStatus[i].ip = ips[i];
-		sprintf_s(logMsg, msgSize, "Going to get status for ip %u\n", ips[i]);
-		AquaLogging::Log(verbose, logMsg);
-		IpStatus *repositoryIpStatus = GetRepositoryIpAllocationStatus(ips[i]);
-		sprintf_s(logMsg, msgSize, "Successfully retrieved status for ip %u\n", ips[i]);
-		AquaLogging::Log(verbose, logMsg);
-		if (repositoryIpStatus)
-		{
-			sprintf_s(logMsg, msgSize, "Received ip from repository %u isReserved=%d\n",
-			       repositoryIpStatus->ip, repositoryIpStatus->isReserved);
-			AquaLogging::Log(verbose, logMsg);
-			localIpStatus[i].isReserved = repositoryIpStatus->isReserved;
-			if (repositoryIpStatus->id != NULL)
-			{
-				sprintf_s(logMsg, msgSize, "id= %s\n", repositoryIpStatus->id);
-				AquaLogging::Log(verbose, logMsg);
-				size_t idLen = strlen(repositoryIpStatus->id) * sizeof(char);
-				localIpStatus[i].id = (char *)malloc(idLen+1);
-				strcpy_s(localIpStatus[i].id, idLen+1, repositoryIpStatus->id);
-			}
-			else
-			{
-				localIpStatus[i].isReserved = 0;
-				localIpStatus[i].id = NULL;
-			}
-		}
-		else
-		{
-			localIpStatus[i].id = NULL;
-			localIpStatus[i].isReserved = 0;
-		}
+		
 		if( networkType == OverLay && (i==0 || i==1))
 		{
 			localIpStatus[i].isReserved = 1;
 			localIpStatus[i].id = "Sys_Reserved";
+		}
+		else
+		{
+			sprintf_s(logMsg, msgSize, "Going to get status for ip %u\n", ips[i]);
+			AquaLogging::Log(verbose, logMsg);
+			IpStatus *repositoryIpStatus = GetRepositoryIpAllocationStatus(ips[i]);
+			sprintf_s(logMsg, msgSize, "Successfully retrieved status for ip %u\n", ips[i]);
+			AquaLogging::Log(verbose, logMsg);
+			if (repositoryIpStatus)
+			{
+				sprintf_s(logMsg, msgSize, "Received ip from repository %u isReserved=%d\n",
+					   repositoryIpStatus->ip, repositoryIpStatus->isReserved);
+				AquaLogging::Log(verbose, logMsg);
+				localIpStatus[i].isReserved = repositoryIpStatus->isReserved;
+				if (repositoryIpStatus->id != NULL)
+				{
+					sprintf_s(logMsg, msgSize, "id= %s res:%d\n", repositoryIpStatus->id,repositoryIpStatus->isReserved);
+					AquaLogging::Log(verbose, logMsg);
+					size_t idLen = strlen(repositoryIpStatus->id) * sizeof(char);
+					localIpStatus[i].id = (char *)malloc(idLen+1);
+					strcpy_s(localIpStatus[i].id, idLen+1, repositoryIpStatus->id);
+				}
+				else
+				{
+					localIpStatus[i].isReserved = 0;
+					localIpStatus[i].id = NULL;
+				}
+			}
+			else
+			{
+				localIpStatus[i].id = NULL;
+				localIpStatus[i].isReserved = 0;
+			}
 		}
 	}
 

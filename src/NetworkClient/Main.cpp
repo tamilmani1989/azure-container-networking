@@ -31,15 +31,9 @@ void logstuff(int level, char *text)
 
 extern DllExport DWORD SetupNetworkEtwLogging(bool additionConsoleLoggingEnabled);
 
-#ifdef _WIN32
-int wmain()
-#endif
-#ifdef __linux__
-int main()
-#endif
+void testM()
 {
-	//AquariusUtilities::WriteEventLogEntry(L"Working or not");
-
+	
 	ClusterConfig cfg;
 	NodeNetworkResources nnr;
 	int ipCount = -1;
@@ -121,6 +115,7 @@ int main()
 
 	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	free(cfg.networkName);
+	free(cfg.nodeConfigs);
 	getchar();
 
 	unsigned int hostLocalIp=0;
@@ -208,6 +203,18 @@ int main()
 	retval = GetReservedIpAddress("ip0", &ip);
 	printf("ip0 (without reservation). retval =  %d\n", retval);
     free(nnr.ips);
+}
+
+#ifdef _WIN32
+int wmain()
+#endif
+#ifdef __linux__
+int main()
+#endif
+{
+	//AquariusUtilities::WriteEventLogEntry(L"Working or not");
+
+	testM();
 
 	return 0;
 }
