@@ -1,0 +1,198 @@
+{
+  "BaseInclude": "MarshalBase.h",
+
+  "Comments": {
+    "Company": "Microsoft Corporation",
+    "Copyright": "Copyright (c) Microsoft Corporation. All rights reserved.",
+    "MofPath": "",
+    "UpdateCommand": "\"mofparse.exe /transform marshal_cs /in ./ /out ./ /config config_cpp.json",
+    "\""
+  },
+
+  "TypeMap": [
+    {
+      "SourceType": "int8",
+      "TargetType": "INT8"
+    },
+    {
+      "SourceType": "int16",
+      "TargetType": "INT16"
+    },
+    {
+      "SourceType": "int32",
+      "TargetType": "INT32"
+    },
+    {
+      "SourceType": "int64",
+      "TargetType": "INT64"
+    },
+
+    {
+      "SourceType": "uint8",
+      "TargetType": "UINT8"
+    },
+    {
+      "SourceType": "uint16",
+      "TargetType": "UINT16"
+    },
+    {
+      "SourceType": "uint32",
+      "TargetType": "UINT32"
+    },
+    {
+      "SourceType": "uint64",
+      "TargetType": "UINT64"
+    },
+    {
+      "SourceType": "size_t",
+      "TargetType": "size_t"
+    },
+
+    {
+      "SourceType": "double",
+      "TargetType": "double"
+    },
+    {
+      "SourceType": "bool",
+      "TargetType": "bool"
+    },
+    {
+      "SourceType": "string",
+      "TargetType": "std::wstring"
+    },
+
+    {
+      "SourceType": "Guid",
+      "TargetType": "GUID",
+      "Includes": [ "guiddef.h" ]
+    },
+    {
+      "SourceType": "Any",
+      "TargetType": "Marshal::Delayed<void>",
+      "Includes": [ "MarshalJson.h" ]
+    },
+    {
+      "SourceType": "MacAddress",
+      "TargetType": "MacAddressUtils::MacAddress",
+      "Includes": [ "MacAddressUtils.h" ]
+    },
+    {
+      "SourceType": "HResult",
+      "TargetType": "HRESULT"
+    },
+    {
+      "SourceType": "DateTime",
+      "TargetType": "FILETIME"
+    },
+    {
+      "SourceType": "Luid",
+      "TargetType": "LUID"
+    },
+    {
+      "SourceType": "ByteArray",
+      "TargetType": "std::vector<UINT8>",
+      "Includes": [ "vector" ]
+    },
+
+    {
+      "SourceType": "$1[]",
+      "TargetType": "std::vector<$1>",
+      "Includes": [ "vector" ],
+      "Modifiers": [ "Marshal::ModifierList<$1>" ]
+    },
+    {
+      "SourceType": "$1[$N]",
+      "TargetType": "std::array<$1, $N>",
+      "Includes": [ "array" ],
+      "Modifiers": [ "Marshal::ModifierList<$1>" ]
+    },
+    {
+      "SourceType": "$1?",
+      "TargetType": "vmstd::optional<$1>",
+      "Includes": [ "vmoptional.h" ],
+      "Modifiers": [ "Marshal::ModifierList<$1>" ]
+    },
+    {
+      "SourceType": "Nullable<$1>",
+      "TargetType": "vmstd::optional<$1>",
+      "Includes": [ "vmoptional.h" ],
+      "Modifiers": [ "Marshal::ModifierList<$1>" ]
+    },
+    {
+      "SourceType": "Map<$1, $2>",
+      "TargetType": "std::map<$1, $2, std::less<>>",
+      "Includes": [ "map" ],
+      "Modifiers": [ "Marshal::ModifierList<$1>", "Marshal::ModifierList<$2>" ]
+    },
+    {
+      "SourceType": "Map<Guid, $2>",
+      "TargetType": "std::map<GUID, $2, Vml::GuidLess>",
+      "Includes": [ "map", "VmGuid.h" ],
+      "Modifiers": [ "Marshal::ModifierList<$1>", "Marshal::ModifierList<$2>" ]
+    },
+    {
+      "SourceType": "Delayed<$1>",
+      "TargetType": "Marshal::Delayed<$1>",
+      "Includes": [ "MarshalJson.h" ]
+    },
+    {
+      "SourceType": "DelayedXml<$1>",
+      "TargetType": "Marshal::DelayedXml<$1>",
+      "Includes": [ "MarshalXml.h" ]
+    }
+  ],
+
+  "Modifiers": {
+    "Private": {},
+    "Required": {
+      "Option": "Marshal::FieldOption::Required"
+    },
+    "OmitEmpty": {
+      "Option": "Marshal::FieldOption::OmitEmpty"
+    },
+    "XmlValue": {
+      "Option": "Marshal::FieldOption::XmlValue"
+    },
+    "XmlAttribute": {
+      "Option": "Marshal::FieldOption::XmlAttribute"
+    },
+    "SingleValueObject": {
+      "TargetType": "Marshal::SingleValueObject<$V>",
+      "QualifierType": "string"
+    },
+    "IncludeBraces": {
+      "TargetType": "Marshal::IncludeBraces"
+    },
+    "AsInteger": {
+      "TargetType": "Marshal::AsInteger"
+    },
+    "NestedJson": {
+      "TargetType": "Marshal::NestedJson",
+      "Includes": [ "MarshalJson.h" ]
+    },
+    "NetworkingGuidMap": {
+      "TargetType": "CustomSerializers::NetworkingGuidMap",
+      "Includes": [ "serializers/NetworkingGuidMap.h" ]
+    },
+    "AsHexString": {
+      "TargetType": "Marshal::AsHexString"
+    },
+    "PathArrayIndex": {
+      "TargetType": "CustomSerializers::PathArrayIndex",
+      "Includes": [ "serializers/PathArrayIndex.h" ],
+      "Option": "Marshal::FieldOption::PrefixField"
+    },
+    "PrefixMap": {
+      "TargetType": "Marshal::PrefixMap",
+      "Option": "Marshal::FieldOption::PrefixField"
+    },
+    "ZeroPadded": {
+      "TargetType": "Marshal::ZeroPadded<$V>",
+      "QualifierType": "int"
+    },
+    "Suffixed": {
+      "TargetType": "Marshal::Suffixed<$V>",
+      "QualifierType": "string"
+    }
+  }
+}

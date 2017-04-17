@@ -9,6 +9,7 @@
 #include "ContainerHost.h"
 #include "tchar.h"
 #include "ovPluginException.h"
+#include "../aquanix/Common/aquanixext.h"
 
 using namespace Microsoft::Azure::Networking::OverlayPlugin;
 
@@ -136,7 +137,25 @@ void ContainerHost::HandleEndpointPreCreate(
 	CloseHandle(hFile); \
 }
 
-bool retrieveEndpointDetails(
+
+void  LogStringInFile(wchar_t *info)
+{
+	HANDLE hFile = CreateFile(L"D:\\log.txt", GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	unsigned long writtenBytes; \
+		SetFilePointer(hFile, 0, 0, FILE_END); \
+		WriteFile(hFile, info, (DWORD)(wcslen(info)), &writtenBytes, NULL);
+	CloseHandle(hFile);
+}
+void  LogNarrowStringInFile(const char *info)
+{
+	HANDLE hFile = CreateFile(L"D:\\log.txt", GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	unsigned long writtenBytes; \
+		SetFilePointer(hFile, 0, 0, FILE_END); \
+		WriteFile(hFile, info, (DWORD)(sizeof(char) * strlen(info)), &writtenBytes, NULL);
+	CloseHandle(hFile);
+}
+
+bool retrieveLocalEndpointDetails(
 	_Inout_ HNSProviderPtr& PluginProvider, 
 	_Inout_ HNSObjPtr& RequestObject, 
 	_Inout_ PCStringPtr& vNetName, 
@@ -144,7 +163,9 @@ bool retrieveEndpointDetails(
 	_Inout_ PCStringPtr& hnsNetworkType, 
 	_Inout_ PCStringPtr& macAddress, 
 	_Inout_ PCStringPtr& pa, 
-	_Inout_ PCStringPtr& containerAddress)
+	_Inout_ PCStringPtr& containerAddress, 
+	_Inout_ GUID& ID,
+	int saveOrDelete)
 {
 	std::pair<std::wstring, std::wstring> endPtPair;
 
@@ -177,8 +198,6 @@ bool retrieveEndpointDetails(
 	if (S_OK == RequestObject->PropertyExists(L"MacAddress"))
 	{
 		PC_THROW_IF_FAILED_LOG(RequestObject->GetString(L"MacAddress", &macAddress));
-		// let other's know about the mac address
-		//LogInFile(macAddress);
 	}
 
 	// Retrieve PA
@@ -193,7 +212,6 @@ bool retrieveEndpointDetails(
 		if (S_OK == obj->PropertyExists(L"PA"))
 		{
 			obj->GetString(L"PA", &pa);
-			//LogInFile(pa);
 		}
 	}
 
@@ -201,8 +219,69 @@ bool retrieveEndpointDetails(
 	if (S_OK == RequestObject->PropertyExists(L"IPAddress"))
 	{
 		PC_THROW_IF_FAILED_LOG(RequestObject->GetString(L"IPAddress", &containerAddress));
-		//LogInFile(containerAddress);
 	}
+
+	//Retrieve ID
+	if (S_OK == RequestObject->PropertyExists(L"ID"))
+	{
+		//PC_THROW_IF_FAILED_LOG(
+			RequestObject->GetGuid(L"ID", &ID);
+			WCHAR *strId;
+			StringFromCLSID(ID, &strId);
+	}
+
+
+	WCHAR * idwb;
+	StringFromCLSID(ID, &idwb);
+	WCHAR *idwtb = idwb + 1;
+	idwtb[wcslen(idwb) - 2] = L'\0';
+	LogStringInFile(idwtb);
+	size_t len = wcslen(idwtb);
+	char *idwtb_s = (char *)malloc((len + 2) * sizeof(char));
+	size_t readlen;
+	wcstombs_s(&readlen, idwtb_s, len + 1, idwtb, len + 1);
+
+	LogNarrowStringInFile(idwtb_s);
+	WCHAR * pa_ch = pa.get();
+	LogStringInFile(pa_ch);
+
+	len = wcslen(pa_ch);
+	char *pa_ch_s = (char *)malloc((len + 2) * sizeof(char));
+	wcstombs_s(&readlen, pa_ch_s, len + 1, pa_ch, len + 1);
+
+	WCHAR *ca_ch = containerAddress.get();
+	LogStringInFile(ca_ch);
+	len = wcslen(ca_ch);
+	char *ca_ch_s = (char *)malloc((len + 2) * sizeof(char));
+	wcstombs_s(&readlen, ca_ch_s, len + 1, ca_ch, len + 1);
+
+
+	WCHAR *mac_ch = macAddress.get();
+	LogStringInFile(mac_ch);
+	len = wcslen(mac_ch);
+	char *mac_ch_s = (char *)malloc((len + 2) * sizeof(char));
+	wcstombs_s(&readlen, mac_ch_s, len + 1, mac_ch, len + 1);
+
+	if (saveOrDelete == 1)
+	{
+		SendLocalMapping(idwtb_s, ca_ch_s, mac_ch_s);
+	}
+	else
+	{
+		LogStringInFile(L"Going to delete local mapping via nix");
+		DeleteLocalMapping(idwtb_s);
+		LogStringInFile(L"Deleted local mapping via nix");
+	}
+
+	free(idwtb_s);
+	free(pa_ch_s);
+	free(ca_ch_s);
+	free(mac_ch_s);
+	free(idwb);
+
+	/*
+	PCStringPtr newLine = (wil::unique_cotaskmem_string) L"\n";
+	LogInFile(newLine);*/
 	return false;
 }
 
@@ -222,8 +301,9 @@ void ContainerHost::HandleEndpointPostCreate(
 	PCStringPtr macAddress;
 	PCStringPtr pa;
 	PCStringPtr containerAddress;
-
-	retrieveEndpointDetails(
+	GUID ID;
+	
+	retrieveLocalEndpointDetails(
 		PluginProvider,
 		RequestObject,
 		vNetName,
@@ -231,8 +311,9 @@ void ContainerHost::HandleEndpointPostCreate(
 		hnsNetworkType,
 		macAddress,
 		pa,
-		containerAddress);
-
+		containerAddress,
+		ID,
+		1);
 		// inform other nodes in overlay about macAddress, pa, and containerAddress 
 }
 
@@ -252,8 +333,9 @@ void ContainerHost::HandleEndpointPostDelete(
 	PCStringPtr macAddress;
 	PCStringPtr pa;
 	PCStringPtr containerAddress;
-
-	retrieveEndpointDetails(
+	GUID ID;
+	LogStringInFile(L"Going ot delete endpoint");
+	retrieveLocalEndpointDetails(
 		PluginProvider,
 		RequestObject,
 		vNetName,
@@ -261,7 +343,54 @@ void ContainerHost::HandleEndpointPostDelete(
 		hnsNetworkType,
 		macAddress,
 		pa,
-		containerAddress);
+		containerAddress,
+		ID,
+		2);
 
+	LogStringInFile(L"Deleted endpoint");
 	// inform other nodes in overlay about deletion of macAddress, pa, and containerAddress 
+}
+
+DWORD ReceiveMapping(const char *endpointId, const char *hostAddress, const char *containerAddress, const char *macAddress)
+{
+	LogNarrowStringInFile(endpointId);
+	LogNarrowStringInFile(hostAddress);
+	LogNarrowStringInFile(containerAddress);
+	LogNarrowStringInFile(macAddress);
+	return 0;
+}
+
+
+DWORD DeleteRemoteMapping(const char *endpointId)
+{
+	//LogNarrowStringInFile("DeleteRemoteendpoint called\n");
+	LogNarrowStringInFile(endpointId);
+	return 0;
+}
+
+DWORD GetLocalMappings(EndpointMapping **endpointMappings, USHORT *mappingsCount)
+{
+	UNREFERENCED_PARAMETER(endpointMappings);
+	UNREFERENCED_PARAMETER(mappingsCount);
+	return 0;
+}
+
+DWORD FreeEndpointMappings (EndpointMapping *endpointMappings, USHORT mappingsCount)
+{
+	UNREFERENCED_PARAMETER(endpointMappings);
+	UNREFERENCED_PARAMETER(mappingsCount);
+	return 0;
+}
+////////////////////////////////////////////////////////////////////////////////
+// ContainerHost::HandleEndpointPostCreate
+////////////////////////////////////////////////////////////////////////////////
+void ContainerHost::Initialize(_Inout_ HNSProviderPtr PluginProvider)
+{
+	LogStringInFile(L"Initialize Called");
+	//AquaLogging::Log(info, "Initializing HNS Overlay Plugin");
+	char **remoteHostAddresses = new char*{ "127.0.0.1" };
+	InitializeAquaNix("127.0.0.1", remoteHostAddresses, 1, NULL, ReceiveMapping, DeleteRemoteMapping, GetLocalMappings, FreeEndpointMappings, 10988, 10987);
+	//GetLocalMappings()
+	delete []remoteHostAddresses;
+	LogStringInFile(L"Initialize finished");
 }

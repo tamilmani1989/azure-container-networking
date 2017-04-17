@@ -6,8 +6,8 @@
     <ProjectName>NetworkClient</ProjectName>
     <ConfigurationType>Application</ConfigurationType>
   </PropertyGroup>
-  <Import Project="$(SRCROOT)\build\native_user_compile.props"/>
-  <Import Project="$(SRCROOT)\build\native_user_link.props"/>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>
@@ -37,8 +37,14 @@
     <ClInclude Include="..\NetworkClientLibrary\Common\aquanetworkclient.h" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\HNSClient\HNSClient.vcxproj">
+      <Project>{a8f4b949-54ec-40c4-b9a4-6a338b2a4767}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\NetworkClientLibrary\NetworkClientLibrary.vcxproj">
       <Project>{97f3b949-54ec-40c4-b9a4-6a338b2a4767}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Shared\Shared.vcxproj">
+      <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />

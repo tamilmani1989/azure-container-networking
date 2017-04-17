@@ -1,5 +1,4 @@
 #ifdef _WIN32
-
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include "../Common/aquanetworkclient.h"
 #include <stdlib.h>
@@ -8,57 +7,27 @@
 #include <WinSock2.h>
 #include <stdio.h>
 #include <iostream>
+#include <WinSock2.h>
+#include <ws2ipdef.h>
+#include <ws2tcpip.h>
 #define HostSuffix "GET /machine/plugins?comp=nmagent&type=getinterfaceinfov1 HTTP/1.1\r\nHost: 169.254.169.254\r\nConnection: close\r\n\r\n"
 #define DockerNwCreatePost "POST /networks/create HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nConnection: close\r\n"
 #define DockerNwGet "GET /networks/"
 #define HttpResponseHeaderSeparator "\r\n\r\n"
 #define BUFFER_SIZE 1024
 #include <mutex>
+#include "../../Logging/Logging.h"
 std::mutex initWsaMutex;
 int wsaInitialized = 0;
 
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 extern void ParseSubnetAndGatewayIp(char *xmlResponse, char **sunbetIp, char **gatewayIp);
-
-int initWsa()
-{
-	WORD wVersionRequested;
-	WSADATA wsaData;
-	int err;
-	int success = 1;
-
-	wVersionRequested = MAKEWORD(2, 2);
-
-	err = WSAStartup(wVersionRequested, &wsaData);
-	if (err != 0)
-	{
-		// could not find a usable Winsock DLL.  
-		printf("WSAStartup failed with error: %d\n", err);
-		success = 0;
-	}
-
-	/* If the DLL supports versions greater
-	* than 2.2 in addition to 2.2, it will still return
-	* 2.2 in wVersion since that is the version we
-	* requested.
-	* */
-
-	if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2)
-	{
-		fprintf(stderr, "Could not find a usable version of Winsock.dll\n");
-		WSACleanup();
-		success = 0;
-	}
-	else
-	{
-		printf("The Winsock 2.2 dll was found okay\n");
-	}
-
-	return success;
-}
+extern bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp);
 
 SOCKET connectToHost(char *host, USHORT port)
 {
+	char logMsg[2048];
+	size_t msgSize = 2048;
 	struct hostent *hp;
 	struct sockaddr_in addr;
 	SOCKET sock;
@@ -66,7 +35,8 @@ SOCKET connectToHost(char *host, USHORT port)
 	// Using depricated gethostbyname which is ipv4 only
 	if ((hp = gethostbyname(host)) == nullptr)
 	{
-		fprintf(stderr, "gethostbyname failed %d : %s", WSAGetLastError(), host);
+		sprintf_s(logMsg, msgSize,  "gethostbyname failed %d : %s", WSAGetLastError(), host);
+		AquaLogging::Log(info, logMsg);
 		return INVALID_SOCKET;
 	}
 
@@ -86,16 +56,19 @@ SOCKET connectToHost(char *host, USHORT port)
 		int error = WSAGetLastError();
 		if (error == WSAENETUNREACH)
 		{
-			fprintf(stderr, "Connection to host failed.\n");
+			sprintf_s(logMsg, msgSize,  "Connection to host failed.\n");
+			AquaLogging::Log(info, logMsg);
 		}
 		else
 		{
-			fprintf(stderr, "Connection to host failed with error code %d\n", error);
+			sprintf_s(logMsg, msgSize,  "Connection to host failed with error code %d\n", error);
+			AquaLogging::Log(info, logMsg);
 		}
 		return INVALID_SOCKET;
 	}
 
-	printf("Connected successfully to host.\n");
+	sprintf_s(logMsg, msgSize, "Connected successfully to host.\n");
+	AquaLogging::Log(info, logMsg);
 	return sock;
 }
 
@@ -115,42 +88,46 @@ int InsertIntoBuffer(char **recvBuffer, int byteCount, char c)
 	return 1;
 }
 
-int wsaInitialize()
+int WsaInitialize()
 {
-	int retval = 1;
-	if (!wsaInitialized)
-	{
-		initWsaMutex.lock();
-		if (!wsaInitialized)
-		{
-			if (initWsa())
-			{
-				wsaInitialized = 1;
-				retval = 1;
-			}
-			else
-			{
-				fprintf(stderr, "wsa initialization failed\n");
-				retval = 0;
-			}
-		}
-		initWsaMutex.unlock();
+	char logMsg[2048];
+	size_t msgSize = 2048;
+	WSADATA wsaData;
+	int wsaerr;
+
+	wsaerr = WSAStartup(MAKEWORD(2, 2), &wsaData);
+
+	if (wsaerr != 0)
+	{		
+		sprintf_s(logMsg, msgSize, "WSAStartup failed with error: %d\n", wsaerr);
+		AquaLogging::Log(info, logMsg);		
 	}
-	return retval;
+	else
+	{
+		sprintf_s(logMsg, msgSize, "WSA initialization finished successfully. \n");
+		AquaLogging::Log(info, logMsg);
+	}
+	
+	return wsaerr;
 }
 
 void wsaCleanUp()
 {
-	if (wsaInitialized)
+	/*
+	if (wsaInitialized > 0)
 	{
-		initWsaMutex.lock();
-		if (wsaInitialized)
+		//initWsaMutex.lock();
+		if (wsaInitialized > 0)
 		{
-			WSACleanup();
-			wsaInitialized = 0;
+			wsaInitialized--;
+
+			if (wsaInitialized == 0)
+			{
+				WSACleanup();
+			}
 		}
-		initWsaMutex.unlock();
-	}
+		//initWsaMutex.unlock();
+	}*/
 }
 
 char* httpSendResponse(SOCKET sock, char *payload)
@@ -159,15 +136,19 @@ char* httpSendResponse(SOCKET sock, char *payload)
 	int bytesRead;
 	char *recvBuffer = nullptr;
 	int byteCount = 0;
+	char logMsg[2048];
+	size_t msgSize = 2048;
 
 	int bytesWritten = send(sock, payload, (int)strlen(payload), 0);
 	if (bytesWritten == SOCKET_ERROR)
 	{
-		fprintf(stderr, "Writing to socket failed errno=%d\n", errno);
+		sprintf_s(logMsg, msgSize,  "Writing to socket failed errno=%d\n", errno);
+		AquaLogging::Log(info, logMsg);
 	}
 	else
 	{
-		printf("Sent %d bytes on the connection.\nNow ", bytesWritten);
+		sprintf_s(logMsg, msgSize, "Sent %d bytes on the connection.\nReading response (may take some time).... ", bytesWritten);
+		AquaLogging::Log(info, logMsg);
 		do
 		{
 			char c;
@@ -177,7 +158,8 @@ char* httpSendResponse(SOCKET sock, char *payload)
 				byteCount++;
 				if (!InsertIntoBuffer(&recvBuffer, byteCount, c))
 				{
-					fprintf(stderr, "Failed to insert a char into buffer");
+					sprintf_s(logMsg, msgSize,  "Failed to insert a char into buffer");
+					AquaLogging::Log(err, logMsg);
 					return NULL;
 				}
 			}
@@ -185,14 +167,16 @@ char* httpSendResponse(SOCKET sock, char *payload)
 
 		if (bytesRead == -1)
 		{
-			fprintf(stderr, "Reading failed. errno=%d \n", errno);
+			sprintf_s(logMsg, msgSize,  "Reading failed. errno=%d \n", errno);
+			AquaLogging::Log(err, logMsg);
 		}
 		else if (bytesRead == 0)
 		{
-			printf("Read finished\n");
+			sprintf_s(logMsg, msgSize, "Read finished\n");
 			if (!InsertIntoBuffer(&recvBuffer, byteCount + 1, '\0'))
 			{
-				fprintf(stderr, "Failed to insert EOL into buffer");
+				sprintf_s(logMsg, msgSize,  "Failed to insert EOL into buffer");
+				AquaLogging::Log(err, logMsg);
 				return NULL;
 			}
 			return recvBuffer;
@@ -207,6 +191,8 @@ int retrieveHttpStatus(char *recvBuffer)
 	int k = 0;
 	char status[8];
 	int ret = 0;
+	char logMsg[2048];
+	size_t msgSize = 2048;
 	while (recvBuffer[i] != ' ')
 	{
 		i++;
@@ -225,41 +211,44 @@ int retrieveHttpStatus(char *recvBuffer)
 	{
 		ret = atoi(status);
 	}
-	printf("returning %d as http response\n", ret);
+	sprintf_s(logMsg, msgSize, "returning %d as http response\n", ret);
+	AquaLogging::Log(info, logMsg);
 	return ret;
 }
 int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 {
 	char *recvBuffer = nullptr;
 	char *responseLocation = nullptr;
+	char logMsg[2048];
+	size_t msgSize = 2048;
 
-	if (!wsaInitialize())
-	{
-		return -1;
-	}
-
-	printf("Trying to connect to nm agent.\n");
+	sprintf_s(logMsg, msgSize, "Trying to connect to nm agent.\n");
+	AquaLogging::Log(info, logMsg);
 	SOCKET sock = connectToHost("169.254.169.254", 80);
 
 	if (sock == INVALID_SOCKET)
 	{
-		fprintf(stderr, "Connect to host failed.\n");
+		sprintf_s(logMsg, msgSize,  "Connect to host failed.\n");
+		AquaLogging::Log(err, logMsg);
 		wsaCleanUp();
 		return -1;
 	}
 
 	recvBuffer = httpSendResponse(sock, HostSuffix);
 	if (!recvBuffer) {
-		printf("Error while retrieving xml file from NMAgent");
+		sprintf_s(logMsg, msgSize, "Error while retrieving xml file from NMAgent");
+		AquaLogging::Log(err, logMsg);
 		goto cleanup_subgw;
 	}
-	//printf("xml recv buf:%s\n", recvBuffer);
+	//sprintf_s(logMsg, msgSize, "xml recv buf:%s\n", recvBuffer);
 
 	int ret = retrieveHttpStatus(recvBuffer);
-	printf("status:%d\n", ret);
+	sprintf_s(logMsg, msgSize, "status:%d\n", ret);
+	AquaLogging::Log(info, logMsg);
 	if (ret != 200)
 	{
-		printf("Error while retrieving xml file from NMAgent. Invalid Status code:%s\n", recvBuffer);
+		sprintf_s(logMsg, msgSize, "Error while retrieving xml file from NMAgent. Invalid Status code:%s\n", recvBuffer);
+		AquaLogging::Log(err, logMsg);
 		goto cleanup_subgw;
 	}
 
@@ -273,7 +262,8 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 	}
 	else
 	{
-		fprintf(stderr, "Unable to find portion of http response header that contains valid nm agent response response %s", recvBuffer);
+		sprintf_s(logMsg, msgSize,  "Unable to find portion of http response header that contains valid nm agent response response %s", recvBuffer);
+		AquaLogging::Log(err, logMsg);
 	}
 
 cleanup_subgw:
@@ -289,8 +279,6 @@ cleanup_subgw:
 	return 0;
 }
 
-
-
 int getIpsFromNmAgent(unsigned int *ips)
 {
 	int ipCount = 0;
@@ -298,32 +286,32 @@ int getIpsFromNmAgent(unsigned int *ips)
 	int bytesRead;
 	char *responseLocation = nullptr;
 	int byteCount = 0;
-
-	if (!wsaInitialize())
-	{
-		return -1;
-	}
-
-	printf("Trying to connect to nm agent.\n");
+	char logMsg[2048];
+	size_t msgSize = 2048;
+	
+	sprintf_s(logMsg, msgSize, "Trying to connect to nm agent.\n");
+	AquaLogging::Log(info, logMsg);
 	SOCKET sock = connectToHost("169.254.169.254", 80);
 
 	if (sock == INVALID_SOCKET)
 	{
-		fprintf(stderr, "Connect to host failed.\n");
+		sprintf_s(logMsg, msgSize,  "Connect to host failed.\n");
+		AquaLogging::Log(err, logMsg);
 		wsaCleanUp();
 		return -1;
 	}
-	printf("Now going to get ips from nm agent... fd: %llu\n", sock);
+	sprintf_s(logMsg, msgSize, "Now going to get ips from nm agent... fd: %llu\n", sock);
+	AquaLogging::Log(info, logMsg);
 	int bytesWritten = send(sock, HostSuffix, (int)strlen(HostSuffix), 0);
 	if (bytesWritten == SOCKET_ERROR)
 	{
-		fprintf(stderr, "Writing to socket failed errno=%d\n", errno);
+		sprintf_s(logMsg, msgSize,  "Writing to socket failed errno=%d\n", errno);
+		AquaLogging::Log(err, logMsg);
 	}
 	else
 	{
-		printf("Sent %d bytes on the connection.\nNow ", bytesWritten);
-
-		printf("Reading into buffer..\n");
+		sprintf_s(logMsg, msgSize, "Sent %d bytes on the connection.\nNow reading into buffer..", bytesWritten);
+		AquaLogging::Log(info, logMsg);
 		do
 		{
 			char c;
@@ -333,7 +321,8 @@ int getIpsFromNmAgent(unsigned int *ips)
 				byteCount++;
 				if (!InsertIntoBuffer(&recvBuffer, byteCount, c))
 				{
-					fprintf(stderr, "Failed to insert a char into buffer");
+					sprintf_s(logMsg, msgSize,  "Failed to insert a char into buffer");
+					AquaLogging::Log(err, logMsg);
 					ipCount = -1;
 					goto cleanup;
 				}
@@ -342,18 +331,21 @@ int getIpsFromNmAgent(unsigned int *ips)
 
 		if (bytesRead == -1)
 		{
-			fprintf(stderr, "Reading failed. errno=%d \n", errno);
+			sprintf_s(logMsg, msgSize,  "Reading failed. errno=%d \n", errno);
+			AquaLogging::Log(err, logMsg);
 		}
 		else if (bytesRead == 0)
 		{
 			if (!InsertIntoBuffer(&recvBuffer, byteCount + 1, '\0'))
 			{
-				fprintf(stderr, "Failed to insert EOL into buffer");
+				sprintf_s(logMsg, msgSize,  "Failed to insert EOL into buffer");
+				AquaLogging::Log(err, logMsg);
 				ipCount = -1;
 				goto cleanup;
 			}
 
-			printf("\nSuccessfully finished reading. Printing response below..\n");
+			sprintf_s(logMsg, msgSize, "\nSuccessfully finished reading. Printing response below..\n");
+			AquaLogging::Log(info, logMsg);
 			responseLocation = strstr(recvBuffer, HttpResponseHeaderSeparator);
 			responseLocation += strlen(HttpResponseHeaderSeparator);
 			printf(responseLocation);
@@ -363,17 +355,20 @@ int getIpsFromNmAgent(unsigned int *ips)
 			if (ips == NULL)
 			{
 				ipCount = ParseSecondaryIpAddresses(responseLocation, 1, ips);
-				printf("Received only ip count as %d\n", ipCount);
+				sprintf_s(logMsg, msgSize, "Received only ip count as %d\n", ipCount);
+				AquaLogging::Log(info, logMsg);
 			}
 			else
 			{
 				ipCount = ParseSecondaryIpAddresses(responseLocation, 0, ips);
-				printf("Received ips with ip count as %d\n", ipCount);
+				sprintf_s(logMsg, msgSize, "Received ips with ip count as %d\n", ipCount);
+				AquaLogging::Log(info, logMsg);
 			}
 		}
 		else
 		{
-			fprintf(stderr, "Unable to find portion of http response header that contains valid nm agent response response %s", recvBuffer);
+			sprintf_s(logMsg, msgSize,  "Unable to find portion of http response header that contains valid nm agent response response %s", recvBuffer);
+			AquaLogging::Log(err, logMsg);
 		}
 		free(recvBuffer);
 		recvBuffer = nullptr;
@@ -389,22 +384,61 @@ cleanup:
 
 	if (closesocket(sock) != 0)
 	{
-		printf("+++++++++ERROR While closing Socket!+++++++++++++++++\n");
+		sprintf_s(logMsg, msgSize, "+++++++++ERROR While closing Socket!+++++++++++++++++\n");
+		AquaLogging::Log(err, logMsg);
 	}
 
 	wsaCleanUp();
 	return ipCount;
 }
 
+DWORD GetHostIp(unsigned int *ip)
+{
+	struct hostent *hp;
+	char hostName[255]; //RFC says it cannot exceed 255 chars
+	unsigned long retval = 0;
+	char logMsg[2048];
+	size_t msgSize = 2048;
+	
+	if (gethostname(hostName, 255) != 0)
+	{
+		sprintf_s(logMsg, msgSize, "error happenned during hethostname() %d\n", WSAGetLastError());
+		AquaLogging::Log(err, logMsg);
+		retval = UNEXPECTED_ERROR;
+	}
+	else
+	{
+		if ((hp = gethostbyname(hostName)) == nullptr)
+		{
+			sprintf_s(logMsg, msgSize,  "gethostbyname failed %d : %s", WSAGetLastError(), hostName);
+			AquaLogging::Log(err, logMsg);
+			retval = UNEXPECTED_ERROR;
+		}
+		else
+		{
+			(*ip) = *(u_long*)hp->h_addr_list[0];
+			sprintf_s(logMsg, msgSize, "h_name = %s\n", hp->h_name);
+		}
+	}
+	sprintf_s(logMsg, msgSize, "retrieved hostip 0x%08x", *ip);
+	AquaLogging::Log(info, logMsg);
+	wsaCleanUp();
+	sprintf_s(logMsg, msgSize, "GetHostIp returning %d\n", retval);
+	AquaLogging::Log(info, logMsg);
+	return retval;
+}
 
 int networkExists(SOCKET sock, char *networkName)
 {
 	char *payload = nullptr;
 	char *recvBuf = nullptr;
 	size_t payloadLen;
+	char logMsg[2048];
+	size_t msgSize = 2048;
 	char *httpreq = "HTTP/1.1\r\nHost:127.0.0.1\r\nContent-Type:application/json\r\nConnection:close\r\n\r\n";
 
-	printf("Checking if network already exists.. %s\n", networkName);
+	sprintf_s(logMsg, msgSize, "Checking if network already exists.. %s\n", networkName);
+	AquaLogging::Log(info, logMsg);
 
 	payloadLen = strlen(DockerNwGet) + strlen(networkName) + strlen(httpreq);
 
@@ -414,16 +448,19 @@ int networkExists(SOCKET sock, char *networkName)
 	recvBuf = httpSendResponse(sock, payload);
 	if (!recvBuf)
 	{
-		printf("Unexpected error while check for existing network:%s\n", networkName);
+		sprintf_s(logMsg, msgSize, "Unexpected error while check for existing network:%s\n", networkName);
+		AquaLogging::Log(err, logMsg);
 		free(payload);
 		return 0;
 	}
 
-	printf("receive buf:%s\n", recvBuf);
+	sprintf_s(logMsg, msgSize, "receive buf:%s\n", recvBuf);
+	AquaLogging::Log(info, logMsg);
 	int ret = retrieveHttpStatus(recvBuf);
 	if (ret == 200)
 	{
-		printf("Network Initialized already\n");
+		sprintf_s(logMsg, msgSize, "Network Initialized already\n");
+		AquaLogging::Log(warn, logMsg);
 		if (payload) free(payload);
 		free(recvBuf);
 		return 0;
@@ -444,42 +481,42 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 	char *gwIp = nullptr;
 	char ipamConfig[2048];
 	unsigned long retval = 0;
+	char logMsg[2048];
+	size_t msgSize = 2048;
 
-
-	if (!wsaInitialize())
-	{
-		return UNEXPECTED_ERROR;
-	}
-	printf("wsa initialization finished\n");
+	sprintf_s(logMsg, msgSize, "wsa initialization finished\n");
+	AquaLogging::Log(info, logMsg);
 	SOCKET sock = connectToHost("localhost", 2375);
 	if (sock == INVALID_SOCKET)
 	{
-		fprintf(stderr, "Connect to host failed.\n");
+		sprintf_s(logMsg, msgSize,  "Connect to host failed.\n");
+		AquaLogging::Log(err, logMsg);
 		wsaCleanUp();
 		return UNREACHABLE_HOST;
 	}
 
 	if (networkExists(sock, clusterConfig->networkName))
 	{
-		printf("Netowrk %s does not exist, going to create it\n", clusterConfig->networkName);
+		sprintf_s(logMsg, msgSize, "Network %s does not exist, going to create it\n", clusterConfig->networkName);
+		AquaLogging::Log(info, logMsg);
 
 		shutdown(sock, SD_BOTH);
 		closesocket(sock);
 		wsaCleanUp();
-		printf("wsa cleanup finished\n");
+		sprintf_s(logMsg, msgSize, "wsa cleanup finished\n");
+		AquaLogging::Log(info, logMsg);
 
 		getSubnetGwIpfromNMAgent(&subnetIp, &gwIp);
 
-		printf("retrieved subnet and gateway %s %s\n", subnetIp, gwIp);
+		sprintf_s(logMsg, msgSize, "retrieved subnet and gateway %s %s\n", subnetIp, gwIp);
+		AquaLogging::Log(info, logMsg);
 
 		sprintf_s(ipamConfig, sizeof(ipamConfig), "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gwIp);
+		AquaLogging::Log(info, logMsg);
 
-		printf("ipamconfig:%s\n", ipamConfig);
-		if (!wsaInitialize())
-		{
-			return UNEXPECTED_ERROR;
-		}
-
+		sprintf_s(logMsg, msgSize, "ipamconfig:%s\n", ipamConfig);
+		AquaLogging::Log(info, logMsg);
+		
 		sock = connectToHost("localhost", 2375);
 
 		ipamLength = strlen(ipamConfig);
@@ -487,27 +524,34 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 		totalLength = strlen(DockerNwCreatePost) + conLength + ipamLength + 64;
 		nwCreateReq = (char *)malloc(totalLength + 1);
 
-		sprintf_s(nwCreateReq, totalLength + 1, "%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", DockerNwCreatePost, (int)conLength, clusterConfig->networkName, "l2tunnel", ipamConfig);
+		sprintf_s(nwCreateReq, totalLength + 1, 
+			"%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", 
+				DockerNwCreatePost, (int)conLength, clusterConfig->networkName, "l2tunnel", ipamConfig);	
+		AquaLogging::Log(info, logMsg);
 
-		printf("Now going to get create network driver... cmd:%s:%d:%llu:%d\n", nwCreateReq, (int)totalLength, strlen(nwCreateReq), (int)conLength);
-
+		sprintf_s(logMsg, msgSize, "Now going to get create network driver... cmd:%s:%d:%llu:%d\n", 
+			nwCreateReq, (int)totalLength, strlen(nwCreateReq), (int)conLength);
+		AquaLogging::Log(info, logMsg);
 		recvBuf = httpSendResponse(sock, nwCreateReq);
 		if (!recvBuf)
 		{
-			printf("Error while creating docker network");
+			sprintf_s(logMsg, msgSize, "Error while creating docker network");
+			AquaLogging::Log(err, logMsg);
 			retval = UNEXPECTED_ERROR;
 			goto cleanup2;
 		}
 
 		int ret = retrieveHttpStatus(recvBuf);
-		printf("status:%d\n", ret);
+		sprintf_s(logMsg, msgSize, "status:%d\n", ret);
 		if (ret == 201)
 		{
-			printf("docker network create succeeded\n");
+			sprintf_s(logMsg, msgSize, "docker network create succeeded\n");
+			AquaLogging::Log(err, logMsg);
 		}
 		else
 		{
-			printf("docker network create failed:%s\n", recvBuf);
+			sprintf_s(logMsg, msgSize, "docker network create failed:%s\n", recvBuf);
+			AquaLogging::Log(err, logMsg);
 			retval = UNEXPECTED_ERROR;
 		}
 	}
@@ -525,6 +569,8 @@ cleanup2:
 	shutdown(sock, SD_BOTH);
 	closesocket(sock);
 	wsaCleanUp();
+	sprintf_s(logMsg, msgSize, "setup underlay returning %d", retval);
+	AquaLogging::Log(info, logMsg);
 	return retval;
 }
 
@@ -538,17 +584,285 @@ DWORD installHNSOverlayPlugin()
 	return retval;
 }
 
-DWORD setupOverlay(ClusterConfig *clusterConfig)
+unsigned long CreateDockerNetwork(char *networkName, char ipamConfig[2048])
 {
-	UNREFERENCED_PARAMETER(clusterConfig);
-	int retval = installHNSOverlayPlugin();
-	if(retval != 0)
+	char *recvBuf = NULL;
+	unsigned long retval = 0;
+	char logMsg[2048];
+	size_t msgSize = 2048;
+
+	SOCKET sock = connectToHost("localhost", 2375);
+	if(sock == INVALID_SOCKET)
 	{
-		printf("Return value from setup overlay %d", retval);
-		return OVERLAYPLUGIN_INSTALL_FAILED;
+		return UNREACHABLE_DOCKER_DAEMON;
 	}
 
+	size_t ipamLength = strlen(ipamConfig);
+	size_t conLength = strlen(networkName) + 9 + 19 + 4 + ipamLength;
+	size_t totalLength = strlen(DockerNwCreatePost) + conLength + ipamLength + 64;
+	char *nwCreateReq = (char *)malloc(totalLength + 1);
+
+	sprintf_s(nwCreateReq, totalLength + 1, 
+	          "%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", 
+	          DockerNwCreatePost, (int)conLength, networkName, "l2tunnel", ipamConfig);
+	AquaLogging::Log(info, logMsg);
+
+	sprintf_s(logMsg, msgSize, "Now going to get create network driver... cmd:%s:%d:%llu:%d\n",
+		nwCreateReq, (int)totalLength, strlen(nwCreateReq), (int)conLength);
+	AquaLogging::Log(info, logMsg);
+
+	recvBuf = httpSendResponse(sock, nwCreateReq);
+	if (!recvBuf)
+	{
+		sprintf_s(logMsg, msgSize, "Error while creating docker network");
+		AquaLogging::Log(err, logMsg);
+		retval = UNEXPECTED_ERROR;
+	}
+	else
+	{
+		int ret = retrieveHttpStatus(recvBuf);
+		sprintf_s(logMsg, msgSize, "status:%d\n", ret);
+		AquaLogging::Log(info, logMsg);
+		if (ret == 201)
+		{
+		AquaLogging::Log(err, logMsg);
+			sprintf_s(logMsg, msgSize, "docker network create succeeded\n");
+			AquaLogging::Log(info, logMsg);
+		}
+		else
+		{
+			sprintf_s(logMsg, msgSize, "docker network create failed:%s\n", recvBuf);
+			AquaLogging::Log(err, logMsg);
+			retval = UNEXPECTED_ERROR;
+		}
+	}
+
+	if (recvBuf)
+	{
+		free(recvBuf);
+	}
+	if (nwCreateReq)
+	{
+		free(nwCreateReq);
+	}
+
+	shutdown(sock, SD_BOTH);
+	closesocket(sock);
+
+	sprintf_s(logMsg, msgSize, "create docker network returning %d\n", retval);
+	AquaLogging::Log(info, logMsg);
+	return retval;
+}
+
+DWORD setupOverlay(ClusterConfig *clusterConfig)
+{
+	char *recvBuf = nullptr;
+	char *gwIp = nullptr;
+	char ipamConfig[2048];
+	unsigned long retval = 0;
+	char logMsg[2048];
+	size_t msgSize = 2048;
+
+	if (clusterConfig->networkName == NULL)
+	{
+		return UNSPECIFIED_NETWORK_NAME;
+	}
+
+	sprintf_s(logMsg, msgSize, "wsa initialization finished to setup overlay\n");
+	AquaLogging::Log(info, logMsg);	
+
+	SOCKET sock = connectToHost("localhost", 2375);
+	if (sock == INVALID_SOCKET)
+	{
+		sprintf_s(logMsg, msgSize,  "Connect to host failed (overlay).\n");
+		AquaLogging::Log(err, logMsg);
+		wsaCleanUp();
+		return UNREACHABLE_DOCKER_DAEMON;
+	}
+
+	if (networkExists(sock, clusterConfig->networkName))
+	{
+		sprintf_s(logMsg, msgSize, "Overlay Network %s does not exist, going to create it\n", clusterConfig->networkName);
+		AquaLogging::Log(info, logMsg);
+
+		shutdown(sock, SD_BOTH);
+		closesocket(sock);
+		wsaCleanUp();
+		sprintf_s(logMsg, msgSize, "wsa cleanup finished\n");
+		AquaLogging::Log(info, logMsg);
+
+		if(clusterConfig->overlaySubnet == NULL)
+		{
+			return OVERLAY_SUBNET_NOT_SPECIFIED;
+		}
+
+		if(clusterConfig->overlaySubnet->prefixLength > 30)
+		{
+			return SUBNET_SIZE_TOO_SMALL;
+		}
+
+		sprintf_s(logMsg, msgSize, "Going to get gateway ip from %d\n", clusterConfig->overlaySubnet->ipAddress);
+		AquaLogging::Log(info, logMsg);
+		char gatewayIp[INET_ADDRSTRLEN];
+		if(inet_ntop(AF_INET, &clusterConfig->overlaySubnet->ipAddress, gatewayIp, INET_ADDRSTRLEN)==NULL)
+		{
+			return MALFORMED_SUBNET_IP;
+		}
+
+		if(RetrieveGatewayFromSubnet(gatewayIp, &gwIp) == false)
+		{
+			return MALFORMED_SUBNET_IP;
+		}
+
+		sprintf_s(logMsg, msgSize, "retrieved subnet and gateway %s/%d %s\n", gatewayIp, clusterConfig->overlaySubnet->prefixLength, gwIp);
+		AquaLogging::Log(info, logMsg);
+
+		sprintf_s(ipamConfig, sizeof(ipamConfig), 
+			"\"IPAM\":{\"Config\":[{\"Subnet\":\"%s/%d\",\"Gateway\":\"%s\"}]}", 
+			gatewayIp, clusterConfig->overlaySubnet->prefixLength, gwIp);
+		AquaLogging::Log(info, logMsg);
+
+		sprintf_s(logMsg, msgSize, "ipamconfig:%s\n", ipamConfig);
+		AquaLogging::Log(info, logMsg);	
+
+		retval = CreateDockerNetwork(clusterConfig->networkName, ipamConfig);
+	}
+	else 
+	{
+		if (recvBuf)
+		{
+			free(recvBuf);
+			recvBuf = NULL;
+		}
+		shutdown(sock, SD_BOTH);
+		closesocket(sock);
+	}
+	if (gwIp)
+	{
+		free(gwIp);
+		gwIp = NULL;
+	}
+
+	wsaCleanUp();
+	sprintf_s(logMsg, msgSize, "setupOverlay returning %d\n", retval);
+	AquaLogging::Log(info, logMsg);
+	return retval;
+}
+extern DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std::wstring ca, std::wstring pa, std::wstring isRemoteEndpoint);
+DWORD AddRemoteMapping(const char *endpointId, const char *hostAddress, const char *containerAddress, const char *macAddress)
+{
+	char logMsg[2048];
+	size_t msgSize = 2048;
+	sprintf_s(logMsg, msgSize, "Call back to add endpoint received... success\n");
+	AquaLogging::Log(info, logMsg);
+	wchar_t endPointIdW[150]; //GUID cannot exceed 38
+	size_t converted;
+	mbstowcs_s(&converted, endPointIdW, endpointId, 150);
+	
+	wchar_t hostAddressW[INET_ADDRSTRLEN];
+	mbstowcs_s(&converted, hostAddressW, hostAddress, INET_ADDRSTRLEN);
+
+	wchar_t containerAddressW[INET_ADDRSTRLEN]; //GUID cannot exceed 38
+	mbstowcs_s(&converted, containerAddressW, containerAddress, INET_ADDRSTRLEN);
+
+	wchar_t macAddressW[50]; //MAC cannot exceed 24
+	mbstowcs_s(&converted, macAddressW, macAddress, 50);
+
+	sprintf_s(logMsg, msgSize, "%s %s %s %s\n", endpointId, macAddress, containerAddress, macAddress);
+	AquaLogging::Log(info, logMsg);
+	return AddEndpoint(endPointIdW, macAddressW, containerAddressW, hostAddressW, L"true");
+}
+
+extern DllExport int DeleteEndpoint(std::wstring endpointId);
+DWORD DeleteRemoteMapping (const char *endpointId)
+{
+	wchar_t endpointIdW[150]; //GUID cannot exceed 38
+	size_t converted;
+	char logMsg[2048];
+	size_t msgSize = 2048;
+	sprintf_s(logMsg, msgSize, "Call back to delete endpoint received...\n");
+	AquaLogging::Log(info, logMsg);
+	mbstowcs_s(&converted, endpointIdW, endpointId, 150);
+	unsigned long retval =  DeleteEndpoint(endpointIdW);
+	sprintf_s(logMsg, msgSize, "Call back to delete endpoint finished with %u...\n", retval);
+	AquaLogging::Log(info, logMsg);
+	return retval;
+}
+
+extern DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, USHORT *mappingsCount);
+DWORD GetLocalMappings(EndpointMapping **endpointMappings, USHORT *mappingsCount)
+{
+	AquaLogging::Log(info, "Enter GetLocalMappings");
+	GetLocalEndpoints(endpointMappings, mappingsCount);
+	AquaLogging::Log(info, "Exit GetLocalMappings");
 	return 0;
 }
+
+DllExport unsigned long FreeMemoryForLocalEndpoints(EndpointMapping *endpointMappings, USHORT mappingsCount);
+DWORD FreeEndpointMappings(EndpointMapping *endpointMappings, USHORT mappingsCount)
+{
+	AquaLogging::Log(info, "Enter FreeEndpointMappings");
+	FreeMemoryForLocalEndpoints(endpointMappings, mappingsCount);
+	AquaLogging::Log(info, "Enter FreeEndpointMappings");
+	return 0;
+}
+
+void provideConfigToNIX(ClusterConfig *clusterConfig)
+{
+	char logMsg[2048];
+	size_t msgSize = 2048;
+
+	sprintf_s(logMsg, msgSize, "Informing nix about the other nodes in the network");
+	AquaLogging::Log(info, logMsg);
+	unsigned int localIp;
+	GetHostIp(&localIp);
+	localIp = clusterConfig->localNodeIp;
+	char ipInString[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, &localIp, ipInString, INET_ADDRSTRLEN);
+	char**remoteHostAddresses = new char *[clusterConfig->nodeCount - 1]; //-1 for local address
+	USHORT cntr = 0;
+	for (int i = 0; i < clusterConfig->nodeCount; i++)
+	{
+		
+		NodeConfig cnc = clusterConfig->nodeConfigs[i];
+		char remoteIpInString[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &cnc.nodeIp, remoteIpInString, INET_ADDRSTRLEN);
+
+		sprintf_s(logMsg, msgSize, "--------from cluster config remote ip = %s %s %u---------\n", remoteIpInString, cnc.nodeId, cnc.subnet->ipAddress);
+		AquaLogging::Log(info, logMsg);
+		if (cnc.nodeIp != clusterConfig->localNodeIp)
+		{
+			char remoteIpInString2[INET_ADDRSTRLEN];
+			inet_ntop(AF_INET, &cnc.nodeIp, remoteIpInString2, INET_ADDRSTRLEN);
+			remoteHostAddresses[cntr] = (char *) malloc(sizeof(char)* INET_ADDRSTRLEN);
+			strcpy_s(remoteHostAddresses[cntr], INET_ADDRSTRLEN, remoteIpInString2);
+			sprintf_s(logMsg, msgSize, "saved remote ip = %s\n", remoteHostAddresses[cntr]);
+			AquaLogging::Log(info, logMsg);
+			cntr++;
+		}
+	}
+
+	sprintf_s(logMsg, msgSize, "Local Host provided to NIX: %s", ipInString);
+	AquaLogging::Log(info, logMsg);
+	for(int j=0; j<cntr; j++)
+	{
+		sprintf_s(logMsg, msgSize, "Remote Host %d provided to NIX: %s", j, remoteHostAddresses[j]);
+		AquaLogging::Log(info, logMsg);
+	}
+        #ifdef _WIN32
+	InitializeAquaNix(ipInString, remoteHostAddresses, cntr, "127.0.0.1", AddRemoteMapping, DeleteRemoteMapping, 
+		GetLocalMappings, FreeEndpointMappings, 10987, 10987);
+	RequestRemoteMappings();
+	for(int k = 0; k<cntr; k++)
+	{
+		free(remoteHostAddresses[k]);
+	}
+	delete []remoteHostAddresses;
+        #endif
+}
+
+extern DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp);
+
+
 
 #endif

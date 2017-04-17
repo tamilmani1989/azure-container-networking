@@ -528,4 +528,9 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 	return retval;
 
 }
+
+DWORD GetHostIp(unsigned int *ip)
+{
+	return UNEXPECTED_ERROR;
+}
 #endif

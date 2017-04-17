@@ -7,7 +7,7 @@
   <!-- Nuget generation properties -->
   <PropertyGroup>
     <NoPackageAnalysis>true</NoPackageAnalysis>
-    <Id>Microsoft.WindowsAzure.Internal.$(GitBranchName).NetworkClientLibrary</Id>
+    <Id>Microsoft.WindowsAzure.Internal.$(GitBranchName)NetworkClientLibrary</Id>
     <Version>$(BuildVersion)</Version>
     <Title>RnmClient from $(GitBranchName)</Title>
     <Authors>rnmdev@microsoft.com</Authors>
@@ -42,6 +42,8 @@
   <ItemGroup>
     <ProjectReference Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
     <ProjectReference Include="$(SRCROOT)\HNSOverlayPlugin\HNSOverlayPlugin.vcxproj" />
+    <ProjectReference Include="$(SRCROOT)\HNSClient\HNSClient.vcxproj" />
+    <ProjectReference Include="$(SRCROOT)\aquanix\aquanix.vcxproj" />
   </ItemGroup>
   <Import Project="$(PkgNuProj)\NuProj.Targets" />
 </Project>
