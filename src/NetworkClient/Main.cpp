@@ -12,8 +12,15 @@
 #define strncpy_s(dst, count, src, cp) strncpy(dst, src, count)
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
+<<<<<<< HEAD
 //#include "../Shared/Utilities.h"
 #include "../Logging/Logging.h"
+=======
+#include "../Shared/Utilities.h"
+
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
+
+>>>>>>> 4cb654068caddd590deabd1e1b48600f7cde2574
 extern DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostLocalIp);
 
 void assert(unsigned long value)
@@ -95,7 +102,7 @@ int main()
 	cfg.nodeConfigs[0].nodeIp = ipAdd.s_addr;
 	cfg.nodeConfigs[0].nodeId = "Id114";
 	cfg.nodeConfigs[0].subnet = &localSubnet;
-	//cfg.localNodeIp = ipAdd.s_addr;
+	cfg.localNodeIp = ipAdd.s_addr;
 	
 
 	Ipv4Subnet localSubnet2;
@@ -117,7 +124,7 @@ int main()
 	cfg.nodeConfigs[2].nodeIp = ipAdd.s_addr;
 	cfg.nodeConfigs[2].nodeId = "Id134";
 	cfg.nodeConfigs[2].subnet = &localSubnet3;
-	cfg.localNodeIp = ipAdd.s_addr;
+	//cfg.localNodeIp = ipAdd.s_addr;
 
 	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	free(cfg.networkName);

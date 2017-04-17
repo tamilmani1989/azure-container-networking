@@ -13,6 +13,7 @@
 #define NAME_CONST_LEN 9
 #define DRIVER_CONST_LEN 11
 
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 extern int ParseSubnetAndGatewayIp( char *xmlResponse, char **subnetIp, char **gatewayIp);
 typedef struct string
@@ -533,4 +534,5 @@ DWORD GetHostIp(unsigned int *ip)
 {
 	return UNEXPECTED_ERROR;
 }
+} } } } }
 #endif

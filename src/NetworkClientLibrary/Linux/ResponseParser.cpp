@@ -10,7 +10,7 @@
 #include <string.h>
 #include <libxml/parser.h>
 #include <arpa/inet.h>
-
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 unsigned int ConvertToIPAddress(unsigned char *ipAddressinStringFormat)
 {
     struct in_addr ipaddr;
@@ -211,3 +211,4 @@ int ParseSubnetAndGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayIp
     xmlCleanupParser();
     return count;
 }
+} } } } }

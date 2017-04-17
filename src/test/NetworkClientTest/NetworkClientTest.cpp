@@ -25,7 +25,7 @@ using namespace std;
 //using namespace Mock10;
 using namespace WEX::TestExecution;
 
-
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 
 void
