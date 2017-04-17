@@ -9,13 +9,8 @@
 \***************************************************************************/
 
 #include <stdlib.h>
-#include <WinSock2.h>
-#include <ws2ipdef.h>
-#include <ws2tcpip.h>
-#include <Mstcpip.h>
 #include "Common/aquanetworkclient.h"
 #include "Common/nclcore.h"
-#include "../aquanix/Common/aquanixext.h"
 #include "../Logging/Logging.h"
 
 #ifdef _WIN32
@@ -23,6 +18,11 @@
 #include <stdio.h>
 #include <iostream>
 #include <mutex>
+#include <WinSock2.h>
+#include <ws2ipdef.h>
+#include <ws2tcpip.h>
+#include <Mstcpip.h>
+#include "../aquanix/Common/aquanixext.h"
 #endif
 
 #ifdef __linux__
@@ -32,11 +32,13 @@
 #endif
 #define lInfo 1
 
+#ifdef _WIN32
 extern DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, USHORT *mappingsCount);
 extern DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std::wstring ca, std::wstring pa, std::wstring isRemoteEndpoint);
 extern DllExport int DeleteEndpoint(std::wstring endpointId);
 extern DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp);
 extern DllExport unsigned long FreeMemoryForLocalEndpoints(EndpointMapping *endpointMappings, USHORT mappingsCount);
+#endif
 
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 
@@ -227,115 +229,6 @@ unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 		}
 	}
 	return 0;
-}
-
-DWORD AddRemoteMapping(const char *endpointId, const char *hostAddress, const char *containerAddress, const char *macAddress)
-{
-	char logMsg[2048];
-	size_t msgSize = 2048;
-	sprintf_s(logMsg, msgSize, "Call back to add endpoint received... success\n");
-	AquaLogging::Log(info, logMsg);
-	wchar_t endPointIdW[150]; //GUID cannot exceed 38
-	size_t converted;
-	mbstowcs_s(&converted, endPointIdW, endpointId, 150);
-	
-	wchar_t hostAddressW[INET_ADDRSTRLEN];
-	mbstowcs_s(&converted, hostAddressW, hostAddress, INET_ADDRSTRLEN);
-
-	wchar_t containerAddressW[INET_ADDRSTRLEN]; //GUID cannot exceed 38
-	mbstowcs_s(&converted, containerAddressW, containerAddress, INET_ADDRSTRLEN);
-
-	wchar_t macAddressW[50]; //MAC cannot exceed 24
-	mbstowcs_s(&converted, macAddressW, macAddress, 50);
-
-	sprintf_s(logMsg, msgSize, "%s %s %s %s\n", endpointId, macAddress, containerAddress, macAddress);
-	AquaLogging::Log(info, logMsg);
-	return AddEndpoint(endPointIdW, macAddressW, containerAddressW, hostAddressW, L"true");
-}
-
-DWORD DeleteRemoteMapping (const char *endpointId)
-{
-	wchar_t endpointIdW[150]; //GUID cannot exceed 38
-	size_t converted;
-	char logMsg[2048];
-	size_t msgSize = 2048;
-	sprintf_s(logMsg, msgSize, "Call back to delete endpoint received...\n");
-	AquaLogging::Log(info, logMsg);
-	mbstowcs_s(&converted, endpointIdW, endpointId, 150);
-	unsigned long retval =  DeleteEndpoint(endpointIdW);
-	sprintf_s(logMsg, msgSize, "Call back to delete endpoint finished with %u...\n", retval);
-	AquaLogging::Log(info, logMsg);
-	return retval;
-}
-
-
-DWORD GetLocalMappings(EndpointMapping **endpointMappings, USHORT *mappingsCount)
-{
-	AquaLogging::Log(info, "Enter GetLocalMappings");
-	GetLocalEndpoints(endpointMappings, mappingsCount);
-	AquaLogging::Log(info, "Exit GetLocalMappings");
-	return 0;
-}
-
-DWORD FreeEndpointMappings(EndpointMapping *endpointMappings, USHORT mappingsCount)
-{
-	AquaLogging::Log(info, "Enter FreeEndpointMappings");
-	FreeMemoryForLocalEndpoints(endpointMappings, mappingsCount);
-	AquaLogging::Log(info, "Enter FreeEndpointMappings");
-	return 0;
-}
-
-void provideConfigToNIX(ClusterConfig *clusterConfig)
-{
-	char logMsg[2048];
-	size_t msgSize = 2048;
-
-	sprintf_s(logMsg, msgSize, "Informing nix about the other nodes in the network");
-	AquaLogging::Log(info, logMsg);
-	unsigned int localIp;
-	GetHostIp(&localIp);
-	localIp = clusterConfig->localNodeIp;
-	char ipInString[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &localIp, ipInString, INET_ADDRSTRLEN);
-	char**remoteHostAddresses = new char *[clusterConfig->nodeCount - 1]; //-1 for local address
-	USHORT cntr = 0;
-	for (int i = 0; i < clusterConfig->nodeCount; i++)
-	{
-		
-		NodeConfig cnc = clusterConfig->nodeConfigs[i];
-		char remoteIpInString[INET_ADDRSTRLEN];
-		inet_ntop(AF_INET, &cnc.nodeIp, remoteIpInString, INET_ADDRSTRLEN);
-
-		sprintf_s(logMsg, msgSize, "--------from cluster config remote ip = %s %s %u---------\n", remoteIpInString, cnc.nodeId, cnc.subnet->ipAddress);
-		AquaLogging::Log(info, logMsg);
-		if (cnc.nodeIp != clusterConfig->localNodeIp)
-		{
-			char remoteIpInString2[INET_ADDRSTRLEN];
-			inet_ntop(AF_INET, &cnc.nodeIp, remoteIpInString2, INET_ADDRSTRLEN);
-			remoteHostAddresses[cntr] = (char *) malloc(sizeof(char)* INET_ADDRSTRLEN);
-			strcpy_s(remoteHostAddresses[cntr], INET_ADDRSTRLEN, remoteIpInString2);
-			sprintf_s(logMsg, msgSize, "saved remote ip = %s\n", remoteHostAddresses[cntr]);
-			AquaLogging::Log(info, logMsg);
-			cntr++;
-		}
-	}
-
-	sprintf_s(logMsg, msgSize, "Local Host provided to NIX: %s", ipInString);
-	AquaLogging::Log(info, logMsg);
-	for(int j=0; j<cntr; j++)
-	{
-		sprintf_s(logMsg, msgSize, "Remote Host %d provided to NIX: %s", j, remoteHostAddresses[j]);
-		AquaLogging::Log(info, logMsg);
-	}
-
-	InitializeAquaNix(ipInString, remoteHostAddresses, cntr, "127.0.0.1", AddRemoteMapping, DeleteRemoteMapping, 
-		GetLocalMappings, FreeEndpointMappings, 10987, 10987);
-	RequestRemoteMappings();
-	for(int k = 0; k<cntr; k++)
-	{
-		free(remoteHostAddresses[k]);
-	}
-	delete []remoteHostAddresses;
 }
 
 DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)

@@ -4,6 +4,7 @@
 #include <WinSock2.h>
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
+#include "../Shared/Utilities.h"
 #endif
 #ifdef __linux__
 #include <arpa/inet.h>
@@ -12,15 +13,10 @@
 #define strncpy_s(dst, count, src, cp) strncpy(dst, src, count)
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
-<<<<<<< HEAD
-//#include "../Shared/Utilities.h"
 #include "../Logging/Logging.h"
-=======
-#include "../Shared/Utilities.h"
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
->>>>>>> 4cb654068caddd590deabd1e1b48600f7cde2574
 extern DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostLocalIp);
 
 void assert(unsigned long value)
