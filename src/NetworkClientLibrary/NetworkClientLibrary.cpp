@@ -14,7 +14,6 @@
 #include "Common/nclcore.h"
 #include "../Logging/Logging.h"
 #ifdef _WIN32
-#include "../aquanix/Common/aquanixext.h"
 #include <WinSock2.h>
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
@@ -22,6 +21,8 @@
 #include <stdio.h>
 #include <iostream>
 #include <mutex>
+extern void ProvideConfigToNIX(ClusterConfig *clusterConfig);
+extern DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp);
 extern int WsaInitialize();
 std::mutex hostLocalMutex;
 bool hostLocalIpProvisionedInHNS = false;
@@ -258,7 +259,7 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 				AquaLogging::Log(lInfo, logMsg);
 				saveOverlayAddressSpace(clusterConfig);
 				#ifdef _WIN32
-				provideConfigToNIX(clusterConfig);
+				ProvideConfigToNIX(clusterConfig);
 				#endif
 				sprintf_s(logMsg, msgSize, "Successfully persisted Overlay Address Space\n");
 				AquaLogging::Log(lInfo, logMsg);
@@ -314,7 +315,7 @@ DllExport DWORD GetHostLocalIp(unsigned int *hostLocalIp)
 
 	if(networkTypeProvided == OverLay)
 	{
-		#ifdef _win32
+		#ifdef _WIN32
 		retval = ReserveAvailableIpAddress("HostLocalIp", hostLocalIp);
 		if (retval == 0)
 		{

@@ -1,15 +1,16 @@
 #ifdef _WIN32
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
-#include "../Common/aquanetworkclient.h"
 #include <stdlib.h>
 #include <string.h>
-#include "../Common/nclcore.h"
 #include <WinSock2.h>
 #include <stdio.h>
 #include <iostream>
 #include <WinSock2.h>
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
+#include "../Common/aquanetworkclient.h"
+#include "../Common/nclcore.h"
+#include "../../aquanix/Common/aquanixext.h"
 #define HostSuffix "GET /machine/plugins?comp=nmagent&type=getinterfaceinfov1 HTTP/1.1\r\nHost: 169.254.169.254\r\nConnection: close\r\n\r\n"
 #define DockerNwCreatePost "POST /networks/create HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nConnection: close\r\n"
 #define DockerNwGet "GET /networks/"
@@ -807,7 +808,7 @@ DWORD FreeEndpointMappings(EndpointMapping *endpointMappings, USHORT mappingsCou
 	return 0;
 }
 
-void provideConfigToNIX(ClusterConfig *clusterConfig)
+void ProvideConfigToNIX(ClusterConfig *clusterConfig)
 {
 	char logMsg[2048];
 	size_t msgSize = 2048;
