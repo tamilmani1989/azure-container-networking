@@ -13,7 +13,7 @@
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
 //#include "../Shared/Utilities.h"
-
+#include "../Logging/Logging.h"
 extern DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostLocalIp);
 
 void assert(unsigned long value)
@@ -44,7 +44,7 @@ int main()
 	NodeNetworkResources nnr;
 	int ipCount = -1;
 	int i;
-	char ipInString[INET_ADDRSTRLEN];
+	char ipInString[INET_ADDRSTRLEN]={0};
 
 	//assert(SetupNetworkEtwLogging(true));
 	assert(SetupNetworkLogging(logstuff));
@@ -59,7 +59,7 @@ int main()
 	printf("nw main name:%s\n", cfg.networkName);
 	int retval = 0;
 #ifdef __linux__
-	retval = InitializeNetwork(&cfg);
+//	retval = InitializeNetwork(&cfg);
 #endif
 
 #ifdef _WIN32
@@ -91,7 +91,7 @@ int main()
 	inet_pton(AF_INET, "10.10.1.0", &ipAdd);
 	localSubnet.ipAddress = ipAdd.s_addr;
 	localSubnet.prefixLength = 24;
-	inet_pton(AF_INET, "11.1.0.164", &ipAdd);
+	inet_pton(AF_INET, "11.1.0.144", &ipAdd);
 	cfg.nodeConfigs[0].nodeIp = ipAdd.s_addr;
 	cfg.nodeConfigs[0].nodeId = "Id114";
 	cfg.nodeConfigs[0].subnet = &localSubnet;
@@ -102,7 +102,7 @@ int main()
 	inet_pton(AF_INET, "10.10.2.0", &ipAdd);
 	localSubnet2.ipAddress = ipAdd.s_addr;
 	localSubnet2.prefixLength = 24;
-	inet_pton(AF_INET, "11.1.0.124", &ipAdd);
+	inet_pton(AF_INET, "11.1.0.154", &ipAdd);
 	cfg.nodeConfigs[1].nodeIp = ipAdd.s_addr;
 	cfg.nodeConfigs[1].nodeId = "Id124";
 	cfg.nodeConfigs[1].subnet = &localSubnet2;
@@ -113,7 +113,7 @@ int main()
 	inet_pton(AF_INET, "10.10.3.0", &ipAdd);
 	localSubnet3.ipAddress = ipAdd.s_addr;
 	localSubnet3.prefixLength = 24;
-	inet_pton(AF_INET, "11.1.0.134", &ipAdd);
+	inet_pton(AF_INET, "11.1.0.74", &ipAdd);
 	cfg.nodeConfigs[2].nodeIp = ipAdd.s_addr;
 	cfg.nodeConfigs[2].nodeId = "Id134";
 	cfg.nodeConfigs[2].subnet = &localSubnet3;
@@ -122,8 +122,8 @@ int main()
 	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	free(cfg.networkName);
 	getchar();
-/*
-	unsigned int hostLocalIp;
+
+	unsigned int hostLocalIp=0;
 	GetHostLocalIp(&hostLocalIp);
 	printf("Recevied host local as %s\n", inet_ntop(AF_INET, &hostLocalIp, ipInString, INET_ADDRSTRLEN));
 	getchar();
@@ -132,9 +132,11 @@ int main()
 	wchar_t ipInStringw[INET_ADDRSTRLEN];
 	size_t converted;
 	mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN);
+#ifdef _WIN32
 	DeleteLocalEndpointWithIp(ipInStringw, true);
+#endif
 	getchar();
-	unsigned int ip;
+	unsigned int ip=0;
 	printf("going to reserve available ip with ip0");
 	assert(ReserveAvailableIpAddress((char *)"ip0", &ip));
 	printf("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
@@ -146,6 +148,7 @@ int main()
 	getchar();
 
     nnr.ips = (unsigned int *) malloc(ipCount * sizeof(unsigned int));
+    memset(nnr.ips, 0, ipCount * sizeof(unsigned int));
     assert(GetAvailableIpAddresses(&nnr, &ipCount));
     printf("Printing available ip addresses count = %d\n", ipCount);
     for(i = 0; i < ipCount ; i++)
@@ -205,6 +208,6 @@ int main()
 	retval = GetReservedIpAddress("ip0", &ip);
 	printf("ip0 (without reservation). retval =  %d\n", retval);
     free(nnr.ips);
-*/
+
 	return 0;
 }
