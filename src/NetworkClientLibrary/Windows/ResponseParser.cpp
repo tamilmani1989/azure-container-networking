@@ -1,5 +1,3 @@
-#include "../../Logging/Logging.h"
-#ifdef _WIN32
 /****************************** Module Header ******************************\
 * Module Name:  ReponseParser.cpp
 * Project:      Aquarius
@@ -8,12 +6,14 @@
 * Parser for nm agent response
 *
 \***************************************************************************/
-
+#ifdef _WIN32
 #include <msxml6.h>
 #include <stdio.h>
 #include "atlbase.h"
 #include "comutil.h"
 #include <ws2tcpip.h>
+#include "../../Logging/Logging.h"
+
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 
 // Macro that calls a COM method returning HRESULT value.

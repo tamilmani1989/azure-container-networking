@@ -8,26 +8,29 @@
 *
 \***************************************************************************/
 
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-#include "Common/aquanetworkclient.h"
 #include <stdlib.h>
-#include "Common/nclcore.h"
 #include <WinSock2.h>
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
-#include "../aquanix/Common/aquanixext.h"
 #include <Mstcpip.h>
+#include "Common/aquanetworkclient.h"
+#include "Common/nclcore.h"
+#include "../aquanix/Common/aquanixext.h"
 #include "../Logging/Logging.h"
+
 #ifdef _WIN32
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <stdio.h>
 #include <iostream>
 #include <mutex>
 #endif
+
 #ifdef __linux__
 #include <curl/curl.h>
 #include <string.h>
 #define UNREFERENCED_PARAMETER(param) do { (void)(param); } while (0)
 #endif
+
 extern DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, USHORT *mappingsCount);
 extern DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std::wstring ca, std::wstring pa, std::wstring isRemoteEndpoint);
 extern DllExport int DeleteEndpoint(std::wstring endpointId);

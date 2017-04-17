@@ -1,3 +1,11 @@
+/****************************** Module Header ******************************\
+* Module Name:  NetworkCommon.c
+* Project:      Aquarius
+* Copyright (c) Microsoft Corporation.
+*
+*
+\***************************************************************************/
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>

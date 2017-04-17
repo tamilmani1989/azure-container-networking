@@ -1,22 +1,30 @@
+/****************************** Module Header ******************************\
+* Module Name:  Network.cpp
+* Project:      Aquarius
+* Copyright (c) Microsoft Corporation.
+*
+* Setup network in windows
+*
+\***************************************************************************/
+
 #ifdef _WIN32
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
-#include "../Common/aquanetworkclient.h"
-#include <stdlib.h>
-#include <string.h>
-#include "../Common/nclcore.h"
-#include <WinSock2.h>
 #include <stdio.h>
 #include <iostream>
+#include <mutex>
+#include <stdlib.h>
+#include <string.h>
 #include <WinSock2.h>
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
+#include "../Common/aquanetworkclient.h"
+#include "../Common/nclcore.h"
+#include "../../Logging/Logging.h"
 #define HostSuffix "GET /machine/plugins?comp=nmagent&type=getinterfaceinfov1 HTTP/1.1\r\nHost: 169.254.169.254\r\nConnection: close\r\n\r\n"
 #define DockerNwCreatePost "POST /networks/create HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nConnection: close\r\n"
 #define DockerNwGet "GET /networks/"
 #define HttpResponseHeaderSeparator "\r\n\r\n"
 #define BUFFER_SIZE 1024
-#include <mutex>
-#include "../../Logging/Logging.h"
 
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 
@@ -114,24 +122,7 @@ int WsaInitialize()
 	return wsaerr;
 }
 
-void wsaCleanUp()
-{
-	/*
-	if (wsaInitialized > 0)
-	{
-		//initWsaMutex.lock();
-		if (wsaInitialized > 0)
-		{
-			wsaInitialized--;
-
-			if (wsaInitialized == 0)
-			{
-				WSACleanup();
-			}
-		}
-		//initWsaMutex.unlock();
-	}*/
-}
+void wsaCleanUp(){}
 
 char* httpSendResponse(SOCKET sock, char *payload)
 {
