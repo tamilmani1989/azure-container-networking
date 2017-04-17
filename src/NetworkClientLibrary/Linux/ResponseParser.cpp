@@ -10,7 +10,7 @@
 #include <string.h>
 #include <libxml/parser.h>
 #include <arpa/inet.h>
-
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 unsigned int ConvertToIPAddress(unsigned char *ipAddressinStringFormat)
 {
     struct in_addr ipaddr;
@@ -104,3 +104,4 @@ int ParseSecondaryIpAddresses( char *xmlResponse, int countOnly, unsigned int *i
     printf("Parsing of ips finished\n");
     return count;
 }
+} } } } }

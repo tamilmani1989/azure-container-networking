@@ -17,6 +17,9 @@
 #define BUFFER_SIZE 1024
 #include <mutex>
 #include "../../Logging/Logging.h"
+
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
+
 std::mutex initWsaMutex;
 int wsaInitialized = 0;
 
@@ -748,5 +751,5 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 	AquaLogging::Log(info, logMsg);
 	return retval;
 }
-
+} } } } }
 #endif

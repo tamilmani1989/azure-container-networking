@@ -30,7 +30,7 @@ pthread_mutex_t ipAllocationsLock = PTHREAD_MUTEX_INITIALIZER;
 #define UnlockMutex pthread_mutex_unlock(&ipAllocationsLock);
 #define strcpy_s(dst, count, src) strncpy(dst, src, count)
 #endif
-
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 IpAllocations *repositoryIpAllocations;
 
 void FreeStatusInRepositoryIpAllocations(IpAllocations *myRepositoryIpAllocations)
@@ -362,3 +362,4 @@ unsigned int PersistedIpCountInRepository()
 		return count;
 
 }
+} } } } }

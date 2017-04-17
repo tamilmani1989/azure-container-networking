@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include "../../Logging/Logging.h"
 
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
+
 bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp)
 {
 	size_t len = strlen(subnet);
@@ -39,3 +41,5 @@ bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp)
 	sprintf_s(logMsg, msgSize, "gateway Ip=%s\n", *gatewayIp);
 	return true;
 }
+
+} } } } }

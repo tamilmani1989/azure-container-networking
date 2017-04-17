@@ -14,6 +14,7 @@
 #include "atlbase.h"
 #include "comutil.h"
 #include <ws2tcpip.h>
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 
 // Macro that calls a COM method returning HRESULT value.
 #define CHK_HR(stmt)        do { hr=(stmt); if (FAILED(hr)) goto CleanUp; } while(0)
@@ -486,4 +487,5 @@ void ParseSubnetAndGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 		CoUninitialize();
 	}
 }
+} } } } }
 #endif

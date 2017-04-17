@@ -6,7 +6,7 @@
 #include <string.h>
 #define UNREFERENCED_PARAMETER(param) do { (void)(param); } while (0)
 
-
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 
 typedef struct string
@@ -100,4 +100,5 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 {
 	return UNSUPPORTED_ENVIRONMENT;
 }
+} } } } }
 #endif
