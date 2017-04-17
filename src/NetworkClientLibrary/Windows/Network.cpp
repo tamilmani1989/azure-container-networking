@@ -862,8 +862,4 @@ void ProvideConfigToNIX(ClusterConfig *clusterConfig)
         #endif
 }
 
-extern DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp);
-
-
-
 #endif
