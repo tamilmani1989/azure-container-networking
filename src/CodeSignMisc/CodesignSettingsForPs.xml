@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+  <CodeSignSettings xmlns="IdCodeSign/CodeSignSettings">
+    <Product>Service Fabric</Product>
+    <BuildNumber>%BuildNumber%</BuildNumber>
+    <SourceControlServer>vstfrd:8080/Azure/One/_git</SourceControlServer>
+    <BranchName>Release</BranchName>  
+    <Description>Azure VM Networking</Description>
+    <SourcePath>%BinariesBuildTypeArchDirectory%</SourcePath>
+    <StrongNameCert>72</StrongNameCert>
+    <AuthenticodeCert>402</AuthenticodeCert>
+    <FileDescription>Azure VM Networking</FileDescription>
+    <BatchDescription>Azure VM Networking %BuildNumber%</BatchDescription>
+    <Approvers>nsrivast,susharm,ligxie</Approvers>
+    <Keywords>VM Networking Library</Keywords>
+    <FileUrl>http://www.microsoft.com</FileUrl>
+    <CopyBack>true</CopyBack>
+
+    <!-- Note that <FileData> does not need to be added if you want to sign everything in the <SourcePath> -->
+
+	<!-- If <SourcePath> is defined, <File> is expected to be relateive to <SourcePath>.  -->
+
+	<!--
+		<FileData>
+			<Files>
+				<File>filetosign.exe</File>
+			</Files>
+		</FileData>
+	-->
+	<FileData>
+		<Files>
+		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\HNSOverlayPlugin\InstallPlugin.ps1</File>
+		</Files>
+	</FileData>
+
+
+</CodeSignSettings>
