@@ -20,11 +20,18 @@
 #include "../Common/aquanetworkclient.h"
 #include "../Common/nclcore.h"
 #include "../../Logging/Logging.h"
+#include "../../aquanix/Common/aquanixext.h"
 #define HostSuffix "GET /machine/plugins?comp=nmagent&type=getinterfaceinfov1 HTTP/1.1\r\nHost: 169.254.169.254\r\nConnection: close\r\n\r\n"
 #define DockerNwCreatePost "POST /networks/create HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nConnection: close\r\n"
 #define DockerNwGet "GET /networks/"
 #define HttpResponseHeaderSeparator "\r\n\r\n"
 #define BUFFER_SIZE 1024
+
+extern DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, USHORT *mappingsCount);
+extern DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std::wstring ca, std::wstring pa, std::wstring isRemoteEndpoint);
+extern DllExport int DeleteEndpoint(std::wstring endpointId);
+extern DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp);
+extern DllExport unsigned long FreeMemoryForLocalEndpoints(EndpointMapping *endpointMappings, USHORT mappingsCount);
 
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 
@@ -799,7 +806,7 @@ DWORD FreeEndpointMappings(EndpointMapping *endpointMappings, USHORT mappingsCou
 	return 0;
 }
 
-void provideConfigToNIX(ClusterConfig *clusterConfig)
+void ProvideConfigToNIX(ClusterConfig *clusterConfig)
 {
 	char logMsg[2048];
 	size_t msgSize = 2048;

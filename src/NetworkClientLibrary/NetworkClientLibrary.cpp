@@ -34,10 +34,9 @@
 
 #ifdef _WIN32
 extern DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, USHORT *mappingsCount);
-extern DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std::wstring ca, std::wstring pa, std::wstring isRemoteEndpoint);
-extern DllExport int DeleteEndpoint(std::wstring endpointId);
 extern DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp);
-extern DllExport unsigned long FreeMemoryForLocalEndpoints(EndpointMapping *endpointMappings, USHORT mappingsCount);
+std::mutex hostLocalMutex;
+bool hostLocalIpProvisionedInHNS = false;
 #endif
 
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
@@ -54,6 +53,7 @@ extern unsigned int GetReservedIpFromRepository(const char *reservationId);
 extern void ParseSubnetAndGatewayIp(char *xmlResponse, char **sunbetIp, char **gatewayIp);
 extern unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist, NetworkType networkType);
 extern unsigned int PersistedIpCountInRepository();
+extern void ProvideConfigToNIX(ClusterConfig *clusterConfig);
 extern DWORD GetHostIp(unsigned int *ip);
 extern int WsaInitialize();
 NetworkType networkTypeProvided = UnderLay;
