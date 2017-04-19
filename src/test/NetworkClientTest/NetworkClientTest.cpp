@@ -74,173 +74,6 @@ Return Value:
 	free(cfg.networkName);
 
 }
-void testReserveIp(char *reservationId)
-{
-	unsigned int ip;
-	NodeNetworkResources nnr;
-	int ipCountBefore = -1;
-	int ipCountAfter = -1;
-	DWORD ret = 0;
-	char ipInString[INET_ADDRSTRLEN] = { 0 };
-	char availableIpString[INET_ADDRSTRLEN * 100] = { 0 };
-
-	nnr.ips = NULL;
-
-	ret = GetAvailableIpAddresses(&nnr, &ipCountBefore);
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReserveIpAddress",
-		TraceLoggingValue(reservationId, "ReservationId"),
-		TraceLoggingValue(ret, "GetAvailable Ret"),
-		TraceLoggingValue(ipCountBefore, "IPCount Before"));
-
-	VERIFY_ARE_EQUAL((DWORD)0, ret, L"GetAvailableAddress Passed");
-
-
-	ret = ReserveAvailableIpAddress(reservationId, &ip);
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReserveIpAddress",
-		TraceLoggingValue(reservationId, "ReservationId"),
-		TraceLoggingValue(ret, "ReservedAvailable Ret")); 
-
-	VERIFY_ARE_EQUAL((DWORD)0, ret, L"ReserveAvailableIpAddress for Ip0 Passed!");
-
-
-	ret = GetAvailableIpAddresses(&nnr, &ipCountAfter);
-	VERIFY_ARE_EQUAL((DWORD)0, ret, L"GetAvailableAddress Passed");
-	VERIFY_ARE_EQUAL(ipCountAfter, ipCountBefore - 1, L"Ip Reservation Passed");
-
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReserveIpAddress",
-		TraceLoggingValue(reservationId, "ReservationId"),
-		TraceLoggingValue(ret, "GetAvailable Ret"),
-		TraceLoggingValue(ipCountBefore, "IPCount Before"),
-		TraceLoggingValue(ipCountAfter, "IPCount After"));
-
-
-	nnr.ips = (unsigned int *)malloc(ipCountAfter * sizeof(unsigned int));
-	GetAvailableIpAddresses(&nnr, &ipCountAfter);
-	VERIFY_IS_NOT_NULL(nnr.ips);
-	
-
-	for (int i = 0; i < ipCountAfter; i++)
-	{
-		inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN);
-		strcat_s(availableIpString, sizeof(availableIpString), ipInString);
-		strcat_s(availableIpString, sizeof(availableIpString),  ",");
-	}
-
-	TraceLoggingWrite(
-		g_hMyComponentProvider,
-		"TestReserveIpAddress",
-		TraceLoggingValue(reservationId, "ReservationId"),
-		TraceLoggingString(availableIpString, "AvailableIpList"));
-	
-	free(nnr.ips);
-
-}
-
-void
-NetworkClientTest::TestReserveIpAddress()
-{
-
-	testReserveIp("ip0");
-	testReserveIp("ip1");
-}
-
-void 
-NetworkClientTest::TestGetReservedIpAddress()
-{
-	unsigned int ip;
-	DWORD ret;
-	char ipInString[INET_ADDRSTRLEN];
-
-	ret = GetReservedIpAddress("ip1", &ip);
-	TraceLoggingWrite(
-		g_hMyComponentProvider,
-		"TestGetReservedIpAddress",
-		TraceLoggingValue("ip1", "ReservationId"),
-		TraceLoggingValue(ret, "GetReserved Ret"));
-
-	VERIFY_ARE_EQUAL((DWORD)0, ret, L"GetReserveIp Passed");
-	
-	inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN);
-	TraceLoggingWrite(
-		g_hMyComponentProvider,
-		"TestGetReservedIpAddress",
-		TraceLoggingValue("ip1", "ReservationId"),
-		TraceLoggingValue(ret, "GetReserved Ret"),
-		TraceLoggingString(ipInString, "ReservedIpAddr"));
-
-
-	ret = GetReservedIpAddress("ip2", &ip);
-	TraceLoggingWrite(
-		g_hMyComponentProvider,
-		"TestGetReservedIpAddress",
-		TraceLoggingValue("ip2", "ReservationId"),
-		TraceLoggingValue(ret, "GetReserved Ret"));
-
-	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"GetReserveIp Passed for not reserved IP");
-
-	testReserveIp("ip2");
-	
-	ret = GetReservedIpAddress("ip2", &ip);
-	TraceLoggingWrite(
-		g_hMyComponentProvider,
-		"TestGetReservedIpAddress",
-		TraceLoggingValue("ip2", "ReservationId"),
-		TraceLoggingValue(ret, "GetReserved Ret"));
-
-
-	VERIFY_ARE_EQUAL((DWORD)0, ret, L"GetReserveIp Passed");
-	inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN);
-	TraceLoggingWrite(
-		g_hMyComponentProvider,
-		"TestGetReservedIpAddress",
-		TraceLoggingValue("ip2", "ReservationId"),
-		TraceLoggingValue(ret, "GetReserved Ret"),
-		TraceLoggingString(ipInString, "ReservedIpAddr"));
-
-}
-
-void
-NetworkClientTest::TestReleaseIpReservation()
-{
-	unsigned int ip;
-	DWORD ret;
-
-	ret = ReleaseIpReservation("ip1");
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReleaseIpReservation",
-		TraceLoggingValue("ip1", "ReservationId"),
-		TraceLoggingValue(ret, "ReleaseIp Ret"));
-
-	VERIFY_ARE_EQUAL((DWORD)0, ret, L"ReleaseIP for ip1 Passed");
-
-	ret = GetReservedIpAddress("ip1", &ip);
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReleaseIpReservation",
-		TraceLoggingValue("ip1", "ReservationId"),
-		TraceLoggingValue(ret, "GetReservedIp Ret"));
-
-	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"GetReserveAddr for Released Ip1 Passed");
-
-	ret = ReleaseIpReservation("ip2");
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReleaseIpReservation",
-		TraceLoggingValue("ip2", "ReservationId"),
-		TraceLoggingValue(ret, "ReleaseIp Ret"));
-
-	VERIFY_ARE_EQUAL((DWORD)0, ret, L"ReleaseIP for ip2 Passed");
-
-	ret = GetReservedIpAddress("ip2", &ip);
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReleaseIpReservation",
-		TraceLoggingValue("ip2", "ReservationId"),
-		TraceLoggingValue(ret, "ReleaseIp Ret"));
-
-	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"GetReserveAddr for Released Ip2 Passed");
-
-}
 #endif
 void
 NetworkClientTest::TestInitializeNetworkOverlay()
@@ -264,23 +97,7 @@ NetworkClientTest::TestInitializeNetworkOverlay()
 	free(cfg.nodeConfigs);
 
 }
-/*
-void
-NetworkClientTest::TestInitializeNetworkUnderlay()
-{
-	NodeNetworkResources nnr = { 0 };
 
-
-	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
-	ipCount = ParseSecondaryIpAddresses(xmlResp, 0, nnr.ips);
-	VERIFY_ARE_EQUAL(9, ipCount, L"Retrieving ipcount with ips passed underlay");
-
-	UpdateRepositoryIpList(ipCount, nnr.ips, networkTypeProvided);
-	ipCount = GetAvailableIpsfromRepository(nnr.ips);
-
-	free(nnr.ips);
-}
-*/
 void
 NetworkClientTest::TestGetAvailableAddressOverlay()
 {
@@ -404,12 +221,13 @@ NetworkClientTest::TestReserveIpAddress()
 	testReserveIp("ip1", OverLay);
 }
 
-/*void
+void
 NetworkClientTest::TestGetReservedIpAddress()
 {
-	unsigned int ip;
+	unsigned int ip=0;
 	DWORD ret;
 	char ipInString[INET_ADDRSTRLEN];
+	const char *temp = NULL;
 
 	ret = GetReservedIpAddress("ip1", &ip);
 	TraceLoggingWrite(
@@ -418,11 +236,52 @@ NetworkClientTest::TestGetReservedIpAddress()
 		TraceLoggingValue("ip1", "ReservationId"),
 		TraceLoggingValue(ret, "GetReserved Ret"));
 
-	VERIFY_ARE_EQUAL((DWORD)0, ret, L"GetReserveIp Passed");
+	VERIFY_ARE_EQUAL((DWORD)0, ret, L"GetReserveIp fn Passed");	
+	VERIFY_ARE_NOT_EQUAL((unsigned int)0, ip, L"GetReserveIp -ipvalue Passed");
+
+	temp = inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN);
+	VERIFY_IS_NOT_NULL(temp);
+}
+
+void
+NetworkClientTest::TestReleaseIpReservation()
+{
+	unsigned int ip;
+	DWORD ret;
+
+	ret = ReleaseIpReservation("ip0");
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReleaseIpReservation",
+		TraceLoggingValue("ip1", "ReservationId"),
+		TraceLoggingValue(ret, "ReleaseIp Ret"));
+
+	VERIFY_ARE_EQUAL((DWORD)0, ret, L"ReleaseIP for ip0 Passed");
+
+	ret = GetReservedIpAddress("ip0", &ip);
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReleaseIpReservation",
+		TraceLoggingValue("ip1", "ReservationId"),
+		TraceLoggingValue(ret, "GetReservedIp Ret"));
+
+	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"GetReserveAddr for Released Ip0 Passed");
+
+	ret = ReleaseIpReservation("ip1");
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReleaseIpReservation",
+		TraceLoggingValue("ip2", "ReservationId"),
+		TraceLoggingValue(ret, "ReleaseIp Ret"));
+
+	VERIFY_ARE_EQUAL((DWORD)0, ret, L"ReleaseIP for ip1 Passed");
+
+	ret = GetReservedIpAddress("ip1", &ip);
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReleaseIpReservation",
+		TraceLoggingValue("ip2", "ReservationId"),
+		TraceLoggingValue(ret, "ReleaseIp Ret"));
+
+	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"GetReserveAddr for Released Ip1 Passed");
 
 }
-*/
-
 bool NetworkClientTest::TestSetup()
 /*++
 
