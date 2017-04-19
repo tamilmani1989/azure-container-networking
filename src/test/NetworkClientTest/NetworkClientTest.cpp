@@ -11,10 +11,16 @@
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
 
+
 #include "NetworkClientTest.h"
 #include "aquanetworkclient.h"
-
+#include "nclcore.h"
 #include "TraceLogging.h"
+
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
+
+
+//extern unsigned int Microsoft::Azure::Networking::Aqua::ClientLibrary::PersistedIpCountInRepository();
 
 TRACELOGGING_DEFINE_PROVIDER(
     g_hMyComponentProvider,
@@ -25,9 +31,7 @@ using namespace std;
 //using namespace Mock10;
 using namespace WEX::TestExecution;
 
-using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
-
-
+#ifdef _test
 void
 NetworkClientTest::TestInitializeNetwork()
 /*++
@@ -241,7 +245,86 @@ NetworkClientTest::TestReleaseIpReservation()
 	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"GetReserveAddr for Released Ip2 Passed");
 
 }
+#endif
+void
+NetworkClientTest::TestInitializeNetworkOverlay()
+{
+	ClusterConfig cfg;
+	Ipv4Subnet localSubnet;
+	struct in_addr ipAdd;
+	unsigned long ret;
+	cfg.nodeCount = 1;
+	cfg.nodeConfigs = (NodeConfig *)malloc(cfg.nodeCount * sizeof(NodeConfig));
+	inet_pton(AF_INET, "10.10.1.0", &ipAdd);
+	localSubnet.ipAddress = ipAdd.s_addr;
+	localSubnet.prefixLength = 24;
+	inet_pton(AF_INET, "11.1.0.144", &ipAdd);
+	cfg.nodeConfigs[0].nodeIp = ipAdd.s_addr;
+	cfg.nodeConfigs[0].nodeId = "Id114";
+	cfg.nodeConfigs[0].subnet = &localSubnet;
+	cfg.localNodeIp = ipAdd.s_addr;
+	ret = saveOverlayAddressSpace(&cfg);
+	VERIFY_ARE_EQUAL((unsigned long)0, ret, L"Overlay initialized passed");
+	free(cfg.nodeConfigs);
 
+}
+
+void
+NetworkClientTest::TestInitializeNetworkUnderlay()
+{
+	NodeNetworkResources nnr = { 0 };
+
+
+	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
+	ipCount = ParseSecondaryIpAddresses(xmlResp, 0, nnr.ips);
+	VERIFY_ARE_EQUAL(9, ipCount, L"Retrieving ipcount with ips passed underlay");
+
+	UpdateRepositoryIpList(ipCount, nnr.ips, networkTypeProvided);
+	ipCount = GetAvailableIpsfromRepository(nnr.ips);
+
+	free(nnr.ips);
+}
+
+void
+NetworkClientTest::TestGetAvailableAddressOverlay()
+{
+	NodeNetworkResources nnr = { 0 };
+	int ipCount=0;
+	nnr.ips = NULL;
+
+	ipCount = PersistedIpCountInRepository();
+	VERIFY_ARE_EQUAL(255, ipCount, L"GetAvailableAddress Overlay-Ipcount passed");
+
+	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
+	ipCount = GetAvailableIpsfromRepository(nnr.ips);
+	VERIFY_ARE_EQUAL(255, ipCount, L"Retrieving ips passed Overlay -Ipcount passed");	
+
+	free(nnr.ips);
+}
+
+void
+NetworkClientTest::TestGetAvailableAddressUnderlay()
+{
+	NodeNetworkResources nnr = { 0 };
+	NetworkType networkTypeProvided = UnderLay;
+
+	int ipCount = 0;
+	nnr.ips = NULL;
+	char *xmlResp = "<Interfaces><Interface MacAddress=\"000D3A72DC45\" IsPrimary=\"true\"><IPSubnet Prefix=\"11.1.0.0/24\"><IPAddress Address=\"11.1.0.74\" IsPrimary=\"true\"/><IPAddress Address=\"11.1.0.75\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.76\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.77\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.78\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.79\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.80\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.81\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.82\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.83\" IsPrimary=\"false\"/></IPSubnet></Interface></Interfaces>";
+	
+	ipCount = ParseSecondaryIpAddresses(xmlResp, 1, nnr.ips);
+	VERIFY_ARE_EQUAL(9, ipCount, L"Retrieving ipcount passed underlay");
+
+	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
+	ipCount = ParseSecondaryIpAddresses(xmlResp, 0, nnr.ips);
+	VERIFY_ARE_EQUAL(9, ipCount, L"Retrieving ipcount with ips passed underlay");
+
+	UpdateRepositoryIpList(ipCount, nnr.ips, networkTypeProvided);
+	ipCount = GetAvailableIpsfromRepository(nnr.ips);
+
+	free(nnr.ips);
+
+}
 
 bool NetworkClientTest::TestSetup()
 /*++
@@ -264,7 +347,7 @@ Return Value:
     // Initialize tracing.
     //
 
-    TraceLoggingRegister(g_hMyComponentProvider);
+    //TraceLoggingRegister(g_hMyComponentProvider);
 
     return true;
 }
@@ -288,7 +371,7 @@ Return Value:
 --*/
 {
    // RD_TRACE_TERMINATE();
-	TraceLoggingUnregister(g_hMyComponentProvider);
+	//TraceLoggingUnregister(g_hMyComponentProvider);
 
     return true;
 
@@ -341,12 +424,14 @@ int wmain(int argc, wchar_t *argv[])
 
     NetworkClientTest* clientTest = new NetworkClientTest();
     clientTest->TestSetup();
+	clientTest->TestInitializeNetworkOverlay();
+	clientTest->TestGetAvailableAddressOverlay();
+	/*
     clientTest->TestInitializeNetwork();
 	clientTest->TestReserveIpAddress();
 	clientTest->TestGetReservedIpAddress();
 	clientTest->TestReleaseIpReservation();
-    clientTest->TestCleanup();
+    clientTest->TestCleanup();*/
 
     return 0;
 }
-

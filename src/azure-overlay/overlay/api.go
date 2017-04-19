@@ -1,0 +1,35 @@
+// Copyright 2017 Microsoft. All rights reserved.
+// MIT License
+
+package overlay
+
+const (
+	// Libnetwork plugin path
+	pluginPath = "/run/docker/plugins"
+
+	// Libnetwork remote plugin paths
+	activatePath = "/Plugin.Activate"
+
+	// Libnetwork labels
+	genericData = "com.docker.network.generic"
+)
+
+type OptionMap map[string]interface{}
+
+//
+// Libnetwork remote plugin API
+//
+
+// Error response sent by plugin when a request was decoded but failed.
+type errorResponse struct {
+	Err string
+}
+
+// Request sent by libnetwork for activation.
+type activateRequest struct {
+}
+
+// Response sent by plugin for activation.
+type activateResponse struct {
+	Implements []string
+}

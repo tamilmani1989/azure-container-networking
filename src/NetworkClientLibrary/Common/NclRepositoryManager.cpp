@@ -239,7 +239,7 @@ void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips, NetworkType n
 	repositoryIpAllocations->count = ipCount;
 }
 
-void UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkType networkType)
+DllExport void UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkType networkType)
 {
 	LockMutex
 	UpdateRepositoryIpListWithoutLock(ipCount, ips, networkType);
@@ -365,7 +365,7 @@ unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist, NetworkType
 	return 0;
 }
 
-unsigned int PersistedIpCountInRepository()
+DllExport unsigned int PersistedIpCountInRepository()
 {
 	int count = 0;
 	LockMutex

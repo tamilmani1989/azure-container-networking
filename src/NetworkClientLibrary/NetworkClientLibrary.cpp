@@ -199,7 +199,7 @@ bool IsLocalNodeIp(unsigned int ip)
 }
 
 
-unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
+DllExport unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 {
 	char logMsg[2048];
 	#ifdef _WIN32

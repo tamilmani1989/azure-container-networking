@@ -13,6 +13,7 @@
 #include "comutil.h"
 #include <ws2tcpip.h>
 #include "../../Logging/Logging.h"
+#define DllExport   __declspec( dllexport )  
 
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 
@@ -450,7 +451,7 @@ CleanUp:
 	VariantClear(&varFileName);
 }
 
-int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips)
+DllExport int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips)
 {
 	unsigned int ipCount = 0;
 	HRESULT hr = CoInitialize(nullptr);
