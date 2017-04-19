@@ -268,7 +268,7 @@ NetworkClientTest::TestInitializeNetworkOverlay()
 	free(cfg.nodeConfigs);
 
 }
-
+/*
 void
 NetworkClientTest::TestInitializeNetworkUnderlay()
 {
@@ -284,7 +284,7 @@ NetworkClientTest::TestInitializeNetworkUnderlay()
 
 	free(nnr.ips);
 }
-
+*/
 void
 NetworkClientTest::TestGetAvailableAddressOverlay()
 {
@@ -318,9 +318,6 @@ NetworkClientTest::TestGetAvailableAddressUnderlay()
 	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
 	ipCount = ParseSecondaryIpAddresses(xmlResp, 0, nnr.ips);
 	VERIFY_ARE_EQUAL(9, ipCount, L"Retrieving ipcount with ips passed underlay");
-
-	UpdateRepositoryIpList(ipCount, nnr.ips, networkTypeProvided);
-	ipCount = GetAvailableIpsfromRepository(nnr.ips);
 
 	free(nnr.ips);
 
