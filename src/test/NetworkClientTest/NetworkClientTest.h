@@ -51,5 +51,8 @@ public:
 	TEST_METHOD(TestInitializeNetworkOverlay);
 	TEST_METHOD(TestGetAvailableAddressOverlay);
 	TEST_METHOD(TestGetAvailableAddressUnderlay);
+	TEST_METHOD(TestReserveIpAddress);
+
+
 };
 } } } } }

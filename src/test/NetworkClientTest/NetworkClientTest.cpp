@@ -19,16 +19,12 @@
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
-
-//extern unsigned int Microsoft::Azure::Networking::Aqua::ClientLibrary::PersistedIpCountInRepository();
-
 TRACELOGGING_DEFINE_PROVIDER(
     g_hMyComponentProvider,
     "SimpleTraceLoggingProvider",
     (0x3970f9cf, 0x2c0c, 0x4f11, 0xb1, 0xcc, 0xe3, 0xa1, 0xe9, 0x95, 0x88, 0x33));
 	
 using namespace std;
-//using namespace Mock10;
 using namespace WEX::TestExecution;
 
 #ifdef _test
@@ -302,11 +298,16 @@ NetworkClientTest::TestGetAvailableAddressOverlay()
 	free(nnr.ips);
 }
 
+int getAvailableIpCountOverlay()
+{
+	return GetAvailableIpsfromRepository(NULL);
+}
+
 void
 NetworkClientTest::TestGetAvailableAddressUnderlay()
 {
 	NodeNetworkResources nnr = { 0 };
-	//NetworkType networkTypeProvided = UnderLay;
+	NetworkType networkTypeProvided = UnderLay;
 
 	int ipCount = 0;
 	nnr.ips = NULL;
@@ -319,9 +320,108 @@ NetworkClientTest::TestGetAvailableAddressUnderlay()
 	ipCount = ParseSecondaryIpAddresses(xmlResp, 0, nnr.ips);
 	VERIFY_ARE_EQUAL(9, ipCount, L"Retrieving ipcount with ips passed underlay");
 
+	UpdateRepositoryIpList(ipCount, nnr.ips, networkTypeProvided);
+	ipCount = GetAvailableIpsfromRepository(nnr.ips);
+	VERIFY_ARE_EQUAL(9, ipCount, L"initialization underlay passed");
+
 	free(nnr.ips);
 
 }
+
+
+int getAvailableIpCountUnderlay()
+{
+	int ipCount = 0;
+	NodeNetworkResources nnr = { 0 };
+	char *xmlResp = "<Interfaces><Interface MacAddress=\"000D3A72DC45\" IsPrimary=\"true\"><IPSubnet Prefix=\"11.1.0.0/24\"><IPAddress Address=\"11.1.0.74\" IsPrimary=\"true\"/><IPAddress Address=\"11.1.0.75\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.76\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.77\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.78\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.79\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.80\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.81\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.82\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.83\" IsPrimary=\"false\"/></IPSubnet></Interface></Interfaces>";
+
+	ipCount = ParseSecondaryIpAddresses(xmlResp, 1, NULL);
+
+	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
+
+	ipCount = ParseSecondaryIpAddresses(xmlResp, 0, nnr.ips);
+	UpdateRepositoryIpList(ipCount, nnr.ips, UnderLay);
+	ipCount = GetAvailableIpsfromRepository(nnr.ips);
+
+	free(nnr.ips);
+	return ipCount;
+}
+
+void testReserveIp(char *reservationId, NetworkType type)
+{
+	int ipCountBefore = -1;
+	int ipCountAfter = -1;
+	unsigned int ret = 0;
+
+	if (type == OverLay)
+		ipCountBefore = getAvailableIpCountOverlay();
+	else
+		ipCountBefore = getAvailableIpCountUnderlay();
+
+	//printf("IpCount before for %s is %d\n", reservationId,ipCountBefore);
+
+	VERIFY_IS_GREATER_THAN(ipCountBefore,0);
+
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReserveIpAddress",
+		TraceLoggingValue(reservationId, "ReservationId"),
+		TraceLoggingValue(ret, "GetAvailable Ret"),
+		TraceLoggingValue(ipCountBefore, "IPCount Before"));
+
+	ret = ReserveRepositoryIpAddress(reservationId);
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReserveIpAddress",
+		TraceLoggingValue(reservationId, "ReservationId"),
+		TraceLoggingValue(ret, "ReservedAvailable Ret"));
+	//printf("Ret value:%d\n", ret);
+
+	VERIFY_ARE_NOT_EQUAL((unsigned int)0, ret, L"ReserveAvailableIpAddress Passed!");
+
+
+	if (type == OverLay)
+		ipCountAfter = getAvailableIpCountOverlay();
+	else
+		ipCountAfter = getAvailableIpCountUnderlay();
+
+	//printf("IpCount After for %s:%d\n", reservationId, ipCountAfter);
+
+	VERIFY_ARE_EQUAL(ipCountAfter, ipCountBefore - 1, L"Ip Reservation Passed");
+
+	TraceLoggingWrite(g_hMyComponentProvider,
+		"TestReserveIpAddress",
+		TraceLoggingValue(reservationId, "ReservationId"),
+		TraceLoggingValue(ret, "GetAvailable Ret"),
+		TraceLoggingValue(ipCountBefore, "IPCount Before"),
+		TraceLoggingValue(ipCountAfter, "IPCount After"));
+
+}
+
+void
+NetworkClientTest::TestReserveIpAddress()
+{
+
+	testReserveIp("ip0", UnderLay);
+	testReserveIp("ip1", OverLay);
+}
+
+/*void
+NetworkClientTest::TestGetReservedIpAddress()
+{
+	unsigned int ip;
+	DWORD ret;
+	char ipInString[INET_ADDRSTRLEN];
+
+	ret = GetReservedIpAddress("ip1", &ip);
+	TraceLoggingWrite(
+		g_hMyComponentProvider,
+		"TestGetReservedIpAddress",
+		TraceLoggingValue("ip1", "ReservationId"),
+		TraceLoggingValue(ret, "GetReserved Ret"));
+
+	VERIFY_ARE_EQUAL((DWORD)0, ret, L"GetReserveIp Passed");
+
+}
+*/
 
 bool NetworkClientTest::TestSetup()
 /*++
@@ -423,6 +523,7 @@ int wmain(int argc, wchar_t *argv[])
     clientTest->TestSetup();
 	clientTest->TestInitializeNetworkOverlay();
 	clientTest->TestGetAvailableAddressOverlay();
+
 	/*
     clientTest->TestInitializeNetwork();
 	clientTest->TestReserveIpAddress();

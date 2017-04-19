@@ -27,6 +27,7 @@ DllExport unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig);
 DllExport int GetAvailableIpsfromRepository(unsigned int *ips);
 DllExport int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 DllExport void UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkType networkType);
+DllExport unsigned int ReserveRepositoryIpAddress(char *reservationId);
 
 #define UNSUPPORTED_NETWORK  1
 #define INVALID_PARAMETER 2

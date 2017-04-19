@@ -14,9 +14,7 @@ import (
 
 const (
 	// Operational modes.
-	opModeBridge  = "bridge"
-	opModeTunnel  = "tunnel"
-	opModeDefault = opModeTunnel
+	opModeOverlay = "Overlay"
 )
 
 // ExternalInterface is a host network interface that bridges containers to external networks.
@@ -134,7 +132,7 @@ func (nm *networkManager) newNetwork(nwInfo *NetworkInfo) (*network, error) {
 
 	// Set defaults.
 	if nwInfo.Mode == "" {
-		nwInfo.Mode = opModeDefault
+		nwInfo.Mode = opModeOverlay
 	}
 
 	fmt.Println("mode", nwInfo.Mode)

@@ -1,5 +1,4 @@
 // Copyright 2017 Microsoft. All rights reserved.
-// MIT License
 
 // +build linux
 
@@ -19,9 +18,6 @@ const (
 
 	bridgeName = "azure-overlay"
 	
-	// Virtual MAC address used by Azure VNET.
-	virtualMacAddress = "12:34:56:78:9a:bc"
-
 	genericData = "com.docker.network.generic"
 )
 
@@ -91,16 +87,9 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo) (*network, *extern
 	var extIf *externalInterface
 	// Connect the external interface.
 	switch nwInfo.Mode {
-	case opModeTunnel:
-		/*err := nm.createOvsInterface(nwInfo.Subnets[0].Prefix.String())
-		if err != nil {
-			return nil, err
-		}*/
-		fallthrough
-	case opModeBridge:
+	case opModeOverlay:
 		extIf = nm.createOvsInterface(nwInfo)
 		fmt.Println("extif", extIf)
-		//err := nm.connectExternalInterface(extIf, nwInfo)
 		if extIf == nil {
 			return nil, nil, errOvsNotCreated
 		}
@@ -121,10 +110,9 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo) (*network, *extern
 
 // DeleteNetworkImpl deletes an existing container network.
 func (nm *networkManager) deleteNetworkImpl(nw *network) error {
-	// Disconnect the interface if this was the last network using it.
+	// Delete the ovs bridge
 	if len(nw.extIf.Networks) == 1 {
 		system("ovs-vsctl", "del-br", bridgeName)
-		//nm.disconnectExternalInterface(nw.extIf)
 	}
 
 	return nil

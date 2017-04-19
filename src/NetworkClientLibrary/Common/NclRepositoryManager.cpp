@@ -246,7 +246,7 @@ DllExport void UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkTyp
 	UnlockMutex
 }
 
-unsigned int ReserveRepositoryIpAddress(char *reservationId)
+DllExport unsigned int ReserveRepositoryIpAddress(char *reservationId)
 {
 	unsigned int returnIp = 0;
 	LockMutex;
