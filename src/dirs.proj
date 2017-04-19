@@ -1,25 +1,33 @@
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(EnvironmentConfig)" />
   <ItemGroup>
-    <ProjectReference Include="Aquarius\Aquarius.vcxproj" />
-    <ProjectReference Include="EventMessage\CreatePackage.proj" />
-    <ProjectReference Include="Common\XmlParseHelper\XmlParserHelper.vcxproj" />
-    <ProjectReference Include="LoopbackAdapterInstaller\LoopbackAdapterInstaller.vcxproj" />
-    <ProjectReference Include="ServiceTunnelExtension\ServiceTunnelExtension.vcxproj" />
-    <ProjectReference Include="NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
-    <ProjectReference Include="NetworkClient\NetworkClient.vcxproj" />
-    <ProjectReference Include="Logging\Logging.vcxproj" />
-    <ProjectReference Include="Nuget\dirs.proj" Condition="'$(IsOfficialBuild)'!='' Or '$(BuildRDPackage)'=='true' Or '$(BuildNugetPackage)'=='true'" />
-    <ProjectReference Include="HNSOverlayPlugin\HNSOverlayPlugin.vcxproj" />
-    <ProjectReference Include="HNSClient\HNSClient.vcxproj" />
-    <ProjectReference Include="aquanix\aquanix.vcxproj" />
-    <ProjectReference Include="aquanixconsole\aquanixconsole.vcxproj" />
-    <ProjectReference Include="SignLocalFiles\SignLocalFiles.proj" Condition="'$(IsOfficialBuild)' != ''" />
-     <ProjectReference Include="test\dirs.proj" />
+    <ProjectFile Include="Aquarius\Aquarius.vcxproj" />
+    <ProjectFile Include="EventMessage\CreatePackage.proj" />
+    <ProjectFile Include="Common\XmlParseHelper\XmlParserHelper.vcxproj" />
+    <ProjectFile Include="LoopbackAdapterInstaller\LoopbackAdapterInstaller.vcxproj" />
+    <ProjectFile Include="ServiceTunnelExtension\ServiceTunnelExtension.vcxproj" />
+    <ProjectFile Include="NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
+    <ProjectFile Include="NetworkClient\NetworkClient.vcxproj" />
+    <ProjectFile Include="Logging\Logging.vcxproj" />
+    <ProjectFile Include="Nuget\dirs.proj" Condition="'$(IsOfficialBuild)'!='' Or '$(BuildRDPackage)'=='true' Or '$(BuildNugetPackage)'=='true'" />
+    <ProjectFile Include="HNSOverlayPlugin\HNSOverlayPlugin.vcxproj" />
+    <ProjectFile Include="HNSClient\HNSClient.vcxproj" />
+    <ProjectFile Include="aquanix\aquanix.vcxproj" />
+    <ProjectFile Include="aquanixconsole\aquanixconsole.vcxproj" />
+    <ProjectFile Include="test\dirs.proj" />
   </ItemGroup>
-  <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
-  <PropertyGroup>
-    <BuildDependsOn>ResolveReferences</BuildDependsOn>
-  </PropertyGroup>
-  <Target Name="VerifyAlteredTargetsUsed" />
+
+  <ItemGroup Condition="'$(IsOfficialBuild)' != ''">
+    <ProjectFile Include="CodeSign\CodesignSettings.proj"  >
+        <BuildInParallel>false</BuildInParallel>
+    </ProjectFile>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IsOfficialBuild)' != ''">
+    <ProjectFile Include="CodeSignMisc\CodesignSettings.proj"  >
+        <BuildInParallel>false</BuildInParallel>
+    </ProjectFile>
+  </ItemGroup>
+    
+  <Import Project="$(ExtendedTargetsPath)\Traversal.targets" />
 </Project>

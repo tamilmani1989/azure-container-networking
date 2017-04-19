@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  
+  <!-- Import code sign settings for 1st party Azure -->
+  <ItemGroup>
+      <CodesignSettings Include="CodesignSettingsForPs.xml" />
+  </ItemGroup>
+  
+  <Import Project="$(PkgCodesign_AD)\Codesign.targets" />
+</Project>
