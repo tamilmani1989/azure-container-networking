@@ -306,7 +306,7 @@ void
 NetworkClientTest::TestGetAvailableAddressUnderlay()
 {
 	NodeNetworkResources nnr = { 0 };
-	NetworkType networkTypeProvided = UnderLay;
+	//NetworkType networkTypeProvided = UnderLay;
 
 	int ipCount = 0;
 	nnr.ips = NULL;
