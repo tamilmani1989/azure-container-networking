@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"github.com/Azure/azure-overlay/log"
+	"azure-overlay/log"
 	"golang.org/x/sys/unix"
 )
 

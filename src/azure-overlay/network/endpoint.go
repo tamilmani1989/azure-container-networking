@@ -5,7 +5,7 @@ package network
 import (
 	"net"
 
-	"github.com/Azure/azure-overlay/log"
+	"azure-overlay/log"
 )
 
 // Endpoint represents a container network interface.

@@ -9,7 +9,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/Azure/azure-overlay/netlink"
+	"azure-overlay/netlink"
 )
 
 const (

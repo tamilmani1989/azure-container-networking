@@ -4,7 +4,7 @@
 package common
 
 import (
-	"github.com/Azure/azure-overlay/store"
+	"azure-overlay/store"
 )
 
 // Plugin is the parent class that implements behavior common to all plugins.

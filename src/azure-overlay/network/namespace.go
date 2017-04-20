@@ -8,7 +8,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/Azure/azure-overlay/netlink"
+	"azure-overlay/netlink"
 
 	"golang.org/x/sys/unix"
 )

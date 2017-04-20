@@ -9,8 +9,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/Azure/azure-overlay/common"
-	"github.com/Azure/azure-overlay/log"
+	"azure-overlay/common"
+	"azure-overlay/log"
 )
 
 // Plugin is the parent class for overlay plugins.

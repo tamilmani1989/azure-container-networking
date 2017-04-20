@@ -1,6 +1,6 @@
 {
 	"description": "Azure network plugin",
-	"documentation": "https://github.com/Azure/azure-container-networking/",
+	"documentation": "https://azure-container-networking/",
 	"entrypoint": ["/usr/bin/azure-overlay-plugin"],
 	"interface": {
 		"types": ["docker.networkdriver/1.0", "docker.ipamdriver/1.0"],

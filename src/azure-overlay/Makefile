@@ -1,8 +1,6 @@
 # Source files common to all targets.
 COREFILES = \
 	$(wildcard common/*.go) \
-	$(wildcard ebtables/*.go) \
-	$(wildcard ipam/*.go) \
 	$(wildcard log/*.go) \
 	$(wildcard netlink/*.go) \
 	$(wildcard network/*.go) \
@@ -14,7 +12,6 @@ COREFILES = \
 ##TM
 OVERLAYFILES = \
 		$(wildcard overlay/*.go) \
-		$(wildcard overlay/ipam/*.go) \
 		$(wildcard overlay/network/*.go) \
 		$(wildcard overlay/plugin/*.go) \
 		$(COREFILES)
@@ -34,18 +31,18 @@ BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)
 # Containerized build parameters.
 BUILD_CONTAINER_IMAGE = acn-build
 BUILD_CONTAINER_NAME = acn-builder
-BUILD_CONTAINER_REPO_PATH = /go/src/github.com/Azure/azure-container-networking
+BUILD_CONTAINER_REPO_PATH = /go/src/azure-overlay
 BUILD_USER ?= $(shell id -u)
 
 # TAR file names.
 
-# Docker libnetwork (OVERLAY) plugin v2 image parameters.
+# Docker libnetwork (OVERLAY) plugin image parameters.
 
 ##TM
-OVERLAY_TAR_NAME = azure-vnet-overlay-$(GOOS)-$(GOARCH)-$(VERSION).tgz
+OVERLAY_TAR_NAME = azure-overlay-$(GOOS)-$(GOARCH)-$(VERSION).tgz
 
-# Docker libnetwork (overlay) plugin v2 image parameters.
-OVERLAY_PLUGIN_IMAGE = tamanoha/azure-overlay
+# Docker libnetwork (overlay) plugin image parameters.
+OVERLAY_PLUGIN_IMAGE = microsoft/azure-overlay
 OVRELAY_PLUGIN_ROOTFS = azure-overlay-rootfs
 
 ##TM

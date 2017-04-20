@@ -10,7 +10,7 @@ import (
 	"log/syslog"
 	"os"
 
-	"github.com/Azure/azure-overlay/platform"
+	"azure-overlay/platform"
 )
 
 // Log file properties.

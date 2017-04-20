@@ -8,8 +8,8 @@ import (
 	"net"
 	"os/exec"
 
-	"github.com/Azure/azure-overlay/log"
-	"github.com/Azure/azure-overlay/platform"
+	"azure-overlay/log"
+	"azure-overlay/platform"
 )
 
 const (

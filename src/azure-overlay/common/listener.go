@@ -1,6 +1,5 @@
 // Copyright 2017 Microsoft. All rights reserved.
 
-
 package common
 
 import (
@@ -10,7 +9,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/Azure/azure-overlay/log"
+	"azure-overlay/log"
 )
 
 // Listener represents an HTTP listener.

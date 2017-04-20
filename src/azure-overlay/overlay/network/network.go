@@ -8,11 +8,11 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/Azure/azure-overlay/common"
-	"github.com/Azure/azure-overlay/log"
-	"github.com/Azure/azure-overlay/network"
-	"github.com/Azure/azure-overlay/overlay"
-	"github.com/Azure/azure-overlay/platform"
+	"azure-overlay/common"
+	"azure-overlay/log"
+	"azure-overlay/network"
+	"azure-overlay/overlay"
+	"azure-overlay/platform"
 )
 
 const (

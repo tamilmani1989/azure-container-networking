@@ -9,11 +9,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Azure/azure-overlay/common"
-	"github.com/Azure/azure-overlay/log"
-	"github.com/Azure/azure-overlay/overlay/network"
-	"github.com/Azure/azure-overlay/platform"
-	"github.com/Azure/azure-overlay/store"
+	"azure-overlay/common"
+	"azure-overlay/log"
+	"azure-overlay/overlay/network"
+	"azure-overlay/platform"
+	"azure-overlay/store"
 )
 
 const (

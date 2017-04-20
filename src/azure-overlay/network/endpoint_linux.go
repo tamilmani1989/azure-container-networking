@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/Azure/azure-overlay/log"
-	"github.com/Azure/azure-overlay/netlink"
+	"azure-overlay/log"
+	"azure-overlay/netlink"
 )
 
 const (

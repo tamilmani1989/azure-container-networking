@@ -6,7 +6,7 @@ package common
 import (
 	"net"
 
-	"github.com/Azure/azure-overlay/log"
+	"azure-overlay/log"
 )
 
 // LogNetworkInterfaces logs the host's network interfaces in the default namespace.
