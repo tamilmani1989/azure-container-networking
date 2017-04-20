@@ -8,8 +8,9 @@
 \*********/
 
 #include "Logging.h"
+#ifdef _WIN32
 #include "../Shared/Utilities.h"
-
+#endif
 bool AquaLogging::externalLogInitialized = false;
 static ExternalLogMethod externalLogMethod;
 static bool consoleOutputEnabled = false;
@@ -28,12 +29,16 @@ void LogNarrowString(char *narrow, bool conOutputEnabled)
 {
 	size_t len = strlen(narrow);
 	wchar_t messageW[2048];
+	#ifdef _WIN32
 	size_t converted;
+	#endif
 	mbstowcs_s(&converted, messageW, narrow, len);
+        #ifdef _WIN32
 	AquariusUtilities::WriteEventLogEntry(messageW);	
+        #endif
 	if(conOutputEnabled)
 	{
-		printf(narrow);
+		printf("%s", narrow);
 	}
 }
 
@@ -43,7 +48,9 @@ void AquaLogging::Log(int logLevel, char *logMessage)
 	if(externalLogInitialized)
 	{
 		char logMsg[2048];
+		#ifdef _WIN32
 		size_t msgSize = 2048;
+		#endif
 		sprintf_s(logMsg, msgSize, "Aqua: %s", logMessage);
 		externalLogMethod(logLevel, logMsg);
 	}

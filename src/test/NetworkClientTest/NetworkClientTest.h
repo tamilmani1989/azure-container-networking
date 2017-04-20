@@ -27,7 +27,7 @@ Author:
 //
 // ------------------------------------------------------------------- Classes
 //
-
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 class NetworkClientTest : public WEX::TestClass<NetworkClientTest>
 {
 
@@ -44,9 +44,12 @@ public:
 
     TEST_CLASS_CLEANUP(TestCleanup);
 
-    TEST_METHOD(TestInitializeNetwork);
+  /*  TEST_METHOD(TestInitializeNetwork);*/
+	TEST_METHOD(TestInitializeNetworkOverlay);
+	TEST_METHOD(TestGetAvailableAddressOverlay);
+	TEST_METHOD(TestGetAvailableAddressUnderlay);
 	TEST_METHOD(TestReserveIpAddress);
 	TEST_METHOD(TestGetReservedIpAddress);
 	TEST_METHOD(TestReleaseIpReservation);
-
 };
+} } } } }

@@ -37,6 +37,7 @@
   </ItemGroup>
     <ItemGroup>
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="NetworkClientTest.h" />
   </ItemGroup>
    <ItemGroup>
     <ProjectReference Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
@@ -45,6 +46,15 @@
     <Robocopy Include="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\NetworkClientLibrary.dll">
       <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkClientTest\</DestinationFolder>
     </Robocopy>
+    <Robocopy Include="$(BinariesBuildTypeArchDirectory)\aquanix\aquanix.dll">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkClientTest\</DestinationFolder>
+    </Robocopy>
+    <Robocopy Include="$(BinariesBuildTypeArchDirectory)\HnsClient\HnsClient.dll">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkClientTest\</DestinationFolder>
+    </Robocopy>
+	    <Robocopy Include="$(BinariesBuildTypeArchDirectory)\HNSOverlayPlugin\HNSOverlayPlugin.dll">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkClientTest\</DestinationFolder>
+    </Robocopy>	
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
