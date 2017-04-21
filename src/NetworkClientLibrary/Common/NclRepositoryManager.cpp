@@ -39,7 +39,7 @@ IpAllocations *repositoryIpAllocations;
 void FreeStatusInRepositoryIpAllocations(IpAllocations *myRepositoryIpAllocations)
 {
 	int i;
-	char logMsg[2048];
+	 
 	#ifdef _WIN32
 	size_t msgSize = 2048;
 	#endif
@@ -48,7 +48,6 @@ void FreeStatusInRepositoryIpAllocations(IpAllocations *myRepositoryIpAllocation
 		for (i = 0; i<myRepositoryIpAllocations->count; i++)
 		{
 			IpStatus tempStatus = myRepositoryIpAllocations->statusForAllIpAddresses[i];
-
 			if (tempStatus.id != NULL && strcmp(tempStatus.id, "Sys_Reserved")!=0)
 			{
 				sprintf_s(logMsg, msgSize, "Going to free %s\n", tempStatus.id);
@@ -110,7 +109,7 @@ unsigned long ReleaseReservedRepositoryIp(const char *reservationId)
 {
 	int i;
 	unsigned long reservationFound = 0;
-	char logMsg[2048];
+	 
 	#ifdef _WIN32
 	size_t msgSize = 2048;
 	#endif
@@ -167,7 +166,7 @@ IpStatus *GetRepositoryIpAllocationStatus(unsigned int ip)
 
 void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips, NetworkType networkType)
 {
-	char logMsg[2048];
+	 
 	#ifdef _WIN32
 	size_t msgSize = 2048;
 	#endif
@@ -327,7 +326,7 @@ unsigned int GetReservedIpFromRepository(const char *reservationId)
 unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist, NetworkType networkType)
 {
 	LockMutex
-	char logMsg[2048];
+	 
 	#ifdef _WIN32
 	size_t msgSize = 2048;
 	#endif

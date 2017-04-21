@@ -22,7 +22,6 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 		DWORD dwWaitTime;
 		DWORD retval = 0;
 		DWORD dwBytesNeeded;
-		char logMsg[2048];
 		size_t msgSize = 2048;
 
 		dwStartTickCount = GetTickCount();
@@ -88,7 +87,6 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 		DWORD dwWaitTime;
 		DWORD retval = 0;
 		DWORD dwBytesNeeded;
-		char logMsg[2048];
 		size_t msgSize = 2048;
 
 		if (!QueryServiceStatusEx(schService, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssStatus, sizeof(SERVICE_STATUS_PROCESS), &dwBytesNeeded))
@@ -168,7 +166,6 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 	{
 		DWORD retval = 0;
 		SERVICE_STATUS_PROCESS ssStatus;
-		char logMsg[2048];
 		size_t msgSize = 2048;
 
 		// Get a handle to the SCM database. 

@@ -2,8 +2,8 @@
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{11A5289D-DE65-411C-9AB8-9B5D088382E4}</ProjectGuid>
-    <TargetName>Logging</TargetName>
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <TargetName>Aqua.Logging</TargetName>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(SRCROOT)\build\native_user_compile.props" />
   <ItemDefinitionGroup>
@@ -26,4 +26,10 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="AfterBuild">
+    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClient" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\HNSOverlayPlugin" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
+  </Target>
 </Project>

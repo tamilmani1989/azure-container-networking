@@ -26,7 +26,7 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 // Macro that releases a COM object if not NULL.
 #define SAFE_RELEASE(p)     do { if ((p)) { (p)->Release(); (p) = nullptr; } } while(0)
 
-char logMsg[2048];
+
 size_t msgSize = 2048;
 
 // Helper function to create a VT_BSTR variant from a null terminated string. 

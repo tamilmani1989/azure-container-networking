@@ -44,6 +44,7 @@
     <ProjectReference Include="$(SRCROOT)\HNSOverlayPlugin\HNSOverlayPlugin.vcxproj" />
     <ProjectReference Include="$(SRCROOT)\HNSClient\HNSClient.vcxproj" />
     <ProjectReference Include="$(SRCROOT)\aquanix\aquanix.vcxproj" />
+    <ProjectReference Include="$(SRCROOT)\logging\logging.vcxproj" />
   </ItemGroup>
   <Import Project="$(PkgNuProj)\NuProj.Targets" />
 </Project>

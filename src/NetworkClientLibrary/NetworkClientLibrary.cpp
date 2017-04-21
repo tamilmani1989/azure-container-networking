@@ -32,7 +32,6 @@
 #include <string.h>
 #define UNREFERENCED_PARAMETER(param) do { (void)(param); } while (0)
 #endif
-#define lInfo 1
 
 #ifdef _WIN32
 extern DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, USHORT *mappingsCount);
@@ -81,7 +80,6 @@ DllExport DWORD GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResourc
 {
 	int ipCount;
 	unsigned int *ips;
-	char logMsg[2048];
 	#ifdef _WIN32
 	size_t msgSize = 2048;
 	#endif
@@ -106,11 +104,11 @@ DllExport DWORD GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResourc
 	ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
 	ipCount = getIpsFromNmAgent(ips);
 	sprintf_s(logMsg, msgSize, "Retrieved %d ips fron nm agent along with details\n", ipCount);
-	AquaLogging::Log(lInfo, logMsg);
+	AquaLogging::Log(info, logMsg);
 	for(int i = 0; i<ipCount; i++)
 	{
 		sprintf_s(logMsg, msgSize, "%d\n", ips[i]);
-		AquaLogging::Log(lInfo, logMsg);
+		AquaLogging::Log(info, logMsg);
 	}
 	if(ips)
 	{
@@ -203,7 +201,6 @@ bool IsLocalNodeIp(unsigned int ip)
 
 DllExport unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 {
-	char logMsg[2048];
 	#ifdef _WIN32
 	size_t msgSize = 2048;
 	#endif
@@ -219,14 +216,14 @@ DllExport unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 	{
 		NodeConfig nc = clusterConfig->nodeConfigs[i];
 		sprintf_s(logMsg, msgSize, "Comparing %u %u", nc.nodeIp, clusterConfig->localNodeIp);
-		AquaLogging::Log(lInfo, logMsg);
+		AquaLogging::Log(info, logMsg);
 		if(nc.nodeIp == clusterConfig->localNodeIp)
 		{
 			sprintf_s(logMsg, msgSize, "Found my own node config nodeIp=0x%08X prefix=0x%08X prefix-len%d\n", nc.nodeIp, nc.subnet->ipAddress, nc.subnet->prefixLength);
-			AquaLogging::Log(lInfo, logMsg);
+			AquaLogging::Log(info, logMsg);
 			PersistSubnetInRepository(nc.subnet, clusterConfig->net);
 			sprintf_s(logMsg, msgSize, "persisted ip space for my own node\n");
-			AquaLogging::Log(lInfo, logMsg);
+			AquaLogging::Log(info, logMsg);
 			break;
 		}
 	}
@@ -236,7 +233,6 @@ DllExport unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 {
 	unsigned long failed = 0;
-	char logMsg[2048];
 	#ifdef _WIN32
 	size_t msgSize = 2048;
 	#endif
@@ -246,15 +242,15 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 		return INVALID_PARAMETER;
 	}
 
-	AquaLogging::Log(lInfo, "Going to initialize network ..");
+	AquaLogging::Log(info, "Going to initialize network ..");
 
 #ifdef _WIN32
-	AquaLogging::Log(lInfo, "Going to init wsa.");
+	AquaLogging::Log(info, "Going to init wsa.");
 	if (WsaInitialize() != 0)
 	{
 		return UNEXPECTED_ERROR;
 	}
-	AquaLogging::Log(lInfo, "WSA init successfully done.");
+	AquaLogging::Log(info, "WSA init successfully done.");
 	DWORD VfpError = VfpOperations::StartVfpService();
 	if(VfpError != 0)
 	{
@@ -266,19 +262,19 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 	{
 		case OverLay: 
 			sprintf_s(logMsg, msgSize, "Going to setup overlay network\n");
-			AquaLogging::Log(lInfo, logMsg);
+			AquaLogging::Log(info, logMsg);
 			networkTypeProvided = OverLay; // save the type
 			failed = setupOverlay(clusterConfig);
 			if(failed == 0)
 			{
 				sprintf_s(logMsg, msgSize, "Going to persist overlay address space\n");
-				AquaLogging::Log(lInfo, logMsg);
+				AquaLogging::Log(info, logMsg);
 				saveOverlayAddressSpace(clusterConfig);
 				#ifdef _WIN32
 				ProvideConfigToNIX(clusterConfig);
 				#endif
 				sprintf_s(logMsg, msgSize, "Successfully persisted Overlay Address Space\n");
-				AquaLogging::Log(lInfo, logMsg);
+				AquaLogging::Log(info, logMsg);
 			}
 			else
 			{
@@ -287,12 +283,12 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 			}
 
 			sprintf_s(logMsg, msgSize, "Initialize network finished. retunring %lu\n", failed);
-			AquaLogging::Log(lInfo, logMsg);
+			AquaLogging::Log(info, logMsg);
 			return failed;
 
 		case UnderLay: 
 			sprintf_s(logMsg, msgSize, "Going to setup underlay network\n");
-			AquaLogging::Log(lInfo, logMsg);
+			AquaLogging::Log(info, logMsg);
 			networkTypeProvided = UnderLay;
 			switch(clusterConfig->env)
 			{
@@ -325,7 +321,6 @@ DllExport DWORD GetHostLocalIp(unsigned int *hostLocalIp)
 {
 	unsigned long retval = UNEXPECTED_ERROR;
 	#ifdef _WIN32
-	char logMsg[2048];
 	size_t msgSize = 2048;
 	#endif
 

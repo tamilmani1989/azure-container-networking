@@ -44,7 +44,7 @@ extern bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp);
 
 SOCKET connectToHost(char *host, USHORT port)
 {
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 	struct hostent *hp;
 	struct sockaddr_in addr;
@@ -108,7 +108,7 @@ int InsertIntoBuffer(char **recvBuffer, int byteCount, char c)
 
 int WsaInitialize()
 {
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 	WSADATA wsaData;
 	int wsaerr;
@@ -137,7 +137,7 @@ char* httpSendResponse(SOCKET sock, char *payload)
 	int bytesRead;
 	char *recvBuffer = nullptr;
 	int byteCount = 0;
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 
 	int bytesWritten = send(sock, payload, (int)strlen(payload), 0);
@@ -192,7 +192,7 @@ int retrieveHttpStatus(char *recvBuffer)
 	int k = 0;
 	char status[8];
 	int ret = 0;
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 	while (recvBuffer[i] != ' ')
 	{
@@ -220,7 +220,7 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 {
 	char *recvBuffer = nullptr;
 	char *responseLocation = nullptr;
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 
 	sprintf_s(logMsg, msgSize, "Trying to connect to nm agent.\n");
@@ -287,7 +287,7 @@ int getIpsFromNmAgent(unsigned int *ips)
 	int bytesRead;
 	char *responseLocation = nullptr;
 	int byteCount = 0;
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 	
 	sprintf_s(logMsg, msgSize, "Trying to connect to nm agent.\n");
@@ -398,7 +398,7 @@ DWORD GetHostIp(unsigned int *ip)
 	struct hostent *hp;
 	char hostName[255]; //RFC says it cannot exceed 255 chars
 	unsigned long retval = 0;
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 	
 	if (gethostname(hostName, 255) != 0)
@@ -434,7 +434,7 @@ int networkExists(SOCKET sock, char *networkName)
 	char *payload = nullptr;
 	char *recvBuf = nullptr;
 	size_t payloadLen;
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 	char *httpreq = "HTTP/1.1\r\nHost:127.0.0.1\r\nContent-Type:application/json\r\nConnection:close\r\n\r\n";
 
@@ -482,7 +482,7 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 	char *gwIp = nullptr;
 	char ipamConfig[2048];
 	unsigned long retval = 0;
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 
 	sprintf_s(logMsg, msgSize, "wsa initialization finished\n");
@@ -589,7 +589,7 @@ unsigned long CreateDockerNetwork(char *networkName, char ipamConfig[2048])
 {
 	char *recvBuf = NULL;
 	unsigned long retval = 0;
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 
 	SOCKET sock = connectToHost("localhost", 2375);
@@ -661,7 +661,7 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 	char *gwIp = nullptr;
 	char ipamConfig[2048];
 	unsigned long retval = 0;
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 
 	if (clusterConfig->networkName == NULL)
@@ -752,7 +752,7 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 
 DWORD AddRemoteMapping(const char *endpointId, const char *hostAddress, const char *containerAddress, const char *macAddress)
 {
-	char logMsg[2048];
+	 
 	size_t msgSize = 2048;
 	sprintf_s(logMsg, msgSize, "Call back to add endpoint received... success\n");
 	AquaLogging::Log(info, logMsg);
@@ -778,7 +778,7 @@ DWORD DeleteRemoteMapping (const char *endpointId)
 {
 	wchar_t endpointIdW[150]; //GUID cannot exceed 38
 	size_t converted;
-	char logMsg[2048];
+	 
 	size_t msgSize = 2048;
 	sprintf_s(logMsg, msgSize, "Call back to delete endpoint received...\n");
 	AquaLogging::Log(info, logMsg);
@@ -808,7 +808,7 @@ DWORD FreeEndpointMappings(EndpointMapping *endpointMappings, USHORT mappingsCou
 
 void ProvideConfigToNIX(ClusterConfig *clusterConfig)
 {
-	char logMsg[2048];
+	 
 	size_t msgSize = 2048;
 
 	sprintf_s(logMsg, msgSize, "Informing nix about the other nodes in the network");

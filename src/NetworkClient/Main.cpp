@@ -60,7 +60,7 @@ void testM()
 #endif
 
 #ifdef _WIN32
-	assert(InitializeNetwork(&cfg));
+	//assert(InitializeNetwork(&cfg));
 #endif
 
 	printf("Successfully initialized Azure/Underlay. retval = %d\n", retval);
@@ -73,50 +73,50 @@ void testM()
 
 	Ipv4Subnet ovSubnet;
 	struct in_addr ipAdd;
-	inet_pton(AF_INET, "10.10.0.0", &ipAdd);
+	inet_pton(AF_INET, "10.0.0.0", &ipAdd);
 	ovSubnet.ipAddress = ipAdd.s_addr;
 
 	printf("converted ip prefix %s\n", inet_ntop(AF_INET, &ovSubnet.ipAddress, ipInString, INET_ADDRSTRLEN));
 	getchar();
-	ovSubnet.prefixLength = 16;
+	ovSubnet.prefixLength = 8;
 	cfg.overlaySubnet = &ovSubnet;
 
 	cfg.nodeConfigs = (NodeConfig *)malloc(cfg.nodeCount * sizeof(NodeConfig));
 	
 	Ipv4Subnet localSubnet;
 
-	inet_pton(AF_INET, "10.10.1.0", &ipAdd);
+	inet_pton(AF_INET, "10.10.0.0", &ipAdd);
 	localSubnet.ipAddress = ipAdd.s_addr;
-	localSubnet.prefixLength = 24;
-	inet_pton(AF_INET, "11.1.0.144", &ipAdd);
+	localSubnet.prefixLength = 21;
+	inet_pton(AF_INET, "11.1.0.164", &ipAdd);
 	cfg.nodeConfigs[0].nodeIp = ipAdd.s_addr;
 	cfg.nodeConfigs[0].nodeId = "Id114";
 	cfg.nodeConfigs[0].subnet = &localSubnet;
-	cfg.localNodeIp = ipAdd.s_addr;
+	//cfg.localNodeIp = ipAdd.s_addr;
 	
 
 	Ipv4Subnet localSubnet2;
-	inet_pton(AF_INET, "10.10.2.0", &ipAdd);
+	inet_pton(AF_INET, "10.11.0.0", &ipAdd);
 	localSubnet2.ipAddress = ipAdd.s_addr;
-	localSubnet2.prefixLength = 24;
-	inet_pton(AF_INET, "11.1.0.154", &ipAdd);
+	localSubnet2.prefixLength = 21;
+	inet_pton(AF_INET, "11.1.0.124", &ipAdd);
 	cfg.nodeConfigs[1].nodeIp = ipAdd.s_addr;
 	cfg.nodeConfigs[1].nodeId = "Id124";
 	cfg.nodeConfigs[1].subnet = &localSubnet2;
-	//cfg.localNodeIp = ipAdd.s_addr;
+	cfg.localNodeIp = ipAdd.s_addr;
 
 
 	Ipv4Subnet localSubnet3;
-	inet_pton(AF_INET, "10.10.3.0", &ipAdd);
+	inet_pton(AF_INET, "10.12.0.0", &ipAdd);
 	localSubnet3.ipAddress = ipAdd.s_addr;
-	localSubnet3.prefixLength = 24;
-	inet_pton(AF_INET, "11.1.0.74", &ipAdd);
+	localSubnet3.prefixLength = 21;
+	inet_pton(AF_INET, "11.1.0.134", &ipAdd);
 	cfg.nodeConfigs[2].nodeIp = ipAdd.s_addr;
 	cfg.nodeConfigs[2].nodeId = "Id134";
 	cfg.nodeConfigs[2].subnet = &localSubnet3;
 	//cfg.localNodeIp = ipAdd.s_addr;
 
-	//printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
+	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	free(cfg.networkName);
 	free(cfg.nodeConfigs);
 	getchar();
@@ -126,15 +126,16 @@ void testM()
 	printf("Recevied host local as %s\n", inet_ntop(AF_INET, &hostLocalIp, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
-	printf("Going ot detach hostlocal directly in HNS\n");
+	printf("Going to detach hostlocal directly in HNS\n");
 	wchar_t ipInStringw[INET_ADDRSTRLEN];
 	size_t converted;
 	mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN);
 #ifdef _WIN32
-	//DeleteLocalEndpointWithIp(ipInStringw, true);
+	DeleteLocalEndpointWithIp(ipInStringw, true);
 #endif
 	getchar();
-	unsigned int ip=0;
+
+	unsigned int ip;
 	printf("going to reserve available ip with ip0");
 	assert(ReserveAvailableIpAddress((char *)"ip0", &ip));
 	printf("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));

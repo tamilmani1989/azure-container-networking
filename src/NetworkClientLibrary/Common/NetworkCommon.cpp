@@ -16,7 +16,7 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp)
 {
 	size_t len = strlen(subnet);
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 	sprintf_s(logMsg, msgSize, "retrieved subnet %s with length:%d for gateway retrieval.\n", 
 		subnet, static_cast<int>(len));
