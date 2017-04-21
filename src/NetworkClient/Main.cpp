@@ -60,7 +60,7 @@ void testM()
 #endif
 
 #ifdef _WIN32
-	//assert(InitializeNetwork(&cfg));
+	assert(InitializeNetwork(&cfg));
 #endif
 
 	printf("Successfully initialized Azure/Underlay. retval = %d\n", retval);
@@ -116,7 +116,7 @@ void testM()
 	cfg.nodeConfigs[2].subnet = &localSubnet3;
 	//cfg.localNodeIp = ipAdd.s_addr;
 
-	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
+	//printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	free(cfg.networkName);
 	free(cfg.nodeConfigs);
 	getchar();
@@ -131,7 +131,7 @@ void testM()
 	size_t converted;
 	mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN);
 #ifdef _WIN32
-	DeleteLocalEndpointWithIp(ipInStringw, true);
+	//DeleteLocalEndpointWithIp(ipInStringw, true);
 #endif
 	getchar();
 	unsigned int ip=0;
@@ -206,6 +206,15 @@ void testM()
 	retval = GetReservedIpAddress("ip0", &ip);
 	printf("ip0 (without reservation). retval =  %d\n", retval);
     free(nnr.ips);
+	getchar();
+
+	assert(GetAvailableIpAddresses(&nnr, &ipCount));
+	printf("Printing available ip addresses count = %d\n", ipCount);
+	for (i = 0; i < ipCount; i++)
+	{
+		printf("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
+	}
+	getchar();
 }
 
 #ifdef _WIN32

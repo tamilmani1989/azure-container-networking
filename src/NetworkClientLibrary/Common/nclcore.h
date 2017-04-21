@@ -40,6 +40,7 @@ DllExport unsigned int ReserveRepositoryIpAddress(char *reservationId);
 #define UNREACHABLE_DOCKER_DAEMON 9
 #define UNSPECIFIED_NETWORK_NAME 10
 #define SUBNET_SIZE_TOO_SMALL 11
+#define ERROR_STARTING_VFP 12
 #define UNEXPECTED_ERROR 99
 
 } } } } }

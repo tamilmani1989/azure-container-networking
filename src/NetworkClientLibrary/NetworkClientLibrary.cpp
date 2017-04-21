@@ -11,8 +11,9 @@
 #include <stdlib.h>
 #include "Common/aquanetworkclient.h"
 #include "Common/nclcore.h"
+#ifdef __linux__
 #include "../Logging/Logging.h"
-
+#endif
 #ifdef _WIN32
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <stdio.h>
@@ -22,6 +23,7 @@
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
 #include <Mstcpip.h>
+#include "Windows/VfpOperations.h"
 #include "../aquanix/Common/aquanixext.h"
 #endif
 
@@ -253,6 +255,12 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 		return UNEXPECTED_ERROR;
 	}
 	AquaLogging::Log(lInfo, "WSA init successfully done.");
+	DWORD VfpError = VfpOperations::StartVfpService();
+	if(VfpError != 0)
+	{
+		AquaLogging::Log(err, "Vfp Initializtion failed.. cannot continue");
+		return VfpError;
+	}
 #endif
 	switch(clusterConfig->net)
 	{

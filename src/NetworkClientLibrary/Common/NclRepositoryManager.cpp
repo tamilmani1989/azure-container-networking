@@ -54,6 +54,8 @@ void FreeStatusInRepositoryIpAllocations(IpAllocations *myRepositoryIpAllocation
 				sprintf_s(logMsg, msgSize, "Going to free %s\n", tempStatus.id);
 				AquaLogging::Log(info, logMsg);
 				free(tempStatus.id);
+				tempStatus.isReserved = false;
+				tempStatus.id = NULL;
 			}
 		}
 		if (myRepositoryIpAllocations->statusForAllIpAddresses)
@@ -289,7 +291,7 @@ int GetAvailableIpsfromRepository(unsigned int *ips)
 	{
 		for (i = 0; i<repositoryIpAllocations->count; i++)
 		{
-			if (!repositoryIpAllocations->statusForAllIpAddresses[i].id)
+			if (repositoryIpAllocations->statusForAllIpAddresses[i].isReserved == false)
 			{
 				if (ips)
 				{
