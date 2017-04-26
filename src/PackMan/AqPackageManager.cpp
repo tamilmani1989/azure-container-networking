@@ -64,7 +64,7 @@ int AqPackageManager::RetrievePluginsMetadata(PluginMetadata **allPluginsMetadat
 {
 	AquariusUtilities::WriteEventLogEntry(L"Going to populate metadata for plugins.");
 	int pluginCount;
-	packman_objects_mutex._Lock();
+	packman_objects_mutex.lock();
 	try 
 	{
 		wchar_t packageStoreLocation[MAX_PATH];
@@ -77,10 +77,10 @@ int AqPackageManager::RetrievePluginsMetadata(PluginMetadata **allPluginsMetadat
 	}
 	catch(...)
 	{
-		packman_objects_mutex._Unlock(); // can't unlock in destructor
+		packman_objects_mutex.unlock(); // can't unlock in destructor
 		throw;
 	}
-	packman_objects_mutex._Unlock();
+	packman_objects_mutex.unlock();
 	return pluginCount;
 }
 

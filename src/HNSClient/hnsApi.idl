@@ -1,0 +1,77 @@
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+    HnsApi.idl
+
+Abstract:
+
+    Public COM interface for Container Network Service
+
+--*/
+
+import "oaidl.idl";
+import "ocidl.idl";
+
+
+//
+// IHNSApi interface specification
+//
+[
+    object,
+    uuid(0b43d888-341a-4d8c-8c3a-f9ef5045df01),
+    helpstring("IHNSApi Interface"),
+    pointer_default(unique),
+    hidden
+]
+interface IHNSApi : IUnknown
+{
+    HRESULT
+    Request(
+        [in, string] LPCWSTR Method,
+        [in, string] LPCWSTR Path,
+        [in, string] LPCWSTR Object,
+        [out, string] LPWSTR* Response
+    );
+
+    HRESULT
+    AttachEndpoint(
+        [in] const GUID* EndpointId,
+        [in] const UINT32 CompartmentId
+        );
+
+    HRESULT
+    DetachEndpoint(
+        [in] const GUID* EndpointId
+    );
+
+    HRESULT
+    AttachEndpointVNic(
+        [in] const GUID* EndpointId,
+        [in, string] LPCWSTR NicName
+    );
+
+    HRESULT
+    GetEndpointConfiguration(
+        [in] const GUID* EndpointId,
+        [out] DWORD* ConfigurationDataLength,
+        [out] BYTE* EndpointConfigurationData
+    );
+};
+
+[
+    uuid(9be021fe-d8c1-4eb1-96de-1956055050f1),
+    helpstring("IHNSApi Type Library")
+]
+library HNSApiLib
+{
+    [
+        uuid(c8a58877-c594-47fe-9197-bd808576f1da)
+    ]
+    coclass HNSApi
+    {
+        [default] interface IHNSApi;
+    }
+}

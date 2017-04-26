@@ -343,12 +343,11 @@ Return Value:
 
 --*/
 {
-    wchar_t *wipToken, *tmp;
     unsigned short ip[4];
     std::string result[4];
     std::string ipv6Addr;
     
-    swscanf(InstanceIpv4Addr.c_str(), L"%hu.%hu.%hu.%hu", &ip[0], &ip[1], &ip[2], &ip[3]);
+    swscanf_s(InstanceIpv4Addr.c_str(), L"%hu.%hu.%hu.%hu", &ip[0], &ip[1], &ip[2], &ip[3]);
 
     for (int i = 0; i < 4; i++)
     {
@@ -372,8 +371,6 @@ Return Value:
 }
 
 int wmain(
-    int argc, 
-    wchar_t* argv[]
 )
 /*++
 

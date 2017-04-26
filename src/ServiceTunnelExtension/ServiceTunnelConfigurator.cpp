@@ -702,7 +702,7 @@ Return Value:
 	PCHAR buffer=NULL;
 	LPCWSTR wipv4;
 	int ret;
-	int wlen;
+	size_t wlen;
 
     hr = installer.GetOrCreateLoopbackAdapter(SERVICE_TUNNEL_INTERFACE_NAME, interfaceIndex);
     RD_TRACE_E_HR((RD_TRACE_ERROR,
@@ -740,7 +740,8 @@ Return Value:
 	wipv4 = InstanceAddress.c_str();
 	wlen = wcslen(wipv4) + 1;
 	buffer = (char *) malloc(wlen);
-	ret = wcstombs(buffer, wipv4, wlen);
+    size_t bytesCopied = 0;
+	ret = wcstombs_s(&bytesCopied, buffer, wlen, wipv4, wlen);
 
 	ipv4Addr = ntohl(inet_addr(buffer));
 

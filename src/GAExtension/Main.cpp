@@ -13,7 +13,7 @@
 #pragma endregion
 
 
-int wmain(int argc, wchar_t *argv[])
+int wmain()
 {
     return 0;
 }

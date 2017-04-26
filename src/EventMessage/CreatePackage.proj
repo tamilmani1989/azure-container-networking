@@ -4,6 +4,11 @@
     
     <PropertyGroup>
       <BuildFullName>$(BuildVersion.Replace('.',''))</BuildFullName>
+      <McPath>$(PkgWindowsSdk_Corext)\bin\x64\mc.exe</McPath>
+      <ToolsPath>$(PkgVisualCpp_Tools_x64_Corext)\bin\x64</ToolsPath>
+      <LinkPath>$(ToolsPath)\link.exe</LinkPath>
+      <RcPath>$(PkgWindowsSdk_Corext)\bin\x64\rc.exe</RcPath>
+      <CpPath>$(Corext_Tools)\AMD64\cp.exe</CpPath>
     </PropertyGroup>
     
   <ItemGroup>
@@ -14,8 +19,8 @@
 
   <Target Name="Build">
      <Message Importance="high" Text="Going to build event message dll for eventviewer to work." />
-     <Exec Command="mc -U AqEventMessage.mc &amp; rc AqEventMessage.rc &amp; link -dll -noentry /MACHINE:x86 AqEventMessage.res"/>
-     <Exec Command="md $(BinariesBuildTypeArchDirectory)\AquariusPackage &amp; md $(BinariesBuildTypeArchDirectory)\AquariusPackage\Plugins &amp; cp AqEventMessage.dll $(BinariesBuildTypeArchDirectory)\AquariusPackage &amp; xcopy /s $(NetAnalytics)\content $(BinariesBuildTypeArchDirectory)\AquariusPackage\Plugins"/>
+     <Exec Command="$(McPath) -U AqEventMessage.mc &amp; $(RcPath) AqEventMessage.rc &amp; $(LinkPath) -dll -noentry /MACHINE:x86 AqEventMessage.res"/>
+     <Exec Command="md $(BinariesBuildTypeArchDirectory)\AquariusPackage &amp; md $(BinariesBuildTypeArchDirectory)\AquariusPackage\Plugins &amp; $(CpPath) AqEventMessage.dll $(BinariesBuildTypeArchDirectory)\AquariusPackage &amp; xcopy /y /s $(NetAnalytics)\content $(BinariesBuildTypeArchDirectory)\AquariusPackage\Plugins"/>
   </Target>
 
   <ItemGroup>

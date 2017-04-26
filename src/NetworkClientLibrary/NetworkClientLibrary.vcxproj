@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{97F3B949-54EC-40C4-B9A4-6A338B2A4767}</ProjectGuid>
+    <TargetName>NetworkClientLibrary</TargetName>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
+      <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        $(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
+      </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="NetworkClientLibrary.cpp" />
+    <ClCompile Include="Common\NclRepositoryManager.cpp" />
+    <ClCompile Include="Windows\ResponseParser.cpp" />
+    <ClCompile Include="Windows\Network.cpp" />
+    <ClCompile Include="Common\NetworkCommon.cpp" />
+    <ClCompile Include="Windows\VfpOperations.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\aquanix\Common\aquanixext.h" />
+    <ClInclude Include="..\Common\Inc\aquabase.h" />
+    <ClInclude Include="..\Common\Inc\aquaError.h" />
+    <ClInclude Include="Common\aqualoglevels.h" />
+    <ClInclude Include="Common\aquanetworkclient.h" />
+    <ClInclude Include="Common\aquaerrorcodes.h" />
+    <ClInclude Include="Common\nclcore.h" />
+    <ClInclude Include="Windows\VfpOperations.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\aquanix\aquanix.vcxproj">
+      <Project>{d16a456d-9371-4055-afa7-276cd8cc32b9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\HNSClient\HNSClient.vcxproj">
+      <Project>{a8f4b949-54ec-40c4-b9a4-6a338b2a4767}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Shared\Shared.vcxproj">
+      <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="AfterBuild">
+    <Copy SourceFiles="$(OutputPath)\NetworkClientLibrary.dll; $(OutputPath)\NetworkClientLibrary.pdb; $(OutputPath)\NetworkClientLibrary.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClient" />
+  </Target>
+</Project>

@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{F33B67CE-92DF-4DCF-BFA3-4D3F74450EAA}</ProjectGuid>
+    <RootNamespace>Aquarius</RootNamespace>
+    <ProjectName>aquanixconsole</ProjectName>
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props"/>
+  <Import Project="$(SRCROOT)\build\native_user_link.props"/>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
+      <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        $(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
+      </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\aquanix\Common\aquanixext.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\aquanix\aquanix.vcxproj">
+      <Project>{d16a456d-9371-4055-afa7-276cd8cc32b9}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

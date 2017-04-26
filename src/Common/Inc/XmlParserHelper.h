@@ -30,8 +30,14 @@ Environment:
 #include <set>
 #include <map>
 #include <iostream>
+
+// RdCommon.h has unreferenced formal parameter warnings
+#pragma warning ( push )
+#pragma warning( disable : 4100 )
+#define RDCOMMON_NO_WIN_HEADERS
 #include "RdCommon.h"
 #include "RdTrace.h"
+#pragma warning( pop )
 
 using namespace std;
 

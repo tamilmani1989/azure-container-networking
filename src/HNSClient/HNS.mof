@@ -1,0 +1,84 @@
+module Config.Containers.HNS;
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// This schema is evolving a little and everything is omitempty for now.
+// Will update the documentation once we have finalized the changes.
+//
+
+class HNSNetworkSwitchExtension
+{
+    [OmitEmpty] Guid ExtensionID;
+    [OmitEmpty] bool Enable;
+    [OmitEmpty] string Type;
+};
+
+class HNSNetwork
+{
+    [OmitEmpty] string ID;
+    [OmitEmpty] string Name;
+    // Type is extensible. Therefore leave it as string type.
+    // Change it to NetworkMode enum type when we have a better enum support
+    [OmitEmpty] string Type;
+    [OmitEmpty] string HNSNetworkType;
+    [OmitEmpty] string NetworkAdapterName;
+    [OmitEmpty] string SourceMac;
+    [OmitEmpty] Any    Policies[];
+    [OmitEmpty] MacPool MacPools[];
+    [OmitEmpty] Subnet Subnets[];
+    [OmitEmpty] string DNSSuffix;
+    [OmitEmpty] string DNSServerList;
+    [OmitEmpty] uint32 CurrentEndpointCount;
+};
+
+class HNSEndpoint
+{
+    [OmitEmpty] Guid ID;
+    [OmitEmpty] string Name;
+    [OmitEmpty] Guid VirtualNetwork;
+    [OmitEmpty] string VirtualNetworkName;
+    [OmitEmpty] Any Policies[];
+    [OmitEmpty] string MacAddress;
+    [OmitEmpty] string IPAddress;
+    [OmitEmpty] string DNSServerList;
+    [OmitEmpty] string DNSSuffix;
+    [OmitEmpty] string GatewayAddress;
+    [OmitEmpty] uint8 PrefixLength;
+    [OmitEmpty] bool EnableLowMetric;
+};
+
+
+class HNSNetworkResponse
+{
+    [Required] bool Success;
+    [OmitEmpty] string Error;
+    [OmitEmpty] HNSNetwork Output[];
+};
+
+class HNSSingleNetworkResponse
+{
+    [Required] bool Success;
+    [OmitEmpty] string Error;
+    [OmitEmpty] HNSNetwork Output;
+};
+
+class HNSEndpointResponse
+{
+    [Required] bool Success;
+    [OmitEmpty] string Error;
+    [OmitEmpty] HNSEndpoint Output;
+};
+
+class HNSEndpointsResponse
+{
+    [Required] bool Success;
+    [OmitEmpty] string Error;
+    [OmitEmpty] HNSEndpoint Output[];
+};
+
+class HNSEndpointStatsResponse
+{
+    [Required] bool Success;
+    [OmitEmpty] string Error;
+    [OmitEmpty] Any Output;
+};

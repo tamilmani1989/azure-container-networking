@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ProjectGuid>{B8F3B949-54EC-40C4-B9A4-6A338B2A4767}</ProjectGuid>
+    <TargetName>HNSOverlayPlugin</TargetName>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories);
+		$(INTERNAL_SDK)\inc;
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <!--EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol-->
+      <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
+      <RandomizedBaseAddress>true</RandomizedBaseAddress>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        $(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
+      </AdditionalDependencies>
+      <ModuleDefinitionFile>HNSOverlayPlugin.src</ModuleDefinitionFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="ContainerHost.cpp" />
+    <ClCompile Include="hnspluginapi_i.c" />
+    <ClCompile Include="ovPluginException.cpp" />
+    <ClCompile Include="PluginMain.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ContainerHost.h" />
+    <ClInclude Include="hnspluginapi.h" />
+    <ClInclude Include="ovPluginCriticalSection.h" />
+    <ClInclude Include="ovPluginException.h" />
+    <ClInclude Include="PluginMain.h" />
+    <ClInclude Include="hnspluginapi_p.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="InstallPlugin.ps1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\aquanix\aquanix.vcxproj">
+      <Project>{d16a456d-9371-4055-afa7-276cd8cc32b9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="AfterBuild">
+    <Copy SourceFiles="$(OutputPath)\HNSOverlayPlugin.dll; $(OutputPath)\HNSOverlayPlugin.pdb; $(OutputPath)\HNSOverlayPlugin.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
+    <Copy SourceFiles="InstallPlugin.ps1;" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
+    <Copy SourceFiles="$(AQ_Tools)\content\sfpcopy.exe;" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
+  </Target>
+</Project>

@@ -273,7 +273,6 @@ Return Value:
 --*/
 {
     HRESULT hr = S_OK;
-    DWORD error;
     IXMLDOMNodeList *pNodes = NULL;
     IXMLDOMNode *pNode = NULL;
     IXMLDOMNamedNodeMap *pIXMLDOMNamedNodeMap;
@@ -282,11 +281,9 @@ Return Value:
     long length;
     BSTR nodeQuery = NULL;
     BSTR bstrNodeName = NULL;
-    BSTR bstrNodeValue = NULL;
     BSTR bstrAttributeName = NULL;
     VARIANT variantAttributeValue;
     BSTR bstrAttributeValue;
-    VARIANT_BOOL varStatus;
     VARIANT varFileName;
     VariantInit(&varFileName);
     std::wstring attributeValue;

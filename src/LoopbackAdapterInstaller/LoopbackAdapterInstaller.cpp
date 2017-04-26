@@ -23,6 +23,8 @@ Environment:
 //
 #include "LoopbackAdapterInstaller.h"
 
+// RD_TRACE_E_WIN32_EXIT has unavoidable constant conditional expression
+#pragma warning ( disable : 4127 )
 
 HRESULT
 LoopbackAdapterInstaller::GetINetCfgWithWriteLock(
@@ -45,7 +47,6 @@ Return Value:
 --*/
 {
     HRESULT hr = S_OK;
-    HRESULT localHr = S_OK;
     INetCfg* netCfg;
     bool lockAcquired = false;
     
@@ -258,7 +259,6 @@ Return Value:
     IEnumNetCfgComponent* netCfgComponentEnum = NULL;
     INetCfgComponent* netCfgComponent = NULL;
     LPWSTR interfaceDisplayName = NULL;
-    bool lockAcquired = false;
     GUID instanceGuid = { 0 };
     bool updated = false;
     *InstanceGuid = { 0 };
@@ -380,7 +380,6 @@ Return Value:
     HRESULT hr = S_OK;
     wchar_t windowsDirectory[MAX_PATH] = { 0 };
     wchar_t className[MAX_PATH] = { 0 };
-    wchar_t instanceId[MAX_PATH];
     LPWSTR loopbackInfPath = NULL;
     DWORD error = ERROR_SUCCESS;
     HDEVINFO deviceInfoSet = INVALID_HANDLE_VALUE;
@@ -469,7 +468,7 @@ Return Value:
         &deviceInfoData,
         SPDRP_HARDWAREID,
         (const BYTE *)LOOPBACK_ADAPTER_HARDWARE_ID,
-        (wcslen(LOOPBACK_ADAPTER_HARDWARE_ID) + 1 + 1) * sizeof(WCHAR)))
+        (DWORD) (wcslen(LOOPBACK_ADAPTER_HARDWARE_ID) + 1 + 1) * sizeof(WCHAR)))
     {
         hr = HRESULT_FROM_WIN32(GetLastError());
         RD_TRACE_E_HR((RD_TRACE_ERROR,
@@ -617,21 +616,14 @@ Return Value:
 {
     HRESULT hr = S_OK;
     GUID classGuid = { 0 };
-    BOOL loopbackInterfaceFound = FALSE;
     WCHAR windowsDirectory[MAX_PATH] = { 0 };
     WCHAR className[MAX_PATH] = { 0 };
     PWSTR loopbackInfPath = NULL;
     DWORD error = ERROR_SUCCESS;
-    HDEVINFO deviceInfoSet = INVALID_HANDLE_VALUE;
-    SP_DEVINFO_DATA deviceInfoData;
     PWSTR classGuidString = NULL;
-    wchar_t instanceId[MAX_PATH];
-    PMIB_IF_TABLE2 ifTable = NULL;
-    int ifIndex;
     int index;
     wstring interfaceDisplayName;
     GUID instanceGuid;
-    bool interfaceExist = false;
     hr = UpdateInterfaceDisplayName(InterfaceName, InterfaceName, &instanceGuid);
     if (hr == S_OK)
     {
@@ -749,8 +741,8 @@ Return Value:
         RD_TRACE_E_WIN32_EXIT((RD_TRACE_ERROR,
             L"NetInstallLoopbackAdapter: Can't find IfIndex "
             L"for installed loopback adapter"),
-        ERROR_NOT_FOUND,
-        Cleanup);
+            ERROR_NOT_FOUND,
+            Cleanup);
     }
 
 Cleanup:
@@ -792,7 +784,6 @@ Return Value:
 --*/
 {
     SP_PROPCHANGE_PARAMS propertyChangeParams;
-    SP_DEVINSTALL_PARAMS deviceParams;
     HRESULT hr = S_OK;
     if (Enable)
     {

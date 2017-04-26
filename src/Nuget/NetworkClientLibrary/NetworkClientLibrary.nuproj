@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build;CreatePackage" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>9e140746-498f-41b1-aedc-9c1c5a5c2e29</ProjectGuid>
+  </PropertyGroup>
+  <!-- Nuget generation properties -->
+  <PropertyGroup>
+    <NoPackageAnalysis>true</NoPackageAnalysis>
+    <Id>Microsoft.WindowsAzure.Internal.$(GitBranchName)NetworkClientLibrary</Id>
+    <Version>$(BuildVersion)</Version>
+    <Title>RnmClient from $(GitBranchName)</Title>
+    <Authors>rnmdev@microsoft.com</Authors>
+    <Owners>rnm@microsoft.com</Owners>
+    <Description>Microsoft Network Client Library</Description>
+    <ReleaseNotes>
+    </ReleaseNotes>
+    <Summary>This library can be used to setup networking as required to run container workloads in Azure and OnPrem.
+    Code is in the GIT repo Networking-Aquarius</Summary>
+    <ProjectUrl>http://www.Microsoft.com</ProjectUrl>
+    <LicenseUrl>http://www.Microsoft.com/license</LicenseUrl>
+    <Copyright>Copyright (c) Microsoft Corporation</Copyright>
+    <RequireLicenseAcceptance>False</RequireLicenseAcceptance>
+    <Tags>
+    </Tags>
+  </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary">
+      <TargetPath>content</TargetPath>
+      <Recursive>true</Recursive>
+    </Folder>
+    <Content Include="$(SRCROOT)\NetworkClientLibrary\Common\aquanetworkclient.h">
+       <TargetPath>inc</TargetPath>
+    </Content>
+    <Content Include="$(SRCROOT)\NetworkClientLibrary\Common\aquaerrorcodes.h">
+       <TargetPath>inc</TargetPath>
+    </Content>
+    <Content Include="$(SRCROOT)\NetworkClientLibrary\Common\aqualoglevels.h">
+       <TargetPath>inc</TargetPath>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
+    <ProjectReference Include="$(SRCROOT)\HNSOverlayPlugin\HNSOverlayPlugin.vcxproj" />
+    <ProjectReference Include="$(SRCROOT)\HNSClient\HNSClient.vcxproj" />
+    <ProjectReference Include="$(SRCROOT)\aquanix\aquanix.vcxproj" />
+  </ItemGroup>
+  <Import Project="$(PkgNuProj)\NuProj.Targets" />
+</Project>

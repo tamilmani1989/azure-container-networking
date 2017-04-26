@@ -1,92 +1,33 @@
-@if "%_echo%"=="" echo off
-GOTO :Start
-#
-#  Corext Environment Initialization
-#
-#    Setup the environment to be responsive and contained to the commandline
-#    https://microsoft.sharepoint.com/teams/corext/LivingDocs/CorextInitialization.aspx
-#
-:Start
+:main
+  @if /i "%~1"=="no_cache" set DO_NOT_USE_CACHE=1
 
-@REM -----------------------------------------------------------------------------------
-@REM -- RepoConfig - minimal tool config [anything of size should be packed/shared]
-@REM -----------------------------------------------------------------------------------
+  @if /i "%~1"=="clear_cache" if exist "%~dp0.corext\cache" (
+    for /D %%i in ("%~dp0.corext\cache\*") do @(
+      rd /s /q "%%~dpnxi"
+    )
+  )
 
-@REM -- Product being built (CorextBranch when not in Git)
-SET CorextProduct=CoreXT
+  @if defined BuildTracker set DO_NOT_USE_CACHE=1
+  @if defined QBUILD_DISTRIBUTED set DO_NOT_USE_CACHE=1
+  
+  @:: Set the current folder to be enlistment root
+  @:: Needed because WS2012R2 starts admin shortcuts in windows folder
+    @cd /d "%~dp0"
+  
+  @if not defined INIT_CACHE_VARS_TO_SAVE (
+    set INIT_CACHE_VARS_TO_SAVE=^
+      DO_NOT_USE_CACHE ^
+      INIT_CACHE_ENV_DIR ^
+      INIT_CACHE_INVALIDATE ^
+      INIT_CACHE_FILES_TO_HASH ^
+      INIT_CACHE_EXPIRATION_TIMEOUT ^
+      NO_RECURSIVE_CACHE
+  )
 
-@REM -- Pull packages and setup the enlistment
-CALL :ConfigureCorext
-IF ERRORLEVEL 1 GOTO :EOF
+  @if not "%DO_NOT_USE_CACHE%"=="1" if /i not "%DO_NOT_USE_CACHE%"=="true" (
+    call "%~dp0init.cache.cmd"
+    goto :EOF
+  )
 
-CALL :ExpandPackages
-IF ERRORLEVEL 1 GOTO :EOF
-
-CALL :BootstrapCorext
-IF ERRORLEVEL 1 GOTO :EOF
-
-@REM -- Configure purger with our preferences
-SET PURGER=%PURGER% -si -norecycle -i %PackageAddressGenDir:\=\\%.*
-
-@REM -- Corext-Repo-Specific.  You do not want this. Separate file keeps corext-repo info mostly isolated across fork/clone operations
-IF EXIST %ROOT%\.config\corext.init.cmd call %ROOT%\.config\corext.init.cmd
-
-@REM -----------------------------------------------------------------------------------
-GOTO :EOF
-
-
-
-
-
-@REM -----------------------------------------------------------------------------------
-@REM -----------------------------------------------------------------------------------
-:ConfigureCorext
-@REM -- Standard Corext Bootstrapper
-FOR %%I IN (%~dp0\.corext\..) DO @SET ROOT=%%~fI
-SET BaseDir=%ROOT%
-SET CoreXTConfig=%ROOT%\.corext
-IF NOT DEFINED CoreXTConfigFile SET CoreXTConfigFile=%CoreXTConfig%\corext.config
-GOTO :EOF
-
-
-@REM -----------------------------------------------------------------------------------
-@REM -----------------------------------------------------------------------------------
-:ExpandPackages
-ECHO Generating Expanded CoreXT config
-
-SET ExpandedCoreXTConfigFile=%ROOT%\.gen\corext.expanded.config
-SET ResolveCorextConfig=%ROOT%\.config\corext.ResolveCorext.config
-@REM To Prevent updating the ResovleCoreXTConfig in the repo, try to use one in the NugetMachineInstallRoot
-IF EXIST "%NugetMachineInstallRoot%" (
-  IF NOT EXIST %NugetMachineInstallRoot%\corext.ResolveCorext.config COPY %ROOT%\.config\corext.ResolveCorext.config %NugetMachineInstallRoot%\corext.ResolveCorext.config
-  SET "ResolveCorextConfig=%NugetMachineInstallRoot%\corext.ResolveCorext.config"
-)
-SET TEMPCoreXTConfigFile=%CoreXTConfigFile%
-SET CoreXTConfigFile=%ResolveCorextConfig%
-
-SET OnlineCommand=
-SET Pipe=
-
-IF /I "%IsOfficialBuild%"=="true" SET OnlineCommand=--Online
-IF /I "%QBUILD_DISTRIBUTED%"=="1" SET UpdatePackageVersionCommand=--DoNotUpdatePackageVersion
-
-REM Piping to null to keep the output clean, but still show warnings and errors
-CALL :BootstrapCorext || (
-    SET CoreXTConfigFile=%TEMPCoreXTConfigFile%
-    EXIT /B 1
-)
-
-SET CoreXTConfigFile=%TEMPCoreXTConfigFile%
-CALL ResolveCorextConfig --SourceRoot %ROOT%\src --ExpandedCorextConfig %ExpandedCoreXTConfigFile% %OnlineCommand% --ExpandPackages --AutoUpdateResolveCoreXTConfig %UpdatePackageVersionCommand%
-SET CoreXTConfigFile=%ExpandedCoreXTConfigFile%
-GOTO :EOF
-
-@REM -----------------------------------------------------------------------------------
-@REM -----------------------------------------------------------------------------------
-:BootstrapCorext
-SET PackageAddressGenDir=%ROOT%\.corext\gen
-%CoreXTConfig%\corextBoot.exe init -bootstrap
-IF ERRORLEVEL 1 ECHO [Error] CoreXT could not be properly initialized.  This enlistment window will not work. & EXIT /B 1
-CALL %PackageAddressGenDir%\init.cmd -recurse
-IF DEFINED TEMPCoreXTConfigFile SET CoreXTConfigFile=%TEMPCoreXTConfigFile%
-GOTO :EOF
+  @call "%~dp0init.full.cmd"
+@goto :EOF

@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <windows.h>
+#include <mutex>
 #include "../Shared/PluginMetadata.h"
 
 class AqPackageManager
@@ -19,7 +20,7 @@ class AqPackageManager
 	private:
 
 		// mutex for package manager objects		
-		std::_Mutex packman_objects_mutex;
+		std::mutex packman_objects_mutex;
 
 		int currentPluginCount = 0;
 		PluginMetadata *packmanCurrentPluginsMetadata = nullptr;
