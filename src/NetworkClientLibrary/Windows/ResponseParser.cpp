@@ -454,8 +454,18 @@ CleanUp:
 DllExport int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips)
 {
 	unsigned int ipCount = 0;
-	HRESULT hr = CoInitialize(nullptr);
-	if (SUCCEEDED(hr))
+	bool shouldCoUnInitialize = true;
+	HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	
+	if(hr == RPC_E_CHANGED_MODE) // this is considered as failed call, and only successfull calls should have couninitiallize
+	{
+		sprintf_s(logMsg, msgSize, "CoInitializeEx returned RPC_E_CHANGED_MODE. code: 0x%X", hr);
+		AquaLogging::Log(warn, logMsg);
+		shouldCoUnInitialize = false;
+	}
+	if (hr != E_INVALIDARG && 
+		hr != E_OUTOFMEMORY &&
+		hr != E_UNEXPECTED)
 	{
 		try
 		{
@@ -463,18 +473,38 @@ DllExport int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsign
 		}
 		catch (...)
 		{
-			CoUninitialize();
-			throw;
+			sprintf_s(logMsg, msgSize, "Exception in CountOrRetrieveSecondaryIps");
+			AquaLogging::Log(err, logMsg);
 		}
-		CoUninitialize();
+
+		if (shouldCoUnInitialize)
+		{
+			CoUninitialize();
+		}
+	}
+	else
+	{
+		sprintf_s(logMsg, msgSize, "Coinitialize failed with code 0x%X", hr);
+		AquaLogging::Log(err, logMsg);
 	}
 	return ipCount;
 }
 
 void ParseSubnetAndGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayIp)
 {
-	HRESULT hr = CoInitialize(nullptr);
-	if (SUCCEEDED(hr))
+	bool shouldCoUnInitialize = true;
+	HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+
+	if (hr == RPC_E_CHANGED_MODE) // this is considered as failed call, and only successfull calls should have couninitiallize
+	{
+		sprintf_s(logMsg, msgSize, "CoInitializeEx returned RPC_E_CHANGED_MODE. code: 0x%X", hr);
+		AquaLogging::Log(warn, logMsg);
+		shouldCoUnInitialize = false;
+	}
+
+	if (hr != E_INVALIDARG &&
+		hr != E_OUTOFMEMORY &&
+		hr != E_UNEXPECTED)
 	{
 		try
 		{
@@ -482,10 +512,19 @@ void ParseSubnetAndGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 		}
 		catch (...)
 		{
-			CoUninitialize();
-			throw;
+			sprintf_s(logMsg, msgSize, "Exception in RetrieveSubnetGatewayIp");
+			AquaLogging::Log(err, logMsg);
 		}
-		CoUninitialize();
+
+		if (shouldCoUnInitialize)
+		{
+			CoUninitialize();
+		}
+	}
+	else
+	{
+		sprintf_s(logMsg, msgSize, "Coinitialize failed with code 0x%X\n", hr);
+		AquaLogging::Log(err, logMsg);
 	}
 }
 } } } } }

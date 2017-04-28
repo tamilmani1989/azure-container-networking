@@ -255,7 +255,9 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 
 	responseLocation = strstr(recvBuffer, HttpResponseHeaderSeparator);
 	responseLocation += strlen(HttpResponseHeaderSeparator);
-	printf(responseLocation);
+
+	sprintf_s(logMsg, msgSize, "HttpResponse from NMAgent: %s", responseLocation);
+	AquaLogging::Log(info, logMsg);
 
 	if (responseLocation != nullptr)
 	{
@@ -345,11 +347,12 @@ int getIpsFromNmAgent(unsigned int *ips)
 				goto cleanup;
 			}
 
-			sprintf_s(logMsg, msgSize, "\nSuccessfully finished reading. Printing response below..\n");
+			sprintf_s(logMsg, msgSize, "\nSuccessfully finished reading. Printing response below..");
 			AquaLogging::Log(info, logMsg);
 			responseLocation = strstr(recvBuffer, HttpResponseHeaderSeparator);
 			responseLocation += strlen(HttpResponseHeaderSeparator);
-			printf(responseLocation);
+			sprintf_s(logMsg, msgSize, "Response: %s", responseLocation);
+			AquaLogging::Log(info, logMsg);
 		}
 		if (responseLocation != nullptr)
 		{
