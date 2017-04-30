@@ -139,7 +139,7 @@ void testM()
 	nnr.ips = NULL;
 	assert(GetAvailableIpAddresses(&nnr, &ipCount));
 	printf("Retrieved ipCount = %d\n", ipCount);
-
+	
 	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
 	memset(nnr.ips, 0, ipCount * sizeof(unsigned int));
 	assert(GetAvailableIpAddresses(&nnr, &ipCount));
@@ -149,7 +149,7 @@ void testM()
 	{
 		printf("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
 	}
-	// getchar();
+	getchar();
 
 	unsigned int ip=0;
 	printf("going to reserve available ip with ip0");
