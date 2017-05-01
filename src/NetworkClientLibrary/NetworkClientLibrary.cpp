@@ -53,6 +53,7 @@ extern int GetAvailableIpsfromRepository(unsigned int *ips);
 extern unsigned int GetReservedIpFromRepository(const char *reservationId);
 extern void ParseSubnetAndGatewayIp(char *xmlResponse, char **sunbetIp, char **gatewayIp);
 extern unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist, NetworkType networkType);
+extern bool IpRepositoryIsEmpty();
 extern unsigned int PersistedIpCountInRepository();
 extern void ProvideConfigToNIX(ClusterConfig *clusterConfig);
 extern DWORD GetHostIp(unsigned int *ip);
@@ -133,13 +134,36 @@ DllExport DWORD GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResourc
 DllExport DWORD ReserveAvailableIpAddress(char *reservationId, unsigned int *ipAddress)
 {
 	unsigned int reservedIp = 0;
-	int count = 0;
-	GetAvailableIpAddresses(NULL, &count);
-	if ( count > 0)
+	 int count = 0;
+	char logMsg[2048];
+#ifdef _WIN32
+	size_t msgSize = 2048;
+#endif
+	if(reservationId == NULL || ipAddress == NULL)
 	{
-		 reservedIp = ReserveRepositoryIpAddress(reservationId);
+		sprintf_s(logMsg, msgSize, "Either reservationId or ipAddress is NULL");
+		AquaLogging::Log(err, logMsg);
+		return UNEXPECTED_ERROR;
 	}
 
+	sprintf_s(logMsg, msgSize, "Received request to reserve an ip against %s", reservationId);
+	AquaLogging::Log(lInfo, logMsg);
+	
+	if (IpRepositoryIsEmpty()) // only get from nm agent if repository is empty
+	{
+		GetAvailableIpAddresses(NULL, &count);
+		if (count <= 0)		
+		{
+			sprintf_s(logMsg, msgSize, "GetAvailableIpAddresses returned non positive ipcount %d", count);
+			AquaLogging::Log(warn, logMsg);
+		}
+	}
+
+	// no harm in retrying once more if repository is empty
+	reservedIp = ReserveRepositoryIpAddress(reservationId);
+	sprintf_s(logMsg, msgSize, "Allocated ip %d for reservationid %s", reservedIp, reservationId);
+	AquaLogging::Log(lInfo, logMsg);
+	
 	if(reservedIp == 0)
 	{
 		return UNEXPECTED_ERROR;

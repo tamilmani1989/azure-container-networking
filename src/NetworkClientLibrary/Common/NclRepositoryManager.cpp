@@ -67,17 +67,32 @@ void FreeStatusInRepositoryIpAllocations(IpAllocations *myRepositoryIpAllocation
 IpStatus *GetRepositoryReservedIp(const char *reservationId)
 {
 	int i;
+	char logMsg[2048];
+#ifdef _WIN32
+	size_t msgSize = 2048;
+#endif
 	if (repositoryIpAllocations)
 	{
 		for (i = 0; i<repositoryIpAllocations->count; i++)
 		{
+			sprintf_s(logMsg, msgSize, "Going to obtain ip # %d", i);
+			AquaLogging::Log(verbose, logMsg);
 			IpStatus *retval = &repositoryIpAllocations->statusForAllIpAddresses[i];
-			if (retval->id)
+			sprintf_s(logMsg, msgSize, "Going to check if ip # %d is reserved or not", i);
+			AquaLogging::Log(verbose, logMsg);
+			if (retval->isReserved)
 			{
+				sprintf_s(logMsg, msgSize, "ip # %d is reserved.", i);
+				AquaLogging::Log(verbose, logMsg);
 				if (strcmp(reservationId, retval->id) == 0)
 				{
 					return retval;
 				}
+			}
+			else
+			{
+				sprintf_s(logMsg, msgSize, "ip # %d is not reserved.", i);
+				AquaLogging::Log(verbose, logMsg);				
 			}
 		}
 	}
@@ -87,19 +102,32 @@ IpStatus *GetRepositoryReservedIp(const char *reservationId)
 IpStatus *ReserveRepositoryIp(char *reservationId)
 {
 	int i;
+	char logMsg[2048];
+#ifdef _WIN32
+	size_t msgSize = 2048;
+#endif
 	if (repositoryIpAllocations)
 	{
 		for (i = 0; i<repositoryIpAllocations->count; i++)
 		{
-			IpStatus *retval = &repositoryIpAllocations->statusForAllIpAddresses[i];
-			if (!retval->id)
+			sprintf_s(logMsg, msgSize, "Going to obtain ip # %d", i);
+			AquaLogging::Log(verbose, logMsg);
+			sprintf_s(logMsg, msgSize, "Going to check if ip # %d is reserved or not", i);
+			AquaLogging::Log(verbose, logMsg);
+			if (repositoryIpAllocations->statusForAllIpAddresses[i].isReserved == false)
 			{
+				sprintf_s(logMsg, msgSize, "ip # %d is not reserved.", i);
+				AquaLogging::Log(verbose, logMsg);
 				size_t resSize = strlen(reservationId) * sizeof(char);
-				retval->id = (char *)malloc(resSize + 1);
-				strcpy_s(retval->id, resSize + 1, reservationId);
-				retval->isReserved = 1;
-				return retval;
+				repositoryIpAllocations->statusForAllIpAddresses[i].id = (char *)malloc(resSize + 1);
+				strcpy_s(repositoryIpAllocations->statusForAllIpAddresses[i].id, resSize + 1, reservationId);
+				repositoryIpAllocations->statusForAllIpAddresses[i].isReserved = true;
+				sprintf_s(logMsg, msgSize, "returning ip # %d (%u) for %s", i, repositoryIpAllocations->statusForAllIpAddresses[i].ip, reservationId);
+				AquaLogging::Log(verbose, logMsg);
+				return & (repositoryIpAllocations->statusForAllIpAddresses[i]);
 			}
+			sprintf_s(logMsg, msgSize, "ip # %d is reserved.", i);
+			AquaLogging::Log(verbose, logMsg);			
 		}
 	}
 	return NULL;
@@ -126,7 +154,7 @@ unsigned long ReleaseReservedRepositoryIp(const char *reservationId)
 			{
 				if (strcmp(retval->id, reservationId) == 0) 
 				{
-					sprintf_s(logMsg, msgSize, "yes, going to release reservation\n");
+					sprintf_s(logMsg, msgSize, "yes, going to release reservation %s %u", reservationId, retval->ip);
 					AquaLogging::Log(info, logMsg);
 					free(repositoryIpAllocations->statusForAllIpAddresses[i].id);
 					repositoryIpAllocations->statusForAllIpAddresses[i].id = NULL;
@@ -134,13 +162,13 @@ unsigned long ReleaseReservedRepositoryIp(const char *reservationId)
 					reservationFound = 1;
 					break;
 				}
-				sprintf_s(logMsg, msgSize, "no, not the target\n");
-				AquaLogging::Log(verbose, logMsg);
+				sprintf_s(logMsg, msgSize, "no, %u not the target", retval->ip);
+				AquaLogging::Log(info, logMsg);
 			}
 			else
 			{
-				sprintf_s(logMsg, msgSize, "no, not reserved)\n");
-				AquaLogging::Log(verbose, logMsg);
+				sprintf_s(logMsg, msgSize, "no, %u not reserved)\n", retval->ip);
+				AquaLogging::Log(info, logMsg);
 			}
 		}
 	}
@@ -170,7 +198,8 @@ void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips, NetworkType n
 	#ifdef _WIN32
 	size_t msgSize = 2048;
 	#endif
-	fprintf(stdout, "Inside repository lock ipCount=%d\n", ipCount);
+	sprintf_s(logMsg, msgSize, "Inside repository lock ipCount=%d\n", ipCount);
+	AquaLogging::Log(verbose, logMsg);
 	int i;
 	// non performant but okay for now, since this will move to ipam anyways
 	IpStatus *localIpStatus;
@@ -182,7 +211,6 @@ void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips, NetworkType n
 		return;
 	}
 	localIpStatus = (IpStatus *)malloc(ipCount * sizeof(IpStatus));
-	fprintf(stdout, "Allocated memory for ip status \n");
 	for (i = 0; i<ipCount; i++)
 	{
 		localIpStatus[i].ip = ips[i];
@@ -247,20 +275,48 @@ DllExport void UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkTyp
 	UnlockMutex
 }
 
+DllExport bool IpRepositoryIsEmpty()
+{
+	char logMsg[2048];
+#ifdef _WIN32
+	size_t msgSize = 2048;
+#endif
+	sprintf_s(logMsg, msgSize, "Going to check if IpRepositoryIsEmpty or not.");
+	AquaLogging::Log(verbose, logMsg);
+	if(repositoryIpAllocations == NULL)
+	{
+		sprintf_s(logMsg, msgSize, "IpRepositoryIsEmpty returning true");
+		AquaLogging::Log(verbose, logMsg);
+		return true;
+	}
+
+	sprintf_s(logMsg, msgSize, "IpRepositoryIsEmpty returning false");
+	AquaLogging::Log(verbose, logMsg);
+	return false;
+}
+
 DllExport unsigned int ReserveRepositoryIpAddress(char *reservationId)
 {
 	unsigned int returnIp = 0;
+	char logMsg[2048];
+#ifdef _WIN32
+	size_t msgSize = 2048;
+#endif
 	LockMutex;
 
 	if (repositoryIpAllocations)
 	{
 		IpStatus *repositoryReservedIpStatus = GetRepositoryReservedIp(reservationId);
-		if (repositoryReservedIpStatus)
+		if (repositoryReservedIpStatus != NULL)
 		{
+			sprintf_s(logMsg, msgSize, "Retrieved an existing ip %u for %s.", repositoryReservedIpStatus->ip, reservationId);
+			AquaLogging::Log(verbose, logMsg);
 			returnIp = repositoryReservedIpStatus->ip;
 		}
 		else
 		{
+			sprintf_s(logMsg, msgSize, "Could not retrieve an existing ip for %s. Will reserve one.", reservationId);
+			AquaLogging::Log(verbose, logMsg);
 			repositoryReservedIpStatus = ReserveRepositoryIp(reservationId);
 			if (repositoryReservedIpStatus)
 			{
@@ -309,14 +365,27 @@ int GetAvailableIpsfromRepository(unsigned int *ips)
 unsigned int GetReservedIpFromRepository(const char *reservationId)
 {
 	unsigned int returnIp = 0;
+	char logMsg[2048];
+#ifdef _WIN32
+	size_t msgSize = 2048;
+#endif
 	LockMutex;
 
 	if (repositoryIpAllocations)
 	{
+		sprintf_s(logMsg, msgSize, "Going to get an ip from repository for %s", reservationId );
+		AquaLogging::Log(info, logMsg);
 		IpStatus *repositoryReservedIpStatus = GetRepositoryReservedIp(reservationId);
 		if (repositoryReservedIpStatus)
 		{
+			sprintf_s(logMsg, msgSize, "Successfully received an ip from repository for %s. IP = %u", reservationId, repositoryReservedIpStatus->ip);
+			AquaLogging::Log(info, logMsg);
 			returnIp = repositoryReservedIpStatus->ip;
+		}
+		else
+		{
+			sprintf_s(logMsg, msgSize, "Was unsucessful in obtaining an existing ip from repository for %s.", reservationId);
+			AquaLogging::Log(info, logMsg);
 		}
 	}
 	UnlockMutex;

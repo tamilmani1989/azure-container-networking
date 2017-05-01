@@ -9,7 +9,6 @@
     <ProjectFile Include="NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
     <ProjectFile Include="NetworkClient\NetworkClient.vcxproj" />
     <ProjectFile Include="Logging\Logging.vcxproj" />
-    <ProjectFile Include="Nuget\dirs.proj" Condition="'$(IsOfficialBuild)'!='' Or '$(BuildRDPackage)'=='true' Or '$(BuildNugetPackage)'=='true'" />
     <ProjectFile Include="HNSOverlayPlugin\HNSOverlayPlugin.vcxproj" />
     <ProjectFile Include="HNSClient\HNSClient.vcxproj" />
     <ProjectFile Include="aquanix\aquanix.vcxproj" />
@@ -19,6 +18,9 @@
 
   <ItemGroup Condition="'$(IsOfficialBuild)' != ''">
     <ProjectFile Include="CodeSign\CodesignSettings.proj"  >
+        <BuildInParallel>false</BuildInParallel>
+    </ProjectFile>
+    <ProjectFile Include="Nuget\dirs.proj">
         <BuildInParallel>false</BuildInParallel>
     </ProjectFile>
   </ItemGroup>

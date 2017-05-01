@@ -64,7 +64,7 @@ void testM()
 #endif
 
 	printf("Successfully initialized Azure/Underlay. retval = %d\n", retval);
-	getchar();
+	/*getchar();
 
 	cfg.net = OverLay;
 	cfg.env = Azure;
@@ -136,25 +136,38 @@ void testM()
 	getchar();
 
 	unsigned int ip;
+	 */
+
+	nnr.ips = NULL;
+	assert(GetAvailableIpAddresses(&nnr, &ipCount));
+	printf("Retrieved ipCount = %d\n", ipCount);
+	
+	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
+	memset(nnr.ips, 0, ipCount * sizeof(unsigned int));
+	assert(GetAvailableIpAddresses(&nnr, &ipCount));
+	printf("Printing available ip addresses count = %d\n", ipCount);
+
+	for (i = 0; i < ipCount; i++)
+	{
+		printf("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
+	}
+	getchar();
+
+	unsigned int ip=0;
 	printf("going to reserve available ip with ip0");
 	assert(ReserveAvailableIpAddress((char *)"ip0", &ip));
 	printf("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
-	getchar();
+	//getchar();
 
-    nnr.ips = NULL;
-    assert(GetAvailableIpAddresses(&nnr, &ipCount));
-	printf("Retrieved ipCount = %d\n", ipCount);
-	getchar();
+	//getchar();
 
-    nnr.ips = (unsigned int *) malloc(ipCount * sizeof(unsigned int));
-    memset(nnr.ips, 0, ipCount * sizeof(unsigned int));
     assert(GetAvailableIpAddresses(&nnr, &ipCount));
     printf("Printing available ip addresses count = %d\n", ipCount);
     for(i = 0; i < ipCount ; i++)
     {
         printf("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
     }
-	getchar();
+	//getchar();
     
 	assert(ReserveAvailableIpAddress((char *)"ip1", &ip));
     printf("ip1 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
@@ -198,6 +211,15 @@ void testM()
 	printf("ip1 (without reservation). retval = %d\n", retval);
 	getchar();
 
+
+	assert(ReserveAvailableIpAddress((char *)"ip5", &ip));
+	printf("ip5 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+	getchar();
+
+	assert(GetReservedIpAddress((char*)"ip5", &ip));
+	printf("ip5 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+	getchar();
+
 	assert(ReleaseIpReservation("ip2"));
 	retval = GetReservedIpAddress("ip2", &ip);
 	printf("ip2 (without reservation). retval =  %d\n", retval);
@@ -206,8 +228,10 @@ void testM()
 	assert(ReleaseIpReservation("ip0"));
 	retval = GetReservedIpAddress("ip0", &ip);
 	printf("ip0 (without reservation). retval =  %d\n", retval);
-    free(nnr.ips);
 	getchar();
+
+
+
 
 	assert(GetAvailableIpAddresses(&nnr, &ipCount));
 	printf("Printing available ip addresses count = %d\n", ipCount);
@@ -215,6 +239,8 @@ void testM()
 	{
 		printf("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
 	}
+
+	free(nnr.ips);
 	getchar();
 }
 

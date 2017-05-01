@@ -17,6 +17,11 @@
 #include <WinSock2.h>
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
+#include <iphlpapi.h>
+#include <windows.h>
+
+#pragma comment(lib, "iphlpapi.lib")
+
 #include "../Common/aquanetworkclient.h"
 #include "../Common/nclcore.h"
 #include "../../Logging/Logging.h"
@@ -54,7 +59,7 @@ SOCKET connectToHost(char *host, USHORT port)
 	if ((hp = gethostbyname(host)) == nullptr)
 	{
 		sprintf_s(logMsg, msgSize,  "gethostbyname failed %d : %s", WSAGetLastError(), host);
-		AquaLogging::Log(info, logMsg);
+		AquaLogging::Log(err, logMsg);
 		return INVALID_SOCKET;
 	}
 
@@ -74,13 +79,13 @@ SOCKET connectToHost(char *host, USHORT port)
 		int error = WSAGetLastError();
 		if (error == WSAENETUNREACH)
 		{
-			sprintf_s(logMsg, msgSize,  "Connection to host failed.\n");
-			AquaLogging::Log(info, logMsg);
+			sprintf_s(logMsg, msgSize,  "Connection to host failed with WSAENETUNREACH.");
+			AquaLogging::Log(err, logMsg);
 		}
 		else
 		{
-			sprintf_s(logMsg, msgSize,  "Connection to host failed with error code %d\n", error);
-			AquaLogging::Log(info, logMsg);
+			sprintf_s(logMsg, msgSize,  "Connection to host failed with error code %d.", error);
+			AquaLogging::Log(ERROR, logMsg);
 		}
 		return INVALID_SOCKET;
 	}
@@ -216,6 +221,292 @@ int retrieveHttpStatus(char *recvBuffer)
 	AquaLogging::Log(info, logMsg);
 	return ret;
 }
+
+DWORD GetHostIp(unsigned int *ip);
+
+void printRoutingTable()
+{
+	PMIB_IPFORWARDTABLE pIpForwardTable = NULL;
+	DWORD dwSize = 0;
+	BOOL bOrder = FALSE;
+	DWORD dwStatus;
+	char logMsg[2048];
+	size_t msgSize = 2048;
+	unsigned int i;
+
+	sprintf_s(logMsg, msgSize, "===========Going to print routing table.============");
+	AquaLogging::Log(verbose, logMsg);
+	// Find out how big our buffer needs to be.
+	dwStatus = GetIpForwardTable(pIpForwardTable, &dwSize, bOrder);
+	if (dwStatus == ERROR_INSUFFICIENT_BUFFER) 
+	{
+		// Allocate the memory for the table
+		pIpForwardTable = (PMIB_IPFORWARDTABLE)malloc(dwSize);
+		if (pIpForwardTable == NULL)
+		{
+			sprintf_s(logMsg, msgSize, "Malloc failed. Out of memory, pipForwardTable");
+			AquaLogging::Log(warn, logMsg);
+			return;
+		}
+		// Now get the table.
+		dwStatus = GetIpForwardTable(pIpForwardTable, &dwSize, bOrder);
+	}
+
+	if (dwStatus != ERROR_SUCCESS) 
+	{
+		sprintf_s(logMsg, msgSize, "getIpForwardTable failed");
+		AquaLogging::Log(warn, logMsg);
+		if (pIpForwardTable)
+			free(pIpForwardTable);
+		return;
+	}
+
+	for (i = 0; i < pIpForwardTable->dwNumEntries; i++) {
+
+		char mask[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &pIpForwardTable->table[i].dwForwardMask, mask, INET_ADDRSTRLEN);
+		char dest[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &pIpForwardTable->table[i].dwForwardDest, dest, INET_ADDRSTRLEN);
+		char nexthop[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &pIpForwardTable->table[i].dwForwardNextHop, nexthop, INET_ADDRSTRLEN);
+		sprintf_s(logMsg, msgSize, "=> mask=%s fwAge=%d dest=%s if=%d nexthop=%s dwFP=%d dwFP=%d m1=%d m2=%d m3=%d m4=%d m5=%d, nhAS=%d, FT=%d, dwFT=%d, FP=%d\n", 
+			mask,
+			pIpForwardTable->table[i].dwForwardAge,
+			dest,
+			pIpForwardTable->table[i].dwForwardIfIndex,
+			nexthop,			
+			pIpForwardTable->table[i].dwForwardPolicy,
+			pIpForwardTable->table[i].dwForwardProto,
+			pIpForwardTable->table[i].dwForwardMetric1,
+			pIpForwardTable->table[i].dwForwardMetric2,
+			pIpForwardTable->table[i].dwForwardMetric3,
+			pIpForwardTable->table[i].dwForwardMetric4,
+			pIpForwardTable->table[i].dwForwardMetric5,
+			pIpForwardTable->table[i].dwForwardNextHopAS,
+			pIpForwardTable->table[i].ForwardType,
+			pIpForwardTable->table[i].dwForwardType,
+			pIpForwardTable->table[i].ForwardProto
+				);
+
+		AquaLogging::Log(verbose, logMsg);
+	}
+
+	// Free resources
+	if (pIpForwardTable) free(pIpForwardTable);	
+
+	sprintf_s(logMsg, msgSize, "===========Finished printing routing table.============");
+	AquaLogging::Log(verbose, logMsg);
+
+}
+
+int GetPrimaryCAIface(char *ca , int *iface)
+{
+	PIP_ADAPTER_INFO pAdapterInfo;
+	PIP_ADAPTER_INFO pAdapter = NULL;
+	DWORD dwRetVal = 0;
+	UINT i;
+	char logMsg[2048];
+	size_t msgSize = 2048;
+	int retval = -1;
+
+	sprintf_s(logMsg, msgSize, "Going to get primary CA via GetAdaptersInfo");
+	AquaLogging::Log(info, logMsg);
+
+
+	ULONG ulOutBufLen = sizeof(IP_ADAPTER_INFO);
+	pAdapterInfo = (IP_ADAPTER_INFO *)malloc(sizeof(IP_ADAPTER_INFO));
+	if (pAdapterInfo == NULL) 
+	{
+		sprintf_s(logMsg, msgSize, "Error allocating memory needed to call GetAdaptersinfo\n");
+		AquaLogging::Log(warn, logMsg);
+		return retval;
+	}
+	// Make an initial call to GetAdaptersInfo to get
+	// the necessary size into the ulOutBufLen variable
+	if (GetAdaptersInfo(pAdapterInfo, &ulOutBufLen) == ERROR_BUFFER_OVERFLOW) 
+	{
+		free(pAdapterInfo);
+		pAdapterInfo = (IP_ADAPTER_INFO *)malloc(ulOutBufLen);
+		if (pAdapterInfo == NULL) 
+		{
+			sprintf_s(logMsg, msgSize, "Error allocating memory needed to call GetAdaptersinfo\n");
+			AquaLogging::Log(warn, logMsg);
+			return retval;
+		}
+	}
+
+	if ((dwRetVal = GetAdaptersInfo(pAdapterInfo, &ulOutBufLen)) == NO_ERROR) 
+	{
+		pAdapter = pAdapterInfo;
+		while (pAdapter) 
+		{
+			sprintf_s(logMsg, msgSize, "\tComboIndex: \t%d\n", pAdapter->ComboIndex);
+			AquaLogging::Log(verbose, logMsg);
+			sprintf_s(logMsg, msgSize, "\tAdapter Name: \t%s\n", pAdapter->AdapterName);
+			AquaLogging::Log(verbose, logMsg);
+			sprintf_s(logMsg, msgSize, "\tAdapter Desc: \t%s\n", pAdapter->Description);
+			AquaLogging::Log(verbose, logMsg);
+			sprintf_s(logMsg, msgSize, "\tAdapter Addr: \t");
+			AquaLogging::Log(verbose, logMsg);
+			for (i = 0; i < pAdapter->AddressLength; i++) 
+			{
+				if (i == (pAdapter->AddressLength - 1))
+				{
+					sprintf_s(logMsg, msgSize, "%.2X\n", (int)pAdapter->Address[i]);
+					AquaLogging::Log(verbose, logMsg);
+				}
+				else
+				{
+					sprintf_s(logMsg, msgSize, "%.2X-", (int)pAdapter->Address[i]);
+					AquaLogging::Log(verbose, logMsg);
+				}
+			}
+			sprintf_s(logMsg, msgSize, "\tIndex: \t%d\n", pAdapter->Index);
+			AquaLogging::Log(verbose, logMsg);
+			sprintf_s(logMsg, msgSize, "\tType: \t");
+			AquaLogging::Log(verbose, logMsg);
+			switch (pAdapter->Type) {
+			case MIB_IF_TYPE_OTHER:
+				sprintf_s(logMsg, msgSize, "Other\n");
+				AquaLogging::Log(verbose, logMsg);
+				break;
+			case MIB_IF_TYPE_ETHERNET:
+				sprintf_s(logMsg, msgSize, "Ethernet\n");
+				AquaLogging::Log(verbose, logMsg);
+				break;
+			case MIB_IF_TYPE_TOKENRING:
+				sprintf_s(logMsg, msgSize, "Token Ring\n");
+				AquaLogging::Log(verbose, logMsg);
+				break;
+			case MIB_IF_TYPE_FDDI:
+				sprintf_s(logMsg, msgSize, "FDDI\n");
+				AquaLogging::Log(verbose, logMsg);
+				break;
+			case MIB_IF_TYPE_PPP:
+				sprintf_s(logMsg, msgSize, "PPP\n");
+				AquaLogging::Log(verbose, logMsg);
+				break;
+			case MIB_IF_TYPE_LOOPBACK:
+				sprintf_s(logMsg, msgSize, "Lookback\n");
+				AquaLogging::Log(verbose, logMsg);
+				break;
+			case MIB_IF_TYPE_SLIP:
+				sprintf_s(logMsg, msgSize, "Slip\n");
+				AquaLogging::Log(verbose, logMsg);
+				break;
+			default:
+				sprintf_s(logMsg, msgSize, "Unknown type %ld\n", pAdapter->Type);
+				AquaLogging::Log(verbose, logMsg);
+				break;
+			}
+
+			sprintf_s(logMsg, msgSize, "\tIP Address: \t%s\n", pAdapter->IpAddressList.IpAddress.String);
+			AquaLogging::Log(verbose, logMsg);
+			sprintf_s(logMsg, msgSize, "\tIP Mask: \t%s\n", pAdapter->IpAddressList.IpMask.String);
+			AquaLogging::Log(verbose, logMsg);
+
+			sprintf_s(logMsg, msgSize, "\tGateway: \t%s\n", pAdapter->GatewayList.IpAddress.String);
+			AquaLogging::Log(verbose, logMsg);
+			sprintf_s(logMsg, msgSize, "\t***\n");
+			AquaLogging::Log(verbose, logMsg);
+
+			if (pAdapter->DhcpEnabled) 
+			{
+				sprintf_s(logMsg, msgSize, "\tDHCP Enabled: Yes\n");
+				AquaLogging::Log(verbose, logMsg);
+				sprintf_s(logMsg, msgSize, "\t  DHCP Server: \t%s\n", pAdapter->DhcpServer.IpAddress.String);
+				AquaLogging::Log(verbose, logMsg);
+				if(strncmp(pAdapter->DhcpServer.IpAddress.String, "0.0.0.0", 7) != 0)
+				{
+					(*iface) = pAdapter->ComboIndex;
+					strncpy_s(ca, 16, pAdapter->IpAddressList.IpAddress.String, 16);
+					sprintf_s(logMsg, msgSize, "Found primary CA: %s iface: %d\n", ca, *iface);
+					AquaLogging::Log(info, logMsg);
+					retval = 0;
+					break;
+				}
+			}
+			else
+			{
+				sprintf_s(logMsg, msgSize, "\tDHCP Enabled: No\n");
+				AquaLogging::Log(verbose, logMsg);
+			}
+
+			pAdapter = pAdapter->Next;
+		}
+	}
+	else 
+	{
+		sprintf_s(logMsg, msgSize, "GetAdaptersInfo failed with error: %d\n", dwRetVal);
+		AquaLogging::Log(err, logMsg);
+
+	}
+	if (pAdapterInfo) free(pAdapterInfo);
+
+	sprintf_s(logMsg, msgSize, "Finished retrieving primary CA via GetAdaptersInfo. Returning : %d", retval);
+	AquaLogging::Log(info, logMsg);
+	return retval;
+}
+
+int createRouteToWireServer()
+{
+	PMIB_IPFORWARDROW pRow;
+	char primaryCa[16];
+	int iFace;
+	char logMsg[2048];
+	size_t msgSize = 2048;
+
+	sprintf_s(logMsg, msgSize, "Going to get primary CA");
+	AquaLogging::Log(info, logMsg);
+
+	if(GetPrimaryCAIface(primaryCa, &iFace) !=0)
+	{
+		sprintf_s(logMsg, msgSize, "Unable to get primary CA via get adapters");
+		AquaLogging::Log(err, logMsg);
+		return -1;
+	}
+
+	sprintf_s(logMsg, msgSize, "Successfully retrieved primary CA as %s iFace: %d", primaryCa, iFace);
+	AquaLogging::Log(info, logMsg);
+
+
+	pRow = (PMIB_IPFORWARDROW)malloc(sizeof(MIB_IPFORWARDROW));
+	if (!pRow)
+	{
+		sprintf_s(logMsg, msgSize, "Unable to allocate memory for pRow");
+		AquaLogging::Log(err, logMsg);
+		return -1;
+	}
+
+	pRow->dwForwardDest = inet_addr("169.254.169.254");
+	pRow->dwForwardNextHop = inet_addr(primaryCa);
+	pRow->dwForwardPolicy = 0; // see http://www.ietf.org/rfc/rfc1354.txt
+	pRow->dwForwardProto = MIB_IPPROTO_NETMGMT;
+	pRow->dwForwardMask = inet_addr("255.255.255.255");
+	pRow->dwForwardIfIndex = iFace;
+	pRow->dwForwardMetric1 = 16; //see http://www.ietf.org/rfc/rfc1354.txt
+	pRow->dwForwardType = MIB_IPROUTE_TYPE_DIRECT;
+	DWORD retval = CreateIpForwardEntry(pRow);
+	if(retval == ERROR_OBJECT_ALREADY_EXISTS)
+	{
+		sprintf_s(logMsg, msgSize, "Unable to create route for WireServer because it already exists. Retval: %lu ", retval);
+		AquaLogging::Log(warn, logMsg);	
+	}
+	else
+	if (retval != 0)
+	{
+		sprintf_s(logMsg, msgSize, "Unable to create route for WireServer. Error: %lu ", retval);
+		AquaLogging::Log(warn, logMsg);
+		if (pRow) free(pRow);
+		return -1;
+	}
+
+	sprintf_s(logMsg, msgSize, "Successfully created route for WireSererver.");
+	AquaLogging::Log(info, logMsg);
+	if (pRow) free(pRow);
+	return 0;
+}
+
 int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 {
 	char *recvBuffer = nullptr;
@@ -225,6 +516,9 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 
 	sprintf_s(logMsg, msgSize, "Trying to connect to nm agent.\n");
 	AquaLogging::Log(info, logMsg);
+	printRoutingTable();
+	createRouteToWireServer();
+	printRoutingTable();
 	SOCKET sock = connectToHost("169.254.169.254", 80);
 
 	if (sock == INVALID_SOCKET)
@@ -255,7 +549,9 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 
 	responseLocation = strstr(recvBuffer, HttpResponseHeaderSeparator);
 	responseLocation += strlen(HttpResponseHeaderSeparator);
-	printf(responseLocation);
+
+	sprintf_s(logMsg, msgSize, "HttpResponse from NMAgent: %s", responseLocation);
+	AquaLogging::Log(info, logMsg);
 
 	if (responseLocation != nullptr)
 	{
@@ -291,7 +587,10 @@ int getIpsFromNmAgent(unsigned int *ips)
 	size_t msgSize = 2048;
 	
 	sprintf_s(logMsg, msgSize, "Trying to connect to nm agent.\n");
-	AquaLogging::Log(info, logMsg);
+	AquaLogging::Log(info, logMsg);	
+	printRoutingTable();
+	createRouteToWireServer();
+	printRoutingTable();
 	SOCKET sock = connectToHost("169.254.169.254", 80);
 
 	if (sock == INVALID_SOCKET)
@@ -345,11 +644,12 @@ int getIpsFromNmAgent(unsigned int *ips)
 				goto cleanup;
 			}
 
-			sprintf_s(logMsg, msgSize, "\nSuccessfully finished reading. Printing response below..\n");
+			sprintf_s(logMsg, msgSize, "\nSuccessfully finished reading. Printing response below..");
 			AquaLogging::Log(info, logMsg);
 			responseLocation = strstr(recvBuffer, HttpResponseHeaderSeparator);
 			responseLocation += strlen(HttpResponseHeaderSeparator);
-			printf(responseLocation);
+			sprintf_s(logMsg, msgSize, "Response: %s", responseLocation);
+			AquaLogging::Log(info, logMsg);
 		}
 		if (responseLocation != nullptr)
 		{
@@ -403,7 +703,7 @@ DWORD GetHostIp(unsigned int *ip)
 	
 	if (gethostname(hostName, 255) != 0)
 	{
-		sprintf_s(logMsg, msgSize, "error happenned during hethostname() %d\n", WSAGetLastError());
+		sprintf_s(logMsg, msgSize, "error happenned during gethostname() %d\n", WSAGetLastError());
 		AquaLogging::Log(err, logMsg);
 		retval = UNEXPECTED_ERROR;
 	}
@@ -547,7 +847,7 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 		if (ret == 201)
 		{
 			sprintf_s(logMsg, msgSize, "docker network create succeeded\n");
-			AquaLogging::Log(err, logMsg);
+			AquaLogging::Log(info, logMsg);
 		}
 		else
 		{
