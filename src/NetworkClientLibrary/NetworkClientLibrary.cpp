@@ -33,18 +33,11 @@
 #define UNREFERENCED_PARAMETER(param) do { (void)(param); } while (0)
 #endif
 
-#ifdef _WIN32
-extern DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, USHORT *mappingsCount);
-extern DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp);
-std::mutex hostLocalMutex;
-bool hostLocalIpProvisionedInHNS = false;
-#endif
-
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 
-extern DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig);
-extern DWORD setupOverlay(ClusterConfig *clusterConfig);
-extern int getIpsFromNmAgent(unsigned int *ips);
+extern DWORD SetupUnderlayInAzure(ClusterConfig *clusterConfig);
+extern DWORD SetupOverlay(ClusterConfig *clusterConfig);
+extern int GetIpsFromNmAgent(unsigned int *ips);
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 extern void UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkType networkType);
 extern unsigned int ReserveRepositoryIpAddress(char *reservationId);
@@ -58,6 +51,7 @@ extern unsigned int PersistedIpCountInRepository();
 extern void ProvideConfigToNIX(ClusterConfig *clusterConfig);
 extern DWORD GetHostIp(unsigned int *ip);
 extern int WsaInitialize();
+extern void InitRepositoryIpAllocation();
 NetworkType networkTypeProvided = UnderLay;
 
 // Returns the number of ip addresses that were returned
@@ -65,7 +59,7 @@ NetworkType networkTypeProvided = UnderLay;
 // Otherwise, all the ip addresses (reserved + nonreserved) are populated
 int GetAllIpAddresses(NodeNetworkResources *nodeNetworkResources, NetworkType networkType)
 {
-	int ipCount = getIpsFromNmAgent(nodeNetworkResources->ips);
+	int ipCount = GetIpsFromNmAgent(nodeNetworkResources->ips);
 	
 	if (nodeNetworkResources->ips)
 	{
@@ -96,14 +90,14 @@ DllExport DWORD GetAvailableIpAddresses(NodeNetworkResources *nodeNetworkResourc
 		return 0;
 	}
 
-	ipCount = getIpsFromNmAgent(NULL);	
+	ipCount = GetIpsFromNmAgent(NULL);	
 	if (ipCount <= 0)
 	{
 		return UNEXPECTED_ERROR;
 	}
 
 	ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
-	ipCount = getIpsFromNmAgent(ips);
+	ipCount = GetIpsFromNmAgent(ips);
 	sprintf_s(logMsg, msgSize, "Retrieved %d ips fron nm agent along with details\n", ipCount);
 	AquaLogging::Log(info, logMsg);
 	for(int i = 0; i<ipCount; i++)
@@ -135,7 +129,7 @@ DllExport DWORD ReserveAvailableIpAddress(char *reservationId, unsigned int *ipA
 {
 	unsigned int reservedIp = 0;
 	 int count = 0;
-	char logMsg[2048];
+	
 #ifdef _WIN32
 	size_t msgSize = 2048;
 #endif
@@ -147,7 +141,7 @@ DllExport DWORD ReserveAvailableIpAddress(char *reservationId, unsigned int *ipA
 	}
 
 	sprintf_s(logMsg, msgSize, "Received request to reserve an ip against %s", reservationId);
-	AquaLogging::Log(lInfo, logMsg);
+	AquaLogging::Log(info, logMsg);
 	
 	if (IpRepositoryIsEmpty()) // only get from nm agent if repository is empty
 	{
@@ -162,7 +156,7 @@ DllExport DWORD ReserveAvailableIpAddress(char *reservationId, unsigned int *ipA
 	// no harm in retrying once more if repository is empty
 	reservedIp = ReserveRepositoryIpAddress(reservationId);
 	sprintf_s(logMsg, msgSize, "Allocated ip %d for reservationid %s", reservedIp, reservationId);
-	AquaLogging::Log(lInfo, logMsg);
+	AquaLogging::Log(info, logMsg);
 	
 	if(reservedIp == 0)
 	{
@@ -223,7 +217,7 @@ bool IsLocalNodeIp(unsigned int ip)
 }
 
 
-DllExport unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
+DllExport unsigned long SaveOverlayAddressSpace(ClusterConfig *clusterConfig)
 {
 	#ifdef _WIN32
 	size_t msgSize = 2048;
@@ -254,6 +248,11 @@ DllExport unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig)
 	return 0;
 }
 
+DllExport void SetEnvironment(NetworkType networkType)
+{
+	networkTypeProvided = networkType;
+}
+
 DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 {
 	unsigned long failed = 0;
@@ -282,18 +281,19 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 		return VfpError;
 	}
 #endif
+	InitRepositoryIpAllocations();
 	switch(clusterConfig->net)
 	{
 		case OverLay: 
 			sprintf_s(logMsg, msgSize, "Going to setup overlay network\n");
 			AquaLogging::Log(info, logMsg);
-			networkTypeProvided = OverLay; // save the type
-			failed = setupOverlay(clusterConfig);
+			SetEnvironment(OverLay); // save the type
+			failed = SetupOverlay(clusterConfig);
 			if(failed == 0)
 			{
 				sprintf_s(logMsg, msgSize, "Going to persist overlay address space\n");
 				AquaLogging::Log(info, logMsg);
-				saveOverlayAddressSpace(clusterConfig);
+				SaveOverlayAddressSpace(clusterConfig);
 				#ifdef _WIN32
 				ProvideConfigToNIX(clusterConfig);
 				#endif
@@ -313,11 +313,11 @@ DllExport DWORD InitializeNetwork(ClusterConfig *clusterConfig)
 		case UnderLay: 
 			sprintf_s(logMsg, msgSize, "Going to setup underlay network\n");
 			AquaLogging::Log(info, logMsg);
-			networkTypeProvided = UnderLay;
+			SetEnvironment(UnderLay);
 			switch(clusterConfig->env)
 			{
 			case Azure: 
-				return setupUnderlayInAzure(clusterConfig);
+				return SetupUnderlayInAzure(clusterConfig);
 
 			case StandAlone: 		
 				sprintf_s(logMsg, msgSize, "Underlay in StandAlone is not a supportedconfig");
@@ -343,44 +343,7 @@ DllExport DWORD SetupNetworkLogging(void(*log)(int, char*))
 
 DllExport DWORD GetHostLocalIp(unsigned int *hostLocalIp)
 {
-	unsigned long retval = UNEXPECTED_ERROR;
-	#ifdef _WIN32
-	size_t msgSize = 2048;
-	#endif
-
-	if(networkTypeProvided == OverLay)
-	{
-		#ifdef _WIN32
-		retval = ReserveAvailableIpAddress("HostLocalIp", hostLocalIp);
-		if (retval == 0)
-		{
-			if (!hostLocalIpProvisionedInHNS)
-			{
-				hostLocalMutex.lock();
-				if (!hostLocalIpProvisionedInHNS)
-				{
-					char ipInString[INET_ADDRSTRLEN];
-					wchar_t ipInStringw[INET_ADDRSTRLEN];
-					inet_ntop(AF_INET, hostLocalIp, ipInString, INET_ADDRSTRLEN);
-					size_t converted;
-					mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN);
-					AddHostLocalEndpoint(ipInStringw);
-					hostLocalIpProvisionedInHNS = true;
-				}
-			}
-		}
-		else
-		{
-			sprintf_s(logMsg, msgSize, "Reserving Available for host local returned non-zero %d", retval);
-			AquaLogging::Log(info, logMsg);
-		}
-		#endif
-	}
-	else
-	{
-		retval = GetHostIp(hostLocalIp);
-	}
-	return retval;
+	return GetHostIp(hostLocalIp);
 }
 
 DllExport DWORD SetupNetworkEtwLogging(bool additionConsoleLoggingEnabled)

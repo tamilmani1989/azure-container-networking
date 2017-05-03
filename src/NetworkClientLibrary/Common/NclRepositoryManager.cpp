@@ -36,18 +36,46 @@ pthread_mutex_t ipAllocationsLock = PTHREAD_MUTEX_INITIALIZER;
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 IpAllocations *repositoryIpAllocations;
 
-void FreeStatusInRepositoryIpAllocations(IpAllocations *myRepositoryIpAllocations)
+DllExport void InitRepositoryIpAllocations()
+{
+	LockMutex
+	if (!repositoryIpAllocations)
+	{
+		repositoryIpAllocations = (IpAllocations *)malloc(sizeof(IpAllocations));
+		memset(repositoryIpAllocations, 0, sizeof(IpAllocations));
+	}
+	UnlockMutex
+}	
+
+DllExport unsigned int GetRepositoryPrimaryIp()
+{
+	if(repositoryIpAllocations)
+	{
+		return repositoryIpAllocations->primaryIp;
+	}
+	return 0;
+}
+
+DllExport void SetRepositoryPrimaryIp(unsigned int ip)
+{
+	LockMutex
+	if(repositoryIpAllocations)
+		repositoryIpAllocations->primaryIp = ip;
+	UnlockMutex
+}
+
+DllExport int FreeStatusInRepositoryIpAllocations()
 {
 	int i;
 	 
 	#ifdef _WIN32
 	size_t msgSize = 2048;
 	#endif
-	if (myRepositoryIpAllocations)
+	if (repositoryIpAllocations)
 	{
-		for (i = 0; i<myRepositoryIpAllocations->count; i++)
+		for (i = 0; i<repositoryIpAllocations->count; i++)
 		{
-			IpStatus tempStatus = myRepositoryIpAllocations->statusForAllIpAddresses[i];
+			IpStatus tempStatus = repositoryIpAllocations->statusForAllIpAddresses[i];
 			if (tempStatus.id != NULL && strcmp(tempStatus.id, "Sys_Reserved")!=0)
 			{
 				sprintf_s(logMsg, msgSize, "Going to free %s\n", tempStatus.id);
@@ -57,17 +85,21 @@ void FreeStatusInRepositoryIpAllocations(IpAllocations *myRepositoryIpAllocation
 				tempStatus.id = NULL;
 			}
 		}
-		if (myRepositoryIpAllocations->statusForAllIpAddresses)
+		if (repositoryIpAllocations->statusForAllIpAddresses)
 		{
-			free(myRepositoryIpAllocations->statusForAllIpAddresses);
+			free(repositoryIpAllocations->statusForAllIpAddresses);
+			repositoryIpAllocations->statusForAllIpAddresses=NULL;
 		}
+		repositoryIpAllocations->count=0;
+		return 0;
 	}
+	return 1;
 }
 
-IpStatus *GetRepositoryReservedIp(const char *reservationId)
+IpStatus *getRepositoryReservedIp(const char *reservationId)
 {
 	int i;
-	char logMsg[2048];
+
 #ifdef _WIN32
 	size_t msgSize = 2048;
 #endif
@@ -102,7 +134,7 @@ IpStatus *GetRepositoryReservedIp(const char *reservationId)
 IpStatus *ReserveRepositoryIp(char *reservationId)
 {
 	int i;
-	char logMsg[2048];
+	
 #ifdef _WIN32
 	size_t msgSize = 2048;
 #endif
@@ -133,7 +165,7 @@ IpStatus *ReserveRepositoryIp(char *reservationId)
 	return NULL;
 }
 
-unsigned long ReleaseReservedRepositoryIp(const char *reservationId)
+unsigned long releaseReservedRepositoryIp(const char *reservationId)
 {
 	int i;
 	unsigned long reservationFound = 0;
@@ -192,7 +224,7 @@ IpStatus *GetRepositoryIpAllocationStatus(unsigned int ip)
 	return NULL;
 }
 
-void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips, NetworkType networkType)
+void updateRepositoryIpListWithoutLock(int ipCount, unsigned* ips, NetworkType networkType)
 {
 	 
 	#ifdef _WIN32
@@ -257,13 +289,9 @@ void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips, NetworkType n
 
 	sprintf_s(logMsg, msgSize, "Going to free current ip status from repository\n");
 	AquaLogging::Log(verbose, logMsg);
-	FreeStatusInRepositoryIpAllocations(repositoryIpAllocations);
+	FreeStatusInRepositoryIpAllocations();
 	sprintf_s(logMsg, msgSize, "Going to update new status for all ip addresses\n");
 	AquaLogging::Log(verbose, logMsg);
-	if (!repositoryIpAllocations)
-	{
-		repositoryIpAllocations = (IpAllocations *)malloc(sizeof(IpAllocations));
-	}
 	repositoryIpAllocations->statusForAllIpAddresses = localIpStatus;
 	repositoryIpAllocations->count = ipCount;
 }
@@ -271,13 +299,13 @@ void UpdateRepositoryIpListWithoutLock(int ipCount, unsigned* ips, NetworkType n
 DllExport void UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkType networkType)
 {
 	LockMutex
-	UpdateRepositoryIpListWithoutLock(ipCount, ips, networkType);
+	updateRepositoryIpListWithoutLock(ipCount, ips, networkType);
 	UnlockMutex
 }
 
 DllExport bool IpRepositoryIsEmpty()
 {
-	char logMsg[2048];
+	
 #ifdef _WIN32
 	size_t msgSize = 2048;
 #endif
@@ -298,7 +326,7 @@ DllExport bool IpRepositoryIsEmpty()
 DllExport unsigned int ReserveRepositoryIpAddress(char *reservationId)
 {
 	unsigned int returnIp = 0;
-	char logMsg[2048];
+	
 #ifdef _WIN32
 	size_t msgSize = 2048;
 #endif
@@ -306,7 +334,7 @@ DllExport unsigned int ReserveRepositoryIpAddress(char *reservationId)
 
 	if (repositoryIpAllocations)
 	{
-		IpStatus *repositoryReservedIpStatus = GetRepositoryReservedIp(reservationId);
+		IpStatus *repositoryReservedIpStatus = getRepositoryReservedIp(reservationId);
 		if (repositoryReservedIpStatus != NULL)
 		{
 			sprintf_s(logMsg, msgSize, "Retrieved an existing ip %u for %s.", repositoryReservedIpStatus->ip, reservationId);
@@ -332,7 +360,7 @@ unsigned long ReleaseRepositoryIpAddress(const char *reservationId)
 {
 	unsigned long reservationStatus;
 	LockMutex;
-	reservationStatus = ReleaseReservedRepositoryIp(reservationId);		
+	reservationStatus = releaseReservedRepositoryIp(reservationId);		
 	UnlockMutex;
 	return reservationStatus;
 }
@@ -365,7 +393,7 @@ int GetAvailableIpsfromRepository(unsigned int *ips)
 unsigned int GetReservedIpFromRepository(const char *reservationId)
 {
 	unsigned int returnIp = 0;
-	char logMsg[2048];
+	
 #ifdef _WIN32
 	size_t msgSize = 2048;
 #endif
@@ -373,9 +401,9 @@ unsigned int GetReservedIpFromRepository(const char *reservationId)
 
 	if (repositoryIpAllocations)
 	{
+		IpStatus *repositoryReservedIpStatus = getRepositoryReservedIp(reservationId);
 		sprintf_s(logMsg, msgSize, "Going to get an ip from repository for %s", reservationId );
 		AquaLogging::Log(info, logMsg);
-		IpStatus *repositoryReservedIpStatus = GetRepositoryReservedIp(reservationId);
 		if (repositoryReservedIpStatus)
 		{
 			sprintf_s(logMsg, msgSize, "Successfully received an ip from repository for %s. IP = %u", reservationId, repositoryReservedIpStatus->ip);
@@ -427,7 +455,7 @@ unsigned long PersistSubnetInRepository(Ipv4Subnet *subnetToPersist, NetworkType
 		startingIp++;
 		i++;
 	}
-	UpdateRepositoryIpListWithoutLock(ipCount, ips, networkType);
+	updateRepositoryIpListWithoutLock(ipCount, ips, networkType);
 	free(ips);
 	sprintf_s(logMsg, msgSize, "Updated ip repository with %d ips", ipCount);
 	AquaLogging::Log(info, logMsg);

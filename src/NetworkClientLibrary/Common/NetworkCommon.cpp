@@ -47,6 +47,7 @@ bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp)
 	(*gatewayIp)[++k] = '1';
 	(*gatewayIp)[++k] = '\0';
 	sprintf_s(logMsg, msgSize, "gateway Ip=%s\n", *gatewayIp);
+	AquaLogging::Log(info, logMsg);
 	return true;
 }
 

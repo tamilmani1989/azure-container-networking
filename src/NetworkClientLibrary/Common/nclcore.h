@@ -19,15 +19,22 @@ typedef struct IpStatus
 typedef struct IpAllocations
 {
     int count;
-    IpStatus *statusForAllIpAddresses;     
+    IpStatus *statusForAllIpAddresses;
+    unsigned int primaryIp;     
 }IpAllocations;
 
 DllExport unsigned int PersistedIpCountInRepository();
-DllExport unsigned long saveOverlayAddressSpace(ClusterConfig *clusterConfig);
+DllExport unsigned long SaveOverlayAddressSpace(ClusterConfig *clusterConfig);
 DllExport int GetAvailableIpsfromRepository(unsigned int *ips);
 DllExport int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 DllExport void UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkType networkType);
 DllExport unsigned int ReserveRepositoryIpAddress(char *reservationId);
+DllExport void InitRepositoryIpAllocations();
+DllExport int FreeStatusInRepositoryIpAllocations();
+DllExport void ParseSubnetGatewayPrimaryIp(char *xmlResponse, char **subnetIp, char **gatewayIp);
+DllExport void SetEnvironment(NetworkType networkType);
+DllExport unsigned int GetRepositoryPrimaryIp();
+DllExport void SetRepositoryPrimaryIp(unsigned int ip);
 
 #define UNSUPPORTED_NETWORK  1
 #define INVALID_PARAMETER 2

@@ -11,6 +11,8 @@
 #ifdef _WIN32
 #include "../Shared/Utilities.h"
 #endif
+
+namespace Microsoft { namespace Azure { namespace Networking {  namespace Aqua { namespace ClientLibrary {
 bool AquaLogging::externalLogInitialized = false;
 static ExternalLogMethod externalLogMethod;
 static bool consoleOutputEnabled = false;
@@ -45,7 +47,6 @@ void LogNarrowString(char *narrow, bool conOutputEnabled)
 
 DllExport void AquaLogging::Log(int logLevel, char *logMessage)
 {
-	printf(logMessage);
 	if(externalLogInitialized)
 	{
 		#ifdef _WIN32
@@ -59,4 +60,4 @@ DllExport void AquaLogging::Log(int logLevel, char *logMessage)
 		LogNarrowString(logMessage, consoleOutputEnabled);
 	}
 }
-
+}}}}}

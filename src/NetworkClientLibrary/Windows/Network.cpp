@@ -37,14 +37,19 @@ extern DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddres
 extern DllExport int DeleteEndpoint(std::wstring endpointId);
 extern DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp);
 extern DllExport unsigned long FreeMemoryForLocalEndpoints(EndpointMapping *endpointMappings, USHORT mappingsCount);
+extern DllExport unsigned int GetRepositoryPrimaryIp();
+
 
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 
+extern NetworkType networkTypeProvided;
+std::mutex hostLocalMutex;
+bool hostLocalIpProvisionedInHNS = false;
 std::mutex initWsaMutex;
 int wsaInitialized = 0;
 
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
-extern void ParseSubnetAndGatewayIp(char *xmlResponse, char **sunbetIp, char **gatewayIp);
+extern void ParseSubnetGatewayPrimaryIp(char *xmlResponse, char **sunbetIp, char **gatewayIp);
 extern bool RetrieveGatewayFromSubnet(char*subnet, char **gatewayIp);
 
 SOCKET connectToHost(char *host, USHORT port)
@@ -230,7 +235,7 @@ void printRoutingTable()
 	DWORD dwSize = 0;
 	BOOL bOrder = FALSE;
 	DWORD dwStatus;
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 	unsigned int i;
 
@@ -305,7 +310,7 @@ int GetPrimaryCAIface(char *ca , int *iface)
 	PIP_ADAPTER_INFO pAdapter = NULL;
 	DWORD dwRetVal = 0;
 	UINT i;
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 	int retval = -1;
 
@@ -453,7 +458,7 @@ int createRouteToWireServer()
 	PMIB_IPFORWARDROW pRow;
 	char primaryCa[16];
 	int iFace;
-	char logMsg[2048];
+	
 	size_t msgSize = 2048;
 
 	sprintf_s(logMsg, msgSize, "Going to get primary CA");
@@ -506,13 +511,13 @@ int createRouteToWireServer()
 	if (pRow) free(pRow);
 	return 0;
 }
-
-int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
+int getSubnetGwIpAndSetPrimary(char **subnetIp, char **gwIp)
 {
 	char *recvBuffer = nullptr;
 	char *responseLocation = nullptr;
 	
 	size_t msgSize = 2048;
+	int retval=0;
 
 	sprintf_s(logMsg, msgSize, "Trying to connect to nm agent.\n");
 	AquaLogging::Log(info, logMsg);
@@ -526,13 +531,14 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 		sprintf_s(logMsg, msgSize,  "Connect to host failed.\n");
 		AquaLogging::Log(err, logMsg);
 		wsaCleanUp();
-		return -1;
+		return 1;
 	}
 
 	recvBuffer = httpSendResponse(sock, HostSuffix);
 	if (!recvBuffer) {
 		sprintf_s(logMsg, msgSize, "Error while retrieving xml file from NMAgent");
 		AquaLogging::Log(err, logMsg);
+		retval=1;
 		goto cleanup_subgw;
 	}
 	//sprintf_s(logMsg, msgSize, "xml recv buf:%s\n", recvBuffer);
@@ -544,6 +550,7 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 	{
 		sprintf_s(logMsg, msgSize, "Error while retrieving xml file from NMAgent. Invalid Status code:%s\n", recvBuffer);
 		AquaLogging::Log(err, logMsg);
+		retval=1;
 		goto cleanup_subgw;
 	}
 
@@ -555,12 +562,15 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gwIp)
 
 	if (responseLocation != nullptr)
 	{
-		ParseSubnetAndGatewayIp(responseLocation, subnetIp, gwIp);
+		ParseSubnetGatewayPrimaryIp(responseLocation, subnetIp, gwIp);
+		if(*subnetIp==nullptr || *gwIp==nullptr)
+			retval=1;
 	}
 	else
 	{
 		sprintf_s(logMsg, msgSize,  "Unable to find portion of http response header that contains valid nm agent response response %s", recvBuffer);
 		AquaLogging::Log(err, logMsg);
+		retval=1;
 	}
 
 cleanup_subgw:
@@ -573,10 +583,10 @@ cleanup_subgw:
 	closesocket((int)sock);
 	wsaCleanUp();
 
-	return 0;
+	return retval;
 }
 
-int getIpsFromNmAgent(unsigned int *ips)
+int GetIpsFromNmAgent(unsigned int *ips)
 {
 	int ipCount = 0;
 	char *recvBuffer = nullptr;
@@ -695,37 +705,46 @@ cleanup:
 
 DWORD GetHostIp(unsigned int *ip)
 {
-	struct hostent *hp;
-	char hostName[255]; //RFC says it cannot exceed 255 chars
-	unsigned long retval = 0;
 	
 	size_t msgSize = 2048;
+	unsigned long retval = UNEXPECTED_ERROR;
 	
-	if (gethostname(hostName, 255) != 0)
+	if(networkTypeProvided == UnderLay)
 	{
-		sprintf_s(logMsg, msgSize, "error happenned during gethostname() %d\n", WSAGetLastError());
-		AquaLogging::Log(err, logMsg);
-		retval = UNEXPECTED_ERROR;
+		*ip = GetRepositoryPrimaryIp();
+		LOGINFO("Ip:%d\n",*ip);
+		if(*ip!=0)
+			retval=0;
+		else	
+			retval=1;	
 	}
-	else
+	else if(networkTypeProvided == OverLay)
 	{
-		if ((hp = gethostbyname(hostName)) == nullptr)
+		retval = ReserveAvailableIpAddress("HostLocalIp", ip);
+		if (retval == 0)
 		{
-			sprintf_s(logMsg, msgSize,  "gethostbyname failed %d : %s", WSAGetLastError(), hostName);
-			AquaLogging::Log(err, logMsg);
-			retval = UNEXPECTED_ERROR;
+			if (!hostLocalIpProvisionedInHNS)
+			{
+				hostLocalMutex.lock();
+				if (!hostLocalIpProvisionedInHNS)
+				{
+					char ipInString[INET_ADDRSTRLEN];
+					wchar_t ipInStringw[INET_ADDRSTRLEN];
+					inet_ntop(AF_INET, ip, ipInString, INET_ADDRSTRLEN);
+					size_t converted;
+					mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN);
+					AddHostLocalEndpoint(ipInStringw);
+					hostLocalIpProvisionedInHNS = true;
+				}
+				hostLocalMutex.unlock();
+			}
 		}
 		else
 		{
-			(*ip) = *(u_long*)hp->h_addr_list[0];
-			sprintf_s(logMsg, msgSize, "h_name = %s\n", hp->h_name);
+			sprintf_s(logMsg, msgSize, "Reserving Available for host local returned non-zero %d", retval);
+			AquaLogging::Log(info, logMsg);
 		}
 	}
-	sprintf_s(logMsg, msgSize, "retrieved hostip 0x%08x", *ip);
-	AquaLogging::Log(info, logMsg);
-	wsaCleanUp();
-	sprintf_s(logMsg, msgSize, "GetHostIp returning %d\n", retval);
-	AquaLogging::Log(info, logMsg);
 	return retval;
 }
 
@@ -772,7 +791,7 @@ int networkExists(SOCKET sock, char *networkName)
 	return 1;
 }
 
-DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
+DWORD SetupUnderlayInAzure(ClusterConfig *clusterConfig)
 {
 	size_t conLength = 0, ipamLength = 0;
 	char *nwCreateReq = nullptr;
@@ -796,6 +815,13 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 		return UNREACHABLE_HOST;
 	}
 
+	if(getSubnetGwIpAndSetPrimary(&subnetIp, &gwIp)!=0)
+	{
+		sprintf_s(logMsg, msgSize,  "Retrieving subnet and gateway ip failed.\n");
+		AquaLogging::Log(err, logMsg);
+		goto cleanup2;
+	}
+
 	if (networkExists(sock, clusterConfig->networkName))
 	{
 		sprintf_s(logMsg, msgSize, "Network %s does not exist, going to create it\n", clusterConfig->networkName);
@@ -806,8 +832,6 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 		wsaCleanUp();
 		sprintf_s(logMsg, msgSize, "wsa cleanup finished\n");
 		AquaLogging::Log(info, logMsg);
-
-		getSubnetGwIpfromNMAgent(&subnetIp, &gwIp);
 
 		sprintf_s(logMsg, msgSize, "retrieved subnet and gateway %s %s\n", subnetIp, gwIp);
 		AquaLogging::Log(info, logMsg);
@@ -955,7 +979,7 @@ unsigned long CreateDockerNetwork(char *networkName, char ipamConfig[2048])
 	return retval;
 }
 
-DWORD setupOverlay(ClusterConfig *clusterConfig)
+DWORD SetupOverlay(ClusterConfig *clusterConfig)
 {
 	char *recvBuf = nullptr;
 	char *gwIp = nullptr;
@@ -1045,7 +1069,7 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 	}
 
 	wsaCleanUp();
-	sprintf_s(logMsg, msgSize, "setupOverlay returning %d\n", retval);
+	sprintf_s(logMsg, msgSize, "SetupOverlay returning %d\n", retval);
 	AquaLogging::Log(info, logMsg);
 	return retval;
 }

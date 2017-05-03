@@ -22,7 +22,7 @@ extern DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detach
 void assert(unsigned long value)
 {
 	if (value == 0) return;
-	printf("assert failed");
+	LOGERR("assert failed");
 	getchar();
 	throw "assert failed";
 }
@@ -48,23 +48,30 @@ void testM()
 
 	size_t netLen = strlen("azurenet") + sizeof(char);
 	cfg.networkName = (char *)malloc(netLen);
-	printf("%llu", netLen);
+	LOGINFO("%llu", netLen);
 	strncpy_s(cfg.networkName, netLen, "azurenet", 9);
 	cfg.networkName[8] = '\0';
 	cfg.net = UnderLay;
 	cfg.env = Azure;
-	printf("nw main name:%s\n", cfg.networkName);
+	LOGINFO("nw main name:%s\n", cfg.networkName);
 	int retval = 0;
+	unsigned int hostIp=0;
+
 #ifdef __linux__
-//	retval = InitializeNetwork(&cfg);
+	retval = InitializeNetwork(&cfg);
 #endif
 
 #ifdef _WIN32
-	//assert(InitializeNetwork(&cfg));
+	assert(InitializeNetwork(&cfg));
 #endif
 
-	printf("Successfully initialized Azure/Underlay. retval = %d\n", retval);
+	LOGINFO("Successfully initialized Azure/Underlay. retval = %d\n", retval);
 	/*getchar();
+
+	GetHostLocalIp(&hostIp);
+	LOGINFO("Get local host ip (underlay):%d %s\n",hostIp,inet_ntop(AF_INET, &hostIp, ipInString, INET_ADDRSTRLEN));
+	hostIp=0;
+	getchar();
 
 	cfg.net = OverLay;
 	cfg.env = Azure;
@@ -76,7 +83,7 @@ void testM()
 	inet_pton(AF_INET, "10.0.0.0", &ipAdd);
 	ovSubnet.ipAddress = ipAdd.s_addr;
 
-	printf("converted ip prefix %s\n", inet_ntop(AF_INET, &ovSubnet.ipAddress, ipInString, INET_ADDRSTRLEN));
+	LOGINFO("converted ip prefix %s\n", inet_ntop(AF_INET, &ovSubnet.ipAddress, ipInString, INET_ADDRSTRLEN));
 	getchar();
 	ovSubnet.prefixLength = 8;
 	cfg.overlaySubnet = &ovSubnet;
@@ -116,17 +123,17 @@ void testM()
 	cfg.nodeConfigs[2].subnet = &localSubnet3;
 	//cfg.localNodeIp = ipAdd.s_addr;
 
-	printf("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
+	LOGINFO("Initialization result for StandAlone/Overlay: %ld \n", InitializeNetwork(&cfg));
 	free(cfg.networkName);
 	free(cfg.nodeConfigs);
 	getchar();
 
 	unsigned int hostLocalIp=0;
 	GetHostLocalIp(&hostLocalIp);
-	printf("Recevied host local as %s\n", inet_ntop(AF_INET, &hostLocalIp, ipInString, INET_ADDRSTRLEN));
+	LOGINFO("Recevied host local as %s\n", inet_ntop(AF_INET, &hostLocalIp, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
-	printf("Going to detach hostlocal directly in HNS\n");
+	LOGINFO("Going to detach hostlocal directly in HNS\n");
 	wchar_t ipInStringw[INET_ADDRSTRLEN];
 	size_t converted;
 	mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN);
@@ -140,108 +147,109 @@ void testM()
 
 	nnr.ips = NULL;
 	assert(GetAvailableIpAddresses(&nnr, &ipCount));
-	printf("Retrieved ipCount = %d\n", ipCount);
+	LOGINFO("Retrieved ipCount = %d\n", ipCount);
 	
 	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
 	memset(nnr.ips, 0, ipCount * sizeof(unsigned int));
 	assert(GetAvailableIpAddresses(&nnr, &ipCount));
-	printf("Printing available ip addresses count = %d\n", ipCount);
+	LOGINFO("Printing available ip addresses count = %d\n", ipCount);
 
 	for (i = 0; i < ipCount; i++)
 	{
-		printf("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
+		LOGERR("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
 	}
 	getchar();
 
 	unsigned int ip=0;
-	printf("going to reserve available ip with ip0");
+	LOGINFO("going to reserve available ip with ip0");
 	assert(ReserveAvailableIpAddress((char *)"ip0", &ip));
-	printf("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+	LOGINFO("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	//getchar();
 
 	//getchar();
 
     assert(GetAvailableIpAddresses(&nnr, &ipCount));
-    printf("Printing available ip addresses count = %d\n", ipCount);
+    LOGINFO("Printing available ip addresses count = %d\n", ipCount);
     for(i = 0; i < ipCount ; i++)
     {
-        printf("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
+        LOGINFO("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
     }
 	//getchar();
     
 	assert(ReserveAvailableIpAddress((char *)"ip1", &ip));
-    printf("ip1 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+    LOGINFO("ip1 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
     assert(GetAvailableIpAddresses(&nnr, &ipCount));
-    printf("Printing available ip addresses count = %d\n", ipCount);
+    LOGINFO("Printing available ip addresses count = %d\n", ipCount);
     for(i = 0; i < ipCount ; i++)
     {
-        printf(" %s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
+        LOGINFO(" %s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
     }
 	getchar();
 
     assert(GetReservedIpAddress("ip1", &ip));
-    printf("ip1 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+    LOGINFO("ip1 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
 	retval = GetReservedIpAddress("ip2", &ip);
-    printf("ip2 (without reservation). retval = %d\n", retval);
+    LOGINFO("ip2 (without reservation). retval = %d\n", retval);
 	getchar();
     
     assert(ReserveAvailableIpAddress((char *)"ip2", &ip));
-    printf("ip2 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+    LOGINFO("ip2 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
     assert(GetAvailableIpAddresses(&nnr, &ipCount));
-    printf("Printing available ip addresses count = %d\n", ipCount);
+    LOGINFO("Printing available ip addresses count = %d\n", ipCount);
     for(i = 0; i < ipCount ; i++)
     {
-        printf("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
+        LOGINFO("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
     }
 	getchar();
 
 	assert(GetReservedIpAddress("ip2", &ip));
-    printf("ip2 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+    LOGINFO("ip2 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
 
 	assert(ReleaseIpReservation("ip1"));
 	retval = GetReservedIpAddress("ip1", &ip);
-	printf("ip1 (without reservation). retval = %d\n", retval);
+	LOGINFO("ip1 (without reservation). retval = %d\n", retval);
 	getchar();
 
 
 	assert(ReserveAvailableIpAddress((char *)"ip5", &ip));
-	printf("ip5 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+	LOGINFO("ip5 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
 	assert(GetReservedIpAddress((char*)"ip5", &ip));
-	printf("ip5 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+	LOGINFO("ip5 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
 	assert(ReleaseIpReservation("ip2"));
 	retval = GetReservedIpAddress("ip2", &ip);
-	printf("ip2 (without reservation). retval =  %d\n", retval);
+	LOGINFO("ip2 (without reservation). retval =  %d\n", retval);
 	getchar();
 
 	assert(ReleaseIpReservation("ip0"));
 	retval = GetReservedIpAddress("ip0", &ip);
-	printf("ip0 (without reservation). retval =  %d\n", retval);
+	LOGINFO("ip0 (without reservation). retval =  %d\n", retval);
+
 	getchar();
-
-
-
+	GetHostLocalIp(&hostIp);
+	LOGINFO("Get local host ip (overlay):%d %s\n",hostIp,inet_ntop(AF_INET, &hostIp, ipInString, INET_ADDRSTRLEN));
+	getchar();
 
 	assert(GetAvailableIpAddresses(&nnr, &ipCount));
-	printf("Printing available ip addresses count = %d\n", ipCount);
+	LOGINFO("Printing available ip addresses count = %d\n", ipCount);
 	for (i = 0; i < ipCount; i++)
 	{
-		printf("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
+		LOGINFO("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
 	}
-
-	free(nnr.ips);
 	getchar();
+   	free(nnr.ips);
+
 }
 
 #ifdef _WIN32

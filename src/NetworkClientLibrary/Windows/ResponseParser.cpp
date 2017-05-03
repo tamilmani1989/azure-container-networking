@@ -15,7 +15,10 @@
 #include "../../Logging/Logging.h"
 #define DllExport   __declspec( dllexport )  
 
+
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
+
+extern void SetRepositoryPrimaryIp(unsigned int ip);
 
 // Macro that calls a COM method returning HRESULT value.
 #define CHK_HR(stmt)        do { hr=(stmt); if (FAILED(hr)) goto CleanUp; } while(0)
@@ -57,7 +60,7 @@ HRESULT CreateAndInitDOM(IXMLDOMDocument **ppDoc)
 	return hr;
 }
 
-unsigned int ConvertToIPAddress(unsigned char *ipAddressinStringFormat)
+unsigned int convertToIPAddress(unsigned char *ipAddressinStringFormat)
 {
 	struct in_addr ipaddr;
 	int retval;
@@ -74,8 +77,80 @@ unsigned int ConvertToIPAddress(unsigned char *ipAddressinStringFormat)
 	return 0;
 }
 
+
+void getAndSetPrimaryIp(IXMLDOMNode* pXMLIPSubnetNode)
+{
+	HRESULT hr = S_OK;
+	IXMLDOMNodeList* pXMLIPAddressList = nullptr;
+	IXMLDOMNode* pXMLIPAddressNode = nullptr;
+	IXMLDOMNamedNodeMap*  pXMLIPAddressAttributes = nullptr;
+	IXMLDOMNode *ipAttribute = nullptr;
+	BSTR ipAddress = nullptr;
+	BSTR ipType = nullptr;
+	BSTR ipAddressNodeName = nullptr;
+
+	CHK_HR(pXMLIPSubnetNode->get_childNodes(&pXMLIPAddressList));
+	long ipAddressCount;
+	CHK_HR(pXMLIPAddressList->get_length(&ipAddressCount));
+	for (int l = 0; l<ipAddressCount; l++)
+	{
+		CHK_HR(pXMLIPAddressList->get_item(l, &pXMLIPAddressNode));
+		CHK_HR(pXMLIPAddressNode->get_nodeName(&ipAddressNodeName));
+		if (wcscmp(ipAddressNodeName, L"IPAddress") == 0)
+		{										
+			CHK_HR(pXMLIPAddressNode->get_attributes(&pXMLIPAddressAttributes));
+			
+			CHK_HR(pXMLIPAddressAttributes->getNamedItem(L"IsPrimary", &ipAttribute));
+			CHK_HR(ipAttribute->get_text(&ipType));
+			sprintf_s(logMsg, msgSize, "isPrimary==%S ", ipType);
+			AquaLogging::Log(verbose, logMsg);
+			SAFE_RELEASE(ipAttribute);
+
+			if(wcscmp(ipType,L"true") == 0) 
+			{
+				CHK_HR(pXMLIPAddressAttributes->getNamedItem(L"Address", &ipAttribute));
+				CHK_HR(ipAttribute->get_text(&ipAddress));
+				sprintf_s(logMsg, msgSize, "ip=%S ", ipAddress);
+				AquaLogging::Log(verbose, logMsg);
+				SAFE_RELEASE(ipAttribute);
+		
+				char *ipStr = _com_util::ConvertBSTRToString(ipAddress);
+				unsigned int ipInt = convertToIPAddress((unsigned char *)ipStr);
+
+				printf("primary ip of primary nic:%d\n",ipInt);
+
+				SetRepositoryPrimaryIp(ipInt);
+
+				delete[] ipStr;
+			}
+
+			SysFreeString(ipAddress);
+			SysFreeString(ipType);
+			ipAddress=nullptr;
+			ipType=nullptr;
+			SAFE_RELEASE(pXMLIPAddressAttributes);
+		}
+		SAFE_RELEASE(pXMLIPAddressNode);
+		SysFreeString(ipAddressNodeName);
+		ipAddressNodeName = nullptr;
+	}
+
+CleanUp:
+	SAFE_RELEASE(pXMLIPAddressList);
+	SAFE_RELEASE(pXMLIPAddressNode);
+	SAFE_RELEASE(pXMLIPAddressAttributes);
+	SAFE_RELEASE(ipAttribute);
+
+	SysFreeString(ipAddressNodeName);
+	SysFreeString(ipAddress);
+	SysFreeString(ipType);
+	
+
+}
+
+
 // TODO: Check for memory leaks..
-void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayIp)
+void GetSubnetGatewayPrimaryIp(char *xmlResponse, char **subnetIp, char **gatewayIp)
 {
 	HRESULT hr = S_OK;
 	IXMLDOMDocument *pXMLDom = nullptr;
@@ -217,6 +292,8 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 					gwTemp[++k] = '\0';
 					sprintf_s(logMsg, msgSize, "gateway Ip=%s\n", gwTemp);
 					AquaLogging::Log(verbose, logMsg);
+
+					getAndSetPrimaryIp(pXMLIPSubnetNode);
 				}
 				
 				SAFE_RELEASE(pXMLChildNodeList);
@@ -369,7 +446,7 @@ void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int 
 										char *primary = _com_util::ConvertBSTRToString(ipType);;
 										if(strncmp(primary, "false", 5) == 0)
 										{
-											unsigned int ipInt = ConvertToIPAddress((unsigned char *)ipStr);
+											unsigned int ipInt = convertToIPAddress((unsigned char *)ipStr);
 											if(!countOnly)
 											{
 												ips[*count] = ipInt;
@@ -490,7 +567,7 @@ DllExport int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsign
 	return ipCount;
 }
 
-void ParseSubnetAndGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayIp)
+DllExport void ParseSubnetGatewayPrimaryIp(char *xmlResponse, char **subnetIp, char **gatewayIp)
 {
 	bool shouldCoUnInitialize = true;
 	HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -508,7 +585,7 @@ void ParseSubnetAndGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 	{
 		try
 		{
-			RetrieveSubnetGatewayIp(xmlResponse, subnetIp, gatewayIp);
+			GetSubnetGatewayPrimaryIp(xmlResponse, subnetIp, gatewayIp);
 		}
 		catch (...)
 		{

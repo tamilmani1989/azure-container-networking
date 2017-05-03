@@ -44,12 +44,19 @@ public:
 
     TEST_CLASS_CLEANUP(TestCleanup);
 
-  /*  TEST_METHOD(TestInitializeNetwork);*/
-	TEST_METHOD(TestInitializeNetworkOverlay);
+    TEST_METHOD(TestInitializeNetworkOverlay);
 	TEST_METHOD(TestGetAvailableAddressOverlay);
-	TEST_METHOD(TestGetAvailableAddressUnderlay);
-	TEST_METHOD(TestReserveIpAddress);
-	TEST_METHOD(TestGetReservedIpAddress);
-	TEST_METHOD(TestReleaseIpReservation);
+   // TEST_METHOD(TestGetLocalHostIpOverlay);
+	TEST_METHOD(TestReserveIpAddressOverlay);
+	TEST_METHOD(TestGetReservedIpAddressOverlay);
+	TEST_METHOD(TestReleaseIpReservationOverlay);
+    TEST_METHOD(TestFreeStatusInRepsoitoryAllocations);
+
+	TEST_METHOD(TestInitializeNetworkUnderlay);
+    TEST_METHOD(TestGetLocalHostIpUnderlay);
+	TEST_METHOD(TestReserveIpAddressUnderlay);
+	TEST_METHOD(TestGetReservedIpAddressUnderlay);
+	TEST_METHOD(TestReleaseIpReservationUnderlay);
+
 };
 } } } } }

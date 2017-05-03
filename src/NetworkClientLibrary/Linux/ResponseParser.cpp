@@ -10,8 +10,11 @@
 #include <string.h>
 #include <libxml/parser.h>
 #include <arpa/inet.h>
+#include "../../Logging/Logging.h"
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
-unsigned int ConvertToIPAddress(unsigned char *ipAddressinStringFormat)
+extern void SetRepositoryPrimaryIp(unsigned int ip);
+
+unsigned int convertToIPAddress(unsigned char *ipAddressinStringFormat)
 {
     struct in_addr ipaddr;
     int retval;
@@ -23,6 +26,52 @@ unsigned int ConvertToIPAddress(unsigned char *ipAddressinStringFormat)
     else
     {
         fprintf(stderr, "Uable to convert to %s from string to ip adress.", ipAddressinStringFormat);
+    }
+    return 0;
+}
+int getPrimaryIp(xmlNode *interfaceNode)
+{
+    xmlNode *node = NULL;
+    //int primaryFlag=0;
+    unsigned int ip=0;
+    struct in_addr addr;
+    for (node = interfaceNode->children; node; node = node->children) 
+    {
+        if (node->type == XML_ELEMENT_NODE) 
+        {
+            if(strncmp((char *)node->name, "IPAddress", 8) == 0)
+            {
+                struct _xmlAttr * props = node->properties;
+                ip=0;
+                for(props = node->properties; props; props=props->next)
+                {
+                    xmlChar* value = xmlNodeListGetString(node->doc, props->children, 1);
+                    if(strncmp((char *)props->name, "IsPrimary", 9)==0)
+                    {
+                        if(strncmp((char *)value, "true", 4) == 0)
+                        {
+                            if(ip!=0) 
+                            {
+                                addr.s_addr=ip;
+                                LOGINFO("primary ip of primary nic:%d\t%s\n",ip,inet_ntoa(addr));
+                                xmlFree(value);
+                                return ip;
+                            }
+                            else
+                            {
+                                LOGERR("Something went wrong. Primary Ip not found\n");
+                            }
+                        }
+                    }
+                    else if(strncmp((char *)props->name, "Address", 7)==0)
+                    {
+
+                        ip = inet_addr((char *)value);
+                    }
+                    xmlFree(value);
+                }
+            }
+        }
     }
     return 0;
 }
@@ -57,13 +106,10 @@ void getSubnetIp(xmlNode *interfaceNode, char **subnetIp)
 	}		
 }
 
-void RetrieveSubnetGatewayIp(xmlNode *interfaces, char **subnetIp, char **gatewayIp)
+void GetSubnetGatewayPrimaryIp(xmlNode *interfaces, char **subnetIp, char **gatewayIp)
 {
 	xmlNode *node = NULL;
-	int found=0;
-
-    // printf("Retrieved count only as %d count=%d\n", countOnly, *count);
-    // getchar();
+    unsigned int ip=0;
 
     for (node = interfaces->children; node; node = node->next) 
     {
@@ -84,6 +130,8 @@ void RetrieveSubnetGatewayIp(xmlNode *interfaces, char **subnetIp, char **gatewa
 							char *subTemp=NULL, *gwTemp=NULL;;
 							xmlFree(value);
 							getSubnetIp(node,subnetIp);
+                            ip=getPrimaryIp(node);
+                            SetRepositoryPrimaryIp(ip);
 							int len = strlen(*subnetIp) + sizeof(char);
 							*gatewayIp = (char *)malloc(len);
 							
@@ -106,16 +154,13 @@ void RetrieveSubnetGatewayIp(xmlNode *interfaces, char **subnetIp, char **gatewa
 							}
 							gwTemp[++k] = '1';
 							gwTemp[++k] = '\0';
-							found=1;
-							break;
+                            return;
                         }
                         xmlFree(value);
                     }                   
                 }
             }
         }
-		if(found)
-			break;
     }
 }
 
@@ -123,9 +168,6 @@ void RetrieveSubnetGatewayIp(xmlNode *interfaces, char **subnetIp, char **gatewa
 void CountOrRetrieveSecondaryIps(xmlNode *interfaces, int countOnly, unsigned int *count, unsigned int *ips)
 {
     xmlNode *node = NULL;
-
-    // printf("Retrieved count only as %d count=%d\n", countOnly, *count);
-    // getchar();
 
     for (node = interfaces; node; node = node->next) 
     {
@@ -167,8 +209,8 @@ void CountOrRetrieveSecondaryIps(xmlNode *interfaces, int countOnly, unsigned in
                     if(!countOnly)
                     {
                         // may be we should check if passed memory is sufficient or not
-                        ips[*count] = ConvertToIPAddress(savedAddress);
-                        printf("Saving ip address %d at location %d\n", ips[*count], *count);
+                        ips[*count] = convertToIPAddress(savedAddress);
+                        LOGINFO("Saving ip address %d at location %d\n", ips[*count], *count);
                     }
                     *count = (*count) + 1;
                 }
@@ -194,21 +236,18 @@ int ParseSecondaryIpAddresses( char *xmlResponse, int countOnly, unsigned int *i
     CountOrRetrieveSecondaryIps(xmlRoot, countOnly, &count, ips);
     xmlFreeDoc(doc);
     xmlCleanupParser();
-    printf("Parsing of ips finished\n");
     return count;
 }
 
-int ParseSubnetAndGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayIp)
+void ParseSubnetGatewayPrimaryIp(char *xmlResponse, char **subnetIp, char **gatewayIp)
 {
     xmlDocPtr doc;
     xmlNode *xmlRoot = NULL;
     LIBXML_TEST_VERSION
     doc = xmlReadMemory(xmlResponse, strlen(xmlResponse), "include.xml", NULL, 0);
     xmlRoot = xmlDocGetRootElement(doc);
-    unsigned int count = 0;
-    RetrieveSubnetGatewayIp(xmlRoot, subnetIp, gatewayIp);
+    GetSubnetGatewayPrimaryIp(xmlRoot, subnetIp, gatewayIp);
     xmlFreeDoc(doc);
     xmlCleanupParser();
-    return count;
 }
 } } } } }

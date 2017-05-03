@@ -23,7 +23,10 @@
 #define sprintf_s(arg1, len, ...) sprintf(arg1, __VA_ARGS__)
 #define UNREFERENCED_PARAMETER(param) do { (void)(param); } while (0)
 #define mbstowcs_s(sz, dest, src, len) mbstowcs(dest, src, len)
+#define DllExport 
 #endif
+
+namespace Microsoft { namespace Azure { namespace Networking {  namespace Aqua { namespace ClientLibrary { 
 
 typedef void(*ExternalLogMethod)(int logLevel, char* message);
 
@@ -38,13 +41,17 @@ class AquaLogging
 };
 
 static char logMsg[2048];
+enum level
+{
+	info=1,
+	warn,
+	err,
+	verbose
+};
 
 #define LOGINFO(...); sprintf_s(logMsg, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(info, logMsg);
 #define LOGWARN(...); sprintf_s(logMsg, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(warn, logMsg);
 #define LOGERR(...); sprintf_s(logMsg, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(err, logMsg);
 #define LOGVERBOSE(...); sprintf_s(logMsg, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(verbose, logMsg);
 
-#define info 1
-#define warn 2
-#define err 3
-#define verbose 4
+}}}}}
