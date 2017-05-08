@@ -1,11 +1,20 @@
-/****************************** Module Header ******************************\
-* Module Name:  VfpOperations.h
-* Project:      Aquarius
-* Copyright (c) Microsoft Corporation.
-*
-* Setup vfp
-*
-\***************************************************************************/
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+VfpOperations.h
+
+Abstract:
+
+This cotains the declaration of methods that can be used to perform operations specific to Vfp in Windows.
+
+Author:
+
+Sushant Sharma (susharm) 20-April-2017
+
+--*/
 
 #ifdef _WIN32
 #define _WINSOCK_DEPRECATED_NO_WARNINGS

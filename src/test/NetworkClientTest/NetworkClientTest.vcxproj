@@ -41,7 +41,7 @@
   </ItemGroup>
    <ItemGroup>
     <ProjectReference Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
-	<ProjectReference Include="$(SRCROOT)\Logging\Logging.vcxproj" />
+    <ProjectReference Include="$(SRCROOT)\Logging\Logging.vcxproj" />
    </ItemGroup>
      <ItemGroup>
     <Robocopy Include="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\NetworkClientLibrary.dll">

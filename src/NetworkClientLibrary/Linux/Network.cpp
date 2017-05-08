@@ -1,8 +1,27 @@
 #ifdef __linux__
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+Network.cpp
+
+Abstract:
+
+This file contains methods that can be used to setup container network.
+
+Author:
+
+Sushant Sharma (susharm) 3-April-2017
+
+--*/
+
 #include "../Common/aquanetworkclient.h"
 #include <stdlib.h>
 #include "../Common/nclcore.h"
 #include "../../Logging/Logging.h"
+#include "../Common/NetworkCommon.h"
 #include <curl/curl.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -18,8 +37,7 @@ extern DllExport unsigned int GetRepositoryPrimaryIp();
 
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
-extern void ParseSubnetGatewayPrimaryIp( char *xmlResponse, char **subnetIp, char **gatewayIp);
-extern void SetRepositoryPrimaryIp(unsigned int ip);
+extern void ParseSubnetGatewayPrimaryIp( char *xmlResponse, char **subnetIp, char **gatewayIp, NclRepositoryManager *nclRepositoryManager);
 
 typedef struct string
 {
