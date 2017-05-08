@@ -1109,6 +1109,11 @@ Return Value:
 	unsigned long retval = 0;
 	
 	LOGINFO("Entering SetupOverlay.");
+	if(clusterConfig == NULL)
+	{
+		LOGERR("NULL ClusterConfig as input to SetupOverlay.");
+		return UNSPECIFIED_NETWORK_NAME;
+	}
 
 	if (clusterConfig->networkName == NULL)
 	{

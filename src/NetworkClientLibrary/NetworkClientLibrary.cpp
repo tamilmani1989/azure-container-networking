@@ -26,7 +26,7 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 extern void ProvideConfigToNIX(ClusterConfig *clusterConfig);
 extern int WsaInitialize();
 
-NclRepositoryManager *GetIpRepository()
+DllExport NclRepositoryManager *GetIpRepository()
 /*++
 
 Routine Description:

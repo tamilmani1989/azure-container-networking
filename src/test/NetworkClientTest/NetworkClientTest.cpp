@@ -18,6 +18,7 @@
 #include "aquanetworkclient.h"
 #include "nclcore.h"
 #include "TraceLogging.h"
+#include "../../NetworkClientLibrary/NetworkClientLibrary.h"
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
@@ -79,35 +80,6 @@ Return Value:
 #endif
 
 NclRepositoryManager *nclRepositoryManager = NULL;
-#ifdef _WIN32
-std::mutex repositoryVariableMutex;
-#define LockIpRepositoryVariable repositoryVariableMutex.lock();
-#define UnLockIpRepositoryVariable repositoryVariableMutex.unlock();
-#endif
-
-NclRepositoryManager *GetIpRepository()
-{
-	NclRepositoryManager *_nclRepositoryVariable;
-	if (nclRepositoryManager)
-	{
-		_nclRepositoryVariable = nclRepositoryManager;
-	}
-	else
-	{
-		LockIpRepositoryVariable
-			if (nclRepositoryManager)
-			{
-				_nclRepositoryVariable = nclRepositoryManager;
-			}
-			else
-			{
-				_nclRepositoryVariable = new NclRepositoryManager(NULL);
-				nclRepositoryManager = _nclRepositoryVariable;
-			}
-		UnLockIpRepositoryVariable
-	}
-	return _nclRepositoryVariable;
-}
 
 int getAvailableIpCountOverlay()
 {
@@ -250,6 +222,10 @@ void TestReleaseIpReservation()
 
 }
 
+void logstuff(int level, char *text)
+{
+	printf("%d: %s\n", level, text);
+}
 void
 NetworkClientTest::TestInitializeNetworkOverlay()
 {
@@ -257,7 +233,7 @@ NetworkClientTest::TestInitializeNetworkOverlay()
 	Ipv4Subnet localSubnet;
 	struct in_addr ipAdd;
 	unsigned long ret;
-
+	SetupNetworkLogging(logstuff);
 	SetEnvironment(OverLay);
 
 	cfg.nodeCount = 1;

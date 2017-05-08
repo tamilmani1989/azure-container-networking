@@ -62,17 +62,17 @@ void testM()
 #endif
 
 #ifdef _WIN32
-	assert(InitializeNetwork(&cfg));
+	//assert(InitializeNetwork(&cfg));
 #endif
 
-	LOGINFO("Successfully initialized Azure/Underlay. retval = %d\n", retval);
-	/*getchar();
+	/*LOGINFO("Successfully initialized Azure/Underlay. retval = %d\n", retval);
+	getchar();
 
 	GetHostLocalIp(&hostIp);
 	LOGINFO("Get local host ip (underlay):%d %s\n",hostIp,inet_ntop(AF_INET, &hostIp, ipInString, INET_ADDRSTRLEN));
 	hostIp=0;
 	getchar();
-
+	 */
 	cfg.net = OverLay;
 	cfg.env = Azure;
 	cfg.nodeCount = 3;
@@ -142,8 +142,8 @@ void testM()
 #endif
 	getchar();
 
-	unsigned int ip;
-	 */
+	//unsigned int ip;
+	 
 
 	nnr.ips = NULL;
 	assert(GetAvailableIpAddresses(&nnr, &ipCount));

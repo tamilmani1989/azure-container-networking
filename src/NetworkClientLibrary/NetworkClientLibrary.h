@@ -61,6 +61,6 @@ extern DWORD GetHostIp(unsigned int *ip, NclRepositoryManager *nclRepositoryMana
 extern int WsaInitialize();
 NetworkType networkTypeProvided = UnderLay;
 NclRepositoryManager *nclRepositoryManager = NULL;
-NclRepositoryManager *GetIpRepository();
+DllExport NclRepositoryManager *GetIpRepository();
 
 } } } } }

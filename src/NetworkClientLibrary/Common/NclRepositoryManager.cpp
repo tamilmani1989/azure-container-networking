@@ -43,6 +43,8 @@ Return Value:
 
 --*/
 {
+
+	LOGINFO("Entering getRepositoryReservedIpUnTransacted.");
 	int i;
 	if (repositoryIpAllocations)
 	{
@@ -56,7 +58,8 @@ Return Value:
 				LOGVERBOSE("ip # %d is reserved.", i);
 				if (strcmp(reservationId, retval->id) == 0)
 				{
-					LOGINFO("Reservation id %s for %u matched input %s.", retval->id, retval->ip, reservationId);
+					LOGINFO("Exiting getRepositoryReservedIpUnTransacted. Reservation id %s for %u matched input %s.", 
+						retval->id, retval->ip, reservationId);
 					return retval;
 				}
 				
@@ -68,6 +71,7 @@ Return Value:
 			}
 		}
 	}
+	LOGINFO("Entering getRepositoryReservedIpUnTransacted. Returning NULL.");
 	return NULL;
 }
 
@@ -93,6 +97,7 @@ Return Value:
 
 --*/
 {
+	LOGINFO("Entering releaseReservedRepositoryIpUnTransacted.");
 	int i;
 	unsigned long reservationFound = 0;
 
@@ -122,12 +127,14 @@ Return Value:
 			}
 		}
 	}
+
+	LOGINFO("Exiting releaseReservedRepositoryIpUnTransacted. Returning %lu.", reservationFound);
 	return reservationFound;
 }
 
 void NclRepositoryManager::updateRepositoryIpListUnTransacted(
 	int ipCount, 
-	unsigned* ips, 
+	unsigned int* ips, 
 	NetworkType networkType)
 /*++
 
@@ -148,7 +155,7 @@ Return Value:
 --*/
 	{
 
-	LOGVERBOSE("Inside repository lock ipCount = %d.", ipCount);
+	LOGINFO("Entering updateRepositoryIpListUnTransacted. ipCount = %d.", ipCount);
 
 	int i;	
 	IpStatus *localIpStatus;
@@ -157,6 +164,12 @@ Return Value:
 	{
 		LOGERR("Received %d ips to upate in repository. Will not do anything.", ipCount);
 		return;
+	}
+
+	if(ips == NULL)
+	{
+		LOGERR("Received NULL as the list of ips. Returning.")
+			return;
 	}
 
 	localIpStatus = (IpStatus *)malloc(ipCount * sizeof(IpStatus));
@@ -184,6 +197,18 @@ Return Value:
 					LOGVERBOSE("id = %s isReserved = %d.", repositoryIpStatus->id, repositoryIpStatus->isReserved);
 					size_t idLen = strlen(repositoryIpStatus->id) * sizeof(char);
 					localIpStatus[i].id = (char *)malloc(idLen + 1);
+					if(localIpStatus[i].id == NULL)
+					{
+						LOGERR("Failed to allocate memory for localIpStatus[i].id.");
+						for(int j=0; j<i; j++)
+						{
+							free(localIpStatus[j].id);
+						}
+						free(localIpStatus);
+						localIpStatus = NULL;
+						LOGINFO("Exiting updateRepositoryIpListUnTransacted.");
+						return;
+					}
 					strcpy_s(localIpStatus[i].id, idLen + 1, repositoryIpStatus->id);
 				}
 				else
