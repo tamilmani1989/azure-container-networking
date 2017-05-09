@@ -32,6 +32,7 @@ Sushant Sharma (susharm) 6-May-2017
 
 #ifdef __linux__
 #include <stdio.h>
+#include <malloc.h>
 #include <arpa/inet.h>
 #define LockMutex pthread_mutex_lock(&ipAllocationsLock);
 #define UnlockMutex pthread_mutex_unlock(&ipAllocationsLock);
@@ -76,7 +77,7 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 		void updateRepositoryIpListUnTransacted(int ipCount, unsigned* ips, NetworkType networkType);
 		IpStatus *getRepositoryReservedIpUnTransacted(const char *reservationId);
 		unsigned long releaseReservedRepositoryIpUnTransacted(const char *reservationId);
-		IpAllocations *repositoryIpAllocations;
+		IpAllocations *repositoryIpAllocations=NULL;
 
 	public:	
 		DllExport void InitRepositoryIpAllocations();	

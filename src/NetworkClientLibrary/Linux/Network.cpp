@@ -13,7 +13,7 @@ This file contains methods that can be used to setup container network.
 
 Author:
 
-Sushant Sharma (susharm) 3-April-2017
+Tamilmani Manoharan (tamanoha) 3-April-2017
 
 --*/
 
@@ -22,6 +22,7 @@ Sushant Sharma (susharm) 3-April-2017
 #include "../Common/nclcore.h"
 #include "../../Logging/Logging.h"
 #include "../Common/NetworkCommon.h"
+#include "../Common/NclRepositoryManager.h"
 #include <curl/curl.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -33,13 +34,20 @@ Sushant Sharma (susharm) 3-April-2017
 #define NAME_CONST_LEN 9
 #define DRIVER_CONST_LEN 11
 
-extern DllExport unsigned int GetRepositoryPrimaryIp();
 
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 extern void ParseSubnetGatewayPrimaryIp( char *xmlResponse, char **subnetIp, char **gatewayIp, NclRepositoryManager *nclRepositoryManager);
 
+extern DllExport unsigned int GetRepositoryPrimaryIp();
+extern DllExport NclRepositoryManager *GetIpRepository();
+
+
 typedef struct string
+/*++
+	ptr - character array used to store receive data from curl
+	len - size of character array
+--*/
 {
 	char *ptr;
 	size_t len;
@@ -47,6 +55,18 @@ typedef struct string
 
 
 void initString(string *s)
+/*++
+Routine Description:
+	
+	Allocates ptr in the string structure. 
+
+Arguments:
+
+	s - string structure pointer
+
+Return Value:
+
+--*/
 {
 	s->len = 0;
 	s->ptr = (char *)malloc(s->len + 1);
@@ -59,6 +79,18 @@ void initString(string *s)
 }
 
 void freeStringMemory(string *s)
+/*++
+Routine Description:
+	
+	Free ptr in the string structure. 
+
+Arguments:
+
+	s - string structure pointer
+
+Return Value:
+
+--*/
 {
 	if (s->len>0)
 	{
@@ -66,7 +98,28 @@ void freeStringMemory(string *s)
 	}
 }
 
-size_t saveData(void *source, size_t size, size_t nmemb, string *target)
+size_t saveData(
+	void *source, 
+	size_t size, 
+	size_t nmemb, 
+	string *target)
+/*++
+Routine Description:
+
+	curl callback function for writing(saving) received data. The userdata (target) argument is set with CURLOPT_WRITEDATA option.
+
+Arguments:
+
+	source - points to data received by curl
+	size - size of block
+	nmemb - number of blocks
+	target - userdata pointer 
+
+Return Value:
+
+	size of the received data
+
+--*/
 {
 	size_t newLength = target->len + size*nmemb;
 	target->ptr = (char*)realloc(target->ptr, newLength + 1);
@@ -83,6 +136,21 @@ size_t saveData(void *source, size_t size, size_t nmemb, string *target)
 }
 
 int GetIpsFromNmAgent(unsigned int *ips)
+/*++
+
+Routine Description:
+
+	Retrieves interface config from nmagent.
+
+Arguments:
+
+	ips - if null, only ip count is returned. otherwise, all secondary ips are populated in it.
+
+Return Value:
+
+	count - number of secondary CAs from nm agent.
+
+--*/
 {
 	CURL *handle;
 	CURLcode res;
@@ -123,7 +191,27 @@ int GetIpsFromNmAgent(unsigned int *ips)
 	return ipCount;
 }
 
-int getSubnetGwIpAndSetPrimary(char **subnetIp, char **gatewayIp)
+int getSubnetGwIpAndSetPrimary(
+	char **subnetIp, 
+	char **gatewayIp,
+	NclRepositoryManager *nclRepositoryManager)
+/*++
+
+Routine Description:
+
+	retrieves interface descriptionf rom nm agent, and saves primary CA, subnet and gateway.
+
+Arguments:
+
+	subnetIp - subnet ip address
+	gwIp - ip address of the gateway
+	nclRepositoryManager - repository manager handle to set primary ip
+
+Return Value:
+
+	0 on success, 1 on failure.
+
+--*/
 {
 	CURL *handle;
 	CURLcode res;
@@ -160,7 +248,7 @@ int getSubnetGwIpAndSetPrimary(char **subnetIp, char **gatewayIp)
 		}
 		
 		if(retval)
-			ParseSubnetGatewayPrimaryIp(s.ptr, subnetIp, gatewayIp);
+			ParseSubnetGatewayPrimaryIp(s.ptr, subnetIp, gatewayIp, nclRepositoryManager);
 
 		freeStringMemory(&s);
 		curl_easy_cleanup(handle);
@@ -168,7 +256,31 @@ int getSubnetGwIpAndSetPrimary(char **subnetIp, char **gatewayIp)
 	return retval;
 }
 
-int getSubnetGwIpfromConfig(ClusterConfig *clusterConfig, char *subnetCidr, int subnetSize, char *nodeGwIp, int gwSize)
+int getSubnetGwIpfromConfig(
+	ClusterConfig *clusterConfig, 
+	char *subnetCidr, 
+	int subnetSize, 
+	char *nodeGwIp, 
+	int gwSize)
+/*++
+
+Routine Description:
+
+	retrieves subnetIp from cluster config and finds gateway ip using subnet ip.
+
+Arguments:
+
+	clusterConfig - ClusterConfig structure which contains subnet ip
+	subnetCidr - buffer that points where subnet ip to be stored
+	subnetSize - allocated size of subnetCidr buffer
+	nodeGwIp - buffer for gateway ip
+	gwSize - allocated size of nodeGwIp buffer
+
+Return Value:
+
+	0 on success, 1 on failure.
+
+--*/
 {
 	int i;
 	bool found=false;
@@ -218,6 +330,21 @@ int getSubnetGwIpfromConfig(ClusterConfig *clusterConfig, char *subnetCidr, int 
 }
 
 int networkNotExists(char *networkName)
+/*++
+
+Routine Description:
+		
+	Talks to docker and see if network exists or not.
+
+Arguments:
+
+	networkName - name of the network that is to be verified for existence
+
+Return Value:
+
+	1 if it didn't exist, 0 if network already exists or error
+
+--*/
 {
 	CURL *handle;
 	CURLcode res;
@@ -273,6 +400,22 @@ int networkNotExists(char *networkName)
 }
 
 int createDockerNetworkDriver(char *postFields)
+/*++
+
+Routine Description:
+
+	Creates a network with docker. The network driver is azure-vnet for underlay and azure-overlay for overlay and is not input.
+
+Arguments:
+
+	postFields - contains http header fields and request body.
+
+Return Value:
+
+	0 on success, error code otherwise.
+
+--*/
+
 {
 	CURL *handle;
 	CURLcode res;
@@ -332,7 +475,25 @@ int createDockerNetworkDriver(char *postFields)
 	return 1;
 }
 
-DWORD SetupUnderlayInAzure(ClusterConfig *clusterConfig)
+DWORD SetupUnderlayInAzure(
+	ClusterConfig *clusterConfig,
+	NclRepositoryManager *nclRepositoryManager)
+/*++
+
+Routine Description:
+	
+	Sets up the underlay network in Azure.
+
+Arguments:
+	
+	clusterConfig - contains name of the network to be created.
+	nclRepositoryManager - repository where metadata about network will be persisted.
+
+Return Value:
+	0 on success, error code otherwise.
+
+--*/
+	
 {
   int retval=0;
   char *subnetIp=NULL, *gatewayIp=NULL;
@@ -341,7 +502,7 @@ DWORD SetupUnderlayInAzure(ClusterConfig *clusterConfig)
   char ipamConfig[2048];
   const char *driver="azure-vnet";
 		
-  if(!getSubnetGwIpAndSetPrimary(&subnetIp, &gatewayIp))
+  if(!getSubnetGwIpAndSetPrimary(&subnetIp, &gatewayIp, nclRepositoryManager))
   {
   	 retval=1;
 	 LOGERR("Error in retrieving subnet and gw ip\n");
@@ -385,6 +546,22 @@ cleanup_setupunderlay:
 }
 
 char* constructOptionFields(ClusterConfig *clusterConfig)
+/*++
+
+Routine Description:
+	
+	This function constructs option parameters that needs to be passed to azure-overlay plugin via -o option
+
+Arguments:
+	
+	clusterConfig - Option parameters will be retrieved from ClusterConfig structure 
+
+Return Value:
+
+	returns char pointer to option format msg if succeeds els returns NULL in case of error 
+
+--*/
+
 {
 	char *nodeList=NULL;
 	char *nodeListOption = NULL;
@@ -495,6 +672,21 @@ char* constructOptionFields(ClusterConfig *clusterConfig)
 }
 
 DWORD SetupOverlay(ClusterConfig *clusterConfig)
+/*++
+
+Routine Description:
+	
+	Sets up the Overlay Network.
+
+Arguments:
+	
+	clusterConfig - contains name of the network to be created.
+
+Return Value:
+	0 on success, error code otherwise.
+
+--*/
+
 {
 	int retval=0;
 	char subnetIp[32], gatewayIp[32];
@@ -505,7 +697,7 @@ DWORD SetupOverlay(ClusterConfig *clusterConfig)
 	int postFieldsLen=0;
 	char *optionFields=NULL;
 	
-	SetRepositoryPrimaryIp(clusterConfig->localNodeIp);
+	GetIpRepository()->SetRepositoryPrimaryIp(clusterConfig->localNodeIp);
 	if(networkNotExists(clusterConfig->networkName))
 	{
 
@@ -552,9 +744,25 @@ DWORD SetupOverlay(ClusterConfig *clusterConfig)
 
 }
 
-DWORD GetHostIp(unsigned int *ip)
+DWORD GetHostIp(unsigned int *ip, NclRepositoryManager *nclRepositoryManager)
+/*++
+
+Routine Description:
+
+	For Overlay, it will be retrieved from ClusterConfig Structure
+	For underlay, it returns the primary CA of primary nic
+	
+Arguments:
+
+	ip - to be populated with the HostIp
+
+Return Value:
+
+	0 on success, error code otherwise
+
+--*/
 {
-	*ip = GetRepositoryPrimaryIp();
+	*ip = nclRepositoryManager->GetRepositoryPrimaryIp();
 	if(*ip!=0)
 		return 0;
 	return 1;
