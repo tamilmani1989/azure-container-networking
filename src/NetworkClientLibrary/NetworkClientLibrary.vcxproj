@@ -44,6 +44,11 @@
     <ClInclude Include="Common\aquanetworkclient.h" />
     <ClInclude Include="Common\aquaerrorcodes.h" />
     <ClInclude Include="Common\nclcore.h" />
+    <ClInclude Include="Common\NclRepositoryManager.h" />
+    <ClInclude Include="Common\Network.h" />
+    <ClInclude Include="Common\NetworkCommon.h" />
+    <ClInclude Include="Common\ResponseParser.h" />
+    <ClInclude Include="NetworkClientLibrary.h" />
     <ClInclude Include="Windows\VfpOperations.h" />
   </ItemGroup>
   <ItemGroup>

@@ -1,11 +1,22 @@
-/****************************** Module Header ******************************\
-* Module Name:  ReponseParser.cpp
-* Project:      Aquarius
-* Copyright (c) Microsoft Corporation.
-*
-* Parser for nm agent response
-*
-\***************************************************************************/
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+ResponseParser.cpp
+
+Abstract:
+
+This cotains the implementation for methods to parse xml in windows.
+
+Author:
+
+Sushant Sharma (susharm) 24-March-2017
+
+--*/
+
+
 #ifdef _WIN32
 #include <msxml6.h>
 #include <stdio.h>
@@ -13,10 +24,12 @@
 #include "comutil.h"
 #include <ws2tcpip.h>
 #include "../../Logging/Logging.h"
+#include "../Common/ResponseParser.h"
 #define DllExport   __declspec( dllexport )  
 
-namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 
+namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
+	
 // Macro that calls a COM method returning HRESULT value.
 #define CHK_HR(stmt)        do { hr=(stmt); if (FAILED(hr)) goto CleanUp; } while(0)
 
@@ -25,12 +38,26 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 
 // Macro that releases a COM object if not NULL.
 #define SAFE_RELEASE(p)     do { if ((p)) { (p)->Release(); (p) = nullptr; } } while(0)
+ 
+HRESULT VariantFromString(
+	PCWSTR wszValue, 
+	VARIANT &Variant)
+/*++
 
-char logMsg[2048];
-size_t msgSize = 2048;
+Routine Description:
 
-// Helper function to create a VT_BSTR variant from a null terminated string. 
-HRESULT VariantFromString(PCWSTR wszValue, VARIANT &Variant)
+	Creates a VT_BSTR variant from a null terminated string.
+
+Arguments:
+
+	wszValue - string to be converted
+	Variant - output variant
+
+Return Value:
+
+	HRESULT indicating success or failure.
+		
+--*/
 {
 	HRESULT hr = S_OK;
 	BSTR bstr = SysAllocString(wszValue);
@@ -43,8 +70,23 @@ CleanUp:
 	return hr;
 }
 
-// Helper function to create a DOM instance. 
-HRESULT CreateAndInitDOM(IXMLDOMDocument **ppDoc)
+HRESULT CreateAndInitDOM(
+	IXMLDOMDocument **ppDoc)
+/*++
+
+Routine Description:
+
+	Creates a DOM instance.
+
+Arguments:
+
+	ppDoc - document
+
+Return Value:
+
+	HRESULT indicating success or failure.
+		
+--*/
 {
 	HRESULT hr = CoCreateInstance(__uuidof(DOMDocument60), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(ppDoc));
 	if (SUCCEEDED(hr))
@@ -57,26 +99,151 @@ HRESULT CreateAndInitDOM(IXMLDOMDocument **ppDoc)
 	return hr;
 }
 
-unsigned int ConvertToIPAddress(unsigned char *ipAddressinStringFormat)
+unsigned int convertToIPAddress(
+	unsigned char *ipAddressinStringFormat)
+/*++
+
+Routine Description:
+
+	converts an ip address in string format to unsigned int.
+
+Arguments:
+
+	ipAddressinStringFormat - ip address in string format.
+
+Return Value:
+	
+	ip address in unsinged int. 0 in case of failure.
+--*/
 {
 	struct in_addr ipaddr;
 	int retval;
+	LOGINFO("Entering convertToIPAddress.");
+	if(ipAddressinStringFormat == NULL)
+	{
+		LOGERR("Cannot convert NULL to an ip address");
+		return 0;
+	}
 	retval = inet_pton(AF_INET, (char *)ipAddressinStringFormat, &ipaddr);
 	if (retval == 1)
 	{
+		LOGINFO("Successfully converted ipAdress in string %p to unsigned int %d", ipAddressinStringFormat, ipaddr.s_addr);
 		return ipaddr.s_addr;
 	}
-	else
-	{
-		sprintf_s(logMsg, msgSize, "Uable to convert %s from string to ip adress.", ipAddressinStringFormat);
-		AquaLogging::Log(err, logMsg);
-	}
+	
+	LOGERR("Uable to convert %p from string to ip adress.", ipAddressinStringFormat);
 	return 0;
 }
 
-// TODO: Check for memory leaks..
-void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayIp)
+
+void getAndSetPrimaryIp(
+	IXMLDOMNode* pXMLIPSubnetNode, 
+	NclRepositoryManager *nclRepositoryManager)
+/*++
+
+Routine Description:
+	
+	Retrives the primary ip from nmagent response and saves it in repository.
+
+Arguments:
+
+	pXMLIPSubnetNode - node to parse
+	nclRepositoryManager - handle to repository
+
+Return Value:
+	N/A
+		
+--*/
 {
+	HRESULT hr = S_OK;
+	IXMLDOMNodeList* pXMLIPAddressList = nullptr;
+	IXMLDOMNode* pXMLIPAddressNode = nullptr;
+	IXMLDOMNamedNodeMap*  pXMLIPAddressAttributes = nullptr;
+	IXMLDOMNode *ipAttribute = nullptr;
+	BSTR ipAddress = nullptr;
+	BSTR ipType = nullptr;
+	BSTR ipAddressNodeName = nullptr;
+
+	CHK_HR(pXMLIPSubnetNode->get_childNodes(&pXMLIPAddressList));
+	long ipAddressCount;
+	CHK_HR(pXMLIPAddressList->get_length(&ipAddressCount));
+	for (int l = 0; l<ipAddressCount; l++)
+	{
+		CHK_HR(pXMLIPAddressList->get_item(l, &pXMLIPAddressNode));
+		CHK_HR(pXMLIPAddressNode->get_nodeName(&ipAddressNodeName));
+		if (wcscmp(ipAddressNodeName, L"IPAddress") == 0)
+		{										
+			CHK_HR(pXMLIPAddressNode->get_attributes(&pXMLIPAddressAttributes));
+			
+			CHK_HR(pXMLIPAddressAttributes->getNamedItem(L"IsPrimary", &ipAttribute));
+			CHK_HR(ipAttribute->get_text(&ipType));
+			LOGVERBOSE("isPrimary==%S ", ipType);
+			SAFE_RELEASE(ipAttribute);
+
+			if(wcscmp(ipType,L"true") == 0) 
+			{
+				CHK_HR(pXMLIPAddressAttributes->getNamedItem(L"Address", &ipAttribute));
+				CHK_HR(ipAttribute->get_text(&ipAddress));
+				LOGVERBOSE("ip=%S ", ipAddress);
+				SAFE_RELEASE(ipAttribute);		
+				char *ipStr = _com_util::ConvertBSTRToString(ipAddress);
+				unsigned int ipInt = convertToIPAddress((unsigned char *)ipStr);
+				LOGVERBOSE("Primary ip of primary nic:%d",ipInt);
+				nclRepositoryManager->SetRepositoryPrimaryIp(ipInt);
+				delete[] ipStr;
+			}
+
+			SysFreeString(ipAddress);
+			SysFreeString(ipType);
+			ipAddress=nullptr;
+			ipType=nullptr;
+			SAFE_RELEASE(pXMLIPAddressAttributes);
+		}
+		SAFE_RELEASE(pXMLIPAddressNode);
+		SysFreeString(ipAddressNodeName);
+		ipAddressNodeName = nullptr;
+	}
+
+CleanUp:
+	SAFE_RELEASE(pXMLIPAddressList);
+	SAFE_RELEASE(pXMLIPAddressNode);
+	SAFE_RELEASE(pXMLIPAddressAttributes);
+	SAFE_RELEASE(ipAttribute);
+
+	SysFreeString(ipAddressNodeName);
+	SysFreeString(ipAddress);
+	SysFreeString(ipType);
+	
+
+}
+
+
+void GetSubnetGatewayPrimaryIp(
+	char *xmlResponse, 
+	char **subnetIp, 
+	char **gatewayIp, 
+	NclRepositoryManager * nclRepositoryManager)
+/*++
+
+Routine Description:
+
+	Parses the nm agent response for gateway and subnet ip.
+	Also persists primary ip in repository.
+
+Arguments:
+
+	xmlResponse - nm agent response to parse
+	subnetIp - (out praram) will contain subnet ip
+	gatewayIp - (out param) will contain gateway ip
+	nclRepositoryIp - repository handle to save praimry CA
+
+Return Value:
+
+	N/A
+		
+--*/
+{
+	LOGINFO("Entering GetSubnetGatewayPrimaryIp");
 	HRESULT hr = S_OK;
 	IXMLDOMDocument *pXMLDom = nullptr;
 	IXMLDOMParseError *pXMLErr = nullptr;
@@ -100,30 +267,25 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 	BSTR primary = nullptr;
 	VARIANT_BOOL varStatus = 0;
 	VARIANT varFileName;
+
 	VariantInit(&varFileName);
 	CreateAndInitDOM(&pXMLDom);
-	sprintf_s(logMsg, msgSize, "Going to load xml from string->\n %s\n", xmlResponse);
-	AquaLogging::Log(verbose, logMsg);
+	LOGVERBOSE("Going to load xml from string->\n %s", xmlResponse);
 	CComBSTR combstr(xmlResponse);
 	CHK_HR(pXMLDom->loadXML(combstr, &varStatus));
 	if (varStatus == VARIANT_TRUE)
 	{
 		CHK_HR(pXMLDom->get_xml(&bstrXML));
-		sprintf_s(logMsg, msgSize, "%S\n\n", bstrXML);
-		AquaLogging::Log(verbose, logMsg);
-
+		LOGVERBOSE("%S", bstrXML);
 		CHK_HR(pXMLDom->get_childNodes(&pXMLNodeList));
 		long lCount;
 		pXMLNodeList->get_length(&lCount);
-		sprintf_s(logMsg, msgSize, "Retrieved %d nodes from response. \n", lCount);
-		AquaLogging::Log(verbose, logMsg);
+		LOGVERBOSE("Retrieved %d nodes from response.", lCount);
 		for (int i = 0; i < lCount; i++)
 		{
 			CHK_HR(pXMLNodeList->get_item(i, &pXMLNode));
-			// do something based on node
 			CHK_HR(pXMLNode->get_nodeName(&nodeName));
-			sprintf_s(logMsg, msgSize, "Node %i -> Name: %ls. \n", i, nodeName);
-			AquaLogging::Log(verbose, logMsg);
+			LOGVERBOSE("Node %i -> Name: %ls.", i, nodeName);
 			if (wcscmp(nodeName, L"Interfaces") == 0)
 			{
 				CHK_HR(pXMLNode->get_childNodes(&pXMLChildNodeList));
@@ -133,8 +295,7 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 				{
 					CHK_HR(pXMLChildNodeList->get_item(j, &pXMLChildNode));
 					CHK_HR(pXMLChildNode->get_nodeName(&childNodeName));
-					sprintf_s(logMsg, msgSize, "Response -> Node %ls -> ChildNode -> %ls. \n", nodeName, childNodeName);
-					AquaLogging::Log(verbose, logMsg);
+					LOGVERBOSE("Response -> Node %ls -> ChildNode -> %ls.", nodeName, childNodeName);
 
 					if (wcscmp(childNodeName, L"Interface") == 0)
 					{
@@ -143,18 +304,15 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 						CHK_HR(primaryAttribute->get_text(&primary));
 						SAFE_RELEASE(primaryAttribute);
 						SAFE_RELEASE(pXMLInterfaceAttributes);
-						sprintf_s(logMsg, msgSize, "primary flag:%S\n", primary);
-						AquaLogging::Log(verbose, logMsg);
+						LOGVERBOSE("Primary flag:%S\n", primary);
 						if (wcscmp(primary, L"true") == 0)
 						{
-							sprintf_s(logMsg, msgSize, "***Found primary interface***\n");
-							AquaLogging::Log(verbose, logMsg);
+							LOGVERBOSE("Found primary interface.");
 							SysFreeString(primary);
 							primary = nullptr;
 							SysFreeString(childNodeName);
 							childNodeName = nullptr;
-
-							break; // remember to free up the memory
+							break; 
 						}
 						SysFreeString(primary);
 						primary = nullptr;
@@ -167,12 +325,11 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 
 				CHK_HR(pXMLChildNode->get_childNodes(&pXMLIPSubnetList));
 				SAFE_RELEASE(pXMLChildNode);
-
 				long subnetCount;
-				CHK_HR(pXMLIPSubnetList->get_length(&subnetCount));
-				
+				CHK_HR(pXMLIPSubnetList->get_length(&subnetCount));				
 				CHK_HR(pXMLIPSubnetList->get_item(0, &pXMLIPSubnetNode));
 				CHK_HR(pXMLIPSubnetNode->get_nodeName(&ipSubnetNodeName));
+
 				if (wcscmp(ipSubnetNodeName, L"IPSubnet") == 0)
 				{
 					CHK_HR(pXMLIPSubnetNode->get_attributes(&pXMLSubnetAttributes));
@@ -183,18 +340,14 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 					*subnetIp = (char *)malloc(wlen);
 					size_t bytesCopied = 0;
 					wcstombs_s(&bytesCopied, *subnetIp, wlen, subnetAddress, wlen);
-					sprintf_s(logMsg, msgSize, "Subnet ip=%s\n", *subnetIp);
-					AquaLogging::Log(verbose, logMsg);
-
+					LOGVERBOSE("Subnet ip=%s.", *subnetIp);
 					SysFreeString(subnetAddress);
 					subnetAddress = nullptr;
 					SAFE_RELEASE(prefixAttribute);
 					SAFE_RELEASE(pXMLSubnetAttributes);
-
 					char *subTemp, *gwTemp;
 					size_t len = strlen(*subnetIp);
-					sprintf_s(logMsg, msgSize, "len:%d\n", (int) len);
-					AquaLogging::Log(verbose, logMsg);
+					LOGVERBOSE("Len:%d", (int) len);
 					*gatewayIp = (char *)malloc(len+1);
 					int dotCount = 0;
 					int k = 0;
@@ -205,9 +358,7 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 						if (subTemp[k] == '.') {
 							dotCount++;
 						}
-
 						gwTemp[k] = subTemp[k];
-
 						if (dotCount == 3)
 						{
 							break;
@@ -215,8 +366,8 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 					}
 					gwTemp[++k] = '1';
 					gwTemp[++k] = '\0';
-					sprintf_s(logMsg, msgSize, "gateway Ip=%s\n", gwTemp);
-					AquaLogging::Log(verbose, logMsg);
+					LOGVERBOSE("gateway Ip=%s\n", gwTemp);
+					getAndSetPrimaryIp(pXMLIPSubnetNode, nclRepositoryManager);
 				}
 				
 				SAFE_RELEASE(pXMLChildNodeList);
@@ -230,17 +381,14 @@ void RetrieveSubnetGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 			SAFE_RELEASE(pXMLNode);
 			SysFreeString(nodeName);
 			nodeName = nullptr;
-			//SAFE_RELEASE(pXMLIPSubnetNode);
 		}
-
 	}
 	else
 	{
 		// Failed to load xml, get last parsing error
 		CHK_HR(pXMLDom->get_parseError(&pXMLErr));
 		CHK_HR(pXMLErr->get_reason(&bstrErr));
-		sprintf_s(logMsg, msgSize, "Failed to load/parse the xml document from string %s. Error: %ls\n", xmlResponse, bstrErr);
-		AquaLogging::Log(err, logMsg);
+		LOGERR( "Failed to load/parse the xml document from string %s. Error: %ls", xmlResponse, bstrErr);
 	}
 
 
@@ -262,10 +410,34 @@ CleanUp:
 	SysFreeString(subnetAddress);
 	SysFreeString(ipSubnetNodeName);
 	VariantClear(&varFileName);
+	LOGINFO("Exiting GetSubnetGatewayPrimaryIp");
 }
 
-void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int *count, unsigned int *ips)
+void CountOrRetrieveSecondaryIps(
+	char *xmlResponse, 
+	int countOnly, 
+	unsigned int *count, 
+	unsigned int *ips)
+/*++
+
+Routine Description:
+
+	Parses nm agent response for secondary IPs.
+
+Arguments:
+
+	xmlResponse - nm agent response
+	countOnly - boolena indicating whether to only count secondary CAs or to also pupulate the out param
+	count - (out parameter) count for seoncary CAs
+	ips - (out parameter) values for secondary CAs
+
+Return Value:
+
+	N/A
+		
+--*/
 {
+	LOGINFO("Entering CountOrRetrieveSecondaryIps.");
 	HRESULT hr = S_OK;
 	IXMLDOMDocument *pXMLDom = nullptr;
 	IXMLDOMParseError *pXMLErr = nullptr;
@@ -292,28 +464,25 @@ void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int 
 	VARIANT varFileName;
 	VariantInit(&varFileName);
 	CreateAndInitDOM(&pXMLDom);
-	sprintf_s(logMsg, msgSize, "Going to load xml from string->\n %s\n", xmlResponse);
-	AquaLogging::Log(verbose, logMsg);
+	LOGVERBOSE("Going to load xml from string-> %s", xmlResponse);
 	CComBSTR combstr(xmlResponse);
 	CHK_HR(pXMLDom->loadXML(combstr, &varStatus));
+
 	if (varStatus == VARIANT_TRUE)
 	{
 		CHK_HR(pXMLDom->get_xml(&bstrXML));
-		sprintf_s(logMsg, msgSize, "%S\n\n", bstrXML);
-		AquaLogging::Log(verbose, logMsg);
-		
+		LOGVERBOSE("%S", bstrXML);		
 		CHK_HR(pXMLDom->get_childNodes(&pXMLNodeList));
 		long lCount;
 		pXMLNodeList->get_length(&lCount);
-		sprintf_s(logMsg, msgSize, "Retrieved %d nodes from response. \n", lCount);
-		AquaLogging::Log(verbose, logMsg);
+		LOGVERBOSE("Retrieved %d nodes from response.", lCount);
+
 		for (int i = 0; i < lCount; i++)
 		{
 			CHK_HR(pXMLNodeList->get_item(i, &pXMLNode));
-			// do something based on node
 			CHK_HR(pXMLNode->get_nodeName(&nodeName));
-			sprintf_s(logMsg, msgSize, "Node %i -> Name: %ls. \n", i, nodeName);
-			AquaLogging::Log(verbose, logMsg);
+			LOGVERBOSE("Node %i -> Name: %ls.", i, nodeName);
+
 			if (wcscmp(nodeName, L"Interfaces") == 0)
 			{
 				CHK_HR(pXMLNode->get_childNodes(&pXMLChildNodeList));
@@ -323,13 +492,11 @@ void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int 
 				{
 					CHK_HR(pXMLChildNodeList->get_item(j, &pXMLChildNode));
 					CHK_HR(pXMLChildNode->get_nodeName(&childNodeName));
-					sprintf_s(logMsg, msgSize, "Response -> Node %ls -> ChildNode -> %ls. \n", nodeName, childNodeName);
-					AquaLogging::Log(verbose, logMsg);
+					LOGVERBOSE("Response -> Node %ls -> ChildNode -> %ls.", nodeName, childNodeName);
 
 					if (wcscmp(childNodeName, L"Interface") == 0)
 					{
-						sprintf_s(logMsg, msgSize, "Located an interface. \n");
-						AquaLogging::Log(verbose, logMsg);
+						LOGVERBOSE("Located an interface.");
 						
 						CHK_HR(pXMLChildNode->get_childNodes(&pXMLIPSubnetList));
 						long subnetCount;
@@ -340,8 +507,7 @@ void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int 
 							CHK_HR(pXMLIPSubnetNode->get_nodeName(&ipSubnetNodeName));
 							if (wcscmp(ipSubnetNodeName, L"IPSubnet") == 0)
 							{
-								sprintf_s(logMsg, msgSize, "Located an ip subnet. \n");
-								AquaLogging::Log(verbose, logMsg);
+								LOGVERBOSE("Located an ip subnet.");
 								CHK_HR(pXMLIPSubnetNode->get_childNodes(&pXMLIPAddressList));
 								long ipAddressCount;
 								CHK_HR(pXMLIPAddressList->get_length(&ipAddressCount));
@@ -351,45 +517,35 @@ void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int 
 									CHK_HR(pXMLIPAddressNode->get_nodeName(&ipAddressNodeName));
 									if (wcscmp(ipAddressNodeName, L"IPAddress") == 0)
 									{										
-										CHK_HR(pXMLIPAddressNode->get_attributes(&pXMLIPAddressAttributes));
-										
+										CHK_HR(pXMLIPAddressNode->get_attributes(&pXMLIPAddressAttributes));										
 										CHK_HR(pXMLIPAddressAttributes->getNamedItem(L"Address", &ipAttribute));
 										CHK_HR(ipAttribute->get_text(&ipAddress));
-										sprintf_s(logMsg, msgSize, "ip=%S ", ipAddress);
-										AquaLogging::Log(verbose, logMsg);
-										SAFE_RELEASE(ipAttribute);
-										
+										LOGVERBOSE("ip=%S ", ipAddress);
+										SAFE_RELEASE(ipAttribute);										
 										CHK_HR(pXMLIPAddressAttributes->getNamedItem(L"IsPrimary", &ipAttribute));
 										CHK_HR(ipAttribute->get_text(&ipType));
-										sprintf_s(logMsg, msgSize, "isPrimary==%S ", ipType);
-										AquaLogging::Log(verbose, logMsg);
+										LOGVERBOSE("isPrimary==%S ", ipType);
 										SAFE_RELEASE(ipAttribute);
-
 										char *ipStr = _com_util::ConvertBSTRToString(ipAddress);
-										char *primary = _com_util::ConvertBSTRToString(ipType);;
+										char *primary = _com_util::ConvertBSTRToString(ipType);
+
 										if(strncmp(primary, "false", 5) == 0)
 										{
-											unsigned int ipInt = ConvertToIPAddress((unsigned char *)ipStr);
+											unsigned int ipInt = convertToIPAddress((unsigned char *)ipStr);
 											if(!countOnly)
 											{
 												ips[*count] = ipInt;
 											}
 											(*count) = (*count) + 1;
-											sprintf_s(logMsg, msgSize, " int=%d \n", ipInt);
-											AquaLogging::Log(verbose, logMsg);
+											LOGVERBOSE("Secondary IP address in unsigned int=%u", ipInt);
 										}
-										else
-										{
-											sprintf_s(logMsg, msgSize, "\n");
-											AquaLogging::Log(verbose, logMsg);
-										}
+
 										SysFreeString(ipAddress);
 										SysFreeString(ipType);
 										ipAddress=nullptr;
 										ipType=nullptr;
 										delete[] ipStr;
 										delete[] primary;
-
 										SAFE_RELEASE(pXMLIPAddressAttributes);
 									}
 									SAFE_RELEASE(pXMLIPAddressNode);
@@ -421,8 +577,7 @@ void CountOrRetrieveSecondaryIps(char *xmlResponse, int countOnly, unsigned int 
 		// Failed to load xml, get last parsing error
 		CHK_HR(pXMLDom->get_parseError(&pXMLErr));
 		CHK_HR(pXMLErr->get_reason(&bstrErr));
-		sprintf_s(logMsg, msgSize, "Failed to load/parse the xml document from string %s. Error: %ls\n", xmlResponse, bstrErr);
-		AquaLogging::Log(err, logMsg);
+		LOGERR("Failed to load/parse the xml document from string %s. Error: %ls", xmlResponse, bstrErr);
 	}
 
 CleanUp:
@@ -449,18 +604,39 @@ CleanUp:
 	SysFreeString(ipType);
 
 	VariantClear(&varFileName);
+
+	LOGINFO("Exiting CountOrRetrieveSecondaryIps.");
 }
 
-DllExport int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips)
+DllExport int ParseSecondaryIpAddresses(
+	char *xmlResponse, 
+	int countOnly, 
+	unsigned int *ips)
+/*++
+
+Routine Description:
+
+	Initializez COM and calls method to parse nm agent response.
+
+Arguments:
+
+	xmlResponse - nm agent response
+	countOnly - boolena indicating whether to only count secondary CAs or to also pupulate the out param
+
+Return Value:
+
+	number of secondary CAs parsed, 0 upon failure.
+		
+--*/
 {
+	LOGINFO("Entering ParseSecondaryIpAddresses");
 	unsigned int ipCount = 0;
 	bool shouldCoUnInitialize = true;
 	HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 	
 	if(hr == RPC_E_CHANGED_MODE) // this is considered as failed call, and only successfull calls should have couninitiallize
 	{
-		sprintf_s(logMsg, msgSize, "CoInitializeEx returned RPC_E_CHANGED_MODE. code: 0x%X", hr);
-		AquaLogging::Log(warn, logMsg);
+		LOGWARN("CoInitializeEx returned RPC_E_CHANGED_MODE. code: 0x%X", hr);
 		shouldCoUnInitialize = false;
 	}
 	if (hr != E_INVALIDARG && 
@@ -473,8 +649,7 @@ DllExport int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsign
 		}
 		catch (...)
 		{
-			sprintf_s(logMsg, msgSize, "Exception in CountOrRetrieveSecondaryIps");
-			AquaLogging::Log(err, logMsg);
+			LOGERR("Exception in CountOrRetrieveSecondaryIps");
 		}
 
 		if (shouldCoUnInitialize)
@@ -484,21 +659,43 @@ DllExport int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsign
 	}
 	else
 	{
-		sprintf_s(logMsg, msgSize, "Coinitialize failed with code 0x%X", hr);
-		AquaLogging::Log(err, logMsg);
+		LOGERR("Coinitialize failed with code 0x%X", hr);
 	}
+	LOGINFO("Exiting ParseSecondaryIpAddresses");
 	return ipCount;
 }
 
-void ParseSubnetAndGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayIp)
+DllExport void ParseSubnetGatewayPrimaryIp(
+	char *xmlResponse, 
+	char **subnetIp, 
+	char **gatewayIp, 
+	NclRepositoryManager *nclRepositoryManager)
+/*++
+
+Routine Description:
+
+	Initializes COM and calls method to parse nm agent response.
+	
+Arguments:
+
+	xmlResponse - nm agent response to parse
+	subnetIp - (out praram) will contain subnet ip
+	gatewayIp - (out param) will contain gateway ip
+	nclRepositoryIp - repository handle to save praimry CA
+
+Return Value:
+
+	N/A
+		
+--*/
 {
+	LOGINFO("Entering ParseSubnetGatewayPrimaryIp.");
 	bool shouldCoUnInitialize = true;
 	HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
 	if (hr == RPC_E_CHANGED_MODE) // this is considered as failed call, and only successfull calls should have couninitiallize
 	{
-		sprintf_s(logMsg, msgSize, "CoInitializeEx returned RPC_E_CHANGED_MODE. code: 0x%X", hr);
-		AquaLogging::Log(warn, logMsg);
+		LOGWARN("CoInitializeEx returned RPC_E_CHANGED_MODE. code: 0x%X", hr);
 		shouldCoUnInitialize = false;
 	}
 
@@ -508,12 +705,11 @@ void ParseSubnetAndGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 	{
 		try
 		{
-			RetrieveSubnetGatewayIp(xmlResponse, subnetIp, gatewayIp);
+			GetSubnetGatewayPrimaryIp(xmlResponse, subnetIp, gatewayIp, nclRepositoryManager);
 		}
 		catch (...)
 		{
-			sprintf_s(logMsg, msgSize, "Exception in RetrieveSubnetGatewayIp");
-			AquaLogging::Log(err, logMsg);
+			LOGERR("Exception in RetrieveSubnetGatewayIp");
 		}
 
 		if (shouldCoUnInitialize)
@@ -523,9 +719,9 @@ void ParseSubnetAndGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayI
 	}
 	else
 	{
-		sprintf_s(logMsg, msgSize, "Coinitialize failed with code 0x%X\n", hr);
-		AquaLogging::Log(err, logMsg);
+		LOGERR("Coinitialize failed with code 0x%X\n", hr);
 	}
+	LOGINFO("Exiting ParseSubnetGatewayPrimaryIp.");
 }
 } } } } }
 #endif

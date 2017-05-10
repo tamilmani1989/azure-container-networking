@@ -23,5 +23,6 @@ unsigned long UNREACHABLE_DOCKER_DAEMON = 9;
 unsigned long UNSPECIFIED_NETWORK_NAME = 10;
 unsigned long SUBNET_SIZE_TOO_SMALL = 11;
 unsigned long ERROR_STARTING_VFP = 12;
+unsigned long NETWORK_NOT_INITIALIZED = 13;
 unsigned long UNEXPECTED_ERROR = 99;
 } } } } }

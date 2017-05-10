@@ -1,7 +1,28 @@
 #ifdef __linux__
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+Network.cpp
+
+Abstract:
+
+This file contains methods that can be used to setup container network.
+
+Author:
+
+Tamilmani Manoharan (tamanoha) 3-April-2017
+
+--*/
+
 #include "../Common/aquanetworkclient.h"
 #include <stdlib.h>
 #include "../Common/nclcore.h"
+#include "../../Logging/Logging.h"
+#include "../Common/NetworkCommon.h"
+#include "../Common/NclRepositoryManager.h"
 #include <curl/curl.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -13,10 +34,20 @@
 #define NAME_CONST_LEN 9
 #define DRIVER_CONST_LEN 11
 
+
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
-extern int ParseSubnetAndGatewayIp( char *xmlResponse, char **subnetIp, char **gatewayIp);
+extern void ParseSubnetGatewayPrimaryIp( char *xmlResponse, char **subnetIp, char **gatewayIp, NclRepositoryManager *nclRepositoryManager);
+
+extern DllExport unsigned int GetRepositoryPrimaryIp();
+extern DllExport NclRepositoryManager *GetIpRepository();
+
+
 typedef struct string
+/*++
+	ptr - character array used to store receive data from curl
+	len - size of character array
+--*/
 {
 	char *ptr;
 	size_t len;
@@ -24,18 +55,42 @@ typedef struct string
 
 
 void initString(string *s)
+/*++
+Routine Description:
+	
+	Allocates ptr in the string structure. 
+
+Arguments:
+
+	s - string structure pointer
+
+Return Value:
+
+--*/
 {
 	s->len = 0;
 	s->ptr = (char *)malloc(s->len + 1);
 	if (s->ptr == NULL)
 	{
-		fprintf(stderr, "malloc() failed\n");
+		LOGERR("malloc() failed\n");
 		exit(EXIT_FAILURE);
 	}
 	s->ptr[0] = '\0';
 }
 
 void freeStringMemory(string *s)
+/*++
+Routine Description:
+	
+	Free ptr in the string structure. 
+
+Arguments:
+
+	s - string structure pointer
+
+Return Value:
+
+--*/
 {
 	if (s->len>0)
 	{
@@ -43,7 +98,28 @@ void freeStringMemory(string *s)
 	}
 }
 
-size_t saveData(void *source, size_t size, size_t nmemb, string *target)
+size_t saveData(
+	void *source, 
+	size_t size, 
+	size_t nmemb, 
+	string *target)
+/*++
+Routine Description:
+
+	curl callback function for writing(saving) received data. The userdata (target) argument is set with CURLOPT_WRITEDATA option.
+
+Arguments:
+
+	source - points to data received by curl
+	size - size of block
+	nmemb - number of blocks
+	target - userdata pointer 
+
+Return Value:
+
+	size of the received data
+
+--*/
 {
 	size_t newLength = target->len + size*nmemb;
 	target->ptr = (char*)realloc(target->ptr, newLength + 1);
@@ -59,7 +135,22 @@ size_t saveData(void *source, size_t size, size_t nmemb, string *target)
 	return size*nmemb;
 }
 
-int getIpsFromNmAgent(unsigned int *ips)
+int GetIpsFromNmAgent(unsigned int *ips)
+/*++
+
+Routine Description:
+
+	Retrieves interface config from nmagent.
+
+Arguments:
+
+	ips - if null, only ip count is returned. otherwise, all secondary ips are populated in it.
+
+Return Value:
+
+	count - number of secondary CAs from nm agent.
+
+--*/
 {
 	CURL *handle;
 	CURLcode res;
@@ -67,7 +158,7 @@ int getIpsFromNmAgent(unsigned int *ips)
 	int retval = 1;
 	int ipCount = 0;
 
-	printf("Going to get ips from nm agent\n");
+	LOGINFO("Going to get ips from nm agent\n");
 
 	if (handle)
 	{
@@ -79,19 +170,19 @@ int getIpsFromNmAgent(unsigned int *ips)
 		res = curl_easy_perform(handle);
 		if (res != CURLE_OK)
 		{
-			fprintf(stderr, "curl_easy_perform() failed %d\n", res);
+			LOGERR("curl_easy_perform() failed %d\n", res);
 			retval=0;
 		}
 
 		if (retval && ips == NULL)
 		{
 			ipCount = ParseSecondaryIpAddresses(s.ptr, 1, ips);
-			printf("Received only ip count as %d\n", ipCount);
+			LOGINFO("Received only ip count as %d\n", ipCount);
 		}
 		else if(retval)
 		{
 			ipCount = ParseSecondaryIpAddresses(s.ptr, 0, ips);
-			printf("Received ips with ip count as %d\n", ipCount);
+			LOGINFO("Received ips with ip count as %d\n", ipCount);
 		}
 		freeStringMemory(&s);
 		curl_easy_cleanup(handle);
@@ -100,14 +191,34 @@ int getIpsFromNmAgent(unsigned int *ips)
 	return ipCount;
 }
 
-int getSubnetGwIpfromNMAgent(char **subnetIp, char **gatewayIp)
+int getSubnetGwIpAndSetPrimary(
+	char **subnetIp, 
+	char **gatewayIp,
+	NclRepositoryManager *nclRepositoryManager)
+/*++
+
+Routine Description:
+
+	retrieves interface descriptionf rom nm agent, and saves primary CA, subnet and gateway.
+
+Arguments:
+
+	subnetIp - subnet ip address
+	gwIp - ip address of the gateway
+	nclRepositoryManager - repository manager handle to set primary ip
+
+Return Value:
+
+	0 on success, 1 on failure.
+
+--*/
 {
 	CURL *handle;
 	CURLcode res;
 	handle = curl_easy_init();
 	int retval = 1;
 
-	printf("Going to get ips from nm agent\n");
+	LOGINFO("Going to get ips from nm agent\n");
 
 	if (handle)
 	{
@@ -120,7 +231,7 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gatewayIp)
 		res = curl_easy_perform(handle);
 		if (res != CURLE_OK)
 		{
-			fprintf(stderr, "curl_easy_perform() failed %d\n", res);
+			LOGERR("curl_easy_perform() failed %d\n", res);
 			retval=0;
 		}
 		
@@ -130,14 +241,14 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gatewayIp)
 			
 			if(httpCode!=200)
 			{
-				printf("Http Error:%ld\n",httpCode);
-				printf("Http Response:%s\n",s.ptr);
+				LOGERR("Http Error:%ld\n",httpCode);
+				LOGERR("Http Response:%s\n",s.ptr);
 				retval=0;
 			}
 		}
 		
 		if(retval)
-			ParseSubnetAndGatewayIp(s.ptr, subnetIp, gatewayIp);
+			ParseSubnetGatewayPrimaryIp(s.ptr, subnetIp, gatewayIp, nclRepositoryManager);
 
 		freeStringMemory(&s);
 		curl_easy_cleanup(handle);
@@ -145,7 +256,31 @@ int getSubnetGwIpfromNMAgent(char **subnetIp, char **gatewayIp)
 	return retval;
 }
 
-int getSubnetGwIpfromConfig(ClusterConfig *clusterConfig, char *subnetCidr, int subnetSize, char *nodeGwIp, int gwSize)
+int getSubnetGwIpfromConfig(
+	ClusterConfig *clusterConfig, 
+	char *subnetCidr, 
+	int subnetSize, 
+	char *nodeGwIp, 
+	int gwSize)
+/*++
+
+Routine Description:
+
+	retrieves subnetIp from cluster config and finds gateway ip using subnet ip.
+
+Arguments:
+
+	clusterConfig - ClusterConfig structure which contains subnet ip
+	subnetCidr - buffer that points where subnet ip to be stored
+	subnetSize - allocated size of subnetCidr buffer
+	nodeGwIp - buffer for gateway ip
+	gwSize - allocated size of nodeGwIp buffer
+
+Return Value:
+
+	0 on success, 1 on failure.
+
+--*/
 {
 	int i;
 	bool found=false;
@@ -195,6 +330,21 @@ int getSubnetGwIpfromConfig(ClusterConfig *clusterConfig, char *subnetCidr, int 
 }
 
 int networkNotExists(char *networkName)
+/*++
+
+Routine Description:
+		
+	Talks to docker and see if network exists or not.
+
+Arguments:
+
+	networkName - name of the network that is to be verified for existence
+
+Return Value:
+
+	1 if it didn't exist, 0 if network already exists or error
+
+--*/
 {
 	CURL *handle;
 	CURLcode res;
@@ -209,7 +359,7 @@ int networkNotExists(char *networkName)
 		int len = strlen(DockerHostNetwork) + strlen(networkName) + sizeof(char);
 		getUrl = (char *)malloc(len);
 		snprintf(getUrl, len,"%s%s",DockerHostNetwork,networkName);
-		printf("geturl:%s\n", getUrl);
+		LOGVERBOSE("geturl:%s\n", getUrl);
 		
 		curl_easy_setopt(handle, CURLOPT_URL, getUrl);
 		curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, saveData);
@@ -219,7 +369,7 @@ int networkNotExists(char *networkName)
 		res = curl_easy_perform(handle);
 		if (res != CURLE_OK)
 		{
-			fprintf(stderr, "curl_easy_perform() failed %d\n", res);
+			LOGERR("curl_easy_perform() failed %d\n", res);
 			retval = 0;
 		}
 		
@@ -228,11 +378,12 @@ int networkNotExists(char *networkName)
 			curl_easy_getinfo (handle, CURLINFO_RESPONSE_CODE, &httpCode);
 			if(httpCode!=404)
 			{
-				if(httpCode == 200)
-					printf("Network Initialized already\n");
-				else
-					printf("Http Error:%ld\n",httpCode);
-				
+				if(httpCode == 200) {
+					LOGWARN("Network Initialized already\n");
+				}
+				else {
+					LOGERR("Http Error:%ld\n",httpCode);
+				}
 				retval=0;
 			}
 		}
@@ -249,6 +400,22 @@ int networkNotExists(char *networkName)
 }
 
 int createDockerNetworkDriver(char *postFields)
+/*++
+
+Routine Description:
+
+	Creates a network with docker. The network driver is azure-vnet for underlay and azure-overlay for overlay and is not input.
+
+Arguments:
+
+	postFields - contains http header fields and request body.
+
+Return Value:
+
+	0 on success, error code otherwise.
+
+--*/
+
 {
 	CURL *handle;
 	CURLcode res;
@@ -268,7 +435,7 @@ int createDockerNetworkDriver(char *postFields)
 		url = (char *)malloc(len);
 		snprintf(url, len,"%s%s",DockerHostNetwork,createStr);
 		
-		printf("geturl:%s postfields:%s\n", url,postFields);
+		LOGINFO("geturl:%s postfields:%s\n", url,postFields);
 		
 		curl_easy_setopt(handle, CURLOPT_URL, url);
 		curl_easy_setopt(handle, CURLOPT_POST, 1);
@@ -281,7 +448,7 @@ int createDockerNetworkDriver(char *postFields)
 		res = curl_easy_perform(handle);
 		if (res != CURLE_OK)
 		{
-			fprintf(stderr, "curl_easy_perform() failed %d\n", res);
+			LOGERR("curl_easy_perform() failed %d\n", res);
 			retval=0;
 		}
 		if(retval)
@@ -290,8 +457,8 @@ int createDockerNetworkDriver(char *postFields)
 			
 			if(httpCode!=201)
 			{
-				printf("Http Error:%ld\n",httpCode);
-				printf("create network response:%s\n",s.ptr);
+				LOGERR("Http Error:%ld\n",httpCode);
+				LOGERR("create network response:%s\n",s.ptr);
 				retval=0;
 			}			
 		}
@@ -308,7 +475,25 @@ int createDockerNetworkDriver(char *postFields)
 	return 1;
 }
 
-DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
+DWORD SetupUnderlayInAzure(
+	ClusterConfig *clusterConfig,
+	NclRepositoryManager *nclRepositoryManager)
+/*++
+
+Routine Description:
+	
+	Sets up the underlay network in Azure.
+
+Arguments:
+	
+	clusterConfig - contains name of the network to be created.
+	nclRepositoryManager - repository where metadata about network will be persisted.
+
+Return Value:
+	0 on success, error code otherwise.
+
+--*/
+	
 {
   int retval=0;
   char *subnetIp=NULL, *gatewayIp=NULL;
@@ -317,18 +502,18 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
   char ipamConfig[2048];
   const char *driver="azure-vnet";
 		
+  if(!getSubnetGwIpAndSetPrimary(&subnetIp, &gatewayIp, nclRepositoryManager))
+  {
+  	 retval=1;
+	 LOGERR("Error in retrieving subnet and gw ip\n");
+	 goto cleanup_setupunderlay;
+  }
   if(networkNotExists(clusterConfig->networkName))
   {
 
-	  	printf("Netowrk %s does not exist, going to create it\n", clusterConfig->networkName);
+	  	LOGINFO("Netowrk %s does not exist, going to create it\n", clusterConfig->networkName);
 
-		if(!getSubnetGwIpfromNMAgent(&subnetIp, &gatewayIp))
-		{
-			retval=1;
-			printf("Error in retrieving subnet and gw ip\n");
-			goto cleanup_setupunderlay;
-		}
-		printf("retrieved subnet and gateway %s %s\n", subnetIp, gatewayIp);
+		LOGINFO("retrieved subnet and gateway %s %s\n", subnetIp, gatewayIp);
 
 		snprintf(ipamConfig, sizeof(ipamConfig), "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gatewayIp);
 
@@ -338,15 +523,15 @@ DWORD setupUnderlayInAzure(ClusterConfig *clusterConfig)
 
 		snprintf(postFields, conLength + 1, "\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}",clusterConfig->networkName, driver, ipamConfig);
 
-		printf("Now going to get create network driver... cmd:%s\n", postFields);
+		LOGINFO("Now going to get create network driver... cmd:%s\n", postFields);
 		
 		if(!createDockerNetworkDriver(postFields))
 		{
-			printf("Creating Underlay Network in Azure failed\n");
+			LOGERR("Creating Underlay Network in Azure failed\n");
 			retval=1;
 		}
 		else
-			printf("Docker underlay network create succeeded\n");
+			LOGINFO("Docker underlay network create succeeded\n");
   }
 
 cleanup_setupunderlay:
@@ -361,6 +546,22 @@ cleanup_setupunderlay:
 }
 
 char* constructOptionFields(ClusterConfig *clusterConfig)
+/*++
+
+Routine Description:
+	
+	This function constructs option parameters that needs to be passed to azure-overlay plugin via -o option
+
+Arguments:
+	
+	clusterConfig - Option parameters will be retrieved from ClusterConfig structure 
+
+Return Value:
+
+	returns char pointer to option format msg if succeeds els returns NULL in case of error 
+
+--*/
+
 {
 	char *nodeList=NULL;
 	char *nodeListOption = NULL;
@@ -380,14 +581,13 @@ char* constructOptionFields(ClusterConfig *clusterConfig)
 	char *mergeNodeInfo=NULL;
 	int mergeNodeInfoLen=0;
 
-	printf("Node count:%d\n",clusterConfig->nodeCount);
+	LOGVERBOSE("Node count:%d\n",clusterConfig->nodeCount);
 	nodeListLen = clusterConfig->nodeCount * 256 + clusterConfig->nodeCount-1 + sizeof(char);
 	nodeList = (char *)malloc(nodeListLen);
 	memset(nodeList,0,nodeListLen);
 	for(i=0;i<clusterConfig->nodeCount-1;i++)
 	{
 		nodeId = clusterConfig->nodeConfigs[i].nodeId;
-		//printf("inside for nodeid:%s\n",nodeId);
 		if(clusterConfig->localNodeIp == clusterConfig->nodeConfigs[i].nodeIp)
 			continue;
 		strcat(nodeList,nodeId );
@@ -399,7 +599,7 @@ char* constructOptionFields(ClusterConfig *clusterConfig)
 	else
 		nodeList[strlen(nodeList)-1]='\0';
 	
-	printf("nodeList:%s\n", nodeList);
+	LOGVERBOSE("nodeList:%s\n", nodeList);
 	
 	nodeListOptionLen = strlen(nodeList) + 16;
 	nodeListOption = (char *) malloc(nodeListOptionLen);
@@ -429,7 +629,7 @@ char* constructOptionFields(ClusterConfig *clusterConfig)
 		snprintf(nodeInfoOption[i], nodeInfoOptionLen, "\"%s\":\"%s,%s/%d\"", clusterConfig->nodeConfigs[i].nodeId, nodeRemoteIp, nodeSubnetIp,
 					clusterConfig->nodeConfigs[i].subnet->prefixLength);
 		totalNodeInfoLen += strlen(nodeInfoOption[i]);			
-		printf("node info:%s\n", nodeInfoOption[i]);
+		LOGINFO("node info:%s\n", nodeInfoOption[i]);
 	}
 	
 
@@ -471,7 +671,22 @@ char* constructOptionFields(ClusterConfig *clusterConfig)
 	return optionFields;
 }
 
-DWORD setupOverlay(ClusterConfig *clusterConfig)
+DWORD SetupOverlay(ClusterConfig *clusterConfig)
+/*++
+
+Routine Description:
+	
+	Sets up the Overlay Network.
+
+Arguments:
+	
+	clusterConfig - contains name of the network to be created.
+
+Return Value:
+	0 on success, error code otherwise.
+
+--*/
+
 {
 	int retval=0;
 	char subnetIp[32], gatewayIp[32];
@@ -481,19 +696,20 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 	const char *driver="azure-overlay";
 	int postFieldsLen=0;
 	char *optionFields=NULL;
-
+	
+	GetIpRepository()->SetRepositoryPrimaryIp(clusterConfig->localNodeIp);
 	if(networkNotExists(clusterConfig->networkName))
 	{
 
-		printf("Netowrk %s does not exist, going to create it\n", clusterConfig->networkName);
+		LOGINFO("Netowrk %s does not exist, going to create it\n", clusterConfig->networkName);
 
 		if(!getSubnetGwIpfromConfig(clusterConfig, subnetIp, sizeof(subnetIp), gatewayIp, sizeof(gatewayIp)))
 		{
 			retval=1;
-			printf("Error in retrieving subnet and gw ip\n");
-			goto cleanup_setupoverlay;
+			LOGERR("Error in retrieving subnet and gw ip\n");
+			goto cleanup_SetupOverlay;
 		}
-		printf("retrieved subnet and gateway %s %s\n", subnetIp, gatewayIp);
+		LOGINFO("retrieved subnet and gateway %s %s\n", subnetIp, gatewayIp);
 
 		snprintf(ipamConfig, sizeof(ipamConfig), "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gatewayIp);
 
@@ -507,20 +723,18 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 
 		snprintf(postFields, postFieldsLen, "\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s,%s}",clusterConfig->networkName, driver, ipamConfig,optionFields);
 
-		printf("postfields:%s\n",postFields);
-
-		printf("Now going to get create network driver... cmd:%s\n", postFields);
+		LOGINFO("Now going to get create network driver... cmd:%s\n", postFields);
 
 		if(!createDockerNetworkDriver(postFields))
 		{
-			printf("Creating Overlay Network failed\n");
+			LOGERR("Creating Overlay Network failed\n");
 			retval=1;
 		}
 		else
-			printf("Docker Overlay network create succeeded\n");
+			LOGINFO("Docker Overlay network create succeeded\n");
 	}
 
-	cleanup_setupoverlay:
+	cleanup_SetupOverlay:
 
 	if(postFields)
 	  free(postFields);
@@ -530,9 +744,28 @@ DWORD setupOverlay(ClusterConfig *clusterConfig)
 
 }
 
-DWORD GetHostIp(unsigned int *ip)
+DWORD GetHostIp(unsigned int *ip, NclRepositoryManager *nclRepositoryManager)
+/*++
+
+Routine Description:
+
+	For Overlay, it will be retrieved from ClusterConfig Structure
+	For underlay, it returns the primary CA of primary nic
+	
+Arguments:
+
+	ip - to be populated with the HostIp
+
+Return Value:
+
+	0 on success, error code otherwise
+
+--*/
 {
-	return UNEXPECTED_ERROR;
+	*ip = nclRepositoryManager->GetRepositoryPrimaryIp();
+	if(*ip!=0)
+		return 0;
+	return 1;
 }
 } } } } }
 #endif

@@ -37,6 +37,7 @@
 		  <File>%BinariesBuildTypeArchDirectory%\NetworkClient\NetworkClient.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\NetworkClient\NetworkClientLibrary.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\aquanix.dll</File>
+		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\Aqua.Logging.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\HNSClient.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\NetworkClientLibrary.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\HNSOverlayPlugin\aquanix.dll</File>

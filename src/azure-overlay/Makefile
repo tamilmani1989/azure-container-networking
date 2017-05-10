@@ -64,10 +64,13 @@ all-binaries: azure-overlay
 .PHONY: clean
 clean:
 	rm -rf $(OUTPUT_DIR)
+	rm -rf ../../out/linux-amd64/targets/azure-overlay
 
 ##TM
 $(BUILD_DIR)/azure-overlay: $(OVERLAYFILES)
 	go build -v -o $(BUILD_DIR)/azure-overlay -ldflags "-X main.version=$(VERSION) -s -w" $(OVERLAYDIR)/*.go
+	mkdir -p ../../out/linux-amd64/targets
+	cp $(BUILD_DIR)/azure-overlay ../../out/linux-amd64/targets
 ##TM
 
 # Build all binaries in a container.

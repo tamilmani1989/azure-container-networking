@@ -1,17 +1,45 @@
-/****************************** Module Header ******************************\
-* Module Name:  ParserInterfaces.c
-* Project:      Aquarius
-* Copyright (c) Microsoft Corporation.
-*
-* Parses the interfaces description returned by wireserver
-*
-\***************************************************************************/
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+ResponseParser.cpp
+
+Abstract:
+
+This cotains the implementation for methods to parse xml in Linux.
+
+Author:
+
+Tamilmani Manoharan (tamanoha) 10-April-2017
+
+--*/
 
 #include <string.h>
 #include <libxml/parser.h>
 #include <arpa/inet.h>
+#include "../../Logging/Logging.h"
+#include "../Common/NclRepositoryManager.h"
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
-unsigned int ConvertToIPAddress(unsigned char *ipAddressinStringFormat)
+extern void SetRepositoryPrimaryIp(unsigned int ip);
+
+unsigned int convertToIPAddress(unsigned char *ipAddressinStringFormat)
+/*++
+
+Routine Description:
+
+	converts an ip address in string format to unsigned int.
+
+Arguments:
+
+	ipAddressinStringFormat - ip address in string format.
+
+Return Value:
+	
+	ip address in unsinged int. 0 in case of failure.
+--*/
+
 {
     struct in_addr ipaddr;
     int retval;
@@ -27,7 +55,86 @@ unsigned int ConvertToIPAddress(unsigned char *ipAddressinStringFormat)
     return 0;
 }
 
-void getSubnetIp(xmlNode *interfaceNode, char **subnetIp)
+int getPrimaryIp(xmlNode *interfaceNode)
+/*++
+
+Routine Description:
+	
+	Retrives the primary ip from nmagent response and saves it in repository.
+
+Arguments:
+
+	interfaceNode - node to parse
+
+Return Value:
+
+	returns ip on success else 0 on failure
+		
+--*/
+{
+    xmlNode *node = NULL;
+    //int primaryFlag=0;
+    unsigned int ip=0;
+    struct in_addr addr;
+    for (node = interfaceNode->children; node; node = node->children) 
+    {
+        if (node->type == XML_ELEMENT_NODE) 
+        {
+            if(strncmp((char *)node->name, "IPAddress", 8) == 0)
+            {
+                struct _xmlAttr * props = node->properties;
+                ip=0;
+                for(props = node->properties; props; props=props->next)
+                {
+                    xmlChar* value = xmlNodeListGetString(node->doc, props->children, 1);
+                    if(strncmp((char *)props->name, "IsPrimary", 9)==0)
+                    {
+                        if(strncmp((char *)value, "true", 4) == 0)
+                        {
+                            if(ip!=0) 
+                            {
+                                addr.s_addr=ip;
+                                LOGINFO("primary ip of primary nic:%d\t%s\n",ip,inet_ntoa(addr));
+                                xmlFree(value);
+                                return ip;
+                            }
+                            else
+                            {
+                                LOGERR("Something went wrong. Primary Ip not found\n");
+                            }
+                        }
+                    }
+                    else if(strncmp((char *)props->name, "Address", 7)==0)
+                    {
+
+                        ip = inet_addr((char *)value);
+                    }
+                    xmlFree(value);
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+void getSubnetIp(
+    xmlNode *interfaceNode, 
+    char **subnetIp)
+/*++
+
+Routine Description:
+	
+	Retrives the subnet ip from nmagent response and saves it in the argument.
+
+Arguments:
+
+	interfaceNode - node to parse
+    subnetIp - pointer to buffer where subnetIp will be stored
+
+Return Value:
+	N/A
+		
+--*/
 {
     xmlNode *node = NULL;
 	char *temp=NULL;
@@ -57,13 +164,34 @@ void getSubnetIp(xmlNode *interfaceNode, char **subnetIp)
 	}		
 }
 
-void RetrieveSubnetGatewayIp(xmlNode *interfaces, char **subnetIp, char **gatewayIp)
+void GetSubnetGatewayPrimaryIp(
+    xmlNode *interfaces, 
+    char **subnetIp, 
+    char **gatewayIp,
+    NclRepositoryManager *nclRepositoryManager)
+/*++
+
+Routine Description:
+
+	Parses the nm agent response for gateway and subnet ip.
+	Also persists primary ip in repository.
+
+Arguments:
+
+	xmlResponse - nm agent response to parse
+	subnetIp - (out praram) will contain subnet ip
+	gatewayIp - (out param) will contain gateway ip
+	nclRepositoryManager - repository handle to save praimry CA
+
+Return Value:
+
+	N/A
+		
+--*/
+
 {
 	xmlNode *node = NULL;
-	int found=0;
-
-    // printf("Retrieved count only as %d count=%d\n", countOnly, *count);
-    // getchar();
+    unsigned int ip=0;
 
     for (node = interfaces->children; node; node = node->next) 
     {
@@ -84,6 +212,8 @@ void RetrieveSubnetGatewayIp(xmlNode *interfaces, char **subnetIp, char **gatewa
 							char *subTemp=NULL, *gwTemp=NULL;;
 							xmlFree(value);
 							getSubnetIp(node,subnetIp);
+                            ip=getPrimaryIp(node);
+                            nclRepositoryManager->SetRepositoryPrimaryIp(ip);
 							int len = strlen(*subnetIp) + sizeof(char);
 							*gatewayIp = (char *)malloc(len);
 							
@@ -106,26 +236,42 @@ void RetrieveSubnetGatewayIp(xmlNode *interfaces, char **subnetIp, char **gatewa
 							}
 							gwTemp[++k] = '1';
 							gwTemp[++k] = '\0';
-							found=1;
-							break;
+                            return;
                         }
                         xmlFree(value);
                     }                   
                 }
             }
         }
-		if(found)
-			break;
     }
 }
 
 
-void CountOrRetrieveSecondaryIps(xmlNode *interfaces, int countOnly, unsigned int *count, unsigned int *ips)
+void CountOrRetrieveSecondaryIps(
+    xmlNode *interfaces, 
+    int countOnly, 
+    unsigned int *count, 
+    unsigned int *ips)
+/*++
+
+Routine Description:
+
+	Parses nm agent response for secondary IPs.
+
+Arguments:
+
+	xmlResponse - nm agent response
+	countOnly - boolena indicating whether to only count secondary CAs or to also pupulate the out param
+	count - (out parameter) count for seoncary CAs
+	ips - (out parameter) values for secondary CAs
+
+Return Value:
+
+	N/A
+		
+--*/
 {
     xmlNode *node = NULL;
-
-    // printf("Retrieved count only as %d count=%d\n", countOnly, *count);
-    // getchar();
 
     for (node = interfaces; node; node = node->next) 
     {
@@ -167,8 +313,8 @@ void CountOrRetrieveSecondaryIps(xmlNode *interfaces, int countOnly, unsigned in
                     if(!countOnly)
                     {
                         // may be we should check if passed memory is sufficient or not
-                        ips[*count] = ConvertToIPAddress(savedAddress);
-                        printf("Saving ip address %d at location %d\n", ips[*count], *count);
+                        ips[*count] = convertToIPAddress(savedAddress);
+                        LOGINFO("Saving ip address %d at location %d\n", ips[*count], *count);
                     }
                     *count = (*count) + 1;
                 }
@@ -183,7 +329,26 @@ void CountOrRetrieveSecondaryIps(xmlNode *interfaces, int countOnly, unsigned in
     }
 }
 
-int ParseSecondaryIpAddresses( char *xmlResponse, int countOnly, unsigned int *ips)
+int ParseSecondaryIpAddresses( 
+    char *xmlResponse, 
+    int countOnly, 
+    unsigned int *ips)
+/*++
+
+Routine Description:
+
+	Initializez COM and calls method to parse nm agent response.
+
+Arguments:
+
+	xmlResponse - nm agent response
+	countOnly - boolena indicating whether to only count secondary CAs or to also pupulate the out param
+
+Return Value:
+
+	number of secondary CAs parsed, 0 upon failure.
+		
+--*/
 {
     xmlDocPtr doc;
     xmlNode *xmlRoot = NULL;
@@ -194,21 +359,40 @@ int ParseSecondaryIpAddresses( char *xmlResponse, int countOnly, unsigned int *i
     CountOrRetrieveSecondaryIps(xmlRoot, countOnly, &count, ips);
     xmlFreeDoc(doc);
     xmlCleanupParser();
-    printf("Parsing of ips finished\n");
     return count;
 }
 
-int ParseSubnetAndGatewayIp(char *xmlResponse, char **subnetIp, char **gatewayIp)
+void ParseSubnetGatewayPrimaryIp(
+    char *xmlResponse, 
+    char **subnetIp, 
+    char **gatewayIp,
+    NclRepositoryManager *nclRepositoryManager)
+/*++
+
+Routine Description:
+
+	Initializes COM and calls method to parse nm agent response.
+	
+Arguments:
+
+	xmlResponse - nm agent response to parse
+	subnetIp - (out praram) will contain subnet ip
+	gatewayIp - (out param) will contain gateway ip
+    nclRepositoryManager - repository handle to save praimry CA
+
+Return Value:
+
+	N/A
+		
+--*/
 {
     xmlDocPtr doc;
     xmlNode *xmlRoot = NULL;
     LIBXML_TEST_VERSION
     doc = xmlReadMemory(xmlResponse, strlen(xmlResponse), "include.xml", NULL, 0);
     xmlRoot = xmlDocGetRootElement(doc);
-    unsigned int count = 0;
-    RetrieveSubnetGatewayIp(xmlRoot, subnetIp, gatewayIp);
+    GetSubnetGatewayPrimaryIp(xmlRoot, subnetIp, gatewayIp, nclRepositoryManager);
     xmlFreeDoc(doc);
     xmlCleanupParser();
-    return count;
 }
 } } } } }

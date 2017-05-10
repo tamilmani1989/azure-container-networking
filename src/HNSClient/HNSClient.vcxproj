@@ -81,5 +81,6 @@
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="AfterBuild">
     <Copy SourceFiles="$(OutputPath)\HNSClient.dll; $(OutputPath)\HNSClient.pdb; $(OutputPath)\HNSClient.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
+    <Copy SourceFiles="$(OutputPath)\HNSClient.dll; $(OutputPath)\HNSClient.pdb; $(OutputPath)\HNSClient.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClient" />
   </Target>
 </Project>

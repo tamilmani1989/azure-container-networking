@@ -1,3 +1,11 @@
+/****************************** Module Header ******************************\
+* Module Name:  HNSClient.cpp
+* Project:      Aquarius
+* Copyright (c) Microsoft Corporation.
+*
+* Client to talk to windows host network system.
+*
+\**************************************************************************/
 
 #include <windows.h>
 #include <objbase.h>
@@ -5,7 +13,6 @@
 #include <string>
 #include "HnsApi.h"
 #include "HnsApi_i.c"
-
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
 #include "Config.Containers.HNS.h"
 #include <wil/Resource.h>
@@ -15,7 +22,7 @@
 #include "../Logging/Logging.h"
 #define SUCCESS L"\"Success\" : true"
 using namespace std::string_literals; 
-
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 // {c8a58877-c594-47fe-9197-bd808576f1da} as defined in idl file
 static const GUID server_clsid =
@@ -29,21 +36,21 @@ std::wstring GetContainerNetworkId(wchar_t *hnsNetworkType)
 	wil::unique_cotaskmem_ptr<WCHAR> networkResponseJson;
 	std::wstring request = L"";
 
-	printf("%S\n", request.c_str());
+	LOGINFO("%S\n", request.c_str());
 	bool failed = ExecuteHNSRequest(wil::out_param(networkResponseJson), L"GET", L"/networks/", request.c_str());
 	if(!failed)
 	{
 		Config::Containers::HNS::HNSNetworkResponse networkResponse;
 		int a = Marshal::FromJson(networkResponseJson.get(), &networkResponse).first;
 
-		printf("\nhrval=%d successed=%d\n\n", a, networkResponse.Success);
+		LOGINFO("\nhrval=%d successed=%d\n\n", a, networkResponse.Success);
 
 		for (std::vector<Config::Containers::HNS::HNSNetwork>::iterator nw = networkResponse.Output.begin(); nw != networkResponse.Output.end(); ++nw)
 		{
-			printf("ID=%S\n", (*nw).ID.c_str());
-			printf("Name=%S\n", (*nw).Name.c_str());
-			printf("Type=%d\n", (*nw).Type);
-			printf("HNS Type=%S\n", (*nw).HNSNetworkType.c_str());
+			LOGINFO("ID=%S\n", (*nw).ID.c_str());
+			LOGINFO("Name=%S\n", (*nw).Name.c_str());
+			LOGINFO("Type=%d\n", (*nw).Type);
+			LOGINFO("HNS Type=%S\n", (*nw).HNSNetworkType.c_str());
 			if (_wcsicmp((*nw).HNSNetworkType.c_str(), hnsNetworkType) == 0)
 			{
 				return (*nw).ID.c_str();
@@ -55,13 +62,15 @@ std::wstring GetContainerNetworkId(wchar_t *hnsNetworkType)
 	{
 		networkResponseJson.release();
 	}
-	printf("Unable to find network of type %S. Please check if it is created or not.", hnsNetworkType);
+	LOGINFO("Unable to find network of type %S. Please check if it is created or not.", hnsNetworkType);
 	return NULL;
 }
 
 DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std::wstring ca, std::wstring pa, std::wstring isRemoteEndpoint)
 {
 	LPWSTR responsePtr = NULL;
+	 
+	 
 	std::wstring vnetId = GetContainerNetworkId(L"Overlay");
 	std::wstring request = L"{ \"ID\" : \"" + endpointId + L"\", \
 	\"VirtualNetwork\" : \"" + vnetId + L"\", \
@@ -70,21 +79,21 @@ DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std:
 	\"MacAddress\" : \"" + macAddress + L"\", \
 	\"Policies\" : [ { \"Type\": \"PA\", \"PA\" : \""+ pa + L"\"}]}";
 
-	printf("%S\n", request.c_str());
+	LOGINFO("%S\n", request.c_str());
 	bool failed = ExecuteHNSRequest(&responsePtr, L"POST", L"/endpoints/", request.c_str());
 	if (!failed)
 	{
-		printf("Remote endpoint creation succeeded for id:%S mac:%S ca:%S pa:%S vnetId:%S HNSResponse:%S\n", 
+		LOGINFO("Remote endpoint creation succeeded for id:%S mac:%S ca:%S pa:%S vnetId:%S HNSResponse:%S\n", 
 			endpointId.c_str(), macAddress.c_str(), ca.c_str(), pa.c_str(), vnetId.c_str(), responsePtr);
 		if (responsePtr != NULL)
 		{
-			printf("Going to free response ptr\n");
+			LOGINFO("Going to free response ptr\n");
 			CoTaskMemFree(responsePtr);
 		}
 	}
 	else
 	{
-		printf("Remote endpoint creation failed for id:%S mac:%S ca:%S pa:%S vnetId:%S HNSResponse:%S\n",
+		LOGINFO("Remote endpoint creation failed for id:%S mac:%S ca:%S pa:%S vnetId:%S HNSResponse:%S\n",
 			endpointId.c_str(), macAddress.c_str(), ca.c_str(), pa.c_str(), vnetId.c_str(), responsePtr);
 		
 	}
@@ -94,49 +103,55 @@ DllExport int AddEndpoint(std::wstring endpointId, std::wstring macAddress, std:
 DllExport int DeleteEndpoint(std::wstring endpointId)
 {
 	LPWSTR responsePtr = NULL;
+	 
+	 
 	std::wstring path = L"/endpoints/" + endpointId;
 	bool failed = ExecuteHNSRequest(&responsePtr, L"DELETE", path.c_str(), L"");
 	if (!failed)
 	{
-		printf("Delete endpoint succeeded for id:%S HNSResponse:%S\n", endpointId.c_str(), responsePtr);
+		LOGINFO("Delete endpoint succeeded for id:%S HNSResponse:%S\n", endpointId.c_str(), responsePtr);
 		if (responsePtr != NULL)
 		{
-			printf("Going to free response ptr\n");
+			LOGINFO("Going to free response ptr\n");
 			CoTaskMemFree(responsePtr);
-			printf("Done \n");
+			LOGINFO("Done \n");
 		}
 	}
 	else
 	{
-		printf("Delete endpoint failed for id:%S HNSResponse:%S\n", endpointId.c_str(), responsePtr);
+		LOGINFO("Delete endpoint failed for id:%S HNSResponse:%S\n", endpointId.c_str(), responsePtr);
 	}
 	return failed;
 }
 
 void RemoveBraces(WCHAR* endpointIdStr, WCHAR** endpointIdStrWithoutBraces)
 {
-	printf("Going to remove braces from %S", endpointIdStr);
+	 
+	 
+	LOGINFO("Going to remove braces from %S", endpointIdStr);
 	getchar();
 	size_t endpointIdStrLen = wcslen(endpointIdStr);
-	printf("len %d\n", static_cast<int>(endpointIdStrLen));
+	LOGINFO("len %d\n", static_cast<int>(endpointIdStrLen));
 	*endpointIdStrWithoutBraces = (WCHAR*)malloc((endpointIdStrLen - 1) * sizeof(WCHAR));
-	printf("going to copy %llu %S", (endpointIdStrLen - 2), endpointIdStr + 1);
+	LOGINFO("going to copy %llu %S", (endpointIdStrLen - 2), endpointIdStr + 1);
 	wcsncpy_s((*endpointIdStrWithoutBraces), endpointIdStrLen - 2, (endpointIdStr + 1), endpointIdStrLen-2);
 	getchar();
 	(*endpointIdStrWithoutBraces)[endpointIdStrLen - 2] = '\0';
-	printf("removed %S", *endpointIdStrWithoutBraces);
+	LOGINFO("removed %S", *endpointIdStrWithoutBraces);
 	getchar();
 }
 
 bool ExecuteHNSAttachEndpoint(const _GUID endpointId, UINT32 compartmentId)
 {
 	bool failed = true;
+	 
+	 
 
 	HRESULT hr;
 	hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
 	if (FAILED(hr))
 	{
-		printf("Failed to CoInitializeEx 0x%x\n", hr);
+		LOGINFO("Failed to CoInitializeEx 0x%x\n", hr);
 		return failed;
 	}
 
@@ -146,16 +161,16 @@ bool ExecuteHNSAttachEndpoint(const _GUID endpointId, UINT32 compartmentId)
 		IID_IHNSApi, (void**)&pInterface);
 	if (FAILED(hr))
 	{
-		printf("Failed to CoCreateInstance 0x%x\n", hr);
+		LOGINFO("Failed to CoCreateInstance 0x%x\n", hr);
 		goto Cleanup;
 	}
 
-	printf("Got class object, calling...  ");
+	LOGINFO("Got class object, calling...  ");
 
 	WCHAR* idstr = NULL;
 
 	StringFromCLSID(endpointId, &idstr);
-	printf("Attachendpoint('%S','%d');\n", idstr, compartmentId);
+	LOGINFO("Attachendpoint('%S','%d');\n", idstr, compartmentId);
 	if (idstr != NULL)
 	{
 		CoTaskMemFree(idstr);
@@ -163,7 +178,7 @@ bool ExecuteHNSAttachEndpoint(const _GUID endpointId, UINT32 compartmentId)
 
 	hr = pInterface->AttachEndpoint(&endpointId, compartmentId);
 
-	printf("Call returned 0x%x\n", hr);
+	LOGINFO("Call returned 0x%x\n", hr);
 
 	pInterface->Release();
 
@@ -177,12 +192,14 @@ Cleanup:
 bool ExecuteHNSDetachEndpoint(const _GUID endpointId)
 {
 	bool failed = true;
+	 
+	 
 
 	HRESULT hr;
 	hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
 	if (FAILED(hr))
 	{
-		printf("Failed to CoInitializeEx 0x%x\n", hr);
+		LOGINFO("Failed to CoInitializeEx 0x%x\n", hr);
 		return failed;
 	}
 
@@ -192,16 +209,16 @@ bool ExecuteHNSDetachEndpoint(const _GUID endpointId)
 		IID_IHNSApi, (void**)&pInterface);
 	if (FAILED(hr))
 	{
-		printf("Failed to CoCreateInstance 0x%x\n", hr);
+		LOGINFO("Failed to CoCreateInstance 0x%x\n", hr);
 		goto Cleanup;
 	}
 
-	printf("Got class object, calling...  ");
+	LOGINFO("Got class object, calling...  ");
 
 	WCHAR* idstr = NULL;
 
 	StringFromCLSID(endpointId, &idstr);
-	printf("Detachendpoint('%S');\n", idstr);
+	LOGINFO("Detachendpoint('%S');\n", idstr);
 	if (idstr != NULL)
 	{
 		CoTaskMemFree(idstr);
@@ -209,7 +226,7 @@ bool ExecuteHNSDetachEndpoint(const _GUID endpointId)
 
 	hr = pInterface->DetachEndpoint(&endpointId);
 
-	printf("Call returned 0x%x\n", hr);
+	LOGINFO("Call returned 0x%x\n", hr);
 
 	pInterface->Release();
 
@@ -223,7 +240,8 @@ Cleanup:
 
 DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp)
 {
-	//LPWSTR responsePtr = NULL;
+	 
+	 
 	wil::unique_cotaskmem_ptr<WCHAR> endPointCreateResponseJson;
 	Config::Containers::HNS::HNSEndpointResponse endPointResponse;
 	std::wstring vnetId = GetContainerNetworkId(L"Overlay");
@@ -233,39 +251,33 @@ DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp)
 	WCHAR *endpointIdStrWithoutBraces = NULL;
 	wchar_t *req = NULL;
 
-	printf("HNS Request: %S\n", request.c_str());
+	LOGINFO("HNS Request: %S\n", request.c_str());
 	bool failed = ExecuteHNSRequest(wil::out_param(endPointCreateResponseJson), L"POST", L"/endpoints/", request.c_str());
 	if (!failed)
 	{
 		if (endPointCreateResponseJson != NULL)
 		{
-			printf("HostLocal endpoint creation succeeded for pa:%S vnetId:%S HNSResponse:%S\n",
+			LOGINFO("HostLocal endpoint creation succeeded for pa:%S vnetId:%S HNSResponse:%S\n",
 				hostLocalIp.c_str(), vnetId.c_str(), endPointCreateResponseJson.get());
 			Marshal::FromJson(endPointCreateResponseJson.get(), &endPointResponse);
 			StringFromCLSID(endPointResponse.Output.ID, &endpointIdStr);
-			// The content id we want to return is the GUID without the braces {}.
-			
-			/*if (endpointIdStr != NULL)
-			{
-				RemoveBraces(endpointIdStr, &endpointIdStrWithoutBraces);
-			}*/
 			endpointIdStrWithoutBraces = endpointIdStr + 1;
 			endpointIdStrWithoutBraces[wcslen(endpointIdStr) - 2] = L'\0';
-			printf("Created hostlocal EndPoint with Id: %S %S\n", endpointIdStr, endpointIdStrWithoutBraces);
-			printf("Going to release response ptr\n");
+			LOGINFO("Created hostlocal EndPoint with Id: %S %S\n", endpointIdStr, endpointIdStrWithoutBraces);
+			LOGINFO("Going to release response ptr\n");
 			endPointCreateResponseJson.release();
-			printf("Done\n");
+			LOGINFO("Done\n");
 		}
 		else
 		{
 			failed = true;
-			printf("HostLocal endpoint creation succeeded but returned nothing in response for pa:%S vnetId:%S\n",
+			LOGINFO("HostLocal endpoint creation succeeded but returned nothing in response for pa:%S vnetId:%S\n",
 				hostLocalIp.c_str(), vnetId.c_str());			
 		}
 	}
 	else
 	{
-		printf("HostLocal endpoint creation failed for pa:%S vnetId:%S HNSResponse:%S\n",
+		LOGINFO("HostLocal endpoint creation failed for pa:%S vnetId:%S HNSResponse:%S\n",
 			hostLocalIp.c_str(), vnetId.c_str(), endPointCreateResponseJson.get());
 		endPointCreateResponseJson.release();
 	}
@@ -273,28 +285,28 @@ DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp)
 	LPWSTR responsePtr = NULL;
 	if (!failed)
 	{
-		printf("Going to attach hostlocal ip %S with ID %S to overlay.\n", hostLocalIp.c_str(), endpointIdStrWithoutBraces);
+		LOGINFO("Going to attach hostlocal ip %S with ID %S to overlay.\n", hostLocalIp.c_str(), endpointIdStrWithoutBraces);
 		failed = ExecuteHNSAttachEndpoint(endPointResponse.Output.ID, NET_IF_COMPARTMENT_ID_PRIMARY);
 
 		if (!failed)
 		{
-			printf("HostLocal endpoint attach succeeded for pa:%S vnetId:%S endpointID:%S\n",
+			LOGINFO("HostLocal endpoint attach succeeded for pa:%S vnetId:%S endpointID:%S\n",
 				hostLocalIp.c_str(), vnetId.c_str(), endpointIdStrWithoutBraces);			
 		}
 		else
 		{
-			printf("HostLocal endpoint attach failed for pa:%S vnetId:%S HNSResponse:%S\nWill delete the host local endpoint..",
+			LOGINFO("HostLocal endpoint attach failed for pa:%S vnetId:%S HNSResponse:%S\nWill delete the host local endpoint..",
 				hostLocalIp.c_str(), vnetId.c_str(), responsePtr);
 			if(DeleteEndpoint(endpointIdStrWithoutBraces)==1)
 			{
-				printf("Deletion of host local endpoint failed");
+				LOGINFO("Deletion of host local endpoint failed");
 			}
 
 		}
 	}
 	if (responsePtr != NULL)
 	{
-		printf("Going to free response ptr\n");
+		LOGINFO("Going to free response ptr\n");
 		CoTaskMemFree(responsePtr);
 	}
 	if(endpointIdStr != NULL)
@@ -311,10 +323,12 @@ DllExport int AddHostLocalEndpoint(std::wstring hostLocalIp)
 
 void printm()
 {
+	 
+	 
 	wil::unique_cotaskmem_ptr<WCHAR> endpointsResponseJson;
 	std::wstring request = L"";
 
-	printf("%S\n", request.c_str());
+	LOGINFO("%S\n", request.c_str());
 	bool failed = ExecuteHNSRequest(wil::out_param(endpointsResponseJson), L"GET", L"/endpoints/", request.c_str());
 	if (!failed)
 	{
@@ -324,14 +338,14 @@ void printm()
 		{
 
 		}
-		printf("\nhrval=%d successed=%d\n\n", hr, endpointsResponse.Success);
+		LOGINFO("\nhrval=%d successed=%d\n\n", hr, endpointsResponse.Success);
 
 		for (std::vector<Config::Containers::HNS::HNSEndpoint>::iterator ep = endpointsResponse.Output.begin(); ep != endpointsResponse.Output.end(); ++ep)
 		{
-			printf("Checking IP=%ws\n", (*ep).IPAddress.c_str());
-			printf("Name=%ws\n", (*ep).Name.c_str());
-			printf("VnetName=%ws\n", (*ep).VirtualNetworkName.c_str());
-			printf("Gateway=%ws\n", (*ep).GatewayAddress.c_str());			
+			LOGINFO("Checking IP=%ws\n", (*ep).IPAddress.c_str());
+			LOGINFO("Name=%ws\n", (*ep).Name.c_str());
+			LOGINFO("VnetName=%ws\n", (*ep).VirtualNetworkName.c_str());
+			LOGINFO("Gateway=%ws\n", (*ep).GatewayAddress.c_str());			
 		}
 	}
 
@@ -351,10 +365,10 @@ unsigned long getEndpointCount(USHORT *epCount)
 	std::wstring request = L"";
 	(*epCount) = 0;
 	unsigned long retval = 0;
-	char logMsg[2048];
-	size_t msgSize = 2048;
+	 
+	 
 
-	printf("%S\n", request.c_str());
+	LOGINFO("%S\n", request.c_str());
 	bool failed = ExecuteHNSRequest(wil::out_param(endpointsResponseJson), L"GET", L"/endpoints/", request.c_str());
 	if (!failed)
 	{
@@ -364,13 +378,11 @@ unsigned long getEndpointCount(USHORT *epCount)
 		{
 		}
 
-		sprintf_s(logMsg, msgSize, "hrval=%d successed=%d", hr, endpointsResponse.Success);
-		AquaLogging::Log(info, logMsg);
+		LOGINFO("hrval=%d successed=%d", hr, endpointsResponse.Success);		
 
 		for (std::vector<Config::Containers::HNS::HNSEndpoint>::iterator ep = endpointsResponse.Output.begin(); ep != endpointsResponse.Output.end(); ++ep)
 		{
-			sprintf_s(logMsg, msgSize, "Endpoint received %ls", (*ep).IPAddress.c_str());
-			AquaLogging::Log(verbose, logMsg);
+			LOGINFO("Endpoint received %ls", (*ep).IPAddress.c_str());
 			(*epCount) += 1;			
 		}
 	}
@@ -401,6 +413,8 @@ char *ConvertWideToNarrow(const wchar_t *widestr)
 
 DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, USHORT *mappingsCount)
 {
+	 
+	 
 	AquaLogging::Log(info, "Enter GetLocalEndpoints");
 	wil::unique_cotaskmem_ptr<WCHAR> endpointsResponseJson;
 	std::wstring request = L"";
@@ -413,7 +427,7 @@ DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, US
 		return 0;
 	}
 
-	printf("%S\n", request.c_str());
+	LOGINFO("%S\n", request.c_str());
 	bool failed = ExecuteHNSRequest(wil::out_param(endpointsResponseJson), L"GET", L"/endpoints/", request.c_str());
 	if (failed == 0)
 	{
@@ -423,7 +437,7 @@ DllExport unsigned long GetLocalEndpoints(EndpointMapping **endpointMappings, US
 		if (hr != 1) //failed
 		{
 		}
-		printf("\nhrval=%d successed=%d\n\n", hr, endpointsResponse.Success);
+		LOGINFO("\nhrval=%d successed=%d\n\n", hr, endpointsResponse.Success);
 		int counter = 0;
 		for (std::vector<Config::Containers::HNS::HNSEndpoint>::iterator ep = endpointsResponse.Output.begin(); ep != endpointsResponse.Output.end(); ++ep)
 		{
@@ -481,8 +495,10 @@ DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostL
 	wil::unique_cotaskmem_ptr<WCHAR> endpointsResponseJson;
 	std::wstring request = L"";
 	int retval = 0;
+	 
+	 
 
-	printf("%S\n", request.c_str());
+	LOGINFO("%S\n", request.c_str());
 	bool failed = ExecuteHNSRequest(wil::out_param(endpointsResponseJson), L"GET", L"/endpoints/", request.c_str());
 	if (!failed)
 	{
@@ -492,17 +508,17 @@ DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostL
 		{
 			
 		}
-		printf("\nhrval=%d successed=%d\n\n", hr, endpointsResponse.Success);
+		LOGINFO("\nhrval=%d successed=%d\n\n", hr, endpointsResponse.Success);
 
 		for (std::vector<Config::Containers::HNS::HNSEndpoint>::iterator ep = endpointsResponse.Output.begin(); ep != endpointsResponse.Output.end(); ++ep)
 		{			
-			printf("Checking IP=%ws\n", (*ep).IPAddress.c_str());
-			printf("Name=%ws\n", (*ep).Name.c_str());
-			printf("VnetName=%ws\n", (*ep).VirtualNetworkName.c_str());
-			printf("Gateway=%ws\n", (*ep).GatewayAddress.c_str());
+			LOGINFO("Checking IP=%ws\n", (*ep).IPAddress.c_str());
+			LOGINFO("Name=%ws\n", (*ep).Name.c_str());
+			LOGINFO("VnetName=%ws\n", (*ep).VirtualNetworkName.c_str());
+			LOGINFO("Gateway=%ws\n", (*ep).GatewayAddress.c_str());
 			if (_wcsicmp((*ep).IPAddress.c_str(), hostLocalIp) == 0)
 			{
-				printf("Endpoint with IP=%S will be deleted as per request..\n", (*ep).IPAddress.c_str());
+				LOGINFO("Endpoint with IP=%S will be deleted as per request..\n", (*ep).IPAddress.c_str());
 				WCHAR * epwb;
 				StringFromCLSID((*ep).ID, &epwb);
 				WCHAR *epwtb = epwb + 1;
@@ -516,14 +532,14 @@ DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostL
 
 				if(DeleteEndpoint(epwtb)==1)
 				{
-					printf("Removal of endpoint failed\n");
+					LOGINFO("Removal of endpoint failed\n");
 					retval = 1;
 				}
 				free(epwb);
 				break;
 			}
 
-			printf("Endpoint with IP=%S is not the one to be deleted as per delete request..\n", (*ep).IPAddress.c_str());		
+			LOGINFO("Endpoint with IP=%S is not the one to be deleted as per delete request..\n", (*ep).IPAddress.c_str());		
 		}
 	}
 
@@ -537,12 +553,14 @@ DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostL
 bool ExecuteHNSRequest(LPWSTR *responsePtr, LPCWSTR Method, LPCWSTR Path, LPCWSTR Request)
 {
 	bool failed = true;
+	 
+	 
 
 	HRESULT hr;
 	hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
 	if (FAILED(hr))
 	{
-		printf("Failed to CoInitializeEx 0x%x\n", hr);
+		LOGINFO("Failed to CoInitializeEx 0x%x\n", hr);
 		return failed;
 	}
 
@@ -552,22 +570,21 @@ bool ExecuteHNSRequest(LPWSTR *responsePtr, LPCWSTR Method, LPCWSTR Path, LPCWST
 										IID_IHNSApi, (void**)&pInterface);
 	if (FAILED(hr))
 	{
-		printf("Failed to CoCreateInstance 0x%x\n", hr);
+		LOGINFO("Failed to CoCreateInstance 0x%x\n", hr);
 		goto Cleanup;
 	}
 
-	printf("Got class object, calling...  ");
+	LOGINFO("Got class object, calling...  ");
 
 
-	printf("Request('%S','%S','%S');\n", Method, Path, Request); 
+	LOGINFO("Request('%S','%S','%S');\n", Method, Path, Request); 
 	hr = pInterface->Request(Method, Path, Request, responsePtr);
-	// pInterface->AttachEndpoint()
 
-	printf("Call returned 0x%x\n", hr);
+	LOGINFO("Call returned 0x%x\n", hr);
 
 	if (*responsePtr != NULL)
 	{
-		printf("%S\n", *responsePtr);		
+		LOGINFO("%S\n", *responsePtr);		
 	}
 
 	pInterface->Release();

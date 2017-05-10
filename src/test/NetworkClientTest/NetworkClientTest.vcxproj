@@ -41,6 +41,7 @@
   </ItemGroup>
    <ItemGroup>
     <ProjectReference Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
+    <ProjectReference Include="$(SRCROOT)\Logging\Logging.vcxproj" />
    </ItemGroup>
      <ItemGroup>
     <Robocopy Include="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\NetworkClientLibrary.dll">
@@ -55,6 +56,10 @@
 	    <Robocopy Include="$(BinariesBuildTypeArchDirectory)\HNSOverlayPlugin\HNSOverlayPlugin.dll">
       <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkClientTest\</DestinationFolder>
     </Robocopy>	
+   <Robocopy Include="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll">
+     <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkClientTest\</DestinationFolder>
+   </Robocopy>	
+
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

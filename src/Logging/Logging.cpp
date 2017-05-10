@@ -11,18 +11,21 @@
 #ifdef _WIN32
 #include "../Shared/Utilities.h"
 #endif
+
+namespace Microsoft { namespace Azure { namespace Networking {  namespace Aqua { namespace ClientLibrary {
 bool AquaLogging::externalLogInitialized = false;
 static ExternalLogMethod externalLogMethod;
 static bool consoleOutputEnabled = false;
 
-void AquaLogging::InitLogging(ExternalLogMethod logMethod)
+DllExport void AquaLogging::InitLogging(ExternalLogMethod logMethod)
 {
 	externalLogMethod = logMethod;	
 	externalLogInitialized = true;
 }
-void AquaLogging::InitLogging(bool conOutputEnabled)
+DllExport void AquaLogging::InitLogging(bool conOutputEnabled)
 {
 	consoleOutputEnabled = conOutputEnabled;
+	externalLogInitialized = false;
 }
 
 void LogNarrowString(char *narrow, bool conOutputEnabled)
@@ -42,16 +45,14 @@ void LogNarrowString(char *narrow, bool conOutputEnabled)
 	}
 }
 
-void AquaLogging::Log(int logLevel, char *logMessage)
+DllExport void AquaLogging::Log(int logLevel, char *logMessage)
 {
-	UNREFERENCED_PARAMETER(logLevel);
 	if(externalLogInitialized)
 	{
-		char logMsg[2048];
 		#ifdef _WIN32
 		size_t msgSize = 2048;
 		#endif
-		sprintf_s(logMsg, msgSize, "Aqua: %s", logMessage);
+		snprintf(logMsg, msgSize, "Aqua: %s", logMessage);
 		externalLogMethod(logLevel, logMsg);
 	}
 	else
@@ -59,4 +60,4 @@ void AquaLogging::Log(int logLevel, char *logMessage)
 		LogNarrowString(logMessage, consoleOutputEnabled);
 	}
 }
-
+}}}}}

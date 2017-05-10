@@ -13,9 +13,12 @@
 
 
 #include "NetworkClientTest.h"
+#include "../../NetworkClientLibrary/Common/NclRepositoryManager.h"
+#include "../../NetworkClientLibrary/Common/ResponseParser.h"
 #include "aquanetworkclient.h"
 #include "nclcore.h"
 #include "TraceLogging.h"
+#include "../../NetworkClientLibrary/NetworkClientLibrary.h"
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
@@ -75,76 +78,13 @@ Return Value:
 
 }
 #endif
-void
-NetworkClientTest::TestInitializeNetworkOverlay()
-{
-	ClusterConfig cfg;
-	Ipv4Subnet localSubnet;
-	struct in_addr ipAdd;
-	unsigned long ret;
-	cfg.nodeCount = 1;
-	cfg.nodeConfigs = (NodeConfig *)malloc(cfg.nodeCount * sizeof(NodeConfig));
-	inet_pton(AF_INET, "10.10.1.0", &ipAdd);
-	localSubnet.ipAddress = ipAdd.s_addr;
-	localSubnet.prefixLength = 24;
-	inet_pton(AF_INET, "11.1.0.144", &ipAdd);
-	cfg.nodeConfigs[0].nodeIp = ipAdd.s_addr;
-	cfg.nodeConfigs[0].nodeId = "Id114";
-	cfg.nodeConfigs[0].subnet = &localSubnet;
-	cfg.localNodeIp = ipAdd.s_addr;
-	ret = saveOverlayAddressSpace(&cfg);
-	VERIFY_ARE_EQUAL((unsigned long)0, ret, L"Overlay initialized passed");
-	free(cfg.nodeConfigs);
 
-}
-
-void
-NetworkClientTest::TestGetAvailableAddressOverlay()
-{
-	NodeNetworkResources nnr = { 0 };
-	int ipCount=0;
-	nnr.ips = NULL;
-
-	ipCount = PersistedIpCountInRepository();
-	VERIFY_ARE_EQUAL(255, ipCount, L"GetAvailableAddress Overlay-Ipcount passed");
-
-	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
-	ipCount = GetAvailableIpsfromRepository(nnr.ips);
-	VERIFY_ARE_EQUAL(255, ipCount, L"Retrieving ips passed Overlay -Ipcount passed");	
-
-	free(nnr.ips);
-}
+NclRepositoryManager *nclRepositoryManager = NULL;
 
 int getAvailableIpCountOverlay()
 {
-	return GetAvailableIpsfromRepository(NULL);
+	return GetIpRepository()->GetAvailableIpsfromRepository(NULL);
 }
-
-void
-NetworkClientTest::TestGetAvailableAddressUnderlay()
-{
-	NodeNetworkResources nnr = { 0 };
-	NetworkType networkTypeProvided = UnderLay;
-
-	int ipCount = 0;
-	nnr.ips = NULL;
-	char *xmlResp = "<Interfaces><Interface MacAddress=\"000D3A72DC45\" IsPrimary=\"true\"><IPSubnet Prefix=\"11.1.0.0/24\"><IPAddress Address=\"11.1.0.74\" IsPrimary=\"true\"/><IPAddress Address=\"11.1.0.75\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.76\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.77\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.78\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.79\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.80\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.81\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.82\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.83\" IsPrimary=\"false\"/></IPSubnet></Interface></Interfaces>";
-	
-	ipCount = ParseSecondaryIpAddresses(xmlResp, 1, nnr.ips);
-	VERIFY_ARE_EQUAL(9, ipCount, L"Retrieving ipcount passed underlay");
-
-	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
-	ipCount = ParseSecondaryIpAddresses(xmlResp, 0, nnr.ips);
-	VERIFY_ARE_EQUAL(9, ipCount, L"Retrieving ipcount with ips passed underlay");
-
-	UpdateRepositoryIpList(ipCount, nnr.ips, networkTypeProvided);
-	ipCount = GetAvailableIpsfromRepository(nnr.ips);
-	VERIFY_ARE_EQUAL(9, ipCount, L"initialization underlay passed");
-
-	free(nnr.ips);
-
-}
-
 
 int getAvailableIpCountUnderlay()
 {
@@ -157,11 +97,20 @@ int getAvailableIpCountUnderlay()
 	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
 
 	ipCount = ParseSecondaryIpAddresses(xmlResp, 0, nnr.ips);
-	UpdateRepositoryIpList(ipCount, nnr.ips, UnderLay);
-	ipCount = GetAvailableIpsfromRepository(nnr.ips);
+	GetIpRepository()->UpdateRepositoryIpList(ipCount, nnr.ips, UnderLay);
+	ipCount = GetIpRepository()->GetAvailableIpsfromRepository(nnr.ips);
 
 	free(nnr.ips);
 	return ipCount;
+}
+
+void TestGetLocalHostIp()
+{
+	DWORD ret = 0;
+	unsigned int ip=0;
+	ret = GetHostLocalIp(&ip);
+	VERIFY_ARE_EQUAL((DWORD)0, ret, L"TestGetLocalHostIp passed");	
+	VERIFY_ARE_NOT_EQUAL((unsigned int)0, ip, L"ip not zero");
 }
 
 void testReserveIp(char *reservationId, NetworkType type)
@@ -185,7 +134,7 @@ void testReserveIp(char *reservationId, NetworkType type)
 		TraceLoggingValue(ret, "GetAvailable Ret"),
 		TraceLoggingValue(ipCountBefore, "IPCount Before"));
 
-	ret = ReserveRepositoryIpAddress(reservationId);
+	ret = GetIpRepository()->ReserveRepositoryIpAddress(reservationId);
 	TraceLoggingWrite(g_hMyComponentProvider,
 		"TestReserveIpAddress",
 		TraceLoggingValue(reservationId, "ReservationId"),
@@ -213,16 +162,7 @@ void testReserveIp(char *reservationId, NetworkType type)
 
 }
 
-void
-NetworkClientTest::TestReserveIpAddress()
-{
-
-	testReserveIp("ip0", UnderLay);
-	testReserveIp("ip1", OverLay);
-}
-
-void
-NetworkClientTest::TestGetReservedIpAddress()
+void TestGetReservedIpAddress()
 {
 	unsigned int ip=0;
 	DWORD ret;
@@ -243,8 +183,7 @@ NetworkClientTest::TestGetReservedIpAddress()
 	VERIFY_IS_NOT_NULL(temp);
 }
 
-void
-NetworkClientTest::TestReleaseIpReservation()
+void TestReleaseIpReservation()
 {
 	unsigned int ip;
 	DWORD ret;
@@ -282,6 +221,155 @@ NetworkClientTest::TestReleaseIpReservation()
 	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"GetReserveAddr for Released Ip1 Passed");
 
 }
+
+void logstuff(int level, char *text)
+{
+	printf("%d: %s\n", level, text);
+}
+void
+NetworkClientTest::TestInitializeNetworkOverlay()
+{
+	ClusterConfig cfg;
+	Ipv4Subnet localSubnet;
+	struct in_addr ipAdd;
+	unsigned long ret;
+	SetupNetworkLogging(logstuff);
+	SetEnvironment(OverLay);
+
+	cfg.nodeCount = 1;
+	cfg.nodeConfigs = (NodeConfig *)malloc(cfg.nodeCount * sizeof(NodeConfig));
+	inet_pton(AF_INET, "10.10.1.0", &ipAdd);
+	localSubnet.ipAddress = ipAdd.s_addr;
+	localSubnet.prefixLength = 24;
+	inet_pton(AF_INET, "11.1.0.144", &ipAdd);
+	cfg.nodeConfigs[0].nodeIp = ipAdd.s_addr;
+	cfg.nodeConfigs[0].nodeId = "Id114";
+	cfg.nodeConfigs[0].subnet = &localSubnet;
+	cfg.localNodeIp = ipAdd.s_addr;
+	GetIpRepository()->InitRepositoryIpAllocations();
+	ret = SaveOverlayAddressSpace(&cfg);
+	VERIFY_ARE_EQUAL((unsigned long)0, ret, L"Overlay initialized passed");
+	free(cfg.nodeConfigs);
+
+}
+/*
+void
+NetworkClientTest::TestGetLocalHostIpOverlay()
+{
+	TestGetLocalHostIp();
+}
+*/
+void
+NetworkClientTest::TestGetAvailableAddressOverlay()
+{
+	NodeNetworkResources nnr = { 0 };
+	int ipCount=0;
+	nnr.ips = NULL;
+
+	ipCount = GetIpRepository()->PersistedIpCountInRepository();
+	VERIFY_ARE_EQUAL(255, ipCount, L"GetAvailableAddress Overlay-Ipcount passed");
+
+	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
+	ipCount = GetIpRepository()->GetAvailableIpsfromRepository(nnr.ips);
+	VERIFY_ARE_EQUAL(255, ipCount, L"Retrieving ips passed Overlay -Ipcount passed");	
+
+	free(nnr.ips);
+}
+
+void
+NetworkClientTest::TestReserveIpAddressOverlay()
+{
+
+	testReserveIp("ip0", OverLay);
+	testReserveIp("ip1", OverLay);
+}
+
+
+void
+NetworkClientTest::TestGetReservedIpAddressOverlay()
+{
+	TestGetReservedIpAddress();
+}
+
+void
+NetworkClientTest::TestReleaseIpReservationOverlay()
+{
+	TestReleaseIpReservation();
+}
+
+void
+NetworkClientTest::TestFreeStatusInRepsoitoryAllocations()
+{
+	int retval = GetIpRepository()->FreeStatusInRepositoryIpAllocationsUnTransacted();
+	VERIFY_ARE_EQUAL(0, retval, L"Cleaning up status in repository allocations passed");	
+}
+
+void
+NetworkClientTest::TestInitializeNetworkUnderlay()
+{
+	NodeNetworkResources nnr = { 0 };
+
+
+	int ipCount = 0;
+	nnr.ips = NULL;
+	char *xmlResp = "<Interfaces><Interface MacAddress=\"000D3A72DC45\" IsPrimary=\"true\"><IPSubnet Prefix=\"11.1.0.0/24\"><IPAddress Address=\"11.1.0.74\" IsPrimary=\"true\"/><IPAddress Address=\"11.1.0.75\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.76\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.77\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.78\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.79\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.80\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.81\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.82\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.83\" IsPrimary=\"false\"/></IPSubnet></Interface></Interfaces>";
+	
+	SetEnvironment(UnderLay);
+	GetIpRepository()->InitRepositoryIpAllocations();
+
+	ipCount = ParseSecondaryIpAddresses(xmlResp, 1, nnr.ips);
+	VERIFY_ARE_EQUAL(9, ipCount, L"Retrieving ipcount passed underlay");
+
+	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
+	ipCount = ParseSecondaryIpAddresses(xmlResp, 0, nnr.ips);
+	VERIFY_ARE_EQUAL(9, ipCount, L"Retrieving ipcount with ips passed underlay");
+
+	GetIpRepository()->UpdateRepositoryIpList(ipCount, nnr.ips, UnderLay);
+	ipCount = GetIpRepository()->GetAvailableIpsfromRepository(nnr.ips);
+	VERIFY_ARE_EQUAL(9, ipCount, L"initialization underlay passed");
+
+	free(nnr.ips);
+
+}
+
+void
+NetworkClientTest::TestGetLocalHostIpUnderlay()
+{
+	//TestGetLocalHostIp();
+	char *xmlResp = "<Interfaces><Interface MacAddress=\"000D3A72DC45\" IsPrimary=\"true\"><IPSubnet Prefix=\"11.1.0.0/24\"><IPAddress Address=\"11.1.0.74\" IsPrimary=\"true\"/><IPAddress Address=\"11.1.0.75\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.76\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.77\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.78\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.79\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.80\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.81\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.82\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.83\" IsPrimary=\"false\"/></IPSubnet></Interface></Interfaces>";
+	unsigned int ip=0;
+	char *subnet=nullptr, *gateway=nullptr;
+	ParseSubnetGatewayPrimaryIp(xmlResp, &subnet, &gateway, GetIpRepository());
+	VERIFY_IS_NOT_NULL(subnet);
+	VERIFY_IS_NOT_NULL(gateway);
+	ip = GetIpRepository()->GetRepositoryPrimaryIp();
+	//printf("Ip:%d\n",ip);
+	VERIFY_ARE_NOT_EQUAL((unsigned int)0, ip,L"TestGetLocalHostIpUnderlay passed");
+}
+
+void
+NetworkClientTest::TestReserveIpAddressUnderlay()
+{
+
+	testReserveIp("ip0", UnderLay);
+	testReserveIp("ip1", UnderLay);
+}
+
+
+void
+NetworkClientTest::TestGetReservedIpAddressUnderlay()
+{
+	TestGetReservedIpAddress();
+}
+
+
+void
+NetworkClientTest::TestReleaseIpReservationUnderlay()
+{
+	TestReleaseIpReservation();
+}
+
+
 bool NetworkClientTest::TestSetup()
 /*++
 
@@ -303,7 +391,7 @@ Return Value:
     // Initialize tracing.
     //
 
-    //TraceLoggingRegister(g_hMyComponentProvider);
+    TraceLoggingRegister(g_hMyComponentProvider);
 
     return true;
 }
@@ -327,7 +415,7 @@ Return Value:
 --*/
 {
    // RD_TRACE_TERMINATE();
-	//TraceLoggingUnregister(g_hMyComponentProvider);
+	TraceLoggingUnregister(g_hMyComponentProvider);
 
     return true;
 
@@ -377,13 +465,13 @@ int wmain(int argc, wchar_t *argv[])
 {
     UNREFERENCED_PARAMETER(argc);
     UNREFERENCED_PARAMETER(argv);
-
+/*
     NetworkClientTest* clientTest = new NetworkClientTest();
     clientTest->TestSetup();
 	clientTest->TestInitializeNetworkOverlay();
 	clientTest->TestGetAvailableAddressOverlay();
 
-	/*
+	
     clientTest->TestInitializeNetwork();
 	clientTest->TestReserveIpAddress();
 	clientTest->TestGetReservedIpAddress();
