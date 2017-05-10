@@ -883,10 +883,14 @@ Return Value:
 	{
 		*ip = nclRepositoryManager->GetRepositoryPrimaryIp();
 		LOGINFO("Selected Ip: %d ",*ip);
-		if(*ip!=0)
-			retval=0;
-		else	
-			retval=1;	
+		if (*ip != 0)
+		{
+			retval = 0;
+		}
+		else
+		{
+			retval = UNEXPECTED_ERROR;
+		}
 	}
 	else if(networkTypeProvided == OverLay)
 	{
@@ -942,6 +946,8 @@ Return Value:
 			LOGERR("ReserveAvailableIpAddress for hostlocal ip returned non-zero %d", retval);
 		}
 	}
+
+	LOGINFO("Exiting GetHostIp. Returning %llu", retval);
 	return retval;
 }
 
