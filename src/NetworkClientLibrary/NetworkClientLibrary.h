@@ -56,7 +56,7 @@ extern DWORD SetupUnderlayInAzure(ClusterConfig *clusterConfig, NclRepositoryMan
 extern DWORD SetupOverlay(ClusterConfig *clusterConfig);
 extern int GetIpsFromNmAgent(unsigned int *ips);
 extern int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
-extern void ProvideConfigToNIX(ClusterConfig *clusterConfig);
+extern DWORD ProvideConfigToNIX(ClusterConfig *clusterConfig);
 extern DWORD GetHostIp(unsigned int *ip, NclRepositoryManager *nclRepositoryManager);
 extern int WsaInitialize();
 NetworkType networkTypeProvided = UnderLay;

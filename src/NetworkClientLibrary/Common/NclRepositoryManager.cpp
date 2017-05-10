@@ -43,7 +43,6 @@ Return Value:
 
 --*/
 {
-
 	LOGINFO("Entering getRepositoryReservedIpUnTransacted.");
 	int i;
 	if (repositoryIpAllocations)
@@ -132,7 +131,7 @@ Return Value:
 	return reservationFound;
 }
 
-void NclRepositoryManager::updateRepositoryIpListUnTransacted(
+DWORD NclRepositoryManager::updateRepositoryIpListUnTransacted(
 	int ipCount, 
 	unsigned int* ips, 
 	NetworkType networkType)
@@ -163,13 +162,13 @@ Return Value:
 	if (ipCount <= 0)
 	{
 		LOGERR("Received %d ips to upate in repository. Will not do anything.", ipCount);
-		return;
+		return UNEXPECTED_ERROR;
 	}
 
 	if(ips == NULL)
 	{
 		LOGERR("Received NULL as the list of ips. Returning.")
-			return;
+		return UNEXPECTED_ERROR;
 	}
 
 	localIpStatus = (IpStatus *)malloc(ipCount * sizeof(IpStatus));
@@ -206,8 +205,8 @@ Return Value:
 						}
 						free(localIpStatus);
 						localIpStatus = NULL;
-						LOGINFO("Exiting updateRepositoryIpListUnTransacted.");
-						return;
+						LOGINFO("Exiting updateRepositoryIpListUnTransacted after cleanup.");
+						return UNEXPECTED_ERROR;
 					}
 					strcpy_s(localIpStatus[i].id, idLen + 1, repositoryIpStatus->id);
 				}
@@ -226,15 +225,20 @@ Return Value:
 	}
 
 	LOGVERBOSE("Going to free current ip status from repository.");
-	FreeStatusInRepositoryIpAllocationsUnTransacted();
+	if(FreeStatusInRepositoryIpAllocationsUnTransacted() != 0)
+	{
+		LOGERR("FreeStatusInRepositoryIpAllocationsUnTransacted failed.");
+		return UNEXPECTED_ERROR;
+	}
 	LOGVERBOSE("Going to update new status for all ip addresses.");
 	repositoryIpAllocations->statusForAllIpAddresses = localIpStatus;
 	repositoryIpAllocations->count = ipCount;
+	return 0;
 }
 #pragma endregion private_methods
 
 #pragma region dllexport_methods
-DllExport void NclRepositoryManager::InitRepositoryIpAllocations()
+DllExport DWORD NclRepositoryManager::InitRepositoryIpAllocations()
 /*++
 
 Routine Description:
@@ -257,6 +261,7 @@ Return Value:
 	}
 	UnlockMutex
 	LOGINFO("Exiting InitRepositoryIpAllocations.");
+	return 0;
 }	
 
 DllExport unsigned int NclRepositoryManager::GetRepositoryPrimaryIp()
@@ -279,6 +284,10 @@ Return Value:
 	if(repositoryIpAllocations)
 	{
 		retval = repositoryIpAllocations->primaryIp;
+	}
+	else
+	{
+		LOGWARN("Repository is not initialized.");
 	}
 	LOGINFO("Exiting GetRepositoryPrimaryIp. Returning %u", retval);
 	return retval;
@@ -305,6 +314,10 @@ Return Value:
 	if (repositoryIpAllocations)
 	{
 		repositoryIpAllocations->primaryIp = ip;
+	}
+	else
+	{
+		LOGWARN("Repository is not initialized and SetRepositoryPrimaryIp is called.");
 	}
 	UnlockMutex
 	LOGINFO("Entering SetRepositoryPrimaryIp. ip = %u", ip);
@@ -374,7 +387,14 @@ Return Value:
 {
 	LOGINFO("Entering UpdateRepositoryIpList.");
 	LockMutex
-		updateRepositoryIpListUnTransacted(ipCount, ips, networkType);
+		if (repositoryIpAllocations != NULL)
+		{
+			updateRepositoryIpListUnTransacted(ipCount, ips, networkType);
+		}
+		else
+		{
+			LOGERR("Nothing in repository is updated as repository is not initialized.");
+		}
 	UnlockMutex
 	LOGINFO("Exiting UpdateRepositoryIpList.");
 }
@@ -442,6 +462,10 @@ Return Value:
 			}
 		}
 	}
+	else
+	{
+		LOGERR("Reserve called on repository that is not initialized.");
+	}
 	UnlockMutex;
 	LOGINFO("Exiting ReserveRepositoryIpAddress. Returning %u.", returnIp);
 	return returnIp;
@@ -467,6 +491,10 @@ Return Value:
 	if (repositoryIpAllocations != NULL)
 	{
 		count = repositoryIpAllocations->count;
+	}
+	else
+	{
+		LOGERR("Cannot persist ips in repository that is not initialized.");
 	}
 	UnlockMutex
 	LOGINFO("Exiting PersistedIpCountInRepository. Returning %u", count);
@@ -500,12 +528,7 @@ Return Value:
 		size_t passedCount;
 		if (ips)
 		{
-#ifdef _WIN32
-			passedCount = _msize(ips) / sizeof(unsigned int);
-#endif
-#ifdef __linux__
-			passedCount = malloc_usable_size(ips) / sizeof(unsigned int);
-#endif 
+			passedCount = bytesallocated(ips) / sizeof(unsigned int);
 		}
 		else
 		{
@@ -524,12 +547,15 @@ Return Value:
 			{
 				if (ips)
 				{
-					// may be we should check if passed memory is sufficient or not
 					ips[ipCount] = repositoryIpAllocations->statusForAllIpAddresses[i].ip;
 				}
 				ipCount++;
 			}
 		}
+	}
+	else
+	{
+		LOGERR("GetAvailableIpsfromRepository called on repository that is not initialized.");
 	}
 	UnlockMutex;
 	LOGINFO("Exiting GetAvailableIpsfromRepository. Returning %d.", ipCount);
@@ -556,8 +582,13 @@ Return Value:
 	NULL if repository is not initialized, or an ip address is not available.
 --*/
 {
+	LOGINFO("Entering ReserveRepositoryIp.");
 	int i;
-	
+	if(reservationId == NULL)
+	{
+		LOGERR("NULL reservationID passed in ReserveRepositoryIp.");
+		return NULL;;
+	}
 	if (repositoryIpAllocations)
 	{
 		for (i = 0; i<repositoryIpAllocations->count; i++)
@@ -565,17 +596,41 @@ Return Value:
 			LOGVERBOSE("Going to check if ip # %d is reserved or not", i);
 			if (repositoryIpAllocations->statusForAllIpAddresses[i].isReserved == false)
 			{
-				LOGVERBOSE("ip # %d is not reserved.", i);
+				LOGVERBOSE("IP # %d is not reserved.", i);
 				size_t resSize = strlen(reservationId) * sizeof(char);
 				repositoryIpAllocations->statusForAllIpAddresses[i].id = (char *)malloc(resSize + 1);
-				strcpy_s(repositoryIpAllocations->statusForAllIpAddresses[i].id, resSize + 1, reservationId);
+
+				if(repositoryIpAllocations->statusForAllIpAddresses[i].id == NULL)
+				{
+					LOGERR("Failed to allcoate memory for repositoryIpAllocations->statusForAllIpAddresses[i].id.");
+					return NULL;
+				}
+
+				if(strcpy_s(repositoryIpAllocations->statusForAllIpAddresses[i].id, resSize + 1, reservationId)!=0)
+				{
+					LOGERR("Unable to persist reservationId in repository, strncpy_s failed.");
+					if (repositoryIpAllocations->statusForAllIpAddresses[i].id != NULL)
+					{
+						free(repositoryIpAllocations->statusForAllIpAddresses[i].id);
+					}
+
+					LOGINFO("Exiting ReserveRepositoryIp. Returning NULL.");
+					return NULL;
+				}
+
 				repositoryIpAllocations->statusForAllIpAddresses[i].isReserved = true;
-				LOGVERBOSE("returning ip # %d (%u) for %s", i, repositoryIpAllocations->statusForAllIpAddresses[i].ip, reservationId);
+				LOGINFO("Exiting ReserveRepositoryIp. Teturning ip # %d (%u) for %s.",
+					i, repositoryIpAllocations->statusForAllIpAddresses[i].ip, reservationId);
 				return & (repositoryIpAllocations->statusForAllIpAddresses[i]);
 			}
 			LOGVERBOSE("ip # %d is reserved.", i);
 		}
 	}
+	else
+	{
+		LOGERR("ReserveRepositoryIp called on an uninitialized repository.");
+	}
+	LOGINFO("Exiting ReserveRepositoryIp. Returning NULL.");
 	return NULL;
 }
 
@@ -677,7 +732,7 @@ Return Value:
 		}
 		else
 		{
-			LOGINFO("Was unsucessful in obtaining an existing ip from repository for %s.", reservationId);
+			LOGINFO("Was unsucessful in obtaining an existing reserved ip from repository for %s.", reservationId);
 		}
 	}
 	UnlockMutex;
@@ -704,6 +759,7 @@ Return Value:
 
 --*/
 {
+	DWORD retval;
 	LOGINFO("Entering PersistSubnetInRepository.");
 	if (subnetToPersist == NULL)
 	{
@@ -727,8 +783,13 @@ Return Value:
 		ipCount = (ipCount << 1);
 		ipCount = ipCount | 0x1;
 	}
-	LOGINFO("Ip Count = %d", ipCount);
+	LOGINFO("ipCount = %d", ipCount);
 	unsigned int *ips = (unsigned int*)malloc(ipCount *(sizeof(unsigned int)));
+	if(ips == NULL)
+	{
+		LOGERR("Exiting PersistSubnetInRepository. Failed to allocated memory for ips to persist in repository.");
+		return UNEXPECTED_ERROR;
+	}
 	unsigned int i = 0;
 	while(i < ipCount)
 	{
@@ -737,12 +798,19 @@ Return Value:
 		startingIp++;
 		i++;
 	}
-	updateRepositoryIpListUnTransacted(ipCount, ips, networkType);
+	retval = updateRepositoryIpListUnTransacted(ipCount, ips, networkType);
+	if(retval != 0)
+	{
+		LOGERR("updateRepositoryIpListUnTransacted failed and returned non-zero.");
+	}
+	else 
+	{
+		LOGINFO("Updated ip repository with %d ips", ipCount);
+	}
 	free(ips);
-	LOGINFO("Updated ip repository with %d ips", ipCount);
 	UnlockMutex
-	LOGINFO("Exiting PersistSubnetInRepository.");
-	return 0;
+	LOGINFO("Exiting PersistSubnetInRepository. Returning %u.", retval);
+	return retval;
 }
 #pragma endregion public_methods
 } } } } }

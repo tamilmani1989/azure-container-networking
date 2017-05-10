@@ -17,7 +17,6 @@ Sushant Sharma (susharm) 30-March-2017
 
 --*/
 #pragma once
-#include "nclcore.h"
 #include "NclRepositoryManager.h"
 
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
@@ -27,5 +26,6 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 	DWORD GetHostIp(unsigned int *ip);
 	unsigned long CreateDockerNetwork(char *networkName, char ipamConfig[2048]);
 	int GetIpsFromNmAgent(unsigned int *ips);
-
+	#define IPAM_CONFIG_LEN 2048
+	#define MAX_DOCKER_CONFIG_LEN 16384
 } } } } }

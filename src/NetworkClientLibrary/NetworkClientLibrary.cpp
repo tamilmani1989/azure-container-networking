@@ -23,7 +23,7 @@ Sushant Sharma (susharm) 24-March-2017
 
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 
-extern void ProvideConfigToNIX(ClusterConfig *clusterConfig);
+extern DWORD ProvideConfigToNIX(ClusterConfig *clusterConfig);
 extern int WsaInitialize();
 
 DllExport NclRepositoryManager *GetIpRepository()
@@ -56,6 +56,7 @@ Return Value:
 			}
 			else
 			{
+				LOGINFO("Creating new repository handle");
 				_nclRepositoryVariable = new NclRepositoryManager(NULL);
 				nclRepositoryManager = _nclRepositoryVariable;
 			}
@@ -94,10 +95,17 @@ Return Value:
 	}
 	int ipCount = GetIpsFromNmAgent(nodeNetworkResources->ips);
 	
+	if(ipCount == -1)
+	{
+		LOGERR("Retriving ips from nmagent failed.");
+		return UNEXPECTED_ERROR;
+	}
+
 	if (nodeNetworkResources->ips)
 	{
 		GetIpRepository()->UpdateRepositoryIpList(ipCount, nodeNetworkResources->ips, networkType);
 	}
+
 	LOGINFO("Exiting GetAllIpAddresses. Returning: %d.", ipCount);
 	return ipCount;
 }
@@ -132,7 +140,11 @@ Return Value:
 		// overlay ips are persisted during network init
 		if(nodeNetworkResources != NULL)
 		{
-			GetIpRepository()->GetAvailableIpsfromRepository(nodeNetworkResources->ips);
+			if(GetIpRepository()->GetAvailableIpsfromRepository(nodeNetworkResources->ips) == -1)
+			{
+				LOGERR("Getavailable ips from repository failed.");
+				return UNEXPECTED_ERROR;
+			}
 		}
 		*count = GetIpRepository()->PersistedIpCountInRepository();
 		LOGINFO("Exiting GetAvailableIpAddresses for overlay. Returning %d as ipCount.", *count);
@@ -151,7 +163,7 @@ Return Value:
 	LOGINFO("Retrieved %d ips fron nm agent along with details.", ipCount);
 	if (ipCount <= 0)
 	{
-		LOGERR("Retrieved non positive ip count from nm agent. ipCount: %d", ipCount);
+		LOGERR("Exiting GetAvailableIpAddresses. Retrieved non positive ip count from nm agent. ipCount: %d", ipCount);
 		free(ips);
 		return UNEXPECTED_ERROR;
 	}
@@ -168,6 +180,12 @@ Return Value:
 	{
 		nodeNetworkResources->ipCount = ipCount;
 		ipCount = GetIpRepository()->GetAvailableIpsfromRepository(nodeNetworkResources->ips);
+		if(ipCount == -1)
+		{
+			LOGERR("GetAvailableIpsfromRepository failed. Exiting GetAvailableIpAddresses.");
+			*count = ipCount;
+			return UNEXPECTED_ERROR;
+		}
 	}
 	
 	*count = ipCount;
@@ -224,6 +242,7 @@ Return Value:
 	if(reservedIp == 0)
 	{
 		LOGERR("Unable to reserve an ip address.");
+		*ipAddress = reservedIp;
 		return UNEXPECTED_ERROR;
 	}
 
@@ -270,6 +289,18 @@ Return Value:
 --*/
 {
 	LOGINFO("Entering GetReservedIpAddress");
+
+	if (reservationId == NULL)
+	{
+		LOGERR("ReservationId is NULL.");
+		return INVALID_PARAMETER;
+	}
+	if (ipAddress == NULL)
+	{
+		LOGERR("ipAddress is NULL.");
+		return INVALID_PARAMETER;
+	}
+
 	unsigned int reservedIp = GetIpRepository()->GetReservedIpFromRepository(reservationId);
 	if(reservedIp == 0)
 	{
@@ -302,8 +333,14 @@ Return Value:
 {
 	LOGINFO("Entering ReleaseIpReservation.");
 	DWORD retval = 0;
+	if(reservationId == NULL)
+	{
+		LOGERR("ReservationId is NULL.");
+		return INVALID_PARAMETER;
+	}
 	if(!GetIpRepository()->ReleaseRepositoryIpAddress(reservationId))
 	{
+		LOGWARN("Reservation not found for %s", reservationId);
 		retval = RESERVATION_NOT_FOUND;
 	}
 	LOGINFO("Exiting ReleaseIpReservation. Returning %u", retval);
@@ -344,7 +381,6 @@ Return Value:
 	return retval;
 }
 
-
 DllExport unsigned long SaveOverlayAddressSpace(
 	ClusterConfig *clusterConfig)
 /*++
@@ -379,6 +415,7 @@ Return Value:
 		LOGERR("nodeConfigs are NULL");
 		return UNEXPECTED_ERROR;
 	}
+
 	for(int i= 0 ; i<clusterConfig->nodeCount ; i++)
 	{
 		NodeConfig nc = clusterConfig->nodeConfigs[i];
@@ -409,7 +446,9 @@ Return Value:
 
 --*/
 {
+	LOGINFO("Entering SetEnvironment.");
 	networkTypeProvided = networkType;
+	LOGINFO("Exiting SetEnvironment");
 }
 
 DllExport DWORD InitializeNetwork(
@@ -439,7 +478,7 @@ Return Value:
 		return INVALID_PARAMETER;
 	}
 
-	AquaLogging::Log(info, "Going to initialize network ..");
+	LOGINFO("Going to initialize network.");
 
 #ifdef _WIN32
 	AquaLogging::Log(info, "Going to init wsa.");
@@ -457,7 +496,11 @@ Return Value:
 		return VfpError;
 	}
 #endif
-	GetIpRepository()->InitRepositoryIpAllocations();
+	if(GetIpRepository()->InitRepositoryIpAllocations() != 0)
+	{
+		LOGERR("Unable to init repository. InitRepositoryIpAllocations failed.");
+		return UNEXPECTED_ERROR;
+	}
 	switch(clusterConfig->net)
 	{
 		case OverLay: 
@@ -491,6 +534,10 @@ Return Value:
 			case Azure: 
 				LOGINFO("Will setup underlay in Azure");
 				retval = SetupUnderlayInAzure(clusterConfig, GetIpRepository());
+				if(retval!=0)
+				{
+					LOGERR("Failed to setup underlay in azure. FAiled with error code: %lu", retval);
+				}
 				LOGINFO("Exiting InitializeNetwork (aure/underlay. Returning %u.", retval);
 				return retval;
 				break;

@@ -28,6 +28,7 @@ Sushant Sharma (susharm) 6-May-2017
 #include <WinSock2.h>
 #define LockMutex ipAllocationsMutex.lock();
 #define UnlockMutex ipAllocationsMutex.unlock();
+#define bytesallocated _msize
 #endif
 
 #ifdef __linux__
@@ -37,6 +38,7 @@ Sushant Sharma (susharm) 6-May-2017
 #define LockMutex pthread_mutex_lock(&ipAllocationsLock);
 #define UnlockMutex pthread_mutex_unlock(&ipAllocationsLock);
 #define strcpy_s(dst, count, src) strncpy(dst, src, count)
+#define bytesallocated malloc_usable_size
 #endif
 
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
@@ -74,13 +76,13 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 		}
 
 	private:
-		void updateRepositoryIpListUnTransacted(int ipCount, unsigned* ips, NetworkType networkType);
+		DWORD updateRepositoryIpListUnTransacted(int ipCount, unsigned* ips, NetworkType networkType);
 		IpStatus *getRepositoryReservedIpUnTransacted(const char *reservationId);
 		unsigned long releaseReservedRepositoryIpUnTransacted(const char *reservationId);
 		IpAllocations *repositoryIpAllocations=NULL;
 
 	public:	
-		DllExport void InitRepositoryIpAllocations();	
+		DllExport unsigned long InitRepositoryIpAllocations();	
 		DllExport unsigned int GetRepositoryPrimaryIp();
 		DllExport void SetRepositoryPrimaryIp(unsigned int ip);
 		DllExport int FreeStatusInRepositoryIpAllocationsUnTransacted();

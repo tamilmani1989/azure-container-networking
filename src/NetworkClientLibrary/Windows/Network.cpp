@@ -34,6 +34,7 @@ Sushant Sharma (susharm) 30-March-2017
 #include "../Common/aquanetworkclient.h"
 #include "../Common/nclcore.h"
 #include "../Common/NetworkCommon.h"
+#include "../Common/Network.h"
 #include "../Common/ResponseParser.h"
 #include "../../Logging/Logging.h"
 #include "../../aquanix/Common/aquanixext.h"
@@ -146,12 +147,11 @@ Return Value:
 	char *newBuffer = (char *)realloc((void *)(*recvBuffer), byteCount);
 	if (newBuffer == nullptr)
 	{
+		LOGERR("Unable to allocate memory.")
 		return 0;
 	}
-	else
-	{
-		*recvBuffer = newBuffer;
-	}
+		
+	*recvBuffer = newBuffer;
 	(*recvBuffer)[byteCount - 1] = c;
 	return 1;
 }
@@ -743,7 +743,6 @@ Return Value:
 	int byteCount = 0;
 	
 	LOGINFO("Entering GetIpsFromNmAgent.");
-	AquaLogging::Log(info, logMsg);	
 	printRoutingTable();
 	createRouteToWireServer();
 	printRoutingTable();
@@ -764,7 +763,7 @@ Return Value:
 	}
 	else
 	{
-		LOGINFO("Sent %d bytes on the connection.\nNow reading into buffer..", bytesWritten);
+		LOGINFO("Sent %d bytes on the connection. Now reading into buffer..", bytesWritten);
 		do
 		{
 			char c;
@@ -796,6 +795,12 @@ Return Value:
 
 			LOGINFO("Successfully finished reading. Printing response below..");
 			responseLocation = strstr(recvBuffer, HttpResponseHeaderSeparator);
+			if(responseLocation == NULL)
+			{
+				LOGERR("Could not find HttpResponseHEader in the response received from wireserver.");
+				ipCount = -1;
+				goto cleanup;
+			}
 			responseLocation += strlen(HttpResponseHeaderSeparator);
 			LOGINFO("Response: %s", responseLocation);
 		}
@@ -808,14 +813,24 @@ Return Value:
 			}
 			else
 			{
-				// TODO: Check if ips have sufficient space
-				ipCount = ParseSecondaryIpAddresses(responseLocation, 0, ips);
-				LOGINFO("Received ips with ip count as %d\n", ipCount);
+				// ips are allocated using malloc since we did that
+				size_t ipsCapacity = bytesallocated(ips) / sizeof(unsigned int);
+				ipCount = ParseSecondaryIpAddresses(responseLocation, 1, NULL);
+				if(ipCount>ipsCapacity)
+				{
+					LOGERR("Insufficient memory passed in ips. Required %llu, passed %d.", ipsCapacity, ipCount);
+					ipCount = -1;
+				}
+				else
+				{
+					ipCount = ParseSecondaryIpAddresses(responseLocation, 0, ips);
+					LOGINFO("Parsed ips with ip count as %d\n", ipCount);
+				}
 			}
 		}
 		else
 		{
-			LOGERR("Unable to find portion of http response header that contains valid nm agent response response %s", recvBuffer);
+			LOGERR("Unable to find portion of http response header that contains valid nm agent response: %s", recvBuffer);
 		}
 		free(recvBuffer);
 		recvBuffer = nullptr;
@@ -828,14 +843,17 @@ cleanup:
 		recvBuffer = nullptr;
 	}
 
-	shutdown(sock, SD_BOTH);
+	if(shutdown(sock, SD_BOTH) != 0)
+	{
+		LOGERR("socket shutdown failed with errorcode %d", WSAGetLastError());
+	}
 
 	if (closesocket(sock) != 0)
 	{
-		LOGERR("+++++++++ERROR While closing Socket!+++++++++++++++++");
+		LOGERR("ERROR While closing Socket with errorcode %d", WSAGetLastError());
 	}
 
-	LOGINFO("Exiting GetIpsFromNmAgent.");
+	LOGINFO("Exiting GetIpsFromNmAgent. Returning %d.", ipCount);
 	return ipCount;
 }
 
@@ -859,7 +877,7 @@ Return Value:
 
 --*/
 {	
-	unsigned long retval = UNEXPECTED_ERROR;
+	DWORD retval = UNEXPECTED_ERROR;
 	LOGINFO("Entering GetHostIp.");
 	if(networkTypeProvided == UnderLay)
 	{
@@ -882,23 +900,78 @@ Return Value:
 				{
 					char ipInString[INET_ADDRSTRLEN];
 					wchar_t ipInStringw[INET_ADDRSTRLEN];
-					inet_ntop(AF_INET, ip, ipInString, INET_ADDRSTRLEN);
-					size_t converted;
-					mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN);
-					AddHostLocalEndpoint(ipInStringw);
-					hostLocalIpProvisionedInHNS = true;
+					if(inet_ntop(AF_INET, ip, ipInString, INET_ADDRSTRLEN) == NULL)
+					{
+						LOGERR("Failed to convert ip address %u to string. So, we cannot add it as host endpoint.", *ip);
+						retval = UNEXPECTED_ERROR;
+					}
+					else 
+					{
+						size_t converted;
+						if (mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN) != 0)
+						{
+							LOGERR("Failed to convert ip address %s to wide character string.", ipInString);
+							retval = UNEXPECTED_ERROR;
+						}
+						else
+						if (AddHostLocalEndpoint(ipInStringw) != 0)
+						{
+							LOGERR("Failed to add host local ip as host local endpoint.");
+							retval = UNEXPECTED_ERROR;
+						}
+						else
+						{
+							hostLocalIpProvisionedInHNS = true;
+						}
+					}
+					if(retval != 0)
+					{
+						// Revert the reservation
+						if (ReleaseIpReservation("HostLocalIp") != 0)
+						{
+							LOGERR("Unable to revert the reserved host local ip address.");
+						}
+						hostLocalIpProvisionedInHNS = false;
+					}
 				}
 				hostLocalMutex.unlock();
 			}
 		}
 		else
 		{
-			LOGERR("Reserving Available for host local returned non-zero %d", retval);
+			LOGERR("ReserveAvailableIpAddress for hostlocal ip returned non-zero %d", retval);
 		}
 	}
 	return retval;
 }
 
+
+/*++
+Routine Description:
+
+Shuts down and closes a socket.
+
+Arguments:
+
+sock - socket to be closed.
+
+Return Value:
+
+N/A
+
+--*/
+void shutdownAndClose(SOCKET sock)
+{
+	if (shutdown(sock, SD_BOTH) != 0)
+	{
+		LOGERR("socket shutdown failed with errorcode %d", WSAGetLastError());
+	}
+
+	if (closesocket(sock) != 0)
+	{
+		LOGERR("closesocket failed with errorcode %d", WSAGetLastError());
+	}
+}
 
 DWORD SetupUnderlayInAzure(
 	ClusterConfig *clusterConfig, 
@@ -915,71 +988,111 @@ Arguments:
 	nclRepositoryManager - repository where metadata about ntework will be persisted.
 
 Return Value:
+
 	0 on success, error code otherwise.
 
 --*/
 {
+	LOGINFO("Entering SetupUnderlayInAzure");
+
 	size_t conLength = 0, ipamLength = 0;
 	char *nwCreateReq = nullptr;
 	char *recvBuf = nullptr;
 	size_t totalLength = 0;
 	char *subnetIp = nullptr;
 	char *gwIp = nullptr;
-	char ipamConfig[2048];
+	char ipamConfig[IPAM_CONFIG_LEN];
 	unsigned long retval = 0;
 	
-	LOGINFO("Entering SetupUnderlayInAzure");
+	if(clusterConfig == NULL)
+	{
+		LOGERR("Clsuterconfig is null");
+		return INVALID_PARAMETER;
+	}
+
+	if(nclRepositoryManager == NULL)
+	{
+		LOGERR("nclRepositoryManager is NULL");
+		return INVALID_PARAMETER;
+	}
+
+	if(clusterConfig->networkName == NULL)
+	{
+		LOGERR("clusterConfig->networkName is NULL");
+		return INVALID_PARAMETER;
+	}
 
 	SOCKET sock = connectToHost("localhost", 2375);
 	if (sock == INVALID_SOCKET)
 	{
 		LOGERR("Connect to host failed for SetupUnderlayInAzure.");
-		return UNREACHABLE_HOST;
+		return UNREACHABLE_DOCKER_DAEMON;
 	}
 
 	if(getSubnetGwIpAndSetPrimary(&subnetIp, &gwIp, nclRepositoryManager)!=0)
 	{
 		LOGERR("Retrieving subnet and gateway ip failed during SetupUnderlayInAzure.");
-		goto cleanup2;
+		retval = UNEXPECTED_ERROR;
+		goto ClenupSetupUnderlayInAzure;
 	}
 
 	if (networkExists(sock, clusterConfig->networkName))
 	{
 		LOGINFO("Network %s does not exist, going to create it.", clusterConfig->networkName);
 
-		shutdown(sock, SD_BOTH);
-		closesocket(sock);
+		shutdownAndClose(sock); // this is void
 
 		LOGINFO("Retrieved subnet and gateway %s %s", subnetIp, gwIp);
 
-		sprintf_s(ipamConfig, sizeof(ipamConfig), "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gwIp);
-		LOGINFO("ipamconfig : %s", ipamConfig);
+		if(snprintf(ipamConfig, sizeof(ipamConfig), "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gwIp)==-1)
+		{
+			LOGERR("Unable to create ipamConfig. snprintf failed.");
+			retval = UNEXPECTED_ERROR;
+			goto ClenupSetupUnderlayInAzure;
+		}
+		
+		LOGINFO("Successfully created ipamconfig : %s", ipamConfig); 
 		
 		sock = connectToHost("localhost", 2375);
-		ipamLength = strlen(ipamConfig);
-		conLength = strlen(clusterConfig->networkName) + 9 + 19 + 4 + ipamLength;
-		totalLength = strlen(DockerNwCreatePost) + conLength + ipamLength + 64;
-		nwCreateReq = (char *)malloc(totalLength + 1);
+		if(sock == INVALID_SOCKET)
+		{
+			LOGERR("Connect to docker daemon failed for SetupUnderlayInAzure.");
+			retval = UNREACHABLE_DOCKER_DAEMON;
+			goto ClenupSetupUnderlayInAzure;
+		}
 
-		sprintf_s(nwCreateReq, totalLength + 1, 
+		ipamLength = strnlen(ipamConfig, sizeof(ipamConfig));
+		// have to rely on network name being terminted with NULL, _msize will not work if caller did not use malloc/new 
+		conLength = ipamLength + strlen(clusterConfig->networkName) + 9 + 19 + 4;
+		totalLength = strlen(DockerNwCreatePost) + conLength + ipamLength + 64;
+
+		nwCreateReq = (char *)malloc(totalLength + 1);
+		if(nwCreateReq == NULL)
+		{
+			LOGERR("Failed to allocate memory for netowrk request.");
+			retval = UNEXPECTED_ERROR;
+			goto ClenupSetupUnderlayInAzure;
+		}
+
+		snprintf(nwCreateReq, totalLength + 1, 
 			"%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", 
 				DockerNwCreatePost, (int)conLength, clusterConfig->networkName, "l2tunnel", ipamConfig);
 
-		LOGINFO("Now going to get create network driver... cmd:%s:%d:%llu:%d", 
+		LOGINFO("Now going to call create network with Docker... cmd:%s:%d:%llu:%d", 
 			nwCreateReq, (int)totalLength, strlen(nwCreateReq), (int)conLength);
 		recvBuf = sendPayloadOnSocket(sock, nwCreateReq);
 		if (!recvBuf)
 		{
 			LOGERR("Error while creating docker network");
 			retval = UNEXPECTED_ERROR;
-			goto cleanup2;
+			goto ClenupSetupUnderlayInAzure;
 		}
 
 		int ret = retrieveHttpStatus(recvBuf);
 		LOGINFO("Http status in response to docker network create: %d", ret);
 		if (ret == 201)
 		{
-			LOGINFO("docker network create succeeded");
+			LOGINFO("docker network create succeeded for %s", clusterConfig->networkName);
 		}
 		else
 		{
@@ -988,25 +1101,21 @@ Return Value:
 		}
 	}
 
-cleanup2:
-	if (nwCreateReq)
-		free(nwCreateReq);
-	if (recvBuf)
-		free(recvBuf);
-	if (subnetIp)
-		free(subnetIp);
-	if (gwIp)
-		free(gwIp);
+ClenupSetupUnderlayInAzure:
+	if (nwCreateReq) free(nwCreateReq);
+	if (recvBuf) free(recvBuf);
+	if (subnetIp) free(subnetIp);
+	if (gwIp) free(gwIp);
 
-	shutdown(sock, SD_BOTH);
-	closesocket(sock);
+	shutdownAndClose(sock); // this is void.
+
 	LOGINFO("Exiting SetupUnderlayInAzure. Returning %d", retval);
 	return retval;
 }
 
 unsigned long CreateDockerNetwork(
 	char *networkName, 
-	char ipamConfig[2048])
+	char ipamConfig[IPAM_CONFIG_LEN])
 /*++
 
 Routine Description:
@@ -1028,43 +1137,57 @@ Return Value:
 	char *recvBuf = NULL;
 	unsigned long retval = 0;
 
+	if(networkName == NULL)
+	{
+		LOGERR("Exiting CreateDockerNetwork. networkName is NULL");
+		return INVALID_PARAMETER;
+	}
+
 	SOCKET sock = connectToHost("localhost", 2375);
 	if(sock == INVALID_SOCKET)
 	{
-		LOGERR("Docker daemon is unreachanble");
+		LOGERR("Docker daemon is unreachanble.");
 		return UNREACHABLE_DOCKER_DAEMON;
 	}
-	LOGINFO("Successfully connected to docker daemon.");
 
-	size_t ipamLength = strlen(ipamConfig);
+	LOGINFO("Successfully connected to docker daemon.");
+	size_t ipamLength = strnlen(ipamConfig, sizeof(ipamConfig));
 	size_t conLength = strlen(networkName) + 9 + 19 + 4 + ipamLength;
 	size_t totalLength = strlen(DockerNwCreatePost) + conLength + ipamLength + 64;
 	char *nwCreateReq = (char *)malloc(totalLength + 1);
 
-	sprintf_s(nwCreateReq, totalLength + 1, 
-	          "%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", 
-	          DockerNwCreatePost, (int)conLength, networkName, "l2tunnel", ipamConfig);
-
-	LOGINFO("Going to ask Docker to create network: %s:%d:%llu:%d",	nwCreateReq, (int)totalLength, strlen(nwCreateReq), (int)conLength);
-
-	recvBuf = sendPayloadOnSocket(sock, nwCreateReq);
-	if (!recvBuf)
+	if(nwCreateReq==NULL)
 	{
-		LOGERR("Error while sending network create request to Docker.");
-		retval = UNEXPECTED_ERROR;
+		LOGERR("Failed to allocate memory for network request.");
+		retval = UNEXPECTED_ERROR;		
 	}
 	else
 	{
-		int ret = retrieveHttpStatus(recvBuf);
-		LOGINFO("Http status of the response received from docker : %d", ret);
-		if (ret == 201)
+		snprintf(nwCreateReq, totalLength + 1,
+			"%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}",
+			DockerNwCreatePost, (int)conLength, networkName, "l2tunnel", ipamConfig);
+
+		LOGINFO("Going to ask Docker to create network: %s:%d:%llu:%d", nwCreateReq, (int)totalLength, strlen(nwCreateReq), (int)conLength);
+
+		recvBuf = sendPayloadOnSocket(sock, nwCreateReq);
+		if (!recvBuf)
 		{
-			LOGINFO("Docker network create succeeded.");
+			LOGERR("Error while sending network create request to Docker.");
+			retval = UNEXPECTED_ERROR;
 		}
 		else
 		{
-			LOGERR("Docker network create did not succeded. Reponse: %s.", recvBuf);
-			retval = UNEXPECTED_ERROR;
+			int ret = retrieveHttpStatus(recvBuf);
+			LOGINFO("Http status of the response received from docker : %d", ret);
+			if (ret == 201)
+			{
+				LOGINFO("Docker network create succeeded.");
+			}
+			else
+			{
+				LOGERR("Docker network create did not succeded. Reponse: %s.", recvBuf);
+				retval = UNEXPECTED_ERROR;
+			}
 		}
 	}
 
@@ -1077,8 +1200,7 @@ Return Value:
 		free(nwCreateReq);
 	}
 
-	shutdown(sock, SD_BOTH);
-	closesocket(sock);
+	shutdownAndClose(sock); // this is void.
 
 	LOGINFO("Exiting CreateDockerNetwork. Returning: %u", retval);
 	return retval;
@@ -1103,7 +1225,6 @@ Return Value:
 
 --*/
 {
-	char *recvBuf = nullptr;
 	char *gwIp = nullptr;
 	char ipamConfig[2048];
 	unsigned long retval = 0;
@@ -1132,8 +1253,7 @@ Return Value:
 	{
 		LOGINFO("Overlay Network with name %s does not exist. Going to create it.", clusterConfig->networkName);
 
-		shutdown(sock, SD_BOTH);
-		closesocket(sock);
+		shutdownAndClose(sock); // this is void.
 
 		if(clusterConfig->overlaySubnet == NULL)
 		{
@@ -1158,28 +1278,28 @@ Return Value:
 		if(NetworkCommon::RetrieveGatewayFromSubnet(gatewayIp, &gwIp) == false)
 		{
 			LOGERR("Gateway ip could not be retrieved from Subnet ip specified: %u", clusterConfig->overlaySubnet->ipAddress);
+			if (gwIp) free(gwIp);
 			return MALFORMED_SUBNET_IP;
 		}
 
 		LOGINFO("Successfully retrieved Subnet and Gateway %s/%d %s", gatewayIp, clusterConfig->overlaySubnet->prefixLength, gwIp);
 
-		sprintf_s(ipamConfig, sizeof(ipamConfig), 
+		snprintf(ipamConfig, sizeof(ipamConfig), 
 			"\"IPAM\":{\"Config\":[{\"Subnet\":\"%s/%d\",\"Gateway\":\"%s\"}]}", 
 			gatewayIp, clusterConfig->overlaySubnet->prefixLength, gwIp);
 
 		LOGINFO("Constructed input for ipam (to be given as input to docker network create): %s", ipamConfig);
 
 		retval = CreateDockerNetwork(clusterConfig->networkName, ipamConfig);
+		if(retval != 0)
+		{
+			LOGERR("Docker network create for %s failed.", clusterConfig->networkName);
+		}
 	}
 	else 
 	{
-		if (recvBuf)
-		{
-			free(recvBuf);
-			recvBuf = NULL;
-		}
-		shutdown(sock, SD_BOTH);
-		closesocket(sock);
+		LOGWARN("Network with name %s already exists.", clusterConfig->networkName);
+		shutdownAndClose(sock); // this is void
 	}
 	if (gwIp)
 	{
@@ -1234,23 +1354,53 @@ Return Value:
 --*/
 {	 
 	LOGINFO("Entering AddRemoteMapping.");
-	LOGINFO("%s %s %s %s\n", endpointId, hostAddress, containerAddress, macAddress);
+	if(endpointId == NULL ||
+		hostAddress == NULL ||
+		containerAddress == NULL ||
+		macAddress ==NULL)
+	{
+		LOGERR("Invalid parametrs, nothing can be null");
+		return INVALID_PARAMETER;
+	}
+
+	LOGINFO("INPUT: %s %s %s %s\n", endpointId, hostAddress, containerAddress, macAddress);
 
 	wchar_t endPointIdW[150]; //GUID cannot exceed 38
 	size_t converted;
-	mbstowcs_s(&converted, endPointIdW, endpointId, 150);
+	if(mbstowcs_s(&converted, endPointIdW, endpointId, 150) != 0)
+	{
+		LOGERR("Unable to convert endpointId %s to wide string.", endpointId);
+		return UNEXPECTED_ERROR;
+	}
 	
 	wchar_t hostAddressW[INET_ADDRSTRLEN];
-	mbstowcs_s(&converted, hostAddressW, hostAddress, INET_ADDRSTRLEN);
+	if(mbstowcs_s(&converted, hostAddressW, hostAddress, INET_ADDRSTRLEN) != 0)
+	{
+		LOGERR("Unable to convert hostAddress %s to wide string.", hostAddress);
+		return UNEXPECTED_ERROR;
+	}
 
 	wchar_t containerAddressW[INET_ADDRSTRLEN]; //GUID cannot exceed 38
-	mbstowcs_s(&converted, containerAddressW, containerAddress, INET_ADDRSTRLEN);
+	if(mbstowcs_s(&converted, containerAddressW, containerAddress, INET_ADDRSTRLEN)!=0)
+	{
+		LOGERR("Unable to convert containerAddress %s to wide string.", containerAddress);
+		return UNEXPECTED_ERROR;
+	}
 
 	wchar_t macAddressW[50]; //MAC cannot exceed 24
-	mbstowcs_s(&converted, macAddressW, macAddress, 50);
+	if(mbstowcs_s(&converted, macAddressW, macAddress, 50)!=0)
+	{
+		LOGERR("Unable to convert macAddress %s to wide string.", macAddress);
+		return UNEXPECTED_ERROR;
+	}
 
-	LOGINFO("%s %s %s %s\n", endpointId, hostAddress, containerAddress, macAddress);
+	LOGINFO("%S %S %S %S\n", endPointIdW, hostAddressW, containerAddressW, macAddressW);
 	DWORD retval = AddEndpoint(endPointIdW, macAddressW, containerAddressW, hostAddressW, L"true");
+	if(retval != 0)
+	{
+		LOGERR("AddEndpoint failed with error code %u", retval);
+	}
+
 	LOGINFO("Exiting AddRemoteMapping. Returning %u.", retval);
 	return retval;
 }
@@ -1276,8 +1426,18 @@ Return Value:
 	wchar_t endpointIdW[150]; //GUID cannot exceed 38
 	size_t converted;	
 	LOGINFO("Entering DeleteRemoteMapping.");
-	mbstowcs_s(&converted, endpointIdW, endpointId, 150);
+	if(mbstowcs_s(&converted, endpointIdW, endpointId, 150) != 0)
+	{
+		LOGERR("Unable to convert endpointId %s to wide strting.", endpointId);
+		return UNEXPECTED_ERROR;
+	}
+
 	DWORD retval =  DeleteEndpoint(endpointIdW);
+	if (retval != 0)
+	{
+		LOGERR("DeleteEndpoint failed with error code %u", retval);
+	}
+
 	LOGINFO("Exiting DeleteRemoteMapping. Returning; %u", retval);
 	return retval;
 }
@@ -1301,10 +1461,14 @@ Return Value:
 
 --*/
 {
-	AquaLogging::Log(info, "Enter GetLocalMappings");
-	GetLocalEndpoints(endpointMappings, mappingsCount);
-	AquaLogging::Log(info, "Exit GetLocalMappings");
-	return 0;
+	LOGINFO("Enter GetLocalMappings");
+	DWORD retval = GetLocalEndpoints(endpointMappings, mappingsCount);
+	if(retval != 0)
+	{
+		LOGERR("Getlocalmappings failed with erro code %u.", retval);
+	}
+	LOGINFO("Exit GetLocalMappings. Returning %u", retval);
+	return retval;
 }
 
 DWORD FreeEndpointMappings(
@@ -1327,13 +1491,17 @@ Return Value:
 
 --*/
 {
-	AquaLogging::Log(info, "Enter FreeEndpointMappings");
-	FreeMemoryForLocalEndpoints(endpointMappings, mappingsCount);
-	AquaLogging::Log(info, "Enter FreeEndpointMappings");
-	return 0;
+	LOGINFO("Enter FreeEndpointMappings");
+	DWORD retval = FreeMemoryForLocalEndpoints(endpointMappings, mappingsCount);
+	if (retval != 0)
+	{
+		LOGERR("FreeMemoryForLocalEndpoints failed with erro code %u.", retval);
+	}
+	LOGINFO("Exit FreeEndpointMappings. Returning %u.", retval);
+	return retval;
 }
 
-void ProvideConfigToNIX(
+DWORD ProvideConfigToNIX(
 	ClusterConfig *clusterConfig)
 /*++
 
@@ -1350,27 +1518,93 @@ Return Value:
 --*/
 {
 	LOGINFO("Entering ProvideConfigToNIX");
-	unsigned int localIp = clusterConfig->localNodeIp;
+	if(clusterConfig == NULL)
+	{
+		LOGERR("clusterConfig is NULL.");
+		return INVALID_PARAMETER;
+	}
+	if(clusterConfig->localNodeIp == 0)
+	{
+		LOGERR("clusterConfig->localNodeIp is 0.");
+		return INVALID_PARAMETER;
+	}
+
+	unsigned int localIp = clusterConfig->localNodeIp;	
 	char ipInString[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &localIp, ipInString, INET_ADDRSTRLEN);
-	char**remoteHostAddresses = new char *[clusterConfig->nodeCount - 1]; //-1 for local address
+	if(inet_ntop(AF_INET, &localIp, ipInString, INET_ADDRSTRLEN)==NULL)
+	{
+		LOGERR("Unable to parse localNodeIp. inet_ntop failed with error code %d.", WSAGetLastError());
+		return INVALID_PARAMETER;
+	}
+
+	if(clusterConfig->nodeCount <= 0)
+	{
+		LOGERR("clusterConfig->nodeCount has to be positoive. It is passed as %d", clusterConfig->nodeCount);
+		return INVALID_PARAMETER;		
+	}
+
+	DWORD retval = 0;
+	char**remoteHostAddresses = NULL;
+	if (clusterConfig->nodeCount > 1)
+	{
+		remoteHostAddresses = new char *[clusterConfig->nodeCount - 1]; //-1 for local address
+		if(remoteHostAddresses == NULL)
+		{
+			LOGERR("Failed to allocate memory for storing remote host addresses. malloc failed.");
+			return UNEXPECTED_ERROR;
+		}
+	}
 	USHORT cntr = 0;
 	for (int i = 0; i < clusterConfig->nodeCount; i++)
-	{
-		
+	{		
 		NodeConfig cnc = clusterConfig->nodeConfigs[i];
-		char remoteIpInString[INET_ADDRSTRLEN];
-		inet_ntop(AF_INET, &cnc.nodeIp, remoteIpInString, INET_ADDRSTRLEN);
-
-		LOGINFO("Cluster config remote ip = %s %s %u---------", remoteIpInString, cnc.nodeId, cnc.subnet->ipAddress);
+		LOGINFO("Going to process cluster config for node %d: %s %u", i, cnc.nodeId, cnc.subnet->ipAddress);		
 		if (cnc.nodeIp != clusterConfig->localNodeIp)
 		{
 			char remoteIpInString2[INET_ADDRSTRLEN];
-			inet_ntop(AF_INET, &cnc.nodeIp, remoteIpInString2, INET_ADDRSTRLEN);
-			remoteHostAddresses[cntr] = (char *) malloc(sizeof(char)* INET_ADDRSTRLEN);
-			strcpy_s(remoteHostAddresses[cntr], INET_ADDRSTRLEN, remoteIpInString2);
+			bool failed = false;
+
+			if(inet_ntop(AF_INET, &cnc.nodeIp, remoteIpInString2, INET_ADDRSTRLEN)==NULL)
+			{
+				LOGERR("Unable to parse %u as a valid ip located at index %d. error code: %d", cnc.nodeIp, i, WSAGetLastError());
+				failed = true;
+			}
+			else
+			{
+				remoteHostAddresses[cntr] = (char *)malloc(sizeof(char)* INET_ADDRSTRLEN);
+				if(remoteHostAddresses[cntr] == NULL)
+				{
+					LOGERR("Memory allocation failed for remoteHostAddresses[%d].", cntr);
+					failed = true;
+				}
+				else
+				if (strcpy_s(remoteHostAddresses[cntr], INET_ADDRSTRLEN, remoteIpInString2) != 0)
+				{
+					LOGERR("Unable to save remote IP address: %s.", remoteIpInString2);
+					failed = true;
+				}
+			}
+			if(failed)
+			{
+				LOGVERBOSE("Going to revert allocated memory");
+				for (int m = 0; m<cntr; m++)
+				{
+					if (remoteHostAddresses[m] != NULL)
+					{
+						free(remoteHostAddresses[m]);
+						remoteHostAddresses[m] = NULL;
+					}
+				}
+				delete[]remoteHostAddresses;
+				LOGVERBOSE("Cleaned up allocated memory");
+				return UNEXPECTED_ERROR;
+			}
 			LOGINFO("Saved remote ip = %s", remoteHostAddresses[cntr]);
 			cntr++;
+		}
+		else
+		{
+			LOGINFO("Local host encountered at %d: %u", i, cnc.nodeIp);
 		}
 	}
 
@@ -1380,15 +1614,35 @@ Return Value:
 		LOGINFO("Remote Host %d provided to NIX: %s", j, remoteHostAddresses[j]);
 	}
 
-	InitializeAquaNix(ipInString, remoteHostAddresses, cntr, "127.0.0.1", AddRemoteMapping, DeleteRemoteMapping, 
-		GetLocalMappings, FreeEndpointMappings, 10987, 10987);
-	RequestRemoteMappings();
+	retval = InitializeAquaNix(ipInString, remoteHostAddresses, cntr, 
+								"127.0.0.1", AddRemoteMapping, DeleteRemoteMapping,
+								GetLocalMappings, FreeEndpointMappings, 10987, 10987);
+	if(retval != 0)
+	{
+		LOGERR("Unable to initialize aquanix with error code %lu", retval);
+	}
+	else
+	{
+		retval = RequestRemoteMappings();
+		if(retval != 0)
+		{
+			LOGERR("Request remote mappings failed with error code %lu", retval);
+		}
+		else
+		{
+			LOGINFO("Successfully requested remote mappings.");
+		}
+	}
 	for(int k = 0; k<cntr; k++)
 	{
-		free(remoteHostAddresses[k]);
+		if (remoteHostAddresses[k] != NULL)
+		{
+			free(remoteHostAddresses[k]);
+		}
 	}
 	delete []remoteHostAddresses;
-	LOGINFO("Exiting ProvideConfigToNIX.");
+	LOGINFO("Exiting ProvideConfigToNIX. Returning %lu", retval);
+	return retval;
 }
 #pragma endregion overlay_methods
 } } } } }
