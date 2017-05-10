@@ -1,14 +1,26 @@
-/****************************** Module Header ******************************\
-* Module Name:  nclcore.h
-* Project:      Aquarius
-* Copyright (c) Microsoft Corporation.
-*
-* Internal header for sdn client library
-*
-\***************************************************************************/
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+NclCore.c
+
+Abstract:
+
+This file contains internal headers for sdn client library that are not required by external partners.
+
+Author:
+
+Sushant Sharma (susharm) 24-March-2017
+
+--*/
 #pragma once
 #include "aquanetworkclient.h"
+
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
+	
+
 typedef struct IpStatus
 {
     unsigned int ip;
@@ -23,18 +35,18 @@ typedef struct IpAllocations
     unsigned int primaryIp;     
 }IpAllocations;
 
-DllExport unsigned int PersistedIpCountInRepository();
 DllExport unsigned long SaveOverlayAddressSpace(ClusterConfig *clusterConfig);
-DllExport int GetAvailableIpsfromRepository(unsigned int *ips);
 DllExport int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
-DllExport void UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkType networkType);
-DllExport unsigned int ReserveRepositoryIpAddress(char *reservationId);
-DllExport void InitRepositoryIpAllocations();
-DllExport int FreeStatusInRepositoryIpAllocations();
-DllExport void ParseSubnetGatewayPrimaryIp(char *xmlResponse, char **subnetIp, char **gatewayIp);
 DllExport void SetEnvironment(NetworkType networkType);
-DllExport unsigned int GetRepositoryPrimaryIp();
-DllExport void SetRepositoryPrimaryIp(unsigned int ip);
+
+/*
+ * Constants and macros.
+ */
+#define HostSuffix "GET /machine/plugins?comp=nmagent&type=getinterfaceinfov1 HTTP/1.1\r\nHost: 169.254.169.254\r\nConnection: close\r\n\r\n"
+#define DockerNwCreatePost "POST /networks/create HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nConnection: close\r\n"
+#define DockerNwGet "GET /networks/"
+#define HttpResponseHeaderSeparator "\r\n\r\n"
+#define BUFFER_SIZE 1024
 
 #define UNSUPPORTED_NETWORK  1
 #define INVALID_PARAMETER 2

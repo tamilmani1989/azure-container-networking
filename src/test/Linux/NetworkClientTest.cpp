@@ -15,6 +15,10 @@
 #include "../../NetworkClientLibrary/Common/nclcore.h"
 #include "../../NetworkClientLibrary/Common/aquanetworkclient.h"
 
+#include "../../NetworkClientLibrary/Common/NclRepositoryManager.h"
+#include "../../NetworkClientLibrary/Common/ResponseParser.h"
+#include "../../NetworkClientLibrary/NetworkClientLibrary.h"
+
 using namespace CppUnit;
 using namespace std;
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
@@ -65,7 +69,7 @@ private:
 };
 int getAvailableIpCountOverlay()
 {
-	return GetAvailableIpsfromRepository(NULL);
+	return GetIpRepository()->GetAvailableIpsfromRepository(NULL);
 }
 
 int getAvailableIpCountUnderlay()
@@ -79,8 +83,8 @@ int getAvailableIpCountUnderlay()
 	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
 
 	ipCount = ParseSecondaryIpAddresses(xmlResp, 0, nnr.ips);
-	UpdateRepositoryIpList(ipCount, nnr.ips, UnderLay);
-	ipCount = GetAvailableIpsfromRepository(nnr.ips);
+	GetIpRepository()->UpdateRepositoryIpList(ipCount, nnr.ips, UnderLay);
+	ipCount = GetIpRepository()->GetAvailableIpsfromRepository(nnr.ips);
 
 	free(nnr.ips);
 	return ipCount;
@@ -109,7 +113,7 @@ void testReserveIp(char *reservationId, NetworkType type)
 	CPPUNIT_ASSERT(ipCountBefore>0);
 	
 
-	ret = ReserveRepositoryIpAddress(reservationId);
+	ret = GetIpRepository()->ReserveRepositoryIpAddress(reservationId);
 
 	CPPUNIT_ASSERT(ret!=0);
 
@@ -177,8 +181,8 @@ NetworkClientTest::TestInitializeNetworkOverlay()
 	cfg.nodeConfigs[0].subnet = &localSubnet;
 	cfg.localNodeIp = ipAdd.s_addr;
 	cfg.net=OverLay;
-	InitRepositoryIpAllocations();
-	SetRepositoryPrimaryIp(ipAdd.s_addr);
+	GetIpRepository()->InitRepositoryIpAllocations();
+	GetIpRepository()->SetRepositoryPrimaryIp(ipAdd.s_addr);
 	ret = SaveOverlayAddressSpace(&cfg);
 	CPPUNIT_ASSERT(ret==0);
 	free(cfg.nodeConfigs);
@@ -198,11 +202,11 @@ NetworkClientTest::TestGetAvailableAddressOverlay()
 	int ipCount=0;
 	nnr.ips = NULL;
 
-	ipCount = PersistedIpCountInRepository();
+	ipCount = GetIpRepository()->PersistedIpCountInRepository();
 	CPPUNIT_ASSERT(ipCount==255);
 
 	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
-	ipCount = GetAvailableIpsfromRepository(nnr.ips);
+	ipCount = GetIpRepository()->GetAvailableIpsfromRepository(nnr.ips);
 	free(nnr.ips);
 	CPPUNIT_ASSERT(ipCount==253);
 }
@@ -231,7 +235,7 @@ NetworkClientTest::TestReleaseIpReservationOverlay()
 void
 NetworkClientTest::TestFreeStatusInRepsoitoryAllocations()
 {
-	int retval = FreeStatusInRepositoryIpAllocations();
+	int retval = GetIpRepository()->FreeStatusInRepositoryIpAllocationsUnTransacted();
 	CPPUNIT_ASSERT(retval==0);	
 }
 
@@ -254,7 +258,7 @@ NetworkClientTest::TestInitializeNetworkUnderlay()
  	const char *xmlResp = (char *)"<Interfaces><Interface MacAddress=\"000D3A72DC45\" IsPrimary=\"true\"><IPSubnet Prefix=\"11.1.0.0/24\"><IPAddress Address=\"11.1.0.74\" IsPrimary=\"true\"/><IPAddress Address=\"11.1.0.75\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.76\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.77\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.78\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.79\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.80\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.81\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.82\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.83\" IsPrimary=\"false\"/></IPSubnet></Interface></Interfaces>";
 	
 	SetEnvironment(UnderLay);
-	InitRepositoryIpAllocations();
+	GetIpRepository()->InitRepositoryIpAllocations();
 
 	ipCount = ParseSecondaryIpAddresses((char *)xmlResp, 1, nnr.ips);
 	CPPUNIT_ASSERT(9 == ipCount);
@@ -262,8 +266,8 @@ NetworkClientTest::TestInitializeNetworkUnderlay()
 	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
 	ipCount = ParseSecondaryIpAddresses((char *)xmlResp, 0, nnr.ips);
 	CPPUNIT_ASSERT(9 == ipCount);
-	UpdateRepositoryIpList(ipCount, nnr.ips, UnderLay);
-	ipCount = GetAvailableIpsfromRepository(nnr.ips);
+	GetIpRepository()->UpdateRepositoryIpList(ipCount, nnr.ips, UnderLay);
+	ipCount = GetIpRepository()->GetAvailableIpsfromRepository(nnr.ips);
 	CPPUNIT_ASSERT(9 == ipCount);
 	free(nnr.ips);
 
@@ -276,12 +280,12 @@ NetworkClientTest::TestGetLocalHostIpUnderlay()
 	char *xmlResp = (char *)"<Interfaces><Interface MacAddress=\"000D3A72DC45\" IsPrimary=\"true\"><IPSubnet Prefix=\"11.1.0.0/24\"><IPAddress Address=\"11.1.0.74\" IsPrimary=\"true\"/><IPAddress Address=\"11.1.0.75\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.76\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.77\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.78\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.79\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.80\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.81\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.82\" IsPrimary=\"false\"/><IPAddress Address=\"11.1.0.83\" IsPrimary=\"false\"/></IPSubnet></Interface></Interfaces>";
 	unsigned int ip=0;
 	char *subnet=NULL, *gateway=NULL;
-	ParseSubnetGatewayPrimaryIp(xmlResp, &subnet, &gateway);
+	ParseSubnetGatewayPrimaryIp(xmlResp, &subnet, &gateway,GetIpRepository());
 	CPPUNIT_ASSERT(subnet!=NULL);
 	CPPUNIT_ASSERT(gateway!=NULL);
 	free(subnet);
 	free(gateway);
-	ip = GetRepositoryPrimaryIp();
+	ip = GetIpRepository()->GetRepositoryPrimaryIp();
 	//printf("Ip:%d\n",ip);
 	CPPUNIT_ASSERT(ip!=0);
 }

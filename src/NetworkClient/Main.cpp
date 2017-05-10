@@ -65,14 +65,14 @@ void testM()
 	assert(InitializeNetwork(&cfg));
 #endif
 
-	LOGINFO("Successfully initialized Azure/Underlay. retval = %d\n", retval);
-	/*getchar();
+	/*LOGINFO("Successfully initialized Azure/Underlay. retval = %d\n", retval);
+	getchar();
 
 	GetHostLocalIp(&hostIp);
 	LOGINFO("Get local host ip (underlay):%d %s\n",hostIp,inet_ntop(AF_INET, &hostIp, ipInString, INET_ADDRSTRLEN));
 	hostIp=0;
 	getchar();
-
+	 /*
 	cfg.net = OverLay;
 	cfg.env = Azure;
 	cfg.nodeCount = 3;
@@ -127,13 +127,13 @@ void testM()
 	free(cfg.networkName);
 	free(cfg.nodeConfigs);
 	getchar();
-
+  */
 	unsigned int hostLocalIp=0;
 	GetHostLocalIp(&hostLocalIp);
 	LOGINFO("Recevied host local as %s\n", inet_ntop(AF_INET, &hostLocalIp, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
-	LOGINFO("Going to detach hostlocal directly in HNS\n");
+	/*LOGINFO("Going to detach hostlocal directly in HNS\n");
 	wchar_t ipInStringw[INET_ADDRSTRLEN];
 	size_t converted;
 	mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN);
@@ -141,9 +141,9 @@ void testM()
 	DeleteLocalEndpointWithIp(ipInStringw, true);
 #endif
 	getchar();
-
-	unsigned int ip;
 	 */
+	//unsigned int ip;
+	 
 
 	nnr.ips = NULL;
 	assert(GetAvailableIpAddresses(&nnr, &ipCount));
