@@ -526,23 +526,7 @@ Return Value:
 	LOGINFO("Entering GetAvailableIpsfromRepository.");
 	LockMutex;
 	if (repositoryIpAllocations)
-	{
-		size_t passedCount;
-		if (ips)
-		{
-			passedCount = bytesallocated(ips) / sizeof(unsigned int);
-		}
-		else
-		{
-			passedCount = repositoryIpAllocations->count;
-		}
-		if(passedCount < repositoryIpAllocations->count)
-		{
-			LOGERR("Insufficient memory passed in ips. Passed Count = %llu. Count in repo = %d. ", 
-				passedCount, repositoryIpAllocations->count);
-			ipCount = -1;
-		}
-		else
+	{		
 		for (i = 0; i<repositoryIpAllocations->count; i++)
 		{
 			if (repositoryIpAllocations->statusForAllIpAddresses[i].isReserved == false)

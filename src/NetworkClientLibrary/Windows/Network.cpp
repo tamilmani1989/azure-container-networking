@@ -947,7 +947,7 @@ Return Value:
 		}
 	}
 
-	LOGINFO("Exiting GetHostIp. Returning %llu", retval);
+	LOGINFO("Exiting GetHostIp. Returning %lu", retval);
 	return retval;
 }
 
