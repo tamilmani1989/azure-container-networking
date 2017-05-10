@@ -20,7 +20,7 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
-#define sprintf_s(arg1, len, ...) sprintf(arg1, __VA_ARGS__)
+#define snprintf(arg1, len, ...) sprintf(arg1, __VA_ARGS__)
 #define UNREFERENCED_PARAMETER(param) do { (void)(param); } while (0)
 #define mbstowcs_s(sz, dest, src, len) mbstowcs(dest, src, len)
 #define DllExport 
@@ -49,9 +49,9 @@ enum level
 	verbose
 };
 
-#define LOGINFO(...); sprintf_s(logMsg, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(info, logMsg);
-#define LOGWARN(...); sprintf_s(logMsg, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(warn, logMsg);
-#define LOGERR(...); sprintf_s(logMsg, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(err, logMsg);
-#define LOGVERBOSE(...); sprintf_s(logMsg, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(verbose, logMsg);
+#define LOGINFO(...); snprintf(logMsg, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(info, logMsg);
+#define LOGWARN(...); snprintf(logMsg, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(warn, logMsg);
+#define LOGERR(...); snprintf(logMsg, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(err, logMsg);
+#define LOGVERBOSE(...); snprintf(logMsg, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(verbose, logMsg);
 
 }}}}}

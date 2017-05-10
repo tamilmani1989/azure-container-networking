@@ -689,7 +689,7 @@ Return Value:
 	payloadLen = strlen(DockerNwGet) + strlen(networkName) + strlen(httpreq);
 
 	payload = (char *)malloc(payloadLen + 2);
-	sprintf_s(payload, payloadLen + 2, "%s%s %s", DockerNwGet, networkName, httpreq);
+	snprintf(payload, payloadLen + 2, "%s%s %s", DockerNwGet, networkName, httpreq);
 	payload[payloadLen + 1] = '\0';
 	recvBuf = sendPayloadOnSocket(sock, payload);
 	if (!recvBuf)

@@ -52,7 +52,7 @@ DllExport void AquaLogging::Log(int logLevel, char *logMessage)
 		#ifdef _WIN32
 		size_t msgSize = 2048;
 		#endif
-		sprintf_s(logMsg, msgSize, "Aqua: %s", logMessage);
+		snprintf(logMsg, msgSize, "Aqua: %s", logMessage);
 		externalLogMethod(logLevel, logMsg);
 	}
 	else
