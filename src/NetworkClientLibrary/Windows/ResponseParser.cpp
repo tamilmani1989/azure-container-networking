@@ -243,6 +243,7 @@ Return Value:
 		
 --*/
 {
+	LOGINFO("Entering GetSubnetGatewayPrimaryIp");
 	HRESULT hr = S_OK;
 	IXMLDOMDocument *pXMLDom = nullptr;
 	IXMLDOMParseError *pXMLErr = nullptr;
@@ -409,6 +410,7 @@ CleanUp:
 	SysFreeString(subnetAddress);
 	SysFreeString(ipSubnetNodeName);
 	VariantClear(&varFileName);
+	LOGINFO("Exiting GetSubnetGatewayPrimaryIp");
 }
 
 void CountOrRetrieveSecondaryIps(
@@ -462,7 +464,7 @@ Return Value:
 	VARIANT varFileName;
 	VariantInit(&varFileName);
 	CreateAndInitDOM(&pXMLDom);
-	LOGVERBOSE("Going to load xml from string->\n %s", xmlResponse);
+	LOGVERBOSE("Going to load xml from string-> %s", xmlResponse);
 	CComBSTR combstr(xmlResponse);
 	CHK_HR(pXMLDom->loadXML(combstr, &varStatus));
 
@@ -627,6 +629,7 @@ Return Value:
 		
 --*/
 {
+	LOGINFO("Entering ParseSecondaryIpAddresses");
 	unsigned int ipCount = 0;
 	bool shouldCoUnInitialize = true;
 	HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -658,6 +661,7 @@ Return Value:
 	{
 		LOGERR("Coinitialize failed with code 0x%X", hr);
 	}
+	LOGINFO("Exiting ParseSecondaryIpAddresses");
 	return ipCount;
 }
 
@@ -706,7 +710,6 @@ Return Value:
 		catch (...)
 		{
 			LOGERR("Exception in RetrieveSubnetGatewayIp");
-			AquaLogging::Log(err, logMsg);
 		}
 
 		if (shouldCoUnInitialize)

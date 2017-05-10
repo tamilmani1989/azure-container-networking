@@ -68,9 +68,9 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 			{
 				dwWaitTime = 5000;
 			}
-			else if (dwWaitTime > 10000)
+			else if (dwWaitTime > 30000)
 			{
-				dwWaitTime = 10000;
+				dwWaitTime = 30000;
 			}
 
 			Sleep(dwWaitTime);
@@ -162,9 +162,9 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 				{
 					dwWaitTime = 5000;
 				}
-				else if (dwWaitTime > 10000)
+				else if (dwWaitTime > 30000)
 				{
-					dwWaitTime = 10000;
+					dwWaitTime = 30000;
 				}
 
 				Sleep(dwWaitTime);
@@ -209,6 +209,102 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 		return StartServiceByName(vfpProcessName);
 	}
 
+	DWORD VfpOperations::CheckIfServiceStartedSuccessfully(
+		SERVICE_STATUS_PROCESS ssStatus, 
+		SC_HANDLE schSCManager, 
+		SC_HANDLE schService)
+	/*++
+
+	Routine Description:
+
+		Checks if a service started succesfully or not.
+
+	Arguments:
+
+		schSCManager - handle to SC Manager.
+		schService - handle to service.
+		ssStatus - process status info for the service
+
+	Return Value:
+
+	0 if successfully started. error code, otherwise.
+
+	--*/
+	{	
+		LOGINFO("Entering CheckIfServiceStartedSuccessfully.");
+		DWORD dwBytesNeeded;
+		DWORD retval = 0;
+		if (!QueryServiceStatusEx(schService, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssStatus, sizeof(SERVICE_STATUS_PROCESS), &dwBytesNeeded))
+		{
+			LOGERR("QueryServiceStatusEx failed (%d)\n", GetLastError());
+			CloseServiceHandle(schService);
+			CloseServiceHandle(schSCManager);
+			retval = ERROR_STARTING_VFP;
+		}
+		else
+		if (ssStatus.dwCurrentState == SERVICE_RUNNING)
+		{
+			LOGINFO("Service started successfully.");
+		}
+		else
+		{
+			LOGERR("Service not started. \n");
+			LOGERR("  Current State: %d\n", ssStatus.dwCurrentState);
+			LOGERR("  Exit Code: %d\n", ssStatus.dwWin32ExitCode);
+			LOGERR("  Check Point: %d\n", ssStatus.dwCheckPoint);
+			LOGERR("  Wait Hint: %d\n", ssStatus.dwWaitHint);
+			retval = ERROR_STARTING_VFP;
+		}
+
+		CloseServiceHandle(schService);
+		CloseServiceHandle(schSCManager);	
+		LOGINFO("Exiting CheckIfServiceStartedSuccessfully. Returning %lu.", retval);
+		return retval;
+	}
+
+	DWORD VfpOperations::StartServiceAndWaitToStart( 
+		SERVICE_STATUS_PROCESS ssStatus, 
+		SC_HANDLE schSCManager, 
+		SC_HANDLE schService)
+	/*++
+
+	Routine Description:
+
+		Starts a service and wait for it to start.
+
+	Arguments:
+
+		schSCManager - handle to SC Manager.
+		schService - handle to service.
+		ssStatus - process status info for the service
+
+	Return Value:
+
+	0 if successfully started. error code, otherwise.
+
+	--*/
+	{
+		LOGINFO("EnteringStartServiceAndWaitToStart. ");
+		DWORD retval = 0;
+		if (!StartService(schService, 0, NULL))
+		{
+			LOGERR("StartService failed (%d)", GetLastError());
+			CloseServiceHandle(schService);
+			CloseServiceHandle(schSCManager);
+			retval = ERROR_STARTING_VFP;
+		}
+		else
+		{
+			retval = WaitToStart(schSCManager, schService, ssStatus);
+			if (retval != ERROR_STARTING_VFP)
+			{
+				retval = CheckIfServiceStartedSuccessfully(ssStatus, schSCManager, schService);
+			}
+		}
+		LOGINFO("Exiting StartServiceAndWaitToStart. Returning %lu", retval);
+		return retval;
+	}
+
 	DWORD VfpOperations::StartServiceByName(
 		wchar_t * vfpProcName)
 	/*++
@@ -232,7 +328,6 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 		SERVICE_STATUS_PROCESS ssStatus;
 
 		// Get a handle to the SCM database. 
-
 		SC_HANDLE schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);  // full access rights 
 
 		if (schSCManager == NULL)
@@ -262,11 +357,17 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 				}
 				else
 				{
-					if (ssStatus.dwCurrentState != SERVICE_STOPPED && ssStatus.dwCurrentState != SERVICE_STOP_PENDING)
+					if(ssStatus.dwCurrentState == SERVICE_RUNNING)
 					{
 						LOGINFO("%ws is already running. no need to start", vfpProcName);
 						CloseServiceHandle(schService);
 						CloseServiceHandle(schSCManager);
+					}
+					else
+					if (ssStatus.dwCurrentState != SERVICE_STOPPED && 
+						ssStatus.dwCurrentState != SERVICE_STOP_PENDING)
+					{
+						retval = StartServiceAndWaitToStart(ssStatus, schSCManager, schService);
 					}
 					else
 					{
@@ -274,46 +375,7 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 
 						if(retval != ERROR_STARTING_VFP)
 						{
-							if (!StartService(schService, 0, NULL))
-							{
-								LOGERR("StartService failed (%d)", GetLastError());
-								CloseServiceHandle(schService);
-								CloseServiceHandle(schSCManager);
-								retval = ERROR_STARTING_VFP;
-							}
-							else
-							{
-								retval = WaitToStart(schSCManager, schService, ssStatus);
-
-
-								if (retval != ERROR_STARTING_VFP)
-								{
-									if (!QueryServiceStatusEx(schService, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssStatus, sizeof(SERVICE_STATUS_PROCESS), &dwBytesNeeded))
-									{
-										LOGERR("QueryServiceStatusEx failed (%d)\n", GetLastError());
-										CloseServiceHandle(schService);
-										CloseServiceHandle(schSCManager);
-										retval = ERROR_STARTING_VFP;
-									}
-									else
-									if (ssStatus.dwCurrentState == SERVICE_RUNNING)
-									{
-										LOGINFO("Service started successfully.");
-									}
-									else
-									{
-										LOGERR("Service not started. \n");
-										LOGERR("  Current State: %d\n", ssStatus.dwCurrentState);
-										LOGERR("  Exit Code: %d\n", ssStatus.dwWin32ExitCode);
-										LOGERR("  Check Point: %d\n", ssStatus.dwCheckPoint);
-										LOGERR("  Wait Hint: %d\n", ssStatus.dwWaitHint);
-										retval = ERROR_STARTING_VFP;
-									}
-
-									CloseServiceHandle(schService);
-									CloseServiceHandle(schSCManager);
-								}
-							}
+							retval = StartServiceAndWaitToStart(ssStatus, schSCManager, schService);
 						}
 					}
 				}

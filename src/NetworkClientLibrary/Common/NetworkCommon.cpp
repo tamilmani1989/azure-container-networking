@@ -21,6 +21,7 @@ Sushant Sharma (susharm) 30-March-2017
 #include <stdlib.h>
 #include "../../Logging/Logging.h"
 #include "NetworkCommon.h"
+#include "nclcore.h"
 
 namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { namespace ClientLibrary {
 	
@@ -45,15 +46,26 @@ Return Value:
 --*/
 {
 	LOGINFO("Entering RetrieveGatewayFromSubnet.");
+	if(subnet == NULL)
+	{
+		LOGERR("subnet is NULL");
+		return false;
+	}
 	size_t len = strlen(subnet);
 
 	LOGINFO("Going to parse subnet %s with length:%llu for gateway retrieval.", subnet, len);
 	*gatewayIp = static_cast<char *>(malloc(len + 1));
+	if(*gatewayIp == NULL)
+	{
+		LOGERR("malloc failed for gatewayIp.");
+		return false;
+	}
 	int dotCount = 0;
 	int k;
 	for (k = 0; k < len + 1; k++)
 	{
-		if (subnet[k] == '.') {
+		if (subnet[k] == '.') 
+		{
 			dotCount++;
 		}
 

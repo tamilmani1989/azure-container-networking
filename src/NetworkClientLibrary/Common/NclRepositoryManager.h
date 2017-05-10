@@ -86,7 +86,7 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 		DllExport unsigned int GetRepositoryPrimaryIp();
 		DllExport void SetRepositoryPrimaryIp(unsigned int ip);
 		DllExport int FreeStatusInRepositoryIpAllocationsUnTransacted();
-		DllExport void UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkType networkType);
+		DllExport DWORD UpdateRepositoryIpList(int ipCount, unsigned int *ips, NetworkType networkType);
 		DllExport bool IpRepositoryIsEmpty();
 		DllExport unsigned int ReserveRepositoryIpAddress(char *reservationId);
 		DllExport unsigned int PersistedIpCountInRepository();

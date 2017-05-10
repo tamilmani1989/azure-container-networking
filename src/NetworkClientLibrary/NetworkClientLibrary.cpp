@@ -91,7 +91,7 @@ Return Value:
 	if(nodeNetworkResources == NULL)
 	{
 		LOGERR("NULL value passed for nodeNetworkResources.");
-		return UNEXPECTED_ERROR;
+		return INVALID_PARAMETER;
 	}
 	int ipCount = GetIpsFromNmAgent(nodeNetworkResources->ips);
 	
@@ -103,7 +103,11 @@ Return Value:
 
 	if (nodeNetworkResources->ips)
 	{
-		GetIpRepository()->UpdateRepositoryIpList(ipCount, nodeNetworkResources->ips, networkType);
+		if(GetIpRepository()->UpdateRepositoryIpList(ipCount, nodeNetworkResources->ips, networkType) != 0)
+		{
+			ipCount = -1;
+			LOGERR("Error persisting ip addresses in repository.");
+		}
 	}
 
 	LOGINFO("Exiting GetAllIpAddresses. Returning: %d.", ipCount);
@@ -173,7 +177,10 @@ Return Value:
 	}
 	if(ips)
 	{
-		GetIpRepository()->UpdateRepositoryIpList(ipCount, ips, networkTypeProvided);
+		if(GetIpRepository()->UpdateRepositoryIpList(ipCount, ips, networkTypeProvided) != 0)
+		{
+			LOGERR("Unable to persist ips in repository");
+		}
 		free(ips);
 	}
 	if (nodeNetworkResources) 

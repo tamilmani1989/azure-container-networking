@@ -364,7 +364,7 @@ Return Value:
 	return 1;
 }
 
-DllExport void NclRepositoryManager::UpdateRepositoryIpList(
+DllExport DWORD NclRepositoryManager::UpdateRepositoryIpList(
 	int ipCount, 
 	unsigned int *ips, 
 	NetworkType networkType)
@@ -386,10 +386,11 @@ Return Value:
 --*/
 {
 	LOGINFO("Entering UpdateRepositoryIpList.");
+	DWORD retval = UNEXPECTED_ERROR;
 	LockMutex
 		if (repositoryIpAllocations != NULL)
 		{
-			updateRepositoryIpListUnTransacted(ipCount, ips, networkType);
+			retval = updateRepositoryIpListUnTransacted(ipCount, ips, networkType);
 		}
 		else
 		{
@@ -397,6 +398,7 @@ Return Value:
 		}
 	UnlockMutex
 	LOGINFO("Exiting UpdateRepositoryIpList.");
+	return retval;
 }
 
 DllExport bool NclRepositoryManager::IpRepositoryIsEmpty()

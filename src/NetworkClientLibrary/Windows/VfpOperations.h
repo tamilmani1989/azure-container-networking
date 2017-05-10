@@ -29,6 +29,8 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 		static DWORD StartServiceByName(wchar_t *vfpProcName);
 	public:		
 		static DWORD StartVfpService();
+		static DWORD CheckIfServiceStartedSuccessfully(SERVICE_STATUS_PROCESS ssStatus, SC_HANDLE schSCManager, SC_HANDLE schService);
+		static DWORD StartServiceAndWaitToStart(SERVICE_STATUS_PROCESS ssStatus, SC_HANDLE schSCManager, SC_HANDLE schService);
 	};
 } } } } }
 #endif
