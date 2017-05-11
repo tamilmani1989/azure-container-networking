@@ -196,19 +196,29 @@ Return Value:
 					LOGVERBOSE("id = %s isReserved = %d.", repositoryIpStatus->id, repositoryIpStatus->isReserved);
 					size_t idLen = strlen(repositoryIpStatus->id) * sizeof(char);
 					localIpStatus[i].id = (char *)malloc(idLen + 1);
+					bool failed = false;
 					if(localIpStatus[i].id == NULL)
 					{
 						LOGERR("Failed to allocate memory for localIpStatus[i].id.");
-						for(int j=0; j<i; j++)
+						failed = true;						
+					}
+					else
+					if(snprintf(localIpStatus[i].id, idLen + 1, repositoryIpStatus->id)<0)
+					{
+						LOGERR("Failed to copy Id from repository to a variable.");
+						failed = true;
+					}
+					if (failed == true)
+					{
+						for (int j = 0; j < i; j++)
 						{
 							free(localIpStatus[j].id);
 						}
 						free(localIpStatus);
 						localIpStatus = NULL;
-						LOGINFO("Exiting updateRepositoryIpListUnTransacted after cleanup.");
+						LOGERR("Exiting updateRepositoryIpListUnTransacted after cleanup.");
 						return UNEXPECTED_ERROR;
 					}
-					strcpy_s(localIpStatus[i].id, idLen + 1, repositoryIpStatus->id);
 				}
 				else
 				{
@@ -592,7 +602,7 @@ Return Value:
 					return NULL;
 				}
 
-				if(strcpy_s(repositoryIpAllocations->statusForAllIpAddresses[i].id, resSize + 1, reservationId)!=0)
+				if(snprintf(repositoryIpAllocations->statusForAllIpAddresses[i].id, resSize + 1, reservationId)<0)
 				{
 					LOGERR("Unable to persist reservationId in repository, strncpy_s failed.");
 					if (repositoryIpAllocations->statusForAllIpAddresses[i].id != NULL)
