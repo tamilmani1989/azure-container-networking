@@ -30,30 +30,54 @@ DllExport void AquaLogging::InitLogging(bool conOutputEnabled)
 
 void LogNarrowString(char *narrow, bool conOutputEnabled)
 {
-	size_t len = strlen(narrow);
-	wchar_t messageW[2048];
+	if(narrow == NULL)
+	{
+		AquariusUtilities::WriteEventLogEntry(L"LogNarrowString: Cannot log NULL");
+		return;
+	}
+	
 	#ifdef _WIN32
-	size_t converted;
+	wchar_t messageW[2048];
+	size_t converted;	
+	DWORD error = mbstowcs_s(&converted, messageW, narrow, _TRUNCATE);	
+	if (error != 0)
+	{
+		AquariusUtilities::WriteEventLogEntry(messageW);
+	}
+	else
+	{
+		AquariusUtilities::WriteEventLogEntry(L"Error while converting narrow to wide.");
+	}
 	#endif
-	mbstowcs_s(&converted, messageW, narrow, len);
-        #ifdef _WIN32
-	AquariusUtilities::WriteEventLogEntry(messageW);	
-        #endif
-	if(conOutputEnabled)
+
+	if (conOutputEnabled)
 	{
 		printf("%s", narrow);
 	}
+	
 }
 
 DllExport void AquaLogging::Log(int logLevel, char *logMessage)
 {
+	if(logMessage == NULL)
+	{
+		AquariusUtilities::WriteEventLogEntry(L"AquaLogging::Log: Cannot log NULL");
+		return;
+	}
 	if(externalLogInitialized)
 	{
 		#ifdef _WIN32
 		size_t msgSize = 2048;
 		#endif
-		snprintf(logMsg, msgSize, "Aqua: %s", logMessage);
-		externalLogMethod(logLevel, logMsg);
+		if(snprintf(logMsg, msgSize, "Aqua: %s", logMessage) <0)
+		{
+			externalLogMethod(err, "Attach Prefix Error");
+			externalLogMethod(logLevel, logMessage);
+		}
+		else
+		{
+			externalLogMethod(logLevel, logMsg);
+		}
 	}
 	else
 	{

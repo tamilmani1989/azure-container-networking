@@ -14,6 +14,7 @@
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
 #include "../Logging/Logging.h"
+#include "../NetworkClientLibrary/Common/nclcore.h"
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
@@ -32,8 +33,6 @@ void logstuff(int level, char *text)
 	printf("%d: %s\n", level, text);
 }
 
-extern DllExport DWORD SetupNetworkEtwLogging(bool additionConsoleLoggingEnabled);
-
 void testM()
 {
 	
@@ -43,8 +42,8 @@ void testM()
 	int i;
 	char ipInString[INET_ADDRSTRLEN]={0};
 
-	//assert(SetupNetworkEtwLogging(true));
-	assert(SetupNetworkLogging(logstuff));
+	assert(SetupNetworkEtwLogging(true));
+	//assert(SetupNetworkLogging(logstuff));
 
 	size_t netLen = strlen("azurenet") + sizeof(char);
 	cfg.networkName = (char *)malloc(netLen);
