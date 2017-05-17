@@ -32,7 +32,9 @@ void LogNarrowString(char *narrow, bool conOutputEnabled)
 {
 	if(narrow == NULL)
 	{
+		#ifdef _WIN32
 		AquariusUtilities::WriteEventLogEntry(L"LogNarrowString: Cannot log NULL");
+		#endif
 		return;
 	}
 	
@@ -61,7 +63,9 @@ DllExport void AquaLogging::Log(int logLevel, char *logMessage)
 {
 	if(logMessage == NULL)
 	{
+		#ifdef _WIN32
 		AquariusUtilities::WriteEventLogEntry(L"AquaLogging::Log: Cannot log NULL");
+		#endif
 		return;
 	}
 	if(externalLogInitialized)
