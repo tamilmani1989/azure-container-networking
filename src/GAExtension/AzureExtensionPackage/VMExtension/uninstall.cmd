@@ -1,0 +1,1 @@
+REM Aquarius\\Aquarius.exe -remove

@@ -1,8 +1,8 @@
 [{
   "version": 1.0,
   "handlerManifest": {
-    "installCommand": "Aquarius\\Aquarius.exe -install",
-    "uninstallCommand": "Aquarius\\Aquarius.exe -remove",
+    "installCommand": "install.cmd",
+    "uninstallCommand": "uninstall.cmd",
     "updateCommand": "update.cmd",
     "enableCommand": "enable.cmd",
     "disableCommand": "disable.cmd",
