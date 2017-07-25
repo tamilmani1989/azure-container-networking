@@ -13,6 +13,7 @@ import (
 	"github.com/Azure/azure-container-networking/cns"
 	"github.com/Azure/azure-container-networking/cns/common"
 	"github.com/Azure/azure-container-networking/cns/dockerclient"
+	"github.com/Azure/azure-container-networking/cns/hnsclient"
 	"github.com/Azure/azure-container-networking/cns/imdsclient"
 	"github.com/Azure/azure-container-networking/cns/ipamclient"
 	"github.com/Azure/azure-container-networking/cns/routes"
@@ -32,6 +33,7 @@ type httpRestService struct {
 	imdsClient   *imdsclient.ImdsClient
 	ipamClient   *ipamclient.IpamClient
 	routingTable *routes.RoutingTable
+	hnsClient    *hnsclient.HnsClient
 	store        store.KeyValueStore
 	state        httpRestServiceState
 }
@@ -58,6 +60,7 @@ func NewHTTPRestService(config *common.ServiceConfig) (HTTPService, error) {
 
 	imdsClient := &imdsclient.ImdsClient{}
 	routingTable := &routes.RoutingTable{}
+	hnsclient := &hnsclient.HnsClient{}
 	dc, err := dockerclient.NewDefaultDockerClient(imdsClient)
 	if err != nil {
 		return nil, err
@@ -75,6 +78,7 @@ func NewHTTPRestService(config *common.ServiceConfig) (HTTPService, error) {
 		imdsClient:   imdsClient,
 		ipamClient:   ic,
 		routingTable: routingTable,
+		hnsClient:    hnsclient,
 	}, nil
 }
 
@@ -176,7 +180,7 @@ func (service *httpRestService) createNetwork(w http.ResponseWriter, r *http.Req
 					case "Underlay":
 						switch service.state.Location {
 						case "Azure":
-							log.Printf("[Azure CNS] Goign to create network with name %v.", req.NetworkName)
+							log.Printf("[Azure CNS] Going to create network with name %v.", req.NetworkName)
 
 							err = rt.GetRoutingTable()
 							if err != nil {
@@ -187,12 +191,20 @@ func (service *httpRestService) createNetwork(w http.ResponseWriter, r *http.Req
 								log.Printf("[Azure CNS] Unable to get routing table from node, %+v.", err.Error())
 							}
 
-							err = dc.CreateNetwork(req.NetworkName)
+							primaryNic, err := service.imdsClient.GetPrimaryInterfaceInfoFromMemory()
 							if err != nil {
-								returnMessage = fmt.Sprintf("[Azure CNS] Error. CreateNetwork failed %v.", err.Error())
+								returnMessage = fmt.Sprintf("[Azure CNS] Error. GetPrimaryInterfaceFromHost failed %v.", err.Error())
+								log.Printf(returnMessage)
 								returnCode = UnexpectedError
+							} else {
+								// docker limits itself to only one subnet per network
+								// so even if we have multiple NICs, each in different subnet, we have to pick one.
+								err = dc.CreateNetwork(req.NetworkName, primaryNic.Subnet, defaultNetworkPluginName, nil)
+								if err != nil {
+									returnMessage = fmt.Sprintf("[Azure CNS] Error. CreateNetwork failed %v.", err.Error())
+									returnCode = UnexpectedError
+								}
 							}
-
 							err = rt.RestoreRoutingTable()
 							if err != nil {
 								log.Printf("[Azure CNS] Unable to restore routing table on node, %+v.", err.Error())
@@ -202,9 +214,17 @@ func (service *httpRestService) createNetwork(w http.ResponseWriter, r *http.Req
 							returnMessage = fmt.Sprintf("[Azure CNS] Error. Underlay network is not supported in StandAlone environment. %v.", err.Error())
 							returnCode = UnsupportedEnvironment
 						}
+
 					case "Overlay":
-						returnMessage = fmt.Sprintf("[Azure CNS] Error. Overlay support not yet available. %v.", err.Error())
-						returnCode = UnsupportedEnvironment
+						log.Printf("[Azure CNS] Going to create an overlay network with name %v.", req.NetworkName)
+
+						subnetStr := fmt.Sprintf("%v/%d", req.OverlayConfiguration.OverlaySubnet.IPAddress, req.OverlayConfiguration.OverlaySubnet.PrefixLength)
+						log.Debugf("[Azure-CNS] Created overlay subnet as %v", subnetStr)
+						err = dc.CreateNetwork(req.NetworkName, subnetStr, overlayPluginName)
+						if err != nil {
+							returnMessage = fmt.Sprintf("[Azure CNS] Error. CreateNetwork %v of type overlay failed %v.", req.NetworkName, err.Error())
+							returnCode = UnexpectedError
+						}
 					}
 				} else {
 					returnMessage = fmt.Sprintf("[Azure CNS] Received a request to create an already existing network %v", req.NetworkName)
@@ -343,6 +363,7 @@ func (service *httpRestService) reserveIPAddress(w http.ResponseWriter, r *http.
 			returnCode = UnexpectedError
 			break
 		}
+
 		address = addressIP.String()
 
 	default:
@@ -355,6 +376,7 @@ func (service *httpRestService) reserveIPAddress(w http.ResponseWriter, r *http.
 		ReturnCode: returnCode,
 		Message:    returnMessage,
 	}
+
 	reserveResp := &cns.ReserveIPAddressResponse{Response: resp, IPAddress: address}
 	err = service.Listener.Encode(w, &reserveResp)
 
@@ -439,22 +461,7 @@ func (service *httpRestService) getHostLocalIP(w http.ResponseWriter, r *http.Re
 	if service.state.Initialized {
 		switch r.Method {
 		case "GET":
-			switch service.state.NetworkType {
-			case "Underlay":
-				if service.imdsClient != nil {
-					piface, err := service.imdsClient.GetPrimaryInterfaceInfoFromMemory()
-					if err == nil {
-						hostLocalIP = piface.PrimaryIP
-						found = true
-					} else {
-						log.Printf("[Azure-CNS] Received error from GetPrimaryInterfaceInfoFromMemory. err: %v", err.Error())
-					}
-				}
-
-			case "Overlay":
-				errmsg = "[Azure-CNS] Overlay is not yet supported."
-			}
-
+			found, hostLocalIP, errmsg = service.getOSSpecificHostLocalIP(service.state.NetworkType)
 		default:
 			errmsg = "[Azure-CNS] GetHostLocalIP API expects a GET."
 		}

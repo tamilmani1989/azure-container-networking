@@ -25,6 +25,7 @@ type NetworkConfiguration struct {
 	Driver   string
 	IPAM     IPAM
 	Internal bool
+	Options map[string]interface{}
 }
 
 // DockerErrorResponse defines the error response retunred by docker.

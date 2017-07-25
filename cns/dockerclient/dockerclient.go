@@ -67,17 +67,13 @@ func (dockerClient *DockerClient) NetworkExists(networkName string) error {
 	return fmt.Errorf("Unknown return code from docker inspect %d", res.StatusCode)
 }
 
-// CreateNetwork creates a network using docker network create.
-func (dockerClient *DockerClient) CreateNetwork(networkName string) error {
-	log.Printf("[Azure CNS] CreateNetwork")
 
-	primaryNic, err := dockerClient.imdsClient.GetPrimaryInterfaceInfoFromHost()
-	if err != nil {
-		return err
-	}
+// CreateNetwork creates a network using docker network create.
+func (dockerClient *DockerClient) CreateNetwork(networkName string, subnet string, driver string, options map[string]interface{}) error {
+	log.Printf("[Azure CNS] CreateDockerNetwork. Name: %s, Subnet: %s, Driver: %s", networkName, subnet, driver)	
 
 	config := &Config{
-		Subnet: primaryNic.Subnet,
+		Subnet: subnet,
 	}
 
 	configs := make([]Config, 1)
@@ -89,15 +85,16 @@ func (dockerClient *DockerClient) CreateNetwork(networkName string) error {
 
 	netConfig := &NetworkConfiguration{
 		Name:     networkName,
-		Driver:   defaultNetworkPlugin,
+		Driver:   driver,
 		IPAM:     *ipamConfig,
 		Internal: true,
+		Options:  options,
 	}
 
 	log.Printf("[Azure CNS] Going to create network with config: %+v", netConfig)
 
 	netConfigJSON := new(bytes.Buffer)
-	err = json.NewEncoder(netConfigJSON).Encode(netConfig)
+	err := json.NewEncoder(netConfigJSON).Encode(netConfig)
 	if err != nil {
 		return err
 	}
