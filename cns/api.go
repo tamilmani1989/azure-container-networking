@@ -28,6 +28,7 @@ type OverlayConfiguration struct {
 	NodeCount     int
 	LocalNodeIP   string
 	OverlaySubnet Subnet
+	VxLanID       int
 	NodeConfig    []NodeConfiguration
 }
 

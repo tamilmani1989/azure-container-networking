@@ -29,13 +29,14 @@ const (
 // httpRestService represents http listener for CNS - Container Networking Service.
 type httpRestService struct {
 	*cns.Service
-	dockerClient *dockerclient.DockerClient
-	imdsClient   *imdsclient.ImdsClient
-	ipamClient   *ipamclient.IpamClient
-	routingTable *routes.RoutingTable
-	hnsClient    *hnsclient.HnsClient
-	store        store.KeyValueStore
-	state        httpRestServiceState
+	dockerClient       *dockerclient.DockerClient
+	imdsClient         *imdsclient.ImdsClient
+	ipamClient         *ipamclient.IpamClient
+	routingTable       *routes.RoutingTable
+	hnsClient          *hnsclient.HnsClient
+	networkToSubnetMap map[string]string
+	store              store.KeyValueStore
+	state              httpRestServiceState
 }
 
 // httpRestServiceState contains the state we would like to persist.
@@ -220,11 +221,29 @@ func (service *httpRestService) createNetwork(w http.ResponseWriter, r *http.Req
 
 						subnetStr := fmt.Sprintf("%v/%d", req.OverlayConfiguration.OverlaySubnet.IPAddress, req.OverlayConfiguration.OverlaySubnet.PrefixLength)
 						log.Debugf("[Azure-CNS] Created overlay subnet as %v", subnetStr)
-						err = dc.CreateNetwork(req.NetworkName, subnetStr, overlayPluginName)
+						var options map[string]interface{}
+						var nodeIDList string
+						for _, nodeConfig := range req.OverlayConfiguration.NodeConfig {
+							if nodeConfig.NodeID == req.OverlayConfiguration.LocalNodeIP {
+								continue
+							}
+
+							nodeIDList = fmt.Sprintf("%s,%s", nodeConfig.NodeID, nodeIDList)
+							options[nodeConfig.NodeID] = fmt.Sprintf("%s,%s/%d", nodeConfig.NodeIP, nodeConfig.NodeSubnet.IPAddress, nodeConfig.NodeSubnet.PrefixLength)
+						}
+
+						options["nodeList"] = nodeIDList
+						options["vxlanID"] = req.OverlayConfiguration.VxLanID
+						options["networkName"] = req.NetworkName
+						err = dc.CreateNetwork(req.NetworkName, subnetStr, overlayPluginName, options)
 						if err != nil {
 							returnMessage = fmt.Sprintf("[Azure CNS] Error. CreateNetwork %v of type overlay failed %v.", req.NetworkName, err.Error())
 							returnCode = UnexpectedError
 						}
+						service.networkToSubnetMap[req.NetworkName] = fmt.Sprintf("%s/%d",
+							req.OverlayConfiguration.OverlaySubnet.IPAddress,
+							req.OverlayConfiguration.OverlaySubnet.PrefixLength)
+
 					}
 				} else {
 					returnMessage = fmt.Sprintf("[Azure CNS] Received a request to create an already existing network %v", req.NetworkName)
@@ -293,6 +312,7 @@ func (service *httpRestService) deleteNetwork(w http.ResponseWriter, r *http.Req
 		returnCode = InvalidParameter
 	}
 
+	delete(service.networkToSubnetMap, req.NetworkName)
 	resp := &cns.Response{
 		ReturnCode: returnCode,
 		Message:    returnMessage,
@@ -306,7 +326,9 @@ func (service *httpRestService) deleteNetwork(w http.ResponseWriter, r *http.Req
 // Handles ip reservation requests.
 func (service *httpRestService) reserveIPAddress(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[Azure CNS] reserveIPAddress")
-
+	
+	// reserve ip should take in the network name as a parameter
+	// let's make it mandatory parameter as we have no one to be backward compatible wit
 	var req cns.ReserveIPAddressRequest
 	returnMessage := ""
 	returnCode := 0
@@ -328,7 +350,10 @@ func (service *httpRestService) reserveIPAddress(w http.ResponseWriter, r *http.
 	switch r.Method {
 	case "POST":
 		ic := service.ipamClient
-
+		
+		// check if subnet for the network was provided during network create call
+		// if yes, then use it instead of asking the IMDS
+		// Logic remains same in release.
 		ifInfo, err := service.imdsClient.GetPrimaryInterfaceInfoFromMemory()
 		if err != nil {
 			returnMessage = fmt.Sprintf("[Azure CNS] Error. GetPrimaryIfaceInfo failed %v", err.Error())
