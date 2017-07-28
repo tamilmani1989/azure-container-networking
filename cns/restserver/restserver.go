@@ -13,7 +13,7 @@ import (
 	"github.com/Azure/azure-container-networking/cns"
 	"github.com/Azure/azure-container-networking/cns/common"
 	"github.com/Azure/azure-container-networking/cns/dockerclient"
-	"github.com/Azure/azure-container-networking/cns/hnsclient"
+	//"github.com/Azure/azure-container-networking/cns/hnsclient"
 	"github.com/Azure/azure-container-networking/cns/imdsclient"
 	"github.com/Azure/azure-container-networking/cns/ipamclient"
 	"github.com/Azure/azure-container-networking/cns/routes"
@@ -29,11 +29,11 @@ const (
 // httpRestService represents http listener for CNS - Container Networking Service.
 type httpRestService struct {
 	*cns.Service
-	dockerClient       *dockerclient.DockerClient
-	imdsClient         *imdsclient.ImdsClient
-	ipamClient         *ipamclient.IpamClient
-	routingTable       *routes.RoutingTable
-	hnsClient          *hnsclient.HnsClient
+	dockerClient *dockerclient.DockerClient
+	imdsClient   *imdsclient.ImdsClient
+	ipamClient   *ipamclient.IpamClient
+	routingTable *routes.RoutingTable
+	//hnsClient          *hnsclient.HnsClient
 	networkToSubnetMap map[string]string
 	store              store.KeyValueStore
 	state              httpRestServiceState
@@ -61,7 +61,7 @@ func NewHTTPRestService(config *common.ServiceConfig) (HTTPService, error) {
 
 	imdsClient := &imdsclient.ImdsClient{}
 	routingTable := &routes.RoutingTable{}
-	hnsclient := &hnsclient.HnsClient{}
+	//hnsclient := &hnsclient.HnsClient{}
 	dc, err := dockerclient.NewDefaultDockerClient(imdsClient)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func NewHTTPRestService(config *common.ServiceConfig) (HTTPService, error) {
 		imdsClient:   imdsClient,
 		ipamClient:   ic,
 		routingTable: routingTable,
-		hnsClient:    hnsclient,
+		//hnsClient:    hnsclient,
 	}, nil
 }
 
@@ -326,7 +326,7 @@ func (service *httpRestService) deleteNetwork(w http.ResponseWriter, r *http.Req
 // Handles ip reservation requests.
 func (service *httpRestService) reserveIPAddress(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[Azure CNS] reserveIPAddress")
-	
+
 	// reserve ip should take in the network name as a parameter
 	// let's make it mandatory parameter as we have no one to be backward compatible wit
 	var req cns.ReserveIPAddressRequest
@@ -350,7 +350,7 @@ func (service *httpRestService) reserveIPAddress(w http.ResponseWriter, r *http.
 	switch r.Method {
 	case "POST":
 		ic := service.ipamClient
-		
+
 		// check if subnet for the network was provided during network create call
 		// if yes, then use it instead of asking the IMDS
 		// Logic remains same in release.
