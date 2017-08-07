@@ -4,7 +4,6 @@
     <ProjectFile Include="Aquarius\Aquarius.vcxproj" />
     <ProjectFile Include="EventMessage\CreatePackage.proj" />
     <ProjectFile Include="Common\XmlParseHelper\XmlParserHelper.vcxproj" />
-    <ProjectFile Include="LoopbackAdapterInstaller\LoopbackAdapterInstaller.vcxproj" />
     <ProjectFile Include="ServiceTunnelExtension\ServiceTunnelExtension.vcxproj" />
     <ProjectFile Include="NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
     <ProjectFile Include="NetworkClient\NetworkClient.vcxproj" />
@@ -14,6 +13,7 @@
     <ProjectFile Include="aquanix\aquanix.vcxproj" />
     <ProjectFile Include="aquanixconsole\aquanixconsole.vcxproj" />
     <ProjectFile Include="test\dirs.proj" />
+	<ProjectFile Include="GAExtension\AquariusGaExt.vcxproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(IsOfficialBuild)' != ''">

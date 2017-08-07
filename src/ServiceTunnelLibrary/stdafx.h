@@ -22,18 +22,14 @@
 #include <newdev.h>
 #include <objbase.h>
 #include <strsafe.h>
-
-// RdCommon.h has unreferenced formal parameter warnings
-#pragma warning ( push )
-#pragma warning( disable : 4100 )
-#define RDCOMMON_NO_WIN_HEADERS
-#include <RdCommon.h>
+#include  <RdCommon.h>
 #include <RdTrace.h>
-#pragma warning( pop )
-
 #include <vector>
 #include <Mstcpip.h>
 #include <malloc.h>
+#include <ws2def.h>
+#include <ws2ipdef.h>
+#include <Netioapi.h>
 #include <Netcfgx.h>
 #include <devguid.h>
 #include <winsock2.h>

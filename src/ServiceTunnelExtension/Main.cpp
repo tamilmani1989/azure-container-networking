@@ -29,8 +29,24 @@ Abstract:
 //
 // ------------------------------------------------------------------- Includes
 //
+#include <stdio.h>
+#include <wchar.h>
+#include <ws2tcpip.h>
+#include <msxml6.h>
+#include <windows.h>
+#include "RcfEnumerator.h"
+#include <iostream>
+#include "ConfigReader.h"
+#include "ServiceTunnelLibrary.h"
+#include <sstream>
+#include <string>
+#include <iomanip>
 
-#include "ServiceTunnelExtension.h"
+#define AGENT_TRACE_FLAGS (RD_TRACE_ALL & ~RD_TRACE_PAINFUL)
+#define LOG_FILE_PREFIX L"ServiceTunnelExtension"
+
+
+HRESULT SetupLogging();
 
 
 HRESULT SetupLogging(
@@ -116,297 +132,101 @@ Cleanup:
     return hr;
 }
 
-HRESULT GetInstanceId(
-    __in XmlParserHelper* XmlParserHelper,
-    std::wstring& InstanceName)
-/*++
-
-Routine Description:
-
-    Helper to retrieve the instance name from the RCF.
-
-Arguments:
-
-    XmlParserHelper - XmlParserHelepr object which has the RCF file loaded.
-
-    InstanceName - Out paramter to hold the instance name retrieved from RCF.
-
-Return Value:
-
-    S_OK on success. On failure appropriate HRESULT is returned.
-
---*/
-{
-    HRESULT hr = S_OK;
-    std::set<std::wstring> instanceValues;
-    std::wstring incarnationNodePath;
-    incarnationNodePath.append(XPATH_ROOT_START_TAG);
-    incarnationNodePath.append(INCARNATION_NODE_NAME);
-
-    hr = XmlParserHelper->QueryNodeAttributeValues(
-        (LPWSTR)incarnationNodePath.c_str(),
-        INSTANCE_ATTRIBUTE_NAME,
-        instanceValues);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"GetInstanceId failed with error [%0x]. NodeQuery:[%s], Attribute[%s]", hr, incarnationNodePath.c_str(), INSTANCE_ATTRIBUTE_NAME),
-        hr,
-        Cleanup);
-
-    RD_TRACE_LOG((RD_TRACE_INFO,
-        L"NodeQuery:%s, Attribute:%s, Count:%d.",
-        incarnationNodePath.c_str(),
-        INSTANCE_ATTRIBUTE_NAME,
-        instanceValues.size()));
-
-    if (instanceValues.size() == 0)
-    {
-        hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
-        RD_TRACE_E_HR((RD_TRACE_ERROR,
-            L"GetInstanceId: Failed to find attribute NodeQuery:[ %s] Attribue:[%s]", incarnationNodePath.c_str(), INSTANCE_ATTRIBUTE_NAME),
-            hr,
-            Cleanup);
-    }
-
-    if (instanceValues.size() > 1)
-    {
-        hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-        RD_TRACE_E_HR((RD_TRACE_ERROR,
-            L"GetInstanceId: Failed more than one attribute value. NodeQuery:[ %s] Attribue:[%s]", incarnationNodePath.c_str(), INSTANCE_ATTRIBUTE_NAME),
-            hr,
-            Cleanup);
-    }
-
-    InstanceName.clear();
-    InstanceName.assign(*instanceValues.begin());
-
-Cleanup:
-
-    return hr;
-}
-
-HRESULT GetInstanceAddress(
-    __in XmlParserHelper* XmlParserHelper,
-    __in std::wstring InstanceName,
-    __inout std::wstring& InstanceAddress)
-/*++
-
-Routine Description:
-
-    Helper to retrieve the instance address from the RCF.
-
-Arguments:
-
-    XmlParserHelper - XmlParserHelper object which has the RCF file loaded.
-
-    InstanceName - Instance name whose address to be retrieved from RCF.
-
-    InstanceAddress - Out parameter to hold the instance address.
-
-Return Value:
-
-    S_OK on success. On failure appropriate HRESULT is returned.
-
---*/
-{
-    HRESULT hr = S_OK;
-    std::set<std::wstring> instanceValues;
-    std::wstring instanceAddressNodePath;
-    instanceAddressNodePath.append(XPATH_ROOT_START_TAG);
-    instanceAddressNodePath.append(INSTANCE_NODE_NAME);
-    instanceAddressNodePath.append(L"[@");
-    instanceAddressNodePath.append(ID_ATRRIBUTE_NAME);
-    instanceAddressNodePath.append(L"='");
-    instanceAddressNodePath.append(InstanceName);
-    instanceAddressNodePath.append(L"']");
-
-    hr = XmlParserHelper->QueryNodeAttributeValues(
-        (LPWSTR)instanceAddressNodePath.c_str(),
-        ADDRESS_ATTRIBUTE_NAME,
-        instanceValues);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"GetInstanceAddress failed with error [%0x]. NodeQuery:[%s], Attribute[%s]", hr, instanceAddressNodePath.c_str(), ADDRESS_ATTRIBUTE_NAME),
-        hr,
-        Cleanup);
-
-    RD_TRACE_LOG((RD_TRACE_INFO,
-        L"NodeQuery:%s, Attribute:%s, Count:%d.",
-        instanceAddressNodePath.c_str(),
-        ADDRESS_ATTRIBUTE_NAME,
-        instanceValues.size()));
-
-    if (instanceValues.size() == 0)
-    {
-        hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
-        RD_TRACE_E_HR((RD_TRACE_ERROR,
-            L"GetInstanceAddress: Failed to find attribute NodeQuery:[ %s] Attribue:[%s]", instanceAddressNodePath.c_str(), ADDRESS_ATTRIBUTE_NAME),
-            hr,
-            Cleanup);
-    }
-
-    if (instanceValues.size() > 1)
-    {
-        hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-        RD_TRACE_E_HR((RD_TRACE_ERROR,
-            L"GetInstanceAddress: Failed more than one attribute value. NodeQuery:[ %s] Attribue:[%s]", instanceAddressNodePath.c_str(), ADDRESS_ATTRIBUTE_NAME),
-            hr,
-            Cleanup);
-    }
-
-    InstanceAddress.clear();
-    InstanceAddress.assign(*instanceValues.begin());
-
-Cleanup:
-
-    return hr;
-}
-
-HRESULT GetServiceTunnelIpv6Addresses(
-    __in XmlParserHelper* XmlParserHelper,
-    __in std::wstring InstanceName,
-    __inout std::set<std::wstring>& ServiceTunnelIpv6Addresses)
-/*++
-
-Routine Description:
-
-    Helper to retrieve the service tunnel Ipv6 addresses from the RCF.
-
-Arguments:
-
-    XmlParserHelper - XmlParserHelper object which has the RCF file loaded.
-
-    InstanceName - Instance name whose address to be retrieved from RCF.
-
-    InstanceAddress - Out parameter to hold the service tunnel Ipv6 addresses.
-
-Return Value:
-
-    S_OK on success. On failure appropriate HRESULT is returned.
-
---*/
-{
-    HRESULT hr = S_OK;
-    std::set<std::wstring> instanceValues;
-    std::wstring serviceTunnelAddressNodePath;
-    std::set<std::wstring>::iterator instanceValuesIter;
-
-    serviceTunnelAddressNodePath.append(XPATH_ROOT_START_TAG);
-    serviceTunnelAddressNodePath.append(INSTANCE_NODE_NAME);
-    serviceTunnelAddressNodePath.append(XmlParserHelper->PrepareAttributeQuery(ID_ATRRIBUTE_NAME, InstanceName));
-    serviceTunnelAddressNodePath.append(XPATH_PATH_SEPARATOR_TAG);
-    serviceTunnelAddressNodePath.append(L"InputEndpoints");
-    serviceTunnelAddressNodePath.append(XPATH_PATH_SEPARATOR_TAG);
-    serviceTunnelAddressNodePath.append(ENDPOINT_NODE_NAME);
-
-    hr = XmlParserHelper->QueryNodeAttributeValues(
-        serviceTunnelAddressNodePath.c_str(),
-        SERVICE_TUNNEL_IPV6_ATTRIBUTE_NAME,
-        instanceValues);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"GetInstanceAddress failed with error [%0x]. NodeQuery:[%s], Attribute[%s]", hr, serviceTunnelAddressNodePath.c_str(), ADDRESS_ATTRIBUTE_NAME),
-        hr,
-        Cleanup);
-
-    RD_TRACE_LOG((RD_TRACE_INFO,
-        L"NodeQuery:%s, Attribute:%s, Count:%d.",
-        serviceTunnelAddressNodePath.c_str(),
-        ADDRESS_ATTRIBUTE_NAME,
-        instanceValues.size()));
-
-    ServiceTunnelIpv6Addresses.clear();
-    for (instanceValuesIter = instanceValues.begin(); instanceValuesIter != instanceValues.end(); ++instanceValuesIter)
-    {
-        ServiceTunnelIpv6Addresses.insert(*instanceValuesIter);
-    }
-
-Cleanup:
-
-    return hr;
-}
-
-std::wstring
-GetSTIpv6AddrFromInstanceIpv4Addr(
-    __in std::wstring InstanceIpv4Addr
-    )
-/*++
-
-Routine Description:
-
-    Helper to retrieve IPV6 address from IPV4 address.
-
-Arguments:
-
-    InstanceIpv4Addr - IPV4 Address to which IPV6 address has to be computed.
-
-Return Value:
-
-    std::wstring - Returns corresponding IPV6 address for IPV4 address
-
---*/
-{
-    unsigned short ip[4];
-    std::string result[4];
-    std::string ipv6Addr;
-    
-    swscanf_s(InstanceIpv4Addr.c_str(), L"%hu.%hu.%hu.%hu", &ip[0], &ip[1], &ip[2], &ip[3]);
-
-    for (int i = 0; i < 4; i++)
-    {
-        std::stringstream sstream;
-        if (i % 2 == 0)
-        {
-            sstream << std::hex << ip[i];
-        }
-        else
-        {
-            sstream<< std::setw(2) << std::setfill('0') << std::hex << ip[i];
-        }
-        result[i] = sstream.str();
-    }
-
-    ipv6Addr = SERVICE_TUNNEL_IPV6_ADDRESS_PREFIX + result[0] + result[1] + ":" + result[2] + result[3];
-    std::wstring wsIpValue(ipv6Addr.begin(), ipv6Addr.end());
-    RD_TRACE_LOG((RD_TRACE_INFO, L"Derived Ipv6 Address :%s from %s", wsIpValue.c_str(), InstanceIpv4Addr.c_str()));
-
-    return wsIpValue;
-}
 
 int wmain(
+	int argc,
+	wchar_t *argv[]
 )
 /*++
 
 Routine Description:
 
-    Entry point for the service tunnel extension 
+	Entry point for the service tunnel extension
 
 Arguments:
 
-    None.
+	None.
 
 Return Value:
 
-    0 on success and non zero value of failure.
+	0 on success and non zero value of failure.
 
 --*/
 {
-    HRESULT hr = S_OK;
-    LPWSTR rcfFile = NULL;
-    RcfEnumerator rcfEnumerator;
-    XmlParserHelper xmlParserHelper;
-    std::set<std::wstring> serviceTunnelIpv6Addresses;
-    std::set<std::wstring>::iterator serviceTunnelIpv6AddressesIter;
-    bool comInitialized = false;
-    bool traceInitialized = false;
-    std::wstring instanceName;
-    std::wstring instanceAddress;
-    std::wstring instanceDerviedIpv6Address;
-    ServiceTunnelConfigurator serviceTunnelConfigurator;
+	HRESULT hr = S_OK;
+	LPWSTR rcfFile = NULL;
+	LPWSTR rcfLocation = NULL;
+	RcfEnumerator rcfEnumerator;
+	XmlParserHelper xmlParserHelper;
+	ConfigReader configReader;
+	std::set<std::wstring> serviceTunnelIpv6Addresses;
+	std::set<std::wstring>::iterator serviceTunnelIpv6AddressesIter;
+	bool comInitialized = false;
+	bool traceInitialized = false;
+	std::wstring instanceName;
+	std::wstring instanceAddress;
+	std::wstring instanceDerviedIpv6Address;
+	int retryCount = 30;
+	int waitTimeStart = 5;
+	int totalWaitTime = 180;
+	ServiceTunnelConfigurator serviceTunnelConfigurator;
+	
+	hr = SetupLogging();
+	if (FAILED(hr))
+	{
+		wprintf(L"Failed to setup logging due to error [%0x]", hr);
+		goto Cleanup;
+	}
 
-    hr = SetupLogging();
-    if (FAILED(hr))
-    {
-        wprintf(L"Failed to setup logging due to error [%0x]", hr);
-        goto Cleanup;
-    }
+	for (int i = 1; i < argc; i++)
+	{
+		if (_wcsicmp(L"-retrycount", argv[i]) == 0)
+		{
+			if (i + 1 < argc)
+			{
+				retryCount = _wtoi(argv[++i]);
+				if (retryCount == 0)
+				{
+					hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+					RD_TRACE_E_HR((RD_TRACE_ERROR,
+						L"_wtoi failed retrieving retry count"),
+						hr,
+						Cleanup);
+				}
+			}
+		}
+		else if (_wcsicmp(L"-waittimestart", argv[i]) == 0)
+		{
+			if (i + 1 < argc)
+			{
+				waitTimeStart = _wtoi(argv[++i]);
+				if (waitTimeStart == 0)
+				{
+					hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+					RD_TRACE_E_HR((RD_TRACE_ERROR,
+						L"_wtoi failed retrieving waittimestart"),
+						hr,
+						Cleanup);
+				}
+			}
+		}
+		else if(_wcsicmp(L"-totalwaittime", argv[i]) == 0)
+		{
+			if (i + 1 < argc)
+			{
+				totalWaitTime = _wtoi(argv[++i]);
+				if (totalWaitTime == 0)
+				{
+					hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+					RD_TRACE_E_HR((RD_TRACE_ERROR,
+						L"_wtoi failed retrieving totalwaittime"),
+						hr,
+						Cleanup);
+				}
+			}
+		}
+
+	}
 
     traceInitialized = true;
 
@@ -419,7 +239,14 @@ Return Value:
 
     comInitialized = true;
 
-    hr = rcfEnumerator.FindLatestRcf(&rcfFile);
+	hr = rcfEnumerator.GetRcfLocation(&rcfLocation);
+	RD_TRACE_E_HR((RD_TRACE_ERROR,
+		L"GetRcfLocation failed with error [%0x].",
+		hr),
+		hr,
+		Cleanup);
+
+    hr = rcfEnumerator.FindLatestRcf(&rcfFile, rcfLocation);
     RD_TRACE_E_HR((RD_TRACE_ERROR,
         L"FindLatestRcf failed with error [%0x].",
         hr),
@@ -432,7 +259,7 @@ Return Value:
         hr,
         Cleanup);
 
-    hr = GetInstanceId(&xmlParserHelper, instanceName);
+    hr = configReader.GetInstanceId(&xmlParserHelper, instanceName);
     RD_TRACE_E_HR((RD_TRACE_ERROR,
         L"GetInstanceId failed with error [%0x]. ", hr),
         hr,
@@ -440,7 +267,7 @@ Return Value:
 
     RD_TRACE_LOG((RD_TRACE_INFO, L"Instance Name:%s.",instanceName.c_str()));
 
-    hr = GetInstanceAddress(&xmlParserHelper, instanceName, instanceAddress);
+    hr = configReader.GetInstanceAddress(&xmlParserHelper, instanceName, instanceAddress);
     RD_TRACE_E_HR((RD_TRACE_ERROR,
         L"GetInstanceAddress failed with error [%0x]. ", hr),
         hr,
@@ -448,7 +275,7 @@ Return Value:
 
     RD_TRACE_LOG((RD_TRACE_INFO, L"Instance Address:%s.", instanceAddress.c_str()));
 
-    hr = GetServiceTunnelIpv6Addresses(&xmlParserHelper, instanceName, serviceTunnelIpv6Addresses);
+    hr = configReader.GetServiceTunnelIpv6Addresses(&xmlParserHelper, instanceName, serviceTunnelIpv6Addresses);
     RD_TRACE_E_HR((RD_TRACE_ERROR,
         L"GetServiceTunnelIpv6Addresses failed with error [%0x]. ", hr),
         hr,
@@ -462,11 +289,13 @@ Return Value:
     if (serviceTunnelIpv6Addresses.size() == 0)
     {
         RD_TRACE_LOG((RD_TRACE_INFO, L"Configuring service tunnel adapter with IPV6 address derived implicitly from Instance Ipv4 address"));
-        instanceDerviedIpv6Address = GetSTIpv6AddrFromInstanceIpv4Addr(instanceAddress);
+        instanceDerviedIpv6Address = serviceTunnelConfigurator.GetSTIpv6AddrFromInstanceIpv4Addr(instanceAddress);
         serviceTunnelIpv6Addresses.insert(instanceDerviedIpv6Address);
     }
 
-    hr = serviceTunnelConfigurator.SetupLoopbackAdapter(instanceAddress, serviceTunnelIpv6Addresses);
+	RD_TRACE_LOG((RD_TRACE_INFO, L"retrycount:%d waittimestart:%d totalwaittime:%d\n", retryCount, waitTimeStart, totalWaitTime));
+
+    hr = serviceTunnelConfigurator.SetupLoopbackAdapter(instanceAddress, serviceTunnelIpv6Addresses, retryCount, waitTimeStart, totalWaitTime);
     RD_TRACE_E_HR((RD_TRACE_ERROR,
         L"SetupLoopbackAdapter failed with error [%0x]. ", hr),
         hr,
@@ -490,5 +319,6 @@ Cleanup:
 
     STR_FREE(rcfFile);
 
+	//hr= HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
     return hr;
 }

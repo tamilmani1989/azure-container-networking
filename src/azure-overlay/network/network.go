@@ -102,18 +102,6 @@ func (nm *networkManager) deleteExternalInterface(ifName string) error {
 	return nil
 }
 
-// FindExternalInterfaceBySubnet finds an external interface connected to the given subnet.
-func (nm *networkManager) findExternalInterfaceBySubnet(subnet string) *externalInterface {
-	for _, extIf := range nm.ExternalInterfaces {
-		for _, s := range extIf.Subnets {
-			if s == subnet {
-				return extIf
-			}
-		}
-	}
-
-	return nil
-}
 func system(cmd string, arg ...string) {
 	out, err := exec.Command(cmd, arg...).Output()
 	if err != nil {
@@ -137,22 +125,6 @@ func (nm *networkManager) newNetwork(nwInfo *NetworkInfo) (*network, error) {
 
 	fmt.Println("mode", nwInfo.Mode)
 
-	//fmt.Println("exitf", extIf)
-	// Find the external interface for this subnet.
-	/*	extIf := nm.findExternalInterfaceBySubnet(nwInfo.Subnets[0].Prefix.String())
-			if extIf == nil {
-				err = errSubnetNotFound
-				goto fail
-			}
-
-
-		// Make sure this network does not already exist.
-		if extIf.Networks[nwInfo.Id] != nil {
-			err = errNetworkExists
-			goto fail
-		}
-	*/
-	//fmt.Println("test os")
 	// Call the OS-specific implementation.
 	nw, extIf, err = nm.newNetworkImpl(nwInfo)
 	if err != nil {

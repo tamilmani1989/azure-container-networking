@@ -3,6 +3,7 @@
 
   <ItemGroup>
     <ProjectReference Include="NetworkClientTest\NetworkClientTest.vcxproj" />
+	<ProjectReference Include="ServiceTunnelExtensionTest\ServiceTunnelExtensionTest.vcxproj" />
     <ProjectReference Include="TestSetup\TestSetup.proj" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />

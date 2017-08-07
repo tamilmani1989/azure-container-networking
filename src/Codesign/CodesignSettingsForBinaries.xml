@@ -31,7 +31,7 @@
 		  <File>%BinariesBuildTypeArchDirectory%\aquanix\aquanix.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\aquanixconsole\aquanixconsole.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\Aquarius\Aquarius.exe</File>
-		  <File>%BinariesBuildTypeArchDirectory%\AquariusPackage\Plugins\ServiceTunnelExtension\code\ServiceTunnelExtension.exe</File>
+		  <File>%BinariesBuildTypeArchDirectory%\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\code\ServiceTunnelExtension.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\HnsClient\HnsClient.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\HNSOverlayPlugin\HNSOverlayPlugin.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\NetworkClient\NetworkClient.exe</File>

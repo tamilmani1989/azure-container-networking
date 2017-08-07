@@ -57,4 +57,7 @@
     </QCustomInput>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+   <Target Name="AfterBuild">
+    <Copy SourceFiles="$(OutputPath)\Aquarius.exe; $(OutputPath)\Aquarius.pdb" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius" />
+ </Target>
 </Project>

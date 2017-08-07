@@ -4,15 +4,15 @@ Copyright (c) Microsoft Corporation
 
 Module Name:
 
-    RcfEnumerator.h
+RcfEnumerator.h
 
 Abstract:
 
-    Implements functions related to enumerating rcf files.
+Implements functions related to enumerating rcf files.
 
 Environment:
 
-    User-mode
+User-mode
 
 --*/
 #pragma once
@@ -42,11 +42,7 @@ using namespace std;
 
 class RcfEnumerator
 {
-private:
-
-    HRESULT GetRcfLocation(__out LPWSTR* RcfLocation);
-
 public:
-
-    HRESULT FindLatestRcf(__out LPWSTR* latestRcfFile);
+	HRESULT GetRcfLocation(__out LPWSTR* RcfLocation);
+	HRESULT FindLatestRcf(__out LPWSTR* latestRcfFile, __in LPWSTR RcfLocation);
 };

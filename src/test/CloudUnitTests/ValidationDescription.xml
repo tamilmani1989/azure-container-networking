@@ -24,5 +24,24 @@
       <CategoryName>UnitTest</CategoryName>
     </TestCategories>
 	</ValidationReportTaskDescriptions>
+	
+	<ValidationReportTaskDescriptions>
+    <TaskName>ServiceTunnelExtensionTest</TaskName>
+    <OwnerName>Tamilmani Manoharan</OwnerName>
+    <TaskCommand>test\Taef\TE.exe test\ServiceTunnelExtensionTest\ServiceTunnelExtensionTest.dll</TaskCommand>
+    <PreTaskCommand />
+    <PostTaskCommand />
+    <ValidationReportDescriptions>
+      <ValidationReportFilename>ServiceTunnelExtensionTest.xml</ValidationReportFilename>
+      <TestFramework>TAEF</TestFramework>
+    </ValidationReportDescriptions>
+    <ReimageHints>
+	  <Behavior>None</Behavior>
+    </ReimageHints>
+    <TestCategories>
+      <CategoryName>UnitTest</CategoryName>
+    </TestCategories>
+	</ValidationReportTaskDescriptions>
+
   </TaskGroup>
 </ValidationDescription>

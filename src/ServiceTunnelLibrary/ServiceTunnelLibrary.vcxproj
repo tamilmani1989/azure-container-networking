@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <ProjectGuid>{695A017C-867D-4E13-8670-CD25D4BC971B}</ProjectGuid>
-    <TargetName>LoopbackAdapterInstaller</TargetName>
+    <ProjectGuid>{7DB0C9A4-CADC-4E53-ADF3-1F6887454249}</ProjectGuid>
+    <TargetName>ServiceTunnelLibrary</TargetName>
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(SRCROOT)\build\native_user_compile.props" />
@@ -18,11 +18,17 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="LoopbackAdapterInstaller.cpp" />
+    <ClCompile Include="LoopBackAdapterInstaller.cpp" />
+    <ClCompile Include="RcfEnumerator.cpp" />
+    <ClCompile Include="ConfigReader.cpp" />
+    <ClCompile Include="ServiceTunnelLibrary.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="LoopbackAdapterInstaller.h" />
-    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="ConfigReader.h" />
+    <ClInclude Include="LoopBackAdapterInstaller.h" />
+    <ClInclude Include="RcfEnumerator.h" />
+    <ClInclude Include="ServiceTunnelLibrary.h" />
+	<ClInclude Include="stdafx.h" />
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
