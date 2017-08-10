@@ -31,7 +31,7 @@
         $(WindowsSdk64LibPath)\oleaut32.lib;
         $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
       </AdditionalDependencies>
-      <ModuleDefinitionFile>HNSOverlayPlugin.src</ModuleDefinitionFile>
+      <ModuleDefinitionFile>Aqua.HNSOverlayPlugin.src</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

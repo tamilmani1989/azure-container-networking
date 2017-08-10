@@ -10,6 +10,8 @@
     <ProjectFile Include="Logging\Logging.vcxproj" />
     <ProjectFile Include="HNSOverlayPlugin\HNSOverlayPlugin.vcxproj" />
     <ProjectFile Include="HNSClient\HNSClient.vcxproj" />
+    <ProjectFile Include="Server\Server.vcxproj" />
+    <ProjectFile Include="RestClient\RestClient.vcxproj" />
     <ProjectFile Include="aquanix\aquanix.vcxproj" />
     <ProjectFile Include="aquanixconsole\aquanixconsole.vcxproj" />
     <ProjectFile Include="test\dirs.proj" />

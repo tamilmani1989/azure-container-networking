@@ -15,6 +15,7 @@
         $(PkgMicrosoft_WindowsAzure_EngSys_Internal_longhorn_rd_os142_OS_redist)\content\redist;
         $(PkgMDS_MA)\lib\native\include;
         $(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\inc;
+        $(cpprestsdk)\build\native\include;
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -22,6 +23,7 @@
     <Link>
       <AdditionalDependencies>
         %(AdditionalDependencies);
+        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -46,6 +48,12 @@
     </ProjectReference>
     <ProjectReference Include="..\Shared\Shared.vcxproj">
       <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Server\Server.vcxproj">
+      <Project>{ABC3B949-54EC-40C4-B9A4-6A338B2A4767}</Project>
+    </ProjectReference>      
+    <ProjectReference Include="..\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

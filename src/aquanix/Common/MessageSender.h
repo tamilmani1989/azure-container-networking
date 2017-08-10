@@ -10,6 +10,9 @@ namespace aqua
 {
 	class MessageSender
 	{
+	private:
+		std::mutex m_RemoteHostsMutex;
+
 	protected:
 		MessageExchange *m_pMessageExchange;
 		string *m_remoteHostAddresses;
@@ -37,6 +40,7 @@ namespace aqua
 		DWORD Send(Message &message, char *recipientIPAddress, bool notifyLater);
 		DWORD SendAck(Message &message, char *destination);
 		DWORD RemoveAckedMessage(Message &message, char *destination);
+		DWORD SetRemoteHostsForSendingMessages(string *remoteHostAddresses, int remoteHostsCount);
 		void NotifySender();
 	};
 }

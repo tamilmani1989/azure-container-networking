@@ -39,12 +39,12 @@ AquariusSvcBase *AquariusSvcBase::s_service = nullptr;
 //   function fails, the return value is FALSE. To get extended error 
 //   information, call GetLastError.
 //
-BOOL AquariusSvcBase::Run(AquariusSvcBase &service)
+BOOL AquariusSvcBase::Run(AquariusSvcBase *service)
 {
-    s_service = &service;
+    s_service = service;
     SERVICE_TABLE_ENTRY serviceTable[] = 
     {
-        { service.m_name, ServiceMain },
+        { service->m_name, ServiceMain },
         { nullptr, nullptr }
     };  
 

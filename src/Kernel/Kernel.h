@@ -33,7 +33,5 @@ private:
 
 	// whether the kernel is initialized or not
 	bool initialized = false;
-
-	void RetrievePackageDeploymentJobs();
 };
 

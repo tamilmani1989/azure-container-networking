@@ -74,7 +74,7 @@ void AquariusUtilities::WriteEventLogEntry(PWSTR pszMessage)
 void AquariusUtilities::WriteErrorLogEntry(PWSTR pszFunction)
 {
 	WORD wType = EVENTLOG_ERROR_TYPE;
-	wchar_t szMessage[260];
+	wchar_t szMessage[MAX_PATH];
 	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
 		L"%s failed w/err 0x%08lx", pszFunction, wType);
 
@@ -110,7 +110,7 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 		return;
 	}
 
-    wchar_t szMessage[260];
+    wchar_t szMessage[MAX_PATH];
 
 	for (int i = 0; i<count; i++)
 	{
@@ -123,6 +123,7 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 			pluginsMetadata[i].location = nullptr;
 			AquariusUtilities::allocator--;
 		}
+
 		if (pluginsMetadata[i].currentVersion != nullptr) 
 		{
             StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
@@ -132,17 +133,24 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 			pluginsMetadata[i].currentVersion = nullptr;
 			AquariusUtilities::allocator--;
 		}
+
+		if (pluginsMetadata[i].entryPoint != nullptr) 
+		{
+			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+                L"Going to Release entrypoint %s", pluginsMetadata[i].entryPoint);
+            WriteEventLogEntry(szMessage);
+			delete[] pluginsMetadata[i].entryPoint;
+			pluginsMetadata[i].entryPoint = nullptr;
+		}
 	}
-	delete[] pluginsMetadata;
-	pluginsMetadata = nullptr;
-	AquariusUtilities::allocator--;
 }
 
 
 
 void AquariusUtilities::PopulateServiceExeLocation(wchar_t* packageStoreLocation)
 {
-	wchar_t szMessage[260];
+	wchar_t szMessage[MAX_PATH];
+	
 	if (GetModuleFileName(nullptr, packageStoreLocation, MAX_PATH) == 0)
 	{
 		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),

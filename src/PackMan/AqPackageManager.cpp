@@ -30,7 +30,7 @@ void AqPackageManager::GetPackageStoreLocation(wchar_t *packageStoreLocation, DW
             return;
         }
     }
-	wchar_t szMessage[260];    
+	wchar_t szMessage[MAX_PATH];    
 	
 	AquariusUtilities::WriteEventLogEntry(L"Registry key does not exist. Returning default package location.");
 
@@ -40,9 +40,28 @@ void AqPackageManager::GetPackageStoreLocation(wchar_t *packageStoreLocation, DW
 }
 
 void AqPackageManager::CopyPluginsMetadata(PluginMetadata **allPluginsMetadata)
+/*++
+
+Routine Description:
+	This function initializes and populates allPluginsMetadata object
+
+Arguments:
+
+Return Value:
+	N/A
+
+--*/
 {
-	(*allPluginsMetadata) = new PluginMetadata[currentPluginCount];
+	*allPluginsMetadata = GetPluginInstances(currentPluginCount);
+	
+	if (!*allPluginsMetadata)
+	{
+		AquariusUtilities::WriteEventLogEntry(L"Getting plugin metadata failed");
+		return;
+	}
+
 	AquariusUtilities::allocator++;
+	
 	for(int i=0; i<currentPluginCount; i++)
 	{
 		if (packmanCurrentPluginsMetadata[i].location != nullptr) {
@@ -51,6 +70,7 @@ void AqPackageManager::CopyPluginsMetadata(PluginMetadata **allPluginsMetadata)
             AquariusUtilities::allocator++;
 			wcscpy_s((*allPluginsMetadata)[i].location, len, packmanCurrentPluginsMetadata[i].location);
 		}
+
 		if (packmanCurrentPluginsMetadata[i].currentVersion != nullptr) {
 			size_t len = wcsnlen(packmanCurrentPluginsMetadata[i].currentVersion, MAX_PATH) + 1;
 			(*allPluginsMetadata)[i].currentVersion = new wchar_t[len];
@@ -83,12 +103,15 @@ int AqPackageManager::RetrievePluginsMetadata(PluginMetadata **allPluginsMetadat
 	packman_objects_mutex.unlock();
 	return pluginCount;
 }
+int AqPackageManager::GetPluginCount()
+{
+	return currentPluginCount;
+}
 
-
-static int GetPluginCount(wchar_t* packageStoreLocation)
+static int getPluginCount(wchar_t* packageStoreLocation)
 {
 	HANDLE findHandle = nullptr;
-	wchar_t szMessage[260];
+	wchar_t szMessage[MAX_PATH];
 	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"PackageStore Location in GetPluginCount: %s.",
 		packageStoreLocation);
 	AquariusUtilities::WriteEventLogEntry(szMessage);
@@ -141,7 +164,7 @@ static int GetPluginCount(wchar_t* packageStoreLocation)
 
 void AqPackageManager::PopulatePluginMetadataFromStore(wchar_t* packageStoreLocation)
 {
-	wchar_t szMessage[260];
+	wchar_t szMessage[MAX_PATH];
 	HANDLE findHandle = nullptr;
 
 	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
@@ -157,7 +180,7 @@ void AqPackageManager::PopulatePluginMetadataFromStore(wchar_t* packageStoreLoca
 	try 
 	{
 		AquariusUtilities::WriteEventLogEntry((PWSTR)(pluginDirectory));
-		int pluginCount = GetPluginCount(packageStoreLocation);
+		int pluginCount = getPluginCount(packageStoreLocation);
 		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
 			L"Received plugin count as: %d",
 			pluginCount);
@@ -233,7 +256,7 @@ void AqPackageManager::PopulatePluginMetadataFromStore(wchar_t* packageStoreLoca
 
 AqPackageManager::~AqPackageManager()
 {
-    wchar_t szMessage[260];
+    wchar_t szMessage[MAX_PATH];
 	if(packmanCurrentPluginsMetadata != nullptr)
 	{
         StringCchPrintf(szMessage, ARRAYSIZE(szMessage),

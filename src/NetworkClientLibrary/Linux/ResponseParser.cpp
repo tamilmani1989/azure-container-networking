@@ -155,6 +155,7 @@ Return Value:
 						temp = (char *) malloc(len);
 						strncpy(temp, (char *)value, len);
 						*subnetIp = temp;
+                        LOGINFO("Plugin name %s", temp);
                         xmlFree(value);
 						break;
 					}

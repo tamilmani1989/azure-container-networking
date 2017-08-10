@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{ABC3B949-54EC-40C4-B9A4-6A338B2A4767}</ProjectGuid>
+    <TargetName>Aqua.RestServer</TargetName>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories);
+	    $(cpprestsdk)\build\native\include;
+		<!--$(INTERNAL_SDK)\inc; -->
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
+      <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        $(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;		
+	    $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
+      </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="RestServer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="RestServer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Shared\Shared.vcxproj">
+      <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="AfterBuild">
+    <Copy SourceFiles="$(OutputPath)\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClient" />
+	<Copy SourceFiles="$(OutputPath)\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
+	<Copy SourceFiles="$(OutputPath)\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\HNSOverlayPlugin" />
+  </Target>
+</Project>

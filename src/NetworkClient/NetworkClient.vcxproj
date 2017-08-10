@@ -3,7 +3,7 @@
   <PropertyGroup>
     <ProjectGuid>{44E41C2F-CADA-4C2A-B8EC-3147A34EBEE4}</ProjectGuid>
     <RootNamespace>Aquarius</RootNamespace>
-    <ProjectName>NetworkClient</ProjectName>
+    <ProjectName>Aqua.NetworkClient</ProjectName>
     <ConfigurationType>Application</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(SRCROOT)\build\native_user_compile.props" />
@@ -12,6 +12,7 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories)
+		$(cpprestsdk)\build\native\include
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -26,7 +27,10 @@
         $(WindowsSdk64LibPath)\ole32.lib;
         $(WindowsSdk64LibPath)\ws2_32.lib;
         $(WindowsSdk64LibPath)\oleaut32.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
+		$(WindowsSdk64LibPath)\Crypt32.lib;
+		$(WindowsSdk64LibPath)\RpcRT4.Lib;
+		$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -46,11 +50,11 @@
     <ProjectReference Include="..\Shared\Shared.vcxproj">
       <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
     </ProjectReference>
-	    <ProjectReference Include="..\Shared\Shared.vcxproj">
-      <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\Logging\logging.vcxproj">
       <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Server\Server.vcxproj">
+      <Project>{ABC3B949-54EC-40C4-B9A4-6A338B2A4767}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />

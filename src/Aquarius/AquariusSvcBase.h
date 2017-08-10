@@ -30,7 +30,7 @@ public:
     // (SCM). After you call Run(ServiceBase), the SCM issues a Start command, 
     // which results in a call to the OnStart method in the service. This 
     // method blocks until the service has stopped.
-    static BOOL Run(AquariusSvcBase &service);
+    static BOOL Run(AquariusSvcBase *service);
 
     // Stop the service.
     void Stop();

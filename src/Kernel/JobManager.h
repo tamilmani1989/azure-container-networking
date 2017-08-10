@@ -6,6 +6,7 @@
 
 #pragma once
 #include <minwindef.h>
+#include "../Shared/PluginMetadata.h"
 
 class JobObject
 {
@@ -24,7 +25,7 @@ private:
 public:	
 	static void EnqueueJob(wchar_t* directory, wchar_t* entryPoint);
 	static void RemoveJob(wchar_t* directory, wchar_t* entryPoint);
-	static void EnsureJobIsRunning(wchar_t* directory, wchar_t* entryPoint, LPTSTR lpCommandLine);
+	static void EnsureJobIsRunning(wchar_t* directory, LPTSTR lpCommandLine, PluginMetadata *pluginData);
 	static void SaveJobHandle(HANDLE handle);
 	static void ReleaseAllJobs();
 };

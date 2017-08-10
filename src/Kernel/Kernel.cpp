@@ -20,7 +20,6 @@ AquariusKernel::AquariusKernel(wchar_t* storeLocation): packageStoreLocation(nul
 	AquariusUtilities::allocator++;
 	wcscpy_s(packageStoreLocation, len, storeLocation);
 	alreadyLoadedPluginsMetadata = nullptr;
-	
 }
 
 AquariusKernel::~AquariusKernel()
@@ -35,22 +34,6 @@ AquariusKernel::~AquariusKernel()
 		delete(alreadyLoadedPluginsMetadata);
 	}
 	JobManager::ReleaseAllJobs();
-	kernel_objects_mutex.unlock();
-	
-}
-
-void AquariusKernel::RetrievePackageDeploymentJobs()
-{
-	
-	kernel_objects_mutex.lock();
-
-	// get the real job count
-	//int jobcount = 1; 
-
-	//PluginMetadata *jobs = new PluginMetadata[jobcount];
-	
-	//pluginsMetadata = jobs;
-
 	kernel_objects_mutex.unlock();
 	
 }
@@ -76,17 +59,32 @@ wchar_t* AquariusKernel::GetCurrentPackageStoreLocation()
 	return packageStoreLocation;
 }
 
+
 void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
+/*++
+
+Routine Description:
+	This function parses the manifest file and load all plugins.
+
+Arguments:
+	pluginCount - number of plugins to load
+	pluginsToLoad - object contains info about plugin
+
+Return Value:
+
+--*/
 {
 	kernel_objects_mutex.lock();
+	
 	try {
 		if (alreadyLoadedPluginCount <= 0)
 		{
+			AquariusUtilities::WriteEventLogEntry(L"Indide load plugins");
+			
 			for (int i = 0; i < pluginCount; i++)
 			{
 				wchar_t * codeDirectory = nullptr;
 				wchar_t * manifestFile = nullptr;
-				wchar_t *entryPoint = nullptr;
 
 				try
 				{
@@ -103,27 +101,41 @@ void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
 					wcscat_s(manifestFile, len, L"\\");
 					wcscat_s(manifestFile, len, AquariusUtilities::manifestFileName);
 										
-					XmlParser::ParseManifest(manifestFile, &entryPoint);
-					if (entryPoint != nullptr)
+					XmlParser::ParseManifest(manifestFile,&pluginsToLoad[i]);
+					
+					if (pluginsToLoad[i].entryPoint != nullptr)
 					{
-						wchar_t szMessage[260];
+						wchar_t szMessage[MAX_PATH];
 						StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
 							L"Kernel received entrypoint %s in %s",
-							entryPoint, codeDirectory);
+							pluginsToLoad[i].entryPoint, codeDirectory);
 						AquariusUtilities::WriteEventLogEntry(szMessage);
-						JobManager::EnsureJobIsRunning(codeDirectory, entryPoint, nullptr);				
+			
+						if(pluginsToLoad[i].retryCount < MAX_RETRY_COUNT)
+						{
+							JobManager::EnsureJobIsRunning(codeDirectory, nullptr, &pluginsToLoad[i]);				
+						}
+						else
+						{
+							StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+								L"Retry count exceeded for %s",pluginsToLoad[i].entryPoint);
+							AquariusUtilities::WriteEventLogEntry(szMessage);
+							throw;
+						}
 					}
 				}
 				catch (...)
 				{
 					SAFE_DELETE(codeDirectory);
 					SAFE_DELETE(manifestFile);
-					SAFE_DELETE(entryPoint);
+					pluginsToLoad[i].exitStatus=1;
+					pluginsToLoad[i].retryCount++;					
 					throw;
 				}
+
+				pluginsToLoad[i].retryCount=0;
 				SAFE_DELETE(codeDirectory);
 				SAFE_DELETE(manifestFile);
-				SAFE_DELETE(entryPoint);
 			}
 		}
 		else
@@ -136,5 +148,6 @@ void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
 		kernel_objects_mutex.unlock();
 		throw;
 	}
+	
 	kernel_objects_mutex.unlock();
 }

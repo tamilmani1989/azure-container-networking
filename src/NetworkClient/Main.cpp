@@ -14,13 +14,14 @@
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
 #include "../Logging/Logging.h"
-#include "../NetworkClientLibrary/Common/nclcore.h"
+#include "../Server/RestServer.h"
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
+using namespace Microsoft::Azure::Networking::Aqua::Server;
 
 extern DllExport int DeleteLocalEndpointWithIp(wchar_t *hostLocalIp, bool detachIfHostLocalIp);
 
-void assert(unsigned long value)
+void assertvalue(unsigned long value)
 {
 	if (value == 0) return;
 	LOGERR("assert failed");
@@ -33,17 +34,122 @@ void logstuff(int level, char *text)
 	printf("%d: %s\n", level, text);
 }
 
-void testM()
+void ExecuteIpScenarios(NodeNetworkResources *nnr)
 {
+	int i;
+	int ipCount;
+	char ipInString[22];
+	int retval;
+	unsigned hostIp;
+
+	nnr->ips = NULL;
+	assertvalue(GetAvailableIpAddresses(nnr, &ipCount));
+	LOGINFO("Retrieved ipCount = %d\n", ipCount);
 	
+	nnr->ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
+	memset(nnr->ips, 0, ipCount * sizeof(unsigned int));
+	assertvalue(GetAvailableIpAddresses(nnr, &ipCount));
+	LOGINFO("Printing available ip addresses count = %d\n", ipCount);
+
+	for (i = 0; i < ipCount; i++)
+	{
+		LOGERR("%s\n", inet_ntop(AF_INET, &nnr->ips[i], ipInString, INET_ADDRSTRLEN));
+	}
+	getchar();
+
+	unsigned int ip=0;
+	LOGINFO("going to reserve available ip with ip0");
+	assertvalue(ReserveAvailableIpAddress((char *)"ip0", &ip));
+	LOGINFO("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+
+	assertvalue(GetAvailableIpAddresses(nnr, &ipCount));
+	LOGINFO("Printing available ip addresses count = %d\n", ipCount);
+	for(i = 0; i < ipCount ; i++)
+	{
+		LOGINFO("%s\n", inet_ntop(AF_INET, &nnr->ips[i], ipInString, INET_ADDRSTRLEN));
+	}
+	//getchar();
+    
+	assertvalue(ReserveAvailableIpAddress((char *)"ip1", &ip));
+	LOGINFO("ip1 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+	getchar();
+
+	assertvalue(GetAvailableIpAddresses(nnr, &ipCount));
+	LOGINFO("Printing available ip addresses count = %d\n", ipCount);
+	for(i = 0; i < ipCount ; i++)
+	{
+		LOGINFO(" %s\n", inet_ntop(AF_INET, &nnr->ips[i], ipInString, INET_ADDRSTRLEN));
+	}
+	getchar();
+
+	assertvalue(GetReservedIpAddress("ip1", &ip));
+	LOGINFO("ip1 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+	getchar();
+
+	retval = GetReservedIpAddress("ip2", &ip);
+	LOGINFO("ip2 (without reservation). retval = %d\n", retval);
+	getchar();
+    
+	assertvalue(ReserveAvailableIpAddress((char *)"ip2", &ip));
+	LOGINFO("ip2 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+	getchar();
+
+	assertvalue(GetAvailableIpAddresses(nnr, &ipCount));
+	LOGINFO("Printing available ip addresses count = %d\n", ipCount);
+	for(i = 0; i < ipCount ; i++)
+	{
+		LOGINFO("%s\n", inet_ntop(AF_INET, &nnr->ips[i], ipInString, INET_ADDRSTRLEN));
+	}
+	getchar();
+
+	assertvalue(GetReservedIpAddress("ip2", &ip));
+	LOGINFO("ip2 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+	getchar();
+
+
+	assertvalue(ReleaseIpReservation("ip1"));
+	retval = GetReservedIpAddress("ip1", &ip);
+	LOGINFO("ip1 (without reservation). retval = %d\n", retval);
+	getchar();
+
+
+	assertvalue(ReserveAvailableIpAddress((char *)"ip5", &ip));
+	LOGINFO("ip5 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+	getchar();
+
+	assertvalue(GetReservedIpAddress((char*)"ip5", &ip));
+	LOGINFO("ip5 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
+	getchar();
+
+	assertvalue(ReleaseIpReservation("ip2"));
+	retval = GetReservedIpAddress("ip2", &ip);
+	LOGINFO("ip2 (without reservation). retval =  %d\n", retval);
+	getchar();
+
+	assertvalue(ReleaseIpReservation("ip0"));
+	retval = GetReservedIpAddress("ip0", &ip);
+	LOGINFO("ip0 (without reservation). retval =  %d\n", retval);
+
+	getchar();
+	GetHostLocalIp(&hostIp);
+	LOGINFO("Get local host ip (overlay):%d %s\n",hostIp,inet_ntop(AF_INET, &hostIp, ipInString, INET_ADDRSTRLEN));
+	getchar();
+
+	assertvalue(GetAvailableIpAddresses(nnr, &ipCount));
+	LOGINFO("Printing available ip addresses count = %d\n", ipCount);
+	for (i = 0; i < ipCount; i++)
+	{
+		LOGINFO("%s\n", inet_ntop(AF_INET, &nnr->ips[i], ipInString, INET_ADDRSTRLEN));
+	}
+	getchar();
+	if(nnr->ips) free(nnr->ips);
+}
+
+void ExecuteOverlayScenario()
+{
 	ClusterConfig cfg;
 	NodeNetworkResources nnr;
-	int ipCount = -1;
-	int i;
 	char ipInString[INET_ADDRSTRLEN]={0};
-
-	assert(SetupNetworkEtwLogging(true));
-	//assert(SetupNetworkLogging(logstuff));
 
 	size_t netLen = strlen("azurenet") + sizeof(char);
 	cfg.networkName = (char *)malloc(netLen);
@@ -53,25 +159,7 @@ void testM()
 	cfg.net = UnderLay;
 	cfg.env = Azure;
 	LOGINFO("nw main name:%s\n", cfg.networkName);
-	int retval = 0;
-	unsigned int hostIp=0;
-
-#ifdef __linux__
-	retval = InitializeNetwork(&cfg);
-#endif
-
-#ifdef _WIN32
-	assert(InitializeNetwork(&cfg));
-#endif
-
-	/*LOGINFO("Successfully initialized Azure/Underlay. retval = %d\n", retval);
-	getchar();
-
-	GetHostLocalIp(&hostIp);
-	LOGINFO("Get local host ip (underlay):%d %s\n",hostIp,inet_ntop(AF_INET, &hostIp, ipInString, INET_ADDRSTRLEN));
-	hostIp=0;
-	getchar();
-	 /*
+	
 	cfg.net = OverLay;
 	cfg.env = Azure;
 	cfg.nodeCount = 3;
@@ -88,7 +176,7 @@ void testM()
 	cfg.overlaySubnet = &ovSubnet;
 
 	cfg.nodeConfigs = (NodeConfig *)malloc(cfg.nodeCount * sizeof(NodeConfig));
-	
+
 	Ipv4Subnet localSubnet;
 
 	inet_pton(AF_INET, "10.10.0.0", &ipAdd);
@@ -99,7 +187,7 @@ void testM()
 	cfg.nodeConfigs[0].nodeId = "Id114";
 	cfg.nodeConfigs[0].subnet = &localSubnet;
 	//cfg.localNodeIp = ipAdd.s_addr;
-	
+
 
 	Ipv4Subnet localSubnet2;
 	inet_pton(AF_INET, "10.11.0.0", &ipAdd);
@@ -126,129 +214,148 @@ void testM()
 	free(cfg.networkName);
 	free(cfg.nodeConfigs);
 	getchar();
-  */
-	unsigned int hostLocalIp=0;
+
+	unsigned int hostLocalIp = 0;
 	GetHostLocalIp(&hostLocalIp);
 	LOGINFO("Recevied host local as %s\n", inet_ntop(AF_INET, &hostLocalIp, ipInString, INET_ADDRSTRLEN));
 	getchar();
 
-	/*LOGINFO("Going to detach hostlocal directly in HNS\n");
+
+	#ifdef _WIN32
+	LOGINFO("Going to detach hostlocal directly in HNS\n");
 	wchar_t ipInStringw[INET_ADDRSTRLEN];
 	size_t converted;
 	mbstowcs_s(&converted, ipInStringw, ipInString, INET_ADDRSTRLEN);
-#ifdef _WIN32
 	DeleteLocalEndpointWithIp(ipInStringw, true);
-#endif
 	getchar();
-	 */
-	//unsigned int ip;
-	 
-
-	nnr.ips = NULL;
-	assert(GetAvailableIpAddresses(&nnr, &ipCount));
-	LOGINFO("Retrieved ipCount = %d\n", ipCount);
+	#endif
 	
-	nnr.ips = (unsigned int *)malloc(ipCount * sizeof(unsigned int));
-	memset(nnr.ips, 0, ipCount * sizeof(unsigned int));
-	assert(GetAvailableIpAddresses(&nnr, &ipCount));
-	LOGINFO("Printing available ip addresses count = %d\n", ipCount);
+	ExecuteIpScenarios(&nnr);
+}
 
-	for (i = 0; i < ipCount; i++)
+void ExecuteUnderlayScenario()
+{	
+	ClusterConfig cfg;
+	NodeNetworkResources nnr;
+	char ipInString[INET_ADDRSTRLEN]={0};
+
+	size_t netLen = strlen("azurenet") + sizeof(char);
+	cfg.networkName = (char *)malloc(netLen);
+	LOGINFO("%llu", netLen);
+	strncpy_s(cfg.networkName, netLen, "azurenet", 9);
+	cfg.networkName[8] = '\0';
+	cfg.net = UnderLay;
+	cfg.env = Azure;
+	LOGINFO("nw main name:%s\n", cfg.networkName);
+
+	assertvalue(InitializeNetwork(&cfg));
+		
+	unsigned int hostLocalIp=0;
+	GetHostLocalIp(&hostLocalIp);
+	LOGINFO("For Underlay: Recevied host local as %s\n", inet_ntop(AF_INET, &hostLocalIp, ipInString, INET_ADDRSTRLEN));
+	getchar();	 
+
+	ExecuteIpScenarios(&nnr);
+	if(cfg.networkName) free(cfg.networkName);
+}
+
+
+
+void ProcessGet(
+	http_request message)
+	/*++
+
+	Routine Description:
+
+	Arguments:
+
+	Return Value:
+
+	0 if service successful, error code otherwise.
+
+	--*/
+{
+	LOGINFO("Entering ProcessGet.");
+	message.reply(status_codes::OK, "This is Aquarius.");
+	LOGINFO("Returned OK as json response to GET from client");
+	LOGINFO("Exiting ProcessGet.");
+}
+
+
+static void ProcessPost(
+	http_request message)
+	/*++
+
+	Routine Description:
+
+	Arguments:
+
+	Return Value:
+	N/A
+
+	--*/
+{
+	LOGINFO("Entering ProcessPost.");
+	pplx::task_status status = pplx::not_complete;
+	pplx::task<json::value> js = message.extract_json();
+
+	try
 	{
-		LOGERR("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
+		status = js.wait();
 	}
-	getchar();
-
-	unsigned int ip=0;
-	LOGINFO("going to reserve available ip with ip0");
-	assert(ReserveAvailableIpAddress((char *)"ip0", &ip));
-	LOGINFO("ip0 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
-	//getchar();
-
-	//getchar();
-
-    assert(GetAvailableIpAddresses(&nnr, &ipCount));
-    LOGINFO("Printing available ip addresses count = %d\n", ipCount);
-    for(i = 0; i < ipCount ; i++)
-    {
-        LOGINFO("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
-    }
-	//getchar();
-    
-	assert(ReserveAvailableIpAddress((char *)"ip1", &ip));
-    LOGINFO("ip1 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
-	getchar();
-
-    assert(GetAvailableIpAddresses(&nnr, &ipCount));
-    LOGINFO("Printing available ip addresses count = %d\n", ipCount);
-    for(i = 0; i < ipCount ; i++)
-    {
-        LOGINFO(" %s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
-    }
-	getchar();
-
-    assert(GetReservedIpAddress("ip1", &ip));
-    LOGINFO("ip1 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
-	getchar();
-
-	retval = GetReservedIpAddress("ip2", &ip);
-    LOGINFO("ip2 (without reservation). retval = %d\n", retval);
-	getchar();
-    
-    assert(ReserveAvailableIpAddress((char *)"ip2", &ip));
-    LOGINFO("ip2 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
-	getchar();
-
-    assert(GetAvailableIpAddresses(&nnr, &ipCount));
-    LOGINFO("Printing available ip addresses count = %d\n", ipCount);
-    for(i = 0; i < ipCount ; i++)
-    {
-        LOGINFO("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
-    }
-	getchar();
-
-	assert(GetReservedIpAddress("ip2", &ip));
-    LOGINFO("ip2 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
-	getchar();
-
-
-	assert(ReleaseIpReservation("ip1"));
-	retval = GetReservedIpAddress("ip1", &ip);
-	LOGINFO("ip1 (without reservation). retval = %d\n", retval);
-	getchar();
-
-
-	assert(ReserveAvailableIpAddress((char *)"ip5", &ip));
-	LOGINFO("ip5 (after reservation) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
-	getchar();
-
-	assert(GetReservedIpAddress((char*)"ip5", &ip));
-	LOGINFO("ip5 (retrieving reserved ip) = %s\n", inet_ntop(AF_INET, &ip, ipInString, INET_ADDRSTRLEN));
-	getchar();
-
-	assert(ReleaseIpReservation("ip2"));
-	retval = GetReservedIpAddress("ip2", &ip);
-	LOGINFO("ip2 (without reservation). retval =  %d\n", retval);
-	getchar();
-
-	assert(ReleaseIpReservation("ip0"));
-	retval = GetReservedIpAddress("ip0", &ip);
-	LOGINFO("ip0 (without reservation). retval =  %d\n", retval);
-
-	getchar();
-	GetHostLocalIp(&hostIp);
-	LOGINFO("Get local host ip (overlay):%d %s\n",hostIp,inet_ntop(AF_INET, &hostIp, ipInString, INET_ADDRSTRLEN));
-	getchar();
-
-	assert(GetAvailableIpAddresses(&nnr, &ipCount));
-	LOGINFO("Printing available ip addresses count = %d\n", ipCount);
-	for (i = 0; i < ipCount; i++)
+	catch (const std::exception &ex)
 	{
-		LOGINFO("%s\n", inet_ntop(AF_INET, &nnr.ips[i], ipInString, INET_ADDRSTRLEN));
+		LOGERR("Waiting for task (to extract json from POST) encountered exception. %s", ex.what());
 	}
-	getchar();
-   	free(nnr.ips);
 
+	bool failed = false;
+	if (status != pplx::completed)
+	{
+		LOGERR("Task to extract json from GET did not finish. status: %d", status);
+		failed = true;
+	}
+	else
+	{
+		json::value v = js.get();
+		if (!v.is_null())
+		{			
+
+			failed = true;
+			for (auto iter = v.as_object().cbegin(); iter != v.as_object().cend(); ++iter)
+			{
+				const utility::string_t &ca = iter->first;
+				const json::value &macJSON = iter->second;
+				LOGINFOW(L"Received the json on server as %ws %ws.", ca.c_str(), macJSON.as_string().c_str());
+				failed = false;
+			}
+		}
+		else
+		{
+			LOGINFO("Server received NULL/Invalid json. This API require json object as input.");
+			failed = true;
+		}
+	}
+
+	if (failed)
+	{
+		// did not receive even one ca-pa mapping
+		json::value jsonString = web::json::value::string(L"Failed to process JSON.");
+		message.reply(status_codes::BadRequest, jsonString);
+	}
+	else
+	{
+		json::value jsonString = web::json::value::string(L"Good");
+		message.reply(status_codes::OK, jsonString);
+	}
+	
+	LOGINFO("Exiting ProcessPost. Returning.");
+}
+void TestRestServer()
+{
+	RestServer rs(L"http", L"localhost", L"8000", L"", ProcessPost, NULL);
+	DWORD retval = rs.Listen();
+	printf("Server started: %ld\npress any key to exit..", retval);
+	getchar();
 }
 
 #ifdef _WIN32
@@ -259,8 +366,13 @@ int main()
 #endif
 {
 	//AquariusUtilities::WriteEventLogEntry(L"Working or not");
-
-	testM();
+	//assertvalue(SetupNetworkEtwLogging(true));
+	//assertvalue(SetupNetworkLogging(logstuff));	
+	// ExecuteUnderlayScenario();
+	// ExecuteOverlayScenario();
+	TestRestServer();
+	getchar();
 
 	return 0;
 }
+

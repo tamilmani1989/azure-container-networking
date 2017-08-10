@@ -54,6 +54,8 @@ Repository Bloat Risks
 *.wim
 *.zip
 *.gz
+*.swp
+*.vs
 
 ###
 Secret Disclosure Risks

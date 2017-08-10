@@ -662,6 +662,10 @@ Return Value:
 			}
 		}
 	}
+	else
+	{
+		LOGWARN("Repository is not initialized.");
+	}
 	LOGINFO("Exiting GetRepositoryIpAllocationStatus. Returning NULL.");
 	return NULL;
 }

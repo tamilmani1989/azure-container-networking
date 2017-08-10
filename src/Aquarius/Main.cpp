@@ -21,7 +21,7 @@
 #include "../Shared/Utilities.h"
 #pragma endregion
 
-
+std::mutex get_aquariusSvc_mutex;
 // 
 // Settings of the service
 // 
@@ -80,6 +80,32 @@ void SetupEventLogging()
 //  COMMENTS:
 //    wmain() either performs the command line task, or run the service.
 //
+
+AquariusService* GetAquariusService()
+/*++
+
+Routine Description:
+	This function returns the Aquarius Service object if it exists otherwise creates a new Aquarius Service object
+
+Arguments:
+
+Return Value:
+	returns Aquarius Service object on successful case else returns NULL
+
+--*/
+{
+    get_aquariusSvc_mutex.lock();
+    static AquariusService *service=nullptr;
+
+    if(!service)
+    {
+        service = new AquariusService(SERVICE_NAME);
+    }
+
+    get_aquariusSvc_mutex.unlock();
+    return service;
+}
+
 int wmain(int argc, wchar_t *argv[])
 {
     if ((argc > 1) && ((*argv[1] == L'-' || (*argv[1] == L'/'))))
@@ -116,7 +142,9 @@ int wmain(int argc, wchar_t *argv[])
         wprintf(L" -install  to install the service.\n");
         wprintf(L" -remove   to remove the service.\n");
 
-        AquariusService service(SERVICE_NAME);
+        AquariusService *service=nullptr;
+        service = GetAquariusService();
+
         if (!AquariusSvcBase::Run(service))
         {
             wprintf(L"Service failed to run w/err 0x%08lx\n", GetLastError());

@@ -57,3 +57,7 @@ DllExport DWORD DeleteLocalMapping(
 	const char *endpointId);
 
 DllExport DWORD RequestRemoteMappings();
+
+DllExport DWORD SetRemoteHostAddresses(
+	char *remoteHostAddresses[],
+	USHORT numberOfRemoteHosts);

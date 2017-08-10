@@ -15,6 +15,7 @@ class AqPackageManager
 		void GetPackageStoreLocation(wchar_t *packageStorePath, DWORD *size);
 		~AqPackageManager();
 		int RetrievePluginsMetadata(PluginMetadata **allPluginsMetadata);
+		int GetPluginCount();
 	protected:
 
 	private:
