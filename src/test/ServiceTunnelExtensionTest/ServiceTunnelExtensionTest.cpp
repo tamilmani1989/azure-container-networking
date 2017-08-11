@@ -24,13 +24,12 @@ int IPV4IfIndex=0;
 int testIfIndex = 0;
 std::wstring IPV6Address;
 std::wstring IPV4Address;
-
+LoopbackAdapterInstaller installer;
 void
 ServiceTunnelExtensionTest::TestCreateNetworkAdapter()
 {
 	HRESULT hr;
 	int getIfIndex = 0;
-	LoopbackAdapterInstaller installer;
 
 	hr = installer.GetOrCreateLoopbackAdapter(SERVICE_TUNNEL_INTERFACE_NAME, IPV6IfIndex);
 	VERIFY_ARE_EQUAL((HRESULT)S_OK, hr, L"CreateAdapterPassed");
@@ -427,6 +426,14 @@ Cleanup:
 
 	return hr;
 }
+
+void
+ServiceTunnelExtensionTest::UninstallAdapter()
+{
+	HRESULT hr = installer.RemoveLoopbackAdapter(SERVICE_TUNNEL_INTERFACE_NAME);
+	VERIFY_ARE_EQUAL(hr, S_OK, L"UninstallAdapter passed");
+}
+
 bool ServiceTunnelExtensionTest::TestSetup()
 /*++
 

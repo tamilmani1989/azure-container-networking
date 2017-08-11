@@ -14,48 +14,31 @@
 #pragma region Includes
 #include <stdio.h>
 #include <windows.h>
-#include "AquariusInstaller.h"
-#include "AquariusSvcBase.h"
-#include "AquariusService.h"
+#include "../AquariusLibrary/AquariusInstaller.h"
+#include "../AquariusLibrary/AquariusSvcBase.h"
+#include "../AquariusLibrary/AquariusService.h"
 #include "../Shared/RegistryOps.h"
 #include "../Shared/Utilities.h"
 #pragma endregion
 
-std::mutex get_aquariusSvc_mutex;
 // 
 // Settings of the service
 // 
-
-// Internal name of the service
-#define SERVICE_NAME             L"AquariusSvc"
-
-// Displayed name of the service
-#define SERVICE_DISPLAY_NAME     L"Azure Aquarius"
-
-// Service start options.
-#define SERVICE_START_TYPE       SERVICE_AUTO_START
-
-// List of service dependencies - "dep1\0dep2\0\0"
-#define SERVICE_DEPENDENCIES     L""
-
-// The name of the account under which the service should run
-#define SERVICE_ACCOUNT          nullptr
-
-// The password to the service account name
-#define SERVICE_PASSWORD         nullptr
-
 
 void SetupEventLogging()
 {
     HKEY configKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, 
         L"SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\AquariusSvc");
+
     if (configKey == nullptr)
     {
         AquariusUtilities::WriteEventLogEntry(L"Unable to create registry entry so that events from Aquarius can be written properly..");
         return;
     }
+
 	wchar_t *aquariusLocation = new wchar_t[MAX_PATH];
-	AquariusUtilities::PopulateServiceExeLocation(aquariusLocation);
+	
+    AquariusUtilities::PopulateServiceExeLocation(aquariusLocation);
 	wcsncat_s(aquariusLocation, MAX_PATH, L"\\AqEventMessage.dll", MAX_PATH);
 	RegistryOps::PutStringInRegistry(configKey, L"CategoryMessageFile", aquariusLocation);
 	RegistryOps::PutStringInRegistry(configKey, L"EventMessageFile", aquariusLocation);
@@ -81,33 +64,10 @@ void SetupEventLogging()
 //    wmain() either performs the command line task, or run the service.
 //
 
-AquariusService* GetAquariusService()
-/*++
-
-Routine Description:
-	This function returns the Aquarius Service object if it exists otherwise creates a new Aquarius Service object
-
-Arguments:
-
-Return Value:
-	returns Aquarius Service object on successful case else returns NULL
-
---*/
-{
-    get_aquariusSvc_mutex.lock();
-    static AquariusService *service=nullptr;
-
-    if(!service)
-    {
-        service = new AquariusService(SERVICE_NAME);
-    }
-
-    get_aquariusSvc_mutex.unlock();
-    return service;
-}
-
 int wmain(int argc, wchar_t *argv[])
 {
+    AquariusInstaller installer;
+
     if ((argc > 1) && ((*argv[1] == L'-' || (*argv[1] == L'/'))))
     {
         if (_wcsicmp(L"install", argv[1] + 1) == 0)
@@ -120,7 +80,7 @@ int wmain(int argc, wchar_t *argv[])
             }
             // Install the service when the command is 
             // "-install" or "/install".
-            InstallService(
+            installer.InstallService(
                 SERVICE_NAME,               // Name of service
                 SERVICE_DISPLAY_NAME,       // Name to display
                 SERVICE_START_TYPE,         // Service start type
@@ -133,7 +93,7 @@ int wmain(int argc, wchar_t *argv[])
         {
             // Uninstall the service when the command is 
             // "-remove" or "/remove".
-            UninstallService(SERVICE_NAME);
+            installer.UninstallService(SERVICE_NAME);
         }
     }
     else

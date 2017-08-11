@@ -12,15 +12,16 @@
     </PropertyGroup>
     
   <ItemGroup>
-    <ProjectReference Include="..\Aquarius\Aquarius.vcxproj">
-      <Project>{9423C797-BDDE-4411-8AEA-6396F4A97F3B}</Project>
+    <ProjectReference Include="..\AquariusLibrary\AquariusLibrary.vcxproj">
+      <Project>{8264c27c-90a7-4d86-a714-a9759d9afaf4}</Project>
     </ProjectReference>
   </ItemGroup>
 
   <Target Name="Build">
      <Message Importance="high" Text="Going to build event message dll for eventviewer to work." />
      <Exec Command="$(McPath) -U AqEventMessage.mc &amp; $(RcPath) AqEventMessage.rc &amp; $(LinkPath) -dll -noentry /MACHINE:x86 AqEventMessage.res"/>
-     <Exec Command="md $(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius &amp; cp AqEventMessage.dll $(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\"/>
+     <Exec Command="md $(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius &amp; cp AqEventMessage.dll $(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\;" />
+     <Exec Command="md $(BinariesBuildTypeArchDirectory)\test\AquariusTest\ &amp; cp AqEventMessage.dll $(BinariesBuildTypeArchDirectory)\test\AquariusTest\;" />
 </Target>
 
   <ItemGroup>

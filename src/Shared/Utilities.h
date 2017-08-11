@@ -22,6 +22,7 @@ public:
 	const static wchar_t *codeDirectoryName;
 	const static wchar_t *configFileName;
 	const static wchar_t *manifestFileName;
+	static wchar_t *relativePathFromExe;
 	static int allocator;
 
 	static void WriteEventLogEntry(PWSTR pszMessage);
@@ -32,5 +33,5 @@ public:
 	static void ReleasePluginMetadata(int count, PluginMetadata * pluginsMetadata);
 	static void PopulatePluginLocation(wchar_t* packageStoreLocation);
 	static void PopulateServiceExeLocation(wchar_t* packageStoreLocation);
-
+	static void SetRelativePathFromExe(wchar_t *relPath);
 };

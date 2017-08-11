@@ -56,5 +56,6 @@ public:
 	TEST_METHOD(TestDiableEnableAdapter);
 	TEST_METHOD(TestReadFromRcfWithSTAddr);
 	TEST_METHOD(TestIdemPotent);
+	TEST_METHOD(UninstallAdapter);
 };
 #define LOG_FILE_PREFIX L"ServiceTunnelExtensionTest"

@@ -18,6 +18,7 @@ const wchar_t* AquariusUtilities::defaultPackageStoreLocation = L"C:\\Aquarius\\
 const wchar_t * AquariusUtilities::codeDirectoryName = L"code";
 const wchar_t * AquariusUtilities::configFileName = L"config.txt";
 const wchar_t * AquariusUtilities::manifestFileName = L"manifest.xml";
+wchar_t *AquariusUtilities::relativePathFromExe = nullptr;
 //
 //   FUNCTION: AquariusSvcBase::WriteEventLogEntry(PWSTR, WORD)
 //
@@ -47,7 +48,7 @@ void AquariusUtilities::WriteEventLogEntry(PWSTR pszMessage)
 		lpszStrings[0] = SERVICE_NAME;
 		lpszStrings[1] = pszMessage;
 
-		ReportEvent(hEventSource,  // Event log handle
+	ReportEvent(hEventSource,  // Event log handle
 			wType,                 // Event type
             0x00000001L,                     // Event category
             0x40020100L,                     // Event identifier
@@ -57,7 +58,6 @@ void AquariusUtilities::WriteEventLogEntry(PWSTR pszMessage)
 			lpszStrings,           // Array of strings
 			nullptr                   // No binary data
 		);
-
 		DeregisterEventSource(hEventSource);
 	}
 }
@@ -179,5 +179,12 @@ void AquariusUtilities::PopulateServiceExeLocation(wchar_t* packageStoreLocation
 void AquariusUtilities::PopulatePluginLocation(wchar_t* packageStoreLocation)
 {
 	PopulateServiceExeLocation(packageStoreLocation);
-	wcscat_s(packageStoreLocation, MAX_PATH, L"\\Plugins");
+	wcscat_s(packageStoreLocation, MAX_PATH, relativePathFromExe);
+}
+
+void AquariusUtilities::SetRelativePathFromExe(wchar_t *relPath)
+{
+	size_t len = wcslen(relPath)+1;
+	relativePathFromExe = new wchar_t[len];
+	wcscpy_s(relativePathFromExe, len, relPath);
 }

@@ -26,6 +26,33 @@ using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 #define RESTSERVER_THREAD 1
 #define NUM_THREADS 2
 
+std::mutex get_aquariusSvc_mutex;
+
+AquariusService* GetAquariusService()
+/*++
+
+Routine Description:
+	This function returns the Aquarius Service object if it exists otherwise creates a new Aquarius Service object
+
+Arguments:
+
+Return Value:
+	returns Aquarius Service object on successful case else returns NULL
+
+--*/
+{
+    get_aquariusSvc_mutex.lock();
+    static AquariusService *service=nullptr;
+
+    if(!service)
+    {
+        service = new AquariusService(SERVICE_NAME);
+    }
+
+    get_aquariusSvc_mutex.unlock();
+    return service;
+}
+
 PluginMetadata* GetPluginInstances(int count)
 /*++
 
@@ -92,7 +119,7 @@ Return Value:
     {
 		AquariusUtilities::WriteEventLogEntry(L"Got a null event. Going to throw the last error.");
         throw GetLastError();
-    }
+}
 
 }
 
@@ -118,7 +145,7 @@ Return Value:
     {
         CloseHandle(m_hStoppedEvent[RESTSERVER_THREAD]);
         m_hStoppedEvent[RESTSERVER_THREAD] = nullptr;
-    }
+}
 
 	PluginMetadata *plgData = GetPluginInstances(GetPluginCount());
 	delete[] plgData;
@@ -329,7 +356,7 @@ Return Value:
 		aqPackageManager = new AqPackageManager();
 		AquariusUtilities::allocator++;
 	}
-
+	AquariusUtilities::SetRelativePathFromExe(L"\\Plugins");
 	aqPackageManager->GetPackageStoreLocation(packageStoreLocation, &size);
 
 	if (aquariusKernel == nullptr)

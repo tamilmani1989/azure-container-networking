@@ -15,6 +15,7 @@
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
 	      $(cpprestsdk)\build\native\include;
+        ..\AquariusLibrary;
 		<!--$(INTERNAL_SDK)\inc; -->
       </AdditionalIncludeDirectories>
     </ClCompile>
@@ -40,6 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RestClient.h" />
+    <ClInclude Include="AquariusService.h" />    
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Logging\logging.vcxproj">

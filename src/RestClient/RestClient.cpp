@@ -22,7 +22,7 @@ Tamilmani Manoharan (tamanoha) 03-August-2017
 #endif
 #include "../Shared/Utilities.h"
 #include "../Shared/PluginMetadata.h"
-#include "../Aquarius/AquariusService.h"
+#include "AquariusService.h"
 
 using namespace web::http;
 using namespace web::http::client;

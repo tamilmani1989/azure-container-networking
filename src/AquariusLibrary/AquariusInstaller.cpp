@@ -35,7 +35,7 @@
 //   NOTE: If the function fails to install the service, it prints the error 
 //   in the standard output stream for users to diagnose the problem.
 //
-void InstallService(PWSTR pszServiceName, 
+void AquariusInstaller::InstallService(PWSTR pszServiceName, 
                     PWSTR pszDisplayName, 
                     DWORD dwStartType,
                     PWSTR pszDependencies, 
@@ -120,7 +120,7 @@ Cleanup:
 //   NOTE: If the function fails to uninstall the service, it prints the 
 //   error in the standard output stream for users to diagnose the problem.
 //
-void UninstallService(PWSTR pszServiceName)
+void AquariusInstaller::UninstallService(PWSTR pszServiceName)
 {
     SC_HANDLE schSCManager = nullptr;
     SC_HANDLE schService = nullptr;

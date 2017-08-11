@@ -7,6 +7,7 @@
   <!-- Tests with a dependency on NUnit require .NET 4.5 to be installed to run on WS2012. -->
   <TaskGroup>
    <TaskDescriptionTemplate>UnitTestNet451WS2012</TaskDescriptionTemplate>
+
     <ValidationReportTaskDescriptions>
     <TaskName>NetworkClientTest</TaskName>
     <OwnerName>Tamilmani Manoharan</OwnerName>
@@ -23,9 +24,9 @@
     <TestCategories>
       <CategoryName>UnitTest</CategoryName>
     </TestCategories>
-	</ValidationReportTaskDescriptions>
+    </ValidationReportTaskDescriptions>
 	
-	<ValidationReportTaskDescriptions>
+    <ValidationReportTaskDescriptions>
     <TaskName>ServiceTunnelExtensionTest</TaskName>
     <OwnerName>Tamilmani Manoharan</OwnerName>
     <TaskCommand>test\Taef\TE.exe test\ServiceTunnelExtensionTest\ServiceTunnelExtensionTest.dll</TaskCommand>
@@ -41,7 +42,25 @@
     <TestCategories>
       <CategoryName>UnitTest</CategoryName>
     </TestCategories>
-	</ValidationReportTaskDescriptions>
+    </ValidationReportTaskDescriptions>
+
+    <ValidationReportTaskDescriptions>
+    <TaskName>AquariusTest</TaskName>
+    <OwnerName>Tamilmani Manoharan</OwnerName>
+    <TaskCommand>test\Taef\TE.exe test\AquariusTest\AquariusTest.dll</TaskCommand>
+    <PreTaskCommand />
+    <PostTaskCommand />
+    <ValidationReportDescriptions>
+      <ValidationReportFilename>AquariusTest.xml</ValidationReportFilename>
+      <TestFramework>TAEF</TestFramework>
+    </ValidationReportDescriptions>
+    <ReimageHints>
+	  <Behavior>None</Behavior>
+    </ReimageHints>
+    <TestCategories>
+      <CategoryName>UnitTest</CategoryName>
+    </TestCategories>
+    </ValidationReportTaskDescriptions>
 
   </TaskGroup>
 </ValidationDescription>

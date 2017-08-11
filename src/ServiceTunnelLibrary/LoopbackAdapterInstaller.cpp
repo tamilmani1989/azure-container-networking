@@ -810,3 +810,94 @@ Cleanup:
 
 	return hr;
 }
+
+HRESULT 
+LoopbackAdapterInstaller::RemoveLoopbackAdapter(
+    __in LPWSTR InterfaceName
+    )
+/*++
+
+Routine Description:
+
+    This routine removes the specified loopback adapter.
+
+Arguments:
+
+    InterfaceName - Display name of the interface.
+
+Return Value:
+
+    S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+    HRESULT hr = S_OK;
+    wchar_t windowsDirectory[MAX_PATH] = { 0 };
+    wchar_t className[MAX_PATH] = { 0 };
+    HDEVINFO deviceInfoSet = INVALID_HANDLE_VALUE;
+    SP_DEVINFO_DATA deviceInfoData;
+    LPWSTR classGuidString = NULL;
+    GUID classGuid = { 0 };
+    GUID instanceGuid = { 0 };
+    wchar_t friendlyName[MAX_PATH];
+    BOOL setupDiGetDevRegPropResult = false;
+
+    deviceInfoSet = SetupDiGetClassDevs(&GUID_DEVCLASS_NET, NULL, NULL, DIGCF_PRESENT);
+
+    if (deviceInfoSet == INVALID_HANDLE_VALUE) 
+    {
+        hr = HRESULT_FROM_WIN32(GetLastError());
+        RD_TRACE_E_HR((RD_TRACE_ERROR,
+            L"Failed to SetupDiCreateDeviceInfoList for class '%s'. Error:[0x%x]",
+            classGuidString,
+            hr),
+            hr,
+            Cleanup);
+    }
+
+    ZeroMemory(&deviceInfoData, sizeof(deviceInfoData));
+    deviceInfoData.cbSize = sizeof(deviceInfoData);
+
+   for (int i = 0; SetupDiEnumDeviceInfo(deviceInfoSet, i, &deviceInfoData); ++i)
+    {
+        setupDiGetDevRegPropResult = SetupDiGetDeviceRegistryProperty(
+            deviceInfoSet,
+            &deviceInfoData,
+            SPDRP_FRIENDLYNAME,
+            NULL,
+            (PBYTE)friendlyName,
+            sizeof(friendlyName),
+            NULL);
+        if(!setupDiGetDevRegPropResult)
+        {
+            RD_TRACE_LOG((RD_TRACE_WARNING,
+                L"SetupDiGetDeviceRegistryProperty failed when using SPDRP_FRIENDLYNAME. " 
+                L"Will retry using device description. Error:[0x%x]", 
+                GetLastError()));
+
+            if (!SetupDiGetDeviceRegistryProperty(
+                deviceInfoSet,
+                &deviceInfoData,
+                SPDRP_DEVICEDESC,
+                NULL,
+                (PBYTE)friendlyName,
+                sizeof(friendlyName),
+                NULL))
+            {
+                hr = HRESULT_FROM_WIN32(GetLastError());
+                RD_TRACE_E_HR((RD_TRACE_ERROR,
+                    L"SetupDiGetDeviceRegistryProperty failed using SPDRP_DEVICEDESC. Error:[0x%x]", hr),
+                    hr,
+                    Cleanup);
+            }
+        }
+        if (wcsncmp(friendlyName, InterfaceName, wcslen(InterfaceName)) == 0)
+        {
+            wprintf(L"Removing %s,%s\n", InterfaceName, friendlyName);
+            SetupDiCallClassInstaller(DIF_REMOVE, deviceInfoSet, &deviceInfoData);
+        }
+    }
+
+    Cleanup:
+	return hr;
+}

@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <TargetName>AquariusTest</TargetName>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ProjectGuid>{6afe1773-6b67-4615-a904-a563eccbf9e8}</ProjectGuid>
+    <OutDirSuffix>test\$(TargetName)\</OutDirSuffix>
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories);
+        $(SRCROOT)\AquariusLibrary;
+        $(SRCROOT)\Shared;
+        $(cpprestsdk)\build\native\include;
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        $(TAEF_SDK)\build\Library\x64\TE.Common.lib;
+        $(TAEF_SDK)\build\Library\x64\Wex.Common.lib;
+        $(TAEF_SDK)\build\Library\x64\Wex.Logger.lib;  
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib;
+	  </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="AquariusTest.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(SRCROOT)\AquariusLibrary\AquariusLibrary.vcxproj">
+      <Project>{8264c27c-90a7-4d86-a714-a9759d9afaf4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="$(SRCROOT)\Shared\Shared.vcxproj">
+      <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+      <Robocopy Include="$(SRCROOT)\test\AquariusTest\Plugins">
+        <FileMatch>*.*</FileMatch>
+        <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\AquariusTest\Plugins</DestinationFolder>
+      </Robocopy>
+  </ItemGroup>
+ 
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+    <Target Name="AfterBuild">
+      <Copy SourceFiles="$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\test\AquariusTest\" />
+      <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.RestServer\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\test\AquariusTest\" />
+      <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\test\AquariusTest\" />
+    </Target>
+</Project>

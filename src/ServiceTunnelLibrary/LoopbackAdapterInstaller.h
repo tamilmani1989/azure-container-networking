@@ -19,9 +19,8 @@ User-mode
 #pragma once
 
 #include "stdafx.h"
-
 using namespace std;
-
+#include "Devpkey.h"
 #define NET_LOOPBACK_INF_RELATIVE_FILE_PATH L"\\INF\\NetLoop.INF"
 
 #define LOOPBACK_ADAPTER_HARDWARE_ID L"*MSLOOP"
@@ -34,7 +33,10 @@ class LoopbackAdapterInstaller
 public:
 
 	HRESULT GetOrCreateLoopbackAdapter(LPWSTR InterfaceName, int& InterfaceIndex);
-
+	HRESULT RemoveLoopbackAdapter(__in LPWSTR interfaceName);
+	HDEVINFO deviceInfoSet = INVALID_HANDLE_VALUE;
+	SP_DEVINFO_DATA deviceInfoData={0};
+	
 private:
 	HRESULT GetINetCfgWithWriteLock(__deref_out INetCfg** NetCfg);
 	HRESULT ReleaseINetCfgWithLock(__in INetCfg* pnc);
