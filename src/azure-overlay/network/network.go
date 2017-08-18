@@ -4,9 +4,7 @@
 package network
 
 import (
-	"fmt"
 	"net"
-	"os/exec"
 
 	"azure-overlay/log"
 	"azure-overlay/platform"
@@ -102,14 +100,6 @@ func (nm *networkManager) deleteExternalInterface(ifName string) error {
 	return nil
 }
 
-func system(cmd string, arg ...string) {
-	out, err := exec.Command(cmd, arg...).Output()
-	if err != nil {
-		log.Printf("error:%v", err)
-	}
-	fmt.Println(string(out))
-}
-
 // NewNetwork creates a new container network.
 func (nm *networkManager) newNetwork(nwInfo *NetworkInfo) (*network, error) {
 	var nw *network
@@ -123,8 +113,6 @@ func (nm *networkManager) newNetwork(nwInfo *NetworkInfo) (*network, error) {
 		nwInfo.Mode = opModeOverlay
 	}
 
-	fmt.Println("mode", nwInfo.Mode)
-
 	// Call the OS-specific implementation.
 	nw, extIf, err = nm.newNetworkImpl(nwInfo)
 	if err != nil {
@@ -134,7 +122,6 @@ func (nm *networkManager) newNetwork(nwInfo *NetworkInfo) (*network, error) {
 	// Add the network object.
 	nw.Subnets = nwInfo.Subnets
 	extIf.Networks[nwInfo.Id] = nw
-	fmt.Println("nwid", nwInfo.Id)
 	log.Printf("[net] Created network %v on interface %v.", nwInfo.Id, extIf.Name)
 	return nw, nil
 

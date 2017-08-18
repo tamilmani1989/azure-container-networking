@@ -11,6 +11,7 @@ import (
 
 	"azure-overlay/common"
 	"azure-overlay/log"
+	nw "azure-overlay/network"
 	"azure-overlay/overlay/network"
 	"azure-overlay/platform"
 	"azure-overlay/store"
@@ -74,6 +75,27 @@ var args = common.ArgumentList{
 		Type:         "bool",
 		DefaultValue: false,
 	},
+	{
+		Name:         common.OptHostIfName,
+		Shorthand:    common.OptHostIfNameAlias,
+		Description:  "Host primary interface name",
+		Type:         "string",
+		DefaultValue: "eth0",
+	},
+	{
+		Name:         common.OptHostIP,
+		Shorthand:    common.OptHostIPAlias,
+		Description:  "Host primary interface IP",
+		Type:         "string",
+		DefaultValue: "",
+	},
+	{
+		Name:         common.OptHostGateway,
+		Shorthand:    common.OptHostGatewayAlias,
+		Description:  "Host default gateway",
+		Type:         "string",
+		DefaultValue: "",
+	},
 }
 
 // Prints description and version information.
@@ -97,7 +119,15 @@ func main() {
 		printVersion()
 		os.Exit(0)
 	}
+	hostIfName := common.GetArg(common.OptHostIfName).(string)
+	hostIP := common.GetArg(common.OptHostIP).(string)
+	gateway := common.GetArg(common.OptHostGateway).(string)
 
+	fmt.Println("Getarg", hostIfName, hostIP, gateway)
+	if hostIfName == "" || hostIP == "" || gateway == "" {
+		fmt.Println("Host ifname/ip/gateway cannot be null")
+		os.Exit(0)
+	}
 	// Initialize plugin common configuration.
 	var config common.PluginConfig
 	config.Version = version
@@ -141,6 +171,35 @@ func main() {
 			return
 		}
 	}
+	err = common.System("ovs-vsctl", "add-br", nw.AzureOvsCommonBridge)
+	if err != nil {
+		log.Printf("Error while creating common OVS bridge %v", err.Error())
+		return
+	}
+
+	err = common.System("ifconfig", nw.AzureOvsCommonBridge, hostIP)
+	if err != nil {
+		log.Printf("Error while assigning IP %v to common OVS bridge %v", hostIP, err.Error())
+		return
+	}
+
+	err = common.System("ifconfig", hostIfName, "0.0.0.0")
+	if err != nil {
+		log.Printf("Error while removing IP from primary NIC %v", err.Error())
+		return
+	}
+
+	err = common.System("ovs-vsctl", "add-port", nw.AzureOvsCommonBridge, hostIfName)
+	if err != nil {
+		log.Printf("Error while adding primary NIC as port to common OVS bridge %v", err.Error())
+		return
+	}
+
+	err = common.System("route", "add", "default", "gw", gateway, "dev", nw.AzureOvsCommonBridge)
+	if err != nil {
+		log.Printf("Error while setting default gw %v to common OVS bridge %v", gateway, err.Error())
+		return
+	}
 
 	// Relay these incoming signals to OS signal channel.
 	osSignalChannel := make(chan os.Signal, 1)
@@ -159,4 +218,21 @@ func main() {
 		netPlugin.Stop()
 	}
 
+	err = common.System("ovs-vsctl", "del-br", nw.AzureOvsCommonBridge)
+	if err != nil {
+		log.Printf("Error while removing common OVS bridge %v", err.Error())
+		return
+	}
+
+	err = common.System("ifconfig", hostIfName, hostIP, "up")
+	if err != nil {
+		log.Printf("Error while assigning IP  %v back to primary NIC %v", hostIP, err.Error())
+		return
+	}
+
+	err = common.System("route", "add", "default", "gw", gateway, "dev", hostIfName)
+	if err != nil {
+		log.Printf("Error while setting default gw %v back to common OVS bridge %v", gateway, err.Error())
+		return
+	}
 }

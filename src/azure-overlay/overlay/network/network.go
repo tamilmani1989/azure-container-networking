@@ -4,7 +4,6 @@
 package network
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 
@@ -139,19 +138,16 @@ func (plugin *netPlugin) createNetwork(w http.ResponseWriter, r *http.Request) {
 	if options != nil {
 		nwInfo.Mode, _ = options[modeOption].(string)
 	} else {
-		fmt.Println("options nill\n")
+		log.Printf("options nill")
 	}
-	//fmt.Printf("options:%s\n", options[modeOption].(string))
-	// Populate subnets.
-	fmt.Println("gatw", req.IPv4Data)
 
+	// Populate subnets.
 	for _, data := range [][]ipamData{req.IPv4Data, req.IPv6Data} {
 		for _, ipamData := range data {
 			_, prefix, err := net.ParseCIDR(ipamData.Pool)
 			if err != nil {
 				continue
 			}
-			fmt.Println("ipam gatw", ipamData.Gateway)
 			Gway, _, err := net.ParseCIDR(ipamData.Gateway)
 			subnet := network.SubnetInfo{
 				Family:  platform.GetAddressFamily(&prefix.IP),
@@ -161,7 +157,6 @@ func (plugin *netPlugin) createNetwork(w http.ResponseWriter, r *http.Request) {
 			nwInfo.Subnets = append(nwInfo.Subnets, subnet)
 		}
 	}
-
 
 	err = plugin.nm.CreateNetwork(&nwInfo)
 	if err != nil {
@@ -229,7 +224,6 @@ func (plugin *netPlugin) createEndpoint(w http.ResponseWriter, r *http.Request) 
 		IPAddresses: []net.IPNet{*ipv4Address},
 	}
 
-	fmt.Println("networkId", req.NetworkID)
 	err = plugin.nm.CreateEndpoint(req.NetworkID, &epInfo)
 	if err != nil {
 		plugin.SendErrorResponse(w, err)
@@ -297,8 +291,6 @@ func (plugin *netPlugin) join(w http.ResponseWriter, r *http.Request) {
 		InterfaceName: ifname,
 		Gateway:       ep.Gateways[0].String(),
 	}
-
-	fmt.Println("Gway", resp.Gateway)
 
 	err = plugin.Listener.Encode(w, &resp)
 

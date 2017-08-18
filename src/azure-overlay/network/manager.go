@@ -22,6 +22,9 @@ type networkManager struct {
 	Version            string
 	TimeStamp          time.Time
 	ExternalInterfaces map[string]*externalInterface
+	Bridges            map[string]string
+	BridgeCount        int
+	VxlanCount         int
 	store              store.KeyValueStore
 	sync.Mutex
 }
@@ -48,6 +51,7 @@ type NetworkManager interface {
 func NewNetworkManager() (NetworkManager, error) {
 	nm := &networkManager{
 		ExternalInterfaces: make(map[string]*externalInterface),
+		Bridges:            make(map[string]string),
 	}
 
 	return nm, nil
