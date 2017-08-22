@@ -15,8 +15,9 @@ type Config struct {
 
 // IPAM describes ipam details
 type IPAM struct {
-	Driver string
-	Config []Config
+	Driver  string
+	Config  []Config
+	Options map[string]interface{}
 }
 
 // NetworkConfiguration describes configuration for docker network create.
@@ -25,7 +26,7 @@ type NetworkConfiguration struct {
 	Driver   string
 	IPAM     IPAM
 	Internal bool
-	Options map[string]interface{}
+	Options  map[string]interface{}
 }
 
 // DockerErrorResponse defines the error response retunred by docker.

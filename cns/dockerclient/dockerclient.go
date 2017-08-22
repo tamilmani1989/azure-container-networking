@@ -15,7 +15,7 @@ import (
 
 const (
 	defaultDockerConnectionURL = "http://127.0.0.1:2375"
-	defaultIpamPlugin          = "azure-vnet"
+	defaultIpamPlugin          = "azure-overlay-ipam"
 )
 
 // DockerClient specifies a client to connect to docker.
@@ -42,7 +42,7 @@ func NewDefaultDockerClient(imdsClient *imdsclient.ImdsClient) (*DockerClient, e
 
 // NetworkExists tries to retrieve a network from docker (if it exists).
 func (dockerClient *DockerClient) NetworkExists(networkName string) error {
-	log.Printf("[Azure CNS] NetworkExists")
+	log.Printf("[Azure CNS] NetworkExists %v", networkName)
 
 	res, err := http.Get(
 		dockerClient.connectionURL + inspectNetworkPath + networkName)
@@ -67,10 +67,15 @@ func (dockerClient *DockerClient) NetworkExists(networkName string) error {
 	return fmt.Errorf("Unknown return code from docker inspect %d", res.StatusCode)
 }
 
-
 // CreateNetwork creates a network using docker network create.
-func (dockerClient *DockerClient) CreateNetwork(networkName string, subnet string, driver string, options map[string]interface{}) error {
-	log.Printf("[Azure CNS] CreateDockerNetwork. Name: %s, Subnet: %s, Driver: %s", networkName, subnet, driver)	
+func (dockerClient *DockerClient) CreateNetwork(
+	networkName string,
+	subnet string,
+	driver string,
+	options map[string]interface{},
+	ipamOptions map[string]interface{},
+) error {
+	log.Printf("[Azure CNS] CreateDockerNetwork. Name: %s, Subnet: %s, Driver: %s Options %v ipamOptions %v", networkName, subnet, driver, options, ipamOptions)
 
 	config := &Config{
 		Subnet: subnet,
@@ -78,9 +83,11 @@ func (dockerClient *DockerClient) CreateNetwork(networkName string, subnet strin
 
 	configs := make([]Config, 1)
 	configs[0] = *config
+
 	ipamConfig := &IPAM{
-		Driver: defaultIpamPlugin,
-		Config: configs,
+		Driver:  defaultIpamPlugin,
+		Config:  configs,
+		Options: ipamOptions,
 	}
 
 	netConfig := &NetworkConfiguration{

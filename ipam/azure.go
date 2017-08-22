@@ -153,7 +153,7 @@ func (s *azureSource) refresh() error {
 				return err
 			}
 
-			ap, err := local.newAddressPool(ifName, priority, subnet)
+			ap, err := local.newAddressPool(ifName, "", priority, subnet)
 			if err != nil && err != errAddressExists {
 				return err
 			}

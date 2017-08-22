@@ -53,7 +53,7 @@ func (s *nullSource) refresh() error {
 		Mask: net.IPv4Mask(0, 0, 0, 0),
 	}
 
-	_, err = local.newAddressPool("", 0, &subnet)
+	_, err = local.newAddressPool("", "", 0, &subnet)
 	if err != nil {
 		return err
 	}

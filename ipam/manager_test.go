@@ -95,12 +95,12 @@ func setupTestAddressSpace(am AddressManager) error {
 	}
 
 	// Add subnet1 with addresses addr11 and addr12.
-	ap, err := localAs.newAddressPool(anyInterface, anyPriority, &subnet1)
+	ap, err := localAs.newAddressPool(anyInterface, "", anyPriority, &subnet1)
 	ap.newAddressRecord(&addr11)
 	ap.newAddressRecord(&addr12)
 
 	// Add subnet2 with addr21.
-	ap, err = localAs.newAddressPool(anyInterface, anyPriority, &subnet2)
+	ap, err = localAs.newAddressPool(anyInterface, "", anyPriority, &subnet2)
 	ap.newAddressRecord(&addr21)
 
 	amImpl.setAddressSpace(localAs)
@@ -177,13 +177,13 @@ func TestAddressSpaceUpdate(t *testing.T) {
 	}
 
 	// Remove addr12 and add addr13 in subnet1.
-	ap, err := localAs.newAddressPool(anyInterface, anyPriority, &subnet1)
+	ap, err := localAs.newAddressPool(anyInterface, "", anyPriority, &subnet1)
 	ap.newAddressRecord(&addr11)
 	ap.newAddressRecord(&addr13)
 
 	// Remove subnet2.
 	// Add subnet3 with addr31.
-	ap, err = localAs.newAddressPool(anyInterface, anyPriority, &subnet3)
+	ap, err = localAs.newAddressPool(anyInterface, "", anyPriority, &subnet3)
 	ap.newAddressRecord(&addr31)
 
 	err = amImpl.setAddressSpace(localAs)

@@ -170,14 +170,16 @@ func (am *addressManager) setAddressSpace(as *addressSpace) error {
 	}
 
 	am.save()
-
+	log.Printf("updated json file")
 	return nil
 }
 
 // Merges a new address space to an existing one.
 func (as *addressSpace) merge(newas *addressSpace) {
 	// The new epoch after the merge.
-	as.epoch++
+	//as.epoch++
+	newEpoch := as.epoch + 1
+	usedNewEpoch := false
 
 	// Add new pools and addresses.
 	for pk, pv := range newas.Pools {
@@ -186,12 +188,16 @@ func (as *addressSpace) merge(newas *addressSpace) {
 		if ap == nil {
 			// This is a new address pool.
 			// Merge it to the existing address space.
+			log.Printf("Checkpoint hit")
 			as.Pools[pk] = pv
 			pv.as = as
-			pv.epoch = as.epoch
+			pv.epoch = newEpoch
+			usedNewEpoch = true
 		} else {
 			// This pool already exists.
 			// Compare address records one by one.
+			log.Printf("2 Checkpoint hit")
+
 			for ak, av := range pv.Addresses {
 				ar := ap.Addresses[ak]
 
@@ -199,13 +205,14 @@ func (as *addressSpace) merge(newas *addressSpace) {
 					// This is a new address record.
 					// Merge it to the existing address pool.
 					ap.Addresses[ak] = av
-					av.epoch = as.epoch
+					av.epoch = newEpoch
 				} else {
 					// This address record already exists.
-					ar.epoch = as.epoch
+					ar.epoch = newEpoch
 					ar.unhealthy = false
 				}
 
+				usedNewEpoch = true
 				delete(pv.Addresses, ak)
 			}
 
@@ -213,6 +220,10 @@ func (as *addressSpace) merge(newas *addressSpace) {
 		}
 
 		delete(newas.Pools, pk)
+	}
+
+	if usedNewEpoch {
+		as.epoch = newEpoch
 	}
 
 	// Cleanup stale pools and addresses from the old epoch.
@@ -226,6 +237,7 @@ func (as *addressSpace) merge(newas *addressSpace) {
 					pv.epoch = as.epoch
 				} else if av.InUse {
 					// Address is no longer valid, but still in use.
+					log.Printf("Mark unhealthy %v", av.Addr.String())
 					pv.epoch = as.epoch
 					av.unhealthy = true
 				} else {
@@ -236,6 +248,7 @@ func (as *addressSpace) merge(newas *addressSpace) {
 
 			// Delete the pool if it has no addresses left.
 			if pv.epoch < as.epoch && !pv.isInUse() {
+				log.Printf("Deleting pool %v", pk)
 				pv.as = nil
 				delete(as.Pools, pk)
 			}
@@ -246,19 +259,19 @@ func (as *addressSpace) merge(newas *addressSpace) {
 }
 
 // Creates a new addressPool object.
-func (as *addressSpace) newAddressPool(ifName string, priority int, subnet *net.IPNet) (*addressPool, error) {
-	id := subnet.String()
+func (as *addressSpace) newAddressPool(ifName string, nwName string, priority int, subnet *net.IPNet) (*addressPool, error) {
+	pool := subnet.String()
 
-	pool, ok := as.Pools[id]
+	addrPool, ok := as.Pools[pool+nwName]
 	if ok {
-		return pool, errAddressPoolExists
+		return addrPool, errAddressPoolExists
 	}
 
 	v6 := (subnet.IP.To4() == nil)
 
-	pool = &addressPool{
+	addrPool = &addressPool{
 		as:        as,
-		Id:        id,
+		Id:        pool + nwName,
 		IfName:    ifName,
 		Subnet:    *subnet,
 		Gateway:   platform.GenerateAddress(subnet, defaultGatewayHostId),
@@ -269,19 +282,84 @@ func (as *addressSpace) newAddressPool(ifName string, priority int, subnet *net.
 		epoch:     as.epoch,
 	}
 
-	as.Pools[id] = pool
+	as.Pools[pool+nwName] = addrPool
 
-	return pool, nil
+	return addrPool, nil
 }
 
 // Returns the address pool with the given pool ID.
 func (as *addressSpace) getAddressPool(poolId string) (*addressPool, error) {
+
 	ap := as.Pools[poolId]
 	if ap == nil {
 		return nil, errInvalidPoolId
 	}
 
 	return ap, nil
+}
+func inc(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
+}
+func (ap *addressPool) populateIPAddresses(ip net.IP, ipnet *net.IPNet) error {
+	var ipList []string
+	log.Printf("[CNS] Populate ips")
+
+	for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); inc(ip) {
+		ipList = append(ipList, ip.String())
+	}
+
+	lastIndex := len(ipList) - 1
+
+	for index, ip := range ipList {
+		address := net.ParseIP(ip)
+		ar, err := ap.newAddressRecord(&address)
+		if err != nil {
+			return err
+		}
+		if index == 0 || index == 1 || index == lastIndex {
+			ar.InUse = true
+		}
+		ap.Addresses[ip] = ar
+	}
+	return nil
+}
+
+func (as *addressSpace) getPool(poolId string, options map[string]string) (*addressPool, error) {
+	var ap *addressPool
+	var err error
+
+	ap = as.Pools[poolId]
+
+	if ap == nil && options != nil {
+		nwName := options[OptNetworkName]
+		if nwName != "" {
+			ap = as.Pools[poolId+nwName]
+			if ap == nil {
+				if options[OptOverlayNetwork] != "" {
+					ip, ipnet, err := net.ParseCIDR(poolId)
+					if err != nil {
+						err = errInvalidPoolId
+						return ap, err
+					}
+
+					ap, err = as.newAddressPool("", options[OptNetworkName], 0, ipnet)
+					if err == nil {
+						log.Printf("poulate ip")
+						ap.populateIPAddresses(ip, ipnet)
+					}
+				} else {
+					err = errAddressPoolNotFound
+				}
+			}
+		}
+	}
+
+	return ap, err
 }
 
 // Requests a new address pool from the address space.
@@ -294,9 +372,10 @@ func (as *addressSpace) requestPool(poolId string, subPoolId string, options map
 	if poolId != "" {
 		// Return the specific address pool requested.
 		// Note sharing of pools is allowed when specifically requested.
-		ap = as.Pools[poolId]
-		if ap == nil {
-			err = errAddressPoolNotFound
+		ap, err = as.getPool(poolId, options)
+		if err != nil {
+			log.Printf("Request Pool for poolid %v failed with %v", poolId, err.Error())
+			return nil, err
 		}
 	} else {
 		// Return any available address pool.
@@ -352,7 +431,7 @@ func (as *addressSpace) requestPool(poolId string, subPoolId string, options map
 		ap.RefCount++
 	}
 
-	log.Printf("[ipam] Pool request completed with pool:%+v err:%v.", ap, err)
+	log.Printf("[ipam] Pool request completed with pool id:%+v err:%v.", ap.Id, err)
 
 	return ap, err
 }

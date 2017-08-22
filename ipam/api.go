@@ -30,4 +30,6 @@ var (
 	OptAddressID          = "azure.address.id"
 	OptAddressType        = "azure.address.type"
 	OptAddressTypeGateway = "gateway"
+	OptOverlayNetwork     = "overlay"
+	OptNetworkName        = "network.name"
 )

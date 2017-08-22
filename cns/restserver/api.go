@@ -17,4 +17,7 @@ const (
 	NotFound                = 14
 	AddressUnavailable      = 15
 	UnexpectedError         = 99
+
+	OptDisableSnat = "DisableSNAT"
+	NetworkMode    = "com.microsoft.azure.network.mode"
 )

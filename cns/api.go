@@ -25,17 +25,20 @@ type SetEnvironmentRequest struct {
 
 // OverlayConfiguration describes configuration for all the nodes that are part of overlay.
 type OverlayConfiguration struct {
-	NodeCount     int
-	LocalNodeIP   string
-	OverlaySubnet Subnet
-	VxLanID       int
-	NodeConfig    []NodeConfiguration
+	NodeCount          string
+	LocalNodeIP        string
+	LocalNodeInterface string
+	LocalNodeGateway   string
+	VxLanID            string
+	OverlaySubnet      Subnet
+	NodeConfig         []NodeConfiguration
 }
 
 // CreateNetworkRequest describes request to create the network.
 type CreateNetworkRequest struct {
 	NetworkName          string
 	OverlayConfiguration OverlayConfiguration
+	Options              map[string]interface{}
 }
 
 // DeleteNetworkRequest describes request to delete the network.
@@ -46,6 +49,7 @@ type DeleteNetworkRequest struct {
 // ReserveIPAddressRequest describes request to reserve an IP Address
 type ReserveIPAddressRequest struct {
 	ReservationID string
+	NetworkName   string
 }
 
 // ReserveIPAddressResponse describes response to reserve an IP address.
@@ -57,6 +61,11 @@ type ReserveIPAddressResponse struct {
 // ReleaseIPAddressRequest describes request to release an IP Address.
 type ReleaseIPAddressRequest struct {
 	ReservationID string
+	NetworkName   string
+}
+
+type IPAddressesUtilizationRequest struct {
+	NetworkName string
 }
 
 // IPAddressesUtilizationResponse describes response for ip address utilization.
@@ -82,7 +91,7 @@ type HostLocalIPAddressResponse struct {
 // Subnet contains the ip address and the number of bits in prefix.
 type Subnet struct {
 	IPAddress    string
-	PrefixLength int
+	PrefixLength string
 }
 
 // NodeConfiguration describes confguration for a node in overlay network.

@@ -66,7 +66,7 @@ func (service *Service) Initialize(config *ServiceConfig) error {
 	service.Store = config.Store
 	service.Version = config.Version
 
-	log.Debugf("[Azure CNS] nitialized service: %+v with config: %+v.", service, config)
+	log.Debugf("[Azure CNS] Initialized service: %+v with config: %+v.", service, config)
 
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	ipamOverlay "github.com/Azure/azure-container-networking/cnm/ipam_overlay"
 	"github.com/Azure/azure-container-networking/cns/common"
 	"github.com/Azure/azure-container-networking/cns/restserver"
 	acn "github.com/Azure/azure-container-networking/common"
@@ -19,7 +20,8 @@ import (
 
 const (
 	// Service name.
-	name = "azure-cns"
+	name     = "azure-cns"
+	ipamName = "overlay-ipam"
 )
 
 // Version is populated by make during build.
@@ -27,6 +29,16 @@ var version string
 
 // Command line arguments for CNM plugin.
 var args = acn.ArgumentList{
+	{
+		Name:         acn.OptEnvironment,
+		Shorthand:    acn.OptEnvironmentAlias,
+		Description:  "Set the operating environment",
+		Type:         "string",
+		DefaultValue: "null",
+		ValueMap: map[string]interface{}{
+			"null": 0,
+		},
+	},
 	{
 		Name:         acn.OptAPIServerURL,
 		Shorthand:    acn.OptAPIServerURLAlias,
@@ -87,26 +99,23 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Initialize CNS.
-	var config common.ServiceConfig
-	config.Version = version
-	config.Name = name
+	// Initialize ipam.
 
-	// Create a channel to receive unhandled errors from CNS.
-	config.ErrChan = make(chan error, 1)
-
-	// Create the key value store.
+	var pluginConfig acn.PluginConfig
 	var err error
-	config.Store, err = store.NewJsonFileStore(platform.RuntimePath + name + ".json")
+	pluginConfig.Version = version
+
+	// Create a channel to receive unhandled errors from the plugins.
+	pluginConfig.Store, err = store.NewJsonFileStore(platform.RuntimePath + ipamName + ".json")
 	if err != nil {
 		fmt.Printf("Failed to create store: %v\n", err)
 		return
 	}
 
-	// Create CNS object.
-	httpRestService, err := restserver.NewHTTPRestService(&config)
+	// Create IPAM plugin.
+	ipamPlugin, err := ipamOverlay.NewPlugin(&pluginConfig)
 	if err != nil {
-		fmt.Printf("Failed to create CNS object, err:%v.\n", err)
+		fmt.Printf("Failed to create IPAM plugin, err:%v.\n", err)
 		return
 	}
 
@@ -123,6 +132,42 @@ func main() {
 	log.Printf("Running on %v", platform.GetOSInfo())
 
 	// Set CNS options.
+	environment := acn.GetArg(acn.OptEnvironment).(string)
+	ipamQueryInterval, _ := acn.GetArg(acn.OptIpamQueryInterval).(int)
+
+	ipamPlugin.SetOption(acn.OptEnvironment, environment)
+	//ipamPlugin.SetOption(acn.OptAPIServerURL, url)
+	ipamPlugin.SetOption(acn.OptIpamQueryInterval, ipamQueryInterval)
+	if ipamPlugin != nil {
+		err = ipamPlugin.Start(&pluginConfig)
+		if err != nil {
+			fmt.Printf("Failed to start IPAM plugin, err:%v.\n", err)
+			return
+		}
+	}
+
+	//Initialize CNS
+	var config common.ServiceConfig
+	config.Version = version
+	config.Name = name
+
+	// Create a channel to receive unhandled errors from CNS.
+	config.ErrChan = make(chan error, 1)
+
+	// Create the key value store.
+	config.Store, err = store.NewJsonFileStore(platform.RuntimePath + name + ".json")
+	if err != nil {
+		fmt.Printf("Failed to create store: %v\n", err)
+		return
+	}
+
+	// Create CNS object.
+	httpRestService, err := restserver.NewHTTPRestService(&config)
+	if err != nil {
+		fmt.Printf("Failed to create CNS object, err:%v.\n", err)
+		return
+	}
+
 	httpRestService.SetOption(acn.OptAPIServerURL, url)
 
 	// Start CNS.
@@ -130,7 +175,7 @@ func main() {
 		err = httpRestService.Start(&config)
 		if err != nil {
 			fmt.Printf("Failed to start CNS, err:%v.\n", err)
-			return
+			//return
 		}
 	}
 
@@ -149,5 +194,8 @@ func main() {
 	// Cleanup.
 	if httpRestService != nil {
 		httpRestService.Stop()
+	}
+	if ipamPlugin != nil {
+		ipamPlugin.Stop()
 	}
 }
