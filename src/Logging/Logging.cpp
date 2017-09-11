@@ -156,7 +156,7 @@ DllExport void AquaLogging::Logw(int logLevel, wchar_t *logMessagew)
 	}
 
 	char log[msgSize];
-	if (_snwprintf_s(logMsgw, sizeof(wchar_t)*msgSize, _TRUNCATE, L"Aqua: %ws", logMessagew) == -1)
+	if (_snwprintf_s(logMsgw, _countof(logMsgw), msgSize, L"Aqua: %ws", logMessagew) == -1)
 	{
 		externalLogMethod(verbose, "Truncation happenned for log.");
 	}

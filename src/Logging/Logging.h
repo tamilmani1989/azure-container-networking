@@ -37,7 +37,7 @@ class AquaLogging
 	public:			
 	static DllExport void InitLogging(ExternalLogMethod logMethod);
 	static DllExport void InitLogging(bool consoleOutputEnabled);
-	static DllExport void AquaLogging::Logw(int, wchar_t *);
+	static DllExport void Logw(int, wchar_t *);
 	static DllExport void Log(int, char *);
 	static const size_t msgSize = 2048;
 	static bool externalLogInitialized;

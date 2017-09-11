@@ -10,7 +10,8 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-        $(MSBuildThisFileDirectory)
+        $(MSBuildThisFileDirectory);		
+		$(cpprestsdk)\build\native\include
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -27,9 +28,9 @@
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="AfterBuild">
-    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClient" />
-    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
-    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\HNSOverlayPlugin" />
-    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\Aqua.NetworkClient" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\Aqua.NetworkClientLibrary" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\Aqua.HNSOverlayPlugin" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\Aqua.NetworkClientLibrary\Aqua.HNSOverlayPlugin" />
   </Target>
 </Project>
