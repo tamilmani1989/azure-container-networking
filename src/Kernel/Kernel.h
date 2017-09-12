@@ -7,6 +7,7 @@
 #include <iostream>
 #include "../Shared/PluginMetadata.h"
 #include<mutex>
+#include<set>
 
 class AquariusKernel
 {
@@ -15,7 +16,7 @@ public:
 	~AquariusKernel();
 	void UpdateCurrentPackageStoreLocation(wchar_t *packageStoreLocation);
 	wchar_t *GetCurrentPackageStoreLocation();
-	void LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad);
+	void LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad, std::set<std::wstring> eligiblePluginSet);
 
 protected:
 

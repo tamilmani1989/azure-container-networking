@@ -87,7 +87,7 @@ int wmain(int argc, wchar_t *argv[])
                 SERVICE_DEPENDENCIES,       // Dependencies
                 SERVICE_ACCOUNT,            // Service running account
                 SERVICE_PASSWORD            // Password of the account
-                );           
+                );       
         }
         else if (_wcsicmp(L"remove", argv[1] + 1) == 0)
         {

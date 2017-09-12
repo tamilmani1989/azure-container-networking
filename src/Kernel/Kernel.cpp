@@ -60,7 +60,7 @@ wchar_t* AquariusKernel::GetCurrentPackageStoreLocation()
 }
 
 
-void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad)
+void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad, std::set<std::wstring> eligiblePluginSet)
 /*++
 
 Routine Description:
@@ -111,6 +111,18 @@ Return Value:
 							pluginsToLoad[i].entryPoint, codeDirectory);
 						AquariusUtilities::WriteEventLogEntry(szMessage);
 			
+						std::set<std::wstring>::iterator it = eligiblePluginSet.find(pluginsToLoad[i].name);
+						
+						if(it == eligiblePluginSet.end())
+						{
+							StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"plugin %s not found in eligibe set",
+								pluginsToLoad[i].name);
+							AquariusUtilities::WriteEventLogEntry(szMessage);
+							SAFE_DELETE(codeDirectory);
+							SAFE_DELETE(manifestFile);
+							continue;
+						}
+
 						if(pluginsToLoad[i].retryCount < MAX_RETRY_COUNT)
 						{
 							JobManager::EnsureJobIsRunning(codeDirectory, nullptr, &pluginsToLoad[i]);				
@@ -118,7 +130,7 @@ Return Value:
 						else
 						{
 							StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-								L"Retry count exceeded for %s",pluginsToLoad[i].entryPoint);
+								L"Retry count %d exceeded for %s", pluginsToLoad[i].retryCount, pluginsToLoad[i].entryPoint);
 							AquariusUtilities::WriteEventLogEntry(szMessage);
 							throw;
 						}

@@ -49,5 +49,6 @@ public:
     TEST_METHOD(TestInstallUninstall);
 	TEST_METHOD(TestInitializeService);
 	TEST_METHOD(TestGetPluginMetadata);
+    TEST_METHOD(TestProcessConfig);
 	TEST_METHOD(TestLoadPlugins);
 };

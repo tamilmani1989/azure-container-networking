@@ -165,6 +165,36 @@ Return Value:
 }
 
 void
+AquariusTest::TestProcessConfig()
+/*++
+
+Routine Description:
+	This function tests reading plugins to start from configuration file 
+
+Arguments:
+    None
+
+Return Value:
+    None
+
+--*/
+{
+	wchar_t curDir[MAX_PATH];
+	
+	GetCurrentDirectory(MAX_PATH, curDir);
+	wcscat_s(curDir, L"\\test\\AquariusTest\\Plugins");
+	
+	int ret = service->ProcessConfig(curDir);
+	VERIFY_ARE_EQUAL(ret, 0, L"ProcessConfig return success");
+
+	std::set<std::wstring>::iterator it = service->pluginsToStart.find(L"azureworld");
+	VERIFY_ARE_NOT_EQUAL(it, service->pluginsToStart.end(), L"ProcessConfig reading plugins Passed");
+
+	it = service->pluginsToStart.find(L"helloworld");
+	VERIFY_ARE_EQUAL(it, service->pluginsToStart.end(), L"ProcessConfig reading plugins Passed");
+}
+
+void
 AquariusTest::TestLoadPlugins()
 /*++
 
@@ -181,14 +211,13 @@ Return Value:
 {
 	try 
 	{
-		service->aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata);
+		service->aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata, service->pluginsToStart);
 	}
 	catch(...)
 	{
 		VERIFY_IS_TRUE(false);		
 	}
 }
-
 bool AquariusTest::TestSetup()
 /*++
 

@@ -21,7 +21,10 @@
 #include "../Kernel/Kernel.h"
 #include "../PackMan/AqPackageManager.h"
 #include "../Server/RestServer.h"
+#include "ConfigParser.h"
 #include <mutex>
+#include <set>
+#include<sstream>
 
 #define RESTSERVER_PORT L"4433"
 #define HTTP_PROTO L"http"
@@ -52,6 +55,7 @@ public:
 
 	AquariusKernel *aquariusKernel = nullptr;
 	AqPackageManager *aqPackageManager = nullptr;
+	std::set<std::wstring> pluginsToStart;
 
     AquariusService(PWSTR pszServiceName, 
         BOOL fCanStop = TRUE, 
@@ -65,6 +69,7 @@ public:
 	void OnStop() override;
 	void DisplayPluginsMetadata(PluginMetadata* allPluginsMetadata, int pluginCount);
 	void ProcessPlugins(wchar_t* pluginDirectory);
+	int ProcessConfig(wchar_t *exeLocaiton);
 	void ServiceWorkerThread(void);
 	void RestServerThreadHandler(void);
 	void InitializeServices(void);

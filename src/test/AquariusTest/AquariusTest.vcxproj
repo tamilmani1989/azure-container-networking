@@ -51,6 +51,10 @@
         <FileMatch>*.*</FileMatch>
         <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\AquariusTest\Plugins</DestinationFolder>
       </Robocopy>
+	  <Robocopy Include="$(SRCROOT)\test\AquariusTest\RuntimeSettings">
+        <FileMatch>*.*</FileMatch>
+        <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\AquariusTest\RuntimeSettings</DestinationFolder>
+      </Robocopy>
   </ItemGroup>
  
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
@@ -58,5 +62,6 @@
       <Copy SourceFiles="$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\test\AquariusTest\" />
       <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.RestServer\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\test\AquariusTest\" />
       <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\test\AquariusTest\" />
+	  <Copy SourceFiles="$(SRCROOT)\test\AquariusTest\HandlerEnvironment.json" DestinationFolder="$(BinariesBuildTypeArchDirectory)\test\AquariusTest\" />
     </Target>
 </Project>

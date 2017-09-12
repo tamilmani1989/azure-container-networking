@@ -349,6 +349,7 @@ Return Value:
 	// check if initialization is needed
 	// take initialization lock
 	wchar_t packageStoreLocation[MAX_PATH];
+	wchar_t exeLocation[MAX_PATH];
 	DWORD size = 1024;
 	
 	if(aqPackageManager == nullptr)
@@ -364,6 +365,18 @@ Return Value:
 		aquariusKernel = new AquariusKernel(packageStoreLocation);
 		AquariusUtilities::allocator++;
 	}
+
+	AquariusUtilities::PopulateServiceExeLocation(exeLocation);
+
+	service_objects_mutex.lock();
+	int ret = ProcessConfig(exeLocation);
+	
+	if(ret != 0)
+	{
+		LOGINFO("ProcessConfig Failed\n");
+	}
+
+	service_objects_mutex.unlock();
 }
 
 // The method performs the main function of the service. It runs 
@@ -508,7 +521,7 @@ Return Value:
 				pluginCount = aqPackageManager->GetPluginCount();	 
 			}
 
-			aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata);
+			aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata, pluginsToStart);
 			AquariusUtilities::ReleasePluginMetadata(pluginCount, allPluginsMetadata);
 			// Forward these to Kernel (retries are okay)
 		}
@@ -520,4 +533,151 @@ Return Value:
 	}
 
 	service_objects_mutex.unlock();
+}
+
+int AquariusService::ProcessConfig(wchar_t *exeLocation)
+/*++
+
+Routine Description:
+	This function process the config file passed by user and sets the plugins to be started by aquarius
+
+Arguments:
+	exeLocation - Location of Aquarius exe
+	
+Return Value:
+	return 0 on success else -1
+
+--*/
+{
+	errno_t err;
+	wchar_t *configDir=NULL;
+	wchar_t szMessage[MAX_PATH];
+	
+	wchar_t *wconfigFolderPath = GetConfigFolderLocation(exeLocation);
+	
+	if(!wconfigFolderPath)
+	{
+		LOGINFOW(L"GetConfigFolderLocation function returns NULL for exe location %s\n", exeLocation);
+		return -1;
+	}
+
+	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Config Folder Path: %s",wconfigFolderPath);
+	AquariusUtilities::WriteEventLogEntry(szMessage);
+	
+	size_t configDirLen = wcslen(wconfigFolderPath);
+	size_t configExtLen = wcslen(CONFIG_EXTENSION);
+	size_t totalLen = configDirLen +  configExtLen + 1;
+
+	configDir = new wchar_t[totalLen];
+	
+	if (!configDir)
+	{
+		LOGINFO("Error while allocating for configDir\n");
+		return -1;
+	}
+	
+	err = wcscpy_s(configDir, totalLen, wconfigFolderPath);
+	
+	if(err != 0)
+	{
+		LOGINFO("Error while copying config dir path:%d\n", err);
+		return -1;		
+	}
+
+    err = wcscat_s(configDir, totalLen, CONFIG_EXTENSION);
+	
+	if(err != 0)
+	{
+		LOGINFO("Error while concatenating config dir path with extension:%d\n", err);
+		return -1;				
+	}
+
+	wchar_t *configFile = GetLatestConfigFilePath(configDir);
+
+	if(!configFile)
+	{
+		LOGINFOW(L"GetLatestConfigFilePath function returns NULL configDir :%s\n", configDir);
+		return -1;
+	}
+
+	size_t configFileLen = wcslen(configFile);
+	totalLen = configDirLen +  configFileLen + 2;
+	wchar_t *configFilePath = new wchar_t[totalLen];
+
+	if(!configFilePath)
+	{
+		LOGINFO("Error while allocating for configFilePath\n");
+		return -1;
+	}
+
+	err = wcscpy_s(configFilePath, totalLen, wconfigFolderPath);
+
+	if(err != 0)
+	{
+		LOGINFO("Error while copying config file path:%d\n", err);
+		return -1;				
+	}
+
+	err = wcscat_s(configFilePath, totalLen, L"\\");
+
+	if(err != 0)
+	{
+		LOGINFO("Error while concatenating config file path with \\:%d\n", err);
+		return -1;						
+	}	
+
+	err = wcscat_s(configFilePath, totalLen, configFile);
+
+	if(err != 0)
+	{
+		LOGINFO("Error while concatenating to config file path %d\n", err);
+		return -1;								
+	}
+
+	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),L"Config File path:%s\n", configFilePath);
+	AquariusUtilities::WriteEventLogEntry(szMessage);
+	
+	std::wstringstream ss;
+
+	std::string str = ReadConfigFile(configFilePath);
+	ss << str.c_str();
+	json::value val = json::value::parse(ss);
+	
+	for (auto iter = val.as_object().cbegin(); iter != val.as_object().cend(); ++iter)
+	{
+		const utility::string_t &key = iter->first;
+		const json::value &val = iter->second;
+		
+		if (wcscmp(key.c_str(), L"runtimeSettings") != 0)
+		{
+			StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Expecting runtimeSettings but found %s", key.c_str());
+			AquariusUtilities::WriteEventLogEntry(szMessage);
+			return -1;
+		}
+
+		json::value enablePluginsVal = GetPluginsToStart(val);	
+		
+		if (enablePluginsVal == NULL)
+		{
+			LOGINFO("GetPluginsToStart returns NULL. Nothing to Start");
+			return 0;
+		}
+
+		json::array pluginsArr = enablePluginsVal.as_array();
+
+		for (auto iter = pluginsArr.cbegin(); iter != pluginsArr.cend(); ++iter)	
+		{
+			std::wstring plugin = iter->as_string();
+			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),L"Insert plugin:%s\n", plugin.c_str());
+			AquariusUtilities::WriteEventLogEntry(szMessage);
+			pluginsToStart.insert(plugin);
+		}
+	}
+
+	delete[] wconfigFolderPath;
+	delete[] configDir;
+	delete[] configFilePath;
+	delete[] configFile;
+	
+	return 0;
 }

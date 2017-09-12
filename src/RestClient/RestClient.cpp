@@ -44,7 +44,7 @@ Return Value:
 --*/
 {
 	int status = 0;
-	int state = 0;
+	int state = STOPPED;
 
 	for(auto iterInner = jsonValue.as_object().cbegin(); iterInner != jsonValue.as_object().cend(); ++iterInner)
 	{
