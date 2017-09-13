@@ -32,7 +32,7 @@ class AquariusInstaller {
 //   NOTE: If the function fails to install the service, it prints the error 
 //   in the standard output stream for users to diagnose the problem.
 //
-void InstallService(PWSTR pszServiceName, 
+int InstallService(PWSTR pszServiceName, 
                     PWSTR pszDisplayName, 
                     DWORD dwStartType,
                     PWSTR pszDependencies, 
@@ -52,6 +52,6 @@ void InstallService(PWSTR pszServiceName,
 //   NOTE: If the function fails to uninstall the service, it prints the 
 //   error in the standard output stream for users to diagnose the problem.
 //
-void UninstallService(PWSTR pszServiceName);
+int UninstallService(PWSTR pszServiceName);
 
 };

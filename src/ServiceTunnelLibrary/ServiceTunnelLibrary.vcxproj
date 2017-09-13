@@ -12,6 +12,7 @@
         %(AdditionalIncludeDirectories);
         $(PkgMicrosoft_WindowsAzure_EngSys_Internal_rd_fabric_stable_fc_Redist)\content\redist;
         $(PkgMicrosoft_WindowsAzure_EngSys_Internal_longhorn_rd_os142_OS_redist)\content\redist;
+        $(PUBLIC_SDK)\Include\10.0.10586.0\shared;
       </AdditionalIncludeDirectories>
       <!-- Override default from native_user_compile for compat with RdCommon.lib -->
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
@@ -28,7 +29,8 @@
     <ClInclude Include="LoopBackAdapterInstaller.h" />
     <ClInclude Include="RcfEnumerator.h" />
     <ClInclude Include="ServiceTunnelLibrary.h" />
-	<ClInclude Include="stdafx.h" />
+	  <ClInclude Include="stdafx.h" />
+	  <ClInclude Include="mstcpip.h" />
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

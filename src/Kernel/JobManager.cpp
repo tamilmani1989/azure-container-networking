@@ -30,7 +30,7 @@ void JobManager::RemoveJob(wchar_t* directory, wchar_t* entryPoint)
 }
 
 
-HANDLE GetOrCreateJobObject(PluginMetadata *pluginData)
+int QueryJobObject(HANDLE handle)
 /*++
 
 Routine Description:
@@ -44,96 +44,59 @@ Return Value:
 
 --*/
 {
+
 	wchar_t szMessage[MAX_PATH];
+	JOBOBJECT_BASIC_PROCESS_ID_LIST processIdList;
+	JOBOBJECT_BASIC_PROCESS_ID_LIST *procList=nullptr;
+	DWORD actual_len=0;
 	
-	HANDLE handle = CreateJobObject(nullptr, pluginData->entryPoint);
+	// Check if the process is running with the required executable, if not, then restart the exe
+	int ret = QueryInformationJobObject(handle, JobObjectBasicProcessIdList, &processIdList, sizeof(processIdList), &actual_len);
 	
-	if (handle == nullptr)
+	while(ret == 0)
 	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"nullptr received while creating jobobject with name %s", pluginData->entryPoint);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
-		return nullptr;
-	}
-
-	if (GetLastError() == ERROR_ALREADY_EXISTS)
-	{
-		JOBOBJECT_BASIC_PROCESS_ID_LIST processIdList;
-		JOBOBJECT_BASIC_PROCESS_ID_LIST *procList=nullptr;
-		bool shouldReturn = TRUE;
-		DWORD actual_len=0;
-		
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Jobobject already exists with name %s", pluginData->entryPoint);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
-		// Check if the process is running with the required executable, if not, then restart the exe
-		int ret = QueryInformationJobObject(handle, JobObjectBasicProcessIdList, &processIdList, sizeof(processIdList), &actual_len);
-		
-		while(ret == 0)
+		if (GetLastError()!=ERROR_MORE_DATA)
 		{
-			if (GetLastError()!=ERROR_MORE_DATA)
-			{
-				StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-				L"Unable to query information for the job object associated with jobName->%s Error %d. It should not happen. values of struct %d %d %d %d ", 
-							pluginData->entryPoint, GetLastError(),
-							processIdList.NumberOfAssignedProcesses,
-							processIdList.NumberOfProcessIdsInList,
-							processIdList.ProcessIdList[0],
-							actual_len);
-				AquariusUtilities::WriteEventLogEntry(szMessage);
-				return nullptr;
-			}
-			
-			DWORD blockSize = sizeof(processIdList)+(processIdList.NumberOfAssignedProcesses)*sizeof(ULONG);
-			
-			StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Allocate more space...values of struct %s %d %d %d %d %d %d",
-							pluginData->entryPoint, GetLastError(),
-							processIdList.NumberOfAssignedProcesses,
-							processIdList.NumberOfProcessIdsInList,
-							processIdList.ProcessIdList[0],
-							actual_len,
-							blockSize);
+			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+			L"Unable to query information for the job object Error %d. It should not happen. values of struct %d %d %d %d ", 
+						GetLastError(),
+						processIdList.NumberOfAssignedProcesses,
+						processIdList.NumberOfProcessIdsInList,
+						processIdList.ProcessIdList[0],
+						actual_len);
 			AquariusUtilities::WriteEventLogEntry(szMessage);
+			return 1;
+		}
+		
+		DWORD blockSize = sizeof(processIdList)+(processIdList.NumberOfAssignedProcesses)*sizeof(ULONG);
+		
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Allocate more space...values of struct %d %d %d %d %d %d",
+						GetLastError(),
+						processIdList.NumberOfAssignedProcesses,
+						processIdList.NumberOfProcessIdsInList,
+						processIdList.ProcessIdList[0],
+						actual_len,
+						blockSize);
+		AquariusUtilities::WriteEventLogEntry(szMessage);
 
-			if(!procList)
-			{
-				free(procList);
-				procList = (JOBOBJECT_BASIC_PROCESS_ID_LIST *)malloc(blockSize);
-			}
-
-			processIdList.NumberOfProcessIdsInList=processIdList.NumberOfAssignedProcesses+1;
-			ret = QueryInformationJobObject(handle, JobObjectBasicProcessIdList, procList, blockSize, &actual_len);
+		if(!procList)
+		{
+			free(procList);
+			procList = (JOBOBJECT_BASIC_PROCESS_ID_LIST *)malloc(blockSize);
 		}
 
-		LOGINFO("Retrieved values from job %d %d\n",
+		processIdList.NumberOfProcessIdsInList=processIdList.NumberOfAssignedProcesses+1;
+		ret = QueryInformationJobObject(handle, JobObjectBasicProcessIdList, procList, blockSize, &actual_len);
+	}
+
+	LOGINFO("Retrieved values from job %d %d\n",
 			processIdList.NumberOfAssignedProcesses,
 			processIdList.NumberOfProcessIdsInList);
 
-		if (processIdList.NumberOfAssignedProcesses == 0)
-		{
-			// some how the process got killed
-			if(pluginData->processHandle!=NULL)
-			{
-				DWORD dwExitCode = NULL;
-				GetExitCodeProcess(pluginData->processHandle, &dwExitCode );
-				pluginData->exitStatus = (int)dwExitCode;
-			}
 
-			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-				L"Could not find the process associated with the job object named %s. Exit Status of process is %d.", 
-				pluginData->entryPoint, pluginData->exitStatus);
-			AquariusUtilities::WriteEventLogEntry(szMessage);
-			shouldReturn = FALSE;
-		}
-
-		if (shouldReturn)
-		{
-			return nullptr;
-		}
-	}
-	
-	return handle;
+	return processIdList.NumberOfAssignedProcesses;
 }
+
 
 void AttachProcessToJobObject(wchar_t* directory, wchar_t **processPath, LPTSTR lpCommandLine, HANDLE handle, PluginMetadata *pluginData)
 /*++
@@ -155,18 +118,32 @@ Return Value:
 	wchar_t szMessage[MAX_PATH];
 	STARTUPINFO si;
 	PROCESS_INFORMATION pi;
-
-	size_t len = wcsnlen(directory, MAX_PATH) + wcsnlen(L"\\", 2) + wcsnlen(pluginData->entryPoint, MAX_PATH) + 1;
+	size_t len = 0;
+	
+	len = wcsnlen(directory, MAX_PATH) + wcsnlen(L"\\", 2) + wcsnlen(pluginData->entryPoint, MAX_PATH) + 2*wcslen(L"\"") +1;
 	(*processPath) = new wchar_t[len];
-	wcscpy_s(*processPath, len, directory);
-	wcscat_s(*processPath, len, L"\\");
-	wcscat_s(*processPath, len, pluginData->entryPoint);
+
+	if(swprintf_s(*processPath, len, L"%s\\%s", directory, pluginData->entryPoint) < 0)
+	{
+		LOGINFO("swprintf failed while constructing process path");
+		return;
+	}
+
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);
 	ZeroMemory(&pi, sizeof(pi));
 
-	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-		L"Creating process for following exe: %s", *processPath);
+	if(pluginData->arguments)
+	{
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+			L"Creating process for following exe: %s args %s", *processPath, lpCommandLine);
+	}
+	else
+	{
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+			L"Creating process for following exe: %s", *processPath);
+	}
+
 	AquariusUtilities::WriteEventLogEntry(szMessage);
 
 	if (!CreateProcess(*processPath, lpCommandLine, nullptr, nullptr, FALSE, 0, nullptr, directory, &si, &pi))
@@ -239,7 +216,7 @@ Return Value:
 		throw szMessage; 
 	}
 
-	extendedLimit.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_JOB_MEMORY;
+	extendedLimit.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_JOB_MEMORY|JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 	extendedLimit.JobMemoryLimit = memoryLimitinMB *1024*1024; // 500 MB
 	
 	val = SetInformationJobObject(handle, 
@@ -280,24 +257,50 @@ Return Value:
 	
 	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Going to create a jobobject with name %s", pluginData->entryPoint);
 	AquariusUtilities::WriteEventLogEntry(szMessage);
-
-	HANDLE handle = GetOrCreateJobObject(pluginData);
-
-	if(handle == nullptr)
-	{
-		return;
-	}	
 	
-	if(pluginData->restartOnExit==0 && pluginData->numTimesStarted > 0)
+	HANDLE handle = OpenJobObject(JOB_OBJECT_ALL_ACCESS, FALSE, pluginData->entryPoint);
+	if(handle)
 	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),L"Won't restart short running process %s restartOnExit %d numTimesStarted %d",
-			pluginData->entryPoint, pluginData->restartOnExit, pluginData->numTimesStarted);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
-		CloseHandle(handle);
-		pluginData->processState = STOPPED;
-		return;
+		int numProcess = QueryJobObject(handle);
+
+		if(pluginData->restartOnExit==0 && pluginData->numTimesStarted > 0 && numProcess == 0)
+		{
+			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),L"Won't restart short running process %s restartOnExit %d numTimesStarted %d",
+				pluginData->entryPoint, pluginData->restartOnExit, pluginData->numTimesStarted);
+			AquariusUtilities::WriteEventLogEntry(szMessage);
+
+			if(pluginData->processHandle!=NULL)
+			{
+				DWORD dwExitCode = NULL;
+				GetExitCodeProcess(pluginData->processHandle, &dwExitCode);
+				pluginData->exitStatus = (int)dwExitCode;
+				pluginData->processState = STOPPED;
+			}
+
+			TerminateJobObject(handle, 0);
+			CloseHandle(handle);
+			return;
+		}
+		else if (numProcess != 0)
+		{
+			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),L"Plugin %s in running state", pluginData->entryPoint);
+			AquariusUtilities::WriteEventLogEntry(szMessage);
+			return;
+		}
 	}
-	
+	else
+	{
+		if(pluginData->restartOnExit==0 && pluginData->numTimesStarted > 0)
+		{
+			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),L"Won't create new job object for running process %s restartOnExit %d numTimesStarted %d",
+				pluginData->entryPoint, pluginData->restartOnExit, pluginData->numTimesStarted);
+			AquariusUtilities::WriteEventLogEntry(szMessage);
+			return;
+		}
+		
+		handle = CreateJobObject(NULL, pluginData->entryPoint);
+	}
+
 	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
 		L"Job object created with name %s....", pluginData->entryPoint);
 	AquariusUtilities::WriteEventLogEntry(szMessage);
@@ -346,6 +349,61 @@ Return Value:
 	pluginData->exitStatus=0;
 }
 
+void JobManager::PluginCleanup(wchar_t* directory, LPTSTR lpCommandLine, PluginMetadata *pluginData)
+{
+	wchar_t szMessage[MAX_PATH];
+
+	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Calling plugin cleanup %s", pluginData->entryPoint);
+	AquariusUtilities::WriteEventLogEntry(szMessage);
+
+	HANDLE handle = CreateJobObject(NULL, pluginData->entryPoint);
+	
+	if(!handle)
+	{	
+		return;
+	}
+	
+	try
+	{
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+			L"Going to apply cpu and memory limits on job object with name %s....", pluginData->entryPoint);
+		AquariusUtilities::WriteEventLogEntry(szMessage);
+
+		ApplyLimitsOnJobObject(handle, 10, 500);
+	}
+	catch(wchar_t *e)
+	{
+		CloseHandle(handle);		
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+			L"ERROR::ApplyLimitsOnJobObject for plugin  %s failed with exception:%s....", pluginData->entryPoint, e);
+		AquariusUtilities::WriteEventLogEntry(szMessage);
+		throw;
+	}
+
+	wchar_t *processPath = nullptr;
+	
+	try
+	{
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+			L"Going to attach process to job object with name %s....", pluginData->entryPoint);
+		AquariusUtilities::WriteEventLogEntry(szMessage);
+
+		AttachProcessToJobObject(directory, &processPath, lpCommandLine, handle, pluginData);
+	}
+	catch(wchar_t *e)
+	{
+		CloseHandle(handle);		
+		SAFE_DELETE(processPath);
+		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+			L"ERROR::AttachProcessToJobObject for plugin %s failed with exception:%s....", pluginData->entryPoint, e);
+		AquariusUtilities::WriteEventLogEntry(szMessage);
+		throw;
+	}
+	
+	pluginData->cleanup = false;
+	SAFE_DELETE(processPath);
+	
+}
 static void InsertAtTail(JobObject** tail, HANDLE handle)
 {
 	JobObject *jo = new JobObject;
@@ -370,7 +428,6 @@ void JobManager::SaveJobHandle(HANDLE handle)
 		InsertAtTail(&tail, handle);
 	}
 }
-
 
 bool TerminateProcessInJob(HANDLE jobHandle)
 {

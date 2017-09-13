@@ -905,3 +905,66 @@ std::wstring - Returns corresponding IPV6 address for IPV4 address
 
 	return wsIpValue;
 }
+
+HRESULT
+ServiceTunnelConfigurator::CleanupLoopbackAdapter(
+	__in std::wstring InstanceAddress
+)
+{	
+	IN_ADDR ipv4Addr;
+	DWORD ret = 0;
+	int ipv4interfaceIndex=0;
+	PCWSTR temp = NULL;
+	
+	HRESULT hr = installer.RemoveLoopbackAdapter(SERVICE_TUNNEL_INTERFACE_NAME);
+	
+	if(hr!=S_OK)
+	{
+		RD_TRACE_LOG((RD_TRACE_INFO, L"Remove LoopBackAdapter failed:%x.",hr));
+	}
+	else
+	{
+		RD_TRACE_LOG((RD_TRACE_INFO, L"Removed LoopBackAdapter"));
+	}
+
+	RD_TRACE_LOG((RD_TRACE_INFO, L"Calling RtlIpv4StringToAddress %s", InstanceAddress.c_str()));
+	ret = RtlIpv4StringToAddress(InstanceAddress.c_str(), true, &temp, &ipv4Addr);
+	
+	if (ret != 0)
+	{
+		hr = HRESULT_FROM_WIN32(GetLastError());
+		RD_TRACE_E_HR((RD_TRACE_ERROR,
+			L"CleanupLoopbackAdapter:: RtlIpv4StringToAddress function failed with error %d Address %s hr %x",
+			ret,
+			InstanceAddress.c_str(),
+			hr),
+			hr,
+			Cleanup);
+	}
+
+	RD_TRACE_LOG((RD_TRACE_INFO, L"Calling GetInterfaceByIpAddress"));
+	hr = GetInterfaceByIpAddress(ntohl(ipv4Addr.s_addr), ipv4interfaceIndex);
+	RD_TRACE_E_HR((RD_TRACE_ERROR,
+			L"CleanupLoopbackAdapter:: GetInterfaceByIpAddress function failed to find Interface Index for %s address error %x",
+			InstanceAddress.c_str(),
+			hr),
+			hr,
+			Cleanup);
+
+	RD_TRACE_LOG((RD_TRACE_INFO, L"Deleting neighbor and route entry for interface index %d", ipv4interfaceIndex));
+	
+	hr = NetIfAddDeleteNeighbor(ipv4interfaceIndex, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_MAC_ADDRESS, FALSE);
+	RD_TRACE_LOG((RD_TRACE_INFO,
+			L"CleanupLoopbackAdapter:: NetIfDeleteNeighbor for Interface %d returned with %x",ipv4interfaceIndex, hr));
+
+	hr = NetIfAddDeleteIPv6Route(ipv4interfaceIndex, SERVICE_TUNNEL_SOURCE_PREFIX, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS, FALSE);
+	RD_TRACE_LOG((RD_TRACE_INFO,
+			L"CleanupLoopbackAdapter:: NetIfAddDeleteRoute for Interface %d returned with  %x",ipv4interfaceIndex, hr));
+
+	hr = S_OK;
+
+
+Cleanup:	
+	return hr;
+
+}

@@ -374,7 +374,7 @@ Return Value:
 	if(ret != 0)
 	{
 		LOGINFO("ProcessConfig Failed\n");
-	}
+}
 
 	service_objects_mutex.unlock();
 }
@@ -385,6 +385,32 @@ void AquariusService::ServiceWorkerThread(void)
 {
     // Periodically check if the service is stopping.
 	wchar_t szMessage[MAX_PATH];
+
+	int pluginCount = 0;
+	PluginMetadata *allPluginsMetadata = nullptr;
+	
+	service_objects_mutex.lock();
+	try 
+	{
+		if (aqPackageManager != nullptr)
+		{
+			if(!allPluginsMetadata)
+			{
+			 	pluginCount = aqPackageManager->RetrievePluginsMetadata(&allPluginsMetadata);
+			}
+			else
+			{
+				pluginCount = aqPackageManager->GetPluginCount();	 
+			}
+		}
+	}
+	catch(...)
+	{
+		service_objects_mutex.unlock();
+		throw;
+	}
+
+	service_objects_mutex.unlock();
 
     while (!m_fStopping)
     {
@@ -397,8 +423,9 @@ void AquariusService::ServiceWorkerThread(void)
 			if (aquariusKernel != nullptr)
 			{
 				AquariusUtilities::WriteEventLogEntry(L"Aquarius Kernel is loaded");
-				wchar_t* pluginDirectory = nullptr; 
-				ProcessPlugins(pluginDirectory);
+				service_objects_mutex.lock();
+				aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata, pluginsToStart);
+				service_objects_mutex.unlock();
 			}
 			// Perform main service function here...
 			AquariusUtilities::WriteEventLogEntry(L"AquariusSvc doing work");
@@ -410,6 +437,24 @@ void AquariusService::ServiceWorkerThread(void)
 
         ::Sleep(5000);  // Simulate some lengthy operations.
     }
+
+	int cnt = GetPluginCount();
+
+	PluginMetadata *pdata = GetPluginInstances(cnt);
+	
+	for(int i=0; i < cnt; i++)
+	{
+		pdata[i].cleanup=true;		
+	}	
+	
+	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Call cleanup aqsvc %x.",
+			pdata);
+	AquariusUtilities::WriteEventLogEntry(szMessage);
+	
+	aquariusKernel->LoadPlugins(cnt, pdata, pluginsToStart);
+	Sleep(3000);
+
+	AquariusUtilities::ReleasePluginMetadata(pluginCount, allPluginsMetadata);
 
     // Signal the stopped event.
     SetEvent(m_hStoppedEvent[AQUARIUS_THREAD]);
@@ -430,6 +475,24 @@ Return Value:
     // Log a service stop message to the Application log.
 	AquariusUtilities::WriteEventLogEntry(L"AquariusSvc in going to stop: OnStop is called");
 	service_objects_mutex.lock();
+
+
+    // Indicate that the service is stopping and wait for the finish of the 
+    // main service function (ServiceWorkerThread).
+    m_fStopping = TRUE;
+
+	wchar_t szMessage[MAX_PATH];
+	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"# of allocations that were nto deleted: %d.",
+		AquariusUtilities::allocator);
+	AquariusUtilities::WriteEventLogEntry(szMessage);
+	
+	if (WaitForMultipleObjects(NUM_THREADS, m_hStoppedEvent, TRUE, INFINITE) != WAIT_OBJECT_0)
+    {
+        DWORD error = GetLastError();
+        StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Going to throw error  0x%08lx", error);
+        AquariusUtilities::WriteEventLogEntry(szMessage);
+        throw GetLastError();
+    }
 
 	try
 	{
@@ -456,23 +519,7 @@ Return Value:
 	}
 
 	service_objects_mutex.unlock();
-
-    // Indicate that the service is stopping and wait for the finish of the 
-    // main service function (ServiceWorkerThread).
-    m_fStopping = TRUE;
-
-	wchar_t szMessage[MAX_PATH];
-	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"# of allocations that were nto deleted: %d.",
-		AquariusUtilities::allocator);
-	AquariusUtilities::WriteEventLogEntry(szMessage);
-
-    if (WaitForMultipleObjects(NUM_THREADS, m_hStoppedEvent, TRUE, INFINITE) != WAIT_OBJECT_0)
-    {
-        DWORD error = GetLastError();
-        StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Going to throw error  0x%08lx", error);
-        AquariusUtilities::WriteEventLogEntry(szMessage);
-        throw GetLastError();
-    }
+    
 }
 
 void AquariusService::DisplayPluginsMetadata(PluginMetadata* allPluginsMetadata, int pluginCount)
@@ -487,53 +534,6 @@ void AquariusService::DisplayPluginsMetadata(PluginMetadata* allPluginsMetadata,
 	}
 }
 
-void AquariusService::ProcessPlugins(wchar_t* pluginDirectory)
-/*++
-
-Routine Description:
-	This function populates plugin metadata object and calls load plugin.
-
-Arguments:
-	directory - plugin directory
-	
-Return Value:
-
---*/
-{
-	UNREFERENCED_PARAMETER(pluginDirectory);
-	int pluginCount = 0;
-	PluginMetadata *allPluginsMetadata = nullptr;
-	// Get the goal state: 
-	// i.e., Get the plugin versions that should be current from Package Manager
-
-	service_objects_mutex.lock();
-	
-	try 
-	{
-		if (aqPackageManager != nullptr)
-		{
-			if(!allPluginsMetadata)
-			{
-			 	pluginCount = aqPackageManager->RetrievePluginsMetadata(&allPluginsMetadata);
-			}
-			else
-			{
-				pluginCount = aqPackageManager->GetPluginCount();	 
-			}
-
-			aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata, pluginsToStart);
-			AquariusUtilities::ReleasePluginMetadata(pluginCount, allPluginsMetadata);
-			// Forward these to Kernel (retries are okay)
-		}
-	}
-	catch(...)
-	{
-		service_objects_mutex.unlock();
-		throw;
-	}
-
-	service_objects_mutex.unlock();
-}
 
 int AquariusService::ProcessConfig(wchar_t *exeLocation)
 /*++

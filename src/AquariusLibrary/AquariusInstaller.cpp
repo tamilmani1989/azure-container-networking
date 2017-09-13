@@ -35,7 +35,7 @@
 //   NOTE: If the function fails to install the service, it prints the error 
 //   in the standard output stream for users to diagnose the problem.
 //
-void AquariusInstaller::InstallService(PWSTR pszServiceName, 
+int AquariusInstaller::InstallService(PWSTR pszServiceName, 
                     PWSTR pszDisplayName, 
                     DWORD dwStartType,
                     PWSTR pszDependencies, 
@@ -45,10 +45,12 @@ void AquariusInstaller::InstallService(PWSTR pszServiceName,
     wchar_t szPath[MAX_PATH];
     SC_HANDLE schSCManager = nullptr;
     SC_HANDLE schService = nullptr;
+    int ret=0;
 
     if (GetModuleFileName(nullptr, szPath, ARRAYSIZE(szPath)) == 0)
     {
         wprintf(L"GetModuleFileName failed w/err 0x%08lx\n", GetLastError());
+        ret=1;
         goto Cleanup;
     }
 
@@ -57,6 +59,7 @@ void AquariusInstaller::InstallService(PWSTR pszServiceName,
     if (schSCManager == nullptr)
     {
         wprintf(L"OpenSCManager failed w/err 0x%08lx\n", GetLastError());
+        ret=1;
         goto Cleanup;
     }
 
@@ -79,6 +82,7 @@ void AquariusInstaller::InstallService(PWSTR pszServiceName,
     if (schService == nullptr)
     {
         wprintf(L"CreateService failed w/err 0x%08lx\n", GetLastError());
+        ret=1;
         goto Cleanup;
     }
 
@@ -90,7 +94,7 @@ void AquariusInstaller::InstallService(PWSTR pszServiceName,
     sd.lpDescription = szDesc;
     if(!ChangeServiceConfig2(schService, SERVICE_CONFIG_DESCRIPTION, &sd))
     {
-        wprintf(L"Unable to set the description for Azure Service w/err 0x%081x\n", GetLastError());
+        wprintf(L"Unable to set the description for Azure Service w/err 0x%081x\n", GetLastError());       
     }
 
 Cleanup:
@@ -105,6 +109,8 @@ Cleanup:
         CloseServiceHandle(schService);
         schService = nullptr;
     }
+
+    return ret;
 }
 
 
@@ -120,17 +126,19 @@ Cleanup:
 //   NOTE: If the function fails to uninstall the service, it prints the 
 //   error in the standard output stream for users to diagnose the problem.
 //
-void AquariusInstaller::UninstallService(PWSTR pszServiceName)
+int AquariusInstaller::UninstallService(PWSTR pszServiceName)
 {
     SC_HANDLE schSCManager = nullptr;
     SC_HANDLE schService = nullptr;
     SERVICE_STATUS ssSvcStatus = {};
+    int ret=0;
 
     // Open the local default service control manager database
     schSCManager = OpenSCManager(nullptr, nullptr, SC_MANAGER_CONNECT);
     if (schSCManager == nullptr)
     {
         wprintf(L"OpenSCManager failed w/err 0x%08lx\n", GetLastError());
+        ret=1;
         goto Cleanup;
     }
 
@@ -140,6 +148,7 @@ void AquariusInstaller::UninstallService(PWSTR pszServiceName)
     if (schService == nullptr)
     {
         wprintf(L"OpenService failed w/err 0x%08lx\n", GetLastError());
+        ret=1;
         goto Cleanup;
     }
 
@@ -166,6 +175,7 @@ void AquariusInstaller::UninstallService(PWSTR pszServiceName)
         else
         {
             wprintf(L"\n%s failed to stop.\n", pszServiceName);
+            ret=1;
         }
     }
 
@@ -173,6 +183,7 @@ void AquariusInstaller::UninstallService(PWSTR pszServiceName)
     if (!DeleteService(schService))
     {
         wprintf(L"DeleteService failed w/err 0x%08lx\n", GetLastError());
+        ret=1;
         goto Cleanup;
     }
 
@@ -190,4 +201,6 @@ Cleanup:
         CloseServiceHandle(schService);
         schService = nullptr;
     }
+
+    return ret;
 }

@@ -30,6 +30,7 @@ User-mode
 #include <set>
 #include <sstream>
 #include <iomanip>
+#include<mstcpip.h>
 
 using namespace std;
 
@@ -62,6 +63,8 @@ public:
 
 	HRESULT SetupLoopbackAdapter(__in std::wstring instanceAddress, __in std::set<std::wstring> Ipv6AddressList, __in int numRetries,
 		__in int waitTimeStartInSecs, __in int totalWaitTimeInSecs);
+
+	HRESULT CleanupLoopbackAdapter(__in std::wstring instanceAddress);
 
 	HRESULT NetIfEnableWeakHostRouting(__in ULONG IfIndex);
 

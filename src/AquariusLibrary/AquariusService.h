@@ -68,7 +68,6 @@ public:
 	void OnStart(DWORD dwArgc, PWSTR *pszArgv) override;
 	void OnStop() override;
 	void DisplayPluginsMetadata(PluginMetadata* allPluginsMetadata, int pluginCount);
-	void ProcessPlugins(wchar_t* pluginDirectory);
 	int ProcessConfig(wchar_t *exeLocaiton);
 	void ServiceWorkerThread(void);
 	void RestServerThreadHandler(void);

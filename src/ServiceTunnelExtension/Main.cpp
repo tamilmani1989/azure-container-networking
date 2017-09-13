@@ -163,6 +163,7 @@ Return Value:
 	std::set<std::wstring>::iterator serviceTunnelIpv6AddressesIter;
 	bool comInitialized = false;
 	bool traceInitialized = false;
+    bool unInstallFlag = false;
 	std::wstring instanceName;
 	std::wstring instanceAddress;
 	std::wstring instanceDerviedIpv6Address;
@@ -225,9 +226,20 @@ Return Value:
 				}
 			}
 		}
-
+        else if(_wcsicmp(L"-remove", argv[i]) == 0)
+        {
+            unInstallFlag = true;
+            RD_TRACE_LOG((RD_TRACE_INFO, L"Uninstall argument is set"));
+        }
+        else
+        {
+            RD_TRACE_LOG((RD_TRACE_INFO, L"Invalid Argument %s",argv[i]));
+            return 1;
+        }
 	}
-
+    
+    RD_TRACE_LOG((RD_TRACE_INFO, L"RetryCount %d startwaittime %d totalwaittime %d", retryCount, waitTimeStart, totalWaitTime));
+        
     traceInitialized = true;
 
     hr = ::CoInitialize(NULL);
@@ -293,13 +305,22 @@ Return Value:
         serviceTunnelIpv6Addresses.insert(instanceDerviedIpv6Address);
     }
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"retrycount:%d waittimestart:%d totalwaittime:%d\n", retryCount, waitTimeStart, totalWaitTime));
-
-    hr = serviceTunnelConfigurator.SetupLoopbackAdapter(instanceAddress, serviceTunnelIpv6Addresses, retryCount, waitTimeStart, totalWaitTime);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"SetupLoopbackAdapter failed with error [%0x]. ", hr),
-        hr,
-        Cleanup);
+    if(unInstallFlag)
+    {
+        hr = serviceTunnelConfigurator.CleanupLoopbackAdapter(instanceAddress);
+        RD_TRACE_E_HR((RD_TRACE_ERROR,
+            L"CleanupLoopbackAdapter failed with error [%0x]. ", hr),
+            hr,
+            Cleanup);
+    }
+    else
+    {
+        hr = serviceTunnelConfigurator.SetupLoopbackAdapter(instanceAddress, serviceTunnelIpv6Addresses, retryCount, waitTimeStart, totalWaitTime);
+        RD_TRACE_E_HR((RD_TRACE_ERROR,
+            L"SetupLoopbackAdapter failed with error [%0x]. ", hr),
+            hr,
+            Cleanup);
+    }
 
 Cleanup:
 

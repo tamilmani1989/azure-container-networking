@@ -1,1 +1,1 @@
-taskkill /IM ServiceTunnelExtension.exe /f
+start /wait net stop AquariusSvc

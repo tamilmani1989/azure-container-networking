@@ -26,6 +26,7 @@ public:
 	static void EnqueueJob(wchar_t* directory, wchar_t* entryPoint);
 	static void RemoveJob(wchar_t* directory, wchar_t* entryPoint);
 	static void EnsureJobIsRunning(wchar_t* directory, LPTSTR lpCommandLine, PluginMetadata *pluginData);
+	static void PluginCleanup(wchar_t* directory, LPTSTR lpCommandLine, PluginMetadata *pluginData);
 	static void SaveJobHandle(HANDLE handle);
 	static void ReleaseAllJobs();
 };

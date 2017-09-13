@@ -67,6 +67,7 @@ void SetupEventLogging()
 int wmain(int argc, wchar_t *argv[])
 {
     AquariusInstaller installer;
+    int ret=1;
 
     if ((argc > 1) && ((*argv[1] == L'-' || (*argv[1] == L'/'))))
     {
@@ -80,7 +81,7 @@ int wmain(int argc, wchar_t *argv[])
             }
             // Install the service when the command is 
             // "-install" or "/install".
-            installer.InstallService(
+            ret = installer.InstallService(
                 SERVICE_NAME,               // Name of service
                 SERVICE_DISPLAY_NAME,       // Name to display
                 SERVICE_START_TYPE,         // Service start type
@@ -93,7 +94,7 @@ int wmain(int argc, wchar_t *argv[])
         {
             // Uninstall the service when the command is 
             // "-remove" or "/remove".
-            installer.UninstallService(SERVICE_NAME);
+            ret = installer.UninstallService(SERVICE_NAME);
         }
     }
     else
@@ -111,5 +112,5 @@ int wmain(int argc, wchar_t *argv[])
         }
     }
 
-    return 0;
+    return ret;
 }

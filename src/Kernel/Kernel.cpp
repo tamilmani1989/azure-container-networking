@@ -91,6 +91,7 @@ Return Value:
 					size_t locationLen = wcsnlen(pluginsToLoad[i].location, MAX_PATH);
 					size_t len = locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::codeDirectoryName, MAX_PATH) + 1;
                     codeDirectory = new wchar_t[len];
+					
                     wcscpy_s(codeDirectory, len, pluginsToLoad[i].location);
 					wcscat_s(codeDirectory, len, L"\\");
 					wcscat_s(codeDirectory, len, AquariusUtilities::codeDirectoryName);
@@ -100,9 +101,9 @@ Return Value:
                     wcscpy_s(manifestFile, len, pluginsToLoad[i].location);
 					wcscat_s(manifestFile, len, L"\\");
 					wcscat_s(manifestFile, len, AquariusUtilities::manifestFileName);
-										
-					XmlParser::ParseManifest(manifestFile,&pluginsToLoad[i]);
 					
+					XmlParser::ParseManifest(manifestFile,&pluginsToLoad[i]);
+
 					if (pluginsToLoad[i].entryPoint != nullptr)
 					{
 						wchar_t szMessage[MAX_PATH];
@@ -110,7 +111,7 @@ Return Value:
 							L"Kernel received entrypoint %s in %s",
 							pluginsToLoad[i].entryPoint, codeDirectory);
 						AquariusUtilities::WriteEventLogEntry(szMessage);
-			
+
 						std::set<std::wstring>::iterator it = eligiblePluginSet.find(pluginsToLoad[i].name);
 						
 						if(it == eligiblePluginSet.end())
@@ -123,9 +124,29 @@ Return Value:
 							continue;
 						}
 
-						if(pluginsToLoad[i].retryCount < MAX_RETRY_COUNT)
+						if(pluginsToLoad[i].cleanup)
 						{
-							JobManager::EnsureJobIsRunning(codeDirectory, nullptr, &pluginsToLoad[i]);				
+							wchar_t *cmdLine =L" -remove";
+							JobManager::PluginCleanup(codeDirectory, cmdLine, &pluginsToLoad[i]);				
+						}
+
+						else if(pluginsToLoad[i].retryCount < MAX_RETRY_COUNT)
+						{		
+							wchar_t *lpCommandLine = nullptr;
+				
+							if(pluginsToLoad[i].arguments != nullptr)
+							{
+								size_t len = wcslen(L" ") + wcslen(pluginsToLoad[i].arguments) + 2*wcslen(L"\"") + wcslen(L" ") + 1;
+								lpCommandLine = new wchar_t[len];
+
+								if(swprintf_s(lpCommandLine, len, L" %s", pluginsToLoad[i].arguments) < 0)
+								{
+									AquariusUtilities::WriteEventLogEntry(L"swprintf failed while constructing process arguments");
+									return;
+								}
+							}
+
+							JobManager::EnsureJobIsRunning(codeDirectory, lpCommandLine, &pluginsToLoad[i]);				
 						}
 						else
 						{

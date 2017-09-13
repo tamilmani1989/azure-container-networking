@@ -232,10 +232,12 @@ Return Value:
 										StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
 											L"Program name in %s is %s.. \n", xmlFilePath, programName);
 										AquariusUtilities::WriteEventLogEntry(szMessage);
+										
 										if( pluginData->entryPoint != nullptr)
 										{
 											delete[] pluginData->entryPoint;
 										}
+
 										size_t len = wcsnlen(programName, MAX_PATH) + 1;
 										pluginData->entryPoint = new wchar_t[len];
                                         wcscpy_s(pluginData->entryPoint, len, programName);
@@ -249,12 +251,28 @@ Return Value:
 											L"Restart Status in %s is %s \n", xmlFilePath, restartOnExitTemp);
 										AquariusUtilities::WriteEventLogEntry(szMessage);
 										pluginData->restartOnExit = 1;
+										
 										if(wcscmp(restartOnExitTemp, L"False")==0)
 										{
 											pluginData->restartOnExit = 0;
-										}				
+										}
+
 										SysFreeString(restartOnExitTemp);
 										restartOnExitTemp = nullptr;
+									}
+
+									else if(wcscmp(entryPointChildNodeName, L"Arguments") == 0)
+									{
+										if( pluginData->arguments != nullptr)
+										{
+											SysFreeString(pluginData->arguments);
+											pluginData->arguments=nullptr;
+										}
+
+										CHK_HR(pXMLEntryPointChildNode->get_text(&pluginData->arguments));
+										StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
+											L"Arguments %s \n", xmlFilePath, pluginData->arguments);
+										AquariusUtilities::WriteEventLogEntry(szMessage);
 									}
 
 									SAFE_RELEASE(pXMLEntryPointChildNode);

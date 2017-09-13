@@ -6,6 +6,7 @@
     <EntryPoint>
       <Program>ServiceTunnelExtension.exe</Program>
       <RestartOnExit>False</RestartOnExit>
+	 <Arguments>-retrycount 15 -waittimestart 5 -totalwaittime 180</Arguments>
     </EntryPoint>
   </CodePackage>
   <ConfigFile Name="config.xml" Version="1.0.0.1" />
