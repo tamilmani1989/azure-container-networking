@@ -23,6 +23,10 @@ type networkManager struct {
 	TimeStamp          time.Time
 	ExternalInterfaces map[string]*externalInterface
 	Bridges            map[string]string
+	HostIP             string
+	HostGateway        string
+	HostInterface      string
+	VnetSpace          string
 	BridgeCount        int
 	VxlanCount         int
 	store              store.KeyValueStore
