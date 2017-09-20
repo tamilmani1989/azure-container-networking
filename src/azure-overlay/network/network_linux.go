@@ -240,7 +240,7 @@ func (nm *networkManager) createOvsInterface(nwInfo *NetworkInfo) *externalInter
 		return nil
 	}
 
-	err = common.System("ovs-vsctl", "set", "bridge", brName, "stp_enable=true")
+	err = common.System("ovs-vsctl", "set", "bridge", brName, "rstp_enable=true")
 	if err != nil {
 		log.Printf("Error while enabling stp on ovs bridge %v", err.Error())
 		nm.overlayCleanup(netnsName, brName, "")
