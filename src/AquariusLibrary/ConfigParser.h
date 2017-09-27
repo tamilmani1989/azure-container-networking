@@ -23,18 +23,24 @@ Tamilmani Manoharan (tamanoha) 06-Sep-2017
 #include <windows.h>
 #include <vector>
 #include <errno.h>
-#include <cpprest/json.h>
+#include <set>
+#include<sstream>
 
 using namespace std;
-using namespace web;
 
-#define  ENV_JSON_FILE L"..\\HandlerEnvironment.json"
+
 #define CONFIG_EXTENSION L"\\*.settings"
 
-json::value GetPluginsToStart(json::value val);
-wchar_t* readConfigFolderField(json::value val);
-wchar_t* GetConfigFolderLocation(wchar_t *exeLocation);
-std::wstring getBaseFilename(const wchar_t *filename);
-wchar_t *GetLatestConfigFilePath(wchar_t *configDir);
-std::string ReadConfigFile(wchar_t *configFilePath);
-
+class HandlerConfig
+{
+    public:
+    std::set<std::wstring> pluginsToStart;
+    
+    std::wstring getBaseFilename(const wchar_t *filename);
+    wchar_t *getLatestConfigFilePath(wchar_t *configDir);
+    std::string readConfigFile(wchar_t *configFilePath);
+    
+    int ParseConfigFile(std::string str);
+    std::string ReadLatestConfigFile(wchar_t *configFolder);
+    void Cleanup();
+};

@@ -10,6 +10,7 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
+        ..\Logging;
         $(MSBuildThisFileDirectory)
       </AdditionalIncludeDirectories>
     </ClCompile>
@@ -24,6 +25,11 @@
     <ClCompile Include="RegistryOps.cpp" />
     <ClCompile Include="XmlParser.cpp" />
     <ClCompile Include="Utilities.cpp" />
+  </ItemGroup>
+   <ItemGroup>
+    <ProjectReference Include="..\Logging\Logging.vcxproj">
+      <Project>{11A5289D-DE65-411C-9AB8-9B5D088382E4}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

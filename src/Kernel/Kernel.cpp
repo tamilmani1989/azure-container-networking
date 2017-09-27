@@ -12,6 +12,9 @@
 #include "../Shared/Utilities.h"
 #include "../Shared/XmlParser.h"
 #include "JobManager.h"
+#include "Logging.h"
+
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 AquariusKernel::AquariusKernel(wchar_t* storeLocation): packageStoreLocation(nullptr) 
 {	
@@ -60,7 +63,10 @@ wchar_t* AquariusKernel::GetCurrentPackageStoreLocation()
 }
 
 
-void AquariusKernel::LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad, std::set<std::wstring> eligiblePluginSet)
+void AquariusKernel::LoadPlugins(int pluginCount, 
+								PluginMetadata *pluginsToLoad, 
+								std::set<std::wstring> eligiblePluginSet,
+								wchar_t *logFolder)
 /*++
 
 Routine Description:
@@ -79,12 +85,13 @@ Return Value:
 	try {
 		if (alreadyLoadedPluginCount <= 0)
 		{
-			AquariusUtilities::WriteEventLogEntry(L"Indide load plugins");
+			LOGINFOW(L"Indide load plugins");
 			
 			for (int i = 0; i < pluginCount; i++)
 			{
 				wchar_t * codeDirectory = nullptr;
 				wchar_t * manifestFile = nullptr;
+				wchar_t *lpCommandLine = nullptr;
 
 				try
 				{
@@ -106,19 +113,12 @@ Return Value:
 
 					if (pluginsToLoad[i].entryPoint != nullptr)
 					{
-						wchar_t szMessage[MAX_PATH];
-						StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-							L"Kernel received entrypoint %s in %s",
-							pluginsToLoad[i].entryPoint, codeDirectory);
-						AquariusUtilities::WriteEventLogEntry(szMessage);
-
+						LOGINFOW(L"Kernel received entrypoint %s in %s", pluginsToLoad[i].entryPoint, codeDirectory);
 						std::set<std::wstring>::iterator it = eligiblePluginSet.find(pluginsToLoad[i].name);
 						
 						if(it == eligiblePluginSet.end())
 						{
-							StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"plugin %s not found in eligibe set",
-								pluginsToLoad[i].name);
-							AquariusUtilities::WriteEventLogEntry(szMessage);
+							LOGINFOW(L"plugin %s not found in eligibe set", pluginsToLoad[i].name);
 							SAFE_DELETE(codeDirectory);
 							SAFE_DELETE(manifestFile);
 							continue;
@@ -126,33 +126,54 @@ Return Value:
 
 						if(pluginsToLoad[i].cleanup)
 						{
-							wchar_t *cmdLine =L" -remove";
-							JobManager::PluginCleanup(codeDirectory, cmdLine, &pluginsToLoad[i]);				
+							wchar_t *removeArg =L"-remove";
+							size_t len = wcslen(L" ") + wcslen(removeArg) + wcslen(L" ") + wcslen(LOGPARAM) + wcslen(L" ") + wcslen(logFolder) + sizeof(wchar_t);
+							
+							lpCommandLine = new wchar_t[len];
+								
+							if(!lpCommandLine)
+							{
+								LOGERR("Not able to allocate memory for lpCommandLine");
+								return;
+							}
+							
+							if(swprintf_s(lpCommandLine, len, L" %s %s %s", removeArg, LOGPARAM, logFolder) < 0)
+							{
+								LOGINFOW(L"swprintf failed while constructing process arguments");
+								return;
+							}
+
+							JobManager::PluginCleanup(codeDirectory, lpCommandLine, &pluginsToLoad[i]);		
+
 						}
 
 						else if(pluginsToLoad[i].retryCount < MAX_RETRY_COUNT)
 						{		
-							wchar_t *lpCommandLine = nullptr;
-				
 							if(pluginsToLoad[i].arguments != nullptr)
 							{
-								size_t len = wcslen(L" ") + wcslen(pluginsToLoad[i].arguments) + 2*wcslen(L"\"") + wcslen(L" ") + 1;
+								size_t len = wcslen(L" ") + wcslen(pluginsToLoad[i].arguments) + wcslen(L" ") 
+														+ wcslen(LOGPARAM) + wcslen(L" ") + wcslen(logFolder) + sizeof(wchar_t);
 								lpCommandLine = new wchar_t[len];
-
-								if(swprintf_s(lpCommandLine, len, L" %s", pluginsToLoad[i].arguments) < 0)
+								
+								if(!lpCommandLine)
 								{
-									AquariusUtilities::WriteEventLogEntry(L"swprintf failed while constructing process arguments");
+									LOGERR("Not able to allocate memory for lpCommandLine");
+									return;
+								}	
+
+								if(swprintf_s(lpCommandLine, len, L" %s %s %s", pluginsToLoad[i].arguments, LOGPARAM, logFolder) < 0)
+								{
+									LOGINFOW(L"swprintf failed while constructing process arguments");
 									return;
 								}
+
 							}
 
 							JobManager::EnsureJobIsRunning(codeDirectory, lpCommandLine, &pluginsToLoad[i]);				
 						}
 						else
 						{
-							StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-								L"Retry count %d exceeded for %s", pluginsToLoad[i].retryCount, pluginsToLoad[i].entryPoint);
-							AquariusUtilities::WriteEventLogEntry(szMessage);
+							LOGINFOW(L"Retry count %d exceeded for %s", pluginsToLoad[i].retryCount, pluginsToLoad[i].entryPoint);
 							throw;
 						}
 					}
@@ -169,6 +190,12 @@ Return Value:
 				pluginsToLoad[i].retryCount=0;
 				SAFE_DELETE(codeDirectory);
 				SAFE_DELETE(manifestFile);
+				
+				if(lpCommandLine)
+				{
+					delete lpCommandLine;
+					lpCommandLine = nullptr;
+				}
 			}
 		}
 		else

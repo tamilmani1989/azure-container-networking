@@ -10,7 +10,6 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-        $(PkgMicrosoft_WindowsAzure_EngSys_Internal_longhorn_rd_os142_OS_redist)\content\redist;
         $(PkgMDS_MA)\lib\native\include;
         $(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\inc;
 	      $(cpprestsdk)\build\native\include;
@@ -22,12 +21,15 @@
     <ClCompile Include="AquariusService.cpp" />
     <ClCompile Include="AquariusSvcBase.cpp" />
     <ClCompile Include="ConfigParser.cpp" />    
+    <ClCompile Include="HandlerEnvironment.cpp" />    
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AquariusInstaller.h" />
     <ClInclude Include="AquariusService.h" />
     <ClInclude Include="AquariusSvcBase.h" />
     <ClInclude Include="ThreadPool.h" />
+    <ClInclude Include="ConfigParser.h" />
+    <ClInclude Include="HandlerEnvironment.h" />
   </ItemGroup>
     <ItemGroup>
       <ProjectReference Include="..\Kernel\Kernel.vcxproj">
@@ -41,6 +43,9 @@
     </ProjectReference>
     <ProjectReference Include="..\Server\Server.vcxproj">
       <Project>{ABC3B949-54EC-40C4-B9A4-6A338B2A4767}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
     </ProjectReference>
     </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />

@@ -14,6 +14,7 @@
         %(AdditionalIncludeDirectories);
         $(SRCROOT)\AquariusLibrary;
         $(SRCROOT)\Shared;
+        $(SRCROOT)\Logging;
         $(cpprestsdk)\build\native\include;
       </AdditionalIncludeDirectories>
     </ClCompile>
@@ -45,6 +46,7 @@
     <ProjectReference Include="$(SRCROOT)\Shared\Shared.vcxproj">
       <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
     </ProjectReference>
+
   </ItemGroup>
   <ItemGroup>
       <Robocopy Include="$(SRCROOT)\test\AquariusTest\Plugins">

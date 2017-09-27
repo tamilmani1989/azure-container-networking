@@ -10,6 +10,9 @@
 #include <XmlParser.h>
 #include "Utilities.h"
 #include <atlbase.h>
+#include "..\Logging\Logging.h"
+
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 // Macro that calls a COM method returning HRESULT value.
 #define CHK_HR(stmt)        do { hr=(stmt); if (FAILED(hr)) goto CleanUp; } while(0)
@@ -88,10 +91,8 @@ Return Value:
 	VariantInit(&varFileName);
 
 	CHK_HR(CreateAndInitDOM(&pXMLDom));
-	wchar_t szMessage[MAX_PATH];
-	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-		L"Going to load xml from %s\n", xmlFilePath);
-	AquariusUtilities::WriteEventLogEntry(szMessage);
+
+	LOGINFOW(L"Going to load xml from %s\n", xmlFilePath);
 	// XML file name to load
 	CHK_HR(VariantFromString(xmlFilePath, varFileName));
 	CHK_HR(pXMLDom->load(varFileName, &varStatus));
@@ -105,24 +106,18 @@ Return Value:
 		CHK_HR(pXMLDom->get_childNodes(&pXMLNodeList));
 		long lCount;
 		pXMLNodeList->get_length(&lCount);
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-			L"Retrieved %d nodes from %s. \n", lCount, xmlFilePath);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
+		LOGINFOW(L"Retrieved %d nodes from %s. \n", lCount, xmlFilePath);
 
 		for(int i = 0; i < lCount; i++)
 		{
 			CHK_HR(pXMLNodeList->get_item(i, &pXMLNode));
 			// do something based on node
 			CHK_HR(pXMLNode->get_nodeName(&nodeName));
-			StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-				L"Node %i -> Name: %s. \n", i, nodeName);
-			AquariusUtilities::WriteEventLogEntry(szMessage);
+			LOGINFOW(L"Node %i -> Name: %s. \n", i, nodeName);
 		
 			if(wcscmp(nodeName, L"PluginManifest") == 0)
 			{
-				StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-					L"Located plugin manifest in %s. \n", xmlFilePath);
-				AquariusUtilities::WriteEventLogEntry(szMessage);
+				LOGINFOW(L"Located plugin manifest in %s. \n", xmlFilePath);
 				
 				IXMLDOMNamedNodeMap*  pXMLNamedNodeMap;
 				IXMLDOMNode *pIXMLDOMNode = NULL;  
@@ -138,9 +133,7 @@ Return Value:
 					
 					if (pluginData->name != nullptr) 
 					{
-						StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-							L"Going to Release name %s", pluginData->name);
-						AquariusUtilities::WriteEventLogEntry(szMessage);
+						LOGINFOW(L"Going to Release name %s", pluginData->name);
 						delete[] pluginData->name;
 						pluginData->name = nullptr;
 					}
@@ -148,15 +141,11 @@ Return Value:
 					pluginData->name = new wchar_t[len];
 					wcscpy_s(pluginData->name, len, varValue.bstrVal);
 
-					StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-						L"Plugin Name:%s\n", pluginData->name);
-					AquariusUtilities::WriteEventLogEntry(szMessage);
+					LOGINFOW(L"Plugin Name:%s\n", pluginData->name);
 				}  
 				else
 				{
-					StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-						L"Plugin Name retrieval failed %x", hr);
-					AquariusUtilities::WriteEventLogEntry(szMessage);					
+					LOGINFOW(L"Plugin Name retrieval failed %x", hr);
 				}
 
 				pXMLNamedNodeMap->Release();  
@@ -170,18 +159,16 @@ Return Value:
 				{
 					CHK_HR(pXMLChildNodeList->get_item(j, &pXMLChildNode));
 					CHK_HR(pXMLChildNode->get_nodeName(&childNodeName));
-					StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-						L"File %s -> Node %s -> ChildNode -> %s. \n", 
+					LOGINFOW(L"File %s -> Node %s -> ChildNode -> %s. \n", 
 						xmlFilePath, nodeName, childNodeName);
-					AquariusUtilities::WriteEventLogEntry(szMessage);
 
 					if ((wcscmp(childNodeName, L"BlockRoleStartOnUnhealthy") == 0))
 					{
 						CHK_HR(pXMLChildNode->get_text(&blockRoleTemp));
-						StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-							L"BlockRoleStartOnUnhealthy in %s is %s \n", xmlFilePath, blockRoleTemp);
-						AquariusUtilities::WriteEventLogEntry(szMessage);
+						LOGINFOW(L"BlockRoleStartOnUnhealthy in %s is %s \n", xmlFilePath, blockRoleTemp);
+
 						pluginData->blockRole = 0;
+
 						if(wcscmp(blockRoleTemp, L"True")==0)
 						{
 							pluginData->blockRole = 1;
@@ -192,9 +179,7 @@ Return Value:
 					}
 					else if (wcscmp(childNodeName, L"CodePackage") == 0)
 					{						
-						StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-							L"Located first code package %s. \n", xmlFilePath);
-						AquariusUtilities::WriteEventLogEntry(szMessage);
+						LOGINFOW(L"Located first code package %s. \n", xmlFilePath);
 						CHK_HR(pXMLChildNode->get_childNodes(&pXMLEntryPointList));
 						long entryPointCount;
 						CHK_HR(pXMLEntryPointList->get_length(&entryPointCount));
@@ -206,32 +191,25 @@ Return Value:
 							
 							if(wcscmp(entryPointNodeName, L"EntryPoint") == 0)
 							{
-								StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-									L"Located an entry point for code package in %s. \n", 
+								LOGINFOW(L"Located an entry point for code package in %s. \n", 
 									xmlFilePath);
-								AquariusUtilities::WriteEventLogEntry(szMessage);
+								
 								CHK_HR(pXMLEntryPointNode->get_childNodes(&pXMLEntryPointChildList));
 								long entryPointChildrenCount;
 								CHK_HR(pXMLEntryPointChildList->get_length(&entryPointChildrenCount));
 								
 								for (int l = 0; l<entryPointChildrenCount; l++)
 								{
-									StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-										L"Located a program for entry point in %s.... \n", xmlFilePath);
-									AquariusUtilities::WriteEventLogEntry(szMessage);
+									LOGINFOW(L"Located a program for entry point in %s.... \n", xmlFilePath);
 									CHK_HR(pXMLEntryPointChildList->get_item(l, &pXMLEntryPointChildNode));
 									CHK_HR(pXMLEntryPointChildNode->get_nodeName(&entryPointChildNodeName));
 									
-									StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-										L"childname of entrypoint %s. \n", entryPointChildNodeName);
-									AquariusUtilities::WriteEventLogEntry(szMessage);
+									LOGINFOW(L"childname of entrypoint %s. \n", entryPointChildNodeName);
 
 									if(wcscmp(entryPointChildNodeName, L"Program") == 0)
 									{
 										CHK_HR(pXMLEntryPointChildNode->get_text(&programName));
-										StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-											L"Program name in %s is %s.. \n", xmlFilePath, programName);
-										AquariusUtilities::WriteEventLogEntry(szMessage);
+										LOGINFOW(L"Program name in %s is %s.. \n", xmlFilePath, programName);
 										
 										if( pluginData->entryPoint != nullptr)
 										{
@@ -247,9 +225,7 @@ Return Value:
 									else if(wcscmp(entryPointChildNodeName, L"RestartOnExit") == 0)
 									{
 										CHK_HR(pXMLEntryPointChildNode->get_text(&restartOnExitTemp));
-										StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-											L"Restart Status in %s is %s \n", xmlFilePath, restartOnExitTemp);
-										AquariusUtilities::WriteEventLogEntry(szMessage);
+										LOGINFOW(L"Restart Status in %s is %s \n", xmlFilePath, restartOnExitTemp);
 										pluginData->restartOnExit = 1;
 										
 										if(wcscmp(restartOnExitTemp, L"False")==0)
@@ -270,9 +246,7 @@ Return Value:
 										}
 
 										CHK_HR(pXMLEntryPointChildNode->get_text(&pluginData->arguments));
-										StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-											L"Arguments %s \n", xmlFilePath, pluginData->arguments);
-										AquariusUtilities::WriteEventLogEntry(szMessage);
+										LOGINFOW(L"Arguments %s \n", pluginData->arguments);
 									}
 
 									SAFE_RELEASE(pXMLEntryPointChildNode);
@@ -311,10 +285,8 @@ Return Value:
 		CHK_HR(pXMLDom->get_parseError(&pXMLErr));
 		CHK_HR(pXMLErr->get_reason(&bstrErr));
 		
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage), 
-			L"Failed to load/parse the xml document from location: %s. Error: %S\n", 
+		LOGINFOW(L"Failed to load/parse the xml document from location: %s. Error: %s\n", 
 			xmlFilePath, bstrErr);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
 	}
 
 CleanUp:
@@ -376,11 +348,8 @@ int XmlParser::ParseManifest(wchar_t* xmlFilePath, PluginMetadata *pluginData)
 	
 		if (!IsValidEntryPoint(&pluginData->entryPoint))
 		{
-			wchar_t errMsg[256];
-			StringCchPrintf(errMsg, ARRAYSIZE(errMsg),
-				L"Invalid entry point %s Relative/empty paths not allowed in entry point.", pluginData->entryPoint);
-			AquariusUtilities::WriteEventLogEntry(errMsg);
-			throw errMsg;
+			LOGINFOW(L"Invalid entry point %s Relative/empty paths not allowed in entry point.", pluginData->entryPoint);
+			throw;
 		}
 	
 		return 1;

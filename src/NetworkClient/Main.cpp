@@ -13,6 +13,9 @@
 #define strncpy_s(dst, count, src, cp) strncpy(dst, src, count)
 #endif
 #include "../NetworkClientLibrary/Common/aquanetworkclient.h"
+#undef  __WFILE__
+#undef __WFUNCTION__
+
 #include "../Logging/Logging.h"
 #include "../Server/RestServer.h"
 

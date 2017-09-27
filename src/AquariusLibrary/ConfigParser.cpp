@@ -19,10 +19,12 @@ Tamilmani Manoharan (tamanoha) 06-September-2017
 #include "ConfigParser.h"
 #include "../Shared/Utilities.h"
 #include "../Logging/Logging.h"
+#include <cpprest/json.h>
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
+using namespace web;
 
-json::value GetPluginsToStart(json::value val)
+json::value getPluginsToStart(json::value val)
 /*++
 
 Routine Description:
@@ -37,8 +39,6 @@ Return Value:
 --*/
 {
 	json::value enablePluginsVal=NULL;
-    wchar_t szMessage[MAX_PATH];
-
 	json::array arrval = val.as_array();
 		
 	for (auto arrIter = arrval.cbegin(); arrIter != arrval.cend(); ++arrIter)	
@@ -50,8 +50,7 @@ Return Value:
             
             if (wcscmp(handlerKey.c_str(), L"handlerSettings")!=0)
             {
-                StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Expecting handlerSettings but found %s", handlerKey.c_str());
-                AquariusUtilities::WriteEventLogEntry(szMessage);
+               	LOGERRW(L"Expecting handlerSettings but found %s", handlerKey.c_str());
                 return NULL;
             }
 
@@ -62,8 +61,7 @@ Return Value:
 
                 if (wcscmp(publicKey.c_str(), L"publicSettings")!=0)
                 {
-                    StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Expecting publicSettings but found %s", publicKey.c_str());
-                    AquariusUtilities::WriteEventLogEntry(szMessage);
+                    LOGERRW(L"Expecting publicSettings but found %s", publicKey.c_str());
                     return NULL;
                 }
 
@@ -74,8 +72,7 @@ Return Value:
                     
                     if (wcscmp(pluginKey.c_str(), L"PluginsToEnable")!=0)
                     {
-                        StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Expecting PluginsToEnable but found %s", pluginKey.c_str());
-                        AquariusUtilities::WriteEventLogEntry(szMessage);
+                        LOGERRW(L"Expecting PluginsToEnable but found %s", pluginKey.c_str());
                         return NULL;
                     }
 
@@ -91,148 +88,6 @@ Return Value:
 	}
 
 	return enablePluginsVal;
-}
-
-wchar_t* readConfigFolderField(json::value val)
-/*++
-
-Routine Description:
-	This is helper function to find "configFolder" key from passed json and retrieves corresponding value
-
-Arguments:
-	jsonValue - json of handlerenvironment 
-
-Return Value:
-	returns config directory path on success else returns NULL
-
---*/
-{
-	wchar_t *configFolderPath=NULL;
-	wchar_t *path = NULL;
-    errno_t err;
-
-	for (auto iter = val.as_object().cbegin(); iter != val.as_object().cend(); ++iter)
-	{
-		const utility::string_t &key = iter->first;
-		const json::value &configVal = iter->second;
-
-		if(wcscmp(L"configFolder", key.c_str()) == 0)
-		{
-			path = (wchar_t *)configVal.as_string().c_str();
-			break;
-		}
-	}
-
-	if(path==NULL)
-	{
-		return NULL;
-	}
-
-	size_t len = wcslen(path)+1;
-	configFolderPath = new wchar_t[len];
-    
-    if (!configFolderPath)
-    {
-        LOGINFO("Error in Allocating ConfigFolderPath\n");
-        return NULL;
-    }
-
-	err = wcscpy_s(configFolderPath, len, path);
-	
-    if(err != 0)
-    {
-        LOGINFO("Error while using wcscpy_s to copy config dir path %d\n", err);
-        delete[] configFolderPath;
-        return NULL;
-    }
-
-	return configFolderPath;
-}
-
-wchar_t* GetConfigFolderLocation(wchar_t *exeLocation)
-/*++
-
-Routine Description:
-	This function retrieves config directory path from HandlerEnvironment.json
-
-Arguments:
-	exeLocation - Location of Aquarius Execuatable
-
-Return Value:
-	returns config directory path on success else returns NULL
-
---*/
-{
-	
-	std::wstringstream ss;
-	std::string str;
-	wchar_t *configFolderPath=NULL;
-    wchar_t *envJsonPath;
-    size_t envFilePathLen = wcslen(exeLocation) + wcslen(ENV_JSON_FILE) + 2;
-
-    envJsonPath = new wchar_t[envFilePathLen];
-
-    if (!envJsonPath)
-    {
-        LOGINFO("Error in Allocating envJsonPath\n");
-        return NULL;
-    }
-
-    if (swprintf_s(envJsonPath, envFilePathLen, L"%s\\%s", exeLocation, ENV_JSON_FILE) < 0)
-    {
-        LOGINFO("Swprinf_s failed while copying envjsonpath %d", GetLastError());
-  		delete[] envJsonPath;
-    	return NULL;
-    }
-
-	std::fstream fp(envJsonPath);
-	if(!fp)
-	{
-		LOGINFOW(L"Not able to open file %s", envJsonPath);
-  		delete[] envJsonPath;
-    	return NULL;
-	}
-
-	fp.seekg(0, std::ios::end);  
-	
-	std::streamoff size = fp.tellg();
-	
-	if(size < 0)
-	{
-		LOGINFO("tellg() function failed in GetConfigFolferLocation");
-  		delete[] envJsonPath;
-    	return NULL;
-	}
-
-	str.reserve(size);
-	fp.seekg(0, std::ios::beg);
-
-	str.assign((std::istreambuf_iterator<char>(fp)),
-				std::istreambuf_iterator<char>());
-
-	LOGINFO("Handler Env file %s\n", str.c_str());
-
-	ss << str.c_str();
-	json::value val = json::value::parse(ss);
-	json::array arrval = val.as_array();
-
-	for (auto arrIter = arrval.cbegin(); arrIter != arrval.cend(); ++arrIter)	
-	{
-		for (auto iter = arrIter->as_object().cbegin(); iter != arrIter->as_object().cend(); ++iter)
-		{
-			const utility::string_t &key = iter->first;
-			LOGINFOW(L"key:%s\n",key.c_str());
-			
-			if(wcscmp(L"handlerEnvironment", key.c_str()) == 0)
-			{
-				const json::value &handlerVal = iter->second;
-				configFolderPath = readConfigFolderField(handlerVal);
-			}
-		}
-	}
-
-    delete[] envJsonPath;
-    return configFolderPath;
 }
 
 std::wstring getBaseFilename(const wchar_t *filename)
@@ -313,7 +168,7 @@ return number < 0 if elem1 < elem2 and > 0 if elem1 > elem2 and 0 if eleme1 is e
 	return 0;
 }
 
-wchar_t *GetLatestConfigFilePath(wchar_t *configDir)
+wchar_t *HandlerConfig::getLatestConfigFilePath(wchar_t *configDir)
 /*++
 
 Routine Description:
@@ -331,6 +186,7 @@ Return Value:
 	std::wstring fileName;
 	std::vector<WIN32_FIND_DATA> fdata;
 
+	LOGINFOW(L"Inside getLatestConfigFilePath");
 	LOGINFOW(L"Config dir%s\n", configDir);
 
 	hFind = ::FindFirstFile(configDir, &fd);
@@ -364,15 +220,16 @@ Return Value:
 	return latestFile;
 }
 
-std::string ReadConfigFile(wchar_t *configFilePath)
+
+std::string HandlerConfig::readConfigFile(wchar_t *configFilePath)
 /*++
 
 Routine Description:
-	This function reads config file passed in parameter
+	This is helper function to read config file and retrieve its contents
 
 Arguments:
-	configFilePath - Path of config file
-
+	configFilePath - path of config file
+	
 Return Value:
     returns contents of config file read in string
 --*/
@@ -403,4 +260,187 @@ Return Value:
 				std::istreambuf_iterator<char>());
 
     return str;
+
+}
+
+std::string HandlerConfig::ReadLatestConfigFile(wchar_t *configFolderPath)
+/*++
+
+Routine Description:
+	This function finds and reads the latest config file 
+
+Arguments:
+	configFolderPath - config folder location
+
+Return Value:
+    returns contents of config file read in string
+--*/
+{
+	std::string str;
+	errno_t err;
+	wchar_t *configFilePath=NULL;
+	wchar_t *configFile=NULL;
+	size_t configDirLen = wcslen(configFolderPath);
+	size_t configExtLen = wcslen(CONFIG_EXTENSION);
+	size_t totalLen = configDirLen +  configExtLen + 1;
+
+	LOGINFOW(L"Inside readHandlerEnvFields");
+
+	wchar_t *configDir = new wchar_t[totalLen];
+	
+	if (!configDir)
+	{
+		LOGINFO("Error while allocating for configDir\n");
+		goto Cleanup;
+	}
+	
+	err = wcscpy_s(configDir, totalLen, configFolderPath);
+	
+	if(err != 0)
+	{
+		LOGINFO("Error while copying config dir path:%d\n", err);
+		goto Cleanup;		
+	}
+
+    err = wcscat_s(configDir, totalLen, CONFIG_EXTENSION);
+	
+	if(err != 0)
+	{
+		LOGINFO("Error while concatenating config dir path with extension:%d\n", err);
+		goto Cleanup;			
+	}
+
+	configFile = getLatestConfigFilePath(configDir);
+
+	LOGINFOW(L"Latest config file :%s", configFile);
+
+	if(!configFile)
+	{
+		LOGINFOW(L"GetLatestConfigFilePath function returns NULL configDir :%s\n", configDir);
+		goto Cleanup;
+	}
+
+	size_t configFileLen = wcslen(configFile);
+	totalLen = configDirLen +  configFileLen + 2;
+	configFilePath = new wchar_t[totalLen];
+
+	if(!configFilePath)
+	{
+		LOGINFO("Error while allocating for configFilePath\n");
+		goto Cleanup;
+	}
+
+	err = wcscpy_s(configFilePath, totalLen, configFolderPath);
+
+	if(err != 0)
+	{
+		LOGINFO("Error while copying config file path:%d\n", err);
+		goto Cleanup;			
+	}
+
+	err = wcscat_s(configFilePath, totalLen, L"\\");
+
+	if(err != 0)
+	{
+		LOGINFO("Error while concatenating config file path with \\:%d\n", err);
+		goto Cleanup;;						
+	}	
+
+	err = wcscat_s(configFilePath, totalLen, configFile);
+
+	if(err != 0)
+	{
+		LOGINFO("Error while concatenating to config file path %d\n", err);
+		goto Cleanup;							
+	}
+
+	LOGINFOW(L"Config File path:%s\n", configFilePath);
+
+	str = readConfigFile(configFilePath);
+
+Cleanup:
+
+	if(configDir)
+	{
+		delete[] configDir;
+	}
+
+	if(configFilePath)
+	{
+		delete[] configFilePath;
+	}
+
+	if(configFile)
+	{
+		delete[] configFile;
+	}
+
+	return str;
+}
+
+int HandlerConfig::ParseConfigFile(std::string str)
+/*++
+
+Routine Description:
+	This function parses the config file and retrieves the plugins that needs to be started by netagent.
+
+Arguments:
+	str - config file contents in string
+
+Return Value:
+    returns 0 on success else -1
+--*/
+{
+	std::wstringstream ss;
+	ss << str.c_str();
+	json::value val = json::value::parse(ss);
+	
+	for (auto iter = val.as_object().cbegin(); iter != val.as_object().cend(); ++iter)
+	{
+		const utility::string_t &key = iter->first;
+		const json::value &val = iter->second;
+		
+		if (wcscmp(key.c_str(), L"runtimeSettings") != 0)
+		{
+			LOGINFOW(L"Expecting runtimeSettings but found %s", key.c_str());
+			return -1;
+		}
+
+		json::value enablePluginsVal = getPluginsToStart(val);	
+		
+		if (enablePluginsVal == NULL)
+		{
+			LOGINFO("GetPluginsToStart returns NULL. Nothing to Start");
+			return 0;
+		}
+
+		json::array pluginsArr = enablePluginsVal.as_array();
+
+		for (auto iter = pluginsArr.cbegin(); iter != pluginsArr.cend(); ++iter)	
+		{
+			std::wstring plugin = iter->as_string();
+			LOGINFOW(L"Insert plugin:%s\n", plugin.c_str());
+			pluginsToStart.insert(plugin);
+		}
+	}
+
+	return 0;
+}
+
+void HandlerConfig::Cleanup()
+/*++
+
+Routine Description:
+	This function cleans up the resources allocated by HandlerConfig Object
+
+Arguments:
+
+Return Value:
+
+--*/
+{
+	while (!pluginsToStart.empty())
+	{
+		pluginsToStart.erase(pluginsToStart.begin());
+	}
 }

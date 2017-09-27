@@ -9,7 +9,7 @@
 #include "JobManager.h"
 #include <handleapi.h>
 #include "../Shared/Utilities.h"
-#include "Logging.h"
+#include "../Logging/Logging.h"
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
@@ -44,8 +44,6 @@ Return Value:
 
 --*/
 {
-
-	wchar_t szMessage[MAX_PATH];
 	JOBOBJECT_BASIC_PROCESS_ID_LIST processIdList;
 	JOBOBJECT_BASIC_PROCESS_ID_LIST *procList=nullptr;
 	DWORD actual_len=0;
@@ -57,27 +55,23 @@ Return Value:
 	{
 		if (GetLastError()!=ERROR_MORE_DATA)
 		{
-			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Unable to query information for the job object Error %d. It should not happen. values of struct %d %d %d %d ", 
+			LOGINFOW(
+			L"Unable to query information for the job object Error %d. It should not happen. values of struct %d %d %d ", 
 						GetLastError(),
 						processIdList.NumberOfAssignedProcesses,
 						processIdList.NumberOfProcessIdsInList,
-						processIdList.ProcessIdList[0],
 						actual_len);
-			AquariusUtilities::WriteEventLogEntry(szMessage);
 			return 1;
 		}
 		
 		DWORD blockSize = sizeof(processIdList)+(processIdList.NumberOfAssignedProcesses)*sizeof(ULONG);
 		
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Allocate more space...values of struct %d %d %d %d %d %d",
+		LOGINFO("Allocate more space...values of struct %d %d %d %d %d",
 						GetLastError(),
 						processIdList.NumberOfAssignedProcesses,
 						processIdList.NumberOfProcessIdsInList,
-						processIdList.ProcessIdList[0],
 						actual_len,
 						blockSize);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
 
 		if(!procList)
 		{
@@ -115,7 +109,6 @@ Return Value:
 
 --*/
 {
-	wchar_t szMessage[MAX_PATH];
 	STARTUPINFO si;
 	PROCESS_INFORMATION pi;
 	size_t len = 0;
@@ -135,38 +128,28 @@ Return Value:
 
 	if(pluginData->arguments)
 	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Creating process for following exe: %s args %s", *processPath, lpCommandLine);
+		LOGINFOW(L"Creating process for following exe: %s args %s", *processPath, lpCommandLine);
 	}
 	else
 	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Creating process for following exe: %s", *processPath);
+		LOGINFOW(L"Creating process for following exe: %s", *processPath);
 	}
-
-	AquariusUtilities::WriteEventLogEntry(szMessage);
 
 	if (!CreateProcess(*processPath, lpCommandLine, nullptr, nullptr, FALSE, 0, nullptr, directory, &si, &pi))
 	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Create process failed for %s", *processPath);
-		throw szMessage;
+		LOGINFOW(L"Create process failed for %s", *processPath);
+		throw;
 	}
 
-	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-		L"Assigning process %s to jobobject: %d", *processPath);
-	AquariusUtilities::WriteEventLogEntry(szMessage);
+	LOGINFOW(L"Assigning process %s to jobobject", *processPath);
 	
 	if (!AssignProcessToJobObject(handle, pi.hProcess))
 	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Assigning process %s to jobobject failed", *processPath);
-		throw szMessage;
+		LOGINFOW(L"Assigning process %s to jobobject failed", *processPath);
+		throw;
 	}
 	
-	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-		L"Successfully assigned process %s to jobobject", *processPath);
-	AquariusUtilities::WriteEventLogEntry(szMessage);
+	LOGINFOW(L"Successfully assigned process %s to jobobject", *processPath);
 
 	pluginData->processHandle =  pi.hProcess;
 }
@@ -196,7 +179,6 @@ Return Value:
 		sizeof(JOBOBJECT_CPU_RATE_CONTROL_INFORMATION));
 	
 	// limit memory usage
-	wchar_t szMessage[MAX_PATH];
 	JOBOBJECT_EXTENDED_LIMIT_INFORMATION extendedLimit;
 
 	int val = QueryInformationJobObject(handle, 
@@ -205,15 +187,11 @@ Return Value:
 		sizeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION), 
 		nullptr);
 
-	StringCchPrintf(
-		szMessage, ARRAYSIZE(szMessage), 
-		L"return value of QueryInformationJobObject is %d  LastERror=%d", 
-		val, GetLastError());	
-	AquariusUtilities::WriteEventLogEntry(szMessage);
+	LOGINFOW(L"return value of QueryInformationJobObject is %d  LastERror=%d", val, GetLastError());	
 
 	if(!val) 
 	{
-		throw szMessage; 
+		throw; 
 	}
 
 	extendedLimit.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_JOB_MEMORY|JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
@@ -224,15 +202,11 @@ Return Value:
 		&extendedLimit, 
 		sizeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION));
 	
-	StringCchPrintf(
-		szMessage, ARRAYSIZE(szMessage), 
-		L"return value of JobObjectExtendedLimitInformation is %d  LastERror=%d", 
-		val, GetLastError());
-	AquariusUtilities::WriteEventLogEntry(szMessage);
+	LOGINFOW(L"return value of JobObjectExtendedLimitInformation is %d  LastERror=%d", val, GetLastError());
 
 	if(!val) 
 	{
-		throw szMessage;
+		throw;
 	}
 
 }
@@ -252,12 +226,9 @@ Arguments:
 Return Value:
 
 --*/
-{		
-	wchar_t szMessage[MAX_PATH];
-	
-	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Going to create a jobobject with name %s", pluginData->entryPoint);
-	AquariusUtilities::WriteEventLogEntry(szMessage);
-	
+{			
+	LOGINFOW(L"Going to create a jobobject with name %s", pluginData->entryPoint);
+
 	HANDLE handle = OpenJobObject(JOB_OBJECT_ALL_ACCESS, FALSE, pluginData->entryPoint);
 	if(handle)
 	{
@@ -265,9 +236,8 @@ Return Value:
 
 		if(pluginData->restartOnExit==0 && pluginData->numTimesStarted > 0 && numProcess == 0)
 		{
-			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),L"Won't restart short running process %s restartOnExit %d numTimesStarted %d",
+			LOGINFOW(L"Won't restart short running process %s restartOnExit %d numTimesStarted %d",
 				pluginData->entryPoint, pluginData->restartOnExit, pluginData->numTimesStarted);
-			AquariusUtilities::WriteEventLogEntry(szMessage);
 
 			if(pluginData->processHandle!=NULL)
 			{
@@ -283,8 +253,7 @@ Return Value:
 		}
 		else if (numProcess != 0)
 		{
-			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),L"Plugin %s in running state", pluginData->entryPoint);
-			AquariusUtilities::WriteEventLogEntry(szMessage);
+			LOGINFOW(L"Plugin %s in running state", pluginData->entryPoint);
 			return;
 		}
 	}
@@ -292,33 +261,24 @@ Return Value:
 	{
 		if(pluginData->restartOnExit==0 && pluginData->numTimesStarted > 0)
 		{
-			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),L"Won't create new job object for running process %s restartOnExit %d numTimesStarted %d",
+			LOGINFOW(L"Won't create new job object for running process %s restartOnExit %d numTimesStarted %d",
 				pluginData->entryPoint, pluginData->restartOnExit, pluginData->numTimesStarted);
-			AquariusUtilities::WriteEventLogEntry(szMessage);
 			return;
 		}
 		
 		handle = CreateJobObject(NULL, pluginData->entryPoint);
 	}
 
-	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-		L"Job object created with name %s....", pluginData->entryPoint);
-	AquariusUtilities::WriteEventLogEntry(szMessage);
+	LOGINFOW(L"Job object created with name %s....", pluginData->entryPoint);
 
 	try
 	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Going to apply cpu and memory limits on job object with name %s....", pluginData->entryPoint);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
-
+		LOGINFOW(L"Going to apply cpu and memory limits on job object with name %s....", pluginData->entryPoint);
 		ApplyLimitsOnJobObject(handle, 10, 500);
 	}
-	catch(wchar_t *e)
+	catch(...)
 	{
 		CloseHandle(handle);		
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"ERROR::ApplyLimitsOnJobObject for plugin  %s failed with exception:%s....", pluginData->entryPoint, e);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
 		throw;
 	}
 
@@ -326,19 +286,13 @@ Return Value:
 	
 	try
 	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Going to attach process to job object with name %s....", pluginData->entryPoint);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
-
+		LOGINFOW(L"Going to attach process to job object with name %s....", pluginData->entryPoint);
 		AttachProcessToJobObject(directory, &processPath, lpCommandLine, handle, pluginData);
 	}
-	catch(wchar_t *e)
+	catch(...)
 	{
 		CloseHandle(handle);		
 		SAFE_DELETE(processPath);
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"ERROR::AttachProcessToJobObject for plugin %s failed with exception:%s....", pluginData->entryPoint, e);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
 		throw;
 	}
 	
@@ -351,10 +305,7 @@ Return Value:
 
 void JobManager::PluginCleanup(wchar_t* directory, LPTSTR lpCommandLine, PluginMetadata *pluginData)
 {
-	wchar_t szMessage[MAX_PATH];
-
-	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"Calling plugin cleanup %s", pluginData->entryPoint);
-	AquariusUtilities::WriteEventLogEntry(szMessage);
+	LOGINFOW(L"Calling plugin cleanup %s", pluginData->entryPoint);
 
 	HANDLE handle = CreateJobObject(NULL, pluginData->entryPoint);
 	
@@ -365,18 +316,13 @@ void JobManager::PluginCleanup(wchar_t* directory, LPTSTR lpCommandLine, PluginM
 	
 	try
 	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Going to apply cpu and memory limits on job object with name %s....", pluginData->entryPoint);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
-
+		LOGINFOW(L"Going to apply cpu and memory limits on job object with name %s....", pluginData->entryPoint);
 		ApplyLimitsOnJobObject(handle, 10, 500);
 	}
 	catch(wchar_t *e)
 	{
 		CloseHandle(handle);		
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"ERROR::ApplyLimitsOnJobObject for plugin  %s failed with exception:%s....", pluginData->entryPoint, e);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
+		LOGINFOW(L"ERROR::ApplyLimitsOnJobObject for plugin  %s failed with exception:%s....", pluginData->entryPoint, e);
 		throw;
 	}
 
@@ -384,19 +330,14 @@ void JobManager::PluginCleanup(wchar_t* directory, LPTSTR lpCommandLine, PluginM
 	
 	try
 	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Going to attach process to job object with name %s....", pluginData->entryPoint);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
-
+		LOGINFOW(L"Going to attach process to job object with name %s....", pluginData->entryPoint);
 		AttachProcessToJobObject(directory, &processPath, lpCommandLine, handle, pluginData);
 	}
 	catch(wchar_t *e)
 	{
 		CloseHandle(handle);		
 		SAFE_DELETE(processPath);
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"ERROR::AttachProcessToJobObject for plugin %s failed with exception:%s....", pluginData->entryPoint, e);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
+		LOGINFOW(L"ERROR::AttachProcessToJobObject for plugin %s failed with exception:%s....", pluginData->entryPoint, e);
 		throw;
 	}
 	
@@ -431,46 +372,31 @@ void JobManager::SaveJobHandle(HANDLE handle)
 
 bool TerminateProcessInJob(HANDLE jobHandle)
 {
-	wchar_t szMessage[MAX_PATH];
 	JOBOBJECT_BASIC_PROCESS_ID_LIST processIdList;
+
 	if (!QueryInformationJobObject(jobHandle, JobObjectBasicProcessIdList, &processIdList, sizeof(processIdList), nullptr))
 	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Unable to query information for the job object associated with job during release. It should not happen.");
-		AquariusUtilities::WriteEventLogEntry(szMessage);
+		LOGINFOW(L"Unable to query information for the job object associated with job during release. It should not happen.");
 		return false;
 	}
 	
-	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-		L"Retrieved process Id %d from the job.",
-		processIdList.ProcessIdList[0]);
-	AquariusUtilities::WriteEventLogEntry(szMessage);
-
 	if (processIdList.NumberOfAssignedProcesses > 0)
 	{
-		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-			L"Going to terminate process Id %d.",
-			processIdList.ProcessIdList[0]);
-		AquariusUtilities::WriteEventLogEntry(szMessage);
+		LOGINFOW(L"Going to terminate process ");
+
 		HANDLE pHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, (DWORD)processIdList.ProcessIdList[0]);
 		if(TerminateProcess(pHandle, 0) == 0)
 		{
-			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-				L"Failed to terminated process Id %d. ErrorCode:%d",
-				processIdList.ProcessIdList[0], GetLastError());
-			AquariusUtilities::WriteEventLogEntry(szMessage);				
+			LOGINFOW(L"Failed to terminated process. ErrorCode:%d", GetLastError());
 		}
 		else 
 		{
-			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-				L"Successfully terminated process Id %d.",
-				processIdList.ProcessIdList[0]);
-			AquariusUtilities::WriteEventLogEntry(szMessage);
+			LOGINFOW(L"Successfully terminated process");
 		}
 	}
 	else
 	{	
-		AquariusUtilities::WriteEventLogEntry(L"Retrieved zero processes with the job. Nothing to terminate.");
+		LOGINFOW(L"Retrieved zero processes with the job. Nothing to terminate.");
 	}
     return true;
 }

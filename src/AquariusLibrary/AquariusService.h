@@ -1,5 +1,5 @@
 /****************************** Module Header ******************************\
-* Module Name:  SampleService.h
+* Module Name:  AquariusService.h
 * Project:      Aquarius
 * Copyright (c) Microsoft Corporation.
 * 
@@ -20,11 +20,9 @@
 #include "AquariusSvcBase.h"
 #include "../Kernel/Kernel.h"
 #include "../PackMan/AqPackageManager.h"
-#include "../Server/RestServer.h"
 #include "ConfigParser.h"
+#include "HandlerEnvironment.h"
 #include <mutex>
-#include <set>
-#include<sstream>
 
 #define RESTSERVER_PORT L"4433"
 #define HTTP_PROTO L"http"
@@ -48,6 +46,8 @@
 // The password to the service account name
 #define SERVICE_PASSWORD         nullptr
 
+#define AQUARIUS_LOG_PREFIX 	L"NetAgent"
+
 class AquariusService : public AquariusSvcBase
 {
 
@@ -55,7 +55,8 @@ public:
 
 	AquariusKernel *aquariusKernel = nullptr;
 	AqPackageManager *aqPackageManager = nullptr;
-	std::set<std::wstring> pluginsToStart;
+	HandlerEnvironment handlerEnvObject;
+	HandlerConfig handlerConfigObject;
 
     AquariusService(PWSTR pszServiceName, 
         BOOL fCanStop = TRUE, 

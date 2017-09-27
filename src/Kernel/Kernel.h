@@ -8,6 +8,7 @@
 #include "../Shared/PluginMetadata.h"
 #include<mutex>
 #include<set>
+#define LOGPARAM L"-log"
 
 class AquariusKernel
 {
@@ -16,7 +17,7 @@ public:
 	~AquariusKernel();
 	void UpdateCurrentPackageStoreLocation(wchar_t *packageStoreLocation);
 	wchar_t *GetCurrentPackageStoreLocation();
-	void LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad, std::set<std::wstring> eligiblePluginSet);
+	void LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad, std::set<std::wstring> eligiblePluginSet, wchar_t *logFolder);
 
 protected:
 

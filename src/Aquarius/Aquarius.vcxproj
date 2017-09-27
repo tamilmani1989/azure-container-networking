@@ -13,7 +13,6 @@
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
         ..\AquariusLibrary;
-        $(cpprestsdk)\build\native\include;
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -40,6 +39,9 @@
     <ProjectReference Include="..\AquariusLibrary\AquariusLibrary.vcxproj">
       <Project>{8264c27c-90a7-4d86-a714-a9759d9afaf4}</Project>
     </ProjectReference>
+    <!-- <ProjectReference Include="..\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
+    </ProjectReference> -->
 
   </ItemGroup>
   <ItemGroup>

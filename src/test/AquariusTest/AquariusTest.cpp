@@ -30,37 +30,29 @@ Tamilmani Manoharan (tamanoha) 08-Aug-2017
 #include "AquariusInstaller.h"	
 #include "RegistryOps.h"
 #include "Utilities.h"
+#undef __WFILE__
+#undef __WFUNCTION__
+#include "Logging.h"
 
 using namespace std;
 using namespace WEX::TestExecution;
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 AquariusService *service;
 PluginMetadata *allPluginsMetadata = nullptr;
 int pluginCount=0;
 
-void SetupEventLogging()
+void setupTestLogging()
 {
-    HKEY configKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, 
-        L"SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\AquariusSvc");
 
-    if (configKey == nullptr)
-    {
-        AquariusUtilities::WriteEventLogEntry(L"Unable to create registry entry so that events from Aquarius can be written properly..");
-        return;
-    }
-
-	wchar_t *aquariusLocation = new wchar_t[MAX_PATH];
+	wchar_t *logLocation = new wchar_t[MAX_PATH];
 	
-	GetCurrentDirectory(MAX_PATH, aquariusLocation);
-	wcsncat_s(aquariusLocation, MAX_PATH, L"test\\AquariusTest\\AqEventMessage.dll", MAX_PATH);
-		
-	RegistryOps::PutStringInRegistry(configKey, L"CategoryMessageFile", aquariusLocation);
-	RegistryOps::PutStringInRegistry(configKey, L"EventMessageFile", aquariusLocation);
-	RegistryOps::PutStringInRegistry(configKey, L"ParameterMessageFile", aquariusLocation);
-	RegistryOps::PutDWORDInRegistry(configKey, L"TypesSupported", 0x7);
-	RegistryOps::PutDWORDInRegistry(configKey, L"CategoryCount", 0x1);
+	GetCurrentDirectory(MAX_PATH, logLocation);
+	wcsncat_s(logLocation, MAX_PATH, L"test\\AquariusTest\\Logs", MAX_PATH);
 
-	delete[] aquariusLocation;
+	LOGSETUP(logLocation, L"AquariusTest");
+
+	delete[] logLocation;
 }
 
 void
@@ -80,7 +72,7 @@ Return Value:
 {
 	AquariusInstaller installer;
 
-	SetupEventLogging();
+	setupTestLogging();
 	
 	HKEY configKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
 	VERIFY_IS_NOT_NULL(configKey);
@@ -187,11 +179,11 @@ Return Value:
 	int ret = service->ProcessConfig(curDir);
 	VERIFY_ARE_EQUAL(ret, 0, L"ProcessConfig return success");
 
-	std::set<std::wstring>::iterator it = service->pluginsToStart.find(L"azureworld");
-	VERIFY_ARE_NOT_EQUAL(it, service->pluginsToStart.end(), L"ProcessConfig reading plugins Passed");
+	std::set<std::wstring>::iterator it = service->handlerConfigObject.pluginsToStart.find(L"azureworld");
+	VERIFY_ARE_NOT_EQUAL(it, service->handlerConfigObject.pluginsToStart.end(), L"ProcessConfig reading plugins Passed");
 
-	it = service->pluginsToStart.find(L"helloworld");
-	VERIFY_ARE_EQUAL(it, service->pluginsToStart.end(), L"ProcessConfig reading plugins Passed");
+	it = service->handlerConfigObject.pluginsToStart.find(L"helloworld");
+	VERIFY_ARE_EQUAL(it, service->handlerConfigObject.pluginsToStart.end(), L"ProcessConfig reading plugins Passed");
 }
 
 void
@@ -211,7 +203,8 @@ Return Value:
 {
 	try 
 	{
-		service->aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata, service->pluginsToStart);
+		service->aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata, service->handlerConfigObject.pluginsToStart, 
+									service->handlerEnvObject.logFolderPath);
 	}
 	catch(...)
 	{

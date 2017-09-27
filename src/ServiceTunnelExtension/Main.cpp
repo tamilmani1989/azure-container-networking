@@ -50,6 +50,7 @@ HRESULT SetupLogging();
 
 
 HRESULT SetupLogging(
+    wchar_t *logFolder
     )
 /*++
 
@@ -59,7 +60,7 @@ Routine Description:
 
 Arguments:
 
-    None.
+    logFolder - Path of log directory.
 
 Return Value:
 
@@ -69,47 +70,33 @@ Return Value:
 {
     DWORD error;
     HRESULT hr;
-    wchar_t executablePath[MAX_PATH];
-
-    LPWSTR executableFolder = NULL;
-    LPWSTR logFolder = NULL;
+    LPWSTR logDestFolder = NULL;
     LPWSTR logFilePathWithPrefix = NULL;
-    if (!GetModuleFileName(NULL, executablePath, MAX_PATH))
-    {
-        error = GetLastError();
-        wprintf(L"Failed to retrieve process working directory (%d)\n", error);
-        RD_E_WIN32(error, Cleanup);
-    }
 
-    hr = GetDirectoryFromPath(executablePath, &executableFolder);
 
-    wprintf(L"Retrieved executable folder[%s] [%0x]", executableFolder, hr);
-
-    RD_E_HR(hr, Cleanup);
-
-    error = AppendStrings(&logFolder,
+    error = AppendStrings(&logDestFolder,
         2,
-        executableFolder,
-        L"\\Logs\\");
+        logFolder,
+        L"\\ServiceTunnelExtension\\");
 
 
-    wprintf(L"Creating log folder[%s] [%d]", logFolder, error);
+    wprintf(L"Creating log folder[%s] [%d]", logDestFolder, error);
 
     RD_E_WIN32(error, Cleanup);
     
-    if (!CreateDirectory(logFolder, NULL))
+    if (!CreateDirectory(logDestFolder, NULL))
     {
         error = GetLastError();
         if (error != ERROR_ALREADY_EXISTS)
         {
-            wprintf(L"Failed to create log folder [%s] due to erroro (%d)\n", logFolder, error);
+            wprintf(L"Failed to create log folder [%s] due to erroro (%d)\n", logDestFolder, error);
             RD_E_WIN32(error, Cleanup);
         }
     }
 
     error = AppendStrings(&logFilePathWithPrefix,
         2,
-        logFolder,
+        logDestFolder,
         LOG_FILE_PREFIX);
     RD_E_WIN32(error, Cleanup);
 
@@ -125,8 +112,7 @@ Return Value:
 
 Cleanup:
     
-    STR_FREE(executableFolder);
-    STR_FREE(logFolder);
+    STR_FREE(logDestFolder);
     STR_FREE(logFilePathWithPrefix);
 
     return hr;
@@ -170,14 +156,9 @@ Return Value:
 	int retryCount = 30;
 	int waitTimeStart = 5;
 	int totalWaitTime = 180;
+    wchar_t *logFolder = NULL;
 	ServiceTunnelConfigurator serviceTunnelConfigurator;
 	
-	hr = SetupLogging();
-	if (FAILED(hr))
-	{
-		wprintf(L"Failed to setup logging due to error [%0x]", hr);
-		goto Cleanup;
-	}
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -220,7 +201,7 @@ Return Value:
 				{
 					hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
 					RD_TRACE_E_HR((RD_TRACE_ERROR,
-						L"_wtoi failed retrieving totalwaittime"),
+						L"Failed retrieving totalwaittime"),
 						hr,
 						Cleanup);
 				}
@@ -231,6 +212,21 @@ Return Value:
             unInstallFlag = true;
             RD_TRACE_LOG((RD_TRACE_INFO, L"Uninstall argument is set"));
         }
+        else if(_wcsicmp(L"-log", argv[i]) == 0)
+        {
+            if (i + 1 < argc)
+            {
+                logFolder = argv[++i];
+                if (logFolder == NULL)
+                {
+                    hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+                    RD_TRACE_E_HR((RD_TRACE_ERROR,
+                        L"Failed retrieving logFolder"),
+                        hr,
+                        Cleanup);
+                }
+           }
+        }
         else
         {
             RD_TRACE_LOG((RD_TRACE_INFO, L"Invalid Argument %s",argv[i]));
@@ -238,6 +234,13 @@ Return Value:
         }
 	}
     
+    hr = SetupLogging(logFolder);
+	if (FAILED(hr))
+	{
+		wprintf(L"Failed to setup logging due to error [%0x]", hr);
+		goto Cleanup;
+	}
+
     RD_TRACE_LOG((RD_TRACE_INFO, L"RetryCount %d startwaittime %d totalwaittime %d", retryCount, waitTimeStart, totalWaitTime));
         
     traceInitialized = true;

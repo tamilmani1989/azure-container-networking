@@ -13,19 +13,31 @@
 
 
 #include "NetworkClientTest.h"
+#undef __WFILE__
+#undef __WFUNCTION__
 #include "../../NetworkClientLibrary/Common/NclRepositoryManager.h"
 #include "../../NetworkClientLibrary/Common/ResponseParser.h"
 #include "aquanetworkclient.h"
 #include "nclcore.h"
-#include "TraceLogging.h"
+#include "Logging.h"
+
 #include "../../NetworkClientLibrary/NetworkClientLibrary.h"
+
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
-TRACELOGGING_DEFINE_PROVIDER(
-    g_hMyComponentProvider,
-    "SimpleTraceLoggingProvider",
-    (0x3970f9cf, 0x2c0c, 0x4f11, 0xb1, 0xcc, 0xe3, 0xa1, 0xe9, 0x95, 0x88, 0x33));
+void setupTestLogging()
+{
+
+	wchar_t *logLocation = new wchar_t[MAX_PATH];
+	
+	GetCurrentDirectory(MAX_PATH, logLocation);
+	wcsncat_s(logLocation, MAX_PATH, L"test\\AquariusTest\\Logs", MAX_PATH);
+
+	LOGSETUP(logLocation, L"AquariusTest");
+
+	delete[] logLocation;
+}
 	
 using namespace std;
 using namespace WEX::TestExecution;
@@ -124,42 +136,17 @@ void testReserveIp(char *reservationId, NetworkType type)
 	else
 		ipCountBefore = getAvailableIpCountUnderlay();
 
-	//printf("IpCount before for %s is %d\n", reservationId,ipCountBefore);
-
 	VERIFY_IS_GREATER_THAN(ipCountBefore,0);
 
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReserveIpAddress",
-		TraceLoggingValue(reservationId, "ReservationId"),
-		TraceLoggingValue(ret, "GetAvailable Ret"),
-		TraceLoggingValue(ipCountBefore, "IPCount Before"));
-
 	ret = GetIpRepository()->ReserveRepositoryIpAddress(reservationId);
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReserveIpAddress",
-		TraceLoggingValue(reservationId, "ReservationId"),
-		TraceLoggingValue(ret, "ReservedAvailable Ret"));
-	//printf("Ret value:%d\n", ret);
-
 	VERIFY_ARE_NOT_EQUAL((unsigned int)0, ret, L"ReserveAvailableIpAddress Passed!");
-
 
 	if (type == OverLay)
 		ipCountAfter = getAvailableIpCountOverlay();
 	else
 		ipCountAfter = getAvailableIpCountUnderlay();
 
-	//printf("IpCount After for %s:%d\n", reservationId, ipCountAfter);
-
 	VERIFY_ARE_EQUAL(ipCountAfter, ipCountBefore - 1, L"Ip Reservation Passed");
-
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReserveIpAddress",
-		TraceLoggingValue(reservationId, "ReservationId"),
-		TraceLoggingValue(ret, "GetAvailable Ret"),
-		TraceLoggingValue(ipCountBefore, "IPCount Before"),
-		TraceLoggingValue(ipCountAfter, "IPCount After"));
-
 }
 
 void TestGetReservedIpAddress()
@@ -170,12 +157,6 @@ void TestGetReservedIpAddress()
 	const char *temp = NULL;
 
 	ret = GetReservedIpAddress("ip1", &ip);
-	TraceLoggingWrite(
-		g_hMyComponentProvider,
-		"TestGetReservedIpAddress",
-		TraceLoggingValue("ip1", "ReservationId"),
-		TraceLoggingValue(ret, "GetReserved Ret"));
-
 	VERIFY_ARE_EQUAL((DWORD)0, ret, L"GetReserveIp fn Passed");	
 	VERIFY_ARE_NOT_EQUAL((unsigned int)0, ip, L"GetReserveIp -ipvalue Passed");
 
@@ -189,35 +170,15 @@ void TestReleaseIpReservation()
 	DWORD ret;
 
 	ret = ReleaseIpReservation("ip0");
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReleaseIpReservation",
-		TraceLoggingValue("ip1", "ReservationId"),
-		TraceLoggingValue(ret, "ReleaseIp Ret"));
-
 	VERIFY_ARE_EQUAL((DWORD)0, ret, L"ReleaseIP for ip0 Passed");
 
 	ret = GetReservedIpAddress("ip0", &ip);
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReleaseIpReservation",
-		TraceLoggingValue("ip1", "ReservationId"),
-		TraceLoggingValue(ret, "GetReservedIp Ret"));
-
 	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"GetReserveAddr for Released Ip0 Passed");
 
 	ret = ReleaseIpReservation("ip1");
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReleaseIpReservation",
-		TraceLoggingValue("ip2", "ReservationId"),
-		TraceLoggingValue(ret, "ReleaseIp Ret"));
-
 	VERIFY_ARE_EQUAL((DWORD)0, ret, L"ReleaseIP for ip1 Passed");
 
 	ret = GetReservedIpAddress("ip1", &ip);
-	TraceLoggingWrite(g_hMyComponentProvider,
-		"TestReleaseIpReservation",
-		TraceLoggingValue("ip2", "ReservationId"),
-		TraceLoggingValue(ret, "ReleaseIp Ret"));
-
 	VERIFY_ARE_NOT_EQUAL((DWORD)0, ret, L"GetReserveAddr for Released Ip1 Passed");
 
 }
@@ -391,7 +352,7 @@ Return Value:
     // Initialize tracing.
     //
 
-    TraceLoggingRegister(g_hMyComponentProvider);
+	setupTestLogging();
 
     return true;
 }
@@ -414,8 +375,6 @@ Return Value:
 
 --*/
 {
-   // RD_TRACE_TERMINATE();
-	TraceLoggingUnregister(g_hMyComponentProvider);
 
     return true;
 
