@@ -57,6 +57,10 @@ using namespace concurrency::streams;
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 
+#define DIRECTORY_SEPARATOR (L'\\')
+#define DEFAULT_LOG_LOCATION  L"C:\\Logs\\HostNetAgent"
+#define PACKAGE_FOLDER_NAME L"Package"
+
 const wstring GET_VERSION_QUERY_KEY = L"getpackageversion";
 const wstring GET_PACKAGE_URIS_QUERY_KEY = L"getpackageuris";
 const wstring TYPE_KEY = L"type";
@@ -69,24 +73,28 @@ static PackagesInfo* packagesInfo;
 STATIC
 void
 GetPackageVersion(
-	__inout http_request Request);
+    __inout http_request Request);
 
 STATIC 
 void 
 ProcessGet(
-	__inout http_request Request);
+    __inout http_request Request);
 
 STATIC
 void
 ProcessGet(
-	__inout http_request Request);
+    __inout http_request Request);
 
 void
 StartListener();
 
 bool
 SetupLogging(
-	__in wchar_t* LogLocation);
+    __in PCWSTR LogLocation);
+
+DWORD
+GetPackageLocation(
+    __inout std::wstring& ExecutableDirectory);
 
 const
 std::wstring

@@ -218,7 +218,7 @@ Return Value:
 
 bool 
 SetupLogging(
-    __in wchar_t* LogLocation)
+    __in PCWSTR LogLocation)
 /*++
 
 Description:
@@ -235,10 +235,15 @@ Return Value:
 
 --*/
 {
-    if (CreateDirectory(LogLocation, NULL) == 0 &&
-        ERROR_ALREADY_EXISTS != GetLastError())
+    DWORD err;
+    if (CreateDirectory(LogLocation, NULL) == 0)
     {
-        return false;
+        err = GetLastError();
+        if (err != ERROR_ALREADY_EXISTS)
+        {
+            wprintf(L"Failed to set up logging directory. Error:[%0x]", err);
+            return false;
+        }
     }
 
     LOGSETUP(LogLocation, L"HostNetAgent");
@@ -267,6 +272,57 @@ Return Value:
     return L"http://localhost:" + HOST_NETAGENT_HTTP_LISTEN_PORT + L"/" + RELATIVE_URI_PATH;
 }
 
+DWORD
+GetPackageLocation(
+    __inout std::wstring& PackageLocation
+    )
+/*++
+
+Description:
+
+    Helper to get the package location.
+
+Arguments:
+
+    PackageLocation - Location to hold the retrieved package location.
+
+Return Value:
+
+    ERROR_SUCCESS on success, appropriate error on failures.
+
+--*/
+{
+    std::wstring executableFullPathFileName;
+    DWORD len = 0;
+    WCHAR fileName[MAX_PATH] = { 0 };
+    size_t index;
+    len = GetModuleFileName(
+        NULL,
+        fileName,
+        MAX_PATH
+    );
+
+    if (FALSE == len)
+    {
+        return GetLastError();
+    }
+
+    executableFullPathFileName = std::wstring(fileName, len);
+
+    index = executableFullPathFileName.rfind(DIRECTORY_SEPARATOR);
+
+    if (index == std::wstring::npos)
+    {
+        return ERROR_NO_MATCH;
+    }
+    
+    PackageLocation.assign(executableFullPathFileName.substr(0, index));
+    PackageLocation.append(L"\\");
+    PackageLocation.append(PACKAGE_FOLDER_NAME);
+
+    return ERROR_SUCCESS;
+}
+
 int 
 wmain(
     int Argc, 
@@ -289,18 +345,36 @@ Return Value:
 
 --*/
 {
-    if ((Argc != 3))
+    wstring logLocation;
+    wstring packageLocation;
+    DWORD err = ERROR_SUCCESS;
+
+    if (Argc == 3)
     {
+        logLocation.assign(Argv[1]);
+        packageLocation.assign(Argv[2]);
+    }
+    else if (Argc == 1)
+    {
+        logLocation.assign(DEFAULT_LOG_LOCATION);
+        err = GetPackageLocation(packageLocation);
+        if (err != ERROR_SUCCESS)
+        {
+            wprintf(L"Failed to retrieve package location. Error[%0x]", err);
+            return err;
+        }
+    }
+    else
+    {
+        wprintf(L"Invalid argument count. Argument count should be none or two. (Log location and package location)");
         return -1;
     }
 
-    wchar_t* logLocation = Argv[1];
-    wchar_t* packageLocation = Argv[2];
-    DWORD err;
-    std::wstring packageLoc(packageLocation);
-    
-    if(!SetupLogging(logLocation))
+    wprintf(L"Using package location:[%s] Log location [%s]\n", packageLocation.c_str(), logLocation.c_str());
+
+    if(!SetupLogging(logLocation.c_str()))
     {
+        wprintf(L"Failed to setup logging.");
         return - 1;
     }
 
