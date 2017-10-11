@@ -62,5 +62,24 @@
     </TestCategories>
     </ValidationReportTaskDescriptions>
 
+    <ValidationReportTaskDescriptions>
+    <TaskName>HostNetAgent</TaskName>
+    <OwnerName>Jayeshk</OwnerName>
+    <TaskCommand>HostNetAgentTests\TE.exe HostNetAgentTests\HostNetAgentTests.dll</TaskCommand>
+    <PreTaskCommand />
+    <PostTaskCommand />
+    <ValidationReportDescriptions>
+      <ValidationReportFilename>HostNetAgentTests.xml</ValidationReportFilename>
+      <TestFramework>TAEF</TestFramework>
+    </ValidationReportDescriptions>
+    <ReimageHints>
+	  <Behavior>None</Behavior>
+    </ReimageHints>
+    <TestCategories>
+      <CategoryName>UnitTest</CategoryName>
+    </TestCategories>
+    </ValidationReportTaskDescriptions>
+
+
   </TaskGroup>
 </ValidationDescription>

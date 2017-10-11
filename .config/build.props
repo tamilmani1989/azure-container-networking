@@ -78,7 +78,15 @@ Copyright (C) Microsoft Corporation. All rights reserved.
   <PropertyGroup>
     <StyleCopEnabled>true</StyleCopEnabled>
     <StyleCopVersion Condition="'$(StyleCopVersion)' == ''">4.3.0.8</StyleCopVersion>
+    <StyleCopOverrideSettingsFile>$(RepoRoot)\src\Settings.StyleCop</StyleCopOverrideSettingsFile> 
   </PropertyGroup>
+
+  <!-- Add QCustomInput for stylecop settings to avoid IMD issue in CloudBuild. -->
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\settings.stylecop">
+      <Visible>false</Visible>
+    </QCustomInput>
+  </ItemGroup>
 
   <PropertyGroup Label="Globals">
     <Platform Condition="'$(Platform)' == ''">x64</Platform>

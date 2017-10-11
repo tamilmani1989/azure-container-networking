@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <PropertyGroup>
+    <CoverageDisabled>true</CoverageDisabled>
+    <RunCodeAnalysis>$(RunCA)</RunCodeAnalysis>
+  </PropertyGroup>
+  <!--Required before anything else.-->
+  <PropertyGroup>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+  </PropertyGroup>
+  <!--Standard settings required for building in Razzle - do not remove.-->
+  <!--Project-specific settings required for building in services\fc - do not remove.-->
+  <!--IDE specific-->
+  <PropertyGroup>
+    <ProductVersion>9.0.30729</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{8C5DD2CA-04A8-43A9-8CB7-8D95FF23647E}</ProjectGuid>
+  </PropertyGroup>
+  <!--Project specific-->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests</RootNamespace>
+    <AssemblyName>HostNetAgentTests</AssemblyName>
+    <BinplaceIndependent>/:DEST retail</BinplaceIndependent>
+    <NUnitTest>true</NUnitTest>
+    <NUnitUserFlags>/domain:None</NUnitUserFlags>
+    <!--<NUnitTestCov>true</NUnitTestCov>-->
+    <!--<DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>-->
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <!--Assembly references-->
+  <ItemGroup>
+    <Reference Include="$(PkgMicrosoft_WindowsAzure_EngSys_Internal_rnm_mstest_Engineering_Redist)\content\Microsoft.VisualStudio.QualityTools.UnitTestFramework.dll">
+      <Name>Microsoft.VisualStudio.QualityTools.UnitTestFramework</Name>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="$(JsonNetwonSoft)\lib\net45\Newtonsoft.Json.dll">
+      <Name>NetwonsoftJson</Name>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="$(PkgMicrosoft_WindowsAzure_EngSys_Internal_rd_taef_taef_x64)\content\x64\TestExecution\TE.Managed.dll">
+      <Name>TE.Managed</Name>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.IdentityModel" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceModel" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Core" />
+  </ItemGroup>
+  <!--Files-->
+  <ItemGroup>
+    <Compile Include=" HostNetAgentUnitTestCases.cs" />
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.CSharp.targets" />
+<Target Name="AfterBuild">
+   <ItemGroup>
+      <Robocopy Include="$(PkgMicrosoft_WindowsAzure_EngSys_Internal_rd_taef_taef_x64)\content\x64\TestExecution\*">
+           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentTests</DestinationFolder>
+           <FileMatch>*pdb *dll *exe *config</FileMatch>
+           <Recursive>true</Recursive>
+       </Robocopy>
+      <Robocopy Include="$(PkgMicrosoft_WindowsAzure_EngSys_Internal_rnm_mstest_Engineering_Redist)\content\*">
+           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentTests</DestinationFolder>
+           <FileMatch>*pdb *dll *exe *config</FileMatch>
+           <Recursive>true</Recursive>
+       </Robocopy>
+      <Robocopy Include="$(JsonNetwonSoft)\lib\net45\*">
+           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentTests</DestinationFolder>
+           <FileMatch>*pdb *dll *exe *config</FileMatch>
+           <Recursive>true</Recursive>
+       </Robocopy>
+      <Robocopy Include="$(SRCROOT)\test\HostNetAgentTests\TestDependencies\*">
+           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentTests\Documents</DestinationFolder>
+           <Recursive>true</Recursive>
+       </Robocopy>
+   </ItemGroup>
+ </Target>
+</Project>

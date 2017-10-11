@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{80CBE1A1-6359-4A67-9418-85D04D1E4656}</ProjectGuid>
+    <RootNamespace>Aquarius</RootNamespace>
+    <ProjectName>HostNetAgent</ProjectName>
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories)
+		$(cpprestsdk)\build\native\include
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
+      <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        $(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
+		$(WindowsSdk64LibPath)\Crypt32.lib;
+		$(WindowsSdk64LibPath)\rpcrt4.lib;
+		$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
+      </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="PackagesInfo.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
+    </ProjectReference>
+  </ItemGroup>  
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />  
+<Target Name="AfterBuild">
+   <ItemGroup>
+      <Robocopy Include="$(BinariesBuildTypeArchDirectory)\HostNetAgent\">
+        
+           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests</DestinationFolder>
+        
+           <FileMatch>*pdb *dll *exe *config</FileMatch>
+      
+       </Robocopy>
+   </ItemGroup>
+   <ItemGroup>
+      <Robocopy Include="$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.dll">
+        
+           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests</DestinationFolder>
+        
+       </Robocopy>
+   </ItemGroup>
+   <ItemGroup>
+      <Robocopy Include="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\*">
+        
+           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests</DestinationFolder>
+        
+           <IsRecursive>True</IsRecursive>
+        
+           <FileMatch>*pdb *dll *exe *config</FileMatch>
+      
+       </Robocopy>
+   </ItemGroup>
+ </Target>
+</Project>

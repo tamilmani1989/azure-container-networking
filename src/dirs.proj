@@ -16,6 +16,8 @@
     <ProjectFile Include="aquanixconsole\aquanixconsole.vcxproj" />
     <ProjectFile Include="test\dirs.proj" />
 	<ProjectFile Include="GAExtension\AquariusGaExt.vcxproj" />
+    <ProjectFile Include="HostNetAgent\HostNetAgent.vcxproj" />
+
   </ItemGroup>
 
   <ItemGroup Condition="'$(IsOfficialBuild)' != ''">
