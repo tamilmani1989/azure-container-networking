@@ -40,7 +40,10 @@ Return Value:
 {
 
 	wchar_t *configPath = NULL, *logPath = NULL;
-    errno_t err;
+	wchar_t logDirPath[MAX_PATH];
+	wchar_t configDirPath[MAX_PATH];
+
+    errno_t err = 0;
 	
 	LOGINFOW(L" Inside readHandlerEnvFields\n");
 	
@@ -65,6 +68,41 @@ Return Value:
 	if(configPath==NULL || logPath == NULL)
 	{
 		return -1;
+	}
+
+	if(wcslen(configPath)==0)
+	{
+		AquariusUtilities::PopulateServiceExeLocation(configDirPath);
+		if(wcscat_s(configDirPath, MAX_PATH, L"\\RuntimeSettings") != 0)
+		{
+			LOGERRW(L"wcscat failed for constructing config folder:%s", configDirPath);
+			return -1;
+		}			
+
+		configPath = configDirPath;
+	}
+
+	if(wcslen(logPath)==0)
+	{
+		AquariusUtilities::PopulateServiceExeLocation(logDirPath);
+		
+		if(wcscat_s(logDirPath, MAX_PATH, L"\\Logs") != 0)
+		{
+			LOGERRW(L"wcscat failed for constructing log folder:%s", logDirPath);
+			return -1;
+		}	
+
+		if (!CreateDirectory(logDirPath, NULL))
+		{
+			err = GetLastError();
+			if (err != ERROR_ALREADY_EXISTS)
+			{
+				LOGERRW(L"Failed to create log folder [%s] due to erroro (%d)\n", logDirPath, err);
+				return -1;
+			}
+		}
+
+		logPath = logDirPath;
 	}
 
 	size_t len = wcslen(configPath)+1;

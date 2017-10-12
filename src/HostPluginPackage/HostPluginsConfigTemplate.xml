@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HostPluginsConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Version="2.0" ContentVersion="2.0" xmlns="http://tempuri.org/XMLSchema.xsd">
+  <HostPluginInfos>
+      <HostPluginInfo HostPluginName="NetAgentHostPlugin" HostPluginSetupConfigFile="#DF_BUILD#.NetAgentHostPlugin.PluginSetup.xml" HostPluginSpecificConfigFile="#DF_BUILD#.NetAgentHostPlugin.PluginSpecific.xml" HostPluginPackageFile="#DF_BUILD#.NetAgentPackage.zip" />
+  </HostPluginInfos>
+</HostPluginsConfiguration>

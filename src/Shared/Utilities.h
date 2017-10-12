@@ -10,6 +10,7 @@
 #include <windows.h>
 #include <strsafe.h>
 #include <msxml6.h>
+#include<psapi.h>
 #include "PluginMetadata.h"
 
 #define SAFE_DELETE(p)     do { if ((p!=nullptr)) { delete[] p; p = nullptr; } } while(0)\
@@ -34,4 +35,5 @@ public:
 	static void PopulatePluginLocation(wchar_t* packageStoreLocation);
 	static void PopulateServiceExeLocation(wchar_t* packageStoreLocation);
 	static void SetRelativePathFromExe(wchar_t *relPath);
+	static int GetServiceName(wchar_t *svcName, size_t size);
 };

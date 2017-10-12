@@ -1,0 +1,3 @@
+<ComponentModuleMap>
+	<ComponentModuleMapping deploymentType="update" componentName="HE.HostPlugin_NetAgentHostPlugin" moduleName="Microsoft.WindowsAzure.Fabric.Deployment.Modules.FabricDeployment.HE_UpdateModule"/>
+</ComponentModuleMap>

@@ -24,7 +24,8 @@ Tamilmani Manoharan (tamanoha) 06-September-2017
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 using namespace web;
 
-json::value getPluginsToStart(json::value val)
+
+void readNetAgentConfig(json::value val, HandlerConfig *config)
 /*++
 
 Routine Description:
@@ -48,46 +49,43 @@ Return Value:
 			const utility::string_t &handlerKey = handlerIter->first;
 			const json::value &handlerValue = handlerIter->second;
             
-            if (wcscmp(handlerKey.c_str(), L"handlerSettings")!=0)
+            if (wcscmp(handlerKey.c_str(), L"handlerSettings") == 0)
             {
-               	LOGERRW(L"Expecting handlerSettings but found %s", handlerKey.c_str());
-                return NULL;
-            }
-
-			for (auto publicIter = handlerValue.as_object().cbegin(); publicIter != handlerValue.as_object().cend(); ++publicIter)
-			{
-				const utility::string_t &publicKey = publicIter->first;
-				const json::value &publicValue = publicIter->second;
-
-                if (wcscmp(publicKey.c_str(), L"publicSettings")!=0)
-                {
-                    LOGERRW(L"Expecting publicSettings but found %s", publicKey.c_str());
-                    return NULL;
-                }
-
-				for(auto pluginIter = publicValue.as_object().cbegin(); pluginIter != publicValue.as_object().cend(); ++pluginIter)
+				for (auto publicIter = handlerValue.as_object().cbegin(); publicIter != handlerValue.as_object().cend(); ++publicIter)
 				{
-					const utility::string_t &pluginKey = pluginIter->first;
-					const json::value &pluginValue = pluginIter->second;
-                    
-                    if (wcscmp(pluginKey.c_str(), L"PluginsToEnable")!=0)
-                    {
-                        LOGERRW(L"Expecting PluginsToEnable but found %s", pluginKey.c_str());
-                        return NULL;
-                    }
+					const utility::string_t &publicKey = publicIter->first;
+					const json::value &publicValue = publicIter->second;
 
-                    LOGINFO("Got the key pluginstoenable");
-					enablePluginsVal = pluginValue;
-					break;
-                }
-				break;
+					if (wcscmp(publicKey.c_str(), L"publicSettings") == 0)
+					{
+						for(auto pluginIter = publicValue.as_object().cbegin(); pluginIter != publicValue.as_object().cend(); ++pluginIter)
+						{
+							const utility::string_t &configKey = pluginIter->first;
+							const json::value &configValue = pluginIter->second;
+							
+							if (wcscmp(configKey.c_str(), L"PluginsToEnable") == 0)
+							{
+								LOGINFO("Got the key pluginstoenable");		
+								json::array pluginsArr = configValue.as_array();
+								
+								for (auto iter = pluginsArr.cbegin(); iter != pluginsArr.cend(); ++iter)	
+								{
+									std::wstring plugin = iter->as_string();
+									LOGINFOW(L"Insert plugin:%s\n", plugin.c_str());
+									config->pluginsToStart.insert(plugin);
+								}
+							}
+							if (wcscmp(configKey.c_str(), L"RestServerPort") == 0)
+							{
+								config->restServerPort =  configValue.as_string();
+								LOGINFOW(L"Got the key restserverport value %s", config->restServerPort.c_str());
+							}
+						}
+					}
+				}
 			}
-			break;
 		}
-		break;
 	}
-
-	return enablePluginsVal;
 }
 
 std::wstring getBaseFilename(const wchar_t *filename)
@@ -259,6 +257,8 @@ Return Value:
 	str.assign((std::istreambuf_iterator<char>(fp)),
 				std::istreambuf_iterator<char>());
 
+	LOGINFO("HandlerConfig file %s", str.c_str());
+
     return str;
 
 }
@@ -392,6 +392,7 @@ Return Value:
 --*/
 {
 	std::wstringstream ss;
+
 	ss << str.c_str();
 	json::value val = json::value::parse(ss);
 	
@@ -406,22 +407,8 @@ Return Value:
 			return -1;
 		}
 
-		json::value enablePluginsVal = getPluginsToStart(val);	
-		
-		if (enablePluginsVal == NULL)
-		{
-			LOGINFO("GetPluginsToStart returns NULL. Nothing to Start");
-			return 0;
-		}
+		readNetAgentConfig(val,this);	
 
-		json::array pluginsArr = enablePluginsVal.as_array();
-
-		for (auto iter = pluginsArr.cbegin(); iter != pluginsArr.cend(); ++iter)	
-		{
-			std::wstring plugin = iter->as_string();
-			LOGINFOW(L"Insert plugin:%s\n", plugin.c_str());
-			pluginsToStart.insert(plugin);
-		}
 	}
 
 	return 0;

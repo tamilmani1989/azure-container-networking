@@ -168,6 +168,24 @@ Return Value:
 								}
 
 							}
+							else
+							{
+								size_t len = wcslen(L" ") + wcslen(LOGPARAM) + wcslen(L" ") + wcslen(logFolder) + sizeof(wchar_t);
+								lpCommandLine = new wchar_t[len];
+								
+								if(!lpCommandLine)
+								{
+									LOGERR("Not able to allocate memory for lpCommandLine");
+									return;
+								}	
+
+								if(swprintf_s(lpCommandLine, len, L" %s %s", LOGPARAM, logFolder) < 0)
+								{
+									LOGINFOW(L"swprintf failed while constructing process arguments");
+									return;
+								}
+
+							}
 
 							JobManager::EnsureJobIsRunning(codeDirectory, lpCommandLine, &pluginsToLoad[i]);				
 						}

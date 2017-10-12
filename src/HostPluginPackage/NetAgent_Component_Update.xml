@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<DeploymentFlow Template="true" ID="TODO: Use MakeInstance to to specify this" Name="TODO: Use MakeInstance to to specify this" LogPath="TODO: Use MakeInstance to to specify this">
+  <GlobalValues>
+        <EnvironmentSetting Name="HETargetNodeSet" Value="FCDeploymentComponentManifestHEWithoutOSTargetNodeSet" />
+        <EnvironmentSetting Name="EnableGitBasedDeployment" Value="true" />
+        <EnvironmentSetting Name="ComponentNamespacesEnabledForGitBasedDeployment" Value="HE.HostPlugin_NetAgentHostPlugin"/>
+  </GlobalValues>
+  <Deployment Location="Initial" Pass="0">
+
+  <!--Deployment Environment initialization.-->
+    <Phase Description="HE Components Update">
+      <GlobalValues>
+          <EnvironmentSetting Name="UseDip" Value="true" />
+      </GlobalValues>
+      <ExecutionConstraints>
+          <Constraint Name="Env:%_RDToolsBranch%.%_RDToolsBuild%" Value="%df_RequiredToolset%" Description="This deployment requires the toolset build '%df_RequiredToolset%' with Fabric build '%df_Build%'. Please get the right toolset and run 'rdenv.cmd %df_RequiredToolset%'." />
+          <Constraint Name="Env:%_JUMPBOX_IsDipEnabled%" Value="yes" Description="This phase must be run from a DIP jumpbox. Please logon to a DIP jumpbox and resume the deployment. If this is a DIP jumpbox, please re-run rdenv.cmd and retry the deployment before you escalate."/>
+      </ExecutionConstraints>
+      <Action Description="Deployment Environment Initialization">
+        <WorkingDir>%_RDToolsRoot%\%df_RequiredToolset%\fabric</WorkingDir>
+        <Command>%COMSPEC%</Command>
+        <Arguments>/C MFLauncher.exe /modules:Microsoft.WindowsAzure.Fabric.Deployment.Modules.FabricDeployment.DeploymentEnvironmentInitializationModule /logPath:%DeploymentFlow_LogPath%\%DEPLOYMENTFLOW_ID%</Arguments>
+      </Action>
+    </Phase>
+
+    <!-- NetAgent Update -->
+    <Phase Description="NetAgent Component Update">
+      <GlobalValues>
+          <EnvironmentSetting Name="UseDip" Value="true" />
+      </GlobalValues>
+      <ExecutionConstraints>
+          <Constraint Name="Env:%_RDToolsBranch%.%_RDToolsBuild%" Value="%df_RequiredToolset%" Description="This deployment requires the toolset build '%df_RequiredToolset%' with Fabric build '%df_Build%'. Please get the right toolset and run 'rdenv.cmd %df_RequiredToolset%'." />
+          <Constraint Name="Env:%_JUMPBOX_IsDipEnabled%" Value="yes" Description="This phase must be run from a DIP jumpbox. Please logon to a DIP jumpbox and resume the deployment. If this is a DIP jumpbox, please re-run rdenv.cmd and retry the deployment before you escalate."/>
+      </ExecutionConstraints>
+      <Action Description="NetAgent Update">
+        <WorkingDir>%_RDToolsRoot%\%df_RequiredToolset%\fabric</WorkingDir>
+        <Command>%COMSPEC%</Command>
+        <Arguments>/C ComponentDeployerLauncher.exe /manifestPath:%df_buildPath%\%df_fqbn%\retail-AMD64\RDPackage\NetAgentHostPlugin\DeploymentManifest.xml /componentModuleMapPath:%df_buildPath%\%df_fqbn%\retail-AMD64\RDPackage\NetAgentHostPlugin\ComponentModuleMap.xml /branchVersionMapPath:%DCMT_ROOTPATH%\Configuration\Deployment\StaticBuildVersionMap.xml /logPath:%DeploymentFlow_LogPath%\%DEPLOYMENTFLOW_ID%</Arguments>
+      </Action>
+      <Action Description="Deployment Environment Finalization">
+        <WorkingDir>%_RDToolsRoot%\%df_RequiredToolset%\fabric</WorkingDir>
+        <Command>%COMSPEC%</Command>
+        <Arguments>/C MFLauncher.exe /modules:Microsoft.WindowsAzure.Fabric.Deployment.Modules.FabricDeployment.DeploymentEnvironmentFinalizationModule /logPath:%DeploymentFlow_LogPath%\%DEPLOYMENTFLOW_ID%</Arguments>
+      </Action>
+    </Phase>
+  </Deployment>
+</DeploymentFlow>

@@ -50,8 +50,8 @@ Return Value:
 	
 	// Check if the process is running with the required executable, if not, then restart the exe
 	int ret = QueryInformationJobObject(handle, JobObjectBasicProcessIdList, &processIdList, sizeof(processIdList), &actual_len);
-	
-	while(ret == 0)
+
+	if(ret == 0)
 	{
 		if (GetLastError()!=ERROR_MORE_DATA)
 		{
@@ -63,31 +63,37 @@ Return Value:
 						actual_len);
 			return 1;
 		}
+
+		LOGINFO("First call:Retrieved values from job numassigned %d numprocinlist %d\n",
+			processIdList.NumberOfAssignedProcesses,
+			processIdList.NumberOfProcessIdsInList);
+			
+		if(processIdList.NumberOfProcessIdsInList < processIdList.NumberOfAssignedProcesses)
+		{
+			DWORD blockSize = sizeof(processIdList)+(processIdList.NumberOfAssignedProcesses)*sizeof(processIdList.ProcessIdList[0]);
 		
-		DWORD blockSize = sizeof(processIdList)+(processIdList.NumberOfAssignedProcesses)*sizeof(ULONG);
-		
-		LOGINFO("Allocate more space...values of struct %d %d %d %d %d",
-						GetLastError(),
+			LOGINFO("Allocate more space...values of struct NumAssigned %d NumInlist %d actual_len %d allocatedsize %d",
 						processIdList.NumberOfAssignedProcesses,
 						processIdList.NumberOfProcessIdsInList,
 						actual_len,
 						blockSize);
 
-		if(!procList)
-		{
-			free(procList);
 			procList = (JOBOBJECT_BASIC_PROCESS_ID_LIST *)malloc(blockSize);
-		}
 
-		processIdList.NumberOfProcessIdsInList=processIdList.NumberOfAssignedProcesses+1;
-		ret = QueryInformationJobObject(handle, JobObjectBasicProcessIdList, procList, blockSize, &actual_len);
+			ret = QueryInformationJobObject(handle, JobObjectBasicProcessIdList, procList, blockSize, &actual_len);
+			
+			LOGINFO("Second call: return val %d Retrieved values from job num assigned %d num in list %d actual len%d  allocated size :%d\n",
+				ret,
+				procList->NumberOfAssignedProcesses,
+				procList->NumberOfProcessIdsInList,
+				actual_len,
+				blockSize);
+
+			free(procList);
+		}
 	}
 
-	LOGINFO("Retrieved values from job %d %d\n",
-			processIdList.NumberOfAssignedProcesses,
-			processIdList.NumberOfProcessIdsInList);
-
-
+	
 	return processIdList.NumberOfAssignedProcesses;
 }
 

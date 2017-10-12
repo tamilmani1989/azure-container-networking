@@ -51,11 +51,6 @@ Return Value:
 
 	LOGINFOW(L"Going to create a uri builder using %ls", server.c_str());
 
-		wchar_t szMessage[MAX_PATH];
-	StringCchPrintf(szMessage, ARRAYSIZE(szMessage), L"restserver uri %s",
-			server.c_str());
-	AquariusUtilities::WriteEventLogEntry(szMessage);
-
 	uri_builder uriBuilder(server);
 
 	http_listener listner(uriBuilder.to_uri());
@@ -63,8 +58,8 @@ Return Value:
 	LOGINFO("Going to set the listner for GET.");
 	listner.support(methods::GET, restServer->getHandler);
 
-	// LOGINFO("Going to set the listner for POST.");
-	// listner.support(methods::POST, restServer->postHandler);
+	LOGINFO("Going to set the listner for POST.");
+	listner.support(methods::POST, restServer->postHandler);
 
 	LOGINFO("Going to open the listner.");
 	pplx::task_status ret = listner.open().then([&listner]() {LOGINFO("BEGIN LISTEN")}).wait();

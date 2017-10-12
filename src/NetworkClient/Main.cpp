@@ -284,8 +284,7 @@ void ProcessGet(
 	LOGINFO("Exiting ProcessGet.");
 }
 
-
-static void ProcessPost(
+void ProcessPost(
 	http_request message)
 	/*++
 
@@ -298,7 +297,7 @@ static void ProcessPost(
 
 	--*/
 {
-	LOGINFO("Entering ProcessPost.");
+	printf("Entering ProcessPost.");
 	pplx::task_status status = pplx::not_complete;
 	pplx::task<json::value> js = message.extract_json();
 
@@ -322,6 +321,8 @@ static void ProcessPost(
 		json::value v = js.get();
 		if (!v.is_null())
 		{			
+
+			wprintf(L"Got string:%s\n", v.as_string().c_str());
 
 			failed = true;
 			for (auto iter = v.as_object().cbegin(); iter != v.as_object().cend(); ++iter)
@@ -355,17 +356,18 @@ static void ProcessPost(
 }
 void TestRestServer()
 {
-	RestServer rs(L"http", L"localhost", L"8000", L"", ProcessPost, NULL);
+	RestServer rs(L"http", L"localhost", L"5555", L"/post", ProcessPost, ProcessGet);
 	DWORD retval = rs.Listen();
-	printf("Server started: %ld\npress any key to exit..", retval);
-	getchar();
+	
+	printf("Retval:%d\n", retval);
+
 }
 
 #ifdef _WIN32
 int wmain()
 #endif
 #ifdef __linux__
-int main()
+void main()
 #endif
 {
 	//AquariusUtilities::WriteEventLogEntry(L"Working or not");
@@ -373,9 +375,15 @@ int main()
 	//assertvalue(SetupNetworkLogging(logstuff));	
 	// ExecuteUnderlayScenario();
 	// ExecuteOverlayScenario();
+	printf("Test rest servwer\n");
+	LOGSETUP(L".", L"restclinet");
 	TestRestServer();
-	getchar();
+	while(1)
+	{
+		Sleep(5000);
+	}
 
-	return 0;
+	printf("check\n");
+
 }
 

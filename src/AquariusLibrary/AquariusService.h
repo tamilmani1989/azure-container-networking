@@ -32,7 +32,7 @@
 #define SERVICE_NAME  L"AquariusSvc"
 
 // Displayed name of the service
-#define SERVICE_DISPLAY_NAME     L"Azure Aquarius"
+#define SERVICE_DISPLAY_NAME     L"Windows Azure Network Agent"
 
 // Service start options.
 #define SERVICE_START_TYPE       SERVICE_AUTO_START

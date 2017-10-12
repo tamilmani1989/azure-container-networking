@@ -316,3 +316,6 @@ FakesAssemblies/
 *.so
 *.so.1.0
 a.out
+
+# Ignore generated bin
+MSG*.bin

@@ -42,12 +42,22 @@ Return Value:
 
 --*/
 {
+	wchar_t svcName[MAX_PATH];
+
     get_aquariusSvc_mutex.lock();
     static AquariusService *service=nullptr;
+        
 
     if(!service)
     {
-        service = new AquariusService(SERVICE_NAME);
+		if(AquariusUtilities::GetServiceName(svcName, sizeof(svcName)) != 0)
+		{
+			AquariusUtilities::WriteEventLogEntry(L"NetAgent:: Unable to retrieve service name..");
+			wprintf(L"Unable to retrieve service name..");
+			return NULL;
+		}
+
+        service = new AquariusService(svcName);
     }
 
     get_aquariusSvc_mutex.unlock();
@@ -203,10 +213,50 @@ Return Value:
 	service_objects_mutex.unlock();
 }
 
-void postHandler(http_request request)
+void postHandler(http_request message)
 {
 	LOGINFOW(L"Post Handler triggered");
-	UNREFERENCED_PARAMETER(request);
+
+	LOGINFO("Entering ProcessPost.");	
+	pplx::task_status status = pplx::not_complete;
+	pplx::task<std::wstring> js = message.extract_string();
+
+	try
+	{
+		status = js.wait();
+	}
+	catch (const std::exception &ex)
+	{
+		LOGERR("Waiting for task (to extract json from POST) encountered exception. %s", ex.what());
+	}
+
+	bool failed = false;
+	if (status != pplx::completed)
+	{
+		LOGERR("Task to extract json from GET did not finish. status: %d", status);
+		failed = true;
+	}
+	else
+	{
+		std::wstring val = js.get();
+		LOGINFOW(L"Value:%s", val.c_str());
+
+	}
+
+	if (failed)
+	{
+		// did not receive even one ca-pa mapping
+		json::value jsonString = web::json::value::string(L"Failed to process JSON.");
+		message.reply(status_codes::BadRequest, jsonString);
+	}
+	else
+	{
+		json::value jsonString = web::json::value::string(L"Good");
+		message.reply(status_codes::OK, jsonString);
+	}
+	
+	LOGINFO("Exiting ProcessPost. Returning.");
+
 }
 
 void getHandler(http_request request)
@@ -289,13 +339,21 @@ Return Value:
 --*/
 {
 	LOGINFO("RestServerThread Created!!");	
-	RestServer restServer(HTTP_PROTO, LOCALHOST, RESTSERVER_PORT, PLUGIN_STATUS, postHandler, getHandler); 
+
+	if(handlerConfigObject.restServerPort.empty())
+	{
+		handlerConfigObject.restServerPort = RESTSERVER_PORT;
+	}
+
+	RestServer restServer(HTTP_PROTO, LOCALHOST, handlerConfigObject.restServerPort, PLUGIN_STATUS, postHandler, getHandler); 
 	DWORD status = restServer.Listen();
 
 	if (status != 0 )
 	{
 		LOGINFO("Error in rest server listen %d\n", status);
 	}
+
+	LOGINFOW(L"NetAgent RestServer listening on %s", handlerConfigObject.restServerPort.c_str());
 
 	while(!m_fStopping)
 	{

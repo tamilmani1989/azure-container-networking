@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{e2663efa-cadc-4b51-bef8-7b92a870f0f9}</ProjectGuid>
+    <RootNamespace>VFPlugin</RootNamespace>
+    <ProjectName>VFPlugin</ProjectName>
+    <TargetName>VFPlugin</TargetName>
+    <ConfigurationType>Application</ConfigurationType>
+    <!-- <SXS_MANIFEST_RESOURCE_ID>1</SXS_MANIFEST_RESOURCE_ID>
+    <SXS_MANIFEST>VFPlugin.manifest</SXS_MANIFEST>
+    <SXS_ASSEMBLY_NAME>Microsoft.Windows.VFPlugin</SXS_ASSEMBLY_NAME>
+    <SXS_ASSEMBLY_VERSION>1.0</SXS_ASSEMBLY_VERSION>
+    <SXS_ASSEMBLY_LANGUAGE_INDEPENDENT>1</SXS_ASSEMBLY_LANGUAGE_INDEPENDENT>
+    <SXS_MANIFEST_IN_RESOURCES>1</SXS_MANIFEST_IN_RESOURCES> -->
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>%(PreProcessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>  
+        %(AdditionalIncludeDirectories);
+        $(MSBuildThisFileDirectory);
+        ..\VFPluginLibrary
+      </AdditionalIncludeDirectories>
+      <!-- Override default from native_user_compile for compat with RdCommon.lib -->
+      <!-- <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType> -->
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
+      <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        $(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(WindowsSdk64LibPath)\setupapi.lib;
+        $(WindowsSdk64LibPath)\strsafe.lib;
+        $(WindowsSdk64LibPath)\shlwapi.lib;
+        $(WindowsSdk64LibPath)\Wbemuuid.lib;
+        $(WindowsSdk64LibPath)\difxapi.lib;
+        $(WindowsSdk64LibPath)\kernel32.lib;
+        $(WindowsSdk64LibPath)\ntdll.lib;
+        $(WindowsSdk64LibPath)\pathcch.lib;
+        $(WindowsSdk64LibPath)\newdev.lib;
+        $(WindowsSdk64LibPath)\Cfgmgr32.lib;	
+        $(WindowsSdk64LibPath)\Advapi32.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsupp.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
+        $(PkgVisualCpp_x64_Corext)\lib\x64\legacy_stdio_definitions.lib;
+        $(FC_Redist)\content\redist\SacApi.lib;
+        $(FC_Redist)\content\redist\DCM.RegUtil.lib;
+        $(PkgPolicyAgent_HSClient_Release)\HealthReportingClientLib.lib;
+        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
+      </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="VFPlugin.h" />
+    <ClInclude Include="VFPluginUtilities.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\VFPluginLibrary\VFPluginLibrary.vcxproj">
+      <Project>{7DB0C9A4-CADC-4E53-ADF3-1F6887454249}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+  <!-- <Target Name="AfterBuild">
+    <Copy SourceFiles="$(OutputPath)\ServiceTunnelExtension.exe; $(OutputPath)\ServiceTunnelExtension.pdb" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\Code" />
+    <Copy SourceFiles="manifest.xml;config.xml" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension" />
+  </Target> -->
+</Project>

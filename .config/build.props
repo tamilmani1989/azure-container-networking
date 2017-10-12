@@ -51,6 +51,21 @@ Copyright (C) Microsoft Corporation. All rights reserved.
   </PropertyGroup>
 
   <PropertyGroup>
+    <!-- Global variables -->
+    <GitRepositoryName Condition="'$(GitRepositoryName)' == ''">Networking-Aquarius</GitRepositoryName>
+    <TIMESTAMP Condition="'$(TIMESTAMP)' == ''">$([System.DateTime]::Now.ToString("yyyyMMddHHmmss"))</TIMESTAMP>
+    <BuildDate Condition="'$(BuildDate)' == ''">$(TIMESTAMP.Substring(2,6))-$(TIMESTAMP.Substring(8,4))</BuildDate>
+    <GitBranchName Condition="'$(GitBranchName)' == ''">$(USERNAME)</GitBranchName>
+    <GitBranchName>$(GitBranchName.Replace('/','_'))</GitBranchName>
+    <GitBranchName>$(GitBranchName.Replace('.','_'))</GitBranchName>
+    <BuildVersion Condition="'$(BuildVersion)' == ''">0.0.0.0</BuildVersion>
+    <DeploymentVersion>$(BuildVersion.Split('.')[0]).$(BuildVersion.Split('.')[1])</DeploymentVersion>
+    <Fqbn Condition="'$(Fqbn)' == ''">.$(BuildArchitecture)_$(BuildType).$(GitRepositoryName)_$(GitBranchName).$(BuildDate)</Fqbn>    
+    <!-- DFBuild is what the deployment template gets -->
+    <DFBuild Condition="'$(DFBuild)' == ''">$(GitRepositoryName)_$(GitBranchName).$(BuildDate)</DFBuild>
+  </PropertyGroup>
+
+  <PropertyGroup>
       <!--Due to CoreXT compatability issues in VS these need to get set-->
     <BaseBuildType Condition="'$(BuildType)'=='debug'">debug</BaseBuildType>
     <BaseBuildType Condition="'$(BuildType)'=='retail'">retail</BaseBuildType>

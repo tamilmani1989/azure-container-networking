@@ -11,6 +11,7 @@
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
         ..\Logging;
+        $(PUBLIC_SDK)\um;
         $(MSBuildThisFileDirectory)
       </AdditionalIncludeDirectories>
     </ClCompile>

@@ -71,18 +71,31 @@ int wmain(int argc, wchar_t *argv[])
 
     if ((argc > 1) && ((*argv[1] == L'-' || (*argv[1] == L'/'))))
     {
+        wchar_t svcName[MAX_PATH];
+        
+        SetupEventLogging();
+        
+        if(AquariusUtilities::GetServiceName(svcName, sizeof(svcName)) != 0)
+        {
+            AquariusUtilities::WriteEventLogEntry(L"NetAgent:: Unable to retrieve service name..");
+            wprintf(L"Unable to retrieve service name..");
+            return ret;
+        }
+
+        wprintf(L"Service Name :%s", svcName);
+
         if (_wcsicmp(L"install", argv[1] + 1) == 0)
         {
-            SetupEventLogging();
             HKEY configKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
             if (configKey == nullptr)
             {
                 AquariusUtilities::WriteEventLogEntry(L"Unable to create config key for Aquarius..");
             }
+
             // Install the service when the command is 
             // "-install" or "/install".
             ret = installer.InstallService(
-                SERVICE_NAME,               // Name of service
+                svcName,               // Name of service
                 SERVICE_DISPLAY_NAME,       // Name to display
                 SERVICE_START_TYPE,         // Service start type
                 SERVICE_DEPENDENCIES,       // Dependencies
@@ -94,7 +107,8 @@ int wmain(int argc, wchar_t *argv[])
         {
             // Uninstall the service when the command is 
             // "-remove" or "/remove".
-            ret = installer.UninstallService(SERVICE_NAME);
+            
+            ret = installer.UninstallService(svcName);
         }
     }
     else
