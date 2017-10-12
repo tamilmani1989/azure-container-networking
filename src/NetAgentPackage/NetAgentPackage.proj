@@ -52,7 +52,8 @@
      <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\HostNetAgent\HostNetAgent.exe" DestinationFolder="$(NetAgentPath)" />
      <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll" DestinationFolder="$(NetAgentPath)" />
      <Copy SourceFiles="$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.dll" DestinationFolder="$(NetAgentPath)" />
-
+     <Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(NetAgentPath)" />
+     <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(NetAgentPath)" />
      
      <Exec Command="echo $(BuildVersion)>$(BinariesBuildTypeArchDirectory)\$(Artifacts)\$(NetAgent)\$(Package)\version.txt" />
   </Target>
