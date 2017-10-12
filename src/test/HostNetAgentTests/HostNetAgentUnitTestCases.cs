@@ -283,7 +283,7 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
                 StartInfo =
                 {
                     FileName = Path.Combine(this.exeDir, HostNetAgentProcessName + @".exe"),
-                    Arguments = string.Format("{0} {1}", logFolder, docFolder),
+                    Arguments = string.Format("/LogPath {0} /PackagePath {1}", logFolder, docFolder),
                     WindowStyle = ProcessWindowStyle.Maximized
                 }
             };

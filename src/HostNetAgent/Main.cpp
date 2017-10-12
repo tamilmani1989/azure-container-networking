@@ -24,7 +24,8 @@ Environment:
 STATIC 
 void 
 GetPackageVersion(
-    __inout http_request Request)
+    __inout http_request Request
+    )
 /*++
 
 Description:
@@ -43,13 +44,14 @@ Return Value:
 {
     std::wstring packageVersion = packagesInfo->GetPackageVersion();
     Request.reply(status_codes::OK, packageVersion);
-    LOGINFOW(L"Version response request:{%s}", Request.to_string().c_str());
+    LOGINFOW(L"Version response request:{%s}. Version:{%s}", Request.to_string().c_str(), packageVersion.c_str());
 }
 
 STATIC 
 void 
 GetPackageUris(
-    __inout http_request Request)
+    __inout http_request Request
+    )
 /*++
 
 Description:
@@ -71,6 +73,7 @@ Return Value:
     for (std::vector<std::wstring>::iterator it = packageNames.begin(); it != packageNames.end(); ++it)
     {
         packageMap[it->c_str()] = json::value::string(L"");
+        LOGINFOW(L"Adding packageName:{%s} to the response", it->c_str());
     }
     Request.reply(status_codes::OK, packageMap);
     LOGINFOW(L"Response Request:{%s}", Request.to_string().c_str());
@@ -79,7 +82,8 @@ Return Value:
 STATIC 
 void 
 ProcessGet(
-    __inout http_request Request)
+    __inout http_request Request
+    )
 /*++
 
 Description:
@@ -166,6 +170,7 @@ Return Value:
             Request.reply(status_codes::OK, fileStream, length);
         });
         ifs.close();
+        LOGINFOW(L"Requested resource {%s} successfully transmited", found_name->second.c_str());
     }
     else
     {
@@ -173,6 +178,95 @@ Return Value:
         Request.reply(status_codes::NotFound);
     }
 }
+
+DWORD
+AgentParseCommandLine(
+    __in ULONG ArgumentCount,
+    __in_ecount(ArgumentCount) PWSTR *ArgumentList,
+    __deref_out PWSTR *ConfigFile,
+    __deref_out PWSTR *ResourcePath,
+    __deref_out PWSTR *LogPath,
+    __deref_out PWSTR *PackagePath
+    )
+/*++
+
+Routine Description:
+
+    Parses command line arguments for parameters passed during invocation.
+
+Arguments:
+
+    ArgumentCount - Number of arguments in input string ArgumentList.
+
+    ArgumentList - Command line argument list.
+
+    ConfigFile - Output pointer to configuration file option if found in ArgumentList.
+
+    ResourcePath - Output pointer to resource path option if found in ArgumentList.
+
+    LogPath - Output pointer to log path option if found in ArgumentList.
+
+    PackagePath - Output pointer to package path option if found in ArgumentList.
+
+Return Value:
+
+    S_OK on success. Otherwise appropriate HRESULT is returned.
+
+--*/
+{
+    ULONG indx = 0;
+
+    if ((NULL == ArgumentList) ||
+        (NULL == ConfigFile) ||
+        (NULL == ResourcePath) ||
+        (NULL == LogPath) ||
+        (NULL == ResourcePath))
+    {
+            return ERROR_INVALID_DATA;
+    }
+
+    *ConfigFile = NULL;
+    *ResourcePath = NULL;
+    *LogPath = NULL;
+    *PackagePath = NULL;
+
+    //
+    // Iterate through command line looking for the expected options
+    //
+
+    for (indx=0; indx<ArgumentCount; indx++) 
+    {
+        if ((_wcsicmp(ArgumentList[indx], CONFIG_FILE_CMDLINE_FLAG) == 0) &&
+            (indx+1 < ArgumentCount)) 
+        {
+            indx++;
+            *ConfigFile = ArgumentList[indx];
+        }
+        else if ((_wcsicmp(ArgumentList[indx], RESOURCE_PATH_CMDLINE_FLAG) == 0) &&
+            (indx+1 < ArgumentCount)) 
+        {
+            indx++;
+            *ResourcePath = ArgumentList[indx];
+        }
+        else if ((_wcsicmp(ArgumentList[indx], LOG_PATH_CMDLINE_FLAG) == 0) &&
+            (indx+1 < ArgumentCount)) 
+        {
+            indx++;
+            *LogPath = ArgumentList[indx];
+        }
+        else if ((_wcsicmp(ArgumentList[indx], PACKAGE_PATH_CMDLINE_FLAG) == 0) &&
+            (indx+1 < ArgumentCount)) 
+        {
+            indx++;
+            *PackagePath = ArgumentList[indx];
+        }
+    }
+
+    return ERROR_SUCCESS;
+}
+
+    //
+    // If not found, output parameter points will be set to NULL
 
 void 
 StartListener()
@@ -218,7 +312,8 @@ Return Value:
 
 bool 
 SetupLogging(
-    __in PCWSTR LogLocation)
+    __in PCWSTR LogLocation
+   )
 /*++
 
 Description:
@@ -326,7 +421,8 @@ Return Value:
 int 
 wmain(
     int Argc, 
-    wchar_t* Argv[])
+    PWSTR* Argv
+    )
 /*++
 
 Description:
@@ -345,29 +441,36 @@ Return Value:
 
 --*/
 {
+    PWSTR configFile;
+    PWSTR resourcePath;
+    PWSTR logPath;
+    PWSTR packagePath;
+
     wstring logLocation;
     wstring packageLocation;
     DWORD err = ERROR_SUCCESS;
 
-    if (Argc == 3)
+    err = AgentParseCommandLine(Argc, Argv, &configFile, &resourcePath, &logPath, &packagePath);
+    if (err != ERROR_SUCCESS)
     {
-        logLocation.assign(Argv[1]);
-        packageLocation.assign(Argv[2]);
+        wprintf(L"Failed to parse command line arguments. Error[%0x]", err);
+        return err;
     }
-    else if (Argc == 1)
+
+    logPath == NULL ? logLocation.assign(DEFAULT_LOG_LOCATION) : logLocation.assign(logPath);
+
+    if (packagePath == NULL)
     {
-        logLocation.assign(DEFAULT_LOG_LOCATION);
         err = GetPackageLocation(packageLocation);
         if (err != ERROR_SUCCESS)
         {
-            wprintf(L"Failed to retrieve package location. Error[%0x]", err);
+            wprintf(L"Failed to generate package location. Error[%0x]", err);
             return err;
         }
     }
     else
     {
-        wprintf(L"Invalid argument count. Argument count should be none or two. (Log location and package location)");
-        return -1;
+        packageLocation.assign(packagePath);
     }
 
     wprintf(L"Using package location:[%s] Log location [%s]\n", packageLocation.c_str(), logLocation.c_str());

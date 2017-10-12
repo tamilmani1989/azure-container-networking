@@ -60,6 +60,10 @@ using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 #define DIRECTORY_SEPARATOR (L'\\')
 #define DEFAULT_LOG_LOCATION  L"C:\\Logs\\HostNetAgent"
 #define PACKAGE_FOLDER_NAME L"Package"
+#define CONFIG_FILE_CMDLINE_FLAG   L"/ConfigFile"
+#define RESOURCE_PATH_CMDLINE_FLAG L"/ResourcePath"
+#define LOG_PATH_CMDLINE_FLAG   L"/LogPath"
+#define PACKAGE_PATH_CMDLINE_FLAG L"/PackagePath"
 
 const wstring GET_VERSION_QUERY_KEY = L"getpackageversion";
 const wstring GET_PACKAGE_URIS_QUERY_KEY = L"getpackageuris";
@@ -99,3 +103,12 @@ GetPackageLocation(
 const
 std::wstring
 GetListenerUri();
+
+DWORD
+AgentParseCommandLine(
+    __in ULONG ArgumentCount,
+    __in_ecount(ArgumentCount) PWSTR *ArgumentList,
+    __deref_out PWSTR *ConfigFile,
+    __deref_out PWSTR *ResourcePath,
+    __deref_out PWSTR *LogPath,
+    __deref_out PWSTR *PackagePath);

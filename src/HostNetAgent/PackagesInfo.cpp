@@ -24,7 +24,8 @@ using namespace std;
 
 DWORD 
 PackagesInfo::Initialize(
-	__in std::wstring PackageLocation)
+    __in std::wstring PackageLocation
+    )
 /*++
 
 Description:
@@ -115,7 +116,7 @@ Return Value:
 
 --*/
 {
-	return packageLocation;
+    return packageLocation;
 }
 
 DWORD 
