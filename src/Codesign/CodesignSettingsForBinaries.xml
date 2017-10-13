@@ -31,20 +31,15 @@
 		  <File>%BinariesBuildTypeArchDirectory%\aquanix\aquanix.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\aquanixconsole\aquanixconsole.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\Aquarius\Aquarius.exe</File>
-		  <File>%BinariesBuildTypeArchDirectory%\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\code\ServiceTunnelExtension.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\HnsClient\HnsClient.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\HNSOverlayPlugin\HNSOverlayPlugin.dll</File>
-		  <File>%BinariesBuildTypeArchDirectory%\NetworkClient\NetworkClient.exe</File>
-		  <File>%BinariesBuildTypeArchDirectory%\NetworkClient\NetworkClientLibrary.dll</File>
-		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\aquanix.dll</File>
-		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\Aqua.Logging.dll</File>
-		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\HNSClient.dll</File>
-		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\NetworkClientLibrary.dll</File>
-		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\HNSOverlayPlugin\aquanix.dll</File>
-		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\HNSOverlayPlugin\HNSOverlayPlugin.dll</File>
-		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\HNSOverlayPlugin\sfpcopy.exe</File>
+		  <File>%BinariesBuildTypeArchDirectory%\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\code\ServiceTunnelExtension.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\ServiceTunnelExtension\ServiceTunnelExtension.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\VFPlugin\VFPlugin.exe</File>
+		  <File>%BinariesBuildTypeArchDirectory%\HostNetAgent\HostNetAgent.exe</File>
+		  <File>%BinariesBuildTypeArchDirectory%\Aqua.RestServer\Aqua.RestServer.dll</File>
+		  <File>%BinariesBuildTypeArchDirectory%\Aqua.Logging\Aqua.Logging.dll</File>
+		  <File>%BinariesBuildTypeArchDirectory%\Aqua.RestClient\Aqua.RestClient.exe</File>
 		</Files>
 	</FileData>
 

@@ -22,12 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-     <ProjectFile Include="CodeSign\CodesignSettings.proj" Condition="'$(IsOfficialBuild)' != ''">
-      <BuildInParallel>false</BuildInParallel>
-    </ProjectFile>
-    <ProjectFile Include="CodeSignMisc\CodesignSettings.proj" Condition="'$(IsOfficialBuild)' != ''">
-      <BuildInParallel>false</BuildInParallel>
-    </ProjectFile> 
     <ProjectFile Include="NetAgentPackage\NetAgentPackage.proj" Condition="'$(QBUILD)'!='1'">
       <BuildInParallel>false</BuildInParallel>
     </ProjectFile>
@@ -37,6 +31,12 @@
     <ProjectFile Include="Nuget\dirs.proj" Condition="'$(IsOfficialBuild)' != ''">
       <BuildInParallel>false</BuildInParallel>
     </ProjectFile>
+    <ProjectFile Include="CodeSign\CodesignSettings.proj" Condition="'$(IsOfficialBuild)' != ''">
+      <BuildInParallel>false</BuildInParallel>
+    </ProjectFile>
+    <ProjectFile Include="CodeSignMisc\CodesignSettings.proj" Condition="'$(IsOfficialBuild)' != ''">
+      <BuildInParallel>false</BuildInParallel>
+    </ProjectFile> 
   </ItemGroup>
     
   <Import Project="$(ExtendedTargetsPath)\Traversal.targets" />
