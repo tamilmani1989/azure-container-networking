@@ -29,7 +29,6 @@
       <BuildFile>$(DeploymentOutput)\buildname.txt</BuildFile>
     </PropertyGroup>
      <Message Importance="high" Text="Going to generate $(PkgName) Package" />
-     <Exec Command="md $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins &amp; cp AqEventMessage.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\" />
      <MakeDir Directories="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins" Condition="!Exists('$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins')" />
      <MakeDir Directories="$(NetAgentPath)\$(Package)" Condition="!Exists('$(NetAgentPath)\$(Package)')" />
 
