@@ -7,6 +7,7 @@
 #define HOSTNETAGENT_ADDRESS_KEY L"HostNetAgentAddress"
 #define DEFAULT_HOSTNETAGENT_ADDRESS L"169.254.169.254"
 #define HOSTAGENT_PATH L"machine/plugins?comp=nmagent&type=PortContainerIOVInformationV1"
+#define HEALTH_REPORT_PATH L"machine/plugins?comp=netagent&type=healthreport"
 #define INSTALL_KEY L"VF_INSTALL"
 #define INSTALL_VALUE L"True"
 
@@ -15,7 +16,8 @@ class VFPluginUtilities
 public:
     static void GetHostNetAgentURL(    
         wchar_t *url, 
-        size_t urlSize
+        size_t urlSize,
+        wchar_t *path
     );
     
     static HRESULT RetrieveStatusInfoAsXMLStr(
@@ -35,3 +37,4 @@ public:
 
     static void SaveInstalledState();
 };
+

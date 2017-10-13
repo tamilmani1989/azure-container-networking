@@ -24,6 +24,7 @@
 #define RUNDLL_COMMAND "RUNDLL32.exe pnpclean.dll,RunDLL_PnpClean /devices /maxclean"
 #define NETCFG_COMMAND "netcfg -c p -i netvsc_vfpp -l"
 #define NETSVC_INF_PATH L"INF\\wnetvsc_vfpp.inf"
+#define NETMLX_INF_FILE L"INF\\netmlx4eth63.inf"
 
 #define DRIVER_VERSION_KEY                              L"DriverVersion"
 #define DRIVER_DESCRIPTION_KEY                          L"DriverDesc"
@@ -157,8 +158,13 @@ public:
     BOOL
     FindDriverVersionFromInf(
         __out wchar_t* Version
-    );   
+    );  
 
+    BOOL
+    FindDriverVersionFromNetmlx(
+        __out wchar_t* Version
+    );
+       
     DWORD
     InstallMlxVFDriver(
         __in wchar_t* driverPackagePath
@@ -172,7 +178,8 @@ public:
 
     int
     GetNumNonFunctioningDevices(
-        __in PCWSTR DeviceSearchString
+        __in PCWSTR DeviceSearchString,
+        __out int *TotalDevices
     );
 
 private:

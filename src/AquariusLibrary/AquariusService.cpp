@@ -215,46 +215,8 @@ Return Value:
 
 void postHandler(http_request message)
 {
+	UNREFERENCED_PARAMETER(message);
 	LOGINFOW(L"Post Handler triggered");
-
-	LOGINFO("Entering ProcessPost.");	
-	pplx::task_status status = pplx::not_complete;
-	pplx::task<std::wstring> js = message.extract_string();
-
-	try
-	{
-		status = js.wait();
-	}
-	catch (const std::exception &ex)
-	{
-		LOGERR("Waiting for task (to extract json from POST) encountered exception. %s", ex.what());
-	}
-
-	bool failed = false;
-	if (status != pplx::completed)
-	{
-		LOGERR("Task to extract json from GET did not finish. status: %d", status);
-		failed = true;
-	}
-	else
-	{
-		std::wstring val = js.get();
-		LOGINFOW(L"Value:%s", val.c_str());
-
-	}
-
-	if (failed)
-	{
-		// did not receive even one ca-pa mapping
-		json::value jsonString = web::json::value::string(L"Failed to process JSON.");
-		message.reply(status_codes::BadRequest, jsonString);
-	}
-	else
-	{
-		json::value jsonString = web::json::value::string(L"Good");
-		message.reply(status_codes::OK, jsonString);
-	}
-	
 	LOGINFO("Exiting ProcessPost. Returning.");
 
 }

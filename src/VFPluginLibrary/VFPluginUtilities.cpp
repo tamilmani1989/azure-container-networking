@@ -17,7 +17,8 @@ using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 void VFPluginUtilities::GetHostNetAgentURL(
     wchar_t *url, 
-    size_t urlSize
+    size_t urlSize,
+    wchar_t *path
     )
 {
     HKEY returnKey;
@@ -82,7 +83,7 @@ Cleanup:
 
     if(nError != ERROR_SUCCESS)
     {
-        if( swprintf_s(url, urlSize, L"http://%s:80/%s", DEFAULT_HOSTNETAGENT_ADDRESS, HOSTAGENT_PATH) < 0)
+        if( swprintf_s(url, urlSize, L"http://%s:80/%s", DEFAULT_HOSTNETAGENT_ADDRESS, path) < 0)
         {
             LOGERRW(L"swprint_s error constructing url path %s", DEFAULT_HOSTNETAGENT_ADDRESS);
         }
@@ -90,12 +91,12 @@ Cleanup:
     else
     {
         LOGINFOW(L"Address returned from registry : %s", addr);
-        if( swprintf_s(url, urlSize, L"http://%s:80/%s", addr, HOSTAGENT_PATH) < 0)
+        if( swprintf_s(url, urlSize, L"http://%s:80/%s", addr, path) < 0)
         {
             LOGERRW(L"swprint_s error constructing url path addr %s", addr);
         }        
     }
-
+     
     LOGINFOW(L"wireserver url : %s", url);
 }
 
@@ -111,7 +112,7 @@ void VFPluginUtilities::SendStatusToWireServer(
     requester.headers().set_content_type(U("text/xml;charset=utf-8"));
 	
     json::value postData = web::json::value::string(stateInfo);
-    LOGINFOW(L"Going to send %s", postData.as_string().c_str() );
+    LOGINFOW(L"Going to send %s", postData.as_string().c_str());
 
     requester.set_body(postData.as_string().c_str());   
 
@@ -302,3 +303,47 @@ Cleanup:
         RegCloseKey(returnKey);
     } 
 }
+
+// wchar_t *VFPluginUtilities::getOsVersion()
+// {
+// DWORD  verHandle = 0;
+// UINT   size      = 0;
+// LPBYTE lpBuffer  = NULL;
+// wchar_t *szVersionFile=L"c:\\Windows\\System32\\kernel32.dll";
+// DWORD  verSize   = GetFileVersionInfoSize( szVersionFile, &verHandle);
+
+// if (verSize != NULL)
+// {
+//     LPSTR verData = new char[verSize];
+
+//                         LOGINFO("ck0");
+//     if (GetFileVersionInfo( szVersionFile, verHandle, verSize, verData))
+//     {
+//                         LOGINFO("ck1");
+//         if (VerQueryValue(verData,L"\\",(VOID FAR* FAR*)&lpBuffer,&size))
+//         {
+//                             LOGINFO("ck2");
+//             if (size)
+//             {
+//                 LOGINFO("ck3");
+//                 VS_FIXEDFILEINFO *verInfo = (VS_FIXEDFILEINFO *)lpBuffer;
+//                 if (verInfo->dwSignature == 0xfeef04bd)
+//                 {
+
+//                     // Doesn't matter if you are on 32 bit or 64 bit,
+//                     // DWORD is always 32 bits, so first two revision numbers
+//                     // come from dwFileVersionMS, last two come from dwFileVersionLS
+//                     LOGINFO( "File Version: %d.%d.%d.%d\n",
+//                     ( verInfo->dwFileVersionMS >> 16 ) & 0xffff,
+//                     ( verInfo->dwFileVersionMS >>  0 ) & 0xffff,
+//                     ( verInfo->dwFileVersionLS >> 16 ) & 0xffff,
+//                     ( verInfo->dwFileVersionLS >>  0 ) & 0xffff
+//                     );
+//                 }
+//             }
+//         }
+//     }
+//     delete[] verData;
+// }
+//     return NULL;
+// }
