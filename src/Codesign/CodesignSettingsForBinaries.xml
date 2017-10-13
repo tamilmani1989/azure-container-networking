@@ -35,10 +35,14 @@
 		  <File>%BinariesBuildTypeArchDirectory%\HNSOverlayPlugin\HNSOverlayPlugin.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\code\ServiceTunnelExtension.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\ServiceTunnelExtension\ServiceTunnelExtension.exe</File>
-		  <File>%BinariesBuildTypeArchDirectory%\VFPlugin\VFPlugin.exe</File>
-		  <File>%BinariesBuildTypeArchDirectory%\HostNetAgent\HostNetAgent.exe</File>
-		  <File>%BinariesBuildTypeArchDirectory%\Aqua.RestServer\Aqua.RestServer.dll</File>
-		  <File>%BinariesBuildTypeArchDirectory%\Aqua.Logging\Aqua.Logging.dll</File>
+		  <File>%BinariesBuildTypeArchDirectory%\WindowsAzureNetAgent\WindowsAzureNetAgent\Plugins\VFPlugin\Code\VFPlugin.exe</File>
+    	  <File>%BinariesBuildTypeArchDirectory%\WindowsAzureNetAgent\WindowsAzureNetAgent\Plugins\VFPlugin\Code\Aqua.Logging.dll</File>
+		  <File>%BinariesBuildTypeArchDirectory%\WindowsAzureNetAgent\WindowsAzureNetAgent\WindowsAzureNetAgent.exe</File>
+		  <File>%BinariesBuildTypeArchDirectory%\WindowsAzureNetAgent\WindowsAzureNetAgent\Aqua.RestServer.dll</File>
+		  <File>%BinariesBuildTypeArchDirectory%\WindowsAzureNetAgent\WindowsAzureNetAgent\Aqua.Logging.dll</File>
+		  <File>%BinariesBuildTypeArchDirectory%\WindowsAzureNetAgent\WindowsAzureNetAgent\AqEventMessage.dll</File>
+		  <File>%BinariesBuildTypeArchDirectory%\Artifacts\NetAgent\HostNetAgent.exe</File>
+		  <File>%BinariesBuildTypeArchDirectory%\Artifacts\NetAgent\Aqua.Logging.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\Aqua.RestClient\Aqua.RestClient.exe</File>
 		</Files>
 	</FileData>
