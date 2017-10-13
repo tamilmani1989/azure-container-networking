@@ -55,8 +55,8 @@ namespace Microsoft { namespace Azure {	namespace Networking {	namespace Aqua { 
 		wstring address;
 		wstring port;
 		wstring path;
-		PostHandler postHandler;
-		GetHandler getHandler;
+		PostHandler postHandler = NULL;
+		GetHandler getHandler = NULL;
 
 	public:
 		RestServer () {}

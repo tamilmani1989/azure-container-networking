@@ -85,7 +85,7 @@ Return Value:
 	try {
 		if (alreadyLoadedPluginCount <= 0)
 		{
-			LOGINFOW(L"Indide load plugins");
+			LOGINFOW(L"Inside load plugins");
 			
 			for (int i = 0; i < pluginCount; i++)
 			{
@@ -211,7 +211,7 @@ Return Value:
 				
 				if(lpCommandLine)
 				{
-					delete lpCommandLine;
+					delete[] lpCommandLine;
 					lpCommandLine = nullptr;
 				}
 			}

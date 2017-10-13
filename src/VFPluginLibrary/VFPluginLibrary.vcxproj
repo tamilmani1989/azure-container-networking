@@ -21,11 +21,14 @@
     <ClCompile Include="VFPluginInstaller.cpp" />
     <ClCompile Include="XmlWriterHelper.cpp" />
     <ClCompile Include="VFPluginUtilities.cpp" />
+    <ClCompile Include="VFHealthReport.cpp" />
   </ItemGroup>
   <ItemGroup>
 	  <ClInclude Include="VFPlugin.h" />
     <ClInclude Include="stdafx.h"/>
     <ClInclude Include="VFPluginUtilities.h" />
+    <ClInclude Include="VFHealthReport.h" />
+
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

@@ -55,12 +55,18 @@ Return Value:
 
 	http_listener listner(uriBuilder.to_uri());
 	
-	LOGINFO("Going to set the listner for GET.");
-	listner.support(methods::GET, restServer->getHandler);
+	if(restServer->getHandler)
+	{
+		LOGINFO("Going to set the listner for GET.");
+		listner.support(methods::GET, restServer->getHandler);
+	}
 
-	LOGINFO("Going to set the listner for POST.");
-	listner.support(methods::POST, restServer->postHandler);
-
+	if(restServer->postHandler)
+	{
+		LOGINFO("Going to set the listner for POST.");
+		listner.support(methods::POST, restServer->postHandler);
+	}
+	
 	LOGINFO("Going to open the listner.");
 	pplx::task_status ret = listner.open().then([&listner]() {LOGINFO("BEGIN LISTEN")}).wait();
 

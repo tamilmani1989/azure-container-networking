@@ -142,6 +142,8 @@ Return Value:
 					wcscpy_s(pluginData->name, len, varValue.bstrVal);
 
 					LOGINFOW(L"Plugin Name:%s\n", pluginData->name);
+					hr = VariantClear(&varValue);
+					LOGINFO("Variant clear return status %d", hr);
 				}  
 				else
 				{
@@ -241,6 +243,7 @@ Return Value:
 									{
 										if( pluginData->arguments != nullptr)
 										{
+											LOGINFOW(L"Free plugin data args");
 											SysFreeString(pluginData->arguments);
 											pluginData->arguments=nullptr;
 										}

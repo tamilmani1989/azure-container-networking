@@ -2,6 +2,7 @@
 #include "..\Logging\Logging.h"
 #include <memory>
 #include "VFPluginUtilities.h"
+#include "VFHealthReport.h"
 #include <cstdlib>
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
@@ -17,6 +18,7 @@ void wmain(int argc, wchar_t *argv[])
     wchar_t *logFolder = NULL;
     wchar_t *statusInfo = NULL;
     wchar_t url[MAX_PATH];
+    wchar_t healthUrl[MAX_PATH];
     wchar_t installedVersion[MAX_PATH]; 
     wchar_t versionInfo[MAX_PATH];
     wchar_t winDir[MAX_PATH];
@@ -25,7 +27,9 @@ void wmain(int argc, wchar_t *argv[])
     char netcfg_cmd[1024];
     int numNonFunctioningDevices = 0;
     int sysret = 0;
+    int totalDevices=0;
     size_t retVal;
+    HealthReport healthReport;
  
     for (int i = 1; i < argc; i++)
 	{
@@ -81,6 +85,8 @@ void wmain(int argc, wchar_t *argv[])
     sysret = system (netcfg_cmd);
     LOGINFO("System call return for rundll command %s ret value %d", netcfg_cmd, sysret);
     
+    healthReport.Reset();
+    VFPluginUtilities::GetHostNetAgentURL(healthUrl, sizeof(healthUrl), HEALTH_REPORT_PATH);
 
     isInstallRequired = vfplugin.IsMlxVFDriverInstallNeeded();    
     
@@ -98,14 +104,25 @@ void wmain(int argc, wchar_t *argv[])
                 break;
             }
 
+            healthReport.DriverInstallAttempted=true;            
+            healthReport.SendHealthStatusToHostAgent(healthUrl);
+            healthReport.Reset();
+
             LOGINFOW(L"Current directory path:%s", currentPath);
             status = vfplugin.InstallMlxVFDriver(currentPath);
             
             if (status != ERROR_SUCCESS &&  status != REBOOT_REQD) {
-                LOGINFOW(L"VFPlugin: VF Driver Installation Failed from %s\n", currentPath);
+                LOGINFOW(L"VFPlugin: VF Driver Installation Failed from %s\n", currentPath);                
+                healthReport.DriverInstallFailed=true;            
+                healthReport.SendHealthStatusToHostAgent(healthUrl);
+                healthReport.Reset();
                 break;            
             } 
-    
+            
+            healthReport.DriverInstallSucceeded=true;
+            healthReport.SendHealthStatusToHostAgent(healthUrl);
+            healthReport.Reset();
+            
             LOGINFOW(L"VFPlugin: VF Driver installation succeeded from %s\n", currentPath); 
             VFPluginUtilities::SaveInstalledState();
         }
@@ -114,13 +131,15 @@ void wmain(int argc, wchar_t *argv[])
 
     if(swprintf_s(versionInfo, sizeof(versionInfo), L"Windows") < 0)
     {
-        LOGERRW(L"swprintf_s rrror while constructing guestos");
+        LOGERRW(L"swprintf_s error while constructing guestos");
     }
     
+
     while(true)
     {
     
-        VFPluginUtilities::GetHostNetAgentURL(url, sizeof(url));
+        VFPluginUtilities::GetHostNetAgentURL(url, sizeof(url), HOSTAGENT_PATH);
+        numNonFunctioningDevices = vfplugin.GetNumNonFunctioningDevices(MLX_DEVICE_ID, &totalDevices);
 
         isInstalled = vfplugin.GetMlxVFDriverDetails(installedVersion, sizeof(installedVersion));
 
@@ -128,8 +147,6 @@ void wmain(int argc, wchar_t *argv[])
         {
             LOGWARNW(L"VFDriver is not installed");
         }
-
-        numNonFunctioningDevices = vfplugin.GetNumNonFunctioningDevices(MLX_DEVICE_ID);
         
         LOGINFOW(L"os version info %s nonfunctioning devs %d isinstalled %d", versionInfo, numNonFunctioningDevices, isInstalled);
         hr = VFPluginUtilities::RetrieveStatusInfoAsXMLStr(isInstalled, installedVersion, versionInfo, numNonFunctioningDevices, &statusInfo);
@@ -142,11 +159,16 @@ void wmain(int argc, wchar_t *argv[])
             continue;
         }
 
-        LOGINFOW(L"Going to send status to wireserver %s", url);
+        LOGINFOW(L"Going to send status %s to wireserver %s", url, statusInfo);
         VFPluginUtilities::SendStatusToWireServer(url, statusInfo);
         
+        healthReport.NumNonWorkingDevices = numNonFunctioningDevices; 
+        healthReport.TotalDevices = totalDevices;           
+        healthReport.SendHealthStatusToHostAgent(healthUrl);
+        healthReport.Reset();
+
         SysFreeString(statusInfo);
         statusInfo = NULL;
-        Sleep(3600000);
+        Sleep(1000);
     }
 }

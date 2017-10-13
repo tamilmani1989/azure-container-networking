@@ -42,10 +42,6 @@
     <ProjectReference Include="..\RestClient\RestClient.vcxproj">
       <Project>{8c7160e7-1aff-4c05-88fe-cae4e91c25d4}</Project>
     </ProjectReference>
-    
-    <!-- <ProjectReference Include="..\Logging\logging.vcxproj">
-      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
-    </ProjectReference> -->
 
   </ItemGroup>
   <ItemGroup>

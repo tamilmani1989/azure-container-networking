@@ -55,7 +55,13 @@ VFPlugin::GetMlxVFDriverDetails(
         //
         // See if the driver package is installed by querying the OEM files in the INF directory
         //
-        foundInstalledDriver = FindDriverVersionFromInf(InstalledVersion);  
+
+        foundInstalledDriver = FindDriverVersionFromNetmlx(InstalledVersion);
+
+        if(!foundInstalledDriver)
+        {
+            foundInstalledDriver = FindDriverVersionFromInf(InstalledVersion);  
+        }
     }
 
     if (registryPath) {
@@ -175,6 +181,54 @@ Return Value:
 {
 
 }
+
+BOOL 
+VFPlugin::FindDriverVersionFromNetmlx(
+    __out wchar_t* Version)
+/*++
+
+Routine Description:
+    Enumerates installed oem inf files on the machine and searches for the
+    one with the matching DriverDescription
+
+Arguments:
+
+Return Value:
+
+    EXIT_xxxx
+
+--*/
+{
+    wchar_t winDir[MAX_PATH];
+    wchar_t fileName[MAX_PATH];
+    wchar_t infBasePath[MAX_PATH];
+    DWORD status = ERROR_NO_SUCH_DEVINST;
+
+    fileName[0] = 0;
+    if (!GetWindowsDirectory(winDir, ARRAYSIZE(winDir))) {
+        LOGINFOW(L"GetWindowsDirectory failed\n");
+        goto Cleanup;        
+    }
+
+    LOGINFOW(L"GetWindowsDirectory %s\n", winDir);
+    PathCombine(fileName, winDir, NETMLX_INF_FILE);
+    PathCombine(infBasePath, winDir, L"inf");
+    
+    status = GetVersionFromInf(fileName,
+                                   infBasePath,
+                                   MLX_CLASS,
+                                   MLX_DRIVER_DESCRIPTION_VALUE,
+                                   Version);
+
+    if (status == ERROR_SUCCESS) {
+        return TRUE;
+    } 
+
+Cleanup:
+    return FALSE;
+}
+
+
 
 
 BOOL 
@@ -411,7 +465,7 @@ Return Value:
 
 **/
 {
-    HDEVINFO hdevinfo;
+    HDEVINFO hdevinfo = INVALID_HANDLE_VALUE;
     SP_DEVINFO_DATA devinfo;
     wchar_t instanceId[4096];
     DWORD count = 0;
@@ -493,6 +547,11 @@ Cleanup:
 
     if (*DevInfoData == NULL) {
         status = ERROR_NO_SUCH_DEVINST;
+    }
+
+    if(hdevinfo != INVALID_HANDLE_VALUE)
+    {
+        SetupDiDestroyDeviceInfoList(hdevinfo);
     }
 
     return status;
@@ -1000,7 +1059,8 @@ Cleanup:
 
 int
 VFPlugin::GetNumNonFunctioningDevices(
-        __in PCWSTR DeviceSearchString
+        __in PCWSTR DeviceSearchString,
+        __out int *TotalDevices
 )
 /**
 Routine description:
@@ -1091,6 +1151,7 @@ Return Value:
         }
 
         LOGINFOW(L"Device found, DevicePath: %s\n", instanceId);
+        (*TotalDevices)++;
 
         status = CM_Get_DevNode_Status(&dnStatus, &pbmNumber, devinfo.DevInst, 0);
         if(status != CR_SUCCESS)
