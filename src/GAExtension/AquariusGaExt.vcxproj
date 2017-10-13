@@ -19,5 +19,20 @@
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
+  <ItemGroup>  
+  <Robocopy Include="$(VcppRedist)\">
+      <FileMatch>*.*</FileMatch>
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\AquariusPackage\vcredist</DestinationFolder>
+    </Robocopy>	
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+   <Target Name="AfterBuild">
+    <Copy SourceFiles="AzureExtensionPackage\VMExtension\disable.cmd" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage" />
+    <Copy SourceFiles="AzureExtensionPackage\VMExtension\enable.cmd" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage" />
+	<Copy SourceFiles="AzureExtensionPackage\VMExtension\install.cmd" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage" />
+	<Copy SourceFiles="AzureExtensionPackage\VMExtension\uninstall.cmd" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage" />
+    <Copy SourceFiles="AzureExtensionPackage\VMExtension\update.cmd" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage" />
+    <Copy SourceFiles="AzureExtensionPackage\VMExtension\HandlerManifest.json" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage" />
+ </Target>
+
 </Project>

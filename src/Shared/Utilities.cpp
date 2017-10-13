@@ -18,6 +18,7 @@ const wchar_t* AquariusUtilities::defaultPackageStoreLocation = L"C:\\Aquarius\\
 const wchar_t * AquariusUtilities::codeDirectoryName = L"code";
 const wchar_t * AquariusUtilities::configFileName = L"config.txt";
 const wchar_t * AquariusUtilities::manifestFileName = L"manifest.xml";
+wchar_t *AquariusUtilities::relativePathFromExe = nullptr;
 //
 //   FUNCTION: AquariusSvcBase::WriteEventLogEntry(PWSTR, WORD)
 //
@@ -40,14 +41,22 @@ void AquariusUtilities::WriteEventLogEntry(PWSTR pszMessage)
 	WORD wType = EVENTLOG_INFORMATION_TYPE;
 	HANDLE hEventSource;
 	LPCWSTR lpszStrings[2] = { nullptr, nullptr };
+	wchar_t svcName[MAX_PATH];
 
-	hEventSource = RegisterEventSource(nullptr, SERVICE_NAME);
+	if(AquariusUtilities::GetServiceName(svcName, sizeof(svcName)) != 0)
+	{
+		AquariusUtilities::WriteEventLogEntry(L"NetAgent:: Unable to retrieve service name..");
+		wprintf(L"Unable to retrieve service name..");
+		return;
+	}
+
+	hEventSource = RegisterEventSource(nullptr, svcName);
 	if (hEventSource)
 	{
-		lpszStrings[0] = SERVICE_NAME;
+		lpszStrings[0] = svcName;
 		lpszStrings[1] = pszMessage;
 
-		ReportEvent(hEventSource,  // Event log handle
+	ReportEvent(hEventSource,  // Event log handle
 			wType,                 // Event type
             0x00000001L,                     // Event category
             0x40020100L,                     // Event identifier
@@ -57,7 +66,6 @@ void AquariusUtilities::WriteEventLogEntry(PWSTR pszMessage)
 			lpszStrings,           // Array of strings
 			nullptr                   // No binary data
 		);
-
 		DeregisterEventSource(hEventSource);
 	}
 }
@@ -74,17 +82,26 @@ void AquariusUtilities::WriteEventLogEntry(PWSTR pszMessage)
 void AquariusUtilities::WriteErrorLogEntry(PWSTR pszFunction)
 {
 	WORD wType = EVENTLOG_ERROR_TYPE;
-	wchar_t szMessage[260];
+	wchar_t szMessage[MAX_PATH];
+	wchar_t svcName[MAX_PATH];
+
 	StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
 		L"%s failed w/err 0x%08lx", pszFunction, wType);
 
 	HANDLE hEventSource;
 	LPCWSTR lpszStrings[2] = { nullptr, nullptr };
+	
+	if(AquariusUtilities::GetServiceName(svcName, sizeof(svcName)) != 0)
+	{
+		AquariusUtilities::WriteEventLogEntry(L"NetAgent:: Unable to retrieve service name..");
+		wprintf(L"Unable to retrieve service name..");
+		return;
+	}
 
-	hEventSource = RegisterEventSource(nullptr, SERVICE_NAME);
+	hEventSource = RegisterEventSource(nullptr, svcName);
 	if (hEventSource)
 	{
-		lpszStrings[0] = SERVICE_NAME;
+		lpszStrings[0] = svcName;
 		lpszStrings[1] = szMessage;
 
 		ReportEvent(hEventSource,  // Event log handle
@@ -110,7 +127,7 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 		return;
 	}
 
-    wchar_t szMessage[260];
+    wchar_t szMessage[MAX_PATH];
 
 	for (int i = 0; i<count; i++)
 	{
@@ -123,6 +140,7 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 			pluginsMetadata[i].location = nullptr;
 			AquariusUtilities::allocator--;
 		}
+
 		if (pluginsMetadata[i].currentVersion != nullptr) 
 		{
             StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
@@ -132,17 +150,24 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 			pluginsMetadata[i].currentVersion = nullptr;
 			AquariusUtilities::allocator--;
 		}
+
+		if (pluginsMetadata[i].entryPoint != nullptr) 
+		{
+			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+                L"Going to Release entrypoint %s", pluginsMetadata[i].entryPoint);
+            WriteEventLogEntry(szMessage);
+			delete[] pluginsMetadata[i].entryPoint;
+			pluginsMetadata[i].entryPoint = nullptr;
+		}
 	}
-	delete[] pluginsMetadata;
-	pluginsMetadata = nullptr;
-	AquariusUtilities::allocator--;
 }
 
 
 
 void AquariusUtilities::PopulateServiceExeLocation(wchar_t* packageStoreLocation)
 {
-	wchar_t szMessage[260];
+	wchar_t szMessage[MAX_PATH];
+	
 	if (GetModuleFileName(nullptr, packageStoreLocation, MAX_PATH) == 0)
 	{
 		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
@@ -171,5 +196,47 @@ void AquariusUtilities::PopulateServiceExeLocation(wchar_t* packageStoreLocation
 void AquariusUtilities::PopulatePluginLocation(wchar_t* packageStoreLocation)
 {
 	PopulateServiceExeLocation(packageStoreLocation);
-	wcscat_s(packageStoreLocation, MAX_PATH, L"\\Plugins");
+	wcscat_s(packageStoreLocation, MAX_PATH, relativePathFromExe);
+}
+
+void AquariusUtilities::SetRelativePathFromExe(wchar_t *relPath)
+{
+	size_t len = wcslen(relPath)+1;
+	relativePathFromExe = new wchar_t[len];
+	wcscpy_s(relativePathFromExe, len, relPath);
+}
+
+int AquariusUtilities::GetServiceName(wchar_t *svcName, size_t size)
+{
+	int i = 0;
+	int ret = 1;
+
+	if(GetModuleBaseName(GetCurrentProcess(), GetModuleHandle(NULL), svcName, (DWORD)size) == 0)
+	{
+		AquariusUtilities::WriteEventLogEntry(L"Error while retrieving process name");     
+		wprintf(L"Error while retrieving process name:%d\n", GetLastError());
+		return ret;
+	}
+
+	while(svcName[i] != '.' && svcName[i] != '\0')
+	{
+		i++;
+	}		
+
+	if(svcName[i] == '\0')
+	{
+		return ret;
+	}
+
+	svcName[i]='\0';
+
+	
+	if(wcscat_s(svcName, size, L"Svc") != 0)
+	{
+		AquariusUtilities::WriteEventLogEntry(L"wcscat_s failed while creating service name");     
+		wprintf(L"wcscat_s failed while creating service name:%d\n", GetLastError());
+		return ret;
+	}
+
+	return 0;
 }

@@ -1,0 +1,83 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <TargetName>ServiceTunnelExtensionTest</TargetName>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ProjectGuid>{f40b4b30-69a6-4ddc-aae7-b15a11e82e67}</ProjectGuid>
+    <OutDirSuffix>test\$(TargetName)\</OutDirSuffix>
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories);
+		$(SRCROOT)\ServiceTunnelLibrary;
+		$(SRCROOT)\test\TraceLogging;
+      </AdditionalIncludeDirectories>
+      <!-- Override default from native_user_compile for compat with RdCommon.lib -->
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+		$(TAEF_SDK)\build\Library\x64\TE.Common.lib;
+		$(TAEF_SDK)\build\Library\x64\Wex.Common.lib;
+		$(TAEF_SDK)\build\Library\x64\Wex.Logger.lib;  
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+		
+		$(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(WindowsSdk64LibPath)\setupapi.lib;
+        $(WindowsSdk64LibPath)\strsafe.lib;
+        $(WindowsSdk64LibPath)\iphlpapi.lib;
+        $(WindowsSdk64LibPath)\Rpcrt4.lib;
+        $(WindowsSdk64LibPath)\Uuid.lib;
+        $(WindowsSdk64LibPath)\kernel32.lib;
+        $(WindowsSdk64LibPath)\ntdll.lib;
+        $(WindowsSdk64LibPath)\pathcch.lib;
+        $(WindowsSdk64LibPath)\newdev.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsupp.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
+        $(PkgVisualCpp_x64_Corext)\lib\x64\legacy_stdio_definitions.lib;
+        $(FC_Redist)\content\redist\SacApi.lib;
+        $(FC_Redist)\content\redist\DCM.RegUtil.lib;
+        $(FC_Redist)\content\redist\RdCommon.lib;
+        $(PkgPolicyAgent_HSClient_Release)\HealthReportingClientLib.lib
+	  </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="ServiceTunnelExtensionTest.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="ServiceTunnelLibrary.h" />
+    <ClInclude Include="ServiceTunnelExtensionTest.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(SRCROOT)\ServiceTunnelLibrary\ServiceTunnelLibrary.vcxproj">
+      <Project>{7DB0C9A4-CADC-4E53-ADF3-1F6887454249}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Common\XmlParseHelper\XmlParserHelper.vcxproj">
+      <Project>{78962bc6-361c-4630-8995-91d0c054c82e}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+      <Robocopy Include="$(SRCROOT)\test\ServiceTunnelExtensionTest\rcf">
+        <FileMatch>*.*</FileMatch>
+        <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\ServiceTunnelExtensionTest\rcf</DestinationFolder>
+      </Robocopy>
+      <Robocopy Include="$(SRCROOT)\test\ServiceTunnelExtensionTest\rcf2">
+        <FileMatch>*.*</FileMatch>
+        <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\ServiceTunnelExtensionTest\rcf2</DestinationFolder>
+      </Robocopy>	  
+  </ItemGroup>
+ 
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

@@ -14,10 +14,19 @@ MessageSender::MessageSender(MessageExchange *pMessageExchange, string *remoteHo
 }
 
 MessageSender::~MessageSender()
-{
+{	
 	m_pMessageExchange = NULL;
 	m_remoteHostAddresses = NULL;
 	m_remoteHostsCount = 0;
+}
+
+DWORD MessageSender::SetRemoteHostsForSendingMessages(string *remoteHostAddresses, int remoteHostsCount)
+{
+	m_RemoteHostsMutex.lock();
+	m_remoteHostAddresses = remoteHostAddresses;
+	m_remoteHostsCount = remoteHostsCount;
+	m_RemoteHostsMutex.unlock();
+	return 0;
 }
 
 DWORD MessageSender::Send(Message &message)
@@ -36,11 +45,13 @@ DWORD MessageSender::Send(Message &message)
 	RawMessage *pRawMessage = message.CreateRawMessage();
 	E_NULL(pRawMessage, E_CouldNotCreateRawMessage, L"Failed to create raw message.");
 	map<string, int>* pSendMap = new map<string, int>();
+	m_RemoteHostsMutex.lock();
 	for (int i = 0; i < m_remoteHostsCount; i++)
 	{
 		LogXA(L"Adding send message for remote host:%S", m_remoteHostAddresses[i].c_str());
 		pSendMap->insert(pair<string, int>(m_remoteHostAddresses[i], 0));
 	}
+	m_RemoteHostsMutex.unlock();
 	tuple<RawMessage*, map<string, int>*>* messageMapTuple = new tuple<RawMessage*, map<string, int>*>(pRawMessage, pSendMap);
 	const char *msgId = message.GetMessageId();
 	UpdateMessageMap(msgId, messageMapTuple);

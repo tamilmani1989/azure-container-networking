@@ -376,8 +376,14 @@ Cleanup:
         SysFreeString(bstrAttributeName);
     }
 
+	if (AttributeValues.size() > 0)
+	{
+		RD_TRACE_LOG((RD_TRACE_INFO, L"Got atleast one attribute value. So considering it as success"));
+		hr = S_OK;
+	}
     return hr;
 }
+
 
 std::wstring 
 XmlParserHelper::PrepareAttributeQuery(

@@ -11,15 +11,16 @@
 #include <objbase.h>
 #include <stdio.h>
 #include <string>
+#include <ifdef.h>
+#include <wil/Resource.h>
 #include "HnsApi.h"
 #include "HnsApi_i.c"
-#include "../NetworkClientLibrary/Common/aquanetworkclient.h"
 #include "Config.Containers.HNS.h"
-#include <wil/Resource.h>
-#include <ifdef.h>
-#include "../NetworkClientLibrary/Common/nclcore.h"
 #include "../aquanix/Common/aquanixext.h"
 #include "../Logging/Logging.h"
+#include "../NetworkClientLibrary/Common/aquanetworkclient.h"
+#include "../NetworkClientLibrary/Common/nclcore.h"
+
 #define SUCCESS L"\"Success\" : true"
 using namespace std::string_literals; 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
@@ -32,7 +33,6 @@ bool ExecuteHNSRequest(LPWSTR *responsePtr, LPCWSTR Method, LPCWSTR Path, LPCWST
 
 std::wstring GetContainerNetworkId(wchar_t *hnsNetworkType)
 {
-	//LPWSTR responsePtr = NULL;
 	wil::unique_cotaskmem_ptr<WCHAR> networkResponseJson;
 	std::wstring request = L"";
 

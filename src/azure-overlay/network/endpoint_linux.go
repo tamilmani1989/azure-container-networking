@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 
+	"azure-overlay/common"
 	"azure-overlay/log"
 	"azure-overlay/netlink"
 )
@@ -18,7 +19,6 @@ const (
 
 	// Prefix for container network interface names.
 	containerInterfacePrefix = "eth"
-	
 )
 
 // newEndpointImpl creates a new endpoint in the network.
@@ -28,7 +28,6 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	var ep *endpoint
 	var err error
 
-	fmt.Println("epid", epInfo.Id)
 	// Create a veth pair.
 	hostIfName := fmt.Sprintf("%s%s", hostInterfacePrefix, epInfo.Id[:7])
 	contIfName := fmt.Sprintf("%s%s-2", hostInterfacePrefix, epInfo.Id[:7])
@@ -61,11 +60,11 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	}
 
 	// Connect host interface to the bridge.
-	log.Printf("[net] Setting link %v master %v.", hostIfName, nw.extIf.Name)
-	//err = netlink.SetLinkMaster(hostIfName, nw.extIf.Name)
-	system("ovs-vsctl", "add-port", bridgeName, hostIfName)
+	log.Printf("[net] Adding veth %v to ovs bridge %v.", hostIfName, nw.extIf.Name)
+	err = common.System("ovs-vsctl", "add-port", nw.extIf.Name, hostIfName)
 	if err != nil {
-		goto cleanup
+		log.Printf("Error adding container veth pair to ovs bridge %v", err.Error())
+		return nil, err
 	}
 
 	//

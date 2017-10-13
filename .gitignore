@@ -54,6 +54,8 @@ Repository Bloat Risks
 *.wim
 *.zip
 *.gz
+*.swp
+*.vs
 
 ###
 Secret Disclosure Risks
@@ -314,3 +316,6 @@ FakesAssemblies/
 *.so
 *.so.1.0
 a.out
+
+# Ignore generated bin
+MSG*.bin

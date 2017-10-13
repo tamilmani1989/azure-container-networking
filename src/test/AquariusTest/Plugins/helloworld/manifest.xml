@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PluginManifest Name="helloworld" Version="1.0.0.1" Type="Remote">
+  <Description>hello world program.</Description>
+  <CodePackage Name="code" Version="1.0.0.1" TargetOSFamily="Windows" >
+    <EntryPoint>
+      <Program>helloworld.exe</Program>
+    </EntryPoint>
+  </CodePackage>
+  <ConfigFile Name="config.xml" Version="1.0.0.1" />
+</PluginManifest>

@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RDConfig xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.0.0.0">
+  <StoredCertificates>
+    <StoredCertificate name="Stored0Microsoft.WindowsAzure.PluginEncryptionCertificate.1c0af2c7-17f7-4726-948e-5ae65ec16f69" certificateId="sha1:39970A92C606E1F29683EAF51ACF387B71795352" storeName="My" configurationLevel="System" />
+  </StoredCertificates>
+  <Deployment name="47e545f4cf1842b3bd897139e8e1ac9f" incarnation="11" guid="{9caf3e88-8b1b-428f-80fb-ac75efb4d82f}" isNonCancellableTopologyChangeEnabled="false">
+    <Service name="ContainerTest" guid="{00000000-0000-0000-0000-000000000000}" />
+    <ServiceInstance name="47e545f4cf1842b3bd897139e8e1ac9f.13" guid="{d3d6c786-d857-4d69-8760-9e1de716e9da}" />
+  </Deployment>
+  <Incarnation number="1" instance="ContainerTest" guid="{a3d0449c-1628-45ad-b41b-51fbaef89a88}" />
+  <Role guid="{0e37bfbe-5239-593a-6868-cb91fc596cf1}" name="ContainerTest" software="" softwareType="ApplicationPackage" entryPoint="" parameters="" settleTimeSeconds="0" />
+  <HostingEnvironmentSettings name="full" Runtime="rd_fabric_stable_dhf5.150807-2320.RuntimePackage_1.0.0.14.zip">
+    <CAS mode="full" />
+    <PrivilegeLevel mode="max" />
+    <Plugins>
+      <Plugin name="Microsoft.Compute.VMAccessAgent" version="2.3" location="https://brdfepirv2by3prdstr04.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.Compute_VMAccessAgent_uswest_manifest.xml" config="" isJson="true" />
+      <Plugin name="Microsoft.Compute.BGInfo" version="1.2.2" location="https://brdfepirv2by3prdstr04.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.Compute_BGInfo_uswest_manifest.xml" config="PENvbmZpZ3VyYXRpb24+PFB1YmxpYyAvPjxQcml2YXRlIC8+PEVuYWJsZWQ+VHJ1ZTwvRW5hYmxlZD48L0NvbmZpZ3VyYXRpb24+" />
+      <Plugin name="Microsoft.Azure.Networking.SDN.Aquarius" version="3.2" location="https://brdfepirv2by3prdstr04.blob.core.windows.net/b5fe1511bab84e6fbce47d9508a7c4fc/Microsoft.Azure.Networking.SDN_Aquarius_uswest_manifest.xml" config="" isJson="true" />
+    </Plugins>
+    <AdditionalProperties>
+      <CgiHandlers>
+      </CgiHandlers>
+    </AdditionalProperties>
+  </HostingEnvironmentSettings>
+  <ApplicationSettings>
+    <Setting name="__ModelData" value="&lt;m role=&quot;ContainerTest&quot; xmlns=&quot;urn:azure:m:v1&quot;&gt;&lt;r name=&quot;ContainerTest&quot;&gt;&lt;e name=&quot;openInternalEndpoint&quot; /&gt;&lt;e name=&quot;PowerShell&quot; /&gt;&lt;e name=&quot;Remote Desktop&quot; /&gt;&lt;/r&gt;&lt;/m&gt;" />
+    <Setting name="ProvisionCertificate|Stored0Microsoft.WindowsAzure.PluginEncryptionCertificate.1c0af2c7-17f7-4726-948e-5ae65ec16f69" value="sha1:39970A92C606E1F29683EAF51ACF387B71795352" />
+  </ApplicationSettings>
+  <LoadBalancerSettings timeoutSeconds="0" WaitLoadBalancerProbeCount="8">
+    <Probes>
+      <Probe Name="D41D8CD98F00B204E9800998ECF8427E" />
+      <Probe Name="BB08D33322B9009FB8400BF1C3B49A94" />
+    </Probes>
+  </LoadBalancerSettings>
+  <OutputEndpoints>
+    <Endpoint name="ContainerTest:openInternalEndpoint" type="SFS">
+      <Target instance="ContainerTest" endpoint="openInternalEndpoint" />
+    </Endpoint>
+  </OutputEndpoints>
+  <Instances>
+    <Instance id="ContainerTest" address="10.10.20.1">
+      <FaultDomains randomID="0" updateID="0" updateCount="0" />
+      <InputEndpoints>
+        <Endpoint name="openInternalEndpoint" address="10.10.20.1" protocol="any" isPublic="False" enableDirectServerReturn="False" isDirectAddress="False" disableStealthMode="false">
+          <LocalPorts>
+            <LocalPortSelfManaged />
+          </LocalPorts>
+        </Endpoint>
+        <Endpoint name="PowerShell" address="10.0.0.4:5986" protocol="tcp" hostname="ContainerTestContractContract" isPublic="True" loadBalancedPublicAddress="13.64.117.49:5986" enableDirectServerReturn="False" isDirectAddress="False" disableStealthMode="false">
+          <LocalPorts>
+            <LocalPortRange from="5986" to="5986" />
+          </LocalPorts>
+        </Endpoint>
+        <Endpoint name="Remote Desktop" address="10.10.20.1:3389" protocol="tcp" hostname="ContainerTestContractContract" isPublic="True" loadBalancedPublicAddress="13.64.117.49:62036" enableDirectServerReturn="False" isDirectAddress="False" disableStealthMode="false">
+          <LocalPorts>
+            <LocalPortRange from="3389" to="3389" />
+          </LocalPorts>
+        </Endpoint>
+      </InputEndpoints>
+    </Instance>
+  </Instances>
+  <GuestAgentExtension>
+    <GAFamilies>
+      <GAFamily>
+        <Name>Win7</Name>
+        <Uris>
+          <Uri>https://brdfepirv2by3prdstr04.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by1prdstr01.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by1prdstr02.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by2prdstr01.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by2prdstr02.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by3prdstr01.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by3prdstr02.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by3prdstr03.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2by4prdstr02.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2by4prdstr03.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2by4prdstr05.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2by4prdstr09.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2byaprdstr01a.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2byaprdstr03a.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2byaprdstr05a.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2byaprdstr09a.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2byaprdstr10a.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+        </Uris>
+      </GAFamily>
+      <GAFamily>
+        <Name>Win8</Name>
+        <Uris>
+          <Uri>https://brdfepirv2by3prdstr04.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by1prdstr01.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by1prdstr02.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by2prdstr01.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by2prdstr02.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by3prdstr01.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by3prdstr02.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://rdfepirv2by3prdstr03.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2by4prdstr02.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2by4prdstr03.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2by4prdstr05.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2by4prdstr09.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2byaprdstr01a.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2byaprdstr03a.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2byaprdstr05a.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2byaprdstr09a.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+          <Uri>https://zrdfepirv2byaprdstr10a.blob.core.windows.net/bfd5c281a7dc4e4b84381eb0b47e3aaf/Microsoft.WindowsAzure.GuestAgent_Win8_uswest_manifest.xml</Uri>
+        </Uris>
+      </GAFamily>
+    </GAFamilies>
+  </GuestAgentExtension>
+  <PluginSettings>
+    <Plugin name="Microsoft.Compute.VMAccessAgent" version="2.3">
+      <RuntimeSettings seqNo="0">{"runtimeSettings":[{"handlerSettings":{"protectedSettingsCertThumbprint":"39970A92C606E1F29683EAF51ACF387B71795352","protectedSettings":"MIIB0AYJKoZIhvcNAQcDoIIBwTCCAb0CAQAxggFxMIIBbQIBADBVMEExPzA9BgoJkiaJk/IsZAEZFi9XaW5kb3dzIEF6dXJlIFNlcnZpY2UgTWFuYWdlbWVudCBmb3IgRXh0ZW5zaW9ucwIQFpqmjYeDS4dACnr/YodzjzANBgkqhkiG9w0BAQEFAASCAQAbcLZy88wD+m30OMdlkEFApWJnInJ/Ya1eBdISrauTXNYvmYh2InesTWTvmM4uiXjuGjS3AEjjFnnBLw9Ln3Sy+kbX7gx076hsfh24hiic+Le54wu6FMY9BPO4Xl6uzcaB0f4dn3UvaRTPvZ9buNl1nht36YBDapBPFsSqfZ0HWzTdR2RQkFsk/sreakxrzIo6OC83DXoIB/aLrsbJZLDE4BniXaLBshSuOo54btqJ+mvt24o6uYlLEGPF0zi8NRcd+pv8HbtqP4qaDXCRGeQbdk9X9IcqO6ngLicm4MmShQgpG1QgUXgBCLEWEwQEP7kwSMvFWoQvXNBgf08uAsT7MEMGCSqGSIb3DQEHATAUBggqhkiG9w0DBwQIwMIh+kqk2D6AILZMXf5L5YISGormxV+RKNS5y7bH4Fs6o72ivHaa4WtM","publicSettings":{"UserName":"rnmadmin"}}}]}</RuntimeSettings>
+    </Plugin>
+  </PluginSettings>
+</RDConfig>

@@ -10,6 +10,7 @@
 #include <windows.h>
 #include <strsafe.h>
 #include <msxml6.h>
+#include<psapi.h>
 #include "PluginMetadata.h"
 
 #define SAFE_DELETE(p)     do { if ((p!=nullptr)) { delete[] p; p = nullptr; } } while(0)\
@@ -22,6 +23,7 @@ public:
 	const static wchar_t *codeDirectoryName;
 	const static wchar_t *configFileName;
 	const static wchar_t *manifestFileName;
+	static wchar_t *relativePathFromExe;
 	static int allocator;
 
 	static void WriteEventLogEntry(PWSTR pszMessage);
@@ -32,5 +34,6 @@ public:
 	static void ReleasePluginMetadata(int count, PluginMetadata * pluginsMetadata);
 	static void PopulatePluginLocation(wchar_t* packageStoreLocation);
 	static void PopulateServiceExeLocation(wchar_t* packageStoreLocation);
-
+	static void SetRelativePathFromExe(wchar_t *relPath);
+	static int GetServiceName(wchar_t *svcName, size_t size);
 };

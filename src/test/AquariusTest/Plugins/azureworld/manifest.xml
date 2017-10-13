@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PluginManifest Name="azureworld" Version="1.0.0.1" Type="Remote">
+  <Description>azure world program.</Description>
+  <BlockRoleStartOnUnhealthy>False</BlockRoleStartOnUnhealthy> 
+   <CodePackage Name="code" Version="1.0.0.1" TargetOSFamily="Windows" >
+    <EntryPoint>
+      <Program>azureworld.exe</Program>
+      <RestartOnExit>False</RestartOnExit>
+    </EntryPoint>
+  </CodePackage>
+  <ConfigFile Name="config.xml" Version="1.0.0.1" />
+</PluginManifest>

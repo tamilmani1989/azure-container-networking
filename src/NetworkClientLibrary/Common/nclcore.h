@@ -38,6 +38,7 @@ typedef struct IpAllocations
 DllExport unsigned long SaveOverlayAddressSpace(ClusterConfig *clusterConfig);
 DllExport int ParseSecondaryIpAddresses(char *xmlResponse, int countOnly, unsigned int *ips);
 DllExport void SetEnvironment(NetworkType networkType);
+DllExport DWORD SetupNetworkEtwLogging(bool additionConsoleLoggingEnabled);
 
 /*
  * Constants and macros.

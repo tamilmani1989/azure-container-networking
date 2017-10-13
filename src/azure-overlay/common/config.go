@@ -38,4 +38,13 @@ const (
 	// Help.
 	OptHelp      = "help"
 	OptHelpAlias = "h"
+
+	OptHostIfName      = "interface-name"
+	OptHostIfNameAlias = "ifname"
+
+	OptHostIP      = "primary-ip"
+	OptHostIPAlias = "ip"
+
+	OptHostGateway      = "default-gateway"
+	OptHostGatewayAlias = "gw"
 )

@@ -12,7 +12,7 @@
 HKEY RegistryOps::OpenRegistryKey(HKEY rootKey, wchar_t* subKey)
 {
     HKEY returnKey;
-    wchar_t szMessage[260];
+    wchar_t szMessage[MAX_PATH];
 
     LONG nError = RegOpenKeyEx(rootKey, subKey, NULL, KEY_ALL_ACCESS, &returnKey);
     AquariusUtilities::WriteEventLogEntry(L"Open key operation executed.");
@@ -68,7 +68,7 @@ void RegistryOps::GetStringFromRegistry(HKEY configKey, wchar_t* key, wchar_t* r
 
 void RegistryOps::HandleRegistryError(HKEY rootKey, wchar_t* subKey, LONG nError)
 {
-    wchar_t szMessage[260];
+    wchar_t szMessage[MAX_PATH];
     try
     {
         StringCchPrintf(szMessage, ARRAYSIZE(szMessage),

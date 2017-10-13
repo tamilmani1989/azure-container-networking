@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PluginManifest Name="ServiceTunnelExtension" Version="1.0.0.1" Type="Remote">
   <Description>Extension to configure service tunnel adapter.</Description>
-  <CodePackage Name="code" Version="1.0.0.1" TargetOSFamily="Windows" >
+  <BlockRoleStartOnUnhealthy>True</BlockRoleStartOnUnhealthy> 
+   <CodePackage Name="code" Version="1.0.0.1" TargetOSFamily="Windows" >
     <EntryPoint>
       <Program>ServiceTunnelExtension.exe</Program>
+      <RestartOnExit>False</RestartOnExit>
+	 <Arguments>-retrycount 15 -waittimestart 5 -totalwaittime 180</Arguments>
     </EntryPoint>
   </CodePackage>
   <ConfigFile Name="config.xml" Version="1.0.0.1" />

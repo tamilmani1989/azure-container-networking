@@ -97,7 +97,6 @@ func main() {
 		printVersion()
 		os.Exit(0)
 	}
-
 	// Initialize plugin common configuration.
 	var config common.PluginConfig
 	config.Version = version
@@ -158,5 +157,4 @@ func main() {
 	if netPlugin != nil {
 		netPlugin.Stop()
 	}
-
 }

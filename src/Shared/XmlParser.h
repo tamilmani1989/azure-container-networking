@@ -11,9 +11,9 @@
 #include <stdio.h>
 #include <tchar.h>
 #include <msxml6.h>
-
+#include "PluginMetadata.h"
 class XmlParser
 {
 public:
-	static int ParseManifest(wchar_t* xmlFilePath, wchar_t **entryPoint);
+	static int ParseManifest(wchar_t* xmlFilePath, PluginMetadata *pluginData);
 };

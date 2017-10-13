@@ -4,7 +4,9 @@
 package common
 
 import (
+	"fmt"
 	"net"
+	"os/exec"
 
 	"azure-overlay/log"
 )
@@ -21,4 +23,12 @@ func LogNetworkInterfaces() {
 		addrs, _ := iface.Addrs()
 		log.Printf("[net] Network interface: %+v with IP addresses: %+v", iface, addrs)
 	}
+}
+func System(cmd string, arg ...string) error {
+	out, err := exec.Command(cmd, arg...).Output()
+	if err != nil {
+		log.Printf("error:%v", err)
+	}
+	fmt.Println(string(out))
+	return err
 }

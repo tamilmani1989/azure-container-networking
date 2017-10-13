@@ -19,6 +19,7 @@ const (
 
 	// Libnetwork network plugin options
 	modeOption = "com.microsoft.azure.network.mode"
+	vxlanIDOption = "com.microsoft.azure.network.vxlanID"
 )
 
 // Request sent by libnetwork when querying plugin capabilities.

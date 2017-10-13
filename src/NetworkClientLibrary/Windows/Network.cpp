@@ -689,7 +689,17 @@ Return Value:
 	payloadLen = strlen(DockerNwGet) + strlen(networkName) + strlen(httpreq);
 
 	payload = (char *)malloc(payloadLen + 2);
-	snprintf(payload, payloadLen + 2, "%s%s %s", DockerNwGet, networkName, httpreq);
+	if(payload == NULL)
+	{
+		LOGERR("Error allocating memory for payload.");
+		return 1;
+	}
+	if(snprintf(payload, payloadLen + 2, "%s%s %s", DockerNwGet, networkName, httpreq)<0)
+	{
+		LOGERR("Error happenned while creating payload for docker input: %s%s %s", DockerNwGet, networkName, httpreq);
+		free(payload);
+		return 1;
+	}
 	payload[payloadLen + 1] = '\0';
 	recvBuf = sendPayloadOnSocket(sock, payload);
 	if (!recvBuf)
@@ -1050,7 +1060,7 @@ Return Value:
 
 		LOGINFO("Retrieved subnet and gateway %s %s", subnetIp, gwIp);
 
-		if(snprintf(ipamConfig, sizeof(ipamConfig), "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gwIp)==-1)
+		if(snprintf(ipamConfig, sizeof(ipamConfig), "\"IPAM\":{\"Config\":[{\"Subnet\":\"%s\",\"Gateway\":\"%s\"}]}", subnetIp, gwIp)<0)
 		{
 			LOGERR("Unable to create ipamConfig. snprintf failed.");
 			retval = UNEXPECTED_ERROR;
@@ -1080,9 +1090,14 @@ Return Value:
 			goto ClenupSetupUnderlayInAzure;
 		}
 
-		snprintf(nwCreateReq, totalLength + 1, 
+		if(snprintf(nwCreateReq, totalLength + 1, 
 			"%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}", 
-				DockerNwCreatePost, (int)conLength, clusterConfig->networkName, "l2tunnel", ipamConfig);
+				DockerNwCreatePost, (int)conLength, clusterConfig->networkName, "l2tunnel", ipamConfig)<0)
+		{
+			LOGERR("snprintf failed while creating nwCreateReq");
+			retval = UNEXPECTED_ERROR;
+			goto ClenupSetupUnderlayInAzure;
+		}
 
 		LOGINFO("Now going to call create network with Docker... cmd:%s:%d:%llu:%d", 
 			nwCreateReq, (int)totalLength, strlen(nwCreateReq), (int)conLength);
@@ -1169,30 +1184,37 @@ Return Value:
 	}
 	else
 	{
-		snprintf(nwCreateReq, totalLength + 1,
+		if(snprintf(nwCreateReq, totalLength + 1,
 			"%sContent-Length:%d\r\n\r\n{\"Name\":\"%s\",\"Driver\":\"%s\",%s}",
-			DockerNwCreatePost, (int)conLength, networkName, "l2tunnel", ipamConfig);
-
-		LOGINFO("Going to ask Docker to create network: %s:%d:%llu:%d", nwCreateReq, (int)totalLength, strlen(nwCreateReq), (int)conLength);
-
-		recvBuf = sendPayloadOnSocket(sock, nwCreateReq);
-		if (!recvBuf)
+			DockerNwCreatePost, (int)conLength, networkName, "l2tunnel", ipamConfig)<0)
 		{
-			LOGERR("Error while sending network create request to Docker.");
+			LOGERR("snprintf failed while creating docker request.");
 			retval = UNEXPECTED_ERROR;
 		}
 		else
 		{
-			int ret = retrieveHttpStatus(recvBuf);
-			LOGINFO("Http status of the response received from docker : %d", ret);
-			if (ret == 201)
+			LOGINFO("Going to ask Docker to create network: %s:%d:%llu:%d", 
+				nwCreateReq, (int)totalLength, strlen(nwCreateReq), (int)conLength);
+
+			recvBuf = sendPayloadOnSocket(sock, nwCreateReq);
+			if (!recvBuf)
 			{
-				LOGINFO("Docker network create succeeded.");
+				LOGERR("Error while sending network create request to Docker.");
+				retval = UNEXPECTED_ERROR;
 			}
 			else
 			{
-				LOGERR("Docker network create did not succeded. Reponse: %s.", recvBuf);
-				retval = UNEXPECTED_ERROR;
+				int ret = retrieveHttpStatus(recvBuf);
+				LOGINFO("Http status of the response received from docker : %d", ret);
+				if (ret == 201)
+				{
+					LOGINFO("Docker network create succeeded.");
+				}
+				else
+				{
+					LOGERR("Docker network create did not succeded. Reponse: %s.", recvBuf);
+					retval = UNEXPECTED_ERROR;
+				}
 			}
 		}
 	}
@@ -1290,9 +1312,14 @@ Return Value:
 
 		LOGINFO("Successfully retrieved Subnet and Gateway %s/%d %s", gatewayIp, clusterConfig->overlaySubnet->prefixLength, gwIp);
 
-		snprintf(ipamConfig, sizeof(ipamConfig), 
+		if(snprintf(ipamConfig, sizeof(ipamConfig), 
 			"\"IPAM\":{\"Config\":[{\"Subnet\":\"%s/%d\",\"Gateway\":\"%s\"}]}", 
-			gatewayIp, clusterConfig->overlaySubnet->prefixLength, gwIp);
+			gatewayIp, clusterConfig->overlaySubnet->prefixLength, gwIp)<0)
+		{
+			LOGERR("snprintf failed while creating ipam config.");
+			if (gwIp) free(gwIp);
+			return UNEXPECTED_ERROR;
+		}
 
 		LOGINFO("Constructed input for ipam (to be given as input to docker network create): %s", ipamConfig);
 
@@ -1584,7 +1611,7 @@ Return Value:
 					failed = true;
 				}
 				else
-				if (strcpy_s(remoteHostAddresses[cntr], INET_ADDRSTRLEN, remoteIpInString2) != 0)
+				if (snprintf(remoteHostAddresses[cntr], INET_ADDRSTRLEN, remoteIpInString2) < 0)
 				{
 					LOGERR("Unable to save remote IP address: %s.", remoteIpInString2);
 					failed = true;

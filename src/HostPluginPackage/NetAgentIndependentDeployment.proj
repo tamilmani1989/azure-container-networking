@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetAgentPackage\NetAgentPackage.proj">
+        <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetName>RobocopyFiles</TargetName>
+    <RoboCopyFilesDependsOn>GenerateManifest</RoboCopyFilesDependsOn>
+    <GenerateManifestDependsOn>GenerateBuildFile</GenerateManifestDependsOn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DeploymentOutput>$(BinariesBuildTypeArchDirectory)\RDPackage\NetAgentHostPlugin</DeploymentOutput>
+    <HostPluginsOutput>$(DeploymentOutput)\Configurations</HostPluginsOutput>
+    <BuildNameGen>$(MSBuildThisFileDirectory)BuildNameGen.ps1</BuildNameGen>
+    <_BuildType>$(Platform)$(RazzleBuildType)</_BuildType>
+    <BuildFile>$(DeploymentOutput)\buildname.txt</BuildFile>
+    <TemplateFile>DeploymentManifestTemplate.xml</TemplateFile>
+    <GeneratedFile>$(DeploymentOutput)\DeploymentManifest.xml</GeneratedFile>
+    <ComponentModuleMapFile>ComponentModuleMap.xml</ComponentModuleMapFile>
+    <ConfigTemplate>HostPluginsConfigTemplate.xml</ConfigTemplate>
+    <SetupFile>NetAgentHostPlugin.PluginSetup.xml</SetupFile>
+    <SpecificFile>NetAgentHostPlugin.PluginSpecific.xml</SpecificFile>
+    <RDToolOutput>$(BinariesBuildTypeArchDirectory)\RDTools\Deploy</RDToolOutput>
+    <DeploymentTemplates>NetAgent_Component_Update.xml</DeploymentTemplates>
+    <ToolFilePath>$(PkgOneDeploy_DeploymentFx_Release)\lib\net45\Microsoft.WindowsAzure.Deployment.Manifest.ManifestBuilder.exe</ToolFilePath>
+    <TRepPath>$(PkgNetAnalytics_TRep)\content\TRep.exe</TRepPath>
+    <VersionPrefix>$(BuildVersion).$(DFBuild)</VersionPrefix>
+    <PkgName>WindowsAzureNetAgent_$(BuildVersion)</PkgName>  
+    <ZipOutputFile>$(BinariesBuildTypeArchDirectory)\Artifacts\$(PkgName).zip</ZipOutputFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <QCustomOutput Include="$(BuildFile)" />
+    <QCustomOutput Include="$(GeneratedFile)" />
+    <QCustomOutput Include="$(ComponentModuleMapFile)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Robocopy Include="$(GeneratedFile)">
+      <DestinationFolder>$(DeploymentOutput)</DestinationFolder>
+    </Robocopy>
+    <Robocopy Include="$(ComponentModuleMapFile)">
+      <DestinationFolder>$(DeploymentOutPut)</DestinationFolder>
+    </Robocopy>
+    <Robocopy Include="$(DeploymentTemplates)">
+      <DestinationFolder>$(RDToolOutput)\Templates</DestinationFolder>
+    </Robocopy>
+  </ItemGroup>
+
+  <Target Name="GenerateBuildFile" AfterTargets="PostBuildCopyToFiles">
+    <MakeDir Directories="$(DeploymentOutput)"/>
+    <Message Text="Generate buildname.txt" />
+    <Exec Command="PowerShell -ExecutionPolicy Bypass -File $(BuildNameGen) $(BuildFile) $(_BuildType)" />
+  </Target>
+  
+  <Target Name="GenerateConfigTemplate" AfterTargets="GenerateBuildFile">
+        <PropertyGroup>
+            <ConfigFile>$(HostPluginsOutput)\$(VersionPrefix).HostPluginsConfigTemplate.xml</ConfigFile>
+        </PropertyGroup>
+        <Copy SourceFiles="$(ConfigTemplate)" DestinationFiles="$(ConfigFile)" />
+        <Exec Command="$(TRepPath) $(ConfigFile) #DF_BUILD# $(VersionPrefix)" />
+  </Target>
+  
+  <Target Name="CopyPluginFile" AfterTargets="GenerateConfigTemplate">
+        <Copy SourceFiles="$(ZipOutputFile)" DestinationFiles="$(HostPluginsOutput)\$(VersionPrefix).NetAgentPackage.zip" />
+        <Copy SourceFiles="$(SetupFile)" DestinationFiles="$(HostPluginsOutput)\$(VersionPrefix).NetAgentHostPlugin.PluginSetup.xml" />
+        <Copy SourceFiles="$(SpecificFile)" DestinationFiles="$(HostPluginsOutput)\$(VersionPrefix).NetAgentHostPlugin.PluginSpecific.xml" />
+  </Target>
+
+  <Target Name="GenerateManifest" DependsOnTargets="GenerateBuildFile">
+    <!--<PropertyGroup>
+      <ManifestGenerateCommand>$(ToolFilePath) $(BuildFile) $(TemplateFile) $(GeneratedFile)</ManifestGenerateCommand>
+    </PropertyGroup>
+
+    <Message Text="Generating $(GeneratedFile) using $(BuildFile) with content $(BuildFileContent)" />
+    <Exec Command="$(ManifestGenerateCommand)" />
+    -->
+    <Copy SourceFiles="$(TemplateFile)" DestinationFiles="$(GeneratedFile)"/> 
+    
+    <!--Manifest builder doesn't add branch name for git branches currently so we have to replace it ourselves -->
+    <Message Text="Replacing manifest texts" />
+    <Exec Command="$(TRepPath) $(GeneratedFile) #REPO_BRANCH# git_$(GitRepositoryName)_$(GitBranchName)" />
+    <Exec Command="$(TRepPath) $(GeneratedFile) #BUILD_VERSION# $(BuildVersion)" />
+    <Exec Command="$(TRepPath) $(GeneratedFile) _Networking-Aquarius_ _networking_aquarius_" />
+    <Exec Command="$(TRepPath) $(GeneratedFile) #VERSION_PREFIX# $(VersionPrefix)" />
+    <Exec Command="$(TRepPath) $(GeneratedFile) #DEPLOY_VERSION# $(DeploymentVersion).$(BuildDate)" />
+    <Exec Command="$(TRepPath) $(GeneratedFile) #BRANCH_NAME# $(GitRepositoryName)-$(GitBranchName)" />
+    <Exec Command="$(TRepPath) $(GeneratedFile) #Date# $(BuildDate)" />
+    <Exec Command="$(TRepPath) $(GeneratedFile) #BuildFQBN# $(BuildVersion)$(Fqbn)" />
+  </Target> 
+
+</Project>

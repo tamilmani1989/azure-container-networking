@@ -4,9 +4,7 @@
 package network
 
 import (
-	"fmt"
 	"net"
-	"os/exec"
 
 	"azure-overlay/log"
 	"azure-overlay/platform"
@@ -19,15 +17,16 @@ const (
 
 // ExternalInterface is a host network interface that bridges containers to external networks.
 type externalInterface struct {
-	Name        string
-	Networks    map[string]*network
-	Subnets     []string
-	BridgeName  string
-	MacAddress  net.HardwareAddr
-	IPAddresses []*net.IPNet
-	Routes      []*route
-	IPv4Gateway net.IP
-	IPv6Gateway net.IP
+	Name               string
+	Networks           map[string]*network
+	Subnets            []string
+	BridgeName         string
+	InternetBridgeName string
+	MacAddress         net.HardwareAddr
+	IPAddresses        []*net.IPNet
+	Routes             []*route
+	IPv4Gateway        net.IP
+	IPv6Gateway        net.IP
 }
 
 // A container network is a set of endpoints allowed to communicate with each other.
@@ -102,26 +101,6 @@ func (nm *networkManager) deleteExternalInterface(ifName string) error {
 	return nil
 }
 
-// FindExternalInterfaceBySubnet finds an external interface connected to the given subnet.
-func (nm *networkManager) findExternalInterfaceBySubnet(subnet string) *externalInterface {
-	for _, extIf := range nm.ExternalInterfaces {
-		for _, s := range extIf.Subnets {
-			if s == subnet {
-				return extIf
-			}
-		}
-	}
-
-	return nil
-}
-func system(cmd string, arg ...string) {
-	out, err := exec.Command(cmd, arg...).Output()
-	if err != nil {
-		log.Printf("error:%v", err)
-	}
-	fmt.Println(string(out))
-}
-
 // NewNetwork creates a new container network.
 func (nm *networkManager) newNetwork(nwInfo *NetworkInfo) (*network, error) {
 	var nw *network
@@ -135,24 +114,6 @@ func (nm *networkManager) newNetwork(nwInfo *NetworkInfo) (*network, error) {
 		nwInfo.Mode = opModeOverlay
 	}
 
-	fmt.Println("mode", nwInfo.Mode)
-
-	//fmt.Println("exitf", extIf)
-	// Find the external interface for this subnet.
-	/*	extIf := nm.findExternalInterfaceBySubnet(nwInfo.Subnets[0].Prefix.String())
-			if extIf == nil {
-				err = errSubnetNotFound
-				goto fail
-			}
-
-
-		// Make sure this network does not already exist.
-		if extIf.Networks[nwInfo.Id] != nil {
-			err = errNetworkExists
-			goto fail
-		}
-	*/
-	//fmt.Println("test os")
 	// Call the OS-specific implementation.
 	nw, extIf, err = nm.newNetworkImpl(nwInfo)
 	if err != nil {
@@ -162,7 +123,6 @@ func (nm *networkManager) newNetwork(nwInfo *NetworkInfo) (*network, error) {
 	// Add the network object.
 	nw.Subnets = nwInfo.Subnets
 	extIf.Networks[nwInfo.Id] = nw
-	fmt.Println("nwid", nwInfo.Id)
 	log.Printf("[net] Created network %v on interface %v.", nwInfo.Id, extIf.Name)
 	return nw, nil
 

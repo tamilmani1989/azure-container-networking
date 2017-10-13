@@ -3,7 +3,10 @@
 
   <ItemGroup>
     <ProjectReference Include="NetworkClientTest\NetworkClientTest.vcxproj" />
+    <ProjectReference Include="ServiceTunnelExtensionTest\ServiceTunnelExtensionTest.vcxproj" />
+    <ProjectReference Include="AquariusTest\AquariusTest.vcxproj" />
     <ProjectReference Include="TestSetup\TestSetup.proj" />
+    <ProjectReference Include="HostNetAgentTests\HostNetAgentTests.csproj" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
   <PropertyGroup>

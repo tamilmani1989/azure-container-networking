@@ -4,30 +4,38 @@
     <ProjectFile Include="Aquarius\Aquarius.vcxproj" />
     <ProjectFile Include="EventMessage\CreatePackage.proj" />
     <ProjectFile Include="Common\XmlParseHelper\XmlParserHelper.vcxproj" />
-    <ProjectFile Include="LoopbackAdapterInstaller\LoopbackAdapterInstaller.vcxproj" />
     <ProjectFile Include="ServiceTunnelExtension\ServiceTunnelExtension.vcxproj" />
+    <ProjectFile Include="VFPlugin\VFPlugin.vcxproj" />
     <ProjectFile Include="NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
     <ProjectFile Include="NetworkClient\NetworkClient.vcxproj" />
     <ProjectFile Include="Logging\Logging.vcxproj" />
     <ProjectFile Include="HNSOverlayPlugin\HNSOverlayPlugin.vcxproj" />
     <ProjectFile Include="HNSClient\HNSClient.vcxproj" />
+    <ProjectFile Include="Server\Server.vcxproj" />
+    <ProjectFile Include="RestClient\RestClient.vcxproj" />
     <ProjectFile Include="aquanix\aquanix.vcxproj" />
     <ProjectFile Include="aquanixconsole\aquanixconsole.vcxproj" />
     <ProjectFile Include="test\dirs.proj" />
+    <ProjectFile Include="GAExtension\AquariusGaExt.vcxproj" />
+    <ProjectFile Include="HostNetAgent\HostNetAgent.vcxproj" />
+
   </ItemGroup>
 
-  <ItemGroup Condition="'$(IsOfficialBuild)' != ''">
-    <ProjectFile Include="CodeSign\CodesignSettings.proj"  >
-        <BuildInParallel>false</BuildInParallel>
+  <ItemGroup>
+     <ProjectFile Include="CodeSign\CodesignSettings.proj" Condition="'$(IsOfficialBuild)' != ''">
+      <BuildInParallel>false</BuildInParallel>
     </ProjectFile>
-    <ProjectFile Include="Nuget\dirs.proj">
-        <BuildInParallel>false</BuildInParallel>
+    <ProjectFile Include="CodeSignMisc\CodesignSettings.proj" Condition="'$(IsOfficialBuild)' != ''">
+      <BuildInParallel>false</BuildInParallel>
+    </ProjectFile> 
+    <ProjectFile Include="NetAgentPackage\NetAgentPackage.proj" Condition="'$(QBUILD)'!='1'">
+      <BuildInParallel>false</BuildInParallel>
     </ProjectFile>
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(IsOfficialBuild)' != ''">
-    <ProjectFile Include="CodeSignMisc\CodesignSettings.proj"  >
-        <BuildInParallel>false</BuildInParallel>
+    <ProjectFile Include="HostPluginPackage\NetAgentIndependentDeployment.proj" Condition="'$(QBUILD)'!='1'">
+      <BuildInParallel>false</BuildInParallel>
+    </ProjectFile>
+    <ProjectFile Include="Nuget\dirs.proj" Condition="'$(IsOfficialBuild)' != ''">
+      <BuildInParallel>false</BuildInParallel>
     </ProjectFile>
   </ItemGroup>
     

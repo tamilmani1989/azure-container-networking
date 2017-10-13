@@ -7,6 +7,8 @@
 #include <iostream>
 #include "../Shared/PluginMetadata.h"
 #include<mutex>
+#include<set>
+#define LOGPARAM L"-log"
 
 class AquariusKernel
 {
@@ -15,7 +17,7 @@ public:
 	~AquariusKernel();
 	void UpdateCurrentPackageStoreLocation(wchar_t *packageStoreLocation);
 	wchar_t *GetCurrentPackageStoreLocation();
-	void LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad);
+	void LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad, std::set<std::wstring> eligiblePluginSet, wchar_t *logFolder);
 
 protected:
 
@@ -33,7 +35,5 @@ private:
 
 	// whether the kernel is initialized or not
 	bool initialized = false;
-
-	void RetrievePackageDeploymentJobs();
 };
 

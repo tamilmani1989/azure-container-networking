@@ -6,30 +6,57 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-        $(MSBuildThisFileDirectory)
+        $(MSBuildThisFileDirectory);		
+        $(cpprestsdk)\build\native\include;
+        $(PkgMicrosoft_WindowsAzure_EngSys_Internal_rd_fabric_stable_fc_Redist)\content\redist;
       </AdditionalIncludeDirectories>
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
     </ClCompile>
   </ItemDefinitionGroup>
+
+  <ItemDefinitionGroup>
+    <Link>
+     <SubSystem>console</SubSystem>
+      <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
+      <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        $(FC_Redist)\content\redist\RdCommon.lib;
+        $(PkgVisualCpp_x64_Corext)\lib\x64\legacy_stdio_definitions.lib;
+        $(WindowsSdk64LibPath)\Rpcrt4.lib;
+        $(WindowsSdk64LibPath)\Uuid.lib;
+        $(WindowsSdk64LibPath)\kernel32.lib;
+        $(WindowsSdk64LibPath)\ntdll.lib;
+        $(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(FC_Redist)\content\redist\SacApi.lib;
+
+      </AdditionalDependencies>
+     </Link>
+  </ItemDefinitionGroup>
+
   <ItemGroup>
     <ClInclude Include="Logging.h" />
+    <ClInclude Include="RdTrace.h" />    
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Logging.cpp" />
   </ItemGroup>
-  <ItemGroup>
+  <!-- <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.vcxproj">
       <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
     </ProjectReference>
-  </ItemGroup>
+  </ItemGroup> -->
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="AfterBuild">
-    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClient" />
-    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
-    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\HNSOverlayPlugin" />
-    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\Aqua.NetworkClient" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\Aqua.NetworkClientLibrary" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\Aqua.HNSOverlayPlugin" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.Logging.dll; $(OutputPath)\Aqua.Logging.pdb; $(OutputPath)\Aqua.Logging.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\Aqua.NetworkClientLibrary\Aqua.HNSOverlayPlugin" />
   </Target>
 </Project>

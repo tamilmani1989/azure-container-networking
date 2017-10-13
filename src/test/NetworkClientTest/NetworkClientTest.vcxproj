@@ -13,7 +13,7 @@
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
 		$(SRCROOT)\NetworkClientLibrary\Common;
-		$(SRCROOT)\test\TraceLogging;
+            $(SRCROOT)\Logging;
       </AdditionalIncludeDirectories>
       <!-- Override default from native_user_compile for compat with RdCommon.lib -->
 	  <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
@@ -25,9 +25,9 @@
       <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
       <AdditionalDependencies>
         %(AdditionalDependencies);
-		$(TAEF_SDK)\build\Library\x64\TE.Common.lib;
-		$(TAEF_SDK)\build\Library\x64\Wex.Common.lib;
-		$(TAEF_SDK)\build\Library\x64\Wex.Logger.lib;  
+		    $(TAEF_SDK)\build\Library\x64\TE.Common.lib;
+		    $(TAEF_SDK)\build\Library\x64\Wex.Common.lib;
+		    $(TAEF_SDK)\build\Library\x64\Wex.Logger.lib;  
         $(WindowsSdk64LibPath)\ws2_32.lib;
 	  </AdditionalDependencies>
     </Link>
@@ -41,8 +41,11 @@
   </ItemGroup>
    <ItemGroup>
     <ProjectReference Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
-    <ProjectReference Include="$(SRCROOT)\Logging\Logging.vcxproj" />
+    <ProjectReference Include="$(SRCROOT)\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
+    </ProjectReference>
    </ItemGroup>
+
      <ItemGroup>
     <Robocopy Include="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\NetworkClientLibrary.dll">
       <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkClientTest\</DestinationFolder>

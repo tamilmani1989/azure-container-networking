@@ -4,7 +4,6 @@
 package overlay
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"path"
@@ -82,12 +81,11 @@ func (plugin *Plugin) Uninitialize() {
 // ParseOptions returns generic options from a libnetwork request.
 func (plugin *Plugin) ParseOptions(options OptionMap) OptionMap {
 
-	fmt.Println("options", options)
 	opt, _ := options[genericData].(map[string]interface{})
 	for key, value := range options {
-		fmt.Println("Key:", key, "Value:", value)
+		log.Printf("Key: %v value %v", key, value)
 	}
-	
+
 	return opt
 }
 

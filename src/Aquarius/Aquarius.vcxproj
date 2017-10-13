@@ -12,9 +12,7 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-        $(PkgMicrosoft_WindowsAzure_EngSys_Internal_longhorn_rd_os142_OS_redist)\content\redist;
-        $(PkgMDS_MA)\lib\native\include;
-        $(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\inc;
+        ..\AquariusLibrary;
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -22,31 +20,33 @@
     <Link>
       <AdditionalDependencies>
         %(AdditionalDependencies);
+        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AquariusInstaller.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="AquariusService.cpp" />
-    <ClCompile Include="AquariusSvcBase.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AquariusInstaller.h" />
-    <ClInclude Include="AquariusService.h" />
-    <ClInclude Include="AquariusSvcBase.h" />
-    <ClInclude Include="ThreadPool.h" />
+    <ClInclude Include="..\AquariusLibrary\AquariusInstaller.h" />
+    <ClInclude Include="..\AquariusLibrary\AquariusSvcBase.h" />
+    <ClInclude Include="..\AquariusLibrary\AquariusService.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Kernel\Kernel.vcxproj">
-      <Project>{eedb15ad-49c7-46c7-998a-fea8ce7fdd1b}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\PackMan\PackMan.vcxproj">
-      <Project>{031d7578-bd04-45c2-bb91-5355b7f4c714}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\Shared\Shared.vcxproj">
       <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\AquariusLibrary\AquariusLibrary.vcxproj">
+      <Project>{8264c27c-90a7-4d86-a714-a9759d9afaf4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\RestClient\RestClient.vcxproj">
+      <Project>{8c7160e7-1aff-4c05-88fe-cae4e91c25d4}</Project>
+    </ProjectReference>
+    
+    <!-- <ProjectReference Include="..\Logging\logging.vcxproj">
+      <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
+    </ProjectReference> -->
+
   </ItemGroup>
   <ItemGroup>
     <QCustomInput Include="$(SRCROOT)\kernel\*.h" >
@@ -57,4 +57,11 @@
     </QCustomInput>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+   <Target Name="AfterBuild">
+    <Copy SourceFiles="$(OutputPath)\Aquarius.exe; $(OutputPath)\Aquarius.pdb" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius" />
+    <Copy SourceFiles="$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius" />
+    <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.RestServer\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius" />
+    <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius" />
+    <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.RestClient\Aqua.RestClient.exe" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius" />
+ </Target>
 </Project>

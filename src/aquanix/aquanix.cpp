@@ -55,6 +55,17 @@ AquaError:
 	EXIT();
 }
 
+DllExport DWORD SetRemoteHostAddresses(char *remoteHostAddresses[], USHORT numberOfRemoteHosts)
+{
+	ENTER(L"SetRemoteHostAddresses");
+
+	AquaNix *pAquaNix = AquaNixFactory::GetInstance();
+	E_AQUA(pAquaNix->SetRemoteHosts(remoteHostAddresses, numberOfRemoteHosts), L"AquaNix SetRemoteHostAddresses failed.");
+
+AquaError:
+	EXIT();
+}
+
 DllExport DWORD SendLocalMapping(const char *endpointId, const char *containerAddress, const char *macAddress)
 {
 	ENTER(L"SendLocalMapping");
@@ -136,11 +147,11 @@ AquaNix::AquaNix(
 	char *remoteHostAddresses[],
 	USHORT numberOfRemoteHosts,
 	char *mappingsSenderIP,
-	AddRemoteMappingCallback receiveMapping, 
+	AddRemoteMappingCallback receiveMapping,
 	DeleteRemoteMappingCallback deleteRemoteMapping,
 	GetLocalMappingsCallback getLocalMappings,
 	FreeEndpointMappingsCallback freeEndpointMappings,
-	USHORT servicePort, 
+	USHORT servicePort,
 	USHORT remoteServicePort)
 {
 	ENTER(L"AquaNix::AquaNix");
@@ -149,12 +160,20 @@ AquaNix::AquaNix(
 	m_remoteHostsCount = numberOfRemoteHosts;
 	LogXAB(L"localHostAddress:%S RemoteHostsCount:%d", localHostAddress, m_remoteHostsCount);
 
-	m_remoteHostAddresses = new string[m_remoteHostsCount];
-	for (int i = 0; i < m_remoteHostsCount; i++)
+	if (m_remoteHostsCount > 0)
 	{
-		m_remoteHostAddresses[i] = string(remoteHostAddresses[i]);
-		LogXA(L"Added remote IP:%S", m_remoteHostAddresses[i].c_str());
+		m_remoteHostAddresses = new string[m_remoteHostsCount];
+		for (int i = 0; i < m_remoteHostsCount; i++)
+		{
+			m_remoteHostAddresses[i] = string(remoteHostAddresses[i]);
+			LogXA(L"Added remote IP:%S", m_remoteHostAddresses[i].c_str());
+		}
 	}
+	else
+	{
+		m_remoteHostAddresses = NULL;
+	}
+
 	if (mappingsSenderIP != NULL)
 	{
 		m_mappingsSenderIP = string(mappingsSenderIP);
@@ -191,6 +210,41 @@ DWORD AquaNix::SendMapping(string endpointId, string containerAddress, string ma
 	E_AQUA(m_pMessageSender->Send(message), L"Message send failed.");
 
 AquaError:
+	EXIT();
+}
+
+DWORD AquaNix::SetRemoteHosts(char *remoteHostAddresses[], USHORT numberOfRemoteHosts)
+{
+	m_RemoteHostsMutex.lock();
+	
+	ENTER(L"AquaNix::SetRemoteHosts");
+	
+	// free existing if any.
+	LogXA(L"Existing RemoteHostsCount was:%d", m_remoteHostsCount);
+	if (m_remoteHostsCount > 0)
+	{
+		if(m_remoteHostAddresses != NULL)
+		{
+			free(m_remoteHostAddresses);
+		}
+	}
+
+	m_remoteHostsCount = numberOfRemoteHosts;
+	LogXA(L"New RemoteHostsCount:%d", m_remoteHostsCount);
+
+	m_remoteHostAddresses = new string[m_remoteHostsCount];
+	for (int i = 0; i < m_remoteHostsCount; i++)
+	{
+		m_remoteHostAddresses[i] = string(remoteHostAddresses[i]);
+		LogXA(L"Added remote IP:%S", m_remoteHostAddresses[i].c_str());
+	}
+
+	E_AQUA(m_pMessageSender->SetRemoteHostsForSendingMessages(m_remoteHostAddresses,
+															  m_remoteHostsCount), 
+															  L"SetRemoteHostsForSendingMessages failed");
+
+AquaError:
+	m_RemoteHostsMutex.unlock();
 	EXIT();
 }
 
@@ -309,11 +363,13 @@ AquaError:
 
 AquaNix::~AquaNix()
 {
+	m_RemoteHostsMutex.lock();
 	if (m_remoteHostAddresses != nullptr)
 	{
 		delete[] m_remoteHostAddresses;
 		m_remoteHostAddresses = nullptr;
 	}
+	m_RemoteHostsMutex.unlock();
 
 	if (m_pMessageExchange != NULL)
 	{

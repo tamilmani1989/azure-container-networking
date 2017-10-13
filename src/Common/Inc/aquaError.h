@@ -18,7 +18,7 @@ namespace aqua
 
 #define ENTER(method) \
 	wchar_t *methodName = method; \
-	wchar_t logMsg[2048]; \
+	wchar_t logMessage[2048]; \
 	size_t msgSize = 2048; \
 	DWORD result = E_SUCCESS; \
 	LogXA(L"Enter %s", methodName) \
@@ -34,28 +34,28 @@ namespace aqua
 	WinLogger::LogInformation(X); \
 
 #define LogXA(X, A) \
-	swprintf_s(logMsg,msgSize,X,A); \
-	WinLogger::LogInformation(logMsg); \
+	swprintf_s(logMessage,msgSize,X,A); \
+	WinLogger::LogInformation(logMessage); \
 
 #define LogXAB(X, A, B) \
-	swprintf_s(logMsg,msgSize,X,A,B); \
-	WinLogger::LogInformation(logMsg); \
+	swprintf_s(logMessage,msgSize,X,A,B); \
+	WinLogger::LogInformation(logMessage); \
 
 #define LogXABC(X, A, B, C) \
-	swprintf_s(logMsg,msgSize,X,A,B,C); \
-	LogX(logMsg); \
+	swprintf_s(logMessage,msgSize,X,A,B,C); \
+	LogX(logMessage); \
 
 #define LogXABCD(X, A, B, C, D) \
-	swprintf_s(logMsg,msgSize,X,A,B,C,D); \
-	LogX(logMsg); \
+	swprintf_s(logMessage,msgSize,X,A,B,C,D); \
+	LogX(logMessage); \
 
 #define LogXABCDE(X, A, B, C, D, E) \
-	swprintf_s(logMsg,msgSize,X,A,B,C,D,E); \
-	LogX(logMsg); \
+	swprintf_s(logMessage,msgSize,X,A,B,C,D,E); \
+	LogX(logMessage); \
 
 #define LogXABCDEF(X, A, B, C, D, E, F) \
-	swprintf_s(logMsg,msgSize,X,A,B,C,D,E,F); \
-	LogX(logMsg); \
+	swprintf_s(logMessage,msgSize,X,A,B,C,D,E,F); \
+	LogX(logMessage); \
 
 #define TraceLog(message) \
 	cout << message; \

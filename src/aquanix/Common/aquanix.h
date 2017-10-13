@@ -21,7 +21,7 @@ namespace aqua
 		MessageExchange *m_pMessageExchange;
 		MessageSender *m_pMessageSender;
 		static DWORD ReceiveMessage(char *sender, void *buffer, int bufLength);
-
+		std::mutex m_RemoteHostsMutex;
 	public:
 		AquaNix(
 			char *localHostAddress, 
@@ -37,6 +37,7 @@ namespace aqua
 		~AquaNix();
 
 		DWORD SendMapping(string endpointId, string containerAddress, string macAddress);
+		DWORD SetRemoteHosts(char *remoteHostAddresses[], USHORT numberOfRemoteHosts);
 		DWORD DeleteMapping(string endpointId);
 		DWORD RequestRemoteMappings();
 	};

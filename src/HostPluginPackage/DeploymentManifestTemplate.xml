@@ -1,0 +1,20 @@
+<DeploymentManifest name="NetAgentPlugin" build="#BuildFQBN#" branch="#BRANCH_NAME#" buildStamp="#Date#">
+  <Constants>
+    <Constant name="VersionFrom" value="0"/>
+    <Constant name="VersionTo" value="2"/>
+    <Constant name="CurrentVersion" value="#DEPLOY_VERSION#"/>
+    <Constant name="MinimalAcceptableVersion" value="#DEPLOY_VERSION#"/>
+  </Constants>
+
+  <Packages>
+    <Package componentName="HE.HostPlugin_NetAgentHostPlugin" type="hostplugintemplate" location="#df_buildPath#\..\#REPO_BRANCH#\#BUILD_VERSION#\retail-amd64\RDPackage\NetAgentHostPlugin\Configurations\#VERSION_PREFIX#.HostPluginsConfigTemplate.xml"/>
+    <Package componentName="HE.HostPlugin_NetAgentHostPlugin.HostPluginSetupConfigFile" type="hostpluginsetup" location="#df_buildPath#\..\#REPO_BRANCH#\#BUILD_VERSION#\retail-amd64\RDPackage\NetAgentHostPlugin\Configurations\#VERSION_PREFIX#.NetAgentHostPlugin.PluginSetup.xml"/>
+    <Package componentName="HE.HostPlugin_NetAgentHostPlugin.HostPluginSpecificConfigFile" type="hostpluginspecific" location="#df_buildPath#\..\#REPO_BRANCH#\#BUILD_VERSION#\retail-amd64\RDPackage\NetAgentHostPlugin\Configurations\#VERSION_PREFIX#.NetAgentHostPlugin.PluginSpecific.xml"/>
+    <Package componentName="HE.HostPlugin_NetAgentHostPlugin.HostPluginPackageFile" type="hostpluginpackage" location="#df_buildPath#\..\#REPO_BRANCH#\#BUILD_VERSION#\retail-amd64\RDPackage\NetAgentHostPlugin\Configurations\#VERSION_PREFIX#.NetAgentPackage.zip"/>
+  </Packages>
+
+  <Components>
+    <Component impactful="false" componentName="HE.HostPlugin_NetAgentHostPlugin.HostPluginPackageFile" version="%CurrentVersion%" minimalAcceptableVersion="%MinimalAcceptableVersion%" />
+  </Components>
+
+</DeploymentManifest>

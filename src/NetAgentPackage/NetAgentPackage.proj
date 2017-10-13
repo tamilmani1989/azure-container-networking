@@ -1,0 +1,70 @@
+<Project ToolsVersion="14.0" DefaultTarget="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
+  <PropertyGroup>
+    <BuildFullName>$(BuildVersion.Replace('.',''))</BuildFullName>
+    <McPath>$(PkgWindowsSdk_Corext)\bin\x64\mc.exe</McPath>
+    <ToolsPath>$(PkgVisualCpp_Tools_x64_Corext)\bin\x64</ToolsPath>
+    <LinkPath>$(ToolsPath)\link.exe</LinkPath>
+    <RcPath>$(PkgWindowsSdk_Corext)\bin\x64\rc.exe</RcPath>
+    <CpPath>$(PkgCorext_Tools)\AMD64\cp.exe</CpPath>
+  </PropertyGroup>
+
+  <Target Name="GatherFiles" AfterTargets="PostBuildCopyToFiles">
+    <PropertyGroup>
+      <PkgName>WindowsAzureNetAgent</PkgName>  
+      <DirName>WindowsAzureNetAgent</DirName>    
+      <Artifacts>Artifacts</Artifacts>
+      <NetAgent>NetAgent</NetAgent>
+      <Package>package</Package>
+
+      <NetAgentPath>$(BinariesBuildTypeArchDirectory)\$(Artifacts)\$(NetAgent)</NetAgentPath>
+      <FilesToZip>$(BinariesBuildTypeArchDirectory)\$(PkgName)</FilesToZip>
+      <FinalFilesToZip>$(BinariesBuildTypeArchDirectory)\$(Artifacts)\$(NetAgent)</FinalFilesToZip>
+      <ZipOutputFile>$(BinariesBuildTypeArchDirectory)\$(Artifacts)\$(NetAgent)\$(Package)\$(PkgName).zip</ZipOutputFile>
+      <FinalZipOutputFile>$(BinariesBuildTypeArchDirectory)\$(Artifacts)\$(pkgName)_$(BuildVersion).zip</FinalZipOutputFile>
+      <ZipCmdLine>$(PkgCorext_Tools)\x86\zip.exe -r -S $(ZipOutputFile) *</ZipCmdLine>
+      <FinalZipCmdLine>$(PkgCorext_Tools)\x86\zip.exe -r -S $(FinalZipOutputFile) *</FinalZipCmdLine>
+      <BuildNameGen>$(MSBuildThisFileDirectory)BuildNameGen.ps1</BuildNameGen>
+      <BuildFile>$(DeploymentOutput)\buildname.txt</BuildFile>
+    </PropertyGroup>
+     <Message Importance="high" Text="Going to generate $(PkgName) Package" />
+     <Exec Command="$(McPath) -U AqEventMessage.mc &amp; $(RcPath) AqEventMessage.rc &amp; $(LinkPath) -dll -noentry /MACHINE:x86 AqEventMessage.res"/>
+     <Exec Command="md $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins &amp; cp AqEventMessage.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\" />
+     <MakeDir Directories="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins" Condition="!Exists('$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins')" />
+     <MakeDir Directories="$(NetAgentPath)\$(Package)" Condition="!Exists('$(NetAgentPath)\$(Package)')" />
+
+     <Exec Command="cp $(BinariesBuildTypeArchDirectory)\Aquarius\Aquarius.exe $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\WindowsAzureNetAgent.exe" />
+     <Copy SourceFiles="RuntimeSettings\0.settings" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\RuntimeSettings" />
+     <Copy SourceFiles="HandlerEnvironment.json" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)" />
+     <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
+     <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.RestServer\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
+     <Copy SourceFiles="$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
+     <Copy SourceFiles="$(VCRuntime)\lib\msvcp140.dll; $(VCRuntime)\lib\vcruntime140.dll; $(VCRuntime)\lib\concrt140.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
+  
+     <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\VFPlugin\VFPlugin.exe;$(BinariesBuildTypeArchDirectory)\VFPlugin\VFPlugin.pdb" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins\VFPlugin\Code" />
+     <Copy SourceFiles="VFPlugin\manifest.xml" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins\VFPlugin" /> 
+     <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins\VFPlugin\Code" />
+     <Copy SourceFiles="$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins\VFPlugin\Code" />
+     <Copy SourceFiles="$(PkgMellanox)\content\Redist\VFAgent\MLNX_VPI_WinOF-5_20_All_Win2012R2_and_2016_x64.exe" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins\VFPlugin\Code" />
+     <Copy SourceFiles="$(VCRuntime)\lib\msvcp140.dll; $(VCRuntime)\lib\vcruntime140.dll; $(VCRuntime)\lib\concrt140.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins\VFPlugin\Code" />
+     <Copy SourceFiles="$(VCRuntime)\lib\msvcp140.dll; $(VCRuntime)\lib\vcruntime140.dll; $(VCRuntime)\lib\concrt140.dll" DestinationFolder="$(FinalFilesToZip)" />
+     <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\HostNetAgent\HostNetAgent.exe" DestinationFolder="$(NetAgentPath)" />
+     <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll" DestinationFolder="$(NetAgentPath)" />
+     <Copy SourceFiles="$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.dll" DestinationFolder="$(NetAgentPath)" />
+     <Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(NetAgentPath)" />
+     <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(NetAgentPath)" />
+     
+     <Exec Command="echo $(BuildVersion)>$(BinariesBuildTypeArchDirectory)\$(Artifacts)\$(NetAgent)\$(Package)\version.txt" />
+  </Target>
+
+  <Target Name="CreateZip" AfterTargets="GatherFiles">
+    <Exec WorkingDirectory="$(FilesToZip)" Command="$(ZipCmdLine)" />
+    <Exec WorkingDirectory="$(FinalFilesToZip)" Command="$(FinalZipCmdLine)" />
+  </Target>
+
+  <ItemGroup>
+    <QCustomInput Include="AqEventMessage.mc" />
+    <QCustomOutput Include="AqEventMessage.rc" />
+  </ItemGroup>
+</Project>
