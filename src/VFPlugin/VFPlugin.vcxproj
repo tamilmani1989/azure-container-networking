@@ -21,6 +21,8 @@
       <AdditionalIncludeDirectories>  
         %(AdditionalIncludeDirectories);
         $(MSBuildThisFileDirectory);
+        $(cpprestsdk)\build\native\include;
+        ..\Common\NetAgentContracts;
         ..\VFPluginLibrary
       </AdditionalIncludeDirectories>
       <!-- Override default from native_user_compile for compat with RdCommon.lib -->
@@ -65,6 +67,7 @@
   <ItemGroup>
     <ClInclude Include="VFPlugin.h" />
     <ClInclude Include="VFPluginUtilities.h" />
+    <ClInclude Include="HealthReport.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\VFPluginLibrary\VFPluginLibrary.vcxproj">
@@ -73,6 +76,10 @@
     <ProjectReference Include="..\Logging\logging.vcxproj">
       <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\Common\NetAgentContracts\NetAgentContracts.vcxproj">
+      <Project>{F4964161-20D0-4C0C-BC03-24CCF8C5C622}</Project>
+    </ProjectReference>
+    
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
   <!-- <Target Name="AfterBuild">

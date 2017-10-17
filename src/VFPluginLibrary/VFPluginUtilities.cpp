@@ -1,3 +1,20 @@
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+VFPluginUtilities.cpp
+
+Abstract:
+
+This file contains methods send status to NMAgent and Health report to hostagent
+Author:
+
+Tamilmani Manoharan (tamanoha) 10-October-2017
+
+--*/
+
 #include <cpprest/http_listener.h>
 #include <cpprest/http_client.h>
 #include <cpprest/uri.h>
@@ -14,12 +31,24 @@ using namespace experimental::listener;
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 
-
 void VFPluginUtilities::GetHostNetAgentURL(
     wchar_t *url, 
     size_t urlSize,
     wchar_t *path
-    )
+)
+/**
+Routine description:
+
+    This function constructs wireserver agent url based on path.
+
+Arguments:
+    url - result od constructed url will be placed in this buffer.
+    urlSize - size of url buffer.
+    path - path of url.
+
+Return Value:
+
+**/
 {
     HKEY returnKey;
     DWORD type = REG_SZ;
@@ -96,14 +125,27 @@ Cleanup:
             LOGERRW(L"swprint_s error constructing url path addr %s", addr);
         }        
     }
-     
+
     LOGINFOW(L"wireserver url : %s", url);
 }
+
 
 void VFPluginUtilities::SendStatusToWireServer(
     wchar_t *url,
     wchar_t *stateInfo
 )
+/**
+Routine description:
+
+    This function sends status of VF driver as xml string to NMAgent.
+
+Arguments:
+    url - url to send status.
+    stateInfo - string contains status information.
+
+Return Value:
+
+**/
 {
     http_client client(url);
     http_request requester;
@@ -112,7 +154,7 @@ void VFPluginUtilities::SendStatusToWireServer(
     requester.headers().set_content_type(U("text/xml;charset=utf-8"));
 	
     json::value postData = web::json::value::string(stateInfo);
-    LOGINFOW(L"Going to send %s", postData.as_string().c_str());
+    LOGINFOW(L"Going to send in string %s", postData.as_string().c_str());
 
     requester.set_body(postData.as_string().c_str());   
 
@@ -120,13 +162,11 @@ void VFPluginUtilities::SendStatusToWireServer(
     {
         if(response.status_code() == status_codes::OK)
         {
-            // auto body = response.extract_string();
-            // std::wcout << L"Added new Id: " << body.get().c_str() << std::endl;
-            LOGINFOW(L"Status sent success");
+            LOGINFOW(L"NmAgent Server Status sent success");
         }
         else
         {
-            LOGERRW(L"Error:: HTTP post status code %d", response.status_code());
+            LOGERRW(L"Error:: NmAgent Server HTTP post status code %d", response.status_code());
         }
     });
     
@@ -136,7 +176,7 @@ void VFPluginUtilities::SendStatusToWireServer(
     }
     catch (const std::exception &e)
     {
-        LOGINFO("Error exception:%s\n", e.what());
+        LOGINFO("NmAgent Server Error exception:%s\n", e.what());
     }
 }
 
@@ -147,6 +187,22 @@ HRESULT VFPluginUtilities::RetrieveStatusInfoAsXMLStr(
     int numNonFunctioningDevices,
     wchar_t **statusInfo
 )
+/**
+Routine description:
+
+    This function converts status info in string to xml based string.
+
+Arguments:
+    isInstalled - indicates if driver installed or not.
+    installedVersion - This contains version value in string if driver is installed.
+    osVersion - OS version info.
+    numNonFunctioningDevices - Number of non functioning devices in VM using mellanox driver.
+    statusInfo - string contains status information.
+
+Return Value:
+    returns S_OK if succeed else error.
+
+**/
 {
     *statusInfo = NULL;
     IXMLDOMElement *pRoot = NULL;
@@ -213,6 +269,18 @@ CleanUp:
 }
 
 void VFPluginUtilities::SetupLogging(wchar_t *logFolder, wchar_t *logPrefix)
+/**
+Routine description:
+
+    This function sets up logging for VFPlugin.
+
+Arguments:
+    logFolder - logFolder path.
+    logPrefix -  logprefix for filename.
+
+Return Value:
+
+**/
 {
     wchar_t *logDestFolder = NULL;
     
@@ -248,6 +316,16 @@ void VFPluginUtilities::SetupLogging(wchar_t *logFolder, wchar_t *logPrefix)
 }
 
 void VFPluginUtilities::SaveInstalledState()
+/**
+Routine description:
+
+    This function saves state if netagent installs mellanox driver in registry.
+
+Arguments:
+
+Return Value:
+
+**/
 {
     HKEY returnKey;
     DWORD type = REG_SZ;
@@ -304,46 +382,77 @@ Cleanup:
     } 
 }
 
-// wchar_t *VFPluginUtilities::getOsVersion()
-// {
-// DWORD  verHandle = 0;
-// UINT   size      = 0;
-// LPBYTE lpBuffer  = NULL;
-// wchar_t *szVersionFile=L"c:\\Windows\\System32\\kernel32.dll";
-// DWORD  verSize   = GetFileVersionInfoSize( szVersionFile, &verHandle);
+void VFPluginUtilities::SendHealthStatusToHostAgent(
+    wchar_t *url,
+    HealthReport& report
+)
+/**
+Routine description:
 
-// if (verSize != NULL)
-// {
-//     LPSTR verData = new char[verSize];
+    This function sends health report to host netagent.
 
-//                         LOGINFO("ck0");
-//     if (GetFileVersionInfo( szVersionFile, verHandle, verSize, verData))
-//     {
-//                         LOGINFO("ck1");
-//         if (VerQueryValue(verData,L"\\",(VOID FAR* FAR*)&lpBuffer,&size))
-//         {
-//                             LOGINFO("ck2");
-//             if (size)
-//             {
-//                 LOGINFO("ck3");
-//                 VS_FIXEDFILEINFO *verInfo = (VS_FIXEDFILEINFO *)lpBuffer;
-//                 if (verInfo->dwSignature == 0xfeef04bd)
-//                 {
+Arguments:
+    url - url of host netagent.
+    report - health report info.
 
-//                     // Doesn't matter if you are on 32 bit or 64 bit,
-//                     // DWORD is always 32 bits, so first two revision numbers
-//                     // come from dwFileVersionMS, last two come from dwFileVersionLS
-//                     LOGINFO( "File Version: %d.%d.%d.%d\n",
-//                     ( verInfo->dwFileVersionMS >> 16 ) & 0xffff,
-//                     ( verInfo->dwFileVersionMS >>  0 ) & 0xffff,
-//                     ( verInfo->dwFileVersionLS >> 16 ) & 0xffff,
-//                     ( verInfo->dwFileVersionLS >>  0 ) & 0xffff
-//                     );
-//                 }
-//             }
-//         }
-//     }
-//     delete[] verData;
-// }
-//     return NULL;
-// }
+Return Value:
+
+**/
+{
+    http_client client(url);
+    http_request requester;
+    json::value obj = NULL;
+
+    requester.set_method(methods::POST);
+    requester.headers().set_content_type(U("application/json"));
+
+    obj = report.TranslateToJsonValue();
+
+    requester.set_body(obj);   
+
+     pplx::task<void> requestTask = client.request(requester).then([](http_response response)
+    {
+        if(response.status_code() == status_codes::OK)
+        {
+            LOGINFOW(L"Health Report status sent success");
+        }
+        else
+        {
+            LOGERRW(L"Error::Health Report Server HTTP post status code %d", response.status_code());
+        }
+    });
+    
+    try
+    {
+        requestTask.wait();
+    }
+    catch (const std::exception &e)
+    {
+        LOGINFO("Error::Health Report Server exception:%s\n", e.what());
+    }
+}
+
+void VFPluginUtilities::ResetHealthObject(
+        HealthReport& report
+)
+/**
+Routine description:
+
+    This function is used to reset health report object to default values.
+
+Arguments:
+    report - health report object.
+
+Return Value:
+
+**/
+{
+    report.GuestOSFamily.assign(L"Windows");
+    report.DriverInstallNotAttempted = false;
+    report.DriverInstallAttempted = false;
+    report.DriverInstallSucceeded = false;
+    report.DriverInstallFailed = false;
+    report.TotalVFDevicesCount = 0;
+    report.NonFunctionalVFDevicesCount = 0;
+    report.ErrorCode = 0;
+}

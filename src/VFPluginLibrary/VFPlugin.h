@@ -1,3 +1,21 @@
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+VFPluginUtilities.h
+
+Abstract:
+
+Header contains declaration of methods to install mellanox driver
+
+Author:
+
+Tamilmani Manoharan (tamanoha) 10-October-2017
+
+--*/
+
 #pragma once
 #include <Windows.h>
 #include <SetupAPI.h>

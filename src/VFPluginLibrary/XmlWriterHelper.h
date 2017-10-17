@@ -1,3 +1,21 @@
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+XmlWriterHelper.h
+
+Abstract:
+
+Header contains declaration of methods write xml object
+
+Author:
+
+Tamilmani Manoharan (tamanoha) 10-October-2017
+
+--*/
+
 #include <stdio.h>
 #include <tchar.h>
 #include <msxml6.h>

@@ -79,6 +79,9 @@
            <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentTests\Documents</DestinationFolder>
            <Recursive>true</Recursive>
        </Robocopy>
+      <Robocopy Include="$(SRCROOT)\test\HostNetAgentTests\TestDependencies\NetAgentHostPlugin.PluginSpecific.xml">
+           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentTests</DestinationFolder>
+       </Robocopy>
    </ItemGroup>
  </Target>
 </Project>

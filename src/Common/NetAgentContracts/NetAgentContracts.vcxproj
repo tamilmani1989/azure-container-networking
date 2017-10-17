@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <TargetName>XmlParserHelper</TargetName>
-    <ProjectGuid>{78962BC6-361C-4630-8995-91D0C054C82E}</ProjectGuid>
+    <TargetName>NetAgentContracts</TargetName>
+    <ProjectGuid>{F4964161-20D0-4C0C-BC03-24CCF8C5C622}</ProjectGuid>
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(SRCROOT)\build\native_user_compile.props" />
@@ -10,16 +10,12 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-        .;
-        $(PkgMicrosoft_WindowsAzure_EngSys_Internal_rd_fabric_stable_fc_Redist)\content\redist;
-        $(PkgMicrosoft_WindowsAzure_EngSys_Internal_longhorn_rd_os142_OS_redist)\content\redist;
+	$(cpprestsdk)\build\native\include;
       </AdditionalIncludeDirectories>
-      <!-- Override default from native_user_compile for compat with RdCommon.lib -->
-      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="XmlParserHelper.cpp" />
+    <ClCompile Include="HealthReport.cpp" />
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

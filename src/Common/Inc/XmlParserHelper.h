@@ -31,15 +31,10 @@ Environment:
 #include <map>
 #include <iostream>
 
-// RdCommon.h has unreferenced formal parameter warnings
-#pragma warning ( push )
-#pragma warning( disable : 4100 )
-#define RDCOMMON_NO_WIN_HEADERS
-#include "RdCommon.h"
-#include "RdTrace.h"
-#pragma warning( pop )
 
+#include "Logging.h"
 using namespace std;
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 #define XPATH_ROOT_START_TAG L"//"
 #define XPATH_PATH_SEPARATOR_TAG L"/"
@@ -58,6 +53,7 @@ class XmlParserHelper
 
         std::wstring PrepareAttributeQuery(std::wstring Name, std::wstring Value);
 
+		HRESULT QueryNodeValue(LPCWSTR NodePathQuery, std::wstring & Value);
     private:
 
         IXMLDOMDocument* XMLDom;

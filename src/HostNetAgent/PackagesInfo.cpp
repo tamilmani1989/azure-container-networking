@@ -198,3 +198,24 @@ Return Value:
 
     return ERROR_SUCCESS;
 }
+
+PackagesInfo* PackagesInfo::GetInstance()
+/*++
+
+Routine Description:
+
+    Helper to get static instance of PackagesInfo.
+
+Arguments:
+
+    None.
+
+Return Value:
+
+    Instance of PackagesInfo object.
+
+--*/
+{
+    static PackagesInfo* gm_PackagesInfoInstance = new PackagesInfo();
+    return gm_PackagesInfoInstance;
+}
