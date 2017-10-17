@@ -15,7 +15,8 @@
       <AdditionalIncludeDirectories>  
         %(AdditionalIncludeDirectories);
         $(MSBuildThisFileDirectory);
-        ..\ServiceTunnelLibrary
+        ..\ServiceTunnelLibrary;
+        $(SrcRoot)\Logging;
       </AdditionalIncludeDirectories>
       <!-- Override default from native_user_compile for compat with RdCommon.lib -->
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
@@ -53,14 +54,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="..\Common\XmlParseHelper\XmlParserHelper.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ServiceTunnelExtension.h" />
     <ClInclude Include="ServiceTunnelLibrary.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Common\XmlParseHelper\XmlParserHelper.vcxproj">
-      <Project>{78962BC6-361C-4630-8995-91D0C054C82E}</Project>
+    <ProjectReference Include="$(SRCROOT)\Logging\Logging.vcxproj">
+      <Project>{11A5289D-DE65-411C-9AB8-9B5D088382E4}</Project>
     </ProjectReference>
     <ProjectReference Include="..\ServiceTunnelLibrary\ServiceTunnelLibrary.vcxproj">
       <Project>{7DB0C9A4-CADC-4E53-ADF3-1F6887454249}</Project>
@@ -70,5 +72,6 @@
   <Target Name="AfterBuild">
     <Copy SourceFiles="$(OutputPath)\ServiceTunnelExtension.exe; $(OutputPath)\ServiceTunnelExtension.pdb" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\Code" />
     <Copy SourceFiles="manifest.xml;config.xml" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension" />
+    <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll; $(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.pdb" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\Code" />
   </Target>
 </Project>

@@ -27,7 +27,6 @@ Environment:
 #include <WinSock2.h>
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
-#include "../Shared/Utilities.h"
 #include <wchar.h>
 #include <regex> 
 #endif
@@ -48,6 +47,8 @@ Environment:
 #include <cpprest/producerconsumerstream.h>
 #include "cpprest/filestream.h"
 #include "PackagesInfo.h"
+#include "MdmLogger.h"
+#include "HealthReport.h"
 
 using namespace std;
 using namespace web;
@@ -64,28 +65,24 @@ using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 #define RESOURCE_PATH_CMDLINE_FLAG L"/ResourcePath"
 #define LOG_PATH_CMDLINE_FLAG   L"/LogPath"
 #define PACKAGE_PATH_CMDLINE_FLAG L"/PackagePath"
+#define CONTAINER_SEGMENT L"container"
 
+const wstring POST_HEALTH_REPORT_KEY = L"healthreport";
 const wstring GET_VERSION_QUERY_KEY = L"getpackageversion";
 const wstring GET_PACKAGE_URIS_QUERY_KEY = L"getpackageuris";
 const wstring TYPE_KEY = L"type";
+const wstring TYPE_CONTAINER = L"container";
 
 const wstring HOST_NETAGENT_HTTP_LISTEN_PORT = L"8019";
 const wstring RELATIVE_URI_PATH = L"hostnetagent";
 
-static PackagesInfo* packagesInfo;
-
-STATIC
+static
 void
 GetPackageVersion(
     __inout http_request Request);
 
-STATIC 
+static 
 void 
-ProcessGet(
-    __inout http_request Request);
-
-STATIC
-void
 ProcessGet(
     __inout http_request Request);
 

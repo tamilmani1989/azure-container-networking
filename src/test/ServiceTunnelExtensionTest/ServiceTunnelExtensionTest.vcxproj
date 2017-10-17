@@ -12,8 +12,9 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-		$(SRCROOT)\ServiceTunnelLibrary;
-		$(SRCROOT)\test\TraceLogging;
+        $(SRCROOT)\ServiceTunnelLibrary;
+        $(SRCROOT)\test\TraceLogging;
+        $(SRCROOT)\Logging;
       </AdditionalIncludeDirectories>
       <!-- Override default from native_user_compile for compat with RdCommon.lib -->
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
@@ -54,6 +55,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ServiceTunnelExtensionTest.cpp" />
+    <ClCompile Include="$(SrcRoot)\Common\XmlParseHelper\XmlParserHelper.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
@@ -61,11 +63,11 @@
     <ClInclude Include="ServiceTunnelExtensionTest.h" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="$(SRCROOT)\Logging\Logging.vcxproj">
+      <Project>{11A5289D-DE65-411C-9AB8-9B5D088382E4}</Project>
+    </ProjectReference>
     <ProjectReference Include="$(SRCROOT)\ServiceTunnelLibrary\ServiceTunnelLibrary.vcxproj">
       <Project>{7DB0C9A4-CADC-4E53-ADF3-1F6887454249}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Common\XmlParseHelper\XmlParserHelper.vcxproj">
-      <Project>{78962bc6-361c-4630-8995-91d0c054c82e}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
@@ -77,7 +79,9 @@
         <FileMatch>*.*</FileMatch>
         <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\ServiceTunnelExtensionTest\rcf2</DestinationFolder>
       </Robocopy>	  
-  </ItemGroup>
- 
+      <Robocopy Include="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\*">        
+         <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\ServiceTunnelExtensionTest</DestinationFolder>             
+      </Robocopy>
+  </ItemGroup> 
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

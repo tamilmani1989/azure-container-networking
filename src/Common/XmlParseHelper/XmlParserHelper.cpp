@@ -19,7 +19,7 @@ Environment:
 #include "XmlParserHelper.h"
 
 XmlParserHelper::XmlParserHelper(
-    )
+)
 /*++
 
 Routine Description:
@@ -29,7 +29,7 @@ Routine Description:
 Arguments:
 
     None.
-    
+
 Return Value:
 
     None.
@@ -39,9 +39,9 @@ Return Value:
     XMLDom = NULL;
 }
 
-void 
+void
 XmlParserHelper::UnInitialize(
-    )
+)
 /*++
 
 Routine Description:
@@ -52,7 +52,7 @@ Routine Description:
 Arguments:
 
     None.
-    
+
 Return Value:
 
     None.
@@ -63,22 +63,22 @@ Return Value:
 }
 
 
-HRESULT 
+HRESULT
 XmlParserHelper::VariantFromString(
-    __in PCWSTR Value, 
+    __in PCWSTR Value,
     __out VARIANT &Variant)
 /*++
 
 Routine Description:
 
-    Helper function to create a VT_BSTR variant from a null terminated string. 
+    Helper function to create a VT_BSTR variant from a null terminated string.
 
 Arguments:
 
     Value - Null terminated string.
 
     Varaint - Out varaibale for the created  VT_BSTR variant.
-    
+
 Return Value:
 
     S_OK on success. On failure appropriate HRESULT is returned.
@@ -87,8 +87,13 @@ Return Value:
 {
     HRESULT hr = S_OK;
     BSTR bstr = SysAllocString(Value);
-    RD_TRACE_M_EXIT(bstr, (RD_TRACE_ERROR, L"VariantFromString allocation failed"), Cleanup);
-    
+
+    if (bstr == NULL) {
+        LOGERRW(L"VariantFromString allocation failed");
+        hr = ERROR_NOT_ENOUGH_MEMORY;
+        goto Cleanup;
+    }
+
     V_VT(&Variant)   = VT_BSTR;
     V_BSTR(&Variant) = bstr;
 
@@ -96,8 +101,8 @@ Cleanup:
     return hr;
 }
 
-//  
-HRESULT 
+//
+HRESULT
 XmlParserHelper::CreateAndInitDOM(
     __inout IXMLDOMDocument** Document)
 /*++
@@ -109,7 +114,7 @@ Routine Description:
 Arguments:
 
     Document - Out parameter to hold the reference to the create DOM instance.
-    
+
 Return Value:
 
     S_OK on success. On failure appropriate HRESULT is returned.
@@ -117,10 +122,10 @@ Return Value:
 --*/
 {
     HRESULT hr = CoCreateInstance(__uuidof(DOMDocument60), NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(Document));
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"CreateAndInitDOM:CoCreateInstance failed with error [%0x]", hr),
-        hr,
-        Cleanup);
+    if (hr != S_OK) {
+        LOGERRW(L"CreateAndInitDOM:CoCreateInstance failed with error [%0x]", hr);
+        goto Cleanup;
+    }
 
     // These methods should not fail so don't inspect result
     (*Document)->put_async(VARIANT_FALSE);
@@ -133,9 +138,9 @@ Cleanup:
 }
 
 
-HRESULT 
+HRESULT
 XmlParserHelper::ReportParseError(
-    IXMLDOMDocument *Document, 
+    IXMLDOMDocument *Document,
     LPCWSTR Description)
 /*++
 
@@ -155,38 +160,38 @@ Return Value:
 
 --*/
 {
-HRESULT hr = S_OK;
-HRESULT hrRet = E_FAIL; // Default error code if failed to get from parse error.
-IXMLDOMParseError *pXMLErr = NULL;
-BSTR bstrReason = NULL;
+    HRESULT hr = S_OK;
+    HRESULT hrRet = E_FAIL; // Default error code if failed to get from parse error.
+    IXMLDOMParseError *pXMLErr = NULL;
+    BSTR bstrReason = NULL;
 
-hr = Document->get_parseError(&pXMLErr);
-RD_TRACE_E_HR((RD_TRACE_ERROR,
-    L"ReportParseError:get_parseError failed with error [%0x]", hr),
-    hr,
-    Cleanup);
-hr = pXMLErr->get_errorCode(&hrRet);
-RD_TRACE_E_HR((RD_TRACE_ERROR,
-    L"ReportParseError:get_errorCode failed with error [%0x]", hr),
-    hr,
-    Cleanup);
+    hr = Document->get_parseError(&pXMLErr);
+    if (hr != S_OK) {
+        LOGERRW(L"ReportParseError:get_parseError failed with error [%0x]", hr);
+        goto Cleanup;
+    }
 
-hr = pXMLErr->get_reason(&bstrReason);
-RD_TRACE_E_HR((RD_TRACE_ERROR,
-    L"ReportParseError:get_reason failed with error [%0x] - Description - [%s]", hr, Description),
-    hr,
-    Cleanup);
+    hr = pXMLErr->get_errorCode(&hrRet);
+    if (hr != S_OK) {
+        LOGERRW(L"ReportParseError:get_errorCode failed with error [%0x]", hr);
+        goto Cleanup;
+    }
+
+    hr = pXMLErr->get_reason(&bstrReason);
+    if (hr != S_OK) {
+        LOGERRW(L"ReportParseError:get_reason failed with error [%0x] - Description - [%s]", hr, Description);
+        goto Cleanup;
+    }
 
 Cleanup:
 
-RELEASE(pXMLErr);
+    RELEASE(pXMLErr);
 
-if (bstrReason != NULL)
-{
-    SysFreeString(bstrReason);
-}
+    if (bstrReason != NULL) {
+        SysFreeString(bstrReason);
+    }
 
-return hrRet;
+    return hrRet;
 }
 
 HRESULT
@@ -214,30 +219,29 @@ Return Value:
     VARIANT_BOOL varStatus;
     VariantInit(&varFileName);
     hr = CreateAndInitDOM(&XMLDom);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"Intialize:CreateAndInitDOM failed with error [%0x]", hr),
-        hr,
-        Cleanup);
+    if (hr != S_OK) {
+        LOGERRW(L"Intialize:CreateAndInitDOM failed with error [%0x]", hr);
+        goto Cleanup;
+    }
 
     hr = VariantFromString(XmlFileName, varFileName);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"Intialize:VariantFromString failed with error [%0x]", hr),
-        hr,
-        Cleanup);
+    if (hr != S_OK) {
+        LOGERRW(L"Intialize:VariantFromString failed with error [%0x]", hr);
+        goto Cleanup;
+    }
 
     hr = XMLDom->load(varFileName, &varStatus);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"Intialize:Load failed with error [%0x]", hr),
-        hr,
-        Cleanup);
-    if (varStatus != VARIANT_TRUE)
-    {
+    if (hr != S_OK) {
+        LOGERRW(L"Intialize:Load failed with error [%0x]", hr);
+        goto Cleanup;
+    }
+
+    if (varStatus != VARIANT_TRUE) {
         hr = ReportParseError(XMLDom, XmlFileName);
     }
 
 Cleanup:
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         RELEASE(XMLDom);
     }
 
@@ -246,12 +250,71 @@ Cleanup:
     return hr;
 }
 
-HRESULT 
+HRESULT
+XmlParserHelper::QueryNodeValue(
+    __in LPCWSTR NodePathQuery,
+    __inout std::wstring& Value
+)
+/*++
+
+Routine Description:
+
+    Helper to query value associated with a node.
+
+Arguments:
+
+    NodePathQuery - Node path query in Xpath format.
+
+    Value - Retrieved value associated with the node.
+
+Return Value:
+
+    S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+    HRESULT hr = S_OK;
+    IXMLDOMNode *pNode = NULL;
+    BSTR nodeQuery = NULL;
+    BSTR bstrNodeValue = NULL;
+
+    LOGINFOW(L"NodeQuery:%s.", NodePathQuery);
+
+    nodeQuery = SysAllocString(NodePathQuery);
+    if (nodeQuery == NULL) {
+        hr = ERROR_NOT_ENOUGH_MEMORY;
+        LOGERRW(L"QueryNodeAttributeValues:SysAllocString Allocation failed for node query.");
+        goto Cleanup;
+    }
+
+    hr = XMLDom->selectSingleNode(nodeQuery, &pNode);
+    if (hr != S_OK) {
+        LOGERRW(L"QueryNodeAttributeValues:selectNodes failed with error [%0x]", hr);
+        goto Cleanup;
+    }
+    pNode->get_text(&bstrNodeValue);
+    Value.assign(bstrNodeValue, SysStringLen(bstrNodeValue));
+    wprintf(L"Attribute value, <%s>\n", Value.c_str());
+
+Cleanup:
+    RELEASE(pNode);
+
+    if (nodeQuery != NULL) {
+        SysFreeString(nodeQuery);
+    }
+
+    if (bstrNodeValue != NULL) {
+        SysFreeString(bstrNodeValue);
+    }
+    return hr;
+}
+
+HRESULT
 XmlParserHelper::QueryNodeAttributeValues(
     __in LPCWSTR NodePathQuery,
     __in LPCWSTR AttributeName,
     __inout std::set<wstring>& AttributeValues
-    )
+)
 /*++
 
 Routine Description:
@@ -284,60 +347,57 @@ Return Value:
     BSTR bstrAttributeName = NULL;
     VARIANT variantAttributeValue;
     BSTR bstrAttributeValue;
-    VARIANT varFileName;
-    VariantInit(&varFileName);
     std::wstring attributeValue;
-    RD_TRACE_LOG((RD_TRACE_INFO, L"NodeQuery:%s, Attribute:%s.", NodePathQuery, AttributeName));
+
+    LOGINFOW(L"NodeQuery:%s, Attribute:%s.", NodePathQuery, AttributeName);
 
     nodeQuery = SysAllocString(NodePathQuery);
-    RD_TRACE_M_EXIT(nodeQuery, 
-        (RD_TRACE_ERROR, 
-        L"QueryNodeAttributeValues:SysAllocString Allocation failed for node query."), 
-        Cleanup);
+    if (nodeQuery == NULL) {
+        hr = ERROR_NOT_ENOUGH_MEMORY;
+        LOGERRW(L"QueryNodeAttributeValues:SysAllocString Allocation failed for node query.");
+        goto Cleanup;
+    }
 
     bstrAttributeName = SysAllocString(AttributeName);
-    RD_TRACE_M_EXIT(bstrAttributeName, 
-        (RD_TRACE_ERROR, 
-        L"QueryNodeAttributeValues:SysAllocString Allocation failed for attribute query."), 
-        Cleanup);
+    if (bstrAttributeName == NULL) {
+        LOGERRW(L"QueryNodeAttributeValues:SysAllocString Allocation failed for attribute query.");
+        goto Cleanup;
+    }
+
 
     hr = XMLDom->selectNodes(nodeQuery, &pNodes);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"QueryNodeAttributeValues:selectNodes failed with error [%0x]", hr),
-        hr,
-        Cleanup);
+    if (hr != S_OK) {
+        LOGERRW(L"QueryNodeAttributeValues:selectNodes failed with error [%0x]", hr);
+        goto Cleanup;
+    }
 
-    if(pNodes != NULL)
-    {
+    if(pNodes != NULL) {
         hr = pNodes->get_length(&length);
-        RD_TRACE_E_HR((RD_TRACE_ERROR,
-            L"QueryNodeAttributeValues:selectNodes failed with error [%0x]", hr),
-            hr,
-            Cleanup);
+        if (hr != S_OK) {
+            LOGERRW(L"QueryNodeAttributeValues:selectNodes failed with error [%0x]", hr);
+            goto Cleanup;
+        }
 
-        for (index = 0; index < length; index++)
-        {
+        for (index = 0; index < length; index++) {
             hr = pNodes->get_item(index, &pNode);
-            RD_TRACE_E_HR((RD_TRACE_ERROR,
-                L"QueryNodeAttributeValues:get_item failed with error [%0x]", hr),
-                hr,
-                Cleanup);
+            if (hr != S_OK) {
+                LOGERRW(L"QueryNodeAttributeValues:get_item failed with error [%0x]", hr);
+                goto Cleanup;
+            }
 
             hr = pNode->get_nodeName(&bstrNodeName);
-            RD_TRACE_E_HR((RD_TRACE_ERROR,
-                L"QueryNodeAttributeValues:get_nodeName failed with error [%0x]", hr),
-                hr,
-                Cleanup);
+            if (hr != S_OK) {
+                LOGERRW(L"QueryNodeAttributeValues:get_nodeName failed with error [%0x]", hr);
+                goto Cleanup;
+            }
 
             SysFreeString(bstrNodeName);
             bstrNodeName = NULL;
             pIXMLDOMNamedNodeMap = NULL;
             hr = pNode->get_attributes(&pIXMLDOMNamedNodeMap);
-            if (SUCCEEDED(hr) && pIXMLDOMNamedNodeMap)
-            {
+            if (SUCCEEDED(hr) && pIXMLDOMNamedNodeMap) {
                 hr = pIXMLDOMNamedNodeMap->getNamedItem(bstrAttributeName, &pIXMLDOMNode);
-                if (SUCCEEDED(hr) && pIXMLDOMNode)
-                {
+                if (SUCCEEDED(hr) && pIXMLDOMNode) {
                     pIXMLDOMNode->get_nodeValue(&variantAttributeValue);
                     bstrAttributeValue = V_BSTR(&variantAttributeValue);
                     attributeValue.clear();
@@ -351,9 +411,7 @@ Return Value:
 
             RELEASE(pNode);
         }
-    }
-    else
-    {
+    } else {
         hr = ReportParseError(XMLDom, L"Error while calling selectNodes.");
     }
 
@@ -361,51 +419,47 @@ Cleanup:
 
     RELEASE(pNodes);
     RELEASE(pNode);
-    if (nodeQuery != NULL)
-    {
+    if (nodeQuery != NULL) {
         SysFreeString(nodeQuery);
     }
 
-    if (bstrNodeName != NULL)
-    {
+    if (bstrNodeName != NULL) {
         SysFreeString(bstrNodeName);
     }
 
-    if (bstrAttributeName != NULL)
-    {
+    if (bstrAttributeName != NULL) {
         SysFreeString(bstrAttributeName);
     }
 
-	if (AttributeValues.size() > 0)
-	{
-		RD_TRACE_LOG((RD_TRACE_INFO, L"Got atleast one attribute value. So considering it as success"));
-		hr = S_OK;
-	}
+    if (AttributeValues.size() > 0) {
+        LOGINFOW(L"Got atleast one attribute value. So considering it as success");
+        hr = S_OK;
+    }
     return hr;
 }
 
 
-std::wstring 
+std::wstring
 XmlParserHelper::PrepareAttributeQuery(
     std::wstring Name,
     std::wstring Value)
-    /*++
+/*++
 
-    Routine Description:
+Routine Description:
 
-    Helper to prepare an attribute query.
+Helper to prepare an attribute query.
 
-    Arguments:
+Arguments:
 
-    Name - Name of the attribute.
+Name - Name of the attribute.
 
-    Value - Value of the attribute.
+Value - Value of the attribute.
 
-    Return Value:
+Return Value:
 
-    string representing the attribute query in the format to be used in Xpath queries.
+string representing the attribute query in the format to be used in Xpath queries.
 
-    --*/
+--*/
 {
     std::wstring query;
 

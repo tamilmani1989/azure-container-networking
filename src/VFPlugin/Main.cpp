@@ -1,8 +1,27 @@
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+Main.cpp
+
+Abstract:
+
+This file is the entry point for installing mellanox driver and report status to NMAgent and HostAgent.
+
+Author:
+
+Tamilmani Manoharan (tamanoha) 10-October-2017
+
+--*/
+
+
 #include "VFPlugin.h"
 #include "..\Logging\Logging.h"
 #include <memory>
 #include "VFPluginUtilities.h"
-#include "VFHealthReport.h"
+#include "HealthReport.h"
 #include <cstdlib>
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
@@ -85,8 +104,12 @@ void wmain(int argc, wchar_t *argv[])
     sysret = system (netcfg_cmd);
     LOGINFO("System call return for rundll command %s ret value %d", netcfg_cmd, sysret);
     
-    healthReport.Reset();
+    VFPluginUtilities::ResetHealthObject(healthReport);
     VFPluginUtilities::GetHostNetAgentURL(healthUrl, sizeof(healthUrl), HEALTH_REPORT_PATH);
+
+    /*
+      Check if driver installation is needed by verifying OS version
+    */
 
     isInstallRequired = vfplugin.IsMlxVFDriverInstallNeeded();    
     
@@ -105,26 +128,33 @@ void wmain(int argc, wchar_t *argv[])
             }
 
             healthReport.DriverInstallAttempted=true;            
-            healthReport.SendHealthStatusToHostAgent(healthUrl);
-            healthReport.Reset();
+            VFPluginUtilities::SendHealthStatusToHostAgent(healthUrl, healthReport);
+            VFPluginUtilities::ResetHealthObject(healthReport);
 
             LOGINFOW(L"Current directory path:%s", currentPath);
             status = vfplugin.InstallMlxVFDriver(currentPath);
+            healthReport.ErrorCode =  status;
             
             if (status != ERROR_SUCCESS &&  status != REBOOT_REQD) {
                 LOGINFOW(L"VFPlugin: VF Driver Installation Failed from %s\n", currentPath);                
-                healthReport.DriverInstallFailed=true;            
-                healthReport.SendHealthStatusToHostAgent(healthUrl);
-                healthReport.Reset();
+                healthReport.DriverInstallFailed = true;           
+                VFPluginUtilities::SendHealthStatusToHostAgent(healthUrl, healthReport);
+                VFPluginUtilities::ResetHealthObject(healthReport);
                 break;            
             } 
             
             healthReport.DriverInstallSucceeded=true;
-            healthReport.SendHealthStatusToHostAgent(healthUrl);
-            healthReport.Reset();
+            VFPluginUtilities::SendHealthStatusToHostAgent(healthUrl, healthReport);
+            VFPluginUtilities::ResetHealthObject(healthReport);
             
             LOGINFOW(L"VFPlugin: VF Driver installation succeeded from %s\n", currentPath); 
             VFPluginUtilities::SaveInstalledState();
+        }
+        else
+        {
+            healthReport.DriverInstallNotAttempted=true;
+            VFPluginUtilities::SendHealthStatusToHostAgent(healthUrl, healthReport);
+            VFPluginUtilities::ResetHealthObject(healthReport);
         }
     }while(0);
 
@@ -134,6 +164,10 @@ void wmain(int argc, wchar_t *argv[])
         LOGERRW(L"swprintf_s error while constructing guestos");
     }
     
+
+    /*
+      Report driver installation status to NMAgent Periodically
+    */
 
     while(true)
     {
@@ -156,19 +190,20 @@ void wmain(int argc, wchar_t *argv[])
             LOGERRW(L"Retrieving status info failed. Isinstalled %d version %s nonfnstatus %d osinfo %s", 
                     isInstalled, installedVersion, numNonFunctioningDevices, versionInfo);
             SysFreeString(statusInfo);
+            Sleep(3600000);
             continue;
         }
 
-        LOGINFOW(L"Going to send status %s to wireserver %s", url, statusInfo);
+        LOGINFOW(L"Going to send status to wireserver %s", url);
         VFPluginUtilities::SendStatusToWireServer(url, statusInfo);
         
-        healthReport.NumNonWorkingDevices = numNonFunctioningDevices; 
-        healthReport.TotalDevices = totalDevices;           
-        healthReport.SendHealthStatusToHostAgent(healthUrl);
-        healthReport.Reset();
+        healthReport.NonFunctionalVFDevicesCount = numNonFunctioningDevices; 
+        healthReport.TotalVFDevicesCount = totalDevices;           
+        VFPluginUtilities::SendHealthStatusToHostAgent(healthUrl, healthReport);
+        VFPluginUtilities::ResetHealthObject(healthReport);
 
         SysFreeString(statusInfo);
         statusInfo = NULL;
-        Sleep(1000);
+        Sleep(3600000);
     }
 }
