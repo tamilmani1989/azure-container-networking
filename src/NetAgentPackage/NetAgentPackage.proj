@@ -29,8 +29,6 @@
       <BuildFile>$(DeploymentOutput)\buildname.txt</BuildFile>
     </PropertyGroup>
      <Message Importance="high" Text="Going to generate $(PkgName) Package" />
-     <Exec Command="$(McPath) -U AqEventMessage.mc &amp; $(RcPath) AqEventMessage.rc &amp; $(LinkPath) -dll -noentry /MACHINE:x86 AqEventMessage.res"/>
-     <Exec Command="md $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins &amp; cp AqEventMessage.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\" />
      <MakeDir Directories="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins" Condition="!Exists('$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins')" />
      <MakeDir Directories="$(NetAgentPath)\$(Package)" Condition="!Exists('$(NetAgentPath)\$(Package)')" />
 
@@ -56,6 +54,7 @@
      <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(NetAgentPath)" />
      
      <Exec Command="echo $(BuildVersion)>$(BinariesBuildTypeArchDirectory)\$(Artifacts)\$(NetAgent)\$(Package)\version.txt" />
+     <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\AqEventMessage.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
   </Target>
 
   <Target Name="CreateZip" AfterTargets="GatherFiles">

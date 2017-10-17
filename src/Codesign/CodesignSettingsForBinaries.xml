@@ -34,6 +34,7 @@
 		  <File>%BinariesBuildTypeArchDirectory%\HnsClient\HnsClient.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\HNSOverlayPlugin\HNSOverlayPlugin.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\code\ServiceTunnelExtension.exe</File>
+		  <File>%BinariesBuildTypeArchDirectory%\AquariusPackage\Aquarius\AqEventMessage.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\ServiceTunnelExtension\ServiceTunnelExtension.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\VFPlugin\VFPlugin.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\HostNetAgent\HostNetAgent.exe</File>
@@ -42,6 +43,4 @@
 		  <File>%BinariesBuildTypeArchDirectory%\Aqua.RestClient\Aqua.RestClient.exe</File>
 		</Files>
 	</FileData>
-
-
 </CodeSignSettings>
