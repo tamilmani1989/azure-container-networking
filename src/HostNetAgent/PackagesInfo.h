@@ -57,6 +57,8 @@ public:
     std::wstring& 
     GetPackageLocation();
 
+	static PackagesInfo* GetInstance();
+
 private:
 
     DWORD 

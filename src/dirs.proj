@@ -3,7 +3,6 @@
   <ItemGroup>
     <ProjectFile Include="Aquarius\Aquarius.vcxproj" />
     <ProjectFile Include="EventMessage\CreatePackage.proj" />
-    <ProjectFile Include="Common\XmlParseHelper\XmlParserHelper.vcxproj" />
     <ProjectFile Include="ServiceTunnelExtension\ServiceTunnelExtension.vcxproj" />
     <ProjectFile Include="VFPlugin\VFPlugin.vcxproj" />
     <ProjectFile Include="NetworkClientLibrary\NetworkClientLibrary.vcxproj" />
@@ -18,7 +17,7 @@
     <ProjectFile Include="test\dirs.proj" />
     <ProjectFile Include="GAExtension\AquariusGaExt.vcxproj" />
     <ProjectFile Include="HostNetAgent\HostNetAgent.vcxproj" />
-
+    <ProjectFile Include="Common\NetAgentContracts\NetAgentContracts.vcxproj" />
   </ItemGroup>
 
   <ItemGroup>

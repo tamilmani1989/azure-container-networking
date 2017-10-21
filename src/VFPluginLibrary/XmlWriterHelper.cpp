@@ -1,3 +1,21 @@
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+XmlWriterHelper.cpp
+
+Abstract:
+
+This file contains helper methods to support constructing xml object
+
+Author:
+
+Tamilmani Manoharan (tamanoha) 10-October-2017
+
+--*/
+
 #include "XmlWriterHelper.h"
 
 HRESULT XmlWriterHelper::VariantFromString(PCWSTR wszValue, VARIANT &Variant)

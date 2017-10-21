@@ -1,3 +1,21 @@
+/*++
+
+Copyright (c) Microsoft Corporation
+
+Module Name:
+
+VFPluginInstaller.cpp
+
+Abstract:
+
+This file contains methods to read version from registry and install mellanox driver
+
+Author:
+
+Tamilmani Manoharan (tamanoha) 10-October-2017
+
+--*/
+
 #include "VFPlugin.h"
 #include "..\Logging\Logging.h"
 

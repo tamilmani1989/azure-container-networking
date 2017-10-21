@@ -20,164 +20,7 @@ Environment:
 //
 
 #include "HostNetAgent.h"
-
-STATIC 
-void 
-GetPackageVersion(
-    __inout http_request Request
-    )
-/*++
-
-Description:
-
-    Function to process get package version query.
-
-Arguments:
-
-    Request - The http request.
-
-Return Value:
-
-    None
-
---*/
-{
-    std::wstring packageVersion = packagesInfo->GetPackageVersion();
-    Request.reply(status_codes::OK, packageVersion);
-    LOGINFOW(L"Version response request:{%s}. Version:{%s}", Request.to_string().c_str(), packageVersion.c_str());
-}
-
-STATIC 
-void 
-GetPackageUris(
-    __inout http_request Request
-    )
-/*++
-
-Description:
-
-    Function to process get package Uri's query.
-
-Arguments:
-
-    Request - The http request.
-
-Return Value:
-
-    None
-
---*/
-{
-    json::value packageMap;
-    std::vector<std::wstring> packageNames = packagesInfo->GetPackageNames();
-    for (std::vector<std::wstring>::iterator it = packageNames.begin(); it != packageNames.end(); ++it)
-    {
-        packageMap[it->c_str()] = json::value::string(L"");
-        LOGINFOW(L"Adding packageName:{%s} to the response", it->c_str());
-    }
-    Request.reply(status_codes::OK, packageMap);
-    LOGINFOW(L"Response Request:{%s}", Request.to_string().c_str());
-}
-
-STATIC 
-void 
-ProcessGet(
-    __inout http_request Request
-    )
-/*++
-
-Description:
-
-    Handler to process get request.
-
-Arguments:
-
-    Request - The http request.
-
-Return Value:
-
-    None
-
---*/
-{
-    LOGINFOW(L"Processing get request:[%s]", Request.to_string().c_str());
-
-    // Parse the query associated with the request.
-    auto query = http::uri::split_query(http::uri::decode(Request.relative_uri().query()));
-
-    LOGINFOW(L"Query Count:%I64u", query.size());
-    for (
-        std::map<utility::string_t, 
-        utility::string_t>::iterator it = query.begin(); it != query.end(); 
-        ++it)
-    {
-        LOGINFOW(L"Query Key:[%s], Value:[%s]", it->first.c_str(),it->second.c_str());
-    }
-
-    // Respond with bad request if the query is missing type.
-    auto found_name = query.find(TYPE_KEY);
-    if (found_name == end(query))
-    {
-        LOGERRW(L"Unsupported Query");
-        Request.reply(status_codes::BadRequest);
-        return;
-    }
-
-    if (_wcsnicmp(
-        found_name->second.c_str(), 
-        GET_VERSION_QUERY_KEY.c_str(), 
-        GET_VERSION_QUERY_KEY.length()) == 0)
-    {
-        return GetPackageVersion(Request);
-    }
-
-    if (_wcsnicmp(
-        found_name->second.c_str(), 
-        GET_PACKAGE_URIS_QUERY_KEY.c_str(), 
-        GET_PACKAGE_URIS_QUERY_KEY.length()) == 0)
-    {
-        return GetPackageUris(Request);
-    }
-    
-    // Assume this is a request for an explicit resource by name.
-    // Check the package cache to check if the package exist.
-    std::vector<std::wstring> packageNames = packagesInfo->GetPackageNames();
-    auto fileFound = find(
-        packageNames.begin(), 
-        packageNames.end(), 
-        found_name->second.c_str());
-    if (fileFound == packageNames.end())
-    {
-        LOGERRW(L"Requested resource {%s} not found", found_name->second.c_str());
-        Request.reply(status_codes::NotFound);
-        return;
-    }
-
-    LOGERRW(L"Resource {%s} is found in cache.", found_name->second.c_str());
-    std::ifstream ifs;
-    std::wstring fileName = packagesInfo->GetPackageLocation() + L"\\" + found_name->second.c_str();
-
-    // Check if the resource actually exist by trying to open an handle to the package.
-    ifs.open(fileName, std::ifstream::in);
-    if (ifs.good())
-    {
-        pplx::task<void> requestTask = file_stream<unsigned char>::open_istream(fileName.c_str(), std::ios_base::binary)
-            .then([=](pplx::task<concurrency::streams::basic_istream<unsigned char>> previousTask)
-        {
-            auto fileStream = previousTask.get();
-            auto length = fileStream.seek(0, std::ios_base::end);
-            fileStream.seek(0);
-            Request.reply(status_codes::OK, fileStream, length);
-        });
-        ifs.close();
-        LOGINFOW(L"Requested resource {%s} successfully transmited", found_name->second.c_str());
-    }
-    else
-    {
-        LOGERRW(L"Requested resource {%s} is not found on the disk", found_name->second.c_str());
-        Request.reply(status_codes::NotFound);
-    }
-}
+#include "RequestHandlers.h"
 
 DWORD
 AgentParseCommandLine(
@@ -187,7 +30,7 @@ AgentParseCommandLine(
     __deref_out PWSTR *ResourcePath,
     __deref_out PWSTR *LogPath,
     __deref_out PWSTR *PackagePath
-    )
+)
 /*++
 
 Routine Description:
@@ -220,9 +63,9 @@ Return Value:
         (NULL == ConfigFile) ||
         (NULL == ResourcePath) ||
         (NULL == LogPath) ||
-        (NULL == ResourcePath))
-    {
-            return ERROR_INVALID_DATA;
+        (NULL == ResourcePath)) {
+
+        return ERROR_INVALID_DATA;
     }
 
     *ConfigFile = NULL;
@@ -234,29 +77,26 @@ Return Value:
     // Iterate through command line looking for the expected options
     //
 
-    for (indx=0; indx<ArgumentCount; indx++) 
-    {
+    for (indx = 0; indx < ArgumentCount; indx++) {
+
         if ((_wcsicmp(ArgumentList[indx], CONFIG_FILE_CMDLINE_FLAG) == 0) &&
-            (indx+1 < ArgumentCount)) 
-        {
+                (indx + 1 < ArgumentCount)) {
             indx++;
             *ConfigFile = ArgumentList[indx];
-        }
-        else if ((_wcsicmp(ArgumentList[indx], RESOURCE_PATH_CMDLINE_FLAG) == 0) &&
-            (indx+1 < ArgumentCount)) 
-        {
+
+        } else if ((_wcsicmp(ArgumentList[indx], RESOURCE_PATH_CMDLINE_FLAG) == 0) &&
+                   (indx + 1 < ArgumentCount)) {
+
             indx++;
             *ResourcePath = ArgumentList[indx];
-        }
-        else if ((_wcsicmp(ArgumentList[indx], LOG_PATH_CMDLINE_FLAG) == 0) &&
-            (indx+1 < ArgumentCount)) 
-        {
+        } else if ((_wcsicmp(ArgumentList[indx], LOG_PATH_CMDLINE_FLAG) == 0) &&
+                   (indx + 1 < ArgumentCount)) {
+
             indx++;
             *LogPath = ArgumentList[indx];
-        }
-        else if ((_wcsicmp(ArgumentList[indx], PACKAGE_PATH_CMDLINE_FLAG) == 0) &&
-            (indx+1 < ArgumentCount)) 
-        {
+        } else if ((_wcsicmp(ArgumentList[indx], PACKAGE_PATH_CMDLINE_FLAG) == 0) &&
+                   (indx + 1 < ArgumentCount)) {
+
             indx++;
             *PackagePath = ArgumentList[indx];
         }
@@ -265,10 +105,7 @@ Return Value:
     return ERROR_SUCCESS;
 }
 
-    //
-    // If not found, output parameter points will be set to NULL
-
-void 
+void
 StartListener()
 /*++
 
@@ -288,32 +125,35 @@ Return Value:
 {
     std::wstring listenerUri = GetListenerUri();
     LOGINFOW(L"Starting listener Uri:[%s].", listenerUri.c_str());
-
     uri_builder uriBuilder(listenerUri);
-    http_listener listener(uriBuilder.to_uri());
-    listener.support(methods::GET, ProcessGet);
-    pplx::task_status ret = listener.open().then([&listener]() {LOGINFOW(L"BEGIN LISTEN"); }).wait();
 
-    if (ret != pplx::completed)
-    {
+    http_listener listener(uriBuilder.to_uri());
+
+    listener.support(methods::GET, RequestHandlers::ProcessGet);
+    listener.support(methods::POST, RequestHandlers::ProcessPost);
+    
+    pplx::task_status ret = listener.open().then([&listener]() {
+        LOGINFOW(L"BEGIN LISTEN");
+    }).wait();
+
+    if (ret != pplx::completed) {
+
         LOGERRW(L"Unable to open the listener. Ret = %d", ret);
         return;
-    }
-    else
-    {
+    } else {
+
         LOGINFOW(L"Successfully listening on port specified");
     }
 
-    while (true) 
-    { 
-        Sleep(5000); 
+    while (true) {
+        Sleep(5000);
     }
 }
 
-bool 
+bool
 SetupLogging(
     __in PCWSTR LogLocation
-   )
+)
 /*++
 
 Description:
@@ -331,22 +171,25 @@ Return Value:
 --*/
 {
     DWORD err;
-    if (CreateDirectory(LogLocation, NULL) == 0)
-    {
+    HRESULT hr = S_OK;
+
+    if (CreateDirectory(LogLocation, NULL) == 0) {
+
         err = GetLastError();
-        if (err != ERROR_ALREADY_EXISTS)
-        {
+        if (err != ERROR_ALREADY_EXISTS) {
+
             wprintf(L"Failed to set up logging directory. Error:[%0x]", err);
             return false;
         }
     }
 
-    LOGSETUP(LogLocation, L"HostNetAgent");
-    return true;
+    hr = LOGSETUP(LogLocation, L"HostNetAgent");
+
+    return hr == S_OK? true : false;
 }
 
-const 
-std::wstring 
+const
+std::wstring
 GetListenerUri()
 /*++
 
@@ -370,7 +213,7 @@ Return Value:
 DWORD
 GetPackageLocation(
     __inout std::wstring& PackageLocation
-    )
+)
 /*++
 
 Description:
@@ -391,14 +234,15 @@ Return Value:
     DWORD len = 0;
     WCHAR fileName[MAX_PATH] = { 0 };
     size_t index;
-    len = GetModuleFileName(
-        NULL,
-        fileName,
-        MAX_PATH
-    );
 
-    if (FALSE == len)
-    {
+    len = GetModuleFileName(
+              NULL,
+              fileName,
+              MAX_PATH
+          );
+
+    if (FALSE == len) {
+
         return GetLastError();
     }
 
@@ -406,11 +250,11 @@ Return Value:
 
     index = executableFullPathFileName.rfind(DIRECTORY_SEPARATOR);
 
-    if (index == std::wstring::npos)
-    {
+    if (index == std::wstring::npos) {
+
         return ERROR_NO_MATCH;
     }
-    
+
     PackageLocation.assign(executableFullPathFileName.substr(0, index));
     PackageLocation.append(L"\\");
     PackageLocation.append(PACKAGE_FOLDER_NAME);
@@ -418,11 +262,11 @@ Return Value:
     return ERROR_SUCCESS;
 }
 
-int 
+int
 wmain(
-    int Argc, 
+    int Argc,
     PWSTR* Argv
-    )
+)
 /*++
 
 Description:
@@ -432,7 +276,7 @@ Description:
 Arguments:
 
     Argc - Argument count.
-    
+
     Argv - Array of arguments.
 
 Return Value:
@@ -449,46 +293,73 @@ Return Value:
     wstring logLocation;
     wstring packageLocation;
     DWORD err = ERROR_SUCCESS;
+    MdmLogger* mdmLogger;
+    HRESULT hr = S_OK;
+	PackagesInfo* packagesInfoInstance;
 
-    err = AgentParseCommandLine(Argc, Argv, &configFile, &resourcePath, &logPath, &packagePath);
-    if (err != ERROR_SUCCESS)
-    {
+    err = AgentParseCommandLine(Argc,
+                                Argv, 
+                                &configFile, 
+                                &resourcePath, 
+                                &logPath, 
+                                &packagePath);
+    if (err != ERROR_SUCCESS) {
         wprintf(L"Failed to parse command line arguments. Error[%0x]", err);
         return err;
     }
 
     logPath == NULL ? logLocation.assign(DEFAULT_LOG_LOCATION) : logLocation.assign(logPath);
 
-    if (packagePath == NULL)
-    {
+    if (packagePath == NULL) {
         err = GetPackageLocation(packageLocation);
-        if (err != ERROR_SUCCESS)
-        {
+        if (err != ERROR_SUCCESS) {
             wprintf(L"Failed to generate package location. Error[%0x]", err);
             return err;
         }
-    }
-    else
-    {
+    } else {
         packageLocation.assign(packagePath);
     }
 
-    wprintf(L"Using package location:[%s] Log location [%s]\n", packageLocation.c_str(), logLocation.c_str());
+    wprintf(L"Using package location:[%s] Log location [%s]\n", 
+            packageLocation.c_str(), 
+            logLocation.c_str());
 
-    if(!SetupLogging(logLocation.c_str()))
-    {
+    if (!SetupLogging(logLocation.c_str())) {
         wprintf(L"Failed to setup logging.");
-        return - 1;
+        return -1;
     }
 
-    packagesInfo = new PackagesInfo();
-    err = packagesInfo->Initialize(packageLocation);
-    if (err != ERROR_SUCCESS)
+	packagesInfoInstance = PackagesInfo::GetInstance();
+    if (packagesInfoInstance == NULL)
     {
+        LOGERRW(L"Failed to allocate memory for packagesInfo.");
+        return ERROR_OUTOFMEMORY;
+    }
+
+    err = packagesInfoInstance->Initialize(packageLocation);
+    if (err != ERROR_SUCCESS) {
+
+        LOGERRW(L"Failed to initialize packages info.");
         return err;
     }
 
-    const wstring listenerUri = GetListenerUri();
+    mdmLogger = MdmLogger::GetInstance();
+    if(mdmLogger == NULL)
+    {
+        LOGERRW(L"Failed to allocate memory for mdm Logger");
+        return ERROR_OUTOFMEMORY;
+    }
+
+    hr = mdmLogger->InitializeMdm(
+        configFile,
+		packagesInfoInstance->GetPackageVersion().c_str());
+    if( hr != S_OK)
+    {
+        LOGERRW(L"Failed to set up Mdm using settings file {%s}", configFile);
+        return hr;
+    }
+    HealthReport::InitializeHealthReportFieldIdMap();
+
     std::thread listenerThread(StartListener);
     listenerThread.join();
 }

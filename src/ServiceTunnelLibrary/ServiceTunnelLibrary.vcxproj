@@ -13,6 +13,7 @@
         $(PkgMicrosoft_WindowsAzure_EngSys_Internal_rd_fabric_stable_fc_Redist)\content\redist;
         $(PkgMicrosoft_WindowsAzure_EngSys_Internal_longhorn_rd_os142_OS_redist)\content\redist;
         $(PUBLIC_SDK)\Include\10.0.10586.0\shared;
+        $(SrcRoot)\Logging;
       </AdditionalIncludeDirectories>
       <!-- Override default from native_user_compile for compat with RdCommon.lib -->
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>

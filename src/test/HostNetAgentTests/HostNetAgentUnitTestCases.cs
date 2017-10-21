@@ -65,6 +65,11 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
         private readonly string docPath;
 
         /// <summary>
+        /// Config file path.
+        /// </summary>
+        private readonly string configFile;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="HostNetAgentUnitTestCases" /> class
         /// </summary>
         public HostNetAgentUnitTestCases()
@@ -76,6 +81,7 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
             this.getPackageUrisUrl = this.baseUrl + "&type=getpackageuris";
             this.logPath = Path.Combine(this.exeDir, "Logs");
             this.docPath = Path.Combine(this.exeDir, "Documents");
+            this.configFile = Path.Combine(this.exeDir, "NetAgentHostPlugin.PluginSpecific.xml");
         }
 
         /// <summary>
@@ -105,7 +111,7 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
         [TestMethod]
         public void TestValidateVersion()
         {
-            this.StartHostNetAgent(this.logPath, this.docPath);
+            this.StartHostNetAgent(this.logPath, this.docPath, this.configFile);
             string versionFromFile = System.IO.File.ReadAllText(this.versionFile);
             string version = this.DownloadString(this.getVersionUrl);
             Assert.AreEqual(version, versionFromFile, string.Format("Mismatch in version. Expected;{0} Recieved;{1}", versionFromFile, version));
@@ -118,7 +124,7 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
         public void TestValidateGetPackageUris()
         {
             IEnumerable<string> docs = Directory.EnumerateFiles(this.docPath, "*.zip");
-            this.StartHostNetAgent(this.logPath, this.docPath);
+            this.StartHostNetAgent(this.logPath, this.docPath, this.configFile);
             var packageUris = this.DownloadSerializedJsonData<Dictionary<string, string>>(this.getPackageUrisUrl);
             foreach (string doc in docs)
             {
@@ -143,7 +149,7 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
         [TestMethod]
         public void TestValidateGetPackage()
         {
-            this.StartHostNetAgent(this.logPath, this.docPath);
+            this.StartHostNetAgent(this.logPath, this.docPath, this.configFile);
             var packageUris = this.DownloadSerializedJsonData<Dictionary<string, string>>(this.getPackageUrisUrl);
             string fileToDownLoad = packageUris.First().Key;
             var getPackageUrl = this.baseUrl + string.Format("&type={0}", packageUris.First().Key);
@@ -163,7 +169,7 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
 
         public void TestWorFlow()
         {
-            this.StartHostNetAgent(this.logPath, this.docPath);
+            this.StartHostNetAgent(this.logPath, this.docPath, this.configFile);
             var version = this.DownloadString(this.getVersionUrl);
             Console.WriteLine("Received version:{0}", version);
 
@@ -262,8 +268,9 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
         /// </summary>
         /// <param name="logFolder">Log path</param>
         /// <param name="docFolder">Doc path</param>
+        /// <param name="configFilePath">Location of the config file.</param>
         /// <param name="restart">Should restart</param>
-        private void StartHostNetAgent(string logFolder, string docFolder, bool restart = false)
+        private void StartHostNetAgent(string logFolder, string docFolder, string configFilePath, bool restart = false)
         {
             Process[] processesByName = Process.GetProcessesByName(HostNetAgentProcessName);
             if (processesByName.Length > 0)
@@ -283,7 +290,7 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
                 StartInfo =
                 {
                     FileName = Path.Combine(this.exeDir, HostNetAgentProcessName + @".exe"),
-                    Arguments = string.Format("/LogPath {0} /PackagePath {1}", logFolder, docFolder),
+                    Arguments = string.Format("/LogPath {0} /PackagePath {1} /ConfigFile {2}", logFolder, docFolder, configFilePath),
                     WindowStyle = ProcessWindowStyle.Maximized
                 }
             };
