@@ -182,7 +182,8 @@ void wmain(int argc, wchar_t *argv[])
             LOGWARNW(L"VFDriver is not installed");
         }
         
-        LOGINFOW(L"os version info %s nonfunctioning devs %d isinstalled %d", versionInfo, numNonFunctioningDevices, isInstalled);
+        LOGINFOW(L"os version info %s nonfunctioning devs %d isinstalled %d totaldevs %d nonfunctioning %d", 
+                versionInfo, numNonFunctioningDevices, isInstalled, totalDevices, numNonFunctioningDevices);
         hr = VFPluginUtilities::RetrieveStatusInfoAsXMLStr(isInstalled, installedVersion, versionInfo, numNonFunctioningDevices, &statusInfo);
 
         if(hr != S_OK)

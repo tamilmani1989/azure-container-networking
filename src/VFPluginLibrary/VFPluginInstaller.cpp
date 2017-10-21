@@ -513,7 +513,7 @@ Return Value:
 
     if (hdevinfo == INVALID_HANDLE_VALUE) {
         status = GetLastError();
-        LOGINFOW(L"SetupDiGetClassDevs failed with error 0x%X\n", status);
+        LOGINFOW(L"GetDevice :: SetupDiGetClassDevs failed with error 0x%X\n", status);
         goto Cleanup;
     }
 
@@ -529,7 +529,7 @@ Return Value:
                                    &devinfo)) {
             if (GetLastError() != ERROR_NO_MORE_ITEMS) {
                 status = GetLastError();
-                LOGINFOW(L"SetupDiEnumDeviceInfo failed with error  0x%X\n", status);
+                LOGINFOW(L"GetDevice :: SetupDiEnumDeviceInfo failed with error  0x%X\n", status);
                 goto Cleanup;
             }
 
@@ -550,7 +550,7 @@ Return Value:
         } 
         
         if (wcsstr(instanceId, DeviceSearchString) != 0) {
-            LOGINFOW(L"Device found, DevicePath: %s\n", instanceId);
+            LOGINFOW(L"GetDevice :: Device found, DevicePath: %s\n", instanceId);
             *DevInfo = hdevinfo;
             *DevInfoData = &devinfo;
             break;
@@ -559,7 +559,7 @@ Return Value:
 
 Cleanup:
 
-    LOGINFOW(L"Device with search string %s present %s\n",
+    LOGINFOW(L"GetDevice :: Device with search string %s present %s\n",
              DeviceSearchString,
              *DevInfoData == NULL ? L"false" : L"true");
 
@@ -1129,7 +1129,7 @@ Return Value:
 
     if (hdevinfo == INVALID_HANDLE_VALUE) {
         status = GetLastError();
-        LOGINFOW(L"SetupDiGetClassDevs failed with error 0x%X\n", status);
+        LOGINFOW(L"NonFunctioningDevs :: SetupDiGetClassDevs failed with error 0x%X\n", status);
         numNonFunctioning = -1;
         goto Cleanup;
     }
@@ -1146,7 +1146,7 @@ Return Value:
                                    &devinfo)) {
             if (GetLastError() != ERROR_NO_MORE_ITEMS) {
                 status = GetLastError();
-                LOGERRW(L"SetupDiEnumDeviceInfo failed with error  0x%X\n", status);
+                LOGERRW(L"NonFunctioningDevs :: SetupDiEnumDeviceInfo failed with error  0x%X\n", status);
                 numNonFunctioning = -1;
                 goto Cleanup;
             }
@@ -1159,7 +1159,7 @@ Return Value:
                                         instanceId,
                                         _countof(instanceId), NULL)) {
             status = GetLastError();
-            LOGINFOW(L"SetupDiGetDeviceInstanceId failed with error  0x%X\n", status);
+            LOGINFOW(L"NonFunctioningDevs :: SetupDiGetDeviceInstanceId failed with error  0x%X\n", status);
             numNonFunctioning = -1;
             goto Cleanup;
         } 
@@ -1168,11 +1168,13 @@ Return Value:
              continue;
         }
 
-        LOGINFOW(L"Device found, DevicePath: %s\n", instanceId);
+        LOGINFOW(L"NonFunctioningDevs :: Device found. DevicePath: %s\n", instanceId);
         (*TotalDevices)++;
 
         status = CM_Get_DevNode_Status(&dnStatus, &pbmNumber, devinfo.DevInst, 0);
-        if(status != CR_SUCCESS)
+        LOGINFOW(L"CM_Get_DevNode_Status returned %d", status);
+
+        if(status != CR_SUCCESS && status != CR_NO_SUCH_DEVNODE && status != CR_NO_SUCH_DEVINST)
         {
             LOGERRW(L"CM_Get_DevNode_Status failed with error %d",status);
             numNonFunctioning++;
