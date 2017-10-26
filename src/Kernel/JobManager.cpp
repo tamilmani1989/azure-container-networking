@@ -61,7 +61,7 @@ Return Value:
 						processIdList.NumberOfAssignedProcesses,
 						processIdList.NumberOfProcessIdsInList,
 						actual_len);
-			return 1;
+			return -1;
 		}
 
 		LOGINFO("First call:Retrieved values from job numassigned %d numprocinlist %d\n",
@@ -233,14 +233,19 @@ Return Value:
 
 --*/
 {			
-	LOGINFOW(L"Going to create a jobobject with name %s", pluginData->entryPoint);
+	LOGINFOW(L"Going to open jobobject with name %s", pluginData->entryPoint);
 
 	HANDLE handle = OpenJobObject(JOB_OBJECT_ALL_ACCESS, FALSE, pluginData->entryPoint);
 	if(handle)
 	{
 		int numProcess = QueryJobObject(handle);
 
-		if(pluginData->restartOnExit==0 && pluginData->numTimesStarted > 0 && numProcess == 0)
+		if(numProcess == -1)
+		{
+			LOGINFOW(L"QueryJobObject failed. return");
+			return;
+		}
+		else if(pluginData->restartOnExit==0 && pluginData->numTimesStarted > 0 && numProcess == 0)
 		{
 			LOGINFOW(L"Won't restart short running process %s restartOnExit %d numTimesStarted %d",
 				pluginData->entryPoint, pluginData->restartOnExit, pluginData->numTimesStarted);
@@ -272,6 +277,7 @@ Return Value:
 			return;
 		}
 		
+		LOGINFOW(L"Going to create jobobject with name %s", pluginData->entryPoint);
 		handle = CreateJobObject(NULL, pluginData->entryPoint);
 	}
 
