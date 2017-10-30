@@ -33,7 +33,6 @@
 		  <File>%BinariesBuildTypeArchDirectory%\Aquarius\Aquarius.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\HnsClient\HnsClient.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\HNSOverlayPlugin\HNSOverlayPlugin.dll</File>
-		  <File>%BinariesBuildTypeArchDirectory%\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\code\ServiceTunnelExtension.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\AquariusPackage\Aquarius\AqEventMessage.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\ServiceTunnelExtension\ServiceTunnelExtension.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\VFPlugin\VFPlugin.exe</File>
