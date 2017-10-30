@@ -71,7 +71,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\VFPluginLibrary\VFPluginLibrary.vcxproj">
-      <Project>{7DB0C9A4-CADC-4E53-ADF3-1F6887454249}</Project>
+      <Project>{e2b96573-80f0-4f7f-8c09-67357345fa98}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Logging\logging.vcxproj">
       <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
