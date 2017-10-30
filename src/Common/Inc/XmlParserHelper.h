@@ -52,6 +52,8 @@ class XmlParserHelper
         void UnInitialize();
 
         std::wstring PrepareAttributeQuery(std::wstring Name, std::wstring Value);
+        
+        HRESULT CheckNodeExists(__in LPCWSTR NodePathQuery);
 
 		HRESULT QueryNodeValue(LPCWSTR NodePathQuery, std::wstring & Value);
     private:

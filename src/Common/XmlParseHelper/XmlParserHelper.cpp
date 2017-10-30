@@ -471,3 +471,45 @@ string representing the attribute query in the format to be used in Xpath querie
 
     return query;
 }
+
+HRESULT 
+XmlParserHelper::CheckNodeExists(
+    __in LPCWSTR NodePathQuery
+)
+/*++
+
+Routine Description:
+
+This function checks if given node exists in XML
+
+Arguments:
+
+NodePathQuery - XML Path of the node.
+
+Return Value:
+
+returns S_OK if node is found else returns error
+--*/
+{
+    HRESULT hr = S_OK;
+    IXMLDOMNode *pNode = NULL;
+
+    BSTR nodeQuery = NULL;
+    
+    nodeQuery = SysAllocString(NodePathQuery);
+    if(nodeQuery == NULL)
+    {
+        LOGERRW(L"QueryNodeAttributeValues:SysAllocString Allocation failed for node query.");
+        goto Cleanup; 
+    }
+
+    hr = XMLDom->selectSingleNode(nodeQuery, &pNode);
+    
+Cleanup:
+    RELEASE(pNode);
+    if (nodeQuery != NULL)
+    {
+        SysFreeString(nodeQuery);
+    }
+    return hr;
+}

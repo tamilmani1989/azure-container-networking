@@ -336,14 +336,14 @@ Cleanup:
         CoUninitialize();
     }
 
+    STR_FREE(rcfFile);
+
+    RD_TRACE_LOG((RD_TRACE_INFO, L"Return Code from main %x",hr));
+
     if (traceInitialized)
     {
         RD_TRACE_TERMINATE();
     }
 
-    STR_FREE(rcfFile);
-
-	//hr= HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
-    RD_TRACE_LOG((RD_TRACE_INFO, L"Return Code from main %x",hr));
     return hr;
 }

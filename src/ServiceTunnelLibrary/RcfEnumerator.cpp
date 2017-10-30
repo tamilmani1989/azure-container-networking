@@ -18,6 +18,8 @@ Implements methods related to enumeation of RCF files.
 
 #include "RcfEnumerator.h"
 
+#define RDCONFIG_NODE_NAME L"RDConfig"
+
 int SortWin32FindDataProcByLastWriteTime(
 	const void *elem1,
 	const void *elem2
@@ -142,7 +144,8 @@ Cleanup:
 HRESULT
 RcfEnumerator::FindLatestRcf(
 	__out LPWSTR* LatestRcfFile,
-	__in LPWSTR rcfLocation)
+	__in LPWSTR rcfLocation
+	)
 	/*++
 
 	Routine Description:
@@ -160,14 +163,14 @@ RcfEnumerator::FindLatestRcf(
 	--*/
 {
 	HRESULT hr = S_OK;
-	//  wregex pattern(L"\\w{32}.\\w{32}.\\w+.\\d+.xml");
-	wregex pattern(L"\\w+.\\w+.\\w+.xml");
+	wregex pattern(L"\\w+.\\w+.\\w+.\\d+.xml");
 	std::vector<WIN32_FIND_DATA> fdata;
 	WIN32_FIND_DATA fd;
 	DWORD error;
 	std::wsmatch match_result;
 	std::wstring fileName;
 	LPWSTR fileFilterString = NULL;
+	XmlParserHelper xmlParserHelper;
 
 	*LatestRcfFile = NULL;
 
@@ -207,13 +210,14 @@ RcfEnumerator::FindLatestRcf(
 			fdata[ctr].cFileName));
 	}
 
-	if (!fdata.empty())
+	while (!fdata.empty())
 	{
 		error = AppendStrings(LatestRcfFile,
 			3,
 			rcfLocation,
 			L"\\",
 			fdata.back().cFileName);
+
 		if (error != ERROR_SUCCESS)
 		{
 			RD_TRACE_LOG((RD_TRACE_ERROR, L"Failed to append string [%s],[%s], Error:[%0x]",
@@ -222,11 +226,41 @@ RcfEnumerator::FindLatestRcf(
 				error));
 			RD_E_WIN32(error, Cleanup);
 		}
+		
+		RD_TRACE_LOG((RD_TRACE_INFO, L"Before initialize"));
+
+		hr = xmlParserHelper.Initialize(*LatestRcfFile);
+		RD_TRACE_E_HR((RD_TRACE_ERROR,
+        	L"Initialize failed with error [%0x]. RcfFile:[%s]", hr, *LatestRcfFile),
+        	hr,
+        	Cleanup);
+			
+		RD_TRACE_LOG((RD_TRACE_INFO, L"After initialize"));
+		
+		std::wstring rdConfigNodePath;
+		rdConfigNodePath.append(XPATH_ROOT_START_TAG);
+		rdConfigNodePath.append(RDCONFIG_NODE_NAME);
+
+		RD_TRACE_LOG((RD_TRACE_INFO,L"Node config :%s\n",rdConfigNodePath.c_str()));
+		hr = xmlParserHelper.CheckNodeExists(rdConfigNodePath.c_str());
+		RD_TRACE_LOG((RD_TRACE_INFO, L"CheckNodeExists return value:%d\n", hr));
+		xmlParserHelper.UnInitialize();
+
+		if(hr == S_OK)
+		{
+			break;
+		}
+
+		RD_TRACE_LOG((RD_TRACE_INFO, L"RCF file requirments are not met. Check next latest rcf file"));
+		fdata.pop_back();
+		STR_FREE(*LatestRcfFile);
+		*LatestRcfFile=NULL;
 	}
-	else
+
+	if(fdata.empty())
 	{
 		error = ERROR_FILE_NOT_FOUND;
-		RD_TRACE_LOG((RD_TRACE_ERROR, L"Failed to find RCF files at location %s", fileFilterString));
+		RD_TRACE_LOG((RD_TRACE_ERROR, L"Failed to find RCF files at location..%s", fileFilterString));
 		RD_E_WIN32(error, Cleanup);
 	}
 
