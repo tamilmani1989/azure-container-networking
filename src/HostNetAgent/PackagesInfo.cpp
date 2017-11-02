@@ -99,7 +99,7 @@ Return Value:
 
 const 
 std::wstring& 
-PackagesInfo::GetPackageLocation()
+PackagesInfo::GetPackageLocation() const
 /*++
 
 Description:

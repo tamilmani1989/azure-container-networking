@@ -29,6 +29,7 @@ LPCSTR PER_CONTAINER_MDM_GUEST_METRICS[] = {
     MDM_METRIC_GUEST_DRIVER_INSTALL_FAILED_STR,
     MDM_METRIC_GUEST_TOTAL_VF_STR,
     MDM_METRIC_GUEST_VF_IN_ERROR_STR,
+    MDM_METRIC_GUEST_DRIVER_INSTALL_ERROR_CODE_STR,
 };
 
 DWORD
@@ -370,6 +371,8 @@ Return Value:
 
     NetAgentVersionA.assign(netAgentVersion);
 
+    SetNodeInformationFromRegistry();
+
     // Create per-Container metrics.
     for (int i = 0; i < ARRAYSIZE(PER_CONTAINER_MDM_GUEST_METRICS); i++) {
 
@@ -407,8 +410,6 @@ Return Value:
                           MDM_DIMENSION_NAME_CLUSTER_NAME_STR,
                           MDM_DIMENSION_NAME_CONTAINER_ID_STR,
                           MDM_DIMENSION_NAME_NETAGENT_VERSION_STR);
-
-
 
 Cleanup:
 
@@ -476,8 +477,8 @@ Return Value:
     } else {
 
         LOGWARNW(L"Failed to read NodeId from registrey key : %s\\%s", 
-			     NODE_PROPERTIES_REG_KEY, 
-			     NODEID_REG_VALUE_NAME);
+                 NODE_PROPERTIES_REG_KEY, 
+                 NODEID_REG_VALUE_NAME);
     }
 
     ZeroMemory(reinterpret_cast<LPVOID>(buffer), sizeof(buffer));
@@ -495,14 +496,14 @@ Return Value:
         error = ToAnsi(buffer, &clusterId);
         if (error == ERROR_SUCCESS) {
             ClusterNameA.assign(clusterId);
-            LOGINFO("NodeId: %s", clusterId);
+            LOGINFO("ClusterName: %s", clusterId);
         } else {
-            LOGWARNW(L"Failed to duplicate NodeId from buffer");
+            LOGWARNW(L"Failed to duplicate ClusterName from buffer");
         }
     } else {
         LOGWARNW(L"Failed to read ClusterName from registrey key : %s\\%s", 
-			     NODE_PROPERTIES_REG_KEY, 
-			     CLUSTER_ID_REG_VALUE_NAME);
+                 NODE_PROPERTIES_REG_KEY, 
+                 CLUSTER_ID_REG_VALUE_NAME);
     }
 
     ANSI_STR_FREE(nodeId);
@@ -520,7 +521,7 @@ Routine Description:
 
 Arguments:
 
-    HealthReport - The health repor to be logged.
+    HealthReport - The health report to be logged.
 
 Return Value:
 
@@ -606,8 +607,17 @@ Return Value:
         LogPerContainerMetricToMDM(containerIdAnsi,
                                    guestOSAnsi,
                                    guestOSVersionAnsi,
-                                   MDM_METRIC_GUEST_TOTAL_VF_STR,
+                                   MDM_METRIC_GUEST_VF_IN_ERROR_STR,
                                    HealthReport.NonFunctionalVFDevicesCount);
+    }
+
+    if (HealthReport.ErrorCode != 0) {
+
+        LogPerContainerMetricToMDM(containerIdAnsi,
+                                   guestOSAnsi,
+                                   guestOSVersionAnsi,
+                                   MDM_METRIC_GUEST_DRIVER_INSTALL_ERROR_CODE_STR,
+                                   HealthReport.ErrorCode);
     }
 
 Cleanup:

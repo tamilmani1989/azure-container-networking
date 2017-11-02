@@ -44,6 +44,7 @@ Author:
 #define MDM_METRIC_GUEST_DRIVER_INSTALL_FAILED_STR              "DriverInstallFailed"
 #define MDM_METRIC_GUEST_TOTAL_VF_STR                           "VFCount"
 #define MDM_METRIC_GUEST_VF_IN_ERROR_STR                        "VFInError"
+#define MDM_METRIC_GUEST_DRIVER_INSTALL_ERROR_CODE_STR          "DriverInstallErrorCode"
 
 #define MAX_STR_LEN (size_t) ((INT_MAX/2) -1)
 
