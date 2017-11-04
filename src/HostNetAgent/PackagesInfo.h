@@ -52,12 +52,12 @@ public:
     const
     std::wstring& 
     GetPackageVersion();
-    
+
     const 
     std::wstring& 
-    GetPackageLocation();
+    GetPackageLocation() const;
 
-	static PackagesInfo* GetInstance();
+    static PackagesInfo* GetInstance();
 
 private:
 
