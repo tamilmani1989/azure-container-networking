@@ -1,5 +1,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(EnvironmentConfig)" />
+  <Import Project="RDPackages\PostBuild.targets" Condition="'$(IsOfficialBuild)'!='' Or '$(BuildRDPackage)'=='true' Or '$(PostbuildProject)'!=''" /> 
   <ItemGroup>
     <ProjectFile Include="Aquarius\Aquarius.vcxproj" />
     <ProjectFile Include="EventMessage\CreatePackage.proj" />
