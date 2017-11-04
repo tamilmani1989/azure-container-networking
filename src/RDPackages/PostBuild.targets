@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <!--
+        This targets file is used to run MSBuild tasks on a particular project file after every other project
+        in the repository has finished building.
+        
+        In our case, we are using this targets to compile dirs.proj which points to nuproj files and vhdproj files
+        that would pick assemblies from the output directory and compile them into packages and VHDs.
+    -->
+    <PropertyGroup>
+        <ProjectProperties>
+            Configuration=$(Configuration);
+            Platform=$(Platform);
+        </ProjectProperties>
+    </PropertyGroup>
+    
+    <Target Name="NetAgentPostBuild" AfterTargets="Build">
+        <Message Text="Running NetAgent PostBuild." />
+        <MSBuild Targets="Build"
+            Projects="$(MSBuildThisFileDirectory)dirs.proj"
+            Properties="$(ProjectProperties)"
+            BuildInParallel="true" />
+    </Target>
+</Project>

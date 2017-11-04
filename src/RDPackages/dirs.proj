@@ -1,0 +1,13 @@
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+    <ItemGroup>
+      <ProjectReference Include="Mooncake\Mooncake.proj" />
+      <ProjectReference Include="BlackForest\BlackForest.proj" />
+      <ProjectReference Include="Fairfax\Fairfax.proj" />
+    </ItemGroup>
+  <Import Project="$(MsBuildBinPath)\Microsoft.Common.Targets" />
+  <PropertyGroup>
+    <BuildDependsOn>ResolveReferences</BuildDependsOn>
+  </PropertyGroup>
+    <Target Name="VerifyAlteredTargetsUsed" />
+</Project>
