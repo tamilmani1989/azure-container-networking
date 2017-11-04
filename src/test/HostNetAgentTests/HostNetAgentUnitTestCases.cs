@@ -16,6 +16,7 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
     using System.Linq;
     using System.Net;
     using Newtonsoft.Json;
+    using Newtonsoft.Json.Linq;
     using VisualStudio.TestTools.UnitTesting;
 
     /// <summary>
@@ -24,6 +25,51 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
     [TestClass]
     public class HostNetAgentUnitTestCases
     {
+        /// <summary>
+        /// Guest OS Version.
+        /// </summary>
+        private static readonly string GuestOSVersion = "GuestOSVersion";
+
+        /// <summary>
+        /// Guest OS Family.
+        /// </summary>
+        private static readonly string GuestOSFamily = "GuestOSFamily";
+
+        /// <summary>
+        /// Driver install not attempted.
+        /// </summary>
+        private static readonly string DriverInstallNotAttempted = "DriverInstallNotAttempted";
+
+        /// <summary>
+        /// Driver install attempted.
+        /// </summary>
+        private static readonly string DriverInstallAttempted = "DriverInstallAttempted";
+
+        /// <summary>
+        /// Driver install succeeded string.
+        /// </summary>
+        private static readonly string DriverInstallSucceeded = "DriverInstallSucceeded";
+
+        /// <summary>
+        /// Driver install failed string.
+        /// </summary>
+        private static readonly string DriverInstallFailed = "DriverInstallFailed";
+
+        /// <summary>
+        /// Total VF devices count string.
+        /// </summary>
+        private static readonly string TotalVFDevicescount = "TotalVFDevicesCount";
+
+        /// <summary>
+        /// Non functional VF devices count string.
+        /// </summary>
+        private static readonly string NonFunctionalVFDevicesCount = "NonFunctionalVFDevicesCount";
+
+        /// <summary>
+        /// InstallationErrorCode string
+        /// </summary>
+        private static readonly string InstallationErrorCode = "InstallationErrorCode";
+
         /// <summary>
         /// Host net agent process name.
         /// </summary>
@@ -40,9 +86,19 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
         private readonly string versionFile;
 
         /// <summary>
-        /// Base Url.
+        /// Base Get Url.
         /// </summary>
-        private readonly string baseUrl;
+        private readonly string baseGetUrl;
+
+        /// <summary>
+        /// Base Post Url.
+        /// </summary>
+        private readonly string basePostUrl;
+
+        /// <summary>
+        /// Base Post Url.
+        /// </summary>
+        private readonly string healthReportUrl;
 
         /// <summary>
         /// Get package version Url.
@@ -76,11 +132,13 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
         {
             this.exeDir = AppDomain.CurrentDomain.BaseDirectory;
             this.versionFile = Path.Combine(this.exeDir, "Documents", "version.txt");
-            this.baseUrl = "http://localhost:8019/hostnetagent?container=1234";
-            this.getVersionUrl = this.baseUrl + "&type=getpackageversion";
-            this.getPackageUrisUrl = this.baseUrl + "&type=getpackageuris";
+            this.baseGetUrl = "http://localhost:8019/hostnetagent?container=1234";
+            this.getVersionUrl = this.baseGetUrl + "&type=getpackageversion";
+            this.getPackageUrisUrl = this.baseGetUrl + "&type=getpackageuris";
             this.logPath = Path.Combine(this.exeDir, "Logs");
             this.docPath = Path.Combine(this.exeDir, "Documents");
+            this.basePostUrl = "http://localhost:8019/hostnetagent/container/1234";
+            this.healthReportUrl = this.basePostUrl + "/healthreport";
             this.configFile = Path.Combine(this.exeDir, "NetAgentHostPlugin.PluginSpecific.xml");
         }
 
@@ -103,6 +161,24 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
         public static void AssemblyCleanup()
         {
             StopHostNetAgent();
+        }
+
+        /// <summary>
+        /// Helper to create health report object.
+        /// </summary>
+        /// <returns>Create health report object.</returns>
+        public JObject CreateHealthReport()
+        {
+            return new JObject(
+                new JProperty(GuestOSFamily, "Windows"),
+                new JProperty(GuestOSVersion, "10.0"),
+                new JProperty(DriverInstallNotAttempted, true),
+                new JProperty(DriverInstallSucceeded, true),
+                new JProperty(DriverInstallFailed, true),
+                new JProperty(DriverInstallAttempted, true),
+                new JProperty(NonFunctionalVFDevicesCount, 5),
+                new JProperty(TotalVFDevicescount, 10),
+                new JProperty(InstallationErrorCode, 101));
         }
 
         /// <summary>
@@ -152,7 +228,7 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
             this.StartHostNetAgent(this.logPath, this.docPath, this.configFile);
             var packageUris = this.DownloadSerializedJsonData<Dictionary<string, string>>(this.getPackageUrisUrl);
             string fileToDownLoad = packageUris.First().Key;
-            var getPackageUrl = this.baseUrl + string.Format("&type={0}", packageUris.First().Key);
+            var getPackageUrl = this.baseGetUrl + string.Format("&type={0}", packageUris.First().Key);
             string expectedContent = System.IO.File.ReadAllText(Path.Combine(this.docPath, fileToDownLoad));
             string downloadPath = Path.GetTempPath();
             Directory.CreateDirectory(downloadPath);
@@ -160,6 +236,22 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
             this.DownloadJsonFile(getPackageUrl, downloadFilePath);
             string receivedContent = System.IO.File.ReadAllText(downloadFilePath);
             Assert.AreEqual(expectedContent, receivedContent);
+        }
+
+        /// <summary>
+        /// Test to validate post health report URI's
+        /// </summary>
+        [TestMethod]
+        public void TestValidatePostHealthReportUris()
+        {
+            this.StartHostNetAgent(this.logPath, this.docPath, this.configFile);
+            JObject healthReportJObject = this.CreateHealthReport();
+            using (var w = new WebClient())
+            {
+                w.Headers[HttpRequestHeader.ContentType] = "application/json";
+                Console.WriteLine("Uplaoding {0} to url {1}", healthReportJObject, this.healthReportUrl);
+                w.UploadString(this.healthReportUrl, healthReportJObject.ToString());
+            }
         }
 
         /// <summary>
@@ -185,7 +277,7 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.HostNetAgentTests
                 Console.WriteLine("ResourceName:{0}, ResourceUri:{1}", packageKvp.Key, packageKvp.Value);
                 if (string.IsNullOrEmpty(packageKvp.Value))
                 {
-                    var getPackageUrl = this.baseUrl + string.Format("&type={0}", packageKvp.Key);
+                    var getPackageUrl = this.baseGetUrl + string.Format("&type={0}", packageKvp.Key);
                     Console.WriteLine("Downloading resource:{0}", packageKvp.Key);
                     this.DownloadJsonFile(getPackageUrl, Path.Combine(downloadPath, packageKvp.Key));
                 }
