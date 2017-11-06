@@ -11,16 +11,16 @@
   
   <Import Project="$(OneBranchBCDTPath)\OneBranch.BuildComposition.targets" />
 
-    <Target
+  <Target
     Name="BuildGeneratedGroupItems"
     DependsOnTargets="$(BuildGeneratedGroupItemsDependsOn)">
     <ItemGroup>
-       <CompositionItem1 Include="$(BinariesBuildTypeArchDirectory)\RDPackage\**\*.*" Exclude="$(BinariesBuildTypeArchDirectory)\RDPackage\*.xml" />
+       <CompositionItem1 Include="$(BinariesBuildTypeArchDirectory)\**\*.*"  Exclude="$(BinariesBuildTypeArchDirectory)\**\*.pdb;$(BinariesBuildTypeArchDirectory)\RDPackage\*.xml;$(BinariesBuildTypeArchDirectory)\**\*.ipdb" />
     </ItemGroup>
-      <ItemGroup>
+    <ItemGroup>
        <CompositionItems Include="%(CompositionItem1.Identity)">
-          <CompositionOutputRelativeDir>$(BuildType)-$(BuildArchitecture)\RDPackage\%(CompositionItem1.RecursiveDir)</CompositionOutputRelativeDir>
-        </CompositionItems>
-      </ItemGroup>
-    </Target>
+          <CompositionOutputRelativeDir>$(BuildType)-$(BuildArchitecture)\%(CompositionItem1.RecursiveDir)</CompositionOutputRelativeDir>
+       </CompositionItems>
+    </ItemGroup>
+  </Target>
 </Project>
