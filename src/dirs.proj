@@ -31,6 +31,9 @@
     <ProjectFile Include="NetAgentPackage\NetAgentPackage.proj" Condition="'$(QBUILD)'!='1'">
       <BuildInParallel>false</BuildInParallel>
     </ProjectFile>
+    <ProjectFile Include="AquariusPackage\AquariusPackage.proj" Condition="'$(QBUILD)'!='1'">
+      <BuildInParallel>false</BuildInParallel>
+    </ProjectFile>    
     <ProjectFile Include="HostPluginPackage\NetAgentIndependentDeployment.proj" Condition="'$(QBUILD)'!='1'">
       <BuildInParallel>false</BuildInParallel>
     </ProjectFile>

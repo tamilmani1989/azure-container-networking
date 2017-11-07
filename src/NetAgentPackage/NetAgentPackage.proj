@@ -54,7 +54,7 @@
      <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(NetAgentPath)" />
      <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\lib\IfxMetrics.dll" DestinationFolder="$(NetAgentPath)" />     
      <Exec Command="echo $(BuildVersion)>$(BinariesBuildTypeArchDirectory)\$(Artifacts)\$(NetAgent)\$(Package)\version.txt" />
-     <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\AqEventMessage.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
+     <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\AqEventMessage\AqEventMessage.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
   </Target>
 
   <Target Name="CreateZip" AfterTargets="GatherFiles">

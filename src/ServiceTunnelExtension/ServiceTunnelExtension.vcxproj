@@ -69,10 +69,4 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
-  <Target Name="AfterBuild">
-    <Copy SourceFiles="$(OutputPath)\ServiceTunnelExtension.exe; $(OutputPath)\ServiceTunnelExtension.pdb" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\Code" />
-	<Copy SourceFiles="$(VCRuntime)\lib\msvcp140.dll; $(VCRuntime)\lib\vcruntime140.dll; $(VCRuntime)\lib\concrt140.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\Code" />
-    <Copy SourceFiles="manifest.xml;config.xml" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension" />
-    <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll; $(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.pdb" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\Code" />
-  </Target>
 </Project>
