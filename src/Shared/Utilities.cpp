@@ -127,15 +127,10 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 		return;
 	}
 
-    wchar_t szMessage[MAX_PATH];
-
 	for (int i = 0; i<count; i++)
 	{
 		if (pluginsMetadata[i].location != nullptr) 
 		{
-            StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-                L"Going to Release location %s", pluginsMetadata[i].location);
-            WriteEventLogEntry(szMessage);
 			delete [] pluginsMetadata[i].location;
 			pluginsMetadata[i].location = nullptr;
 			AquariusUtilities::allocator--;
@@ -143,9 +138,6 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 
 		if (pluginsMetadata[i].currentVersion != nullptr) 
 		{
-            StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-                L"Going to Release version %s", pluginsMetadata[i].currentVersion);
-            WriteEventLogEntry(szMessage);
 			delete [] pluginsMetadata[i].currentVersion;
 			pluginsMetadata[i].currentVersion = nullptr;
 			AquariusUtilities::allocator--;
@@ -153,9 +145,6 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 
 		if (pluginsMetadata[i].entryPoint != nullptr) 
 		{
-			StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-                L"Going to Release entrypoint %s", pluginsMetadata[i].entryPoint);
-            WriteEventLogEntry(szMessage);
 			delete[] pluginsMetadata[i].entryPoint;
 			pluginsMetadata[i].entryPoint = nullptr;
 		}

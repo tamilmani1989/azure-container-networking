@@ -22,7 +22,6 @@ AquariusKernel::AquariusKernel(wchar_t* storeLocation): packageStoreLocation(nul
     packageStoreLocation = new wchar_t[len];
 	AquariusUtilities::allocator++;
 	wcscpy_s(packageStoreLocation, len, storeLocation);
-	alreadyLoadedPluginsMetadata = nullptr;
 }
 
 AquariusKernel::~AquariusKernel()
@@ -32,10 +31,7 @@ AquariusKernel::~AquariusKernel()
 	{
 		delete(packageStoreLocation);
 	}
-	if(alreadyLoadedPluginsMetadata != nullptr)
-	{
-		delete(alreadyLoadedPluginsMetadata);
-	}
+
 	JobManager::ReleaseAllJobs();
 	kernel_objects_mutex.unlock();
 	
@@ -64,13 +60,12 @@ wchar_t* AquariusKernel::GetCurrentPackageStoreLocation()
 
 
 void AquariusKernel::LoadPlugins(int pluginCount, 
-								PluginMetadata *pluginsToLoad, 
-								std::set<std::wstring> eligiblePluginSet,
-								wchar_t *logFolder)
+								PluginMetadata *pluginsToLoad
+)
 /*++
 
 Routine Description:
-	This function parses the manifest file and load all plugins.
+	This function parses the manifest file and load plugin metadata object.
 
 Arguments:
 	pluginCount - number of plugins to load
@@ -80,152 +75,190 @@ Return Value:
 
 --*/
 {
+	wchar_t * manifestFile = nullptr;
+
+	kernel_objects_mutex.lock();
+
+	for (int i = 0; i < pluginCount; i++)
+	{
+		size_t len = 0;
+
+		try
+		{
+			size_t locationLen = wcsnlen(pluginsToLoad[i].location, MAX_PATH);
+
+			len = locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::manifestFileName, MAX_PATH) + 1;
+			
+			manifestFile = new wchar_t[len];
+			if(!manifestFile)
+			{
+				LOGINFO("LoadPlugins::ManifestFile Allocation failed");
+				kernel_objects_mutex.unlock();
+				abort();
+			}
+			
+			wcscpy_s(manifestFile, len, pluginsToLoad[i].location);
+			wcscat_s(manifestFile, len, L"\\");
+			wcscat_s(manifestFile, len, AquariusUtilities::manifestFileName);
+			
+			LOGINFOW(L"Going to parse plugin manifest file:%s", manifestFile);
+			XmlParser::ParseManifest(manifestFile,&pluginsToLoad[i]);
+		}
+		catch(...)
+		{
+			LOGERR("Got Exception while parsing manifest");
+		}
+
+		SAFE_DELETE(manifestFile);
+	}
+
+	kernel_objects_mutex.unlock();
+}
+
+void AquariusKernel::MonitorPlugins(int pluginCount, 
+								PluginMetadata *pluginsToLoad, 
+								std::set<std::wstring> eligiblePluginSet,
+								wchar_t *logFolder)
+/*++
+
+Routine Description:
+	This function will be called periodically to monitor/start job object
+
+Arguments:
+	pluginCount - number of plugins to load
+	pluginsToLoad - object contains info about plugin
+	eligiblePluginSet - set contains the plugins needed to be started
+	logFolder - logfolder for plugins to log
+
+Return Value:
+
+--*/
+{
+	wchar_t * codeDirectory = nullptr;
+	wchar_t *lpCommandLine = nullptr;
+	
 	kernel_objects_mutex.lock();
 	
-	try {
-		if (alreadyLoadedPluginCount <= 0)
+	for (int i = 0; i < pluginCount; i++)
+	{
+		size_t locationLen = wcsnlen(pluginsToLoad[i].location, MAX_PATH);
+		size_t len = locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::codeDirectoryName, MAX_PATH) + 1;
+		
+		codeDirectory = new wchar_t[len];
+		if(!codeDirectory)
 		{
-			LOGINFOW(L"Inside load plugins");
+			LOGINFO("LoadPlugins::CodeDirectory Allocation failed");
+			kernel_objects_mutex.unlock();
+			abort();
+		}
+
+		wcscpy_s(codeDirectory, len, pluginsToLoad[i].location);
+		wcscat_s(codeDirectory, len, L"\\");
+		wcscat_s(codeDirectory, len, AquariusUtilities::codeDirectoryName);
+
+		if (pluginsToLoad[i].entryPoint != nullptr)
+		{
+			LOGINFOW(L"Kernel received entrypoint %s in %s", pluginsToLoad[i].entryPoint, codeDirectory);
+			std::set<std::wstring>::iterator it = eligiblePluginSet.find(pluginsToLoad[i].name);
 			
-			for (int i = 0; i < pluginCount; i++)
+			if(it == eligiblePluginSet.end())
 			{
-				wchar_t * codeDirectory = nullptr;
-				wchar_t * manifestFile = nullptr;
-				wchar_t *lpCommandLine = nullptr;
+				LOGINFOW(L"plugin %s not found in eligibe set", pluginsToLoad[i].name);
+				SAFE_DELETE(codeDirectory);
+				continue;
+			}
 
-				try
+			if(pluginsToLoad[i].cleanup)
+			{
+				wchar_t *removeArg =L"-remove";
+				size_t len = wcslen(L" ") + wcslen(removeArg) + wcslen(L" ") + wcslen(LOGPARAM) + wcslen(L" ") + wcslen(logFolder) + sizeof(wchar_t);
+				
+				lpCommandLine = new wchar_t[len];
+					
+				if(!lpCommandLine)
 				{
-					size_t locationLen = wcsnlen(pluginsToLoad[i].location, MAX_PATH);
-					size_t len = locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::codeDirectoryName, MAX_PATH) + 1;
-                    codeDirectory = new wchar_t[len];
-					
-                    wcscpy_s(codeDirectory, len, pluginsToLoad[i].location);
-					wcscat_s(codeDirectory, len, L"\\");
-					wcscat_s(codeDirectory, len, AquariusUtilities::codeDirectoryName);
+					LOGERR("Not able to allocate memory for lpCommandLine");
+					kernel_objects_mutex.unlock();
+					abort();
+				}
+				
+				if(swprintf_s(lpCommandLine, len, L" %s %s %s", removeArg, LOGPARAM, logFolder) < 0)
+				{
+					LOGINFOW(L"swprintf failed while constructing process arguments");
+					kernel_objects_mutex.unlock();
+					abort();
+				}
 
-					len = locationLen + wcsnlen(L"\\", 2) + wcsnlen(AquariusUtilities::manifestFileName, MAX_PATH) + 1;
-					manifestFile = new wchar_t[len];
-                    wcscpy_s(manifestFile, len, pluginsToLoad[i].location);
-					wcscat_s(manifestFile, len, L"\\");
-					wcscat_s(manifestFile, len, AquariusUtilities::manifestFileName);
-					
-					XmlParser::ParseManifest(manifestFile,&pluginsToLoad[i]);
+				JobManager::PluginCleanup(codeDirectory, lpCommandLine, &pluginsToLoad[i]);		
 
-					if (pluginsToLoad[i].entryPoint != nullptr)
+			}
+
+			else if(pluginsToLoad[i].retryCount < MAX_RETRY_COUNT)
+			{		
+				if(pluginsToLoad[i].arguments != nullptr)
+				{
+					size_t len = wcslen(L" ") + wcslen(pluginsToLoad[i].arguments) + wcslen(L" ") 
+											+ wcslen(LOGPARAM) + wcslen(L" ") + wcslen(logFolder) + sizeof(wchar_t);
+					lpCommandLine = new wchar_t[len];
+					
+					if(!lpCommandLine)
 					{
-						LOGINFOW(L"Kernel received entrypoint %s in %s", pluginsToLoad[i].entryPoint, codeDirectory);
-						std::set<std::wstring>::iterator it = eligiblePluginSet.find(pluginsToLoad[i].name);
-						
-						if(it == eligiblePluginSet.end())
-						{
-							LOGINFOW(L"plugin %s not found in eligibe set", pluginsToLoad[i].name);
-							SAFE_DELETE(codeDirectory);
-							SAFE_DELETE(manifestFile);
-							continue;
-						}
+						LOGERR("Not able to allocate memory for lpCommandLine");
+						kernel_objects_mutex.unlock();
+						abort();
+					}	
 
-						if(pluginsToLoad[i].cleanup)
-						{
-							wchar_t *removeArg =L"-remove";
-							size_t len = wcslen(L" ") + wcslen(removeArg) + wcslen(L" ") + wcslen(LOGPARAM) + wcslen(L" ") + wcslen(logFolder) + sizeof(wchar_t);
-							
-							lpCommandLine = new wchar_t[len];
-								
-							if(!lpCommandLine)
-							{
-								LOGERR("Not able to allocate memory for lpCommandLine");
-								return;
-							}
-							
-							if(swprintf_s(lpCommandLine, len, L" %s %s %s", removeArg, LOGPARAM, logFolder) < 0)
-							{
-								LOGINFOW(L"swprintf failed while constructing process arguments");
-								return;
-							}
+					if(swprintf_s(lpCommandLine, len, L" %s %s %s", pluginsToLoad[i].arguments, LOGPARAM, logFolder) < 0)
+					{
+						LOGINFOW(L"swprintf failed while constructing process arguments");
+						kernel_objects_mutex.unlock();
+						abort();
+					}
 
-							JobManager::PluginCleanup(codeDirectory, lpCommandLine, &pluginsToLoad[i]);		
+				}
+				else
+				{
+					size_t len = wcslen(L" ") + wcslen(LOGPARAM) + wcslen(L" ") + wcslen(logFolder) + sizeof(wchar_t);
+					lpCommandLine = new wchar_t[len];
+					
+					if(!lpCommandLine)
+					{
+						LOGERR("Not able to allocate memory for lpCommandLine");
+						kernel_objects_mutex.unlock();
+						abort();
+					}	
 
-						}
-
-						else if(pluginsToLoad[i].retryCount < MAX_RETRY_COUNT)
-						{		
-							if(pluginsToLoad[i].arguments != nullptr)
-							{
-								size_t len = wcslen(L" ") + wcslen(pluginsToLoad[i].arguments) + wcslen(L" ") 
-														+ wcslen(LOGPARAM) + wcslen(L" ") + wcslen(logFolder) + sizeof(wchar_t);
-								lpCommandLine = new wchar_t[len];
-								
-								if(!lpCommandLine)
-								{
-									LOGERR("Not able to allocate memory for lpCommandLine");
-									return;
-								}	
-
-								if(swprintf_s(lpCommandLine, len, L" %s %s %s", pluginsToLoad[i].arguments, LOGPARAM, logFolder) < 0)
-								{
-									LOGINFOW(L"swprintf failed while constructing process arguments");
-									return;
-								}
-
-							}
-							else
-							{
-								size_t len = wcslen(L" ") + wcslen(LOGPARAM) + wcslen(L" ") + wcslen(logFolder) + sizeof(wchar_t);
-								lpCommandLine = new wchar_t[len];
-								
-								if(!lpCommandLine)
-								{
-									LOGERR("Not able to allocate memory for lpCommandLine");
-									return;
-								}	
-
-								if(swprintf_s(lpCommandLine, len, L" %s %s", LOGPARAM, logFolder) < 0)
-								{
-									LOGINFOW(L"swprintf failed while constructing process arguments");
-									return;
-								}
-
-							}
-
-							JobManager::EnsureJobIsRunning(codeDirectory, lpCommandLine, &pluginsToLoad[i]);				
-						}
-						else
-						{
-							LOGINFOW(L"Retry count %d exceeded for %s", pluginsToLoad[i].retryCount, pluginsToLoad[i].entryPoint);
-							throw;
-						}
+					if(swprintf_s(lpCommandLine, len, L" %s %s", LOGPARAM, logFolder) < 0)
+					{
+						LOGINFOW(L"swprintf failed while constructing process arguments");
+						kernel_objects_mutex.unlock();
+						abort();
 					}
 				}
-				catch (...)
+
+				try 
 				{
-					SAFE_DELETE(codeDirectory);
-					SAFE_DELETE(manifestFile);
-					pluginsToLoad[i].exitStatus=1;
-					pluginsToLoad[i].retryCount++;					
-					throw;
+					JobManager::EnsureJobIsRunning(codeDirectory, lpCommandLine, &pluginsToLoad[i]);				
+				}
+				catch(...)
+				{
+					LOGERRW(L"Exception occured while calling EnsureJobIsRunning for plugin %s", pluginsToLoad[i].entryPoint);
+					pluginsToLoad[i].retryCount++;
 				}
 
-				pluginsToLoad[i].retryCount=0;
-				SAFE_DELETE(codeDirectory);
-				SAFE_DELETE(manifestFile);
-				
-				if(lpCommandLine)
-				{
-					delete[] lpCommandLine;
-					lpCommandLine = nullptr;
-				}
+				//succeeded. so reset retrycount
+				pluginsToLoad[i].retryCount = 0;
+			}
+			else
+			{
+				LOGINFOW(L"Retry count %d exceeded for %s", pluginsToLoad[i].retryCount, pluginsToLoad[i].entryPoint);
+				pluginsToLoad[i].exitStatus=1;
 			}
 		}
-		else
-		{
-			// we may have to upgrade or remove some of the loaded plugins
-		}
-	}
-	catch(...)
-	{
-		kernel_objects_mutex.unlock();
-		throw;
-	}
-	
+
+		SAFE_DELETE(codeDirectory);
+		SAFE_DELETE(lpCommandLine);
+	}	
+
 	kernel_objects_mutex.unlock();
 }
