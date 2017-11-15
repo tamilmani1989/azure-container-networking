@@ -191,7 +191,7 @@ AquariusTest::TestLoadPlugins()
 /*++
 
 Routine Description:
-	This function tests loading and starting plugins
+	This function tests parsing manifest file and loading plugin metadata object
 
 Arguments:
     None
@@ -203,14 +203,40 @@ Return Value:
 {
 	try 
 	{
-		service->aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata, service->handlerConfigObject.pluginsToStart, 
-									service->handlerEnvObject.logFolderPath);
+		service->aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata);
 	}
 	catch(...)
 	{
 		VERIFY_IS_TRUE(false);		
 	}
 }
+
+void
+AquariusTest::TestMonitorPlugins()
+/*++
+
+Routine Description:
+This function tests loading and starting plugins
+
+Arguments:
+None
+
+Return Value:
+None
+
+--*/
+{
+	try
+	{
+		service->aquariusKernel->MonitorPlugins(pluginCount, allPluginsMetadata, service->handlerConfigObject.pluginsToStart,
+			service->handlerEnvObject.logFolderPath);
+	}
+	catch (...)
+	{
+		VERIFY_IS_TRUE(false);
+	}
+}
+
 bool AquariusTest::TestSetup()
 /*++
 

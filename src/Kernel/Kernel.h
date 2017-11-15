@@ -17,7 +17,8 @@ public:
 	~AquariusKernel();
 	void UpdateCurrentPackageStoreLocation(wchar_t *packageStoreLocation);
 	wchar_t *GetCurrentPackageStoreLocation();
-	void LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad, std::set<std::wstring> eligiblePluginSet, wchar_t *logFolder);
+	void LoadPlugins(int pluginCount, PluginMetadata *pluginsToLoad);
+	void MonitorPlugins(int pluginCount, PluginMetadata *pluginsToLoad, std::set<std::wstring> eligiblePluginSet, wchar_t *logFolder);
 
 protected:
 
@@ -27,11 +28,6 @@ private:
 
 	// location of the packages for all the plugins that Aquarius supports
 	wchar_t *packageStoreLocation = nullptr;
-
-	// all jobs that we need to process. These could be CRUD operations
-	// on modules in the customer's VM.
-	int alreadyLoadedPluginCount = 0;
-	PluginMetadata *alreadyLoadedPluginsMetadata = nullptr;
 
 	// whether the kernel is initialized or not
 	bool initialized = false;

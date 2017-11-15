@@ -101,7 +101,7 @@ Return Value:
 	{
 		CHK_HR(pXMLDom->get_xml(&bstrXML));
 		// printf("XML DOM loaded from stocks.xml:\n%S\n", bstrXML);
-		AquariusUtilities::WriteEventLogEntry(bstrXML);
+		LOGINFOW(L"Xml content: %s",bstrXML);
 
 		CHK_HR(pXMLDom->get_childNodes(&pXMLNodeList));
 		long lCount;
