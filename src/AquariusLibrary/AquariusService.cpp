@@ -422,7 +422,8 @@ void AquariusService::ServiceWorkerThread(void)
 		service_objects_mutex.unlock();
 		throw;
 	}
-
+	
+	aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata);
 	service_objects_mutex.unlock();
 
     while (!m_fStopping)
@@ -434,9 +435,9 @@ void AquariusService::ServiceWorkerThread(void)
 		{
 			if (aquariusKernel != nullptr)
 			{
-				LOGINFOW(L"Aquarius Kernel is loaded");
+				LOGINFOW(L"Monitor/Start job objects");
 				service_objects_mutex.lock();
-				aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata, handlerConfigObject.pluginsToStart, handlerEnvObject.logFolderPath);
+				aquariusKernel->MonitorPlugins(pluginCount, allPluginsMetadata, handlerConfigObject.pluginsToStart, handlerEnvObject.logFolderPath);
 				service_objects_mutex.unlock();
 			}
 			// Perform main service function here...
@@ -462,7 +463,7 @@ void AquariusService::ServiceWorkerThread(void)
 	LOGINFOW(L"Call cleanup aqsvc %p.",
 			pdata);
 	
-	aquariusKernel->LoadPlugins(cnt, pdata, handlerConfigObject.pluginsToStart, handlerEnvObject.logFolderPath);
+	aquariusKernel->MonitorPlugins(pluginCount, allPluginsMetadata, handlerConfigObject.pluginsToStart, handlerEnvObject.logFolderPath);
 	Sleep(5000);
 
 	AquariusUtilities::ReleasePluginMetadata(pluginCount, allPluginsMetadata);

@@ -15,7 +15,7 @@ HKEY RegistryOps::OpenRegistryKey(HKEY rootKey, wchar_t* subKey)
     wchar_t szMessage[MAX_PATH];
 
     LONG nError = RegOpenKeyEx(rootKey, subKey, NULL, KEY_ALL_ACCESS, &returnKey);
-    AquariusUtilities::WriteEventLogEntry(L"Open key operation executed.");
+
     if (nError == ERROR_FILE_NOT_FOUND)
     {
         AquariusUtilities::WriteEventLogEntry(L"Config key does not exist.");
