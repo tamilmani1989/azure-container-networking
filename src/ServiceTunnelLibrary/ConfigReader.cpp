@@ -12,6 +12,9 @@ Implements methods to retrieve values from xml file.
 
 --*/
 #include "ConfigReader.h"
+#include "Logging.h"
+
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 HRESULT ConfigReader::GetInstanceId(
 	__in XmlParserHelper* XmlParserHelper,
@@ -44,33 +47,36 @@ HRESULT ConfigReader::GetInstanceId(
 		(LPWSTR)incarnationNodePath.c_str(),
 		INSTANCE_ATTRIBUTE_NAME,
 		instanceValues);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"GetInstanceId failed with error [%0x]. NodeQuery:[%s], Attribute[%s]", hr, incarnationNodePath.c_str(), INSTANCE_ATTRIBUTE_NAME),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"GetInstanceId failed with error [%0x]. NodeQuery:[%s], Attribute[%s]", hr, incarnationNodePath.c_str(), INSTANCE_ATTRIBUTE_NAME);
+		goto Cleanup;
+	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO,
-		L"NodeQuery:%s, Attribute:%s, Count:%d.",
+	LOGINFOW(
+		L"NodeQuery:%s, Attribute:%s, Count:%llu.",
 		incarnationNodePath.c_str(),
 		INSTANCE_ATTRIBUTE_NAME,
-		instanceValues.size()));
+		instanceValues.size());
 
 	if (instanceValues.size() == 0)
 	{
 		hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"GetInstanceId: Failed to find attribute NodeQuery:[ %s] Attribue:[%s]", incarnationNodePath.c_str(), INSTANCE_ATTRIBUTE_NAME),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"GetInstanceId: Failed to find attribute NodeQuery:[%s], Attribute[%s]", incarnationNodePath.c_str(), INSTANCE_ATTRIBUTE_NAME);
+			goto Cleanup;
+		}
 	}
 
 	if (instanceValues.size() > 1)
 	{
 		hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"GetInstanceId: Failed more than one attribute value. NodeQuery:[ %s] Attribue:[%s]", incarnationNodePath.c_str(), INSTANCE_ATTRIBUTE_NAME),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"GetInstanceId: Failed more than one attribute value. NodeQuery:[%s], Attribute[%s]", incarnationNodePath.c_str(), INSTANCE_ATTRIBUTE_NAME);
+			goto Cleanup;
+		}
 	}
 
 	InstanceName.clear();
@@ -120,33 +126,36 @@ HRESULT ConfigReader::GetInstanceAddress(
 		(LPWSTR)instanceAddressNodePath.c_str(),
 		ADDRESS_ATTRIBUTE_NAME,
 		instanceValues);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"GetInstanceAddress failed with error [%0x]. NodeQuery:[%s], Attribute[%s]", hr, instanceAddressNodePath.c_str(), ADDRESS_ATTRIBUTE_NAME),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"GetInstanceAddress failed with error [%0x]. NodeQuery:[%s], Attribute[%s]", hr, instanceAddressNodePath.c_str(), ADDRESS_ATTRIBUTE_NAME);
+		goto Cleanup;
+	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO,
-		L"NodeQuery:%s, Attribute:%s, Count:%d.",
+	LOGINFOW(
+		L"NodeQuery:%s, Attribute:%s, Count:%llu.",
 		instanceAddressNodePath.c_str(),
 		ADDRESS_ATTRIBUTE_NAME,
-		instanceValues.size()));
+		instanceValues.size());
 
 	if (instanceValues.size() == 0)
 	{
 		hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"GetInstanceAddress: Failed to find attribute NodeQuery:[ %s] Attribue:[%s]", instanceAddressNodePath.c_str(), ADDRESS_ATTRIBUTE_NAME),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"GetInstanceAddress: Failed to find attribute NodeQuery:[%s], Attribute[%s]", instanceAddressNodePath.c_str(), ADDRESS_ATTRIBUTE_NAME);
+			goto Cleanup;
+		}
 	}
 
 	if (instanceValues.size() > 1)
 	{
 		hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"GetInstanceAddress: Failed more than one attribute value. NodeQuery:[ %s] Attribue:[%s]", instanceAddressNodePath.c_str(), ADDRESS_ATTRIBUTE_NAME),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"GetInstanceAddress: Failed more than one attribute value. NodeQuery:[%s], Attribute[%s]", instanceAddressNodePath.c_str(), ADDRESS_ATTRIBUTE_NAME);
+			goto Cleanup;
+		}
 	}
 
 	InstanceAddress.clear();
@@ -198,16 +207,17 @@ HRESULT ConfigReader::GetServiceTunnelIpv6Addresses(
 		serviceTunnelAddressNodePath.c_str(),
 		SERVICE_TUNNEL_IPV6_ATTRIBUTE_NAME,
 		instanceValues);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"GetInstanceAddress failed with error [%0x]. NodeQuery:[%s], Attribute[%s]", hr, serviceTunnelAddressNodePath.c_str(), ADDRESS_ATTRIBUTE_NAME),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"GetServiceTunnelIpv6Addresses failed with error [%0x]. NodeQuery:[%s], Attribute[%s]", hr, serviceTunnelAddressNodePath.c_str(), ADDRESS_ATTRIBUTE_NAME);
+		goto Cleanup;
+	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO,
-		L"NodeQuery:%s, Attribute:%s, Count:%d.",
+	LOGINFOW(
+		L"NodeQuery:%s, Attribute:%s, Count:%llu.",
 		serviceTunnelAddressNodePath.c_str(),
 		ADDRESS_ATTRIBUTE_NAME,
-		instanceValues.size()));
+		instanceValues.size());
 
 	ServiceTunnelIpv6Addresses.clear();
 	for (instanceValuesIter = instanceValues.begin(); instanceValuesIter != instanceValues.end(); ++instanceValuesIter)

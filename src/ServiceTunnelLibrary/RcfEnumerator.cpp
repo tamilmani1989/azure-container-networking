@@ -17,8 +17,10 @@ Implements methods related to enumeation of RCF files.
 //
 
 #include "RcfEnumerator.h"
-
+#include "Logging.h"
 #define RDCONFIG_NODE_NAME L"RDConfig"
+
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 int SortWin32FindDataProcByLastWriteTime(
 	const void *elem1,
@@ -85,10 +87,10 @@ S_OK on success. On failure appropriate HRESULT is returned.
 
 	if (error != ERROR_SUCCESS)
 	{
-		RD_TRACE_LOG((RD_TRACE_ERROR,
+		LOGERRW(
 			L"Possible Registry Corruption. Cannot open [%s]. Assuming VMType as PaaS. Error:[%0x]",
 			WINDOWS_AZURE_VM_TYPE_KEY,
-			error));
+			error);
 	}
 	else
 	{
@@ -97,12 +99,11 @@ S_OK on success. On failure appropriate HRESULT is returned.
 			MAX_PATH);
 		if (error != ERROR_SUCCESS)
 		{
-			RD_TRACE_LOG((RD_TRACE_ERROR,
+			LOGERRW(
 				L"Registry value not found Key:[%s], Value:[%s]. Assuming VMType as PaaS. Error:[%0x]",
 				WINDOWS_AZURE_VM_TYPE_KEY,
 				VM_TYPE_VALUE,
-				error));
-			wprintf(L"hello");
+				error);
 		}
 		else
 		{
@@ -119,10 +120,12 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		if (0 == ExpandEnvironmentStrings(IAAS_RCF_LOCATION, &configPath[0], MAX_PATH))
 		{
 			error = GetLastError();
-			RD_TRACE_E_WIN32((RD_TRACE_ERROR,
-				L"ExpandEnvironmentStrings failed for %s. Error:[%0x]", IAAS_RCF_LOCATION, error),
-				error,
-				Cleanup);
+			if (error != ERROR_SUCCESS)
+			{
+				LOGERRW(L"ExpandEnvironmentStrings failed for %s. Error:[%0x]", IAAS_RCF_LOCATION, error);
+				hr = HRESULT_FROM_WIN32(error);
+				goto Cleanup;
+			}
 		}
 
 		hr = WcsDupHr(configPath, RcfLocation);
@@ -131,10 +134,14 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	{
 		hr = WcsDupHr(PAAS_RCF_LOCATION, RcfLocation);
 	}
+	
+	if (hr != S_OK)
+	{
+		LOGERRW(L"WcsDupHr failed with errorcode %x", hr);
+		goto Cleanup;
+	}
 
-	RD_E_HR(hr, Cleanup);
-
-	RD_TRACE_LOG((RD_TRACE_ERROR, L"Using RCF Location:[%s]", *RcfLocation));
+	LOGINFOW(L"Using RCF Location:[%s]", *RcfLocation);
 
 Cleanup:
 
@@ -169,6 +176,7 @@ RcfEnumerator::FindLatestRcf(
 	DWORD error;
 	std::wsmatch match_result;
 	std::wstring fileName;
+	std::wstring rdConfigNodePath;
 	LPWSTR fileFilterString = NULL;
 	XmlParserHelper xmlParserHelper;
 
@@ -178,7 +186,12 @@ RcfEnumerator::FindLatestRcf(
 		2,
 		rcfLocation,
 		L"\\*.xml");
-	RD_E_WIN32(error, Cleanup);
+	if (error != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(error);
+		LOGERRW(L"FindLatestRcf AppendStrings failed errorcode %d", error);
+		goto Cleanup;
+	}
 
 	HANDLE hFind = ::FindFirstFile(fileFilterString, &fd);
 	while (INVALID_HANDLE_VALUE != hFind) {
@@ -192,23 +205,35 @@ RcfEnumerator::FindLatestRcf(
 			break;
 		}
 	}
+	
+	if (fdata.empty())
+	{
+		error = ERROR_FILE_NOT_FOUND;
+		LOGERRW(L"Failed to find rcf xml files at location..%s", fileFilterString);
+		hr = HRESULT_FROM_WIN32(error);
+		goto Cleanup;
+	}
 
 	qsort(
 		&fdata[0],
 		fdata.size(),
 		sizeof(WIN32_FIND_DATA),
 		SortWin32FindDataProcByLastWriteTime);
+
 	for (int ctr = 0; ctr < fdata.size(); ctr++)
 	{
 		FILETIME ft;
 		SYSTEMTIME st;
 		::FileTimeToLocalFileTime(&fdata[ctr].ftLastWriteTime, &ft);
 		::FileTimeToSystemTime(&ft, &st);
-		RD_TRACE_LOG((RD_TRACE_INFO,
+		LOGINFOW(
 			L"DateTime:%.4d/%.2d/%.2d %.2d:%.2d:%.2d - File:%s",
 			st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond,
-			fdata[ctr].cFileName));
+			fdata[ctr].cFileName);
 	}
+
+	rdConfigNodePath.append(XPATH_ROOT_START_TAG);
+	rdConfigNodePath.append(RDCONFIG_NODE_NAME);
 
 	while (!fdata.empty())
 	{
@@ -220,30 +245,27 @@ RcfEnumerator::FindLatestRcf(
 
 		if (error != ERROR_SUCCESS)
 		{
-			RD_TRACE_LOG((RD_TRACE_ERROR, L"Failed to append string [%s],[%s], Error:[%0x]",
+			LOGERRW(L"Failed to append string [%s],[%s], Error:[%0x]",
 				rcfLocation,
 				fdata.back().cFileName,
-				error));
-			RD_E_WIN32(error, Cleanup);
+				error);
+
+			hr = HRESULT_FROM_WIN32(error);
+			goto Cleanup;
 		}
-		
-		RD_TRACE_LOG((RD_TRACE_INFO, L"Before initialize"));
 
 		hr = xmlParserHelper.Initialize(*LatestRcfFile);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-        	L"Initialize failed with error [%0x]. RcfFile:[%s]", hr, *LatestRcfFile),
-        	hr,
-        	Cleanup);
-			
-		RD_TRACE_LOG((RD_TRACE_INFO, L"After initialize"));
-		
-		std::wstring rdConfigNodePath;
-		rdConfigNodePath.append(XPATH_ROOT_START_TAG);
-		rdConfigNodePath.append(RDCONFIG_NODE_NAME);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"XML Initialize failed with error [%0x].", hr);
+			goto Cleanup;
+		}
 
-		RD_TRACE_LOG((RD_TRACE_INFO,L"Node config :%s\n",rdConfigNodePath.c_str()));
+		LOGINFOW(L"Node config :%s\n",rdConfigNodePath.c_str());
+		
 		hr = xmlParserHelper.CheckNodeExists(rdConfigNodePath.c_str());
-		RD_TRACE_LOG((RD_TRACE_INFO, L"CheckNodeExists return value:%d\n", hr));
+		LOGINFOW(L"CheckNodeExists return value:%d\n", hr);
+		
 		xmlParserHelper.UnInitialize();
 
 		if(hr == S_OK)
@@ -251,7 +273,7 @@ RcfEnumerator::FindLatestRcf(
 			break;
 		}
 
-		RD_TRACE_LOG((RD_TRACE_INFO, L"RCF file requirments are not met. Check next latest rcf file"));
+		LOGINFOW(L"RCF file requirments are not met. Check next latest rcf file");
 		fdata.pop_back();
 		STR_FREE(*LatestRcfFile);
 		*LatestRcfFile=NULL;
@@ -260,11 +282,12 @@ RcfEnumerator::FindLatestRcf(
 	if(fdata.empty())
 	{
 		error = ERROR_FILE_NOT_FOUND;
-		RD_TRACE_LOG((RD_TRACE_ERROR, L"Failed to find RCF files at location..%s", fileFilterString));
-		RD_E_WIN32(error, Cleanup);
+		LOGERRW(L"Failed to find expected RCF files at location..%s", fileFilterString);
+		hr = HRESULT_FROM_WIN32(error);
+		goto Cleanup;
 	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Using RCF File:[%s]", *LatestRcfFile));
+	LOGINFOW(L"Using RCF File:[%s]", *LatestRcfFile);
 
 Cleanup:
 
