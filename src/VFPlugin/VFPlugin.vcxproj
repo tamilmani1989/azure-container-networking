@@ -6,12 +6,6 @@
     <ProjectName>VFPlugin</ProjectName>
     <TargetName>VFPlugin</TargetName>
     <ConfigurationType>Application</ConfigurationType>
-    <!-- <SXS_MANIFEST_RESOURCE_ID>1</SXS_MANIFEST_RESOURCE_ID>
-    <SXS_MANIFEST>VFPlugin.manifest</SXS_MANIFEST>
-    <SXS_ASSEMBLY_NAME>Microsoft.Windows.VFPlugin</SXS_ASSEMBLY_NAME>
-    <SXS_ASSEMBLY_VERSION>1.0</SXS_ASSEMBLY_VERSION>
-    <SXS_ASSEMBLY_LANGUAGE_INDEPENDENT>1</SXS_ASSEMBLY_LANGUAGE_INDEPENDENT>
-    <SXS_MANIFEST_IN_RESOURCES>1</SXS_MANIFEST_IN_RESOURCES> -->
   </PropertyGroup>
   <Import Project="$(SRCROOT)\build\native_user_compile.props" />
   <Import Project="$(SRCROOT)\build\native_user_link.props" />
@@ -61,6 +55,11 @@
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
+   <ItemDefinitionGroup>
+    <Manifest>
+      <AdditionalManifestFiles>VFPlugin.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
@@ -81,9 +80,8 @@
     </ProjectReference>
     
   </ItemGroup>
+    <ItemGroup>
+    <Manifest Include="VFPlugin.exe.manifest" />
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
-  <!-- <Target Name="AfterBuild">
-    <Copy SourceFiles="$(OutputPath)\ServiceTunnelExtension.exe; $(OutputPath)\ServiceTunnelExtension.pdb" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\Code" />
-    <Copy SourceFiles="manifest.xml;config.xml" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension" />
-  </Target> -->
 </Project>
