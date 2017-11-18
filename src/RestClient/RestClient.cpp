@@ -69,13 +69,14 @@ Return Value:
 	return 0;
 }
 
-int getPluginStatus()
+int getPluginStatus(wchar_t *serverport)
 /*++
 
 Routine Description:
 	This function initiates a rest client to connect to rest server and retrieve the status of all plugins
 
 Arguments:
+	serverport - port the client should connect to. If NULL, default port will be used.
 
 Return Value:
 	returns 0 on successful case else returns 1
@@ -83,12 +84,14 @@ Return Value:
 --*/
 {
 	wchar_t url[128];
+	wchar_t *port = (serverport != NULL) ? serverport : RESTSERVER_PORT;
 
-	swprintf_s(url, sizeof(url), L"%s://%s:%s/%s", HTTP_PROTO, LOCALHOST, RESTSERVER_PORT, PLUGIN_STATUS);
+	LOGINFOW(L"Connecting to localhost port %s path %s", port, PLUGIN_STATUS);
+	swprintf_s(url, sizeof(url), L"%s://%s:%s/%s", HTTP_PROTO, LOCALHOST, port, PLUGIN_STATUS);
 	http_client client(url);
 
 	// Make the request and asynchronously process the response. 
-	client.request(methods::GET).then([](http_response response)
+	pplx::task<void> requestTask = client.request(methods::GET).then([](http_response response)
 	{
 		std::wostringstream ss;
 
@@ -136,7 +139,16 @@ Return Value:
 			exitStatus=ret;
 		}
 
-	}).wait();
+	});
+
+	try
+	{
+		requestTask.wait();
+	}
+	catch (const std::exception &e)
+	{
+		LOGINFO("NetAgent RestServer exception:%s\n", e.what());
+	}
 
 	return exitStatus;
 }
@@ -146,12 +158,11 @@ int wmain(
 	wchar_t *argv[]
 )
 {
-	UNREFERENCED_PARAMETER(argc);
-	UNREFERENCED_PARAMETER(argv);
-
+	
 	wchar_t exeLocation[MAX_PATH];	
 	HandlerEnvironment envObj;
-	
+	wchar_t *serverport = NULL;
+
 	if(GetModuleFileName(nullptr, exeLocation, MAX_PATH) != 0)
 	{
 		size_t i = wcsnlen(exeLocation, MAX_PATH);
@@ -178,7 +189,19 @@ int wmain(
 		}
 	}
 
-	int status = getPluginStatus();
+	
+	for (int i = 1; i < argc; i++)
+	{
+		if (_wcsicmp(L"-port", argv[i]) == 0)
+		{
+			if (i + 1 < argc)
+			{
+				serverport = argv[++i];
+			}
+		}
+	}
+
+	int status = getPluginStatus(serverport);
 	LOGINFO("Restclient exit status %d\n", status);
 	return status;
 }
