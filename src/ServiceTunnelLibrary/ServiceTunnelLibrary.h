@@ -34,7 +34,7 @@ User-mode
 
 using namespace std;
 
-#define SERVICE_TUNNEL_SOURCE_PREFIX L"fde4:8dba::/32"
+#define SERVICE_TUNNEL_SOURCE_PREFIX L"fd00::/8"
 
 #define SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS L"fe80::944:63c6:6ed9:2336"
 

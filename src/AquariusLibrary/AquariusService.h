@@ -48,6 +48,12 @@
 
 #define AQUARIUS_LOG_PREFIX 	L"NetAgent"
 
+//Display name for Aquarius service.
+#define AQUARIUS_DISPLAY_NAME L"Azure Aquarius"
+
+//Name of Aquarius service
+#define AQUARIUSSVC L"AquariusSvc"
+
 class AquariusService : public AquariusSvcBase
 {
 
