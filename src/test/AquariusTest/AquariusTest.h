@@ -51,4 +51,5 @@ public:
 	TEST_METHOD(TestGetPluginMetadata);
     TEST_METHOD(TestProcessConfig);
 	TEST_METHOD(TestLoadPlugins);
+	TEST_METHOD(TestMonitorPlugins);
 };

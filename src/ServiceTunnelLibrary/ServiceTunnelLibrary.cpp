@@ -18,6 +18,7 @@ Implements methods related to configuration of service tunnel adapter.
 //
 #include "ServiceTunnelLibrary.h"
 
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 HRESULT
 ServiceTunnelConfigurator::NetIfEnableWeakHostRouting(
@@ -43,7 +44,6 @@ ServiceTunnelConfigurator::NetIfEnableWeakHostRouting(
 	HRESULT hr = S_OK;
 	DWORD exitCode;
 
-	RD_TRACE_STATIC_ENTRY();
 
 	//
 	// Enable weak host routing.
@@ -53,31 +53,32 @@ ServiceTunnelConfigurator::NetIfEnableWeakHostRouting(
 		0,
 		L"netsh interface ipv6 set interface %lu weakhostreceive=enable weakhostsend=enable",
 		IfIndex);
-	RD_E_WIN32(error, Cleanup);
+	if (error != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(error);
+		LOGERRW(L"NetIfEnableWeakHostRouting::FormatString Failing HRESULT status detected %x", hr);
+		goto Cleanup;
+	}
 
+	LOGINFOW(L"Running cmd %s", netshCommand);
 	hr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Command failed ('%ls').",
-		netshCommand),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Command failed ('%ls')", netshCommand);
+		goto Cleanup;
+	}
 
 	if (exitCode != ERROR_SUCCESS)
 	{
 		hr = HRESULT_FROM_WIN32(exitCode);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"Command returned non zero exit code %u ('%ls').",
-			exitCode,
-			netshCommand),
-			hr,
-			Cleanup);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
+		goto Cleanup;
 	}
 
 Cleanup:
 
 	STR_FREE(netshCommand);
 
-	RD_TRACE_STATIC_EXIT(hr);
 	return hr;
 }
 
@@ -182,16 +183,13 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	DWORD result = WAIT_OBJECT_0;
 	NET_UNICAST_IPv6_ADDRESS_CHANGE_CONTEXT changeContext = { 0 };
 
-	RD_TRACE_STATIC_ENTRY();
-
 	if (Ipv6Address == NULL) {
-		RD_E_WIN32(ERROR_INVALID_PARAMETER, Cleanup);
+		hr = HRESULT_FROM_WIN32(ERROR_INVALID_PARAMETER);
+		LOGERRW(L"NetIfSetIpv6Address::IPV6Address is null. Failing HRESULT status detected %x", hr);
+		goto Cleanup;
 	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO,
-		L"NetIfSetIpv6Address: Index:%lu, IP:%ls",
-		IfIndex,
-		Ipv6Address));
+	LOGINFOW(L"NetIfSetIpv6Address: Index:%lu, IP:%ls", IfIndex, Ipv6Address);
 
 	//
 	// Create a synchronization event.
@@ -200,7 +198,13 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	changeEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
 	if (changeEvent == NULL) {
-		RD_E_GLE(Cleanup);
+		DWORD err = GetLastError();
+		if (err != ERROR_SUCCESS)
+		{
+			LOGERRW(L"CreateEvent GetLastError detected Error[0x] %x", err);
+			hr = HRESULT_FROM_WIN32(err);
+			goto Cleanup;
+		}
 	}
 
 	//
@@ -212,7 +216,11 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	if (error != ERROR_SUCCESS)
 	{
 		hr = HRESULT_FROM_NT(error);
-		RD_E_HR(hr, Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"NetIfSetIpv6Address:: RtlIpv6StringToAddressEx Failing HRESULT status detected %x", hr);
+			goto Cleanup;
+		}
 	}
 
 	changeContext.Event = changeEvent;
@@ -223,10 +231,12 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		(PVOID)&changeContext,
 		FALSE,
 		&notification);
-	RD_TRACE_E_WIN32((RD_TRACE_ERROR,
-		L"Failed to register for IP address change notification"),
-		error,
-		Cleanup);
+	if (error != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(error);
+		LOGERRW(L"Failed to register for IP address change notification error code %d hr %x", error, hr);
+		goto Cleanup;
+	}
 
 	//
 	// Delete the IP address first, ignore error.
@@ -237,14 +247,20 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		L"netsh interface ipv6 delete address interface=%lu address=%ls",
 		IfIndex,
 		Ipv6Address);
-	RD_E_WIN32(error, Cleanup);
+	
+	if (error != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(error);
+		LOGERRW(L"NetIfSetIpv6Address FormatString del address Failing HRESULT status detected %x", hr);
+		goto Cleanup;		
+	}
 
 	hr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
-	RD_TRACE_LOG((RD_TRACE_INFO,
+	LOGINFOW(
 		L"Command '%ls' result: hr = %u, exitCode = %u.",
 		netshCommand,
 		hr,
-		exitCode));
+		exitCode);
 
 	STR_FREE(netshCommand);
 
@@ -257,46 +273,46 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		L"netsh interface ipv6 add address interface=%lu address=%ls store=persistent",
 		IfIndex,
 		Ipv6Address);
-	RD_E_WIN32(error, Cleanup);
+	if (error != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(error);
+		LOGERRW(L"NetIfSetIpv6Address:: FormatString Add address Failing HRESULT status detected %x", hr);
+		goto Cleanup;
+	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO,
-		L"Applying network config: %ls",
-		netshCommand));
+	LOGINFOW(L"Applying network config: %ls", netshCommand);
 
 	hr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Command failed ('%ls').",
-		netshCommand),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Command failed ('%ls').", netshCommand);
+		goto Cleanup;
+	}
 
 	if (exitCode != ERROR_SUCCESS)
 	{
 		hr = E_UNEXPECTED;
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"Command returned non zero exit code %u ('%ls').",
-			exitCode,
-			netshCommand),
-			hr,
-			Cleanup);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
+		goto Cleanup;
 	}
 
 	//
 	// Wait for IP address change notification.
 	//
 
-	RD_TRACE_LOG((RD_TRACE_INFO,
-		L"Waiting for IP address to be updated."));
+	LOGINFOW(L"Waiting for IP address to be updated.");
 
 	result = WaitForSingleObject(changeEvent, NET_UNICAST_IP_ADDRESS_CHANGE_TIMEOUT);
 	if (result != WAIT_OBJECT_0) {
-		RD_TRACE_E_GLE((RD_TRACE_ERROR,
-			L"Wait for IP address change notification failed"),
-			Cleanup);
+		if (GetLastError() != ERROR_SUCCESS)
+		{
+			hr = HRESULT_FROM_WIN32(GetLastError());
+			LOGERRW(L"Wait for IP address change notification failed getlasterror %d", GetLastError());
+			goto Cleanup;
+		}
 	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO,
-		L"Successfully updated IP address."));
+	LOGINFOW(L"Successfully updated IP address.");
 
 Cleanup:
 
@@ -312,7 +328,6 @@ Cleanup:
 		changeEvent = NULL;
 	}
 
-	RD_TRACE_STATIC_EXIT(hr);
 	return hr;
 
 }
@@ -352,7 +367,6 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	HRESULT tmpHr = S_OK;
 	DWORD exitCode = 0;
 
-	RD_TRACE_STATIC_ENTRY();
 
 	//
 	// First delete the route
@@ -364,39 +378,41 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		Ipv6AddressPrefix,
 		IfIndex,
 		Ipv6AddressNextHop);
-	RD_E_WIN32(error, Cleanup);
 
+	if (error != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(error);
+		LOGERRW(L"NetIfAddDeleteIPv6Route:: FormatString del route Failing HRESULT status detected %x", hr);
+		goto Cleanup;
+	}
+
+	LOGINFOW(L"Running cmd %s", netshCommand);
 	tmpHr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
 
 	if (!IsAdd)
 	{
 
 		hr = tmpHr;
-
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"Command failed ('%ls').",
-			netshCommand),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Command failed ('%ls').", netshCommand);
+			goto Cleanup;
+		}
 
 		if (exitCode != ERROR_SUCCESS)
 		{
 			hr = HRESULT_FROM_WIN32(exitCode);
-			RD_TRACE_E_HR((RD_TRACE_ERROR,
-				L"Command returned non zero exit code %u ('%ls').",
-				exitCode,
-				netshCommand),
-				hr,
-				Cleanup);
+			LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
+			goto Cleanup;
 		}
 	}
 	else
 	{
 		if (exitCode != ERROR_SUCCESS)
 		{
-			RD_TRACE_LOG((RD_TRACE_WARNING, L"Command returned non zero exit code %u ('%ls').",
+			LOGINFOW(L"Command returned non zero exit code %u ('%ls').",
 				exitCode,
-				netshCommand));
+				netshCommand);
 		}
 		//
 		// Add the route
@@ -410,32 +426,32 @@ S_OK on success. On failure appropriate HRESULT is returned.
 			Ipv6AddressPrefix,
 			IfIndex,
 			Ipv6AddressNextHop);
-		RD_E_WIN32(error, Cleanup);
+		if (error != ERROR_SUCCESS)
+		{
+			hr = HRESULT_FROM_WIN32(error);
+			LOGERRW(L"NetIfAddDeleteIPv6Route:: FormatString Add route Failing HRESULT status detected %x", hr);
+			goto Cleanup;
+		}
 
+		LOGINFOW(L"Running cmd %s", netshCommand);
 		hr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"Command failed ('%ls').",
-			netshCommand),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Command failed ('%ls').", netshCommand);
+			goto Cleanup;
+		}
 
 		if (exitCode != ERROR_SUCCESS)
 		{
 			hr = HRESULT_FROM_WIN32(exitCode);
-			RD_TRACE_E_HR((RD_TRACE_ERROR,
-				L"Command returned non zero exit code %u ('%ls').",
-				exitCode,
-				netshCommand),
-				hr,
-				Cleanup);
+			LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
+			goto Cleanup;
 		}
 	}
 
 Cleanup:
 
 	STR_FREE(netshCommand);
-
-	RD_TRACE_STATIC_EXIT(hr);
 	return hr;
 }
 
@@ -474,8 +490,6 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	HRESULT tmpHr = S_OK;
 	DWORD exitCode = 0;
 
-	RD_TRACE_STATIC_ENTRY();
-
 	//
 	// Delete the neighbor first
 	//
@@ -486,28 +500,30 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		IfIndex,
 		NeighborAddress,
 		NeighborLinkLayerAddress);
-	RD_E_WIN32(error, Cleanup);
+	if (error != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(error);
+		LOGERRW(L"NetIfAddDeleteNeighbor FormatString delete neighbors Failing HRESULT status detected %x", hr);
+		goto Cleanup;
+	}
 
+	LOGINFOW(L"Running cmd %s", netshCommand);
 	tmpHr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
 
 	if (!IsAdd)
 	{
 		hr = tmpHr;
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"Command failed ('%ls').",
-			netshCommand),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Command failed ('%ls').", netshCommand);
+			goto Cleanup;
+		}
 
 		if (exitCode != ERROR_SUCCESS)
 		{
 			hr = HRESULT_FROM_WIN32(exitCode);
-			RD_TRACE_E_HR((RD_TRACE_ERROR,
-				L"Command returned non zero exit code %u ('%ls').",
-				exitCode,
-				netshCommand),
-				hr,
-				Cleanup);
+			LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
+			goto Cleanup;
 		}
 	}
 	else
@@ -515,10 +531,10 @@ S_OK on success. On failure appropriate HRESULT is returned.
 
 		if (exitCode != ERROR_SUCCESS)
 		{
-			RD_TRACE_LOG((RD_TRACE_WARNING,
+			LOGINFOW(
 				L"Command returned non zero exit code %u ('%ls').",
 				exitCode,
-				netshCommand));
+				netshCommand);
 		}
 
 		//
@@ -533,32 +549,32 @@ S_OK on success. On failure appropriate HRESULT is returned.
 			IfIndex,
 			NeighborAddress,
 			NeighborLinkLayerAddress);
-		RD_E_WIN32(error, Cleanup);
+		if (error != ERROR_SUCCESS)
+		{
+			hr = HRESULT_FROM_WIN32(error);
+			LOGERRW(L"NetIfAddDeleteNeighbor FormatString add neighbors Failing HRESULT status detected %x", hr);
+			goto Cleanup;			
+		}
 
+		LOGINFOW(L"Running cmd %s", netshCommand);
 		hr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"Command failed ('%ls').",
-			netshCommand),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Command failed ('%ls').", netshCommand);
+			goto Cleanup;
+		}
 
 		if (exitCode != ERROR_SUCCESS)
 		{
 			hr = HRESULT_FROM_WIN32(exitCode);
-			RD_TRACE_E_HR((RD_TRACE_ERROR,
-				L"Command returned non zero exit code %u ('%ls').",
-				exitCode,
-				netshCommand),
-				hr,
-				Cleanup);
+			LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
+			goto Cleanup;
 		}
 	}
 
 Cleanup:
 
 	STR_FREE(netshCommand);
-
-	RD_TRACE_STATIC_EXIT(hr);
 	return hr;
 }
 
@@ -600,13 +616,9 @@ S_OK on success. On failure appropriate HRESULT is returned.
 
 	if (pIPAddrTable == NULL)
 	{
-
 		hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"GetInterfaceByIpAddress:: Failed to allocate memory for pIPAddrTable ",
-			hr),
-			hr,
-			Cleanup);
+		LOGERRW(L"GetInterfaceByIpAddress:: Failed to allocate memory for pIPAddrTable");
+		goto Cleanup;
 	}
 
 	// Make an initial call to GetIpAddrTable to get the
@@ -622,11 +634,8 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	if (pIPAddrTable == NULL)
 	{
 		hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"GetInterfaceByIpAddress:: Failed to allocate memory for pIPAddrTable ",
-			hr),
-			hr,
-			Cleanup);
+		LOGERRW(L"GetInterfaceByIpAddress:: Failed to allocate memory for pIPAddrTable after size");
+		goto Cleanup;
 	}
 
 	// Make a second call to GetIpAddrTable to get the
@@ -634,12 +643,8 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	if ((dwRetVal = GetIpAddrTable(pIPAddrTable, &dwSize, false)) != NO_ERROR)
 	{
 		HRESULT_FROM_WIN32(dwRetVal);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"GetInterfaceByIpAddress:: GetIpAddrTable returned error code :%d",
-			dwRetVal,
-			hr),
-			hr,
-			Cleanup);
+		LOGERRW(L"GetInterfaceByIpAddress:: GetIpAddrTable returned error code :%d hr %x", dwRetVal, hr);
+		goto Cleanup;
 	}
 
 	for (i = 0; i < (int)pIPAddrTable->dwNumEntries; i++)
@@ -655,12 +660,8 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	if (!ipFound)
 	{
 		hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"GetInterfaceByIpAddress:: Ipaddress %d not found in IpAddr Table",
-			IpAddress,
-			hr),
-			hr,
-			Cleanup);
+		LOGERRW(L"GetInterfaceByIpAddress:: Ipaddress %d not found in IpAddr Table", IpAddress);
+		goto Cleanup;
 	}
 
 Cleanup:
@@ -721,38 +722,36 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		Sleep(waitTime * 1000);
 
 		hr = installer.GetOrCreateLoopbackAdapter(SERVICE_TUNNEL_INTERFACE_NAME, interfaceIndex);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"SetupLoopbackAdapter:: Failed to set up loopback adapter [%0x]",
-			hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"SetupLoopbackAdapter::Failed to set up loopback adapter [%0x]", hr);
+			goto Cleanup;
+		}
 
 		for (ipv6AddressListIterator = Ipv6AddressList.begin();
 			ipv6AddressListIterator != Ipv6AddressList.end();
 			++ipv6AddressListIterator)
 		{
-			RD_TRACE_LOG((RD_TRACE_INFO,
+			LOGINFOW(
 				L"\tAdding IPv6Address:[%s] to interface with index [%d]\n",
 				(*ipv6AddressListIterator).c_str(),
-				interfaceIndex));
+				interfaceIndex);
+
 			hr = NetIfSetIpv6Address(interfaceIndex, (*ipv6AddressListIterator).c_str());
-			RD_TRACE_E_HR((RD_TRACE_ERROR,
-				L"SetupLoopbackAdapter:: Failed to add address [%s] on interface with index[%d]. Error:[%0x]",
-				(*ipv6AddressListIterator).c_str(),
-				interfaceIndex,
-				hr),
-				hr,
-				Cleanup);
+			if (hr != S_OK)
+			{
+				LOGERRW(L"SetupLoopbackAdapter:: Failed to add address [%s] on interface with index[%d]. Error:[%0x]", (*ipv6AddressListIterator).c_str(), interfaceIndex, hr);
+				goto Cleanup;
+			}
 		}
 
 		// to forwards packets from one interface to other.
 		hr = NetIfEnableWeakHostRouting(interfaceIndex);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"SetupLoopbackAdapter:: Failed to set weak host routing on interface with index [%d]. Error:[%0x]",
-			interfaceIndex,
-			hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"SetupLoopbackAdapter:: Failed to set weak host routing on interface with index [%d]. Error:[%0x]", interfaceIndex, hr);
+			goto Cleanup;
+		}
 
 		wipv4 = InstanceAddress.c_str();
 		wlen = wcslen(wipv4) + 1;
@@ -761,12 +760,8 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		if (!buffer)
 		{
 			hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
-			RD_TRACE_E_HR((RD_TRACE_ERROR,
-				L"SetupLoopbackAdapter:: Malloc failed for allocating ipv4 address[%d]. Error:[%0x]",
-				interfaceIndex,
-				hr),
-				hr,
-				Cleanup);
+			LOGERRW(L"SetupLoopbackAdapter:: Malloc failed for allocating ipv4 address[%d]. Error:[%0x]", interfaceIndex, hr);
+			goto Cleanup;
 		}
 
 		//check for NULL
@@ -775,34 +770,33 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		if (ret != 0)
 		{
 			hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-			RD_TRACE_E_HR((RD_TRACE_ERROR,
-				L"SetupLoopbackAdapter:: wcstombs_s failed. Return code [%d]",
-				ret),
-				hr,
-				Cleanup);
+			LOGERRW(L"SetupLoopbackAdapter:: wcstombs_s failed. Return code [%d]", ret);
+			goto Cleanup;
 		}
 
 		ipv4Addr = ntohl(inet_addr(buffer));
 
 		hr = GetInterfaceByIpAddress(ipv4Addr, ipv4interfaceIndex);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"SetupLoopbackAdapter:: GetInterfaceByIpAddress function failed to find Interface Index for %s address",
-			wipv4,
-			hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"SetupLoopbackAdapter::  GetInterfaceByIpAddress function failed to find Interface Index for %s address. Error[%0x]",
+				wipv4,hr);
+			goto Cleanup;
+		}
 
-		RD_TRACE_LOG((RD_TRACE_INFO, L"Interface Index for %s address is %d",
+		LOGINFOW(L"Interface Index for %s address is %d",
 			wipv4,
-			ipv4interfaceIndex));
+			ipv4interfaceIndex);
 
 		hr = NetIfEnableWeakHostRouting(ipv4interfaceIndex);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"SetupLoopbackAdapter:: Failed to set weak host routing on interface with index [%d]. Error:[%0x]",
-			ipv4interfaceIndex,
-			hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(
+				L"SetupLoopbackAdapter:: Failed to set weak host routing on interface with index [%d]. Error:[%0x]",
+				ipv4interfaceIndex,
+				hr);
+			goto Cleanup;
+		}
 
 		//
 		// Add fake neighbor
@@ -811,13 +805,15 @@ S_OK on success. On failure appropriate HRESULT is returned.
 			SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS,
 			SERVICE_TUNNEL_ENDPOINT_FAKE_GW_MAC_ADDRESS,
 			TRUE);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"RuntimeServiceTunnelInterface:: Failed to add fake GW MAC to neighbor table for "
-			L"interface with index [%d]. Error:[%0x]",
-			ipv4interfaceIndex,
-			hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(
+				L"SetupLoopbackAdapter::  Failed to add fake GW MAC to neighbor table for "
+				L"interface with index [%d]. Error:[%0x]",
+				ipv4interfaceIndex,
+				hr);
+			goto Cleanup;
+		}
 
 		//
 		// Add fake GW
@@ -826,12 +822,14 @@ S_OK on success. On failure appropriate HRESULT is returned.
 			SERVICE_TUNNEL_SOURCE_PREFIX,
 			SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS,
 			TRUE);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"SetupLoopbackAdapter:: Failed to add fake GW on interface with index [%d]. Error:[%0x]",
-			ipv4interfaceIndex,
-			hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(
+				L"SetupLoopbackAdapter:: Failed to add fake GW on interface with index [%d]. Error:[%0x]",
+				ipv4interfaceIndex,
+				hr);
+			goto Cleanup;
+		}
 
 	Cleanup:
 		if (buffer)
@@ -851,7 +849,7 @@ S_OK on success. On failure appropriate HRESULT is returned.
 			}
 			waitTimeSum = waitTimeSum + waitTime;
 			retryCount++;
-			RD_TRACE_LOG((RD_TRACE_INFO, L"Retrying..count:%d TotalWaitTime:%d curWaitTime:%d", retryCount, waitTimeSum, waitTime));
+			LOGINFOW(L"Retrying..count:%d TotalWaitTime:%d curWaitTime:%d", retryCount, waitTimeSum, waitTime);
 		}
 
 	} while (hr != S_OK && retryCount <= NumRetries && waitTimeSum < TotalWaitTimeInSecs);
@@ -901,7 +899,7 @@ std::wstring - Returns corresponding IPV6 address for IPV4 address
 
 	ipv6Addr = SERVICE_TUNNEL_IPV6_ADDRESS_PREFIX + result[0] + result[1] + ":" + result[2] + result[3];
 	std::wstring wsIpValue(ipv6Addr.begin(), ipv6Addr.end());
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Derived Ipv6 Address :%s from %s", wsIpValue.c_str(), InstanceIpv4Addr.c_str()));
+	LOGINFOW(L"Derived Ipv6 Address :%s from %s", wsIpValue.c_str(), InstanceIpv4Addr.c_str());
 
 	return wsIpValue;
 }
@@ -920,46 +918,47 @@ ServiceTunnelConfigurator::CleanupLoopbackAdapter(
 	
 	if(hr!=S_OK)
 	{
-		RD_TRACE_LOG((RD_TRACE_INFO, L"Remove LoopBackAdapter failed:%x.",hr));
+		LOGERRW(L"Remove LoopBackAdapter failed:%x.",hr);
 	}
 	else
 	{
-		RD_TRACE_LOG((RD_TRACE_INFO, L"Removed LoopBackAdapter"));
+		LOGINFOW(L"Removed LoopBackAdapter");
 	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Calling RtlIpv4StringToAddress %s", InstanceAddress.c_str()));
+	LOGINFOW(L"Calling RtlIpv4StringToAddress %s", InstanceAddress.c_str());
 	ret = RtlIpv4StringToAddress(InstanceAddress.c_str(), true, &temp, &ipv4Addr);
 	
 	if (ret != 0)
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"CleanupLoopbackAdapter:: RtlIpv4StringToAddress function failed with error %d Address %s hr %x",
-			ret,
-			InstanceAddress.c_str(),
-			hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(
+				L"CleanupLoopbackAdapter:: RtlIpv4StringToAddress function failed with error %d Address %s hr %x",
+				ret,
+				InstanceAddress.c_str(),
+				hr);
+			goto Cleanup;
+		}
 	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Calling GetInterfaceByIpAddress"));
 	hr = GetInterfaceByIpAddress(ntohl(ipv4Addr.s_addr), ipv4interfaceIndex);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
+	if (hr != S_OK)
+	{
+		LOGERRW(
 			L"CleanupLoopbackAdapter:: GetInterfaceByIpAddress function failed to find Interface Index for %s address error %x",
 			InstanceAddress.c_str(),
-			hr),
-			hr,
-			Cleanup);
-
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Deleting neighbor and route entry for interface index %d", ipv4interfaceIndex));
+			hr);
+		goto Cleanup;
+	}
+	
+	LOGINFOW(L"Deleting neighbor and route entry for interface index %d", ipv4interfaceIndex);
 	
 	hr = NetIfAddDeleteNeighbor(ipv4interfaceIndex, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_MAC_ADDRESS, FALSE);
-	RD_TRACE_LOG((RD_TRACE_INFO,
-			L"CleanupLoopbackAdapter:: NetIfDeleteNeighbor for Interface %d returned with %x",ipv4interfaceIndex, hr));
+	LOGINFOW(L"CleanupLoopbackAdapter:: NetIfDeleteNeighbor for Interface %d returned with %x",ipv4interfaceIndex, hr);
 
 	hr = NetIfAddDeleteIPv6Route(ipv4interfaceIndex, SERVICE_TUNNEL_SOURCE_PREFIX, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS, FALSE);
-	RD_TRACE_LOG((RD_TRACE_INFO,
-			L"CleanupLoopbackAdapter:: NetIfAddDeleteRoute for Interface %d returned with  %x",ipv4interfaceIndex, hr));
+	LOGINFOW(L"CleanupLoopbackAdapter:: NetIfAddDeleteRoute for Interface %d returned with  %x",ipv4interfaceIndex, hr);
 
 	hr = S_OK;
 

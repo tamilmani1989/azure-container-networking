@@ -30,6 +30,7 @@ User-mode
 #include <iostream>
 #include "RdTrace.h"
 #include "RegKey.h"
+#include "XmlParserHelper.h"
 
 using namespace std;
 

@@ -81,9 +81,17 @@ Return Value:
 			procList = (JOBOBJECT_BASIC_PROCESS_ID_LIST *)malloc(blockSize);
 
 			ret = QueryInformationJobObject(handle, JobObjectBasicProcessIdList, procList, blockSize, &actual_len);
+			if (ret == 0)
+			{
+				LOGERRW(L"QueryInformationJobObject failed. It should not happen.  Error code %d", GetLastError());
+				if (procList)
+				{
+					free(procList);
+				}
+				return -1;
+			}
 			
-			LOGINFO("Second call: return val %d Retrieved values from job num assigned %d num in list %d actual len%d  allocated size :%d\n",
-				ret,
+			LOGINFO("QueryJobObject succeeded.Retrieved values from job num assigned %d num in list %d actual len%d  allocated size :%d\n",
 				procList->NumberOfAssignedProcesses,
 				procList->NumberOfProcessIdsInList,
 				actual_len,

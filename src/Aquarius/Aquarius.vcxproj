@@ -53,12 +53,4 @@
     </QCustomInput>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
-   <Target Name="AfterBuild">
-    <Copy SourceFiles="$(OutputPath)\Aquarius.exe; $(OutputPath)\Aquarius.pdb" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius" />
-    <Copy SourceFiles="$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius" />
-    <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.RestServer\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius" />
-    <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius" />
-    <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.RestClient\Aqua.RestClient.exe" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius" />
-	<Copy SourceFiles="$(VCRuntime)\lib\msvcp140.dll; $(VCRuntime)\lib\vcruntime140.dll; $(VCRuntime)\lib\concrt140.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius" />
- </Target>
 </Project>

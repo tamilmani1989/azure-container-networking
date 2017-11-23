@@ -38,18 +38,20 @@ Abstract:
 #include <iostream>
 #include "ConfigReader.h"
 #include "ServiceTunnelLibrary.h"
+#include "Logging.h"
 #include <sstream>
 #include <string>
 #include <iomanip>
 
-#define AGENT_TRACE_FLAGS (RD_TRACE_ALL & ~RD_TRACE_PAINFUL)
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
+
 #define LOG_FILE_PREFIX L"ServiceTunnelExtension"
 
 
-HRESULT SetupLogging();
+void SetupLogging();
 
 
-HRESULT SetupLogging(
+void SetupLogging(
     wchar_t *logFolder
     )
 /*++
@@ -64,14 +66,11 @@ Arguments:
 
 Return Value:
 
-    S_OK on success. On failure appropriate HRESULT is returned.
 
 --*/
 {
     DWORD error;
-    HRESULT hr;
     LPWSTR logDestFolder = NULL;
-    LPWSTR logFilePathWithPrefix = NULL;
 
 
     error = AppendStrings(&logDestFolder,
@@ -82,7 +81,6 @@ Return Value:
 
     wprintf(L"Creating log folder[%s] [%d]", logDestFolder, error);
 
-    RD_E_WIN32(error, Cleanup);
     
     if (!CreateDirectory(logDestFolder, NULL))
     {
@@ -90,32 +88,15 @@ Return Value:
         if (error != ERROR_ALREADY_EXISTS)
         {
             wprintf(L"Failed to create log folder [%s] due to erroro (%d)\n", logDestFolder, error);
-            RD_E_WIN32(error, Cleanup);
+			goto Cleanup;
         }
     }
 
-    error = AppendStrings(&logFilePathWithPrefix,
-        2,
-        logDestFolder,
-        LOG_FILE_PREFIX);
-    RD_E_WIN32(error, Cleanup);
-
-    hr = RD_TRACE_INITIALIZE_CUSTOM_SIZE(RD_TRACE_OUTPUT_FILE,
-        RD_TRACE_ALL,
-        logFilePathWithPrefix,
-        NULL,
-        0,
-        NULL,
-        RD_TRACE_ALL,
-        10,
-        RD_TRACE_LOG_LIMIT);
+	LOGSETUP(logDestFolder, LOG_FILE_PREFIX);
 
 Cleanup:
     
     STR_FREE(logDestFolder);
-    STR_FREE(logFilePathWithPrefix);
-
-    return hr;
 }
 
 
@@ -149,6 +130,7 @@ Return Value:
 	std::set<std::wstring>::iterator serviceTunnelIpv6AddressesIter;
 	bool comInitialized = false;
 	bool traceInitialized = false;
+	bool xmlInitialized = false;
     bool unInstallFlag = false;
 	std::wstring instanceName;
 	std::wstring instanceAddress;
@@ -170,10 +152,8 @@ Return Value:
 				if (retryCount == 0)
 				{
 					hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-					RD_TRACE_E_HR((RD_TRACE_ERROR,
-						L"_wtoi failed retrieving retry count"),
-						hr,
-						Cleanup);
+					wprintf(L"Failed retrieving retry count");
+					goto Cleanup;
 				}
 			}
 		}
@@ -185,10 +165,8 @@ Return Value:
 				if (waitTimeStart == 0)
 				{
 					hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-					RD_TRACE_E_HR((RD_TRACE_ERROR,
-						L"_wtoi failed retrieving waittimestart"),
-						hr,
-						Cleanup);
+					wprintf(L"Failed retrieving waitTimeStart");
+					goto Cleanup;
 				}
 			}
 		}
@@ -200,17 +178,15 @@ Return Value:
 				if (totalWaitTime == 0)
 				{
 					hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-					RD_TRACE_E_HR((RD_TRACE_ERROR,
-						L"Failed retrieving totalwaittime"),
-						hr,
-						Cleanup);
+					wprintf(L"Failed retrieving totalWaitTime");
+					goto Cleanup;
 				}
 			}
 		}
         else if(_wcsicmp(L"-remove", argv[i]) == 0)
         {
             unInstallFlag = true;
-            RD_TRACE_LOG((RD_TRACE_INFO, L"Uninstall argument is set"));
+            wprintf(L"Uninstall argument is set");
         }
         else if(_wcsicmp(L"-log", argv[i]) == 0)
         {
@@ -219,91 +195,89 @@ Return Value:
                 logFolder = argv[++i];
                 if (logFolder == NULL)
                 {
-                    hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-                    RD_TRACE_E_HR((RD_TRACE_ERROR,
-                        L"Failed retrieving logFolder"),
-                        hr,
-                        Cleanup);
+					hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+					wprintf(L"Failed retrieving logFolder");
+					goto Cleanup;
                 }
            }
         }
         else
         {
-            RD_TRACE_LOG((RD_TRACE_INFO, L"Invalid Argument %s",argv[i]));
+            wprintf(L"Invalid Argument %s",argv[i]);
             return 1;
         }
 	}
     
-    hr = SetupLogging(logFolder);
-	if (FAILED(hr))
-	{
-		wprintf(L"Failed to setup logging due to error [%0x]", hr);
-		goto Cleanup;
-	}
+    SetupLogging(logFolder);
 
-    RD_TRACE_LOG((RD_TRACE_INFO, L"RetryCount %d startwaittime %d totalwaittime %d", retryCount, waitTimeStart, totalWaitTime));
+    LOGINFOW(L"RetryCount %d startwaittime %d totalwaittime %d", retryCount, waitTimeStart, totalWaitTime);
         
     traceInitialized = true;
 
     hr = ::CoInitialize(NULL);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"ComInitialization failed with error [%0x].",
-        hr),
-        hr,
-        Cleanup);
-
+	if (hr != S_OK)
+	{
+		LOGERRW(L"ComInitialization failed with error [%0x].", hr);
+		goto Cleanup;
+	}
+ 
     comInitialized = true;
 
 	hr = rcfEnumerator.GetRcfLocation(&rcfLocation);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"GetRcfLocation failed with error [%0x].",
-		hr),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"GetRcfLocation failed with error [%0x].", hr);
+		goto Cleanup;
+	}
 
     hr = rcfEnumerator.FindLatestRcf(&rcfFile, rcfLocation);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"FindLatestRcf failed with error [%0x].",
-        hr),
-        hr,
-        Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"FindLatestRcf failed with error [%0x].", hr);
+		goto Cleanup;
+	}
 
     hr = xmlParserHelper.Initialize(rcfFile);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"Initialize failed with error [%0x]. RcfFile:[%s]", hr, rcfFile),
-        hr,
-        Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"XML Initialize failed with error [%0x].", hr);
+		goto Cleanup;
+	}
+
+	xmlInitialized = true;
 
     hr = configReader.GetInstanceId(&xmlParserHelper, instanceName);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"GetInstanceId failed with error [%0x]. ", hr),
-        hr,
-        Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"GetInstanceId failed with error [%0x].", hr);
+		goto Cleanup;
+	}
 
-    RD_TRACE_LOG((RD_TRACE_INFO, L"Instance Name:%s.",instanceName.c_str()));
+    LOGINFOW(L"Instance Name:%s.",instanceName.c_str());
 
     hr = configReader.GetInstanceAddress(&xmlParserHelper, instanceName, instanceAddress);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"GetInstanceAddress failed with error [%0x]. ", hr),
-        hr,
-        Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"GetInstanceAddress failed with error [%0x].", hr);
+		goto Cleanup;
+	}
 
-    RD_TRACE_LOG((RD_TRACE_INFO, L"Instance Address:%s.", instanceAddress.c_str()));
+	LOGINFOW(L"Instance Address:%s.", instanceAddress.c_str());
 
     hr = configReader.GetServiceTunnelIpv6Addresses(&xmlParserHelper, instanceName, serviceTunnelIpv6Addresses);
-    RD_TRACE_E_HR((RD_TRACE_ERROR,
-        L"GetServiceTunnelIpv6Addresses failed with error [%0x]. ", hr),
-        hr,
-        Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"GetServiceTunnelIpv6Addresses failed with error [%0x].", hr);
+	}
 
     for (serviceTunnelIpv6AddressesIter = serviceTunnelIpv6Addresses.begin(); serviceTunnelIpv6AddressesIter != serviceTunnelIpv6Addresses.end(); ++serviceTunnelIpv6AddressesIter)
     {
-        RD_TRACE_LOG((RD_TRACE_INFO, L"ServiceTunnelIpv6Address:%s", serviceTunnelIpv6AddressesIter->c_str()));
+		LOGINFOW(L"ServiceTunnelIpv6Address:%s", serviceTunnelIpv6AddressesIter->c_str());
     }
 
     if (serviceTunnelIpv6Addresses.size() == 0)
     {
-        RD_TRACE_LOG((RD_TRACE_INFO, L"Configuring service tunnel adapter with IPV6 address derived implicitly from Instance Ipv4 address"));
+		LOGINFOW(L"Configuring service tunnel adapter with IPV6 address derived implicitly from Instance Ipv4 address");
         instanceDerviedIpv6Address = serviceTunnelConfigurator.GetSTIpv6AddrFromInstanceIpv4Addr(instanceAddress);
         serviceTunnelIpv6Addresses.insert(instanceDerviedIpv6Address);
     }
@@ -311,39 +285,37 @@ Return Value:
     if(unInstallFlag)
     {
         hr = serviceTunnelConfigurator.CleanupLoopbackAdapter(instanceAddress);
-        RD_TRACE_E_HR((RD_TRACE_ERROR,
-            L"CleanupLoopbackAdapter failed with error [%0x]. ", hr),
-            hr,
-            Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"CleanupLoopbackAdapter failed with error [%0x].", hr);
+			goto Cleanup;
+		}
     }
     else
     {
         hr = serviceTunnelConfigurator.SetupLoopbackAdapter(instanceAddress, serviceTunnelIpv6Addresses, retryCount, waitTimeStart, totalWaitTime);
-        RD_TRACE_E_HR((RD_TRACE_ERROR,
-            L"SetupLoopbackAdapter failed with error [%0x]. ", hr),
-            hr,
-            Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"SetupLoopbackAdapter failed with error [%0x].", hr);
+			goto Cleanup;
+		}
     }
 
 Cleanup:
 
-    xmlParserHelper.UnInitialize();
+	STR_FREE(rcfFile);
 
-    STR_FREE(rcfFile);
+	if (xmlInitialized)
+	{
+		xmlParserHelper.UnInitialize();
+	}
 
     if (comInitialized)
     {
         CoUninitialize();
     }
 
-    if (traceInitialized)
-    {
-        RD_TRACE_TERMINATE();
-    }
+	LOGINFOW(L"Return Code from main %x",hr);
 
-    STR_FREE(rcfFile);
-
-	//hr= HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
-    RD_TRACE_LOG((RD_TRACE_INFO, L"Return Code from main %x",hr));
     return hr;
 }

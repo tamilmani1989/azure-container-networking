@@ -15,7 +15,7 @@ Author:
 Tamilmani Manoharan (tamanoha) 10-October-2017
 
 --*/
-
+#pragma once
 #include <stdio.h>
 #include <tchar.h>
 #include <msxml6.h>
