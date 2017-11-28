@@ -112,5 +112,8 @@
       <RuntimeSettings seqNo="0">{"runtimeSettings":[{"handlerSettings":{"protectedSettingsCertThumbprint":"39970A92C606E1F29683EAF51ACF387B71795352","protectedSettings":"MIIB0AYJKoZIhvcNAQcDoIIBwTCCAb0CAQAxggFxMIIBbQIBADBVMEExPzA9BgoJkiaJk/IsZAEZFi9XaW5kb3dzIEF6dXJlIFNlcnZpY2UgTWFuYWdlbWVudCBmb3IgRXh0ZW5zaW9ucwIQFpqmjYeDS4dACnr/YodzjzANBgkqhkiG9w0BAQEFAASCAQAbcLZy88wD+m30OMdlkEFApWJnInJ/Ya1eBdISrauTXNYvmYh2InesTWTvmM4uiXjuGjS3AEjjFnnBLw9Ln3Sy+kbX7gx076hsfh24hiic+Le54wu6FMY9BPO4Xl6uzcaB0f4dn3UvaRTPvZ9buNl1nht36YBDapBPFsSqfZ0HWzTdR2RQkFsk/sreakxrzIo6OC83DXoIB/aLrsbJZLDE4BniXaLBshSuOo54btqJ+mvt24o6uYlLEGPF0zi8NRcd+pv8HbtqP4qaDXCRGeQbdk9X9IcqO6ngLicm4MmShQgpG1QgUXgBCLEWEwQEP7kwSMvFWoQvXNBgf08uAsT7MEMGCSqGSIb3DQEHATAUBggqhkiG9w0DBwQIwMIh+kqk2D6AILZMXf5L5YISGormxV+RKNS5y7bH4Fs6o72ivHaa4WtM","publicSettings":{"UserName":"rnmadmin"}}}]}</RuntimeSettings>
     </Plugin>
   </PluginSettings>
+<<<<<<< HEAD
   <StatusUploadBlob statusBlobType="BlockBlob">https://portalvhdsspkkm5vgwq397.blob.core.windows.net/vhds/ContainerTestD.ContainerTest.ContainerTest.status?sr=b&amp;sp=rw&amp;se=9999-01-01&amp;sk=key1&amp;sv=2014-02-14&amp;sig=TAKglEoEyUrl8KmF3V4Zu0Bk1Ed0uQXUbZsGqfCzGsU%3D</StatusUploadBlob>
+=======
+>>>>>>> 9194490dfdeb914de9a3a635574f3696efbb1f18
 </RDConfig>
