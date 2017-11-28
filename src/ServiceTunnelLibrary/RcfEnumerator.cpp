@@ -22,8 +22,6 @@ Implements methods related to enumeation of RCF files.
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
-#define RDCONFIG_NODE_NAME L"RDConfig"
-
 int SortWin32FindDataProcByLastWriteTime(
 	const void *elem1,
 	const void *elem2
