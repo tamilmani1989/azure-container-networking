@@ -67,6 +67,8 @@ void SetupEventLogging()
 int wmain(int argc, wchar_t *argv[])
 {
     AquariusInstaller installer;
+	wchar_t svcDisplayName[MAX_PATH];
+
     int ret=1;
 
     if ((argc > 1) && ((*argv[1] == L'-' || (*argv[1] == L'/'))))
@@ -84,6 +86,23 @@ int wmain(int argc, wchar_t *argv[])
 
         wprintf(L"Service Name :%s", svcName);
 
+		if (wcscmp(svcName, AQUARIUSSVC) == 0)
+		{
+			if (wcscpy_s(svcDisplayName, AQUARIUS_DISPLAY_NAME) != 0)
+			{
+				AquariusUtilities::WriteEventLogEntry(L"NetAgent:: wcscpy_s failed copying display name");
+				wprintf(L"wcscpy_s failed copying display name..");
+			}
+		}
+		else
+		{
+			if (wcscpy_s(svcDisplayName, SERVICE_DISPLAY_NAME) != 0)
+			{
+				AquariusUtilities::WriteEventLogEntry(L"NetAgent:: wcscpy_s failed copying display name");
+				wprintf(L"wcscpy_s failed copying display name..");
+			}
+		}
+
         if (_wcsicmp(L"install", argv[1] + 1) == 0)
         {
             HKEY configKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
@@ -96,7 +115,7 @@ int wmain(int argc, wchar_t *argv[])
             // "-install" or "/install".
             ret = installer.InstallService(
                 svcName,               // Name of service
-                SERVICE_DISPLAY_NAME,       // Name to display
+				svcDisplayName,       // Name to display
                 SERVICE_START_TYPE,         // Service start type
                 SERVICE_DEPENDENCIES,       // Dependencies
                 SERVICE_ACCOUNT,            // Service running account

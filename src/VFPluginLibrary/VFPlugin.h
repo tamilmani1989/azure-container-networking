@@ -39,9 +39,6 @@ Tamilmani Manoharan (tamanoha) 10-October-2017
 #define WS_STATUS L"/PluginStatus"
 #define REBOOT_REQD 3010
 
-#define RUNDLL_COMMAND "RUNDLL32.exe pnpclean.dll,RunDLL_PnpClean /devices /maxclean"
-#define NETCFG_COMMAND "netcfg -c p -i netvsc_vfpp -l"
-#define NETSVC_INF_PATH L"INF\\wnetvsc_vfpp.inf"
 #define NETMLX_INF_FILE L"INF\\netmlx4eth63.inf"
 
 #define DRIVER_VERSION_KEY                              L"DriverVersion"
@@ -213,9 +210,7 @@ private:
 
     DWORD
     GetDevice(
-        __in PCWSTR deviceSearchString,
-        __out HDEVINFO* devInfo,
-        __out PSP_DEVINFO_DATA* devInfoData
+        __in PCWSTR deviceSearchString
     );
 
     DWORD

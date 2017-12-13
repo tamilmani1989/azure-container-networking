@@ -21,37 +21,198 @@ Tamilmani Manoharan (tamanoha) 10-October-2017
 #include "..\Logging\Logging.h"
 #include <memory>
 #include "VFPluginUtilities.h"
-#include "HealthReport.h"
+#include "VFHealthReport.h"
+#include "NMAgentReport.h"
 #include <cstdlib>
 
+#pragma comment(lib, "version.lib")
+
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
+
+DWORD cleanupPnPAndInstallVFPP(
+    VFHealthReport& healthReport
+)
+/**
+Routine description:
+
+    This function calls rundll and netcfg methods and report status to hostnetagent.
+
+Arguments:
+    healthReport - object that contains information that need to be sent to hostnetagent.
+
+Return Value:
+    returns 0 on success else errorcode returned by rundll/netcfg commands.
+
+**/
+{
+    healthReport.report.DebugMessage.assign(L"Going to run RunDll command");
+    healthReport.SendHealthStatusToHostAgent();
+    healthReport.ResetHealthObject();
+
+    LOGINFOW(L"Going to run RunDll command");
+
+    DWORD ret = VFPluginUtilities::RunDllCmd();
+    if (ret != 0)
+    {
+        std::wstring msg = L"RunDll command failed with errorcode " + std::to_wstring(ret);
+        LOGINFOW(msg.c_str());
+        healthReport.report.DebugMessage.assign(msg);
+        healthReport.report.DriverInstallPreSetupFailed = true;
+        healthReport.SendHealthStatusToHostAgent();
+        healthReport.ResetHealthObject();
+        goto Cleanup;
+    }
+    else
+    {
+        LOGINFOW(L"Rundll cmd succeeded");
+        healthReport.report.DebugMessage.assign(L"RunDll command Succeeded. Going to run netcfg command");
+        healthReport.SendHealthStatusToHostAgent();
+        healthReport.ResetHealthObject();
+    }
+
+    LOGINFOW(L"Going to run NetCfg command");
+
+    ret = VFPluginUtilities::RunNetCfgCmd();
+    if (ret != 0)
+    {
+        std::wstring msg = L"NetCfg command failed with errorcode " + std::to_wstring(ret);
+        LOGINFOW(msg.c_str());
+        healthReport.report.DebugMessage.assign(msg);
+        healthReport.report.DriverInstallPreSetupFailed = true;
+        healthReport.SendHealthStatusToHostAgent();
+        healthReport.ResetHealthObject();
+        goto Cleanup;
+    }
+    else
+    {
+        LOGINFOW(L"Rundll and Netcfg cmd succeeded");
+        healthReport.report.DebugMessage.assign(L"NetCfg command Succeeded");
+        healthReport.report.DriverInstallPreSetupSucceeded = true;
+        healthReport.SendHealthStatusToHostAgent();
+        healthReport.ResetHealthObject();
+    }
+
+Cleanup:
+    return ret;
+}
+
+void cleanUpAndInstallMlxDriver(
+    VFHealthReport& healthReport
+)
+
+/**
+Routine description:
+    This function cleans up zombie pnp devices, installs vfpp, and runs mellanox driver installer if needed.
+
+Arguments:
+    healthReport - object that contains information that need to be sent to hostnetagent.
+	versionInfo - Current version of windows.
+
+Return Value:
+    N/A.
+
+**/
+{
+    VFPlugin vfplugin;
+    DWORD status;
+	int initializationStatus;
+	
+    if (IsWindows8Point1OrGreater() && !IsWindows10OrGreater())
+	{
+        initializationStatus = cleanupPnPAndInstallVFPP(healthReport);
+    }
+    else
+    {        
+		LOGINFO("OS Version check IsWindows8Point1OrGreater and !IsWindows10OrGreater does not allow us to perform cleanup.")
+        healthReport.report.DebugMessage.assign(L"Windows version is not server 2012 R2. so not calling cleanupPnPAndInstallVFPP");
+        healthReport.report.DriverInstallPreSetupNotAttempted = true;
+        healthReport.SendHealthStatusToHostAgent();
+        healthReport.ResetHealthObject();
+        initializationStatus = 0;
+    }
+	    
+    // Check if driver installation is needed by verifying OS version    
+    BOOL isInstallRequired = vfplugin.IsMlxVFDriverInstallNeeded();  
+	
+    do 
+    {   
+        if(isInstallRequired && initializationStatus == 0)
+        {
+            wchar_t currentPath[MAX_PATH];
+            status = ERROR_SUCCESS;
+        
+            LOGINFO("Going to install Mellanox Driver");
+            
+            if (GetCurrentDirectory(MAX_PATH, currentPath) == 0) 
+            {
+                status = GetLastError();
+                LOGINFOW(L"VFPlugin: GetCurrentDirectory failed with error %d\n", status);
+                healthReport.report.DebugMessage.assign(L"GetCurrentDirectory failed before driver install attempt");
+                healthReport.SendHealthStatusToHostAgent();
+                healthReport.ResetHealthObject();
+                break;
+            }
+
+            healthReport.report.DriverInstallAttempted=true;            
+            healthReport.SendHealthStatusToHostAgent();
+            healthReport.ResetHealthObject();
+
+            LOGINFOW(L"Current directory path:%s", currentPath);
+            status = vfplugin.InstallMlxVFDriver(currentPath);
+            healthReport.report.ErrorCode =  status;
+            
+            if (status != ERROR_SUCCESS &&  status != REBOOT_REQD) 
+            {
+                LOGINFOW(L"VFPlugin: VF Driver Installation Failed from %s\n", currentPath);                
+                healthReport.report.DriverInstallFailed = true;           
+                healthReport.SendHealthStatusToHostAgent();
+                healthReport.ResetHealthObject();
+                break;            
+            } 
+            
+            healthReport.report.DriverInstallSucceeded=true;
+            healthReport.SendHealthStatusToHostAgent();
+            healthReport.ResetHealthObject();
+            
+            LOGINFOW(L"VFPlugin: VF Driver installation succeeded from %s\n", currentPath); 
+            VFPluginUtilities::SaveInstalledState();
+        }
+        else
+        {
+            if(initializationStatus != 0)
+            {
+                healthReport.report.DebugMessage.assign(L"Driver installation not attempted because pnp cleanup failed.");
+            }
+            healthReport.report.DriverInstallNotAttempted=true;
+            healthReport.SendHealthStatusToHostAgent();
+            healthReport.ResetHealthObject();
+        }
+    }while(false);
+}
 
 void wmain(int argc, wchar_t *argv[])
 {
     VFPlugin vfplugin;
-    DWORD status = ERROR_SUCCESS;
     HRESULT hr = S_OK;
     bool unInstallFlag = false;
-    BOOL isInstallRequired = FALSE;
-    BOOL isInstalled = FALSE;
+    bool comInitialized = true;
     wchar_t *logFolder = NULL;
-    wchar_t *statusInfo = NULL;
-    wchar_t url[MAX_PATH];
-    wchar_t healthUrl[MAX_PATH];
-    wchar_t installedVersion[MAX_PATH]; 
-    wchar_t versionInfo[MAX_PATH];
-    wchar_t winDir[MAX_PATH];
-    wchar_t findName[MAX_PATH];
-    char netSvcPath[MAX_PATH];
-    char netcfg_cmd[1024];
-    int numNonFunctioningDevices = 0;
-    int sysret = 0;
+    BSTR statusInfo = NULL; 
     int totalDevices=0;
-    size_t retVal;
-    HealthReport healthReport;
- 
+    int timeout = 3600000;
+    VFHealthReport healthReport;
+    NMAgentReport nmAgentReport;
+    bool cleanup = false;
+	wchar_t *cleanupStr;
+    
+    if(argc == 1)
+    {
+        wprintf(L"usage: VFPlugin.exe -log <logfolderpath> [-timeout <timeoutinseconds>] [-pnpcleanup <true/false>] ");
+        return;
+    }
+	
     for (int i = 1; i < argc; i++)
-	{
+    {
         if(_wcsicmp(L"-remove", argv[i]) == 0)
         {
             unInstallFlag = true;
@@ -67,144 +228,149 @@ void wmain(int argc, wchar_t *argv[])
                 }
             }
         }
+        else if (_wcsicmp(L"-timeout", argv[i]) == 0)
+        {
+            if (i + 1 < argc)
+            {
+                timeout = _wtoi(argv[++i]);
+                if (timeout == 0)
+                {
+                    wprintf(L"Timeout cannot be 0");
+                    timeout = 3600;
+                }
+                timeout = timeout * 1000;
+            }
+        }
+        else if (_wcsicmp(L"-installmellanox", argv[i]) == 0)
+        {
+            if (i + 1 < argc)
+            {
+                cleanupStr = argv[++i];				
+                if (wcscmp (cleanupStr, L"true") == 0)
+                {
+                    wprintf(L"pnp Cleanup and driver installation requested. Will do that if needed.");
+                    cleanup = true;
+                }
+                else
+                {
+                    wprintf(L"installmellanox is not true. Will not perform pnp cleanup and/or install mellanox driver.");
+                }
+            }
+        }
     }
-    
-    VFPluginUtilities::SetupLogging(logFolder, LOG_FILE_PREFIX);
+	
+	VFPluginUtilities::SetupLogging(logFolder, LOG_FILE_PREFIX);
 
-    if(unInstallFlag)
+	LOGINFOW(L"NMAgent url %s", nmAgentReport.nmAgentUrl);
+    LOGINFOW(L"HostNetAgent url %s", healthReport.healthUrl);
+    LOGINFO("Status send interval in milliseconds:%d", timeout);
+
+	healthReport.ResetHealthObject();
+
+	healthReport.report.GuestOSVersion.assign(L"");
+    healthReport.report.GuestOSFamily.assign(L"Windows");
+    healthReport.report.DebugMessage.assign(L"VFPlugin Started");
+    healthReport.SendHealthStatusToHostAgent();
+    healthReport.ResetHealthObject();
+	
+	if (unInstallFlag)
     {
         LOGINFO("VFDriver Remove called");
+        healthReport.report.DebugMessage.assign(L"VFPlugin Remove Called");
+        healthReport.SendHealthStatusToHostAgent();
+        healthReport.ResetHealthObject();
         return;
     }
-    
-    if (!GetWindowsDirectory(winDir, ARRAYSIZE(winDir))) {
-        LOGINFOW(L"GetWindowsDirectory failed\n");       
-    }
-
-    LOGINFOW(L"GetWindowsDirectory %s\n", winDir);
-
-    PathCombine(findName, winDir, NETSVC_INF_PATH);
-    LOGINFOW(L"NetSvc Inf path %s\n", findName);
-    
-    if(wcstombs_s(&retVal, netSvcPath, sizeof(netSvcPath), findName, wcslen(findName) + 1) != 0)
+	
+	hr = CoInitialize(NULL);
+    if (hr != S_OK)
     {
-        LOGERRW(L"wcstombs_s failed");
+        LOGERR("CoInitialize failed with errorcode %x", hr);
+        std::wstring msg = L"CoInitialize failed with errorcode " + to_wstring(hr);
+        healthReport.report.DebugMessage.assign(msg);
+        healthReport.SendHealthStatusToHostAgent();
+        healthReport.ResetHealthObject();
+        comInitialized = false;
     }
 
-    LOGINFO("NetSvc Inf path after conversion%s\n", netSvcPath);
+	wchar_t versionInfo[MAX_PATH];
+	if (VFPluginUtilities::GetWindowsVersion(versionInfo, sizeof(versionInfo)) != 0)
+	{
+		LOGERRW(L"Windows version is %s. Not calling cleanupPnPAndInstallVFPP", versionInfo);
+		healthReport.report.DebugMessage.assign(L"Getting windows version failed");
+		healthReport.SendHealthStatusToHostAgent();
+		healthReport.ResetHealthObject();
+	}
+	else
+	{
+		LOGINFOW(L"Windows version is %s.", versionInfo);
+		healthReport.report.GuestOSVersion.assign(versionInfo);
+	}
 
-    if(sprintf_s(netcfg_cmd, sizeof(netcfg_cmd), "%s %s", NETCFG_COMMAND, netSvcPath) < 0)
+    if (cleanup == true)
     {
-        LOGERRW(L"sprintf_s failed for rundllcmd");
+        LOGINFO("Going to perform pnp cleanup.")
+        cleanUpAndInstallMlxDriver(healthReport);
     }
-
-    sysret = system (RUNDLL_COMMAND);
-    LOGINFO("System call return for rundll command %s ret value %d", RUNDLL_COMMAND, sysret);
-    
-    sysret = system (netcfg_cmd);
-    LOGINFO("System call return for rundll command %s ret value %d", netcfg_cmd, sysret);
-    
-    VFPluginUtilities::ResetHealthObject(healthReport);
-    VFPluginUtilities::GetHostNetAgentURL(healthUrl, sizeof(healthUrl), HEALTH_REPORT_PATH);
-
-    /*
-      Check if driver installation is needed by verifying OS version
-    */
-
-    isInstallRequired = vfplugin.IsMlxVFDriverInstallNeeded();    
-    
-    do {   
-        if(isInstallRequired)
-        {
-            wchar_t currentPath[MAX_PATH];
-            status = ERROR_SUCCESS;
-        
-            LOGINFO("Going to install Mellanox Driver");
-            
-            if (GetCurrentDirectory(MAX_PATH, currentPath) == 0) {
-                status = GetLastError();
-                LOGINFOW(L"VFPlugin: GetCurrentDirectory failed with error %d\n", status);
-                break;
-            }
-
-            healthReport.DriverInstallAttempted=true;            
-            VFPluginUtilities::SendHealthStatusToHostAgent(healthUrl, healthReport);
-            VFPluginUtilities::ResetHealthObject(healthReport);
-
-            LOGINFOW(L"Current directory path:%s", currentPath);
-            status = vfplugin.InstallMlxVFDriver(currentPath);
-            healthReport.ErrorCode =  status;
-            
-            if (status != ERROR_SUCCESS &&  status != REBOOT_REQD) {
-                LOGINFOW(L"VFPlugin: VF Driver Installation Failed from %s\n", currentPath);                
-                healthReport.DriverInstallFailed = true;           
-                VFPluginUtilities::SendHealthStatusToHostAgent(healthUrl, healthReport);
-                VFPluginUtilities::ResetHealthObject(healthReport);
-                break;            
-            } 
-            
-            healthReport.DriverInstallSucceeded=true;
-            VFPluginUtilities::SendHealthStatusToHostAgent(healthUrl, healthReport);
-            VFPluginUtilities::ResetHealthObject(healthReport);
-            
-            LOGINFOW(L"VFPlugin: VF Driver installation succeeded from %s\n", currentPath); 
-            VFPluginUtilities::SaveInstalledState();
-        }
-        else
-        {
-            healthReport.DriverInstallNotAttempted=true;
-            VFPluginUtilities::SendHealthStatusToHostAgent(healthUrl, healthReport);
-            VFPluginUtilities::ResetHealthObject(healthReport);
-        }
-    }while(0);
-
-
-    if(swprintf_s(versionInfo, sizeof(versionInfo), L"Windows") < 0)
+    else
     {
-        LOGERRW(L"swprintf_s error while constructing guestos");
+        LOGINFOW(L"Going to skip pnp cleanup");
+		healthReport.report.DebugMessage.assign(L"Not calling cleanUpAndInstallMlxDriver. Was not explicitly requested.");
+		healthReport.report.DriverInstallPreSetupNotAttempted = true;
+		healthReport.report.DriverInstallNotAttempted = true;
+		healthReport.SendHealthStatusToHostAgent();
+		healthReport.ResetHealthObject();
     }
-    
-
+	
     /*
       Report driver installation status to NMAgent Periodically
-    */
-
+    */	
     while(true)
     {
     
-        VFPluginUtilities::GetHostNetAgentURL(url, sizeof(url), HOSTAGENT_PATH);
-        numNonFunctioningDevices = vfplugin.GetNumNonFunctioningDevices(MLX_DEVICE_ID, &totalDevices);
-
-        isInstalled = vfplugin.GetMlxVFDriverDetails(installedVersion, sizeof(installedVersion));
-
-        if(!isInstalled)
+        nmAgentReport.NumNonFunctioningDevices = vfplugin.GetNumNonFunctioningDevices(MLX_DEVICE_ID, &totalDevices);
+    
+        if (IsWindows8Point1OrGreater() && comInitialized)
         {
-            LOGWARNW(L"VFDriver is not installed");
+            nmAgentReport.IsInstalled = vfplugin.GetMlxVFDriverDetails(nmAgentReport.DriverVersion, sizeof(nmAgentReport.DriverVersion));
+
+            if (!nmAgentReport.IsInstalled)
+            {
+                LOGWARNW(L"VFDriver is not installed");
+            }
+
+            LOGINFOW(L"OS version info %s nonfunctioning devs %d isinstalled %d totaldevs %d nonfunctioning %d",
+                healthReport.report.GuestOSVersion.c_str(), nmAgentReport.NumNonFunctioningDevices, 
+                nmAgentReport.IsInstalled, totalDevices, nmAgentReport.NumNonFunctioningDevices);
+
+            hr = nmAgentReport.RetrieveStatusInfoAsXMLStr(&statusInfo);
+            if (hr != S_OK)
+            {
+                LOGERRW(L"Retrieving status info failed %x", hr);
+                std::wstring msg = L"RetrieveStatusInfoAsXMLStr function failed with errorcode " + to_wstring(hr);
+                healthReport.report.DebugMessage.assign(msg);
+                healthReport.SendHealthStatusToHostAgent();
+                healthReport.ResetHealthObject();
+            }
+            else
+            {
+                LOGINFOW(L"Going to send status to NMAgent - %s", nmAgentReport.nmAgentUrl);
+                nmAgentReport.SendStatusToNMAgent(statusInfo);
+            }
         }
-        
-        LOGINFOW(L"os version info %s nonfunctioning devs %d isinstalled %d totaldevs %d nonfunctioning %d", 
-                versionInfo, numNonFunctioningDevices, isInstalled, totalDevices, numNonFunctioningDevices);
-        hr = VFPluginUtilities::RetrieveStatusInfoAsXMLStr(isInstalled, installedVersion, versionInfo, numNonFunctioningDevices, &statusInfo);
 
-        if(hr != S_OK)
+        healthReport.report.NonFunctionalVFDevicesCount = nmAgentReport.NumNonFunctioningDevices;
+        healthReport.report.TotalVFDevicesCount = totalDevices;
+        healthReport.SendHealthStatusToHostAgent();
+        healthReport.ResetHealthObject();
+
+        if (statusInfo)
         {
-            LOGERRW(L"Retrieving status info failed. Isinstalled %d version %s nonfnstatus %d osinfo %s", 
-                    isInstalled, installedVersion, numNonFunctioningDevices, versionInfo);
             SysFreeString(statusInfo);
-            Sleep(3600000);
-            continue;
+            statusInfo = NULL;
         }
-
-        LOGINFOW(L"Going to send status to wireserver %s", url);
-        VFPluginUtilities::SendStatusToWireServer(url, statusInfo);
-        
-        healthReport.NonFunctionalVFDevicesCount = numNonFunctioningDevices; 
-        healthReport.TotalVFDevicesCount = totalDevices;           
-        VFPluginUtilities::SendHealthStatusToHostAgent(healthUrl, healthReport);
-        VFPluginUtilities::ResetHealthObject(healthReport);
-
-        SysFreeString(statusInfo);
-        statusInfo = NULL;
-        Sleep(3600000);
+    
+        LOGINFO("Sleep for %d milliseconds.", timeout);
+        Sleep(timeout);
     }
 }

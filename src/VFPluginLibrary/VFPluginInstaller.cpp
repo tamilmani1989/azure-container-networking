@@ -157,24 +157,16 @@ Return Value:
 **/
 {
     BOOL isDevicePresent = FALSE;
-    HDEVINFO hdevinfo = INVALID_HANDLE_VALUE;
-    PSP_DEVINFO_DATA devinfo;
     DWORD status = ERROR_SUCCESS;
 
     //
     // Get device
     //
 
-    status = VFPlugin::GetDevice(DeviceSearchString,
-                                &hdevinfo,
-                                &devinfo);
+    status = VFPlugin::GetDevice(DeviceSearchString);
 
     if (status == ERROR_SUCCESS) {
         isDevicePresent = TRUE;
-    }
-
-    if (hdevinfo != INVALID_HANDLE_VALUE) {
-        SetupDiDestroyDeviceInfoList(hdevinfo);
     }
 
     LOGINFOW(L"Device with search string %s present %s\n",
@@ -455,9 +447,7 @@ Cleanup:
 
 DWORD
 VFPlugin::GetDevice(
-    __in PCWSTR DeviceSearchString,
-    __out HDEVINFO* DevInfo,
-    __out PSP_DEVINFO_DATA* DevInfoData
+    __in PCWSTR DeviceSearchString
 )
 /**
 Routine description:
@@ -488,9 +478,7 @@ Return Value:
     wchar_t instanceId[4096];
     DWORD count = 0;
     DWORD status = ERROR_SUCCESS;
-
-    *DevInfo = NULL;
-    *DevInfoData = NULL;
+	bool deviceFound = false;
 
     if (DeviceSearchString == NULL || wcslen(DeviceSearchString) == 0) {
         status = ERROR_INVALID_PARAMETER;
@@ -551,8 +539,7 @@ Return Value:
         
         if (wcsstr(instanceId, DeviceSearchString) != 0) {
             LOGINFOW(L"GetDevice :: Device found, DevicePath: %s\n", instanceId);
-            *DevInfo = hdevinfo;
-            *DevInfoData = &devinfo;
+			deviceFound = true;
             break;
         }
     }
@@ -561,9 +548,9 @@ Cleanup:
 
     LOGINFOW(L"GetDevice :: Device with search string %s present %s\n",
              DeviceSearchString,
-             *DevInfoData == NULL ? L"false" : L"true");
+             deviceFound? L"true" : L"false");
 
-    if (*DevInfoData == NULL) {
+    if (!deviceFound) {
         status = ERROR_NO_SUCH_DEVINST;
     }
 

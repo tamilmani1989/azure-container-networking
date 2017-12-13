@@ -35,6 +35,10 @@ Environment:
 
 #define GUEST_OS_VERSION_STR                                L"GuestOSVersion"
 #define GUEST_OS_FAMILY_STR                                 L"GuestOSFamily"
+#define DEBUG_MESSAGE_STR									L"DebugMessage"
+#define DRIVER_INSTALL_PRESETUP_SUCCEEDED_STR				L"DriverInstallPreSetupSuccceeded"
+#define DRIVER_INSTALL_PRESETUP_FAILED_STR					L"DriverInstallPreSetupFailed"
+#define DRIVER_INSTALL_PRESETUP_NOT_ATTEMPTED_STR			L"DriverInstallPreSetupNotAttempted"
 #define DRIVER_INSTALL_NOT_ATTEMPTED_STR                    L"DriverInstallNotAttempted"
 #define DRIVER_INSTALL_ATTEMPTED_STR                        L"DriverInstallAttempted"
 #define DRIVER_INSTALL_SUCCEEDED_STR                        L"DriverInstallSucceeded"
@@ -50,6 +54,10 @@ Environment:
 enum ReportKey {
     GuestOSVersion,
     GuestOSFamily,
+	DebugMessage,
+	DriverInstallPreSetupSucceeded,
+	DriverInstallPreSetupFailed,
+	DriverInstallPreSetupNotAttempted,
     DriverInstallNotAttempted,
     DriverInstallAttempted,
     DriverInstallSucceeded,
@@ -75,6 +83,18 @@ public:
 
     // Guest OS Family.
     wstring GuestOSFamily;
+
+	// Message for logging.
+	wstring DebugMessage;
+
+	// Driver Installation setup succeeded.
+	bool DriverInstallPreSetupSucceeded;
+
+	// Driver Installation setup failed.
+	bool DriverInstallPreSetupFailed;
+
+	// Driver Installation setup not attempted.
+	bool DriverInstallPreSetupNotAttempted;
 
     // Driver installation not attempted.
     bool DriverInstallNotAttempted;
