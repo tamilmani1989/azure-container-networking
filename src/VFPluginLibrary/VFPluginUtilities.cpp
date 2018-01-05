@@ -8,7 +8,7 @@ VFPluginUtilities.cpp
 
 Abstract:
 
-This file contains methods send status to NMAgent and Health report to hostagent
+This file contains implementation of utility methods used by VFPlugin.
 Author:
 
 Tamilmani Manoharan (tamanoha) 10-October-2017
@@ -130,143 +130,6 @@ Cleanup:
 }
 
 
-void VFPluginUtilities::SendStatusToWireServer(
-    wchar_t *url,
-    wchar_t *stateInfo
-)
-/**
-Routine description:
-
-    This function sends status of VF driver as xml string to NMAgent.
-
-Arguments:
-    url - url to send status.
-    stateInfo - string contains status information.
-
-Return Value:
-
-**/
-{
-    http_client client(url);
-    http_request requester;
-
-    requester.set_method(methods::POST);
-    requester.headers().set_content_type(U("text/xml;charset=utf-8"));
-	
-    json::value postData = web::json::value::string(stateInfo);
-    LOGINFOW(L"Going to send in string %s", postData.as_string().c_str());
-
-    requester.set_body(postData.as_string().c_str());   
-
-     pplx::task<void> requestTask = client.request(requester).then([](http_response response)
-    {
-        if(response.status_code() == status_codes::OK)
-        {
-            LOGINFOW(L"NmAgent Server Status sent success");
-        }
-        else
-        {
-            LOGERRW(L"Error:: NmAgent Server HTTP post status code %d", response.status_code());
-        }
-    });
-    
-    try
-    {
-        requestTask.wait();
-    }
-    catch (const std::exception &e)
-    {
-        LOGINFO("NmAgent Server Error exception:%s\n", e.what());
-    }
-}
-
-HRESULT VFPluginUtilities::RetrieveStatusInfoAsXMLStr(
-    BOOL isInstalled, 
-    wchar_t *installedVersion, 
-    wchar_t *osVersion,
-    int numNonFunctioningDevices,
-    wchar_t **statusInfo
-)
-/**
-Routine description:
-
-    This function converts status info in string to xml based string.
-
-Arguments:
-    isInstalled - indicates if driver installed or not.
-    installedVersion - This contains version value in string if driver is installed.
-    osVersion - OS version info.
-    numNonFunctioningDevices - Number of non functioning devices in VM using mellanox driver.
-    statusInfo - string contains status information.
-
-Return Value:
-    returns S_OK if succeed else error.
-
-**/
-{
-    *statusInfo = NULL;
-    IXMLDOMElement *pRoot = NULL;
-    IXMLDOMElement *osNode = NULL;
-    IXMLDOMElement *mlxVersionNode = NULL;
-    IXMLDOMElement *devStatusNode = NULL;
-    XmlWriterHelper xmlWriter;
-    HRESULT hr = S_OK;
-    wchar_t numNonFunctioningInStr[MAX_PATH];
-    
-    CHK_HR(CoInitialize(NULL));
-
-    xmlWriter.Initialize();
-
-    CHK_HR(xmlWriter.CreateAndAddPINode(L"xml", L"version='1.0'"));
-    CHK_HR(xmlWriter.CreateElement(L"ContainerIOVInfo", &pRoot));
-
-    CHK_HR(xmlWriter.CreateElement(L"key", &osNode));
-    CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Name", L"ContainerOS", osNode));
-    CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", osVersion, osNode));
-
-    CHK_HR(xmlWriter.CreateElement(L"key", &mlxVersionNode));
-    CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Name", L"MlxVFNicDriverVersion", mlxVersionNode));
-
-    if(isInstalled)
-    {
-        CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", installedVersion, mlxVersionNode));
-    }
-    else
-    {
-        CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", L"", mlxVersionNode));
-    }
-
-    if(swprintf_s(numNonFunctioningInStr, MAX_PATH, L"%d", numNonFunctioningDevices) < 0)
-    {
-        LOGERRW(L"Error in swprintf_s to convert num non fn devices to str :%d", numNonFunctioningDevices);
-        hr = E_FAIL;
-        goto CleanUp;
-    }
-
-    CHK_HR(xmlWriter.CreateElement(L"key", &devStatusNode));
-    CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Name", L"MlxVFNumNonFunctioningDevices", devStatusNode));
-    CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", numNonFunctioningInStr, devStatusNode));
-
-    CHK_HR(xmlWriter.AppendChildToParent(osNode, pRoot));
-    CHK_HR(xmlWriter.AppendChildToParent(mlxVersionNode, pRoot));
-    CHK_HR(xmlWriter.AppendChildToParent(devStatusNode, pRoot));    
-    CHK_HR(xmlWriter.AppendChildToParent(pRoot, NULL));
-
-    CHK_HR(xmlWriter.GetXMLInString(statusInfo));
-
-    LOGINFOW(L"Xml string %s", *statusInfo);
-
-CleanUp:
-
-    xmlWriter.UnInitialize();
-    SAFE_RELEASE(pRoot);
-    SAFE_RELEASE(osNode);
-    SAFE_RELEASE(mlxVersionNode);    
-    SAFE_RELEASE(devStatusNode);
-    CoUninitialize();
-
-    return hr;
-}
 
 void VFPluginUtilities::SetupLogging(wchar_t *logFolder, wchar_t *logPrefix)
 /**
@@ -382,77 +245,280 @@ Cleanup:
     } 
 }
 
-void VFPluginUtilities::SendHealthStatusToHostAgent(
-    wchar_t *url,
-    HealthReport& report
+
+int VFPluginUtilities::GetWindowsVersion(
+	wchar_t *versionInfo, 
+	size_t versionInfoSize
 )
 /**
 Routine description:
 
-    This function sends health report to host netagent.
+This function retrieves windows version.
 
 Arguments:
-    url - url of host netagent.
-    report - health report info.
+	versionInfo - buffer to store windows version.
+	versionInfoSize - size of buffer.
 
 Return Value:
 
+	return 0 on success else 1.
+
 **/
 {
-    http_client client(url);
-    http_request requester;
-    json::value obj = NULL;
+	static const wchar_t kernel32[] = L"\\kernel32.dll";
+	wchar_t *path = NULL;
+	void *ver = NULL, *block;
+	UINT n;
+	BOOL r;
+	DWORD versz, blocksz;
+	VS_FIXEDFILEINFO *vinfo;
+	int status = 1;
 
-    requester.set_method(methods::POST);
-    requester.headers().set_content_type(U("application/json"));
+	path = new wchar_t[MAX_PATH];
+	if (!path)
+	{
+		LOGINFOW(L"GetWindowsVersion::Allocation failed for path");
+		abort();
+	}
 
-    obj = report.TranslateToJsonValue();
+	n = GetSystemDirectory(path, MAX_PATH);
+	if (n >= MAX_PATH || n == 0 ||
+		n > MAX_PATH - sizeof(kernel32) / sizeof(*kernel32))
+	{
+		LOGINFOW(L"GetWindowsVersion::GetSystemDirectory failed");
+		abort();
+	}
 
-    requester.set_body(obj);   
+	memcpy(path + n, kernel32, sizeof(kernel32));
+	LOGINFOW(L"Filename to check for version: %s", path);
 
-     pplx::task<void> requestTask = client.request(requester).then([](http_response response)
-    {
-        if(response.status_code() == status_codes::OK)
-        {
-            LOGINFOW(L"Health Report status sent success");
-        }
-        else
-        {
-            LOGERRW(L"Error::Health Report Server HTTP post status code %d", response.status_code());
-        }
-    });
-    
-    try
-    {
-        requestTask.wait();
-    }
-    catch (const std::exception &e)
-    {
-        LOGINFO("Error::Health Report Server exception:%s\n", e.what());
-    }
+	versz = GetFileVersionInfoSize(path, NULL);
+	if (versz == 0)
+	{
+		LOGINFOW(L"GetFileVersionInfoSize failed for path %s", path);
+		goto Cleanup;
+	}
+
+	ver = malloc(versz);
+	if (!ver)
+	{
+		LOGINFOW(L"GetWindowsVersion::Allocation failed for version");
+		abort();
+	}
+
+	r = GetFileVersionInfo(path, 0, versz, ver);
+	if (!r)
+	{
+		LOGINFOW(L"GetWindowsVersion::GetFileVersionInfo failed for path %s", path);
+		goto Cleanup;
+	}
+
+	r = VerQueryValue(ver, L"\\", &block, (PUINT)&blocksz);
+	if (!r || blocksz < sizeof(VS_FIXEDFILEINFO))
+	{
+		LOGINFOW(L"GetWindowsVersion::VerQueryValue failed for path %s", path);
+		goto Cleanup;
+	}
+
+	vinfo = (VS_FIXEDFILEINFO *)block;
+
+	if (swprintf_s(versionInfo, versionInfoSize,
+		L"%d.%d.%d",
+		(int)HIWORD(vinfo->dwProductVersionMS),
+		(int)LOWORD(vinfo->dwProductVersionMS),
+		(int)HIWORD(vinfo->dwProductVersionLS)) <= 0)
+	{
+		LOGINFOW(L"GetWindowsVersion::swprintf_s failed for path %s", path);
+		goto Cleanup;
+	}
+
+	status = 0;
+
+Cleanup:
+	if (path)
+	{
+		delete[] path;
+	}
+	if (ver)
+	{
+		free(ver);
+	}
+
+	return status;
 }
 
-void VFPluginUtilities::ResetHealthObject(
-        HealthReport& report
+DWORD VFPluginUtilities::RunDllCmd(
 )
 /**
 Routine description:
 
-    This function is used to reset health report object to default values.
+This function runs rundll command to cleanup zombie devices.
 
 Arguments:
-    report - health report object.
 
 Return Value:
+	returns 0 on success else returns errorcode.
 
 **/
 {
-    report.GuestOSFamily.assign(L"Windows");
-    report.DriverInstallNotAttempted = false;
-    report.DriverInstallAttempted = false;
-    report.DriverInstallSucceeded = false;
-    report.DriverInstallFailed = false;
-    report.TotalVFDevicesCount = 0;
-    report.NonFunctionalVFDevicesCount = 0;
-    report.ErrorCode = 0;
+	STARTUPINFO sinfo;
+	PROCESS_INFORMATION pinfo;
+	DWORD dwExitCode = 1;
+	wchar_t rundll_cmd[MAX_PATH];
+	wchar_t winDir[MAX_PATH];
+
+	ZeroMemory(&sinfo, sizeof(sinfo));
+	sinfo.cb = sizeof(sinfo);
+	ZeroMemory(&pinfo, sizeof(pinfo));
+	
+
+	if (!GetSystemDirectory(winDir, ARRAYSIZE(winDir))) {
+		LOGINFOW(L"RunDllCmd::GetWindowsDirectory failed\n");
+		goto Cleanup;
+	}
+
+	LOGINFOW(L"GetSystemDirectory %s\n", winDir);
+
+	if (swprintf_s(rundll_cmd, sizeof(rundll_cmd), L"%s\\%s", winDir, RUNDLL_COMMAND) < 0)
+	{
+		LOGERRW(L"RunDllCmd::swprintf_s failed for netcfgcmd");
+		goto Cleanup;
+	}
+
+	LOGINFOW(L"Create process for rundll cmd %s args %s", rundll_cmd, RUNDLL_ARGS);
+
+	if (CreateProcess(rundll_cmd, RUNDLL_ARGS, NULL, NULL, FALSE, NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW, NULL, NULL, &sinfo, &pinfo))
+	{
+		LOGINFO("RunDllCmd::Wait for rundll process for 60 seconds");
+		
+		DWORD ret = WaitForSingleObject(pinfo.hProcess, 60000);
+		if (ret != WAIT_OBJECT_0)
+		{
+			LOGERRW(L"RunDllCmd::WaitForSingleObject failed with errorcode %d", ret);
+			dwExitCode = ret;
+
+			if (!TerminateProcess(pinfo.hProcess, WAIT_TIMEOUT))
+			{
+				LOGERRW(L"RunDllCmd::TerminateProcess failed %d", GetLastError());
+			}
+			else
+			{
+				ret = WaitForSingleObject(pinfo.hProcess, 30000);
+				if (ret != WAIT_OBJECT_0)
+				{
+					LOGERRW(L"RunDllCmd::TerminateProcess not terminating process for more than 30 seconds %d", ret);
+				}
+			}
+		}
+		else
+		{
+			if (GetExitCodeProcess(pinfo.hProcess, &dwExitCode) == FALSE)
+			{
+				LOGERRW(L"RunNetCfgCmd::GetExitCodeProcess failed %d", GetLastError());
+			}
+		}
+
+		CloseHandle(pinfo.hProcess);
+		CloseHandle(pinfo.hThread);
+	}
+	else
+	{
+		LOGERRW(L"Create process failed %d", GetLastError());
+	}
+
+Cleanup:
+	return dwExitCode;
+}
+
+DWORD VFPluginUtilities::RunNetCfgCmd(
+)
+/**
+Routine description:
+
+This function runs netcfg command to install Windows protocol driver.
+
+Arguments:
+
+Return Value:
+	returns 0 on success else returns errorcode.
+
+**/
+{
+	wchar_t winDir[MAX_PATH];
+	wchar_t netSvcPath[MAX_PATH];
+	wchar_t netcfg_cmd[MAX_PATH];
+	wchar_t netcfg_args[MAX_PATH];
+	STARTUPINFO sinfo;
+	PROCESS_INFORMATION pinfo;
+	DWORD dwExitCode = 1;
+
+
+	if (!GetSystemDirectory(winDir, ARRAYSIZE(winDir))) {
+		LOGINFOW(L"RunNetCfgCmd::GetWindowsDirectory failed\n");
+		goto Cleanup;
+	}
+
+	LOGINFOW(L"GetSystemDirectory %s\n", winDir);
+
+	if (swprintf_s(netcfg_cmd, sizeof(netcfg_cmd), L"%s\\%s", winDir, NETCFG_COMMAND) < 0)
+	{
+		LOGERRW(L"RunDllCmd::swprintf_s failed for netcfgcmd");
+		goto Cleanup;
+	}
+
+	PathCombine(netSvcPath, winDir, NETSVC_INF_PATH);
+	LOGINFOW(L"NetSvc Inf path %s\n", netSvcPath);
+	
+	if (swprintf_s(netcfg_args, sizeof(netcfg_args), L"%s %s", NETCFG_ARGS, netSvcPath) < 0)
+	{
+		LOGERRW(L"RunNetCfgCmd::swprintf_s failed for netcfgcmd");
+		goto Cleanup;
+	}
+
+
+	ZeroMemory(&sinfo, sizeof(sinfo));
+	sinfo.cb = sizeof(sinfo);
+	ZeroMemory(&pinfo, sizeof(pinfo));
+
+	LOGINFOW(L"Create process for netcfg cmd %s args %s", netcfg_cmd, netcfg_args);
+	if (CreateProcess(netcfg_cmd, netcfg_args, NULL, NULL, FALSE, NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW, NULL, NULL, &sinfo, &pinfo))
+	{
+		DWORD ret = WaitForSingleObject(pinfo.hProcess, 60000);
+		if (ret != WAIT_OBJECT_0)
+		{
+			LOGERRW(L"RunNetCfgCmd::WaitForSingleObject failed with errorcode %d", ret);
+			dwExitCode = ret;
+
+			if (!TerminateProcess(pinfo.hProcess, WAIT_TIMEOUT))
+			{
+				LOGERRW(L"RunNetCfgCmd::TerminateProcess failed %d", GetLastError());
+			}
+			else
+			{
+				ret = WaitForSingleObject(pinfo.hProcess, 30000);
+				if (ret != WAIT_OBJECT_0)
+				{
+					LOGERRW(L"RunNetCfgCmd::TerminateProcess not terminating process for more than 30 seconds %d", ret);
+				}
+			}
+		}
+		else
+		{
+			if (GetExitCodeProcess(pinfo.hProcess, &dwExitCode) == FALSE)
+			{
+				LOGERRW(L"RunNetCfgCmd::GetExitCodeProcess failed %d", GetLastError());
+			}
+		}
+
+		CloseHandle(pinfo.hProcess);
+		CloseHandle(pinfo.hThread);
+	}
+	else
+	{
+		LOGERRW(L"RunNetCfgCmd::Create proceess failed %d", GetLastError());
+	}
+
+Cleanup:
+
+	return dwExitCode;
 }

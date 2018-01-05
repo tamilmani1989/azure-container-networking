@@ -183,6 +183,8 @@ Return Value:
         goto Cleanup;
     }
 
+	LOGERRW(L"ReportParseError error reason %s", bstrReason);
+
 Cleanup:
 
     RELEASE(pXMLErr);
@@ -216,7 +218,9 @@ Return Value:
 {
     HRESULT hr = S_OK;
     VARIANT varFileName;
-    VARIANT_BOOL varStatus;
+    VARIANT_BOOL varStatus = VARIANT_FALSE;
+	int totalTime = 0;
+
     VariantInit(&varFileName);
     hr = CreateAndInitDOM(&XMLDom);
     if (hr != S_OK) {
@@ -230,15 +234,28 @@ Return Value:
         goto Cleanup;
     }
 
-    hr = XMLDom->load(varFileName, &varStatus);
-    if (hr != S_OK) {
-        LOGERRW(L"Intialize:Load failed with error [%0x]", hr);
-        goto Cleanup;
-    }
+	do
+	{
+		totalTime += 5000;
 
-    if (varStatus != VARIANT_TRUE) {
-        hr = ReportParseError(XMLDom, XmlFileName);
-    }
+		hr = XMLDom->load(varFileName, &varStatus);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"XML Load failed with errorcode %x", hr);
+		}
+
+		if (hr != S_OK && varStatus != VARIANT_TRUE)
+		{
+			LOGINFOW(L"Call report parse error");
+			hr = ReportParseError(XMLDom, XmlFileName);
+			if (hr == HRESULT_FROM_WIN32(ERROR_SHARING_VIOLATION))
+			{
+				LOGINFOW(L"Retry after 5 seconds");
+				Sleep(5000);
+			}
+		}
+	}while (hr == HRESULT_FROM_WIN32(ERROR_SHARING_VIOLATION) && totalTime <= 60000);
+	
 
 Cleanup:
     if (FAILED(hr)) {
@@ -499,7 +516,7 @@ returns S_OK if node is found else returns error
     nodeQuery = SysAllocString(NodePathQuery);
     if(nodeQuery == NULL)
     {
-        LOGERRW(L"QueryNodeAttributeValues:SysAllocString Allocation failed for node query.");
+        LOGERRW(L"QueryNodeAttributeValues:SysAllocString Allocation failed for CheckNodeExists.");
         goto Cleanup; 
     }
 

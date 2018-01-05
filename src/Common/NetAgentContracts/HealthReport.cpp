@@ -72,6 +72,10 @@ Return Value:
 {
     HealthReportFieldIdMap[GUEST_OS_FAMILY_STR] = ReportKey::GuestOSFamily;
     HealthReportFieldIdMap[GUEST_OS_VERSION_STR] = ReportKey::GuestOSVersion;
+	HealthReportFieldIdMap[DEBUG_MESSAGE_STR] = ReportKey::DebugMessage;
+	HealthReportFieldIdMap[DRIVER_INSTALL_PRESETUP_SUCCEEDED_STR] = ReportKey::DriverInstallPreSetupSucceeded;
+	HealthReportFieldIdMap[DRIVER_INSTALL_PRESETUP_FAILED_STR] = ReportKey::DriverInstallPreSetupFailed;
+	HealthReportFieldIdMap[DRIVER_INSTALL_PRESETUP_NOT_ATTEMPTED_STR] = ReportKey::DriverInstallPreSetupNotAttempted;
     HealthReportFieldIdMap[DRIVER_INSTALL_ATTEMPTED_STR] = ReportKey::DriverInstallAttempted;
     HealthReportFieldIdMap[DRIVER_INSTALL_SUCCEEDED_STR] = ReportKey::DriverInstallSucceeded;
     HealthReportFieldIdMap[DRIVER_INSTALL_FAILED_STR] = ReportKey::DriverInstallFailed;
@@ -113,7 +117,23 @@ Return Value:
         GuestOSVersion.assign(JsonValue.as_string());
         break;
 
-    case ReportKey::DriverInstallAttempted:
+	case ReportKey::DebugMessage:
+		DebugMessage.assign(JsonValue.as_string());
+		break;
+
+	case ReportKey::DriverInstallPreSetupSucceeded:
+		DriverInstallPreSetupSucceeded = JsonValue.as_bool();
+		break;
+
+	case ReportKey::DriverInstallPreSetupFailed:
+		DriverInstallPreSetupFailed = JsonValue.as_bool();
+		break;
+	
+	case ReportKey::DriverInstallPreSetupNotAttempted:
+		DriverInstallPreSetupNotAttempted = JsonValue.as_bool();
+		break;
+    
+	case ReportKey::DriverInstallAttempted:
         DriverInstallAttempted = JsonValue.as_bool();
         break;
 
@@ -198,6 +218,10 @@ Return Value:
 
     jsonHealthReport[GUEST_OS_FAMILY_STR] = value::string(GuestOSFamily);
     jsonHealthReport[GUEST_OS_VERSION_STR] = value::string(GuestOSVersion);
+	jsonHealthReport[DEBUG_MESSAGE_STR] = value::string(DebugMessage);
+	jsonHealthReport[DRIVER_INSTALL_PRESETUP_SUCCEEDED_STR] = value::boolean(DriverInstallPreSetupSucceeded);
+	jsonHealthReport[DRIVER_INSTALL_PRESETUP_FAILED_STR] = value::boolean(DriverInstallPreSetupFailed);
+	jsonHealthReport[DRIVER_INSTALL_PRESETUP_NOT_ATTEMPTED_STR] = value::boolean(DriverInstallPreSetupNotAttempted);
     jsonHealthReport[DRIVER_INSTALL_ATTEMPTED_STR] = value::boolean(DriverInstallAttempted);
     jsonHealthReport[DRIVER_INSTALL_SUCCEEDED_STR] = value::boolean(DriverInstallSucceeded);
     jsonHealthReport[DRIVER_INSTALL_FAILED_STR] = value::boolean(DriverInstallFailed);

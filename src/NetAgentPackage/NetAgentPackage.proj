@@ -53,7 +53,14 @@
      <Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(NetAgentPath)" />
      <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(NetAgentPath)" />
      <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\lib\IfxMetrics.dll" DestinationFolder="$(NetAgentPath)" />     
-     <Exec Command="echo $(BuildVersion)>$(BinariesBuildTypeArchDirectory)\$(Artifacts)\$(NetAgent)\$(Package)\version.txt" />
+     
+	 <Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
+     <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
+
+	 <Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins\VFPlugin\Code" />
+     <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins\VFPlugin\Code" />  	 
+     	 
+	 <Exec Command="echo $(BuildVersion)>$(BinariesBuildTypeArchDirectory)\$(Artifacts)\$(NetAgent)\$(Package)\version.txt" />
      <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\AqEventMessage\AqEventMessage.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
   </Target>
 

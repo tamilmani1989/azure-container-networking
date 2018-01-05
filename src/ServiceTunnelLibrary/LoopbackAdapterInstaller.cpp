@@ -12,6 +12,10 @@ Implements methods to create and remove adapter.
 
 --*/
 #include "LoopbackAdapterInstaller.h"
+#include "Logging.h"
+
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
+
 #pragma warning ( disable : 4127 )
 
 HRESULT
@@ -42,24 +46,28 @@ S_OK on success. On failure appropriate HRESULT is returned.
 
 	hr = CoCreateInstance(CLSID_CNetCfg, NULL, CLSCTX_INPROC_SERVER,
 		IID_INetCfg, (void**)&netCfg);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to create instance of INetCfg"),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"CoCreateInstance failed with error [%0x].", hr);
+		goto Cleanup;
+	}
 
 	hr = AcquireNetCfgWriteLock(netCfg);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to acquire NetCfgWriteLock"),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"AcquireNetCfgWriteLock failed with error [%0x].", hr);
+		goto Cleanup;
+	}
+
 
 	lockAcquired = true;
 
 	hr = netCfg->Initialize(NULL);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to initialize INetCfg instance"),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Netcfg Initialize failed with error [%0x].", hr);
+		goto Cleanup;
+	}
 
 	*NetCfg = netCfg;
 	netCfg = NULL;
@@ -101,14 +109,19 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	PWSTR lockedBy = NULL;
 	HRESULT hr = S_OK;
 
-	RD_TRACE_STATIC_ENTRY();
 
 	if (NetCfg == NULL) {
-		RD_E_WIN32(ERROR_INVALID_PARAMETER, Cleanup);
+		hr = HRESULT_FROM_WIN32(ERROR_INVALID_PARAMETER);
+		LOGERRW(L"AcquireNetCfgWriteLock::NetCfg is null. Failing HRESULT status detected %x", hr);
+		goto Cleanup;
 	}
 
 	hr = NetCfg->QueryInterface(IID_INetCfgLock, (LPVOID *)&netCfgLock);
-	RD_E_HR(hr, Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"AcquireNetCfgWriteLock::QueryInterface Failing HRESULT status detected %x", hr);
+		goto Cleanup;
+	}
 
 	//
 	// Attempt to acquire write lock on INetCfg instance.
@@ -117,16 +130,16 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	hr = netCfgLock->AcquireWriteLock(INFINITE,
 		NET_LOOPBACK_LOCK_ID,
 		&lockedBy);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to acquire write lock on INetCfg"),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Netcfg AcquireWriteLock failed with error [%0x].", hr);
+		goto Cleanup;
+	}
 
 Cleanup:
 
 	RELEASE(netCfgLock);
 
-	RD_TRACE_STATIC_EXIT(hr);
 	return hr;
 }
 
@@ -153,22 +166,24 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	INetCfgLock *netCfgLock = NULL;
 	HRESULT hr = S_OK;
 
-	RD_TRACE_STATIC_ENTRY();
 
 	hr = NetCfg->QueryInterface(IID_INetCfgLock, (LPVOID *)&netCfgLock);
-	RD_E_HR(hr, Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L" ReleaseNetCfgWriteLock QueryInterface Failing HRESULT status detected %x", hr);
+		goto Cleanup;
+	}
 
 	hr = netCfgLock->ReleaseWriteLock();
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to release write lock on INetCfg instance"),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Netcfg ReleaseWriteLock failed with error [%0x].", hr);
+		goto Cleanup;
+	}
 
 Cleanup:
 
 	RELEASE(netCfgLock);
-
-	RD_TRACE_STATIC_EXIT(hr);
 	return hr;
 }
 
@@ -199,11 +214,12 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	}
 
 	hr = NetCfg->Uninitialize();
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Netcfg Uninitialize failed with error [%0x].", hr);
+		goto Cleanup;
+	}
 
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to uninitialize netcfg instance"),
-		hr,
-		Cleanup);
 
 Cleanup:
 
@@ -252,64 +268,72 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	*InstanceGuid = { 0 };
 
 	hr = GetINetCfgWithWriteLock(&netCfg);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to initialize INetCfg instance. Error[%0x]", hr),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"GetINetCfgWithWriteLock failed with error [%0x].", hr);
+		goto Cleanup;
+	}
+
 
 	hr = netCfg->QueryNetCfgClass(
 		&GUID_DEVCLASS_NET,
 		IID_INetCfgClass,
 		(void**)&netCfgClass);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to query netcfg class Error:[%0x]", hr),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"QueryNetCfgClass failed with error [%0x].", hr);
+		goto Cleanup;
+	}
+
 
 	hr = netCfgClass->EnumComponents(&netCfgComponentEnum);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to enumerate netcfg components. Error[%0x]", hr),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"EnumComponents failed with error [%0x].", hr);
+		goto Cleanup;
+	}
+
 
 	while (S_OK == (hr = netCfgComponentEnum->Next(1, &netCfgComponent, NULL)))
 	{
 		hr = netCfgComponent->GetDisplayName(&interfaceDisplayName);
 		if (FAILED(hr))
 		{
-			RD_TRACE_LOG((RD_TRACE_INFO, L"Failed to retrieve interface name. Skipping interface"));
+			LOGINFOW(L"Failed to retrieve interface name. Skipping interface");
 			hr = S_OK;
 			continue;
 		}
 
-		RD_TRACE_LOG((RD_TRACE_INFO, L"Retrieved interface with name [%s]", interfaceDisplayName));
+		LOGINFOW(L"Retrieved interface with name [%s]", interfaceDisplayName);
 		if (wcsncmp(InterfaceName, interfaceDisplayName, wcslen(InterfaceName)) == 0)
 		{
-			RD_TRACE_LOG((RD_TRACE_INFO, L"Found matching interface. Name [%s]", interfaceDisplayName));
+			LOGINFOW(L"Found matching interface. Name [%s]", interfaceDisplayName);
 			if (wcsncmp(InterfaceName, InterfaceNewName, wcslen(InterfaceName)) != 0)
 			{
-				RD_TRACE_LOG((RD_TRACE_INFO, L"Updating interface name from [%s] to [%s].",
+				LOGINFOW(L"Updating interface name from [%s] to [%s].",
 					interfaceDisplayName,
-					InterfaceNewName));
+					InterfaceNewName);
 
 				hr = netCfgComponent->SetDisplayName(InterfaceNewName);
-				RD_TRACE_E_HR((RD_TRACE_ERROR,
-					L"Failed to set display name for interface %s. Error[%0x]", interfaceDisplayName, hr),
-					hr,
-					Cleanup);
+				if (hr != S_OK)
+				{
+					LOGERRW(L"SetDisplayName %s failed with error [%0x].", interfaceDisplayName, hr);
+					goto Cleanup;
+				}
 			}
 			else
 			{
-				RD_TRACE_LOG((RD_TRACE_INFO,
+				LOGINFOW(
 					L"Skipping updating interface name as the current and requested names are same. "
-					L"Interface Name[%s]", interfaceDisplayName));
+					L"Interface Name[%s]", interfaceDisplayName);
 			}
 
 			hr = netCfgComponent->GetInstanceGuid(&instanceGuid);
-			RD_TRACE_E_HR((RD_TRACE_ERROR,
-				L"Failed to retrieve interface Id for interface name %s. Error[%0x]", interfaceDisplayName, hr),
-				hr,
-				Cleanup);
+			if (hr != S_OK)
+			{
+				LOGERRW(L"GetInstanceGuid for intface name %s failed with error [%0x].", interfaceDisplayName, hr);
+				goto Cleanup;
+			}
 			memcpy(InstanceGuid, &instanceGuid, sizeof(GUID));
 
 			updated = true;
@@ -323,10 +347,11 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	if (hr == S_FALSE && !updated)
 	{
 		hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"GetInterfaceByDisplayName: Failed to find interface with name %s", InterfaceName),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"GetInterfaceByDisplayName: Failed to find interface with name  %s", InterfaceName);
+			goto Cleanup;
+		}
 	}
 
 Cleanup:
@@ -381,54 +406,58 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	if (!GetWindowsDirectory(windowsDirectory, MAX_PATH))
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"Failed to get windows directory. Error[%x0x]", hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"GetWindowsDirectory failed with error [%0x].", hr);
+			goto Cleanup;
+		}
 	}
 
 	error = AppendStrings(&loopbackInfPath,
 		2,
 		windowsDirectory,
 		NET_LOOPBACK_INF_RELATIVE_FILE_PATH);
-	RD_E_WIN32(error, Cleanup);
+	if (error != ERROR_SUCCESS)
+	{
+		LOGERRW(L"CreateLoopbackAdapter AppendStrings failed errorcode %d", error);
+		hr = HRESULT_FROM_WIN32(error);
+		goto Cleanup;
+	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Using loop back inf %s", loopbackInfPath));
+	LOGINFOW(L"Using loop back inf %s", loopbackInfPath);
 
 	if (!SetupDiGetINFClass(loopbackInfPath, &classGuid, className, MAX_PATH, NULL))
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"SetupDiGetINFClass with inf [%s] failed. Error:[0x%x]",
-			loopbackInfPath,
-			hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"SetupDiGetINFClass with inf [%s] failed. Error:[0x%x].", loopbackInfPath, hr);
+			goto Cleanup;
+		}
 	}
 
 	error = GuidToString(classGuid, &classGuidString);
 	if (ERROR_SUCCESS != error)
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"SetupDiGetINFClass GuidToString - failed. Error:[0x%x]",
-			error),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"SetupDiGetINFClass GuidToString failed with error [%0x].", hr);
+			goto Cleanup;
+		}
 	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"ClassName %s, ClassGuid:[%s]", className, classGuidString));
+	LOGINFOW(L"ClassName %s, ClassGuid:[%s]", className, classGuidString);
 
 	deviceInfoSet = SetupDiCreateDeviceInfoList(&classGuid, NULL);
 	if (deviceInfoSet == INVALID_HANDLE_VALUE)
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"Failed to SetupDiCreateDeviceInfoList for class '%s'. Error:[0x%x]",
-			classGuidString,
-			hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Failed to SetupDiCreateDeviceInfoList for class '%s'. Error:[0x%x]", classGuidString, hr);
+			goto Cleanup;
+		}
 	}
 
 	ZeroMemory(&deviceInfoData, sizeof(deviceInfoData));
@@ -443,12 +472,11 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		&deviceInfoData))
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"Failed to SetupDiCreateDeviceInfo for class '%s'. Error:[0x%x]",
-			classGuidString,
-			hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Failed to SetupDiCreateDeviceInfo for class '%s'. Error:[0x%x]", classGuidString, hr);
+			goto Cleanup;
+		}
 	}
 
 	if (!SetupDiSetDeviceRegistryProperty(
@@ -459,23 +487,21 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		(DWORD)(wcslen(LOOPBACK_ADAPTER_HARDWARE_ID) + 1 + 1) * sizeof(WCHAR)))
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"Failed to SetupDiSetDeviceRegistryProperty for class '%s'. Error:[0x%x]",
-			classGuidString,
-			hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Failed to SetupDiSetDeviceRegistryProperty for class '%s'. Error:[0x%x]", classGuidString, hr);
+			goto Cleanup;
+		}
 	}
 
 	if (!SetupDiCallClassInstaller(DIF_REGISTERDEVICE, deviceInfoSet, &deviceInfoData))
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"Failed to SetupDiCallClassInstaller for class '%s'. Error:[0x%x]",
-			classGuidString,
-			hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Failed to SetupDiSetDeviceRegistryProperty for class '%s'. Error:[0x%x]", classGuidString, hr);
+			goto Cleanup;
+		}
 	}
 
 	if (!UpdateDriverForPlugAndPlayDevices(
@@ -488,23 +514,22 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		error = GetLastError();
 		if (error == ERROR_NO_MORE_ITEMS)
 		{
-			RD_TRACE_LOG((RD_TRACE_WARNING,
+			LOGINFOW(
 				L"UpdateDriverForPlugAndPlayDevices failed with error:[0x%x]. Ignoring it",
-				error));
+				error);
 		}
 		else
 		{
 			hr = HRESULT_FROM_WIN32(error);
-			RD_TRACE_E_HR((RD_TRACE_ERROR,
-				L"Failed to UpdateDriverForPlugAndPlayDevices for class '%s', Error:[0x%x]",
-				classGuidString,
-				hr),
-				hr,
-				Cleanup);
+			if (hr != S_OK)
+			{
+				LOGERRW(L"Failed to UpdateDriverForPlugAndPlayDevices for class '%s'. Error:[0x%x]", classGuidString, hr);
+				goto Cleanup;
+			}
 		}
 	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Loopback adapter successfully installed"));
+	LOGINFOW(L"Loopback adapter successfully installed");
 
 	setupDiGetDevRegPropResult = SetupDiGetDeviceRegistryProperty(
 		deviceInfoSet,
@@ -516,10 +541,10 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		NULL);
 	if (!setupDiGetDevRegPropResult)
 	{
-		RD_TRACE_LOG((RD_TRACE_WARNING,
+		LOGINFOW(
 			L"SetupDiGetDeviceRegistryProperty failed when using SPDRP_FRIENDLYNAME. "
 			L"Will retry using device description. Error:[0x%x]",
-			GetLastError()));
+			GetLastError());
 
 		if (!SetupDiGetDeviceRegistryProperty(
 			deviceInfoSet,
@@ -531,40 +556,40 @@ S_OK on success. On failure appropriate HRESULT is returned.
 			NULL))
 		{
 			hr = HRESULT_FROM_WIN32(GetLastError());
-			RD_TRACE_E_HR((RD_TRACE_ERROR,
-				L"SetupDiGetDeviceRegistryProperty failed using SPDRP_DEVICEDESC. Error:[0x%x]", hr),
-				hr,
-				Cleanup);
+			if (hr != S_OK)
+			{
+				LOGERRW(L"SetupDiGetDeviceRegistryProperty failed using SPDRP_DEVICEDESC. Error:[0x%x]", hr);
+				goto Cleanup;
+			}
 		}
 	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Display name for the newly created loopback adapter:%s", friendlyName));
+	LOGINFOW(L"Display name for the newly created loopback adapter:%s", friendlyName);
 
 	hr = UpdateInterfaceDisplayName(friendlyName, InterfaceName, &instanceGuid);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"UpdateInterfaceDisplayName failed. Error:[0x%x]", hr),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"UpdateInterfaceDisplayName failed. Error:[0x%x]", hr);
+		goto Cleanup;
+	}
 
 	memcpy(InstanceGuid, &instanceGuid, sizeof(GUID));
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Disabling the newly created interface with name:[%s]", InterfaceName));
+	LOGINFOW(L"Disabling the newly created interface with name:[%s]", InterfaceName);
 	hr = EnableInterface(false, deviceInfoSet, &deviceInfoData);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to disable interface with name [%s], Error:[0x%x]",
-		InterfaceName,
-		hr),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Failed to disable interface with name [%s], Error:[0x%x]", InterfaceName, hr);
+		goto Cleanup;
+	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Enabling the newly created interface with name:[%s]", InterfaceName));
+	LOGINFOW(L"Enabling the newly created interface with name:[%s]", InterfaceName);
 	EnableInterface(true, deviceInfoSet, &deviceInfoData);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to enable interface with name [%s], Error:[0x%x]",
-		InterfaceName,
-		hr),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Failed to enable interface with name [%s], Error:[0x%x]", InterfaceName, hr);
+		goto Cleanup;
+	}
 
 Cleanup:
 
@@ -616,7 +641,7 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	if (hr == S_OK)
 	{
 		error = GuidToString(instanceGuid, &classGuidString);
-		RD_TRACE_LOG((RD_TRACE_INFO, L"InstanceGuid %s", classGuidString));
+		LOGINFOW(L"InstanceGuid %s", classGuidString);
 		GetInterfaceIndex(instanceGuid, index);
 		InterfaceIndex = index;
 		goto Cleanup;
@@ -624,42 +649,41 @@ S_OK on success. On failure appropriate HRESULT is returned.
 
 	if ((HRESULT_FROM_WIN32(ERROR_NOT_FOUND) != hr))
 	{
-		RD_TRACE_LOG((RD_TRACE_INFO, L"Failed to query for the presence of loopback adapter %s. Error[%0x]", InterfaceName, hr));
+		LOGINFOW(L"Failed to query for the presence of loopback adapter %s. Error[%0x]", InterfaceName, hr);
 		goto Cleanup;
 	}
 
 	hr = CreateLoopbackAdapter(InterfaceName, &instanceGuid);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to CreateLoopbackAdapter wit name [%s], Error:[0x%x]",
-		InterfaceName,
-		hr),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Failed to CreateLoopbackAdapter wit name  [%s], Error:[0x%x]", InterfaceName, hr);
+		goto Cleanup;
+	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Loopback adapter successfully created. Name:[%s]", InterfaceName));
+	LOGINFOW(L"Loopback adapter successfully created. Name:[%s]", InterfaceName);
 
 	error = GuidToString(instanceGuid, &classGuidString);
 	if (ERROR_SUCCESS != error)
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"CreateLoopbackAdapter:GuidToString - failed. Error:[0x%x]",
-			error),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"CreateLoopbackAdapter:GuidToString - failed. Error:[0x%x]", hr);
+			goto Cleanup;
+		}
 	}
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"InstanceGuid for newly created interface:%s", classGuidString));
+	LOGINFOW(L"InstanceGuid for newly created interface:%s", classGuidString);
 
 	hr = GetInterfaceIndex(instanceGuid, index);
-	RD_TRACE_E_HR((RD_TRACE_ERROR,
-		L"Failed to retrieve index for interface with name [%s], Error:[0x%x]",
-		InterfaceName,
-		hr),
-		hr,
-		Cleanup);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Failed to retrieve index for interface with name [%s], Error:[0x%x]", InterfaceName, hr);
+		goto Cleanup;
+	}
+	
 
-	RD_TRACE_LOG((RD_TRACE_INFO, L"Interface name:[%s], index:[%d]", InterfaceName, index));
+	LOGINFOW(L"Interface name:[%s], index:[%d]", InterfaceName, index);
 	InterfaceIndex = index;
 
 Cleanup:
@@ -702,19 +726,24 @@ S_OK on success. On failure appropriate HRESULT is returned.
 
 	InterfaceIndex = 0;
 	error = GetIfTable2Ex(MibIfTableNormal, &ifTable);
-	RD_E_WIN32(error, Cleanup);
+	if(error != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(error);
+		LOGERRW(L" GetInterfaceIndex GetIfTable2Ex  Failing HRESULT status detected errorcode %d hr %x", error, hr);
+		goto Cleanup;
+	}
 
 	GuidToString(InstanceGuid, &classGuidString);
-	RD_TRACE_LOG((RD_TRACE_INFO, L"InstanceGuid:[%s] to search", classGuidString));
+	LOGINFOW(L"InstanceGuid:[%s] to search", classGuidString);
 	STR_FREE(classGuidString);
 
 	for (index = 0; index < ifTable->NumEntries; index++)
 	{
 		GuidToString(ifTable->Table[index].InterfaceGuid, &classGuidString);
-		RD_TRACE_LOG((RD_TRACE_INFO, L"Retrieved InterfaceInstanceGuid:[%s] Index:[%d]", classGuidString, ifTable->Table[index].InterfaceIndex));
+		LOGINFOW(L"Retrieved InterfaceInstanceGuid:[%s] Index:[%d]", classGuidString, ifTable->Table[index].InterfaceIndex);
 		if (IsEqualGUID(ifTable->Table[index].InterfaceGuid, InstanceGuid))
 		{
-			RD_TRACE_LOG((RD_TRACE_INFO, L"Matched InterfaceInstanceGuid:%s, index:%d", classGuidString, ifTable->Table[index].InterfaceIndex));
+			LOGINFOW(L"Matched InterfaceInstanceGuid:%s, index:%d", classGuidString, ifTable->Table[index].InterfaceIndex);
 			STR_FREE(classGuidString);
 			loopbackInterfaceFound = TRUE;
 			InterfaceIndex = ifTable->Table[index].InterfaceIndex;
@@ -726,11 +755,9 @@ S_OK on success. On failure appropriate HRESULT is returned.
 
 	if (loopbackInterfaceFound != TRUE)
 	{
-		RD_TRACE_E_WIN32_EXIT((RD_TRACE_ERROR,
-			L"NetInstallLoopbackAdapter: Can't find IfIndex "
-			L"for installed loopback adapter"),
-			ERROR_NOT_FOUND,
-			Cleanup);
+		LOGERRW(L"NetInstallLoopbackAdapter: Can't find IfIndex for installed loopback adapter");
+		hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
+		goto Cleanup;
 	}
 
 Cleanup:
@@ -791,19 +818,21 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	if (!SetupDiSetClassInstallParams(DeviceInfoSet, DeviceInfoData, &propertyChangeParams.ClassInstallHeader, sizeof(propertyChangeParams)))
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"SetupDiSetClassInstallParams failed %0x", hr),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"SetupDiSetClassInstallParams Failed. Error:[0x%x]", hr);
+			goto Cleanup;
+		}
 	}
 
 	if (!SetupDiCallClassInstaller(DIF_PROPERTYCHANGE, DeviceInfoSet, DeviceInfoData))
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
-		RD_TRACE_E_HR((RD_TRACE_ERROR,
-			L"SetupDiCallClassInstaller failed"),
-			hr,
-			Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"SetupDiCallClassInstaller Failed. Error:[0x%x]", hr);
+			goto Cleanup;
+		}
 	}
 
 Cleanup:
@@ -847,12 +876,11 @@ Return Value:
     if (deviceInfoSet == INVALID_HANDLE_VALUE) 
     {
         hr = HRESULT_FROM_WIN32(GetLastError());
-        RD_TRACE_E_HR((RD_TRACE_ERROR,
-            L"Failed to SetupDiCreateDeviceInfoList for class '%s'. Error:[0x%x]",
-            classGuidString,
-            hr),
-            hr,
-            Cleanup);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Failed to SetupDiCreateDeviceInfoList for class '%s'. Error:[0x%x]", classGuidString, hr);
+			goto Cleanup;
+		}
     }
 
     ZeroMemory(&deviceInfoData, sizeof(deviceInfoData));
@@ -870,10 +898,10 @@ Return Value:
             NULL);
         if(!setupDiGetDevRegPropResult)
         {
-            RD_TRACE_LOG((RD_TRACE_WARNING,
+			LOGINFOW(
                 L"SetupDiGetDeviceRegistryProperty failed when using SPDRP_FRIENDLYNAME. " 
                 L"Will retry using device description. Error:[0x%x]", 
-                GetLastError()));
+                GetLastError());
 
             if (!SetupDiGetDeviceRegistryProperty(
                 deviceInfoSet,
@@ -885,10 +913,11 @@ Return Value:
                 NULL))
             {
                 hr = HRESULT_FROM_WIN32(GetLastError());
-                RD_TRACE_E_HR((RD_TRACE_ERROR,
-                    L"SetupDiGetDeviceRegistryProperty failed using SPDRP_DEVICEDESC. Error:[0x%x]", hr),
-                    hr,
-                    Cleanup);
+				if (hr != S_OK)
+				{
+					LOGERRW(L"SetupDiGetDeviceRegistryProperty failed using SPDRP_DEVICEDESC. Error:[0x%x]", hr);
+					goto Cleanup;
+				}
             }
         }
         if (wcsncmp(friendlyName, InterfaceName, wcslen(InterfaceName)) == 0)

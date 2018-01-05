@@ -59,6 +59,7 @@
   <ItemGroup>
     <ClInclude Include="ServiceTunnelExtension.h" />
     <ClInclude Include="ServiceTunnelLibrary.h" />
+	<ClInclude Include="Logging.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="$(SRCROOT)\Logging\Logging.vcxproj">
