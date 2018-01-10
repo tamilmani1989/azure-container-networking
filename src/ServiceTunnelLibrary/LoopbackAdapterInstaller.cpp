@@ -414,9 +414,9 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	}
 
 	error = AppendStrings(&loopbackInfPath,
-		2,
-		windowsDirectory,
-		NET_LOOPBACK_INF_RELATIVE_FILE_PATH);
+						  2,
+		                  windowsDirectory,
+						  NET_LOOPBACK_INF_RELATIVE_FILE_PATH);
 	if (error != ERROR_SUCCESS)
 	{
 		LOGERRW(L"CreateLoopbackAdapter AppendStrings failed errorcode %d", error);
