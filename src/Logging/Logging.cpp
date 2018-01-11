@@ -78,7 +78,7 @@ Return Value:
 	wchar_t *wLogFolder = (wchar_t *)logFolder;
     wchar_t *logFilePathWithPrefix = NULL;
 
-	wprintf(L"Logfolder :%s LogPrefix :%s\n", wLogFolder, wLogPrefix);
+	wprintf(L"Logfolder: %s LogPrefix: %s\n", wLogFolder, wLogPrefix);
 	size_t finalLen = wcslen(wLogFolder) + wcslen(L"\\") + wcslen(wLogPrefix) + 1;
 	
 	logFilePathWithPrefix = new wchar_t[finalLen];
