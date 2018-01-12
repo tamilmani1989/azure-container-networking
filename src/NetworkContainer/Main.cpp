@@ -25,15 +25,15 @@ SetupLogging(
 
 Routine Description:
 
-Helper to set up logging.
+	Helper to set up logging.
 
 Arguments:
 
-LogLocation - Location of the log..
+	LogLocation - Location of the log..
 
 Return Value:
 
-True if setup succeeded, False otherwise.
+	True if setup succeeded, False otherwise.
 
 --*/
 {
@@ -79,6 +79,42 @@ Return Value:
 	wcout << usage << endl;
 }
 
+HRESULT ConvertToINADDR(_In_ wchar_t* Str, IN_ADDR& Retval)
+/*++
+
+Routine Description:
+	
+	This routine convert ip address from string representation to IN_ADDR struct.
+
+Arguments:
+
+	Str: string representation of ip address.
+
+	Retval: IN_ADDR representation of ip address.
+
+Return Value:
+
+	HRESULT - Returns if the conversion succeeds or not.
+
+--*/
+{
+	DWORD ret;
+	HRESULT hr = S_OK;
+	PCWSTR temp = NULL;
+	ret = RtlIpv4StringToAddress(Str, true, &temp, &Retval);
+	if (!ret)
+	{
+		hr = HRESULT_FROM_WIN32(GetLastError());
+		if (hr != S_OK)
+		{
+			wcout << L"NetworkContainer\\Main.cpp:: RtlIpv4StringToAddress function failed with error: " << err << " "
+				<< "Address: " << Str << " "
+				<< "hr: " << hex << hr << endl;
+		}
+	}
+	return hr;
+}
+
 HRESULT
 ParseCmdArguments(
 	_In_ int ArgCount,
@@ -87,9 +123,10 @@ ParseCmdArguments(
 	_Out_ wstring& Name,
 	_Out_ wstring& Type,
 	_Out_ wstring& Operation,
-	_Out_ wstring& IpStr,
-	_Out_ wstring& DnsStr,
-	_Out_ wstring& GatewayStr
+	_Out_ IN_ADDR& Ip,
+	_Out_ IN_ADDR& Netmask,
+	_Out_ IN_ADDR& Dns,
+	_Out_ IN_ADDR& Gateway
 )
 /*++
 
@@ -129,51 +166,54 @@ Arguments:
 --*/
 {
 	HRESULT hr = S_OK;
-	
-	if (ArgCount < MIN_ARGCOUNT || 
-		ArgCount > MAX_ARGCOUNT)
-	{
-		PrintUsage();
-		hr = E_INVALIDARG;
-		return hr;
-	}
 
+	bool ipSet = false;
 	for (int i = 1; i < ArgCount - 1; i++)
 	{
 		wstring arg = ArgList[i];
-		std::wcout << arg << std::endl;
-		wcout << ArgList[i + 1] << endl;
 		if (arg == LOG_PATH_CMDLINE_FLAG)
 		{
-			i++;
-			LogPath = ArgList[i];
+			LogPath = ArgList[++i];
 		} else if (arg == NAME_CMDLINE_FLAG)
 		{
-			i++;
-			Name = ArgList[i];
+			Name = ArgList[++i];
 		} else if (arg == TYPE_CMDLINE_FLAG)
 		{
-			i++;
-			Type = ArgList[i];
+			Type = ArgList[++i];
 		} else if (arg == OPERATION_CMDLINE_FLAG)
 		{
-			i++;
-			Operation = ArgList[i];
+			Operation = ArgList[++i];
 		} else if (arg == IP_CMDLINE_FLAG)
 		{
-			i++;
-			IpStr = ArgList[i];
+			hr = ConvertToINADDR(ArgList[++i], Ip);
+			if (hr != S_OK)
+			{
+				return hr;
+			}
+			ipSet = true;
+		} else if (arg == NETMASK_CMDLINE_FLAG)
+		{
+			hr = ConvertToINADDR(ArgList[++i], Netmask);
+			if (hr != S_OK)
+			{
+				return hr;
+			}
 		} else if (arg == DNS_CMDLINE_FLAG)
 		{
-			i++;
-			DnsStr = ArgList[i];
+			hr = ConvertToINADDR(ArgList[++i], Dns);
+			if (hr != S_OK)
+			{
+				return hr;
+			}
 		} else if (arg == GATEWAY_CMD_LINE_FLAG)
 		{
-			i++;
-			GatewayStr = ArgList[i];
-		} else 
+			hr = ConvertToINADDR(ArgList[++i], Gateway);
+			if (hr != S_OK)
+			{
+				return hr;
+			}
+		} else
 		{
-			PrintUsage();
 			hr = E_INVALIDARG;
 			return hr;
 		}
@@ -183,27 +223,27 @@ Arguments:
 		Type.empty() || 
 		Operation.empty())
 	{
-		PrintUsage();
 		hr = E_INVALIDARG;
 		return hr;
 	}
 
-	if (Type == L"Anteres" && 
+	if (Type == L"Antares" && 
 		Operation == L"CREATE" &&
-		IpStr.empty())
+		!ipSet)
 	{
-		PrintUsage();
 		hr = E_INVALIDARG;
 		return hr;
 	}
 
 	return hr;
 }
+
+int wmain(int argc, wchar_t *argv[])
 /*++
 
 Routine Description:
 
-This is the entry point for creating network container.
+	This is the entry point for creating network container.
 
 Arguments:
 
@@ -211,38 +251,70 @@ Arguments:
 	argv: List of command line arguments.
 
 --*/
-int wmain(int argc, wchar_t *argv[])
 {
 	HRESULT hr = S_OK;
 
-	wstring logPath, name, operation, type, ipStr, dnsStr, gatewayStr;
+	wstring logPath, name, operation, type;
+	IN_ADDR ip = { 0 };
+	IN_ADDR netmask = { 0 };
+	IN_ADDR dns = { 0 };
+	IN_ADDR gateway = { 0 };
+
 	hr = ParseCmdArguments(argc, 
 		argv, 
 		logPath,
 		name,
 		operation,
 		type, 
-		ipStr, 
-		dnsStr, 
-		gatewayStr);
+		ip, 
+		netmask,
+		dns, 
+		gateway);
+	if (hr != S_OK)
+	{
+		PrintUsage();
+		return hr;
+	}
 
 	if (logPath.empty()) { logPath = DEFAULT_LOG_LOCATION; }
 	SetupLogging(logPath.c_str());
 	LOGINFOW(L"Setup logging succeeded.");
-	
+
+	// print out arguments.
+	wchar_t ipStr[INET_ADDRSTRLEN], netmaskStr[INET_ADDRSTRLEN], dnsStr[INET_ADDRSTRLEN], gatewayStr[INET_ADDRSTRLEN];
 	wcout << "logPath: " << logPath << endl;
 	wcout << "name: " << name << endl;
 	wcout << "operation: " << operation << endl;
 	wcout << "type: " << type << endl;
-	wcout << "ip: " << ipStr << endl;
-	wcout << "dns: " << dnsStr << endl;
-	wcout << "gateway: " << gatewayStr << endl;
+	inet_ntop(AF_INET, (void *)&ip, (char*)ipStr, sizeof(ipStr));
+	inet_ntop(AF_INET, (void *)&netmask, (char*)netmaskStr, sizeof(netmaskStr));
+	inet_ntop(AF_INET, (void *)&dns, (char*)dnsStr, sizeof(dnsStr));
+	inet_ntop(AF_INET, (void *)&gateway, (char*)gatewayStr, sizeof(gatewayStr));
+	printf("ip: %s\n", (char*)ipStr);
+	printf("netmask: %s\n", (char*)netmaskStr);
+	printf("dns: %s\n", (char*)dnsStr);
+	printf("gateway: %s\n", (char*)gatewayStr);
+
+	cout << gateway.S_un.S_addr << endl;
 
 	GUID instanceGuid;
-	wchar_t* InterfaceName = L"loopback1";
+	//wchar_t* InterfaceName = L"loopback1";
 
-	NetworkContainer nc;
-	hr = nc.CreateLoopbackAdapter(InterfaceName, &instanceGuid);
+	NetworkContainer nc(name, type, ip, netmask, dns, gateway);
+	hr = nc.CreateLoopbackAdapter((LPWSTR)name.c_str(), &instanceGuid);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"CreatedLoopbackAdapter failed with error: [%0x].", hr);
+		return hr;
+	}
+	
+	hr = nc.SetLoopbackAdapterIp();
+	if (hr != S_OK)
+	{
+		LOGERRW(L"SetLoopbackAdapterIp failed with error: [%0x].", hr);
+		return hr;
+	}
+	LOGINFOW(L"Loopback adapter ip set. ip: %s", ipStr);
 	//std::wcout << InterfaceName << std::endl;
 	
 	return hr;
