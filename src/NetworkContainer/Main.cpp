@@ -264,8 +264,8 @@ Arguments:
 		argv, 
 		logPath,
 		name,
+		type,
 		operation,
-		type, 
 		ip, 
 		netmask,
 		dns, 
@@ -284,8 +284,8 @@ Arguments:
 	wchar_t ipStr[INET_ADDRSTRLEN], netmaskStr[INET_ADDRSTRLEN], dnsStr[INET_ADDRSTRLEN], gatewayStr[INET_ADDRSTRLEN];
 	wcout << "logPath: " << logPath << endl;
 	wcout << "name: " << name << endl;
-	wcout << "operation: " << operation << endl;
 	wcout << "type: " << type << endl;
+	wcout << "operation: " << operation << endl;
 	inet_ntop(AF_INET, (void *)&ip, (char*)ipStr, sizeof(ipStr));
 	inet_ntop(AF_INET, (void *)&netmask, (char*)netmaskStr, sizeof(netmaskStr));
 	inet_ntop(AF_INET, (void *)&dns, (char*)dnsStr, sizeof(dnsStr));
@@ -295,27 +295,22 @@ Arguments:
 	printf("dns: %s\n", (char*)dnsStr);
 	printf("gateway: %s\n", (char*)gatewayStr);
 
-	cout << gateway.S_un.S_addr << endl;
+	NetworkContainer nc(name, type, operation, ip, netmask, dns, gateway);
 
-	GUID instanceGuid;
-	//wchar_t* InterfaceName = L"loopback1";
-
-	NetworkContainer nc(name, type, ip, netmask, dns, gateway);
-	hr = nc.CreateLoopbackAdapter((LPWSTR)name.c_str(), &instanceGuid);
+	hr = nc.GetAdapters().at(name)->CreateLoopbackAdapter();
 	if (hr != S_OK)
 	{
 		LOGERRW(L"CreatedLoopbackAdapter failed with error: [%0x].", hr);
 		return hr;
 	}
-	
-	hr = nc.SetLoopbackAdapterIp();
+
+	hr = nc.GetAdapters().at(name)->SetLoopbackAdapterIp();
 	if (hr != S_OK)
 	{
 		LOGERRW(L"SetLoopbackAdapterIp failed with error: [%0x].", hr);
 		return hr;
 	}
-	LOGINFOW(L"Loopback adapter ip set. ip: %s", ipStr);
-	//std::wcout << InterfaceName << std::endl;
 	
+
 	return hr;
 }
