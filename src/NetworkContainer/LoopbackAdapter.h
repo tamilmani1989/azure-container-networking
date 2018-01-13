@@ -33,8 +33,9 @@ public:
 		_In_ IN_ADDR Gateway
 	);
 	~LoopbackAdapter();
-	HRESULT CreateLoopbackAdapter();
-	HRESULT SetLoopbackAdapterIp();
+	HRESULT Create();
+	HRESULT SetIp(_In_ IN_ADDR Ip);
+	HRESULT Delete();
 
 private:
 	wstring name;

@@ -297,20 +297,26 @@ Arguments:
 
 	NetworkContainer nc(name, type, operation, ip, netmask, dns, gateway);
 
-	hr = nc.GetAdapters().at(name)->CreateLoopbackAdapter();
+	hr = nc.CreateLoopbackAdapter(name);
 	if (hr != S_OK)
 	{
 		LOGERRW(L"CreatedLoopbackAdapter failed with error: [%0x].", hr);
 		return hr;
 	}
 
-	hr = nc.GetAdapters().at(name)->SetLoopbackAdapterIp();
+	hr = nc.SetLoopbackAdapterIp(name, ip);
 	if (hr != S_OK)
 	{
 		LOGERRW(L"SetLoopbackAdapterIp failed with error: [%0x].", hr);
 		return hr;
 	}
 	
+	hr = nc.DeleteLoopbackAdapter(name);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"DeleteLoopbackAdapter failed with error: [%0x].", hr);
+		return hr;
+	}
 
 	return hr;
 }
