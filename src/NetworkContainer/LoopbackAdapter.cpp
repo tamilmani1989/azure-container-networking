@@ -55,10 +55,11 @@ None.
 --*/
 
 {
+	Delete();
 	STR_FREE(loopbackInfPath);
 }
 
-HRESULT LoopbackAdapter::SetLoopbackAdapterIp()
+HRESULT LoopbackAdapter::SetIp(_In_ IN_ADDR Ip)
 /*++
 
 Routine Description:
@@ -73,7 +74,7 @@ If the ip is set successfully or not.
 {
 	HRESULT hr = S_OK;
 
-	UINT iaIPAddress = ip.S_un.S_addr;
+	UINT iaIPAddress = Ip.S_un.S_addr;
 	UINT iaIPMask = netmask.S_un.S_addr;
 
 	if (iaIPAddress == INADDR_NONE)
@@ -110,16 +111,16 @@ If the ip is set successfully or not.
 	return hr;
 }
 
-HRESULT LoopbackAdapter::CreateLoopbackAdapter()
+HRESULT LoopbackAdapter::Create()
 /*++
 
 Routine Description:
 
-This routine creates a minimal working loopback adapter using API's provided by SetipAPI.
+	This routine creates a minimal working loopback adapter using API's provided by SetupAPI.
 
 Return Value:
 
-S_OK on success. On failure appropriate HRESULT is returned.
+	S_OK on success. On failure appropriate HRESULT is returned.
 
 --*/
 
@@ -324,3 +325,30 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	return hr;
 }
 
+HRESULT LoopbackAdapter::Delete()
+{
+/*++
+
+Routine Description:
+
+	This routine deletes the loopback adapter using API's provided by SetupAPI.
+
+Return Value:
+
+	S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+
+	HRESULT hr = S_OK;
+
+	if (!SetupDiCallClassInstaller(DIF_REMOVE, deviceInfoSet, &deviceInfoData))
+	{
+		hr = HRESULT_FROM_WIN32(GetLastError());
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Failed to SetupDiSetDeviceRegistryProperty during loopback adapter [%ls] deletion. Error:[0x%x]", name.c_str(), hr);
+		}
+	}
+
+	return hr;
+}
