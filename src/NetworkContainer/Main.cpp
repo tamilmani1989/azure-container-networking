@@ -306,6 +306,7 @@ Arguments:
 
 	hr = nc.GetAdapters().at(name)->SetDns(dns);
 	hr = nc.GetAdapters().at(name)->SetGateway(gateway);
+	hr = nc.GetAdapters().at(name)->SetNetmask(netmask);
 
 	hr = nc.SetLoopbackAdapterIp(name, ip);
 	if (hr != S_OK)
