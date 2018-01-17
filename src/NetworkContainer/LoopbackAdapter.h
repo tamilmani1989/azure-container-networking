@@ -38,8 +38,9 @@ public:
 	HRESULT GetNetworkParameters();
 	HRESULT Create();
 	HRESULT SetIp(_In_ IN_ADDR Ip);
-	HRESULT SetDns(_In_ IN_ADDR Dns);
+	HRESULT SetNetmask(_In_ IN_ADDR Netmask);
 	HRESULT SetGateway(_In_ IN_ADDR Gateway);
+	HRESULT SetDns(_In_ IN_ADDR Dns);
 	HRESULT Delete();
 
 private:

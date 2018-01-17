@@ -382,6 +382,108 @@ Return Value:
 	return hr;
 }
 
+HRESULT LoopbackAdapter::SetNetmask(_In_ IN_ADDR Netmask)
+/*++
+
+Routine Description:
+
+This routine sets the netmask for the adapter.
+
+Arguments:
+
+Netmask in IN_ADDR format.
+
+Return Value:
+
+S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	HRESULT hr = S_OK;
+
+	char ipCharArray[INET_ADDRSTRLEN], nmCharArray[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, (void*)&ip, ipCharArray, sizeof(ipCharArray));
+	inet_ntop(AF_INET, (void*)&Netmask, nmCharArray, sizeof(nmCharArray));
+	wstring ipStr, gwStr;
+	copy(ipCharArray, ipCharArray + strlen(ipCharArray), back_inserter(ipStr));
+	copy(nmCharArray, nmCharArray + strlen(nmCharArray), back_inserter(gwStr));
+	wstring netshCommand = L"netsh interface ip set address name=" +
+		to_wstring(interfaceIndex) +
+		L" static addr=" +
+		ipStr +
+		L" mask=" +
+		gwStr;
+
+	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
+	DWORD exitCode = 0;
+	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Command failed ('%ls')", netshCommand.c_str());
+		return hr;
+	}
+
+	if (exitCode != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(exitCode);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand.c_str());
+		return hr;
+	}
+
+	return hr;
+}
+
+HRESULT LoopbackAdapter::SetGateway(_In_ IN_ADDR Gateway)
+/*++
+
+Routine Description:
+
+This routine sets the gateway for the adapter.
+
+Arguments:
+
+DNS address in IN_ADDR format.
+
+Return Value:
+
+S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	HRESULT hr = S_OK;
+
+	char ipCharArray[INET_ADDRSTRLEN], gwCharArray[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, (void*)&ip, ipCharArray, sizeof(ipCharArray));
+	inet_ntop(AF_INET, (void*)&Gateway, gwCharArray, sizeof(gwCharArray));
+	wstring ipStr, gwStr;
+	copy(ipCharArray, ipCharArray + strlen(ipCharArray), back_inserter(ipStr));
+	copy(gwCharArray, gwCharArray + strlen(gwCharArray), back_inserter(gwStr));
+	wstring netshCommand = L"netsh interface ip set address name=" +
+		to_wstring(interfaceIndex) +
+		L" static addr=" +
+		ipStr +
+		L" gateway=" +
+		gwStr;
+
+	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
+	DWORD exitCode = 0;
+	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Command failed ('%ls')", netshCommand.c_str());
+		return hr;
+	}
+
+	if (exitCode != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(exitCode);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand.c_str());
+		return hr;
+	}
+
+	return hr;
+}
+
 HRESULT LoopbackAdapter::SetDns(_In_ IN_ADDR Dns)
 /*++
 
@@ -410,53 +512,6 @@ Return Value:
 		L" static " +
 		dnsStr;
 	
-	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
-	DWORD exitCode = 0;
-	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
-	if (hr != S_OK)
-	{
-		LOGERRW(L"Command failed ('%ls')", netshCommand.c_str());
-		return hr;
-	}
-
-	if (exitCode != ERROR_SUCCESS)
-	{
-		hr = HRESULT_FROM_WIN32(exitCode);
-		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand.c_str());
-		return hr;
-	}
-
-	return hr;
-}
-
-HRESULT LoopbackAdapter::SetGateway(_In_ IN_ADDR Gateway)
-/*++
-
-Routine Description:
-
-	This routine sets the gateway for the adapter.
-
-Arguments:
-
-	DNS address in IN_ADDR format.
-
-Return Value:
-
-	S_OK on success. On failure appropriate HRESULT is returned.
-
---*/
-{
-	HRESULT hr = S_OK;
-
-	char gwCharArray[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, (void *)&Gateway, gwCharArray, sizeof(gwCharArray));
-	wstring gwStr;
-	copy(gwCharArray, gwCharArray + strlen(gwCharArray), std::back_inserter(gwStr));
-	wstring netshCommand = L"netsh interface ip set address " +
-		to_wstring(interfaceIndex) +
-		L" static " +
-		gwStr;
-
 	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
 	DWORD exitCode = 0;
 	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
