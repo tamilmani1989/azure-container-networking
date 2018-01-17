@@ -304,11 +304,7 @@ Arguments:
 		return hr;
 	}
 
-	hr = nc.GetAdapters().at(name)->SetDns(dns);
-	hr = nc.GetAdapters().at(name)->SetGateway(gateway);
-	hr = nc.GetAdapters().at(name)->SetNetmask(netmask);
-
-	hr = nc.SetLoopbackAdapterIp(name, ip);
+	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dns);
 	if (hr != S_OK)
 	{
 		LOGERRW(L"SetLoopbackAdapterIp failed with error: [%0x].", hr);
