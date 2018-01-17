@@ -19,6 +19,8 @@ Implements methods to manipulate loopback adapter.
 #include "LoopbackAdapterInstaller.h"
 #include "Devpkey.h"
 #include <iostream>
+#include <string>
+#include <iterator>
 
 using namespace std;
 
@@ -33,12 +35,15 @@ public:
 		_In_ IN_ADDR Gateway
 	);
 	~LoopbackAdapter();
+	HRESULT GetNetworkParameters();
 	HRESULT Create();
 	HRESULT SetIp(_In_ IN_ADDR Ip);
+	HRESULT SetDns(_In_ IN_ADDR Dns);
+	HRESULT SetGateway(_In_ IN_ADDR Gateway);
 	HRESULT Delete();
 
 private:
-	wstring name;
+	wstring displayName;
 	IN_ADDR ip, netmask, dns, gateway;
 	LPWSTR loopbackInfPath = NULL;
 	GUID instanceGuid = { 0 };

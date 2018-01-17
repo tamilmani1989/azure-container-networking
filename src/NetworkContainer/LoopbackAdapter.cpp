@@ -34,7 +34,7 @@ An instance of LoopbackAdapter object.
 
 --*/
 {
-	name = Name;
+	displayName = Name;
 	ip = Ip;
 	netmask = Netmask;
 	dns = Dns;
@@ -59,55 +59,49 @@ None.
 	STR_FREE(loopbackInfPath);
 }
 
-HRESULT LoopbackAdapter::SetIp(_In_ IN_ADDR Ip)
+HRESULT LoopbackAdapter::GetNetworkParameters()
 /*++
 
 Routine Description:
 
-This routine sets the ip of the loopback adapter.
-
-Return Value:
-
-If the ip is set successfully or not.
+	
 
 --*/
 {
 	HRESULT hr = S_OK;
+	FIXED_INFO * FixedInfo;
+	ULONG    ulOutBufLen;
+	DWORD    dwRetVal;
+	IP_ADDR_STRING * pIPAddr;
 
-	UINT iaIPAddress = Ip.S_un.S_addr;
-	UINT iaIPMask = netmask.S_un.S_addr;
+	FixedInfo = (FIXED_INFO *)GlobalAlloc(GPTR, sizeof(FIXED_INFO));
+	ulOutBufLen = sizeof(FIXED_INFO);
 
-	if (iaIPAddress == INADDR_NONE)
-	{
-		LOGERRW(L"Invalid ip address.");
-		hr = E_INVALIDARG;
-		return hr;
-	}
-	if (iaIPMask == INADDR_NONE)
-	{
-		LOGERRW(L"Invalid ip mask.");
-		hr = E_INVALIDARG;
-		return hr;
+	if (ERROR_BUFFER_OVERFLOW == GetNetworkParams(FixedInfo, &ulOutBufLen)) {
+		GlobalFree(FixedInfo);
+		FixedInfo = (FIXED_INFO *)GlobalAlloc(GPTR, ulOutBufLen);
 	}
 
-	int ifIndex;
-	GetInterfaceIndex(instanceGuid, ifIndex);
-
-	if (AddIPAddress(iaIPAddress,
-		iaIPMask,
-		ifIndex,
-		&NTEContext,
-		&NTEInstance) != NO_ERROR)
+	dwRetVal = GetNetworkParams(FixedInfo, &ulOutBufLen);
+	if (dwRetVal) 
 	{
-		hr = HRESULT_FROM_WIN32(GetLastError());
-		if (hr != S_OK)
-		{
-			LOGERRW(L"AddIPAddress failed with Error:[0x%x]", hr);
-			return hr;
+		LOGINFOW(L"Call to GetNetworkParams failed. Return Value: %08x\n", dwRetVal);
+		return hr;
+	} else 
+	{
+		LOGINFOW(L"Host Name: %ls\n", (wchar_t*)FixedInfo->HostName);
+		LOGINFOW(L"Domain Name: %ls\n", (wchar_t*)FixedInfo->DomainName);
+
+		LOGINFOW(L"DNS Servers:\n");
+		LOGINFOW(L"\t%ls\n", (wchar_t*)FixedInfo->DnsServerList.IpAddress.String);
+
+		pIPAddr = FixedInfo->DnsServerList.Next;
+		while (pIPAddr) {
+			LOGINFOW(L"\t%ls\n", (wchar_t*)pIPAddr->IpAddress.String);
+			pIPAddr = pIPAddr->Next;
 		}
 	}
-
-	LOGINFOW(L"Loopback adapter ip set.");
+	
 	return hr;
 }
 
@@ -298,7 +292,7 @@ Return Value:
 	}
 
 	LOGINFOW(L"Display name for the newly created loopback adapter:%s", friendlyName);
-	hr = UpdateInterfaceDisplayName(friendlyName, (LPWSTR)name.c_str(), &instanceGuid);
+	hr = UpdateInterfaceDisplayName(friendlyName, (LPWSTR)displayName.c_str(), &instanceGuid);
 	if (hr != S_OK)
 	{
 		LOGERRW(L"UpdateInterfaceDisplayName failed. Error:[0x%x]", hr);
@@ -306,19 +300,176 @@ Return Value:
 	}
 
 	memcpy(&instanceGuid, &instanceGuid, sizeof(GUID));
-	LOGINFOW(L"Disabling the newly created interface with name:[%s]", name.c_str());
+	LOGINFOW(L"Disabling the newly created interface with name:[%s]", displayName.c_str());
 	hr = EnableInterface(false, deviceInfoSet, &deviceInfoData);
 	if (hr != S_OK)
 	{
-		LOGERRW(L"Failed to disable interface with name [%s], Error:[0x%x]", name.c_str(), hr);
+		LOGERRW(L"Failed to disable interface with name [%s], Error:[0x%x]", displayName.c_str(), hr);
 		return hr;
 	}
 
-	LOGINFOW(L"Enabling the newly created interface with name:[%s]", name.c_str());
+	LOGINFOW(L"Enabling the newly created interface with name:[%s]", displayName.c_str());
 	hr = EnableInterface(true, deviceInfoSet, &deviceInfoData);
 	if (hr != S_OK)
 	{
-		LOGERRW(L"Failed to enable interface with name [%s], Error:[0x%x]", name.c_str(), hr);
+		LOGERRW(L"Failed to enable interface with name [%s], Error:[0x%x]", displayName.c_str(), hr);
+		return hr;
+	}
+
+	hr = GetInterfaceIndex(instanceGuid, interfaceIndex);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Failed to retrieve index for interface with name [%s], Error:[0x%x]", displayName.c_str(), hr);
+		return hr;
+	}
+
+	LOGINFOW(L"Interface name:[%s], index:[%d]", displayName.c_str(), interfaceIndex);
+	return hr;
+}
+
+HRESULT LoopbackAdapter::SetIp(_In_ IN_ADDR Ip)
+/*++
+
+Routine Description:
+
+	This routine sets the ip of the loopback adapter.
+
+Arguments:
+
+	IP address in IN_ADDR format.
+
+Return Value:
+
+	S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	HRESULT hr = S_OK;
+
+	UINT iaIPAddress = Ip.S_un.S_addr;
+	UINT iaIPMask = netmask.S_un.S_addr;
+
+	if (iaIPAddress == INADDR_NONE)
+	{
+		LOGERRW(L"Invalid ip address.");
+		hr = E_INVALIDARG;
+		return hr;
+	}
+	if (iaIPMask == INADDR_NONE)
+	{
+		LOGERRW(L"Invalid ip mask.");
+		hr = E_INVALIDARG;
+		return hr;
+	}
+
+	GetInterfaceIndex(instanceGuid, interfaceIndex);
+
+	if (AddIPAddress(iaIPAddress,
+		iaIPMask,
+		interfaceIndex,
+		&NTEContext,
+		&NTEInstance) != NO_ERROR)
+	{
+		hr = HRESULT_FROM_WIN32(GetLastError());
+		if (hr != S_OK)
+		{
+			LOGERRW(L"AddIPAddress failed with Error:[0x%x]", hr);
+			return hr;
+		}
+	}
+
+	LOGINFOW(L"Loopback adapter ip set.");
+	return hr;
+}
+
+HRESULT LoopbackAdapter::SetDns(_In_ IN_ADDR Dns)
+/*++
+
+Routine Description:
+
+	This routine sets the dns for the adapter.
+
+Arguments:
+
+	DNS address in IN_ADDR format.
+
+Return Value:
+
+	S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	HRESULT hr = S_OK;
+
+	char dnsCharArray[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, (void *)&Dns, dnsCharArray, sizeof(dnsCharArray));
+	wstring dnsStr;
+	copy(dnsCharArray, dnsCharArray + strlen(dnsCharArray), std::back_inserter(dnsStr));
+	wstring netshCommand = L"netsh interface ip set dns " +
+		to_wstring(interfaceIndex) +
+		L" static " +
+		dnsStr;
+	
+	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
+	DWORD exitCode = 0;
+	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Command failed ('%ls')", netshCommand.c_str());
+		return hr;
+	}
+
+	if (exitCode != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(exitCode);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand.c_str());
+		return hr;
+	}
+
+	return hr;
+}
+
+HRESULT LoopbackAdapter::SetGateway(_In_ IN_ADDR Gateway)
+/*++
+
+Routine Description:
+
+	This routine sets the gateway for the adapter.
+
+Arguments:
+
+	DNS address in IN_ADDR format.
+
+Return Value:
+
+	S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	HRESULT hr = S_OK;
+
+	char gwCharArray[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, (void *)&Gateway, gwCharArray, sizeof(gwCharArray));
+	wstring gwStr;
+	copy(gwCharArray, gwCharArray + strlen(gwCharArray), std::back_inserter(gwStr));
+	wstring netshCommand = L"netsh interface ip set address " +
+		to_wstring(interfaceIndex) +
+		L" static " +
+		gwStr;
+
+	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
+	DWORD exitCode = 0;
+	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Command failed ('%ls')", netshCommand.c_str());
+		return hr;
+	}
+
+	if (exitCode != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(exitCode);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand.c_str());
 		return hr;
 	}
 
@@ -346,7 +497,7 @@ Return Value:
 		hr = HRESULT_FROM_WIN32(GetLastError());
 		if (hr != S_OK)
 		{
-			LOGERRW(L"Failed to SetupDiSetDeviceRegistryProperty during loopback adapter [%ls] deletion. Error:[0x%x]", name.c_str(), hr);
+			LOGERRW(L"Failed to SetupDiSetDeviceRegistryProperty during loopback adapter [%ls] deletion. Error:[0x%x]", displayName.c_str(), hr);
 		}
 	}
 
