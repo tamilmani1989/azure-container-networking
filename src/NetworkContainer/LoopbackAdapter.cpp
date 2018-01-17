@@ -387,15 +387,15 @@ HRESULT LoopbackAdapter::SetNetmask(_In_ IN_ADDR Netmask)
 
 Routine Description:
 
-This routine sets the netmask for the adapter.
+	This routine sets the netmask for the adapter.
 
 Arguments:
 
-Netmask in IN_ADDR format.
+	Netmask in IN_ADDR format.
 
 Return Value:
 
-S_OK on success. On failure appropriate HRESULT is returned.
+	S_OK on success. On failure appropriate HRESULT is returned.
 
 --*/
 {
@@ -438,15 +438,15 @@ HRESULT LoopbackAdapter::SetGateway(_In_ IN_ADDR Gateway)
 
 Routine Description:
 
-This routine sets the gateway for the adapter.
+	This routine sets the gateway for the adapter.
 
 Arguments:
 
-DNS address in IN_ADDR format.
+	DNS address in IN_ADDR format.
 
 Return Value:
 
-S_OK on success. On failure appropriate HRESULT is returned.
+	S_OK on success. On failure appropriate HRESULT is returned.
 
 --*/
 {
