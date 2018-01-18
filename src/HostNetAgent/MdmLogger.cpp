@@ -32,6 +32,11 @@ LPCSTR PER_CONTAINER_MDM_GUEST_METRICS[] = {
     MDM_METRIC_GUEST_DRIVER_INSTALL_ERROR_CODE_STR,
 };
 
+LPCSTR PER_CONTAINER_MDM_CNI_METRICS[] = {
+    MDM_METRIC_CNI_RUNNING_STR,
+    MDM_METRIC_CNI_ERROR_STR
+};
+
 DWORD
 ToAnsi(
     __in_z PCWSTR StringW,
@@ -123,6 +128,92 @@ Cleanup:
     return dwError;
 }
 
+HRESULT
+MdmLogger::LogPerContainerCNIMetricToMDM(
+    LPCSTR ContainerId,
+    LPCSTR Name,
+    LPCSTR Version,
+    LPCSTR OrchestratorName,
+    LPCSTR OrchestratorVersion,
+    LPCSTR GuestOS,
+    LPCSTR GuestOSVersion,
+    LPCSTR GuestKernelVersion,
+    LPCSTR MetricName,
+    ULONG64 Value
+)
+/*++
+
+Description:
+
+    Log per container counter MDM metric(CNI).
+
+Arguments:
+
+    ContainerId - Id of the container.
+
+    Name - Name of Plugin.
+
+    Version- Version of Plugin.
+
+    OrchestratorName - Orchestrator Name.
+
+    OrchestratorVersion - Orchestrator Version.
+
+    GuestOS - Guest OS.
+
+    GuestOSVersion - OS Version.
+
+    GuestKernelVersion - Kernel Version.
+
+    MetricName - Name of metric.
+
+    Value - Value of the metric.
+
+Return Value:
+
+    S_OK on success, error otherwise.
+
+--*/
+
+{
+    HRESULT hr = S_OK;
+    string metricName(MetricName);
+    map<std::string, MeasureMetric10D*>::iterator metricItr;
+    MeasureMetric10D* metric = NULL;
+
+    if (!EnableMDMLogging) {
+
+        goto Cleanup;
+    }
+
+    metricItr = PerContainerCNIMetrics.find(metricName);
+
+    if (metricItr != PerContainerCNIMetrics.end()) {
+
+        metric = metricItr->second;
+        hr = metric->LogValue(
+            Value,
+            NodeIdA.c_str(),
+            ClusterNameA.c_str(),
+            ContainerId,
+            GuestOS == NULL ? "" : GuestOS,
+            GuestOSVersion == NULL ? "" : GuestOSVersion,
+            GuestKernelVersion == NULL? "": GuestKernelVersion,
+            Name == NULL? "": Name,
+            Version == NULL? "": Version, 
+            OrchestratorName == NULL? "": OrchestratorName,
+            OrchestratorVersion == NULL ? "" : OrchestratorVersion
+        );
+    }
+    else {
+
+        LOGERR("Failed to find per-Node MDM metric : %hs", MetricName);
+    }
+
+Cleanup:
+
+    return hr;
+}
 
 HRESULT
 MdmLogger::LogPerContainerMetricToMDM(
@@ -401,7 +492,39 @@ Return Value:
                      MdmAccountNameA.c_str());
         }
     }
+    
+    for (int i = 0; i < ARRAYSIZE(PER_CONTAINER_MDM_CNI_METRICS); i++) {
+        LPCSTR metricName = PER_CONTAINER_MDM_CNI_METRICS[i];
+        MeasureMetric10D* metric = MeasureMetric10D::Create(
+            MdmAccountNameA.c_str(),
+            MDM_NAMESPACE,
+            metricName,
+            MDM_DIMENSION_NAME_NODE_ID_STR,
+            MDM_DIMENSION_NAME_CLUSTER_NAME_STR,
+            MDM_DIMENSION_NAME_CONTAINER_ID_STR,
+            MDM_DIMENSION_NAME_GUEST_OS_STR,
+            MDM_DIMENSION_NAME_GUEST_OS_VERSION_STR,
+            MDM_DIMENSION_NAME_GUEST_KERNEL_VERSION_STR,
+            MDM_DIMENSION_NAME_PLUGIN_NAME_STR,
+            MDM_DIMENSION_NAME_PLUGIN_VERSION_STR,
+            MDM_DIMENSION_NAME_PLUGIN_ORCHESTRATOR_NAME_STR,
+            MDM_DIMENSION_NAME_PLUGIN_ORCHESTRATOR_VERSION_STR);
 
+        if (metric != NULL) {
+
+            LOGINFOW(L"Created metric %hs on account %hs.",
+                metricName,
+                MdmAccountNameA.c_str());
+            PerContainerCNIMetrics.insert(make_pair(string(metricName), metric));
+        }
+        else {
+
+            LOGWARNW(L"Failed to create metric %hs on account %hs.",
+                metricName,
+                MdmAccountNameA.c_str());
+        }
+    }
+    
     DownloadMetrics = MeasureMetric4D::Create(
                           MdmAccountNameA.c_str(),
                           MDM_NAMESPACE,
@@ -509,6 +632,161 @@ Return Value:
     ANSI_STR_FREE(nodeId);
     ANSI_STR_FREE(clusterId);
 }
+
+void MdmLogger::LogCNIReport(
+    wstring ContainerId,
+    CNIReport& CNIReport
+)
+/*++
+
+Routine Description:
+
+    Helper to log CNI report to MDM.
+
+Arguments:
+
+    ContainerId - Container Id.
+
+    CNIReport - The CNI report to be logged.
+
+Return Value:
+
+    None.
+
+--*/
+
+{
+    PSTR containerIdAnsi = NULL;
+    PSTR nameAnsi = NULL;
+    PSTR versionAnsi = NULL;
+    PSTR orchestratorNameAnsi = NULL;
+    PSTR orchestratorVersionAnsi = NULL;
+    PSTR osTypeAnsi = NULL;
+    PSTR osVersionAnsi = NULL;
+    PSTR kernelVersionAnsi = NULL;
+    PSTR errorMessageAnsi = NULL;
+    HRESULT hr = S_OK;
+
+    hr = HRESULT_FROM_WIN32(ToAnsi(ContainerId.c_str(), &containerIdAnsi));
+    if (hr != S_OK) {
+
+        LOGERRW(L"Failed to convert ContainerId parameter %s to ANSI for PerContainerNode metric",
+            ContainerId.c_str());
+        goto Cleanup;
+    }
+
+    hr = HRESULT_FROM_WIN32(ToAnsi(CNIReport.Name.c_str(), &nameAnsi));
+    if (hr != S_OK) {
+
+        LOGERRW(L"Failed to convert CNI Name parameter %s to ANSI for PerContainerNode metric",
+            CNIReport.Name.c_str());
+    }
+
+    hr = HRESULT_FROM_WIN32(ToAnsi(CNIReport.Version.c_str(), &versionAnsi));
+    if (hr != S_OK) {
+
+        LOGERRW(L"Failed to convert CNI Version parameter %s to ANSI for PerContainerNode metric",
+            CNIReport.Version.c_str());
+    }
+
+    hr = HRESULT_FROM_WIN32(ToAnsi(CNIReport.OrchestratorDetails.OrchestratorName.c_str(), &orchestratorNameAnsi));
+    if (hr != S_OK) {
+
+        LOGERRW(L"Failed to convert Orchestrator Name parameter %s to ANSI for PerContainerNode metric",
+            CNIReport.OrchestratorDetails.OrchestratorName.c_str());
+    }
+
+
+    hr = HRESULT_FROM_WIN32(ToAnsi(CNIReport.OrchestratorDetails.OrchestratorVersion.c_str(), &orchestratorVersionAnsi));
+    if (hr != S_OK) {
+
+        LOGERRW(L"Failed to convert Orchestrator Version parameter %s to ANSI for PerContainerNode metric",
+            CNIReport.OrchestratorDetails.OrchestratorVersion.c_str());
+    }
+
+
+    hr = HRESULT_FROM_WIN32(ToAnsi(CNIReport.OSDetails.OSType.c_str(), &osTypeAnsi));
+    if (hr != S_OK) {
+
+        LOGERRW(L"Failed to convert guest OS Type parameter %s to ANSI for PerContainerNode metric",
+            CNIReport.OSDetails.OSType.c_str());
+    }
+
+
+    hr = HRESULT_FROM_WIN32(ToAnsi(CNIReport.OSDetails.OSVersion.c_str(), &osVersionAnsi));
+    if (hr != S_OK) {
+
+        LOGERRW(L"Failed to convert guest OS Version parameter %s to ANSI for PerContainerNode metric",
+            CNIReport.OSDetails.OSVersion.c_str());
+    }
+
+    hr = HRESULT_FROM_WIN32(ToAnsi(CNIReport.OSDetails.KernelVersion.c_str(), &kernelVersionAnsi));
+    if (hr != S_OK) {
+
+        LOGERRW(L"Failed to convert guest OS Kernel Version parameter %s to ANSI for PerContainerNode metric",
+            CNIReport.OSDetails.KernelVersion.c_str());
+    }
+
+    hr = HRESULT_FROM_WIN32(ToAnsi(CNIReport.ErrorMessage.c_str(), &errorMessageAnsi));
+    if (hr != S_OK) {
+
+        LOGERRW(L"Failed to convert CNI ErrorMessage parameter %s to ANSI for PerContainerNode metric",
+            CNIReport.ErrorMessage.c_str());
+    }
+
+    if (CNIReport.StartFlag != 0)
+    {
+        hr = LogPerContainerCNIMetricToMDM(containerIdAnsi,
+            nameAnsi,
+            versionAnsi,
+            orchestratorNameAnsi,
+            orchestratorVersionAnsi,
+            osTypeAnsi,
+            osVersionAnsi,
+            kernelVersionAnsi,
+            MDM_METRIC_CNI_RUNNING_STR,
+            1);
+        
+        if (hr != ERROR_SUCCESS)
+        {
+            LOGERRW(L"Uploading CNI metrics to mdm failed with errorcode %d", hr);
+        }
+    }
+    if (!CNIReport.ErrorMessage.empty())
+    {
+        hr = LogPerContainerCNIMetricToMDM(containerIdAnsi,
+            nameAnsi,
+            versionAnsi,
+            orchestratorNameAnsi,
+            orchestratorVersionAnsi,
+            osTypeAnsi,
+            osVersionAnsi,
+            kernelVersionAnsi,
+            MDM_METRIC_CNI_ERROR_STR,
+            1);
+
+        if (hr != ERROR_SUCCESS)
+        {
+            LOGERRW(L"Uploading CNI Error metrics to mdm failed with errorcode %d", hr);
+        }
+    }
+
+Cleanup:
+
+    ANSI_STR_FREE(containerIdAnsi);
+    ANSI_STR_FREE(nameAnsi);
+    ANSI_STR_FREE(versionAnsi);
+    ANSI_STR_FREE(orchestratorNameAnsi);
+    ANSI_STR_FREE(orchestratorVersionAnsi);
+    ANSI_STR_FREE(osTypeAnsi);
+    ANSI_STR_FREE(osVersionAnsi);
+    ANSI_STR_FREE(kernelVersionAnsi);
+    ANSI_STR_FREE(errorMessageAnsi);
+
+    return;
+}
+
+
 
 void MdmLogger::LogHealthReport(
     HealthReport& HealthReport

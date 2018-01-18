@@ -11,11 +11,14 @@
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
 	$(cpprestsdk)\build\native\include;
+	$(SRCROOT)\Logging;
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="HealthReport.cpp" />
+    <ClCompile Include="CNIReport.cpp" />
+	<ClCompile Include="PluginReport.cpp" />
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

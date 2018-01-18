@@ -120,9 +120,9 @@ Arguments:
     Uri - URI associated with the request.
 
 <<<<<<< HEAD
-	ContainerId = Place holder for the container Id extracted from the URI.
+    ContainerId = Place holder for the container Id extracted from the URI.
 
-	RequestType - Plcae holder for the requesttype key extracted from the URI 
+    RequestType - Plcae holder for the requesttype key extracted from the URI 
 =======
     ContainerId = Place holder for the container Id extracted from the URI.
 
@@ -247,12 +247,7 @@ Return Value:
     LOGINFOW(L"Retrieved ContainerId:{%s}", containerId.c_str());
     LOGINFOW(L"retrieved RequestType:{%s}", requestType.c_str());
 
-    if (_wcsicmp(POST_HEALTH_REPORT_KEY.c_str(), requestType.c_str()) != 0) {
 
-        LOGERRW(L"Received request type {%s} which is invalid", requestType.c_str());
-        statusCode = status_codes::BadRequest;
-        goto Cleanup;
-    }
 
     jsonBody = Request.extract_json().get();
     if (jsonBody.is_null() || jsonBody.size() == 0 || !jsonBody.is_object()) {
@@ -262,17 +257,42 @@ Return Value:
         goto Cleanup;
     }
 
-    try {
+    if (_wcsicmp(POST_HEALTH_REPORT_KEY.c_str(), requestType.c_str()) == 0) {
+        try {
 
-        HealthReport healthReport;
-        healthReport.InitializeHealthReport(containerId, jsonBody.as_object());
-        mdmLogger->LogHealthReport(healthReport);
-    } catch (const exception& e) {
+            HealthReport healthReport;
+            healthReport.InitializeHealthReport(containerId, jsonBody.as_object());
+            mdmLogger->LogHealthReport(healthReport);
+        }
+        catch (const exception& e) {
 
-        LOGERR("Failed to process health report with exception :{%s}", e.what());
+            LOGERR("Failed to process health report with exception :{%s}", e.what());
+            statusCode = status_codes::BadRequest;
+            goto Cleanup;
+        }
+    }
+    else if (_wcsicmp(POST_CNI_REPORT_KEY.c_str(), requestType.c_str()) == 0) {
+        try {
+
+            CNIReport cniReport;
+            cniReport.InitializeCNIReport(jsonBody.as_object());
+            cniReport.PrintCNIReport();
+            mdmLogger->LogCNIReport(containerId, cniReport);
+        }
+        catch (const exception& e) {
+
+            LOGERR("Failed to process CNI report with exception :{%s}", e.what());
+            statusCode = status_codes::BadRequest;
+            goto Cleanup;
+        }
+    }
+    else
+    {
+        LOGERRW(L"Received request type {%s} which is invalid", requestType.c_str());
         statusCode = status_codes::BadRequest;
         goto Cleanup;
     }
+
 
 Cleanup:
 
