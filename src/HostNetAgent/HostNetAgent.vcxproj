@@ -60,25 +60,25 @@
 <Target Name="AfterBuild">
    <ItemGroup>
       <Robocopy Include="$(BinariesBuildTypeArchDirectory)\HostNetAgent\">        
-           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests</DestinationFolder>        
+           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests;$(BinariesBuildTypeArchDirectory)\test\CNIReportTests</DestinationFolder>        
            <FileMatch>*pdb *dll *exe *config</FileMatch>      
        </Robocopy>
    </ItemGroup>
    <ItemGroup>
       <Robocopy Include="$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.dll">        
-           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests</DestinationFolder>        
+           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests;$(BinariesBuildTypeArchDirectory)\test\CNIReportTests</DestinationFolder>        
        </Robocopy>
    </ItemGroup>
    <ItemGroup>
       <Robocopy Include="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\*">        
-           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests</DestinationFolder>        
+           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests;$(BinariesBuildTypeArchDirectory)\test\CNIReportTests</DestinationFolder>        
            <IsRecursive>True</IsRecursive>        
            <FileMatch>*pdb *dll *exe *config</FileMatch>      
        </Robocopy>
    </ItemGroup>
    <ItemGroup>
       <Robocopy Include="$(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\lib\*.dll">        
-           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests</DestinationFolder>        
+           <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests;$(BinariesBuildTypeArchDirectory)\test\CNIReportTests</DestinationFolder>        
        </Robocopy>
    </ItemGroup>
  </Target>

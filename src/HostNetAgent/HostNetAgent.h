@@ -49,6 +49,7 @@ Environment:
 #include "PackagesInfo.h"
 #include "MdmLogger.h"
 #include "HealthReport.h"
+#include "CNIReport.h"
 
 using namespace std;
 using namespace web;
@@ -67,6 +68,7 @@ using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 #define PACKAGE_PATH_CMDLINE_FLAG L"/PackagePath"
 #define CONTAINER_SEGMENT L"container"
 
+const wstring POST_CNI_REPORT_KEY = L"cnireport";
 const wstring POST_HEALTH_REPORT_KEY = L"healthreport";
 const wstring GET_VERSION_QUERY_KEY = L"getpackageversion";
 const wstring GET_PACKAGE_URIS_QUERY_KEY = L"getpackageuris";

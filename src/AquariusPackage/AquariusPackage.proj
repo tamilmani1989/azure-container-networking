@@ -20,8 +20,8 @@
 
     <Copy SourceFiles="$(SRCROOT)\GAExtension\AzureExtensionPackage\VMExtension\disable.cmd" DestinationFolder="$(AquariusPackage)" />
     <Copy SourceFiles="$(SRCROOT)\GAExtension\AzureExtensionPackage\VMExtension\enable.cmd" DestinationFolder="$(AquariusPackage)" />
-	  <Copy SourceFiles="$(SRCROOT)\GAExtension\AzureExtensionPackage\VMExtension\install.cmd" DestinationFolder="$(AquariusPackage)" />
-	  <Copy SourceFiles="$(SRCROOT)\GAExtension\AzureExtensionPackage\VMExtension\uninstall.cmd" DestinationFolder="$(AquariusPackage)" />
+	<Copy SourceFiles="$(SRCROOT)\GAExtension\AzureExtensionPackage\VMExtension\install.cmd" DestinationFolder="$(AquariusPackage)" />
+	<Copy SourceFiles="$(SRCROOT)\GAExtension\AzureExtensionPackage\VMExtension\uninstall.cmd" DestinationFolder="$(AquariusPackage)" />
     <Copy SourceFiles="$(SRCROOT)\GAExtension\AzureExtensionPackage\VMExtension\update.cmd" DestinationFolder="$(AquariusPackage)" />
     <Copy SourceFiles="$(SRCROOT)\GAExtension\AzureExtensionPackage\VMExtension\HandlerManifest.json" DestinationFolder="$(AquariusPackage)" />
 
@@ -34,13 +34,21 @@
     <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.RestClient\Aqua.RestClient.exe" DestinationFolder="$(AquariusPackage)\$(Aquarius)" />
 
     <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\ServiceTunnelExtension\ServiceTunnelExtension.exe" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
-	  <Copy SourceFiles="$(VCRuntime)\lib\msvcp140.dll; $(VCRuntime)\lib\vcruntime140.dll; $(VCRuntime)\lib\concrt140.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
+	<Copy SourceFiles="$(VCRuntime)\lib\msvcp140.dll; $(VCRuntime)\lib\vcruntime140.dll; $(VCRuntime)\lib\concrt140.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
     <Copy SourceFiles="$(SRCROOT)\ServiceTunnelExtension\manifest.xml;$(SRCROOT)\ServiceTunnelExtension\config.xml" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension" />
     <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
 
     <Copy SourceFiles="$(SRCROOT)\GAExtension\AzureExtensionPackage\GAExtensionImage-Aquarius.xml" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusDeployScripts"/>
     <Copy SourceFiles="$(SRCROOT)\GAExtension\AzureExtensionPackage\UploadExtensionImage.ps1" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusDeployScripts"/>
 
+	<Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
+    <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
+    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\lib\IfxMetrics.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />     
+
+	<Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(AquariusPackage)\$(Aquarius)" />
+    <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(AquariusPackage)\$(Aquarius)" />
+    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\lib\IfxMetrics.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)" />  
+	
   </Target>
 
   <ItemGroup>
