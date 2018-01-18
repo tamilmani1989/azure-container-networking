@@ -1,3 +1,17 @@
+/*++
+
+Copyright (c) 2018  Microsoft Corporation
+
+Module Name:
+
+	Main.cpp
+
+Abstract:
+
+	Entry point for NetworkContainer.
+
+--*/
+
 #include <stdio.h>
 #include <wchar.h>
 #include <ws2tcpip.h>
@@ -73,8 +87,9 @@ Return Value:
 	usage += L"/type type_of_request ";
 	usage += L"/operation type_of_operation ";
 	usage += L"/ip ip_address_of_device ";
-	usage += L"[/dns dns_server_address] ";
+	usage += L"[/netmask netmask_address]";
 	usage += L"[/gateway gateway_address]";
+	usage += L"[/dns dns_server_address] ";
 
 	wcout << usage << endl;
 }
@@ -125,8 +140,8 @@ ParseCmdArguments(
 	_Out_ wstring& Operation,
 	_Out_ IN_ADDR& Ip,
 	_Out_ IN_ADDR& Netmask,
-	_Out_ IN_ADDR& Dns,
-	_Out_ IN_ADDR& Gateway
+	_Out_ IN_ADDR& Gateway,
+	_Out_ IN_ADDR& Dns
 )
 /*++
 
@@ -198,16 +213,16 @@ Arguments:
 			{
 				return hr;
 			}
-		} else if (arg == DNS_CMDLINE_FLAG)
+		} else if (arg == GATEWAY_CMD_LINE_FLAG)
 		{
-			hr = ConvertToINADDR(ArgList[++i], Dns);
+			hr = ConvertToINADDR(ArgList[++i], Gateway);
 			if (hr != S_OK)
 			{
 				return hr;
 			}
-		} else if (arg == GATEWAY_CMD_LINE_FLAG)
+		} else if (arg == DNS_CMDLINE_FLAG)
 		{
-			hr = ConvertToINADDR(ArgList[++i], Gateway);
+			hr = ConvertToINADDR(ArgList[++i], Dns);
 			if (hr != S_OK)
 			{
 				return hr;
@@ -238,7 +253,79 @@ Arguments:
 	return hr;
 }
 
-int wmain(int argc, wchar_t *argv[])
+HRESULT dispatch(_In_ NetworkContainer& nc,
+	_In_ wstring Name,
+	_In_ wstring Type,
+	_Inout_ wstring Operation,
+	_In_ IN_ADDR Ip,
+	_In_ IN_ADDR Netmask,
+	_In_ IN_ADDR Dns,
+	_In_ IN_ADDR Gateway
+)
+{
+	HRESULT hr = S_OK;
+
+	if (Type == L"Antares")
+	{
+		if (Operation == L"CREATE" || Operation == L"UPDATE")
+		{
+			hr = nc.FindAdapterByDisplayName(Name);
+			if (hr == HRESULT_FROM_WIN32(ERROR_NOT_FOUND))
+			{
+				LOGINFOW(L"Treat the request as UPDATE due to existing name: %ls", Name.c_str());
+				Operation = L"UPDATE";
+				hr = S_OK;
+			}
+			if (hr != S_OK)
+			{
+				LOGERRW(L"FindAdapterByDisplayName failed with error: [%0x].", hr);
+				return hr;
+			}
+
+			hr = nc.CreateLoopbackAdapterObj(Name);
+			if (hr != S_OK)
+			{
+				LOGERRW(L"Failed to created loopback adapter obj with error [%0x].", hr);
+				return hr;
+			}
+
+			nc.ConfigLoopbackAdapterObj(Name, Ip, Netmask, Gateway, Dns);
+			if (hr != S_OK)
+			{
+				LOGERRW(L"Failed to configure loopback adapter with error: [%0x].", hr);
+				return hr;
+			}
+		} else if (Operation == L"DELETE")
+		{
+			hr = nc.FindAdapterByDisplayName(Name);
+			if (hr != S_OK)
+			{
+				LOGERRW(L"Loopback adapter not found with name: %s", Name.c_str());
+			}
+
+			hr = nc.CreateLoopbackAdapterObj(Name);
+			if (hr != S_OK)
+			{
+				LOGERRW(L"Failed to created loopback adapter obj with error [%0x].", hr);
+				return hr;
+			}
+
+			hr = nc.DeleteLoopbackAdapterObj(Name);
+			if (hr != S_OK)
+			{
+				LOGERRW(L"Failed to delete loopback adapter with error: [%0x].", hr);
+				return hr;
+			}
+		} else 
+		{
+			hr = E_INVALIDARG;
+			return hr;
+		}
+	}
+	return hr;
+}
+
+int wmain(_In_ int argc, _In_ wchar_t *argv[])
 /*++
 
 Routine Description:
@@ -257,8 +344,8 @@ Arguments:
 	wstring logPath, name, operation, type;
 	IN_ADDR ip = { 0 };
 	IN_ADDR netmask = { 0 };
-	IN_ADDR dns = { 0 };
 	IN_ADDR gateway = { 0 };
+	IN_ADDR dns = { 0 };
 
 	hr = ParseCmdArguments(argc, 
 		argv, 
@@ -268,8 +355,8 @@ Arguments:
 		operation,
 		ip, 
 		netmask,
-		dns, 
-		gateway);
+		gateway,
+		dns);
 	if (hr != S_OK)
 	{
 		PrintUsage();
@@ -297,25 +384,10 @@ Arguments:
 
 	NetworkContainer nc(name, type, operation, ip, netmask, dns, gateway);
 
-	hr = nc.CreateLoopbackAdapter(name);
+	hr = dispatch(nc, name, type, operation, ip, netmask, dns, gateway);
 	if (hr != S_OK)
 	{
-		LOGERRW(L"CreatedLoopbackAdapter failed with error: [%0x].", hr);
-		return hr;
-	}
-
-	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dns);
-	if (hr != S_OK)
-	{
-		LOGERRW(L"SetLoopbackAdapterIp failed with error: [%0x].", hr);
-		return hr;
-	}
-	
-	hr = nc.DeleteLoopbackAdapter(name);
-	if (hr != S_OK)
-	{
-		LOGERRW(L"DeleteLoopbackAdapter failed with error: [%0x].", hr);
-		return hr;
+		LOGERRW(L"dispatch failed with error [%0x]", hr);
 	}
 
 	return hr;

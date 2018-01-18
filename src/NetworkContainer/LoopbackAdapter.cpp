@@ -4,11 +4,11 @@ Copyright (c) 2018  Microsoft Corporation
 
 Module Name:
 
-LoopbackAdapterInstaller.cpp
+	LoopbackAdapterInstaller.cpp
 
 Abstract:
 
-Implements methods to manipulate loopback adapter.
+	Implements methods to manipulate loopback adapter.
 
 --*/
 #include "LoopbackAdapter.h"
@@ -19,18 +19,18 @@ LoopbackAdapter::LoopbackAdapter(
 	_In_ wstring Name,
 	_In_ IN_ADDR Ip,
 	_In_ IN_ADDR Netmask,
-	_In_ IN_ADDR Dns,
-	_In_ IN_ADDR Gateway
+	_In_ IN_ADDR Gateway,
+	_In_ IN_ADDR Dns
 )
 /*++
 
 Routine Description:
 
-Default onstructor for LoopbackAdapter. This constructor will enable default settings.
+	Default onstructor for LoopbackAdapter. This constructor will enable default settings.
 
 Return Value:
 
-An instance of LoopbackAdapter object.
+	An instance of LoopbackAdapter object.
 
 --*/
 {
@@ -46,16 +46,15 @@ LoopbackAdapter::~LoopbackAdapter()
 
 Routine Description:
 
-Destructor for LoopbackAdapter. This destructor will free memory allocated by network container.
+	Destructor for LoopbackAdapter. This destructor will free memory allocated by network container.
 
 Return Value:
 
-None.
+	None.
 
 --*/
 
 {
-	Delete();
 	STR_FREE(loopbackInfPath);
 }
 
@@ -64,7 +63,11 @@ HRESULT LoopbackAdapter::GetNetworkParameters()
 
 Routine Description:
 
-	
+	Print network parameters to log file.
+
+Return Value:
+
+	S_OK on success. On failure appropriate HRESULT is returned.
 
 --*/
 {
@@ -105,6 +108,88 @@ Routine Description:
 	return hr;
 }
 
+HRESULT LoopbackAdapter::FillDevInfo(_In_ int InstanceIndex)
+/*++
+Routine Description:
+
+	This routine fills the requested device information.
+
+Return Value:
+
+	S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	HRESULT hr = S_OK;
+	interfaceIndex = InstanceIndex;
+
+	deviceInfoSet = SetupDiGetClassDevs(
+		&GUID_DEVCLASS_NET,
+		NULL,
+		NULL,
+		DIGCF_PRESENT);
+	if (deviceInfoSet == INVALID_HANDLE_VALUE)
+	{
+		hr = HRESULT_FROM_WIN32(GetLastError());
+		if (hr != S_OK)
+		{
+			LOGERRW(L"SetupDiGetClassDevs failed with error [%0x].", hr);
+			return hr;
+		}
+	}
+
+	ZeroMemory(&deviceInfoData, sizeof(SP_DEVINFO_DATA));
+	deviceInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
+
+	wchar_t friendlyName[MAX_PATH];
+	BOOL setupDiGetDevRegPropResult = false;
+	for (int i = 0;
+		SetupDiEnumDeviceInfo(deviceInfoSet, i, &deviceInfoData);
+		i++)
+	{
+		setupDiGetDevRegPropResult = SetupDiGetDeviceRegistryProperty(
+			deviceInfoSet,
+			&deviceInfoData,
+			SPDRP_FRIENDLYNAME,
+			NULL,
+			(PBYTE)friendlyName,
+			sizeof(friendlyName),
+			NULL);
+		if (!setupDiGetDevRegPropResult)
+		{
+			LOGINFOW(
+				L"SetupDiGetDeviceRegistryProperty failed when using SPDRP_FRIENDLYNAME. "
+				L"Will retry using device description. Error:[0x%x]",
+				GetLastError());
+
+			if (!SetupDiGetDeviceRegistryProperty(
+				deviceInfoSet,
+				&deviceInfoData,
+				SPDRP_DEVICEDESC,
+				NULL,
+				(PBYTE)friendlyName,
+				sizeof(friendlyName),
+				NULL))
+			{
+				hr = HRESULT_FROM_WIN32(GetLastError());
+				if (hr != S_OK)
+				{
+					LOGERRW(L"SetupDiGetDeviceRegistryProperty failed using SPDRP_DEVICEDESC. Error:[0x%x]", hr);
+					return hr;
+				}
+			}
+		}
+		if (wcsncmp(friendlyName, displayName.c_str(), wcslen(friendlyName)) == 0)
+		{
+			LOGINFOW(L"Filled device information for %s\n", friendlyName);
+			return hr;
+		}
+	}
+
+	hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
+	return hr;
+}
+
 HRESULT LoopbackAdapter::Create()
 /*++
 
@@ -117,7 +202,6 @@ Return Value:
 	S_OK on success. On failure appropriate HRESULT is returned.
 
 --*/
-
 {
 	HRESULT hr = S_OK;
 	wchar_t windowsDirectory[MAX_PATH] = { 0 };
@@ -327,6 +411,34 @@ Return Value:
 	return hr;
 }
 
+HRESULT LoopbackAdapter::Delete()
+{
+/*++
+
+Routine Description:
+
+	This routine deletes the loopback adapter using API's provided by SetupAPI.
+
+Return Value:
+
+	S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+
+	HRESULT hr = S_OK;
+
+	if (!SetupDiCallClassInstaller(DIF_REMOVE, deviceInfoSet, &deviceInfoData))
+	{
+		hr = HRESULT_FROM_WIN32(GetLastError());
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Failed to delete loopback adapter [%ls] with error. Error:[0x%x]", displayName.c_str(), hr);
+		}
+	}
+
+	return hr;
+}
+
 HRESULT LoopbackAdapter::SetIp(_In_ IN_ADDR Ip)
 /*++
 
@@ -362,8 +474,6 @@ Return Value:
 		return hr;
 	}
 
-	GetInterfaceIndex(instanceGuid, interfaceIndex);
-
 	if (AddIPAddress(iaIPAddress,
 		iaIPMask,
 		interfaceIndex,
@@ -378,7 +488,7 @@ Return Value:
 		}
 	}
 
-	LOGINFOW(L"Loopback adapter ip set.");
+	LOGINFOW(L"IP set successfully.");
 	return hr;
 }
 
@@ -404,15 +514,15 @@ Return Value:
 	char ipCharArray[INET_ADDRSTRLEN], nmCharArray[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, (void*)&ip, ipCharArray, sizeof(ipCharArray));
 	inet_ntop(AF_INET, (void*)&Netmask, nmCharArray, sizeof(nmCharArray));
-	wstring ipStr, gwStr;
+	wstring ipStr, nmStr;
 	copy(ipCharArray, ipCharArray + strlen(ipCharArray), back_inserter(ipStr));
-	copy(nmCharArray, nmCharArray + strlen(nmCharArray), back_inserter(gwStr));
+	copy(nmCharArray, nmCharArray + strlen(nmCharArray), back_inserter(nmStr));
 	wstring netshCommand = L"netsh interface ip set address name=" +
 		to_wstring(interfaceIndex) +
 		L" static addr=" +
 		ipStr +
 		L" mask=" +
-		gwStr;
+		nmStr;
 
 	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
 	DWORD exitCode = 0;
@@ -430,6 +540,7 @@ Return Value:
 		return hr;
 	}
 
+	LOGINFOW(L"Netmask set successfully.");
 	return hr;
 }
 
@@ -481,6 +592,7 @@ Return Value:
 		return hr;
 	}
 
+	LOGINFOW(L"Gateway set successfully.");
 	return hr;
 }
 
@@ -528,33 +640,22 @@ Return Value:
 		return hr;
 	}
 
+	LOGINFOW(L"DNS set successfully.");
 	return hr;
 }
 
-HRESULT LoopbackAdapter::Delete()
-{
+void LoopbackAdapter::SetIndex(_In_ int InterfaceIndex)
 /*++
 
 Routine Description:
 
-	This routine deletes the loopback adapter using API's provided by SetupAPI.
+	This routine sets interface index for the loop adapter.
 
-Return Value:
+Argument:
 
-	S_OK on success. On failure appropriate HRESULT is returned.
+	InterfaceIndex: Unique index of the interface.
 
 --*/
-
-	HRESULT hr = S_OK;
-
-	if (!SetupDiCallClassInstaller(DIF_REMOVE, deviceInfoSet, &deviceInfoData))
-	{
-		hr = HRESULT_FROM_WIN32(GetLastError());
-		if (hr != S_OK)
-		{
-			LOGERRW(L"Failed to SetupDiSetDeviceRegistryProperty during loopback adapter [%ls] deletion. Error:[0x%x]", displayName.c_str(), hr);
-		}
-	}
-
-	return hr;
+{
+	interfaceIndex = InterfaceIndex;
 }
