@@ -35,6 +35,7 @@ public:
 		_In_ IN_ADDR Dns
 	);
 	~LoopbackAdapter();
+	HRESULT FindAdapterByDisplayName(_In_ wstring Name, _Out_ int& InstanceIndex);
 	HRESULT GetNetworkParameters();
 	HRESULT FillDevInfo(_In_ int InstanceIndex);
 	HRESULT Create();

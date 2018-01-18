@@ -58,6 +58,115 @@ Return Value:
 	STR_FREE(loopbackInfPath);
 }
 
+HRESULT LoopbackAdapter::FindAdapterByDisplayName(_In_ wstring Name, _Out_ int& InstanceIndex)
+/*++
+
+Routine Description:
+
+	This routine finds an adapter by its display name.
+
+Argument:
+
+	Name: Display name of the adapter.
+
+Return Value:
+
+	S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	HRESULT hr = S_OK;
+	INetCfg* netCfg = NULL;
+	INetCfgClass* netCfgClass = NULL;
+	IEnumNetCfgComponent* netCfgComponentEnum = NULL;
+	INetCfgComponent* netCfgComponent = NULL;
+	LPWSTR interfaceDisplayName = NULL;
+	GUID instanceGuid = { 0 };
+	bool updated = false;
+
+	hr = GetINetCfgWithWriteLock(&netCfg);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"GetINetCfgWithWriteLock failed with error [%0x].", hr);
+		goto Cleanup;
+	}
+
+	hr = netCfg->QueryNetCfgClass(
+		&GUID_DEVCLASS_NET,
+		IID_INetCfgClass,
+		(void**)&netCfgClass);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"QueryNetCfgClass failed with error [%0x].", hr);
+		goto Cleanup;
+	}
+
+	hr = netCfgClass->EnumComponents(&netCfgComponentEnum);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"EnumComponents failed with error [%0x].", hr);
+		goto Cleanup;
+	}
+
+	while (S_OK == (hr = netCfgComponentEnum->Next(1, &netCfgComponent, NULL)))
+	{
+		hr = netCfgComponent->GetDisplayName(&interfaceDisplayName);
+		if (FAILED(hr))
+		{
+			LOGINFOW(L"Failed to retrieve interface name. Skipping interface");
+			hr = S_OK;
+			continue;
+		}
+		if (wcsncmp(Name.c_str(), interfaceDisplayName, wcslen(interfaceDisplayName)) == 0)
+		{
+			LOGINFOW(L"Found matching interface. Name [%s]", interfaceDisplayName);
+			hr = netCfgComponent->GetInstanceGuid(&instanceGuid);
+			if (hr != S_OK)
+			{
+				LOGERRW(L"GetInstanceGuid for intface name %s failed with error [%0x].", interfaceDisplayName, hr);
+				goto Cleanup;
+			}
+
+			updated = true;
+			break;
+		}
+
+		RELEASE(netCfgComponent);
+		CO_FREE(interfaceDisplayName);
+	}
+
+	if (hr == S_FALSE && !updated)
+	{
+		hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"GetInterfaceByDisplayName: Failed to find interface with name  %s", Name.c_str());
+			goto Cleanup;
+		}
+	}
+
+	hr = GetInterfaceIndex(instanceGuid, InstanceIndex);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Failed to retrieve index for interface with name [%s], Error:[0x%x]", Name.c_str(), hr);
+		return hr;
+	}
+
+	LOGINFOW(L"Interface name:[%s], index:[%d]", Name.c_str(), InstanceIndex);
+	return hr;
+
+Cleanup:
+
+	RELEASE(netCfgComponent);
+	RELEASE(netCfgComponentEnum);
+	RELEASE(netCfgClass);
+	CO_FREE(interfaceDisplayName);
+
+	ReleaseINetCfgWithLock(netCfg);
+
+	return hr;
+}
+
 HRESULT LoopbackAdapter::GetNetworkParameters()
 /*++
 
@@ -563,16 +672,20 @@ Return Value:
 {
 	HRESULT hr = S_OK;
 
-	char ipCharArray[INET_ADDRSTRLEN], gwCharArray[INET_ADDRSTRLEN];
+	char ipCharArray[INET_ADDRSTRLEN], nmCharArray[INET_ADDRSTRLEN], gwCharArray[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, (void*)&ip, ipCharArray, sizeof(ipCharArray));
+	inet_ntop(AF_INET, (void*)&netmask, nmCharArray, sizeof(nmCharArray));
 	inet_ntop(AF_INET, (void*)&Gateway, gwCharArray, sizeof(gwCharArray));
-	wstring ipStr, gwStr;
+	wstring ipStr, nmStr, gwStr;
 	copy(ipCharArray, ipCharArray + strlen(ipCharArray), back_inserter(ipStr));
+	copy(nmCharArray, nmCharArray + strlen(nmCharArray), back_inserter(nmStr));
 	copy(gwCharArray, gwCharArray + strlen(gwCharArray), back_inserter(gwStr));
 	wstring netshCommand = L"netsh interface ip set address name=" +
 		to_wstring(interfaceIndex) +
 		L" static addr=" +
 		ipStr +
+		L" mask=" +
+		nmStr +
 		L" gateway=" +
 		gwStr;
 

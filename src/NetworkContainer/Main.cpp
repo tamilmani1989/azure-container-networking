@@ -267,50 +267,37 @@ HRESULT dispatch(_In_ NetworkContainer& nc,
 
 	if (Type == L"Antares")
 	{
-		if (Operation == L"CREATE" || Operation == L"UPDATE")
+		if (Operation == L"CREATE")
 		{
-			hr = nc.FindAdapterByDisplayName(Name);
-			if (hr == HRESULT_FROM_WIN32(ERROR_NOT_FOUND))
+			hr = nc.CreateLoopbackAdapter(Name);
+			if (hr == HRESULT_FROM_WIN32(ERROR_ALIAS_EXISTS))
 			{
-				LOGINFOW(L"Treat the request as UPDATE due to existing name: %ls", Name.c_str());
-				Operation = L"UPDATE";
-				hr = S_OK;
+				LOGERRW(L"Failed to created loopback adapter. Adapter with name %s already exists.", Name.c_str());
+				return hr;
 			}
 			if (hr != S_OK)
 			{
-				LOGERRW(L"FindAdapterByDisplayName failed with error: [%0x].", hr);
+				LOGERRW(L"Failed to created loopback adapter with error [%0x].", hr);
 				return hr;
 			}
 
-			hr = nc.CreateLoopbackAdapterObj(Name);
-			if (hr != S_OK)
-			{
-				LOGERRW(L"Failed to created loopback adapter obj with error [%0x].", hr);
-				return hr;
-			}
-
-			nc.ConfigLoopbackAdapterObj(Name, Ip, Netmask, Gateway, Dns);
+			nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, Dns);
 			if (hr != S_OK)
 			{
 				LOGERRW(L"Failed to configure loopback adapter with error: [%0x].", hr);
 				return hr;
 			}
-		} else if (Operation == L"DELETE")
+		} else if (Operation == L"UPDATE")
 		{
-			hr = nc.FindAdapterByDisplayName(Name);
+			hr = nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, Dns);
 			if (hr != S_OK)
 			{
-				LOGERRW(L"Loopback adapter not found with name: %s", Name.c_str());
-			}
-
-			hr = nc.CreateLoopbackAdapterObj(Name);
-			if (hr != S_OK)
-			{
-				LOGERRW(L"Failed to created loopback adapter obj with error [%0x].", hr);
+				LOGERRW(L"Failed to created loopback adapter with error [%0x].", hr);
 				return hr;
 			}
-
-			hr = nc.DeleteLoopbackAdapterObj(Name);
+		} else if (Operation == L"DELETE")
+		{
+			hr = nc.DeleteLoopbackAdapter(Name);
 			if (hr != S_OK)
 			{
 				LOGERRW(L"Failed to delete loopback adapter with error: [%0x].", hr);
