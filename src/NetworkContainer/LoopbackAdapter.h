@@ -4,11 +4,11 @@ Copyright (c) 2018  Microsoft Corporation
 
 Module Name:
 
-LoopbackAdapterInstaller.cpp
+	LoopbackAdapterInstaller.cpp
 
 Abstract:
 
-Implements methods to manipulate loopback adapter.
+	Implements methods to manipulate loopback adapter.
 
 --*/
 
@@ -31,17 +31,19 @@ public:
 		_In_ wstring Name,
 		_In_ IN_ADDR Ip,
 		_In_ IN_ADDR Netmask,
-		_In_ IN_ADDR Dns,
-		_In_ IN_ADDR Gateway
+		_In_ IN_ADDR Gateway,
+		_In_ IN_ADDR Dns
 	);
 	~LoopbackAdapter();
 	HRESULT GetNetworkParameters();
+	HRESULT FillDevInfo(_In_ int InstanceIndex);
 	HRESULT Create();
+	HRESULT Delete();
 	HRESULT SetIp(_In_ IN_ADDR Ip);
 	HRESULT SetNetmask(_In_ IN_ADDR Netmask);
 	HRESULT SetGateway(_In_ IN_ADDR Gateway);
 	HRESULT SetDns(_In_ IN_ADDR Dns);
-	HRESULT Delete();
+	void SetIndex(_In_ int InterfaceIndex);
 
 private:
 	wstring displayName;

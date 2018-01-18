@@ -40,10 +40,10 @@ protected:
 	HRESULT UpdateInterfaceDisplayName(__in LPWSTR InterfaceName, __in LPWSTR InterfaceNewName, __out LPGUID InstanceGuid);
 	HRESULT EnableInterface(__in bool bEnable, __in HDEVINFO DeviceInfoSet, __in SP_DEVINFO_DATA* DeviceInfoData);
 	HRESULT GetInterfaceIndex(__in GUID InstanceGuid, __inout int& InterfaceIndex);
-
-private:
 	HRESULT GetINetCfgWithWriteLock(__deref_out INetCfg** NetCfg);
 	HRESULT ReleaseINetCfgWithLock(__in INetCfg* pnc);
+
+private:
 	HRESULT AcquireNetCfgWriteLock(__in INetCfg *NetCfg);
 	HRESULT ReleaseNetCfgWriteLock(__in INetCfg *NetCfg);
 	HRESULT CreateLoopbackAdapter(__in LPWSTR interfaceName, __inout LPGUID InstanceId);
