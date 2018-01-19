@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <TargetName>NetworkContainerTest</TargetName>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ProjectGuid>{2FCBC160-2166-4FE5-9473-0CBD7652122E}</ProjectGuid>
+    <OutDirSuffix>test\$(TargetName)\</OutDirSuffix>
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories);
+        $(SRCROOT)\ServiceTunnelLibrary;
+        $(SRCROOT)\test\TraceLogging;
+        $(SRCROOT)\Logging;
+      </AdditionalIncludeDirectories>
+      <!-- Override default from native_user_compile for compat with RdCommon.lib -->
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+		$(TAEF_SDK)\build\Library\x64\TE.Common.lib;
+		$(TAEF_SDK)\build\Library\x64\Wex.Common.lib;
+		$(TAEF_SDK)\build\Library\x64\Wex.Logger.lib;  
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+		
+		$(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(WindowsSdk64LibPath)\setupapi.lib;
+        $(WindowsSdk64LibPath)\strsafe.lib;
+        $(WindowsSdk64LibPath)\iphlpapi.lib;
+        $(WindowsSdk64LibPath)\Rpcrt4.lib;
+        $(WindowsSdk64LibPath)\Uuid.lib;
+        $(WindowsSdk64LibPath)\kernel32.lib;
+        $(WindowsSdk64LibPath)\ntdll.lib;
+        $(WindowsSdk64LibPath)\pathcch.lib;
+        $(WindowsSdk64LibPath)\newdev.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsupp.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
+        $(PkgVisualCpp_x64_Corext)\lib\x64\legacy_stdio_definitions.lib;
+        $(FC_Redist)\content\redist\SacApi.lib;
+        $(FC_Redist)\content\redist\DCM.RegUtil.lib;
+        $(FC_Redist)\content\redist\RdCommon.lib;
+        $(PkgPolicyAgent_HSClient_Release)\HealthReportingClientLib.lib
+	  </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="NetworkContainerTest.cpp" />
+    <ClCompile Include="$(SrcRoot)\Common\XmlParseHelper\XmlParserHelper.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="NetworkContainerLibrary.h" />
+    <ClInclude Include="NetworkContainerTest.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(SRCROOT)\Logging\Logging.vcxproj">
+      <Project>{11A5289D-DE65-411C-9AB8-9B5D088382E4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="$(SRCROOT)\NetworkContainer\NetworkContainerLibrary.vcxproj">
+      <Project>{5CC4AAD8-1069-4580-A7B2-5C03F84FA17B}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+      <Robocopy Include="$(SRCROOT)\test\NetworkContainerTest\rcf">
+        <FileMatch>*.*</FileMatch>
+        <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkContainerTest\rcf</DestinationFolder>
+      </Robocopy>
+      <Robocopy Include="$(SRCROOT)\test\NetworkContainerTest\rcf2">
+        <FileMatch>*.*</FileMatch>
+        <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkContainerTest\rcf2</DestinationFolder>
+      </Robocopy>	  
+      <Robocopy Include="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\*">        
+         <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkContainerTest</DestinationFolder>             
+      </Robocopy>
+  </ItemGroup> 
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

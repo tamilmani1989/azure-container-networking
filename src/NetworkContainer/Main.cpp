@@ -298,6 +298,7 @@ HRESULT dispatch(_In_ NetworkContainer& nc,
 		} else if (Operation == L"DELETE")
 		{
 			hr = nc.DeleteLoopbackAdapter(Name);
+	
 			if (hr != S_OK)
 			{
 				LOGERRW(L"Failed to delete loopback adapter with error: [%0x].", hr);
