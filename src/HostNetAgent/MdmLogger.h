@@ -21,6 +21,7 @@ Author:
 #include "XmlParserHelper.h"
 #include <map>
 #include "HealthReport.h"
+#include "CNIReport.h"
 
 // Constant string for vnet mdm account
 #define MDM_ACCOUNT L"MdmAccount"
@@ -34,7 +35,14 @@ Author:
 #define MDM_DIMENSION_NAME_CLUSTER_NAME_STR             "Cluster"
 #define MDM_DIMENSION_NAME_GUEST_OS_STR                 "GuestOS"
 #define MDM_DIMENSION_NAME_GUEST_OS_VERSION_STR         "GuestOSVersion"
+#define	MDM_DIMENSION_NAME_GUEST_KERNEL_VERSION_STR     "KernelVersion"
 #define MDM_DIMENSION_NAME_NETAGENT_VERSION_STR         "NetAgentVersion"
+
+#define MDM_DIMENSION_NAME_PLUGIN_ORCHESTRATOR_NAME_STR         "OrchestratorName"
+#define	MDM_DIMENSION_NAME_PLUGIN_ORCHESTRATOR_VERSION_STR      "OrchestratorVersion"
+#define	MDM_DIMENSION_NAME_PLUGIN_NAME_STR                      "PluginName"
+#define	MDM_DIMENSION_NAME_PLUGIN_VERSION_STR                   "PluginVersion"
+
 
 // MDM metric names for per-container metrics
 #define MDM_METRIC_PACKAGE_DOWNLOAD_REQUEST_STR                 "PackageDownloadAttempted"
@@ -45,6 +53,8 @@ Author:
 #define MDM_METRIC_GUEST_TOTAL_VF_STR                           "VFCount"
 #define MDM_METRIC_GUEST_VF_IN_ERROR_STR                        "VFInError"
 #define MDM_METRIC_GUEST_DRIVER_INSTALL_ERROR_CODE_STR          "DriverInstallErrorCode"
+#define MDM_METRIC_CNI_RUNNING_STR                              "CNIRunning"
+#define MDM_METRIC_CNI_ERROR_STR                                "CNIError"
 
 #define MAX_STR_LEN (size_t) ((INT_MAX/2) -1)
 
@@ -83,6 +93,18 @@ public:
         LPCSTR MetricName,
         ULONG64 Value);
 
+    HRESULT LogPerContainerCNIMetricToMDM(
+        LPCSTR ContainerId,
+        LPCSTR Name,
+        LPCSTR Version,
+        LPCSTR OrchestratorName,
+        LPCSTR OrchestratorVersion,
+        LPCSTR GuestOS,
+        LPCSTR GuestOSVersion,
+        LPCSTR KernelVersion,
+        LPCSTR MetricName,
+        ULONG64 Value);
+
     HRESULT LogDownloadMetricToMDM(LPCWSTR ContainerId, ULONG64 Value) const;
 
     HRESULT InitializeMdm(LPCWSTR SettingsFileName, LPCWSTR PackageVersion);
@@ -90,6 +112,8 @@ public:
     void SetNodeInformationFromRegistry();
 
     void LogHealthReport(HealthReport& HealthReport);
+
+    void LogCNIReport(wstring ContainerId, CNIReport& CNIReport);
 
     static MdmLogger* GetInstance();
 
@@ -111,6 +135,9 @@ private:
 
     // map from metric name to Per-container MDM metric
     map<string, MeasureMetric6D*> PerContainerMetrics;
+
+    // map from metric name to Per-container CNI MDM metric
+    map<string, MeasureMetric10D*> PerContainerCNIMetrics;
 };
 
 

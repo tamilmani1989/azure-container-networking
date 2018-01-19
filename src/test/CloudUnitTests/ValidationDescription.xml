@@ -80,6 +80,23 @@
     </TestCategories>
     </ValidationReportTaskDescriptions>
 
+	<ValidationReportTaskDescriptions>
+    <TaskName>CNIReportTest</TaskName>
+    <OwnerName>Tamilmani Manoharan</OwnerName>
+    <TaskCommand>test\CNIReportTests\TE.exe test\CNIReportTests\CNIReportTests.dll</TaskCommand>
+    <PreTaskCommand />
+    <PostTaskCommand />
+    <ValidationReportDescriptions>
+      <ValidationReportFilename>CNIReportTests.xml</ValidationReportFilename>
+      <TestFramework>TAEF</TestFramework>
+    </ValidationReportDescriptions>
+    <ReimageHints>
+	  <Behavior>None</Behavior>
+    </ReimageHints>
+    <TestCategories>
+      <CategoryName>UnitTest</CategoryName>
+    </TestCategories>
+    </ValidationReportTaskDescriptions>
 
   </TaskGroup>
 </ValidationDescription>
