@@ -20,7 +20,7 @@ Abstract:
 #include "RcfEnumerator.h"
 #include <iostream>
 #include "ConfigReader.h"
-#include "NetworkContainer.h"
+#include "..\NetworkContainerLibrary\NetworkContainer.h"
 #include "..\VFPluginLibrary\VFPluginUtilities.h"
 #include "Logging.h"
 #include <sstream>
