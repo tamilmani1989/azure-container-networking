@@ -136,7 +136,6 @@ ParseCmdArguments(
 	_In_ wchar_t* ArgList[],
 	_Out_ wstring& LogPath,
 	_Out_ wstring& Name,
-	_Out_ wstring& Type,
 	_Out_ wstring& Operation,
 	_Out_ IN_ADDR& Ip,
 	_Out_ IN_ADDR& Netmask,
@@ -192,9 +191,6 @@ Arguments:
 		} else if (arg == NAME_CMDLINE_FLAG)
 		{
 			Name = ArgList[++i];
-		} else if (arg == TYPE_CMDLINE_FLAG)
-		{
-			Type = ArgList[++i];
 		} else if (arg == OPERATION_CMDLINE_FLAG)
 		{
 			Operation = ArgList[++i];
@@ -234,16 +230,13 @@ Arguments:
 		}
 	}
 
-	if (Name.empty() || 
-		Type.empty() || 
-		Operation.empty())
+	if (Name.empty() || Operation.empty())
 	{
 		hr = E_INVALIDARG;
 		return hr;
 	}
 
-	if (Type == L"Antares" && 
-		Operation == L"CREATE" &&
+	if ( Operation == L"CREATE" &&
 		!ipSet)
 	{
 		hr = E_INVALIDARG;
@@ -255,7 +248,6 @@ Arguments:
 
 HRESULT dispatch(_In_ NetworkContainer& nc,
 	_In_ wstring Name,
-	_In_ wstring Type,
 	_Inout_ wstring Operation,
 	_In_ IN_ADDR Ip,
 	_In_ IN_ADDR Netmask,
@@ -265,51 +257,49 @@ HRESULT dispatch(_In_ NetworkContainer& nc,
 {
 	HRESULT hr = S_OK;
 
-	if (Type == L"Antares")
+	if (Operation == L"CREATE")
 	{
-		if (Operation == L"CREATE")
+		hr = nc.CreateLoopbackAdapter(Name);
+		if (hr == HRESULT_FROM_WIN32(ERROR_ALIAS_EXISTS))
 		{
-			hr = nc.CreateLoopbackAdapter(Name);
-			if (hr == HRESULT_FROM_WIN32(ERROR_ALIAS_EXISTS))
-			{
-				LOGERRW(L"Failed to created loopback adapter. Adapter with name %s already exists.", Name.c_str());
-				return hr;
-			}
-			if (hr != S_OK)
-			{
-				LOGERRW(L"Failed to created loopback adapter with error [%0x].", hr);
-				return hr;
-			}
-
-			nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, Dns);
-			if (hr != S_OK)
-			{
-				LOGERRW(L"Failed to configure loopback adapter with error: [%0x].", hr);
-				return hr;
-			}
-		} else if (Operation == L"UPDATE")
-		{
-			hr = nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, Dns);
-			if (hr != S_OK)
-			{
-				LOGERRW(L"Failed to created loopback adapter with error [%0x].", hr);
-				return hr;
-			}
-		} else if (Operation == L"DELETE")
-		{
-			hr = nc.DeleteLoopbackAdapter(Name);
-	
-			if (hr != S_OK)
-			{
-				LOGERRW(L"Failed to delete loopback adapter with error: [%0x].", hr);
-				return hr;
-			}
-		} else 
-		{
-			hr = E_INVALIDARG;
+			LOGERRW(L"Failed to created loopback adapter. Adapter with name %s already exists.", Name.c_str());
 			return hr;
 		}
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Failed to created loopback adapter with error [%0x].", hr);
+			return hr;
+		}
+
+		nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, Dns);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Failed to configure loopback adapter with error: [%0x].", hr);
+			return hr;
+		}
+	} else if (Operation == L"UPDATE")
+	{
+		hr = nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, Dns);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Failed to created loopback adapter with error [%0x].", hr);
+			return hr;
+		}
+	} else if (Operation == L"DELETE")
+	{
+		hr = nc.DeleteLoopbackAdapter(Name);
+	
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Failed to delete loopback adapter with error: [%0x].", hr);
+			return hr;
+		}
+	} else 
+	{
+		hr = E_INVALIDARG;
+		return hr;
 	}
+	
 	return hr;
 }
 
@@ -329,7 +319,7 @@ Arguments:
 {
 	HRESULT hr = S_OK;
 
-	wstring logPath, name, operation, type;
+	wstring logPath, name, operation;
 	IN_ADDR ip = { 0 };
 	IN_ADDR netmask = { 0 };
 	IN_ADDR gateway = { 0 };
@@ -339,7 +329,6 @@ Arguments:
 		argv, 
 		logPath,
 		name,
-		type,
 		operation,
 		ip, 
 		netmask,
@@ -359,7 +348,6 @@ Arguments:
 	wchar_t ipStr[INET_ADDRSTRLEN], netmaskStr[INET_ADDRSTRLEN], dnsStr[INET_ADDRSTRLEN], gatewayStr[INET_ADDRSTRLEN];
 	wcout << "logPath: " << logPath << endl;
 	wcout << "name: " << name << endl;
-	wcout << "type: " << type << endl;
 	wcout << "operation: " << operation << endl;
 	inet_ntop(AF_INET, (void *)&ip, (char*)ipStr, sizeof(ipStr));
 	inet_ntop(AF_INET, (void *)&netmask, (char*)netmaskStr, sizeof(netmaskStr));
@@ -370,9 +358,9 @@ Arguments:
 	printf("dns: %s\n", (char*)dnsStr);
 	printf("gateway: %s\n", (char*)gatewayStr);
 
-	NetworkContainer nc(name, type, operation, ip, netmask, dns, gateway);
+	NetworkContainer nc(name, operation, ip, netmask, dns, gateway);
 
-	hr = dispatch(nc, name, type, operation, ip, netmask, dns, gateway);
+	hr = dispatch(nc, name, operation, ip, netmask, dns, gateway);
 	if (hr != S_OK)
 	{
 		LOGERRW(L"dispatch failed with error [%0x]", hr);
