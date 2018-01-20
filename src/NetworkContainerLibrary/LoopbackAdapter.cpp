@@ -149,11 +149,10 @@ Return Value:
 	if (hr != S_OK)
 	{
 		LOGERRW(L"Failed to retrieve index for interface with name [%s], Error:[0x%x]", Name.c_str(), hr);
-		return hr;
+		goto Cleanup;
 	}
 
 	LOGINFOW(L"Interface name:[%s], index:[%d]", Name.c_str(), InstanceIndex);
-	return hr;
 
 Cleanup:
 

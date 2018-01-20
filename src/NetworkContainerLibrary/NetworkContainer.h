@@ -57,7 +57,6 @@ public:
 	~NetworkContainer();
 	NetworkContainer(
 		_In_ wstring Name,
-		_In_ wstring Type,
 		_In_ wstring Operation,
 		_In_ IN_ADDR Ip,
 		_In_ IN_ADDR Netmask,
@@ -67,7 +66,7 @@ public:
 
 	HRESULT FindAdapterByDisplayName(_In_ wstring Name);
 	HRESULT CreateLoopbackAdapter(_In_ wstring Name);
-	HRESULT NetworkContainer::ConfigLoopbackAdapter(
+	HRESULT ConfigLoopbackAdapter(
 		_In_ wstring Name,
 		_In_ IN_ADDR Ip,
 		_In_ IN_ADDR Netmask,

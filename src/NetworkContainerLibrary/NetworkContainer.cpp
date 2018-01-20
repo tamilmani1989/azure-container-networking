@@ -13,6 +13,8 @@ Abstract:
 --*/
 
 #include "NetworkContainer.h"
+#undef __WFILE__
+#undef __WFUNCTION__
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
@@ -60,7 +62,6 @@ None.
 
 NetworkContainer::NetworkContainer(
 	_In_ wstring Name,
-	_In_ wstring Type,
 	_In_ wstring Operation,
 	_In_ IN_ADDR Ip,
 	_In_ IN_ADDR Netmask,
@@ -81,7 +82,6 @@ Return Value:
 --*/
 {
 	name = Name;
-	type = Type;
 	ip = Ip;
 	netmask = Netmask;
 	dns = Dns;
@@ -114,7 +114,7 @@ Return Value:
 
 	adapters[Name] = unique_ptr<LoopbackAdapter>(
 		new LoopbackAdapter(
-			name,
+			Name,
 			ip,
 			netmask,
 			dns,
@@ -142,7 +142,6 @@ HRESULT NetworkContainer::CreateLoopbackAdapter(_In_ wstring Name)
 Routine Description:
 
 	This routine dynamically allocates an LoopbackAdapter class instance, and stores pointer to it to adapters.
-	This routine is necessary for operating on LoopbackAdapter class.
 
 Return Value:
 
@@ -151,11 +150,15 @@ Return Value:
 {
 	HRESULT hr = S_OK;
 
-	FindAdapterByDisplayName(Name);
+	hr = FindAdapterByDisplayName(Name);
 	// If lastIndex is set, then we found an existing adapter with the same name.
 	if (lastIndex)
 	{
 		hr = HRESULT_FROM_WIN32(ERROR_ALIAS_EXISTS);
+		return hr;
+	}
+	if (hr != HRESULT_FROM_WIN32(ERROR_NOT_FOUND))
+	{
 		return hr;
 	}
 
