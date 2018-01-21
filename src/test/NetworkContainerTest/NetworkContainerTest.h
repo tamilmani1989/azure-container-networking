@@ -43,4 +43,5 @@ public:
 
 	TEST_METHOD(TestFindAdapterByDisplayName);
 	TEST_METHOD(TestCreateLoopbackAdapter);
+	TEST_METHOD(TestConfigLoopbackAdapter);
 };
