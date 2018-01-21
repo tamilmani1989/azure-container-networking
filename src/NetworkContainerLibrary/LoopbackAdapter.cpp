@@ -138,11 +138,8 @@ Return Value:
 	if (hr == S_FALSE && !updated)
 	{
 		hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
-		if (hr != S_OK)
-		{
-			LOGERRW(L"GetInterfaceByDisplayName: Failed to find interface with name  %s", Name.c_str());
-			goto Cleanup;
-		}
+		LOGERRW(L"GetInterfaceByDisplayName: Failed to find interface with name  %s", Name.c_str());
+		goto Cleanup;
 	}
 
 	hr = GetInterfaceIndex(instanceGuid, InstanceIndex);
@@ -535,6 +532,8 @@ Return Value:
 
 	HRESULT hr = S_OK;
 
+	RemoveLoopbackAdapter((LPWSTR)displayName.c_str());
+	/*
 	if (!SetupDiCallClassInstaller(DIF_REMOVE, deviceInfoSet, &deviceInfoData))
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
@@ -543,6 +542,7 @@ Return Value:
 			LOGERRW(L"Failed to delete loopback adapter [%ls] with error. Error:[0x%x]", displayName.c_str(), hr);
 		}
 	}
+	*/
 
 	return hr;
 }

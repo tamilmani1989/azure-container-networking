@@ -15,7 +15,7 @@
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 using namespace WEX::TestExecution;
 
-HRESULT SetupLogging(
+HRESULT SetupDebugLogging(
 )
 {
 	DWORD error;
@@ -83,6 +83,79 @@ Cleanup:
 	return hr;
 }
 
+bool
+SetupLogging(
+	__in PCWSTR LogLocation
+)
+/*++
+
+Routine Description:
+
+	Helper to set up logging.
+
+Arguments:
+
+	LogLocation - Location of the log..
+
+Return Value:
+
+	True if setup succeeded, False otherwise.
+
+--*/
+{
+	DWORD err;
+	HRESULT hr = S_OK;
+
+	if (CreateDirectory(LogLocation, NULL) == 0) {
+
+		err = GetLastError();
+		if (err != ERROR_ALREADY_EXISTS) {
+
+			std::wcout << L"Failed to set up logging directory. Error: [0" << hex << err << " ]" << std::endl;
+			return false;
+		}
+	}
+
+	hr = LOGSETUP(LogLocation, L"NetworkContainer");
+
+	return hr == S_OK ? true : false;
+}
+
+HRESULT ConvertToINADDR(_In_ wchar_t* Str, IN_ADDR& Retval)
+/*++
+
+Routine Description:
+
+This routine convert ip address from string representation to IN_ADDR struct.
+
+Arguments:
+
+Str: string representation of ip address.
+
+Retval: IN_ADDR representation of ip address.
+
+Return Value:
+
+HRESULT - Returns if the conversion succeeds or not.
+
+--*/
+{
+	DWORD ret;
+	HRESULT hr = S_OK;
+	PCWSTR temp = NULL;
+	ret = RtlIpv4StringToAddress(Str, true, &temp, &Retval);
+	if (!ret)
+	{
+		hr = HRESULT_FROM_WIN32(GetLastError());
+		if (hr != S_OK)
+		{
+			wcout << L"NetworkContainer\\Main.cpp:: RtlIpv4StringToAddress function failed with error: " << err << " "
+				<< "Address: " << Str << " "
+				<< "hr: " << hex << hr << endl;
+		}
+	}
+	return hr;
+}
 
 NetworkContainerTest::NetworkContainerTest()
 /*++
@@ -143,10 +216,17 @@ Return Value:
 {
 	HRESULT hr = S_OK;
 
-	hr = SetupLogging();
+	hr = SetupDebugLogging();
 	if (FAILED(hr))
 	{
-		wprintf(L"Failed to setup logging due to error [%0x]", hr);
+		wprintf(L"Failed to setup debug logging due to error [%0x]", hr);
+		return false;
+	}
+
+	hr = SetupLogging(LOG_PATH);
+	if (FAILED(hr))
+	{
+		wprintf(L"Failed to setup debug logging due to error [%0x]", hr);
 		return false;
 	}
 
@@ -170,9 +250,15 @@ Return Value:
 
 --*/
 {
-	return true;
-}
+	HRESULT hr = S_OK;
 
+	wstring name(L"test");
+
+	NetworkContainer nc;
+	hr = nc.DeleteLoopbackAdapter(name);
+
+	return hr == S_OK ? true : false;
+}
 
 void NetworkContainerTest::TestFindAdapterByDisplayName()
 /*++
@@ -195,27 +281,31 @@ Return Value:
 	HRESULT hr = S_OK;
 
 	NetworkContainer nc;
+
+	LOGINFOW(L"FindAdapterByDisplayName when no adapter presents. [1/2]");
 	hr = nc.FindAdapterByDisplayName(name);
 	VERIFY_ARE_EQUAL(hr, 
 		HRESULT_FROM_WIN32(ERROR_NOT_FOUND), 
-		L"FindAdapterByDisplayName passed when no adapter presents. [1/2]");
+		L"FindAdapterByDisplayName passed when no adapter presents. [1/2]"
+	);
 
+	LOGINFOW(L"CreateLoopbackAdapter when no adapter presents.");
 	hr = nc.CreateLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
 		S_OK,
 		L"Loopback adapter created");
 
+	LOGINFOW(L"FindAdapterByDisplayName when adapter presents. [2/2]");
 	hr = nc.FindAdapterByDisplayName(name);
 	VERIFY_ARE_EQUAL(hr,
 		S_OK,
-		L"FindAdapterByDisplayName passed when adapter presents. [2/2]");
+		L"FindAdapterByDisplayName passed when adapter presents. [2/2]"
+	);
 
+	LOGINFOW(L"DeleteLoopbackAdapter in TestFindAdapterByDisplayName.")
 	hr = nc.DeleteLoopbackAdapter(name);
-	VERIFY_ARE_EQUAL(hr,
-		S_OK,
-		L"Removed adapter.");
+	VERIFY_ARE_EQUAL(hr, S_OK, L"Removed adapter.");
 }
-
 
 void NetworkContainerTest::TestCreateLoopbackAdapter()
 /*++
@@ -236,16 +326,86 @@ Return Value:
 {
 	HRESULT hr = S_OK;
 	wstring name(L"test");
+
 	NetworkContainer nc;
+	LOGINFOW(L"CreateLoopbackAdapter when no adapter presents.")
 	hr = nc.CreateLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
 		S_OK,
-		L"CreateLoopbackAdapter passed when no adapter presents. [1/2]");
+		L"CreateLoopbackAdapter passed when no adapter presents. [1/2]"
+	);
 
+	LOGINFOW(L"CreateLoopbackAdapter.")
 	hr = nc.CreateLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
 		HRESULT_FROM_WIN32(ERROR_ALIAS_EXISTS),
-		L"CreateLoopbackAdapter passed when adapter presents. [2/2]");
+		L"CreateLoopbackAdapter passed when adapter presents. [2/2]"
+	);
+
+	LOGINFOW(L"DeleteLoopbackAdapter in TestCreateLoopbackAdapter.")
+	hr = nc.DeleteLoopbackAdapter(name);
+	VERIFY_ARE_EQUAL(hr, S_OK, L"Removed adapter.");
+}
+
+void NetworkContainerTest::TestConfigLoopbackAdapter()
+/*++
+
+Routine Description:
+
+	This routine tests if the loopback adapter is created successfully or not.
+
+Argument:
+
+	Name: Display name of the loopback adapter.
+
+Return Value:
+
+	None.
+
+--*/
+{
+	HRESULT hr = S_OK;
+
+	wstring name(L"test");
+	wstring ipStr = L"1.2.3.4";
+	wstring netmaskStr = L"255.255.255.0";
+	wstring gatewayStr = L"4.3.2.1";
+	wstring dnsStr = L"8.8.8.8";
+	IN_ADDR ip, netmask, gateway, dns;
+	hr = ConvertToINADDR((wchar_t*)ipStr.c_str(), ip);
+	VERIFY_ARE_EQUAL(hr, S_OK, L"ip address parsed successfully.");
+	hr = ConvertToINADDR((wchar_t*)netmaskStr.c_str(), netmask);
+	VERIFY_ARE_EQUAL(hr, S_OK, L"netmask address parsed successfully.");
+	hr = ConvertToINADDR((wchar_t*)gatewayStr.c_str(), gateway);
+	VERIFY_ARE_EQUAL(hr, S_OK, L"gateway address parsed successfully.");
+	hr = ConvertToINADDR((wchar_t*)dnsStr.c_str(), dns);
+	VERIFY_ARE_EQUAL(hr, S_OK, L"dns address parsed successfully.");
+
+	NetworkContainer nc;
+	LOGINFOW(L"ConfigLoopbackAdapter when no adapter presents.")
+	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dns);
+	VERIFY_ARE_EQUAL(hr, 
+		HRESULT_FROM_WIN32(ERROR_NOT_FOUND), 
+		L"ConfigLoopbackAdapter test passed when no adapter presents. [1/2]"
+	);
+
+	LOGINFOW(L"CreateLoopbackAdapter.")
+	hr = nc.CreateLoopbackAdapter(name);
+	VERIFY_ARE_EQUAL(hr,
+		S_OK,
+		L"Created loopback adapter"
+	);
+
+	LOGINFOW(L"ConfigLoopbackAdapter when adapter presents.")
+	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dns);
+	VERIFY_ARE_EQUAL(S_OK,
+		S_OK,
+		L"ConfigLoopbackAdapter test passed when adapter presents. [2/2]"
+	);
+
+	LOGINFOW(L"DeleteLoopbackAdapter in TestConfigLoopbackAdapter.")
+	hr = nc.DeleteLoopbackAdapter(name);
+	VERIFY_ARE_EQUAL(hr, S_OK, L"Removed adapter.");
 }
 
 int wmain(int argc, wchar_t *argv[])

@@ -123,7 +123,8 @@ Return Value:
 
 	int instanceIndex = 0;
 	hr = adapters[Name]->FindAdapterByDisplayName(Name, instanceIndex);
-	if (hr == HRESULT_FROM_WIN32(ERROR_NOT_FOUND)) { return hr; }
+	//if (hr == HRESULT_FROM_WIN32(ERROR_NOT_FOUND)) { return hr; }
+	if (hr != S_OK) { return hr; }
 
 	// If lastIndex is set, then we found an existing adapter with the same name.
 	lastIndex = instanceIndex;
@@ -199,7 +200,11 @@ Return Value:
 {
 	HRESULT hr = S_OK;
 
-	FindAdapterByDisplayName(Name);
+	hr = FindAdapterByDisplayName(Name);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Failed to find adapter with name %s", Name.c_str());
+	}
 	// If lastIndex is not set, then there's no adapter with name: Name.
 	if (!lastIndex)
 	{
@@ -259,6 +264,7 @@ Return Value:
 	}
 
 	hr = adapters[Name]->Delete();
+	adapters.erase(Name);
 
 	return hr;
 }
