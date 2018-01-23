@@ -8,6 +8,7 @@
     <ProjectReference Include="TestSetup\TestSetup.proj" />
     <ProjectReference Include="HostNetAgentTests\HostNetAgentTests.csproj" />
 	<ProjectReference Include="CNIReportTests\CNIReportTests.csproj" />
+	<ProjectReference Include="NetworkContainerTest\NetworkContainerTest.vcxproj" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
   <PropertyGroup>
