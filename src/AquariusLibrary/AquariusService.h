@@ -24,7 +24,7 @@
 #include "HandlerEnvironment.h"
 #include <mutex>
 
-#define RESTSERVER_PORT L"4433"
+#define RESTSERVER_PORT L"10333"
 #define HTTP_PROTO L"http"
 #define PLUGIN_STATUS L"PluginStatus"
 #define LOCALHOST L"127.0.0.1"
