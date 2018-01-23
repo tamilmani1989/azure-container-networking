@@ -121,7 +121,7 @@ Return Value:
 	return hr == S_OK ? true : false;
 }
 
-HRESULT ConvertToINADDR(_In_ wchar_t* Str, IN_ADDR& Retval)
+HRESULT ConvertToINADDR(_In_ wchar_t* Str, _Out_ IN_ADDR& Retval)
 /*++
 
 Routine Description:
@@ -144,14 +144,14 @@ HRESULT - Returns if the conversion succeeds or not.
 	HRESULT hr = S_OK;
 	PCWSTR temp = NULL;
 	ret = RtlIpv4StringToAddress(Str, true, &temp, &Retval);
-	if (!ret)
+	if (ret)
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
 		if (hr != S_OK)
 		{
-			wcout << L"NetworkContainer\\Main.cpp:: RtlIpv4StringToAddress function failed with error: " << err << " "
+			wcout << L"NetworkContainer\\Main.cpp:: RtlIpv4StringToAddress function failed with error: " << hex << ret << " "
 				<< "Address: " << Str << " "
-				<< "hr: " << hex << hr << endl;
+				<< ": " << hex << hr << endl;
 		}
 	}
 	return hr;
@@ -323,7 +323,7 @@ Return Value:
 	None.
 
 --*/
-{
+{	
 	HRESULT hr = S_OK;
 	wstring name(L"test");
 
@@ -370,20 +370,26 @@ Return Value:
 	wstring ipStr = L"1.2.3.4";
 	wstring netmaskStr = L"255.255.255.0";
 	wstring gatewayStr = L"4.3.2.1";
-	wstring dnsStr = L"8.8.8.8";
-	IN_ADDR ip, netmask, gateway, dns;
+	wstring dnsStr1 = L"8.8.8.8";
+	wstring dnsStr2 = L"7.7.7.7";
+	IN_ADDR ip, netmask, gateway, dns1, dns2 = { 0 };
 	hr = ConvertToINADDR((wchar_t*)ipStr.c_str(), ip);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"ip address parsed successfully.");
 	hr = ConvertToINADDR((wchar_t*)netmaskStr.c_str(), netmask);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"netmask address parsed successfully.");
 	hr = ConvertToINADDR((wchar_t*)gatewayStr.c_str(), gateway);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"gateway address parsed successfully.");
-	hr = ConvertToINADDR((wchar_t*)dnsStr.c_str(), dns);
-	VERIFY_ARE_EQUAL(hr, S_OK, L"dns address parsed successfully.");
+	hr = ConvertToINADDR((wchar_t*)dnsStr1.c_str(), dns1);
+	VERIFY_ARE_EQUAL(hr, S_OK, L"dns1 address parsed successfully.");
+	hr = ConvertToINADDR((wchar_t*)dnsStr2.c_str(), dns2);
+	VERIFY_ARE_EQUAL(hr, S_OK, L"dns2 address parsed successfully.");
+	vector<IN_ADDR> dnsVec;
+	dnsVec.push_back(dns1);
+	dnsVec.push_back(dns2);
 
-	NetworkContainer nc;
+	NetworkContainer nc(name, ip, netmask, gateway, dnsVec);
 	LOGINFOW(L"ConfigLoopbackAdapter when no adapter presents.")
-	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dns);
+	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dnsVec);
 	VERIFY_ARE_EQUAL(hr, 
 		HRESULT_FROM_WIN32(ERROR_NOT_FOUND), 
 		L"ConfigLoopbackAdapter test passed when no adapter presents. [1/2]"
@@ -397,7 +403,7 @@ Return Value:
 	);
 
 	LOGINFOW(L"ConfigLoopbackAdapter when adapter presents.")
-	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dns);
+	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dnsVec);
 	VERIFY_ARE_EQUAL(S_OK,
 		S_OK,
 		L"ConfigLoopbackAdapter test passed when adapter presents. [2/2]"

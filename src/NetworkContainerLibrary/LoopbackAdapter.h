@@ -32,7 +32,7 @@ public:
 		_In_ IN_ADDR Ip,
 		_In_ IN_ADDR Netmask,
 		_In_ IN_ADDR Gateway,
-		_In_ IN_ADDR Dns
+		_In_ vector<IN_ADDR> Dns
 	);
 	~LoopbackAdapter();
 	HRESULT FindAdapterByDisplayName(_In_ wstring Name, _Out_ int& InstanceIndex);
@@ -43,12 +43,13 @@ public:
 	HRESULT SetIp(_In_ IN_ADDR Ip);
 	HRESULT SetNetmask(_In_ IN_ADDR Netmask);
 	HRESULT SetGateway(_In_ IN_ADDR Gateway);
-	HRESULT SetDns(_In_ IN_ADDR Dns);
+	HRESULT SetDns(_In_ vector<IN_ADDR> DnsVec);
 	void SetIndex(_In_ int InterfaceIndex);
 
 private:
 	wstring displayName;
-	IN_ADDR ip, netmask, dns, gateway;
+	IN_ADDR ip, netmask, gateway;
+	vector<IN_ADDR> dnsVec;
 	LPWSTR loopbackInfPath = NULL;
 	GUID instanceGuid = { 0 };
 	HDEVINFO deviceInfoSet = NULL;

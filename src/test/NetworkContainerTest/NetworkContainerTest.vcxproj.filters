@@ -18,9 +18,18 @@
     <ClInclude Include="NetworkContainerTest.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NetworkContainer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="NetworkContainerTest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(SrcRoot)\Common\XmlParseHelper\XmlParserHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

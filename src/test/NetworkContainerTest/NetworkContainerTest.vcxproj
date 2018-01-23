@@ -1,5 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
   <PropertyGroup>
     <TargetName>NetworkContainerTest</TargetName>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
@@ -72,17 +78,17 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-      <Robocopy Include="$(SRCROOT)\test\NetworkContainerTest\rcf">
-        <FileMatch>*.*</FileMatch>
-        <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkContainerTest\rcf</DestinationFolder>
-      </Robocopy>
-      <Robocopy Include="$(SRCROOT)\test\NetworkContainerTest\rcf2">
-        <FileMatch>*.*</FileMatch>
-        <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkContainerTest\rcf2</DestinationFolder>
-      </Robocopy>	  
-      <Robocopy Include="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\*">        
-         <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkContainerTest</DestinationFolder>             
-      </Robocopy>
-  </ItemGroup> 
+    <Robocopy Include="$(SRCROOT)\test\NetworkContainerTest\rcf">
+      <FileMatch>*.*</FileMatch>
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkContainerTest\rcf</DestinationFolder>
+    </Robocopy>
+    <Robocopy Include="$(SRCROOT)\test\NetworkContainerTest\rcf2">
+      <FileMatch>*.*</FileMatch>
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkContainerTest\rcf2</DestinationFolder>
+    </Robocopy>
+    <Robocopy Include="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\*">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkContainerTest</DestinationFolder>
+    </Robocopy>
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
