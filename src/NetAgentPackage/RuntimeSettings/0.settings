@@ -1,1 +1,1 @@
-{"runtimeSettings":[{"handlerSettings":{"publicSettings":{"PluginsToEnable":["VFPlugin"], "RestServerPort":"10095"}}}]}
+{"runtimeSettings":[{"handlerSettings":{"publicSettings":{"PluginsToEnable":["VFPlugin"], "DisableRestServer":true}}}]}
