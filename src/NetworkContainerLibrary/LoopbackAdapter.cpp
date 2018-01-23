@@ -20,7 +20,7 @@ LoopbackAdapter::LoopbackAdapter(
 	_In_ IN_ADDR Ip,
 	_In_ IN_ADDR Netmask,
 	_In_ IN_ADDR Gateway,
-	_In_ IN_ADDR Dns
+	_In_ vector<IN_ADDR> DnsVec
 )
 /*++
 
@@ -37,7 +37,7 @@ Return Value:
 	displayName = Name;
 	ip = Ip;
 	netmask = Netmask;
-	dns = Dns;
+	dnsVec = DnsVec;
 	gateway = Gateway;
 }
 
@@ -159,7 +159,6 @@ Cleanup:
 	CO_FREE(interfaceDisplayName);
 
 	ReleaseINetCfgWithLock(netCfg);
-
 	return hr;
 }
 
@@ -531,9 +530,7 @@ Return Value:
 --*/
 
 	HRESULT hr = S_OK;
-
-	RemoveLoopbackAdapter((LPWSTR)displayName.c_str());
-	/*
+	
 	if (!SetupDiCallClassInstaller(DIF_REMOVE, deviceInfoSet, &deviceInfoData))
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
@@ -542,7 +539,12 @@ Return Value:
 			LOGERRW(L"Failed to delete loopback adapter [%ls] with error. Error:[0x%x]", displayName.c_str(), hr);
 		}
 	}
-	*/
+
+	// Make sure the adapter is removed.
+	while (FindAdapterByDisplayName(displayName, interfaceIndex) != HRESULT_FROM_WIN32(ERROR_NOT_FOUND))
+	{
+		Sleep(100);
+	}
 
 	return hr;
 }
@@ -708,7 +710,7 @@ Return Value:
 	return hr;
 }
 
-HRESULT LoopbackAdapter::SetDns(_In_ IN_ADDR Dns)
+HRESULT LoopbackAdapter::SetDns(_In_ vector<IN_ADDR> DnsVec)
 /*++
 
 Routine Description:
@@ -727,32 +729,46 @@ Return Value:
 {
 	HRESULT hr = S_OK;
 
-	char dnsCharArray[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, (void *)&Dns, dnsCharArray, sizeof(dnsCharArray));
-	wstring dnsStr;
-	copy(dnsCharArray, dnsCharArray + strlen(dnsCharArray), std::back_inserter(dnsStr));
-	wstring netshCommand = L"netsh interface ip set dns " +
-		to_wstring(interfaceIndex) +
-		L" static " +
-		dnsStr;
-	
-	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
-	DWORD exitCode = 0;
-	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
-	if (hr != S_OK)
+	int idx = 0;
+	wstring netshCommand;
+	for (auto it = DnsVec.begin(); it != DnsVec.end(); it++)
 	{
-		LOGERRW(L"Command failed ('%ls')", netshCommand.c_str());
-		return hr;
-	}
+		idx++;
+		char dnsCharArray[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, (void *)&(*it), dnsCharArray, sizeof(dnsCharArray));
+		wstring dnsStr;
+		copy(dnsCharArray, dnsCharArray + strlen(dnsCharArray), std::back_inserter(dnsStr));
+		if (idx == 1)
+		{
+			netshCommand = L"netsh interface ip set dns " +
+				to_wstring(interfaceIndex) +
+				L" static " +
+				dnsStr;
+		} else 
+		{
+			netshCommand = L"netsh interface ip add dnsservers " +
+				to_wstring(interfaceIndex) + L" " +
+				dnsStr + L" " +
+				to_wstring(idx);
+		}
+		LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
+		DWORD exitCode = 0;
+		hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Command failed ('%ls')", netshCommand.c_str());
+			return hr;
+		}
 
-	if (exitCode != ERROR_SUCCESS)
-	{
-		hr = HRESULT_FROM_WIN32(exitCode);
-		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand.c_str());
-		return hr;
-	}
+		if (exitCode != ERROR_SUCCESS)
+		{
+			hr = HRESULT_FROM_WIN32(exitCode);
+			LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand.c_str());
+			return hr;
+		}
 
-	LOGINFOW(L"DNS set successfully.");
+		LOGINFOW(L"DNS set successfully.");
+	}
 	return hr;
 }
 

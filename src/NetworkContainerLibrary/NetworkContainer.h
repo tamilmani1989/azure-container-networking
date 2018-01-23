@@ -35,6 +35,8 @@ using namespace std;
 
 #define DEFAULT_LOG_LOCATION  L"C:\\Logs\\NetworkContainer"
 
+#define HELP_CMDLINE_FLAG L"/help"
+
 #define NAME_CMDLINE_FLAG L"/name"
 
 #define OPERATION_CMDLINE_FLAG L"/operation"
@@ -57,11 +59,10 @@ public:
 	~NetworkContainer();
 	NetworkContainer(
 		_In_ wstring Name,
-		_In_ wstring Operation,
 		_In_ IN_ADDR Ip,
 		_In_ IN_ADDR Netmask,
 		_In_ IN_ADDR Gateway,
-		_In_ IN_ADDR Dns
+		_In_ vector<IN_ADDR> DnsVec
 	);
 
 	HRESULT FindAdapterByDisplayName(_In_ wstring Name);
@@ -71,13 +72,14 @@ public:
 		_In_ IN_ADDR Ip,
 		_In_ IN_ADDR Netmask,
 		_In_ IN_ADDR Gateway,
-		_In_ IN_ADDR Dns);
+		_In_ vector<IN_ADDR> DnsVec);
 	HRESULT DeleteLoopbackAdapter(_In_ wstring Name);
 	const map<wstring, std::unique_ptr<LoopbackAdapter>>& GetAdapters();
 
 private:
 	map<wstring, std::unique_ptr<LoopbackAdapter>> adapters;
-	wstring name, operation, type;
-	IN_ADDR ip, netmask, dns, gateway;
+	wstring name, type;
+	IN_ADDR ip, netmask, gateway;
+	vector<IN_ADDR> dnsVec;
 	int lastIndex = 0;
 };

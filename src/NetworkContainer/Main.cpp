@@ -26,10 +26,19 @@ Abstract:
 #include <sstream>
 #include <string>
 #include <iomanip>
+#include <deque>
 
 #define LOG_FILE_PREFIX L"NetworkContainer"
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
+
+template <class T>
+void splitWstr(const wstring& Wstr, T& container, wchar_t delim = L',')
+{
+	wstringstream ss(Wstr);
+	wstring token;
+	while (getline(ss, token, delim)) { container.push_back(token); }
+}
 
 bool
 SetupLogging(
@@ -83,6 +92,7 @@ Return Value:
 --*/
 {
 	wstring usage = L"Usage: NetworkContainer ";
+	usage += L"/logpath log_path";
 	usage += L"/name name_of_device ";
 	usage += L"/type type_of_request ";
 	usage += L"/operation type_of_operation ";
@@ -90,8 +100,33 @@ Return Value:
 	usage += L"[/netmask netmask_address]";
 	usage += L"[/gateway gateway_address]";
 	usage += L"[/dns dns_server_address] ";
-
 	wcout << usage << endl;
+
+	wstring create = L"Create example:\n";
+	create += L"AzureNetworkContainer /logpath C:\\Logs\\NetworkContainer ";
+	create += L"/name funny ";
+	create += L"/operation CREATE ";
+	create += L"/ip 1.2.3.4 ";
+	create += L"/netmask 255.255.255.0 ";
+	create += L"/gateway 3.3.3.3 ";
+	create += L"/dns 8.8.8.8,8.8.8.7";
+	wcout << create << endl;
+
+	wstring update = L"Update example:\n";
+	update += L"AzureNetworkContainer /logpath C:\\Logs\\NetworkContainer ";
+	update += L"/name funny ";
+	update += L"/operation UPDATE ";
+	update += L"/ip 1.2.3.4 ";
+	update += L"/netmask 255.255.255.0 ";
+	update += L"/gateway 3.3.3.3 ";
+	update += L"/dns 8.8.8.8,8.8.8.7,8.8.8.6";
+	wcout << update << endl;
+
+	wstring del = L"Delete example:\n";
+	del += L"AzureNetworkContainer /logpath C:\\Logs\\NetworkContainer ";
+	del += L"/name funny ";
+	del += L"/operation DELETE ";
+	wcout << del << endl;
 }
 
 HRESULT ConvertToINADDR(_In_ wchar_t* Str, IN_ADDR& Retval)
@@ -117,7 +152,7 @@ Return Value:
 	HRESULT hr = S_OK;
 	PCWSTR temp = NULL;
 	ret = RtlIpv4StringToAddress(Str, true, &temp, &Retval);
-	if (!ret)
+	if (ret)
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
 		if (hr != S_OK)
@@ -140,7 +175,7 @@ ParseCmdArguments(
 	_Out_ IN_ADDR& Ip,
 	_Out_ IN_ADDR& Netmask,
 	_Out_ IN_ADDR& Gateway,
-	_Out_ IN_ADDR& Dns
+	_Out_ vector<IN_ADDR>& DnsVec
 )
 /*++
 
@@ -185,6 +220,11 @@ Arguments:
 	for (int i = 1; i < ArgCount - 1; i++)
 	{
 		wstring arg = ArgList[i];
+		if (arg == HELP_CMDLINE_FLAG)
+		{
+			PrintUsage();
+			return hr;
+		}
 		if (arg == LOG_PATH_CMDLINE_FLAG)
 		{
 			LogPath = ArgList[++i];
@@ -218,10 +258,19 @@ Arguments:
 			}
 		} else if (arg == DNS_CMDLINE_FLAG)
 		{
-			hr = ConvertToINADDR(ArgList[++i], Dns);
-			if (hr != S_OK)
+			wstring dnsStrList(ArgList[++i]);
+			deque<wstring> dnsDeq;
+			splitWstr(dnsStrList, dnsDeq);
+			while (!dnsDeq.empty())
 			{
-				return hr;
+				IN_ADDR dns = { 0 };
+				hr = ConvertToINADDR((wchar_t*)dnsDeq.front().c_str(), dns);
+				dnsDeq.pop_front();
+				if (hr != S_OK)
+				{
+					return hr;
+				}
+				DnsVec.push_back(dns);
 			}
 		} else
 		{
@@ -251,8 +300,8 @@ HRESULT dispatch(_In_ NetworkContainer& nc,
 	_Inout_ wstring Operation,
 	_In_ IN_ADDR Ip,
 	_In_ IN_ADDR Netmask,
-	_In_ IN_ADDR Dns,
-	_In_ IN_ADDR Gateway
+	_In_ IN_ADDR Gateway,
+	_In_ vector<IN_ADDR> DnsVec
 )
 {
 	HRESULT hr = S_OK;
@@ -271,7 +320,7 @@ HRESULT dispatch(_In_ NetworkContainer& nc,
 			return hr;
 		}
 
-		nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, Dns);
+		nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, DnsVec);
 		if (hr != S_OK)
 		{
 			LOGERRW(L"Failed to configure loopback adapter with error: [%0x].", hr);
@@ -279,7 +328,7 @@ HRESULT dispatch(_In_ NetworkContainer& nc,
 		}
 	} else if (Operation == L"UPDATE")
 	{
-		hr = nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, Dns);
+		hr = nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, DnsVec);
 		if (hr != S_OK)
 		{
 			LOGERRW(L"Failed to created loopback adapter with error [%0x].", hr);
@@ -296,6 +345,7 @@ HRESULT dispatch(_In_ NetworkContainer& nc,
 	} else 
 	{
 		hr = E_INVALIDARG;
+		PrintUsage();
 		return hr;
 	}
 	
@@ -319,10 +369,8 @@ Arguments:
 	HRESULT hr = S_OK;
 
 	wstring logPath, name, operation;
-	IN_ADDR ip = { 0 };
-	IN_ADDR netmask = { 0 };
-	IN_ADDR gateway = { 0 };
-	IN_ADDR dns = { 0 };
+	IN_ADDR ip, netmask, gateway = { 0 };
+	vector<IN_ADDR> dnsVec;
 
 	hr = ParseCmdArguments(argc, 
 		argv, 
@@ -332,7 +380,7 @@ Arguments:
 		ip, 
 		netmask,
 		gateway,
-		dns);
+		dnsVec);
 	if (hr != S_OK)
 	{
 		PrintUsage();
@@ -343,23 +391,9 @@ Arguments:
 	SetupLogging(logPath.c_str());
 	LOGINFOW(L"Setup logging succeeded.");
 
-	// print out arguments.
-	wchar_t ipStr[INET_ADDRSTRLEN], netmaskStr[INET_ADDRSTRLEN], dnsStr[INET_ADDRSTRLEN], gatewayStr[INET_ADDRSTRLEN];
-	wcout << "logPath: " << logPath << endl;
-	wcout << "name: " << name << endl;
-	wcout << "operation: " << operation << endl;
-	inet_ntop(AF_INET, (void *)&ip, (char*)ipStr, sizeof(ipStr));
-	inet_ntop(AF_INET, (void *)&netmask, (char*)netmaskStr, sizeof(netmaskStr));
-	inet_ntop(AF_INET, (void *)&dns, (char*)dnsStr, sizeof(dnsStr));
-	inet_ntop(AF_INET, (void *)&gateway, (char*)gatewayStr, sizeof(gatewayStr));
-	printf("ip: %s\n", (char*)ipStr);
-	printf("netmask: %s\n", (char*)netmaskStr);
-	printf("dns: %s\n", (char*)dnsStr);
-	printf("gateway: %s\n", (char*)gatewayStr);
+	NetworkContainer nc(name, ip, netmask, gateway, dnsVec);
 
-	NetworkContainer nc(name, operation, ip, netmask, dns, gateway);
-
-	hr = dispatch(nc, name, operation, ip, netmask, dns, gateway);
+	hr = dispatch(nc, name, operation, ip, netmask, gateway, dnsVec);
 	if (hr != S_OK)
 	{
 		LOGERRW(L"dispatch failed with error [%0x]", hr);

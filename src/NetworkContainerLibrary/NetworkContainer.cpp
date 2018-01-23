@@ -62,32 +62,30 @@ None.
 
 NetworkContainer::NetworkContainer(
 	_In_ wstring Name,
-	_In_ wstring Operation,
 	_In_ IN_ADDR Ip,
 	_In_ IN_ADDR Netmask,
 	_In_ IN_ADDR Gateway,
-	_In_ IN_ADDR Dns
+	_In_ vector<IN_ADDR> DnsVec
 ) : NetworkContainer::NetworkContainer()
 /*++
-	
+
 Routine Description:
 
-	Constructor for NetworkContainer. This constructor will enable default settings as well as filling in member variables.
-	
+Constructor for NetworkContainer. This constructor will enable default settings as well as filling in member variables.
+
 
 Return Value:
 
-	An instance of NetworkContainer object with name, type, ip netmask, dns and gateway filled.
+An instance of NetworkContainer object with name, type, ip netmask, dns and gateway filled.
 
 --*/
 {
 	name = Name;
 	ip = Ip;
 	netmask = Netmask;
-	dns = Dns;
 	gateway = Gateway;
+	dnsVec = DnsVec;
 }
-
 
 HRESULT NetworkContainer::FindAdapterByDisplayName(_In_ wstring Name)
 /*++
@@ -117,13 +115,12 @@ Return Value:
 			Name,
 			ip,
 			netmask,
-			dns,
-			gateway)
+			gateway,
+			dnsVec)
 		);
 
 	int instanceIndex = 0;
 	hr = adapters[Name]->FindAdapterByDisplayName(Name, instanceIndex);
-	//if (hr == HRESULT_FROM_WIN32(ERROR_NOT_FOUND)) { return hr; }
 	if (hr != S_OK) { return hr; }
 
 	// If lastIndex is set, then we found an existing adapter with the same name.
@@ -173,7 +170,7 @@ HRESULT NetworkContainer::ConfigLoopbackAdapter(
 	_In_ IN_ADDR Ip,
 	_In_ IN_ADDR Netmask,
 	_In_ IN_ADDR Gateway,
-	_In_ IN_ADDR Dns)
+	_In_ vector<IN_ADDR> DnsVec)
 /*++
 
 Routine Description:
@@ -228,9 +225,9 @@ Return Value:
 		if (hr != S_OK) { return hr; }
 	}
 
-	if (Dns.S_un.S_addr != INADDR_NONE)
+	if (!DnsVec.empty())
 	{
-		hr = adapters[Name]->SetDns(Dns);
+		hr = adapters[Name]->SetDns(DnsVec);
 		if (hr != S_OK) { return hr; }
 	}
 
