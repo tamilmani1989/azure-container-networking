@@ -1,1 +1,1 @@
-{"runtimeSettings":[{"handlerSettings":{"publicSettings":{"PluginsToEnable":["multica", "azureworld"]}}}]}
+{"runtimeSettings":[{"handlerSettings":{"publicSettings":{"PluginsToEnable":["multica", "azureworld"], "DisableRestServer":true, "RestServerPort":"1111"}}}]}
