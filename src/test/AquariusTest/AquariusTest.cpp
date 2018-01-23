@@ -184,6 +184,11 @@ Return Value:
 
 	it = service->handlerConfigObject.pluginsToStart.find(L"helloworld");
 	VERIFY_ARE_EQUAL(it, service->handlerConfigObject.pluginsToStart.end(), L"ProcessConfig reading plugins Passed");
+
+    VERIFY_IS_TRUE(service->handlerConfigObject.disableRestServer, L"DisableRestServer config test passed");
+
+    ret = wcscmp(L"1111", service->handlerConfigObject.restServerPort.c_str());
+    VERIFY_ARE_EQUAL(0, ret, L"restserverport config test passed");
 }
 
 void
