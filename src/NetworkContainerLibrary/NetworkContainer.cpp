@@ -10,6 +10,10 @@ Abstract:
 
 	Implements functions related to network container.
 
+Author:
+
+	Yongli Chen
+
 --*/
 
 #include "NetworkContainer.h"
@@ -44,11 +48,11 @@ NetworkContainer::~NetworkContainer()
 
 Routine Description:
 
-Destructor for NetworkContainer. This destructor will free memory allocated by network container.
+	Destructor for NetworkContainer. This destructor will free memory allocated by network container.
 
 Return Value:
 
-None.
+	None.
 
 --*/
 {
@@ -71,12 +75,23 @@ NetworkContainer::NetworkContainer(
 
 Routine Description:
 
-Constructor for NetworkContainer. This constructor will enable default settings as well as filling in member variables.
+	Constructor for NetworkContainer. This constructor will enable default settings as well as filling in member variables.
 
+Arguments:
+
+	Name: Name of the adapter.
+
+	Ip: Ip address to be assigned, in IN_ADDR format.
+
+	Netmask: Netmask associated with Ip, in IN_ADDR format.
+
+	Gateway: Gateway address to be assigned, in IN_ADDR format.
+
+	DnsVec:  A list of DNS address to be assigned, in vector<IN_ADDR> format.
 
 Return Value:
 
-An instance of NetworkContainer object with name, type, ip netmask, dns and gateway filled.
+	An instance of NetworkContainer object with name, type, ip netmask, dns and gateway filled.
 
 --*/
 {
@@ -141,6 +156,10 @@ Routine Description:
 
 	This routine dynamically allocates an LoopbackAdapter class instance, and stores pointer to it to adapters.
 
+Argument:
+
+	Name: Display name of the loopback adapter.
+
 Return Value:
 
 	S_OK on success. On failure appropriate HRESULT is returned.
@@ -187,7 +206,7 @@ Arguments:
 
 	Gateway: Gateway address to be assigned, in IN_ADDR format.
 
-	Dns:  DNS address to be assigned, in IN_ADDR format.
+	DnsVec:  A list of DNS address to be assigned, in vector<IN_ADDR> format.
 
 Return Value:
 
@@ -243,11 +262,12 @@ Routine Description:
 
 Arguments:
 
-	Name: Name of the adapter.
+	Name: Display name of the adapter.
 
 Return Value:
 
 	S_OK on success. On failure appropriate HRESULT is returned.
+
 --*/
 {
 	HRESULT hr = S_OK;

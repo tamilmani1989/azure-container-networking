@@ -8,11 +8,11 @@ Module Name:
 
 Abstract:
 
-	Test NetworkContainer Functionalities
+	Tests NetworkContainer Functionalities.
 
 Author:
 
-	Yongli Chen 1-18-2017
+	Yongli Chen
 
 --*/
 
@@ -44,4 +44,5 @@ public:
 	TEST_METHOD(TestFindAdapterByDisplayName);
 	TEST_METHOD(TestCreateLoopbackAdapter);
 	TEST_METHOD(TestConfigLoopbackAdapter);
+	TEST_METHOD(TestDeleteLoopbackAdapter);
 };

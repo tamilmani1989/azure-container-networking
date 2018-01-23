@@ -1,3 +1,22 @@
+/*++
+
+Copyright (c) 2018 Microsoft Corporation
+
+Module Name:
+
+	NetworkContainerTest.cpp
+
+Abstract:
+
+	Tests NetworkContainer Functionalities.
+
+Author:
+
+	Yongli Chen
+
+--*/
+
+
 #ifndef UNICODE
 #define UNICODE
 #endif
@@ -126,17 +145,17 @@ HRESULT ConvertToINADDR(_In_ wchar_t* Str, _Out_ IN_ADDR& Retval)
 
 Routine Description:
 
-This routine convert ip address from string representation to IN_ADDR struct.
+	This routine convert ip address from string representation to IN_ADDR struct.
 
 Arguments:
 
-Str: string representation of ip address.
+	Str: string representation of ip address.
 
-Retval: IN_ADDR representation of ip address.
+	Retval: IN_ADDR representation of ip address.
 
 Return Value:
 
-HRESULT - Returns if the conversion succeeds or not.
+	HRESULT - Returns if the conversion succeeds or not.
 
 --*/
 {
@@ -316,7 +335,7 @@ Routine Description:
 
 Argument:
 
-	Name: Display name of the loopback adapter.
+	None.
 
 Return Value:
 
@@ -356,7 +375,7 @@ Routine Description:
 
 Argument:
 
-	Name: Display name of the loopback adapter.
+	None.
 
 Return Value:
 
@@ -412,6 +431,49 @@ Return Value:
 	LOGINFOW(L"DeleteLoopbackAdapter in TestConfigLoopbackAdapter.")
 	hr = nc.DeleteLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"Removed adapter.");
+}
+
+void NetworkContainerTest::TestDeleteLoopbackAdapter()
+/*++
+
+Routine Description:
+
+	This routine tests if the loopback adapter is deleted successfully or not.
+
+Argument:
+
+	Name: Display name of the loopback adapter.
+
+Return Value:
+
+	None.
+
+--*/
+{
+	HRESULT hr = S_OK;
+	wstring name(L"test");
+
+	NetworkContainer nc;
+	LOGINFOW(L"DeleteLoopbackAdapter when no adapter presents.")
+	hr = nc.DeleteLoopbackAdapter(name);
+	VERIFY_ARE_EQUAL(hr,
+		HRESULT_FROM_WIN32(ERROR_NOT_FOUND),
+		L"DeleteLoopbackAdapter passed when no adapter presents. [1/2]"
+	);
+
+	LOGINFOW(L"CreateLoopbackAdapter.")
+		hr = nc.CreateLoopbackAdapter(name);
+	VERIFY_ARE_EQUAL(hr,
+		S_OK,
+		L"Created loopback adapter"
+	);
+
+	LOGINFOW(L"DeleteLoopbackAdapter when adapter presents.")
+		hr = nc.DeleteLoopbackAdapter(name);
+	VERIFY_ARE_EQUAL(hr,
+		S_OK,
+		L"DeleteLoopbackAdapter passed when no adapter presents. [1/2]"
+	);
 }
 
 int wmain(int argc, wchar_t *argv[])

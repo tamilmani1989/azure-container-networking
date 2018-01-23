@@ -10,6 +10,10 @@ Abstract:
 
 	Implements methods to manipulate loopback adapter.
 
+Author:
+
+	Yongli Chen
+
 --*/
 
 #pragma once
