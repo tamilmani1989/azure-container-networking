@@ -10,7 +10,11 @@ Abstract:
 
 	Implements functions related to network container.
 
---*/
+Author:
+
+	Yongli Chen
+
+	--*/
 
 #pragma once
 

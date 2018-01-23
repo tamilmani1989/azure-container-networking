@@ -10,6 +10,10 @@ Abstract:
 
 	Entry point for NetworkContainer.
 
+Author:
+
+	Yongli Chen
+
 --*/
 
 #include <stdio.h>
