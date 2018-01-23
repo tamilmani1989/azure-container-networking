@@ -358,7 +358,9 @@ Return Value:
         LOGERRW(L"Failed to set up Mdm using settings file {%s}", configFile);
         return hr;
     }
+
     HealthReport::InitializeHealthReportFieldIdMap();
+	CNIReport::InitializeCNIReportFieldIdMap();
 
     std::thread listenerThread(StartListener);
     listenerThread.join();
