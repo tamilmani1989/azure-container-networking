@@ -36,6 +36,7 @@ class HandlerConfig
     public:
     std::set<std::wstring> pluginsToStart;
     std::wstring restServerPort;
+    bool disableRestServer = false;
     
     std::wstring getBaseFilename(const wchar_t *filename);
     wchar_t *getLatestConfigFilePath(wchar_t *configDir);
