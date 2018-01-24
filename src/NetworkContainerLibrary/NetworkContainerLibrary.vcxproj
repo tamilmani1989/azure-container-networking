@@ -29,7 +29,11 @@
   <ItemGroup>
     <ClCompile Include="LoopBackAdapter.cpp" />
     <ClCompile Include="NetworkContainer.cpp" />
-    <ClCompile Include="LoopBackAdapterInstaller.cpp" />	
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
-</Project>
+  <ItemGroup>
+    <ProjectReference Include="$(SRCROOT)\ServiceTunnelLibrary\ServiceTunnelLibrary.vcxproj">
+      <Project>{7DB0C9A4-CADC-4E53-ADF3-1F6887454249}</Project>
+    </ProjectReference>
+  </ItemGroup>
+ </Project>
