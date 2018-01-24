@@ -24,8 +24,7 @@ Author:
 #include "RcfEnumerator.h"
 #include <iostream>
 #include "ConfigReader.h"
-#include "..\NetworkContainerLibrary\NetworkContainer.h"
-#include "..\VFPluginLibrary\VFPluginUtilities.h"
+#include "NetworkContainer.h"
 #include "Logging.h"
 #include <sstream>
 #include <string>
