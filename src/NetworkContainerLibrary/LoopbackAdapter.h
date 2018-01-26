@@ -23,8 +23,12 @@ Author:
 #include "LoopbackAdapterInstaller.h"
 #include "Devpkey.h"
 #include <iostream>
+#include <regex>
+#include <sstream>
 #include <string>
 #include <iterator>
+
+#define MAX_BUF_LENGTH 2048
 
 using namespace std;
 
@@ -51,13 +55,12 @@ public:
 	void SetIndex(_In_ int InterfaceIndex);
 
 private:
+	HRESULT Rename();
 	wstring displayName;
 	IN_ADDR ip, netmask, gateway;
 	vector<IN_ADDR> dnsVec;
 	LPWSTR loopbackInfPath = NULL;
 	GUID instanceGuid = { 0 };
-	HDEVINFO deviceInfoSet = NULL;
-	SP_DEVINFO_DATA deviceInfoData = { 0 };
 	int interfaceIndex = 0;
 	ULONG NTEContext = 0;
 	ULONG NTEInstance = 0;

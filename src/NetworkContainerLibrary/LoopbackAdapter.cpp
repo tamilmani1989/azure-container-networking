@@ -514,8 +514,44 @@ Return Value:
 		LOGERRW(L"Failed to retrieve index for interface with name [%s], Error:[0x%x]", displayName.c_str(), hr);
 		return hr;
 	}
+	
+	hr = Rename();
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Rename failed. Error:[0x%x]", hr);
+	}
 
 	LOGINFOW(L"Interface name:[%s], index:[%d]", displayName.c_str(), interfaceIndex);
+	return hr;
+}
+
+HRESULT LoopbackAdapter::Rename()
+{
+	HRESULT hr = S_OK;
+
+	wstring netshCommand = L"netsh interface set interface name=\"" +
+		alias +
+		L"\" newname=\"" +
+		displayName +
+		L"\"";
+
+	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
+	DWORD exitCode = 0;
+	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Command failed ('%ls')", netshCommand.c_str());
+		return hr;
+	}
+
+	if (exitCode != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(exitCode);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand.c_str());
+		return hr;
+	}
+
+	LOGINFOW(L"Netmask set successfully.");
 	return hr;
 }
 

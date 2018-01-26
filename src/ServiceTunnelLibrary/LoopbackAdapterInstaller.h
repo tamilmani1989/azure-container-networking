@@ -42,6 +42,7 @@ protected:
 	HRESULT GetInterfaceIndex(__in GUID InstanceGuid, __inout int& InterfaceIndex);
 	HRESULT GetINetCfgWithWriteLock(__deref_out INetCfg** NetCfg);
 	HRESULT ReleaseINetCfgWithLock(__in INetCfg* pnc);
+	wstring alias;
 
 private:
 	HRESULT AcquireNetCfgWriteLock(__in INetCfg *NetCfg);

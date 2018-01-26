@@ -17,14 +17,13 @@
         $(SrcRoot)\ServiceTunnelLibrary;
       </AdditionalIncludeDirectories>
       <!-- Override default from native_user_compile for compat with RdCommon.lib -->
-	  <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-  	<ClInclude Include="stdafx.h" />
+    <ClInclude Include="stdafx.h" />
     <ClInclude Include="LoopbackAdapter.h" />
     <ClInclude Include="NetworkContainer.h" />
-	<ClInclude Include="LoopBackAdapterInstaller.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LoopBackAdapter.cpp" />
@@ -36,4 +35,4 @@
       <Project>{7DB0C9A4-CADC-4E53-ADF3-1F6887454249}</Project>
     </ProjectReference>
   </ItemGroup>
- </Project>
+</Project>
