@@ -26,6 +26,7 @@ using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 #define AQUARIUS_THREAD 0
 #define RESTSERVER_THREAD 1
 #define NUM_THREADS 2
+#define MAX_TIMEOUT_MILLISECS 3600000
 
 std::mutex get_aquariusSvc_mutex;
 
@@ -112,7 +113,6 @@ Return Value:
 
 --*/
 {
-    m_fStopping = FALSE;
     LOGINFOW(L"Going to send a reset event to AquariusSvc");
     m_hStoppedEvent[RESTSERVER_THREAD] = NULL;
     // Create a manual-reset event that is not signaled at first to indicate 
@@ -121,9 +121,17 @@ Return Value:
 
     if (m_hStoppedEvent[AQUARIUS_THREAD] == nullptr)
     {
-        LOGINFOW(L"Got a null event. Going to throw the last error.");
+        LOGINFOW(L"Got a null event m_hStoppedEvent Going to throw the last error.");
         throw GetLastError();
     }
+
+    m_hStopEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+
+    if (m_hStopEvent == nullptr)
+    {
+        LOGINFOW(L"Got a null event m_hStopEvent Going to throw the last error.");
+        throw GetLastError();
+    }    
 }
 
 AquariusService::~AquariusService(void)
@@ -148,6 +156,12 @@ Return Value:
     {
         CloseHandle(m_hStoppedEvent[RESTSERVER_THREAD]);
         m_hStoppedEvent[RESTSERVER_THREAD] = nullptr;
+    }
+
+    if (m_hStopEvent)
+    {
+        CloseHandle(m_hStopEvent);
+        m_hStopEvent = nullptr;
     }
 
     AquariusUtilities::allocator--;
@@ -310,9 +324,11 @@ Return Value:
 
     LOGINFOW(L"NetAgent RestServer listening on %s", handlerConfigObject.restServerPort.c_str());
 
-    while(!m_fStopping)
+    if (WaitForSingleObject(m_hStopEvent, INFINITE) != WAIT_OBJECT_0)
     {
-        Sleep(5000);
+        DWORD error = GetLastError();
+        LOGERRW(L"Restserver wait event error  0x%08lx", error);
+        throw GetLastError();
     }
 
     LOGINFOW(L"RestServerThread exited");
@@ -402,6 +418,8 @@ Return Value:
 void AquariusService::ServiceWorkerThread(void)
 {
     int pluginCount = 0;
+    //initial timeout will be 3 minutes
+    int timeout = 180000;
     PluginMetadata *allPluginsMetadata = nullptr;
     
     service_objects_mutex.lock();
@@ -428,7 +446,7 @@ void AquariusService::ServiceWorkerThread(void)
     aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata);
     service_objects_mutex.unlock();
 
-    while (!m_fStopping)
+    while (true)
     {
         try 
         {
@@ -440,14 +458,27 @@ void AquariusService::ServiceWorkerThread(void)
                 service_objects_mutex.unlock();
             }
             // Perform main service function here...
-            LOGINFOW(L"AquariusSvc doing work");
+            LOGINFOW(L"AquariusSvc doing work. Timeout %d (milliseconds)", timeout);
         }
         catch(const char *err)
         {
             LOGINFO("Load plugins exception :%s", err);
         }
 
-        ::Sleep(3600000);  // Simulate some lengthy operations.
+        DWORD status = WaitForSingleObject(m_hStopEvent, timeout);
+        if (status == WAIT_OBJECT_0)
+        {
+            break;
+        }
+        else if (status != WAIT_TIMEOUT)
+        {
+            DWORD error = GetLastError();
+            LOGERRW(L"AquariusService wait event error  0x%08lx", error);
+            throw GetLastError();
+        }
+        
+        // making it up one hr. First timeout will be three minutes and the rest will be 1 hour.
+        timeout = MAX_TIMEOUT_MILLISECS;
     }
 
     int cnt = GetPluginCount();
@@ -459,8 +490,7 @@ void AquariusService::ServiceWorkerThread(void)
         pdata[i].cleanup=true;
     }	
     
-    LOGINFOW(L"Call cleanup aqsvc %p.",
-            pdata);
+    LOGINFOW(L"Call cleanup AquariusSvc");
     
     aquariusKernel->MonitorPlugins(pluginCount, allPluginsMetadata, handlerConfigObject.pluginsToStart, handlerEnvObject.logFolderPath);
     Sleep(18000);
@@ -498,18 +528,22 @@ Return Value:
 
     // Indicate that the service is stopping and wait for the finish of the 
     // main service function (ServiceWorkerThread).
-    m_fStopping = TRUE;
+
+    if (m_hStopEvent)
+    {
+        SetEvent(m_hStopEvent);
+    }
 
     LOGINFO("# of allocations that were nto deleted: %d.",
         AquariusUtilities::allocator);
     
-    if (m_hStoppedEvent[RESTSERVER_THREAD] != NULL)
+    if (m_hStoppedEvent[RESTSERVER_THREAD])
     {
         LOGINFOW(L"Waiting for AquariusSvc and Restserver to exit");
         if (WaitForMultipleObjects(NUM_THREADS, m_hStoppedEvent, TRUE, INFINITE) != WAIT_OBJECT_0)
         {
             DWORD error = GetLastError();
-            LOGERRW(L"Going to throw error  0x%08lx", error);
+            LOGERRW(L"WaitForMultipleObjects throw error  0x%08lx", error);
             throw GetLastError();
         }
     }
@@ -519,7 +553,7 @@ Return Value:
         if (WaitForSingleObject(m_hStoppedEvent[AQUARIUS_THREAD], INFINITE) != WAIT_OBJECT_0)
         {
             DWORD error = GetLastError();
-            LOGERRW(L"Going to throw error  0x%08lx", error);
+            LOGERRW(L"WaitForSingleObject aqsvc throw error  0x%08lx", error);
             throw GetLastError();
         }
     }
