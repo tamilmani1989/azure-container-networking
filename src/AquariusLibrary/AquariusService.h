@@ -83,8 +83,8 @@ public:
 private:
 
 	std::mutex service_objects_mutex;
-    BOOL m_fStopping;
     HANDLE m_hStoppedEvent[2];	
+    HANDLE m_hStopEvent;
 };
 	
 AquariusService* GetAquariusService();
