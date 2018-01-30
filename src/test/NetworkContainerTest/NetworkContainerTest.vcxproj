@@ -78,14 +78,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Robocopy Include="$(SRCROOT)\test\NetworkContainerTest\rcf">
-      <FileMatch>*.*</FileMatch>
-      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkContainerTest\rcf</DestinationFolder>
-    </Robocopy>
-    <Robocopy Include="$(SRCROOT)\test\NetworkContainerTest\rcf2">
-      <FileMatch>*.*</FileMatch>
-      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkContainerTest\rcf2</DestinationFolder>
-    </Robocopy>
     <Robocopy Include="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\*">
       <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkContainerTest</DestinationFolder>
     </Robocopy>
