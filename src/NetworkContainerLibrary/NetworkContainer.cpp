@@ -57,11 +57,8 @@ Return Value:
 --*/
 {
 	CoUninitialize();
-	for (auto &it : adapters)
-	{
-		wcout << it.first << endl;
-		adapters.erase(it.first);
-	}
+
+	for (auto &it : adapters) { adapters.erase(it.first); }
 }
 
 NetworkContainer::NetworkContainer(

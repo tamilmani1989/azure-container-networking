@@ -32,6 +32,18 @@ Routine Description:
 
 	Default onstructor for LoopbackAdapter. This constructor will enable default settings.
 
+Arguments:
+
+	Name: Name of the adapter.
+
+	Ip: Ip address to be assigned, in IN_ADDR format.
+
+	Netmask: Netmask associated with Ip, in IN_ADDR format.
+
+	Gateway: Gateway address to be assigned, in IN_ADDR format.
+
+	DnsVec:  A list of DNS address to be assigned, in vector<IN_ADDR> format.
+
 Return Value:
 
 	An instance of LoopbackAdapter object.
@@ -121,6 +133,7 @@ Return Value:
 			hr = S_OK;
 			continue;
 		}
+
 		if (wcsncmp(Name.c_str(), interfaceDisplayName, wcslen(interfaceDisplayName)) == 0)
 		{
 			LOGINFOW(L"Found matching interface. Name [%s]", interfaceDisplayName);
@@ -197,22 +210,23 @@ Return Value:
 	if (dwRetVal) 
 	{
 		LOGINFOW(L"Call to GetNetworkParams failed. Return Value: %08x\n", dwRetVal);
-		return hr;
-	} else 
+	} 
+	else 
 	{
 		LOGINFOW(L"Host Name: %ls\n", (wchar_t*)FixedInfo->HostName);
 		LOGINFOW(L"Domain Name: %ls\n", (wchar_t*)FixedInfo->DomainName);
-
 		LOGINFOW(L"DNS Servers:\n");
 		LOGINFOW(L"\t%ls\n", (wchar_t*)FixedInfo->DnsServerList.IpAddress.String);
 
 		pIPAddr = FixedInfo->DnsServerList.Next;
+
 		while (pIPAddr) {
 			LOGINFOW(L"\t%ls\n", (wchar_t*)pIPAddr->IpAddress.String);
 			pIPAddr = pIPAddr->Next;
 		}
 	}
 	
+	GlobalFree(FixedInfo);
 	return hr;
 }
 
@@ -251,6 +265,7 @@ Return Value:
 
 	wchar_t friendlyName[MAX_PATH];
 	BOOL setupDiGetDevRegPropResult = false;
+
 	for (int i = 0;
 		SetupDiEnumDeviceInfo(deviceInfoSet, i, &deviceInfoData);
 		i++)
@@ -771,6 +786,7 @@ Return Value:
 
 	int idx = 0;
 	wstring netshCommand;
+
 	for (auto it = DnsVec.begin(); it != DnsVec.end(); it++)
 	{
 		idx++;
