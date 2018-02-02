@@ -11,22 +11,20 @@
 class JobObject
 {
 public:
-	JobObject *next = nullptr;
-	HANDLE value = nullptr;
+    JobObject *next = nullptr;
+    HANDLE value = nullptr;
 };
 
 class JobManager
 {
 private:
-	static JobObject *jobObjectCollection;
-	static JobObject *head;
-	static JobObject *tail;
-	
+    static JobObject *jobObjectCollection;
+    static JobObject *head;
+    static JobObject *tail;
+    
 public:	
-	static void EnqueueJob(wchar_t* directory, wchar_t* entryPoint);
-	static void RemoveJob(wchar_t* directory, wchar_t* entryPoint);
-	static void EnsureJobIsRunning(wchar_t* directory, LPTSTR lpCommandLine, PluginMetadata *pluginData);
-	static void PluginCleanup(wchar_t* directory, LPTSTR lpCommandLine, PluginMetadata *pluginData);
-	static void SaveJobHandle(HANDLE handle);
-	static void ReleaseAllJobs();
+    static void EnqueueJob(wchar_t* directory, wchar_t* entryPoint);
+    static void RemoveJob(wchar_t* directory, wchar_t* entryPoint);
+    static void EnsureJobIsRunning(wchar_t* directory, LPTSTR lpCommandLine, PluginMetadata *pluginData);
+    static void PluginCleanup(wchar_t* directory, LPTSTR lpCommandLine, PluginMetadata *pluginData);
 };
