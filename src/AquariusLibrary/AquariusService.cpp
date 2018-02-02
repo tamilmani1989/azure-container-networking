@@ -315,8 +315,8 @@ Return Value:
     }
 
     RestServer restServer(HTTP_PROTO, LOCALHOST, handlerConfigObject.restServerPort, PLUGIN_STATUS, postHandler, getHandler); 
+    
     DWORD status = restServer.Listen();
-
     if (status != 0 )
     {
         LOGINFO("Error in rest server listen %d\n", status);
@@ -495,6 +495,20 @@ void AquariusService::ServiceWorkerThread(void)
     aquariusKernel->MonitorPlugins(pluginCount, allPluginsMetadata, handlerConfigObject.pluginsToStart, handlerEnvObject.logFolderPath);
     Sleep(18000);
 
+    for (int i = 0; i < cnt; i++)
+    {
+        if (pdata[i].jobObjectHandle)
+        {
+            if (!TerminateJobObject(pdata[i].jobObjectHandle, 0))
+            {
+                LOGWARNW(L"Not able to terminate process associated with this handle %s", pdata[i].entryPoint);
+            }
+
+            CloseHandle(pdata[i].jobObjectHandle);
+            pdata[i].jobObjectHandle = NULL;
+        }
+    }
+
     AquariusUtilities::ReleasePluginMetadata(pluginCount, allPluginsMetadata);
     
     LOGINFO("Free up Aquarius Service data objects");
@@ -502,8 +516,7 @@ void AquariusService::ServiceWorkerThread(void)
     handlerConfigObject.Cleanup();
     handlerEnvObject.Cleanup();
 
-    PluginMetadata *plgData = GetPluginInstances(GetPluginCount());
-    delete[] plgData;
+    delete[] pdata;
 
     // Signal the stopped event.
     SetEvent(m_hStoppedEvent[AQUARIUS_THREAD]);
