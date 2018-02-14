@@ -55,6 +55,10 @@ using namespace std;
 
 #define GATEWAY_CMD_LINE_FLAG L"/gateway"
 
+#define WEAKHOST_SEND_FLAG L"/weakhostsend"
+
+#define WEAKHOST_RECV_FLAG L"/weakhostreceive"
+
 class NetworkContainer: public LoopbackAdapterInstaller
 {
 
@@ -76,7 +80,10 @@ public:
 		_In_ IN_ADDR Ip,
 		_In_ IN_ADDR Netmask,
 		_In_ IN_ADDR Gateway,
-		_In_ vector<IN_ADDR> DnsVec);
+		_In_ vector<IN_ADDR> DnsVec,
+		_In_ bool WhsFlag,
+		_In_ bool WhrFlag
+	);
 	HRESULT DeleteLoopbackAdapter(_In_ wstring Name);
 	const map<wstring, std::unique_ptr<LoopbackAdapter>>& GetAdapters();
 

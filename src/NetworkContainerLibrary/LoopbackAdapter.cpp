@@ -828,6 +828,52 @@ Return Value:
 	return hr;
 }
 
+HRESULT LoopbackAdapter::SetWeakHost(bool WhsFlag, bool WhrFlag)
+/*++
+	
+Routine Description:
+
+	Enable/Disable weak host routing on the interface.
+
+Arguments:
+
+	WhsFlag: Flag for weak host send.
+
+	WhrFlag: Flag for weak host receive.
+
+--*/
+{
+	HRESULT hr = S_OK;
+
+	wstring whs = WhsFlag ? L"enabled" : L"disabled";
+	wstring whr = WhrFlag ? L"enabled" : L"disabled";
+	wstring netshCommand = L"netsh interface ip set interface " +
+		to_wstring(interfaceIndex) +
+		L" weakhostsend=" +
+		whs +
+		L" weakhostreceive=" +
+		whr;
+
+	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
+	DWORD exitCode = 0;
+	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Command failed ('%ls')", netshCommand.c_str());
+		return hr;
+	}
+
+	if (exitCode != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(exitCode);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand.c_str());
+		return hr;
+	}
+
+	LOGINFOW(L"Gateway set successfully.");
+	return hr;
+}
+
 void LoopbackAdapter::SetIndex(_In_ int InterfaceIndex)
 /*++
 

@@ -186,7 +186,10 @@ HRESULT NetworkContainer::ConfigLoopbackAdapter(
 	_In_ IN_ADDR Ip,
 	_In_ IN_ADDR Netmask,
 	_In_ IN_ADDR Gateway,
-	_In_ vector<IN_ADDR> DnsVec)
+	_In_ vector<IN_ADDR> DnsVec,
+	_In_ bool WhsFlag,
+	_In_ bool WhrFlag
+)
 /*++
 
 Routine Description:
@@ -204,6 +207,10 @@ Arguments:
 	Gateway: Gateway address to be assigned, in IN_ADDR format.
 
 	DnsVec:  A list of DNS address to be assigned, in vector<IN_ADDR> format.
+
+	WhsFlag: Flag for weak host send.
+
+	WhrFlag: Flag for weak host receive.
 
 Return Value:
 
@@ -245,6 +252,11 @@ Return Value:
 	{
 		hr = adapters[Name]->SetDns(DnsVec);
 		if (hr != S_OK) { return hr; }
+	}
+
+	if (WhsFlag || WhrFlag)
+	{
+		hr = adapters[Name]->SetWeakHost(WhsFlag, WhrFlag);
 	}
 
 	return hr;

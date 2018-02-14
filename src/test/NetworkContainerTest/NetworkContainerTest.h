@@ -21,11 +21,13 @@ Author:
 //
 // ------------------------------------------------------------------- Includes
 //
-
+#include <stdlib.h>  
+#include <crtdbg.h>  
 #include "WexTestClass.h"
 #include <ws2tcpip.h>
 #include <windows.h>
 
+#define _CRTDBG_MAP_ALLOC  
 #define LOG_FILE_PREFIX L"NetworkContainerTest"
 #define LOG_PATH L"C:\\Logs\\NetworkContainerTest"
 

@@ -269,6 +269,7 @@ Return Value:
 
 --*/
 {
+
 	HRESULT hr = S_OK;
 
 	wstring name(L"test");
@@ -277,6 +278,7 @@ Return Value:
 	hr = nc.DeleteLoopbackAdapter(name);
 
 	return hr == S_OK ? true : false;
+
 }
 
 void NetworkContainerTest::TestFindAdapterByDisplayName()
@@ -324,6 +326,7 @@ Return Value:
 	LOGINFOW(L"DeleteLoopbackAdapter in TestFindAdapterByDisplayName.")
 	hr = nc.DeleteLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"Removed adapter.");
+
 }
 
 void NetworkContainerTest::TestCreateLoopbackAdapter()

@@ -9,6 +9,8 @@
 #define ASSERT( exp ) ((void) 0)
 #endif
 
+#define _CRTDBG_MAP_ALLOC
+
 #include "targetver.h"
 #include <windows.h> 
 #include <tchar.h>

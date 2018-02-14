@@ -15,7 +15,8 @@ Author:
 	Yongli Chen
 
 --*/
-
+#include <stdlib.h>  
+#include <crtdbg.h> 
 #include <stdio.h>
 #include <wchar.h>
 #include <ws2tcpip.h>
@@ -178,7 +179,9 @@ ParseCmdArguments(
 	_Out_ IN_ADDR& Ip,
 	_Out_ IN_ADDR& Netmask,
 	_Out_ IN_ADDR& Gateway,
-	_Out_ vector<IN_ADDR>& DnsVec
+	_Out_ vector<IN_ADDR>& DnsVec,
+	_Out_ bool& WhsFlag,
+	_Out_ bool& WhrFlag
 )
 /*++
 
@@ -206,14 +209,20 @@ Arguments:
 			   Operation to be done on the device instance.
 			   For loopback adapter, we support "CREATE"/"UPDATE"/"DELETE" operations.
 
-	IpStr: Required if Type is "Anteres" and Operation is "CREATE".
+	Ip: Required if Type is "Anteres" and Operation is "CREATE".
 		   IP adress of the device instance.
 
-	DnsStr: Optional.
+	Dns: Optional.
 		    DNS server address.
 
-	GatewayStr: Optional.
+	Gateway: Optional.
 			    Gateway address of the device instance.
+
+	WhsFlag: Optional.
+			 Flag for weak host send.
+
+	WhrFlag: Optional.
+			 Flag for weak host receive.
 
 --*/
 {
@@ -275,7 +284,22 @@ Arguments:
 				}
 				DnsVec.push_back(dns);
 			}
-		} else
+		} else if (arg == WEAKHOST_SEND_FLAG)
+		{
+
+			if (wstring(ArgList[++i]) == L"true") 
+			{
+				WhsFlag = true;
+				continue;
+			} 
+		} else if (arg == WEAKHOST_RECV_FLAG)
+		{
+			if (wstring(ArgList[++i]) == L"true")
+			{
+				WhrFlag = true;
+				continue;
+			}
+		} else 
 		{
 			hr = E_INVALIDARG;
 			return hr;
@@ -304,8 +328,35 @@ HRESULT dispatch(_In_ NetworkContainer& nc,
 	_In_ IN_ADDR Ip,
 	_In_ IN_ADDR Netmask,
 	_In_ IN_ADDR Gateway,
-	_In_ vector<IN_ADDR> DnsVec
+	_In_ vector<IN_ADDR> DnsVec,
+	_In_ bool WhsFlag,
+	_In_ bool WhrFlag
 )
+/*++
+
+Routine Description:
+
+	This routine parses command line arguments for NetworkContainer.exe during invocation.
+
+Arguments:
+
+	Name: Name of the device instance.
+
+	Operation: Operation to be done on the device instance.
+			   For loopback adapter, we support "CREATE"/"UPDATE"/"DELETE" operations.
+
+	Ip: IP adress of the device instance.
+
+	Dns: DNS server address.
+
+	Gateway: Gateway address of the device instance.
+
+	WhsFlag: Flag for weak host send.
+
+	WhrFlag: Flag for weak host receive.
+
+--*/
+
 {
 	HRESULT hr = S_OK;
 
@@ -323,7 +374,7 @@ HRESULT dispatch(_In_ NetworkContainer& nc,
 			return hr;
 		}
 
-		nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, DnsVec);
+		hr = nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, DnsVec, WhsFlag, WhrFlag);
 		if (hr != S_OK)
 		{
 			LOGERRW(L"Failed to configure loopback adapter with error: [%0x].", hr);
@@ -331,7 +382,7 @@ HRESULT dispatch(_In_ NetworkContainer& nc,
 		}
 	} else if (Operation == L"UPDATE")
 	{
-		hr = nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, DnsVec);
+		hr = nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, DnsVec, WhsFlag, WhrFlag);
 		if (hr != S_OK)
 		{
 			LOGERRW(L"Failed to created loopback adapter with error [%0x].", hr);
@@ -374,6 +425,7 @@ Arguments:
 	wstring logPath, name, operation;
 	IN_ADDR ip, netmask, gateway = { 0 };
 	vector<IN_ADDR> dnsVec;
+	bool whsFlag = false, whrFlag = false;
 
 	hr = ParseCmdArguments(argc, 
 		argv, 
@@ -383,7 +435,10 @@ Arguments:
 		ip, 
 		netmask,
 		gateway,
-		dnsVec);
+		dnsVec,
+		whsFlag,
+		whrFlag
+	);
 	if (hr != S_OK)
 	{
 		PrintUsage();
@@ -396,7 +451,7 @@ Arguments:
 
 	NetworkContainer nc(name, ip, netmask, gateway, dnsVec);
 
-	hr = dispatch(nc, name, operation, ip, netmask, gateway, dnsVec);
+	hr = dispatch(nc, name, operation, ip, netmask, gateway, dnsVec, whsFlag, whrFlag);
 	if (hr != S_OK)
 	{
 		LOGERRW(L"dispatch failed with error [%0x]", hr);

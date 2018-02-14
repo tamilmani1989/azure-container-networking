@@ -52,6 +52,7 @@ public:
 	HRESULT SetNetmask(_In_ IN_ADDR Netmask);
 	HRESULT SetGateway(_In_ IN_ADDR Gateway);
 	HRESULT SetDns(_In_ vector<IN_ADDR> DnsVec);
+	HRESULT SetWeakHost(_In_ bool WhsFlag, _In_ bool WhrFlag);
 	void SetIndex(_In_ int InterfaceIndex);
 
 private:
