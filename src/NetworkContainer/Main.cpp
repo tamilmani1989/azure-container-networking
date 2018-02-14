@@ -362,6 +362,7 @@ Arguments:
 
 	if (Operation == L"CREATE")
 	{
+
 		hr = nc.CreateLoopbackAdapter(Name);
 		if (hr == HRESULT_FROM_WIN32(ERROR_ALIAS_EXISTS))
 		{

@@ -351,7 +351,7 @@ Return Value:
 
 	NetworkContainer nc;
 	LOGINFOW(L"CreateLoopbackAdapter when no adapter presents.")
-	hr = nc.CreateLoopbackAdapter(name);
+		hr = nc.CreateLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
 		S_OK,
 		L"CreateLoopbackAdapter passed when no adapter presents. [1/2]"
@@ -367,6 +367,7 @@ Return Value:
 	LOGINFOW(L"DeleteLoopbackAdapter in TestCreateLoopbackAdapter.")
 	hr = nc.DeleteLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"Removed adapter.");
+
 }
 
 void NetworkContainerTest::TestConfigLoopbackAdapter()
@@ -395,6 +396,7 @@ Return Value:
 	wstring dnsStr1 = L"8.8.8.8";
 	wstring dnsStr2 = L"7.7.7.7";
 	IN_ADDR ip, netmask, gateway, dns1, dns2 = { 0 };
+	bool whsFlag = false, whrFlag = true;
 	hr = ConvertToINADDR((wchar_t*)ipStr.c_str(), ip);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"ip address parsed successfully.");
 	hr = ConvertToINADDR((wchar_t*)netmaskStr.c_str(), netmask);
@@ -411,7 +413,7 @@ Return Value:
 
 	NetworkContainer nc(name, ip, netmask, gateway, dnsVec);
 	LOGINFOW(L"ConfigLoopbackAdapter when no adapter presents.")
-	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dnsVec);
+	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dnsVec, whsFlag, whrFlag);
 	VERIFY_ARE_EQUAL(hr, 
 		HRESULT_FROM_WIN32(ERROR_NOT_FOUND), 
 		L"ConfigLoopbackAdapter test passed when no adapter presents. [1/2]"
@@ -425,7 +427,7 @@ Return Value:
 	);
 
 	LOGINFOW(L"ConfigLoopbackAdapter when adapter presents.")
-	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dnsVec);
+	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dnsVec, whsFlag, whrFlag);
 	VERIFY_ARE_EQUAL(S_OK,
 		S_OK,
 		L"ConfigLoopbackAdapter test passed when adapter presents. [2/2]"

@@ -133,7 +133,11 @@ Return Value:
 
 	int instanceIndex = 0;
 	hr = adapters[Name]->FindAdapterByDisplayName(Name, instanceIndex);
-	if (hr != S_OK) { return hr; }
+	if (hr != S_OK) 
+	{
+		adapters.erase(Name);
+		return hr; 
+	}
 
 	// If lastIndex is set, then we found an existing adapter with the same name.
 	lastIndex = instanceIndex;
@@ -165,6 +169,11 @@ Return Value:
 	HRESULT hr = S_OK;
 
 	hr = FindAdapterByDisplayName(Name);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Failed to find adapter with name %s", Name.c_str());
+		return hr;
+	}
 	// If lastIndex is set, then we found an existing adapter with the same name.
 	if (lastIndex)
 	{
@@ -224,7 +233,9 @@ Return Value:
 	if (hr != S_OK)
 	{
 		LOGERRW(L"Failed to find adapter with name %s", Name.c_str());
+		return hr;
 	}
+
 	// If lastIndex is not set, then there's no adapter with name: Name.
 	if (!lastIndex)
 	{
@@ -281,7 +292,13 @@ Return Value:
 {
 	HRESULT hr = S_OK;
 
-	FindAdapterByDisplayName(Name);
+	hr = FindAdapterByDisplayName(Name);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Failed to find adapter with name %s", Name.c_str());
+		return hr;
+	}
+
 	// If lastIndex is not set, then there's no adapter with name: Name.
 	if (!lastIndex)
 	{
