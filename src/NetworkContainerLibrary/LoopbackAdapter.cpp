@@ -72,6 +72,10 @@ Return Value:
 
 {
 	STR_FREE(loopbackInfPath);
+	if (deviceInfoSet != INVALID_HANDLE_VALUE)
+	{
+		SetupDiDestroyDeviceInfoList(deviceInfoSet);
+	}
 }
 
 HRESULT LoopbackAdapter::FindAdapterByDisplayName(_In_ wstring Name, _Out_ int& InstanceIndex)
@@ -543,7 +547,6 @@ Return Value:
 HRESULT LoopbackAdapter::Rename()
 {
 	HRESULT hr = S_OK;
-
 	wstring netshCommand = L"netsh interface set interface name=\"" +
 		alias +
 		L"\" newname=\"" +
@@ -585,7 +588,7 @@ Return Value:
 --*/
 
 	HRESULT hr = S_OK;
-	
+
 	if (!SetupDiCallClassInstaller(DIF_REMOVE, deviceInfoSet, &deviceInfoData))
 	{
 		hr = HRESULT_FROM_WIN32(GetLastError());
@@ -622,7 +625,6 @@ Return Value:
 --*/
 {
 	HRESULT hr = S_OK;
-
 	UINT iaIPAddress = Ip.S_un.S_addr;
 	UINT iaIPMask = netmask.S_un.S_addr;
 
@@ -675,7 +677,6 @@ Return Value:
 --*/
 {
 	HRESULT hr = S_OK;
-
 	char ipCharArray[INET_ADDRSTRLEN], nmCharArray[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, (void*)&ip, ipCharArray, sizeof(ipCharArray));
 	inet_ntop(AF_INET, (void*)&Netmask, nmCharArray, sizeof(nmCharArray));
@@ -727,7 +728,6 @@ Return Value:
 --*/
 {
 	HRESULT hr = S_OK;
-
 	char ipCharArray[INET_ADDRSTRLEN], nmCharArray[INET_ADDRSTRLEN], gwCharArray[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, (void*)&ip, ipCharArray, sizeof(ipCharArray));
 	inet_ntop(AF_INET, (void*)&netmask, nmCharArray, sizeof(nmCharArray));
@@ -746,6 +746,7 @@ Return Value:
 		gwStr;
 
 	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
+
 	DWORD exitCode = 0;
 	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
 	if (hr != S_OK)
@@ -783,7 +784,6 @@ Return Value:
 --*/
 {
 	HRESULT hr = S_OK;
-
 	int idx = 0;
 	wstring netshCommand;
 
@@ -844,7 +844,6 @@ Arguments:
 --*/
 {
 	HRESULT hr = S_OK;
-
 	wstring whs = WhsFlag ? L"enabled" : L"disabled";
 	wstring whr = WhrFlag ? L"enabled" : L"disabled";
 	wstring netshCommand = L"netsh interface ip set interface " +
