@@ -174,6 +174,7 @@ Return Value:
 		LOGERRW(L"Failed to find adapter with name %s", Name.c_str());
 		return hr;
 	}
+
 	// If lastIndex is set, then we found an existing adapter with the same name.
 	if (lastIndex)
 	{

@@ -34,74 +34,6 @@ Author:
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 using namespace WEX::TestExecution;
 
-HRESULT SetupDebugLogging(
-)
-{
-	DWORD error;
-	HRESULT hr;
-	wchar_t executablePath[MAX_PATH];
-
-	LPWSTR executableFolder = NULL;
-	LPWSTR logFolder = NULL;
-	LPWSTR logFilePathWithPrefix = NULL;
-	if (!GetModuleFileName(NULL, executablePath, MAX_PATH))
-	{
-		error = GetLastError();
-		wprintf(L"Failed to retrieve process working directory (%d)\n", error);
-		RD_E_WIN32(error, Cleanup);
-	}
-
-	hr = GetDirectoryFromPath(executablePath, &executableFolder);
-
-	wprintf(L"Retrieved executable folder[%s] [%0x]", executableFolder, hr);
-
-	RD_E_HR(hr, Cleanup);
-
-	error = AppendStrings(&logFolder,
-		2,
-		executableFolder,
-		L"\\Logs\\");
-
-
-	wprintf(L"Creating log folder[%s] [%d]", logFolder, error);
-
-	RD_E_WIN32(error, Cleanup);
-
-	if (!CreateDirectory(logFolder, NULL))
-	{
-		error = GetLastError();
-		if (error != ERROR_ALREADY_EXISTS)
-		{
-			wprintf(L"Failed to create log folder [%s] due to erroro (%d)\n", logFolder, error);
-			RD_E_WIN32(error, Cleanup);
-		}
-	}
-
-	error = AppendStrings(&logFilePathWithPrefix,
-		2,
-		logFolder,
-		LOG_FILE_PREFIX);
-	RD_E_WIN32(error, Cleanup);
-
-	hr = RD_TRACE_INITIALIZE_CUSTOM_SIZE(RD_TRACE_OUTPUT_FILE,
-		RD_TRACE_ALL,
-		logFilePathWithPrefix,
-		NULL,
-		0,
-		NULL,
-		RD_TRACE_ALL,
-		10,
-		RD_TRACE_LOG_LIMIT);
-
-Cleanup:
-
-	STR_FREE(executableFolder);
-	STR_FREE(logFolder);
-	STR_FREE(logFilePathWithPrefix);
-
-	return hr;
-}
-
 bool
 SetupLogging(
 	__in PCWSTR LogLocation
@@ -234,14 +166,6 @@ Return Value:
 --*/
 {
 	HRESULT hr = S_OK;
-
-	hr = SetupDebugLogging();
-	if (FAILED(hr))
-	{
-		wprintf(L"Failed to setup debug logging due to error [%0x]", hr);
-		return false;
-	}
-
 	hr = SetupLogging(LOG_PATH);
 	if (FAILED(hr))
 	{
