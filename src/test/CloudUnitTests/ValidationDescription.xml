@@ -98,5 +98,22 @@
     </TestCategories>
     </ValidationReportTaskDescriptions>
 
+	<ValidationReportTaskDescriptions>
+    <TaskName>NetworkContainerTest</TaskName>
+    <OwnerName>Yongli Chen</OwnerName>
+    <TaskCommand>test\Taef\TE.exe test\NetworkContainerTest\NetworkContainerTest.dll</TaskCommand>
+    <PreTaskCommand />
+    <PostTaskCommand />
+    <ValidationReportDescriptions>
+      <ValidationReportFilename>NetworkContainerTest.xml</ValidationReportFilename>
+      <TestFramework>TAEF</TestFramework>
+    </ValidationReportDescriptions>
+    <ReimageHints>
+	  <Behavior>None</Behavior>
+    </ReimageHints>
+    <TestCategories>
+      <CategoryName>UnitTest</CategoryName>
+    </TestCategories>
+    </ValidationReportTaskDescriptions>
   </TaskGroup>
 </ValidationDescription>

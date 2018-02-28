@@ -228,8 +228,8 @@ Arguments:
 --*/
 {
 	HRESULT hr = S_OK;
-
 	bool ipSet = false;
+
 	for (int i = 1; i < ArgCount - 1; i++)
 	{
 		wstring arg = ArgList[i];
@@ -436,7 +436,6 @@ Arguments:
 --*/
 {
 	HRESULT hr = S_OK;
-
 	wstring logPath, name, operation;
 	IN_ADDR ip, netmask, gateway = { 0 };
 	vector<IN_ADDR> dnsVec;
