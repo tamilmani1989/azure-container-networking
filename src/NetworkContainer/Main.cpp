@@ -155,6 +155,7 @@ Return Value:
 	DWORD ret;
 	HRESULT hr = S_OK;
 	PCWSTR temp = NULL;
+
 	ret = RtlIpv4StringToAddress(Str, true, &temp, &Retval);
 	if (ret)
 	{
@@ -240,13 +241,16 @@ Arguments:
 		if (arg == LOG_PATH_CMDLINE_FLAG)
 		{
 			LogPath = ArgList[++i];
-		} else if (arg == NAME_CMDLINE_FLAG)
+		} 
+		else if (arg == NAME_CMDLINE_FLAG)
 		{
 			Name = ArgList[++i];
-		} else if (arg == OPERATION_CMDLINE_FLAG)
+		} 
+		else if (arg == OPERATION_CMDLINE_FLAG)
 		{
 			Operation = ArgList[++i];
-		} else if (arg == IP_CMDLINE_FLAG)
+		} 
+		else if (arg == IP_CMDLINE_FLAG)
 		{
 			hr = ConvertToINADDR(ArgList[++i], Ip);
 			if (hr != S_OK)
@@ -254,21 +258,24 @@ Arguments:
 				return hr;
 			}
 			ipSet = true;
-		} else if (arg == NETMASK_CMDLINE_FLAG)
+		} 
+		else if (arg == NETMASK_CMDLINE_FLAG)
 		{
 			hr = ConvertToINADDR(ArgList[++i], Netmask);
 			if (hr != S_OK)
 			{
 				return hr;
 			}
-		} else if (arg == GATEWAY_CMD_LINE_FLAG)
+		} 
+		else if (arg == GATEWAY_CMD_LINE_FLAG)
 		{
 			hr = ConvertToINADDR(ArgList[++i], Gateway);
 			if (hr != S_OK)
 			{
 				return hr;
 			}
-		} else if (arg == DNS_CMDLINE_FLAG)
+		} 
+		else if (arg == DNS_CMDLINE_FLAG)
 		{
 			wstring dnsStrList(ArgList[++i]);
 			deque<wstring> dnsDeq;
@@ -284,7 +291,8 @@ Arguments:
 				}
 				DnsVec.push_back(dns);
 			}
-		} else if (arg == WEAKHOST_SEND_FLAG)
+		} 
+		else if (arg == WEAKHOST_SEND_FLAG)
 		{
 
 			if (wstring(ArgList[++i]) == L"true") 
@@ -292,14 +300,16 @@ Arguments:
 				WhsFlag = true;
 				continue;
 			} 
-		} else if (arg == WEAKHOST_RECV_FLAG)
+		} 
+		else if (arg == WEAKHOST_RECV_FLAG)
 		{
 			if (wstring(ArgList[++i]) == L"true")
 			{
 				WhrFlag = true;
 				continue;
 			}
-		} else 
+		} 
+		else 
 		{
 			hr = E_INVALIDARG;
 			return hr;
@@ -369,6 +379,7 @@ Arguments:
 			LOGERRW(L"Failed to created loopback adapter. Adapter with name %s already exists.", Name.c_str());
 			return hr;
 		}
+
 		if (hr != S_OK)
 		{
 			LOGERRW(L"Failed to created loopback adapter with error [%0x].", hr);
@@ -381,7 +392,8 @@ Arguments:
 			LOGERRW(L"Failed to configure loopback adapter with error: [%0x].", hr);
 			return hr;
 		}
-	} else if (Operation == L"UPDATE")
+	} 
+	else if (Operation == L"UPDATE")
 	{
 		hr = nc.ConfigLoopbackAdapter(Name, Ip, Netmask, Gateway, DnsVec, WhsFlag, WhrFlag);
 		if (hr != S_OK)
@@ -389,7 +401,8 @@ Arguments:
 			LOGERRW(L"Failed to created loopback adapter with error [%0x].", hr);
 			return hr;
 		}
-	} else if (Operation == L"DELETE")
+	} 
+	else if (Operation == L"DELETE")
 	{
 		hr = nc.DeleteLoopbackAdapter(Name);
 		if (hr != S_OK)
@@ -397,7 +410,8 @@ Arguments:
 			LOGERRW(L"Failed to delete loopback adapter with error: [%0x].", hr);
 			return hr;
 		}
-	} else 
+	} 
+	else 
 	{
 		hr = E_INVALIDARG;
 		PrintUsage();
@@ -440,13 +454,18 @@ Arguments:
 		whsFlag,
 		whrFlag
 	);
+
 	if (hr != S_OK)
 	{
 		PrintUsage();
 		return hr;
 	}
 
-	if (logPath.empty()) { logPath = DEFAULT_LOG_LOCATION; }
+	if (logPath.empty())
+	{ 
+		logPath = DEFAULT_LOG_LOCATION; 
+	}
+
 	SetupLogging(logPath.c_str());
 	LOGINFOW(L"Setup logging succeeded.");
 

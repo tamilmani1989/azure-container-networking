@@ -58,7 +58,10 @@ Return Value:
 {
 	CoUninitialize();
 
-	for (auto &it : adapters) { adapters.erase(it.first); }
+	for (auto &it : adapters) 
+	{ 
+		adapters.erase(it.first); 
+	}
 }
 
 NetworkContainer::NetworkContainer(
@@ -121,6 +124,7 @@ Return Value:
 --*/
 {
 	HRESULT hr = S_OK;
+	int instanceIndex = 0;
 
 	adapters[Name] = unique_ptr<LoopbackAdapter>(
 		new LoopbackAdapter(
@@ -131,11 +135,9 @@ Return Value:
 			dnsVec)
 		);
 
-	int instanceIndex = 0;
 	hr = adapters[Name]->FindAdapterByDisplayName(Name, instanceIndex);
 	if (hr != S_OK) 
 	{
-		adapters.erase(Name);
 		return hr; 
 	}
 
@@ -169,7 +171,7 @@ Return Value:
 	HRESULT hr = S_OK;
 
 	hr = FindAdapterByDisplayName(Name);
-	if (hr != S_OK)
+	if (hr != S_OK && hr != HRESULT_FROM_WIN32(ERROR_NOT_FOUND))
 	{
 		LOGERRW(L"Failed to find adapter with name %s", Name.c_str());
 		return hr;
@@ -181,6 +183,7 @@ Return Value:
 		hr = HRESULT_FROM_WIN32(ERROR_ALIAS_EXISTS);
 		return hr;
 	}
+
 	if (hr != HRESULT_FROM_WIN32(ERROR_NOT_FOUND))
 	{
 		return hr;
@@ -246,24 +249,36 @@ Return Value:
 
 	// IP is required. Checking is done in caller function.
 	hr = adapters[Name]->SetIp(Ip);
-	if (hr != S_OK) { return hr; }
+	if (hr != S_OK) 
+	{ 
+		return hr; 
+	}
 
 	if (Netmask.S_un.S_addr != INADDR_NONE)
 	{
 		hr = adapters[Name]->SetNetmask(Netmask);
-		if (hr != S_OK) { return hr; }
+		if (hr != S_OK) 
+		{ 
+			return hr; 
+		}
 	}
 
 	if (Gateway.S_un.S_addr != INADDR_NONE)
 	{
 		hr = adapters[Name]->SetGateway(Gateway);
-		if (hr != S_OK) { return hr; }
+		if (hr != S_OK) 
+		{ 
+			return hr; 
+		}
 	}
 
 	if (!DnsVec.empty())
 	{
 		hr = adapters[Name]->SetDns(DnsVec);
-		if (hr != S_OK) { return hr; }
+		if (hr != S_OK) 
+		{ 
+			return hr; 
+		}
 	}
 
 	if (WhsFlag || WhrFlag)
