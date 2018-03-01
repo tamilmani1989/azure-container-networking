@@ -284,7 +284,7 @@ Return Value:
 	LOGINFOW(L"CreateLoopbackAdapter.")
 	hr = nc.CreateLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
-		HRESULT_FROM_WIN32(ERROR_ALIAS_EXISTS),
+		S_OK,
 		L"CreateLoopbackAdapter passed when adapter presents. [2/2]"
 	);
 
@@ -386,7 +386,7 @@ Return Value:
 	LOGINFOW(L"DeleteLoopbackAdapter when no adapter presents.")
 	hr = nc.DeleteLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
-		HRESULT_FROM_WIN32(ERROR_NOT_FOUND),
+		S_OK,
 		L"DeleteLoopbackAdapter passed when no adapter presents. [1/2]"
 	);
 

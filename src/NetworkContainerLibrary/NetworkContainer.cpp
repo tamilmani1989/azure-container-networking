@@ -180,8 +180,7 @@ Return Value:
 	// If lastIndex is set, then we found an existing adapter with the same name.
 	if (lastIndex)
 	{
-		hr = HRESULT_FROM_WIN32(ERROR_ALIAS_EXISTS);
-		return hr;
+		return S_OK;
 	}
 
 	if (hr != HRESULT_FROM_WIN32(ERROR_NOT_FOUND))
@@ -318,8 +317,7 @@ Return Value:
 	// If lastIndex is not set, then there's no adapter with name: Name.
 	if (!lastIndex)
 	{
-		hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
-		return hr;
+		return S_OK;
 	}
 
 	hr = adapters[Name]->Delete();
