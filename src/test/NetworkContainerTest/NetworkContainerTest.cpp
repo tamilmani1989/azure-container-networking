@@ -398,7 +398,7 @@ Return Value:
 	);
 
 	LOGINFOW(L"DeleteLoopbackAdapter when adapter presents.")
-		hr = nc.DeleteLoopbackAdapter(name);
+	hr = nc.DeleteLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
 		S_OK,
 		L"DeleteLoopbackAdapter passed when no adapter presents. [1/2]"
