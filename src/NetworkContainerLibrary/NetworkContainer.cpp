@@ -308,7 +308,7 @@ Return Value:
 	HRESULT hr = S_OK;
 
 	hr = FindAdapterByDisplayName(Name);
-	if (hr != S_OK)
+	if (hr != S_OK && hr != HRESULT_FROM_WIN32(ERROR_NOT_FOUND))
 	{
 		LOGERRW(L"Failed to find adapter with name %s", Name.c_str());
 		return hr;
