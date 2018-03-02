@@ -1,0 +1,75 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{EC858AB3-0565-4276-A05C-B52AA23E6427}</ProjectGuid>
+    <RootNamespace>NetworkContainer</RootNamespace>
+    <ProjectName>NetworkContainer</ProjectName>
+    <TargetName>AzureNetworkContainer</TargetName>
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <Import Project="$(SRCROOT)\build\native_user_link.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>%(PreProcessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>  
+        %(AdditionalIncludeDirectories);
+        $(MSBuildThisFileDirectory);
+        $(SrcRoot)\ServiceTunnelLibrary;
+		 $(SrcRoot)\NetworkContainerLibrary;
+        $(SrcRoot)\Logging;
+      </AdditionalIncludeDirectories>
+      <!-- Override default from native_user_compile for compat with RdCommon.lib -->
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>console</SubSystem>
+      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
+      <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        $(WindowsSdk64LibPath)\ole32.lib;
+        $(WindowsSdk64LibPath)\ws2_32.lib;
+        $(WindowsSdk64LibPath)\oleaut32.lib;
+        $(WindowsSdk64LibPath)\setupapi.lib;
+        $(WindowsSdk64LibPath)\strsafe.lib;
+        $(WindowsSdk64LibPath)\iphlpapi.lib;
+        $(WindowsSdk64LibPath)\Rpcrt4.lib;
+        $(WindowsSdk64LibPath)\Uuid.lib;
+        $(WindowsSdk64LibPath)\kernel32.lib;
+        $(WindowsSdk64LibPath)\ntdll.lib;
+        $(WindowsSdk64LibPath)\pathcch.lib;
+        $(WindowsSdk64LibPath)\newdev.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsupp.lib;
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
+        $(PkgVisualCpp_x64_Corext)\lib\x64\legacy_stdio_definitions.lib;
+        $(FC_Redist)\content\redist\SacApi.lib;
+        $(FC_Redist)\content\redist\DCM.RegUtil.lib;
+        $(FC_Redist)\content\redist\RdCommon.lib;
+        $(PkgPolicyAgent_HSClient_Release)\HealthReportingClientLib.lib
+      </AdditionalDependencies>
+    </Link>
+    <ClCompile>
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">MaxSpeed</Optimization>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\Common\XmlParseHelper\XmlParserHelper.cpp" />
+    <ClCompile Include="Main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Logging.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(SRCROOT)\Logging\Logging.vcxproj">
+      <Project>{11A5289D-DE65-411C-9AB8-9B5D088382E4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="$(SRCROOT)\NetworkContainerLibrary\NetworkContainerLibrary.vcxproj">
+      <Project>{5CC4AAD8-1069-4580-A7B2-5C03F84FA17B}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

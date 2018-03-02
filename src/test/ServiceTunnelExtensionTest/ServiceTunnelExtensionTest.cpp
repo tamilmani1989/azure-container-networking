@@ -38,7 +38,6 @@ ServiceTunnelExtensionTest::TestCreateNetworkAdapter()
 	hr = installer.GetOrCreateLoopbackAdapter(SERVICE_TUNNEL_INTERFACE_NAME, getIfIndex);
 	VERIFY_ARE_EQUAL((HRESULT)S_OK, hr, L"getAdapterPassed");
 	VERIFY_ARE_EQUAL(IPV6IfIndex, getIfIndex, L"Ifindex value is correct");
-
 }
 
 // Test reading from RCF.

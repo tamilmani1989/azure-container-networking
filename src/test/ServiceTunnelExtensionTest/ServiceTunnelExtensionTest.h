@@ -4,10 +4,10 @@ Copyright (c) 2011  Microsoft Corporation
 
 Module Name:
 
-	NetworkClientTest.h
+	ServiceTunnelExtensionTest.h
 Abstract:
 
-        Test NetworkClient Functionalities
+        Test ServiceTunnelExtension Functionalities
 
 
 Author:
