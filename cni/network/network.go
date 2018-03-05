@@ -203,6 +203,9 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 			BridgeName: nwCfg.Bridge,
 		}
 
+		nwInfo.Options = make(map[string]interface{})
+		nwInfo.Options["vlanid"] = "100"
+
 		err = plugin.nm.CreateNetwork(&nwInfo)
 		if err != nil {
 			err = plugin.Errorf("Failed to create network: %v", err)
@@ -241,6 +244,9 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		NetNsPath:   args.Netns,
 		IfName:      args.IfName,
 	}
+
+	epInfo.Data = make(map[string]interface{})
+	epInfo.Data["vlanid"] = "100"
 
 	// Populate addresses.
 	for _, ipconfig := range result.IPs {
