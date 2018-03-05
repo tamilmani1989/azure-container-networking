@@ -61,17 +61,17 @@ func (nw *network) setupContainerNicAndRules(hostIfName string, contIfName strin
 				load:0x%s->NXM_NX_ARP_SHA[],normal'`, nw.extIf.BridgeName, containerPort, mac, macHex)
 			_, err = common.ExecuteShellCommand(cmd)
 			if err != nil {
-				log.Printf("[net] Adding SNAT rule failed with error %v", err)
+				log.Printf("[net] Adding ARP SNAT rule failed with error %v", err)
 				return err
 			}
 
 			log.Printf("[net] OVS - Adding IP SNAT rule for egress traffic on %v.", hostIfName)
 
-			cmd = fmt.Sprintf(`ovs-ofctl add-flow %v priority=10,ip,in_port=%s,actions=mod_dl_src:%s,normal`,
-				nw.extIf.BridgeName, containerPort, mac, macHex)
+			cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=10,ip,in_port=%s,actions=mod_dl_src:%s,normal",
+				nw.extIf.BridgeName, containerPort, mac)
 			_, err = common.ExecuteShellCommand(cmd)
 			if err != nil {
-				log.Printf("[net] Adding SNAT rule failed with error %v", err)
+				log.Printf("[net] Adding IP SNAT rule failed with error %v", err)
 				return err
 			}
 
