@@ -210,12 +210,12 @@ func (nm *networkManager) addBridgeRules(extIf *externalInterface, hostIf *net.I
 
 func (nm *networkManager) addOVSRules(extIf *externalInterface, hostIf *net.Interface, bridgeName string) error {
 	primary := extIf.IPAddresses[0].IP.String()
-	primaryInt := common.IpToInt(extIf.IPAddresses[0].IP)
+	//primaryInt := common.IpToInt(extIf.IPAddresses[0].IP)
 
 	mac := extIf.MacAddress.String()
 	macHex := strings.Replace(mac, ":", "", -1)
 
-	cmd := fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,priority=20,actions=normal", bridgeName, primary)
+	cmd := fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_dst=%s,priority=20,actions=normal", bridgeName, primary, mac)
 	_, err := common.ExecuteShellCommand(cmd)
 	if err != nil {
 		log.Printf("[net] Adding SNAT rule failed with error %v", err)
@@ -225,17 +225,17 @@ func (nm *networkManager) addOVSRules(extIf *externalInterface, hostIf *net.Inte
 	// ARP requests for all IP addresses are forwarded to the SDN fabric, but fabric
 	// doesn't respond to ARP requests from the VM for its own primary IP address.
 
-	log.Printf("[net] Adding ARP reply rule for primary IP address %v.", primary)
+	// log.Printf("[net] Adding ARP reply rule for primary IP address %v.", primary)
 
-	cmd = fmt.Sprintf(`ovs-ofctl add-flow %s arp,arp_op=1,priority=20,arp_tpa=%s,actions='load:0x2->NXM_OF_ARP_OP[],
-		move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],mod_dl_src:%s,
-		move:NXM_NX_ARP_SHA[]->NXM_NX_ARP_THA[],move:NXM_OF_ARP_SPA[]->NXM_OF_ARP_TPA[],
-		load:0x%s->NXM_NX_ARP_SHA[],load:0x%x->NXM_OF_ARP_SPA[],IN_PORT'`, bridgeName, primary, mac, macHex, primaryInt)
-	_, err = common.ExecuteShellCommand(cmd)
-	if err != nil {
-		log.Printf("[net] Adding ARP reply rule failed with error %v", err)
-		return err
-	}
+	// cmd = fmt.Sprintf(`ovs-ofctl add-flow %s arp,arp_op=1,priority=20,arp_tpa=%s,actions='load:0x2->NXM_OF_ARP_OP[],
+	// 	move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],mod_dl_src:%s,
+	// 	move:NXM_NX_ARP_SHA[]->NXM_NX_ARP_THA[],move:NXM_OF_ARP_SPA[]->NXM_OF_ARP_TPA[],
+	// 	load:0x%s->NXM_NX_ARP_SHA[],load:0x%x->NXM_OF_ARP_SPA[],IN_PORT'`, bridgeName, primary, mac, macHex, primaryInt)
+	// _, err = common.ExecuteShellCommand(cmd)
+	// if err != nil {
+	// 	log.Printf("[net] Adding ARP reply rule failed with error %v", err)
+	// 	return err
+	// }
 
 	log.Printf("[net] Get ovs port for interface %v.", hostIf.Name)
 	cmd = fmt.Sprintf("ovs-vsctl get Interface %s ofport", hostIf.Name)

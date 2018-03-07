@@ -92,12 +92,12 @@ func (nw *network) setupContainerNicAndRules(hostIfName string, contIfName strin
 				// Add ARP reply rule.
 				ipAddrInt := common.IpToInt(ipAddr.IP)
 
-				log.Printf("[net] Adding ARP reply rule for IP address %v on %v.", ipAddr.String(), contIfName)
+				log.Printf("[net] Adding ARP reply rule for IP address %v on %v.", ipAddr.IP.String(), contIfName)
 				cmd = fmt.Sprintf(`ovs-ofctl add-flow %s arp,arp_tpa=%s,dl_vlan=%v,arp_op=1,actions='load:0x2->NXM_OF_ARP_OP[],
 					move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],mod_dl_src:%s,
 					move:NXM_NX_ARP_SHA[]->NXM_NX_ARP_THA[],move:NXM_OF_ARP_SPA[]->NXM_OF_ARP_TPA[],
 					load:0x%s->NXM_NX_ARP_SHA[],load:0x%x->NXM_OF_ARP_SPA[],IN_PORT'`,
-					nw.extIf.BridgeName, ipAddr.String(), vlanid, macAddr, macAddrHex, ipAddrInt)
+					nw.extIf.BridgeName, ipAddr.IP.String(), vlanid, macAddr, macAddrHex, ipAddrInt)
 				_, err = common.ExecuteShellCommand(cmd)
 				if err != nil {
 					log.Printf("[net] Adding ARP reply rule failed with error %v", err)
@@ -105,9 +105,9 @@ func (nw *network) setupContainerNicAndRules(hostIfName string, contIfName strin
 				}
 
 				// Add MAC address translation rule.
-				log.Printf("[net] Adding MAC DNAT rule for IP address %v on %v.", ipAddr.String(), contIfName)
+				log.Printf("[net] Adding MAC DNAT rule for IP address %v on %v.", ipAddr.IP.String(), contIfName)
 				cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_vlan=%v,in_port=%s,actions=mod_dl_dst:%s,normal",
-					nw.extIf.BridgeName, ipAddr.String(), vlanid, ofport, macAddr)
+					nw.extIf.BridgeName, ipAddr.IP.String(), vlanid, ofport, macAddr)
 				_, err = common.ExecuteShellCommand(cmd)
 				//err = ebtables.SetDnatForIPAddress(nw.extIf.Name, ipAddr.IP, containerIf.HardwareAddr, ebtables.Append)
 				if err != nil {
