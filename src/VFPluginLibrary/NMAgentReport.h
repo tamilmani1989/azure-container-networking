@@ -17,31 +17,35 @@ Tamilmani Manoharan (tamanoha) 14-November-2017
 --*/
 #pragma once
 
+
 #include "VFPluginUtilities.h"
 #include <SetupAPI.h>
-
+#include<string>
 
 #define HOSTAGENT_PATH L"machine/plugins?comp=nmagent&type=PortContainerIOVInformationV1"
+
+using namespace std;
 
 class NMAgentReport
 {
 
 public:
 
-	BOOL IsInstalled;
-	wchar_t OSFamily[MAX_PATH] = L"Windows";
-	wchar_t DriverVersion[MAX_INF_STRING_LENGTH];
-	wchar_t nmAgentUrl[MAX_PATH];
-	int NumNonFunctioningDevices;
+    BOOL IsInstalled;
+    wstring OSFamily;
+    wstring OSVersion;
+    wchar_t DriverVersion[MAX_INF_STRING_LENGTH];
+    wchar_t nmAgentUrl[MAX_PATH];
+    int NumNonFunctioningDevices;
 
-	NMAgentReport();
+    NMAgentReport();
 
-	int SendStatusToNMAgent(
-		wchar_t *statusInfo
-	);
+    int SendStatusToNMAgent(
+        wchar_t *statusInfo
+    );
 
-	HRESULT RetrieveStatusInfoAsXMLStr(
-		BSTR *statusInfo
-	);
+    HRESULT RetrieveStatusInfoAsXMLStr(
+        BSTR *statusInfo
+    );
 
 };
