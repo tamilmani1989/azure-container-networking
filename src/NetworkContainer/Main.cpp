@@ -202,10 +202,6 @@ Arguments:
 	Name: Required. 
 	      Name of the device instance.
 
-	Type: Required. 
-	      Type of request.
-		  We only support "Anteres" for now.
-
 	Operation: Required. 
 			   Operation to be done on the device instance.
 			   For loopback adapter, we support "CREATE"/"UPDATE"/"DELETE" operations.
@@ -238,17 +234,40 @@ Arguments:
 			PrintUsage();
 			return hr;
 		}
+
 		if (arg == LOG_PATH_CMDLINE_FLAG)
 		{
 			LogPath = ArgList[++i];
 		} 
-		else if (arg == NAME_CMDLINE_FLAG)
+		else if (arg == NAME_CMDLINE_FLAG || arg == INDEX_CMDLINE_FLAG)
 		{
 			Name = ArgList[++i];
 		} 
 		else if (arg == OPERATION_CMDLINE_FLAG)
 		{
 			Operation = ArgList[++i];
+			if (Operation == L"WEAKHOSTROUTING")
+			{
+				if (wstring(ArgList[i + 1]) == WEAKHOST_SEND_FLAG)
+				{
+					i++;
+					if (wstring(ArgList[++i]) == L"true")
+					{
+						WhsFlag = true;
+					}
+				}
+
+				if (wstring(ArgList[i + 1]) == WEAKHOST_RECV_FLAG)
+				{
+					i++;
+					if (wstring(ArgList[++i]) == L"true")
+					{
+						WhrFlag = true;
+					}
+				}
+
+				return hr;
+			}
 		} 
 		else if (arg == IP_CMDLINE_FLAG)
 		{
@@ -294,7 +313,6 @@ Arguments:
 		} 
 		else if (arg == WEAKHOST_SEND_FLAG)
 		{
-
 			if (wstring(ArgList[++i]) == L"true") 
 			{
 				WhsFlag = true;
@@ -372,7 +390,6 @@ Arguments:
 
 	if (Operation == L"CREATE")
 	{
-
 		hr = nc.CreateLoopbackAdapter(Name);
 		if (hr == HRESULT_FROM_WIN32(ERROR_ALIAS_EXISTS))
 		{
@@ -411,6 +428,15 @@ Arguments:
 			return hr;
 		}
 	} 
+	else if (Operation == L"WEAKHOSTROUTING")
+	{
+		hr = nc.WeakHostRouting(Name, WhsFlag, WhrFlag);
+		if (hr != S_OK)
+		{
+			LOGERRW(L"Failed to configure weak host routing with error: [%0x].", hr);
+			return hr;
+		}
+	}
 	else 
 	{
 		hr = E_INVALIDARG;
@@ -437,7 +463,7 @@ Arguments:
 {
 	HRESULT hr = S_OK;
 	wstring logPath, name, operation;
-	IN_ADDR ip, netmask, gateway = { 0 };
+	IN_ADDR ip = { 0 }, netmask = { 0 }, gateway = { 0 };
 	vector<IN_ADDR> dnsVec;
 	bool whsFlag = false, whrFlag = false;
 
@@ -468,7 +494,7 @@ Arguments:
 	SetupLogging(logPath.c_str());
 	LOGINFOW(L"Setup logging succeeded.");
 
-	NetworkContainer nc(name, ip, netmask, gateway, dnsVec);
+	NetworkContainer nc(name, ip, netmask, gateway, dnsVec, whsFlag, whrFlag);
 
 	hr = dispatch(nc, name, operation, ip, netmask, gateway, dnsVec, whsFlag, whrFlag);
 	if (hr != S_OK)

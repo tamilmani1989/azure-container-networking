@@ -24,7 +24,9 @@ LoopbackAdapter::LoopbackAdapter(
 	_In_ IN_ADDR Ip,
 	_In_ IN_ADDR Netmask,
 	_In_ IN_ADDR Gateway,
-	_In_ vector<IN_ADDR> DnsVec
+	_In_ vector<IN_ADDR> DnsVec,
+	_In_ bool WhsFlag,
+	_In_ bool WhrFlag
 )
 /*++
 
@@ -55,6 +57,8 @@ Return Value:
 	netmask = Netmask;
 	dnsVec = DnsVec;
 	gateway = Gateway;
+	whsFlag = WhsFlag;
+	whrFlag = WhrFlag;
 }
 
 LoopbackAdapter::~LoopbackAdapter()
@@ -69,13 +73,23 @@ Return Value:
 	None.
 
 --*/
-
 {
 	STR_FREE(loopbackInfPath);
 	if (deviceInfoSet != INVALID_HANDLE_VALUE)
 	{
 		SetupDiDestroyDeviceInfoList(deviceInfoSet);
 	}
+}
+
+bool LoopbackAdapter::isNumber(_In_ wstring Name) 
+{
+	wchar_t* p;
+	wcstol(Name.c_str(), &p, 10);
+	if (*p)
+	{
+		return false;
+	}
+	return true;
 }
 
 HRESULT LoopbackAdapter::FindAdapterByDisplayName(_In_ wstring Name, _Out_ int& InstanceIndex)
@@ -96,6 +110,17 @@ Return Value:
 --*/
 {
 	HRESULT hr = S_OK;
+
+	if (isNumber(Name))
+	{
+		hr = FindAdapterByIndex(Name);
+		if (hr == S_OK)
+		{
+			InstanceIndex = stoi(Name);
+		}
+		return hr;
+	}
+
 	INetCfg* netCfg = NULL;
 	INetCfgClass* netCfgClass = NULL;
 	IEnumNetCfgComponent* netCfgComponentEnum = NULL;
@@ -138,7 +163,7 @@ Return Value:
 			continue;
 		}
 
-		if (wcsncmp(Name.c_str(), interfaceDisplayName, wcslen(interfaceDisplayName)) == 0)
+		if (Name == interfaceDisplayName)
 		{
 			LOGINFOW(L"Found matching interface. Name [%s]", interfaceDisplayName);
 			hr = netCfgComponent->GetInstanceGuid(&instanceGuid);
@@ -159,7 +184,7 @@ Return Value:
 	if (hr == S_FALSE && !updated)
 	{
 		hr = HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
-		LOGERRW(L"GetInterfaceByDisplayName: Failed to find interface with name  %s", Name.c_str());
+		LOGERRW(L"GetInterfaceByDisplayName: Failed to find interface with name %s", Name.c_str());
 		goto Cleanup;
 	}
 
@@ -180,6 +205,72 @@ Cleanup:
 	CO_FREE(interfaceDisplayName);
 
 	ReleaseINetCfgWithLock(netCfg);
+	return hr;
+}
+
+HRESULT LoopbackAdapter::FindAdapterByIndex(wstring Index)
+/*++
+
+Routine Description:
+
+	This routine finds an adapter by its index.
+
+Argument:
+
+	Index: Index of the adapter.
+
+Return Value:
+
+	S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	HRESULT hr = S_OK;
+
+	PIP_ADAPTER_INFO pAdapterInfo;
+	PIP_ADAPTER_INFO pAdapter = NULL;
+	DWORD dwRetVal = 0;
+
+	ULONG ulOutBufLen = sizeof(IP_ADAPTER_INFO);
+	pAdapterInfo = (IP_ADAPTER_INFO *)malloc(sizeof(IP_ADAPTER_INFO));
+	if (pAdapterInfo == NULL) 
+	{
+		LOGINFOW(L"Error allocating memory needed to call GetAdaptersinfo\n");
+		hr = E_ABORT;
+		return hr;
+	}
+
+	if (GetAdaptersInfo(pAdapterInfo, &ulOutBufLen) == ERROR_BUFFER_OVERFLOW) 
+	{
+		free(pAdapterInfo);
+		pAdapterInfo = (IP_ADAPTER_INFO *)malloc(ulOutBufLen);
+		if (pAdapterInfo == NULL) 
+		{
+			LOGINFOW(L"Error allocating memory needed to call GetAdaptersinfo\n");
+			hr = E_ABORT;
+			return hr;
+		}
+	}
+
+	if ((dwRetVal = GetAdaptersInfo(pAdapterInfo, &ulOutBufLen)) == NO_ERROR)
+	{
+		pAdapter = pAdapterInfo;
+		while (pAdapter)
+		{
+			if (pAdapter->Index == (DWORD)stoi(Index))
+			{
+				LOGINFOW(L"Found matching interface. Index [%d]", pAdapter->Index);
+				break;
+			}
+			pAdapter = pAdapter->Next;
+		}
+	}
+
+	if (pAdapterInfo)
+	{
+		free(pAdapterInfo);
+	}
+
 	return hr;
 }
 
@@ -659,113 +750,6 @@ Return Value:
 	return hr;
 }
 
-HRESULT LoopbackAdapter::SetNetmask(_In_ IN_ADDR Netmask)
-/*++
-
-Routine Description:
-
-	This routine sets the netmask for the adapter.
-
-Arguments:
-
-	Netmask in IN_ADDR format.
-
-Return Value:
-
-	S_OK on success. On failure appropriate HRESULT is returned.
-
---*/
-{
-	HRESULT hr = S_OK;
-	char ipCharArray[INET_ADDRSTRLEN], nmCharArray[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, (void*)&ip, ipCharArray, sizeof(ipCharArray));
-	inet_ntop(AF_INET, (void*)&Netmask, nmCharArray, sizeof(nmCharArray));
-	wstring ipStr, nmStr;
-	copy(ipCharArray, ipCharArray + strlen(ipCharArray), back_inserter(ipStr));
-	copy(nmCharArray, nmCharArray + strlen(nmCharArray), back_inserter(nmStr));
-	wstring netshCommand = L"netsh interface ip set address name=" +
-		to_wstring(interfaceIndex) +
-		L" static addr=" +
-		ipStr +
-		L" mask=" +
-		nmStr;
-
-	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
-	DWORD exitCode = 0;
-	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
-	if (hr != S_OK)
-	{
-		LOGERRW(L"Command failed ('%ls')", netshCommand.c_str());
-		return hr;
-	}
-
-	if (exitCode != ERROR_SUCCESS)
-	{
-		hr = HRESULT_FROM_WIN32(exitCode);
-		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand.c_str());
-		return hr;
-	}
-
-	LOGINFOW(L"Netmask set successfully.");
-	return hr;
-}
-
-HRESULT LoopbackAdapter::SetGateway(_In_ IN_ADDR Gateway)
-/*++
-
-Routine Description:
-
-	This routine sets the gateway for the adapter.
-
-Arguments:
-
-	DNS address in IN_ADDR format.
-
-Return Value:
-
-	S_OK on success. On failure appropriate HRESULT is returned.
-
---*/
-{
-	HRESULT hr = S_OK;
-	char ipCharArray[INET_ADDRSTRLEN], nmCharArray[INET_ADDRSTRLEN], gwCharArray[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, (void*)&ip, ipCharArray, sizeof(ipCharArray));
-	inet_ntop(AF_INET, (void*)&netmask, nmCharArray, sizeof(nmCharArray));
-	inet_ntop(AF_INET, (void*)&Gateway, gwCharArray, sizeof(gwCharArray));
-	wstring ipStr, nmStr, gwStr;
-	copy(ipCharArray, ipCharArray + strlen(ipCharArray), back_inserter(ipStr));
-	copy(nmCharArray, nmCharArray + strlen(nmCharArray), back_inserter(nmStr));
-	copy(gwCharArray, gwCharArray + strlen(gwCharArray), back_inserter(gwStr));
-	wstring netshCommand = L"netsh interface ip set address name=" +
-		to_wstring(interfaceIndex) +
-		L" static addr=" +
-		ipStr +
-		L" mask=" +
-		nmStr +
-		L" gateway=" +
-		gwStr;
-
-	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
-
-	DWORD exitCode = 0;
-	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
-	if (hr != S_OK)
-	{
-		LOGERRW(L"Command failed ('%ls')", netshCommand.c_str());
-		return hr;
-	}
-
-	if (exitCode != ERROR_SUCCESS)
-	{
-		hr = HRESULT_FROM_WIN32(exitCode);
-		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand.c_str());
-		return hr;
-	}
-
-	LOGINFOW(L"Gateway set successfully.");
-	return hr;
-}
-
 HRESULT LoopbackAdapter::SetDns(_In_ vector<IN_ADDR> DnsVec)
 /*++
 
@@ -869,7 +853,75 @@ Arguments:
 		return hr;
 	}
 
-	LOGINFOW(L"Gateway set successfully.");
+	LOGINFOW(L"weak host routing set successfully.");
+	return hr;
+}
+
+HRESULT LoopbackAdapter::SetNetwork(
+	_In_ IN_ADDR Ip,
+	_In_ IN_ADDR Netmask,
+	_In_ IN_ADDR Gateway
+)
+/*++
+
+Routine Description:
+
+	Configure ip, netmask and gateway on the interface.
+
+Arguments:
+
+	Ip: IP address of the interface.
+
+	Netmask: Netmask of the interface.
+
+	Gateway: Gateway of the interface.
+
+--*/
+{
+	HRESULT hr = S_OK;
+	char ipCharArray[INET_ADDRSTRLEN], nmCharArray[INET_ADDRSTRLEN], gwCharArray[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, (void*)&Ip, ipCharArray, sizeof(ipCharArray));
+	inet_ntop(AF_INET, (void*)&Netmask, nmCharArray, sizeof(nmCharArray));
+	inet_ntop(AF_INET, (void*)&Gateway, gwCharArray, sizeof(gwCharArray));
+	wstring ipStr, nmStr, gwStr;
+	copy(ipCharArray, ipCharArray + strlen(ipCharArray), back_inserter(ipStr));
+	copy(nmCharArray, nmCharArray + strlen(nmCharArray), back_inserter(nmStr));
+	copy(gwCharArray, gwCharArray + strlen(gwCharArray), back_inserter(gwStr));
+	wstring netshCommand = L"netsh interface ip set address name=" +
+		to_wstring(interfaceIndex) +
+		L" static addr=" +
+		ipStr;
+
+	if (Netmask.S_un.S_addr) 
+	{
+		netshCommand += L" mask=";
+		netshCommand += nmStr;
+	}
+
+	if (Gateway.S_un.S_addr)
+	{
+		netshCommand += L" gateway=";
+		netshCommand += gwStr;
+	}
+	LOGINFOW(L"Running cmd %ls", netshCommand.c_str());
+
+	DWORD exitCode = 0;
+	hr = InvokeSystemCommand(netshCommand.c_str(), &exitCode, INFINITE, false);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Command failed ('%ls')", netshCommand.c_str());
+		return hr;
+	}
+
+	if (exitCode != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(exitCode);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand.c_str());
+		return hr;
+	}
+
+	LOGINFOW(L"network parameters set successfully.");
+
 	return hr;
 }
 

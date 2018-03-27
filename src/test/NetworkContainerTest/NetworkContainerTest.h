@@ -47,4 +47,5 @@ public:
 	TEST_METHOD(TestCreateLoopbackAdapter);
 	TEST_METHOD(TestConfigLoopbackAdapter);
 	TEST_METHOD(TestDeleteLoopbackAdapter);
+	TEST_METHOD(TestWeakHostRouting);
 };

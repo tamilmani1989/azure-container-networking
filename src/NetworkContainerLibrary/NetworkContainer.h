@@ -37,11 +37,13 @@ using namespace std;
 
 #define LOG_PATH_CMDLINE_FLAG L"/logpath"
 
-#define DEFAULT_LOG_LOCATION  L"C:\\Logs\\NetworkContainer"
+#define DEFAULT_LOG_LOCATION  L".\\"
 
 #define HELP_CMDLINE_FLAG L"/help"
 
 #define NAME_CMDLINE_FLAG L"/name"
+
+#define INDEX_CMDLINE_FLAG L"/index"
 
 #define OPERATION_CMDLINE_FLAG L"/operation"
 
@@ -70,7 +72,9 @@ public:
 		_In_ IN_ADDR Ip,
 		_In_ IN_ADDR Netmask,
 		_In_ IN_ADDR Gateway,
-		_In_ vector<IN_ADDR> DnsVec
+		_In_ vector<IN_ADDR> DnsVec,
+		_In_ bool WhsFlag,
+		_In_ bool WhrFlag
 	);
 
 	HRESULT FindAdapterByDisplayName(_In_ wstring Name);
@@ -85,6 +89,7 @@ public:
 		_In_ bool WhrFlag
 	);
 	HRESULT DeleteLoopbackAdapter(_In_ wstring Name);
+	HRESULT WeakHostRouting(_In_ wstring Name, _In_ bool WhsFlag, _In_ bool WhrFlag);
 	const map<wstring, std::unique_ptr<LoopbackAdapter>>& GetAdapters();
 
 private:
@@ -92,5 +97,6 @@ private:
 	wstring name, type;
 	IN_ADDR ip, netmask, gateway;
 	vector<IN_ADDR> dnsVec;
+	bool whsFlag, whrFlag;
 	int lastIndex = 0;
 };

@@ -274,21 +274,21 @@ Return Value:
 	wstring name(L"test");
 
 	NetworkContainer nc;
-	LOGINFOW(L"CreateLoopbackAdapter when no adapter presents.")
-		hr = nc.CreateLoopbackAdapter(name);
+	LOGINFOW(L"CreateLoopbackAdapter when no adapter presents.");
+	hr = nc.CreateLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
 		S_OK,
 		L"CreateLoopbackAdapter passed when no adapter presents. [1/2]"
 	);
 
-	LOGINFOW(L"CreateLoopbackAdapter.")
+	LOGINFOW(L"CreateLoopbackAdapter.");
 	hr = nc.CreateLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
 		S_OK,
 		L"CreateLoopbackAdapter passed when adapter presents. [2/2]"
 	);
 
-	LOGINFOW(L"DeleteLoopbackAdapter in TestCreateLoopbackAdapter.")
+	LOGINFOW(L"DeleteLoopbackAdapter in TestCreateLoopbackAdapter.");
 	hr = nc.DeleteLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"Removed adapter.");
 
@@ -335,29 +335,29 @@ Return Value:
 	dnsVec.push_back(dns1);
 	dnsVec.push_back(dns2);
 
-	NetworkContainer nc(name, ip, netmask, gateway, dnsVec);
-	LOGINFOW(L"ConfigLoopbackAdapter when no adapter presents.")
+	NetworkContainer nc(name, ip, netmask, gateway, dnsVec, whsFlag, whrFlag);
+	LOGINFOW(L"ConfigLoopbackAdapter when no adapter presents.");
 	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dnsVec, whsFlag, whrFlag);
 	VERIFY_ARE_EQUAL(hr, 
 		HRESULT_FROM_WIN32(ERROR_NOT_FOUND), 
 		L"ConfigLoopbackAdapter test passed when no adapter presents. [1/2]"
 	);
 
-	LOGINFOW(L"CreateLoopbackAdapter.")
+	LOGINFOW(L"CreateLoopbackAdapter.");
 	hr = nc.CreateLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
 		S_OK,
 		L"Created loopback adapter"
 	);
 
-	LOGINFOW(L"ConfigLoopbackAdapter when adapter presents.")
+	LOGINFOW(L"ConfigLoopbackAdapter when adapter presents.");
 	hr = nc.ConfigLoopbackAdapter(name, ip, netmask, gateway, dnsVec, whsFlag, whrFlag);
 	VERIFY_ARE_EQUAL(S_OK,
 		S_OK,
 		L"ConfigLoopbackAdapter test passed when adapter presents. [2/2]"
 	);
 
-	LOGINFOW(L"DeleteLoopbackAdapter in TestConfigLoopbackAdapter.")
+	LOGINFOW(L"DeleteLoopbackAdapter in TestConfigLoopbackAdapter.");
 	hr = nc.DeleteLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"Removed adapter.");
 }
@@ -383,25 +383,69 @@ Return Value:
 	wstring name(L"test");
 
 	NetworkContainer nc;
-	LOGINFOW(L"DeleteLoopbackAdapter when no adapter presents.")
+	LOGINFOW(L"DeleteLoopbackAdapter when no adapter presents.");
 	hr = nc.DeleteLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
 		S_OK,
 		L"DeleteLoopbackAdapter passed when no adapter presents. [1/2]"
 	);
 
-	LOGINFOW(L"CreateLoopbackAdapter.")
-		hr = nc.CreateLoopbackAdapter(name);
+	LOGINFOW(L"CreateLoopbackAdapter.");
+	hr = nc.CreateLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
 		S_OK,
 		L"Created loopback adapter"
 	);
 
-	LOGINFOW(L"DeleteLoopbackAdapter when adapter presents.")
+	LOGINFOW(L"DeleteLoopbackAdapter when adapter presents.");
 	hr = nc.DeleteLoopbackAdapter(name);
 	VERIFY_ARE_EQUAL(hr,
 		S_OK,
-		L"DeleteLoopbackAdapter passed when no adapter presents. [1/2]"
+		L"DeleteLoopbackAdapter passed when no adapter presents. [2/2]"
+	);
+}
+
+void NetworkContainerTest::TestWeakHostRouting()
+/*++
+
+Routine Description:
+
+	This routine tests if the loopback adapter is configured weak host routing correctly or not.
+
+Argument:
+
+	None. 
+
+Return Value:
+
+	None.
+
+--*/
+{
+	HRESULT hr = S_OK;
+	wstring name(L"test");
+	bool whsFlag = true, whrFlag = false;
+	NetworkContainer nc;
+
+	LOGINFOW(L"Test weak host routing when no adapter presents.");
+	hr = nc.WeakHostRouting(name, whsFlag, whrFlag);
+	VERIFY_ARE_EQUAL(hr,
+		HRESULT_FROM_WIN32(ERROR_NOT_FOUND),
+		L"WeakHostRouting passed when no adapter presents. [1/2]"
+	);
+
+	LOGINFOW(L"CreateLoopbackAdapter.");
+	hr = nc.CreateLoopbackAdapter(name);
+	VERIFY_ARE_EQUAL(hr,
+		S_OK,
+		L"Created loopback adapter"
+	);
+
+	LOGINFOW(L"Test weak host routing when adapter presents.");
+	hr = nc.WeakHostRouting(name, whsFlag, whrFlag);
+	VERIFY_ARE_EQUAL(hr,
+		S_OK,
+		L"WeakHostRouting passed when adapter presents. [2/2]"
 	);
 }
 

@@ -58,10 +58,9 @@ Return Value:
 {
 	CoUninitialize();
 
-	for (auto &it : adapters) 
-	{ 
-		adapters.erase(it.first); 
-	}
+
+	adapters.clear();
+
 }
 
 NetworkContainer::NetworkContainer(
@@ -69,7 +68,9 @@ NetworkContainer::NetworkContainer(
 	_In_ IN_ADDR Ip,
 	_In_ IN_ADDR Netmask,
 	_In_ IN_ADDR Gateway,
-	_In_ vector<IN_ADDR> DnsVec
+	_In_ vector<IN_ADDR> DnsVec,
+	_In_ bool WhsFlag,
+	_In_ bool WhrFlag
 ) : NetworkContainer::NetworkContainer()
 /*++
 
@@ -100,6 +101,8 @@ Return Value:
 	netmask = Netmask;
 	gateway = Gateway;
 	dnsVec = DnsVec;
+	whsFlag = WhsFlag;
+	whrFlag = WhrFlag;
 }
 
 HRESULT NetworkContainer::FindAdapterByDisplayName(_In_ wstring Name)
@@ -132,7 +135,9 @@ Return Value:
 			ip,
 			netmask,
 			gateway,
-			dnsVec)
+			dnsVec,
+			whsFlag,
+			whrFlag)
 		);
 
 	hr = adapters[Name]->FindAdapterByDisplayName(Name, instanceIndex);
@@ -246,29 +251,14 @@ Return Value:
 		return hr;
 	}
 
-	// IP is required. Checking is done in caller function.
-	hr = adapters[Name]->SetIp(Ip);
+	hr = adapters[Name]->SetNetwork(
+		Ip,
+		Netmask,
+		Gateway
+	);
 	if (hr != S_OK) 
 	{ 
 		return hr; 
-	}
-
-	if (Netmask.S_un.S_addr != INADDR_NONE)
-	{
-		hr = adapters[Name]->SetNetmask(Netmask);
-		if (hr != S_OK) 
-		{ 
-			return hr; 
-		}
-	}
-
-	if (Gateway.S_un.S_addr != INADDR_NONE)
-	{
-		hr = adapters[Name]->SetGateway(Gateway);
-		if (hr != S_OK) 
-		{ 
-			return hr; 
-		}
 	}
 
 	if (!DnsVec.empty())
@@ -283,6 +273,10 @@ Return Value:
 	if (WhsFlag || WhrFlag)
 	{
 		hr = adapters[Name]->SetWeakHost(WhsFlag, WhrFlag);
+		if (hr != S_OK)
+		{
+			return hr;
+		}
 	}
 
 	return hr;
@@ -323,6 +317,36 @@ Return Value:
 	hr = adapters[Name]->Delete();
 	adapters.erase(Name);
 
+	return hr;
+}
+
+HRESULT NetworkContainer::WeakHostRouting(wstring Name, bool WhsFlag, bool WhrFlag)
+/*++
+
+Routine Description:
+
+	This routine configures weak hosting routing properties on an interface.
+
+Arguments:
+
+	Name: Display name of the adapter.
+
+	WhsFlag: Flag for weak host send.
+
+	WhrFlag: Flag for weak host receive.
+
+--*/
+{
+	HRESULT hr = S_OK;
+
+	hr = FindAdapterByDisplayName(Name);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Failed to find adapter with index %s", Name.c_str());
+		return hr;
+	}
+
+	hr = adapters[Name]->SetWeakHost(WhsFlag, WhrFlag);
 	return hr;
 }
 
