@@ -12,7 +12,7 @@
 class AqPackageManager
 {
 	public:
-		void GetPackageStoreLocation(wchar_t *packageStorePath, DWORD *size);
+		void GetPackageStoreLocation(wchar_t *packageStorePath);
 		~AqPackageManager();
 		int RetrievePluginsMetadata(PluginMetadata **allPluginsMetadata);
 		int GetPluginCount();

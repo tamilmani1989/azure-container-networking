@@ -17,24 +17,9 @@
 
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
-void AqPackageManager::GetPackageStoreLocation(wchar_t *packageStoreLocation, DWORD *size)
+void AqPackageManager::GetPackageStoreLocation(wchar_t *packageStoreLocation)
 {
     LOGINFOW(L"Going to get package store location.");
-    LOGINFOW(L"Trying to open registry key that contains config.");
-    HKEY configKey = nullptr;
-    //RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
-    if(configKey != nullptr)
-    {
-        LOGINFOW(L"Found registry key.");
-        RegistryOps::GetStringFromRegistry(configKey, L"PackageStoreLocation", packageStoreLocation, size);
-        if(wcsnlen(packageStoreLocation, MAX_PATH)>0)
-        {
-            return;
-        }
-    }  
-    
-    LOGINFOW(L"Registry key does not exist. Returning default package location.");
-
     AquariusUtilities::PopulatePluginLocation(packageStoreLocation);
     LOGINFOW(L"Successfully returned default package location: %s", packageStoreLocation);
 }
@@ -88,8 +73,7 @@ int AqPackageManager::RetrievePluginsMetadata(PluginMetadata **allPluginsMetadat
     try 
     {
         wchar_t packageStoreLocation[MAX_PATH];
-        DWORD size = MAX_PATH;
-        GetPackageStoreLocation(packageStoreLocation, &size);
+        GetPackageStoreLocation(packageStoreLocation);
         PopulatePluginMetadataFromStore(packageStoreLocation);
         CopyPluginsMetadata(allPluginsMetadata);
         pluginCount = currentPluginCount;

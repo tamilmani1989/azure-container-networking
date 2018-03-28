@@ -9,7 +9,7 @@
 #include "RegistryOps.h"
 #include "Utilities.h"
 
-HKEY RegistryOps::OpenRegistryKey(HKEY rootKey, wchar_t* subKey)
+HKEY RegistryOps::CreateOrOpenRegistryKey(HKEY rootKey, wchar_t* subKey)
 {
     HKEY returnKey;
     wchar_t szMessage[MAX_PATH];
@@ -36,34 +36,61 @@ HKEY RegistryOps::OpenRegistryKey(HKEY rootKey, wchar_t* subKey)
     return returnKey;
 }
 
+HKEY RegistryOps::OpenRegistryKey(HKEY rootKey, wchar_t* subKey)
+{
+    HKEY returnKey;
+    wchar_t szMessage[MAX_PATH];
+
+    LONG nError = RegOpenKeyEx(rootKey, subKey, NULL, KEY_ALL_ACCESS, &returnKey);
+
+    if (nError != ERROR_SUCCESS)
+    {
+
+        StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
+            L"Error happenned during reg key open %s. Error: 0x%08lx", subKey, nError);
+        AquariusUtilities::WriteEventLogEntry(szMessage);
+        returnKey = nullptr;
+    }
+
+    return returnKey;
+}
+
+LONG RegistryOps::CloseRegistryKey(HKEY rootKey)
+{
+   return RegCloseKey(rootKey);
+
+}
+
 void RegistryOps::PutStringInRegistry(HKEY configKey, wchar_t* key, wchar_t* value)
 {
-	DWORD type = REG_SZ;
-	LONG nError = RegSetKeyValue(configKey, nullptr, key, type, value, (DWORD) (wcsnlen(value, MAX_PATH) + 1) * sizeof(wchar_t));
-	if (nError)
-	{
-		HandleRegistryError(configKey, key, nError);
-	}
-}
-void RegistryOps::PutDWORDInRegistry(HKEY configKey, wchar_t* key, DWORD value)
-{
-	DWORD type = REG_DWORD;
-	LONG nError = RegSetKeyValue(configKey, nullptr, key, type, (const BYTE *)&value, sizeof(DWORD));
-	if (nError)
-	{
-		HandleRegistryError(configKey, key, nError);
-	}
-}
-
-void RegistryOps::GetStringFromRegistry(HKEY configKey, wchar_t* key, wchar_t* returnValue, DWORD* size)
-{
     DWORD type = REG_SZ;
-    LONG nError = RegQueryValueEx(configKey, key, nullptr, &type, (LPBYTE)returnValue, size);
-
+    LONG nError = RegSetKeyValue(configKey, nullptr, key, type, value, (DWORD) (wcsnlen(value, MAX_PATH) + 1) * sizeof(wchar_t));
     if (nError)
     {
         HandleRegistryError(configKey, key, nError);
     }
+}
+void RegistryOps::PutDWORDInRegistry(HKEY configKey, wchar_t* key, DWORD value)
+{
+    DWORD type = REG_DWORD;
+    LONG nError = RegSetKeyValue(configKey, nullptr, key, type, (const BYTE *)&value, sizeof(DWORD));
+    if (nError)
+    {
+        HandleRegistryError(configKey, key, nError);
+    }
+}
+
+LONG RegistryOps::GetStringFromRegistry(HKEY configKey, wchar_t* key, wchar_t* returnValue, DWORD* size, bool handleRegistryError=true)
+{
+    DWORD type = REG_SZ;
+    LONG nError = RegQueryValueEx(configKey, key, nullptr, &type, (LPBYTE)returnValue, size);
+    if (nError && handleRegistryError)
+    {
+        AquariusUtilities::WriteEventLogEntry(L"Handle registry error");
+        HandleRegistryError(configKey, key, nError);
+    }
+
+    return nError;
 }
 
 void RegistryOps::HandleRegistryError(HKEY rootKey, wchar_t* subKey, LONG nError)

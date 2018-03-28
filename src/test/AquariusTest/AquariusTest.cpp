@@ -74,7 +74,7 @@ Return Value:
 
 	setupTestLogging();
 	
-	HKEY configKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
+	HKEY configKey = RegistryOps::CreateOrOpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
 	VERIFY_IS_NOT_NULL(configKey);
 	
 	installer.InstallService(
@@ -105,7 +105,6 @@ Return Value:
 --*/
 {
 	wchar_t packageStoreLocation[MAX_PATH]={0};
-	DWORD size = 1024;
 	service = new AquariusService(SERVICE_NAME);
 
 	if(service->aqPackageManager == nullptr)
@@ -115,7 +114,7 @@ Return Value:
 	}
 
 	AquariusUtilities::SetRelativePathFromExe(L"\\..\\AquariusTest\\Plugins");
-	service->aqPackageManager->GetPackageStoreLocation(packageStoreLocation, &size);
+	service->aqPackageManager->GetPackageStoreLocation(packageStoreLocation);
 
 	if (service->aquariusKernel == nullptr)
 	{		
