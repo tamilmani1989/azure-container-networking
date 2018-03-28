@@ -25,10 +25,14 @@ type AzureSQLInfo struct {
 	Password string
 }
 
-
 // TestPersistenceStoreInfo - Details to initialize testpersistencestore
 type TestPersistenceStoreInfo struct {
 	Test string
+}
+
+// OrchestratorStorageInfo - Details to initialize orchestratorstorage
+type OrchestratorStorageInfo struct {
+	Dll string
 }
 
 // DataStoreSettings - Details related to underlying data store.
@@ -36,6 +40,7 @@ type DataStoreSettings struct {
 	AzureStorageInfo         AzureStorageInfo
 	AzureSQLInfo             AzureSQLInfo
 	TestPersistenceStoreInfo TestPersistenceStoreInfo
+	OrchestratorStorageInfo  OrchestratorStorageInfo
 }
 
 // ServerSettings - Details related to listener settings.
@@ -60,6 +65,18 @@ type MasterElectionSettings struct {
 	TestDataElectionSettings TestDataElectionSettings
 }
 
+// LoggerSettings :- Details related to settings for logger.
+type LoggerSettings struct {
+	CustomLoggerSettings CustomLoggerSettings
+}
+
+// CustomLoggerSettings :- Details related to settings for custom logging.
+type CustomLoggerSettings struct {
+	Name      string
+	LogLevel  int
+	LogTarget int
+}
+
 // TestDataElectionSettings - Details related to setting for test election.
 type TestDataElectionSettings struct {
 	Test string
@@ -71,6 +88,7 @@ type Configuration struct {
 	DataStoreSettings      DataStoreSettings
 	ServerSettings         ServerSettings
 	MasterElectionSettings MasterElectionSettings
+	LoggerSettings         LoggerSettings
 }
 
 // Load the JSON config file
@@ -96,7 +114,7 @@ func Load(configFile string) *Configuration {
 
 	// Parse the config
 	if err := json.Unmarshal(jsonBytes, &config); err != nil {
-		log.Fatalln("Could not parse %q: %v", configFile, err)
+		log.Fatalf("Could not parse %s: %v\n", configFile, err)
 	}
 
 	return &config

@@ -11,5 +11,5 @@ const (
 	PutNetworkContainerURLFmt = "http://169.254.169.254/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1"
 
 	// DeleteNetworkContainerURLFmt - URL format to delete a network container.
-	DeleteNetworkContainerURLFmt = "http://169.254.169.254/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/api-version/1/method/DELETE"
+	DeleteNetworkContainerURLFmt = "http://169.254.169.254/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE"
 )

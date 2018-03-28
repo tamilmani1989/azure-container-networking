@@ -2,7 +2,7 @@ package testpersistencestore
 
 import (
 	"dnc/configuration"
-	"fmt"
+	"dnc/logger/loggershim"
 	"net/http"
 )
 
@@ -14,7 +14,7 @@ type TestPersistenceStore struct {
 
 // Init :- Initialize a TestPersistenceStore struct for testing purposes.
 func (testpersistencestore *TestPersistenceStore) Init(tableToColumnMap map[string]string) {
-	fmt.Println("Initializing TestPersistenceDataStore.datastore : map[tableName]map[rowKey]value.")
+	loggershim.LS.Log("Initializing TestPersistenceDataStore.datastore : map[tableName]map[rowKey]value.\n")
 	testpersistencestore.datastore = make(map[string]map[string]interface{})
 
 	for tableName := range tableToColumnMap {
@@ -25,7 +25,7 @@ func (testpersistencestore *TestPersistenceStore) Init(tableToColumnMap map[stri
 // Delete :- Remove an element using rowKey and tableName.
 func (testpersistencestore *TestPersistenceStore) Delete(tableName, rowKey string) error {
 	delete(testpersistencestore.datastore[tableName], rowKey)
-	fmt.Printf("Deleted value with rowKey [%s] in %s.n\n", rowKey, tableName)
+	loggershim.LS.Log("Deleted value with rowKey [%s] in %s.n\n", rowKey, tableName)
 	return nil
 }
 
@@ -41,7 +41,7 @@ func (testpersistencestore *TestPersistenceStore) InsertOrUpdate(tableName, rowK
 		successstr = "Unsuccessfully"
 	}
 
-	fmt.Printf("%s assigned [%s] to [%s] with rowKey [%s].\n", successstr, value, tableName, rowKey)
+	loggershim.LS.Log("%s assigned [%s] to [%s] with rowKey [%s].\n", successstr, value, tableName, rowKey)
 	return nil
 }
 
@@ -52,9 +52,9 @@ func (testpersistencestore *TestPersistenceStore) Query(tableName, rowKey string
 
 	if success {
 		status = http.StatusOK
-		fmt.Printf("Found value [%s] from [%s] with rowKey [%s].\n", value, tableName, rowKey)
+		//loggershim.LS.Log("Found value [%s] from [%s] with rowKey [%s].\n", value, tableName, rowKey)
 	} else {
-		fmt.Printf("Failed to query from [%s] with rowKey [%s].\n", tableName, rowKey)
+		loggershim.LS.Log("Failed to query from [%s] with rowKey [%s].\n", tableName, rowKey)
 	}
 
 	return value, status, nil
@@ -74,7 +74,7 @@ func (testpersistencestore *TestPersistenceStore) QueryAllRows(tableName string,
 	// 	successstr = "Unable to find"
 	// }
 
-	// fmt.Printf("%s rows in [%s].\n", successstr, tableName)
+	// loggershim.LS.Log("%s rows in [%s].\n", successstr, tableName)
 	return testpersistencestore.datastore[tableName], false, nil, status, nil
 }
 
@@ -89,6 +89,6 @@ func (testpersistencestore *TestPersistenceStore) KeyExist(tableName, rowKey str
 		existstr = "does not exist"
 	}
 
-	fmt.Printf("rowKey [%s] %s in [%s].\n", rowKey, existstr, tableName)
+	loggershim.LS.Log("rowKey [%s] %s in [%s].\n", rowKey, existstr, tableName)
 	return retrieved, nil
 }

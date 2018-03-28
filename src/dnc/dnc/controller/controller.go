@@ -3,6 +3,7 @@ package controller
 import (
 	"dnc/api"
 	"dnc/datamodel"
+	"dnc/logger/loggershim"
 	"dnc/replica"
 	"dnc/utils"
 	"fmt"
@@ -187,7 +188,7 @@ func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.
 		}
 		if reservationConfiguration == nil {
 			msg := fmt.Sprintf(
-				"Configuration for reservation %s associated with subnet:%s in network %s not found. Err:%s",
+				"Configuration for reservation {%s} associated with subnet:%s in network %s not found due to error:{%+v}",
 				reservationID,
 				subnetName,
 				networkID,
@@ -275,7 +276,7 @@ func (c *Controller) PersistNetworkContainerRequestV2(
 	networkID, ncID string,
 	ncRequestV2 *api.NetworkContainerRequestV2,
 	apiVersion string) *api.JsonErr {
-	fmt.Println("V2-Request", ncRequestV2.AllocationRequest.SubnetName, ncRequestV2.AssociationInfo.NodeID, ncRequestV2.AssociationInfo.InterfaceID)
+	loggershim.LS.Log("V2-Request: %s\n", ncRequestV2.String())
 	return datamodel.CreateOrUpdateNCRequestV2(networkID, ncID, ncRequestV2, apiVersion)
 }
 
@@ -301,7 +302,7 @@ func (c *Controller) DeleteNetworkContainer(networkID, ncID string) *api.JsonErr
 // 	for _, entityWithContext := range entitiesWithContext {
 // 		jsonSerializedBytes, err := json.Marshal(entityWithContext.Properties)
 // 		if err != nil {
-// 			fmt.Println("Failed to serialize entity properties",
+// 			loggershim.LS.Log("Failed to serialize entity properties",
 // 				entityWithContext.Properties, err)
 // 			continue
 // 		}

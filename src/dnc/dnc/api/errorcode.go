@@ -138,6 +138,15 @@ const (
 
 	// DisAssociationFailed - Disassociation failed.
 	DisAssociationFailed
+
+	// JoinFailed - Network join failed.
+	JoinFailed
+
+	// JoinPending - Network join is pending.
+	JoinPending
+
+	// NetworkConfigurationRetrievalFailed - Retrieval of network configuration retrieval failed.
+	NetworkConfigurationRetrievalFailed
 )
 
 func (e ErrorCode) String() string {
@@ -273,6 +282,15 @@ func (e ErrorCode) String() string {
 
 	case UnpublishingFailed:
 		return "UnpublishingFailed"
+
+	case JoinFailed:
+		return "JoinFailed"
+
+	case JoinPending:
+		return "JoinPending"
+
+	case NetworkConfigurationRetrievalFailed:
+		return "NetworkConfigurationRetrievalFailed"
 	}
 
 	return "Unknown Status"

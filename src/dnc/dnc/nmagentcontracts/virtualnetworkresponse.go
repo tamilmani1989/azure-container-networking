@@ -40,3 +40,9 @@ func (virtualNetworkResponse *VirtualNetworkResponse) String() string {
 type NMAgentResponse struct {
 	ResponseCode string `json:"httpResponseCode"`
 }
+
+//  DeleteNetworkContainerResponse - NMAgent delete network container response.
+type DeleteNetworkContainerResponse struct {
+	ResponseCode string `json:"httpStatusCode"`
+	ErrorMessage string `json:"errorMessage"`
+}

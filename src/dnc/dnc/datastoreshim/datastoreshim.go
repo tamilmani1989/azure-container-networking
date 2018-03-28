@@ -4,6 +4,8 @@ import (
 	"dnc/configuration"
 	"dnc/datastore/azuresql"
 	"dnc/datastore/azurestorage"
+	"dnc/datastore/orchestratorstore"
+	"dnc/datastore/testpersistencestore"
 	"dnc/utils"
 	"fmt"
 )
@@ -81,7 +83,22 @@ func (dataStoreShim *DataStoreShim) Init(tableToColumnMap map[string]string) {
 		dataStoreShim.InsertOrUpdate = insertOrUpdateFunc(azSQL.InsertOrUpdate)
 		dataStoreShim.QueryAll = queryAllFunc(azSQL.QueryAllRows)
 		dataStoreShim.KeyExist = keyExistFunc(azSQL.KeyExist)
-
+	} else if dataStoreShim.dataStoreSettings.TestPersistenceStoreInfo != (configuration.TestPersistenceStoreInfo{}) {
+		tps := testpersistencestore.TestPersistenceStore{TestPersistenceStoreInfo: dataStoreShim.dataStoreSettings.TestPersistenceStoreInfo}
+		tps.Init(tableToColumnMap)
+		dataStoreShim.Query = queryFunc(tps.Query)
+		dataStoreShim.Delete = deleteFunc(tps.Delete)
+		dataStoreShim.InsertOrUpdate = insertOrUpdateFunc(tps.InsertOrUpdate)
+		dataStoreShim.QueryAll = queryAllFunc(tps.QueryAllRows)
+		dataStoreShim.KeyExist = keyExistFunc(tps.KeyExist)
+	} else if dataStoreShim.dataStoreSettings.OrchestratorStorageInfo != (configuration.OrchestratorStorageInfo{}) {
+		os := orchestratorstorage.OrchestratorStorage{OrchestratorStorageInfo: dataStoreShim.dataStoreSettings.OrchestratorStorageInfo}
+		os.Init(tableToColumnMap)
+		dataStoreShim.Query = queryFunc(os.Query)
+		dataStoreShim.Delete = deleteFunc(os.Delete)
+		dataStoreShim.InsertOrUpdate = insertOrUpdateFunc(os.InsertOrUpdate)
+		dataStoreShim.QueryAll = queryAllFunc(os.QueryAll)
+		dataStoreShim.KeyExist = keyExistFunc(os.KeyExist)
 	} else {
 		utils.OnErrorFail(fmt.Errorf("Invalid/UnSupported data store"), "")
 	}

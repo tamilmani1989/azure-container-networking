@@ -5,21 +5,21 @@ import (
 	"dnc/api"
 	"dnc/configuration"
 	"dnc/datastoreshim"
+	"dnc/logger/loggershim"
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"strings"
-
-	"github.com/golang/glog"
 )
 
 var dataStoreShim *datastoreshim.DataStoreShim
 
-// Init - Initialize repository.
-func Init(dataStoreSettings configuration.DataStoreSettings) {
+// Init - Initialize repsoitory.
+func Init(dataStoreSettings configuration.DataStoreSettings) error {
 	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
+	return nil
 }
 
 // PutSubnetConfiguration - Persist subnet configuration.
@@ -27,8 +27,8 @@ func PutSubnetConfiguration(subnetConfiguration *SubnetConfiguration) *api.JsonE
 	subnetKey := GetSubnetKey(subnetConfiguration.NetworkID, subnetConfiguration.SubnetName)
 	jsonSerializedBytes, err := json.Marshal(subnetConfiguration)
 	if err != nil {
-		glog.Errorf(
-			"%s: Failed to serialize subnet configuration. SubnetKey:%s , Error: %s",
+		loggershim.LS.Log(
+			"%s: Failed to serialize subnet configuration. SubnetKey:%s , Error: %s\n",
 			utils.TracePrefix(),
 			subnetKey,
 			err.Error())
@@ -39,7 +39,7 @@ func PutSubnetConfiguration(subnetConfiguration *SubnetConfiguration) *api.JsonE
 			Text:       fmt.Sprintf("Failed to serialize node configuration due to error %s", err.Error())}
 	}
 
-	fmt.Println(subnetConfigurationTableName, subnetKey, TableToColumnMap[subnetConfigurationTableName], string(jsonSerializedBytes[:]))
+	loggershim.LS.Log("Updating %s with subnetKey %s at TableToColumnMap[%s] and %s\n", subnetConfigurationTableName, subnetKey, TableToColumnMap[subnetConfigurationTableName], string(jsonSerializedBytes[:]))
 	err = dataStoreShim.InsertOrUpdate(subnetConfigurationTableName, subnetKey, TableToColumnMap[subnetConfigurationTableName], string(jsonSerializedBytes[:]))
 	if err != nil {
 		msg := fmt.Sprintf(
@@ -75,7 +75,7 @@ func DeleteSubnetConfiguration(networkID, ipSubnet string) *api.JsonErr {
 			"Failed to delete subnet configuration for subnetKey %s from data store. Error: %s",
 			subnetKey,
 			deleteErr.Error())
-		glog.Errorf("%s: %s", utils.TracePrefix(), msg)
+		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
 		return &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			HTTPStatus: http.StatusInternalServerError,
@@ -90,8 +90,8 @@ func PutIPReservationConfiguration(ipReservation *ReservationConfiguration) *api
 	reservationKey := GetReservationKey(ipReservation.NetworkID, ipReservation.ReservationID)
 	jsonSerializedBytes, err := json.Marshal(ipReservation)
 	if err != nil {
-		glog.Errorf(
-			"%s: Failed to serialize reservation configuration. NodeConfiguration:%s , Error: %s",
+		loggershim.LS.Log(
+			"%s: Failed to serialize reservation configuration. ipReservation:%s , error: %s\n",
 			utils.TracePrefix(),
 			ipReservation.String(),
 			err.Error())
@@ -108,7 +108,7 @@ func PutIPReservationConfiguration(ipReservation *ReservationConfiguration) *api
 		string(jsonSerializedBytes[:]))
 	if err != nil {
 		msg := fmt.Sprintf(
-			"failed to persist updated configuration for reservation %s. Error:%s",
+			"Failed to persist updated configuration for reservation %s due to error: %s\n",
 			ipReservation.ReservationID,
 			err.Error())
 		return &api.JsonErr{
@@ -143,7 +143,7 @@ func ValidateAndUpdateIPReservationDependencies(
 			reservationConfiguration.AllocationRequest.SubnetName,
 			reservationConfiguration.NetworkID,
 			parseErr.Error())
-		glog.Errorf("%s: %s.", utils.TracePrefix, msg)
+		loggershim.LS.Log("%s: %s.\n", utils.TracePrefix(), msg)
 		return &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			HTTPStatus: http.StatusInternalServerError,
@@ -159,7 +159,7 @@ func ValidateAndUpdateIPReservationDependencies(
 
 		_, err = allocationhelper.IsSubnetContainedInBaseSubnet(ipSubnet, ipSubnetConstraint)
 		if err != nil {
-			glog.Errorf("%s: %s.", utils.TracePrefix, err.String())
+			loggershim.LS.Log("%s: %s.\n", utils.TracePrefix(), err.String())
 		}
 	}
 
@@ -325,6 +325,7 @@ func UpdateNodeConfigurationNetworkContainerSet(
 	return err
 }
 
+// UpdateNCToReservationAssociation :-
 func UpdateNCToReservationAssociation(
 	ncConfiguration *NCConfiguration,
 	disassociate bool) *api.JsonErr {
@@ -404,7 +405,7 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 			"Reservation %s is in use with container: [%s]",
 			reservationID, reservationConfiguration.AssociatedNCID)
 
-		glog.Errorf("%s: %s", utils.TracePrefix(), msg)
+		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
 
 		return &api.JsonErr{
 			Code:       api.ReservationInUse,
@@ -453,7 +454,7 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 			"Failed to delete configuration for reservation key %s from data store. Error: %s",
 			reservationKey,
 			deleteErr.Error())
-		glog.Errorf("%s: %s", utils.TracePrefix(), msg)
+		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
 		return &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			HTTPStatus: http.StatusInternalServerError,
@@ -483,7 +484,7 @@ func TryQueryNodeConfiguration(nodeID string) (*NodeConfiguration, *api.JsonErr)
 		return nil, nil
 	}
 
-	fmt.Println("Retrieved row:", property)
+	loggershim.LS.Log("Retrieved row: %+v\n", property)
 	serializedNodeConfiguration := property.(string)
 	err = json.Unmarshal([]byte(serializedNodeConfiguration), &repositoryNodeConfiguration)
 	if err != nil {
@@ -701,9 +702,9 @@ func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr
 	value, status, err := dataStoreShim.Query(networkContainerTableName, ncKey)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
-			"Failed to retrieve configuration for network container:[%s] due to error:[%s]",
+			"Failed to retrieve configuration for network container key:[%s] due to error:[%s]",
 			ncKey,
-			err)
+			err.Error())
 		return nil, &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			Text:       msg,
@@ -713,7 +714,7 @@ func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr
 		return nil, nil
 	}
 
-	fmt.Println("Retrieved row:", value)
+	loggershim.LS.Log("Retrieved row: %+v\n", value)
 	serializedNCConfiguration := value.(string)
 	err = json.Unmarshal([]byte(serializedNCConfiguration), &repoNCConfiguration)
 	if err != nil {
@@ -767,7 +768,7 @@ func CreateOrUpdateNodeConfiguration(
 	}
 
 	if repositoryNodeConfiguration == nil {
-		glog.Info("%s: Creating node configuration for node %s", nodeID, utils.TracePrefix())
+		loggershim.LS.Log("%s: Creating node configuration for node %s\n", utils.TracePrefix(), nodeID)
 		repositoryNodeConfiguration = new(NodeConfiguration)
 		repositoryNodeConfiguration.APIVersion = apiVersion
 		repositoryNodeConfiguration.NodeID = nodeID
@@ -782,8 +783,8 @@ func CreateOrUpdateNodeConfiguration(
 func persistNodeConfiguration(nodeconfiguration *NodeConfiguration) *api.JsonErr {
 	jsonSerializedBytes, err := json.Marshal(nodeconfiguration)
 	if err != nil {
-		glog.Errorf(
-			"%s: Failed to serialize node configuration. NodeConfiguration:%s , Error: %s",
+		loggershim.LS.Log(
+			"%s: Failed to serialize node configuration %s due to error: %s\n",
 			utils.TracePrefix(),
 			nodeconfiguration.String(),
 			err.Error())
@@ -825,7 +826,7 @@ func DeleteNode(nodeID string) *api.JsonErr {
 		len(repositoryNodeConfiguration.DeployedNetworkContainerMap) != 0 {
 		deployedNCString := repositoryNodeConfiguration.DumpDeployedNetworkContainers()
 		msg := fmt.Sprintf("Node has network containers deployed. Deployed containers: [%s]", deployedNCString)
-		glog.Errorf("%s: %s", utils.TracePrefix(), msg)
+		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
 
 		return &api.JsonErr{
 			Code:       api.NodeInUse,
@@ -840,7 +841,7 @@ func DeleteNode(nodeID string) *api.JsonErr {
 		msg := fmt.Sprintf(
 			"Node has associated reservations. Reservations: [%s]",
 			constrainedReservationsString)
-		glog.Errorf("%s: %s", utils.TracePrefix(), msg)
+		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
 		return &api.JsonErr{
 			Code:       api.NodeInUse,
 			HTTPStatus: http.StatusBadRequest,
@@ -854,7 +855,7 @@ func DeleteNode(nodeID string) *api.JsonErr {
 			"Failed to delete node configuration for node %s from data store. Error: %s",
 			nodeID,
 			deleteErr.Error())
-		glog.Errorf("%s: %s", utils.TracePrefix(), msg)
+		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
 		return &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			HTTPStatus: http.StatusInternalServerError,
@@ -928,7 +929,7 @@ func AddRequestToPendingQueue(
 			requestKey,
 			requestContext.String(),
 			err.Error())
-		glog.Errorf("%s:%s", utils.TracePrefix(), msg)
+		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
 
 		return &api.JsonErr{
 			Code:       api.JsonMarshallingFailed,
@@ -943,7 +944,7 @@ func AddRequestToPendingQueue(
 			requestContext.String(),
 			requestKey,
 			err.Error())
-		glog.Errorf("%s: %s.", utils.TracePrefix, msg)
+		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
 		return &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			HTTPStatus: http.StatusInternalServerError,
@@ -959,7 +960,7 @@ func TryGetRequestFromPendingQueue(requestKey string) (*RequestContext, *api.Jso
 		pendingWorkItemsTableName,
 		requestKey)
 	if err != nil {
-		glog.Errorf("Failed to query pending work item queue due to err %s", err.Error())
+		loggershim.LS.Log("Failed to query pending work item queue due to error: %s\n", err.Error())
 		return nil, &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			HTTPStatus: http.StatusInternalServerError,
@@ -975,7 +976,7 @@ func TryGetRequestFromPendingQueue(requestKey string) (*RequestContext, *api.Jso
 	var requestContext RequestContext
 	err = json.Unmarshal([]byte(serializedRequestContext), &requestContext)
 	if err != nil {
-		glog.Errorf("Failed to qunmarshal requestdue to err %s", err.Error())
+		loggershim.LS.Log("Failed to qunmarshal requestdue to error: %s\n", err.Error())
 		return nil, &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			HTTPStatus: http.StatusInternalServerError,
@@ -1013,7 +1014,7 @@ func GetPendingRequests() (map[string]RequestContext, error) {
 			serializedRequestContext := value.(string)
 			var requestContext RequestContext
 			err = json.Unmarshal([]byte(serializedRequestContext), &requestContext)
-			fmt.Println("NetworkID", requestContext.NetworkID, "RequestType:", requestContext.Type.String())
+			loggershim.LS.Log("Unmarshalling network %s of request type %s\n", requestContext.NetworkID, requestContext.Type.String())
 			requestsToProcess[requestKey] = requestContext
 		}
 
@@ -1039,8 +1040,8 @@ func PersistNCConfiguration(ncConfiguration *NCConfiguration, addToPendingQueue 
 		msg := fmt.Sprintf("Failed to serialize node configuration for NC ID:%s , Error: %s",
 			ncConfiguration.NetworkContainerID,
 			err.Error())
-		glog.Errorf(
-			"%s: %s",
+		loggershim.LS.Log(
+			"%s: %s\n",
 			utils.TracePrefix(),
 			msg)
 
@@ -1089,7 +1090,7 @@ func DeleteNetworkContainer(networkID, networkContainerID string) *api.JsonErr {
 			"Failed to delete network container %s in data store. Error: %s",
 			networkContainerID,
 			err.Error())
-		glog.Errorf("%s: %s.", utils.TracePrefix, msg)
+		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
 		return &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			HTTPStatus: http.StatusInternalServerError,
@@ -1109,7 +1110,7 @@ func GetNetworkContainerConfiguration(networkID,
 	}
 	if networkContainerConfig == nil {
 		msg := fmt.Sprintf("Network container %s not found", networkContainerID)
-		glog.Errorf("%s: %s", utils.TracePrefix(), msg)
+		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
 		return nil, &api.JsonErr{
 			Code:       api.NetworkContainerNotFound,
 			HTTPStatus: http.StatusNotFound,
@@ -1164,8 +1165,8 @@ func PersistNetworkConfiguration(
 			networkConfiguration.NetworkID,
 			networkConfiguration.String(),
 			err.Error())
-		glog.Errorf(
-			"%s: %s",
+		loggershim.LS.Log(
+			"%s: %s\n",
 			utils.TracePrefix(),
 			msg)
 
@@ -1199,6 +1200,14 @@ func CreateNetwork(
 	networkID string,
 	networkInfo api.NetworkInfoRequest,
 	apiVersion string) *api.JsonErr {
+	networkConfiguration, err := TryQueryNetworkConfiguration(networkID)
+	if err != nil {
+		return err
+	}
+
+	if networkConfiguration != nil {
+		return nil
+	}
 
 	if networkInfo.NetworkType != api.AzureNet {
 		return &api.JsonErr{
@@ -1208,22 +1217,13 @@ func CreateNetwork(
 				"Network type %s is not supported", networkInfo.NetworkType)}
 	}
 
-	networkConfiguration, err := TryQueryNetworkConfiguration(networkID)
-	if err != nil {
-		return err
-	}
+	networkKey := GetNetworkKey(networkID)
+	networkConfiguration = &NetworkConfiguration{
+		NetworkID:    networkID,
+		NetworkState: Join,
+		Status:       Pending,
+		APIVersion:   apiVersion}
 
-	if networkConfiguration != nil {
-		networkConfiguration.NetworkState = Join
-		networkConfiguration.Status = Pending
-		networkConfiguration.APIVersion = apiVersion
-	} else {
-		networkConfiguration = &NetworkConfiguration{
-			NetworkID:    networkID,
-			NetworkState: Join,
-			Status:       Pending,
-			APIVersion:   apiVersion}
-	}
 	err = PersistNetworkConfiguration(networkConfiguration)
 	if err != nil {
 		return err
@@ -1348,6 +1348,7 @@ func PurgeNetworkContainerAssociations(ncConfiguration *NCConfiguration) *api.Js
 	return err
 }
 
+// DeleteNetworkConfiguration :-
 func DeleteNetworkConfiguration(networkID string) *api.JsonErr {
 	networkConfiguration, err := TryQueryNetworkConfiguration(networkID)
 	if err != nil {
@@ -1396,7 +1397,8 @@ func DeleteNetworkConfiguration(networkID string) *api.JsonErr {
 	deleteErr := dataStoreShim.Delete(networkConfigurationTableName, networkKey)
 	if deleteErr != nil {
 		msg := fmt.Sprintf(
-			"Failed to delete network configuration for network %s due to error %s",
+			"Failed to delete network configuration network-key: %s network-id: %s due to error %s",
+			networkKey,
 			networkID,
 			deleteErr.Error())
 		return &api.JsonErr{
@@ -1422,7 +1424,7 @@ func getIPConfiguration(reservationConfiguration *ReservationConfiguration) (*ap
 			"Configuration for subnet %s in network:%s not found.",
 			reservationConfiguration.AllocationRequest.SubnetName,
 			reservationConfiguration.NetworkID)
-		glog.Errorf("%s: %s.", utils.TracePrefix, msg)
+		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
 		return nil, &api.JsonErr{
 			Code:       api.SubnetNotFound,
 			HTTPStatus: http.StatusBadRequest,
@@ -1541,7 +1543,7 @@ func GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr) {
 		if reservationConfiguration == nil {
 			continue
 		}
-		fmt.Println(reservationConfiguration)
+		loggershim.LS.Log("Reservation configuration: %s\n", reservationConfiguration.String())
 		constrainedReservations[index] = translateRepoToContractReservationResponse(
 			reservationConfiguration)
 		index++
@@ -1555,6 +1557,7 @@ func GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr) {
 	return &nodeConfiguration, nil
 }
 
+// PersistIPReservationRequest :-
 func PersistIPReservationRequest(networkID string,
 	reservationID string,
 	allocationRequest api.AllocationRequest,
@@ -1624,11 +1627,12 @@ func GetReservationStatus(networkID, reservationID string) (*api.RequestStatus, 
 	return requestStatus, nil
 }
 
+// CreateOrUpdateNCRequestV1 :-
 func CreateOrUpdateNCRequestV1(
 	networkID, ncID string,
 	ncRequestV1 *api.NetworkContainerRequestV1,
 	apiVersion string) *api.JsonErr {
-	fmt.Println("V1-Request", ncRequestV1.AssociationInfo.NodeID, ncRequestV1.AssociationInfo.InterfaceID)
+	loggershim.LS.Log("V1-Request: %s\n", ncRequestV1.String())
 	ncConfig, err := TryQueryNetworkContainer(networkID, ncID)
 	if err != nil {
 		msg := fmt.Sprintf(
@@ -1648,7 +1652,6 @@ func CreateOrUpdateNCRequestV1(
 	ncConfiguration := NCConfiguration{
 		NetworkID:           networkID,
 		NetworkContainerID:  ncID,
-		Version : 			 1,
 		ReservationID:       ncRequestV1.ReservationID,
 		RequestV1:           *ncRequestV1,
 		ImplicitReservation: false,
@@ -1683,7 +1686,6 @@ func CreateOrUpdateNCRequestV2(
 	ncConfiguration := NCConfiguration{
 		NetworkID:           networkID,
 		NetworkContainerID:  ncID,
-		Version : 			 1,
 		RequestV2:           *ncRequestV2,
 		ImplicitReservation: true,
 		State:               Prepare,

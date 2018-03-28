@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"dnc/configuration"
+	"dnc/logger/loggershim"
 	"fmt"
 	"log"
 	"net/http"
@@ -126,7 +127,7 @@ func isSQLObjectExistError(err error) bool {
 }
 
 func getHTTPStatusCode(err error) int {
-	fmt.Println("Error Type:", reflect.TypeOf(err))
+	loggershim.LS.Log("Error Type: %s\n", reflect.TypeOf(err))
 	if driverErr, ok := err.(mssql.Error); ok { // Now the error number is accessible directly
 		isTransient := isTransientSQLError(driverErr.Number)
 		if isTransient {
@@ -162,7 +163,7 @@ func (azureSQL *AzureSQL) Init(tableToColumnMap map[string]string) {
 
 	defer func() {
 		if err != nil {
-			fmt.Println("Rolling back transaction due to error", err.Error())
+			loggershim.LS.Log("Rolling back transaction due to error: %s\n", err.Error())
 			tx.Rollback()
 		} else {
 			tx.Commit()
@@ -196,13 +197,13 @@ func (azureSQL *AzureSQL) Delete(tableName string, rowKey string) error {
 
 	tx, err := azureSQL.db.Begin()
 	if err != nil {
-		log.Printf("Failed to being transaction due to error :%s", err.Error())
+		loggershim.LS.Log("Failed to being transaction due to error: %s\n", err.Error())
 		return err
 	}
 
 	defer func() {
 		if err != nil {
-			fmt.Println("Rolling back transaction due to error", err.Error())
+			loggershim.LS.Log("Rolling back transaction due to error: %s\n", err.Error())
 			tx.Rollback()
 		} else {
 			tx.Commit()
@@ -215,7 +216,7 @@ func (azureSQL *AzureSQL) Delete(tableName string, rowKey string) error {
 		sql.Named(rowKeyString, rowKey))
 
 	if err != nil {
-		log.Panicf("Error deleting row Delete Cmd:%s, Error:%s", deleteCmd, err.Error())
+		log.Panicf("Error deleting row Delete Cmd:%s, Error:%s\n", deleteCmd, err.Error())
 		return err
 	}
 
@@ -260,11 +261,11 @@ func (azureSQL *AzureSQL) Query(tableName, rowKey string) (interface{}, int, err
 		selectCmd,
 		sql.Named(rowKeyString, rowKey))
 	if err != nil {
-		log.Printf("Error reading rows. Cmd:%s, Error:%s", selectCmd, err.Error())
+		loggershim.LS.Log("Error reading rows. Cmd:%s, Error:%s\n", selectCmd, err.Error())
 		return nil, -1, err
 	}
 
-	log.Printf("Cmd:%s", selectCmd)
+	loggershim.LS.Log("Cmd:%s\n", selectCmd)
 
 	defer rows.Close()
 
@@ -275,7 +276,7 @@ func (azureSQL *AzureSQL) Query(tableName, rowKey string) (interface{}, int, err
 		// Get values from row.
 		err := rows.Scan(&data)
 		if err != nil {
-			log.Printf("Error reading rows: " + err.Error())
+			loggershim.LS.Log("Error reading rows: %s\n", err.Error())
 			return nil, getHTTPStatusCode(err), err
 		}
 
@@ -308,7 +309,7 @@ func (azureSQL *AzureSQL) QueryAllRows(tableName string, ctxt interface{}) (
 		ctx,
 		selectCmd)
 	if err != nil {
-		log.Printf("Error reading rows, SelectCmd:%s, Error:%s", selectCmd, err.Error())
+		loggershim.LS.Log("Error reading rows, SelectCmd:%s, Error:%s\n", selectCmd, err.Error())
 		return nil, false, nil, getHTTPStatusCode(err), err
 	}
 
@@ -322,11 +323,11 @@ func (azureSQL *AzureSQL) QueryAllRows(tableName string, ctxt interface{}) (
 		// Get values from row.
 		err := rows.Scan(&rowKey, &data)
 		if err != nil {
-			log.Printf("Error parsing retrieved rows, SelectCmd:%s, Error:%s", selectCmd, err.Error())
+			loggershim.LS.Log("Error parsing retrieved rows, SelectCmd:%s, Error:%s\n", selectCmd, err.Error())
 			return nil, false, nil, getHTTPStatusCode(err), err
 		}
 
-		fmt.Printf("RowKey %s, Data %s", rowKey, data)
+		loggershim.LS.Log("RowKey %s, Data %s\n", rowKey, data)
 		results[rowKey] = data
 	}
 
@@ -351,7 +352,7 @@ func (azureSQL *AzureSQL) KeyExist(tableName, rowKey string) (bool, error) {
 		countCmd,
 		sql.Named(rowKeyString, rowKey))
 	if err != nil {
-		log.Printf("Error reading rows, CountCmd:%s, Error:%s", countCmd, err.Error())
+		loggershim.LS.Log("Error reading rows, CountCmd:%s, Error:%s", countCmd, err.Error())
 		return false, err
 	}
 
@@ -360,9 +361,9 @@ func (azureSQL *AzureSQL) KeyExist(tableName, rowKey string) (bool, error) {
 	var count int
 	for rows.Next() {
 		err := rows.Scan(&count)
-		fmt.Printf("Count%d", count)
+		loggershim.LS.Log("Count %d\n", count)
 		if err != nil {
-			log.Printf("Failed to parse the retrieved count. CountCmd:%s, Error:%s", countCmd, err.Error())
+			loggershim.LS.Log("Failed to parse the retrieved count. CountCmd:%s, Error:%s\n", countCmd, err.Error())
 			return false, err
 		}
 	}
@@ -383,13 +384,13 @@ func (azureSQL *AzureSQL) insertOrUpdateRow(tableName, rowKey, propertyName stri
 	updateCmd := fmt.Sprintf(updateCmdFmtString, tableName, propertyName, propertyName, rowKeyString, rowKeyString)
 	tx, err = azureSQL.db.Begin()
 	if err != nil {
-		log.Printf("Error when begining transaction. Error:%s", err.Error())
+		loggershim.LS.Log("Error when begining transaction. Error:%s\n", err.Error())
 		return err
 	}
 
 	defer func() {
 		if err != nil {
-			fmt.Println("Rolling back due to error", err.Error())
+			loggershim.LS.Log("Rolling back due to error %s\n", err.Error())
 			tx.Rollback()
 		} else {
 			tx.Commit()
@@ -403,13 +404,13 @@ func (azureSQL *AzureSQL) insertOrUpdateRow(tableName, rowKey, propertyName stri
 		sql.Named(rowKeyString, rowKey))
 
 	if err != nil {
-		log.Printf("Error updating row, UpdateCmd:%s, Error:%s", updateCmd, err.Error())
+		loggershim.LS.Log("Error updating row, UpdateCmd:%s, Error:%s\n", updateCmd, err.Error())
 		return err
 	}
 
 	rowCount, err := result.RowsAffected()
 	if err != nil {
-		log.Printf("Failed to retrieve rows affected from the result, UpdateCmd:%s, Error:%s", updateCmd, err.Error())
+		loggershim.LS.Log("Failed to retrieve rows affected from the result, UpdateCmd:%s, Error:%s\n", updateCmd, err.Error())
 		return err
 	}
 
@@ -420,16 +421,16 @@ func (azureSQL *AzureSQL) insertOrUpdateRow(tableName, rowKey, propertyName stri
 			sql.Named(propertyName, value),
 			sql.Named(rowKeyString, rowKey))
 		if err != nil {
-			log.Printf("Error inserting row, InsertCmd:%s, Error:%s", insertCmd, err.Error())
+			loggershim.LS.Log("Error inserting row, InsertCmd:%s, Error:%s\n", insertCmd, err.Error())
 			return err
 		}
 
 		rowCount, err = result.RowsAffected()
 		if err != nil {
-			log.Printf("Failed to retrieve rows affected from the result, InsertCmd:%s, Error:%s", insertCmd, err.Error())
+			loggershim.LS.Log("Failed to retrieve rows affected from the result, InsertCmd:%s, Error:%s\n", insertCmd, err.Error())
 			return err
 		}
-		fmt.Println("Inserted RowCount", rowCount)
+		loggershim.LS.Log("Inserted RowCount %d\n", rowCount)
 	}
 	return err
 }

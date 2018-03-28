@@ -1,27 +1,28 @@
 package replica
 
 import (
+	"dnc/configuration"
+	"dnc/utils"
 	"fmt"
 	"sync"
-	"log"
-	"dnc/utils"
-	"dnc/configuration"
 	"sync/atomic"
+
+	"dnc/logger/loggershim"
 )
 
 // Replica = Struct to hold replica settings
-type Replica  struct {
+type Replica struct {
 	promoteToPrimaryChannel chan bool
-	demotePrimaryChannel chan bool
-	serverSettings configuration.ServerSettings
-	primaryIPEndpoint string
-	isPrimary struct{ flag int32 }	
-	mux *sync.Mutex
+	demotePrimaryChannel    chan bool
+	serverSettings          configuration.ServerSettings
+	primaryIPEndpoint       string
+	isPrimary               struct{ flag int32 }
+	mux                     *sync.Mutex
 }
 
 // NewReplica - Create a NewReplica
-func NewReplica(configServerSettings configuration.ServerSettings) (*Replica) {
-	replica := new((Replica) )
+func NewReplica(configServerSettings configuration.ServerSettings) *Replica {
+	replica := new((Replica))
 	replica.promoteToPrimaryChannel = make(chan bool)
 	replica.demotePrimaryChannel = make(chan bool)
 	replica.serverSettings = configServerSettings
@@ -30,28 +31,29 @@ func NewReplica(configServerSettings configuration.ServerSettings) (*Replica) {
 }
 
 // UpdateReplicaStatus - Call back to update replica status.
-func (replica *Replica ) UpdateReplicaStatus(isReplicaPrimary bool) {
+func (replica *Replica) UpdateReplicaStatus(isReplicaPrimary bool) {
 	var i int32
 	if isReplicaPrimary {
 		i = 1
 	}
 	atomic.StoreInt32(&(replica.isPrimary.flag), int32(i))
 }
+
 // SetPrimaryIPEndpoint - Callback to set primary IP Endpoint.
-func (replica *Replica ) SetPrimaryIPEndpoint(ipEndpoint string ) {
+func (replica *Replica) SetPrimaryIPEndpoint(ipEndpoint string) {
 	replica.mux.Lock()
 	replica.primaryIPEndpoint = ipEndpoint
 	replica.mux.Unlock()
 }
 
 // GetPrimaryIPEndpoint - Get primary IP Endpoint.
-func (replica *Replica ) GetPrimaryIPEndpoint() (string, error) {
+func (replica *Replica) GetPrimaryIPEndpoint() (string, error) {
 	replica.mux.Lock()
 	defer replica.mux.Unlock()
 	if replica.primaryIPEndpoint == "" {
 		return "", fmt.Errorf("Failed to retrieve primary IP endpoint")
 	}
-	
+
 	return replica.primaryIPEndpoint, nil
 }
 
@@ -80,7 +82,7 @@ func (replica *Replica) getReplicaIPAddress() (string, error) {
 	if ipAddress == "" {
 		ipAddress, err = utils.GetLocalIP()
 		if err != nil {
-			log.Println("Failed to retrieve IP Address")
+			loggershim.LS.Log("Failed to retrieve IP Address due to error: %s\n", err.Error())
 			return "", err
 		}
 	}

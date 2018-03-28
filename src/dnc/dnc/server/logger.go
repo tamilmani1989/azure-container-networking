@@ -4,10 +4,11 @@ import (
 	"dnc/api"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"dnc/logger/loggershim"
 )
 
 var supportedAPIVersions = map[string]bool{"2018-03-01": true}
@@ -67,19 +68,19 @@ func Logger(inner http.Handler, name string) http.Handler {
 			}
 
 			target := "http://" + primaryEP + r.URL.String()
-			fmt.Println("Redirecting to", target)
+			loggershim.LS.Log("Redirecting to %s\n", target)
 			http.Redirect(w, r, target, http.StatusTemporaryRedirect)
 			return
 		}
 
 		inner.ServeHTTP(w, r)
 
-		log.Printf(
-			"%s\t%s\t%s\t%s",
+		loggershim.LS.Log(
+			"%s\t%s\t%s\t%s\n",
 			r.Method,
 			r.RequestURI,
 			name,
-			time.Since(start),
+			time.Since(start).String(),
 		)
 	})
 }

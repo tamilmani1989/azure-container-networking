@@ -14,8 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/azure-container-networking-dnc-apis/cns"
-	"github.com/golang/glog"
+	"github.com/Azure/azure-container-networking/cns"
 	"github.com/google/uuid"
 )
 
@@ -44,6 +43,7 @@ func processPendingRequests() {
 	for key, request := range requests {
 		var removeWorkItem bool
 		var err *api.JsonErr
+		logger.Log("Processing request : %s\n", request.String())
 
 		switch request.Type {
 		case datamodel.VirtualNetworkRequest:
@@ -72,27 +72,26 @@ func processPendingRequests() {
 // 2. If there was an error, True if the error is retriable , False otherwise.
 // 3. Error.
 func getNCGoalState(repoNCConfig *datamodel.NCConfiguration) (*NCGoalState, bool, *api.JsonErr) {
-	fmt.Printf("Retrieving Network Container Goal state for container %v", repoNCConfig.NetworkContainerID)
+	logger.Log("Retrieving Network Container Goal state for container %s\n", repoNCConfig.NetworkContainerID)
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
 
 	repoReservationConfiguration, err :=
 		datamodel.TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
 	if err != nil {
-		fmt.Printf("Retrieval of IPReservation %v associated with the NetworkContainer %v failed with error:%s. "+
+		logger.Log("Retrieval of IPReservation %s associated with the NetworkContainer %s failed with error:%s.\n"+
 			"Marking this error as retriable.\n",
 			repoNCConfig.ReservationID,
 			repoNCConfig.NetworkContainerID,
 			err.String())
 		return nil, true, err
 	} else if repoReservationConfiguration == nil {
-		fmt.Printf("IPReservation for Id %v associated with the NetworkContainer %v failed with error:%s. "+
-			"Marking this error as non retriable.\n",
+		logger.Log("IPReservation for Id %s associated with the NetworkContainer %s failed with error:%s. Marking this error as non retriable.\n",
 			repoNCConfig.ReservationID,
 			repoNCConfig.NetworkContainerID,
 			err.String())
 
 		msg := fmt.Sprintf(
-			"IPReservation for Id %v associated with Network Container %v in Network %v not found.\n",
+			"IPReservation for Id %s associated with Network Container %s in Network %s not found.\n",
 			repoNCConfig.ReservationID,
 			repoNCConfig.NetworkContainerID,
 			repoNCConfig.NetworkID)
@@ -102,26 +101,24 @@ func getNCGoalState(repoNCConfig *datamodel.NCConfiguration) (*NCGoalState, bool
 			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
 	}
-	fmt.Printf("Retrieved reservation config:%s", repoReservationConfiguration)
+	logger.Log("Retrieved reservation config: %+v\n", repoReservationConfiguration)
 
 	// Query NodeConfiguration table with nodeid and handle errors.
 	repoNodeConfig, err := datamodel.TryQueryNodeConfiguration(nodeID)
 	if err != nil {
-		fmt.Printf("Retrieval of node configuration for Node %v associated with the NetworkContainer %v failed with error:%s. "+
-			"Marking this error as retriable.\n",
+		logger.Log("Retrieval of node configuration for Node %s associated with the NetworkContainer %s failed with error:%s. Marking this error as retriable.\n",
 			nodeID,
 			repoNCConfig.NetworkContainerID,
 			err.String())
 
 		return nil, true, err
 	} else if repoNodeConfig == nil {
-		fmt.Printf("Configuration for Node %v associated with the NetworkContainer %v not found. "+
-			"Marking this error as non retriable.\n",
+		logger.Log("Configuration for Node %s associated with the NetworkContainer %s not found. Marking this error as non retriable.\n",
 			nodeID,
 			repoNCConfig.NetworkContainerID)
 
 		msg := fmt.Sprintf(
-			"Configuration for Node %v associated with the NetworkContainer %v not found.\n",
+			"Configuration for Node %s associated with the NetworkContainer %s not found.\n",
 			nodeID,
 			repoNCConfig.NetworkContainerID)
 
@@ -131,26 +128,24 @@ func getNCGoalState(repoNCConfig *datamodel.NCConfiguration) (*NCGoalState, bool
 			HTTPStatus: http.StatusBadRequest}
 	}
 
-	fmt.Printf("Retrieved repo node config:%s\n", repoNodeConfig)
+	logger.Log("Retrieved repo node config:%+v\n", repoNodeConfig)
 
 	repoSubnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
 		repoNCConfig.NetworkID,
 		repoReservationConfiguration.AllocationRequest.SubnetName)
 	if err != nil {
-		fmt.Printf("Retrieval of configuration for subnet %v associated with the Network %v failed with error:%s. "+
-			"Marking this error as retriable.\n",
+		logger.Log("Retrieval of configuration for subnet %s associated with the Network %s failed with error:%s. Marking this error as retriable.\n",
 			repoNCConfig.NetworkID,
 			repoReservationConfiguration.AllocationRequest.SubnetName,
 			err.String())
 		return nil, true, err
 	} else if repoSubnetConfiguration == nil {
-		fmt.Printf("Configuration for subnet %v associated with the Network %v not found. "+
-			"Marking this error as non retriable.\n",
+		logger.Log("Configuration for subnet %s associated with the Network %s not found. Marking this error as non retriable.\n",
 			repoReservationConfiguration.AllocationRequest.SubnetName,
 			repoNCConfig.NetworkID)
 
 		msg := fmt.Sprintf(
-			"Configuration for Subnet %v in Network %v not found.\n",
+			"Configuration for Subnet %s in Network %s not found.\n",
 			repoReservationConfiguration.AllocationRequest.SubnetName,
 			repoNCConfig.NetworkID)
 		return nil, false, &api.JsonErr{
@@ -159,29 +154,29 @@ func getNCGoalState(repoNCConfig *datamodel.NCConfiguration) (*NCGoalState, bool
 			HTTPStatus: http.StatusBadRequest}
 	}
 
-	fmt.Printf("Retrieved subnet config:%s", repoSubnetConfiguration)
+	logger.Log("Retrieved subnet config:%s\n", repoSubnetConfiguration)
 
 	repoNetworkConfiguration, err := datamodel.TryQueryNetworkConfiguration(repoNCConfig.NetworkID)
 	if err != nil {
-		fmt.Printf("Retrieval of configuration for Network %v failed with error:%s. "+
+		logger.Log("Retrieval of configuration for Network %s failed with error:%s. "+
 			"Marking this error as retriable.\n",
 			repoNCConfig.NetworkID,
 			err.String())
 		return nil, false, err
 	} else if repoNetworkConfiguration == nil {
-		fmt.Printf("Configuration for Network %v not found. "+
+		logger.Log("Configuration for Network %s not found. "+
 			"Marking this error as non retriable.\n",
 			repoNCConfig.NetworkID)
 
 		msg := fmt.Sprintf(
-			"Configuration for Network %v not found.\n",
+			"Configuration for Network %s not found.\n",
 			repoNCConfig.NetworkID)
 		return nil, false, &api.JsonErr{
 			Code:       api.NetworkNotFound,
 			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
 	}
-	fmt.Printf("\nRetrieved network configuration:%s\n", repoNetworkConfiguration)
+	logger.Log("\nRetrieved network configuration:%+v\n", repoNetworkConfiguration)
 
 	var associatedInterfaceID string
 	if len(repoNCConfig.GetAssociationInfo().InterfaceID) == 0 {
@@ -218,14 +213,26 @@ func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr) {
 	json.NewEncoder(&body).Encode("")
 	joinResponse, joinRespErr := http.Post(joinURL, "application/json", &body)
 	if joinRespErr != nil {
-		glog.Errorf(fmt.Sprintf("Join for network [%s] failed with reponse error [%s]. Marking this error as retriable", networkID, joinRespErr.Error()))
-		return true, nil
+		msg := fmt.Sprintf(
+			"Join for network [%s] failed with reponse error [%s]. Marking this error as retriable",
+			networkID,
+			joinRespErr.Error())
+
+		return true, &api.JsonErr{
+			Code:       api.JoinDenied,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
 	}
 
 	if joinResponse.StatusCode == http.StatusProcessing {
-		glog.Infof("Join request for network %s is pending processing with host agent. Marking this error as retriable.",
+		msg := fmt.Sprintf(
+			"Join for network [%s] is pending. Marking this error as retriable",
 			networkID)
-		return true, nil
+
+		return true, &api.JsonErr{
+			Code:       api.JoinPending,
+			Text:       msg,
+			HTTPStatus: http.StatusProcessing}
 	}
 
 	if joinResponse.StatusCode == http.StatusUnauthorized {
@@ -254,10 +261,14 @@ func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nm
 	getURL := fmt.Sprintf(nmagentcontracts.GetNetworkConfigurationURLFmt, networkID)
 	getResponse, getRespErr := http.Get(getURL)
 	if getRespErr != nil {
-		glog.Errorf(fmt.Sprintf("Get virtual network configuration for network [%s] failed with error [%s]. Marking this error as retribale.",
+		msg := fmt.Sprintf(
+			"Retrieval of network configuration for network [%s] failed with error [%s]. Marking this error as retriable.",
 			networkID,
-			getRespErr.Error()))
-		return true, nil, nil
+			getRespErr.Error())
+		return true, &api.JsonErr{
+			Code:       api.NetworkConfigurationRetrievalFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}, nil
 	}
 
 	var networkConfigurationResponse nmagentcontracts.VirtualNetworkResponse
@@ -272,7 +283,7 @@ func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nm
 			HTTPStatus: http.StatusInternalServerError}, nil
 	}
 
-	glog.Infof("Received response for network %s Configuration:%s", networkID, networkConfigurationResponse.String())
+	logger.Log("Received response for network %s Configuration:%s\n", networkID, networkConfigurationResponse.String())
 	getNetworkResponseCode, parseErr := strconv.ParseInt(networkConfigurationResponse.ResponseCode, 10, 64)
 	if parseErr != nil {
 		msg := fmt.Sprintf(
@@ -310,7 +321,7 @@ func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nm
 			HTTPStatus: http.StatusInternalServerError}, nil
 	}
 
-	glog.Infof("Retrieved virtual network configuration %s", networkConfigurationResponse)
+	logger.Log("Retrieved virtual network configuration %s\n", networkConfigurationResponse)
 	return false, nil, &networkConfigurationResponse
 }
 
@@ -329,8 +340,8 @@ func validateAndRetrieveNetworkConfigurationUpdate(
 			repoNetworkConfig.NetworkID,
 			subnetName)
 		if subnetCfgErr != nil {
-			glog.Infof(
-				"Failed to retrieve subnet configuration for subnet %s in network %s due to error %s",
+			logger.Log(
+				"Failed to retrieve subnet configuration for subnet %s in network %s due to error %s\n",
 				subnetName,
 				repoNetworkConfig.NetworkID,
 				subnetCfgErr)
@@ -357,7 +368,7 @@ func validateAndRetrieveNetworkConfigurationUpdate(
 			// If the subnet exist in the repository and there are no allocations
 			// (i.e) no reservations exist, then marke the subnet for update.
 			if len(repoSubnetConfig.Reservations) == 0 {
-				glog.Infof("Marking subnet %s in configuration for add as there are no allocations", subnet.SubnetName)
+				logger.Log("Marking subnet %s in configuration for add as there are no allocations\n", subnet.SubnetName)
 				subnetsToAdd[subnet.SubnetName] = subnet
 				continue
 			}
@@ -445,14 +456,14 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 	// a request is received.
 	networkConfiguration, err := datamodel.TryQueryNetworkConfiguration(networkID)
 	if err != nil {
-		glog.Errorf("Network configuration retrieval for network %s failed with error %s",
+		logger.Log("Network configuration retrieval for network %s failed with error %s\n",
 			networkID,
 			err.String())
 		return false, err
 	}
 
 	if networkConfiguration == nil {
-		glog.Errorf("Failed to find configuration in repository for network %s", networkID)
+		logger.Log("Failed to find configuration in repository for network %s\n", networkID)
 		return true, nil
 	}
 
@@ -474,7 +485,7 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 
 	repoNetworkConfiguration, netCfgErr = datamodel.TryQueryNetworkConfiguration(networkID)
 	if netCfgErr != nil {
-		glog.Infof("Failed to retrieve subnet configuration for network % due to error", networkID, netCfgErr)
+		logger.Log("Failed to retrieve subnet configuration for network %s due to error %s\n", networkID, netCfgErr.String())
 		return false, nil
 	}
 
@@ -521,7 +532,7 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 	// and we can handle any faulures that happens when persisting subnet
 	// configurations.
 
-	glog.Infof("Adding vnetconfig:%s", networkResponse.VnetVersion)
+	logger.Log("Adding vnetconfig:%s", networkResponse.VnetVersion)
 	vnetVersion, _ = strconv.ParseUint(networkResponse.VnetVersion, 10, 64)
 	repoNetworkConfiguration = &datamodel.NetworkConfiguration{
 		NetworkID: networkID,
@@ -602,7 +613,7 @@ Cleanup:
 		}
 	}
 
-	glog.Infof("Successfully added vnetconfig:%s", repoNetworkConfiguration.String())
+	logger.Log("Successfully added vnetconfig: %s\n", repoNetworkConfiguration.String())
 	return true, nil
 }
 
@@ -628,7 +639,7 @@ func generateAndPersistImplicitReservationRequest(repoNCConfig *datamodel.NCConf
 		reservationConfiguration.ReservationID,
 		false)
 	if err != nil {
-		fmt.Println("Failed to add network container to node configuration", err)
+		logger.Log("Failed to add network container to node configuration %s\n", err.String())
 		return nil, err
 	}
 
@@ -640,7 +651,7 @@ func generateAndPersistImplicitReservationRequest(repoNCConfig *datamodel.NCConf
 
 	err = datamodel.AddRequestToPendingQueue(reservationKey, &requestContext)
 	if err != nil {
-		fmt.Println("Failed to add the request to the the pending process queue")
+		logger.Log("Failed to add the request to the the pending process queue\n")
 		return nil, err
 	}
 	return &reservationConfiguration, nil
@@ -671,8 +682,8 @@ func processNetworkContainerV1(repoNCConfig *datamodel.NCConfiguration) (bool, *
 		repoNCConfig.NetworkID,
 		repoNCConfig.ReservationID)
 	if err != nil {
-		glog.Errorf(
-			"Failed to retrieve reservation configuration for resevation %s.Error %s",
+		logger.Log(
+			"Failed to retrieve reservation configuration for resevation %s.Error %s\n",
 			repoNCConfig.ReservationID,
 			err.String())
 
@@ -688,8 +699,8 @@ func processNetworkContainerV1(repoNCConfig *datamodel.NCConfiguration) (bool, *
 	reservationConfiguration.AssociatedNCID = repoNCConfig.NetworkContainerID
 	err = datamodel.PutIPReservationConfiguration(reservationConfiguration)
 	if err != nil {
-		glog.Errorf(
-			"Failed to put reservation configuration %s. Error %s",
+		logger.Log(
+			"Failed to put reservation configuration %s. Error %s\n",
 			reservationConfiguration.String(),
 			err.String())
 		return false, err
@@ -702,7 +713,7 @@ Cleanup:
 
 	if markPrepareFailed {
 		repoNCConfig.Status = datamodel.Failed
-		fmt.Printf("Failure Detail %s", failureDetail.String())
+		logger.Log("Failure Detail %s\n", failureDetail.String())
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
@@ -734,13 +745,14 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 	reservationConfiguration, err := datamodel.TryQueryIPReservation(
 		repoNCConfig.NetworkID,
 		repoNCConfig.ReservationID)
+
 	if err != nil {
 		return false, err
 	}
 
 	if reservationConfiguration == nil {
-		glog.Infof(
-			"Creating Reservation NetworkID:%s ReservationID:%s",
+		logger.Log(
+			"Creating Reservation NetworkID: %s ReservationID: %s\n",
 			repoNCConfig.NetworkID,
 			repoNCConfig.ReservationID)
 
@@ -777,7 +789,6 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 	}
 	repoNCConfig.State = datamodel.Reserve
 	repoNCConfig.Status = datamodel.Pending
-
 	if markPrepareFailed {
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = *failureDetail
@@ -793,7 +804,7 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 
 func prepareNetworkContainer(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	if repoNCConfig.Status == datamodel.Failed {
-		glog.Errorf("NC in failed state during prepare. Failure detail %s", repoNCConfig.FailureDetail)
+		logger.Log("NC in failed state during prepare. Failure detail %s\n", repoNCConfig.FailureDetail)
 		return true, nil
 	}
 
@@ -907,10 +918,10 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 	allocatedIP := strings.Split(ncGoalState.AllocatedIPSubnet, "/")[0]
 	_, baseSubnetPrefix, err := utils.GetIPAddressStringAndPrefix(ncGoalState.BaseSubnet)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to parse base subnet string %v due to error %v",
+		msg := fmt.Sprintf("Failed to parse base subnet string %s due to error %s",
 			ncGoalState.BaseSubnet,
 			err.Error())
-		fmt.Printf("%v, Marking as non retriable error", msg)
+		logger.Log("%s, Marking as non retriable error\n", msg)
 		failureDetail := api.JsonErr{
 			Code:       api.InvalidIPSubnet,
 			Text:       msg,
@@ -924,13 +935,13 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 	ipSubnet.PrefixLength = uint8(baseSubnetPrefix)
 	ipConfig.IPSubnet = ipSubnet
 	for index, vnetAddressString := range ncGoalState.VNetSubnets {
-		fmt.Println("Parsing vnetAddress:", vnetAddressString)
+		logger.Log("Parsing vnetAddress: %s\n", vnetAddressString)
 		ipAddressString, prefix, parserErr := utils.GetIPAddressStringAndPrefix(vnetAddressString)
 		if parserErr != nil {
-			msg := fmt.Sprintf("Failed to parse Vnet subnet string %v due to error %v",
+			msg := fmt.Sprintf("Failed to parse Vnet subnet string %s due to error %s",
 				vnetAddressString,
 				err.Error())
-			fmt.Printf("%v, Marking as non retriable error\n", msg)
+			logger.Log("%s, Marking as non retriable error\n", msg)
 			failureDetail := api.JsonErr{
 				Code:       api.InvalidIPSubnet,
 				Text:       msg,
@@ -958,11 +969,11 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 	w, respErr := http.Post(cerateOrUpdateNCURL, "application/json", &body)
 
 	if respErr != nil {
-		msg := fmt.Sprintf("Post to URL %v for NC %v failed with error %v",
+		msg := fmt.Sprintf("Post to URL %s for NC %s failed with error %s",
 			cerateOrUpdateNCURL,
 			ncGoalState.NetworkContainerID,
 			err.Error())
-		fmt.Printf("%v, Marking as retriable error\n", msg)
+		logger.Log("%s, Marking as retriable error\n", msg)
 		return false, &api.JsonErr{
 			Code:       api.AssociationFailed,
 			Text:       respErr.Error(),
@@ -971,11 +982,11 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 
 	respErr = decodeResponse(w, &resp)
 	if resp.ReturnCode != 0 {
-		msg := fmt.Sprintf("Associate NC %v to node %v failed with error code %v",
+		msg := fmt.Sprintf("Associate NC %s to node %s failed with error code %d",
 			ncGoalState.NetworkContainerID,
 			ncGoalState.NodeInterfaceID,
 			resp.ReturnCode)
-		fmt.Printf("%v, Marking as non retriable error\n", msg)
+		logger.Log("%s, Marking as non retriable error\n", msg)
 		failureDetail := api.JsonErr{
 			Code:       api.AssociationFailed,
 			Text:       msg,
@@ -985,11 +996,11 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
 	}
 	if respErr != nil {
-		msg := fmt.Sprintf("Associate NC %v to node %v failed with error %v",
+		msg := fmt.Sprintf("Associate NC %s to node %s failed with error %s",
 			ncGoalState.NetworkContainerID,
 			ncGoalState.NodeInterfaceID,
 			respErr.Error())
-		fmt.Printf("%v, Marking as retriable error\n", msg)
+		logger.Log("%s, Marking as retriable error\n", msg)
 
 		return false, &api.JsonErr{
 			Code:       api.AssociationFailed,
@@ -1010,9 +1021,6 @@ func decodeResponse(w *http.Response, response interface{}) error {
 	if w.Body == nil {
 		return fmt.Errorf("Response body is empty")
 	}
-	var temp string
-	json.NewDecoder(w.Body).Decode(&temp)
-	fmt.Printf("Response Status:%s Status %d, BodyLength:%v, Temp:%v\n", w.Status, w.StatusCode, w.ContentLength, temp)
 	return json.NewDecoder(w.Body).Decode(&response)
 }
 
@@ -1023,16 +1031,15 @@ func processNetworkContainerDisAssociate(repoNCConfig *datamodel.NCConfiguration
 	repoNodeConfig, err := datamodel.TryQueryNodeConfiguration(nodeID)
 
 	if err != nil {
-		fmt.Printf("Retrieval of node configuration for node %v failed with erro %v."+
-			"Marking error as retriable.",
+		logger.Log("Retrieval of node configuration for node %s failed with erro %s. Marking error as retriable.\n",
 			nodeID,
-			err)
+			err.String())
 		return false, err
 	} else if repoNodeConfig == nil {
-		msg := fmt.Sprintf("Node configuration for node %v not found.",
+		msg := fmt.Sprintf("Node configuration for node %s not found.",
 			nodeID)
 
-		fmt.Printf("%v, Marking as non retriable error", msg)
+		logger.Log("%s, Marking as non retriable error\n", msg)
 		failureDetail := api.JsonErr{
 			Code:       api.NodeNotFound,
 			Text:       msg,
@@ -1052,7 +1059,7 @@ func processNetworkContainerDisAssociate(repoNCConfig *datamodel.NCConfiguration
 	w, respErr := http.Post("http://"+primaryInterfaceID+":10090/network/deletenetworkcontainer", "application/json", &body)
 
 	if respErr != nil {
-		fmt.Printf("Failed to disassociate network container %v on node %v due to error. Marked as retriable.",
+		logger.Log("Failed to disassociate network container %s on node %s due to error. Marked as retriable.\n",
 			info.NetworkContainerid,
 			primaryInterfaceID)
 		return false, &api.JsonErr{
@@ -1061,32 +1068,33 @@ func processNetworkContainerDisAssociate(repoNCConfig *datamodel.NCConfiguration
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	var resp cns.Response
+	var resp cns.DeleteNetworkContainerResponse
 	decodeErr := decodeResponse(w, &resp)
 	if decodeErr != nil {
-		fmt.Printf("Failed to decode disassociate response for request with network container Id:%v. "+
-			"Marking as retriable error",
+		logger.Log("Failed to decode disassociate response for request with network container Id:%s. Marking as retriable error\n",
 			repoNCConfig.NetworkContainerID)
 		return false, &api.JsonErr{
 			Code:       api.DisAssociationFailed,
-			Text:       respErr.Error(),
+			Text:       decodeErr.Error(),
 			HTTPStatus: http.StatusBadRequest}
 	}
 
-	if resp.ReturnCode != 0 {
-		fmt.Printf("Disassociate response for request asscoaited with network container Id:%v retruned status %d. "+
-			"Marking as not retriable error",
-			repoNCConfig.NetworkContainerID)
+	if resp.Response.ReturnCode != 0 {
+		msg := fmt.Sprintf("Disassociate request associated with network container Id:%s returned status %d. "+
+			"Message:%+v. Marking as non retriable error",
+			repoNCConfig.NetworkContainerID,
+			resp.Response.ReturnCode,
+			resp.Response.Message)
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = api.JsonErr{
 			Code:       api.DisAssociationFailed,
-			Text:       respErr.Error(),
+			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
 
 		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
 	}
 
-	fmt.Printf("DisAssociated NC %s from node %s\n",
+	logger.Log("DisAssociated NC %s from node %s\n",
 		repoNCConfig.NetworkContainerID,
 		repoNCConfig.GetAssociationInfo().NodeID)
 	repoNCConfig.State = datamodel.UnReserve
@@ -1119,12 +1127,11 @@ func processNetworkContainerPublish(repoNCConfig *datamodel.NCConfiguration) (bo
 		ncGoalState.NodeInterfaceID,
 		ncGoalState.NetworkContainerID,
 		ncGoalState.AccessToken)
-	glog.Infof("Url:%s, body:%s", createNCURL, ncRequest.String)
+	logger.Log("Url:%s, body:%s\n", createNCURL, ncRequest.String)
 	_, respErr := http.Post(createNCURL, "application/json", &body)
 
 	if respErr != nil {
-		fmt.Printf("Failed to publish network container goal state for Id %v to host agent with error %v "+
-			"Marking as retriable error \n",
+		logger.Log("Failed to publish network container goal state for Id %s to host agent with error %s. Marking as retriable error.\n",
 			repoNCConfig.NetworkContainerID,
 			respErr.Error())
 		return false, &api.JsonErr{
@@ -1150,21 +1157,27 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 		}
 	}
 
-	glog.Infof("Creating delete URL")
+	logger.Log("Creating delete URL\n")
 
 	// Empty body is required as wireserver cannot handle a post without the body.
 	var body bytes.Buffer
 	json.NewEncoder(&body).Encode("")
 	deleteNCURL := fmt.Sprintf(nmagentcontracts.DeleteNetworkContainerURLFmt,
 		ncGoalState.NodeInterfaceID,
-		repoNCConfig.NetworkContainerID)
-	fmt.Printf("******Unpublishing: Url:%s\n", deleteNCURL)
+		ncGoalState.NetworkContainerID,
+		ncGoalState.AccessToken)
+	logger.Log("******Unpublishing: Url:%s\n", deleteNCURL)
 	resp, respErr := http.Post(deleteNCURL, "application/json", &body)
+
+	if resp != nil {
+		logger.Log("Received response from host for DeleteNetworkContainer: %+v", resp)
+	} else {
+		logger.Log("Received nil response from host for DeleteNetworkContainer.")
+	}
 
 	if respErr != nil {
 		if respErr != nil {
-			fmt.Printf("Failed to unpublish network container goal state for Id %v to host agent with error %v "+
-				"Marking as retriable error \n",
+			logger.Log("Failed to unpublish network container goal state for Id %s to host agent with error %s. Marking as retriable error.\n",
 				repoNCConfig.NetworkContainerID,
 				respErr.Error())
 			return false, &api.JsonErr{
@@ -1174,7 +1187,7 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 		}
 	}
 
-	var deleteNCResponse nmagentcontracts.NMAgentResponse
+	var deleteNCResponse nmagentcontracts.DeleteNetworkContainerResponse
 	decodeRespErr := decodeResponse(resp, &deleteNCResponse)
 	if decodeRespErr != nil {
 		msg := fmt.Sprintf("Failed to decode get delete NC response for NC %s due to error %s. Marking this error as retriable",
@@ -1186,8 +1199,9 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	glog.Infof("Received response for network response %s for NC:%s",
+	logger.Log("Received response for network response %s, Message:%v for NC:%s\n",
 		deleteNCResponse.ResponseCode,
+		deleteNCResponse.ErrorMessage,
 		repoNCConfig.NetworkContainerID)
 	deleteNCResponseCode, parseErr := strconv.ParseInt(deleteNCResponse.ResponseCode, 10, 64)
 	if parseErr != nil {
@@ -1200,9 +1214,9 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	fmt.Printf("Retrieved NC response:%v", deleteNCResponseCode)
+	logger.Log("Retrieved NC response: %d\n", deleteNCResponseCode)
 	if deleteNCResponseCode != http.StatusOK {
-		msg := fmt.Sprintf("Failed to unpublish NC with status code %v. Marking as non retriable.", deleteNCResponseCode)
+		msg := fmt.Sprintf("Failed to unpublish NC with status code %d. Marking as non retriable.", deleteNCResponseCode)
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = api.JsonErr{
 			Code:       api.UnpublishingFailed,
@@ -1218,7 +1232,7 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 
 func processNetworkContainerRevert(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	associationInfo := repoNCConfig.GetAssociationInfo()
-	fmt.Printf("Reverting NC %s to node %s\n", repoNCConfig.NetworkContainerID, associationInfo.NodeID)
+	logger.Log("Reverting NC %s to node %s\n", repoNCConfig.NetworkContainerID, associationInfo.NodeID)
 	repoNCConfig.State = datamodel.UnPublish
 	repoNCConfig.Status = datamodel.Pending
 	return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
@@ -1226,7 +1240,7 @@ func processNetworkContainerRevert(repoNCConfig *datamodel.NCConfiguration) (boo
 
 func processNetworkContainerProgram(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	associationInfo := repoNCConfig.GetAssociationInfo()
-	fmt.Printf("Publishing NC %s to node %s\n", repoNCConfig.NetworkContainerID, associationInfo.NodeID)
+	logger.Log("Publishing NC %s to node %s\n", repoNCConfig.NetworkContainerID, associationInfo.NodeID)
 	repoNCConfig.State = datamodel.Program
 	repoNCConfig.Status = datamodel.Completed
 	return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
@@ -1235,7 +1249,7 @@ func processNetworkContainerProgram(repoNCConfig *datamodel.NCConfiguration) (bo
 func processNetworkContainerRequest(networkID, networkContainerkey string) (bool, *api.JsonErr) {
 	repoNCConfig, err := datamodel.TryQueryNetworkContainerByKey(networkContainerkey)
 	if err != nil {
-		glog.Errorf("Failed to get network container by key. Error:%s", err.String())
+		logger.Log("Failed to get network container by key. Error:%s\n", err.String())
 		return false, err
 	}
 
@@ -1304,10 +1318,10 @@ func monitorRequests() {
 			break
 		case <-startProcessing:
 			processPendingRequests()
-			fmt.Println("Received signal to process pending work")
+			logger.Log("Received signal to process pending work\n")
 			break
 		case <-cancelProcessing:
-			fmt.Println("Received signal to exit")
+			logger.Log("Received signal to exit\n")
 			break
 		}
 	}

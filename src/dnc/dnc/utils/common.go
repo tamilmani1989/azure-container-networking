@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"dnc/logger/loggershim"
 	"fmt"
 	"net"
 	"os"
@@ -11,7 +12,7 @@ import (
 // onErrorFail prints a failure message and exits the program if err is not nil.
 func OnErrorFail(err error, message string) {
 	if err != nil {
-		fmt.Printf("%s: %s\n", message, err)
+		loggershim.LS.Log("%s: %s\n", message, err)
 		os.Exit(1)
 	}
 }

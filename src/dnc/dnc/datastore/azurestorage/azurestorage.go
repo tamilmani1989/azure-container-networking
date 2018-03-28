@@ -2,6 +2,7 @@ package azurestorage
 
 import (
 	"dnc/configuration"
+	"dnc/logger/loggershim"
 	"dnc/utils"
 	"fmt"
 	"net/http"
@@ -159,7 +160,13 @@ func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string,
 	var err error
 	if context == nil {
 		table := azureStorage.tableClient.GetTableReference(tableName)
-		entitiesResult, err = table.QueryEntities(30, storage.FullMetadata, nil)
+		queryOptions := storage.QueryOptions{
+			Filter: "PartitionKey eq '" + partitionKey + "'",
+		}
+
+		fmt.Println(queryOptions.Filter)
+		entitiesResult, err = table.QueryEntities(30, storage.FullMetadata, &queryOptions)
+
 		if err != nil {
 			storagErr, ok := err.(storage.AzureStorageServiceError)
 			if ok {
@@ -203,7 +210,7 @@ func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string,
 func getEnvVarOrExit(varName string) string {
 	value := os.Getenv(varName)
 	if value == "" {
-		fmt.Printf("Missing environment variable %s\n", varName)
+		loggershim.LS.Log("Missing environment variable %s\n", varName)
 		os.Exit(1)
 	}
 

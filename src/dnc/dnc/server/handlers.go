@@ -3,6 +3,7 @@ package server
 import (
 	"dnc/api"
 	"dnc/controller"
+	"dnc/logger/loggershim"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -68,6 +69,7 @@ func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 
 // GetNode - Handler for get node information
 func GetNode(w http.ResponseWriter, r *http.Request) {
+	// apiVersion := r.URL.Query().Get("api-version")
 	vars := mux.Vars(r)
 	nodeID, ok := vars["nodeID"]
 	if !ok {
@@ -117,6 +119,7 @@ func DeleteNode(w http.ResponseWriter, r *http.Request) {
 // ReserveIP - Handler for IP reservation
 func ReserveIP(w http.ResponseWriter, r *http.Request) {
 	apiVersion := r.URL.Query().Get("api-version")
+
 	vars := mux.Vars(r)
 	networkID, ok := vars["networkID"]
 	if !ok {
@@ -354,6 +357,7 @@ func DeleteNetworkContainer(w http.ResponseWriter, r *http.Request) {
 
 func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	apiVersion := r.URL.Query().Get("api-version")
+
 	vars := mux.Vars(r)
 	networkID, ok := vars["networkID"]
 	if !ok {
@@ -486,11 +490,7 @@ func GetNetworkContainer(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateNetwork(w http.ResponseWriter, r *http.Request) {
-	apiVersion, apiversionErr := getandValidateAPIVersion(r)
-	if apiversionErr != nil {
-		setRequestFailed(w, apiversionErr)
-		return
-	}
+	apiVersion := r.URL.Query().Get("api-version")
 
 	vars := mux.Vars(r)
 	networkID, ok := vars["networkID"]
@@ -541,7 +541,7 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	networkID := vars["networkID"]
 	subnet := vars["subnet"]
-	fmt.Println("Subnet:", subnet)
+	loggershim.LS.Log("Subnet: %s\n", subnet)
 	var subnetRequest api.SubnetRequest
 	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
 	if err != nil {
@@ -570,12 +570,6 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
-	_, err := getandValidateAPIVersion(r)
-	if err != nil {
-		setRequestFailed(w, err)
-		return
-	}
-
 	vars := mux.Vars(r)
 	networkID, ok := vars["networkID"]
 	if !ok {
@@ -586,7 +580,7 @@ func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	subnet, ok := vars["subnet"]
-	fmt.Println("Subnet:", subnet)
+	loggershim.LS.Log("Subnet: %s\n", subnet)
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidSubnetName,
@@ -614,12 +608,6 @@ func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
-	_, err := getandValidateAPIVersion(r)
-	if err != nil {
-		setRequestFailed(w, err)
-		return
-	}
-
 	vars := mux.Vars(r)
 	networkID, ok := vars["networkID"]
 	if !ok {
@@ -630,7 +618,7 @@ func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	subnet, ok := vars["subnet"]
-	fmt.Println("Subnet:", subnet)
+	loggershim.LS.Log("Subnet: %s\n", subnet)
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidSubnetName,
