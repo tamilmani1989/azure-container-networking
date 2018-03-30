@@ -160,17 +160,9 @@ func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.
 		networkID,
 		subnetName)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
-	if subnetConfiguration == nil {
-		msg := fmt.Sprintf(
-			"Subnet %s in Network %s is not found", subnetName, networkID)
-		return nil, &api.JsonErr{
-			Code:       api.SubnetNotFound,
-			HTTPStatus: http.StatusNotFound,
-			Text:       msg}
-	}
 	ipAllocationsData := make(api.IPAllocationsData, len(subnetConfiguration.Reservations))
 	index := 0
 	for reservationID := range subnetConfiguration.Reservations {
@@ -289,6 +281,7 @@ func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*
 	return datamodel.GetNetworkContainerResponse(ncConfig)
 
 }
+
 func (c *Controller) DeleteNetworkContainer(networkID, ncID string) *api.JsonErr {
 	return datamodel.ProcessNetworkContainerForRelease(networkID, ncID)
 }

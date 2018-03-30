@@ -120,13 +120,12 @@ func (b *BlobStore) getIPAddress() (string, error) {
 
 func (b *BlobStore) UpdatePrimaryIPEndpoint() error {
 	blockIDEncoded := base64.StdEncoding.EncodeToString([]byte(blockID))
-	ipAddress, err := getLocalIP()
+
+	ipEndpoint, err := b.GetReplicaIPEndpoint()
 	if err != nil {
 		loggershim.LS.Log("Failed to get local IP address due to error: %s\n", err.Error())
 		return err
 	}
-	ipEndpoint := ipAddress + ":" + b.serverSettings.Port
-
 	putBlockOptions := &storage.PutBlockOptions{LeaseID: b.leaseID}
 	err = b.blob.PutBlock(
 		blockIDEncoded,

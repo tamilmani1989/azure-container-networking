@@ -561,11 +561,11 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if t != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(&t); err != nil {
+			panic(err)
+		}
 	} else {
 		w.WriteHeader(http.StatusCreated)
-	}
-	if err := json.NewEncoder(w).Encode(t); err != nil {
-		panic(err)
 	}
 }
 

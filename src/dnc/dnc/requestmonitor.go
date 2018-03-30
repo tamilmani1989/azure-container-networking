@@ -940,7 +940,7 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 		if parserErr != nil {
 			msg := fmt.Sprintf("Failed to parse Vnet subnet string %s due to error %s",
 				vnetAddressString,
-				err.Error())
+				parserErr.Error())
 			logger.Log("%s, Marking as non retriable error\n", msg)
 			failureDetail := api.JsonErr{
 				Code:       api.InvalidIPSubnet,
@@ -972,11 +972,11 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 		msg := fmt.Sprintf("Post to URL %s for NC %s failed with error %s",
 			cerateOrUpdateNCURL,
 			ncGoalState.NetworkContainerID,
-			err.Error())
+			respErr.Error())
 		logger.Log("%s, Marking as retriable error\n", msg)
 		return false, &api.JsonErr{
 			Code:       api.AssociationFailed,
-			Text:       respErr.Error(),
+			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
 	}
 
@@ -995,6 +995,7 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 		repoNCConfig.FailureDetail = failureDetail
 		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
 	}
+
 	if respErr != nil {
 		msg := fmt.Sprintf("Associate NC %s to node %s failed with error %s",
 			ncGoalState.NetworkContainerID,
@@ -1004,7 +1005,7 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 
 		return false, &api.JsonErr{
 			Code:       api.AssociationFailed,
-			Text:       respErr.Error(),
+			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
 	}
 
@@ -1176,15 +1177,13 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 	}
 
 	if respErr != nil {
-		if respErr != nil {
-			logger.Log("Failed to unpublish network container goal state for Id %s to host agent with error %s. Marking as retriable error.\n",
-				repoNCConfig.NetworkContainerID,
-				respErr.Error())
-			return false, &api.JsonErr{
-				Code:       api.PublishingFailed,
-				Text:       respErr.Error(),
-				HTTPStatus: http.StatusInternalServerError}
-		}
+		logger.Log("Failed to unpublish network container goal state for Id %s to host agent with error %s. Marking as retriable error.\n",
+			repoNCConfig.NetworkContainerID,
+			respErr.Error())
+		return false, &api.JsonErr{
+			Code:       api.PublishingFailed,
+			Text:       respErr.Error(),
+			HTTPStatus: http.StatusInternalServerError}
 	}
 
 	var deleteNCResponse nmagentcontracts.DeleteNetworkContainerResponse

@@ -31,7 +31,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 	}
 
 	logger.Log("Processing Reservation Request for NetworkID %s\n", repoReservationRequest.NetworkID)
-	subnetConfiguration, err := datamodel.QuerySubnetConfiguration(
+	subnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
 		repoReservationRequest.NetworkID, repoReservationRequest.AllocationRequest.SubnetName)
 
 	if err != nil {

@@ -37,6 +37,9 @@ const (
 	// NetworkStatusInvalid - Network status in invalid.
 	NetworkStatusInvalid
 
+	// NetworkStateInvalid - Network state is in invalid state.
+	NetworkStateInvalid
+
 	// SubnetConfigurationNotFound - Subnet configuration not found
 	SubnetConfigurationNotFound
 
@@ -180,6 +183,9 @@ func (e ErrorCode) String() string {
 
 	case NetworkStatusInvalid:
 		return "NetworkStatusInvalid"
+
+	case NetworkStateInvalid:
+		return "NetworkStateInvalid"
 
 	case SubnetConfigurationNotFound:
 		return "SubnetConfigurationNotFound"

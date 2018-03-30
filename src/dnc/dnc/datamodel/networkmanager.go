@@ -1446,7 +1446,8 @@ func getIPConfiguration(reservationConfiguration *ReservationConfiguration) (*ap
 func GetNetworkContainerResponse(
 	ncConfig *NCConfiguration) (*api.NetworkContainerResponse, *api.JsonErr) {
 	ipConfiguration := new(api.IPConfiguration)
-	if ncConfig.State != Prepare {
+	if ncConfig.State != Prepare &&
+		!(ncConfig.State == Reserve && ncConfig.Status != Completed) {
 		reservationConfiguration, err := TryQueryIPReservation(
 			ncConfig.NetworkID,
 			ncConfig.ReservationID)
@@ -1672,7 +1673,7 @@ func CreateOrUpdateNCRequestV2(
 		msg := fmt.Sprintf(
 			"Failed when trying to retrieve configuration for network container:%s due to error:%s",
 			ncID,
-			err)
+			err.String())
 		return &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			Text:       msg,
@@ -1681,6 +1682,49 @@ func CreateOrUpdateNCRequestV2(
 
 	if ncConfig != nil {
 		return nil
+	}
+
+	networkConfig, err := QueryNetworkConfiguration(networkID)
+	if err != nil {
+		return err
+	}
+
+	if networkConfig.NetworkState != Join {
+		msg := fmt.Sprintf(
+			"Cannot create network container in network %v as it is not in join state. Current State:%v",
+			ncID,
+			networkConfig.NetworkState.String())
+		return &api.JsonErr{
+			Code:       api.NetworkStateInvalid,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	if networkConfig.Status != Completed {
+		msg := fmt.Sprintf(
+			"Cannot create network container in network %v as the status of the join operation is not completed. Current State:%v",
+			ncID,
+			networkConfig.Status.String())
+		return &api.JsonErr{
+			Code:       api.NetworkStateInvalid,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	subnetConfig, err := QuerySubnetConfiguration(networkID, ncRequestV2.AllocationRequest.SubnetName)
+	if err != nil {
+		return err
+	}
+
+	if !subnetConfig.Joined {
+		msg := fmt.Sprintf(
+			"Cannot create network container in network %v subnet %v as it has not completed the join operation.",
+			ncID,
+			ncRequestV2.AllocationRequest.SubnetName)
+		return &api.JsonErr{
+			Code:       api.SubnetIsNotJoined,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
 	}
 
 	ncConfiguration := NCConfiguration{
