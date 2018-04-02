@@ -247,6 +247,12 @@ func (nm *networkManager) CreateEndpoint(networkId string, epInfo *EndpointInfo)
 		return err
 	}
 
+	if nw.VlanId != 0 {
+		if epInfo.Data["vlanid"] == nil {
+			epInfo.Data["vlanid"] = nw.VlanId
+		}
+	}
+
 	_, err = nw.newEndpoint(epInfo)
 	if err != nil {
 		return err

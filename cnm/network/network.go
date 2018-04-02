@@ -232,7 +232,6 @@ func (plugin *netPlugin) createEndpoint(w http.ResponseWriter, r *http.Request) 
 	}
 
 	epInfo.Data = make(map[string]interface{})
-	epInfo.Data["vlanid"] = 100
 
 	err = plugin.nm.CreateEndpoint(req.NetworkID, &epInfo)
 	if err != nil {

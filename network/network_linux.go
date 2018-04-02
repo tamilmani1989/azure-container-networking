@@ -8,6 +8,7 @@ package network
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/Azure/azure-container-networking/common"
@@ -33,23 +34,25 @@ type route netlink.Route
 // NewNetworkImpl creates a new container network.
 func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInterface) (*network, error) {
 	// Connect the external interface.
-	multitenancy := false
+	var vlanid int
 	opt, _ := nwInfo.Options[genericData].(map[string]interface{})
 	log.Printf("opt %v", opt)
-	// clusterInfo := opt["nodeList"].(string)
 
 	switch nwInfo.Mode {
 	case opModeTunnel:
 		fallthrough
 	case opModeBridge:
-		if opt != nil {
-			if _, ok := opt["vlanid"].(string); ok {
-				multitenancy = true
-				nm.createOVSNetwork(extIf, nwInfo)
+		if opt != nil && opt["vlanid"] != nil {
+			var err error
+			log.Printf("create ovs bridge")
+			vlanid, err = strconv.Atoi(opt["vlanid"].(string))
+			if err != nil {
+				log.Printf("Error while converting vlanid from string to integer")
 			}
-		}
 
-		if !multitenancy {
+			nm.createOVSNetwork(extIf, nwInfo)
+		} else {
+			log.Printf("create linux bridge")
 			err := nm.connectExternalInterface(extIf, nwInfo)
 			if err != nil {
 				return nil, err
@@ -66,10 +69,7 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 		Mode:      nwInfo.Mode,
 		Endpoints: make(map[string]*endpoint),
 		extIf:     extIf,
-	}
-
-	if multitenancy {
-		nw.VlanId = opt["vlanid"].(string)
+		VlanId:    vlanid,
 	}
 
 	return nw, nil
@@ -79,7 +79,7 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 func (nm *networkManager) deleteNetworkImpl(nw *network) error {
 	// Disconnect the interface if this was the last network using it.
 
-	if nw.VlanId != "" {
+	if nw.VlanId != 0 {
 		if len(nw.extIf.Networks) == 1 {
 			nm.disconnectOVSInterface(nw.extIf)
 		}

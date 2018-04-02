@@ -27,118 +27,124 @@ const (
 	containerInterfacePrefix = "eth"
 )
 
-func (nw *network) setupContainerNicAndRules(hostIfName string, contIfName string, containerIf *net.Interface, epInfo *EndpointInfo) error {
-	// Connect host interface to the bridge.
-	multitenancy := false
+func (nw *network) setupLinuxBridgeRules(hostIfName string, contIfName string, containerIf *net.Interface, epInfo *EndpointInfo) error {
 	var err error
 
-	if epInfo.Data != nil {
-		if vlanid, ok := epInfo.Data["vlanid"]; ok {
-			multitenancy = true
-			log.Printf("[net] Setting link %v master %v.", hostIfName, nw.extIf.BridgeName)
-
-			cmd := fmt.Sprintf("ovs-vsctl add-port %v %v tag=%v", nw.extIf.BridgeName, hostIfName, vlanid)
-			_, err = common.ExecuteShellCommand(cmd)
-			if err != nil {
-				log.Printf("[net] Adding port failed with error %v", err)
-				return err
-			}
-
-			log.Printf("[net] Get ovs port for interface %v.", hostIfName)
-			cmd = fmt.Sprintf("ovs-vsctl get Interface %s ofport", hostIfName)
-			containerPort, err := common.ExecuteShellCommand(cmd)
-			if err != nil {
-				log.Printf("[net] Get ofport failed with error %v", err)
-				return err
-			}
-
-			containerPort = strings.Trim(containerPort, "\n")
-			mac := nw.extIf.MacAddress.String()
-			macHex := strings.Replace(mac, ":", "", -1)
-			log.Printf("[net] OVS - Adding ARP SNAT rule for egress traffic on %v.", hostIfName)
-
-			cmd = fmt.Sprintf(`ovs-ofctl add-flow %v priority=10,arp,in_port=%s,arp_op=1,actions='mod_dl_src:%s,
-				load:0x%s->NXM_NX_ARP_SHA[],normal'`, nw.extIf.BridgeName, containerPort, mac, macHex)
-			_, err = common.ExecuteShellCommand(cmd)
-			if err != nil {
-				log.Printf("[net] Adding ARP SNAT rule failed with error %v", err)
-				return err
-			}
-
-			log.Printf("[net] OVS - Adding IP SNAT rule for egress traffic on %v.", hostIfName)
-
-			cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=10,ip,in_port=%s,actions=mod_dl_src:%s,normal",
-				nw.extIf.BridgeName, containerPort, mac)
-			_, err = common.ExecuteShellCommand(cmd)
-			if err != nil {
-				log.Printf("[net] Adding IP SNAT rule failed with error %v", err)
-				return err
-			}
-
-			macAddr := containerIf.HardwareAddr.String()
-			macAddrHex := strings.Replace(macAddr, ":", "", -1)
-
-			log.Printf("[net] Get ovs port for interface %v.", nw.extIf.Name)
-			cmd = fmt.Sprintf("ovs-vsctl get Interface %s ofport", nw.extIf.Name)
-			ofport, err := common.ExecuteShellCommand(cmd)
-			if err != nil {
-				log.Printf("[net] Get ofport failed with error %v", err)
-				return err
-			}
-
-			ofport = strings.Trim(ofport, "\n")
-
-			for _, ipAddr := range epInfo.IPAddresses {
-				// Add ARP reply rule.
-				ipAddrInt := common.IpToInt(ipAddr.IP)
-
-				log.Printf("[net] Adding ARP reply rule for IP address %v on %v.", ipAddr.IP.String(), contIfName)
-				cmd = fmt.Sprintf(`ovs-ofctl add-flow %s arp,arp_tpa=%s,dl_vlan=%v,arp_op=1,actions='load:0x2->NXM_OF_ARP_OP[],
-					move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],mod_dl_src:%s,
-					move:NXM_NX_ARP_SHA[]->NXM_NX_ARP_THA[],move:NXM_OF_ARP_SPA[]->NXM_OF_ARP_TPA[],
-					load:0x%s->NXM_NX_ARP_SHA[],load:0x%x->NXM_OF_ARP_SPA[],IN_PORT'`,
-					nw.extIf.BridgeName, ipAddr.IP.String(), vlanid, macAddr, macAddrHex, ipAddrInt)
-				_, err = common.ExecuteShellCommand(cmd)
-				if err != nil {
-					log.Printf("[net] Adding ARP reply rule failed with error %v", err)
-					return err
-				}
-
-				// Add MAC address translation rule.
-				log.Printf("[net] Adding MAC DNAT rule for IP address %v on %v.", ipAddr.IP.String(), contIfName)
-				cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_vlan=%v,in_port=%s,actions=mod_dl_dst:%s,normal",
-					nw.extIf.BridgeName, ipAddr.IP.String(), vlanid, ofport, macAddr)
-				_, err = common.ExecuteShellCommand(cmd)
-				//err = ebtables.SetDnatForIPAddress(nw.extIf.Name, ipAddr.IP, containerIf.HardwareAddr, ebtables.Append)
-				if err != nil {
-					log.Printf("[net] Adding MAC DNAT rule failed with error %v", err)
-					return err
-				}
-			}
-		}
+	log.Printf("[net] Setting link %v master %v.", hostIfName, nw.extIf.BridgeName)
+	err = netlink.SetLinkMaster(hostIfName, nw.extIf.BridgeName)
+	if err != nil {
+		return err
 	}
 
-	if !multitenancy {
-		log.Printf("[net] Setting link %v master %v.", hostIfName, nw.extIf.BridgeName)
-		err = netlink.SetLinkMaster(hostIfName, nw.extIf.BridgeName)
+	for _, ipAddr := range epInfo.IPAddresses {
+		// Add ARP reply rule.
+		log.Printf("[net] Adding ARP reply rule for IP address %v on %v.", ipAddr.String(), contIfName)
+		err = ebtables.SetArpReply(ipAddr.IP, nw.getArpReplyAddress(containerIf.HardwareAddr), ebtables.Append)
 		if err != nil {
 			return err
 		}
 
-		for _, ipAddr := range epInfo.IPAddresses {
-			// Add ARP reply rule.
-			log.Printf("[net] Adding ARP reply rule for IP address %v on %v.", ipAddr.String(), contIfName)
-			err = ebtables.SetArpReply(ipAddr.IP, nw.getArpReplyAddress(containerIf.HardwareAddr), ebtables.Append)
-			if err != nil {
-				return err
-			}
+		// Add MAC address translation rule.
+		log.Printf("[net] Adding MAC DNAT rule for IP address %v on %v.", ipAddr.String(), contIfName)
+		err = ebtables.SetDnatForIPAddress(nw.extIf.Name, ipAddr.IP, containerIf.HardwareAddr, ebtables.Append)
+		if err != nil {
+			return err
+		}
+	}
 
-			// Add MAC address translation rule.
-			log.Printf("[net] Adding MAC DNAT rule for IP address %v on %v.", ipAddr.String(), contIfName)
-			err = ebtables.SetDnatForIPAddress(nw.extIf.Name, ipAddr.IP, containerIf.HardwareAddr, ebtables.Append)
-			if err != nil {
-				return err
-			}
+	return nil
+}
+
+func (nw *network) setupOVSRules(hostIfName string, contIfName string, containerIf *net.Interface, vlanid int, epInfo *EndpointInfo) error {
+	// Connect host interface to the bridge.
+	var err error
+
+	log.Printf("[net] Setting link %v master %v.", hostIfName, nw.extIf.BridgeName)
+	cmd := fmt.Sprintf("ovs-vsctl add-port %v %v tag=%v", nw.extIf.BridgeName, hostIfName, vlanid)
+	_, err = common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[net] Adding port failed with error %v", err)
+		return err
+	}
+
+	log.Printf("[net] Get ovs port for interface %v.", hostIfName)
+	cmd = fmt.Sprintf("ovs-vsctl get Interface %s ofport", hostIfName)
+	containerPort, err := common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[net] Get ofport failed with error %v", err)
+		return err
+	}
+
+	containerPort = strings.Trim(containerPort, "\n")
+
+	log.Printf("[net] Get ovs port for interface %v.", nw.extIf.Name)
+	cmd = fmt.Sprintf("ovs-vsctl get Interface %s ofport", nw.extIf.Name)
+	ofport, err := common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[net] Get ofport failed with error %v", err)
+		return err
+	}
+
+	ofport = strings.Trim(ofport, "\n")
+
+	mac := nw.extIf.MacAddress.String()
+	macHex := strings.Replace(mac, ":", "", -1)
+	log.Printf("[net] OVS - Adding ARP SNAT rule for egress traffic on %v.", hostIfName)
+
+	cmd = fmt.Sprintf(`ovs-ofctl add-flow %v table=1,priority=10,arp,arp_op=1,actions='mod_dl_src:%s,
+		load:0x%s->NXM_NX_ARP_SHA[],output:%s'`, nw.extIf.BridgeName, mac, macHex, ofport)
+	_, err = common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[net] Adding ARP SNAT rule failed with error %v", err)
+		return err
+	}
+
+	log.Printf("[net] OVS - Adding IP SNAT rule for egress traffic on %v.", hostIfName)
+
+	cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=10,ip,in_port=%s,actions=mod_dl_src:%s,normal",
+		nw.extIf.BridgeName, containerPort, mac)
+	_, err = common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[net] Adding IP SNAT rule failed with error %v", err)
+		return err
+	}
+
+	macAddr := containerIf.HardwareAddr.String()
+	macAddrHex := strings.Replace(macAddr, ":", "", -1)
+
+	for _, ipAddr := range epInfo.IPAddresses {
+		// Add ARP reply rule.
+		ipAddrInt := common.IpToInt(ipAddr.IP)
+
+		log.Printf("[net] Adding ARP reply rule set vlanid %v for container ifname", vlanid, contIfName)
+		cmd = fmt.Sprintf(`ovs-ofctl add-flow %s arp,arp_op=1,in_port=%s,actions='mod_vlan_vid:%v,resubmit(,1)'`,
+			nw.extIf.BridgeName, containerPort, vlanid)
+		_, err = common.ExecuteShellCommand(cmd)
+		if err != nil {
+			log.Printf("[net] Adding ARP reply rule failed with error %v", err)
+			return err
+		}
+
+		log.Printf("[net] Adding ARP reply rule for IP address %v on %v.", ipAddr.IP.String(), contIfName)
+		cmd = fmt.Sprintf(`ovs-ofctl add-flow %s table=1,arp,arp_tpa=%s,dl_vlan=%v,arp_op=1,priority=20,actions='load:0x2->NXM_OF_ARP_OP[],
+			move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],mod_dl_src:%s,
+			move:NXM_NX_ARP_SHA[]->NXM_NX_ARP_THA[],move:NXM_OF_ARP_SPA[]->NXM_OF_ARP_TPA[],
+			load:0x%s->NXM_NX_ARP_SHA[],load:0x%x->NXM_OF_ARP_SPA[],strip_vlan,IN_PORT'`,
+			nw.extIf.BridgeName, ipAddr.IP.String(), vlanid, macAddr, macAddrHex, ipAddrInt)
+		_, err = common.ExecuteShellCommand(cmd)
+		if err != nil {
+			log.Printf("[net] Adding ARP reply rule failed with error %v", err)
+			return err
+		}
+
+		// Add MAC address translation rule.
+		log.Printf("[net] Adding MAC DNAT rule for IP address %v on %v.", ipAddr.IP.String(), contIfName)
+		cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_vlan=%v,in_port=%s,actions=mod_dl_dst:%s,normal",
+			nw.extIf.BridgeName, ipAddr.IP.String(), vlanid, ofport, macAddr)
+		_, err = common.ExecuteShellCommand(cmd)
+		if err != nil {
+			log.Printf("[net] Adding MAC DNAT rule failed with error %v", err)
+			return err
 		}
 	}
 
@@ -151,6 +157,13 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	var ns *Namespace
 	var ep *endpoint
 	var err error
+	var vlanid int = 0
+
+	if epInfo.Data != nil {
+		if _, ok := epInfo.Data["vlanid"]; ok {
+			vlanid = epInfo.Data["vlanid"].(int)
+		}
+	}
 
 	if nw.Endpoints[epInfo.Id] != nil {
 		log.Printf("[net] Endpoint alreday exists.")
@@ -201,7 +214,11 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 		return nil, err
 	}
 
-	nw.setupContainerNicAndRules(hostIfName, contIfName, containerIf, epInfo)
+	if vlanid != 0 {
+		nw.setupOVSRules(hostIfName, contIfName, containerIf, vlanid, epInfo)
+	} else {
+		nw.setupLinuxBridgeRules(hostIfName, contIfName, containerIf, epInfo)
+	}
 	//
 	// Container network interface setup.
 	//
@@ -303,9 +320,71 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 		MacAddress:  containerIf.HardwareAddr,
 		IPAddresses: epInfo.IPAddresses,
 		Gateways:    []net.IP{nw.extIf.IPv4Gateway},
+		VlanID:      vlanid,
 	}
 
 	return ep, nil
+}
+
+func (nw *network) deleteOVSRules(ep *endpoint) {
+
+	log.Printf("[net] Get ovs port for interface %v.", ep.HostIfName)
+	cmd := fmt.Sprintf("ovs-vsctl get Interface %s ofport", ep.HostIfName)
+	containerPort, err := common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[net] Get ofport failed with error %v", err)
+	}
+
+	log.Printf("[net] Get ovs port for interface %v.", nw.extIf.Name)
+	cmd = fmt.Sprintf("ovs-vsctl get Interface %s ofport", nw.extIf.Name)
+	ofPort, err := common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[net] Get ofport failed with error %v", err)
+	}
+
+	containerPort = strings.Trim(containerPort, "\n")
+	ofPort = strings.Trim(ofPort, "\n")
+
+	// Delete IP SNAT
+	log.Printf("[net] Deleting IP SNAT for port %v", containerPort)
+	cmd = fmt.Sprintf("ovs-ofctl del-flows %v ip,in_port=%s",
+		nw.extIf.BridgeName, containerPort)
+	_, err = common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("Error while deleting ovs rule %v error %v", cmd, err)
+	}
+
+	log.Printf("[net] Deleting ARP reply rule set vlanid %v for container port", ep.VlanID, containerPort)
+	cmd = fmt.Sprintf("ovs-ofctl del-flows %s arp,arp_op=1,in_port=%s",
+		nw.extIf.BridgeName, containerPort)
+	_, err = common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[net] Deleting ARP reply rule failed with error %v", err)
+	}
+
+	log.Printf("[net] Deleting ARP reply rule for IP address %v and vlan %v.", ep.IPAddresses[0].IP.String(), ep.VlanID)
+	cmd = fmt.Sprintf("ovs-ofctl del-flows %s table=1,arp,arp_tpa=%s,dl_vlan=%v,arp_op=1",
+		nw.extIf.BridgeName, ep.IPAddresses[0].IP.String(), ep.VlanID)
+	_, err = common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[net] Deleting ARP reply rule failed with error %v", err)
+	}
+
+	// Add MAC address translation rule.
+	log.Printf("[net] Deleting MAC DNAT rule for IP address %v and vlan %v.", ep.IPAddresses[0].IP.String(), ep.VlanID)
+	cmd = fmt.Sprintf("ovs-ofctl del-flows %s ip,nw_dst=%s,dl_vlan=%v,in_port=%s",
+		nw.extIf.BridgeName, ep.IPAddresses[0].IP.String(), ep.VlanID, ofPort)
+	_, err = common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[net] Adding MAC DNAT rule failed with error %v", err)
+	}
+
+	// Delete port fromk ovs bridge
+	cmd = fmt.Sprintf("ovs-vsctl del-port %v %v", nw.extIf.BridgeName, ep.HostIfName)
+	_, err = common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[net] Adding port failed with error %v", err)
+	}
 }
 
 // deleteEndpointImpl deletes an existing endpoint from the network.
@@ -313,28 +392,33 @@ func (nw *network) deleteEndpointImpl(ep *endpoint) error {
 	// Delete the veth pair by deleting one of the peer interfaces.
 	// Deleting the host interface is more convenient since it does not require
 	// entering the container netns and hence works both for CNI and CNM.
+	if ep.VlanID != 0 {
+		log.Printf("Delete ovs rules and remove port")
+		nw.deleteOVSRules(ep)
+	} else {
+		// Delete rules for IP addresses on the container interface.
+		for _, ipAddr := range ep.IPAddresses {
+			// Delete ARP reply rule.
+			log.Printf("[net] Deleting ARP reply rule for IP address %v on %v.", ipAddr.String(), ep.Id)
+			err := ebtables.SetArpReply(ipAddr.IP, nw.getArpReplyAddress(ep.MacAddress), ebtables.Delete)
+			if err != nil {
+				log.Printf("[net] Failed to delete ARP reply rule for IP address %v: %v.", ipAddr.String(), err)
+			}
+
+			// Delete MAC address translation rule.
+			log.Printf("[net] Deleting MAC DNAT rule for IP address %v on %v.", ipAddr.String(), ep.Id)
+			err = ebtables.SetDnatForIPAddress(nw.extIf.Name, ipAddr.IP, ep.MacAddress, ebtables.Delete)
+			if err != nil {
+				log.Printf("[net] Failed to delete MAC DNAT rule for IP address %v: %v.", ipAddr.String(), err)
+			}
+		}
+	}
+
 	log.Printf("[net] Deleting veth pair %v %v.", ep.HostIfName, ep.IfName)
 	err := netlink.DeleteLink(ep.HostIfName)
 	if err != nil {
 		log.Printf("[net] Failed to delete veth pair %v: %v.", ep.HostIfName, err)
 		return err
-	}
-
-	// Delete rules for IP addresses on the container interface.
-	for _, ipAddr := range ep.IPAddresses {
-		// Delete ARP reply rule.
-		log.Printf("[net] Deleting ARP reply rule for IP address %v on %v.", ipAddr.String(), ep.Id)
-		err = ebtables.SetArpReply(ipAddr.IP, nw.getArpReplyAddress(ep.MacAddress), ebtables.Delete)
-		if err != nil {
-			log.Printf("[net] Failed to delete ARP reply rule for IP address %v: %v.", ipAddr.String(), err)
-		}
-
-		// Delete MAC address translation rule.
-		log.Printf("[net] Deleting MAC DNAT rule for IP address %v on %v.", ipAddr.String(), ep.Id)
-		err = ebtables.SetDnatForIPAddress(nw.extIf.Name, ipAddr.IP, ep.MacAddress, ebtables.Delete)
-		if err != nil {
-			log.Printf("[net] Failed to delete MAC DNAT rule for IP address %v: %v.", ipAddr.String(), err)
-		}
 	}
 
 	return nil
