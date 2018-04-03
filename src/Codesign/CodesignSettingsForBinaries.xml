@@ -40,6 +40,8 @@
 		  <File>%BinariesBuildTypeArchDirectory%\Aqua.RestServer\Aqua.RestServer.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\Aqua.Logging\Aqua.Logging.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\Aqua.RestClient\Aqua.RestClient.exe</File>
+		  <File>%BinariesBuildTypeArchDirectory%\AzureNetworkContainer\AzureNetworkContainer.exe</File>
+		  <File>%BinariesBuildTypeArchDirectory%\AzureNetworkContainer\azure-cns.exe</File>
 		</Files>
 	</FileData>
 </CodeSignSettings>

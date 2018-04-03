@@ -20,6 +20,7 @@
     <ProjectFile Include="HostNetAgent\HostNetAgent.vcxproj" />
     <ProjectFile Include="Common\NetAgentContracts\NetAgentContracts.vcxproj" />
     <ProjectFile Include="NetworkContainer\NetworkContainer.vcxproj" />
+    <ProjectFile Include="AzureCNSPackage\AzureCNSPackage.proj" />
   </ItemGroup>
 
   <ItemGroup>

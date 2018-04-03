@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build;CreatePackage" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>0FCCFC2B-DD6B-4BAC-9624-A5F4E4F26C61</ProjectGuid>
+     <RootNamespace>Aquarius</RootNamespace>
+     <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <!-- Nuget generation properties -->
+  <PropertyGroup>
+    <NoPackageAnalysis>true</NoPackageAnalysis>
+    <Id>Microsoft.WindowsAzure.Internal.$(GitBranchName)AzureCNS</Id>
+    <Version>$(BuildVersion)</Version>
+    <Title>AzureCNS from $(GitBranchName)</Title>
+    <Authors>connectdevs@microsoft.com</Authors>
+    <Owners>connectdevs@microsoft.com</Owners>
+    <Description>Microsoft Azure CNS</Description>
+    <ReleaseNotes>
+    </ReleaseNotes>
+    <Summary>This library can be used to provide CNS service on Azure.
+    Code is in the GIT repo Networking-Aquarius</Summary>
+    <ProjectUrl>http://www.Microsoft.com</ProjectUrl>
+    <LicenseUrl>http://www.Microsoft.com/license</LicenseUrl>
+    <Copyright>Copyright (c) Microsoft Corporation</Copyright>
+    <RequireLicenseAcceptance>False</RequireLicenseAcceptance>  
+    <Tags>
+    </Tags>
+  </PropertyGroup>
+    <ItemGroup>
+        <File Include="$(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll">
+            <TargetPath>content</TargetPath>
+        </File>
+        <File Include="$(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll">
+            <TargetPath>content</TargetPath>
+        </File>
+        <File Include="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll">
+            <TargetPath>content</TargetPath>
+        </File>     
+        <File Include="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer\AzureNetworkContainer.exe">
+            <TargetPath>content</TargetPath>
+        </File>
+        <File Include="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer\azure-cns.exe">
+            <TargetPath>content</TargetPath>
+        </File>
+    </ItemGroup>
+  <Import Project="$(PkgNuProj)\NuProj.Targets" />
+</Project>
