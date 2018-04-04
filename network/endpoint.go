@@ -150,31 +150,3 @@ func (ep *endpoint) detach() error {
 
 	return nil
 }
-
-func GetContainerNetworkConfiguration(namespace string, podName string) (*EndpointInfo, error) {
-	log.Printf("Namespace %v PodName %v", namespace, podName)
-	epInfo := &EndpointInfo{}
-	routeInfo := RouteInfo{}
-	ip, ipAddress, _ := net.ParseCIDR("10.2.0.13/16")
-	ipnet := net.IPNet{IP: ip, Mask: ipAddress.Mask}
-	var gateways []net.IP
-
-	gateways = append(gateways, net.ParseIP("10.2.0.1"))
-	dstIp := [1]string{"0.0.0.0/0"}
-	dstGw := [1]string{"10.2.0.1"}
-
-	for i := 0; i < len(dstIp); i++ {
-		_, dstipnet, _ := net.ParseCIDR(dstIp[i])
-		routeInfo.Dst = *dstipnet
-		routeInfo.Gw = net.ParseIP(dstGw[i])
-		epInfo.Routes = append(epInfo.Routes, routeInfo)
-	}
-
-	epInfo.IPAddresses = append(epInfo.IPAddresses, ipnet)
-	epInfo.DNS.Servers = append(epInfo.DNS.Servers, "168.63.129.16")
-	epInfo.Data = make(map[string]interface{})
-	epInfo.Data["vlanid"] = 100
-	epInfo.Data["Gateways"] = gateways
-
-	return epInfo, nil
-}

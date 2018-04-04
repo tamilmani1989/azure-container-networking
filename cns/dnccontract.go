@@ -1,16 +1,24 @@
 package cns
 
+import "encoding/json"
+
 // Container Network Service DNC Contract
 const (
-	CreateOrUpdateNetworkContainer = "/network/createorupdatenetworkcontainer"
-	DeleteNetworkContainer         = "/network/deletenetworkcontainer"
-	GetNetworkContainerStatus      = "/network/getnetworkcontainerstatus"
-	GetInterfaceForContainer       = "/network/getinterfaceforcontainer"
+	CreateOrUpdateNetworkContainer     = "/network/createorupdatenetworkcontainer"
+	DeleteNetworkContainer             = "/network/deletenetworkcontainer"
+	GetNetworkContainerStatus          = "/network/getnetworkcontainerstatus"
+	GetInterfaceForContainer           = "/network/getinterfaceforcontainer"
+	GetNetworkConfigByOrchestratorInfo = "/network/getnetworkconfigbyorchestratorinfo"
+)
+
+// Network Container Types
+const (
+	AzureContainerInstance = "AzureContainerInstance"
 )
 
 // Orchestrator Types
 const (
-	AzureContainerInstance = "AzureContainerInstance"
+	Kubernetes = "Kubernetes"
 )
 
 // CreateNetworkContainerRequest specifies request to create a network container or network isolation boundary.
@@ -30,11 +38,11 @@ type CreateNetworkContainerRequest struct {
 // OrchestratorInfo contains orchestrator type which is used to cast OrchestratorContext.
 type OrchestratorInfo struct {
 	OrchestratorType    string
-	OrchestratorContext interface{}
+	OrchestratorContext json.RawMessage
 }
 
-// AzureContainerInstanceInfo is an OrchestratorContext that holds PodName and PodNamespace.
-type AzureContainerInstanceInfo struct {
+// KubernetesInfo is an OrchestratorContext that holds PodName and PodNamespace.
+type KubernetesInfo struct {
 	PodName      string
 	PodNamespace string
 }
@@ -118,4 +126,17 @@ type GetInterfaceForContainerResponse struct {
 type NetworkInterface struct {
 	Name      string
 	IPAddress string
+}
+
+// GetInterfaceForContainerResponse specifies the network config for a given Networkcontainerid/NetworkContainerOrchestratorInfo.
+type GetNetworkConfigRequest struct {
+	NetworkcontainerID string
+	OrchestratorInfo   OrchestratorInfo
+}
+
+type GetNetworkConfigResponse struct {
+	IPConfiguration  IPConfiguration
+	Routes           []Route
+	MultiTenancyInfo MultiTenancyInfo
+	Response         Response
 }
