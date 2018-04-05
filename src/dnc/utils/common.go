@@ -6,8 +6,21 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"sort"
 	"strings"
 )
+
+type Uint16s []uint16
+
+func (s Uint16s) Len() int           { return len(s) }
+func (s Uint16s) Less(i, j int) bool { return s[i] < s[j] }
+func (s Uint16s) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+// Sort is a convenience method.
+
+func (s Uint16s) Sort() {
+	sort.Sort(s)
+}
 
 // onErrorFail prints a failure message and exits the program if err is not nil.
 func OnErrorFail(err error, message string) {

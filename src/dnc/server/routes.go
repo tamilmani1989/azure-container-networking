@@ -116,7 +116,7 @@ var routes = Routes{
 		GetSubnetStatus,
 	},
 	Route{
-		"GetSubnetStatus",
+		"GetSubnetConfiguration",
 		"GET",
 		"/networks/{networkID}/subnets/{subnet}",
 		GetSubnetConfiguration,

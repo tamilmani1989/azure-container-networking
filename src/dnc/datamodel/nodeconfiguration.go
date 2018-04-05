@@ -13,6 +13,7 @@ type NodeConfiguration struct {
 	NodeInfo                    api.NodeInfoRequest
 	DeployedNetworkContainerMap map[string]map[string]string
 	ConstrainedReservations     map[string]string
+	NetworkVlanIDMap            map[string]uint16
 }
 
 // DumpDeployedNetworkContainers - Dump deployed containers

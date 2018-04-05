@@ -18,7 +18,7 @@ var cancelProcessing = make(chan bool)
 var startProcessing = make(chan bool)
 var startChan = make(chan bool)
 var doneChan = make(chan bool)
-var config configuration.Configuration
+var config *configuration.Configuration
 var masterElectionShim *masterelectionshim.MasterElectionShim
 var logger *loggershim.LoggerShim
 
@@ -31,7 +31,7 @@ func init() {
 	if !found {
 		configpath = "config.json"
 	}
-        config := configuration.Load(configpath)
+	config = configuration.Load(configpath)
 	logger = loggershim.NewLoggerShim(config)
 	logger.Init()
 	datamodel.Init(config.DataStoreSettings)

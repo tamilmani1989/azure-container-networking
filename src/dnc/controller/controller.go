@@ -105,12 +105,12 @@ func (c *Controller) DeleteReservation(
 	return datamodel.DeleteIPReservation(networkID, reservationID, false)
 }
 
-func generateStatus(status datamodel.Status) int {
+func generateStatus(status datamodel.Status, errorInfo *api.JsonErr) int {
 	switch status {
 	case datamodel.Pending:
 		return http.StatusProcessing
 	case datamodel.Failed:
-		return http.StatusUnprocessableEntity
+		return errorInfo.HTTPStatus
 	case datamodel.Completed:
 		return http.StatusOK
 	case datamodel.Denied:
@@ -127,15 +127,16 @@ func (c *Controller) GetNetworkStatus(networkID string) (*api.RequestStatus, int
 		return nil, 0, err
 	}
 
-	generatedStatus := generateStatus(vnetCfg.Status)
+	generatedStatus := generateStatus(vnetCfg.Status, &vnetCfg.FailureDetail)
 	var requestStatus *api.RequestStatus
 	if generatedStatus != http.StatusProcessing {
 		requestStatus = &api.RequestStatus{
-			State:  vnetCfg.NetworkState.String(),
-			Status: vnetCfg.Status.String()}
+			State:         vnetCfg.NetworkState.String(),
+			Status:        vnetCfg.Status.String(),
+			FailureDetail: vnetCfg.FailureDetail}
 	}
 
-	return requestStatus, generateStatus(vnetCfg.Status), nil
+	return requestStatus, generatedStatus, nil
 }
 
 // GetSubnetStatus - Get subnet status
@@ -203,7 +204,8 @@ func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.
 		IPSubnet:          subnetConfiguration.IPSubnet,
 		GatewayIP:         subnetConfiguration.Gateway,
 		DNSServers:        subnetConfiguration.DNSServers,
-		IPAllocationsData: ipAllocationsData}
+		IPAllocationsData: ipAllocationsData,
+		AccessToken:       subnetConfiguration.AccessToken}
 
 	return &subnetConfigurationResponse, nil
 }
@@ -225,7 +227,7 @@ func (c *Controller) GetNetworkContainerStatus(
 			HTTPStatus: http.StatusNotFound,
 			Text:       msg}
 	}
-	generatedStatus := generateStatus(ncConfig.Status)
+	generatedStatus := generateStatus(ncConfig.Status, &ncConfig.FailureDetail)
 	var requestStatus *api.RequestStatus
 	if generatedStatus != http.StatusProcessing {
 		requestStatus = &api.RequestStatus{
@@ -281,7 +283,6 @@ func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*
 	return datamodel.GetNetworkContainerResponse(ncConfig)
 
 }
-
 func (c *Controller) DeleteNetworkContainer(networkID, ncID string) *api.JsonErr {
 	return datamodel.ProcessNetworkContainerForRelease(networkID, ncID)
 }

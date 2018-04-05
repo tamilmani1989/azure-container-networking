@@ -63,7 +63,7 @@ func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 			panic(err)
 		}
 	} else {
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -168,7 +168,7 @@ func ReserveIP(w http.ResponseWriter, r *http.Request) {
 		apiVersion)
 
 	if reservationErr == nil {
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -421,7 +421,7 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	if ncPersistErr != nil {
 		setRequestFailed(w, ncPersistErr)
 	} else {
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -530,7 +530,7 @@ func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 	if t != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	} else {
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 	}
 	if err := json.NewEncoder(w).Encode(t); err != nil {
 		panic(err)
@@ -556,16 +556,17 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 		if err := json.NewEncoder(w).Encode(err); err != nil {
 			panic(err)
 		}
+		return
 	}
 	t := ctrler.PersistSubnetInfo(networkID, subnet, subnetRequest)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if t != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(t.HTTPStatus)
 		if err := json.NewEncoder(w).Encode(&t); err != nil {
 			panic(err)
 		}
 	} else {
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 	}
 }
 

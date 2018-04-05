@@ -82,6 +82,27 @@ type TestDataElectionSettings struct {
 	Test string
 }
 
+type HostAgentConnectionStrings struct {
+	JoinNetworkURLFmt             string
+	GetNetworkConfigurationURLFmt string
+	PutNetworkContainerURLFmt     string
+	DeleteNetworkContainerURLFmt  string
+}
+
+type HostAgentSettings struct {
+	WireServerIP      string
+	ConnectionStrings HostAgentConnectionStrings
+}
+
+type CNSConnectionStrings struct {
+	CreateOrUpdateNetworkContainerURLFmt string
+	DeleteNetworkContainerURLFmt         string
+}
+
+type CNSSettings struct {
+	ConnectionStrings CNSConnectionStrings
+}
+
 // Configuration - Details related to dnc configuration settings
 type Configuration struct {
 	OrchestartorType       string
@@ -89,6 +110,8 @@ type Configuration struct {
 	ServerSettings         ServerSettings
 	MasterElectionSettings MasterElectionSettings
 	LoggerSettings         LoggerSettings
+	HostAgentSettings      HostAgentSettings
+	CNSSettings            CNSSettings
 }
 
 // Load the JSON config file

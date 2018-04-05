@@ -1,9 +1,8 @@
 package utils
 
 import (
-	"sync"
-
 	"dnc/logger/loggershim"
+	"sync"
 )
 
 type RefCountedLockTable struct {
@@ -38,7 +37,7 @@ func (refCountedLockTable *RefCountedLockTable) Unlock(lockName string) {
 
 func (refCountedLockTable *RefCountedLockTable) lock(lockName string, read bool) {
 	refCountedLockTable.mutex.Lock()
-	loggershim.LS.Log("Acquiring lock:%s, Read:%d\n", lockName, read)
+	loggershim.LS.Log("Acquiring lock:%s, Read:%d", lockName, read)
 	lock, ok := refCountedLockTable.table[lockName]
 	if !ok {
 		lock = &RefCountedLock{refCount: 0}
@@ -54,11 +53,11 @@ func (refCountedLockTable *RefCountedLockTable) lock(lockName string, read bool)
 	} else {
 		lock.Lock()
 	}
-	loggershim.LS.Log("Acquired lock %s\n", lockName)
+	loggershim.LS.Log("Acquired lock:%s", lockName)
 }
 
 func (refCountedLockTable *RefCountedLockTable) unlock(lockName string, read bool) {
-	loggershim.LS.Log("Releasing lock:%s, Read:%d\n", lockName, read)
+	loggershim.LS.Log("Releasing lock:%s, Read:%v", lockName, read)
 	refCountedLockTable.mutex.Lock()
 	defer refCountedLockTable.mutex.Unlock()
 	lock, ok := refCountedLockTable.table[lockName]
@@ -69,12 +68,12 @@ func (refCountedLockTable *RefCountedLockTable) unlock(lockName string, read boo
 			lock.Unlock()
 		}
 		lock.Release()
-		loggershim.LS.Log("Decremented Count: %d\n", lock.refCount)
+		loggershim.LS.Log("Decremented Count:%d", lock.refCount)
 		if lock.refCount == 0 {
-			loggershim.LS.Log("Deleting Lock: %s\n", lockName)
+			loggershim.LS.Log("Deleting Lock:%s", lockName)
 			delete(refCountedLockTable.table, lockName)
 		} else {
-			loggershim.LS.Log("Unexpected Unlock received.\n")
+			loggershim.LS.Log("Refernece count on lock %s after release %d", lockName, lock.refCount)
 		}
 	}
 }

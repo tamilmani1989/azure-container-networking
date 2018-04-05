@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 )
 
@@ -271,13 +272,32 @@ func UpdateNodeConstrainedReservationSet(
 	return persistNodeConfiguration(nodeConfiguration)
 }
 
+func getNextVlanID(networkVlanIDMap map[string]uint16) uint16 {
+	v := make(utils.Uint16s, 0, len(networkVlanIDMap))
+	for _, value := range networkVlanIDMap {
+		v = append(v, value)
+	}
+
+	sort.Sort(v)
+	var next uint16
+	next = 0
+	for _, usedVlanID := range v {
+		next++
+		if next != usedVlanID {
+			return next
+		}
+	}
+
+	return next + 1
+}
+
 // UpdateNodeConfigurationNetworkContainerSet - Remove NC from node configuration
 func UpdateNodeConfigurationNetworkContainerSet(
 	nodeID, networkID, ncID, reservationID string, remove bool) *api.JsonErr {
 	nodeConfig, err := TryQueryNodeConfiguration(nodeID)
 	if err != nil {
 		msg := fmt.Sprintf(
-			"Failed to retrieve configuration for node %s due to error:{%s}",
+			"Failed to retrieve configuration for node %s due to error:%s",
 			nodeID,
 			err)
 		return &api.JsonErr{
@@ -288,7 +308,7 @@ func UpdateNodeConfigurationNetworkContainerSet(
 
 	if nodeConfig == nil {
 		msg := fmt.Sprintf(
-			"Network:%s in the request is not found", nodeID)
+			"Node:%s in the request is not found", nodeID)
 		return &api.JsonErr{
 			Code:       api.NodeNotFound,
 			HTTPStatus: http.StatusNotFound,
@@ -310,12 +330,23 @@ func UpdateNodeConfigurationNetworkContainerSet(
 		}
 		vnetMap = make(map[string]string)
 		nodeConfig.DeployedNetworkContainerMap[networkID] = vnetMap
+
+		nodeConfig.NetworkVlanIDMap[networkID] = getNextVlanID(nodeConfig.NetworkVlanIDMap)
+		loggershim.LS.Log("Assigning VlanID:%d to network %s on node %s\n",
+			nodeConfig.NetworkVlanIDMap[networkID],
+			networkID,
+			nodeID)
 	}
 
 	if remove {
 		delete(vnetMap, ncID)
 		if len(vnetMap) == 0 {
 			delete(nodeConfig.DeployedNetworkContainerMap, networkID)
+			loggershim.LS.Log("Freeing VlanID:%d assigned to network %s on node %s\n",
+				nodeConfig.NetworkVlanIDMap[networkID],
+				networkID,
+				nodeID)
+			delete(nodeConfig.NetworkVlanIDMap, networkID)
 		}
 	} else {
 		vnetMap[ncID] = reservationID
@@ -773,6 +804,7 @@ func CreateOrUpdateNodeConfiguration(
 		repositoryNodeConfiguration.APIVersion = apiVersion
 		repositoryNodeConfiguration.NodeID = nodeID
 		repositoryNodeConfiguration.DeployedNetworkContainerMap = make(map[string]map[string]string)
+		repositoryNodeConfiguration.NetworkVlanIDMap = make(map[string]uint16)
 		repositoryNodeConfiguration.ConstrainedReservations = make(map[string]string)
 	}
 
@@ -1133,6 +1165,7 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 
 	if !networkContainerConfig.MarkedForDelete {
 		networkContainerConfig.MarkedForDelete = true
+
 		switch networkContainerConfig.State {
 		case Prepare:
 			networkContainerConfig.State = Purge
@@ -1273,7 +1306,7 @@ func UpdateSubnet(networkID, subnet string, subnetRequest api.SubnetRequest) *ap
 
 	_, ok := networkConfig.Subnets[subnet]
 	if !ok {
-		msg := fmt.Sprintf("Subnet %s found in Network with ID %s",
+		msg := fmt.Sprintf("Subnet %s not found in Network with ID %s",
 			subnet,
 			networkID)
 		return &api.JsonErr{
@@ -1445,7 +1478,7 @@ func getIPConfiguration(reservationConfiguration *ReservationConfiguration) (*ap
 // GetNetworkContainerResponse - Get network container response for network config.
 func GetNetworkContainerResponse(
 	ncConfig *NCConfiguration) (*api.NetworkContainerResponse, *api.JsonErr) {
-	ipConfiguration := new(api.IPConfiguration)
+	var ipConfiguration *api.IPConfiguration
 	if ncConfig.State != Prepare &&
 		!(ncConfig.State == Reserve && ncConfig.Status != Completed) {
 		reservationConfiguration, err := TryQueryIPReservation(
@@ -1468,9 +1501,10 @@ func GetNetworkContainerResponse(
 	associationInfo := ncConfig.GetAssociationInfo()
 	response := api.NetworkContainerResponse{
 		AssociationInfo: associationInfo,
-		IPConfiguration: *ipConfiguration,
 		RequestStatus:   requestStatus}
-
+	if ipConfiguration != nil {
+		response.IPConfiguration = *ipConfiguration
+	}
 	return &response, nil
 }
 
@@ -1527,7 +1561,6 @@ func GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr) {
 			networkContainerResponse, err := GetNetworkContainerResponse(ncConfig)
 			if err != nil {
 				return nil, err
-
 			}
 			networkContainerResponses = append(networkContainerResponses, *networkContainerResponse)
 			index++
@@ -1622,8 +1655,9 @@ func GetReservationStatus(networkID, reservationID string) (*api.RequestStatus, 
 
 	var requestStatus *api.RequestStatus
 	requestStatus = &api.RequestStatus{
-		State:  repoReservationConfiguration.ReservationState.String(),
-		Status: repoReservationConfiguration.Status.String()}
+		State:         repoReservationConfiguration.ReservationState.String(),
+		Status:        repoReservationConfiguration.Status.String(),
+		FailureDetail: repoReservationConfiguration.FailureDetail}
 
 	return requestStatus, nil
 }
@@ -1673,7 +1707,7 @@ func CreateOrUpdateNCRequestV2(
 		msg := fmt.Sprintf(
 			"Failed when trying to retrieve configuration for network container:%s due to error:%s",
 			ncID,
-			err.String())
+			err)
 		return &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			Text:       msg,

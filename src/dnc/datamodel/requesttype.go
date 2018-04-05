@@ -26,6 +26,9 @@ func (requestType RequestType) String() string {
 	case NetworkContainerRequest:
 		return "NetworkContainerRequest"
 
+	case VirtualNetworkRequest:
+		return "VirtualNetworkRequest"
+
 	case InvalidRequest:
 		return "InvalidRequest"
 	}

@@ -12,6 +12,7 @@ type SubnetConfigurationResponse struct {
 	IPSubnet          string            `json:"IPSubnet"`
 	GatewayIP         string            `json:"GatewayIP"`
 	DNSServers        []string          `json:"DnsServers"`
+	AccessToken       string            `json:"AccessToken"`
 	IPAllocationsData IPAllocationsData `json:"IPAllocationsData"`
 }
 

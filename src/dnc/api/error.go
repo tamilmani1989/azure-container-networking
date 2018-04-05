@@ -8,7 +8,7 @@ import (
 type JsonErr struct {
 	Code       ErrorCode `json:"ErrorCode"`
 	Text       string    `json:"Text"`
-	HTTPStatus int       `json:"-"`
+	HTTPStatus int       `json:"HttpStatusCode"`
 }
 
 func (j *JsonErr) String() string {
