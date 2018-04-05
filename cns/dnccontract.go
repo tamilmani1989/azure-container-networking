@@ -11,7 +11,7 @@ const (
 	GetNetworkConfigByOrchestratorInfo = "/network/getnetworkconfigbyorchestratorinfo"
 )
 
-// Network Container Types
+// NetworkContainer Types
 const (
 	AzureContainerInstance = "AzureContainerInstance"
 )
@@ -28,21 +28,15 @@ type CreateNetworkContainerRequest struct {
 	NetworkContainerid         string // Mandatory input.
 	PrimaryInterfaceIdentifier string // Primary CA.
 	AuthorizationToken         string
-	OrchestratorInfo           OrchestratorInfo
+	OrchestratorContext        json.RawMessage
 	IPConfiguration            IPConfiguration
 	MultiTenancyInfo           MultiTenancyInfo
 	VnetAddressSpace           []IPSubnet // To setup SNAT (should include service endpoint vips).
 	Routes                     []Route
 }
 
-// OrchestratorInfo contains orchestrator type which is used to cast OrchestratorContext.
-type OrchestratorInfo struct {
-	OrchestratorType    string
-	OrchestratorContext json.RawMessage
-}
-
-// KubernetesInfo is an OrchestratorContext that holds PodName and PodNamespace.
-type KubernetesInfo struct {
+// KubernetesPodInfo is an OrchestratorContext that holds PodName and PodNamespace.
+type KubernetesPodInfo struct {
 	PodName      string
 	PodNamespace string
 }
@@ -128,10 +122,10 @@ type NetworkInterface struct {
 	IPAddress string
 }
 
-// GetInterfaceForContainerResponse specifies the network config for a given Networkcontainerid/NetworkContainerOrchestratorInfo.
+// GetNetworkConfigRequest specifies the network config for a given Networkcontainerid/OrchestratorContext.
 type GetNetworkConfigRequest struct {
-	NetworkcontainerID string
-	OrchestratorInfo   OrchestratorInfo
+	NetworkcontainerID  string
+	OrchestratorContext json.RawMessage
 }
 
 type GetNetworkConfigResponse struct {

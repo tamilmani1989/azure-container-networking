@@ -859,15 +859,15 @@ func (service *httpRestService) createOrUpdateNetworkContainer(w http.ResponseWr
 			orchInfo := req.OrchestratorInfo
 			switch orchInfo.OrchestratorType {
 			case cns.Kubernetes:
-				var azNCInfo cns.AzureContainerInstanceInfo
-				err = json.Unmarshal(req.OrchestratorInfo.OrchestratorContext, &azNCInfo)
+				var podInfo cns.KubernetesPodInfo
+				err = json.Unmarshal(req.OrchestratorInfo.OrchestratorContext, &podInfo)
 				if err != nil {
 					log.Printf("Unmarshalling AzureContainerInstanceInfo failed with error %v", err)
 					return
 				}
 
-				log.Printf("Azure container instance info %v", azNCInfo)
-				service.state.ContainerIDByOrchestratorInfo[azNCInfo.PodName+azNCInfo.PodNamespace] = req.NetworkContainerid
+				log.Printf("Azure container instance info %v", podInfo)
+				service.state.ContainerIDByOrchestratorInfo[podInfo.PodName+podInfo.PodNamespace] = req.NetworkContainerid
 				break
 
 			default:
@@ -1103,15 +1103,15 @@ func (service *httpRestService) getNetworkConfigByOrchestratorInfo(w http.Respon
 
 	switch orchInfo.OrchestratorType {
 	case cns.AzureContainerInstance:
-		var azNCInfo cns.AzureContainerInstanceInfo
-		err = json.Unmarshal(req.OrchestratorInfo.OrchestratorContext, &azNCInfo)
+		var podInfo cns.KubernetesPodInfo
+		err = json.Unmarshal(req.OrchestratorInfo.OrchestratorContext, &podInfo)
 		if err != nil {
 			log.Printf("Unmarshalling AzureContainerInstanceInfo failed with error %v", err)
 			return
 		}
 
-		log.Printf("azure container instance info %v", azNCInfo)
-		containerID = service.state.ContainerIDByOrchestratorInfo[azNCInfo.PodName+azNCInfo.PodNamespace]
+		log.Printf("azure container instance info %+v", podInfo)
+		containerID = service.state.ContainerIDByOrchestratorInfo[podInfo.PodName+podInfo.PodNamespace]
 		log.Printf("containerid %v", containerID)
 		break
 	default:

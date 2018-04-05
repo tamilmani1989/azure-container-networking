@@ -37,14 +37,14 @@ func (cnsClient *CNSClient) GetNetworkConfiguration(podName, podNamespace string
 	url := cnsClient.connectionURL + cns.GetNetworkConfigByOrchestratorInfo
 	log.Printf("GetNetworkConfiguration url %v", url)
 
-	azContainerInfo := cns.AzureContainerInstanceInfo{PodName: podName, PodNamespace: podNamespace}
-	azContainerInfoBytes, err := json.Marshal(azContainerInfo)
+	podInfo := cns.KubernetesPodInfo{PodName: podName, PodNamespace: podNamespace}
+	podInfoBytes, err := json.Marshal(podInfo)
 	if err != nil {
 		log.Printf("Marshalling azure container instance info failed with %v", err)
 		return nil, err
 	}
 
-	ncOrchestratorInfo := cns.OrchestratorInfo{OrchestratorType: cns.AzureContainerInstance, OrchestratorContext: azContainerInfoBytes}
+	ncOrchestratorInfo := cns.OrchestratorInfo{OrchestratorType: cns.AzureContainerInstance, OrchestratorContext: podInfoBytes}
 
 	payload := &cns.GetNetworkConfigRequest{
 		OrchestratorInfo: ncOrchestratorInfo,
