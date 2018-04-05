@@ -67,6 +67,11 @@ type Route struct {
 	InterfaceToUse   string
 }
 
+// SetOrchestratorTypeRequest specifies the orchestrator type for the node.
+type SetOrchestratorTypeRequest struct {
+	OrchestratorType string
+}
+
 // CreateNetworkContainerResponse specifies response of creating a network container.
 type CreateNetworkContainerResponse struct {
 	Response Response

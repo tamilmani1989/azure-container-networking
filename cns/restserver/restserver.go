@@ -52,13 +52,14 @@ type containerstatus struct {
 
 // httpRestServiceState contains the state we would like to persist.
 type httpRestServiceState struct {
-	Location                      string
-	NetworkType                   string
-	Initialized                   bool
+	Location         string
+	NetworkType      string
+	OrchestratorType string
+	Initialized      bool
 	ContainerIDByOrchestratorInfo map[string]string
-	ContainerStatus               map[string]containerstatus
-	Networks                      map[string]*networkInfo
-	TimeStamp                     time.Time
+	ContainerStatus  map[string]containerstatus
+	Networks         map[string]*networkInfo
+	TimeStamp        time.Time
 }
 
 type networkInfo struct {
@@ -146,6 +147,7 @@ func (service *httpRestService) Start(config *common.ServiceConfig) error {
 	listener.AddHandler(cns.DeleteNetworkContainer, service.deleteNetworkContainer)
 	listener.AddHandler(cns.GetNetworkContainerStatus, service.getNetworkContainerStatus)
 	listener.AddHandler(cns.GetInterfaceForContainer, service.getInterfaceForContainer)
+	listener.AddHandler(cns.SetOrchestratorType, service.setOrchestratorType)
 	listener.AddHandler(cns.GetNetworkConfigByOrchestratorInfo, service.getNetworkConfigByOrchestratorInfo)
 
 	// handlers for v0.2
@@ -161,6 +163,7 @@ func (service *httpRestService) Start(config *common.ServiceConfig) error {
 	listener.AddHandler(cns.V2Prefix+cns.DeleteNetworkContainer, service.deleteNetworkContainer)
 	listener.AddHandler(cns.V2Prefix+cns.GetNetworkContainerStatus, service.getNetworkContainerStatus)
 	listener.AddHandler(cns.V2Prefix+cns.GetInterfaceForContainer, service.getInterfaceForContainer)
+	listener.AddHandler(cns.V2Prefix+cns.SetOrchestratorType, service.setOrchestratorType)
 	listener.AddHandler(cns.V2Prefix+cns.GetNetworkConfigByOrchestratorInfo, service.getNetworkConfigByOrchestratorInfo)
 
 	log.Printf("[Azure CNS]  Listening.")
@@ -803,17 +806,46 @@ func (service *httpRestService) restoreState() error {
 	return nil
 }
 
+func (service *httpRestService) setOrchestratorType(w http.ResponseWriter, r *http.Request) {
+	log.Printf("[Azure CNS] setOrchestratorType")
+
+	var req cns.SetOrchestratorTypeRequest
+	returnMessage := ""
+	returnCode := 0
+
+	err := service.Listener.Decode(w, r, &req)
+	if err != nil {
+		return
+	}
+
+	switch req.OrchestratorType {
+	case cns.Kubernetes:
+		service.state.OrchestratorType = cns.Kubernetes
+		service.saveState()
+		break
+	default:
+		returnMessage = fmt.Sprintf("Invalid Orchestrator type %v", req.OrchestratorType)
+		returnCode = UnsupportedOrchestratorType
+	}
+
+	resp := cns.Response{
+		ReturnCode: returnCode,
+		Message:    returnMessage,
+	}
+
+	err = service.Listener.Encode(w, &resp)
+	log.Response(service.Name, resp, err)
+}
+
 func (service *httpRestService) createOrUpdateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[Azure CNS] createOrUpdateNetworkContainer")
 
 	var req cns.CreateNetworkContainerRequest
-
 	returnMessage := ""
 	returnCode := 0
+
 	err := service.Listener.Decode(w, r, &req)
-
 	log.Request(service.Name, &req, err)
-
 	if err != nil {
 		return
 	}
@@ -898,13 +930,11 @@ func (service *httpRestService) getNetworkContainer(w http.ResponseWriter, r *ht
 	log.Printf("[Azure CNS] getNetworkContainer")
 
 	var req cns.GetNetworkContainerRequest
-
 	returnMessage := ""
 	returnCode := 0
+
 	err := service.Listener.Decode(w, r, &req)
-
 	log.Request(service.Name, &req, err)
-
 	if err != nil {
 		return
 	}
@@ -925,13 +955,11 @@ func (service *httpRestService) deleteNetworkContainer(w http.ResponseWriter, r 
 	log.Printf("[Azure CNS] deleteNetworkContainer")
 
 	var req cns.DeleteNetworkContainerRequest
-
 	returnMessage := ""
 	returnCode := 0
+
 	err := service.Listener.Decode(w, r, &req)
-
 	log.Request(service.Name, &req, err)
-
 	if err != nil {
 		return
 	}
@@ -980,9 +1008,9 @@ func (service *httpRestService) getNetworkContainerStatus(w http.ResponseWriter,
 	var req cns.GetNetworkContainerStatusRequest
 	returnMessage := ""
 	returnCode := 0
+
 	err := service.Listener.Decode(w, r, &req)
 	log.Request(service.Name, &req, err)
-
 	if err != nil {
 		return
 	}
@@ -1043,9 +1071,9 @@ func (service *httpRestService) getInterfaceForContainer(w http.ResponseWriter, 
 	var req cns.GetInterfaceForContainerRequest
 	returnMessage := ""
 	returnCode := 0
+
 	err := service.Listener.Decode(w, r, &req)
 	log.Request(service.Name, &req, err)
-
 	if err != nil {
 		return
 	}
