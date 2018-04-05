@@ -803,10 +803,11 @@ func (service *httpRestService) restoreState() error {
 
 func (service *httpRestService) setOrchestratorType(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[Azure CNS] setOrchestratorType")
-	var req cns.SetOrchestratorTypeRequest
 
+	var req cns.SetOrchestratorTypeRequest
 	returnMessage := ""
 	returnCode := 0
+
 	err := service.Listener.Decode(w, r, &req)
 	if err != nil {
 		return
@@ -835,13 +836,11 @@ func (service *httpRestService) createOrUpdateNetworkContainer(w http.ResponseWr
 	log.Printf("[Azure CNS] createOrUpdateNetworkContainer")
 
 	var req cns.CreateNetworkContainerRequest
-
 	returnMessage := ""
 	returnCode := 0
+
 	err := service.Listener.Decode(w, r, &req)
-
 	log.Request(service.Name, &req, err)
-
 	if err != nil {
 		return
 	}
@@ -905,13 +904,11 @@ func (service *httpRestService) getNetworkContainer(w http.ResponseWriter, r *ht
 	log.Printf("[Azure CNS] getNetworkContainer")
 
 	var req cns.GetNetworkContainerRequest
-
 	returnMessage := ""
 	returnCode := 0
+
 	err := service.Listener.Decode(w, r, &req)
-
 	log.Request(service.Name, &req, err)
-
 	if err != nil {
 		return
 	}
@@ -932,13 +929,11 @@ func (service *httpRestService) deleteNetworkContainer(w http.ResponseWriter, r 
 	log.Printf("[Azure CNS] deleteNetworkContainer")
 
 	var req cns.DeleteNetworkContainerRequest
-
 	returnMessage := ""
 	returnCode := 0
+
 	err := service.Listener.Decode(w, r, &req)
-
 	log.Request(service.Name, &req, err)
-
 	if err != nil {
 		return
 	}
@@ -987,9 +982,9 @@ func (service *httpRestService) getNetworkContainerStatus(w http.ResponseWriter,
 	var req cns.GetNetworkContainerStatusRequest
 	returnMessage := ""
 	returnCode := 0
+
 	err := service.Listener.Decode(w, r, &req)
 	log.Request(service.Name, &req, err)
-
 	if err != nil {
 		return
 	}
@@ -1050,9 +1045,9 @@ func (service *httpRestService) getInterfaceForContainer(w http.ResponseWriter, 
 	var req cns.GetInterfaceForContainerRequest
 	returnMessage := ""
 	returnCode := 0
+
 	err := service.Listener.Decode(w, r, &req)
 	log.Request(service.Name, &req, err)
-
 	if err != nil {
 		return
 	}
