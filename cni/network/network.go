@@ -123,12 +123,10 @@ func (plugin *netPlugin) findMasterInterface(nwCfg *cni.NetworkConfig, subnetPre
 
 func convertToCniResult(networkConfig *cns.GetNetworkContainerResponse) *cniTypesCurr.Result {
 	result := &cniTypesCurr.Result{}
+	resultIpconfig := &cniTypesCurr.IPConfig{}
 
-	log.Printf("Convert IPAddress")
 	ipconfig := networkConfig.IPConfiguration
 	ipAddr := net.ParseIP(ipconfig.IPSubnet.IPAddress)
-
-	resultIpconfig := &cniTypesCurr.IPConfig{}
 
 	if ipAddr.To4() != nil {
 		resultIpconfig.Version = "4"
@@ -164,7 +162,7 @@ func getContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 		log.Printf("Initializing CNS client error %v", err)
 		return nil, 0, err
 	}
-	log.Printf("Network config request")
+
 	networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
 	if err != nil {
 		log.Printf("GetNetworkConfiguration failed with %v", err)
@@ -172,6 +170,7 @@ func getContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 	}
 
 	log.Printf("Network config received from cns %v", networkConfig)
+
 	return convertToCniResult(networkConfig), networkConfig.MultiTenancyInfo.ID, nil
 }
 
