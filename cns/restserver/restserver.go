@@ -52,14 +52,14 @@ type containerstatus struct {
 
 // httpRestServiceState contains the state we would like to persist.
 type httpRestServiceState struct {
-	Location         string
-	NetworkType      string
-	OrchestratorType string
-	Initialized      bool
-	ContainerIDByOrchestratorInfo map[string]string
-	ContainerStatus  map[string]containerstatus
-	Networks         map[string]*networkInfo
-	TimeStamp        time.Time
+	Location                         string
+	NetworkType                      string
+	OrchestratorType                 string
+	Initialized                      bool
+	ContainerIDByOrchestratorContext map[string]string          // OrchestratorContext is key and value is NetworkContainerID.
+	ContainerStatus                  map[string]containerstatus // NetworkContainerID is key.
+	Networks                         map[string]*networkInfo
+	TimeStamp                        time.Time
 }
 
 type networkInfo struct {
@@ -148,7 +148,7 @@ func (service *httpRestService) Start(config *common.ServiceConfig) error {
 	listener.AddHandler(cns.GetNetworkContainerStatus, service.getNetworkContainerStatus)
 	listener.AddHandler(cns.GetInterfaceForContainer, service.getInterfaceForContainer)
 	listener.AddHandler(cns.SetOrchestratorType, service.setOrchestratorType)
-	listener.AddHandler(cns.GetNetworkConfigByOrchestratorInfo, service.getNetworkConfigByOrchestratorInfo)
+	listener.AddHandler(cns.GetNetworkContainerByOrchestratorContext, service.getNetworkContainerByOrchestratorContext)
 
 	// handlers for v0.2
 	listener.AddHandler(cns.V2Prefix+cns.SetEnvironmentPath, service.setEnvironment)
@@ -164,7 +164,7 @@ func (service *httpRestService) Start(config *common.ServiceConfig) error {
 	listener.AddHandler(cns.V2Prefix+cns.GetNetworkContainerStatus, service.getNetworkContainerStatus)
 	listener.AddHandler(cns.V2Prefix+cns.GetInterfaceForContainer, service.getInterfaceForContainer)
 	listener.AddHandler(cns.V2Prefix+cns.SetOrchestratorType, service.setOrchestratorType)
-	listener.AddHandler(cns.V2Prefix+cns.GetNetworkConfigByOrchestratorInfo, service.getNetworkConfigByOrchestratorInfo)
+	listener.AddHandler(cns.V2Prefix+cns.GetNetworkContainerByOrchestratorContext, service.getNetworkContainerByOrchestratorContext)
 
 	log.Printf("[Azure CNS]  Listening.")
 	return nil
@@ -837,6 +837,56 @@ func (service *httpRestService) setOrchestratorType(w http.ResponseWriter, r *ht
 	log.Response(service.Name, resp, err)
 }
 
+func (service *httpRestService) saveNetworkContainerGoalState(req cns.CreateNetworkContainerRequest) (int, string) {
+	// we don't want to overwrite what other calls may have written
+	service.lock.Lock()
+	defer service.lock.Unlock()
+
+	existing, ok := service.state.ContainerStatus[req.NetworkContainerid]
+	var hostVersion string
+	if ok {
+		hostVersion = existing.HostVersion
+	}
+
+	if service.state.ContainerStatus == nil {
+		service.state.ContainerStatus = make(map[string]containerstatus)
+	}
+
+	service.state.ContainerStatus[req.NetworkContainerid] =
+		containerstatus{
+			ID:                            req.NetworkContainerid,
+			VMVersion:                     req.Version,
+			CreateNetworkContainerRequest: req,
+			HostVersion:                   hostVersion}
+
+	if req.NetworkContainerType == cns.AzureContainerInstance {
+		switch service.state.OrchestratorType {
+		case cns.Kubernetes:
+			var podInfo cns.KubernetesPodInfo
+			err := json.Unmarshal(req.OrchestratorContext, &podInfo)
+			if err != nil {
+				errBuf := fmt.Sprintf("Unmarshalling AzureContainerInstanceInfo failed with error %v", err)
+				return UnexpectedError, errBuf
+			}
+
+			log.Printf("Azure container instance info %v", podInfo)
+
+			if service.state.ContainerIDByOrchestratorContext == nil {
+				service.state.ContainerIDByOrchestratorContext = make(map[string]string)
+			}
+
+			service.state.ContainerIDByOrchestratorContext[podInfo.PodName+podInfo.PodNamespace] = req.NetworkContainerid
+			break
+
+		default:
+			log.Printf("Invalid orchestrator type %v", service.state.OrchestratorType)
+		}
+	}
+
+	service.saveState()
+	return 0, ""
+}
+
 func (service *httpRestService) createOrUpdateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[Azure CNS] createOrUpdateNetworkContainer")
 
@@ -859,60 +909,17 @@ func (service *httpRestService) createOrUpdateNetworkContainer(w http.ResponseWr
 	case "POST":
 		nc := service.networkContainer
 		err := nc.Create(req)
-
 		if err != nil {
 			returnMessage = fmt.Sprintf("[Azure CNS] Error. CreateOrUpdateNetworkContainer failed %v", err.Error())
 			returnCode = UnexpectedError
 			break
 		}
 
-		// we don't want to overwrite what other calls may have written
-		service.lock.Lock()
-		defer service.lock.Unlock()
-
-		existing, ok := service.state.ContainerStatus[req.NetworkContainerid]
-		var hostVersion string
-		if ok {
-			hostVersion = existing.HostVersion
-		}
-
-		if service.state.ContainerStatus == nil {
-			service.state.ContainerStatus = make(map[string]containerstatus)
-		}
-
-		service.state.ContainerStatus[req.NetworkContainerid] =
-			containerstatus{
-				ID:                            req.NetworkContainerid,
-				VMVersion:                     req.Version,
-				CreateNetworkContainerRequest: req,
-				HostVersion:                   hostVersion}
-
-		if req.NetworkContainerType == cns.AzureContainerInstance {
-			orchInfo := req.OrchestratorInfo
-			switch orchInfo.OrchestratorType {
-			case cns.Kubernetes:
-				var podInfo cns.KubernetesPodInfo
-				err = json.Unmarshal(req.OrchestratorInfo.OrchestratorContext, &podInfo)
-				if err != nil {
-					log.Printf("Unmarshalling AzureContainerInstanceInfo failed with error %v", err)
-					return
-				}
-
-				log.Printf("Azure container instance info %v", podInfo)
-				service.state.ContainerIDByOrchestratorInfo[podInfo.PodName+podInfo.PodNamespace] = req.NetworkContainerid
-				break
-
-			default:
-				log.Printf("Invalid orchestrator type %v", orchInfo.OrchestratorType)
-			}
-		}
-
-		service.saveState()
+		returnCode, returnMessage = service.saveNetworkContainerGoalState(req)
 
 	default:
 		returnMessage = "[Azure CNS] Error. CreateOrUpdateNetworkContainer did not receive a POST."
 		returnCode = InvalidParameter
-
 	}
 
 	resp := cns.Response{
@@ -926,7 +933,7 @@ func (service *httpRestService) createOrUpdateNetworkContainer(w http.ResponseWr
 	log.Response(service.Name, reserveResp, err)
 }
 
-func (service *httpRestService) getNetworkContainer(w http.ResponseWriter, r *http.Request) {
+func (service *httpRestService) getNetworkContainerByID(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[Azure CNS] getNetworkContainer")
 
 	var req cns.GetNetworkContainerRequest
@@ -946,9 +953,67 @@ func (service *httpRestService) getNetworkContainer(w http.ResponseWriter, r *ht
 
 	reserveResp := &cns.GetNetworkContainerResponse{Response: resp}
 	err = service.Listener.Encode(w, &reserveResp)
-
 	log.Response(service.Name, reserveResp, err)
+}
 
+func (service *httpRestService) getNetworkContainerResponse(req cns.GetNetworkContainerRequest) cns.GetNetworkContainerResponse {
+	var containerID string
+	var getNetworkContainerResponse cns.GetNetworkContainerResponse
+
+	switch service.state.OrchestratorType {
+	case cns.Kubernetes:
+		var podInfo cns.KubernetesPodInfo
+		err := json.Unmarshal(req.OrchestratorContext, &podInfo)
+		if err != nil {
+			getNetworkContainerResponse.Response.ReturnCode = UnexpectedError
+			getNetworkContainerResponse.Response.Message = fmt.Sprintf("Unmarshalling orchestrator context failed with error %v", err)
+			return getNetworkContainerResponse
+		}
+
+		log.Printf("azure container instance info %+v", podInfo)
+		containerID = service.state.ContainerIDByOrchestratorContext[podInfo.PodName+podInfo.PodNamespace]
+		log.Printf("containerid %v", containerID)
+		break
+
+	default:
+		getNetworkContainerResponse.Response.ReturnCode = UnsupportedOrchestratorType
+		getNetworkContainerResponse.Response.Message = fmt.Sprintf("Invalid orchestrator type %v", service.state.OrchestratorType)
+		return getNetworkContainerResponse
+	}
+
+	containerStatus := service.state.ContainerStatus
+	containerDetails, ok := containerStatus[containerID]
+	if !ok {
+		getNetworkContainerResponse.Response.ReturnCode = UnknownContainerID
+		getNetworkContainerResponse.Response.Message = "NetworkContainer doesn't exist."
+		return getNetworkContainerResponse
+	}
+
+	savedReq := containerDetails.CreateNetworkContainerRequest
+	getNetworkContainerResponse = cns.GetNetworkContainerResponse{
+		IPConfiguration:  savedReq.IPConfiguration,
+		Routes:           savedReq.Routes,
+		MultiTenancyInfo: savedReq.MultiTenancyInfo,
+	}
+
+	return getNetworkContainerResponse
+}
+
+func (service *httpRestService) getNetworkContainerByOrchestratorContext(w http.ResponseWriter, r *http.Request) {
+	log.Printf("[Azure CNS] getNetworkContainer")
+
+	var req cns.GetNetworkContainerRequest
+
+	err := service.Listener.Decode(w, r, &req)
+	log.Request(service.Name, &req, err)
+	if err != nil {
+		return
+	}
+
+	getNetworkContainerResponse := service.getNetworkContainerResponse(req)
+
+	err = service.Listener.Encode(w, &getNetworkContainerResponse)
+	log.Response(service.Name, getNetworkContainerResponse, err)
 }
 
 func (service *httpRestService) deleteNetworkContainer(w http.ResponseWriter, r *http.Request) {
@@ -983,6 +1048,17 @@ func (service *httpRestService) deleteNetworkContainer(w http.ResponseWriter, r 
 			if service.state.ContainerStatus != nil {
 				delete(service.state.ContainerStatus, req.NetworkContainerid)
 			}
+
+			if service.state.ContainerIDByOrchestratorContext != nil {
+				for orchestratorContext, networkContainerID := range service.state.ContainerIDByOrchestratorContext {
+					if networkContainerID == req.NetworkContainerid {
+						delete(service.state.ContainerIDByOrchestratorContext, orchestratorContext)
+						break
+					}
+				}
+			}
+
+			service.saveState()
 			service.lock.Unlock()
 		}
 		break
@@ -1110,83 +1186,6 @@ func (service *httpRestService) getInterfaceForContainer(w http.ResponseWriter, 
 	err = service.Listener.Encode(w, &getInterfaceForContainerResponse)
 
 	log.Response(service.Name, getInterfaceForContainerResponse, err)
-}
-
-func (service *httpRestService) getNetworkConfigByOrchestratorInfo(w http.ResponseWriter, r *http.Request) {
-	log.Printf("[Azure CNS] getNetworkConfigForContainer")
-
-	var req cns.GetNetworkConfigRequest
-	var containerID string
-	returnMessage := ""
-	returnCode := 0
-
-	err := service.Listener.Decode(w, r, &req)
-	log.Request(service.Name, &req, err)
-	if err != nil {
-		log.Printf("Decoding failed")
-		return
-	}
-
-	orchInfo := req.OrchestratorInfo
-
-	switch orchInfo.OrchestratorType {
-	case cns.AzureContainerInstance:
-		var podInfo cns.KubernetesPodInfo
-		err = json.Unmarshal(req.OrchestratorInfo.OrchestratorContext, &podInfo)
-		if err != nil {
-			log.Printf("Unmarshalling AzureContainerInstanceInfo failed with error %v", err)
-			return
-		}
-
-		log.Printf("azure container instance info %+v", podInfo)
-		containerID = service.state.ContainerIDByOrchestratorInfo[podInfo.PodName+podInfo.PodNamespace]
-		log.Printf("containerid %v", containerID)
-		break
-	default:
-		log.Printf("Invalid Orchestrator type %v", orchInfo.OrchestratorType)
-	}
-
-	var ipconfig cns.IPConfiguration
-	var routes []cns.Route
-	var route cns.Route
-	var encapInfo cns.MultiTenancyInfo
-
-	/*	containerInfo := service.state.ContainerStatus
-		containerDetails, ok := containerInfo[containerID]
-		if ok {
-			savedReq := containerDetails.CreateNetworkContainerRequest
-			ipconfig = savedReq.IPConfiguration
-			routes = savedReq.Routes
-			encapInfo = savedReq.MultiTenancyInfo
-		} else {
-			returnMessage = "[Azure CNS] Never received call to create this container."
-			returnCode = UnknownContainerID
-		}
-	*/
-	ipconfig.IPSubnet.IPAddress = "10.2.0.13"
-	ipconfig.IPSubnet.PrefixLength = 24
-	ipconfig.GatewayIPAddress = "10.2.0.1"
-	ipconfig.DNSServers = append(ipconfig.DNSServers, "168.63.129.16")
-	route.IPAddress = "10.2.0.0/16"
-	route.GatewayIPAddress = "10.2.0.1"
-	routes = append(routes, route)
-	encapInfo.ID = 100
-	resp := cns.Response{
-		ReturnCode: returnCode,
-		Message:    returnMessage,
-	}
-
-	getNetworkConfigResponse := cns.GetNetworkConfigResponse{
-		Response:         resp,
-		IPConfiguration:  ipconfig,
-		Routes:           routes,
-		MultiTenancyInfo: encapInfo,
-	}
-
-	log.Printf("Send networkconfig response")
-	err = service.Listener.Encode(w, &getNetworkConfigResponse)
-
-	log.Response(service.Name, getNetworkConfigResponse, err)
 }
 
 // restoreNetworkState restores Network state that existed before reboot.
