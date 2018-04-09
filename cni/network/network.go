@@ -207,11 +207,6 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		log.Printf("Argsmap %v", argsMap)
 	}
 
-	argsMap := plugin.GetCNIArgs(args.Args)
-	if argsMap != nil {
-		log.Printf("Argsmap %v", argsMap)
-	}
-
 	result, vlanid, err = getContainerNetworkConfiguration(argsMap[namespacekey].(string), argsMap[podnamekey].(string))
 	if err != nil {
 		log.Printf("SetContainerNetworkConfiguration failed with %v", err)

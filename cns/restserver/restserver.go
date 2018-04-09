@@ -96,7 +96,6 @@ func NewHTTPRestService(config *common.ServiceConfig) (HTTPService, error) {
 
 	serviceState := &httpRestServiceState{}
 	serviceState.Networks = make(map[string]*networkInfo)
-	serviceState.ContainerIDByOrchestratorInfo = make(map[string]string)
 
 	return &httpRestService{
 		Service:          service,
