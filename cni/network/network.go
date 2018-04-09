@@ -120,47 +120,12 @@ func (plugin *netPlugin) findMasterInterface(nwCfg *cni.NetworkConfig, subnetPre
 	return ""
 }
 
-/*func getPodListFromApiServer(ip string, port string) (*v1.PodList, error) {
-	url := "http://" + ip + ":" + port + "/api/v1/namespaces/default/pods"
-	log.Printf("Api server url %v", url)
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-
-	podList := &v1.PodList{}
-	if err = json.Unmarshal(body, podList); err != nil {
-		return nil, err
-	}
-
-	return podList, nil
-}
-
-func getNetworkContainerID(podList *v1.PodList, containerID string) string {
-	log.Printf("Number of pods %v", len(podList.Items))
-	for _, pod := range podList.Items {
-		for _, containerstatus := range pod.Status.ContainerStatuses {
-			log.Printf("container id %v", containerstatus.ContainerID)
-			if containerstatus.ContainerID == containerID {
-				log.Printf("Container ID matched")
-				log.Printf("Annotations :%v", pod.Annotations)
-			}
-		}
-	}
-
-	return "tid"
-}
-*/
-func convertToCniResult(networkConfig *cns.GetNetworkConfigResponse) *cniTypesCurr.Result {
+func convertToCniResult(networkConfig *cns.GetNetworkContainerResponse) *cniTypesCurr.Result {
 	result := &cniTypesCurr.Result{}
+	resultIpconfig := &cniTypesCurr.IPConfig{}
 
-	log.Printf("Convert IPAddress")
 	ipconfig := networkConfig.IPConfiguration
 	ipAddr := net.ParseIP(ipconfig.IPSubnet.IPAddress)
-
-	resultIpconfig := &cniTypesCurr.IPConfig{}
 
 	if ipAddr.To4() != nil {
 		resultIpconfig.Version = "4"
@@ -175,46 +140,28 @@ func convertToCniResult(networkConfig *cns.GetNetworkConfigResponse) *cniTypesCu
 
 	result.DNS.Nameservers = ipconfig.DNSServers
 
-	for _, route := range networkConfig.Routes {
-		_, routeIPnet, _ := net.ParseCIDR(route.IPAddress)
-		gwIP := net.ParseIP(route.GatewayIPAddress)
-		localroute := &types.Route{Dst: *routeIPnet, GW: gwIP}
-		result.Routes = append(result.Routes, localroute)
+	if networkConfig.Routes == nil && len(networkConfig.Routes) > 0 {
+		for _, route := range networkConfig.Routes {
+			_, routeIPnet, _ := net.ParseCIDR(route.IPAddress)
+			gwIP := net.ParseIP(route.GatewayIPAddress)
+			result.Routes = append(result.Routes, &types.Route{Dst: *routeIPnet, GW: gwIP})
+		}
+	} else {
+		gwIP := net.ParseIP(networkConfig.IPConfiguration.GatewayIPAddress)
+		dstIP := net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: resultIpconfig.Address.Mask}
+		result.Routes = append(result.Routes, &types.Route{Dst: dstIP, GW: gwIP})
 	}
 
 	return result
 }
 
-func GetContainerNetworkConfiguration(namespace string, podName string) (*cniTypesCurr.Result, int, error) {
-	/*	log.Printf("Namespace %v PodName %v", namespace, podName)
-		epInfo := &EndpointInfo{}
-		routeInfo := RouteInfo{}
-		ip, ipAddress, _ := net.ParseCIDR("10.2.0.13/16")
-		ipnet := net.IPNet{IP: ip, Mask: ipAddress.Mask}
-		var gateways []net.IP
-
-		gateways = append(gateways, net.ParseIP("10.2.0.1"))
-		dstIp := [1]string{"0.0.0.0/0"}
-		dstGw := [1]string{"10.2.0.1"}
-
-		for i := 0; i < len(dstIp); i++ {
-			_, dstipnet, _ := net.ParseCIDR(dstIp[i])
-			routeInfo.Dst = *dstipnet
-			routeInfo.Gw = net.ParseIP(dstGw[i])
-			epInfo.Routes = append(epInfo.Routes, routeInfo)
-		}
-
-		epInfo.IPAddresses = append(epInfo.IPAddresses, ipnet)
-		epInfo.DNS.Servers = append(epInfo.DNS.Servers, "168.63.129.16")
-		epInfo.Data = make(map[string]interface{})
-		epInfo.Data["vlanid"] = 100
-		epInfo.Data["Gateways"] = gateways*/
+func getContainerNetworkConfiguration(namespace string, podName string) (*cniTypesCurr.Result, int, error) {
 	cnsClient, err := cnsclient.NewCnsClient("")
 	if err != nil {
 		log.Printf("Initializing CNS client error %v", err)
 		return nil, 0, err
 	}
-	log.Printf("Network config request")
+
 	networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
 	if err != nil {
 		log.Printf("GetNetworkConfiguration failed with %v", err)
@@ -222,6 +169,7 @@ func GetContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 	}
 
 	log.Printf("Network config received from cns %v", networkConfig)
+
 	return convertToCniResult(networkConfig), networkConfig.MultiTenancyInfo.ID, nil
 }
 
@@ -259,18 +207,12 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		log.Printf("Argsmap %v", argsMap)
 	}
 
-	/*	log.Printf("call apiserver..check!!!")
-		podList, err := getPodListFromApiServer("10.2.240.225", "8080")
-		if err == nil {
-			networkContainerID = getNetworkContainerID(podList, args.ContainerID)
-		} else {
-			log.Printf("Failed to retrieve pod info from apiserver")
-		}
-	*/
+	argsMap := plugin.GetCNIArgs(args.Args)
+	if argsMap != nil {
+		log.Printf("Argsmap %v", argsMap)
+	}
 
-	// Initialize endpoint info.
-
-	result, vlanid, err = GetContainerNetworkConfiguration(argsMap[namespacekey].(string), argsMap[podnamekey].(string))
+	result, vlanid, err = getContainerNetworkConfiguration(argsMap[namespacekey].(string), argsMap[podnamekey].(string))
 	if err != nil {
 		log.Printf("SetContainerNetworkConfiguration failed with %v", err)
 	}
@@ -301,7 +243,6 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 				return err
 			}
 		}
-
 		// Derive the subnet prefix from allocated IP address.
 		ipconfig := result.IPs[0]
 		subnetPrefix := ipconfig.Address

@@ -30,11 +30,11 @@ func NewCnsClient(url string) (*CNSClient, error) {
 }
 
 // GetNetworkConfiguration Request to get network config.
-func (cnsClient *CNSClient) GetNetworkConfiguration(podName, podNamespace string) (*cns.GetNetworkConfigResponse, error) {
+func (cnsClient *CNSClient) GetNetworkConfiguration(podName, podNamespace string) (*cns.GetNetworkContainerResponse, error) {
 	var body bytes.Buffer
-	httpc := &http.Client{}
 
-	url := cnsClient.connectionURL + cns.GetNetworkConfigByOrchestratorInfo
+	httpc := &http.Client{}
+	url := cnsClient.connectionURL + cns.GetNetworkContainerByOrchestratorContext
 	log.Printf("GetNetworkConfiguration url %v", url)
 
 	podInfo := cns.KubernetesPodInfo{PodName: podName, PodNamespace: podNamespace}
@@ -44,10 +44,8 @@ func (cnsClient *CNSClient) GetNetworkConfiguration(podName, podNamespace string
 		return nil, err
 	}
 
-	ncOrchestratorInfo := cns.OrchestratorInfo{OrchestratorType: cns.AzureContainerInstance, OrchestratorContext: podInfoBytes}
-
-	payload := &cns.GetNetworkConfigRequest{
-		OrchestratorInfo: ncOrchestratorInfo,
+	payload := &cns.GetNetworkContainerRequest{
+		OrchestratorContext: podInfoBytes,
 	}
 
 	err = json.NewEncoder(&body).Encode(payload)
@@ -62,24 +60,24 @@ func (cnsClient *CNSClient) GetNetworkConfiguration(podName, podNamespace string
 		return nil, err
 	}
 
-	if res.StatusCode == 200 {
-		var resp cns.GetNetworkConfigResponse
-		err := json.NewDecoder(res.Body).Decode(&resp)
-		if err != nil {
-			log.Printf("[Azure CNSClient] Error received while parsing GetNetworkConfiguration response resp:%v err:%v", res.Body, err.Error())
-			return nil, err
-		}
-
-		if resp.Response.ReturnCode != 0 {
-			log.Printf("[Azure CNSClient] GetNetworkConfiguration received error response :%v", resp.Response.Message)
-			return nil, fmt.Errorf(resp.Response.Message)
-		}
-
-		return &resp, nil
+	if res.StatusCode != 200 {
+		errMsg := fmt.Sprintf("[Azure CNSClient] GetNetworkConfiguration invalid http status code: %v", res.StatusCode)
+		log.Printf(errMsg)
+		return nil, fmt.Errorf(errMsg)
 	}
 
-	var errMsg string
-	errMsg = fmt.Sprintf(errMsg, "[Azure CNSClient] GetNetworkConfiguration invalid http status code: %v", res.StatusCode)
-	log.Printf(errMsg)
-	return nil, fmt.Errorf(errMsg)
+	var resp cns.GetNetworkContainerResponse
+
+	err = json.NewDecoder(res.Body).Decode(&resp)
+	if err != nil {
+		log.Printf("[Azure CNSClient] Error received while parsing GetNetworkConfiguration response resp:%v err:%v", res.Body, err.Error())
+		return nil, err
+	}
+
+	if resp.Response.ReturnCode != 0 {
+		log.Printf("[Azure CNSClient] GetNetworkConfiguration received error response :%v", resp.Response.Message)
+		return nil, fmt.Errorf(resp.Response.Message)
+	}
+
+	return &resp, nil
 }
