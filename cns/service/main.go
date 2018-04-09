@@ -228,6 +228,31 @@ func main() {
 
 		// Set plugin options.
 		netPlugin.SetOption(acn.OptAPIServerURL, url)
+		log.Printf("Start netplugin\n")
+		err = netPlugin.Start(&pluginConfig)
+		if err != nil {
+			fmt.Printf("Failed to create network plugin, err:%v.\n", err)
+			return
+		}
+
+		ipamPlugin.SetOption(acn.OptEnvironment, environment)
+		ipamPlugin.SetOption(acn.OptAPIServerURL, url)
+		ipamPlugin.SetOption(acn.OptIpamQueryInterval, ipamQueryInterval)
+		err = ipamPlugin.Start(&pluginConfig)
+		if err != nil {
+			fmt.Printf("Failed to create IPAM plugin, err:%v.\n", err)
+			return
+		}
+
+		// Create the key value store.
+		pluginConfig.Store, err = store.NewJsonFileStore(platform.CNMRuntimePath + pluginName + ".json")
+		if err != nil {
+			fmt.Printf("Failed to create store: %v\n", err)
+			return
+		}
+
+		// Set plugin options.
+		netPlugin.SetOption(acn.OptAPIServerURL, url)
 		if netPlugin != nil {
 			log.Printf("Start netplugin\n")
 			err = netPlugin.Start(&pluginConfig)
