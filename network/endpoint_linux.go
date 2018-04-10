@@ -56,7 +56,6 @@ func (nw *network) setupLinuxBridgeRules(hostIfName string, contIfName string, c
 }
 
 func (nw *network) setupOVSRules(hostIfName string, contIfName string, containerIf *net.Interface, vlanid int, epInfo *EndpointInfo) error {
-	// Connect host interface to the bridge.
 	var err error
 
 	log.Printf("[net] Setting link %v master %v.", hostIfName, nw.extIf.BridgeName)
@@ -89,8 +88,8 @@ func (nw *network) setupOVSRules(hostIfName string, contIfName string, container
 
 	mac := nw.extIf.MacAddress.String()
 	macHex := strings.Replace(mac, ":", "", -1)
-	log.Printf("[net] OVS - Adding ARP SNAT rule for egress traffic on %v.", hostIfName)
 
+	log.Printf("[net] OVS - Adding ARP SNAT rule for egress traffic on %v.", hostIfName)
 	cmd = fmt.Sprintf(`ovs-ofctl add-flow %v table=1,priority=10,arp,arp_op=1,actions='mod_dl_src:%s,
 		load:0x%s->NXM_NX_ARP_SHA[],output:%s'`, nw.extIf.BridgeName, mac, macHex, ofport)
 	_, err = common.ExecuteShellCommand(cmd)
@@ -100,7 +99,6 @@ func (nw *network) setupOVSRules(hostIfName string, contIfName string, container
 	}
 
 	log.Printf("[net] OVS - Adding IP SNAT rule for egress traffic on %v.", hostIfName)
-
 	cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=10,ip,in_port=%s,actions=mod_dl_src:%s,normal",
 		nw.extIf.BridgeName, containerPort, mac)
 	_, err = common.ExecuteShellCommand(cmd)
@@ -113,7 +111,6 @@ func (nw *network) setupOVSRules(hostIfName string, contIfName string, container
 	macAddrHex := strings.Replace(macAddr, ":", "", -1)
 
 	for _, ipAddr := range epInfo.IPAddresses {
-		// Add ARP reply rule.
 		ipAddrInt := common.IpToInt(ipAddr.IP)
 
 		log.Printf("[net] Adding ARP reply rule set vlanid %v for container ifname", vlanid, contIfName)
@@ -354,6 +351,7 @@ func (nw *network) deleteOVSRules(ep *endpoint) {
 		log.Printf("Error while deleting ovs rule %v error %v", cmd, err)
 	}
 
+	// Delete Arp Reply Rules for container
 	log.Printf("[net] Deleting ARP reply rule set vlanid %v for container port", ep.VlanID, containerPort)
 	cmd = fmt.Sprintf("ovs-ofctl del-flows %s arp,arp_op=1,in_port=%s",
 		nw.extIf.BridgeName, containerPort)

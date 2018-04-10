@@ -249,6 +249,7 @@ func (nm *networkManager) CreateEndpoint(networkId string, epInfo *EndpointInfo)
 
 	if nw.VlanId != 0 {
 		if epInfo.Data["vlanid"] == nil {
+			log.Printf("overriding endpoint vlanid with network vlanid")
 			epInfo.Data["vlanid"] = nw.VlanId
 		}
 	}

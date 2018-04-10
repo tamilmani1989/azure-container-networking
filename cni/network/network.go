@@ -5,6 +5,7 @@ package network
 
 import (
 	"net"
+	"strconv"
 
 	"github.com/Azure/azure-container-networking/client/cnsclient"
 	"github.com/Azure/azure-container-networking/cni"
@@ -21,9 +22,11 @@ import (
 
 const (
 	// Plugin name.
-	name         = "azure-vnet"
-	namespaceKey = "K8S_POD_NAMESPACE"
-	podNameKey   = "K8S_POD_NAME"
+	name                = "azure-vnet"
+	namespaceKey        = "K8S_POD_NAMESPACE"
+	podNameKey          = "K8S_POD_NAME"
+	vlanIDKey           = "vlanid"
+	dockerNetworkOption = "com.docker.network.generic"
 )
 
 // NetPlugin represents the CNI network plugin.
@@ -162,7 +165,7 @@ func getContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 		return nil, 0, err
 	}
 
-	networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
+	networkConfig, err := cnsClient.GetNetworkConfiguration("testpod", "testpodnamespace")
 	if err != nil {
 		log.Printf("GetNetworkConfiguration failed with %v", err)
 		return nil, 0, err
@@ -207,11 +210,6 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		log.Printf("Argsmap %v", argsMap)
 	}
 
-	argsMap := plugin.GetCNIArgs(args.Args)
-	if argsMap != nil {
-		log.Printf("Argsmap %v", argsMap)
-	}
-
 	result, vlanid, err = getContainerNetworkConfiguration(argsMap[namespaceKey].(string), argsMap[podNameKey].(string))
 	if err != nil {
 		log.Printf("SetContainerNetworkConfiguration failed with %v", err)
@@ -243,6 +241,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 				return err
 			}
 		}
+
 		// Derive the subnet prefix from allocated IP address.
 		ipconfig := result.IPs[0]
 		subnetPrefix := ipconfig.Address
@@ -291,6 +290,11 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		}
 
 		nwInfo.Options = make(map[string]interface{})
+		if vlanid != 0 {
+			vlanMap := make(map[string]interface{})
+			vlanMap[vlanIDKey] = strconv.Itoa(vlanid)
+			nwInfo.Options[dockerNetworkOption] = vlanMap
+		}
 
 		err = plugin.nm.CreateNetwork(&nwInfo)
 		if err != nil {
