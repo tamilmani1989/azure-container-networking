@@ -58,6 +58,7 @@ func (nw *network) setupLinuxBridgeRules(hostIfName string, contIfName string, c
 func (nw *network) setupOVSRules(hostIfName string, contIfName string, containerIf *net.Interface, vlanid int, epInfo *EndpointInfo) error {
 	var err error
 
+	// Set OVS Bridge as master to host veth pair of container interface
 	log.Printf("[net] Setting link %v master %v.", hostIfName, nw.extIf.BridgeName)
 	cmd := fmt.Sprintf("ovs-vsctl add-port %v %v tag=%v", nw.extIf.BridgeName, hostIfName, vlanid)
 	_, err = common.ExecuteShellCommand(cmd)
@@ -89,6 +90,7 @@ func (nw *network) setupOVSRules(hostIfName string, contIfName string, container
 	mac := nw.extIf.MacAddress.String()
 	macHex := strings.Replace(mac, ":", "", -1)
 
+	// Arp SNAT Rule
 	log.Printf("[net] OVS - Adding ARP SNAT rule for egress traffic on %v.", hostIfName)
 	cmd = fmt.Sprintf(`ovs-ofctl add-flow %v table=1,priority=10,arp,arp_op=1,actions='mod_dl_src:%s,
 		load:0x%s->NXM_NX_ARP_SHA[],output:%s'`, nw.extIf.BridgeName, mac, macHex, ofport)
@@ -98,6 +100,7 @@ func (nw *network) setupOVSRules(hostIfName string, contIfName string, container
 		return err
 	}
 
+	// IP SNAT Rule
 	log.Printf("[net] OVS - Adding IP SNAT rule for egress traffic on %v.", hostIfName)
 	cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=10,ip,in_port=%s,actions=mod_dl_src:%s,normal",
 		nw.extIf.BridgeName, containerPort, mac)
@@ -113,6 +116,8 @@ func (nw *network) setupOVSRules(hostIfName string, contIfName string, container
 	for _, ipAddr := range epInfo.IPAddresses {
 		ipAddrInt := common.IpToInt(ipAddr.IP)
 
+		// Add Arp Reply Rules
+		// Set Vlan id on arp request packet and forward it to table 1
 		log.Printf("[net] Adding ARP reply rule set vlanid %v for container ifname", vlanid, contIfName)
 		cmd = fmt.Sprintf(`ovs-ofctl add-flow %s arp,arp_op=1,in_port=%s,actions='mod_vlan_vid:%v,resubmit(,1)'`,
 			nw.extIf.BridgeName, containerPort, vlanid)
@@ -122,6 +127,7 @@ func (nw *network) setupOVSRules(hostIfName string, contIfName string, container
 			return err
 		}
 
+		// If arp fields matches, set arp reply rule for the request
 		log.Printf("[net] Adding ARP reply rule for IP address %v on %v.", ipAddr.IP.String(), contIfName)
 		cmd = fmt.Sprintf(`ovs-ofctl add-flow %s table=1,arp,arp_tpa=%s,dl_vlan=%v,arp_op=1,priority=20,actions='load:0x2->NXM_OF_ARP_OP[],
 			move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],mod_dl_src:%s,
@@ -134,7 +140,7 @@ func (nw *network) setupOVSRules(hostIfName string, contIfName string, container
 			return err
 		}
 
-		// Add MAC address translation rule.
+		// Add IP DNAT rule based on dst ip and vlanid
 		log.Printf("[net] Adding MAC DNAT rule for IP address %v on %v.", ipAddr.IP.String(), contIfName)
 		cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_vlan=%v,in_port=%s,actions=mod_dl_dst:%s,normal",
 			nw.extIf.BridgeName, ipAddr.IP.String(), vlanid, ofport, macAddr)
