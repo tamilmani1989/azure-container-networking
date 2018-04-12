@@ -908,14 +908,12 @@ func (service *httpRestService) createOrUpdateNetworkContainer(w http.ResponseWr
 	case "POST":
 		if req.NetworkContainerType == cns.WebApps {
 			nc := service.networkContainer
-			err := nc.Create(req)
-			if err != nil {
+			if err := nc.Create(req); err != nil {
 				returnMessage = fmt.Sprintf("[Azure CNS] Error. CreateOrUpdateNetworkContainer failed %v", err.Error())
 				returnCode = UnexpectedError
 				break
 			}
 		}
-
 		returnCode, returnMessage = service.saveNetworkContainerGoalState(req)
 
 	default:
@@ -1047,8 +1045,7 @@ func (service *httpRestService) deleteNetworkContainer(w http.ResponseWriter, r 
 
 		if containerStatus.CreateNetworkContainerRequest.NetworkContainerType == cns.WebApps {
 			nc := service.networkContainer
-			err := nc.Delete(req.NetworkContainerid)
-			if err != nil {
+			if err := nc.Delete(req.NetworkContainerid); err != nil {
 				returnMessage = fmt.Sprintf("[Azure CNS] Error. DeleteNetworkContainer failed %v", err.Error())
 				returnCode = UnexpectedError
 				break
