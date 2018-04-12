@@ -15,6 +15,7 @@ const (
 // NetworkContainer Types
 const (
 	AzureContainerInstance = "AzureContainerInstance"
+	WebApps                = "WebApps"
 )
 
 // Orchestrator Types
