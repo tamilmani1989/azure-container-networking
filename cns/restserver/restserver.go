@@ -906,12 +906,14 @@ func (service *httpRestService) createOrUpdateNetworkContainer(w http.ResponseWr
 
 	switch r.Method {
 	case "POST":
-		nc := service.networkContainer
-		err := nc.Create(req)
-		if err != nil {
-			returnMessage = fmt.Sprintf("[Azure CNS] Error. CreateOrUpdateNetworkContainer failed %v", err.Error())
-			returnCode = UnexpectedError
-			break
+		if req.NetworkContainerType == cns.WebApps {
+			nc := service.networkContainer
+			err := nc.Create(req)
+			if err != nil {
+				returnMessage = fmt.Sprintf("[Azure CNS] Error. CreateOrUpdateNetworkContainer failed %v", err.Error())
+				returnCode = UnexpectedError
+				break
+			}
 		}
 
 		returnCode, returnMessage = service.saveNetworkContainerGoalState(req)
@@ -1035,31 +1037,40 @@ func (service *httpRestService) deleteNetworkContainer(w http.ResponseWriter, r 
 
 	switch r.Method {
 	case "POST":
-		nc := service.networkContainer
-		err := nc.Delete(req.NetworkContainerid)
+		var containerStatus containerstatus
+		var ok bool
 
-		if err != nil {
-			returnMessage = fmt.Sprintf("[Azure CNS] Error. DeleteNetworkContainer failed %v", err.Error())
-			returnCode = UnexpectedError
+		if containerStatus, ok = service.state.ContainerStatus[req.NetworkContainerid]; !ok {
+			log.Printf("Not able to retrieve network container details for this container id %v", req.NetworkContainerid)
 			break
-		} else {
-			service.lock.Lock()
-			if service.state.ContainerStatus != nil {
-				delete(service.state.ContainerStatus, req.NetworkContainerid)
-			}
+		}
 
-			if service.state.ContainerIDByOrchestratorContext != nil {
-				for orchestratorContext, networkContainerID := range service.state.ContainerIDByOrchestratorContext {
-					if networkContainerID == req.NetworkContainerid {
-						delete(service.state.ContainerIDByOrchestratorContext, orchestratorContext)
-						break
-					}
+		if containerStatus.CreateNetworkContainerRequest.NetworkContainerType == cns.WebApps {
+			nc := service.networkContainer
+			err := nc.Delete(req.NetworkContainerid)
+			if err != nil {
+				returnMessage = fmt.Sprintf("[Azure CNS] Error. DeleteNetworkContainer failed %v", err.Error())
+				returnCode = UnexpectedError
+				break
+			}
+		}
+
+		service.lock.Lock()
+		if service.state.ContainerStatus != nil {
+			delete(service.state.ContainerStatus, req.NetworkContainerid)
+		}
+
+		if service.state.ContainerIDByOrchestratorContext != nil {
+			for orchestratorContext, networkContainerID := range service.state.ContainerIDByOrchestratorContext {
+				if networkContainerID == req.NetworkContainerid {
+					delete(service.state.ContainerIDByOrchestratorContext, orchestratorContext)
+					break
 				}
 			}
-
-			service.saveState()
-			service.lock.Unlock()
 		}
+
+		service.saveState()
+		service.lock.Unlock()
 		break
 	default:
 		returnMessage = "[Azure CNS] Error. DeleteNetworkContainer did not receive a POST."
