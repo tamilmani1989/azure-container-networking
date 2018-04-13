@@ -56,8 +56,7 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 			nm.createOVSNetwork(extIf, nwInfo)
 		} else {
 			log.Printf("create linux bridge")
-			err := nm.connectExternalInterface(extIf, nwInfo)
-			if err != nil {
+			if err := nm.connectExternalInterface(extIf, nwInfo); err != nil {
 				return nil, err
 			}
 		}
@@ -321,8 +320,7 @@ func (nm *networkManager) createOVSNetwork(extIf *externalInterface, nwInfo *Net
 		// Create the bridge.
 		log.Printf("[net] Creating bridge %v.", bridgeName)
 
-		err = nm.createOVSBridge(bridgeName)
-		if err != nil {
+		if err := nm.createOVSBridge(bridgeName); err != nil {
 			return err
 		}
 
@@ -343,61 +341,52 @@ func (nm *networkManager) createOVSNetwork(extIf *externalInterface, nwInfo *Net
 	}
 
 	// Save host IP configuration.
-	err = nm.saveIPConfig(hostIf, extIf)
-	if err != nil {
+	if err := nm.saveIPConfig(hostIf, extIf); err != nil {
 		log.Printf("[net] Failed to save IP configuration for interface %v: %v.", hostIf.Name, err)
 	}
 
 	// External interface down.
 	log.Printf("[net] Setting link %v state down.", hostIf.Name)
-	err = netlink.SetLinkState(hostIf.Name, false)
-	if err != nil {
+	if err := netlink.SetLinkState(hostIf.Name, false); err != nil {
 		return err
 	}
 
 	// Connect the external interface to the bridge.
 	log.Printf("[net] Setting link %v master %v.", hostIf.Name, bridgeName)
-	err = setOVSMaster(hostIf.Name, bridgeName)
-	if err != nil {
+	if err := setOVSMaster(hostIf.Name, bridgeName); err != nil {
 		return err
 	}
 
 	// Add the bridge rules.
-	err = nm.addOVSRules(extIf, hostIf, bridgeName)
-	if err != nil {
+	if err := nm.addOVSRules(extIf, hostIf, bridgeName); err != nil {
 		return err
 	}
 
 	// External interface up.
 	log.Printf("[net] Setting link %v state up.", hostIf.Name)
-	err = netlink.SetLinkState(hostIf.Name, true)
-	if err != nil {
+	if err := netlink.SetLinkState(hostIf.Name, true); err != nil {
 		return err
 	}
 
 	// Bridge up.
 	log.Printf("[net] Setting link %v state up.", bridgeName)
-	err = netlink.SetLinkState(bridgeName, true)
-	if err != nil {
+	if err := netlink.SetLinkState(bridgeName, true); err != nil {
 		return err
 	}
 
 	// Apply IP configuration to the bridge for host traffic.
-	err = nm.applyIPConfig(extIf, bridge)
-	if err != nil {
+	if err := nm.applyIPConfig(extIf, bridge); err != nil {
 		log.Printf("[net] Failed to apply interface IP configuration: %v.", err)
 	}
 
 	extIf.BridgeName = bridgeName
-	err = nil
-
 	log.Printf("[net] Connected interface %v to bridge %v.", extIf.Name, extIf.BridgeName)
 
 	return nil
 }
 
 // DisconnectExternalInterface disconnects a host interface from OVS bridge.
-func (nm *networkManager) disconnectOVSInterface(extIf *externalInterface) error {
+func (nm *networkManager) disconnectOVSInterface(extIf *externalInterface) {
 	log.Printf("[net] Disconnecting interface %v.", extIf.Name)
 
 	// Disconnect external interface from its bridge.
@@ -426,8 +415,6 @@ func (nm *networkManager) disconnectOVSInterface(extIf *externalInterface) error
 	extIf.Routes = nil
 
 	log.Printf("[net] Disconnected interface %v.", extIf.Name)
-
-	return nil
 }
 
 // ConnectExternalInterface connects the given host interface to a bridge.
@@ -551,7 +538,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 }
 
 // DisconnectExternalInterface disconnects a host interface from its bridge.
-func (nm *networkManager) disconnectExternalInterface(extIf *externalInterface) error {
+func (nm *networkManager) disconnectExternalInterface(extIf *externalInterface) {
 	log.Printf("[net] Disconnecting interface %v.", extIf.Name)
 
 	// Delete bridge rules set on the external interface.
@@ -582,6 +569,4 @@ func (nm *networkManager) disconnectExternalInterface(extIf *externalInterface) 
 	extIf.Routes = nil
 
 	log.Printf("[net] Disconnected interface %v.", extIf.Name)
-
-	return nil
 }

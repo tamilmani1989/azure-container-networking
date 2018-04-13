@@ -86,7 +86,6 @@ func (nw *network) setupOVSRules(hostIfName string, contIfName string, container
 	}
 
 	ofport = strings.Trim(ofport, "\n")
-
 	mac := nw.extIf.MacAddress.String()
 	macHex := strings.Replace(mac, ":", "", -1)
 
@@ -380,14 +379,14 @@ func (nw *network) deleteOVSRules(ep *endpoint) {
 		nw.extIf.BridgeName, ep.IPAddresses[0].IP.String(), ep.VlanID, ofPort)
 	_, err = common.ExecuteShellCommand(cmd)
 	if err != nil {
-		log.Printf("[net] Adding MAC DNAT rule failed with error %v", err)
+		log.Printf("[net] Deleting MAC DNAT rule failed with error %v", err)
 	}
 
 	// Delete port fromk ovs bridge
 	cmd = fmt.Sprintf("ovs-vsctl del-port %v %v", nw.extIf.BridgeName, ep.HostIfName)
 	_, err = common.ExecuteShellCommand(cmd)
 	if err != nil {
-		log.Printf("[net] Adding port failed with error %v", err)
+		log.Printf("[net] Deleting port failed with error %v", err)
 	}
 }
 
