@@ -84,3 +84,27 @@ func TracePrefix() string {
 
 	return fmt.Sprintf("File:%s, Function:%s, Line:%d \n", frame.File, frame.Function, frame.Line)
 }
+
+func AreSetsEqual(set1, set2 []string) bool {
+	if len(set1) != len(set2) {
+		return false
+	}
+	// create a map of string -> int
+	diff := make(map[string]int, len(set1))
+	for _, item := range set1 {
+		diff[item]++
+	}
+	for _, item := range set2 {
+		if _, ok := diff[item]; !ok {
+			return false
+		}
+		diff[item]--
+		if diff[item] == 0 {
+			delete(diff, item)
+		}
+	}
+	if len(diff) == 0 {
+		return true
+	}
+	return false
+}

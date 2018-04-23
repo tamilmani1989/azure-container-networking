@@ -8,6 +8,7 @@ import (
 	"dnc/masterelection/masterelectionshim"
 	"dnc/replica"
 	"dnc/server"
+	"dnc/utils"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,10 +19,15 @@ var cancelProcessing = make(chan bool)
 var startProcessing = make(chan bool)
 var startChan = make(chan bool)
 var doneChan = make(chan bool)
+var networkMonitorStartProcessing = make(chan bool)
+var tagMonitorStartProcessing = make(chan bool)
+var networkMonitorStopProcessing = make(chan bool)
+var tagMonitorStopProcessing = make(chan bool)
+
 var config *configuration.Configuration
 var masterElectionShim *masterelectionshim.MasterElectionShim
 var logger *loggershim.LoggerShim
-
+var sessionManager *utils.SessionManager
 var ctrler *controller.Controller
 var dncServer server.Server
 var replicaInstance *replica.Replica
@@ -45,7 +51,8 @@ func init() {
 		doneChan)
 	masterElectionShim.Init()
 
-	ctrler = controller.NewController(replicaInstance)
+	sessionManager = utils.NewSessionManager([]string{datamodel.NodeRepositoryName, datamodel.NetworkRepositoryName, datamodel.TagRepositoryName})
+	ctrler = controller.NewController(replicaInstance, sessionManager)
 	dncServer = server.Server{
 		ServerSettings: config.ServerSettings,
 		Controller:     ctrler}
@@ -61,6 +68,8 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go ProcessExitMonitor(sigs, processExitCallback)
 	go monitorRequests()
+	go monitorNetworkUpdates()
+	go monitorTagUpdates()
 	go masterElectionShim.Start()
 	dncServer.Start()
 }

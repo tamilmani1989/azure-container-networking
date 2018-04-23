@@ -2,6 +2,8 @@ package utils
 
 import (
 	"dnc/logger/loggershim"
+	"path/filepath"
+	"runtime"
 	"sync"
 )
 
@@ -36,8 +38,13 @@ func (refCountedLockTable *RefCountedLockTable) Unlock(lockName string) {
 }
 
 func (refCountedLockTable *RefCountedLockTable) lock(lockName string, read bool) {
+	_, fileFullPath, line, _ := runtime.Caller(3)
+	fileName := ""
+	if len(fileFullPath) > 0 {
+		fileName = filepath.Base(fileFullPath)
+	}
 	refCountedLockTable.mutex.Lock()
-	loggershim.LS.Log("Acquiring lock:%s, Read:%d", lockName, read)
+	loggershim.LS.Log("Acquiring lock:%s, Read:%v. File:%s, Line:%s", lockName, read, fileName, line)
 	lock, ok := refCountedLockTable.table[lockName]
 	if !ok {
 		lock = &RefCountedLock{refCount: 0}
@@ -53,11 +60,17 @@ func (refCountedLockTable *RefCountedLockTable) lock(lockName string, read bool)
 	} else {
 		lock.Lock()
 	}
-	loggershim.LS.Log("Acquired lock:%s", lockName)
+
+	loggershim.LS.Log("Acquired lock:%s, Read:%v. File:%s, Line:%d", lockName, read, fileName, line)
 }
 
 func (refCountedLockTable *RefCountedLockTable) unlock(lockName string, read bool) {
-	loggershim.LS.Log("Releasing lock:%s, Read:%v", lockName, read)
+	_, fileFullPath, line, _ := runtime.Caller(3)
+	fileName := ""
+	if len(fileFullPath) > 0 {
+		fileName = filepath.Base(fileFullPath)
+	}
+	loggershim.LS.Log("Releasing lock:%s, Read:%v. File:%s, Line:%d", lockName, read, fileName, line)
 	refCountedLockTable.mutex.Lock()
 	defer refCountedLockTable.mutex.Unlock()
 	lock, ok := refCountedLockTable.table[lockName]
@@ -68,12 +81,12 @@ func (refCountedLockTable *RefCountedLockTable) unlock(lockName string, read boo
 			lock.Unlock()
 		}
 		lock.Release()
-		loggershim.LS.Log("Decremented Count:%d", lock.refCount)
+		loggershim.LS.Log("Decremented Count:%d Lock:%s, Read:%v. File:%s, Line:%d", lock.refCount, lockName, read, fileName, line)
 		if lock.refCount == 0 {
-			loggershim.LS.Log("Deleting Lock:%s", lockName)
+			loggershim.LS.Log("Deleting lock:%s, Read:%v. File:%s, Line:%d", lockName, read, fileName, line)
 			delete(refCountedLockTable.table, lockName)
 		} else {
-			loggershim.LS.Log("Refernece count on lock %s after release %d", lockName, lock.refCount)
+			loggershim.LS.Log("Reference count on lock %s after release %d, Read:%v. File:%s, Line:%s", lockName, lock.refCount, read, fileName, line)
 		}
 	}
 }

@@ -3,14 +3,14 @@ package datamodel
 import (
 	"fmt"
 	"time"
-)	
+)
 
 // RequestContext - Request context
 type RequestContext struct {
-	NetworkID string
-	NodeID    string
-	Type      RequestType
-	CreatedDateTime time.Time 
+	NetworkID           string
+	NodeID              string
+	Type                RequestType
+	CreatedDateTime     time.Time
 	LastRetriedDateTime time.Time
 }
 

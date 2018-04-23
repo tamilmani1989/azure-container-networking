@@ -87,6 +87,7 @@ type HostAgentConnectionStrings struct {
 	GetNetworkConfigurationURLFmt string
 	PutNetworkContainerURLFmt     string
 	DeleteNetworkContainerURLFmt  string
+	GetSystemTagDefinitionURLFmt  string
 }
 
 type HostAgentSettings struct {

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 )
 
 var dataStoreShim *datastoreshim.DataStoreShim
@@ -555,11 +556,16 @@ func QueryNodeConfiguration(nodeID string) (*NodeConfiguration, *api.JsonErr) {
 // TryQueryNetworkConfiguration - Query network configuration.
 func TryQueryNetworkConfiguration(networkID string) (*NetworkConfiguration, *api.JsonErr) {
 	networkKey := GetNetworkKey(networkID)
+	return TryQueryNetworkConfigurationByKey(networkKey)
+}
+
+// TryQueryNetworkConfigurationByKey - Query network configuration.
+func TryQueryNetworkConfigurationByKey(networkKey string) (*NetworkConfiguration, *api.JsonErr) {
 	value, status, err := dataStoreShim.Query(networkConfigurationTableName, networkKey)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
-			"Failed to retrieve configuration for network :[%s] due to error:[%s]",
-			networkID,
+			"Failed to retrieve configuration for network key:[%s] due to error:[%s]",
+			networkKey,
 			err)
 		return nil, &api.JsonErr{
 			Code:       api.StatusInternalServerError,
@@ -576,8 +582,8 @@ func TryQueryNetworkConfiguration(networkID string) (*NetworkConfiguration, *api
 	err = json.Unmarshal([]byte(serializedNetworkConfiguration), &networkConfiguration)
 	if err != nil {
 		msg := fmt.Sprintf(
-			"Failed to unmarshal configuration for network :[%s] due to error:[%s]",
-			networkID,
+			"Failed to unmarshal configuration for network key:%s due to error:[%s]",
+			networkKey,
 			err)
 		return nil, &api.JsonErr{
 			Code:       api.JsonBodyUnMarshalFailed,
@@ -611,6 +617,11 @@ func QueryNetworkConfiguration(networkID string) (*NetworkConfiguration, *api.Js
 // TryQuerySubnetConfiguration - Query subnet configuration.
 func TryQuerySubnetConfiguration(networkID, subnetName string) (*SubnetConfiguration, *api.JsonErr) {
 	subnetKey := GetSubnetKey(networkID, subnetName)
+	return TryQuerySubnetConfigurationByKey(subnetKey)
+}
+
+// TryQuerySubnetConfigurationByKey - Query subnet configuration.
+func TryQuerySubnetConfigurationByKey(subnetKey string) (*SubnetConfiguration, *api.JsonErr) {
 	value, status, err := dataStoreShim.Query(subnetConfigurationTableName, subnetKey)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
@@ -642,6 +653,26 @@ func TryQuerySubnetConfiguration(networkID, subnetName string) (*SubnetConfigura
 	}
 
 	return &subnetConfiguration, nil
+}
+
+// QuerySubnetConfigurationByKey - Query subnet configuration.
+func QuerySubnetConfigurationByKey(subnetKey string) (*SubnetConfiguration, *api.JsonErr) {
+	subnetConfiguration, err := TryQuerySubnetConfigurationByKey(subnetKey)
+	if err != nil {
+		return nil, err
+	}
+
+	if subnetConfiguration == nil {
+		msg := fmt.Sprintf(
+			"Configuration for subnet key:[%s] not found.",
+			subnetKey)
+		return nil, &api.JsonErr{
+			Code:       api.SubnetNotFound,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	return subnetConfiguration, nil
 }
 
 // QuerySubnetConfiguration - Query subnet configuration.
@@ -727,6 +758,41 @@ func QueryIPReservation(networkID, reservationID string) (*ReservationConfigurat
 	return reservationConfiguration, nil
 }
 
+// TryQueryRequestContext - Query request context.
+func TryQueryRequestContext(requestID string) (*RequestContext, *api.JsonErr) {
+	var repoRequestContext RequestContext
+	value, status, err := dataStoreShim.Query(pendingWorkItemsTableName, requestID)
+	if err != nil && status != http.StatusNotFound {
+		msg := fmt.Sprintf(
+			"Failed to retrieve request context for key:[%s] due to error:[%s]",
+			requestID,
+			err.Error())
+		return nil, &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+	if value == nil {
+		return nil, nil
+	}
+
+	loggershim.LS.Log("Retrieved row: %+v\n", value)
+	serializedRequestContext := value.(string)
+	err = json.Unmarshal([]byte(serializedRequestContext), &repoRequestContext)
+	if err != nil {
+		msg := fmt.Sprintf(
+			"Failed to unmarshal context for request with key:[%s] due to error:[%s]",
+			requestID,
+			err)
+		return nil, &api.JsonErr{
+			Code:       api.JsonBodyUnMarshalFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	return &repoRequestContext, nil
+}
+
 // TryQueryNetworkContainerByKey - Query a network container by key.
 func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr) {
 	var repoNCConfiguration NCConfiguration
@@ -786,6 +852,106 @@ func QueryNetworkContainer(networkID, networkContainerID string) (*NCConfigurati
 	}
 
 	return ncConfig, nil
+}
+
+// TryQueryTagDefinition - Query a tag defintion.
+func TryQueryTagDefinition(tagType, tagName string) (*TagDefinition, *api.JsonErr) {
+	tagDefintionKey := GetTagDefintionKey(tagType, tagName)
+	return TryQueryTagDefinitionByKey(tagDefintionKey)
+}
+
+// TryQueryTagDefinitionByKey - Query tag defintion by key.
+func TryQueryTagDefinitionByKey(tagDefinitionKey string) (*TagDefinition, *api.JsonErr) {
+	var repoTagDefinition TagDefinition
+	value, status, err := dataStoreShim.Query(tagDefintitionTableName, tagDefinitionKey)
+	if err != nil && status != http.StatusNotFound {
+		msg := fmt.Sprintf(
+			"Failed to retrieve defintion for tag key:[%s] due to error:[%s]",
+			tagDefinitionKey,
+			err.Error())
+		return nil, &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+	if value == nil {
+		return nil, nil
+	}
+
+	loggershim.LS.Log("Retrieved row: %+v\n", value)
+	serializedTagDefintion := value.(string)
+	err = json.Unmarshal([]byte(serializedTagDefintion), &repoTagDefinition)
+	if err != nil {
+		msg := fmt.Sprintf(
+			"Failed to unmarshal defintion for tag with key:[%s] due to error:[%s]",
+			tagDefinitionKey,
+			err)
+		return nil, &api.JsonErr{
+			Code:       api.JsonBodyUnMarshalFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	return &repoTagDefinition, nil
+}
+
+// CreateOrUpdateTagDefintion - Creates Or Updates a tag defintion.
+func CreateOrUpdateTagDefintion(
+	tagType string,
+	tagName string,
+	value string) *api.JsonErr {
+	repositoryTagDefintion, err := TryQueryTagDefinition(tagType, tagName)
+	if err != nil {
+		return err
+	}
+
+	if repositoryTagDefintion == nil {
+		loggershim.LS.Log("%s: Creating defintion for tag type %s Name:%s\n", utils.TracePrefix(), tagType, tagName)
+		repositoryTagDefintion = &TagDefinition{
+			Name:            tagName,
+			Type:            tagType,
+			CreatedDateTime: time.Now()}
+	}
+	repositoryTagDefintion.Version++
+	repositoryTagDefintion.Value = value
+	repositoryTagDefintion.LastUpdatedDateTime = time.Now()
+
+	return persistTagDefinition(repositoryTagDefintion)
+}
+
+func persistTagDefinition(tagDefinition *TagDefinition) *api.JsonErr {
+	jsonSerializedBytes, err := json.Marshal(tagDefinition)
+	if err != nil {
+		loggershim.LS.Log(
+			"%s: Failed to serialize tag defintition %s due to error: %s\n",
+			utils.TracePrefix(),
+			tagDefinition.String(),
+			err.Error())
+
+		return &api.JsonErr{
+			Code:       api.JsonMarshallingFailed,
+			HTTPStatus: http.StatusInternalServerError,
+			Text: fmt.Sprintf("Failed to serialize tag defintion for tag %s due to error %s",
+				tagDefinition.String(),
+				err.Error())}
+	}
+	tagDefintionKey := GetTagDefintionKey(tagDefinition.Type, tagDefinition.Name)
+	err = dataStoreShim.InsertOrUpdate(
+		tagDefintitionTableName,
+		tagDefintionKey,
+		TableToColumnMap[tagDefintitionTableName],
+		string(jsonSerializedBytes[:]))
+
+	if err != nil {
+		return &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			HTTPStatus: http.StatusInternalServerError,
+			Text: fmt.Sprintf("Failed to persist tag definition %s due to error %s",
+				tagDefinition.String(),
+				err.Error())}
+	}
+
+	return nil
 }
 
 // CreateOrUpdateNodeConfiguration - Creates Or Updates a node configuration.
@@ -954,6 +1120,23 @@ func deleteVirtualNetworkSubnet(networkID string, subnet string) error {
 func AddRequestToPendingQueue(
 	requestKey string,
 	requestContext *RequestContext) *api.JsonErr {
+	repoRequestContext, requestReadErr := TryQueryRequestContext(requestKey)
+	if requestReadErr != nil {
+		msg := fmt.Sprintf(
+			"Failed to check if request context exist in repository. Key:%s, Error: %s",
+			requestKey,
+			requestReadErr.String())
+		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
+		return requestReadErr
+	}
+
+	if repoRequestContext != nil {
+		requestContext.CreatedDateTime = repoRequestContext.CreatedDateTime
+		requestContext.LastRetriedDateTime = time.Now().UTC()
+	} else {
+		requestContext.CreatedDateTime = time.Now().UTC()
+	}
+
 	jsonSerializedBytes, err := json.Marshal(requestContext)
 	if err != nil {
 		msg := fmt.Sprintf(
@@ -1020,6 +1203,46 @@ func TryGetRequestFromPendingQueue(requestKey string) (*RequestContext, *api.Jso
 	}
 
 	return &requestContext, nil
+}
+
+// GetAllTagDefinitions - Retrieve all tag defintitions
+func GetAllTagDefinitions() (map[string]TagDefinition, error) {
+	var hasMoreData bool
+	var context interface{}
+	var tagDefinitions map[string]interface{}
+	var err error
+	var status int
+	tagDefinitionsMap := make(map[string]TagDefinition)
+	for {
+		tagDefinitions, hasMoreData, context, status, err = dataStoreShim.QueryAll(
+			tagDefintitionTableName,
+			context)
+		if err != nil {
+			if status == http.StatusNotFound {
+				return make(map[string]TagDefinition), nil
+			}
+
+			return nil, err
+		}
+
+		for tagDefinitionsKey, value := range tagDefinitions {
+			serializedTagDefinition := value.(string)
+			var tagDefinition TagDefinition
+			err = json.Unmarshal([]byte(serializedTagDefinition), &tagDefinition)
+			if err != nil {
+				loggershim.LS.Log("Unmarshalling tag defintition %s failed with error %s\n", tagDefinition.String(), err.Error())
+				return nil, err
+			}
+			loggershim.LS.Log("Unmarshalling tag defintition %s \n", tagDefinition.String())
+			tagDefinitionsMap[tagDefinitionsKey] = tagDefinition
+		}
+
+		if !hasMoreData {
+			break
+		}
+	}
+
+	return tagDefinitionsMap, nil
 }
 
 // GetPendingRequests - Retrieve all request pending processing
@@ -1169,21 +1392,32 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 		switch networkContainerConfig.State {
 		case Prepare:
 			networkContainerConfig.State = Purge
+			networkContainerConfig.Status = Pending
 			break
 
 		case Reserve:
 			networkContainerConfig.State = UnReserve
+			networkContainerConfig.Status = Pending
 			break
 
 		case Associate:
 			networkContainerConfig.State = DisAssociate
+			networkContainerConfig.Status = Pending
 			break
 
 		case Publish, Program:
 			networkContainerConfig.State = UnPublish
+			networkContainerConfig.Status = Pending
 			break
+
+		default:
+			return &api.JsonErr{
+				Code:       api.InvalidNetworkStateForDelete,
+				Text:       fmt.Sprintf("Network container cannot be deleted when in state:%s", networkContainerConfig.State),
+				HTTPStatus: http.StatusConflict}
 		}
 	}
+
 	return PersistNCConfiguration(networkContainerConfig, true)
 }
 
@@ -1442,21 +1676,66 @@ func DeleteNetworkConfiguration(networkID string) *api.JsonErr {
 
 	return nil
 }
+func GetSubnetDNSServers(repoSubnetConfiguration *SubnetConfiguration) ([]string, *api.JsonErr) {
+	repoNetworkConfiguration, err := TryQueryNetworkConfiguration(repoSubnetConfiguration.NetworkID)
+	if err != nil {
+		return nil, err
+	}
+	if repoNetworkConfiguration == nil {
+		msg := fmt.Sprintf(
+			"Configuration for network:%s not found.",
+			repoSubnetConfiguration.NetworkID)
 
-func getIPConfiguration(reservationConfiguration *ReservationConfiguration) (*api.IPConfiguration, *api.JsonErr) {
-	subnetConfiguration, err := TryQuerySubnetConfiguration(
-		reservationConfiguration.NetworkID,
-		reservationConfiguration.AllocationRequest.SubnetName)
+		return nil, &api.JsonErr{
+			Code:       api.NetworkNotFound,
+			HTTPStatus: http.StatusBadRequest,
+			Text:       msg}
+	}
+
+	return GetDNSServers(repoNetworkConfiguration, repoSubnetConfiguration)
+}
+
+func GetDNSServers(repoNetworkConfiguration *NetworkConfiguration, repoSubnetConfiguration *SubnetConfiguration) ([]string, *api.JsonErr) {
+	var dnsServers []string
+	if repoNetworkConfiguration.DNSServers != nil &&
+		len(repoNetworkConfiguration.DNSServers) != 0 {
+		dnsServers = repoNetworkConfiguration.DNSServers
+	} else {
+		ipSubnet, err := utils.ParseIPNet(repoSubnetConfiguration.IPSubnet)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to parse subnet %s for subnet %s for network %s due to error %s",
+				repoSubnetConfiguration.IPSubnet,
+				repoSubnetConfiguration.SubnetName,
+				repoSubnetConfiguration.NetworkID,
+				err.Error())
+			loggershim.LS.Log("%s\n", msg)
+
+			return nil, &api.JsonErr{
+				Code:       api.InvalidIPSubnet,
+				HTTPStatus: http.StatusInternalServerError,
+				Text:       msg}
+		}
+
+		dnsServers = allocationhelper.GetDNSServerAddressesForSubnet(ipSubnet)
+	}
+
+	return dnsServers, nil
+}
+
+func getIPConfiguration(repoReservationConfiguration *ReservationConfiguration) (*api.IPConfiguration, *api.JsonErr) {
+	repoSubnetConfiguration, err := TryQuerySubnetConfiguration(
+		repoReservationConfiguration.NetworkID,
+		repoReservationConfiguration.AllocationRequest.SubnetName)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if subnetConfiguration == nil {
+	if repoSubnetConfiguration == nil {
 		msg := fmt.Sprintf(
 			"Configuration for subnet %s in network:%s not found.",
-			reservationConfiguration.AllocationRequest.SubnetName,
-			reservationConfiguration.NetworkID)
+			repoReservationConfiguration.AllocationRequest.SubnetName,
+			repoReservationConfiguration.NetworkID)
 		loggershim.LS.Log("%s: %s\n", utils.TracePrefix(), msg)
 		return nil, &api.JsonErr{
 			Code:       api.SubnetNotFound,
@@ -1464,13 +1743,18 @@ func getIPConfiguration(reservationConfiguration *ReservationConfiguration) (*ap
 			Text:       msg}
 	}
 
+	dnsServers, err := GetSubnetDNSServers(repoSubnetConfiguration)
+	if err != nil {
+		return nil, err
+	}
+
 	ipConfiguration := api.IPConfiguration{
-		NetworkID:  reservationConfiguration.NetworkID,
-		SubnetName: reservationConfiguration.AllocationRequest.SubnetName,
-		IPSubnet:   subnetConfiguration.IPSubnet,
-		IPAddress:  reservationConfiguration.AllocatedSubnet,
-		GatewayIP:  subnetConfiguration.Gateway,
-		DNSServers: subnetConfiguration.DNSServers}
+		NetworkID:  repoReservationConfiguration.NetworkID,
+		SubnetName: repoReservationConfiguration.AllocationRequest.SubnetName,
+		IPSubnet:   repoSubnetConfiguration.IPSubnet,
+		IPAddress:  repoReservationConfiguration.AllocatedSubnet,
+		GatewayIP:  repoSubnetConfiguration.Gateway,
+		DNSServers: dnsServers}
 
 	return &ipConfiguration, nil
 }
@@ -1481,13 +1765,12 @@ func GetNetworkContainerResponse(
 	var ipConfiguration *api.IPConfiguration
 	if ncConfig.State != Prepare &&
 		!(ncConfig.State == Reserve && ncConfig.Status != Completed) {
-		reservationConfiguration, err := TryQueryIPReservation(
+		reservationConfiguration, err := QueryIPReservation(
 			ncConfig.NetworkID,
 			ncConfig.ReservationID)
 		if err != nil {
 			return nil, err
 		}
-
 		ipConfiguration, err = getIPConfiguration(reservationConfiguration)
 		if err != nil {
 			return nil, err
@@ -1692,7 +1975,8 @@ func CreateOrUpdateNCRequestV1(
 		ImplicitReservation: false,
 		State:               Prepare,
 		Status:              Pending,
-		APIVersion:          apiVersion}
+		APIVersion:          apiVersion,
+		CNSVersion:          1}
 
 	return PersistNCConfiguration(&ncConfiguration, true)
 }
@@ -1768,8 +2052,98 @@ func CreateOrUpdateNCRequestV2(
 		ImplicitReservation: true,
 		State:               Prepare,
 		Status:              Pending,
-		APIVersion:          apiVersion}
+		APIVersion:          apiVersion,
+		CNSVersion:          1}
 
 	return PersistNCConfiguration(&ncConfiguration, true)
+}
 
+type NetworkContainerInfo struct {
+	NetworkID          string
+	SubnetName         string
+	ReservationID      string
+	AssociationInfo    api.AssociationInfo
+	NetworkContainerID string
+	ProgrammedTagsInfo map[string]uint64
+}
+
+// GetNetworkContainersInSubnet - Get network containers in a subnet
+func GetNetworkContainersInSubnet(
+	repoSubnetConfiguration *SubnetConfiguration,
+	includePendingDeletes bool) ([]*NetworkContainerInfo, *api.JsonErr) {
+	networkContainersInfo := make([]*NetworkContainerInfo, len(repoSubnetConfiguration.Reservations))
+	containersCount := 0
+	for reservationID := range repoSubnetConfiguration.Reservations {
+		repoReservation, err := TryQueryIPReservation(repoSubnetConfiguration.NetworkID, reservationID)
+		if err != nil {
+			return nil, err
+		}
+
+		if repoReservation == nil {
+			continue
+		}
+
+		if len(repoReservation.AssociatedNCID) == 0 {
+			continue
+		}
+
+		repoNetworkContainerConfiguration, err := TryQueryNetworkContainer(
+			repoSubnetConfiguration.NetworkID,
+			repoReservation.AssociatedNCID)
+		if err != nil {
+			return nil, err
+		}
+
+		if repoNetworkContainerConfiguration == nil {
+			continue
+		}
+
+		if !includePendingDeletes && repoNetworkContainerConfiguration.MarkedForDelete {
+			continue
+		}
+		associationInfo := repoNetworkContainerConfiguration.GetAssociationInfo()
+		networkContainersInfo[containersCount] = &NetworkContainerInfo{
+			NetworkID:          repoSubnetConfiguration.NetworkID,
+			SubnetName:         repoSubnetConfiguration.SubnetName,
+			ReservationID:      repoReservation.ReservationID,
+			NetworkContainerID: repoNetworkContainerConfiguration.NetworkContainerID,
+			AssociationInfo:    associationInfo,
+			ProgrammedTagsInfo: repoNetworkContainerConfiguration.ProgrammedTagsInfo}
+
+		containersCount++
+	}
+
+	return networkContainersInfo[:containersCount], nil
+}
+
+// GetPendingRequests - Retrieve all request pending processing
+func GetAllNetworkIDs() (map[string]bool, error) {
+	var hasMoreData bool
+	var context interface{}
+	var networksMap map[string]interface{}
+	var err error
+	var status int
+	networkIDs := make(map[string]bool)
+	for {
+		networksMap, hasMoreData, context, status, err = dataStoreShim.QueryAll(
+			networkConfigurationTableName,
+			context)
+		if err != nil {
+			if status == http.StatusNotFound {
+				return networkIDs, nil
+			}
+
+			return nil, err
+		}
+
+		for networkKey := range networksMap {
+			networkIDs[networkKey] = true
+		}
+
+		if !hasMoreData {
+			break
+		}
+	}
+
+	return networkIDs, nil
 }

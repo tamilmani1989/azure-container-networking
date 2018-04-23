@@ -26,7 +26,17 @@ func GetNetworkKey(networkID string) string {
 	return fmt.Sprintf(networkKey, networkID)
 }
 
+func GetNetworkIdFromKey(key string) string {
+	emptyKey := fmt.Sprintf(networkKey, "")
+	return strings.Split(key, emptyKey)[1]
+}
+
 // GetNCKey - Helper function to generate network container key.
 func GetNCKey(networkID, ncID string) string {
 	return fmt.Sprintf(ncKey, networkID, ncID)
+}
+
+// GetTagDefintionKey - Helper function to generate tag defintion key.
+func GetTagDefintionKey(tagType, tagName string) string {
+	return fmt.Sprintf(tagDefintionKey, tagType, tagName)
 }

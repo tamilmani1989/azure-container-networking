@@ -4,7 +4,6 @@ import (
 	"dnc/nmagentcontracts"
 	"dnc/utils"
 	"fmt"
-	"strings"
 )
 
 // SubnetConfiguration  - Struct to hold subnet configuration.
@@ -14,7 +13,6 @@ type SubnetConfiguration struct {
 	SubnetName        string
 	IPSubnet          string
 	IsDelegatedSubnet bool
-	DNSServers        []string
 	Gateway           string
 	AccessToken       string
 	Joined            bool
@@ -23,7 +21,6 @@ type SubnetConfiguration struct {
 }
 
 func (s *SubnetConfiguration) String() string {
-	dnsServers := strings.Join(s.DNSServers, ",")
 	reservations := ""
 	if s.Reservations != nil {
 		reservations = utils.PrintMapKeys(s.Reservations)
@@ -42,9 +39,8 @@ func (s *SubnetConfiguration) String() string {
 
 	return fmt.Sprintf(
 		"[NetworkID:%s, Reservations:%s SubnetName:%s IPSubnet:%s "+
-			"IsDelegatedSubnet:%t DNSServers:%s "+
-			"Gateway:%s AccessToken:%s, Joined:%t, Servicetags:%s APIVersion:%s]",
-		s.NetworkID, reservations, s.SubnetName, s.IPSubnet,
-		s.IsDelegatedSubnet, dnsServers,
+			"IsDelegatedSubnet:%t Gateway:%s AccessToken:%s, Joined:%t, "+
+			"Servicetags:%s APIVersion:%s]",
+		s.NetworkID, reservations, s.SubnetName, s.IPSubnet, s.IsDelegatedSubnet,
 		s.Gateway, s.AccessToken, s.Joined, serviceTags, s.APIVersion)
 }

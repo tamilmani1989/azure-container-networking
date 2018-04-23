@@ -33,6 +33,9 @@ const (
 
 	// Purge - NC is pending cleanup of the NC
 	Purge
+
+	// RefreshAssociation - Refresh the association info due to changes in network configuration
+	RefreshAssociation
 )
 
 func (networkContainerState NetworkContainerState) String() string {
@@ -67,6 +70,9 @@ func (networkContainerState NetworkContainerState) String() string {
 
 	case Purge:
 		return "Purge"
+
+	case RefreshAssociation:
+		return "RefreshAssociation"
 	}
 
 	return "Unknown Status"

@@ -25,6 +25,17 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Welcome to DNC service!!!!!\n")
 }
 
+func decodeRequestBody(request *http.Request, decodedBody interface{}) error {
+	var err error
+	if request.Body != nil {
+		err = json.NewDecoder(request.Body).Decode(&decodedBody)
+	} else {
+		err = fmt.Errorf("Request body is empty")
+	}
+
+	return err
+}
+
 // CreateOrUpdateNode - Handle to create/update node.
 func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 	apiVersion := r.URL.Query().Get("api-version")
@@ -38,25 +49,17 @@ func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var nodeinfo api.NodeInfoRequest
-	body, readErr := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
-	if readErr != nil {
-		panic(readErr)
-	}
-
-	if err := r.Body.Close(); err != nil {
-		panic(err)
-	}
+	var nodeInfo api.NodeInfoRequest
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	if err := json.Unmarshal(body, &nodeinfo); err != nil {
+	if err := decodeRequestBody(r, &nodeInfo); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		if err := json.NewEncoder(w).Encode(err); err != nil {
 			panic(err)
 		}
 	}
 
-	putNodeInfoErr := ctrler.PersistNodeInfo(nodeID, &nodeinfo, apiVersion)
+	putNodeInfoErr := ctrler.PersistNodeInfo(nodeID, &nodeInfo, apiVersion)
 	if putNodeInfoErr != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		if err := json.NewEncoder(w).Encode(putNodeInfoErr); err != nil {
@@ -69,7 +72,6 @@ func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 
 // GetNode - Handler for get node information
 func GetNode(w http.ResponseWriter, r *http.Request) {
-	// apiVersion := r.URL.Query().Get("api-version")
 	vars := mux.Vars(r)
 	nodeID, ok := vars["nodeID"]
 	if !ok {
@@ -106,13 +108,12 @@ func DeleteNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	deleteNodeErr := ctrler.DeleteNode(nodeID)
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
 	if deleteNodeErr == nil {
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-
 	setRequestFailed(w, deleteNodeErr)
 }
 
@@ -139,18 +140,9 @@ func ReserveIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, readErr := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
-	if readErr != nil {
-		panic(readErr)
-	}
-
-	if err := r.Body.Close(); err != nil {
-		panic(err)
-	}
 	var allocationRequest api.AllocationRequest
-
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	if err := json.Unmarshal(body, &allocationRequest); err != nil {
+	if err := decodeRequestBody(r, &allocationRequest); err != nil {
 		jsonErr := api.JsonErr{
 			Code: api.JsonBodyUnMarshalFailed,
 			Text: fmt.Sprintf("Failed to unmarshal request body. Error:%s", err.Error())}
@@ -175,6 +167,7 @@ func ReserveIP(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, reservationErr)
 }
 
+// GetReservation - Handler for retrieving reservation info.
 func GetReservation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	networkID, ok := vars["networkID"]
@@ -355,7 +348,14 @@ func DeleteNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, err)
 }
 
+// CreateNetworkContainer - Handler for create network container
 func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
+	var ncRequestV2 *api.NetworkContainerRequestV2
+	var ncRequestV1 *api.NetworkContainerRequestV1
+	var isV1Request = false
+	var err error
+	var body []byte
+
 	apiVersion := r.URL.Query().Get("api-version")
 
 	vars := mux.Vars(r)
@@ -370,24 +370,24 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
-	if err != nil {
-		panic(err)
-	}
-	if err := r.Body.Close(); err != nil {
-		panic(err)
-	}
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	var ncRequestV2 *api.NetworkContainerRequestV2
-	var ncRequestV1 *api.NetworkContainerRequestV1
-	var isV1Request = false
+	body, err = ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
+	if err != nil {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		if err := json.NewEncoder(w).Encode(err); err != nil {
+			panic(err)
+		}
+
+		return
+	}
 
 	ncRequestV1, err = getNetworkContainerRequestV1(body)
 	if err == nil {
 		if ncRequestV1 == nil {
 			ncRequestV2, err = getNetworkContainerRequestV2(body)
 			if ncRequestV2 == nil {
-				setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkID, Text: "Network Container request is invalid"})
+				setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkContainerRequest, Text: "Network Container request is invalid"})
 			}
 		} else {
 			isV1Request = true
@@ -395,11 +395,12 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusUnprocessableEntity) // unprocessable entity
 		if err := json.NewEncoder(w).Encode(err); err != nil {
 			panic(err)
 		}
+
+		return
 	}
 
 	var ncPersistErr *api.JsonErr
@@ -417,7 +418,6 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 			apiVersion)
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if ncPersistErr != nil {
 		setRequestFailed(w, ncPersistErr)
 	} else {
@@ -442,7 +442,6 @@ func getNetworkContainerRequestV1(body []byte) (*api.NetworkContainerRequestV1, 
 
 func getNetworkContainerRequestV2(body []byte) (*api.NetworkContainerRequestV2, error) {
 	var ncRequestV2 api.NetworkContainerRequestV2
-
 	if err := json.Unmarshal(body, &ncRequestV2); err != nil {
 		return nil, err
 	}
@@ -475,7 +474,7 @@ func GetNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	ncConfig, getNCConfigErr := ctrler.GetNetworkContainerConfiguration(networkID, ncID)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if getNCConfigErr != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(getNCConfigErr.HTTPStatus)
 		if err := json.NewEncoder(w).Encode(getNCConfigErr); err != nil {
 			panic(err)
 		}
@@ -485,10 +484,10 @@ func GetNetworkContainer(w http.ResponseWriter, r *http.Request) {
 		if err := json.NewEncoder(w).Encode(ncConfig); err != nil {
 			panic(err)
 		}
-
 	}
 }
 
+// CreateNetwork - Handler for create network
 func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 	apiVersion := r.URL.Query().Get("api-version")
 
@@ -499,20 +498,16 @@ func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
 	var networkInfo api.NetworkInfoRequest
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
-	if err != nil {
-		panic(err)
-	}
-	if err := r.Body.Close(); err != nil {
-		panic(err)
-	}
-	if err := json.Unmarshal(body, &networkInfo); err != nil {
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	var err error
+	if err = decodeRequestBody(r, &networkInfo); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		if err := json.NewEncoder(w).Encode(err); err != nil {
+		if err = json.NewEncoder(w).Encode(err); err != nil {
 			panic(err)
 		}
+		return
 	}
 
 	if networkInfo.NetworkType != api.AzureNet {
@@ -525,7 +520,7 @@ func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	t := ctrler.PersistNetworkInfo(networkID, networkInfo, apiVersion)
+	t := ctrler.PersistNetworkJoinRequest(networkID, networkInfo, apiVersion)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if t != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -537,29 +532,24 @@ func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// PutSubnet - Handler for put delgate subnet
 func PutSubnet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	networkID := vars["networkID"]
 	subnet := vars["subnet"]
 	loggershim.LS.Log("Subnet: %s\n", subnet)
 	var subnetRequest api.SubnetRequest
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
-	if err != nil {
-		panic(err)
-	}
-	if err := r.Body.Close(); err != nil {
-		panic(err)
-	}
-	if err := json.Unmarshal(body, &subnetRequest); err != nil {
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(422) // unprocessable entity
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	if err := decodeRequestBody(r, &subnetRequest); err != nil {
+
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		if err := json.NewEncoder(w).Encode(err); err != nil {
 			panic(err)
 		}
 		return
 	}
-	t := ctrler.PersistSubnetInfo(networkID, subnet, subnetRequest)
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
+	t := ctrler.PersistSubnetDelegationRequest(networkID, subnet, subnetRequest)
 	if t != nil {
 		w.WriteHeader(t.HTTPStatus)
 		if err := json.NewEncoder(w).Encode(&t); err != nil {
@@ -570,6 +560,7 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetSubnetStatus - Handler for retrieving the subnet status
 func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	networkID, ok := vars["networkID"]
@@ -608,6 +599,7 @@ func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, getErr)
 }
 
+// GetSubnetConfiguration - Handler for retrieving the subnet configuration
 func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	networkID, ok := vars["networkID"]
@@ -644,6 +636,7 @@ func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, getErr)
 }
 
+// DeleteNetwork - Handler for deleting the network.
 func DeleteNetwork(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var networkID string
@@ -660,6 +653,7 @@ func DeleteNetwork(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetNetworkStatus - Handler for retrieving the network status.
 func GetNetworkStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	networkID, ok := vars["networkID"]

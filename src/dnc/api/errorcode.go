@@ -148,8 +148,25 @@ const (
 	// JoinPending - Network join is pending.
 	JoinPending
 
+	// InvalidNetworkContainerRequest - Network container request is invalid
+	InvalidNetworkContainerRequest
 	// NetworkConfigurationRetrievalFailed - Retrieval of network configuration retrieval failed.
 	NetworkConfigurationRetrievalFailed
+
+	// GetTagDefinitionFailed - Retrieval of tag definitionfailed.
+	GetTagDefinitionFailed
+
+	// AgentTagDefinitionRetrievalFailed - Tag definition retrieval from agent failed.
+	AgentTagDefinitionRetrievalFailed
+
+	// RepositoryTagRetrievalFailed - Retrieval of tags definition from repository failed.
+	RepositoryTagRetrievalFailed
+
+	// TagResolutionPending - Resoultion of tag refernce is pending with Agent
+	TagResolutionPending
+
+	// InvalidNetworkStateForDelete - Delete cannot be performed on the current state
+	InvalidNetworkStateForDelete
 )
 
 func (e ErrorCode) String() string {
@@ -297,6 +314,24 @@ func (e ErrorCode) String() string {
 
 	case NetworkConfigurationRetrievalFailed:
 		return "NetworkConfigurationRetrievalFailed"
+
+	case GetTagDefinitionFailed:
+		return "GetTagDefinitionFailed"
+
+	case AgentTagDefinitionRetrievalFailed:
+		return "AgentTagDefinitionRetrievalFailed"
+
+	case RepositoryTagRetrievalFailed:
+		return "RepositoryTagRetrievalFailed"
+
+	case TagResolutionPending:
+		return "TagResolutionPending"
+
+	case InvalidNetworkContainerRequest:
+		return "InvalidNetworkContainerRequest"
+
+	case InvalidNetworkStateForDelete:
+		return "InvalidNetworkStateForDelete"
 	}
 
 	return "Unknown Status"
