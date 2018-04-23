@@ -41,6 +41,7 @@ using namespace web;
 #define UINT64 uint64_t
 
 #define STARTFLAG_STR               L"StartFlag"
+#define CNI_SUCCEEDED_STR           L"CniSucceeded"
 #define VNET_ADDRESS_SPACE_STR      L"VnetAddressSpace"
 #define INTERFACE_DETAILS_STR       L"InterfaceDetails"
 #define INTERFACE_TYPE_STR          L"InterfaceType"
@@ -67,7 +68,8 @@ enum CNIReportKey {
     SecondaryCATotalCount,
     SecondaryCAUsedCount,
     IfErrorMessage,
-    BridgeDetails
+    BridgeDetails,
+    CniSucceeded
 };
 
 // CNI report field name to Id map
@@ -106,7 +108,10 @@ class CNIReport : public PluginReport {
 public:
     // Flag to identify Number of VMs running this Plugin
     bool StartFlag;
-
+    
+    // Flag to indicate whether CNI ran successfully
+    bool CniSucceeded;
+    
     // VnetAddressSpaces in a VNET
     vector <wstring> VnetAddressSpace;
 
