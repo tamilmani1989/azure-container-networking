@@ -18,6 +18,20 @@ const (
 	storeKey = "Network"
 )
 
+type NetworkClient interface {
+	CreateBridge() error
+	DeleteBridge() error
+	AddBridgeRules(extIf *externalInterface) error
+	DeleteBridgeRules(extIf *externalInterface)
+	SetBridgeMasterToHostInterface() error
+	SetHairpinOnHostInterface(bool) error
+}
+
+type EndpointClient interface {
+	AddEndpointRules(epInfo *EndpointInfo) error
+	DeleteEndpointRules(ep *endpoint)
+}
+
 // NetworkManager manages the set of container networking resources.
 type networkManager struct {
 	Version            string

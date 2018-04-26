@@ -11,8 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Azure/azure-container-networking/common"
-	"github.com/Azure/azure-container-networking/ebtables"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
 	"golang.org/x/sys/unix"
@@ -44,21 +42,13 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 	case opModeTunnel:
 		fallthrough
 	case opModeBridge:
+		log.Printf("create bridge")
+		if err := nm.connectExternalInterface(extIf, nwInfo); err != nil {
+			return nil, err
+		}
+
 		if opt != nil && opt[vlanIDKey] != nil {
-			var err error
-
-			log.Printf("create ovs bridge")
-			vlanid, err = strconv.Atoi(opt[vlanIDKey].(string))
-			if err != nil {
-				log.Printf("Error while converting vlanid from string to integer")
-			}
-
-			nm.createOVSNetwork(extIf, nwInfo)
-		} else {
-			log.Printf("create linux bridge")
-			if err := nm.connectExternalInterface(extIf, nwInfo); err != nil {
-				return nil, err
-			}
+			vlanid, _ = strconv.Atoi(opt[vlanIDKey].(string))
 		}
 
 	default:
@@ -79,16 +69,17 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 
 // DeleteNetworkImpl deletes an existing container network.
 func (nm *networkManager) deleteNetworkImpl(nw *network) error {
-	// Disconnect the interface if this was the last network using it.
+	var networkClient NetworkClient
 
 	if nw.VlanId != 0 {
-		if len(nw.extIf.Networks) == 1 {
-			nm.disconnectOVSInterface(nw.extIf)
-		}
+		networkClient = NewOVSClient(nw.extIf.BridgeName, nw.extIf.Name)
 	} else {
-		if len(nw.extIf.Networks) == 1 {
-			nm.disconnectExternalInterface(nw.extIf)
-		}
+		networkClient = NewLinuxBridgeClient(nw.extIf.BridgeName, nw.extIf.Name, nw.Mode)
+	}
+
+	// Disconnect the interface if this was the last network using it.
+	if len(nw.extIf.Networks) == 1 {
+		nm.disconnectExternalInterface(nw.extIf, networkClient)
 	}
 
 	return nil
@@ -172,254 +163,10 @@ func (nm *networkManager) applyIPConfig(extIf *externalInterface, targetIf *net.
 	return nil
 }
 
-// AddBridgeRules adds bridge frame table rules for container traffic.
-func (nm *networkManager) addBridgeRules(extIf *externalInterface, hostIf *net.Interface, bridgeName string, opMode string) error {
-	// Add SNAT rule to translate container egress traffic.
-	log.Printf("[net] Adding SNAT rule for egress traffic on %v.", hostIf.Name)
-	err := ebtables.SetSnatForInterface(hostIf.Name, hostIf.HardwareAddr, ebtables.Append)
-	if err != nil {
-		return err
-	}
-
-	// Add ARP reply rule for host primary IP address.
-	// ARP requests for all IP addresses are forwarded to the SDN fabric, but fabric
-	// doesn't respond to ARP requests from the VM for its own primary IP address.
-	primary := extIf.IPAddresses[0].IP
-	log.Printf("[net] Adding ARP reply rule for primary IP address %v.", primary)
-	err = ebtables.SetArpReply(primary, hostIf.HardwareAddr, ebtables.Append)
-	if err != nil {
-		return err
-	}
-
-	// Add DNAT rule to forward ARP replies to container interfaces.
-	log.Printf("[net] Adding DNAT rule for ingress ARP traffic on interface %v.", hostIf.Name)
-	err = ebtables.SetDnatForArpReplies(hostIf.Name, ebtables.Append)
-	if err != nil {
-		return err
-	}
-
-	// Enable VEPA for host policy enforcement if necessary.
-	if opMode == opModeTunnel {
-		log.Printf("[net] Enabling VEPA mode for %v.", hostIf.Name)
-		err = ebtables.SetVepaMode(bridgeName, commonInterfacePrefix, virtualMacAddress, ebtables.Append)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (nm *networkManager) addOVSRules(extIf *externalInterface, hostIf *net.Interface, bridgeName string) error {
-	primary := extIf.IPAddresses[0].IP.String()
-	mac := extIf.MacAddress.String()
-	macHex := strings.Replace(mac, ":", "", -1)
-
-	cmd := fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_dst=%s,priority=20,actions=normal", bridgeName, primary, mac)
-	_, err := common.ExecuteShellCommand(cmd)
-	if err != nil {
-		log.Printf("[net] Adding SNAT rule failed with error %v", err)
-		return err
-	}
-
-	log.Printf("[net] Get ovs port for interface %v.", hostIf.Name)
-	cmd = fmt.Sprintf("ovs-vsctl get Interface %s ofport", hostIf.Name)
-	ofport, err := common.ExecuteShellCommand(cmd)
-	if err != nil {
-		log.Printf("[net] Get ofport failed with error %v", err)
-		return err
-	}
-
-	ofport = strings.Trim(ofport, "\n")
-
-	// Add DNAT rule to forward ARP replies to container interfaces.
-	log.Printf("[net] Adding DNAT rule for ingress ARP traffic on interface %v.", hostIf.Name)
-	cmd = fmt.Sprintf(`ovs-ofctl add-flow %s arp,arp_op=2,in_port=%s,actions='mod_dl_dst:ff:ff:ff:ff:ff:ff,
-		load:0x%s->NXM_NX_ARP_THA[],normal'`, bridgeName, ofport, macHex)
-	_, err = common.ExecuteShellCommand(cmd)
-	if err != nil {
-		log.Printf("[net] Adding DNAT rule failed with error %v", err)
-		return err
-	}
-
-	return nil
-}
-
-// DeleteBridgeRules deletes bridge rules for container traffic.
-func (nm *networkManager) deleteBridgeRules(extIf *externalInterface) {
-	ebtables.SetVepaMode(extIf.BridgeName, commonInterfacePrefix, virtualMacAddress, ebtables.Delete)
-	ebtables.SetDnatForArpReplies(extIf.Name, ebtables.Delete)
-	ebtables.SetArpReply(extIf.IPAddresses[0].IP, extIf.MacAddress, ebtables.Delete)
-	ebtables.SetSnatForInterface(extIf.Name, extIf.MacAddress, ebtables.Delete)
-}
-
-func (nm *networkManager) createOVSBridge(bridgeName string) error {
-	log.Printf("[net] Creating OVS Bridge %v", bridgeName)
-
-	ovsCreateCmd := fmt.Sprintf("ovs-vsctl add-br %s", bridgeName)
-	_, err := common.ExecuteShellCommand(ovsCreateCmd)
-	if err != nil {
-		log.Printf("[net] Error while creating OVS bridge %v", err)
-		return err
-	}
-
-	return nil
-}
-
-func (nm *networkManager) deleteOVSBridge(bridgeName string) error {
-	log.Printf("[net] Deleting OVS Bridge %v", bridgeName)
-
-	ovsCreateCmd := fmt.Sprintf("ovs-vsctl del-br %s", bridgeName)
-	_, err := common.ExecuteShellCommand(ovsCreateCmd)
-	if err != nil {
-		log.Printf("[net] Error while deleting OVS bridge %v", err)
-		return err
-	}
-
-	return nil
-}
-
-func setOVSMaster(hostIfName string, bridgeName string) error {
-	cmd := fmt.Sprintf("ovs-vsctl add-port %s %s", bridgeName, hostIfName)
-	_, err := common.ExecuteShellCommand(cmd)
-	if err != nil {
-		log.Printf("[net] Error while setting OVS as master to primary interface %v", err)
-		return err
-	}
-
-	return nil
-}
-
-func (nm *networkManager) createOVSNetwork(extIf *externalInterface, nwInfo *NetworkInfo) error {
-	var err error
-
-	log.Printf("[net] Connecting interface %v.", extIf.Name)
-	defer func() { log.Printf("[net] Connecting interface %v completed with err:%v.", extIf.Name, err) }()
-
-	// Check whether this interface is already connected.
-	if extIf.BridgeName != "" {
-		log.Printf("[net] Interface is already connected to bridge %v.", extIf.BridgeName)
-		return nil
-	}
-
-	// Find the external interface.
-	hostIf, err := net.InterfaceByName(extIf.Name)
-	if err != nil {
-		return err
-	}
-
-	// If a bridge name is not specified, generate one based on the external interface index.
-	bridgeName := nwInfo.BridgeName
-	if bridgeName == "" {
-		bridgeName = fmt.Sprintf("%s%d", bridgePrefix, hostIf.Index)
-	}
-
-	// Check if the bridge already exists.
-	bridge, err := net.InterfaceByName(bridgeName)
-	if err != nil {
-		// Create the bridge.
-		log.Printf("[net] Creating bridge %v.", bridgeName)
-
-		if err := nm.createOVSBridge(bridgeName); err != nil {
-			return err
-		}
-
-		// On failure, delete the bridge.
-		defer func() {
-			if err != nil {
-				nm.deleteOVSBridge(bridgeName)
-			}
-		}()
-
-		bridge, err = net.InterfaceByName(bridgeName)
-		if err != nil {
-			return err
-		}
-	} else {
-		// Use the existing bridge.
-		log.Printf("[net] Found existing bridge %v.", bridgeName)
-	}
-
-	// Save host IP configuration.
-	if err := nm.saveIPConfig(hostIf, extIf); err != nil {
-		log.Printf("[net] Failed to save IP configuration for interface %v: %v.", hostIf.Name, err)
-	}
-
-	// External interface down.
-	log.Printf("[net] Setting link %v state down.", hostIf.Name)
-	if err := netlink.SetLinkState(hostIf.Name, false); err != nil {
-		return err
-	}
-
-	// Connect the external interface to the bridge.
-	log.Printf("[net] Setting link %v master %v.", hostIf.Name, bridgeName)
-	if err := setOVSMaster(hostIf.Name, bridgeName); err != nil {
-		return err
-	}
-
-	// Add the bridge rules.
-	if err := nm.addOVSRules(extIf, hostIf, bridgeName); err != nil {
-		return err
-	}
-
-	// External interface up.
-	log.Printf("[net] Setting link %v state up.", hostIf.Name)
-	if err := netlink.SetLinkState(hostIf.Name, true); err != nil {
-		return err
-	}
-
-	// Bridge up.
-	log.Printf("[net] Setting link %v state up.", bridgeName)
-	if err := netlink.SetLinkState(bridgeName, true); err != nil {
-		return err
-	}
-
-	// Apply IP configuration to the bridge for host traffic.
-	if err := nm.applyIPConfig(extIf, bridge); err != nil {
-		log.Printf("[net] Failed to apply interface IP configuration: %v.", err)
-	}
-
-	extIf.BridgeName = bridgeName
-	log.Printf("[net] Connected interface %v to bridge %v.", extIf.Name, extIf.BridgeName)
-
-	return nil
-}
-
-// DisconnectExternalInterface disconnects a host interface from OVS bridge.
-func (nm *networkManager) disconnectOVSInterface(extIf *externalInterface) {
-	log.Printf("[net] Disconnecting interface %v.", extIf.Name)
-
-	// Disconnect external interface from its bridge.
-	cmd := fmt.Sprintf("ovs-vsctl del-port %s %s", extIf.BridgeName, extIf.Name)
-	_, err := common.ExecuteShellCommand(cmd)
-	if err != nil {
-		log.Printf("[net] Failed to disconnect interface %v from bridge, err:%v.", extIf.Name, err)
-	}
-
-	// Delete the bridge.
-	err = nm.deleteOVSBridge(extIf.BridgeName)
-	if err != nil {
-		log.Printf("[net] Failed to delete bridge %v, err:%v.", extIf.BridgeName, err)
-	}
-
-	extIf.BridgeName = ""
-
-	// Restore IP configuration.
-	hostIf, _ := net.InterfaceByName(extIf.Name)
-	err = nm.applyIPConfig(extIf, hostIf)
-	if err != nil {
-		log.Printf("[net] Failed to apply IP configuration: %v.", err)
-	}
-
-	extIf.IPAddresses = nil
-	extIf.Routes = nil
-
-	log.Printf("[net] Disconnected interface %v.", extIf.Name)
-}
-
 // ConnectExternalInterface connects the given host interface to a bridge.
 func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwInfo *NetworkInfo) error {
 	var err error
+	var networkClient NetworkClient
 
 	log.Printf("[net] Connecting interface %v.", extIf.Name)
 	defer func() { log.Printf("[net] Connecting interface %v completed with err:%v.", extIf.Name, err) }()
@@ -442,28 +189,27 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 		bridgeName = fmt.Sprintf("%s%d", bridgePrefix, hostIf.Index)
 	}
 
+	opt, _ := nwInfo.Options[genericData].(map[string]interface{})
+	if opt != nil && opt[vlanIDKey] != nil {
+		networkClient = NewOVSClient(bridgeName, extIf.Name)
+	} else {
+		networkClient = NewLinuxBridgeClient(bridgeName, extIf.Name, nwInfo.Mode)
+	}
+
 	// Check if the bridge already exists.
 	bridge, err := net.InterfaceByName(bridgeName)
 	if err != nil {
 		// Create the bridge.
-		log.Printf("[net] Creating bridge %v.", bridgeName)
 
-		link := netlink.BridgeLink{
-			LinkInfo: netlink.LinkInfo{
-				Type: netlink.LINK_TYPE_BRIDGE,
-				Name: bridgeName,
-			},
-		}
-
-		err = netlink.AddLink(&link)
-		if err != nil {
+		if err := networkClient.CreateBridge(); err != nil {
+			log.Printf("Error while creating bridge %+v", err)
 			return err
 		}
 
 		// On failure, delete the bridge.
 		defer func() {
 			if err != nil {
-				netlink.DeleteLink(bridgeName)
+				networkClient.DeleteBridge()
 			}
 		}()
 
@@ -482,12 +228,6 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 		log.Printf("[net] Failed to save IP configuration for interface %v: %v.", hostIf.Name, err)
 	}
 
-	// Add the bridge rules.
-	err = nm.addBridgeRules(extIf, hostIf, bridgeName, nwInfo.Mode)
-	if err != nil {
-		return err
-	}
-
 	// External interface down.
 	log.Printf("[net] Setting link %v state down.", hostIf.Name)
 	err = netlink.SetLinkState(hostIf.Name, false)
@@ -497,8 +237,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 
 	// Connect the external interface to the bridge.
 	log.Printf("[net] Setting link %v master %v.", hostIf.Name, bridgeName)
-	err = netlink.SetLinkMaster(hostIf.Name, bridgeName)
-	if err != nil {
+	if err := networkClient.SetBridgeMasterToHostInterface(); err != nil {
 		return err
 	}
 
@@ -509,10 +248,15 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 		return err
 	}
 
+	// Add the bridge rules.
+	err = networkClient.AddBridgeRules(extIf)
+	if err != nil {
+		return err
+	}
+
 	// External interface hairpin on.
 	log.Printf("[net] Setting link %v hairpin on.", hostIf.Name)
-	err = netlink.SetLinkHairpin(hostIf.Name, true)
-	if err != nil {
+	if err := networkClient.SetHairpinOnHostInterface(true); err != nil {
 		return err
 	}
 
@@ -538,29 +282,23 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 }
 
 // DisconnectExternalInterface disconnects a host interface from its bridge.
-func (nm *networkManager) disconnectExternalInterface(extIf *externalInterface) {
+func (nm *networkManager) disconnectExternalInterface(extIf *externalInterface, networkClient NetworkClient) {
 	log.Printf("[net] Disconnecting interface %v.", extIf.Name)
 
+	log.Printf("[net] Deleting bridge rules")
 	// Delete bridge rules set on the external interface.
-	nm.deleteBridgeRules(extIf)
+	networkClient.DeleteBridgeRules(extIf)
 
-	// Disconnect external interface from its bridge.
-	err := netlink.SetLinkMaster(extIf.Name, "")
-	if err != nil {
-		log.Printf("[net] Failed to disconnect interface %v from bridge, err:%v.", extIf.Name, err)
-	}
-
-	// Delete the bridge.
-	err = netlink.DeleteLink(extIf.BridgeName)
-	if err != nil {
-		log.Printf("[net] Failed to delete bridge %v, err:%v.", extIf.BridgeName, err)
-	}
+	log.Printf("[net] Deleting bridge")
+	// Delete Bridge
+	networkClient.DeleteBridge()
 
 	extIf.BridgeName = ""
+	log.Printf("Restoring ipconfig with primary interface %v", extIf.Name)
 
 	// Restore IP configuration.
 	hostIf, _ := net.InterfaceByName(extIf.Name)
-	err = nm.applyIPConfig(extIf, hostIf)
+	err := nm.applyIPConfig(extIf, hostIf)
 	if err != nil {
 		log.Printf("[net] Failed to apply IP configuration: %v.", err)
 	}
