@@ -1,9 +1,9 @@
 package network
 
 import (
-	"log"
 	"strings"
 
+	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/ovsrules"
 )
 
@@ -43,12 +43,12 @@ func (client *OVSNetworkClient) AddBridgeRules(extIf *externalInterface) error {
 		return err
 	}
 
-	log.Printf("[ovs] Adding ARP SNAT rule for egress traffic on interface %v", client.hostInterfaceName)
-	// Arp SNAT Rule
-	if err := ovsrules.AddArpSnatRule(client.bridgeName, mac, macHex, ofport); err != nil {
-		return err
-	}
-
+	/*	log.Printf("[ovs] Adding ARP SNAT rule for egress traffic on interface %v", client.hostInterfaceName)
+		// Arp SNAT Rule
+		if err := ovsrules.AddArpSnatRule(client.bridgeName, mac, macHex, ofport); err != nil {
+			return err
+		}
+	*/
 	log.Printf("[ovs] Adding DNAT rule for ingress ARP traffic on interface %v.", client.hostInterfaceName)
 	if err := ovsrules.AddArpDnatRule(client.bridgeName, ofport, macHex); err != nil {
 		return err

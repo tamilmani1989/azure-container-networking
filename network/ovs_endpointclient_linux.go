@@ -1,8 +1,7 @@
 package network
 
 import (
-	"log"
-
+	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/ovsrules"
 )
 
@@ -65,7 +64,7 @@ func (client *OVSEndpointClient) AddEndpointRules(epInfo *EndpointInfo) error {
 
 		// Add Arp Reply Rules
 		// Set Vlan id on arp request packet and forward it to table 1
-		if err := ovsrules.AddArpReplyRule(client.bridgeName, containerPort, ipAddr.IP, client.containerMac, client.vlanID); err != nil {
+		if err := ovsrules.AddFakeArpReply(client.bridgeName, ipAddr.IP); err != nil {
 			return err
 		}
 

@@ -114,7 +114,28 @@ func AddArpDnatRule(bridgeName string, port string, mac string) error {
 	return nil
 }
 
-func AddArpReplyRule(bridgeName string, port string, ip net.IP, mac string, vlanid int) error {
+func AddFakeArpReply(bridgeName string, ip net.IP) error {
+	// If arp fields matches, set arp reply rule for the request
+	mac := "12:34:56:78:9a:bc"
+	macAddrHex := strings.Replace(mac, ":", "", -1)
+	ipAddrInt := common.IpToInt(ip)
+
+	log.Printf("[ovs] Adding ARP reply rule for IP address %v ", ip.String())
+	cmd := fmt.Sprintf(`ovs-ofctl add-flow %s arp,arp_op=1,priority=20,actions='load:0x2->NXM_OF_ARP_OP[],
+			move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],mod_dl_src:%s,
+			move:NXM_NX_ARP_SHA[]->NXM_NX_ARP_THA[],move:NXM_OF_ARP_TPA[]->NXM_OF_ARP_SPA[],
+			load:0x%s->NXM_NX_ARP_SHA[],load:0x%x->NXM_OF_ARP_TPA[],IN_PORT'`,
+		bridgeName, mac, macAddrHex, ipAddrInt)
+	_, err := common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[ovs] Adding ARP reply rule failed with error %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func AddArpReplyRule(bridgeName string, port string, ip net.IP, mac string, vlanid int, mode string) error {
 	ipAddrInt := common.IpToInt(ip)
 	macAddrHex := strings.Replace(mac, ":", "", -1)
 

@@ -1,10 +1,10 @@
 package network
 
 import (
-	"log"
 	"net"
 
 	"github.com/Azure/azure-container-networking/ebtables"
+	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
 )
 
