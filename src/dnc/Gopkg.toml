@@ -26,8 +26,12 @@
 
 
 [[constraint]]
+  branch = "devaci"
+  name = "github.com/Azure/azure-container-networking"
+
+[[constraint]]
   name = "github.com/Azure/azure-sdk-for-go"
-  version = "14.6.0"
+  version = "15.0.0"
 
 [[constraint]]
   branch = "master"
@@ -40,10 +44,6 @@
 [[constraint]]
   name = "github.com/gorilla/mux"
   version = "1.6.1"
-
-[[constraint]]
-  name = "github.com/sharmasushant/azure-container-networking"
-  version = "0.8.0-beta"
 
 [prune]
   go-tests = true

@@ -1142,7 +1142,7 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 		PrimaryInterfaceIdentifier: ncGoalState.AssociatedInterfaceID,
 		IPConfiguration:            ipConfig,
 		AuthorizationToken:         ncGoalState.AccessToken,
-		VnetAddressSpace:           cnsCNetAddresses}
+		CnetAddressSpace:           cnsCNetAddresses}
 
 	json.NewEncoder(&body).Encode(info)
 	createOrUpdateNCURL := fmt.Sprintf(
@@ -1468,7 +1468,7 @@ func processNetworkContainerRequest(networkID, networkContainerKey string) (bool
 
 	case datamodel.Associate:
 		fallthrough
-		
+
 	case datamodel.RefreshAssociation:
 		if repoNCConfig.Status == datamodel.Failed {
 			return true, nil
