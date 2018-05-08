@@ -29,14 +29,15 @@ VFPlugin::GetMlxVFDriverDetails(
 {
     DWORD status = ERROR_SUCCESS;
     LPWSTR registryPath = NULL;
-    BOOL foundInstalledDriver = FALSE;
+    BOOL foundOemVersion = FALSE;
+    BOOL foundMlxVersion = FALSE;
 
     //
     // Check if Device is installed on the system. This includes the case where the VF device was previously
     // installed but currently is not present (disabled or if the VF offload is currently disabled from the host)
     //
     if (VFPlugin::IsDevicePresent(MLX_DEVICE_ID)) {
-       LOGINFOW(L"Device %s present\n", MLX_DEVICE_ID); 
+        LOGINFOW(L"Device %s present\n", MLX_DEVICE_ID); 
 	    //
 	    // Check if the device is installed on the system. As mentioned above, it may be present
 	    // but not installed
@@ -44,7 +45,7 @@ VFPlugin::GetMlxVFDriverDetails(
 
 	    status = VFPlugin::GetNicRegistryPath(MLX_DRIVER_DESCRIPTION_VALUE,
 	                                         &registryPath);
-
+        
 	    if (status == ERROR_SUCCESS) { 
            LOGINFOW(L"VFPlugin: Device %s registry path %s\n", MLX_DRIVER_DESCRIPTION_VALUE, registryPath);
             
@@ -56,8 +57,7 @@ VFPlugin::GetMlxVFDriverDetails(
             
             if (status == ERROR_SUCCESS)  {
                 LOGINFOW(L"VFPlugin: Device is installed with a driver version %s", InstalledVersion);
-                foundInstalledDriver = TRUE;
-                
+                foundOemVersion = TRUE;
             } else {
                 LOGINFOW(L"VFPlugin: Failed to get version for %s device error 0x%X\n", MLX_DRIVER_DESCRIPTION_VALUE, status);
             } 
@@ -65,27 +65,33 @@ VFPlugin::GetMlxVFDriverDetails(
 	        LOGINFOW(L"VFPlugin: Failed to get NIC registry path for driver %s error 0x%X\n",
 	                 MLX_DRIVER_DESCRIPTION_VALUE, status);
 	    }
-    }   
-    
-    if (!foundInstalledDriver) {
-         LOGINFOW(L"VFPlugin: Could not find the installed device with driver, checking if the driver package is installed\n");  
+    }
+
+    if (!foundOemVersion) {
+        LOGINFOW(L"VFPlugin: Could not find the installed device with driver, checking if the driver package is installed\n");  
 
         //
         // See if the driver package is installed by querying the OEM files in the INF directory
         //
 
-        foundInstalledDriver = FindDriverVersionFromNetmlx(InstalledVersion);
+        wchar_t netMlxInstalledVersion[MAX_PATH];
 
-        if(!foundInstalledDriver)
-        {
-            foundInstalledDriver = FindDriverVersionFromInf(InstalledVersion);  
+        foundOemVersion = FindDriverVersionFromInf(InstalledVersion);
+        foundMlxVersion = FindDriverVersionFromNetmlx(netMlxInstalledVersion);
+
+        if (foundOemVersion && foundMlxVersion) {
+            if (Version(netMlxInstalledVersion) > Version(InstalledVersion)) {
+                memcpy(InstalledVersion, netMlxInstalledVersion, InstalledVersionSize);
+            }
+        } else if (foundMlxVersion) {
+            memcpy(InstalledVersion, netMlxInstalledVersion, InstalledVersionSize);
         }
     }
 
     if (registryPath) {
         delete [] registryPath;
     }
-    return foundInstalledDriver;      
+    return foundOemVersion || foundMlxVersion;
 }
 
 BOOL
