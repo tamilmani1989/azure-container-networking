@@ -1,22 +1,18 @@
-# Aquarius - The VM Network Agent
-Aquarius is the VM Network Agent that helps manage lifecycle of first party network plugins. 
+# Aquarius
+Aquarius repository contains the following 
 
-## Kernel
-### Windows: Plugins within JobObjects
-### Linux:
+## 1. Azure VM Network Agent (NetAgent)
+### Description
+### Deployment/Updates
 
-## Package Manager
+## 2. Aquarius Plugin
+### Description
+### Deployment/Updates
 
-## Shared
+## 3. Host-NetAgent
+### Description
+### Deployment/Updates
 
-## Aquarius
-### Service for Windows
-### Daemon for Linux
-
-## Deployment
-### Deployment Engine
-#### GA Extension via Storage Blob
-#### Rollout to Nodes (self managed deployment)
-
-## Work in partner components for self managed deployment
-
+## 4. DNC - Delegated Network Controller
+### Description
+### Deployment/Updates

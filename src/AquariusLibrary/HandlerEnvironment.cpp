@@ -31,13 +31,13 @@ int GetLogLocationFromRegistry(wchar_t *logDirPath, DWORD bufferSize)
     wchar_t szMessage[MAX_PATH];
 
     StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-        L"opening IAAS key:%s\\%s", HKEY_LOCAL_MACHINE, IAAS_KEY);
+        L"opening IAAS key:%s", IAAS_KEY);
     AquariusUtilities::WriteEventLogEntry(szMessage);
     returnKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, IAAS_KEY);
     if (!returnKey)
     {
         StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
-            L"opening PAAS key:%s\\%s", HKEY_LOCAL_MACHINE, PAAS_KEY);
+            L"opening PAAS key:%s", PAAS_KEY);
         AquariusUtilities::WriteEventLogEntry(szMessage);
         returnKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, PAAS_KEY);
     }
