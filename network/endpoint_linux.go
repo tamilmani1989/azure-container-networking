@@ -202,10 +202,6 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	return ep, nil
 }
 
-func (nw *network) deleteOVSRules(ep *endpoint) {
-
-}
-
 // deleteEndpointImpl deletes an existing endpoint from the network.
 func (nw *network) deleteEndpointImpl(ep *endpoint) error {
 	var epClient EndpointClient
@@ -229,8 +225,4 @@ func (nw *network) deleteEndpointImpl(ep *endpoint) error {
 	}
 
 	return nil
-}
-
-// getInfoImpl returns information about the endpoint.
-func (ep *endpoint) getInfoImpl(epInfo *EndpointInfo) {
 }
