@@ -94,14 +94,8 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 		epClient = NewLinuxBridgeEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, hostIfName, nw.extIf.MacAddress, containerIf.HardwareAddr, nw.Mode)
 	}
 
-	epClient.AddEndpointRules(epInfo)
-	//
-	// Container network interface setup.
-	//
-
-	// Query container network interface info.
-
 	// Setup rules for IP addresses on the container interface.
+	epClient.AddEndpointRules(epInfo)
 
 	// If a network namespace for the container interface is specified...
 	if epInfo.NetNsPath != "" {
@@ -225,4 +219,8 @@ func (nw *network) deleteEndpointImpl(ep *endpoint) error {
 	}
 
 	return nil
+}
+
+// getInfoImpl returns information about the endpoint.
+func (ep *endpoint) getInfoImpl(epInfo *EndpointInfo) {
 }

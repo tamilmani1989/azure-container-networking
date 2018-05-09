@@ -1,12 +1,12 @@
-package ovsrules
+package ovsctl
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"strings"
 
 	"github.com/Azure/azure-container-networking/common"
+	"github.com/Azure/azure-container-networking/log"
 )
 
 func CreateOVSBridge(bridgeName string) error {

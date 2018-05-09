@@ -4,6 +4,7 @@
 package network
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 
@@ -158,22 +159,29 @@ func convertToCniResult(networkConfig *cns.GetNetworkContainerResponse) *cniType
 	return result
 }
 
-func getContainerNetworkConfiguration(namespace string, podName string) (*cniTypesCurr.Result, int, error) {
+func getContainerNetworkConfiguration(namespace string, podName string) (*cniTypesCurr.Result, int, net.IPNet, error) {
 	cnsClient, err := cnsclient.NewCnsClient("")
 	if err != nil {
 		log.Printf("Initializing CNS client error %v", err)
-		return nil, 0, err
+		return nil, 0, net.IPNet{}, err
 	}
 
-	networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
+	networkConfig, err := cnsClient.GetNetworkConfiguration("testpod", "testpodnamespace")
 	if err != nil {
 		log.Printf("GetNetworkConfiguration failed with %v", err)
-		return nil, 0, err
+		return nil, 0, net.IPNet{}, err
 	}
 
 	log.Printf("Network config received from cns %v", networkConfig)
 
-	return convertToCniResult(networkConfig), networkConfig.MultiTenancyInfo.ID, nil
+	subnetPrefix := common.GetIpNet(networkConfig.PrimaryInterfaceIdentifier)
+	if subnetPrefix == nil {
+		errBuf := fmt.Sprintf("Interface not found for this ip %v", networkConfig.PrimaryInterfaceIdentifier)
+		log.Printf(errBuf)
+		return nil, 0, net.IPNet{}, fmt.Errorf(errBuf)
+	}
+
+	return convertToCniResult(networkConfig), networkConfig.MultiTenancyInfo.ID, *subnetPrefix, nil
 }
 
 //
@@ -210,10 +218,12 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		log.Printf("Argsmap %v", argsMap)
 	}
 
-	result, vlanid, err = getContainerNetworkConfiguration(argsMap[namespaceKey].(string), argsMap[podNameKey].(string))
+	result, vlanid, subnetPrefix, err := getContainerNetworkConfiguration(argsMap[namespaceKey].(string), argsMap[podNameKey].(string))
 	if err != nil {
-		log.Printf("SetContainerNetworkConfiguration failed with %v", err)
+		log.Printf("getContainerNetworkConfiguration failed with %v", err)
 	}
+
+	log.Printf("subnetprefix :%v", subnetPrefix.IP.String())
 
 	epInfo = &network.EndpointInfo{
 		Id:          endpointId,
@@ -240,11 +250,12 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 				err = plugin.Errorf("Failed to allocate pool: %v", err)
 				return err
 			}
+
+			// Derive the subnet prefix from allocated IP address.
+			subnetPrefix = result.IPs[0].Address
 		}
 
-		// Derive the subnet prefix from allocated IP address.
 		ipconfig := result.IPs[0]
-		subnetPrefix := ipconfig.Address
 		gateway := ipconfig.Gateway
 
 		// On failure, call into IPAM plugin to release the address and address pool.
