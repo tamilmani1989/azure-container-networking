@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{5CC4AAD8-1069-4580-A7B2-5C03F84FA17B}</ProjectGuid>
+    <TargetName>NetworkContainerLibrary</TargetName>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories);
+        $(PkgMicrosoft_WindowsAzure_EngSys_Internal_rd_fabric_stable_fc_Redist)\content\redist;
+        $(PkgMicrosoft_WindowsAzure_EngSys_Internal_longhorn_rd_os142_OS_redist)\content\redist;
+        $(PUBLIC_SDK)\Include\10.0.10586.0\shared;
+        $(SrcRoot)\Logging;
+        $(SrcRoot)\ServiceTunnelLibrary;
+      </AdditionalIncludeDirectories>
+      <!-- Override default from native_user_compile for compat with RdCommon.lib -->
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="LoopbackAdapter.h" />
+    <ClInclude Include="NetworkContainer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="LoopBackAdapter.cpp" />
+    <ClCompile Include="NetworkContainer.cpp" />
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+  <ItemGroup>
+    <ProjectReference Include="$(SRCROOT)\ServiceTunnelLibrary\ServiceTunnelLibrary.vcxproj">
+      <Project>{7DB0C9A4-CADC-4E53-ADF3-1F6887454249}</Project>
+    </ProjectReference>
+  </ItemGroup>
+</Project>

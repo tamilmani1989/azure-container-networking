@@ -414,9 +414,9 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	}
 
 	error = AppendStrings(&loopbackInfPath,
-		2,
-		windowsDirectory,
-		NET_LOOPBACK_INF_RELATIVE_FILE_PATH);
+						  2,
+		                  windowsDirectory,
+						  NET_LOOPBACK_INF_RELATIVE_FILE_PATH);
 	if (error != ERROR_SUCCESS)
 	{
 		LOGERRW(L"CreateLoopbackAdapter AppendStrings failed errorcode %d", error);
@@ -743,6 +743,7 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		LOGINFOW(L"Retrieved InterfaceInstanceGuid:[%s] Index:[%d]", classGuidString, ifTable->Table[index].InterfaceIndex);
 		if (IsEqualGUID(ifTable->Table[index].InterfaceGuid, InstanceGuid))
 		{
+			alias = ifTable->Table[index].Alias;
 			LOGINFOW(L"Matched InterfaceInstanceGuid:%s, index:%d", classGuidString, ifTable->Table[index].InterfaceIndex);
 			STR_FREE(classGuidString);
 			loopbackInterfaceFound = TRUE;

@@ -271,7 +271,7 @@ wmain(
 
 Description:
 
-    Enrty point.
+    Entry point.
 
 Arguments:
 

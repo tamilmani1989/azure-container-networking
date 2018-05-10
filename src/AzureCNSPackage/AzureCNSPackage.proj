@@ -1,0 +1,7 @@
+﻿<Project ToolsVersion="14.0" DefaultTarget="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
+  <Target Name="Build">
+    <Copy SourceFiles="$(CNS)\content\azure-cns.exe" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer" />     
+  </Target>
+</Project>

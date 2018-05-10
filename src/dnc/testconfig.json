@@ -1,0 +1,16 @@
+{  
+    "DataStoreSettings":{  
+        "TestPersistenceStoreInfo":{  
+            "Test":"demostore"
+        }
+    },
+    "ServerSettings":{  
+        "IPAddress":"",
+        "Port":"9999"
+    },
+    "MasterElectionSettings":{  
+        "TestDataElectionSettings":{
+            "Test":"demoelection"
+        }
+    }
+}

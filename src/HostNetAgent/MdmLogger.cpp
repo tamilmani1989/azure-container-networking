@@ -34,7 +34,8 @@ LPCSTR PER_CONTAINER_MDM_GUEST_METRICS[] = {
 
 LPCSTR PER_CONTAINER_MDM_CNI_METRICS[] = {
     MDM_METRIC_CNI_RUNNING_STR,
-    MDM_METRIC_CNI_ERROR_STR
+    MDM_METRIC_CNI_ERROR_STR,
+    MDM_METRIC_CNI_SUCCEEDED_STR
 };
 
 DWORD
@@ -752,6 +753,26 @@ Return Value:
             LOGERRW(L"Uploading CNI metrics to mdm failed with errorcode %d", hr);
         }
     }
+
+    if (CNIReport.CniSucceeded != 0)
+    {
+        hr = LogPerContainerCNIMetricToMDM(containerIdAnsi,
+            nameAnsi,
+            versionAnsi,
+            orchestratorNameAnsi,
+            orchestratorVersionAnsi,
+            osTypeAnsi,
+            osVersionAnsi,
+            kernelVersionAnsi,
+            MDM_METRIC_CNI_SUCCEEDED_STR,
+            1);
+
+        if (hr != ERROR_SUCCESS)
+        {
+            LOGERRW(L"Uploading CNI metrics to mdm failed with errorcode %d", hr);
+        }
+    }
+    
     if (!CNIReport.ErrorMessage.empty())
     {
         hr = LogPerContainerCNIMetricToMDM(containerIdAnsi,

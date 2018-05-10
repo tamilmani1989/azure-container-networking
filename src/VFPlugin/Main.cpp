@@ -272,6 +272,8 @@ void wmain(int argc, wchar_t *argv[])
     healthReport.report.DebugMessage.assign(L"VFPlugin Started");
     healthReport.SendHealthStatusToHostAgent();
     healthReport.ResetHealthObject();
+
+    nmAgentReport.OSFamily.assign(L"Windows");
 	
 	if (unInstallFlag)
     {
@@ -305,6 +307,7 @@ void wmain(int argc, wchar_t *argv[])
 	{
 		LOGINFOW(L"Windows version is %s.", versionInfo);
 		healthReport.report.GuestOSVersion.assign(versionInfo);
+        nmAgentReport.OSVersion.assign(versionInfo);
 	}
 
     if (cleanup == true)
@@ -339,7 +342,7 @@ void wmain(int argc, wchar_t *argv[])
                 LOGWARNW(L"VFDriver is not installed");
             }
 
-            LOGINFOW(L"OS version info %s nonfunctioning devs %d isinstalled %d totaldevs %d nonfunctioning %d",
+            LOGINFOW(L"OS version %s nonfunctioning devs %d isinstalled %d totaldevs %d nonfunctioning %d",
                 healthReport.report.GuestOSVersion.c_str(), nmAgentReport.NumNonFunctioningDevices, 
                 nmAgentReport.IsInstalled, totalDevices, nmAgentReport.NumNonFunctioningDevices);
 

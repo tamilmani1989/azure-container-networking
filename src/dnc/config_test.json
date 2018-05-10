@@ -1,0 +1,32 @@
+{  
+   "DataStoreSettings":{  
+      "TestPersistenceStoreInfo":{  
+         "Test":"TestStore"
+      }
+   },
+   "ServerSettings":{  
+      "IPAddress":"127.0.0.1",
+      "Port":"9000"
+   },
+   "MasterElectionSettings":{  
+       "TestDataElectionSettings":{
+        "Test":"TestStore"
+       }
+   },
+   "HostAgentSettings":{
+       "WireServerIP":"127.0.0.1:9001", 
+       "ConnectionStrings":{           
+            "JoinNetworkURLFmt": "http://%s/joinedVirtualNetworks/%s/api-version/1",
+            "GetNetworkConfigurationURLFmt":"http://%s/joinedVirtualNetworks/%s/api-version/1",
+            "PutNetworkContainerURLFmt":"http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
+            "DeleteNetworkContainerURLFmt":"http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
+            "GetSystemTagDefinitionURLFmt": "http://%s/systemTags/%s/ipVersion/%s/api-version/1"
+        }
+    },
+    "CNSSettings":{
+        "ConnectionStrings" :{
+            "CreateOrUpdateNetworkContainerURLFmt" : "http://%s:10090/network/createorupdatenetworkcontainer",
+            "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer"   
+        }
+    }
+}

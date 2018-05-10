@@ -27,7 +27,7 @@
 
 void SetupEventLogging()
 {
-    HKEY configKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, 
+    HKEY configKey = RegistryOps::CreateOrOpenRegistryKey(HKEY_LOCAL_MACHINE, 
         L"SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\AquariusSvc");
 
     if (configKey == nullptr)
@@ -105,7 +105,7 @@ int wmain(int argc, wchar_t *argv[])
 
         if (_wcsicmp(L"install", argv[1] + 1) == 0)
         {
-            HKEY configKey = RegistryOps::OpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
+            HKEY configKey = RegistryOps::CreateOrOpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
             if (configKey == nullptr)
             {
                 AquariusUtilities::WriteEventLogEntry(L"Unable to create config key for Aquarius..");

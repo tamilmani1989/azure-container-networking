@@ -27,6 +27,9 @@ Tamilmani Manoharan (tamanoha) 26-Sep-2017
 using namespace std;
 
 #define  ENV_JSON_FILE L"..\\HandlerEnvironment.json"
+#define IAAS_KEY L"SOFTWARE\\Microsoft\\NetAgent"
+#define PAAS_KEY L"SOFTWARE\\Microsoft\\GuestAgent"
+#define LOGDIR_KEY L"GuestAgentLogDirectory"
 
 class HandlerEnvironment
 {

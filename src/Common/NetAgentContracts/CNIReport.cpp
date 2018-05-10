@@ -70,6 +70,7 @@ Return Value:
 {
     PluginReport::InitializePluginReportFieldIdMap();
     CNIReportFieldIdMap[STARTFLAG_STR] = CNIReportKey::StartFlag;
+    CNIReportFieldIdMap[CNI_SUCCEEDED_STR] = CNIReportKey::CniSucceeded;
     CNIReportFieldIdMap[VNET_ADDRESS_SPACE_STR] = CNIReportKey::VnetAddressSpace;
     CNIReportFieldIdMap[INTERFACE_DETAILS_STR] = CNIReportKey::InterfaceDetails;
     CNIReportFieldIdMap[INTERFACE_TYPE_STR] = CNIReportKey::InterfaceType;
@@ -175,7 +176,11 @@ Return Value:
         case CNIReportKey::StartFlag:
             StartFlag = JsonValue.as_bool();
             break;
-
+        
+        case CNIReportKey::CniSucceeded:
+            CniSucceeded = JsonValue.as_bool();
+            break;
+        
         case CNIReportKey::VnetAddressSpace:
         {
             break;
@@ -252,6 +257,7 @@ Return Value:
 --*/
 {
     LOGINFOW(L"StartFlag %d", StartFlag);
+    LOGINFOW(L"CniSucceeded %d", CniSucceeded);
 
     PluginReport::PrintPluginReport();
     

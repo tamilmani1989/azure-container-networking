@@ -54,6 +54,7 @@ Author:
 #define MDM_METRIC_GUEST_VF_IN_ERROR_STR                        "VFInError"
 #define MDM_METRIC_GUEST_DRIVER_INSTALL_ERROR_CODE_STR          "DriverInstallErrorCode"
 #define MDM_METRIC_CNI_RUNNING_STR                              "CNIRunning"
+#define MDM_METRIC_CNI_SUCCEEDED_STR                            "CNISucceeded"
 #define MDM_METRIC_CNI_ERROR_STR                                "CNIError"
 
 #define MAX_STR_LEN (size_t) ((INT_MAX/2) -1)

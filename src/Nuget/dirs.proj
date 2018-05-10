@@ -1,12 +1,13 @@
 <Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <Import Project="$(EnvironmentConfig)" />
     <ItemGroup>
+        <ProjectReference Include="AzureCNSPackage\AzureCNSPackage.nuproj" />
         <ProjectReference Include="NetworkClientLibrary\NetworkClientLibrary.nuproj" />
-         <ProjectReference Include="NetAgentPackage\NetAgentPackage.nuproj" /> 
+        <ProjectReference Include="NetAgentPackage\NetAgentPackage.nuproj" /> 
     </ItemGroup>
     <Import Project="$(MsBuildBinPath)\Microsoft.Common.Targets" />
     <PropertyGroup>
         <BuildDependsOn>ResolveReferences</BuildDependsOn>
     </PropertyGroup>
     <Target Name="VerifyAlteredTargetsUsed" />
-</Project>
+  </Project>

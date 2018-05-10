@@ -141,6 +141,11 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.CNIReportTests
         private static readonly string StartFlag = "StartFlag";
 
         /// <summary>
+        /// Check how many VMs succeeded in running this plugin.
+        /// </summary>
+        private static readonly string CniSucceeded = "CniSucceeded";
+
+        /// <summary>
         /// Interface Details Object.
         /// </summary>
         private static readonly string InterfaceDetails = "InterfaceDetails";
@@ -298,6 +303,7 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.CNIReportTests
                 new JProperty(Context, "AzureCNI"),
                 new JProperty(SubContext, string.Empty),
                 new JProperty(StartFlag, true),
+                new JProperty(CniSucceeded, true),
                 new JProperty(OrchestratorDetails, orchestratorDetailsValue),
                 new JProperty(OSDetails, operatingSystemDetailsValue),
                 new JProperty(SystemDetails, systemDetailsValue),

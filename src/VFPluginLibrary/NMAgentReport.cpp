@@ -41,11 +41,11 @@ Return Value:
 
 **/
 {
-	VFPluginUtilities::GetHostNetAgentURL(nmAgentUrl, sizeof(nmAgentUrl), HOSTAGENT_PATH);
+    VFPluginUtilities::GetHostNetAgentURL(nmAgentUrl, sizeof(nmAgentUrl), HOSTAGENT_PATH);
 }
 
 int NMAgentReport::SendStatusToNMAgent(
-	wchar_t *statusInfo
+    wchar_t *statusInfo
 )
 /**
 Routine description:
@@ -60,44 +60,44 @@ Return Value:
 
 **/
 {
-	http_client client(nmAgentUrl);
-	http_request requester;
+    http_client client(nmAgentUrl);
+    http_request requester;
 
-	requester.set_method(methods::POST);
-	requester.headers().set_content_type(U("text/xml;charset=utf-8"));
+    requester.set_method(methods::POST);
+    requester.headers().set_content_type(U("text/xml;charset=utf-8"));
 
-	json::value postData = web::json::value::string(statusInfo);
-	LOGINFOW(L"Going to send in string %s", postData.as_string().c_str());
+    json::value postData = web::json::value::string(statusInfo);
+    LOGINFOW(L"Going to send in string %s", postData.as_string().c_str());
 
-	requester.set_body(postData.as_string().c_str());
+    requester.set_body(postData.as_string().c_str());
 
-	pplx::task<void> requestTask = client.request(requester).then([](http_response response)
-	{
-		if (response.status_code() == status_codes::OK)
-		{
-			LOGINFOW(L"NmAgent Server Status sent success");
-		}
-		else
-		{
-			LOGERRW(L"Error:: NmAgent Server HTTP post status code %d", response.status_code());
-		}
-	});
+    pplx::task<void> requestTask = client.request(requester).then([](http_response response)
+    {
+        if (response.status_code() == status_codes::OK)
+        {
+            LOGINFOW(L"NmAgent Server Status sent success");
+        }
+        else
+        {
+            LOGERRW(L"Error:: NmAgent Server HTTP post status code %d", response.status_code());
+        }
+    });
 
-	try
-	{
-		requestTask.wait();
-	}
-	catch (const std::exception &e)
-	{
-		LOGINFO("NmAgent Server Error exception:%s\n", e.what());
-		status = 1;
-	}
+    try
+    {
+        requestTask.wait();
+    }
+    catch (const std::exception &e)
+    {
+        LOGINFO("NmAgent Server Error exception:%s\n", e.what());
+        status = 1;
+    }
 
-	return status;
+    return status;
 }
 
 HRESULT NMAgentReport::RetrieveStatusInfoAsXMLStr(
-	BSTR *statusInfo
+    BSTR *statusInfo
 )
 /**
 Routine description:
@@ -116,63 +116,70 @@ returns S_OK if succeed else error.
 
 **/
 {
-	HRESULT hr = S_OK;
-	*statusInfo = NULL;
-	XmlWriterHelper xmlWriter;
-	IXMLDOMElement *pRoot = NULL;
-	IXMLDOMElement *osNode = NULL;
-	IXMLDOMElement *mlxVersionNode = NULL;
-	IXMLDOMElement *devStatusNode = NULL;
+    HRESULT hr = S_OK;
+    *statusInfo = NULL;
+    XmlWriterHelper xmlWriter;
+    IXMLDOMElement *pRoot = NULL;
+    IXMLDOMElement *osNode = NULL;
+    IXMLDOMElement *osVersionNode = NULL;
+    IXMLDOMElement *mlxVersionNode = NULL;
+    IXMLDOMElement *devStatusNode = NULL;
 
-	wchar_t numNonFunctioningInStr[MAX_PATH];
+    wchar_t numNonFunctioningInStr[MAX_PATH];
 
-	xmlWriter.Initialize();
+    xmlWriter.Initialize();
 
-	CHK_HR(xmlWriter.CreateAndAddPINode(L"xml", L"version='1.0'"));
-	CHK_HR(xmlWriter.CreateElement(L"ContainerIOVInfo", &pRoot));
+    CHK_HR(xmlWriter.CreateAndAddPINode(L"xml", L"version='1.0'"));
+    CHK_HR(xmlWriter.CreateElement(L"ContainerIOVInfo", &pRoot));
 
-	CHK_HR(xmlWriter.CreateElement(L"key", &osNode));
-	CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Name", L"ContainerOS", osNode));
-	CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", OSFamily, osNode));
+    CHK_HR(xmlWriter.CreateElement(L"key", &osNode));
+    CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Name", L"ContainerOS", osNode));
+    CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", OSFamily.c_str(), osNode));
 
-	CHK_HR(xmlWriter.CreateElement(L"key", &mlxVersionNode));
-	CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Name", L"MlxVFNicDriverVersion", mlxVersionNode));
+    CHK_HR(xmlWriter.CreateElement(L"key", &mlxVersionNode));
+    CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Name", L"MlxVFNicDriverVersion", mlxVersionNode));
 
-	if (IsInstalled)
-	{
-		CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", DriverVersion, mlxVersionNode));
-	}
-	else
-	{
-		CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", L"", mlxVersionNode));
-	}
+    if (IsInstalled)
+    {
+        CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", DriverVersion, mlxVersionNode));
+    }
+    else
+    {
+        CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", L"", mlxVersionNode));
+    }
 
-	if (swprintf_s(numNonFunctioningInStr, MAX_PATH, L"%d", NumNonFunctioningDevices) < 0)
-	{
-		LOGERRW(L"Error in swprintf_s to convert num non fn devices to str :%d", NumNonFunctioningDevices);
-		hr = E_FAIL;
-		goto CleanUp;
-	}
+    if (swprintf_s(numNonFunctioningInStr, MAX_PATH, L"%d", NumNonFunctioningDevices) < 0)
+    {
+        LOGERRW(L"Error in swprintf_s to convert num non fn devices to str :%d", NumNonFunctioningDevices);
+        hr = E_FAIL;
+        goto CleanUp;
+    }
 
-	CHK_HR(xmlWriter.CreateElement(L"key", &devStatusNode));
-	CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Name", L"MlxVFNumNonFunctioningDevices", devStatusNode));
-	CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", numNonFunctioningInStr, devStatusNode));
+    CHK_HR(xmlWriter.CreateElement(L"key", &devStatusNode));
+    CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Name", L"MlxVFNumNonFunctioningDevices", devStatusNode));
+    CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", numNonFunctioningInStr, devStatusNode));
 
-	CHK_HR(xmlWriter.AppendChildToParent(osNode, pRoot));
-	CHK_HR(xmlWriter.AppendChildToParent(mlxVersionNode, pRoot));
-	CHK_HR(xmlWriter.AppendChildToParent(devStatusNode, pRoot));
-	CHK_HR(xmlWriter.AppendChildToParent(pRoot, NULL));
+    CHK_HR(xmlWriter.CreateElement(L"key", &osVersionNode));
+    CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Name", L"ContainerOSVersion", osVersionNode));
+    CHK_HR(xmlWriter.CreateAndAddAttributeNode(L"Value", OSVersion.c_str(), osVersionNode));
 
-	CHK_HR(xmlWriter.GetXMLInString(statusInfo));
+    CHK_HR(xmlWriter.AppendChildToParent(osNode, pRoot));
+    CHK_HR(xmlWriter.AppendChildToParent(mlxVersionNode, pRoot));
+    CHK_HR(xmlWriter.AppendChildToParent(devStatusNode, pRoot));
+    CHK_HR(xmlWriter.AppendChildToParent(osVersionNode, pRoot));
+    CHK_HR(xmlWriter.AppendChildToParent(pRoot, NULL));
 
-	LOGINFOW(L"Xml string %s", *statusInfo);
+    CHK_HR(xmlWriter.GetXMLInString(statusInfo));
+
+    LOGINFOW(L"Xml string %s", *statusInfo);
 
 CleanUp:
 
-	xmlWriter.UnInitialize();
-	SAFE_RELEASE(osNode);
-	SAFE_RELEASE(mlxVersionNode);
-	SAFE_RELEASE(devStatusNode);
-	SAFE_RELEASE(pRoot);
-	return hr;
+    xmlWriter.UnInitialize();
+    SAFE_RELEASE(osNode);
+    SAFE_RELEASE(mlxVersionNode);
+    SAFE_RELEASE(devStatusNode);
+    SAFE_RELEASE(osVersionNode);
+    SAFE_RELEASE(pRoot);
+    return hr;
 }

@@ -1,0 +1,37 @@
+package api
+
+import (
+	"fmt"
+)
+
+// SubnetRequest - Struct to hold subnet request.
+type SubnetRequest struct {
+	SubnetName          string `json:"SubnetName"` // Optional.
+	AuthenticationToken string `json:"authenticationtoken"`
+}
+
+func (r *SubnetRequest) String() string {
+	return fmt.Sprintf(
+		"SubnetRequest:[SubnetName:%s, AuthenticationToken:%s]",
+		r.SubnetName, r.AuthenticationToken)
+}
+
+// Validate - Validates the subnet request
+func (r *SubnetRequest) Validate() *JsonErr {
+	if len(r.AuthenticationToken) == 0 {
+		return &JsonErr{Code: InvalidAuthenticationToken, Text: "AuthenticationToken cannot be empty"}
+	}
+
+	return nil
+}
+
+// SubnetRequests - Struct to hold subnet request.
+type SubnetRequests []SubnetRequest
+
+func (r SubnetRequests) String() string {
+	subnetRequestsString := "SubnetRequests:"
+	for _, subnetRequest := range r {
+		subnetRequestsString += subnetRequest.String()
+	}
+	return subnetRequestsString
+}

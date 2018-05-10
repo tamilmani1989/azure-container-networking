@@ -48,7 +48,6 @@ Return Value:
     get_aquariusSvc_mutex.lock();
     static AquariusService *service=nullptr;
         
-
     if(!service)
     {
         if(AquariusUtilities::GetServiceName(svcName, sizeof(svcName)) != 0)
@@ -384,15 +383,14 @@ Return Value:
     // take initialization lock
     wchar_t packageStoreLocation[MAX_PATH];
     wchar_t exeLocation[MAX_PATH];
-    DWORD size = 1024;
-    
+
     if(aqPackageManager == nullptr)
     {
         aqPackageManager = new AqPackageManager();
         AquariusUtilities::allocator++;
     }
     AquariusUtilities::SetRelativePathFromExe(L"\\Plugins");
-    aqPackageManager->GetPackageStoreLocation(packageStoreLocation, &size);
+    aqPackageManager->GetPackageStoreLocation(packageStoreLocation);
 
     if (aquariusKernel == nullptr)
     {		
