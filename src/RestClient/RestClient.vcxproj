@@ -14,9 +14,9 @@
       <PreprocessorDefinitions>%(PreProcessorDefinitions)</PreprocessorDefinitions>    
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-	      $(cpprestsdk)\build\native\include;
+        $(cpprestsdk)\build\native\include;
         ..\AquariusLibrary;
-		<!--$(INTERNAL_SDK)\inc; -->
+        <!--$(INTERNAL_SDK)\inc; -->
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -31,8 +31,8 @@
         $(WindowsSdk64LibPath)\ole32.lib;
         $(WindowsSdk64LibPath)\ws2_32.lib;
         $(WindowsSdk64LibPath)\oleaut32.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;		
-	    $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
+        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -41,7 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RestClient.h" />
-    <ClInclude Include="AquariusService.h" />    
+    <ClInclude Include="AquariusService.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Logging\logging.vcxproj">
@@ -50,6 +50,17 @@
     <ProjectReference Include="$(SRCROOT)\AquariusLibrary\AquariusLibrary.vcxproj">
       <Project>{8264c27c-90a7-4d86-a714-a9759d9afaf4}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\Logging\Logging.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\Kernel\Kernel.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\PackMan\AqPackageManager.h">
+      <Visible>false</Visible>
+    </QCustomInput>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
