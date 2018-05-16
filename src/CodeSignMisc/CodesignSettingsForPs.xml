@@ -30,6 +30,7 @@
 		<Files>
 		  <File>%BinariesBuildTypeArchDirectory%\NetworkClientLibrary\HNSOverlayPlugin\InstallPlugin.ps1</File>
       <File>%SRCROOT%\GAExtension\AzureExtensionPackage\UploadExtensionImage.ps1</File>
+      <File>%BinariesBuildTypeArchDirectory%\AzureDNCPackage\config.json</File>
 		</Files>
 	</FileData>
 
