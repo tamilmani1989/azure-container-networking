@@ -4,6 +4,7 @@ import (
 	"dnc/api"
 	"dnc/datamodel"
 	"dnc/nmagentcontracts"
+	"dnc/utils"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -13,13 +14,12 @@ import (
 )
 
 var tagSubnetMap = make(map[string]map[string]string)
-
 var processedNetworks = make(map[string]bool)
 var tagsToProcess = make(map[string]datamodel.TagDefinition)
 var tagArtifactsLock sync.RWMutex
 
 func monitorNetworkUpdates() {
-	monitorTimerChannel := time.NewTicker(time.Millisecond * 1000).C
+	monitorTimerChannel := time.NewTicker(time.Minute * 1).C
 	for {
 		select {
 		case <-monitorTimerChannel:
@@ -29,17 +29,17 @@ func monitorNetworkUpdates() {
 			break
 		case <-networkMonitorStartProcessing:
 			refreshNetworks()
-			logger.Log("Received signal to process pending work\n")
+			logger.Debugf("Received signal to process pending work\n")
 			break
 		case <-networkMonitorStopProcessing:
-			logger.Log("Received signal to exit\n")
+			logger.Debugf("Received signal to exit\n")
 			break
 		}
 	}
 }
 
 func monitorTagUpdates() {
-	monitorTimerChannel := time.NewTicker(time.Millisecond * 1000).C
+	monitorTimerChannel := time.NewTicker(time.Minute * 1).C
 	for {
 		select {
 		case <-monitorTimerChannel:
@@ -49,10 +49,10 @@ func monitorTagUpdates() {
 			break
 		case <-tagMonitorStartProcessing:
 			refreshTagDefintions()
-			logger.Log("Received signal to process tag updates\n")
+			logger.Debugf("Received signal to process tag updates\n")
 			break
 		case <-tagMonitorStopProcessing:
-			logger.Log("Received signal to exit\n")
+			logger.Debugf("Received signal to exit\n")
 			break
 		}
 	}
@@ -61,7 +61,7 @@ func monitorTagUpdates() {
 func refreshNetworks() {
 	networksMap, err := datamodel.GetAllNetworkIDs()
 	if err != nil {
-		logger.Log("Failed to retrieve networks from repository due to error %s", err.Error())
+		logger.Errorf("Failed to retrieve networks from repository due to error %s", err.Error())
 	}
 	for networkKey := range networksMap {
 		refreshNetworkConfiguration(networkKey)
@@ -86,7 +86,7 @@ func PopulateTagsToProcess() *api.JsonErr {
 	}()
 	repoTagsDefinitionMap, err := datamodel.GetAllTagDefinitions()
 	if err != nil {
-		logger.Log("Retrieval of tag defintitions failed with error:%s.\n",
+		logger.Errorf("Retrieval of tag defintitions failed with error:%s.\n",
 			err.Error())
 		return &api.JsonErr{
 			Code:       api.RepositoryTagRetrievalFailed,
@@ -146,13 +146,13 @@ func AddTagToProcess(tagDefinition datamodel.TagDefinition) {
 }
 
 func CheckAndAddNetwork(repoNetworkConfiguration *datamodel.NetworkConfiguration, refresh bool) *api.JsonErr {
-	logger.Log("Taking artifacts lock")
+	logger.Debugf("Taking artifacts lock")
 	tagArtifactsLock.Lock()
 	defer func() {
-		logger.Log("Exisiting CheckAndAddNetwork")
+		logger.Debugf("Exisiting CheckAndAddNetwork")
 		tagArtifactsLock.Unlock()
 	}()
-	logger.Log("Acquried artifacts lock")
+	logger.Debugf("Acquried artifacts lock")
 	found := processedNetworks[repoNetworkConfiguration.NetworkID]
 	if found && !refresh {
 		return nil
@@ -162,7 +162,7 @@ func CheckAndAddNetwork(repoNetworkConfiguration *datamodel.NetworkConfiguration
 	for subnetName := range repoNetworkConfiguration.Subnets {
 		subnetConfiguration, subnetCfgErr := datamodel.QuerySubnetConfiguration(repoNetworkConfiguration.NetworkID, subnetName)
 		if subnetCfgErr != nil {
-			logger.Log(
+			logger.Errorf(
 				"Failed to retrieve subnet configuration for subnet %s in network %s due to error %s\n",
 				subnetName,
 				repoNetworkConfiguration.NetworkID,
@@ -191,7 +191,7 @@ func CheckAndAddNetwork(repoNetworkConfiguration *datamodel.NetworkConfiguration
 }
 
 func refreshNetworkConfiguration(networkKey string) {
-	logger.Log("Inside refreshNetworkConfiguration for network Id:%s", networkKey)
+	logger.Debugf("Inside refreshNetworkConfiguration for network Id:%s", networkKey)
 	networkID := datamodel.GetNetworkIdFromKey(networkKey)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	networkSessionLockedForRead := false
@@ -208,18 +208,18 @@ func refreshNetworkConfiguration(networkKey string) {
 
 	repoNetworkConfiguration, err := datamodel.TryQueryNetworkConfigurationByKey(networkKey)
 	if err != nil {
-		logger.Log("Retrieval of configuration for network %s failed with error:%s.\n",
+		logger.Errorf("Retrieval of configuration for network %s failed with error:%s.\n",
 			networkID,
 			err.String())
 		return
 	} else if repoNetworkConfiguration == nil {
-		logger.Log("Configuration for Network %s not found.\n", networkID)
+		logger.Debugf("Configuration for Network %s not found.\n", networkID)
 		return
 	}
 
 	if repoNetworkConfiguration.NetworkState != datamodel.Join ||
 		repoNetworkConfiguration.Status != datamodel.Completed {
-		logger.Log("Skipping refreshing of network %s as it is in state:%s %s.\n",
+		logger.Debugf("Skipping refreshing of network %s as it is in state:%s %s.\n",
 			networkID,
 			repoNetworkConfiguration.NetworkState,
 			repoNetworkConfiguration.Status)
@@ -230,19 +230,19 @@ func refreshNetworkConfiguration(networkKey string) {
 	networkSessionLockedForRead = false
 
 	_, failureDetail = postRequestToAgentForNetworkJoin(networkID)
-	logger.Log("Post network config")
+	logger.Debugf("Post network config")
 	if failureDetail != nil {
-		logger.Log("Post request Network %s to Host Agent failed with error %s.\n",
+		logger.Errorf("Post request Network %s to Host Agent failed with error %s.\n",
 			networkID,
 			failureDetail.String())
 
 		return
 	}
 
-	logger.Log("Get network config\n")
+	logger.Debugf("Get network config\n")
 	_, failureDetail, networkResponse = getNetworkConfigurationFromAgent(networkID)
 	if failureDetail != nil {
-		logger.Log("Request to get configuration for network %s failed with error %s.\n",
+		logger.Errorf("Request to get configuration for network %s failed with error %s.\n",
 			networkID,
 			failureDetail.String())
 		return
@@ -250,19 +250,19 @@ func refreshNetworkConfiguration(networkKey string) {
 
 	networkVersion, parseNetworkVersionErr := strconv.ParseUint(networkResponse.VnetVersion, 10, 64)
 	if parseNetworkVersionErr != nil {
-		logger.Log("Failed to parse network version:%s for network:%s failed with error %s.\n",
+		logger.Errorf("Failed to parse network version:%s for network:%s failed with error %s.\n",
 			networkResponse.VnetVersion,
 			networkID,
 			parseNetworkVersionErr.Error())
 		return
 	}
 
-	logger.Log("Lock session for write\n")
+	logger.Debugf("Lock session for write\n")
 	networkSessionLockedForWrite := false
 	sessionManager.BeginWriteSession(sessionInfo)
 	networkSessionLockedForWrite = true
 	defer func() {
-		logger.Log("networkSessionLockedForWrite:%v", networkSessionLockedForWrite)
+		logger.Debugf("networkSessionLockedForWrite:%v", networkSessionLockedForWrite)
 		if networkSessionLockedForWrite {
 			sessionManager.EndWriteSession(sessionInfo)
 		}
@@ -270,18 +270,18 @@ func refreshNetworkConfiguration(networkKey string) {
 
 	repoNetworkConfiguration, err = datamodel.TryQueryNetworkConfigurationByKey(networkKey)
 	if err != nil {
-		logger.Log("Retrieval of configuration for network %s failed with error:%s.\n",
+		logger.Errorf("Retrieval of configuration for network %s failed with error:%s.\n",
 			networkID,
 			err.String())
 		return
 	} else if repoNetworkConfiguration == nil {
-		logger.Log("Configuration for Network %s not found.\n", networkID)
+		logger.Debugf("Configuration for Network %s not found.\n", networkID)
 		return
 	}
 
 	if repoNetworkConfiguration.NetworkState != datamodel.Join ||
 		repoNetworkConfiguration.Status != datamodel.Completed {
-		logger.Log("Skipping refreshing of network %s as it is in state:%s %s.\n",
+		logger.Debugf("Skipping refreshing of network %s as it is in state:%s %s.\n",
 			networkID,
 			repoNetworkConfiguration.NetworkState,
 			repoNetworkConfiguration.Status)
@@ -289,7 +289,7 @@ func refreshNetworkConfiguration(networkKey string) {
 	}
 
 	if repoNetworkConfiguration.Version == networkVersion {
-		logger.Log("CheckAndAddNetwork\n")
+		logger.Debugf("CheckAndAddNetwork\n")
 		CheckAndAddNetwork(repoNetworkConfiguration, false)
 		return
 	}
@@ -300,7 +300,7 @@ func refreshNetworkConfiguration(networkKey string) {
 			networkResponse)
 
 	if failureDetail != nil {
-		logger.Log("Validation of response %v for network %s failed with error %s.\n",
+		logger.Errorf("Validation of response %v for network %s failed with error %s.\n",
 			networkResponse,
 			networkID,
 			failureDetail.String())
@@ -308,12 +308,9 @@ func refreshNetworkConfiguration(networkKey string) {
 	}
 
 	for subnetName := range subnetsToRemove {
-		logger.Log("Deleting subnet %s in network %s failed with error %s.\n",
-			subnetName,
-			networkID)
 		failureDetail = datamodel.DeleteSubnetConfiguration(networkID, subnetName)
 		if failureDetail != nil {
-			logger.Log("Deletion of subnet %s in network %s failed with error %s.\n",
+			logger.Errorf("Deletion of subnet %s in network %s failed with error %s.\n",
 				subnetName,
 				networkID,
 				failureDetail.String())
@@ -333,14 +330,14 @@ func refreshNetworkConfiguration(networkKey string) {
 	for subnetName, currentRepoSubnetCfg := range subnetsToUpdate {
 		subnetNetworkContainersMap[subnetName], err = datamodel.GetNetworkContainersInSubnet(currentRepoSubnetCfg, false)
 		if err != nil {
-			logger.Log("Failed to retrieve network containers in subnet %s Network %s due to error %s",
+			logger.Errorf("Failed to retrieve network containers in subnet %s Network %s due to error %s",
 				subnetName,
 				networkID,
 				err.String())
 		}
 	}
 
-	logger.Log("Updating vnetconfig with current version %d Phase 1 commit Response:%v\n",
+	logger.Debugf("Updating vnetconfig with current version %d Phase 1 commit Response:%v\n",
 		repoNetworkConfiguration.Version,
 		networkResponse)
 	var dnsServers []string
@@ -357,7 +354,7 @@ func refreshNetworkConfiguration(networkKey string) {
 
 	failureDetail = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
 	if failureDetail != nil {
-		logger.Log("Persisting configuration of network %s failed with error %s. \n",
+		logger.Errorf("Persisting configuration of network %s failed with error %s. \n",
 			networkID,
 			failureDetail.String())
 	}
@@ -372,7 +369,7 @@ func refreshNetworkConfiguration(networkKey string) {
 			Gateway:           updatedSubnetCfg.DefaultGateway}
 		failureDetail = datamodel.PutSubnetConfiguration(&subnetConfig)
 		if failureDetail != nil {
-			logger.Log("Persisting configuration for subnet %s in network %s failed with error %s. \n",
+			logger.Errorf("Persisting configuration for subnet %s in network %s failed with error %s. \n",
 				subnetName,
 				networkID,
 				failureDetail.String())
@@ -387,7 +384,7 @@ func refreshNetworkConfiguration(networkKey string) {
 		currentRepoSubnetCfg.Tags = updatedSubnetCfg.Tags
 		datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
 		if failureDetail != nil {
-			logger.Log("Persisting updated configuration for subnet %s in network %s failed with error %s. \n",
+			logger.Errorf("Persisting updated configuration for subnet %s in network %s failed with error %s. \n",
 				subnetName,
 				networkID,
 				failureDetail.String())
@@ -396,7 +393,7 @@ func refreshNetworkConfiguration(networkKey string) {
 
 		failureDetail = UpdateAssociationStateForNCsInSubnet(networkID, subnetKey)
 		if failureDetail != nil {
-			logger.Log("Failed to update association info for network containers in subnet %s in network %s. Error %s. \n",
+			logger.Errorf("Failed to update association info for network containers in subnet %s in network %s. Error %s. \n",
 				subnetName,
 				networkID,
 				failureDetail.String())
@@ -404,7 +401,7 @@ func refreshNetworkConfiguration(networkKey string) {
 		}
 	}
 
-	logger.Log("Updating vnetconfig with received version %d Phase 2 commit Response:%s\n",
+	logger.Debugf("Updating vnetconfig with received version %d Phase 2 commit Response:%s\n",
 		repoNetworkConfiguration.Version,
 		networkResponse.String())
 
@@ -413,12 +410,12 @@ func refreshNetworkConfiguration(networkKey string) {
 	CheckAndAddNetwork(repoNetworkConfiguration, true)
 	failureDetail = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
 	if failureDetail != nil {
-		logger.Log("Persisting configuration of network %s failed with error %s. \n",
+		logger.Errorf("Persisting configuration of network %s failed with error %s. \n",
 			networkID,
 			failureDetail.String())
 	}
 
-	logger.Log("Successfully refreshed configuration for network %s", networkID)
+	logger.Debugf("Successfully refreshed configuration for network %s", networkID)
 }
 
 // Retrieve network configuration from host agent.
@@ -440,14 +437,16 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 			HTTPStatus: http.StatusInternalServerError}, nil
 	}
 
+	defer getResponse.Body.Close()
+
 	var tagResponse nmagentcontracts.TagResponse
-	decodeRespErr := decodeResponse(getResponse, &tagResponse)
+	decodeRespErr := utils.DecodeResponse(getResponse, &tagResponse)
 	if decodeRespErr != nil {
 		msg := fmt.Sprintf("Failed to decode tag response for tag %s due to error %s. "+
 			"Marking this error as retriable.",
 			tagName,
 			decodeRespErr.Error())
-		logger.Log("%s\n", msg)
+		logger.Errorf("%s\n", msg)
 
 		return true, &api.JsonErr{
 			Code:       api.DeocodeResponseFailed,
@@ -455,7 +454,7 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 			HTTPStatus: http.StatusInternalServerError}, nil
 	}
 
-	logger.Log("Received response for tag %s Defintion:%s\n", tagName, tagResponse.String())
+	logger.Debugf("Received response for tag %s Defintion:%s\n", tagName, tagResponse.String())
 	getTagResponseCode, parseErr := strconv.ParseInt(tagResponse.ResponseCode, 10, 64)
 	if parseErr != nil {
 		msg := fmt.Sprintf(
@@ -463,7 +462,7 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 				"Marking this error as retriable.",
 			tagResponse.ResponseCode,
 			tagName)
-		logger.Log("%s\n", msg)
+		logger.Errorf("%s\n", msg)
 
 		return true, &api.JsonErr{
 			Code:       api.ParseResponseCodeFailed,
@@ -474,7 +473,7 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 	if getTagResponseCode == http.StatusProcessing {
 		msg := fmt.Sprintf(
 			"GetTagDefinition for tag %s is in pending state", tagName)
-		logger.Log("%s\n", msg)
+		logger.Debugf("%s\n", msg)
 
 		return true, &api.JsonErr{
 			Code:       api.ProcessingPending,
@@ -484,7 +483,7 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 
 	if getTagResponseCode == http.StatusUnauthorized {
 		msg := fmt.Sprintf("Get tag definition for tag %s is unauthorized", tagName)
-		logger.Log("%s\n", msg)
+		logger.Debugf("%s\n", msg)
 
 		return false, &api.JsonErr{
 			Code:       api.GetTagDefinitionFailed,
@@ -500,14 +499,14 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 			HTTPStatus: http.StatusInternalServerError}, nil
 	}
 
-	logger.Log("Retrieved tag definition %s\n", tagResponse.String())
+	logger.Debugf("Retrieved tag definition %s\n", tagResponse.String())
 	return false, nil, &tagResponse
 }
 
 func RetrieveAndPersistTagDefinition(tagType, tagName string) (bool, *api.JsonErr) {
 	isRetriableError, failureDetail, tagResponse := getSystemTagDefinitionFromAgent(tagName, "IPv4")
 	if failureDetail != nil {
-		logger.Log("Request to get definition for tag %s failed with error %s.\n",
+		logger.Errorf("Request to get definition for tag %s failed with error %s.\n",
 			tagName,
 			failureDetail.String())
 		return isRetriableError, failureDetail
@@ -522,13 +521,13 @@ func refreshTagDefintions() {
 
 	err := PopulateTagsToProcess()
 	if err != nil {
-		logger.Log("Failed to populate tags to process due to error %s", err.String())
+		logger.Errorf("Failed to populate tags to process due to error %s", err.String())
 	}
 
 	for _, repoTagDefinition := range tagsToProcess {
 		_, failureDetail, tagResponse := getSystemTagDefinitionFromAgent(repoTagDefinition.Name, "IPv4")
 		if failureDetail != nil {
-			logger.Log("Request to get definition for tag %s failed with error %s.\n",
+			logger.Errorf("Request to get definition for tag %s failed with error %s.\n",
 				repoTagDefinition.Name,
 				failureDetail.String())
 			continue
@@ -559,11 +558,11 @@ func refreshTagDefintions() {
 			tagResponse.Name,
 			tagResponse.Value)
 		if err != nil {
-			logger.Log("Failed to update tag definition for tag Response:%s due to error %s",
+			logger.Errorf("Failed to update tag definition for tag Response:%s due to error %s",
 				tagResponse.String(),
 				err.String())
 		} else {
-			logger.Log("Successfully updated tag %s", tagResponse.Name)
+			logger.Debugf("Successfully updated tag %s", tagResponse.Name)
 		}
 	}
 
@@ -600,7 +599,7 @@ func UpdateSubnetsForTag(tagsToUpdate map[string]nmagentcontracts.TagResponse) {
 }
 
 func UpdateAssociationStateForNCsInSubnetNetworkTransacted(networkID, subnetKey string) *api.JsonErr {
-	logger.Log("Inside UpdateAssociationStateForNCsInSubnetNetworkTransacted")
+	logger.Debugf("Inside UpdateAssociationStateForNCsInSubnetNetworkTransacted")
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
@@ -608,20 +607,20 @@ func UpdateAssociationStateForNCsInSubnetNetworkTransacted(networkID, subnetKey 
 }
 
 func CreateAssociationTask(networkContainerInfo *datamodel.NetworkContainerInfo) *api.JsonErr {
-	logger.Log("Inside check association")
+	logger.Debugf("Inside check association")
 	repoNetworkContainerConfiguration, err := datamodel.TryQueryNetworkContainer(
 		networkContainerInfo.NetworkID,
 		networkContainerInfo.NetworkContainerID)
 
 	if err != nil {
-		logger.Log("Failed to retrieve configuration for network container %s due to error %s",
+		logger.Errorf("Failed to retrieve configuration for network container %s due to error %s",
 			networkContainerInfo.NetworkContainerID,
 			err.String())
 		return err
 	}
 
 	if repoNetworkContainerConfiguration == nil {
-		logger.Log("Configuration for network container %s not found.",
+		logger.Debugf("Configuration for network container %s not found.",
 			networkContainerInfo.NetworkContainerID)
 		return nil
 	}
@@ -660,7 +659,7 @@ func CreateAssociationTask(networkContainerInfo *datamodel.NetworkContainerInfo)
 func UpdateAssociationStateForNCsInSubnet(networkID string, subnetKey string) *api.JsonErr {
 	repoSubnetConfiguration, err := datamodel.TryQuerySubnetConfigurationByKey(subnetKey)
 	if err != nil {
-		logger.Log("Retrieval of subnet configuration for subnet key %s failed due to error %s", subnetKey, err.String())
+		logger.Errorf("Retrieval of subnet configuration for subnet key %s failed due to error %s", subnetKey, err.String())
 		return err
 	}
 	if repoSubnetConfiguration == nil {
@@ -669,7 +668,7 @@ func UpdateAssociationStateForNCsInSubnet(networkID string, subnetKey string) *a
 
 	networkContainersInfo, err := datamodel.GetNetworkContainersInSubnet(repoSubnetConfiguration, false)
 	if err != nil {
-		logger.Log("Retrieval of network containers in subnet configuration %s failed due to error %s",
+		logger.Errorf("Retrieval of network containers in subnet configuration %s failed due to error %s",
 			repoSubnetConfiguration.String(),
 			err.String())
 		return err

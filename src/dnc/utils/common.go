@@ -2,12 +2,15 @@ package utils
 
 import (
 	"dnc/logger/loggershim"
+	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 )
 
 type Uint16s []uint16
@@ -25,7 +28,7 @@ func (s Uint16s) Sort() {
 // onErrorFail prints a failure message and exits the program if err is not nil.
 func OnErrorFail(err error, message string) {
 	if err != nil {
-		loggershim.LS.Log("%s: %s\n", message, err)
+		loggershim.LS.Errorf("%s: %s\n", message, err)
 		os.Exit(1)
 	}
 }
@@ -76,13 +79,22 @@ func PrintMapValues(m map[string]string) string {
 }
 
 // TracePrefix - Helper to generate trace prefix
-func TracePrefix() string {
+// skip=2 - caller's details
+// skip=3 - caller of caller's details
+func TracePrefix(skip int) string {
 	pc := make([]uintptr, 15)
-	n := runtime.Callers(2, pc)
+	n := runtime.Callers(skip, pc)
 	frames := runtime.CallersFrames(pc[:n])
 	frame, _ := frames.Next()
 
-	return fmt.Sprintf("File:%s, Function:%s, Line:%d \n", frame.File, frame.Function, frame.Line)
+	return fmt.Sprintf("In [%s:%d Function:%s]", frame.File, frame.Line, frame.Function)
+}
+
+// RecordTime - Helper to generate processing time.
+// may be used with TracePrefix i.e. defer RecordTime(time.Now(), TracePrefix(2))
+func RecordTime(start time.Time, ctx string) {
+	elapsed := time.Since(start)
+	loggershim.LS.Debugf("[%s] Process time: %s", ctx, elapsed)
 }
 
 func AreSetsEqual(set1, set2 []string) bool {
@@ -107,4 +119,23 @@ func AreSetsEqual(set1, set2 []string) bool {
 		return true
 	}
 	return false
+}
+
+func DecodeResponse(w *http.Response, response interface{}) error {
+	var err error
+
+	loggershim.LS.Debugf("DecodeResponse received response: %+v", response)
+
+	if w.Body != nil {
+		err = json.NewDecoder(w.Body).Decode(&response)
+		loggershim.LS.Debugf("Decoded response:%v", response)
+	} else {
+		err = fmt.Errorf("Response body is empty")
+	}
+
+	if w.StatusCode != http.StatusOK {
+		err = fmt.Errorf("Request failed with HTTP error %d", w.StatusCode)
+	}
+
+	return err
 }

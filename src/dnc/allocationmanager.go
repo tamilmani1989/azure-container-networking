@@ -30,7 +30,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 		return false, nil
 	}
 
-	logger.Log("Processing Reservation Request for NetworkID %s\n", repoReservationRequest.NetworkID)
+	logger.Debugf("Processing Reservation Request for NetworkID %s\n", repoReservationRequest.NetworkID)
 	subnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
 		repoReservationRequest.NetworkID, repoReservationRequest.AllocationRequest.SubnetName)
 
@@ -47,14 +47,14 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 		goto Cleanup
 	}
 	if len(repoReservationRequest.AllocatedSubnet) != 0 {
-		logger.Log(
+		logger.Debugf(
 			"Reservation request %s is already processed and has an allocated IP Address:%s.\n",
 			repoReservationRequest.AllocationRequest.String(),
 			repoReservationRequest.AllocatedSubnet)
 		return true, nil
 	}
 
-	logger.Log("Found NetworkID: %s, ReservationID: %s, IPConstraint: %s\n", repoReservationRequest.NetworkID, repoReservationRequest.ReservationID, repoReservationRequest.AllocationRequest.IPConstraint)
+	logger.Debugf("Found NetworkID: %s, ReservationID: %s, IPConstraint: %s\n", repoReservationRequest.NetworkID, repoReservationRequest.ReservationID, repoReservationRequest.AllocationRequest.IPConstraint)
 	allocationsInSubnet, err = getAllocatedAddressesInSubnet(
 		repoReservationRequest.NetworkID,
 		subnetConfiguration)
@@ -108,7 +108,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 		var ipSubnetConstraint *net.IPNet
 		ipSubnetConstraint, err = allocationhelper.GetIPSubnetForIPAllocationConstraint(
 			repoReservationRequest.AllocationRequest.IPConstraint)
-		//logger.Log("IPSubnetConstraint %+v\n", ipSubnetConstraint)
+
 		if err != nil {
 			markAllocationAsFailed = true
 			failureDetail = err
@@ -117,13 +117,13 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 			var result bool
 			result, err = allocationhelper.IsRequestedRangeAllocatable(ipSubnet, addressesToIgnore, ipSubnetConstraint)
 			if result {
-				logger.Log("Assigned IP: %s\n", allocatedIP)
 				allocatedIP = ipSubnetConstraint
+				logger.Debugf("Assigned IP: %s\n", allocatedIP)
 			} else {
-				logger.Log(
-					"Failed to process request %s due to error %s\n",
-					repoReservationRequest.AllocationRequest.String(),
-					err.String())
+				// logger.Errorf(
+				// 	"Failed to process request %s due to error %s\n",
+				// 	repoReservationRequest.AllocationRequest.String(),
+				// 	err.String())
 				markAllocationAsFailed = true
 				failureDetail = err
 				goto Cleanup
@@ -143,7 +143,8 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 					allocationErr.Error())}
 			goto Cleanup
 		}
-		logger.Log("Allocated IP: %s\n", allocatedIP)
+
+		logger.Debugf("Allocated IP: %s\n", allocatedIP)
 	}
 
 	if allocatedIP != nil {
@@ -157,7 +158,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 				repoReservationRequest.ReservationID,
 				false)
 			if err != nil {
-				logger.Log(
+				logger.Errorf(
 					"Failed to associate reservation request %s to node %s due to error %s\n",
 					repoReservationRequest.String(),
 					repoReservationRequest.AllocationRequest.NodeConstraint,
@@ -172,7 +173,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 			false,
 			subnetConfiguration)
 		if err != nil {
-			logger.Log(
+			logger.Errorf(
 				"Failed to persist updating reservation request %s in subnet configuration due to error %s\n",
 				repoReservationRequest.String(),
 				err.String())
@@ -181,14 +182,14 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 
 		err = datamodel.PutIPReservationConfiguration(repoReservationRequest)
 		if err != nil {
-			logger.Log(
-				"Failed to mark reservation reuqest %s as succeded due to error %s\n",
+			logger.Errorf(
+				"Failed to mark reservation request %s as succeded due to error %s\n",
 				repoReservationRequest.String(),
 				err.String())
 			return false, err
 		}
 	} else {
-		logger.Log(
+		logger.Debugf(
 			"Invalid state: Process reservation for request %s completed without allocated IPn\n",
 			repoReservationRequest.AllocationRequest.String())
 	}
@@ -198,17 +199,15 @@ Cleanup:
 	if markAllocationAsFailed {
 		repoReservationRequest.Status = datamodel.Failed
 		repoReservationRequest.FailureDetail = *failureDetail
-		logger.Log(
+		logger.Errorf(
 			"Failed to process reservation request :{%s} due to error :{%s}\n",
 			repoReservationRequest.String(),
 			failureDetail.String())
 		err := datamodel.PutIPReservationConfiguration(repoReservationRequest)
 		if err != nil {
-			logger.Log("Failed to perists reservation request %s as failed\n", repoReservationRequest.String())
+			logger.Errorf("Failed to perists reservation request %s as failed\n", repoReservationRequest.String())
 			return false, err
 		}
-
-		return true, nil
 	}
 
 	return true, nil
@@ -225,7 +224,7 @@ func getReservedAddressesInSubnet(ipSubnet *net.IPNet) (map[string]*net.IPNet, e
 	}
 	var broadCastIP net.IP
 	broadCastIP = allocationhelper.GetLastAdressInSubnet(ipSubnet)
-	logger.Log("Broadcast IP: %s\n", broadCastIP)
+	logger.Debugf("Broadcast IP: %s\n", broadCastIP)
 	broadcastIPString := broadCastIP.String() + utils.PrefixDelimiter + utils.IPV4DefaultPrefix
 	broadcastIPSubnet, _ := utils.ParseIPNet(broadcastIPString)
 	reservedIPs[broadcastIPString] = broadcastIPSubnet
@@ -235,10 +234,10 @@ func getReservedAddressesInSubnet(ipSubnet *net.IPNet) (map[string]*net.IPNet, e
 func getAllocatedAddressesInSubnet(networkID string, subnetConfiguration *datamodel.SubnetConfiguration) (map[string]*net.IPNet, *api.JsonErr) {
 	allocatedAddresses := make(map[string]*net.IPNet)
 	for reservationID := range subnetConfiguration.Reservations {
-		logger.Log("Processing virtual network: %s\n", subnetConfiguration.NetworkID)
+		logger.Debugf("Processing virtual network: %s\n", subnetConfiguration.NetworkID)
 		reservationConfiguration, err := datamodel.QueryIPReservation(subnetConfiguration.NetworkID, reservationID)
 		if err != nil {
-			logger.Log("Failed to retrieve reservation configuration %s Error: %s\n", reservationID, err.String())
+			logger.Errorf("Failed to retrieve reservation configuration %s Error: %s\n", reservationID, err.String())
 			return nil, err
 		}
 
@@ -263,14 +262,14 @@ func getAllocatedAddressesOnNode(nodeID string) (map[string]*net.IPNet, *api.Jso
 
 	if nodeConfiguration.ConstrainedReservations != nil {
 		for reservationID, networkID := range nodeConfiguration.ConstrainedReservations {
-			logger.Log("Processing virtual network %s\n", networkID)
+			logger.Debugf("Processing virtual network %s\n", networkID)
 			reservationConfiguration, err := datamodel.TryQueryIPReservation(networkID, reservationID)
 			if err != nil {
 				return nil, err
 			}
 
 			if reservationConfiguration == nil {
-				logger.Log(
+				logger.Debugf(
 					"Configuration for reservation %s in network %s not found.\n",
 					networkID,
 					reservationID)
@@ -286,13 +285,13 @@ func getAllocatedAddressesOnNode(nodeID string) (map[string]*net.IPNet, *api.Jso
 	if nodeConfiguration.DeployedNetworkContainerMap != nil {
 		for networkID, ncMap := range nodeConfiguration.DeployedNetworkContainerMap {
 			for ncKey, reservationID := range ncMap {
-				logger.Log("Processing virtual network %s NC: %s ReservationID: %s\n", networkID, ncKey, reservationID)
+				logger.Debugf("Processing virtual network %s NC: %s ReservationID: %s\n", networkID, ncKey, reservationID)
 				reservationConfiguration, err := datamodel.TryQueryIPReservation(networkID, reservationID)
 				if err != nil {
 					return nil, err
 				}
 				if reservationConfiguration == nil {
-					logger.Log(
+					logger.Debugf(
 						"Configuration for reservation %s in network %s not found.\n",
 						networkID,
 						reservationID)
@@ -313,7 +312,7 @@ func getAllocatedAddressesOnNode(nodeID string) (map[string]*net.IPNet, *api.Jso
 	}
 
 	for subnetString := range allocatedSubnets {
-		logger.Log("%s\n", subnetString)
+		logger.Debugf("%s\n", subnetString)
 	}
 
 	return allocatedSubnets, nil

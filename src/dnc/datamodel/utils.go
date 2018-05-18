@@ -38,5 +38,5 @@ func GetNCKey(networkID, ncID string) string {
 
 // GetTagDefintionKey - Helper function to generate tag defintion key.
 func GetTagDefintionKey(tagType, tagName string) string {
-	return fmt.Sprintf(tagDefintionKey, tagType, tagName)
+	return fmt.Sprintf(tagDefinitionKey, tagType, tagName)
 }

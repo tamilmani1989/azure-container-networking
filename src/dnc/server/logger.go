@@ -68,14 +68,14 @@ func Logger(inner http.Handler, name string) http.Handler {
 			}
 
 			target := "http://" + primaryEP + r.URL.String()
-			loggershim.LS.Log("Redirecting to %s\n", target)
+			loggershim.LS.Debugf("Redirecting to %s\n", target)
 			http.Redirect(w, r, target, http.StatusTemporaryRedirect)
 			return
 		}
 
 		inner.ServeHTTP(w, r)
 
-		loggershim.LS.Log(
+		loggershim.LS.Debugf(
 			"%s\t%s\t%s\t%s\n",
 			r.Method,
 			r.RequestURI,

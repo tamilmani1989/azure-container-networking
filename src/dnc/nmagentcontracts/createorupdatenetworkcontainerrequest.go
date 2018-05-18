@@ -12,6 +12,7 @@ type CreateOrUpdateNetworkContainerRequest struct {
 	Version          string   `json:"version"`
 	Policies         []string `json:"policies"`
 	VirtualNetworkID string   `json:"virtualNetworkId"`
+	VlanID           int      `json:"vlanId"`
 }
 
 func (ncRequest *CreateOrUpdateNetworkContainerRequest) String() string {
@@ -23,7 +24,7 @@ func (ncRequest *CreateOrUpdateNetworkContainerRequest) String() string {
 	}
 
 	return fmt.Sprintf(
-		"CreateOrUpdateNetworkContainerRequest:[IPV4Addresses:%s, SubnetName:%s, Version:%s, VirtualNetworkID:%s]",		
+		"CreateOrUpdateNetworkContainerRequest:[IPV4Addresses:%s, SubnetName:%s, Version:%s, VirtualNetworkID:%s]",
 		ipAddressesString,
 		ncRequest.SubnetName,
 		ncRequest.Version,

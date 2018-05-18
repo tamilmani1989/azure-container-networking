@@ -91,17 +91,25 @@ type HostAgentConnectionStrings struct {
 }
 
 type HostAgentSettings struct {
-	WireServerIP      string
-	ConnectionStrings HostAgentConnectionStrings
+	WireServerIP        string
+	ConnectionStrings   HostAgentConnectionStrings
+	RequestBaseInterval int
 }
 
 type CNSConnectionStrings struct {
 	CreateOrUpdateNetworkContainerURLFmt string
 	DeleteNetworkContainerURLFmt         string
+	GetNetworkContainerStatusURLFmt      string
+	SetOrchestratorTypeURLFmt            string
 }
 
 type CNSSettings struct {
 	ConnectionStrings CNSConnectionStrings
+}
+
+type VlanSettings struct {
+	Min uint16
+	Max uint16
 }
 
 // Configuration - Details related to dnc configuration settings
@@ -113,6 +121,7 @@ type Configuration struct {
 	LoggerSettings         LoggerSettings
 	HostAgentSettings      HostAgentSettings
 	CNSSettings            CNSSettings
+	VlanSettings           VlanSettings
 }
 
 // Load the JSON config file

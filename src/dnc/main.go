@@ -9,6 +9,7 @@ import (
 	"dnc/replica"
 	"dnc/server"
 	"dnc/utils"
+	"flag"
 	"os"
 	"os/signal"
 	"syscall"
@@ -31,16 +32,23 @@ var sessionManager *utils.SessionManager
 var ctrler *controller.Controller
 var dncServer server.Server
 var replicaInstance *replica.Replica
+var debug bool
+var stderr bool
 
 func init() {
+	flag.BoolVar(&debug, "debug", false, "Set to true to output debug statements.")
+	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
+	flag.Parse()
+
 	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
 	if !found {
 		configpath = "config.json"
 	}
+
 	config = configuration.Load(configpath)
 	logger = loggershim.NewLoggerShim(config)
-	logger.Init()
-	datamodel.Init(config.DataStoreSettings)
+	logger.Init(debug, stderr)
+	datamodel.Init(config.DataStoreSettings, config.HostAgentSettings.RequestBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
 	replicaInstance = replica.NewReplica(config.ServerSettings)
 
 	masterElectionShim = masterelectionshim.NewMasterElectionShim(
@@ -52,7 +60,8 @@ func init() {
 	masterElectionShim.Init()
 
 	sessionManager = utils.NewSessionManager([]string{datamodel.NodeRepositoryName, datamodel.NetworkRepositoryName, datamodel.TagRepositoryName})
-	ctrler = controller.NewController(replicaInstance, sessionManager)
+	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt)
+
 	dncServer = server.Server{
 		ServerSettings: config.ServerSettings,
 		Controller:     ctrler}

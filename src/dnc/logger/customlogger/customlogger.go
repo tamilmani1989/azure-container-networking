@@ -24,7 +24,7 @@ func NewCustomLogger(cfg configuration.CustomLoggerSettings) *CustomLogger {
 }
 
 // Init :- Initialize CustomLogger
-func (l *CustomLogger) Init() {
+func (l *CustomLogger) Init(debug, stderr bool) {
 	log.SetName(l.name)
 	log.SetLevel(l.logLevel)
 
@@ -35,7 +35,12 @@ func (l *CustomLogger) Init() {
 }
 
 // Log :- Log using CustomLogger
-func (l *CustomLogger) Log(format string, args ...interface{}) {
+func (l *CustomLogger) Debugf(format string, args ...interface{}) {
+	log.Debugf(format, args...)
+}
+
+// Log :- Log using CustomLogger
+func (l *CustomLogger) Errorf(format string, args ...interface{}) {
 	log.Printf(format, args...)
 }
 

@@ -11,8 +11,9 @@ var LS *LoggerShim
 
 // LoggerInterface :- Logging interface
 type LoggerInterface interface {
-	Init()
-	Log(format string, args ...interface{})
+	Init(debug, stderr bool)
+	Debugf(format string, args ...interface{})
+	Errorf(format string, args ...interface{})
 	Close()
 }
 
@@ -37,13 +38,18 @@ func NewLoggerShim(cfg *configuration.Configuration) *LoggerShim {
 }
 
 // Init :- Initialize logger
-func (loggerShim *LoggerShim) Init() {
-	loggerShim.loggerInterface.Init()
+func (loggerShim *LoggerShim) Init(debug, stderr bool) {
+	loggerShim.loggerInterface.Init(debug, stderr)
 }
 
-// Log :- Log using default (azure-container-networking) or custom logger
-func (loggerShim *LoggerShim) Log(format string, args ...interface{}) {
-	loggerShim.loggerInterface.Log(format, args...)
+// Debugf :- Log debug statements using default (azure-container-networking) or custom logger
+func (loggerShim *LoggerShim) Debugf(format string, args ...interface{}) {
+	loggerShim.loggerInterface.Debugf(format, args...)
+}
+
+// Errorf :- Log errors using default (azure-container-networking) or custom logger
+func (loggerShim *LoggerShim) Errorf(format string, args ...interface{}) {
+	loggerShim.loggerInterface.Errorf(format, args...)
 }
 
 // Close :- Close logger
