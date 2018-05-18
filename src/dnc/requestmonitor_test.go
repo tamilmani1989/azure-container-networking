@@ -250,7 +250,7 @@ func TestNetwork(t *testing.T) {
 	fmt.Printf("Received Get Network request signal for context:%+v\n",
 		nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse)
 	resourceStatusURL := dncEP + "/networks/" + vnetID + "/status" + apiVersion
-	WaitForResourceState(t, resourceStatusURL, "Pending", http.StatusProcessing, 30)
+	WaitForResourceState(t, resourceStatusURL, "Pending", http.StatusProcessing, 2)
 	fmt.Printf("Setting the get virtual network response error code to completed from pending state\n")
 	nmAgentServer.Lock.Lock()
 	nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.ResponseCode = strconv.Itoa(http.StatusOK)
@@ -260,7 +260,7 @@ func TestNetwork(t *testing.T) {
 	fmt.Println("Waiting for get network signal")
 	<-nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.SignalInfo.Signal
 	fmt.Printf("Received Get Network request signal for context:%+v\n", nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse)
-	WaitForResourceState(t, resourceStatusURL, "Completed", http.StatusOK, 30)
+	WaitForResourceState(t, resourceStatusURL, "Completed", http.StatusOK, 2)
 	fmt.Printf("Successfully created network [%s]\n", vnetID)
 	networkURL := dncEP + "/networks/" + vnetID + apiVersion
 	deleteResource(t, networkURL, http.StatusOK)
@@ -297,7 +297,7 @@ func TestNetwork(t *testing.T) {
 	<-nmAgentResponderContext2.NetworkResponseMap.getContext(vnetID).JoinResponse.Signal
 	fmt.Printf("Received Join Network request signal")
 
-	WaitForResourceState(t, resourceStatusURL, "Failed", http.StatusUnauthorized, 30)
+	WaitForResourceState(t, resourceStatusURL, "Failed", http.StatusUnauthorized, 2)
 	fmt.Printf("Setting the get virtual network response error code to completed from failed state\n")
 	deleteResource(t, networkURL, http.StatusOK)
 }
@@ -375,7 +375,7 @@ func TestSubnet(t *testing.T) {
 	json.NewEncoder(&body).Encode(subnetReq2)
 	resourceStatusURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + "/status" + apiVersion
 
-	WaitForResourceState(t, resourceStatusURL, "Completed", http.StatusOK, 30)
+	WaitForResourceState(t, resourceStatusURL, "Completed", http.StatusOK, 2)
 
 	fmt.Printf("Updating subnet %s, network %s with accessToken:%s\n", vnetID, subnetName, subnetReq2.AuthenticationToken)
 	response, err = http.Post(resourceURL, "application/json", &body)
@@ -1096,7 +1096,7 @@ func IsJoinInState(t *testing.T, resourceStatusURL string, state string, expecte
 func WaitForResourceCleanup(t *testing.T, resourceStatusURL string, timeToWait int) bool {
 	for {
 		select {
-		case <-time.After(1 * time.Microsecond):
+		case <-time.After(1 * time.Second):
 			response, err := http.Get(resourceStatusURL)
 			if err == nil {
 				if response.StatusCode == http.StatusNotFound {
@@ -1197,7 +1197,7 @@ func setupNetwork(t *testing.T, dncEP, apiVersion string, networkDeploymentReque
 
 	for _, networkDeploymentRequest := range networkDeploymentRequests {
 		resourceStatusURL := dncEP + "/networks/" + networkDeploymentRequest.vnetID + "/status" + apiVersion
-		WaitForResourceState(t, resourceStatusURL, "Completed", http.StatusOK, 30)
+		WaitForResourceState(t, resourceStatusURL, "Completed", http.StatusOK, 2)
 		fmt.Printf("Successfully created network [%s]\n", networkDeploymentRequest.vnetID)
 	}
 }
@@ -1247,7 +1247,7 @@ func createReservation(t *testing.T, reservationreq api.AllocationRequest, dncEP
 		}
 	}
 	reservationStatusURL := dncEP + "/networks/" + vnetID + "/reservations/" + reservationID + "/status" + apiVersion
-	WaitForResourceState(t, reservationStatusURL, "Completed", http.StatusOK, 30)
+	WaitForResourceState(t, reservationStatusURL, "Completed", http.StatusOK, 2)
 
 	fmt.Printf("Successfully created reservation [%s]\n", reservationID)
 
@@ -1378,7 +1378,7 @@ func createNetworkContainer(
 
 	fmt.Printf("Waiting for create NC Url:%s\n", ncURL)
 	<-cnsResponderContextMap.getContext(ncid).CreateOrUpdateNCResponse.SignalInfo.Signal
-	WaitForResourceState(t, ncURLStatus, "Completed", http.StatusOK, 30)
+	WaitForResourceState(t, ncURLStatus, "Completed", http.StatusOK, 2)
 
 	if allocationRequest.IPConstraint == "" {
 		fmt.Printf("Successfully created network container using dynamic IP [%s]\n", ncid)
@@ -1417,7 +1417,7 @@ func createNetworkContainer(
 	fmt.Printf("Waiting for delete NC Url:%s\n", ncURL)
 	<-cnsResponderContextMap.getContext(ncid).DeleteNCResponse.SignalInfo.Signal
 
-	if !WaitForResourceCleanup(t, ncURL, 30) {
+	if !WaitForResourceCleanup(t, ncURL, 2) {
 		t.Errorf("Failed to cleanup network container%s\n", ncid)
 		t.Fatal(err)
 	}
@@ -1571,7 +1571,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 
 	fmt.Printf("Waiting for create NC Url:%s\n", ncURL)
 	<-cnsResponderContextMap.getContext(ncid).CreateOrUpdateNCResponse.SignalInfo.Signal
-	WaitForResourceState(t, ncURLStatus, "Completed", http.StatusOK, 30)
+	WaitForResourceState(t, ncURLStatus, "Completed", http.StatusOK, 2)
 
 	var ipConfig cns.IPConfiguration
 	var dnsServers []string
@@ -1665,7 +1665,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 
 	<-updatedCnsResponderContextMap.getContext(ncid).DeleteNCResponse.SignalInfo.Signal
 
-	if !WaitForResourceCleanup(t, ncURL, 30) {
+	if !WaitForResourceCleanup(t, ncURL, 2) {
 		t.Errorf("Failed to cleanup network container%s\n", ncid)
 		t.Fatal(err)
 	}
@@ -2215,7 +2215,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 		for _, ncDeploymentRequest := range ncDeploymentRequests {
 			fmt.Printf("Waiting for create  NC:%s\n", ncDeploymentRequest.NCID)
 			ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncDeploymentRequest.NCID + "/status" + apiVersion
-			WaitForResourceState(t, ncURLStatus, "Completed", http.StatusOK, 30)
+			WaitForResourceState(t, ncURLStatus, "Completed", http.StatusOK, 2)
 		}
 	}
 
@@ -2227,7 +2227,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 			fmt.Printf("Waiting for delete NC Url:%s\n", ncURL)
 			<-cnsResponderContextMap.getContext(ncDeploymentRequest.NCID).DeleteNCResponse.SignalInfo.Signal
 
-			if !WaitForResourceCleanup(t, ncURL, 30) {
+			if !WaitForResourceCleanup(t, ncURL, 2) {
 				err := fmt.Errorf("Failed to cleanup network container%s", ncDeploymentRequest.NCID)
 				t.Fatal(err)
 			}

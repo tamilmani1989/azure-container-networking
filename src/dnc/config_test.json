@@ -21,7 +21,8 @@
             "PutNetworkContainerURLFmt":"http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
             "DeleteNetworkContainerURLFmt":"http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
             "GetSystemTagDefinitionURLFmt": "http://%s/systemTags/%s/ipVersion/%s/api-version/1"
-        }
+        },
+        "RequestBaseInterval":-1
     },
     "CNSSettings":{
         "ConnectionStrings" :{

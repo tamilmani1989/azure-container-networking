@@ -27,6 +27,8 @@ func Init(dataStoreSettings configuration.DataStoreSettings, interval int, min, 
 
 	if interval > requestBaseInterval {
 		requestBaseInterval = interval
+	} else if interval < 0 {
+		requestBaseInterval = 0
 	}
 
 	if min > minVlan {
