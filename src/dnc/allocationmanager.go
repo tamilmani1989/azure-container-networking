@@ -46,6 +46,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 			Text:       fmt.Sprintf("Failed to find subnet for allocation request %s", repoReservationRequest.AllocatedSubnet)}
 		goto Cleanup
 	}
+
 	if len(repoReservationRequest.AllocatedSubnet) != 0 {
 		logger.Debugf(
 			"Reservation request %s is already processed and has an allocated IP Address:%s.\n",

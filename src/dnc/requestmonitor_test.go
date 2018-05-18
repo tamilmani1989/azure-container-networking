@@ -115,15 +115,15 @@ var (
 	apiVersion = "?api-version=2018-03-01"
 
 	// client :- Client with custom transport
-	// tr = &http.Transport{
-	// 	MaxIdleConnsPerHost: 1024,
-	// 	DialContext: (&net.Dialer{
-	// 		Timeout:   30 * time.Second,
-	// 		KeepAlive: 300 * time.Second,
-	// 	}).DialContext,
-	// 	TLSHandshakeTimeout: 0 * time.Second}
-	// client        = &http.Client{Transport: tr}
-	client        = &http.Client{}
+	tr = &http.Transport{
+		MaxIdleConnsPerHost: 1024,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 300 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 0 * time.Second}
+	client = &http.Client{Transport: tr}
+	// client        = &http.Client{}
 	nmAgentServer *MockServer
 	cnsServer     *MockServer
 )
