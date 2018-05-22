@@ -22,17 +22,21 @@
     <ClCompile Include="VFPluginInstaller.cpp" />
     <ClCompile Include="XmlWriterHelper.cpp" />
     <ClCompile Include="VFPluginUtilities.cpp" />
-	<ClCompile Include="VFHealthReport.cpp" />
-	<ClCompile Include="NMAgentReport.cpp" />
+    <ClCompile Include="VFHealthReport.cpp" />
+    <ClCompile Include="NMAgentReport.cpp" />
   </ItemGroup>
   <ItemGroup>
-	<ClInclude Include="VFPlugin.h" />
+    <ClInclude Include="VFPlugin.h" />
     <ClInclude Include="stdafx.h"/>
     <ClInclude Include="VFPluginUtilities.h" />
     <ClInclude Include="HealthReport.h" />
-    <ClInclude Include="VFHealthReport.h" />	
+    <ClInclude Include="VFHealthReport.h" />
     <ClInclude Include="NMAgentReport.h" />
-
+  </ItemGroup>
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\Logging\Logging.h">
+      <Visible>false</Visible>
+    </QCustomInput>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

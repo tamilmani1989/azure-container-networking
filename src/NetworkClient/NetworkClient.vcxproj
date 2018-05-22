@@ -12,7 +12,7 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories)
-		$(cpprestsdk)\build\native\include
+        $(cpprestsdk)\build\native\include
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -28,9 +28,9 @@
         $(WindowsSdk64LibPath)\ws2_32.lib;
         $(WindowsSdk64LibPath)\oleaut32.lib;
         $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
-		$(WindowsSdk64LibPath)\Crypt32.lib;
-		$(WindowsSdk64LibPath)\RpcRT4.Lib;
-		$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
+        $(WindowsSdk64LibPath)\Crypt32.lib;
+        $(WindowsSdk64LibPath)\RpcRT4.Lib;
+        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -56,6 +56,23 @@
     <ProjectReference Include="..\Server\Server.vcxproj">
       <Project>{ABC3B949-54EC-40C4-B9A4-6A338B2A4767}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\Logging\Logging.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\Server\RestServer.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\HNSClient\marshal\inc\MarshalBase.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\hnsclient\marshal\inc\vmoptional.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\NetworkClientLibrary\Common\nclcore.h">
+      <Visible>false</Visible>
+    </QCustomInput>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

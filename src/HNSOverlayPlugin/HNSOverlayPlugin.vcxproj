@@ -59,6 +59,11 @@
       <Project>{11a5289d-de65-411c-9ab8-9b5d088382e4}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\aquanix\Common\aquanixext.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="AfterBuild">
     <Copy SourceFiles="$(OutputPath)\HNSOverlayPlugin.dll; $(OutputPath)\HNSOverlayPlugin.pdb; $(OutputPath)\HNSOverlayPlugin.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\HNSOverlayPlugin" />

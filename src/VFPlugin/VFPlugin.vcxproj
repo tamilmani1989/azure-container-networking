@@ -78,10 +78,14 @@
     <ProjectReference Include="..\Common\NetAgentContracts\NetAgentContracts.vcxproj">
       <Project>{F4964161-20D0-4C0C-BC03-24CCF8C5C622}</Project>
     </ProjectReference>
-    
   </ItemGroup>
-    <ItemGroup>
+  <ItemGroup>
     <Manifest Include="VFPlugin.exe.manifest" />
+  </ItemGroup>
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\Logging\Logging.h">
+      <Visible>false</Visible>
+    </QCustomInput>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
