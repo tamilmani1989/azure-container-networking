@@ -30,13 +30,13 @@ func (client *OVSNetworkClient) DeleteBridge() error {
 }
 
 func (client *OVSNetworkClient) AddBridgeRules(extIf *externalInterface) error {
-	primary := extIf.IPAddresses[0].IP.String()
+	//primary := extIf.IPAddresses[0].IP.String()
 	mac := extIf.MacAddress.String()
 	macHex := strings.Replace(mac, ":", "", -1)
 
-	if err := ovsctl.AddVMIpAcceptRule(client.bridgeName, primary, mac); err != nil {
+	/*if err := ovsctl.AddVMIpAcceptRule(client.bridgeName, primary, mac); err != nil {
 		return err
-	}
+	}*/
 
 	ofport, err := ovsctl.GetOVSPortNumber(client.hostInterfaceName)
 	if err != nil {
