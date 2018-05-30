@@ -819,8 +819,8 @@ func (service *httpRestService) setOrchestratorType(w http.ResponseWriter, r *ht
 
 	switch req.OrchestratorType {
 	case cns.Kubernetes:
-		service.state.OrchestratorType = cns.Kubernetes
 		service.lock.Lock()
+		service.state.OrchestratorType = cns.Kubernetes
 		service.saveState()
 		service.lock.Unlock()
 		break
