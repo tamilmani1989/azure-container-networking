@@ -70,6 +70,8 @@ var args = acn.ArgumentList{
 			acn.OptLogTargetSyslog: log.TargetSyslog,
 			acn.OptLogTargetStderr: log.TargetStderr,
 			acn.OptLogTargetFile:   log.TargetLogfile,
+			acn.OptLogStdout:       log.TargetStdout,
+			acn.OptLogMultiWrite:   log.TargetMultiWrite,
 		},
 	},
 	{
@@ -268,4 +270,6 @@ func main() {
 			ipamPlugin.Stop()
 		}
 	}
+
+	log.Close()
 }

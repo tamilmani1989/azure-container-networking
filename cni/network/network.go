@@ -95,6 +95,7 @@ func (plugin *netPlugin) Stop() {
 	plugin.nm.Uninitialize()
 	plugin.Uninitialize()
 	log.Printf("[cni-net] Plugin stopped.")
+	log.Close()
 }
 
 // FindMasterInterface returns the name of the master interface.
@@ -191,6 +192,17 @@ func getContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 	return convertToCniResult(networkConfig), networkConfig.MultiTenancyInfo.ID, *subnetPrefix, nil
 }
 
+func getPodNameWithoutSuffix(podName string) string {
+	nameSplit := strings.Split(podName, "-")
+	if len(nameSplit) > 2 {
+		nameSplit = nameSplit[:2]
+	} else {
+		return podName
+	}
+
+	return strings.Join(nameSplit, "-")
+}
+
 //
 // CNI implementation
 // https://github.com/containernetworking/cni/blob/master/SPEC.md
@@ -258,11 +270,14 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 	log.Printf("[cni-net] Read network configuration %+v.", nwCfg)
 
+	podNameWithoutSuffix := getPodNameWithoutSuffix(k8sPodName)
+	log.Printf("Podname without suffix %v", podNameWithoutSuffix)
+
 	// Initialize values from network config.
 	networkId := nwCfg.Name
 	endpointId := GetEndpointID(args)
 
-	result, vlanid, subnetPrefix, err := getContainerNetworkConfiguration(k8sNamespace, k8sPodName)
+	result, vlanid, subnetPrefix, err := getContainerNetworkConfiguration(k8sNamespace, podNameWithoutSuffix)
 	if err != nil {
 		log.Printf("getContainerNetworkConfiguration failed with %v", err)
 	}
