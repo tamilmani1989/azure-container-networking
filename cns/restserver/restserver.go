@@ -1041,6 +1041,9 @@ func (service *httpRestService) deleteNetworkContainer(w http.ResponseWriter, r 
 		var containerStatus containerstatus
 		var ok bool
 
+		service.lock.Lock()
+		defer service.lock.Unlock()
+
 		if containerStatus, ok = service.state.ContainerStatus[req.NetworkContainerid]; !ok {
 			log.Printf("Not able to retrieve network container details for this container id %v", req.NetworkContainerid)
 			break
@@ -1055,7 +1058,6 @@ func (service *httpRestService) deleteNetworkContainer(w http.ResponseWriter, r 
 			}
 		}
 
-		service.lock.Lock()
 		if service.state.ContainerStatus != nil {
 			delete(service.state.ContainerStatus, req.NetworkContainerid)
 		}
@@ -1070,7 +1072,6 @@ func (service *httpRestService) deleteNetworkContainer(w http.ResponseWriter, r 
 		}
 
 		service.saveState()
-		service.lock.Unlock()
 		break
 	default:
 		returnMessage = "[Azure CNS] Error. DeleteNetworkContainer did not receive a POST."

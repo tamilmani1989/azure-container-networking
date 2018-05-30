@@ -61,6 +61,7 @@ func (cnsClient *CNSClient) GetNetworkConfiguration(podName, podNamespace string
 		return nil, err
 	}
 
+	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		errMsg := fmt.Sprintf("[Azure CNSClient] GetNetworkConfiguration invalid http status code: %v", res.StatusCode)
 		log.Printf(errMsg)

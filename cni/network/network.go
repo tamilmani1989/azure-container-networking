@@ -149,10 +149,9 @@ func convertToCniResult(networkConfig *cns.GetNetworkContainerResponse) *cniType
 
 	resultIpconfig.Gateway = net.ParseIP(ipconfig.GatewayIPAddress)
 	result.IPs = append(result.IPs, resultIpconfig)
-
 	result.DNS.Nameservers = ipconfig.DNSServers
 
-	if networkConfig.Routes == nil && len(networkConfig.Routes) > 0 {
+	if networkConfig.Routes != nil && len(networkConfig.Routes) > 0 {
 		for _, route := range networkConfig.Routes {
 			_, routeIPnet, _ := net.ParseCIDR(route.IPAddress)
 			gwIP := net.ParseIP(route.GatewayIPAddress)
@@ -174,7 +173,7 @@ func getContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 		return nil, 0, net.IPNet{}, err
 	}
 
-	networkConfig, err := cnsClient.GetNetworkConfiguration("TestPod", "TestPodNamespace")
+	networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
 	if err != nil {
 		log.Printf("GetNetworkConfiguration failed with %v", err)
 		return nil, 0, net.IPNet{}, err

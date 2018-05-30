@@ -107,7 +107,7 @@ func IpToInt(ip net.IP) uint32 {
 func GetIpNet(ipAddr string) *net.IPNet {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		log.Printf("InterfaceAddrs failed with %v: " + err.Error() + "\n")
+		log.Printf("InterfaceAddrs failed with %+v", err)
 		return nil
 	}
 

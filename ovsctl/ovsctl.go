@@ -9,6 +9,10 @@ import (
 	"github.com/Azure/azure-container-networking/log"
 )
 
+const (
+	macAddress = "12:34:56:78:9a:bc"
+)
+
 func CreateOVSBridge(bridgeName string) error {
 	log.Printf("[ovs] Creating OVS Bridge %v", bridgeName)
 
@@ -90,11 +94,19 @@ func AddArpSnatRule(bridgeName string, mac string, macHex string, ofport string)
 }
 
 func AddIpSnatRule(bridgeName string, port string, mac string) error {
-	cmd := fmt.Sprintf("ovs-ofctl add-flow %v priority=10,ip,in_port=%s,actions=mod_dl_src:%s,normal",
+	cmd := fmt.Sprintf("ovs-ofctl add-flow %v priority=20,ip,in_port=%s,vlan_tci=0,actions=mod_dl_src:%s,strip_vlan,normal",
 		bridgeName, port, mac)
 	_, err := common.ExecuteShellCommand(cmd)
 	if err != nil {
 		log.Printf("[ovs] Adding IP SNAT rule failed with error %v", err)
+		return err
+	}
+
+	cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=10,ip,in_port=%s,actions=drop",
+		bridgeName, port)
+	_, err = common.ExecuteShellCommand(cmd)
+	if err != nil {
+		log.Printf("[ovs] Dropping vlantag packet rule failed with error %v", err)
 		return err
 	}
 
@@ -116,8 +128,7 @@ func AddArpDnatRule(bridgeName string, port string, mac string) error {
 
 func AddFakeArpReply(bridgeName string, ip net.IP) error {
 	// If arp fields matches, set arp reply rule for the request
-	mac := "12:34:56:78:9a:bc"
-	macAddrHex := strings.Replace(mac, ":", "", -1)
+	macAddrHex := strings.Replace(macAddress, ":", "", -1)
 	ipAddrInt := common.IpToInt(ip)
 
 	log.Printf("[ovs] Adding ARP reply rule for IP address %v ", ip.String())
@@ -125,7 +136,7 @@ func AddFakeArpReply(bridgeName string, ip net.IP) error {
 			move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],mod_dl_src:%s,
 			move:NXM_NX_ARP_SHA[]->NXM_NX_ARP_THA[],move:NXM_OF_ARP_TPA[]->NXM_OF_ARP_SPA[],
 			load:0x%s->NXM_NX_ARP_SHA[],load:0x%x->NXM_OF_ARP_TPA[],IN_PORT'`,
-		bridgeName, mac, macAddrHex, ipAddrInt)
+		bridgeName, macAddress, macAddrHex, ipAddrInt)
 	_, err := common.ExecuteShellCommand(cmd)
 	if err != nil {
 		log.Printf("[ovs] Adding ARP reply rule failed with error %v", err)
