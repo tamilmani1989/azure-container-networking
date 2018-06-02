@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"dnc/api"
+	"dnc/datamodel"
 	"dnc/nmagentcontracts"
 	"dnc/utils"
 	"encoding/json"
@@ -148,6 +149,56 @@ func Setup() error {
 	cnsServer = new(MockServer)
 	cnsServer.SetupServer("127.0.0.1:10090")
 	return nil
+}
+
+func TestVlanGeneration(t *testing.T) {
+	vlanMap := make(map[string]uint16)
+	vlanRefMap := make(map[string]uint16)
+	vnetID := []string{"vnet1", "vnet2", "vnet3"}
+
+	fmt.Println("Initializing vlanMap using GetNextVlanID")
+
+	for i, id := range vnetID {
+		var err *api.JsonErr
+		vlanRefMap[id] = uint16(i + 1)
+		vlanMap[id], err = datamodel.GetNextVlanID(vlanMap)
+		fmt.Printf("vlanMap -> %+v\n", vlanMap)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if !reflect.DeepEqual(vlanMap, vlanRefMap) {
+		t.Fatal("vlanMap is not equal to vlanRefMap")
+	}
+
+	fmt.Println("Removing vlanID vnet2")
+
+	temp := vlanMap[vnetID[1]]
+	delete(vlanMap, vnetID[1])
+	delete(vlanRefMap, vnetID[1])
+
+	if !reflect.DeepEqual(vlanMap, vlanRefMap) {
+		t.Fatal("vlanMap is not equal to vlanRefMap")
+	}
+
+	fmt.Printf("vlanMap -> %+v\n", vlanMap)
+	fmt.Printf("Confirming that next vlanID will be between vnet1 (%d) and vnet3 (%d)\n", vlanMap[vnetID[0]], vlanMap[vnetID[2]])
+
+	var err *api.JsonErr
+	vlanRefMap[vnetID[1]] = temp
+	vlanMap[vnetID[1]], err = datamodel.GetNextVlanID(vlanMap)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(vlanMap, vlanRefMap) {
+		t.Fatal("vlanMap is not equal to vlanRefMap")
+	}
+
+	fmt.Printf("vlanMap -> %+v\n", vlanMap)
 }
 
 func TestNode(t *testing.T) {

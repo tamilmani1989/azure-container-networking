@@ -294,7 +294,7 @@ func UpdateNodeConstrainedReservationSet(
 	return persistNodeConfiguration(nodeConfiguration)
 }
 
-func getNextVlanID(networkVlanIDMap map[string]uint16) (uint16, *api.JsonErr) {
+func GetNextVlanID(networkVlanIDMap map[string]uint16) (uint16, *api.JsonErr) {
 	v := make(utils.Uint16s, 0, len(networkVlanIDMap))
 	for _, value := range networkVlanIDMap {
 		v = append(v, value)
@@ -362,31 +362,31 @@ func UpdateNodeConfigurationNetworkContainerSet(
 		delete(vnetMap, ncID)
 		if len(vnetMap) == 0 {
 			delete(nodeConfig.DeployedNetworkContainerMap, networkID)
-		}
 
-		if updateVlan {
-			loggershim.LS.Debugf("Freeing VlanID:%d assigned to network %s on node %s\n",
-				nodeConfig.NetworkVlanIDMap[networkID],
-				networkID,
-				nodeID)
-			delete(nodeConfig.NetworkVlanIDMap, networkID)
+			if updateVlan {
+				loggershim.LS.Debugf("Freeing VlanID:%d assigned to network %s on node %s\n",
+					nodeConfig.NetworkVlanIDMap[networkID],
+					networkID,
+					nodeID)
+				delete(nodeConfig.NetworkVlanIDMap, networkID)
+			}
 		}
 	} else { // Non remove operations.
 		if !ok {
 			vnetMap = make(map[string]string)
 			nodeConfig.DeployedNetworkContainerMap[networkID] = vnetMap
-		}
 
-		if updateVlan {
-			nodeConfig.NetworkVlanIDMap[networkID], err = getNextVlanID(nodeConfig.NetworkVlanIDMap)
-			if err != nil {
-				return err
+			if updateVlan {
+				nodeConfig.NetworkVlanIDMap[networkID], err = GetNextVlanID(nodeConfig.NetworkVlanIDMap)
+				if err != nil {
+					return err
+				}
+
+				loggershim.LS.Debugf("Assigning VlanID:%d to network %s on node %s\n",
+					nodeConfig.NetworkVlanIDMap[networkID],
+					networkID,
+					nodeID)
 			}
-
-			loggershim.LS.Debugf("Assigning VlanID:%d to network %s on node %s\n",
-				nodeConfig.NetworkVlanIDMap[networkID],
-				networkID,
-				nodeID)
 		}
 
 		vnetMap[ncID] = reservationID

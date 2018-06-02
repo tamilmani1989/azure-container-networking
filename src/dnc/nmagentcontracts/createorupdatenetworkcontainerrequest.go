@@ -24,9 +24,10 @@ func (ncRequest *CreateOrUpdateNetworkContainerRequest) String() string {
 	}
 
 	return fmt.Sprintf(
-		"CreateOrUpdateNetworkContainerRequest:[IPV4Addresses:%s, SubnetName:%s, Version:%s, VirtualNetworkID:%s]",
+		"CreateOrUpdateNetworkContainerRequest:[IPV4Addresses:%s, SubnetName:%s, Version:%s, VirtualNetworkID:%s, VlanID:%d]",
 		ipAddressesString,
 		ncRequest.SubnetName,
 		ncRequest.Version,
-		ncRequest.VirtualNetworkID)
+		ncRequest.VirtualNetworkID,
+		ncRequest.VlanID)
 }
