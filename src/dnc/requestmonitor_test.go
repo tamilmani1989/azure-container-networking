@@ -844,8 +844,8 @@ func generateDefaultCnsResponderContextMap(t *testing.T, ncDeploymentRequests []
 }
 
 var tagDefinitions = map[string]nmagentcontracts.TagResponse{
-	"XStore":   nmagentcontracts.TagResponse{ResponseCode: "200", Name: "XStore", Value: "168.10.10.0/24,144.10.12.12/24"},
-	"AzureSql": nmagentcontracts.TagResponse{ResponseCode: "200", Name: "AzureSql", Value: "132.10.10.0/24,134.10.12.12/24"}}
+	"XStore":   nmagentcontracts.TagResponse{ResponseCode: "200", Name: "XStore", Values: []string{"168.10.10.0/24", "144.10.12.12/24"}},
+	"AzureSql": nmagentcontracts.TagResponse{ResponseCode: "200", Name: "AzureSql", Values: []string{"132.10.10.0/24", "134.10.12.12/24"}}}
 
 func getTags(tagCount int) []nmagentcontracts.Tag {
 	tagsArray := make([]nmagentcontracts.Tag, tagCount)
@@ -928,7 +928,7 @@ func generateDefaultNMAgentResponderContext(networkDeploymentRequests []*Network
 			tagResponse := tagDefinitions[tag.Name]
 			responderTagsResponse[tag.Name] = &TagResponse{
 				HTTPStatus: http.StatusOK,
-				Response:   &nmagentcontracts.TagResponse{Name: tagResponse.Name, Value: tagResponse.Value, ResponseCode: tagResponse.ResponseCode},
+				Response:   &nmagentcontracts.TagResponse{Name: tagResponse.Name, Values: tagResponse.Values, ResponseCode: tagResponse.ResponseCode},
 				SignalInfo: SignalInfo{
 					Signal:             make(chan string),
 					SignalCount:        1,
@@ -1121,7 +1121,7 @@ func GetNetworkStatus(t *testing.T, resourceStatusURL string, expectedStatusCode
 			resourceStatusURL)
 		t.Fatal(response)
 	}
-	fmt.Printf("Received Response:%+v\n", response)
+	// fmt.Printf("Received Response:%+v\n", response)
 	if response.StatusCode == http.StatusProcessing {
 		return "Pending"
 	}
@@ -1304,6 +1304,83 @@ func createReservation(t *testing.T, reservationreq api.AllocationRequest, dncEP
 
 }
 
+func AreCnsRequestsEqual(expected, received cns.CreateNetworkContainerRequest) bool {
+	if expected.Version != received.Version {
+		fmt.Printf("Expected.Version %s Received.Version:%s", expected.Version, received.Version)
+		return false
+	}
+
+	if expected.NetworkContainerType != received.NetworkContainerType {
+		fmt.Printf("Expected.NetworkContainerType %s Received.NetworkContainerType:%s",
+			expected.NetworkContainerType, received.NetworkContainerType)
+		return false
+	}
+
+	if expected.NetworkContainerid != received.NetworkContainerid {
+		fmt.Printf("Expected.NetworkContainerid %s Received.NetworkContainerid:%s",
+			expected.NetworkContainerid, received.NetworkContainerid)
+		return false
+	}
+
+	if expected.PrimaryInterfaceIdentifier != received.PrimaryInterfaceIdentifier {
+		fmt.Printf("Expected.PrimaryInterfaceIdentifier %s Received.PrimaryInterfaceIdentifier:%s",
+			expected.PrimaryInterfaceIdentifier, received.PrimaryInterfaceIdentifier)
+		return false
+	}
+
+	if expected.AuthorizationToken != received.AuthorizationToken {
+		fmt.Printf("Expected.AuthorizationToken %s Received.AuthorizationToken:%s",
+			expected.AuthorizationToken, received.AuthorizationToken)
+		return false
+	}
+
+	if !reflect.DeepEqual(expected.OrchestratorContext, received.OrchestratorContext) {
+		fmt.Printf("Expected.OrchestratorContext %+v Received.OrchestratorContext:%+v",
+			expected.OrchestratorContext, received.OrchestratorContext)
+		return false
+	}
+
+	if !reflect.DeepEqual(expected.IPConfiguration, received.IPConfiguration) {
+		fmt.Printf("Expected.IPConfiguration %+v Received.IPConfiguration:%+v",
+			expected.IPConfiguration, received.IPConfiguration)
+
+		return false
+	}
+
+	if !reflect.DeepEqual(expected.MultiTenancyInfo, expected.MultiTenancyInfo) {
+		fmt.Printf("Expected.MultiTenancyInfo %+v Received.MultiTenancyInfo:%+v",
+			expected.MultiTenancyInfo, received.MultiTenancyInfo)
+		return false
+	}
+
+	if len(expected.CnetAddressSpace) != len(received.CnetAddressSpace) {
+		fmt.Printf("Expected.CnetAddressSpace %+v Received.CnetAddressSpace:%+v",
+			expected.CnetAddressSpace, received.CnetAddressSpace)
+		return false
+	}
+
+	receivedCnetAddressSpace := make([]string, len(expected.CnetAddressSpace))
+	expectedCnetAddressSpace := make([]string, len(expected.CnetAddressSpace))
+
+	for index, cnetAddressSpace := range expected.CnetAddressSpace {
+		expectedCnetAddressSpace[index] =
+			cnetAddressSpace.IPAddress + "/" +
+				strconv.Itoa(int(cnetAddressSpace.PrefixLength))
+	}
+
+	for index, cnetAddressSpace := range received.CnetAddressSpace {
+		receivedCnetAddressSpace[index] =
+			cnetAddressSpace.IPAddress + "/" +
+				strconv.Itoa(int(cnetAddressSpace.PrefixLength))
+	}
+
+	if !utils.AreSetsEqual(receivedCnetAddressSpace, receivedCnetAddressSpace) {
+		fmt.Printf("Expected.CnetAddressSpace %+v Received.CnetAddressSpace:%+v",
+			expected.CnetAddressSpace, received.CnetAddressSpace)
+	}
+
+	return true
+}
 func createNetworkContainer(
 	t *testing.T,
 	nodeID string,
@@ -1326,7 +1403,7 @@ func createNetworkContainer(
 	cnetSpace := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.CNetSpace
 	if nmAgentResponderContext.TagResponse != nil {
 		for _, tagResponse := range nmAgentResponderContext.TagResponse {
-			cnetSpace = cnetSpace + "," + tagResponse.Response.Value
+			cnetSpace = cnetSpace + "," + strings.Join(tagResponse.Response.Values, ",")
 		}
 	}
 	fmt.Println("CnetSpace;", cnetSpace)
@@ -1363,7 +1440,7 @@ func createNetworkContainer(
 		fmt.Printf("ReceivedResponse:%+v\n", req)
 		fmt.Printf("ExpectedResponse:%+v\n", expectedReq)
 
-		if !reflect.DeepEqual(expectedReq, req) {
+		if !AreCnsRequestsEqual(expectedReq, req) {
 			fmt.Printf("Mismatch in expected and received Cns create or update request.\nExpected:%+v\nReceived:%+v\n", expectedReq, req)
 			return false
 		}
@@ -1636,7 +1713,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 	cnetSpace := updatedNMAgentResponsderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.CNetSpace
 	if updatedNMAgentResponsderContext.TagResponse != nil {
 		for _, tagResponse := range updatedNMAgentResponsderContext.TagResponse {
-			cnetSpace = cnetSpace + "," + tagResponse.Response.Value
+			cnetSpace = cnetSpace + "," + strings.Join(tagResponse.Response.Values, ",")
 		}
 	}
 
@@ -1664,7 +1741,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 		fmt.Printf("ReceivedResponse:%+v\n", req)
 		fmt.Printf("ExpectedResponse:%+v\n", expectedReq)
 
-		if !reflect.DeepEqual(expectedReq, req) {
+		if !AreCnsRequestsEqual(expectedReq, req) {
 			fmt.Printf("Mismatch in expected and received Cns create or update request.\nExpected:%+v\nReceived:%+v\n", expectedReq, req)
 			return false
 		}
@@ -2146,7 +2223,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 			cnetSpace := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.CNetSpace
 			if nmAgentResponderContext.TagResponse != nil {
 				for _, tagResponse := range nmAgentResponderContext.TagResponse {
-					cnetSpace = cnetSpace + "," + tagResponse.Response.Value
+					cnetSpace = cnetSpace + "," + strings.Join(tagResponse.Response.Values, ",")
 				}
 			}
 			fmt.Println("CnetSpace;", cnetSpace)
@@ -2184,7 +2261,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 				fmt.Printf("%+v, %+v\n", expectedIP, receivedIP)
 				fmt.Printf("AllocatedIP:%+v, ReceivedIP:%+v", expectedReq.IPConfiguration.IPSubnet, req.IPConfiguration.IPSubnet)
 
-				if !reflect.DeepEqual(expectedReq, req) {
+				if !AreCnsRequestsEqual(expectedReq, req) {
 					fmt.Printf("Mismatch in expected and received Cns create or update request. "+
 						"\nExpected:%+v\nReceived:%+v\n",
 						expectedReq,

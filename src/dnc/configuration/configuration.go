@@ -91,9 +91,8 @@ type HostAgentConnectionStrings struct {
 }
 
 type HostAgentSettings struct {
-	WireServerIP        string
-	ConnectionStrings   HostAgentConnectionStrings
-	RequestBaseInterval int
+	WireServerIP      string
+	ConnectionStrings HostAgentConnectionStrings
 }
 
 type CNSConnectionStrings struct {
@@ -101,6 +100,7 @@ type CNSConnectionStrings struct {
 	DeleteNetworkContainerURLFmt         string
 	GetNetworkContainerStatusURLFmt      string
 	SetOrchestratorTypeURLFmt            string
+	GetNetworkcontainerstatusURLFmt      string
 }
 
 type CNSSettings struct {
@@ -110,6 +110,12 @@ type CNSSettings struct {
 type VlanSettings struct {
 	Min uint16
 	Max uint16
+}
+
+type DNCSettings struct {
+	RequestRetryBaseInterval        int
+	NetworkRefreshInterval          int
+	NetworkContainerRefreshInterval int
 }
 
 // Configuration - Details related to dnc configuration settings
@@ -122,6 +128,7 @@ type Configuration struct {
 	HostAgentSettings      HostAgentSettings
 	CNSSettings            CNSSettings
 	VlanSettings           VlanSettings
+	DNCSettings            DNCSettings
 }
 
 // Load the JSON config file

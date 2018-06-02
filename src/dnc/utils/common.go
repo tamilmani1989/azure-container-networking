@@ -98,6 +98,14 @@ func RecordTime(start time.Time, ctx string) {
 }
 
 func AreSetsEqual(set1, set2 []string) bool {
+	if set1 == nil {
+		set1 = make([]string, 0)
+	}
+	
+	if set2 == nil {
+		set2 = make([]string, 0)
+	}
+
 	if len(set1) != len(set2) {
 		return false
 	}

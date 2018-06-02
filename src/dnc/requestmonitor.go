@@ -20,7 +20,7 @@ import (
 // NCGoalState - Struct to cache the Network Container Goal State
 type NCGoalState struct {
 	NetworkContainerID    string
-	Version               string
+	Version               uint64
 	NetworkID             string
 	AllocatedIPSubnet     string
 	BaseSubnet            string
@@ -37,9 +37,8 @@ type NCGoalState struct {
 	ContainerType         string
 	OrchestratorContext   json.RawMessage
 	VlanID                int
+	VnetVersion           uint64
 }
-
-// var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func getSessionInfo(request *datamodel.RequestContext) map[string]string {
 	sessionInfo := make(map[string]string)
@@ -86,6 +85,9 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 	} else {
 		if err != nil {
 			logger.Errorf("%+v", err)
+		} else {
+			logger.Debugf("Resetting the retry interval as the operation has succeeded.")
+			requestContext.RetryInterval = requestContextRetryInterval
 		}
 
 		datamodel.AddRequestToPendingQueue(requestID, requestContext)
@@ -241,7 +243,7 @@ func getNCGoalState(repoNCConfig *datamodel.NCConfiguration) (*NCGoalState, bool
 
 	ncGoalState := &NCGoalState{
 		NetworkContainerID:    repoNCConfig.NetworkContainerID,
-		Version:               strconv.FormatUint(repoNCConfig.CNSVersion, 10),
+		Version:               repoNCConfig.CNSVersion,
 		NetworkID:             repoNCConfig.NetworkID,
 		AllocatedIPSubnet:     repoReservationConfiguration.AllocatedSubnet,
 		BaseSubnet:            repoSubnetConfiguration.IPSubnet,
@@ -257,6 +259,7 @@ func getNCGoalState(repoNCConfig *datamodel.NCConfiguration) (*NCGoalState, bool
 		TagsInfo:              tags,
 		ContainerType:         assocInfo.ContainerType,
 		OrchestratorContext:   assocInfo.OrchestratorContext,
+		VnetVersion:           repoNetworkConfiguration.Version,
 		VlanID:                int(repoNodeConfig.NetworkVlanIDMap[repoNCConfig.NetworkID])}
 
 	return ncGoalState, false, nil
@@ -1075,6 +1078,25 @@ func processNetworkContainerPurge(repoNCConfig *datamodel.NCConfiguration) (bool
 	return true, nil
 }
 
+func hasTagsChanged(resolvedTags map[string]datamodel.TagDefinition, currentTags map[string]uint64) bool {
+	if len(resolvedTags) != len(currentTags) {
+		return true
+	}
+
+	for tagName, tagDefinition := range resolvedTags {
+		currentVersion, found := currentTags[tagName]
+		if !found {
+			return true
+		}
+
+		if currentVersion != tagDefinition.Version {
+			return true
+		}
+	}
+
+	return false
+}
+
 func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	ncGoalState, isRetriableError, ncGoalStateErr := getNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
@@ -1088,17 +1110,24 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 	}
 
 	cnetAddressesCount := len(ncGoalState.CNetSubnets)
-
-	resolvedTags := make(map[string][]string)
+	resolvedTags := make(map[string]datamodel.TagDefinition)
 	for _, tag := range ncGoalState.TagsInfo {
-		value, tagErr := RegisterAndGetTagDefinition(tag)
+		tagDefinition, tagErr := RegisterAndGetTagDefinition(tag)
 		if tagErr != nil {
 			return false, tagErr
 		}
 
 		tagKey := datamodel.GetTagDefintionKey(tag.Type, tag.Name)
-		resolvedTags[tagKey] = strings.Split(value, ",")
-		cnetAddressesCount += len(resolvedTags[tagKey])
+		resolvedTags[tagKey] = tagDefinition
+		cnetAddressesCount += len(resolvedTags[tagKey].Values)
+	}
+	if repoNCConfig.ProgrammedTagsInfo == nil {
+		repoNCConfig.ProgrammedTagsInfo = make(map[string]uint64)
+	}
+
+	if ncGoalState.VnetVersion != repoNCConfig.ProgrammedVnetVersion ||
+		hasTagsChanged(resolvedTags, repoNCConfig.ProgrammedTagsInfo) {
+		repoNCConfig.CNSVersion++
 	}
 
 	var body bytes.Buffer
@@ -1136,8 +1165,9 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 		cnetAddresses[currentIndex] = cnetAddressString
 		currentIndex++
 	}
-	for _, tagAddresses := range resolvedTags {
-		for _, tagAddressString := range tagAddresses {
+
+	for _, tagDefinitions := range resolvedTags {
+		for _, tagAddressString := range tagDefinitions.Values {
 			cnetAddresses[currentIndex] = tagAddressString
 			currentIndex++
 		}
@@ -1165,7 +1195,7 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 	}
 
 	info := &cns.CreateNetworkContainerRequest{
-		Version:                    ncGoalState.Version,
+		Version:                    strconv.FormatUint(repoNCConfig.CNSVersion, 10),
 		NetworkContainerType:       ncGoalState.ContainerType,
 		NetworkContainerid:         "Swift_" + ncGoalState.NetworkContainerID,
 		PrimaryInterfaceIdentifier: ncGoalState.AssociatedInterfaceID,
@@ -1229,6 +1259,7 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 		repoNCConfig.State = datamodel.Publish
 	}
 
+	repoNCConfig.ProgrammedVnetVersion = ncGoalState.VnetVersion
 	repoNCConfig.Status = datamodel.Pending
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, false)
 }
@@ -1337,7 +1368,7 @@ func processNetworkContainerPublish(repoNCConfig *datamodel.NCConfiguration) (bo
 	ncRequest.IPV4Addresses[0] = strings.Split(ncGoalState.AllocatedIPSubnet, "/")[0]
 	ncRequest.Policies = make([]string, 0)
 	ncRequest.SubnetName = ncGoalState.BaseSubnetName
-	ncRequest.Version = ncGoalState.Version
+	ncRequest.Version = strconv.FormatUint(ncGoalState.VnetVersion, 10)
 	ncRequest.VirtualNetworkID = ncGoalState.NetworkID
 	ncRequest.VlanID = ncGoalState.VlanID
 
@@ -1553,15 +1584,19 @@ func monitorRequests() {
 				processPendingRequests()
 			}
 			break
+
 		case <-startProcessing:
 			networkMonitorStartProcessing <- true
 			tagMonitorStartProcessing <- true
+			refreshNCStartProcessing <- true
 			processPendingRequests()
 			logger.Debugf("Received signal to process pending work\n")
 			break
+
 		case <-cancelProcessing:
 			networkMonitorStopProcessing <- true
 			tagMonitorStopProcessing <- true
+			refreshNCStopProcessing <- true
 			logger.Debugf("Received signal to exit\n")
 			break
 		}

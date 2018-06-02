@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 var isPrimary struct{ flag int32 }
@@ -24,6 +25,8 @@ var networkMonitorStartProcessing = make(chan bool)
 var tagMonitorStartProcessing = make(chan bool)
 var networkMonitorStopProcessing = make(chan bool)
 var tagMonitorStopProcessing = make(chan bool)
+var refreshNCStartProcessing = make(chan bool)
+var refreshNCStopProcessing = make(chan bool)
 
 var config *configuration.Configuration
 var masterElectionShim *masterelectionshim.MasterElectionShim
@@ -34,6 +37,9 @@ var dncServer server.Server
 var replicaInstance *replica.Replica
 var debug bool
 var stderr bool
+
+//  Base retry interval
+var requestContextRetryInterval time.Duration
 
 func init() {
 	flag.BoolVar(&debug, "debug", false, "Set to true to output debug statements.")
@@ -48,7 +54,7 @@ func init() {
 	config = configuration.Load(configpath)
 	logger = loggershim.NewLoggerShim(config)
 	logger.Init(debug, stderr)
-	datamodel.Init(config.DataStoreSettings, config.HostAgentSettings.RequestBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
 	replicaInstance = replica.NewReplica(config.ServerSettings)
 
 	masterElectionShim = masterelectionshim.NewMasterElectionShim(
@@ -66,6 +72,7 @@ func init() {
 		ServerSettings: config.ServerSettings,
 		Controller:     ctrler}
 	dncServer.Init()
+	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
 }
 
 func processExitCallback() {
@@ -79,6 +86,7 @@ func main() {
 	go monitorRequests()
 	go monitorNetworkUpdates()
 	go monitorTagUpdates()
+	go monitorNetworkContainers()
 	go masterElectionShim.Start()
 	dncServer.Start()
 }

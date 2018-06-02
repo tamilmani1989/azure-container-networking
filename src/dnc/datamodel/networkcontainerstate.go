@@ -5,7 +5,7 @@ type NetworkContainerState int
 
 const (
 	// Prepare - Prepare NC for allocation
-	Prepare NetworkContainerState = iota
+	Prepare NetworkContainerState = iota + 1
 
 	// Reserve - NC resevrve processing pending
 	Reserve

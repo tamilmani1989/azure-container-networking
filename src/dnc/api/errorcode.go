@@ -176,6 +176,9 @@ const (
 
 	// InvalidNetworkStateForDelete - Delete cannot be performed on the current state
 	InvalidNetworkStateForDelete
+
+	// CnsNCVersionRetrievalFailed - Retrieval of NC version from CNS Failed
+	CnsNCVersionRetrievalFailed
 )
 
 func (e ErrorCode) String() string {
@@ -350,6 +353,9 @@ func (e ErrorCode) String() string {
 
 	case InvalidNetworkStateForDelete:
 		return "InvalidNetworkStateForDelete"
+
+	case CnsNCVersionRetrievalFailed:
+		return "CnsNCVersionRetrievalFailed"
 	}
 
 	return "Unknown Status"

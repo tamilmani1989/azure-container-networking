@@ -40,3 +40,9 @@ func GetNCKey(networkID, ncID string) string {
 func GetTagDefintionKey(tagType, tagName string) string {
 	return fmt.Sprintf(tagDefinitionKey, tagType, tagName)
 }
+
+// GetNodeIDFromKey - Helepr to retrieve node ID from node key.
+func GetNodeIDFromKey(key string) string {
+	emptyKey := fmt.Sprintf(nodeKey, "")
+	return strings.Split(key, emptyKey)[1]
+}

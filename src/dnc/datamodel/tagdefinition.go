@@ -2,6 +2,7 @@ package datamodel
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -9,7 +10,7 @@ import (
 type TagDefinition struct {
 	Name                string
 	Type                string
-	Value               string
+	Values              []string
 	CreatedDateTime     time.Time
 	LastUpdatedDateTime time.Time
 	Version             uint64
@@ -20,7 +21,7 @@ func (tagDefinition *TagDefinition) String() string {
 	return fmt.Sprintf("TagDefinition:[Name:%s, Type:%s, Value:%s, Version:%d, CreatedDateTime:%s, LastUpdatedDateTime:%s]",
 		tagDefinition.Name,
 		tagDefinition.Type,
-		tagDefinition.Value,
+		strings.Join(tagDefinition.Values, ","),
 		tagDefinition.Version,
 		tagDefinition.CreatedDateTime.String(),
 		tagDefinition.LastUpdatedDateTime.String())

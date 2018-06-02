@@ -34,19 +34,25 @@
             "JoinNetworkURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
             "GetNetworkConfigurationURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
             "PutNetworkContainerURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
-            "DeleteNetworkContainerURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE"
-        },
-        "RequestBaseInterval":1000
-},
+            "DeleteNetworkContainerURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
+            "GetSystemTagDefinitionURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/systemTags/%s/ipVersion/%s/api-version/1"
+        }
+    },      
     "CNSSettings":{
         "ConnectionStrings" :{
             "CreateOrUpdateNetworkContainerURLFmt" : "http://%s:10090/network/createorupdatenetworkcontainer",
             "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
-            "setOrchestratorTypeURLFmt" : "http://%s:10090/network/setorchestratortype" 
+            "SetOrchestratorTypeURLFmt" : "http://%s:10090/network/setorchestratortype",
+            "GetNetworkcontainerstatusURLFmt":"http://%s:10090/network/getnetworkcontainerstatus"
         }
     },
     "VlanSettings":{
         "Min":1,
         "Max":4095
+    },
+    "DNCSettings":{
+        "RequestRetryBaseInterval":1000,
+        "NetworkRefreshInterval":60000,
+        "NetworkContainerRefreshInterval": 60000
     }
 }

@@ -24,12 +24,7 @@ var maxVlan uint16 = 4095
 // Init - Initialize repsoitory.
 func Init(dataStoreSettings configuration.DataStoreSettings, interval int, min, max uint16) error {
 	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
-
-	if interval > requestBaseInterval {
-		requestBaseInterval = interval
-	} else if interval < 0 {
-		requestBaseInterval = 0
-	}
+	requestBaseInterval = interval
 
 	if min > minVlan {
 		minVlan = min
@@ -536,12 +531,18 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 
 // TryQueryNodeConfiguration - Query node configuration.
 func TryQueryNodeConfiguration(nodeID string) (*NodeConfiguration, *api.JsonErr) {
-	var repositoryNodeConfiguration NodeConfiguration
 	nodeKey := GetNodeKey(nodeID)
+	return TryQueryNodeConfigurationByKey(nodeKey)
+}
+
+// TryQueryNodeConfigurationByKey - Query node configuration by node key.
+func TryQueryNodeConfigurationByKey(nodeKey string) (*NodeConfiguration, *api.JsonErr) {
+	var repositoryNodeConfiguration NodeConfiguration
+	nodeID := GetNodeIDFromKey(nodeKey)
 	property, status, err := dataStoreShim.Query(nodeTableName, nodeKey)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
-			"Failed to retrieve configuration for node :[%s] due to error:[%s]",
+			"Failed to retrieve configuration for node:[%s] due to error:[%s]",
 			nodeID,
 			err)
 		return nil, &api.JsonErr{
@@ -559,7 +560,7 @@ func TryQueryNodeConfiguration(nodeID string) (*NodeConfiguration, *api.JsonErr)
 	err = json.Unmarshal([]byte(serializedNodeConfiguration), &repositoryNodeConfiguration)
 	if err != nil {
 		msg := fmt.Sprintf(
-			"Failed to unmarshal configuration for node :[%s] due to error:[%s]",
+			"Failed to unmarshal configuration for node:[%s] due to error:[%s]",
 			nodeID,
 			err)
 		return nil, &api.JsonErr{
@@ -937,7 +938,7 @@ func TryQueryTagDefinitionByKey(tagDefinitionKey string) (*TagDefinition, *api.J
 func CreateOrUpdateTagDefintion(
 	tagType string,
 	tagName string,
-	value string) *api.JsonErr {
+	values []string) *api.JsonErr {
 	repositoryTagDefintion, err := TryQueryTagDefinition(tagType, tagName)
 	if err != nil {
 		return err
@@ -951,7 +952,7 @@ func CreateOrUpdateTagDefintion(
 			CreatedDateTime: time.Now()}
 	}
 	repositoryTagDefintion.Version++
-	repositoryTagDefintion.Value = value
+	repositoryTagDefintion.Values = values
 	repositoryTagDefintion.LastUpdatedDateTime = time.Now()
 
 	return persistTagDefinition(repositoryTagDefintion)
@@ -1447,14 +1448,16 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 			break
 
 		case Associate:
-			fallthrough
-		case RefreshAssociation:
 			networkContainerConfig.State = DisAssociate
 			networkContainerConfig.Status = Pending
 			break
 
+		case RefreshAssociation:
+			fallthrough
+
 		case Publish:
 			fallthrough
+
 		case Program:
 			networkContainerConfig.State = UnPublish
 			networkContainerConfig.Status = Pending
@@ -2041,7 +2044,7 @@ func CreateOrUpdateNCRequestV1(
 		State:               Prepare,
 		Status:              Pending,
 		APIVersion:          apiVersion,
-		CNSVersion:          1}
+		CNSVersion:          0}
 
 	return PersistNCConfiguration(&ncConfiguration, true)
 }
@@ -2134,7 +2137,7 @@ func CreateOrUpdateNCRequestV2(
 		State:               Prepare,
 		Status:              Pending,
 		APIVersion:          apiVersion,
-		CNSVersion:          1}
+		CNSVersion:          0}
 
 	return PersistNCConfiguration(&ncConfiguration, true)
 }
@@ -2197,7 +2200,7 @@ func GetNetworkContainersInSubnet(
 	return networkContainersInfo[:containersCount], nil
 }
 
-// GetPendingRequests - Retrieve all request pending processing
+// GetAllNetworkIDs - Retrieve all network IDs
 func GetAllNetworkIDs() (map[string]bool, error) {
 	var hasMoreData bool
 	var context interface{}
@@ -2227,4 +2230,36 @@ func GetAllNetworkIDs() (map[string]bool, error) {
 	}
 
 	return networkIDs, nil
+}
+
+// GetAllNodeIDs - Retrieve all node IDs
+func GetAllNodeIDs() (map[string]bool, error) {
+	var hasMoreData bool
+	var context interface{}
+	var nodesMap map[string]interface{}
+	var err error
+	var status int
+	nodeIDs := make(map[string]bool)
+	for {
+		nodesMap, hasMoreData, context, status, err = dataStoreShim.QueryAll(
+			nodeTableName,
+			context)
+		if err != nil {
+			if status == http.StatusNotFound {
+				return nodeIDs, nil
+			}
+
+			return nil, err
+		}
+
+		for nodeID := range nodesMap {
+			nodeIDs[nodeID] = true
+		}
+
+		if !hasMoreData {
+			break
+		}
+	}
+
+	return nodeIDs, nil
 }
