@@ -82,6 +82,13 @@ var args = acn.ArgumentList{
 		DefaultValue: "",
 	},
 	{
+		Name:         acn.OptIpamQueryUrl,
+		Shorthand:    acn.OptIpamQueryUrlAlias,
+		Description:  "Set the IPAM query URL",
+		Type:         "string",
+		DefaultValue: "",
+	},
+	{
 		Name:         acn.OptIpamQueryInterval,
 		Shorthand:    acn.OptIpamQueryIntervalAlias,
 		Description:  "Set the IPAM plugin query interval",
@@ -129,6 +136,7 @@ func main() {
 	logLevel := acn.GetArg(acn.OptLogLevel).(int)
 	logTarget := acn.GetArg(acn.OptLogTarget).(int)
 	logDirectory := acn.GetArg(acn.OptLogLocation).(string)
+	ipamQueryUrl, _ := acn.GetArg(acn.OptIpamQueryUrl).(string)
 	ipamQueryInterval, _ := acn.GetArg(acn.OptIpamQueryInterval).(int)
 	stopcnm = acn.GetArg(acn.OptStopAzureVnet).(bool)
 	vers := acn.GetArg(acn.OptVersion).(bool)
@@ -199,6 +207,10 @@ func main() {
 	var netPlugin network.NetPlugin
 	var ipamPlugin ipam.IpamPlugin
 
+	ipamPlugin.SetOption(acn.OptEnvironment, environment)
+	ipamPlugin.SetOption(acn.OptAPIServerURL, url)
+	ipamPlugin.SetOption(acn.OptIpamQueryUrl, ipamQueryUrl)
+	ipamPlugin.SetOption(acn.OptIpamQueryInterval, ipamQueryInterval)
 	if !stopcnm {
 		var pluginConfig acn.PluginConfig
 		pluginConfig.Version = version
