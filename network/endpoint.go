@@ -23,6 +23,7 @@ type endpoint struct {
 	Gateways    []net.IP
 	DNS         DNSInfo
 	Routes      []RouteInfo
+	VlanID      int
 }
 
 // EndpointInfo contains read-only information about an endpoint.

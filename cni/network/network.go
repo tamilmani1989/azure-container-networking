@@ -158,12 +158,12 @@ func convertToCniResult(networkConfig *cns.GetNetworkContainerResponse) *cniType
 		for _, route := range networkConfig.Routes {
 			_, routeIPnet, _ := net.ParseCIDR(route.IPAddress)
 			gwIP := net.ParseIP(route.GatewayIPAddress)
-			result.Routes = append(result.Routes, &types.Route{Dst: *routeIPnet, GW: gwIP})
+			result.Routes = append(result.Routes, &cniTypes.Route{Dst: *routeIPnet, GW: gwIP})
 		}
 	} else {
 		gwIP := net.ParseIP(networkConfig.IPConfiguration.GatewayIPAddress)
 		dstIP := net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: resultIpconfig.Address.Mask}
-		result.Routes = append(result.Routes, &types.Route{Dst: dstIP, GW: gwIP})
+		result.Routes = append(result.Routes, &cniTypes.Route{Dst: dstIP, GW: gwIP})
 	}
 
 	return result
