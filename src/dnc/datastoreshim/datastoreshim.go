@@ -66,7 +66,6 @@ func (wf keyExistFunc) KeyExist(tableName, rowKey string) (bool, error) {
 
 // Init - Function to initialize data store.
 func (dataStoreShim *DataStoreShim) Init(tableToColumnMap map[string]string) {
-
 	if dataStoreShim.dataStoreSettings.AzureStorageInfo != (configuration.AzureStorageInfo{}) {
 		azStorage := azurestorage.AzureStorage{AzureStorageInfo: dataStoreShim.dataStoreSettings.AzureStorageInfo}
 		azStorage.Init(tableToColumnMap)

@@ -14,6 +14,7 @@ type MasterElectionInterface interface {
 	Init()
 	Start()
 	Cleanup()
+	SetDataStoreSettings(*configuration.Configuration)
 }
 
 // MasterElectionShim - Struct to cache the LeaderElectionShim functions
@@ -79,4 +80,8 @@ func (masterElectionShim *MasterElectionShim) Start() {
 // Cleanup - Function to Cleanup underlying leader election service.
 func (masterElectionShim *MasterElectionShim) Cleanup() {
 	masterElectionShim.masterElectionInterface.Cleanup()
+}
+
+func (masterElectionShim *MasterElectionShim) SetDataStoreSettings(config *configuration.Configuration) {
+	masterElectionShim.masterElectionInterface.SetDataStoreSettings(config)
 }

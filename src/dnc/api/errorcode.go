@@ -179,6 +179,12 @@ const (
 
 	// CnsNCVersionRetrievalFailed - Retrieval of NC version from CNS Failed
 	CnsNCVersionRetrievalFailed
+
+	// InvalidAzureStorageInfo - There is not enough information to initialize azure storage
+	InvalidAzureStorageInfo
+
+	// StorageNotInitialized - Storage has not been initialized
+	StorageNotInitialized
 )
 
 func (e ErrorCode) String() string {
@@ -356,6 +362,12 @@ func (e ErrorCode) String() string {
 
 	case CnsNCVersionRetrievalFailed:
 		return "CnsNCVersionRetrievalFailed"
+
+	case InvalidAzureStorageInfo:
+		return "InvalidAzureStorageInfo"
+
+	case StorageNotInitialized:
+		return "StorageNotInitialized"
 	}
 
 	return "Unknown Status"

@@ -3,8 +3,10 @@ package controller
 import (
 	"bytes"
 	"dnc/api"
+	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
+	"dnc/masterelection/masterelectionshim"
 	"dnc/replica"
 	"dnc/utils"
 	"encoding/json"
@@ -14,7 +16,11 @@ import (
 	"github.com/Azure/azure-container-networking/cns"
 )
 
-var setOrchestratorTypeURLFmt string
+var (
+	setOrchestratorTypeURLFmt string
+	masterElectionShim        *masterelectionshim.MasterElectionShim
+	config                    *configuration.Configuration
+)
 
 // Controller - Controller for handling API calls
 type Controller struct {
@@ -23,11 +29,14 @@ type Controller struct {
 }
 
 // NewController - Create a NewController
-func NewController(replica *replica.Replica, sessionsManager *utils.SessionManager, setOrchestratorTypeUrlFmt string) *Controller {
+func NewController(replica *replica.Replica, sessionsManager *utils.SessionManager, setOrchestratorTypeUrlFmt string,
+	electionShim *masterelectionshim.MasterElectionShim, configuration *configuration.Configuration) *Controller {
 	controller := new(Controller)
 	controller.Replica = replica
 	controller.SessionManager = sessionsManager
 	setOrchestratorTypeURLFmt = setOrchestratorTypeUrlFmt
+	masterElectionShim = electionShim
+	config = configuration
 	return controller
 }
 
@@ -399,4 +408,27 @@ func (c *Controller) GetPrimaryIPEndpoint() (string, error) {
 // GetReplicaIPEndpoint - Retrieves the endpoint of this replica.
 func (c *Controller) GetReplicaIPEndpoint() (string, error) {
 	return c.Replica.GetReplicaIPEndpoint()
+}
+
+// InitializeAzureStorage - Tries to establish a connection with azure storage with information provided in request.
+func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *api.JsonErr {
+	config.DataStoreSettings.AzureStorageInfo.AccountName = request.AccountName
+	config.DataStoreSettings.AzureStorageInfo.Key = request.Key
+	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
+	masterElectionShim.SetDataStoreSettings(config)
+	masterElectionShim.Init()
+	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	c.UpdateReplicaStatus(true)
+
+	return nil
+}
+
+// IsReplicaReady - Function to check if this replica is ready
+func (c *Controller) IsReplicaReady() bool {
+	return c.Replica.IsReplicaReady()
+}
+
+// UpdateReplicaStatus - Function to update replica ready flag
+func (c *Controller) UpdateReplicaStatus(isReplicaReady bool) {
+	c.Replica.UpdateReadyStatus(isReplicaReady)
 }

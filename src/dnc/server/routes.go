@@ -127,4 +127,10 @@ var routes = Routes{
 		"/networks/{networkID}",
 		DeleteNetwork,
 	},
+	Route{
+		"InitializeAzureStorage",
+		"POST",
+		"/azurestoragesettings",
+		InitializeAzureStorage,
+	},
 }

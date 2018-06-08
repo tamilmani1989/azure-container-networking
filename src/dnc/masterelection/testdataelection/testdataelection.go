@@ -49,3 +49,7 @@ func (t *TestDataElection) Start() {
 	t.replicaChangeNotificationCallback(true)
 	t.primaryIPEndpointNotificationCallback(ipEndpoint)
 }
+
+// SetDataStoreSettings - stub
+func (t *TestDataElection) SetDataStoreSettings(config *configuration.Configuration) {
+}

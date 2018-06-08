@@ -24,6 +24,20 @@ func Logger(inner http.Handler, name string) http.Handler {
 			return
 		}
 
+		if strings.Contains(r.RequestURI, "/azurestoragesettings") {
+			if ctrler.IsReplicaReady() {
+				return
+			}
+		} else {
+			if !ctrler.IsReplicaReady() {
+				setRequestFailed(w, &api.JsonErr{
+					Code:       api.StorageNotInitialized,
+					HTTPStatus: http.StatusBadRequest,
+					Text:       "Azure Storage has not been initialized."})
+				return
+			}
+		}
+
 		// Check if the replica is primary. If it is not
 		// redirect to the current primary.
 		isReplicaPrimary := ctrler.Replica.IsReplicaPrimary()

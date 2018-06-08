@@ -17,6 +17,7 @@ type Replica struct {
 	serverSettings          configuration.ServerSettings
 	primaryIPEndpoint       string
 	isPrimary               struct{ flag int32 }
+	isReady                 struct{ flag int32 }
 	mux                     *sync.Mutex
 }
 
@@ -36,6 +37,7 @@ func (replica *Replica) UpdateReplicaStatus(isReplicaPrimary bool) {
 	if isReplicaPrimary {
 		i = 1
 	}
+
 	atomic.StoreInt32(&(replica.isPrimary.flag), int32(i))
 }
 
@@ -62,7 +64,23 @@ func (replica *Replica) IsReplicaPrimary() bool {
 	if atomic.LoadInt32(&(replica.isPrimary.flag)) != 0 {
 		return true
 	}
+
 	return false
+}
+
+// IsReplicaReady - Function to check if this replica is ready
+func (replica *Replica) IsReplicaReady() bool {
+	return atomic.LoadInt32(&(replica.isReady.flag)) != 0
+}
+
+// UpdateReadyStatus - Function to update replica ready flag
+func (replica *Replica) UpdateReadyStatus(isReplicaReady bool) {
+	var i int32
+	if isReplicaReady {
+		i = 1
+	}
+
+	atomic.StoreInt32(&(replica.isReady.flag), int32(i))
 }
 
 // GetReplicaIPEndpoint - Method to check if the given replica is primary.

@@ -4,12 +4,14 @@ import (
 	"dnc/configuration"
 	"dnc/logger/loggershim"
 	"dnc/masterelection/common"
+	"dnc/utils"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
@@ -26,6 +28,7 @@ type BlobStore struct {
 	startEvent                            chan bool
 	blob                                  *storage.Blob
 	leaseID                               string
+	mutex                                 *sync.RWMutex
 }
 
 const (
@@ -47,12 +50,14 @@ func NewBlobStore(
 	blobStore.primaryIPEndpointNotificationCallback = primaryIPNotificationCallback
 	blobStore.cancelEvent = cancel
 	blobStore.startEvent = start
+	blobStore.mutex = new(sync.RWMutex)
 	return blobStore
 }
 
 // Init - Initialize blob storage for primary election.
 func (b *BlobStore) Init() {
-	client, err := storage.NewBasicClient(b.blobStorageSettings.AccountName, b.blobStorageSettings.Key)
+	accountName, key, _ := b.getDataStoreSettings()
+	client, err := storage.NewBasicClient(accountName, key)
 	onErrorFail(err, "Create client failed")
 	b.blobClient = client.GetBlobService()
 }
@@ -66,7 +71,18 @@ func (b *BlobStore) Cleanup() {
 
 // Start - Start the leader election process
 func (b *BlobStore) Start() {
-	b.TryAcquireLease()
+	accountName, key, partitionKey := b.getDataStoreSettings()
+	if accountName == "" ||
+		key == "" ||
+		partitionKey == "" {
+		ipAddress, err := b.getIPAddress()
+		utils.OnErrorFail(err, "Failed to get local host IP")
+		ipEndpoint := ipAddress + ":" + b.serverSettings.Port
+		b.replicaChangeNotificationCallback(true)
+		b.primaryIPEndpointNotificationCallback(ipEndpoint)
+	} else {
+		b.TryAcquireLease()
+	}
 }
 
 func (b *BlobStore) createBlob() error {
@@ -124,6 +140,7 @@ func (b *BlobStore) UpdatePrimaryIPEndpoint() error {
 		loggershim.LS.Errorf("Failed to get local IP address due to error: %s\n", err.Error())
 		return err
 	}
+
 	putBlockOptions := &storage.PutBlockOptions{LeaseID: b.leaseID}
 	err = b.blob.PutBlock(
 		blockIDEncoded,
@@ -161,9 +178,9 @@ func (b *BlobStore) updateReplicaPrimaryEndpoint() {
 	} else {
 		loggershim.LS.Debugf("Updating primary replica EP %s\n", primaryIPEP)
 	}
+
 	b.replicaChangeNotificationCallback(false)
 	b.primaryIPEndpointNotificationCallback(primaryIPEP)
-
 }
 
 // TryAcquireLease - Function to acquire and renew lease.
@@ -176,7 +193,6 @@ func (b *BlobStore) TryAcquireLease() error {
 
 	updateBlobRetryInterval :=
 		(time.Second) * time.Duration(b.blobStorageSettings.AcquireRetryIntervalInSecs/2)
-
 	leaseAcquireRetryTimerChannel := time.NewTicker(
 		time.Second * time.Duration(b.blobStorageSettings.AcquireRetryIntervalInSecs)).C
 	leaseRenewRetryTimerChannel := time.NewTicker(
@@ -314,6 +330,22 @@ func (b *BlobStore) IsPrimary() (bool, error) {
 
 	replicaEP := replicaIP + ":" + b.serverSettings.Port
 	return strings.Compare(primaryEP, replicaEP) == 0, nil
+}
+
+// SetDataStoreSettings - Function to set account name, key and partition key
+func (b *BlobStore) SetDataStoreSettings(config *configuration.Configuration) {
+	b.mutex.Lock()
+	b.blobStorageSettings.AccountName = config.DataStoreSettings.AzureStorageInfo.AccountName
+	b.blobStorageSettings.Key = config.DataStoreSettings.AzureStorageInfo.Key
+	b.blobStorageSettings.PartitionKey = config.DataStoreSettings.AzureStorageInfo.PartitionKey
+	b.mutex.Unlock()
+}
+
+// getDataStoreSettings - Function that return datastore settings (AccountName, Key, PartitionKey)
+func (b *BlobStore) getDataStoreSettings() (string, string, string) {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
+	return b.blobStorageSettings.AccountName, b.blobStorageSettings.Key, b.blobStorageSettings.PartitionKey
 }
 
 func getLocalIP() (string, error) {

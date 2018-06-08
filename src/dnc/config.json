@@ -1,9 +1,9 @@
 {  
     "DataStoreSettings":{  
        "AzureStorageInfo":{  
-          "AccountName":#DataStoreAccountName#,
-          "Key":"#DataStoreKey#",
-          "PartitionKey":#DataStorePartitionKey#
+          "AccountName":"",
+          "Key":"",
+          "PartitionKey":""
        },
        "AzureSQLInfo":{  
           "Host":"",
@@ -18,9 +18,9 @@
     },
     "MasterElectionSettings":{  
         "BlobStorageSettings":{
-         "AccountName":#LeaderElectionAccountName#,
-         "Key":#LeaderElectionKey#,
-         "PartitionKey":#LeaderElectionPartition#,
+         "AccountName":"",
+         "Key":"",
+         "PartitionKey":"",
          "BlobName":#LeaderElectionBlob#,
          "ContainerName":#LeaderElectionTest#,
          "LeaseIntervalInSecs":60,

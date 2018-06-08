@@ -54,39 +54,60 @@ func init() {
 	config = configuration.Load(configpath)
 	logger = loggershim.NewLoggerShim(config)
 	logger.Init(debug, stderr)
-	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
 	replicaInstance = replica.NewReplica(config.ServerSettings)
-
+	sessionManager = utils.NewSessionManager([]string{datamodel.NodeRepositoryName, datamodel.NetworkRepositoryName, datamodel.TagRepositoryName})
 	masterElectionShim = masterelectionshim.NewMasterElectionShim(
 		config,
 		replicaInstance.UpdateReplicaStatus,
 		replicaInstance.SetPrimaryIPEndpoint,
 		startChan,
 		doneChan)
-	masterElectionShim.Init()
-
-	sessionManager = utils.NewSessionManager([]string{datamodel.NodeRepositoryName, datamodel.NetworkRepositoryName, datamodel.TagRepositoryName})
-	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt)
-
+	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt, masterElectionShim, config)
 	dncServer = server.Server{
 		ServerSettings: config.ServerSettings,
 		Controller:     ctrler}
 	dncServer.Init()
 	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
+
+	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
+		masterElectionShim.Init()
+		datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+		ctrler.UpdateReplicaStatus(true)
+	}
 }
 
 func processExitCallback() {
-	masterElectionShim.Cleanup()
+	if ctrler.IsReplicaReady() {
+		masterElectionShim.Cleanup()
+	}
+}
+
+func startReplica(c *controller.Controller) {
+	ticker := time.NewTicker(time.Millisecond * 1000)
+	// Wait for orchestrator to send azure storage information
+	if !c.IsReplicaReady() {
+		go masterElectionShim.Start()
+
+		for {
+			<-ticker.C
+			if c.IsReplicaReady() {
+				break
+			}
+		}
+	}
+
+	ticker.Stop()
+	go masterElectionShim.Start()
+	go monitorRequests()
+	go monitorNetworkUpdates()
+	go monitorTagUpdates()
+	go monitorNetworkContainers()
 }
 
 func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go ProcessExitMonitor(sigs, processExitCallback)
-	go monitorRequests()
-	go monitorNetworkUpdates()
-	go monitorTagUpdates()
-	go monitorNetworkContainers()
-	go masterElectionShim.Start()
+	go startReplica(ctrler)
 	dncServer.Start()
 }

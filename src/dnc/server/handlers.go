@@ -128,7 +128,6 @@ func DeleteNode(w http.ResponseWriter, r *http.Request) {
 // ReserveIP - Handler for IP reservation
 func ReserveIP(w http.ResponseWriter, r *http.Request) {
 	apiVersion := r.URL.Query().Get("api-version")
-
 	vars := mux.Vars(r)
 	networkID, ok := vars["networkID"]
 	if !ok {
@@ -522,7 +521,6 @@ func GetNetworkContainer(w http.ResponseWriter, r *http.Request) {
 // CreateNetwork - Handler for create network
 func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 	apiVersion := r.URL.Query().Get("api-version")
-
 	vars := mux.Vars(r)
 	networkID, ok := vars["networkID"]
 	if !ok {
@@ -712,4 +710,33 @@ func GetNetworkStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	setRequestFailed(w, getErr)
+}
+
+// InitializeAzureStorage - Handler for initializing datastore settings to establish a connection.
+func InitializeAzureStorage(w http.ResponseWriter, r *http.Request) {
+	var request api.AzureStorageRequest
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
+	if err := decodeRequestBody(r, &request); err != nil {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		if err := json.NewEncoder(w).Encode(err); err != nil {
+			panic(err)
+		}
+
+		return
+	}
+
+	if validationErr := request.Validate(); validationErr != nil {
+		setRequestFailed(w, validationErr)
+	}
+
+	t := ctrler.InitializeAzureStorage(request)
+	if t != nil {
+		w.WriteHeader(t.HTTPStatus)
+		if err := json.NewEncoder(w).Encode(&t); err != nil {
+			panic(err)
+		}
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
 }
