@@ -23,6 +23,12 @@ const (
 	Kubernetes = "Kubernetes"
 )
 
+// Encap Types
+const (
+	Vlan  = "Vlan"
+	Vxlan = "Vxlan"
+)
+
 // CreateNetworkContainerRequest specifies request to create a network container or network isolation boundary.
 type CreateNetworkContainerRequest struct {
 	Version                    string
@@ -33,7 +39,7 @@ type CreateNetworkContainerRequest struct {
 	OrchestratorContext        json.RawMessage
 	IPConfiguration            IPConfiguration
 	MultiTenancyInfo           MultiTenancyInfo
-	VnetAddressSpace           []IPSubnet // To setup SNAT (should include service endpoint vips).
+	CnetAddressSpace           []IPSubnet // To setup SNAT (should include service endpoint vips).
 	Routes                     []Route
 }
 
@@ -125,7 +131,7 @@ type GetInterfaceForContainerRequest struct {
 // GetInterfaceForContainerResponse specifies the interface for a given container ID.
 type GetInterfaceForContainerResponse struct {
 	NetworkInterface NetworkInterface
-	VnetAddressSpace []IPSubnet
+	CnetAddressSpace []IPSubnet
 	Response         Response
 }
 
