@@ -207,10 +207,6 @@ func main() {
 	var netPlugin network.NetPlugin
 	var ipamPlugin ipam.IpamPlugin
 
-	ipamPlugin.SetOption(acn.OptEnvironment, environment)
-	ipamPlugin.SetOption(acn.OptAPIServerURL, url)
-	ipamPlugin.SetOption(acn.OptIpamQueryUrl, ipamQueryUrl)
-	ipamPlugin.SetOption(acn.OptIpamQueryInterval, ipamQueryInterval)
 	if !stopcnm {
 		var pluginConfig acn.PluginConfig
 		pluginConfig.Version = version
@@ -249,6 +245,7 @@ func main() {
 
 		ipamPlugin.SetOption(acn.OptEnvironment, environment)
 		ipamPlugin.SetOption(acn.OptAPIServerURL, url)
+		ipamPlugin.SetOption(acn.OptIpamQueryUrl, ipamQueryUrl)
 		ipamPlugin.SetOption(acn.OptIpamQueryInterval, ipamQueryInterval)
 		if err := ipamPlugin.Start(&pluginConfig); err != nil {
 			log.Printf("Failed to create IPAM plugin, err:%v.\n", err)

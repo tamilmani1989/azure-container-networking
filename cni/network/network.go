@@ -160,11 +160,13 @@ func convertToCniResult(networkConfig *cns.GetNetworkContainerResponse) *cniType
 			gwIP := net.ParseIP(route.GatewayIPAddress)
 			result.Routes = append(result.Routes, &cniTypes.Route{Dst: *routeIPnet, GW: gwIP})
 		}
-	} else {
-		gwIP := net.ParseIP(networkConfig.IPConfiguration.GatewayIPAddress)
-		dstIP := net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: resultIpconfig.Address.Mask}
-		result.Routes = append(result.Routes, &cniTypes.Route{Dst: dstIP, GW: gwIP})
 	}
+
+	// route for default gw
+	gwIP := net.ParseIP(networkConfig.IPConfiguration.GatewayIPAddress)
+	_, defaultIPNet, _ := net.ParseCIDR("0.0.0.0/0")
+	dstIP := net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: defaultIPNet.Mask}
+	result.Routes = append(result.Routes, &cniTypes.Route{Dst: dstIP, GW: gwIP})
 
 	return result
 }
@@ -213,12 +215,13 @@ func getPodNameWithoutSuffix(podName string) string {
 // Add handles CNI add commands.
 func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 	var (
-		result *cniTypesCurr.Result
-		err    error
-		nwCfg  *cni.NetworkConfig
-		epInfo *network.EndpointInfo
-		iface  *cniTypesCurr.Interface
-		vlanid int
+		result       *cniTypesCurr.Result
+		err          error
+		nwCfg        *cni.NetworkConfig
+		epInfo       *network.EndpointInfo
+		iface        *cniTypesCurr.Interface
+		subnetPrefix net.IPNet
+		vlanid       int
 	)
 
 	log.Printf("[cni-net] Processing ADD command with args {ContainerID:%v Netns:%v IfName:%v Args:%v Path:%v}.",
@@ -279,9 +282,12 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 	networkId := nwCfg.Name
 	endpointId := GetEndpointID(args)
 
-	result, vlanid, subnetPrefix, err := getContainerNetworkConfiguration(k8sNamespace, podNameWithoutSuffix)
-	if err != nil {
-		log.Printf("getContainerNetworkConfiguration failed with %v", err)
+	if nwCfg.MultiTenancy {
+		result, vlanid, subnetPrefix, err = getContainerNetworkConfiguration(k8sNamespace, podNameWithoutSuffix)
+		if err != nil {
+			log.Printf("[CNI Multitenancy] GetContainerNetworkConfiguration failed with %v", err)
+			return err
+		}
 	}
 
 	log.Printf("subnetprefix :%v", subnetPrefix.IP.String())
