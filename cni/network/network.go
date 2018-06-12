@@ -4,8 +4,10 @@
 package network
 
 import (
+	"bytes"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 
@@ -29,6 +31,7 @@ const (
 	podNameKey          = "K8S_POD_NAME"
 	vlanIDKey           = "vlanid"
 	dockerNetworkOption = "com.docker.network.generic"
+	ovsConfigFile       = "/etc/default/openvswitch-switch"
 
 	// Supported IP version. Currently support only IPv4
 	ipVersion = "4"
@@ -178,7 +181,7 @@ func getContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 		return nil, 0, net.IPNet{}, err
 	}
 
-	networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
+	networkConfig, err := cnsClient.GetNetworkConfiguration("TestPod", "TestPodNamespace")
 	if err != nil {
 		log.Printf("GetNetworkConfiguration failed with %v", err)
 		return nil, 0, net.IPNet{}, err
@@ -207,6 +210,38 @@ func getPodNameWithoutSuffix(podName string) string {
 	return strings.Join(nameSplit, "-")
 }
 
+func updateOVSConfig(option string) error {
+	f, err := os.OpenFile(ovsConfigFile, os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		log.Printf("Error while opening ovs config %v", err)
+		return err
+	}
+
+	defer f.Close()
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(f)
+	contents := buf.String()
+
+	conSplit := strings.Split(contents, "\n")
+
+	for _, existingOption := range conSplit {
+		if option == existingOption {
+			log.Printf("Not updating ovs config. Found option already written")
+			return nil
+		}
+	}
+
+	log.Printf("writing ovsconfig option %v", option)
+
+	if _, err = f.WriteString(option); err != nil {
+		log.Printf("Error while writing ovs config %v", err)
+		return err
+	}
+
+	return nil
+}
+
 //
 // CNI implementation
 // https://github.com/containernetworking/cni/blob/master/SPEC.md
@@ -229,6 +264,10 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 	defer func() {
 		// Add Interfaces to result.
+		if result == nil {
+			result = &cniTypesCurr.Result{}
+		}
+
 		iface = &cniTypesCurr.Interface{
 			Name: args.IfName,
 		}
@@ -318,7 +357,14 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 	if nwInfoErr != nil {
 		// Network does not exist.
+
 		log.Printf("[cni-net] Creating network %v.", networkId)
+
+		if nwCfg.MultiTenancy {
+			if err := updateOVSConfig("OVS_CTL_OPTS='--delete-bridges'"); err != nil {
+				return err
+			}
+		}
 
 		if result == nil {
 			// Call into IPAM plugin to allocate an address pool for the network.
