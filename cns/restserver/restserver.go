@@ -824,6 +824,12 @@ func (service *httpRestService) setOrchestratorType(w http.ResponseWriter, r *ht
 		service.saveState()
 		service.lock.Unlock()
 		break
+	case cns.WebApps:
+		service.lock.Lock()
+		service.state.OrchestratorType = cns.WebApps
+		service.saveState()
+		service.lock.Unlock()
+		break
 	default:
 		returnMessage = fmt.Sprintf("Invalid Orchestrator type %v", req.OrchestratorType)
 		returnCode = UnsupportedOrchestratorType
