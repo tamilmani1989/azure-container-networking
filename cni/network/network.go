@@ -181,7 +181,7 @@ func getContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 		return nil, 0, net.IPNet{}, err
 	}
 
-	networkConfig, err := cnsClient.GetNetworkConfiguration("TestPod", "TestPodNamespace")
+	networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
 	if err != nil {
 		log.Printf("GetNetworkConfiguration failed with %v", err)
 		return nil, 0, net.IPNet{}, err
