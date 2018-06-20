@@ -202,7 +202,7 @@ func getContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 func getPodNameWithoutSuffix(podName string) string {
 	nameSplit := strings.Split(podName, "-")
 	if len(nameSplit) > 2 {
-		nameSplit = nameSplit[:2]
+		nameSplit = nameSplit[:len(nameSplit)-2]
 	} else {
 		return podName
 	}
