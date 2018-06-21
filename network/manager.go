@@ -28,8 +28,13 @@ type NetworkClient interface {
 }
 
 type EndpointClient interface {
+	AddEndpoints(epInfo *EndpointInfo) error
 	AddEndpointRules(epInfo *EndpointInfo) error
 	DeleteEndpointRules(ep *endpoint)
+	MoveEndpointsToContainerNS(epInfo *EndpointInfo, nsID uintptr) error
+	SetupContainerInterfaces(epInfo *EndpointInfo) error
+	ConfigureContainerInterfacesAndRoutes(epInfo *EndpointInfo) error
+	DeleteEndpoints(ep *endpoint) error
 }
 
 // NetworkManager manages the set of container networking resources.

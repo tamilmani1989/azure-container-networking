@@ -57,7 +57,6 @@ func AddPortOnOVSBridge(hostIfName string, bridgeName string, vlanID int) error 
 }
 
 func GetOVSPortNumber(interfaceName string) (string, error) {
-	log.Printf("[ovs] Get ovs port for interface %v.", interfaceName)
 	cmd := fmt.Sprintf("ovs-vsctl get Interface %s ofport", interfaceName)
 	ofport, err := common.ExecuteShellCommand(cmd)
 	if err != nil {

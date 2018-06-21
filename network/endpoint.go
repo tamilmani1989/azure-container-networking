@@ -13,40 +13,43 @@ import (
 
 // Endpoint represents a container network interface.
 type endpoint struct {
-	Id          string
-	HnsId       string `json:",omitempty"`
-	SandboxKey  string
-	IfName      string
-	HostIfName  string
-	MacAddress  net.HardwareAddr
-	IPAddresses []net.IPNet
-	Gateways    []net.IP
-	DNS         DNSInfo
-	Routes      []RouteInfo
-	VlanID      int
+	Id               string
+	HnsId            string `json:",omitempty"`
+	SandboxKey       string
+	IfName           string
+	HostIfName       string
+	MacAddress       net.HardwareAddr
+	IPAddresses      []net.IPNet
+	Gateways         []net.IP
+	DNS              DNSInfo
+	Routes           []RouteInfo
+	VlanID           int
+	EnableSnatOnHost bool
 }
 
 // EndpointInfo contains read-only information about an endpoint.
 type EndpointInfo struct {
-	Id          string
-	ContainerID string
-	NetNsPath   string
-	IfName      string
-	SandboxKey  string
-	IfIndex     int
-	MacAddress  net.HardwareAddr
-	DNS         DNSInfo
-	IPAddresses []net.IPNet
-	Routes      []RouteInfo
-	Policies    []policy.Policy
-	Gateways    []net.IP
-	Data        map[string]interface{}
+	Id               string
+	ContainerID      string
+	NetNsPath        string
+	IfName           string
+	SandboxKey       string
+	IfIndex          int
+	MacAddress       net.HardwareAddr
+	DNS              DNSInfo
+	IPAddresses      []net.IPNet
+	Routes           []RouteInfo
+	Policies         []policy.Policy
+	Gateways         []net.IP
+	EnableSnatOnHost bool
+	Data             map[string]interface{}
 }
 
 // RouteInfo contains information about an IP route.
 type RouteInfo struct {
-	Dst net.IPNet
-	Gw  net.IP
+	Dst     net.IPNet
+	Gw      net.IP
+	DevName string
 }
 
 // ConstructEndpointID constructs endpoint name from netNsPath.

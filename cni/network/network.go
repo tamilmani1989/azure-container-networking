@@ -32,6 +32,7 @@ const (
 	vlanIDKey           = "vlanid"
 	dockerNetworkOption = "com.docker.network.generic"
 	ovsConfigFile       = "/etc/default/openvswitch-switch"
+	ovsOpt              = "OVS_CTL_OPTS='--delete-bridges'"
 
 	// Supported IP version. Currently support only IPv4
 	ipVersion = "4"
@@ -165,26 +166,21 @@ func convertToCniResult(networkConfig *cns.GetNetworkContainerResponse) *cniType
 		}
 	}
 
-	// route for default gw
-	gwIP := net.ParseIP(networkConfig.IPConfiguration.GatewayIPAddress)
-	_, defaultIPNet, _ := net.ParseCIDR("0.0.0.0/0")
-	dstIP := net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: defaultIPNet.Mask}
-	result.Routes = append(result.Routes, &cniTypes.Route{Dst: dstIP, GW: gwIP})
-
 	return result
 }
 
-func getContainerNetworkConfiguration(namespace string, podName string) (*cniTypesCurr.Result, int, net.IPNet, error) {
+func getContainerNetworkConfiguration(namespace string, podName string) (*cniTypesCurr.Result, *cns.GetNetworkContainerResponse, net.IPNet, error) {
 	cnsClient, err := cnsclient.NewCnsClient("")
 	if err != nil {
 		log.Printf("Initializing CNS client error %v", err)
-		return nil, 0, net.IPNet{}, err
+		return nil, nil, net.IPNet{}, err
 	}
 
-	networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
+	// networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
+	networkConfig, err := cnsClient.GetNetworkConfiguration("TestPod", "TestPodNamespace")
 	if err != nil {
 		log.Printf("GetNetworkConfiguration failed with %v", err)
-		return nil, 0, net.IPNet{}, err
+		return nil, nil, net.IPNet{}, err
 	}
 
 	log.Printf("Network config received from cns %v", networkConfig)
@@ -193,10 +189,10 @@ func getContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 	if subnetPrefix == nil {
 		errBuf := fmt.Sprintf("Interface not found for this ip %v", networkConfig.PrimaryInterfaceIdentifier)
 		log.Printf(errBuf)
-		return nil, 0, net.IPNet{}, fmt.Errorf(errBuf)
+		return nil, nil, net.IPNet{}, fmt.Errorf(errBuf)
 	}
 
-	return convertToCniResult(networkConfig), networkConfig.MultiTenancyInfo.ID, *subnetPrefix, nil
+	return convertToCniResult(networkConfig), networkConfig, *subnetPrefix, nil
 }
 
 func getPodNameWithoutSuffix(podName string) string {
@@ -259,6 +255,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		iface        *cniTypesCurr.Interface
 		subnetPrefix net.IPNet
 		vlanid       int
+		cnsNetworkConfig *cns.GetNetworkContainerResponse
 	)
 
 	log.Printf("[cni-net] Processing ADD command with args {ContainerID:%v Netns:%v IfName:%v Args:%v Path:%v}.",
@@ -273,7 +270,13 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		iface = &cniTypesCurr.Interface{
 			Name: args.IfName,
 		}
+
+		defaultIface := &cniTypesCurr.Interface{
+			Name: "eth1",
+		}
+
 		result.Interfaces = append(result.Interfaces, iface)
+		result.Interfaces = append(result.Interfaces, defaultIface)
 
 		// Convert result to the requested CNI version.
 		res, err := result.GetAsVersion(nwCfg.CNIVersion)
@@ -324,11 +327,13 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 	endpointId := GetEndpointID(args)
 
 	if nwCfg.MultiTenancy {
-		result, vlanid, subnetPrefix, err = getContainerNetworkConfiguration(k8sNamespace, podNameWithoutSuffix)
+		result, cnsNetworkConfig, subnetPrefix, err = getContainerNetworkConfiguration(k8sNamespace, podNameWithoutSuffix)
 		if err != nil {
 			log.Printf("[CNI Multitenancy] GetContainerNetworkConfiguration failed with %v", err)
 			return err
 		}
+
+		vlanid = cnsNetworkConfig.MultiTenancyInfo.ID
 	}
 
 	log.Printf("subnetprefix :%v", subnetPrefix.IP.String())
@@ -363,7 +368,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		log.Printf("[cni-net] Creating network %v.", networkId)
 
 		if nwCfg.MultiTenancy {
-			if err := updateOVSConfig("OVS_CTL_OPTS='--delete-bridges'"); err != nil {
+			if err := updateOVSConfig(ovsOpt); err != nil {
 				return err
 			}
 		}
@@ -422,7 +427,8 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 					Gateway: gateway,
 				},
 			},
-			BridgeName: nwCfg.Bridge,
+			BridgeName:       nwCfg.Bridge,
+			EnableSnatOnHost: nwCfg.EnableSnatOnHost,
 			DNS: network.DNSInfo{
 				Servers: nwCfg.DNS.Nameservers,
 				Suffix:  k8sNamespace + "." + strings.Join(nwCfg.DNS.Search, ","),
@@ -471,10 +477,11 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 	}
 
 	epInfo = &network.EndpointInfo{
-		Id:          endpointId,
-		ContainerID: args.ContainerID,
-		NetNsPath:   args.Netns,
-		IfName:      args.IfName,
+		Id:               endpointId,
+		ContainerID:      args.ContainerID,
+		NetNsPath:        args.Netns,
+		IfName:           args.IfName,
+		EnableSnatOnHost: nwCfg.EnableSnatOnHost,
 	}
 	epInfo.Data = make(map[string]interface{})
 
@@ -513,6 +520,23 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 	// Populate routes.
 	for _, route := range result.Routes {
 		epInfo.Routes = append(epInfo.Routes, network.RouteInfo{Dst: route.Dst, Gw: route.GW})
+	}
+
+	if nwCfg.MultiTenancy {
+		// route for default gw
+		var gwIP net.IP
+		_, defaultIPNet, _ := net.ParseCIDR("0.0.0.0/0")
+		dstIP := net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: defaultIPNet.Mask}
+
+		if nwCfg.EnableSnatOnHost {
+			gwIP = net.ParseIP("192.168.0.1")
+			epInfo.Routes = append(epInfo.Routes, network.RouteInfo{Dst: dstIP, Gw: gwIP, DevName: "eth1"})
+		} else {
+			gwIP = net.ParseIP(cnsNetworkConfig.IPConfiguration.GatewayIPAddress)
+			epInfo.Routes = append(epInfo.Routes, network.RouteInfo{Dst: dstIP, Gw: gwIP})
+		}
+
+		result.Routes = append(result.Routes, &cniTypes.Route{Dst: dstIP, GW: gwIP})
 	}
 
 	// Create the endpoint.

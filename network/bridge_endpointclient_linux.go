@@ -12,6 +12,7 @@ type LinuxBridgeEndpointClient struct {
 	bridgeName        string
 	hostPrimaryIfName string
 	hostVethName      string
+	containerVethName string
 	hostPrimaryMac    net.HardwareAddr
 	containerMac      net.HardwareAddr
 	mode              string
@@ -21,8 +22,8 @@ func NewLinuxBridgeEndpointClient(
 	bridgeName string,
 	hostPrimaryIfName string,
 	hostVethName string,
+	containerVethName string,
 	hostPrimaryMac net.HardwareAddr,
-	containerMac net.HardwareAddr,
 	mode string,
 ) *LinuxBridgeEndpointClient {
 
@@ -30,12 +31,26 @@ func NewLinuxBridgeEndpointClient(
 		bridgeName:        bridgeName,
 		hostPrimaryIfName: hostPrimaryIfName,
 		hostVethName:      hostVethName,
+		containerVethName: containerVethName,
 		hostPrimaryMac:    hostPrimaryMac,
-		containerMac:      containerMac,
 		mode:              mode,
 	}
 
 	return client
+}
+
+func (client *LinuxBridgeEndpointClient) AddEndpoints(epInfo *EndpointInfo) error {
+	if err := createEndpoint(client.hostVethName, client.containerVethName); err != nil {
+		return err
+	}
+
+	containerIf, err := net.InterfaceByName(client.containerVethName)
+	if err != nil {
+		return err
+	}
+
+	client.containerMac = containerIf.HardwareAddr
+	return nil
 }
 
 func (client *LinuxBridgeEndpointClient) AddEndpointRules(epInfo *EndpointInfo) error {
@@ -95,4 +110,46 @@ func (client *LinuxBridgeEndpointClient) getArpReplyAddress(epMacAddress net.Har
 	}
 
 	return macAddress
+}
+
+func (client *LinuxBridgeEndpointClient) MoveEndpointsToContainerNS(epInfo *EndpointInfo, nsID uintptr) error {
+	// Move the container interface to container's network namespace.
+	log.Printf("[net] Setting link %v netns %v.", client.containerVethName, epInfo.NetNsPath)
+	if err := netlink.SetLinkNetNs(client.containerVethName, nsID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (client *LinuxBridgeEndpointClient) SetupContainerInterfaces(epInfo *EndpointInfo) error {
+	if err := setupContainerInterface(client.containerVethName, epInfo.IfName); err != nil {
+		return err
+	}
+
+	client.containerVethName = epInfo.IfName
+	return nil
+}
+
+func (client *LinuxBridgeEndpointClient) ConfigureContainerInterfacesAndRoutes(epInfo *EndpointInfo) error {
+	if err := assignIPToInterface(client.containerVethName, epInfo.IPAddresses); err != nil {
+		return err
+	}
+
+	if err := addRoutes(client.containerVethName, epInfo.Routes); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (client *LinuxBridgeEndpointClient) DeleteEndpoints(ep *endpoint) error {
+	log.Printf("[net] Deleting veth pair %v %v.", ep.HostIfName, ep.IfName)
+	err := netlink.DeleteLink(ep.HostIfName)
+	if err != nil {
+		log.Printf("[net] Failed to delete veth pair %v: %v.", ep.HostIfName, err)
+		return err
+	}
+
+	return nil
 }

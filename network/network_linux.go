@@ -57,11 +57,12 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 
 	// Create the network object.
 	nw := &network{
-		Id:        nwInfo.Id,
-		Mode:      nwInfo.Mode,
-		Endpoints: make(map[string]*endpoint),
-		extIf:     extIf,
-		VlanId:    vlanid,
+		Id:               nwInfo.Id,
+		Mode:             nwInfo.Mode,
+		Endpoints:        make(map[string]*endpoint),
+		extIf:            extIf,
+		VlanId:           vlanid,
+		EnableSnatOnHost: nwInfo.EnableSnatOnHost,
 	}
 
 	return nw, nil
@@ -72,7 +73,7 @@ func (nm *networkManager) deleteNetworkImpl(nw *network) error {
 	var networkClient NetworkClient
 
 	if nw.VlanId != 0 {
-		networkClient = NewOVSClient(nw.extIf.BridgeName, nw.extIf.Name)
+		networkClient = NewOVSClient(nw.extIf.BridgeName, nw.extIf.Name, nw.EnableSnatOnHost)
 	} else {
 		networkClient = NewLinuxBridgeClient(nw.extIf.BridgeName, nw.extIf.Name, nw.Mode)
 	}
@@ -167,6 +168,7 @@ func (nm *networkManager) applyIPConfig(extIf *externalInterface, targetIf *net.
 func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwInfo *NetworkInfo) error {
 	var err error
 	var networkClient NetworkClient
+	//	var disableMultiTenancyInternet bool
 
 	log.Printf("[net] Connecting interface %v.", extIf.Name)
 	defer func() { log.Printf("[net] Connecting interface %v completed with err:%v.", extIf.Name, err) }()
@@ -191,7 +193,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 
 	opt, _ := nwInfo.Options[genericData].(map[string]interface{})
 	if opt != nil && opt[vlanIDKey] != nil {
-		networkClient = NewOVSClient(bridgeName, extIf.Name)
+		networkClient = NewOVSClient(bridgeName, extIf.Name, nwInfo.EnableSnatOnHost)
 	} else {
 		networkClient = NewLinuxBridgeClient(bridgeName, extIf.Name, nwInfo.Mode)
 	}
