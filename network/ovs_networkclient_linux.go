@@ -87,7 +87,7 @@ func (client *OVSNetworkClient) CreateBridge() error {
 		_, err := common.ExecuteShellCommand("iptables -t nat -A POSTROUTING -j MASQUERADE")
 		return err
 
-		_, err := common.ExecuteShellCommand("ebtables -t nat -A PREROUTING -p 802_1Q -j DROP")
+		_, err = common.ExecuteShellCommand("ebtables -t nat -A PREROUTING -p 802_1Q -j DROP")
 		return err
 	}
 

@@ -108,6 +108,7 @@ type GetNetworkContainerRequest struct {
 type GetNetworkContainerResponse struct {
 	IPConfiguration            IPConfiguration
 	Routes                     []Route
+	CnetAddressSpace		   []IPSubnet
 	MultiTenancyInfo           MultiTenancyInfo
 	PrimaryInterfaceIdentifier string
 	Response                   Response

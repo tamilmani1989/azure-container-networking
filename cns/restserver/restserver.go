@@ -1000,6 +1000,7 @@ func (service *httpRestService) getNetworkContainerResponse(req cns.GetNetworkCo
 	getNetworkContainerResponse = cns.GetNetworkContainerResponse{
 		IPConfiguration:            savedReq.IPConfiguration,
 		Routes:                     savedReq.Routes,
+		CnetAddressSpace:			savedReq.CnetAddressSpace,
 		MultiTenancyInfo:           savedReq.MultiTenancyInfo,
 		PrimaryInterfaceIdentifier: savedReq.PrimaryInterfaceIdentifier,
 	}

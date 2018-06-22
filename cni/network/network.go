@@ -166,6 +166,13 @@ func convertToCniResult(networkConfig *cns.GetNetworkContainerResponse) *cniType
 		}
 	}
 
+	for _, ipRouteSubnet := range networkConfig.CnetAddressSpace {
+		log.Printf("Adding cnetAddressspace routes %v %v", ipRouteSubnet.IPAddress, ipRouteSubnet.PrefixLength)
+		routeIPnet := net.IPNet{IP: net.ParseIP(ipRouteSubnet.IPAddress), Mask:net.CIDRMask(int(ipRouteSubnet.PrefixLength), 32)}
+		gwIP := net.ParseIP(ipconfig.GatewayIPAddress)
+		result.Routes = append(result.Routes, &cniTypes.Route{Dst: routeIPnet, GW: gwIP})		
+	}
+
 	return result
 }
 
@@ -176,14 +183,14 @@ func getContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 		return nil, nil, net.IPNet{}, err
 	}
 
-	// networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
-	networkConfig, err := cnsClient.GetNetworkConfiguration("TestPod", "TestPodNamespace")
+	networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
+	// networkConfig, err := cnsClient.GetNetworkConfiguration("TestPod", "TestPodNamespace")
 	if err != nil {
 		log.Printf("GetNetworkConfiguration failed with %v", err)
 		return nil, nil, net.IPNet{}, err
 	}
 
-	log.Printf("Network config received from cns %v", networkConfig)
+	log.Printf("Network config received from cns %+v", networkConfig)
 
 	subnetPrefix := common.GetIpNet(networkConfig.PrimaryInterfaceIdentifier)
 	if subnetPrefix == nil {
