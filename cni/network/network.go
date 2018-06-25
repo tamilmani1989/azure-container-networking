@@ -536,7 +536,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		dstIP := net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: defaultIPNet.Mask}
 
 		if nwCfg.EnableSnatOnHost {
-			gwIP = net.ParseIP("192.168.0.1")
+			gwIP = net.ParseIP("169.254.0.1")
 			epInfo.Routes = append(epInfo.Routes, network.RouteInfo{Dst: dstIP, Gw: gwIP, DevName: "eth1"})
 		} else {
 			gwIP = net.ParseIP(cnsNetworkConfig.IPConfiguration.GatewayIPAddress)

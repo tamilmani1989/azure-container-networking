@@ -57,7 +57,7 @@ func (client *OVSNetworkClient) CreateBridge() error {
 	}
 
 	if client.enableSnatOnHost {
-		ip, addr, _ := net.ParseCIDR("192.168.0.1/16")
+		ip, addr, _ := net.ParseCIDR("169.254.0.1/16")
 		err = netlink.AddIpAddress(internetBridgeName, ip, addr)
 		if err != nil && !strings.Contains(strings.ToLower(err.Error()), "file exists") {
 			log.Printf("[net] Failed to add IP address %v: %v.", addr, err)
@@ -84,11 +84,26 @@ func (client *OVSNetworkClient) CreateBridge() error {
 			return err
 		}
 
-		_, err := common.ExecuteShellCommand("iptables -t nat -A POSTROUTING -j MASQUERADE")
+		/*var routes []RouteInfo
+		route = RouteInfo{Dst:net.ParseCIDR("169.254.169.254/32")}
+		routes = append(routes, route)
+		if err := addRoutes(client.bridgeName, routes); err != nil {
+			log.Printf("addroutes failed with error %v", err)
+			return err
+		}*/
+
+		cmd := "iptables -t nat -A POSTROUTING -j MASQUERADE"
+		log.Printf("Adding iptable snat rule %v", cmd)
+		_, err := common.ExecuteShellCommand(cmd)
+		if err != nil {
+			return err
+		}
+
+		cmd = "ebtables -t nat -A PREROUTING -p 802_1Q -j DROP"
+		log.Printf("Adding ebtable rule to drop vlan traffic on internet bridge %v", cmd)
+		_, err = common.ExecuteShellCommand(cmd)
 		return err
 
-		_, err = common.ExecuteShellCommand("ebtables -t nat -A PREROUTING -p 802_1Q -j DROP")
-		return err
 	}
 
 	return nil
