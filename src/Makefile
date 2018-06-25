@@ -62,7 +62,7 @@ ENSURE_OUTPUT_DIR_EXISTS := $(shell mkdir -p $(OUTPUT_DIR))
 
 
 # Shorthand target names for convenience.
-dnc: $(DNC_BUILD_DIR)/dnc$(EXE_EXT) dnc-archive
+dnc: $(DNC_BUILD_DIR)/azure-dnc$(EXE_EXT) dnc-archive
 all-binaries: dnc
 
 
@@ -75,8 +75,8 @@ clean:
 
 
 # Build the DNC.
-$(DNC_BUILD_DIR)/dnc$(EXE_EXT): $(DNCFILES)
-	go build -v -o $(DNC_BUILD_DIR)/dnc$(EXE_EXT) -ldflags "-X main.version=$(VERSION) -s -w" $(DNC_DIR)/*.go
+$(DNC_BUILD_DIR)/azure-dnc$(EXE_EXT): $(DNCFILES)
+	go build -v -o $(DNC_BUILD_DIR)/azure-dnc$(EXE_EXT) -ldflags "-X main.version=$(VERSION) -s -w" $(DNC_DIR)/*.go
 
 
 
@@ -84,8 +84,8 @@ $(DNC_BUILD_DIR)/dnc$(EXE_EXT): $(DNCFILES)
 # Create a dnc archive for the target platform.
 .PHONY: dnc-archive
 dnc-archive:
-	chmod 0755 $(DNC_BUILD_DIR)/dnc$(EXE_EXT)
+	chmod 0755 $(DNC_BUILD_DIR)/azure-dnc$(EXE_EXT)
 
-	cd $(DNC_BUILD_DIR) && $(ARCHIVE_CMD) $(DNC_ARCHIVE_NAME) dnc$(EXE_EXT)
+	cd $(DNC_BUILD_DIR) && $(ARCHIVE_CMD) $(DNC_ARCHIVE_NAME) azure-dnc$(EXE_EXT)
 
 	chown $(BUILD_USER):$(BUILD_USER) $(DNC_BUILD_DIR)/$(DNC_ARCHIVE_NAME)
