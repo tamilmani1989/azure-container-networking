@@ -13,6 +13,7 @@ import (
 type OVSNetworkClient struct {
 	bridgeName        string
 	hostInterfaceName string
+	internetBridgeIP  string
 	enableSnatOnHost  bool
 }
 
@@ -22,10 +23,11 @@ const (
 	internetBridgeName = "azintbr"
 )
 
-func NewOVSClient(bridgeName string, hostInterfaceName string, enableSnatOnHost bool) *OVSNetworkClient {
+func NewOVSClient(bridgeName, hostInterfaceName, internetBridgeIP string, enableSnatOnHost bool) *OVSNetworkClient {
 	ovsClient := &OVSNetworkClient{
 		bridgeName:        bridgeName,
 		hostInterfaceName: hostInterfaceName,
+		internetBridgeIP:  internetBridgeIP,
 		enableSnatOnHost:  enableSnatOnHost,
 	}
 
@@ -57,7 +59,10 @@ func (client *OVSNetworkClient) CreateBridge() error {
 	}
 
 	if client.enableSnatOnHost {
-		ip, addr, _ := net.ParseCIDR("169.254.0.1/16")
+		internetBridgeIPSubnetString := client.internetBridgeIP + localIPPrefix
+		ip, addr, _ := net.ParseCIDR(internetBridgeIPSubnetString)
+
+		log.Printf("Assigning %v on internet bridge", internetBridgeIPSubnetString)
 		err = netlink.AddIpAddress(internetBridgeName, ip, addr)
 		if err != nil && !strings.Contains(strings.ToLower(err.Error()), "file exists") {
 			log.Printf("[net] Failed to add IP address %v: %v.", addr, err)
@@ -83,14 +88,6 @@ func (client *OVSNetworkClient) CreateBridge() error {
 		if err := ovsctl.AddPortOnOVSBridge(azureInternetVeth1, client.bridgeName, 0); err != nil {
 			return err
 		}
-
-		/*var routes []RouteInfo
-		route = RouteInfo{Dst:net.ParseCIDR("169.254.169.254/32")}
-		routes = append(routes, route)
-		if err := addRoutes(client.bridgeName, routes); err != nil {
-			log.Printf("addroutes failed with error %v", err)
-			return err
-		}*/
 
 		cmd := "iptables -t nat -A POSTROUTING -j MASQUERADE"
 		log.Printf("Adding iptable snat rule %v", cmd)
@@ -173,6 +170,21 @@ func (client *OVSNetworkClient) AddBridgeRules(extIf *externalInterface) error {
 	log.Printf("[ovs] Adding DNAT rule for ingress ARP traffic on interface %v.", client.hostInterfaceName)
 	if err := ovsctl.AddArpDnatRule(client.bridgeName, ofport, macHex); err != nil {
 		return err
+	}
+	
+	if client.enableSnatOnHost {
+		log.Printf("[ovs] Adding 169.254.169.254 static route")
+		var routes []RouteInfo
+		_, ipNet, _ := net.ParseCIDR("169.254.169.254/32")
+		gwIP := net.ParseIP("0.0.0.0")
+		route := RouteInfo{Dst: *ipNet, Gw: gwIP}
+		routes = append(routes, route)
+		if err := addRoutes(client.bridgeName, routes); err != nil {
+			if err != nil && !strings.Contains(strings.ToLower(err.Error()), "file exists") {
+				log.Printf("addroutes failed with error %v", err)
+				return err
+			}
+		}
 	}
 
 	return nil

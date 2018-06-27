@@ -25,7 +25,10 @@ const (
 
 	genericData = "com.docker.network.generic"
 
-	vlanIDKey = "vlanid"
+	VlanIDKey = "vlanid"
+
+	InternetBridgeIPKey = "internetBridgeIP"
+	
 )
 
 // Linux implementation of route.
@@ -47,8 +50,8 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 			return nil, err
 		}
 
-		if opt != nil && opt[vlanIDKey] != nil {
-			vlanid, _ = strconv.Atoi(opt[vlanIDKey].(string))
+		if opt != nil && opt[VlanIDKey] != nil {
+			vlanid, _ = strconv.Atoi(opt[VlanIDKey].(string))
 		}
 
 	default:
@@ -73,7 +76,7 @@ func (nm *networkManager) deleteNetworkImpl(nw *network) error {
 	var networkClient NetworkClient
 
 	if nw.VlanId != 0 {
-		networkClient = NewOVSClient(nw.extIf.BridgeName, nw.extIf.Name, nw.EnableSnatOnHost)
+		networkClient = NewOVSClient(nw.extIf.BridgeName, nw.extIf.Name, "", nw.EnableSnatOnHost)
 	} else {
 		networkClient = NewLinuxBridgeClient(nw.extIf.BridgeName, nw.extIf.Name, nw.Mode)
 	}
@@ -192,8 +195,14 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	}
 
 	opt, _ := nwInfo.Options[genericData].(map[string]interface{})
-	if opt != nil && opt[vlanIDKey] != nil {
-		networkClient = NewOVSClient(bridgeName, extIf.Name, nwInfo.EnableSnatOnHost)
+	if opt != nil && opt[VlanIDKey] != nil {
+		internetBridgeIP := ""
+
+		if opt != nil && opt[InternetBridgeIPKey] != nil {
+			internetBridgeIP, _ = opt[InternetBridgeIPKey].(string)
+		}
+
+		networkClient = NewOVSClient(bridgeName, extIf.Name, internetBridgeIP, nwInfo.EnableSnatOnHost)
 	} else {
 		networkClient = NewLinuxBridgeClient(bridgeName, extIf.Name, nwInfo.Mode)
 	}
@@ -250,6 +259,13 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 		return err
 	}
 
+	// Bridge up.
+	log.Printf("[net] Setting link %v state up.", bridgeName)
+	err = netlink.SetLinkState(bridgeName, true)
+	if err != nil {
+		return err
+	}
+
 	// Add the bridge rules.
 	err = networkClient.AddBridgeRules(extIf)
 	if err != nil {
@@ -259,13 +275,6 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	// External interface hairpin on.
 	log.Printf("[net] Setting link %v hairpin on.", hostIf.Name)
 	if err := networkClient.SetHairpinOnHostInterface(true); err != nil {
-		return err
-	}
-
-	// Bridge up.
-	log.Printf("[net] Setting link %v state up.", bridgeName)
-	err = netlink.SetLinkState(bridgeName, true)
-	if err != nil {
 		return err
 	}
 

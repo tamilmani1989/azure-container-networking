@@ -56,3 +56,9 @@ func handleConsecutiveAdd(containerId, endpointId string, nwInfo *network.Networ
 
 	return nil, nil
 }
+
+func setNetworkOptions(vlanid int, nwInfo *network.NetworkInfo) {	
+}
+
+func addDefaultRoute(epInfo *network.EndpointInfo, result *cniTypesCurr.Result) {
+}

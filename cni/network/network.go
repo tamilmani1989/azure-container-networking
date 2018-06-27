@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/Azure/azure-container-networking/client/cnsclient"
@@ -29,10 +28,10 @@ const (
 	name                = "azure-vnet"
 	namespaceKey        = "K8S_POD_NAMESPACE"
 	podNameKey          = "K8S_POD_NAME"
-	vlanIDKey           = "vlanid"
 	dockerNetworkOption = "com.docker.network.generic"
 	ovsConfigFile       = "/etc/default/openvswitch-switch"
 	ovsOpt              = "OVS_CTL_OPTS='--delete-bridges'"
+	snatInterface 		= "eth1"
 
 	// Supported IP version. Currently support only IPv4
 	ipVersion = "4"
@@ -183,8 +182,8 @@ func getContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 		return nil, nil, net.IPNet{}, err
 	}
 
-	networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
-	// networkConfig, err := cnsClient.GetNetworkConfiguration("TestPod", "TestPodNamespace")
+	// networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
+	networkConfig, err := cnsClient.GetNetworkConfiguration("nginx-deployment2", "default")
 	if err != nil {
 		log.Printf("GetNetworkConfiguration failed with %v", err)
 		return nil, nil, net.IPNet{}, err
@@ -278,12 +277,12 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 			Name: args.IfName,
 		}
 
-		defaultIface := &cniTypesCurr.Interface{
-			Name: "eth1",
+		snatIface := &cniTypesCurr.Interface{
+			Name: snatInterface,
 		}
 
 		result.Interfaces = append(result.Interfaces, iface)
-		result.Interfaces = append(result.Interfaces, defaultIface)
+		result.Interfaces = append(result.Interfaces, snatIface)
 
 		// Convert result to the requested CNI version.
 		res, err := result.GetAsVersion(nwCfg.CNIVersion)
@@ -333,6 +332,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 	networkId := nwCfg.Name
 	endpointId := GetEndpointID(args)
 
+	// If multitenancy is enabled, get ip and vlan from cns
 	if nwCfg.MultiTenancy {
 		result, cnsNetworkConfig, subnetPrefix, err = getContainerNetworkConfiguration(k8sNamespace, podNameWithoutSuffix)
 		if err != nil {
@@ -380,7 +380,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 			}
 		}
 
-		if result == nil {
+		if !nwCfg.MultiTenancy {
 			// Call into IPAM plugin to allocate an address pool for the network.
 			result, err = plugin.DelegateAdd(nwCfg.Ipam.Type, nwCfg)
 			if err != nil {
@@ -444,11 +444,8 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		}
 
 		nwInfo.Options = make(map[string]interface{})
-		if vlanid != 0 {
-			vlanMap := make(map[string]interface{})
-			vlanMap[vlanIDKey] = strconv.Itoa(vlanid)
-			nwInfo.Options[dockerNetworkOption] = vlanMap
-		}
+		log.Printf("set network options")
+		setNetworkOptions(vlanid, &nwInfo)
 
 		err = plugin.nm.CreateNetwork(&nwInfo)
 		if err != nil {
@@ -458,7 +455,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 		log.Printf("[cni-net] Created network %v with subnet %v.", networkId, subnetPrefix.String())
 	} else {
-		if result == nil {
+		if !nwCfg.MultiTenancy {
 			// Network already exists.
 			subnetPrefix := nwInfo.Subnets[0].Prefix.String()
 			log.Printf("[cni-net] Found network %v with subnet %v.", networkId, subnetPrefix)
@@ -494,6 +491,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 	if vlanid != 0 {
 		epInfo.Data["vlanid"] = vlanid
+		epInfo.Data["LocalIP"] = cnsNetworkConfig.LocalIP
 	}
 
 	epInfo.Data[network.OptVethName] = fmt.Sprintf("%s.%s", k8sNamespace, k8sPodName)
@@ -529,21 +527,19 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		epInfo.Routes = append(epInfo.Routes, network.RouteInfo{Dst: route.Dst, Gw: route.GW})
 	}
 
+	// Adding default gateway
 	if nwCfg.MultiTenancy {
-		// route for default gw
-		var gwIP net.IP
-		_, defaultIPNet, _ := net.ParseCIDR("0.0.0.0/0")
-		dstIP := net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: defaultIPNet.Mask}
-
+		// if snat enabled, add 169.254.0.1 as default gateway
 		if nwCfg.EnableSnatOnHost {
-			gwIP = net.ParseIP("169.254.0.1")
-			epInfo.Routes = append(epInfo.Routes, network.RouteInfo{Dst: dstIP, Gw: gwIP, DevName: "eth1"})
+			log.Printf("add default route for multitenancy.snat on host enabled")
+			addDefaultRoute(epInfo, result)
 		} else {
-			gwIP = net.ParseIP(cnsNetworkConfig.IPConfiguration.GatewayIPAddress)
+			_, defaultIPNet, _ := net.ParseCIDR("0.0.0.0/0")
+			dstIP := net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: defaultIPNet.Mask}	
+			gwIP := net.ParseIP(cnsNetworkConfig.IPConfiguration.GatewayIPAddress)
 			epInfo.Routes = append(epInfo.Routes, network.RouteInfo{Dst: dstIP, Gw: gwIP})
+			result.Routes = append(result.Routes, &cniTypes.Route{Dst: dstIP, GW: gwIP})
 		}
-
-		result.Routes = append(result.Routes, &cniTypes.Route{Dst: dstIP, GW: gwIP})
 	}
 
 	// Create the endpoint.

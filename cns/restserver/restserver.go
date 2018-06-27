@@ -1003,6 +1003,7 @@ func (service *httpRestService) getNetworkContainerResponse(req cns.GetNetworkCo
 		CnetAddressSpace:			savedReq.CnetAddressSpace,
 		MultiTenancyInfo:           savedReq.MultiTenancyInfo,
 		PrimaryInterfaceIdentifier: savedReq.PrimaryInterfaceIdentifier,
+		LocalIP:                    savedReq.LocalIP,
 	}
 
 	return getNetworkContainerResponse

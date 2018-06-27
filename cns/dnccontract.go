@@ -36,6 +36,7 @@ type CreateNetworkContainerRequest struct {
 	NetworkContainerid         string // Mandatory input.
 	PrimaryInterfaceIdentifier string // Primary CA.
 	AuthorizationToken         string
+	LocalIP					   string
 	OrchestratorContext        json.RawMessage
 	IPConfiguration            IPConfiguration
 	MultiTenancyInfo           MultiTenancyInfo
@@ -111,6 +112,7 @@ type GetNetworkContainerResponse struct {
 	CnetAddressSpace		   []IPSubnet
 	MultiTenancyInfo           MultiTenancyInfo
 	PrimaryInterfaceIdentifier string
+	LocalIP 				   string
 	Response                   Response
 }
 

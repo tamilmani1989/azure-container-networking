@@ -67,7 +67,7 @@ func assignIPToInterface(interfaceName string, ipAddresses []net.IPNet) error {
 
 func addRoutes(interfaceName string, routes []RouteInfo) error {
 	ifIndex := 0
-	containerIf, _ := net.InterfaceByName(interfaceName)
+	interfaceIf, _ := net.InterfaceByName(interfaceName)
 
 	for _, route := range routes {
 		log.Printf("[ovs] Adding IP route %+v to link %v.", route, interfaceName)
@@ -76,7 +76,7 @@ func addRoutes(interfaceName string, routes []RouteInfo) error {
 			devIf, _ := net.InterfaceByName(route.DevName)
 			ifIndex = devIf.Index
 		} else {
-			ifIndex = containerIf.Index
+			ifIndex = interfaceIf.Index
 		}
 
 		nlRoute := &netlink.Route{
@@ -92,6 +92,36 @@ func addRoutes(interfaceName string, routes []RouteInfo) error {
 			} else {
 				log.Printf("route already exists")
 			}
+		}
+	}
+
+	return nil
+}
+
+
+func deleteRoutes(interfaceName string, routes []RouteInfo) error {
+	ifIndex := 0
+	interfaceIf, _ := net.InterfaceByName(interfaceName)
+
+	for _, route := range routes {
+		log.Printf("[ovs] Adding IP route %+v to link %v.", route, interfaceName)
+
+		if route.DevName != "" {
+			devIf, _ := net.InterfaceByName(route.DevName)
+			ifIndex = devIf.Index
+		} else {
+			ifIndex = interfaceIf.Index
+		}
+
+		nlRoute := &netlink.Route{
+			Family:    netlink.GetIpAddressFamily(route.Gw),
+			Dst:       &route.Dst,
+			Gw:        route.Gw,
+			LinkIndex: ifIndex,
+		}
+
+		if err := netlink.DeleteIpRoute(nlRoute); err != nil {
+			return err
 		}
 	}
 

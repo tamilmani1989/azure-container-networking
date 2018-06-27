@@ -42,10 +42,15 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	var contIfName string
 	var epClient EndpointClient
 	var vlanid int = 0
+	var localIP string 
 
 	if epInfo.Data != nil {
 		if _, ok := epInfo.Data["vlanid"]; ok {
 			vlanid = epInfo.Data["vlanid"].(int)
+		}
+		
+		if _, ok := epInfo.Data["LocalIP"]; ok {
+			localIP = epInfo.Data["LocalIP"].(string)
 		}
 	}
 
@@ -69,7 +74,7 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	}
 
 	if vlanid != 0 {
-		epClient = NewOVSEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, hostIfName, nw.extIf.MacAddress.String(), contIfName, vlanid, epInfo.EnableSnatOnHost)
+		epClient = NewOVSEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, hostIfName, nw.extIf.MacAddress.String(), contIfName, localIP, vlanid, epInfo.EnableSnatOnHost)
 	} else {
 		epClient = NewLinuxBridgeEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, hostIfName, contIfName, nw.extIf.MacAddress, nw.Mode)
 	}
@@ -162,7 +167,7 @@ func (nw *network) deleteEndpointImpl(ep *endpoint) error {
 	// Deleting the host interface is more convenient since it does not require
 	// entering the container netns and hence works both for CNI and CNM.
 	if ep.VlanID != 0 {
-		epClient = NewOVSEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, ep.HostIfName, nw.extIf.MacAddress.String(), "", ep.VlanID, ep.EnableSnatOnHost)
+		epClient = NewOVSEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, ep.HostIfName, nw.extIf.MacAddress.String(), "", "", ep.VlanID, ep.EnableSnatOnHost)
 	} else {
 		epClient = NewLinuxBridgeEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, ep.HostIfName, "", nw.extIf.MacAddress, nw.Mode)
 	}

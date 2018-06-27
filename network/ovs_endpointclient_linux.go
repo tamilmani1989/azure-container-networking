@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
 	"github.com/Azure/azure-container-networking/ovsctl"
@@ -18,6 +17,7 @@ type OVSEndpointClient struct {
 	containerVethName string
 	containerMac      string
 	intVethName       string
+	localIP 		  string
 	vlanID            int
 	enableSnatOnHost  bool
 }
@@ -25,6 +25,7 @@ type OVSEndpointClient struct {
 const (
 	intVethInterfacePrefix = commonInterfacePrefix + "vint"
 	azureInternetIfName    = "eth1"
+	localIPPrefix = "/16"
 )
 
 func NewOVSEndpointClient(
@@ -33,6 +34,7 @@ func NewOVSEndpointClient(
 	hostVethName string,
 	hostPrimaryMac string,
 	containerVethName string,
+	localIP string,
 	vlanid int,
 	enableSnatOnHost bool) *OVSEndpointClient {
 
@@ -42,6 +44,7 @@ func NewOVSEndpointClient(
 		hostVethName:      hostVethName,
 		hostPrimaryMac:    hostPrimaryMac,
 		containerVethName: containerVethName,
+		localIP: 		   localIP,
 		vlanID:            vlanid,
 		enableSnatOnHost:  enableSnatOnHost,
 	}
@@ -71,18 +74,6 @@ func (client *OVSEndpointClient) AddEndpoints(epInfo *EndpointInfo) error {
 
 		if err := netlink.SetLinkMaster(hostIfName, internetBridgeName); err != nil {
 			return err
-		}
-
-		internetIf, err := net.InterfaceByName(contIfName)
-		if err != nil {
-			return err
-		}
-
-		intVethMac := internetIf.HardwareAddr.String()
-		arpCmd := fmt.Sprintf("arp -s 169.254.0.2 %v", intVethMac)
-		log.Printf("Adding arp entry for internet veth %v", arpCmd)
-		if _, err := common.ExecuteShellCommand(arpCmd); err != nil {
-			log.Printf("Setting static arp failed for internet interface %v", err)
 		}
 
 		client.intVethName = contIfName
@@ -206,8 +197,9 @@ func (client *OVSEndpointClient) ConfigureContainerInterfacesAndRoutes(epInfo *E
 	}
 
 	if client.enableSnatOnHost {
-		log.Printf("[ovs] Adding IP address 169.254.0.2/16 to link %v.", client.intVethName)
-		ip, intIpAddr, _ := net.ParseCIDR("169.254.0.2/16")
+		log.Printf("[ovs] Adding IP address %v to link %v.", client.localIP, client.intVethName)
+		localIPSubnetString := client.localIP + localIPPrefix
+		ip, intIpAddr, _ := net.ParseCIDR(localIPSubnetString)
 		if err := netlink.AddIpAddress(client.intVethName, ip, intIpAddr); err != nil {
 			return err
 		}
@@ -229,14 +221,6 @@ func (client *OVSEndpointClient) DeleteEndpoints(ep *endpoint) error {
 	}
 
 	if client.enableSnatOnHost {
-		arpCmd := fmt.Sprintf("arp -d 169.254.0.2")
-	
-		log.Printf("Adding arp entry for internet veth %v", arpCmd)
-		if _, err := common.ExecuteShellCommand(arpCmd); err != nil {
-			log.Printf("Setting static arp failed for internet interface %v", err)
-		}
-
-
 		hostIfName := fmt.Sprintf("%s%s", intVethInterfacePrefix, ep.Id[:7])
 		log.Printf("[ovs] Deleting internet veth pair %v.", hostIfName)
 		err = netlink.DeleteLink(hostIfName)
