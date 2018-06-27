@@ -45,12 +45,12 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	var localIP string 
 
 	if epInfo.Data != nil {
-		if _, ok := epInfo.Data["vlanid"]; ok {
-			vlanid = epInfo.Data["vlanid"].(int)
+		if _, ok := epInfo.Data[VlanIDKey]; ok {
+			vlanid = epInfo.Data[VlanIDKey].(int)
 		}
 		
-		if _, ok := epInfo.Data["LocalIP"]; ok {
-			localIP = epInfo.Data["LocalIP"].(string)
+		if _, ok := epInfo.Data[LocalIPKey]; ok {
+			localIP = epInfo.Data[LocalIPKey].(string)
 		}
 	}
 

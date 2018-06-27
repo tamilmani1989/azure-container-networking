@@ -16,6 +16,7 @@ import (
 const (
 	// Network store key.
 	storeKey = "Network"
+	VlanIDKey = "vlanid"
 )
 
 type NetworkClient interface {
@@ -265,9 +266,9 @@ func (nm *networkManager) CreateEndpoint(networkId string, epInfo *EndpointInfo)
 	}
 
 	if nw.VlanId != 0 {
-		if epInfo.Data["vlanid"] == nil {
+		if epInfo.Data[VlanIDKey] == nil {
 			log.Printf("overriding endpoint vlanid with network vlanid")
-			epInfo.Data["vlanid"] = nw.VlanId
+			epInfo.Data[VlanIDKey] = nw.VlanId
 		}
 	}
 

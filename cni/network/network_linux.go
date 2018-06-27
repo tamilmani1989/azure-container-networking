@@ -33,3 +33,8 @@ func setNetworkOptions(vlanid int, nwInfo *network.NetworkInfo) {
 		nwInfo.Options[dockerNetworkOption] = vlanMap
 	}
 }
+
+func setEndpointOptions(vlanid int, localIP string, epInfo *network.EndpointInfo) {
+	epInfo.Data[network.VlanIDKey] = vlanid
+	epInfo.Data[network.LocalIPKey] = localIP
+}

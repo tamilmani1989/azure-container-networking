@@ -4,10 +4,8 @@
 package network
 
 import (
-	"bytes"
 	"fmt"
 	"net"
-	"os"
 	"strings"
 
 	"github.com/Azure/azure-container-networking/client/cnsclient"
@@ -29,8 +27,6 @@ const (
 	namespaceKey        = "K8S_POD_NAMESPACE"
 	podNameKey          = "K8S_POD_NAME"
 	dockerNetworkOption = "com.docker.network.generic"
-	ovsConfigFile       = "/etc/default/openvswitch-switch"
-	ovsOpt              = "OVS_CTL_OPTS='--delete-bridges'"
 	snatInterface 		= "eth1"
 
 	// Supported IP version. Currently support only IPv4
@@ -214,37 +210,6 @@ func getPodNameWithoutSuffix(podName string) string {
 	return strings.Join(nameSplit, "-")
 }
 
-func updateOVSConfig(option string) error {
-	f, err := os.OpenFile(ovsConfigFile, os.O_APPEND|os.O_RDWR, 0666)
-	if err != nil {
-		log.Printf("Error while opening ovs config %v", err)
-		return err
-	}
-
-	defer f.Close()
-
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(f)
-	contents := buf.String()
-
-	conSplit := strings.Split(contents, "\n")
-
-	for _, existingOption := range conSplit {
-		if option == existingOption {
-			log.Printf("Not updating ovs config. Found option already written")
-			return nil
-		}
-	}
-
-	log.Printf("writing ovsconfig option %v", option)
-
-	if _, err = f.WriteString(option); err != nil {
-		log.Printf("Error while writing ovs config %v", err)
-		return err
-	}
-
-	return nil
-}
 
 //
 // CNI implementation
@@ -374,11 +339,6 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 		log.Printf("[cni-net] Creating network %v.", networkId)
 
-		if nwCfg.MultiTenancy {
-			if err := updateOVSConfig(ovsOpt); err != nil {
-				return err
-			}
-		}
 
 		if !nwCfg.MultiTenancy {
 			// Call into IPAM plugin to allocate an address pool for the network.
@@ -490,8 +450,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 	epInfo.Data = make(map[string]interface{})
 
 	if vlanid != 0 {
-		epInfo.Data["vlanid"] = vlanid
-		epInfo.Data["LocalIP"] = cnsNetworkConfig.LocalIP
+		setEndpointOptions(vlanid, cnsNetworkConfig.LocalIP, epInfo)
 	}
 
 	epInfo.Data[network.OptVethName] = fmt.Sprintf("%s.%s", k8sNamespace, k8sPodName)

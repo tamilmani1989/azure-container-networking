@@ -24,11 +24,10 @@ const (
 	virtualMacAddress = "12:34:56:78:9a:bc"
 
 	genericData = "com.docker.network.generic"
-
-	VlanIDKey = "vlanid"
-
+	
 	InternetBridgeIPKey = "internetBridgeIP"
 	
+	LocalIPKey = "localIP"
 )
 
 // Linux implementation of route.

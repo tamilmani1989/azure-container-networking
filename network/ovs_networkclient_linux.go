@@ -1,6 +1,8 @@
 package network
 
 import (
+	"os"
+	"bytes"
 	"net"
 	"strings"
 
@@ -21,7 +23,43 @@ const (
 	azureInternetVeth0 = "azintveth0"
 	azureInternetVeth1 = "azintveth1"
 	internetBridgeName = "azintbr"
+	imdsIP 			   = "169.254.169.254/32"
+	ovsConfigFile      = "/etc/default/openvswitch-switch"
+	ovsOpt             = "OVS_CTL_OPTS='--delete-bridges'"
 )
+
+func updateOVSConfig(option string) error {
+	f, err := os.OpenFile(ovsConfigFile, os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		log.Printf("Error while opening ovs config %v", err)
+		return err
+	}
+
+	defer f.Close()
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(f)
+	contents := buf.String()
+
+	conSplit := strings.Split(contents, "\n")
+
+	for _, existingOption := range conSplit {
+		if option == existingOption {
+			log.Printf("Not updating ovs config. Found option already written")
+			return nil
+		}
+	}
+
+	log.Printf("writing ovsconfig option %v", option)
+
+	if _, err = f.WriteString(option); err != nil {
+		log.Printf("Error while writing ovs config %v", err)
+		return err
+	}
+
+	return nil
+}
+
 
 func NewOVSClient(bridgeName, hostInterfaceName, internetBridgeIP string, enableSnatOnHost bool) *OVSNetworkClient {
 	ovsClient := &OVSNetworkClient{
@@ -36,6 +74,10 @@ func NewOVSClient(bridgeName, hostInterfaceName, internetBridgeIP string, enable
 
 func (client *OVSNetworkClient) CreateBridge() error {
 	if err := ovsctl.CreateOVSBridge(client.bridgeName); err != nil {
+		return err
+	}
+
+	if err := updateOVSConfig(ovsOpt); err != nil {
 		return err
 	}
 
@@ -175,7 +217,7 @@ func (client *OVSNetworkClient) AddBridgeRules(extIf *externalInterface) error {
 	if client.enableSnatOnHost {
 		log.Printf("[ovs] Adding 169.254.169.254 static route")
 		var routes []RouteInfo
-		_, ipNet, _ := net.ParseCIDR("169.254.169.254/32")
+		_, ipNet, _ := net.ParseCIDR(imdsIP)
 		gwIP := net.ParseIP("0.0.0.0")
 		route := RouteInfo{Dst: *ipNet, Gw: gwIP}
 		routes = append(routes, route)
