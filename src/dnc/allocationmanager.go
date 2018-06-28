@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+
+	"github.com/Azure/azure-container-networking/cns"
 )
 
 const reservedIPCount = 4
@@ -20,7 +22,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 	var allocationsInSubnet, reservedAddresses map[string]*net.IPNet
 	var nodeID string
 	addressesToIgnore := make(map[string]*net.IPNet)
-
+	isWebAppsContainer := false
 	repoReservationRequest, err := datamodel.TryQueryIPReservationByKey(reservationKey)
 	if err != nil {
 		return false, err
@@ -89,12 +91,18 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 			goto Cleanup
 		}
 
-		nodeID = networkContainerConfiguration.GetAssociationInfo().NodeID
+		associationInfo := networkContainerConfiguration.GetAssociationInfo()
+		nodeID = associationInfo.NodeID
+		if associationInfo.ContainerType == cns.WebApps {
+			isWebAppsContainer = true
+		}
 	} else if len(repoReservationRequest.AllocationRequest.NodeConstraint) != 0 {
 		nodeID = repoReservationRequest.AllocationRequest.NodeConstraint
 	}
 
-	if len(nodeID) > 0 {
+	// This needs to be fixed for scenarios where we are using the reserve IP
+	// API to dump allocations on a node and orchestrator is WebApps.
+	if len(nodeID) > 0 && isWebAppsContainer {
 		allocatedAddressesOnNode, _ := getAllocatedAddressesOnNode(nodeID)
 		for allocatedNodeSubnetString, allocatedNodeSubnet := range allocatedAddressesOnNode {
 			addressesToIgnore[allocatedNodeSubnetString] = allocatedNodeSubnet
