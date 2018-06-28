@@ -105,9 +105,9 @@ var args = acn.ArgumentList{
 	{
 		Name:         acn.OptStopAzureVnet,
 		Shorthand:    acn.OptStopAzureVnetAlias,
-		Description:  "Start Azure-CNM if flag is true",
+		Description:  "Stop Azure-CNM if flag is true",
 		Type:         "bool",
-		DefaultValue: true,
+		DefaultValue: false,
 	},
 	{
 		Name:         acn.OptVersion,

@@ -1,12 +1,13 @@
 package network
 
 import (
+	"fmt"
 	"os"
 	"bytes"
 	"net"
 	"strings"
 
-	"github.com/Azure/azure-container-networking/common"
+	"github.com/Azure/azure-container-networking/platform"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
 	"github.com/Azure/azure-container-networking/ovsctl"
@@ -81,30 +82,29 @@ func (client *OVSNetworkClient) CreateBridge() error {
 		return err
 	}
 
-	if err := CreateInternetBridge(); err != nil {
-		log.Printf("[net] Creating internet bridge failed with erro %v", err)
-		//return err
-	}
-
-	link := netlink.VEthLink{
-		LinkInfo: netlink.LinkInfo{
-			Type: netlink.LINK_TYPE_VETH,
-			Name: azureInternetVeth0,
-		},
-		PeerName: azureInternetVeth1,
-	}
-
-	err := netlink.AddLink(&link)
-	if err != nil {
-		log.Printf("[net] Failed to create veth pair, err:%v.", err)
-		return err
-	}
-
 	if client.enableSnatOnHost {
-		internetBridgeIPSubnetString := client.internetBridgeIP + localIPPrefix
-		ip, addr, _ := net.ParseCIDR(internetBridgeIPSubnetString)
+		if err := CreateInternetBridge(); err != nil {
+			log.Printf("[net] Creating internet bridge failed with erro %v", err)
+			return err
+		}
+	
+		link := netlink.VEthLink{
+			LinkInfo: netlink.LinkInfo{
+				Type: netlink.LINK_TYPE_VETH,
+				Name: azureInternetVeth0,
+			},
+			PeerName: azureInternetVeth1,
+		}
+	
+		err := netlink.AddLink(&link)
+		if err != nil {
+			log.Printf("[net] Failed to create veth pair, err:%v.", err)
+			return err
+		}
+	
+		ip, addr, _ := net.ParseCIDR(client.internetBridgeIP)
 
-		log.Printf("Assigning %v on internet bridge", internetBridgeIPSubnetString)
+		log.Printf("Assigning %v on internet bridge", client.internetBridgeIP)
 		err = netlink.AddIpAddress(internetBridgeName, ip, addr)
 		if err != nil && !strings.Contains(strings.ToLower(err.Error()), "file exists") {
 			log.Printf("[net] Failed to add IP address %v: %v.", addr, err)
@@ -131,21 +131,48 @@ func (client *OVSNetworkClient) CreateBridge() error {
 			return err
 		}
 
-		cmd := "iptables -t nat -A POSTROUTING -j MASQUERADE"
+		
+		cmd := fmt.Sprintf("iptables -t nat -A POSTROUTING -s %v -j MASQUERADE", addr.String()) 
 		log.Printf("Adding iptable snat rule %v", cmd)
-		_, err := common.ExecuteShellCommand(cmd)
+		_, err = platform.ExecuteCommand(cmd)
 		if err != nil {
 			return err
 		}
 
 		cmd = "ebtables -t nat -A PREROUTING -p 802_1Q -j DROP"
 		log.Printf("Adding ebtable rule to drop vlan traffic on internet bridge %v", cmd)
-		_, err = common.ExecuteShellCommand(cmd)
+		_, err = platform.ExecuteCommand(cmd)
 		return err
 
 	}
 
 	return nil
+}
+
+func deleteMasQueradeRule(interfaceName string) error {
+	internetIf, _ := net.InterfaceByName(interfaceName)
+
+	addrs, _ := internetIf.Addrs()
+	for _, addr := range addrs {
+		ipAddr, ipNet, err := net.ParseCIDR(addr.String())
+		if err != nil {
+			log.Printf("error %v", err)
+			continue
+		}
+	
+		if ipAddr.To4() != nil {
+			cmd := fmt.Sprintf("iptables -t nat -D POSTROUTING -s %v -j MASQUERADE", ipNet.String()) 
+			log.Printf("Deleting iptable snat rule %v", cmd)
+			_, err = platform.ExecuteCommand(cmd)
+			if err != nil {
+				return err
+			}	
+
+			return nil
+		}
+	}
+	
+	return nil 
 }
 
 func (client *OVSNetworkClient) DeleteBridge() error {
@@ -155,6 +182,15 @@ func (client *OVSNetworkClient) DeleteBridge() error {
 	}
 
 	if client.enableSnatOnHost {
+
+		deleteMasQueradeRule(internetBridgeName)
+
+		cmd := "ebtables -t nat -D PREROUTING -p 802_1Q -j DROP"
+		_, err := platform.ExecuteCommand(cmd)
+		if err != nil {
+			log.Printf("Deleting ebtable vlan drop rule failed with error %v", err)	
+		}
+
 		if err := DeleteInternetBridge(); err != nil {
 			log.Printf("Deleting internet bridge failed with error %v", err)
 			return err

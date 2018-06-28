@@ -6,6 +6,8 @@
          "type":"azure-vnet",
          "mode":"bridge",
          "bridge":"azure0",
+         "multiTenancy":true,
+         "enableSnatOnHost":true,
          "ipam":{
             "type":"azure-vnet-ipam"
          }

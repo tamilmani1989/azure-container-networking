@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"net"
 	"strings"
-
-	"github.com/Azure/azure-container-networking/client/cnsclient"
+	"encoding/json"
 	"github.com/Azure/azure-container-networking/cni"
 	"github.com/Azure/azure-container-networking/cns"
+	"github.com/Azure/azure-container-networking/cns/cnsclient"
 	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/network"
@@ -24,8 +24,6 @@ import (
 const (
 	// Plugin name.
 	name                = "azure-vnet"
-	namespaceKey        = "K8S_POD_NAMESPACE"
-	podNameKey          = "K8S_POD_NAME"
 	dockerNetworkOption = "com.docker.network.generic"
 	snatInterface 		= "eth1"
 
@@ -178,8 +176,14 @@ func getContainerNetworkConfiguration(namespace string, podName string) (*cniTyp
 		return nil, nil, net.IPNet{}, err
 	}
 
-	// networkConfig, err := cnsClient.GetNetworkConfiguration(podName, namespace)
-	networkConfig, err := cnsClient.GetNetworkConfiguration("nginx-deployment2", "default")
+	podInfo := cns.KubernetesPodInfo{PodName: podName, PodNamespace: namespace}
+	orchestratorContext, err := json.Marshal(podInfo)
+	if err != nil {
+		log.Printf("Marshalling azure container instance info failed with %v", err)
+		return nil, nil, net.IPNet{}, err
+	}
+
+	networkConfig, err := cnsClient.GetNetworkConfiguration(orchestratorContext)
 	if err != nil {
 		log.Printf("GetNetworkConfiguration failed with %v", err)
 		return nil, nil, net.IPNet{}, err
@@ -225,7 +229,6 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		epInfo       *network.EndpointInfo
 		iface        *cniTypesCurr.Interface
 		subnetPrefix net.IPNet
-		vlanid       int
 		cnsNetworkConfig *cns.GetNetworkContainerResponse
 	)
 
@@ -290,8 +293,6 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 	log.Printf("[cni-net] Read network configuration %+v.", nwCfg)
 
-	podNameWithoutSuffix := getPodNameWithoutSuffix(k8sPodName)
-	log.Printf("Podname without suffix %v", podNameWithoutSuffix)
 
 	// Initialize values from network config.
 	networkId := nwCfg.Name
@@ -299,16 +300,17 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 	// If multitenancy is enabled, get ip and vlan from cns
 	if nwCfg.MultiTenancy {
+		podNameWithoutSuffix := getPodNameWithoutSuffix(k8sPodName)
+		log.Printf("Podname without suffix %v", podNameWithoutSuffix)
+	
 		result, cnsNetworkConfig, subnetPrefix, err = getContainerNetworkConfiguration(k8sNamespace, podNameWithoutSuffix)
 		if err != nil {
 			log.Printf("[CNI Multitenancy] GetContainerNetworkConfiguration failed with %v", err)
 			return err
 		}
-
-		vlanid = cnsNetworkConfig.MultiTenancyInfo.ID
 	}
 
-	log.Printf("subnetprefix :%v", subnetPrefix.IP.String())
+	log.Printf("PrimaryInterfaceIdentifier :%v", subnetPrefix.IP.String())
 
 	policies := cni.GetPoliciesFromNwCfg(nwCfg.AdditionalArgs)
 
@@ -325,6 +327,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		if epInfo != nil {
 			result, err = handleConsecutiveAdd(args.ContainerID, endpointId, nwInfo, nwCfg)
 			if err != nil {
+				log.Printf("handleConsecutiveAdd failed with error %v", err)
 				return err
 			}
 
@@ -405,7 +408,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 		nwInfo.Options = make(map[string]interface{})
 		log.Printf("set network options")
-		setNetworkOptions(vlanid, &nwInfo)
+		setNetworkOptions(cnsNetworkConfig, &nwInfo)
 
 		err = plugin.nm.CreateNetwork(&nwInfo)
 		if err != nil {
@@ -449,9 +452,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 	}
 	epInfo.Data = make(map[string]interface{})
 
-	if vlanid != 0 {
-		setEndpointOptions(vlanid, cnsNetworkConfig.LocalIP, epInfo)
-	}
+	setEndpointOptions(cnsNetworkConfig, epInfo)
 
 	epInfo.Data[network.OptVethName] = fmt.Sprintf("%s.%s", k8sNamespace, k8sPodName)
 
@@ -491,7 +492,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		// if snat enabled, add 169.254.0.1 as default gateway
 		if nwCfg.EnableSnatOnHost {
 			log.Printf("add default route for multitenancy.snat on host enabled")
-			addDefaultRoute(epInfo, result)
+			addDefaultRoute(cnsNetworkConfig.LocalIPConfiguration.GatewayIPAddress, epInfo, result)
 		} else {
 			_, defaultIPNet, _ := net.ParseCIDR("0.0.0.0/0")
 			dstIP := net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: defaultIPNet.Mask}	

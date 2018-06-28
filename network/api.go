@@ -19,5 +19,4 @@ var (
 	errEndpointNotInUse   = fmt.Errorf("Endpoint is not joined to a sandbox")
 
 	OptVethName         = "vethname"
-	OptEnableSnatOnHost = "enableSnatOnHost"
 )

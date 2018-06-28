@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/Azure/azure-container-networking/cni"
+	"github.com/Azure/azure-container-networking/cns"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/network"
 	"github.com/Microsoft/hcsshim"
@@ -57,11 +58,11 @@ func handleConsecutiveAdd(containerId, endpointId string, nwInfo *network.Networ
 	return nil, nil
 }
 
-func addDefaultRoute(epInfo *network.EndpointInfo, result *cniTypesCurr.Result) {
+func addDefaultRoute(gwIPString string, epInfo *network.EndpointInfo, result *cniTypesCurr.Result) {
 }
 
-func setNetworkOptions(vlanid int, nwInfo *network.NetworkInfo) {	
+func setNetworkOptions(cnsNwConfig *cns.GetNetworkContainerResponse, nwInfo *network.NetworkInfo) {	
 }
 
-func setEndpointOptions(vlanid int, localIP string, epInfo *EndpointInfo) {
+func setEndpointOptions(cnsNwConfig *cns.GetNetworkContainerResponse, epInfo *network.EndpointInfo) {
 }

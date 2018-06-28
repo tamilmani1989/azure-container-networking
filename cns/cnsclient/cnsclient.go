@@ -31,25 +31,18 @@ func NewCnsClient(url string) (*CNSClient, error) {
 }
 
 // GetNetworkConfiguration Request to get network config.
-func (cnsClient *CNSClient) GetNetworkConfiguration(podName, podNamespace string) (*cns.GetNetworkContainerResponse, error) {
+func (cnsClient *CNSClient) GetNetworkConfiguration(orchestratorContext []byte) (*cns.GetNetworkContainerResponse, error) {
 	var body bytes.Buffer
 
 	httpc := &http.Client{}
 	url := cnsClient.connectionURL + cns.GetNetworkContainerByOrchestratorContext
 	log.Printf("GetNetworkConfiguration url %v", url)
 
-	podInfo := cns.KubernetesPodInfo{PodName: podName, PodNamespace: podNamespace}
-	podInfoBytes, err := json.Marshal(podInfo)
-	if err != nil {
-		log.Printf("Marshalling azure container instance info failed with %v", err)
-		return nil, err
-	}
-
 	payload := &cns.GetNetworkContainerRequest{
-		OrchestratorContext: podInfoBytes,
+		OrchestratorContext: orchestratorContext,
 	}
 
-	err = json.NewEncoder(&body).Encode(payload)
+	err := json.NewEncoder(&body).Encode(payload)
 	if err != nil {
 		log.Printf("encoding json failed with %v", err)
 		return nil, err
@@ -62,6 +55,7 @@ func (cnsClient *CNSClient) GetNetworkConfiguration(podName, podNamespace string
 	}
 
 	defer res.Body.Close()
+
 	if res.StatusCode != 200 {
 		errMsg := fmt.Sprintf("[Azure CNSClient] GetNetworkConfiguration invalid http status code: %v", res.StatusCode)
 		log.Printf(errMsg)

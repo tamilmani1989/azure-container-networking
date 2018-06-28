@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/Azure/azure-container-networking/cns"
-	"github.com/Azure/azure-container-networking/cns/common"
 	"github.com/Azure/azure-container-networking/cns/dockerclient"
 	"github.com/Azure/azure-container-networking/cns/imdsclient"
 	"github.com/Azure/azure-container-networking/cns/ipamclient"
@@ -20,6 +19,7 @@ import (
 	"github.com/Azure/azure-container-networking/cns/routes"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/platform"
+	"github.com/Azure/azure-container-networking/cns/common"
 	"github.com/Azure/azure-container-networking/store"
 )
 
@@ -817,23 +817,23 @@ func (service *httpRestService) setOrchestratorType(w http.ResponseWriter, r *ht
 		return
 	}
 
+	service.lock.Lock()
+
 	switch req.OrchestratorType {
 	case cns.Kubernetes:
-		service.lock.Lock()
 		service.state.OrchestratorType = cns.Kubernetes
 		service.saveState()
-		service.lock.Unlock()
 		break
 	case cns.WebApps:
-		service.lock.Lock()
 		service.state.OrchestratorType = cns.WebApps
 		service.saveState()
-		service.lock.Unlock()
 		break
 	default:
 		returnMessage = fmt.Sprintf("Invalid Orchestrator type %v", req.OrchestratorType)
 		returnCode = UnsupportedOrchestratorType
 	}
+
+	service.lock.Unlock()
 
 	resp := cns.Response{
 		ReturnCode: returnCode,
@@ -941,7 +941,7 @@ func (service *httpRestService) createOrUpdateNetworkContainer(w http.ResponseWr
 }
 
 func (service *httpRestService) getNetworkContainerByID(w http.ResponseWriter, r *http.Request) {
-	log.Printf("[Azure CNS] getNetworkContainer")
+	log.Printf("[Azure CNS] getNetworkContainerByID")
 
 	var req cns.GetNetworkContainerRequest
 	returnMessage := ""
@@ -1003,14 +1003,14 @@ func (service *httpRestService) getNetworkContainerResponse(req cns.GetNetworkCo
 		CnetAddressSpace:			savedReq.CnetAddressSpace,
 		MultiTenancyInfo:           savedReq.MultiTenancyInfo,
 		PrimaryInterfaceIdentifier: savedReq.PrimaryInterfaceIdentifier,
-		LocalIP:                    savedReq.LocalIP,
+		LocalIPConfiguration:       savedReq.LocalIPConfiguration,
 	}
 
 	return getNetworkContainerResponse
 }
 
 func (service *httpRestService) getNetworkContainerByOrchestratorContext(w http.ResponseWriter, r *http.Request) {
-	log.Printf("[Azure CNS] getNetworkContainer")
+	log.Printf("[Azure CNS] getNetworkContainerByOrchestratorContext")
 
 	var req cns.GetNetworkContainerRequest
 
@@ -1242,7 +1242,7 @@ func (service *httpRestService) restoreNetworkState() error {
 			}
 
 			if enableSnat {
-				err := common.SetOutboundSNAT(nwInfo.NicInfo.Subnet)
+				err := platform.SetOutboundSNAT(nwInfo.NicInfo.Subnet)
 				if err != nil {
 					log.Printf("[Azure CNS] Error setting up SNAT outbound rule %v", err)
 					return err

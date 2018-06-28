@@ -25,7 +25,6 @@ type OVSEndpointClient struct {
 const (
 	intVethInterfacePrefix = commonInterfacePrefix + "vint"
 	azureInternetIfName    = "eth1"
-	localIPPrefix = "/16"
 )
 
 func NewOVSEndpointClient(
@@ -198,8 +197,7 @@ func (client *OVSEndpointClient) ConfigureContainerInterfacesAndRoutes(epInfo *E
 
 	if client.enableSnatOnHost {
 		log.Printf("[ovs] Adding IP address %v to link %v.", client.localIP, client.intVethName)
-		localIPSubnetString := client.localIP + localIPPrefix
-		ip, intIpAddr, _ := net.ParseCIDR(localIPSubnetString)
+		ip, intIpAddr, _ := net.ParseCIDR(client.localIP )
 		if err := netlink.AddIpAddress(client.intVethName, ip, intIpAddr); err != nil {
 			return err
 		}
