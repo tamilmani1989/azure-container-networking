@@ -12,7 +12,6 @@ import (
 	"net"
 
 	"github.com/Azure/azure-container-networking/log"
-	"github.com/Azure/azure-container-networking/netlink"
 )
 
 const (
@@ -43,6 +42,7 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	var epClient EndpointClient
 	var vlanid int = 0
 	var localIP string 
+	var internetBridgeIP string
 
 	if epInfo.Data != nil {
 		if _, ok := epInfo.Data[VlanIDKey]; ok {
@@ -51,6 +51,10 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 		
 		if _, ok := epInfo.Data[LocalIPKey]; ok {
 			localIP = epInfo.Data[LocalIPKey].(string)
+		}
+
+		if _, ok := epInfo.Data[InternetBridgeIPKey]; ok {
+			internetBridgeIP = epInfo.Data[InternetBridgeIPKey].(string)
 		}
 	}
 
@@ -74,21 +78,47 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	}
 
 	if vlanid != 0 {
-		epClient = NewOVSEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, hostIfName, nw.extIf.MacAddress.String(), contIfName, localIP, vlanid, epInfo.EnableSnatOnHost)
+		epClient = NewOVSEndpointClient(nw.extIf.BridgeName, 
+			nw.extIf.Name, 
+			hostIfName, 
+			nw.extIf.MacAddress.String(), 
+			contIfName, 
+			internetBridgeIP, 
+			localIP, 
+			vlanid, 
+			epInfo.EnableSnatOnHost)
 	} else {
 		epClient = NewLinuxBridgeEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, hostIfName, contIfName, nw.extIf.MacAddress, nw.Mode)
 	}
 
-	if err := epClient.AddEndpoints(epInfo); err != nil {
-		return nil, err
-	}
-
-	// On failure, delete the veth pair.
+	// On failure, cleanup the things.
 	defer func() {
-		if err != nil {
-			netlink.DeleteLink(contIfName)
+		if err != nil {	
+			log.Printf("CNI error. Delete Endpoint %v and rules that are created.", contIfName)
+			endpt := &endpoint {
+				Id:          epInfo.Id,
+				IfName:      contIfName,
+				HostIfName:  hostIfName,
+				IPAddresses: epInfo.IPAddresses,
+				Gateways:    []net.IP{nw.extIf.IPv4Gateway},
+				DNS:         epInfo.DNS,
+				VlanID:      vlanid,
+				EnableSnatOnHost: epInfo.EnableSnatOnHost,
+			}
+
+			if containerIf != nil {
+				endpt.MacAddress = containerIf.HardwareAddr
+				epClient.DeleteEndpointRules(endpt)
+			}
+
+			epClient.DeleteEndpoints(endpt)
 		}
 	}()
+	
+
+	if err = epClient.AddEndpoints(epInfo); err != nil {
+		return nil, err
+	}
 
 	containerIf, err = net.InterfaceByName(contIfName)
 	if err != nil {
@@ -96,7 +126,9 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	}
 
 	// Setup rules for IP addresses on the container interface.
-	epClient.AddEndpointRules(epInfo)
+	if err = epClient.AddEndpointRules(epInfo); err != nil {
+		return nil, err
+	}
 
 	// If a network namespace for the container interface is specified...
 	if epInfo.NetNsPath != "" {
@@ -114,15 +146,14 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 
 		// Enter the container network namespace.
 		log.Printf("[net] Entering netns %v.", epInfo.NetNsPath)
-		if err := ns.Enter(); err != nil {
+		if err = ns.Enter(); err != nil {
 			return nil, err
 		}
 
 		// Return to host network namespace.
 		defer func() {
 			log.Printf("[net] Exiting netns %v.", epInfo.NetNsPath)
-			err = ns.Exit()
-			if err != nil {
+			if err := ns.Exit(); err != nil {
 				log.Printf("[net] Failed to exit netns, err:%v.", err)
 			}
 		}()
@@ -130,12 +161,12 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 
 	// If a name for the container interface is specified...
 	if epInfo.IfName != "" {
-		if err := epClient.SetupContainerInterfaces(epInfo); err != nil {
+		if err = epClient.SetupContainerInterfaces(epInfo); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := epClient.ConfigureContainerInterfacesAndRoutes(epInfo); err != nil {
+	if err = epClient.ConfigureContainerInterfacesAndRoutes(epInfo); err != nil {
 		return nil, err
 	}
 
@@ -167,7 +198,7 @@ func (nw *network) deleteEndpointImpl(ep *endpoint) error {
 	// Deleting the host interface is more convenient since it does not require
 	// entering the container netns and hence works both for CNI and CNM.
 	if ep.VlanID != 0 {
-		epClient = NewOVSEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, ep.HostIfName, nw.extIf.MacAddress.String(), "", "", ep.VlanID, ep.EnableSnatOnHost)
+		epClient = NewOVSEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, ep.HostIfName, nw.extIf.MacAddress.String(), "", "", "", ep.VlanID, ep.EnableSnatOnHost)
 	} else {
 		epClient = NewLinuxBridgeEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, ep.HostIfName, "", nw.extIf.MacAddress, nw.Mode)
 	}

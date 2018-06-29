@@ -36,5 +36,7 @@ func setEndpointOptions(cnsNwConfig *cns.GetNetworkContainerResponse, epInfo *ne
 	if cnsNwConfig.MultiTenancyInfo.ID != 0 {
 		epInfo.Data[network.VlanIDKey] = cnsNwConfig.MultiTenancyInfo.ID
 		epInfo.Data[network.LocalIPKey] = cnsNwConfig.LocalIPConfiguration.IPSubnet.IPAddress + "/" + strconv.Itoa(int(cnsNwConfig.LocalIPConfiguration.IPSubnet.PrefixLength))
+		epInfo.Data[network.InternetBridgeIPKey] = cnsNwConfig.LocalIPConfiguration.GatewayIPAddress + "/" + strconv.Itoa(int(cnsNwConfig.LocalIPConfiguration.IPSubnet.PrefixLength))
+
 	}
 }

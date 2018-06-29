@@ -17,6 +17,7 @@ type OVSEndpointClient struct {
 	containerVethName string
 	containerMac      string
 	intVethName       string
+	internetBridgeIP  string
 	localIP 		  string
 	vlanID            int
 	enableSnatOnHost  bool
@@ -33,6 +34,7 @@ func NewOVSEndpointClient(
 	hostVethName string,
 	hostPrimaryMac string,
 	containerVethName string,
+	internetBridgeIP string,
 	localIP string,
 	vlanid int,
 	enableSnatOnHost bool) *OVSEndpointClient {
@@ -43,6 +45,7 @@ func NewOVSEndpointClient(
 		hostVethName:      hostVethName,
 		hostPrimaryMac:    hostPrimaryMac,
 		containerVethName: containerVethName,
+		internetBridgeIP:  internetBridgeIP,
 		localIP: 		   localIP,
 		vlanID:            vlanid,
 		enableSnatOnHost:  enableSnatOnHost,
@@ -64,6 +67,26 @@ func (client *OVSEndpointClient) AddEndpoints(epInfo *EndpointInfo) error {
 	client.containerMac = containerIf.HardwareAddr.String()
 
 	if client.enableSnatOnHost {
+		if err := createInternetBridge(client.internetBridgeIP, client.bridgeName); err != nil {
+			log.Printf("creating internet bridge failed with error %v", err)
+			return err
+		}
+
+		if err := addMasQueradeRule(client.internetBridgeIP); err != nil {
+			log.Printf("Adding snat rule failed with error %v", err)
+			return err
+		}
+		
+		if err := addVlanDropRule(); err != nil {
+			log.Printf("Adding vlan drop rule failed with error %v", err)
+			return err
+		}
+
+		if err := addStaticRoute(imdsIP, client.bridgeName); err != nil {
+			log.Printf("Adding imds static route failed with error %v", err)
+			return err
+		}
+
 		hostIfName := fmt.Sprintf("%s%s", intVethInterfacePrefix, epInfo.Id[:7])
 		contIfName := fmt.Sprintf("%s%s-2", intVethInterfacePrefix, epInfo.Id[:7])
 
