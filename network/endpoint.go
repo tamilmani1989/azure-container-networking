@@ -151,13 +151,14 @@ func (nw *network) getEndpoint(endpointId string) (*endpoint, error) {
 // GetInfo returns information about the endpoint.
 func (ep *endpoint) getInfo() *EndpointInfo {
 	info := &EndpointInfo{
-		Id:          ep.Id,
-		IPAddresses: ep.IPAddresses,
-		Data:        make(map[string]interface{}),
-		MacAddress:  ep.MacAddress,
-		SandboxKey:  ep.SandboxKey,
-		IfIndex:     0, // Azure CNI supports only one interface
-		DNS:         ep.DNS,
+		Id:               ep.Id,
+		IPAddresses:      ep.IPAddresses,
+		Data:             make(map[string]interface{}),
+		MacAddress:       ep.MacAddress,
+		SandboxKey:       ep.SandboxKey,
+		IfIndex:          0, // Azure CNI supports only one interface
+		DNS:              ep.DNS,
+		EnableSnatOnHost: ep.EnableSnatOnHost,
 	}
 
 	for _, route := range ep.Routes {

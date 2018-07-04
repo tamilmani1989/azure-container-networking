@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"time"
+
 	"github.com/Azure/azure-container-networking/log"
 )
 

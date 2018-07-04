@@ -15,15 +15,15 @@ import (
 
 const (
 	// Network store key.
-	storeKey = "Network"
-	VlanIDKey = "vlanid"
+	storeKey  = "Network"
+	VlanIDKey = "VlanID"
 )
 
 type NetworkClient interface {
 	CreateBridge() error
 	DeleteBridge() error
-	AddBridgeRules(extIf *externalInterface) error
-	DeleteBridgeRules(extIf *externalInterface)
+	AddL2Rules(extIf *externalInterface) error
+	DeleteL2Rules(extIf *externalInterface)
 	SetBridgeMasterToHostInterface() error
 	SetHairpinOnHostInterface(bool) error
 }
@@ -246,7 +246,10 @@ func (nm *networkManager) GetNetworkInfo(networkId string) (*NetworkInfo, error)
 		Id:      networkId,
 		Subnets: nw.Subnets,
 		Mode:    nw.Mode,
+		Options: make(map[string]interface{}),
 	}
+
+	getNetworkInfoImpl(nwInfo, nw)
 
 	if nw.extIf != nil {
 		nwInfo.BridgeName = nw.extIf.BridgeName

@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"encoding/json"
+
 	"github.com/Azure/azure-container-networking/cni"
 	"github.com/Azure/azure-container-networking/cns"
-	"github.com/Azure/azure-container-networking/cns/cnsclient"
 	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/network"
@@ -25,7 +24,6 @@ const (
 	// Plugin name.
 	name                = "azure-vnet"
 	dockerNetworkOption = "com.docker.network.generic"
-	snatInterface 		= "eth1"
 
 	// Supported IP version. Currently support only IPv4
 	ipVersion = "4"
@@ -132,89 +130,6 @@ func GetEndpointID(args *cniSkel.CmdArgs) string {
 	return infraEpId
 }
 
-func convertToCniResult(networkConfig *cns.GetNetworkContainerResponse) *cniTypesCurr.Result {
-	result := &cniTypesCurr.Result{}
-	resultIpconfig := &cniTypesCurr.IPConfig{}
-
-	ipconfig := networkConfig.IPConfiguration
-	ipAddr := net.ParseIP(ipconfig.IPSubnet.IPAddress)
-
-	if ipAddr.To4() != nil {
-		resultIpconfig.Version = "4"
-		resultIpconfig.Address = net.IPNet{IP: ipAddr, Mask: net.CIDRMask(int(ipconfig.IPSubnet.PrefixLength), 32)}
-	} else {
-		resultIpconfig.Version = "6"
-		resultIpconfig.Address = net.IPNet{IP: ipAddr, Mask: net.CIDRMask(int(ipconfig.IPSubnet.PrefixLength), 128)}
-	}
-
-	resultIpconfig.Gateway = net.ParseIP(ipconfig.GatewayIPAddress)
-	result.IPs = append(result.IPs, resultIpconfig)
-	result.DNS.Nameservers = ipconfig.DNSServers
-
-	if networkConfig.Routes != nil && len(networkConfig.Routes) > 0 {
-		for _, route := range networkConfig.Routes {
-			_, routeIPnet, _ := net.ParseCIDR(route.IPAddress)
-			gwIP := net.ParseIP(route.GatewayIPAddress)
-			result.Routes = append(result.Routes, &cniTypes.Route{Dst: *routeIPnet, GW: gwIP})
-		}
-	}
-
-	for _, ipRouteSubnet := range networkConfig.CnetAddressSpace {
-		log.Printf("Adding cnetAddressspace routes %v %v", ipRouteSubnet.IPAddress, ipRouteSubnet.PrefixLength)
-		routeIPnet := net.IPNet{IP: net.ParseIP(ipRouteSubnet.IPAddress), Mask:net.CIDRMask(int(ipRouteSubnet.PrefixLength), 32)}
-		gwIP := net.ParseIP(ipconfig.GatewayIPAddress)
-		result.Routes = append(result.Routes, &cniTypes.Route{Dst: routeIPnet, GW: gwIP})		
-	}
-
-	return result
-}
-
-func getContainerNetworkConfiguration(namespace string, podName string) (*cniTypesCurr.Result, *cns.GetNetworkContainerResponse, net.IPNet, error) {
-	cnsClient, err := cnsclient.NewCnsClient("")
-	if err != nil {
-		log.Printf("Initializing CNS client error %v", err)
-		return nil, nil, net.IPNet{}, err
-	}
-
-	podInfo := cns.KubernetesPodInfo{PodName: podName, PodNamespace: namespace}
-	orchestratorContext, err := json.Marshal(podInfo)
-	if err != nil {
-		log.Printf("Marshalling azure container instance info failed with %v", err)
-		return nil, nil, net.IPNet{}, err
-	}
-
-	networkConfig, err := cnsClient.GetNetworkConfiguration(orchestratorContext)
-	if err != nil {
-		log.Printf("GetNetworkConfiguration failed with %v", err)
-		return nil, nil, net.IPNet{}, err
-	}
-
-	log.Printf("Network config received from cns %+v", networkConfig)
-
-	subnetPrefix := common.GetIpNet(networkConfig.PrimaryInterfaceIdentifier)
-	if subnetPrefix == nil {
-		errBuf := fmt.Sprintf("Interface not found for this ip %v", networkConfig.PrimaryInterfaceIdentifier)
-		log.Printf(errBuf)
-		return nil, nil, net.IPNet{}, fmt.Errorf(errBuf)
-	}
-
-	return convertToCniResult(networkConfig), networkConfig, *subnetPrefix, nil
-}
-
-func getPodNameWithoutSuffix(podName string) string {
-	nameSplit := strings.Split(podName, "-")
-	log.Printf("namesplit %v", nameSplit)
-	if len(nameSplit) > 2 {
-		nameSplit = nameSplit[:len(nameSplit)-2]
-	} else {
-		return podName
-	}
-
-	log.Printf("Final namesplit %v", nameSplit)
-	return strings.Join(nameSplit, "-")
-}
-
-
 //
 // CNI implementation
 // https://github.com/containernetworking/cni/blob/master/SPEC.md
@@ -223,12 +138,12 @@ func getPodNameWithoutSuffix(podName string) string {
 // Add handles CNI add commands.
 func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 	var (
-		result       *cniTypesCurr.Result
-		err          error
-		nwCfg        *cni.NetworkConfig
-		epInfo       *network.EndpointInfo
-		iface        *cniTypesCurr.Interface
-		subnetPrefix net.IPNet
+		result           *cniTypesCurr.Result
+		err              error
+		nwCfg            *cni.NetworkConfig
+		epInfo           *network.EndpointInfo
+		iface            *cniTypesCurr.Interface
+		subnetPrefix     net.IPNet
 		cnsNetworkConfig *cns.GetNetworkContainerResponse
 	)
 
@@ -245,12 +160,9 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 			Name: args.IfName,
 		}
 
-		snatIface := &cniTypesCurr.Interface{
-			Name: snatInterface,
-		}
-
 		result.Interfaces = append(result.Interfaces, iface)
-		result.Interfaces = append(result.Interfaces, snatIface)
+
+		addSnatInterface(nwCfg, result)
 
 		// Convert result to the requested CNI version.
 		res, err := result.GetAsVersion(nwCfg.CNIVersion)
@@ -293,21 +205,14 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 	log.Printf("[cni-net] Read network configuration %+v.", nwCfg)
 
-
 	// Initialize values from network config.
 	networkId := nwCfg.Name
 	endpointId := GetEndpointID(args)
 
-	// If multitenancy is enabled, get ip and vlan from cns
-	if nwCfg.MultiTenancy {
-		podNameWithoutSuffix := getPodNameWithoutSuffix(k8sPodName)
-		log.Printf("Podname without suffix %v", podNameWithoutSuffix)
-	
-		result, cnsNetworkConfig, subnetPrefix, err = getContainerNetworkConfiguration(k8sNamespace, podNameWithoutSuffix)
-		if err != nil {
-			log.Printf("[CNI Multitenancy] GetContainerNetworkConfiguration failed with %v", err)
-			return err
-		}
+	result, cnsNetworkConfig, subnetPrefix, err = GetContainerNetworkConfiguration(nwCfg.MultiTenancy, "", k8sPodName, k8sNamespace)
+	if err != nil {
+		log.Printf("GetContainerNetworkConfiguration failed for podname %v namespace %v with error %v", k8sPodName, k8sNamespace, err)
+		return err
 	}
 
 	log.Printf("PrimaryInterfaceIdentifier :%v", subnetPrefix.IP.String())
@@ -341,7 +246,6 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		// Network does not exist.
 
 		log.Printf("[cni-net] Creating network %v.", networkId)
-
 
 		if !nwCfg.MultiTenancy {
 			// Call into IPAM plugin to allocate an address pool for the network.
@@ -407,7 +311,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		}
 
 		nwInfo.Options = make(map[string]interface{})
-		log.Printf("set network options")
+		log.Printf("Set Network Options")
 		setNetworkOptions(cnsNetworkConfig, &nwInfo)
 
 		err = plugin.nm.CreateNetwork(&nwInfo)
@@ -487,20 +391,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		epInfo.Routes = append(epInfo.Routes, network.RouteInfo{Dst: route.Dst, Gw: route.GW})
 	}
 
-	// Adding default gateway
-	if nwCfg.MultiTenancy {
-		// if snat enabled, add 169.254.0.1 as default gateway
-		if nwCfg.EnableSnatOnHost {
-			log.Printf("add default route for multitenancy.snat on host enabled")
-			addDefaultRoute(cnsNetworkConfig.LocalIPConfiguration.GatewayIPAddress, epInfo, result)
-		} else {
-			_, defaultIPNet, _ := net.ParseCIDR("0.0.0.0/0")
-			dstIP := net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: defaultIPNet.Mask}	
-			gwIP := net.ParseIP(cnsNetworkConfig.IPConfiguration.GatewayIPAddress)
-			epInfo.Routes = append(epInfo.Routes, network.RouteInfo{Dst: dstIP, Gw: gwIP})
-			result.Routes = append(result.Routes, &cniTypes.Route{Dst: dstIP, GW: gwIP})
-		}
-	}
+	addDefaultGateway(nwCfg, cnsNetworkConfig, epInfo, result)
 
 	// Create the endpoint.
 	log.Printf("[cni-net] Creating endpoint %v.", epInfo.Id)

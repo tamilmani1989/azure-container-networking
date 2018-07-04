@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-container-networking/cns"
+	"github.com/Azure/azure-container-networking/cns/common"
 	"github.com/Azure/azure-container-networking/cns/dockerclient"
 	"github.com/Azure/azure-container-networking/cns/imdsclient"
 	"github.com/Azure/azure-container-networking/cns/ipamclient"
@@ -19,7 +20,6 @@ import (
 	"github.com/Azure/azure-container-networking/cns/routes"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/platform"
-	"github.com/Azure/azure-container-networking/cns/common"
 	"github.com/Azure/azure-container-networking/store"
 )
 
@@ -1000,7 +1000,7 @@ func (service *httpRestService) getNetworkContainerResponse(req cns.GetNetworkCo
 	getNetworkContainerResponse = cns.GetNetworkContainerResponse{
 		IPConfiguration:            savedReq.IPConfiguration,
 		Routes:                     savedReq.Routes,
-		CnetAddressSpace:			savedReq.CnetAddressSpace,
+		CnetAddressSpace:           savedReq.CnetAddressSpace,
 		MultiTenancyInfo:           savedReq.MultiTenancyInfo,
 		PrimaryInterfaceIdentifier: savedReq.PrimaryInterfaceIdentifier,
 		LocalIPConfiguration:       savedReq.LocalIPConfiguration,

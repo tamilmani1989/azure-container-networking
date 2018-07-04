@@ -90,3 +90,6 @@ func (nm *networkManager) deleteNetworkImpl(nw *network) error {
 
 	return err
 }
+
+func getNetworkInfoImpl(nwInfo *NetworkInfo, nw *network) {
+}

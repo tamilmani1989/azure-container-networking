@@ -19,20 +19,18 @@ type LinuxBridgeEndpointClient struct {
 }
 
 func NewLinuxBridgeEndpointClient(
-	bridgeName string,
-	hostPrimaryIfName string,
+	extIf *externalInterface,
 	hostVethName string,
 	containerVethName string,
-	hostPrimaryMac net.HardwareAddr,
 	mode string,
 ) *LinuxBridgeEndpointClient {
 
 	client := &LinuxBridgeEndpointClient{
-		bridgeName:        bridgeName,
-		hostPrimaryIfName: hostPrimaryIfName,
+		bridgeName:        extIf.BridgeName,
+		hostPrimaryIfName: extIf.Name,
 		hostVethName:      hostVethName,
 		containerVethName: containerVethName,
-		hostPrimaryMac:    hostPrimaryMac,
+		hostPrimaryMac:    extIf.MacAddress,
 		mode:              mode,
 	}
 

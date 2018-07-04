@@ -178,7 +178,6 @@ func main() {
 	}
 
 	// Create the key value store.
-
 	config.Store, err = store.NewJsonFileStore(platform.CNMRuntimePath + name + ".json")
 	if err != nil {
 		log.Printf("Failed to create store: %v\n", err)

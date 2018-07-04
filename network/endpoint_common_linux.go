@@ -98,7 +98,6 @@ func addRoutes(interfaceName string, routes []RouteInfo) error {
 	return nil
 }
 
-
 func deleteRoutes(interfaceName string, routes []RouteInfo) error {
 	ifIndex := 0
 	interfaceIf, _ := net.InterfaceByName(interfaceName)

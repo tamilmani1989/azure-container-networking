@@ -24,9 +24,9 @@ const (
 	virtualMacAddress = "12:34:56:78:9a:bc"
 
 	genericData = "com.docker.network.generic"
-	
-	InternetBridgeIPKey = "internetBridgeIP"
-	
+
+	SnatBridgeIPKey = "snatBridgeIP"
+
 	LocalIPKey = "localIP"
 )
 
@@ -170,8 +170,6 @@ func (nm *networkManager) applyIPConfig(extIf *externalInterface, targetIf *net.
 func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwInfo *NetworkInfo) error {
 	var err error
 	var networkClient NetworkClient
-	//	var disableMultiTenancyInternet bool
-
 	log.Printf("[net] Connecting interface %v.", extIf.Name)
 	defer func() { log.Printf("[net] Connecting interface %v completed with err:%v.", extIf.Name, err) }()
 
@@ -195,13 +193,13 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 
 	opt, _ := nwInfo.Options[genericData].(map[string]interface{})
 	if opt != nil && opt[VlanIDKey] != nil {
-		internetBridgeIP := ""
+		snatBridgeIP := ""
 
-		if opt != nil && opt[InternetBridgeIPKey] != nil {
-			internetBridgeIP, _ = opt[InternetBridgeIPKey].(string)
+		if opt != nil && opt[SnatBridgeIPKey] != nil {
+			snatBridgeIP, _ = opt[SnatBridgeIPKey].(string)
 		}
 
-		networkClient = NewOVSClient(bridgeName, extIf.Name, internetBridgeIP, nwInfo.EnableSnatOnHost)
+		networkClient = NewOVSClient(bridgeName, extIf.Name, snatBridgeIP, nwInfo.EnableSnatOnHost)
 	} else {
 		networkClient = NewLinuxBridgeClient(bridgeName, extIf.Name, nwInfo.Mode)
 	}
@@ -266,7 +264,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	}
 
 	// Add the bridge rules.
-	err = networkClient.AddBridgeRules(extIf)
+	err = networkClient.AddL2Rules(extIf)
 	if err != nil {
 		return err
 	}
@@ -297,7 +295,7 @@ func (nm *networkManager) disconnectExternalInterface(extIf *externalInterface, 
 
 	log.Printf("[net] Deleting bridge rules")
 	// Delete bridge rules set on the external interface.
-	networkClient.DeleteBridgeRules(extIf)
+	networkClient.DeleteL2Rules(extIf)
 
 	log.Printf("[net] Deleting bridge")
 	// Delete Bridge
@@ -317,4 +315,12 @@ func (nm *networkManager) disconnectExternalInterface(extIf *externalInterface, 
 	extIf.Routes = nil
 
 	log.Printf("[net] Disconnected interface %v.", extIf.Name)
+}
+
+func getNetworkInfoImpl(nwInfo *NetworkInfo, nw *network) {
+	if nw.VlanId != 0 {
+		vlanMap := make(map[string]interface{})
+		vlanMap[VlanIDKey] = strconv.Itoa(nw.VlanId)
+		nwInfo.Options[genericData] = vlanMap
+	}
 }

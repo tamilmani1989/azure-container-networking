@@ -41,27 +41,17 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	var contIfName string
 	var epClient EndpointClient
 	var vlanid int = 0
-	var localIP string 
-	var internetBridgeIP string
-
-	if epInfo.Data != nil {
-		if _, ok := epInfo.Data[VlanIDKey]; ok {
-			vlanid = epInfo.Data[VlanIDKey].(int)
-		}
-		
-		if _, ok := epInfo.Data[LocalIPKey]; ok {
-			localIP = epInfo.Data[LocalIPKey].(string)
-		}
-
-		if _, ok := epInfo.Data[InternetBridgeIPKey]; ok {
-			internetBridgeIP = epInfo.Data[InternetBridgeIPKey].(string)
-		}
-	}
 
 	if nw.Endpoints[epInfo.Id] != nil {
 		log.Printf("[net] Endpoint alreday exists.")
 		err = errEndpointExists
 		return nil, err
+	}
+
+	if epInfo.Data != nil {
+		if _, ok := epInfo.Data[VlanIDKey]; ok {
+			vlanid = epInfo.Data[VlanIDKey].(int)
+		}
 	}
 
 	if _, ok := epInfo.Data[OptVethName]; ok {
@@ -78,31 +68,28 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	}
 
 	if vlanid != 0 {
-		epClient = NewOVSEndpointClient(nw.extIf.BridgeName, 
-			nw.extIf.Name, 
-			hostIfName, 
-			nw.extIf.MacAddress.String(), 
-			contIfName, 
-			internetBridgeIP, 
-			localIP, 
-			vlanid, 
-			epInfo.EnableSnatOnHost)
+		epClient = NewOVSEndpointClient(
+			nw.extIf,
+			epInfo,
+			hostIfName,
+			contIfName,
+			vlanid)
 	} else {
-		epClient = NewLinuxBridgeEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, hostIfName, contIfName, nw.extIf.MacAddress, nw.Mode)
+		epClient = NewLinuxBridgeEndpointClient(nw.extIf, hostIfName, contIfName, nw.Mode)
 	}
 
 	// On failure, cleanup the things.
 	defer func() {
-		if err != nil {	
+		if err != nil {
 			log.Printf("CNI error. Delete Endpoint %v and rules that are created.", contIfName)
-			endpt := &endpoint {
-				Id:          epInfo.Id,
-				IfName:      contIfName,
-				HostIfName:  hostIfName,
-				IPAddresses: epInfo.IPAddresses,
-				Gateways:    []net.IP{nw.extIf.IPv4Gateway},
-				DNS:         epInfo.DNS,
-				VlanID:      vlanid,
+			endpt := &endpoint{
+				Id:               epInfo.Id,
+				IfName:           contIfName,
+				HostIfName:       hostIfName,
+				IPAddresses:      epInfo.IPAddresses,
+				Gateways:         []net.IP{nw.extIf.IPv4Gateway},
+				DNS:              epInfo.DNS,
+				VlanID:           vlanid,
 				EnableSnatOnHost: epInfo.EnableSnatOnHost,
 			}
 
@@ -114,7 +101,6 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 			epClient.DeleteEndpoints(endpt)
 		}
 	}()
-	
 
 	if err = epClient.AddEndpoints(epInfo); err != nil {
 		return nil, err
@@ -172,14 +158,14 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 
 	// Create the endpoint object.
 	ep = &endpoint{
-		Id:          epInfo.Id,
-		IfName:      contIfName,
-		HostIfName:  hostIfName,
-		MacAddress:  containerIf.HardwareAddr,
-		IPAddresses: epInfo.IPAddresses,
-		Gateways:    []net.IP{nw.extIf.IPv4Gateway},
-		DNS:         epInfo.DNS,
-		VlanID:      vlanid,
+		Id:               epInfo.Id,
+		IfName:           contIfName,
+		HostIfName:       hostIfName,
+		MacAddress:       containerIf.HardwareAddr,
+		IPAddresses:      epInfo.IPAddresses,
+		Gateways:         []net.IP{nw.extIf.IPv4Gateway},
+		DNS:              epInfo.DNS,
+		VlanID:           vlanid,
 		EnableSnatOnHost: epInfo.EnableSnatOnHost,
 	}
 
@@ -198,9 +184,10 @@ func (nw *network) deleteEndpointImpl(ep *endpoint) error {
 	// Deleting the host interface is more convenient since it does not require
 	// entering the container netns and hence works both for CNI and CNM.
 	if ep.VlanID != 0 {
-		epClient = NewOVSEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, ep.HostIfName, nw.extIf.MacAddress.String(), "", "", "", ep.VlanID, ep.EnableSnatOnHost)
+		epInfo := ep.getInfo()
+		epClient = NewOVSEndpointClient(nw.extIf, epInfo, ep.HostIfName, "", ep.VlanID)
 	} else {
-		epClient = NewLinuxBridgeEndpointClient(nw.extIf.BridgeName, nw.extIf.Name, ep.HostIfName, "", nw.extIf.MacAddress, nw.Mode)
+		epClient = NewLinuxBridgeEndpointClient(nw.extIf, ep.HostIfName, "", nw.Mode)
 	}
 
 	epClient.DeleteEndpointRules(ep)

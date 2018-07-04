@@ -6,12 +6,12 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-container-networking/common"
-	"github.com/Azure/azure-container-networking/platform"
 	"github.com/Azure/azure-container-networking/log"
+	"github.com/Azure/azure-container-networking/platform"
 )
 
 const (
-	macAddress = "12:34:56:78:9a:bc"
+	defaultMacForArpResponse = "12:34:56:78:9a:bc"
 )
 
 func CreateOVSBridge(bridgeName string) error {
@@ -65,9 +65,7 @@ func GetOVSPortNumber(interfaceName string) (string, error) {
 		return "", err
 	}
 
-	ofport = strings.Trim(ofport, "\n")
-
-	return ofport, nil
+	return strings.Trim(ofport, "\n"), nil
 }
 
 func AddVMIpAcceptRule(bridgeName string, primaryIP string, mac string) error {
@@ -128,7 +126,7 @@ func AddArpDnatRule(bridgeName string, port string, mac string) error {
 
 func AddFakeArpReply(bridgeName string, ip net.IP) error {
 	// If arp fields matches, set arp reply rule for the request
-	macAddrHex := strings.Replace(macAddress, ":", "", -1)
+	macAddrHex := strings.Replace(defaultMacForArpResponse, ":", "", -1)
 	ipAddrInt := common.IpToInt(ip)
 
 	log.Printf("[ovs] Adding ARP reply rule for IP address %v ", ip.String())
@@ -136,7 +134,7 @@ func AddFakeArpReply(bridgeName string, ip net.IP) error {
 			move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],mod_dl_src:%s,
 			move:NXM_NX_ARP_SHA[]->NXM_NX_ARP_THA[],move:NXM_OF_ARP_TPA[]->NXM_OF_ARP_SPA[],
 			load:0x%s->NXM_NX_ARP_SHA[],load:0x%x->NXM_OF_ARP_TPA[],IN_PORT'`,
-		bridgeName, macAddress, macAddrHex, ipAddrInt)
+		bridgeName, defaultMacForArpResponse, macAddrHex, ipAddrInt)
 	_, err := platform.ExecuteCommand(cmd)
 	if err != nil {
 		log.Printf("[ovs] Adding ARP reply rule failed with error %v", err)

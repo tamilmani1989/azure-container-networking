@@ -54,7 +54,7 @@ func (client *LinuxBridgeClient) DeleteBridge() error {
 	return nil
 }
 
-func (client *LinuxBridgeClient) AddBridgeRules(extIf *externalInterface) error {
+func (client *LinuxBridgeClient) AddL2Rules(extIf *externalInterface) error {
 
 	hostIf, err := net.InterfaceByName(client.hostInterfaceName)
 	if err != nil {
@@ -93,7 +93,7 @@ func (client *LinuxBridgeClient) AddBridgeRules(extIf *externalInterface) error 
 	return nil
 }
 
-func (client *LinuxBridgeClient) DeleteBridgeRules(extIf *externalInterface) {
+func (client *LinuxBridgeClient) DeleteL2Rules(extIf *externalInterface) {
 	ebtables.SetVepaMode(client.bridgeName, commonInterfacePrefix, virtualMacAddress, ebtables.Delete)
 	ebtables.SetDnatForArpReplies(extIf.Name, ebtables.Delete)
 	ebtables.SetArpReply(extIf.IPAddresses[0].IP, extIf.MacAddress, ebtables.Delete)

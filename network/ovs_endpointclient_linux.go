@@ -16,39 +16,42 @@ type OVSEndpointClient struct {
 	hostPrimaryMac    string
 	containerVethName string
 	containerMac      string
-	intVethName       string
-	internetBridgeIP  string
-	localIP 		  string
+	snatVethName      string
+	snatBridgeIP      string
+	localIP           string
 	vlanID            int
 	enableSnatOnHost  bool
 }
 
 const (
-	intVethInterfacePrefix = commonInterfacePrefix + "vint"
-	azureInternetIfName    = "eth1"
+	snatVethInterfacePrefix = commonInterfacePrefix + "vint"
+	azureSnatIfName         = "eth1"
 )
 
 func NewOVSEndpointClient(
-	bridgeName string,
-	hostPrimaryIfName string,
+	extIf *externalInterface,
+	epInfo *EndpointInfo,
 	hostVethName string,
-	hostPrimaryMac string,
 	containerVethName string,
-	internetBridgeIP string,
-	localIP string,
 	vlanid int,
-	enableSnatOnHost bool) *OVSEndpointClient {
+) *OVSEndpointClient {
 
 	client := &OVSEndpointClient{
-		bridgeName:        bridgeName,
-		hostPrimaryIfName: hostPrimaryIfName,
+		bridgeName:        extIf.BridgeName,
+		hostPrimaryIfName: extIf.Name,
 		hostVethName:      hostVethName,
-		hostPrimaryMac:    hostPrimaryMac,
+		hostPrimaryMac:    extIf.MacAddress.String(),
 		containerVethName: containerVethName,
-		internetBridgeIP:  internetBridgeIP,
-		localIP: 		   localIP,
 		vlanID:            vlanid,
-		enableSnatOnHost:  enableSnatOnHost,
+		enableSnatOnHost:  epInfo.EnableSnatOnHost,
+	}
+
+	if _, ok := epInfo.Data[LocalIPKey]; ok {
+		client.localIP = epInfo.Data[LocalIPKey].(string)
+	}
+
+	if _, ok := epInfo.Data[SnatBridgeIPKey]; ok {
+		client.snatBridgeIP = epInfo.Data[SnatBridgeIPKey].(string)
 	}
 
 	return client
@@ -67,16 +70,16 @@ func (client *OVSEndpointClient) AddEndpoints(epInfo *EndpointInfo) error {
 	client.containerMac = containerIf.HardwareAddr.String()
 
 	if client.enableSnatOnHost {
-		if err := createInternetBridge(client.internetBridgeIP, client.bridgeName); err != nil {
-			log.Printf("creating internet bridge failed with error %v", err)
+		if err := createSnatBridge(client.snatBridgeIP, client.bridgeName); err != nil {
+			log.Printf("creating snat bridge failed with error %v", err)
 			return err
 		}
 
-		if err := addMasQueradeRule(client.internetBridgeIP); err != nil {
+		if err := addMasQueradeRule(client.snatBridgeIP); err != nil {
 			log.Printf("Adding snat rule failed with error %v", err)
 			return err
 		}
-		
+
 		if err := addVlanDropRule(); err != nil {
 			log.Printf("Adding vlan drop rule failed with error %v", err)
 			return err
@@ -87,18 +90,18 @@ func (client *OVSEndpointClient) AddEndpoints(epInfo *EndpointInfo) error {
 			return err
 		}
 
-		hostIfName := fmt.Sprintf("%s%s", intVethInterfacePrefix, epInfo.Id[:7])
-		contIfName := fmt.Sprintf("%s%s-2", intVethInterfacePrefix, epInfo.Id[:7])
+		hostIfName := fmt.Sprintf("%s%s", snatVethInterfacePrefix, epInfo.Id[:7])
+		contIfName := fmt.Sprintf("%s%s-2", snatVethInterfacePrefix, epInfo.Id[:7])
 
 		if err := createEndpoint(hostIfName, contIfName); err != nil {
 			return err
 		}
 
-		if err := netlink.SetLinkMaster(hostIfName, internetBridgeName); err != nil {
+		if err := netlink.SetLinkMaster(hostIfName, snatBridgeName); err != nil {
 			return err
 		}
 
-		client.intVethName = contIfName
+		client.snatVethName = contIfName
 	}
 
 	return nil
@@ -186,8 +189,8 @@ func (client *OVSEndpointClient) MoveEndpointsToContainerNS(epInfo *EndpointInfo
 	}
 
 	if client.enableSnatOnHost {
-		log.Printf("[ovs] Setting link %v netns %v.", client.intVethName, epInfo.NetNsPath)
-		if err := netlink.SetLinkNetNs(client.intVethName, nsID); err != nil {
+		log.Printf("[ovs] Setting link %v netns %v.", client.snatVethName, epInfo.NetNsPath)
+		if err := netlink.SetLinkNetNs(client.snatVethName, nsID); err != nil {
 			return err
 		}
 	}
@@ -204,10 +207,10 @@ func (client *OVSEndpointClient) SetupContainerInterfaces(epInfo *EndpointInfo) 
 	client.containerVethName = epInfo.IfName
 
 	if client.enableSnatOnHost {
-		if err := setupContainerInterface(client.intVethName, azureInternetIfName); err != nil {
+		if err := setupContainerInterface(client.snatVethName, azureSnatIfName); err != nil {
 			return err
 		}
-		client.intVethName = azureInternetIfName
+		client.snatVethName = azureSnatIfName
 	}
 
 	return nil
@@ -219,9 +222,9 @@ func (client *OVSEndpointClient) ConfigureContainerInterfacesAndRoutes(epInfo *E
 	}
 
 	if client.enableSnatOnHost {
-		log.Printf("[ovs] Adding IP address %v to link %v.", client.localIP, client.intVethName)
-		ip, intIpAddr, _ := net.ParseCIDR(client.localIP )
-		if err := netlink.AddIpAddress(client.intVethName, ip, intIpAddr); err != nil {
+		log.Printf("[ovs] Adding IP address %v to link %v.", client.localIP, client.snatVethName)
+		ip, intIpAddr, _ := net.ParseCIDR(client.localIP)
+		if err := netlink.AddIpAddress(client.snatVethName, ip, intIpAddr); err != nil {
 			return err
 		}
 	}
@@ -242,8 +245,8 @@ func (client *OVSEndpointClient) DeleteEndpoints(ep *endpoint) error {
 	}
 
 	if client.enableSnatOnHost {
-		hostIfName := fmt.Sprintf("%s%s", intVethInterfacePrefix, ep.Id[:7])
-		log.Printf("[ovs] Deleting internet veth pair %v.", hostIfName)
+		hostIfName := fmt.Sprintf("%s%s", snatVethInterfacePrefix, ep.Id[:7])
+		log.Printf("[ovs] Deleting snat veth pair %v.", hostIfName)
 		err = netlink.DeleteLink(hostIfName)
 		if err != nil {
 			log.Printf("[ovs] Failed to delete veth pair %v: %v.", hostIfName, err)
