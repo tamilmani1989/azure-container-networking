@@ -876,7 +876,7 @@ func (service *httpRestService) saveNetworkContainerGoalState(req cns.CreateNetw
 				return UnexpectedError, errBuf
 			}
 
-			log.Printf("Azure container instance info %v", podInfo)
+			log.Printf("Pod info %v", podInfo)
 
 			if service.state.ContainerIDByOrchestratorContext == nil {
 				service.state.ContainerIDByOrchestratorContext = make(map[string]string)
@@ -977,7 +977,7 @@ func (service *httpRestService) getNetworkContainerResponse(req cns.GetNetworkCo
 			return getNetworkContainerResponse
 		}
 
-		log.Printf("azure container instance info %+v", podInfo)
+		log.Printf("pod info %+v", podInfo)
 		containerID = service.state.ContainerIDByOrchestratorContext[podInfo.PodName+podInfo.PodNamespace]
 		log.Printf("containerid %v", containerID)
 		break
@@ -1049,9 +1049,6 @@ func (service *httpRestService) deleteNetworkContainer(w http.ResponseWriter, r 
 		var containerStatus containerstatus
 		var ok bool
 
-		service.lock.Lock()
-		defer service.lock.Unlock()
-
 		if containerStatus, ok = service.state.ContainerStatus[req.NetworkContainerid]; !ok {
 			log.Printf("Not able to retrieve network container details for this container id %v", req.NetworkContainerid)
 			break
@@ -1065,6 +1062,9 @@ func (service *httpRestService) deleteNetworkContainer(w http.ResponseWriter, r 
 				break
 			}
 		}
+
+		service.lock.Lock()
+		defer service.lock.Unlock()
 
 		if service.state.ContainerStatus != nil {
 			delete(service.state.ContainerStatus, req.NetworkContainerid)

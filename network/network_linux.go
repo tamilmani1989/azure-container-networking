@@ -28,6 +28,8 @@ const (
 	SnatBridgeIPKey = "snatBridgeIP"
 
 	LocalIPKey = "localIP"
+
+	OptVethName = "vethname"
 )
 
 // Linux implementation of route.
@@ -38,7 +40,7 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 	// Connect the external interface.
 	var vlanid int
 	opt, _ := nwInfo.Options[genericData].(map[string]interface{})
-	log.Printf("opt %v options %v", opt, nwInfo.Options)
+	log.Printf("opt %+v options %+v", opt, nwInfo.Options)
 
 	switch nwInfo.Mode {
 	case opModeTunnel:

@@ -43,7 +43,6 @@ func updateOVSConfig(option string) error {
 	contents := buf.String()
 
 	conSplit := strings.Split(contents, "\n")
-
 	for _, existingOption := range conSplit {
 		if option == existingOption {
 			log.Printf("Not updating ovs config. Found option already written")
@@ -87,7 +86,7 @@ func (client *OVSNetworkClient) CreateBridge() error {
 			return err
 		}
 
-		if err := addMasQueradeRule(client.snatBridgeIP); err != nil {
+		if err := addMasqueradeRule(client.snatBridgeIP); err != nil {
 			return err
 		}
 
@@ -106,7 +105,6 @@ func addVlanDropRule() error {
 	}
 
 	out = strings.TrimSpace(out)
-
 	if strings.Contains(out, "-p 802_1Q -j DROP") {
 		log.Printf("vlan drop rule already exists")
 		return nil
@@ -118,9 +116,8 @@ func addVlanDropRule() error {
 	return err
 }
 
-func addMasQueradeRule(snatBridgeIPWithPrefix string) error {
+func addMasqueradeRule(snatBridgeIPWithPrefix string) error {
 	_, ipNet, _ := net.ParseCIDR(snatBridgeIPWithPrefix)
-
 	cmd := fmt.Sprintf("iptables -t nat -C POSTROUTING -s %v -j MASQUERADE", ipNet.String())
 	_, err := platform.ExecuteCommand(cmd)
 	if err == nil {
@@ -131,15 +128,14 @@ func addMasQueradeRule(snatBridgeIPWithPrefix string) error {
 	cmd = fmt.Sprintf("iptables -t nat -A POSTROUTING -s %v -j MASQUERADE", ipNet.String())
 	log.Printf("Adding iptable snat rule %v", cmd)
 	_, err = platform.ExecuteCommand(cmd)
+	return err
+}
+
+func deleteMasqueradeRule(interfaceName string) error {
+	snatIf, err := net.InterfaceByName(interfaceName)
 	if err != nil {
 		return err
 	}
-
-	return nil
-}
-
-func deleteMasQueradeRule(interfaceName string) error {
-	snatIf, _ := net.InterfaceByName(interfaceName)
 
 	addrs, _ := snatIf.Addrs()
 	for _, addr := range addrs {
@@ -153,11 +149,7 @@ func deleteMasQueradeRule(interfaceName string) error {
 			cmd := fmt.Sprintf("iptables -t nat -D POSTROUTING -s %v -j MASQUERADE", ipNet.String())
 			log.Printf("Deleting iptable snat rule %v", cmd)
 			_, err = platform.ExecuteCommand(cmd)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
 		}
 	}
 
@@ -171,7 +163,7 @@ func (client *OVSNetworkClient) DeleteBridge() error {
 	}
 
 	if client.enableSnatOnHost {
-		deleteMasQueradeRule(snatBridgeName)
+		deleteMasqueradeRule(snatBridgeName)
 
 		cmd := "ebtables -t nat -D PREROUTING -p 802_1Q -j DROP"
 		_, err := platform.ExecuteCommand(cmd)

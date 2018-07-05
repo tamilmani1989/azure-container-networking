@@ -38,7 +38,6 @@ func (client *LinuxBridgeClient) CreateBridge() error {
 }
 
 func (client *LinuxBridgeClient) DeleteBridge() error {
-
 	// Disconnect external interface from its bridge.
 	err := netlink.SetLinkMaster(client.hostInterfaceName, "")
 	if err != nil {
@@ -55,7 +54,6 @@ func (client *LinuxBridgeClient) DeleteBridge() error {
 }
 
 func (client *LinuxBridgeClient) AddL2Rules(extIf *externalInterface) error {
-
 	hostIf, err := net.InterfaceByName(client.hostInterfaceName)
 	if err != nil {
 		return err

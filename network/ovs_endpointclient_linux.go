@@ -75,7 +75,7 @@ func (client *OVSEndpointClient) AddEndpoints(epInfo *EndpointInfo) error {
 			return err
 		}
 
-		if err := addMasQueradeRule(client.snatBridgeIP); err != nil {
+		if err := addMasqueradeRule(client.snatBridgeIP); err != nil {
 			log.Printf("Adding snat rule failed with error %v", err)
 			return err
 		}
@@ -134,7 +134,6 @@ func (client *OVSEndpointClient) AddEndpointRules(epInfo *EndpointInfo) error {
 	}
 
 	for _, ipAddr := range epInfo.IPAddresses {
-
 		// Add Arp Reply Rules
 		// Set Vlan id on arp request packet and forward it to table 1
 		if err := ovsctl.AddFakeArpReply(client.bridgeName, ipAddr.IP); err != nil {

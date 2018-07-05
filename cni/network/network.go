@@ -311,7 +311,6 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		}
 
 		nwInfo.Options = make(map[string]interface{})
-		log.Printf("Set Network Options")
 		setNetworkOptions(cnsNetworkConfig, &nwInfo)
 
 		err = plugin.nm.CreateNetwork(&nwInfo)
@@ -356,9 +355,8 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 	}
 	epInfo.Data = make(map[string]interface{})
 
-	setEndpointOptions(cnsNetworkConfig, epInfo)
-
-	epInfo.Data[network.OptVethName] = fmt.Sprintf("%s.%s", k8sNamespace, k8sPodName)
+	vethName := fmt.Sprintf("%s.%s", k8sNamespace, k8sPodName)
+	setEndpointOptions(cnsNetworkConfig, epInfo, vethName)
 
 	var dns network.DNSInfo
 	if (len(nwCfg.DNS.Search) == 0) != (len(nwCfg.DNS.Nameservers) == 0) {
@@ -391,7 +389,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		epInfo.Routes = append(epInfo.Routes, network.RouteInfo{Dst: route.Dst, Gw: route.GW})
 	}
 
-	addDefaultGateway(nwCfg, cnsNetworkConfig, epInfo, result)
+	SetupRoutingForMultitenancy(nwCfg, cnsNetworkConfig, epInfo, result)
 
 	// Create the endpoint.
 	log.Printf("[cni-net] Creating endpoint %v.", epInfo.Id)

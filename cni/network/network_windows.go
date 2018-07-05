@@ -64,7 +64,7 @@ func addDefaultRoute(gwIPString string, epInfo *network.EndpointInfo, result *cn
 func setNetworkOptions(cnsNwConfig *cns.GetNetworkContainerResponse, nwInfo *network.NetworkInfo) {
 }
 
-func setEndpointOptions(cnsNwConfig *cns.GetNetworkContainerResponse, epInfo *network.EndpointInfo) {
+func setEndpointOptions(cnsNwConfig *cns.GetNetworkContainerResponse, epInfo *network.EndpointInfo, vethName string) {
 }
 
 func addSnatInterface(nwCfg *cni.NetworkConfig, result *cniTypesCurr.Result) {

@@ -10,7 +10,7 @@ import (
 	"github.com/Azure/azure-container-networking/log"
 )
 
-// IpamClient specifies a client to connect to Ipam Plugin.
+// CNSClient specifies a client to connect to Ipam Plugin.
 type CNSClient struct {
 	connectionURL string
 }

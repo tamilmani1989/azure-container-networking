@@ -16,7 +16,7 @@ import (
 	cniTypesCurr "github.com/containernetworking/cni/pkg/types/current"
 )
 
-func addDefaultGateway(nwCfg *cni.NetworkConfig, cnsNetworkConfig *cns.GetNetworkContainerResponse, epInfo *network.EndpointInfo, result *cniTypesCurr.Result) {
+func SetupRoutingForMultitenancy(nwCfg *cni.NetworkConfig, cnsNetworkConfig *cns.GetNetworkContainerResponse, epInfo *network.EndpointInfo, result *cniTypesCurr.Result) {
 	// Adding default gateway
 	if nwCfg.MultiTenancy {
 		// if snat enabled, add 169.254.0.1 as default gateway
@@ -65,7 +65,7 @@ func getContainerNetworkConfiguration(address string, namespace string, podName 
 
 	log.Printf("Network config received from cns %+v", networkConfig)
 
-	subnetPrefix := common.GetIpNet(networkConfig.PrimaryInterfaceIdentifier)
+	subnetPrefix := common.GetInterfaceSubnetWithSpecificIp(networkConfig.PrimaryInterfaceIdentifier)
 	if subnetPrefix == nil {
 		errBuf := fmt.Sprintf("Interface not found for this ip %v", networkConfig.PrimaryInterfaceIdentifier)
 		log.Printf(errBuf)

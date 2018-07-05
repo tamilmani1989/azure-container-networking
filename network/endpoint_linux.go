@@ -78,7 +78,7 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 		epClient = NewLinuxBridgeEndpointClient(nw.extIf, hostIfName, contIfName, nw.Mode)
 	}
 
-	// On failure, cleanup the things.
+	// Cleanup on failure.
 	defer func() {
 		if err != nil {
 			log.Printf("CNI error. Delete Endpoint %v and rules that are created.", contIfName)

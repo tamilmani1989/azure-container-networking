@@ -71,7 +71,7 @@ var args = acn.ArgumentList{
 			acn.OptLogTargetStderr: log.TargetStderr,
 			acn.OptLogTargetFile:   log.TargetLogfile,
 			acn.OptLogStdout:       log.TargetStdout,
-			acn.OptLogMultiWrite:   log.TargetMultiWrite,
+			acn.OptLogMultiWrite:   log.TargetStdOutAndLogFile,
 		},
 	},
 	{
