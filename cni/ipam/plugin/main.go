@@ -28,7 +28,7 @@ func main() {
 
 	if err := ipamPlugin.Plugin.InitializeKeyValueStore(&config); err != nil {
 		fmt.Printf("Failed to initialize key-value store of ipam plugin, err:%v.\n", err)
-		panic("ipam plugin fatal error")
+		os.Exit(1)
 	}
 
 	defer func() {
