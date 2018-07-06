@@ -36,7 +36,7 @@ case $1 in
     "test" )
         cd $DIR/src/dnc
         export DNC_CONFIGURATION_PATH=$DIR/src/dnc/config_test.json
-        ./azure-dnc -debug &
+        ./azure-dnc &
         go test -timeout 500s
         kill -SIGINT $(ps aux | grep './azure-dnc' | awk '{print $2}')
         ;;

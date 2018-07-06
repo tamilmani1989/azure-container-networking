@@ -23,6 +23,10 @@
             "GetSystemTagDefinitionURLFmt": "http://%s/systemTags/%s/ipVersion/%s/api-version/1"
         }
     },
+    "CustomLoggerSettings":{
+        "FnName":"",
+        "Dll":""
+    },
     "CNSSettings":{
         "ConnectionStrings" :{
             "CreateOrUpdateNetworkContainerURLFmt" : "http://%s:10090/network/createorupdatenetworkcontainer",
@@ -34,7 +38,7 @@
     },
     "VlanSettings":{
         "Min":1,
-        "Max":4095
+        "Max":2048
     },    
     "DNCSettings":{
         "RequestRetryBaseInterval":1000,

@@ -65,16 +65,10 @@ type MasterElectionSettings struct {
 	TestDataElectionSettings TestDataElectionSettings
 }
 
-// LoggerSettings :- Details related to settings for logger.
-type LoggerSettings struct {
-	CustomLoggerSettings CustomLoggerSettings
-}
-
 // CustomLoggerSettings :- Details related to settings for custom logging.
 type CustomLoggerSettings struct {
-	Name      string
-	LogLevel  int
-	LogTarget int
+	FnName string
+	Dll    string
 }
 
 // TestDataElectionSettings - Details related to setting for test election.
@@ -124,7 +118,7 @@ type Configuration struct {
 	DataStoreSettings      DataStoreSettings
 	ServerSettings         ServerSettings
 	MasterElectionSettings MasterElectionSettings
-	LoggerSettings         LoggerSettings
+	CustomLoggerSettings   CustomLoggerSettings
 	HostAgentSettings      HostAgentSettings
 	CNSSettings            CNSSettings
 	VlanSettings           VlanSettings

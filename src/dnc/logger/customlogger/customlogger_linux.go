@@ -2,49 +2,44 @@ package customlogger
 
 import (
 	"dnc/configuration"
-	"fmt"
 
 	"github.com/Azure/azure-container-networking/log"
 )
 
 // CustomLogger :- struct to hold CustomLogger settings.
 type CustomLogger struct {
-	name      string
-	logLevel  int
-	logTarget int
+	instance *log.Logger
 }
 
 // NewCustomLogger :- Create new CustomLogger
 func NewCustomLogger(cfg configuration.CustomLoggerSettings) *CustomLogger {
 	customLogger := new(CustomLogger)
-	customLogger.name = cfg.Name
-	customLogger.logLevel = cfg.LogLevel
-	customLogger.logTarget = cfg.LogTarget
 	return customLogger
 }
 
 // Init :- Initialize CustomLogger
-func (l *CustomLogger) Init(debug, stderr bool) {
-	log.SetName(l.name)
-	log.SetLevel(l.logLevel)
+func (l *CustomLogger) Init(stderr bool) {
+	logLevel := log.LevelDebug
+	logTarget := log.TargetLogfile
 
-	if err := log.SetTarget(l.logTarget); err != nil {
-		fmt.Printf("Failed to configure custom logger: %s\n", err.Error())
-		panic(err)
+	if stderr {
+		logTarget = log.TargetMultiWrite
 	}
+
+	l.instance = log.NewLogger("azure-dnc", logLevel, logTarget)
 }
 
-// Log :- Log using CustomLogger
+// Debugf :- Log debug statements using CustomLogger
 func (l *CustomLogger) Debugf(format string, args ...interface{}) {
-	log.Debugf(format, args...)
+	l.instance.Debugf(format, args...)
 }
 
-// Log :- Log using CustomLogger
+// Errorf :- Log errors using CustomLogger
 func (l *CustomLogger) Errorf(format string, args ...interface{}) {
-	log.Printf(format, args...)
+	l.instance.Printf(format, args...)
 }
 
 // Close :- Close CustomLogger
 func (l *CustomLogger) Close() {
-	log.Close()
+	l.instance.Close()
 }

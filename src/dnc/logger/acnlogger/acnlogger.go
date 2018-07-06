@@ -16,16 +16,12 @@ func NewAcnLogger() *AcnLogger {
 }
 
 // Init :- Initialize AcnLogger
-func (l *AcnLogger) Init(debug, stderr bool) {
-	logLevel := log.LevelInfo
+func (l *AcnLogger) Init(stderr bool) {
+	logLevel := log.LevelDebug
 	logTarget := log.TargetLogfile
 
-	if debug {
-		logLevel = log.LevelDebug
-	}
-
 	if stderr {
-		logTarget = log.TargetStderr
+		logTarget = log.TargetMultiWrite
 	}
 
 	l.instance = log.NewLogger("azure-dnc", logLevel, logTarget)

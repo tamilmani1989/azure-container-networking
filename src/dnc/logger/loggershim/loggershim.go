@@ -11,7 +11,7 @@ var LS *LoggerShim
 
 // LoggerInterface :- Logging interface
 type LoggerInterface interface {
-	Init(debug, stderr bool)
+	Init(stderr bool)
 	Debugf(format string, args ...interface{})
 	Errorf(format string, args ...interface{})
 	Close()
@@ -19,17 +19,16 @@ type LoggerInterface interface {
 
 // LoggerShim :- Information to initialize azure-container-networking logger
 type LoggerShim struct {
-	loggerSettings  configuration.LoggerSettings
+	loggerSettings  configuration.CustomLoggerSettings
 	loggerInterface LoggerInterface
 }
 
 // NewLoggerShim :- Create a new LoggerShim
 func NewLoggerShim(cfg *configuration.Configuration) *LoggerShim {
 	LS = new(LoggerShim)
-	LS.loggerSettings = cfg.LoggerSettings
-
-	if LS.loggerSettings.CustomLoggerSettings != (configuration.CustomLoggerSettings{}) {
-		LS.loggerInterface = customlogger.NewCustomLogger(cfg.LoggerSettings.CustomLoggerSettings)
+	LS.loggerSettings = cfg.CustomLoggerSettings
+	if LS.loggerSettings != (configuration.CustomLoggerSettings{}) {
+		LS.loggerInterface = customlogger.NewCustomLogger(cfg.CustomLoggerSettings)
 	} else {
 		LS.loggerInterface = acnlogger.NewAcnLogger()
 	}
@@ -38,8 +37,8 @@ func NewLoggerShim(cfg *configuration.Configuration) *LoggerShim {
 }
 
 // Init :- Initialize logger
-func (loggerShim *LoggerShim) Init(debug, stderr bool) {
-	loggerShim.loggerInterface.Init(debug, stderr)
+func (loggerShim *LoggerShim) Init(stderr bool) {
+	loggerShim.loggerInterface.Init(stderr)
 }
 
 // Debugf :- Log debug statements using default (azure-container-networking) or custom logger

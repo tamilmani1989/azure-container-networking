@@ -35,14 +35,12 @@ var sessionManager *utils.SessionManager
 var ctrler *controller.Controller
 var dncServer server.Server
 var replicaInstance *replica.Replica
-var debug bool
 var stderr bool
 
 //  Base retry interval
 var requestContextRetryInterval time.Duration
 
 func init() {
-	flag.BoolVar(&debug, "debug", false, "Set to true to output debug statements.")
 	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
 	flag.Parse()
 
@@ -53,7 +51,7 @@ func init() {
 
 	config = configuration.Load(configpath)
 	logger = loggershim.NewLoggerShim(config)
-	logger.Init(debug, stderr)
+	logger.Init(stderr)
 	replicaInstance = replica.NewReplica(config.ServerSettings)
 	sessionManager = utils.NewSessionManager([]string{datamodel.NodeRepositoryName, datamodel.NetworkRepositoryName, datamodel.TagRepositoryName})
 	masterElectionShim = masterelectionshim.NewMasterElectionShim(
