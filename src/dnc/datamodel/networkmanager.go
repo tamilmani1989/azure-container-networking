@@ -1877,9 +1877,11 @@ func GetNetworkContainerResponse(
 		FailureDetail: ncConfig.FailureDetail}
 	associationInfo := ncConfig.GetAssociationInfo()
 	response := api.NetworkContainerResponse{
+		NcID:            ncConfig.NetworkContainerID,
 		AssociationInfo: associationInfo,
 		RequestStatus:   requestStatus,
 		VlanID:          nodeConfiguration.NetworkVlanIDMap[ncConfig.NetworkID]}
+
 	if ipConfiguration != nil {
 		response.IPConfiguration = *ipConfiguration
 	}
@@ -1941,6 +1943,7 @@ func GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr) {
 			if err != nil {
 				return nil, err
 			}
+
 			networkContainerResponses = append(networkContainerResponses, *networkContainerResponse)
 			index++
 		}
@@ -1957,9 +1960,7 @@ func GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr) {
 			continue
 		}
 
-		loggershim.LS.Debugf("Reservation configuration: %s\n", reservationConfiguration.String())
-		constrainedReservations[index] = translateRepoToContractReservationResponse(
-			reservationConfiguration)
+		constrainedReservations[index] = translateRepoToContractReservationResponse(reservationConfiguration)
 		index++
 	}
 

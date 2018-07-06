@@ -66,6 +66,7 @@ func PrintMapKeyValues(m map[string]string) string {
 		kv := k + ":" + v
 		keyvalues = append(keyvalues, kv)
 	}
+
 	return "[" + strings.Join(keyvalues, ", ") + "]"
 }
 
@@ -101,7 +102,7 @@ func AreSetsEqual(set1, set2 []string) bool {
 	if set1 == nil {
 		set1 = make([]string, 0)
 	}
-	
+
 	if set2 == nil {
 		set2 = make([]string, 0)
 	}

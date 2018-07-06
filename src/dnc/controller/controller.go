@@ -388,7 +388,6 @@ func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*
 	}
 
 	return datamodel.GetNetworkContainerResponse(ncConfig)
-
 }
 
 // DeleteNetworkContainer - Deletes a network container.
