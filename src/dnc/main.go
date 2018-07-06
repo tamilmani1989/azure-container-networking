@@ -80,6 +80,11 @@ func processExitCallback() {
 	if ctrler.IsReplicaReady() {
 		masterElectionShim.Cleanup()
 	}
+
+	// If using test persistence store, dump state
+	if config.DataStoreSettings.TestPersistenceStoreInfo.Test != "" {
+		datamodel.DumpState()
+	}
 }
 
 func startReplica(c *controller.Controller) {

@@ -9,8 +9,10 @@ import (
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -19,12 +21,15 @@ import (
 var dataStoreShim *datastoreshim.DataStoreShim
 var requestBaseInterval = 1000
 var minVlan uint16 = 1
-var maxVlan uint16 = 4095
+var maxVlan uint16 = 2048
 
 // Init - Initialize repsoitory.
 func Init(dataStoreSettings configuration.DataStoreSettings, interval int, min, max uint16) error {
-	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
 	requestBaseInterval = interval
+	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
+	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
+		RestoreState()
+	}
 
 	if min > minVlan {
 		minVlan = min
@@ -35,6 +40,36 @@ func Init(dataStoreSettings configuration.DataStoreSettings, interval int, min, 
 	}
 
 	return nil
+}
+
+// DumpState - Function to dump test state.
+func DumpState() {
+	for tableName := range TableToColumnMap {
+		kvMap, _, _, _, err := dataStoreShim.QueryAll(tableName, nil)
+		if err == nil {
+			jsonStr, _ := json.Marshal(kvMap)
+			fp, err := os.OpenFile(tableName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0664))
+			if err == nil {
+				fp.Write(jsonStr)
+				fp.Close()
+			}
+		}
+	}
+}
+
+// RestoreState - Function to restore test state.
+func RestoreState() {
+	for tableName := range TableToColumnMap {
+		content, err := ioutil.ReadFile(tableName)
+		if err == nil {
+			var kvMap map[string]interface{}
+			if err = json.Unmarshal(content, &kvMap); err == nil {
+				for k, v := range kvMap {
+					dataStoreShim.InsertOrUpdate(tableName, k, TableToColumnMap[tableName], v)
+				}
+			}
+		}
+	}
 }
 
 // PutSubnetConfiguration - Persist subnet configuration.
