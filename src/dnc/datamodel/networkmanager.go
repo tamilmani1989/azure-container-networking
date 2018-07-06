@@ -1849,6 +1849,8 @@ func getIPConfiguration(repoReservationConfiguration *ReservationConfiguration) 
 func GetNetworkContainerResponse(
 	ncConfig *NCConfiguration) (*api.NetworkContainerResponse, *api.JsonErr) {
 	var ipConfiguration *api.IPConfiguration
+	var nodeConfiguration *NodeConfiguration
+
 	if ncConfig.State != Prepare &&
 		!(ncConfig.State == Reserve && ncConfig.Status != Completed) {
 		reservationConfiguration, err := QueryIPReservation(
@@ -1857,23 +1859,31 @@ func GetNetworkContainerResponse(
 		if err != nil {
 			return nil, err
 		}
+
 		ipConfiguration, err = getIPConfiguration(reservationConfiguration)
 		if err != nil {
 			return nil, err
 		}
+
+		nodeConfiguration, err = QueryNodeConfiguration(ncConfig.GetAssociationInfo().NodeID)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	requestStatus := api.RequestStatus{
 		State:         ncConfig.State.String(),
 		Status:        ncConfig.Status.String(),
 		FailureDetail: ncConfig.FailureDetail}
-
 	associationInfo := ncConfig.GetAssociationInfo()
 	response := api.NetworkContainerResponse{
 		AssociationInfo: associationInfo,
-		RequestStatus:   requestStatus}
+		RequestStatus:   requestStatus,
+		VlanID:          nodeConfiguration.NetworkVlanIDMap[ncConfig.NetworkID]}
 	if ipConfiguration != nil {
 		response.IPConfiguration = *ipConfiguration
 	}
+
 	return &response, nil
 }
 
