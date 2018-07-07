@@ -11,8 +11,8 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-	    $(cpprestsdk)\build\native\include;
-		<!--$(INTERNAL_SDK)\inc; -->
+        $(cpprestsdk)\build\native\include;
+        <!--$(INTERNAL_SDK)\inc; -->
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -26,8 +26,8 @@
         $(WindowsSdk64LibPath)\ole32.lib;
         $(WindowsSdk64LibPath)\ws2_32.lib;
         $(WindowsSdk64LibPath)\oleaut32.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;		
-	    $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
+        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
+        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -46,10 +46,27 @@
       <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\HNSClient\marshal\inc\MarshalBase.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\HNSClient\marshal\inc\vmoptional.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\Logging\Logging.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\NetworkClientLibrary\Common\nclcore.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\networkclientlibrary\common\aquanetworkclient.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="AfterBuild">
     <Copy SourceFiles="$(OutputPath)\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClient" />
-	<Copy SourceFiles="$(OutputPath)\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
-	<Copy SourceFiles="$(OutputPath)\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\HNSOverlayPlugin" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary" />
+    <Copy SourceFiles="$(OutputPath)\Aqua.RestServer.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\HNSOverlayPlugin" />
   </Target>
 </Project>

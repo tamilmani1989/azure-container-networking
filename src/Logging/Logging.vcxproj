@@ -42,10 +42,18 @@
 
   <ItemGroup>
     <ClInclude Include="Logging.h" />
-    <ClInclude Include="RdTrace.h" />    
+    <ClInclude Include="RdTrace.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Logging.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\NetworkClientLibrary\Common\nclcore.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\NetworkClientLibrary\Common\aquanetworkclient.h">
+      <Visible>false</Visible>
+    </QCustomInput>
   </ItemGroup>
   <!-- <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.vcxproj">

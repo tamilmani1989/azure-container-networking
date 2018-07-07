@@ -19,6 +19,7 @@ type NCConfiguration struct {
 	FailureDetail         api.JsonErr
 	MarkedForDelete       bool
 	APIVersion            string
+	LocalIP				  string
 }
 
 // GetAssociationInfo - Retrieves association info assocuated with NC.

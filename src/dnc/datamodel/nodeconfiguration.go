@@ -27,6 +27,7 @@ func (n *NodeConfiguration) DumpDeployedNetworkContainers() string {
 
 		deployedNCs = utils.PrintMapKeyValues(ncByVnets)
 	}
+
 	deployedNCs = "]"
 
 	return deployedNCs
@@ -47,6 +48,7 @@ func (n *NodeConfiguration) String() string {
 
 		deployedNCs = utils.PrintMapKeyValues(ncByVnets)
 	}
+
 	return fmt.Sprintf(
 		"[NodeID:%s, NodeInfo:%s NetworkContainers:%s ConstrainedReservations:%s",
 		n.NodeID, n.NodeInfo.String(), deployedNCs, reservationKeys)

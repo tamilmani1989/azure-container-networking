@@ -319,3 +319,9 @@ a.out
 
 # Ignore generated bin
 MSG*.bin
+
+# log files
+azure-dnc*.log*
+
+#test DB
+*.db

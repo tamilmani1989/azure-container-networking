@@ -65,16 +65,10 @@ type MasterElectionSettings struct {
 	TestDataElectionSettings TestDataElectionSettings
 }
 
-// LoggerSettings :- Details related to settings for logger.
-type LoggerSettings struct {
-	CustomLoggerSettings CustomLoggerSettings
-}
-
 // CustomLoggerSettings :- Details related to settings for custom logging.
 type CustomLoggerSettings struct {
-	Name      string
-	LogLevel  int
-	LogTarget int
+	FnName string
+	Dll    string
 }
 
 // TestDataElectionSettings - Details related to setting for test election.
@@ -98,10 +92,25 @@ type HostAgentSettings struct {
 type CNSConnectionStrings struct {
 	CreateOrUpdateNetworkContainerURLFmt string
 	DeleteNetworkContainerURLFmt         string
+	GetNetworkContainerStatusURLFmt      string
+	SetOrchestratorTypeURLFmt            string
+	GetNetworkcontainerstatusURLFmt      string
 }
 
 type CNSSettings struct {
 	ConnectionStrings CNSConnectionStrings
+}
+
+type VlanSettings struct {
+	Min uint16
+	Max uint16
+}
+
+type DNCSettings struct {
+	RequestRetryBaseInterval        int
+	NetworkRefreshInterval          int
+	NetworkContainerRefreshInterval int
+	ConcurrentRequestsToProcess     int
 }
 
 // Configuration - Details related to dnc configuration settings
@@ -110,9 +119,11 @@ type Configuration struct {
 	DataStoreSettings      DataStoreSettings
 	ServerSettings         ServerSettings
 	MasterElectionSettings MasterElectionSettings
-	LoggerSettings         LoggerSettings
+	CustomLoggerSettings   CustomLoggerSettings
 	HostAgentSettings      HostAgentSettings
 	CNSSettings            CNSSettings
+	VlanSettings           VlanSettings
+	DNCSettings            DNCSettings
 }
 
 // Load the JSON config file

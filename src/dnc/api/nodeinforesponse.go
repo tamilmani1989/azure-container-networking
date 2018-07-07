@@ -18,6 +18,7 @@ func (n *NodeInfoResponse) String() string {
 			ncString += networkContainer.String()
 		}
 	}
+
 	ncString += "]"
 	constrainedReservationsString := "ConstrainedReservations:["
 	if n.ConstrainedReservations != nil {

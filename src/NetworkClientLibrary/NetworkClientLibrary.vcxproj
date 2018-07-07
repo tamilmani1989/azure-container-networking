@@ -65,6 +65,11 @@
       <Project>{42a25504-a339-4b89-a5c0-8c614733660c}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\Logging\Logging.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+  </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="AfterBuild">
     <Copy SourceFiles="$(OutputPath)\NetworkClientLibrary.dll; $(OutputPath)\NetworkClientLibrary.pdb; $(OutputPath)\NetworkClientLibrary.lib" DestinationFolder="$(BinariesBuildTypeArchDirectory)\NetworkClient" />

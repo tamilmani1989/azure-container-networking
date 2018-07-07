@@ -124,5 +124,15 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <QCustomInput Include="$(SRCROOT)\shared\*.h" >
       <Visible>false</Visible>
     </QCustomInput>
+    <!-- Nuget packages used all over -->
+    <QCustomInput Include="$(PkgMsBuildShim_OneBranch)">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(PkgGenerateVersions_OneBranch)">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(PkgVisualStudio_StaticAnalysisTools_Corext)">
+      <Visible>false</Visible>
+    </QCustomInput>
   </ItemGroup>
 </Project>

@@ -62,7 +62,7 @@ func allocateSubnetFromNetworkSpace(
 	// Check the available address ranges between allocated subnets and see if
 	// an address range can satisfy the new subnet allocation.
 	startingAddress := baseSubnetAddressInUInt32
-	loggershim.LS.Log("%d\n", len(keys))
+	loggershim.LS.Debugf("%d\n", len(keys))
 	for index < len(keys) {
 		allocatedSubnetAddressInUInt32 := keys[index]
 		// If the allocated subnet is outside vnetSubnet, exit the loop.
@@ -148,10 +148,10 @@ func AllocateSubnetFromAddressRange(
 	// Determine the number of bits for host part of the IP address.
 	var hostBitCount uint32
 	hostBitCount = (32 - (uint32(subnetPrefix)))
-	loggershim.LS.Log("hostBitCount: %d\n", hostBitCount)
+	loggershim.LS.Debugf("hostBitCount: %d\n", hostBitCount)
 	// Align the starting address to the size of the subnet to allocate.
 	mask := net.CIDRMask(subnetPrefix, 32)
-	loggershim.LS.Log("Mask: %+v\n", mask)
+	loggershim.LS.Debugf("Mask: %+v\n", mask)
 	subnetHostCount := ^binary.BigEndian.Uint32(mask) + 1
 
 	startingAddress = ((startingAddress + subnetHostCount - 1) >> hostBitCount)
@@ -229,7 +229,7 @@ func IsRequestedRangeAllocatable(baseIPSubnet *net.IPNet, allocatedSubnets map[s
 		}
 
 		for _, allocatedSubnet := range allocatedSubnets {
-			loggershim.LS.Log("IPToAllocate: %+v AllocatedSubnets: %+v\n", ipToAllocate, allocatedSubnet)
+			loggershim.LS.Debugf("IPToAllocate: %+v AllocatedSubnets: %+v\n", ipToAllocate, allocatedSubnet)
 			if allocatedSubnet.Contains(ipToAllocate) {
 				return false, &api.JsonErr{
 					Code:       api.InvalidIPConstraint,

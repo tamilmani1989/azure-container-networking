@@ -1,7 +1,9 @@
 package api
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"net/http"
 )
 
 // SubnetRequest - Struct to hold subnet request.
@@ -12,14 +14,14 @@ type SubnetRequest struct {
 
 func (r *SubnetRequest) String() string {
 	return fmt.Sprintf(
-		"SubnetRequest:[SubnetName:%s, AuthenticationToken:%s]",
-		r.SubnetName, r.AuthenticationToken)
+		"SubnetRequest:[SubnetName:%s, AuthenticationToken:%x]",
+		r.SubnetName, sha256.Sum256([]byte(r.AuthenticationToken)))
 }
 
 // Validate - Validates the subnet request
 func (r *SubnetRequest) Validate() *JsonErr {
 	if len(r.AuthenticationToken) == 0 {
-		return &JsonErr{Code: InvalidAuthenticationToken, Text: "AuthenticationToken cannot be empty"}
+		return &JsonErr{Code: InvalidAuthenticationToken, Text: "AuthenticationToken cannot be empty", HTTPStatus: http.StatusBadRequest}
 	}
 
 	return nil

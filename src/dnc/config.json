@@ -1,9 +1,9 @@
 {  
     "DataStoreSettings":{  
        "AzureStorageInfo":{  
-          "AccountName":#DataStoreAccountName#,
-          "Key":"#DataStoreKey#",
-          "PartitionKey":#DataStorePartitionKey#
+          "AccountName":"",
+          "Key":"",
+          "PartitionKey":""
        },
        "AzureSQLInfo":{  
           "Host":"",
@@ -14,13 +14,13 @@
     },
     "ServerSettings":{  
        "IPAddress":"",
-       "Port":"8085"
+       "Port":"9000"
     },
     "MasterElectionSettings":{  
         "BlobStorageSettings":{
-         "AccountName":#LeaderElectionAccountName#,
-         "Key":#LeaderElectionKey#,
-         "PartitionKey":#LeaderElectionPartition#,
+         "AccountName":"",
+         "Key":"",
+         "PartitionKey":"",
          "BlobName":#LeaderElectionBlob#,
          "ContainerName":#LeaderElectionTest#,
          "LeaseIntervalInSecs":60,
@@ -31,16 +31,33 @@
     "HostAgentSettings":{
         "WireServerIP":"169.254.169.254", 
         "ConnectionStrings":{           
-             "JoinNetworkURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
-             "GetNetworkConfigurationURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
-             "PutNetworkContainerURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
-             "DeleteNetworkContainerURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE"
-         }
-     },
-     "CNSSettings":{
-         "ConnectionStrings" :{
-             "CreateOrUpdateNetworkContainerURLFmt" : "http://%s:10090/network/createorupdatenetworkcontainer",
-             "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer"   
-         }
-     }    
- }
+            "JoinNetworkURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
+            "GetNetworkConfigurationURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
+            "PutNetworkContainerURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
+            "DeleteNetworkContainerURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
+            "GetSystemTagDefinitionURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/systemTags/%s/ipVersion/%s/api-version/1"
+        }
+    },
+    "CustomLoggerSettings":{
+        "FnName":"",
+        "Dll":""
+    },    
+    "CNSSettings":{
+        "ConnectionStrings" :{
+            "CreateOrUpdateNetworkContainerURLFmt" : "http://%s:10090/network/createorupdatenetworkcontainer",
+            "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
+            "SetOrchestratorTypeURLFmt" : "http://%s:10090/network/setorchestratortype",
+            "GetNetworkcontainerstatusURLFmt":"http://%s:10090/network/getnetworkcontainerstatus"
+        }
+    },
+    "VlanSettings":{
+        "Min":1,
+        "Max":2048
+    },
+    "DNCSettings":{
+        "RequestRetryBaseInterval":1000,
+        "NetworkRefreshInterval":60000,
+        "NetworkContainerRefreshInterval": 60000,
+        "ConcurrentRequestsToProcess": 5
+    }
+}

@@ -1,13 +1,25 @@
 package controller
 
 import (
+	"bytes"
 	"dnc/api"
+	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
+	"dnc/masterelection/masterelectionshim"
 	"dnc/replica"
 	"dnc/utils"
+	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/Azure/azure-container-networking/cns"
+)
+
+var (
+	setOrchestratorTypeURLFmt string
+	masterElectionShim        *masterelectionshim.MasterElectionShim
+	config                    *configuration.Configuration
 )
 
 // Controller - Controller for handling API calls
@@ -17,15 +29,64 @@ type Controller struct {
 }
 
 // NewController - Create a NewController
-func NewController(replica *replica.Replica, sessionsManager *utils.SessionManager) *Controller {
+func NewController(replica *replica.Replica, sessionsManager *utils.SessionManager, setOrchestratorTypeUrlFmt string,
+	electionShim *masterelectionshim.MasterElectionShim, configuration *configuration.Configuration) *Controller {
 	controller := new(Controller)
 	controller.Replica = replica
 	controller.SessionManager = sessionsManager
+	setOrchestratorTypeURLFmt = setOrchestratorTypeUrlFmt
+	masterElectionShim = electionShim
+	config = configuration
 	return controller
 }
 
 // PersistNodeInfo - Persist node configuration.
 func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoRequest, apiVersion string) *api.JsonErr {
+
+	// Send OrchestratorType to CNS
+	info := &cns.SetOrchestratorTypeRequest{OrchestratorType: nodeInfo.OrchestratorType}
+	var body bytes.Buffer
+	var resp cns.Response
+
+	json.NewEncoder(&body).Encode(info)
+	setOrchestratorTypeURL := fmt.Sprintf(
+		setOrchestratorTypeURLFmt,
+		nodeInfo.IPAddresses[0])
+	w, respErr := http.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
+	if respErr != nil {
+		msg := fmt.Sprintf("Post to URL %v for node %s failed with error %s",
+			setOrchestratorTypeURL,
+			nodeID,
+			respErr.Error())
+		return &api.JsonErr{
+			Code:       api.NodeProcessingFailedDueToInternalError,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	defer w.Body.Close()
+
+	respErr = utils.DecodeResponse(w, &resp)
+	if respErr != nil {
+		msg := fmt.Sprintf("Create node %s failed with error %s",
+			nodeID,
+			respErr.Error())
+		return &api.JsonErr{
+			Code:       api.NodeProcessingFailedDueToInternalError,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	if resp.ReturnCode != 0 {
+		msg := fmt.Sprintf("Create node %s failed with error code %d",
+			nodeID,
+			resp.ReturnCode)
+		return &api.JsonErr{
+			Code:       api.NodeProcessingFailedDueToInternalError,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+	}
+
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
@@ -57,9 +118,11 @@ func (c *Controller) PersistIPReservationRequest(
 	allocationRequest api.AllocationRequest,
 	apiVersion string) *api.JsonErr {
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+
 	if len(allocationRequest.NodeConstraint) > 0 {
 		sessionInfo[datamodel.NodeRepositoryName] = allocationRequest.NodeConstraint
 	}
+
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 	return datamodel.PersistIPReservationRequest(
@@ -103,6 +166,8 @@ func (c *Controller) DeleteReservation(
 func generateStatus(status datamodel.Status, errorInfo *api.JsonErr) int {
 	switch status {
 	case datamodel.Pending:
+		fallthrough
+	case datamodel.NotStarted:
 		return http.StatusProcessing
 	case datamodel.Failed:
 		return errorInfo.HTTPStatus
@@ -227,7 +292,6 @@ func (c *Controller) GetNetworkContainerStatus(
 	defer c.SessionManager.EndReadSession(sessionInfo)
 
 	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, networkContainerID)
-
 	if err != nil {
 		return nil, 0, err
 	}
@@ -309,7 +373,7 @@ func (c *Controller) PersistNetworkContainerRequestV2(
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	loggershim.LS.Log("V2-Request: %s\n", ncRequestV2.String())
+	loggershim.LS.Debugf("V2-Request: %s\n", ncRequestV2.String())
 	return datamodel.CreateOrUpdateNCRequestV2(networkID, ncID, ncRequestV2, apiVersion)
 }
 
@@ -325,7 +389,6 @@ func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*
 	}
 
 	return datamodel.GetNetworkContainerResponse(ncConfig)
-
 }
 
 // DeleteNetworkContainer - Deletes a network container.
@@ -345,4 +408,27 @@ func (c *Controller) GetPrimaryIPEndpoint() (string, error) {
 // GetReplicaIPEndpoint - Retrieves the endpoint of this replica.
 func (c *Controller) GetReplicaIPEndpoint() (string, error) {
 	return c.Replica.GetReplicaIPEndpoint()
+}
+
+// InitializeAzureStorage - Tries to establish a connection with azure storage with information provided in request.
+func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *api.JsonErr {
+	config.DataStoreSettings.AzureStorageInfo.AccountName = request.AccountName
+	config.DataStoreSettings.AzureStorageInfo.Key = request.Key
+	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
+	masterElectionShim.SetDataStoreSettings(config)
+	masterElectionShim.Init()
+	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	c.UpdateReplicaStatus(true)
+
+	return nil
+}
+
+// IsReplicaReady - Function to check if this replica is ready
+func (c *Controller) IsReplicaReady() bool {
+	return c.Replica.IsReplicaReady()
+}
+
+// UpdateReplicaStatus - Function to update replica ready flag
+func (c *Controller) UpdateReplicaStatus(isReplicaReady bool) {
+	c.Replica.UpdateReadyStatus(isReplicaReady)
 }

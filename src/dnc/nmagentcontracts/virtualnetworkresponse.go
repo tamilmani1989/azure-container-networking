@@ -36,13 +36,28 @@ func (virtualNetworkResponse *VirtualNetworkResponse) String() string {
 		virtualNetworkResponse.VnetVersion)
 }
 
-// NMAgentResponse - NMAgent response.
-type NMAgentResponse struct {
-	ResponseCode string `json:"httpResponseCode"`
+// CreateNetworkContainerResponse - NMAgent response.
+type CreateNetworkContainerResponse struct {
+	ResponseCode       string `json:"httpResponseCode"`
+	NetworkContainerID string `json:"networkContainerId"`
+	Version            string `json:"version"`
 }
 
-//  DeleteNetworkContainerResponse - NMAgent delete network container response.
+func (CreateNetworkContainerResponse *CreateNetworkContainerResponse) String() string {
+	return fmt.Sprintf(
+		"CreateNetworkContainerResponse:[ResponseCode:%s, NetworkContainerID:%s, Version:%s]",
+		CreateNetworkContainerResponse.ResponseCode,
+		CreateNetworkContainerResponse.NetworkContainerID,
+		CreateNetworkContainerResponse.Version)
+}
+
+// DeleteNetworkContainerResponse - NMAgent delete network container response.
 type DeleteNetworkContainerResponse struct {
 	ResponseCode string `json:"httpStatusCode"`
-	ErrorMessage string `json:"errorMessage"`
+}
+
+func (DeleteNetworkContainerResponse *DeleteNetworkContainerResponse) String() string {
+	return fmt.Sprintf(
+		"DeleteNetworkContainerResponse:[ResponseCode:%s]",
+		DeleteNetworkContainerResponse.ResponseCode)
 }

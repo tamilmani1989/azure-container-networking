@@ -164,7 +164,6 @@ func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string,
 			Filter: "PartitionKey eq '" + partitionKey + "'",
 		}
 
-		fmt.Println(queryOptions.Filter)
 		entitiesResult, err = table.QueryEntities(30, storage.FullMetadata, &queryOptions)
 
 		if err != nil {
@@ -210,7 +209,7 @@ func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string,
 func getEnvVarOrExit(varName string) string {
 	value := os.Getenv(varName)
 	if value == "" {
-		loggershim.LS.Log("Missing environment variable %s\n", varName)
+		loggershim.LS.Errorf("Missing environment variable %s\n", varName)
 		os.Exit(1)
 	}
 

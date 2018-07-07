@@ -7,7 +7,7 @@
   <!-- Nuget generation properties -->
   <PropertyGroup>
     <NoPackageAnalysis>true</NoPackageAnalysis>
-    <Id>WindowsAzureNetAgent</Id>
+    <Id>Microsoft.WindowsAzure.Internal.$(GitBranchName)WindowsAzureNetAgent</Id>
     <Version>$(BuildVersion)</Version>
     <Title>WindowsAzureNetAgent Package</Title>
     <Authors>sdnagent@microsoft.com</Authors>

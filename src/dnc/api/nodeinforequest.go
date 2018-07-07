@@ -3,34 +3,53 @@ package api
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"strings"
+
+	"github.com/Azure/azure-container-networking/cns"
 )
 
 // NodeInfoRequest - Node ifnormation reuqest
 type NodeInfoRequest struct {
-	IPAddresses  []string `json:"ipaddresses"`
-	LocationType string   `json:"locationtype"` // Optional.
+	IPAddresses      []string `json:"ipaddresses"`
+	LocationType     string   `json:"locationtype"` // Optional.
+	OrchestratorType string   `json:"orchestratortype"`
 }
 
 func (n *NodeInfoRequest) String() string {
 	ipAddresses := strings.Join(n.IPAddresses, ",")
 	return fmt.Sprintf(
-		"NodeInfoRequest:[IPAddresses:%s Locationtype:%s]",
-		ipAddresses, n.LocationType)
+		"NodeInfoRequest:[IPAddresses:%s Locationtype:%s OrchestratorType:%s]",
+		ipAddresses, n.LocationType, n.OrchestratorType)
 }
 
 // Validate - Validates the node info request
 func (n *NodeInfoRequest) Validate() *JsonErr {
-	if len(n.IPAddresses) == 0 {
-		return &JsonErr{Code: InvalidNodeIPAddress, Text: "Node IP Addresses cannot be empty"}
+	if n.IPAddresses == nil || len(n.IPAddresses) < 1 {
+		return &JsonErr{
+			Code:       InvalidNodeIPAddress,
+			Text:       "Node IP Addresses is invalid.",
+			HTTPStatus: http.StatusBadRequest}
 	}
+
 	for _, ipAddress := range n.IPAddresses {
 		ip := net.ParseIP(ipAddress)
-		if ip != nil {
+		if ip == nil {
 			return &JsonErr{
-				Code: InvalidNodeIPAddress,
-				Text: "Node IP Addresses is invalid. Parse failed"}
+				Code:       InvalidNodeIPAddress,
+				Text:       "Node IP Addresses is invalid. Parse failed",
+				HTTPStatus: http.StatusBadRequest}
 		}
+	}
+
+	switch n.OrchestratorType {
+	case cns.WebApps:
+	case cns.Kubernetes:
+	default:
+		return &JsonErr{
+			Code:       InvalidOrchestratorType,
+			Text:       "Node Orchestrator Type is invalid.",
+			HTTPStatus: http.StatusBadRequest}
 	}
 
 	return nil

@@ -82,11 +82,20 @@ const (
 	// InvalidNetworkContainerID -  Network container ID specified is invalid.
 	InvalidNetworkContainerID
 
+	// InvalidOrchestratorType - Node orchestratory type specified is invalid.
+	InvalidOrchestratorType
+
+	// InvalidContainerType - Network container type specified is invalid.
+	InvalidContainerType
+
 	// NodeNotRegistered - Node is not registered
 	NodeNotRegistered
 
 	// UnSupprotedNetworkType - NetworkType is not supported
 	UnSupprotedNetworkType
+
+	// OutOfVlanIDs - VlanID is not supported/exceeded range
+	OutOfVlanIDs
 
 	// InvalidNodeIPAddress -Invalid node IPAddress
 	InvalidNodeIPAddress
@@ -167,6 +176,15 @@ const (
 
 	// InvalidNetworkStateForDelete - Delete cannot be performed on the current state
 	InvalidNetworkStateForDelete
+
+	// CnsNCVersionRetrievalFailed - Retrieval of NC version from CNS Failed
+	CnsNCVersionRetrievalFailed
+
+	// InvalidAzureStorageInfo - There is not enough information to initialize azure storage
+	InvalidAzureStorageInfo
+
+	// StorageNotInitialized - Storage has not been initialized
+	StorageNotInitialized
 )
 
 func (e ErrorCode) String() string {
@@ -234,6 +252,9 @@ func (e ErrorCode) String() string {
 	case UnSupprotedNetworkType:
 		return "UnSupprotedNetworkType"
 
+	case OutOfVlanIDs:
+		return "OutOfVlanIDs"
+
 	case InvalidNodeIPAddress:
 		return "InvalidNodeIPAddress"
 
@@ -266,6 +287,12 @@ func (e ErrorCode) String() string {
 
 	case InvalidIPConstraint:
 		return "InvalidIPConstraint"
+
+	case InvalidOrchestratorType:
+		return "InvalidOrchestratorType"
+
+	case InvalidContainerType:
+		return "InvalidContainerType"
 
 	case IPConstraintIsOutsideSubnetRange:
 		return "IPConstraintIsOutsideSubnetRange"
@@ -332,6 +359,15 @@ func (e ErrorCode) String() string {
 
 	case InvalidNetworkStateForDelete:
 		return "InvalidNetworkStateForDelete"
+
+	case CnsNCVersionRetrievalFailed:
+		return "CnsNCVersionRetrievalFailed"
+
+	case InvalidAzureStorageInfo:
+		return "InvalidAzureStorageInfo"
+
+	case StorageNotInitialized:
+		return "StorageNotInitialized"
 	}
 
 	return "Unknown Status"

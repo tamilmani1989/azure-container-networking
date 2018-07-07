@@ -7,14 +7,14 @@ const (
 	pendingWorkItemsTableName     = "PendingWorkItemsTable"
 	networkConfigurationTableName = "NetworkConfigurationTable"
 	networkContainerTableName     = "NetworkContainerTable"
-	tagDefintitionTableName       = "TagDefinitionsTable"
+	tagDefinitionTableName        = "TagDefinitionsTable"
 	networkKey                    = "Network_%s"
 	subnetConfigurationKey        = "Network_%s_Subnet_%s"
 	ipReservationKey              = "Network_%s_Reservation_%s"
 	networkcontainerKey           = "NC_%s"
 	nodeKey                       = "Node_%s"
 	ncKey                         = "Network_%s_ID_%s"
-	tagDefintionKey               = "Tag_%s_%s"
+	tagDefinitionKey              = "Tag_%s_%s"
 )
 
 const (
@@ -24,7 +24,7 @@ const (
 	nodeConfigurationTag             = "NodeConfiguration"
 	requestContextTag                = "RequestContext"
 	networkContainerConfigurationTag = "NetworkContainerConfiguration"
-	tagDefintionsTag                 = "TagDefintions"
+	tagDefinitionsTag                = "TagDefinitions"
 )
 
 const (
@@ -46,4 +46,4 @@ var TableToColumnMap = map[string]string{
 	pendingWorkItemsTableName:     requestContextTag,
 	networkConfigurationTableName: networkConfigurationTag,
 	networkContainerTableName:     networkContainerConfigurationTag,
-	tagDefintitionTableName:       tagDefintionsTag}
+	tagDefinitionTableName:        tagDefinitionsTag}

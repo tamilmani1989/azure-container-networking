@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-	<TargetName>NetworkClientTest</TargetName>
+    <TargetName>NetworkClientTest</TargetName>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <ProjectGuid>{84a60e97-c9a4-4149-949e-90312e48dd0b}</ProjectGuid>
-	<OutDirSuffix>test\$(TargetName)\</OutDirSuffix>
+    <OutDirSuffix>test\$(TargetName)\</OutDirSuffix>
   </PropertyGroup>
   <Import Project="$(SRCROOT)\build\native_user_compile.props" />
   <Import Project="$(SRCROOT)\build\native_user_link.props" />
@@ -12,11 +12,11 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-		$(SRCROOT)\NetworkClientLibrary\Common;
+        $(SRCROOT)\NetworkClientLibrary\Common;
             $(SRCROOT)\Logging;
       </AdditionalIncludeDirectories>
       <!-- Override default from native_user_compile for compat with RdCommon.lib -->
-	  <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
@@ -25,11 +25,11 @@
       <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
       <AdditionalDependencies>
         %(AdditionalDependencies);
-		    $(TAEF_SDK)\build\Library\x64\TE.Common.lib;
-		    $(TAEF_SDK)\build\Library\x64\Wex.Common.lib;
-		    $(TAEF_SDK)\build\Library\x64\Wex.Logger.lib;  
+            $(TAEF_SDK)\build\Library\x64\TE.Common.lib;
+            $(TAEF_SDK)\build\Library\x64\Wex.Common.lib;
+            $(TAEF_SDK)\build\Library\x64\Wex.Logger.lib;  
         $(WindowsSdk64LibPath)\ws2_32.lib;
-	  </AdditionalDependencies>
+      </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -46,7 +46,7 @@
     </ProjectReference>
    </ItemGroup>
 
-     <ItemGroup>
+   <ItemGroup>
     <Robocopy Include="$(BinariesBuildTypeArchDirectory)\NetworkClientLibrary\NetworkClientLibrary.dll">
       <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkClientTest\</DestinationFolder>
     </Robocopy>
@@ -56,13 +56,25 @@
     <Robocopy Include="$(BinariesBuildTypeArchDirectory)\HnsClient\HnsClient.dll">
       <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkClientTest\</DestinationFolder>
     </Robocopy>
-	    <Robocopy Include="$(BinariesBuildTypeArchDirectory)\HNSOverlayPlugin\HNSOverlayPlugin.dll">
+        <Robocopy Include="$(BinariesBuildTypeArchDirectory)\HNSOverlayPlugin\HNSOverlayPlugin.dll">
       <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkClientTest\</DestinationFolder>
-    </Robocopy>	
+    </Robocopy>    
    <Robocopy Include="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll">
      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\NetworkClientTest\</DestinationFolder>
-   </Robocopy>	
-
+   </Robocopy>
   </ItemGroup>
+
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\NetworkClientLibrary\NetworkClientLibrary.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\NetworkClientLibrary\Windows\VfpOperations.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include="$(SRCROOT)\aquanix\Common\aquanixext.h">
+      <Visible>false</Visible>
+    </QCustomInput>
+  </ItemGroup>
+
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

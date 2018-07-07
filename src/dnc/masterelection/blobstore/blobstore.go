@@ -4,12 +4,14 @@ import (
 	"dnc/configuration"
 	"dnc/logger/loggershim"
 	"dnc/masterelection/common"
+	"dnc/utils"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
@@ -26,6 +28,7 @@ type BlobStore struct {
 	startEvent                            chan bool
 	blob                                  *storage.Blob
 	leaseID                               string
+	mutex                                 *sync.RWMutex
 }
 
 const (
@@ -47,12 +50,14 @@ func NewBlobStore(
 	blobStore.primaryIPEndpointNotificationCallback = primaryIPNotificationCallback
 	blobStore.cancelEvent = cancel
 	blobStore.startEvent = start
+	blobStore.mutex = new(sync.RWMutex)
 	return blobStore
 }
 
 // Init - Initialize blob storage for primary election.
 func (b *BlobStore) Init() {
-	client, err := storage.NewBasicClient(b.blobStorageSettings.AccountName, b.blobStorageSettings.Key)
+	accountName, key, _ := b.getDataStoreSettings()
+	client, err := storage.NewBasicClient(accountName, key)
 	onErrorFail(err, "Create client failed")
 	b.blobClient = client.GetBlobService()
 }
@@ -60,13 +65,24 @@ func (b *BlobStore) Init() {
 // Cleanup - Cleanup of blob store.
 func (b *BlobStore) Cleanup() {
 	b.cancelEvent <- true
-	loggershim.LS.Log("Try to release lease\n")
+	loggershim.LS.Debugf("Try to release lease\n")
 	b.blob.ReleaseLease(b.leaseID, nil)
 }
 
 // Start - Start the leader election process
 func (b *BlobStore) Start() {
-	b.TryAcquireLease()
+	accountName, key, partitionKey := b.getDataStoreSettings()
+	if accountName == "" ||
+		key == "" ||
+		partitionKey == "" {
+		ipAddress, err := b.getIPAddress()
+		utils.OnErrorFail(err, "Failed to get local host IP")
+		ipEndpoint := ipAddress + ":" + b.serverSettings.Port
+		b.replicaChangeNotificationCallback(true)
+		b.primaryIPEndpointNotificationCallback(ipEndpoint)
+	} else {
+		b.TryAcquireLease()
+	}
 }
 
 func (b *BlobStore) createBlob() error {
@@ -75,15 +91,13 @@ func (b *BlobStore) createBlob() error {
 		Access: storage.ContainerAccessTypePrivate,
 	}
 	_, err := cnt.CreateIfNotExists(&options)
-	if err != nil {
-		onErrorFail(err, "Create container failed")
-	}
+	onErrorFail(err, "Create container failed")
 
 	b.blob = cnt.GetBlobReference(b.blobStorageSettings.BlobName)
 	blobExist, checkBlobErr := b.blob.Exists()
 	if checkBlobErr != nil {
-		loggershim.LS.Log("Check if blob exist failed: %s\n", checkBlobErr.Error())
-		return fmt.Errorf("create block blob failed as blob exist check failed: %v", checkBlobErr)
+		loggershim.LS.Errorf("Check if blob exist failed: %s\n", checkBlobErr.Error())
+		return fmt.Errorf("create block blob failed as blob exist check failed: %+v", checkBlobErr)
 	}
 
 	if !blobExist {
@@ -92,14 +106,14 @@ func (b *BlobStore) createBlob() error {
 			storagErr, ok := err.(storage.AzureStorageServiceError)
 			if ok {
 				if storagErr.StatusCode == 412 {
-					loggershim.LS.Log("Blob exist and there exist as lease on the blob\n", storagErr.StatusCode)
+					loggershim.LS.Debugf("Blob exist and there exist as lease on the blob\n", storagErr.StatusCode)
 				}
 			} else {
-				loggershim.LS.Log("create block blob failed: %s\n", err.Error())
+				loggershim.LS.Errorf("create block blob failed: %s\n", err.Error())
 				return fmt.Errorf("create block blob failed: %v", err)
 			}
 		}
-		loggershim.LS.Log("Created blob %s\n", b.blobStorageSettings.BlobName)
+		loggershim.LS.Debugf("Created blob %s\n", b.blobStorageSettings.BlobName)
 	}
 	return err
 }
@@ -110,7 +124,7 @@ func (b *BlobStore) getIPAddress() (string, error) {
 	if ipAddress == "" {
 		ipAddress, err = getLocalIP()
 		if err != nil {
-			loggershim.LS.Log("Failed to retrieve IP Address due to error: %s\n", err.Error())
+			loggershim.LS.Errorf("Failed to retrieve IP Address due to error: %s\n", err.Error())
 			return "", err
 		}
 	}
@@ -123,9 +137,10 @@ func (b *BlobStore) UpdatePrimaryIPEndpoint() error {
 
 	ipEndpoint, err := b.GetReplicaIPEndpoint()
 	if err != nil {
-		loggershim.LS.Log("Failed to get local IP address due to error: %s\n", err.Error())
+		loggershim.LS.Errorf("Failed to get local IP address due to error: %s\n", err.Error())
 		return err
 	}
+
 	putBlockOptions := &storage.PutBlockOptions{LeaseID: b.leaseID}
 	err = b.blob.PutBlock(
 		blockIDEncoded,
@@ -133,7 +148,7 @@ func (b *BlobStore) UpdatePrimaryIPEndpoint() error {
 		putBlockOptions)
 
 	if err != nil {
-		loggershim.LS.Log("PutBlock failed: %s\n", err.Error())
+		loggershim.LS.Errorf("PutBlock failed: %s\n", err.Error())
 		return err
 	}
 
@@ -145,11 +160,11 @@ func (b *BlobStore) UpdatePrimaryIPEndpoint() error {
 
 	err = b.blob.PutBlockList(blocks, putBlockListOptions)
 	if err != nil {
-		loggershim.LS.Log("PutBlockList failed: %s\n", err.Error())
+		loggershim.LS.Errorf("PutBlockList failed: %s\n", err.Error())
 		return err
 	}
 
-	loggershim.LS.Log("Successfully updated the blob\n")
+	loggershim.LS.Debugf("Successfully updated the blob\n")
 	b.replicaChangeNotificationCallback(true)
 	b.primaryIPEndpointNotificationCallback(ipEndpoint)
 
@@ -159,26 +174,25 @@ func (b *BlobStore) UpdatePrimaryIPEndpoint() error {
 func (b *BlobStore) updateReplicaPrimaryEndpoint() {
 	primaryIPEP, err := b.GetPrimaryIPEndpoint()
 	if err != nil {
-		loggershim.LS.Log("Failed to read the blob due to error %s\n", err.Error())
+		loggershim.LS.Errorf("Failed to read the blob due to error %s\n", err.Error())
 	} else {
-		loggershim.LS.Log("Updating primary replica EP %s\n", primaryIPEP)
+		loggershim.LS.Debugf("Updating primary replica EP %s\n", primaryIPEP)
 	}
+
 	b.replicaChangeNotificationCallback(false)
 	b.primaryIPEndpointNotificationCallback(primaryIPEP)
-
 }
 
 // TryAcquireLease - Function to acquire and renew lease.
 func (b *BlobStore) TryAcquireLease() error {
 	err := b.createBlob()
 	if err != nil {
-		loggershim.LS.Log("Create blob failed with error %s\n", err.Error())
+		loggershim.LS.Errorf("Create blob failed with error %s\n", err.Error())
 		return err
 	}
 
 	updateBlobRetryInterval :=
 		(time.Second) * time.Duration(b.blobStorageSettings.AcquireRetryIntervalInSecs/2)
-
 	leaseAcquireRetryTimerChannel := time.NewTicker(
 		time.Second * time.Duration(b.blobStorageSettings.AcquireRetryIntervalInSecs)).C
 	leaseRenewRetryTimerChannel := time.NewTicker(
@@ -196,7 +210,7 @@ func (b *BlobStore) TryAcquireLease() error {
 					int(b.blobStorageSettings.LeaseIntervalInSecs), "", nil)
 
 				if leaseErr != nil {
-					loggershim.LS.Log("Acquiring lease failed: %s\n", leaseErr.Error())
+					loggershim.LS.Errorf("Acquiring lease failed: %s\n", leaseErr.Error())
 					b.updateReplicaPrimaryEndpoint()
 					break
 				}
@@ -219,7 +233,7 @@ func (b *BlobStore) TryAcquireLease() error {
 					int(b.blobStorageSettings.LeaseIntervalInSecs), "", nil)
 
 				if leaseErr != nil {
-					loggershim.LS.Log("Acquiring lease failed: %s\n", leaseErr.Error())
+					loggershim.LS.Errorf("Acquiring lease failed: %s\n", leaseErr.Error())
 					b.updateReplicaPrimaryEndpoint()
 					break
 				}
@@ -237,7 +251,7 @@ func (b *BlobStore) TryAcquireLease() error {
 				goto AcquiredLease
 
 			case <-b.cancelEvent:
-				loggershim.LS.Log("Received cancel event\n")
+				loggershim.LS.Debugf("Received cancel event\n")
 				return nil
 			}
 		}
@@ -248,11 +262,11 @@ func (b *BlobStore) TryAcquireLease() error {
 			case <-leaseRenewRetryTimerChannel:
 				renewLeaseErr := b.blob.RenewLease(b.leaseID, nil)
 				if renewLeaseErr != nil {
-					loggershim.LS.Log("Acquiring lease failed: %s\n", renewLeaseErr.Error())
+					loggershim.LS.Errorf("Acquiring lease failed: %s\n", renewLeaseErr.Error())
 					b.replicaChangeNotificationCallback(false)
 					goto AcquireLease
 				} else {
-					//loggershim.LS.Log("Successfully renewed the lease", leaseID)
+					//loggershim.LS.Debugf("Successfully renewed the lease", leaseID)
 				}
 				primaryIPEndpoint, err := b.GetPrimaryIPEndpoint()
 				if err != nil {
@@ -261,7 +275,7 @@ func (b *BlobStore) TryAcquireLease() error {
 
 				break
 			case <-b.cancelEvent:
-				loggershim.LS.Log("Received cancel event\n")
+				loggershim.LS.Debugf("Received cancel event\n")
 				return nil
 			}
 		}
@@ -272,7 +286,7 @@ func (b *BlobStore) TryAcquireLease() error {
 func (b *BlobStore) GetPrimaryIPEndpoint() (string, error) {
 	err := b.createBlob()
 	if err != nil {
-		loggershim.LS.Log("Create blob failed with error %s\n", err.Error())
+		loggershim.LS.Errorf("Create blob failed with error %s\n", err.Error())
 		return "", err
 	}
 
@@ -304,7 +318,7 @@ func (b *BlobStore) GetReplicaIPEndpoint() (string, error) {
 // IsPrimary - Method to check if the given replica is primary.
 func (b *BlobStore) IsPrimary() (bool, error) {
 	primaryEP, err := b.GetPrimaryIPEndpoint()
-	loggershim.LS.Log("GetPrimaryIPEndpoint: %s\n", primaryEP)
+	loggershim.LS.Debugf("GetPrimaryIPEndpoint: %s\n", primaryEP)
 	if err != nil {
 		return false, err
 	}
@@ -316,6 +330,22 @@ func (b *BlobStore) IsPrimary() (bool, error) {
 
 	replicaEP := replicaIP + ":" + b.serverSettings.Port
 	return strings.Compare(primaryEP, replicaEP) == 0, nil
+}
+
+// SetDataStoreSettings - Function to set account name, key and partition key
+func (b *BlobStore) SetDataStoreSettings(config *configuration.Configuration) {
+	b.mutex.Lock()
+	b.blobStorageSettings.AccountName = config.DataStoreSettings.AzureStorageInfo.AccountName
+	b.blobStorageSettings.Key = config.DataStoreSettings.AzureStorageInfo.Key
+	b.blobStorageSettings.PartitionKey = config.DataStoreSettings.AzureStorageInfo.PartitionKey
+	b.mutex.Unlock()
+}
+
+// getDataStoreSettings - Function that return datastore settings (AccountName, Key, PartitionKey)
+func (b *BlobStore) getDataStoreSettings() (string, string, string) {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
+	return b.blobStorageSettings.AccountName, b.blobStorageSettings.Key, b.blobStorageSettings.PartitionKey
 }
 
 func getLocalIP() (string, error) {
@@ -337,7 +367,7 @@ func getLocalIP() (string, error) {
 func getEnvVarOrExit(varName string) string {
 	value := os.Getenv(varName)
 	if value == "" {
-		loggershim.LS.Log("Missing environment variable %s\n", varName)
+		loggershim.LS.Errorf("Missing environment variable %s\n", varName)
 		os.Exit(1)
 	}
 
@@ -347,7 +377,7 @@ func getEnvVarOrExit(varName string) string {
 // onErrorFail prints a failure message and exits the program if err is not nil.
 func onErrorFail(err error, message string) {
 	if err != nil {
-		loggershim.LS.Log("%s: %s\n", message, err.Error())
+		loggershim.LS.Errorf("%s: %s\n", message, err.Error())
 		os.Exit(1)
 	}
 }

@@ -49,34 +49,27 @@ func (orchestratorstorage *OrchestratorStorage) Init(tableToColumnMap map[string
 	var err error
 
 	// Need to release dll somewhere...defer syscall.FreeLibrary(dll)
-	if orchestratorstorage.dll, err = syscall.LoadLibrary(orchestratorstorage.OrchestratorStorageInfo.Dll); err != nil {
-		utils.OnErrorFail(err, "Failed to load dll")
-	}
+	orchestratorstorage.dll, err = syscall.LoadLibrary(orchestratorstorage.OrchestratorStorageInfo.Dll)
+	utils.OnErrorFail(err, "Failed to load dll")
 
-	if orchestratorstorage.procInsertOrUpdate, err = syscall.GetProcAddress(orchestratorstorage.dll, "InsertOrUpdate"); err != nil {
-		utils.OnErrorFail(err, "Failed to find InsertOrUpdate function")
-	}
+	orchestratorstorage.procInsertOrUpdate, err = syscall.GetProcAddress(orchestratorstorage.dll, "InsertOrUpdate")
+	utils.OnErrorFail(err, "Failed to find InsertOrUpdate function")
 
-	if orchestratorstorage.procQuery, err = syscall.GetProcAddress(orchestratorstorage.dll, "Query"); err != nil {
-		utils.OnErrorFail(err, "Failed to find Query function")
-	}
+	orchestratorstorage.procQuery, err = syscall.GetProcAddress(orchestratorstorage.dll, "Query")
+	utils.OnErrorFail(err, "Failed to find Query function")
 
-	if orchestratorstorage.procQueryAll, err = syscall.GetProcAddress(orchestratorstorage.dll, "QueryAll"); err != nil {
-		utils.OnErrorFail(err, "Failed to find QueryAll function")
-	}
+	orchestratorstorage.procQueryAll, err = syscall.GetProcAddress(orchestratorstorage.dll, "QueryAll")
+	utils.OnErrorFail(err, "Failed to find QueryAll function")
 
-	if orchestratorstorage.procKeyExists, err = syscall.GetProcAddress(orchestratorstorage.dll, "KeyExists"); err != nil {
-		utils.OnErrorFail(err, "Failed to find KeyExists function")
-	}
+	orchestratorstorage.procKeyExists, err = syscall.GetProcAddress(orchestratorstorage.dll, "KeyExists")
+	utils.OnErrorFail(err, "Failed to find KeyExists function")
 
-	if orchestratorstorage.procDeleteRow, err = syscall.GetProcAddress(orchestratorstorage.dll, "DeleteRow"); err != nil {
-		utils.OnErrorFail(err, "Failed to find DeleteRow function")
-	}
+	orchestratorstorage.procDeleteRow, err = syscall.GetProcAddress(orchestratorstorage.dll, "DeleteRow")
+	utils.OnErrorFail(err, "Failed to find DeleteRow function")
 
 	// Logger provided along with dll here, but perhaps not always the case??
-	if orchestratorstorage.procEventLog, err = syscall.GetProcAddress(orchestratorstorage.dll, "EventLog"); err != nil {
-		utils.OnErrorFail(err, "Failed to find EventLog function")
-	}
+	orchestratorstorage.procEventLog, err = syscall.GetProcAddress(orchestratorstorage.dll, "EventLog")
+	utils.OnErrorFail(err, "Failed to find EventLog function")
 }
 
 // InsertOrUpdate :- Insert or update an element using rowKey and tablName.

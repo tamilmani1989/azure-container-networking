@@ -6,7 +6,7 @@ import (
 
 // AcnLogger :- struct to hold AcnLogger settings.
 type AcnLogger struct {
-	l *log.Logger
+	instance *log.Logger
 }
 
 // NewAcnLogger :- Create new AcnLogger
@@ -16,16 +16,28 @@ func NewAcnLogger() *AcnLogger {
 }
 
 // Init :- Initialize AcnLogger
-func (l *AcnLogger) Init() {
-	l.l = log.NewLogger("azure-dnc", log.LevelInfo, log.TargetLogfile)
+func (l *AcnLogger) Init(stderr bool) {
+	logLevel := log.LevelDebug
+	logTarget := log.TargetLogfile
+
+	if stderr {
+		logTarget = log.TargetMultiWrite
+	}
+
+	l.instance = log.NewLogger("azure-dnc", logLevel, logTarget)
 }
 
-// Log :- Log using AcnLogger
-func (l *AcnLogger) Log(format string, args ...interface{}) {
-	l.l.Printf(format, args...)
+// Debugf :- Log debug statements using AcnLogger
+func (l *AcnLogger) Debugf(format string, args ...interface{}) {
+	l.instance.Debugf(format, args...)
+}
+
+// Errorf :- Log errors using AcnLogger
+func (l *AcnLogger) Errorf(format string, args ...interface{}) {
+	l.instance.Printf(format, args...)
 }
 
 // Close :- Close AcnLogger
 func (l *AcnLogger) Close() {
-	l.l.Close()
+	l.instance.Close()
 }

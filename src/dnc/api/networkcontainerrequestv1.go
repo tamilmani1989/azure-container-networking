@@ -22,5 +22,5 @@ func (networkContainerRequestV1 *NetworkContainerRequestV1) Validate() *JsonErr 
 		return &JsonErr{Code: InvalidReservationID, Text: "Reservation ID cannot be empty"}
 	}
 
-	return networkContainerRequestV1.Validate()
+	return networkContainerRequestV1.AssociationInfo.Validate()
 }

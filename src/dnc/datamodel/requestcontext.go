@@ -12,14 +12,16 @@ type RequestContext struct {
 	Type                RequestType
 	CreatedDateTime     time.Time
 	LastRetriedDateTime time.Time
+	RetryInterval       time.Duration
 }
 
 // String - ToString implementation of request context.
 func (requestContext *RequestContext) String() string {
-	return fmt.Sprintf("RequestContext:[NetworkID:%s, NodeID:%s, Type:%s, CreatedDateTime:%v, LastRetriedDateTime:%v]",
+	return fmt.Sprintf("RequestContext:[NetworkID:%s, NodeID:%s, Type:%s, CreatedDateTime:%s, LastRetriedDateTime:%s, RetryInterval:%+v]",
 		requestContext.NetworkID,
 		requestContext.NodeID,
 		requestContext.Type,
 		requestContext.CreatedDateTime.String(),
-		requestContext.LastRetriedDateTime.String())
+		requestContext.LastRetriedDateTime.String(),
+		requestContext.RetryInterval)
 }

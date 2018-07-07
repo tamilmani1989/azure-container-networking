@@ -8,7 +8,7 @@ const (
 	Join NetworkState = iota + 1
 
 	// UnJoin - Network in unjoin state.
-	UnJoin NetworkState = iota + 1
+	UnJoin
 )
 
 func (networkState NetworkState) String() string {

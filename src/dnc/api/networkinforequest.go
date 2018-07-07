@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net/http"
 )
 
 const (
@@ -25,8 +26,9 @@ func (networkInfoRequest *NetworkInfoRequest) String() string {
 func (networkInfoRequest *NetworkInfoRequest) Validate() *JsonErr {
 	if networkInfoRequest.NetworkType != AzureNet {
 		return &JsonErr{
-			Code: UnSupprotedNetworkType,
-			Text: fmt.Sprintf("Network type is not supported. Supported network types are %s", AzureNet)}
+			Code:       UnSupprotedNetworkType,
+			Text:       fmt.Sprintf("Network type is not supported. Supported network types are %s", AzureNet),
+			HTTPStatus: http.StatusBadRequest}
 	}
 
 	return nil

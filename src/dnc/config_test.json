@@ -14,7 +14,7 @@
        }
    },
    "HostAgentSettings":{
-       "WireServerIP":"127.0.0.1:9001", 
+       "WireServerIP":"127.0.0.1:9001",     
        "ConnectionStrings":{           
             "JoinNetworkURLFmt": "http://%s/joinedVirtualNetworks/%s/api-version/1",
             "GetNetworkConfigurationURLFmt":"http://%s/joinedVirtualNetworks/%s/api-version/1",
@@ -23,10 +23,27 @@
             "GetSystemTagDefinitionURLFmt": "http://%s/systemTags/%s/ipVersion/%s/api-version/1"
         }
     },
+    "CustomLoggerSettings":{
+        "FnName":"",
+        "Dll":""
+    },
     "CNSSettings":{
         "ConnectionStrings" :{
             "CreateOrUpdateNetworkContainerURLFmt" : "http://%s:10090/network/createorupdatenetworkcontainer",
-            "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer"   
+            "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
+            "GetNetworkContainerStatusURLFmt": "http://%s:10090/network/getnetworkcontainerstatus",
+            "SetOrchestratorTypeURLFmt" : "http://%s:10090/network/setorchestratortype",
+            "GetNetworkcontainerstatusURLFmt":"http://%s:10090/network/getnetworkcontainerstatus"
         }
+    },
+    "VlanSettings":{
+        "Min":1,
+        "Max":2048
+    },    
+    "DNCSettings":{
+        "RequestRetryBaseInterval":1000,
+        "NetworkRefreshInterval":1000,
+        "NetworkContainerRefreshInterval": 1000,
+        "ConcurrentRequestsToProcess" : 10
     }
 }

@@ -11,24 +11,24 @@ var LS *LoggerShim
 
 // LoggerInterface :- Logging interface
 type LoggerInterface interface {
-	Init()
-	Log(format string, args ...interface{})
+	Init(stderr bool)
+	Debugf(format string, args ...interface{})
+	Errorf(format string, args ...interface{})
 	Close()
 }
 
 // LoggerShim :- Information to initialize azure-container-networking logger
 type LoggerShim struct {
-	loggerSettings  configuration.LoggerSettings
+	loggerSettings  configuration.CustomLoggerSettings
 	loggerInterface LoggerInterface
 }
 
 // NewLoggerShim :- Create a new LoggerShim
 func NewLoggerShim(cfg *configuration.Configuration) *LoggerShim {
 	LS = new(LoggerShim)
-	LS.loggerSettings = cfg.LoggerSettings
-
-	if LS.loggerSettings.CustomLoggerSettings != (configuration.CustomLoggerSettings{}) {
-		LS.loggerInterface = customlogger.NewCustomLogger(cfg.LoggerSettings.CustomLoggerSettings)
+	LS.loggerSettings = cfg.CustomLoggerSettings
+	if LS.loggerSettings != (configuration.CustomLoggerSettings{}) {
+		LS.loggerInterface = customlogger.NewCustomLogger(cfg.CustomLoggerSettings)
 	} else {
 		LS.loggerInterface = acnlogger.NewAcnLogger()
 	}
@@ -37,13 +37,18 @@ func NewLoggerShim(cfg *configuration.Configuration) *LoggerShim {
 }
 
 // Init :- Initialize logger
-func (loggerShim *LoggerShim) Init() {
-	loggerShim.loggerInterface.Init()
+func (loggerShim *LoggerShim) Init(stderr bool) {
+	loggerShim.loggerInterface.Init(stderr)
 }
 
-// Log :- Log using default (azure-container-networking) or custom logger
-func (loggerShim *LoggerShim) Log(format string, args ...interface{}) {
-	loggerShim.loggerInterface.Log(format, args...)
+// Debugf :- Log debug statements using default (azure-container-networking) or custom logger
+func (loggerShim *LoggerShim) Debugf(format string, args ...interface{}) {
+	loggerShim.loggerInterface.Debugf(format, args...)
+}
+
+// Errorf :- Log errors using default (azure-container-networking) or custom logger
+func (loggerShim *LoggerShim) Errorf(format string, args ...interface{}) {
+	loggerShim.loggerInterface.Errorf(format, args...)
 }
 
 // Close :- Close logger

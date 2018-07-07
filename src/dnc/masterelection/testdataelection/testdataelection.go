@@ -2,7 +2,6 @@ package testdataelection
 
 import (
 	"dnc/configuration"
-	"dnc/logger/loggershim"
 	"dnc/masterelection/common"
 	"dnc/utils"
 )
@@ -44,13 +43,13 @@ func (t *TestDataElection) Cleanup() {
 // Start - Start the leader election process
 func (t *TestDataElection) Start() {
 	ipAddress, err := utils.GetLocalIP()
-
-	if err != nil {
-		loggershim.LS.Log("Failed to get local IP address due to error: %s\n", err.Error())
-		utils.OnErrorFail(err, "Failed to get local host IP")
-	}
+	utils.OnErrorFail(err, "Failed to get local host IP")
 
 	ipEndpoint := ipAddress + ":" + t.serverSettings.Port
 	t.replicaChangeNotificationCallback(true)
 	t.primaryIPEndpointNotificationCallback(ipEndpoint)
+}
+
+// SetDataStoreSettings - stub
+func (t *TestDataElection) SetDataStoreSettings(config *configuration.Configuration) {
 }
