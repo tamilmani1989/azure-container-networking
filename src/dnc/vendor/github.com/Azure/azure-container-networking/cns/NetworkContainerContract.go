@@ -36,6 +36,7 @@ type CreateNetworkContainerRequest struct {
 	NetworkContainerid         string // Mandatory input.
 	PrimaryInterfaceIdentifier string // Primary CA.
 	AuthorizationToken         string
+	LocalIPConfiguration       IPConfiguration
 	OrchestratorContext        json.RawMessage
 	IPConfiguration            IPConfiguration
 	MultiTenancyInfo           MultiTenancyInfo
@@ -106,10 +107,13 @@ type GetNetworkContainerRequest struct {
 
 // GetNetworkContainerResponse describes the response to retrieve a specifc network container.
 type GetNetworkContainerResponse struct {
-	IPConfiguration  IPConfiguration
-	Routes           []Route
-	MultiTenancyInfo MultiTenancyInfo
-	Response         Response
+	IPConfiguration            IPConfiguration
+	Routes                     []Route
+	CnetAddressSpace           []IPSubnet
+	MultiTenancyInfo           MultiTenancyInfo
+	PrimaryInterfaceIdentifier string
+	LocalIPConfiguration       IPConfiguration
+	Response                   Response
 }
 
 // DeleteNetworkContainerRequest specifies the details about the request to delete a specifc network container.
