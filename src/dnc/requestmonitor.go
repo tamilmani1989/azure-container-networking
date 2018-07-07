@@ -1357,7 +1357,7 @@ func processNetworkContainerDisAssociate(
 			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
 
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return false, datamodel.PersistNCConfiguration(repoNCConfig, false)
 	}
 
 	logger.Debugf("DisAssociated NC %s from node %s\n",
@@ -1425,6 +1425,41 @@ func processNetworkContainerPublish(repoNCConfig *datamodel.NCConfiguration) (bo
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
+	var createNetworkContainerResponse nmagentcontracts.CreateNetworkContainerResponse
+	decodeRespErr := utils.DecodeResponse(resp, &createNetworkContainerResponse)
+	if decodeRespErr != nil {
+		msg := fmt.Sprintf("Failed to decode get put NC response for NC %s due to error %s.",
+			repoNCConfig.NetworkContainerID,
+			decodeRespErr.Error())
+		return false, &api.JsonErr{
+			Code:       api.DeocodeResponseFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	logger.Debugf("Received response for create network container response %s\n", createNetworkContainerResponse.String())
+	putNCResponseCode, parseErr := strconv.ParseInt(createNetworkContainerResponse.ResponseCode, 10, 64)
+	if parseErr != nil {
+		msg := fmt.Sprintf(
+			"Failed to convert response code %s  to integer when parsing put NC response for NC %s.",
+			createNetworkContainerResponse.ResponseCode,
+			repoNCConfig.NetworkContainerID)
+		return false, &api.JsonErr{
+			Code:       api.ParseResponseCodeFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	if putNCResponseCode != http.StatusOK {
+		msg := fmt.Sprintf("Failed to publish NC with status code %v.", putNCResponseCode)
+		repoNCConfig.Status = datamodel.Failed
+		repoNCConfig.FailureDetail = api.JsonErr{
+			Code:       api.PublishingFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+	}
+
 	logger.Debugf("CreateNetworkContainer NMAgent Response: %+v", resp)
 	repoNCConfig.State = datamodel.Program
 	repoNCConfig.Status = datamodel.Pending
@@ -1478,6 +1513,16 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		logger.Errorf("Failed to unpublish network container goal state for Id %s to host agent with error code %d.\n",
+			repoNCConfig.NetworkContainerID,
+			resp.StatusCode)
+		return false, &api.JsonErr{
+			Code:       api.UnpublishingFailed,
+			Text:       resp.Status,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
 	var deleteNCResponse nmagentcontracts.DeleteNetworkContainerResponse
 	decodeRespErr := utils.DecodeResponse(resp, &deleteNCResponse)
 	if decodeRespErr != nil {
@@ -1490,9 +1535,8 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	logger.Debugf("Received response for network response %s, Message:%v for NC:%s\n",
-		deleteNCResponse.ResponseCode,
-		deleteNCResponse.ErrorMessage,
+	logger.Debugf("Received response for network response :%s for NC:%s\n",
+		deleteNCResponse.String(),
 		repoNCConfig.NetworkContainerID)
 	deleteNCResponseCode, parseErr := strconv.ParseInt(deleteNCResponse.ResponseCode, 10, 64)
 	if parseErr != nil {
@@ -1513,7 +1557,7 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 			Code:       api.UnpublishingFailed,
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return false, datamodel.PersistNCConfiguration(repoNCConfig, false)
 	}
 
 	repoNCConfig.State = datamodel.DisAssociate

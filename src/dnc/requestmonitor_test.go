@@ -1000,12 +1000,13 @@ func NMAgentResponder(w http.ResponseWriter, r *http.Request, context interface{
 		if r.Method == "POST" {
 			if strings.Contains(r.RequestURI, "DELETE") {
 				deleteResponse := nmagentcontracts.DeleteNetworkContainerResponse{
-					ResponseCode: "200",
-					ErrorMessage: "Successfully unpublished"}
+					ResponseCode: "200"}
 				json.NewEncoder(w).Encode(deleteResponse)
 			} else {
 				var ncReq nmagentcontracts.CreateOrUpdateNetworkContainerRequest
 				json.NewDecoder(r.Body).Decode(&ncReq)
+				putResponse := nmagentcontracts.CreateNetworkContainerResponse{ResponseCode: "200", Version: ncReq.Version}
+				json.NewEncoder(w).Encode(putResponse)
 				fmt.Printf("NC Publishing request:%+v, RequestURI:%+v\n", ncReq, r.RequestURI)
 			}
 		}
