@@ -68,7 +68,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 	}
 
 	ipSubnet, _ = utils.ParseIPNet(subnetConfiguration.IPSubnet)
-	reservedAddresses, _ = getReservedAddressesInSubnet(ipSubnet)
+	reservedAddresses, _ = GetReservedAddressesInSubnet(ipSubnet)
 
 	for reservedSubnetString, reservedIPSubnet := range reservedAddresses {
 		addressesToIgnore[reservedSubnetString] = reservedIPSubnet
@@ -222,7 +222,7 @@ Cleanup:
 	return true, nil
 }
 
-func getReservedAddressesInSubnet(ipSubnet *net.IPNet) (map[string]*net.IPNet, error) {
+func GetReservedAddressesInSubnet(ipSubnet *net.IPNet) (map[string]*net.IPNet, error) {
 	reservedIPs := make(map[string]*net.IPNet)
 
 	startingIP := utils.IP2Int(ipSubnet.IP)

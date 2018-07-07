@@ -39,6 +39,9 @@ const (
 
 	// RefreshAssociation - Refresh the association info due to changes in network configuration
 	RefreshAssociation
+
+	// AllocateLocalIP - Allocate Local IP
+	AllocateLocalIP	
 )
 
 // IsInRevertingState - True if nc is in reverting state
@@ -87,6 +90,9 @@ func (networkContainerState NetworkContainerState) String() string {
 
 	case RefreshAssociation:
 		return "RefreshAssociation"
+	
+	case AllocateLocalIP:
+		return "AllocateLocalIP"
 	}
 
 	return "Unknown Status"

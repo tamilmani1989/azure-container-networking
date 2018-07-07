@@ -1467,6 +1467,9 @@ func GetRevertState(ncState NetworkContainerState) (NetworkContainerState, *api.
 	case Reserve:
 		return UnReserve, nil
 
+	case AllocateLocalIP:
+		return UnReserve, nil
+
 	case Associate:
 		return DisAssociate, nil
 

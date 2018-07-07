@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"dnc/allocationhelper"
 	"dnc/api"
 	"dnc/datamodel"
 	"dnc/nmagentcontracts"
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,6 +17,13 @@ import (
 
 	"github.com/Azure/azure-container-networking/cns"
 	"github.com/google/uuid"
+)
+
+const (
+	localIPSubnetAddressString = "169.254.0.0/16"
+	imdsIPSubnetString         = "169.254.169.254/32"
+	localIPGatewayString       = "169.254.0.1"
+	localIPSubnetPrefixLength  = 16
 )
 
 // NCGoalState - Struct to cache the Network Container Goal State
@@ -38,6 +47,7 @@ type NCGoalState struct {
 	OrchestratorContext   json.RawMessage
 	VlanID                int
 	VnetVersion           uint64
+	LocalIP               string
 }
 
 func getSessionInfo(request *datamodel.RequestContext) map[string]string {
@@ -251,7 +261,8 @@ func getNCGoalState(repoNCConfig *datamodel.NCConfiguration) (*NCGoalState, bool
 		ContainerType:         assocInfo.ContainerType,
 		OrchestratorContext:   assocInfo.OrchestratorContext,
 		VnetVersion:           repoNetworkConfiguration.Version,
-		VlanID:                int(repoNodeConfig.NetworkVlanIDMap[repoNCConfig.NetworkID])}
+		VlanID:                int(repoNodeConfig.NetworkVlanIDMap[repoNCConfig.NetworkID]),
+		LocalIP:               repoNCConfig.LocalIP}
 
 	return ncGoalState, false, nil
 }
@@ -797,6 +808,117 @@ func generateAndPersistImplicitReservationRequest(repoNCConfig *datamodel.NCConf
 	return &reservationConfiguration, nil
 }
 
+func getAllocatedLocalAddressesOnNode(nodeID string) (map[string]*net.IPNet, *api.JsonErr) {
+	nodeConfiguration, err := datamodel.QueryNodeConfiguration(nodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	allocatedLocalAddresses := make(map[string]*net.IPNet)
+
+	if nodeConfiguration.DeployedNetworkContainerMap != nil {
+		for networkID, ncMap := range nodeConfiguration.DeployedNetworkContainerMap {
+			for networkContainerID := range ncMap {
+				repoNetworkContainerConfiguration, err := datamodel.TryQueryNetworkContainer(
+					networkID,
+					networkContainerID)
+				if err != nil {
+					logger.Errorf("Failed to retrieve configuration for network container %s due to error %s",
+						networkContainerID,
+						err.String())
+					return nil, err
+				}
+
+				if repoNetworkContainerConfiguration == nil {
+					logger.Debugf("Configuration for network container %s not found.",
+						networkContainerID)
+					continue
+				}
+
+				if repoNetworkContainerConfiguration.LocalIP != "" {
+					localIPSubnetString := repoNetworkContainerConfiguration.LocalIP + utils.PrefixDelimiter + utils.IPV4DefaultPrefix
+					localIPSubnet, _ := utils.ParseIPNet(localIPSubnetString)
+					allocatedLocalAddresses[localIPSubnetString] = localIPSubnet
+				}
+			}
+		}
+	}
+
+	return allocatedLocalAddresses, nil
+}
+
+// This function allocate a local ip from 169.254.0.0/16 address space
+func processAllocateLocalIP(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	var markProcessingFailed bool
+	var allocatedIP *net.IPNet
+	var failureDetail *api.JsonErr
+	var allocationErr error
+
+	nodeID := repoNCConfig.GetAssociationInfo().NodeID
+
+	// get all allocated local addresses for a node
+	allocatedLocalIPAddresses, err := getAllocatedLocalAddressesOnNode(nodeID)
+	if err != nil {
+		return false, err
+	}
+
+	// ignore 169.254.169.254 ip
+	_, imdsSubnet, _ := net.ParseCIDR(imdsIPSubnetString)
+	allocatedLocalIPAddresses[imdsIPSubnetString] = imdsSubnet
+
+	_, localIPSubnet, _ := net.ParseCIDR(localIPSubnetAddressString)
+
+	//ignore first few addresses on subnet
+	reservedIPSubnet, resErr := GetReservedAddressesInSubnet(localIPSubnet)
+	if resErr != nil {
+		markProcessingFailed = true
+		failureDetail = &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			HTTPStatus: http.StatusInternalServerError,
+			Text: fmt.Sprintf(
+				"Failed to get reserved addresses in subnet due to error:%s", resErr.Error())}
+		goto Cleanup
+	}
+
+	// join reservedIP map and allocatedLocalIP map
+	for subnetString, subnet := range reservedIPSubnet {
+		allocatedLocalIPAddresses[subnetString] = subnet
+	}
+
+	logger.Debugf("length of address to ignore : %v", len(allocatedLocalIPAddresses))
+
+	allocatedIP, allocationErr = allocationhelper.AllocateSubnetFromNetworkSpace(localIPSubnet, allocatedLocalIPAddresses, 32)
+	if allocationErr != nil {
+		markProcessingFailed = true
+		failureDetail = &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			HTTPStatus: http.StatusInternalServerError,
+			Text: fmt.Sprintf(
+				"Failed to allocate address from node local address space due to error:%s", allocationErr.Error())}
+		goto Cleanup
+	}
+
+	repoNCConfig.LocalIP = allocatedIP.IP.String()
+	repoNCConfig.State = datamodel.Associate
+	repoNCConfig.Status = datamodel.Pending
+	logger.Debugf("Allocated Local IP %v for container ID:%v", repoNCConfig.LocalIP, repoNCConfig.NetworkContainerID)
+
+Cleanup:
+
+	if markProcessingFailed {
+		repoNCConfig.Status = datamodel.Failed
+		logger.Errorf("Allocate LocalIP for NodeID %v failure Detail %s\n", nodeID, failureDetail.String())
+		repoNCConfig.FailureDetail = *failureDetail
+	}
+
+	err = datamodel.PersistNCConfiguration(repoNCConfig, false)
+	if err != nil {
+		return false, err
+	}
+
+	return markProcessingFailed, nil
+}
+
 func processNetworkContainerV1(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	var markPrepareFailed bool
 	var failureDetail *api.JsonErr
@@ -982,7 +1104,7 @@ func processNetworkContainerReserve(
 	}
 
 	if repoReservation.Status == datamodel.Completed {
-		repoNCConfig.State = datamodel.Associate
+		repoNCConfig.State = datamodel.AllocateLocalIP
 		repoNCConfig.Status = datamodel.Pending
 
 		repoSubnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
@@ -1187,6 +1309,14 @@ func processNetworkContainerAssociate(
 		cnsCnetAddresses[index] = cnsIPSubnet
 	}
 
+	localIPSubnet := cns.IPSubnet{
+		IPAddress:    ncGoalState.LocalIP,
+		PrefixLength: localIPSubnetPrefixLength}
+
+	localIPConfiguaration := cns.IPConfiguration{
+		IPSubnet:         localIPSubnet,
+		GatewayIPAddress: localIPGatewayString}
+
 	info := &cns.CreateNetworkContainerRequest{
 		Version:                    strconv.FormatUint(repoNCConfig.CNSVersion, 10),
 		NetworkContainerType:       ncGoalState.ContainerType,
@@ -1196,7 +1326,8 @@ func processNetworkContainerAssociate(
 		AuthorizationToken:         ncGoalState.AccessToken,
 		CnetAddressSpace:           cnsCnetAddresses,
 		OrchestratorContext:        ncGoalState.OrchestratorContext,
-		MultiTenancyInfo:           cns.MultiTenancyInfo{EncapType: cns.Vlan, ID: ncGoalState.VlanID}}
+		MultiTenancyInfo:           cns.MultiTenancyInfo{EncapType: cns.Vlan, ID: ncGoalState.VlanID},
+		LocalIPConfiguration:       localIPConfiguaration}
 
 	json.NewEncoder(&body).Encode(info)
 	createOrUpdateNCURL := fmt.Sprintf(
@@ -1609,13 +1740,22 @@ func processNetworkContainerRequest(
 		if repoNCConfig.Status == datamodel.Failed {
 			return true, nil
 		}
+
 		return prepareNetworkContainer(repoNCConfig)
 
 	case datamodel.Reserve:
 		if repoNCConfig.Status == datamodel.Failed {
 			return true, nil
 		}
+
 		return processNetworkContainerReserve(repoNCConfig)
+
+	case datamodel.AllocateLocalIP:
+		if repoNCConfig.Status == datamodel.Failed {
+			return true, nil
+		}
+
+		return processAllocateLocalIP(repoNCConfig)
 
 	case datamodel.Associate:
 		fallthrough

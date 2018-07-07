@@ -1398,6 +1398,7 @@ func AreCnsRequestsEqual(expected, received cns.CreateNetworkContainerRequest) b
 	if !utils.AreSetsEqual(receivedCnetAddressSpace, receivedCnetAddressSpace) {
 		fmt.Printf("Expected.CnetAddressSpace %+v Received.CnetAddressSpace:%+v",
 			expected.CnetAddressSpace, received.CnetAddressSpace)
+		return false
 	}
 
 	return true
@@ -2232,6 +2233,8 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 		addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeInfoReq)
 	}
 
+	nodeLocalIPMap := make(map[string]bool)
+
 	for vnetID, ncDeploymentRequests := range ncDeploymentRequestsMapByNetwork {
 		fmt.Printf("vnetID:%s, ncRequests:%+v", vnetID, ncDeploymentRequests)
 		for _, ncDeploymentRequest := range ncDeploymentRequests {
@@ -2281,6 +2284,20 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 				receivedIP := req.IPConfiguration.IPSubnet.IPAddress + "/" + strconv.FormatInt(int64(req.IPConfiguration.IPSubnet.PrefixLength), 10)
 				fmt.Printf("%+v, %+v\n", expectedIP, receivedIP)
 				fmt.Printf("AllocatedIP:%+v, ReceivedIP:%+v", expectedReq.IPConfiguration.IPSubnet, req.IPConfiguration.IPSubnet)
+
+				if req.LocalIPConfiguration.IPSubnet.IPAddress == "" || req.LocalIPConfiguration.GatewayIPAddress == "" {
+					return false
+				}
+
+				if req.LocalIPConfiguration.GatewayIPAddress != localIPGatewayString ||  req.LocalIPConfiguration.IPSubnet.PrefixLength != localIPSubnetPrefixLength{
+					return false
+				}
+
+				if _, ok := nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress] ; ok {
+					return false
+				} 
+
+				nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress] = true
 
 				if !AreCnsRequestsEqual(expectedReq, req) {
 					fmt.Printf("Mismatch in expected and received Cns create or update request. "+
