@@ -4,8 +4,11 @@ package datamodel
 type NetworkContainerState int
 
 const (
+	// Invalid state
+	Invalid NetworkContainerState = iota
+
 	// Prepare - Prepare NC for allocation
-	Prepare NetworkContainerState = iota + 1
+	Prepare
 
 	// Reserve - NC resevrve processing pending
 	Reserve
@@ -38,8 +41,19 @@ const (
 	RefreshAssociation
 )
 
+// IsInRevertingState - True if nc is in reverting state
+func IsDeleteInProgress(ncState NetworkContainerState) bool {
+	return ncState == UnPublish ||
+		ncState == Revert ||
+		ncState == DisAssociate ||
+		ncState == UnReserve ||
+		ncState == Purge
+}
+
 func (networkContainerState NetworkContainerState) String() string {
 	switch networkContainerState {
+	case Invalid:
+		return "Invalid"
 
 	case Prepare:
 		return "Prepare"

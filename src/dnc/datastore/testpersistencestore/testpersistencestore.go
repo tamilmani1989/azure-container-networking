@@ -81,8 +81,11 @@ func (testpersistencestore *TestPersistenceStore) QueryAllRows(tableName string,
 	if _, err := testpersistencestore.datastore[tableName]; err {
 		status = http.StatusOK
 	}
-
-	return testpersistencestore.datastore[tableName], false, nil, status, nil
+	queriedTable := make(map[string]interface{})
+	for key, value := range testpersistencestore.datastore[tableName] {
+		queriedTable[key] = value
+	}
+	return queriedTable, false, nil, status, nil
 }
 
 // KeyExist :- Check if key exists in a given table.

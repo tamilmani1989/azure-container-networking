@@ -75,7 +75,10 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 		break
 
 	case datamodel.NetworkContainerRequest:
-		removeWorkItem, err = processNetworkContainerRequest(requestContext.NetworkID, requestID)
+		removeWorkItem, err = processNetworkContainerRequest(
+			requestContext.NetworkID,
+			requestID,
+			sessionInfo)
 		break
 
 	}
@@ -91,18 +94,6 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 		}
 
 		datamodel.AddRequestToPendingQueue(requestID, requestContext)
-	}
-}
-
-// Monitor that periodically processes pending reqguests in the work item queue.
-func processPendingRequests() {
-	requests, _ := datamodel.GetPendingRequests()
-
-	for requestID, requestContext := range requests {
-		if time.Now().UTC().Sub(requestContext.LastRetriedDateTime) > requestContext.RetryInterval {
-			logger.Debugf("Processing request for requestID:[%s], %s\n", requestID, requestContext.String())
-			processRequest(requestID, &requestContext)
-		}
 	}
 }
 
@@ -1097,7 +1088,9 @@ func hasTagsChanged(resolvedTags map[string]datamodel.TagDefinition, currentTags
 	return false
 }
 
-func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+func processNetworkContainerAssociate(
+	repoNCConfig *datamodel.NCConfiguration,
+	sessionInfo map[string]string) (bool, *api.JsonErr) {
 	ncGoalState, isRetriableError, ncGoalStateErr := getNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
@@ -1209,7 +1202,22 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 	createOrUpdateNCURL := fmt.Sprintf(
 		config.CNSSettings.ConnectionStrings.CreateOrUpdateNetworkContainerURLFmt,
 		ncGoalState.NodeInterfaceID)
+
+	// Release the session locks when calling in to cns
+	sessionManager.EndWriteSession(sessionInfo)
+	sessionLockReleased := true
+	defer func() {
+		if sessionLockReleased {
+			sessionManager.BeginWriteSession(sessionInfo)
+		}
+	}()
+
 	w, respErr := http.Post(createOrUpdateNCURL, "application/json; charset=utf-8", &body)
+
+	// Reacquire the session locks post calling in to cns
+	sessionManager.BeginWriteSession(sessionInfo)
+	sessionLockReleased = false
+
 	if respErr != nil {
 		msg := fmt.Sprintf("Post to URL %s for NC %v failed with error %v",
 			createOrUpdateNCURL,
@@ -1223,7 +1231,6 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 	}
 
 	defer w.Body.Close()
-
 	respErr = utils.DecodeResponse(w, &resp)
 	if respErr != nil {
 		msg := fmt.Sprintf("Associate NC %v to node %v failed with error %s",
@@ -1264,7 +1271,9 @@ func processNetworkContainerAssociate(repoNCConfig *datamodel.NCConfiguration) (
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, false)
 }
 
-func processNetworkContainerDisAssociate(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+func processNetworkContainerDisAssociate(
+	repoNCConfig *datamodel.NCConfiguration,
+	sessionInfo map[string]string) (bool, *api.JsonErr) {
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
 
 	// Query NodeConfiguration table with nodeID and handle errors.
@@ -1295,6 +1304,13 @@ func processNetworkContainerDisAssociate(repoNCConfig *datamodel.NCConfiguration
 		NetworkContainerid: "Swift_" + repoNCConfig.NetworkContainerID,
 	}
 
+	sessionManager.EndWriteSession(sessionInfo)
+	sessionLockReleased := true
+	defer func() {
+		if sessionLockReleased {
+			sessionManager.BeginWriteSession(sessionInfo)
+		}
+	}()
 	var body bytes.Buffer
 	json.NewEncoder(&body).Encode(info)
 	deleteNCURL := fmt.Sprintf(
@@ -1302,6 +1318,8 @@ func processNetworkContainerDisAssociate(repoNCConfig *datamodel.NCConfiguration
 		primaryInterfaceID)
 
 	w, respErr := http.Post(deleteNCURL, "application/json", &body)
+	sessionManager.BeginWriteSession(sessionInfo)
+	sessionLockReleased = false
 	if respErr != nil {
 		logger.Errorf("Failed to disassociate network container %s on node %v due to error. Marked as retriable.\n",
 			info.NetworkContainerid,
@@ -1449,6 +1467,16 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 	}
 
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		logger.Errorf("Failed to publish network container goal state for Id %s to host agent with error code %d "+
+			"Marking as retriable error \n",
+			repoNCConfig.NetworkContainerID,
+			resp.StatusCode)
+		return false, &api.JsonErr{
+			Code:       api.PublishingFailed,
+			Text:       resp.Status,
+			HTTPStatus: http.StatusInternalServerError}
+	}
 
 	var deleteNCResponse nmagentcontracts.DeleteNetworkContainerResponse
 	decodeRespErr := utils.DecodeResponse(resp, &deleteNCResponse)
@@ -1509,7 +1537,10 @@ func processNetworkContainerProgram(repoNCConfig *datamodel.NCConfiguration) (bo
 	return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
 }
 
-func processNetworkContainerRequest(networkID, networkContainerKey string) (bool, *api.JsonErr) {
+func processNetworkContainerRequest(
+	networkID,
+	networkContainerKey string,
+	sessionInfo map[string]string) (bool, *api.JsonErr) {
 	repoNCConfig, err := datamodel.TryQueryNetworkContainerByKey(networkContainerKey)
 	if err != nil {
 		logger.Errorf("Failed to get network container configuration for ID:%s. Error:%s\n",
@@ -1518,6 +1549,17 @@ func processNetworkContainerRequest(networkID, networkContainerKey string) (bool
 		return false, err
 	}
 
+	// Check if NC has been marked for delete and ensure that we are in the
+	// correct revert state.
+	if repoNCConfig.MarkedForDelete {
+		if !datamodel.IsDeleteInProgress(repoNCConfig.State) {
+			revertState, err := datamodel.GetRevertState(repoNCConfig.State)
+			if err != nil {
+				return false, err
+			}
+			repoNCConfig.State = revertState
+		}
+	}
 	switch repoNCConfig.State {
 	case datamodel.Prepare:
 		if repoNCConfig.Status == datamodel.Failed {
@@ -1539,7 +1581,7 @@ func processNetworkContainerRequest(networkID, networkContainerKey string) (bool
 			return true, nil
 		}
 
-		return processNetworkContainerAssociate(repoNCConfig)
+		return processNetworkContainerAssociate(repoNCConfig, sessionInfo)
 
 	case datamodel.Publish:
 		if repoNCConfig.Status == datamodel.Failed {
@@ -1562,7 +1604,7 @@ func processNetworkContainerRequest(networkID, networkContainerKey string) (bool
 		return processNetworkContainerUnPublish(repoNCConfig)
 
 	case datamodel.DisAssociate:
-		return processNetworkContainerDisAssociate(repoNCConfig)
+		return processNetworkContainerDisAssociate(repoNCConfig, sessionInfo)
 
 	case datamodel.UnReserve:
 		return processNetworkContainerUnReserve(repoNCConfig)
@@ -1601,4 +1643,80 @@ func monitorRequests() {
 			break
 		}
 	}
+}
+
+// Monitor that periodically processes pending reqguests in the work item queue.
+func processPendingRequests() {
+	requests, _ := datamodel.GetPendingRequests()
+	if len(requests) == 0 {
+		return
+	}
+
+	requestsToProcess := make([]string, 0, len(requests))
+	for requestID, requestContext := range requests {
+		if time.Now().UTC().Sub(requestContext.LastRetriedDateTime) > requestContext.RetryInterval {
+			logger.Debugf("Processing request for requestID:[%s], %s\n", requestID, requestContext.String())
+			requestsToProcess = append(requestsToProcess, requestID)
+		}
+	}
+
+	maxConcurrentRequestsToProcess := 5
+	if config.DNCSettings.ConcurrentRequestsToProcess != 0 {
+		maxConcurrentRequestsToProcess = config.DNCSettings.ConcurrentRequestsToProcess
+	}
+
+	if len(requestsToProcess) < maxConcurrentRequestsToProcess {
+		maxConcurrentRequestsToProcess = len(requestsToProcess)
+	}
+
+	// Dummy channel to coordinate the number of concurrent goroutines.
+	// This channel should be buffered otherwise we will be immediately blocked
+	// when trying to fill it.
+	concurrentGoroutines := make(chan struct{}, maxConcurrentRequestsToProcess)
+	// Fill the dummy channel with maxNbConcurrentGoroutines empty struct.
+	for i := 0; i < maxConcurrentRequestsToProcess; i++ {
+		concurrentGoroutines <- struct{}{}
+	}
+
+	// The done channel indicates when a single goroutine has
+	// finished its job.
+	done := make(chan bool)
+	// The waitForAllJobs channel allows the main program
+	// to wait until we have indeed done all the jobs.
+	waitForAllJobs := make(chan bool)
+
+	// Collect all the jobs, and since the job is finished, we can
+	// release another spot for a goroutine.
+	go func() {
+		for i := 0; i < len(requestsToProcess); i++ {
+			<-done
+			// Say that another goroutine can now start.
+			concurrentGoroutines <- struct{}{}
+		}
+		// We have collected all the jobs, the program
+		// can now terminate
+		waitForAllJobs <- true
+	}()
+
+	// Try to start nbJobs jobs
+	for i := 0; i < len(requestsToProcess); i++ {
+		logger.Debugf("ID: %v: waiting to be processed", requestsToProcess[i])
+		// Try to receive from the concurrentGoroutines channel. When we have something,
+		// it means we can start a new goroutine because another one finished.
+		// Otherwise, it will block the execution until an execution
+		// spot is available.
+		<-concurrentGoroutines
+		logger.Debugf("Prcessing ID: %v", requestsToProcess[i])
+		requestID := requestsToProcess[i]
+		requestContext := requests[requestID]
+		go func(requestID string, requestContext datamodel.RequestContext) {
+
+			processRequest(requestID, &requestContext)
+			logger.Debugf("ID:%v processed", requestID)
+			done <- true
+		}(requestID, requestContext)
+	}
+
+	// Wait for all jobs to finish
+	<-waitForAllJobs
 }

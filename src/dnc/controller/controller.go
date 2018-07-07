@@ -42,9 +42,6 @@ func NewController(replica *replica.Replica, sessionsManager *utils.SessionManag
 
 // PersistNodeInfo - Persist node configuration.
 func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoRequest, apiVersion string) *api.JsonErr {
-	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
-	c.SessionManager.BeginWriteSession(sessionInfo)
-	defer c.SessionManager.EndWriteSession(sessionInfo)
 
 	// Send OrchestratorType to CNS
 	info := &cns.SetOrchestratorTypeRequest{OrchestratorType: nodeInfo.OrchestratorType}
@@ -52,13 +49,13 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 	var resp cns.Response
 
 	json.NewEncoder(&body).Encode(info)
-	setOrchestratorTypeUrl := fmt.Sprintf(
+	setOrchestratorTypeURL := fmt.Sprintf(
 		setOrchestratorTypeURLFmt,
 		nodeInfo.IPAddresses[0])
-	w, respErr := http.Post(setOrchestratorTypeUrl, "application/json; charset=utf-8", &body)
+	w, respErr := http.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
 	if respErr != nil {
 		msg := fmt.Sprintf("Post to URL %v for node %s failed with error %s",
-			setOrchestratorTypeUrl,
+			setOrchestratorTypeURL,
 			nodeID,
 			respErr.Error())
 		return &api.JsonErr{
@@ -89,6 +86,10 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
 	}
+
+	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
+	c.SessionManager.BeginWriteSession(sessionInfo)
+	defer c.SessionManager.EndWriteSession(sessionInfo)
 
 	return datamodel.CreateOrUpdateNodeConfiguration(nodeID, *nodeInfo, apiVersion)
 }

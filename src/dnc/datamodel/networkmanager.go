@@ -48,7 +48,8 @@ func DumpState() {
 		kvMap, _, _, _, err := dataStoreShim.QueryAll(tableName, nil)
 		if err == nil {
 			jsonStr, _ := json.Marshal(kvMap)
-			fp, err := os.OpenFile(tableName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0664))
+			fileName := tableName + ".db"
+			fp, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0664))
 			if err == nil {
 				fp.Write(jsonStr)
 				fp.Close()
@@ -60,7 +61,8 @@ func DumpState() {
 // RestoreState - Function to restore test state.
 func RestoreState() {
 	for tableName := range TableToColumnMap {
-		content, err := ioutil.ReadFile(tableName)
+		fileName := tableName + ".db"
+		content, err := ioutil.ReadFile(fileName)
 		if err == nil {
 			var kvMap map[string]interface{}
 			if err = json.Unmarshal(content, &kvMap); err == nil {
@@ -1456,6 +1458,35 @@ func GetNetworkContainerConfiguration(networkID,
 	return networkContainerConfig, nil
 }
 
+// GetRevertState - Get revert state for a given network container state.
+func GetRevertState(ncState NetworkContainerState) (NetworkContainerState, *api.JsonErr) {
+	switch ncState {
+	case Prepare:
+		return Purge, nil
+
+	case Reserve:
+		return UnReserve, nil
+
+	case Associate:
+		return DisAssociate, nil
+
+	case RefreshAssociation:
+		return UnPublish, nil
+
+	case Publish:
+		return UnPublish, nil
+
+	case Program:
+		return UnPublish, nil
+
+	default:
+		return Invalid, &api.JsonErr{
+			Code:       api.InvalidNetworkStateForDelete,
+			Text:       fmt.Sprintf("Network container state:%s is invalid", ncState),
+			HTTPStatus: http.StatusConflict}
+	}
+}
+
 // ProcessNetworkContainerForRelease - Process network container configuration pending release.
 func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *api.JsonErr {
 	networkContainerConfig, err := TryQueryNetworkContainer(
@@ -1470,43 +1501,19 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 
 	if !networkContainerConfig.MarkedForDelete {
 		networkContainerConfig.MarkedForDelete = true
-
-		switch networkContainerConfig.State {
-		case Prepare:
-			networkContainerConfig.State = Purge
-			networkContainerConfig.Status = Pending
-			break
-
-		case Reserve:
-			networkContainerConfig.State = UnReserve
-			networkContainerConfig.Status = Pending
-			break
-
-		case Associate:
-			networkContainerConfig.State = DisAssociate
-			networkContainerConfig.Status = Pending
-			break
-
-		case RefreshAssociation:
-			fallthrough
-
-		case Publish:
-			fallthrough
-
-		case Program:
-			networkContainerConfig.State = UnPublish
-			networkContainerConfig.Status = Pending
-			break
-
-		default:
-			return &api.JsonErr{
-				Code:       api.InvalidNetworkStateForDelete,
-				Text:       fmt.Sprintf("Network container cannot be deleted when in state:%s", networkContainerConfig.State),
-				HTTPStatus: http.StatusConflict}
+		networkContainerConfig.Status = Pending
+		revertState, err := GetRevertState(networkContainerConfig.State)
+		if err != nil {
+			return err
 		}
+		loggershim.LS.Debugf("NC %s transitioning from state %s to %s",
+			networkContainerConfig.NetworkContainerID,
+			networkContainerConfig.State, revertState)
+		networkContainerConfig.State = revertState
+		return PersistNCConfiguration(networkContainerConfig, true)
 	}
 
-	return PersistNCConfiguration(networkContainerConfig, true)
+	return nil
 }
 
 // PersistNetworkConfiguration - Persist network configuration.

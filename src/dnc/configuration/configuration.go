@@ -110,6 +110,7 @@ type DNCSettings struct {
 	RequestRetryBaseInterval        int
 	NetworkRefreshInterval          int
 	NetworkContainerRefreshInterval int
+	ConcurrentRequestsToProcess     int
 }
 
 // Configuration - Details related to dnc configuration settings

@@ -57,6 +57,7 @@
     "DNCSettings":{
         "RequestRetryBaseInterval":1000,
         "NetworkRefreshInterval":60000,
-        "NetworkContainerRefreshInterval": 60000
+        "NetworkContainerRefreshInterval": 60000,
+        "ConcurrentRequestsToProcess": 5
     }
 }
