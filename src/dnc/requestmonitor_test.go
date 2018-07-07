@@ -270,8 +270,8 @@ func TestNetwork(t *testing.T) {
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
-	nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.ResponseCode = strconv.Itoa(http.StatusProcessing)
 	nmAgentServer.Lock.Lock()
+	nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.ResponseCode = strconv.Itoa(http.StatusProcessing)
 	nmAgentServer.ResponseFunc = NMAgentResponder
 	nmAgentServer.Context = nmAgentResponderContext
 	nmAgentServer.Lock.Unlock()
@@ -323,8 +323,8 @@ func TestNetwork(t *testing.T) {
 	networkDeploymentRequests2 := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
 	nmAgentResponderContext2 := generateDefaultNMAgentResponderContext(networkDeploymentRequests2)
-	nmAgentResponderContext2.NetworkResponseMap.getContext(vnetID).JoinResponse.HTTPStatus = http.StatusUnauthorized
 	nmAgentServer.Lock.Lock()
+	nmAgentResponderContext2.NetworkResponseMap.getContext(vnetID).JoinResponse.HTTPStatus = http.StatusUnauthorized
 	nmAgentServer.ResponseFunc = NMAgentResponder
 	nmAgentServer.Context = nmAgentResponderContext2
 	nmAgentServer.Lock.Unlock()
@@ -788,11 +788,18 @@ type CnsResponderContextMap map[string]*CnsResponderContext
 
 type NMAgentNetworkResponseMap map[string]*NMAgentNetworkResponse
 
+var cnsContextLock = &sync.RWMutex{}
+var nmagentContextLock = &sync.RWMutex{}
+
 func (cxtMap CnsResponderContextMap) getContext(id string) *CnsResponderContext {
+	cnsContextLock.RLock()
+	defer cnsContextLock.RUnlock()
 	return cxtMap["Swift_"+id]
 }
 
 func (cxtMap NMAgentNetworkResponseMap) getContext(id string) *NMAgentNetworkResponse {
+	nmagentContextLock.RLock()
+	defer nmagentContextLock.RUnlock()
 	return cxtMap[id]
 }
 
@@ -919,7 +926,9 @@ func generateDefaultNMAgentResponderContext(networkDeploymentRequests []*Network
 				SignalCount:        1,
 				CurrentSignalCount: 0}}
 
+		nmagentContextLock.Lock()
 		context.NetworkResponseMap[networkDeploymentRequest.vnetID] = &response
+		nmagentContextLock.Unlock()
 	}
 
 	if len(tagList) > 0 {
@@ -965,10 +974,12 @@ func NMAgentResponder(w http.ResponseWriter, r *http.Request, context interface{
 					networkResponseContext.JoinResponse.SignalInfo.SignalCount {
 					shouldSignal = false
 				}
+				nmagentContextLock.Lock()
 				if shouldSignal && signalTest(&networkResponseContext.GetNetworkResponse.SignalInfo, vnetID) {
 					fmt.Printf("Responded with Config:%s\n", networkResponseContext.GetNetworkResponse.NetworkResponse.String())
 					fmt.Println("Set signal for get virtual network")
 				}
+				nmagentContextLock.Unlock()
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 			}
@@ -1012,6 +1023,8 @@ func NMAgentResponder(w http.ResponseWriter, r *http.Request, context interface{
 		}
 	} else if strings.Contains(r.RequestURI, "systemTags") {
 		shouldSignal := true
+
+		nmagentContextLock.RLock()
 		for _, networkResponseContext := range nmagentResponderContext.NetworkResponseMap {
 			if networkResponseContext.GetNetworkResponse != nil {
 				if networkResponseContext.GetNetworkResponse.SignalInfo.CurrentSignalCount <
@@ -1020,6 +1033,7 @@ func NMAgentResponder(w http.ResponseWriter, r *http.Request, context interface{
 				}
 			}
 		}
+		nmagentContextLock.RUnlock()
 
 		if r.Method != "GET" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1056,7 +1070,9 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 		body, _ := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
 		json.Unmarshal(body, &ncRequest)
 		fmt.Printf("NCRequest:%+v\n", ncRequest)
+		cnsContextLock.RLock()
 		cnsResponderContext := cnsResponderContextMap[ncRequest.NetworkContainerid]
+		cnsContextLock.RUnlock()
 		if cnsResponderContext == nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -1080,7 +1096,9 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 		var ncRequest cns.DeleteNetworkContainerRequest
 		json.NewDecoder(r.Body).Decode(&ncRequest)
 		fmt.Printf("NC Request:%+v \n", ncRequest)
+		cnsContextLock.RLock()
 		cnsResponderContext, ok := cnsResponderContextMap[ncRequest.NetworkContainerid]
+		cnsContextLock.RUnlock()
 		if !ok {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -1216,6 +1234,7 @@ func setupNetwork(t *testing.T, dncEP, apiVersion string, networkDeploymentReque
 	fmt.Println("Waiting for Join and Get network signals")
 
 	var chans = []chan string{}
+	nmagentContextLock.RLock()
 	for _, networkDeploymentRequest := range networkDeploymentRequests {
 		response, ok := nmAgentResponderContext.NetworkResponseMap[networkDeploymentRequest.vnetID]
 		if !ok {
@@ -1232,6 +1251,7 @@ func setupNetwork(t *testing.T, dncEP, apiVersion string, networkDeploymentReque
 			chans = append(chans, response.JoinResponse.SignalInfo.Signal)
 		}
 	}
+	nmagentContextLock.RUnlock()
 
 	cases := make([]reflect.SelectCase, len(chans))
 	for i, ch := range chans {
