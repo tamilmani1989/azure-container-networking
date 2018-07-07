@@ -1192,17 +1192,21 @@ func processNetworkContainerPurge(repoNCConfig *datamodel.NCConfiguration) (bool
 }
 
 func hasTagsChanged(resolvedTags map[string]datamodel.TagDefinition, currentTags map[string]uint64) bool {
+
 	if len(resolvedTags) != len(currentTags) {
+		logger.Debugf("Tags changed:%v, Current:%v Updated:%v", len(resolvedTags), len(currentTags))
 		return true
 	}
 
 	for tagName, tagDefinition := range resolvedTags {
 		currentVersion, found := currentTags[tagName]
 		if !found {
+			logger.Debugf("TagName:%v not found", tagName)
 			return true
 		}
 
 		if currentVersion != tagDefinition.Version {
+			logger.Debugf("TagName:%v version change detected, Current:%v Updated:%v", tagName, currentVersion, tagDefinition.Version)
 			return true
 		}
 	}
@@ -1225,6 +1229,8 @@ func processNetworkContainerAssociate(
 	}
 
 	cnetAddressesCount := len(ncGoalState.CNetSubnets)
+
+	updatedTagInfo := make(map[string]uint64)
 	resolvedTags := make(map[string]datamodel.TagDefinition)
 	for _, tag := range ncGoalState.TagsInfo {
 		tagDefinition, tagErr := RegisterAndGetTagDefinition(tag)
@@ -1235,7 +1241,9 @@ func processNetworkContainerAssociate(
 		tagKey := datamodel.GetTagDefintionKey(tag.Type, tag.Name)
 		resolvedTags[tagKey] = tagDefinition
 		cnetAddressesCount += len(resolvedTags[tagKey].Values)
+		updatedTagInfo[tagKey] = tagDefinition.Version
 	}
+
 	if repoNCConfig.ProgrammedTagsInfo == nil {
 		repoNCConfig.ProgrammedTagsInfo = make(map[string]uint64)
 	}
@@ -1376,6 +1384,42 @@ func processNetworkContainerAssociate(
 			HTTPStatus: http.StatusBadRequest}
 	}
 
+	// Retrieve the latest NC configuration as the current copy of the configuration
+	// could have been updated while we were in the process of calling cns.
+	retrievedRepoNCConfig, ncRetrievalErr := datamodel.TryQueryNetworkContainer(
+		ncGoalState.NetworkID,
+		ncGoalState.NetworkContainerID)
+	if ncRetrievalErr != nil {
+		msg := fmt.Sprintf(
+			"Associate NC %v to node %v failed with error %s while trying to retrieve network container "+
+				"configuration post cns create network response call",
+			ncGoalState.NetworkContainerID,
+			ncGoalState.NodeInterfaceID,
+			ncRetrievalErr.String())
+		logger.Errorf("%s, Marking as retriable error\n", msg)
+
+		return false, &api.JsonErr{
+			Code:       api.AssociationFailed,
+			Text:       respErr.Error(),
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	if retrievedRepoNCConfig == nil {
+		msg := fmt.Sprintf(
+			"Associate NC %v to node %v failed as network container configuration was not found",
+			ncGoalState.NetworkContainerID,
+			ncGoalState.NodeInterfaceID)
+		logger.Errorf("%s, Marking as non retriable error\n", msg)
+
+		return true, &api.JsonErr{
+			Code:       api.AssociationFailed,
+			Text:       respErr.Error(),
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	// Copy over the delete flag as NC could have been deleted when we were invoking CNS to create NC.
+	repoNCConfig.MarkedForDelete = retrievedRepoNCConfig.MarkedForDelete
+
 	if resp.Response.ReturnCode != 0 {
 		msg := fmt.Sprintf("Associate NC %v to node %v failed with response %+v",
 			ncGoalState.NetworkContainerID,
@@ -1397,6 +1441,7 @@ func processNetworkContainerAssociate(
 		repoNCConfig.State = datamodel.Publish
 	}
 
+	repoNCConfig.ProgrammedTagsInfo = updatedTagInfo
 	repoNCConfig.ProgrammedVnetVersion = ncGoalState.VnetVersion
 	repoNCConfig.Status = datamodel.Pending
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, false)
@@ -1627,25 +1672,15 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 			repoNCConfig.NetworkContainerID,
 			respErr.Error())
 		return false, &api.JsonErr{
-			Code:       api.PublishingFailed,
+			Code:       api.UnpublishingFailed,
 			Text:       respErr.Error(),
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		logger.Errorf("Failed to publish network container goal state for Id %s to host agent with error code %d "+
+		logger.Errorf("Failed to unpublish network container goal state for Id %s to host agent with error code %d "+
 			"Marking as retriable error \n",
-			repoNCConfig.NetworkContainerID,
-			resp.StatusCode)
-		return false, &api.JsonErr{
-			Code:       api.PublishingFailed,
-			Text:       resp.Status,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		logger.Errorf("Failed to unpublish network container goal state for Id %s to host agent with error code %d.\n",
 			repoNCConfig.NetworkContainerID,
 			resp.StatusCode)
 		return false, &api.JsonErr{
