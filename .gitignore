@@ -325,3 +325,7 @@ azure-dnc*.log*
 
 #test DB
 *.db
+
+#debug
+debug
+debug.test
