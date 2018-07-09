@@ -269,7 +269,9 @@ func TestNetwork(t *testing.T) {
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
 
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	nmAgentServer.Lock.Lock()
 	nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.ResponseCode = strconv.Itoa(http.StatusProcessing)
 	nmAgentServer.ResponseFunc = NMAgentResponder
@@ -322,7 +324,9 @@ func TestNetwork(t *testing.T) {
 	json.NewEncoder(&body2).Encode(networkReq)
 	networkDeploymentRequests2 := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
-	nmAgentResponderContext2 := generateDefaultNMAgentResponderContext(networkDeploymentRequests2)
+	nmAgentResponderContext2 := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests2,
+		false)
 	nmAgentServer.Lock.Lock()
 	nmAgentResponderContext2.NetworkResponseMap.getContext(vnetID).JoinResponse.HTTPStatus = http.StatusUnauthorized
 	nmAgentServer.ResponseFunc = NMAgentResponder
@@ -854,10 +858,18 @@ var tagDefinitions = map[string]nmagentcontracts.TagResponse{
 	"XStore":   nmagentcontracts.TagResponse{ResponseCode: "200", Name: "XStore", Values: []string{"168.10.10.0/24", "144.10.12.12/24"}},
 	"AzureSql": nmagentcontracts.TagResponse{ResponseCode: "200", Name: "AzureSql", Values: []string{"132.10.10.0/24", "134.10.12.12/24"}}}
 
-func getTags(tagCount int) []nmagentcontracts.Tag {
+var updatedTagDefinitions = map[string]nmagentcontracts.TagResponse{
+	"XStore":   nmagentcontracts.TagResponse{ResponseCode: "200", Name: "XStore", Values: []string{"167.10.10.0/24", "168.10.10.0/24", "144.10.12.12/24"}},
+	"AzureSql": nmagentcontracts.TagResponse{ResponseCode: "200", Name: "AzureSql", Values: []string{"132.10.10.0/24", "133.10.10.0/24", "134.10.12.12/24"}}}
+
+func getTags(tagCount int, isUpdate bool) []nmagentcontracts.Tag {
 	tagsArray := make([]nmagentcontracts.Tag, tagCount)
 	index := 0
-	for tagName := range tagDefinitions {
+	tagDefinitionsToUse := tagDefinitions
+	if isUpdate {
+		tagDefinitionsToUse = updatedTagDefinitions
+	}
+	for tagName := range tagDefinitionsToUse {
 		if index < tagCount {
 			tagsArray[index] = nmagentcontracts.Tag{Name: tagName, Type: "System"}
 			index++
@@ -875,7 +887,9 @@ type NetworkDeploymentRequest struct {
 	UseCustomDnsServers bool
 }
 
-func generateDefaultNMAgentResponderContext(networkDeploymentRequests []*NetworkDeploymentRequest) *NMAgentResponderContext {
+func generateDefaultNMAgentResponderContext(
+	networkDeploymentRequests []*NetworkDeploymentRequest,
+	useUpdatedTags bool) *NMAgentResponderContext {
 	context := new(NMAgentResponderContext)
 	context.NetworkResponseMap = make(NMAgentNetworkResponseMap)
 	tagList := make(map[string]nmagentcontracts.Tag)
@@ -889,10 +903,11 @@ func generateDefaultNMAgentResponderContext(networkDeploymentRequests []*Network
 			if networkDeploymentRequest.TagCount > 0 {
 				if index == 0 {
 					fmt.Printf("Generating tags for subnet%s\n", subnet)
-					subnet.Tags = getTags(networkDeploymentRequest.TagCount)
+					subnet.Tags = getTags(networkDeploymentRequest.TagCount, useUpdatedTags)
 					for _, tag := range subnet.Tags {
 						tagList[tag.Name] = tag
 					}
+					fmt.Printf("Generated tags for subnet%s\n", subnet)
 				}
 			}
 
@@ -1052,7 +1067,7 @@ func NMAgentResponder(w http.ResponseWriter, r *http.Request, context interface{
 		w.WriteHeader(tagResponse.HTTPStatus)
 		json.NewEncoder(w).Encode(tagResponse.Response)
 		if shouldSignal && signalTest(&tagResponse.SignalInfo, tagName) {
-			fmt.Printf("Set signal for tag request: %s\n", tagName)
+			fmt.Printf("Set signal for tag request: %v\n", tagResponse.Response)
 		}
 		fmt.Printf("Responding to tag request, Name:%s\n", tagName)
 
@@ -1200,7 +1215,9 @@ func WaitForResourceState(t *testing.T, resourceStatusURL string, status string,
 func setupNetwork(t *testing.T, dncEP, apiVersion string, networkDeploymentRequests []*NetworkDeploymentRequest) {
 	fmt.Println("Started NMAgent Server\n", nmAgentServer.Server.URL)
 	nmAgentServer.SetupTest()
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	nmAgentServer.Lock.Lock()
 	nmAgentServer.ResponseFunc = NMAgentResponder
 	nmAgentServer.Context = nmAgentResponderContext
@@ -1809,7 +1826,6 @@ func createNetworkContainerAndUpdateNetworkConfig(
 	fmt.Printf("Waiting for update NC post network update")
 	<-updatedCnsResponderContextMap.getContext(ncid).CreateOrUpdateNCResponse.SignalInfo.Signal
 	fmt.Printf("Recieved signal for update NC post network update")
-
 	deleteResource(t, ncURL, http.StatusOK)
 	fmt.Printf("Waiting for delete NC Url:%s", ncURL)
 
@@ -1832,7 +1848,9 @@ func CreateNetworkContainerAndUpdateCnetSpace(t *testing.T, nodeID string, nodeI
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
 
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
 
 	networkResponseContext.GetNetworkResponse.NetworkResponse.CNetSpace = "10.0.0.0/16,172.16.0.0/16,192.168.1.0/24"
@@ -1860,7 +1878,9 @@ func CreateNetworkContainerAndAddCnetSpace(t *testing.T, nodeID string, nodeInfo
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
 
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
 	networkResponseContext.GetNetworkResponse.NetworkResponse.CNetSpace =
 		networkResponseContext.GetNetworkResponse.NetworkResponse.CNetSpace + ",1.0.0.0/8"
@@ -1888,7 +1908,9 @@ func CreateNetworkContainerAndRemoveCnetSpace(t *testing.T, nodeID string, nodeI
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
 
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
 
 	networkResponseContext.GetNetworkResponse.NetworkResponse.CNetSpace = "10.0.0.0/8,172.16.0.0/16"
@@ -1916,7 +1938,9 @@ func CreateNetworkContainerAndAddNewDNSServer(t *testing.T, nodeID string, nodeI
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
 
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
 
 	networkResponseContext.GetNetworkResponse.NetworkResponse.DNSServers =
@@ -1945,7 +1969,9 @@ func CreateNetworkContainerAndRemoveDNSServerInNetworkConfig(t *testing.T, nodeI
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
 
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
 
 	networkResponseContext.GetNetworkResponse.NetworkResponse.DNSServers = "8.8.8.8"
@@ -1973,7 +1999,9 @@ func CreateNetworkContainerAndUpdateToUseAzureDNSServers(t *testing.T, nodeID st
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: false, TagCount: 0}}
 
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
 
 	networkResponseContext.GetNetworkResponse.NetworkResponse.VnetVersion = "5"
@@ -2000,7 +2028,9 @@ func CreateNetworkContainerAndUpdateToUseCustomDNSServers(t *testing.T, nodeID s
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
 
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
 
 	networkResponseContext.GetNetworkResponse.NetworkResponse.VnetVersion = "6"
@@ -2027,7 +2057,9 @@ func CreateNetworkContainerAndUpdateToUseTags(t *testing.T, nodeID string, nodeI
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 2}}
 
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
 
 	networkResponseContext.GetNetworkResponse.NetworkResponse.VnetVersion = "6"
@@ -2059,7 +2091,9 @@ func CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTags(t *testing.T, no
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
 
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
 
 	networkResponseContext.GetNetworkResponse.NetworkResponse.VnetVersion = "6"
@@ -2087,7 +2121,9 @@ func CreateNetworkContainerDeployedInTaggedSubnetsAndAddNewTag(t *testing.T, nod
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 2}}
 
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
 
 	networkResponseContext.GetNetworkResponse.NetworkResponse.VnetVersion = "6"
@@ -2115,7 +2151,9 @@ func CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTag(t *testing.T, nod
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 1}}
 
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(networkDeploymentRequests)
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
 	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
 
 	networkResponseContext.GetNetworkResponse.NetworkResponse.VnetVersion = "6"
@@ -2132,6 +2170,61 @@ func CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTag(t *testing.T, nod
 		dncEP,
 		vnetID,
 		ncid,
+		apiVersion,
+		nmAgentResponderContext,
+		true,
+		2)
+}
+
+func TestCreateNetworkContainerDeployedInTaggedSubnetsAndUpdateTags(t *testing.T) {
+	fmt.Println("****CreateNetworkContainerDeployedInTaggedSubnetsAndUpdateTags Test**********")
+	cnsServer.SetupTest()
+	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+
+	networkDeploymentRequests := []*NetworkDeploymentRequest{
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 2}}
+
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		true)
+	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
+
+	networkResponseContext.GetNetworkResponse.NetworkResponse.VnetVersion = "6"
+	networkResponseContext.JoinResponse.HTTPStatus = http.StatusOK
+	networkResponseContext.JoinResponse.SignalInfo.SignalCount = 0
+	networkResponseContext.GetNetworkResponse.SignalInfo.SignalCount = 1
+	networkResponseContext.GetNetworkResponse.SignalInfo.CurrentSignalCount = 0
+
+	responderTagsResponse := make(map[string]*TagResponse)
+	index := 1
+	for tagName := range updatedTagDefinitions {
+		if index > networkDeploymentRequests[0].TagCount {
+			break
+		}
+		tagResponse := updatedTagDefinitions[tagName]
+		responderTagsResponse[tagName] = &TagResponse{
+			HTTPStatus: http.StatusOK,
+			Response:   &nmagentcontracts.TagResponse{Name: tagResponse.Name, Values: tagResponse.Values, ResponseCode: tagResponse.ResponseCode},
+			SignalInfo: SignalInfo{
+				Signal:             make(chan string),
+				SignalCount:        1,
+				CurrentSignalCount: 0}}
+		index++
+	}
+	nmAgentResponderContext.TagResponse = responderTagsResponse
+	createNetworkContainerAndUpdateNetworkConfig(
+		t,
+		nodeID,
+		nodeReq,
+		networkContainerReq,
+		dncEP,
+		vnetID,
+		ncID,
 		apiVersion,
 		nmAgentResponderContext,
 		true,
@@ -2289,13 +2382,13 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 					return false
 				}
 
-				if req.LocalIPConfiguration.GatewayIPAddress != localIPGatewayString ||  req.LocalIPConfiguration.IPSubnet.PrefixLength != localIPSubnetPrefixLength{
+				if req.LocalIPConfiguration.GatewayIPAddress != localIPGatewayString || req.LocalIPConfiguration.IPSubnet.PrefixLength != localIPSubnetPrefixLength {
 					return false
 				}
 
-				if _, ok := nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress] ; ok {
+				if _, ok := nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress]; ok {
 					return false
-				} 
+				}
 
 				nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress] = true
 

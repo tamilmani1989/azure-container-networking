@@ -2,7 +2,6 @@
     <Import Project="$(EnvironmentConfig)" />
     <ItemGroup>
         <ProjectReference Include="AzureCNSPackage\AzureCNSPackage.nuproj" />
-        <ProjectReference Include="AzureDNCPackage\AzureDNCPackage.nuproj" />
         <ProjectReference Include="NetworkClientLibrary\NetworkClientLibrary.nuproj" />
         <ProjectReference Include="NetAgentPackage\NetAgentPackage.nuproj" /> 
     </ItemGroup>
