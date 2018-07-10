@@ -1,6 +1,7 @@
 package datamodel
 
 import (
+	"crypto/sha256"
 	"dnc/nmagentcontracts"
 	"dnc/utils"
 	"fmt"
@@ -42,5 +43,5 @@ func (s *SubnetConfiguration) String() string {
 			"IsDelegatedSubnet:%t Gateway:%s AccessToken:%s, Joined:%t, "+
 			"Servicetags:%s APIVersion:%s]",
 		s.NetworkID, reservations, s.SubnetName, s.IPSubnet, s.IsDelegatedSubnet,
-		s.Gateway, s.AccessToken, s.Joined, serviceTags, s.APIVersion)
+		s.Gateway, sha256.Sum256([]byte(s.AccessToken)), s.Joined, serviceTags, s.APIVersion)
 }

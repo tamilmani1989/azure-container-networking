@@ -1067,6 +1067,7 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 }
 
 func prepareNetworkContainer(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
 	if repoNCConfig.Status == datamodel.Failed {
 		logger.Errorf("NC in failed state during prepare. Failure detail %s\n", repoNCConfig.FailureDetail.String())
 		return true, nil
@@ -1081,6 +1082,7 @@ func prepareNetworkContainer(repoNCConfig *datamodel.NCConfiguration) (bool, *ap
 
 func processNetworkContainerReserve(
 	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
 	var markProcessingFailed bool
 	var failureDetail *api.JsonErr
 	repoReservation, err := datamodel.TryQueryIPReservation(
@@ -1161,6 +1163,7 @@ Cleanup:
 }
 
 func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
 	err := datamodel.PurgeNetworkContainerAssociations(repoNCConfig, repoNCConfig.GetAssociationInfo().ContainerType == cns.AzureContainerInstance)
 	if err != nil {
 		return false, err
@@ -1178,6 +1181,7 @@ func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration) (
 }
 
 func processNetworkContainerPurge(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
 	err := datamodel.PurgeNetworkContainerAssociations(repoNCConfig, repoNCConfig.GetAssociationInfo().ContainerType == cns.AzureContainerInstance)
 	if err != nil {
 		return false, err
@@ -1217,6 +1221,7 @@ func hasTagsChanged(resolvedTags map[string]datamodel.TagDefinition, currentTags
 func processNetworkContainerAssociate(
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string) (bool, *api.JsonErr) {
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
 	ncGoalState, isRetriableError, ncGoalStateErr := getNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
@@ -1450,6 +1455,7 @@ func processNetworkContainerAssociate(
 func processNetworkContainerDisAssociate(
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string) (bool, *api.JsonErr) {
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
 
 	// Query NodeConfiguration table with nodeID and handle errors.
@@ -1545,6 +1551,7 @@ func processNetworkContainerDisAssociate(
 }
 
 func processNetworkContainerPublish(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
 	ncGoalState, isRetriableError, ncGoalStateErr := getNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
@@ -1643,6 +1650,7 @@ func processNetworkContainerPublish(repoNCConfig *datamodel.NCConfiguration) (bo
 }
 
 func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
 	ncGoalState, isRetriableError, ncGoalStateErr := getNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
@@ -1732,6 +1740,7 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 }
 
 func processNetworkContainerRevert(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
 	associationInfo := repoNCConfig.GetAssociationInfo()
 	logger.Debugf("Reverting NC %s to node %s\n", repoNCConfig.NetworkContainerID, associationInfo.NodeID)
 	repoNCConfig.State = datamodel.UnPublish
@@ -1740,6 +1749,7 @@ func processNetworkContainerRevert(repoNCConfig *datamodel.NCConfiguration) (boo
 }
 
 func processNetworkContainerProgram(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
 	associationInfo := repoNCConfig.GetAssociationInfo()
 	logger.Debugf("Programming NC %s to node %s\n", repoNCConfig.NetworkContainerID, associationInfo.NodeID)
 	repoNCConfig.State = datamodel.Program

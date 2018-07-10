@@ -243,7 +243,6 @@ func GetReservedAddressesInSubnet(ipSubnet *net.IPNet) (map[string]*net.IPNet, e
 func getAllocatedAddressesInSubnet(networkID string, subnetConfiguration *datamodel.SubnetConfiguration) (map[string]*net.IPNet, *api.JsonErr) {
 	allocatedAddresses := make(map[string]*net.IPNet)
 	for reservationID := range subnetConfiguration.Reservations {
-		logger.Debugf("Processing virtual network: %s\n", subnetConfiguration.NetworkID)
 		reservationConfiguration, err := datamodel.QueryIPReservation(subnetConfiguration.NetworkID, reservationID)
 		if err != nil {
 			logger.Errorf("Failed to retrieve reservation configuration %s Error: %s\n", reservationID, err.String())
@@ -271,7 +270,6 @@ func getAllocatedAddressesOnNode(nodeID string) (map[string]*net.IPNet, *api.Jso
 
 	if nodeConfiguration.ConstrainedReservations != nil {
 		for reservationID, networkID := range nodeConfiguration.ConstrainedReservations {
-			logger.Debugf("Processing virtual network %s\n", networkID)
 			reservationConfiguration, err := datamodel.TryQueryIPReservation(networkID, reservationID)
 			if err != nil {
 				return nil, err

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"dnc/api"
 	"dnc/datamodel"
 	"dnc/nmagentcontracts"
@@ -413,16 +414,14 @@ func TestSubnet(t *testing.T) {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		t.Errorf("JoinSubnet failed with status code %d\n", response.StatusCode)
-		t.Fatal(err)
+		t.Fatalf("JoinSubnet failed with status code %d\n", response.StatusCode)
 	}
 
 	subnetConfiguration := getSubnetConfiguration(t, dncEP, vnetID, subnetName, apiVersion)
-	if subnetConfiguration.AccessToken != subnetReq.AuthenticationToken {
-		t.Errorf("AccessToken mismatch. Received:%s , Expected:%s\n",
+	if subnetConfiguration.AccessToken != fmt.Sprintf("%x", sha256.Sum256([]byte(subnetReq.AuthenticationToken))) {
+		t.Fatalf("AccessToken mismatch. Received:%s , Expected:%s\n",
 			subnetConfiguration.AccessToken,
 			subnetReq.AuthenticationToken)
-		t.Fatal(err)
 	}
 
 	subnetReq2 := api.SubnetRequest{
@@ -611,7 +610,6 @@ func deleteResource(
 	if resp.StatusCode != expectedStatusCode {
 		t.Errorf("ResourceURL %s, Delete expected to return with status:%d, Received:%d\n", resourceURL, expectedStatusCode, resp.StatusCode)
 		t.Fatal(err)
-
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -2292,7 +2290,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 			}
 
 			subnetConfiguration := getSubnetConfiguration(t, dncEP, vnetID, subnetName, apiVersion)
-			if subnetConfiguration.AccessToken != subnetReq.AuthenticationToken {
+			if subnetConfiguration.AccessToken != fmt.Sprintf("%x", sha256.Sum256([]byte(subnetReq.AuthenticationToken))) {
 				t.Errorf("AccessToken mismatch. Received:%s , Expected:%s\n",
 					subnetConfiguration.AccessToken,
 					subnetReq.AuthenticationToken)

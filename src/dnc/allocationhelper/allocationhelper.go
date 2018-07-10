@@ -21,6 +21,7 @@ func AllocateSubnetFromNetworkSpace(
 		firstAllocatedIPAdress := GetFirstAddressAsUInt32InSubnet(allocatedSubnet)
 		allocatedSubnets[firstAllocatedIPAdress] = allocatedSubnet
 	}
+
 	newSubnet, err := allocateSubnetFromNetworkSpace(
 		baseSubnet,
 		allocatedSubnets, newSubnetPrefix)
@@ -43,6 +44,7 @@ func allocateSubnetFromNetworkSpace(
 	baseSubnetMaskInUInt32 := utils.GetSubnetMask(baseSubnet.Mask)
 	baseHostMaskInUInt32 := utils.GetHostMask(baseSubnet.Mask)
 	baseSubnetAddressInUInt32 := utils.IP2Int(baseSubnet.IP)
+
 	for index < len(keys) {
 		allocatedSubnetAddressInUInt32 := keys[index]
 		if baseSubnetAddressInUInt32 == (allocatedSubnetAddressInUInt32 & baseHostMaskInUInt32) {
@@ -52,6 +54,7 @@ func allocateSubnetFromNetworkSpace(
 
 		index++
 	}
+
 	if hasAllocatedSubnet == false {
 		return AllocateSubnetFromAddressRange(
 			baseSubnetAddressInUInt32,
@@ -62,7 +65,6 @@ func allocateSubnetFromNetworkSpace(
 	// Check the available address ranges between allocated subnets and see if
 	// an address range can satisfy the new subnet allocation.
 	startingAddress := baseSubnetAddressInUInt32
-	loggershim.LS.Debugf("%d\n", len(keys))
 	for index < len(keys) {
 		allocatedSubnetAddressInUInt32 := keys[index]
 		// If the allocated subnet is outside vnetSubnet, exit the loop.
@@ -76,16 +78,13 @@ func allocateSubnetFromNetworkSpace(
 			startingAddress,
 			allocatedSubnetAddressInUInt32,
 			newSubnetPrefix)
-
 		if subnet != nil {
 			return subnet, nil
 		}
 
 		// Advance the starting address to the end of the allocated subnet.
 		allocatedSubnet := allocatedSubnetsMap[allocatedSubnetAddressInUInt32]
-		startingAddress =
-			(allocatedSubnetAddressInUInt32 +
-				utils.GetSubnetMask(allocatedSubnet.Mask) + 1)
+		startingAddress = (allocatedSubnetAddressInUInt32 + utils.GetSubnetMask(allocatedSubnet.Mask) + 1)
 		index++
 	}
 	// No allocation possible from the gaps between starting address and the beginning
@@ -93,14 +92,12 @@ func allocateSubnetFromNetworkSpace(
 	// the last allocated subnet to the end of vnetSubnet.
 
 	index--
-	startingAddress =
-		(keys[index] + utils.GetSubnetMask(allocatedSubnetsMap[keys[index]].Mask) + 1)
+	startingAddress = (keys[index] + utils.GetSubnetMask(allocatedSubnetsMap[keys[index]].Mask) + 1)
 
 	return AllocateSubnetFromAddressRange(
 		startingAddress,
 		(baseSubnetAddressInUInt32 + utils.GetSubnetMask(baseSubnet.Mask) + 1),
 		newSubnetPrefix)
-
 }
 
 func GetLastAdressAsUInt32InSubnet(ipSubnet *net.IPNet) uint32 {
@@ -117,11 +114,9 @@ func GetLastAdressInSubnet(ipSubnet *net.IPNet) net.IP {
 func GetFirstAddressAsUInt32InSubnet(ipSubnet *net.IPNet) uint32 {
 	var hostBitCount uint32
 	prefix, _ := ipSubnet.Mask.Size()
-
 	hostBitCount = (32 - (uint32(prefix)))
 	// Align the starting address to the size of the subnet to allocate.
 	mask := net.CIDRMask(prefix, 32)
-
 	subnetHostCount := ^binary.BigEndian.Uint32(mask) + 1
 	startingAddress := utils.IP2Int(ipSubnet.IP)
 	startingAddress = ((startingAddress + subnetHostCount - 1) >> hostBitCount)
@@ -148,12 +143,9 @@ func AllocateSubnetFromAddressRange(
 	// Determine the number of bits for host part of the IP address.
 	var hostBitCount uint32
 	hostBitCount = (32 - (uint32(subnetPrefix)))
-	loggershim.LS.Debugf("hostBitCount: %d\n", hostBitCount)
 	// Align the starting address to the size of the subnet to allocate.
 	mask := net.CIDRMask(subnetPrefix, 32)
-	loggershim.LS.Debugf("Mask: %+v\n", mask)
 	subnetHostCount := ^binary.BigEndian.Uint32(mask) + 1
-
 	startingAddress = ((startingAddress + subnetHostCount - 1) >> hostBitCount)
 	startingAddress <<= hostBitCount
 

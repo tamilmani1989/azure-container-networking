@@ -327,7 +327,6 @@ func (azureSQL *AzureSQL) QueryAllRows(tableName string, ctxt interface{}) (
 			return nil, false, nil, getHTTPStatusCode(err), err
 		}
 
-		loggershim.LS.Debugf("RowKey %s, Data %s\n", rowKey, data)
 		results[rowKey] = data
 	}
 
