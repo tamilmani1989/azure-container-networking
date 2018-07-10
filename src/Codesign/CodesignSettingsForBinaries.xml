@@ -42,7 +42,6 @@
 		  <File>%BinariesBuildTypeArchDirectory%\Aqua.RestClient\Aqua.RestClient.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\AzureNetworkContainer\AzureNetworkContainer.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\AzureNetworkContainer\azure-cns.exe</File>
-		  <File>%BinariesBuildTypeArchDirectory%\AzureDNCPackage\azure-dnc.exe</File>
 		</Files>
 	</FileData>
 </CodeSignSettings>
