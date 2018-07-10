@@ -21,10 +21,8 @@ func monitorNetworkUpdates() {
 			break
 		case <-networkMonitorStartProcessing:
 			refreshNetworks()
-			logger.Debugf("Received signal to process pending work\n")
 			break
 		case <-networkMonitorStopProcessing:
-			logger.Debugf("Received signal to exit\n")
 			break
 		}
 	}
@@ -41,7 +39,6 @@ func refreshNetworks() {
 }
 
 func refreshNetworkConfiguration(networkKey string) {
-	logger.Debugf("Inside refreshNetworkConfiguration for network Id:%s", networkKey)
 	networkID := datamodel.GetNetworkIdFromKey(networkKey)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	networkSessionLockedForRead := false
@@ -80,7 +77,6 @@ func refreshNetworkConfiguration(networkKey string) {
 	networkSessionLockedForRead = false
 
 	_, failureDetail = postRequestToAgentForNetworkJoin(networkID)
-	logger.Debugf("Post network config")
 	if failureDetail != nil {
 		logger.Errorf("Post request Network %s to Host Agent failed with error %s.\n",
 			networkID,
@@ -89,7 +85,6 @@ func refreshNetworkConfiguration(networkKey string) {
 		return
 	}
 
-	logger.Debugf("Get network config\n")
 	_, failureDetail, networkResponse = getNetworkConfigurationFromAgent(networkID)
 	if failureDetail != nil {
 		logger.Errorf("Request to get configuration for network %s failed with error %s.\n",
@@ -107,12 +102,10 @@ func refreshNetworkConfiguration(networkKey string) {
 		return
 	}
 
-	logger.Debugf("Lock session for write\n")
 	networkSessionLockedForWrite := false
 	sessionManager.BeginWriteSession(sessionInfo)
 	networkSessionLockedForWrite = true
 	defer func() {
-		logger.Debugf("NetworkSessionLockedForWrite:%v", networkSessionLockedForWrite)
 		if networkSessionLockedForWrite {
 			sessionManager.EndWriteSession(sessionInfo)
 		}

@@ -17,10 +17,8 @@ func monitorNetworkContainers() {
 			break
 		case <-refreshNCStartProcessing:
 			refreshNodes()
-			logger.Debugf("Received signal to refresh network containers\n")
 			break
 		case <-refreshNCStopProcessing:
-			logger.Debugf("Received signal to exit network container refresh\n")
 			break
 		}
 	}

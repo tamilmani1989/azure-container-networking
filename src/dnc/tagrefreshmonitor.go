@@ -28,10 +28,8 @@ func monitorTagUpdates() {
 			break
 		case <-tagMonitorStartProcessing:
 			refreshTagDefintions()
-			logger.Debugf("Received signal to process tag updates\n")
 			break
 		case <-tagMonitorStopProcessing:
-			logger.Debugf("Received signal to exit\n")
 			break
 		}
 	}
@@ -230,7 +228,6 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 			HTTPStatus: http.StatusInternalServerError}, nil
 	}
 
-	logger.Debugf("Received response for tag %s Defintion:%s\n", tagName, tagResponse.String())
 	getTagResponseCode, parseErr := strconv.ParseInt(tagResponse.ResponseCode, 10, 64)
 	if parseErr != nil {
 		msg := fmt.Sprintf(
@@ -259,7 +256,7 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 
 	if getTagResponseCode == http.StatusUnauthorized {
 		msg := fmt.Sprintf("Get tag definition for tag %s is unauthorized", tagName)
-		logger.Debugf("%s\n", msg)
+		logger.Errorf("%s\n", msg)
 
 		return false, &api.JsonErr{
 			Code:       api.GetTagDefinitionFailed,
@@ -275,7 +272,6 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 			HTTPStatus: http.StatusInternalServerError}, nil
 	}
 
-	logger.Debugf("Retrieved tag definition %s\n", tagResponse.String())
 	return false, nil, &tagResponse
 }
 

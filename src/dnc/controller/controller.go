@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"dnc/api"
 	"dnc/configuration"
 	"dnc/datamodel"
@@ -42,7 +43,7 @@ func NewController(replica *replica.Replica, sessionsManager *utils.SessionManag
 
 // PersistNodeInfo - Persist node configuration.
 func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoRequest, apiVersion string) *api.JsonErr {
-
+	loggershim.LS.Debugf("Create Node request: %s", nodeInfo.String())
 	// Send OrchestratorType to CNS
 	info := &cns.SetOrchestratorTypeRequest{OrchestratorType: nodeInfo.OrchestratorType}
 	var body bytes.Buffer
@@ -99,7 +100,6 @@ func (c *Controller) DeleteNode(nodeID string) *api.JsonErr {
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
-
 	return datamodel.DeleteNode(nodeID)
 }
 
@@ -117,8 +117,8 @@ func (c *Controller) PersistIPReservationRequest(
 	reservationID string,
 	allocationRequest api.AllocationRequest,
 	apiVersion string) *api.JsonErr {
+	loggershim.LS.Debugf("Reserve IP request: %s", allocationRequest.String())
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
-
 	if len(allocationRequest.NodeConstraint) > 0 {
 		sessionInfo[datamodel.NodeRepositoryName] = allocationRequest.NodeConstraint
 	}
@@ -279,7 +279,7 @@ func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.
 		GatewayIP:         repoSubnetConfiguration.Gateway,
 		DNSServers:        dnsServers,
 		IPAllocationsData: ipAllocationsData,
-		AccessToken:       repoSubnetConfiguration.AccessToken}
+		AccessToken:       fmt.Sprintf("%x", sha256.Sum256([]byte(repoSubnetConfiguration.AccessToken)))}
 
 	return &subnetConfigurationResponse, nil
 }
@@ -321,10 +321,10 @@ func (c *Controller) PersistNetworkJoinRequest(
 	networkID string,
 	networkInfo api.NetworkInfoRequest,
 	apiVersion string) *api.JsonErr {
+	loggershim.LS.Debugf("Join VNet request: %s", networkInfo.String())
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
-
 	return datamodel.CreateNetwork(
 		networkID,
 		networkInfo,
@@ -336,10 +336,10 @@ func (c *Controller) PersistSubnetDelegationRequest(
 	networkID,
 	subnet string,
 	subnetInfo api.SubnetRequest) *api.JsonErr {
+	loggershim.LS.Debugf("Put Subnet request: %s", subnetInfo.String())
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
-
 	return datamodel.UpdateSubnet(networkID, subnet, subnetInfo)
 }
 
@@ -348,7 +348,6 @@ func (c *Controller) DeleteNetwork(networkID string) *api.JsonErr {
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
-
 	return datamodel.DeleteNetworkConfiguration(networkID)
 }
 
@@ -357,10 +356,10 @@ func (c *Controller) PersistNetworkContainerRequestV1(
 	networkID, ncID string,
 	ncRequestV1 *api.NetworkContainerRequestV1,
 	apiVersion string) *api.JsonErr {
+	loggershim.LS.Debugf("Create Network Container (v1) request: %s", ncRequestV1.String())
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
-
 	return datamodel.CreateOrUpdateNCRequestV1(networkID, ncID, ncRequestV1, apiVersion)
 }
 
@@ -369,11 +368,10 @@ func (c *Controller) PersistNetworkContainerRequestV2(
 	networkID, ncID string,
 	ncRequestV2 *api.NetworkContainerRequestV2,
 	apiVersion string) *api.JsonErr {
+	loggershim.LS.Debugf("Create Network Container (v2) request: %s", ncRequestV2.String())
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
-
-	loggershim.LS.Debugf("V2-Request: %s\n", ncRequestV2.String())
 	return datamodel.CreateOrUpdateNCRequestV2(networkID, ncID, ncRequestV2, apiVersion)
 }
 
@@ -412,6 +410,7 @@ func (c *Controller) GetReplicaIPEndpoint() (string, error) {
 
 // InitializeAzureStorage - Tries to establish a connection with azure storage with information provided in request.
 func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *api.JsonErr {
+	loggershim.LS.Debugf("Initialize Azure Storage request: %s", request.String())
 	config.DataStoreSettings.AzureStorageInfo.AccountName = request.AccountName
 	config.DataStoreSettings.AzureStorageInfo.Key = request.Key
 	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
@@ -419,7 +418,6 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 	masterElectionShim.Init()
 	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
 	c.UpdateReplicaStatus(true)
-
 	return nil
 }
 

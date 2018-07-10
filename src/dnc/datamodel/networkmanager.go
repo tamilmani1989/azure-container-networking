@@ -592,7 +592,6 @@ func TryQueryNodeConfigurationByKey(nodeKey string) (*NodeConfiguration, *api.Js
 		return nil, nil
 	}
 
-	loggershim.LS.Debugf("Retrieved row: %+v\n", property)
 	serializedNodeConfiguration := property.(string)
 	err = json.Unmarshal([]byte(serializedNodeConfiguration), &repositoryNodeConfiguration)
 	if err != nil {
@@ -852,7 +851,6 @@ func TryQueryRequestContext(requestID string) (*RequestContext, *api.JsonErr) {
 		return nil, nil
 	}
 
-	loggershim.LS.Debugf("Retrieved row: %+v\n", value)
 	serializedRequestContext := value.(string)
 	err = json.Unmarshal([]byte(serializedRequestContext), &repoRequestContext)
 	if err != nil {
@@ -887,7 +885,6 @@ func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr
 		return nil, nil
 	}
 
-	loggershim.LS.Debugf("Retrieved row: %+v\n", value)
 	serializedNCConfiguration := value.(string)
 	err = json.Unmarshal([]byte(serializedNCConfiguration), &repoNCConfiguration)
 	if err != nil {
@@ -954,7 +951,6 @@ func TryQueryTagDefinitionByKey(tagDefinitionKey string) (*TagDefinition, *api.J
 		return nil, nil
 	}
 
-	loggershim.LS.Debugf("Retrieved row: %+v\n", value)
 	serializedTagDefintion := value.(string)
 	err = json.Unmarshal([]byte(serializedTagDefintion), &repoTagDefinition)
 	if err != nil {
@@ -1312,7 +1308,7 @@ func GetAllTagDefinitions() (map[string]TagDefinition, error) {
 				loggershim.LS.Errorf("Unmarshalling tag defintition %s failed with error %s\n", tagDefinition.String(), err.Error())
 				return nil, err
 			}
-			loggershim.LS.Debugf("Unmarshalling tag defintition %s \n", tagDefinition.String())
+
 			tagDefinitionsMap[tagDefinitionsKey] = tagDefinition
 		}
 
@@ -1348,7 +1344,6 @@ func GetPendingRequests() (map[string]RequestContext, error) {
 			serializedRequestContext := value.(string)
 			var requestContext RequestContext
 			err = json.Unmarshal([]byte(serializedRequestContext), &requestContext)
-			loggershim.LS.Debugf("Unmarshalling network %s of request type %s\n", requestContext.NetworkID, requestContext.Type.String())
 			requestsToProcess[requestKey] = requestContext
 		}
 
@@ -1369,12 +1364,11 @@ func RemovePendingRequest(requestID string) {
 func PersistNCConfiguration(ncConfiguration *NCConfiguration, addToPendingQueue bool) *api.JsonErr {
 	var jsonSerializedBytes []byte
 	var err error
-	jsonSerializedBytes, err = json.Marshal(ncConfiguration)
-
 	if ncConfiguration.FailureDetail != (api.JsonErr{}) {
 		loggershim.LS.Errorf("[%s] Error: %s", utils.TracePrefix(3), ncConfiguration.FailureDetail.String())
 	}
 
+	jsonSerializedBytes, err = json.Marshal(ncConfiguration)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to serialize node configuration for NC ID:%s , Error: %s",
 			ncConfiguration.NetworkContainerID,
@@ -1391,7 +1385,6 @@ func PersistNCConfiguration(ncConfiguration *NCConfiguration, addToPendingQueue 
 	}
 
 	ncKey := GetNCKey(ncConfiguration.NetworkID, ncConfiguration.NetworkContainerID)
-
 	err = dataStoreShim.InsertOrUpdate(networkContainerTableName,
 		ncKey,
 		TableToColumnMap[networkContainerTableName],
@@ -2058,7 +2051,6 @@ func CreateOrUpdateNCRequestV1(
 	networkID, ncID string,
 	ncRequestV1 *api.NetworkContainerRequestV1,
 	apiVersion string) *api.JsonErr {
-	loggershim.LS.Debugf("V1-Request: %s\n", ncRequestV1.String())
 	ncConfig, err := TryQueryNetworkContainer(networkID, ncID)
 	if err != nil {
 		msg := fmt.Sprintf(
@@ -2241,6 +2233,7 @@ func GetNetworkContainersInSubnet(
 		if !includePendingDeletes && repoNetworkContainerConfiguration.MarkedForDelete {
 			continue
 		}
+
 		associationInfo := repoNetworkContainerConfiguration.GetAssociationInfo()
 		networkContainersInfo[containersCount] = &NetworkContainerInfo{
 			NetworkID:          repoSubnetConfiguration.NetworkID,

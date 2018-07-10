@@ -133,17 +133,20 @@ func AreSetsEqual(set1, set2 []string) bool {
 func DecodeResponse(w *http.Response, response interface{}) error {
 	var err error
 
-	loggershim.LS.Debugf("DecodeResponse received response: %+v", response)
-
 	if w.Body != nil {
 		err = json.NewDecoder(w.Body).Decode(&response)
-		loggershim.LS.Debugf("Decoded response:%v", response)
 	} else {
 		err = fmt.Errorf("Response body is empty")
 	}
 
+	if err != nil {
+		loggershim.LS.Errorf("%s", err.Error())
+		return err
+	}
+
 	if w.StatusCode != http.StatusOK {
 		err = fmt.Errorf("Request failed with HTTP error %d", w.StatusCode)
+		loggershim.LS.Errorf("%s", err.Error())
 	}
 
 	return err
