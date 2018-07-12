@@ -27,7 +27,7 @@ environment:
 
 # Specify signing profile/configuration
 signing_options:
-  profile: 'internal_azure_service'   # This service deploys to Azure!
+  profile: 'external_distribution'
 
 # Pick up artifacts from phase_1 of build job
 workspace_options:
