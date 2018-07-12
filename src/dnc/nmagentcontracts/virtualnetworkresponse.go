@@ -38,7 +38,7 @@ func (virtualNetworkResponse *VirtualNetworkResponse) String() string {
 
 // CreateNetworkContainerResponse - NMAgent response.
 type CreateNetworkContainerResponse struct {
-	ResponseCode       string `json:"httpResponseCode"`
+	ResponseCode       string `json:"httpStatusCode"`
 	NetworkContainerID string `json:"networkContainerId"`
 	Version            string `json:"version"`
 }
