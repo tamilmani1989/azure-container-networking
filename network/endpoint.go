@@ -13,33 +13,43 @@ import (
 
 // Endpoint represents a container network interface.
 type endpoint struct {
-	Id          string
-	HnsId       string `json:",omitempty"`
-	SandboxKey  string
-	IfName      string
-	HostIfName  string
-	MacAddress  net.HardwareAddr
-	IPAddresses []net.IPNet
-	Gateways    []net.IP
+	Id               string
+	HnsId            string `json:",omitempty"`
+	SandboxKey       string
+	IfName           string
+	HostIfName       string
+	MacAddress       net.HardwareAddr
+	IPAddresses      []net.IPNet
+	Gateways         []net.IP
+	DNS              DNSInfo
+	Routes           []RouteInfo
+	VlanID           int
+	EnableSnatOnHost bool
 }
 
 // EndpointInfo contains read-only information about an endpoint.
 type EndpointInfo struct {
-	Id          string
-	ContainerID string
-	NetNsPath   string
-	IfName      string
-	IPAddresses []net.IPNet
-	Routes      []RouteInfo
-	DNS         DNSInfo
-	Policies    []policy.Policy
-	Data        map[string]interface{}
+	Id               string
+	ContainerID      string
+	NetNsPath        string
+	IfName           string
+	SandboxKey       string
+	IfIndex          int
+	MacAddress       net.HardwareAddr
+	DNS              DNSInfo
+	IPAddresses      []net.IPNet
+	Routes           []RouteInfo
+	Policies         []policy.Policy
+	Gateways         []net.IP
+	EnableSnatOnHost bool
+	Data             map[string]interface{}
 }
 
 // RouteInfo contains information about an IP route.
 type RouteInfo struct {
-	Dst net.IPNet
-	Gw  net.IP
+	Dst     net.IPNet
+	Gw      net.IP
+	DevName string
 }
 
 // ConstructEndpointID constructs endpoint name from netNsPath.
@@ -141,9 +151,22 @@ func (nw *network) getEndpoint(endpointId string) (*endpoint, error) {
 // GetInfo returns information about the endpoint.
 func (ep *endpoint) getInfo() *EndpointInfo {
 	info := &EndpointInfo{
-		Id:          ep.Id,
-		IPAddresses: ep.IPAddresses,
-		Data:        make(map[string]interface{}),
+		Id:               ep.Id,
+		IPAddresses:      ep.IPAddresses,
+		Data:             make(map[string]interface{}),
+		MacAddress:       ep.MacAddress,
+		SandboxKey:       ep.SandboxKey,
+		IfIndex:          0, // Azure CNI supports only one interface
+		DNS:              ep.DNS,
+		EnableSnatOnHost: ep.EnableSnatOnHost,
+	}
+
+	for _, route := range ep.Routes {
+		info.Routes = append(info.Routes, route)
+	}
+
+	for _, gw := range ep.Gateways {
+		info.Gateways = append(info.Gateways, gw)
 	}
 
 	// Call the platform implementation.

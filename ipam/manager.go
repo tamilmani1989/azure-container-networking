@@ -96,6 +96,7 @@ func (am *addressManager) Uninitialize() {
 func (am *addressManager) restore() error {
 	// Skip if a store is not provided.
 	if am.store == nil {
+		log.Printf("[ipam] ipam store is nil")
 		return nil
 	}
 
@@ -104,11 +105,11 @@ func (am *addressManager) restore() error {
 	// Check if the VM is rebooted.
 	modTime, err := am.store.GetModificationTime()
 	if err == nil {
-		log.Printf("[ipam] Store timestamp is %v.", modTime)
 
 		rebootTime, err := platform.GetLastRebootTime()
+		log.Printf("[ipam] reboot time %v store mod time %v", rebootTime, modTime)
+
 		if err == nil && rebootTime.After(modTime) {
-			log.Printf("[ipam] reboot time %v mod time %v", rebootTime, modTime)
 			rebooted = true
 		}
 	}
@@ -117,6 +118,7 @@ func (am *addressManager) restore() error {
 	err = am.store.Read(storeKey, am)
 	if err != nil {
 		if err == store.ErrKeyNotFound {
+			log.Printf("[ipam] store key not found")
 			return nil
 		} else {
 			log.Printf("[ipam] Failed to restore state, err:%v\n", err)

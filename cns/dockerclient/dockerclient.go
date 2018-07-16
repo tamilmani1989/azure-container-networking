@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Azure/azure-container-networking/cns/common"
+	"github.com/Azure/azure-container-networking/platform"
 	"github.com/Azure/azure-container-networking/cns/imdsclient"
 	"github.com/Azure/azure-container-networking/log"
 )
@@ -54,6 +54,8 @@ func (dockerClient *DockerClient) NetworkExists(networkName string) error {
 		log.Printf("[Azure CNS] Error received from http Post for docker network inspect %v %v", networkName, err.Error())
 		return err
 	}
+
+	defer res.Body.Close()
 
 	// network exists
 	if res.StatusCode == 200 {
@@ -122,6 +124,9 @@ func (dockerClient *DockerClient) CreateNetwork(networkName string, nicInfo *imd
 		log.Printf("[Azure CNS] Error received from http Post for docker network create %v", networkName)
 		return err
 	}
+
+	defer res.Body.Close()
+
 	if res.StatusCode != 201 {
 		var createNetworkResponse DockerErrorResponse
 		err = json.NewDecoder(res.Body).Decode(&createNetworkResponse)
@@ -135,7 +140,7 @@ func (dockerClient *DockerClient) CreateNetwork(networkName string, nicInfo *imd
 	}
 
 	if enableSnat {
-		err = common.SetOutboundSNAT(nicInfo.Subnet)
+		err = platform.SetOutboundSNAT(nicInfo.Subnet)
 		if err != nil {
 			log.Printf("[Azure CNS] Error setting up SNAT outbound rule %v", err)
 		}
@@ -158,6 +163,12 @@ func (dockerClient *DockerClient) DeleteNetwork(networkName string) error {
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	client := &http.Client{}
 	res, err := client.Do(req)
+	if err != nil {
+		log.Printf("[Azure CNS] HTTP Post returned error %v", err.Error())
+		return err
+	}
+
+	defer res.Body.Close()
 
 	// network successfully deleted.
 	if res.StatusCode == 204 {
@@ -168,7 +179,7 @@ func (dockerClient *DockerClient) DeleteNetwork(networkName string) error {
 
 		cmd := fmt.Sprintf("iptables -t nat -D POSTROUTING -m iprange ! --dst-range 168.63.129.16 -m addrtype ! --dst-type local ! -d %v -j MASQUERADE",
 			primaryNic.Subnet)
-		err = common.ExecuteShellCommand(cmd)
+		_, err = platform.ExecuteCommand(cmd)
 		if err != nil {
 			log.Printf("[Azure CNS] Error Removing Outbound SNAT rule %v", err)
 		}

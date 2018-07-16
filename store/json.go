@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/Azure/azure-container-networking/log"
 )
 
 const (
@@ -22,7 +24,7 @@ const (
 	lockMaxRetries = 20
 
 	// Delay between lock retries.
-	lockRetryDelay = 100 * time.Millisecond
+	lockRetryDelayInMilliseconds = 100
 )
 
 // jsonFileStore is an implementation of KeyValueStore using a local JSON file.
@@ -155,7 +157,7 @@ func (kvs *jsonFileStore) Lock(block bool) error {
 			return ErrStoreLocked
 		}
 
-		time.Sleep(lockRetryDelay)
+		time.Sleep(time.Duration(lockRetryDelayInMilliseconds) * time.Millisecond)
 	}
 
 	// Write the process ID for easy identification.
@@ -198,8 +200,9 @@ func (kvs *jsonFileStore) Unlock() error {
 func (kvs *jsonFileStore) GetModificationTime() (time.Time, error) {
 	info, err := os.Stat(kvs.fileName)
 	if err != nil {
-		return time.Time{}, err
+		log.Printf("os.stat() for file %v failed with error %v", kvs.fileName, err)
+		return time.Time{}.UTC(), err
 	}
 
-	return info.ModTime(), nil
+	return info.ModTime().UTC(), nil
 }

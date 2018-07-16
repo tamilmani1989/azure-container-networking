@@ -14,9 +14,6 @@ const (
 
 	// CNIRuntimePath is the path where CNM state files are stored.
 	CNIRuntimePath = ""
-
-	// LogPath is the path where log files are stored.
-	LogPath = ""
 )
 
 // GetOSInfo returns OS version information.
@@ -28,4 +25,12 @@ func GetOSInfo() string {
 func GetLastRebootTime() (time.Time, error) {
 	var rebootTime time.Time
 	return rebootTime, nil
+}
+
+func ExecuteCommand(command string) (string, error) {
+	return "", nil
+}
+
+func SetOutboundSNAT(subnet string) error {
+	return nil
 }
