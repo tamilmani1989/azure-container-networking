@@ -172,6 +172,9 @@ func (nm *networkManager) applyIPConfig(extIf *externalInterface, targetIf *net.
 func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwInfo *NetworkInfo) error {
 	var err error
 	var networkClient NetworkClient
+	var bridge *net.Interface
+	var hostIf *net.Interface
+
 	log.Printf("[net] Connecting interface %v.", extIf.Name)
 	defer func() { log.Printf("[net] Connecting interface %v completed with err:%v.", extIf.Name, err) }()
 
@@ -182,7 +185,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	}
 
 	// Find the external interface.
-	hostIf, err := net.InterfaceByName(extIf.Name)
+	hostIf, err = net.InterfaceByName(extIf.Name)
 	if err != nil {
 		return err
 	}
@@ -206,22 +209,21 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 		networkClient = NewLinuxBridgeClient(bridgeName, extIf.Name, nwInfo.Mode)
 	}
 
+	defer func() {
+		if err != nil {
+			nm.disconnectExternalInterface(extIf, networkClient)
+		}
+	}()
+
 	// Check if the bridge already exists.
-	bridge, err := net.InterfaceByName(bridgeName)
+	bridge, err = net.InterfaceByName(bridgeName)
 	if err != nil {
 		// Create the bridge.
 
-		if err := networkClient.CreateBridge(); err != nil {
+		if err = networkClient.CreateBridge(); err != nil {
 			log.Printf("Error while creating bridge %+v", err)
 			return err
 		}
-
-		// On failure, delete the bridge.
-		defer func() {
-			if err != nil {
-				networkClient.DeleteBridge()
-			}
-		}()
 
 		bridge, err = net.InterfaceByName(bridgeName)
 		if err != nil {
@@ -247,7 +249,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 
 	// Connect the external interface to the bridge.
 	log.Printf("[net] Setting link %v master %v.", hostIf.Name, bridgeName)
-	if err := networkClient.SetBridgeMasterToHostInterface(); err != nil {
+	if err = networkClient.SetBridgeMasterToHostInterface(); err != nil {
 		return err
 	}
 
@@ -273,7 +275,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 
 	// External interface hairpin on.
 	log.Printf("[net] Setting link %v hairpin on.", hostIf.Name)
-	if err := networkClient.SetHairpinOnHostInterface(true); err != nil {
+	if err = networkClient.SetHairpinOnHostInterface(true); err != nil {
 		return err
 	}
 
@@ -284,7 +286,6 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	}
 
 	extIf.BridgeName = bridgeName
-	err = nil
 
 	log.Printf("[net] Connected interface %v to bridge %v.", extIf.Name, extIf.BridgeName)
 

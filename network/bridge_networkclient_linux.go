@@ -59,6 +59,11 @@ func (client *LinuxBridgeClient) AddL2Rules(extIf *externalInterface) error {
 		return err
 	}
 
+	log.Printf("[net] Initialize ebtables")
+	if err := ebtables.Initialize(); err != nil {
+		return err
+	}
+
 	// Add SNAT rule to translate container egress traffic.
 	log.Printf("[net] Adding SNAT rule for egress traffic on %v.", client.hostInterfaceName)
 	if err := ebtables.SetSnatForInterface(client.hostInterfaceName, hostIf.HardwareAddr, ebtables.Append); err != nil {
@@ -96,6 +101,7 @@ func (client *LinuxBridgeClient) DeleteL2Rules(extIf *externalInterface) {
 	ebtables.SetDnatForArpReplies(extIf.Name, ebtables.Delete)
 	ebtables.SetArpReply(extIf.IPAddresses[0].IP, extIf.MacAddress, ebtables.Delete)
 	ebtables.SetSnatForInterface(extIf.Name, extIf.MacAddress, ebtables.Delete)
+	ebtables.UnInitialize()
 }
 
 func (client *LinuxBridgeClient) SetBridgeMasterToHostInterface() error {

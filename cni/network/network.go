@@ -154,10 +154,17 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		if result == nil {
 			result = &cniTypesCurr.Result{}
 		}
-		
-		// Add Interfaces to result.
-		if result == nil {
-			result = &cniTypesCurr.Result{}
+
+		if result.IPs == nil {
+			log.Printf("init result ip and append")
+			ipConfig := &cniTypesCurr.IPConfig{}
+			result.IPs = append(result.IPs, ipConfig)
+		}
+
+		if result.Routes == nil {
+			log.Printf("init result route and append")
+			route := &cniTypes.Route{}
+			result.Routes = append(result.Routes, route)
 		}
 
 		iface = &cniTypesCurr.Interface{
@@ -329,6 +336,9 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 			// Network already exists.
 			subnetPrefix := nwInfo.Subnets[0].Prefix.String()
 			log.Printf("[cni-net] Found network %v with subnet %v.", networkId, subnetPrefix)
+
+			// err = plugin.Errorf("Induced failure")
+			// return err
 
 			// Call into IPAM plugin to allocate an address for the endpoint.
 			nwCfg.Ipam.Subnet = subnetPrefix
