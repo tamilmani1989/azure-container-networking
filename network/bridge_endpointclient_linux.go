@@ -54,6 +54,11 @@ func (client *LinuxBridgeEndpointClient) AddEndpoints(epInfo *EndpointInfo) erro
 func (client *LinuxBridgeEndpointClient) AddEndpointRules(epInfo *EndpointInfo) error {
 	var err error
 
+	log.Printf("[net] Initialize ebtables")
+	if err := ebtables.Initialize(); err != nil {
+		return err
+	}
+
 	log.Printf("[net] Setting link %v master %v.", client.hostVethName, client.bridgeName)
 	if err := netlink.SetLinkMaster(client.hostVethName, client.bridgeName); err != nil {
 		return err
