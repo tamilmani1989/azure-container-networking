@@ -69,33 +69,45 @@ versioning:
 # The signed files will be restored back to the original locations before the next stage is invoked.
 # Eventually, network access will be limited or cut-off in this stage.
 build:
-  commands:
+  commands:                                                             
+                                                                        
+    - !!buildcommand                                                    
+        name: 'Build NetAgent'                                            
+        command: 'src/LinuxNetAgent/BuildNetAgent.sh'                   
+        logs:                                                             
+        - include:                                                     
+            - 'src/LinuxNetAgent/build.log'                             
+        artifacts: 
+          - from: 'src/LinuxNetAgent/main'
+            to: 'drop'        
+            include: 
+              - 'servicetunnel'
+            
+    - !!buildcommand
+        name: 'Build DNC Windows'
+        command: 'cdpxBuild.sh'
+        arguments: 'build windows amd64'
+        logs:
+          - include: 
+            - 'src/dnc/build.log'
+        artifacts:
+          - from: 'src/dnc/'
+            to: 'drop'
+            include: 
+              - 'azure-dnc.exe'
 
-  - !!buildcommand
-    name: 'Build DNC Windows'
-    command: 'cdpxBuild.sh'
-    arguments: 'build windows amd64'
-    logs:
-      - include: 
-        - 'src/dnc/build.log'
-    artifacts:
-      - from: 'src/dnc/'
-        to: 'drop'
-        include: 
-          - 'azure-dnc.exe'
-
-  - !!buildcommand
-    name: 'Build DNC Linux'
-    command: 'cdpxBuild.sh'
-    arguments: 'build linux amd64'
-    logs:
-      - include: 
-        - 'src/dnc/build.log'
-    artifacts:
-      - from: 'src/dnc/'
-        to: 'drop'
-        include: 
-          - 'azure-dnc'
+    - !!buildcommand
+        name: 'Build DNC Linux'
+        command: 'cdpxBuild.sh'
+        arguments: 'build linux amd64'
+        logs:
+          - include: 
+            - 'src/dnc/build.log'
+        artifacts:
+          - from: 'src/dnc/'
+            to: 'drop'
+            include: 
+              - 'azure-dnc'
 
 # An optional user defined stage for performing packaging. This exists as a separate stage because some build processes do a
 # compile-sign-package-sign model. For example, Windows based builds use this model. Linux builds typically follow a
@@ -114,6 +126,14 @@ package:
     #       include:
     #         - '*.nupkg'
 
+    - !!buildcommand                                                    
+        name: 'Package NetAgent'                                            
+        command: 'src/LinuxNetAgent/PackageNetAgent.sh'                                              
+        artifacts: 
+          - from: 'src/LinuxNetAgent/out'
+            to: 'drop'        
+            include: 
+              - '*.zip'
 # package_sources:
 #   nuget:
 #     feeds:                                      # Use this if you use a per-person or team wide NuGet.config and don't have anything specific in your repository.
@@ -148,7 +168,15 @@ test:
 #                                                                       # associate with this test run.
 #           - 'src\**\TestResults\**\*.trx'                             # Include all TRX files under any TestResults folder under the src
 #                                                                       # folder.
-
+    - !!testcommand
+      name: 'Test LinuxNetAgent'
+      command: 'src/LinuxNetAgent/TestLinuxNetAgent.sh'
+      testresults:
+        - title: 'Unit Tests'
+          type: 'xunit'
+          include:
+            - 'src/LinuxNetAgent/servicetunnel.log'
+          
     - !!testcommand
       name: 'Test DNC'
       command: 'cdpxBuild.sh'
@@ -159,6 +187,8 @@ test:
           include:
             - 'src/dnc/azure-dnc.log'
 
+
+            
 # An optional, interim user defined stage for performing publishing of the build. Examples include, dropping the files to a network share,
 # pushing packages to a package repository, uploading binaries to blob store etc.
 # Eventually, network access in this stage will be restricted to dev-feeds only for non-official builds. We may remove this stage for official
