@@ -46,7 +46,7 @@ func createChainIfNotExist(targetChainName string) error {
 		return nil
 	}
 
-	command = fmt.Sprintf("ebtables -t nat -N %v", targetChainName)
+	command = fmt.Sprintf("ebtables -t nat -N %v -P RETURN", targetChainName)
 	return executeShellCommand(command)
 }
 
