@@ -20,8 +20,10 @@ const (
 )
 
 const (
-	PreRouting  = "PREROUTING"
-	PostRouting = "POSTROUTING"
+	PreRouting       = "PREROUTING"
+	PostRouting      = "POSTROUTING"
+	AzurePreRouting  = "AZUREPREROUTING"
+	AzurePostRouting = "AZUREPOSTROUTING"
 )
 
 // InstallEbtables installs the ebtables package.
@@ -164,5 +166,6 @@ func AddEbtableRule(chain string, rule string) error {
 	}
 
 	command := fmt.Sprintf("ebtables -t nat -A %s %s", chain, rule)
+
 	return executeShellCommand(command)
 }
