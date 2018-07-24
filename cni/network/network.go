@@ -154,7 +154,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		if result == nil {
 			result = &cniTypesCurr.Result{}
 		}
-		
+
 		// Add Interfaces to result.
 		if result == nil {
 			result = &cniTypesCurr.Result{}
@@ -179,6 +179,13 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		log.Printf("[cni-net] ADD command completed with result:%+v err:%v.", result, err)
 	}()
 
+	// Parse network configuration from stdin.
+	nwCfg, err = cni.ParseNetworkConfig(args.StdinData)
+	if err != nil {
+		err = plugin.Errorf("Failed to parse network configuration: %v.", err)
+		return err
+	}
+
 	// Parse Pod arguments.
 	podCfg, err := cni.ParseCniArgs(args.Args)
 	if err != nil {
@@ -198,13 +205,6 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		errMsg := "Pod Name not specified in CNI Args"
 		log.Printf(errMsg)
 		return plugin.Errorf(errMsg)
-	}
-
-	// Parse network configuration from stdin.
-	nwCfg, err = cni.ParseNetworkConfig(args.StdinData)
-	if err != nil {
-		err = plugin.Errorf("Failed to parse network configuration: %v.", err)
-		return err
 	}
 
 	log.Printf("[cni-net] Read network configuration %+v.", nwCfg)

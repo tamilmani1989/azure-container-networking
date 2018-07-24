@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 
 	cnms "github.com/Azure/azure-container-networking/cnms/cnmspackage"
@@ -18,6 +19,8 @@ func TestMain(m *testing.M) {
 	stateMapkey = append(stateMapkey, "-p ARP -i eth0 --arp-op Reply -j dnat --to-dst ff:ff:ff:ff:ff:ff --dnat-target ACCEPT")
 	stateMapkey = append(stateMapkey, "-p ARP --arp-op Request --arp-ip-dst 10.240.0.6 -j arpreply --arpreply-mac cc:ad:1d:4e:e5:f1")
 	stateMapkey = append(stateMapkey, "-p IPv4 -i eth0 --ip-dst 10.240.0.6 -j dnat --to-dst cc:ad:1d:4e:e5:f1 --dnat-target ACCEPT")
+	exitCode := m.Run()
+	os.Exit(exitCode)
 }
 
 func addStateRulesToMap() map[string]string {
