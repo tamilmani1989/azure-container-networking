@@ -1,0 +1,1 @@
+{"runtimeSettings": [{"handlerSettings": {"publicSettings": {"plugins": [{"name": "servicetunnel", "data": {"portsToOpen": [80, 443]}}]}, "protectedSettingsCertThumbprint": null, "protectedSettings": null}}]}

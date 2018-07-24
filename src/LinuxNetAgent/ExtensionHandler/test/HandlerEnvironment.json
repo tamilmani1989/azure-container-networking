@@ -1,0 +1,13 @@
+[
+    {
+        "name": "Microsoft.Azure.Networking.SDN.Edp.AquariusLinux", 
+        "handlerEnvironment": 
+        {
+            "logFolder": ".", 
+            "configFolder": "test/config", 
+            "heartbeatFile": "", 
+            "statusFolder": "test/status"
+        }, 
+        "version": 1.0
+    }
+]

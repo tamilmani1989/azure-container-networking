@@ -1,0 +1,14 @@
+[
+  {
+    "version": 1,
+    "handlerManifest": {
+      "disableCommand": "./disable.sh",
+      "enableCommand": "./enable.sh",
+      "installCommand": "./install.sh",
+      "uninstallCommand": "./uninstall.sh",
+      "updateCommand": "./update.sh",
+      "rebootAfterInstall": false,
+      "reportHeartbeat": false
+    }
+  }
+]
