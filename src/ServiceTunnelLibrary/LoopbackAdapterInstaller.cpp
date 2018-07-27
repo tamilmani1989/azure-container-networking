@@ -866,9 +866,6 @@ Return Value:
     wchar_t className[MAX_PATH] = { 0 };
     HDEVINFO deviceInfoSet = INVALID_HANDLE_VALUE;
     SP_DEVINFO_DATA deviceInfoData;
-    LPWSTR classGuidString = NULL;
-    GUID classGuid = { 0 };
-    GUID instanceGuid = { 0 };
     wchar_t friendlyName[MAX_PATH];
     BOOL setupDiGetDevRegPropResult = false;
 
@@ -879,7 +876,7 @@ Return Value:
         hr = HRESULT_FROM_WIN32(GetLastError());
 		if (hr != S_OK)
 		{
-			LOGERRW(L"Failed to SetupDiCreateDeviceInfoList for class '%s'. Error:[0x%x]", classGuidString, hr);
+			LOGERRW(L"Failed to SetupDiGetClassDevs .Error:[0x%x]", hr);
 			goto Cleanup;
 		}
     }
@@ -923,11 +920,28 @@ Return Value:
         }
         if (wcsncmp(friendlyName, InterfaceName, wcslen(InterfaceName)) == 0)
         {
-            wprintf(L"Removing %s,%s\n", InterfaceName, friendlyName);
-            SetupDiCallClassInstaller(DIF_REMOVE, deviceInfoSet, &deviceInfoData);
+ 			SP_REMOVEDEVICE_PARAMS rmdParams;
+			rmdParams.ClassInstallHeader.cbSize = sizeof(SP_CLASSINSTALL_HEADER);
+			rmdParams.ClassInstallHeader.InstallFunction = DIF_REMOVE;
+			rmdParams.Scope = DI_REMOVEDEVICE_GLOBAL;
+			rmdParams.HwProfile = 0;
+			LOGINFOW(L"Removing %s,%s\n", InterfaceName, friendlyName);
+    		
+			if (! SetupDiSetClassInstallParams(deviceInfoSet, &deviceInfoData, &rmdParams.ClassInstallHeader, sizeof(rmdParams)) ||
+            	! SetupDiCallClassInstaller(DIF_REMOVE, deviceInfoSet, &deviceInfoData))
+			{
+				LOGWARNW(L"Failed to remove adapter %lu", GetLastError());				
+			}
+
+			break;
         }
     }
 
-    Cleanup:
+Cleanup:
+	if(deviceInfoSet != INVALID_HANDLE_VALUE)
+	{
+		SetupDiDestroyDeviceInfoList(deviceInfoSet);
+	}
+
 	return hr;
 }
