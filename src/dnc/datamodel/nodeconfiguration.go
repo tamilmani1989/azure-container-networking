@@ -25,10 +25,11 @@ func (n *NodeConfiguration) DumpDeployedNetworkContainers() string {
 			ncByVnets[networkID] = utils.PrintMapKeyValues(ncMap)
 		}
 
-		deployedNCs = utils.PrintMapKeyValues(ncByVnets)
+		deployedNCs = deployedNCs + utils.PrintMapKeyValues(ncByVnets)
+
 	}
 
-	deployedNCs = "]"
+	deployedNCs = deployedNCs + "]"
 
 	return deployedNCs
 }

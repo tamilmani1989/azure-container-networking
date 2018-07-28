@@ -31,10 +31,15 @@ User-mode
 #include <sstream>
 #include <iomanip>
 #include<mstcpip.h>
+#include <locale>
+#include <codecvt>
+#include <comdef.h>
+
 
 using namespace std;
 
-#define SERVICE_TUNNEL_SOURCE_PREFIX L"fd00::/8"
+#define SERVICE_TUNNEL_SOURCE_PREFIX L"fd00::"
+#define SERVICE_TUNNEL_SOURCE_PREFIX_LEN 8
 
 #define SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS L"fe80::944:63c6:6ed9:2336"
 
@@ -70,9 +75,27 @@ public:
 
 	HRESULT NetIfSetIpv6Address(__in ULONG IfIndex, __in PCWSTR Ipv6Address);
 
-	HRESULT NetIfAddDeleteIPv6Route(__in ULONG IfIndex, __in PCWSTR Ipv6AddressPrefix, __in PCWSTR Ipv6AddressNextHop, __in BOOL IsAdd);
+	HRESULT NetIfAddIPv6Route(__in ULONG IfIndex, __in PCWSTR Ipv6AddressPrefix, __in PCWSTR Ipv6AddressNextHop);
 
-	HRESULT NetIfAddDeleteNeighbor(__in ULONG IfIndex, __in PCWSTR NeighborAddress, __in PCWSTR NeighborLinkLayerAddress, __in BOOL IsAdd);
+	HRESULT NetIfDeleteIPv6Route(__in ULONG IfIndex, __in PCWSTR Ipv6AddressPrefix, __in PCWSTR Ipv6AddressNextHop);
+
+	HRESULT NetIfAddNeighbor(__in ULONG IfIndex, __in PCWSTR NeighborAddress, __in PCWSTR NeighborLinkLayerAddress);
+
+	HRESULT NetIfDeleteNeighbor(__in ULONG IfIndex, __in PCWSTR NeighborAddress, __in PCWSTR NeighborLinkLayerAddress);
+
+	std::set<string> GetIPV6AddressesOfAdapter(__in unsigned long interfaceIndex);
+	
+	ULONG CheckIfNeighborEntryExists( 
+		__in int interfaceIndex,
+		__in PWCHAR ipv6Address
+	);
+
+	ULONG CheckIfRouteExists(
+		__in int interfaceIndex,
+		__in PWCHAR destinationIPv6Prefix,
+		__in int destinationIPv6PrefixLen,
+		__in PWCHAR gatewayIPv6
+	);
 
 	HRESULT	GetInterfaceByIpAddress(__in ULONG IpAddress, __out int& InterfaceIndex);
 

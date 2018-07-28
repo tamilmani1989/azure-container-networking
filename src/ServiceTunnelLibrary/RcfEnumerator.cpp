@@ -78,6 +78,7 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	WCHAR vmType[MAX_PATH];
 	WCHAR configPath[MAX_PATH];
 	bool isPaas = true;
+	bool isOpen = false;
 
 	*RcfLocation = NULL;
 
@@ -94,6 +95,7 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	}
 	else
 	{
+		isOpen = true;
 		error = vmTypeKey.GetValueSz(VM_TYPE_VALUE,
 			vmType,
 			MAX_PATH);
@@ -144,7 +146,11 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	LOGINFOW(L"Using RCF Location:[%s]", *RcfLocation);
 
 Cleanup:
-
+	if (isOpen)
+	{
+		vmTypeKey.Close();
+	}
+	
 	return hr;
 }
 

@@ -239,32 +239,6 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	}
 
 	//
-	// Delete the IP address first, ignore error.
-	//
-
-	error = FormatString(&netshCommand,
-		0,
-		L"netsh interface ipv6 delete address interface=%lu address=%ls",
-		IfIndex,
-		Ipv6Address);
-	
-	if (error != ERROR_SUCCESS)
-	{
-		hr = HRESULT_FROM_WIN32(error);
-		LOGERRW(L"NetIfSetIpv6Address FormatString del address Failing HRESULT status detected %x", hr);
-		goto Cleanup;		
-	}
-
-	hr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
-	LOGINFOW(
-		L"Command '%ls' result: hr = %u, exitCode = %u.",
-		netshCommand,
-		hr,
-		exitCode);
-
-	STR_FREE(netshCommand);
-
-	//
 	// Set the IP address.
 	//
 
@@ -333,17 +307,16 @@ Cleanup:
 }
 
 HRESULT
-ServiceTunnelConfigurator::NetIfAddDeleteIPv6Route(
+ServiceTunnelConfigurator::NetIfAddIPv6Route(
 	__in ULONG IfIndex,
 	__in PCWSTR Ipv6AddressPrefix,
-	__in PCWSTR Ipv6AddressNextHop,
-	__in BOOL IsAdd
+	__in PCWSTR Ipv6AddressNextHop
 )
 /*++
 
 Routine Description:
 
-Add or Delete IPv6 route to route table.
+Add IPv6 route to route table.
 
 Arguments:
 
@@ -352,8 +325,6 @@ IfIndex - IfIndex of interface for route.
 Ipv6AddressPrefix - prefix for route.
 
 Ipv6AddressNextHop - next hop for the given prefix.
-
-IsAdd - Flag to indicate if the requested operation is "Add" or "Delete"
 
 Return Value:
 
@@ -364,7 +335,72 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	DWORD error;
 	PWSTR netshCommand = NULL;
 	HRESULT hr = S_OK;
-	HRESULT tmpHr = S_OK;
+	DWORD exitCode = 0;
+
+
+	error = FormatString(&netshCommand,
+		0,
+		L"netsh interface ipv6 add route %ls %lu %ls",
+		Ipv6AddressPrefix,
+		IfIndex,
+		Ipv6AddressNextHop);
+	if (error != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(error);
+		LOGERRW(L"NetIfAddIPv6Route:: FormatString Add route Failing HRESULT status detected %x", hr);
+		goto Cleanup;
+	}
+
+	LOGINFOW(L"Running cmd %s", netshCommand);
+	hr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Command failed ('%ls').", netshCommand);
+		goto Cleanup;
+	}
+
+	if (exitCode != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(exitCode);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
+		goto Cleanup;
+	}
+
+Cleanup:
+
+	STR_FREE(netshCommand);
+	return hr;
+}
+
+HRESULT
+ServiceTunnelConfigurator::NetIfDeleteIPv6Route(
+	__in ULONG IfIndex,
+	__in PCWSTR Ipv6AddressPrefix,
+	__in PCWSTR Ipv6AddressNextHop
+)
+/*++
+
+Routine Description:
+
+Delete IPv6 route to route table.
+
+Arguments:
+
+IfIndex - IfIndex of interface for route.
+
+Ipv6AddressPrefix - prefix for route.
+
+Ipv6AddressNextHop - next hop for the given prefix.
+
+Return Value:
+
+S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	DWORD error;
+	PWSTR netshCommand = NULL;
+	HRESULT hr = S_OK;
 	DWORD exitCode = 0;
 
 
@@ -382,71 +418,24 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	if (error != ERROR_SUCCESS)
 	{
 		hr = HRESULT_FROM_WIN32(error);
-		LOGERRW(L"NetIfAddDeleteIPv6Route:: FormatString del route Failing HRESULT status detected %x", hr);
+		LOGERRW(L"NetIfDeleteIPv6Route:: FormatString delete route Failing HRESULT status detected %x", hr);
 		goto Cleanup;
 	}
 
 	LOGINFOW(L"Running cmd %s", netshCommand);
-	tmpHr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
+	hr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
 
-	if (!IsAdd)
+	if (hr != S_OK)
 	{
-
-		hr = tmpHr;
-		if (hr != S_OK)
-		{
-			LOGERRW(L"Command failed ('%ls').", netshCommand);
-			goto Cleanup;
-		}
-
-		if (exitCode != ERROR_SUCCESS)
-		{
-			hr = HRESULT_FROM_WIN32(exitCode);
-			LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
-			goto Cleanup;
-		}
+		LOGERRW(L"Command failed ('%ls').", netshCommand);
+		goto Cleanup;
 	}
-	else
+
+	if (exitCode != ERROR_SUCCESS)
 	{
-		if (exitCode != ERROR_SUCCESS)
-		{
-			LOGINFOW(L"Command returned non zero exit code %u ('%ls').",
-				exitCode,
-				netshCommand);
-		}
-		//
-		// Add the route
-		//
-
-		STR_FREE(netshCommand);
-
-		error = FormatString(&netshCommand,
-			0,
-			L"netsh interface ipv6 add route %ls %lu %ls",
-			Ipv6AddressPrefix,
-			IfIndex,
-			Ipv6AddressNextHop);
-		if (error != ERROR_SUCCESS)
-		{
-			hr = HRESULT_FROM_WIN32(error);
-			LOGERRW(L"NetIfAddDeleteIPv6Route:: FormatString Add route Failing HRESULT status detected %x", hr);
-			goto Cleanup;
-		}
-
-		LOGINFOW(L"Running cmd %s", netshCommand);
-		hr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
-		if (hr != S_OK)
-		{
-			LOGERRW(L"Command failed ('%ls').", netshCommand);
-			goto Cleanup;
-		}
-
-		if (exitCode != ERROR_SUCCESS)
-		{
-			hr = HRESULT_FROM_WIN32(exitCode);
-			LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
-			goto Cleanup;
-		}
+		hr = HRESULT_FROM_WIN32(exitCode);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
+		goto Cleanup;
 	}
 
 Cleanup:
@@ -456,27 +445,24 @@ Cleanup:
 }
 
 HRESULT
-ServiceTunnelConfigurator::NetIfAddDeleteNeighbor(
+ServiceTunnelConfigurator::NetIfAddNeighbor(
 	__in ULONG IfIndex,
 	__in PCWSTR NeighborAddress,
-	__in PCWSTR NeighborLinkLayerAddress,
-	__in BOOL   IsAdd
+	__in PCWSTR NeighborLinkLayerAddress
 )
 /*++
 
 Routine Description:
 
-Add or Delete neighbor information.
+Add neighbor information.
 
 Arguments:
 
-IfIndex - IfIndex of interface to add/delete the neighbor on.
+IfIndex - IfIndex of interface to add the neighbor on.
 
-NeighborAddress - IP address of the added/deleted neighbor
+NeighborAddress - IP address of the added neighbor
 
 NeighborLinkLayerAddress - Link layer address of the added/deleted neighbor
-
-IsAdd - Flag to indicate if this operation is for adding or for deleting neighbor
 
 Return Value:
 
@@ -487,11 +473,79 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	DWORD error;
 	PWSTR netshCommand = NULL;
 	HRESULT hr = S_OK;
-	HRESULT tmpHr = S_OK;
 	DWORD exitCode = 0;
 
 	//
-	// Delete the neighbor first
+	// Add the neighbor
+	//
+	error = FormatString(&netshCommand,
+		0,
+		L"netsh interface ipv6 add neighbors %lu %ls %ls",
+		IfIndex,
+		NeighborAddress,
+		NeighborLinkLayerAddress);
+	if (error != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(error);
+		LOGERRW(L"NetIfAddNeighbor FormatString add neighbors Failing HRESULT status detected %x", hr);
+		goto Cleanup;			
+	}
+
+	LOGINFOW(L"Running cmd %s", netshCommand);
+	hr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
+	if (hr != S_OK)
+	{
+		LOGERRW(L"Command failed ('%ls').", netshCommand);
+		goto Cleanup;
+	}
+
+	if (exitCode != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(exitCode);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
+		goto Cleanup;
+	}
+
+Cleanup:
+
+	STR_FREE(netshCommand);
+	return hr;
+}
+
+
+HRESULT
+ServiceTunnelConfigurator::NetIfDeleteNeighbor(
+	__in ULONG IfIndex,
+	__in PCWSTR NeighborAddress,
+	__in PCWSTR NeighborLinkLayerAddress
+)
+/*++
+
+Routine Description:
+
+Delete neighbor information.
+
+Arguments:
+
+IfIndex - IfIndex of interface to delete the neighbor on.
+
+NeighborAddress - IP address of the deleted neighbor
+
+NeighborLinkLayerAddress - Link layer address of the added/deleted neighbor
+
+Return Value:
+
+S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	DWORD error;
+	PWSTR netshCommand = NULL;
+	HRESULT hr = S_OK;
+	DWORD exitCode = 0;
+
+	//
+	// Delete the neighbor
 	//
 
 	error = FormatString(&netshCommand,
@@ -503,73 +557,24 @@ S_OK on success. On failure appropriate HRESULT is returned.
 	if (error != ERROR_SUCCESS)
 	{
 		hr = HRESULT_FROM_WIN32(error);
-		LOGERRW(L"NetIfAddDeleteNeighbor FormatString delete neighbors Failing HRESULT status detected %x", hr);
+		LOGERRW(L"NetIfDeleteNeighbor FormatString delete neighbors Failing HRESULT status detected %x", hr);
 		goto Cleanup;
 	}
 
 	LOGINFOW(L"Running cmd %s", netshCommand);
-	tmpHr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
+	hr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
 
-	if (!IsAdd)
+	if (hr != S_OK)
 	{
-		hr = tmpHr;
-		if (hr != S_OK)
-		{
-			LOGERRW(L"Command failed ('%ls').", netshCommand);
-			goto Cleanup;
-		}
-
-		if (exitCode != ERROR_SUCCESS)
-		{
-			hr = HRESULT_FROM_WIN32(exitCode);
-			LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
-			goto Cleanup;
-		}
+		LOGERRW(L"Command failed ('%ls').", netshCommand);
+		goto Cleanup;
 	}
-	else
+
+	if (exitCode != ERROR_SUCCESS)
 	{
-
-		if (exitCode != ERROR_SUCCESS)
-		{
-			LOGINFOW(
-				L"Command returned non zero exit code %u ('%ls').",
-				exitCode,
-				netshCommand);
-		}
-
-		//
-		// Add the neighbor
-		//
-
-		STR_FREE(netshCommand);
-
-		error = FormatString(&netshCommand,
-			0,
-			L"netsh interface ipv6 add neighbors %lu %ls %ls",
-			IfIndex,
-			NeighborAddress,
-			NeighborLinkLayerAddress);
-		if (error != ERROR_SUCCESS)
-		{
-			hr = HRESULT_FROM_WIN32(error);
-			LOGERRW(L"NetIfAddDeleteNeighbor FormatString add neighbors Failing HRESULT status detected %x", hr);
-			goto Cleanup;			
-		}
-
-		LOGINFOW(L"Running cmd %s", netshCommand);
-		hr = InvokeSystemCommand(netshCommand, &exitCode, INFINITE, FALSE);
-		if (hr != S_OK)
-		{
-			LOGERRW(L"Command failed ('%ls').", netshCommand);
-			goto Cleanup;
-		}
-
-		if (exitCode != ERROR_SUCCESS)
-		{
-			hr = HRESULT_FROM_WIN32(exitCode);
-			LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
-			goto Cleanup;
-		}
+		hr = HRESULT_FROM_WIN32(exitCode);
+		LOGERRW(L"Command returned non zero exit code %u ('%ls').", exitCode, netshCommand);
+		goto Cleanup;
 	}
 
 Cleanup:
@@ -577,10 +582,6 @@ Cleanup:
 	STR_FREE(netshCommand);
 	return hr;
 }
-
-
-/**/
-
 
 HRESULT 
 ServiceTunnelConfigurator::GetInterfaceByIpAddress(
@@ -674,6 +675,172 @@ Cleanup:
 	return hr;
 }
 
+std::set<string> ServiceTunnelConfigurator::GetIPV6AddressesOfAdapter(
+	__in unsigned long interfaceIndex
+) 
+{
+	PIP_ADAPTER_ADDRESSES adapterAddresses = NULL;
+	DWORD status = ERROR_SUCCESS;
+	HRESULT hr = S_OK;
+	ULONG ipFamily = AF_INET6;
+	ULONG outBufLen = 0;
+	ULONG flags = 0;
+	std::set<string> ipv6Addresses;
+	
+	LOGINFOW(L"GetIPV6Address for interface index %u", interfaceIndex)
+	
+	status = GetAdaptersAddresses(ipFamily, 0, NULL, adapterAddresses, &outBufLen);
+	if (status != ERROR_BUFFER_OVERFLOW)
+	{
+		LOGERRW(L"GetAdaptersAddresses failed with error status %x", status);
+		hr = E_FAIL;
+		goto Cleanup;
+	}
+
+	adapterAddresses = (PIP_ADAPTER_ADDRESSES) new char[outBufLen];
+	flags = GAA_FLAG_SKIP_ANYCAST|GAA_FLAG_SKIP_MULTICAST|GAA_FLAG_SKIP_DNS_SERVER;
+	
+	status = GetAdaptersAddresses(ipFamily, flags, NULL, adapterAddresses, &outBufLen);
+	if (status != ERROR_SUCCESS)
+	{
+		hr = HRESULT_FROM_WIN32(status);
+		LOGERRW(L"GetAdaptersAddresses failed with error hr %x",hr);
+		goto Cleanup;
+	}
+
+	for (PIP_ADAPTER_ADDRESSES curAddresses = adapterAddresses;
+		curAddresses != nullptr;
+		curAddresses = curAddresses->Next)
+	{
+		LOGINFOW(L"Iterating Friendly name :%s Index:%u decription %s", curAddresses->FriendlyName, curAddresses->IfIndex, curAddresses->Description);
+		LOGINFO("Adapter Name %s ipv6index %u", curAddresses->AdapterName, curAddresses->Ipv6IfIndex)
+
+		if (curAddresses->IfIndex == interfaceIndex)
+		{
+			for (PIP_ADAPTER_UNICAST_ADDRESS unicastAddr = curAddresses->FirstUnicastAddress; 
+				unicastAddr != nullptr;
+				unicastAddr = unicastAddr->Next)
+			{
+				if (unicastAddr->Address.lpSockaddr->sa_family == AF_INET6)
+				{
+					char ipv6Str[INET6_ADDRSTRLEN];
+					PSOCKADDR_IN6 pSockAddrIn6 = (PSOCKADDR_IN6)unicastAddr->Address.lpSockaddr;
+					int size = sizeof(pSockAddrIn6->sin6_addr.u.Byte);
+					char ipv6CharArray[sizeof(pSockAddrIn6->sin6_addr.u.Byte)+1];
+
+					inet_ntop(ipFamily, &(pSockAddrIn6->sin6_addr), ipv6Str, INET6_ADDRSTRLEN);
+					LOGINFO("Unicast IPv6 Address: %s", ipv6Str);	
+					memcpy(ipv6CharArray, pSockAddrIn6->sin6_addr.u.Byte, size);
+					ipv6CharArray[size] = '\0';				
+					ipv6Addresses.insert(std::string(ipv6CharArray));
+
+				}
+			}
+		}
+	}
+
+Cleanup:
+	if (adapterAddresses != NULL)
+	{
+		delete adapterAddresses;
+	}
+
+	return ipv6Addresses;
+}
+
+
+ULONG ServiceTunnelConfigurator::CheckIfNeighborEntryExists( 
+	__in int interfaceIndex,
+	__in PWCHAR ipv6Address
+)
+{
+	USHORT port = 0;
+	DWORD error;
+	ULONG scopeId = 0;
+	MIB_IPNET_ROW2 mib = {0};
+	char ipv6Str[INET6_ADDRSTRLEN];
+	
+	mib.InterfaceIndex = interfaceIndex;
+	mib.Address.si_family = AF_INET6;
+	mib.Address.Ipv6.sin6_family = AF_INET6;
+
+	LOGINFOW(L"Check if Neighbor entry exist for IP %s exists on this ifindex %d", 
+				ipv6Address,
+				interfaceIndex);
+
+	error = RtlIpv6StringToAddressEx(ipv6Address, &(mib.Address.Ipv6.sin6_addr), &scopeId, &port);
+	if (error != ERROR_SUCCESS)
+	{
+		LOGERRW(L"Failed to convert ipv6 %s to in6_addr error:%d", ipv6Address, error)
+		return error;
+	}
+
+	inet_ntop(AF_INET6, &(mib.Address.Ipv6.sin6_addr), ipv6Str, INET6_ADDRSTRLEN);
+	LOGINFO("gateway IPv6 Addresses: %s", ipv6Str);	
+
+	error = GetIpNetEntry2(&mib);
+	if (error == ERROR_SUCCESS)
+	{
+		if (mib.State != NlnsPermanent)
+		{
+			return ERROR_NOT_FOUND;
+		}
+	}
+
+	return error;
+}
+
+ULONG ServiceTunnelConfigurator::CheckIfRouteExists(
+	__in int interfaceIndex,
+	__in PWCHAR destinationIPv6Prefix,
+	__in int destinationIPv6PrefixLen,
+	__in PWCHAR gatewayIPv6
+)
+
+{
+	PMIB_IPFORWARD_TABLE2 forwardTable = NULL;
+
+	_bstr_t dst(destinationIPv6Prefix);
+	const char* dstIp = dst;	
+
+	_bstr_t gw(gatewayIPv6);
+	const char* gwIp = gw;	
+
+
+	LOGINFO("Check route exist for dst %s gw %s ifindex %d", dstIp, gwIp, interfaceIndex);
+
+	ULONG ret = GetIpForwardTable2(AF_INET6, &forwardTable);	
+	if (ret == 0) {
+		for (ULONG tableIndex = 0; tableIndex < forwardTable->NumEntries; tableIndex++) { 
+			char dstIpv6[INET6_ADDRSTRLEN];
+			char gwIpv6[INET6_ADDRSTRLEN];
+
+			inet_ntop(AF_INET6, &(forwardTable->Table[tableIndex].DestinationPrefix.Prefix.Ipv6.sin6_addr), dstIpv6, INET6_ADDRSTRLEN);
+			inet_ntop(AF_INET6, &(forwardTable->Table[tableIndex].NextHop.Ipv6.sin6_addr), gwIpv6, INET6_ADDRSTRLEN);
+			LOGINFO("dst addr %s gateway IPv6 addr: %s ifindex: %d", dstIpv6, gwIpv6, forwardTable->Table[tableIndex].InterfaceIndex);	
+
+			if (forwardTable->Table[tableIndex].DestinationPrefix.PrefixLength == destinationIPv6PrefixLen && 
+				strcmp(dstIpv6, dstIp) == 0 &&
+				strcmp(gwIpv6, gwIp) == 0 && 
+				forwardTable->Table[tableIndex].InterfaceIndex == (NET_IFINDEX)interfaceIndex)
+			{
+				ret = 0;
+				goto Cleanup;
+			}
+		}
+
+		ret = ERROR_NOT_FOUND;
+	} 
+
+Cleanup:
+
+	if(forwardTable) 
+	{
+		FreeMibTable(forwardTable);
+	}
+
+	return ret;
+}
 
 HRESULT
 ServiceTunnelConfigurator::SetupLoopbackAdapter(
@@ -713,6 +880,8 @@ S_OK on success. On failure appropriate HRESULT is returned.
 		int interfaceIndex = 0;
 		int ipv4interfaceIndex = 0;
 		std::set<wstring>::iterator ipv6AddressListIterator;
+		std::set<string>::iterator ipv6AddressItr;
+		std::set<string> ipv6AddressesofAdapter;
 		ULONG ipv4Addr = 0;
 		PCHAR buffer = NULL;
 		LPCWSTR wipv4;
@@ -728,20 +897,41 @@ S_OK on success. On failure appropriate HRESULT is returned.
 			goto Cleanup;
 		}
 
+		ipv6AddressesofAdapter = GetIPV6AddressesOfAdapter((unsigned long) interfaceIndex);
+		
+
 		for (ipv6AddressListIterator = Ipv6AddressList.begin();
 			ipv6AddressListIterator != Ipv6AddressList.end();
 			++ipv6AddressListIterator)
 		{
-			LOGINFOW(
-				L"\tAdding IPv6Address:[%s] to interface with index [%d]\n",
-				(*ipv6AddressListIterator).c_str(),
-				interfaceIndex);
+			SOCKADDR_IN6 sa;
+			int size = sizeof(sa.sin6_addr.u.Byte);
+			char ipv6CharArray[sizeof(sa.sin6_addr.u.Byte)+1];
+			std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+			std::string ipv6ToCheck = converter.to_bytes(*ipv6AddressListIterator);
 
-			hr = NetIfSetIpv6Address(interfaceIndex, (*ipv6AddressListIterator).c_str());
-			if (hr != S_OK)
+			LOGINFO("ipv6ToCheck %s", ipv6ToCheck.c_str())
+
+			inet_pton(AF_INET6, ipv6ToCheck.c_str(), &(sa.sin6_addr));
+			memcpy(ipv6CharArray, sa.sin6_addr.u.Byte, size);
+			ipv6CharArray[size] = '\0';
+
+			if (ipv6AddressesofAdapter.find(std::string(ipv6CharArray)) == ipv6AddressesofAdapter.end())  {
+				LOGINFOW(
+					L"\tAdding IPv6Address:[%s] to interface with index [%d]\n",
+					(*ipv6AddressListIterator).c_str(),
+					interfaceIndex);
+
+				hr = NetIfSetIpv6Address(interfaceIndex, (*ipv6AddressListIterator).c_str());
+				if (hr != S_OK)
+				{
+					LOGERRW(L"SetupLoopbackAdapter:: Failed to add address [%s] on interface with index[%d]. Error:[%0x]", (*ipv6AddressListIterator).c_str(), interfaceIndex, hr);
+					goto Cleanup;
+				}
+			}
+			else 
 			{
-				LOGERRW(L"SetupLoopbackAdapter:: Failed to add address [%s] on interface with index[%d]. Error:[%0x]", (*ipv6AddressListIterator).c_str(), interfaceIndex, hr);
-				goto Cleanup;
+				LOGINFO("IPV6 Address already set on the adapter")
 			}
 		}
 
@@ -798,39 +988,70 @@ S_OK on success. On failure appropriate HRESULT is returned.
 			goto Cleanup;
 		}
 
-		//
-		// Add fake neighbor
-		//
-		hr = NetIfAddDeleteNeighbor(ipv4interfaceIndex,
-			SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS,
-			SERVICE_TUNNEL_ENDPOINT_FAKE_GW_MAC_ADDRESS,
-			TRUE);
-		if (hr != S_OK)
+		ULONG status = CheckIfNeighborEntryExists(ipv4interfaceIndex, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS);
+	
+		if (status != 0) 
 		{
-			LOGERRW(
-				L"SetupLoopbackAdapter::  Failed to add fake GW MAC to neighbor table for "
-				L"interface with index [%d]. Error:[%0x]",
-				ipv4interfaceIndex,
-				hr);
-			goto Cleanup;
+			LOGINFO("CheckIfNeighborEntryExists return value %d", status)
+			//
+			// Add fake neighbor
+			//
+			hr = NetIfAddNeighbor(ipv4interfaceIndex,
+				SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS,
+				SERVICE_TUNNEL_ENDPOINT_FAKE_GW_MAC_ADDRESS
+				);
+			if (hr != S_OK)
+			{
+				LOGERRW(
+					L"SetupLoopbackAdapter::  Failed to add fake GW MAC to neighbor table for "
+					L"interface with index [%d]. Error:[%0x]",
+					ipv4interfaceIndex,
+					hr);
+				goto Cleanup;
+			}
+		}
+		else 
+		{
+			LOGINFO("Neighbor entry exists. No need to add");
 		}
 
-		//
-		// Add fake GW
-		//
-		hr = NetIfAddDeleteIPv6Route(ipv4interfaceIndex,
-			SERVICE_TUNNEL_SOURCE_PREFIX,
-			SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS,
-			TRUE);
-		if (hr != S_OK)
+		status = CheckIfRouteExists(
+			ipv4interfaceIndex, 
+			SERVICE_TUNNEL_SOURCE_PREFIX, 
+			SERVICE_TUNNEL_SOURCE_PREFIX_LEN, 
+			SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS
+		);
+		if (status != 0)
 		{
-			LOGERRW(
-				L"SetupLoopbackAdapter:: Failed to add fake GW on interface with index [%d]. Error:[%0x]",
-				ipv4interfaceIndex,
-				hr);
-			goto Cleanup;
-		}
+			WCHAR stDstPrefix[MAX_PATH];
+			WCHAR prefixLen[INET6_ADDRSTRLEN];
 
+			LOGINFO("CheckIfRouteExists return value %d", status)
+			//
+			// Add fake GW
+			//
+			swprintf_s(prefixLen, sizeof(prefixLen), L"%d", SERVICE_TUNNEL_SOURCE_PREFIX_LEN);
+			wcsncpy_s(stDstPrefix, sizeof(stDstPrefix), SERVICE_TUNNEL_SOURCE_PREFIX, wcslen(SERVICE_TUNNEL_SOURCE_PREFIX));
+			wcscat_s(stDstPrefix, L"/");
+			wcscat_s(stDstPrefix, prefixLen);
+
+			hr = NetIfAddIPv6Route(ipv4interfaceIndex,
+				stDstPrefix,
+				SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS
+				);
+			if (hr != S_OK)
+			{
+				LOGERRW(
+					L"SetupLoopbackAdapter:: Failed to add fake GW on interface with index [%d]. Error:[%0x]",
+					ipv4interfaceIndex,
+					hr);
+				goto Cleanup;
+			}
+		}
+		else 
+		{
+			LOGINFO("Route entry exists. No need to add")
+		}
 	Cleanup:
 		if (buffer)
 		{
@@ -913,10 +1134,11 @@ ServiceTunnelConfigurator::CleanupLoopbackAdapter(
 	DWORD ret = 0;
 	int ipv4interfaceIndex=0;
 	PCWSTR temp = NULL;
-	
+	WCHAR stDstPrefix[MAX_PATH];
+	WCHAR prefixLen[INET6_ADDRSTRLEN];
+
 	HRESULT hr = installer.RemoveLoopbackAdapter(SERVICE_TUNNEL_INTERFACE_NAME);
-	
-	if(hr!=S_OK)
+	if (hr != S_OK)
 	{
 		LOGERRW(L"Remove LoopBackAdapter failed:%x.",hr);
 	}
@@ -924,6 +1146,7 @@ ServiceTunnelConfigurator::CleanupLoopbackAdapter(
 	{
 		LOGINFOW(L"Removed LoopBackAdapter");
 	}
+	
 
 	LOGINFOW(L"Calling RtlIpv4StringToAddress %s", InstanceAddress.c_str());
 	ret = RtlIpv4StringToAddress(InstanceAddress.c_str(), true, &temp, &ipv4Addr);
@@ -954,11 +1177,16 @@ ServiceTunnelConfigurator::CleanupLoopbackAdapter(
 	
 	LOGINFOW(L"Deleting neighbor and route entry for interface index %d", ipv4interfaceIndex);
 	
-	hr = NetIfAddDeleteNeighbor(ipv4interfaceIndex, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_MAC_ADDRESS, FALSE);
+	hr = NetIfDeleteNeighbor(ipv4interfaceIndex, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_MAC_ADDRESS);
 	LOGINFOW(L"CleanupLoopbackAdapter:: NetIfDeleteNeighbor for Interface %d returned with %x",ipv4interfaceIndex, hr);
 
-	hr = NetIfAddDeleteIPv6Route(ipv4interfaceIndex, SERVICE_TUNNEL_SOURCE_PREFIX, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS, FALSE);
-	LOGINFOW(L"CleanupLoopbackAdapter:: NetIfAddDeleteRoute for Interface %d returned with  %x",ipv4interfaceIndex, hr);
+	swprintf_s(prefixLen, sizeof(prefixLen), L"%d", SERVICE_TUNNEL_SOURCE_PREFIX_LEN);
+	wcsncpy_s(stDstPrefix, sizeof(stDstPrefix), SERVICE_TUNNEL_SOURCE_PREFIX, wcslen(SERVICE_TUNNEL_SOURCE_PREFIX));
+	wcscat_s(stDstPrefix, L"/");
+	wcscat_s(stDstPrefix, prefixLen);
+
+	hr = NetIfDeleteIPv6Route(ipv4interfaceIndex, stDstPrefix, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS);
+	LOGINFOW(L"CleanupLoopbackAdapter:: NetIfDeleteRoute for Interface %d returned with  %x",ipv4interfaceIndex, hr);
 
 	hr = S_OK;
 

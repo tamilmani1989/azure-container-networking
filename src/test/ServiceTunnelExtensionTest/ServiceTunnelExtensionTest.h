@@ -55,7 +55,7 @@ public:
 	TEST_METHOD(TestAddDeleteIPRoute);
 	TEST_METHOD(TestDiableEnableAdapter);
 	TEST_METHOD(TestReadFromRcfWithSTAddr);
-	TEST_METHOD(TestIdemPotent);
-	TEST_METHOD(UninstallAdapter);
+	TEST_METHOD(TestIPRouteNeighExist);
+	TEST_METHOD(TestUninstallAdapter);
 };
 #define LOG_FILE_PREFIX L"ServiceTunnelExtensionTest"
