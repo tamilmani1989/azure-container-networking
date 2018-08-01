@@ -20,6 +20,30 @@ func (endpoint *EndpointInfo) HotAttachEndpoint(containerID string) error {
 	return hcsshim.HotAttachEndpoint(containerID, endpoint.Id)
 }
 
+// ConstructEndpointID constructs endpoint name from netNsPath.
+func ConstructEndpointID(containerID string, netNsPath string, ifName string) (string, string) {
+	if len(containerID) > 8 {
+		containerID = containerID[:8]
+	}
+
+	infraEpName, workloadEpName := "", ""
+
+	splits := strings.Split(netNsPath, ":")
+	if len(splits) == 2 {
+		// For workload containers, we extract its linking infrastructure container ID.
+		if len(splits[1]) > 8 {
+			splits[1] = splits[1][:8]
+		}
+		infraEpName = splits[1] + "-" + ifName
+		workloadEpName = containerID + "-" + ifName
+	} else {
+		// For infrastructure containers, we use its container ID directly.
+		infraEpName = containerID + "-" + ifName
+	}
+
+	return infraEpName, workloadEpName
+}
+
 // newEndpointImpl creates a new endpoint in the network.
 func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	// Get Infrastructure containerID. Handle ADD calls for workload container.

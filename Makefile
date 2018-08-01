@@ -39,6 +39,14 @@ CNSFILES = \
 	$(COREFILES) \
 	$(CNMFILES)
 
+NPMFILES = \
+	$(wildcard npm/*.go) \
+	$(wildcard npm/ipsm/*.go) \
+	$(wildcard npm/iptm/*.go) \
+	$(wildcard npm/util/*.go) \
+	$(wildcard npm/plugin/*.go) \
+	$(COREFILES)
+
 # Build defaults.
 GOOS ?= linux
 GOARCH ?= amd64
@@ -48,12 +56,14 @@ CNM_DIR = cnm/plugin
 CNI_NET_DIR = cni/network/plugin
 CNI_IPAM_DIR = cni/ipam/plugin
 CNS_DIR = cns/service
+NPM_DIR = npm/plugin
 OUTPUT_DIR = output
 BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)
 CNM_BUILD_DIR = $(BUILD_DIR)/cnm
 CNI_BUILD_DIR = $(BUILD_DIR)/cni
 CNI_MULTITENANCY_BUILD_DIR = $(BUILD_DIR)/cni-multitenancy
 CNS_BUILD_DIR = $(BUILD_DIR)/cns
+NPM_BUILD_DIR = $(BUILD_DIR)/npm
 
 # Containerized build parameters.
 BUILD_CONTAINER_IMAGE = acn-build
@@ -78,12 +88,18 @@ CNM_ARCHIVE_NAME = azure-vnet-cnm-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 CNI_ARCHIVE_NAME = azure-vnet-cni-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 CNI_MULTITENANCY_ARCHIVE_NAME = azure-vnet-cni-multitenancy-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 CNS_ARCHIVE_NAME = azure-cns-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
+NPM_ARCHIVE_NAME = azure-npm-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
+NPM_IMAGE_ARCHIVE_NAME = azure-npm-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 
 # Docker libnetwork (CNM) plugin v2 image parameters.
 CNM_PLUGIN_IMAGE ?= microsoft/azure-vnet-plugin
 CNM_PLUGIN_ROOTFS = azure-vnet-plugin-rootfs
 
+# Azure network policy manager parameters.
+AZURE_NPM_IMAGE = containernetworking/azure-npm
+
 VERSION ?= $(shell git describe --tags --always --dirty)
+AZURE_NPM_VERSION = $(VERSION)
 
 ENSURE_OUTPUT_DIR_EXISTS := $(shell mkdir -p $(OUTPUT_DIR))
 
@@ -92,8 +108,24 @@ azure-cnm-plugin: $(CNM_BUILD_DIR)/azure-vnet-plugin$(EXE_EXT) cnm-archive
 azure-vnet: $(CNI_BUILD_DIR)/azure-vnet$(EXE_EXT)
 azure-vnet-ipam: $(CNI_BUILD_DIR)/azure-vnet-ipam$(EXE_EXT)
 azure-cni-plugin: azure-vnet azure-vnet-ipam cni-archive
-azure-cns:	$(CNS_BUILD_DIR)/azure-cns$(EXE_EXT) cns-archive 
+azure-cns: $(CNS_BUILD_DIR)/azure-cns$(EXE_EXT) cns-archive
+# Azure-NPM only supports Linux for now.
+ifeq ($(GOOS),linux)
+azure-npm: $(NPM_BUILD_DIR)/azure-npm$(EXE_EXT) npm-archive
+endif
+
+ifeq ($(GOOS),linux)
+all-binaries: azure-cnm-plugin azure-cni-plugin azure-cns azure-npm
+else
 all-binaries: azure-cnm-plugin azure-cni-plugin azure-cns
+endif
+
+ifeq ($(GOOS),linux)
+all-images: azure-npm-image
+else 
+all-images: 
+	@echo "Nothing to build. Skip."
+endif
 
 # Clean all build artifacts.
 .PHONY: clean
@@ -116,18 +148,25 @@ $(CNI_BUILD_DIR)/azure-vnet-ipam$(EXE_EXT): $(CNIFILES)
 $(CNS_BUILD_DIR)/azure-cns$(EXE_EXT): $(CNSFILES)
 	go build -v -o $(CNS_BUILD_DIR)/azure-cns$(EXE_EXT) -ldflags "-X main.version=$(VERSION) -s -w" $(CNS_DIR)/*.go
 
+# Build the Azure NPM plugin.
+$(NPM_BUILD_DIR)/azure-npm$(EXE_EXT): $(NPMFILES)
+	go build -v -o $(NPM_BUILD_DIR)/azure-npm$(EXE_EXT) -ldflags "-X main.version=$(VERSION) -s -w" $(NPM_DIR)/*.go
+
 # Build all binaries in a container.
-.PHONY: all-binaries-containerized
-all-binaries-containerized:
+.PHONY: all-containerized
+all-containerized:
 	pwd && ls -l
 	docker build -f Dockerfile.build -t $(BUILD_CONTAINER_IMAGE):$(VERSION) .
 	docker run --name $(BUILD_CONTAINER_NAME) \
+		-v /usr/bin/docker:/usr/bin/docker \
+		-v /var/run/docker.sock:/var/run/docker.sock \
 		$(BUILD_CONTAINER_IMAGE):$(VERSION) \
 		bash -c '\
 			pwd && ls -l && \
 			export GOOS=$(GOOS) && \
 			export GOARCH=$(GOARCH) && \
 			make all-binaries && \
+			make all-images && \
 			chown -R $(BUILD_USER):$(BUILD_USER) $(BUILD_DIR) \
 		'
 	docker cp $(BUILD_CONTAINER_NAME):$(BUILD_CONTAINER_REPO_PATH)/$(BUILD_DIR) $(OUTPUT_DIR)
@@ -171,6 +210,23 @@ azure-vnet-plugin-image: azure-cnm-plugin
 publish-azure-vnet-plugin-image:
 	docker plugin push $(CNM_PLUGIN_IMAGE):$(VERSION)
 
+# Build the Azure NPM image.
+.PHONY: azure-npm-image
+azure-npm-image: azure-npm
+ifeq ($(GOOS),linux)
+	docker build \
+	-f npm/Dockerfile \
+	-t $(AZURE_NPM_IMAGE):$(AZURE_NPM_VERSION) \
+	--build-arg NPM_BUILD_DIR=$(NPM_BUILD_DIR) \
+	.
+	docker save $(AZURE_NPM_IMAGE):$(AZURE_NPM_VERSION) | gzip -c > $(NPM_BUILD_DIR)/$(NPM_ARCHIVE_NAME)
+endif
+
+# Publish the Azure NPM image to a Docker registry
+.PHONY: publish-azure-npm-image
+publish-azure-npm-image:
+	docker push $(AZURE_NPM_IMAGE):$(AZURE_NPM_VERSION)
+
 # Create a CNI archive for the target platform.
 .PHONY: cni-archive
 cni-archive:
@@ -198,3 +254,12 @@ cns-archive:
 	chmod 0755 $(CNS_BUILD_DIR)/azure-cns$(EXE_EXT)
 	cd $(CNS_BUILD_DIR) && $(ARCHIVE_CMD) $(CNS_ARCHIVE_NAME) azure-cns$(EXE_EXT)
 	chown $(BUILD_USER):$(BUILD_USER) $(CNS_BUILD_DIR)/$(CNS_ARCHIVE_NAME)
+
+# Create a NPM archive for the target platform. Only Linux is supported for now.
+.PHONY: npm-archive
+npm-archive:
+ifeq ($(GOOS),linux)
+	chmod 0755 $(NPM_BUILD_DIR)/azure-npm$(EXE_EXT)
+	cd $(NPM_BUILD_DIR) && $(ARCHIVE_CMD) $(NPM_ARCHIVE_NAME) azure-npm$(EXE_EXT)
+	chown $(BUILD_USER):$(BUILD_USER) $(NPM_BUILD_DIR)/$(NPM_ARCHIVE_NAME)
+endif

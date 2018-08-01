@@ -24,7 +24,7 @@ const (
 var version string
 
 // If report write succeeded, mark the report flag state to false.
-func markSendReport(reportManager *telemetry.ReportManager) {
+func markSendReport(reportManager *telemetry.CNIReportManager) {
 	if err := reportManager.Report.SetReportState(); err != nil {
 		log.Printf("SetReportState failed due to %v", err)
 		reportManager.Report.ErrorMessage = err.Error()
@@ -36,7 +36,7 @@ func markSendReport(reportManager *telemetry.ReportManager) {
 }
 
 // send error report to hostnetagent if CNI encounters any error.
-func reportPluginError(reportManager *telemetry.ReportManager, err error) {
+func reportPluginError(reportManager *telemetry.CNIReportManager, err error) {
 	log.Printf("Report plugin error")
 	reportManager.GetReport(pluginName, version)
 	reportManager.Report.ErrorMessage = err.Error()
@@ -50,14 +50,19 @@ func reportPluginError(reportManager *telemetry.ReportManager, err error) {
 
 // Main is the entry point for CNI network plugin.
 func main() {
-	var config common.PluginConfig
-	var err error
+	var (
+		config common.PluginConfig
+		err    error
+	)
+
 	config.Version = version
-	reportManager := &telemetry.ReportManager{
-		HostNetAgentURL: hostNetAgentURL,
-		IpamQueryURL:    ipamQueryURL,
-		ReportType:      reportType,
-		Report:          &telemetry.Report{},
+	reportManager := &telemetry.CNIReportManager{
+		ReportManager: &telemetry.ReportManager{
+			HostNetAgentURL: hostNetAgentURL,
+			ReportType:      reportType,
+		},
+		IpamQueryURL: ipamQueryURL,
+		Report:       &telemetry.CNIReport{},
 	}
 
 	reportManager.GetReport(pluginName, config.Version)
