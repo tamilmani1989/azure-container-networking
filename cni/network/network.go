@@ -209,6 +209,8 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 	log.Printf("[cni-net] Read network configuration %+v.", nwCfg)
 
+	startMonitorIfNotRunning(nwCfg)
+
 	// Initialize values from network config.
 	networkId := nwCfg.Name
 	endpointId := GetEndpointID(args)

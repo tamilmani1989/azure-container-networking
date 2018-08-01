@@ -21,6 +21,7 @@ const (
 	name                    = "azure-cnimonitor"
 	pluginName              = "azure-vnet"
 	DEFAULT_TIMEOUT_IN_SECS = "10"
+	DefaultMode             = "AzureChain"
 )
 
 // Version is populated by make during build.
@@ -66,6 +67,13 @@ var args = acn.ArgumentList{
 		DefaultValue: DEFAULT_TIMEOUT_IN_SECS,
 	},
 	{
+		Name:         acn.OptMode,
+		Shorthand:    acn.OptModeAlias,
+		Description:  "Network Monitor Mode",
+		Type:         "bool",
+		DefaultValue: false,
+	},
+	{
 		Name:         acn.OptVersion,
 		Shorthand:    acn.OptVersionAlias,
 		Description:  "Print version information",
@@ -89,6 +97,7 @@ func main() {
 	logTarget := acn.GetArg(acn.OptLogTarget).(int)
 	logDirectory := acn.GetArg(acn.OptLogLocation).(string)
 	timeout := acn.GetArg(acn.OptIntervalTime).(int)
+	mode := acn.GetArg(acn.OptMode).(bool)
 	vers := acn.GetArg(acn.OptVersion).(bool)
 
 	if vers {
@@ -123,6 +132,7 @@ func main() {
 	netMonitor := &cnms.NetworkMonitor{
 		AddRulesToBeValidated:    make(map[string]int),
 		DeleteRulesToBeValidated: make(map[string]int),
+		IsMonitorAllChain:        mode,
 	}
 
 	for true {

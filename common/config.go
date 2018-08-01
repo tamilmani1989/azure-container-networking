@@ -53,6 +53,10 @@ const (
 	OptIntervalTimeAlias   = "it"
 	OptDefaultIntervalTime = "defaultinterval"
 
+	// Mode
+	OptMode      = "mode"
+	OptModeAlias = "m"
+
 	// Version.
 	OptVersion      = "version"
 	OptVersionAlias = "v"

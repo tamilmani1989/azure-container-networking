@@ -84,7 +84,7 @@ func (networkMonitor *NetworkMonitor) RemoveInvalidL2Rules(
 		}
 	}
 
-	if networkMonitor.isMonitorAllChain {
+	if networkMonitor.IsMonitorAllChain {
 		originalChainRules := make(map[string]string)
 
 		if err := generateL2RulesMap(originalChainRules, ebtables.PreRouting); err != nil {

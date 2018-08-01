@@ -1,8 +1,10 @@
 package network
 
 import (
+	"fmt"
 	"net"
 	"strconv"
+	"strings"
 
 	"github.com/Azure/azure-container-networking/cni"
 	"github.com/Azure/azure-container-networking/cns"
@@ -14,6 +16,7 @@ import (
 
 const (
 	snatInterface = "eth1"
+	binPath       = "/opt/cni/bin"
 )
 
 // handleConsecutiveAdd is a dummy function for Linux platform.
@@ -58,4 +61,51 @@ func addSnatInterface(nwCfg *cni.NetworkConfig, result *cniTypesCurr.Result) {
 
 		result.Interfaces = append(result.Interfaces, snatIface)
 	}
+}
+
+func startMonitorIfNotRunning(nwCfg *cni.NetworkConfig) error {
+	if nwCfg != nil {
+		netmon := nwCfg.NetworkMonitor
+		if netmon.Name == "" {
+			return fmt.Errorf("NetworkMonitor is not set in conflist")
+		}
+
+		if netmon.Disable == true {
+			log.Printf("Network Monitor is not enabled")
+			return nil
+		}
+
+		cmd := fmt.Sprintf("pgrep -x %v", netmon.Name)
+		out, err := platform.ExecuteShellCommand(cmd)
+		if err != nil {
+			log.Printf("Error running the cmd %v failed with %v", cmd, err)
+			return err
+		}
+
+		if out != "" {
+			pidSplit := strings.Split(out, "\n")
+			if len(pidSplit) > 0 {
+				log.Printf("Azure Network monitor is already running with pid %v", pidSplit[0])
+				return nil
+			} else {
+				log.Printf("Out is not empty but split string is out : %v", out)
+			}
+		}
+
+		cmd := fmt.Sprintf("/opt/cni/bin/%v -m %v", netmon.Name, netmon.MonitorAllChain)
+
+		if netmon.Interval != 0 {
+			cmd = fmt.Sprintf("%v -it %v", cmd, netmon.Interval)
+		}
+
+		out, err := platform.ExecuteShellCommand(cmd)
+		if err != nil {
+			log.Printf("Starting Network Monitor failed with error %v", err)
+			return err
+		}
+
+		log.Printf("Azure Network Monitor started")
+	}
+
+	return nil
 }
