@@ -23,7 +23,7 @@ var requestBaseInterval = 1000
 var minVlan uint16 = 1
 var maxVlan uint16 = 2048
 
-// Init - Initialize repsoitory.
+// Init - Initialize repository.
 func Init(dataStoreSettings configuration.DataStoreSettings, interval int, min, max uint16) error {
 	requestBaseInterval = interval
 	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
@@ -40,6 +40,11 @@ func Init(dataStoreSettings configuration.DataStoreSettings, interval int, min, 
 	}
 
 	return nil
+}
+
+// IsFeatureSupported - Function to validate if the given feature is supported
+func IsFeatureSupported(featureID int) bool {
+	return dataStoreShim.IsFeatureSupported(featureID)
 }
 
 // DumpState - Function to dump test state.
@@ -107,7 +112,7 @@ func PutSubnetConfiguration(subnetConfiguration *SubnetConfiguration) *api.JsonE
 	return nil
 }
 
-// UpdateAccessTokenOnSubnet - Update access toke in a subnet configuration.
+// UpdateAccessTokenOnSubnet - Update access token in a subnet configuration.
 func UpdateAccessTokenOnSubnet(networkID, subnetName, accessToken string) *api.JsonErr {
 	subnetConfiguration, err := QuerySubnetConfiguration(networkID, subnetName)
 	if err != nil {
@@ -502,6 +507,15 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 	}
 
 	reservationKey := GetReservationKey(networkID, reservationID)
+
+	if err = DeleteIPAllocation(reservationConfiguration.NetworkID,
+		reservationConfiguration.AllocationRequest.SubnetName,
+		reservationKey,
+		reservationConfiguration.AllocatedSubnet); err != nil {
+		loggershim.LS.Errorf("Failed to delete IP allocation due to error %+v\n", err)
+		return err
+	}
+
 	if len(reservationConfiguration.AssociatedNCID) != 0 && !force {
 		msg := fmt.Sprintf(
 			"Reservation %s is in use with container: [%s]",
@@ -564,6 +578,76 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 	}
 
 	return err
+}
+
+// DeleteIPAllocation - Delete an IP allocation entry from IPAllocations table.
+func DeleteIPAllocation(networkID, subnetName, reservationKey, allocatedIP string) *api.JsonErr {
+	if IsFeatureSupported(configuration.SharedSubnetDelegation) {
+		loggershim.LS.Debugf("Deleting IP %s from IPAllocations table", allocatedIP)
+
+		allocatedIPKey := EncodeIPAllocationKey(allocatedIP)
+		savedReservationKey, err := TryQueryIPAllocation(networkID, subnetName, allocatedIPKey)
+		if err != nil {
+			loggershim.LS.Errorf("Error: Cannot access IPAllocations table")
+			return err
+		}
+
+		if len(savedReservationKey) > 0 {
+			loggershim.LS.Debugf("Found reservation %s for allocated IP %s", savedReservationKey, allocatedIP)
+
+			// Delete the entry if the saved reservation matches the current reservation
+			if reservationKey == savedReservationKey {
+				partitionKey := GetSubnetKey(networkID, subnetName)
+				err := dataStoreShim.DeleteInPartition(ipAllocationsTableName, partitionKey, allocatedIPKey)
+				if err != nil {
+					loggershim.LS.Errorf("Error: Cannot delete entry %s from IPAllocations table", allocatedIPKey)
+					msg := fmt.Sprintf("Cannot delete entry %s from IPAllocations table", allocatedIPKey)
+
+					return &api.JsonErr{
+						Code:       api.StatusInternalServerError,
+						HTTPStatus: http.StatusInternalServerError,
+						Text:       msg}
+				}
+			} else {
+				loggershim.LS.Errorf("Error: Reservation key mismatch in IPAllocations table")
+				msg := fmt.Sprintf("Reservation key mismatch in IPAllocations table for IP %s", allocatedIP)
+
+				return &api.JsonErr{
+					Code:       api.InvalidIPSubnet,
+					HTTPStatus: http.StatusInternalServerError,
+					Text:       msg}
+			}
+		} else {
+			loggershim.LS.Errorf("Error: Cannot find the ipAddress %s in IPAllocation table", allocatedIP)
+		}
+	}
+
+	return nil
+}
+
+// AddIPAllocation - Add the IP allocation to the specified partition of IPAllocations table.
+func AddIPAllocation(networkID, subnetName, allocatedIP, reservationKey string) *api.JsonErr {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+	status, err := dataStoreShim.InsertInPartition(ipAllocationsTableName,
+		partitionKey,
+		allocatedIP,
+		TableToColumnMap[ipAllocationsTableName],
+		reservationKey)
+	if err != nil {
+		jsonErr := &api.JsonErr{}
+		if status == http.StatusConflict {
+			jsonErr.Code = api.ReservationInUse
+			jsonErr.HTTPStatus = status
+			jsonErr.Text = fmt.Sprintf("IP is unavailable for allocation")
+		} else {
+			jsonErr.Code = api.StatusInternalServerError
+			jsonErr.HTTPStatus = http.StatusInternalServerError
+			jsonErr.Text = fmt.Sprintf("Internal server error")
+		}
+		return jsonErr
+	}
+
+	return nil
 }
 
 // TryQueryNodeConfiguration - Query node configuration.
@@ -2311,4 +2395,69 @@ func GetAllNodeIDs() (map[string]bool, error) {
 	}
 
 	return nodeIDs, nil
+}
+
+// TryQueryAllIPAllocations - Query all IP allocations in the partition.
+func TryQueryAllIPAllocations(networkID, subnetName string, context interface{}) (
+	map[string]interface{}, bool, interface{}, *api.JsonErr) {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+	data, hasMoreRows, retContext, statusCode, err :=
+		dataStoreShim.QueryAllInPartition(ipAllocationsTableName, partitionKey, context)
+
+	if err != nil && statusCode != http.StatusNotFound {
+		msg := fmt.Sprintf(
+			"Failed to retrieve IP allocations for partition key:[%s] due to error:[%s]",
+			partitionKey,
+			err.Error())
+		return nil, false, nil, &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	if data == nil {
+		return nil, false, nil, nil
+	}
+
+	return data, hasMoreRows, retContext, nil
+}
+
+// TryQueryIPAllocation - Query for IP allocations
+func TryQueryIPAllocation(networkID, subnetName, ipAddress string) (string, *api.JsonErr) {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+	return TryQueryIPAllocationByKey(partitionKey, ipAddress)
+}
+
+// TryQueryIPAllocationByKey - Query for IP allocations by the key in the specified partition
+func TryQueryIPAllocationByKey(partitionKey, ipAddress string) (string, *api.JsonErr) {
+	value, status, err := dataStoreShim.QueryInPartition(ipAllocationsTableName, partitionKey, ipAddress)
+	if err != nil && status != http.StatusNotFound {
+		msg := fmt.Sprintf(
+			"Failed to retrieve IP allocation for key:[%s] in partition:[%s] due to error:[%s]",
+			ipAddress,
+			partitionKey,
+			err.Error())
+		return "", &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	if value == nil {
+		return "", nil
+	}
+
+	return value.(string), nil
+}
+
+// EncodeIPAllocationKey - Encodes the primary key for IP allocations table
+func EncodeIPAllocationKey(allocatedSubnet string) string {
+	charReplacer := strings.NewReplacer("/", "_")
+	return charReplacer.Replace(allocatedSubnet)
+}
+
+// DecodeIPAllocationKey - Decodes the primary key for IP allocations table
+func DecodeIPAllocationKey(allocatedSubnet string) string {
+	charReplacer := strings.NewReplacer("_", "/")
+	return charReplacer.Replace(allocatedSubnet)
 }

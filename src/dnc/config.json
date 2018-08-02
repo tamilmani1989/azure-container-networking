@@ -3,7 +3,8 @@
        "AzureStorageInfo":{  
           "AccountName":"",
           "Key":"",
-          "PartitionKey":""
+          "PartitionKey":"",
+          "EnableSharedSubnetDelegation":false
        },
        "AzureSQLInfo":{  
           "Host":"",

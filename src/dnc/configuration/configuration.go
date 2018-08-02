@@ -9,11 +9,17 @@ import (
 	"path/filepath"
 )
 
+// Features supported by underlying data storage
+const (
+	SharedSubnetDelegation = 0
+)
+
 // AzureStorageInfo - Details to connect to azure storage account.
 type AzureStorageInfo struct {
-	AccountName  string
-	Key          string
-	PartitionKey string
+	AccountName                  string
+	Key                          string
+	PartitionKey                 string
+	EnableSharedSubnetDelegation bool
 }
 
 // AzureSQLInfo - Details to connect to azure sql database.
@@ -27,7 +33,8 @@ type AzureSQLInfo struct {
 
 // TestPersistenceStoreInfo - Details to initialize testpersistencestore
 type TestPersistenceStoreInfo struct {
-	Test string
+	Test                         string
+	EnableSharedSubnetDelegation bool
 }
 
 // OrchestratorStorageInfo - Details to initialize orchestratorstorage

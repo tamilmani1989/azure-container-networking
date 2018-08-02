@@ -3,6 +3,7 @@ package main
 import (
 	"dnc/allocationhelper"
 	"dnc/api"
+	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/utils"
 	"fmt"
@@ -19,7 +20,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 	var failureDetail *api.JsonErr
 	var allocatedIP *net.IPNet
 	var ipSubnet *net.IPNet
-	var allocationsInSubnet, reservedAddresses map[string]*net.IPNet
+	var reservedAddresses map[string]*net.IPNet
 	var nodeID string
 	addressesToIgnore := make(map[string]*net.IPNet)
 	isWebAppsContainer := false
@@ -58,104 +59,114 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 	}
 
 	logger.Debugf("Found NetworkID: %s, ReservationID: %s, IPConstraint: %s\n", repoReservationRequest.NetworkID, repoReservationRequest.ReservationID, repoReservationRequest.AllocationRequest.IPConstraint)
-	allocationsInSubnet, err = getAllocatedAddressesInSubnet(
-		repoReservationRequest.NetworkID,
+
+	addressesToIgnore, allocatedIP, err = getAllocationsInSubnet(repoReservationRequest.NetworkID,
+		repoReservationRequest.AllocationRequest.SubnetName,
+		reservationKey,
 		subnetConfiguration)
+
 	if err != nil {
+		logger.Errorf("getAllocationsInSubnet failed %+v", err)
 		markAllocationAsFailed = true
 		failureDetail = err
 		goto Cleanup
 	}
 
-	ipSubnet, _ = utils.ParseIPNet(subnetConfiguration.IPSubnet)
-	reservedAddresses, _ = GetReservedAddressesInSubnet(ipSubnet)
+	if allocatedIP == nil {
+		ipSubnet, _ = utils.ParseIPNet(subnetConfiguration.IPSubnet)
+		reservedAddresses, _ = GetReservedAddressesInSubnet(ipSubnet)
 
-	for reservedSubnetString, reservedIPSubnet := range reservedAddresses {
-		addressesToIgnore[reservedSubnetString] = reservedIPSubnet
-	}
-
-	if len(repoReservationRequest.AssociatedNCID) > 0 {
-		networkContainerConfiguration, err := datamodel.TryQueryNetworkContainer(
-			repoReservationRequest.NetworkID,
-			repoReservationRequest.AssociatedNCID)
-		if err != nil {
-			return false, err
+		for reservedSubnetString, reservedIPSubnet := range reservedAddresses {
+			addressesToIgnore[reservedSubnetString] = reservedIPSubnet
 		}
 
-		if networkContainerConfiguration == nil {
-			markAllocationAsFailed = true
-			failureDetail = &api.JsonErr{
-				Code:       api.NetworkContainerNotFound,
-				HTTPStatus: http.StatusBadRequest,
-				Text:       fmt.Sprintf("Failed to find configuration for network container %s", repoReservationRequest.AssociatedNCID)}
-			goto Cleanup
+		if len(repoReservationRequest.AssociatedNCID) > 0 {
+			networkContainerConfiguration, err := datamodel.TryQueryNetworkContainer(
+				repoReservationRequest.NetworkID,
+				repoReservationRequest.AssociatedNCID)
+			if err != nil {
+				return false, err
+			}
+
+			if networkContainerConfiguration == nil {
+				markAllocationAsFailed = true
+				failureDetail = &api.JsonErr{
+					Code:       api.NetworkContainerNotFound,
+					HTTPStatus: http.StatusBadRequest,
+					Text:       fmt.Sprintf("Failed to find configuration for network container %s", repoReservationRequest.AssociatedNCID)}
+				goto Cleanup
+			}
+
+			associationInfo := networkContainerConfiguration.GetAssociationInfo()
+			nodeID = associationInfo.NodeID
+			if associationInfo.ContainerType == cns.WebApps {
+				isWebAppsContainer = true
+			}
+		} else if len(repoReservationRequest.AllocationRequest.NodeConstraint) != 0 {
+			nodeID = repoReservationRequest.AllocationRequest.NodeConstraint
 		}
 
-		associationInfo := networkContainerConfiguration.GetAssociationInfo()
-		nodeID = associationInfo.NodeID
-		if associationInfo.ContainerType == cns.WebApps {
-			isWebAppsContainer = true
+		// This needs to be fixed for scenarios where we are using the reserve IP
+		// API to dump allocations on a node and orchestrator is WebApps.
+		if len(nodeID) > 0 && isWebAppsContainer {
+			allocatedAddressesOnNode, _ := getAllocatedAddressesOnNode(nodeID)
+			for allocatedNodeSubnetString, allocatedNodeSubnet := range allocatedAddressesOnNode {
+				addressesToIgnore[allocatedNodeSubnetString] = allocatedNodeSubnet
+			}
 		}
-	} else if len(repoReservationRequest.AllocationRequest.NodeConstraint) != 0 {
-		nodeID = repoReservationRequest.AllocationRequest.NodeConstraint
-	}
 
-	// This needs to be fixed for scenarios where we are using the reserve IP
-	// API to dump allocations on a node and orchestrator is WebApps.
-	if len(nodeID) > 0 && isWebAppsContainer {
-		allocatedAddressesOnNode, _ := getAllocatedAddressesOnNode(nodeID)
-		for allocatedNodeSubnetString, allocatedNodeSubnet := range allocatedAddressesOnNode {
-			addressesToIgnore[allocatedNodeSubnetString] = allocatedNodeSubnet
-		}
-	}
+		if repoReservationRequest.AllocationRequest.IPConstraint != "" {
+			var ipSubnetConstraint *net.IPNet
+			ipSubnetConstraint, err = allocationhelper.GetIPSubnetForIPAllocationConstraint(
+				repoReservationRequest.AllocationRequest.IPConstraint)
 
-	for allocatedSubnetString, allocatedIPSubnet := range allocationsInSubnet {
-		addressesToIgnore[allocatedSubnetString] = allocatedIPSubnet
-	}
-
-	if repoReservationRequest.AllocationRequest.IPConstraint != "" {
-		var ipSubnetConstraint *net.IPNet
-		ipSubnetConstraint, err = allocationhelper.GetIPSubnetForIPAllocationConstraint(
-			repoReservationRequest.AllocationRequest.IPConstraint)
-
-		if err != nil {
-			markAllocationAsFailed = true
-			failureDetail = err
-			goto Cleanup
-		} else {
-			var result bool
-			result, err = allocationhelper.IsRequestedRangeAllocatable(ipSubnet, addressesToIgnore, ipSubnetConstraint)
-			if result {
-				allocatedIP = ipSubnetConstraint
-				logger.Debugf("Assigned IP: %s\n", allocatedIP)
-			} else {
-				// logger.Errorf(
-				// 	"Failed to process request %s due to error %s\n",
-				// 	repoReservationRequest.AllocationRequest.String(),
-				// 	err.String())
+			if err != nil {
 				markAllocationAsFailed = true
 				failureDetail = err
 				goto Cleanup
+			} else {
+				var result bool
+				result, err = allocationhelper.IsRequestedRangeAllocatable(ipSubnet, addressesToIgnore, ipSubnetConstraint)
+				if result {
+					allocatedIP = ipSubnetConstraint
+				} else {
+					// logger.Errorf(
+					// 	"Failed to process request %s due to error %s\n",
+					// 	repoReservationRequest.AllocationRequest.String(),
+					// 	err.String())
+					markAllocationAsFailed = true
+					failureDetail = err
+					goto Cleanup
+				}
+			}
+		} else {
+			var allocationErr error
+			allocatedIP, allocationErr = allocationhelper.AllocateSubnetFromNetworkSpace(ipSubnet, addressesToIgnore, 32)
+			if allocationErr != nil {
+				markAllocationAsFailed = true
+				failureDetail = &api.JsonErr{
+					Code:       api.AllocationFailed,
+					HTTPStatus: http.StatusBadRequest,
+					Text: fmt.Sprintf(
+						"Failed to allocate address for request %s. Error:[%s]",
+						repoReservationRequest.AllocationRequest.String(),
+						allocationErr.Error())}
+				goto Cleanup
 			}
 		}
-	} else {
-		var allocationErr error
-		allocatedIP, allocationErr = allocationhelper.AllocateSubnetFromNetworkSpace(ipSubnet, addressesToIgnore, 32)
-		if allocationErr != nil {
-			markAllocationAsFailed = true
-			failureDetail = &api.JsonErr{
-				Code:       api.AllocationFailed,
-				HTTPStatus: http.StatusBadRequest,
-				Text: fmt.Sprintf(
-					"Failed to allocate address for request %s. Error:[%s]",
-					repoReservationRequest.AllocationRequest.String(),
-					allocationErr.Error())}
-			goto Cleanup
+
+		if allocatedIP != nil {
+			err = addIPAllocation(repoReservationRequest.NetworkID,
+				repoReservationRequest.AllocationRequest.SubnetName,
+				reservationKey,
+				allocatedIP)
+
+			if err != nil {
+				return false, err
+			}
+			logger.Debugf("Allocated IP: %s\n", allocatedIP)
 		}
-
-		logger.Debugf("Allocated IP: %s\n", allocatedIP)
 	}
-
 	if allocatedIP != nil {
 		repoReservationRequest.Status = datamodel.Completed
 		repoReservationRequest.AllocatedSubnet = allocatedIP.String()
@@ -175,7 +186,8 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 				return false, err
 			}
 		}
-		datamodel.UpdateSubnetReservationSet(
+
+		err = datamodel.UpdateSubnetReservationSet(
 			repoReservationRequest.NetworkID,
 			repoReservationRequest.ReservationID,
 			repoReservationRequest.AllocatedSubnet,
@@ -323,4 +335,50 @@ func getAllocatedAddressesOnNode(nodeID string) (map[string]*net.IPNet, *api.Jso
 	}
 
 	return allocatedSubnets, nil
+}
+
+func addIPAllocation(networkID, subnetName, reservationKey string, allocatedIP *net.IPNet) *api.JsonErr {
+	if datamodel.IsFeatureSupported(configuration.SharedSubnetDelegation) {
+		err := datamodel.AddIPAllocation(networkID, subnetName, datamodel.EncodeIPAllocationKey(allocatedIP.String()), reservationKey)
+		if err != nil {
+			logger.Errorf("addIPAllocation for %v failed due to %s", allocatedIP.String(), err.Text)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getAllocationsInSubnet(networkID, subnetName, reservationKey string, subnetConfiguration *datamodel.SubnetConfiguration) (
+	map[string]*net.IPNet, *net.IPNet, *api.JsonErr) {
+	var err *api.JsonErr
+	var allocatedIP *net.IPNet
+	allocationsInSubnet := make(map[string]*net.IPNet)
+
+	if datamodel.IsFeatureSupported(configuration.SharedSubnetDelegation) {
+		var hasMoreRows = true
+		var context interface{}
+		var ipAllocationsInSubnet map[string]interface{}
+		for hasMoreRows {
+			// TODO:: Test the scenario where we need to make repetitive calls to IPAllocations table to get all the rows
+			ipAllocationsInSubnet, hasMoreRows, context, err = datamodel.TryQueryAllIPAllocations(networkID, subnetName, context)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			for savedIPAddress, savedReservationKey := range ipAllocationsInSubnet {
+				ipAddressString := datamodel.DecodeIPAllocationKey(savedIPAddress)
+				allocationsInSubnet[ipAddressString], _ = utils.ParseIPNet(ipAddressString)
+
+				if reservationKey == savedReservationKey {
+					allocatedIP, _ = allocationsInSubnet[ipAddressString]
+					logger.Debugf("Found allocated IP %s for current reservation %s", allocatedIP.String(), reservationKey)
+				}
+			}
+		}
+	} else {
+		allocationsInSubnet, err = getAllocatedAddressesInSubnet(networkID, subnetConfiguration)
+	}
+
+	return allocationsInSubnet, allocatedIP, err
 }
