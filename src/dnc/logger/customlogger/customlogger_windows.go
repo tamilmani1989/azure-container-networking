@@ -45,7 +45,7 @@ func (l *CustomLogger) Init(stderr bool) {
 	}
 
 	if stderr {
-		l.logTarget = log.TargetMultiWrite
+		l.logTarget = log.TargetStdOutAndLogFile
 	} else {
 		l.logTarget = log.TargetLogfile
 	}

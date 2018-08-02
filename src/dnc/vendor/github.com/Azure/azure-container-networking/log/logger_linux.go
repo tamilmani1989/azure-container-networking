@@ -33,7 +33,7 @@ func (logger *Logger) SetTarget(target int) error {
 	case TargetLogfile:
 		logger.out, err = os.OpenFile(logger.getLogFileName(), os.O_CREATE|os.O_APPEND|os.O_RDWR, logFilePerm)
 
-	case TargetMultiWrite:
+	case TargetStdOutAndLogFile:
 		logger.out, err = os.OpenFile(logger.getLogFileName(), os.O_CREATE|os.O_APPEND|os.O_RDWR, logFilePerm)
 		if err == nil {
 			logger.l.SetOutput(io.MultiWriter(os.Stdout, logger.out))
