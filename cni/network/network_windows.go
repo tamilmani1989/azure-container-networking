@@ -69,3 +69,6 @@ func setEndpointOptions(cnsNwConfig *cns.GetNetworkContainerResponse, epInfo *ne
 
 func addSnatInterface(nwCfg *cni.NetworkConfig, result *cniTypesCurr.Result) {
 }
+
+func startMonitorIfNotRunning(nwCfg *cni.NetworkConfig) error {
+}

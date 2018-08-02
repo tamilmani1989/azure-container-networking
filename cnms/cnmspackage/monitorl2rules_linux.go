@@ -2,10 +2,10 @@ package cnms
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/Azure/azure-container-networking/ebtables"
+	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/platform"
 )
 

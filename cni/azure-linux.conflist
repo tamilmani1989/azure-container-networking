@@ -9,6 +9,9 @@
          "ipam":{
             "type":"azure-vnet-ipam"
          }
+         "networkMonitor":{
+             "name":"azure-cnms"
+         }
       },
       {
          "type":"portmap",

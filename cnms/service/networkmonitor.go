@@ -155,8 +155,7 @@ func main() {
 		log.Printf("network manager:%+v", nm)
 
 		if err := nm.SetupNetworkUsingState(netMonitor); err != nil {
-			log.Printf("Failed while SetupNetworkUsingState")
-			return
+			log.Printf("Failed while calling SetupNetworkUsingState with error %v", err)
 		}
 
 		log.Printf("Going to sleep for %v seconds", timeout)

@@ -39,6 +39,12 @@ CNSFILES = \
 	$(COREFILES) \
 	$(CNMFILES)
 
+CNMSFILES = \
+	$(wildcard cnms/*.go) \
+	$(wildcard cnms/service/*.go) \
+	$(wildcard cnms/cnmspackage/*.go) \
+	$(COREFILES)
+
 NPMFILES = \
 	$(wildcard npm/*.go) \
 	$(wildcard npm/ipsm/*.go) \
@@ -56,6 +62,7 @@ CNM_DIR = cnm/plugin
 CNI_NET_DIR = cni/network/plugin
 CNI_IPAM_DIR = cni/ipam/plugin
 CNS_DIR = cns/service
+CNMS_DIR = cnms/service
 NPM_DIR = npm/plugin
 OUTPUT_DIR = output
 BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)
@@ -63,6 +70,7 @@ CNM_BUILD_DIR = $(BUILD_DIR)/cnm
 CNI_BUILD_DIR = $(BUILD_DIR)/cni
 CNI_MULTITENANCY_BUILD_DIR = $(BUILD_DIR)/cni-multitenancy
 CNS_BUILD_DIR = $(BUILD_DIR)/cns
+CNMS_BUILD_DIR = $(BUILD_DIR)/cnms
 NPM_BUILD_DIR = $(BUILD_DIR)/npm
 
 # Containerized build parameters.
@@ -89,6 +97,7 @@ CNI_ARCHIVE_NAME = azure-vnet-cni-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 CNI_MULTITENANCY_ARCHIVE_NAME = azure-vnet-cni-multitenancy-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 CNS_ARCHIVE_NAME = azure-cns-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 NPM_ARCHIVE_NAME = azure-npm-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
+CNMS_ARCHIVE_NAME = azure-cnms-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 NPM_IMAGE_ARCHIVE_NAME = azure-npm-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 
 # Docker libnetwork (CNM) plugin v2 image parameters.
@@ -111,11 +120,12 @@ azure-cni-plugin: azure-vnet azure-vnet-ipam cni-archive
 azure-cns: $(CNS_BUILD_DIR)/azure-cns$(EXE_EXT) cns-archive
 # Azure-NPM only supports Linux for now.
 ifeq ($(GOOS),linux)
+azure-cnms: $(CNMS_BUILD_DIR)/azure-cnms$(EXE_EXT) cnms-archive
 azure-npm: $(NPM_BUILD_DIR)/azure-npm$(EXE_EXT) npm-archive
 endif
 
 ifeq ($(GOOS),linux)
-all-binaries: azure-cnm-plugin azure-cni-plugin azure-cns azure-npm
+all-binaries: azure-cnm-plugin azure-cni-plugin azure-cns azure-cnms azure-npm 
 else
 all-binaries: azure-cnm-plugin azure-cni-plugin azure-cns
 endif
@@ -147,6 +157,10 @@ $(CNI_BUILD_DIR)/azure-vnet-ipam$(EXE_EXT): $(CNIFILES)
 # Build the Azure CNS Service.
 $(CNS_BUILD_DIR)/azure-cns$(EXE_EXT): $(CNSFILES)
 	go build -v -o $(CNS_BUILD_DIR)/azure-cns$(EXE_EXT) -ldflags "-X main.version=$(VERSION) -s -w" $(CNS_DIR)/*.go
+
+# Build the Azure CNMS Service.
+$(CNMS_BUILD_DIR)/azure-cnms$(EXE_EXT): $(CNMSFILES)
+	go build -v -o $(CNMS_BUILD_DIR)/azure-cnms$(EXE_EXT) -ldflags "-X main.version=$(VERSION) -s -w" $(CNMS_DIR)/*.go
 
 # Build the Azure NPM plugin.
 $(NPM_BUILD_DIR)/azure-npm$(EXE_EXT): $(NPMFILES)
@@ -254,6 +268,15 @@ cns-archive:
 	chmod 0755 $(CNS_BUILD_DIR)/azure-cns$(EXE_EXT)
 	cd $(CNS_BUILD_DIR) && $(ARCHIVE_CMD) $(CNS_ARCHIVE_NAME) azure-cns$(EXE_EXT)
 	chown $(BUILD_USER):$(BUILD_USER) $(CNS_BUILD_DIR)/$(CNS_ARCHIVE_NAME)
+
+# Create a CNMS archive for the target platform. Only Linux is supported for now.
+.PHONY: cnms-archive
+cnms-archive:
+ifeq ($(GOOS),linux)
+	chmod 0755 $(CNMS_BUILD_DIR)/azure-cnms$(EXE_EXT)
+	cd $(CNMS_BUILD_DIR) && $(ARCHIVE_CMD) $(CNMS_ARCHIVE_NAME) azure-cnms$(EXE_EXT)
+	chown $(BUILD_USER):$(BUILD_USER) $(CNMS_BUILD_DIR)/$(CNMS_ARCHIVE_NAME)
+endif
 
 # Create a NPM archive for the target platform. Only Linux is supported for now.
 .PHONY: npm-archive

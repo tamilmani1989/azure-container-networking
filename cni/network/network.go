@@ -209,7 +209,9 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 	log.Printf("[cni-net] Read network configuration %+v.", nwCfg)
 
-	startMonitorIfNotRunning(nwCfg)
+	if err := startMonitorIfNotRunning(nwCfg); err != nil {
+		log.Printf("Starting network monitor failed with %v", err)
+	}
 
 	// Initialize values from network config.
 	networkId := nwCfg.Name
