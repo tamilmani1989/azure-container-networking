@@ -22,6 +22,7 @@ var dataStoreShim *datastoreshim.DataStoreShim
 var requestBaseInterval = 1000
 var minVlan uint16 = 1
 var maxVlan uint16 = 2048
+var maxContainersPerNode = 10
 
 // Init - Initialize repository.
 func Init(dataStoreSettings configuration.DataStoreSettings, interval int, min, max uint16) error {
@@ -427,6 +428,18 @@ func UpdateNodeConfigurationNetworkContainerSet(
 		}
 
 		vnetMap[ncID] = reservationID
+	}
+
+	ncCount := 0
+	for _, ncToVnetMap := range nodeConfig.DeployedNetworkContainerMap {
+		ncCount += len(ncToVnetMap)
+	}
+
+	if ncCount > maxContainersPerNode {
+		return &api.JsonErr{
+			Code:       api.NodeContainerCapacityExhausted,
+			Text:       fmt.Sprintf("Node [%s] has reached maximum capacity [%d]", nodeConfig.NodeID, maxContainersPerNode),
+			HTTPStatus: http.StatusBadRequest}
 	}
 
 	return persistNodeConfiguration(nodeConfig)
@@ -1848,6 +1861,7 @@ func DeleteNetworkConfiguration(networkID string) *api.JsonErr {
 
 	return nil
 }
+
 func GetSubnetDNSServers(repoSubnetConfiguration *SubnetConfiguration) ([]string, *api.JsonErr) {
 	repoNetworkConfiguration, err := TryQueryNetworkConfiguration(repoSubnetConfiguration.NetworkID)
 	if err != nil {

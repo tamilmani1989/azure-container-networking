@@ -520,7 +520,7 @@ func TestContainer(t *testing.T) {
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
-	deploymentCount := 3
+	deploymentCount := 2
 	ncPerNetworkCount := 5
 	ipIndex := 0
 	deploymentInfos := make([]DeploymentInfo, deploymentCount)

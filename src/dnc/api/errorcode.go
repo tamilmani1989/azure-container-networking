@@ -185,6 +185,9 @@ const (
 
 	// StorageNotInitialized - Storage has not been initialized
 	StorageNotInitialized
+
+	// NodeContainerCapacityExhausted - The node has reached it's capacity for deployed network containers.
+	NodeContainerCapacityExhausted
 )
 
 func (e ErrorCode) String() string {
@@ -368,6 +371,9 @@ func (e ErrorCode) String() string {
 
 	case StorageNotInitialized:
 		return "StorageNotInitialized"
+
+	case NodeContainerCapacityExhausted:
+		return "NodeContainerCapacityExhausted"
 	}
 
 	return "Unknown Status"
