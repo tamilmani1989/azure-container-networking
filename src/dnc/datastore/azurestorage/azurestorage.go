@@ -32,6 +32,15 @@ func (azureStorage *AzureStorage) Init(tableToColumnMap map[string]string) {
 func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
 	table := azureStorage.tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(azureStorage.PartitionKey, rowKey)
+
+	// The Delete function may panic due to nil resp (in resp.StatusCode),
+	// so we will try to recover and proceed from there.
+	defer func() {
+		if r := recover(); r != nil {
+			loggershim.LS.Errorf("[Azure DNC] Recovered from crash due to %+v\n", r)
+		}
+	}()
+
 	return entity.Delete(true, nil)
 }
 
