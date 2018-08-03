@@ -3,9 +3,14 @@ package testpersistencestore
 import (
 	"dnc/configuration"
 	"dnc/logger/loggershim"
+	"fmt"
 	"net/http"
 	"sync"
 )
+
+var dummyCounter int
+
+const conflictCounter = 2
 
 // TestPersistenceStore :- datastore : map[ TableName ] map [ key ] value
 type TestPersistenceStore struct {
@@ -35,6 +40,11 @@ func (testpersistencestore *TestPersistenceStore) Delete(tableName, rowKey strin
 	return nil
 }
 
+// DeleteInPartition - Deletes a row in the partition of the given table.
+func (testpersistencestore *TestPersistenceStore) DeleteInPartition(tableName, partitionKey, rowKey string) error {
+	return testpersistencestore.Delete(tableName, rowKey)
+}
+
 // InsertOrUpdate :- Insert or update an element using rowKey and tablName.
 func (testpersistencestore *TestPersistenceStore) InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error {
 	var success bool
@@ -54,6 +64,23 @@ func (testpersistencestore *TestPersistenceStore) InsertOrUpdate(tableName, rowK
 	return nil
 }
 
+// InsertInPartition - Insert a row in the specific partition of the given table.
+func (testpersistencestore *TestPersistenceStore) InsertInPartition(tableName, partitionKay, rowKey, propertyName string, value interface{}) (
+	int, error) {
+
+	// Simulate the scenario where the entry is already present in the table.
+	if dummyCounter < conflictCounter {
+		dummyCounter++
+		loggershim.LS.Debugf("Data entry is already present in the table")
+		return http.StatusConflict, fmt.Errorf("Data entry is already present in the table")
+	}
+
+	dummyCounter = 0
+	testpersistencestore.InsertOrUpdate(tableName, rowKey, propertyName, value)
+
+	return http.StatusOK, nil
+}
+
 // Query :- Query an element using rowKey and tableName.
 func (testpersistencestore *TestPersistenceStore) Query(tableName, rowKey string) (interface{}, int, error) {
 	testpersistencestore.locks[tableName].RLock()
@@ -71,6 +98,12 @@ func (testpersistencestore *TestPersistenceStore) Query(tableName, rowKey string
 	return value, status, nil
 }
 
+// QueryInPartition - Query a row in the given partition of the table.
+func (testpersistencestore *TestPersistenceStore) QueryInPartition(tableName, partitionKey, rowKey string) (
+	interface{}, int, error) {
+	return testpersistencestore.Query(tableName, rowKey)
+}
+
 // QueryAllRows - Query a row in a given table.
 func (testpersistencestore *TestPersistenceStore) QueryAllRows(tableName string, context interface{}) (
 	map[string]interface{}, bool, interface{}, int, error) {
@@ -86,6 +119,12 @@ func (testpersistencestore *TestPersistenceStore) QueryAllRows(tableName string,
 		queriedTable[key] = value
 	}
 	return queriedTable, false, nil, status, nil
+}
+
+// QueryAllRowsInPartition - Query all rows in the specific partition of the given table.
+func (testpersistencestore *TestPersistenceStore) QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) (
+	map[string]interface{}, bool, interface{}, int, error) {
+	return testpersistencestore.QueryAllRows(tableName, context)
 }
 
 // KeyExist :- Check if key exists in a given table.

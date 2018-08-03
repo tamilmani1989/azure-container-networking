@@ -23,7 +23,7 @@ func (l *CustomLogger) Init(stderr bool) {
 	logTarget := log.TargetLogfile
 
 	if stderr {
-		logTarget = log.TargetMultiWrite
+		logTarget = log.TargetStdOutAndLogFile
 	}
 
 	l.instance = log.NewLogger("azure-dnc", logLevel, logTarget)

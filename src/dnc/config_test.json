@@ -1,7 +1,8 @@
 {  
    "DataStoreSettings":{  
       "TestPersistenceStoreInfo":{  
-         "Test":"TestStore"
+         "Test":"TestStore",
+         "EnableSharedSubnetDelegation":false
       }
    },
    "ServerSettings":{  

@@ -29,15 +29,37 @@ func (azureStorage *AzureStorage) Init(tableToColumnMap map[string]string) {
 }
 
 // Delete - Deletes a row in a given table.
-func (azureStorage *AzureStorage) Delete(tableName string, rowKey string) error {
+func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
 	table := azureStorage.tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(azureStorage.PartitionKey, rowKey)
+
+	// The Delete function may panic due to nil resp (in resp.StatusCode),
+	// so we will try to recover and proceed from there.
+	defer func() {
+		if r := recover(); r != nil {
+			loggershim.LS.Errorf("[Azure DNC] Recovered from crash due to %+v\n", r)
+		}
+	}()
+
+	return entity.Delete(true, nil)
+}
+
+// DeleteInPartition - Deletes a row in the partition of the given table.
+func (azureStorage *AzureStorage) DeleteInPartition(tableName, partitionKey, rowKey string) error {
+	table := azureStorage.tableClient.GetTableReference(tableName)
+	entity := table.GetEntityReference(partitionKey, rowKey)
 	return entity.Delete(true, nil)
 }
 
 // InsertOrUpdate - InsertOrUpdate a row in a given table.
-func (azureStorage *AzureStorage) InsertOrUpdate(tableName, rowKey string, propertyName string, value interface{}) error {
+func (azureStorage *AzureStorage) InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error {
 	return azureStorage.insertOrUpdateRow(tableName, rowKey, propertyName, value)
+}
+
+// InsertInPartition - Insert a row in the specific partition of the given table.
+func (azureStorage *AzureStorage) InsertInPartition(tableName, partitionKay, rowKey, propertyName string, value interface{}) (
+	int, error) {
+	return azureStorage.insertRowInPartition(tableName, partitionKay, rowKey, propertyName, value)
 }
 
 // Query - Query a row in a given table.
@@ -45,10 +67,21 @@ func (azureStorage *AzureStorage) Query(tableName, rowKey string) (interface{}, 
 	return azureStorage.getRow(tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
 }
 
+// QueryInPartition - Query a row in the given partition of the table.
+func (azureStorage *AzureStorage) QueryInPartition(tableName, partitionKey, rowKey string) (interface{}, int, error) {
+	return azureStorage.getRow(tableName, partitionKey, rowKey)
+}
+
 // QueryAllRows - Query a row in a given table.
 func (azureStorage *AzureStorage) QueryAllRows(tableName string, context interface{}) (
 	map[string]interface{}, bool, interface{}, int, error) {
 	return azureStorage.getRows(tableName, azureStorage.AzureStorageInfo.PartitionKey, context)
+}
+
+// QueryAllRowsInPartition - Query all rows in the specific partition of the given table.
+func (azureStorage *AzureStorage) QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) (
+	map[string]interface{}, bool, interface{}, int, error) {
+	return azureStorage.getRows(tableName, partitionKey, context)
 }
 
 // KeyExist - check if key exist in a given table.
@@ -73,6 +106,27 @@ func (azureStorage *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyN
 	entity.Properties = properties
 	err := entity.InsertOrReplace(nil)
 	return err
+}
+
+func (azureStorage *AzureStorage) insertRowInPartition(tableName, partitionKay, rowKey, propertyName string, value interface{}) (
+	int, error) {
+	table := azureStorage.tableClient.GetTableReference(tableName)
+	table.Create(30, storage.EmptyPayload, nil)
+	entity := table.GetEntityReference(partitionKay, rowKey)
+	properties := make(map[string]interface{})
+	properties[propertyName] = value
+	entity.Properties = properties
+
+	if err := entity.Insert(storage.FullMetadata, nil); err != nil {
+		storageErr, ok := err.(storage.AzureStorageServiceError)
+		if ok {
+			return storageErr.StatusCode, err
+		}
+
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
 }
 
 // func InsertOrUpdate1(
@@ -138,7 +192,7 @@ func (azureStorage *AzureStorage) getRow(tableName string, partitionKey string, 
 	err := entity.Get(30, storage.FullMetadata, nil)
 	if err == nil {
 		if len(entity.Properties) != 1 {
-			return nil, http.StatusInternalServerError, fmt.Errorf("Properites missing columns")
+			return nil, http.StatusInternalServerError, fmt.Errorf("Properties missing columns")
 		}
 		for _, val := range entity.Properties {
 			return val, http.StatusOK, nil
@@ -181,7 +235,7 @@ func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string,
 	var result = make(map[string]interface{})
 	for _, entity := range entitiesResult.Entities {
 		if len(entity.Properties) != 1 {
-			return nil, false, nil, http.StatusInternalServerError, fmt.Errorf("Properites missing columns")
+			return nil, false, nil, http.StatusInternalServerError, fmt.Errorf("Properties missing columns")
 		}
 		for _, val := range entity.Properties {
 			result[entity.RowKey] = val
@@ -192,7 +246,7 @@ func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string,
 
 	if entitiesResult.NextLink != nil {
 		hasMoreRows = true
-		returnContext = nil
+		returnContext = entitiesResult
 	}
 	return result, hasMoreRows, returnContext, http.StatusOK, nil
 }

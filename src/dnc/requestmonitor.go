@@ -1938,10 +1938,9 @@ func processPendingRequests() {
 		logger.Debugf("Prcessing ID: %v", requestsToProcess[i])
 		requestID := requestsToProcess[i]
 		requestContext := requests[requestID]
-		go func(requestID string, requestContext datamodel.RequestContext) {
-
-			processRequest(requestID, &requestContext)
-			logger.Debugf("ID:%v processed", requestID)
+		go func(rid string, rc datamodel.RequestContext) {
+			processRequest(rid, &rc)
+			logger.Debugf("ID:%v processed", rid)
 			done <- true
 		}(requestID, requestContext)
 	}

@@ -27,7 +27,7 @@ const (
 	TargetSyslog
 	TargetLogfile
 	TargetStdout
-	TargetMultiWrite
+	TargetStdOutAndLogFile
 )
 
 const (
