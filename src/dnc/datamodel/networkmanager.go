@@ -43,11 +43,6 @@ func Init(dataStoreSettings configuration.DataStoreSettings, interval int, min, 
 	return nil
 }
 
-// IsFeatureSupported - Function to validate if the given feature is supported
-func IsFeatureSupported(featureID int) bool {
-	return dataStoreShim.IsFeatureSupported(featureID)
-}
-
 // DumpState - Function to dump test state.
 func DumpState() {
 	for tableName := range TableToColumnMap {
@@ -2474,4 +2469,156 @@ func EncodeIPAllocationKey(allocatedSubnet string) string {
 func DecodeIPAllocationKey(allocatedSubnet string) string {
 	charReplacer := strings.NewReplacer("_", "/")
 	return charReplacer.Replace(allocatedSubnet)
+}
+
+// QueryAllIPReservations - Query all IP Reservation configurations.
+func QueryAllIPReservations() ([]ReservationConfiguration, *api.JsonErr) {
+	var (
+		err                       *api.JsonErr
+		reservationConfigurations []ReservationConfiguration
+		hasMoreRows               = true
+		context                   interface{}
+		data                      map[string]interface{}
+	)
+
+	for hasMoreRows {
+		data, hasMoreRows, context, err = TryQueryAllIPReservations(context)
+		if err != nil {
+			return nil, err
+		}
+
+		for reservationKey, value := range data {
+			serializedReservationConfiguration := value.(string)
+			var reservationConfiguration ReservationConfiguration
+			err := json.Unmarshal([]byte(serializedReservationConfiguration), &reservationConfiguration)
+			if err != nil {
+				msg := fmt.Sprintf(
+					"Failed to unmarshal configuration for reservation key:[%s] due to error:[%s]",
+					reservationKey,
+					err)
+				return nil, &api.JsonErr{
+					Code:       api.JsonBodyUnMarshalFailed,
+					Text:       msg,
+					HTTPStatus: http.StatusInternalServerError}
+			}
+
+			reservationConfigurations = append(reservationConfigurations, reservationConfiguration)
+		}
+	}
+
+	return reservationConfigurations, nil
+}
+
+// TryQueryAllIPReservations - Query all IP Reservation configurations in the partition.
+func TryQueryAllIPReservations(context interface{}) (
+	map[string]interface{}, bool, interface{}, *api.JsonErr) {
+	data, hasMoreRows, retContext, statusCode, err := dataStoreShim.QueryAll(ipReservationsTableName, context)
+
+	if err != nil && statusCode != http.StatusNotFound {
+		msg := fmt.Sprintf(
+			"Failed to retrieve IP reservations due to error:[%s]",
+			err.Error())
+		return nil, false, nil, &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	if data == nil {
+		return nil, false, nil, nil
+	}
+
+	return data, hasMoreRows, retContext, nil
+}
+
+// ProcessSharedSubnetDelegationMigration - Migrate IP allocations from IPReservations to IPAllocations table
+func ProcessSharedSubnetDelegationMigration() error {
+	if IsFeatureSupported(configuration.SharedSubnetDelegation) {
+		// check if the migration for shared subnet delegation is pending
+		migrationComplete, err := TryQuerySharedSubnetDelegationMigration()
+		if err != nil {
+			loggershim.LS.Errorf("sharedSubnetDelegationMigration table query failed due to error %v", err)
+			return fmt.Errorf("Error querying sharedSubnetDelegationMigration table")
+		}
+
+		if !migrationComplete {
+			loggershim.LS.Debugf("Triggering migration for shared subnet delegation")
+			reservationConfigurations, err := QueryAllIPReservations()
+			if err != nil {
+				loggershim.LS.Errorf("Failed to get all IP reservations due to error %v", err)
+				return fmt.Errorf("Failed to get all IP reservations with error %s", err.Text)
+			}
+
+			// Migrate IP allocations from IPReservations to IPAllocations table
+			for _, reservationConfiguration := range reservationConfigurations {
+				reservationKey := GetReservationKey(reservationConfiguration.NetworkID, reservationConfiguration.ReservationID)
+
+				if len(reservationConfiguration.AllocatedSubnet) != 0 {
+					if err = AddIPAllocation(reservationConfiguration.NetworkID,
+						reservationConfiguration.AllocationRequest.SubnetName,
+						EncodeIPAllocationKey(reservationConfiguration.AllocatedSubnet),
+						reservationKey); err != nil {
+						loggershim.LS.Errorf("addIPAllocation for %v failed due to %s",
+							reservationConfiguration.AllocatedSubnet, err.Text)
+						if err.Code == api.StatusInternalServerError {
+							return fmt.Errorf("Failed to add IP in IPAllocations table with err %s", err.Text)
+						}
+					}
+				}
+			}
+
+			if err = UpdateSharedSubnetDelegationMigration(true); err != nil {
+				loggershim.LS.Errorf("Failed to update SharedSubnetDelegationMigration table due to error %s", err)
+			} else {
+				loggershim.LS.Debugf("Migration for shared subnet delegation completed successfully")
+			}
+		} else {
+			loggershim.LS.Debugf("Migration for shared subnet delegation already completed")
+		}
+	}
+
+	return nil
+}
+
+// TryQuerySharedSubnetDelegationMigration - Query migration table in a specified partition.
+func TryQuerySharedSubnetDelegationMigration() (bool, *api.JsonErr) {
+	value, status, err := dataStoreShim.Query(sharedSubnetDelegationMigrationTableName, "migration-status")
+	if err != nil && status != http.StatusNotFound {
+		msg := fmt.Sprintf(
+			"Failed to retrieve migration status due to error:[%s]", err)
+		return false, &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	if value == nil {
+		return false, nil
+	}
+
+	return value.(bool), nil
+}
+
+// UpdateSharedSubnetDelegationMigration - Updates the migration table indicating the completion of the migration operation.
+func UpdateSharedSubnetDelegationMigration(completionStatus bool) *api.JsonErr {
+	err := dataStoreShim.InsertOrUpdate(sharedSubnetDelegationMigrationTableName,
+		"migration-status",
+		TableToColumnMap[sharedSubnetDelegationMigrationTableName],
+		completionStatus)
+	if err != nil {
+		msg := fmt.Sprintf(
+			"Failed to update SharedSubnetDelegationMigration table. Error:%s",
+			err.Error())
+		return &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	return nil
+}
+
+// IsFeatureSupported - Function to validate if the given feature is supported
+func IsFeatureSupported(featureID int) bool {
+	return dataStoreShim.IsFeatureSupported(featureID)
 }

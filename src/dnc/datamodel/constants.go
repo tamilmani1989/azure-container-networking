@@ -1,32 +1,34 @@
 package datamodel
 
 const (
-	subnetConfigurationTableName  = "SubnetConfigurationTable"
-	nodeTableName                 = "NodeConfigurationTable"
-	ipReservationsTableName       = "IPReservationsTable"
-	pendingWorkItemsTableName     = "PendingWorkItemsTable"
-	networkConfigurationTableName = "NetworkConfigurationTable"
-	networkContainerTableName     = "NetworkContainerTable"
-	tagDefinitionTableName        = "TagDefinitionsTable"
-	ipAllocationsTableName        = "IPAllocationsTable"
-	networkKey                    = "Network_%s"
-	subnetConfigurationKey        = "Network_%s_Subnet_%s"
-	ipReservationKey              = "Network_%s_Reservation_%s"
-	networkcontainerKey           = "NC_%s"
-	nodeKey                       = "Node_%s"
-	ncKey                         = "Network_%s_ID_%s"
-	tagDefinitionKey              = "Tag_%s_%s"
+	subnetConfigurationTableName             = "SubnetConfigurationTable"
+	nodeTableName                            = "NodeConfigurationTable"
+	ipReservationsTableName                  = "IPReservationsTable"
+	pendingWorkItemsTableName                = "PendingWorkItemsTable"
+	networkConfigurationTableName            = "NetworkConfigurationTable"
+	networkContainerTableName                = "NetworkContainerTable"
+	tagDefinitionTableName                   = "TagDefinitionsTable"
+	ipAllocationsTableName                   = "IPAllocationsTable"
+	sharedSubnetDelegationMigrationTableName = "SharedSubnetDelegationMigrationTable"
+	networkKey                               = "Network_%s"
+	subnetConfigurationKey                   = "Network_%s_Subnet_%s"
+	ipReservationKey                         = "Network_%s_Reservation_%s"
+	networkcontainerKey                      = "NC_%s"
+	nodeKey                                  = "Node_%s"
+	ncKey                                    = "Network_%s_ID_%s"
+	tagDefinitionKey                         = "Tag_%s_%s"
 )
 
 const (
-	subnetConfigurationTag           = "SubnetConfiguration"
-	networkConfigurationTag          = "NetworkConfiguration"
-	reservationConfigurationTag      = "ReservationConfiguration"
-	nodeConfigurationTag             = "NodeConfiguration"
-	requestContextTag                = "RequestContext"
-	networkContainerConfigurationTag = "NetworkContainerConfiguration"
-	tagDefinitionsTag                = "TagDefinitions"
-	ipAllocationTag                  = "IPAllocation"
+	subnetConfigurationTag             = "SubnetConfiguration"
+	networkConfigurationTag            = "NetworkConfiguration"
+	reservationConfigurationTag        = "ReservationConfiguration"
+	nodeConfigurationTag               = "NodeConfiguration"
+	requestContextTag                  = "RequestContext"
+	networkContainerConfigurationTag   = "NetworkContainerConfiguration"
+	tagDefinitionsTag                  = "TagDefinitions"
+	ipAllocationTag                    = "IPAllocation"
+	sharedSubnetDelegationMigrationTag = "SharedSubnetDelegationMigrationComplete"
 )
 
 const (
@@ -42,11 +44,12 @@ const (
 
 // TableToColumnMap - Table name to column map
 var TableToColumnMap = map[string]string{
-	subnetConfigurationTableName:  subnetConfigurationTag,
-	nodeTableName:                 nodeConfigurationTag,
-	ipReservationsTableName:       reservationConfigurationTag,
-	pendingWorkItemsTableName:     requestContextTag,
-	networkConfigurationTableName: networkConfigurationTag,
-	networkContainerTableName:     networkContainerConfigurationTag,
-	tagDefinitionTableName:        tagDefinitionsTag,
-	ipAllocationsTableName:        ipAllocationTag}
+	subnetConfigurationTableName:             subnetConfigurationTag,
+	nodeTableName:                            nodeConfigurationTag,
+	ipReservationsTableName:                  reservationConfigurationTag,
+	pendingWorkItemsTableName:                requestContextTag,
+	networkConfigurationTableName:            networkConfigurationTag,
+	networkContainerTableName:                networkContainerConfigurationTag,
+	tagDefinitionTableName:                   tagDefinitionsTag,
+	ipAllocationsTableName:                   ipAllocationTag,
+	sharedSubnetDelegationMigrationTableName: sharedSubnetDelegationMigrationTag}

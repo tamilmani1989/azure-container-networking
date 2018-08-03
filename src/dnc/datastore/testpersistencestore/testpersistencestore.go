@@ -10,7 +10,7 @@ import (
 
 var dummyCounter int
 
-const conflictCounter = 2
+const conflictCounter = 1
 
 // TestPersistenceStore :- datastore : map[ TableName ] map [ key ] value
 type TestPersistenceStore struct {
