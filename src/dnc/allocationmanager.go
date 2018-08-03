@@ -360,7 +360,6 @@ func getAllocationsInSubnet(networkID, subnetName, reservationKey string, subnet
 		var context interface{}
 		var ipAllocationsInSubnet map[string]interface{}
 		for hasMoreRows {
-			// TODO:: Test the scenario where we need to make repetitive calls to IPAllocations table to get all the rows
 			ipAllocationsInSubnet, hasMoreRows, context, err = datamodel.TryQueryAllIPAllocations(networkID, subnetName, context)
 			if err != nil {
 				return nil, nil, err

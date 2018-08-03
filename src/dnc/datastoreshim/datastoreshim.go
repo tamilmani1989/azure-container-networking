@@ -120,8 +120,8 @@ func (dataStoreShim *DataStoreShim) Init(tableToColumnMap map[string]string) {
 		dataStoreShim.QueryAll = queryAllFunc(azStorage.QueryAllRows)
 		dataStoreShim.QueryAllInPartition = queryAllInPartitionFunc(azStorage.QueryAllRowsInPartition)
 		dataStoreShim.KeyExist = keyExistFunc(azStorage.KeyExist)
-		dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation] =
-			dataStoreShim.dataStoreSettings.AzureStorageInfo.EnableSharedSubnetDelegation
+		// Default the feature to true
+		dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation] = true
 		loggershim.LS.Debugf("SharedSubnetDelegation %v", dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation])
 	} else if dataStoreShim.dataStoreSettings.AzureSQLInfo != (configuration.AzureSQLInfo{}) {
 		azSQL := azuresql.AzureSQL{AzureSQLInfo: dataStoreShim.dataStoreSettings.AzureSQLInfo}
@@ -143,8 +143,8 @@ func (dataStoreShim *DataStoreShim) Init(tableToColumnMap map[string]string) {
 		dataStoreShim.QueryAll = queryAllFunc(tps.QueryAllRows)
 		dataStoreShim.QueryAllInPartition = queryAllInPartitionFunc(tps.QueryAllRowsInPartition)
 		dataStoreShim.KeyExist = keyExistFunc(tps.KeyExist)
-		dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation] =
-			dataStoreShim.dataStoreSettings.TestPersistenceStoreInfo.EnableSharedSubnetDelegation
+		// Default the feature to true
+		dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation] = true
 		loggershim.LS.Debugf("SharedSubnetDelegation %v", dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation])
 	} else if dataStoreShim.dataStoreSettings.OrchestratorStorageInfo != (configuration.OrchestratorStorageInfo{}) {
 		os := orchestratorstorage.OrchestratorStorage{OrchestratorStorageInfo: dataStoreShim.dataStoreSettings.OrchestratorStorageInfo}

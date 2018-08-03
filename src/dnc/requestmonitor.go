@@ -19,6 +19,8 @@ import (
 	"github.com/google/uuid"
 )
 
+var initiateMigration bool = true
+
 const (
 	localIPSubnetAddressString = "169.254.0.0/16"
 	imdsIPSubnetString         = "169.254.169.254/32"
@@ -1876,6 +1878,15 @@ func monitorRequests() {
 
 // Monitor that periodically processes pending reqguests in the work item queue.
 func processPendingRequests() {
+	if initiateMigration {
+		if err := datamodel.ProcessSharedSubnetDelegationMigration(); err != nil {
+			logger.Errorf("ProcessSharedSubnetDelegationMigration failed %v", err)
+			return
+		}
+
+		initiateMigration = false
+	}
+
 	requests, _ := datamodel.GetPendingRequests()
 	if len(requests) == 0 {
 		return
