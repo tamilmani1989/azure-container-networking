@@ -2,6 +2,6 @@
   <Import Project="$(EnvironmentConfig)" />
   <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
   <Target Name="Build">
-    <Copy SourceFiles="$(CNS)\content\azure-cns.exe" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer" />     
+    <Copy SourceFiles="$(CNS)\content\windows\azure-cns.exe" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer" />     
   </Target>
 </Project>

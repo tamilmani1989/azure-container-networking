@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
-    <id>Microsoft.WindowsAzure.Internal.$branch$AzureDNC</id>
+    <id>Microsoft.Azure.Internal.windows.$branch$AzureDNC</id>
     <version>$version$</version>
     <title>AzureDNC from $branch$</title>
     <authors>connectdevs@microsoft.com</authors>
