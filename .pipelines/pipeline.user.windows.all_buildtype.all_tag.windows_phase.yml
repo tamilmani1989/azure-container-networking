@@ -57,7 +57,7 @@ version:
                                                                         # artifacts as a group by name.
   major: 2018                                                           # The major version number.
   minor: 8                                                              # The minor version number
-  tag: '06'                                                             # Tag to use for semantic versioning.
+  tag: '6.1'                                                            # Tag to use for semantic versioning.
   system: 'patch' 
 
 # An optional user defined stage for performing any compilation, code generation etc.

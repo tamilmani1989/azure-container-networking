@@ -28,19 +28,19 @@
   </PropertyGroup>
     <ItemGroup>
         <File Include="$(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll">
-            <TargetPath>content</TargetPath>
+            <TargetPath>content\windows</TargetPath>
         </File>
         <File Include="$(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll">
-            <TargetPath>content</TargetPath>
+            <TargetPath>content\windows</TargetPath>
         </File>
         <File Include="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll">
-            <TargetPath>content</TargetPath>
+            <TargetPath>content\windows</TargetPath>
         </File>     
         <File Include="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer\AzureNetworkContainer.exe">
-            <TargetPath>content</TargetPath>
+            <TargetPath>content\windows</TargetPath>
         </File>
         <File Include="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer\azure-cns.exe">
-            <TargetPath>content</TargetPath>
+            <TargetPath>content\windows</TargetPath>
         </File>
     </ItemGroup>
   <Import Project="$(PkgNuProj)\NuProj.Targets" />
