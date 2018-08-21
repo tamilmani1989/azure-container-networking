@@ -126,7 +126,6 @@ Return Value:
 	IEnumNetCfgComponent* netCfgComponentEnum = NULL;
 	INetCfgComponent* netCfgComponent = NULL;
 	LPWSTR interfaceDisplayName = NULL;
-	GUID instanceGuid = { 0 };
 	bool updated = false;
 
 	hr = GetINetCfgWithWriteLock(&netCfg);
@@ -166,7 +165,7 @@ Return Value:
 		if (Name == interfaceDisplayName)
 		{
 			LOGINFOW(L"Found matching interface. Name [%s]", interfaceDisplayName);
-			hr = netCfgComponent->GetInstanceGuid(&instanceGuid);
+			hr = netCfgComponent->GetInstanceGuid(&interfaceGuid);
 			if (hr != S_OK)
 			{
 				LOGERRW(L"GetInstanceGuid for intface name %s failed with error [%0x].", interfaceDisplayName, hr);
@@ -188,7 +187,7 @@ Return Value:
 		goto Cleanup;
 	}
 
-	hr = GetInterfaceIndex(instanceGuid, InstanceIndex);
+	hr = GetInterfaceIndex(interfaceGuid, InstanceIndex);
 	if (hr != S_OK)
 	{
 		LOGERRW(L"Failed to retrieve index for interface with name [%s], Error:[0x%x]", Name.c_str(), hr);
@@ -594,14 +593,14 @@ Return Value:
 	}
 
 	LOGINFOW(L"Display name for the newly created loopback adapter:%s", friendlyName);
-	hr = UpdateInterfaceDisplayName(friendlyName, (LPWSTR)displayName.c_str(), &instanceGuid);
+	hr = UpdateInterfaceDisplayName(friendlyName, (LPWSTR)displayName.c_str(), &interfaceGuid);
 	if (hr != S_OK)
 	{
 		LOGERRW(L"UpdateInterfaceDisplayName failed. Error:[0x%x]", hr);
 		return hr;
 	}
 
-	memcpy(&instanceGuid, &instanceGuid, sizeof(GUID));
+	memcpy(&interfaceGuid, &interfaceGuid, sizeof(GUID));
 	LOGINFOW(L"Disabling the newly created interface with name:[%s]", displayName.c_str());
 	hr = EnableInterface(false, deviceInfoSet, &deviceInfoData);
 	if (hr != S_OK)
@@ -618,7 +617,7 @@ Return Value:
 		return hr;
 	}
 
-	hr = GetInterfaceIndex(instanceGuid, interfaceIndex);
+	hr = GetInterfaceIndex(interfaceGuid, interfaceIndex);
 	if (hr != S_OK)
 	{
 		LOGERRW(L"Failed to retrieve index for interface with name [%s], Error:[0x%x]", displayName.c_str(), hr);
@@ -924,6 +923,126 @@ Arguments:
 
 	return hr;
 }
+
+HRESULT LoopbackAdapter::DeleteAllRoutes()
+/*++
+
+Routine Description:
+
+	This function deletes all routes for a given interface.
+
+Return Value:
+
+	S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	DWORD error = ERROR_SUCCESS;
+
+	unique_ptr<PMIB_IPFORWARD_TABLE2> ppIpForwardTable = make_unique<PMIB_IPFORWARD_TABLE2>();
+
+	MIB_IF_ROW2 ifRow = { 0 };
+
+	ifRow.InterfaceIndex = interfaceIndex;
+	error = GetIfEntry2(&ifRow);
+	if (error != ERROR_SUCCESS)
+	{
+		LOGERRW(L"GetIfEntry2 failed with errorcode %d", error);
+		return HRESULT_FROM_WIN32(error);
+	}
+
+	error = GetIpForwardTable2(AF_INET, ppIpForwardTable.get());
+	if (error != ERROR_SUCCESS)
+	{
+		LOGERRW(L"GetIpForwardTable2 failed with errorcode %d", error);
+		return HRESULT_FROM_WIN32(error);
+	}
+
+	IP_ADDRESS_PREFIX emptyPrefix = { 0 };
+	PMIB_IPFORWARD_TABLE2 pIpForwardTable = *ppIpForwardTable.get();
+	for (ULONG i = 0; i < pIpForwardTable->NumEntries; i++)
+	{
+		if (pIpForwardTable->Table[i].InterfaceIndex == ifRow.InterfaceIndex)
+		{
+			if (memcmp(&(pIpForwardTable->Table[i].DestinationPrefix), &emptyPrefix, sizeof(emptyPrefix)))
+			{
+				catchAllRouteAlreadyExists = true;
+				continue;
+			}
+
+			error = DeleteIpForwardEntry2(&(pIpForwardTable->Table[i]));
+			if (error != ERROR_SUCCESS)
+			{
+				LOGERRW(L"DeleteIpForwardEntry2 failed with errorcode %d", error);
+				return HRESULT_FROM_WIN32(error);
+			}
+		}
+	}
+
+	return S_OK;
+}
+
+
+HRESULT LoopbackAdapter::AddCatchAllRoute()
+/*++
+
+Routine Description:
+
+	This routine adds a catch all routes on the interface.
+
+Return Value:
+
+	S_OK on success. On failure appropriate HRESULT is returned.
+
+--*/
+{
+	if (catchAllRouteAlreadyExists)
+	{
+		return S_OK;
+	}
+
+	DWORD error = ERROR_SUCCESS;
+
+	unique_ptr<PMIB_IPFORWARD_TABLE2> ppIpForwardTable = make_unique<PMIB_IPFORWARD_TABLE2>();
+
+	MIB_IPFORWARD_ROW2 route = { 0 };
+	ZeroMemory(&route, sizeof(MIB_IPFORWARD_ROW2));
+	InitializeIpForwardEntry(&route);
+
+	error = RtlIpv4StringToAddressEx(
+		DEFAULT_ROUTE_PREFIX,
+		TRUE,
+		&(route.DestinationPrefix.Prefix.Ipv4.sin_addr),
+		&(route.DestinationPrefix.Prefix.Ipv4.sin_port)
+	);
+	if (error != ERROR_SUCCESS)
+	{
+		LOGERRW(L"RtlIpv4StringToAddressEx failed with errorcode %d", error);
+		return HRESULT_FROM_WIN32(error);
+	}
+
+	ConvertInterfaceGuidToLuid(&interfaceGuid, &interfaceLuid);
+	route.InterfaceLuid = interfaceLuid;
+
+	route.DestinationPrefix.PrefixLength = 0;
+	route.DestinationPrefix.Prefix.si_family = AF_INET;
+	route.Immortal = FALSE;
+	route.Metric = 8888;
+	route.InterfaceIndex = interfaceIndex;
+	route.PreferredLifetime = ULONG_MAX;
+	route.ValidLifetime = ULONG_MAX;
+	route.Protocol = MIB_IPPROTO_NETMGMT; // static route
+
+	error = CreateIpForwardEntry2(&route);
+	if (error != ERROR_SUCCESS)
+	{
+		LOGERRW(L"CreateIpForwardEntry2 failed with errorcode %d", error);
+		return HRESULT_FROM_WIN32(error);
+	}
+
+	return S_OK;
+}
+
 
 void LoopbackAdapter::SetIndex(_In_ int InterfaceIndex)
 /*++

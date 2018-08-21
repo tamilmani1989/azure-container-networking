@@ -27,8 +27,13 @@ Author:
 #include <sstream>
 #include <string>
 #include <iterator>
+#include <memory>
 
 #define MAX_BUF_LENGTH 2048
+
+#define DEFAULT_ROUTE_PREFIX L"0.0.0.0"
+
+#define DEFAULT_ROUTE_LENGTH 0
 
 using namespace std;
 
@@ -60,6 +65,8 @@ public:
 		_In_ IN_ADDR Netmask = IN_ADDR(),
 		_In_ IN_ADDR Gateway = IN_ADDR()
 	);
+	HRESULT DeleteAllRoutes();
+	HRESULT AddCatchAllRoute();
 
 	void SetIndex(_In_ int InterfaceIndex);
 
@@ -70,8 +77,10 @@ private:
 	vector<IN_ADDR> dnsVec;
 	bool whsFlag, whrFlag;
 	LPWSTR loopbackInfPath = NULL;
-	GUID instanceGuid = { 0 };
+	GUID interfaceGuid = { 0 };
+	NET_LUID interfaceLuid = { 0 };
 	int interfaceIndex = 0;
 	ULONG NTEContext = 0;
 	ULONG NTEInstance = 0;
+	bool catchAllRouteAlreadyExists = false;
 };

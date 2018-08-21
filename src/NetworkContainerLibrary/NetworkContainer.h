@@ -14,7 +14,7 @@ Author:
 
 	Yongli Chen
 
-	--*/
+--*/
 
 #pragma once
 
@@ -26,6 +26,7 @@ Author:
 #include <iostream>
 #include <map>
 #include <memory>
+#include "nldef.h"
 
 using namespace std;
 
