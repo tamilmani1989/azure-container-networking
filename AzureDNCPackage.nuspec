@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
-    <id>Microsoft.Azure.Internal.windows.$branch$AzureDNC</id>
+    <id>Microsoft.Azure.Internal.$branch$AzureDNC</id>
     <version>$version$</version>
     <title>AzureDNC from $branch$</title>
     <authors>connectdevs@microsoft.com</authors>
@@ -27,6 +27,8 @@ This service will also require persisting the configurations and the states that
   </metadata>
   <files>
     <file src="$drop$\azure-dnc.exe" target="content" />
+    <file src="$drop$\azure-dnc" target="content\linux\azure-dnc" />
     <file src="C:\source\src\dnc\config.json" target="content" />
+    <file src="C:\source\src\dnc\config.json" target="content\linux" />
   </files>
 </package>

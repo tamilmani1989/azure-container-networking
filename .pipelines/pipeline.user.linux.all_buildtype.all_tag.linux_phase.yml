@@ -118,17 +118,7 @@ build:
 # compile-hash-package-hash-sign hash model. For those folks, package may not need to exist as a separate step.
 # Eventually, network access will be limited or cut-off in this stage.
 package:
-  commands:                                  
-    # This command can be used after CDPX has been updated to sign in linux                                                  
-    # - !!buildcommand                     
-    #   name: 'Package DNC Windows'                                 
-    #   command: 'cdpxBuild.sh'
-    #   arguments: 'package windows amd64'
-    #   artifacts:
-    #     - from: 'src/Nuget/AzureDNCPackage/'
-    #       to: 'packages/AzureDNC'
-    #       include:
-    #         - '*.nupkg'
+  commands:
 
     - !!buildcommand                                                    
         name: 'Package NetAgent'                                            
@@ -138,18 +128,6 @@ package:
             to: 'drop'        
             include: 
               - '*.zip'
-# package_sources:
-#   nuget:
-#     feeds:                                      # Use this if you use a per-person or team wide NuGet.config and don't have anything specific in your repository.
-#       'Toolset': 'https://msazure.pkgs.visualstudio.com/DefaultCollection/_apis/packaging/Toolset/nuget/index.json'
-#       'NugetOrg': 'https://msazure.pkgs.visualstudio.com/DefaultCollection/_apis/packaging/NugetMirror/nuget/index.json'
-#       'MSNuget': 'https://msazure.pkgs.visualstudio.com/DefaultCollection/_apis/packaging/MSNugetMirror/nuget/index.json'
-#       'OSS': 'https://msazure.pkgs.visualstudio.com/DefaultCollection/_apis/packaging/OSS/nuget/index.json'
-#       'Official': 'https://msazure.pkgs.visualstudio.com/DefaultCollection/_apis/packaging/Official/nuget/index.json'
-#       'Manual': 'https://msazure.pkgs.visualstudio.com/DefaultCollection/_apis/packaging/ManualMirror/nuget/index.json'
-#     config_files:                               # A list of glob patterns specifying the configuration files. Use this if you already have NuGet.Config files in your repository.
-#       - include:                                # Configuration files to include for automatic inference.
-#       - exclude:                                # Configuration files to exclude from automatic inference.
 
 # An optional user defined stage for running tests that need network access. Note that unit tests and others that do not need network access
 # can be run in build or package stages itself. Any artifacts built in this stage will be separated out and will not be signed.

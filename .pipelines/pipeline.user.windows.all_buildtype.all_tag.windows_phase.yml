@@ -110,3 +110,11 @@ package:
           to: 'AzureDNC'
           include:
             - '*.nupkg'
+
+# Everything should be signed and packaged by this point and we will just be pushing/publishing here.
+# publish:
+#   commands:
+#     - !!buildcommand
+#       name: 'Publish DNC Windows'
+#       command: 'package_sign.cmd'
+#       arguments: 'publish AzureDNC'
