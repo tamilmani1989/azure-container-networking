@@ -60,6 +60,10 @@ version:
   tag: '6.1'                                                            # Tag to use for semantic versioning.
   system: 'patch' 
 
+static_analysis_options:                          
+  binskim_options:  
+    disable_tool_scan: true
+
 # An optional user defined stage for performing any compilation, code generation etc.
 # All files in the artifacts sections will be collected, saved off and signed.
 # The signed files will be restored back to the original locations before the next stage is invoked.

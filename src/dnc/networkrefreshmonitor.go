@@ -33,6 +33,8 @@ func refreshNetworks() {
 	if err != nil {
 		logger.Errorf("Failed to retrieve networks from repository due to error %s", err.Error())
 	}
+
+	// refresh network configurations
 	for networkKey := range networksMap {
 		refreshNetworkConfiguration(networkKey)
 	}
@@ -110,26 +112,6 @@ func refreshNetworkConfiguration(networkKey string) {
 			sessionManager.EndWriteSession(sessionInfo)
 		}
 	}()
-
-	repoNetworkConfiguration, err = datamodel.TryQueryNetworkConfigurationByKey(networkKey)
-	if err != nil {
-		logger.Errorf("Retrieval of configuration for network %s failed with error:%s.\n",
-			networkID,
-			err.String())
-		return
-	} else if repoNetworkConfiguration == nil {
-		logger.Debugf("Configuration for Network %s not found.\n", networkID)
-		return
-	}
-
-	if repoNetworkConfiguration.NetworkState != datamodel.Join ||
-		repoNetworkConfiguration.Status != datamodel.Completed {
-		logger.Debugf("Skipping refreshing of network %s as it is in state:%s %s.\n",
-			networkID,
-			repoNetworkConfiguration.NetworkState,
-			repoNetworkConfiguration.Status)
-		return
-	}
 
 	checkAndAddTagsCache(networkResponse)
 	if repoNetworkConfiguration.Version == networkVersion {
@@ -245,6 +227,7 @@ func refreshNetworkConfiguration(networkKey string) {
 		logger.Errorf("Persisting configuration of network %s failed with error %s. \n",
 			networkID,
 			failureDetail.String())
+		return
 	}
 
 	logger.Debugf("Successfully refreshed configuration for network %s", networkID)

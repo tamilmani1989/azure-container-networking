@@ -6,6 +6,7 @@ import (
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
 	"dnc/masterelection/masterelectionshim"
+	"dnc/netagentcontracts"
 	"dnc/replica"
 	"dnc/server"
 	"dnc/utils"
@@ -27,6 +28,7 @@ var networkMonitorStopProcessing = make(chan bool)
 var tagMonitorStopProcessing = make(chan bool)
 var refreshNCStartProcessing = make(chan bool)
 var refreshNCStopProcessing = make(chan bool)
+var reports = make(chan netagentcontracts.DNCReport)
 
 var config *configuration.Configuration
 var masterElectionShim *masterelectionshim.MasterElectionShim
@@ -51,7 +53,7 @@ func init() {
 
 	config = configuration.Load(configpath)
 	logger = loggershim.NewLoggerShim(config)
-	logger.Init(stderr)
+	logger.Init(stderr, reports)
 	replicaInstance = replica.NewReplica(config.ServerSettings)
 	sessionManager = utils.NewSessionManager([]string{datamodel.NodeRepositoryName, datamodel.NetworkRepositoryName, datamodel.TagRepositoryName})
 	masterElectionShim = masterelectionshim.NewMasterElectionShim(
@@ -105,6 +107,7 @@ func startReplica(c *controller.Controller) {
 	go monitorNetworkUpdates()
 	go monitorTagUpdates()
 	go monitorNetworkContainers()
+	go sendTelemetry()
 }
 
 func main() {

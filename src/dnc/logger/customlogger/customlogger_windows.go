@@ -2,6 +2,7 @@ package customlogger
 
 import (
 	"dnc/configuration"
+	"dnc/netagentcontracts"
 	"fmt"
 	"os"
 	"syscall"
@@ -19,6 +20,7 @@ type CustomLogger struct {
 	fnName       string
 	dll          syscall.Handle
 	instance     *log.Logger
+	reports      chan netagentcontracts.DNCReport
 }
 
 // NewCustomLogger :- Create new CustomLogger
@@ -30,7 +32,7 @@ func NewCustomLogger(cfg configuration.CustomLoggerSettings) *CustomLogger {
 }
 
 // Init :- Initialize CustomLogger
-func (l *CustomLogger) Init(stderr bool) {
+func (l *CustomLogger) Init(stderr bool, reports chan netagentcontracts.DNCReport) {
 	var err error
 	l.dll, err = syscall.LoadLibrary(l.dllName)
 	if err != nil {
@@ -52,6 +54,7 @@ func (l *CustomLogger) Init(stderr bool) {
 
 	l.logLevel = log.LevelDebug
 	l.instance = log.NewLogger("azure-dnc", l.logLevel, l.logTarget)
+	l.reports = reports
 }
 
 // Log :- Log using CustomLogger
@@ -64,6 +67,9 @@ func (l *CustomLogger) Debugf(format string, args ...interface{}) {
 func (l *CustomLogger) Errorf(format string, args ...interface{}) {
 	syscall.Syscall(uintptr(l.procEventLog), uintptr(2), uintptr(1), convertStrToPass(fmt.Sprintf(format, args...)), 0)
 	l.instance.Printf(format, args...)
+	go func() {
+		l.reports <- netagentcontracts.DNCReport{EventMessage: fmt.Sprintf(format, args...)}
+	}()
 }
 
 // Close :- Close CustomLogger
