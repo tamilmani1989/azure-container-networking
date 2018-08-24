@@ -9,7 +9,7 @@
   <!-- Nuget generation properties -->
   <PropertyGroup>
     <NoPackageAnalysis>true</NoPackageAnalysis>
-    <Id>Microsoft.WindowsAzure.Internal.$(GitBranchName)AzureCNS</Id>
+    <Id>Microsoft.Azure.Internal.$(GitBranchName)AzureCNS</Id>
     <Version>$(BuildVersion)</Version>
     <Title>AzureCNS from $(GitBranchName)</Title>
     <Authors>connectdevs@microsoft.com</Authors>

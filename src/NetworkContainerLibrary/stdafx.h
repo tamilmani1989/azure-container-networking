@@ -12,6 +12,7 @@
 #define _CRTDBG_MAP_ALLOC
 
 #include "targetver.h"
+#include <ws2tcpip.h>
 #include <windows.h> 
 #include <tchar.h>
 #include <stdlib.h>
@@ -39,7 +40,6 @@
 #include <windef.h>
 #include <ws2ipdef.h>
 #include <iphlpapi.h>
-#include <ws2tcpip.h>
 #include <assert.h>
 #include <crtdbg.h>
 

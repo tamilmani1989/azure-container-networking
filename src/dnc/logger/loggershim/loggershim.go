@@ -4,6 +4,7 @@ import (
 	"dnc/configuration"
 	"dnc/logger/acnlogger"
 	"dnc/logger/customlogger"
+	"dnc/netagentcontracts"
 )
 
 // LS :- Global reference to loggershim
@@ -11,7 +12,7 @@ var LS *LoggerShim
 
 // LoggerInterface :- Logging interface
 type LoggerInterface interface {
-	Init(stderr bool)
+	Init(stderr bool, reports chan netagentcontracts.DNCReport)
 	Debugf(format string, args ...interface{})
 	Errorf(format string, args ...interface{})
 	Close()
@@ -37,8 +38,8 @@ func NewLoggerShim(cfg *configuration.Configuration) *LoggerShim {
 }
 
 // Init :- Initialize logger
-func (loggerShim *LoggerShim) Init(stderr bool) {
-	loggerShim.loggerInterface.Init(stderr)
+func (loggerShim *LoggerShim) Init(stderr bool, reports chan netagentcontracts.DNCReport) {
+	loggerShim.loggerInterface.Init(stderr, reports)
 }
 
 // Debugf :- Log debug statements using default (azure-container-networking) or custom logger

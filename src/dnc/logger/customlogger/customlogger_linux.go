@@ -2,6 +2,8 @@ package customlogger
 
 import (
 	"dnc/configuration"
+	"dnc/netagentcontracts"
+	"fmt"
 
 	"github.com/Azure/azure-container-networking/log"
 )
@@ -9,6 +11,7 @@ import (
 // CustomLogger :- struct to hold CustomLogger settings.
 type CustomLogger struct {
 	instance *log.Logger
+	reports  chan netagentcontracts.DNCReport
 }
 
 // NewCustomLogger :- Create new CustomLogger
@@ -18,7 +21,7 @@ func NewCustomLogger(cfg configuration.CustomLoggerSettings) *CustomLogger {
 }
 
 // Init :- Initialize CustomLogger
-func (l *CustomLogger) Init(stderr bool) {
+func (l *CustomLogger) Init(stderr bool, reports chan netagentcontracts.DNCReport) {
 	logLevel := log.LevelDebug
 	logTarget := log.TargetLogfile
 
@@ -27,6 +30,7 @@ func (l *CustomLogger) Init(stderr bool) {
 	}
 
 	l.instance = log.NewLogger("azure-dnc", logLevel, logTarget)
+	l.reports = reports
 }
 
 // Debugf :- Log debug statements using CustomLogger
@@ -37,6 +41,9 @@ func (l *CustomLogger) Debugf(format string, args ...interface{}) {
 // Errorf :- Log errors using CustomLogger
 func (l *CustomLogger) Errorf(format string, args ...interface{}) {
 	l.instance.Printf(format, args...)
+	go func() {
+		l.reports <- netagentcontracts.DNCReport{EventMessage: fmt.Sprintf(format, args...)}
+	}()
 }
 
 // Close :- Close CustomLogger

@@ -13,6 +13,7 @@ import (
 const (
 	DEFAULT_TIMEOUT_IN_SECS = 30
 	DEFAULT_MAX_RETRIES     = 5
+	DEFAULT_LOGDIR          = "/var/log"
 	enable                  = "enable"
 	disable                 = "disable"
 )
@@ -21,6 +22,7 @@ func main() {
 	var err error
 	var handlerEnv *extensionhandler.HandlerEnvironment
 	var handlerConfig *extensionhandler.HandlerConfig
+	var logConfig bool
 
 	internalTimeout := 5
 
@@ -47,16 +49,27 @@ func main() {
 	fmt.Printf("Log directory %v\n", handlerEnv.Env.LogFolder)
 
 	for i := 0; i < *maxRetries; i++ {
+		var err error
 		log.SetLogDirectory(handlerEnv.Env.LogFolder)
 		log.SetName("servicetunnel")
 		log.SetLevel(log.LevelInfo)
-		if err := log.SetTarget(log.TargetLogfile); err == nil {
-			fmt.Printf("LogDir configuration succeeded\n")
+		if err = log.SetTarget(log.TargetLogfile); err == nil {
+			fmt.Printf("LogDir configuration succeeded for dir %v\n", handlerEnv.Env.LogFolder)
+			logConfig = true
 			break
 		}
 
 		fmt.Printf("Failed to configure logging, err:%v. Attempt:%v\n", err, i)
 		time.Sleep(time.Duration(internalTimeout) * time.Second)
+	}
+
+	if !logConfig {
+		log.SetLogDirectory(DEFAULT_LOGDIR)
+		log.SetName("servicetunnel")
+		log.SetLevel(log.LevelInfo)
+		if err := log.SetTarget(log.TargetLogfile); err == nil {
+			fmt.Printf("LogDir configuration succeeded for dir %v\n", DEFAULT_LOGDIR)
+		}
 	}
 
 	log.Printf("options passed : mode %v, timeout %v, maxRetries %v", *mode, *timeout, *maxRetries)

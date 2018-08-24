@@ -95,7 +95,7 @@ Return Value:
 
 --*/
 {
-	wstring usage = L"Usage: NetworkContainer ";
+	wstring usage = L"Usage: AzureNetworkContainer ";
 	usage += L"/logpath log_path";
 	usage += L"/name name_of_device ";
 	usage += L"/type type_of_request ";
@@ -103,7 +103,9 @@ Return Value:
 	usage += L"/ip ip_address_of_device ";
 	usage += L"[/netmask netmask_address]";
 	usage += L"[/gateway gateway_address]";
-	usage += L"[/dns dns_server_address] ";
+	usage += L"[/dns dns_server_address]";
+	usage += L"[/weakhostsend weakhostsend_flag]";
+	usage += L"[/weakhostreceive weakhostreceive_flag]";
 	wcout << usage << endl;
 
 	wstring create = L"Create example:\n";
@@ -114,6 +116,8 @@ Return Value:
 	create += L"/netmask 255.255.255.0 ";
 	create += L"/gateway 3.3.3.3 ";
 	create += L"/dns 8.8.8.8,8.8.8.7";
+	create += L"/weakhostsend true";
+	create += L"/weakhostreceive false";
 	wcout << create << endl;
 
 	wstring update = L"Update example:\n";
@@ -124,6 +128,8 @@ Return Value:
 	update += L"/netmask 255.255.255.0 ";
 	update += L"/gateway 3.3.3.3 ";
 	update += L"/dns 8.8.8.8,8.8.8.7,8.8.8.6";
+	update += L"/weakhostsend true";
+	update += L"/weakhostreceive true";
 	wcout << update << endl;
 
 	wstring del = L"Delete example:\n";
@@ -486,7 +492,10 @@ Arguments:
 		return hr;
 	}
 
-	if (logPath.empty())
+	if (logPath.empty() ||
+		(logPath.length() == 1 && 
+			logPath != L".")
+		)
 	{ 
 		logPath = DEFAULT_LOG_LOCATION; 
 	}

@@ -5,6 +5,7 @@ import (
 	"LinuxNetAgent/servicetunnel"
 
 	"github.com/Azure/azure-container-networking/log"
+	"github.com/Azure/azure-container-networking/platform"
 )
 
 const (
@@ -14,7 +15,21 @@ const (
 	VETH2                = "azstveth2"
 )
 
+func installTools() {
+	_, err := platform.ExecuteCommand("apt -y update")
+	if err != nil {
+		log.Printf("apt update failed with error %v", err)
+	}
+
+	_, err = platform.ExecuteCommand("apt install -y ebtables")
+	if err != nil {
+		log.Printf("apt install ebtables failed with error %v", err)
+	}
+}
+
 func CreateServiceTunnel(stConfig *extensionhandler.ServiceTunnelConfig) error {
+	installTools()
+
 	st := &servicetunnel.ServiceTunnel{PrimaryInterfaceName: PrimaryInterfaceName, TargetInterfaceName: BridgeName}
 
 	if err := st.GetPrimaryIP(); err != nil {

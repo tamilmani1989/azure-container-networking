@@ -4,7 +4,7 @@ Copyright (c) 2018 Microsoft Corporation
 
 Module Name:
 
-	NetworkContainer.h
+	NetworkContainer.cpp
 
 Abstract:
 
@@ -27,7 +27,7 @@ NetworkContainer::NetworkContainer()
 
 Routine Description:
 
-	Default onstructor for NetworkContainer. This constructor will enable default settings.
+	Default constructor for NetworkContainer. This constructor will enable default settings.
 
 Return Value:
 	
@@ -277,6 +277,18 @@ Return Value:
 		{
 			return hr;
 		}
+	}
+
+	hr = adapters[Name]->DeleteAllRoutes();
+	if (hr != S_OK)
+	{
+		return hr;
+	}
+
+	hr = adapters[Name]->AddCatchAllRoute();
+	if (hr != S_OK)
+	{
+		return hr;
 	}
 
 	return hr;

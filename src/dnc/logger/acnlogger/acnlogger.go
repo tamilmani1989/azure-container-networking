@@ -1,12 +1,16 @@
 package acnlogger
 
 import (
+	"dnc/netagentcontracts"
+	"fmt"
+
 	"github.com/Azure/azure-container-networking/log"
 )
 
 // AcnLogger :- struct to hold AcnLogger settings.
 type AcnLogger struct {
 	instance *log.Logger
+	reports  chan netagentcontracts.DNCReport
 }
 
 // NewAcnLogger :- Create new AcnLogger
@@ -16,7 +20,7 @@ func NewAcnLogger() *AcnLogger {
 }
 
 // Init :- Initialize AcnLogger
-func (l *AcnLogger) Init(stderr bool) {
+func (l *AcnLogger) Init(stderr bool, reports chan netagentcontracts.DNCReport) {
 	logLevel := log.LevelDebug
 	logTarget := log.TargetLogfile
 
@@ -25,6 +29,7 @@ func (l *AcnLogger) Init(stderr bool) {
 	}
 
 	l.instance = log.NewLogger("azure-dnc", logLevel, logTarget)
+	l.reports = reports
 }
 
 // Debugf :- Log debug statements using AcnLogger
@@ -35,6 +40,9 @@ func (l *AcnLogger) Debugf(format string, args ...interface{}) {
 // Errorf :- Log errors using AcnLogger
 func (l *AcnLogger) Errorf(format string, args ...interface{}) {
 	l.instance.Printf(format, args...)
+	go func() {
+		l.reports <- netagentcontracts.DNCReport{EventMessage: fmt.Sprintf(format, args...)}
+	}()
 }
 
 // Close :- Close AcnLogger

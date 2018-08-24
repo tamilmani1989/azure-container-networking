@@ -35,5 +35,4 @@ func (v *NetworkConfiguration) String() string {
 		v.NetworkID, v.SubscriptionID, v.Version, v.CNetSpace, v.VNetSpace,
 		utils.PrintMapKeys(v.Subnets), dnsServers, v.NetworkState.String(), v.Status.String(),
 		v.FailureDetail.String(), v.APIVersion)
-
 }
