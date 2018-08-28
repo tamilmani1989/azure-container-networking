@@ -20,8 +20,11 @@ Author:
 #include <IfxMetrics.h>
 #include "XmlParserHelper.h"
 #include <map>
+#include <locale>
+#include <codecvt>
 #include "HealthReport.h"
 #include "CNIReport.h"
+#include "NPMReport.h"
 
 // Constant string for vnet mdm account
 #define MDM_ACCOUNT L"MdmAccount"
@@ -43,6 +46,12 @@ Author:
 #define	MDM_DIMENSION_NAME_PLUGIN_NAME_STR                      "PluginName"
 #define	MDM_DIMENSION_NAME_PLUGIN_VERSION_STR                   "PluginVersion"
 
+#define MDM_DIMENSION_NAME_NPM_VERSION_STR "NpmVersion"
+#define MDM_DIMENSION_NAME_KUBERNETES_VERSION_STR "KubernetesVersion"
+#define MDM_DIMENSION_NAME_SUBSCRIPTION_ID_STR "SubscriptionId"
+#define MDM_DIMENSION_NAME_RESOURCE_GROUP_NAME_STR "ResourceGroupName"
+#define MDM_DIMENSION_NAME_CLUSTER_ID_STR "ClusterId"
+#define MDM_DIMENSION_NAME_NODE_NAME_STR "NodeName"
 
 // MDM metric names for per-container metrics
 #define MDM_METRIC_PACKAGE_DOWNLOAD_REQUEST_STR                 "PackageDownloadAttempted"
@@ -56,6 +65,10 @@ Author:
 #define MDM_METRIC_CNI_RUNNING_STR                              "CNIRunning"
 #define MDM_METRIC_CNI_SUCCEEDED_STR                            "CNISucceeded"
 #define MDM_METRIC_CNI_ERROR_STR                                "CNIError"
+
+// MDM metric names for NPM metrics.
+#define MDM_METRIC_NPM_RUNNING_STR "NPMRunning"
+#define MDM_METRIC_NPM_ERROR_STR "NPMError"
 
 #define MAX_STR_LEN (size_t) ((INT_MAX/2) -1)
 
@@ -89,22 +102,39 @@ public:
 
     HRESULT LogPerContainerMetricToMDM(
         LPCSTR ContainerId,
-        LPCSTR GuestOS,
+        LPCSTR Location,
         LPCSTR GuestOSVersion,
         LPCSTR MetricName,
-        ULONG64 Value);
+        ULONG64 Value
+	);
 
     HRESULT LogPerContainerCNIMetricToMDM(
+		LPCSTR Location,
         LPCSTR ContainerId,
         LPCSTR Name,
         LPCSTR Version,
         LPCSTR OrchestratorName,
         LPCSTR OrchestratorVersion,
-        LPCSTR GuestOS,
         LPCSTR GuestOSVersion,
         LPCSTR KernelVersion,
         LPCSTR MetricName,
-        ULONG64 Value);
+        ULONG64 Value
+	);
+
+	HRESULT LogPerNPMMetricToMDM(
+		string Location,
+		string NpmVersion,
+		string KubernetesVersion,
+		string SubscriptionId,
+		string ResourceGroupName,
+		string ClusterId,
+		string NodeName,
+		string NodeId,
+		string GuestOSVersion,
+		string KernelVersion,
+		string MetricName,
+		ULONG64 Value
+	);
 
     HRESULT LogDownloadMetricToMDM(LPCWSTR ContainerId, ULONG64 Value) const;
 
@@ -116,7 +146,13 @@ public:
 
     void LogCNIReport(wstring ContainerId, CNIReport& CNIReport);
 
+	void LogNPMReport(NPMReport& NPMReport);
+
     static MdmLogger* GetInstance();
+
+	static wstring s2ws(const string& s);
+
+	static string ws2s(const wstring& ws);
 
 private:
 
@@ -139,6 +175,9 @@ private:
 
     // map from metric name to Per-container CNI MDM metric
     map<string, MeasureMetric10D*> PerContainerCNIMetrics;
+
+	// map from metric name to Per-NPM MDM metric
+	map<string, MeasureMetric10D*> PerNPMMetrics;
 };
 
 

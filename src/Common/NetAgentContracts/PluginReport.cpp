@@ -15,11 +15,10 @@ Environment:
     User Mode - Win32
 
 --*/
-//
-// ------------------------------------------------------------------- Includes
-//
+
 #include "PluginReport.h"
 #include "Logging.h"	
+
 using namespace std;
 using namespace web;
 using namespace http;
@@ -27,7 +26,7 @@ using namespace json;
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 void
-PluginReport::InitializePluginReportFieldIdMap()
+PluginReport::InitializeFieldIdMap()
 /*++
 
 Routine Description:
@@ -311,7 +310,7 @@ Return Value:
 }
 
 void
-PluginReport::PrintPluginReport()
+PluginReport::Print()
 /*++
 
 Routine Description:

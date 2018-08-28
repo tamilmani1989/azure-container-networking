@@ -156,6 +156,7 @@ Return Value:
     LOGINFOW(L"Retrieved version [%s] from Version File:[%s].", packageVersion.c_str(), versionFileName.c_str());
     return ERROR_SUCCESS;
 }
+
 DWORD 
 PackagesInfo::FindPackages()
 /*++

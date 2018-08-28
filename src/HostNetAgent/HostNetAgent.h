@@ -70,6 +70,7 @@ using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 const wstring POST_CNI_REPORT_KEY = L"cnireport";
 const wstring POST_HEALTH_REPORT_KEY = L"healthreport";
+const wstring POST_NPM_REPORT_KEY = L"npmreport";
 const wstring GET_VERSION_QUERY_KEY = L"getpackageversion";
 const wstring GET_PACKAGE_URIS_QUERY_KEY = L"getpackageuris";
 const wstring TYPE_KEY = L"type";
