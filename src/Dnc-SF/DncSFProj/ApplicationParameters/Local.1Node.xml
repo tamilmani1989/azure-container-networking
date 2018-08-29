@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Application xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Name="fabric:/WebReferenceApplication" xmlns="http://schemas.microsoft.com/2011/01/fabric">
+  <Parameters>
+    <Parameter Name="DNCService_MinReplicaSetSize" DefaultValue="1" />
+    <Parameter Name="DNCService_PartitionCount" DefaultValue="1" />
+    <Parameter Name="DNCService_TargetReplicaSetSize" DefaultValue="1" />
+    <Parameter Name="DNCServiceWebService_InstanceCount" DefaultValue="1" />
+  </Parameters>
+</Application>
