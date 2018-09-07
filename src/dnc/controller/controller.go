@@ -308,8 +308,9 @@ func (c *Controller) GetNetworkContainerStatus(
 	var requestStatus *api.RequestStatus
 	if generatedStatus != http.StatusProcessing {
 		requestStatus = &api.RequestStatus{
-			State:  ncConfig.State.String(),
-			Status: ncConfig.Status.String()}
+			State:         ncConfig.State.String(),
+			Status:        ncConfig.Status.String(),
+			FailureDetail: ncConfig.FailureDetail}
 	}
 
 	return requestStatus, generatedStatus, nil
