@@ -1945,10 +1945,8 @@ func getIPConfiguration(repoReservationConfiguration *ReservationConfiguration) 
 func GetNetworkContainerResponse(
 	ncConfig *NCConfiguration) (*api.NetworkContainerResponse, *api.JsonErr) {
 	var ipConfiguration *api.IPConfiguration
-	var nodeConfiguration *NodeConfiguration
 
-	if ncConfig.State != Prepare &&
-		!(ncConfig.State == Reserve && ncConfig.Status != Completed) {
+	if ncConfig.State != Prepare && ncConfig.State != Reserve {
 		reservationConfiguration, err := QueryIPReservation(
 			ncConfig.NetworkID,
 			ncConfig.ReservationID)
@@ -1960,11 +1958,11 @@ func GetNetworkContainerResponse(
 		if err != nil {
 			return nil, err
 		}
+	}
 
-		nodeConfiguration, err = QueryNodeConfiguration(ncConfig.GetAssociationInfo().NodeID)
-		if err != nil {
-			return nil, err
-		}
+	nodeConfiguration, err := QueryNodeConfiguration(ncConfig.GetAssociationInfo().NodeID)
+	if err != nil {
+		return nil, err
 	}
 
 	requestStatus := api.RequestStatus{
