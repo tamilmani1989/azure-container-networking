@@ -740,3 +740,10 @@ func InitializeAzureStorage(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}
 }
+
+// RelinquishPrimaryStatus - Relinquish replica primary status
+func RelinquishPrimaryStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	ctrler.RelinquishPrimaryStatus()
+	w.WriteHeader(http.StatusOK)
+}

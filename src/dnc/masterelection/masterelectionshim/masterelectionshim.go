@@ -25,6 +25,7 @@ type MasterElectionShim struct {
 	primaryIPEndpointNotificationCallback callbacks.PrimaryIPEndpointNotification
 	startEvent                            chan bool
 	cancelEvent                           chan bool
+	demoteEvent                           chan bool
 	masterElectionInterface               MasterElectionInterface
 }
 
@@ -34,7 +35,8 @@ func NewMasterElectionShim(
 	replicaStatusNotificationCallback callbacks.ReplicaChangeNotification,
 	primaryIPNotificationCallback callbacks.PrimaryIPEndpointNotification,
 	start chan bool,
-	cancel chan bool) *MasterElectionShim {
+	cancel chan bool,
+	demote chan bool) *MasterElectionShim {
 	masterElectionShim := new(MasterElectionShim)
 	masterElectionShim.serverSettings = cfg.ServerSettings
 	masterElectionShim.masterElectionSettings = cfg.MasterElectionSettings
@@ -42,6 +44,7 @@ func NewMasterElectionShim(
 	masterElectionShim.primaryIPEndpointNotificationCallback = primaryIPNotificationCallback
 	masterElectionShim.cancelEvent = cancel
 	masterElectionShim.startEvent = start
+	masterElectionShim.demoteEvent = demote
 	if masterElectionShim.masterElectionSettings.BlobStorageSettings != (configuration.BlobStorageSettings{}) {
 		blobStore := blobstore.NewBlobStore(
 			masterElectionShim.serverSettings,
@@ -49,7 +52,8 @@ func NewMasterElectionShim(
 			masterElectionShim.replicaChangeNotificationCallback,
 			masterElectionShim.primaryIPEndpointNotificationCallback,
 			masterElectionShim.startEvent,
-			masterElectionShim.cancelEvent)
+			masterElectionShim.cancelEvent,
+			masterElectionShim.demoteEvent)
 		masterElectionShim.masterElectionInterface = blobStore
 	} else if masterElectionShim.masterElectionSettings.TestDataElectionSettings != (configuration.TestDataElectionSettings{}) {
 		testdataElection := testdataelection.NewTestDataElection(
@@ -84,4 +88,8 @@ func (masterElectionShim *MasterElectionShim) Cleanup() {
 
 func (masterElectionShim *MasterElectionShim) SetDataStoreSettings(config *configuration.Configuration) {
 	masterElectionShim.masterElectionInterface.SetDataStoreSettings(config)
+}
+
+func (masterElectionShim *MasterElectionShim) RelinquishPrimaryStatus() {
+	masterElectionShim.demoteEvent <- true
 }

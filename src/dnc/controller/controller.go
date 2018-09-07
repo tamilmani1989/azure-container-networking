@@ -430,3 +430,9 @@ func (c *Controller) IsReplicaReady() bool {
 func (c *Controller) UpdateReplicaStatus(isReplicaReady bool) {
 	c.Replica.UpdateReadyStatus(isReplicaReady)
 }
+
+// RelinquishPrimaryStatus - Relinquish replica primary status
+func (c *Controller) RelinquishPrimaryStatus() {
+	loggershim.LS.Debugf("Relinquisihing primary replica status")
+	masterElectionShim.RelinquishPrimaryStatus()
+}
