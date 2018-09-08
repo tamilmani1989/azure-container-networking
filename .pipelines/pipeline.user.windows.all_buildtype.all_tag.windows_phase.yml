@@ -63,6 +63,10 @@ version:
 static_analysis_options:                          
   binskim_options:  
     disable_tool_scan: true
+    files_to_scan:     
+      - from: 'src\dnc\'
+        exclude:                         
+          - '**/*'
 
 # An optional user defined stage for performing any compilation, code generation etc.
 # All files in the artifacts sections will be collected, saved off and signed.
