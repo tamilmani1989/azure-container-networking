@@ -48,8 +48,8 @@ version:
                                                                         # Currently unused, but will be used in the future to refer to the
                                                                         # artifacts as a group by name.
   major: 2018                                                           # The major version number.
-  minor: 8                                                              # The minor version number
-  tag: '6.1'                                                            # Tag to use for semantic versioning.
+  minor: 9                                                              # The minor version number
+  tag: '7.1'                                                            # Tag to use for semantic versioning.
   system: 'patch'                                                       # Versioning scheme to use.
                                                                         # patch         - 1.0.MMddyyrrrr will be generated
                                                                         # buildrevision - 1.0.MMddyy.rrrr will be generated.
