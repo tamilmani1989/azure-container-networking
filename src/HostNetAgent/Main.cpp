@@ -353,14 +353,14 @@ Return Value:
     hr = mdmLogger->InitializeMdm(
         configFile,
 		packagesInfoInstance->GetPackageVersion().c_str());
-    if( hr != S_OK)
+    if (hr != S_OK)
     {
         LOGERRW(L"Failed to set up Mdm using settings file {%s}", configFile);
         return hr;
     }
 
-    HealthReport::InitializeHealthReportFieldIdMap();
-	CNIReport::InitializeCNIReportFieldIdMap();
+    HealthReport::InitializeFieldIdMap();
+	CNIReport::InitializeFieldIdMap();
 
     std::thread listenerThread(StartListener);
     listenerThread.join();

@@ -133,4 +133,10 @@ var routes = Routes{
 		"/azurestoragesettings",
 		InitializeAzureStorage,
 	},
+	Route{
+		"RelinquishPrimaryStatus",
+		"POST",
+		"/relinquishprimarystatus",
+		RelinquishPrimaryStatus,
+	},
 }

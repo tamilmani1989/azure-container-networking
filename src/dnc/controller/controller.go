@@ -308,8 +308,9 @@ func (c *Controller) GetNetworkContainerStatus(
 	var requestStatus *api.RequestStatus
 	if generatedStatus != http.StatusProcessing {
 		requestStatus = &api.RequestStatus{
-			State:  ncConfig.State.String(),
-			Status: ncConfig.Status.String()}
+			State:         ncConfig.State.String(),
+			Status:        ncConfig.Status.String(),
+			FailureDetail: ncConfig.FailureDetail}
 	}
 
 	return requestStatus, generatedStatus, nil
@@ -429,4 +430,10 @@ func (c *Controller) IsReplicaReady() bool {
 // UpdateReplicaStatus - Function to update replica ready flag
 func (c *Controller) UpdateReplicaStatus(isReplicaReady bool) {
 	c.Replica.UpdateReadyStatus(isReplicaReady)
+}
+
+// RelinquishPrimaryStatus - Relinquish replica primary status
+func (c *Controller) RelinquishPrimaryStatus() {
+	loggershim.LS.Debugf("Relinquisihing primary replica status")
+	masterElectionShim.RelinquishPrimaryStatus()
 }

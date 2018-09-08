@@ -22,6 +22,7 @@ var cancelProcessing = make(chan bool)
 var startProcessing = make(chan bool)
 var startChan = make(chan bool)
 var doneChan = make(chan bool)
+var demoteChan = make(chan bool)
 var networkMonitorStartProcessing = make(chan bool)
 var tagMonitorStartProcessing = make(chan bool)
 var networkMonitorStopProcessing = make(chan bool)
@@ -61,7 +62,8 @@ func init() {
 		replicaInstance.UpdateReplicaStatus,
 		replicaInstance.SetPrimaryIPEndpoint,
 		startChan,
-		doneChan)
+		doneChan,
+		demoteChan)
 	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt, masterElectionShim, config)
 	dncServer = server.Server{
 		ServerSettings: config.ServerSettings,

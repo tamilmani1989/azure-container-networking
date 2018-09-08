@@ -1,6 +1,6 @@
 /*++
 
-Copyright (c) 2011  Microsoft Corporation
+Copyright (c) 2017 Microsoft Corporation
 
 Module Name:
 
@@ -22,7 +22,7 @@ Environment:
 
 #include <stdio.h>
 #include <stdlib.h>
-#include<stdint.h>
+#include <stdint.h>
 #include <map>
 #include <cpprest/json.h>
 #include <cpprest/http_listener.h>
@@ -33,6 +33,7 @@ Environment:
 #include <cpprest/containerstream.h>
 #include <cpprest/producerconsumerstream.h>
 #include "cpprest/filestream.h"
+#include "json.h"
 
 using namespace std;
 using namespace web;
@@ -139,7 +140,8 @@ public:
 };
 
 // Generic Plugin Report
-class PluginReport {
+class PluginReport: public Microsoft::Azure::Networking::Aqua::ClientLibrary::Json<PluginReport>{
+
 public:
     // Name of Plugin
     wstring Name;
@@ -165,9 +167,8 @@ public:
     // System Info
     SystemInfo SystemDetails;
     
-    static
-    void
-    InitializePluginReportFieldIdMap();
+    static void
+	InitializeFieldIdMap();
     
     bool
     FindFieldFromBaseClass(
@@ -176,5 +177,5 @@ public:
     );
 
     void
-    PrintPluginReport();
+    Print();
 };

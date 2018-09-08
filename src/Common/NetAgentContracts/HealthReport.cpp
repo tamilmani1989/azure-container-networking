@@ -15,21 +15,39 @@ Environment:
     User Mode - Win32
 
 --*/
-//
-// ------------------------------------------------------------------- Includes
-//
+
 #include "HealthReport.h"
+#include "Logging.h"
 
 using namespace std;
 using namespace web;
 using namespace http;
 using namespace json;
+using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
-void
-HealthReport::InitializeHealthReport(
+HealthReport::HealthReport()
+/*++
+
+Routine Description:
+
+	Default health report constructor.
+
+Arguments:
+
+	None.
+
+Return Value:
+
+None.
+--*/
+{
+	InitializeFieldIdMap();
+}
+
+HealthReport::HealthReport(
     std::wstring ContainerId,
     json::object& JsonObject
-    )
+)
 /*++
 
 Routine Description:
@@ -49,11 +67,12 @@ Return Value:
 --*/
 {
     this->ContainerId.assign(ContainerId.c_str());
+	InitializeFieldIdMap();
     SetMembersFromJson(JsonObject);
 }
 
 void
-HealthReport::InitializeHealthReportFieldIdMap()
+HealthReport::InitializeFieldIdMap()
 /*++
 
 Routine Description:
@@ -70,25 +89,25 @@ Return Value:
 
 --*/
 {
-    HealthReportFieldIdMap[GUEST_OS_FAMILY_STR] = ReportKey::GuestOSFamily;
-    HealthReportFieldIdMap[GUEST_OS_VERSION_STR] = ReportKey::GuestOSVersion;
-	HealthReportFieldIdMap[DEBUG_MESSAGE_STR] = ReportKey::DebugMessage;
-	HealthReportFieldIdMap[DRIVER_INSTALL_PRESETUP_SUCCEEDED_STR] = ReportKey::DriverInstallPreSetupSucceeded;
-	HealthReportFieldIdMap[DRIVER_INSTALL_PRESETUP_FAILED_STR] = ReportKey::DriverInstallPreSetupFailed;
-	HealthReportFieldIdMap[DRIVER_INSTALL_PRESETUP_NOT_ATTEMPTED_STR] = ReportKey::DriverInstallPreSetupNotAttempted;
-    HealthReportFieldIdMap[DRIVER_INSTALL_ATTEMPTED_STR] = ReportKey::DriverInstallAttempted;
-    HealthReportFieldIdMap[DRIVER_INSTALL_SUCCEEDED_STR] = ReportKey::DriverInstallSucceeded;
-    HealthReportFieldIdMap[DRIVER_INSTALL_FAILED_STR] = ReportKey::DriverInstallFailed;
-    HealthReportFieldIdMap[DRIVER_INSTALL_NOT_ATTEMPTED_STR] = ReportKey::DriverInstallNotAttempted;
-    HealthReportFieldIdMap[TOTAL_VF_DEVICES_COUNT_STR] = ReportKey::TotalVFDevices;
-    HealthReportFieldIdMap[NON_FUNCTIONAL_VF_DEVICES_COUNT_STR] = ReportKey::NonFunctionalVFDevices;
-    HealthReportFieldIdMap[INSTALLATION_ERROR_CODE] = ReportKey::InstallationErrorCode;
+    HealthReportFieldIdMap[GUEST_OS_FAMILY_STR] = HealthEnum::ReportKey::GuestOSFamily;
+    HealthReportFieldIdMap[GUEST_OS_VERSION_STR] = HealthEnum::ReportKey::GuestOSVersion;
+	HealthReportFieldIdMap[DEBUG_MESSAGE_STR] = HealthEnum::ReportKey::DebugMessage;
+	HealthReportFieldIdMap[DRIVER_INSTALL_PRESETUP_SUCCEEDED_STR] = HealthEnum::ReportKey::DriverInstallPreSetupSucceeded;
+	HealthReportFieldIdMap[DRIVER_INSTALL_PRESETUP_FAILED_STR] = HealthEnum::ReportKey::DriverInstallPreSetupFailed;
+	HealthReportFieldIdMap[DRIVER_INSTALL_PRESETUP_NOT_ATTEMPTED_STR] = HealthEnum::ReportKey::DriverInstallPreSetupNotAttempted;
+    HealthReportFieldIdMap[DRIVER_INSTALL_ATTEMPTED_STR] = HealthEnum::ReportKey::DriverInstallAttempted;
+    HealthReportFieldIdMap[DRIVER_INSTALL_SUCCEEDED_STR] = HealthEnum::ReportKey::DriverInstallSucceeded;
+    HealthReportFieldIdMap[DRIVER_INSTALL_FAILED_STR] = HealthEnum::ReportKey::DriverInstallFailed;
+    HealthReportFieldIdMap[DRIVER_INSTALL_NOT_ATTEMPTED_STR] = HealthEnum::ReportKey::DriverInstallNotAttempted;
+    HealthReportFieldIdMap[TOTAL_VF_DEVICES_COUNT_STR] = HealthEnum::ReportKey::TotalVFDevices;
+    HealthReportFieldIdMap[NON_FUNCTIONAL_VF_DEVICES_COUNT_STR] = HealthEnum::ReportKey::NonFunctionalVFDevices;
+    HealthReportFieldIdMap[INSTALLATION_ERROR_CODE] = HealthEnum::ReportKey::InstallationErrorCode;
 }
 
 void 
-HealthReport::SetHealthReportField(
-    wstring FieldName, 
-    json::value JsonValue)
+HealthReport::SetFields(
+    wstring Name, 
+    json::value Value)
 /*++
 
 Routine Description:
@@ -97,9 +116,9 @@ Routine Description:
 
 Arguments:
 
-    FieldName - Name of the field.
+    Name - Name of the field.
 
-    JsonValue - Json value to be associated with the field.
+    Value - Json value to be associated with the field.
 
 Return Value:
 
@@ -107,62 +126,62 @@ Return Value:
 
 --*/
 {
-    switch (HealthReportFieldIdMap[FieldName])
+    switch (HealthReportFieldIdMap[Name])
     {
-    case ReportKey::GuestOSFamily:
-        GuestOSFamily.assign(JsonValue.as_string());
+    case HealthEnum::ReportKey::GuestOSFamily:
+        GuestOSFamily.assign(Value.as_string());
         break;
 
-    case ReportKey::GuestOSVersion:
-        GuestOSVersion.assign(JsonValue.as_string());
+    case HealthEnum::ReportKey::GuestOSVersion:
+        GuestOSVersion.assign(Value.as_string());
         break;
 
-	case ReportKey::DebugMessage:
-		DebugMessage.assign(JsonValue.as_string());
+	case HealthEnum::ReportKey::DebugMessage:
+		DebugMessage.assign(Value.as_string());
 		break;
 
-	case ReportKey::DriverInstallPreSetupSucceeded:
-		DriverInstallPreSetupSucceeded = JsonValue.as_bool();
+	case HealthEnum::ReportKey::DriverInstallPreSetupSucceeded:
+		DriverInstallPreSetupSucceeded = Value.as_bool();
 		break;
 
-	case ReportKey::DriverInstallPreSetupFailed:
-		DriverInstallPreSetupFailed = JsonValue.as_bool();
+	case HealthEnum::ReportKey::DriverInstallPreSetupFailed:
+		DriverInstallPreSetupFailed = Value.as_bool();
 		break;
 	
-	case ReportKey::DriverInstallPreSetupNotAttempted:
-		DriverInstallPreSetupNotAttempted = JsonValue.as_bool();
+	case HealthEnum::ReportKey::DriverInstallPreSetupNotAttempted:
+		DriverInstallPreSetupNotAttempted = Value.as_bool();
 		break;
     
-	case ReportKey::DriverInstallAttempted:
-        DriverInstallAttempted = JsonValue.as_bool();
+	case HealthEnum::ReportKey::DriverInstallAttempted:
+        DriverInstallAttempted = Value.as_bool();
         break;
 
-    case ReportKey::DriverInstallSucceeded:
-        DriverInstallSucceeded = JsonValue.as_bool();
+    case HealthEnum::ReportKey::DriverInstallSucceeded:
+        DriverInstallSucceeded = Value.as_bool();
         break;
 
-    case ReportKey::DriverInstallFailed:
-        DriverInstallFailed = JsonValue.as_bool();
+    case HealthEnum::ReportKey::DriverInstallFailed:
+        DriverInstallFailed = Value.as_bool();
         break;
 
-    case ReportKey::DriverInstallNotAttempted:
-        DriverInstallNotAttempted = JsonValue.as_bool();
+    case HealthEnum::ReportKey::DriverInstallNotAttempted:
+        DriverInstallNotAttempted = Value.as_bool();
         break;
 
-    case ReportKey::TotalVFDevices:
-        TotalVFDevicesCount = JsonValue.as_integer();
+    case HealthEnum::ReportKey::TotalVFDevices:
+        TotalVFDevicesCount = Value.as_integer();
         break;
 
-    case ReportKey::NonFunctionalVFDevices:
-        NonFunctionalVFDevicesCount = JsonValue.as_integer();
+    case HealthEnum::ReportKey::NonFunctionalVFDevices:
+        NonFunctionalVFDevicesCount = Value.as_integer();
         break;
 
-    case ReportKey::InstallationErrorCode:
-        ErrorCode = JsonValue.as_integer();
+    case HealthEnum::ReportKey::InstallationErrorCode:
+        ErrorCode = Value.as_integer();
         break;
 
     default:
-        wprintf(L"Unknown key:{%s}", FieldName.c_str());
+        wprintf(L"Unknown key:{%s}", Name.c_str());
 
     }
 }
@@ -192,7 +211,7 @@ Return Value:
         const wstring propertyName = e.first;
         const json::value propertyValue = e.second;
 
-        SetHealthReportField(propertyName, propertyValue);
+        SetFields(propertyName, propertyValue);
     }
 }
 
@@ -231,4 +250,38 @@ Return Value:
     jsonHealthReport[INSTALLATION_ERROR_CODE] = value::number(ErrorCode);
 
     return jsonHealthReport;
+}
+
+void HealthReport::Print()
+/*++
+
+Routine Description:
+
+	Print each member of HealthReport.
+
+Arguments:
+
+	None.
+
+Return Value:
+
+	None.
+
+--*/
+{
+	wstring s;
+	s += L"ContainerId: " + ContainerId + L"\n";	
+	s += L"GuestOSVersion: " + GuestOSVersion + L"\n";
+	s += L"GuestOSFamily: " + GuestOSFamily + L"\n";
+	s += L"DebugMessage: " + DebugMessage + L"\n";
+	s += L"DriverInstallPreSetupSucceeded: " + ConvertBoolToWstring(DriverInstallPreSetupSucceeded) +L"\n";
+	s += L"DriverInstallPreSetupFailed: " + ConvertBoolToWstring(DriverInstallPreSetupFailed) +L"\n";
+	s += L"DriverInstallNotAttempted: " + ConvertBoolToWstring(DriverInstallNotAttempted) +L"\n";
+	s += L"DriverInstallAttempted: " + ConvertBoolToWstring(DriverInstallAttempted) +L"\n";
+	s += L"DriverInstallSucceeded: " + ConvertBoolToWstring(DriverInstallSucceeded) +L"\n";
+	s += L"TotalVFDevicesCount: " + to_wstring(TotalVFDevicesCount) +L"\n";
+	s += L"NonFunctionalVFDevicesCount: " + to_wstring(NonFunctionalVFDevicesCount) +L"\n";
+	s += L"ErrorCode: " + to_wstring(ErrorCode) +L"\n";
+
+	LOGINFOW(L"%s", s.c_str());
 }

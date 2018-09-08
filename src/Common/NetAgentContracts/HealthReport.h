@@ -15,9 +15,7 @@ Environment:
     User Mode - Win32
 
 --*/
-//
-// ------------------------------------------------------------------- Includes
-//
+
 #pragma once
 
 #include <stdio.h>
@@ -32,6 +30,8 @@ Environment:
 #include <cpprest/containerstream.h>
 #include <cpprest/producerconsumerstream.h>
 #include "cpprest/filestream.h"
+#include "Json.h"
+#include "Metadata.h"
 
 #define GUEST_OS_VERSION_STR                                L"GuestOSVersion"
 #define GUEST_OS_FAMILY_STR                                 L"GuestOSFamily"
@@ -50,31 +50,39 @@ Environment:
 //
 // Enums for fields in the health report.
 //
-
-enum ReportKey {
-    GuestOSVersion,
-    GuestOSFamily,
-	DebugMessage,
-	DriverInstallPreSetupSucceeded,
-	DriverInstallPreSetupFailed,
-	DriverInstallPreSetupNotAttempted,
-    DriverInstallNotAttempted,
-    DriverInstallAttempted,
-    DriverInstallSucceeded,
-    DriverInstallFailed,
-    TotalVFDevices,
-    NonFunctionalVFDevices,
-    InstallationErrorCode
-};
-
+namespace HealthEnum {
+	enum ReportKey {
+		GuestOSVersion,
+		GuestOSFamily,
+		DebugMessage,
+		DriverInstallPreSetupSucceeded,
+		DriverInstallPreSetupFailed,
+		DriverInstallPreSetupNotAttempted,
+		DriverInstallNotAttempted,
+		DriverInstallAttempted,
+		DriverInstallSucceeded,
+		DriverInstallFailed,
+		TotalVFDevices,
+		NonFunctionalVFDevices,
+		InstallationErrorCode
+	};
+}
 // Helath report field name to Id map
-static  std::map<std::wstring, ReportKey> HealthReportFieldIdMap;
+static  std::map<std::wstring, HealthEnum::ReportKey> HealthReportFieldIdMap;
 using namespace std;
 using namespace web;
 
-class HealthReport {
+class HealthReport : public Microsoft::Azure::Networking::Aqua::ClientLibrary::Json<HealthReport> {
 
 public:
+
+	HealthReport();
+
+	HealthReport(
+		std::wstring ContainerId,
+		json::object &JsonObject
+	);
+
     // Id of the container.
     wstring ContainerId;
 
@@ -117,21 +125,18 @@ public:
     // Error Code if installation fails.
     int ErrorCode;
 
-    void
-    InitializeHealthReport(
-        std::wstring ContainerId,
-        json::object &JsonObject);
-
-    static
-    void
-    InitializeHealthReportFieldIdMap();
+    static void
+    InitializeFieldIdMap();
 
     void
-    SetHealthReportField(
-        std::wstring Name,
-        web::json::value Value);
+    SetFields(
+        wstring Name,
+        json::value Value
+	);
 
     void SetMembersFromJson(json::object &JsonObject);
 
     json::value TranslateToJsonValue() const;
+
+	void Print();
 };

@@ -26,13 +26,15 @@ type BlobStore struct {
 	primaryIPEndpointNotificationCallback callbacks.PrimaryIPEndpointNotification
 	cancelEvent                           chan bool
 	startEvent                            chan bool
+	demoteEvent                           chan bool
 	blob                                  *storage.Blob
 	leaseID                               string
 	mutex                                 *sync.RWMutex
 }
 
 const (
-	blockID = "7f3ed58e-3139-4f71-8247-652de5692fb2"
+	blockID                                 = "7f3ed58e-3139-4f71-8247-652de5692fb2"
+	DemoteAcquireLeaseIntervalPenaltyInSecs = 5
 )
 
 // NewBlobStore - Create a NewBlobStore
@@ -42,7 +44,8 @@ func NewBlobStore(
 	replicaStatusNotificationCallback callbacks.ReplicaChangeNotification,
 	primaryIPNotificationCallback callbacks.PrimaryIPEndpointNotification,
 	start chan bool,
-	cancel chan bool) *BlobStore {
+	cancel chan bool,
+	demote chan bool) *BlobStore {
 	blobStore := new(BlobStore)
 	blobStore.blobStorageSettings = cfgBlobSettings
 	blobStore.serverSettings = cfgServerSettings
@@ -50,6 +53,7 @@ func NewBlobStore(
 	blobStore.primaryIPEndpointNotificationCallback = primaryIPNotificationCallback
 	blobStore.cancelEvent = cancel
 	blobStore.startEvent = start
+	blobStore.demoteEvent = demote
 	blobStore.mutex = new(sync.RWMutex)
 	return blobStore
 }
@@ -163,7 +167,7 @@ func (b *BlobStore) UpdatePrimaryIPEndpoint() error {
 		loggershim.LS.Errorf("PutBlockList failed: %s\n", err.Error())
 		return err
 	}
-
+	loggershim.LS.Errorf("Replica %v got elected as primary\n", ipEndpoint)
 	loggershim.LS.Debugf("Successfully updated the blob\n")
 	b.replicaChangeNotificationCallback(true)
 	b.primaryIPEndpointNotificationCallback(ipEndpoint)
@@ -193,24 +197,33 @@ func (b *BlobStore) TryAcquireLease() error {
 
 	updateBlobRetryInterval :=
 		(time.Second) * time.Duration(b.blobStorageSettings.AcquireRetryIntervalInSecs/2)
-	leaseAcquireRetryTimerChannel := time.NewTicker(
-		time.Second * time.Duration(b.blobStorageSettings.AcquireRetryIntervalInSecs)).C
-	leaseRenewRetryTimerChannel := time.NewTicker(
-		time.Second * time.Duration(b.blobStorageSettings.LeaseIntervalInSecs)).C
+	leaseAcquireRetryTimer := time.NewTicker(
+		time.Second * time.Duration(b.blobStorageSettings.AcquireRetryIntervalInSecs))
+	leaseRenewRetryTimer := time.NewTicker(
+		time.Second * time.Duration(b.blobStorageSettings.LeaseIntervalInSecs))
+	updatedLeaseAcquireIntervalTimeInSecs := b.blobStorageSettings.AcquireRetryIntervalInSecs + DemoteAcquireLeaseIntervalPenaltyInSecs
 	var leaseErr error
+	var resetLeaseAcquireTimer bool
 
 	for {
 	AcquireLease:
 		b.replicaChangeNotificationCallback(false)
 		for {
 			select {
-			case <-leaseAcquireRetryTimerChannel:
+			case <-leaseAcquireRetryTimer.C:
+				if resetLeaseAcquireTimer {
+					loggershim.LS.Debugf("Creating timer with AcquireRetryIntervalInSecs:%v\n", b.blobStorageSettings.AcquireRetryIntervalInSecs)
+					leaseAcquireRetryTimer.Stop()
+					leaseAcquireRetryTimer = time.NewTicker(
+						time.Second * time.Duration(b.blobStorageSettings.AcquireRetryIntervalInSecs))
+					resetLeaseAcquireTimer = false
+				}
+
 				updateRetryCount := 0
 				b.leaseID, leaseErr = b.blob.AcquireLease(
 					int(b.blobStorageSettings.LeaseIntervalInSecs), "", nil)
 
 				if leaseErr != nil {
-					loggershim.LS.Errorf("Acquiring lease failed: %s\n", leaseErr.Error())
 					b.updateReplicaPrimaryEndpoint()
 					break
 				}
@@ -233,7 +246,6 @@ func (b *BlobStore) TryAcquireLease() error {
 					int(b.blobStorageSettings.LeaseIntervalInSecs), "", nil)
 
 				if leaseErr != nil {
-					loggershim.LS.Errorf("Acquiring lease failed: %s\n", leaseErr.Error())
 					b.updateReplicaPrimaryEndpoint()
 					break
 				}
@@ -250,6 +262,22 @@ func (b *BlobStore) TryAcquireLease() error {
 
 				goto AcquiredLease
 
+			// On receiving demote event we do the following.
+			// Stop the current lease acquire timer.
+			// Create a new lease acquire timer with increased lease acquire interval.
+			case <-b.demoteEvent:
+				loggershim.LS.Debugf("Received Demote event on non replica primary\n")
+				releaseLeaseErr := b.blob.ReleaseLease(b.leaseID, nil)
+				if releaseLeaseErr != nil {
+					loggershim.LS.Debugf("Release lease failed: LeaseId:%s , Error:%s\n", b.leaseID, releaseLeaseErr.Error())
+				}
+
+				leaseAcquireRetryTimer.Stop()
+				loggershim.LS.Debugf("Creating timer with AcquireRetryIntervalInSecs:%v\n", updatedLeaseAcquireIntervalTimeInSecs)
+				leaseAcquireRetryTimer = time.NewTicker(time.Second * time.Duration(updatedLeaseAcquireIntervalTimeInSecs))
+				resetLeaseAcquireTimer = true
+				goto AcquireLease
+
 			case <-b.cancelEvent:
 				loggershim.LS.Debugf("Received cancel event\n")
 				return nil
@@ -259,21 +287,38 @@ func (b *BlobStore) TryAcquireLease() error {
 	AcquiredLease:
 		for {
 			select {
-			case <-leaseRenewRetryTimerChannel:
+			case <-leaseRenewRetryTimer.C:
 				renewLeaseErr := b.blob.RenewLease(b.leaseID, nil)
 				if renewLeaseErr != nil {
-					loggershim.LS.Errorf("Acquiring lease failed: %s\n", renewLeaseErr.Error())
+					loggershim.LS.Errorf("Renew lease failed: %s\n", renewLeaseErr.Error())
+					loggershim.LS.Errorf("Replica %v got demoted\n")
 					b.replicaChangeNotificationCallback(false)
 					goto AcquireLease
-				} else {
-					//loggershim.LS.Debugf("Successfully renewed the lease", leaseID)
 				}
+
 				primaryIPEndpoint, err := b.GetPrimaryIPEndpoint()
 				if err != nil {
 					b.primaryIPEndpointNotificationCallback(primaryIPEndpoint)
 				}
 
 				break
+
+				// On receiving demote event we do the following.
+				// Release the lease on the blob.
+				// Stop the current lease acquire timer.
+				// Create a new lease acquire timer with increased lease acquire interval.
+			case <-b.demoteEvent:
+				loggershim.LS.Debugf("Received Demote event on replica primary\n")
+				releaseLeaseErr := b.blob.ReleaseLease(b.leaseID, nil)
+				if releaseLeaseErr != nil {
+					loggershim.LS.Debugf("Release lease failed: LeaseId:%s , Error:%s\n", b.leaseID, leaseErr.Error())
+				}
+				loggershim.LS.Debugf("Creating timer with AcquireRetryIntervalInSecs:%s\n", updatedLeaseAcquireIntervalTimeInSecs)
+				leaseAcquireRetryTimer = time.NewTicker(
+					time.Second * time.Duration(updatedLeaseAcquireIntervalTimeInSecs))
+				resetLeaseAcquireTimer = true
+				goto AcquireLease
+
 			case <-b.cancelEvent:
 				loggershim.LS.Debugf("Received cancel event\n")
 				return nil

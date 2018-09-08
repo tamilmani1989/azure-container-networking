@@ -1623,7 +1623,7 @@ func processNetworkContainerPublish(repoNCConfig *datamodel.NCConfiguration) (bo
 	}
 
 	logger.Debugf("Received response for create network container response %s\n", createNetworkContainerResponse.String())
-	putNCResponseCode, parseErr := strconv.ParseInt(createNetworkContainerResponse.ResponseCode, 10, 64)
+	putNCResponseCode, parseErr := strconv.ParseInt(createNetworkContainerResponse.ResponseCode, 10, 32)
 	if parseErr != nil {
 		msg := fmt.Sprintf(
 			"Failed to convert response code %s  to integer when parsing put NC response for NC %s.",
@@ -1641,7 +1641,7 @@ func processNetworkContainerPublish(repoNCConfig *datamodel.NCConfiguration) (bo
 		repoNCConfig.FailureDetail = api.JsonErr{
 			Code:       api.PublishingFailed,
 			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+			HTTPStatus: int(putNCResponseCode)}
 		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
 	}
 

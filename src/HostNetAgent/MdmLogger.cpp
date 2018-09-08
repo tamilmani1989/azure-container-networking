@@ -38,6 +38,11 @@ LPCSTR PER_CONTAINER_MDM_CNI_METRICS[] = {
     MDM_METRIC_CNI_SUCCEEDED_STR
 };
 
+LPCSTR PER_NPM_MDM_METRICS[] = {
+	MDM_METRIC_NPM_RUNNING_STR,
+	MDM_METRIC_NPM_ERROR_STR
+};
+
 DWORD
 ToAnsi(
     __in_z PCWSTR StringW,
@@ -131,16 +136,16 @@ Cleanup:
 
 HRESULT
 MdmLogger::LogPerContainerCNIMetricToMDM(
-    LPCSTR ContainerId,
-    LPCSTR Name,
-    LPCSTR Version,
-    LPCSTR OrchestratorName,
-    LPCSTR OrchestratorVersion,
-    LPCSTR GuestOS,
-    LPCSTR GuestOSVersion,
-    LPCSTR GuestKernelVersion,
-    LPCSTR MetricName,
-    ULONG64 Value
+	LPCSTR Location,
+	LPCSTR ContainerId,
+	LPCSTR Name,
+	LPCSTR Version,
+	LPCSTR OrchestratorName,
+	LPCSTR OrchestratorVersion,
+	LPCSTR GuestOSVersion,
+	LPCSTR KernelVersion,
+	LPCSTR MetricName,
+	ULONG64 Value
 )
 /*++
 
@@ -150,7 +155,7 @@ Description:
 
 Arguments:
 
-    ContainerId - Id of the container.
+    Location - Azure region of the container resides.
 
     Name - Name of Plugin.
 
@@ -194,12 +199,12 @@ Return Value:
         metric = metricItr->second;
         hr = metric->LogValue(
             Value,
+			Location == NULL ? "" : Location,
             NodeIdA.c_str(),
             ClusterNameA.c_str(),
             ContainerId,
-            GuestOS == NULL ? "" : GuestOS,
             GuestOSVersion == NULL ? "" : GuestOSVersion,
-            GuestKernelVersion == NULL? "": GuestKernelVersion,
+			KernelVersion == NULL? "": KernelVersion,
             Name == NULL? "": Name,
             Version == NULL? "": Version, 
             OrchestratorName == NULL? "": OrchestratorName,
@@ -338,6 +343,97 @@ Cleanup:
     return hr;
 }
 
+HRESULT MdmLogger::LogPerNPMMetricToMDM(
+	string Location,
+	string NpmVersion,
+	string KubernetesVersion,
+	string SubscriptionId,
+	string ResourceGroupName,
+	string ClusterId,
+	string NodeName,
+	string NodeId,
+	string GuestOSVersion,
+	string KernelVersion,
+	string MetricName,
+	ULONG64 Value
+) 
+/*++
+
+Description:
+
+	Log per NPM MDM metric.
+
+Arguments:
+
+	Location - Azure region of the container resides.
+
+	GuestOS: Node's OS.
+
+	NpmVersion: Version of Azure NPM.
+
+	KubernetesVersion: Version of Kubernetes.
+
+	SubscriptionId: ID of the instance's subscription.
+
+	ResourceGroupName: Name of the resource group.
+
+	ClusterId: ID of the cluster.
+
+	NodeName: Name of the Kubernetes node.
+
+	NodeId: ID of the Kubernetes node.
+
+	GuestOSVersion: Version of the node's OS.
+
+	KernelVersion: Version of the node's OS kernel.
+
+	MetricName: Name of the metric.
+
+	Value: Value of the metric.
+
+Return Value:
+
+	S_OK on success, error otherwise.
+
+--*/
+{
+	HRESULT hr = S_OK;
+	map<string, MeasureMetric10D*>::iterator metricItr;
+	MeasureMetric10D* metric = NULL;
+
+	if (!EnableMDMLogging) 
+	{
+		return hr;
+	}
+
+	metricItr = PerNPMMetrics.find(MetricName);
+
+	if (metricItr != PerNPMMetrics.end()) {
+
+		metric = metricItr->second;
+
+		hr = metric->LogValue(
+			Value,
+			(LPCSTR)Location.c_str(),
+			(LPCSTR)NpmVersion.c_str(),
+			(LPCSTR)KubernetesVersion.c_str(),
+			(LPCSTR)SubscriptionId.c_str(),
+			(LPCSTR)ResourceGroupName.c_str(),
+			(LPCSTR)ClusterId.c_str(),
+			(LPCSTR)NodeName.c_str(),
+			(LPCSTR)NodeId.c_str(),
+			(LPCSTR)GuestOSVersion.c_str(),
+			(LPCSTR)KernelVersion.c_str()
+		);
+	}
+	else {
+
+		LOGERR("Failed to find per-NPM MDM metric : %hs", MetricName.c_str());
+	}
+
+	return hr;
+}
+
 PWSTR
 WcsDup(
     __in_z PCWSTR StringW
@@ -401,7 +497,8 @@ Return Value:
     DWORD err = ERROR_SUCCESS;
 
     hr = CoInitialize(NULL);
-    if (hr != S_OK) {
+    if (hr != S_OK) 
+	{
 
         LOGERRW(L"ComInitialization failed with error [%0x].", hr);
         goto Cleanup;
@@ -409,7 +506,8 @@ Return Value:
     comInitialized = true;
 
     hr = xmlHelper.Initialize(SettingsFileName);
-    if (hr != S_OK) {
+    if (hr != S_OK)
+	{
 
         LOGERRW(L"XML initialization failed when loading file {%s} error [%0x].",
                 SettingsFileName, hr);
@@ -418,14 +516,18 @@ Return Value:
     xmlParserHelperInitialized = true;
 
     hr = xmlHelper.QueryNodeValue(ENABLE_MA_NODE_PATH, result);
-    if (hr != S_OK) {
+    if (hr != S_OK) 
+	{
 
-        LOGERRW(L"Query node value for path {%s} error [%0x].", 
+        LOGERRW(
+			L"Query node value for path {%s} error [%0x].", 
                 ENABLE_MA_NODE_PATH, 
-                hr);
+                hr
+		);
         goto Cleanup;
     }
-    if(_wcsnicmp(_TRUE_, result.c_str(), sizeof(_TRUE_)) == 0) {
+    if(_wcsnicmp(_TRUE_, result.c_str(), sizeof(_TRUE_)) == 0) 
+	{
 
         EnableMDMLogging = true;
     }
@@ -433,18 +535,22 @@ Return Value:
     LOGINFOW(L"Result:{%s}", result.c_str());
 
     hr = xmlHelper.QueryNodeValue(MDM_ACCOUNT_PATH, result);
-    if (hr != S_OK) {
+    if (hr != S_OK)
+	{
 
         LOGERRW(L"Query node value for path {%s} error [%0x].", MDM_ACCOUNT_PATH, hr);
         goto Cleanup;
     }
 
     err = ToAnsi(result.c_str(), &mdmAccountName);
-    if(err != ERROR_SUCCESS) {
+    if(err != ERROR_SUCCESS) 
+	{
 
-        LOGERRW(L"Failed to convert account name {%s} to ANSI.error [%0x].", 
+        LOGERRW(
+			L"Failed to convert account name {%s} to ANSI.error [%0x].", 
                 result.c_str(), 
-                hr);
+                hr
+		);
 
         hr = HRESULT_FROM_WIN32(err);
         goto Cleanup;
@@ -452,11 +558,14 @@ Return Value:
     MdmAccountNameA.assign(mdmAccountName);
 
     err = ToAnsi(PackageVersion, &netAgentVersion);
-    if (err != ERROR_SUCCESS) {
+    if (err != ERROR_SUCCESS) 
+	{
 
-        LOGERRW(L"Failed to convert package version {%s} to ANSI.error [%0x].", 
+        LOGERRW(
+			L"Failed to convert package version {%s} to ANSI.error [%0x].", 
                 PackageVersion, 
-                hr);
+                hr
+		);
         hr = HRESULT_FROM_WIN32(err);
         goto Cleanup;
     }
@@ -466,7 +575,8 @@ Return Value:
     SetNodeInformationFromRegistry();
 
     // Create per-Container metrics.
-    for (int i = 0; i < ARRAYSIZE(PER_CONTAINER_MDM_GUEST_METRICS); i++) {
+    for (int i = 0; i < ARRAYSIZE(PER_CONTAINER_MDM_GUEST_METRICS); i++) 
+	{
 
         LPCSTR metricName = PER_CONTAINER_MDM_GUEST_METRICS[i];
         MeasureMetric6D* metric = MeasureMetric6D::Create(
@@ -480,21 +590,28 @@ Return Value:
                                       MDM_DIMENSION_NAME_GUEST_OS_VERSION_STR,
                                       MDM_DIMENSION_NAME_NETAGENT_VERSION_STR);
 
-        if (metric != NULL) {
+        if (metric != NULL) 
+		{
 
-            LOGINFOW(L"Created metric %hs on account %hs.", 
+            LOGINFOW(
+				L"Created metric %hs on account %hs.", 
                      metricName, 
-                     MdmAccountNameA.c_str());
+                     MdmAccountNameA.c_str()
+			);
             PerContainerMetrics.insert(make_pair(string(metricName), metric));
-        } else {
+        } else 
+		{
 
-            LOGWARNW(L"Failed to create metric %hs on account %hs.", 
+            LOGWARNW(
+				L"Failed to create metric %hs on account %hs.", 
                      metricName, 
-                     MdmAccountNameA.c_str());
+                     MdmAccountNameA.c_str()
+			);
         }
     }
     
-    for (int i = 0; i < ARRAYSIZE(PER_CONTAINER_MDM_CNI_METRICS); i++) {
+    for (int i = 0; i < ARRAYSIZE(PER_CONTAINER_MDM_CNI_METRICS); i++) 
+	{
         LPCSTR metricName = PER_CONTAINER_MDM_CNI_METRICS[i];
         MeasureMetric10D* metric = MeasureMetric10D::Create(
             MdmAccountNameA.c_str(),
@@ -509,16 +626,21 @@ Return Value:
             MDM_DIMENSION_NAME_PLUGIN_NAME_STR,
             MDM_DIMENSION_NAME_PLUGIN_VERSION_STR,
             MDM_DIMENSION_NAME_PLUGIN_ORCHESTRATOR_NAME_STR,
-            MDM_DIMENSION_NAME_PLUGIN_ORCHESTRATOR_VERSION_STR);
+            MDM_DIMENSION_NAME_PLUGIN_ORCHESTRATOR_VERSION_STR
+		);
 
-        if (metric != NULL) {
+        if (metric != NULL) 
+		{
 
-            LOGINFOW(L"Created metric %hs on account %hs.",
+            LOGINFOW(
+				L"Created metric %hs on account %hs.",
                 metricName,
-                MdmAccountNameA.c_str());
+                MdmAccountNameA.c_str()
+			);
             PerContainerCNIMetrics.insert(make_pair(string(metricName), metric));
         }
-        else {
+        else 
+		{
 
             LOGWARNW(L"Failed to create metric %hs on account %hs.",
                 metricName,
@@ -526,6 +648,46 @@ Return Value:
         }
     }
     
+	for (int i = 0; i < ARRAYSIZE(PER_NPM_MDM_METRICS); i++) 
+	{
+		LPCSTR metricName = PER_NPM_MDM_METRICS[i];
+		MeasureMetric10D* metric = MeasureMetric10D::Create(
+			MdmAccountNameA.c_str(),
+			MDM_NAMESPACE,
+			metricName,
+			MDM_DIMENSION_NAME_NPM_VERSION_STR,
+			MDM_DIMENSION_NAME_KUBERNETES_VERSION_STR,
+			MDM_DIMENSION_NAME_SUBSCRIPTION_ID_STR,
+			MDM_DIMENSION_NAME_RESOURCE_GROUP_NAME_STR,
+			MDM_DIMENSION_NAME_CLUSTER_ID_STR,
+			MDM_DIMENSION_NAME_NODE_NAME_STR,
+			MDM_DIMENSION_NAME_NODE_ID_STR,
+			MDM_DIMENSION_NAME_GUEST_OS_STR,
+			MDM_DIMENSION_NAME_GUEST_OS_VERSION_STR,
+			MDM_DIMENSION_NAME_GUEST_KERNEL_VERSION_STR
+		);
+
+		if (metric != NULL)
+		{
+
+			LOGINFOW(
+				L"Created metric %hs on account %hs.",
+				metricName,
+				MdmAccountNameA.c_str()
+			);
+			PerNPMMetrics.insert(make_pair(string(metricName), metric));
+		}
+		else
+		{
+
+			LOGWARNW(
+				L"Failed to create metric %hs on account %hs.",
+				metricName,
+				MdmAccountNameA.c_str()
+			);
+		}
+	}
+
     DownloadMetrics = MeasureMetric4D::Create(
                           MdmAccountNameA.c_str(),
                           MDM_NAMESPACE,
@@ -657,16 +819,24 @@ Return Value:
 --*/
 
 {
-    PSTR containerIdAnsi = NULL;
+	PSTR locationAnsi = NULL;
+	PSTR containerIdAnsi = NULL;
     PSTR nameAnsi = NULL;
     PSTR versionAnsi = NULL;
     PSTR orchestratorNameAnsi = NULL;
     PSTR orchestratorVersionAnsi = NULL;
     PSTR osTypeAnsi = NULL;
-    PSTR osVersionAnsi = NULL;
     PSTR kernelVersionAnsi = NULL;
     PSTR errorMessageAnsi = NULL;
     HRESULT hr = S_OK;
+
+
+	hr = HRESULT_FROM_WIN32(ToAnsi(CNIReport.Metadata.Location.c_str(), &locationAnsi));
+	if (hr != S_OK) {
+
+		LOGERRW(L"Failed to convert location parameter %s to ANSI for PerContainerNode metric",
+			CNIReport.OSDetails.OSVersion.c_str());
+	}
 
     hr = HRESULT_FROM_WIN32(ToAnsi(ContainerId.c_str(), &containerIdAnsi));
     if (hr != S_OK) {
@@ -713,14 +883,6 @@ Return Value:
             CNIReport.OSDetails.OSType.c_str());
     }
 
-
-    hr = HRESULT_FROM_WIN32(ToAnsi(CNIReport.OSDetails.OSVersion.c_str(), &osVersionAnsi));
-    if (hr != S_OK) {
-
-        LOGERRW(L"Failed to convert guest OS Version parameter %s to ANSI for PerContainerNode metric",
-            CNIReport.OSDetails.OSVersion.c_str());
-    }
-
     hr = HRESULT_FROM_WIN32(ToAnsi(CNIReport.OSDetails.KernelVersion.c_str(), &kernelVersionAnsi));
     if (hr != S_OK) {
 
@@ -735,18 +897,20 @@ Return Value:
             CNIReport.ErrorMessage.c_str());
     }
 
-    if (CNIReport.StartFlag != 0)
+    if (CNIReport.IsNewInstance != 0)
     {
-        hr = LogPerContainerCNIMetricToMDM(containerIdAnsi,
+        hr = LogPerContainerCNIMetricToMDM(
+			locationAnsi,
+			containerIdAnsi,
             nameAnsi,
             versionAnsi,
             orchestratorNameAnsi,
             orchestratorVersionAnsi,
             osTypeAnsi,
-            osVersionAnsi,
             kernelVersionAnsi,
             MDM_METRIC_CNI_RUNNING_STR,
-            1);
+            1
+		);
         
         if (hr != ERROR_SUCCESS)
         {
@@ -756,16 +920,18 @@ Return Value:
 
     if (CNIReport.CniSucceeded != 0)
     {
-        hr = LogPerContainerCNIMetricToMDM(containerIdAnsi,
+        hr = LogPerContainerCNIMetricToMDM(
+			locationAnsi,
+			containerIdAnsi,
             nameAnsi,
             versionAnsi,
             orchestratorNameAnsi,
             orchestratorVersionAnsi,
             osTypeAnsi,
-            osVersionAnsi,
             kernelVersionAnsi,
             MDM_METRIC_CNI_SUCCEEDED_STR,
-            1);
+            1
+		);
 
         if (hr != ERROR_SUCCESS)
         {
@@ -775,16 +941,18 @@ Return Value:
     
     if (!CNIReport.ErrorMessage.empty())
     {
-        hr = LogPerContainerCNIMetricToMDM(containerIdAnsi,
-            nameAnsi,
-            versionAnsi,
-            orchestratorNameAnsi,
-            orchestratorVersionAnsi,
-            osTypeAnsi,
-            osVersionAnsi,
-            kernelVersionAnsi,
-            MDM_METRIC_CNI_ERROR_STR,
-            1);
+		hr = LogPerContainerCNIMetricToMDM(
+			locationAnsi,
+			containerIdAnsi,
+			nameAnsi,
+			versionAnsi,
+			orchestratorNameAnsi,
+			orchestratorVersionAnsi,
+			osTypeAnsi,
+			kernelVersionAnsi,
+			MDM_METRIC_CNI_ERROR_STR,
+			1
+		);
 
         if (hr != ERROR_SUCCESS)
         {
@@ -800,14 +968,12 @@ Cleanup:
     ANSI_STR_FREE(orchestratorNameAnsi);
     ANSI_STR_FREE(orchestratorVersionAnsi);
     ANSI_STR_FREE(osTypeAnsi);
-    ANSI_STR_FREE(osVersionAnsi);
+    ANSI_STR_FREE(locationAnsi);
     ANSI_STR_FREE(kernelVersionAnsi);
     ANSI_STR_FREE(errorMessageAnsi);
 
     return;
 }
-
-
 
 void MdmLogger::LogHealthReport(
     HealthReport& HealthReport
@@ -928,6 +1094,72 @@ Cleanup:
     return;
 }
 
+void MdmLogger::LogNPMReport(NPMReport & NPMReport)
+/*++
+
+Routine Description:
+
+	Helper to log report to MDM.
+
+Arguments:
+
+	NPMReport - The NPM report to be logged.
+
+Return Value:
+
+	None.
+
+--*/
+{
+	HRESULT hr = S_OK;
+
+	if (NPMReport.IsNewInstance)
+	{
+		hr = LogPerNPMMetricToMDM(
+			ws2s(NPMReport.Metadata.Location),
+			ws2s(NPMReport.NpmVersion),
+			ws2s(NPMReport.KubernetesVersion),
+			ws2s(NPMReport.Metadata.SubscriptionID),
+			ws2s(NPMReport.Metadata.ResourceGroupName),
+			ws2s(NPMReport.ClusterId),
+			ws2s(NPMReport.NodeName),
+			ws2s(NPMReport.Metadata.VMID),
+			ws2s(NPMReport.Metadata.OSVersion),
+			ws2s(NPMReport.Metadata.KernelVersion),
+			MDM_METRIC_NPM_RUNNING_STR,
+			1
+		);
+
+		if (hr != ERROR_SUCCESS)
+		{
+			LOGERRW(L"Uploading NPM metrics to mdm failed with errorcode %d", hr);
+		}
+	}
+
+	if (!NPMReport.ErrorMessage.empty())
+	{
+		hr = LogPerNPMMetricToMDM(
+			ws2s(NPMReport.Metadata.Location),
+			ws2s(NPMReport.NpmVersion),
+			ws2s(NPMReport.KubernetesVersion),
+			ws2s(NPMReport.Metadata.SubscriptionID),
+			ws2s(NPMReport.Metadata.ResourceGroupName),
+			ws2s(NPMReport.ClusterId),
+			ws2s(NPMReport.NodeName),
+			ws2s(NPMReport.Metadata.VMID),
+			ws2s(NPMReport.Metadata.OSVersion),
+			ws2s(NPMReport.Metadata.KernelVersion),
+			MDM_METRIC_NPM_ERROR_STR,
+			1
+		);
+
+		if (hr != ERROR_SUCCESS)
+		{
+			LOGERRW(L"Uploading NPM metrics to mdm failed with errorcode %d", hr);
+		}
+	}
+}
+
 MdmLogger* MdmLogger::GetInstance()
 /*++
 
@@ -947,4 +1179,50 @@ Return Value:
 {
     static MdmLogger* gm_MdmLoggerInstance = new MdmLogger();
     return gm_MdmLoggerInstance;
+}
+
+wstring MdmLogger::s2ws(const string& s)
+/*++
+
+Routine Description:
+
+	Helper to convert wstring to string.
+
+Argument:
+
+	s: string to be converted to wstring.
+
+Return Value:
+
+	wstring converted from s.
+
+--*/
+{
+	using convert_typeX = codecvt_utf8<wchar_t>;
+	wstring_convert<convert_typeX, wchar_t> converterX;
+
+	return converterX.from_bytes(s);
+}
+
+string MdmLogger::ws2s(const wstring& ws)
+/*++
+
+Routine Description:
+
+	Helper to convert string to wstring.
+
+Argument:
+
+	ws: wstring to be converted to string.
+
+Return Value:
+
+	string converted from ws.
+
+--*/
+{
+	using convert_typeX = codecvt_utf8<wchar_t>;
+	wstring_convert<convert_typeX, wchar_t> converterX;
+
+	return converterX.to_bytes(ws);
 }

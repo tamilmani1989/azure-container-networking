@@ -38,53 +38,56 @@ func Logger(inner http.Handler, name string) http.Handler {
 			}
 		}
 
-		// Check if the replica is primary. If it is not
-		// redirect to the current primary.
-		isReplicaPrimary := ctrler.Replica.IsReplicaPrimary()
-		if !isReplicaPrimary {
-			var err error
-			var primaryEP string
+		// Check if the operation is a replica operation.
+		if !isReplicaOperation(r) {
+			// Check if the replica is primary. If it is not
+			// redirect to the current primary.
+			isReplicaPrimary := ctrler.Replica.IsReplicaPrimary()
+			if !isReplicaPrimary {
+				var err error
+				var primaryEP string
 
-			primaryEP, err = ctrler.GetPrimaryIPEndpoint()
-			if err != nil {
-				jsonErr := api.JsonErr{
-					Code: api.PrimaryNotAvailable}
-				w.WriteHeader(http.StatusInternalServerError)
-				if err := json.NewEncoder(w).Encode(jsonErr); err != nil {
-					panic(err)
+				primaryEP, err = ctrler.GetPrimaryIPEndpoint()
+				if err != nil {
+					jsonErr := api.JsonErr{
+						Code: api.PrimaryNotAvailable}
+					w.WriteHeader(http.StatusInternalServerError)
+					if err := json.NewEncoder(w).Encode(jsonErr); err != nil {
+						panic(err)
+					}
+
+					return
 				}
 
-				return
-			}
+				replicaEP, err := ctrler.GetReplicaIPEndpoint()
+				if err != nil {
+					jsonErr := api.JsonErr{
+						Code: api.PrimaryNotAvailable}
+					w.WriteHeader(http.StatusInternalServerError)
+					if err := json.NewEncoder(w).Encode(jsonErr); err != nil {
+						panic(err)
+					}
 
-			replicaEP, err := ctrler.GetReplicaIPEndpoint()
-			if err != nil {
-				jsonErr := api.JsonErr{
-					Code: api.PrimaryNotAvailable}
-				w.WriteHeader(http.StatusInternalServerError)
-				if err := json.NewEncoder(w).Encode(jsonErr); err != nil {
-					panic(err)
+					return
 				}
 
-				return
-			}
+				if strings.Compare(primaryEP, replicaEP) == 0 {
+					err = fmt.Errorf("Primary replica not ready")
+					jsonErr := api.JsonErr{
+						Code: api.PrimaryNotAvailable}
+					w.WriteHeader(http.StatusInternalServerError)
+					if err := json.NewEncoder(w).Encode(jsonErr); err != nil {
+						panic(err)
+					}
 
-			if strings.Compare(primaryEP, replicaEP) == 0 {
-				err = fmt.Errorf("Primary replica not ready")
-				jsonErr := api.JsonErr{
-					Code: api.PrimaryNotAvailable}
-				w.WriteHeader(http.StatusInternalServerError)
-				if err := json.NewEncoder(w).Encode(jsonErr); err != nil {
-					panic(err)
+					return
 				}
 
+				target := "http://" + primaryEP + r.URL.String()
+				loggershim.LS.Debugf("Redirecting to %s\n", target)
+				http.Redirect(w, r, target, http.StatusTemporaryRedirect)
 				return
 			}
-
-			target := "http://" + primaryEP + r.URL.String()
-			loggershim.LS.Debugf("Redirecting to %s\n", target)
-			http.Redirect(w, r, target, http.StatusTemporaryRedirect)
-			return
 		}
 
 		inner.ServeHTTP(w, r)
@@ -97,6 +100,12 @@ func Logger(inner http.Handler, name string) http.Handler {
 			time.Since(start).String(),
 		)
 	})
+}
+
+func isReplicaOperation(r *http.Request) bool {
+	// ReliqnusihPrimaryStatus API is a replica call and this operation
+	// should be performed on the replica on which it is invoked.
+	return strings.Contains(r.RequestURI, "/relinquishprimarystatus")
 }
 
 func getandValidateAPIVersion(request *http.Request) (string, *api.JsonErr) {

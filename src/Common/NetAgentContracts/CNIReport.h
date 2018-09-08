@@ -15,32 +15,33 @@ Environment:
     User Mode - Win32
 
 --*/
-//
-// ------------------------------------------------------------------- Includes
-//
+
 #pragma once
 
 #include <stdio.h>
 #include <stdlib.h>
-#include<stdint.h>
+#include <stdint.h>
 #include <map>
 #include <cpprest/json.h>
 #include <cpprest/http_listener.h>
 #include <cpprest/uri.h>
 #include <cpprest/asyncrt_utils.h>
-#include <cpprest/json.h>
 #include <cpprest/filestream.h>
 #include <cpprest/containerstream.h>
 #include <cpprest/producerconsumerstream.h>
 #include "cpprest/filestream.h"
 #include "PluginReport.h"
+#include "Metadata.h"
 
 using namespace std;
 using namespace web;
 
 #define UINT64 uint64_t
 
+// TODO: Remove STARTFLAG_STR in future versions. 
+// This is here for backward compatibility for now.
 #define STARTFLAG_STR               L"StartFlag"
+#define IS_NEW_INSTANCE_STR         L"IsNewInstance"
 #define CNI_SUCCEEDED_STR           L"CniSucceeded"
 #define VNET_ADDRESS_SPACE_STR      L"VnetAddressSpace"
 #define INTERFACE_DETAILS_STR       L"InterfaceDetails"
@@ -56,27 +57,32 @@ using namespace web;
 // Enums for fields in the CNI report.
 //
 
-enum CNIReportKey {
-    StartFlag = PluginReportKey::LastEnum,
-    VnetAddressSpace,
-    InterfaceDetails,
-    InterfaceType,
-    IfName,
-    Subnet,
-    PrimaryCA,
-    MAC,
-    SecondaryCATotalCount,
-    SecondaryCAUsedCount,
-    IfErrorMessage,
-    BridgeDetails,
-    CniSucceeded
-};
+namespace CNIEnum {
+	enum CNIReportKey
+	{
+		IsNewInstance = PluginReportKey::LastEnum,
+		VnetAddressSpace,
+		InterfaceDetails,
+		InterfaceType,
+		IfName,
+		Subnet,
+		PrimaryCA,
+		MAC,
+		SecondaryCATotalCount,
+		SecondaryCAUsedCount,
+		IfErrorMessage,
+		BridgeDetails,
+		CniSucceeded,
+		Metadata
+	};
+}
 
 // CNI report field name to Id map
-static  std::map<std::wstring, CNIReportKey> CNIReportFieldIdMap;
+static  std::map<std::wstring, CNIEnum::CNIReportKey> CNIReportFieldIdMap;
 
 // Interface Details
-class InterfaceInfo {
+class InterfaceInfo 
+{
 public:
 
     wstring InterfaceType;
@@ -96,18 +102,22 @@ public:
 };
 
 // Bridge Details
-class BridgeInfo{
+class BridgeInfo
+{
     wstring NetworkMode;
     wstring BridgeName;
     wstring ErrorMessage;
 };
 
 // CNI Report
-class CNIReport : public PluginReport {
+class CNIReport : public PluginReport 
+{
 
 public:
+	CNIReport(json::object &JsonObject);
+
     // Flag to identify Number of VMs running this Plugin
-    bool StartFlag;
+    bool IsNewInstance;
     
     // Flag to indicate whether CNI ran successfully
     bool CniSucceeded;
@@ -121,21 +131,20 @@ public:
     // Bridge Info
     BridgeInfo BridgeDetails;
 
-    void
-        InitializeCNIReport(
-        json::object &JsonObject);
+	// Metadata for Azure NPM report.
+	Metadata Metadata;
 
     static
     void
-    InitializeCNIReportFieldIdMap();
+	InitializeFieldIdMap();
 
     void
-    SetCNIReportField(
+    SetFields(
         std::wstring Name,
         web::json::value Value);
 
 
     void SetMembersFromJson(json::object &JsonObject);
 
-    void PrintCNIReport();
+    void Print();
 };

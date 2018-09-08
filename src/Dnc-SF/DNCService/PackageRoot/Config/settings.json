@@ -1,0 +1,29 @@
+﻿{
+  "HostAgentSettings": {
+    "WireServerIP": "169.254.169.254",
+    "ConnectionStrings": {
+      "JoinNetworkURLFmt": "http://{0}/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/{1}/api-version/1",
+      "GetNetworkConfigurationURLFmt": "http://{0}/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/{1}/api-version/1",
+      "PutNetworkContainerURLFmt": "http://{0}/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/{1}/networkContainers/{2}/authenticationToken/{3}/api-version/1",
+      "DeleteNetworkContainerURLFmt": "http://{0}/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/{1}/networkContainers/{2}/authenticationToken/{3}/api-version/1/method/DELETE",
+      "GetSystemTagDefinitionURLFmt": "http://{0}/machine/plugins/?comp=nmagent&type=NetworkManagement/systemTags/{1}/ipVersion/{2}/api-version/1"
+    }
+  },
+  "CNSSettings": {
+    "ConnectionStrings": {
+      "CreateOrUpdateNetworkContainerURLFmt": "http://{0}:10090/network/createorupdatenetworkcontainer",
+      "DeleteNetworkContainerURLFmt": "http://{0}:10090/network/deletenetworkcontainer",
+      "SetOrchestratorTypeURLFmt": "http://{0}:10090/network/setorchestratortype",
+      "GetNetworkcontainerstatusURLFmt": "http://{0}:10090/network/getnetworkcontainerstatus"
+    }
+  },
+  "VlanSettings": {
+    "Min": 1,
+    "Max": 4095
+  },
+  "DNCSettings": {
+    "RequestRetryBaseInterval": 1000,
+    "NetworkRefreshInterval": 60000,
+    "NetworkContainerRefreshInterval": 60000
+  }
+}
