@@ -1,4 +1,5 @@
 ﻿
+using DNCService;
 using NetworkManager.DataModel;
 using NMAgent;
 using NMAgent.Data;
@@ -91,8 +92,8 @@ namespace NetworkManager
                 NMAgent.Data.Subnet nmAgentContractSubnet = updatedSubnetSet[key];
                 IPSubnet updatedIPSubnet = IPSubnet.Parse(nmAgentContractSubnet.AddressPrefix);
                 if (subnetConfiguration.Reservations.Count > 0)
-                { 
-                    if (!subnetConfiguration.IPSubnet.Equals(updatedIPSubnet))
+                {
+                    if (!subnetConfiguration.IPSubnet.Equals(updatedIPSubnet.ToString()))
                     {
                         throw new Exception(
                             $"Subnet {subnetConfiguration.SubnetName} cannot be updated as there are allocations in it. " +

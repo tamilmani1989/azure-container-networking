@@ -202,6 +202,11 @@ namespace NetworkManager.DataModel
             return string.Format(Constants.NetworkKey, networkID);
         }
 
+        public static string GetNetworkIDFromKey(string networkKey)
+        {
+            return networkKey.Split('_')[1];
+        }
+
         public override bool Equals(object obj)
         {
             if (obj == null || GetType() != obj.GetType())

@@ -45,10 +45,11 @@ namespace NetworkManager
                 while (true)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    ICollection<string> networkIDs = 
+                    ICollection<string> networkKeys =
                             await networkRepositoryManager.GetAllNetworkKeys(Status.Completed);
-                    foreach (string networkID in networkIDs)
+                    foreach (string networkKey in networkKeys)
                     {
+                        string networkID = NetworkConfiguration.GetNetworkIDFromKey(networkKey);
                         ServiceEventSource.Current.Message($"Refreshing network:{networkID}");
                         await RefreshNetwork(networkID);
                         cancellationToken.ThrowIfCancellationRequested();
