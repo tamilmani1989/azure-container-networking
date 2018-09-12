@@ -105,5 +105,21 @@ namespace DNCService.Interfaces
             string subnetName,
             SubnetRequest subnetRequest, 
             string apiVersion);
+
+        /// <summary>
+        /// Add a network profile ID.
+        /// </summary>
+        /// <param name="networkProfileID">Supply the ID of the network profile.</param>
+        /// <returns></returns>
+        Task AddNetworkProfileAsync(
+            string networkProfileID);
+
+        /// <summary>
+        /// Delete a network profile ID.
+        /// </summary>
+        /// <param name="networkProfileID">Supply the ID of the network profile.</param>
+        /// <returns></returns>
+        Task DeleteNetworkProfileAsync(
+            string networkProfileID);
     }
 }

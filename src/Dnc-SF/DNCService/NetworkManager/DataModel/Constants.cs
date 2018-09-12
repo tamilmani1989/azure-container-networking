@@ -22,6 +22,8 @@ namespace NetworkManager.DataModel
 
         public const string TagDefinitionTableName = "TagDefinitionsTable";
 
+        public const string NetworkProfilesTableName = "NetworkProfilesTable";
+
         public const string NetworkKey = "Network_{0}";
 
         public const string SubnetConfigurationKey = "Network_{0}_Subnet_{1}";

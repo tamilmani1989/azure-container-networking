@@ -1024,5 +1024,61 @@ namespace DNCService
                 throw;
             }
         }
+
+        async Task IDNCService.AddNetworkProfileAsync(
+            string networkProfileID)
+        {
+            try
+            {
+                using (ITransaction tx = RepositoryHelper.GetTransaction())
+                {
+                    NetworkProfile networkProfile = new NetworkProfile(networkProfileID);
+                    await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                        tx,
+                        networkRepositoryManager.NetworkProfilesReliableCollection,
+                        networkProfileID,
+                        networkProfile);
+                    await RepositoryHelper.CommitTransactionAsync(tx);
+                    ServiceEventSource.Current.Message(
+                        $"NetworkProfileID:{networkProfileID} NetworkProfile:{networkProfile}");
+                }
+            }
+            catch (Exception exception)
+            {
+                ServiceEventSource.Current.Message($"Failed to add network profile with exception:{exception}");
+                throw;
+            }
+        }
+
+        async Task IDNCService.DeleteNetworkProfileAsync(
+            string networkProfileID)
+        {
+            try
+            {
+                using (ITransaction tx = RepositoryHelper.GetTransaction())
+                {
+                    NetworkProfile networkProfile =
+                        await RepositoryHelper.GetFromReliableDictionary(
+                            tx,
+                            networkRepositoryManager.NetworkProfilesReliableCollection,
+                            networkProfileID);
+
+                    if (networkProfile != null)
+                    {
+                        await RepositoryHelper.RemoveFromReliableDictionary(
+                            tx,
+                            networkRepositoryManager.NetworkProfilesReliableCollection,
+                            networkProfileID);
+                        await RepositoryHelper.CommitTransactionAsync(tx);
+                    }
+
+                }
+            }
+            catch (Exception exception)
+            {
+                ServiceEventSource.Current.Message($"Failed to delete network profile with exception:{exception}");
+                throw;
+            }
+        }
     }
 }

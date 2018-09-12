@@ -120,6 +120,7 @@ namespace NetworkManager
                 vlanID,
                 ipconfiguration,
                 ncConfiguration.Request.AssociationInfo,
+                ncConfiguration.Request.NetworkProfileID,
                 requestStatus);
         }
     }

@@ -26,6 +26,8 @@ namespace NetworkManager
 
         public IReliableDictionary<string, NodeConfiguration> NodeConfigReliableCollection { get; private set; }
 
+        public IReliableDictionary<string, NetworkProfile> NetworkProfilesReliableCollection { get; private set; }
+
         private DncConfiguration dncConfiguration;
 
         public NetworkRepositoryManager(DncConfiguration dncConfiguration)
@@ -51,6 +53,9 @@ namespace NetworkManager
             NodeConfigReliableCollection =
                 RepositoryHelper.GetReliableDictionaryAsync<string, NodeConfiguration>(
                     Constants.NodeTableName).Result;
+            NetworkProfilesReliableCollection =
+                RepositoryHelper.GetReliableDictionaryAsync<string, NetworkProfile>(
+                    Constants.NetworkProfilesTableName).Result;
 
             this.dncConfiguration = dncConfiguration;
         }

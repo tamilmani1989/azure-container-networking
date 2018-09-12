@@ -30,6 +30,12 @@ namespace DNCService.API
         public int VlanID { get; private set; }
 
         /// <summary>
+        /// Network profile ID associated with the network container.
+        /// </summary>
+        [DataMember]
+        public string NetworkProfileID { get; private set; }
+
+        /// <summary>
         /// IPConfiguration associated with the network container.
         /// </summary>
         [DataMember]
@@ -60,12 +66,14 @@ namespace DNCService.API
             int vlanID,
             IPConfiguration ipConfiguration, 
             AssociationInfo associationInfo, 
+            string networkProfileID,
             RequestStatus requestStatus)
         {
             this.ID = id;
             this.VlanID = vlanID;
             this.IPConfiguration = ipConfiguration;
             this.AssociationInfo = associationInfo;
+            this.NetworkProfileID = networkProfileID;
             this.RequestStatus = requestStatus;
         }
 
@@ -75,7 +83,7 @@ namespace DNCService.API
         /// <returns>String representation of the NetworkContainerResponse object.</returns>
         public override string ToString()
         {
-            return $"ID:{this.ID} VlanID:{this.VlanID} " +
+            return $"ID:{this.ID} VlanID:{this.VlanID} NetworkProfileID:{this.NetworkProfileID} " +
                 $"IPConfiguration:{this.IPConfiguration} AssociationInfo:{this.AssociationInfo} " +
                 $"RequestStatus:{this.RequestStatus}";
         }

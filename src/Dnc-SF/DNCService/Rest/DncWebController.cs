@@ -461,7 +461,7 @@ namespace DNCService.Rest
                 if (!networkContainerRequest.AssociationInfo.ContainerType.Equals(
                     Cns.Data.Constants.ClearContainer,
                     StringComparison.CurrentCultureIgnoreCase) &&
-                    networkContainerRequest.AssociationInfo.ContainerType.Equals(
+                    !networkContainerRequest.AssociationInfo.ContainerType.Equals(
                     Cns.Data.Constants.AzureContainerInstance,
                     StringComparison.CurrentCultureIgnoreCase))
                 {
@@ -661,6 +661,50 @@ namespace DNCService.Rest
                 return null;
             }
             await Invoke(joinNetworkContainerAsync, httpContext);
+        }
+
+        /// <summary>
+        /// Add network profile.
+        /// </summary>
+        /// <param name="httpContext">Supply the context.</param>
+        /// <returns></returns>
+        public async Task AddNetworkProfileAsync(HttpContext httpContext)
+        {
+            async Task<byte[]> addNetworkProfileAsync()
+            {
+                var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
+                new ServicePartitionKey(1),
+                Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.PrimaryReplica);
+
+                string networkProfileID = (string)httpContext.GetRouteValue("NetworkProfileID");
+
+                await dncServiceProxy.AddNetworkProfileAsync(networkProfileID);
+                return null;
+            }
+
+            await Invoke(addNetworkProfileAsync, httpContext);
+        }
+
+        /// <summary>
+        /// Delete network profile.
+        /// </summary>
+        /// <param name="httpContext">Supply the context.</param>
+        /// <returns></returns>
+        public async Task DeleteNetworkProfileAsync(HttpContext httpContext)
+        {
+            async Task<byte[]> deleteNetworkProfileAsync()
+            {
+                var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
+                new ServicePartitionKey(1),
+                Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.PrimaryReplica);
+
+                string networkProfileID = (string)httpContext.GetRouteValue("NetworkProfileID");
+
+                await dncServiceProxy.DeleteNetworkProfileAsync(networkProfileID);
+                return null;
+            }
+
+            await Invoke(deleteNetworkProfileAsync, httpContext);
         }
 
         /// <summary>

@@ -18,10 +18,16 @@ namespace DNCService.API
     public abstract class NetworkContainerRequest : ICloneable
     {
         /// <summary>
-        /// ID of the network contianer.
+        /// ID of the network container.
         /// </summary>
         [DataMember]
         public string ID  { get; private set; }
+
+        /// <summary>
+        /// ID of the network profile.
+        /// </summary>
+        [DataMember]
+        public string NetworkProfileID { get; private set; }
 
         /// <summary>
         /// Node to network container association information.
@@ -38,9 +44,10 @@ namespace DNCService.API
         /// Constructor.
         /// </summary>
         /// <param name="associationInfo">Supply the association info.</param>
-        public NetworkContainerRequest(AssociationInfo associationInfo)
+        public NetworkContainerRequest(AssociationInfo associationInfo, string networkProfileID)
         {
             this.AssociationInfo = associationInfo;
+            this.NetworkProfileID = networkProfileID;
         }
 
         /// <summary>
@@ -49,7 +56,7 @@ namespace DNCService.API
         /// <returns>String representation of the NetworkContainerRequest object.</returns>
         public override string ToString()
         {
-            return $"ID:{ID} AssociationInfo:{this.AssociationInfo}";
+            return $"ID:{ID} networkProfileID:{NetworkProfileID} AssociationInfo:{AssociationInfo}";
         }
 
         public abstract object Clone();

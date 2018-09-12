@@ -34,7 +34,10 @@ namespace DNCService.API
         /// </summary>
         /// <param name="reservationID">Supply the ID of the reservation.</param>
         /// <param name="associationInfo">Supply the association info.</param>
-        public NetworkContainerRequestV1(string reservationID, AssociationInfo associationInfo) : base(associationInfo)
+        public NetworkContainerRequestV1(
+            string networkProfileID,
+            string reservationID,
+            AssociationInfo associationInfo) : base(associationInfo, networkProfileID)
         {
             this.ReservationID = reservationID;
         }
@@ -43,7 +46,7 @@ namespace DNCService.API
         /// Copy constructor.
         /// </summary>
         /// <param name="ncRequest">Supply the request object to be copied.</param>
-        public NetworkContainerRequestV1(NetworkContainerRequestV1 ncRequest) : base(ncRequest.AssociationInfo)
+        public NetworkContainerRequestV1(NetworkContainerRequestV1 ncRequest) : base(ncRequest.AssociationInfo, ncRequest.NetworkProfileID)
         {
             this.ReservationID = ncRequest.ReservationID;
         }

@@ -71,6 +71,10 @@ namespace DNCService.Rest
             routeBuilder.MapGet("networks/{NetworkID}/networkcontainer/{NetworkContainerID}", dncWebController.GetNetworkContainerAsync);
             routeBuilder.MapDelete("networks/{NetworkID}/networkcontainer/{NetworkContainerID}", dncWebController.DeleteNetworkContainerAsync);
 
+            // Handlers for Network profile management
+            routeBuilder.MapPost("networkprofiles/{NetworkProfileID}", dncWebController.AddNetworkProfileAsync);
+            routeBuilder.MapDelete("networkprofiles/{NetworkProfileID}", dncWebController.DeleteNetworkProfileAsync);
+
             IRouter routes = routeBuilder.Build();
 
             app.UseRouter(routes);
