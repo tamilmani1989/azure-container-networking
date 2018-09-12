@@ -54,9 +54,6 @@ namespace NetworkManager
         [DataMember]
         public byte Prefix { get; set; }
 
-        [DataMember]
-        public string Name { get; set; }
-
         /// <summary>
         /// Default constructor.
         /// </summary>

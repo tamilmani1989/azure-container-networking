@@ -43,5 +43,8 @@ namespace NetworkManager.DataModel
 
         [EnumMember]
         RefreshAssociation = 11,
+
+        [EnumMember]
+        AllocateLocalIP = 12,
     }
 }

@@ -31,14 +31,14 @@ namespace NMAgent.Data
             string subnetName, 
             string version, 
             string[] policies,
-            string vlanID)
+            int vlanID)
         {
             this.VirtualNetworkID = virtualNetworkID;
             this.IPV4Addresses = ipV4Addresses;
             this.SubnetName = subnetName;
             this.Version = version;
             this.Policies = policies;
-            this.VlanID = VlanID;
+            this.VlanID = vlanID;
         }
 
         public override string ToString()

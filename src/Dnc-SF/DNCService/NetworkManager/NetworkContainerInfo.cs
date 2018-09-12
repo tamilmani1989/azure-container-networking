@@ -1,6 +1,7 @@
 ﻿using Cns.Data;
 using DNCService;
 using NetworkManager.DataModel;
+using Newtonsoft.Json.Linq;
 using NMAgent;
 using NMAgent.Data;
 using System.Collections.Generic;
@@ -32,7 +33,7 @@ namespace NetworkManager
 
         public int VlanID { get; set; }
 
-        public byte[] OrchestratorContext { get; set; }
+        public string OrchestratorContext { get; set; }
 
         public string ContainerType { get; private set; }
 
@@ -47,6 +48,8 @@ namespace NetworkManager
         public NetworkContainerState NetworkContainerState { get; private set; }
 
         public Status Status { get; private set; }
+
+        public string LocalIP { get; private set; }
 
         public NetworkContainerInfo(
             string networkID,
@@ -64,10 +67,11 @@ namespace NetworkManager
             int vlanID,
             ulong cnsVersion,
             string containerType,
-            byte[] orchestratorContext,
+            string orchestratorContext,
             List<string> cnetAddressSpace,
             NetworkContainerState networkContainerState,
-            Status  status)
+            Status status,
+            string localIP)
         {
             this.NetworkID = networkID;
             this.NodeID = nodeID;
@@ -88,6 +92,7 @@ namespace NetworkManager
             this.CnetAddressSpace = cnetAddressSpace;
             this.NetworkContainerState = networkContainerState;
             this.Status = status;
+            this.LocalIP = localIP;
             ServiceEventSource.Current.Message($"DnsServers:{string.Join(",", DnsServers)}");
         }
 
@@ -99,7 +104,7 @@ namespace NetworkManager
                 this.SubnetName,
                 this.Version.ToString(),
                 this.Policies.ToArray(),
-                this.VlanID.ToString());
+                this.VlanID);
         }
 
         public CreateNetworkContainerRequest GetCreateCnsNetworkContainerRequest()
@@ -111,12 +116,19 @@ namespace NetworkManager
                 this.IPV4Addresses[0].Split(NetworkManager.IPSubnet.PrefixDelimiter)[0],
                 ipSubnet.Prefix);
 
-            ServiceEventSource.Current.Message($"CreateNetworkContainerRequest:DnsServers:{string.Join(",", DnsServers)}");
             IPConfiguration ipConfiguration = new IPConfiguration(
                 ncIPSubnet,
                 this.DnsServers,
                 this.GatewayIP);
+            Cns.Data.IPSubnet ncLocalIPSubnet = new Cns.Data.IPSubnet(
+                this.LocalIP.Split(IPSubnet.PrefixDelimiter)[0],
+                LocalIPSubnetConstants.LocalIPSubnetPrefix);
 
+            List<string> localIPSubnetDns = new List<string>();
+            IPConfiguration localIPConfiguration = new IPConfiguration(
+                ncLocalIPSubnet,
+                localIPSubnetDns,
+                LocalIPSubnetConstants.LocalIPGateway);
             MultiTenancyInfo multiTenancyInfo = new MultiTenancyInfo(
                 Cns.Data.Constants.Vlan,
                 this.VlanID);
@@ -127,8 +139,8 @@ namespace NetworkManager
                 this.NetworkContainerID,
                 this.NodeInterfaceID,
                 this.AccessToken,
-                this.OrchestratorContext,
                 ipConfiguration,
+                localIPConfiguration,
                 multiTenancyInfo,
                 GetIPSubnets(this.CnetAddressSpace),
                 null);
@@ -165,7 +177,7 @@ namespace NetworkManager
                 $"{string.Join(",", this.Policies)}, VlanID:{this.VlanID} " +
                 $"CnsVersion:{this.CnsVersion} ContainerType:{this.ContainerType}" +
                 $"CnetAddressSpace:{this.CnetAddressSpace} " +
-                $"NetworkContainerState:{NetworkContainerState} Status:{this.Status}]";
+                $"NetworkContainerState:{NetworkContainerState} Status:{this.Status} LocalIP:{this.LocalIP}]";
         }
     }
 }                    

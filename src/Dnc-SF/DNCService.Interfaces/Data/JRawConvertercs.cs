@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -13,11 +14,24 @@ namespace DNCService.API
         }
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            return reader.Value;
+            if (reader.TokenType == JsonToken.Null)
+            {
+                return null;
+            }
+
+            JRaw jraw = serializer.Deserialize<JRaw>(reader);
+            string value = jraw.ToString();
+            if (value.StartsWith("\""))
+            {
+                value = value.Substring(1, value.Length - 2);
+            }
+
+            return value;
         }
+
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
-            writer.WriteRawValue((string)value);
+            serializer.Serialize(writer, value);
         }
     }
 }

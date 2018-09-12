@@ -30,7 +30,7 @@ const (
 )
 
 func sendTelemetry() {
-	heartbeat := time.NewTicker(time.Minute * 1).C
+	heartbeat := time.NewTicker(time.Minute * 30).C
 	reportMgr := telemetry.ReportManager{
 		HostNetAgentURL: HostNetAgentUrl,
 		ContentType:     telemetry.ContentType,

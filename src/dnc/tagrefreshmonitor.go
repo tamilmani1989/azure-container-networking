@@ -15,10 +15,15 @@ import (
 var tagsCache = make(map[string]datamodel.TagDefinition)
 var tagsCacheLock sync.RWMutex
 var tagsCacheRehydrated = false
+var defaultTagRefreshInterval = 30000
 
 func monitorTagUpdates() {
+	if config.DNCSettings.TagRefreshInterval == 0 {
+		config.DNCSettings.TagRefreshInterval = defaultTagRefreshInterval
+	}
+
 	monitorTimerChannel := time.NewTicker(time.Millisecond *
-		time.Duration(config.DNCSettings.NetworkRefreshInterval)).C
+		time.Duration(config.DNCSettings.TagRefreshInterval)).C
 	for {
 		select {
 		case <-monitorTimerChannel:

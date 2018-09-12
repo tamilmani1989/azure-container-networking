@@ -159,9 +159,14 @@ namespace DNCService
         public DNCSettings DNCSettings { get; set; }
 
         /// <summary>
-        /// True if running in simulator mode.
+        /// Simulator mode for CNS.
         /// </summary>
-        public bool SimulatorMode { get; set; }
+        public bool CnsSimulatorMode { get; set; }
+
+        /// <summary>
+        /// Simulator mode for Host agent.
+        /// </summary>
+        public bool NMAgentSimulatorMode { get; set; }
 
         /// <summary>
         /// Helper to deserialize DNC configuration from a file.

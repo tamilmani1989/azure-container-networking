@@ -33,7 +33,10 @@ namespace DNCService.API
         /// </summary>
         /// <param name="allocationRequest">Supply the allocation constraint.</param>
         /// <param name="associationInfo">Supply the association info.</param>
-        public NetworkContainerRequestV2(IPAllocationRequest allocationRequest, AssociationInfo associationInfo) : base(associationInfo)
+        public NetworkContainerRequestV2(
+            string networkProfileID,
+            IPAllocationRequest allocationRequest,
+            AssociationInfo associationInfo) : base(associationInfo, networkProfileID)
         {
             this.AllocationRequest = allocationRequest;
         }
@@ -44,7 +47,7 @@ namespace DNCService.API
         /// <returns>Cloned network request object.</returns>
         public override object Clone()
         {
-            return new NetworkContainerRequestV2(this.AllocationRequest, this.AssociationInfo);
+            return new NetworkContainerRequestV2(this.NetworkProfileID, this.AllocationRequest, this.AssociationInfo);
         }
 
         /// <summary>

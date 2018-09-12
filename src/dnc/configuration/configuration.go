@@ -116,6 +116,7 @@ type VlanSettings struct {
 type DNCSettings struct {
 	RequestRetryBaseInterval        int
 	NetworkRefreshInterval          int
+	TagRefreshInterval              int
 	NetworkContainerRefreshInterval int
 	ConcurrentRequestsToProcess     int
 }

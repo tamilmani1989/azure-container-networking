@@ -6,7 +6,9 @@
 //-----------------------------------------------------------------------
 
 using API;
+using DNCService.API;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -51,14 +53,19 @@ namespace Cns.Data
         /// Orchestrator context.
         /// </summary>
         [JsonProperty("OrchestratorContext")]
-        [JsonConverter(typeof(ByteArrayConverter))]
-        public byte[] OrchestratorContext { get; private set; }
+        public JRaw OrchestratorContext { get; set; }
 
         /// <summary>
         /// IP configuration associated with the network container.
         /// </summary>
         [JsonProperty("IPConfiguration")]
         public IPConfiguration IPConfiguration { get; private set; }
+
+        /// <summary>
+        /// Local IP configuration associated with the network container.
+        /// </summary>
+        [JsonProperty("LocalIPConfiguration")]
+        public IPConfiguration LocalIPConfiguration { get; private set; }
 
         /// <summary>
         /// Multitenancy info.
@@ -86,7 +93,6 @@ namespace Cns.Data
         /// <param name="ncID"></param>
         /// <param name="interfaceID"></param>
         /// <param name="accessToken"></param>
-        /// <param name="orchestratorContext"></param>
         /// <param name="ipConfiguration"></param>
         /// <param name="multiTenancyInfo"></param>
         /// <param name="cnetAddressSpace"></param>
@@ -97,8 +103,8 @@ namespace Cns.Data
             string ncID,
             string interfaceID,
             string accessToken,
-            byte[] orchestratorContext,
             IPConfiguration ipConfiguration,
+            IPConfiguration localIPConfiguration,
             MultiTenancyInfo multiTenancyInfo,
             IPSubnet[] cnetAddressSpace,
             Route[] routes)
@@ -108,8 +114,8 @@ namespace Cns.Data
             this.NetworkContainerID = ncID;
             this.PrimaryInterfaceIdentifier = interfaceID;
             this.AuthorizationToken = accessToken;
-            this.OrchestratorContext = orchestratorContext;
             this.IPConfiguration = ipConfiguration;
+            this.LocalIPConfiguration = localIPConfiguration;
             this.MultiTenancyInfo = multiTenancyInfo;
             this.CnetAddressSpace = cnetAddressSpace;
             this.Routes = routes;
@@ -121,7 +127,8 @@ namespace Cns.Data
         /// <returns>String representation of the object.</returns>
         public override string ToString()
         {
-            string orchestratorContextStr = this.OrchestratorContext != null ? Encoding.Default.GetString(this.OrchestratorContext) : "null";
+            string orchestratorContextStr =
+                this.OrchestratorContext != null ? this.OrchestratorContext.ToString() : "null";
             string cnetAddressSpaceStr = this.CnetAddressSpace != null ?
                 string.Join(",", (object[])this.CnetAddressSpace) : "null";
 
@@ -142,7 +149,8 @@ namespace Cns.Data
                     $"PrimaryInterfaceIdentifier:{this.PrimaryInterfaceIdentifier} " +
                     $"AuthorizationToken : {tokenHashString}" +
                     $"OrchestratorContext :{orchestratorContextStr} " +
-                    $"IPConfiguration:{this.IPConfiguration} MultiTenancyInfo:{this.MultiTenancyInfo} " +
+                    $"IPConfiguration:{this.IPConfiguration} LocalIPConfiguration:{this.LocalIPConfiguration} " +
+                    $"MultiTenancyInfo:{this.MultiTenancyInfo} " +
                     $"CnetAddressSpace:{cnetAddressSpaceStr} Routes:{routesStr}]";
         }
     }
