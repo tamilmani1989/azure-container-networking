@@ -91,6 +91,9 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 			requestContext.NetworkID,
 			requestID,
 			sessionInfo)
+		if err != nil && err.HTTPStatus == http.StatusProcessing {
+			requestContext.RetryInterval = requestContextRetryInterval
+		}
 		break
 
 	}
@@ -99,7 +102,7 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 		datamodel.RemovePendingRequest(requestID)
 	} else {
 		if err != nil {
-			logger.Errorf("%+v", err)
+			logger.Errorf("RequestID:%+v, Error:%+v", requestID, err)
 		} else {
 			logger.Debugf("Resetting the retry interval as the operation has succeeded.")
 			requestContext.RetryInterval = requestContextRetryInterval

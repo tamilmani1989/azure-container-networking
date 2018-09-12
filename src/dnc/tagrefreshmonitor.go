@@ -18,7 +18,7 @@ var tagsCacheRehydrated = false
 
 func monitorTagUpdates() {
 	monitorTimerChannel := time.NewTicker(time.Millisecond *
-		time.Duration(config.DNCSettings.NetworkRefreshInterval)).C
+		time.Duration(config.DNCSettings.TagRefreshInterval)).C
 	for {
 		select {
 		case <-monitorTimerChannel:

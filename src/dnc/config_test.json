@@ -43,6 +43,7 @@
     "DNCSettings":{
         "RequestRetryBaseInterval":1000,
         "NetworkRefreshInterval":1000,
+        "TagRefreshInterval":1000,
         "NetworkContainerRefreshInterval": 1000,
         "ConcurrentRequestsToProcess" : 10
     }

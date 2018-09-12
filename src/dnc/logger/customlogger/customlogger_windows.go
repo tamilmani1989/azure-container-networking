@@ -65,11 +65,12 @@ func (l *CustomLogger) Debugf(format string, args ...interface{}) {
 
 // Log :- Log using CustomLogger
 func (l *CustomLogger) Errorf(format string, args ...interface{}) {
-	syscall.Syscall(uintptr(l.procEventLog), uintptr(2), uintptr(1), convertStrToPass(fmt.Sprintf(format, args...)), 0)
 	l.instance.Printf(format, args...)
 	go func() {
 		l.reports <- netagentcontracts.DNCReport{EventMessage: fmt.Sprintf(format, args...)}
 	}()
+
+	syscall.Syscall(uintptr(l.procEventLog), uintptr(2), uintptr(1), convertStrToPass(fmt.Sprintf(format, args...)), 0)
 }
 
 // Close :- Close CustomLogger
