@@ -9,6 +9,7 @@
 
 using API;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -44,9 +45,9 @@ namespace DNCService.API
         /// Context associated with the network container. 
         /// </summary>
         [DataMember]
-        [JsonConverter(typeof(ByteArrayConverter))]
+        [JsonConverter(typeof(JSonRawConverter))]
 
-        public byte[] OrchestratorContext { get; private set; }
+        public string OrchestratorContext { get;  set; }
         
         /// <summary>
         /// Default constructor.
@@ -64,12 +65,12 @@ namespace DNCService.API
             string nodeID, 
             string interfaceID, 
             string containerType, 
-            byte[] orchestratorContext) 
+            string orchestratorContext)
         {
             this.NodeID = nodeID;
             this.InterfaceID = interfaceID;
             this.ContainerType = containerType;
-            this.OrchestratorContext = orchestratorContext != null ? orchestratorContext.ToArray(): null;
+            this.OrchestratorContext = orchestratorContext;
         }
 
         /// <summary>
@@ -78,8 +79,7 @@ namespace DNCService.API
         /// <returns>String representation of the association info.</returns>
         public override string ToString()
         {
-            string orchestratorContext = this.OrchestratorContext != null ?
-                Encoding.Default.GetString(this.OrchestratorContext) : null;
+            string orchestratorContext = this.OrchestratorContext.ToString();
             return $"NodeID:{this.NodeID} InterfaceID:{this.InterfaceID} ContainerType:{this.ContainerType} " +
                 $"OrchestratorContext:{orchestratorContext}";
         }

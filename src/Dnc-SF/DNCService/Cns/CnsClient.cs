@@ -3,6 +3,7 @@ using DNCService;
 using DNCService.API;
 using NetworkManager;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Linq;
 using System.Net.Http;
@@ -26,11 +27,15 @@ namespace Cns
             string createNCUrl = string.Format(
                     DncConfiguration.CNSSettings.ConnectionStrings.CreateOrUpdateNetworkContainerURLFmt,
                     networkContainerInfo.NodeInterfaceID);
-            CreateNetworkContainerRequest createNetworkContainerRequest = networkContainerInfo.GetCreateCnsNetworkContainerRequest();
-            ServiceEventSource.Current.Message("CreateNCUrl:{0}, body:{1}", 
-                createNCUrl, 
+            CreateNetworkContainerRequest createNetworkContainerRequest =
+                networkContainerInfo.GetCreateCnsNetworkContainerRequest();
+
+            createNetworkContainerRequest.OrchestratorContext =
+                new JRaw(networkContainerInfo.OrchestratorContext);
+            ServiceEventSource.Current.Message("CreateNCUrl:{0}, body:{1}",
+                createNCUrl,
                 createNetworkContainerRequest);
-            if (DncConfiguration.SimulatorMode)
+            if (DncConfiguration.CnsSimulatorMode)
             {
                 return;
             }
@@ -68,7 +73,7 @@ namespace Cns
         public async Task DeleteNetworkContainer(
             NetworkContainerInfo networkContainerInfo)
         {
-            if (DncConfiguration.SimulatorMode)
+            if (DncConfiguration.CnsSimulatorMode)
             {
                 return;
             }
@@ -113,7 +118,7 @@ namespace Cns
 
         public async Task SetOrchestratorType(NodeRequest nodeInfoRequest)
         {
-            if (DncConfiguration.SimulatorMode)
+            if (DncConfiguration.CnsSimulatorMode)
             {
                 return;
             }

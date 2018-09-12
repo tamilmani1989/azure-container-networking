@@ -6,7 +6,9 @@
 //-----------------------------------------------------------------------
 
 using API;
+using DNCService.API;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -51,8 +53,7 @@ namespace Cns.Data
         /// Orchestrator context.
         /// </summary>
         [JsonProperty("OrchestratorContext")]
-        [JsonConverter(typeof(ByteArrayConverter))]
-        public byte[] OrchestratorContext { get; private set; }
+        public JRaw OrchestratorContext { get; set; }
 
         /// <summary>
         /// IP configuration associated with the network container.
@@ -97,7 +98,6 @@ namespace Cns.Data
             string ncID,
             string interfaceID,
             string accessToken,
-            byte[] orchestratorContext,
             IPConfiguration ipConfiguration,
             MultiTenancyInfo multiTenancyInfo,
             IPSubnet[] cnetAddressSpace,
@@ -108,7 +108,6 @@ namespace Cns.Data
             this.NetworkContainerID = ncID;
             this.PrimaryInterfaceIdentifier = interfaceID;
             this.AuthorizationToken = accessToken;
-            this.OrchestratorContext = orchestratorContext;
             this.IPConfiguration = ipConfiguration;
             this.MultiTenancyInfo = multiTenancyInfo;
             this.CnetAddressSpace = cnetAddressSpace;
@@ -121,7 +120,8 @@ namespace Cns.Data
         /// <returns>String representation of the object.</returns>
         public override string ToString()
         {
-            string orchestratorContextStr = this.OrchestratorContext != null ? Encoding.Default.GetString(this.OrchestratorContext) : "null";
+            string orchestratorContextStr =
+                this.OrchestratorContext != null ? this.OrchestratorContext.ToString() : "null";
             string cnetAddressSpaceStr = this.CnetAddressSpace != null ?
                 string.Join(",", (object[])this.CnetAddressSpace) : "null";
 

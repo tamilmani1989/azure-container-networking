@@ -44,7 +44,7 @@ namespace NMAgent
         public async Task<VirtualNetworkResponse> JoinAndGetNetwork(
             string networkID)
         {
-            if (DncConfiguration.SimulatorMode)
+            if (DncConfiguration.NMAgentSimulatorMode)
             {
                 List<Subnet> subnets = new List<Subnet>();
                 Subnet subnet = new Subnet("FrontEndSubnet", "10.0.1.0/24", null, "10.0.1.1");
@@ -101,7 +101,7 @@ namespace NMAgent
         /// <returns></returns>
         public async Task CreateNetworkContainer(NetworkContainerInfo networkContainerInfo)
         {
-            if (DncConfiguration.SimulatorMode)
+            if (DncConfiguration.NMAgentSimulatorMode)
             {
                 return;
             }

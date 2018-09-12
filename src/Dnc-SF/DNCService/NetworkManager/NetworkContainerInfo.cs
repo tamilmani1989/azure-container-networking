@@ -1,6 +1,7 @@
 ﻿using Cns.Data;
 using DNCService;
 using NetworkManager.DataModel;
+using Newtonsoft.Json.Linq;
 using NMAgent;
 using NMAgent.Data;
 using System.Collections.Generic;
@@ -32,7 +33,7 @@ namespace NetworkManager
 
         public int VlanID { get; set; }
 
-        public byte[] OrchestratorContext { get; set; }
+        public string OrchestratorContext { get; set; }
 
         public string ContainerType { get; private set; }
 
@@ -64,7 +65,7 @@ namespace NetworkManager
             int vlanID,
             ulong cnsVersion,
             string containerType,
-            byte[] orchestratorContext,
+            string orchestratorContext,
             List<string> cnetAddressSpace,
             NetworkContainerState networkContainerState,
             Status  status)
@@ -127,7 +128,6 @@ namespace NetworkManager
                 this.NetworkContainerID,
                 this.NodeInterfaceID,
                 this.AccessToken,
-                this.OrchestratorContext,
                 ipConfiguration,
                 multiTenancyInfo,
                 GetIPSubnets(this.CnetAddressSpace),

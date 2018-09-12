@@ -446,8 +446,7 @@ namespace DNCService.Rest
                             (int)HttpStatusCode.BadRequest));
                 }
 
-                if (networkContainerRequest.AssociationInfo.OrchestratorContext == null ||
-                    networkContainerRequest.AssociationInfo.OrchestratorContext.Length == 0 )
+                if (networkContainerRequest.AssociationInfo.OrchestratorContext == null)
                 {
                     throw new DncNetworkContainerException(
                         networkID,
