@@ -155,7 +155,7 @@ namespace DNCService.Rest
                 if (!nodeInfoRequest.OrchestratorType.Equals(
                     Cns.Data.Constants.ServiceFabric,
                     StringComparison.CurrentCultureIgnoreCase) &&
-                    nodeInfoRequest.OrchestratorType.Equals(
+                    !nodeInfoRequest.OrchestratorType.Equals(
                     Cns.Data.Constants.Kubernetes,
                     StringComparison.CurrentCultureIgnoreCase))
                 {
@@ -163,7 +163,7 @@ namespace DNCService.Rest
                         "",
                         new ErrorInfo(
                             ErrorCode.InvalidNodeRequest,
-                            $"Orchestrator type {nodeInfoRequest.OrchestratorType}is invalid. " +
+                            $"Orchestrator type {nodeInfoRequest.OrchestratorType} is invalid. " +
                             $"Supported orchestrators {Cns.Data.Constants.ServiceFabric}, {Cns.Data.Constants.Kubernetes}.",
                             (int)HttpStatusCode.BadRequest));
                 }

@@ -642,9 +642,9 @@ namespace NetworkManager
 
                         await RepositoryHelper.CreateOrUpdateReliableDictionary(
                             tx,
-                            NodeConfigReliableCollection,
-                            nodeKey,
-                            nodeConfiguration);
+                            SubnetConfigReliableCollection,
+                            subnetKey,
+                            subnetConfiguration);
                     }
                 }
 
