@@ -5,19 +5,34 @@
 // 
 //-----------------------------------------------------------------------
 
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Text;
 
 namespace Cns.Data
 {
     /// <summary>
-    /// Deinfes the create network container response.
+    /// Defines the create network container response.
     /// </summary>
-    public class CreateNetworkContainerResponse : Response
+    public class CreateNetworkContainerResponse
     {
-        public CreateNetworkContainerResponse(int returncode, string message) : base(returncode, message)
+        [JsonProperty("Response")]
+        public Response Response { get; set; }
+
+        public CreateNetworkContainerResponse(int returncode, string message)
         {
+            Response = new Response(returncode, message);
+        }
+
+        public CreateNetworkContainerResponse()
+        {
+        }
+
+        public CreateNetworkContainerResponse(Response response)
+        {
+            Response = response;
         }
     }
 }

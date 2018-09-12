@@ -48,6 +48,7 @@ namespace Cns
 
             string responseBody = await response.Content.ReadAsStringAsync();
             CreateNetworkContainerResponse createNCReponse = null;
+
             try
             {
                 createNCReponse = JsonConvert.DeserializeObject<CreateNetworkContainerResponse>(
@@ -59,7 +60,7 @@ namespace Cns
                     $"Failed to decode response {createNCReponse} due to exception {exception}");
             }
 
-            if (createNCReponse.ReturnCode != 0)
+            if (createNCReponse.Response.ReturnCode != 0)
             {
                 throw new Exception(
                     $"CreateNC failed. Received response:{createNCReponse}");

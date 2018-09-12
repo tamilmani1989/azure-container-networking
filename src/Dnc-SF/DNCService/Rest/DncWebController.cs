@@ -40,13 +40,13 @@ namespace DNCService.Rest
             byte[] responseBytes,
             int httpStatusCode)
         {
+            httpContext.Response.StatusCode = httpStatusCode;
             if (responseBytes != null)
             {
                 httpContext.Response.ContentType = "text/json";
                 httpContext.Response.ContentLength = responseBytes.Length;
                 await httpContext.Response.Body.WriteAsync(responseBytes, 0, responseBytes.Length);
             }
-            httpContext.Response.StatusCode = httpStatusCode;
         }
 
         /// <summary>
@@ -66,11 +66,14 @@ namespace DNCService.Rest
             {
                 ErrorInfo errorInfo;
                 ServiceEventSource.Current.Message("Received exception:{0}.", exception);
-                if (exception.InnerException != null && exception.InnerException is DncManagementException)
+                if (exception is DncManagementException dncManagementException)
                 {
-                    DncManagementException dncManagementException = exception.InnerException as DncManagementException;
                     errorInfo = dncManagementException.ErrorInfo;
-                    httpContext.Response.StatusCode = errorInfo.HTTPStatus;
+                }
+                else if (exception.InnerException != null &&
+                    exception.InnerException is DncManagementException dncManagementInnerException)
+                {
+                    errorInfo = dncManagementInnerException.ErrorInfo;
                 }
                 else
                 {

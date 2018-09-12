@@ -100,7 +100,7 @@ namespace NetworkManager
                 this.SubnetName,
                 this.Version.ToString(),
                 this.Policies.ToArray(),
-                this.VlanID.ToString());
+                this.VlanID);
         }
 
         public CreateNetworkContainerRequest GetCreateCnsNetworkContainerRequest()
