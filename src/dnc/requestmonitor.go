@@ -103,8 +103,10 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 	} else {
 		if err != nil {
 			logger.Errorf("RequestID:%+v, Error:%+v", requestID, err)
+			requestContext.LastRetriedDateTime = time.Now().UTC()
 		} else {
 			logger.Debugf("Resetting the retry interval as the operation has succeeded.")
+			requestContext.LastRetriedDateTime = time.Time{}
 			requestContext.RetryInterval = requestContextRetryInterval
 		}
 
@@ -205,7 +207,7 @@ func getNCGoalState(repoNCConfig *datamodel.NCConfiguration) (*NCGoalState, bool
 			HTTPStatus: http.StatusBadRequest}
 	}
 
-	logger.Debugf("Retrieved subnet config:%s\n", repoSubnetConfiguration)
+	logger.Debugf("Retrieved subnet config:%+v\n", repoSubnetConfiguration.String())
 	if repoSubnetConfiguration.Tags == nil {
 		repoSubnetConfiguration.Tags = make([]nmagentcontracts.Tag, 0)
 	}

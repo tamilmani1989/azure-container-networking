@@ -1298,7 +1298,6 @@ func AddRequestToPendingQueue(
 
 	if repoRequestContext != nil {
 		requestContext.CreatedDateTime = repoRequestContext.CreatedDateTime
-		requestContext.LastRetriedDateTime = time.Now().UTC()
 	} else {
 		requestContext.CreatedDateTime = time.Now().UTC()
 		requestContext.RetryInterval = time.Duration(requestBaseInterval) * time.Millisecond

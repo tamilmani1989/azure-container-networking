@@ -59,18 +59,35 @@ func (l *CustomLogger) Init(stderr bool, reports chan netagentcontracts.DNCRepor
 
 // Log :- Log using CustomLogger
 func (l *CustomLogger) Debugf(format string, args ...interface{}) {
-	syscall.Syscall(uintptr(l.procEventLog), uintptr(2), uintptr(4), convertStrToPass(fmt.Sprintf(format, args...)), 0)
+	defer func() {
+		if r := recover(); r != nil {
+			l.instance.Printf("[Azure DNC] Recovered from crash due to %+v\n", r)
+		}
+	}()
+
 	l.instance.Debugf(format, args...)
+
+	if ptr, err := convertStrToPass(fmt.Sprintf(format, args...)); err == nil {
+		syscall.Syscall(uintptr(l.procEventLog), uintptr(2), uintptr(4), ptr, 0)
+	}
 }
 
 // Log :- Log using CustomLogger
 func (l *CustomLogger) Errorf(format string, args ...interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			l.instance.Printf("[Azure DNC] Recovered from crash due to %+v\n", r)
+		}
+	}()
+
 	l.instance.Printf(format, args...)
 	go func() {
 		l.reports <- netagentcontracts.DNCReport{EventMessage: fmt.Sprintf(format, args...)}
 	}()
 
-	syscall.Syscall(uintptr(l.procEventLog), uintptr(2), uintptr(1), convertStrToPass(fmt.Sprintf(format, args...)), 0)
+	if ptr, err := convertStrToPass(fmt.Sprintf(format, args...)); err == nil {
+		syscall.Syscall(uintptr(l.procEventLog), uintptr(2), uintptr(1), ptr, 0)
+	}
 }
 
 // Close :- Close CustomLogger
@@ -78,6 +95,11 @@ func (l *CustomLogger) Close() {
 	l.instance.Close()
 }
 
-func convertStrToPass(s string) uintptr {
-	return uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(s)))
+func convertStrToPass(s string) (uintptr, error) {
+	arr, err := syscall.UTF16FromString(s)
+	if err != nil {
+		return 0, err
+	}
+
+	return uintptr(unsafe.Pointer(&arr[0])), nil
 }
