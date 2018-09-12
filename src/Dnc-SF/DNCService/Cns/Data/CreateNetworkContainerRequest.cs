@@ -62,6 +62,12 @@ namespace Cns.Data
         public IPConfiguration IPConfiguration { get; private set; }
 
         /// <summary>
+        /// Local IP configuration associated with the network container.
+        /// </summary>
+        [JsonProperty("LocalIPConfiguration")]
+        public IPConfiguration LocalIPConfiguration { get; private set; }
+
+        /// <summary>
         /// Multitenancy info.
         /// </summary>
         [JsonProperty("MultiTenancyInfo")]
@@ -87,7 +93,6 @@ namespace Cns.Data
         /// <param name="ncID"></param>
         /// <param name="interfaceID"></param>
         /// <param name="accessToken"></param>
-        /// <param name="orchestratorContext"></param>
         /// <param name="ipConfiguration"></param>
         /// <param name="multiTenancyInfo"></param>
         /// <param name="cnetAddressSpace"></param>
@@ -99,6 +104,7 @@ namespace Cns.Data
             string interfaceID,
             string accessToken,
             IPConfiguration ipConfiguration,
+            IPConfiguration localIPConfiguration,
             MultiTenancyInfo multiTenancyInfo,
             IPSubnet[] cnetAddressSpace,
             Route[] routes)
@@ -109,6 +115,7 @@ namespace Cns.Data
             this.PrimaryInterfaceIdentifier = interfaceID;
             this.AuthorizationToken = accessToken;
             this.IPConfiguration = ipConfiguration;
+            this.LocalIPConfiguration = localIPConfiguration;
             this.MultiTenancyInfo = multiTenancyInfo;
             this.CnetAddressSpace = cnetAddressSpace;
             this.Routes = routes;
@@ -142,7 +149,8 @@ namespace Cns.Data
                     $"PrimaryInterfaceIdentifier:{this.PrimaryInterfaceIdentifier} " +
                     $"AuthorizationToken : {tokenHashString}" +
                     $"OrchestratorContext :{orchestratorContextStr} " +
-                    $"IPConfiguration:{this.IPConfiguration} MultiTenancyInfo:{this.MultiTenancyInfo} " +
+                    $"IPConfiguration:{this.IPConfiguration} LocalIPConfiguration:{this.LocalIPConfiguration} " +
+                    $"MultiTenancyInfo:{this.MultiTenancyInfo} " +
                     $"CnetAddressSpace:{cnetAddressSpaceStr} Routes:{routesStr}]";
         }
     }

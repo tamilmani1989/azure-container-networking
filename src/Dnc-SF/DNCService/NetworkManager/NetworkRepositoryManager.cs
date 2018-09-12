@@ -491,7 +491,8 @@ namespace NetworkManager
                     ncConfiguration.Request.AssociationInfo.OrchestratorContext,
                     networkConfiguration.CnetSpace,
                     ncConfiguration.State,
-                    ncConfiguration.Status);
+                    ncConfiguration.Status,
+                    ncConfiguration.LocalIP);
             }
         }
 
@@ -700,6 +701,70 @@ namespace NetworkManager
                         PendingRequestsReliableCollection,
                         ncKey);
                 }
+                await RepositoryHelper.CommitTransactionAsync(tx);
+            }
+        }
+
+        public async Task<NodeConfiguration> GetNodeConfiguration(
+            string nodeID)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                return await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    NodeConfigReliableCollection,
+                    NodeConfiguration.GetNodeKey(nodeID));
+            }
+        }
+
+        public async Task<NCConfiguration> GetNetworkContainerConfiguration(
+            string networkID,
+            string networkContainerID)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                return await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    NCConfigReliableCollection,
+                    NCConfiguration.GetNCKey(networkID, networkContainerID));
+            }
+        }
+
+        public async Task SetNetworkContainerLocalIP(
+            RequestContext requestContext,
+            string localIP)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                RequestContext retrievedRequestContext = await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    PendingRequestsReliableCollection,
+                    requestContext.RequestID,
+                    LockMode.Update);
+
+                if (requestContext == null || !requestContext.Equals(retrievedRequestContext))
+                {
+                    return;
+                }
+
+                NCConfiguration ncConfiguration = await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    NCConfigReliableCollection,
+                    requestContext.RequestID,
+                    LockMode.Update);
+                if (ncConfiguration == null)
+                {
+                    return;
+                }
+
+                ncConfiguration.LocalIP = localIP;
+                await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                    tx,
+                    NCConfigReliableCollection,
+                    requestContext.RequestID,
+                    ncConfiguration);
+
+                ServiceEventSource.Current.Message($"Set NC LocalIP:{ncConfiguration.LocalIP} ");
                 await RepositoryHelper.CommitTransactionAsync(tx);
             }
         }

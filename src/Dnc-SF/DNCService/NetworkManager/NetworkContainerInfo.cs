@@ -49,6 +49,8 @@ namespace NetworkManager
 
         public Status Status { get; private set; }
 
+        public string LocalIP { get; private set; }
+
         public NetworkContainerInfo(
             string networkID,
             string nodeID,
@@ -68,7 +70,8 @@ namespace NetworkManager
             string orchestratorContext,
             List<string> cnetAddressSpace,
             NetworkContainerState networkContainerState,
-            Status  status)
+            Status status,
+            string localIP)
         {
             this.NetworkID = networkID;
             this.NodeID = nodeID;
@@ -89,6 +92,7 @@ namespace NetworkManager
             this.CnetAddressSpace = cnetAddressSpace;
             this.NetworkContainerState = networkContainerState;
             this.Status = status;
+            this.LocalIP = localIP;
             ServiceEventSource.Current.Message($"DnsServers:{string.Join(",", DnsServers)}");
         }
 
@@ -112,12 +116,19 @@ namespace NetworkManager
                 this.IPV4Addresses[0].Split(NetworkManager.IPSubnet.PrefixDelimiter)[0],
                 ipSubnet.Prefix);
 
-            ServiceEventSource.Current.Message($"CreateNetworkContainerRequest:DnsServers:{string.Join(",", DnsServers)}");
             IPConfiguration ipConfiguration = new IPConfiguration(
                 ncIPSubnet,
                 this.DnsServers,
                 this.GatewayIP);
+            Cns.Data.IPSubnet ncLocalIPSubnet = new Cns.Data.IPSubnet(
+                this.LocalIP.Split(IPSubnet.PrefixDelimiter)[0],
+                LocalIPSubnetConstants.LocalIPSubnetPrefix);
 
+            List<string> localIPSubnetDns = new List<string>();
+            IPConfiguration localIPConfiguration = new IPConfiguration(
+                ncLocalIPSubnet,
+                localIPSubnetDns,
+                LocalIPSubnetConstants.LocalIPGateway);
             MultiTenancyInfo multiTenancyInfo = new MultiTenancyInfo(
                 Cns.Data.Constants.Vlan,
                 this.VlanID);
@@ -129,6 +140,7 @@ namespace NetworkManager
                 this.NodeInterfaceID,
                 this.AccessToken,
                 ipConfiguration,
+                localIPConfiguration,
                 multiTenancyInfo,
                 GetIPSubnets(this.CnetAddressSpace),
                 null);
@@ -165,7 +177,7 @@ namespace NetworkManager
                 $"{string.Join(",", this.Policies)}, VlanID:{this.VlanID} " +
                 $"CnsVersion:{this.CnsVersion} ContainerType:{this.ContainerType}" +
                 $"CnetAddressSpace:{this.CnetAddressSpace} " +
-                $"NetworkContainerState:{NetworkContainerState} Status:{this.Status}]";
+                $"NetworkContainerState:{NetworkContainerState} Status:{this.Status} LocalIP:{this.LocalIP}]";
         }
     }
 }                    

@@ -7,6 +7,8 @@
 
 using Cns;
 using DNCService;
+using Microsoft.ServiceFabric.Data;
+using Microsoft.ServiceFabric.Data.Collections;
 using Microsoft.ServiceFabric.Data.Notifications;
 using NetworkManager.DataModel;
 using NMAgent;
@@ -18,9 +20,22 @@ using System.Threading.Tasks;
 namespace NetworkManager
 {
     /// <summary>
-    /// Class definiton for request watcher.
+    /// Constants for local IP subnet.
+    /// </summary>
+    ///
+    public class LocalIPSubnetConstants
+    {
+        public const string LocalIPSubnet = "169.254.0.0/16";
+        public const string ImdsSubnet = "169.254.169.254/32";
+        public const string LocalIPGateway = "169.254.0.1";
+        public const int LocalIPSubnetPrefix = 16;
+    }
+
+    /// <summary>
+    /// Class definition for request watcher.
     /// Monitors and processes pending requests.
     /// </summary>
+    ///
     public class RequestWatcher
     {
         /// <summary>
@@ -248,6 +263,10 @@ namespace NetworkManager
                     await ProcessNetworkContainerDisAssociate(requestContext);
                     break;
 
+                case NetworkContainerState.AllocateLocalIP:
+                    await ProcessNetworkContainerAllocateLocalIP(requestContext);
+                    break;
+
                     //case NetworkContainerState.RefreshAssociation:
                     //    ProcessNetworkContainerRefreshAssociation(requestContext, ncConfiguration);
                     //    break;
@@ -375,11 +394,13 @@ namespace NetworkManager
         {
             NetworkContainerInfo networkContainerInfo = await networkRepositoryManager.GetNetworkContainerInfo(
                 requestContext.RequestID);
+
             if (networkContainerInfo == null)
             {
                 await networkRepositoryManager.DeleteRequestContext(requestContext.RequestID);
                 return;
             }
+
             if (networkContainerInfo.NetworkContainerState != NetworkContainerState.Publish)
             {
                 return;
@@ -389,7 +410,7 @@ namespace NetworkManager
             await networkRepositoryManager.UpdateNetworkContainerState(
                 requestContext,
                 NetworkContainerState.Publish,
-                NetworkContainerState.Associate,
+                NetworkContainerState.AllocateLocalIP,
                 Status.Pending,
                 false);
         }
@@ -415,12 +436,99 @@ namespace NetworkManager
             }
 
             await cnsClient.CreateNetworkContainer(networkContainerInfo);
+
             await networkRepositoryManager.UpdateNetworkContainerState(
                 requestContext,
                 NetworkContainerState.Associate,
                 NetworkContainerState.Program,
                 Status.Pending,
                 false);
+        }
+
+        /// <summary>
+        /// Process network container allocate local IP request.
+        /// </summary>
+        /// <param name="requestContext">Supply the request context.</param>
+        /// <returns></returns>
+        private async Task ProcessNetworkContainerAllocateLocalIP(RequestContext requestContext)
+        {
+            NetworkContainerInfo networkContainerInfo = await networkRepositoryManager.GetNetworkContainerInfo(
+                requestContext.RequestID);
+
+            if (networkContainerInfo == null)
+            {
+                await networkRepositoryManager.DeleteRequestContext(requestContext.RequestID);
+                return;
+            }
+
+            if (networkContainerInfo.NetworkContainerState != NetworkContainerState.AllocateLocalIP)
+            {
+                return;
+            }
+
+            try
+            {
+                NodeConfiguration nodeConfiguration;
+                List<IPSubnet> allocatedLocalSubnets = new List<IPSubnet>();
+
+                nodeConfiguration =
+                    await networkRepositoryManager.GetNodeConfiguration(requestContext.NodeID);
+
+                if (nodeConfiguration == null)
+                {
+                    return;
+                }
+
+                if (nodeConfiguration.DeployedNCMap.Count != 0)
+                {
+                    // compile a list of allocated local addresses from the returned node configuration
+                    foreach (KeyValuePair<string, IReadOnlyDictionary<string, string>> networkNCKvp
+                        in nodeConfiguration.DeployedNCMap)
+                    {
+                        string networkID = networkNCKvp.Key;
+                        foreach (string ncID in networkNCKvp.Value.Keys)
+                        {
+                            NCConfiguration ncConfiguration =
+                                await networkRepositoryManager.GetNetworkContainerConfiguration(
+                                    networkID,
+                                    ncID);
+
+                            if (ncConfiguration == null)
+                            {
+                                continue;
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(ncConfiguration.LocalIP))
+                            {
+                                allocatedLocalSubnets.Add(IPSubnet.Parse(ncConfiguration.LocalIP));
+                            }
+                        }
+                    }
+                }
+
+                // Add 169.254.169.254 to the allocated list
+                allocatedLocalSubnets.Add(IPSubnet.Parse(LocalIPSubnetConstants.ImdsSubnet));
+
+                IPSubnet localIP = AllocationHelper.AllocateSubnetFromBaseSubnet(
+                    IPSubnet.Parse(LocalIPSubnetConstants.LocalIPSubnet),
+                    allocatedLocalSubnets,
+                    32);
+
+                await networkRepositoryManager.SetNetworkContainerLocalIP(requestContext, localIP.ToString());
+            }
+            catch (Exception exception)
+            {
+                ServiceEventSource.Current.Message(
+                    "Failed to process ProcessNetworkContainerAllocateLocalIP due to excpetion {0}", exception);
+                throw;
+            }
+
+            await networkRepositoryManager.UpdateNetworkContainerState(
+                    requestContext,
+                    NetworkContainerState.AllocateLocalIP,
+                    NetworkContainerState.Associate,
+                    Status.Pending,
+                    false);
         }
     }
 }

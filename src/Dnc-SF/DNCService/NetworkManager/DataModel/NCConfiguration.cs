@@ -54,6 +54,9 @@ namespace NetworkManager.DataModel
         [DataMember]
         public string APIVersion { get; set; }
 
+        [DataMember]
+        public string LocalIP { get; set; }
+
         public IReadOnlyDictionary<string, UInt64> ProgrammedTagsInfo
         {
             get
@@ -93,6 +96,7 @@ namespace NetworkManager.DataModel
             this.FailureDetail = ncConfiguration.FailureDetail != null ? new ErrorInfo(ncConfiguration.FailureDetail) : null;
             this.MarkedForDelete = ncConfiguration.MarkedForDelete;
             this.APIVersion = ncConfiguration.APIVersion;
+            this.LocalIP = ncConfiguration.LocalIP;
         }
 
         public override string ToString()
@@ -114,6 +118,7 @@ namespace NetworkManager.DataModel
             sb.Append($"FailureDetail:{this.FailureDetail}");
             sb.Append($"MarkedForDelete:{this.MarkedForDelete}");
             sb.Append($"APIVersion:{this.APIVersion}");
+            sb.Append($"LocalIP:{this.LocalIP}");
             return sb.ToString();
         }
 
