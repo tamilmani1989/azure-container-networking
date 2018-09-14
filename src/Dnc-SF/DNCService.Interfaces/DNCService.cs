@@ -62,7 +62,9 @@ namespace DNCService.Interfaces
         /// <param name="networkID">Supply the ID of the network.</param>
         /// <param name="networkContainerID">Supply the network container ID.</param>
         /// <returns></returns>
-        Task DeleteNetworkContainerAsync(string networkID, string networkContainerID);
+        Task DeleteNetworkContainerAsync(
+            string networkID,
+            string networkContainerID);
 
         /// <summary>
         /// Retrieve the subnet configuration.
@@ -91,6 +93,34 @@ namespace DNCService.Interfaces
         /// <returns>Retrieved node configuration.</returns>
         Task<NodeResponse> GetNodeInfoResponseAsync(
             string nodeID);
+
+        /// <summary>
+        /// Retrieve the network status.
+        /// </summary>
+        /// <param name="networkID">Supply the ID of the network.</param>
+        /// <returns>Network status.</returns>
+        Task<RequestStatus> GetNetworkStatusResponseAsync(
+            string networkID);
+
+        /// <summary>
+        /// Retrieve the subnet status.
+        /// </summary>
+        /// <param name="networkID">Supply the ID of the network.</param>
+        /// <param name="subnetName">Supply the subnet name.</param>
+        /// <returns>Subnet status.</returns>
+        Task<RequestStatus> GetSubnetStatusResponseAsync(
+            string networkID,
+            string subnetName);
+
+        /// <summary>
+        /// Retrieve the network container status.
+        /// </summary>
+        /// <param name="networkID">Supply the ID of the network.</param>
+        /// <param name="networkContainerID">Supply the network container ID.</param>
+        /// <returns>Network container status.</returns>
+        Task<RequestStatus> GetNetworkContainerStatusResponseAsync(
+            string networkID,
+            string networkContainerID);
 
         /// <summary>
         /// Join subnet.

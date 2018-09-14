@@ -30,6 +30,7 @@ using NMAgent;
 using Cns;
 using NetworkManager.DataModel;
 using DNCService.Rest;
+using System.Net;
 
 namespace DNCService
 {
@@ -224,6 +225,7 @@ namespace DNCService
             SubnetConfiguration subnetConfiguration;
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
+                    // ashvind - todoL check updateSubnet from GO
                     string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(networkID,
                         subnetName);
                     subnetConfiguration = await RepositoryHelper.GetFromReliableDictionary(
@@ -238,6 +240,7 @@ namespace DNCService
                             new ErrorInfo(
                                 ErrorCode.SubnetNotFound,
                                 $"Subnet {subnetRequest.SubnetName} not found",
+                                (int)HttpStatusCode.NotFound,
                                 ErrorType.NonRetriable));
                     }
 
@@ -267,7 +270,9 @@ namespace DNCService
         /// <param name="networkID">Supply the ID of the network.</param>
         /// <param name="subnetName">Supply the subnet name.</param>
         /// <returns>Subnet configuration.</returns>
-        async Task<SubnetResponse> IDNCService.GetSubnetConfigurationResponseAsync(string networkID, string subnetName)
+        async Task<SubnetResponse> IDNCService.GetSubnetConfigurationResponseAsync(
+            string networkID,
+            string subnetName)
         {
             IReliableDictionary<string, NetworkConfiguration> networkConfigReliableCollection =
                 RepositoryHelper.GetReliableDictionaryAsync<string, NetworkConfiguration>(
@@ -322,6 +327,178 @@ namespace DNCService
                 ServiceEventSource.Current.Message(
                     $"Failed to get subnet {subnetName} in network {networkID} with exception:{exception}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Get network status.
+        /// </summary>
+        /// <param name="networkID">Supply the ID of the network.</param>
+        /// <returns>Network status.</returns>
+        async Task<RequestStatus> IDNCService.GetNetworkStatusResponseAsync(
+            string networkID)
+        {
+            using (ITransaction tx = RepositoryHelper.GetTransaction())
+            {
+                string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
+
+                NetworkConfiguration networkConfig =
+                    await RepositoryHelper.GetFromReliableDictionary(
+                        tx,
+                        networkRepositoryManager.NetworkConfigReliableCollection,
+                        networkKey);
+                if (networkConfig == null)
+                {
+                    throw new DncNetworkManagementException(
+                        networkID,
+                        new ErrorInfo(ErrorCode.NetworkNotFound,
+                            "Network configuration not found",
+                            (int)HttpStatusCode.NotFound,
+                            ErrorType.NonRetriable));
+                }
+
+                RequestStatus requestStatus =
+                    new RequestStatus(
+                        networkConfig.State.ToString(),
+                        networkConfig.Status.ToString(),
+                        networkConfig.FailureDetail);
+
+                if (requestStatus.ErrorInfo != null)
+                {
+                    if ((networkConfig.Status == Status.Pending) ||
+                        (networkConfig.Status == Status.NotStarted))
+                    {
+                        // TODO: Missing StatusProcessing (102) in System.Net.HttpStatusCode
+                        requestStatus.ErrorInfo.HTTPStatus = 102;
+                    }
+                    else if (networkConfig.Status == Status.Completed)
+                    {
+                        requestStatus.ErrorInfo.HTTPStatus = (int)HttpStatusCode.OK;
+                    }
+                }
+
+                return (requestStatus);
+            }
+        }
+
+        /// <summary>
+        /// Get subnet status.
+        /// </summary>
+        /// <param name="networkID">Supply the ID of the network.</param>
+        /// <param name="subnetName">Supply the subnet name.</param>
+        /// <returns>subnet status.</returns>
+        async Task<RequestStatus> IDNCService.GetSubnetStatusResponseAsync(
+            string networkID,
+            string subnetName)
+        {
+            using (ITransaction tx = RepositoryHelper.GetTransaction())
+            {
+                string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
+
+                NetworkConfiguration networkConfig =
+                    await RepositoryHelper.GetFromReliableDictionary(
+                        tx,
+                        networkRepositoryManager.NetworkConfigReliableCollection,
+                        networkKey);
+                if (networkConfig == null)
+                {
+                    throw new DncNetworkManagementException(
+                        networkID,
+                        new ErrorInfo(ErrorCode.NetworkNotFound,
+                            "Network configuration not found",
+                            (int)HttpStatusCode.NotFound,
+                            ErrorType.NonRetriable));
+                }
+
+                string subnetKey =
+                    SubnetConfiguration.GetSubnetConfigurationKey(networkID, subnetName);
+
+                SubnetConfiguration subnetConfig =
+                    await RepositoryHelper.GetFromReliableDictionary(
+                        tx,
+                        networkRepositoryManager.SubnetConfigReliableCollection,
+                        subnetKey);
+                if (subnetConfig == null)
+                {
+                    throw new DncNetworkManagementException(
+                        networkID,
+                        new ErrorInfo(
+                            ErrorCode.SubnetNotFound,
+                            $"Subnet {subnetName} not found",
+                            (int)HttpStatusCode.NotFound,
+                            ErrorType.NonRetriable));
+                }
+
+                RequestStatus requestStatus;
+
+                if (subnetConfig.Joined)
+                {
+                    requestStatus = new RequestStatus(
+                        Enum.GetName(typeof(NetworkState), NetworkState.Join),
+                        Enum.GetName(typeof(Status), Status.Completed),
+                        null);
+                }
+                else
+                {
+                    requestStatus = new RequestStatus(
+                        Enum.GetName(typeof(NetworkState), NetworkState.Unknown),
+                        Enum.GetName(typeof(Status), Status.NotStarted),
+                        null);
+                }
+
+                return (requestStatus);
+            }
+        }
+
+        /// <summary>
+        /// Retrieve the network container status.
+        /// </summary>
+        /// <param name="networkID">Supply the ID of the network.</param>
+        /// <param name="networkContainerID">Supply the network container ID.</param>
+        /// <returns>Network container status.</returns>
+        async Task<RequestStatus> IDNCService.GetNetworkContainerStatusResponseAsync(
+            string networkID,
+            string networkContainerID)
+        {
+            using (ITransaction tx = RepositoryHelper.GetTransaction())
+            {
+                string ncKey = NCConfiguration.GetNCKey(networkID, networkContainerID);
+                NCConfiguration ncConfig =
+                    await RepositoryHelper.GetFromReliableDictionary(
+                        tx,
+                        networkRepositoryManager.NCConfigReliableCollection,
+                        ncKey);
+
+                if (ncConfig == null)
+                {
+                    throw new DncNetworkContainerException(
+                        networkID,
+                        networkContainerID,
+                        new ErrorInfo(ErrorCode.NetworkContainerNotFound, "Container not found",
+                            (int)HttpStatusCode.NotFound, ErrorType.NonRetriable));
+                }
+
+                RequestStatus requestStatus =
+                    new RequestStatus(
+                        ncConfig.State.ToString(),
+                        ncConfig.Status.ToString(),
+                        ncConfig.FailureDetail);
+
+                if (requestStatus.ErrorInfo != null)
+                {
+                    if ((ncConfig.Status == Status.Pending) ||
+                        (ncConfig.Status == Status.NotStarted))
+                    {
+                        // TODO: Missing StatusProcessing (102) in System.Net.HttpStatusCode
+                        requestStatus.ErrorInfo.HTTPStatus = 102;
+                    }
+                    else if (ncConfig.Status == Status.Completed)
+                    {
+                        requestStatus.ErrorInfo.HTTPStatus = (int)HttpStatusCode.OK;
+                    }
+                }
+
+                return (requestStatus);
             }
         }
 
@@ -849,7 +1026,7 @@ namespace DNCService
                             networkID,
                             networkContainerID,
                             new ErrorInfo(ErrorCode.NetworkContainerNotFound, "Container not found",
-                            ErrorType.NonRetriable));
+                                (int)HttpStatusCode.NotFound, ErrorType.NonRetriable));
                     }
 
                     string reservationKey = ReservationConfiguration.GetReservationKey(

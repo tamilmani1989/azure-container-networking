@@ -213,7 +213,6 @@ namespace NetworkManager
                         ((requestContext != null) ? requestContext.ToString() : "null"),
                         exception);
 
-                    // Add to the failed queue only if the error is retriable
                     DncManagementException dncManagementException = (DncManagementException)exception;
 
                     ErrorInfo failureDetail;
@@ -227,22 +226,23 @@ namespace NetworkManager
                         failureDetail = dncManagementInnerException.ErrorInfo;
                     }
 
+                    // Update the failure detail
+                    await networkRepositoryManager.UpdateFailureDetail(
+                        requestContext, dncManagementException.ErrorInfo);
+
+                    // Add to the failed queue only if the error is retriable
                     if (dncManagementException.ErrorType == ErrorType.Retriable)
                     {
                         await networkRepositoryManager.MoveRequestToFailedQueue(
                             requestID,
                             hostAgentClient.DncConfiguration.DNCSettings.RequestRetryBaseInterval,
-                            exception);
+                            dncManagementException.ErrorInfo);
                     }
                     else
                     {
-                        // Remove the entry from pending queue for non-retriable error
                         using (var tx = RepositoryHelper.GetTransaction())
                         {
-                            await networkRepositoryManager.UpdateNetworkContainerErrorInfo(
-                                requestContext,
-                                dncManagementException.ErrorInfo);
-
+                            // Remove the entry from pending queue for non-retriable error
                             await RepositoryHelper.RemoveFromReliableDictionary(
                                 tx,
                                 networkRepositoryManager.PendingRequestsReliableCollection,

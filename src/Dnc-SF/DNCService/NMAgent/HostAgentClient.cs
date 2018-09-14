@@ -103,7 +103,8 @@ namespace NMAgent
                 case HttpStatusCode.Unauthorized:
                     throw new DncHostAgentException(
                         new ErrorInfo(ErrorCode.NetworkJoinFailed,
-                            "Join for network failed is unauthorized",
+                            "Join for network failed due to authentication failure",
+                            (int)joinResponse.StatusCode,
                             ErrorType.NonRetriable));
 
                 case HttpStatusCode.OK:
@@ -114,6 +115,7 @@ namespace NMAgent
                         new ErrorInfo(ErrorCode.NetworkJoinFailed,
                             $"Join for network failed. Unable to retrive network response" +
                             $" due to error {joinResponse.StatusCode}",
+                            (int)joinResponse.StatusCode,
                             ErrorType.Retriable));
             }
 
@@ -159,13 +161,14 @@ namespace NMAgent
                     throw new DncHostAgentException(
                         new ErrorInfo(ErrorCode.ProcessingPending,
                             "Join for network pending",
-                            (int)joinResponse.StatusCode,
+                            (int)getNetworkResponseCode,
                             ErrorType.Retriable));
 
                 case HttpStatusCode.Unauthorized:
                     throw new DncHostAgentException(
                         new ErrorInfo(ErrorCode.NetworkJoinFailed,
-                            "Join for network failed is unauthorized",
+                            "Join for network failed due to authentication failure",
+                            (int)getNetworkResponseCode,
                             ErrorType.NonRetriable));
 
                 case HttpStatusCode.OK:
@@ -178,6 +181,7 @@ namespace NMAgent
                         new ErrorInfo(ErrorCode.NetworkJoinFailed,
                             $"Join for network failed. Unable to retrive network response " +
                             $"due to error {getNetworkResponseCode}",
+                            (int)getNetworkResponseCode,
                             ErrorType.NonRetriable));
             }
         }
@@ -276,6 +280,11 @@ namespace NMAgent
         /// <returns></returns>
         public async Task DeleteNetworkContainer(NetworkContainerInfo networkContainerInfo)
         {
+            if (DncConfiguration.NMAgentSimulatorMode)
+            {
+                return;
+            }
+
             string deleteNCUrl = string.Format(
                      DncConfiguration.HostAgentSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
                      DncConfiguration.HostAgentSettings.WireServerIP,

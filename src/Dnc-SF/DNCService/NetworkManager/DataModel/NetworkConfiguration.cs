@@ -164,7 +164,7 @@ namespace NetworkManager.DataModel
             this.State = networkConfiguration.State;
             this.Status = networkConfiguration.Status;
             this.ApiVersion = networkConfiguration.ApiVersion;
-            this.FailureDetail = this.FailureDetail != null ? (ErrorInfo)networkConfiguration.FailureDetail.Clone(): null;
+            this.FailureDetail = networkConfiguration.FailureDetail;
         }
 
         public void SetCNetSpace(string cnetSpace)
@@ -194,7 +194,7 @@ namespace NetworkManager.DataModel
                 $"Subnets:{string.Join(",", this.subnets)} " +
                 $"DnsServers:{string.Join(",", this.dnsServers)}, State:{this.State}," +
                 $"Status:{this.Status}, NetworkInfoRequest:{this.NetworkInfoRequest} " +
-                $"ApiVersion:{this.ApiVersion}";
+                $"ApiVersion:{this.ApiVersion} FailureDetail:{this.FailureDetail}";
         }
 
         public static string GetNetworkKey(string networkID)
