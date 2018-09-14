@@ -80,7 +80,8 @@ namespace DNCService.Rest
                     errorInfo = new ErrorInfo(
                         ErrorCode.StatusInternalServerError, 
                         $"Failed with exception:{exception}",
-                        (int)HttpStatusCode.InternalServerError);
+                        (int)HttpStatusCode.InternalServerError,
+                        ErrorType.NonRetriable);
                 }
                 byte[] responseBytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(errorInfo));
                 await WriteHttpResponse(httpContext, responseBytes, errorInfo.HTTPStatus);
@@ -104,7 +105,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNodeID,
                             "NodeID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 NodeRequest nodeInfoRequest = null;
@@ -119,7 +121,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNodeRequest,
                             $"Failed to parse request body. Exception:{exception.Message}",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 if(nodeInfoRequest == null)
@@ -129,7 +132,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNodeRequest,
                             $"Failed to parse request body. Request post parsing request body is null",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 if(nodeInfoRequest.IPAddresses == null || nodeInfoRequest.IPAddresses.Length == 0)
@@ -139,7 +143,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNodeRequest,
                             $"IPAddress for node cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 if (string.IsNullOrEmpty(nodeInfoRequest.OrchestratorType))
@@ -149,7 +154,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNodeRequest,
                             $"Orchestrator context cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 if (!nodeInfoRequest.OrchestratorType.Equals(
@@ -165,7 +171,8 @@ namespace DNCService.Rest
                             ErrorCode.InvalidNodeRequest,
                             $"Orchestrator type {nodeInfoRequest.OrchestratorType} is invalid. " +
                             $"Supported orchestrators {Cns.Data.Constants.ServiceFabric}, {Cns.Data.Constants.Kubernetes}.",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
@@ -199,7 +206,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNodeID,
                             "NodeID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
                     new ServicePartitionKey(1),
@@ -229,7 +237,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNodeID,
                             "NodeID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
@@ -260,7 +269,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkID,
                             "NetworkID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
@@ -294,7 +304,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkID,
                             "NetworkID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
@@ -326,7 +337,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkID,
                             "NetworkID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 string networkContainerID = (string)httpContext.GetRouteValue("NetworkContainerID");
@@ -338,7 +350,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkContainerID,
                             "NetworkContainerID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 byte[] body = await ReadBodyAsAsync(httpContext);
@@ -356,7 +369,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkContainerRequest,
                             $"Received exception {exception.Message} while serializing Json body",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 if (networkContainerRequestV1 != null && !string.IsNullOrWhiteSpace(networkContainerRequestV1.ReservationID))
@@ -378,7 +392,8 @@ namespace DNCService.Rest
                             new ErrorInfo(
                                 ErrorCode.InvalidNetworkContainerRequest,
                                 $"Received exception {exception.Message} while serializing Json body",
-                                (int)HttpStatusCode.BadRequest));
+                                (int)HttpStatusCode.BadRequest,
+                                ErrorType.NonRetriable));
                     }
 
                     if (networkContainerRequestV2 == null)
@@ -389,7 +404,8 @@ namespace DNCService.Rest
                             new ErrorInfo(
                                 ErrorCode.InvalidNetworkContainerRequest,
                                 "Failed to serialize Json body to network container request",
-                                (int)HttpStatusCode.BadRequest));
+                                (int)HttpStatusCode.BadRequest,
+                                ErrorType.NonRetriable));
                     }
 
                     if (networkContainerRequestV2.AllocationRequest == null)
@@ -400,7 +416,8 @@ namespace DNCService.Rest
                             new ErrorInfo(
                                 ErrorCode.InvalidNetworkContainerRequest,
                                 "Allocation request cannot be null or empty",
-                                (int)HttpStatusCode.BadRequest));
+                                (int)HttpStatusCode.BadRequest,
+                                ErrorType.NonRetriable));
                     }
 
                     if (string.IsNullOrEmpty(networkContainerRequestV2.AllocationRequest.SubnetName))
@@ -411,7 +428,8 @@ namespace DNCService.Rest
                             new ErrorInfo(
                                 ErrorCode.InvalidNetworkContainerRequest,
                                 "Subnet name in allocation request cannot be null or empty",
-                                (int)HttpStatusCode.BadRequest));
+                                (int)HttpStatusCode.BadRequest,
+                                ErrorType.NonRetriable));
                     }
 
                     networkContainerRequest = networkContainerRequestV2;
@@ -424,7 +442,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkContainerRequest,
                             "AssociationInfo cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 if (string.IsNullOrEmpty(networkContainerRequest.AssociationInfo.ContainerType))
@@ -435,7 +454,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkContainerRequest,
                             "ContainerType in association info cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 if (string.IsNullOrEmpty(networkContainerRequest.AssociationInfo.NodeID))
@@ -446,7 +466,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkContainerRequest,
                             "NodeID in association info cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 if (networkContainerRequest.AssociationInfo.OrchestratorContext == null)
@@ -457,7 +478,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkContainerRequest,
                             "OrchestratorContext in association info cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 if (!networkContainerRequest.AssociationInfo.ContainerType.Equals(
@@ -474,7 +496,8 @@ namespace DNCService.Rest
                             ErrorCode.InvalidNodeRequest,
                             $"Container type {networkContainerRequest.AssociationInfo.ContainerType} is invalid. " +
                             $"Supported container types {Cns.Data.Constants.ClearContainer}, {Cns.Data.Constants.AzureContainerInstance}.",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
@@ -511,7 +534,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkID,
                             "NetworkID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 string networkContainerID = (string)httpContext.GetRouteValue("NetworkContainerID");
@@ -523,7 +547,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkContainerID,
                             "NetworkContainerID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
                     new ServicePartitionKey(1),
@@ -557,7 +582,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkID,
                             "NetworkID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 string networkContainerID = (string)httpContext.GetRouteValue("NetworkContainerID");
@@ -569,7 +595,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkContainerID,
                             "NetworkContainerID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
@@ -602,7 +629,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkID,
                             "NetworkID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 string subnetName = (string)httpContext.GetRouteValue("SubnetName");
@@ -613,7 +641,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidSubnetName,
                             "SubnetName cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 SubnetRequest subnetRequest = null;
@@ -628,7 +657,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidSubnetRequest,
                             $"Failed to parse request body. Exception:{exception.Message}",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 if (subnetRequest == null)
@@ -638,7 +668,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidSubnetRequest,
                             $"Failed to parse request body. Request post parsing request body is null",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 if(string.IsNullOrEmpty(subnetRequest.AuthenticationToken))
@@ -648,7 +679,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidSubnetRequest,
                             $"AuthenticationToken cannot be null or empty.",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
@@ -726,7 +758,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNetworkID,
                             "NetworkID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
 
                 string subnetName = (string)httpContext.GetRouteValue("SubnetName");
@@ -737,7 +770,8 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidSubnetName,
                             "SubnetName cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest));
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
                 }
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
                     new ServicePartitionKey(1),

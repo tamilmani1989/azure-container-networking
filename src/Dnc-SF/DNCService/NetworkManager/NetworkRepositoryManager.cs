@@ -243,7 +243,8 @@ namespace NetworkManager
                             {
                                 ncConfiguration.FailureDetail = new ErrorInfo(
                                     ErrorCode.StatusInternalServerError,
-                                    exception.ToString());
+                                    exception.ToString(),
+                                    ErrorType.Retriable);
                                 await RepositoryHelper.CreateOrUpdateReliableDictionary(
                                 tx,
                                 NCConfigReliableCollection,
@@ -265,7 +266,8 @@ namespace NetworkManager
                             {
                                 networkConfiguration.FailureDetail = new ErrorInfo(
                                     ErrorCode.StatusInternalServerError,
-                                    exception.ToString());
+                                    exception.ToString(),
+                                    ErrorType.Retriable);
                                 await RepositoryHelper.CreateOrUpdateReliableDictionary(
                                 tx,
                                 NetworkConfigReliableCollection,
@@ -287,7 +289,8 @@ namespace NetworkManager
                             {
                                 reservationConfiguration.FailureDetail = new ErrorInfo(
                                     ErrorCode.StatusInternalServerError,
-                                    exception.ToString());
+                                    exception.ToString(),
+                                    ErrorType.Retriable);
                                 await RepositoryHelper.CreateOrUpdateReliableDictionary(
                                 tx,
                                 ReservationReliableCollection,
@@ -367,6 +370,17 @@ namespace NetworkManager
             }
         }
 
+        public async Task<NCConfiguration> GetNCConfigurationAsync(RequestContext requestContext)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                return await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    NCConfigReliableCollection,
+                    requestContext.RequestID);
+            }
+        }
+
         public async Task<NetworkContainerInfo> GetNetworkContainerInfo(string ncKey)
         {
             string networkID = NCConfiguration.GetNetworkIDFromKey(ncKey);
@@ -399,7 +413,8 @@ namespace NetworkManager
                         networkContainerID,
                         new ErrorInfo(
                             ErrorCode.ReservationNotFound,
-                            $"Reservation {ncConfiguration.ReservationID} for Container not found"));
+                            $"Reservation {ncConfiguration.ReservationID} for Container not found",
+                            ErrorType.NonRetriable));
                 }
 
                 string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
@@ -414,7 +429,9 @@ namespace NetworkManager
                     throw new DncNetworkContainerException(
                         networkID,
                         networkContainerID,
-                        new ErrorInfo(ErrorCode.NetworkNotFound, "Network associated with container not found"));
+                        new ErrorInfo(ErrorCode.NetworkNotFound,
+                            "Network associated with container not found",
+                            ErrorType.NonRetriable));
                 }
 
                 string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(networkID,
@@ -431,7 +448,9 @@ namespace NetworkManager
                         networkID,
                         networkContainerID,
                         new ErrorInfo(ErrorCode.SubnetNotFound,
-                        $"Subnet {reservationConfiguration.AllocationRequest.SubnetName} associated with container not found"));
+                        $"Subnet {reservationConfiguration.AllocationRequest.SubnetName} " +
+                        $"associated with container not found",
+                        ErrorType.NonRetriable));
                 }
 
                 string nodeKey = NodeConfiguration.GetNodeKey(
@@ -449,7 +468,8 @@ namespace NetworkManager
                         networkID,
                         networkContainerID,
                         new ErrorInfo(ErrorCode.NodeNotFound,
-                        $"Node {nodeConfiguration.NodeID} associated with container not found"));
+                        $"Node {nodeConfiguration.NodeID} associated with container not found",
+                        ErrorType.NonRetriable));
                 }
 
                 string interfaceID =
@@ -496,6 +516,52 @@ namespace NetworkManager
             }
         }
 
+        public async Task UpdateNetworkContainerErrorInfo(
+            RequestContext requestContext,
+            ErrorInfo failureDetail)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                if (requestContext == null)
+                {
+                    return;
+                }
+
+                RequestContext retrievedRequestContext = await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    PendingRequestsReliableCollection,
+                    requestContext.RequestID,
+                    LockMode.Update);
+
+                if (!requestContext.Equals(retrievedRequestContext))
+                {
+                    return;
+                }
+
+                NCConfiguration ncConfiguration = await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    NCConfigReliableCollection,
+                    requestContext.RequestID,
+                    LockMode.Update);
+
+                if (ncConfiguration == null)
+                {
+                    return;
+                }
+
+
+                ncConfiguration.FailureDetail = failureDetail;
+                await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                    tx,
+                    NCConfigReliableCollection,
+                    requestContext.RequestID,
+                    ncConfiguration);
+
+                ServiceEventSource.Current.Message($"Updated NC FailureDetail:{ncConfiguration.FailureDetail}");
+                await RepositoryHelper.CommitTransactionAsync(tx);
+            }
+        }
+
         public async Task UpdateNetworkContainerState(
             RequestContext requestContext,
             NetworkContainerState currentState,
@@ -505,13 +571,18 @@ namespace NetworkManager
         {
             using (var tx = RepositoryHelper.GetTransaction())
             {
+                if (requestContext == null)
+                {
+                    return;
+                }
+
                 RequestContext retrievedRequestContext = await RepositoryHelper.GetFromReliableDictionary(
                     tx,
                     PendingRequestsReliableCollection,
                     requestContext.RequestID,
                     LockMode.Update);
 
-                if (requestContext == null || !requestContext.Equals(retrievedRequestContext))
+                if (!requestContext.Equals(retrievedRequestContext))
                 {
                     return;
                 }

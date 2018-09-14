@@ -4,16 +4,30 @@
 // </copyright>
 // 
 //-----------------------------------------------------------------------
+using Newtonsoft.Json;
 
 namespace Cns.Data
 {
     /// <summary>
     /// Defines the delete container response,
     /// </summary>
-    public class DeleteNetworkContainerResponse : Response
+    public class DeleteNetworkContainerResponse
     {
-        public DeleteNetworkContainerResponse(int returncode, string message) : base(returncode, message)
+        [JsonProperty("Response")]
+        public Response Response { get; set; }
+
+        public DeleteNetworkContainerResponse(int returncode, string message)
         {
+            Response = new Response(returncode, message);
+        }
+
+        public DeleteNetworkContainerResponse()
+        {
+        }
+
+        public DeleteNetworkContainerResponse(Response response)
+        {
+            Response = response;
         }
     }
 }

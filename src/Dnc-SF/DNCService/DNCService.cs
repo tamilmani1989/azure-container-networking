@@ -87,7 +87,6 @@ namespace DNCService
             this.applicationName = context.CodePackageActivationContext.ApplicationName;
             this.replicaInstanceid = context.ReplicaOrInstanceId;
             this.StateManager.StateManagerChanged += this.OnStateManagerChangedHandler;
-            
             hostAgentClient = new HostAgentClient(DncConfigurationInstance);
             cnsClient = new CnsClient(DncConfigurationInstance);
             requestWatcher = new RequestWatcher(hostAgentClient, cnsClient);
@@ -198,7 +197,6 @@ namespace DNCService
             }
             catch (Exception exception)
             {
-
                 ServiceEventSource.Current.Message("RunAsync failed with exception:{0}", exception);
                 throw;
             }
@@ -239,7 +237,8 @@ namespace DNCService
                             networkID,
                             new ErrorInfo(
                                 ErrorCode.SubnetNotFound,
-                                $"Subnet {subnetRequest.SubnetName} not found"));
+                                $"Subnet {subnetRequest.SubnetName} not found",
+                                ErrorType.NonRetriable));
                     }
 
                     subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken;
@@ -362,7 +361,6 @@ namespace DNCService
 
                     if (networkConfig == null)
                     {
-
                         networkConfig = new NetworkConfiguration(
                             "",
                             networkID,
@@ -476,7 +474,8 @@ namespace DNCService
                         networkID,
                         networkContainerID,
                         new ErrorInfo(ErrorCode.RequestNotsupported,
-                        "NetworkcontainerRequestV1 currently not supported"));
+                        "NetworkcontainerRequestV1 currently not supported",
+                        ErrorType.NonRetriable));
                 }
 
                 NetworkContainerRequestV2 ncRequestV2 = (NetworkContainerRequestV2)ncRequest;
@@ -515,7 +514,7 @@ namespace DNCService
                         throw new DncNetworkContainerException(
                             networkID,
                             ncRequest.AssociationInfo.NodeID,
-                            new ErrorInfo(ErrorCode.NodeNotFound, "Node not found"));
+                            new ErrorInfo(ErrorCode.NodeNotFound, "Node not found", ErrorType.NonRetriable));
                     }
 
                     string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
@@ -529,7 +528,9 @@ namespace DNCService
                         throw new DncNetworkContainerException(
                             networkID,
                             networkContainerID,
-                            new ErrorInfo(ErrorCode.NetworkNotFound, "Network associated with container not found"));
+                            new ErrorInfo(ErrorCode.NetworkNotFound,
+                                "Network associated with container not found",
+                                ErrorType.NonRetriable));
                     }
 
                     string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(networkID,
@@ -546,7 +547,9 @@ namespace DNCService
                             networkID,
                             networkContainerID,
                             new ErrorInfo(ErrorCode.SubnetNotFound,
-                            $"Subnet {ncRequestV2.AllocationRequest.SubnetName} associated with container request not found"));
+                            $"Subnet {ncRequestV2.AllocationRequest.SubnetName} " +
+                            $"associated with container request not found",
+                            ErrorType.NonRetriable));
                     }
 
                     if (!subnetConfiguration.Joined)
@@ -555,7 +558,9 @@ namespace DNCService
                             networkID,
                             networkContainerID,
                             new ErrorInfo(ErrorCode.SubnetIsNotJoined,
-                            $"Subnet {ncRequestV2.AllocationRequest.SubnetName} associated with container is not joined"));
+                            $"Subnet {ncRequestV2.AllocationRequest.SubnetName} " +
+                            $"associated with container is not joined",
+                            ErrorType.NonRetriable));
                     }
 
                     List<IPSubnet> allocatedSubnets = new List<IPSubnet>();
@@ -694,7 +699,8 @@ namespace DNCService
                                 throw new DncNetworkManagementException(
                                     networkID,
                                     new ErrorInfo(ErrorCode.SubnetInUse,
-                                    $"Subnet {subnetConfiguration.SubnetName} has reservations in it"));
+                                    $"Subnet {subnetConfiguration.SubnetName} has reservations in it",
+                                    ErrorType.NonRetriable));
                             }
                             ServiceEventSource.Current.Message($"Removing subnet configuration:{subnetConfiguration}");
                             await RepositoryHelper.RemoveFromReliableDictionary(
@@ -742,7 +748,8 @@ namespace DNCService
                         {
                             throw new DncNodeManagementException(
                                 nodeID,
-                                new ErrorInfo(ErrorCode.NodeInUse, "Node has NC deployed in it"));
+                                new ErrorInfo(ErrorCode.NodeInUse, "Node has NC deployed in it",
+                                ErrorType.NonRetriable));
                         }
 
                         await RepositoryHelper.RemoveFromReliableDictionary(
@@ -841,13 +848,15 @@ namespace DNCService
                         throw new DncNetworkContainerException(
                             networkID,
                             networkContainerID,
-                            new ErrorInfo(ErrorCode.NetworkContainerNotFound, "Container not found"));
+                            new ErrorInfo(ErrorCode.NetworkContainerNotFound, "Container not found",
+                            ErrorType.NonRetriable));
                     }
 
                     string reservationKey = ReservationConfiguration.GetReservationKey(
                         networkID,
                         ncConfiguration.ReservationID);
-                    ReservationConfiguration reservationConfiguration = await RepositoryHelper.GetFromReliableDictionary(
+                    ReservationConfiguration reservationConfiguration =
+                        await RepositoryHelper.GetFromReliableDictionary(
                             tx,
                             networkRepositoryManager.ReservationReliableCollection,
                             reservationKey);
@@ -858,7 +867,8 @@ namespace DNCService
                             networkContainerID,
                             new ErrorInfo(
                                 ErrorCode.ReservationNotFound,
-                                $"Reservation {ncConfiguration.ReservationID} for Container not found"));
+                                $"Reservation {ncConfiguration.ReservationID} for Container not found",
+                                ErrorType.NonRetriable));
                     }
 
                     string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
@@ -873,7 +883,10 @@ namespace DNCService
                         throw new DncNetworkContainerException(
                             networkID,
                             networkContainerID,
-                            new ErrorInfo(ErrorCode.NetworkNotFound, "Network associated with container not found"));
+                            new ErrorInfo(
+                                ErrorCode.NetworkNotFound,
+                                "Network associated with container not found",
+                                ErrorType.NonRetriable));
                     }
 
                     string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(networkID,
@@ -890,7 +903,9 @@ namespace DNCService
                             networkID,
                             networkContainerID,
                             new ErrorInfo(ErrorCode.SubnetNotFound,
-                            $"Subnet {reservationConfiguration.AllocationRequest.SubnetName} associated with container not found"));
+                            $"Subnet {reservationConfiguration.AllocationRequest.SubnetName} " +
+                            $"associated with container not found",
+                            ErrorType.NonRetriable));
                     }
 
                     string nodeKey = NetworkManager.DataModel.NodeConfiguration.GetNodeKey(
@@ -941,7 +956,7 @@ namespace DNCService
                     {
                         throw new DncNodeManagementException(
                             nodeID,
-                            new ErrorInfo(ErrorCode.NodeNotFound, "Node not found"));
+                            new ErrorInfo(ErrorCode.NodeNotFound, "Node not found", ErrorType.NonRetriable));
                     }
 
                     foreach (KeyValuePair<string, IReadOnlyDictionary<string, string>> networkNCKvp in nodeConfiguration.DeployedNCMap)

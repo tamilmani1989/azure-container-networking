@@ -5,6 +5,7 @@
 // 
 //-----------------------------------------------------------------------
 using DNCService;
+using DNCService.API;
 using NetworkManager;
 using Newtonsoft.Json;
 using NMAgent.Data;
@@ -56,6 +57,7 @@ namespace NMAgent
                     "10.0.0.0/16, 10.1.0.0/16, 10.2.0.0/16",
                     subnets.ToArray(),
                     "8.8.8.8,9.9.9.9");
+
                 return response;
             }
             string joinNetworkUrl = string.Format(
@@ -72,26 +74,112 @@ namespace NMAgent
             // Empty body is required as wireserver cannot handle a post without the body.
             var httpContent = new StringContent("  ", Encoding.UTF8, "application/json");
             HttpClient httpClient = new HttpClient();
-            HttpResponseMessage joinResponse = await httpClient.PostAsync(joinNetworkUrl, httpContent);
-            joinResponse.EnsureSuccessStatusCode();
 
-            HttpResponseMessage getResponse = await httpClient.GetAsync(getNetworkUrl);
-            getResponse.EnsureSuccessStatusCode();
-
-            string responseBody = await getResponse.Content.ReadAsStringAsync();
-            VirtualNetworkResponse virtualNetworkResponse =
-                JsonConvert.DeserializeObject<VirtualNetworkResponse>(responseBody);
-            HttpStatusCode getNetworkResponseCode = (HttpStatusCode)Enum.Parse(
-                typeof(HttpStatusCode),
-                virtualNetworkResponse.ResponseCode);
-            if (getNetworkResponseCode != HttpStatusCode.OK)
+            HttpResponseMessage joinResponse;
+            try
             {
-                throw new Exception(
-                    $"Invalid response code . Received response:{virtualNetworkResponse}");
+                joinResponse = await httpClient.PostAsync(joinNetworkUrl, httpContent);
+            }
+            catch (Exception exception)
+            {
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.StatusInternalServerError,
+                        $"Failed to post request to host agent for joinNetwork due to exception: {errorMsg}",
+                        ErrorType.Retriable));
             }
 
-            ServiceEventSource.Current.Message($"Retrieved virtual network response:{virtualNetworkResponse}");
-            return virtualNetworkResponse;
+            switch (joinResponse.StatusCode)
+            {
+                // TODO: Missing StatusProcessing (102) in System.Net.HttpStatusCode
+                case (HttpStatusCode)102:/*StatusProcessing*/
+                    throw new DncHostAgentException(
+                        new ErrorInfo(ErrorCode.ProcessingPending,
+                            "Join for network pending",
+                            (int)joinResponse.StatusCode,
+                            ErrorType.Retriable));
+
+                case HttpStatusCode.Unauthorized:
+                    throw new DncHostAgentException(
+                        new ErrorInfo(ErrorCode.NetworkJoinFailed,
+                            "Join for network failed is unauthorized",
+                            ErrorType.NonRetriable));
+
+                case HttpStatusCode.OK:
+                    break;
+
+                default:
+                    throw new DncHostAgentException(
+                        new ErrorInfo(ErrorCode.NetworkJoinFailed,
+                            $"Join for network failed. Unable to retrive network response" +
+                            $" due to error {joinResponse.StatusCode}",
+                            ErrorType.Retriable));
+            }
+
+            HttpResponseMessage getResponse;
+            try
+            {
+                getResponse = await httpClient.GetAsync(getNetworkUrl);
+            }
+            catch (Exception exception)
+            {
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.StatusInternalServerError,
+                        $"Failed to post request to host agent for getNetworkConfiguration due to exception: {errorMsg}",
+                        ErrorType.Retriable));
+            }
+
+            string responseBody = await getResponse.Content.ReadAsStringAsync();
+            VirtualNetworkResponse virtualNetworkResponse;
+            HttpStatusCode getNetworkResponseCode;
+            try
+            {
+                virtualNetworkResponse = JsonConvert.DeserializeObject<VirtualNetworkResponse>(responseBody);
+                getNetworkResponseCode = (HttpStatusCode)Enum.Parse(typeof(HttpStatusCode),
+                    virtualNetworkResponse.ResponseCode);
+            }
+            catch (Exception exception)
+            {
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.DecodeResponseFailed,
+                        $"Failed to decode response from host agent for getNetworkConfiguration " +
+                        $"due to exception: {errorMsg}",
+                        ErrorType.Retriable));
+            }
+
+            switch (getNetworkResponseCode)
+            {
+                // TODO: Missing StatusProcessing (102) in System.Net.HttpStatusCode
+                case (HttpStatusCode)102:/*StatusProcessing*/
+                    throw new DncHostAgentException(
+                        new ErrorInfo(ErrorCode.ProcessingPending,
+                            "Join for network pending",
+                            (int)joinResponse.StatusCode,
+                            ErrorType.Retriable));
+
+                case HttpStatusCode.Unauthorized:
+                    throw new DncHostAgentException(
+                        new ErrorInfo(ErrorCode.NetworkJoinFailed,
+                            "Join for network failed is unauthorized",
+                            ErrorType.NonRetriable));
+
+                case HttpStatusCode.OK:
+                    ServiceEventSource.Current.Message($"Retrieved virtual network response:" +
+                        $" {virtualNetworkResponse}");
+                    return virtualNetworkResponse;
+
+                default:
+                    throw new DncHostAgentException(
+                        new ErrorInfo(ErrorCode.NetworkJoinFailed,
+                            $"Join for network failed. Unable to retrive network response " +
+                            $"due to error {getNetworkResponseCode}",
+                            ErrorType.NonRetriable));
+            }
         }
 
         /// <summary>
@@ -120,8 +208,30 @@ namespace NMAgent
                 JsonConvert.SerializeObject(createOrUpdateNetworkContainerRequest);
             var httpContent = new StringContent(createOrUpdateNCJson, Encoding.UTF8, "application/json");
             HttpClient httpClient = new HttpClient();
-            HttpResponseMessage response = await httpClient.PostAsync(createNCUrl, httpContent);
-            response.EnsureSuccessStatusCode();
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await httpClient.PostAsync(createNCUrl, httpContent);
+            }
+            catch (Exception exception)
+            {
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.StatusInternalServerError,
+                        $"Failed to post request to host agent for Create NC due to exception: {errorMsg}",
+                        ErrorType.Retriable));
+            }
+
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.PublishingFailed,
+                        $"Create NC failed with response code {response.StatusCode}",
+                        (int)response.StatusCode,
+                        ErrorType.Retriable));
+            }
 
             string responseBody = await response.Content.ReadAsStringAsync();
             ServiceEventSource.Current.Message($"responseBody:{responseBody}");
@@ -137,15 +247,21 @@ namespace NMAgent
             }
             catch(Exception exception)
             {
-                throw new Exception(
-                    $"Failed to decode response {createNCReponse} due to exception {exception}");
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.DecodeResponseFailed,
+                        $"Failed to decode response from host agent for Create NC due to exception: {errorMsg}",
+                        ErrorType.Retriable));
             }
 
             if (createNCReponseCode != HttpStatusCode.OK)
             {
-                throw new Exception(
-                    $"Create NC failed with response code {createNCReponseCode}. " +
-                    $"Received response:{createNCReponse}");
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.PublishingFailed,
+                        $"Create NC failed with response code {createNCReponseCode}",
+                        (int)response.StatusCode,
+                        ErrorType.NonRetriable));
             }
 
             ServiceEventSource.Current.Message(
@@ -171,8 +287,29 @@ namespace NMAgent
 
             var httpContent = new StringContent(" ", Encoding.UTF8, "application/json");
             HttpClient httpClient = new HttpClient();
-            HttpResponseMessage response = await httpClient.PostAsync(deleteNCUrl, httpContent);
-            response.EnsureSuccessStatusCode();
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await httpClient.PostAsync(deleteNCUrl, httpContent);
+            }
+            catch (Exception exception)
+            {
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.StatusInternalServerError,
+                        $"Failed to post request to host agent for Delete NC due to exception: {errorMsg}",
+                        ErrorType.Retriable));
+            }
+
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.UnpublishingFailed,
+                        $"Delete NC failed with response code {response.StatusCode}",
+                        ErrorType.Retriable));
+            }
 
             string responseBody = await response.Content.ReadAsStringAsync();
             DeleteNetworkContainerResponse deleteNCResponse = null;
@@ -187,15 +324,20 @@ namespace NMAgent
             }
             catch (Exception exception)
             {
-                throw new Exception(
-                    $"Failed to decode response {deleteNCResponse} due to exception {exception}");
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.DecodeResponseFailed,
+                        $"Failed to decode response from host agent for Delete NC due to exception: {errorMsg}",
+                        ErrorType.Retriable));
             }
 
             if (deleteNCReponseCode != HttpStatusCode.OK)
             {
-                throw new Exception(
-                    $"Delete NC failed with response code {deleteNCReponseCode}. " +
-                    $"Received response:{deleteNCResponse}");
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.UnpublishingFailed,
+                        $"Delete NC failed with response code {deleteNCReponseCode}",
+                        ErrorType.NonRetriable));
             }
 
             ServiceEventSource.Current.Message(

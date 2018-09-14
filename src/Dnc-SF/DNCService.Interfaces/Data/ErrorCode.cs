@@ -12,7 +12,7 @@ using System.Runtime.Serialization;
 namespace DNCService.API
 {
     /// <summary>
-    /// Eror code enumerations.
+    /// Error code enumerations.
     /// </summary>
     [DataContract]
     public enum ErrorCode
@@ -40,6 +40,7 @@ namespace DNCService.API
 
         [EnumMember]
         AllocationFailed = 8,
+
         [EnumMember]
         NodeProcessingFailedDueToInternalError = 9,
 
@@ -143,7 +144,7 @@ namespace DNCService.API
         NetworkJoinFailed = 42,
 
         [EnumMember]
-        DeocodeResponseFailed = 43,
+        DecodeResponseFailed = 43,
 
         [EnumMember]
         ParseResponseCodeFailed = 44,
@@ -207,5 +208,21 @@ namespace DNCService.API
 
         [EnumMember]
         InvalidSubnetRequest = 64,
+
+        [EnumMember]
+        InvalidNetworkContainerState = 65,
+    }
+
+    /// <summary>
+    /// Error types
+    /// </summary>
+    [DataContract]
+    public enum ErrorType
+    {
+        [EnumMember]
+        Retriable = 0,
+
+        [EnumMember]
+        NonRetriable = 1,
     }
 }

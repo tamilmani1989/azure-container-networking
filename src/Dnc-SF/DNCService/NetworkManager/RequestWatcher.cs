@@ -7,6 +7,7 @@
 
 using Cns;
 using DNCService;
+using DNCService.API;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
 using Microsoft.ServiceFabric.Data.Notifications;
@@ -209,13 +210,49 @@ namespace NetworkManager
                 catch (Exception exception)
                 {
                     ServiceEventSource.Current.Message("Failed to process Network request {0}. Exception:{1}",
-                        requestContext != null ? requestContext.ToString(): "null",
+                        ((requestContext != null) ? requestContext.ToString() : "null"),
                         exception);
 
-                    await networkRepositoryManager.MoveRequestToFailedQueue(
-                        requestID,
-                        hostAgentClient.DncConfiguration.DNCSettings.RequestRetryBaseInterval,
-                        exception);
+                    // Add to the failed queue only if the error is retriable
+                    DncManagementException dncManagementException = (DncManagementException)exception;
+
+                    ErrorInfo failureDetail;
+                    if (exception is DncManagementException dncManagementException1)
+                    {
+                        failureDetail = dncManagementException1.ErrorInfo;
+                    }
+                    else if (exception.InnerException != null &&
+                        exception.InnerException is DncManagementException dncManagementInnerException)
+                    {
+                        failureDetail = dncManagementInnerException.ErrorInfo;
+                    }
+
+                    if (dncManagementException.ErrorType == ErrorType.Retriable)
+                    {
+                        await networkRepositoryManager.MoveRequestToFailedQueue(
+                            requestID,
+                            hostAgentClient.DncConfiguration.DNCSettings.RequestRetryBaseInterval,
+                            exception);
+                    }
+                    else
+                    {
+                        // Remove the entry from pending queue for non-retriable error
+                        using (var tx = RepositoryHelper.GetTransaction())
+                        {
+                            await networkRepositoryManager.UpdateNetworkContainerErrorInfo(
+                                requestContext,
+                                dncManagementException.ErrorInfo);
+
+                            await RepositoryHelper.RemoveFromReliableDictionary(
+                                tx,
+                                networkRepositoryManager.PendingRequestsReliableCollection,
+                                requestID);
+
+                            await networkRepositoryManager.DeleteRequestContext(requestContext.RequestID);
+
+                            await RepositoryHelper.CommitTransactionAsync(tx);
+                        }
+                    }
                 }
             }).ConfigureAwait(false);
         }
@@ -289,15 +326,14 @@ namespace NetworkManager
                 requestContext.RequestID);
             if (networkContainerInfo == null)
             {
-                await networkRepositoryManager.DeleteRequestContext(requestContext.RequestID);
-                return;
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                        "Failed to disassociate NC due to failure to retrieve NC configuration",
+                        ErrorType.NonRetriable));
             }
 
-            if (networkContainerInfo.NetworkContainerState != NetworkContainerState.DisAssociate)
-            {
-                return;
-            }
             await cnsClient.DeleteNetworkContainer(networkContainerInfo);
+
             await networkRepositoryManager.UpdateNetworkContainerState(
                 requestContext,
                 NetworkContainerState.DisAssociate,
@@ -317,17 +353,25 @@ namespace NetworkManager
                 requestContext.RequestID);
             if (networkContainerInfo == null)
             {
-                await networkRepositoryManager.DeleteRequestContext(requestContext.RequestID);
-                return;
-            }
-            if (networkContainerInfo.NetworkContainerState != NetworkContainerState.Revert)
-            {
-                return;
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                        "Failed to delete NC due to failure to retrieve NC configuration",
+                        ErrorType.NonRetriable));
             }
 
-            await networkRepositoryManager.DeleteNetworkContainer(
-                networkContainerInfo,
-                true);
+            try
+            {
+                await networkRepositoryManager.DeleteNetworkContainer(networkContainerInfo, true);
+            }
+            catch (Exception exception)
+            {
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                        $"Failed to delete NC due to excpetion {errorMsg}",
+                        ErrorType.Retriable));
+            }
         }
 
         /// <summary>
@@ -341,12 +385,10 @@ namespace NetworkManager
                 requestContext.RequestID);
             if (networkContainerInfo == null)
             {
-                await networkRepositoryManager.DeleteRequestContext(requestContext.RequestID);
-                return;
-            }
-            if (networkContainerInfo.NetworkContainerState != NetworkContainerState.Program)
-            {
-                return;
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                        "Failed to program NC due to failure to retrieve NC configuration",
+                        ErrorType.NonRetriable));
             }
 
             await networkRepositoryManager.UpdateNetworkContainerState(
@@ -368,15 +410,14 @@ namespace NetworkManager
                 requestContext.RequestID);
             if (networkContainerInfo == null)
             {
-                await networkRepositoryManager.DeleteRequestContext(requestContext.RequestID);
-                return;
-            }
-            if (networkContainerInfo.NetworkContainerState != NetworkContainerState.UnPublish)
-            {
-                return;
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                        "Failed to unpublish NC due to failure to retrieve NC configuration",
+                        ErrorType.NonRetriable));
             }
 
             await hostAgentClient.DeleteNetworkContainer(networkContainerInfo);
+
             await networkRepositoryManager.UpdateNetworkContainerState(
                 requestContext,
                 NetworkContainerState.UnPublish,
@@ -397,16 +438,14 @@ namespace NetworkManager
 
             if (networkContainerInfo == null)
             {
-                await networkRepositoryManager.DeleteRequestContext(requestContext.RequestID);
-                return;
-            }
-
-            if (networkContainerInfo.NetworkContainerState != NetworkContainerState.Publish)
-            {
-                return;
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                        "Failed to publish NC due to failure to retrieve NC configuration",
+                        ErrorType.NonRetriable));
             }
 
             await hostAgentClient.CreateNetworkContainer(networkContainerInfo);
+
             await networkRepositoryManager.UpdateNetworkContainerState(
                 requestContext,
                 NetworkContainerState.Publish,
@@ -426,13 +465,10 @@ namespace NetworkManager
                 requestContext.RequestID);
             if (networkContainerInfo == null)
             {
-                await networkRepositoryManager.DeleteRequestContext(requestContext.RequestID);
-                return;
-            }
-
-            if (networkContainerInfo.NetworkContainerState != NetworkContainerState.Associate)
-            {
-                return;
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                        "Failed to associate NC due to failure to retrieve NC configuration",
+                        ErrorType.NonRetriable));
             }
 
             await cnsClient.CreateNetworkContainer(networkContainerInfo);
@@ -457,21 +493,16 @@ namespace NetworkManager
 
             if (networkContainerInfo == null)
             {
-                await networkRepositoryManager.DeleteRequestContext(requestContext.RequestID);
-                return;
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                        "Failed to allocate host local IP to NC due to failure to retrieve NC configuration",
+                        ErrorType.NonRetriable));
             }
 
-            if (networkContainerInfo.NetworkContainerState != NetworkContainerState.AllocateLocalIP)
-            {
-                return;
-            }
-
+            List<IPSubnet> allocatedLocalSubnets = new List<IPSubnet>();
             try
             {
-                NodeConfiguration nodeConfiguration;
-                List<IPSubnet> allocatedLocalSubnets = new List<IPSubnet>();
-
-                nodeConfiguration =
+                NodeConfiguration nodeConfiguration =
                     await networkRepositoryManager.GetNodeConfiguration(requestContext.NodeID);
 
                 if (nodeConfiguration == null)
@@ -481,7 +512,7 @@ namespace NetworkManager
 
                 if (nodeConfiguration.DeployedNCMap.Count != 0)
                 {
-                    // compile a list of allocated local addresses from the returned node configuration
+                    // Compile a list of allocated local addresses from the returned node configuration
                     foreach (KeyValuePair<string, IReadOnlyDictionary<string, string>> networkNCKvp
                         in nodeConfiguration.DeployedNCMap)
                     {
@@ -505,7 +536,19 @@ namespace NetworkManager
                         }
                     }
                 }
+            }
+            catch (Exception exception)
+            {
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.AllocationFailed,
+                        $"Failed to process ProcessNetworkContainerAllocateLocalIP due to excpetion {errorMsg}",
+                        ErrorType.Retriable));
+            }
 
+            try
+            {
                 // Add 169.254.169.254 to the allocated list
                 allocatedLocalSubnets.Add(IPSubnet.Parse(LocalIPSubnetConstants.ImdsSubnet));
 
@@ -518,9 +561,12 @@ namespace NetworkManager
             }
             catch (Exception exception)
             {
-                ServiceEventSource.Current.Message(
-                    "Failed to process ProcessNetworkContainerAllocateLocalIP due to excpetion {0}", exception);
-                throw;
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.AllocationFailed,
+                        $"Failed to process ProcessNetworkContainerAllocateLocalIP due to excpetion {errorMsg}",
+                        ErrorType.NonRetriable));
             }
 
             await networkRepositoryManager.UpdateNetworkContainerState(
