@@ -1748,14 +1748,11 @@ func UpdateSubnet(networkID, subnet string, subnetRequest api.SubnetRequest) *ap
 			Text:       msg}
 
 	}
+
 	subnetConfiguration.Joined = true
 	subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken
-	err = PutSubnetConfiguration(subnetConfiguration)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return PutSubnetConfiguration(subnetConfiguration)
 }
 
 // GetNodeIDForNetworkContainer - Helper to retrieve node Id from NC configuration.

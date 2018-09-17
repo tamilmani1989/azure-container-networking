@@ -28,11 +28,11 @@ func monitorTagUpdates() {
 		select {
 		case <-monitorTimerChannel:
 			if replicaInstance.IsReplicaPrimary() {
-				refreshTagDefintions()
+				refreshTagDefinitions()
 			}
 			break
 		case <-tagMonitorStartProcessing:
-			refreshTagDefintions()
+			refreshTagDefinitions()
 			break
 		case <-tagMonitorStopProcessing:
 			break
@@ -40,60 +40,13 @@ func monitorTagUpdates() {
 	}
 }
 
-func refreshTagDefintions() {
-	tagSessionInfo := map[string]string{datamodel.TagRepositoryName: datamodel.TagRepositoryName}
-	tagsToUpdate := make(map[string]nmagentcontracts.TagResponse)
-
+func refreshTagDefinitions() {
 	hydrateTagsCache()
-
 	// Resolve the tags by calling in to Agent.
 	for _, repoTagDefinition := range tagsCache {
-		_, failureDetail, tagResponse := getSystemTagDefinitionFromAgent(
-			repoTagDefinition.Name,
-			nmagentcontracts.IPv4)
-
-		// Log and move on to resolving the next tag after logging an error.
-		if failureDetail != nil {
-			logger.Errorf("Request to get definition for tag %s failed with error %s.\n",
-				repoTagDefinition.Name,
-				failureDetail.String())
-			continue
-		}
-
-		// Cache the tag and the value if it was never resolved before (or)
-		// the values has changed.
-		if len(repoTagDefinition.Values) == 0 ||
-			!utils.AreSetsEqual(repoTagDefinition.Values, tagResponse.Values) {
-			tagDefinitionKey := datamodel.GetTagDefintionKey(repoTagDefinition.Type, repoTagDefinition.Name)
-			tagsToUpdate[tagDefinitionKey] = *tagResponse
-		}
+		RefreshTag(nmagentcontracts.Tag{Name: repoTagDefinition.Name, Type: repoTagDefinition.Type},
+			repoTagDefinition)
 	}
-
-	// Open the tag repsository and upate the resolved tags.
-	sessionManager.BeginWriteSession(tagSessionInfo)
-
-	for tagKey, tagResponse := range tagsToUpdate {
-		repoTagDefinition := tagsCache[tagKey]
-		repoTagDefinition.Values = tagResponse.Values
-		repoTagDefinition.Version++
-
-		// Update the tag in memory cache with the resolved tag values.
-		updateTagsCacheWithDefinition(repoTagDefinition)
-
-		err := datamodel.CreateOrUpdateTagDefintion(
-			repoTagDefinition.Type,
-			repoTagDefinition.Name,
-			tagResponse.Values)
-		if err != nil {
-			logger.Errorf("Failed to update tag definition for tag Response:%s due to error %s",
-				tagResponse.String(),
-				err.String())
-		} else {
-			logger.Debugf("Successfully updated tag %s", tagResponse.Name)
-		}
-	}
-
-	sessionManager.EndWriteSession(tagSessionInfo)
 }
 
 // RegisterAndGetTagDefinition - Register and get tag definition.
@@ -114,10 +67,7 @@ func RegisterAndGetTagDefinition(tag nmagentcontracts.Tag) (datamodel.TagDefinit
 		Version: 0}
 	updateTagsCacheWithDefinition(tagDefinition)
 
-	return datamodel.TagDefinition{}, &api.JsonErr{
-		Text:       fmt.Sprintf("Resolving definition for tag %s is pending", tag.String()),
-		Code:       api.TagResolutionPending,
-		HTTPStatus: http.StatusProcessing}
+	return RefreshTag(tag, tagDefinition)
 }
 
 func hydrateTagsCache() *api.JsonErr {
@@ -225,7 +175,6 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 			"Marking this error as retriable.",
 			tagName,
 			decodeRespErr.Error())
-		logger.Errorf("%s\n", msg)
 
 		return true, &api.JsonErr{
 			Code:       api.DeocodeResponseFailed,
@@ -240,7 +189,6 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 				"Marking this error as retriable.",
 			tagResponse.ResponseCode,
 			tagName)
-		logger.Errorf("%s\n", msg)
 
 		return true, &api.JsonErr{
 			Code:       api.ParseResponseCodeFailed,
@@ -251,17 +199,15 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 	if getTagResponseCode == http.StatusProcessing {
 		msg := fmt.Sprintf(
 			"GetTagDefinition for tag %s is in pending state", tagName)
-		logger.Debugf("%s\n", msg)
 
 		return true, &api.JsonErr{
-			Code:       api.ProcessingPending,
+			Code:       api.TagResolutionPending,
 			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, nil
+			HTTPStatus: http.StatusProcessing}, nil
 	}
 
 	if getTagResponseCode == http.StatusUnauthorized {
 		msg := fmt.Sprintf("Get tag definition for tag %s is unauthorized", tagName)
-		logger.Errorf("%s\n", msg)
 
 		return false, &api.JsonErr{
 			Code:       api.GetTagDefinitionFailed,
@@ -280,14 +226,44 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 	return false, nil, &tagResponse
 }
 
-func retrieveAndPersistTagDefinition(tagType, tagName string) (bool, *api.JsonErr) {
-	isRetriableError, failureDetail, tagResponse := getSystemTagDefinitionFromAgent(tagName, nmagentcontracts.IPv4)
-	if failureDetail != nil {
+// RefreshTag queries NMAgent for tag definitions and returns either the retrieved definition
+// or an empty definition with JsonErr recorded.
+func RefreshTag(tag nmagentcontracts.Tag, tagDefinition datamodel.TagDefinition) (datamodel.TagDefinition, *api.JsonErr) {
+	_, err, tagResponse := getSystemTagDefinitionFromAgent(
+		tag.Name,
+		nmagentcontracts.IPv4)
+	if err != nil {
 		logger.Errorf("Request to get definition for tag %s failed with error %s.\n",
-			tagName,
-			failureDetail.String())
-		return isRetriableError, failureDetail
+			tag.Name,
+			err.String())
+		return datamodel.TagDefinition{}, err
 	}
 
-	return true, datamodel.CreateOrUpdateTagDefintion(tagType, tagName, tagResponse.Values)
+	// Cache the tag and the value if it was never resolved before (or)
+	// the values has changed.
+	if !utils.AreSetsEqual(tagDefinition.Values, tagResponse.Values) {
+		tagDefinition.Values = tagResponse.Values
+		tagDefinition.Version++
+		// Update the tag in memory cache with the resolved tag values.
+		updateTagsCacheWithDefinition(tagDefinition)
+
+		// Update repository tag definition
+		tagSessionInfo := map[string]string{datamodel.TagRepositoryName: datamodel.TagRepositoryName}
+		sessionManager.BeginWriteSession(tagSessionInfo)
+		err = datamodel.CreateOrUpdateTagDefintion(
+			tagDefinition.Type,
+			tagDefinition.Name,
+			tagResponse.Values)
+		if err != nil {
+			logger.Errorf("Failed to update tag definition for tag Response:%s due to error %s",
+				tagResponse.String(),
+				err.String())
+		} else {
+			logger.Debugf("Successfully updated tag %s", tagResponse.Name)
+		}
+
+		sessionManager.EndWriteSession(tagSessionInfo)
+	}
+
+	return tagDefinition, err
 }
