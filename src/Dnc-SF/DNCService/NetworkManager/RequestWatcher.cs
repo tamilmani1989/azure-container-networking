@@ -206,6 +206,10 @@ namespace NetworkManager
                             await ProcessNetworkContainerRequest(requestID, requestContext);
                             break;
                     }
+
+                    // Reset the failure detail
+                    await networkRepositoryManager.UpdateFailureDetail(
+                        requestContext, null);
                 }
                 catch (Exception exception)
                 {
@@ -214,17 +218,6 @@ namespace NetworkManager
                         exception);
 
                     DncManagementException dncManagementException = (DncManagementException)exception;
-
-                    ErrorInfo failureDetail;
-                    if (exception is DncManagementException dncManagementException1)
-                    {
-                        failureDetail = dncManagementException1.ErrorInfo;
-                    }
-                    else if (exception.InnerException != null &&
-                        exception.InnerException is DncManagementException dncManagementInnerException)
-                    {
-                        failureDetail = dncManagementInnerException.ErrorInfo;
-                    }
 
                     // Update the failure detail
                     await networkRepositoryManager.UpdateFailureDetail(

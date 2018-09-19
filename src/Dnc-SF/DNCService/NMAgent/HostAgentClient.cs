@@ -167,7 +167,7 @@ namespace NMAgent
                 case HttpStatusCode.Unauthorized:
                     throw new DncHostAgentException(
                         new ErrorInfo(ErrorCode.NetworkJoinFailed,
-                            "Join for network failed due to authentication failure",
+                            "Join for network failed due to authentication failure.",
                             (int)getNetworkResponseCode,
                             ErrorType.NonRetriable));
 

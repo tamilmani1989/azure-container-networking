@@ -11,7 +11,7 @@ namespace NetworkManager
 {
     public static class NMAgentToRepoTranslators
     {
-        public static SubnetConfiguration GetSubnetConfiguration(
+        public static SubnetConfiguration CreateNewSubnetConfiguration(
             string networkID,
             Subnet nmagentContractSubnet)
         {
@@ -26,9 +26,11 @@ namespace NetworkManager
                 nmagentContractSubnet.SubnetName,
                 nmagentContractSubnet.AddressPrefix,
                 true,
+                false,
                 nmagentContractSubnet.DefaultGateway,
                 "",
-                tags);
+                tags,
+                new Dictionary<string, string>());
 
             return subnetConfiguration;
         }
@@ -46,7 +48,7 @@ namespace NetworkManager
                 return false;
             }
 
-            networkConfiguration.Version = UInt64.Parse(virtualNetworkResponse.VnetVersion);
+            networkConfiguration.Version = receivedVnetVersion;
             networkConfiguration.SetVNetSpace(virtualNetworkResponse.VNetSpace);
             networkConfiguration.SetCNetSpace(virtualNetworkResponse.CNetSpace);
             List<string> dnsServers = new List<string>();
@@ -57,11 +59,10 @@ namespace NetworkManager
 
             networkConfiguration.SetDnsServers(dnsServers);
 
-            Dictionary<string, NMAgent.Data.Subnet> updatedSubnetSet = 
-                new Dictionary<string, NMAgent.Data.Subnet>();
+            Dictionary<string, Subnet> updatedSubnetSet = new Dictionary<string, Subnet>();
             if (virtualNetworkResponse.Subnets!= null && virtualNetworkResponse.Subnets.Any())
             {
-                foreach(NMAgent.Data.Subnet nmagentContractSubnet in virtualNetworkResponse.Subnets)
+                foreach(Subnet nmagentContractSubnet in virtualNetworkResponse.Subnets)
                 {
                     updatedSubnetSet[SubnetConfiguration.GetSubnetConfigurationKey(
                         networkConfiguration.NetworkID,
@@ -112,17 +113,32 @@ namespace NetworkManager
                 kvp => kvp.Value.SubnetName,
                 kvp => kvp.Key));
             
-            foreach(KeyValuePair<string, NMAgent.Data.Subnet> subnetKvp in updatedSubnetSet)
+            foreach(KeyValuePair<string, Subnet> subnetKvp in updatedSubnetSet)
             {
-                SubnetConfiguration updatedSubnetConfiguration = GetSubnetConfiguration(
-                    networkConfiguration.NetworkID,
-                    subnetKvp.Value);
-                SubnetConfiguration curentSubnetConfiguration;
-                if(subnetConfigurationsMap.TryGetValue(subnetKvp.Key, out curentSubnetConfiguration))
+                SubnetConfiguration updatedSubnetConfig;
+                Subnet updatedSubnet = subnetKvp.Value;
+                if (addedKeys.Contains(subnetKvp.Key))
                 {
-                    updatedSubnetConfiguration.SetReservations(curentSubnetConfiguration.Reservations);
+                    updatedSubnetConfig = CreateNewSubnetConfiguration(
+                        networkConfiguration.NetworkID,
+                        updatedSubnet);
+                    subnetConfigurationsMap[subnetKvp.Key] = updatedSubnetConfig;
                 }
-                subnetConfigurationsMap[subnetKvp.Key] = updatedSubnetConfiguration;
+                else if (subnetConfigurationsMap.TryGetValue(subnetKvp.Key,
+                            out SubnetConfiguration currentSubnetConfig))
+                {
+                    updatedSubnetConfig = new SubnetConfiguration(
+                        networkConfiguration.NetworkID,
+                        currentSubnetConfig.SubnetName,
+                        updatedSubnet.AddressPrefix,
+                        currentSubnetConfig.IsDelegatedSubnet,
+                        currentSubnetConfig.IsJoined,
+                        updatedSubnet.DefaultGateway,
+                        currentSubnetConfig.AccessToken,
+                        updatedSubnet.Tags,
+                        currentSubnetConfig.Reservations);
+                    subnetConfigurationsMap[subnetKvp.Key] = updatedSubnetConfig;
+                }
             }
 
             return true;

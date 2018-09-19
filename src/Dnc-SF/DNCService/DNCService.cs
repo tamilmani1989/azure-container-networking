@@ -219,18 +219,14 @@ namespace DNCService
         {
             try
             { 
-            IReliableDictionary<string, SubnetConfiguration> subnetConfigReliableCollection =
-                RepositoryHelper.GetReliableDictionaryAsync<string, SubnetConfiguration>(
-                Constants.SubnetConfigurationTableName).Result;
-            SubnetConfiguration subnetConfiguration;
+                SubnetConfiguration subnetConfiguration;
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
-                    // ashvind - todoL check updateSubnet from GO
-                    string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(networkID,
-                        subnetName);
+                    string subnetKey =
+                        SubnetConfiguration.GetSubnetConfigurationKey(networkID, subnetName);
                     subnetConfiguration = await RepositoryHelper.GetFromReliableDictionary(
                         tx,
-                        subnetConfigReliableCollection,
+                        networkRepositoryManager.SubnetConfigReliableCollection,
                         subnetKey);
 
                     if (subnetConfiguration == null)
@@ -239,21 +235,20 @@ namespace DNCService
                             networkID,
                             new ErrorInfo(
                                 ErrorCode.SubnetNotFound,
-                                $"Subnet {subnetRequest.SubnetName} not found",
+                                $"Subnet {subnetName} not found",
                                 (int)HttpStatusCode.NotFound,
                                 ErrorType.NonRetriable));
                     }
 
                     subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken;
-                    subnetConfiguration.Joined = true;
+                    subnetConfiguration.IsJoined = true;
                     await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                                               tx,
-                                               subnetConfigReliableCollection,
-                                               subnetKey,
-                                               subnetConfiguration);
+                        tx,
+                        networkRepositoryManager.SubnetConfigReliableCollection,
+                        subnetKey,
+                        subnetConfiguration);
 
                     await RepositoryHelper.CommitTransactionAsync(tx);
-
                 }
             }
             catch (Exception exception)
@@ -431,7 +426,7 @@ namespace DNCService
 
                 RequestStatus requestStatus;
 
-                if (subnetConfig.Joined)
+                if (subnetConfig.IsJoined)
                 {
                     requestStatus = new RequestStatus(
                         Enum.GetName(typeof(NetworkState), NetworkState.Join),
@@ -729,7 +724,7 @@ namespace DNCService
                             ErrorType.NonRetriable));
                     }
 
-                    if (!subnetConfiguration.Joined)
+                    if (!subnetConfiguration.IsJoined)
                     {
                         throw new DncNetworkContainerException(
                             networkID,

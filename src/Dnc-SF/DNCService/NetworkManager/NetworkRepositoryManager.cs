@@ -257,7 +257,6 @@ namespace NetworkManager
                         if (networkConfig != null)
                         {
                             networkConfig.FailureDetail = failureDetail;
-                            networkConfig.Status = Status.Pending;
                             await RepositoryHelper.CreateOrUpdateReliableDictionary(
                                 tx,
                                 NetworkConfigReliableCollection,

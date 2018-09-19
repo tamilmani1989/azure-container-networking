@@ -147,7 +147,7 @@ namespace NetworkManager.DataModel
             this.CnetSpace = new List<string>();
             this.VnetSpace = new List<string>();
             this.State = NetworkState.Unknown;
-            this.Status = Status.NotStarted;
+            this.Status = Status.Pending;
             this.ApiVersion = apiVersion;
             this.FailureDetail = null;
         }
