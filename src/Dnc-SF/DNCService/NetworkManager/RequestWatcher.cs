@@ -265,11 +265,12 @@ namespace NetworkManager
                 return;
             }
 
-            ServiceEventSource.Current.Message($"###########NCState:{ncConfiguration.State}");
+            ServiceEventSource.Current.Message($"########### NCState:{ncConfiguration.State} ###########");
 
             switch (ncConfiguration.State)
             {
                 case NetworkContainerState.Associate:
+                case NetworkContainerState.RefreshAssociation:
                     await ProcessNetworkContainerAssociate(requestContext);
                     break;
 
@@ -296,16 +297,7 @@ namespace NetworkManager
                 case NetworkContainerState.AllocateLocalIP:
                     await ProcessNetworkContainerAllocateLocalIP(requestContext);
                     break;
-
-                    //case NetworkContainerState.RefreshAssociation:
-                    //    ProcessNetworkContainerRefreshAssociation(requestContext, ncConfiguration);
-                    //    break;
             }
-        }
-
-        private void ProcessNetworkContainerRefreshAssociation(RequestContext requestContext, NCConfiguration ncConfiguration)
-        {
-            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -468,7 +460,7 @@ namespace NetworkManager
 
             await networkRepositoryManager.UpdateNetworkContainerState(
                 requestContext,
-                NetworkContainerState.Associate,
+                networkContainerInfo.NetworkContainerState,
                 NetworkContainerState.Program,
                 Status.Pending,
                 false);

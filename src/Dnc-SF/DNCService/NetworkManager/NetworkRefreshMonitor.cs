@@ -71,6 +71,7 @@ namespace NetworkManager
                 VirtualNetworkResponse virtualNetworkResponse =
                     await this.hostAgentClient.JoinAndGetNetwork(networkID);
                 ServiceEventSource.Current.Message($"Refresh:Retrieved network config:{virtualNetworkResponse}");
+
                 using (var tx = RepositoryHelper.GetTransaction())
                 {
                     string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
@@ -90,6 +91,14 @@ namespace NetworkManager
                     {
                         return;
                     }
+
+                    if ( networkConfig.State != NetworkState.Join ||
+                        networkConfig.Status != Status.Completed )
+                    {
+                        ServiceEventSource.Current.Message($"Skipping refreshing of network {networkID} as it is in state: {networkConfig.State}");
+                        return;
+                    }
+
                     await networkRepositoryManager.UpdateNetworkConfigurationUntransacted(
                         tx,
                         networkConfig,

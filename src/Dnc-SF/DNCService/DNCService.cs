@@ -181,6 +181,7 @@ namespace DNCService
                     networkRepositoryManager,
                     cancellationToken);
                 requestResetMonitor.StartAsync();
+
                 NetworkRefreshMonitor networkRefreshMonitor = new NetworkRefreshMonitor(
                     this.StateManager,
                     cancellationToken,
@@ -188,6 +189,12 @@ namespace DNCService
                     cnsClient,
                     networkRepositoryManager);
                 networkRefreshMonitor.StartAsync();
+
+                NetworkContainerMonitor networkContainerMonitor = new NetworkContainerMonitor(
+                    cancellationToken,
+                    networkRepositoryManager);
+                networkContainerMonitor.StartAsync();
+
                 ServiceEventSource.Current.Message("Completed initializing monitors");
                 while (true)
                 {

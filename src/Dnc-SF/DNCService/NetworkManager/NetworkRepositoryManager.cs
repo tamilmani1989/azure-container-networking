@@ -15,7 +15,9 @@ namespace NetworkManager
     public class NetworkRepositoryManager
     {
         public IReliableDictionary<string, RequestContext> PendingRequestsReliableCollection { get; private set; }
+
         public IReliableDictionary<string, RequestContext> FailedRequestsReliableCollection { get; private set; }
+
         public IReliableDictionary<string, NetworkConfiguration> NetworkConfigReliableCollection { get; private set; }
 
         public IReliableDictionary<string, SubnetConfiguration> SubnetConfigReliableCollection { get; private set; }
@@ -59,9 +61,10 @@ namespace NetworkManager
 
             this.dncConfiguration = dncConfiguration;
         }
+
         public async Task<ICollection<string>> GetAllNetworkKeys(Status status)
         {
-            List<string> networkIDs = new List<string>();
+            List<string> networkKeys = new List<string>();
 
             using (var tx = RepositoryHelper.GetTransaction())
             {
@@ -72,12 +75,30 @@ namespace NetworkManager
                 {
                     if (asyncEnumerator.Current.Value.Status == status)
                     {
-                        networkIDs.Add(asyncEnumerator.Current.Key);
+                        networkKeys.Add(asyncEnumerator.Current.Key);
                     }
                 }
             }
 
-            return networkIDs;
+            return networkKeys;
+        }
+
+        public async Task<ICollection<string>> GetAllNodeKeys()
+        {
+            List<string> nodeKeys = new List<string>();
+
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                var enumerable = await NodeConfigReliableCollection.CreateEnumerableAsync(tx);
+                var asyncEnumerator = enumerable.GetAsyncEnumerator();
+
+                while (await asyncEnumerator.MoveNextAsync(RepositoryHelper.CancellationToken))
+                {
+                    nodeKeys.Add(asyncEnumerator.Current.Key);
+                }
+            }
+
+            return nodeKeys;
         }
 
         public async Task<ICollection<string>> GetAllRequestIDs(bool pending = true)

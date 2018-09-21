@@ -1,16 +1,15 @@
 ﻿using Cns.Data;
 using DNCService;
 using NetworkManager.DataModel;
-using Newtonsoft.Json.Linq;
-using NMAgent;
 using NMAgent.Data;
+using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 
 namespace NetworkManager
 {
-    public class NetworkContainerInfo
+    public class NetworkContainerInfo : ICloneable
     {
         public string NetworkID { private set; get; }
 
@@ -29,6 +28,7 @@ namespace NetworkManager
         public ulong Version { get; set; }
 
         public ulong CnsVersion { get; private set; }
+
         public List<string> Policies { get; set; }
 
         public int VlanID { get; set; }
@@ -93,6 +93,31 @@ namespace NetworkManager
             this.NetworkContainerState = networkContainerState;
             this.Status = status;
             this.LocalIP = localIP;
+            ServiceEventSource.Current.Message($"DnsServers:{string.Join(",", DnsServers)}");
+        }
+
+        public NetworkContainerInfo(NetworkContainerInfo ncConfig)
+        {
+            this.NetworkID = ncConfig.NetworkID;
+            this.NodeID = ncConfig.NodeID;
+            this.NetworkContainerID = ncConfig.NetworkContainerID;
+            this.NodeInterfaceID = ncConfig.NodeInterfaceID;
+            this.AccessToken = ncConfig.AccessToken;
+            this.IPV4Addresses = ncConfig.IPV4Addresses;
+            this.SubnetName = ncConfig.SubnetName;
+            this.Subnet = ncConfig.Subnet;
+            this.GatewayIP = ncConfig.GatewayIP;
+            this.DnsServers = ncConfig.DnsServers;
+            this.Version = ncConfig.Version;
+            this.Policies = ncConfig.Policies ?? new List<string>();
+            this.VlanID = ncConfig.VlanID;
+            this.CnsVersion = ncConfig.CnsVersion;
+            this.ContainerType = ncConfig.ContainerType;
+            this.OrchestratorContext = ncConfig.OrchestratorContext;
+            this.CnetAddressSpace = ncConfig.CnetAddressSpace;
+            this.NetworkContainerState = ncConfig.NetworkContainerState;
+            this.Status = ncConfig.Status;
+            this.LocalIP = ncConfig.LocalIP;
             ServiceEventSource.Current.Message($"DnsServers:{string.Join(",", DnsServers)}");
         }
 
@@ -178,6 +203,18 @@ namespace NetworkManager
                 $"CnsVersion:{this.CnsVersion} ContainerType:{this.ContainerType}" +
                 $"CnetAddressSpace:{this.CnetAddressSpace} " +
                 $"NetworkContainerState:{NetworkContainerState} Status:{this.Status} LocalIP:{this.LocalIP}]";
+        }
+
+        public static string GetNetworkContainerKey(
+            string networkID,
+            string networkContainerID)
+        {
+            return string.Format(DataModel.Constants.NCKey, networkID, networkContainerID);
+        }
+
+        public object Clone()
+        {
+            return new NetworkContainerInfo(this);
         }
     }
 }                    
