@@ -1789,6 +1789,11 @@ func processNetworkContainerRequest(
 		return false, err
 	}
 
+	if repoNCConfig == nil {
+		logger.Debugf("Failed to find network container configuration in repository for ID %s\n", networkContainerKey)
+		return true, nil
+	}
+
 	// Check if NC has been marked for delete and ensure that we are in the
 	// correct revert state.
 	if repoNCConfig.MarkedForDelete {
@@ -1800,6 +1805,7 @@ func processNetworkContainerRequest(
 			repoNCConfig.State = revertState
 		}
 	}
+
 	switch repoNCConfig.State {
 	case datamodel.Prepare:
 		if repoNCConfig.Status == datamodel.Failed {
