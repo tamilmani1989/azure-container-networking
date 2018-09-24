@@ -343,20 +343,28 @@ namespace DNCService
             using (ITransaction tx = RepositoryHelper.GetTransaction())
             {
                 string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
-
-                NetworkConfiguration networkConfig =
-                    await RepositoryHelper.GetFromReliableDictionary(
+                NetworkConfiguration networkConfig;
+                try
+                {
+                    networkConfig = await RepositoryHelper.GetFromReliableDictionary(
                         tx,
                         networkRepositoryManager.NetworkConfigReliableCollection,
                         networkKey);
-                if (networkConfig == null)
+                    if (networkConfig == null)
+                    {
+                        throw new DncNetworkManagementException(
+                            networkID,
+                            new ErrorInfo(ErrorCode.NetworkNotFound,
+                                "Network configuration not found",
+                                (int)HttpStatusCode.NotFound,
+                                ErrorType.NonRetriable));
+                    }
+                }
+                catch (Exception exception)
                 {
-                    throw new DncNetworkManagementException(
-                        networkID,
-                        new ErrorInfo(ErrorCode.NetworkNotFound,
-                            "Network configuration not found",
-                            (int)HttpStatusCode.NotFound,
-                            ErrorType.NonRetriable));
+                    DncManagementException dncManagementException =
+                        (DncManagementException)exception;
+                    return (new RequestStatus("", "", dncManagementException.ErrorInfo));
                 }
 
                 RequestStatus requestStatus =
@@ -396,42 +404,49 @@ namespace DNCService
             using (ITransaction tx = RepositoryHelper.GetTransaction())
             {
                 string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
+                SubnetConfiguration subnetConfig;
+                RequestStatus requestStatus;
 
-                NetworkConfiguration networkConfig =
-                    await RepositoryHelper.GetFromReliableDictionary(
-                        tx,
-                        networkRepositoryManager.NetworkConfigReliableCollection,
-                        networkKey);
-                if (networkConfig == null)
+                try
                 {
-                    throw new DncNetworkManagementException(
-                        networkID,
-                        new ErrorInfo(ErrorCode.NetworkNotFound,
-                            "Network configuration not found",
-                            (int)HttpStatusCode.NotFound,
-                            ErrorType.NonRetriable));
-                }
+                    NetworkConfiguration networkConfig =
+                        await RepositoryHelper.GetFromReliableDictionary(
+                            tx,
+                            networkRepositoryManager.NetworkConfigReliableCollection,
+                            networkKey);
+                    if (networkConfig == null)
+                    {
+                        throw new DncNetworkManagementException(
+                            networkID,
+                            new ErrorInfo(ErrorCode.NetworkNotFound,
+                                "Network configuration not found",
+                                (int)HttpStatusCode.NotFound,
+                                ErrorType.NonRetriable));
+                    }
 
-                string subnetKey =
-                    SubnetConfiguration.GetSubnetConfigurationKey(networkID, subnetName);
-
-                SubnetConfiguration subnetConfig =
-                    await RepositoryHelper.GetFromReliableDictionary(
+                    string subnetKey =
+                        SubnetConfiguration.GetSubnetConfigurationKey(networkID, subnetName);
+                    subnetConfig = await RepositoryHelper.GetFromReliableDictionary(
                         tx,
                         networkRepositoryManager.SubnetConfigReliableCollection,
                         subnetKey);
-                if (subnetConfig == null)
-                {
-                    throw new DncNetworkManagementException(
-                        networkID,
-                        new ErrorInfo(
-                            ErrorCode.SubnetNotFound,
-                            $"Subnet {subnetName} not found",
-                            (int)HttpStatusCode.NotFound,
-                            ErrorType.NonRetriable));
+                    if (subnetConfig == null)
+                    {
+                        throw new DncNetworkManagementException(
+                            networkID,
+                            new ErrorInfo(
+                                ErrorCode.SubnetNotFound,
+                                $"Subnet {subnetName} not found",
+                                (int)HttpStatusCode.NotFound,
+                                ErrorType.NonRetriable));
+                    }
                 }
-
-                RequestStatus requestStatus;
+                catch (Exception exception)
+                {
+                    DncManagementException dncManagementException =
+                        (DncManagementException)exception;
+                    return (new RequestStatus("", "", dncManagementException.ErrorInfo));
+                }
 
                 if (subnetConfig.IsJoined)
                 {
@@ -464,20 +479,28 @@ namespace DNCService
         {
             using (ITransaction tx = RepositoryHelper.GetTransaction())
             {
-                string ncKey = NCConfiguration.GetNCKey(networkID, networkContainerID);
-                NCConfiguration ncConfig =
-                    await RepositoryHelper.GetFromReliableDictionary(
+                NCConfiguration ncConfig;
+                try
+                {
+                    string ncKey = NCConfiguration.GetNCKey(networkID, networkContainerID);
+                    ncConfig = await RepositoryHelper.GetFromReliableDictionary(
                         tx,
                         networkRepositoryManager.NCConfigReliableCollection,
                         ncKey);
-
-                if (ncConfig == null)
+                    if (ncConfig == null)
+                    {
+                        throw new DncNetworkContainerException(
+                            networkID,
+                            networkContainerID,
+                            new ErrorInfo(ErrorCode.NetworkContainerNotFound, "Container not found",
+                                (int)HttpStatusCode.NotFound, ErrorType.NonRetriable));
+                    }
+                }
+                catch (Exception exception)
                 {
-                    throw new DncNetworkContainerException(
-                        networkID,
-                        networkContainerID,
-                        new ErrorInfo(ErrorCode.NetworkContainerNotFound, "Container not found",
-                            (int)HttpStatusCode.NotFound, ErrorType.NonRetriable));
+                    DncManagementException dncManagementException =
+                        (DncManagementException)exception;
+                    return (new RequestStatus("", "", dncManagementException.ErrorInfo));
                 }
 
                 RequestStatus requestStatus =

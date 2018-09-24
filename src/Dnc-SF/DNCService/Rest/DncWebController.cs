@@ -791,27 +791,36 @@ namespace DNCService.Rest
         {
             async Task<byte[]> getNetworkStatusAsync()
             {
+                RequestStatus requestStatus;
                 string networkID = (string)httpContext.GetRouteValue("NetworkID");
-                if (string.IsNullOrEmpty(networkID))
+                try
                 {
-                    throw new DncNodeManagementException(
-                        "",
-                        new ErrorInfo(
-                            ErrorCode.InvalidNetworkID,
-                            "NetworkID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest,
-                            ErrorType.NonRetriable));
+                    if (string.IsNullOrEmpty(networkID))
+                    {
+                        throw new DncNodeManagementException(
+                            "",
+                            new ErrorInfo(
+                                ErrorCode.InvalidNetworkID,
+                                "NetworkID cannot be null or empty",
+                                (int)HttpStatusCode.BadRequest,
+                                ErrorType.NonRetriable));
+                    }
+                }
+                catch (Exception exception)
+                {
+                    DncManagementException dncManagementException =
+                        (DncManagementException)exception;
+                    requestStatus = new RequestStatus("", "", dncManagementException.ErrorInfo);
+                    return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestStatus));
                 }
 
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
                     new ServicePartitionKey(1),
                     Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.PrimaryReplica);
 
-                RequestStatus requestStatus =
-                    await dncServiceProxy.GetNetworkStatusResponseAsync(networkID);
+                requestStatus = await dncServiceProxy.GetNetworkStatusResponseAsync(networkID);
 
-                byte[] responseBytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestStatus));
-                return responseBytes;
+                return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestStatus));
             }
             await Invoke(getNetworkStatusAsync, httpContext);
         }
@@ -826,37 +835,47 @@ namespace DNCService.Rest
             async Task<byte[]> getSubnetStatusAsync()
             {
                 string networkID = (string)httpContext.GetRouteValue("NetworkID");
-                if (string.IsNullOrEmpty(networkID))
+                string subnetName = (string)httpContext.GetRouteValue("SubnetName");
+                RequestStatus requestStatus;
+                try
                 {
-                    throw new DncNetworkManagementException(
-                        "",
-                        new ErrorInfo(
-                            ErrorCode.InvalidNetworkID,
-                            "NetworkID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest,
-                            ErrorType.NonRetriable));
+                    if (string.IsNullOrEmpty(networkID))
+                    {
+                        throw new DncNetworkManagementException(
+                            "",
+                            new ErrorInfo(
+                                ErrorCode.InvalidNetworkID,
+                                "NetworkID cannot be null or empty",
+                                (int)HttpStatusCode.BadRequest,
+                                ErrorType.NonRetriable));
+                    }
+
+                    if (string.IsNullOrEmpty(subnetName))
+                    {
+                        throw new DncNetworkManagementException(
+                            networkID,
+                            new ErrorInfo(
+                                ErrorCode.InvalidSubnetName,
+                                "SubnetName cannot be null or empty",
+                                (int)HttpStatusCode.BadRequest,
+                                ErrorType.NonRetriable));
+                    }
+                }
+                catch (Exception exception)
+                {
+                    DncManagementException dncManagementException =
+                        (DncManagementException)exception;
+                    requestStatus = new RequestStatus("", "", dncManagementException.ErrorInfo);
+                    return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestStatus));
                 }
 
-                string subnetName = (string)httpContext.GetRouteValue("SubnetName");
-                if (string.IsNullOrEmpty(subnetName))
-                {
-                    throw new DncNetworkManagementException(
-                        networkID,
-                        new ErrorInfo(
-                            ErrorCode.InvalidSubnetName,
-                            "SubnetName cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest,
-                            ErrorType.NonRetriable));
-                }
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
                     new ServicePartitionKey(1),
                     Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.PrimaryReplica);
 
-                RequestStatus requestStatus =
-                    await dncServiceProxy.GetSubnetStatusResponseAsync(networkID, subnetName);
+                requestStatus = await dncServiceProxy.GetSubnetStatusResponseAsync(networkID, subnetName);
 
-                byte[] responseBytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestStatus));
-                return responseBytes;
+                return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestStatus));
             }
             await Invoke(getSubnetStatusAsync, httpContext);
         }
@@ -871,40 +890,49 @@ namespace DNCService.Rest
             async Task<byte[]> getNetworkContainerStatusAsync()
             {
                 string networkID = (string)httpContext.GetRouteValue("NetworkID");
-                if (string.IsNullOrEmpty(networkID))
-                {
-                    throw new DncNetworkContainerException(
-                        "",
-                        "",
-                        new ErrorInfo(
-                            ErrorCode.InvalidNetworkID,
-                            "NetworkID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest,
-                            ErrorType.NonRetriable));
-                }
-
                 string networkContainerID = (string)httpContext.GetRouteValue("NetworkContainerID");
-                if (string.IsNullOrEmpty(networkContainerID))
+                RequestStatus requestStatus;
+                try
                 {
-                    throw new DncNetworkContainerException(
-                        networkID,
-                        "",
-                        new ErrorInfo(
-                            ErrorCode.InvalidNetworkContainerID,
-                            "NetworkContainerID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest,
-                            ErrorType.NonRetriable));
+                    if (string.IsNullOrEmpty(networkID))
+                    {
+                        throw new DncNetworkContainerException(
+                            "",
+                            "",
+                            new ErrorInfo(
+                                ErrorCode.InvalidNetworkID,
+                                "NetworkID cannot be null or empty",
+                                (int)HttpStatusCode.BadRequest,
+                                ErrorType.NonRetriable));
+                    }
+
+                    if (string.IsNullOrEmpty(networkContainerID))
+                    {
+                        throw new DncNetworkContainerException(
+                            networkID,
+                            "",
+                            new ErrorInfo(
+                                ErrorCode.InvalidNetworkContainerID,
+                                "NetworkContainerID cannot be null or empty",
+                                (int)HttpStatusCode.BadRequest,
+                                ErrorType.NonRetriable));
+                    }
+                }
+                catch (Exception exception)
+                {
+                    DncManagementException dncManagementException =
+                        (DncManagementException)exception;
+                    requestStatus = new RequestStatus("", "", dncManagementException.ErrorInfo);
+                    return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestStatus));
                 }
 
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
                     new ServicePartitionKey(1),
                     Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.PrimaryReplica);
 
-                RequestStatus requestStatus =
-                    await dncServiceProxy.GetNetworkContainerStatusResponseAsync(networkID, networkContainerID);
+                requestStatus = await dncServiceProxy.GetNetworkContainerStatusResponseAsync(networkID, networkContainerID);
 
-                byte[] responseBytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestStatus));
-                return responseBytes;
+                return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestStatus));
             }
             await Invoke(getNetworkContainerStatusAsync, httpContext);
         }
