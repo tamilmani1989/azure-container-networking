@@ -47,20 +47,11 @@ func (testpersistencestore *TestPersistenceStore) DeleteInPartition(tableName, p
 
 // InsertOrUpdate :- Insert or update an element using rowKey and tablName.
 func (testpersistencestore *TestPersistenceStore) InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error {
-	var success bool
-	var successstr string
-
 	testpersistencestore.locks[tableName].Lock()
-	testpersistencestore.datastore[tableName][rowKey], success = value.(string)
+	testpersistencestore.datastore[tableName][rowKey] = value
 	testpersistencestore.locks[tableName].Unlock()
 
-	if success {
-		successstr = "Successfully"
-	} else {
-		successstr = "Unsuccessfully"
-	}
-
-	loggershim.LS.Debugf("%s assigned [%s] to [%s] with rowKey [%s].\n", successstr, value, tableName, rowKey)
+	loggershim.LS.Debugf("Assigned [%+v] to [%s] with rowKey [%s].\n", value, tableName, rowKey)
 	return nil
 }
 
