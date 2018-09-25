@@ -32,15 +32,15 @@
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.1.1" />    
   </ItemGroup>
   <ItemGroup>
-    <ContentWithTargetPath Include="scripts\entrypoint.cmd">
+    <ContentWithTargetPath Include="Scripts\entryPoint.cmd">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <TargetPath>entrypoint.cmd</TargetPath>
     </ContentWithTargetPath>
-    <ContentWithTargetPath Include="scripts\dotnet-include.sh">
+    <ContentWithTargetPath Include="Scripts\dotnet-include.sh">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <TargetPath>dotnet-include.sh</TargetPath>
     </ContentWithTargetPath>
-    <ContentWithTargetPath Include="scripts\entryPoint.sh">
+    <ContentWithTargetPath Include="Scripts\entryPoint.sh">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <TargetPath>entryPoint.sh</TargetPath>
     </ContentWithTargetPath>

@@ -85,6 +85,16 @@ build:
         include:
           - '**\azure-dnc.exe'
 
+  - !!buildcommand
+    name: 'Sign DNC for SF'
+    command: 'package-sign-dnc-sf.cmd'
+    arguments: 'Sign Release linux_phase_drop_dnc_sf'
+    artifacts:
+      - from: 'linux_phase_drop_dnc_sf'
+        no_copy: true
+        include:
+          - '**/*'
+
 package_sources:
   nuget:
     feeds:                                      # Use this if you use a per-person or team wide NuGet.config and don't have anything specific in your repository.
@@ -113,7 +123,17 @@ package:
         - from: '.'
           to: 'AzureDNC'
           include:
-            - '*.nupkg'
+            - '*AzureDNC.*.nupkg'
+
+    - !!buildcommand
+      name: 'Package DNC for SF'
+      command: 'package-sign-dnc-sf.cmd'
+      arguments: 'Package Release linux_phase_drop_dnc_sf'
+      artifacts:
+        - from: '.'
+          to: 'AzureDNC-SF'
+          include:
+            - '*AzureDNCSF.*.nupkg'
 
 # Everything should be signed and packaged by this point and we will just be pushing/publishing here.
 # publish:

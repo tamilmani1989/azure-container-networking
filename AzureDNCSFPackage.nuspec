@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>Microsoft.Azure.Internal.$branch$AzureDNCSF</id>
+    <version>$version$</version>
+    <title>AzureDNC for SF from $branch$</title>
+    <authors>connectdevs@microsoft.com</authors>
+    <owners>connectdevs@microsoft.com</owners>
+    <description>The delegated network controller service is highly available service that works in coordination with the orchestrator and will be responsible for the following.
+
+1. Management of delegated customer network address spaces.
+
+2. Management of network policies.
+
+3. Generate IP configuration goal states based on the request from orchestrators.
+
+4. Propagate the goal states to the agents running on the VMs where the IP configurations needs to be instantiated.
+
+This service will expose restful API surface that will be used for bottoms up network provisioning.  </description>
+    <projectUrl>http://www.Microsoft.com</projectUrl>
+    <licenseUrl>http://www.Microsoft.com/license</licenseUrl>
+    <copyright>Copyright (c) Microsoft Corporation</copyright>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <tags></tags>
+  </metadata>
+  <files>
+    <file src="$drop$\DNCServicePkg\Code\**\*" target="content\linux\DNCServicePkg\Code" />
+    <file src="$drop$\DNCServicePkg\Config\**\*" target="content\linux\DNCServicePkg\Config" />
+    <file src="$drop$\DNCServicePkg\ServiceManifest-Linux.xml" target="content\linux\DNCServicePkg\ServiceManifest.xml" />
+    <file src="$drop$\ApplicationManifest.xml" target="content\linux\ApplicationManifest.xml" />
+    <file src="$drop$\DNCServicePkg\Code\**\*" target="content\windows\DNCServicePkg\Code" />
+    <file src="$drop$\DNCServicePkg\Config\**\*" target="content\windows\DNCServicePkg\Config" />
+    <file src="$drop$\DNCServicePkg\ServiceManifest-Windows.xml" target="content\windows\DNCServicePkg\ServiceManifest.xml" />
+    <file src="$drop$\ApplicationManifest.xml" target="content\windows\ApplicationManifest.xml" />
+  </files>
+</package>
