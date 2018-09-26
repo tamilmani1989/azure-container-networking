@@ -146,12 +146,6 @@ func (client *LinuxBridgeEndpointClient) ConfigureContainerInterfacesAndRoutes(e
 		return err
 	}
 
-	log.Printf("[net] Sending gratuitous arp reply for IP %v mac %v", epInfo.IPAddresses[0].IP.String(), epInfo.MacAddress.String())
-	if err := ARPSendGratuitous(epInfo.IPAddresses[0].IP, epInfo.IfName); err != nil {
-		log.Printf("Gratuitous arp req failed with error %v", err)
-		return err
-	}
-
 	return nil
 }
 
