@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
     <ProjectGuid>{9423C797-BDDE-4411-8AEA-6396F4A97F3B}</ProjectGuid>
     <RootNamespace>Aquarius</RootNamespace>
@@ -20,7 +20,7 @@
     <Link>
       <AdditionalDependencies>
         %(AdditionalDependencies);
-        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
+        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib;
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

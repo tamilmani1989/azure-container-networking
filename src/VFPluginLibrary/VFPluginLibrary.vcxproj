@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{e2b96573-80f0-4f7f-8c09-67357345fa98}</ProjectGuid>
     <TargetName>VFPluginLibrary</TargetName>
@@ -11,9 +11,9 @@
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
         ..\Common\NetAgentContracts;
-        .;
+        $(SRCROOT)\VFPluginLibrary;
         $(PkgMicrosoft_WindowsAzure_EngSys_Internal_longhorn_rd_os142_OS_redist)\content\redist;
-        $(PUBLIC_SDK)\Include\10.0.10586.0\shared;
+        $(PUBLIC_SDK)\Include\10.0.16299.0\shared;
         $(cpprestsdk)\build\native\include;
       </AdditionalIncludeDirectories>
     </ClCompile>
@@ -32,6 +32,7 @@
     <ClInclude Include="HealthReport.h" />
     <ClInclude Include="VFHealthReport.h" />
     <ClInclude Include="NMAgentReport.h" />
+    <ClInclude Include="XmlWriterHelper.h" />
   </ItemGroup>
   <ItemGroup>
     <QCustomInput Include="$(SRCROOT)\Logging\Logging.h">

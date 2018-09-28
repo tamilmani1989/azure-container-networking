@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{44E41C2F-CADA-4C2A-B8EC-3147A34EBEE4}</ProjectGuid>
     <RootNamespace>Aquarius</RootNamespace>
@@ -11,8 +11,8 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>
-        %(AdditionalIncludeDirectories)
-        $(cpprestsdk)\build\native\include
+        %(AdditionalIncludeDirectories);
+        $(cpprestsdk)\build\native\include;
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -27,10 +27,10 @@
         $(WindowsSdk64LibPath)\ole32.lib;
         $(WindowsSdk64LibPath)\ws2_32.lib;
         $(WindowsSdk64LibPath)\oleaut32.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
+        comsuppw.lib;
         $(WindowsSdk64LibPath)\Crypt32.lib;
         $(WindowsSdk64LibPath)\RpcRT4.Lib;
-        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
+        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib;
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

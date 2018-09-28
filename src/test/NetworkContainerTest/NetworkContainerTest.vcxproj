@@ -1,7 +1,7 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
-    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <CharacterSet>Unicode</CharacterSet>
@@ -19,7 +19,7 @@
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
         $(SRCROOT)\ServiceTunnelLibrary;
-		 $(SRCROOT)\NetworkContainerLibrary;
+		    $(SRCROOT)\NetworkContainerLibrary;
         $(SRCROOT)\test\TraceLogging;
         $(SRCROOT)\Logging;
       </AdditionalIncludeDirectories>
@@ -33,12 +33,11 @@
       <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
       <AdditionalDependencies>
         %(AdditionalDependencies);
-		$(TAEF_SDK)\build\Library\x64\TE.Common.lib;
-		$(TAEF_SDK)\build\Library\x64\Wex.Common.lib;
-		$(TAEF_SDK)\build\Library\x64\Wex.Logger.lib;  
+		    $(TAEF_SDK)\build\Library\x64\TE.Common.lib;
+		    $(TAEF_SDK)\build\Library\x64\Wex.Common.lib;
+		    $(TAEF_SDK)\build\Library\x64\Wex.Logger.lib;  
         $(WindowsSdk64LibPath)\ws2_32.lib;
-		
-		$(WindowsSdk64LibPath)\ole32.lib;
+		    $(WindowsSdk64LibPath)\ole32.lib;
         $(WindowsSdk64LibPath)\ws2_32.lib;
         $(WindowsSdk64LibPath)\oleaut32.lib;
         $(WindowsSdk64LibPath)\setupapi.lib;
@@ -50,13 +49,13 @@
         $(WindowsSdk64LibPath)\ntdll.lib;
         $(WindowsSdk64LibPath)\pathcch.lib;
         $(WindowsSdk64LibPath)\newdev.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsupp.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
-        $(PkgVisualCpp_x64_Corext)\lib\x64\legacy_stdio_definitions.lib;
+        comsupp.lib;
+        comsuppw.lib;
+        $(PkgVisualCppTools)\lib\native\lib\amd64\legacy_stdio_definitions.lib;
         $(FC_Redist)\content\redist\SacApi.lib;
         $(FC_Redist)\content\redist\DCM.RegUtil.lib;
         $(FC_Redist)\content\redist\RdCommon.lib;
-        $(PkgPolicyAgent_HSClient_Release)\HealthReportingClientLib.lib
+        $(PkgPolicyAgent_HSClient_Release)\HealthReportingClientLib.lib;
 	  </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

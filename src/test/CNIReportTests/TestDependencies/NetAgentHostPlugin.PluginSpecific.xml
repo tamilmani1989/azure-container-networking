@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <NetAgentConfiguration>
         <MonitoringConfig>
-          <EnableMA>True</EnableMA>
+          <EnableMA>False</EnableMA>
           <MDMAccount>VNetMDMInt</MDMAccount>
           <MDMStampURL>https://global.metrics.nsatc.net/</MDMStampURL>
         </MonitoringConfig>

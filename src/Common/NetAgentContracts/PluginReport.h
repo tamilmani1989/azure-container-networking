@@ -168,7 +168,7 @@ public:
     SystemInfo SystemDetails;
     
     static void
-	InitializeFieldIdMap();
+    InitializeFieldIdMap();
     
     bool
     FindFieldFromBaseClass(

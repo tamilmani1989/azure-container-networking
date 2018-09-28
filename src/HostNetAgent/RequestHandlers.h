@@ -30,7 +30,7 @@ Environment:
 #include <cpprest/producerconsumerstream.h>
 #include "cpprest/filestream.h"
 #include "PackagesInfo.h"
-#include "MdmLogger.h"
+#include "GenevaLogger.h"
 #include "HealthReport.h"
 
 using namespace web;

@@ -1,7 +1,7 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
-    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <PropertyGroup>
     <ProjectGuid>{B8F3B949-54EC-40C4-B9A4-6A338B2A4767}</ProjectGuid>
@@ -14,7 +14,7 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-		$(INTERNAL_SDK)\inc;
+		    $(SRCROOT)\Common\PrivateWindowsHeaders;
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -29,7 +29,7 @@
         $(WindowsSdk64LibPath)\ole32.lib;
         $(WindowsSdk64LibPath)\ws2_32.lib;
         $(WindowsSdk64LibPath)\oleaut32.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
+        comsuppw.lib;
       </AdditionalDependencies>
       <ModuleDefinitionFile>Aqua.HNSOverlayPlugin.src</ModuleDefinitionFile>
     </Link>
@@ -50,6 +50,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="InstallPlugin.ps1" />
+  </ItemGroup>
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\Common\PrivateWindowsHeaders\**\*.*" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\aquanix\aquanix.vcxproj">

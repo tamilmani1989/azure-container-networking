@@ -37,7 +37,7 @@ Sushant Sharma (susharm) 05-May-2017
 using namespace std;
 using namespace web;
 using namespace http;
-using namespace experimental::listener;
+using namespace web::http::experimental::listener;
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
 typedef void(* PostHandler)(http_request request);

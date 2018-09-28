@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{8264c27c-90a7-4d86-a714-a9759d9afaf4}</ProjectGuid>
     <TargetName>AquariusLibrary</TargetName>
@@ -11,7 +11,7 @@
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
         $(PkgMDS_MA)\lib\native\include;
-        $(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\inc;
+        $(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\inc;
 	      $(cpprestsdk)\build\native\include;
       </AdditionalIncludeDirectories>
     </ClCompile>

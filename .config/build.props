@@ -28,14 +28,6 @@ Copyright (C) Microsoft Corporation. All rights reserved.
   <PropertyGroup>    
     <InstallPkgLocal Condition="'$(InstallPkgLocal)'==''">false</InstallPkgLocal>
   </PropertyGroup>
-
-  <!-- use x64 toolset -->
-  <PropertyGroup>
-     <PreferredToolArchitecture>x64</PreferredToolArchitecture>
-     <_IsNativeEnvironment>true</_IsNativeEnvironment>
-     <_VcUseNativex64CompilerTools>true</_VcUseNativex64CompilerTools>
-     <VCToolArchitecture>Native64Bit</VCToolArchitecture>
-  </PropertyGroup>
   
   <PropertyGroup>
     <!--Target windows 8 for most things -->
@@ -71,14 +63,6 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <BaseBuildType Condition="'$(BuildType)'=='retail'">retail</BaseBuildType>
   </PropertyGroup>
 
-  <!--C++ compiler settings-->
-  <ItemDefinitionGroup>
-    <ClCompile>
-      <MinimalRebuild>true</MinimalRebuild>
-      <MultiProcessorCompilation>false</MultiProcessorCompilation>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  
   <!-- Turning off CLS compliance warnings/errors -->
   <PropertyGroup>    
     <AssemblyCLSCompliant>false</AssemblyCLSCompliant> 
@@ -132,6 +116,9 @@ Copyright (C) Microsoft Corporation. All rights reserved.
       <Visible>false</Visible>
     </QCustomInput>
     <QCustomInput Include="$(PkgVisualStudio_StaticAnalysisTools_Corext)">
+      <Visible>false</Visible>
+    </QCustomInput>
+    <QCustomInput Include='$(PkgOneBranch_GitScripts)' >
       <Visible>false</Visible>
     </QCustomInput>
   </ItemGroup>

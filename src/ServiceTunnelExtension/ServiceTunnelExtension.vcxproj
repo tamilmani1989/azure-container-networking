@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{0669C9F4-67D3-4709-811C-A1F500680AEA}</ProjectGuid>
     <RootNamespace>ServiceTunnelExtension</RootNamespace>
@@ -42,13 +42,13 @@
         $(WindowsSdk64LibPath)\ntdll.lib;
         $(WindowsSdk64LibPath)\pathcch.lib;
         $(WindowsSdk64LibPath)\newdev.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsupp.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
-        $(PkgVisualCpp_x64_Corext)\lib\x64\legacy_stdio_definitions.lib;
+        comsupp.lib;
+        comsuppw.lib;
+        $(PkgVisualCppTools)\lib\native\lib\amd64\legacy_stdio_definitions.lib;
         $(FC_Redist)\content\redist\SacApi.lib;
         $(FC_Redist)\content\redist\DCM.RegUtil.lib;
         $(FC_Redist)\content\redist\RdCommon.lib;
-        $(PkgPolicyAgent_HSClient_Release)\HealthReportingClientLib.lib
+        $(PkgPolicyAgent_HSClient_Release)\HealthReportingClientLib.lib;
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

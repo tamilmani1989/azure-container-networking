@@ -47,14 +47,15 @@ Environment:
 #include <cpprest/producerconsumerstream.h>
 #include "cpprest/filestream.h"
 #include "PackagesInfo.h"
-#include "MdmLogger.h"
+#include "GenevaLogger.h"
 #include "HealthReport.h"
 #include "CNIReport.h"
+#include "MonAgent.h"
 
 using namespace std;
 using namespace web;
 using namespace http;
-using namespace experimental::listener;
+using namespace web::http::experimental::listener;
 using namespace concurrency::streams;
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
@@ -71,6 +72,7 @@ using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 const wstring POST_CNI_REPORT_KEY = L"cnireport";
 const wstring POST_HEALTH_REPORT_KEY = L"healthreport";
 const wstring POST_NPM_REPORT_KEY = L"npmreport";
+const wstring POST_DNC_REPORT_KEY = L"dncreport";
 const wstring GET_VERSION_QUERY_KEY = L"getpackageversion";
 const wstring GET_PACKAGE_URIS_QUERY_KEY = L"getpackageuris";
 const wstring TYPE_KEY = L"type";

@@ -1,8 +1,9 @@
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(EnvironmentConfig)" />
   <Import Project="RDPackages\PostBuild.targets" Condition="'$(IsOfficialBuild)'!='' Or '$(BuildRDPackage)'=='true' Or '$(PostbuildProject)'!=''" /> 
   <ItemGroup>
     <ProjectFile Include="Aquarius\Aquarius.vcxproj" />
+    <ProjectFile Include="Common\bond\dirs.proj" />
     <ProjectFile Include="EventMessage\CreatePackage.proj" />
     <ProjectFile Include="ServiceTunnelExtension\ServiceTunnelExtension.vcxproj" />
     <ProjectFile Include="VFPlugin\VFPlugin.vcxproj" />
@@ -22,6 +23,7 @@
     <ProjectFile Include="NetworkContainer\NetworkContainer.vcxproj" />
     <ProjectFile Include="AzureCNSPackage\AzureCNSPackage.proj" />
     <ProjectFile Include="AzureDNCPackage\AzureDNCPackage.proj" />
+    <ProjectFile Include="Ifx\IfxEvents.vcxproj" />
   </ItemGroup>
 
   <ItemGroup>

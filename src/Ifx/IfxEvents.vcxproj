@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{54ADCFD4-8014-4E18-BB6C-55CB1AF77CCC}</ProjectGuid>
+    <ProjectName>IfxEvents</ProjectName>
+    <OacrDisabled>true</OacrDisabled>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <!-- This should be the path to the .targets file in your Souffle release. -->
+  <Import Project="$(PkgSouffle)\build\native\Souffle.targets" />
+  <!-- This should be the path to the .targets file in your Boost-locale package. -->
+  <Import Project="$(Pkgboost_locale_vc141)\build\native\boost_locale-vc141.targets" />
+  <!-- This should be the path to the bond.targets file for the bond projects in your own repo. -->
+  <Import Project="..\Common\Bond\bond.targets" />
+  <Import Project="$(PkgMicrosoft_Cloud_InstrumentationFramework_NativeExt_VC14)\build\IfxEvents.Build.targets" />
+</Project>

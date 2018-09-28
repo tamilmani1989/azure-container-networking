@@ -28,7 +28,7 @@ Tamilmani Manoharan (tamanoha) 10-October-2017
 #include <comutil.h>
 #include <assert.h>
 #include <stdafx.h>
-#include<Cfgmgr32.h>
+#include <Cfgmgr32.h>
 
 
 #define LOG_FILE_PREFIX L"VFPlugin"

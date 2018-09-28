@@ -80,7 +80,7 @@ Return Value:
 
 --*/
 {
-	MetadataFieldIdMap[Location_STR] = MetadataEnum::MetadataKey::Location;
+	MetadataFieldIdMap[LOCATION_STR] = MetadataEnum::MetadataKey::Location;
 	MetadataFieldIdMap[VMNAME_STR] = MetadataEnum::MetadataKey::VMName;
 	MetadataFieldIdMap[OFFER_STR] = MetadataEnum::MetadataKey::Offer;
 	MetadataFieldIdMap[OSTYPE_STR] = MetadataEnum::MetadataKey::OSType;

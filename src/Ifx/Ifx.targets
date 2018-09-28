@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  
+  <PropertyGroup>
+    <IfxPath>$(MsBuildThisFileDirectory)</IfxPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <BondImportDirectory Include="$(PkgMicrosoft_Cloud_InstrumentationFramework_NativeExt_VC14)\build\native\inc" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(SrcRoot)\Common\Ifx\IfxEvents.vcxproj">
+      <Project>{ACD27797-47EC-46DA-A630-B3977726A28A}</Project>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Import Project="ifx_customizations.props" Condition=" Exists('ifx_customizations.props') " />
+  <Import Project="$(PkgMicrosoft_Cloud_InstrumentationFramework_NativeExt_VC14)\build\Ifx.NativeExt.targets" />
+</Project>

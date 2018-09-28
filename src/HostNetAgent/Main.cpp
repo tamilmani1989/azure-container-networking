@@ -22,7 +22,7 @@ Environment:
 #include "HostNetAgent.h"
 #include "RequestHandlers.h"
 
-DWORD
+DWORD 
 AgentParseCommandLine(
     __in ULONG ArgumentCount,
     __in_ecount(ArgumentCount) PWSTR *ArgumentList,
@@ -293,10 +293,11 @@ Return Value:
     wstring logLocation;
     wstring packageLocation;
     DWORD err = ERROR_SUCCESS;
-    MdmLogger* mdmLogger;
+    GenevaLogger* genevaLogger;
+    MonAgent* monAgent;
     HRESULT hr = S_OK;
 	PackagesInfo* packagesInfoInstance;
-
+    
     err = AgentParseCommandLine(Argc,
                                 Argv, 
                                 &configFile, 
@@ -343,19 +344,40 @@ Return Value:
         return err;
     }
 
-    mdmLogger = MdmLogger::GetInstance();
-    if(mdmLogger == NULL)
+    monAgent = MonAgent::GetInstance();
+    if (monAgent == NULL)
     {
-        LOGERRW(L"Failed to allocate memory for mdm Logger");
+        LOGERRW(L"Failed to allocate memory for monitoring agent");
         return ERROR_OUTOFMEMORY;
     }
 
-    hr = mdmLogger->InitializeMdm(
+    hr = monAgent->LaunchMA(configFile);
+    if (hr != S_OK)
+    {
+        LOGERRW(L"Failed to start monitoring agent");
+        return hr;
+    }
+
+    genevaLogger = GenevaLogger::GetInstance();
+    if(genevaLogger == NULL)
+    {
+        LOGERRW(L"Failed to allocate memory for geneva Logger");
+        return ERROR_OUTOFMEMORY;
+    }
+
+    hr = genevaLogger->InitializeMdm(
         configFile,
 		packagesInfoInstance->GetPackageVersion().c_str());
     if (hr != S_OK)
     {
         LOGERRW(L"Failed to set up Mdm using settings file {%s}", configFile);
+        return hr;
+    }
+
+    hr = genevaLogger->InitializeMds();
+    if (hr != S_OK) 
+    {
+        LOGERRW(L"Failed to set up Mds with HR errorcode %X", hr);
         return hr;
     }
 
