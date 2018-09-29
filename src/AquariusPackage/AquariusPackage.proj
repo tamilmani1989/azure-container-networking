@@ -1,12 +1,12 @@
-<Project ToolsVersion="14.0" DefaultTarget="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project ToolsVersion="15.0" DefaultTarget="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(EnvironmentConfig)" />
   <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
   <PropertyGroup>
     <BuildFullName>$(BuildVersion.Replace('.',''))</BuildFullName>
-    <McPath>$(PkgWindowsSdk_Corext)\bin\x64\mc.exe</McPath>
-    <ToolsPath>$(PkgVisualCpp_Tools_x64_Corext)\bin\x64</ToolsPath>
+    <McPath>$(PkgWindowsSdk_Corext)\bin\10.0.16299.0\x64\mc.exe</McPath>
+    <ToolsPath>$(PkgVisualCppTools)\lib\native\bin\amd64</ToolsPath>
     <LinkPath>$(ToolsPath)\link.exe</LinkPath>
-    <RcPath>$(PkgWindowsSdk_Corext)\bin\x64\rc.exe</RcPath>
+    <RcPath>$(PkgWindowsSdk_Corext)\bin\10.0.16299.0\x64\rc.exe</RcPath>
     <CpPath>$(PkgCorext_Tools)\AMD64\cp.exe</CpPath>
   </PropertyGroup>
 
@@ -42,12 +42,14 @@
     <Copy SourceFiles="$(SRCROOT)\GAExtension\AzureExtensionPackage\UploadExtensionImage.ps1" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AquariusDeployScripts"/>
 
     <Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
-    <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
-    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\lib\IfxMetrics.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />     
+    <Exec Command="cp $(PkgVisualCppTools)\lib\native\redist\x64\Microsoft.VC141.CRT\*.dll $(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
+    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\IfxMetrics.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />     
+    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\IfxEvents.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />     
 
     <Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(AquariusPackage)\$(Aquarius)" />
-    <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(AquariusPackage)\$(Aquarius)" />
-    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\lib\IfxMetrics.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)" />  
+    <Exec Command="cp $(PkgVisualCppTools)\lib\native\redist\x64\Microsoft.VC141.CRT\*.dll $(AquariusPackage)\$(Aquarius)" />
+    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\IfxMetrics.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)" />
+    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\IfxEvents.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)" />  
   
   </Target>
 

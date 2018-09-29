@@ -962,8 +962,8 @@ func TryQueryRequestContext(requestID string) (*RequestContext, *api.JsonErr) {
 // TryQueryNetworkContainerByKey - Query a network container by key.
 func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr) {
 	var repoNCConfiguration NCConfiguration
-	value, status, err := dataStoreShim.Query(networkContainerTableName, ncKey)
-	if err != nil && status != http.StatusNotFound {
+	value, _, err := dataStoreShim.Query(networkContainerTableName, ncKey)
+	if err != nil {
 		msg := fmt.Sprintf(
 			"Failed to retrieve configuration for network container key:[%s] due to error:[%s]",
 			ncKey,
@@ -973,6 +973,7 @@ func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
 	}
+
 	if value == nil {
 		return nil, nil
 	}
@@ -1748,14 +1749,11 @@ func UpdateSubnet(networkID, subnet string, subnetRequest api.SubnetRequest) *ap
 			Text:       msg}
 
 	}
+
 	subnetConfiguration.Joined = true
 	subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken
-	err = PutSubnetConfiguration(subnetConfiguration)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return PutSubnetConfiguration(subnetConfiguration)
 }
 
 // GetNodeIDForNetworkContainer - Helper to retrieve node Id from NC configuration.

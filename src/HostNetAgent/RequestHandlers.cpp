@@ -137,14 +137,14 @@ Return Value:
     for (vector<utility::string_t>::iterator it = pathFragments.begin();
          it != pathFragments.end();
          ++it) 
-	{
+    {
 
         if (_wcsicmp(CONTAINER_SEGMENT, it->c_str()) == 0) 
-		{
+        {
 
             ++it;
             if (it == pathFragments.end()) 
-			{
+            {
 
                 HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
                 goto Cleanup;
@@ -155,14 +155,14 @@ Return Value:
         }
 
         if (!foundContainerSegment)
-		{
+        {
 
             continue;
         }
 
         ++it;
         if (it == pathFragments.end()) 
-		{
+        {
 
             hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
             goto Cleanup;
@@ -172,7 +172,7 @@ Return Value:
 
         ++it;
         if (it != pathFragments.end()) 
-		{
+        {
 
             hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
             goto Cleanup;
@@ -183,7 +183,7 @@ Return Value:
     }
 
     if (!validUri) 
-	{
+    {
 
         hr = HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
     }
@@ -191,7 +191,7 @@ Return Value:
 Cleanup:
 
     if (hr != S_OK) 
-	{
+    {
 
         ContainerId.clear();
         RequestType.clear();
@@ -225,13 +225,13 @@ Return Value:
     HRESULT hr = S_OK;
     status_code statusCode = status_codes::OK;
     json::value jsonBody;
-    MdmLogger* mdmLogger;
+    GenevaLogger* genevaLogger;
 
     LOGINFOW(L"Received request:{%s}", Request.to_string().c_str());
 
-    mdmLogger = MdmLogger::GetInstance();
-    if (mdmLogger == NULL) 
-	{
+    genevaLogger = GenevaLogger::GetInstance();
+    if (genevaLogger == NULL) 
+    {
 
         LOGERRW(L"Failed to allocate memory for mdm Logger");
         goto Cleanup;
@@ -241,7 +241,7 @@ Return Value:
                                           containerId,
                                           requestType);
     if (hr != S_OK)
-	{
+    {
 
         LOGERRW(L"Invalid URI received in the request");
         statusCode = status_codes::BadRequest;
@@ -255,64 +255,73 @@ Return Value:
 
     jsonBody = Request.extract_json().get();
     if (jsonBody.is_null() || jsonBody.size() == 0 || !jsonBody.is_object()) 
-	{
-
+    {
         LOGERRW(L"Invalid Json body");
         statusCode = status_codes::BadRequest;
         goto Cleanup;
     }
 
-    if (_wcsicmp(POST_HEALTH_REPORT_KEY.c_str(), requestType.c_str()) == 0) 
-	{
+    if ( requestType == POST_HEALTH_REPORT_KEY ) 
+    {
         try 
-		{
-
-			HealthReport healthReport(containerId, jsonBody.as_object());
-			healthReport.Print();
-            mdmLogger->LogHealthReport(healthReport);
+        {
+            HealthReport healthReport(containerId, jsonBody.as_object());
+            healthReport.Print();
+            genevaLogger->LogHealthReport(healthReport);
         }
         catch (const exception& e) 
-		{
+        {
 
             LOGERR("Failed to process health report with exception :{%s}", e.what());
             statusCode = status_codes::BadRequest;
             goto Cleanup;
         }
     }
-    else if (_wcsicmp(POST_CNI_REPORT_KEY.c_str(), requestType.c_str()) == 0) 
-	{
+    else if ( requestType == POST_CNI_REPORT_KEY ) 
+    {
         try 
-		{
-
+        {
             CNIReport cniReport(jsonBody.as_object());
             cniReport.Print();
-            mdmLogger->LogCNIReport(containerId, cniReport);
+            genevaLogger->LogCNIReport(containerId, cniReport);
         }
         catch (const exception& e) 
-		{
-
+        {
             LOGERR("Failed to process CNI report with exception :{%s}", e.what());
             statusCode = status_codes::BadRequest;
             goto Cleanup;
         }
     }
-	else if (_wcsicmp(POST_NPM_REPORT_KEY.c_str(), requestType.c_str()) == 0) 
-	{
-		try 
-		{
-
-			NPMReport npmReport(jsonBody.as_object());
-			npmReport.Print();
-			mdmLogger->LogNPMReport(npmReport);
-		}
-		catch (const exception& e) 
-		{
-
-			LOGERR("Failed to process NPM report with exception :{%s}", e.what());
-			statusCode = status_codes::BadRequest;
-			goto Cleanup;
-		}
-	}
+    else if ( requestType == POST_NPM_REPORT_KEY ) 
+    {
+        try 
+        {
+            NPMReport npmReport(jsonBody.as_object());
+            npmReport.Print();
+            genevaLogger->LogNPMReport(npmReport);
+        }
+        catch (const exception& e) 
+        {
+            LOGERR("Failed to process NPM report with exception :{%s}", e.what());
+            statusCode = status_codes::BadRequest;
+            goto Cleanup;
+        }
+    }
+    else if ( requestType == POST_DNC_REPORT_KEY )
+    {
+        try 
+        {
+            DNCReport dncReport(jsonBody.as_object());
+            dncReport.Print();
+            genevaLogger->LogDNCReport(dncReport);
+        }
+        catch (const exception& e) 
+        {
+            LOGERR("Failed to process DNC report with exception :{%s}", e.what());
+            statusCode = status_codes::BadRequest;
+            goto Cleanup;
+        }
+    }
     else
     {
         LOGERRW(L"Received request type {%s} which is invalid", requestType.c_str());
@@ -347,11 +356,11 @@ Return Value:
 
 --*/
 {
-    MdmLogger* mdmLogger = MdmLogger::GetInstance();
+    GenevaLogger* genevaLogger = GenevaLogger::GetInstance();
     PackagesInfo* packagesInfoInstance;
 
-    mdmLogger = MdmLogger::GetInstance();
-    if (mdmLogger == NULL) {
+    genevaLogger = GenevaLogger::GetInstance();
+    if (genevaLogger == NULL) {
 
         LOGERRW(L"Failed to allocate memory for mdm Logger");
         return;
@@ -373,7 +382,7 @@ Return Value:
     for (map<utility::string_t,
          utility::string_t>::iterator it = query.begin(); it != query.end();
          ++it) 
-	{
+    {
 
         LOGINFOW(L"Query Key:[%s], Value:[%s]", it->first.c_str(), it->second.c_str());
     }
@@ -381,7 +390,7 @@ Return Value:
     // Respond with bad request if the query is missing type.
     auto found_name = query.find(TYPE_KEY);
     if (found_name == end(query)) 
-	{
+    {
 
         LOGERRW(L"Unsupported Query");
         Request.reply(status_codes::BadRequest);
@@ -391,7 +400,7 @@ Return Value:
     // Respond with bad request if the query is missing type.
     auto containerIdIter = query.find(TYPE_CONTAINER);
     if (containerIdIter == end(query)) 
-	{
+    {
 
         LOGERRW(L"Container Id missing in Query");
         Request.reply(status_codes::BadRequest);
@@ -402,7 +411,7 @@ Return Value:
     if (_wcsnicmp(found_name->second.c_str(),
                   GET_VERSION_QUERY_KEY.c_str(),
                   GET_VERSION_QUERY_KEY.length()) == 0) 
-	{
+    {
 
         return GetPackageVersion(Request);
     }
@@ -410,14 +419,13 @@ Return Value:
     if (_wcsnicmp(found_name->second.c_str(),
                   GET_PACKAGE_URIS_QUERY_KEY.c_str(),
                   GET_PACKAGE_URIS_QUERY_KEY.length()) == 0) 
-	{
+    {
 
         return GetPackageUris(Request);
     }
 
-    mdmLogger->LogDownloadMetricToMDM(
-        containerId.c_str(),
-        1);
+    genevaLogger->LogDownloadMetricToMDM(
+        containerId.c_str());
 
     // Assume this is a request for an explicit resource by name.
     // Check the package cache to check if the package exist.
@@ -426,7 +434,7 @@ Return Value:
                           packageNames.end(),
                           found_name->second.c_str());
     if (fileFound == packageNames.end()) 
-	{
+    {
 
         LOGERRW(L"Requested resource {%s} not found", found_name->second.c_str());
         Request.reply(status_codes::NotFound);
@@ -442,7 +450,7 @@ Return Value:
     // Check if the resource actually exist by trying to open an handle to the package.
     ifs.open(fileName, ifstream::in);
     if (ifs.good()) 
-	{
+    {
 
         pplx::task<void> requestTask = file_stream<unsigned char>::open_istream(fileName.c_str(), ios_base::binary)
         .then([=](pplx::task<concurrency::streams::basic_istream<unsigned char>> previousTask) {
@@ -455,7 +463,7 @@ Return Value:
 
         LOGINFOW(L"Requested resource {%s} successfully transmited", found_name->second.c_str());
     } else 
-	{
+    {
 
         LOGERRW(L"Requested resource {%s} is not found on the disk", found_name->second.c_str());
         Request.reply(status_codes::NotFound);

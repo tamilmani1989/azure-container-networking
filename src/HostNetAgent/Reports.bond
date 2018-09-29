@@ -1,0 +1,90 @@
+import "bond/core/bond.bond"
+import "Ifx.bond"
+
+namespace HostNetAgentEvents
+
+struct DNCEvent:Ifx.ObjectTextPropertySchema
+{
+    10: required wstring Location;
+    20: required wstring VMName;
+    30: required wstring Offer;
+    40: required wstring OSType;
+    50: required wstring PlacementGroupID;
+    60: required wstring PlatformFaultDomain;
+    70: required wstring PlatformUpdateDomain;
+    80: required wstring Publisher;
+    90: required wstring ResourceGroupName;
+    100: required wstring Sku;
+    110: required wstring Tags;
+    120: required wstring OSVersion;
+    130: required wstring KernelVersion;
+    140: required wstring VMID;
+    150: required wstring VMSize;
+    160: required wstring PartitionKey;
+    170: required wstring Allocations;
+    180: required wstring CPUUsage;
+    190: required wstring MemoryUsage;
+    200: required wstring Processes;
+    210: required wstring EventMessage;
+};
+
+struct NPMEvent:Ifx.ObjectTextPropertySchema
+{
+    10: required wstring Location;
+    20: required wstring VMName;
+    30: required wstring Offer;
+    40: required wstring OSType;
+    50: required wstring PlacementGroupID;
+    60: required wstring PlatformFaultDomain;
+    70: required wstring PlatformUpdateDomain;
+    80: required wstring Publisher;
+    90: required wstring ResourceGroupName;
+    100: required wstring Sku;
+    110: required wstring Tags;
+    120: required wstring OSVersion;
+    130: required wstring KernelVersion;
+    140: required wstring VMID;
+    150: required wstring VMSize;
+    160: required wstring ClusterID;
+    170: required int32 Cluster_PodCount;
+    180: required int32 Cluster_NsCount;
+    190: required int32 Cluster_NwPolicyCount;
+    200: required wstring NodeName;
+    210: required wstring InstanceName;
+    220: required wstring NpmVersion;
+    230: required wstring KubernetesVersion;
+    240: required wstring Uptime;
+    250: required wstring ErrorMessage;
+    260: required wstring EventMessage;
+};
+
+struct CNIEvent:Ifx.ObjectTextPropertySchema
+{
+    10: required wstring Location;
+    20: required wstring VMName;
+    30: required wstring Offer;
+    40: required wstring OSType;
+    50: required wstring PlacementGroupID;
+    60: required wstring PlatformFaultDomain;
+    70: required wstring PlatformUpdateDomain;
+    80: required wstring Publisher;
+    90: required wstring ResourceGroupName;
+    100: required wstring Sku;
+    110: required wstring Tags;
+    120: required wstring OSVersion;
+    130: required wstring KernelVersion;
+    140: required wstring VMID;
+    150: required wstring VMSize;
+    160: required wstring VnetAddressSpace;
+    170: required wstring Iface_Type;
+    180: required wstring Iface_Subnet;
+    190: required wstring Iface_PrimaryCA;
+    200: required wstring Iface_MAC;
+    210: required wstring Iface_Name;
+    220: required int32 Iface_SecondaryCATotalCount;
+    230: required int32 Iface_SecondaryCAUsedCount;
+    240: required wstring Iface_ErrorMessage;
+    250: required wstring Bridge_NetworkMode;
+    260: required wstring Bridge_Name;
+    270: required wstring Bridge_ErrorMessage;
+};

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- Import this file in projects that need to use Bond. It enables
+       automatic code generation via the BondCodegen item. It also adds the
+       needed project references to link with the Bond static libraries. -->
+
+  <PropertyGroup>
+    <BOND_BUILD_ROOT>$(MSBuildThisFileDirectory)</BOND_BUILD_ROOT>
+  </PropertyGroup>
+
+  <Import Project="bond_customizations.MTDLL.props" Condition=" Exists('bond_customizations.MTDLL.props') " />
+  <Import Project="$(PkgBond_Cpp_OnCoreXT)\build\native\bond.native.targets" />
+
+</Project>

@@ -45,7 +45,8 @@ namespace NetworkManager
             {
                 throw new DncManagementException(new ErrorInfo(
                     ErrorCode.UnSupportedAddressFamily,
-                    string.Format("Address family {0} not supproted", baseSubnet.IPAddress.AddressFamily)));
+                    string.Format("Address family {0} not supproted", baseSubnet.IPAddress.AddressFamily),
+                    ErrorType.Retriable));
             }
 
             BigInteger firstAllocatedIPAdressInBaseSubnet = IPHelpers.GetFirstAddressInSubnetAsBigInteger(baseSubnet);

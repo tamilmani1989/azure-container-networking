@@ -1,12 +1,12 @@
-<Project ToolsVersion="14.0" DefaultTarget="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project ToolsVersion="15.0" DefaultTarget="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(EnvironmentConfig)" />
   <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
   <PropertyGroup>
     <BuildFullName>$(BuildVersion.Replace('.',''))</BuildFullName>
-    <McPath>$(PkgWindowsSdk_Corext)\bin\x64\mc.exe</McPath>
-    <ToolsPath>$(PkgVisualCpp_Tools_x64_Corext)\bin\x64</ToolsPath>
+    <McPath>$(PkgWindowsSdk_Corext)\bin\10.0.16299.0\x64\mc.exe</McPath>
+    <ToolsPath>$(PkgVisualCppTools)\lib\native\bin\amd64</ToolsPath>
     <LinkPath>$(ToolsPath)\link.exe</LinkPath>
-    <RcPath>$(PkgWindowsSdk_Corext)\bin\x64\rc.exe</RcPath>
+    <RcPath>$(PkgWindowsSdk_Corext)\bin\10.0.16299.0\x64\rc.exe</RcPath>
     <CpPath>$(PkgCorext_Tools)\AMD64\cp.exe</CpPath>
   </PropertyGroup>
 
@@ -17,6 +17,7 @@
       <Artifacts>Artifacts</Artifacts>
       <NetAgent>NetAgent</NetAgent>
       <Package>package</Package>
+      <MonAgent>MonAgent</MonAgent>
 
       <NetAgentPath>$(BinariesBuildTypeArchDirectory)\$(Artifacts)\$(NetAgent)</NetAgentPath>
       <FilesToZip>$(BinariesBuildTypeArchDirectory)\$(PkgName)</FilesToZip>
@@ -31,6 +32,7 @@
      <Message Importance="high" Text="Going to generate $(PkgName) Package" />
      <MakeDir Directories="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins" Condition="!Exists('$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins')" />
      <MakeDir Directories="$(NetAgentPath)\$(Package)" Condition="!Exists('$(NetAgentPath)\$(Package)')" />
+     <MakeDir Directories="$(NetAgentPath)\$(MonAgent)" Condition="!Exists('$(NetAgentPath)\$(MonAgent)')" />
 
      <Exec Command="cp $(BinariesBuildTypeArchDirectory)\Aquarius\Aquarius.exe $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\WindowsAzureNetAgent.exe" />
      <Copy SourceFiles="RuntimeSettings\0.settings" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\RuntimeSettings" />
@@ -51,14 +53,18 @@
      <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\Aqua.Logging\Aqua.Logging.dll" DestinationFolder="$(NetAgentPath)" />
      <Copy SourceFiles="$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.dll" DestinationFolder="$(NetAgentPath)" />
      <Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(NetAgentPath)" />
-     <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(NetAgentPath)" />
-     <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\lib\IfxMetrics.dll" DestinationFolder="$(NetAgentPath)" />     
+     <Exec Command="cp $(PkgVisualCppTools)\lib\native\redist\x64\Microsoft.VC141.CRT\*.dll $(NetAgentPath)" />
+     <Exec Command="cp $(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\*.dll $(NetAgentPath)" />
+     <ItemGroup>
+       <MA Include="$(PkgGenevaMonitoringAgent)\Monitoring\Agent\**\*.*" />
+     </ItemGroup>
+     <Copy SourceFiles="@(MA)" DestinationFolder="$(NetAgentPath)\$(MonAgent)\%(RecursiveDir)" />
      
 	 <Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
-     <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
+    <Exec Command="cp $(PkgVisualCppTools)\lib\native\redist\x64\Microsoft.VC141.CRT\*.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />
 
 	 <Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins\VFPlugin\Code" />
-     <Exec Command="cp $(PkgVisualCppRedist_Corext)\x64\Microsoft.VC140.CRT\*.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins\VFPlugin\Code" />  	 
+     <Exec Command="cp $(PkgVisualCppTools)\lib\native\redist\x64\Microsoft.VC141.CRT\*.dll $(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)\Plugins\VFPlugin\Code" />  	 
      	 
 	 <Exec Command="echo $(BuildVersion)>$(BinariesBuildTypeArchDirectory)\$(Artifacts)\$(NetAgent)\$(Package)\version.txt" />
      <Copy SourceFiles="$(BinariesBuildTypeArchDirectory)\AqEventMessage\AqEventMessage.dll" DestinationFolder="$(BinariesBuildTypeArchDirectory)\$(PkgName)\$(DirName)" />

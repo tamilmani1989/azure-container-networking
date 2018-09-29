@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{e2663efa-cadc-4b51-bef8-7b92a870f0f9}</ProjectGuid>
     <RootNamespace>VFPlugin</RootNamespace>
@@ -17,7 +17,7 @@
         $(MSBuildThisFileDirectory);
         $(cpprestsdk)\build\native\include;
         ..\Common\NetAgentContracts;
-        ..\VFPluginLibrary
+        ..\VFPluginLibrary;
       </AdditionalIncludeDirectories>
       <!-- Override default from native_user_compile for compat with RdCommon.lib -->
       <!-- <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType> -->
@@ -45,13 +45,13 @@
         $(WindowsSdk64LibPath)\newdev.lib;
         $(WindowsSdk64LibPath)\Cfgmgr32.lib;	
         $(WindowsSdk64LibPath)\Advapi32.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsupp.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
-        $(PkgVisualCpp_x64_Corext)\lib\x64\legacy_stdio_definitions.lib;
+        comsupp.lib;
+        comsuppw.lib;
+        $(PkgVisualCppTools)\lib\native\lib\amd64\legacy_stdio_definitions.lib;
         $(FC_Redist)\content\redist\SacApi.lib;
         $(FC_Redist)\content\redist\DCM.RegUtil.lib;
         $(PkgPolicyAgent_HSClient_Release)\HealthReportingClientLib.lib;
-        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib
+        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib;
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

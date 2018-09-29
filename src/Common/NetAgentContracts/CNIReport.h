@@ -104,6 +104,8 @@ public:
 // Bridge Details
 class BridgeInfo
 {
+public:
+
     wstring NetworkMode;
     wstring BridgeName;
     wstring ErrorMessage;

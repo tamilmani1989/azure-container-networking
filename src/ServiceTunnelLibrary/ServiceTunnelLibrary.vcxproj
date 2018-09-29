@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{7DB0C9A4-CADC-4E53-ADF3-1F6887454249}</ProjectGuid>
     <TargetName>ServiceTunnelLibrary</TargetName>
@@ -12,7 +12,7 @@
         %(AdditionalIncludeDirectories);
         $(PkgMicrosoft_WindowsAzure_EngSys_Internal_rd_fabric_stable_fc_Redist)\content\redist;
         $(PkgMicrosoft_WindowsAzure_EngSys_Internal_longhorn_rd_os142_OS_redist)\content\redist;
-        $(PUBLIC_SDK)\Include\10.0.10586.0\shared;
+        $(PUBLIC_SDK)\Include\10.0.16299.0\shared;
         $(SrcRoot)\Logging;
       </AdditionalIncludeDirectories>
       <!-- Override default from native_user_compile for compat with RdCommon.lib -->

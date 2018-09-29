@@ -61,15 +61,18 @@ namespace DNCService.Rest
             // Handlers for Network management
             routeBuilder.MapPost("networks/{NetworkID}", dncWebController.CreateOrUpdateNetworkAsync);
             routeBuilder.MapDelete("networks/{NetworkID}", dncWebController.DeleteNetworkAsync);
+            routeBuilder.MapGet("networks/{NetworkID}/status", dncWebController.GetNetworkStatusAsync);
 
             // Handlers for Network subnet management
             routeBuilder.MapPost("networks/{NetworkID}/subnets/{SubnetName}", dncWebController.JoinSubnetAsync);
             routeBuilder.MapGet("networks/{NetworkID}/subnets/{SubnetName}", dncWebController.GetSubnetAsync);
+            routeBuilder.MapGet("networks/{NetworkID}/subnets/{SubnetName}/status", dncWebController.GetSubnetStatusAsync);
 
             // Handlers for Network container management
             routeBuilder.MapPost("networks/{NetworkID}/networkcontainer/{NetworkContainerID}", dncWebController.CreateOrUpdateNetworkContainerAsync);
             routeBuilder.MapGet("networks/{NetworkID}/networkcontainer/{NetworkContainerID}", dncWebController.GetNetworkContainerAsync);
             routeBuilder.MapDelete("networks/{NetworkID}/networkcontainer/{NetworkContainerID}", dncWebController.DeleteNetworkContainerAsync);
+            routeBuilder.MapGet("networks/{NetworkID}/networkcontainer/{NetworkContainerID}/status", dncWebController.GetNetworkContainerStatusAsync);
 
             // Handlers for Network profile management
             routeBuilder.MapPost("networkprofiles/{NetworkProfileID}", dncWebController.AddNetworkProfileAsync);

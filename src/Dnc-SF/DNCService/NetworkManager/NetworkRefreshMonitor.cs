@@ -45,10 +45,11 @@ namespace NetworkManager
                 while (true)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    ICollection<string> networkIDs = 
+                    ICollection<string> networkKeys =
                             await networkRepositoryManager.GetAllNetworkKeys(Status.Completed);
-                    foreach (string networkID in networkIDs)
+                    foreach (string networkKey in networkKeys)
                     {
+                        string networkID = NetworkConfiguration.GetNetworkIDFromKey(networkKey);
                         ServiceEventSource.Current.Message($"Refreshing network:{networkID}");
                         await RefreshNetwork(networkID);
                         cancellationToken.ThrowIfCancellationRequested();
@@ -70,6 +71,7 @@ namespace NetworkManager
                 VirtualNetworkResponse virtualNetworkResponse =
                     await this.hostAgentClient.JoinAndGetNetwork(networkID);
                 ServiceEventSource.Current.Message($"Refresh:Retrieved network config:{virtualNetworkResponse}");
+
                 using (var tx = RepositoryHelper.GetTransaction())
                 {
                     string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
@@ -89,6 +91,14 @@ namespace NetworkManager
                     {
                         return;
                     }
+
+                    if ( networkConfig.State != NetworkState.Join ||
+                        networkConfig.Status != Status.Completed )
+                    {
+                        ServiceEventSource.Current.Message($"Skipping refreshing of network {networkID} as it is in state: {networkConfig.State}");
+                        return;
+                    }
+
                     await networkRepositoryManager.UpdateNetworkConfigurationUntransacted(
                         tx,
                         networkConfig,

@@ -671,8 +671,7 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 	subnetsInUpdatedResponse = make(map[string]nmagentcontracts.Subnet)
 	for _, subnet := range networkResponse.Subnets {
 		subnetsInUpdatedResponse[subnet.SubnetName] = subnet
-		ipSubnetMap[subnet.SubnetName] =
-			datamodel.GetSubnetKey(networkID, subnet.SubnetName)
+		ipSubnetMap[subnet.SubnetName] = datamodel.GetSubnetKey(networkID, subnet.SubnetName)
 	}
 
 	// Commiting virtual network config in two phases.
@@ -692,6 +691,7 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 	} else {
 		dnsServers = strings.Split(networkResponse.DNSServers, ",")
 	}
+
 	logger.Debugf("Adding vnetconfig:%v\n", networkResponse)
 	vnetVersion, _ = strconv.ParseUint(networkResponse.VnetVersion, 10, 64)
 	repoNetworkConfiguration = &datamodel.NetworkConfiguration{
@@ -719,6 +719,7 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 		} else {
 			tags = updatedSubnetCfg.Tags
 		}
+
 		subnetConfig := datamodel.SubnetConfiguration{
 			NetworkID:         networkID,
 			SubnetName:        subnetName,
@@ -736,9 +737,18 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 		ipSubnetMap[subnetName] = datamodel.GetSubnetKey(networkID, subnetName)
 		updatedSubnetCfg := subnetsInUpdatedResponse[subnetName]
 		currentRepoSubnetCfg.Tags = updatedSubnetCfg.Tags
-		datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
+		failureDetail = datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
 		if failureDetail != nil {
 			goto Cleanup
+		}
+
+		// Register tags (add them to cache) if subnet is delegated
+		if currentRepoSubnetCfg.IsDelegatedSubnet {
+			for _, tag := range currentRepoSubnetCfg.Tags {
+				if _, err := RegisterAndGetTagDefinition(tag); err != nil {
+					logger.Errorf("[Azure-dnc] Failed to register and get tag definitions with error: %+v", err)
+				}
+			}
 		}
 	}
 
@@ -1203,7 +1213,6 @@ func processNetworkContainerPurge(repoNCConfig *datamodel.NCConfiguration) (bool
 }
 
 func hasTagsChanged(resolvedTags map[string]datamodel.TagDefinition, currentTags map[string]uint64) bool {
-
 	if len(resolvedTags) != len(currentTags) {
 		logger.Debugf("Tags changed:%v, Current:%v Updated:%v", len(resolvedTags), len(currentTags))
 		return true
@@ -1241,19 +1250,23 @@ func processNetworkContainerAssociate(
 	}
 
 	cnetAddressesCount := len(ncGoalState.CNetSubnets)
-
 	updatedTagInfo := make(map[string]uint64)
 	resolvedTags := make(map[string]datamodel.TagDefinition)
+	var tagsResolutionErr *api.JsonErr
 	for _, tag := range ncGoalState.TagsInfo {
 		tagDefinition, tagErr := RegisterAndGetTagDefinition(tag)
-		if tagErr != nil {
-			return false, tagErr
+		if tagErr == nil {
+			tagKey := datamodel.GetTagDefintionKey(tag.Type, tag.Name)
+			resolvedTags[tagKey] = tagDefinition
+			cnetAddressesCount += len(resolvedTags[tagKey].Values)
+			updatedTagInfo[tagKey] = tagDefinition.Version
+		} else {
+			tagsResolutionErr = tagErr
 		}
+	}
 
-		tagKey := datamodel.GetTagDefintionKey(tag.Type, tag.Name)
-		resolvedTags[tagKey] = tagDefinition
-		cnetAddressesCount += len(resolvedTags[tagKey].Values)
-		updatedTagInfo[tagKey] = tagDefinition.Version
+	if tagsResolutionErr != nil {
+		return false, tagsResolutionErr
 	}
 
 	if repoNCConfig.ProgrammedTagsInfo == nil {
@@ -1776,6 +1789,11 @@ func processNetworkContainerRequest(
 		return false, err
 	}
 
+	if repoNCConfig == nil {
+		logger.Debugf("Failed to find network container configuration in repository for ID %s\n", networkContainerKey)
+		return true, nil
+	}
+
 	// Check if NC has been marked for delete and ensure that we are in the
 	// correct revert state.
 	if repoNCConfig.MarkedForDelete {
@@ -1787,6 +1805,7 @@ func processNetworkContainerRequest(
 			repoNCConfig.State = revertState
 		}
 	}
+
 	switch repoNCConfig.State {
 	case datamodel.Prepare:
 		if repoNCConfig.Status == datamodel.Failed {
@@ -1868,7 +1887,6 @@ func monitorRequests() {
 			tagMonitorStartProcessing <- true
 			refreshNCStartProcessing <- true
 			processPendingRequests()
-			logger.Debugf("Received signal to process pending work\n")
 			break
 
 		case <-cancelProcessing:

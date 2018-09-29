@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <TargetName>NetAgentContracts</TargetName>
     <ProjectGuid>{F4964161-20D0-4C0C-BC03-24CCF8C5C622}</ProjectGuid>
@@ -10,18 +10,19 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-	$(cpprestsdk)\build\native\include;
-	$(SRCROOT)\Logging;
+        $(cpprestsdk)\build\native\include;
+        $(SRCROOT)\Logging;
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="HealthReport.cpp" />
     <ClCompile Include="CNIReport.cpp" />
-	<ClCompile Include="NPMReport.cpp" />
+	  <ClCompile Include="NPMReport.cpp" />
+    <ClCompile Include="DNCReport.cpp" />
     <ClCompile Include="PluginReport.cpp" />
     <ClCompile Include="Metadata.cpp" />
-	<ClCompile Include="Kubernetes.cpp" />
+	  <ClCompile Include="Kubernetes.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Json.h" />

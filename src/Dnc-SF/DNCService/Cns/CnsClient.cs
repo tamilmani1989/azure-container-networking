@@ -14,6 +14,9 @@ namespace Cns
 {
     public class CnsClient
     {
+        /// <summary>
+        /// Configuration for DNC
+        /// </summary>
         public DncConfiguration DncConfiguration { get; private set; }
 
         public CnsClient(DncConfiguration dncConfiguration)
@@ -43,30 +46,48 @@ namespace Cns
                 JsonConvert.SerializeObject(createNetworkContainerRequest);
             var httpContent = new StringContent(createOrUpdateNCJson, Encoding.UTF8, "application/json");
             HttpClient httpClient = new HttpClient();
-            HttpResponseMessage response = await httpClient.PostAsync(createNCUrl, httpContent);
-            response.EnsureSuccessStatusCode();
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await httpClient.PostAsync(createNCUrl, httpContent);
+            }
+            catch (Exception exception)
+            {
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncCnsException(
+                    new ErrorInfo(ErrorCode.StatusInternalServerError,
+                        $"Failed to post request Create NC to CNS due to exception {errorMsg}",
+                        ErrorType.Retriable));
+            }
 
             string responseBody = await response.Content.ReadAsStringAsync();
-            CreateNetworkContainerResponse createNCReponse = null;
+            CreateNetworkContainerResponse createNCResponse = null;
 
             try
             {
-                createNCReponse = JsonConvert.DeserializeObject<CreateNetworkContainerResponse>(
+                createNCResponse = JsonConvert.DeserializeObject<CreateNetworkContainerResponse>(
                     responseBody);
             }
             catch (Exception exception)
             {
-                throw new Exception(
-                    $"Failed to decode response {createNCReponse} due to exception {exception}");
+                throw new DncCnsException(
+                    new ErrorInfo(ErrorCode.DecodeResponseFailed,
+                        $"Failed to decode response {createNCResponse} due to exception {exception}",
+                        ErrorType.Retriable));
             }
 
-            if (createNCReponse.Response.ReturnCode != 0)
+            if (createNCResponse.Response.ReturnCode != 0)
             {
-                throw new Exception(
-                    $"CreateNC failed. Received response:{createNCReponse}");
+                throw new DncCnsException(
+                    new ErrorInfo(ErrorCode.AssociationFailed,
+                        $"Failed association due to CNS returning return error code " +
+                        $"{createNCResponse.Response.ReturnCode}",
+                        ErrorType.NonRetriable));
             }
 
-            ServiceEventSource.Current.Message($"NC created successfully:{createNCReponse}");
+            ServiceEventSource.Current.Message($"NC created successfully:{createNCResponse}");
             return;
 
         }
@@ -90,8 +111,21 @@ namespace Cns
                 JsonConvert.SerializeObject(deleteNetworkContainerRequest);
             var httpContent = new StringContent(deleteNCJson, Encoding.UTF8, "application/json");
             HttpClient httpClient = new HttpClient();
-            HttpResponseMessage response = await httpClient.PostAsync(deleteNCUrl, httpContent);
-            response.EnsureSuccessStatusCode();
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await httpClient.PostAsync(deleteNCUrl, httpContent);
+            }
+            catch (Exception exception)
+            {
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncCnsException(
+                    new ErrorInfo(ErrorCode.StatusInternalServerError,
+                        $"Failed to post request Delete NC to CNS due to exception {errorMsg}",
+                        ErrorType.Retriable));
+            }
 
             string responseBody = await response.Content.ReadAsStringAsync();
             DeleteNetworkContainerResponse deleteNCResponse = null;
@@ -102,14 +136,19 @@ namespace Cns
             }
             catch (Exception exception)
             {
-                throw new Exception(
-                    $"Failed to decode response {deleteNCResponse} due to exception {exception}");
+                throw new DncCnsException(
+                    new ErrorInfo(ErrorCode.DecodeResponseFailed,
+                        $"Failed to decode response {deleteNCResponse} due to exception {exception}",
+                        ErrorType.Retriable));
             }
 
-            if (deleteNCResponse.ReturnCode != 0)
+            if (deleteNCResponse.Response.ReturnCode != 0)
             {
-                throw new Exception(
-                    $"DeleteNC failed. Received response:{deleteNCResponse}");
+                throw new DncCnsException(
+                    new ErrorInfo(ErrorCode.DisAssociationFailed,
+                        $"Failed disassociation due to CNS returning return error code " +
+                        $"{deleteNCResponse.Response.ReturnCode}",
+                        ErrorType.NonRetriable));
             }
 
             ServiceEventSource.Current.Message($"NC deleted successfully:{deleteNCResponse}");
@@ -135,8 +174,19 @@ namespace Cns
                 JsonConvert.SerializeObject(setOrchestratorTypeRequest);
             var httpContent = new StringContent(setOrchestratorJsonRequest, Encoding.UTF8, "application/json");
             HttpClient httpClient = new HttpClient();
-            HttpResponseMessage response = await httpClient.PostAsync(setOrchestratorTypeUrl, httpContent);
-            response.EnsureSuccessStatusCode();
+            try
+            {
+                HttpResponseMessage response = await httpClient.PostAsync(setOrchestratorTypeUrl, httpContent);
+            }
+            catch (Exception exception)
+            {
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncCnsException(
+                    new ErrorInfo(ErrorCode.StatusInternalServerError,
+                        $"Failed to post request for orchestrator type to CNS due to exception {errorMsg}",
+                        ErrorType.Retriable));
+            }
         }
     }
 }

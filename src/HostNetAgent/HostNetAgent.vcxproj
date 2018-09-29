@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{80CBE1A1-6359-4A67-9418-85D04D1E4656}</ProjectGuid>
     <RootNamespace>Aquarius</RootNamespace>
@@ -11,9 +11,8 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>
-        %(AdditionalIncludeDirectories)
-	$(cpprestsdk)\build\native\include;
-        $(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\inc;
+        %(AdditionalIncludeDirectories);
+	      $(cpprestsdk)\build\native\include;
         $(SrcRoot)\Common\Inc;
         $(SrcRoot)\Logging;
         $(SRCROOT)\Common\NetAgentContracts;
@@ -25,27 +24,41 @@
       <SubSystem>console</SubSystem>
       <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
       <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
-      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <AdditionalDependencies>
         %(AdditionalDependencies);
         $(WindowsSdk64LibPath)\ole32.lib;
         $(WindowsSdk64LibPath)\ws2_32.lib;
         $(WindowsSdk64LibPath)\oleaut32.lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib;
-	$(WindowsSdk64LibPath)\Crypt32.lib;
-	$(WindowsSdk64LibPath)\rpcrt4.lib;
-	$(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib;
-        $(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\lib\IfxMetrics.lib;
+        comsuppw.lib;
+	      $(WindowsSdk64LibPath)\Crypt32.lib;
+	      $(WindowsSdk64LibPath)\rpcrt4.lib;
+	      $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib;
       </AdditionalDependencies>
+      <AdditionalLibraryDirectories>
+        %(AdditionalLibraryDirectories);
+        $(Pkgboost_locale_vc141)\lib\native\address-model-64\lib;
+      </AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="GenevaLogger.h" />
+    <ClInclude Include="MonAgent.h" />
+  </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="RequestHandlers.cpp" />
     <ClCompile Include="PackagesInfo.cpp" />
-    <ClCompile Include="MdmLogger.cpp" />
+    <ClCompile Include="GenevaLogger.cpp" />
+    <ClCompile Include="MonAgent.cpp" />
     <!--ClCompile Include="HealthReport.cpp" /-->
     <ClCompile Include="$(SRCROOT)\Common\XmlParseHelper\XmlParserHelper.cpp" />
+    <ClCompile Include="$(PkgMicrosoft_Cloud_InstrumentationFramework_NativeExt_VC14)\build\native\inc\generated\Ifx_apply.cpp" />
+    <ClCompile Include="$(PkgMicrosoft_Cloud_InstrumentationFramework_NativeExt_VC14)\build\native\inc\generated\Ifx_types.cpp" />
+    <BondCodegen Include="Reports.bond" />
+  </ItemGroup>
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\Common\PrivateWindowsHeaders\**\*.*" />
+    <QCustomInput Include="$(Pkgboost_locale_vc141)" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Logging\Logging.vcxproj">
@@ -54,9 +67,9 @@
     <ProjectReference Include="$(SRCROOT)\Common\NetAgentContracts\NetAgentContracts.vcxproj">
       <Project>{F4964161-20D0-4C0C-BC03-24CCF8C5C622}</Project>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="MdmLogger.h" />
+    <ProjectReference Include="..\Ifx\IfxEvents.vcxproj">
+      <Project>{54ADCFD4-8014-4E18-BB6C-55CB1AF77CCC}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="AfterBuild">
@@ -79,9 +92,17 @@
       </Robocopy>
     </ItemGroup>
     <ItemGroup>
-      <Robocopy Include="$(PkgMicrosoft_Cloud_InstrumentationFramework_Metrics)\build\native\lib\*.dll">
+      <Robocopy Include="$(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\*.dll">
         <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests;$(BinariesBuildTypeArchDirectory)\test\CNIReportTests</DestinationFolder>
       </Robocopy>
     </ItemGroup>
+    <ItemGroup>
+      <Robocopy Include="$(PkgGenevaMonitoringAgent)\Monitoring\Agent\">
+        <DestinationFolder>$(BinariesBuildTypeArchDirectory)\HostNetAgentPackage\MonAgent;$(BinariesBuildTypeArchDirectory)\HostNetAgentTests\MonAgent;$(BinariesBuildTypeArchDirectory)\test\CNIReportTests\MonAgent</DestinationFolder>
+      </Robocopy>
+    </ItemGroup>
   </Target>
+  <Import Project="$(SrcRoot)\Build\Microsoft.Cloud.InstrumentationFramework.NativeExt.targets" />
+  <Import Project="$(PkgBoost)\build\native\boost.targets" />
+  <Import Project="..\Common\Bond\bond.targets" />
 </Project>

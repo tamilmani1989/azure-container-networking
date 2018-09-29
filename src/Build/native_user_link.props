@@ -5,7 +5,7 @@
         that is compiled with /GL. This forces the linker to restart with /LTCG option.
      -->
     <LinkIncremental>false</LinkIncremental>
-    <WindowsSdk64LibPath>$(PkgWindowsSdk_Corext)\Lib\10.0.10586.0\um\x64</WindowsSdk64LibPath>
+    <WindowsSdk64LibPath>$(PkgWindowsSdk_Corext)\Lib\10.0.16299.0\um\x64</WindowsSdk64LibPath>
   </PropertyGroup>
 
    <ItemDefinitionGroup>

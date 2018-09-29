@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{A8F4B949-54EC-40C4-B9A4-6A338B2A4767}</ProjectGuid>
     <TargetName>HnsClient</TargetName>
@@ -12,7 +12,7 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-	$(INTERNAL_SDK)\inc; 
+        $(SrcRoot)\NetworkContainerLibrary;
         $(boost)\lib\native\include;
       </AdditionalIncludeDirectories>
     </ClCompile>
@@ -28,9 +28,9 @@
         $(WindowsSdk64LibPath)\ole32.lib;
         $(WindowsSdk64LibPath)\ws2_32.lib;
         $(WindowsSdk64LibPath)\oleaut32.lib;
-	$(WindowsSdk64LibPath)\Crypt32.lib;
-	$(WindowsSdk64LibPath)\RpcRT4.Lib;
-        $(PkgVisualCpp_Corext)\lib\x64\comsuppw.lib
+        $(WindowsSdk64LibPath)\Crypt32.lib;
+        $(WindowsSdk64LibPath)\RpcRT4.Lib;
+        comsuppw.lib;
       </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -72,6 +72,9 @@
   </ItemGroup>
   <ItemGroup>
     <Midl Include="hnsApi.idl" />
+  </ItemGroup>
+  <ItemGroup>
+    <QCustomInput Include="$(SRCROOT)\Common\PrivateWindowsHeaders\**\*.*" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Logging\logging.vcxproj">

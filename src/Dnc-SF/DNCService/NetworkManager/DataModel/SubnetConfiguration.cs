@@ -32,7 +32,7 @@ namespace NetworkManager.DataModel
         public string AccessToken { get; set; }
 
         [DataMember]
-        public bool Joined { get; set; }
+        public bool IsJoined { get; set; }
 
         [DataMember]
         private HashSet<Tag> tags;
@@ -40,7 +40,16 @@ namespace NetworkManager.DataModel
         [DataMember]
         public string APIVersion { get; private set; }
 
-        public SubnetConfiguration(string networkID, string subnetName, string ipSubnet, bool isDelegatedSubnet, string gateway, string accessToken, ICollection<Tag> tagSet)
+        public SubnetConfiguration(
+            string networkID,
+            string subnetName,
+            string ipSubnet,
+            bool isDelegatedSubnet,
+            bool isJoined,
+            string gateway,
+            string accessToken,
+            ICollection<Tag> tagSet,
+            IReadOnlyDictionary<string, string> reservations)
         {
             this.NetworkID = networkID;
             this.SubnetName = subnetName;
@@ -48,15 +57,17 @@ namespace NetworkManager.DataModel
             this.IsDelegatedSubnet = isDelegatedSubnet;
             this.Gateway = gateway;
             this.AccessToken = accessToken;
+            this.IsJoined = isJoined;
             this.tags = new HashSet<Tag>();
-            this.reservations = new Dictionary<string, string>();
+            this.reservations = new Dictionary<string, string>(reservations);
             if (tagSet != null)
             {
                 this.tags.UnionWith(tagSet);
             }
         }
 
-        public SubnetConfiguration(SubnetConfiguration subnetConfiguration)
+        public SubnetConfiguration(
+            SubnetConfiguration subnetConfiguration)
         {
             ServiceEventSource.Current.Message($"Cloning subnet config:{subnetConfiguration}");
             this.NetworkID = subnetConfiguration.NetworkID;
@@ -67,7 +78,7 @@ namespace NetworkManager.DataModel
             this.AccessToken = subnetConfiguration.AccessToken;
             this.tags = new HashSet<Tag>(subnetConfiguration.tags);
             this.reservations = new Dictionary<string, string>(subnetConfiguration.reservations);
-            this.Joined = subnetConfiguration.Joined;
+            this.IsJoined = subnetConfiguration.IsJoined;
             ServiceEventSource.Current.Message($"Done cloning subnet config:{subnetConfiguration}");
         }
 

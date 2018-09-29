@@ -4,7 +4,7 @@ Copyright (c) 2010  Microsoft Corporation
 
 Module Name:
 
-    MdmLogger.h
+    GenevaLogger.h
 
 Abstract:
 
@@ -25,6 +25,7 @@ Author:
 #include "HealthReport.h"
 #include "CNIReport.h"
 #include "NPMReport.h"
+#include "DNCReport.h"
 
 // Constant string for vnet mdm account
 #define MDM_ACCOUNT L"MdmAccount"
@@ -46,12 +47,18 @@ Author:
 #define	MDM_DIMENSION_NAME_PLUGIN_NAME_STR                      "PluginName"
 #define	MDM_DIMENSION_NAME_PLUGIN_VERSION_STR                   "PluginVersion"
 
-#define MDM_DIMENSION_NAME_NPM_VERSION_STR "NpmVersion"
-#define MDM_DIMENSION_NAME_KUBERNETES_VERSION_STR "KubernetesVersion"
-#define MDM_DIMENSION_NAME_SUBSCRIPTION_ID_STR "SubscriptionId"
-#define MDM_DIMENSION_NAME_RESOURCE_GROUP_NAME_STR "ResourceGroupName"
-#define MDM_DIMENSION_NAME_CLUSTER_ID_STR "ClusterId"
-#define MDM_DIMENSION_NAME_NODE_NAME_STR "NodeName"
+#define MDM_DIMENSION_NAME_NPM_VERSION_STR              "NpmVersion"
+#define MDM_DIMENSION_NAME_KUBERNETES_VERSION_STR       "KubernetesVersion"
+#define MDM_DIMENSION_NAME_SUBSCRIPTION_ID_STR          "SubscriptionId"
+#define MDM_DIMENSION_NAME_RESOURCE_GROUP_NAME_STR      "ResourceGroupName"
+#define MDM_DIMENSION_NAME_CLUSTER_ID_STR               "ClusterId"
+#define MDM_DIMENSION_NAME_NODE_NAME_STR                "NodeName"
+
+#define MDM_DIMENSION_NAME_PARTITION_KEY_STR            "PartitionKey"
+#define MDM_DIMENSION_NAME_LOCATION_STR                 "Location"
+#define MDM_DIMENSION_NAME_CPU_USAGE_STR                "CPUUsage"
+#define MDM_DIMENSION_NAME_MEMORY_USAGE_STR             "MemoryUsage"
+#define MDM_DIMENSION_NAME_PROCESSES_STR                "Processes"
 
 // MDM metric names for per-container metrics
 #define MDM_METRIC_PACKAGE_DOWNLOAD_REQUEST_STR                 "PackageDownloadAttempted"
@@ -67,8 +74,13 @@ Author:
 #define MDM_METRIC_CNI_ERROR_STR                                "CNIError"
 
 // MDM metric names for NPM metrics.
-#define MDM_METRIC_NPM_RUNNING_STR "NPMRunning"
-#define MDM_METRIC_NPM_ERROR_STR "NPMError"
+#define MDM_METRIC_NPM_RUNNING_STR      "NPMRunning"
+#define MDM_METRIC_NPM_ERROR_STR        "NPMError"
+
+// MDM metric names for DNC metrics.
+#define MDM_METRIC_DNC_RUNNING_STR      "DNCRunning"
+#define MDM_METRIC_DNC_HEARTBEAT_STR    "DNCHeartbeat"
+#define MDM_METRIC_DNC_ERROR_STR        "DNCError"
 
 #define MAX_STR_LEN (size_t) ((INT_MAX/2) -1)
 
@@ -83,7 +95,7 @@ Author:
 // Get array size in terms of elements
 #define ARRAY_SIZE(_Array_) (sizeof(_Array_)/sizeof(_Array_[0]))
 
-class MdmLogger
+class GenevaLogger
 {
 public:
 
@@ -105,11 +117,11 @@ public:
         LPCSTR Location,
         LPCSTR GuestOSVersion,
         LPCSTR MetricName,
-        ULONG64 Value
-	);
+        ULONG64 Value = 1
+    );
 
     HRESULT LogPerContainerCNIMetricToMDM(
-		LPCSTR Location,
+        LPCSTR Location,
         LPCSTR ContainerId,
         LPCSTR Name,
         LPCSTR Version,
@@ -118,27 +130,41 @@ public:
         LPCSTR GuestOSVersion,
         LPCSTR KernelVersion,
         LPCSTR MetricName,
-        ULONG64 Value
-	);
+        ULONG64 Value = 1
+    );
 
-	HRESULT LogPerNPMMetricToMDM(
-		string Location,
-		string NpmVersion,
-		string KubernetesVersion,
-		string SubscriptionId,
-		string ResourceGroupName,
-		string ClusterId,
-		string NodeName,
-		string NodeId,
-		string GuestOSVersion,
-		string KernelVersion,
-		string MetricName,
-		ULONG64 Value
-	);
+    HRESULT LogPerNPMMetricToMDM(
+        string Location,
+        string NpmVersion,
+        string KubernetesVersion,
+        string SubscriptionId,
+        string ResourceGroupName,
+        string ClusterId,
+        string NodeName,
+        string NodeId,
+        string GuestOSVersion,
+        string KernelVersion,
+        string MetricName,
+        ULONG64 Value = 1
+    );
 
-    HRESULT LogDownloadMetricToMDM(LPCWSTR ContainerId, ULONG64 Value) const;
+    HRESULT LogPerDNCMetricToMDM(
+        string Location,
+        string SubscriptionId,
+        string ResourceGroupName,
+        string PartitionKey,
+        string CPUUsage,
+        string MemoryUsage,
+        string Processes,
+        string MetricName,
+        ULONG64 Value = 1
+    );
+
+    HRESULT LogDownloadMetricToMDM(LPCWSTR ContainerId, ULONG64 Value = 1) const;
 
     HRESULT InitializeMdm(LPCWSTR SettingsFileName, LPCWSTR PackageVersion);
+
+    HRESULT InitializeMds();
 
     void SetNodeInformationFromRegistry();
 
@@ -146,15 +172,19 @@ public:
 
     void LogCNIReport(wstring ContainerId, CNIReport& CNIReport);
 
-	void LogNPMReport(NPMReport& NPMReport);
+    void LogNPMReport(NPMReport& NPMReport);
 
-    static MdmLogger* GetInstance();
+    void LogDNCReport(DNCReport& DNCReport);
 
-	static wstring s2ws(const string& s);
+    static GenevaLogger* GetInstance();
 
-	static string ws2s(const wstring& ws);
+    static wstring s2ws(const string& s);
+
+    static string ws2s(const wstring& ws);
 
 private:
+
+    GenevaLogger() {}
 
     MeasureMetric6D* gm_DriverInstallationAttemptedCountMetric;
 
@@ -176,8 +206,11 @@ private:
     // map from metric name to Per-container CNI MDM metric
     map<string, MeasureMetric10D*> PerContainerCNIMetrics;
 
-	// map from metric name to Per-NPM MDM metric
-	map<string, MeasureMetric10D*> PerNPMMetrics;
+    // map from metric name to Per-NPM MDM metric
+    map<string, MeasureMetric10D*> PerNPMMetrics;
+
+    // map from metric name to Per-DNC MDM metric
+    map<string, MeasureMetric7D*> PerDNCMetrics;
 };
 
 

@@ -629,8 +629,6 @@ S_OK on success. On failure appropriate HRESULT is returned.
 {
 	HRESULT hr = S_OK;
 	GUID classGuid = { 0 };
-	WCHAR windowsDirectory[MAX_PATH] = { 0 };
-	WCHAR className[MAX_PATH] = { 0 };
 	PWSTR loopbackInfPath = NULL;
 	DWORD error = ERROR_SUCCESS;
 	PWSTR classGuidString = NULL;
@@ -862,8 +860,6 @@ Return Value:
 --*/
 {
     HRESULT hr = S_OK;
-    wchar_t windowsDirectory[MAX_PATH] = { 0 };
-    wchar_t className[MAX_PATH] = { 0 };
     HDEVINFO deviceInfoSet = INVALID_HANDLE_VALUE;
     SP_DEVINFO_DATA deviceInfoData;
     wchar_t friendlyName[MAX_PATH];

@@ -115,7 +115,8 @@ namespace NetworkManager.DataModel
 
             throw new DncNodeManagementException(
                 NodeID,
-                new ErrorInfo(ErrorCode.OutOfVlanIDs, "No free vlan ID's available on the node"));
+                new ErrorInfo(ErrorCode.OutOfVlanIDs, "No free vlan ID's available on the node",
+                ErrorType.Retriable));
 
         }
         public void RemoveNetworkContainer(string networkID, string ncID)

@@ -91,8 +91,8 @@ namespace NetworkManager
                 // Mask off any non-zero bit in host bits.
                 IPAddress ipAddress = IPAddress.Parse(tokens[0]);
                 BigInteger ipAddressInBigInteger = IPHelpers.ConvertIPAddressToBigInteger(ipAddress);
-                subnet.IPAddress = IPHelpers.ConvertBigIntegerToIPAddress(
-                    ipAddressInBigInteger & IPHelpers.GetSubnetMask(subnet.Prefix, ipAddress.AddressFamily), ipAddress.AddressFamily);
+                subnet.IPAddress = IPHelpers.ConvertBigIntegerToIPAddress(ipAddressInBigInteger &
+                    IPHelpers.GetSubnetMask(subnet.Prefix, ipAddress.AddressFamily), ipAddress.AddressFamily);
 
                 return subnet;
             }
@@ -100,7 +100,9 @@ namespace NetworkManager
             {
                 throw new DncManagementException(new ErrorInfo(
                     ErrorCode.InvalidIPSubnet,
-                    string.Format("ParseSubnet: Failed to parse as subnet string is invalid:{0} with exception", subnetString, exception)));
+                    string.Format("ParseSubnet: Failed to parse as subnet string is invalid:{0} " +
+                        "with exception", subnetString, exception),
+                    ErrorType.Retriable));
             }
         }
 

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(PkgMicrosoft_Cloud_InstrumentationFramework_NativeExt_VC14)\build\native\inc\;
+        $(PkgMicrosoft_Cloud_InstrumentationFramework_NativeExt_VC14)\build\native\inc\generated;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>
+        IfxHealth.lib;
+        IfxMetrics.lib;
+        Tfx.lib;
+        %(AdditionalDependencies)
+      </AdditionalDependencies>
+      <AdditionalLibraryDirectories>
+        $(PkgMicrosoft_Cloud_InstrumentationFramework_NativeExt_VC14)\build\native\lib\;
+        %(AdditionalLibraryDirectories)
+      </AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <BondIncludeDirectory Include="$(PkgMicrosoft_Cloud_InstrumentationFramework_NativeExt_VC14)\build\native\inc\" />
+  </ItemGroup>
+  <ItemGroup>
+    <BondImportDirectory Include="$(PkgMicrosoft_Cloud_InstrumentationFramework_NativeExt_VC14)\build\native\inc\" />
+  </ItemGroup>
+  <ItemGroup>
+    <NativeIfxContent Include="$(PkgMicrosoft_Cloud_InstrumentationFramework_NativeExt_VC14)\build\native\lib\**" 
+                      Exclude="$(PkgMicrosoft_Cloud_InstrumentationFramework_NativeExt_VC14)\build\native\lib\*140.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="@(NativeIfxContent)" Condition="'$(CopyNativeIfxContent)'!='False'">
+      <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+</Project>

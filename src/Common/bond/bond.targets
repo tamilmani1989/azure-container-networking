@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- Import this file in projects that need to use Bond. It enables
+       automatic code generation via the BondCodegen item. It also adds the
+       needed project references to link with the Bond static libraries. -->
+
+  <PropertyGroup>
+    <BOND_BUILD_ROOT>$(MSBuildThisFileDirectory)</BOND_BUILD_ROOT>
+  </PropertyGroup>
+
+  <Import Project="$(PkgBond_Cpp_oncorext)\build\native\bond.cpp.oncorext.props" />
+
+  <ItemGroup>
+    <ProjectReference Include="$(SrcRoot)\Common\bond\bond\bond-lib.vcxproj">
+      <Project>{444A4681-484D-4F99-9DA2-89AE16CE7B1A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="$(SrcRoot)\Common\bond\bond-apply\bond-apply-lib.vcxproj">
+      <Project>{A61DAEEB-F424-4B4B-BE13-2A06F52A227E}</Project>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories);
+        $(PkgBond_Cpp_OnCoreXT)\lib\native\inc;
+        $(PkgBond_Cpp_OnCoreXT)\lib\native\thirdparty;
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <Import Project="bond_customizations.props" Condition=" Exists('bond_customizations.props') " />
+  <Import Project="$(PkgBond_Cpp_oncorext)\build\native\bond.cpp.oncorext.targets" />
+
+</Project>

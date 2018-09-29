@@ -38,15 +38,23 @@ namespace DNCService.API
         [DataMember]
         public int HTTPStatus { get; set; }
 
+        /// <summary>
+        /// Type of error
+        /// </summary>
+        [DataMember]
+        public ErrorType ErrorType { get; set; }
+
 
         /// <summary>
         /// Constructor.
         /// </summary>
         /// <param name="errorCode">Supply the error code.</param>
         /// <param name="message">Supply the message.</param>
+        /// <param name="errorType">Supply the error type.</param>
         public ErrorInfo(
             ErrorCode errorCode, 
-            string message): this(errorCode, message, (int) HttpStatusCode.BadRequest)
+            string message,
+            ErrorType errorType): this(errorCode, message, (int) HttpStatusCode.BadRequest, errorType)
         {
         }
 
@@ -56,11 +64,13 @@ namespace DNCService.API
         /// <param name="errorCode">Supply the error code.</param>
         /// <param name="message">Supply the message.</param>
         /// <param name="httpStatus">Http status.</param>
-        public ErrorInfo(ErrorCode errorCode, string message, int httpStatus)
+        /// <param name="errorType">Type of error.</param>
+        public ErrorInfo(ErrorCode errorCode, string message, int httpStatus, ErrorType errorType)
         {
             this.ErrorCode = errorCode;
             this.Message = message;
             this.HTTPStatus = httpStatus;
+            this.ErrorType = errorType;
         }
 
         /// <summary>
@@ -69,8 +79,9 @@ namespace DNCService.API
         /// <param name="errorInfo">Supply the error info object.</param>
         public ErrorInfo(ErrorInfo errorInfo) : this(
             errorInfo.ErrorCode, 
-            errorInfo.Message, 
-            errorInfo.HTTPStatus)
+            errorInfo.Message,
+            errorInfo.HTTPStatus,
+            errorInfo.ErrorType)
         {
         }
 
@@ -80,7 +91,9 @@ namespace DNCService.API
         /// <returns>String representation of the error info object.</returns>
         public override string ToString()
         {
-            return $"ErrorCode:{this.ErrorCode}, Message:{this.Message}, HttpStatus:{this.HTTPStatus}";
+            return $"ErrorCode:{Enum.GetName(typeof(ErrorCode), this.ErrorCode)}," +
+                $"Message:{this.Message}, HttpStatus:{this.HTTPStatus}," +
+                $"ErrorType:{Enum.GetName(typeof(ErrorType), this.ErrorType)}";
         }
 
         /// <summary>
@@ -89,7 +102,7 @@ namespace DNCService.API
         /// <returns>Cloned object.</returns>
         public object Clone()
         {
-            return new ErrorInfo(this.ErrorCode, this.Message);
+            return new ErrorInfo(this.ErrorCode, this.Message, this.ErrorType);
         }
     }
 }

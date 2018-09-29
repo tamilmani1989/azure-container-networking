@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
     <ProjectGuid>{031D7578-BD04-45C2-BB91-5355B7F4C714}</ProjectGuid>
     <TargetName>PackMan</TargetName>
@@ -9,7 +9,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>
-        %(AdditionalIncludeDirectories)
+        %(AdditionalIncludeDirectories);
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>

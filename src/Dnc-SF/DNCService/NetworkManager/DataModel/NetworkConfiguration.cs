@@ -147,7 +147,7 @@ namespace NetworkManager.DataModel
             this.CnetSpace = new List<string>();
             this.VnetSpace = new List<string>();
             this.State = NetworkState.Unknown;
-            this.Status = Status.NotStarted;
+            this.Status = Status.Pending;
             this.ApiVersion = apiVersion;
             this.FailureDetail = null;
         }
@@ -164,7 +164,7 @@ namespace NetworkManager.DataModel
             this.State = networkConfiguration.State;
             this.Status = networkConfiguration.Status;
             this.ApiVersion = networkConfiguration.ApiVersion;
-            this.FailureDetail = this.FailureDetail != null ? (ErrorInfo)networkConfiguration.FailureDetail.Clone(): null;
+            this.FailureDetail = networkConfiguration.FailureDetail;
         }
 
         public void SetCNetSpace(string cnetSpace)
@@ -194,12 +194,17 @@ namespace NetworkManager.DataModel
                 $"Subnets:{string.Join(",", this.subnets)} " +
                 $"DnsServers:{string.Join(",", this.dnsServers)}, State:{this.State}," +
                 $"Status:{this.Status}, NetworkInfoRequest:{this.NetworkInfoRequest} " +
-                $"ApiVersion:{this.ApiVersion}";
+                $"ApiVersion:{this.ApiVersion} FailureDetail:{this.FailureDetail}";
         }
 
         public static string GetNetworkKey(string networkID)
         {
             return string.Format(Constants.NetworkKey, networkID);
+        }
+
+        public static string GetNetworkIDFromKey(string networkKey)
+        {
+            return networkKey.Split('_')[1];
         }
 
         public override bool Equals(object obj)

@@ -4,5 +4,10 @@
           <EnableMA>True</EnableMA>
           <MDMAccount>$NetAgentMdmAccountName$</MDMAccount>
           <MDMStampURL>$MdmStampEndpointURL$</MDMStampURL>
+          <GcsEnvironment>$NetAgentGcsEnvironment$</GcsEnvironment>
+          <GcsAccount>$NetAgentGcsAccount$</GcsAccount>
+          <GcsNamespace>$NetAgentGcsNamespace$</GcsNamespace>
+          <GcsRegion>$NetAgentGcsRegion$</GcsRegion>
+          <GcsDsmsUrl>$NetAgentGcsDsmsUrl$</GcsDsmsUrl>
         </MonitoringConfig>
 </NetAgentConfiguration>
