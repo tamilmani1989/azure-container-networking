@@ -81,7 +81,6 @@ build:
     arguments: 'sign linux_phase_drop'
     artifacts:
       - from: 'linux_phase_drop'
-        no_copy: true
         include:
           - '**\azure-dnc.exe'
 
@@ -91,7 +90,6 @@ build:
     arguments: 'Sign Release linux_phase_drop_dnc_sf'
     artifacts:
       - from: 'linux_phase_drop_dnc_sf'
-        no_copy: true
         include:
           - '**/*'
 
