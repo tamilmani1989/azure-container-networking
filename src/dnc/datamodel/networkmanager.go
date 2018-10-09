@@ -962,8 +962,8 @@ func TryQueryRequestContext(requestID string) (*RequestContext, *api.JsonErr) {
 // TryQueryNetworkContainerByKey - Query a network container by key.
 func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr) {
 	var repoNCConfiguration NCConfiguration
-	value, _, err := dataStoreShim.Query(networkContainerTableName, ncKey)
-	if err != nil {
+	value, status, err := dataStoreShim.Query(networkContainerTableName, ncKey)
+	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
 			"Failed to retrieve configuration for network container key:[%s] due to error:[%s]",
 			ncKey,
@@ -1587,9 +1587,12 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 		return nil
 	}
 
-	if !networkContainerConfig.MarkedForDelete {
-		networkContainerConfig.MarkedForDelete = true
-		networkContainerConfig.Status = Pending
+	if networkContainerConfig.MarkedForDelete {
+		loggershim.LS.Debugf("NC %s is already marked for delete. Setting for delete again.",
+			networkContainerConfig.NetworkContainerID)
+	} else {
+		loggershim.LS.Debugf("Marking NC %s for delete.",
+			networkContainerConfig.NetworkContainerID)
 		revertState, err := GetRevertState(networkContainerConfig.State)
 		if err != nil {
 			return err
@@ -1598,10 +1601,11 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 			networkContainerConfig.NetworkContainerID,
 			networkContainerConfig.State, revertState)
 		networkContainerConfig.State = revertState
-		return PersistNCConfiguration(networkContainerConfig, true)
+		networkContainerConfig.MarkedForDelete = true
 	}
 
-	return nil
+	networkContainerConfig.Status = Pending
+	return PersistNCConfiguration(networkContainerConfig, true)
 }
 
 // PersistNetworkConfiguration - Persist network configuration.
