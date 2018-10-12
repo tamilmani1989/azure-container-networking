@@ -480,18 +480,7 @@ void AquariusService::ServiceWorkerThread(void)
     }
 
     int cnt = GetPluginCount();
-
     PluginMetadata *pdata = GetPluginInstances(cnt);
-    
-    for(int i=0; i < cnt; i++)
-    {
-        pdata[i].cleanup=true;
-    }	
-    
-    LOGINFOW(L"Call cleanup AquariusSvc");
-    
-    aquariusKernel->MonitorPlugins(pluginCount, allPluginsMetadata, handlerConfigObject.pluginsToStart, handlerEnvObject.logFolderPath);
-    Sleep(18000);
 
     for (int i = 0; i < cnt; i++)
     {
