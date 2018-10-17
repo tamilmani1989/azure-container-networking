@@ -9,7 +9,7 @@ struct DNCEvent:Ifx.ObjectTextPropertySchema
     20: required wstring VMName;
     30: required wstring Offer;
     40: required wstring OSType;
-    50: required wstring PlacementGroupID;
+    50: required wstring SubscriptionID;
     60: required wstring PlatformFaultDomain;
     70: required wstring PlatformUpdateDomain;
     80: required wstring Publisher;
@@ -34,7 +34,7 @@ struct NPMEvent:Ifx.ObjectTextPropertySchema
     20: required wstring VMName;
     30: required wstring Offer;
     40: required wstring OSType;
-    50: required wstring PlacementGroupID;
+    50: required wstring SubscriptionID;
     60: required wstring PlatformFaultDomain;
     70: required wstring PlatformUpdateDomain;
     80: required wstring Publisher;
@@ -64,7 +64,7 @@ struct CNIEvent:Ifx.ObjectTextPropertySchema
     20: required wstring VMName;
     30: required wstring Offer;
     40: required wstring OSType;
-    50: required wstring PlacementGroupID;
+    50: required wstring SubscriptionID;
     60: required wstring PlatformFaultDomain;
     70: required wstring PlatformUpdateDomain;
     80: required wstring Publisher;

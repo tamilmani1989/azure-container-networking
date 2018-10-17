@@ -1120,7 +1120,7 @@ Return Value:
         cniReport.VMName = CNIReport.Metadata.VMName;
         cniReport.Offer = CNIReport.Metadata.Offer;
         cniReport.OSType = CNIReport.Metadata.OSType;
-        cniReport.PlacementGroupID = CNIReport.Metadata.PlacementGroupID;
+        cniReport.SubscriptionID = CNIReport.Metadata.SubscriptionID;
         cniReport.PlatformFaultDomain = CNIReport.Metadata.PlatformFaultDomain;
         cniReport.PlatformUpdateDomain = CNIReport.Metadata.PlatformUpdateDomain;
         cniReport.Publisher = CNIReport.Metadata.Publisher;
@@ -1361,7 +1361,7 @@ Return Value:
         npmReport.VMName = NPMReport.Metadata.VMName;
         npmReport.Offer = NPMReport.Metadata.Offer;
         npmReport.OSType = NPMReport.Metadata.OSType;
-        npmReport.PlacementGroupID = NPMReport.Metadata.PlacementGroupID;
+        npmReport.SubscriptionID = NPMReport.Metadata.SubscriptionID;
         npmReport.PlatformFaultDomain = NPMReport.Metadata.PlatformFaultDomain;
         npmReport.PlatformUpdateDomain = NPMReport.Metadata.PlatformUpdateDomain;
         npmReport.Publisher = NPMReport.Metadata.Publisher;
@@ -1463,7 +1463,7 @@ Return Value:
         dncReport.VMName = DNCReport.Metadata.VMName;
         dncReport.Offer = DNCReport.Metadata.Offer;
         dncReport.OSType = DNCReport.Metadata.OSType;
-        dncReport.PlacementGroupID = DNCReport.Metadata.PlacementGroupID;
+        dncReport.SubscriptionID = DNCReport.Metadata.SubscriptionID;
         dncReport.PlatformFaultDomain = DNCReport.Metadata.PlatformFaultDomain;
         dncReport.PlatformUpdateDomain = DNCReport.Metadata.PlatformUpdateDomain;
         dncReport.Publisher = DNCReport.Metadata.Publisher;
