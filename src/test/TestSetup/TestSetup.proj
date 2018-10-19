@@ -17,6 +17,9 @@
       <FileMatch>*.*</FileMatch>
       <DestinationFolder>$(BinariesBuildTypeArchDirectory)\CloudUnitTests</DestinationFolder>
     </Robocopy>
+    <Robocopy Include="$(SRCROOT)\..\.config\.tools\wttlog.dll">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\Taef</DestinationFolder>
+    </Robocopy>
   </ItemGroup>
 <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
 </Project>
