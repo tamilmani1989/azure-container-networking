@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using DNCService.API;
 
+//TODO: Add comments
 namespace NetworkManager.DataModel
 {
     [DataContract]
@@ -15,7 +16,7 @@ namespace NetworkManager.DataModel
         public string SubscriptionId { get; set; }
 
         [DataMember]
-        public UInt64 Version { get; set; }
+        public UInt64 VnetVersion { get; set; }
 
         [DataMember]
         public List<string> CnetSpace { get; private set; }
@@ -139,32 +140,34 @@ namespace NetworkManager.DataModel
             NetworkRequest networkInfoRequest,
             string apiVersion)
         {
-            this.NetworkID = networkId;
-            this.SubscriptionId = subscriptionId;
-            this.NetworkInfoRequest = networkInfoRequest;
-            this.subnets = new Dictionary<string, string>();
-            this.dnsServers = new HashSet<string>();
-            this.CnetSpace = new List<string>();
-            this.VnetSpace = new List<string>();
-            this.State = NetworkState.Unknown;
-            this.Status = Status.Pending;
-            this.ApiVersion = apiVersion;
-            this.FailureDetail = null;
+            NetworkID = networkId;
+            SubscriptionId = subscriptionId;
+            NetworkInfoRequest = networkInfoRequest;
+            subnets = new Dictionary<string, string>();
+            dnsServers = new HashSet<string>();
+            CnetSpace = new List<string>();
+            VnetSpace = new List<string>();
+            State = NetworkState.Unknown;
+            Status = Status.Pending;
+            ApiVersion = apiVersion;
+            FailureDetail = null;
+            VnetVersion = 0;
         }
 
         public NetworkConfiguration(NetworkConfiguration networkConfiguration)
         {
-            this.NetworkID = networkConfiguration.NetworkID;
-            this.SubscriptionId = networkConfiguration.SubscriptionId;
-            this.NetworkInfoRequest = (NetworkRequest)networkConfiguration.NetworkInfoRequest.Clone();
-            this.subnets = new Dictionary<string, string>(networkConfiguration.subnets);
-            this.dnsServers = new HashSet<string>(networkConfiguration.dnsServers);
-            this.CnetSpace = new List<string>(networkConfiguration.CnetSpace);
-            this.VnetSpace = new List<string>(networkConfiguration.VnetSpace);
-            this.State = networkConfiguration.State;
-            this.Status = networkConfiguration.Status;
-            this.ApiVersion = networkConfiguration.ApiVersion;
-            this.FailureDetail = networkConfiguration.FailureDetail;
+            NetworkID = networkConfiguration.NetworkID;
+            SubscriptionId = networkConfiguration.SubscriptionId;
+            NetworkInfoRequest = (NetworkRequest)networkConfiguration.NetworkInfoRequest.Clone();
+            subnets = new Dictionary<string, string>(networkConfiguration.subnets);
+            dnsServers = new HashSet<string>(networkConfiguration.dnsServers);
+            CnetSpace = new List<string>(networkConfiguration.CnetSpace);
+            VnetSpace = new List<string>(networkConfiguration.VnetSpace);
+            State = networkConfiguration.State;
+            Status = networkConfiguration.Status;
+            ApiVersion = networkConfiguration.ApiVersion;
+            FailureDetail = networkConfiguration.FailureDetail;
+            VnetVersion = networkConfiguration.VnetVersion;
         }
 
         public void SetCNetSpace(string cnetSpace)
@@ -173,8 +176,8 @@ namespace NetworkManager.DataModel
             {
                 throw new Exception($"CNetspace cannot be null or empty.");
             }
-            this.CnetSpace.Clear();
-            this.CnetSpace.AddRange(cnetSpace.Split(","));
+            CnetSpace.Clear();
+            CnetSpace.AddRange(cnetSpace.Split(","));
         }
 
         public void SetVNetSpace(string vnetSpace)
@@ -183,18 +186,18 @@ namespace NetworkManager.DataModel
             {
                 throw new Exception($"VNetspace cannot be null or empty.");
             }
-            this.VnetSpace.Clear();
-            this.VnetSpace.AddRange(vnetSpace.Split(","));
+            VnetSpace.Clear();
+            VnetSpace.AddRange(vnetSpace.Split(","));
         }
 
         public override string ToString()
         {
-            return $"[NetworkId:{this.NetworkID} SubscriptionId:{this.SubscriptionId} " +
-                $"CNetSpace:{string.Join(",", this.CnetSpace)} VnetSpace:{string.Join(",", this.VnetSpace)} " +
-                $"Subnets:{string.Join(",", this.subnets)} " +
-                $"DnsServers:{string.Join(",", this.dnsServers)}, State:{this.State}," +
-                $"Status:{this.Status}, NetworkInfoRequest:{this.NetworkInfoRequest} " +
-                $"ApiVersion:{this.ApiVersion} FailureDetail:{this.FailureDetail}";
+            return $"[NetworkId:{NetworkID} SubscriptionId:{SubscriptionId} " +
+                $"CNetSpace:{string.Join(",", CnetSpace)} VnetSpace:{string.Join(",", VnetSpace)} " +
+                $"VnetVersion:{VnetVersion} Subnets:{string.Join(",", subnets)} " +
+                $"DnsServers:{string.Join(",", dnsServers)}, State:{State}," +
+                $"Status:{Status}, NetworkInfoRequest:{NetworkInfoRequest} " +
+                $"ApiVersion:{ApiVersion} FailureDetail:{FailureDetail}";
         }
 
         public static string GetNetworkKey(string networkID)

@@ -40,12 +40,12 @@ namespace NetworkManager
         {
             UInt64 receivedVnetVersion = UInt64.Parse(virtualNetworkResponse.VnetVersion);
             removedKeys = null;
-            if (receivedVnetVersion == networkConfiguration.Version)
+            if (receivedVnetVersion == networkConfiguration.VnetVersion)
             {
                 return false;
             }
 
-            networkConfiguration.Version = receivedVnetVersion;
+            networkConfiguration.VnetVersion = receivedVnetVersion;
             networkConfiguration.SetVNetSpace(virtualNetworkResponse.VNetSpace);
             networkConfiguration.SetCNetSpace(virtualNetworkResponse.CNetSpace);
             List<string> dnsServers = new List<string>();

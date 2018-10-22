@@ -106,7 +106,7 @@ namespace NetworkManager.DataModel
         {
             StringBuilder sb = new StringBuilder();
             sb.Append($"NetworkContainerID:{this.NetworkContainerID} ");
-            sb.Append($" NetworkID:{this.NetworkID} ");
+            sb.Append($"NetworkID:{this.NetworkID} ");
             sb.Append($"ReservationID:{this.ReservationID} ");
             sb.Append($"ImplicitReservation:{this.ImplicitReservation} ");
             sb.Append($"NCRequest:{this.Request} ");

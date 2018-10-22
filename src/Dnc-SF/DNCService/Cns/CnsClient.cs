@@ -21,18 +21,26 @@ namespace Cns
         /// <summary>
         /// Configuration for DNC
         /// </summary>
-        public DncConfiguration DncConfiguration { get; private set; }
+        private DncConfiguration dncConfiguration;
 
-        public CnsClient(DncConfiguration dncConfiguration)
+        /// <summary>
+        /// Manager to handle tags cache
+        /// </summary>
+        private TagsCacheManager tagsCacheManager;
+
+        public CnsClient(
+            DncConfiguration dncConfiguration,
+            TagsCacheManager tagsCacheManager)
         {
-            DncConfiguration = dncConfiguration;
+            this.dncConfiguration = dncConfiguration;
+            this.tagsCacheManager = tagsCacheManager;
         }
 
         public async Task CreateNetworkContainer(
             NetworkContainerInfo networkContainerInfo)
         {
             string createNCUrl = string.Format(
-                    DncConfiguration.CNSSettings.ConnectionStrings.CreateOrUpdateNetworkContainerURLFmt,
+                    dncConfiguration.CNSSettings.ConnectionStrings.CreateOrUpdateNetworkContainerURLFmt,
                     networkContainerInfo.NodeInterfaceID);
             CreateNetworkContainerRequest createNetworkContainerRequest =
                 networkContainerInfo.GetCreateCnsNetworkContainerRequest();
@@ -42,7 +50,7 @@ namespace Cns
             ServiceEventSource.Current.Message("CreateNCUrl:{0}, body:{1}",
                 createNCUrl,
                 createNetworkContainerRequest);
-            if (DncConfiguration.CnsSimulatorMode)
+            if (dncConfiguration.CnsSimulatorMode)
             {
                 return;
             }
@@ -99,12 +107,12 @@ namespace Cns
         public async Task DeleteNetworkContainer(
             NetworkContainerInfo networkContainerInfo)
         {
-            if (DncConfiguration.CnsSimulatorMode)
+            if (dncConfiguration.CnsSimulatorMode)
             {
                 return;
             }
             string deleteNCUrl = string.Format(
-                    DncConfiguration.CNSSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
+                    dncConfiguration.CNSSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
                     networkContainerInfo.NodeInterfaceID);
             DeleteNetworkContainerRequest deleteNetworkContainerRequest = 
                 new DeleteNetworkContainerRequest(networkContainerInfo.NetworkContainerID);
@@ -162,14 +170,14 @@ namespace Cns
 
         public async Task SetOrchestratorType(NodeRequest nodeInfoRequest)
         {
-            if (DncConfiguration.CnsSimulatorMode)
+            if (dncConfiguration.CnsSimulatorMode)
             {
                 return;
             }
 
             SetOrchestratorTypeRequest setOrchestratorTypeRequest = new SetOrchestratorTypeRequest(nodeInfoRequest.OrchestratorType);
             string setOrchestratorTypeUrl = string.Format(
-                    DncConfiguration.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
+                    dncConfiguration.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
                     nodeInfoRequest.IPAddresses.First());
             ServiceEventSource.Current.Message("setOrchestratorTypeUrl:{0}, body:{1}",
                 setOrchestratorTypeUrl,
@@ -199,16 +207,33 @@ namespace Cns
         {
             Dictionary<string, UInt64> latestTagInfo = new Dictionary<string, UInt64>();
             List<TagDefinition> resolvedTags = new List<TagDefinition>();
-
+            bool tagResolveError = false;
             foreach (Tag tag in networkContainerInfo.Tags)
             {
-                TagDefinition tagDefinition = TagsCache.RegisterAndGetTagDefinition(tag);
-                resolvedTags.Add(tagDefinition);
-                latestTagInfo.Add(Tag.GetTagKey(tag), tagDefinition.Version);
+                TagDefinition tagDefinition = tagsCacheManager.RegisterAndGetTagDefinition(tag);
+                if (tagDefinition != null)
+                {
+                    resolvedTags.Add(tagDefinition);
+                    latestTagInfo.Add(Tag.GetTagKey(tag), tagDefinition.Version);
+                }
+                else
+                {
+                    tagResolveError = true;
+                }
+            }
+
+            if (tagResolveError)
+            {
+                ServiceEventSource.Current.Message($"Error resolving tag");
+                    throw new DncManagementException(
+                        new ErrorInfo(ErrorCode.GetTagDefinitionFailed,
+                        $"Encountered error resolving tag",
+                        (int)HttpStatusCode.InternalServerError,
+                        ErrorType.Retriable));
             }
 
             if ((ncConfig.ProgrammedVnetVersion != networkContainerInfo.VnetVersion) ||
-                TagsCache.AreTagsUpdated(latestTagInfo, ncConfig.ProgrammedTagsInfo))
+                TagsCacheManager.AreTagsUpdated(latestTagInfo, ncConfig.ProgrammedTagsInfo))
             {
                 ++ncConfig.CNSVersion;
                 networkContainerInfo.UpdateCnsVersion();

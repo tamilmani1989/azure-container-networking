@@ -567,7 +567,7 @@ namespace NetworkManager
                     ncConfiguration.Status,
                     ncConfiguration.LocalIP,
                     tags,
-                    networkConfiguration.Version);
+                    networkConfiguration.VnetVersion);
             }
         }
 

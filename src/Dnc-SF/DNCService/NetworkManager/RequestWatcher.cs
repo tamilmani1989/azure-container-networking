@@ -227,7 +227,7 @@ namespace NetworkManager
                 }
                 catch (Exception exception)
                 {
-                    ServiceEventSource.Current.Message("Failed to process Network request {0}. Exception:{1}",
+                    ServiceEventSource.Current.Message("Failed to process Request {0}. Exception:{1}",
                         ((requestContext != null) ? requestContext.ToString() : "null"),
                         exception);
 

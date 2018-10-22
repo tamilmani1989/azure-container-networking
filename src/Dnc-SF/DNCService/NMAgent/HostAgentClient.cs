@@ -130,7 +130,7 @@ namespace NMAgent
                     exception.Message : exception.InnerException.Message;
                 throw new DncHostAgentException(
                     new ErrorInfo(ErrorCode.StatusInternalServerError,
-                        $"Failed to post request to host agent for getNetworkConfiguration due to exception: {errorMsg}",
+                        $"Failed to post request to host agent for getNetworkConfiguration due to exception: {exception}",
                         ErrorType.Retriable));
             }
 

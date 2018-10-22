@@ -23,20 +23,20 @@ namespace NetworkManager
 
         private HostAgentClient hostAgentClient;
 
-        private CnsClient cnsClient;
+        private TagsCacheManager tagsCacheManager;
 
         public NetworkRefreshMonitor(
             IReliableStateManager reliableStateManager,
             CancellationToken cancellationToken,
             HostAgentClient hostAgentClient,
-            CnsClient cnsClient,
-            NetworkRepositoryManager networkRepsoitoryManager)
+            NetworkRepositoryManager networkRepositoryManager,
+            TagsCacheManager tagsCacheManager)
         {
             this.reliableStateManager = reliableStateManager;
             this.cancellationToken = cancellationToken;
             this.hostAgentClient = hostAgentClient;
-            this.cnsClient = cnsClient;
-            this.networkRepositoryManager = networkRepsoitoryManager;
+            this.networkRepositoryManager = networkRepositoryManager;
+            this.tagsCacheManager = tagsCacheManager;
         }
 
         public async void StartAsync()
@@ -87,7 +87,7 @@ namespace NetworkManager
                         return;
                     }
 
-                    if (UInt64.Parse(virtualNetworkResponse.VnetVersion) == networkConfig.Version)
+                    if (UInt64.Parse(virtualNetworkResponse.VnetVersion) == networkConfig.VnetVersion)
                     {
                         return;
                     }
@@ -100,7 +100,7 @@ namespace NetworkManager
                         return;
                     }
 
-                    TagsCache.CheckAndAddTagsCache(virtualNetworkResponse);
+                    tagsCacheManager.CheckAndAddTagsCache(virtualNetworkResponse);
 
                     await networkRepositoryManager.UpdateNetworkConfigurationUntransacted(
                         tx,

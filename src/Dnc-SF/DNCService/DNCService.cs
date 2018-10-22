@@ -74,6 +74,8 @@ namespace DNCService
         /// </summary>
         private NetworkRepositoryManager networkRepositoryManager;
 
+        private TagsCacheManager tagsCacheManager;
+
         /// <summary>
         /// Constructor.
         /// </summary>
@@ -89,7 +91,8 @@ namespace DNCService
             this.replicaInstanceid = context.ReplicaOrInstanceId;
             this.StateManager.StateManagerChanged += this.OnStateManagerChangedHandler;
             hostAgentClient = new HostAgentClient(DncConfigurationInstance);
-            cnsClient = new CnsClient(DncConfigurationInstance);
+            tagsCacheManager = new TagsCacheManager();
+            cnsClient = new CnsClient(DncConfigurationInstance, tagsCacheManager);
             requestWatcher = new RequestWatcher(hostAgentClient, cnsClient, DncConfigurationInstance);
             ServiceEventSource.Current.Message("Completed Init");
         }
@@ -175,6 +178,8 @@ namespace DNCService
                 RepositoryHelper.Init(this.StateManager, cancellationToken, new TimeSpan(0, 0, 30));
                 networkRepositoryManager = new NetworkRepositoryManager(DncConfigurationInstance);
 
+                tagsCacheManager.Init(hostAgentClient, networkRepositoryManager);
+
                 await requestWatcher.Init(networkRepositoryManager, cancellationToken);
                 requestWatcher.Start();
 
@@ -184,11 +189,11 @@ namespace DNCService
                 requestResetMonitor.StartAsync();
 
                 NetworkRefreshMonitor networkRefreshMonitor = new NetworkRefreshMonitor(
-                    this.StateManager,
+                    StateManager,
                     cancellationToken,
                     hostAgentClient,
-                    cnsClient,
-                    networkRepositoryManager);
+                    networkRepositoryManager,
+                    tagsCacheManager);
                 networkRefreshMonitor.StartAsync();
 
                 NetworkContainerMonitor networkContainerMonitor = new NetworkContainerMonitor(
@@ -198,8 +203,7 @@ namespace DNCService
 
                 TagRefreshMonitor tagRefreshMonitor = new TagRefreshMonitor(
                     cancellationToken,
-                    hostAgentClient,
-                    networkRepositoryManager);
+                    tagsCacheManager);
                 tagRefreshMonitor.StartAsync();
 
                 ServiceEventSource.Current.Message("Completed initializing monitors");
@@ -952,7 +956,8 @@ namespace DNCService
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
                             networkRepositoryManager.NCConfigReliableCollection,
-                            ncKey);
+                            ncKey,
+                            LockMode.Update);
 
                     if (ncConfiguration != null)
                     {

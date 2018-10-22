@@ -5,77 +5,155 @@ using NMAgent.Data;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using NMAgent;
+using System.Threading.Tasks;
 
 namespace NetworkManager
 {
-    //TODO: Add comments
-    static class TagsCache
+    public class TagsCacheManager
     {
-        private static volatile ConcurrentDictionary<string, TagDefinition> tagsCache =
-            new ConcurrentDictionary<string, TagDefinition>();
+        private HostAgentClient hostAgentClient;
 
-        public static void UpdateCache(
-            string key,
-            TagDefinition tagDefinition)
+        private NetworkRepositoryManager networkRepositoryManager;
+
+        private TagsCache tagsCache;
+
+        private bool tagsCacheRehydrated = false;
+
+        public TagsCacheManager()
         {
-            tagsCache[key] = tagDefinition;
+            tagsCache = new TagsCache();
         }
 
-        public static ConcurrentDictionary<string, TagDefinition> GetCache()
+        public void Init(
+            HostAgentClient hostAgentClient,
+            NetworkRepositoryManager networkRepositoryManager)
         {
-            return tagsCache;
+            this.hostAgentClient = hostAgentClient;
+            this.networkRepositoryManager = networkRepositoryManager;
         }
 
-        public static TagDefinition GetTagDefinition(
-            string tagKey)
+        private void HydrateTagsCache()
         {
-            if (tagsCache.ContainsKey(tagKey))
+            if (!tagsCacheRehydrated)
             {
-                return tagsCache[tagKey];
+                Dictionary<string, TagDefinition> repoTagsDefinitionMap =
+                    networkRepositoryManager.GetAllTagDefinitions().Result;
+
+                foreach (KeyValuePair<string, TagDefinition> repoTagDefinition in repoTagsDefinitionMap)
+                {
+                    tagsCache.UpdateCache(repoTagDefinition.Key, repoTagDefinition.Value);
+                }
+
+                tagsCacheRehydrated = true;
+            }
+        }
+
+        public async Task RefreshTags()
+        {
+            HydrateTagsCache();
+
+            Dictionary<string, TagResponse> tagsToUpdate = new Dictionary<string, TagResponse>();
+            foreach (KeyValuePair<string, TagDefinition> repoTagDefinition in tagsCache.GetCache())
+            {
+                string tagName = repoTagDefinition.Value.Name;
+                string tagType = repoTagDefinition.Value.Type;
+                List<string> tagValues = repoTagDefinition.Value.Values;
+                TagResponse tagResponse;
+                try
+                {
+                    tagResponse = await hostAgentClient.GetSystemTagDefinition(tagName);
+                }
+                catch (Exception exception)
+                {
+                    string errorMsg = (exception.InnerException == null) ?
+                        exception.Message : exception.InnerException.Message;
+                    ServiceEventSource.Current.Message(
+                        $"GetSystemTagDefinition failed due to {errorMsg}");
+                    continue;
+                }
+
+                if (tagResponse != null)
+                {
+                    if (AreTagsUpdated(tagResponse.Values, tagValues))
+                    {
+                        ServiceEventSource.Current.Message($"RefreshTags: Found updated tag {tagName} " +
+                            $"with response {tagResponse}");
+
+                        tagsToUpdate.Add(
+                            TagDefinition.GetTagDefinitionKey(tagType, tagName),
+                            tagResponse);
+                    }
+                }
             }
 
-            return null;
-        }
-
-        public static void UpdateTagDefinition(
-            string tagKey,
-            string[] values)
-        {
-            if (tagsCache.ContainsKey(tagKey))
+            using (var tx = RepositoryHelper.GetTransaction())
             {
-                tagsCache[tagKey].UpdateTagDefinition(values);
+                foreach (KeyValuePair<string, TagResponse> tagKvp in tagsToUpdate)
+                {
+                    string tagKey = tagKvp.Key;
+                    TagResponse tagResponse = tagKvp.Value;
+
+                    // Update the tag cache with the resolved tag values
+                    tagsCache.UpdateTagDefinition(tagKey, tagResponse.Values);
+                    TagDefinition updatedTagDefinition = tagsCache.GetTagDefinition(tagKey);
+
+                    // Sync repository with tags cache
+                    await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                        tx,
+                        networkRepositoryManager.TagDefinitionReliableCollection,
+                        tagKey,
+                        updatedTagDefinition);
+                    ServiceEventSource.Current.Message($"Persist tag definition: " +
+                        $"{updatedTagDefinition.ToString()}");
+                }
+
+                await RepositoryHelper.CommitTransactionAsync(tx);
             }
         }
 
-        public static void CheckAndAddTagsCache(
+        public void CheckAndAddTagsCache(
             VirtualNetworkResponse vnetResponse)
         {
             foreach (Subnet subnet in vnetResponse.Subnets)
             {
-                foreach (Tag tag in subnet.Tags)
+                foreach (Tag tag in (subnet.Tags ?? Enumerable.Empty<Tag>()))
                 {
-                    RegisterTagForProcessing(tag);
+                    tagsCache.RegisterTagForProcessing(tag);
                 }
             }
         }
 
-        private static void RegisterTagForProcessing(
+        public TagDefinition RegisterAndGetTagDefinition(
             Tag tag)
         {
             string tagKey = Tag.GetTagKey(tag);
-            if (!tagsCache.ContainsKey(tagKey))
+            TagDefinition tagDefinition = tagsCache.GetTagDefinition(tagKey);
+            if ((tagDefinition != null) && (tagDefinition.Version > 0))
             {
-                tagsCache[tagKey] = new TagDefinition(tag.Name, tag.Type);
-                ServiceEventSource.Current.Message($"Added new tag definition in tagCache. " +
-                    $"Tag key:{tagKey} Tag definition: {tagsCache[tagKey].ToString()}");
+                return tagDefinition;
             }
+
+            tagsCache.RegisterTagForProcessing(tag);
+
+            RefreshTags().Wait();
+
+            return tagsCache.GetTagDefinition(tagKey);
         }
 
-        public static TagDefinition RegisterAndGetTagDefinition(
-            Tag tag)
+        public static bool AreTagsUpdated(
+            IReadOnlyCollection<string> latestTagInfo,
+            IReadOnlyCollection<string> currentTagInfo)
         {
-            RegisterTagForProcessing(tag);
-            return tagsCache[Tag.GetTagKey(tag)];
+            if (((latestTagInfo.Count == 0) && (currentTagInfo.Count == 0)) ||
+                ((latestTagInfo.Count == currentTagInfo.Count) &&
+                !latestTagInfo.Except(currentTagInfo).Any()))
+            {
+                return false;
+            }
+
+            ServiceEventSource.Current.Message($"TagRefresh: TagsUpdated true");
+            return true;
         }
 
         public static bool AreTagsUpdated(
@@ -92,5 +170,61 @@ namespace NetworkManager
             ServiceEventSource.Current.Message($"TagsCache: TagsUpdated true");
             return true;
         }
+
+        private class TagsCache
+        {
+            private ConcurrentDictionary<string, TagDefinition> tagsCache;
+
+            public TagsCache()
+            {
+                tagsCache = new ConcurrentDictionary<string, TagDefinition>();
+            }
+
+            public void UpdateCache(
+                string key,
+                TagDefinition tagDefinition)
+            {
+                tagsCache[key] = tagDefinition;
+            }
+
+            public ConcurrentDictionary<string, TagDefinition> GetCache()
+            {
+                return tagsCache;
+            }
+
+            public TagDefinition GetTagDefinition(
+                string tagKey)
+            {
+                if (tagsCache.ContainsKey(tagKey))
+                {
+                    return tagsCache[tagKey];
+                }
+
+                return null;
+            }
+
+            public void UpdateTagDefinition(
+                string tagKey,
+                string[] values)
+            {
+                if (tagsCache.ContainsKey(tagKey))
+                {
+                    tagsCache[tagKey].UpdateTagDefinition(values);
+                }
+            }
+
+            public void RegisterTagForProcessing(
+                Tag tag)
+            {
+                string tagKey = Tag.GetTagKey(tag);
+                if (!tagsCache.ContainsKey(tagKey))
+                {
+                    tagsCache[tagKey] = new TagDefinition(tag.Name, tag.Type);
+                    ServiceEventSource.Current.Message($"Added new tag definition in tagCache. " +
+                        $"Tag key:{tagKey} Tag definition: {tagsCache[tagKey].ToString()}");
+                }
+            }
+        }
     }
+
 }
