@@ -236,6 +236,23 @@ namespace DNCService
                 SubnetConfiguration subnetConfiguration;
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
+                    NetworkConfiguration networkConfig =
+                        await RepositoryHelper.GetFromReliableDictionary(
+                            tx,
+                            networkRepositoryManager.NetworkConfigReliableCollection,
+                            NetworkConfiguration.GetNetworkKey(networkID));
+                    if ((networkConfig == null) ||
+                        ((networkConfig.State != NetworkState.Join) &&
+                         (networkConfig.Status != Status.Completed)))
+                    {
+                        throw new DncNetworkManagementException(
+                            networkID,
+                            new ErrorInfo(ErrorCode.NetworkNotFound,
+                                "Network not found",
+                                (int)HttpStatusCode.NotFound,
+                                ErrorType.NonRetriable));
+                    }
+
                     string subnetKey =
                         SubnetConfiguration.GetSubnetConfigurationKey(networkID, subnetName);
                     subnetConfiguration = await RepositoryHelper.GetFromReliableDictionary(
@@ -374,20 +391,6 @@ namespace DNCService
                         networkConfig.Status.ToString(),
                         networkConfig.FailureDetail);
 
-                if (requestStatus.ErrorInfo != null)
-                {
-                    if ((networkConfig.Status == Status.Pending) ||
-                        (networkConfig.Status == Status.NotStarted))
-                    {
-                        // TODO: Missing StatusProcessing (102) in System.Net.HttpStatusCode
-                        requestStatus.ErrorInfo.HTTPStatus = 102;
-                    }
-                    else if (networkConfig.Status == Status.Completed)
-                    {
-                        requestStatus.ErrorInfo.HTTPStatus = (int)HttpStatusCode.OK;
-                    }
-                }
-
                 return (requestStatus);
             }
         }
@@ -509,20 +512,6 @@ namespace DNCService
                         ncConfig.State.ToString(),
                         ncConfig.Status.ToString(),
                         ncConfig.FailureDetail);
-
-                if (requestStatus.ErrorInfo != null)
-                {
-                    if ((ncConfig.Status == Status.Pending) ||
-                        (ncConfig.Status == Status.NotStarted))
-                    {
-                        // TODO: Missing StatusProcessing (102) in System.Net.HttpStatusCode
-                        requestStatus.ErrorInfo.HTTPStatus = 102;
-                    }
-                    else if (ncConfig.Status == Status.Completed)
-                    {
-                        requestStatus.ErrorInfo.HTTPStatus = (int)HttpStatusCode.OK;
-                    }
-                }
 
                 return (requestStatus);
             }
@@ -782,7 +771,7 @@ namespace DNCService
                         networkRepositoryManager.NCConfigReliableCollection,
                         ncKey,
                         ncConfig);
-                    ncConfig.CNSVersion = 1;
+                    ncConfig.CNSVersion = 0;
 
                     ServiceEventSource.Current.Message(
                         $"NConfig:{ncKey} Config:{ncConfig}");
@@ -872,16 +861,16 @@ namespace DNCService
                             string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(networkID, subnet);
                             ServiceEventSource.Current.Message($"Removing subnet:{subnet}");
                             SubnetConfiguration subnetConfiguration =
-                                                await RepositoryHelper.GetFromReliableDictionary(
-                                                    tx,
-                                                    networkRepositoryManager.SubnetConfigReliableCollection,
-                                                    subnetKey);
+                                await RepositoryHelper.GetFromReliableDictionary(
+                                    tx,
+                                    networkRepositoryManager.SubnetConfigReliableCollection,
+                                    subnetKey);
 
                             if (subnetConfiguration != null && subnetConfiguration.Reservations.Count > 0)
                             {
                                 throw new DncNetworkManagementException(
                                     networkID,
-                                    new ErrorInfo(ErrorCode.SubnetInUse,
+                                    new ErrorInfo(ErrorCode.NetworkInUse,
                                     $"Subnet {subnetConfiguration.SubnetName} has reservations in it",
                                     ErrorType.NonRetriable));
                             }

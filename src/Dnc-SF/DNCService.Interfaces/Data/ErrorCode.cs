@@ -195,22 +195,28 @@ namespace DNCService.API
         CnsNCVersionRetrievalFailed = 59,
 
         [EnumMember]
-        UnSupportedAddressFamily = 60,
+        InvalidAzureStorageInfo = 60,
 
         [EnumMember]
-        RequestNotsupported = 61,
+        StorageNotInitialized = 61,
 
         [EnumMember]
-        SubnetInUse = 62,
+        NodeContainerCapacityExhausted = 62,
 
         [EnumMember]
-        InvalidNodeRequest = 63,
+        UnSupportedAddressFamily = 63,
 
         [EnumMember]
-        InvalidSubnetRequest = 64,
+        RequestNotsupported = 64,
 
         [EnumMember]
-        InvalidNetworkContainerState = 65,
+        InvalidNodeRequest = 65,
+
+        [EnumMember]
+        InvalidSubnetRequest = 66,
+
+        // Note: This Enum struct must be identical to dnc/api/errorcode.go
+        // Update both when adding new enum members.
     }
 
     /// <summary>

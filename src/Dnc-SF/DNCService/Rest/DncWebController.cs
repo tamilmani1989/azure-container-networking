@@ -78,7 +78,7 @@ namespace DNCService.Rest
                 else
                 {
                     errorInfo = new ErrorInfo(
-                        ErrorCode.StatusInternalServerError, 
+                        ErrorCode.StatusInternalServerError,
                         $"Failed with exception:{exception}",
                         (int)HttpStatusCode.InternalServerError,
                         ErrorType.NonRetriable);

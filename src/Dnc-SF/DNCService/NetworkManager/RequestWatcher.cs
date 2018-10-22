@@ -232,13 +232,14 @@ namespace NetworkManager
                         exception);
 
                     DncManagementException dncManagementException = (DncManagementException)exception;
+                    bool isErrorRetriable = (dncManagementException.ErrorType == ErrorType.Retriable);
 
                     // Update the failure detail
                     await networkRepositoryManager.UpdateFailureDetail(
-                        requestContext, dncManagementException.ErrorInfo);
+                        requestContext, dncManagementException.ErrorInfo, isErrorRetriable);
 
                     // Add to the failed queue only if the error is retriable
-                    if (dncManagementException.ErrorType == ErrorType.Retriable)
+                    if (isErrorRetriable)
                     {
                         await networkRepositoryManager.MoveRequestToFailedQueue(
                             requestID,
@@ -656,14 +657,6 @@ namespace NetworkManager
                     new ErrorInfo(ErrorCode.NetworkContainerNotFound,
                         "Failed to reserve IP for NC due to failure to retrieve NC configuration",
                         ErrorType.NonRetriable));
-            }
-
-            if (networkContainerInfo.NetworkContainerState != NetworkContainerState.Reserve)
-            {
-                throw new DncManagementException(
-                    new ErrorInfo(ErrorCode.InvalidNetworkContainerState,
-                        "Failed to reserve IP for NC due to incorrect NC state",
-                        ErrorType.Retriable));
             }
 
             NCConfiguration ncConfig =

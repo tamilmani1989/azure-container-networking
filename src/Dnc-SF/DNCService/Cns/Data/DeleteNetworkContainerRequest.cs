@@ -6,9 +6,6 @@
 //-----------------------------------------------------------------------
 
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Cns.Data
 {
@@ -29,7 +26,7 @@ namespace Cns.Data
         /// <param name="networkcontainerID"></param>
         public DeleteNetworkContainerRequest(string networkcontainerID)
         {
-            this.NetworkContainerID = networkcontainerID;
+            NetworkContainerID = "Swift_" + networkcontainerID;
         }
 
         /// <summary>
@@ -38,7 +35,7 @@ namespace Cns.Data
         /// <returns>String representation of the object.</returns>
         public override string ToString()
         {
-            return $"NetworkContainerID:{this.NetworkContainerID}";
+            return $"NetworkContainerID:{NetworkContainerID}";
         }
     }
 }

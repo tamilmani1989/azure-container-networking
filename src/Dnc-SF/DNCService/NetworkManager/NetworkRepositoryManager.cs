@@ -261,7 +261,8 @@ namespace NetworkManager
 
         public async Task UpdateFailureDetail(
             RequestContext requestContext,
-            ErrorInfo failureDetail)
+            ErrorInfo failureDetail,
+            bool retriableError = true)
         {
             using (ITransaction tx = RepositoryHelper.GetTransaction())
             {
@@ -278,6 +279,10 @@ namespace NetworkManager
 
                         if (ncConfiguration != null)
                         {
+                            if (!retriableError)
+                            {
+                                ncConfiguration.Status = Status.Failed;
+                            }
                             ncConfiguration.FailureDetail = failureDetail;
                             await RepositoryHelper.CreateOrUpdateReliableDictionary(
                                 tx,
@@ -299,6 +304,10 @@ namespace NetworkManager
 
                         if (networkConfig != null)
                         {
+                            if (!retriableError)
+                            {
+                                networkConfig.Status = Status.Failed;
+                            }
                             networkConfig.FailureDetail = failureDetail;
                             await RepositoryHelper.CreateOrUpdateReliableDictionary(
                                 tx,
