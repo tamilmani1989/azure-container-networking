@@ -601,6 +601,7 @@ func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
 			Text:       "NetworkID is missing"})
 		return
 	}
+
 	subnet, ok := vars["subnet"]
 	loggershim.LS.Debugf("Subnet: %s\n", subnet)
 	if !ok {
@@ -640,6 +641,7 @@ func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 			Text:       "NetworkID is missing"})
 		return
 	}
+	
 	subnet, ok := vars["subnet"]
 	loggershim.LS.Debugf("Subnet: %s\n", subnet)
 	if !ok {

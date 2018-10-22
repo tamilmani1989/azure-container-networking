@@ -26,6 +26,8 @@ func (allocationRequest *AllocationRequest) Validate() *JsonErr {
 		return &JsonErr{Code: InvalidIPSubnet, Text: "SubnetName cannot be empty"}
 	}
 
+	allocationRequest.SubnetName = strings.ToLower(allocationRequest.SubnetName)
+
 	if len(allocationRequest.IPConstraint) != 0 {
 		isIPConstraintASubnet := strings.Contains(allocationRequest.IPConstraint, utils.PrefixDelimiter)
 		if !isIPConstraintASubnet {
