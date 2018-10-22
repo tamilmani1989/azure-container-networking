@@ -12,7 +12,9 @@
          <!--The ordering of Copy elements does not matter. In case of any overlaps, cloudtest only overwrites copy over symlink.-->
          <Copy Src="[BuildRoot]\retail-amd64\*" Dest="[WorkingDirectory]\" IsRecursive="true" Writable="true" />
       </BuildFiles>
-      <Scripts />
+       <Scripts>
+        <Script Path="[WorkingDirectory]\CloudUnitTests\IIS_Setup.cmd" Args="" />        
+      </Scripts>
    </Setup>
    <TestJob Name="NetworkClientTest" Type="SingleBox" Tags="Suite=Suite0" OwnerAliases="tamanoha">
       <Execution Type="TAEF" Path="[WorkingDirectory]\test\NetworkClientTest\NetworkClientTest.dll" Args="" />
