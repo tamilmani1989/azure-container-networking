@@ -206,7 +206,7 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNodeID,
                             "NodeID cannot be null or empty",
-                            (int)HttpStatusCode.BadRequest,
+                            (int)HttpStatusCode.NotFound,
                             ErrorType.NonRetriable));
                 }
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),

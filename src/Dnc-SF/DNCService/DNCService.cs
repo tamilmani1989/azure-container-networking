@@ -624,11 +624,6 @@ namespace DNCService
                         nodeConfigReliableCollection,
                         nodeKey);
 
-                    if (nodeConfig != null)
-                    {
-                        return;
-                    }
-
                     await cnsClient.SetOrchestratorType(nodeInfoRequest);
                     nodeConfig = new NodeConfiguration(
                         nodeID,
@@ -1143,7 +1138,11 @@ namespace DNCService
                     {
                         throw new DncNodeManagementException(
                             nodeID,
-                            new ErrorInfo(ErrorCode.NodeNotFound, "Node not found", ErrorType.NonRetriable));
+                            new ErrorInfo(
+                                ErrorCode.NodeNotFound,
+                                "Node not found",
+                                (int)HttpStatusCode.NotFound,
+                                ErrorType.NonRetriable));
                     }
 
                     foreach (KeyValuePair<string, IReadOnlyDictionary<string, string>> networkNCKvp in nodeConfiguration.DeployedNCMap)

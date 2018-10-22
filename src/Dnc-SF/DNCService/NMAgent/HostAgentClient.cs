@@ -61,9 +61,9 @@ namespace NMAgent
                 return response;
             }
             string joinNetworkUrl = string.Format(
-                    DncConfiguration.HostAgentSettings.ConnectionStrings.JoinNetworkURLFmt,
-                    DncConfiguration.HostAgentSettings.WireServerIP,
-                    networkID);
+                DncConfiguration.HostAgentSettings.ConnectionStrings.JoinNetworkURLFmt,
+                DncConfiguration.HostAgentSettings.WireServerIP,
+                networkID);
             string getNetworkUrl = string.Format(
                 DncConfiguration.HostAgentSettings.ConnectionStrings.GetNetworkConfigurationURLFmt,
                 DncConfiguration.HostAgentSettings.WireServerIP,
