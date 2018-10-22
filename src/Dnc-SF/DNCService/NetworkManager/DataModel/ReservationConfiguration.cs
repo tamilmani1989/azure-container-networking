@@ -48,9 +48,10 @@ namespace NetworkManager.DataModel
 
         public ReservationConfiguration(string networkID, string reservationID, IPAllocationRequest allocationRequest)
         {
-            this.NetworkID = networkID;
-            this.ReservationID = reservationID;
-            this.AllocationRequest = (IPAllocationRequest)allocationRequest.Clone();
+            NetworkID = networkID;
+            ReservationID = reservationID;
+            AllocationRequest = (IPAllocationRequest)allocationRequest.Clone();
+            AllocatedSubnet = "";
         }
 
         public override string ToString()

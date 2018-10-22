@@ -1,4 +1,11 @@
 ﻿{
+  "DataStoreSettings":{
+    "AzureStorageInfo": {
+      "AccountName": "",
+      "Key": "",
+      "EnableSharedSubnetDelegation": false
+    }
+  },
   "HostAgentSettings": {
     "WireServerIP": "169.254.169.254",
     "ConnectionStrings": {

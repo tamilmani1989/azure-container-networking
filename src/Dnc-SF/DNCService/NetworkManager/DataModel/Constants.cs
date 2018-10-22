@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace NetworkManager.DataModel
 {
@@ -35,5 +33,14 @@ namespace NetworkManager.DataModel
         public const string NCKey = "Network_{0}_NC_{1}";
 
         public const string TagDefinitionKey = "Tag_{0}_{1}";
+
+        // Azure storage table constants
+        public const string IPAllocationsTableName = "IPAllocationsTable";
+        public const string IPAllocationsTableColumnName = "IPAllocation";
+
+        public static IReadOnlyDictionary<string, string> TableToColumnMap =
+            new Dictionary<string, string> {
+                {IPAllocationsTableName, IPAllocationsTableColumnName}
+            };
     }
 }

@@ -789,6 +789,60 @@ namespace NetworkManager
             }
         }
 
+        public async Task<SubnetConfiguration> GetSubnetConfiguration(
+            string subnetKey)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                return await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    SubnetConfigReliableCollection,
+                    subnetKey);
+            }
+        }
+
+        public async Task UpdateSubnetConfiguration(
+            string subnetKey,
+            SubnetConfiguration subnetConfig)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                    tx,
+                    SubnetConfigReliableCollection,
+                    subnetKey,
+                    subnetConfig);
+                await RepositoryHelper.CommitTransactionAsync(tx);
+            }
+        }
+
+        public async Task<ReservationConfiguration> GetReservationConfiguration(
+            string reservationKey)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                return await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    ReservationReliableCollection,
+                    reservationKey);
+            }
+        }
+
+        public async Task UpdateReservationConfiguration(
+            string reservationKey,
+            ReservationConfiguration reservationConfig)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                    tx,
+                    ReservationReliableCollection,
+                    reservationKey,
+                    reservationConfig);
+                await RepositoryHelper.CommitTransactionAsync(tx);
+            }
+        }
+
         public async Task<NCConfiguration> GetNetworkContainerConfiguration(
             string networkID,
             string networkContainerID)

@@ -29,7 +29,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Owin" Version="2.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Routing" Version="2.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Server.IISIntegration" Version="2.1.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.1.1" />    
+    <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.1.1" />
+    <PackageReference Include="WindowsAzure.Storage" Version="9.3.1" />
   </ItemGroup>
   <ItemGroup>
     <ContentWithTargetPath Include="Scripts\entryPoint.cmd">
@@ -46,8 +47,6 @@
     </ContentWithTargetPath>
   </ItemGroup>
   <ProjectExtensions>
-    <VisualStudio>
-      <UserProperties Settings_1json__JSONSchema="http://jsonapi.org/schema" />
-    </VisualStudio>
+    <VisualStudio><UserProperties /></VisualStudio>
   </ProjectExtensions>
 </Project>

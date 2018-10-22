@@ -134,10 +134,47 @@ namespace DNCService
     }
 
     /// <summary>
+    /// Defines DataStore specific settings.
+    /// </summary>
+    public class DataStoreSettings
+    {
+        /// <summary>
+        /// Defines AzureStorage specific settings.
+        /// </summary>
+        public class AzStorageInfo
+        {
+            /// <summary>
+            /// Azure storage account name
+            /// </summary>
+            public string AccountName { get; set; }
+
+            /// <summary>
+            /// Azure storage account key
+            /// </summary>
+            public string Key { get; set; }
+
+            /// <summary>
+            /// Flag to enable shared subnet delegation feature
+            /// </summary>
+            public bool EnableSharedSubnetDelegation { get; set; }
+        }
+
+        /// <summary>
+        /// Azure storage settings.
+        /// </summary>
+        public AzStorageInfo AzureStorageInfo { get; set; }
+    }
+
+    /// <summary>
     /// Defines hte Dnc configuration.
     /// </summary>
     public class DncConfiguration
     {
+        /// <summary>
+        /// DataStore settings.
+        /// </summary>
+        public DataStoreSettings DataStoreSettings { get; set; }
+
         /// <summary>
         /// Host agent settings.
         /// </summary>
