@@ -1,15 +1,17 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using NetworkManager.DataModel;
+using Newtonsoft.Json;
+using System.Runtime.Serialization;
 
 namespace NMAgent.Data
 {
+    [DataContract]
     public class Tag
     {
+        [DataMember]
         [JsonProperty("name")]
         public string Name { get; set; }
 
+        [DataMember]
         [JsonProperty("type")]
         public string Type { get; set; }
 
@@ -22,6 +24,11 @@ namespace NMAgent.Data
         public override string ToString()
         {
             return $"Name:{this.Name} Type:{this.Type}";
+        }
+
+        public static string GetTagKey(Tag tag)
+        {
+            return string.Format(Constants.TagDefinitionKey, tag.Type, tag.Name);
         }
     }
 }

@@ -31,6 +31,7 @@ using Cns;
 using NetworkManager.DataModel;
 using DNCService.Rest;
 using System.Net;
+using NodeConfiguration = NetworkManager.DataModel.NodeConfiguration;
 
 namespace DNCService
 {
@@ -103,26 +104,26 @@ namespace DNCService
             List<ServiceReplicaListener> serviceReplicaListeners = new List<ServiceReplicaListener> (
                 this.CreateServiceRemotingReplicaListeners());
             serviceReplicaListeners.Add(new ServiceReplicaListener(
-                    serviceContext =>
-                        new KestrelCommunicationListener(
-                            serviceContext, "ServiceEndpoint",
-                            (url, listener) =>
-                            {
-                                ServiceEventSource.Current.ServiceMessage(serviceContext, $"Starting Kestrel on {url}");
+                serviceContext =>
+                    new KestrelCommunicationListener(
+                        serviceContext, "ServiceEndpoint",
+                        (url, listener) =>
+                        {
+                            ServiceEventSource.Current.ServiceMessage(serviceContext, $"Starting Kestrel on {url}");
 
-                                return new WebHostBuilder()
-                                    .UseKestrel()
-                                    .ConfigureServices(
-                                        services => services
-                                            .AddSingleton<StatefulServiceContext>(serviceContext)
-                                            .AddSingleton<IReliableStateManager>(this.StateManager))
-                                    .UseContentRoot(Directory.GetCurrentDirectory())
-                                    .UseStartup<Startup>()
-                                    .UseApplicationInsights()
-                                    .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.UseUniqueServiceUrl)
-                                    .UseUrls(url)
-                                    .Build();
-                            })));
+                            return new WebHostBuilder()
+                                .UseKestrel()
+                                .ConfigureServices(
+                                    services => services
+                                        .AddSingleton<StatefulServiceContext>(serviceContext)
+                                        .AddSingleton<IReliableStateManager>(this.StateManager))
+                                .UseContentRoot(Directory.GetCurrentDirectory())
+                                .UseStartup<Startup>()
+                                .UseApplicationInsights()
+                                .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.UseUniqueServiceUrl)
+                                .UseUrls(url)
+                                .Build();
+                        })));
             return serviceReplicaListeners.ToArray();
         }
 
@@ -194,6 +195,12 @@ namespace DNCService
                     cancellationToken,
                     networkRepositoryManager);
                 networkContainerMonitor.StartAsync();
+
+                TagRefreshMonitor tagRefreshMonitor = new TagRefreshMonitor(
+                    cancellationToken,
+                    hostAgentClient,
+                    networkRepositoryManager);
+                tagRefreshMonitor.StartAsync();
 
                 ServiceEventSource.Current.Message("Completed initializing monitors");
                 while (true)
@@ -609,14 +616,14 @@ namespace DNCService
 
             try
             {
-                IReliableDictionary<string, NetworkManager.DataModel.NodeConfiguration> nodeConfigReliableCollection =
-                    RepositoryHelper.GetReliableDictionaryAsync<string, NetworkManager.DataModel.NodeConfiguration>(
+                IReliableDictionary<string, NodeConfiguration> nodeConfigReliableCollection =
+                    RepositoryHelper.GetReliableDictionaryAsync<string, NodeConfiguration>(
                     Constants.NodeTableName).Result;
 
-                NetworkManager.DataModel.NodeConfiguration nodeConfig;
+                NodeConfiguration nodeConfig;
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
-                    string nodeKey = NetworkManager.DataModel.NodeConfiguration.GetNodeKey(nodeID);
+                    string nodeKey = NodeConfiguration.GetNodeKey(nodeID);
 
                     nodeConfig = await RepositoryHelper.GetFromReliableDictionary(
                         tx,
@@ -629,14 +636,14 @@ namespace DNCService
                     }
 
                     await cnsClient.SetOrchestratorType(nodeInfoRequest);
-                    nodeConfig = new NetworkManager.DataModel.NodeConfiguration(
+                    nodeConfig = new NodeConfiguration(
                         nodeID,
                         apiVersion,
                         nodeInfoRequest);
                     await RepositoryHelper.CreateOrUpdateReliableDictionary(
                         tx,
                         nodeConfigReliableCollection,
-                        NetworkManager.DataModel.NodeConfiguration.GetNodeKey(nodeID),
+                        NodeConfiguration.GetNodeKey(nodeID),
                         nodeConfig);
                     await RepositoryHelper.CommitTransactionAsync(tx);
                     ServiceEventSource.Current.Message("Updated node ID:{0} successfully", nodeID);
@@ -703,10 +710,10 @@ namespace DNCService
                         goto Cleanup;
                     }
 
-                    string nodeKey = NetworkManager.DataModel.NodeConfiguration.GetNodeKey(ncRequest.AssociationInfo.NodeID);
+                    string nodeKey = NodeConfiguration.GetNodeKey(ncRequest.AssociationInfo.NodeID);
                     List<NetworkContainerResponse> networkContainerResponses = new List<NetworkContainerResponse>();
 
-                    NetworkManager.DataModel.NodeConfiguration nodeConfiguration =
+                    NodeConfiguration nodeConfiguration =
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
                             networkRepositoryManager.NodeConfigReliableCollection,
@@ -876,7 +883,7 @@ namespace DNCService
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
                     ServiceEventSource.Current.Message($"Deleting network:{networkID}");
-                    string networkKey = NetworkManager.DataModel.NetworkConfiguration.GetNetworkKey(networkID);
+                    string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
                     NetworkConfiguration networkConfiguration =
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
@@ -937,8 +944,8 @@ namespace DNCService
             {
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
-                    string nodeKey = NetworkManager.DataModel.NodeConfiguration.GetNodeKey(nodeID);
-                    NetworkManager.DataModel.NodeConfiguration nodeConfiguration =
+                    string nodeKey = NodeConfiguration.GetNodeKey(nodeID);
+                    NodeConfiguration nodeConfiguration =
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
                             networkRepositoryManager.NodeConfigReliableCollection,
@@ -978,7 +985,7 @@ namespace DNCService
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
                     string ncKey = NCConfiguration.GetNCKey(networkID, networkContainerID);
-                    NetworkManager.DataModel.NCConfiguration ncConfiguration =
+                    NCConfiguration ncConfiguration =
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
                             networkRepositoryManager.NCConfigReliableCollection,
@@ -1110,9 +1117,9 @@ namespace DNCService
                             ErrorType.NonRetriable));
                     }
 
-                    string nodeKey = NetworkManager.DataModel.NodeConfiguration.GetNodeKey(
+                    string nodeKey = NodeConfiguration.GetNodeKey(
                         ncConfiguration.Request.AssociationInfo.NodeID);
-                    NetworkManager.DataModel.NodeConfiguration nodeConfiguration =
+                    NodeConfiguration nodeConfiguration =
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
                             networkRepositoryManager.NodeConfigReliableCollection,
@@ -1146,10 +1153,10 @@ namespace DNCService
             {
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
-                    string nodeKey = NetworkManager.DataModel.NodeConfiguration.GetNodeKey(nodeID);
+                    string nodeKey = NodeConfiguration.GetNodeKey(nodeID);
                     List<NetworkContainerResponse> networkContainerResponses = new List<NetworkContainerResponse>();
 
-                    NetworkManager.DataModel.NodeConfiguration nodeConfiguration =
+                    NodeConfiguration nodeConfiguration =
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
                             networkRepositoryManager.NodeConfigReliableCollection,

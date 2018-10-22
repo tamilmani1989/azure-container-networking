@@ -446,9 +446,13 @@ namespace NetworkManager
         /// <returns></returns>
         private async Task ProcessNetworkContainerAssociate(RequestContext requestContext)
         {
-            NetworkContainerInfo networkContainerInfo = await networkRepositoryManager.GetNetworkContainerInfo(
-                requestContext.RequestID);
-            if (networkContainerInfo == null)
+            NetworkContainerInfo networkContainerInfo =
+                await networkRepositoryManager.GetNetworkContainerInfo(requestContext.RequestID);
+            NCConfiguration ncConfig =
+                await networkRepositoryManager.GetNCConfigurationAsync(requestContext.RequestID);
+
+            if ((networkContainerInfo == null) ||
+                (ncConfig == null))
             {
                 throw new DncManagementException(
                     new ErrorInfo(ErrorCode.NetworkContainerNotFound,
@@ -456,7 +460,27 @@ namespace NetworkManager
                         ErrorType.NonRetriable));
             }
 
+            cnsClient.ParseTagsIntoCnetAddresses(ref networkContainerInfo, ref ncConfig);
+
             await cnsClient.CreateNetworkContainer(networkContainerInfo);
+
+            // Retrieve the latest NC config as current copy could have been updated while calling CNS
+            NCConfiguration ncConfigLatest =
+                await networkRepositoryManager.GetNCConfigurationAsync(requestContext.RequestID);
+            if (ncConfigLatest == null)
+            {
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                        "Failed to associate NC due to failure to retrieve NC configuration",
+                        ErrorType.NonRetriable));
+            }
+
+            ncConfig.MarkedForDelete = ncConfigLatest.MarkedForDelete;
+
+            // Update NC configuration
+            await networkRepositoryManager.UpdateNCConfiguration(
+                requestContext,
+                ncConfig);
 
             await networkRepositoryManager.UpdateNetworkContainerState(
                 requestContext,

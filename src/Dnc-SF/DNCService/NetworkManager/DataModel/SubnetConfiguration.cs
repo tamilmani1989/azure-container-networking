@@ -86,7 +86,7 @@ namespace NetworkManager.DataModel
         {
             get
             {
-                return this.Tags.ToImmutableHashSet<Tag>();
+                return tags.ToImmutableHashSet<Tag>();
             }            
         }
 

@@ -92,12 +92,15 @@ namespace NetworkManager
                         return;
                     }
 
-                    if ( networkConfig.State != NetworkState.Join ||
-                        networkConfig.Status != Status.Completed )
+                    if ((networkConfig.State != NetworkState.Join) ||
+                        (networkConfig.Status != Status.Completed))
                     {
-                        ServiceEventSource.Current.Message($"Skipping refreshing of network {networkID} as it is in state: {networkConfig.State}");
+                        ServiceEventSource.Current.Message($"Skipping refreshing of network " +
+                            $"{networkID} as it is in state: {networkConfig.State}");
                         return;
                     }
+
+                    TagsCache.CheckAndAddTagsCache(virtualNetworkResponse);
 
                     await networkRepositoryManager.UpdateNetworkConfigurationUntransacted(
                         tx,

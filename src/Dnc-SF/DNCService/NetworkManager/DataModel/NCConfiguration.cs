@@ -1,7 +1,6 @@
 ﻿using DNCService.API;
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
@@ -76,8 +75,12 @@ namespace NetworkManager.DataModel
 
         public void UpdateProgrammedTagsInfo(IReadOnlyDictionary<string, ulong> programmedTags)
         {
-            this.programmedTagsInfo.Clear();
-            this.programmedTagsInfo.Union(programmedTags);
+            programmedTagsInfo.Clear();
+
+            foreach (KeyValuePair<string, ulong> TagsKvp in programmedTags)
+            {
+                programmedTagsInfo.Add(TagsKvp.Key, TagsKvp.Value);
+            }
         }
 
         public NCConfiguration(NCConfiguration ncConfiguration)
@@ -106,11 +109,11 @@ namespace NetworkManager.DataModel
             sb.Append($" NetworkID:{this.NetworkID} ");
             sb.Append($"ReservationID:{this.ReservationID} ");
             sb.Append($"ImplicitReservation:{this.ImplicitReservation} ");
-            sb.AppendFormat("NCRequest:{0} ", this.Request);
+            sb.Append($"NCRequest:{this.Request} ");
             sb.Append($"State:{this.State} ");
             sb.Append($"Status:{ this.Status} ");
-            sb.Append("CNSVersion:{this.CNSVersion} ");
-            sb.Append("AgentVersion:{this.AgentVersion} ");
+            sb.Append($"CNSVersion:{this.CNSVersion} ");
+            sb.Append($"AgentVersion:{this.AgentVersion} ");
             sb.Append($"ProgrammedVnetVersion:{this.ProgrammedVnetVersion} ");
             sb.AppendFormat("ProgrammedTagsInfo:{0} ",
                 string.Join(",",
