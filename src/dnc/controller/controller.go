@@ -422,6 +422,20 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 	return nil
 }
 
+// InitializeAzureStorageV2 - Tries to establish a connection with azure storage with information provided in request.
+func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2) *api.JsonErr {
+	loggershim.LS.Debugf("Initialize Azure Storage requestV2: %s", request.String())
+	config.DataStoreSettings.AzureStorageInfo.AccountName = request.AccountName
+	config.DataStoreSettings.AzureStorageInfo.Key = request.Key
+	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
+	config.DataStoreSettings.AzureStorageInfo.RegionalStorageConnectionString = request.RegionalStorageConnectionString
+	masterElectionShim.SetDataStoreSettings(config)
+	masterElectionShim.Init()
+	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	c.UpdateReplicaStatus(true)
+	return nil
+}
+
 // IsReplicaReady - Function to check if this replica is ready
 func (c *Controller) IsReplicaReady() bool {
 	return c.Replica.IsReplicaReady()

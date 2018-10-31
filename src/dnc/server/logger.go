@@ -28,6 +28,10 @@ func Logger(inner http.Handler, name string) http.Handler {
 			if ctrler.IsReplicaReady() {
 				return
 			}
+		} else if strings.Contains(r.RequestURI, "/azurestoragesettingsv2") {
+			if ctrler.IsReplicaReady() {
+				return
+			}
 		} else {
 			if !ctrler.IsReplicaReady() {
 				setRequestFailed(w, &api.JsonErr{

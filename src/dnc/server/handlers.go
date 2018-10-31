@@ -641,7 +641,7 @@ func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 			Text:       "NetworkID is missing"})
 		return
 	}
-	
+
 	subnet, ok := vars["subnet"]
 	loggershim.LS.Debugf("Subnet: %s\n", subnet)
 	if !ok {
@@ -733,6 +733,36 @@ func InitializeAzureStorage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	t := ctrler.InitializeAzureStorage(request)
+	if t != nil {
+		w.WriteHeader(t.HTTPStatus)
+		if err := json.NewEncoder(w).Encode(&t); err != nil {
+			panic(err)
+		}
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+// InitializeAzureStorageV2 - Handler for initializing datastore settings to establish a connection.
+func InitializeAzureStorageV2(w http.ResponseWriter, r *http.Request) {
+	var request api.AzureStorageRequestV2
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
+	if err := decodeRequestBody(r, &request); err != nil {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		if err := json.NewEncoder(w).Encode(err); err != nil {
+			panic(err)
+		}
+
+		return
+	}
+
+	if validationErr := request.Validate(); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	t := ctrler.InitializeAzureStorageV2(request)
 	if t != nil {
 		w.WriteHeader(t.HTTPStatus)
 		if err := json.NewEncoder(w).Encode(&t); err != nil {

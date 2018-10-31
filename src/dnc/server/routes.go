@@ -134,6 +134,12 @@ var routes = Routes{
 		InitializeAzureStorage,
 	},
 	Route{
+		"InitializeAzureStorageV2",
+		"POST",
+		"/azurestoragesettingsv2",
+		InitializeAzureStorageV2,
+	},
+	Route{
 		"RelinquishPrimaryStatus",
 		"POST",
 		"/relinquishprimarystatus",

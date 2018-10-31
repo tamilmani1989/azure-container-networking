@@ -2532,9 +2532,30 @@ func TryQueryAllIPReservations(context interface{}) (
 
 // ProcessSharedSubnetDelegationMigration - Migrate IP allocations from IPReservations to IPAllocations table
 func ProcessSharedSubnetDelegationMigration() error {
-	if IsFeatureSupported(configuration.SharedSubnetDelegation) {
+	if IsFeatureSupported(configuration.RegionalStorageAccountUsage) {
+		// check if the migration for shared subnet delegation is pending for regional storage account
+		regionalMigrationComplete, err := tryQuerySharedSubnetDelegationMigration(sharedSubnetDelegationMigrationRegionalTableName)
+		if err != nil {
+			loggershim.LS.Errorf("sharedSubnetDelegationMigrationRegional table query failed due to error %v", err)
+			return fmt.Errorf("Error querying sharedSubnetDelegationMigrationRegional table")
+		}
+
+		if !regionalMigrationComplete {
+			loggershim.LS.Debugf("Triggering migration for shared subnet delegation to regional storage account")
+			if err := migrateIPAllocations(); err != nil {
+				return err
+			}
+			if err = updateSharedSubnetDelegationMigration(sharedSubnetDelegationMigrationRegionalTableName, true); err != nil {
+				loggershim.LS.Errorf("Failed to update SharedSubnetDelegationMigrationRegional table due to error %s", err)
+			} else {
+				loggershim.LS.Debugf("Migration for shared subnet delegation completed successfully in regional storage")
+			}
+		} else {
+			loggershim.LS.Debugf("Migration for shared subnet delegation in regional storage was already completed")
+		}
+	} else if IsFeatureSupported(configuration.SharedSubnetDelegation) {
 		// check if the migration for shared subnet delegation is pending
-		migrationComplete, err := TryQuerySharedSubnetDelegationMigration()
+		migrationComplete, err := tryQuerySharedSubnetDelegationMigration(sharedSubnetDelegationMigrationTableName)
 		if err != nil {
 			loggershim.LS.Errorf("sharedSubnetDelegationMigration table query failed due to error %v", err)
 			return fmt.Errorf("Error querying sharedSubnetDelegationMigration table")
@@ -2542,31 +2563,10 @@ func ProcessSharedSubnetDelegationMigration() error {
 
 		if !migrationComplete {
 			loggershim.LS.Debugf("Triggering migration for shared subnet delegation")
-			reservationConfigurations, err := QueryAllIPReservations()
-			if err != nil {
-				loggershim.LS.Errorf("Failed to get all IP reservations due to error %v", err)
-				return fmt.Errorf("Failed to get all IP reservations with error %s", err.Text)
+			if err := migrateIPAllocations(); err != nil {
+				return err
 			}
-
-			// Migrate IP allocations from IPReservations to IPAllocations table
-			for _, reservationConfiguration := range reservationConfigurations {
-				reservationKey := GetReservationKey(reservationConfiguration.NetworkID, reservationConfiguration.ReservationID)
-
-				if len(reservationConfiguration.AllocatedSubnet) != 0 {
-					if err = AddIPAllocation(reservationConfiguration.NetworkID,
-						reservationConfiguration.AllocationRequest.SubnetName,
-						EncodeIPAllocationKey(reservationConfiguration.AllocatedSubnet),
-						reservationKey); err != nil {
-						loggershim.LS.Errorf("addIPAllocation for %v failed due to %s",
-							reservationConfiguration.AllocatedSubnet, err.Text)
-						if err.Code == api.StatusInternalServerError {
-							return fmt.Errorf("Failed to add IP in IPAllocations table with err %s", err.Text)
-						}
-					}
-				}
-			}
-
-			if err = UpdateSharedSubnetDelegationMigration(true); err != nil {
+			if err = updateSharedSubnetDelegationMigration(sharedSubnetDelegationMigrationTableName, true); err != nil {
 				loggershim.LS.Errorf("Failed to update SharedSubnetDelegationMigration table due to error %s", err)
 			} else {
 				loggershim.LS.Debugf("Migration for shared subnet delegation completed successfully")
@@ -2579,12 +2579,12 @@ func ProcessSharedSubnetDelegationMigration() error {
 	return nil
 }
 
-// TryQuerySharedSubnetDelegationMigration - Query migration table in a specified partition.
-func TryQuerySharedSubnetDelegationMigration() (bool, *api.JsonErr) {
-	value, status, err := dataStoreShim.Query(sharedSubnetDelegationMigrationTableName, "migration-status")
+// tryQuerySharedSubnetDelegationMigration - Query migration table in a specified partition.
+func tryQuerySharedSubnetDelegationMigration(tableName string) (bool, *api.JsonErr) {
+	value, status, err := dataStoreShim.Query(tableName, "migration-status")
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
-			"Failed to retrieve migration status due to error:[%s]", err)
+			"Failed to retrieve migration status in table %s due to error:[%s]", tableName, err)
 		return false, &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			Text:       msg,
@@ -2598,15 +2598,16 @@ func TryQuerySharedSubnetDelegationMigration() (bool, *api.JsonErr) {
 	return value.(bool), nil
 }
 
-// UpdateSharedSubnetDelegationMigration - Updates the migration table indicating the completion of the migration operation.
-func UpdateSharedSubnetDelegationMigration(completionStatus bool) *api.JsonErr {
-	err := dataStoreShim.InsertOrUpdate(sharedSubnetDelegationMigrationTableName,
+// updateSharedSubnetDelegationMigration - Updates the migration table indicating the completion of the migration operation.
+func updateSharedSubnetDelegationMigration(tableName string, completionStatus bool) *api.JsonErr {
+	err := dataStoreShim.InsertOrUpdate(tableName,
 		"migration-status",
-		TableToColumnMap[sharedSubnetDelegationMigrationTableName],
+		TableToColumnMap[tableName],
 		completionStatus)
 	if err != nil {
 		msg := fmt.Sprintf(
-			"Failed to update SharedSubnetDelegationMigration table. Error:%s",
+			"Failed to update table %s. Error:%s",
+			tableName,
 			err.Error())
 		return &api.JsonErr{
 			Code:       api.StatusInternalServerError,
@@ -2620,4 +2621,33 @@ func UpdateSharedSubnetDelegationMigration(completionStatus bool) *api.JsonErr {
 // IsFeatureSupported - Function to validate if the given feature is supported
 func IsFeatureSupported(featureID int) bool {
 	return dataStoreShim.IsFeatureSupported(featureID)
+}
+
+// migrateIPAllocations - Function to copy IP allocations from reservations table to IP allocations table
+func migrateIPAllocations() error {
+	reservationConfigurations, err := QueryAllIPReservations()
+	if err != nil {
+		loggershim.LS.Errorf("Failed to get all IP reservations due to error %v", err)
+		return fmt.Errorf("Failed to get all IP reservations with error %s", err.Text)
+	}
+
+	// Migrate IP allocations from IPReservations to IPAllocations table
+	for _, reservationConfiguration := range reservationConfigurations {
+		reservationKey := GetReservationKey(reservationConfiguration.NetworkID, reservationConfiguration.ReservationID)
+
+		if len(reservationConfiguration.AllocatedSubnet) != 0 {
+			if err = AddIPAllocation(reservationConfiguration.NetworkID,
+				reservationConfiguration.AllocationRequest.SubnetName,
+				EncodeIPAllocationKey(reservationConfiguration.AllocatedSubnet),
+				reservationKey); err != nil {
+				loggershim.LS.Errorf("addIPAllocation for %v failed due to %s",
+					reservationConfiguration.AllocatedSubnet, err.Text)
+				if err.Code == api.StatusInternalServerError {
+					return fmt.Errorf("Failed to add IP in IPAllocations table with err %s", err.Text)
+				}
+			}
+		}
+	}
+
+	return nil
 }

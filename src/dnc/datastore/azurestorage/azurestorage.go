@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 )
@@ -14,8 +15,9 @@ import (
 // AzureStorage = Storage object to manage tables in a partition
 type AzureStorage struct {
 	configuration.AzureStorageInfo
-	storageClient storage.Client
-	tableClient   storage.TableServiceClient
+	tableClient               storage.TableServiceClient
+	regionalTableClient       storage.TableServiceClient
+	tableNameToTableClientMap map[string]*storage.TableServiceClient
 }
 
 // Init - Initialize azure storage.
@@ -26,11 +28,44 @@ func (azureStorage *AzureStorage) Init(tableToColumnMap map[string]string) {
 
 	utils.OnErrorFail(err, "Create client failed")
 	azureStorage.tableClient = storageClient.GetTableService()
+	azureStorage.initTableNameToTableClientMap(tableToColumnMap)
+	if len(strings.TrimSpace(azureStorage.AzureStorageInfo.RegionalStorageConnectionString)) > 0 {
+		azureStorage.initRegionalStorage()
+	}
+}
+
+// initRegionalStorage - Initialize the table client needed to access the regional storage
+func (azureStorage *AzureStorage) initRegionalStorage() {
+	loggershim.LS.Debugf("[Azure DNC] InitRegionalStorage with %s", azureStorage.AzureStorageInfo.RegionalStorageConnectionString)
+	regionalStorageClient, err := storage.NewClientFromConnectionString(
+		azureStorage.AzureStorageInfo.RegionalStorageConnectionString)
+	utils.OnErrorFail(err, "Create regional client failed")
+
+	azureStorage.regionalTableClient = regionalStorageClient.GetTableService()
+	azureStorage.updateTableNameToTableClientMap("IPAllocationsTable", &azureStorage.regionalTableClient)
+}
+
+// updateTableNameToTableClientMap - Update tableClient to use for the given table
+func (azureStorage *AzureStorage) updateTableNameToTableClientMap(tableName string, tableClient *storage.TableServiceClient) {
+	azureStorage.tableNameToTableClientMap[tableName] = tableClient
+	loggershim.LS.Debugf("[Azure DNC] Updated settings for table: %s to use regional storage", tableName)
+}
+
+// initTableNameToTableClientMap - Set tableClient as default client to all the tables
+func (azureStorage *AzureStorage) initTableNameToTableClientMap(tableToColumnMap map[string]string) {
+	azureStorage.tableNameToTableClientMap = make(map[string]*storage.TableServiceClient)
+	for tableName := range tableToColumnMap {
+		azureStorage.tableNameToTableClientMap[tableName] = &azureStorage.tableClient
+	}
 }
 
 // Delete - Deletes a row in a given table.
 func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
-	table := azureStorage.tableClient.GetTableReference(tableName)
+	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	if !ok {
+		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
+	}
+	table := *tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(azureStorage.PartitionKey, rowKey)
 
 	// The Delete function may panic due to nil resp (in resp.StatusCode),
@@ -46,7 +81,11 @@ func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
 
 // DeleteInPartition - Deletes a row in the partition of the given table.
 func (azureStorage *AzureStorage) DeleteInPartition(tableName, partitionKey, rowKey string) error {
-	table := azureStorage.tableClient.GetTableReference(tableName)
+	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	if !ok {
+		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
+	}
+	table := *tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(partitionKey, rowKey)
 	return entity.Delete(true, nil)
 }
@@ -98,7 +137,11 @@ func (azureStorage *AzureStorage) KeyExist(tableName, rowKey string) (bool, erro
 }
 
 func (azureStorage *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyName string, value interface{}) error {
-	table := azureStorage.tableClient.GetTableReference(tableName)
+	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	if !ok {
+		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
+	}
+	table := *tableClient.GetTableReference(tableName)
 	table.Create(30, storage.EmptyPayload, nil)
 	entity := table.GetEntityReference(azureStorage.PartitionKey, rowKey)
 	properties := make(map[string]interface{})
@@ -110,7 +153,11 @@ func (azureStorage *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyN
 
 func (azureStorage *AzureStorage) insertRowInPartition(tableName, partitionKay, rowKey, propertyName string, value interface{}) (
 	int, error) {
-	table := azureStorage.tableClient.GetTableReference(tableName)
+	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	if !ok {
+		return http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
+	}
+	table := *tableClient.GetTableReference(tableName)
 	table.Create(30, storage.EmptyPayload, nil)
 	entity := table.GetEntityReference(partitionKay, rowKey)
 	properties := make(map[string]interface{})
@@ -187,7 +234,11 @@ func (azureStorage *AzureStorage) insertRowInPartition(tableName, partitionKay, 
 // }
 
 func (azureStorage *AzureStorage) getRow(tableName string, partitionKey string, rowKey string) (interface{}, int, error) {
-	table := azureStorage.tableClient.GetTableReference(tableName)
+	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	if !ok {
+		return nil, http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
+	}
+	table := *tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(partitionKey, rowKey)
 	err := entity.Get(30, storage.FullMetadata, nil)
 	if err == nil {
@@ -213,7 +264,11 @@ func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string,
 
 	var err error
 	if context == nil {
-		table := azureStorage.tableClient.GetTableReference(tableName)
+		tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+		if !ok {
+			return nil, false, nil, http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
+		}
+		table := *tableClient.GetTableReference(tableName)
 		queryOptions := storage.QueryOptions{
 			Filter: "PartitionKey eq '" + partitionKey + "'",
 		}

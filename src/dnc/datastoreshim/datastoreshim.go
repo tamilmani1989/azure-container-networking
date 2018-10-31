@@ -9,6 +9,7 @@ import (
 	"dnc/logger/loggershim"
 	"dnc/utils"
 	"fmt"
+	"strings"
 )
 
 type dataStoreInterfaces interface {
@@ -123,6 +124,11 @@ func (dataStoreShim *DataStoreShim) Init(tableToColumnMap map[string]string) {
 		// Default the feature to true
 		dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation] = true
 		loggershim.LS.Debugf("SharedSubnetDelegation %v", dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation])
+		// Set the RegionalStorageUsage feature
+		if len(strings.TrimSpace(dataStoreShim.dataStoreSettings.AzureStorageInfo.RegionalStorageConnectionString)) > 0 {
+			dataStoreShim.SupportedFeatures[configuration.RegionalStorageAccountUsage] = true
+		}
+		loggershim.LS.Debugf("RegionalStorageAccountUsage %v", dataStoreShim.SupportedFeatures[configuration.RegionalStorageAccountUsage])
 	} else if dataStoreShim.dataStoreSettings.AzureSQLInfo != (configuration.AzureSQLInfo{}) {
 		azSQL := azuresql.AzureSQL{AzureSQLInfo: dataStoreShim.dataStoreSettings.AzureSQLInfo}
 		azSQL.Init(tableToColumnMap)
@@ -146,6 +152,11 @@ func (dataStoreShim *DataStoreShim) Init(tableToColumnMap map[string]string) {
 		// Default the feature to true
 		dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation] = true
 		loggershim.LS.Debugf("SharedSubnetDelegation %v", dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation])
+		// Set the RegionalStorageUsage feature
+		if len(strings.TrimSpace(dataStoreShim.dataStoreSettings.AzureStorageInfo.RegionalStorageConnectionString)) > 0 {
+			dataStoreShim.SupportedFeatures[configuration.RegionalStorageAccountUsage] = true
+		}
+		loggershim.LS.Debugf("RegionalStorageAccountUsage %v", dataStoreShim.SupportedFeatures[configuration.RegionalStorageAccountUsage])
 	} else if dataStoreShim.dataStoreSettings.OrchestratorStorageInfo != (configuration.OrchestratorStorageInfo{}) {
 		os := orchestratorstorage.OrchestratorStorage{OrchestratorStorageInfo: dataStoreShim.dataStoreSettings.OrchestratorStorageInfo}
 		os.Init(tableToColumnMap)
