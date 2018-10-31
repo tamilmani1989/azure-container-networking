@@ -4,6 +4,7 @@ import (
 	"dnc/api"
 	"dnc/controller"
 	"dnc/logger/loggershim"
+	"dnc/utils"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -370,13 +371,18 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	networkID, ok := vars["networkID"]
 	if !ok {
-		setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkID, Text: "Network ID is missing"})
+		setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkID, Text: "Network ID is missing", HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
 	ncID, ok := vars["networkContainerID"]
 	if !ok {
-		setRequestFailed(w, &api.JsonErr{Code: api.NetworkContainerNotFound, Text: "Network container ID is missing"})
+		setRequestFailed(w, &api.JsonErr{Code: api.NetworkContainerNotFound, Text: "Network container ID is missing", HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if !utils.IsValidUUID(ncID) {
+		setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkContainerID, Text: "Network container ID must be a UUID", HTTPStatus: http.StatusBadRequest})
 		return
 	}
 

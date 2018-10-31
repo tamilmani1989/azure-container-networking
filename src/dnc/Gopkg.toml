@@ -30,20 +30,20 @@
   name = "github.com/Azure/azure-container-networking"
 
 [[constraint]]
+  branch = "master"
   name = "github.com/Azure/azure-sdk-for-go"
-  version = "15.0.0"
 
 [[constraint]]
   branch = "master"
   name = "github.com/denisenkom/go-mssqldb"
 
 [[constraint]]
+  branch = "master"
   name = "github.com/google/uuid"
-  version = "0.2.0"
 
 [[constraint]]
+  branch = "master"
   name = "github.com/gorilla/mux"
-  version = "1.6.1"
 
 [prune]
   go-tests = true
