@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DNCService;
+using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 
@@ -27,27 +28,30 @@ namespace NetworkManager.DataModel
 
         public TagDefinition(string name, string type)
         {
-            this.Name = name;
-            this.Type = type;
-            this.CreatedDateTime = DateTime.UtcNow;
-            this.LastUpdatedDateTime = DateTime.UtcNow;
-            this.Values = new List<string>();
+            Name = name;
+            Type = type;
+            Version = 0;
+            CreatedDateTime = DateTime.UtcNow;
+            LastUpdatedDateTime = DateTime.UtcNow;
+            Values = new List<string>();
         }
 
         public TagDefinition(TagDefinition tagDefinition)
         {
-            this.Name = tagDefinition.Name;
-            this.Type = tagDefinition.Type;
-            this.CreatedDateTime = tagDefinition.CreatedDateTime;
-            this.LastUpdatedDateTime = tagDefinition.LastUpdatedDateTime;
-            this.Values = new List<string>(tagDefinition.Values);
+            Name = tagDefinition.Name;
+            Type = tagDefinition.Type;
+            CreatedDateTime = tagDefinition.CreatedDateTime;
+            LastUpdatedDateTime = tagDefinition.LastUpdatedDateTime;
+            Values = new List<string>(tagDefinition.Values);
         }
 
-        public void UpdateTagDefinition(UInt64 version, ICollection<string> values)
+        public void UpdateTagDefinition(ICollection<string> values)
         {
-            this.Values.Clear();
-            this.Values.AddRange(values);
-            this.LastUpdatedDateTime = DateTime.UtcNow;
+            Values.Clear();
+            Values.AddRange(values);
+            LastUpdatedDateTime = DateTime.UtcNow;
+            ++Version;
+            ServiceEventSource.Current.Message($"Updated tagCache with tag definition: {ToString()}");
         }
 
         public override string ToString()
@@ -57,9 +61,9 @@ namespace NetworkManager.DataModel
                 $"LastUpdatedDateTime:{this.LastUpdatedDateTime}";
         }
 
-        public static string GetTagDefinitionKey(string name, string type)
+        public static string GetTagDefinitionKey(string type, string name)
         {
-            return string.Format(Constants.TagDefinitionKey, name, type);
+            return string.Format(Constants.TagDefinitionKey, type, name);
         }
 
 
@@ -74,7 +78,7 @@ namespace NetworkManager.DataModel
 
         public override int GetHashCode()
         {
-            return GetTagDefinitionKey(this.Name, this.Type).GetHashCode();
+            return GetTagDefinitionKey(this.Type, this.Name).GetHashCode();
         }
 
         public object Clone()

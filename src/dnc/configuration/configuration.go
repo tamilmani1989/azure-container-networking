@@ -11,15 +11,17 @@ import (
 
 // Features supported by underlying data storage
 const (
-	SharedSubnetDelegation = 0
+	SharedSubnetDelegation      = 0
+	RegionalStorageAccountUsage = 1
 )
 
 // AzureStorageInfo - Details to connect to azure storage account.
 type AzureStorageInfo struct {
-	AccountName                  string
-	Key                          string
-	PartitionKey                 string
-	EnableSharedSubnetDelegation bool
+	AccountName                     string
+	Key                             string
+	PartitionKey                    string
+	EnableSharedSubnetDelegation    bool
+	RegionalStorageConnectionString string
 }
 
 // AzureSQLInfo - Details to connect to azure sql database.

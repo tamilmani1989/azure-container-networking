@@ -3,7 +3,7 @@
 //     Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
 // <summary>
-// Definititon for NodeRequest class.
+// Definition for NodeRequest class.
 // </summary>
 //--------------------------------------------------------------------------
 
@@ -42,7 +42,10 @@ namespace DNCService.API
         /// <param name="ipAddresses">Supply the IPAddresses of the node.</param>
         /// <param name="locationType">Supply the location type.</param>
         /// <param name="orchestratorType">Supply the type of orchestrator.</param>
-        public NodeRequest(string[] ipAddresses, string locationType, string orchestratorType)
+        public NodeRequest(
+            string[] ipAddresses,
+            string locationType,
+            string orchestratorType)
         {
             if (ipAddresses == null)
             {
@@ -51,22 +54,17 @@ namespace DNCService.API
 
             if (ipAddresses.Length == 0 )
             {
-                throw new ArgumentException("Cannot be empty list", nameof(ipAddresses));
-            }
-
-            if (string.IsNullOrWhiteSpace(locationType))
-            {
-                throw new System.ArgumentException("message", nameof(locationType));
+                throw new ArgumentException("IPAddress list be empty list", nameof(ipAddresses));
             }
 
             if (string.IsNullOrWhiteSpace(orchestratorType))
             {
-                throw new System.ArgumentException("message", nameof(orchestratorType));
+                throw new ArgumentException("Orchestrator type cannot be empty", nameof(orchestratorType));
             }
 
-            this.IPAddresses = ipAddresses;
-            this.LocationType = locationType;
-            this.OrchestratorType = orchestratorType;
+            IPAddresses = ipAddresses;
+            LocationType = locationType;
+            OrchestratorType = orchestratorType;
         }
 
         /// <summary>
@@ -75,8 +73,8 @@ namespace DNCService.API
         /// <returns>String representation of the NodeRequest object.</returns>
         public override string ToString()
         {
-            string ipAddresses = string.Join(",", (object[])this.IPAddresses);
-            return $"Node IPAddresses:{ipAddresses} LocationType:{this.LocationType} OrchestratorType:{this.OrchestratorType}";
+            string ipAddresses = string.Join(",", (object[])IPAddresses);
+            return $"Node IPAddresses:{ipAddresses} LocationType:{LocationType} OrchestratorType:{OrchestratorType}";
         }
 
         /// <summary>
@@ -86,9 +84,9 @@ namespace DNCService.API
         public object Clone()
         {
             return new NodeRequest(
-                this.IPAddresses, 
-                this.LocationType, 
-                this.OrchestratorType);
+                IPAddresses,
+                LocationType,
+                OrchestratorType);
         }
     }
 

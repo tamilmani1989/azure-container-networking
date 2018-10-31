@@ -2,10 +2,14 @@
 using DNCService;
 using DNCService.API;
 using NetworkManager;
+using NetworkManager.DataModel;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using NMAgent.Data;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,18 +21,26 @@ namespace Cns
         /// <summary>
         /// Configuration for DNC
         /// </summary>
-        public DncConfiguration DncConfiguration { get; private set; }
+        private DncConfiguration dncConfiguration;
 
-        public CnsClient(DncConfiguration dncConfiguration)
+        /// <summary>
+        /// Manager to handle tags cache
+        /// </summary>
+        private TagsCacheManager tagsCacheManager;
+
+        public CnsClient(
+            DncConfiguration dncConfiguration,
+            TagsCacheManager tagsCacheManager)
         {
-            this.DncConfiguration = dncConfiguration;
+            this.dncConfiguration = dncConfiguration;
+            this.tagsCacheManager = tagsCacheManager;
         }
 
         public async Task CreateNetworkContainer(
             NetworkContainerInfo networkContainerInfo)
         {
             string createNCUrl = string.Format(
-                    DncConfiguration.CNSSettings.ConnectionStrings.CreateOrUpdateNetworkContainerURLFmt,
+                    dncConfiguration.CNSSettings.ConnectionStrings.CreateOrUpdateNetworkContainerURLFmt,
                     networkContainerInfo.NodeInterfaceID);
             CreateNetworkContainerRequest createNetworkContainerRequest =
                 networkContainerInfo.GetCreateCnsNetworkContainerRequest();
@@ -38,7 +50,7 @@ namespace Cns
             ServiceEventSource.Current.Message("CreateNCUrl:{0}, body:{1}",
                 createNCUrl,
                 createNetworkContainerRequest);
-            if (DncConfiguration.CnsSimulatorMode)
+            if (dncConfiguration.CnsSimulatorMode)
             {
                 return;
             }
@@ -63,11 +75,11 @@ namespace Cns
             }
 
             string responseBody = await response.Content.ReadAsStringAsync();
-            CreateNetworkContainerResponse createNCResponse = null;
+            Cns.Data.CreateNetworkContainerResponse createNCResponse = null;
 
             try
             {
-                createNCResponse = JsonConvert.DeserializeObject<CreateNetworkContainerResponse>(
+                createNCResponse = JsonConvert.DeserializeObject<Cns.Data.CreateNetworkContainerResponse>(
                     responseBody);
             }
             catch (Exception exception)
@@ -95,12 +107,12 @@ namespace Cns
         public async Task DeleteNetworkContainer(
             NetworkContainerInfo networkContainerInfo)
         {
-            if (DncConfiguration.CnsSimulatorMode)
+            if (dncConfiguration.CnsSimulatorMode)
             {
                 return;
             }
             string deleteNCUrl = string.Format(
-                    DncConfiguration.CNSSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
+                    dncConfiguration.CNSSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
                     networkContainerInfo.NodeInterfaceID);
             DeleteNetworkContainerRequest deleteNetworkContainerRequest = 
                 new DeleteNetworkContainerRequest(networkContainerInfo.NetworkContainerID);
@@ -128,10 +140,10 @@ namespace Cns
             }
 
             string responseBody = await response.Content.ReadAsStringAsync();
-            DeleteNetworkContainerResponse deleteNCResponse = null;
+            Cns.Data.DeleteNetworkContainerResponse deleteNCResponse = null;
             try
             {
-                deleteNCResponse = JsonConvert.DeserializeObject<DeleteNetworkContainerResponse>(
+                deleteNCResponse = JsonConvert.DeserializeObject<Cns.Data.DeleteNetworkContainerResponse>(
                     responseBody);
             }
             catch (Exception exception)
@@ -158,14 +170,14 @@ namespace Cns
 
         public async Task SetOrchestratorType(NodeRequest nodeInfoRequest)
         {
-            if (DncConfiguration.CnsSimulatorMode)
+            if (dncConfiguration.CnsSimulatorMode)
             {
                 return;
             }
 
             SetOrchestratorTypeRequest setOrchestratorTypeRequest = new SetOrchestratorTypeRequest(nodeInfoRequest.OrchestratorType);
             string setOrchestratorTypeUrl = string.Format(
-                    DncConfiguration.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
+                    dncConfiguration.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
                     nodeInfoRequest.IPAddresses.First());
             ServiceEventSource.Current.Message("setOrchestratorTypeUrl:{0}, body:{1}",
                 setOrchestratorTypeUrl,
@@ -187,6 +199,95 @@ namespace Cns
                         $"Failed to post request for orchestrator type to CNS due to exception {errorMsg}",
                         ErrorType.Retriable));
             }
+        }
+
+        public void ParseTagsIntoCnetAddresses(
+            ref NetworkContainerInfo networkContainerInfo,
+            ref NCConfiguration ncConfig)
+        {
+            Dictionary<string, UInt64> latestTagInfo = new Dictionary<string, UInt64>();
+            List<TagDefinition> resolvedTags = new List<TagDefinition>();
+            bool tagResolveError = false;
+            foreach (Tag tag in networkContainerInfo.Tags)
+            {
+                TagDefinition tagDefinition = tagsCacheManager.RegisterAndGetTagDefinition(tag);
+                if (tagDefinition != null)
+                {
+                    resolvedTags.Add(tagDefinition);
+                    latestTagInfo.Add(Tag.GetTagKey(tag), tagDefinition.Version);
+                }
+                else
+                {
+                    tagResolveError = true;
+                }
+            }
+
+            if (tagResolveError)
+            {
+                ServiceEventSource.Current.Message($"Error resolving tag");
+                    throw new DncManagementException(
+                        new ErrorInfo(ErrorCode.GetTagDefinitionFailed,
+                        $"Encountered error resolving tag",
+                        (int)HttpStatusCode.InternalServerError,
+                        ErrorType.Retriable));
+            }
+
+            if ((ncConfig.ProgrammedVnetVersion != networkContainerInfo.VnetVersion) ||
+                TagsCacheManager.AreTagsUpdated(latestTagInfo, ncConfig.ProgrammedTagsInfo))
+            {
+                ++ncConfig.CNSVersion;
+                networkContainerInfo.UpdateCnsVersion();
+                ServiceEventSource.Current.Message($"Updating CNSVersion to {ncConfig.CNSVersion}");
+            }
+
+            // TODO: Optimization - Store the resolved CnetAddresses in NCConfig. It can be reused if the
+            // tags are not updated. That avoids performing below operation every time.
+
+            List<Cns.Data.IPSubnet> cnsCnetAddresses = new List<Cns.Data.IPSubnet>();
+            List<string> cnetAddresses = new List<string>();
+
+            foreach (string cnetAddress in networkContainerInfo.CnetAddressSpace)
+            {
+                cnetAddresses.Add(cnetAddress);
+            }
+
+            foreach (TagDefinition tagDefinition in resolvedTags)
+            {
+                foreach (string tagAddress in tagDefinition.Values)
+                {
+                    cnetAddresses.Add(tagAddress);
+                }
+            }
+
+            foreach (string cnetAddress in cnetAddresses)
+            {
+                try
+                {
+                    NetworkManager.IPSubnet cnsAddress =
+                        NetworkManager.IPSubnet.Parse(cnetAddress);
+                    cnsCnetAddresses.Add(
+                        new Data.IPSubnet(cnsAddress.IPAddress.ToString(),
+                            cnsAddress.Prefix));
+                }
+                catch (Exception)
+                {
+                    ServiceEventSource.Current.Message($"ParseTagsIntoCnetAddresses " +
+                        $"parsing failed for cnet address: {cnetAddress}");
+
+                    throw new DncManagementException(
+                        new ErrorInfo(ErrorCode.InvalidIPSubnet,
+                            $"Failed to parse invalid CnetAddress {cnetAddress}",
+                            (int)HttpStatusCode.InternalServerError,
+                            ErrorType.NonRetriable));
+                }
+            }
+
+            // Update cnsCnetAddress in networkContainerInfo
+            networkContainerInfo.SetCnsCnetAddresses(cnsCnetAddresses);
+
+            // Update tag versions and vnet version in NC configuration
+            ncConfig.UpdateProgrammedTagsInfo(latestTagInfo);
+            ncConfig.ProgrammedVnetVersion = networkContainerInfo.VnetVersion;
         }
     }
 }

@@ -82,6 +82,9 @@
       <Robocopy Include="$(SRCROOT)\test\HostNetAgentTests\TestDependencies\NetAgentHostPlugin.PluginSpecific.xml">
         <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\CNIReportTests</DestinationFolder>
       </Robocopy>
+      <Robocopy Include="$(SRCROOT)\..\.config\.tools\wttlog.dll">
+        <DestinationFolder>$(BinariesBuildTypeArchDirectory)\test\CNIReportTests</DestinationFolder>
+      </Robocopy>
     </ItemGroup>
   </Target>
 </Project>

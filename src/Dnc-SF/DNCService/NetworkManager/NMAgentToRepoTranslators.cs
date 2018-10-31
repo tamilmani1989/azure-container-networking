@@ -1,7 +1,4 @@
-﻿
-using DNCService;
-using NetworkManager.DataModel;
-using NMAgent;
+﻿using NetworkManager.DataModel;
 using NMAgent.Data;
 using System;
 using System.Collections.Generic;
@@ -16,7 +13,7 @@ namespace NetworkManager
             Subnet nmagentContractSubnet)
         {
             List<Tag> tags = new List<Tag>();
-            if(nmagentContractSubnet.Tags != null && nmagentContractSubnet.Tags.Any())
+            if (nmagentContractSubnet.Tags != null && nmagentContractSubnet.Tags.Any())
             {
                 tags.AddRange(nmagentContractSubnet.Tags);
             }
@@ -43,12 +40,12 @@ namespace NetworkManager
         {
             UInt64 receivedVnetVersion = UInt64.Parse(virtualNetworkResponse.VnetVersion);
             removedKeys = null;
-            if (receivedVnetVersion == networkConfiguration.Version)
+            if (receivedVnetVersion == networkConfiguration.VnetVersion)
             {
                 return false;
             }
 
-            networkConfiguration.Version = receivedVnetVersion;
+            networkConfiguration.VnetVersion = receivedVnetVersion;
             networkConfiguration.SetVNetSpace(virtualNetworkResponse.VNetSpace);
             networkConfiguration.SetCNetSpace(virtualNetworkResponse.CNetSpace);
             List<string> dnsServers = new List<string>();
@@ -90,7 +87,7 @@ namespace NetworkManager
             foreach (string key in unChangedKeys)
             {
                 SubnetConfiguration subnetConfiguration = subnetConfigurationsMap[key];
-                NMAgent.Data.Subnet nmAgentContractSubnet = updatedSubnetSet[key];
+                Subnet nmAgentContractSubnet = updatedSubnetSet[key];
                 IPSubnet updatedIPSubnet = IPSubnet.Parse(nmAgentContractSubnet.AddressPrefix);
                 if (subnetConfiguration.Reservations.Count > 0)
                 {
@@ -142,20 +139,6 @@ namespace NetworkManager
             }
 
             return true;
-        }
-
-        public static TagDefinition GetTagDefinition(
-            string tagName,
-            string tagType,
-            UInt64 version,
-            NMAgent.Data.TagResponse tagResponse)
-        {
-            TagDefinition tagDefinition = new TagDefinition(
-                tagResponse.Name,
-                tagType);
-            tagDefinition.UpdateTagDefinition(version, tagResponse.Values);
-
-            return tagDefinition;
         }
     }
 }

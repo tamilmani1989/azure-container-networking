@@ -247,8 +247,6 @@ namespace NetworkManager
         {
             IsInitialized();
             string serializedValue = JsonConvert.SerializeObject(value);
-            ServiceEventSource.Current.Message($"Setting Key:{key} Value:{serializedValue}");
-
             await reliableDictionary.AddOrUpdateAsync(tx, key, value, (k, v) => value, transactionTimeout, CancellationToken);
         }
 

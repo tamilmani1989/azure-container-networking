@@ -9,6 +9,7 @@ using System.Text;
 
 namespace NetworkManager
 {
+    // TODO: Add comments
     public class NetworkContainerInfo : ICloneable
     {
         public string NetworkID { private set; get; }
@@ -51,6 +52,15 @@ namespace NetworkManager
 
         public string LocalIP { get; private set; }
 
+        public List<Tag> Tags { get; private set; }
+
+        public UInt64 VnetVersion { get; private set; }
+
+        /// <summary>
+        /// Cnet address list
+        /// </summary>
+        public List<Cns.Data.IPSubnet> CnsCnetAddresses { get; private set; }
+
         public NetworkContainerInfo(
             string networkID,
             string nodeID,
@@ -71,7 +81,9 @@ namespace NetworkManager
             List<string> cnetAddressSpace,
             NetworkContainerState networkContainerState,
             Status status,
-            string localIP)
+            string localIP,
+            ICollection<Tag> tagSet,
+            UInt64 vnetVersion)
         {
             this.NetworkID = networkID;
             this.NodeID = nodeID;
@@ -93,6 +105,9 @@ namespace NetworkManager
             this.NetworkContainerState = networkContainerState;
             this.Status = status;
             this.LocalIP = localIP;
+            this.Tags = new List<Tag>(tagSet);
+            this.VnetVersion = vnetVersion;
+            CnsCnetAddresses = new List<Cns.Data.IPSubnet>();
             ServiceEventSource.Current.Message($"DnsServers:{string.Join(",", DnsServers)}");
         }
 
@@ -118,6 +133,9 @@ namespace NetworkManager
             this.NetworkContainerState = ncConfig.NetworkContainerState;
             this.Status = ncConfig.Status;
             this.LocalIP = ncConfig.LocalIP;
+            this.Tags = new List<Tag>(Tags);
+            this.VnetVersion = ncConfig.VnetVersion;
+            CnsCnetAddresses = new List<Cns.Data.IPSubnet>(ncConfig.CnsCnetAddresses);
             ServiceEventSource.Current.Message($"DnsServers:{string.Join(",", DnsServers)}");
         }
 
@@ -130,6 +148,18 @@ namespace NetworkManager
                 this.Version.ToString(),
                 this.Policies.ToArray(),
                 this.VlanID);
+        }
+
+        public void SetCnsCnetAddresses(
+            List<Cns.Data.IPSubnet> cnsCnetAddresses)
+        {
+            CnsCnetAddresses.Clear();
+            CnsCnetAddresses.AddRange(cnsCnetAddresses);
+        }
+
+        public void UpdateCnsVersion()
+        {
+            ++CnsVersion;
         }
 
         public CreateNetworkContainerRequest GetCreateCnsNetworkContainerRequest()
@@ -167,24 +197,8 @@ namespace NetworkManager
                 ipConfiguration,
                 localIPConfiguration,
                 multiTenancyInfo,
-                GetIPSubnets(this.CnetAddressSpace),
+                CnsCnetAddresses.ToArray(),
                 null);
-        }
-
-        private Cns.Data.IPSubnet[] GetIPSubnets(List<string> ipSubnetStrings)
-        {
-            List<Cns.Data.IPSubnet> ipSubnets = new List<Cns.Data.IPSubnet>();
-            foreach(string ipSubnetString in ipSubnetStrings)
-            {
-                IPSubnet vnetIPSubnet = IPSubnet.Parse(ipSubnetString);
-
-                Cns.Data.IPSubnet ipSubnet = new Cns.Data.IPSubnet(
-                    vnetIPSubnet.IPAddress.ToString(),
-                    vnetIPSubnet.Prefix);
-                ipSubnets.Add(ipSubnet);
-            }
-
-            return ipSubnets.ToArray();
         }
 
         public override string ToString()
@@ -193,7 +207,7 @@ namespace NetworkManager
             using (var algorithm = SHA256.Create())
             {
                 byte[] tokenHash = algorithm.ComputeHash(Encoding.ASCII.GetBytes(this.AccessToken));
-                tokenHashString = System.Text.Encoding.Default.GetString(tokenHash);
+                tokenHashString = Encoding.Default.GetString(tokenHash);
             }
             return $"[NetworkID:{this.NetworkID}, NetworkID:{this.NodeID} " +
                 $"NetworkContainerID:{this.NetworkContainerID} , NodeInterfaceID:{this.NodeInterfaceID}" +
@@ -202,7 +216,8 @@ namespace NetworkManager
                 $"{string.Join(",", this.Policies)}, VlanID:{this.VlanID} " +
                 $"CnsVersion:{this.CnsVersion} ContainerType:{this.ContainerType}" +
                 $"CnetAddressSpace:{this.CnetAddressSpace} " +
-                $"NetworkContainerState:{NetworkContainerState} Status:{this.Status} LocalIP:{this.LocalIP}]";
+                $"NetworkContainerState:{NetworkContainerState} Status:{this.Status} LocalIP:{this.LocalIP} " +
+                $"Tags:{Tags} VnetVersion:{VnetVersion}]";
         }
 
         public static string GetNetworkContainerKey(

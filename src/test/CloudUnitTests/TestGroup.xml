@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestJobGroup EnableProcessJobObjectBreakaway="true">
+   <ResourceSpec>
+      <Resource SKU="Standard_D4s_v3" Image="2016-Datacenter" />
+      <tenantId>azurenetworkingaquarius</tenantId>
+   </ResourceSpec>
+   <Setup>
+      <!-- All references to the build should be made from <BuildFiles> and <Services> sections. 
+         All references to the data  should be made from <DataFiles> section. 
+         Other sections should reference files in the working directory . -->
+      <BuildFiles>
+         <!--The ordering of Copy elements does not matter. In case of any overlaps, cloudtest only overwrites copy over symlink.-->
+         <Copy Src="[BuildRoot]\retail-amd64\*" Dest="[WorkingDirectory]\" IsRecursive="true" Writable="true" />
+      </BuildFiles>
+       <Scripts>
+        <Script Path="[WorkingDirectory]\CloudUnitTests\IIS_Setup.cmd" Args="" />        
+      </Scripts>
+   </Setup>
+   <TestJob Name="NetworkClientTest" Type="SingleBox" Tags="Suite=Suite0" OwnerAliases="tamanoha">
+      <Execution Type="TAEF" Path="[WorkingDirectory]\test\NetworkClientTest\NetworkClientTest.dll" Args="" />
+   </TestJob>
+   <TestJob Name="AquariusTest" Type="SingleBox" Tags="Suite=Suite0" OwnerAliases="tamanoha">
+       <Execution Type="Exe" Parser="TAEF" Path="C:\Windows\System32\cmd.exe" Args="/k &quot; cd /d [WorkingDirectory] &amp; [WorkingDirectory]\test\Taef\TE.exe [WorkingDirectory]\test\AquariusTest\AquariusTest.dll /enableWttLogging /logFile: AquariusTest.taefresult.xml &amp; exit&quot;" />
+   </TestJob>
+   <TestJob Name="NetworkContainerTest" Type="SingleBox" Tags="Suite=Suite0" OwnerAliases="Yongli.Chen">
+      <Execution Type="TAEF" Path="[WorkingDirectory]\test\NetworkContainerTest\NetworkContainerTest.dll" Args="" />
+   </TestJob>
+   <TestJob Name="ServiceTunnelExtensionTest" Type="SingleBox" Tags="Suite=Suite0" OwnerAliases="tamanoha">
+       <Execution Type="Exe" Parser="TAEF" Path="C:\Windows\System32\cmd.exe" Args="/k &quot; cd /d [WorkingDirectory] &amp; [WorkingDirectory]\test\Taef\TE.exe [WorkingDirectory]\test\ServiceTunnelExtensionTest\ServiceTunnelExtensionTest.dll /enableWttLogging /logFile: ServiceTunnelExtensionTest.taefresult.xml &amp; exit&quot;" />
+   </TestJob>
+   <TestJob Name="HostNetAgent" Type="SingleBox" Tags="Suite=Suite0" OwnerAliases="Jayeshk">
+       <Execution Type="Exe" Parser="TAEF" Path="C:\Windows\System32\cmd.exe" Args="/k &quot; cd /d [WorkingDirectory] &amp; [WorkingDirectory]\HostNetAgentTests\TE.exe [WorkingDirectory]\HostNetAgentTests\HostNetAgentTests.dll /enableWttLogging /logFile: HostNetAgentTests.taefresult.xml &amp; exit&quot;" />
+   </TestJob>
+   
+   <TestJob Name="CNIReportTest" Type="SingleBox" Tags="Suite=Suite0" OwnerAliases="tamanoha">
+      <Execution Type="Exe" Parser="TAEF" Path="C:\Windows\System32\cmd.exe" Args="/k &quot; cd /d [WorkingDirectory] &amp; [WorkingDirectory]\test\CNIReportTests\TE.exe [WorkingDirectory]\test\CNIReportTests\CNIReportTests.dll /enableWttLogging /logFile: CNIReportTests.taefresult.xml &amp; exit&quot;" />
+   </TestJob>
+</TestJobGroup>

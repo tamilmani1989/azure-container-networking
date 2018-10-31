@@ -1,8 +1,20 @@
 <WorkflowConfig>
   <Imports>
-    <PathUri GitRepoName="EngSys-DevServices-EngPipe" GitBranchName="master" GitOriginServer="http://vstfrd:8080/Azure/One/_git/">src/Jenkins/Definitions/BuddyBuildWithWaes.xml</PathUri>
+    <PathUri GitRepoName="EngSys-DevServices-EngPipe" GitBranchName="master" GitOriginServer="http://vstfrd:8080/Azure/One/_git/">src/Jenkins/Definitions/BuddyBuildWithCloudTest.xml</PathUri>
   </Imports>
   <GlobalVariables>
     <WaesTestRoot>retail-amd64</WaesTestRoot>
   </GlobalVariables>
+  <Stages>
+      <ValidateStage>
+         <MainStep>
+            <Inputs>
+               <BuildSessionId>Dictionary_Build_UniqueSessionId</BuildSessionId>
+               <testmaplocation>[BuildRoot]\retail-amd64\CloudUnitTests\TestMap.xml</testmaplocation>
+               <tenantId>azurenetworkingaquarius</tenantId>
+               <Environment>Prod</Environment>
+            </Inputs>
+         </MainStep>
+      </ValidateStage>
+   </Stages>
 </WorkflowConfig>

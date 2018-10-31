@@ -61,9 +61,9 @@ namespace NMAgent
                 return response;
             }
             string joinNetworkUrl = string.Format(
-                    DncConfiguration.HostAgentSettings.ConnectionStrings.JoinNetworkURLFmt,
-                    DncConfiguration.HostAgentSettings.WireServerIP,
-                    networkID);
+                DncConfiguration.HostAgentSettings.ConnectionStrings.JoinNetworkURLFmt,
+                DncConfiguration.HostAgentSettings.WireServerIP,
+                networkID);
             string getNetworkUrl = string.Format(
                 DncConfiguration.HostAgentSettings.ConnectionStrings.GetNetworkConfigurationURLFmt,
                 DncConfiguration.HostAgentSettings.WireServerIP,
@@ -130,7 +130,7 @@ namespace NMAgent
                     exception.Message : exception.InnerException.Message;
                 throw new DncHostAgentException(
                     new ErrorInfo(ErrorCode.StatusInternalServerError,
-                        $"Failed to post request to host agent for getNetworkConfiguration due to exception: {errorMsg}",
+                        $"Failed to post request to host agent for getNetworkConfiguration due to exception: {exception}",
                         ErrorType.Retriable));
             }
 
@@ -187,6 +187,98 @@ namespace NMAgent
         }
 
         /// <summary>
+        /// Get system tag definition from host agent.
+        /// </summary>
+        /// <param name="tagName">Supply the name of the tag.</param>
+        /// <returns>Tag Response.</returns>
+        public async Task<TagResponse> GetSystemTagDefinition(
+            string tagName,
+            bool ipv4 = true)
+        {
+            if (DncConfiguration.NMAgentSimulatorMode)
+            {
+                return null;
+            }
+
+            string getSystemTagDefinitionUrl = string.Format(
+                DncConfiguration.HostAgentSettings.ConnectionStrings.GetSystemTagDefinitionURLFmt,
+                DncConfiguration.HostAgentSettings.WireServerIP,
+                tagName,
+                (ipv4) ? "IPv4" : "IPv6");
+
+            ServiceEventSource.Current.Message($"GetSystemTagDefinitionUrl:{getSystemTagDefinitionUrl}");
+
+            HttpClient httpClient = new HttpClient();
+            HttpResponseMessage getResponse;
+            try
+            {
+                getResponse = await httpClient.GetAsync(getSystemTagDefinitionUrl);
+            }
+            catch (Exception exception)
+            {
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.StatusInternalServerError,
+                        $"Failed to post request to host agent for GetSystemTagDefinition " +
+                        $"due to exception: {errorMsg}",
+                        ErrorType.Retriable));
+            }
+
+            string responseBody = await getResponse.Content.ReadAsStringAsync();
+            TagResponse tagResponse;
+            HttpStatusCode getTagResponseCode;
+            try
+            {
+                tagResponse = JsonConvert.DeserializeObject<TagResponse>(responseBody);
+                getTagResponseCode = (HttpStatusCode)Enum.Parse(
+                    typeof(HttpStatusCode),
+                    tagResponse.ResponseCode);
+            }
+            catch (Exception exception)
+            {
+                string errorMsg = (exception.InnerException == null) ?
+                    exception.Message : exception.InnerException.Message;
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.DecodeResponseFailed,
+                        $"Failed to decode response from host agent for GetSystemTagDefinition " +
+                        $"due to exception: {errorMsg}",
+                        ErrorType.Retriable));
+            }
+
+            // TODO: Missing StatusProcessing (102) in System.Net.HttpStatusCode
+            if (getTagResponseCode == (HttpStatusCode)102/*StatusProcessing*/)
+            {
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.ProcessingPending,
+                        $"GetSystemTagDefinition for {tagName} is in pending state",
+                        (int)getTagResponseCode,
+                        ErrorType.Retriable));
+            }
+
+            if (getTagResponseCode == HttpStatusCode.Unauthorized)
+            {
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.AgentTagDefinitionRetrievalFailed,
+                        $"GetSystemTagDefinition for {tagName} is unauthorized",
+                        (int)getTagResponseCode,
+                        ErrorType.NonRetriable));
+            }
+
+            if (getTagResponseCode != HttpStatusCode.OK)
+            {
+                throw new DncHostAgentException(
+                    new ErrorInfo(ErrorCode.AgentTagDefinitionRetrievalFailed,
+                        $"Tag definition retrival failed from host agent " +
+                        $"due to error {getTagResponseCode}",
+                        (int)getTagResponseCode,
+                        ErrorType.NonRetriable));
+            }
+
+            return tagResponse;
+        }
+
+        /// <summary>
         /// Create network container request.
         /// </summary>
         /// <param name="networkContainerInfo">Supply the network container info.</param>
@@ -197,12 +289,13 @@ namespace NMAgent
             {
                 return;
             }
+
             string createNCUrl = string.Format(
-                    DncConfiguration.HostAgentSettings.ConnectionStrings.PutNetworkContainerURLFmt,
-                    DncConfiguration.HostAgentSettings.WireServerIP,
-                    networkContainerInfo.NodeInterfaceID,
-                    networkContainerInfo.NetworkContainerID,
-                    networkContainerInfo.AccessToken);
+                DncConfiguration.HostAgentSettings.ConnectionStrings.PutNetworkContainerURLFmt,
+                DncConfiguration.HostAgentSettings.WireServerIP,
+                networkContainerInfo.NodeInterfaceID,
+                networkContainerInfo.NetworkContainerID,
+                networkContainerInfo.AccessToken);
 
             ServiceEventSource.Current.Message("createNCUrl:{0}", createNCUrl);
 
@@ -286,11 +379,11 @@ namespace NMAgent
             }
 
             string deleteNCUrl = string.Format(
-                     DncConfiguration.HostAgentSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
-                     DncConfiguration.HostAgentSettings.WireServerIP,
-                     networkContainerInfo.NodeInterfaceID,
-                     networkContainerInfo.NetworkContainerID,
-                     networkContainerInfo.AccessToken);
+                DncConfiguration.HostAgentSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
+                DncConfiguration.HostAgentSettings.WireServerIP,
+                networkContainerInfo.NodeInterfaceID,
+                networkContainerInfo.NetworkContainerID,
+                networkContainerInfo.AccessToken);
 
             ServiceEventSource.Current.Message("DeleteNCUrl:{0}", deleteNCUrl);
 
@@ -317,6 +410,7 @@ namespace NMAgent
                 throw new DncHostAgentException(
                     new ErrorInfo(ErrorCode.UnpublishingFailed,
                         $"Delete NC failed with response code {response.StatusCode}",
+                        (int)response.StatusCode,
                         ErrorType.Retriable));
             }
 
@@ -346,6 +440,7 @@ namespace NMAgent
                 throw new DncHostAgentException(
                     new ErrorInfo(ErrorCode.UnpublishingFailed,
                         $"Delete NC failed with response code {deleteNCReponseCode}",
+                        (int)deleteNCReponseCode,
                         ErrorType.NonRetriable));
             }
 

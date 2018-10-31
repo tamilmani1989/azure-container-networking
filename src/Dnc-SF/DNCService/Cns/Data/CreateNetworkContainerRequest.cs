@@ -5,8 +5,6 @@
 // 
 //-----------------------------------------------------------------------
 
-using API;
-using DNCService.API;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Security.Cryptography;
@@ -109,16 +107,16 @@ namespace Cns.Data
             IPSubnet[] cnetAddressSpace,
             Route[] routes)
         {
-            this.Version = version;
-            this.NetworkContainerType = ncType;
-            this.NetworkContainerID = ncID;
-            this.PrimaryInterfaceIdentifier = interfaceID;
-            this.AuthorizationToken = accessToken;
-            this.IPConfiguration = ipConfiguration;
-            this.LocalIPConfiguration = localIPConfiguration;
-            this.MultiTenancyInfo = multiTenancyInfo;
-            this.CnetAddressSpace = cnetAddressSpace;
-            this.Routes = routes;
+            Version = version;
+            NetworkContainerType = ncType;
+            NetworkContainerID = "Swift_" + ncID;
+            PrimaryInterfaceIdentifier = interfaceID;
+            AuthorizationToken = accessToken;
+            IPConfiguration = ipConfiguration;
+            LocalIPConfiguration = localIPConfiguration;
+            MultiTenancyInfo = multiTenancyInfo;
+            CnetAddressSpace = cnetAddressSpace;
+            Routes = routes;
         }
 
         /// <summary>
@@ -128,29 +126,29 @@ namespace Cns.Data
         public override string ToString()
         {
             string orchestratorContextStr =
-                this.OrchestratorContext != null ? this.OrchestratorContext.ToString() : "null";
-            string cnetAddressSpaceStr = this.CnetAddressSpace != null ?
-                string.Join(",", (object[])this.CnetAddressSpace) : "null";
+                OrchestratorContext != null ? OrchestratorContext.ToString() : "null";
+            string cnetAddressSpaceStr = CnetAddressSpace != null ?
+                string.Join(",", (object[])CnetAddressSpace) : "null";
 
-            string routesStr = this.Routes != null ?
-                string.Join(",", (object[])this.Routes) : "null";
+            string routesStr = Routes != null ?
+                string.Join(",", (object[])Routes) : "null";
 
             string tokenHashString = "";
-            if (!string.IsNullOrWhiteSpace(this.AuthorizationToken))
+            if (!string.IsNullOrWhiteSpace(AuthorizationToken))
             {
                 using (var algorithm = SHA256.Create())
                 {
-                    byte[] tokenHash = algorithm.ComputeHash(Encoding.ASCII.GetBytes(this.AuthorizationToken));
-                    tokenHashString = System.Text.Encoding.Default.GetString(tokenHash);
+                    byte[] tokenHash = algorithm.ComputeHash(Encoding.ASCII.GetBytes(AuthorizationToken));
+                    tokenHashString = Encoding.Default.GetString(tokenHash);
                 }
             }
-            return $"[Version:{this.Version} NetworkContainerType:{this.NetworkContainerType} " +
-                    $"NetworkContainerID:{this.NetworkContainerID} " +
-                    $"PrimaryInterfaceIdentifier:{this.PrimaryInterfaceIdentifier} " +
+            return $"[Version:{Version} NetworkContainerType:{NetworkContainerType} " +
+                    $"NetworkContainerID:{NetworkContainerID} " +
+                    $"PrimaryInterfaceIdentifier:{PrimaryInterfaceIdentifier} " +
                     $"AuthorizationToken : {tokenHashString}" +
                     $"OrchestratorContext :{orchestratorContextStr} " +
-                    $"IPConfiguration:{this.IPConfiguration} LocalIPConfiguration:{this.LocalIPConfiguration} " +
-                    $"MultiTenancyInfo:{this.MultiTenancyInfo} " +
+                    $"IPConfiguration:{IPConfiguration} LocalIPConfiguration:{LocalIPConfiguration} " +
+                    $"MultiTenancyInfo:{MultiTenancyInfo} " +
                     $"CnetAddressSpace:{cnetAddressSpaceStr} Routes:{routesStr}]";
         }
     }

@@ -30,6 +30,8 @@ namespace NetworkManager
 
         public IReliableDictionary<string, NetworkProfile> NetworkProfilesReliableCollection { get; private set; }
 
+        public IReliableDictionary<string, TagDefinition> TagDefinitionReliableCollection { get; private set; }
+
         private DncConfiguration dncConfiguration;
 
         public NetworkRepositoryManager(DncConfiguration dncConfiguration)
@@ -58,6 +60,9 @@ namespace NetworkManager
             NetworkProfilesReliableCollection =
                 RepositoryHelper.GetReliableDictionaryAsync<string, NetworkProfile>(
                     Constants.NetworkProfilesTableName).Result;
+            TagDefinitionReliableCollection =
+                RepositoryHelper.GetReliableDictionaryAsync<string, TagDefinition>(
+                    Constants.TagDefinitionTableName).Result;
 
             this.dncConfiguration = dncConfiguration;
         }
@@ -118,6 +123,23 @@ namespace NetworkManager
             }
 
             return requestIDs;
+        }
+
+        public async Task<Dictionary<string, TagDefinition>> GetAllTagDefinitions()
+        {
+            Dictionary<string, TagDefinition> tagDefinitionMap = new Dictionary<string, TagDefinition>();
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                var enumerable = await TagDefinitionReliableCollection.CreateEnumerableAsync(tx);
+                var asyncEnumerator = enumerable.GetAsyncEnumerator();
+
+                while (await asyncEnumerator.MoveNextAsync(RepositoryHelper.CancellationToken))
+                {
+                    tagDefinitionMap.Add(asyncEnumerator.Current.Key, asyncEnumerator.Current.Value);
+                }
+            }
+
+            return tagDefinitionMap;
         }
 
         public async Task<RequestContext> GetRequestContext(string requestID)
@@ -239,7 +261,8 @@ namespace NetworkManager
 
         public async Task UpdateFailureDetail(
             RequestContext requestContext,
-            ErrorInfo failureDetail)
+            ErrorInfo failureDetail,
+            bool retriableError = true)
         {
             using (ITransaction tx = RepositoryHelper.GetTransaction())
             {
@@ -256,6 +279,10 @@ namespace NetworkManager
 
                         if (ncConfiguration != null)
                         {
+                            if (!retriableError)
+                            {
+                                ncConfiguration.Status = Status.Failed;
+                            }
                             ncConfiguration.FailureDetail = failureDetail;
                             await RepositoryHelper.CreateOrUpdateReliableDictionary(
                                 tx,
@@ -277,6 +304,10 @@ namespace NetworkManager
 
                         if (networkConfig != null)
                         {
+                            if (!retriableError)
+                            {
+                                networkConfig.Status = Status.Failed;
+                            }
                             networkConfig.FailureDetail = failureDetail;
                             await RepositoryHelper.CreateOrUpdateReliableDictionary(
                                 tx,
@@ -371,6 +402,21 @@ namespace NetworkManager
             }
         }
 
+        public async Task UpdateNCConfiguration(
+            RequestContext requestContext,
+            NCConfiguration ncConfig)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                    tx,
+                    NCConfigReliableCollection,
+                    requestContext.RequestID,
+                    ncConfig);
+                await RepositoryHelper.CommitTransactionAsync(tx);
+            }
+        }
+
         public async Task<NCConfiguration> GetNCConfigurationAsync(RequestContext requestContext)
         {
             using (var tx = RepositoryHelper.GetTransaction())
@@ -454,6 +500,12 @@ namespace NetworkManager
                         ErrorType.NonRetriable));
                 }
 
+                List<Tag> tags = new List<Tag>();
+                if ((subnetConfiguration.Tags != null) && subnetConfiguration.Tags.Any())
+                {
+                    tags.AddRange(subnetConfiguration.Tags);
+                }
+
                 string nodeKey = NodeConfiguration.GetNodeKey(
                     ncConfiguration.Request.AssociationInfo.NodeID);
 
@@ -513,7 +565,9 @@ namespace NetworkManager
                     networkConfiguration.CnetSpace,
                     ncConfiguration.State,
                     ncConfiguration.Status,
-                    ncConfiguration.LocalIP);
+                    ncConfiguration.LocalIP,
+                    tags,
+                    networkConfiguration.VnetVersion);
             }
         }
 
@@ -741,6 +795,60 @@ namespace NetworkManager
                     tx,
                     NodeConfigReliableCollection,
                     NodeConfiguration.GetNodeKey(nodeID));
+            }
+        }
+
+        public async Task<SubnetConfiguration> GetSubnetConfiguration(
+            string subnetKey)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                return await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    SubnetConfigReliableCollection,
+                    subnetKey);
+            }
+        }
+
+        public async Task UpdateSubnetConfiguration(
+            string subnetKey,
+            SubnetConfiguration subnetConfig)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                    tx,
+                    SubnetConfigReliableCollection,
+                    subnetKey,
+                    subnetConfig);
+                await RepositoryHelper.CommitTransactionAsync(tx);
+            }
+        }
+
+        public async Task<ReservationConfiguration> GetReservationConfiguration(
+            string reservationKey)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                return await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    ReservationReliableCollection,
+                    reservationKey);
+            }
+        }
+
+        public async Task UpdateReservationConfiguration(
+            string reservationKey,
+            ReservationConfiguration reservationConfig)
+        {
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                    tx,
+                    ReservationReliableCollection,
+                    reservationKey,
+                    reservationConfig);
+                await RepositoryHelper.CommitTransactionAsync(tx);
             }
         }
 

@@ -8,14 +8,13 @@
 using Cns;
 using DNCService;
 using DNCService.API;
-using Microsoft.ServiceFabric.Data;
-using Microsoft.ServiceFabric.Data.Collections;
 using Microsoft.ServiceFabric.Data.Notifications;
 using NetworkManager.DataModel;
 using NMAgent;
 using NMAgent.Data;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NetworkManager
@@ -65,14 +64,25 @@ namespace NetworkManager
         private object syncLock;
 
         /// <summary>
+        /// Azure storage client.
+        /// </summary>
+        private AzureStorageClient azureStorageClient;
+
+        /// <summary>
         /// Constructor.
         /// </summary>
         /// <param name="hostAgentClient">Handle to the host agent client.</param>
         /// <param name="cnsClient">Handle to the cns client.</param>
-        public RequestWatcher(HostAgentClient hostAgentClient, CnsClient cnsClient)
+        /// <param name="dncConfiguration">Supply the Dnc configuration.</param>
+        public RequestWatcher(
+            HostAgentClient hostAgentClient,
+            CnsClient cnsClient,
+            DncConfiguration dncConfiguration
+            )
         {
             this.hostAgentClient = hostAgentClient;
             this.cnsClient = cnsClient;
+            azureStorageClient = new AzureStorageClient(dncConfiguration);
             syncLock = new object();
         }
 
@@ -80,9 +90,13 @@ namespace NetworkManager
         /// Initialize.
         /// </summary>
         /// <param name="networkManager">Supply handle to the network repository manager.</param>
-        public void Init(NetworkRepositoryManager networkManager)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task Init(
+            NetworkRepositoryManager networkManager,
+            CancellationToken cancellationToken)
         {
-            this.networkRepositoryManager = networkManager;
+            networkRepositoryManager = networkManager;
+            await azureStorageClient.Init(cancellationToken);
         }
 
         /// <summary>
@@ -213,18 +227,19 @@ namespace NetworkManager
                 }
                 catch (Exception exception)
                 {
-                    ServiceEventSource.Current.Message("Failed to process Network request {0}. Exception:{1}",
+                    ServiceEventSource.Current.Message("Failed to process Request {0}. Exception:{1}",
                         ((requestContext != null) ? requestContext.ToString() : "null"),
                         exception);
 
                     DncManagementException dncManagementException = (DncManagementException)exception;
+                    bool isErrorRetriable = (dncManagementException.ErrorType == ErrorType.Retriable);
 
                     // Update the failure detail
                     await networkRepositoryManager.UpdateFailureDetail(
-                        requestContext, dncManagementException.ErrorInfo);
+                        requestContext, dncManagementException.ErrorInfo, isErrorRetriable);
 
                     // Add to the failed queue only if the error is retriable
-                    if (dncManagementException.ErrorType == ErrorType.Retriable)
+                    if (isErrorRetriable)
                     {
                         await networkRepositoryManager.MoveRequestToFailedQueue(
                             requestID,
@@ -269,6 +284,10 @@ namespace NetworkManager
 
             switch (ncConfiguration.State)
             {
+                case NetworkContainerState.Reserve:
+                    await ProcessNetworkContainerReserveIP(requestContext);
+                    break;
+
                 case NetworkContainerState.Associate:
                 case NetworkContainerState.RefreshAssociation:
                     await ProcessNetworkContainerAssociate(requestContext);
@@ -334,8 +353,8 @@ namespace NetworkManager
         /// <returns></returns>
         private async Task ProcessNetworkContainerRevert(RequestContext requestContext)
         {
-            NetworkContainerInfo networkContainerInfo = await networkRepositoryManager.GetNetworkContainerInfo(
-                requestContext.RequestID);
+            NetworkContainerInfo networkContainerInfo =
+                await networkRepositoryManager.GetNetworkContainerInfo(requestContext.RequestID);
             if (networkContainerInfo == null)
             {
                 throw new DncManagementException(
@@ -346,6 +365,42 @@ namespace NetworkManager
 
             try
             {
+                // Delete the IP allocation from azure storage
+                if (isSharedSubnetDelegationEnabled())
+                {
+                    NCConfiguration ncConfig =
+                        await networkRepositoryManager.GetNCConfigurationAsync(requestContext.RequestID);
+                    if (ncConfig == null)
+                    {
+                        throw new DncManagementException(
+                            new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                                "Failed to delete NC due to failure to find network container config",
+                                ErrorType.NonRetriable));
+                    }
+
+                    string reservationKey = ReservationConfiguration.GetReservationKey(
+                        networkContainerInfo.NetworkID,
+                        ncConfig.ReservationID);
+                    ReservationConfiguration reservationConfig =
+                        await networkRepositoryManager.GetReservationConfiguration(reservationKey);
+                    if (reservationConfig == null)
+                    {
+                        throw new DncManagementException(
+                            new ErrorInfo(ErrorCode.ReservationNotFound,
+                                "Failed to delete NC due to failure to find reservation",
+                                ErrorType.NonRetriable));
+                    }
+
+                    string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(
+                        requestContext.NetworkID,
+                        reservationConfig.AllocationRequest.SubnetName);
+
+                    await azureStorageClient.DeleteAllocatedIP(
+                        subnetKey,
+                        azureStorageClient.EncodeIPAllocationKey(reservationConfig.AllocatedSubnet),
+                        reservationKey);
+                }
+
                 await networkRepositoryManager.DeleteNetworkContainer(networkContainerInfo, true);
             }
             catch (Exception exception)
@@ -354,7 +409,7 @@ namespace NetworkManager
                     exception.Message : exception.InnerException.Message;
                 throw new DncManagementException(
                     new ErrorInfo(ErrorCode.NetworkContainerNotFound,
-                        $"Failed to delete NC due to excpetion {errorMsg}",
+                        $"Failed to delete NC due to exception {errorMsg}",
                         ErrorType.Retriable));
             }
         }
@@ -446,9 +501,13 @@ namespace NetworkManager
         /// <returns></returns>
         private async Task ProcessNetworkContainerAssociate(RequestContext requestContext)
         {
-            NetworkContainerInfo networkContainerInfo = await networkRepositoryManager.GetNetworkContainerInfo(
-                requestContext.RequestID);
-            if (networkContainerInfo == null)
+            NetworkContainerInfo networkContainerInfo =
+                await networkRepositoryManager.GetNetworkContainerInfo(requestContext.RequestID);
+            NCConfiguration ncConfig =
+                await networkRepositoryManager.GetNCConfigurationAsync(requestContext.RequestID);
+
+            if ((networkContainerInfo == null) ||
+                (ncConfig == null))
             {
                 throw new DncManagementException(
                     new ErrorInfo(ErrorCode.NetworkContainerNotFound,
@@ -456,7 +515,27 @@ namespace NetworkManager
                         ErrorType.NonRetriable));
             }
 
+            cnsClient.ParseTagsIntoCnetAddresses(ref networkContainerInfo, ref ncConfig);
+
             await cnsClient.CreateNetworkContainer(networkContainerInfo);
+
+            // Retrieve the latest NC config as current copy could have been updated while calling CNS
+            NCConfiguration ncConfigLatest =
+                await networkRepositoryManager.GetNCConfigurationAsync(requestContext.RequestID);
+            if (ncConfigLatest == null)
+            {
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                        "Failed to associate NC due to failure to retrieve NC configuration",
+                        ErrorType.NonRetriable));
+            }
+
+            ncConfig.MarkedForDelete = ncConfigLatest.MarkedForDelete;
+
+            // Update NC configuration
+            await networkRepositoryManager.UpdateNCConfiguration(
+                requestContext,
+                ncConfig);
 
             await networkRepositoryManager.UpdateNetworkContainerState(
                 requestContext,
@@ -555,11 +634,164 @@ namespace NetworkManager
             }
 
             await networkRepositoryManager.UpdateNetworkContainerState(
-                    requestContext,
-                    NetworkContainerState.AllocateLocalIP,
-                    NetworkContainerState.Associate,
-                    Status.Pending,
-                    false);
+                requestContext,
+                NetworkContainerState.AllocateLocalIP,
+                NetworkContainerState.Associate,
+                Status.Pending,
+                false);
+        }
+
+        /// <summary>
+        /// Process reserve an IP for network container.
+        /// </summary>
+        /// <param name="requestContext">Supply the request context.</param>
+        /// <returns></returns>
+        private async Task ProcessNetworkContainerReserveIP(RequestContext requestContext)
+        {
+            NetworkContainerInfo networkContainerInfo =
+                await networkRepositoryManager.GetNetworkContainerInfo(requestContext.RequestID);
+
+            if (networkContainerInfo == null)
+            {
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                        "Failed to reserve IP for NC due to failure to retrieve NC configuration",
+                        ErrorType.NonRetriable));
+            }
+
+            NCConfiguration ncConfig =
+                await networkRepositoryManager.GetNCConfigurationAsync(requestContext.RequestID);
+            if (ncConfig == null)
+            {
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.NetworkContainerNotFound,
+                        "Failed to reserve IP for NC due to failure to retrieve NC configuration",
+                        ErrorType.NonRetriable));
+            }
+
+            string reservationKey = ReservationConfiguration.GetReservationKey(
+                requestContext.NetworkID,
+                ncConfig.ReservationID);
+            ReservationConfiguration reservationConfig =
+                await networkRepositoryManager.GetReservationConfiguration(reservationKey);
+            if (reservationConfig == null)
+            {
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.ReservationNotFound,
+                        "Failed to reserve IP for NC due to failure to find reservation",
+                        ErrorType.NonRetriable));
+            }
+
+            string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(
+                requestContext.NetworkID,
+                reservationConfig.AllocationRequest.SubnetName);
+            SubnetConfiguration subnetConfig =
+                await networkRepositoryManager.GetSubnetConfiguration(subnetKey);
+            if (subnetConfig == null)
+            {
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.SubnetNotFound,
+                        "Failed to reserve IP for NC due to failure to find subnet configuration",
+                        ErrorType.NonRetriable));
+            }
+
+            string existingSubnetAllocation = null;
+            List<IPSubnet> allocatedSubnets = new List<IPSubnet>();
+
+            // If sharedSubnetDelegation is enabled call azureStorage to get all the allocated subnets
+            if (isSharedSubnetDelegationEnabled())
+            {
+                IReadOnlyDictionary<string, string> allocatedSubnetStrings =
+                    await azureStorageClient.GetAllocatedSubnets(subnetKey);
+
+                foreach (KeyValuePair<string, string> allocatedSubnetKvp in allocatedSubnetStrings)
+                {
+                    var subnetAllocation = IPSubnet.Parse(
+                        azureStorageClient.DecodeIPAllocationKey(allocatedSubnetKvp.Key));
+                    if (reservationKey.Equals(allocatedSubnetKvp.Value))
+                    {
+                        existingSubnetAllocation = subnetAllocation.ToString();
+                        ServiceEventSource.Current.Message($"Found allocated IP " +
+                            $"{reservationConfig.AllocatedSubnet} for current reservation");
+                        break;
+                    }
+                    allocatedSubnets.Add(subnetAllocation);
+                }
+            }
+            else
+            {
+                foreach (KeyValuePair<string, string> reservationKvp in subnetConfig.Reservations)
+                {
+                    allocatedSubnets.Add(IPSubnet.Parse(reservationKvp.Value));
+                    ServiceEventSource.Current.Message($"Reservation Id:{reservationKvp.Key} " +
+                        $"Value:{reservationKvp.Value}");
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(existingSubnetAllocation))
+            {
+                // Allocate a new IP from base subnet
+                reservationConfig.AllocatedSubnet =
+                    AllocationHelper.AllocateSubnetFromBaseSubnet(
+                        IPSubnet.Parse(subnetConfig.IPSubnet),
+                        allocatedSubnets,
+                        32).ToString();
+
+                if (isSharedSubnetDelegationEnabled())
+                {
+                    // Try to save new allocation in IPAllocationsTable
+                    bool insertIPAllocationSuccess =
+                        await azureStorageClient.TryInsertAllocatedIP(
+                            subnetKey,
+                            azureStorageClient.EncodeIPAllocationKey(reservationConfig.AllocatedSubnet),
+                            reservationKey);
+                    if (!insertIPAllocationSuccess)
+                    {
+                        throw new DncManagementException(
+                            new ErrorInfo(ErrorCode.AllocationFailed,
+                                "Failed to insert allocated IP into the table. " +
+                                $"Possible IP contention. Retrying...",
+                                ErrorType.Retriable));
+                    }
+                }
+            }
+            else
+            {
+                // Assign the existing subnet allocation
+                reservationConfig.AllocatedSubnet = existingSubnetAllocation;
+            }
+
+            ServiceEventSource.Current.Message($"Reserved IP: {reservationConfig.AllocatedSubnet}");
+
+            await networkRepositoryManager.UpdateReservationConfiguration(
+                reservationKey,
+                reservationConfig);
+
+            // Update subnet config with the new allocated subnet and save the
+            // updated subnet config.
+            subnetConfig.AddReservation(
+                reservationConfig.ReservationID,
+                reservationConfig.AllocatedSubnet);
+
+            await networkRepositoryManager.UpdateSubnetConfiguration(
+                subnetKey,
+                subnetConfig);
+
+            await networkRepositoryManager.UpdateNetworkContainerState(
+                requestContext,
+                NetworkContainerState.Reserve,
+                NetworkContainerState.Publish,
+                Status.Pending,
+                false);
+        }
+
+        /// <summary>
+        /// Returns if the shared subnet delegation is enabled
+        /// </summary>
+        /// <returns>True if enabled, false otherwise.</returns>
+        private bool isSharedSubnetDelegationEnabled()
+        {
+            return azureStorageClient.IsSharedSubnetDelegationEnabled();
         }
     }
 }

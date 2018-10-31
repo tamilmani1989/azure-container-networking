@@ -10,7 +10,6 @@
 using System;
 using System.Collections.Generic;
 using System.Fabric;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.ServiceFabric.Data.Collections;
@@ -31,6 +30,7 @@ using Cns;
 using NetworkManager.DataModel;
 using DNCService.Rest;
 using System.Net;
+using NodeConfiguration = NetworkManager.DataModel.NodeConfiguration;
 
 namespace DNCService
 {
@@ -74,6 +74,8 @@ namespace DNCService
         /// </summary>
         private NetworkRepositoryManager networkRepositoryManager;
 
+        private TagsCacheManager tagsCacheManager;
+
         /// <summary>
         /// Constructor.
         /// </summary>
@@ -89,8 +91,9 @@ namespace DNCService
             this.replicaInstanceid = context.ReplicaOrInstanceId;
             this.StateManager.StateManagerChanged += this.OnStateManagerChangedHandler;
             hostAgentClient = new HostAgentClient(DncConfigurationInstance);
-            cnsClient = new CnsClient(DncConfigurationInstance);
-            requestWatcher = new RequestWatcher(hostAgentClient, cnsClient);
+            tagsCacheManager = new TagsCacheManager();
+            cnsClient = new CnsClient(DncConfigurationInstance, tagsCacheManager);
+            requestWatcher = new RequestWatcher(hostAgentClient, cnsClient, DncConfigurationInstance);
             ServiceEventSource.Current.Message("Completed Init");
         }
 
@@ -103,26 +106,26 @@ namespace DNCService
             List<ServiceReplicaListener> serviceReplicaListeners = new List<ServiceReplicaListener> (
                 this.CreateServiceRemotingReplicaListeners());
             serviceReplicaListeners.Add(new ServiceReplicaListener(
-                    serviceContext =>
-                        new KestrelCommunicationListener(
-                            serviceContext, "ServiceEndpoint",
-                            (url, listener) =>
-                            {
-                                ServiceEventSource.Current.ServiceMessage(serviceContext, $"Starting Kestrel on {url}");
+                serviceContext =>
+                    new KestrelCommunicationListener(
+                        serviceContext, "ServiceEndpoint",
+                        (url, listener) =>
+                        {
+                            ServiceEventSource.Current.ServiceMessage(serviceContext, $"Starting Kestrel on {url}");
 
-                                return new WebHostBuilder()
-                                    .UseKestrel()
-                                    .ConfigureServices(
-                                        services => services
-                                            .AddSingleton<StatefulServiceContext>(serviceContext)
-                                            .AddSingleton<IReliableStateManager>(this.StateManager))
-                                    .UseContentRoot(Directory.GetCurrentDirectory())
-                                    .UseStartup<Startup>()
-                                    .UseApplicationInsights()
-                                    .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.UseUniqueServiceUrl)
-                                    .UseUrls(url)
-                                    .Build();
-                            })));
+                            return new WebHostBuilder()
+                                .UseKestrel()
+                                .ConfigureServices(
+                                    services => services
+                                        .AddSingleton<StatefulServiceContext>(serviceContext)
+                                        .AddSingleton<IReliableStateManager>(this.StateManager))
+                                .UseContentRoot(Directory.GetCurrentDirectory())
+                                .UseStartup<Startup>()
+                                .UseApplicationInsights()
+                                .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.UseUniqueServiceUrl)
+                                .UseUrls(url)
+                                .Build();
+                        })));
             return serviceReplicaListeners.ToArray();
         }
 
@@ -174,7 +177,10 @@ namespace DNCService
             {
                 RepositoryHelper.Init(this.StateManager, cancellationToken, new TimeSpan(0, 0, 30));
                 networkRepositoryManager = new NetworkRepositoryManager(DncConfigurationInstance);
-                requestWatcher.Init(networkRepositoryManager);
+
+                tagsCacheManager.Init(hostAgentClient, networkRepositoryManager);
+
+                await requestWatcher.Init(networkRepositoryManager, cancellationToken);
                 requestWatcher.Start();
 
                 RequestResetMonitor requestResetMonitor = new RequestResetMonitor(
@@ -183,17 +189,22 @@ namespace DNCService
                 requestResetMonitor.StartAsync();
 
                 NetworkRefreshMonitor networkRefreshMonitor = new NetworkRefreshMonitor(
-                    this.StateManager,
+                    StateManager,
                     cancellationToken,
                     hostAgentClient,
-                    cnsClient,
-                    networkRepositoryManager);
+                    networkRepositoryManager,
+                    tagsCacheManager);
                 networkRefreshMonitor.StartAsync();
 
                 NetworkContainerMonitor networkContainerMonitor = new NetworkContainerMonitor(
                     cancellationToken,
                     networkRepositoryManager);
                 networkContainerMonitor.StartAsync();
+
+                TagRefreshMonitor tagRefreshMonitor = new TagRefreshMonitor(
+                    cancellationToken,
+                    tagsCacheManager);
+                tagRefreshMonitor.StartAsync();
 
                 ServiceEventSource.Current.Message("Completed initializing monitors");
                 while (true)
@@ -229,6 +240,23 @@ namespace DNCService
                 SubnetConfiguration subnetConfiguration;
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
+                    NetworkConfiguration networkConfig =
+                        await RepositoryHelper.GetFromReliableDictionary(
+                            tx,
+                            networkRepositoryManager.NetworkConfigReliableCollection,
+                            NetworkConfiguration.GetNetworkKey(networkID));
+                    if ((networkConfig == null) ||
+                        ((networkConfig.State != NetworkState.Join) &&
+                         (networkConfig.Status != Status.Completed)))
+                    {
+                        throw new DncNetworkManagementException(
+                            networkID,
+                            new ErrorInfo(ErrorCode.NetworkNotFound,
+                                "Network not found",
+                                (int)HttpStatusCode.NotFound,
+                                ErrorType.NonRetriable));
+                    }
+
                     string subnetKey =
                         SubnetConfiguration.GetSubnetConfigurationKey(networkID, subnetName);
                     subnetConfiguration = await RepositoryHelper.GetFromReliableDictionary(
@@ -276,12 +304,6 @@ namespace DNCService
             string networkID,
             string subnetName)
         {
-            IReliableDictionary<string, NetworkConfiguration> networkConfigReliableCollection =
-                RepositoryHelper.GetReliableDictionaryAsync<string, NetworkConfiguration>(
-                Constants.NetworkConfigurationTableName).Result;
-            IReliableDictionary<string, SubnetConfiguration> subnetConfigReliableCollection =
-                RepositoryHelper.GetReliableDictionaryAsync<string, SubnetConfiguration>(
-                Constants.SubnetConfigurationTableName).Result;
             SubnetConfiguration subnetConfiguration;
             NetworkConfiguration networkConfig;
             try
@@ -293,13 +315,13 @@ namespace DNCService
 
                     networkConfig = await RepositoryHelper.GetFromReliableDictionary(
                         tx,
-                        networkConfigReliableCollection,
+                        networkRepositoryManager.NetworkConfigReliableCollection,
                         networkKey);
                     ServiceEventSource.Current.Message($"Retrieved network config.{networkConfig}");
                     string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(networkID, subnetName);
                     subnetConfiguration = await RepositoryHelper.GetFromReliableDictionary(
                         tx,
-                        subnetConfigReliableCollection,
+                        networkRepositoryManager.SubnetConfigReliableCollection,
                         subnetKey);
                     foreach(string reservationID in subnetConfiguration.Reservations.Keys)
                     {
@@ -372,20 +394,6 @@ namespace DNCService
                         networkConfig.State.ToString(),
                         networkConfig.Status.ToString(),
                         networkConfig.FailureDetail);
-
-                if (requestStatus.ErrorInfo != null)
-                {
-                    if ((networkConfig.Status == Status.Pending) ||
-                        (networkConfig.Status == Status.NotStarted))
-                    {
-                        // TODO: Missing StatusProcessing (102) in System.Net.HttpStatusCode
-                        requestStatus.ErrorInfo.HTTPStatus = 102;
-                    }
-                    else if (networkConfig.Status == Status.Completed)
-                    {
-                        requestStatus.ErrorInfo.HTTPStatus = (int)HttpStatusCode.OK;
-                    }
-                }
 
                 return (requestStatus);
             }
@@ -509,20 +517,6 @@ namespace DNCService
                         ncConfig.Status.ToString(),
                         ncConfig.FailureDetail);
 
-                if (requestStatus.ErrorInfo != null)
-                {
-                    if ((ncConfig.Status == Status.Pending) ||
-                        (ncConfig.Status == Status.NotStarted))
-                    {
-                        // TODO: Missing StatusProcessing (102) in System.Net.HttpStatusCode
-                        requestStatus.ErrorInfo.HTTPStatus = 102;
-                    }
-                    else if (ncConfig.Status == Status.Completed)
-                    {
-                        requestStatus.ErrorInfo.HTTPStatus = (int)HttpStatusCode.OK;
-                    }
-                }
-
                 return (requestStatus);
             }
         }
@@ -609,34 +603,29 @@ namespace DNCService
 
             try
             {
-                IReliableDictionary<string, NetworkManager.DataModel.NodeConfiguration> nodeConfigReliableCollection =
-                    RepositoryHelper.GetReliableDictionaryAsync<string, NetworkManager.DataModel.NodeConfiguration>(
+                IReliableDictionary<string, NodeConfiguration> nodeConfigReliableCollection =
+                    RepositoryHelper.GetReliableDictionaryAsync<string, NodeConfiguration>(
                     Constants.NodeTableName).Result;
 
-                NetworkManager.DataModel.NodeConfiguration nodeConfig;
+                NodeConfiguration nodeConfig;
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
-                    string nodeKey = NetworkManager.DataModel.NodeConfiguration.GetNodeKey(nodeID);
+                    string nodeKey = NodeConfiguration.GetNodeKey(nodeID);
 
                     nodeConfig = await RepositoryHelper.GetFromReliableDictionary(
                         tx,
                         nodeConfigReliableCollection,
                         nodeKey);
 
-                    if (nodeConfig != null)
-                    {
-                        return;
-                    }
-
                     await cnsClient.SetOrchestratorType(nodeInfoRequest);
-                    nodeConfig = new NetworkManager.DataModel.NodeConfiguration(
+                    nodeConfig = new NodeConfiguration(
                         nodeID,
                         apiVersion,
                         nodeInfoRequest);
                     await RepositoryHelper.CreateOrUpdateReliableDictionary(
                         tx,
                         nodeConfigReliableCollection,
-                        NetworkManager.DataModel.NodeConfiguration.GetNodeKey(nodeID),
+                        NodeConfiguration.GetNodeKey(nodeID),
                         nodeConfig);
                     await RepositoryHelper.CommitTransactionAsync(tx);
                     ServiceEventSource.Current.Message("Updated node ID:{0} successfully", nodeID);
@@ -703,10 +692,10 @@ namespace DNCService
                         goto Cleanup;
                     }
 
-                    string nodeKey = NetworkManager.DataModel.NodeConfiguration.GetNodeKey(ncRequest.AssociationInfo.NodeID);
+                    string nodeKey = NodeConfiguration.GetNodeKey(ncRequest.AssociationInfo.NodeID);
                     List<NetworkContainerResponse> networkContainerResponses = new List<NetworkContainerResponse>();
 
-                    NetworkManager.DataModel.NodeConfiguration nodeConfiguration =
+                    NodeConfiguration nodeConfiguration =
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
                             networkRepositoryManager.NodeConfigReliableCollection,
@@ -765,24 +754,11 @@ namespace DNCService
                             ErrorType.NonRetriable));
                     }
 
-                    List<IPSubnet> allocatedSubnets = new List<IPSubnet>();
-                    foreach(KeyValuePair<string, string> reservationKvp in subnetConfiguration.Reservations)
-                    {
-                        allocatedSubnets.Add(IPSubnet.Parse(reservationKvp.Value));
-                        ServiceEventSource.Current.Message($"Reservation Id:{reservationKvp.Key} " +
-                            $"Value:{reservationKvp.Value}");
-                    }
-
                     ReservationConfiguration reservationConfiguration = new ReservationConfiguration(
                         networkID,
                         Guid.NewGuid().ToString(),
                         ncRequestV2.AllocationRequest);
 
-                    reservationConfiguration.AllocatedSubnet = 
-                        AllocationHelper.AllocateSubnetFromBaseSubnet(
-                            IPSubnet.Parse(subnetConfiguration.IPSubnet),
-                            allocatedSubnets,
-                            32).ToString();
                     reservationConfiguration.AssociatedNCID = networkContainerID;
                     ncConfig = new NCConfiguration(
                         networkID,
@@ -791,7 +767,7 @@ namespace DNCService
                         apiVersion);
                     ncConfig.ReservationID = reservationConfiguration.ReservationID;
                     ncConfig.ImplicitReservation = true;
-                    ncConfig.State = NetworkContainerState.Publish;
+                    ncConfig.State = NetworkContainerState.Reserve;
                     ncConfig.Status = Status.Pending;
                     
                     await RepositoryHelper.CreateOrUpdateReliableDictionary(
@@ -799,22 +775,20 @@ namespace DNCService
                         networkRepositoryManager.NCConfigReliableCollection,
                         ncKey,
                         ncConfig);
-                    ncConfig.CNSVersion = 1;
+                    ncConfig.CNSVersion = 0;
 
                     ServiceEventSource.Current.Message(
                         $"NConfig:{ncKey} Config:{ncConfig}");
 
                     string reservationKey = ReservationConfiguration.GetReservationKey(
-                            networkID,
-                            reservationConfiguration.ReservationID);
+                        networkID,
+                        reservationConfiguration.ReservationID);
                     await RepositoryHelper.CreateOrUpdateReliableDictionary(
                         tx,
                         networkRepositoryManager.ReservationReliableCollection,
                         reservationKey,
                         reservationConfiguration);
-                    subnetConfiguration.AddReservation(
-                        reservationConfiguration.ReservationID, 
-                        reservationConfiguration.AllocatedSubnet);
+
                     ServiceEventSource.Current.Message(
                         $"Reservation:{reservationKey} Config:{reservationConfiguration}");
 
@@ -838,15 +812,15 @@ namespace DNCService
 
                     Cleanup:
                     await RepositoryHelper.RemoveFromReliableDictionary(
-                                            tx,
-                                            networkRepositoryManager.FailedRequestsReliableCollection,
-                                            ncKey);
+                        tx,
+                        networkRepositoryManager.FailedRequestsReliableCollection,
+                        ncKey);
 
                     await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                                            tx,
-                                            networkRepositoryManager.PendingRequestsReliableCollection,
-                                            ncKey,
-                                            requestContext);
+                        tx,
+                        networkRepositoryManager.PendingRequestsReliableCollection,
+                        ncKey,
+                        requestContext);
 
                     ServiceEventSource.Current.Message(
                         $"Request:{ncKey} Config:{requestContext}");
@@ -876,7 +850,7 @@ namespace DNCService
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
                     ServiceEventSource.Current.Message($"Deleting network:{networkID}");
-                    string networkKey = NetworkManager.DataModel.NetworkConfiguration.GetNetworkKey(networkID);
+                    string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
                     NetworkConfiguration networkConfiguration =
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
@@ -891,16 +865,16 @@ namespace DNCService
                             string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(networkID, subnet);
                             ServiceEventSource.Current.Message($"Removing subnet:{subnet}");
                             SubnetConfiguration subnetConfiguration =
-                                                await RepositoryHelper.GetFromReliableDictionary(
-                                                    tx,
-                                                    networkRepositoryManager.SubnetConfigReliableCollection,
-                                                    subnetKey);
+                                await RepositoryHelper.GetFromReliableDictionary(
+                                    tx,
+                                    networkRepositoryManager.SubnetConfigReliableCollection,
+                                    subnetKey);
 
                             if (subnetConfiguration != null && subnetConfiguration.Reservations.Count > 0)
                             {
                                 throw new DncNetworkManagementException(
                                     networkID,
-                                    new ErrorInfo(ErrorCode.SubnetInUse,
+                                    new ErrorInfo(ErrorCode.NetworkInUse,
                                     $"Subnet {subnetConfiguration.SubnetName} has reservations in it",
                                     ErrorType.NonRetriable));
                             }
@@ -937,8 +911,8 @@ namespace DNCService
             {
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
-                    string nodeKey = NetworkManager.DataModel.NodeConfiguration.GetNodeKey(nodeID);
-                    NetworkManager.DataModel.NodeConfiguration nodeConfiguration =
+                    string nodeKey = NodeConfiguration.GetNodeKey(nodeID);
+                    NodeConfiguration nodeConfiguration =
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
                             networkRepositoryManager.NodeConfigReliableCollection,
@@ -978,11 +952,12 @@ namespace DNCService
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
                     string ncKey = NCConfiguration.GetNCKey(networkID, networkContainerID);
-                    NetworkManager.DataModel.NCConfiguration ncConfiguration =
+                    NCConfiguration ncConfiguration =
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
                             networkRepositoryManager.NCConfigReliableCollection,
-                            ncKey);
+                            ncKey,
+                            LockMode.Update);
 
                     if (ncConfiguration != null)
                     {
@@ -993,24 +968,23 @@ namespace DNCService
                             RequestType.NetworkContainerRequest);
 
                         await RepositoryHelper.RemoveFromReliableDictionary(
-                                                tx,
-                                                networkRepositoryManager.FailedRequestsReliableCollection,
-                                                ncKey);
+                            tx,
+                            networkRepositoryManager.FailedRequestsReliableCollection,
+                            ncKey);
 
                         await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                                                tx,
-                                                networkRepositoryManager.PendingRequestsReliableCollection,
-                                                ncKey,
-                                                requestContext);
+                            tx,
+                            networkRepositoryManager.PendingRequestsReliableCollection,
+                            ncKey,
+                            requestContext);
                         ncConfiguration.MarkedForDelete = true;
                         ncConfiguration.State = NetworkContainerState.DisAssociate;
                         await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                                                tx,
-                                                networkRepositoryManager.NCConfigReliableCollection,
-                                                ncKey,
-                                                ncConfiguration);
+                            tx,
+                            networkRepositoryManager.NCConfigReliableCollection,
+                            ncKey,
+                            ncConfiguration);
                         await RepositoryHelper.CommitTransactionAsync(tx);
-
                     }
                 }
             }
@@ -1110,9 +1084,9 @@ namespace DNCService
                             ErrorType.NonRetriable));
                     }
 
-                    string nodeKey = NetworkManager.DataModel.NodeConfiguration.GetNodeKey(
+                    string nodeKey = NodeConfiguration.GetNodeKey(
                         ncConfiguration.Request.AssociationInfo.NodeID);
-                    NetworkManager.DataModel.NodeConfiguration nodeConfiguration =
+                    NodeConfiguration nodeConfiguration =
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
                             networkRepositoryManager.NodeConfigReliableCollection,
@@ -1146,10 +1120,10 @@ namespace DNCService
             {
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
-                    string nodeKey = NetworkManager.DataModel.NodeConfiguration.GetNodeKey(nodeID);
+                    string nodeKey = NodeConfiguration.GetNodeKey(nodeID);
                     List<NetworkContainerResponse> networkContainerResponses = new List<NetworkContainerResponse>();
 
-                    NetworkManager.DataModel.NodeConfiguration nodeConfiguration =
+                    NodeConfiguration nodeConfiguration =
                         await RepositoryHelper.GetFromReliableDictionary(
                             tx,
                             networkRepositoryManager.NodeConfigReliableCollection,
@@ -1158,7 +1132,11 @@ namespace DNCService
                     {
                         throw new DncNodeManagementException(
                             nodeID,
-                            new ErrorInfo(ErrorCode.NodeNotFound, "Node not found", ErrorType.NonRetriable));
+                            new ErrorInfo(
+                                ErrorCode.NodeNotFound,
+                                "Node not found",
+                                (int)HttpStatusCode.NotFound,
+                                ErrorType.NonRetriable));
                     }
 
                     foreach (KeyValuePair<string, IReadOnlyDictionary<string, string>> networkNCKvp in nodeConfiguration.DeployedNCMap)

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestMap>
+   <TestJobGroup Name="Networking-AquariusTestGroup" TestSystem="Default" ConfigPath="[BuildRoot]\retail-amd64\CloudUnitTests\TestGroup.xml" IsActive="true" />
+</TestMap>
