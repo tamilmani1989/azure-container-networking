@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Uint16s []uint16
@@ -19,8 +21,13 @@ func (s Uint16s) Len() int           { return len(s) }
 func (s Uint16s) Less(i, j int) bool { return s[i] < s[j] }
 func (s Uint16s) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-// Sort is a convenience method.
+// IsValidUUID - Validate that the string passed is a UUID
+func IsValidUUID(id string) bool {
+	_, err := uuid.Parse(id)
+	return err == nil
+}
 
+// Sort is a convenience method.
 func (s Uint16s) Sort() {
 	sort.Sort(s)
 }

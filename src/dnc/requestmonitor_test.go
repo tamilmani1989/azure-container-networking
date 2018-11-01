@@ -111,8 +111,8 @@ var (
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.AzureContainerInstance,
 			OrchestratorContext: context}}
-	ncID  = "testnc"
-	ncID2 = "testnc2"
+	ncID  = "0e2f40cd-8fe1-420f-af43-1c4d5c5bb83b"
+	ncID2 = "b8be30e0-7b79-42cb-bdb1-8c0ecd77d52a"
 
 	apiVersion = "?api-version=2018-03-01"
 
@@ -1481,6 +1481,7 @@ func createNetworkContainer(
 			fmt.Printf("Mismatch in expected and received Cns create or update request.\nExpected:%+v\nReceived:%+v\n", expectedReq, req)
 			return false
 		}
+
 		fmt.Println("Response matches with the expected request")
 		return true
 	}
