@@ -96,7 +96,7 @@ func sendTelemetry() {
 
 			cleanup:
 				if err != nil {
-					logger.Errorf("[telemetry] %s", err.Error())
+					logger.Debugf("[telemetry] %s", err.Error())
 				}
 
 				// We can use this upon CLA approval
@@ -109,7 +109,7 @@ func sendTelemetry() {
 			if err := reportMgr.SendReport(); err == nil {
 				reportMgr.SetReportState(DNCTelemetryFile)
 			} else {
-				logger.Errorf("[telemetry] %s", err.Error())
+				logger.Debugf("[telemetry] %s", err.Error())
 			}
 		} else {
 			time.Sleep(time.Minute * 1)
