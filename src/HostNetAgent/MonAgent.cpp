@@ -199,8 +199,17 @@ Return Value:
         goto CLEANUP;
     }
 
+    // Try to setup monitoring agent storage.
+    int result = SHCreateDirectoryExW(NULL, MONITORING_AGENT_STORAGE_PATH, NULL);
+    if (!(result == ERROR_FILE_EXISTS || result == ERROR_ALREADY_EXISTS || result == ERROR_SUCCESS))
+    {
+        hr = CO_E_FAILEDTOGETWINDIR; // generic error so that we don't return S_OK
+        LOGERRW(L"Failed to create a directory or persistent storage for monitoring agent. {%s} error [%X]", MONITORING_AGENT_STORAGE_PATH, hr);
+        goto CLEANUP;
+    }
+
     // Set environment variables for MA
-    maDataPath = maPath + MA_DATA_RELATIVE_PATH;
+    maDataPath = MONITORING_AGENT_STORAGE_PATH;
     if (!(SetEnvironmentVariableW(MONITORING_DATA_DIRECTORY, maDataPath.c_str()) &&
             SetEnvironmentVariableW(MONITORING_GCS_ENVIRONMENT, gcsEnvironment.c_str()) &&
             SetEnvironmentVariableW(MONITORING_GCS_ACCOUNT, gcsAccount.c_str()) &&

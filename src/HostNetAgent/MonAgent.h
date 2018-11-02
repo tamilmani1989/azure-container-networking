@@ -1,6 +1,8 @@
 #pragma once
 
 #include <Windows.h>
+#include <Shlobj_core.h>
+#include <WinError.h>
 #include <string>
 
 #define MONITORING_GCS_ENVIRONMENT      L"MONITORING_GCS_ENVIRONMENT"
@@ -23,9 +25,9 @@
 #define MONITORING_GCS_REGION_PATH      L"//NetAgentConfiguration/MonitoringConfig/GcsRegion"
 #define MONITORING_GCS_AUTH_ID_PATH     L"//NetAgentConfiguration/MonitoringConfig/GcsDsmsUrl"
 #define MONITORING_GCS_AUTH_ID_TYPE_VAL L"AuthDsmsUrl"
-#define MONITORING_CONFIG_VERSION_VAL   L"1.9"
+#define MONITORING_CONFIG_VERSION_VAL   L"999.9"
 
-#define MONITORING_AGENT_STORAGE_PATH   L"NetAgent\\MonitoringStorage\\"
+#define MONITORING_AGENT_STORAGE_PATH   L"C:\\NetAgent\\MonitoringStorage\\"
 
 #define NODE_PROPERTIES_REG_KEY         L"SOFTWARE\\AzureHL\\NodeProperties"
 
@@ -33,7 +35,6 @@
 #define MA_LAUNCHER_USEENV_FLAG         L"-useenv"
 #define MA_LAUNCHER_PARENT_FLAG         L"-parent"
 #define MA_RELATIVE_PATH                L"MonAgent\\"
-#define MA_DATA_RELATIVE_PATH           L"data"
 
 const std::wstring role = L"NetAgent";
 const std::wstring roleInstance = L"NetAgent";

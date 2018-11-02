@@ -30,9 +30,10 @@
         $(WindowsSdk64LibPath)\ws2_32.lib;
         $(WindowsSdk64LibPath)\oleaut32.lib;
         comsuppw.lib;
-	      $(WindowsSdk64LibPath)\Crypt32.lib;
-	      $(WindowsSdk64LibPath)\rpcrt4.lib;
-	      $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib;
+        $(WindowsSdk64LibPath)\Crypt32.lib;
+        $(WindowsSdk64LibPath)\rpcrt4.lib;
+        $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib;
+        $(PkgWindowsWdk_Corext)\Lib\10.0.16299.0\um\arm64\shell32.lib;
       </AdditionalDependencies>
       <AdditionalLibraryDirectories>
         %(AdditionalLibraryDirectories);
