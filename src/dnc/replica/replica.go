@@ -1,14 +1,17 @@
 package replica
 
 import (
+	"dnc/api"
 	"dnc/configuration"
+	"dnc/logger/loggershim"
 	"dnc/utils"
 	"fmt"
 	"sync"
 	"sync/atomic"
-
-	"dnc/logger/loggershim"
 )
+
+// GetRefreshMonitorStatus
+type GetRefreshMonitorStatus func() api.RefreshMonitorStatus
 
 // Replica = Struct to hold replica settings
 type Replica struct {
@@ -19,15 +22,19 @@ type Replica struct {
 	isPrimary               struct{ flag int32 }
 	isReady                 struct{ flag int32 }
 	mux                     *sync.Mutex
+	getRefreshMonitorStatus GetRefreshMonitorStatus
 }
 
 // NewReplica - Create a NewReplica
-func NewReplica(configServerSettings configuration.ServerSettings) *Replica {
+func NewReplica(
+	configServerSettings configuration.ServerSettings,
+	getRefreshMonitorStatus GetRefreshMonitorStatus) *Replica {
 	replica := new((Replica))
 	replica.promoteToPrimaryChannel = make(chan bool)
 	replica.demotePrimaryChannel = make(chan bool)
 	replica.serverSettings = configServerSettings
 	replica.mux = new(sync.Mutex)
+	replica.getRefreshMonitorStatus = getRefreshMonitorStatus
 	return replica
 }
 
@@ -106,4 +113,9 @@ func (replica *Replica) getReplicaIPAddress() (string, error) {
 	}
 
 	return ipAddress, nil
+}
+
+// GetRefreshMonitorStatus - Retrieve refresh monitor status.
+func (replica *Replica) GetRefreshMonitorStatus() api.RefreshMonitorStatus {
+	return replica.getRefreshMonitorStatus()
 }

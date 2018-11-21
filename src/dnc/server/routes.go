@@ -61,6 +61,12 @@ var routes = Routes{
 		CreateNetworkContainer,
 	},
 	Route{
+		"CreateNetworkContainer",
+		"POST",
+		"/networks/{networkID}/networkcontainers/{networkContainerID}",
+		CreateNetworkContainer,
+	},
+	Route{
 		"GetNetworkContainer",
 		"GET",
 		"/networks/{networkID}/networkcontainer/{networkContainerID}",
@@ -70,6 +76,12 @@ var routes = Routes{
 		"GetNetworkContainerStatus",
 		"GET",
 		"/networks/{networkID}/networkcontainer/{networkContainerID}/status",
+		GetNetworkContainerStatus,
+	},
+	Route{
+		"GetNetworkContainerStatus",
+		"GET",
+		"/networks/{networkID}/networkcontainers/{networkContainerID}/status",
 		GetNetworkContainerStatus,
 	},
 	// Route{
@@ -101,6 +113,12 @@ var routes = Routes{
 		"DeleteNetworkContainer",
 		"DELETE",
 		"/networks/{networkID}/networkcontainer/{networkContainerID}",
+		DeleteNetworkContainer,
+	},
+	Route{
+		"DeleteNetworkContainer",
+		"DELETE",
+		"/networks/{networkID}/networkcontainers/{networkContainerID}",
 		DeleteNetworkContainer,
 	},
 	Route{
@@ -144,5 +162,11 @@ var routes = Routes{
 		"POST",
 		"/relinquishprimarystatus",
 		RelinquishPrimaryStatus,
+	},
+	Route{
+		"RefreshMonitorStatus",
+		"GET",
+		"/refreshmonitorstatus",
+		RefreshMonitorStatus,
 	},
 }

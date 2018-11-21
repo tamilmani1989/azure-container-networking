@@ -4,12 +4,16 @@ import (
 	"dnc/api"
 	"dnc/datamodel"
 	"dnc/nmagentcontracts"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
 )
 
+var networkRefreshMonitorData *api.RefreshMonitorStatus
+
 func monitorNetworkUpdates() {
+	networkRefreshMonitorData = &api.RefreshMonitorStatus{}
 	monitorTimerChannel := time.NewTicker(
 		time.Millisecond * time.Duration(config.DNCSettings.NetworkRefreshInterval)).C
 	for {
@@ -20,9 +24,11 @@ func monitorNetworkUpdates() {
 			}
 			break
 		case <-networkMonitorStartProcessing:
+			logger.Debugf("[MonitorNetworkUpdates]:Refreshing networks as replica became primary")
 			refreshNetworks()
 			break
 		case <-networkMonitorStopProcessing:
+			logger.Debugf("[MonitorNetworkUpdates]:Received stop processing of refresh networks")
 			break
 		}
 	}
@@ -34,13 +40,56 @@ func refreshNetworks() {
 		logger.Errorf("Failed to retrieve networks from repository due to error %s", err.Error())
 	}
 
+	logger.Debugf("[RefreshNetworks]:Networks to refresh:%d\n", len(networksMap))
+	startTime := time.Now().UTC()
+	networkRefreshMonitorData.StartTime = startTime.String()
+	networkRefreshMonitorData.ProcessedItems = 0
+	networkRefreshMonitorData.FailedItems = 0
+	networkRefreshMonitorData.TotalItems = len(networksMap)
+	networkRefreshMonitorData.EndTime = time.Time{}.String()
+	networkRefreshMonitorData.IsThrottled = false
+	networkRefreshMonitorData.IsRefreshInProgress = true
+	networkRefreshMonitorData.TimeToRefresh = ""
+	defer func() {
+		networkRefreshMonitorData.TimeToRefresh = time.Since(startTime).String()
+		networkRefreshMonitorData.EndTime = time.Now().UTC().String()
+		networkRefreshMonitorData.IsRefreshInProgress = false
+		logger.Debugf("Vnets Count:%d, Time to refresh %v", len(networksMap), time.Since(startTime))
+	}()
+
+	processedItemCountInBatch := 0
 	// refresh network configurations
 	for networkKey := range networksMap {
-		refreshNetworkConfiguration(networkKey)
+		areCallsThrottled, success := refreshNetworkConfiguration(networkKey)
+		networkRefreshMonitorData.ProcessedItems++
+		if !success {
+			networkRefreshMonitorData.FailedItems++
+		}
+
+		processedItemCountInBatch++
+		if areCallsThrottled || processedItemCountInBatch > config.DNCSettings.NetworkRefreshBatchSize {
+			logger.Debugf("Backingoff. Throttled:{%v}, ProcessedItemCountInBatch:{%v}, RefreshBatchSize:{%v}",
+				areCallsThrottled,
+				networkRefreshMonitorData.ProcessedItems,
+				config.DNCSettings.NetworkRefreshBatchSize)
+			networkRefreshMonitorData.IsThrottled = areCallsThrottled
+			processedItemCountInBatch = 0
+			select {
+			case <-time.After(sleepIntervalBetweenNetworkBatches):
+				logger.Debugf("Timer expired starting next batch.")
+
+			case <-networkMonitorStopProcessing:
+				logger.Debugf("Received stop processing signal while in the process of refreshing networks")
+				return
+			}
+		} else {
+			time.Sleep(sleepIntervalBetweenNetworkRefresh)
+		}
 	}
 }
 
-func refreshNetworkConfiguration(networkKey string) {
+func refreshNetworkConfiguration(networkKey string) (bool, bool) {
+	var isThrottled bool
 	networkID := datamodel.GetNetworkIdFromKey(networkKey)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	networkSessionLockedForRead := false
@@ -57,42 +106,53 @@ func refreshNetworkConfiguration(networkKey string) {
 
 	repoNetworkConfiguration, err := datamodel.TryQueryNetworkConfigurationByKey(networkKey)
 	if err != nil {
-		logger.Errorf("Retrieval of configuration for network %s failed with error:%s.\n",
+		logger.Errorf("[RefreshNetworkConfiguration]:Retrieval of configuration for network %s failed with error:%s.\n",
 			networkID,
 			err.String())
-		return
+		return false, false
 	} else if repoNetworkConfiguration == nil {
-		logger.Debugf("Configuration for Network %s not found.\n", networkID)
-		return
+		logger.Debugf("[RefreshNetworkConfiguration]:Configuration for Network %s not found.\n", networkID)
+		return false, false
 	}
 
 	if repoNetworkConfiguration.NetworkState != datamodel.Join ||
 		repoNetworkConfiguration.Status != datamodel.Completed {
-		logger.Debugf("Skipping refreshing of network %s as it is in state:%s %s.\n",
+		logger.Debugf("[RefreshNetworkConfiguration]:Skipping refreshing of network %s as it is in state:%s %s.\n",
 			networkID,
 			repoNetworkConfiguration.NetworkState,
 			repoNetworkConfiguration.Status)
-		return
+		return false, false
 	}
 
 	sessionManager.EndReadSession(sessionInfo)
 	networkSessionLockedForRead = false
 
-	_, failureDetail = postRequestToAgentForNetworkJoin(networkID)
+	// Try to retrieve the network configuration fron NMAgent.
+	_, failureDetail, networkResponse, isThrottled = getNetworkConfigurationFromAgent(networkID)
 	if failureDetail != nil {
-		logger.Errorf("Post request Network %s to Host Agent failed with error %s.\n",
-			networkID,
-			failureDetail.String())
+		if failureDetail.Code != api.ProcessingPending {
+			logger.Errorf("[RefreshNetworkConfiguration]:Request to get configuration for network %s failed with error %s.\n",
+				networkID,
+				failureDetail.String())
+			return isThrottled, false
+		}
 
-		return
+		// If response has status processing, indicates the network is not available with
+		// NMagent (or) it is under processing. Trigger a join and bail out.
+		logger.Debugf("Post request to join as get network configuration returned status [%d], Trigger Join", http.StatusProcessing)
+		_, failureDetail, isThrottled = postRequestToAgentForNetworkJoin(networkID)
+		if failureDetail != nil {
+			logger.Errorf("Join request Network %s to Host Agent failed with error %s.\n",
+				networkID,
+				failureDetail.String())
+		}
+
+		return isThrottled, false
 	}
 
-	_, failureDetail, networkResponse = getNetworkConfigurationFromAgent(networkID)
-	if failureDetail != nil {
-		logger.Errorf("Request to get configuration for network %s failed with error %s.\n",
-			networkID,
-			failureDetail.String())
-		return
+	if networkResponse == nil {
+		logger.Debugf("Post request to get network configuration for network %s returned empty", networkID)
+		return false, false
 	}
 
 	networkVersion, parseNetworkVersionErr := strconv.ParseUint(networkResponse.VnetVersion, 10, 64)
@@ -101,7 +161,7 @@ func refreshNetworkConfiguration(networkKey string) {
 			networkResponse.VnetVersion,
 			networkID,
 			parseNetworkVersionErr.Error())
-		return
+		return false, false
 	}
 
 	networkSessionLockedForWrite := false
@@ -115,7 +175,7 @@ func refreshNetworkConfiguration(networkKey string) {
 
 	checkAndAddTagsCache(networkResponse)
 	if repoNetworkConfiguration.Version == networkVersion {
-		return
+		return false, true
 	}
 
 	_, failureDetail, subnetsToAdd, subnetsToRemove, subnetsToUpdate :=
@@ -128,7 +188,7 @@ func refreshNetworkConfiguration(networkKey string) {
 			networkResponse,
 			networkID,
 			failureDetail.String())
-		return
+		return false, false
 	}
 
 	for subnetName := range subnetsToRemove {
@@ -138,7 +198,7 @@ func refreshNetworkConfiguration(networkKey string) {
 				subnetName,
 				networkID,
 				failureDetail.String())
-			return
+			return false, false
 		}
 	}
 
@@ -197,7 +257,7 @@ func refreshNetworkConfiguration(networkKey string) {
 				subnetName,
 				networkID,
 				failureDetail.String())
-			return
+			return false, false
 		}
 	}
 
@@ -212,7 +272,7 @@ func refreshNetworkConfiguration(networkKey string) {
 				subnetName,
 				networkID,
 				failureDetail.String())
-			return
+			return false, false
 		}
 	}
 
@@ -227,12 +287,14 @@ func refreshNetworkConfiguration(networkKey string) {
 		logger.Errorf("Persisting configuration of network %s failed with error %s. \n",
 			networkID,
 			failureDetail.String())
-		return
+		return false, false
 	}
 
 	logger.Debugf("Successfully refreshed configuration for network %s", networkID)
+	return false, true
 }
 
+// CreateAssociationTask - Create network container association task
 func CreateAssociationTask(nodeID, networkID, networkContainerID string) *api.JsonErr {
 	sessionInfo := map[string]string{
 		datamodel.NodeRepositoryName:    nodeID,
@@ -271,4 +333,9 @@ func CreateAssociationTask(nodeID, networkID, networkContainerID string) *api.Js
 	}
 
 	return nil
+}
+
+// GetNetworkRefreshMonitorStatus - Helper to get the refresh monitor status
+func GetNetworkRefreshMonitorStatus() api.RefreshMonitorStatus {
+	return *networkRefreshMonitorData
 }

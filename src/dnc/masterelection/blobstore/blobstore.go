@@ -267,13 +267,16 @@ func (b *BlobStore) TryAcquireLease() error {
 			// Create a new lease acquire timer with increased lease acquire interval.
 			case <-b.demoteEvent:
 				loggershim.LS.Debugf("Received Demote event on non replica primary\n")
-				if !resetLeaseAcquireTimer {
-					leaseAcquireRetryTimer.Stop()
-					loggershim.LS.Debugf("Creating timer with AcquireRetryIntervalInSecs:%v\n", updatedLeaseAcquireIntervalTimeInSecs)
-					leaseAcquireRetryTimer = time.NewTicker(time.Second * time.Duration(updatedLeaseAcquireIntervalTimeInSecs))
-					resetLeaseAcquireTimer = true
+				releaseLeaseErr := b.blob.ReleaseLease(b.leaseID, nil)
+				if releaseLeaseErr != nil {
+					loggershim.LS.Debugf("Release lease failed: LeaseId:%s , Error:%s\n", b.leaseID, releaseLeaseErr.Error())
 				}
 
+				leaseAcquireRetryTimer.Stop()
+				
+				loggershim.LS.Debugf("Creating timer with AcquireRetryIntervalInSecs:%v\n", updatedLeaseAcquireIntervalTimeInSecs)
+				leaseAcquireRetryTimer = time.NewTicker(time.Second * time.Duration(updatedLeaseAcquireIntervalTimeInSecs))
+				resetLeaseAcquireTimer = true
 				goto AcquireLease
 
 			case <-b.cancelEvent:
@@ -311,8 +314,6 @@ func (b *BlobStore) TryAcquireLease() error {
 				if releaseLeaseErr != nil {
 					loggershim.LS.Debugf("Release lease failed: LeaseId:%s , Error:%s\n", b.leaseID, leaseErr.Error())
 				}
-
-				leaseAcquireRetryTimer.Stop()
 				loggershim.LS.Debugf("Creating timer with AcquireRetryIntervalInSecs:%s\n", updatedLeaseAcquireIntervalTimeInSecs)
 				leaseAcquireRetryTimer = time.NewTicker(
 					time.Second * time.Duration(updatedLeaseAcquireIntervalTimeInSecs))

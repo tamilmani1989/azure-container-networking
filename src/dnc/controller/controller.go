@@ -451,3 +451,8 @@ func (c *Controller) RelinquishPrimaryStatus() {
 	loggershim.LS.Debugf("Relinquisihing primary replica status")
 	masterElectionShim.RelinquishPrimaryStatus()
 }
+
+// GetRefreshMonitorStatus - Function to get replica monitor status
+func (c *Controller) GetRefreshMonitorStatus() api.RefreshMonitorStatus {
+	return c.Replica.GetRefreshMonitorStatus()
+}
