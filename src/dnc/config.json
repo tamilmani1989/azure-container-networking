@@ -56,8 +56,12 @@
     },
     "DNCSettings":{
         "RequestRetryBaseInterval":1000,
+        "MaxRequestBackoffInterval":16000,
         "NetworkRefreshInterval":60000,
-        "TagRefreshInterval":30000,
+        "NetworkRefreshBatchSize":60,
+        "SleepIntervalBetweenNetworkBatches":60000,
+        "SleepIntervalBetweenNetworkRefresh":300,
+        "TagRefreshInterval":60000,
         "NetworkContainerRefreshInterval": 60000,
         "ConcurrentRequestsToProcess": 5
     }

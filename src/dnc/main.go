@@ -43,6 +43,15 @@ var stderr bool
 //  Base retry interval
 var requestContextRetryInterval time.Duration
 
+//  Max request process backoff interval
+var maxRequestBackoffInterval time.Duration
+
+// SleepIntervalBetweenBatches
+var sleepIntervalBetweenNetworkBatches time.Duration
+
+// SleepIntervalBetweenNetworkRefresh
+var sleepIntervalBetweenNetworkRefresh time.Duration
+
 func init() {
 	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
 	flag.Parse()
@@ -53,9 +62,12 @@ func init() {
 	}
 
 	config = configuration.Load(configpath)
+	setDncConfigDefaults()
 	logger = loggershim.NewLoggerShim(config)
 	logger.Init(stderr, reports)
-	replicaInstance = replica.NewReplica(config.ServerSettings)
+	replicaInstance = replica.NewReplica(
+		config.ServerSettings,
+		GetNetworkRefreshMonitorStatus)
 	sessionManager = utils.NewSessionManager([]string{datamodel.NodeRepositoryName, datamodel.NetworkRepositoryName, datamodel.TagRepositoryName})
 	masterElectionShim = masterelectionshim.NewMasterElectionShim(
 		config,
@@ -70,11 +82,61 @@ func init() {
 		Controller:     ctrler}
 	dncServer.Init()
 	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
+	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
+	sleepIntervalBetweenNetworkBatches = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkBatches) * time.Millisecond
+	sleepIntervalBetweenNetworkRefresh = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkRefresh) * time.Millisecond
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
 		datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
 		ctrler.UpdateReplicaStatus(true)
+	}
+}
+
+func setDncConfigDefaults() {
+	if config.DNCSettings.RequestRetryBaseInterval == 0 {
+		// Set default to 1 sec.
+		config.DNCSettings.RequestRetryBaseInterval = 1000
+	}
+
+	if config.DNCSettings.ConcurrentRequestsToProcess == 0 {
+		// Set default to 5
+		config.DNCSettings.ConcurrentRequestsToProcess = 5
+	}
+
+	if config.DNCSettings.MaxRequestBackoffInterval == 0 {
+		// Set default to 16 secs
+		config.DNCSettings.MaxRequestBackoffInterval = 16000
+	}
+
+	if config.DNCSettings.NetworkRefreshInterval == 0 {
+		// Set default to 1 min.
+		config.DNCSettings.NetworkRefreshInterval = 60000
+	}
+
+	if config.DNCSettings.TagRefreshInterval == 0 {
+		// Set default to 1 min.
+		config.DNCSettings.TagRefreshInterval = 60000
+	}
+
+	if config.DNCSettings.NetworkContainerRefreshInterval == 0 {
+		// Set default to 1 min
+		config.DNCSettings.NetworkContainerRefreshInterval = 60000
+	}
+
+	if config.DNCSettings.NetworkRefreshBatchSize == 0 {
+		// Set default to 60
+		config.DNCSettings.NetworkRefreshBatchSize = 60
+	}
+
+	if config.DNCSettings.SleepIntervalBetweenNetworkBatches == 0 {
+		// Set default to 1 min
+		config.DNCSettings.SleepIntervalBetweenNetworkBatches = 60000
+	}
+
+	if config.DNCSettings.SleepIntervalBetweenNetworkRefresh == 0 {
+		// Set default to 1 min
+		config.DNCSettings.SleepIntervalBetweenNetworkRefresh = 300
 	}
 }
 

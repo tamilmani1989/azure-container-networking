@@ -785,3 +785,13 @@ func RelinquishPrimaryStatus(w http.ResponseWriter, r *http.Request) {
 	ctrler.RelinquishPrimaryStatus()
 	w.WriteHeader(http.StatusOK)
 }
+
+// RefreshMonitorStatus - Retrieve refresh monitor status
+func RefreshMonitorStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	refreshMonitorStatus := ctrler.GetRefreshMonitorStatus()
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(&refreshMonitorStatus); err != nil {
+		panic(err)
+	}
+}

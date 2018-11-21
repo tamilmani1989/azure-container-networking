@@ -85,6 +85,7 @@ type TestDataElectionSettings struct {
 	Test string
 }
 
+// HostAgentConnectionStrings NMagent connection strings
 type HostAgentConnectionStrings struct {
 	JoinNetworkURLFmt             string
 	GetNetworkConfigurationURLFmt string
@@ -93,11 +94,13 @@ type HostAgentConnectionStrings struct {
 	GetSystemTagDefinitionURLFmt  string
 }
 
+// HostAgentSettings NMAgent connection URL settings.
 type HostAgentSettings struct {
 	WireServerIP      string
 	ConnectionStrings HostAgentConnectionStrings
 }
 
+// CNSConnectionStrings CNS connection URL strings
 type CNSConnectionStrings struct {
 	CreateOrUpdateNetworkContainerURLFmt string
 	DeleteNetworkContainerURLFmt         string
@@ -106,21 +109,37 @@ type CNSConnectionStrings struct {
 	GetNetworkcontainerstatusURLFmt      string
 }
 
+// CNSSettings CNS settings
 type CNSSettings struct {
 	ConnectionStrings CNSConnectionStrings
 }
 
+// VlanSettings - VLAN inventory
 type VlanSettings struct {
 	Min uint16
 	Max uint16
 }
 
+// DNCSettings DNC configuration settings
 type DNCSettings struct {
-	RequestRetryBaseInterval        int
-	NetworkRefreshInterval          int
-	TagRefreshInterval              int
+	// Base Back off interval on failure to process a request. Default 1 sec
+	RequestRetryBaseInterval int
+	// Max time to back off on failure to process a request. Default 16 sec
+	MaxRequestBackoffInterval int
+	// Network refresh monitor interval. Default 5 mins
+	NetworkRefreshInterval int
+	// Count of networks to be refreshed in a batch. Default 45
+	NetworkRefreshBatchSize int
+	// Time interval to sleep between refresh of network batches. Default 1 min
+	SleepIntervalBetweenNetworkBatches int
+	// Time interval to sleep between refresh of network. Default 300 milliseconds
+	SleepIntervalBetweenNetworkRefresh int
+	// System tag refresh interval. Defualt 1 min.
+	TagRefreshInterval int
+	// Refresh interval for sending goal states to CNS for an NC. Default 1 min.
 	NetworkContainerRefreshInterval int
-	ConcurrentRequestsToProcess     int
+	// Concurrent request to process in a given batch. Defualt 5.
+	ConcurrentRequestsToProcess int
 }
 
 // Configuration - Details related to dnc configuration settings

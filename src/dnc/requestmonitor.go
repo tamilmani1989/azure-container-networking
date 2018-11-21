@@ -72,8 +72,8 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
-	// Update retry/request interval (by doubling it) unless it's greater than 5 minutes
-	if requestContext.RetryInterval < 5*time.Minute {
+	// Update retry/request interval (by doubling it) unless it's greater than max back off interval
+	if requestContext.RetryInterval <= maxRequestBackoffInterval {
 		requestContext.RetryInterval *= 2
 	}
 
@@ -90,7 +90,8 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 		removeWorkItem, err = processNetworkContainerRequest(
 			requestContext.NetworkID,
 			requestID,
-			sessionInfo)
+			sessionInfo,
+			requestContext.CreatedDateTime)
 		if err != nil && err.HTTPStatus == http.StatusProcessing {
 			requestContext.RetryInterval = requestContextRetryInterval
 		}
@@ -275,7 +276,8 @@ func getNCGoalState(repoNCConfig *datamodel.NCConfiguration) (*NCGoalState, bool
 }
 
 // Post request to host agentg to express the intent for joining a network.
-func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr) {
+// Returns IsRetirbale, optional error if any, isThrottled
+func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, bool) {
 	joinURL := fmt.Sprintf(
 		config.HostAgentSettings.ConnectionStrings.JoinNetworkURLFmt,
 		config.HostAgentSettings.WireServerIP,
@@ -296,7 +298,7 @@ func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr) {
 		return true, &api.JsonErr{
 			Code:       api.JoinDenied,
 			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+			HTTPStatus: http.StatusInternalServerError}, false
 	}
 
 	defer joinResponse.Body.Close()
@@ -309,7 +311,7 @@ func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr) {
 		return true, &api.JsonErr{
 			Code:       api.JoinPending,
 			Text:       msg,
-			HTTPStatus: http.StatusProcessing}
+			HTTPStatus: http.StatusProcessing}, false
 	}
 
 	if joinResponse.StatusCode == http.StatusUnauthorized {
@@ -317,7 +319,7 @@ func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr) {
 		return false, &api.JsonErr{
 			Code:       api.NetworkJoinFailed,
 			Text:       msg,
-			HTTPStatus: http.StatusUnauthorized}
+			HTTPStatus: http.StatusUnauthorized}, false
 	}
 
 	if joinResponse.StatusCode != http.StatusOK {
@@ -327,14 +329,14 @@ func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr) {
 		return true, &api.JsonErr{
 			Code:       api.NetworkJoinFailed,
 			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+			HTTPStatus: http.StatusInternalServerError}, joinResponse.StatusCode == http.StatusForbidden
 	}
 
-	return false, nil
+	return false, nil, false
 }
 
 // Retrieve network configuration from host agent.
-func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nmagentcontracts.VirtualNetworkResponse) {
+func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nmagentcontracts.VirtualNetworkResponse, bool) {
 	getURL := fmt.Sprintf(
 		config.HostAgentSettings.ConnectionStrings.GetNetworkConfigurationURLFmt,
 		config.HostAgentSettings.WireServerIP,
@@ -347,13 +349,25 @@ func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nm
 			getRespErr.Error())
 
 		logger.Errorf("getNetworkConfigurationFromAgent failed with error %s", msg)
+
 		return true, &api.JsonErr{
 			Code:       api.NetworkConfigurationRetrievalFailed,
 			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, nil
+			HTTPStatus: http.StatusInternalServerError}, nil, false
 	}
 
 	defer getResponse.Body.Close()
+
+	if getResponse.StatusCode != http.StatusOK {
+		msg := fmt.Sprintf("Get network configuration call for network %s failed with status[%d].",
+			networkID,
+			getResponse.StatusCode)
+		logger.Debugf("%s\n", msg)
+		return true, &api.JsonErr{
+			Code:       api.NetworkJoinFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}, nil, getResponse.StatusCode == http.StatusForbidden
+	}
 
 	var networkConfigurationResponse nmagentcontracts.VirtualNetworkResponse
 	decodeRespErr := utils.DecodeResponse(getResponse, &networkConfigurationResponse)
@@ -367,7 +381,7 @@ func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nm
 		return true, &api.JsonErr{
 			Code:       api.DeocodeResponseFailed,
 			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, nil
+			HTTPStatus: http.StatusInternalServerError}, nil, false
 	}
 
 	logger.Debugf("Received response for network %s Configuration:%s\n", networkID, networkConfigurationResponse.String())
@@ -383,7 +397,7 @@ func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nm
 		return true, &api.JsonErr{
 			Code:       api.ParseResponseCodeFailed,
 			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, nil
+			HTTPStatus: http.StatusInternalServerError}, nil, false
 	}
 
 	if getNetworkResponseCode == http.StatusProcessing {
@@ -394,7 +408,7 @@ func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nm
 		return true, &api.JsonErr{
 			Code:       api.ProcessingPending,
 			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, nil
+			HTTPStatus: http.StatusInternalServerError}, nil, false
 	}
 
 	if getNetworkResponseCode == http.StatusUnauthorized {
@@ -404,21 +418,20 @@ func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nm
 		return false, &api.JsonErr{
 			Code:       api.NetworkJoinFailed,
 			Text:       msg,
-			HTTPStatus: http.StatusForbidden}, nil
+			HTTPStatus: http.StatusUnauthorized}, nil, false
 	}
 
 	if getNetworkResponseCode != http.StatusOK {
 		msg := fmt.Sprintf("Failed to retrieve network due to error %d", getNetworkResponseCode)
-
 		logger.Errorf("getNetworkConfigurationFromAgent failed with error %s\n", msg)
-		return false, &api.JsonErr{
+		return true, &api.JsonErr{
 			Code:       api.NetworkJoinFailed,
 			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, nil
+			HTTPStatus: http.StatusInternalServerError}, nil, false
 	}
 
 	logger.Debugf("Retrieved virtual network configuration %s\n", networkConfigurationResponse)
-	return false, nil, &networkConfigurationResponse
+	return false, nil, &networkConfigurationResponse, false
 }
 
 func validateAndRetrieveNetworkConfigurationUpdate(
@@ -612,6 +625,7 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 	var repoNetworkConfiguration *datamodel.NetworkConfiguration
 	var vnetVersion uint64
 	var dnsServers []string
+	var isThrottled bool
 
 	// Network configuration is expected to be present as we will always
 	// add a dummy configuration and mark it as pendiong processing once
@@ -629,18 +643,18 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 		return true, nil
 	}
 
-	isRetriableError, failureDetail = postRequestToAgentForNetworkJoin(networkID)
+	isRetriableError, failureDetail, isThrottled = postRequestToAgentForNetworkJoin(networkID)
 	if failureDetail != nil {
-		logger.Errorf("postRequestToAgentForNetworkJoin failed with error: %s", failureDetail.String())
+		logger.Errorf("postRequestToAgentForNetworkJoin failed with error: %s, isThrottled:%v", failureDetail.String(), isThrottled)
 		if isRetriableError {
 			return false, failureDetail
 		}
 		goto Cleanup
 	}
 
-	isRetriableError, failureDetail, networkResponse = getNetworkConfigurationFromAgent(networkID)
+	isRetriableError, failureDetail, networkResponse, isThrottled = getNetworkConfigurationFromAgent(networkID)
 	if failureDetail != nil {
-		logger.Errorf("getNetworkConfigurationFromAgent failed with error: %s", failureDetail.String())
+		logger.Errorf("getNetworkConfigurationFromAgent failed with error: %s, isThrottled:%v", failureDetail.String(), isThrottled)
 		if isRetriableError {
 			return false, failureDetail
 		}
@@ -1161,8 +1175,8 @@ func processNetworkContainerReserve(
 	}
 
 	if repoReservation.Status == datamodel.Failed {
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = repoReservation.FailureDetail
+		markProcessingFailed = true
+		failureDetail = &repoReservation.FailureDetail
 	}
 
 Cleanup:
@@ -1768,19 +1782,25 @@ func processNetworkContainerRevert(repoNCConfig *datamodel.NCConfiguration) (boo
 	return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
 }
 
-func processNetworkContainerProgram(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+func processNetworkContainerProgram(
+	repoNCConfig *datamodel.NCConfiguration,
+	createdDateTime time.Time) (bool, *api.JsonErr) {
 	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
 	associationInfo := repoNCConfig.GetAssociationInfo()
 	logger.Debugf("Programming NC %s to node %s\n", repoNCConfig.NetworkContainerID, associationInfo.NodeID)
 	repoNCConfig.State = datamodel.Program
 	repoNCConfig.Status = datamodel.Completed
+	logger.Debugf("NC programming completed NC Id:%s ElapsedTime:%s",
+		repoNCConfig.NetworkContainerID,
+		time.Since(createdDateTime))
 	return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
 }
 
 func processNetworkContainerRequest(
 	networkID,
 	networkContainerKey string,
-	sessionInfo map[string]string) (bool, *api.JsonErr) {
+	sessionInfo map[string]string,
+	createdDateTime time.Time) (bool, *api.JsonErr) {
 	repoNCConfig, err := datamodel.TryQueryNetworkContainerByKey(networkContainerKey)
 	if err != nil {
 		logger.Errorf("Failed to get network container configuration for ID:%s. Error:%s\n",
@@ -1850,7 +1870,7 @@ func processNetworkContainerRequest(
 			return true, nil
 		}
 
-		return processNetworkContainerProgram(repoNCConfig)
+		return processNetworkContainerProgram(repoNCConfig, createdDateTime)
 
 	case datamodel.Revert:
 		return processNetworkContainerRevert(repoNCConfig)

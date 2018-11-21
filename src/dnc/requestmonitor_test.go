@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"dnc/api"
+	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/nmagentcontracts"
 	"dnc/utils"
@@ -62,8 +63,6 @@ var (
 	nodeID = "testnode"
 
 	networkReq = CreateNetworkRequest{"AzureNet"}
-	vnetID     = "testvnet"
-
 	subnetReq  = JoinSubnetRequest{"0bb4132b-5932-4ec4-a47f-1b24f0eeb426"}
 	subnetName = "subnet1"
 
@@ -267,8 +266,11 @@ func TestNetwork(t *testing.T) {
 	json.NewEncoder(&body).Encode(networkReq)
 	fmt.Println("Started NMAgent Server", nmAgentServer.Server.URL)
 	nmAgentServer.SetupTest()
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
+
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -295,11 +297,11 @@ func TestNetwork(t *testing.T) {
 		}
 	}
 
-	fmt.Println("Waiting for Join signal")
+	fmt.Printf("Waiting for Join signal for vnet %s\n", vnetID)
 	<-nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).JoinResponse.Signal
-	fmt.Printf("Received Join Network request signal")
+	fmt.Printf("Received Join Network request signal for vnet %s\n", vnetID)
 
-	fmt.Println("Waiting for get network signal")
+	fmt.Printf("Waiting for get network signal for vnet %s\n", vnetID)
 	<-nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.SignalInfo.Signal
 	fmt.Printf("Received Get Network request signal for context:%+v\n",
 		nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse)
@@ -324,7 +326,7 @@ func TestNetwork(t *testing.T) {
 	var respErr2 api.JsonErr
 	json.NewEncoder(&body2).Encode(networkReq)
 	networkDeploymentRequests2 := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
 	nmAgentResponderContext2 := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests2,
 		false)
@@ -363,6 +365,8 @@ func TestSubnet(t *testing.T) {
 	var body bytes.Buffer
 	var responseErr api.JsonErr
 	json.NewEncoder(&body).Encode(subnetReq)
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
 
 	response, err := http.Post(dncEP+"/networks/"+vnetID+"/subnets/"+subnetName+apiVersion, "application/json", &body)
 	if err != nil {
@@ -400,7 +404,7 @@ func TestSubnet(t *testing.T) {
 	resourceURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + apiVersion
 	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeReq)
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
 
 	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
 	json.NewEncoder(&body).Encode(subnetReq)
@@ -446,6 +450,9 @@ func TestSubnet(t *testing.T) {
 }
 
 func TestReservation(t *testing.T) {
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
+
 	setupNetworkAndJoinSubnet(t, dncEP, vnetID, reservationReq.SubnetName, apiVersion, true, 0)
 	reservationURL := dncEP + "/networks/" + vnetID + "/reservations/" + reservationID + apiVersion
 	createReservation(t, reservationReq, dncEP, vnetID, reservationID, apiVersion)
@@ -503,6 +510,8 @@ func TestContainer(t *testing.T) {
 	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
 
 	CreateNetworkContainer(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerUsingReservation(t, nodeID, nodeReq, networkContainerReq3, dncEP, vnetID, ncID2, apiVersion)
@@ -529,7 +538,9 @@ func TestCreateMultipleNetworks(t *testing.T) {
 		networkDeploymentRequest := NetworkDeploymentRequest{
 			vnetID:              id.String(),
 			UseCustomDnsServers: true,
-			TagCount:            0}
+			TagCount:            0,
+			WaitForJoin:         true,
+			WaitForGet:          true}
 		ncDeploymentRequests := make([]*NCDeploymentRequest, ncPerNetworkCount)
 		for ncIndex := 0; ncIndex < ncPerNetworkCount; ncIndex++ {
 			ipToReserve := "10.0.0." + strconv.FormatUint(uint64(4+ipIndex), 10)
@@ -549,7 +560,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 		deploymentInfos[index] = DeploymentInfo{NetworkDeploymentRequest: &networkDeploymentRequest, NCDeploymentRequests: ncDeploymentRequests}
 	}
 
-	DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos)
+	DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, true)
 }
 
 func addOrUpdateNode(
@@ -807,9 +818,10 @@ func (cxtMap NMAgentNetworkResponseMap) getContext(id string) *NMAgentNetworkRes
 
 func signalTest(signalInfo *SignalInfo, contextID string) bool {
 	if signalInfo.CurrentSignalCount < signalInfo.SignalCount {
-		fmt.Printf("Signaling Context%s\n", contextID)
+		fmt.Printf("Signaling Context%s. Signal:%+v\n", contextID, signalInfo.Signal)
 		signalInfo.Signal <- contextID
 		signalInfo.CurrentSignalCount++
+		fmt.Printf("Finished Signaling Context%s. Signal:%+v\n", contextID, signalInfo.Signal)
 		return true
 	}
 
@@ -832,7 +844,7 @@ func generateDefaultCnsResponderContextMap(t *testing.T, ncDeploymentRequests []
 		context.CreateOrUpdateNCResponse = &CnsCreateOrUpdateNCResponse{
 			HTTPStatus: http.StatusOK,
 			SignalInfo: SignalInfo{
-				Signal:             make(chan string),
+				Signal:             make(chan string, 5),
 				SignalCount:        1,
 				CurrentSignalCount: 0},
 			CreateNCResponse:  cnsCreateNCResponse,
@@ -841,7 +853,7 @@ func generateDefaultCnsResponderContextMap(t *testing.T, ncDeploymentRequests []
 		context.DeleteNCResponse = &CnsDeleteNCResponse{
 			HTTPStatus: http.StatusOK,
 			SignalInfo: SignalInfo{
-				Signal:             make(chan string),
+				Signal:             make(chan string, 5),
 				SignalCount:        1,
 				CurrentSignalCount: 0},
 			DeleteNCResponse:        cnsDeleteNCResponse,
@@ -883,6 +895,16 @@ type NetworkDeploymentRequest struct {
 	vnetID              string
 	TagCount            int
 	UseCustomDnsServers bool
+	SubnetSize          int
+	WaitForJoin         bool
+	WaitForGet          bool
+}
+
+type DeployedNetworkContainersInfo struct {
+	NetworkDeploymentRequests        []*NetworkDeploymentRequest
+	NCDeploymentRequestsMapByNetwork map[string][]*NCDeploymentRequest
+	CNSResponderContextMap           CnsResponderContextMap
+	NodesMap                         map[string]bool
 }
 
 func generateDefaultNMAgentResponderContext(
@@ -893,10 +915,15 @@ func generateDefaultNMAgentResponderContext(
 	tagList := make(map[string]nmagentcontracts.Tag)
 	for _, networkDeploymentRequest := range networkDeploymentRequests {
 		subnets := make([]nmagentcontracts.Subnet, 3)
+		subnetSize := 24
+		if networkDeploymentRequest.SubnetSize > 0 {
+			subnetSize = networkDeploymentRequest.SubnetSize
+		}
+
 		for index := 0; index < 3; index++ {
 			subnet := nmagentcontracts.Subnet{
 				SubnetName:     fmt.Sprintf("subnet%+v", index+1),
-				AddressPrefix:  fmt.Sprintf("10.0.%+v.0/24", index),
+				AddressPrefix:  fmt.Sprintf("10.0.%+v.0/%d", index, subnetSize),
 				DefaultGateway: fmt.Sprintf("10.0.%+v.1", index)}
 			if networkDeploymentRequest.TagCount > 0 {
 				if index == 0 {
@@ -924,19 +951,28 @@ func generateDefaultNMAgentResponderContext(
 			VNetSpace:    "10.0.0.0/16",
 			VnetVersion:  "4",
 			Subnets:      subnets}
+		getSignalCount := 0
+		joinSignalCount := 0
+		if networkDeploymentRequest.WaitForGet {
+			getSignalCount = 1
+		}
+		if networkDeploymentRequest.WaitForJoin {
+			joinSignalCount = 1
+		}
+
 		response.GetNetworkResponse = &GetNetworkResponse{
 			NetworkResponse: &vnetResponse,
 			HTTPStatus:      http.StatusOK,
 			SignalInfo: SignalInfo{
-				Signal:             make(chan string),
-				SignalCount:        1,
+				Signal:             make(chan string, 5),
+				SignalCount:        getSignalCount,
 				CurrentSignalCount: 0}}
 
 		response.JoinResponse = &JoinResponse{
 			HTTPStatus: http.StatusOK,
 			SignalInfo: SignalInfo{
-				Signal:             make(chan string),
-				SignalCount:        1,
+				Signal:             make(chan string, 5),
+				SignalCount:        joinSignalCount,
 				CurrentSignalCount: 0}}
 
 		nmagentContextLock.Lock()
@@ -952,7 +988,7 @@ func generateDefaultNMAgentResponderContext(
 				HTTPStatus: http.StatusOK,
 				Response:   &nmagentcontracts.TagResponse{Name: tagResponse.Name, Values: tagResponse.Values, ResponseCode: tagResponse.ResponseCode},
 				SignalInfo: SignalInfo{
-					Signal:             make(chan string),
+					Signal:             make(chan string, 5),
 					SignalCount:        1,
 					CurrentSignalCount: 0}}
 		}
@@ -970,7 +1006,7 @@ func NMAgentResponder(w http.ResponseWriter, r *http.Request, context interface{
 	if strings.Contains(r.RequestURI, "joinedVirtualNetworks") {
 		if r.Method == "GET" {
 			vnetID := strings.Split(r.URL.Path, "/")[2]
-			//fmt.Printf("Get network response for network:%s\n", vnetID)
+			//fmt.Printf("Get network response for network:%s, %+v\n", vnetID, r)
 			networkResponseContext := nmagentResponderContext.NetworkResponseMap.getContext(vnetID)
 			if networkResponseContext == nil {
 				w.WriteHeader(http.StatusInternalServerError)
@@ -988,6 +1024,7 @@ func NMAgentResponder(w http.ResponseWriter, r *http.Request, context interface{
 					shouldSignal = false
 				}
 				nmagentContextLock.Lock()
+				fmt.Printf("Responded with Config:%s\n", networkResponseContext.GetNetworkResponse.NetworkResponse.String())
 				if shouldSignal && signalTest(&networkResponseContext.GetNetworkResponse.SignalInfo, vnetID) {
 					fmt.Printf("Responded with Config:%s\n", networkResponseContext.GetNetworkResponse.NetworkResponse.String())
 					fmt.Println("Set signal for get virtual network")
@@ -1293,7 +1330,7 @@ func setupNetworkAndJoinSubnet(t *testing.T, dncEP, vnetID, subnetName, apiVersi
 	var body bytes.Buffer
 	resourceURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + apiVersion
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: addDNSServers, TagCount: tagCount}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: addDNSServers, TagCount: tagCount, WaitForJoin: true, WaitForGet: true}}
 
 	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
 	subnetReq := api.SubnetRequest{
@@ -1340,7 +1377,7 @@ func createReservation(t *testing.T, reservationreq api.AllocationRequest, dncEP
 
 }
 
-func AreCnsRequestsEqual(expected, received cns.CreateNetworkContainerRequest) bool {
+func AreCnsRequestsEqual(expected, received cns.CreateNetworkContainerRequest, vnetIDMap map[string]string) bool {
 	if expected.Version != received.Version {
 		fmt.Printf("Expected.Version %s Received.Version:%s", expected.Version, received.Version)
 		return false
@@ -1376,11 +1413,32 @@ func AreCnsRequestsEqual(expected, received cns.CreateNetworkContainerRequest) b
 		return false
 	}
 
-	if !reflect.DeepEqual(expected.IPConfiguration, received.IPConfiguration) {
-		fmt.Printf("Expected.IPConfiguration %+v Received.IPConfiguration:%+v",
-			expected.IPConfiguration, received.IPConfiguration)
+	if vnetIDMap != nil {
+		associatedNCID, ok := vnetIDMap[received.IPConfiguration.IPSubnet.IPAddress]
+		if !ok {
+			fmt.Printf("Allocated IP %s expected to be found in the allocated list", received.IPConfiguration.IPSubnet.IPAddress)
+			return false
+		}
+		if associatedNCID == "" {
+			vnetIDMap[received.IPConfiguration.IPSubnet.IPAddress] = received.NetworkContainerid
+		} else {
+			if associatedNCID != received.NetworkContainerid {
+				fmt.Printf("Allocated IP %s received in the request NC %s has already been allcoated to different NC %s",
+					received.IPConfiguration.IPSubnet.IPAddress,
+					associatedNCID,
+					received.NetworkContainerid)
+				return false
+			}
+		}
+	}
 
-		return false
+	if len(expected.IPConfiguration.IPSubnet.IPAddress) != 0 {
+		if !reflect.DeepEqual(expected.IPConfiguration, received.IPConfiguration) {
+			fmt.Printf("Expected.IPConfiguration %+v Received.IPConfiguration:%+v",
+				expected.IPConfiguration, received.IPConfiguration)
+
+			return false
+		}
 	}
 
 	if !reflect.DeepEqual(expected.MultiTenancyInfo, expected.MultiTenancyInfo) {
@@ -1477,7 +1535,7 @@ func createNetworkContainer(
 		fmt.Printf("ReceivedResponse:%+v\n", req)
 		fmt.Printf("ExpectedResponse:%+v\n", expectedReq)
 
-		if !AreCnsRequestsEqual(expectedReq, req) {
+		if !AreCnsRequestsEqual(expectedReq, req, nil) {
 			fmt.Printf("Mismatch in expected and received Cns create or update request.\nExpected:%+v\nReceived:%+v\n", expectedReq, req)
 			return false
 		}
@@ -1779,7 +1837,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 		fmt.Printf("ReceivedResponse:%+v\n", req)
 		fmt.Printf("ExpectedResponse:%+v\n", expectedReq)
 
-		if !AreCnsRequestsEqual(expectedReq, req) {
+		if !AreCnsRequestsEqual(expectedReq, req, nil) {
 			fmt.Printf("Mismatch in expected and received Cns create or update request.\nExpected:%+v\nReceived:%+v\n", expectedReq, req)
 			return false
 		}
@@ -1845,7 +1903,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 func CreateNetworkContainerAndUpdateCnetSpace(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndUpdateCnetSpace Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -1875,7 +1933,7 @@ func CreateNetworkContainerAndUpdateCnetSpace(t *testing.T, nodeID string, nodeI
 func CreateNetworkContainerAndAddCnetSpace(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndAddCnetSpace Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -1905,7 +1963,7 @@ func CreateNetworkContainerAndAddCnetSpace(t *testing.T, nodeID string, nodeInfo
 func CreateNetworkContainerAndRemoveCnetSpace(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndRemoveCnetSpace Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -1935,7 +1993,7 @@ func CreateNetworkContainerAndRemoveCnetSpace(t *testing.T, nodeID string, nodeI
 func CreateNetworkContainerAndAddNewDNSServer(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndAddNewDNSServer Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -1966,7 +2024,7 @@ func CreateNetworkContainerAndAddNewDNSServer(t *testing.T, nodeID string, nodeI
 func CreateNetworkContainerAndRemoveDNSServerInNetworkConfig(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndUpdateToUseAzureDNSServers Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -1996,7 +2054,7 @@ func CreateNetworkContainerAndRemoveDNSServerInNetworkConfig(t *testing.T, nodeI
 func CreateNetworkContainerAndUpdateToUseAzureDNSServers(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndUpdateToUseAzureDNSServers Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: false, TagCount: 0}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: false, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -2025,7 +2083,7 @@ func CreateNetworkContainerAndUpdateToUseAzureDNSServers(t *testing.T, nodeID st
 func CreateNetworkContainerAndUpdateToUseCustomDNSServers(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndUpdateToUseCustomDNSServers Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -2054,7 +2112,7 @@ func CreateNetworkContainerAndUpdateToUseCustomDNSServers(t *testing.T, nodeID s
 func CreateNetworkContainerAndUpdateToUseTags(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerAndUpdateToUseTags Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 2}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 2, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -2088,7 +2146,7 @@ func CreateNetworkContainerAndUpdateToUseTags(t *testing.T, nodeID string, nodeI
 func CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTags(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTags Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -2118,7 +2176,7 @@ func CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTags(t *testing.T, no
 func CreateNetworkContainerDeployedInTaggedSubnetsAndAddNewTag(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerDeployedInTaggedSubnetsAndAddNewTag Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 2}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 2, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -2148,7 +2206,7 @@ func CreateNetworkContainerDeployedInTaggedSubnetsAndAddNewTag(t *testing.T, nod
 func CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTag(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTag Test**********")
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 1}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 1, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -2177,6 +2235,9 @@ func CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTag(t *testing.T, nod
 
 func TestCreateNetworkContainerDeployedInTaggedSubnetsAndUpdateTags(t *testing.T) {
 	fmt.Println("****CreateNetworkContainerDeployedInTaggedSubnetsAndUpdateTags Test**********")
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
+
 	cnsServer.SetupTest()
 	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
 	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
@@ -2186,7 +2247,7 @@ func TestCreateNetworkContainerDeployedInTaggedSubnetsAndUpdateTags(t *testing.T
 	cnsServer.Lock.Unlock()
 
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 2}}
+		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 2, WaitForJoin: true, WaitForGet: true}}
 
 	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
 		networkDeploymentRequests,
@@ -2242,12 +2303,23 @@ type DeploymentInfo struct {
 	NCDeploymentRequests     []*NCDeploymentRequest
 }
 
-func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentInfos []DeploymentInfo) {
+//  http://play.golang.org/p/m8TNTtygK0
+func getNextIP(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
+}
+
+func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentInfos []DeploymentInfo, deleteDeployments bool) *DeployedNetworkContainersInfo {
 	networkDeploymentRequests := make([]*NetworkDeploymentRequest, 0)
 	ncDeploymentRequestsMapByNetwork := make(map[string][]*NCDeploymentRequest)
 	networkSubnetsMap := make(map[string]map[string]bool)
 	nodesMap := make(map[string]bool)
 	totalNCs := 0
+	vnetSubnetMap := make(map[string]net.IP)
 
 	for _, deploymentInfo := range deploymentInfos {
 		index := 0
@@ -2270,8 +2342,13 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 		}
 	}
 
+	vnetsIPMap := make(map[string]map[string]string)
 	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
 	for vnetID, subnetMap := range networkSubnetsMap {
+		_, ok := vnetsIPMap[vnetID]
+		if !ok {
+			vnetsIPMap[vnetID] = make(map[string]string)
+		}
 		for subnetName := range subnetMap {
 			var body bytes.Buffer
 			subnetReq := api.SubnetRequest{
@@ -2325,7 +2402,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 		addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeInfoReq)
 	}
 
-	nodeLocalIPMap := make(map[string]bool)
+	nodeLocalIPMap := make(map[string]string)
 
 	for vnetID, ncDeploymentRequests := range ncDeploymentRequestsMapByNetwork {
 		fmt.Printf("vnetID:%s, ncRequests:%+v", vnetID, ncDeploymentRequests)
@@ -2343,16 +2420,36 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 				}
 			}
 			fmt.Println("CnetSpace;", cnetSpace)
-			allocatedIP := "10.0.0.4"
+			var allocatedIP string
 			if len(ncDeploymentRequest.AllocationRequest.IPConstraint) > 0 {
 				allocatedIP = ncDeploymentRequest.AllocationRequest.IPConstraint
+			} else {
+				lastAllocatedIP, ok := vnetSubnetMap[vnetID+ncDeploymentRequest.AllocationRequest.SubnetName]
+				if !ok {
+					allocatedIP = "10.0.0.4"
+					lastAllocatedIP = net.ParseIP(allocatedIP)
+
+				} else {
+					getNextIP(lastAllocatedIP)
+					allocatedIP = lastAllocatedIP.String()
+				}
+				vnetSubnetMap[vnetID+ncDeploymentRequest.AllocationRequest.SubnetName] = lastAllocatedIP
 			}
+			vnetIPMap, ok := vnetsIPMap[vnetID]
+			if !ok {
+				vnetIPMap = make(map[string]string)
+				vnetsIPMap[vnetID] = vnetIPMap
+			}
+			vnetIPMap[allocatedIP] = ""
+
 			accessToken := "Key1-" + vnetID
 			var ipConfig cns.IPConfiguration
 			ipConfig.DNSServers = strings.Split(nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.DNSServers, ",")
-			ipConfig.IPSubnet = cns.IPSubnet{
-				IPAddress:    allocatedIP,
-				PrefixLength: 24}
+			if len(ncDeploymentRequest.ReservationID) > 0 {
+				ipConfig.IPSubnet = cns.IPSubnet{
+					IPAddress:    allocatedIP,
+					PrefixLength: 24}
+			}
 			ipConfig.GatewayIPAddress = "10.0.0.1"
 			networkContainerID := "Swift_" + ncDeploymentRequest.NCID
 			podInfo := OrchestratorContext{
@@ -2372,7 +2469,12 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 					MultiTenancyInfo:           req.MultiTenancyInfo}
 				fmt.Printf("ReceivedResponse:%+v\n", req)
 				fmt.Printf("ExpectedResponse:%+v\n", expectedReq)
-				expectedIP := expectedReq.IPConfiguration.IPSubnet.IPAddress + "/" + strconv.FormatInt(int64(expectedReq.IPConfiguration.IPSubnet.PrefixLength), 10)
+				var expectedIP string
+				if len(ncDeploymentRequest.ReservationID) > 0 {
+					expectedIP = expectedReq.IPConfiguration.IPSubnet.IPAddress + "/" + strconv.FormatInt(int64(expectedReq.IPConfiguration.IPSubnet.PrefixLength), 10)
+				} else {
+					expectedIP = ""
+				}
 				receivedIP := req.IPConfiguration.IPSubnet.IPAddress + "/" + strconv.FormatInt(int64(req.IPConfiguration.IPSubnet.PrefixLength), 10)
 				fmt.Printf("%+v, %+v\n", expectedIP, receivedIP)
 				fmt.Printf("AllocatedIP:%+v, ReceivedIP:%+v", expectedReq.IPConfiguration.IPSubnet, req.IPConfiguration.IPSubnet)
@@ -2385,13 +2487,24 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 					return false
 				}
 
-				if _, ok := nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress]; ok {
+				if len(req.IPConfiguration.IPSubnet.IPAddress) == 0 {
+					fmt.Printf("Allocated subnet in the request is empty")
 					return false
 				}
 
-				nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress] = true
+				if associatedncID, ok := nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress]; ok {
+					if associatedncID != networkContainerID {
+						fmt.Printf("Local IP %s received as part of NC %s is already associated with %s",
+							req.LocalIPConfiguration.IPSubnet.IPAddress,
+							networkContainerID,
+							associatedncID)
+						return false
+					}
+				}
 
-				if !AreCnsRequestsEqual(expectedReq, req) {
+				nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress] = networkContainerID
+
+				if !AreCnsRequestsEqual(expectedReq, req, vnetIPMap) {
 					fmt.Printf("Mismatch in expected and received Cns create or update request. "+
 						"\nExpected:%+v\nReceived:%+v\n",
 						expectedReq,
@@ -2477,13 +2590,28 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 		}
 	}
 
-	for vnetID, ncDeploymentRequests := range ncDeploymentRequestsMapByNetwork {
+	deployedNetworkContainersInfo := &DeployedNetworkContainersInfo{
+		NetworkDeploymentRequests:        networkDeploymentRequests,
+		NCDeploymentRequestsMapByNetwork: ncDeploymentRequestsMapByNetwork,
+		CNSResponderContextMap:           cnsResponderContextMap,
+		NodesMap:                         nodesMap}
+
+	if deleteDeployments {
+		DeleteDeployments(t, deployedNetworkContainersInfo)
+	}
+
+	return deployedNetworkContainersInfo
+}
+
+func DeleteDeployments(t *testing.T, deployedNetworkContainersInfo *DeployedNetworkContainersInfo) {
+
+	for vnetID, ncDeploymentRequests := range deployedNetworkContainersInfo.NCDeploymentRequestsMapByNetwork {
 		for _, ncDeploymentRequest := range ncDeploymentRequests {
-			fmt.Printf("Deleting NC:%s\n", ncDeploymentRequest.NCID)
+			fmt.Printf("Deleting NC:%s\n", ncDeploymentRequest)
 			ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncDeploymentRequest.NCID + apiVersion
 			deleteResource(t, ncURL, http.StatusOK)
 			fmt.Printf("Waiting for delete NC Url:%s\n", ncURL)
-			<-cnsResponderContextMap.getContext(ncDeploymentRequest.NCID).DeleteNCResponse.SignalInfo.Signal
+			<-deployedNetworkContainersInfo.CNSResponderContextMap.getContext(ncDeploymentRequest.NCID).DeleteNCResponse.SignalInfo.Signal
 
 			if !WaitForResourceCleanup(t, ncURL, 2) {
 				err := fmt.Errorf("Failed to cleanup network container%s", ncDeploymentRequest.NCID)
@@ -2497,13 +2625,452 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 			}
 		}
 	}
-	for _, networkDeploymentRequest := range networkDeploymentRequests {
+
+	for _, networkDeploymentRequest := range deployedNetworkContainersInfo.NetworkDeploymentRequests {
 		networkURL := dncEP + "/networks/" + networkDeploymentRequest.vnetID + apiVersion
 		deleteResource(t, networkURL, http.StatusOK)
 	}
 
-	for nodeID := range nodesMap {
+	for nodeID := range deployedNetworkContainersInfo.NodesMap {
 		networkURL := dncEP + "/nodes/" + nodeID + apiVersion
+		deleteResource(t, networkURL, http.StatusOK)
+	}
+}
+func TestValidateSubnetExhaustion(t *testing.T) {
+	deploymentCount := 1
+	ncPerNetworkCount := 3
+	deploymentInfos := make([]DeploymentInfo, deploymentCount)
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
+	for index := 0; index < deploymentCount; index++ {
+		networkDeploymentRequest := NetworkDeploymentRequest{
+			vnetID:              vnetID,
+			UseCustomDnsServers: true,
+			TagCount:            0,
+			SubnetSize:          29,
+			WaitForJoin:         true,
+			WaitForGet:          true}
+		ncDeploymentRequests := make([]*NCDeploymentRequest, ncPerNetworkCount)
+		for ncIndex := 0; ncIndex < ncPerNetworkCount; ncIndex++ {
+			ncID, _ := uuid.NewUUID()
+			ncDeploymentRequest := NCDeploymentRequest{
+				AllocationRequest: api.AllocationRequest{
+					SubnetName: "subnet1"},
+				AssociationInfo: api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context},
+				NCID:            ncID.String()}
+
+			ncDeploymentRequests[ncIndex] = &ncDeploymentRequest
+		}
+
+		deploymentInfos[index] = DeploymentInfo{NetworkDeploymentRequest: &networkDeploymentRequest, NCDeploymentRequests: ncDeploymentRequests}
+	}
+
+	deployedNetworkContainersInfo := DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, false)
+	id, _ = uuid.NewUUID()
+	ncIDToFail := id.String()
+	deploymentRequestToFail := CreateNetworkContainerRequest{
+		AllocationRequest: api.AllocationRequest{
+			SubnetName: "subnet1"},
+		AssociationInfo: api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context}}
+	var body bytes.Buffer
+	json.NewEncoder(&body).Encode(deploymentRequestToFail)
+	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncIDToFail + apiVersion
+	response, err := http.Post(ncURL, "application/json", &body)
+	response.Body.Close()
+	var respErr api.JsonErr
+	if response.StatusCode != http.StatusOK {
+		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
+			t.Errorf("CreateNetworkContainer call failed with response %+v Err:%+v", respErr, err)
+			t.Fatal(err)
+		}
+	}
+	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncIDToFail + "/status" + apiVersion
+	WaitForResourceState(t, ncURLStatus, "Failed", http.StatusBadRequest, 2)
+	deleteResource(t, ncURL, http.StatusOK)
+	fmt.Printf("Cleaned up failed deployment")
+	DeleteDeployments(t, deployedNetworkContainersInfo)
+}
+
+func TestValidateThrottlingOnGetNetwork(t *testing.T) {
+	vnetsCount := 5
+	networkDeploymentRequests := make([]*NetworkDeploymentRequest, 0)
+	for index := 0; index < vnetsCount; index++ {
+		id, _ := uuid.NewUUID()
+		vnetID := id.String()
+		networkDeploymentRequest := &NetworkDeploymentRequest{
+			vnetID:              vnetID,
+			UseCustomDnsServers: true,
+			TagCount:            0,
+			SubnetSize:          29,
+			WaitForJoin:         true,
+			WaitForGet:          true}
+		networkDeploymentRequests = append(networkDeploymentRequests, networkDeploymentRequest)
+	}
+
+	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
+
+	vnetIDToThrottle := networkDeploymentRequests[0].vnetID
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
+	fmt.Printf("Throttling get of vnet %s \n", vnetIDToThrottle)
+	nmAgentServer.Lock.Lock()
+	nmAgentResponderContext.NetworkResponseMap.getContext(
+		vnetIDToThrottle).GetNetworkResponse.HTTPStatus = http.StatusForbidden
+	nmAgentServer.ResponseFunc = NMAgentResponder
+	nmAgentServer.Context = nmAgentResponderContext
+	nmAgentServer.Lock.Unlock()
+	startTime := time.Now().UTC()
+	var refreshStatus api.RefreshMonitorStatus
+	for {
+		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+			t.Fatal(err)
+		}
+		layout := "2006-01-02 15:04:05 -0700 MST"
+		defer response.Body.Close()
+		utils.DecodeResponse(response, &refreshStatus)
+		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
+		if receivedStartTime.After(startTime) && refreshStatus.IsThrottled {
+			break
+		}
+	}
+
+	fmt.Printf("RefreshStatus after verifying throttling:%s\n", refreshStatus.String())
+
+	fmt.Printf("Unthrottling get of vnet %s \n", vnetIDToThrottle)
+	nmAgentServer.Lock.Lock()
+	nmAgentResponderContext.NetworkResponseMap.getContext(
+		vnetIDToThrottle).GetNetworkResponse.HTTPStatus = http.StatusOK
+	nmAgentServer.ResponseFunc = NMAgentResponder
+	nmAgentServer.Context = nmAgentResponderContext
+	nmAgentServer.Lock.Unlock()
+	for {
+		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+			t.Fatal(err)
+		}
+		layout := "2006-01-02 15:04:05 -0700 MST"
+		defer response.Body.Close()
+		utils.DecodeResponse(response, &refreshStatus)
+		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
+		if receivedStartTime.After(startTime) && !refreshStatus.IsRefreshInProgress {
+			break
+		}
+	}
+
+	fmt.Printf("RefreshStatus after verifying unthrottling:%s\n", refreshStatus.String())
+
+	fmt.Printf("Wait for all vnet gets to succeed \n")
+	for {
+		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+			t.Fatal(err)
+		}
+		layout := "2006-01-02 15:04:05 -0700 MST"
+		defer response.Body.Close()
+		utils.DecodeResponse(response, &refreshStatus)
+		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
+		if receivedStartTime.After(startTime) && !refreshStatus.IsRefreshInProgress && refreshStatus.FailedItems == 0 {
+			break
+		}
+	}
+	fmt.Printf("RefreshStatus after all vnet processing succeeds:%s\n", refreshStatus.String())
+
+	for _, networkDeploymentRequest := range networkDeploymentRequests {
+		networkURL := dncEP + "/networks/" + networkDeploymentRequest.vnetID + apiVersion
+		deleteResource(t, networkURL, http.StatusOK)
+	}
+}
+
+func TestValidateThrottlingOnJoin(t *testing.T) {
+	vnetsCount := 5
+	networkDeploymentRequests := make([]*NetworkDeploymentRequest, 0)
+	for index := 0; index < vnetsCount; index++ {
+		id, _ := uuid.NewUUID()
+		vnetID := id.String()
+		networkDeploymentRequest := &NetworkDeploymentRequest{
+			vnetID:              vnetID,
+			UseCustomDnsServers: true,
+			TagCount:            0,
+			SubnetSize:          29,
+			WaitForJoin:         true,
+			WaitForGet:          true}
+		networkDeploymentRequests = append(networkDeploymentRequests, networkDeploymentRequest)
+	}
+
+	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
+
+	vnetIDToThrottle := networkDeploymentRequests[0].vnetID
+	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
+		networkDeploymentRequests,
+		false)
+	fmt.Printf("Throttling join of vnet %s \n", vnetIDToThrottle)
+	nmAgentServer.Lock.Lock()
+	nmAgentResponderContext.NetworkResponseMap.getContext(
+		vnetIDToThrottle).GetNetworkResponse.NetworkResponse.ResponseCode =
+		strconv.Itoa(http.StatusProcessing)
+	nmAgentResponderContext.NetworkResponseMap.getContext(
+		vnetIDToThrottle).JoinResponse.HTTPStatus = http.StatusForbidden
+
+	nmAgentServer.ResponseFunc = NMAgentResponder
+	nmAgentServer.Context = nmAgentResponderContext
+	nmAgentServer.Lock.Unlock()
+	startTime := time.Now().UTC()
+	var refreshStatus api.RefreshMonitorStatus
+	for {
+		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+			t.Fatal(err)
+		}
+		layout := "2006-01-02 15:04:05 -0700 MST"
+		defer response.Body.Close()
+		utils.DecodeResponse(response, &refreshStatus)
+		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
+		if receivedStartTime.After(startTime) && refreshStatus.IsThrottled {
+			break
+		}
+	}
+
+	fmt.Printf("RefreshStatus after verifying throttling:%s\n", refreshStatus.String())
+
+	fmt.Printf("Unthrottling join of vnet %s \n", vnetIDToThrottle)
+	nmAgentServer.Lock.Lock()
+	nmAgentResponderContext.NetworkResponseMap.getContext(
+		vnetIDToThrottle).GetNetworkResponse.NetworkResponse.ResponseCode =
+		strconv.Itoa(http.StatusOK)
+	nmAgentResponderContext.NetworkResponseMap.getContext(
+		vnetIDToThrottle).JoinResponse.HTTPStatus = http.StatusForbidden
+	nmAgentServer.ResponseFunc = NMAgentResponder
+	nmAgentServer.Context = nmAgentResponderContext
+	nmAgentServer.Lock.Unlock()
+	for {
+		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+			t.Fatal(err)
+		}
+		layout := "2006-01-02 15:04:05 -0700 MST"
+		defer response.Body.Close()
+		utils.DecodeResponse(response, &refreshStatus)
+		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
+		if receivedStartTime.After(startTime) && !refreshStatus.IsRefreshInProgress {
+			break
+		}
+	}
+
+	fmt.Printf("RefreshStatus after verifying unthrottling:%s\n", refreshStatus.String())
+
+	fmt.Printf("Wait for all vnet gets to succeed \n")
+	for {
+		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+			t.Fatal(err)
+		}
+		layout := "2006-01-02 15:04:05 -0700 MST"
+		defer response.Body.Close()
+		utils.DecodeResponse(response, &refreshStatus)
+		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
+		if receivedStartTime.After(startTime) && !refreshStatus.IsRefreshInProgress && refreshStatus.FailedItems == 0 {
+			break
+		}
+	}
+	fmt.Printf("RefreshStatus after all vnet processing succeeds:%s\n", refreshStatus.String())
+
+	for _, networkDeploymentRequest := range networkDeploymentRequests {
+		networkURL := dncEP + "/networks/" + networkDeploymentRequest.vnetID + apiVersion
+		deleteResource(t, networkURL, http.StatusOK)
+	}
+}
+
+func TestValidateBatching(t *testing.T) {
+	layout := "2006-01-02 15:04:05 -0700 MST"
+	configpath := "config_test.json"
+	config := configuration.Load(configpath)
+	vnetsCount := config.DNCSettings.NetworkRefreshBatchSize
+	backoffInterval := config.DNCSettings.SleepIntervalBetweenNetworkBatches
+	sleepBetweenNetworks := config.DNCSettings.SleepIntervalBetweenNetworkRefresh
+	fmt.Printf("BackoffInterval:%v\n", backoffInterval)
+	fmt.Printf("SleepBetweenNetworks:%v\n", sleepBetweenNetworks)
+	fmt.Printf("BatchVnetCount:%v\n", vnetsCount)
+	networkDeploymentRequests := make([]*NetworkDeploymentRequest, 0)
+	for index := 0; index < vnetsCount; index++ {
+		id, _ := uuid.NewUUID()
+		vnetID := id.String()
+		networkDeploymentRequest := &NetworkDeploymentRequest{
+			vnetID:              vnetID,
+			UseCustomDnsServers: true,
+			TagCount:            0,
+			SubnetSize:          29,
+			WaitForJoin:         true,
+			WaitForGet:          true}
+		networkDeploymentRequests = append(networkDeploymentRequests, networkDeploymentRequest)
+	}
+
+	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
+	startTime := time.Now().UTC()
+	var refreshStatus api.RefreshMonitorStatus
+	for {
+		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		utils.DecodeResponse(response, &refreshStatus)
+		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
+		if receivedStartTime.After(startTime) &&
+			!refreshStatus.IsRefreshInProgress &&
+			refreshStatus.FailedItems == 0 &&
+			len(refreshStatus.TimeToRefresh) != 0 {
+			break
+		}
+	}
+	fmt.Printf("RefreshStatus after verifying throttling:%s\n", refreshStatus.String())
+	fmt.Printf("Elapsed Time %v for refreshing Vnets:%v\n", refreshStatus.TimeToRefresh, len(networkDeploymentRequests))
+	for _, networkDeploymentRequest := range networkDeploymentRequests {
+		networkDeploymentRequest.WaitForJoin = false
+	}
+	elapsedDuration, _ := time.ParseDuration(refreshStatus.TimeToRefresh)
+	timeElapsedBetweenNetworkRefresh := (sleepBetweenNetworks * (len(networkDeploymentRequests)-1)) // -1 since we do single backoff
+	lowerLimit := time.Duration(backoffInterval+timeElapsedBetweenNetworkRefresh) * time.Millisecond
+	if elapsedDuration > lowerLimit {
+		err := fmt.Errorf("Time to refresh Vnets %d expected to be less than backoff time, Elapsed time:%v Expected:[0, %v]",
+			len(networkDeploymentRequests),
+			elapsedDuration,
+			lowerLimit)
+		t.Fatal(err)
+	}
+
+	fmt.Printf("Add one more Vnet which should result in throttling\n")
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
+	networkDeploymentRequest := &NetworkDeploymentRequest{
+		vnetID:              vnetID,
+		UseCustomDnsServers: true,
+		TagCount:            0,
+		SubnetSize:          29}
+	networkDeploymentRequests = append(networkDeploymentRequests, networkDeploymentRequest)
+	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
+
+	fmt.Printf("Validate that calls are backed off\n")
+	startTime = time.Now().UTC()
+	for {
+		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+			t.Fatal(err)
+		}
+
+		defer response.Body.Close()
+		utils.DecodeResponse(response, &refreshStatus)
+
+		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
+		if receivedStartTime.After(startTime) &&
+			!refreshStatus.IsRefreshInProgress &&
+			refreshStatus.FailedItems == 0 &&
+			len(refreshStatus.TimeToRefresh) != 0 {
+			break
+		}
+	}
+
+	fmt.Printf("RefreshStatus after all vnet processing succeeds:%s\n", refreshStatus.String())
+	fmt.Printf("Elapsed Time %v for refreshing Vnets:%v\n", refreshStatus.TimeToRefresh, len(networkDeploymentRequests))
+	elapsedDuration, _ = time.ParseDuration(refreshStatus.TimeToRefresh)
+	timeElapsedBetweenNetworkRefresh = (sleepBetweenNetworks * (len(networkDeploymentRequests) - 1))
+	lowerLimit = time.Duration(backoffInterval+timeElapsedBetweenNetworkRefresh) * time.Millisecond
+	upperLimit := time.Duration((backoffInterval*2)+timeElapsedBetweenNetworkRefresh) * time.Millisecond
+	if elapsedDuration < lowerLimit ||
+		elapsedDuration > upperLimit {
+		err := fmt.Errorf("Time to refresh Vnets %d as there should be a single backoff, Elapsed time:%v Expected:[%v, %v]",
+			len(networkDeploymentRequests),
+			elapsedDuration,
+			lowerLimit,
+			upperLimit)
+		t.Fatal(err)
+	}
+
+	fmt.Printf("Add %d more Vnet which should result in double throttling\n", vnetsCount+2)
+	for _, networkDeploymentRequest := range networkDeploymentRequests {
+		networkDeploymentRequest.WaitForJoin = false
+	}
+	for index := 0; index < vnetsCount+1; index++ {
+		id, _ := uuid.NewUUID()
+		vnetID := id.String()
+		networkDeploymentRequest := &NetworkDeploymentRequest{
+			vnetID:              vnetID,
+			UseCustomDnsServers: true,
+			TagCount:            0,
+			SubnetSize:          29,
+			WaitForJoin:         true,
+			WaitForGet:          true}
+		networkDeploymentRequests = append(networkDeploymentRequests, networkDeploymentRequest)
+	}
+	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
+
+	fmt.Printf("Validate that calls are backed off\n")
+	startTime = time.Now().UTC()
+	for {
+		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+			t.Fatal(err)
+		}
+
+		defer response.Body.Close()
+		utils.DecodeResponse(response, &refreshStatus)
+
+		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
+		if receivedStartTime.After(startTime) &&
+			!refreshStatus.IsRefreshInProgress &&
+			refreshStatus.FailedItems == 0 &&
+			len(refreshStatus.TimeToRefresh) != 0 {
+			break
+		}
+	}
+
+	fmt.Printf("RefreshStatus after all vnet processing succeeds:%s\n", refreshStatus.String())
+	fmt.Printf("Elapsed Time %v for refreshing Vnets:%v\n", refreshStatus.TimeToRefresh, len(networkDeploymentRequests))
+	elapsedDuration, _ = time.ParseDuration(refreshStatus.TimeToRefresh)
+	timeElapsedBetweenNetworkRefresh = (sleepBetweenNetworks * (len(networkDeploymentRequests) - 2)) // -2 is that we will do two back offs
+	lowerLimit = time.Duration((backoffInterval*2)+timeElapsedBetweenNetworkRefresh) * time.Millisecond
+	upperLimit = time.Duration((backoffInterval*3)+timeElapsedBetweenNetworkRefresh) * time.Millisecond
+
+	if elapsedDuration < lowerLimit ||
+		elapsedDuration > upperLimit {
+		err := fmt.Errorf("Time to refresh Vnets %d as there should be a double backoff, Elapsed time:%v Expected:[%v, %v]",
+			len(networkDeploymentRequests),
+			elapsedDuration,
+			lowerLimit,
+			upperLimit)
+		t.Fatal(err)
+	}
+
+	for _, networkDeploymentRequest := range networkDeploymentRequests {
+		networkURL := dncEP + "/networks/" + networkDeploymentRequest.vnetID + apiVersion
 		deleteResource(t, networkURL, http.StatusOK)
 	}
 }

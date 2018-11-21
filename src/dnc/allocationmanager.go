@@ -115,6 +115,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 			}
 		}
 
+		// Process reservations with IP constraint requesting from specific IP.
 		if repoReservationRequest.AllocationRequest.IPConstraint != "" {
 			var ipSubnetConstraint *net.IPNet
 			ipSubnetConstraint, err = allocationhelper.GetIPSubnetForIPAllocationConstraint(
@@ -167,6 +168,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 			logger.Debugf("Allocated IP: %s\n", allocatedIP)
 		}
 	}
+
 	if allocatedIP != nil {
 		repoReservationRequest.Status = datamodel.Completed
 		repoReservationRequest.AllocatedSubnet = allocatedIP.String()
@@ -213,6 +215,13 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 		logger.Debugf(
 			"Invalid state: Process reservation for request %s completed without allocated IPn\n",
 			repoReservationRequest.AllocationRequest.String())
+		markAllocationAsFailed = true
+		failureDetail = &api.JsonErr{
+			Code:       api.AllocationFailed,
+			HTTPStatus: http.StatusBadRequest,
+			Text: fmt.Sprintf(
+				"Failed to allocate address for request %s. Subnet is full",
+				repoReservationRequest.AllocationRequest.String())}
 	}
 
 Cleanup:
