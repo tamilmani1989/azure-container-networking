@@ -49,7 +49,7 @@ version:
                                                                         # artifacts as a group by name.
   major: 2018                                                           # The major version number.
   minor: 11                                                             # The minor version number
-  tag: '01.1'                                                            # Tag to use for semantic versioning.
+  tag: '20.1'                                                            # Tag to use for semantic versioning.
   system: 'patch'                                                       # Versioning scheme to use.
                                                                         # patch         - 1.0.MMddyyrrrr will be generated
                                                                         # buildrevision - 1.0.MMddyy.rrrr will be generated.
