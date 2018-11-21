@@ -106,11 +106,8 @@ func sendTelemetry() {
 				reflect.ValueOf(reportMgr.Report).Elem().FieldByName("EventMessage").SetString(msg.EventMessage)
 			}
 
-			if err := reportMgr.SendReport(); err == nil {
-				reportMgr.SetReportState(DNCTelemetryFile)
-			} else {
-				logger.Debugf("[telemetry] %s", err.Error())
-			}
+			logger.Debugf("[Telemetry] %+v", reportMgr.Report)
+			reportMgr.SetReportState(DNCTelemetryFile)
 		} else {
 			time.Sleep(time.Minute * 1)
 		}
