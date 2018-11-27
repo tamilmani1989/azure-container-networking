@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	DEFAULT_TIMEOUT_IN_SECS = 30
+	DEFAULT_TIMEOUT_IN_SECS = 10
 	DEFAULT_MAX_RETRIES     = 5
 	DEFAULT_LOGDIR          = "/var/log"
 	enable                  = "enable"
@@ -102,6 +102,11 @@ func main() {
 			log.Printf("write status log failed with error %+v", err)
 		}
 
+		if CheckIfSTBridgeExists() {
+			log.Printf("ServiceTunnelBridge exists. So exiting...")
+			os.Exit(0)
+		}
+
 		i := 0
 		for ; i < *maxRetries; i++ {
 			err := CreateServiceTunnel(serviceTunnelConfig)
@@ -110,14 +115,14 @@ func main() {
 			}
 
 			log.Printf("CreateServiceTunnel Failed. Lets remove and create it again.Attempt:%d", i)
+			log.Printf("Going to sleep for %v seconds before calling Remove and createservicetunnel", *timeout)
+			time.Sleep(time.Duration(*timeout) * time.Second)
+
 			RemoveServiceTunnel(serviceTunnelConfig)
 
 			if err := handlerEnv.WriteStatusLog(latestSetting, extensionhandler.Warning, *mode, extensionhandler.WarningCode, "CreateServiceTunnel Failed. Retrying"); err != nil {
 				log.Printf("write status log failed with error %+v", err)
 			}
-
-			log.Printf("Going to sleep for %v seconds before calling createservicetunnel", *timeout)
-			time.Sleep(time.Duration(*timeout) * time.Second)
 		}
 
 		if i < *maxRetries {
