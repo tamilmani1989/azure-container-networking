@@ -3,6 +3,7 @@ package main
 import (
 	"LinuxNetAgent/ExtensionHandler"
 	"LinuxNetAgent/servicetunnel"
+	"net"
 
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/platform"
@@ -25,6 +26,11 @@ func installTools() {
 	if err != nil {
 		log.Printf("apt install ebtables failed with error %v", err)
 	}
+}
+
+func CheckIfSTBridgeExists() bool {
+	_, err := net.InterfaceByName(BridgeName)
+	return err == nil
 }
 
 func CreateServiceTunnel(stConfig *extensionhandler.ServiceTunnelConfig) error {
