@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"crypto/sha256"
 )
 
 // AzureStorageRequest - Details to connect to azure storage account.
@@ -42,8 +43,8 @@ func (azurestoragerequest *AzureStorageRequest) Validate() *JsonErr {
 }
 
 func (azureStorageRequestV2 *AzureStorageRequestV2) String() string {
-	return fmt.Sprintf("AzureStorageRequestV2:[AccountName:%s, PartitionKey:%s, RegionalStorageConnectionString:%s]",
-		azureStorageRequestV2.AccountName, azureStorageRequestV2.PartitionKey, azureStorageRequestV2.RegionalStorageConnectionString)
+	return fmt.Sprintf("AzureStorageRequestV2:[AccountName:%s, PartitionKey:%s, RegionalStorageConnectionString:%x]",
+		azureStorageRequestV2.AccountName, azureStorageRequestV2.PartitionKey, sha256.Sum256([]byte(azureStorageRequestV2.RegionalStorageConnectionString)))
 }
 
 // Validate - Validates the AzureStorageRequestV2

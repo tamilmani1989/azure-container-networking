@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"crypto/sha256"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 )
@@ -36,7 +37,7 @@ func (azureStorage *AzureStorage) Init(tableToColumnMap map[string]string) {
 
 // initRegionalStorage - Initialize the table client needed to access the regional storage
 func (azureStorage *AzureStorage) initRegionalStorage() {
-	loggershim.LS.Debugf("[Azure DNC] InitRegionalStorage with %s", azureStorage.AzureStorageInfo.RegionalStorageConnectionString)
+	loggershim.LS.Debugf("[Azure DNC] InitRegionalStorage with %x", sha256.Sum256([]byte(azureStorage.AzureStorageInfo.RegionalStorageConnectionString)))
 	regionalStorageClient, err := storage.NewClientFromConnectionString(
 		azureStorage.AzureStorageInfo.RegionalStorageConnectionString)
 	utils.OnErrorFail(err, "Create regional client failed")
