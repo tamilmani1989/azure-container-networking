@@ -154,6 +154,12 @@ namespace NetworkManager.DataModel
             VnetVersion = 0;
         }
 
+        public void UpdateNetworkInfo(
+            NetworkRequest networkInfoRequest)
+        {
+            NetworkInfoRequest = networkInfoRequest;
+        }
+
         public NetworkConfiguration(NetworkConfiguration networkConfiguration)
         {
             NetworkID = networkConfiguration.NetworkID;

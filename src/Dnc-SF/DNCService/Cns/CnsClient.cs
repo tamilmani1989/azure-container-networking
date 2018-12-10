@@ -105,7 +105,8 @@ namespace Cns
         }
 
         public async Task DeleteNetworkContainer(
-            NetworkContainerInfo networkContainerInfo)
+            string networkContainerID,
+            string nodeInterfaceID)
         {
             if (dncConfiguration.CnsSimulatorMode)
             {
@@ -113,9 +114,9 @@ namespace Cns
             }
             string deleteNCUrl = string.Format(
                     dncConfiguration.CNSSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
-                    networkContainerInfo.NodeInterfaceID);
-            DeleteNetworkContainerRequest deleteNetworkContainerRequest = 
-                new DeleteNetworkContainerRequest(networkContainerInfo.NetworkContainerID);
+                    nodeInterfaceID);
+            DeleteNetworkContainerRequest deleteNetworkContainerRequest =
+                new DeleteNetworkContainerRequest(networkContainerID);
             ServiceEventSource.Current.Message("DeleteNCUrl:{0}, body:{1}",
                 deleteNCUrl,
                 deleteNetworkContainerRequest);
@@ -202,8 +203,8 @@ namespace Cns
         }
 
         public void ParseTagsIntoCnetAddresses(
-            ref NetworkContainerInfo networkContainerInfo,
-            ref NCConfiguration ncConfig)
+            NetworkContainerInfo networkContainerInfo,
+            NCConfiguration ncConfig)
         {
             Dictionary<string, UInt64> latestTagInfo = new Dictionary<string, UInt64>();
             List<TagDefinition> resolvedTags = new List<TagDefinition>();

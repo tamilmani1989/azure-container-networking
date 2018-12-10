@@ -55,22 +55,12 @@ namespace NetworkManager
                 ICollection<string> requestIDs = await networkRepsoitoryManager.GetAllRequestIDs(false);
                 foreach (string requestID in requestIDs)
                 {
-                    IReliableDictionary<string, RequestContext> pendingRequestContextReliableCollection =
-                        await RepositoryHelper.GetReliableDictionaryAsync<string, RequestContext>(
-                            Constants.PendingRequestsTableName);
-                    IReliableDictionary<string, RequestContext> failedRequestContextReliableCollection =
-                        await RepositoryHelper.GetReliableDictionaryAsync<string, RequestContext>(
-                            Constants.FailedRequestsTableName);
-                    cancellationToken.ThrowIfCancellationRequested();
                     using (var tx = RepositoryHelper.GetTransaction())
                     {
                         RequestContext requestContext = await RepositoryHelper.GetFromReliableDictionary(
                             tx,
-                            failedRequestContextReliableCollection,
-                            requestID,
-                            LockMode.Update);
-
-                        cancellationToken.ThrowIfCancellationRequested();
+                            networkRepsoitoryManager.FailedRequestsReliableCollection,
+                            requestID);
                         if (requestContext == null)
                         {
                             continue;
@@ -82,17 +72,15 @@ namespace NetworkManager
                                 $"Moving request context from failed to pending queue:{requestContext}");
                             await RepositoryHelper.CreateOrUpdateReliableDictionary(
                                 tx,
-                                pendingRequestContextReliableCollection,
+                                networkRepsoitoryManager.PendingRequestsReliableCollection,
                                 requestID,
                                 requestContext);
-                            cancellationToken.ThrowIfCancellationRequested();
                             await RepositoryHelper.RemoveFromReliableDictionary(
                                 tx,
-                                failedRequestContextReliableCollection,
+                                networkRepsoitoryManager.FailedRequestsReliableCollection,
                                 requestID);
-                            cancellationToken.ThrowIfCancellationRequested();
+
                             await RepositoryHelper.CommitTransactionAsync(tx);
-                            cancellationToken.ThrowIfCancellationRequested();
                         }
                     }
                 }

@@ -12,15 +12,19 @@ namespace NetworkManager
 
         private TagsCacheManager tagsCacheManager;
 
-        private UInt32 defaultRefreshIntervalMs;
+        private uint refreshIntervalMs;
+
+        private const uint defaultRefreshIntervalMs = 60000;
 
         public TagRefreshMonitor(
-            CancellationToken cancellationToken,
-            TagsCacheManager tagsCacheManager)
+            TagsCacheManager tagsCacheManager,
+            DncConfiguration dncConfiguration,
+            CancellationToken cancellationToken)
         {
             this.cancellationToken = cancellationToken;
             this.tagsCacheManager = tagsCacheManager;
-            defaultRefreshIntervalMs = 1;
+            refreshIntervalMs = (dncConfiguration.DNCSettings.TagRefreshInterval > 0) ?
+                dncConfiguration.DNCSettings.TagRefreshInterval : defaultRefreshIntervalMs;
         }
 
         public async void StartAsync()
@@ -30,7 +34,7 @@ namespace NetworkManager
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 await tagsCacheManager.RefreshTags();
-                await Task.Delay(TimeSpan.FromSeconds(60), cancellationToken);
+                await Task.Delay(TimeSpan.FromMilliseconds(refreshIntervalMs), cancellationToken);
             }
         }
     }

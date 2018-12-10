@@ -271,7 +271,7 @@ namespace NetworkManager
         /// <param name="requestedSubnet">Supply the requested subnet.</param>
         /// <returns>True if the requested subnet is free.</returns>
         public static bool IsRequestedRangeAllocatable(
-            IPSubnet baseIPSubnet, 
+            IPSubnet baseIPSubnet,
             Dictionary<string, IPSubnet> allocatedSubnets, 
             IPSubnet requestedSubnet)
         {

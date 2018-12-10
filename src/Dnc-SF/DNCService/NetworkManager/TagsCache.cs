@@ -62,6 +62,7 @@ namespace NetworkManager
                 TagResponse tagResponse;
                 try
                 {
+                    ServiceEventSource.Current.Message($"GetSystemTagDefinition for tag: {tagName}");
                     tagResponse = await hostAgentClient.GetSystemTagDefinition(tagName);
                 }
                 catch (Exception exception)
@@ -122,6 +123,8 @@ namespace NetworkManager
                     tagsCache.RegisterTagForProcessing(tag);
                 }
             }
+
+            RefreshTags().Wait();
         }
 
         public TagDefinition RegisterAndGetTagDefinition(

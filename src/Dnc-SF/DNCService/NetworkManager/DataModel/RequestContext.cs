@@ -18,6 +18,9 @@ namespace NetworkManager.DataModel
         public string NodeID { get; private set; }
 
         [DataMember]
+        public string SubnetName { get; private set; }
+
+        [DataMember]
         public RequestType Type { get; private set; }
 
         [DataMember]
@@ -52,12 +55,18 @@ namespace NetworkManager.DataModel
             this.LastRetriedDateTime = requestContext.LastRetriedDateTime;
             this.RetryInterval = requestContext.RetryInterval;
             this.TaskID = requestContext.TaskID;
+            this.SubnetName = requestContext.SubnetName;
+        }
+
+        public void SetSubnetName(string subnetName)
+        {
+            SubnetName = subnetName;
         }
 
         public override string ToString()
         {
-            return $"RequestID:{this.RequestID} NetworkID:{this.NetworkID} NodeID:{this.NodeID} Type:{this.Type} " +
-                $"CreatedDateTime:{this.CreatedDateTime} LastRetriedDateTime:{this.LastRetriedDateTime} " +
+            return $"RequestID:{this.RequestID} NetworkID:{this.NetworkID} NodeID:{this.NodeID} SubnetName:{this.SubnetName} " +
+                $"Type:{this.Type} CreatedDateTime:{this.CreatedDateTime} LastRetriedDateTime:{this.LastRetriedDateTime} " +
                 $"RetryInterval:{this.RetryInterval}, TaskID: {TaskID}";
         }
 

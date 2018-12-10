@@ -103,9 +103,8 @@ namespace NetworkManager.DataModel
             reservationConfiguration.ReservationState = this.ReservationState;
             reservationConfiguration.Status = this.Status;
             reservationConfiguration.AllocatedSubnet = this.AllocatedSubnet;
-            reservationConfiguration.AssociatedNCID = this.AssociatedNCID;
             reservationConfiguration.APIVersion = this.APIVersion;
-            reservationConfiguration.FailureDetail = this.FailureDetail != null ? (ErrorInfo)this.FailureDetail.Clone() : null;
+            reservationConfiguration.FailureDetail = this.FailureDetail;
             reservationConfiguration.AssociatedNCID = this.AssociatedNCID;
             return reservationConfiguration;
         }

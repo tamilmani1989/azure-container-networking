@@ -1,0 +1,39 @@
+﻿{
+  "DataStoreSettings":{
+    "AzureStorageInfo": {
+      "AccountName": "",
+      "Key": "",
+      "PartitionKey": "",
+      "EnableSharedSubnetDelegation": true
+    }
+  },
+  "HostAgentSettings": {
+    "WireServerIP": "127.0.0.1:9005",
+    "ConnectionStrings": {
+      "JoinNetworkURLFmt": "http://{0}/joinedVirtualNetworks/{1}/api-version/1",
+      "GetNetworkConfigurationURLFmt":"http://{0}/joinedVirtualNetworks/{1}/api-version/1",
+      "PutNetworkContainerURLFmt":"http://{0}/interfaces/{1}/networkContainers/{2}/authenticationToken/{3}/api-version/1",
+      "DeleteNetworkContainerURLFmt":"http://{0}/interfaces/{1}/networkContainers/{2}/authenticationToken/{3}/api-version/1/method/DELETE",
+      "GetSystemTagDefinitionURLFmt": "http://{0}/systemTags/{1}/ipVersion/{2}/api-version/1"
+    }
+  },
+  "CNSSettings": {
+    "ConnectionStrings": {
+      "CreateOrUpdateNetworkContainerURLFmt": "http://{0}:10090/network/createorupdatenetworkcontainer",
+      "DeleteNetworkContainerURLFmt": "http://{0}:10090/network/deletenetworkcontainer",
+      "SetOrchestratorTypeURLFmt": "http://{0}:10090/network/setorchestratortype",
+      "GetNetworkcontainerstatusURLFmt": "http://{0}:10090/network/getnetworkcontainerstatus"
+    }
+  },
+  "VlanSettings": {
+    "Min": 1,
+    "Max": 4095
+  },
+  "DNCSettings": {
+    "RequestRetryBaseInterval":1000,
+    "NetworkRefreshInterval":1000,
+    "TagRefreshInterval":1000,
+    "NetworkContainerRefreshInterval":1000,
+    "ConcurrentRequestsToProcess":10
+  }
+}

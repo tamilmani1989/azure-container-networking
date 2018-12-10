@@ -3,7 +3,7 @@
 //     Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
 // <summary>
-// Definititon for NetworkContainerRequestV1 class.
+// Definition for NetworkContainerRequestV1 class.
 // Uses an existing reservation.
 // </summary>
 //--------------------------------------------------------------------------

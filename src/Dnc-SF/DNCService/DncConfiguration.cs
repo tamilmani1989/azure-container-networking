@@ -120,17 +120,27 @@ namespace DNCService
         /// <summary>
         /// Backoff base interval on failures.
         /// </summary>
-        public int RequestRetryBaseInterval { get; set; }
+        public uint RequestRetryBaseInterval { get; set; }
 
         /// <summary>
         /// Network refresh interval.
         /// </summary>
-        public int NetworkRefreshInterval { get; set; }
+        public uint NetworkRefreshInterval { get; set; }
+
+        /// <summary>
+        /// Tag refresh interval.
+        /// </summary>
+        public uint TagRefreshInterval { get; set; }
 
         /// <summary>
         /// Network container refresh interval.
         /// </summary>
-        public int NetworkContainerRefreshInterval { get; set; }
+        public uint NetworkContainerRefreshInterval { get; set; }
+
+        /// <summary>
+        /// Concurrent requests to process
+        /// </summary>
+        public uint ConcurrentRequestsToProcess { get; set; }
     }
 
     /// <summary>
@@ -166,7 +176,7 @@ namespace DNCService
     }
 
     /// <summary>
-    /// Defines hte Dnc configuration.
+    /// Defines the Dnc configuration.
     /// </summary>
     public class DncConfiguration
     {

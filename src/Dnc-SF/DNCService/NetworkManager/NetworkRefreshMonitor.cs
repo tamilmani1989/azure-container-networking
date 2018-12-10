@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Cns;
 using DNCService;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
@@ -25,18 +24,25 @@ namespace NetworkManager
 
         private TagsCacheManager tagsCacheManager;
 
+        private uint refreshIntervalMs;
+
+        private const uint defaultRefreshIntervalMs = 60000;
+
         public NetworkRefreshMonitor(
             IReliableStateManager reliableStateManager,
-            CancellationToken cancellationToken,
             HostAgentClient hostAgentClient,
             NetworkRepositoryManager networkRepositoryManager,
-            TagsCacheManager tagsCacheManager)
+            TagsCacheManager tagsCacheManager,
+            DncConfiguration dncConfiguration,
+            CancellationToken cancellationToken)
         {
             this.reliableStateManager = reliableStateManager;
             this.cancellationToken = cancellationToken;
             this.hostAgentClient = hostAgentClient;
             this.networkRepositoryManager = networkRepositoryManager;
             this.tagsCacheManager = tagsCacheManager;
+            refreshIntervalMs = (dncConfiguration.DNCSettings.NetworkRefreshInterval > 0) ?
+                dncConfiguration.DNCSettings.NetworkRefreshInterval : defaultRefreshIntervalMs;
         }
 
         public async void StartAsync()
@@ -54,18 +60,12 @@ namespace NetworkManager
                         await RefreshNetwork(networkID);
                         cancellationToken.ThrowIfCancellationRequested();
                     }
-                    await Task.Delay(TimeSpan.FromSeconds(60), cancellationToken);
+                    await Task.Delay(TimeSpan.FromMilliseconds(refreshIntervalMs), cancellationToken);
                 }
         }
 
         private async Task RefreshNetwork(string networkID)
         {
-            IReliableDictionary<string, NetworkConfiguration> networkConfigReliableCollection =
-                RepositoryHelper.GetReliableDictionaryAsync<string, NetworkConfiguration>(
-                Constants.NetworkConfigurationTableName).Result;
-            IReliableDictionary<string, SubnetConfiguration> subnetConfigReliableCollection =
-                RepositoryHelper.GetReliableDictionaryAsync<string, SubnetConfiguration>(
-                Constants.SubnetConfigurationTableName).Result;
             try
             {
                 VirtualNetworkResponse virtualNetworkResponse =
@@ -75,13 +75,11 @@ namespace NetworkManager
                 using (var tx = RepositoryHelper.GetTransaction())
                 {
                     string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
-
                     NetworkConfiguration networkConfig = await RepositoryHelper.GetFromReliableDictionary(
                         tx,
-                        networkConfigReliableCollection,
+                        networkRepositoryManager.NetworkConfigReliableCollection,
                         networkKey,
                         LockMode.Update);
-
                     if (networkConfig == null)
                     {
                         return;
@@ -100,15 +98,14 @@ namespace NetworkManager
                         return;
                     }
 
-                    tagsCacheManager.CheckAndAddTagsCache(virtualNetworkResponse);
-
                     await networkRepositoryManager.UpdateNetworkConfigurationUntransacted(
                         tx,
                         networkConfig,
                         virtualNetworkResponse);
-
                     await RepositoryHelper.CommitTransactionAsync(tx);
                 }
+
+                tagsCacheManager.CheckAndAddTagsCache(virtualNetworkResponse);
             }
             catch(Exception exception)
             {
