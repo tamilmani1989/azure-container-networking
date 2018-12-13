@@ -108,7 +108,6 @@ namespace NetworkManager
             this.Tags = new List<Tag>(tagSet);
             this.VnetVersion = vnetVersion;
             CnsCnetAddresses = new List<Cns.Data.IPSubnet>();
-            ServiceEventSource.Current.Message($"DnsServers:{string.Join(",", DnsServers)}");
         }
 
         public NetworkContainerInfo(NetworkContainerInfo ncConfig)
@@ -136,7 +135,6 @@ namespace NetworkManager
             this.Tags = new List<Tag>(Tags);
             this.VnetVersion = ncConfig.VnetVersion;
             CnsCnetAddresses = new List<Cns.Data.IPSubnet>(ncConfig.CnsCnetAddresses);
-            ServiceEventSource.Current.Message($"DnsServers:{string.Join(",", DnsServers)}");
         }
 
         public CreateOrUpdateNetworkContainerRequest GetCreateNMAgentNetworkContainerRequest()

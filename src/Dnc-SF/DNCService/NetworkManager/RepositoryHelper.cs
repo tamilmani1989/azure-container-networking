@@ -6,6 +6,7 @@
 //-----------------------------------------------------------------------
 
 using DNCService;
+using DNCService.API;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
 using Newtonsoft.Json;
@@ -207,7 +208,7 @@ namespace NetworkManager
         }
 
         /// <summary>
-        /// Helepr to create a transaction.
+        /// Helper to create a transaction.
         /// </summary>
         /// <returns></returns>
         public static ITransaction GetTransaction()
@@ -245,10 +246,25 @@ namespace NetworkManager
             TKey key,
             TValue value) where TKey : IComparable<TKey>, IEquatable<TKey>
         {
-            IsInitialized();
-            string serializedValue = JsonConvert.SerializeObject(value);
-            await reliableDictionary.AddOrUpdateAsync(tx, key, value, (k, v) => value, transactionTimeout, CancellationToken);
+            try
+            {
+                IsInitialized();
+                await reliableDictionary.AddOrUpdateAsync(tx, key, value, (k, v) => value, transactionTimeout, CancellationToken);
+            }
+            catch (Exception exception)
+            {
+                ServiceEventSource.Current.Message($"CreateOrUpdateReliableDictionary encountered " +
+                    $"exception for {reliableDictionary.Name} with key: {key} exception type is " +
+                    $"{exception.GetType().ToString()}");
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.StatusInternalServerError,
+                        $"Failed to CreateOrUpdateReliableDictionary: {reliableDictionary.Name} " +
+                        $"for Key: {key} due to exception: {exception}",
+                        ErrorType.Retriable));
+            }
         }
+
+
 
         /// <summary>
         /// Helper to commit a given transaction.
@@ -276,11 +292,24 @@ namespace NetworkManager
             TKey key,
             LockMode lockMode = LockMode.Default) where TKey : IComparable<TKey>, IEquatable<TKey> where TValue : class, ICloneable
         {
-            var result = await reliableDictionary.TryGetValueAsync(tx, key, lockMode, transactionTimeout, CancellationToken);
-
-            if (result.HasValue)
+            try
             {
-                return result.Value.Clone() as TValue;
+                var result = await reliableDictionary.TryGetValueAsync(tx, key, lockMode, transactionTimeout, CancellationToken);
+
+                if (result.HasValue)
+                {
+                    return result.Value.Clone() as TValue;
+                }
+            }
+            catch (Exception exception)
+            {
+                ServiceEventSource.Current.Message($"GetFromReliableDictionary encountered exception for " +
+                    $"{reliableDictionary.Name} with Key:{key} exception type is {exception.GetType().ToString()}");
+                throw new DncManagementException(
+                    new ErrorInfo(ErrorCode.StatusInternalServerError,
+                        $"Failed to GetFromReliableDictionary: {reliableDictionary.Name} for Key: " +
+                        $"{key} due to exception: {exception}",
+                        ErrorType.Retriable));
             }
 
             return default(TValue);

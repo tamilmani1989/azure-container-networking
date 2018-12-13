@@ -205,22 +205,53 @@ func (c *Controller) GetNetworkStatus(networkID string) (*api.RequestStatus, int
 
 // GetSubnetStatus - Get subnet status
 func (c *Controller) GetSubnetStatus(networkID, subnetName string) (*api.RequestStatus, int, *api.JsonErr) {
+	var requestError *api.JsonErr
+	var requestReturnCode int
+	var requestStatus api.RequestStatus
+	requestStatus.State = datamodel.Join.String()
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginReadSession(sessionInfo)
 	defer c.SessionManager.EndReadSession(sessionInfo)
 
-	_, err := datamodel.QuerySubnetConfiguration(
+	subnetConfig, err := datamodel.QuerySubnetConfiguration(
 		networkID,
 		subnetName)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	requestStatus := api.RequestStatus{
-		State:  datamodel.Join.String(),
-		Status: datamodel.Completed.String()}
+	switch subnetConfig.UpdateStatus {
+	case datamodel.SubnetUpdateCompleted:
+		requestStatus.Status = datamodel.Completed.String()
+		requestReturnCode = http.StatusOK
+		requestError = nil
 
-	return &requestStatus, http.StatusOK, nil
+	case datamodel.SubnetUpdateFailed:
+		requestStatus.Status = datamodel.Failed.String()
+		requestReturnCode = http.StatusNotFound
+		errMsg := fmt.Sprintf(
+			"Network %s does not contain the specified subnet %s",
+			networkID,
+			subnetName)
+		requestError = &api.JsonErr{
+			Code:       api.SubnetNotFound,
+			HTTPStatus: http.StatusNotFound,
+			Text:       errMsg}
+
+	case datamodel.SubnetUpdatePending:
+		requestStatus.Status = datamodel.Pending.String()
+		requestReturnCode = http.StatusProcessing
+		errMsg := fmt.Sprintf(
+			"Network %s does not contain the specified subnet %s",
+			networkID,
+			subnetName)
+		requestError = &api.JsonErr{
+			Code:       api.SubnetNotFound,
+			HTTPStatus: http.StatusNotFound,
+			Text:       errMsg}
+	}
+
+	return &requestStatus, requestReturnCode, requestError
 }
 
 // GetSubnetConfiguration - Get subnet configuration

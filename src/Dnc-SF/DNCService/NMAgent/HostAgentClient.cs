@@ -371,7 +371,10 @@ namespace NMAgent
         /// </summary>
         /// <param name="networkContainerInfo">Supply thenetwork container to be deleted.</param>
         /// <returns></returns>
-        public async Task DeleteNetworkContainer(NetworkContainerInfo networkContainerInfo)
+        public async Task DeleteNetworkContainer(
+            string networkContainerID,
+            string nodeInterfaceID,
+            string accessToken)
         {
             if (DncConfiguration.NMAgentSimulatorMode)
             {
@@ -381,9 +384,9 @@ namespace NMAgent
             string deleteNCUrl = string.Format(
                 DncConfiguration.HostAgentSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
                 DncConfiguration.HostAgentSettings.WireServerIP,
-                networkContainerInfo.NodeInterfaceID,
-                networkContainerInfo.NetworkContainerID,
-                networkContainerInfo.AccessToken);
+                nodeInterfaceID,
+                networkContainerID,
+                accessToken);
 
             ServiceEventSource.Current.Message("DeleteNCUrl:{0}", deleteNCUrl);
 
@@ -445,7 +448,7 @@ namespace NMAgent
             }
 
             ServiceEventSource.Current.Message(
-                $"Successfully unpublished NC:{networkContainerInfo.NetworkContainerID} " +
+                $"Successfully unpublished NC:{networkContainerID} " +
                 $"Received response:{deleteNCResponse}");
         }
     }

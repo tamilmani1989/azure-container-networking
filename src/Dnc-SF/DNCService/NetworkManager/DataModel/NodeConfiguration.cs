@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
 using DNCService.API;
 
 namespace NetworkManager.DataModel
@@ -63,6 +61,11 @@ namespace NetworkManager.DataModel
             this.deployedNetworkContainerMap = new Dictionary<string, Dictionary<string, string>>();
             this.networkVlanIDMap = new Dictionary<string, UInt16>();
             this.constrainedReservations = new Dictionary<string, string>();
+        }
+
+        public void UpdateNodeInfo(NodeRequest nodeInfo)
+        {
+            NodeInfo = nodeInfo;
         }
 
         public NodeConfiguration(NodeConfiguration nodeConfiguration)
@@ -131,6 +134,16 @@ namespace NetworkManager.DataModel
                     this.networkVlanIDMap.Remove(networkID);
                 }
             }
+        }
+
+        public void AddConstrainedReservation(string reservationID, string networkID)
+        {
+            constrainedReservations[reservationID] = networkID;
+        }
+
+        public void RemoveConstrainedReservation(string reservationID)
+        {
+            constrainedReservations.Remove(reservationID);
         }
 
         public override string ToString()

@@ -69,7 +69,6 @@ namespace NetworkManager.DataModel
         public SubnetConfiguration(
             SubnetConfiguration subnetConfiguration)
         {
-            ServiceEventSource.Current.Message($"Cloning subnet config:{subnetConfiguration}");
             this.NetworkID = subnetConfiguration.NetworkID;
             this.SubnetName = subnetConfiguration.SubnetName;
             this.IPSubnet = subnetConfiguration.IPSubnet;
@@ -79,7 +78,6 @@ namespace NetworkManager.DataModel
             this.tags = new HashSet<Tag>(subnetConfiguration.tags);
             this.reservations = new Dictionary<string, string>(subnetConfiguration.reservations);
             this.IsJoined = subnetConfiguration.IsJoined;
-            ServiceEventSource.Current.Message($"Done cloning subnet config:{subnetConfiguration}");
         }
 
         public IReadOnlyCollection<Tag> Tags 

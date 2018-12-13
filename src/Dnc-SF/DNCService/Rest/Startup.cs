@@ -78,6 +78,11 @@ namespace DNCService.Rest
             routeBuilder.MapPost("networkprofiles/{NetworkProfileID}", dncWebController.AddNetworkProfileAsync);
             routeBuilder.MapDelete("networkprofiles/{NetworkProfileID}", dncWebController.DeleteNetworkProfileAsync);
 
+            // Handlers for reservations management
+            routeBuilder.MapPost("networks/{NetworkID}/reservations/{ReservationID}", dncWebController.CreateReservationAsync);
+            routeBuilder.MapGet("networks/{NetworkID}/reservations/{ReservationID}/status", dncWebController.GetReservationStatusAsync);
+            routeBuilder.MapDelete("networks/{NetworkID}/reservations/{ReservationID}", dncWebController.DeleteReservationAsync);
+
             IRouter routes = routeBuilder.Build();
 
             app.UseRouter(routes);

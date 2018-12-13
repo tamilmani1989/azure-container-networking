@@ -151,5 +151,37 @@ namespace DNCService.Interfaces
         /// <returns></returns>
         Task DeleteNetworkProfileAsync(
             string networkProfileID);
+
+        /// <summary>
+        /// Create an IP reservation.
+        /// </summary>
+        /// <param name="networkID">Supply the ID of the network.</param>
+        /// <param name="reservationID">Supply the ID of reservation.</param>
+        /// <param name="ipAllocationRequest">Supply the IP allocation request.</param>
+        /// <returns></returns>
+        Task CreateReservationAsync(
+            string networkID,
+            string reservationID,
+            IPAllocationRequest ipAllocationRequest);
+
+        /// <summary>
+        /// Retrieve the reservation status.
+        /// </summary>
+        /// <param name="networkID">Supply the ID of the network.</param>
+        /// <param name="reservationID">Supply the reservation ID.</param>
+        /// <returns>Network container status.</returns>
+        Task<RequestStatus> GetReservationStatusResponseAsync(
+            string networkID,
+            string reservationID);
+
+        /// <summary>
+        /// Delete an IP reservation.
+        /// </summary>
+        /// <param name="networkID">Supply the ID of the network.</param>
+        /// <param name="reservationID">Supply the ID of reservation.</param>
+        /// <returns></returns>
+        Task DeleteReservationAsync(
+            string networkID,
+            string reservationID);
     }
 }

@@ -244,8 +244,7 @@ namespace DNCService.Rest
                 var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
                 new ServicePartitionKey(1),
                 Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.PrimaryReplica);
-                await dncServiceProxy.DeleteNodeAsync(
-                                 nodeID);
+                await dncServiceProxy.DeleteNodeAsync(nodeID);
                 return null;
             }
 
@@ -504,12 +503,19 @@ namespace DNCService.Rest
                     new ServicePartitionKey(1),
                     Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.PrimaryReplica);
 
-
-                await dncServiceProxy.CreateOrUpdateNetworkContainerAsync(
-                    networkID,
-                    networkContainerID,
-                    networkContainerRequest,
-                    "");
+                try
+                {
+                    await dncServiceProxy.CreateOrUpdateNetworkContainerAsync(
+                        networkID,
+                        networkContainerID,
+                        networkContainerRequest,
+                        "");
+                }
+                catch (Exception exception)
+                {
+                    ServiceEventSource.Current.Message($"CreateOrUpdateNetworkContainerAsync failed for NC {networkContainerID}" +
+                        $" with exception: {exception}");
+                }
                 return null;
             }
 
@@ -935,6 +941,147 @@ namespace DNCService.Rest
                 return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestStatus));
             }
             await Invoke(getNetworkContainerStatusAsync, httpContext);
+        }
+
+        /// <summary>
+        /// Get reservation status.
+        /// </summary>
+        /// <param name="httpContext">Supply the context.</param>
+        /// <returns></returns>
+        public async Task GetReservationStatusAsync(HttpContext httpContext)
+        {
+            async Task<byte[]> getReservationStatusAsync()
+            {
+                string networkID = (string)httpContext.GetRouteValue("NetworkID");
+                string reservationID = (string)httpContext.GetRouteValue("ReservationID");
+                RequestStatus requestStatus;
+                try
+                {
+                    if (string.IsNullOrEmpty(networkID))
+                    {
+                        throw new DncManagementException(
+                            new ErrorInfo(
+                                ErrorCode.InvalidNetworkID,
+                                "NetworkID cannot be null or empty",
+                                (int)HttpStatusCode.BadRequest,
+                                ErrorType.NonRetriable));
+                    }
+
+                    if (string.IsNullOrEmpty(reservationID))
+                    {
+                        throw new DncManagementException(
+                            new ErrorInfo(
+                                ErrorCode.InvalidReservationID,
+                                "ReservationID cannot be null or empty",
+                                (int)HttpStatusCode.BadRequest,
+                                ErrorType.NonRetriable));
+                    }
+                }
+                catch (Exception exception)
+                {
+                    DncManagementException dncManagementException =
+                        (DncManagementException)exception;
+                    requestStatus = new RequestStatus("", "", dncManagementException.ErrorInfo);
+                    return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestStatus));
+                }
+
+                var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
+                    new ServicePartitionKey(1),
+                    Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.PrimaryReplica);
+
+                requestStatus = await dncServiceProxy.GetReservationStatusResponseAsync(networkID, reservationID);
+
+                return Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestStatus));
+            }
+            await Invoke(getReservationStatusAsync, httpContext);
+        }
+
+        /// <summary>
+        /// Create reservation.
+        /// </summary>
+        /// <param name="httpContext">Supply the context.</param>
+        /// <returns></returns>
+        public async Task CreateReservationAsync(HttpContext httpContext)
+        {
+            async Task<byte[]> createReservationAsync()
+            {
+                string networkID = (string)httpContext.GetRouteValue("NetworkID");
+                if (string.IsNullOrEmpty(networkID))
+                {
+                    throw new DncManagementException(
+                        new ErrorInfo(
+                            ErrorCode.InvalidNetworkID,
+                            "NetworkID cannot be null or empty",
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
+                }
+
+                string reservationID = (string)httpContext.GetRouteValue("ReservationID");
+                if (string.IsNullOrEmpty(reservationID))
+                {
+                    throw new DncManagementException(
+                        new ErrorInfo(
+                            ErrorCode.InvalidReservationID,
+                            "ReservationID cannot be null or empty",
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
+                }
+
+                var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
+                    new ServicePartitionKey(1),
+                    Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.PrimaryReplica);
+                IPAllocationRequest ipAllocationRequest = await ReadAsAsync<IPAllocationRequest>(httpContext);
+                await dncServiceProxy.CreateReservationAsync(
+                    networkID,
+                    reservationID,
+                    ipAllocationRequest);
+                return null;
+            }
+
+            await Invoke(createReservationAsync, httpContext);
+        }
+
+        /// <summary>
+        /// Delete reservation.
+        /// </summary>
+        /// <param name="httpContext">Supply the context.</param>
+        /// <returns></returns>
+        public async Task DeleteReservationAsync(HttpContext httpContext)
+        {
+            async Task<byte[]> deleteReservationAsync()
+            {
+                string networkID = (string)httpContext.GetRouteValue("NetworkID");
+                if (string.IsNullOrEmpty(networkID))
+                {
+                    throw new DncManagementException(
+                        new ErrorInfo(
+                            ErrorCode.InvalidNetworkID,
+                            "NetworkID cannot be null or empty",
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
+                }
+
+                string reservationID = (string)httpContext.GetRouteValue("ReservationID");
+                if (string.IsNullOrEmpty(reservationID))
+                {
+                    throw new DncManagementException(
+                        new ErrorInfo(
+                            ErrorCode.InvalidReservationID,
+                            "ReservationID cannot be null or empty",
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
+                }
+
+                var dncServiceProxy = ServiceProxy.Create<IDNCService>(new Uri(dncServiceUri),
+                    new ServicePartitionKey(1),
+                    Microsoft.ServiceFabric.Services.Communication.Client.TargetReplicaSelector.PrimaryReplica);
+                await dncServiceProxy.DeleteReservationAsync(
+                    networkID,
+                    reservationID);
+                return null;
+            }
+
+            await Invoke(deleteReservationAsync, httpContext);
         }
 
         /// <summary>

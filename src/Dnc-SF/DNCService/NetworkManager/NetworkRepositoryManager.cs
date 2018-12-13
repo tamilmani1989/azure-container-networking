@@ -3,12 +3,11 @@ using DNCService.API;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
 using NetworkManager.DataModel;
-using NMAgent;
 using NMAgent.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Net;
 using System.Threading.Tasks;
 namespace NetworkManager
 {
@@ -160,7 +159,6 @@ namespace NetworkManager
             NetworkConfiguration networkConfig,
             VirtualNetworkResponse virtualNetworkResponse)
         {
-
             Dictionary<string, SubnetConfiguration> subnetConfigMap =
                 new Dictionary<string, SubnetConfiguration>();
             HashSet<string> missingSubnetsMap = new HashSet<string>();
@@ -264,18 +262,17 @@ namespace NetworkManager
             ErrorInfo failureDetail,
             bool retriableError = true)
         {
-            using (ITransaction tx = RepositoryHelper.GetTransaction())
+            using (var tx = RepositoryHelper.GetTransaction())
             {
                 switch (requestContext.Type)
                 {
                     case RequestType.NetworkContainerRequest:
                     {
-                        NCConfiguration ncConfiguration =
-                            await RepositoryHelper.GetFromReliableDictionary(
-                                tx,
-                                NCConfigReliableCollection,
-                                requestContext.RequestID,
-                                LockMode.Update);
+                        NCConfiguration ncConfiguration = await RepositoryHelper.GetFromReliableDictionary(
+                            tx,
+                            NCConfigReliableCollection,
+                            requestContext.RequestID,
+                            LockMode.Update);
 
                         if (ncConfiguration != null)
                         {
@@ -295,12 +292,11 @@ namespace NetworkManager
 
                     case RequestType.VirtualNetworkRequest:
                     {
-                        NetworkConfiguration networkConfig =
-                            await RepositoryHelper.GetFromReliableDictionary(
-                                tx,
-                                NetworkConfigReliableCollection,
-                                requestContext.RequestID,
-                                LockMode.Update);
+                        NetworkConfiguration networkConfig = await RepositoryHelper.GetFromReliableDictionary(
+                            tx,
+                            NetworkConfigReliableCollection,
+                            requestContext.RequestID,
+                            LockMode.Update);
 
                         if (networkConfig != null)
                         {
@@ -320,15 +316,18 @@ namespace NetworkManager
 
                     case RequestType.ReservationRequest:
                     {
-                        ReservationConfiguration reservationConfiguration =
-                            await RepositoryHelper.GetFromReliableDictionary(
-                                tx,
-                                ReservationReliableCollection,
-                                requestContext.RequestID,
-                                LockMode.Update);
+                        ReservationConfiguration reservationConfiguration = await RepositoryHelper.GetFromReliableDictionary(
+                            tx,
+                            ReservationReliableCollection,
+                            requestContext.RequestID,
+                            LockMode.Update);
 
                         if (reservationConfiguration != null)
                         {
+                            if (!retriableError)
+                            {
+                                reservationConfiguration.Status = Status.Failed;
+                            }
                             reservationConfiguration.FailureDetail = failureDetail;
                             await RepositoryHelper.CreateOrUpdateReliableDictionary(
                                 tx,
@@ -345,7 +344,7 @@ namespace NetworkManager
 
         public async Task MoveRequestToFailedQueue(
             string requestID,
-            int baseRetryinterval,
+            uint baseRetryinterval,
             ErrorInfo failureDetail)
         {
             using (ITransaction tx = RepositoryHelper.GetTransaction())
@@ -391,7 +390,8 @@ namespace NetworkManager
             }
         }
 
-        public async Task<NCConfiguration> GetNCConfigurationAsync(string ncKey)
+        public async Task<NCConfiguration> GetNetworkContainerConfiguration(
+            string ncKey)
         {
             using (var tx = RepositoryHelper.GetTransaction())
             {
@@ -402,57 +402,121 @@ namespace NetworkManager
             }
         }
 
-        public async Task UpdateNCConfiguration(
-            RequestContext requestContext,
-            NCConfiguration ncConfig)
+        public async Task<NetworkConfiguration> GetNetworkConfiguration(
+            string networkKey,
+            ITransaction tx,
+            LockMode lockMode = LockMode.Default)
         {
-            using (var tx = RepositoryHelper.GetTransaction())
-            {
-                await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                    tx,
-                    NCConfigReliableCollection,
-                    requestContext.RequestID,
-                    ncConfig);
-                await RepositoryHelper.CommitTransactionAsync(tx);
-            }
+            return await RepositoryHelper.GetFromReliableDictionary(
+                tx,
+                NetworkConfigReliableCollection,
+                networkKey,
+                lockMode);
         }
 
-        public async Task<NCConfiguration> GetNCConfigurationAsync(RequestContext requestContext)
+        public async Task<NCConfiguration> GetNetworkContainerConfiguration(
+            string ncKey,
+            ITransaction tx,
+            LockMode lockMode = LockMode.Default)
         {
-            using (var tx = RepositoryHelper.GetTransaction())
-            {
-                return await RepositoryHelper.GetFromReliableDictionary(
-                    tx,
-                    NCConfigReliableCollection,
-                    requestContext.RequestID);
-            }
+            return await RepositoryHelper.GetFromReliableDictionary(
+                tx,
+                NCConfigReliableCollection,
+                ncKey,
+                lockMode);
         }
 
-        public async Task<NetworkContainerInfo> GetNetworkContainerInfo(string ncKey)
+        public async Task<NetworkContainerInfo> GetNetworkContainerInfo(
+            RequestContext requestContext)
         {
+            string ncKey = requestContext.RequestID;
             string networkID = NCConfiguration.GetNetworkIDFromKey(ncKey);
             string networkContainerID = NCConfiguration.GetNetworkContainerIDFromKey(ncKey);
 
-            using (ITransaction tx = RepositoryHelper.GetTransaction())
+            NodeConfiguration nodeConfiguration;
+            using (var tx = RepositoryHelper.GetTransaction())
             {
-                NCConfiguration ncConfiguration =
-                    await RepositoryHelper.GetFromReliableDictionary(
-                        tx,
-                        this.NCConfigReliableCollection,
-                        ncKey);
+                string nodeKey = NodeConfiguration.GetNodeKey(requestContext.NodeID);
+                nodeConfiguration = await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    NodeConfigReliableCollection,
+                    nodeKey);
+                if (nodeConfiguration == null)
+                {
+                    throw new DncNetworkContainerException(
+                        networkID,
+                        networkContainerID,
+                        new ErrorInfo(ErrorCode.NodeNotFound,
+                        $"Node {nodeConfiguration.NodeID} associated with container not found",
+                        ErrorType.NonRetriable));
+                }
+            }
 
+            NetworkConfiguration networkConfiguration;
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
+                networkConfiguration = await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    NetworkConfigReliableCollection,
+                    networkKey);
+                if (networkConfiguration == null)
+                {
+                    throw new DncNetworkContainerException(
+                        networkID,
+                        networkContainerID,
+                        new ErrorInfo(ErrorCode.NetworkNotFound,
+                            "Network associated with container not found",
+                            ErrorType.NonRetriable));
+                }
+            }
+
+            SubnetConfiguration subnetConfiguration;
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                ServiceEventSource.Current.Message($"GetNetworkContainerInfo subnetname: {requestContext.SubnetName}");
+                string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(
+                    networkID,
+                    requestContext.SubnetName);
+                subnetConfiguration = await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    SubnetConfigReliableCollection,
+                    subnetKey);
+                if (subnetConfiguration == null)
+                {
+                    throw new DncNetworkContainerException(
+                        networkID,
+                        networkContainerID,
+                        new ErrorInfo(ErrorCode.SubnetNotFound,
+                        $"Subnet {requestContext.SubnetName} " +
+                        $"associated with container not found",
+                        ErrorType.NonRetriable));
+                }
+            }
+
+            NCConfiguration ncConfiguration;
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
+                ncConfiguration = await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    NCConfigReliableCollection,
+                    ncKey);
                 if (ncConfiguration == null)
                 {
                     return null;
                 }
+            }
 
+            ReservationConfiguration reservationConfiguration;
+            using (var tx = RepositoryHelper.GetTransaction())
+            {
                 string reservationKey = ReservationConfiguration.GetReservationKey(
                     networkID,
                     ncConfiguration.ReservationID);
-                ReservationConfiguration reservationConfiguration = await RepositoryHelper.GetFromReliableDictionary(
-                        tx,
-                        ReservationReliableCollection,
-                        reservationKey);
+                reservationConfiguration = await RepositoryHelper.GetFromReliableDictionary(
+                    tx,
+                    ReservationReliableCollection,
+                    reservationKey);
                 if (reservationConfiguration == null)
                 {
                     throw new DncNetworkContainerException(
@@ -463,186 +527,143 @@ namespace NetworkManager
                             $"Reservation {ncConfiguration.ReservationID} for Container not found",
                             ErrorType.NonRetriable));
                 }
-
-                string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
-                NetworkConfiguration networkConfiguration =
-                    await RepositoryHelper.GetFromReliableDictionary(
-                        tx,
-                        NetworkConfigReliableCollection,
-                        networkKey);
-
-                if (networkConfiguration == null)
-                {
-                    throw new DncNetworkContainerException(
-                        networkID,
-                        networkContainerID,
-                        new ErrorInfo(ErrorCode.NetworkNotFound,
-                            "Network associated with container not found",
-                            ErrorType.NonRetriable));
-                }
-
-                string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(networkID,
-                    reservationConfiguration.AllocationRequest.SubnetName);
-                SubnetConfiguration subnetConfiguration =
-                    await RepositoryHelper.GetFromReliableDictionary(
-                        tx,
-                        SubnetConfigReliableCollection,
-                        subnetKey);
-
-                if (subnetConfiguration == null)
-                {
-                    throw new DncNetworkContainerException(
-                        networkID,
-                        networkContainerID,
-                        new ErrorInfo(ErrorCode.SubnetNotFound,
-                        $"Subnet {reservationConfiguration.AllocationRequest.SubnetName} " +
-                        $"associated with container not found",
-                        ErrorType.NonRetriable));
-                }
-
-                List<Tag> tags = new List<Tag>();
-                if ((subnetConfiguration.Tags != null) && subnetConfiguration.Tags.Any())
-                {
-                    tags.AddRange(subnetConfiguration.Tags);
-                }
-
-                string nodeKey = NodeConfiguration.GetNodeKey(
-                    ncConfiguration.Request.AssociationInfo.NodeID);
-
-                NodeConfiguration nodeConfiguration =
-                    await RepositoryHelper.GetFromReliableDictionary(
-                        tx,
-                        NodeConfigReliableCollection,
-                        nodeKey);
-
-                if (nodeConfiguration == null)
-                {
-                    throw new DncNetworkContainerException(
-                        networkID,
-                        networkContainerID,
-                        new ErrorInfo(ErrorCode.NodeNotFound,
-                        $"Node {nodeConfiguration.NodeID} associated with container not found",
-                        ErrorType.NonRetriable));
-                }
-
-                string interfaceID =
-                    string.IsNullOrWhiteSpace(ncConfiguration.Request.AssociationInfo.InterfaceID) ?
-                        nodeConfiguration.NodeInfo.IPAddresses[0] :
-                        ncConfiguration.Request.AssociationInfo.InterfaceID;
-                List<string> dnsServers;
-                if (networkConfiguration.DnsServers.Count > 0)
-                {
-                    dnsServers = new List<string>(networkConfiguration.DnsServers);
-                }
-                else
-                {
-                    dnsServers = AllocationHelper.GetDNSServerAddressesForSubnet(IPSubnet.Parse(subnetConfiguration.IPSubnet)).Select(item => item.ToString()).ToList();
-                }
-                ServiceEventSource.Current.Message($"DnsServers:{string.Join(",", dnsServers)}");
-                ushort vlanID = 0;
-                if(nodeConfiguration.networkVlanIDMap.ContainsKey(networkID))
-                {
-                    vlanID = nodeConfiguration.networkVlanIDMap[networkID];
-                }
-
-                return new NetworkContainerInfo(
-                    networkID,
-                    nodeConfiguration.NodeID,
-                    networkContainerID,
-                    interfaceID,
-                    subnetConfiguration.AccessToken,
-                    new List<string> { reservationConfiguration.AllocatedSubnet.Split(IPSubnet.PrefixDelimiter)[0] },
-                    subnetConfiguration.SubnetName,
-                    subnetConfiguration.IPSubnet,
-                    dnsServers,
-                    subnetConfiguration.Gateway,
-                    ncConfiguration.AgentVersion,
-                    null,
-                    vlanID,
-                    ncConfiguration.CNSVersion,
-                    ncConfiguration.Request.AssociationInfo.ContainerType,
-                    ncConfiguration.Request.AssociationInfo.OrchestratorContext,
-                    networkConfiguration.CnetSpace,
-                    ncConfiguration.State,
-                    ncConfiguration.Status,
-                    ncConfiguration.LocalIP,
-                    tags,
-                    networkConfiguration.VnetVersion);
             }
+
+            List<Tag> tags = new List<Tag>();
+            if ((subnetConfiguration.Tags != null) && subnetConfiguration.Tags.Any())
+            {
+                tags.AddRange(subnetConfiguration.Tags);
+            }
+
+            string interfaceID =
+                string.IsNullOrWhiteSpace(ncConfiguration.Request.AssociationInfo.InterfaceID) ?
+                    nodeConfiguration.NodeInfo.IPAddresses[0] :
+                    ncConfiguration.Request.AssociationInfo.InterfaceID;
+            List<string> dnsServers;
+            if (networkConfiguration.DnsServers.Count > 0)
+            {
+                dnsServers = new List<string>(networkConfiguration.DnsServers);
+            }
+            else
+            {
+                dnsServers = AllocationHelper.GetDNSServerAddressesForSubnet(IPSubnet.Parse(subnetConfiguration.IPSubnet)).Select(item => item.ToString()).ToList();
+            }
+
+            ushort vlanID = 0;
+            if(nodeConfiguration.networkVlanIDMap.ContainsKey(networkID))
+            {
+                vlanID = nodeConfiguration.networkVlanIDMap[networkID];
+            }
+
+            return new NetworkContainerInfo(
+                networkID,
+                nodeConfiguration.NodeID,
+                networkContainerID,
+                interfaceID,
+                subnetConfiguration.AccessToken,
+                new List<string> { reservationConfiguration.AllocatedSubnet.Split(IPSubnet.PrefixDelimiter)[0] },
+                subnetConfiguration.SubnetName,
+                subnetConfiguration.IPSubnet,
+                dnsServers,
+                subnetConfiguration.Gateway,
+                ncConfiguration.AgentVersion,
+                null,
+                vlanID,
+                ncConfiguration.CNSVersion,
+                ncConfiguration.Request.AssociationInfo.ContainerType,
+                ncConfiguration.Request.AssociationInfo.OrchestratorContext,
+                networkConfiguration.CnetSpace,
+                ncConfiguration.State,
+                ncConfiguration.Status,
+                ncConfiguration.LocalIP,
+                tags,
+                networkConfiguration.VnetVersion);
         }
 
+        public async Task UpdateNodeConfigurationUntransacted(
+            string nodeKey,
+            NodeConfiguration nodeConfiguration,
+            ITransaction tx)
+        {
+            await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                tx,
+                NodeConfigReliableCollection,
+                nodeKey,
+                nodeConfiguration);
+        }
 
-        public async Task UpdateNetworkContainerState(
+        public async Task UpdateNetworkContainerConfigUntransacted(
+            string ncKey,
+            NCConfiguration ncConfig,
+            ITransaction tx)
+        {
+            await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                tx,
+                NCConfigReliableCollection,
+                ncKey,
+                ncConfig);
+        }
+
+        public async Task UpdateNetworkContainerStateUntransacted(
+            NCConfiguration ncConfig,
             RequestContext requestContext,
             NetworkContainerState currentState,
             NetworkContainerState nextState,
             Status status,
-            bool removeRequestContext)
+            bool removeRequestContext,
+            ITransaction tx)
         {
-            using (var tx = RepositoryHelper.GetTransaction())
+            if (requestContext == null)
             {
-                if (requestContext == null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                RequestContext retrievedRequestContext = await RepositoryHelper.GetFromReliableDictionary(
+            RequestContext retrievedRequestContext = await RepositoryHelper.GetFromReliableDictionary(
+                tx,
+                PendingRequestsReliableCollection,
+                requestContext.RequestID,
+                LockMode.Update);
+
+            if (!requestContext.Equals(retrievedRequestContext))
+            {
+                return;
+            }
+
+            if ((ncConfig == null) ||
+                (ncConfig.State != currentState))
+            {
+                return;
+            }
+
+            ncConfig.State = nextState;
+            ncConfig.Status = status;
+            await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                tx,
+                NCConfigReliableCollection,
+                requestContext.RequestID,
+                ncConfig);
+
+            if (removeRequestContext)
+            {
+                await RepositoryHelper.RemoveFromReliableDictionary(
                     tx,
                     PendingRequestsReliableCollection,
-                    requestContext.RequestID,
-                    LockMode.Update);
-
-                if (!requestContext.Equals(retrievedRequestContext))
-                {
-                    return;
-                }
-
-                NCConfiguration ncConfiguration = await RepositoryHelper.GetFromReliableDictionary(
-                    tx,
-                    NCConfigReliableCollection,
-                    requestContext.RequestID,
-                    LockMode.Update);
-                if (ncConfiguration == null)
-                {
-                    return;
-                }
-
-                if (ncConfiguration.State != currentState)
-                {
-                    return;
-                }
-
-                ncConfiguration.State = nextState;
-                ncConfiguration.Status = status;
+                    requestContext.RequestID);
+            }
+            else
+            {
+                retrievedRequestContext.LastRetriedDateTime = DateTime.UtcNow;
+                retrievedRequestContext.RetryInterval = TimeSpan.FromSeconds(0);
                 await RepositoryHelper.CreateOrUpdateReliableDictionary(
                     tx,
-                    NCConfigReliableCollection,
-                    requestContext.RequestID,
-                    ncConfiguration);
-
-                if (removeRequestContext)
-                {
-                    await RepositoryHelper.RemoveFromReliableDictionary(
-                        tx,
-                        PendingRequestsReliableCollection,
-                        requestContext.RequestID);
-                }
-                else
-                {
-                    retrievedRequestContext.LastRetriedDateTime = DateTime.UtcNow;
-                    retrievedRequestContext.RetryInterval = TimeSpan.FromSeconds(0);
-                    await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                        tx,
-                        PendingRequestsReliableCollection,
-                        requestContext.RequestID,
-                        requestContext);
-                    ServiceEventSource.Current.Message($"Updated request context:{requestContext}");
-                }
-
-                ServiceEventSource.Current.Message($"Updated NC State:{ncConfiguration.State} " +
-                    $"Status:{ncConfiguration.Status}");
-                await RepositoryHelper.CommitTransactionAsync(tx);
+                    PendingRequestsReliableCollection,
+                    retrievedRequestContext.RequestID,
+                    retrievedRequestContext);
+                ServiceEventSource.Current.Message($"Updated request context:{retrievedRequestContext}");
             }
+
+            ServiceEventSource.Current.Message($"Updated NC State: {ncConfig.State} " +
+                $"Status: {ncConfig.Status} ncKey: {retrievedRequestContext.RequestID}");
         }
 
         public async Task DeleteRequestContext(string requestID)
@@ -650,258 +671,262 @@ namespace NetworkManager
             using (var tx = RepositoryHelper.GetTransaction())
             {
                 await RepositoryHelper.RemoveFromReliableDictionary(
-                tx,
-                PendingRequestsReliableCollection,
-                requestID);
+                    tx,
+                    PendingRequestsReliableCollection,
+                    requestID);
                 await RepositoryHelper.CommitTransactionAsync(tx);
             }
         }
 
-        public async Task DeleteNetworkContainer(
-            NetworkContainerInfo networkContainerInfo,
-            bool deleteRequest)
+        public async Task DeleteRequestContextUntransacted(
+            string requestID,
+            ITransaction tx)
         {
-            using (var tx = RepositoryHelper.GetTransaction())
+            await RepositoryHelper.RemoveFromReliableDictionary(
+                tx,
+                PendingRequestsReliableCollection,
+                requestID);
+        }
+
+        public async Task DeleteReservationUntransacted(
+            ReservationConfiguration reservationConfiguration,
+            RequestContext requestContext,
+            ITransaction tx)
+        {
+            string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(
+                requestContext.NetworkID,
+                requestContext.SubnetName);
+            SubnetConfiguration subnetConfiguration = await GetSubnetConfiguration(
+                subnetKey,
+                tx,
+                LockMode.Update);
+            if (subnetConfiguration != null)
             {
-                string ncKey = NCConfiguration.GetNCKey(
-                    networkContainerInfo.NetworkID,
-                    networkContainerInfo.NetworkContainerID);
+                ServiceEventSource.Current.Message($"Retrieved SubnetConfiguration {subnetConfiguration} " +
+                    $"while deleting reservation: {reservationConfiguration.ReservationID}");
 
-                NCConfiguration ncConfiguration =
-                    await RepositoryHelper.GetFromReliableDictionary(
-                        tx,
-                        NCConfigReliableCollection,
-                        ncKey);
                 ServiceEventSource.Current.Message(
-                    $"Retrieved NCConfiguration {ncConfiguration} for delete");
-                if (ncConfiguration == null)
+                    $"Deleting reservation {reservationConfiguration.ReservationID} from SubnetConfiguration {subnetConfiguration}");
+                subnetConfiguration.RemoveReservation(reservationConfiguration.ReservationID);
+                await UpdateSubnetConfigurationUntransacted(
+                    subnetKey,
+                    subnetConfiguration,
+                    tx);
+
+                ServiceEventSource.Current.Message(
+                    $"Deleting reservation {reservationConfiguration}");
+                await RepositoryHelper.RemoveFromReliableDictionary(
+                    tx,
+                    ReservationReliableCollection,
+                    requestContext.RequestID);
+            }
+            else
+            {
+                ServiceEventSource.Current.Message($"No SubnetConfiguration found " +
+                    $"while deleting reservation: {reservationConfiguration.ReservationID}");
+                throw new DncManagementException(
+                    new ErrorInfo(
+                        ErrorCode.SubnetConfigurationNotFound,
+                        $"No SubnetConfiguration found while deleting reservation {reservationConfiguration.ReservationID}",
+                        ErrorType.NonRetriable));
+            }
+
+            if (!string.IsNullOrWhiteSpace(reservationConfiguration.AllocationRequest.NodeConstraint))
+            {
+                NodeConfiguration nodeConfig = await GetNodeConfiguration(
+                    reservationConfiguration.AllocationRequest.NodeConstraint,
+                    tx,
+                    LockMode.Update);
+                if (nodeConfig == null)
                 {
-                    goto Cleanup;
+                    throw new DncManagementException(
+                        new ErrorInfo(
+                            ErrorCode.NodeNotFound,
+                            $"No NodeConfiguration found while deleting reservation {reservationConfiguration.ReservationID}" +
+                            $"for reservation config {reservationConfiguration}",
+                            (int)HttpStatusCode.BadRequest,
+                            ErrorType.NonRetriable));
+                }
+                nodeConfig.RemoveConstrainedReservation(reservationConfiguration.ReservationID);
+                await UpdateNodeConfigurationUntransacted(
+                    NodeConfiguration.GetNodeKey(reservationConfiguration.AllocationRequest.NodeConstraint),
+                    nodeConfig,
+                    tx);
+            }
+        }
+
+        public async Task DeleteNetworkContainerUntransacted(
+            NodeConfiguration nodeConfiguration,
+            SubnetConfiguration subnetConfiguration,
+            ReservationConfiguration reservationConfiguration,
+            NCConfiguration ncConfiguration,
+            RequestContext requestContext,
+            bool deleteRequest,
+            ITransaction tx)
+        {
+            ServiceEventSource.Current.Message($"Retrieved NCConfiguration: {ncConfiguration} for delete");
+            string ncKey = requestContext.RequestID;
+            string networkContainerID = NCConfiguration.GetNetworkContainerIDFromKey(ncKey);
+            if (nodeConfiguration != null)
+            {
+                ServiceEventSource.Current.Message(
+                    $"Retrieved NodeConfiguration: {nodeConfiguration} while deleting NC: {ncKey}");
+                nodeConfiguration.RemoveNetworkContainer(requestContext.NetworkID, networkContainerID);
+
+                if (ncConfiguration.ImplicitReservation)
+                {
+                    nodeConfiguration.constrainedReservations.Remove(reservationConfiguration.ReservationID);
                 }
 
-                string nodeKey = NodeConfiguration.GetNodeKey(networkContainerInfo.NodeID);
+                await UpdateNodeConfigurationUntransacted(
+                    NodeConfiguration.GetNodeKey(requestContext.NodeID),
+                    nodeConfiguration,
+                    tx);
+            }
 
-                NodeConfiguration nodeConfiguration =
-                    await RepositoryHelper.GetFromReliableDictionary(
-                        tx,
-                        NodeConfigReliableCollection,
-                        nodeKey);
-                if (nodeConfiguration != null)
-                {
-                    ServiceEventSource.Current.Message(
-                        $"Retrieved NodeConfiguration {nodeConfiguration} while deleting NC:{ncKey}");
-                    nodeConfiguration.RemoveNetworkContainer(
-                        networkContainerInfo.NetworkID,
-                        networkContainerInfo.NetworkContainerID);
-                    await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                        tx,
-                        NodeConfigReliableCollection,
-                        nodeKey,
-                        nodeConfiguration);
-                }
-
+            if (subnetConfiguration != null)
+            {
+                ServiceEventSource.Current.Message($"Retrieved SubnetConfiguration: {subnetConfiguration} " +
+                    $"while deleting NC: {ncKey}");
                 string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(
-                    networkContainerInfo.NetworkID,
-                    networkContainerInfo.SubnetName);
-
-                SubnetConfiguration subnetConfiguration =
-                    await RepositoryHelper.GetFromReliableDictionary(
-                        tx,
-                        SubnetConfigReliableCollection,
-                        subnetKey);
-
-                if (subnetConfiguration != null)
-                {
-                    ServiceEventSource.Current.Message(
-                        $"Retrieved SubnetConfiguration {subnetConfiguration} while deleting NC:{ncKey}");
-                    if (ncConfiguration.ImplicitReservation)
-                    {
-                        ServiceEventSource.Current.Message(
-                            $"Removing reservation from {ncConfiguration.ReservationID} from " +
-                            $"{subnetConfiguration} while deleting NC:{ncKey}");
-                        subnetConfiguration.RemoveReservation(ncConfiguration.ReservationID);
-
-                        await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                            tx,
-                            SubnetConfigReliableCollection,
-                            subnetKey,
-                            subnetConfiguration);
-                    }
-                }
-
+                    requestContext.NetworkID,
+                    requestContext.SubnetName);
                 string reservationKey = ReservationConfiguration.GetReservationKey(
-                    networkContainerInfo.NetworkID,
+                    requestContext.NetworkID,
                     ncConfiguration.ReservationID);
-                ReservationConfiguration reservationConfiguration =
-                    await RepositoryHelper.GetFromReliableDictionary(
+                if (ncConfiguration.ImplicitReservation)
+                {
+                    ServiceEventSource.Current.Message($"Removing reservation: {ncConfiguration.ReservationID} from " +
+                        $"{subnetConfiguration} while deleting NC: {ncKey}");
+                    subnetConfiguration.RemoveReservation(ncConfiguration.ReservationID);
+                    await UpdateSubnetConfigurationUntransacted(
+                        subnetKey,
+                        subnetConfiguration,
+                        tx);
+
+                    ServiceEventSource.Current.Message($"Deleting reservation: {reservationConfiguration} " +
+                        $"while deleting NC: {ncKey}");
+                    await RepositoryHelper.RemoveFromReliableDictionary(
                         tx,
                         ReservationReliableCollection,
                         reservationKey);
-                if (subnetConfiguration != null)
-                {
-                    if (ncConfiguration.ImplicitReservation)
-                    {
-                        ServiceEventSource.Current.Message(
-                            $"Deleting reservation  {reservationConfiguration} from " +
-                            $"while deleting NC:{ncKey}");
-
-                        await RepositoryHelper.RemoveFromReliableDictionary(
-                            tx,
-                            ReservationReliableCollection,
-                            reservationKey);
-                    }
-                    else
-                    {
-                        ServiceEventSource.Current.Message(
-                            $"Setting NC association ID in  {reservationConfiguration} to null");
-                        reservationConfiguration.AssociatedNCID = null;
-                        await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                            tx,
-                            ReservationReliableCollection,
-                            reservationKey,
-                            reservationConfiguration);
-                    }
                 }
+                else
+                {
+                    ServiceEventSource.Current.Message($"Setting associated NCID in {reservationConfiguration} to null");
+                    reservationConfiguration.AssociatedNCID = null;
+                    await UpdateReservationConfigurationUntransacted(
+                        reservationKey,
+                        reservationConfiguration,
+                        tx);
+                }
+            }
 
-                ServiceEventSource.Current.Message(
-                    $"Deleting NCConfigurtaion  {ncConfiguration}");
+            ServiceEventSource.Current.Message($"Deleting NCConfiguration: {ncConfiguration}");
+            await RepositoryHelper.RemoveFromReliableDictionary(
+                tx,
+                NCConfigReliableCollection,
+                ncKey);
 
+            if (deleteRequest)
+            {
+                ServiceEventSource.Current.Message($"Deleting RequestContext with ID: {ncKey}");
                 await RepositoryHelper.RemoveFromReliableDictionary(
-                            tx,
-                            NCConfigReliableCollection,
-                            ncKey);
-
-                Cleanup:
-
-                if(deleteRequest)
-                {
-                    ServiceEventSource.Current.Message(
-                        $"Deleting RequestContext with ID  {ncKey}");
-                    await RepositoryHelper.RemoveFromReliableDictionary(
-                        tx,
-                        PendingRequestsReliableCollection,
-                        ncKey);
-                }
-                await RepositoryHelper.CommitTransactionAsync(tx);
+                    tx,
+                    PendingRequestsReliableCollection,
+                    ncKey);
             }
         }
 
         public async Task<NodeConfiguration> GetNodeConfiguration(
-            string nodeID)
+            string nodeID,
+            ITransaction tx,
+            LockMode lockMode = LockMode.Default)
         {
-            using (var tx = RepositoryHelper.GetTransaction())
-            {
-                return await RepositoryHelper.GetFromReliableDictionary(
-                    tx,
-                    NodeConfigReliableCollection,
-                    NodeConfiguration.GetNodeKey(nodeID));
-            }
+            return await RepositoryHelper.GetFromReliableDictionary(
+                tx,
+                NodeConfigReliableCollection,
+                NodeConfiguration.GetNodeKey(nodeID),
+                lockMode);
         }
 
         public async Task<SubnetConfiguration> GetSubnetConfiguration(
-            string subnetKey)
+            string subnetKey,
+            ITransaction tx,
+            LockMode lockMode = LockMode.Default)
         {
-            using (var tx = RepositoryHelper.GetTransaction())
-            {
-                return await RepositoryHelper.GetFromReliableDictionary(
-                    tx,
-                    SubnetConfigReliableCollection,
-                    subnetKey);
-            }
+            return await RepositoryHelper.GetFromReliableDictionary(
+                tx,
+                SubnetConfigReliableCollection,
+                subnetKey,
+                lockMode);
         }
 
-        public async Task UpdateSubnetConfiguration(
+        public async Task UpdateSubnetConfigurationUntransacted(
             string subnetKey,
-            SubnetConfiguration subnetConfig)
+            SubnetConfiguration subnetConfig,
+            ITransaction tx)
         {
-            using (var tx = RepositoryHelper.GetTransaction())
-            {
-                await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                    tx,
-                    SubnetConfigReliableCollection,
-                    subnetKey,
-                    subnetConfig);
-                await RepositoryHelper.CommitTransactionAsync(tx);
-            }
+            await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                tx,
+                SubnetConfigReliableCollection,
+                subnetKey,
+                subnetConfig);
         }
 
         public async Task<ReservationConfiguration> GetReservationConfiguration(
-            string reservationKey)
-        {
-            using (var tx = RepositoryHelper.GetTransaction())
-            {
-                return await RepositoryHelper.GetFromReliableDictionary(
-                    tx,
-                    ReservationReliableCollection,
-                    reservationKey);
-            }
-        }
-
-        public async Task UpdateReservationConfiguration(
             string reservationKey,
-            ReservationConfiguration reservationConfig)
+            ITransaction tx,
+            LockMode lockMode = LockMode.Default)
         {
-            using (var tx = RepositoryHelper.GetTransaction())
-            {
-                await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                    tx,
-                    ReservationReliableCollection,
-                    reservationKey,
-                    reservationConfig);
-                await RepositoryHelper.CommitTransactionAsync(tx);
-            }
+            return await RepositoryHelper.GetFromReliableDictionary(
+                tx,
+                ReservationReliableCollection,
+                reservationKey,
+                lockMode);
         }
 
-        public async Task<NCConfiguration> GetNetworkContainerConfiguration(
-            string networkID,
-            string networkContainerID)
+        public async Task UpdateReservationConfigurationUntransacted(
+            string reservationKey,
+            ReservationConfiguration reservationConfig,
+            ITransaction tx)
         {
-            using (var tx = RepositoryHelper.GetTransaction())
-            {
-                return await RepositoryHelper.GetFromReliableDictionary(
-                    tx,
-                    NCConfigReliableCollection,
-                    NCConfiguration.GetNCKey(networkID, networkContainerID));
-            }
+            await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                tx,
+                ReservationReliableCollection,
+                reservationKey,
+                reservationConfig);
         }
 
-        public async Task SetNetworkContainerLocalIP(
+        public async Task SetNetworkContainerLocalIPUntransacted(
+            NCConfiguration ncConfiguration,
             RequestContext requestContext,
-            string localIP)
+            string localIP,
+            ITransaction tx)
         {
-            using (var tx = RepositoryHelper.GetTransaction())
+            if (requestContext == null)
             {
-                RequestContext retrievedRequestContext = await RepositoryHelper.GetFromReliableDictionary(
-                    tx,
-                    PendingRequestsReliableCollection,
-                    requestContext.RequestID,
-                    LockMode.Update);
-
-                if (requestContext == null || !requestContext.Equals(retrievedRequestContext))
-                {
-                    return;
-                }
-
-                NCConfiguration ncConfiguration = await RepositoryHelper.GetFromReliableDictionary(
-                    tx,
-                    NCConfigReliableCollection,
-                    requestContext.RequestID,
-                    LockMode.Update);
-                if (ncConfiguration == null)
-                {
-                    return;
-                }
-
-                ncConfiguration.LocalIP = localIP;
-                await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                    tx,
-                    NCConfigReliableCollection,
-                    requestContext.RequestID,
-                    ncConfiguration);
-
-                ServiceEventSource.Current.Message($"Set NC LocalIP:{ncConfiguration.LocalIP} ");
-                await RepositoryHelper.CommitTransactionAsync(tx);
+                return;
             }
+
+            RequestContext retrievedRequestContext = await RepositoryHelper.GetFromReliableDictionary(
+                tx,
+                PendingRequestsReliableCollection,
+                requestContext.RequestID);
+            if (!requestContext.Equals(retrievedRequestContext))
+            {
+                return;
+            }
+
+            ncConfiguration.LocalIP = localIP;
+            await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                tx,
+                NCConfigReliableCollection,
+                requestContext.RequestID,
+                ncConfiguration);
+
+            ServiceEventSource.Current.Message($"Set LocalIP: {ncConfiguration.LocalIP} for " +
+                $"NC: {requestContext.RequestID}");
         }
     }
 }

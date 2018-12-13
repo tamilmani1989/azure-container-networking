@@ -32,17 +32,25 @@ namespace NetworkManager
         /// </summary>
         private NetworkRepositoryManager networkRepositoryManager;
 
+        private uint refreshIntervalMs;
+
+        private const uint defaultRefreshIntervalMs = 60000;
+
         /// <summary>
         /// Constructor.
         /// </summary>
-        /// <param name="cancellationToken">Supply the cancellation token.</param>
         /// <param name="networkRepositoryManager">Supply the cancellation token.</param>
+        /// <param name="dncConfiguration">Supply the Dnc configuration.</param>
+        /// <param name="cancellationToken">Supply the cancellation token.</param>
         public NetworkContainerMonitor(
-            CancellationToken cancellationToken,
-            NetworkRepositoryManager networkRepositoryManager)
+            NetworkRepositoryManager networkRepositoryManager,
+            DncConfiguration dncConfiguration,
+            CancellationToken cancellationToken)
         {
-            this.cancellationToken = cancellationToken;
             this.networkRepositoryManager = networkRepositoryManager;
+            this.cancellationToken = cancellationToken;
+            refreshIntervalMs = (dncConfiguration.DNCSettings.NetworkContainerRefreshInterval > 0) ?
+                dncConfiguration.DNCSettings.NetworkContainerRefreshInterval : defaultRefreshIntervalMs;
         }
 
         /// <summary>
@@ -61,7 +69,7 @@ namespace NetworkManager
                     await RefreshNodeNetworkContainers(nodeKey);
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(60), cancellationToken);
+                await Task.Delay(TimeSpan.FromMilliseconds(refreshIntervalMs), cancellationToken);
             }
         }
 
@@ -71,15 +79,19 @@ namespace NetworkManager
         private async Task RefreshNodeNetworkContainers(
             string nodeKey)
         {
-            using (var tx = RepositoryHelper.GetTransaction())
+            try
             {
-                NodeConfiguration nodeConfig = await RepositoryHelper.GetFromReliableDictionary(
-                    tx,
-                    networkRepositoryManager.NodeConfigReliableCollection,
-                    nodeKey);
-                if (nodeConfig == null)
+                NodeConfiguration nodeConfig;
+                using (var tx = RepositoryHelper.GetTransaction())
                 {
-                    return;
+                    nodeConfig = await RepositoryHelper.GetFromReliableDictionary(
+                        tx,
+                        networkRepositoryManager.NodeConfigReliableCollection,
+                        nodeKey);
+                    if (nodeConfig == null)
+                    {
+                        return;
+                    }
                 }
 
                 foreach (KeyValuePair<string, IReadOnlyDictionary<string, string>> deployedNCs
@@ -90,6 +102,10 @@ namespace NetworkManager
                         await CreateAssociationTask(nodeConfig.NodeID, deployedNCs.Key, networkContainerID);
                     }
                 }
+            }
+            catch (Exception exception)
+            {
+                ServiceEventSource.Current.Message($"RefreshNodeNetworkContainers received exception: {exception}");
             }
         }
 
@@ -106,13 +122,11 @@ namespace NetworkManager
             {
                 string networkContainerKey =
                     NetworkContainerInfo.GetNetworkContainerKey(networkID, networkContainerID);
-
                 NCConfiguration ncConfig = await RepositoryHelper.GetFromReliableDictionary(
                     tx,
                     networkRepositoryManager.NCConfigReliableCollection,
                     networkContainerKey,
                     LockMode.Update);
-
                 if (ncConfig == null)
                 {
                     ServiceEventSource.Current.Message($"Configuration for network container " +
@@ -144,12 +158,17 @@ namespace NetworkManager
                         networkContainerKey,
                         ncConfig);
 
+                    ReservationConfiguration reservationConfig = await networkRepositoryManager.GetReservationConfiguration(
+                        ReservationConfiguration.GetReservationKey(networkID, ncConfig.ReservationID),
+                        tx);
+
                     // Add new request in pending queue to process refresh association
                     RequestContext requestContext = new RequestContext(
                         networkContainerKey,
                         networkID,
                         nodeID,
                         RequestType.NetworkContainerRequest);
+                    requestContext.SetSubnetName(reservationConfig.AllocationRequest.SubnetName);
 
                     await RepositoryHelper.CreateOrUpdateReliableDictionary(
                         tx,

@@ -18,6 +18,9 @@ const (
 
 	// Completed - Request proecssing completed.
 	Completed
+
+	// Refreshing - Request proecssing in refresh state.
+	Refreshing
 )
 
 func (status Status) String() string {
@@ -37,6 +40,9 @@ func (status Status) String() string {
 
 	case Completed:
 		return "Completed"
+
+	case Refreshing:
+		return "Refreshing"
 	}
 
 	return "Unknown Status"
