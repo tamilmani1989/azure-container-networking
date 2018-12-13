@@ -973,7 +973,7 @@ func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
 	}
-	
+
 	if value == nil {
 		return nil, nil
 	}
@@ -1680,7 +1680,10 @@ func CreateNetwork(
 }
 
 // UpdateSubnet - Update subnet configuration
-func UpdateSubnet(networkID, subnet string, subnetRequest api.SubnetRequest) *api.JsonErr {
+func UpdateSubnet(
+	networkID,
+	subnet string,
+	subnetRequest api.SubnetRequest) *api.JsonErr {
 	networkConfig, err := TryQueryNetworkConfiguration(networkID)
 	if err != nil {
 		return err
@@ -1704,24 +1707,44 @@ func UpdateSubnet(networkID, subnet string, subnetRequest api.SubnetRequest) *ap
 			Text:       msg}
 	}
 
+	var subnetFound = true
 	if networkConfig.Subnets == nil || len(networkConfig.Subnets) == 0 {
-		msg := fmt.Sprintf("No subnets found in Network with ID %s",
-			networkID)
-		return &api.JsonErr{
-			Code:       api.SubnetNotFound,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       msg}
+		subnetFound = false
+	} else if _, ok := networkConfig.Subnets[subnet]; !ok {
+		subnetFound = false
 	}
 
-	_, ok := networkConfig.Subnets[subnet]
-	if !ok {
-		msg := fmt.Sprintf("Subnet %s not found in Network with ID %s",
-			subnet,
-			networkID)
-		return &api.JsonErr{
-			Code:       api.SubnetNotFound,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       msg}
+	if !subnetFound {
+		loggershim.LS.Debugf("Subnet %s not found in Network with ID %s. Refreshing network", subnet, networkID)
+		networkConfig.Status = Refreshing
+		networkConfig.Subnets[subnet] = GetSubnetKey(networkID, subnet)
+		if err = PersistNetworkConfiguration(networkConfig); err != nil {
+			return err
+		}
+
+		subnetConfig := SubnetConfiguration{
+			NetworkID:    networkID,
+			SubnetName:   subnet,
+			AccessToken:  subnetRequest.AuthenticationToken,
+			Joined:       true,
+			UpdateStatus: SubnetUpdatePending}
+		if failureDetail := PutSubnetConfiguration(&subnetConfig); failureDetail != nil {
+			msg := fmt.Sprintf("Subnet %s not found in Network with ID %s. Failure to insert subnet in config.",
+				subnet,
+				networkID)
+			return &api.JsonErr{
+				Code:       api.SubnetNotFound,
+				HTTPStatus: http.StatusBadRequest,
+				Text:       msg}
+		}
+
+		requestContext := RequestContext{
+			Type:      VirtualNetworkRequest,
+			NetworkID: networkID}
+
+		AddRequestToPendingQueue(GetNetworkKey(networkID), &requestContext)
+
+		return nil
 	}
 
 	subnetConfiguration, err := TryQuerySubnetConfiguration(networkID, subnet)
@@ -1739,6 +1762,20 @@ func UpdateSubnet(networkID, subnet string, subnetRequest api.SubnetRequest) *ap
 			Text:       msg}
 	}
 
+	if subnetConfiguration.UpdateStatus == SubnetUpdatePending {
+		// No error is returned as the request is treated as idempotent while
+		// the same request issued earlier is in process
+		return nil
+	} else if subnetConfiguration.UpdateStatus == SubnetUpdateFailed {
+		msg := fmt.Sprintf("Network %s does not contain the specified subnet %s",
+			networkID,
+			subnet)
+		return &api.JsonErr{
+			Code:       api.SubnetNotFound,
+			HTTPStatus: http.StatusNotFound,
+			Text:       msg}
+	}
+
 	if !subnetConfiguration.IsDelegatedSubnet {
 		msg := fmt.Sprintf("Subnet %s is not a delegated subnet. Network with ID %s",
 			subnet,
@@ -1749,6 +1786,7 @@ func UpdateSubnet(networkID, subnet string, subnetRequest api.SubnetRequest) *ap
 			Text:       msg}
 
 	}
+
 	subnetConfiguration.Joined = true
 	subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken
 	err = PutSubnetConfiguration(subnetConfiguration)

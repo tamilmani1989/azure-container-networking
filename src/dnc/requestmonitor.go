@@ -79,7 +79,7 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 
 	switch requestContext.Type {
 	case datamodel.VirtualNetworkRequest:
-		removeWorkItem, err = processVirtualNetworksPendingJoin(requestContext.NetworkID)
+		removeWorkItem, err = processVirtualNetworkRequest(requestContext)
 		break
 
 	case datamodel.ReservationRequest:
@@ -612,6 +612,38 @@ func validateAndRetrieveNetworkConfigurationUpdate(
 	return false, nil, subnetsToAdd, subnetsToRemove, subnetsToUpdate
 }
 
+// Routine that processes virtual network request.
+func processVirtualNetworkRequest(requestContext *datamodel.RequestContext) (bool, *api.JsonErr) {
+	repoNetworkConfiguration, err := datamodel.TryQueryNetworkConfiguration(requestContext.NetworkID)
+	if err != nil {
+		logger.Errorf("Network configuration retrieval for network %s failed with error %s\n",
+			requestContext.NetworkID,
+			err.String())
+		return false, err
+	}
+
+	if repoNetworkConfiguration == nil {
+		logger.Debugf("Failed to find configuration in repository for network %s\n", requestContext.NetworkID)
+		return true, nil
+	}
+
+	switch repoNetworkConfiguration.Status {
+	case datamodel.Pending:
+		return processVirtualNetworksPendingJoin(requestContext.NetworkID)
+
+	case datamodel.Refreshing:
+		_, success := refreshNetworkConfiguration(datamodel.GetNetworkKey(requestContext.NetworkID), true)
+		if !success {
+			return false, &api.JsonErr{
+				Code:       api.NetworkJoinFailed,
+				Text:       "VirtualNetworkRequest for refresh network failed. Marking as Retriable error",
+				HTTPStatus: http.StatusInternalServerError}
+		}
+	}
+
+	return true, nil
+}
+
 // Routine that processes join network request.
 func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 	var failureDetail *api.JsonErr
@@ -628,7 +660,7 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 	var isThrottled bool
 
 	// Network configuration is expected to be present as we will always
-	// add a dummy configuration and mark it as pendiong processing once
+	// add a dummy configuration and mark it as pending processing once
 	// a request is received.
 	repoNetworkConfiguration, err := datamodel.TryQueryNetworkConfiguration(networkID)
 	if err != nil {
@@ -740,7 +772,8 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 			IPSubnet:          updatedSubnetCfg.AddressPrefix,
 			IsDelegatedSubnet: true,
 			Gateway:           updatedSubnetCfg.DefaultGateway,
-			Tags:              tags}
+			Tags:              tags,
+			UpdateStatus:      datamodel.SubnetUpdateCompleted}
 		failureDetail = datamodel.PutSubnetConfiguration(&subnetConfig)
 		if failureDetail != nil {
 			goto Cleanup

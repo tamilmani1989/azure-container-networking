@@ -7,6 +7,16 @@ import (
 	"fmt"
 )
 
+// SubnetUpdateStatus  - type indicating the update status for the subnet.
+type SubnetUpdateStatus int
+
+// SubnetUpdateStatus enum indicating the update status for the subnet.
+const (
+	SubnetUpdateCompleted SubnetUpdateStatus = iota
+	SubnetUpdateFailed
+	SubnetUpdatePending
+)
+
 // SubnetConfiguration  - Struct to hold subnet configuration.
 type SubnetConfiguration struct {
 	NetworkID         string
@@ -19,6 +29,7 @@ type SubnetConfiguration struct {
 	Joined            bool
 	Tags              []nmagentcontracts.Tag
 	APIVersion        string
+	UpdateStatus      SubnetUpdateStatus
 }
 
 func (s *SubnetConfiguration) String() string {

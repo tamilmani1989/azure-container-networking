@@ -60,7 +60,7 @@ func refreshNetworks() {
 	processedItemCountInBatch := 0
 	// refresh network configurations
 	for networkKey := range networksMap {
-		areCallsThrottled, success := refreshNetworkConfiguration(networkKey)
+		areCallsThrottled, success := refreshNetworkConfiguration(networkKey, false)
 		networkRefreshMonitorData.ProcessedItems++
 		if !success {
 			networkRefreshMonitorData.FailedItems++
@@ -88,22 +88,27 @@ func refreshNetworks() {
 	}
 }
 
-func refreshNetworkConfiguration(networkKey string) (bool, bool) {
+func refreshNetworkConfiguration(
+	networkKey string,
+	sessionLockAcquired bool) (bool, bool) {
 	var isThrottled bool
 	networkID := datamodel.GetNetworkIdFromKey(networkKey)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	networkSessionLockedForRead := false
-	sessionManager.BeginReadSession(sessionInfo)
-	networkSessionLockedForRead = true
-	defer func() {
-		if networkSessionLockedForRead {
-			sessionManager.EndReadSession(sessionInfo)
-		}
-	}()
+
+	if !sessionLockAcquired {
+		sessionManager.BeginReadSession(sessionInfo)
+		networkSessionLockedForRead = true
+
+		defer func() {
+			if networkSessionLockedForRead {
+				sessionManager.EndReadSession(sessionInfo)
+			}
+		}()
+	}
 
 	var failureDetail *api.JsonErr
 	var networkResponse *nmagentcontracts.VirtualNetworkResponse
-
 	repoNetworkConfiguration, err := datamodel.TryQueryNetworkConfigurationByKey(networkKey)
 	if err != nil {
 		logger.Errorf("[RefreshNetworkConfiguration]:Retrieval of configuration for network %s failed with error:%s.\n",
@@ -116,7 +121,8 @@ func refreshNetworkConfiguration(networkKey string) (bool, bool) {
 	}
 
 	if repoNetworkConfiguration.NetworkState != datamodel.Join ||
-		repoNetworkConfiguration.Status != datamodel.Completed {
+		(repoNetworkConfiguration.Status != datamodel.Completed &&
+			repoNetworkConfiguration.Status != datamodel.Refreshing) {
 		logger.Debugf("[RefreshNetworkConfiguration]:Skipping refreshing of network %s as it is in state:%s %s.\n",
 			networkID,
 			repoNetworkConfiguration.NetworkState,
@@ -124,8 +130,10 @@ func refreshNetworkConfiguration(networkKey string) (bool, bool) {
 		return false, false
 	}
 
-	sessionManager.EndReadSession(sessionInfo)
-	networkSessionLockedForRead = false
+	if networkSessionLockedForRead {
+		sessionManager.EndReadSession(sessionInfo)
+		networkSessionLockedForRead = false
+	}
 
 	// Try to retrieve the network configuration fron NMAgent.
 	_, failureDetail, networkResponse, isThrottled = getNetworkConfigurationFromAgent(networkID)
@@ -164,17 +172,16 @@ func refreshNetworkConfiguration(networkKey string) (bool, bool) {
 		return false, false
 	}
 
-	networkSessionLockedForWrite := false
-	sessionManager.BeginWriteSession(sessionInfo)
-	networkSessionLockedForWrite = true
-	defer func() {
-		if networkSessionLockedForWrite {
+	if !sessionLockAcquired {
+		sessionManager.BeginWriteSession(sessionInfo)
+		defer func() {
 			sessionManager.EndWriteSession(sessionInfo)
-		}
-	}()
+		}()
+	}
 
 	checkAndAddTagsCache(networkResponse)
-	if repoNetworkConfiguration.Version == networkVersion {
+	if repoNetworkConfiguration.Version == networkVersion &&
+		repoNetworkConfiguration.Status != datamodel.Refreshing {
 		return false, true
 	}
 
@@ -191,23 +198,44 @@ func refreshNetworkConfiguration(networkKey string) (bool, bool) {
 		return false, false
 	}
 
-	for subnetName := range subnetsToRemove {
-		failureDetail = datamodel.DeleteSubnetConfiguration(networkID, subnetName)
-		if failureDetail != nil {
-			logger.Errorf("Deletion of subnet %s in network %s failed with error %s.\n",
-				subnetName,
-				networkID,
-				failureDetail.String())
-			return false, false
-		}
-	}
-
 	ipSubnetMap := make(map[string]string)
 	subnetsInUpdatedResponse := make(map[string]nmagentcontracts.Subnet)
 	for _, subnet := range networkResponse.Subnets {
 		subnetsInUpdatedResponse[subnet.SubnetName] = subnet
 		ipSubnetMap[subnet.SubnetName] =
 			datamodel.GetSubnetKey(networkID, subnet.SubnetName)
+	}
+
+	for subnetName := range subnetsToRemove {
+		subnetConfig, _ := datamodel.TryQuerySubnetConfiguration(networkID, subnetName)
+		if subnetConfig.UpdateStatus == datamodel.SubnetUpdateCompleted {
+			failureDetail = datamodel.DeleteSubnetConfiguration(networkID, subnetName)
+			if failureDetail != nil {
+				logger.Errorf("Deletion of subnet %s in network %s failed with error %s.\n",
+					subnetName,
+					networkID,
+					failureDetail.String())
+				return false, false
+			}
+		} else if subnetConfig.UpdateStatus == datamodel.SubnetUpdatePending {
+			// Check if the subnet to remove has UpdateStatus set to pending. If yes, do not remove it but set the
+			// UpdateStatus as SubnetUpdateFailed
+			ipSubnetMap[subnetName] = datamodel.GetSubnetKey(networkID, subnetName)
+			logger.Debugf("Subnet %s in network %s has the update status as pending. Updating the status as UpdateFailed",
+				subnetName, networkID)
+			subnetConfig.UpdateStatus = datamodel.SubnetUpdateFailed
+			subnetConfig.Joined = false
+			failureDetail = datamodel.PutSubnetConfiguration(subnetConfig)
+			if failureDetail != nil {
+				logger.Errorf("Persisting configuration for subnet %s in network %s failed with error %s. \n",
+					subnetName,
+					networkID,
+					failureDetail.String())
+				return false, false
+			}
+		} else if subnetConfig.UpdateStatus == datamodel.SubnetUpdateFailed {
+			ipSubnetMap[subnetName] = datamodel.GetSubnetKey(networkID, subnetName)
+		}
 	}
 
 	subnetNetworkContainersMap := make(map[string][]*datamodel.NetworkContainerInfo)
@@ -250,7 +278,8 @@ func refreshNetworkConfiguration(networkKey string) (bool, bool) {
 			SubnetName:        subnetName,
 			IPSubnet:          updatedSubnetCfg.AddressPrefix,
 			IsDelegatedSubnet: true,
-			Gateway:           updatedSubnetCfg.DefaultGateway}
+			Gateway:           updatedSubnetCfg.DefaultGateway,
+			UpdateStatus:      datamodel.SubnetUpdateCompleted}
 		failureDetail = datamodel.PutSubnetConfiguration(&subnetConfig)
 		if failureDetail != nil {
 			logger.Errorf("Persisting configuration for subnet %s in network %s failed with error %s. \n",
@@ -265,7 +294,17 @@ func refreshNetworkConfiguration(networkKey string) (bool, bool) {
 		subnetKey := datamodel.GetSubnetKey(networkID, subnetName)
 		ipSubnetMap[subnetName] = subnetKey
 		updatedSubnetCfg := subnetsInUpdatedResponse[subnetName]
+
+		// If the UpdateStatus for the subnet is pending, set the current subnet config
+		// with the values from the updated response
+		if currentRepoSubnetCfg.UpdateStatus == datamodel.SubnetUpdatePending {
+			currentRepoSubnetCfg.IPSubnet = updatedSubnetCfg.AddressPrefix
+			currentRepoSubnetCfg.Gateway = updatedSubnetCfg.DefaultGateway
+			currentRepoSubnetCfg.IsDelegatedSubnet = true
+		}
+
 		currentRepoSubnetCfg.Tags = updatedSubnetCfg.Tags
+		currentRepoSubnetCfg.UpdateStatus = datamodel.SubnetUpdateCompleted
 		datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
 		if failureDetail != nil {
 			logger.Errorf("Persisting updated configuration for subnet %s in network %s failed with error %s. \n",
@@ -281,7 +320,7 @@ func refreshNetworkConfiguration(networkKey string) (bool, bool) {
 		networkResponse.String())
 
 	repoNetworkConfiguration.Version = networkVersion
-
+	repoNetworkConfiguration.Status = datamodel.Completed
 	failureDetail = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
 	if failureDetail != nil {
 		logger.Errorf("Persisting configuration of network %s failed with error %s. \n",
