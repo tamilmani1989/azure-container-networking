@@ -425,8 +425,8 @@ func SetLinkHairpin(bridgeName string, on bool) error {
 	return s.sendAndWaitForAck(req)
 }
 
-// SetLinkMaster sets the master (upper) device of a network interface.
-func AddorRemoveStaticArp(mode int, name string, ipaddr net.IP, mac net.HardwareAddr) error {
+// AddOrRemoveStaticArp sets/removes static arp entry based on mode
+func AddOrRemoveStaticArp(mode int, name string, ipaddr net.IP, mac net.HardwareAddr) error {
 	s, err := getSocket()
 	if err != nil {
 		return err

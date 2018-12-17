@@ -13,6 +13,41 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	NDA_UNSPEC = iota
+	NDA_DST
+	NDA_LLADDR
+	NDA_CACHEINFO
+	NDA_PROBES
+	NDA_VLAN
+	NDA_PORT
+	NDA_VNI
+	NDA_IFINDEX
+	NDA_MAX = NDA_IFINDEX
+)
+
+// Neighbor Cache Entry States.
+const (
+	NUD_NONE       = 0x00
+	NUD_INCOMPLETE = 0x01
+	NUD_REACHABLE  = 0x02
+	NUD_STALE      = 0x04
+	NUD_DELAY      = 0x08
+	NUD_PROBE      = 0x10
+	NUD_FAILED     = 0x20
+	NUD_NOARP      = 0x40
+	NUD_PERMANENT  = 0x80
+)
+
+// Neighbor Flags
+const (
+	NTF_USE    = 0x01
+	NTF_SELF   = 0x02
+	NTF_MASTER = 0x04
+	NTF_PROXY  = 0x08
+	NTF_ROUTER = 0x80
+)
+
 // Netlink protocol constants that are not already defined in unix package.
 const (
 	IFLA_INFO_KIND   = 1
