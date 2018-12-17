@@ -13,6 +13,41 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	NDA_UNSPEC = iota
+	NDA_DST
+	NDA_LLADDR
+	NDA_CACHEINFO
+	NDA_PROBES
+	NDA_VLAN
+	NDA_PORT
+	NDA_VNI
+	NDA_IFINDEX
+	NDA_MAX = NDA_IFINDEX
+)
+
+// Neighbor Cache Entry States.
+const (
+	NUD_NONE       = 0x00
+	NUD_INCOMPLETE = 0x01
+	NUD_REACHABLE  = 0x02
+	NUD_STALE      = 0x04
+	NUD_DELAY      = 0x08
+	NUD_PROBE      = 0x10
+	NUD_FAILED     = 0x20
+	NUD_NOARP      = 0x40
+	NUD_PERMANENT  = 0x80
+)
+
+// Neighbor Flags
+const (
+	NTF_USE    = 0x01
+	NTF_SELF   = 0x02
+	NTF_MASTER = 0x04
+	NTF_PROXY  = 0x08
+	NTF_ROUTER = 0x80
+)
+
 // Link types.
 const (
 	LINK_TYPE_BRIDGE = "bridge"
@@ -29,6 +64,11 @@ const (
 	IPVLAN_MODE_L3
 	IPVLAN_MODE_L3S
 	IPVLAN_MODE_MAX
+)
+
+const (
+	ADD = iota
+	REMOVE
 )
 
 // Link represents a network interface.
@@ -381,6 +421,45 @@ func SetLinkHairpin(bridgeName string, on bool) error {
 	attrProtInfo := newAttribute(unix.IFLA_PROTINFO|unix.NLA_F_NESTED, nil)
 	attrProtInfo.addNested(newAttribute(IFLA_BRPORT_MODE, hairpin))
 	req.addPayload(attrProtInfo)
+
+	return s.sendAndWaitForAck(req)
+}
+
+// SetLinkMaster sets the master (upper) device of a network interface.
+func AddorRemoveStaticArp(mode int, name string, ipaddr net.IP, mac net.HardwareAddr) error {
+	s, err := getSocket()
+	if err != nil {
+		return err
+	}
+
+	var req *message
+	state := 0
+	if mode == ADD {
+		req = newRequest(unix.RTM_NEWNEIGH, unix.NLM_F_CREATE|unix.NLM_F_REPLACE|unix.NLM_F_ACK)
+		state = NUD_PERMANENT
+	} else {
+		req = newRequest(unix.RTM_DELNEIGH, unix.NLM_F_ACK)
+		state = NUD_INCOMPLETE
+	}
+
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return err
+	}
+
+	msg := neighMsg{
+		Family: uint8(unix.AF_INET),
+		Index:  uint32(iface.Index),
+		State:  uint16(state),
+	}
+	req.addPayload(&msg)
+
+	ipData := ipaddr.To4()
+	dstData := newRtAttr(NDA_DST, ipData)
+	req.addPayload(dstData)
+
+	hwData := newRtAttr(NDA_LLADDR, []byte(mac))
+	req.addPayload(hwData)
 
 	return s.sendAndWaitForAck(req)
 }

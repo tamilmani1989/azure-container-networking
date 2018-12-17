@@ -37,6 +37,7 @@ type NetworkConfig struct {
 	MultiTenancy               bool     `json:"multiTenancy,omitempty"`
 	EnableSnatOnHost           bool     `json:"enableSnatOnHost,omitempty"`
 	EnableExactMatchForPodName bool     `json:"enableExactMatchForPodName,omitempty"`
+	EnableCalicoMode           bool     `json:"enableCalicoMode,omitempty"`
 	Ipam                       struct {
 		Type          string `json:"type"`
 		Environment   string `json:"environment,omitempty"`

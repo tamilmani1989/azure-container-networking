@@ -54,7 +54,8 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 		if opt != nil && opt[VlanIDKey] != nil {
 			vlanid, _ = strconv.Atoi(opt[VlanIDKey].(string))
 		}
-
+	case opModeCalico:
+		break
 	default:
 		return nil, errNetworkModeInvalid
 	}

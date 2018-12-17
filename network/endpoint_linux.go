@@ -71,7 +71,7 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 		log.Printf("Generate veth name based on the key provided")
 		key := epInfo.Data[OptVethName].(string)
 		vethname := generateVethName(key)
-		hostIfName = fmt.Sprintf("%s%s", hostVEthInterfacePrefix, vethname)
+		hostIfName = fmt.Sprintf("%s%s", "cali", vethname)
 		contIfName = fmt.Sprintf("%s%s2", hostVEthInterfacePrefix, vethname)
 	} else {
 		// Create a veth pair.
@@ -87,8 +87,12 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 			hostIfName,
 			contIfName,
 			vlanid)
-	} else {
+	} else if nw.Mode != opModeCalico {
+		log.Printf("Bridge client")
 		epClient = NewLinuxBridgeEndpointClient(nw.extIf, hostIfName, contIfName, nw.Mode)
+	} else {
+		log.Printf("calico client")
+		epClient = NewCalicoEndpointClient(nw.extIf, hostIfName, contIfName, nw.Mode)
 	}
 
 	// Cleanup on failure.
@@ -201,8 +205,10 @@ func (nw *network) deleteEndpointImpl(ep *endpoint) error {
 	if ep.VlanID != 0 {
 		epInfo := ep.getInfo()
 		epClient = NewOVSEndpointClient(nw.extIf, epInfo, ep.HostIfName, "", ep.VlanID)
-	} else {
+	} else if nw.Mode != opModeCalico {
 		epClient = NewLinuxBridgeEndpointClient(nw.extIf, ep.HostIfName, "", nw.Mode)
+	} else {
+		epClient = NewCalicoEndpointClient(nw.extIf, ep.HostIfName, "", nw.Mode)
 	}
 
 	epClient.DeleteEndpointRules(ep)
@@ -232,8 +238,11 @@ func addRoutes(interfaceName string, routes []RouteInfo) error {
 		nlRoute := &netlink.Route{
 			Family:    netlink.GetIpAddressFamily(route.Gw),
 			Dst:       &route.Dst,
+			Src:       route.Src,
 			Gw:        route.Gw,
 			LinkIndex: ifIndex,
+			Scope:     route.Scope,
+			Protocol:  route.Protocol,
 		}
 
 		if err := netlink.AddIpRoute(nlRoute); err != nil {
@@ -253,7 +262,7 @@ func deleteRoutes(interfaceName string, routes []RouteInfo) error {
 	interfaceIf, _ := net.InterfaceByName(interfaceName)
 
 	for _, route := range routes {
-		log.Printf("[ovs] Adding IP route %+v to link %v.", route, interfaceName)
+		log.Printf("[ovs] Deleting IP route %+v to link %v.", route, interfaceName)
 
 		if route.DevName != "" {
 			devIf, _ := net.InterfaceByName(route.DevName)
@@ -265,8 +274,11 @@ func deleteRoutes(interfaceName string, routes []RouteInfo) error {
 		nlRoute := &netlink.Route{
 			Family:    netlink.GetIpAddressFamily(route.Gw),
 			Dst:       &route.Dst,
+			Src:       route.Src,
 			Gw:        route.Gw,
 			LinkIndex: ifIndex,
+			Scope:     route.Scope,
+			Protocol:  route.Protocol,
 		}
 
 		if err := netlink.DeleteIpRoute(nlRoute); err != nil {

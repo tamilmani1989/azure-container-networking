@@ -15,6 +15,7 @@ const (
 	// Operational modes.
 	opModeBridge  = "bridge"
 	opModeTunnel  = "tunnel"
+	opModeCalico  = "calico"
 	opModeDefault = opModeTunnel
 )
 
