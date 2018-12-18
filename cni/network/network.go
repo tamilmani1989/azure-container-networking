@@ -388,16 +388,17 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 	} else {
 		if !nwCfg.MultiTenancy {
 			// Network already exists.
-			// Call into IPAM plugin to allocate an address for the endpoint.
 			subnetPrefix := nwInfo.Subnets[0].Prefix.String()
 			log.Printf("[cni-net] Found network %v with subnet %v.", networkId, subnetPrefix)
 			nwCfg.Ipam.Subnet = subnetPrefix
 
+			// Call into IPAM plugin to allocate an address for the endpoint.
 			result, err = plugin.DelegateAdd(nwCfg.Ipam.Type, nwCfg)
 			if err != nil {
 				err = plugin.Errorf("Failed to allocate address: %v", err)
 				return err
 			}
+
 			ipconfig := result.IPs[0]
 			iface := &cniTypesCurr.Interface{Name: args.IfName}
 			result.Interfaces = append(result.Interfaces, iface)
