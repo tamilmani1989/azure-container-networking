@@ -1,13 +1,11 @@
 package network
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
 	"github.com/Azure/azure-container-networking/network/epcommon"
-	"github.com/Azure/azure-container-networking/platform"
 )
 
 const (
@@ -152,7 +150,7 @@ func (client *CalicoEndpointClient) ConfigureContainerInterfacesAndRoutes(epInfo
 	for _, ipAddr := range epInfo.IPAddresses {
 		routeInfo = RouteInfo{}
 		ip, ipNet, _ := net.ParseCIDR(ipAddr.String())
-		log.Printf("Removing route %v", ipNet.String())
+		log.Printf("[net] Removing route %v", ipNet.String())
 		routeInfo.Dst = *ipNet
 		routeInfo.Scope = netlink.RT_SCOPE_LINK
 		routeInfo.Src = ip
@@ -162,14 +160,14 @@ func (client *CalicoEndpointClient) ConfigureContainerInterfacesAndRoutes(epInfo
 
 	// delete the above route
 	if err := deleteRoutes(client.containerVethName, routeInfoList); err != nil {
-		log.Printf("Deleting route failed with err %v", err)
+		log.Printf("[net] Deleting route failed with err %v", err)
 	}
 
 	// set arp entry for fake gateway in pod
-	arpCmd := fmt.Sprintf("arp -s 169.254.1.1 %v", client.hostVethMac.String())
-	_, err := platform.ExecuteCommand(arpCmd)
+	err := netlink.AddOrRemoveStaticArp(netlink.ADD, client.containerVethName, gwIP, client.hostVethMac)
 	if err != nil {
-		log.Printf("Setting static arp for ip 169.254.1.1 mac %v failed with error %v", client)
+		log.Printf("[net] Setting static arp for ip %v mac %v failed with error %v", gwIP.String(), client.hostVethMac, err)
+		return err
 	}
 
 	return nil

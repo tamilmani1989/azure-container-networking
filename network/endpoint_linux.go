@@ -21,6 +21,8 @@ const (
 	// Prefix for host virtual network interface names.
 	hostVEthInterfacePrefix = commonInterfacePrefix + "v"
 
+	calicoPrefix = "cali"
+
 	// Prefix for container network interface names.
 	containerInterfacePrefix = "eth"
 )
@@ -71,7 +73,11 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 		log.Printf("Generate veth name based on the key provided")
 		key := epInfo.Data[OptVethName].(string)
 		vethname := generateVethName(key)
-		hostIfName = fmt.Sprintf("%s%s", "cali", vethname)
+		if nw.Mode == opModeCalico {
+			hostIfName = fmt.Sprintf("%s%s", calicoPrefix, vethname)
+		} else {
+			hostIfName = fmt.Sprintf("%s%s", hostVEthInterfacePrefix, vethname)
+		}
 		contIfName = fmt.Sprintf("%s%s2", hostVEthInterfacePrefix, vethname)
 	} else {
 		// Create a veth pair.
@@ -255,7 +261,7 @@ func addRoutes(interfaceName string, routes []RouteInfo) error {
 			if !strings.Contains(strings.ToLower(err.Error()), "file exists") {
 				return err
 			} else {
-				log.Printf("route already exists")
+				log.Printf("[net] route already exists")
 			}
 		}
 	}
@@ -268,7 +274,7 @@ func deleteRoutes(interfaceName string, routes []RouteInfo) error {
 	interfaceIf, _ := net.InterfaceByName(interfaceName)
 
 	for _, route := range routes {
-		log.Printf("[ovs] Deleting IP route %+v from link %v.", route, interfaceName)
+		log.Printf("[net] Deleting IP route %+v from link %v.", route, interfaceName)
 
 		if route.DevName != "" {
 			devIf, _ := net.InterfaceByName(route.DevName)

@@ -27,7 +27,8 @@ const (
 	dockerNetworkOption = "com.docker.network.generic"
 
 	// Supported IP version. Currently support only IPv4
-	ipVersion = "4"
+	ipVersion    = "4"
+	opModeCalico = "calico"
 )
 
 // NetPlugin represents the CNI network plugin.
@@ -167,6 +168,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		result           *cniTypesCurr.Result
 		azIpamResult     *cniTypesCurr.Result
 		err              error
+		vethName         string
 		nwCfg            *cni.NetworkConfig
 		epInfo           *network.EndpointInfo
 		iface            *cniTypesCurr.Interface
@@ -454,8 +456,11 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 	// A runtime must not call ADD twice (without a corresponding DEL) for the same
 	// (network name, container id, name of the interface inside the container)
-	//vethName := fmt.Sprintf("%s%s%s", networkId, k8sContainerID, k8sIfName)
-	vethName := fmt.Sprintf("%s.%s", k8sNamespace, k8sPodName)
+	if nwCfg.Mode == opModeCalico {
+		vethName = fmt.Sprintf("%s.%s", k8sNamespace, k8sPodName)
+	} else {
+		vethName = fmt.Sprintf("%s%s%s", networkId, k8sContainerID, k8sIfName)
+	}
 	setEndpointOptions(cnsNetworkConfig, epInfo, vethName)
 
 	// Create the endpoint.
