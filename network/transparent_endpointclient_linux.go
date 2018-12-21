@@ -13,7 +13,7 @@ const (
 	DEFAULT_GW = "0.0.0.0/0"
 )
 
-type CalicoEndpointClient struct {
+type TransparentEndpointClient struct {
 	bridgeName        string
 	hostPrimaryIfName string
 	hostVethName      string
@@ -24,14 +24,14 @@ type CalicoEndpointClient struct {
 	mode              string
 }
 
-func NewCalicoEndpointClient(
+func NewTransparentEndpointClient(
 	extIf *externalInterface,
 	hostVethName string,
 	containerVethName string,
 	mode string,
-) *CalicoEndpointClient {
+) *TransparentEndpointClient {
 
-	client := &CalicoEndpointClient{
+	client := &TransparentEndpointClient{
 		bridgeName:        extIf.BridgeName,
 		hostPrimaryIfName: extIf.Name,
 		hostVethName:      hostVethName,
@@ -43,7 +43,7 @@ func NewCalicoEndpointClient(
 	return client
 }
 
-func (client *CalicoEndpointClient) AddEndpoints(epInfo *EndpointInfo) error {
+func (client *TransparentEndpointClient) AddEndpoints(epInfo *EndpointInfo) error {
 	if err := epcommon.CreateEndpoint(client.hostVethName, client.containerVethName); err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (client *CalicoEndpointClient) AddEndpoints(epInfo *EndpointInfo) error {
 	return nil
 }
 
-func (client *CalicoEndpointClient) AddEndpointRules(epInfo *EndpointInfo) error {
+func (client *TransparentEndpointClient) AddEndpointRules(epInfo *EndpointInfo) error {
 	var routeInfoList []RouteInfo
 
 	// ip route add <podip> dev <hostveth>
@@ -83,7 +83,7 @@ func (client *CalicoEndpointClient) AddEndpointRules(epInfo *EndpointInfo) error
 	return nil
 }
 
-func (client *CalicoEndpointClient) DeleteEndpointRules(ep *endpoint) {
+func (client *TransparentEndpointClient) DeleteEndpointRules(ep *endpoint) {
 	var routeInfoList []RouteInfo
 
 	// ip route del <podip> dev <hostveth>
@@ -98,7 +98,7 @@ func (client *CalicoEndpointClient) DeleteEndpointRules(ep *endpoint) {
 	}
 }
 
-func (client *CalicoEndpointClient) MoveEndpointsToContainerNS(epInfo *EndpointInfo, nsID uintptr) error {
+func (client *TransparentEndpointClient) MoveEndpointsToContainerNS(epInfo *EndpointInfo, nsID uintptr) error {
 	// Move the container interface to container's network namespace.
 	log.Printf("[net] Setting link %v netns %v.", client.containerVethName, epInfo.NetNsPath)
 	if err := netlink.SetLinkNetNs(client.containerVethName, nsID); err != nil {
@@ -108,7 +108,7 @@ func (client *CalicoEndpointClient) MoveEndpointsToContainerNS(epInfo *EndpointI
 	return nil
 }
 
-func (client *CalicoEndpointClient) SetupContainerInterfaces(epInfo *EndpointInfo) error {
+func (client *TransparentEndpointClient) SetupContainerInterfaces(epInfo *EndpointInfo) error {
 	if err := epcommon.SetupContainerInterface(client.containerVethName, epInfo.IfName); err != nil {
 		return err
 	}
@@ -118,62 +118,31 @@ func (client *CalicoEndpointClient) SetupContainerInterfaces(epInfo *EndpointInf
 	return nil
 }
 
-func (client *CalicoEndpointClient) ConfigureContainerInterfacesAndRoutes(epInfo *EndpointInfo) error {
+func (client *TransparentEndpointClient) ConfigureContainerInterfacesAndRoutes(epInfo *EndpointInfo) error {
 	if err := epcommon.AssignIPToInterface(client.containerVethName, epInfo.IPAddresses); err != nil {
 		return err
 	}
 
-	var routeInfo RouteInfo
-	var routeInfoList []RouteInfo
-
-	// ip route add 169.254.1.1/32 dev eth0 scope link
-	gwIP, gwIPNet, _ := net.ParseCIDR(FAKE_GW_IP)
-	routeInfo.Dst = *gwIPNet
-	routeInfo.Scope = netlink.RT_SCOPE_LINK
-	routeInfoList = append(routeInfoList, routeInfo)
-
-	// ip route add default gw 169.254.1.1 dev eth0
-	routeInfo = RouteInfo{}
-	_, defIPNet, _ := net.ParseCIDR(DEFAULT_GW)
-	routeInfo.Dst = *defIPNet
-	routeInfo.Gw = net.ParseIP(gwIP.String())
-	routeInfoList = append(routeInfoList, routeInfo)
-
-	// add the above routes
-	if err := addRoutes(client.containerVethName, routeInfoList); err != nil {
+	if err := addRoutes(client.containerVethName, epInfo.Routes); err != nil {
 		return err
 	}
 
-	routeInfoList = routeInfoList[:0]
-
-	// Removing the route added by setipaddress while assigning IP to interface
-	for _, ipAddr := range epInfo.IPAddresses {
-		routeInfo = RouteInfo{}
-		ip, ipNet, _ := net.ParseCIDR(ipAddr.String())
-		log.Printf("[net] Removing route %v", ipNet.String())
-		routeInfo.Dst = *ipNet
-		routeInfo.Scope = netlink.RT_SCOPE_LINK
-		routeInfo.Src = ip
-		routeInfo.Protocol = netlink.RTPROT_KERNEL
-		routeInfoList = append(routeInfoList, routeInfo)
+	gw := getDefaultGateway(epInfo.Routes)
+	if gw == nil {
+		log.Printf("Default gateway not found in routes")
+		return nil
 	}
 
-	// delete the above route
-	if err := deleteRoutes(client.containerVethName, routeInfoList); err != nil {
-		log.Printf("[net] Deleting route failed with err %v", err)
-	}
-
-	// set arp entry for fake gateway in pod
-	err := netlink.AddOrRemoveStaticArp(netlink.ADD, client.containerVethName, gwIP, client.hostVethMac)
+	log.Printf("Add static arp entry in pod ip %v mac %v", gw.String(), client.hostVethMac)
+	err := netlink.AddOrRemoveStaticArp(netlink.ADD, client.containerVethName, gw, client.hostVethMac)
 	if err != nil {
-		log.Printf("[net] Setting static arp for ip %v mac %v failed with error %v", gwIP.String(), client.hostVethMac, err)
-		return err
+		log.Printf("[net] Setting static arp for ip %v mac %v failed with error %v", gw.String(), client.hostVethMac, err)
 	}
 
 	return nil
 }
 
-func (client *CalicoEndpointClient) DeleteEndpoints(ep *endpoint) error {
+func (client *TransparentEndpointClient) DeleteEndpoints(ep *endpoint) error {
 	log.Printf("[net] Deleting veth pair %v %v.", ep.HostIfName, ep.IfName)
 	err := netlink.DeleteLink(ep.HostIfName)
 	if err != nil {

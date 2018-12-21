@@ -21,7 +21,7 @@ const (
 	// Prefix for host virtual network interface names.
 	hostVEthInterfacePrefix = commonInterfacePrefix + "v"
 
-	calicoPrefix = "cali"
+	transPrefix = "cali"
 
 	// Prefix for container network interface names.
 	containerInterfacePrefix = "eth"
@@ -73,8 +73,8 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 		log.Printf("Generate veth name based on the key provided")
 		key := epInfo.Data[OptVethName].(string)
 		vethname := generateVethName(key)
-		if nw.Mode == opModeCalico {
-			hostIfName = fmt.Sprintf("%s%s", calicoPrefix, vethname)
+		if nw.Mode == opModeTransparent {
+			hostIfName = fmt.Sprintf("%s%s", transPrefix, vethname)
 		} else {
 			hostIfName = fmt.Sprintf("%s%s", hostVEthInterfacePrefix, vethname)
 		}
@@ -87,18 +87,19 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	}
 
 	if vlanid != 0 {
+		log.Printf("OVS client")
 		epClient = NewOVSEndpointClient(
 			nw.extIf,
 			epInfo,
 			hostIfName,
 			contIfName,
 			vlanid)
-	} else if nw.Mode != opModeCalico {
+	} else if nw.Mode != opModeTransparent {
 		log.Printf("Bridge client")
 		epClient = NewLinuxBridgeEndpointClient(nw.extIf, hostIfName, contIfName, nw.Mode)
 	} else {
-		log.Printf("calico client")
-		epClient = NewCalicoEndpointClient(nw.extIf, hostIfName, contIfName, nw.Mode)
+		log.Printf("Transparent client")
+		epClient = NewTransparentEndpointClient(nw.extIf, hostIfName, contIfName, nw.Mode)
 	}
 
 	// Cleanup on failure.
@@ -217,10 +218,10 @@ func (nw *network) deleteEndpointImpl(ep *endpoint) error {
 	if ep.VlanID != 0 {
 		epInfo := ep.getInfo()
 		epClient = NewOVSEndpointClient(nw.extIf, epInfo, ep.HostIfName, "", ep.VlanID)
-	} else if nw.Mode != opModeCalico {
+	} else if nw.Mode != opModeTransparent {
 		epClient = NewLinuxBridgeEndpointClient(nw.extIf, ep.HostIfName, "", nw.Mode)
 	} else {
-		epClient = NewCalicoEndpointClient(nw.extIf, ep.HostIfName, "", nw.Mode)
+		epClient = NewTransparentEndpointClient(nw.extIf, ep.HostIfName, "", nw.Mode)
 	}
 
 	epClient.DeleteEndpointRules(ep)
@@ -431,6 +432,17 @@ func updateRoutes(existingEp *EndpointInfo, targetEp *EndpointInfo) error {
 	}
 
 	log.Printf("Successfully updated routes for the endpoint %+v using target: %+v", existingEp, targetEp)
+
+	return nil
+}
+
+func getDefaultGateway(routes []RouteInfo) net.IP {
+	_, defDstIP, _ := net.ParseCIDR("0.0.0.0/0")
+	for _, route := range routes {
+		if route.Dst.String() == defDstIP.String() {
+			return route.Gw
+		}
+	}
 
 	return nil
 }

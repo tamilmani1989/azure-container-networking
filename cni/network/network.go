@@ -27,8 +27,8 @@ const (
 	dockerNetworkOption = "com.docker.network.generic"
 
 	// Supported IP version. Currently support only IPv4
-	ipVersion    = "4"
-	opModeCalico = "calico"
+	ipVersion         = "4"
+	opModeTransparent = "transparent"
 )
 
 // NetPlugin represents the CNI network plugin.
@@ -457,7 +457,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 	// A runtime must not call ADD twice (without a corresponding DEL) for the same
 	// (network name, container id, name of the interface inside the container)
-	if nwCfg.Mode == opModeCalico {
+	if nwCfg.Mode == opModeTransparent {
 		vethName = fmt.Sprintf("%s.%s", k8sNamespace, k8sPodName)
 	} else {
 		vethName = fmt.Sprintf("%s%s%s", networkId, k8sContainerID, k8sIfName)
