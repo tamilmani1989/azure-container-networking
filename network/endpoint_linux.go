@@ -21,6 +21,7 @@ const (
 	// Prefix for host virtual network interface names.
 	hostVEthInterfacePrefix = commonInterfacePrefix + "v"
 
+	// Prefix for host veth interfaces in transparent mode.
 	transPrefix = "cali"
 
 	// Prefix for container network interface names.
@@ -251,11 +252,8 @@ func addRoutes(interfaceName string, routes []RouteInfo) error {
 		nlRoute := &netlink.Route{
 			Family:    netlink.GetIpAddressFamily(route.Gw),
 			Dst:       &route.Dst,
-			Src:       route.Src,
 			Gw:        route.Gw,
 			LinkIndex: ifIndex,
-			Scope:     route.Scope,
-			Protocol:  route.Protocol,
 		}
 
 		if err := netlink.AddIpRoute(nlRoute); err != nil {
@@ -287,11 +285,8 @@ func deleteRoutes(interfaceName string, routes []RouteInfo) error {
 		nlRoute := &netlink.Route{
 			Family:    netlink.GetIpAddressFamily(route.Gw),
 			Dst:       &route.Dst,
-			Src:       route.Src,
 			Gw:        route.Gw,
 			LinkIndex: ifIndex,
-			Scope:     route.Scope,
-			Protocol:  route.Protocol,
 		}
 
 		if err := netlink.DeleteIpRoute(nlRoute); err != nil {

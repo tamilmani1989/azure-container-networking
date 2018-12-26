@@ -458,6 +458,8 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 	// A runtime must not call ADD twice (without a corresponding DEL) for the same
 	// (network name, container id, name of the interface inside the container)
 	if nwCfg.Mode == opModeTransparent {
+		// This mechanism of using only namespace and name is not unique for different incarnations of POD/container.
+		// It will result in unpredictable behavior if API server decides to reorder DELETE and ADD call for new incarnation of same POD.
 		vethName = fmt.Sprintf("%s.%s", k8sNamespace, k8sPodName)
 	} else {
 		vethName = fmt.Sprintf("%s%s%s", networkId, k8sContainerID, k8sIfName)
