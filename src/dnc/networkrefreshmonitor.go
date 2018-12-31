@@ -40,7 +40,7 @@ func refreshNetworks() {
 		logger.Errorf("Failed to retrieve networks from repository due to error %s", err.Error())
 	}
 
-	logger.Debugf("[RefreshNetworks]:Networks to refresh:%d\n", len(networksMap))
+	logger.Debugf("[RefreshNetworks]:Networks to refresh:%d", len(networksMap))
 	startTime := time.Now().UTC()
 	networkRefreshMonitorData.StartTime = startTime.String()
 	networkRefreshMonitorData.ProcessedItems = 0
@@ -111,19 +111,19 @@ func refreshNetworkConfiguration(
 	var networkResponse *nmagentcontracts.VirtualNetworkResponse
 	repoNetworkConfiguration, err := datamodel.TryQueryNetworkConfigurationByKey(networkKey)
 	if err != nil {
-		logger.Errorf("[RefreshNetworkConfiguration]:Retrieval of configuration for network %s failed with error:%s.\n",
+		logger.Errorf("[RefreshNetworkConfiguration]:Retrieval of configuration for network %s failed with error:%s.",
 			networkID,
 			err.String())
 		return false, false
 	} else if repoNetworkConfiguration == nil {
-		logger.Debugf("[RefreshNetworkConfiguration]:Configuration for Network %s not found.\n", networkID)
+		logger.Debugf("[RefreshNetworkConfiguration]:Configuration for Network %s not found.", networkID)
 		return false, false
 	}
 
 	if repoNetworkConfiguration.NetworkState != datamodel.Join ||
 		(repoNetworkConfiguration.Status != datamodel.Completed &&
 			repoNetworkConfiguration.Status != datamodel.Refreshing) {
-		logger.Debugf("[RefreshNetworkConfiguration]:Skipping refreshing of network %s as it is in state:%s %s.\n",
+		logger.Debugf("[RefreshNetworkConfiguration]:Skipping refreshing of network %s as it is in state:%s %s.",
 			networkID,
 			repoNetworkConfiguration.NetworkState,
 			repoNetworkConfiguration.Status)
@@ -139,7 +139,7 @@ func refreshNetworkConfiguration(
 	_, failureDetail, networkResponse, isThrottled = getNetworkConfigurationFromAgent(networkID)
 	if failureDetail != nil {
 		if failureDetail.Code != api.ProcessingPending {
-			logger.Errorf("[RefreshNetworkConfiguration]:Request to get configuration for network %s failed with error %s.\n",
+			logger.Errorf("[RefreshNetworkConfiguration]:Request to get configuration for network %s failed with error %s.",
 				networkID,
 				failureDetail.String())
 			return isThrottled, false
@@ -150,7 +150,7 @@ func refreshNetworkConfiguration(
 		logger.Debugf("Post request to join as get network configuration returned status [%d], Trigger Join", http.StatusProcessing)
 		_, failureDetail, isThrottled = postRequestToAgentForNetworkJoin(networkID)
 		if failureDetail != nil {
-			logger.Errorf("Join request Network %s to Host Agent failed with error %s.\n",
+			logger.Errorf("Join request Network %s to Host Agent failed with error %s.",
 				networkID,
 				failureDetail.String())
 		}
@@ -165,7 +165,7 @@ func refreshNetworkConfiguration(
 
 	networkVersion, parseNetworkVersionErr := strconv.ParseUint(networkResponse.VnetVersion, 10, 64)
 	if parseNetworkVersionErr != nil {
-		logger.Errorf("Failed to parse network version:%s for network:%s failed with error %s.\n",
+		logger.Errorf("Failed to parse network version:%s for network:%s failed with error %s.",
 			networkResponse.VnetVersion,
 			networkID,
 			parseNetworkVersionErr.Error())
@@ -191,7 +191,7 @@ func refreshNetworkConfiguration(
 			networkResponse)
 
 	if failureDetail != nil {
-		logger.Errorf("Validation of response %v for network %s failed with error %s.\n",
+		logger.Errorf("Validation of response %v for network %s failed with error %s.",
 			networkResponse,
 			networkID,
 			failureDetail.String())
@@ -211,7 +211,7 @@ func refreshNetworkConfiguration(
 		if subnetConfig.UpdateStatus == datamodel.SubnetUpdateCompleted {
 			failureDetail = datamodel.DeleteSubnetConfiguration(networkID, subnetName)
 			if failureDetail != nil {
-				logger.Errorf("Deletion of subnet %s in network %s failed with error %s.\n",
+				logger.Errorf("Deletion of subnet %s in network %s failed with error %s.",
 					subnetName,
 					networkID,
 					failureDetail.String())
@@ -227,7 +227,7 @@ func refreshNetworkConfiguration(
 			subnetConfig.Joined = false
 			failureDetail = datamodel.PutSubnetConfiguration(subnetConfig)
 			if failureDetail != nil {
-				logger.Errorf("Persisting configuration for subnet %s in network %s failed with error %s. \n",
+				logger.Errorf("Persisting configuration for subnet %s in network %s failed with error %s.",
 					subnetName,
 					networkID,
 					failureDetail.String())
@@ -249,7 +249,7 @@ func refreshNetworkConfiguration(
 		}
 	}
 
-	logger.Debugf("Updating vnetconfig with current version %d Phase 1 commit Response:%v\n",
+	logger.Debugf("Updating vnetconfig with current version %d Phase 1 commit Response:%v",
 		repoNetworkConfiguration.Version,
 		networkResponse)
 	var dnsServers []string
@@ -266,7 +266,7 @@ func refreshNetworkConfiguration(
 
 	failureDetail = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
 	if failureDetail != nil {
-		logger.Errorf("Persisting configuration of network %s failed with error %s. \n",
+		logger.Errorf("Persisting configuration of network %s failed with error %s.",
 			networkID,
 			failureDetail.String())
 	}
@@ -282,7 +282,7 @@ func refreshNetworkConfiguration(
 			UpdateStatus:      datamodel.SubnetUpdateCompleted}
 		failureDetail = datamodel.PutSubnetConfiguration(&subnetConfig)
 		if failureDetail != nil {
-			logger.Errorf("Persisting configuration for subnet %s in network %s failed with error %s. \n",
+			logger.Errorf("Persisting configuration for subnet %s in network %s failed with error %s.",
 				subnetName,
 				networkID,
 				failureDetail.String())
@@ -307,7 +307,7 @@ func refreshNetworkConfiguration(
 		currentRepoSubnetCfg.UpdateStatus = datamodel.SubnetUpdateCompleted
 		datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
 		if failureDetail != nil {
-			logger.Errorf("Persisting updated configuration for subnet %s in network %s failed with error %s. \n",
+			logger.Errorf("Persisting updated configuration for subnet %s in network %s failed with error %s.",
 				subnetName,
 				networkID,
 				failureDetail.String())
@@ -315,7 +315,7 @@ func refreshNetworkConfiguration(
 		}
 	}
 
-	logger.Debugf("Updating vnetconfig with received version %d Phase 2 commit Response:%s\n",
+	logger.Debugf("Updating vnetconfig with received version %d Phase 2 commit Response:%s",
 		repoNetworkConfiguration.Version,
 		networkResponse.String())
 
@@ -323,7 +323,7 @@ func refreshNetworkConfiguration(
 	repoNetworkConfiguration.Status = datamodel.Completed
 	failureDetail = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
 	if failureDetail != nil {
-		logger.Errorf("Persisting configuration of network %s failed with error %s. \n",
+		logger.Errorf("Persisting configuration of network %s failed with error %s.",
 			networkID,
 			failureDetail.String())
 		return false, false

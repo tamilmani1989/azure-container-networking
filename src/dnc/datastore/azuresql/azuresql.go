@@ -127,7 +127,7 @@ func isSQLObjectExistError(err error) bool {
 }
 
 func getHTTPStatusCode(err error) int {
-	loggershim.LS.Debugf("Error Type: %s\n", reflect.TypeOf(err))
+	loggershim.LS.Debugf("Error Type: %s", reflect.TypeOf(err))
 	if driverErr, ok := err.(mssql.Error); ok { // Now the error number is accessible directly
 		isTransient := isTransientSQLError(driverErr.Number)
 		if isTransient {
@@ -163,7 +163,7 @@ func (azureSQL *AzureSQL) Init(tableToColumnMap map[string]string) {
 
 	defer func() {
 		if err != nil {
-			loggershim.LS.Debugf("Rolling back transaction due to error: %s\n", err.Error())
+			loggershim.LS.Debugf("Rolling back transaction due to error: %s", err.Error())
 			tx.Rollback()
 		} else {
 			tx.Commit()
@@ -197,13 +197,13 @@ func (azureSQL *AzureSQL) Delete(tableName string, rowKey string) error {
 
 	tx, err := azureSQL.db.Begin()
 	if err != nil {
-		loggershim.LS.Errorf("Failed to being transaction due to error: %s\n", err.Error())
+		loggershim.LS.Errorf("Failed to being transaction due to error: %s", err.Error())
 		return err
 	}
 
 	defer func() {
 		if err != nil {
-			loggershim.LS.Errorf("Rolling back transaction due to error: %s\n", err.Error())
+			loggershim.LS.Errorf("Rolling back transaction due to error: %s", err.Error())
 			tx.Rollback()
 		} else {
 			tx.Commit()
@@ -216,7 +216,7 @@ func (azureSQL *AzureSQL) Delete(tableName string, rowKey string) error {
 		sql.Named(rowKeyString, rowKey))
 
 	if err != nil {
-		log.Panicf("Error deleting row Delete Cmd:%s, Error:%s\n", deleteCmd, err.Error())
+		log.Panicf("Error deleting row Delete Cmd:%s, Error:%s", deleteCmd, err.Error())
 		return err
 	}
 
@@ -261,11 +261,11 @@ func (azureSQL *AzureSQL) Query(tableName, rowKey string) (interface{}, int, err
 		selectCmd,
 		sql.Named(rowKeyString, rowKey))
 	if err != nil {
-		loggershim.LS.Errorf("Error reading rows. Cmd:%s, Error:%s\n", selectCmd, err.Error())
+		loggershim.LS.Errorf("Error reading rows. Cmd:%s, Error:%s", selectCmd, err.Error())
 		return nil, -1, err
 	}
 
-	loggershim.LS.Debugf("Cmd:%s\n", selectCmd)
+	loggershim.LS.Debugf("Cmd:%s", selectCmd)
 
 	defer rows.Close()
 
@@ -276,7 +276,7 @@ func (azureSQL *AzureSQL) Query(tableName, rowKey string) (interface{}, int, err
 		// Get values from row.
 		err := rows.Scan(&data)
 		if err != nil {
-			loggershim.LS.Errorf("Error reading rows: %s\n", err.Error())
+			loggershim.LS.Errorf("Error reading rows: %s", err.Error())
 			return nil, getHTTPStatusCode(err), err
 		}
 
@@ -309,7 +309,7 @@ func (azureSQL *AzureSQL) QueryAllRows(tableName string, ctxt interface{}) (
 		ctx,
 		selectCmd)
 	if err != nil {
-		loggershim.LS.Errorf("Error reading rows, SelectCmd:%s, Error:%s\n", selectCmd, err.Error())
+		loggershim.LS.Errorf("Error reading rows, SelectCmd:%s, Error:%s", selectCmd, err.Error())
 		return nil, false, nil, getHTTPStatusCode(err), err
 	}
 
@@ -323,7 +323,7 @@ func (azureSQL *AzureSQL) QueryAllRows(tableName string, ctxt interface{}) (
 		// Get values from row.
 		err := rows.Scan(&rowKey, &data)
 		if err != nil {
-			loggershim.LS.Errorf("Error parsing retrieved rows, SelectCmd:%s, Error:%s\n", selectCmd, err.Error())
+			loggershim.LS.Errorf("Error parsing retrieved rows, SelectCmd:%s, Error:%s", selectCmd, err.Error())
 			return nil, false, nil, getHTTPStatusCode(err), err
 		}
 
@@ -360,9 +360,9 @@ func (azureSQL *AzureSQL) KeyExist(tableName, rowKey string) (bool, error) {
 	var count int
 	for rows.Next() {
 		err := rows.Scan(&count)
-		loggershim.LS.Debugf("Count %d\n", count)
+		loggershim.LS.Debugf("Count %d", count)
 		if err != nil {
-			loggershim.LS.Errorf("Failed to parse the retrieved count. CountCmd:%s, Error:%s\n", countCmd, err.Error())
+			loggershim.LS.Errorf("Failed to parse the retrieved count. CountCmd:%s, Error:%s", countCmd, err.Error())
 			return false, err
 		}
 	}
@@ -383,13 +383,13 @@ func (azureSQL *AzureSQL) insertOrUpdateRow(tableName, rowKey, propertyName stri
 	updateCmd := fmt.Sprintf(updateCmdFmtString, tableName, propertyName, propertyName, rowKeyString, rowKeyString)
 	tx, err = azureSQL.db.Begin()
 	if err != nil {
-		loggershim.LS.Errorf("Error when begining transaction. Error:%s\n", err.Error())
+		loggershim.LS.Errorf("Error when begining transaction. Error:%s", err.Error())
 		return err
 	}
 
 	defer func() {
 		if err != nil {
-			loggershim.LS.Errorf("Rolling back due to error %s\n", err.Error())
+			loggershim.LS.Errorf("Rolling back due to error %s", err.Error())
 			tx.Rollback()
 		} else {
 			tx.Commit()
@@ -403,13 +403,13 @@ func (azureSQL *AzureSQL) insertOrUpdateRow(tableName, rowKey, propertyName stri
 		sql.Named(rowKeyString, rowKey))
 
 	if err != nil {
-		loggershim.LS.Errorf("Error updating row, UpdateCmd:%s, Error:%s\n", updateCmd, err.Error())
+		loggershim.LS.Errorf("Error updating row, UpdateCmd:%s, Error:%s", updateCmd, err.Error())
 		return err
 	}
 
 	rowCount, err := result.RowsAffected()
 	if err != nil {
-		loggershim.LS.Errorf("Failed to retrieve rows affected from the result, UpdateCmd:%s, Error:%s\n", updateCmd, err.Error())
+		loggershim.LS.Errorf("Failed to retrieve rows affected from the result, UpdateCmd:%s, Error:%s", updateCmd, err.Error())
 		return err
 	}
 
@@ -420,17 +420,17 @@ func (azureSQL *AzureSQL) insertOrUpdateRow(tableName, rowKey, propertyName stri
 			sql.Named(propertyName, value),
 			sql.Named(rowKeyString, rowKey))
 		if err != nil {
-			loggershim.LS.Errorf("Error inserting row, InsertCmd:%s, Error:%s\n", insertCmd, err.Error())
+			loggershim.LS.Errorf("Error inserting row, InsertCmd:%s, Error:%s", insertCmd, err.Error())
 			return err
 		}
 
 		rowCount, err = result.RowsAffected()
 		if err != nil {
-			loggershim.LS.Errorf("Failed to retrieve rows affected from the result, InsertCmd:%s, Error:%s\n", insertCmd, err.Error())
+			loggershim.LS.Errorf("Failed to retrieve rows affected from the result, InsertCmd:%s, Error:%s", insertCmd, err.Error())
 			return err
 		}
 
-		loggershim.LS.Debugf("Inserted RowCount %d\n", rowCount)
+		loggershim.LS.Debugf("Inserted RowCount %d", rowCount)
 	}
 	return err
 }

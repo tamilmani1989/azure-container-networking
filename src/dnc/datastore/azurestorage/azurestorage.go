@@ -73,7 +73,7 @@ func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
 	// so we will try to recover and proceed from there.
 	defer func() {
 		if r := recover(); r != nil {
-			loggershim.LS.Errorf("[Azure DNC] Recovered from crash due to %+v\n", r)
+			loggershim.LS.Errorf("[Azure DNC] Recovered from crash due to %+v", r)
 		}
 	}()
 
@@ -319,7 +319,7 @@ func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string,
 func getEnvVarOrExit(varName string) string {
 	value := os.Getenv(varName)
 	if value == "" {
-		loggershim.LS.Errorf("Missing environment variable %s\n", varName)
+		loggershim.LS.Errorf("Missing environment variable %s", varName)
 		os.Exit(1)
 	}
 

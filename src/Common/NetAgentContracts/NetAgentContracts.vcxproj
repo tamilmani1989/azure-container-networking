@@ -20,6 +20,8 @@
     <ClCompile Include="CNIReport.cpp" />
 	  <ClCompile Include="NPMReport.cpp" />
     <ClCompile Include="DNCReport.cpp" />
+    <ClCompile Include="CNSReport.cpp" />
+    <ClCompile Include="Payload.cpp" />
     <ClCompile Include="PluginReport.cpp" />
     <ClCompile Include="Metadata.cpp" />
 	  <ClCompile Include="Kubernetes.cpp" />
@@ -27,6 +29,7 @@
   <ItemGroup>
     <ClInclude Include="Json.h" />
     <ClInclude Include="Metadata.h" />
+    <ClInclude Include="Payload.h" />
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

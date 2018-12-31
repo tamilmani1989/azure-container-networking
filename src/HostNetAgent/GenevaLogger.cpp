@@ -58,7 +58,59 @@ LPCSTR PER_NPM_MDM_METRICS[] = {
 LPCSTR PER_DNC_MDM_METRICS[] = {
     MDM_METRIC_DNC_RUNNING_STR,
     MDM_METRIC_DNC_HEARTBEAT_STR,
-    MDM_METRIC_DNC_ERROR_STR
+    MDM_METRIC_DNC_PRIMARY_NOT_AVAILABLE,
+    MDM_METRIC_DNC_JOIN_DENIED,
+    MDM_METRIC_DNC_ALLOCATION_PROCESS_FAILED_INTERNAL_ERROR,
+    MDM_METRIC_DNC_ALLOCATION_FAILED,
+    MDM_METRIC_DNC_NODE_PROCESSING_FAILED_DUE_TO_INTERNAL_ERROR,
+    MDM_METRIC_DNC_STATUS_INTERNAL_SERVER_ERROR,
+    MDM_METRIC_DNC_NETWORK_STATUS_INVALID,
+    MDM_METRIC_DNC_NETWORK_STATE_INVALID,
+    MDM_METRIC_DNC_INVALID_IP_SUBNET,                      
+    MDM_METRIC_DNC_INVALID_IP_CONSTRAINT,
+    MDM_METRIC_DNC_IP_CONSTRAINT_IS_OUTSIDE_SUBNET_RANGE,
+    MDM_METRIC_DNC_OUT_OF_VLAN_IDS,
+    MDM_METRIC_DNC_INVALID_NODE_IP_ADDRESS,
+    MDM_METRIC_DNC_JSON_BODY_UN_MARSHAL_FAILED,
+    MDM_METRIC_DNC_JSON_MARSHALLING_FAILED,
+    MDM_METRIC_DNC_JSON_UN_MARSHALLING_FAILED,
+    MDM_METRIC_DNC_RESERVATION_STATE_INVALID,
+    MDM_METRIC_DNC_NETWORK_JOIN_FAILED,                  
+    MDM_METRIC_DNC_DEOCODE_RESPONSE_FAILED,
+    MDM_METRIC_DNC_PARSE_RESPONSE_CODE_FAILED,
+    MDM_METRIC_DNC_PUBLISHING_FAILED,
+    MDM_METRIC_DNC_UNPUBLISHING_FAILED,
+    MDM_METRIC_DNC_PROCESSING_PENDING,
+    MDM_METRIC_DNC_ASSOCIATION_FAILED,
+    MDM_METRIC_DNC_DISASSOCIATION_FAILED,
+    MDM_METRIC_DNC_JOIN_FAILED,
+    MDM_METRIC_DNC_NETWORK_CONFIGURATION_RETRIEVAL_FAILED,
+    MDM_METRIC_DNC_GET_TAG_DEFINITION_FAILED,
+    MDM_METRIC_DNC_AGENT_TAG_DEFINITION_RETRIEVAL_FAILED,
+    MDM_METRIC_DNC_REPOSITORY_TAG_RETRIEVAL_FAILED,
+    MDM_METRIC_DNC_TAG_RESOLUTION_PENDING,
+    MDM_METRIC_DNC_INVALID_NETWORK_STATE_FOR_DELETE,
+    MDM_METRIC_DNC_NODE_CONTAINER_CAPACITY_EXHAUSTED
+};
+
+LPCSTR PER_CNS_MDM_METRICS[] = {
+    MDM_METRIC_CNS_RUNNING_STR,
+    MDM_METRIC_CNS_RUNNING_STR,
+    MDM_METRIC_CNS_UNSUPPORTED_NETWORK_TYPE,
+    MDM_METRIC_CNS_INVALID_PARAMETER,   
+    MDM_METRIC_CNS_UNREACHABLE_HOST,
+    MDM_METRIC_CNS_RESERVATION_NOT_FOUND,
+    MDM_METRIC_CNS_MALFORMED_SUBNET,
+    MDM_METRIC_CNS_UNREACHABLE_DOCKER_DAEMON,
+    MDM_METRIC_CNS_UNSPECIFIED_NETWORK_NAME,
+    MDM_METRIC_CNS_NOT_FOUND,
+    MDM_METRIC_CNS_ADDRESS_UNAVAILABLE,
+    MDM_METRIC_CNS_NETWORK_CONTAINER_NOT_SPECIFIED,
+    MDM_METRIC_CNS_CALL_TO_HOST_FAILED,
+    MDM_METRIC_CNS_UNKNOWN_CONTAINER_ID,
+    MDM_METRIC_CNS_UNSUPPORTED_ORCHESTRATOR_TYPE,
+    MDM_METRIC_CNS_UNEXPECTED_ERROR,
+    MDM_METRIC_CNS_UNKNOWN_ERROR
 };
 
 DWORD
@@ -457,9 +509,6 @@ HRESULT GenevaLogger::LogPerDNCMetricToMDM(
     string SubscriptionId,
     string ResourceGroupName,
     string PartitionKey,
-    string CPUUsage,
-    string MemoryUsage,
-    string Processes,
     string MetricName,
     ULONG64 Value
 ) 
@@ -479,12 +528,6 @@ Arguments:
 
     PartitionKey: Partition key dnc is using.
 
-    CPUUsage: Cpu usage.
-
-    MemoryUsage: Memory usage.
-
-    Processes: # of running processes.
-
     MetricName: Name of the metric.
 
     Value: Value of the metric.
@@ -496,8 +539,8 @@ Return Value:
 --*/
 {
     HRESULT hr = S_OK;
-    map<string, MeasureMetric7D*>::iterator metricItr;
-    MeasureMetric7D* metric = NULL;
+    map<string, MeasureMetric4D*>::iterator metricItr;
+    MeasureMetric4D* metric = NULL;
 
     if (!EnableMDMLogging) 
     {
@@ -515,14 +558,75 @@ Return Value:
             (LPCSTR)Location.c_str(),
             (LPCSTR)SubscriptionId.c_str(),
             (LPCSTR)ResourceGroupName.c_str(),
-            (LPCSTR)PartitionKey.c_str(),
-            (LPCSTR)CPUUsage.c_str(),
-            (LPCSTR)MemoryUsage.c_str(),
-            (LPCSTR)Processes.c_str()
+            (LPCSTR)PartitionKey.c_str()
         );
     }
     else {
         LOGERR("Failed to find per-DNC MDM metric : %hs", MetricName.c_str());
+    }
+
+    return hr;
+}
+
+HRESULT GenevaLogger::LogPerCNSMetricToMDM(
+    string Location,
+    string SubscriptionId,
+    string ResourceGroupName,
+    string PartitionKey,
+    string MetricName,
+    ULONG64 Value
+) 
+/*++
+
+Description:
+
+    Log per CNS MDM metric.
+
+Arguments:
+
+    Location - Azure region of the container resides.
+
+    SubscriptionId: ID of the instance's subscription.
+
+    ResourceGroupName: Name of the resource group.
+
+    PartitionKey: Partition key dnc is using.
+
+    MetricName: Name of the metric.
+
+    Value: Value of the metric.
+
+Return Value:
+
+    S_OK on success, error otherwise.
+
+--*/
+{
+    HRESULT hr = S_OK;
+    map<string, MeasureMetric4D*>::iterator metricItr;
+    MeasureMetric4D* metric = NULL;
+
+    if (!EnableMDMLogging) 
+    {
+        return hr;
+    }
+
+    metricItr = PerCNSMetrics.find(MetricName);
+
+    if (metricItr != PerCNSMetrics.end()) {
+
+        metric = metricItr->second;
+
+        hr = metric->LogValue(
+            Value,
+            (LPCSTR)Location.c_str(),
+            (LPCSTR)SubscriptionId.c_str(),
+            (LPCSTR)ResourceGroupName.c_str(),
+            (LPCSTR)PartitionKey.c_str()
+        );
+    }
+    else {
+        LOGERR("Failed to find per-CNS MDM metric : %hs", MetricName.c_str());
     }
 
     return hr;
@@ -601,7 +705,6 @@ Return Value:
     hr = xmlHelper.Initialize(SettingsFileName);
     if (hr != S_OK)
     {
-
         LOGERRW(L"XML initialization failed when loading file {%s} error [%0x].",
                 SettingsFileName, hr);
         goto Cleanup;
@@ -611,7 +714,6 @@ Return Value:
     hr = xmlHelper.QueryNodeValue(ENABLE_MA_NODE_PATH, result);
     if (hr != S_OK) 
     {
-
         LOGERRW(
             L"Query node value for path {%s} error [%0x].", 
                 ENABLE_MA_NODE_PATH, 
@@ -619,9 +721,9 @@ Return Value:
         );
         goto Cleanup;
     }
+    
     if(_wcsnicmp(_TRUE_, result.c_str(), sizeof(_TRUE_)) == 0) 
     {
-
         EnableMDMLogging = true;
     }
 
@@ -630,7 +732,6 @@ Return Value:
     hr = xmlHelper.QueryNodeValue(MDM_ACCOUNT_PATH, result);
     if (hr != S_OK)
     {
-
         LOGERRW(L"Query node value for path {%s} error [%0x].", MDM_ACCOUNT_PATH, hr);
         goto Cleanup;
     }
@@ -638,7 +739,6 @@ Return Value:
     err = ToAnsi(result.c_str(), &mdmAccountName);
     if(err != ERROR_SUCCESS) 
     {
-
         LOGERRW(
             L"Failed to convert account name {%s} to ANSI.error [%0x].", 
                 result.c_str(), 
@@ -653,7 +753,6 @@ Return Value:
     err = ToAnsi(PackageVersion, &netAgentVersion);
     if (err != ERROR_SUCCESS) 
     {
-
         LOGERRW(
             L"Failed to convert package version {%s} to ANSI.error [%0x].", 
                 PackageVersion, 
@@ -670,7 +769,6 @@ Return Value:
     // Create per-Container metrics.
     for (int i = 0; i < ARRAYSIZE(PER_CONTAINER_MDM_GUEST_METRICS); i++) 
     {
-
         LPCSTR metricName = PER_CONTAINER_MDM_GUEST_METRICS[i];
         MeasureMetric6D* metric = MeasureMetric6D::Create(
                                       MdmAccountNameA.c_str(),
@@ -783,17 +881,14 @@ Return Value:
     for (int i = 0; i < ARRAYSIZE(PER_DNC_MDM_METRICS); i++) 
     {
         LPCSTR metricName = PER_DNC_MDM_METRICS[i];
-        MeasureMetric7D* metric = MeasureMetric7D::Create(
+        MeasureMetric4D* metric = MeasureMetric4D::Create(
             MdmAccountNameA.c_str(),
             MDM_NAMESPACE,
             metricName,
             MDM_DIMENSION_NAME_SUBSCRIPTION_ID_STR,
             MDM_DIMENSION_NAME_RESOURCE_GROUP_NAME_STR,
             MDM_DIMENSION_NAME_PARTITION_KEY_STR,
-            MDM_DIMENSION_NAME_LOCATION_STR,
-            MDM_DIMENSION_NAME_CPU_USAGE_STR,
-            MDM_DIMENSION_NAME_MEMORY_USAGE_STR,
-            MDM_DIMENSION_NAME_PROCESSES_STR
+            MDM_DIMENSION_NAME_LOCATION_STR
         );
 
         if (metric != NULL)
@@ -804,6 +899,38 @@ Return Value:
                 MdmAccountNameA.c_str()
             );
             PerDNCMetrics.insert(make_pair(string(metricName), metric));
+        }
+        else
+        {
+            LOGWARNW(
+                L"Failed to create metric %hs on account %hs.",
+                metricName,
+                MdmAccountNameA.c_str()
+            );
+        }
+    }
+
+    for (int i = 0; i < ARRAYSIZE(PER_CNS_MDM_METRICS); i++) 
+    {
+        LPCSTR metricName = PER_CNS_MDM_METRICS[i];
+        MeasureMetric4D* metric = MeasureMetric4D::Create(
+            MdmAccountNameA.c_str(),
+            MDM_NAMESPACE,
+            metricName,
+            MDM_DIMENSION_NAME_SUBSCRIPTION_ID_STR,
+            MDM_DIMENSION_NAME_RESOURCE_GROUP_NAME_STR,
+            MDM_DIMENSION_NAME_PARTITION_KEY_STR,
+            MDM_DIMENSION_NAME_LOCATION_STR
+        );
+
+        if (metric != NULL)
+        {
+            LOGINFOW(
+                L"Created metric %hs on account %hs.",
+                metricName,
+                MdmAccountNameA.c_str()
+            );
+            PerCNSMetrics.insert(make_pair(string(metricName), metric));
         }
         else
         {
@@ -1428,9 +1555,6 @@ Return Value:
             ws2s(DNCReport.Metadata.SubscriptionID),
             ws2s(DNCReport.Metadata.ResourceGroupName),
             ws2s(DNCReport.PartitionKey),
-            ws2s(DNCReport.CPUUsage),
-            ws2s(DNCReport.MemoryUsage),
-            ws2s(DNCReport.Processes),
             MDM_METRIC_DNC_RUNNING_STR,
             1
         );
@@ -1440,16 +1564,91 @@ Return Value:
             LOGERRW(L"Uploading DNC metrics to mdm failed with errorcode %d", hr);
         }
     } 
-    else {
-        hr = LogPerDNCMetricToMDM(
-            ws2s(DNCReport.Metadata.Location),
-            ws2s(DNCReport.Metadata.SubscriptionID),
-            ws2s(DNCReport.Metadata.ResourceGroupName),
-            ws2s(DNCReport.PartitionKey),
-            ws2s(DNCReport.CPUUsage),
-            ws2s(DNCReport.MemoryUsage),
-            ws2s(DNCReport.Processes),
-            ( DNCReport.EventMessage.compare(L"Heartbeat") ) ? MDM_METRIC_DNC_ERROR_STR : MDM_METRIC_DNC_HEARTBEAT_STR,
+
+    hr = LogPerDNCMetricToMDM(
+        ws2s(DNCReport.Metadata.Location),
+        ws2s(DNCReport.Metadata.SubscriptionID),
+        ws2s(DNCReport.Metadata.ResourceGroupName),
+        ws2s(DNCReport.PartitionKey),
+        ( DNCReport.EventMessage.compare(L"Heartbeat") ) ? ws2s(DNCReport.Errorcode) : MDM_METRIC_DNC_HEARTBEAT_STR,
+        1
+    );
+
+    if (hr != ERROR_SUCCESS)
+    {
+        LOGERRW(L"Uploading DNC metrics to mdm failed with errorcode %d", hr);
+    }
+
+    HostNetAgentEvents::DNCEvent dncReport;
+    dncReport.Location = DNCReport.Metadata.Location;
+    dncReport.VMName = DNCReport.Metadata.VMName;
+    dncReport.Offer = DNCReport.Metadata.Offer;
+    dncReport.OSType = DNCReport.Metadata.OSType;
+    dncReport.SubscriptionID = DNCReport.Metadata.SubscriptionID;
+    dncReport.PlatformFaultDomain = DNCReport.Metadata.PlatformFaultDomain;
+    dncReport.PlatformUpdateDomain = DNCReport.Metadata.PlatformUpdateDomain;
+    dncReport.Publisher = DNCReport.Metadata.Publisher;
+    dncReport.ResourceGroupName = DNCReport.Metadata.ResourceGroupName;
+    dncReport.Sku = DNCReport.Metadata.Sku;
+    dncReport.Tags = DNCReport.Metadata.Tags;
+    dncReport.OSVersion = DNCReport.Metadata.OSVersion;
+    dncReport.KernelVersion = DNCReport.Metadata.KernelVersion;
+    dncReport.VMID = DNCReport.Metadata.VMID;
+    dncReport.VMSize = DNCReport.Metadata.VMSize;
+    dncReport.PartitionKey = DNCReport.PartitionKey;
+    dncReport.Allocations = DNCReport.Allocations;
+    dncReport.CPUUsage = DNCReport.CPUUsage;
+    dncReport.MemoryUsage = DNCReport.MemoryUsage;
+    dncReport.Processes = DNCReport.Processes;
+    dncReport.EventMessage = DNCReport.EventMessage;
+    dncReport.Timestamp = DNCReport.Timestamp;
+    dncReport.Errorcode = DNCReport.Errorcode;
+    dncReport.UUID = DNCReport.UUID;
+
+    hr = Ifx::LogExtendedObjectTextPropertyChange(
+        L"Report",
+        L"beef9fa7-97f5-4acc-b8ba-b06c1bf36601",
+        L"Report Type",
+        L"DNC",
+        dncReport,
+        NULL,
+        NULL,
+        NULL
+    );
+
+    if (hr != ERROR_SUCCESS)
+    {
+        LOGERRW(L"Uploading DNC metrics to mds failed with errorcode %X", hr);
+    }
+}
+
+void GenevaLogger::LogCNSReport(CNSReport & CNSReport)
+/*++
+
+Routine Description:
+
+    Helper to log report to MDM and MDS.
+
+Arguments:
+
+    CNSReport - The CNS report to be logged.
+
+Return Value:
+
+    None.
+
+--*/
+{
+    HRESULT hr = S_OK;
+
+    if (CNSReport.IsNewInstance)
+    {
+        hr = LogPerCNSMetricToMDM(
+            ws2s(CNSReport.Metadata.Location),
+            ws2s(CNSReport.Metadata.SubscriptionID),
+            ws2s(CNSReport.Metadata.ResourceGroupName),
+            ws2s(CNSReport.PartitionKey),
+            MDM_METRIC_CNS_RUNNING_STR,
             1
         );
 
@@ -1457,36 +1656,55 @@ Return Value:
         {
             LOGERRW(L"Uploading DNC metrics to mdm failed with errorcode %d", hr);
         }
+    }
+    
+    if (CNSReport.EventMessage.compare(L"Heartbeat")) 
+    {
+        hr = LogPerCNSMetricToMDM(
+            ws2s(CNSReport.Metadata.Location),
+            ws2s(CNSReport.Metadata.SubscriptionID),
+            ws2s(CNSReport.Metadata.ResourceGroupName),
+            ws2s(CNSReport.PartitionKey),
+            ws2s(CNSReport.Errorcode),
+            1
+        );
 
-        HostNetAgentEvents::DNCEvent dncReport;
-        dncReport.Location = DNCReport.Metadata.Location;
-        dncReport.VMName = DNCReport.Metadata.VMName;
-        dncReport.Offer = DNCReport.Metadata.Offer;
-        dncReport.OSType = DNCReport.Metadata.OSType;
-        dncReport.SubscriptionID = DNCReport.Metadata.SubscriptionID;
-        dncReport.PlatformFaultDomain = DNCReport.Metadata.PlatformFaultDomain;
-        dncReport.PlatformUpdateDomain = DNCReport.Metadata.PlatformUpdateDomain;
-        dncReport.Publisher = DNCReport.Metadata.Publisher;
-        dncReport.ResourceGroupName = DNCReport.Metadata.ResourceGroupName;
-        dncReport.Sku = DNCReport.Metadata.Sku;
-        dncReport.Tags = DNCReport.Metadata.Tags;
-        dncReport.OSVersion = DNCReport.Metadata.OSVersion;
-        dncReport.KernelVersion = DNCReport.Metadata.KernelVersion;
-        dncReport.VMID = DNCReport.Metadata.VMID;
-        dncReport.VMSize = DNCReport.Metadata.VMSize;
-        dncReport.PartitionKey = DNCReport.PartitionKey;
-        dncReport.Allocations = DNCReport.Allocations;
-        dncReport.CPUUsage = DNCReport.CPUUsage;
-        dncReport.MemoryUsage = DNCReport.MemoryUsage;
-        dncReport.Processes = DNCReport.Processes;
-        dncReport.EventMessage = DNCReport.EventMessage;
+        if (hr != ERROR_SUCCESS)
+        {
+            LOGERRW(L"Uploading CNS metrics to mdm failed with errorcode %d", hr);
+        }
+
+        HostNetAgentEvents::CNSEvent cnsReport;
+        cnsReport.Location = CNSReport.Metadata.Location;
+        cnsReport.VMName = CNSReport.Metadata.VMName;
+        cnsReport.Offer = CNSReport.Metadata.Offer;
+        cnsReport.OSType = CNSReport.Metadata.OSType;
+        cnsReport.SubscriptionID = CNSReport.Metadata.SubscriptionID;
+        cnsReport.PlatformFaultDomain = CNSReport.Metadata.PlatformFaultDomain;
+        cnsReport.PlatformUpdateDomain = CNSReport.Metadata.PlatformUpdateDomain;
+        cnsReport.Publisher = CNSReport.Metadata.Publisher;
+        cnsReport.ResourceGroupName = CNSReport.Metadata.ResourceGroupName;
+        cnsReport.Sku = CNSReport.Metadata.Sku;
+        cnsReport.Tags = CNSReport.Metadata.Tags;
+        cnsReport.OSVersion = CNSReport.Metadata.OSVersion;
+        cnsReport.KernelVersion = CNSReport.Metadata.KernelVersion;
+        cnsReport.VMID = CNSReport.Metadata.VMID;
+        cnsReport.VMSize = CNSReport.Metadata.VMSize;
+        cnsReport.PartitionKey = CNSReport.PartitionKey;
+        cnsReport.CPUUsage = CNSReport.CPUUsage;
+        cnsReport.MemoryUsage = CNSReport.MemoryUsage;
+        cnsReport.Processes = CNSReport.Processes;
+        cnsReport.EventMessage = CNSReport.EventMessage;
+        cnsReport.Timestamp = CNSReport.Timestamp;
+        cnsReport.UUID = CNSReport.UUID;
+        cnsReport.Errorcode = CNSReport.Errorcode;
 
         hr = Ifx::LogExtendedObjectTextPropertyChange(
             L"Report",
             L"beef9fa7-97f5-4acc-b8ba-b06c1bf36601",
             L"Report Type",
-            L"DNC",
-            dncReport,
+            L"CNS",
+            cnsReport,
             NULL,
             NULL,
             NULL
@@ -1494,7 +1712,23 @@ Return Value:
 
         if (hr != ERROR_SUCCESS)
         {
-            LOGERRW(L"Uploading DNC metrics to mds failed with errorcode %X", hr);
+            LOGERRW(L"Uploading CNS metrics to mds failed with errorcode %X", hr);
+        }
+    } 
+    else
+    {
+        hr = LogPerCNSMetricToMDM(
+            ws2s(CNSReport.Metadata.Location),
+            ws2s(CNSReport.Metadata.SubscriptionID),
+            ws2s(CNSReport.Metadata.ResourceGroupName),
+            ws2s(CNSReport.PartitionKey),
+            MDM_METRIC_CNS_HEARTBEAT_STR,
+            1
+        );
+
+        if (hr != ERROR_SUCCESS)
+        {
+            LOGERRW(L"Uploading CNS metrics to mdm failed with errorcode %d", hr);
         }
     }
 }

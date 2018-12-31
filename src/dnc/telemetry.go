@@ -3,7 +3,6 @@ package main
 import (
 	"dnc/api"
 	"dnc/datamodel"
-	"dnc/netagentcontracts"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -11,106 +10,134 @@ import (
 
 	"github.com/Azure/azure-container-networking/platform"
 	"github.com/Azure/azure-container-networking/telemetry"
+	"github.com/google/uuid"
 )
 
-// DNCReport structure.
-type DNCReport struct {
-	IsNewInstance bool
-	CPUUsage      string
-	MemoryUsage   string
-	Processes     string
-	EventMessage  string
-	PartitionKey  string
-	Allocations   string
-	Metadata      telemetry.Metadata `json:"compute"`
-}
-
 const (
-	// DNCTelemetryFile Path.
+	// DNCTelemetryFile - telemetry file path.
 	DNCTelemetryFile = platform.DNCRuntimePath + "AzureDNCTelemetry.json"
-	HostNetAgentUrl  = "http://169.254.169.254/machine/plugins?comp=netagent&type=dncreport"
+	// HostNetAgentURL - Host Net Agent url and content type
+	HostNetAgentURL = "http://169.254.169.254/machine/plugins?comp=netagent&type=dncreport"
 )
 
 func sendTelemetry() {
-	heartbeat := time.NewTicker(time.Minute * 30).C
-	reportMgr := telemetry.ReportManager{
-		HostNetAgentURL: HostNetAgentUrl,
-		ContentType:     telemetry.ContentType,
-		Report: &DNCReport{
-			PartitionKey: config.DataStoreSettings.AzureStorageInfo.PartitionKey,
-		},
-	}
+	retrieveMetadata := true
 
-	if err := reportMgr.GetHostMetadata(); err != nil {
-		reports <- netagentcontracts.DNCReport{EventMessage: "Failed to retrieve host metadata."}
-	}
+CONNECT:
+	telemetryBuffer, err := telemetry.NewTelemetryBuffer()
+	if err == nil {
+		go telemetryBuffer.Start(reportToHostInterval)
 
-	reportMgr.GetReportState(DNCTelemetryFile)
-	reportMgr.GetKernelVersion()
+		heartbeat := time.NewTicker(time.Minute * 30).C
+		reportMgr := telemetry.ReportManager{
+			HostNetAgentURL: HostNetAgentURL,
+			ContentType:     telemetry.ContentType,
+			Report: &telemetry.DNCReport{
+				PartitionKey: config.DataStoreSettings.AzureStorageInfo.PartitionKey,
+			},
+		}
 
-	for {
-		if replicaInstance.IsReplicaPrimary() {
-			select {
-			case <-heartbeat:
-				reflect.ValueOf(reportMgr.Report).Elem().FieldByName("EventMessage").SetString("Heartbeat")
-				// get all nodes and their configurations
-				nodes, err := datamodel.GetAllNodeIDs()
-				if err == nil {
-					allocations := make(map[string]map[string]map[string][]string)
-					for nodeKey := range nodes {
-						nodeID := datamodel.GetNodeIDFromKey(nodeKey)
-						sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
-						sessionManager.BeginReadSession(sessionInfo)
-						nodeConfig, jsonerr := datamodel.TryQueryNodeConfigurationByKey(nodeKey)
-						sessionManager.EndReadSession(sessionInfo)
-						if jsonerr == nil {
-							// loop through the deployed network containers in each node
-							for networkID, ncMap := range nodeConfig.DeployedNetworkContainerMap {
-								reservedIPs, jsonerr := reportNetworkConfiguration(nodeID, networkID, allocations)
-								if jsonerr == nil {
-									// if a reservationID matches an existing reservation, combine the corresponding ncID and its IP
-									for ncID, reservationID := range ncMap {
-										for subnet := range allocations[networkID] {
-											if ip, exists := reservedIPs[reservationID]; exists {
-												allocations[networkID][subnet][nodeID] = append(allocations[networkID][subnet][nodeID], ncID+":"+ip)
-												break
+		reportMgr.GetReportState(DNCTelemetryFile)
+		reportMgr.GetKernelVersion()
+
+		for {
+			if replicaInstance.IsReplicaPrimary() {
+				// Try to retrieve metadata until successful
+				if retrieveMetadata {
+					if err := reportMgr.GetHostMetadata(); err != nil {
+						reports <- telemetry.DNCReport{EventMessage: fmt.Sprintf("Failed to retrieve host metadata with error: %s", err.Error())}
+					} else {
+						retrieveMetadata = false
+					}
+				}
+
+				select {
+				case <-heartbeat:
+					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("EventMessage").SetString("Heartbeat")
+					// get all nodes and their configurations
+					nodes, err := datamodel.GetAllNodeIDs()
+					if err == nil {
+						allocations := make(map[string]map[string]map[string][]string)
+						for nodeKey := range nodes {
+							nodeID := datamodel.GetNodeIDFromKey(nodeKey)
+							sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
+							sessionManager.BeginReadSession(sessionInfo)
+							nodeConfig, jsonerr := datamodel.TryQueryNodeConfigurationByKey(nodeKey)
+							sessionManager.EndReadSession(sessionInfo)
+							if jsonerr == nil {
+								// loop through the deployed network containers in each node
+								for networkID, ncMap := range nodeConfig.DeployedNetworkContainerMap {
+									reservedIPs, jsonerr := reportNetworkConfiguration(nodeID, networkID, allocations)
+									if jsonerr == nil {
+										// if a reservationID matches an existing reservation, combine the corresponding ncID and its IP
+										for ncID, reservationID := range ncMap {
+											for subnet := range allocations[networkID] {
+												if ip, exists := reservedIPs[reservationID]; exists {
+													allocations[networkID][subnet][nodeID] = append(allocations[networkID][subnet][nodeID], ncID+":"+ip)
+													break
+												}
 											}
 										}
+									} else {
+										err = fmt.Errorf(jsonerr.String())
+										goto cleanup
 									}
-								} else {
-									err = fmt.Errorf(jsonerr.String())
-									goto cleanup
 								}
+							} else {
+								err = fmt.Errorf(jsonerr.String())
+								goto cleanup
 							}
-						} else {
-							err = fmt.Errorf(jsonerr.String())
-							goto cleanup
+						}
+
+						allocationsStr, err := json.Marshal(allocations)
+						if err == nil {
+							reflect.ValueOf(reportMgr.Report).Elem().FieldByName("Allocations").SetString(string(allocationsStr))
 						}
 					}
 
-					allocationsStr, err := json.Marshal(allocations)
-					if err == nil {
-						reflect.ValueOf(reportMgr.Report).Elem().FieldByName("Allocations").SetString(string(allocationsStr))
+				cleanup:
+					if err != nil {
+						logger.Debugf("[telemetry] %s", err.Error())
+					}
+
+					// We can use this upon CLA approval
+					// reportMgr.GetSystemDetails()
+
+				case msg := <-reports:
+					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("EventMessage").SetString(msg.EventMessage)
+					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("Errorcode").SetString(msg.Errorcode)
+
+				case <-telemetryStopProcessing:
+					telemetryBuffer.Cancel()
+					return
+				}
+
+				reflect.ValueOf(reportMgr.Report).Elem().FieldByName("Timestamp").SetString(time.Now().UTC().String())
+				if id, err := uuid.NewUUID(); err == nil {
+					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("UUID").SetString(id.String())
+				}
+
+				logger.Debugf("[Telemetry] %+v", reportMgr.Report)
+				if !reportMgr.GetReportState(DNCTelemetryFile) {
+					reportMgr.SetReportState(DNCTelemetryFile)
+				}
+
+				report, err := reportMgr.ReportToBytes()
+				if err == nil {
+					// If write fails, try to re-establish connections as server/client
+					if _, err = telemetryBuffer.Write(report); err != nil {
+						telemetryBuffer.Cancel()
+						goto CONNECT
 					}
 				}
-
-			cleanup:
-				if err != nil {
-					logger.Debugf("[telemetry] %s", err.Error())
-				}
-
-				// We can use this upon CLA approval
-				// reportMgr.GetSystemDetails()
-
-			case msg := <-reports:
-				reflect.ValueOf(reportMgr.Report).Elem().FieldByName("EventMessage").SetString(msg.EventMessage)
+			} else {
+				time.Sleep(time.Minute * 1)
 			}
-
-			logger.Debugf("[Telemetry] %+v", reportMgr.Report)
-			reportMgr.SetReportState(DNCTelemetryFile)
-		} else {
-			time.Sleep(time.Minute * 1)
 		}
+	} else {
+		logger.Debugf("[Telemetry] Failed to establish telemetry buffer connection.")
+		time.Sleep(time.Minute * 1)
+		goto CONNECT
 	}
 }
 

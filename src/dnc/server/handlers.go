@@ -569,7 +569,7 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	networkID := vars["networkID"]
 	subnet := vars["subnet"]
-	loggershim.LS.Debugf("Subnet: %s\n", subnet)
+	loggershim.LS.Debugf("Subnet: %s", subnet)
 	var subnetRequest api.SubnetRequest
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
@@ -609,7 +609,7 @@ func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	subnet, ok := vars["subnet"]
-	loggershim.LS.Debugf("Subnet: %s\n", subnet)
+	loggershim.LS.Debugf("Subnet: %s", subnet)
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidSubnetName,
@@ -649,7 +649,7 @@ func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	subnet, ok := vars["subnet"]
-	loggershim.LS.Debugf("Subnet: %s\n", subnet)
+	loggershim.LS.Debugf("Subnet: %s", subnet)
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidSubnetName,

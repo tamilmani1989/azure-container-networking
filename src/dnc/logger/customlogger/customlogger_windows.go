@@ -2,13 +2,18 @@ package customlogger
 
 import (
 	"dnc/configuration"
-	"dnc/netagentcontracts"
 	"fmt"
 	"os"
+	"regexp"
 	"syscall"
 	"unsafe"
 
 	"github.com/Azure/azure-container-networking/log"
+	"github.com/Azure/azure-container-networking/telemetry"
+)
+
+const (
+	errorcodePrefix = 5
 )
 
 // CustomLogger :- struct to hold CustomLogger settings.
@@ -20,7 +25,7 @@ type CustomLogger struct {
 	fnName       string
 	dll          syscall.Handle
 	instance     *log.Logger
-	reports      chan netagentcontracts.DNCReport
+	reports      chan telemetry.DNCReport
 }
 
 // NewCustomLogger :- Create new CustomLogger
@@ -32,17 +37,17 @@ func NewCustomLogger(cfg configuration.CustomLoggerSettings) *CustomLogger {
 }
 
 // Init :- Initialize CustomLogger
-func (l *CustomLogger) Init(stderr bool, reports chan netagentcontracts.DNCReport) {
+func (l *CustomLogger) Init(stderr bool, reports chan telemetry.DNCReport) {
 	var err error
 	l.dll, err = syscall.LoadLibrary(l.dllName)
 	if err != nil {
-		fmt.Printf("%s: %s\n", "Failed to load logging dll", err)
+		fmt.Printf("%s: %s", "Failed to load logging dll", err)
 		os.Exit(1)
 	}
 
 	l.procEventLog, err = syscall.GetProcAddress(l.dll, l.fnName)
 	if err != nil {
-		fmt.Printf("%s: %s\n", "Failed to load logging function", err)
+		fmt.Printf("%s: %s", "Failed to load logging function", err)
 		os.Exit(1)
 	}
 
@@ -61,7 +66,7 @@ func (l *CustomLogger) Init(stderr bool, reports chan netagentcontracts.DNCRepor
 func (l *CustomLogger) Debugf(format string, args ...interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
-			l.instance.Printf("[Azure DNC] Recovered from crash due to %+v\n", r)
+			l.instance.Printf("[Azure DNC] Recovered from crash due to %+v", r)
 		}
 	}()
 
@@ -76,13 +81,19 @@ func (l *CustomLogger) Debugf(format string, args ...interface{}) {
 func (l *CustomLogger) Errorf(format string, args ...interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
-			l.instance.Printf("[Azure DNC] Recovered from crash due to %+v\n", r)
+			l.instance.Printf("[Azure DNC] Recovered from crash due to %+v", r)
 		}
 	}()
 
 	l.instance.Printf(format, args...)
 	go func() {
-		l.reports <- netagentcontracts.DNCReport{EventMessage: fmt.Sprintf(format, args...)}
+		msg := fmt.Sprintf(format, args...)
+		codeStr := regexp.MustCompile(`Code:(\w*)`).FindString(msg)
+		if len(codeStr) > errorcodePrefix {
+			l.reports <- telemetry.DNCReport{Errorcode: codeStr[errorcodePrefix:], EventMessage: msg}
+		} else {
+			l.reports <- telemetry.DNCReport{EventMessage: msg}
+		}
 	}()
 
 	if ptr, err := convertStrToPass(fmt.Sprintf(format, args...)); err == nil {

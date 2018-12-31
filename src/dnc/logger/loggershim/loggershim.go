@@ -4,7 +4,8 @@ import (
 	"dnc/configuration"
 	"dnc/logger/acnlogger"
 	"dnc/logger/customlogger"
-	"dnc/netagentcontracts"
+
+	"github.com/Azure/azure-container-networking/telemetry"
 )
 
 // LS :- Global reference to loggershim
@@ -12,7 +13,7 @@ var LS *LoggerShim
 
 // LoggerInterface :- Logging interface
 type LoggerInterface interface {
-	Init(stderr bool, reports chan netagentcontracts.DNCReport)
+	Init(stderr bool, reports chan telemetry.DNCReport)
 	Debugf(format string, args ...interface{})
 	Errorf(format string, args ...interface{})
 	Close()
@@ -38,7 +39,7 @@ func NewLoggerShim(cfg *configuration.Configuration) *LoggerShim {
 }
 
 // Init :- Initialize logger
-func (loggerShim *LoggerShim) Init(stderr bool, reports chan netagentcontracts.DNCReport) {
+func (loggerShim *LoggerShim) Init(stderr bool, reports chan telemetry.DNCReport) {
 	loggerShim.loggerInterface.Init(stderr, reports)
 }
 

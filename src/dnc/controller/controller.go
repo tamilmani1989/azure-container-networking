@@ -45,7 +45,7 @@ func NewController(replica *replica.Replica, sessionsManager *utils.SessionManag
 func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoRequest, apiVersion string) *api.JsonErr {
 	loggershim.LS.Debugf("Create Node request: %s", nodeInfo.String())
 	// Send OrchestratorType to CNS
-	info := &cns.SetOrchestratorTypeRequest{OrchestratorType: nodeInfo.OrchestratorType}
+	info := &cns.SetOrchestratorTypeRequest{OrchestratorType: nodeInfo.OrchestratorType, DncPartitionKey: config.DataStoreSettings.AzureStorageInfo.PartitionKey}
 	var body bytes.Buffer
 	var resp cns.Response
 

@@ -74,6 +74,9 @@ Return Value:
     DNCReportFieldIdMap[CPU_USAGE_STR] = DNCEnum::DNCReportKey::CPUUsage;
     DNCReportFieldIdMap[MEMORY_USAGE_STR] = DNCEnum::DNCReportKey::MemoryUsage;
     DNCReportFieldIdMap[PROCESSES_STR] = DNCEnum::DNCReportKey::Processes;
+    DNCReportFieldIdMap[TIMESTAMP_STR] = DNCEnum::DNCReportKey::Timestamp;
+    DNCReportFieldIdMap[UUID_STR] = DNCEnum::DNCReportKey::UUID;
+    DNCReportFieldIdMap[ERRORCODE_STR] = DNCEnum::DNCReportKey::Errorcode;
     DNCReportFieldIdMap[METADATA_STR] = DNCEnum::DNCReportKey::Compute;
 }
 
@@ -119,6 +122,15 @@ Return Value:
     case DNCEnum::DNCReportKey::Processes:
         Processes = Value.as_string();
         break;
+    case DNCEnum::DNCReportKey::Timestamp:
+        Timestamp = Value.as_string();
+        break;
+    case DNCEnum::DNCReportKey::UUID:
+        UUID = Value.as_string();
+        break;
+    case DNCEnum::DNCReportKey::Errorcode:
+        Errorcode = Value.as_string();
+        break;
     case DNCEnum::DNCReportKey::Compute:
         Metadata = Metadata::Metadata(Value.as_object());
         break;
@@ -143,13 +155,16 @@ Return Value:
 --*/
 {
     wstring s = L"DNCReport: {";
-    s += L"IsNewInstance: " + ConvertBoolToWstring(IsNewInstance) +L"\n";
+    s += L"IsNewInstance: " + ConvertBoolToWstring(IsNewInstance) + L"\n";
     s += L"EventMessage: " + EventMessage + L"\n";
     s += L"PartitionKey: " + PartitionKey + L"\n";
     s += L"Allocations: " + Allocations + L"\n";
     s += L"CPUUsage: " + CPUUsage + L"\n";
     s += L"MemoryUsage: " + MemoryUsage + L"\n";
     s += L"Processes: " + Processes + L"\n";
+    s += L"Timestamp: " + Timestamp + L"\n";
+    s += L"UUID: " + UUID + L"\n";
+    s += L"Errorcode: " + Errorcode + L"\n";
     Metadata.Print();
 
     LOGINFOW(L"%s}", s.c_str());

@@ -26,6 +26,36 @@ struct DNCEvent:Ifx.ObjectTextPropertySchema
     190: required wstring MemoryUsage;
     200: required wstring Processes;
     210: required wstring EventMessage;
+    220: required wstring Timestamp;
+    230: required wstring Errorcode;
+    240: required wstring UUID;
+};
+
+struct CNSEvent:Ifx.ObjectTextPropertySchema
+{
+    10: required wstring Location;
+    20: required wstring VMName;
+    30: required wstring Offer;
+    40: required wstring OSType;
+    50: required wstring SubscriptionID;
+    60: required wstring PlatformFaultDomain;
+    70: required wstring PlatformUpdateDomain;
+    80: required wstring Publisher;
+    90: required wstring ResourceGroupName;
+    100: required wstring Sku;
+    110: required wstring Tags;
+    120: required wstring OSVersion;
+    130: required wstring KernelVersion;
+    140: required wstring VMID;
+    150: required wstring VMSize;
+    160: required wstring PartitionKey;
+    170: required wstring CPUUsage;
+    180: required wstring MemoryUsage;
+    190: required wstring Processes;
+    200: required wstring EventMessage;
+    210: required wstring Timestamp;
+    220: required wstring UUID;
+    230: required wstring Errorcode;
 };
 
 struct NPMEvent:Ifx.ObjectTextPropertySchema

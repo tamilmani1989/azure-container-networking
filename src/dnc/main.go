@@ -6,7 +6,6 @@ import (
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
 	"dnc/masterelection/masterelectionshim"
-	"dnc/netagentcontracts"
 	"dnc/replica"
 	"dnc/server"
 	"dnc/utils"
@@ -15,6 +14,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/Azure/azure-container-networking/telemetry"
 )
 
 var isPrimary struct{ flag int32 }
@@ -29,7 +30,8 @@ var networkMonitorStopProcessing = make(chan bool)
 var tagMonitorStopProcessing = make(chan bool)
 var refreshNCStartProcessing = make(chan bool)
 var refreshNCStopProcessing = make(chan bool)
-var reports = make(chan netagentcontracts.DNCReport)
+var telemetryStopProcessing = make(chan bool)
+var reports = make(chan telemetry.DNCReport)
 
 var config *configuration.Configuration
 var masterElectionShim *masterelectionshim.MasterElectionShim
@@ -51,6 +53,9 @@ var sleepIntervalBetweenNetworkBatches time.Duration
 
 // SleepIntervalBetweenNetworkRefresh
 var sleepIntervalBetweenNetworkRefresh time.Duration
+
+// Interval between batch reports send to host
+var reportToHostInterval time.Duration
 
 func init() {
 	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
@@ -85,6 +90,7 @@ func init() {
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
 	sleepIntervalBetweenNetworkBatches = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkBatches) * time.Millisecond
 	sleepIntervalBetweenNetworkRefresh = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkRefresh) * time.Millisecond
+	reportToHostInterval = time.Duration(config.DNCSettings.ReportToHostInterval) * time.Millisecond
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
@@ -134,6 +140,11 @@ func setDncConfigDefaults() {
 		config.DNCSettings.SleepIntervalBetweenNetworkBatches = 60000
 	}
 
+	if config.DNCSettings.ReportToHostInterval < 60000 {
+		// Set default to 1 min
+		config.DNCSettings.ReportToHostInterval = 60000
+	}
+
 	if config.DNCSettings.SleepIntervalBetweenNetworkRefresh == 0 {
 		// Set default to 1 min
 		config.DNCSettings.SleepIntervalBetweenNetworkRefresh = 300
@@ -149,6 +160,8 @@ func processExitCallback() {
 	if config.DataStoreSettings.TestPersistenceStoreInfo.Test != "" {
 		datamodel.DumpState()
 	}
+
+	cancelProcessing <- true
 }
 
 func startReplica(c *controller.Controller) {

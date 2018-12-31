@@ -34,6 +34,9 @@ using namespace web;
 #define CPU_USAGE_STR L"CPUUsage"
 #define MEMORY_USAGE_STR L"MemoryUsage"
 #define PROCESSES_STR L"Processes"
+#define TIMESTAMP_STR L"Timestamp"
+#define UUID_STR L"UUID"
+#define ERRORCODE_STR L"Errorcode"
 
 //
 // Enums for fields in the DNC report.
@@ -49,6 +52,9 @@ namespace DNCEnum
         CPUUsage,
         MemoryUsage,
         Processes,
+        Timestamp,
+        UUID,
+        Errorcode,
         Compute
     };
 }
@@ -82,6 +88,15 @@ public:
 
     // Processes.
     wstring Processes;
+
+    // Timestamp
+    wstring Timestamp;
+
+    // UUID
+    wstring UUID;
+
+    // Errorcode
+    wstring Errorcode;
 
     // Metadata for Azure DNC report.
     Metadata Metadata;

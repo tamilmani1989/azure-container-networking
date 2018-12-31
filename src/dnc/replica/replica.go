@@ -107,7 +107,7 @@ func (replica *Replica) getReplicaIPAddress() (string, error) {
 	if ipAddress == "" {
 		ipAddress, err = utils.GetLocalIP()
 		if err != nil {
-			loggershim.LS.Errorf("Failed to retrieve IP Address due to error: %s\n", err.Error())
+			loggershim.LS.Errorf("Failed to retrieve IP Address due to error: %s", err.Error())
 			return "", err
 		}
 	}
