@@ -126,6 +126,14 @@ Return Value:
 
 --*/
 {
+	// Prevent memory exhaustion attack, since we have a [] operator
+	// in the switch statement below.
+	if (HealthReportFieldIdMap.find(Name) == HealthReportFieldIdMap.end())
+	{
+		wprintf(L"Unknown key:{%s}", Name.c_str());
+		return;
+	}
+
     switch (HealthReportFieldIdMap[Name])
     {
     case HealthEnum::ReportKey::GuestOSFamily:

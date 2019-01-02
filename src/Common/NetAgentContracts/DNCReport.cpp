@@ -99,6 +99,14 @@ Return Value:
 
 --*/
 {
+	// Prevent memory exhaustion attack, since we have a [] operator
+	// in the switch statement below.
+	if (DNCReportFieldIdMap.find(Name) == DNCReportFieldIdMap.end())
+	{
+		wprintf(L"Unknown key:{%s}", Name.c_str());
+		return;
+	}
+
     switch (DNCReportFieldIdMap[Name])
     {
     case DNCEnum::DNCReportKey::IsNewInstance:

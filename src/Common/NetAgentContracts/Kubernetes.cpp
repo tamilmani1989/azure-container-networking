@@ -104,6 +104,14 @@ Return Value:
 
 --*/
 {
+	// Prevent memory exhaustion attack, since we have a [] operator
+	// in the switch statement below.
+	if (ClusterStateFieldIdMap.find(Name) == ClusterStateFieldIdMap.end())
+	{
+		wprintf(L"Unknown key:{%s}", Name.c_str());
+		return;
+	}
+
 	switch (ClusterStateFieldIdMap[Name])
 	{
 	case ClusterStateEnum::ClusterStateKey::PodCount:

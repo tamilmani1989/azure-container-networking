@@ -89,6 +89,14 @@ None.
 
 --*/
 {
+	// Prevent memory exhaustion attack, since we have a [] operator
+	// in the switch statement below.
+	if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
+	{
+		wprintf(L"Unknown key:{%s}", FieldName.c_str());
+		return;
+	}
+
     switch (PluginReportFieldIdMap[FieldName])
     {
     case PluginReportKey::OrchestratorName:
@@ -130,6 +138,14 @@ None.
 
 --*/
 {
+	// Prevent memory exhaustion attack, since we have a [] operator
+	// in the switch statement below.
+	if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
+	{
+		wprintf(L"Unknown key:{%s}", FieldName.c_str());
+		return;
+	}
+
     switch (PluginReportFieldIdMap[FieldName])
     {
     case PluginReportKey::OSType:
@@ -179,6 +195,14 @@ None.
 
 --*/
 {
+	// Prevent memory exhaustion attack, since we have a [] operator
+	// in the switch statement below.
+	if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
+	{
+		wprintf(L"Unknown key:{%s}", FieldName.c_str());
+		return;
+	}
+
     switch (PluginReportFieldIdMap[FieldName])
     {
     case PluginReportKey::MemVMTotal:
@@ -237,6 +261,14 @@ Return Value:
 
 --*/
 {
+	// Prevent memory exhaustion attack, since we have a [] operator
+	// in the switch statement below.
+	if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
+	{
+		wprintf(L"Unknown key:{%s}", FieldName.c_str());
+		return false;
+	}
+
     switch (PluginReportFieldIdMap[FieldName])
     {
     case PluginReportKey::Name:

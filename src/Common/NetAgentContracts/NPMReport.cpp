@@ -99,6 +99,14 @@ Return Value:
 
 --*/
 {
+	// Prevent memory exhaustion attack, since we have a [] operator
+	// in the switch statement below.
+	if (NPMReportFieldIdMap.find(Name) == NPMReportFieldIdMap.end())
+	{
+		wprintf(L"Unknown key:{%s}", Name.c_str());
+		return;
+	}
+
 	switch (NPMReportFieldIdMap[Name])
 	{
 	case NPMEnum::NPMReportKey::IsNewInstance:

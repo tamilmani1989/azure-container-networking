@@ -109,6 +109,14 @@ Return Value:
 
 --*/
 {
+	// Prevent memory exhaustion attack, since we have a [] operator
+	// in the switch statement below.
+	if (CNIReportFieldIdMap.find(Name) == CNIReportFieldIdMap.end())
+	{
+		wprintf(L"Unknown key:{%s}", Name.c_str());
+		return;
+	}
+
     switch (CNIReportFieldIdMap[FieldName])
     {
     case CNIEnum::CNIReportKey::InterfaceType:
