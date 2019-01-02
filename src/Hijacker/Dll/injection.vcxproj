@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{0dac2212-f348-467e-ae4b-7a72d28eae4a}</ProjectGuid>
+        <ProjectName>Injection</ProjectName>
+        <ConfigurationType>DynamicLibrary</ConfigurationType>
+    </PropertyGroup>
+    <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+    <Import Project="$(SRCROOT)\build\native_user_link.props" />
+    <ItemGroup>
+        <ProjectReference Include="$(SRCROOT)\Common\detours\detours.vcxproj">
+            <LinkLibraryDependencies>true</LinkLibraryDependencies>
+        </ProjectReference>
+    </ItemGroup>
+    <ItemDefinitionGroup>
+        <Link>
+            <EntryPointSymbol>_DllMainCRTStartup</EntryPointSymbol>
+            <SpecifySectionAttributes>.idata,R</SpecifySectionAttributes>
+            <AdditionalDependencies>
+                %(AdditionalDependencies);
+                $(WindowsSdk64LibPath)\ole32.lib;
+                $(WindowsSdk64LibPath)\ws2_32.lib;
+                $(WindowsSdk64LibPath)\oleaut32.lib;
+                $(WindowsSdk64LibPath)\Crypt32.lib;
+                $(WindowsSdk64LibPath)\rpcrt4.lib;
+                $(PkgWindowsWdk_Corext)\Lib\10.0.16299.0\um\arm64\shell32.lib;
+                $(cpprestsdk)\lib\native\v140\windesktop\msvcstl\dyn\rt-dyn\x64\Release\cpprest140_2_9.lib;
+            </AdditionalDependencies>
+            <AdditionalLibraryDirectories>
+                %(AdditionalLibraryDirectories);
+                $(Pkgboost_locale_vc141)\lib\native\address-model-64\lib;
+            </AdditionalLibraryDirectories>
+        </Link>
+        <ClCompile>
+            <AdditionalIncludeDirectories>
+                $(SRCROOT)\Common\detours;
+                %(AdditionalIncludeDirectories);
+                $(cpprestsdk)\build\native\include;
+                $(SRCROOT)\Common\NetAgentContracts;
+                $(SRCROOT)\Logging;
+            </AdditionalIncludeDirectories>
+        </ClCompile>
+    </ItemDefinitionGroup>
+    <ItemGroup>
+        <ClCompile Include="injection.cpp" />
+        <ClCompile Include="..\..\Common\NetAgentContracts\GetInterfaceForContainerResponse.cpp" />
+    </ItemGroup>
+    <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+    <Target Name="AfterBuild">
+        <ItemGroup>
+            <Robocopy Include="$(BinariesBuildTypeArchDirectory)\Injection\*.dll">
+                <DestinationFolder>$(BinariesBuildTypeArchDirectory)\Hijacker</DestinationFolder>
+            </Robocopy>
+        </ItemGroup>
+    </Target>
+</Project>

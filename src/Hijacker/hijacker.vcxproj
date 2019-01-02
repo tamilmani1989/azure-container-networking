@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{b78065d9-8912-4b66-82c2-c98184cee9c6}</ProjectGuid>
+        <RootNamespace>Aquarius</RootNamespace>
+        <ProjectName>Hijacker</ProjectName>
+        <ConfigurationType>Application</ConfigurationType>
+    </PropertyGroup>
+    <Import Project="$(SRCROOT)\build\native_user_compile.props" />
+    <Import Project="$(SRCROOT)\build\native_user_link.props" />
+    <ItemGroup>
+        <ClCompile Include="hijacker.cpp" />
+    </ItemGroup>
+    <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
