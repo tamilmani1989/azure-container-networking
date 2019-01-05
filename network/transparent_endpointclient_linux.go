@@ -1,11 +1,13 @@
 package network
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
 	"github.com/Azure/azure-container-networking/network/epcommon"
+	"github.com/Azure/azure-container-networking/platform"
 )
 
 const (
@@ -41,6 +43,12 @@ func NewTransparentEndpointClient(
 	}
 
 	return client
+}
+
+func setArpProxy(ifName string) error {
+	cmd := fmt.Sprintf("echo 1 > /proc/sys/net/ipv4/conf/%v/proxy_arp", ifName)
+	_, err := platform.ExecuteCommand(cmd)
+	return err
 }
 
 func (client *TransparentEndpointClient) AddEndpoints(epInfo *EndpointInfo) error {
@@ -80,6 +88,13 @@ func (client *TransparentEndpointClient) AddEndpointRules(epInfo *EndpointInfo) 
 			return err
 		}
 	}
+
+	log.Printf("calling setArpProxy for %v", client.hostVethName)
+	if err := setArpProxy(client.hostVethName); err != nil {
+		log.Printf("setArpProxy failed with: %v", err)
+		return err
+	}
+
 	return nil
 }
 

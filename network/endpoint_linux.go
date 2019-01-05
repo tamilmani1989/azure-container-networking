@@ -21,9 +21,6 @@ const (
 	// Prefix for host virtual network interface names.
 	hostVEthInterfacePrefix = commonInterfacePrefix + "v"
 
-	// Prefix for host veth interfaces in transparent mode.
-	transPrefix = "cali"
-
 	// Prefix for container network interface names.
 	containerInterfacePrefix = "eth"
 )
@@ -74,11 +71,7 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 		log.Printf("Generate veth name based on the key provided")
 		key := epInfo.Data[OptVethName].(string)
 		vethname := generateVethName(key)
-		if nw.Mode == opModeTransparent {
-			hostIfName = fmt.Sprintf("%s%s", transPrefix, vethname)
-		} else {
-			hostIfName = fmt.Sprintf("%s%s", hostVEthInterfacePrefix, vethname)
-		}
+		hostIfName = fmt.Sprintf("%s%s", hostVEthInterfacePrefix, vethname)
 		contIfName = fmt.Sprintf("%s%s2", hostVEthInterfacePrefix, vethname)
 	} else {
 		// Create a veth pair.
