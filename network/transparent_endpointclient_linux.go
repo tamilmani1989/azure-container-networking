@@ -138,23 +138,7 @@ func (client *TransparentEndpointClient) ConfigureContainerInterfacesAndRoutes(e
 		return err
 	}
 
-	if err := addRoutes(client.containerVethName, epInfo.Routes); err != nil {
-		return err
-	}
-
-	// gw := getDefaultGateway(epInfo.Routes)
-	// if gw == nil {
-	// 	log.Printf("Default gateway not found in routes")
-	// 	return nil
-	// }
-
-	// log.Printf("Add static arp entry in pod ip %v mac %v", gw.String(), client.hostVethMac)
-	// err := netlink.AddOrRemoveStaticArp(netlink.ADD, client.containerVethName, gw, client.hostVethMac)
-	// if err != nil {
-	// 	log.Printf("[net] Setting static arp for ip %v mac %v failed with error %v", gw.String(), client.hostVethMac, err)
-	// }
-
-	return nil
+	return addRoutes(client.containerVethName, epInfo.Routes)
 }
 
 func (client *TransparentEndpointClient) DeleteEndpoints(ep *endpoint) error {
