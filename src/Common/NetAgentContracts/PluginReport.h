@@ -124,12 +124,12 @@ public:
 // System Details
 class SystemInfo {
 public:
-    UINT64 MemVMTotal;
-    UINT64 MemVMFree;
-    UINT64 MemUsedByProcess;
-    UINT64 DiskVMTotal;
-    UINT64 DiskVMFree;
-    int CPUCount;
+    UINT64 MemVMTotal = 0;
+    UINT64 MemVMFree = 0;
+    UINT64 MemUsedByProcess = 0;
+    UINT64 DiskVMTotal = 0;
+    UINT64 DiskVMFree = 0;
+    int CPUCount = 0;
     wstring ErrorMessage;
 
     void

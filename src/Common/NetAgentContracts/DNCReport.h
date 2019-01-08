@@ -69,7 +69,7 @@ public:
     DNCReport(json::object& JsonObject);
 
     // Flag to identify number of VMs running Azure DNC.
-    bool IsNewInstance;
+    bool IsNewInstance = false;
 
     // Event message.
     wstring EventMessage;

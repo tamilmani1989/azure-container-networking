@@ -55,13 +55,13 @@ public:
 	ClusterState(json::object &JsonObject);
 
 	// Number of pods in the cluster.
-	int PodCount;
+	int PodCount = 0;
 
 	// Number of namespaces in the cluster.
-	int NsCount;
+	int NsCount = 0;
 
 	// Number of network policies in the cluster.
-	int NwPolicyCount;
+	int NwPolicyCount = 0;
 
 	// Initialize metadata fields.
 	static void InitializeFieldIdMap();

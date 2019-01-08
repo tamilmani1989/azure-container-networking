@@ -90,8 +90,8 @@ public:
     wstring PrimaryCA;
     wstring MAC;
     wstring Name;
-    int SecondaryCATotalCount;
-    int SecondaryCAUsedCount;
+    int SecondaryCATotalCount = 0;
+    int SecondaryCAUsedCount = 0;
     wstring ErrorMessage;
 
     void
@@ -119,10 +119,10 @@ public:
 	CNIReport(json::object &JsonObject);
 
     // Flag to identify Number of VMs running this Plugin
-    bool IsNewInstance;
+    bool IsNewInstance = false;
     
     // Flag to indicate whether CNI ran successfully
-    bool CniSucceeded;
+    bool CniSucceeded = false;
     
     // VnetAddressSpaces in a VNET
     vector <wstring> VnetAddressSpace;
