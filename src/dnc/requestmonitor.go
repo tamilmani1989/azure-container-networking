@@ -1645,7 +1645,7 @@ func processNetworkContainerPublish(repoNCConfig *datamodel.NCConfiguration) (bo
 	createNCURL := fmt.Sprintf(
 		config.HostAgentSettings.ConnectionStrings.PutNetworkContainerURLFmt,
 		config.HostAgentSettings.WireServerIP,
-		ncGoalState.NodeInterfaceID,
+		ncGoalState.AssociatedInterfaceID,
 		ncGoalState.NetworkContainerID,
 		ncGoalState.AccessToken)
 	logger.Debugf("Create Url:%s, body:%s", createNCURL, ncRequest.String())
