@@ -1735,7 +1735,7 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 	deleteNCURL := fmt.Sprintf(
 		config.HostAgentSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
 		config.HostAgentSettings.WireServerIP,
-		ncGoalState.NodeInterfaceID,
+		ncGoalState.AssociatedInterfaceID,
 		ncGoalState.NetworkContainerID,
 		ncGoalState.AccessToken)
 	logger.Debugf("Unpublishing: Url:%s", deleteNCURL)
