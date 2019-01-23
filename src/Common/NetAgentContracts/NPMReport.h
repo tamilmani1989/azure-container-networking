@@ -68,7 +68,7 @@ public:
 	NPMReport(json::object& JsonObject);
 
 	// Flag to identify number of VMs running Azure NPM.
-	bool IsNewInstance;
+	bool IsNewInstance = false;
 
 	// Unique identifier for the cluster.
 	wstring ClusterId;

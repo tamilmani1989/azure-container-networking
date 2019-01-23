@@ -35,7 +35,7 @@
   <ItemGroup>
     <ContentWithTargetPath Include="Scripts\entryPoint.cmd">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>entrypoint.cmd</TargetPath>
+      <TargetPath>entryPoint.cmd</TargetPath>
     </ContentWithTargetPath>
     <ContentWithTargetPath Include="Scripts\dotnet-include.sh">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

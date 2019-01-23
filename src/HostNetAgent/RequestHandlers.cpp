@@ -227,12 +227,12 @@ Return Value:
     json::value jsonBody;
     GenevaLogger* genevaLogger;
 
-    LOGINFOW(L"Received request:{%s}", Request.to_string().c_str());
+    // to-do : to_string() seems to crash due to arrays in json payload
+    // LOGINFOW(L"Received request:{%s}", Request.to_string().c_str());
 
     genevaLogger = GenevaLogger::GetInstance();
     if (genevaLogger == NULL) 
     {
-
         LOGERRW(L"Failed to allocate memory for mdm Logger");
         goto Cleanup;
     }
@@ -242,7 +242,6 @@ Return Value:
                                           requestType);
     if (hr != S_OK)
     {
-
         LOGERRW(L"Invalid URI received in the request");
         statusCode = status_codes::BadRequest;
         goto Cleanup;
@@ -271,7 +270,6 @@ Return Value:
         }
         catch (const exception& e) 
         {
-
             LOGERR("Failed to process health report with exception :{%s}", e.what());
             statusCode = status_codes::BadRequest;
             goto Cleanup;
@@ -318,6 +316,25 @@ Return Value:
         catch (const exception& e) 
         {
             LOGERR("Failed to process DNC report with exception :{%s}", e.what());
+            statusCode = status_codes::BadRequest;
+            goto Cleanup;
+        }
+    }
+    else if ( requestType == POST_REPORTS_PAYLOAD_KEY )
+    {
+        try 
+        {
+            Payload payload(jsonBody.as_object());
+            payload.Print();
+
+            for ( auto iter = payload.DNCReports.begin(); iter != payload.DNCReports.end(); ++iter ) genevaLogger->LogDNCReport(*iter);
+            for ( auto iter = payload.CNIReports.begin(); iter != payload.CNIReports.end(); ++iter ) genevaLogger->LogCNIReport(containerId, *iter);
+            for ( auto iter = payload.NPMReports.begin(); iter != payload.NPMReports.end(); ++iter ) genevaLogger->LogNPMReport(*iter);
+            for ( auto iter = payload.CNSReports.begin(); iter != payload.CNSReports.end(); ++iter ) genevaLogger->LogCNSReport(*iter);
+        }
+        catch (const exception& e) 
+        {
+            LOGERR("Failed to process Reports payload with exception :{%s}", e.what());
             statusCode = status_codes::BadRequest;
             goto Cleanup;
         }

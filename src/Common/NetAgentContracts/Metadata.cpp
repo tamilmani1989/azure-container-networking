@@ -121,6 +121,14 @@ Return Value:
 
 --*/
 {
+	// Prevent memory exhaustion attack, since we have a [] operator
+	// in the switch statement below.
+	if (MetadataFieldIdMap.find(Name) == MetadataFieldIdMap.end())
+	{
+		LOGERRW(L"Unknown key:{%s}", Name.c_str());
+		return;
+	}
+
 	switch (MetadataFieldIdMap[Name])
 	{
 	case MetadataEnum::MetadataKey::Location:

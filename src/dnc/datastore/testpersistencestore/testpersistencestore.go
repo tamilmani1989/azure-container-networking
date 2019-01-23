@@ -21,7 +21,7 @@ type TestPersistenceStore struct {
 
 // Init :- Initialize a TestPersistenceStore struct for testing purposes.
 func (testpersistencestore *TestPersistenceStore) Init(tableToColumnMap map[string]string) {
-	loggershim.LS.Debugf("Initializing TestPersistenceDataStore.datastore : map[tableName]map[rowKey]value.\n")
+	loggershim.LS.Debugf("Initializing TestPersistenceDataStore.datastore : map[tableName]map[rowKey]value.")
 	testpersistencestore.datastore = make(map[string]map[string]interface{})
 	testpersistencestore.locks = make(map[string]*sync.RWMutex)
 
@@ -36,7 +36,7 @@ func (testpersistencestore *TestPersistenceStore) Delete(tableName, rowKey strin
 	testpersistencestore.locks[tableName].Lock()
 	delete(testpersistencestore.datastore[tableName], rowKey)
 	testpersistencestore.locks[tableName].Unlock()
-	loggershim.LS.Debugf("Deleted value with rowKey [%s] in %s.n\n", rowKey, tableName)
+	loggershim.LS.Debugf("Deleted value with rowKey [%s] in %s.n", rowKey, tableName)
 	return nil
 }
 
@@ -51,7 +51,7 @@ func (testpersistencestore *TestPersistenceStore) InsertOrUpdate(tableName, rowK
 	testpersistencestore.datastore[tableName][rowKey] = value
 	testpersistencestore.locks[tableName].Unlock()
 
-	loggershim.LS.Debugf("Assigned [%+v] to [%s] with rowKey [%s].\n", value, tableName, rowKey)
+	loggershim.LS.Debugf("Assigned [%+v] to [%s] with rowKey [%s].", value, tableName, rowKey)
 	return nil
 }
 
@@ -81,9 +81,9 @@ func (testpersistencestore *TestPersistenceStore) Query(tableName, rowKey string
 
 	if success {
 		status = http.StatusOK
-		//loggershim.LS.Debugf("Found value [%s] from [%s] with rowKey [%s].\n", value, tableName, rowKey)
+		//loggershim.LS.Debugf("Found value [%s] from [%s] with rowKey [%s].", value, tableName, rowKey)
 	} else {
-		loggershim.LS.Debugf("Failed to query from [%s] with rowKey [%s].\n", tableName, rowKey)
+		loggershim.LS.Debugf("Failed to query from [%s] with rowKey [%s].", tableName, rowKey)
 	}
 
 	return value, status, nil
@@ -131,6 +131,6 @@ func (testpersistencestore *TestPersistenceStore) KeyExist(tableName, rowKey str
 		existstr = "does not exist"
 	}
 
-	loggershim.LS.Debugf("rowKey [%s] %s in [%s].\n", rowKey, existstr, tableName)
+	loggershim.LS.Debugf("rowKey [%s] %s in [%s].", rowKey, existstr, tableName)
 	return retrieved, nil
 }

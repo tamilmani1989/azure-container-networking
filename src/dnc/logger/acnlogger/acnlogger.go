@@ -1,16 +1,21 @@
 package acnlogger
 
 import (
-	"dnc/netagentcontracts"
 	"fmt"
+	"regexp"
 
 	"github.com/Azure/azure-container-networking/log"
+	"github.com/Azure/azure-container-networking/telemetry"
+)
+
+const (
+	errorcodePrefix = 5
 )
 
 // AcnLogger :- struct to hold AcnLogger settings.
 type AcnLogger struct {
 	instance *log.Logger
-	reports  chan netagentcontracts.DNCReport
+	reports  chan telemetry.DNCReport
 }
 
 // NewAcnLogger :- Create new AcnLogger
@@ -20,7 +25,7 @@ func NewAcnLogger() *AcnLogger {
 }
 
 // Init :- Initialize AcnLogger
-func (l *AcnLogger) Init(stderr bool, reports chan netagentcontracts.DNCReport) {
+func (l *AcnLogger) Init(stderr bool, reports chan telemetry.DNCReport) {
 	logLevel := log.LevelDebug
 	logTarget := log.TargetLogfile
 
@@ -41,7 +46,13 @@ func (l *AcnLogger) Debugf(format string, args ...interface{}) {
 func (l *AcnLogger) Errorf(format string, args ...interface{}) {
 	l.instance.Printf(format, args...)
 	go func() {
-		l.reports <- netagentcontracts.DNCReport{EventMessage: fmt.Sprintf(format, args...)}
+		msg := fmt.Sprintf(format, args...)
+		codeStr := regexp.MustCompile(`Code:(\w*)`).FindString(msg)
+		if len(codeStr) > errorcodePrefix {
+			l.reports <- telemetry.DNCReport{Errorcode: codeStr[errorcodePrefix:], EventMessage: msg}
+		} else {
+			l.reports <- telemetry.DNCReport{EventMessage: msg}
+		}
 	}()
 }
 

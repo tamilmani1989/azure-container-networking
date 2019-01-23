@@ -3,9 +3,9 @@
 //     Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
 // <summary>
-// 
+//
 // </summary>
-// 
+//
 //-----------------------------------------------------------------------
 namespace Microsoft.WindowsAzure.Networking.Aquarius.CNIReportTests
 {
@@ -29,7 +29,7 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.CNIReportTests
         /// Name of Plugin.
         /// </summary>
         private static readonly string Name = "Name";
-        
+
         /// <summary>
         /// Version of Plugin.
         /// </summary>
@@ -41,6 +41,21 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.CNIReportTests
         private static readonly string ErrorMessage = "ErrorMessage";
 
         /// <summary>
+        /// Error Message if plugin encounters any.
+        /// </summary>
+        private static readonly string EventMessage = "EventMessage";
+
+        /// <summary>
+        /// Context for the event.
+        /// </summary>
+        private static readonly string OperationType = "OperationType";
+
+        /// <summary>
+        /// SubContext for the event.
+        /// </summary>
+        private static readonly string OperationDuration = "OperationDuration";
+
+        /// <summary>
         /// Context for the event.
         /// </summary>
         private static readonly string Context = "Context";
@@ -49,6 +64,26 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.CNIReportTests
         /// SubContext for the event.
         /// </summary>
         private static readonly string SubContext = "SubContext";
+
+        /// <summary>
+        /// SubContext for the event.
+        /// </summary>
+        private static readonly string VMUptime = "VMUptime";
+
+        /// <summary>
+        /// SubContext for the event.
+        /// </summary>
+        private static readonly string InfraVnetID = "InfraVnetID";
+
+        /// <summary>
+        /// SubContext for the event.
+        /// </summary>
+        private static readonly string Timestamp = "Timestamp";
+
+        /// <summary>
+        /// SubContext for the event.
+        /// </summary>
+        private static readonly string ContainerName = "ContainerName";
 
         /// <summary>
         /// OrchestratorDetails Object.
@@ -300,8 +335,15 @@ namespace Microsoft.WindowsAzure.Networking.Aquarius.CNIReportTests
                 new JProperty(Name, "CNI"),
                 new JProperty(Version, "v1.0.0"),
                 new JProperty(ErrorMessage, string.Empty),
+                new JProperty(EventMessage, "Cni succeeeded"),
                 new JProperty(Context, "AzureCNI"),
                 new JProperty(SubContext, string.Empty),
+                new JProperty(OperationType, "ADD"),
+                new JProperty(OperationDuration, 2),
+                new JProperty(VMUptime, "150"),
+                new JProperty(Timestamp, "11-10-2019"),
+                new JProperty(InfraVnetID, string.Empty),
+                new JProperty(ContainerName, "container.namespace"),
                 new JProperty(StartFlag, true),
                 new JProperty(CniSucceeded, true),
                 new JProperty(OrchestratorDetails, orchestratorDetailsValue),

@@ -35,7 +35,7 @@ func (s Uint16s) Sort() {
 // onErrorFail prints a failure message and exits the program if err is not nil.
 func OnErrorFail(err error, message string) {
 	if err != nil {
-		loggershim.LS.Errorf("%s: %s\n", message, err)
+		loggershim.LS.Errorf("%s: %s", message, err)
 		os.Exit(1)
 	}
 }

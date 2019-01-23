@@ -138,6 +138,8 @@ type DNCSettings struct {
 	TagRefreshInterval int
 	// Refresh interval for sending goal states to CNS for an NC. Default 1 min.
 	NetworkContainerRefreshInterval int
+	// Refresh interval for sending batch reports to host. Default 1 min.
+	ReportToHostInterval int
 	// Concurrent request to process in a given batch. Defualt 5.
 	ConcurrentRequestsToProcess int
 }
@@ -178,7 +180,7 @@ func Load(configFile string) *Configuration {
 
 	// Parse the config
 	if err := json.Unmarshal(jsonBytes, &config); err != nil {
-		log.Fatalf("Could not parse %s: %v\n", configFile, err)
+		log.Fatalf("Could not parse %s: %v", configFile, err)
 	}
 
 	return &config

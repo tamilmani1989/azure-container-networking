@@ -8,9 +8,20 @@ pushd $PWD
 # Figure out location of this script. Don't assume absolute paths because paths can change between pipeline host and dev box.
 export DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# Get our Go compiler
+GODIR="$DIR/go1-10"
+if [ ! -d $GODIR ]; then
+    mkdir -p $GODIR
+    wget https://storage.googleapis.com/golang/go1.10.2.linux-amd64.tar.gz
+    tar -C $GODIR -xvf go1.10.2.linux-amd64.tar.gz
+    rm go1.10.2.linux-amd64.tar.gz
+fi
+
 # Set env variables
 export GOOS=$2
 export GOPATH=$DIR
+export GOROOT="$GODIR/go"
+export PATH=$GOROOT/bin:$PATH
 
 case $1 in
     "build" )

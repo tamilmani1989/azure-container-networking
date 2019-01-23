@@ -2951,7 +2951,7 @@ func TestValidateBatching(t *testing.T) {
 		networkDeploymentRequest.WaitForJoin = false
 	}
 	elapsedDuration, _ := time.ParseDuration(refreshStatus.TimeToRefresh)
-	timeElapsedBetweenNetworkRefresh := (sleepBetweenNetworks * (len(networkDeploymentRequests)-1)) // -1 since we do single backoff
+	timeElapsedBetweenNetworkRefresh := (sleepBetweenNetworks * (len(networkDeploymentRequests) - 1)) // -1 since we do single backoff
 	lowerLimit := time.Duration(backoffInterval+timeElapsedBetweenNetworkRefresh) * time.Millisecond
 	if elapsedDuration > lowerLimit {
 		err := fmt.Errorf("Time to refresh Vnets %d expected to be less than backoff time, Elapsed time:%v Expected:[0, %v]",

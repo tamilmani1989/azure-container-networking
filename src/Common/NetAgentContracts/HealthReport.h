@@ -96,34 +96,34 @@ public:
 	wstring DebugMessage;
 
 	// Driver Installation setup succeeded.
-	bool DriverInstallPreSetupSucceeded;
+	bool DriverInstallPreSetupSucceeded = false;
 
 	// Driver Installation setup failed.
-	bool DriverInstallPreSetupFailed;
+	bool DriverInstallPreSetupFailed = false;
 
 	// Driver Installation setup not attempted.
-	bool DriverInstallPreSetupNotAttempted;
+	bool DriverInstallPreSetupNotAttempted = false;
 
     // Driver installation not attempted.
-    bool DriverInstallNotAttempted;
+    bool DriverInstallNotAttempted = false;
 
     // Driver installation not attmepted.
-    bool DriverInstallAttempted;
+    bool DriverInstallAttempted = false;
 
     // Driver installation succeeded.
-    bool DriverInstallSucceeded;
+    bool DriverInstallSucceeded = false;
 
     // Driver installation failed.
-    bool DriverInstallFailed;
+    bool DriverInstallFailed = false;
 
     // Total VF devices count in the VM.
-    int TotalVFDevicesCount;
+    int TotalVFDevicesCount = 0;
 
     // Total non functioning VF devices in the VM.
-    int NonFunctionalVFDevicesCount;
+    int NonFunctionalVFDevicesCount = 0;
 
     // Error Code if installation fails.
-    int ErrorCode;
+    int ErrorCode = 0;
 
     static void
     InitializeFieldIdMap();

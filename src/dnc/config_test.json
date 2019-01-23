@@ -1,14 +1,14 @@
 {  
    "DataStoreSettings":{  
-      "TestPersistenceStoreInfo":{  
+      "TestPersistenceStoreInfo":{
          "Test":"TestStore"
       }
    },
-   "ServerSettings":{  
+   "ServerSettings":{
       "IPAddress":"127.0.0.1",
       "Port":"9000"
    },
-   "MasterElectionSettings":{  
+   "MasterElectionSettings":{
        "TestDataElectionSettings":{
         "Test":"TestStore"
        }
@@ -49,6 +49,7 @@
         "SleepIntervalBetweenNetworkRefresh":1000,
         "TagRefreshInterval":1000,
         "NetworkContainerRefreshInterval": 1000,
+        "ReportToHostInterval": 60000,
         "ConcurrentRequestsToProcess" : 10
     }
 }

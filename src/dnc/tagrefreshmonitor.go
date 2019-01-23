@@ -90,7 +90,7 @@ func hydrateTagsCache() *api.JsonErr {
 
 	repoTagsDefinitionMap, err := datamodel.GetAllTagDefinitions()
 	if err != nil {
-		logger.Errorf("Retrieval of tag defintitions failed with error:%s.\n",
+		logger.Errorf("Retrieval of tag defintitions failed with error:%s.",
 			err.Error())
 		return &api.JsonErr{
 			Code:       api.RepositoryTagRetrievalFailed,
@@ -233,7 +233,7 @@ func RefreshTag(tag nmagentcontracts.Tag, tagDefinition datamodel.TagDefinition)
 		tag.Name,
 		nmagentcontracts.IPv4)
 	if err != nil {
-		logger.Errorf("Request to get definition for tag %s failed with error %s.\n",
+		logger.Errorf("Request to get definition for tag %s failed with error %s.",
 			tag.Name,
 			err.String())
 		return datamodel.TagDefinition{}, err
