@@ -43,8 +43,13 @@ using namespace web;
 #define NAME_STR                    L"Name"
 #define VERSION_STR                 L"Version"
 #define ERROR_MESSAGE_STR           L"ErrorMessage"
+#define EVENT_MESSAGE_STR           L"EventMessage"
+#define OPTYPE_STR                  L"OperationType"
+#define OPDURATION_STR              L"OperationDuration"
 #define CONTEXT_STR                 L"Context"
 #define SUBCONTEXT_STR              L"SubContext"
+#define VM_UPTIME_STR               L"VMUptime"
+#define TIMESTAMP_STR               L"Timestamp"
 #define ORCHESTRATOR_DETAILS_STR    L"OrchestratorDetails"
 #define ORCHESTRATOR_NAME_STR       L"OrchestratorName"
 #define ORCHESTRATOR_VERSION_STR    L"OrchestratorVersion"
@@ -69,8 +74,13 @@ enum PluginReportKey {
     Name=1,
     Version,
     ErrorMessage,
+    EventMessage,
+    OperationType,
+    OperationDuration,
     Context,
     SubContext,
+    VMUptime,
+    Timestamp,
     OrchestratorDetails,
     OrchestratorName,
     OrchestratorVersion,
@@ -152,11 +162,26 @@ public:
     // Error Message
     wstring ErrorMessage;
 
+    // Event Message
+    wstring EventMessage;
+
+    // Operation Type
+    wstring OperationType;
+
+    // Operation Duration
+    int OperationDuration;
+
     // Context of event
     wstring Context;
 
     // SubContext of event
     wstring SubContext;
+
+    // VM Uptime
+    wstring VMUptime;
+
+    // Timestamp
+    wstring Timestamp;
 
     // Orchestrator Info
     OrchestratorInfo OrchestratorDetails;
@@ -166,10 +191,10 @@ public:
 
     // System Info
     SystemInfo SystemDetails;
-    
+
     static void
     InitializeFieldIdMap();
-    
+
     bool
     FindFieldFromBaseClass(
         wstring FieldName,

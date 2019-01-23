@@ -66,7 +66,7 @@ LPCSTR PER_DNC_MDM_METRICS[] = {
     MDM_METRIC_DNC_STATUS_INTERNAL_SERVER_ERROR,
     MDM_METRIC_DNC_NETWORK_STATUS_INVALID,
     MDM_METRIC_DNC_NETWORK_STATE_INVALID,
-    MDM_METRIC_DNC_INVALID_IP_SUBNET,                      
+    MDM_METRIC_DNC_INVALID_IP_SUBNET,
     MDM_METRIC_DNC_INVALID_IP_CONSTRAINT,
     MDM_METRIC_DNC_IP_CONSTRAINT_IS_OUTSIDE_SUBNET_RANGE,
     MDM_METRIC_DNC_OUT_OF_VLAN_IDS,
@@ -75,7 +75,7 @@ LPCSTR PER_DNC_MDM_METRICS[] = {
     MDM_METRIC_DNC_JSON_MARSHALLING_FAILED,
     MDM_METRIC_DNC_JSON_UN_MARSHALLING_FAILED,
     MDM_METRIC_DNC_RESERVATION_STATE_INVALID,
-    MDM_METRIC_DNC_NETWORK_JOIN_FAILED,                  
+    MDM_METRIC_DNC_NETWORK_JOIN_FAILED,
     MDM_METRIC_DNC_DEOCODE_RESPONSE_FAILED,
     MDM_METRIC_DNC_PARSE_RESPONSE_CODE_FAILED,
     MDM_METRIC_DNC_PUBLISHING_FAILED,
@@ -97,7 +97,7 @@ LPCSTR PER_CNS_MDM_METRICS[] = {
     MDM_METRIC_CNS_RUNNING_STR,
     MDM_METRIC_CNS_RUNNING_STR,
     MDM_METRIC_CNS_UNSUPPORTED_NETWORK_TYPE,
-    MDM_METRIC_CNS_INVALID_PARAMETER,   
+    MDM_METRIC_CNS_INVALID_PARAMETER,
     MDM_METRIC_CNS_UNREACHABLE_HOST,
     MDM_METRIC_CNS_RESERVATION_NOT_FOUND,
     MDM_METRIC_CNS_MALFORMED_SUBNET,
@@ -276,7 +276,7 @@ Return Value:
             GuestOSVersion == NULL ? "" : GuestOSVersion,
             KernelVersion == NULL? "": KernelVersion,
             Name == NULL? "": Name,
-            Version == NULL? "": Version, 
+            Version == NULL? "": Version,
             OrchestratorName == NULL? "": OrchestratorName,
             OrchestratorVersion == NULL ? "" : OrchestratorVersion
         );
@@ -394,7 +394,7 @@ Return Value:
         hr = HRESULT_FROM_WIN32(ToAnsi(ContainerId, &containerIdAnsi));
         if (hr != S_OK) {
 
-            LOGERRW(L"Failed to convert ContainerId parameter %s to ANSI for PerContainerNode metric", 
+            LOGERRW(L"Failed to convert ContainerId parameter %s to ANSI for PerContainerNode metric",
                     ContainerId);
             goto Cleanup;
         }
@@ -426,7 +426,7 @@ HRESULT GenevaLogger::LogPerNPMMetricToMDM(
     string KernelVersion,
     string MetricName,
     ULONG64 Value
-) 
+)
 /*++
 
 Description:
@@ -471,7 +471,7 @@ Return Value:
     map<string, MeasureMetric10D*>::iterator metricItr;
     MeasureMetric10D* metric = NULL;
 
-    if (!EnableMDMLogging) 
+    if (!EnableMDMLogging)
     {
         return hr;
     }
@@ -511,7 +511,7 @@ HRESULT GenevaLogger::LogPerDNCMetricToMDM(
     string PartitionKey,
     string MetricName,
     ULONG64 Value
-) 
+)
 /*++
 
 Description:
@@ -542,7 +542,7 @@ Return Value:
     map<string, MeasureMetric4D*>::iterator metricItr;
     MeasureMetric4D* metric = NULL;
 
-    if (!EnableMDMLogging) 
+    if (!EnableMDMLogging)
     {
         return hr;
     }
@@ -575,7 +575,7 @@ HRESULT GenevaLogger::LogPerCNSMetricToMDM(
     string PartitionKey,
     string MetricName,
     ULONG64 Value
-) 
+)
 /*++
 
 Description:
@@ -606,7 +606,7 @@ Return Value:
     map<string, MeasureMetric4D*>::iterator metricItr;
     MeasureMetric4D* metric = NULL;
 
-    if (!EnableMDMLogging) 
+    if (!EnableMDMLogging)
     {
         return hr;
     }
@@ -695,7 +695,7 @@ Return Value:
     DWORD err = ERROR_SUCCESS;
 
     hr = CoInitialize(NULL);
-    if (hr != S_OK) 
+    if (hr != S_OK)
     {
         LOGERRW(L"ComInitialization failed with error [%0x].", hr);
         goto Cleanup;
@@ -712,17 +712,17 @@ Return Value:
     xmlParserHelperInitialized = true;
 
     hr = xmlHelper.QueryNodeValue(ENABLE_MA_NODE_PATH, result);
-    if (hr != S_OK) 
+    if (hr != S_OK)
     {
         LOGERRW(
-            L"Query node value for path {%s} error [%0x].", 
-                ENABLE_MA_NODE_PATH, 
+            L"Query node value for path {%s} error [%0x].",
+                ENABLE_MA_NODE_PATH,
                 hr
         );
         goto Cleanup;
     }
-    
-    if(_wcsnicmp(_TRUE_, result.c_str(), sizeof(_TRUE_)) == 0) 
+
+    if(_wcsnicmp(_TRUE_, result.c_str(), sizeof(_TRUE_)) == 0)
     {
         EnableMDMLogging = true;
     }
@@ -737,11 +737,11 @@ Return Value:
     }
 
     err = ToAnsi(result.c_str(), &mdmAccountName);
-    if(err != ERROR_SUCCESS) 
+    if(err != ERROR_SUCCESS)
     {
         LOGERRW(
-            L"Failed to convert account name {%s} to ANSI.error [%0x].", 
-                result.c_str(), 
+            L"Failed to convert account name {%s} to ANSI.error [%0x].",
+                result.c_str(),
                 hr
         );
 
@@ -751,11 +751,11 @@ Return Value:
     MdmAccountNameA.assign(mdmAccountName);
 
     err = ToAnsi(PackageVersion, &netAgentVersion);
-    if (err != ERROR_SUCCESS) 
+    if (err != ERROR_SUCCESS)
     {
         LOGERRW(
-            L"Failed to convert package version {%s} to ANSI.error [%0x].", 
-                PackageVersion, 
+            L"Failed to convert package version {%s} to ANSI.error [%0x].",
+                PackageVersion,
                 hr
         );
         hr = HRESULT_FROM_WIN32(err);
@@ -767,7 +767,7 @@ Return Value:
     SetNodeInformationFromRegistry();
 
     // Create per-Container metrics.
-    for (int i = 0; i < ARRAYSIZE(PER_CONTAINER_MDM_GUEST_METRICS); i++) 
+    for (int i = 0; i < ARRAYSIZE(PER_CONTAINER_MDM_GUEST_METRICS); i++)
     {
         LPCSTR metricName = PER_CONTAINER_MDM_GUEST_METRICS[i];
         MeasureMetric6D* metric = MeasureMetric6D::Create(
@@ -781,27 +781,27 @@ Return Value:
                                       MDM_DIMENSION_NAME_GUEST_OS_VERSION_STR,
                                       MDM_DIMENSION_NAME_NETAGENT_VERSION_STR);
 
-        if (metric != NULL) 
+        if (metric != NULL)
         {
 
             LOGINFOW(
-                L"Created metric %hs on account %hs.", 
-                     metricName, 
+                L"Created metric %hs on account %hs.",
+                     metricName,
                      MdmAccountNameA.c_str()
             );
             PerContainerMetrics.insert(make_pair(string(metricName), metric));
-        } else 
+        } else
         {
 
             LOGWARNW(
-                L"Failed to create metric %hs on account %hs.", 
-                     metricName, 
+                L"Failed to create metric %hs on account %hs.",
+                     metricName,
                      MdmAccountNameA.c_str()
             );
         }
     }
-    
-    for (int i = 0; i < ARRAYSIZE(PER_CONTAINER_MDM_CNI_METRICS); i++) 
+
+    for (int i = 0; i < ARRAYSIZE(PER_CONTAINER_MDM_CNI_METRICS); i++)
     {
         LPCSTR metricName = PER_CONTAINER_MDM_CNI_METRICS[i];
         MeasureMetric10D* metric = MeasureMetric10D::Create(
@@ -820,7 +820,7 @@ Return Value:
             MDM_DIMENSION_NAME_PLUGIN_ORCHESTRATOR_VERSION_STR
         );
 
-        if (metric != NULL) 
+        if (metric != NULL)
         {
 
             LOGINFOW(
@@ -830,7 +830,7 @@ Return Value:
             );
             PerContainerCNIMetrics.insert(make_pair(string(metricName), metric));
         }
-        else 
+        else
         {
 
             LOGWARNW(L"Failed to create metric %hs on account %hs.",
@@ -838,8 +838,8 @@ Return Value:
                 MdmAccountNameA.c_str());
         }
     }
-    
-    for (int i = 0; i < ARRAYSIZE(PER_NPM_MDM_METRICS); i++) 
+
+    for (int i = 0; i < ARRAYSIZE(PER_NPM_MDM_METRICS); i++)
     {
         LPCSTR metricName = PER_NPM_MDM_METRICS[i];
         MeasureMetric10D* metric = MeasureMetric10D::Create(
@@ -878,7 +878,7 @@ Return Value:
         }
     }
 
-    for (int i = 0; i < ARRAYSIZE(PER_DNC_MDM_METRICS); i++) 
+    for (int i = 0; i < ARRAYSIZE(PER_DNC_MDM_METRICS); i++)
     {
         LPCSTR metricName = PER_DNC_MDM_METRICS[i];
         MeasureMetric4D* metric = MeasureMetric4D::Create(
@@ -910,7 +910,7 @@ Return Value:
         }
     }
 
-    for (int i = 0; i < ARRAYSIZE(PER_CNS_MDM_METRICS); i++) 
+    for (int i = 0; i < ARRAYSIZE(PER_CNS_MDM_METRICS); i++)
     {
         LPCSTR metricName = PER_CNS_MDM_METRICS[i];
         MeasureMetric4D* metric = MeasureMetric4D::Create(
@@ -1039,8 +1039,8 @@ Return Value:
         }
     } else {
 
-        LOGWARNW(L"Failed to read NodeId from registrey key : %s\\%s", 
-                 NODE_PROPERTIES_REG_KEY, 
+        LOGWARNW(L"Failed to read NodeId from registrey key : %s\\%s",
+                 NODE_PROPERTIES_REG_KEY,
                  NODEID_REG_VALUE_NAME);
     }
 
@@ -1064,8 +1064,8 @@ Return Value:
             LOGWARNW(L"Failed to duplicate ClusterName from buffer");
         }
     } else {
-        LOGWARNW(L"Failed to read ClusterName from registrey key : %s\\%s", 
-                 NODE_PROPERTIES_REG_KEY, 
+        LOGWARNW(L"Failed to read ClusterName from registrey key : %s\\%s",
+                 NODE_PROPERTIES_REG_KEY,
                  CLUSTER_ID_REG_VALUE_NAME);
     }
 
@@ -1105,6 +1105,8 @@ Return Value:
     PSTR osTypeAnsi = NULL;
     PSTR kernelVersionAnsi = NULL;
     PSTR errorMessageAnsi = NULL;
+    HostNetAgentEvents::CNIEvent cniReport;
+    std::wstringstream vnetAddrSpace;
     HRESULT hr = S_OK;
 
 
@@ -1187,7 +1189,7 @@ Return Value:
             kernelVersionAnsi,
             MDM_METRIC_CNI_RUNNING_STR
         );
-        
+
         if (hr != ERROR_SUCCESS)
         {
             LOGERRW(L"Uploading CNI metrics to mdm failed with errorcode %d", hr);
@@ -1213,8 +1215,8 @@ Return Value:
             LOGERRW(L"Uploading CNI metrics to mdm failed with errorcode %d", hr);
         }
     }
-    
-    if ( !CNIReport.InterfaceDetails.ErrorMessage.empty() )
+
+    if ( !CNIReport.ErrorMessage.empty() )
     {
         hr = LogPerContainerCNIMetricToMDM(
             locationAnsi,
@@ -1232,60 +1234,61 @@ Return Value:
         {
             LOGERRW(L"Uploading CNI Error metrics to mdm failed with errorcode %d", hr);
         }
+    }
 
-        std::wstringstream vnetAddrSpace;
-        if ( !CNIReport.VnetAddressSpace.empty() ) 
-        {
-            std::copy(
-                CNIReport.VnetAddressSpace.begin(),
-                CNIReport.VnetAddressSpace.end()-1,
-                ostream_iterator<wstring, wchar_t>(vnetAddrSpace, L", "));
-        }
+    if ( !CNIReport.VnetAddressSpace.empty() )
+    {
+        std::copy(
+            CNIReport.VnetAddressSpace.begin(),
+            CNIReport.VnetAddressSpace.end()-1,
+            ostream_iterator<wstring, wchar_t>(vnetAddrSpace, L", "));
+    }
 
-        HostNetAgentEvents::CNIEvent cniReport;
-        cniReport.Location = CNIReport.Metadata.Location;
-        cniReport.VMName = CNIReport.Metadata.VMName;
-        cniReport.Offer = CNIReport.Metadata.Offer;
-        cniReport.OSType = CNIReport.Metadata.OSType;
-        cniReport.SubscriptionID = CNIReport.Metadata.SubscriptionID;
-        cniReport.PlatformFaultDomain = CNIReport.Metadata.PlatformFaultDomain;
-        cniReport.PlatformUpdateDomain = CNIReport.Metadata.PlatformUpdateDomain;
-        cniReport.Publisher = CNIReport.Metadata.Publisher;
-        cniReport.ResourceGroupName = CNIReport.Metadata.ResourceGroupName;
-        cniReport.Sku = CNIReport.Metadata.Sku;
-        cniReport.Tags = CNIReport.Metadata.Tags;
-        cniReport.OSVersion = CNIReport.Metadata.OSVersion;
-        cniReport.KernelVersion = CNIReport.Metadata.KernelVersion;
-        cniReport.VMID = CNIReport.Metadata.VMID;
-        cniReport.VMSize = CNIReport.Metadata.VMSize;
-        cniReport.VnetAddressSpace = vnetAddrSpace.str();
-        cniReport.Iface_Type = CNIReport.InterfaceDetails.InterfaceType;
-        cniReport.Iface_Subnet = CNIReport.InterfaceDetails.Subnet;
-        cniReport.Iface_PrimaryCA = CNIReport.InterfaceDetails.PrimaryCA;
-        cniReport.Iface_MAC = CNIReport.InterfaceDetails.MAC;
-        cniReport.Iface_Name = CNIReport.InterfaceDetails.Name;
-        cniReport.Iface_SecondaryCATotalCount = CNIReport.InterfaceDetails.SecondaryCATotalCount;
-        cniReport.Iface_SecondaryCAUsedCount = CNIReport.InterfaceDetails.SecondaryCAUsedCount;
-        cniReport.Iface_ErrorMessage = CNIReport.InterfaceDetails.ErrorMessage;
-        cniReport.Bridge_NetworkMode = CNIReport.BridgeDetails.NetworkMode;
-        cniReport.Bridge_Name = CNIReport.BridgeDetails.BridgeName;
-        cniReport.Bridge_ErrorMessage = CNIReport.BridgeDetails.ErrorMessage;
+    cniReport.Location = CNIReport.Metadata.Location;
+    cniReport.Version = CNIReport.Version;
+    cniReport.VMName = CNIReport.Metadata.VMName;
+    cniReport.Offer = CNIReport.Metadata.Offer;
+    cniReport.OSType = CNIReport.Metadata.OSType;
+    cniReport.SubscriptionID = CNIReport.Metadata.SubscriptionID;
+    cniReport.Publisher = CNIReport.Metadata.Publisher;
+    cniReport.ResourceGroupName = CNIReport.Metadata.ResourceGroupName;
+    cniReport.Sku = CNIReport.Metadata.Sku;
+    cniReport.Tags = CNIReport.Metadata.Tags;
+    cniReport.OSVersion = CNIReport.OSDetails.OSVersion;
+    cniReport.KernelVersion = CNIReport.OSDetails.KernelVersion;
+    cniReport.VMID = CNIReport.Metadata.VMID;
+    cniReport.VMSize = CNIReport.Metadata.VMSize;
+    cniReport.Distro = CNIReport.OSDetails.OSDistribution;
+    cniReport.NetworkMode = CNIReport.BridgeDetails.NetworkMode;
+    cniReport.Context = CNIReport.Context;
+    cniReport.SubContext = CNIReport.SubContext;
+    cniReport.VMUptime = CNIReport.VMUptime;
+    cniReport.PrimaryCA = CNIReport.InterfaceDetails.PrimaryCA;
+    cniReport.VMMAC = CNIReport.InterfaceDetails.MAC;
+    cniReport.SecondaryCATotalCount = CNIReport.InterfaceDetails.SecondaryCATotalCount;
+    cniReport.SecondaryCAUsedCount = CNIReport.InterfaceDetails.SecondaryCAUsedCount;
+    cniReport.ErrorMessage = CNIReport.ErrorMessage;
+    cniReport.EventMessage = CNIReport.EventMessage;
+    cniReport.ContainerName = CNIReport.ContainerName;
+    cniReport.OperationType = CNIReport.OperationType;
+    cniReport.OperationDuration = CNIReport.OperationDuration;
+    cniReport.InfraVnetID = CNIReport.InfraVnetID;
+    cniReport.Timestamp = CNIReport.Timestamp;
 
-        hr = Ifx::LogExtendedObjectTextPropertyChange(
-            L"Report",
-            L"beef9fa7-97f5-4acc-b8ba-b06c1bf36601",
-            L"Report Type",
-            L"CNI",
-            cniReport,
-            NULL,
-            NULL,
-            NULL
-        );
+    hr = Ifx::LogExtendedObjectTextPropertyChange(
+        L"Report",
+        L"beef9fa7-97f5-4acc-b8ba-b06c1bf36601",
+        L"Report Type",
+        L"CNI",
+        cniReport,
+        NULL,
+        NULL,
+        NULL
+    );
 
-        if (hr != ERROR_SUCCESS)
-        {
-            LOGERRW(L"Uploading CNI Error metrics to mds failed with errorcode %d", hr);
-        }
+    if (hr != ERROR_SUCCESS)
+    {
+        LOGERRW(L"Uploading CNI Error metrics to mds failed with errorcode %d", hr);
     }
 
 Cleanup:
@@ -1563,7 +1566,7 @@ Return Value:
         {
             LOGERRW(L"Uploading DNC metrics to mdm failed with errorcode %d", hr);
         }
-    } 
+    }
 
     hr = LogPerDNCMetricToMDM(
         ws2s(DNCReport.Metadata.Location),
@@ -1657,8 +1660,8 @@ Return Value:
             LOGERRW(L"Uploading DNC metrics to mdm failed with errorcode %d", hr);
         }
     }
-    
-    if (CNSReport.EventMessage.compare(L"Heartbeat")) 
+
+    if (CNSReport.EventMessage.compare(L"Heartbeat"))
     {
         hr = LogPerCNSMetricToMDM(
             ws2s(CNSReport.Metadata.Location),
@@ -1714,7 +1717,7 @@ Return Value:
         {
             LOGERRW(L"Uploading CNS metrics to mds failed with errorcode %X", hr);
         }
-    } 
+    }
     else
     {
         hr = LogPerCNSMetricToMDM(

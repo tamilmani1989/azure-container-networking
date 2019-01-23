@@ -38,11 +38,13 @@ using namespace web;
 
 #define UINT64 uint64_t
 
-// TODO: Remove STARTFLAG_STR in future versions. 
+// TODO: Remove STARTFLAG_STR in future versions.
 // This is here for backward compatibility for now.
 #define STARTFLAG_STR               L"StartFlag"
 #define IS_NEW_INSTANCE_STR         L"IsNewInstance"
 #define CNI_SUCCEEDED_STR           L"CniSucceeded"
+#define CONTAINERNAME_STR           L"ContainerName"
+#define INFRA_VNETID_STR            L"InfraVnetID"
 #define VNET_ADDRESS_SPACE_STR      L"VnetAddressSpace"
 #define INTERFACE_DETAILS_STR       L"InterfaceDetails"
 #define INTERFACE_TYPE_STR          L"InterfaceType"
@@ -52,7 +54,7 @@ using namespace web;
 #define CA_TOTAL_COUNT_STR          L"SecondaryCATotalCount"
 #define CA_USED_COUNT_STR           L"SecondaryCAUsedCount"
 #define BRIDGE_DETAILS_STR          L"BridgeDetails"
-
+#define NETWORKMODE_STR             L"NetworkMode"
 //
 // Enums for fields in the CNI report.
 //
@@ -61,6 +63,8 @@ namespace CNIEnum {
 	enum CNIReportKey
 	{
 		IsNewInstance = PluginReportKey::LastEnum,
+        ContainerName,
+        InfraVnetID,
 		VnetAddressSpace,
 		InterfaceDetails,
 		InterfaceType,
@@ -72,6 +76,7 @@ namespace CNIEnum {
 		SecondaryCAUsedCount,
 		IfErrorMessage,
 		BridgeDetails,
+        NetworkMode,
 		CniSucceeded,
 		Metadata
 	};
@@ -81,7 +86,7 @@ namespace CNIEnum {
 static  std::map<std::wstring, CNIEnum::CNIReportKey> CNIReportFieldIdMap;
 
 // Interface Details
-class InterfaceInfo 
+class InterfaceInfo
 {
 public:
 
@@ -109,10 +114,16 @@ public:
     wstring NetworkMode;
     wstring BridgeName;
     wstring ErrorMessage;
+
+    void
+    SetBridgeDetailsFields(
+            wstring FieldName,
+            json::value JsonValue
+    );
 };
 
 // CNI Report
-class CNIReport : public PluginReport 
+class CNIReport : public PluginReport
 {
 
 public:
@@ -120,10 +131,16 @@ public:
 
     // Flag to identify Number of VMs running this Plugin
     bool IsNewInstance = false;
-    
+
     // Flag to indicate whether CNI ran successfully
     bool CniSucceeded = false;
-    
+
+    // Pod name and namespace
+    wstring ContainerName;
+
+    // InfraVnetID
+    wstring InfraVnetID;
+
     // VnetAddressSpaces in a VNET
     vector <wstring> VnetAddressSpace;
 

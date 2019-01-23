@@ -88,6 +88,12 @@ Return Value:
 
 --*/
 {
+    if (Value == NULL)
+    {
+        LOGINFOW(L"value is null. Don't parse it");
+        return;
+    }
+
     auto tmpArr = Value.as_array();
 
     switch (PayloadFieldIdMap[Name])

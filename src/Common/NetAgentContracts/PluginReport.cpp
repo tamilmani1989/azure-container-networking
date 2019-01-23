@@ -17,7 +17,7 @@ Environment:
 --*/
 
 #include "PluginReport.h"
-#include "Logging.h"	
+#include "Logging.h"
 
 using namespace std;
 using namespace web;
@@ -36,7 +36,7 @@ Routine Description:
 Arguments:
 
     None.
-    
+
 Return Value:
 
     None.
@@ -47,8 +47,13 @@ Return Value:
     PluginReportFieldIdMap[NAME_STR] = PluginReportKey::Name;
     PluginReportFieldIdMap[VERSION_STR] = PluginReportKey::Version;
     PluginReportFieldIdMap[ERROR_MESSAGE_STR] = PluginReportKey::ErrorMessage;
+    PluginReportFieldIdMap[EVENT_MESSAGE_STR] = PluginReportKey::EventMessage;
+    PluginReportFieldIdMap[OPTYPE_STR] = PluginReportKey::OperationType;
+    PluginReportFieldIdMap[OPDURATION_STR] = PluginReportKey::OperationDuration;
     PluginReportFieldIdMap[CONTEXT_STR] = PluginReportKey::Context;
     PluginReportFieldIdMap[SUBCONTEXT_STR] = PluginReportKey::SubContext;
+    PluginReportFieldIdMap[VM_UPTIME_STR] = PluginReportKey::VMUptime;
+    PluginReportFieldIdMap[TIMESTAMP_STR] = PluginReportKey::Timestamp;
     PluginReportFieldIdMap[ORCHESTRATOR_DETAILS_STR] = PluginReportKey::OrchestratorDetails;
     PluginReportFieldIdMap[OS_DETAILS_STR] = PluginReportKey::OSDetails;
     PluginReportFieldIdMap[SYSTEM_DETAILS_STR] = PluginReportKey::SystemDetails;
@@ -256,7 +261,7 @@ Arguments:
     JsonValue - Json value to be associated with the field.
 
 Return Value:
-    
+
     returns true if field found else false
 
 --*/
@@ -265,7 +270,6 @@ Return Value:
 	// in the switch statement below.
 	if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
 	{
-		wprintf(L"Unknown key:{%s}", FieldName.c_str());
 		return false;
 	}
 
@@ -283,12 +287,32 @@ Return Value:
         ErrorMessage.assign(JsonValue.as_string());
         break;
 
+    case PluginReportKey::EventMessage:
+        EventMessage.assign(JsonValue.as_string());
+        break;
+
+    case PluginReportKey::OperationType:
+        OperationType.assign(JsonValue.as_string());
+        break;
+
+    case PluginReportKey::OperationDuration:
+        OperationDuration = JsonValue.as_integer();
+        break;
+
     case PluginReportKey::Context:
         Context.assign(JsonValue.as_string());
         break;
 
     case PluginReportKey::SubContext:
         SubContext.assign(JsonValue.as_string());
+        break;
+
+    case PluginReportKey::VMUptime:
+        VMUptime.assign(JsonValue.as_string());
+        break;
+
+    case PluginReportKey::Timestamp:
+        Timestamp.assign(JsonValue.as_string());
         break;
 
     case PluginReportKey::OrchestratorDetails:
@@ -359,10 +383,11 @@ Return Value:
 
 --*/
 {
-    LOGINFOW(L"Name %s Version %s ErrorMessage %s Context %s SubContext %s", 
-        Name.c_str(), Version.c_str(), ErrorMessage.c_str(), Context.c_str(), SubContext.c_str());
+    LOGINFOW(L"Name %s Version %s Event message %s ErrorMessage %s OpyType %s OpDuration %d Context %s SubContext %s VMUptime %s Timestamp %s",
+        Name.c_str(), Version.c_str(), EventMessage.c_str(), ErrorMessage.c_str(), OperationType.c_str(), OperationDuration, Context.c_str(),
+        SubContext.c_str(), VMUptime.c_str(), Timestamp.c_str());
 
-    LOGINFOW(L"OrchestratorDetails{Name %s Version %s ErrMsg %s}", 
+    LOGINFOW(L"OrchestratorDetails{Name %s Version %s ErrMsg %s}",
         OrchestratorDetails.OrchestratorName.c_str(), OrchestratorDetails.OrchestratorVersion.c_str(), OrchestratorDetails.ErrorMessage.c_str());
 
     LOGINFOW(L"OSDetails{OSType %s OSVersion %s KernelVersion %s OSDistribution %s ErrMsg %s}",

@@ -59,7 +59,7 @@ Routine Description:
 Arguments:
 
     None.
-    
+
 Return Value:
 
     None.
@@ -68,11 +68,13 @@ Return Value:
 {
     PluginReport::InitializeFieldIdMap();
 
-	// TODO: Remove STARTFLAG_STR in future versions. 
+	// TODO: Remove STARTFLAG_STR in future versions.
 	// This is here for backward compatibility for now.
 	CNIReportFieldIdMap[STARTFLAG_STR] = CNIEnum::CNIReportKey::IsNewInstance;
     CNIReportFieldIdMap[IS_NEW_INSTANCE_STR] = CNIEnum::CNIReportKey::IsNewInstance;
     CNIReportFieldIdMap[CNI_SUCCEEDED_STR] = CNIEnum::CNIReportKey::CniSucceeded;
+	CNIReportFieldIdMap[CONTAINERNAME_STR] = CNIEnum::CNIReportKey::ContainerName;
+    CNIReportFieldIdMap[INFRA_VNETID_STR] = CNIEnum::CNIReportKey::InfraVnetID;
     CNIReportFieldIdMap[VNET_ADDRESS_SPACE_STR] = CNIEnum::CNIReportKey::VnetAddressSpace;
     CNIReportFieldIdMap[INTERFACE_DETAILS_STR] = CNIEnum::CNIReportKey::InterfaceDetails;
     CNIReportFieldIdMap[INTERFACE_TYPE_STR] = CNIEnum::CNIReportKey::InterfaceType;
@@ -84,6 +86,7 @@ Return Value:
     CNIReportFieldIdMap[NAME_STR] = CNIEnum::CNIReportKey::IfName;
     CNIReportFieldIdMap[ERROR_MESSAGE_STR] = CNIEnum::CNIReportKey::IfErrorMessage;
     CNIReportFieldIdMap[BRIDGE_DETAILS_STR] = CNIEnum::CNIReportKey::BridgeDetails;
+    CNIReportFieldIdMap[NETWORKMODE_STR] = CNIEnum::CNIReportKey::NetworkMode;
 	CNIReportFieldIdMap[METADATA_STR] = CNIEnum::CNIReportKey::Metadata;
 }
 
@@ -111,11 +114,6 @@ Return Value:
 {
 	// Prevent memory exhaustion attack, since we have a [] operator
 	// in the switch statement below.
-	if (CNIReportFieldIdMap.find(Name) == CNIReportFieldIdMap.end())
-	{
-		wprintf(L"Unknown key:{%s}", Name.c_str());
-		return;
-	}
 
     switch (CNIReportFieldIdMap[FieldName])
     {
@@ -155,9 +153,25 @@ Return Value:
     }
 }
 
-void 
+void BridgeInfo::SetBridgeDetailsFields(
+    wstring FieldName,
+    json::value JsonValue
+)
+{
+	// Prevent memory exhaustion attack, since we have a [] operator
+	// in the switch statement below.
+
+    switch (CNIReportFieldIdMap[FieldName])
+    {
+         case CNIEnum::CNIReportKey::NetworkMode:
+            NetworkMode.assign(JsonValue.as_string());
+            break;
+    }
+}
+
+void
 CNIReport::SetFields(
-    wstring FieldName, 
+    wstring FieldName,
     json::value JsonValue
 )
 /*++
@@ -178,14 +192,13 @@ Return Value:
 
 --*/
 {
-
     if (!FindFieldFromBaseClass(FieldName, JsonValue))
     {
 		// Prevent memory exhaustion attack, since we have a [] operator
 		// in the switch statement below.
-		if (CNIReportFieldIdMap.find(Name) == CNIReportFieldIdMap.end())
+		if (CNIReportFieldIdMap.find(FieldName) == CNIReportFieldIdMap.end())
 		{
-			wprintf(L"Unknown key:{%s}", Name.c_str());
+			LOGINFOW(L"Unknown key:{%s}", FieldName.c_str());
 			return;
 		}
 
@@ -197,7 +210,15 @@ Return Value:
         case CNIEnum::CNIReportKey::CniSucceeded:
             CniSucceeded = JsonValue.as_bool();
             break;
-        
+
+        case CNIEnum::CNIReportKey::ContainerName:
+            ContainerName.assign(JsonValue.as_string());
+            break;
+
+        case CNIEnum::CNIReportKey::InfraVnetID:
+            InfraVnetID.assign(JsonValue.as_string());
+            break;
+
         case CNIEnum::CNIReportKey::VnetAddressSpace:
         {
             break;
@@ -218,18 +239,30 @@ Return Value:
         }
 
         case CNIEnum::CNIReportKey::BridgeDetails:
+        {
+            json::object JsonObject = JsonValue.as_object();
+
+            for (auto const & e : JsonObject)
+            {
+                const wstring propertyName = e.first;
+                const json::value propertyValue = e.second;
+
+                BridgeDetails.SetBridgeDetailsFields(propertyName, propertyValue);
+            }
             break;
+        }
+
 		case CNIEnum::CNIReportKey::Metadata:
 			Metadata = Metadata::Metadata(JsonValue.as_object());
 			break;
 
         default:
-            LOGINFOW(L"Unknown key:{%s}", FieldName.c_str());
+            LOGINFOW(L"cni report Unknown key:{%s}", FieldName.c_str());
         }
     }
 }
 
-void 
+void
 CNIReport::SetMembersFromJson(json::object & JsonObject)
 /*++
 
@@ -240,7 +273,7 @@ Routine Description:
 Arguments:
 
     JsonObject - Json CNI report object.
-    
+
 Return Value:
 
     None.
@@ -266,7 +299,7 @@ Routine Description:
     Print each member of CNI Report
 
 Arguments:
-    
+
     None.
 
 Return Value:
@@ -275,12 +308,11 @@ Return Value:
 
 --*/
 {
-    LOGINFOW(L"IsNewInstance %d", IsNewInstance);
-    LOGINFOW(L"CniSucceeded %d", CniSucceeded);
+    LOGINFOW(L"IsNewInstance %d CniSucceeded %d ContainerName %s InfraVnetID %s", IsNewInstance, CniSucceeded, ContainerName, InfraVnetID);
 
     PluginReport::Print();
     LOGINFOW(L"InterfaceDetails{Type %s PrimaryCA %s Subnet %s MAC %s Name %s CATotalCount %d CAUsedCount %d ErrMsg %s}",
-        InterfaceDetails.InterfaceType.c_str(), InterfaceDetails.PrimaryCA.c_str(), InterfaceDetails.Subnet.c_str(), InterfaceDetails.MAC.c_str(), 
+        InterfaceDetails.InterfaceType.c_str(), InterfaceDetails.PrimaryCA.c_str(), InterfaceDetails.Subnet.c_str(), InterfaceDetails.MAC.c_str(),
         InterfaceDetails.Name.c_str(),InterfaceDetails.SecondaryCATotalCount, InterfaceDetails.SecondaryCAUsedCount, InterfaceDetails.ErrorMessage.c_str());
 	Metadata.Print();
 }

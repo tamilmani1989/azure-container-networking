@@ -125,7 +125,7 @@ Return Value:
 	// in the switch statement below.
 	if (MetadataFieldIdMap.find(Name) == MetadataFieldIdMap.end())
 	{
-		wprintf(L"Unknown key:{%s}", Name.c_str());
+		LOGERRW(L"Unknown key:{%s}", Name.c_str());
 		return;
 	}
 
