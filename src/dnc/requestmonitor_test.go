@@ -5,8 +5,13 @@ import (
 	"crypto/sha256"
 	"dnc/api"
 	"dnc/configuration"
+	"dnc/controller"
 	"dnc/datamodel"
+	"dnc/logger/loggershim"
+	"dnc/masterelection/masterelectionshim"
 	"dnc/nmagentcontracts"
+	"dnc/replica"
+	"dnc/server"
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
@@ -142,6 +147,8 @@ func TestMain(m *testing.M) {
 
 // Setup :- Set up the environment (if necessary).
 func Setup() error {
+	go StartDnc()
+	time.Sleep(1 * time.Second)
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 1024
 	http.DefaultTransport.(*http.Transport).TLSHandshakeTimeout = 0 * time.Second
 	nmAgentServer = new(MockServer)
@@ -149,6 +156,48 @@ func Setup() error {
 	cnsServer = new(MockServer)
 	cnsServer.SetupServer("127.0.0.1:10090")
 	return nil
+}
+
+func StartDnc() {
+	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
+	if !found {
+		configpath = "config.json"
+	}
+
+	config = configuration.Load(configpath)
+	setDncConfigDefaults()
+	logger = loggershim.NewLoggerShim(config)
+	logger.Init(stderr, reports)
+	replicaInstance = replica.NewReplica(
+		config.ServerSettings,
+		GetNetworkRefreshMonitorStatus)
+	sessionManager = utils.NewSessionManager([]string{datamodel.NodeRepositoryName, datamodel.NetworkRepositoryName, datamodel.TagRepositoryName})
+	masterElectionShim = masterelectionshim.NewMasterElectionShim(
+		config,
+		replicaInstance.UpdateReplicaStatus,
+		replicaInstance.SetPrimaryIPEndpoint,
+		startChan,
+		doneChan,
+		demoteChan)
+	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt, masterElectionShim, config)
+	dncServer = server.Server{
+		ServerSettings: config.ServerSettings,
+		Controller:     ctrler}
+	dncServer.Init()
+	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
+	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
+	sleepIntervalBetweenNetworkBatches = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkBatches) * time.Millisecond
+	sleepIntervalBetweenNetworkRefresh = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkRefresh) * time.Millisecond
+	reportToHostInterval = time.Duration(config.DNCSettings.ReportToHostInterval) * time.Millisecond
+
+	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
+		masterElectionShim.Init()
+		datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+		ctrler.UpdateReplicaStatus(true)
+	}
+
+	go startReplica(ctrler)
+	dncServer.Start()
 }
 
 func TestVlanGeneration(t *testing.T) {
