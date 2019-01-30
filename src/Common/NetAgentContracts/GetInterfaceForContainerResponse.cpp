@@ -90,9 +90,9 @@ Return Value:
 --*/
 {
     // Prevent memory exhaustion attack, since we have a [] operator
-	// in the switch statement below.
-	if (GetInterfaceForContainerResponseFieldIdMap.find(Name) != GetInterfaceForContainerResponseFieldIdMap.end())
-	{
+    // in the switch statement below.
+    if (GetInterfaceForContainerResponseFieldIdMap.find(Name) != GetInterfaceForContainerResponseFieldIdMap.end())
+    {
         switch (GetInterfaceForContainerResponseFieldIdMap[Name])
         {
         case GetInterfaceForContainerResponseEnum::ResponseKey::Response:
@@ -126,10 +126,10 @@ Return Value:
 
             break;
         }
-	}
+    }
 }
 
-Response::Response()
+Response::Response() : ReturnCode(0)
 /*++
 
 Routine Description:
@@ -145,7 +145,7 @@ Return Value:
     InitializeFieldIdMap();
 }
 
-Response::Response(json::object& JsonObject)
+Response::Response(json::object& JsonObject) : ReturnCode(0)
 /*++
 
 Routine Description:
@@ -207,9 +207,9 @@ Return Value:
 --*/
 {
     // Prevent memory exhaustion attack, since we have a [] operator
-	// in the switch statement below.
-	if (GetInterfaceForContainerResponseFieldIdMap.find(Name) != GetInterfaceForContainerResponseFieldIdMap.end())
-	{
+    // in the switch statement below.
+    if (GetInterfaceForContainerResponseFieldIdMap.find(Name) != GetInterfaceForContainerResponseFieldIdMap.end())
+    {
         switch (GetInterfaceForContainerResponseFieldIdMap[Name])
         {
         case GetInterfaceForContainerResponseEnum::ResponseKey::ReturnCode:
@@ -302,9 +302,9 @@ Return Value:
 --*/
 {
     // Prevent memory exhaustion attack, since we have a [] operator
-	// in the switch statement below.
-	if (GetInterfaceForContainerResponseFieldIdMap.find(Name) != GetInterfaceForContainerResponseFieldIdMap.end())
-	{
+    // in the switch statement below.
+    if (GetInterfaceForContainerResponseFieldIdMap.find(Name) != GetInterfaceForContainerResponseFieldIdMap.end())
+    {
         switch (GetInterfaceForContainerResponseFieldIdMap[Name])
         {
         case GetInterfaceForContainerResponseEnum::ResponseKey::Name:
@@ -319,7 +319,7 @@ Return Value:
     }
 }
 
-IPSubnet::IPSubnet(json::object& JsonObject)
+IPSubnet::IPSubnet(json::object& JsonObject) : Cidr(0)
 /*++
 
 Routine Description:
@@ -381,9 +381,9 @@ Return Value:
 --*/
 {
     // Prevent memory exhaustion attack, since we have a [] operator
-	// in the switch statement below.
-	if (GetInterfaceForContainerResponseFieldIdMap.find(Name) != GetInterfaceForContainerResponseFieldIdMap.end())
-	{
+    // in the switch statement below.
+    if (GetInterfaceForContainerResponseFieldIdMap.find(Name) != GetInterfaceForContainerResponseFieldIdMap.end())
+    {
         switch (GetInterfaceForContainerResponseFieldIdMap[Name])
         {
         case GetInterfaceForContainerResponseEnum::ResponseKey::IPAddressKey:

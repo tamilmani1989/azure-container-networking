@@ -110,7 +110,7 @@ build:
         arguments: 'build linux amd64'
         logs:
           - include:
-            - 'src/dnc/build.log'
+            - 'src/dnc/coverage-dnc.out'
         artifacts:
           - from: 'src/dnc/'
             to: 'drop'

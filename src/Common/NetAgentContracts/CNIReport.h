@@ -60,26 +60,26 @@ using namespace web;
 //
 
 namespace CNIEnum {
-	enum CNIReportKey
-	{
-		IsNewInstance = PluginReportKey::LastEnum,
+    enum CNIReportKey
+    {
+        IsNewInstance = PluginReportKey::LastEnum,
         ContainerName,
         InfraVnetID,
-		VnetAddressSpace,
-		InterfaceDetails,
-		InterfaceType,
-		IfName,
-		Subnet,
-		PrimaryCA,
-		MAC,
-		SecondaryCATotalCount,
-		SecondaryCAUsedCount,
-		IfErrorMessage,
-		BridgeDetails,
+        VnetAddressSpace,
+        InterfaceDetails,
+        InterfaceType,
+        IfName,
+        Subnet,
+        PrimaryCA,
+        MAC,
+        SecondaryCATotalCount,
+        SecondaryCAUsedCount,
+        IfErrorMessage,
+        BridgeDetails,
         NetworkMode,
-		CniSucceeded,
-		Metadata
-	};
+        CniSucceeded,
+        Metadata
+    };
 }
 
 // CNI report field name to Id map
@@ -127,7 +127,7 @@ class CNIReport : public PluginReport
 {
 
 public:
-	CNIReport(json::object &JsonObject);
+    CNIReport(json::object &JsonObject);
 
     // Flag to identify Number of VMs running this Plugin
     bool IsNewInstance = false;
@@ -150,12 +150,12 @@ public:
     // Bridge Info
     BridgeInfo BridgeDetails;
 
-	// Metadata for Azure NPM report.
-	Metadata Metadata;
+    // Metadata for Azure NPM report.
+    Metadata Metadata;
 
     static
     void
-	InitializeFieldIdMap();
+    InitializeFieldIdMap();
 
     void
     SetFields(

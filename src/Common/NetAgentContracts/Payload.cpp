@@ -96,6 +96,14 @@ Return Value:
 
     auto tmpArr = Value.as_array();
 
+    // Prevent memory exhaustion attack, since we have a [] operator
+    // in the switch statement below.
+    if (PayloadFieldIdMap.find(Name) == PayloadFieldIdMap.end())
+    {
+        LOGINFOW(L"Unknown key:{%s}", Name.c_str());
+        return;
+    }
+
     switch (PayloadFieldIdMap[Name])
     {
     case PayloadEnum::PayloadKey::DNCReports:

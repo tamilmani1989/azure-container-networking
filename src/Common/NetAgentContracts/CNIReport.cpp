@@ -68,12 +68,12 @@ Return Value:
 {
     PluginReport::InitializeFieldIdMap();
 
-	// TODO: Remove STARTFLAG_STR in future versions.
-	// This is here for backward compatibility for now.
-	CNIReportFieldIdMap[STARTFLAG_STR] = CNIEnum::CNIReportKey::IsNewInstance;
+    // TODO: Remove STARTFLAG_STR in future versions.
+    // This is here for backward compatibility for now.
+    CNIReportFieldIdMap[STARTFLAG_STR] = CNIEnum::CNIReportKey::IsNewInstance;
     CNIReportFieldIdMap[IS_NEW_INSTANCE_STR] = CNIEnum::CNIReportKey::IsNewInstance;
     CNIReportFieldIdMap[CNI_SUCCEEDED_STR] = CNIEnum::CNIReportKey::CniSucceeded;
-	CNIReportFieldIdMap[CONTAINERNAME_STR] = CNIEnum::CNIReportKey::ContainerName;
+    CNIReportFieldIdMap[CONTAINERNAME_STR] = CNIEnum::CNIReportKey::ContainerName;
     CNIReportFieldIdMap[INFRA_VNETID_STR] = CNIEnum::CNIReportKey::InfraVnetID;
     CNIReportFieldIdMap[VNET_ADDRESS_SPACE_STR] = CNIEnum::CNIReportKey::VnetAddressSpace;
     CNIReportFieldIdMap[INTERFACE_DETAILS_STR] = CNIEnum::CNIReportKey::InterfaceDetails;
@@ -87,7 +87,7 @@ Return Value:
     CNIReportFieldIdMap[ERROR_MESSAGE_STR] = CNIEnum::CNIReportKey::IfErrorMessage;
     CNIReportFieldIdMap[BRIDGE_DETAILS_STR] = CNIEnum::CNIReportKey::BridgeDetails;
     CNIReportFieldIdMap[NETWORKMODE_STR] = CNIEnum::CNIReportKey::NetworkMode;
-	CNIReportFieldIdMap[METADATA_STR] = CNIEnum::CNIReportKey::Metadata;
+    CNIReportFieldIdMap[METADATA_STR] = CNIEnum::CNIReportKey::Metadata;
 }
 
 void InterfaceInfo::SetInterfaceDetailsFields(
@@ -112,8 +112,13 @@ Return Value:
 
 --*/
 {
-	// Prevent memory exhaustion attack, since we have a [] operator
-	// in the switch statement below.
+    // Prevent memory exhaustion attack, since we have a [] operator
+    // in the switch statement below.
+    if (CNIReportFieldIdMap.find(FieldName) == CNIReportFieldIdMap.end())
+    {
+        LOGINFOW(L"Unknown key:{%s}", FieldName.c_str());
+        return;
+    }
 
     switch (CNIReportFieldIdMap[FieldName])
     {
@@ -158,8 +163,13 @@ void BridgeInfo::SetBridgeDetailsFields(
     json::value JsonValue
 )
 {
-	// Prevent memory exhaustion attack, since we have a [] operator
-	// in the switch statement below.
+    // Prevent memory exhaustion attack, since we have a [] operator
+    // in the switch statement below.
+    if (CNIReportFieldIdMap.find(FieldName) == CNIReportFieldIdMap.end())
+    {
+        LOGINFOW(L"Unknown key:{%s}", FieldName.c_str());
+        return;
+    }
 
     switch (CNIReportFieldIdMap[FieldName])
     {
@@ -194,13 +204,13 @@ Return Value:
 {
     if (!FindFieldFromBaseClass(FieldName, JsonValue))
     {
-		// Prevent memory exhaustion attack, since we have a [] operator
-		// in the switch statement below.
-		if (CNIReportFieldIdMap.find(FieldName) == CNIReportFieldIdMap.end())
-		{
-			LOGINFOW(L"Unknown key:{%s}", FieldName.c_str());
-			return;
-		}
+        // Prevent memory exhaustion attack, since we have a [] operator
+        // in the switch statement below.
+        if (CNIReportFieldIdMap.find(FieldName) == CNIReportFieldIdMap.end())
+        {
+            LOGINFOW(L"Unknown key:{%s}", FieldName.c_str());
+            return;
+        }
 
         switch (CNIReportFieldIdMap[FieldName])
         {
@@ -252,9 +262,9 @@ Return Value:
             break;
         }
 
-		case CNIEnum::CNIReportKey::Metadata:
-			Metadata = Metadata::Metadata(JsonValue.as_object());
-			break;
+        case CNIEnum::CNIReportKey::Metadata:
+            Metadata = Metadata::Metadata(JsonValue.as_object());
+            break;
 
         default:
             LOGINFOW(L"cni report Unknown key:{%s}", FieldName.c_str());
@@ -285,7 +295,7 @@ Return Value:
         const wstring propertyName = e.first;
         const json::value propertyValue = e.second;
 
-		SetFields(propertyName, propertyValue);
+        SetFields(propertyName, propertyValue);
     }
 }
 
@@ -314,5 +324,5 @@ Return Value:
     LOGINFOW(L"InterfaceDetails{Type %s PrimaryCA %s Subnet %s MAC %s Name %s CATotalCount %d CAUsedCount %d ErrMsg %s}",
         InterfaceDetails.InterfaceType.c_str(), InterfaceDetails.PrimaryCA.c_str(), InterfaceDetails.Subnet.c_str(), InterfaceDetails.MAC.c_str(),
         InterfaceDetails.Name.c_str(),InterfaceDetails.SecondaryCATotalCount, InterfaceDetails.SecondaryCAUsedCount, InterfaceDetails.ErrorMessage.c_str());
-	Metadata.Print();
+    Metadata.Print();
 }
