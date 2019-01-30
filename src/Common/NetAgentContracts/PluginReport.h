@@ -169,7 +169,7 @@ public:
     wstring OperationType;
 
     // Operation Duration
-    int OperationDuration;
+    int OperationDuration = 0;
 
     // Context of event
     wstring Context;

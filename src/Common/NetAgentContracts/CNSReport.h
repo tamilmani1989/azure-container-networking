@@ -40,9 +40,9 @@ using namespace web;
 //
 // Enums for fields in the CNS report.
 //
-namespace CNSEnum 
+namespace CNSEnum
 {
-    enum CNSReportKey 
+    enum CNSReportKey
     {
         IsNewInstance,
         EventMessage,

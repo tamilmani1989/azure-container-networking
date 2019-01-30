@@ -94,13 +94,13 @@ None.
 
 --*/
 {
-	// Prevent memory exhaustion attack, since we have a [] operator
-	// in the switch statement below.
-	if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
-	{
-		wprintf(L"Unknown key:{%s}", FieldName.c_str());
-		return;
-	}
+    // Prevent memory exhaustion attack, since we have a [] operator
+    // in the switch statement below.
+    if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
+    {
+        wprintf(L"Unknown key:{%s}", FieldName.c_str());
+        return;
+    }
 
     switch (PluginReportFieldIdMap[FieldName])
     {
@@ -143,13 +143,13 @@ None.
 
 --*/
 {
-	// Prevent memory exhaustion attack, since we have a [] operator
-	// in the switch statement below.
-	if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
-	{
-		wprintf(L"Unknown key:{%s}", FieldName.c_str());
-		return;
-	}
+    // Prevent memory exhaustion attack, since we have a [] operator
+    // in the switch statement below.
+    if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
+    {
+        wprintf(L"Unknown key:{%s}", FieldName.c_str());
+        return;
+    }
 
     switch (PluginReportFieldIdMap[FieldName])
     {
@@ -200,13 +200,13 @@ None.
 
 --*/
 {
-	// Prevent memory exhaustion attack, since we have a [] operator
-	// in the switch statement below.
-	if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
-	{
-		wprintf(L"Unknown key:{%s}", FieldName.c_str());
-		return;
-	}
+    // Prevent memory exhaustion attack, since we have a [] operator
+    // in the switch statement below.
+    if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
+    {
+        wprintf(L"Unknown key:{%s}", FieldName.c_str());
+        return;
+    }
 
     switch (PluginReportFieldIdMap[FieldName])
     {
@@ -266,12 +266,12 @@ Return Value:
 
 --*/
 {
-	// Prevent memory exhaustion attack, since we have a [] operator
-	// in the switch statement below.
-	if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
-	{
-		return false;
-	}
+    // Prevent memory exhaustion attack, since we have a [] operator
+    // in the switch statement below.
+    if (PluginReportFieldIdMap.find(FieldName) == PluginReportFieldIdMap.end())
+    {
+        return false;
+    }
 
     switch (PluginReportFieldIdMap[FieldName])
     {

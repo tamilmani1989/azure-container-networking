@@ -25,7 +25,7 @@ using namespace http;
 using namespace json;
 using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 
-CNSReport::CNSReport(json::object& JsonObject)
+CNSReport::CNSReport(json::object& JsonObject) : IsNewInstance(false)
 /*++
 
 Routine Description:
@@ -66,7 +66,7 @@ Return Value:
 {
     PluginReport::InitializeFieldIdMap();
     Metadata::InitializeFieldIdMap();
-    
+
     CNSReportFieldIdMap[IS_NEW_INSTANCE_STR] = CNSEnum::CNSReportKey::IsNewInstance;
     CNSReportFieldIdMap[EVENT_MESSAGE_STR] = CNSEnum::CNSReportKey::EventMessage;
     CNSReportFieldIdMap[DNC_PARTITION_KEY_STR] = CNSEnum::CNSReportKey::PartitionKey;
@@ -98,6 +98,14 @@ Return Value:
 
 --*/
 {
+    // Prevent memory exhaustion attack, since we have a [] operator
+    // in the switch statement below.
+	if (CNSReportFieldIdMap.find(Name) == CNSReportFieldIdMap.end())
+	{
+		LOGINFOW(L"Unknown key:{%s}", Name.c_str());
+		return;
+	}
+
     switch (CNSReportFieldIdMap[Name])
     {
     case CNSEnum::CNSReportKey::IsNewInstance:
