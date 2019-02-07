@@ -209,6 +209,7 @@ func IsSubnetContainedInBaseSubnet(baseIPSubnet *net.IPNet, ipConstraint *net.IP
 
 	return true, nil
 }
+
 func IsRequestedRangeAllocatable(baseIPSubnet *net.IPNet, allocatedSubnets map[string]*net.IPNet, ipConstraint *net.IPNet) (bool, *api.JsonErr) {
 	ipAddressesToAllocate, _ := GetAllAddressInSubnet(ipConstraint)
 	for ipIndex := range ipAddressesToAllocate {

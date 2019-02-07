@@ -1,5 +1,9 @@
 package datamodel
 
+import (
+	"dnc/api"
+)
+
 // NetworkContainerState - NetworkContainer state.
 type NetworkContainerState int
 
@@ -41,16 +45,44 @@ const (
 	RefreshAssociation
 
 	// AllocateLocalIP - Allocate Local IP
-	AllocateLocalIP	
+	AllocateLocalIP
 )
 
-// IsInRevertingState - True if nc is in reverting state
+// IsDeleteInProgress - True if nc is in termination states
 func IsDeleteInProgress(ncState NetworkContainerState) bool {
 	return ncState == UnPublish ||
 		ncState == Revert ||
 		ncState == DisAssociate ||
 		ncState == UnReserve ||
 		ncState == Purge
+}
+
+// PromoteContainerState - Promotes container to the next state
+func PromoteContainerState(ncConfig *NCConfiguration) *api.JsonErr {
+	if ncConfig.FailureDetail.Code != 0 {
+		switch ncConfig.State {
+		case Reserve:
+			fallthrough
+		case UnReserve:
+			ncConfig.State = Purge
+		case AllocateLocalIP:
+			fallthrough
+		case Associate:
+			fallthrough
+		case DisAssociate:
+			ncConfig.State = UnReserve
+		case Publish:
+			fallthrough
+		case Program:
+			ncConfig.State = Revert
+		case UnPublish:
+			ncConfig.State = DisAssociate
+		}
+
+		return PersistNCConfiguration(ncConfig, false)
+	}
+
+	return nil
 }
 
 func (networkContainerState NetworkContainerState) String() string {
@@ -90,7 +122,7 @@ func (networkContainerState NetworkContainerState) String() string {
 
 	case RefreshAssociation:
 		return "RefreshAssociation"
-	
+
 	case AllocateLocalIP:
 		return "AllocateLocalIP"
 	}

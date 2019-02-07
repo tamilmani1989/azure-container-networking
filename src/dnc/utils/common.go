@@ -100,9 +100,9 @@ func TracePrefix(skip int) string {
 
 // RecordTime - Helper to generate processing time.
 // may be used with TracePrefix i.e. defer RecordTime(time.Now(), TracePrefix(2))
-func RecordTime(start time.Time, ctx string) {
+func RecordTime(start time.Time, ctx, ncID string) {
 	elapsed := time.Since(start)
-	loggershim.LS.Debugf("[%s] Process time: %s", ctx, elapsed)
+	loggershim.LS.Debugf("[%s] Process time: %s for NC: %s", ctx, elapsed, ncID)
 }
 
 func AreSetsEqual(set1, set2 []string) bool {

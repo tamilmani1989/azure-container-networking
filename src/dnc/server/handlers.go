@@ -795,3 +795,91 @@ func RefreshMonitorStatus(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 }
+
+// PromoteContainerState - Promotes container to the next state (if it is stuck)
+func PromoteContainerState(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var networkID string
+	var ncID string
+	var ok bool
+	networkID, ok = vars["networkID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	ncID, ok = vars["networkContainerID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := ctrler.PromoteContainerState(networkID, ncID); err != nil {
+		setRequestFailed(w, err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// SkipNodeCleanupForNetworkContainer - Promotes container to the next state (if connection to node has failed during disassociation)
+func SkipNodeCleanupForNetworkContainer(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var networkID string
+	var ncID string
+	var ok bool
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	networkID, ok = vars["networkID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	ncID, ok = vars["networkContainerID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := ctrler.SkipNodeCleanupForNetworkContainer(networkID, ncID); err != nil {
+		setRequestFailed(w, err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// GetNCCleanupState - Check to see if NC is in DisAssociationFailed state
+func GetNCCleanupState(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var networkID string
+	var ncID string
+	var ok bool
+	networkID, ok = vars["networkID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	ncID, ok = vars["networkContainerID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	ncConfig, err := ctrler.GetNetworkContainerConfiguration(networkID, ncID)
+	if err != nil {
+		setRequestFailed(w, err)
+	} else {
+		failureDetail := ncConfig.RequestStatus.FailureDetail
+		response := api.FailedToDisassociateNCResponse{FailedToDisassociateNCResponse: false}
+		if failureDetail.Code == api.DisAssociationFailed &&
+			strings.Contains(failureDetail.Text, "dial tcp") {
+			response.FailedToDisassociateNCResponse = true
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(&response); err != nil {
+			panic(err)
+		}
+	}
+}

@@ -1529,8 +1529,10 @@ func GetNetworkContainerConfiguration(networkID,
 	networkContainerConfig, err := TryQueryNetworkContainer(
 		networkID, networkContainerID)
 	if err != nil {
+		loggershim.LS.Debugf("TryQueryNetworkContainer returned error %+v", err)
 		return nil, nil
 	}
+
 	if networkContainerConfig == nil {
 		msg := fmt.Sprintf("Network container %s not found", networkContainerID)
 		loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
@@ -1985,6 +1987,14 @@ func GetNetworkContainerResponse(
 	var ipConfiguration *api.IPConfiguration
 	var nodeConfiguration *NodeConfiguration
 
+	if ncConfig == nil {
+		loggershim.LS.Debugf("GetNetworkContainerResponse on nil NCConfiguration")
+		return nil, &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			HTTPStatus: http.StatusInternalServerError,
+			Text:       "GetNetworkContainerResponse on nil NCConfiguration"}
+	}
+
 	if ncConfig.State != Prepare &&
 		!(ncConfig.State == Reserve && ncConfig.Status != Completed) {
 		reservationConfiguration, err := QueryIPReservation(
@@ -2005,6 +2015,13 @@ func GetNetworkContainerResponse(
 		}
 	}
 
+	var vlanID uint16
+	if nodeConfiguration == nil {
+		vlanID = 0
+	} else {
+		vlanID = nodeConfiguration.NetworkVlanIDMap[ncConfig.NetworkID]
+	}
+
 	requestStatus := api.RequestStatus{
 		State:         ncConfig.State.String(),
 		Status:        ncConfig.Status.String(),
@@ -2014,7 +2031,7 @@ func GetNetworkContainerResponse(
 		NcID:            ncConfig.NetworkContainerID,
 		AssociationInfo: associationInfo,
 		RequestStatus:   requestStatus,
-		VlanID:          nodeConfiguration.NetworkVlanIDMap[ncConfig.NetworkID]}
+		VlanID:          vlanID}
 
 	if ipConfiguration != nil {
 		response.IPConfiguration = *ipConfiguration

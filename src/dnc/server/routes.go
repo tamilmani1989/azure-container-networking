@@ -169,4 +169,22 @@ var routes = Routes{
 		"/refreshmonitorstatus",
 		RefreshMonitorStatus,
 	},
+	Route{
+		"PromoteNetworkContainerState",
+		"POST",
+		"/promotenetworkcontainerstate/networks/{networkID}/networkcontainer/{networkContainerID}",
+		PromoteContainerState,
+	},
+	Route{
+		"SkipNodeCleanupForNetworkContainer",
+		"POST",
+		"/skipnodecleanupfornetworkcontainer/networks/{networkID}/networkcontainer/{networkContainerID}",
+		SkipNodeCleanupForNetworkContainer,
+	},
+	Route{
+		"GetNCCleanupState",
+		"GET",
+		"/getnccleanupstate/networks/{networkID}/networkcontainer/{networkContainerID}",
+		GetNCCleanupState,
+	},
 }
