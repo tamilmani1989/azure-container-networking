@@ -78,9 +78,9 @@ build:
   - !!buildcommand
     name: 'Sign DNC Windows'
     command: 'package_sign.cmd'
-    arguments: 'sign linux_phase_drop'
+    arguments: 'sign drop_dnc'
     artifacts:
-      - from: 'linux_phase_drop'
+      - from: 'drop_dnc'
         include:
           - '**\azure-dnc.exe'
 
@@ -92,6 +92,17 @@ build:
       - from: 'linux_phase_drop_dnc_sf'
         include:
           - '**/*'
+
+  - !!buildcommand
+    name: 'Sign GitHub Binaries'
+    command: 'package_sign.cmd'
+    arguments: 'sign drop_github'
+    artifacts:
+      - from: 'drop_github'
+        include:
+          - '**\azure-vnet.exe'
+          - '**\azure-vnet-ipam.exe'
+          - '**\10-azure.conflist'
 
 package_sources:
   nuget:
@@ -116,7 +127,7 @@ package:
     - !!buildcommand                                                    # We are not doing anything here. In fact, we could have omitted the
       name: 'Package DNC Windows'                                       # package stage entirely.
       command: 'package_sign.cmd'
-      arguments: 'package linux_phase_drop'
+      arguments: 'package drop_dnc DNC'
       artifacts:
         - from: '.'
           to: 'AzureDNC'
@@ -132,6 +143,16 @@ package:
           to: 'AzureDNC-SF'
           include:
             - '*AzureDNCSF.*.nupkg'
+
+    - !!buildcommand
+      name: 'Package CNI'
+      command: 'package_sign.cmd'
+      arguments: 'package drop_github CNI'
+      artifacts:
+        - from: '.'
+          to: 'AzureCNI'
+          include:
+            - '*AzureCNI.*.nupkg'
 
 # Everything should be signed and packaged by this point and we will just be pushing/publishing here.
 # publish:

@@ -80,6 +80,16 @@ build:
   commands:
 
     - !!buildcommand
+        name: 'Retrieve latest CNI & CNS release from GitHub'
+        command: 'cdpxBuild.sh'
+        arguments: 'get'
+        artifacts:
+          - from: 'src/github/'
+            to: 'drop_github'
+            include:
+              - '**/*'
+
+    - !!buildcommand
         name: 'Build NetAgent'
         command: 'src/LinuxNetAgent/BuildNetAgent.sh'
         logs:
@@ -87,7 +97,7 @@ build:
             - 'src/LinuxNetAgent/build.log'
         artifacts:
           - from: 'src/LinuxNetAgent/main'
-            to: 'drop'
+            to: 'drop_dnc'
             include:
               - 'servicetunnel'
 
@@ -100,7 +110,7 @@ build:
             - 'src/dnc/build.log'
         artifacts:
           - from: 'src/dnc/'
-            to: 'drop'
+            to: 'drop_dnc'
             include:
               - 'azure-dnc.exe'
 
@@ -113,7 +123,7 @@ build:
             - 'src/dnc/coverage-dnc.out'
         artifacts:
           - from: 'src/dnc/'
-            to: 'drop'
+            to: 'drop_dnc'
             include:
               - 'azure-dnc'
 
@@ -139,7 +149,7 @@ package:
         command: 'src/LinuxNetAgent/PackageNetAgent.sh'
         artifacts:
           - from: 'src/LinuxNetAgent/out'
-            to: 'drop'
+            to: 'drop_dnc'
             include:
               - '*.zip'
 
