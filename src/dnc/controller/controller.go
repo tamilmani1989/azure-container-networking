@@ -335,6 +335,7 @@ func (c *Controller) GetNetworkContainerStatus(
 			HTTPStatus: http.StatusNotFound,
 			Text:       msg}
 	}
+
 	generatedStatus := generateStatus(ncConfig.Status, &ncConfig.FailureDetail)
 	var requestStatus *api.RequestStatus
 	if generatedStatus != http.StatusProcessing {
@@ -345,7 +346,6 @@ func (c *Controller) GetNetworkContainerStatus(
 	}
 
 	return requestStatus, generatedStatus, nil
-
 }
 
 // PersistNetworkJoinRequest - Persists network join request
@@ -388,7 +388,7 @@ func (c *Controller) PersistNetworkContainerRequestV1(
 	networkID, ncID string,
 	ncRequestV1 *api.NetworkContainerRequestV1,
 	apiVersion string) *api.JsonErr {
-	loggershim.LS.Debugf("Create Network Container (v1) request: %s", ncRequestV1.String())
+	loggershim.LS.Debugf("Create Network Container (v1) NC: {%s} request: %s", ncID, ncRequestV1.String())
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
@@ -400,11 +400,44 @@ func (c *Controller) PersistNetworkContainerRequestV2(
 	networkID, ncID string,
 	ncRequestV2 *api.NetworkContainerRequestV2,
 	apiVersion string) *api.JsonErr {
-	loggershim.LS.Debugf("Create Network Container (v2) request: %s", ncRequestV2.String())
+	loggershim.LS.Debugf("Create Network Container (v2) NC: {%s} request: %s", ncID, ncRequestV2.String())
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 	return datamodel.CreateOrUpdateNCRequestV2(networkID, ncID, ncRequestV2, apiVersion)
+}
+
+// PromoteContainerState - Attempt to promote container stuck in an undesirable state (as a result of unreachable node)
+func (c *Controller) PromoteContainerState(networkID, ncID string) *api.JsonErr {
+	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	c.SessionManager.BeginWriteSession(sessionInfo)
+	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	repoNCConfig, err := datamodel.TryQueryNetworkContainer(networkID, ncID)
+	if err != nil {
+		return err
+	}
+
+	datamodel.PromoteContainerState(repoNCConfig)
+	return datamodel.PersistNCConfiguration(repoNCConfig, false)
+}
+
+// SkipNodeCleanupForNetworkContainer - Attempt to promote container stuck in an undesirable state (as a result of unreachable node)
+func (c *Controller) SkipNodeCleanupForNetworkContainer(networkID, ncID string) *api.JsonErr {
+	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	c.SessionManager.BeginWriteSession(sessionInfo)
+	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	repoNCConfig, err := datamodel.TryQueryNetworkContainer(networkID, ncID)
+	if err != nil {
+		return err
+	}
+
+	if repoNCConfig.FailureDetail.Code == api.DisAssociationFailed {
+		return datamodel.PromoteContainerState(repoNCConfig)
+	}
+
+	return nil
 }
 
 // GetNetworkContainerConfiguration - Retrieves the network configuration

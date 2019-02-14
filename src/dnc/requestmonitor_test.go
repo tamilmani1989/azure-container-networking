@@ -72,9 +72,8 @@ var (
 	subnetName = "subnet1"
 
 	reservationReq = api.AllocationRequest{
-		SubnetName:     "subnet1",
-		IPConstraint:   "10.0.0.15",
-		NodeConstraint: ""}
+		SubnetName:   "subnet1",
+		IPConstraint: "10.0.0.15"}
 	reservationReq2 = api.AllocationRequest{
 		NodeConstraint: "testnode",
 		SubnetName:     "subnet1"}
@@ -125,11 +124,10 @@ var (
 		MaxIdleConnsPerHost: 1024,
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
-			KeepAlive: 300 * time.Second,
+			KeepAlive: 30 * time.Second,
 		}).DialContext,
 		TLSHandshakeTimeout: 0 * time.Second}
-	client = &http.Client{Transport: tr}
-	// client        = &http.Client{}
+	client        = &http.Client{Transport: tr}
 	nmAgentServer *MockServer
 	cnsServer     *MockServer
 )
@@ -219,7 +217,7 @@ func TestVlanGeneration(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(vlanMap, vlanRefMap) {
-		t.Fatal("vlanMap is not equal to vlanRefMap")
+		t.Fatalf("vlanMap is not equal to vlanRefMap")
 	}
 
 	fmt.Println("Removing vlanID vnet2")
@@ -229,7 +227,7 @@ func TestVlanGeneration(t *testing.T) {
 	delete(vlanRefMap, vnetID[1])
 
 	if !reflect.DeepEqual(vlanMap, vlanRefMap) {
-		t.Fatal("vlanMap is not equal to vlanRefMap")
+		t.Fatalf("vlanMap is not equal to vlanRefMap")
 	}
 
 	fmt.Printf("vlanMap -> %+v\n", vlanMap)
@@ -244,10 +242,190 @@ func TestVlanGeneration(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(vlanMap, vlanRefMap) {
-		t.Fatal("vlanMap is not equal to vlanRefMap")
+		t.Fatalf("vlanMap is not equal to vlanRefMap")
 	}
 
 	fmt.Printf("vlanMap -> %+v\n", vlanMap)
+}
+
+func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
+
+	cnsServer.SetupTest()
+	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+
+	setupNetworkAndJoinSubnet(t, dncEP, vnetID, networkContainerReq.AllocationRequest.SubnetName, apiVersion, true, 0)
+	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeReq)
+
+	nmAgentResponderContext := nmAgentServer.Context.(*NMAgentResponderContext)
+
+	cnetSpace := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.CNetSpace
+	if nmAgentResponderContext.TagResponse != nil {
+		for _, tagResponse := range nmAgentResponderContext.TagResponse {
+			cnetSpace = cnetSpace + "," + strings.Join(tagResponse.Response.Values, ",")
+		}
+	}
+
+	fmt.Println("CnetSpace;", cnetSpace)
+	fmt.Println("Started CNS Server", cnsServer.Server.URL)
+	cnsServer.SetupTest()
+	allocatedIP := "10.0.0.4"
+	if len(networkContainerReq.AllocationRequest.IPConstraint) > 0 {
+		allocatedIP = networkContainerReq.AllocationRequest.IPConstraint
+	}
+	var ipConfig cns.IPConfiguration
+	ipConfig.DNSServers = strings.Split(nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.DNSServers, ",")
+	ipConfig.IPSubnet = cns.IPSubnet{
+		IPAddress:    allocatedIP,
+		PrefixLength: 24}
+	ipConfig.GatewayIPAddress = "10.0.0.1"
+	ncDeploymentRequests2 := []*NCDeploymentRequest{&NCDeploymentRequest{
+		NCID: ncID}}
+	cnsResponderContextMap = generateDefaultCnsResponderContextMap(t, ncDeploymentRequests2)
+	ncRequestValidatorFunc := func(t *testing.T, req cns.CreateNetworkContainerRequest) bool {
+		podInfo := OrchestratorContext{
+			PodName:      "testpodname",
+			PodNamespace: "testpodnamespace"}
+		context, _ := json.Marshal(podInfo)
+		expectedReq := cns.CreateNetworkContainerRequest{
+			Version:                    "1",
+			NetworkContainerType:       cns.AzureContainerInstance,
+			NetworkContainerid:         "Swift_" + ncID,
+			PrimaryInterfaceIdentifier: networkContainerReq.AssociationInfo.InterfaceID,
+			IPConfiguration:            ipConfig,
+			AuthorizationToken:         "Key1-" + vnetID,
+			CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
+			OrchestratorContext:        context,
+			MultiTenancyInfo:           req.MultiTenancyInfo}
+		fmt.Printf("ReceivedResponse:%+v\n", req)
+		fmt.Printf("ExpectedResponse:%+v\n", expectedReq)
+
+		if !AreCnsRequestsEqual(expectedReq, req, nil) {
+			fmt.Printf("Mismatch in expected and received Cns create or update request.\nExpected:%+v\nReceived:%+v\n", expectedReq, req)
+			return false
+		}
+
+		fmt.Println("Response matches with the expected request")
+		return true
+	}
+
+	cnsResponderContextMap.getContext(ncID).CreateOrUpdateNCResponse.ValidateNCRequest = ncRequestValidatorFunc
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+
+	var body bytes.Buffer
+	var respErr api.JsonErr
+	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + "/status" + apiVersion
+	json.NewEncoder(&body).Encode(networkContainerReq)
+	response, err := http.Post(ncURL, "application/json", &body)
+	if err != nil {
+		t.Fatalf("CreateNetworkContainer failed with error: %+v\n", err)
+	}
+
+	response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
+			t.Fatalf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
+		}
+	}
+
+	var chans = []chan string{}
+	if nmAgentResponderContext.TagResponse != nil {
+		for _, tagResponse := range nmAgentResponderContext.TagResponse {
+			fmt.Printf("Waiting for get %s tag definition\n", tagResponse.Response.Name)
+			chans = append(chans, tagResponse.SignalInfo.Signal)
+		}
+
+		cases := make([]reflect.SelectCase, len(chans))
+		for i, ch := range chans {
+			cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
+		}
+
+		remaining := len(chans)
+		for remaining > 0 {
+			chosen, value, _ := reflect.Select(cases)
+			fmt.Printf("Received signal value:%+v\n", value)
+			cases[chosen].Chan = reflect.ValueOf(nil)
+			remaining--
+			continue
+		}
+	}
+
+	fmt.Printf("Waiting for create NC Url:%s\n", ncURL)
+	<-cnsResponderContextMap.getContext(ncID).CreateOrUpdateNCResponse.SignalInfo.Signal
+	WaitForResourceState(t, ncURLStatus, "Completed", http.StatusOK, 2)
+
+	networkURL := dncEP + "/networks/" + vnetID + apiVersion
+	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
+	getNCCleanupStateURL := dncEP + "/getnccleanupstate/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	promotionURL := dncEP + "/skipnodecleanupfornetworkcontainer/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+
+	// stop CNS here and promote NC state after termination fails
+	cnsServer.TearDownSuite()
+	deleteResource(t, ncURL, http.StatusOK)
+	if WaitForResourceCleanup(t, ncURL, 4) {
+		t.Fatalf("We should not be able to clean up NC yet")
+	}
+
+	response, err = http.Get(getNCCleanupStateURL)
+	if err != nil {
+		t.Fatalf("GetNCCleanupState failed with error: %+v", err)
+	}
+
+	var cleanupStateResponse api.FailedToDisassociateNCResponse
+	err = utils.DecodeResponse(response, &cleanupStateResponse)
+	response.Body.Close()
+	if err != nil {
+		t.Fatalf("Decoding FailedToDisassociateNCResponse failed. Response %+v Err:%+v", cleanupStateResponse, err)
+	}
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("GetNCCleanupState failed with error: %+v {%+v}", err, response)
+	}
+
+	if cleanupStateResponse.FailedToDisassociateNCResponse != true {
+		t.Fatalf("TestSkipNodeCleanupForNetworkContainer failed with unexpected error.")
+	}
+
+	response, err = http.Post(promotionURL, "application/json", &body)
+	if err != nil {
+		t.Fatalf("SkipNodeCleanupForNetworkContainer failed with error: %+v", err)
+	}
+
+	response.Body.Close()
+	var req api.NetworkContainerResponse
+	for ; req.RequestStatus.FailureDetail.Code != api.DisAssociationFailed; time.Sleep(1 * time.Second) {
+		response, err = http.Get(ncURL)
+		if err != nil {
+			t.Fatalf("Failed to get NC status.")
+		}
+
+		err = utils.DecodeResponse(response, &req)
+		response.Body.Close()
+		if err != nil {
+			t.Fatalf("Decoding RequestStatus failed. Req %+v Err:%+v", req, err)
+		}
+	}
+
+	deleteResource(t, ncURL, http.StatusOK)
+	if !WaitForResourceCleanup(t, ncURL, 4) {
+		t.Fatalf("Failed to cleanup NC %s", ncID)
+	}
+
+	deleteResource(t, networkURL, http.StatusOK)
+	deleteResource(t, nodeURL, http.StatusOK)
+	// restart our CNS server for the following tests
+	cnsServer.SetupServer("127.0.0.1:10090")
 }
 
 func TestNode(t *testing.T) {
@@ -289,11 +467,14 @@ func TestNode(t *testing.T) {
 
 	fmt.Println("Validate that appropriate error is thrown when querying for node that does not exist")
 	response, err := http.Get(dncEP + "/nodes/" + nodeID + apiVersion)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if response.StatusCode != http.StatusNotFound {
-		t.Errorf("Received Invalid status code %d, Expected:%d",
+		t.Fatalf("Received Invalid status code %d, Expected:%d",
 			response.StatusCode,
 			http.StatusNotFound)
-		t.Fatal(err)
 	}
 
 	defer response.Body.Close()
@@ -302,10 +483,9 @@ func TestNode(t *testing.T) {
 	utils.DecodeResponse(response, &respErr)
 
 	if respErr.Code != api.NodeNotFound {
-		t.Errorf("Invalid error code %d, Expected:%d",
+		t.Fatalf("Invalid error code %d, Expected:%d",
 			respErr.Code,
 			api.NodeNotFound)
-		t.Fatal(err)
 	}
 }
 
@@ -332,8 +512,7 @@ func TestNetwork(t *testing.T) {
 
 	response, err := http.Post(dncEP+"/networks/"+vnetID+apiVersion, "application/json", &body)
 	if err != nil {
-		t.Errorf("CreateNetwork failed with error: %+v\n", err)
-		t.Fatal(err)
+		t.Fatalf("CreateNetwork failed with error: %+v\n", err)
 	}
 
 	defer response.Body.Close()
@@ -341,8 +520,7 @@ func TestNetwork(t *testing.T) {
 	if response.StatusCode != http.StatusOK {
 		err = utils.DecodeResponse(response, &respErr)
 		if err != nil || respErr.Code != 0 {
-			t.Errorf("CreateNetwork failed with response %+v Err:%+v", response, err)
-			t.Fatal(err)
+			t.Fatalf("CreateNetwork failed with response %+v Err:%+v", response, err)
 		}
 	}
 
@@ -386,8 +564,7 @@ func TestNetwork(t *testing.T) {
 	nmAgentServer.Lock.Unlock()
 	response2, err := http.Post(networkURL, "application/json", &body2)
 	if err != nil {
-		t.Errorf("CreateNetwork failed with error: %+v\n", err)
-		t.Fatal(err)
+		t.Fatalf("CreateNetwork failed with error: %+v\n", err)
 	}
 
 	defer response2.Body.Close()
@@ -395,8 +572,7 @@ func TestNetwork(t *testing.T) {
 	if response2.StatusCode != http.StatusOK {
 		err = utils.DecodeResponse(response2, &respErr2)
 		if err != nil || respErr2.Code != 0 {
-			t.Errorf("CreateNetwork failed with response %+v Err:%+v", response2, err)
-			t.Fatal(err)
+			t.Fatalf("CreateNetwork failed with response %+v Err:%+v", response2, err)
 		}
 	}
 
@@ -419,27 +595,23 @@ func TestSubnet(t *testing.T) {
 
 	response, err := http.Post(dncEP+"/networks/"+vnetID+"/subnets/"+subnetName+apiVersion, "application/json", &body)
 	if err != nil {
-		t.Errorf("JoinSubnet failed with error: %+v\n", err)
-		t.Fatal(err)
+		t.Fatalf("JoinSubnet failed with error: %+v\n", err)
 	}
 
 	defer response.Body.Close()
 
 	if response.StatusCode == http.StatusOK {
-		t.Errorf("JoinSubnet expected to fail")
-		t.Fatal(err)
+		t.Fatalf("JoinSubnet expected to fail")
 	}
 
 	err = utils.DecodeResponse(response, &responseErr)
 	fmt.Printf("JoinSubnet failed with response %+v Err:%+v\n", responseErr, err)
 	if err != nil && !strings.Contains(err.Error(), "Request failed with HTTP error 404") {
-		t.Errorf("JoinSubnet decode failed with response %+v Err:%+v", responseErr, err)
-		t.Fatal(err)
+		t.Fatalf("JoinSubnet decode failed with response %+v Err:%+v", responseErr, err)
 	}
 
 	if responseErr.Code != api.NetworkNotFound {
-		t.Errorf("JoinSubnet expected to fail with error code %s, Received response %s", responseErr.Code.String(), api.NetworkNotFound.String())
-		t.Fatal(err)
+		t.Fatalf("JoinSubnet expected to fail with error code %s, Received response %s", responseErr.Code.String(), api.NetworkNotFound.String())
 	}
 
 	// join subnet with network
@@ -460,8 +632,7 @@ func TestSubnet(t *testing.T) {
 	fmt.Printf("Joining subnet %s, network %s. AccessToken:%s\n", vnetID, subnetName, subnetReq.AuthenticationToken)
 	response, err = http.Post(resourceURL, "application/json", &body)
 	if err != nil {
-		t.Errorf("JoinSubnet failed with error: %+v\n", err)
-		t.Fatal(err)
+		t.Fatalf("JoinSubnet failed with error: %+v\n", err)
 	}
 
 	defer response.Body.Close()
@@ -487,8 +658,7 @@ func TestSubnet(t *testing.T) {
 	fmt.Printf("Updating subnet %s, network %s with accessToken:%s\n", vnetID, subnetName, subnetReq2.AuthenticationToken)
 	response, err = http.Post(resourceURL, "application/json", &body)
 	if err != nil {
-		t.Errorf("JoinSubnet update failed with error: %+v\n", err)
-		t.Fatal(err)
+		t.Fatalf("JoinSubnet update failed with error: %+v\n", err)
 	}
 
 	response.Body.Close()
@@ -501,16 +671,15 @@ func TestSubnet(t *testing.T) {
 func TestReservation(t *testing.T) {
 	id, _ := uuid.NewUUID()
 	vnetID := id.String()
-
 	setupNetworkAndJoinSubnet(t, dncEP, vnetID, reservationReq.SubnetName, apiVersion, true, 0)
 	reservationURL := dncEP + "/networks/" + vnetID + "/reservations/" + reservationID + apiVersion
+	reservationStatusURL := dncEP + "/networks/" + vnetID + "/reservations/" + reservationID + "/status" + apiVersion
 	createReservation(t, reservationReq, dncEP, vnetID, reservationID, apiVersion)
-	fmt.Printf("Successfully created reservation [%s]\n", reservationID)
 	networkURL := dncEP + "/networks/" + vnetID + apiVersion
+	WaitForResourceState(t, reservationStatusURL, "Completed", http.StatusOK, 4)
 	deleteErrResp := deleteResource(t, networkURL, http.StatusBadRequest)
 	if deleteErrResp.Code != api.NetworkInUse {
-		t.Errorf("Delete network expected to fail with error %s, Error response %s \n", api.NetworkInUse.String(), deleteErrResp.String())
-		t.Fatal(deleteErrResp)
+		t.Fatalf("Delete network expected to fail with error %s, Error response %s \n", api.NetworkInUse.String(), deleteErrResp.String())
 	}
 
 	deleteResource(t, reservationURL, http.StatusOK)
@@ -528,22 +697,18 @@ func TestReservation(t *testing.T) {
 	setupNetworkAndJoinSubnet(t, dncEP, vnetID, reservationReq2.SubnetName, apiVersion, true, 0)
 	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeReq)
 	createReservation(t, reservationReq2, dncEP, vnetID, reservationID, apiVersion)
-
-	fmt.Printf("Successfully created reservation [%s]\n", reservationID)
+	WaitForResourceState(t, reservationStatusURL, "Completed", http.StatusOK, 4)
 	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
-
 	fmt.Printf("Delete resource %s when allocations exist. Expected to fail\n", networkURL)
 	deleteErrResp = deleteResource(t, networkURL, http.StatusBadRequest)
 	if deleteErrResp.Code != api.NetworkInUse {
-		t.Errorf("Delete network expected to fail with error %s, Error response %s \n", api.NetworkInUse.String(), deleteErrResp.String())
-		t.Fatal(deleteErrResp)
+		t.Fatalf("Delete network expected to fail with error %s, Error response %s \n", api.NetworkInUse.String(), deleteErrResp.String())
 	}
 
 	fmt.Printf("Delete resource %s when reservations exist. Expected to fail\n", nodeURL)
 	deleteErrResp = deleteResource(t, nodeURL, http.StatusBadRequest)
 	if deleteErrResp.Code != api.NodeInUse {
-		t.Errorf("Delete node expected to fail with error %s, Error response %s \n", api.NodeInUse.String(), deleteErrResp.String())
-		t.Fatal(deleteErrResp)
+		t.Fatalf("Delete node expected to fail with error %s, Error response %s \n", api.NodeInUse.String(), deleteErrResp.String())
 	}
 
 	deleteResource(t, reservationURL, http.StatusOK)
@@ -627,8 +792,7 @@ func addOrUpdateNode(
 	fmt.Printf("NodeID:%s, NodeInfo%s", nodeID, nodeInfoReq.String())
 	response, err = http.Post(dncEP+"/nodes/"+nodeID+apiVersion, "application/json", &body)
 	if err != nil {
-		t.Errorf("CreateNode failed with error: %+v\n", err)
-		t.Fatal(err)
+		t.Fatalf("CreateNode failed with error: %+v\n", err)
 	}
 
 	defer response.Body.Close()
@@ -636,8 +800,7 @@ func addOrUpdateNode(
 	if response.StatusCode != http.StatusOK {
 		err = utils.DecodeResponse(response, &errResponse)
 		if err != nil || errResponse.Code != 0 {
-			t.Errorf("CreateNode failed with response %+v Err:%+v", errResponse, err)
-			t.Fatal(err)
+			t.Fatalf("CreateNode failed with response %+v Err:%+v", errResponse, err)
 		}
 	}
 }
@@ -654,22 +817,19 @@ func deleteResource(
 	// Create request
 	req, err := http.NewRequest("DELETE", resourceURL, nil)
 	if err != nil {
-		t.Errorf("ResourceURL %s, Create delete request failed with error: %+v\n", resourceURL, err)
-		t.Fatal(err)
+		t.Fatalf("ResourceURL %s, Create delete request failed with error: %+v\n", resourceURL, err)
 	}
 
 	// Fetch Request
 	resp, err := client.Do(req)
 	if err != nil {
-		t.Errorf("URL:%s, Delete failed with error: %+v\n", resourceURL, err)
-		t.Fatal(err)
+		t.Fatalf("URL:%s, Delete failed with error: %+v\n", resourceURL, err)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != expectedStatusCode {
-		t.Errorf("ResourceURL %s, Delete expected to return with status:%d, Received:%d\n", resourceURL, expectedStatusCode, resp.StatusCode)
-		t.Fatal(err)
+		t.Fatalf("ResourceURL %s, Delete expected to return with status:%d, Received:%d\n", resourceURL, expectedStatusCode, resp.StatusCode)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -691,8 +851,7 @@ func validateNodeInfoResponse(
 	var nodeInfoResponse api.NodeInfoResponse
 	err = utils.DecodeResponse(response, &nodeInfoResponse)
 	if err != nil {
-		t.Errorf("Decoding NodeInfo failed. Response %+v Err:%+v", nodeInfoResponse, err)
-		t.Fatal(err)
+		t.Fatalf("Decoding NodeInfo failed. Response %+v Err:%+v", nodeInfoResponse, err)
 	}
 
 	defer response.Body.Close()
@@ -705,18 +864,15 @@ func validateNodeInfoResponse(
 	}
 
 	if len(expectedIPAddresses) != len(nodeInfoResponse.NodeInfo.IPAddresses) {
-		t.Errorf("Mismatch in count of expceted and received IP Addresses. Expected:%d, Received:%d",
+		t.Fatalf("Mismatch in count of expceted and received IP Addresses. Expected:%d, Received:%d",
 			len(expectedIPAddresses),
 			len(nodeInfoResponse.NodeInfo.IPAddresses))
-		t.Fatal(err)
 	}
 	for _, ipAddressString := range nodeInfoResponse.NodeInfo.IPAddresses {
 		receivedIPAddrUint32 := utils.IP2Int(net.ParseIP(ipAddressString))
 		ok := expectedIPAddresses[receivedIPAddrUint32]
 		if !ok {
-			t.Errorf("Received IP Address %s not found in the expected list",
-				ipAddressString)
-			t.Fatal(err)
+			t.Fatalf("Received IP Address %s not found in the expected list", ipAddressString)
 		}
 	}
 }
@@ -731,8 +887,7 @@ func getSubnetConfiguration(
 	var subnetConfiguration api.SubnetConfigurationResponse
 	err = utils.DecodeResponse(response, &subnetConfiguration)
 	if err != nil {
-		t.Errorf("Decoding SubnetConfiguration failed. Response %+v Err:%+v", response, err)
-		t.Fatal(err)
+		t.Fatalf("Decoding SubnetConfiguration failed. Response %+v Err:%+v", response, err)
 	}
 
 	defer response.Body.Close()
@@ -753,8 +908,7 @@ func getNetworkContainerConfiguration(
 	var networkContainerConfiguration api.NetworkContainerResponse
 	err = utils.DecodeResponse(response, &networkContainerConfiguration)
 	if err != nil {
-		t.Errorf("Decoding NetworkContainerConfiguration failed. Response %+v Err:%+v", response, err)
-		t.Fatal(err)
+		t.Fatalf("Decoding NetworkContainerConfiguration failed. Response %+v Err:%+v", response, err)
 	}
 
 	defer response.Body.Close()
@@ -1225,19 +1379,17 @@ func GetNetworkStatus(t *testing.T, resourceStatusURL string, expectedStatusCode
 	fmt.Printf("Resource status URL:%s\n", resourceStatusURL)
 	response, err := http.Get(resourceStatusURL)
 	if err != nil {
-		t.Errorf("Failed to get network status for resource URL:%s. Error:%+v",
+		t.Fatalf("Failed to get network status for resource URL:%s. Error:%+v",
 			resourceStatusURL,
 			err)
-		t.Fatal(err)
 	}
 
 	defer response.Body.Close()
 
 	if response.StatusCode != expectedStatusCode && response.StatusCode != http.StatusProcessing {
-		t.Errorf("Unexpected response code %d received when trying to get network status for resource URL:%s.",
+		t.Fatalf("Unexpected response code %d received when trying to get network status for resource URL:%s.",
 			response.StatusCode,
 			resourceStatusURL)
-		t.Fatal(response)
 	}
 	// fmt.Printf("Received Response:%+v\n", response)
 	if response.StatusCode == http.StatusProcessing {
@@ -1247,10 +1399,9 @@ func GetNetworkStatus(t *testing.T, resourceStatusURL string, expectedStatusCode
 	err = utils.DecodeResponse(response, &operationStatus)
 	if err != nil &&
 		(response.StatusCode != expectedStatusCode) {
-		t.Errorf("Failed to decode network response for resource URL:%s. Error:%+v",
+		t.Fatalf("Failed to decode network response for resource URL:%s. Error:%+v",
 			resourceStatusURL,
 			err)
-		t.Fatal(err)
 	}
 	fmt.Printf("Resource URL:%s Status:%s\n", resourceStatusURL, operationStatus.String())
 
@@ -1263,35 +1414,37 @@ func IsJoinInState(t *testing.T, resourceStatusURL string, state string, expecte
 }
 
 func WaitForResourceCleanup(t *testing.T, resourceStatusURL string, timeToWait int) bool {
+	ticker := time.NewTicker(1 * time.Second).C
+	timer := time.NewTimer(time.Duration(timeToWait) * time.Second).C
 	for {
 		select {
-		case <-time.After(1 * time.Second):
+		case <-timer:
+			return false
+
+		case <-ticker:
 			response, err := http.Get(resourceStatusURL)
 			if err == nil {
+				response.Body.Close()
 				if response.StatusCode == http.StatusNotFound {
-					response.Body.Close()
 					return true
 				}
-
-				response.Body.Close()
 			}
-
-		case <-time.After(time.Duration(timeToWait) * time.Second):
-			return false
 		}
 	}
 }
 
 func WaitForResourceState(t *testing.T, resourceStatusURL string, status string, expectedStatusCode int, timeToWait int) bool {
+	ticker := time.NewTicker(1 * time.Second).C
+	timer := time.NewTimer(time.Duration(timeToWait) * time.Second).C
 	for {
 		select {
-		case <-time.After(1 * time.Second):
+		case <-timer:
+			return false
+
+		case <-ticker:
 			if IsJoinInState(t, resourceStatusURL, status, expectedStatusCode) {
 				return true
 			}
-
-		case <-time.After(time.Duration(timeToWait) * time.Second):
-			return false
 		}
 	}
 }
@@ -1317,15 +1470,13 @@ func setupNetwork(t *testing.T, dncEP, apiVersion string, networkDeploymentReque
 
 		response, err := http.Post(dncEP+"/networks/"+networkDeploymentRequest.vnetID+apiVersion, "application/json", &body)
 		if err != nil {
-			t.Errorf("CreateNetwork failed with error: %+v\n", err)
-			t.Fatal(err)
+			t.Fatalf("CreateNetwork failed with error: %+v\n", err)
 		}
 
 		if response.StatusCode != http.StatusOK {
 			err = utils.DecodeResponse(response, &respErr)
 			if err != nil || respErr.Code != 0 {
-				t.Errorf("CreateNetwork failed with response %+v Err:%+v", response, err)
-				t.Fatal(err)
+				t.Fatalf("CreateNetwork failed with response %+v Err:%+v", response, err)
 			}
 		}
 
@@ -1385,18 +1536,16 @@ func setupNetworkAndJoinSubnet(t *testing.T, dncEP, vnetID, subnetName, apiVersi
 	subnetReq := api.SubnetRequest{
 		AuthenticationToken: "Key1-" + vnetID}
 	json.NewEncoder(&body).Encode(subnetReq)
-	fmt.Printf("Joining subnet %s, network %s. AccessToken:%s\n", vnetID, subnetName, subnetReq.AuthenticationToken)
+	fmt.Printf("Joining subnet %s, network %s. AccessToken:%s\n", subnetName, vnetID, subnetReq.AuthenticationToken)
 	response, err := http.Post(resourceURL, "application/json", &body)
 	if err != nil {
-		t.Errorf("JoinSubnet failed with error: %+v\n", err)
-		t.Fatal(err)
+		t.Fatalf("JoinSubnet failed with error: %+v\n", err)
 	}
 
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		t.Errorf("JoinSubnet failed with status code %d\n", response.StatusCode)
-		t.Fatal(err)
+		t.Fatalf("JoinSubnet failed with status code %d\n", response.StatusCode)
 	}
 }
 
@@ -1407,23 +1556,20 @@ func createReservation(t *testing.T, reservationreq api.AllocationRequest, dncEP
 	reservationURL := dncEP + "/networks/" + vnetID + "/reservations/" + reservationID + apiVersion
 	response, err := http.Post(reservationURL, "application/json", &body)
 	if err != nil {
-		t.Errorf("CreateReservation failed with error: %+v\n", err)
-		t.Fatal(err)
+		t.Fatalf("CreateReservation failed with error: %+v\n", err)
 	}
 
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
-			t.Errorf("CreateReservation failed with response %+v Err:%+v", respErr, err)
-			t.Fatal(err)
+			t.Fatalf("CreateReservation failed with response %+v Err:%+v", respErr, err)
 		}
 	}
+
 	reservationStatusURL := dncEP + "/networks/" + vnetID + "/reservations/" + reservationID + "/status" + apiVersion
 	WaitForResourceState(t, reservationStatusURL, "Completed", http.StatusOK, 2)
-
 	fmt.Printf("Successfully created reservation [%s]\n", reservationID)
-
 }
 
 func AreCnsRequestsEqual(expected, received cns.CreateNetworkContainerRequest, vnetIDMap map[string]string) bool {
@@ -1617,16 +1763,14 @@ func createNetworkContainer(
 	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncid + "/status" + apiVersion
 	response, err := http.Post(ncURL, "application/json", &body)
 	if err != nil {
-		t.Errorf("CreateNetworkContainer failed with error: %+v\n", err)
-		t.Fatal(err)
+		t.Fatalf("CreateNetworkContainer failed with error: %+v\n", err)
 	}
 
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
-			t.Errorf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
-			t.Fatal(err)
+			t.Fatalf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
 		}
 	}
 	var chans = []chan string{}
@@ -1665,15 +1809,13 @@ func createNetworkContainer(
 	fmt.Printf("Delete resource %s when allocations exist. Expected to fail\n", networkURL)
 	deleteErrResp := deleteResource(t, networkURL, http.StatusBadRequest)
 	if deleteErrResp.Code != api.NetworkInUse {
-		t.Errorf("Delete network expected to fail with error %s, Error response %s \n", api.NetworkInUse.String(), deleteErrResp.String())
-		t.Fatal(err)
+		t.Fatalf("Delete network expected to fail with error %s, Error response %s \n", api.NetworkInUse.String(), deleteErrResp.String())
 	}
 
 	fmt.Printf("Delete resource %s when node has NC's deployed exist. Expected to fail\n", nodeURL)
 	deleteErrResp = deleteResource(t, nodeURL, http.StatusBadRequest)
 	if deleteErrResp.Code != api.NodeInUse {
-		t.Errorf("Delete node expected to fail with error %s, Error response %s \n", api.NodeInUse.String(), deleteErrResp.String())
-		t.Fatal(err)
+		t.Fatalf("Delete node expected to fail with error %s, Error response %s \n", api.NodeInUse.String(), deleteErrResp.String())
 	}
 
 	reservationURL := dncEP + "/networks/" + vnetID + "/reservations/" + reservationID + apiVersion
@@ -1681,26 +1823,23 @@ func createNetworkContainer(
 		fmt.Printf("Delete resource %s when reservation has NCassociated with it. Expected to fail\n", nodeURL)
 		deleteErrResp = deleteResource(t, reservationURL, http.StatusBadRequest)
 		if deleteErrResp.Code != api.ReservationInUse {
-			t.Errorf("Delete reservation expected to fail with error %s as there is an association, Error response %s \n", api.ReservationInUse.String(), deleteErrResp.String())
-			t.Fatal(err)
+			t.Fatalf("Delete reservation expected to fail with error %s as there is an association, Error response %s \n", api.ReservationInUse.String(), deleteErrResp.String())
 		}
 	}
-	deleteResource(t, ncURL, http.StatusOK)
 
+	deleteResource(t, ncURL, http.StatusOK)
 	fmt.Printf("Waiting for delete NC Url:%s\n", ncURL)
 	<-cnsResponderContextMap.getContext(ncid).DeleteNCResponse.SignalInfo.Signal
 
-	if !WaitForResourceCleanup(t, ncURL, 2) {
-		t.Errorf("Failed to cleanup network container%s\n", ncid)
-		t.Fatal(err)
+	if !WaitForResourceCleanup(t, ncURL, 4) {
+		t.Fatalf("Failed to cleanup network container%s\n", ncid)
 	}
 
 	if len(reservationID) > 0 {
 		fmt.Printf("Delete resource %s when reservation exist. Expected to fail\n", networkURL)
 		deleteErrResp := deleteResource(t, networkURL, http.StatusBadRequest)
 		if deleteErrResp.Code != api.NetworkInUse {
-			t.Errorf("Delete network expected to fail with error %s, Error response %s \n", api.NetworkInUse.String(), deleteErrResp.String())
-			t.Fatal(err)
+			t.Fatalf("Delete network expected to fail with error %s, Error response %s \n", api.NetworkInUse.String(), deleteErrResp.String())
 		}
 
 		deleteResource(t, reservationURL, http.StatusOK)
@@ -1807,16 +1946,14 @@ func createNetworkContainerAndUpdateNetworkConfig(
 	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncid + "/status" + apiVersion
 	response, err := http.Post(ncURL, "application/json", &body)
 	if err != nil {
-		t.Errorf("CreateNetworkContainer failed with error: %+v\n", err)
-		t.Fatal(err)
+		t.Fatalf("CreateNetworkContainer failed with error: %+v\n", err)
 	}
 
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
-			t.Errorf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
-			t.Fatal(err)
+			t.Fatalf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
 		}
 	}
 
@@ -1938,8 +2075,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 	<-updatedCnsResponderContextMap.getContext(ncid).DeleteNCResponse.SignalInfo.Signal
 
 	if !WaitForResourceCleanup(t, ncURL, 2) {
-		t.Errorf("Failed to cleanup network container%s\n", ncid)
-		t.Fatal(err)
+		t.Fatalf("Failed to cleanup network container%s\n", ncid)
 	}
 
 	networkURL := dncEP + "/networks/" + vnetID + apiVersion
@@ -2407,21 +2543,18 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 			fmt.Printf("Joining subnet %s, network %s. AccessToken:%s\n", vnetID, subnetName, subnetReq.AuthenticationToken)
 			response, err := http.Post(subnetURL, "application/json", &body)
 			if err != nil {
-				t.Errorf("JoinSubnet failed with error: %+v\n", err)
-				t.Fatal(err)
+				t.Fatalf("JoinSubnet failed with error: %+v\n", err)
 			}
 
 			if response.StatusCode != http.StatusOK {
-				t.Errorf("JoinSubnet failed with status code %d\n", response.StatusCode)
-				t.Fatal(err)
+				t.Fatalf("JoinSubnet failed with status code %d\n", response.StatusCode)
 			}
 
 			subnetConfiguration := getSubnetConfiguration(t, dncEP, vnetID, subnetName, apiVersion)
 			if subnetConfiguration.AccessToken != fmt.Sprintf("%x", sha256.Sum256([]byte(subnetReq.AuthenticationToken))) {
-				t.Errorf("AccessToken mismatch. Received:%s , Expected:%s\n",
+				t.Fatalf("AccessToken mismatch. Received:%s , Expected:%s\n",
 					subnetConfiguration.AccessToken,
 					subnetReq.AuthenticationToken)
-				t.Fatal(err)
 			}
 
 			response.Body.Close()
@@ -2596,14 +2729,12 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 			fmt.Printf("%d: Creating resource:%s\n", ncIndex, ncURL)
 			ncIndex++
 			if err != nil {
-				t.Errorf("CreateNetworkContainer failed with error: %+v\n", err)
-				t.Fatal(err)
+				t.Fatalf("CreateNetworkContainer failed with error: %+v\n", err)
 			}
 
 			if response.StatusCode != http.StatusOK {
 				if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
-					t.Errorf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
-					t.Fatal(err)
+					t.Fatalf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
 				}
 			}
 
@@ -2662,9 +2793,8 @@ func DeleteDeployments(t *testing.T, deployedNetworkContainersInfo *DeployedNetw
 			fmt.Printf("Waiting for delete NC Url:%s\n", ncURL)
 			<-deployedNetworkContainersInfo.CNSResponderContextMap.getContext(ncDeploymentRequest.NCID).DeleteNCResponse.SignalInfo.Signal
 
-			if !WaitForResourceCleanup(t, ncURL, 2) {
-				err := fmt.Errorf("Failed to cleanup network container%s", ncDeploymentRequest.NCID)
-				t.Fatal(err)
+			if !WaitForResourceCleanup(t, ncURL, 4) {
+				t.Fatalf("Failed to cleanup network container %s", ncDeploymentRequest.NCID)
 			}
 
 			if len(ncDeploymentRequest.ReservationID) > 0 {
@@ -2725,12 +2855,15 @@ func TestValidateSubnetExhaustion(t *testing.T) {
 	json.NewEncoder(&body).Encode(deploymentRequestToFail)
 	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncIDToFail + apiVersion
 	response, err := http.Post(ncURL, "application/json", &body)
-	response.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer response.Body.Close()
 	var respErr api.JsonErr
 	if response.StatusCode != http.StatusOK {
 		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
-			t.Errorf("CreateNetworkContainer call failed with response %+v Err:%+v", respErr, err)
-			t.Fatal(err)
+			t.Fatalf("CreateNetworkContainer call failed with response %+v Err:%+v", respErr, err)
 		}
 	}
 	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncIDToFail + "/status" + apiVersion
@@ -2771,17 +2904,21 @@ func TestValidateThrottlingOnGetNetwork(t *testing.T) {
 	nmAgentServer.Lock.Unlock()
 	startTime := time.Now().UTC()
 	var refreshStatus api.RefreshMonitorStatus
+	layout := "2006-01-02 15:04:05 -0700 MST"
 	for {
 		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
-		if response.StatusCode != http.StatusOK {
-			t.Errorf("Received Invalid status code %d, Expected:%d",
-				response.StatusCode,
-				http.StatusOK)
+		if err != nil {
 			t.Fatal(err)
 		}
-		layout := "2006-01-02 15:04:05 -0700 MST"
-		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+		}
+
 		utils.DecodeResponse(response, &refreshStatus)
+		response.Body.Close()
 		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
 		if receivedStartTime.After(startTime) && refreshStatus.IsThrottled {
 			break
@@ -2789,7 +2926,6 @@ func TestValidateThrottlingOnGetNetwork(t *testing.T) {
 	}
 
 	fmt.Printf("RefreshStatus after verifying throttling:%s\n", refreshStatus.String())
-
 	fmt.Printf("Unthrottling get of vnet %s \n", vnetIDToThrottle)
 	nmAgentServer.Lock.Lock()
 	nmAgentResponderContext.NetworkResponseMap.getContext(
@@ -2799,15 +2935,18 @@ func TestValidateThrottlingOnGetNetwork(t *testing.T) {
 	nmAgentServer.Lock.Unlock()
 	for {
 		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
-		if response.StatusCode != http.StatusOK {
-			t.Errorf("Received Invalid status code %d, Expected:%d",
-				response.StatusCode,
-				http.StatusOK)
+		if err != nil {
 			t.Fatal(err)
 		}
-		layout := "2006-01-02 15:04:05 -0700 MST"
-		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+		}
+
 		utils.DecodeResponse(response, &refreshStatus)
+		response.Body.Close()
 		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
 		if receivedStartTime.After(startTime) && !refreshStatus.IsRefreshInProgress {
 			break
@@ -2819,20 +2958,26 @@ func TestValidateThrottlingOnGetNetwork(t *testing.T) {
 	fmt.Printf("Wait for all vnet gets to succeed \n")
 	for {
 		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
-		if response.StatusCode != http.StatusOK {
-			t.Errorf("Received Invalid status code %d, Expected:%d",
-				response.StatusCode,
-				http.StatusOK)
+		if err != nil {
 			t.Fatal(err)
 		}
-		layout := "2006-01-02 15:04:05 -0700 MST"
-		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+		}
+
 		utils.DecodeResponse(response, &refreshStatus)
+		response.Body.Close()
 		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
 		if receivedStartTime.After(startTime) && !refreshStatus.IsRefreshInProgress && refreshStatus.FailedItems == 0 {
 			break
 		}
+
+		time.Sleep(2 * time.Second)
 	}
+
 	fmt.Printf("RefreshStatus after all vnet processing succeeds:%s\n", refreshStatus.String())
 
 	for _, networkDeploymentRequest := range networkDeploymentRequests {
@@ -2876,25 +3021,30 @@ func TestValidateThrottlingOnJoin(t *testing.T) {
 	nmAgentServer.Lock.Unlock()
 	startTime := time.Now().UTC()
 	var refreshStatus api.RefreshMonitorStatus
+	layout := "2006-01-02 15:04:05 -0700 MST"
 	for {
 		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
-		if response.StatusCode != http.StatusOK {
-			t.Errorf("Received Invalid status code %d, Expected:%d",
-				response.StatusCode,
-				http.StatusOK)
+		if err != nil {
 			t.Fatal(err)
 		}
-		layout := "2006-01-02 15:04:05 -0700 MST"
-		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+		}
+
 		utils.DecodeResponse(response, &refreshStatus)
+		response.Body.Close()
 		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
 		if receivedStartTime.After(startTime) && refreshStatus.IsThrottled {
 			break
 		}
+
+		time.Sleep(2 * time.Second)
 	}
 
 	fmt.Printf("RefreshStatus after verifying throttling:%s\n", refreshStatus.String())
-
 	fmt.Printf("Unthrottling join of vnet %s \n", vnetIDToThrottle)
 	nmAgentServer.Lock.Lock()
 	nmAgentResponderContext.NetworkResponseMap.getContext(
@@ -2907,42 +3057,51 @@ func TestValidateThrottlingOnJoin(t *testing.T) {
 	nmAgentServer.Lock.Unlock()
 	for {
 		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
-		if response.StatusCode != http.StatusOK {
-			t.Errorf("Received Invalid status code %d, Expected:%d",
-				response.StatusCode,
-				http.StatusOK)
+		if err != nil {
 			t.Fatal(err)
 		}
-		layout := "2006-01-02 15:04:05 -0700 MST"
-		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+		}
+
 		utils.DecodeResponse(response, &refreshStatus)
+		response.Body.Close()
 		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
 		if receivedStartTime.After(startTime) && !refreshStatus.IsRefreshInProgress {
 			break
 		}
+
+		time.Sleep(2 * time.Second)
 	}
 
 	fmt.Printf("RefreshStatus after verifying unthrottling:%s\n", refreshStatus.String())
-
 	fmt.Printf("Wait for all vnet gets to succeed \n")
 	for {
 		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
-		if response.StatusCode != http.StatusOK {
-			t.Errorf("Received Invalid status code %d, Expected:%d",
-				response.StatusCode,
-				http.StatusOK)
+		if err != nil {
 			t.Fatal(err)
 		}
-		layout := "2006-01-02 15:04:05 -0700 MST"
-		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+		}
+
 		utils.DecodeResponse(response, &refreshStatus)
+		response.Body.Close()
 		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
 		if receivedStartTime.After(startTime) && !refreshStatus.IsRefreshInProgress && refreshStatus.FailedItems == 0 {
 			break
 		}
-	}
-	fmt.Printf("RefreshStatus after all vnet processing succeeds:%s\n", refreshStatus.String())
 
+		time.Sleep(2 * time.Second)
+	}
+
+	fmt.Printf("RefreshStatus after all vnet processing succeeds:%s\n", refreshStatus.String())
 	for _, networkDeploymentRequest := range networkDeploymentRequests {
 		networkURL := dncEP + "/networks/" + networkDeploymentRequest.vnetID + apiVersion
 		deleteResource(t, networkURL, http.StatusOK)
@@ -2978,14 +3137,18 @@ func TestValidateBatching(t *testing.T) {
 	var refreshStatus api.RefreshMonitorStatus
 	for {
 		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
-		if response.StatusCode != http.StatusOK {
-			t.Errorf("Received Invalid status code %d, Expected:%d",
-				response.StatusCode,
-				http.StatusOK)
+		if err != nil {
 			t.Fatal(err)
 		}
-		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+		}
+
 		utils.DecodeResponse(response, &refreshStatus)
+		response.Body.Close()
 		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
 		if receivedStartTime.After(startTime) &&
 			!refreshStatus.IsRefreshInProgress &&
@@ -2993,21 +3156,24 @@ func TestValidateBatching(t *testing.T) {
 			len(refreshStatus.TimeToRefresh) != 0 {
 			break
 		}
+
+		time.Sleep(2 * time.Second)
 	}
+
 	fmt.Printf("RefreshStatus after verifying throttling:%s\n", refreshStatus.String())
 	fmt.Printf("Elapsed Time %v for refreshing Vnets:%v\n", refreshStatus.TimeToRefresh, len(networkDeploymentRequests))
 	for _, networkDeploymentRequest := range networkDeploymentRequests {
 		networkDeploymentRequest.WaitForJoin = false
 	}
+
 	elapsedDuration, _ := time.ParseDuration(refreshStatus.TimeToRefresh)
 	timeElapsedBetweenNetworkRefresh := (sleepBetweenNetworks * (len(networkDeploymentRequests) - 1)) // -1 since we do single backoff
 	lowerLimit := time.Duration(backoffInterval+timeElapsedBetweenNetworkRefresh) * time.Millisecond
 	if elapsedDuration > lowerLimit {
-		err := fmt.Errorf("Time to refresh Vnets %d expected to be less than backoff time, Elapsed time:%v Expected:[0, %v]",
+		t.Fatalf("Time to refresh Vnets %d expected to be less than backoff time, Elapsed time:%v Expected:[0, %v]",
 			len(networkDeploymentRequests),
 			elapsedDuration,
 			lowerLimit)
-		t.Fatal(err)
 	}
 
 	fmt.Printf("Add one more Vnet which should result in throttling\n")
@@ -3025,15 +3191,18 @@ func TestValidateBatching(t *testing.T) {
 	startTime = time.Now().UTC()
 	for {
 		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
-		if response.StatusCode != http.StatusOK {
-			t.Errorf("Received Invalid status code %d, Expected:%d",
-				response.StatusCode,
-				http.StatusOK)
+		if err != nil {
 			t.Fatal(err)
 		}
 
-		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+		}
+
 		utils.DecodeResponse(response, &refreshStatus)
+		response.Body.Close()
 
 		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
 		if receivedStartTime.After(startTime) &&
@@ -3042,6 +3211,8 @@ func TestValidateBatching(t *testing.T) {
 			len(refreshStatus.TimeToRefresh) != 0 {
 			break
 		}
+
+		time.Sleep(2 * time.Second)
 	}
 
 	fmt.Printf("RefreshStatus after all vnet processing succeeds:%s\n", refreshStatus.String())
@@ -3052,18 +3223,18 @@ func TestValidateBatching(t *testing.T) {
 	upperLimit := time.Duration((backoffInterval*2)+timeElapsedBetweenNetworkRefresh) * time.Millisecond
 	if elapsedDuration < lowerLimit ||
 		elapsedDuration > upperLimit {
-		err := fmt.Errorf("Time to refresh Vnets %d as there should be a single backoff, Elapsed time:%v Expected:[%v, %v]",
+		t.Fatalf("Time to refresh Vnets %d as there should be a single backoff, Elapsed time:%v Expected:[%v, %v]",
 			len(networkDeploymentRequests),
 			elapsedDuration,
 			lowerLimit,
 			upperLimit)
-		t.Fatal(err)
 	}
 
 	fmt.Printf("Add %d more Vnet which should result in double throttling\n", vnetsCount+2)
 	for _, networkDeploymentRequest := range networkDeploymentRequests {
 		networkDeploymentRequest.WaitForJoin = false
 	}
+
 	for index := 0; index < vnetsCount+1; index++ {
 		id, _ := uuid.NewUUID()
 		vnetID := id.String()
@@ -3076,21 +3247,25 @@ func TestValidateBatching(t *testing.T) {
 			WaitForGet:          true}
 		networkDeploymentRequests = append(networkDeploymentRequests, networkDeploymentRequest)
 	}
+
 	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
 
 	fmt.Printf("Validate that calls are backed off\n")
 	startTime = time.Now().UTC()
 	for {
 		response, err := http.Get(dncEP + "/refreshmonitorstatus" + apiVersion)
-		if response.StatusCode != http.StatusOK {
-			t.Errorf("Received Invalid status code %d, Expected:%d",
-				response.StatusCode,
-				http.StatusOK)
+		if err != nil {
 			t.Fatal(err)
 		}
 
-		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Received Invalid status code %d, Expected:%d",
+				response.StatusCode,
+				http.StatusOK)
+		}
+
 		utils.DecodeResponse(response, &refreshStatus)
+		response.Body.Close()
 
 		receivedStartTime, _ := time.Parse(layout, refreshStatus.StartTime)
 		if receivedStartTime.After(startTime) &&
@@ -3099,6 +3274,8 @@ func TestValidateBatching(t *testing.T) {
 			len(refreshStatus.TimeToRefresh) != 0 {
 			break
 		}
+
+		time.Sleep(2 * time.Second)
 	}
 
 	fmt.Printf("RefreshStatus after all vnet processing succeeds:%s\n", refreshStatus.String())
@@ -3110,12 +3287,11 @@ func TestValidateBatching(t *testing.T) {
 
 	if elapsedDuration < lowerLimit ||
 		elapsedDuration > upperLimit {
-		err := fmt.Errorf("Time to refresh Vnets %d as there should be a double backoff, Elapsed time:%v Expected:[%v, %v]",
+		t.Fatalf("Time to refresh Vnets %d as there should be a double backoff, Elapsed time:%v Expected:[%v, %v]",
 			len(networkDeploymentRequests),
 			elapsedDuration,
 			lowerLimit,
 			upperLimit)
-		t.Fatal(err)
 	}
 
 	for _, networkDeploymentRequest := range networkDeploymentRequests {

@@ -1131,7 +1131,7 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 }
 
 func prepareNetworkContainer(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
 	if repoNCConfig.Status == datamodel.Failed {
 		logger.Errorf("NC in failed state during prepare. Failure detail %s", repoNCConfig.FailureDetail.String())
 		return true, nil
@@ -1146,7 +1146,7 @@ func prepareNetworkContainer(repoNCConfig *datamodel.NCConfiguration) (bool, *ap
 
 func processNetworkContainerReserve(
 	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
 	var markProcessingFailed bool
 	var failureDetail *api.JsonErr
 	repoReservation, err := datamodel.TryQueryIPReservation(
@@ -1227,7 +1227,7 @@ Cleanup:
 }
 
 func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
 	err := datamodel.PurgeNetworkContainerAssociations(repoNCConfig, repoNCConfig.GetAssociationInfo().ContainerType == cns.AzureContainerInstance)
 	if err != nil {
 		return false, err
@@ -1245,7 +1245,7 @@ func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration) (
 }
 
 func processNetworkContainerPurge(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
 	err := datamodel.PurgeNetworkContainerAssociations(repoNCConfig, repoNCConfig.GetAssociationInfo().ContainerType == cns.AzureContainerInstance)
 	if err != nil {
 		return false, err
@@ -1284,7 +1284,7 @@ func hasTagsChanged(resolvedTags map[string]datamodel.TagDefinition, currentTags
 func processNetworkContainerAssociate(
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string) (bool, *api.JsonErr) {
-	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
 	ncGoalState, isRetriableError, ncGoalStateErr := getNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
@@ -1522,7 +1522,7 @@ func processNetworkContainerAssociate(
 func processNetworkContainerDisAssociate(
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string) (bool, *api.JsonErr) {
-	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
 
 	// Query NodeConfiguration table with nodeID and handle errors.
@@ -1573,10 +1573,12 @@ func processNetworkContainerDisAssociate(
 		logger.Errorf("Failed to disassociate network container %s on node %v due to error. Marked as retriable.",
 			info.NetworkContainerid,
 			primaryInterfaceID)
-		return false, &api.JsonErr{
+		repoNCConfig.FailureDetail = api.JsonErr{
 			Code:       api.DisAssociationFailed,
 			Text:       respErr.Error(),
 			HTTPStatus: http.StatusInternalServerError}
+		datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return false, &repoNCConfig.FailureDetail
 	}
 
 	defer w.Body.Close()
@@ -1587,10 +1589,12 @@ func processNetworkContainerDisAssociate(
 		logger.Errorf("Failed to decode disassociate response for request with network container Id:%s. "+
 			"Marking as retriable error. ",
 			repoNCConfig.NetworkContainerID)
-		return false, &api.JsonErr{
+		repoNCConfig.FailureDetail = api.JsonErr{
 			Code:       api.DisAssociationFailed,
 			Text:       decodeErr.Error(),
 			HTTPStatus: http.StatusBadRequest}
+		datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return false, &repoNCConfig.FailureDetail
 	}
 
 	if resp.Response.ReturnCode != 0 {
@@ -1605,7 +1609,6 @@ func processNetworkContainerDisAssociate(
 			Code:       api.DisAssociationFailed,
 			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
-
 		return false, datamodel.PersistNCConfiguration(repoNCConfig, false)
 	}
 
@@ -1618,7 +1621,7 @@ func processNetworkContainerDisAssociate(
 }
 
 func processNetworkContainerPublish(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
 	ncGoalState, isRetriableError, ncGoalStateErr := getNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
@@ -1717,7 +1720,7 @@ func processNetworkContainerPublish(repoNCConfig *datamodel.NCConfiguration) (bo
 }
 
 func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
 	ncGoalState, isRetriableError, ncGoalStateErr := getNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
@@ -1807,7 +1810,7 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (
 }
 
 func processNetworkContainerRevert(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
 	associationInfo := repoNCConfig.GetAssociationInfo()
 	logger.Debugf("Reverting NC %s to node %s", repoNCConfig.NetworkContainerID, associationInfo.NodeID)
 	repoNCConfig.State = datamodel.UnPublish
@@ -1818,7 +1821,7 @@ func processNetworkContainerRevert(repoNCConfig *datamodel.NCConfiguration) (boo
 func processNetworkContainerProgram(
 	repoNCConfig *datamodel.NCConfiguration,
 	createdDateTime time.Time) (bool, *api.JsonErr) {
-	defer utils.RecordTime(time.Now(), utils.TracePrefix(2))
+	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
 	associationInfo := repoNCConfig.GetAssociationInfo()
 	logger.Debugf("Programming NC %s to node %s", repoNCConfig.NetworkContainerID, associationInfo.NodeID)
 	repoNCConfig.State = datamodel.Program
@@ -1919,7 +1922,6 @@ func processNetworkContainerRequest(
 
 	case datamodel.Purge:
 		return processNetworkContainerPurge(repoNCConfig)
-
 	}
 
 	return true, nil
