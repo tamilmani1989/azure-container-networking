@@ -25,11 +25,11 @@
         }
       ],
       "linuxProfile": {
-        "adminUsername": "azureuser",
+        "adminUsername": "rnmadmin",
         "ssh": {
           "publicKeys": [
             {
-                "keyData":""
+                "keyData":"ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEAsOToauJsfoStdF7dYGMude/O5NHYwQAZj9hHH8Wi7ScFZQ7lXDkNi9rOoHDx5wBRZyXUg6snpw3m0kUUZ2AEVvoxCvvtPBviZi6Ur79qPaVSjVyGsbM2ulNRepmG/k80a5kmG3+i3sn6KT5gmHs334b8QAmVh3XJKEtyzGm2300zfsVjvfbyr4JUqJeGaMDt3JnXuiqsCBRNT2tTQXSYnPXmLOemhmmWjk0bgg1OudS60pqmWBbRmEzncAdMi8qIFq7dWGXCsW+/xfkt4bGHO1oWw97ngSEsrI7f62GrUhBPIB0OuIAs12S3u8Hq45Bb8n56qbTdkfwqLIDogq5Hcw== rsa-key-20171023"
             }
           ]
         }
