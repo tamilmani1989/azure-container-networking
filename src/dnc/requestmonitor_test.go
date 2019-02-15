@@ -367,7 +367,7 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 
 	networkURL := dncEP + "/networks/" + vnetID + apiVersion
 	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
-	getNCCleanupStateURL := dncEP + "/getnccleanupstate/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	getNCCleanupStateURL := dncEP + "/iswaitingfornodecleanup/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
 	promotionURL := dncEP + "/skipnodecleanupfornetworkcontainer/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
 
 	// stop CNS here and promote NC state after termination fails
@@ -382,7 +382,7 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 		t.Fatalf("GetNCCleanupState failed with error: %+v", err)
 	}
 
-	var cleanupStateResponse api.FailedToDisassociateNCResponse
+	var cleanupStateResponse api.IsWaitingForNodeCleanupResponse
 	err = utils.DecodeResponse(response, &cleanupStateResponse)
 	response.Body.Close()
 	if err != nil {
@@ -393,7 +393,7 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 		t.Fatalf("GetNCCleanupState failed with error: %+v {%+v}", err, response)
 	}
 
-	if cleanupStateResponse.FailedToDisassociateNCResponse != true {
+	if cleanupStateResponse.IsWaitingForNodeCleanup != true {
 		t.Fatalf("TestSkipNodeCleanupForNetworkContainer failed with unexpected error.")
 	}
 

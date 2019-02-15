@@ -49,6 +49,16 @@ case $1 in
         export DNC_CONFIGURATION_PATH=$DIR/src/dnc/config_test.json
         go test -timeout 1000s -coverprofile coverage-dnc.out
         ;;
+    "get" )
+        mkdir $DIR/src/github && cd $_
+        cniVersion=$(curl -L -s -H 'Accept: application/json' https://github.com/Azure/azure-container-networking/releases/latest | sed -e 's/.*"tag_name":"\([^"]*\)".*/\1/')
+        curl -LO https://github.com/Azure/azure-container-networking/releases/download/$cniVersion/azure-vnet-cni-multitenancy-windows-amd64-$cniVersion.zip
+        curl -LO https://github.com/Azure/azure-container-networking/releases/download/$cniVersion/azure-vnet-cni-multitenancy-linux-amd64-$cniVersion.tgz
+        unzip azure-vnet-cni-multitenancy-windows-amd64-$cniVersion.zip
+        tar -xvzf azure-vnet-cni-multitenancy-linux-amd64-$cniVersion.tgz
+        rm *.zip
+        rm *.tgz
+        ;;
 esac
 
 # Save the exit code from make

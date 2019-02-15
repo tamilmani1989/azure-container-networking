@@ -182,9 +182,9 @@ var routes = Routes{
 		SkipNodeCleanupForNetworkContainer,
 	},
 	Route{
-		"GetNCCleanupState",
+		"IsWaitingForNodeCleanup",
 		"GET",
-		"/getnccleanupstate/networks/{networkID}/networkcontainer/{networkContainerID}",
-		GetNCCleanupState,
+		"/iswaitingfornodecleanup/networks/{networkID}/networkcontainer/{networkContainerID}",
+		IsWaitingForNodeCleanup,
 	},
 }

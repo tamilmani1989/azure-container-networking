@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>Microsoft.Azure.Internal.$branch$AzureCNI</id>
+    <version>$version$</version>
+    <title>AzureCNI from $branch$</title>
+    <authors>connectdevs@microsoft.com</authors>
+    <owners>connectdevs@microsoft.com</owners>
+    <description>CNI plugin (azure-vnet) is responsible for inserting a network interface into the container network namespace (e.g. one end of a veth pair) 
+    and making any necessary changes on the host (e.g. attaching the other end of the veth into a bridge).
+    It should then assign the IP to the interface and setup the routes consistent with 
+    the IP Address Management section by invoking appropriate IPAM plugin (azure-vnet-ipam).</description>
+    <projectUrl>http://www.Microsoft.com</projectUrl>
+    <licenseUrl>http://www.Microsoft.com/license</licenseUrl>
+    <copyright>Copyright (c) Microsoft Corporation</copyright>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <tags></tags>
+  </metadata>
+  <files>
+    <file src="$drop$\azure-vnet.exe" target="content" />
+    <file src="$drop$\azure-vnet" target="content\linux\azure-vnet" />
+    <file src="$drop$\azure-vnet-ipam.exe" target="content" />
+    <file src="$drop$\azure-vnet-ipam" target="content\linux\azure-vnet-ipam" />
+    <file src="$drop$\10-azure.conflist" target="content" />
+    <file src="$drop$\10-azure.conflist" target="content\linux" />
+  </files>
+</package>

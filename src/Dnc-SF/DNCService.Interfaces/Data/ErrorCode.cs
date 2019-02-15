@@ -215,6 +215,12 @@ namespace DNCService.API
         [EnumMember]
         InvalidSubnetRequest = 66,
 
+        [EnumMember]
+        InvalidNetworkProfileId = 67,
+
+        [EnumMember]
+        InvalidNetworkRequest = 68,
+
         // Note: This Enum struct must be identical to dnc/api/errorcode.go
         // Update both when adding new enum members.
     }
