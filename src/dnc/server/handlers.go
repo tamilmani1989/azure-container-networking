@@ -848,8 +848,8 @@ func SkipNodeCleanupForNetworkContainer(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusOK)
 }
 
-// GetNCCleanupState - Check to see if NC is in DisAssociationFailed state
-func GetNCCleanupState(w http.ResponseWriter, r *http.Request) {
+// IsWaitingForNodeCleanup - Check to see if NC is waiting for node cleanup and in DisAssociationFailed state
+func IsWaitingForNodeCleanup(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var networkID string
 	var ncID string
@@ -871,10 +871,10 @@ func GetNCCleanupState(w http.ResponseWriter, r *http.Request) {
 		setRequestFailed(w, err)
 	} else {
 		failureDetail := ncConfig.RequestStatus.FailureDetail
-		response := api.FailedToDisassociateNCResponse{FailedToDisassociateNCResponse: false}
+		response := api.IsWaitingForNodeCleanupResponse{IsWaitingForNodeCleanup: false}
 		if failureDetail.Code == api.DisAssociationFailed &&
 			strings.Contains(failureDetail.Text, "dial tcp") {
-			response.FailedToDisassociateNCResponse = true
+			response.IsWaitingForNodeCleanup = true
 		}
 
 		w.WriteHeader(http.StatusOK)
