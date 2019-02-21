@@ -1403,7 +1403,7 @@ func processNetworkContainerAssociate(
 		NetworkContainerid:         "Swift_" + ncGoalState.NetworkContainerID,
 		PrimaryInterfaceIdentifier: ncGoalState.AssociatedInterfaceID,
 		IPConfiguration:            ipConfig,
-		AuthorizationToken:         ncGoalState.AccessToken,
+		AuthorizationToken:         "",
 		CnetAddressSpace:           cnsCnetAddresses,
 		OrchestratorContext:        ncGoalState.OrchestratorContext,
 		MultiTenancyInfo:           cns.MultiTenancyInfo{EncapType: cns.Vlan, ID: ncGoalState.VlanID},

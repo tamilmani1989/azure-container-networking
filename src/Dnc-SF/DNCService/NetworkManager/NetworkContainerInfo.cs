@@ -191,7 +191,7 @@ namespace NetworkManager
                 this.ContainerType,
                 this.NetworkContainerID,
                 this.NodeInterfaceID,
-                this.AccessToken,
+                "",
                 ipConfiguration,
                 localIPConfiguration,
                 multiTenancyInfo,

@@ -299,7 +299,7 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 			NetworkContainerid:         "Swift_" + ncID,
 			PrimaryInterfaceIdentifier: networkContainerReq.AssociationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
-			AuthorizationToken:         "Key1-" + vnetID,
+			AuthorizationToken:         "",
 			CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
 			OrchestratorContext:        context,
 			MultiTenancyInfo:           req.MultiTenancyInfo}
@@ -1723,7 +1723,7 @@ func createNetworkContainer(
 			NetworkContainerid:         "Swift_" + ncid,
 			PrimaryInterfaceIdentifier: associationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
-			AuthorizationToken:         "Key1-" + vnetID,
+			AuthorizationToken:         "",
 			CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
 			OrchestratorContext:        context,
 			MultiTenancyInfo:           req.MultiTenancyInfo}
@@ -2016,7 +2016,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 			NetworkContainerid:         "Swift_" + ncid,
 			PrimaryInterfaceIdentifier: networkcontainerreq.AssociationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
-			AuthorizationToken:         "Key1-" + vnetID,
+			AuthorizationToken:         "",
 			CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
 			OrchestratorContext:        context,
 			MultiTenancyInfo:           req.MultiTenancyInfo}
@@ -2624,7 +2624,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 			}
 			vnetIPMap[allocatedIP] = ""
 
-			accessToken := "Key1-" + vnetID
+			accessToken := ""
 			var ipConfig cns.IPConfiguration
 			ipConfig.DNSServers = strings.Split(nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.DNSServers, ",")
 			if len(ncDeploymentRequest.ReservationID) > 0 {
