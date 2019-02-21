@@ -88,3 +88,15 @@ func SetOutboundSNAT(subnet string) error {
 	}
 	return nil
 }
+
+// ClearNetworkConfiguration clears the azure-vnet.json contents.
+// This will be called only when reboot is detected - This is windows specific
+func ClearNetworkConfiguration() (bool, error) {
+	return false, nil
+}
+
+func KillProcessByName(processName string) error {
+	cmd := fmt.Sprintf("pkill -f %v", processName)
+	_, err := ExecuteCommand(cmd)
+	return err
+}

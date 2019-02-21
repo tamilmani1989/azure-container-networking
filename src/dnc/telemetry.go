@@ -5,6 +5,7 @@ import (
 	"dnc/datamodel"
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 	"time"
 
@@ -18,17 +19,27 @@ const (
 	DNCTelemetryFile = platform.DNCRuntimePath + "AzureDNCTelemetry.json"
 	// HostNetAgentURL - Host Net Agent url and content type
 	HostNetAgentURL = "http://169.254.169.254/machine/plugins?comp=netagent&type=dncreport"
+	// HeartBeatInterval for reporting to mds
+	heartBeatIntervalInMinutes = 1
+	// Retrywaittime before trying to attempt connection again
+	retryWaitTimeInSeconds = 60
+	// Time interval to send data to host
+	reportToHostIntervalInSeconds = 60
 )
 
 func sendTelemetry() {
-	retrieveMetadata := true
-
 CONNECT:
-	telemetryBuffer, err := telemetry.NewTelemetryBuffer()
-	if err == nil {
-		go telemetryBuffer.Start(reportToHostInterval)
+	telemetryBuffer := telemetry.NewTelemetryBuffer("")
+	err := telemetryBuffer.StartServer()
+	if err == nil || telemetryBuffer.FdExists {
+		if err := telemetryBuffer.Connect(); err != nil {
+			log.Printf("[Telemetry] Failed to establish telemetry manager connection. %v", err)
+			time.Sleep(time.Second * retryWaitTimeInSeconds)
+			goto CONNECT
+		}
 
-		heartbeat := time.NewTicker(time.Minute * 30).C
+		go telemetryBuffer.BufferAndPushData(reportToHostIntervalInSeconds)
+		heartbeat := time.NewTicker(time.Minute * heartBeatIntervalInMinutes).C
 		reportMgr := telemetry.ReportManager{
 			HostNetAgentURL: HostNetAgentURL,
 			ContentType:     telemetry.ContentType,
@@ -42,15 +53,6 @@ CONNECT:
 
 		for {
 			if replicaInstance.IsReplicaPrimary() {
-				// Try to retrieve metadata until successful
-				if retrieveMetadata {
-					if err := reportMgr.GetHostMetadata(); err != nil {
-						reports <- telemetry.DNCReport{EventMessage: fmt.Sprintf("Failed to retrieve host metadata with error: %s", err.Error())}
-					} else {
-						retrieveMetadata = false
-					}
-				}
-
 				select {
 				case <-heartbeat:
 					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("EventMessage").SetString("Heartbeat")
@@ -135,8 +137,8 @@ CONNECT:
 			}
 		}
 	} else {
-		logger.Debugf("[Telemetry] Failed to establish telemetry buffer connection.")
-		time.Sleep(time.Minute * 1)
+		logger.Debugf("[Telemetry] Failed to Start Telemetry Service %v", err)
+		time.Sleep(time.Second * retryWaitTimeInSeconds)
 		goto CONNECT
 	}
 }
