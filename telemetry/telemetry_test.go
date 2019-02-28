@@ -82,7 +82,6 @@ func TestMain(m *testing.M) {
 	}
 
 	exitCode := m.Run()
-	tb.Cancel()
 	tb.Cleanup(FdName)
 	os.Exit(exitCode)
 }
@@ -144,6 +143,15 @@ func TestReceiveTelemetryData(t *testing.T) {
 		t.Errorf("payload doesn't contain CNI report")
 	}
 }
+
+func TestCloseTelemetryConnection(t *testing.T) {
+	tb.Cancel()
+	time.Sleep(300 * time.Millisecond)
+	if len(tb.connections) != 0 {
+		t.Errorf("server didn't close connection")
+	}
+}
+
 func TestSetReportState(t *testing.T) {
 	err := reportManager.SetReportState("a.json")
 	if err != nil {

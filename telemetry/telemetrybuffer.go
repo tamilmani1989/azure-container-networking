@@ -68,7 +68,7 @@ func NewTelemetryBuffer(hostReportURL string) *TelemetryBuffer {
 
 	tb.data = make(chan interface{})
 	tb.cancel = make(chan bool, 1)
-	tb.connections = make([]net.Conn, 1)
+	tb.connections = make([]net.Conn, 0)
 	tb.payload.DNCReports = make([]DNCReport, 0)
 	tb.payload.CNIReports = make([]CNIReport, 0)
 	tb.payload.NPMReports = make([]NPMReport, 0)
@@ -140,6 +140,8 @@ func (tb *TelemetryBuffer) StartServer() error {
 						}
 					}
 				}()
+			} else {
+				return
 			}
 		}
 	}()
@@ -219,7 +221,6 @@ func (tb *TelemetryBuffer) Write(b []byte) (c int, err error) {
 
 // Cancel - signal to tear down telemetry buffer
 func (tb *TelemetryBuffer) Cancel() {
-	telemetryLogger.Printf("Calling cancel")
 	tb.cancel <- true
 }
 
@@ -228,17 +229,20 @@ func (tb *TelemetryBuffer) Close() {
 	if tb.client != nil {
 		telemetryLogger.Printf("client close")
 		tb.client.Close()
+		tb.client = nil
 	}
 
 	if tb.listener != nil {
 		telemetryLogger.Printf("server close")
 		tb.listener.Close()
+		tb.listener = nil
 	}
 
-	for _, conn := range tb.connections {
+	for index, conn := range tb.connections {
 		if conn != nil {
 			telemetryLogger.Printf("connection close")
 			conn.Close()
+			tb.connections[index] = nil
 		}
 	}
 }
