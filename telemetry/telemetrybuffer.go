@@ -242,7 +242,7 @@ func (tb *TelemetryBuffer) Close() {
 		if conn != nil {
 			telemetryLogger.Printf("connection close")
 			conn.Close()
-			tb.connections[index] = nil
+			remove(tb.connections, index)
 		}
 	}
 }
