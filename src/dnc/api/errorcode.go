@@ -249,6 +249,9 @@ func (e ErrorCode) String() string {
 	case InvalidNodeID:
 		return "InvalidNodeID"
 
+	case InvalidReservationID:
+		return "InvalidReservationID"
+
 	case NodeNotRegistered:
 		return "NodeNotRegistered"
 

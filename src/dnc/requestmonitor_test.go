@@ -77,7 +77,7 @@ var (
 	reservationReq2 = api.AllocationRequest{
 		NodeConstraint: "testnode",
 		SubnetName:     "subnet1"}
-	reservationID = "testreservation"
+	reservationID = "f4c38099-e7bf-4850-97dc-97513a912523"
 
 	podInfo = OrchestratorContext{
 		PodName:      "testpodname",
@@ -104,7 +104,7 @@ var (
 			ContainerType:       cns.AzureContainerInstance,
 			OrchestratorContext: context}}
 	networkContainerReq3 = CreateNetworkContainerRequestV2{
-		ReservationID: "testreservation",
+		ReservationID: "048622d9-49c2-4cad-94ff-7112e6f2ab5a",
 		AllocationRequest: api.AllocationRequest{
 			SubnetName:     "subnet1",
 			IPConstraint:   "",
