@@ -22,10 +22,11 @@ import (
 var initiateMigration bool = true
 
 const (
-	localIPSubnetAddressString = "169.254.0.0/16"
-	imdsIPSubnetString         = "169.254.169.254/32"
-	localIPGatewayString       = "169.254.0.1"
-	localIPSubnetPrefixLength  = 16
+	localIPSubnetAddressString            = "169.254.0.0/16"
+	imdsIPSubnetString                    = "169.254.169.254/32"
+	localIPGatewayString                  = "169.254.0.1"
+	localIPSubnetPrefixLength             = 16
+	unauthorizePublishErrRetryDurationSec = 60
 )
 
 // NCGoalState - Struct to cache the Network Container Goal State
@@ -91,7 +92,8 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 			requestContext.NetworkID,
 			requestID,
 			sessionInfo,
-			requestContext.CreatedDateTime)
+			requestContext.CreatedDateTime,
+			requestContext.StateTransitionDateTime)
 		if err != nil && err.HTTPStatus == http.StatusProcessing {
 			requestContext.RetryInterval = requestContextRetryInterval
 		}
@@ -109,6 +111,8 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 			logger.Debugf("Resetting the retry interval as the operation has succeeded.")
 			requestContext.LastRetriedDateTime = time.Time{}
 			requestContext.RetryInterval = requestContextRetryInterval
+			requestContext.StateTransitionDateTime = time.Now().UTC()
+			logger.Debugf("Resetting StateTransitionDateTime %+v", requestContext.StateTransitionDateTime)
 		}
 
 		datamodel.AddRequestToPendingQueue(requestID, requestContext)
@@ -1620,7 +1624,9 @@ func processNetworkContainerDisAssociate(
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, false)
 }
 
-func processNetworkContainerPublish(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+func processNetworkContainerPublish(
+	repoNCConfig *datamodel.NCConfiguration,
+	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
 	ncGoalState, isRetriableError, ncGoalStateErr := getNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
@@ -1704,12 +1710,28 @@ func processNetworkContainerPublish(repoNCConfig *datamodel.NCConfiguration) (bo
 	}
 
 	if putNCResponseCode != http.StatusOK {
+		// If the response code is authentication failure, retry the request for the preset duration.
+		// If authentication failure is still seen fail the request
+		// This workaround is needed because sometimes there is a latency in sending the new authentication token
+		// to pubsub. This workaround hides that till the latency is addressed.
+		if putNCResponseCode == http.StatusUnauthorized &&
+			time.Since(stateTransitionDateTime).Seconds() < unauthorizePublishErrRetryDurationSec {
+			logger.Debugf("CreateNetworkContainer publish in process. NC response code: %d, time elapsed: %.0f sec",
+				putNCResponseCode, time.Since(stateTransitionDateTime).Seconds())
+			msg := fmt.Sprintf("Publish NC in process")
+			return false, &api.JsonErr{
+				Code:       api.ProcessingPending,
+				Text:       msg,
+				HTTPStatus: http.StatusUnauthorized}
+		}
+
 		msg := fmt.Sprintf("Failed to publish NC with status code %v.", putNCResponseCode)
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = api.JsonErr{
 			Code:       api.PublishingFailed,
 			Text:       msg,
 			HTTPStatus: int(putNCResponseCode)}
+
 		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
 	}
 
@@ -1836,7 +1858,8 @@ func processNetworkContainerRequest(
 	networkID,
 	networkContainerKey string,
 	sessionInfo map[string]string,
-	createdDateTime time.Time) (bool, *api.JsonErr) {
+	createdDateTime time.Time,
+	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	repoNCConfig, err := datamodel.TryQueryNetworkContainerByKey(networkContainerKey)
 	if err != nil {
 		logger.Errorf("Failed to get network container configuration for ID:%s. Error:%s",
@@ -1899,7 +1922,7 @@ func processNetworkContainerRequest(
 			return true, nil
 		}
 
-		return processNetworkContainerPublish(repoNCConfig)
+		return processNetworkContainerPublish(repoNCConfig, stateTransitionDateTime)
 
 	case datamodel.Program:
 		if repoNCConfig.Status == datamodel.Failed {

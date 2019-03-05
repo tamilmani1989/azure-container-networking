@@ -1302,6 +1302,7 @@ func AddRequestToPendingQueue(
 	} else {
 		requestContext.CreatedDateTime = time.Now().UTC()
 		requestContext.RetryInterval = time.Duration(requestBaseInterval) * time.Millisecond
+		requestContext.StateTransitionDateTime = requestContext.CreatedDateTime
 	}
 
 	jsonSerializedBytes, err := json.Marshal(requestContext)
