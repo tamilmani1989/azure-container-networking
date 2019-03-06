@@ -77,7 +77,7 @@ var (
 	reservationReq2 = api.AllocationRequest{
 		NodeConstraint: "testnode",
 		SubnetName:     "subnet1"}
-	reservationID = "testreservation"
+	reservationID = "f4c38099-e7bf-4850-97dc-97513a912523"
 
 	podInfo = OrchestratorContext{
 		PodName:      "testpodname",
@@ -104,7 +104,7 @@ var (
 			ContainerType:       cns.AzureContainerInstance,
 			OrchestratorContext: context}}
 	networkContainerReq3 = CreateNetworkContainerRequestV2{
-		ReservationID: "testreservation",
+		ReservationID: "048622d9-49c2-4cad-94ff-7112e6f2ab5a",
 		AllocationRequest: api.AllocationRequest{
 			SubnetName:     "subnet1",
 			IPConstraint:   "",
@@ -299,7 +299,7 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 			NetworkContainerid:         "Swift_" + ncID,
 			PrimaryInterfaceIdentifier: networkContainerReq.AssociationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
-			AuthorizationToken:         "Key1-" + vnetID,
+			AuthorizationToken:         "",
 			CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
 			OrchestratorContext:        context,
 			MultiTenancyInfo:           req.MultiTenancyInfo}
@@ -1386,24 +1386,25 @@ func GetNetworkStatus(t *testing.T, resourceStatusURL string, expectedStatusCode
 
 	defer response.Body.Close()
 
-	if response.StatusCode != expectedStatusCode && response.StatusCode != http.StatusProcessing {
-		t.Fatalf("Unexpected response code %d received when trying to get network status for resource URL:%s.",
-			response.StatusCode,
-			resourceStatusURL)
-	}
-	// fmt.Printf("Received Response:%+v\n", response)
-	if response.StatusCode == http.StatusProcessing {
-		return "Pending"
-	}
 	var operationStatus api.RequestStatus
 	err = utils.DecodeResponse(response, &operationStatus)
-	if err != nil &&
-		(response.StatusCode != expectedStatusCode) {
+	if err != nil {
 		t.Fatalf("Failed to decode network response for resource URL:%s. Error:%+v",
 			resourceStatusURL,
 			err)
 	}
+
+	if response.StatusCode != expectedStatusCode && response.StatusCode != http.StatusAccepted {
+		t.Fatalf("Unexpected response code %d received when trying to get network status for resource URL:%s.",
+			response.StatusCode,
+			resourceStatusURL)
+	}
+
 	fmt.Printf("Resource URL:%s Status:%s\n", resourceStatusURL, operationStatus.String())
+
+	if response.StatusCode == http.StatusAccepted {
+		return "Pending"
+	}
 
 	return operationStatus.Status
 }
@@ -1723,7 +1724,7 @@ func createNetworkContainer(
 			NetworkContainerid:         "Swift_" + ncid,
 			PrimaryInterfaceIdentifier: associationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
-			AuthorizationToken:         "Key1-" + vnetID,
+			AuthorizationToken:         "",
 			CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
 			OrchestratorContext:        context,
 			MultiTenancyInfo:           req.MultiTenancyInfo}
@@ -1832,7 +1833,7 @@ func createNetworkContainer(
 	<-cnsResponderContextMap.getContext(ncid).DeleteNCResponse.SignalInfo.Signal
 
 	if !WaitForResourceCleanup(t, ncURL, 4) {
-		t.Fatalf("Failed to cleanup network container%s\n", ncid)
+		t.Fatalf("Failed to cleanup network container %s\n", ncid)
 	}
 
 	if len(reservationID) > 0 {
@@ -2016,7 +2017,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 			NetworkContainerid:         "Swift_" + ncid,
 			PrimaryInterfaceIdentifier: networkcontainerreq.AssociationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
-			AuthorizationToken:         "Key1-" + vnetID,
+			AuthorizationToken:         "",
 			CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
 			OrchestratorContext:        context,
 			MultiTenancyInfo:           req.MultiTenancyInfo}
@@ -2074,8 +2075,8 @@ func createNetworkContainerAndUpdateNetworkConfig(
 
 	<-updatedCnsResponderContextMap.getContext(ncid).DeleteNCResponse.SignalInfo.Signal
 
-	if !WaitForResourceCleanup(t, ncURL, 2) {
-		t.Fatalf("Failed to cleanup network container%s\n", ncid)
+	if !WaitForResourceCleanup(t, ncURL, 4) {
+		t.Fatalf("Failed to cleanup network container %s\n", ncid)
 	}
 
 	networkURL := dncEP + "/networks/" + vnetID + apiVersion
@@ -2624,7 +2625,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 			}
 			vnetIPMap[allocatedIP] = ""
 
-			accessToken := "Key1-" + vnetID
+			accessToken := ""
 			var ipConfig cns.IPConfiguration
 			ipConfig.DNSServers = strings.Split(nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.DNSServers, ",")
 			if len(ncDeploymentRequest.ReservationID) > 0 {

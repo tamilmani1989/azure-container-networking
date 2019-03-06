@@ -14,7 +14,6 @@ import (
 )
 
 const (
-
 	// CNMRuntimePath is the path where CNM state files are stored.
 	CNMRuntimePath = "/var/lib/azure-network/"
 
@@ -23,6 +22,12 @@ const (
 
 	// CNSRuntimePath is the path where CNS state files are stored.
 	CNSRuntimePath = "/var/run/"
+
+	// CNI runtime path on a Kubernetes cluster
+	K8SCNIRuntimePath = "/opt/cni/bin"
+
+	// Network configuration file path on a Kubernetes cluster
+	K8SNetConfigPath = "/etc/cni/net.d"
 
 	// NPMRuntimePath is the path where NPM logging files are stored.
 	NPMRuntimePath = "/var/run/"
@@ -87,4 +92,16 @@ func SetOutboundSNAT(subnet string) error {
 		return err
 	}
 	return nil
+}
+
+// ClearNetworkConfiguration clears the azure-vnet.json contents.
+// This will be called only when reboot is detected - This is windows specific
+func ClearNetworkConfiguration() (bool, error) {
+	return false, nil
+}
+
+func KillProcessByName(processName string) error {
+	cmd := fmt.Sprintf("pkill -f %v", processName)
+	_, err := ExecuteCommand(cmd)
+	return err
 }

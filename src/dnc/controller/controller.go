@@ -168,7 +168,7 @@ func generateStatus(status datamodel.Status, errorInfo *api.JsonErr) int {
 	case datamodel.Pending:
 		fallthrough
 	case datamodel.NotStarted:
-		return http.StatusProcessing
+		return http.StatusAccepted
 	case datamodel.Failed:
 		return errorInfo.HTTPStatus
 	case datamodel.Completed:
@@ -188,19 +188,15 @@ func (c *Controller) GetNetworkStatus(networkID string) (*api.RequestStatus, int
 
 	vnetCfg, err := datamodel.QueryNetworkConfiguration(networkID)
 	if err != nil {
-		return nil, 0, err
+		return nil, http.StatusInternalServerError, err
 	}
 
-	generatedStatus := generateStatus(vnetCfg.Status, &vnetCfg.FailureDetail)
-	var requestStatus *api.RequestStatus
-	if generatedStatus != http.StatusProcessing {
-		requestStatus = &api.RequestStatus{
-			State:         vnetCfg.NetworkState.String(),
-			Status:        vnetCfg.Status.String(),
-			FailureDetail: vnetCfg.FailureDetail}
-	}
+	requestStatus := &api.RequestStatus{
+		State:         vnetCfg.NetworkState.String(),
+		Status:        vnetCfg.Status.String(),
+		FailureDetail: vnetCfg.FailureDetail}
 
-	return requestStatus, generatedStatus, nil
+	return requestStatus, generateStatus(vnetCfg.Status, &vnetCfg.FailureDetail), nil
 }
 
 // GetSubnetStatus - Get subnet status
@@ -217,7 +213,7 @@ func (c *Controller) GetSubnetStatus(networkID, subnetName string) (*api.Request
 		networkID,
 		subnetName)
 	if err != nil {
-		return nil, 0, err
+		return nil, http.StatusInternalServerError, err
 	}
 
 	switch subnetConfig.UpdateStatus {
@@ -240,7 +236,7 @@ func (c *Controller) GetSubnetStatus(networkID, subnetName string) (*api.Request
 
 	case datamodel.SubnetUpdatePending:
 		requestStatus.Status = datamodel.Pending.String()
-		requestReturnCode = http.StatusProcessing
+		requestReturnCode = http.StatusAccepted
 		errMsg := fmt.Sprintf(
 			"Network %s does not contain the specified subnet %s",
 			networkID,
@@ -324,28 +320,24 @@ func (c *Controller) GetNetworkContainerStatus(
 
 	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, networkContainerID)
 	if err != nil {
-		return nil, 0, err
+		return nil, http.StatusInternalServerError, err
 	}
 
 	if ncConfig == nil {
 		msg := fmt.Sprintf(
 			"NetworkContainer %s in network %s is not found", networkContainerID, networkID)
-		return nil, 0, &api.JsonErr{
-			Code:       api.SubnetNotFound,
+		return nil, http.StatusNotFound, &api.JsonErr{
+			Code:       api.NetworkContainerNotFound,
 			HTTPStatus: http.StatusNotFound,
 			Text:       msg}
 	}
 
-	generatedStatus := generateStatus(ncConfig.Status, &ncConfig.FailureDetail)
-	var requestStatus *api.RequestStatus
-	if generatedStatus != http.StatusProcessing {
-		requestStatus = &api.RequestStatus{
-			State:         ncConfig.State.String(),
-			Status:        ncConfig.Status.String(),
-			FailureDetail: ncConfig.FailureDetail}
-	}
+	requestStatus := &api.RequestStatus{
+		State:         ncConfig.State.String(),
+		Status:        ncConfig.Status.String(),
+		FailureDetail: ncConfig.FailureDetail}
 
-	return requestStatus, generatedStatus, nil
+	return requestStatus, generateStatus(ncConfig.Status, &ncConfig.FailureDetail), nil
 }
 
 // PersistNetworkJoinRequest - Persists network join request

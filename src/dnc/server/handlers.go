@@ -1,10 +1,11 @@
+// Copyright 2019 Microsoft. All rights reserved.
+
 package server
 
 import (
 	"dnc/api"
 	"dnc/controller"
 	"dnc/logger/loggershim"
-	"dnc/utils"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +17,15 @@ import (
 	"github.com/Azure/azure-container-networking/cns"
 
 	"github.com/gorilla/mux"
+)
+
+// url parameters string
+const (
+	networkIDStr          string = "networkID"
+	networkContainerIDStr string = "networkContainerID"
+	nodeIDStr             string = "nodeID"
+	reservationIDStr      string = "reservationID"
+	subnetStr             string = "subnet"
 )
 
 var ctrler *controller.Controller
@@ -45,12 +55,12 @@ func decodeRequestBody(request *http.Request, decodedBody interface{}) error {
 func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 	apiVersion := r.URL.Query().Get("api-version")
 	vars := mux.Vars(r)
-	nodeID, ok := vars["nodeID"]
+	nodeID, ok := vars[nodeIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidNodeID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "NodeID is missing in the request"})
+			Text:       api.NodeIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
@@ -66,6 +76,7 @@ func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 
 	if validationErr := nodeInfo.Validate(); validationErr != nil {
 		setRequestFailed(w, validationErr)
+		return
 	}
 
 	putNodeInfoErr := ctrler.PersistNodeInfo(nodeID, &nodeInfo, apiVersion)
@@ -79,15 +90,15 @@ func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetNode - Handler for get node information
+// GetNode - Handler for querying registered node information
 func GetNode(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	nodeID, ok := vars["nodeID"]
+	nodeID, ok := vars[nodeIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidNodeID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "NodeID is missing"})
+			Text:       api.NodeIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
@@ -107,12 +118,12 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 // DeleteNode - Handle to delete node configuration
 func DeleteNode(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	nodeID, ok := vars["nodeID"]
+	nodeID, ok := vars[nodeIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidNodeID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "NodeID is missing"})
+			Text:       api.NodeIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
@@ -123,6 +134,7 @@ func DeleteNode(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
+
 	setRequestFailed(w, deleteNodeErr)
 }
 
@@ -130,21 +142,26 @@ func DeleteNode(w http.ResponseWriter, r *http.Request) {
 func ReserveIP(w http.ResponseWriter, r *http.Request) {
 	apiVersion := r.URL.Query().Get("api-version")
 	vars := mux.Vars(r)
-	networkID, ok := vars["networkID"]
+	networkID, ok := vars[networkIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidNetworkID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "NodeID is missing"})
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	reservationID, ok := vars["reservationID"]
+	reservationID, ok := vars[reservationIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidReservationID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "Reservation ID is missing"})
+			Text:       api.ReservationIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateReservationRequest(networkID, reservationID); validationErr != nil {
+		setRequestFailed(w, validationErr)
 		return
 	}
 
@@ -157,10 +174,12 @@ func ReserveIP(w http.ResponseWriter, r *http.Request) {
 			HTTPStatus: http.StatusUnprocessableEntity}
 
 		setRequestFailed(w, &jsonErr)
+		return
 	}
 
 	if validationErr := allocationRequest.Validate(); validationErr != nil {
 		setRequestFailed(w, validationErr)
+		return
 	}
 
 	reservationErr := ctrler.PersistIPReservationRequest(
@@ -177,24 +196,29 @@ func ReserveIP(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, reservationErr)
 }
 
-// GetReservation - Handler for retrieving reservation info.
+// GetReservation - Handler for querying reservation info.
 func GetReservation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	networkID, ok := vars["networkID"]
+	networkID, ok := vars[networkIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidNetworkID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "NetworkID is missing"})
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	reservationID, ok := vars["reservationID"]
+	reservationID, ok := vars[reservationIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidReservationID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "ReservationID is missing"})
+			Text:       api.ReservationIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateReservationRequest(networkID, reservationID); validationErr != nil {
+		setRequestFailed(w, validationErr)
 		return
 	}
 
@@ -213,23 +237,29 @@ func GetReservation(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, getErr)
 }
 
+// GetReservationStatus - Handler for querying reservation status.
 func GetReservationStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	networkID, ok := vars["networkID"]
+	networkID, ok := vars[networkIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidNetworkID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "NetworkID is missing"})
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	reservationID, ok := vars["reservationID"]
+	reservationID, ok := vars[reservationIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidReservationID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "ReservationID is missing"})
+			Text:       api.ReservationIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateReservationRequest(networkID, reservationID); validationErr != nil {
+		setRequestFailed(w, validationErr)
 		return
 	}
 
@@ -250,23 +280,31 @@ func GetReservationStatus(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, getErr)
 }
 
+// DeleteReservation - Handler for deleting reservation request.
 func DeleteReservation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	networkID, ok := vars["networkID"]
+	networkID, ok := vars[networkIDStr]
 	if !ok {
-		setRequestFailed(w, &api.JsonErr{
-			Code:       api.InvalidNetworkID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "NetworkID is missing"})
+		setRequestFailed(
+			w,
+			&api.JsonErr{
+				Code:       api.InvalidNetworkID,
+				Text:       api.NetworkIDMissing,
+				HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	reservationID, ok := vars["reservationID"]
+	reservationID, ok := vars[reservationIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidReservationID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "ReservationID is missing"})
+			Text:       api.ReservationIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateReservationRequest(networkID, reservationID); validationErr != nil {
+		setRequestFailed(w, validationErr)
 		return
 	}
 
@@ -305,26 +343,39 @@ func DeleteReservation(w http.ResponseWriter, r *http.Request) {
 
 // }
 
+// GetNetworkContainerStatus - Handler for querying network container status
 func GetNetworkContainerStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	networkID, ok := vars["networkID"]
+	networkID, ok := vars[networkIDStr]
 	if !ok {
-		setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkID, Text: "Network ID is missing"})
-		return
-	}
-	ncID, ok := vars["networkContainerID"]
-	if !ok {
-		setRequestFailed(w, &api.JsonErr{Code: api.NetworkContainerNotFound, Text: "Network container ID is missing"})
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	ncStatus, retCode, getErr := ctrler.GetNetworkContainerStatus(
+	ncID, ok := vars[networkContainerIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.NetworkContainerNotFound,
+			Text:       api.NetworkContainerIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateNetworkContainerRequest(networkID, ncID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	ncStatus, retcode, getErr := ctrler.GetNetworkContainerStatus(
 		networkID,
 		ncID)
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if getErr == nil {
-		w.WriteHeader(retCode)
+		w.WriteHeader(retcode)
 		if ncStatus != nil {
 			if err := json.NewEncoder(w).Encode(&ncStatus); err != nil {
 				panic(err)
@@ -336,18 +387,31 @@ func GetNetworkContainerStatus(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, getErr)
 }
 
+// DeleteNetworkContainer - Handler for delete network container
 func DeleteNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	networkID, ok := vars["networkID"]
+	networkID, ok := vars[networkIDStr]
 	if !ok {
-		setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkID, Text: "Network ID is missing"})
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
-	ncID, ok := vars["networkContainerID"]
+	ncID, ok := vars[networkContainerIDStr]
 	if !ok {
-		setRequestFailed(w, &api.JsonErr{Code: api.NetworkContainerNotFound, Text: "Network container ID is missing"})
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.NetworkContainerNotFound,
+			Text:       api.NetworkContainerIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
+
+	if validationErr := ValidateNetworkContainerRequest(networkID, ncID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
 	err := ctrler.DeleteNetworkContainer(networkID, ncID)
 
 	if err == nil {
@@ -369,20 +433,26 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 
 	apiVersion := r.URL.Query().Get("api-version")
 	vars := mux.Vars(r)
-	networkID, ok := vars["networkID"]
+	networkID, ok := vars[networkIDStr]
 	if !ok {
-		setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkID, Text: "Network ID is missing", HTTPStatus: http.StatusBadRequest})
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	ncID, ok := vars["networkContainerID"]
+	ncID, ok := vars[networkContainerIDStr]
 	if !ok {
-		setRequestFailed(w, &api.JsonErr{Code: api.NetworkContainerNotFound, Text: "Network container ID is missing", HTTPStatus: http.StatusBadRequest})
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.NetworkContainerNotFound,
+			Text:       api.NetworkContainerIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	if !utils.IsValidUUID(ncID) {
-		setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkContainerID, Text: "Network container ID must be a UUID", HTTPStatus: http.StatusBadRequest})
+	if validationErr := ValidateNetworkContainerRequest(networkID, ncID); validationErr != nil {
+		setRequestFailed(w, validationErr)
 		return
 	}
 
@@ -407,7 +477,8 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 		if ncRequestV1 == nil {
 			ncRequestV2, err = getNetworkContainerRequestV2(body)
 			if ncRequestV2 == nil {
-				setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkContainerRequest, Text: "Network Container request is invalid"})
+				setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkContainerRequest, Text: "Network Container request is invalid", HTTPStatus: http.StatusBadRequest})
+				return
 			}
 		} else {
 			isV1Request = true
@@ -427,6 +498,7 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	if isV1Request {
 		if validationErr := ncRequestV1.Validate(); validationErr != nil {
 			setRequestFailed(w, validationErr)
+			return
 		}
 
 		ncPersistErr = ctrler.PersistNetworkContainerRequestV1(
@@ -437,6 +509,7 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	} else {
 		if validationErr := ncRequestV2.Validate(); validationErr != nil {
 			setRequestFailed(w, validationErr)
+			return
 		}
 
 		ncPersistErr = ctrler.PersistNetworkContainerRequestV2(
@@ -465,6 +538,8 @@ func getNetworkContainerRequestV1(body []byte) (*api.NetworkContainerRequestV1, 
 			case cns.AzureContainerInstance:
 				fallthrough
 			case cns.WebApps:
+				fallthrough
+			case cns.Docker:
 				return &ncRequestV1, nil
 			}
 		}
@@ -484,6 +559,8 @@ func getNetworkContainerRequestV2(body []byte) (*api.NetworkContainerRequestV2, 
 		case cns.AzureContainerInstance:
 			fallthrough
 		case cns.WebApps:
+			fallthrough
+		case cns.Docker:
 			return &ncRequestV2, nil
 		}
 	}
@@ -497,15 +574,26 @@ func GetNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	var networkID string
 	var ncID string
 	var ok bool
-	networkID, ok = vars["networkID"]
+	networkID, ok = vars[networkIDStr]
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	ncID, ok = vars["networkContainerID"]
+	ncID, ok = vars[networkContainerIDStr]
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.NetworkContainerNotFound,
+			Text:       api.NetworkContainerIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateNetworkContainerRequest(networkID, ncID); validationErr != nil {
+		setRequestFailed(w, validationErr)
 		return
 	}
 
@@ -528,9 +616,12 @@ func GetNetworkContainer(w http.ResponseWriter, r *http.Request) {
 func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 	apiVersion := r.URL.Query().Get("api-version")
 	vars := mux.Vars(r)
-	networkID, ok := vars["networkID"]
+	networkID, ok := vars[networkIDStr]
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
@@ -547,6 +638,11 @@ func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if validationErr := ValidateNetworkRequest(networkID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
 	if validationErr := networkInfo.Validate(); validationErr != nil {
 		setRequestFailed(w, validationErr)
 		return
@@ -555,10 +651,10 @@ func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 	t := ctrler.PersistNetworkJoinRequest(networkID, networkInfo, apiVersion)
 	if t != nil {
 		setRequestFailed(w, t)
-	} else {
-		w.WriteHeader(http.StatusOK)
+		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(t); err != nil {
 		panic(err)
 	}
@@ -567,8 +663,24 @@ func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 // PutSubnet - Handler for put delgate subnet
 func PutSubnet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	networkID := vars["networkID"]
-	subnet := vars["subnet"]
+	networkID, ok := vars[networkIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	subnet, ok := vars[subnetStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidSubnetName,
+			Text:       api.SubnetNameMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
 	loggershim.LS.Debugf("Subnet: %s", subnet)
 	var subnetRequest api.SubnetRequest
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -581,16 +693,19 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if validationErr := ValidateNetworkRequest(networkID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
 	if validationErr := subnetRequest.Validate(); validationErr != nil {
 		setRequestFailed(w, validationErr)
+		return
 	}
 
 	t := ctrler.PersistSubnetDelegationRequest(networkID, strings.ToLower(subnet), subnetRequest)
 	if t != nil {
-		w.WriteHeader(t.HTTPStatus)
-		if err := json.NewEncoder(w).Encode(&t); err != nil {
-			panic(err)
-		}
+		setRequestFailed(w, t)
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
@@ -599,22 +714,27 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 // GetSubnetStatus - Handler for retrieving the subnet status
 func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	networkID, ok := vars["networkID"]
+	networkID, ok := vars[networkIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidNetworkID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "NetworkID is missing"})
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	subnet, ok := vars["subnet"]
+	if validationErr := ValidateNetworkRequest(networkID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	subnet, ok := vars[subnetStr]
 	loggershim.LS.Debugf("Subnet: %s", subnet)
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidSubnetName,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "SubnetName is missing"})
+			Text:       api.SubnetNameMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
@@ -639,22 +759,27 @@ func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
 // GetSubnetConfiguration - Handler for retrieving the subnet configuration
 func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	networkID, ok := vars["networkID"]
+	networkID, ok := vars[networkIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidNetworkID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "NetworkID is missing"})
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	subnet, ok := vars["subnet"]
+	if validationErr := ValidateNetworkRequest(networkID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	subnet, ok := vars[subnetStr]
 	loggershim.LS.Debugf("Subnet: %s", subnet)
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidSubnetName,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "SubnetName is missing"})
+			Text:       api.SubnetNameMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
@@ -678,7 +803,20 @@ func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 func DeleteNetwork(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var networkID string
-	networkID = vars["networkID"]
+	networkID, ok := vars[networkIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateNetworkRequest(networkID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
 	t := ctrler.DeleteNetwork(networkID)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if t != nil {
@@ -694,20 +832,24 @@ func DeleteNetwork(w http.ResponseWriter, r *http.Request) {
 // GetNetworkStatus - Handler for retrieving the network status.
 func GetNetworkStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	networkID, ok := vars["networkID"]
+	networkID, ok := vars[networkIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidNetworkID,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       "NetworkID is missing"})
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	networkStatus, retCode, getErr := ctrler.GetNetworkStatus(
-		networkID)
+	if validationErr := ValidateNetworkRequest(networkID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	networkStatus, retcode, getErr := ctrler.GetNetworkStatus(networkID)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if getErr == nil {
-		w.WriteHeader(retCode)
+		w.WriteHeader(retcode)
 		if networkStatus != nil {
 			if err := json.NewEncoder(w).Encode(&networkStatus); err != nil {
 				panic(err)
@@ -736,6 +878,7 @@ func InitializeAzureStorage(w http.ResponseWriter, r *http.Request) {
 
 	if validationErr := request.Validate(); validationErr != nil {
 		setRequestFailed(w, validationErr)
+		return
 	}
 
 	t := ctrler.InitializeAzureStorage(request)
@@ -802,23 +945,34 @@ func PromoteContainerState(w http.ResponseWriter, r *http.Request) {
 	var networkID string
 	var ncID string
 	var ok bool
-	networkID, ok = vars["networkID"]
+	networkID, ok = vars[networkIDStr]
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	ncID, ok = vars["networkContainerID"]
+	ncID, ok = vars[networkContainerIDStr]
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.NetworkContainerNotFound,
+			Text:       api.NetworkContainerIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateNetworkContainerRequest(networkID, ncID); validationErr != nil {
+		setRequestFailed(w, validationErr)
 		return
 	}
 
 	if err := ctrler.PromoteContainerState(networkID, ncID); err != nil {
 		setRequestFailed(w, err)
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 // SkipNodeCleanupForNetworkContainer - Promotes container to the next state (if connection to node has failed during disassociation)
@@ -829,23 +983,34 @@ func SkipNodeCleanupForNetworkContainer(w http.ResponseWriter, r *http.Request) 
 	var ok bool
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	networkID, ok = vars["networkID"]
+	networkID, ok = vars[networkIDStr]
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			HTTPStatus: http.StatusBadRequest,
+			Text:       api.NetworkIDMissing})
 		return
 	}
 
-	ncID, ok = vars["networkContainerID"]
+	ncID, ok = vars[networkContainerIDStr]
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.NetworkContainerNotFound,
+			Text:       api.NetworkContainerIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateNetworkContainerRequest(networkID, ncID); validationErr != nil {
+		setRequestFailed(w, validationErr)
 		return
 	}
 
 	if err := ctrler.SkipNodeCleanupForNetworkContainer(networkID, ncID); err != nil {
 		setRequestFailed(w, err)
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 // IsWaitingForNodeCleanup - Check to see if NC is waiting for node cleanup and in DisAssociationFailed state
@@ -854,15 +1019,26 @@ func IsWaitingForNodeCleanup(w http.ResponseWriter, r *http.Request) {
 	var networkID string
 	var ncID string
 	var ok bool
-	networkID, ok = vars["networkID"]
+	networkID, ok = vars[networkIDStr]
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
-	ncID, ok = vars["networkContainerID"]
+	ncID, ok = vars[networkContainerIDStr]
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.NetworkContainerNotFound,
+			Text:       api.NetworkContainerIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateNetworkContainerRequest(networkID, ncID); validationErr != nil {
+		setRequestFailed(w, validationErr)
 		return
 	}
 

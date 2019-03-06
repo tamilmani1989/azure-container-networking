@@ -151,10 +151,5 @@ func DecodeResponse(w *http.Response, response interface{}) error {
 		return err
 	}
 
-	if w.StatusCode != http.StatusOK {
-		err = fmt.Errorf("Request failed with HTTP error %d", w.StatusCode)
-		loggershim.LS.Errorf("%s", err.Error())
-	}
-
 	return err
 }

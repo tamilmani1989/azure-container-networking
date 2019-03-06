@@ -1,3 +1,5 @@
+// Copyright 2019 Microsoft. All rights reserved.
+
 package main
 
 import (
