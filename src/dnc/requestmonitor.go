@@ -851,7 +851,7 @@ func generateAndPersistImplicitReservationRequest(repoNCConfig *datamodel.NCConf
 		reservationConfiguration.AssociatedNCID,
 		reservationConfiguration.ReservationID,
 		repoNCConfig.RequestV2.AssociationInfo.ContainerType,
-		repoNCConfig.RequestV2.AssociationInfo.ContainerType == cns.AzureContainerInstance,
+		updateVlan(repoNCConfig.RequestV2.AssociationInfo.ContainerType),
 		false)
 	if err != nil {
 		logger.Errorf("Failed to add network container to %s to node configuration:%s. Error %v",
@@ -998,7 +998,7 @@ func processNetworkContainerV1(repoNCConfig *datamodel.NCConfiguration) (bool, *
 		repoNCConfig.NetworkContainerID,
 		repoNCConfig.RequestV1.ReservationID,
 		associationInfo.ContainerType,
-		associationInfo.ContainerType == cns.AzureContainerInstance,
+		updateVlan(associationInfo.ContainerType),
 		false)
 	if err != nil {
 		if err.HTTPStatus == http.StatusInternalServerError {
@@ -1232,7 +1232,7 @@ Cleanup:
 
 func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
-	err := datamodel.PurgeNetworkContainerAssociations(repoNCConfig, repoNCConfig.GetAssociationInfo().ContainerType == cns.AzureContainerInstance)
+	err := datamodel.PurgeNetworkContainerAssociations(repoNCConfig, updateVlan(repoNCConfig.GetAssociationInfo().ContainerType))
 	if err != nil {
 		return false, err
 	}
@@ -1250,7 +1250,7 @@ func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration) (
 
 func processNetworkContainerPurge(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
-	err := datamodel.PurgeNetworkContainerAssociations(repoNCConfig, repoNCConfig.GetAssociationInfo().ContainerType == cns.AzureContainerInstance)
+	err := datamodel.PurgeNetworkContainerAssociations(repoNCConfig, updateVlan(repoNCConfig.GetAssociationInfo().ContainerType))
 	if err != nil {
 		return false, err
 	}
@@ -1404,7 +1404,7 @@ func processNetworkContainerAssociate(
 	info := &cns.CreateNetworkContainerRequest{
 		Version:                    strconv.FormatUint(repoNCConfig.CNSVersion, 10),
 		NetworkContainerType:       ncGoalState.ContainerType,
-		NetworkContainerid:         "Swift_" + ncGoalState.NetworkContainerID,
+		NetworkContainerid:         cns.SwiftPrefix + ncGoalState.NetworkContainerID,
 		PrimaryInterfaceIdentifier: ncGoalState.AssociatedInterfaceID,
 		IPConfiguration:            ipConfig,
 		AuthorizationToken:         "",
@@ -1948,6 +1948,17 @@ func processNetworkContainerRequest(
 	}
 
 	return true, nil
+}
+
+func updateVlan(containerType string) bool {
+	switch containerType {
+	case cns.AzureContainerInstance:
+		fallthrough
+	case cns.Docker:
+		return true
+	default:
+		return false
+	}
 }
 
 func monitorRequests() {

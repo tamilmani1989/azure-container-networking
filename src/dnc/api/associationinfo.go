@@ -31,6 +31,7 @@ func (associationInfo *AssociationInfo) Validate() *JsonErr {
 	switch associationInfo.ContainerType {
 	case cns.AzureContainerInstance:
 	case cns.WebApps:
+	case cns.Docker:
 	default:
 		return &JsonErr{Code: InvalidContainerType, Text: "Invalid container type.", HTTPStatus: http.StatusBadRequest}
 	}

@@ -1386,24 +1386,25 @@ func GetNetworkStatus(t *testing.T, resourceStatusURL string, expectedStatusCode
 
 	defer response.Body.Close()
 
-	if response.StatusCode != expectedStatusCode && response.StatusCode != http.StatusProcessing {
-		t.Fatalf("Unexpected response code %d received when trying to get network status for resource URL:%s.",
-			response.StatusCode,
-			resourceStatusURL)
-	}
-	// fmt.Printf("Received Response:%+v\n", response)
-	if response.StatusCode == http.StatusProcessing {
-		return "Pending"
-	}
 	var operationStatus api.RequestStatus
 	err = utils.DecodeResponse(response, &operationStatus)
-	if err != nil &&
-		(response.StatusCode != expectedStatusCode) {
+	if err != nil {
 		t.Fatalf("Failed to decode network response for resource URL:%s. Error:%+v",
 			resourceStatusURL,
 			err)
 	}
+
+	if response.StatusCode != expectedStatusCode && response.StatusCode != http.StatusAccepted {
+		t.Fatalf("Unexpected response code %d received when trying to get network status for resource URL:%s.",
+			response.StatusCode,
+			resourceStatusURL)
+	}
+
 	fmt.Printf("Resource URL:%s Status:%s\n", resourceStatusURL, operationStatus.String())
+
+	if response.StatusCode == http.StatusAccepted {
+		return "Pending"
+	}
 
 	return operationStatus.Status
 }
@@ -1832,7 +1833,7 @@ func createNetworkContainer(
 	<-cnsResponderContextMap.getContext(ncid).DeleteNCResponse.SignalInfo.Signal
 
 	if !WaitForResourceCleanup(t, ncURL, 4) {
-		t.Fatalf("Failed to cleanup network container%s\n", ncid)
+		t.Fatalf("Failed to cleanup network container %s\n", ncid)
 	}
 
 	if len(reservationID) > 0 {
@@ -2074,8 +2075,8 @@ func createNetworkContainerAndUpdateNetworkConfig(
 
 	<-updatedCnsResponderContextMap.getContext(ncid).DeleteNCResponse.SignalInfo.Signal
 
-	if !WaitForResourceCleanup(t, ncURL, 2) {
-		t.Fatalf("Failed to cleanup network container%s\n", ncid)
+	if !WaitForResourceCleanup(t, ncURL, 4) {
+		t.Fatalf("Failed to cleanup network container %s\n", ncid)
 	}
 
 	networkURL := dncEP + "/networks/" + vnetID + apiVersion

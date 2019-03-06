@@ -369,13 +369,13 @@ func GetNetworkContainerStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ncStatus, retCode, getErr := ctrler.GetNetworkContainerStatus(
+	ncStatus, retcode, getErr := ctrler.GetNetworkContainerStatus(
 		networkID,
 		ncID)
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if getErr == nil {
-		w.WriteHeader(retCode)
+		w.WriteHeader(retcode)
 		if ncStatus != nil {
 			if err := json.NewEncoder(w).Encode(&ncStatus); err != nil {
 				panic(err)
@@ -477,7 +477,8 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 		if ncRequestV1 == nil {
 			ncRequestV2, err = getNetworkContainerRequestV2(body)
 			if ncRequestV2 == nil {
-				setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkContainerRequest, Text: "Network Container request is invalid"})
+				setRequestFailed(w, &api.JsonErr{Code: api.InvalidNetworkContainerRequest, Text: "Network Container request is invalid", HTTPStatus: http.StatusBadRequest})
+				return
 			}
 		} else {
 			isV1Request = true
@@ -497,6 +498,7 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	if isV1Request {
 		if validationErr := ncRequestV1.Validate(); validationErr != nil {
 			setRequestFailed(w, validationErr)
+			return
 		}
 
 		ncPersistErr = ctrler.PersistNetworkContainerRequestV1(
@@ -507,6 +509,7 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	} else {
 		if validationErr := ncRequestV2.Validate(); validationErr != nil {
 			setRequestFailed(w, validationErr)
+			return
 		}
 
 		ncPersistErr = ctrler.PersistNetworkContainerRequestV2(
@@ -535,6 +538,8 @@ func getNetworkContainerRequestV1(body []byte) (*api.NetworkContainerRequestV1, 
 			case cns.AzureContainerInstance:
 				fallthrough
 			case cns.WebApps:
+				fallthrough
+			case cns.Docker:
 				return &ncRequestV1, nil
 			}
 		}
@@ -554,6 +559,8 @@ func getNetworkContainerRequestV2(body []byte) (*api.NetworkContainerRequestV2, 
 		case cns.AzureContainerInstance:
 			fallthrough
 		case cns.WebApps:
+			fallthrough
+		case cns.Docker:
 			return &ncRequestV2, nil
 		}
 	}
@@ -644,10 +651,10 @@ func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 	t := ctrler.PersistNetworkJoinRequest(networkID, networkInfo, apiVersion)
 	if t != nil {
 		setRequestFailed(w, t)
-	} else {
-		w.WriteHeader(http.StatusOK)
+		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(t); err != nil {
 		panic(err)
 	}
@@ -698,10 +705,7 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 
 	t := ctrler.PersistSubnetDelegationRequest(networkID, strings.ToLower(subnet), subnetRequest)
 	if t != nil {
-		w.WriteHeader(t.HTTPStatus)
-		if err := json.NewEncoder(w).Encode(&t); err != nil {
-			panic(err)
-		}
+		setRequestFailed(w, t)
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
@@ -842,11 +846,10 @@ func GetNetworkStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	networkStatus, retCode, getErr := ctrler.GetNetworkStatus(
-		networkID)
+	networkStatus, retcode, getErr := ctrler.GetNetworkStatus(networkID)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if getErr == nil {
-		w.WriteHeader(retCode)
+		w.WriteHeader(retcode)
 		if networkStatus != nil {
 			if err := json.NewEncoder(w).Encode(&networkStatus); err != nil {
 				panic(err)
@@ -967,9 +970,9 @@ func PromoteContainerState(w http.ResponseWriter, r *http.Request) {
 
 	if err := ctrler.PromoteContainerState(networkID, ncID); err != nil {
 		setRequestFailed(w, err)
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 // SkipNodeCleanupForNetworkContainer - Promotes container to the next state (if connection to node has failed during disassociation)
@@ -1005,9 +1008,9 @@ func SkipNodeCleanupForNetworkContainer(w http.ResponseWriter, r *http.Request) 
 
 	if err := ctrler.SkipNodeCleanupForNetworkContainer(networkID, ncID); err != nil {
 		setRequestFailed(w, err)
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 // IsWaitingForNodeCleanup - Check to see if NC is waiting for node cleanup and in DisAssociationFailed state
