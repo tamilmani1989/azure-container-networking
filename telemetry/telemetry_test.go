@@ -190,7 +190,8 @@ func TestServerCloseTelemetryConnection(t *testing.T) {
 	}
 
 	// Close server connection
-	tb.Close()
+	tb.Cancel()
+	time.Sleep(300 * time.Millisecond)
 
 	if len(tb.connections) != 0 {
 		t.Errorf("server didn't close all connections as expected")
