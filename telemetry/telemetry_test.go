@@ -175,6 +175,31 @@ func TestCloseTelemetryConnection(t *testing.T) {
 	}
 }
 
+func TestServerCloseTelemetryConnection(t *testing.T) {
+	// server telemetrybuffer
+	tb = NewTelemetryBuffer(hostAgentUrl)
+	err := tb.StartServer()
+	if err == nil {
+		go tb.BufferAndPushData(0)
+	}
+
+	// client telemetrybuffer
+	tb1 := NewTelemetryBuffer(hostAgentUrl)
+	if err := tb1.Connect(); err != nil {
+		fmt.Printf("connection to telemetry server failed %v", err)
+	}
+
+	// Close server connection
+	tb.Close()
+
+	// Close client connection
+	tb1.Close()
+
+	if len(tb.connections) != 0 {
+		fmt.Printf("server didn't close all connections as expected")
+	}
+}
+
 func TestSetReportState(t *testing.T) {
 	err := reportManager.SetReportState("a.json")
 	if err != nil {
