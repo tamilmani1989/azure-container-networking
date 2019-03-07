@@ -176,20 +176,20 @@ func TestCloseTelemetryConnection(t *testing.T) {
 }
 
 func TestServerCloseTelemetryConnection(t *testing.T) {
-	// server telemetrybuffer
+	// create server telemetrybuffer and start server
 	tb = NewTelemetryBuffer(hostAgentUrl)
 	err := tb.StartServer()
 	if err == nil {
 		go tb.BufferAndPushData(0)
 	}
 
-	// client telemetrybuffer
+	// create client telemetrybuffer and connect to server
 	tb1 := NewTelemetryBuffer(hostAgentUrl)
 	if err := tb1.Connect(); err != nil {
 		t.Errorf("connection to telemetry server failed %v", err)
 	}
 
-	// Close server connection
+	// Exit server thread and close server connection
 	tb.Cancel()
 	time.Sleep(300 * time.Millisecond)
 
@@ -199,7 +199,6 @@ func TestServerCloseTelemetryConnection(t *testing.T) {
 
 	// Close client connection
 	tb1.Close()
-
 }
 
 func TestSetReportState(t *testing.T) {
