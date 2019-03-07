@@ -38,7 +38,7 @@ const (
 	cni                       = "CNI"
 )
 
-var telemetryLogger = log.NewLogger(logName, log.LevelInfo, log.TargetStderr)
+var telemetryLogger = log.NewLogger(logName, log.LevelInfo, log.TargetLogfile)
 var payloadSize uint16 = 0
 
 // TelemetryBuffer object
@@ -78,10 +78,10 @@ func NewTelemetryBuffer(hostReportURL string) *TelemetryBuffer {
 	tb.payload.NPMReports = make([]NPMReport, 0)
 	tb.payload.CNSReports = make([]CNSReport, 0)
 
-	err := telemetryLogger.SetTarget(log.TargetLogfile)
-	if err != nil {
-		fmt.Printf("Failed to configure logging: %v\n", err)
-	}
+	// err := telemetryLogger.SetTarget(log.TargetLogfile)
+	// if err != nil {
+	// 	fmt.Printf("Failed to configure logging: %v\n", err)
+	// }
 
 	return &tb
 }
@@ -135,11 +135,13 @@ func (tb *TelemetryBuffer) StartServer() error {
 							telemetryLogger.Printf("Server closing client connection")
 							for index, value := range tb.connections {
 								if value == conn {
+									telemetryLogger.Printf("Server closing client connection2")
 									conn.Close()
 									tb.connections = remove(tb.connections, index)
 									return
 								}
 							}
+							return
 						}
 					}
 				}()
