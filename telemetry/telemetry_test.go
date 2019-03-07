@@ -192,12 +192,13 @@ func TestServerCloseTelemetryConnection(t *testing.T) {
 	// Close server connection
 	tb.Close()
 
-	// Close client connection
-	tb1.Close()
-
 	if len(tb.connections) != 0 {
 		fmt.Printf("server didn't close all connections as expected")
 	}
+
+	// Close client connection
+	tb1.Close()
+
 }
 
 func TestSetReportState(t *testing.T) {
