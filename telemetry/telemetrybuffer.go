@@ -78,11 +78,6 @@ func NewTelemetryBuffer(hostReportURL string) *TelemetryBuffer {
 	tb.payload.NPMReports = make([]NPMReport, 0)
 	tb.payload.CNSReports = make([]CNSReport, 0)
 
-	// err := telemetryLogger.SetTarget(log.TargetLogfile)
-	// if err != nil {
-	// 	fmt.Printf("Failed to configure logging: %v\n", err)
-	// }
-
 	return &tb
 }
 
