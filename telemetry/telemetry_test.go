@@ -186,14 +186,14 @@ func TestServerCloseTelemetryConnection(t *testing.T) {
 	// client telemetrybuffer
 	tb1 := NewTelemetryBuffer(hostAgentUrl)
 	if err := tb1.Connect(); err != nil {
-		fmt.Printf("connection to telemetry server failed %v", err)
+		t.Errorf("connection to telemetry server failed %v", err)
 	}
 
 	// Close server connection
 	tb.Close()
 
 	if len(tb.connections) != 0 {
-		fmt.Printf("server didn't close all connections as expected")
+		t.Errorf("server didn't close all connections as expected")
 	}
 
 	// Close client connection
