@@ -133,14 +133,23 @@ func (tb *TelemetryBuffer) StartServer() error {
 							}
 						} else {
 							telemetryLogger.Printf("Server closing client connection")
-							for index, value := range tb.connections {
+							var index int
+							var value net.Conn
+							var found bool
+
+							for index, value = range tb.connections {
 								if value == conn {
 									telemetryLogger.Printf("Server closing client connection2")
 									conn.Close()
-									tb.connections = remove(tb.connections, index)
-									return
+									found = true
+									break
 								}
 							}
+
+							if found {
+								tb.connections = remove(tb.connections, index)
+							}
+
 							return
 						}
 					}
