@@ -127,14 +127,13 @@ func (tb *TelemetryBuffer) StartServer() error {
 								tb.data <- cnsReport
 							}
 						} else {
-							telemetryLogger.Printf("Server closing client connection")
 							var index int
 							var value net.Conn
 							var found bool
 
 							for index, value = range tb.connections {
 								if value == conn {
-									telemetryLogger.Printf("Server closing client connection2")
+									telemetryLogger.Printf("Server closing client connection")
 									conn.Close()
 									found = true
 									break
