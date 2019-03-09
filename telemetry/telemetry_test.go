@@ -193,12 +193,17 @@ func TestServerCloseTelemetryConnection(t *testing.T) {
 	tb.Cancel()
 	time.Sleep(300 * time.Millisecond)
 
-	if len(tb.connections) != 0 {
-		t.Errorf("server didn't close all connections as expected")
+	b := []byte("tamil")
+	if _, err := tb1.Write(b); err == nil {
+		t.Errorf("Client couldn't recognise server close")
 	}
 
 	// Close client connection
 	tb1.Close()
+
+	if len(tb.connections) != 0 {
+		t.Errorf("All connections not closed as expected")
+	}
 }
 
 func TestSetReportState(t *testing.T) {
