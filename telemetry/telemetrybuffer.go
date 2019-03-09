@@ -38,7 +38,7 @@ const (
 	cni                       = "CNI"
 )
 
-var telemetryLogger = log.NewLogger(logName, log.LevelInfo, log.TargetLogfile)
+var telemetryLogger = log.NewLogger(logName, log.LevelInfo, log.TargetStderr)
 var payloadSize uint16 = 0
 
 // TelemetryBuffer object
@@ -78,12 +78,22 @@ func NewTelemetryBuffer(hostReportURL string) *TelemetryBuffer {
 	tb.payload.NPMReports = make([]NPMReport, 0)
 	tb.payload.CNSReports = make([]CNSReport, 0)
 
+	err := telemetryLogger.SetTarget(log.TargetLogfile)
+	if err != nil {
+		fmt.Printf("Failed to configure logging: %v\n", err)
+	}
+
 	return &tb
 }
 
 func remove(s []net.Conn, i int) []net.Conn {
-	s[i] = s[len(s)-1]
-	return s[:len(s)-1]
+	if len(s) > 0 && i < len(s) {
+		s[i] = s[len(s)-1]
+		return s[:len(s)-1]
+	}
+
+	telemetryLogger.Printf("tb connections remove failed index %v len %v", i, len(s))
+	return s
 }
 
 // Starts Telemetry server listening on unix domain socket
