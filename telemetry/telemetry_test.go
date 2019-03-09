@@ -198,12 +198,13 @@ func TestServerCloseTelemetryConnection(t *testing.T) {
 		t.Errorf("Client couldn't recognise server close")
 	}
 
-	// Close client connection
-	tb1.Close()
-
 	if len(tb.connections) != 0 {
 		t.Errorf("All connections not closed as expected")
 	}
+
+	// Close client connection
+	tb1.Close()
+
 }
 
 func TestSetReportState(t *testing.T) {
