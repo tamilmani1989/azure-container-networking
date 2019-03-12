@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-container-networking/common"
+	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/platform"
 )
 
@@ -237,19 +238,6 @@ func (report *NPMReport) GetReport(clusterID, nodeName, npmVersion, kubernetesVe
 func (reportMgr *ReportManager) SendReport(tb *TelemetryBuffer) error {
 	var err error
 	if tb != nil && tb.Connected {
-		telemetryLogger.Printf("[Telemetry] Going to send Telemetry report to hostnetagent")
-
-		switch reportMgr.Report.(type) {
-		case *CNIReport:
-			telemetryLogger.Printf("[Telemetry] %+v", reportMgr.Report.(*CNIReport))
-		case *NPMReport:
-			telemetryLogger.Printf("[Telemetry] %+v", reportMgr.Report.(*NPMReport))
-		case *DNCReport:
-			telemetryLogger.Printf("[Telemetry] %+v", reportMgr.Report.(*DNCReport))
-		default:
-			telemetryLogger.Printf("[Telemetry] Invalid report type")
-		}
-
 		report, err := reportMgr.ReportToBytes()
 		if err == nil {
 			// If write fails, try to re-establish connections as server/client
@@ -257,8 +245,6 @@ func (reportMgr *ReportManager) SendReport(tb *TelemetryBuffer) error {
 				tb.Cancel()
 			}
 		}
-	} else {
-		err = fmt.Errorf("Not connected to telemetry server or tb is nil")
 	}
 
 	return err
@@ -284,13 +270,12 @@ func (reportMgr *ReportManager) SetReportState(telemetryFile string) error {
 
 	_, err = f.Write(reportBytes)
 	if err != nil {
-		telemetryLogger.Printf("[Telemetry] Error while writing to file %v", err)
+		log.Printf("[Telemetry] Error while writing to file %v", err)
 		return fmt.Errorf("[Telemetry] Error while writing to file %v", err)
 	}
 
 	// set IsNewInstance in report
 	reflect.ValueOf(reportMgr.Report).Elem().FieldByName("IsNewInstance").SetBool(false)
-	telemetryLogger.Printf("[Telemetry] SetReportState succeeded")
 	return nil
 }
 
@@ -298,7 +283,7 @@ func (reportMgr *ReportManager) SetReportState(telemetryFile string) error {
 func (reportMgr *ReportManager) GetReportState(telemetryFile string) bool {
 	// try to set IsNewInstance in report
 	if _, err := os.Stat(telemetryFile); os.IsNotExist(err) {
-		telemetryLogger.Printf("[Telemetry] File not exist %v", telemetryFile)
+		log.Printf("[Telemetry] File not exist %v", telemetryFile)
 		reflect.ValueOf(reportMgr.Report).Elem().FieldByName("IsNewInstance").SetBool(true)
 		return false
 	}
