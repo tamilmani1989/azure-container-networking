@@ -108,6 +108,8 @@ func (tb *TelemetryBuffer) StartServer() error {
 		return err
 	}
 
+	InitTelemetryLogger()
+
 	telemetryLogger.Printf("Telemetry service started")
 	// Spawn server goroutine to handle incoming connections
 	go func() {
@@ -259,6 +261,7 @@ func (tb *TelemetryBuffer) Close() {
 	if tb.listener != nil {
 		telemetryLogger.Printf("server close")
 		tb.listener.Close()
+		CloseTelemetryLogger()
 	}
 
 	tb.mutex.Lock()
@@ -266,7 +269,6 @@ func (tb *TelemetryBuffer) Close() {
 
 	for _, conn := range tb.connections {
 		if conn != nil {
-			telemetryLogger.Printf("connection close as server closed")
 			conn.Close()
 		}
 	}

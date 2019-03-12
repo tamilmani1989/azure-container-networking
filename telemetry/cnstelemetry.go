@@ -25,10 +25,6 @@ const (
 // SendCnsTelemetry - handles cns telemetry reports
 func SendCnsTelemetry(interval int, reports chan interface{}, service *restserver.HTTPRestService, telemetryStopProcessing chan bool) {
 
-	if err := InitTelemetryLogger(); err == nil {
-		defer CloseTelemetryLogger()
-	}
-
 CONNECT:
 	telemetryBuffer := NewTelemetryBuffer("")
 	err := telemetryBuffer.StartServer()

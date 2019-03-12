@@ -17,10 +17,6 @@ func main() {
 	var tb *telemetry.TelemetryBuffer
 	var err error
 
-	if err := telemetry.InitTelemetryLogger(); err == nil {
-		defer telemetry.CloseTelemetryLogger()
-	}
-
 	for {
 		tb = telemetry.NewTelemetryBuffer("")
 		err = tb.StartServer()
