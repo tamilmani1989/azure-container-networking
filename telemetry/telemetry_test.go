@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-container-networking/common"
+	"github.com/Azure/azure-container-networking/telemetry"
 )
 
 var reportManager *ReportManager
@@ -93,6 +94,10 @@ func TestMain(m *testing.M) {
 	reportManager.HostNetAgentURL = "http://" + hostAgentUrl
 	reportManager.ContentType = "application/json"
 	reportManager.Report = &CNIReport{}
+
+	if err := InitTelemetryLogger(); err == nil {
+		defer CloseTelemetryLogger()
+	}
 
 	tb = NewTelemetryBuffer(hostAgentUrl)
 	err = tb.StartServer()
@@ -212,6 +217,10 @@ func TestClientCloseTelemetryConnection(t *testing.T) {
 	err := tb.StartServer()
 	if err == nil {
 		go tb.BufferAndPushData(0)
+	}
+
+	if !telemetry.CheckIfSockExists() {
+		t.Errorf("telemetry sock doesn't exist")
 	}
 
 	// create client telemetrybuffer and connect to server
