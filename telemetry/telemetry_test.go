@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/Azure/azure-container-networking/common"
-	"github.com/Azure/azure-container-networking/telemetry"
 )
 
 var reportManager *ReportManager
@@ -219,7 +218,7 @@ func TestClientCloseTelemetryConnection(t *testing.T) {
 		go tb.BufferAndPushData(0)
 	}
 
-	if !telemetry.CheckIfSockExists() {
+	if !CheckIfSockExists() {
 		t.Errorf("telemetry sock doesn't exist")
 	}
 
