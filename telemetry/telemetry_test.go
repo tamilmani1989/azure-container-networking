@@ -228,11 +228,6 @@ func TestClientCloseTelemetryConnection(t *testing.T) {
 		t.Errorf("All connections not closed as expected")
 	}
 
-	b := []byte("tamil")
-	if _, err := tb1.Write(b); err == nil {
-		t.Errorf("write succeeded even after client close")
-	}
-
 	// Exit server thread and close server connection
 	tb.Cancel()
 }
