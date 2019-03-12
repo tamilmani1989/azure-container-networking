@@ -259,7 +259,6 @@ func (tb *TelemetryBuffer) Close() {
 	if tb.listener != nil {
 		telemetryLogger.Printf("server close")
 		tb.listener.Close()
-		tb.listener = nil
 	}
 
 	tb.mutex.Lock()
