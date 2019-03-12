@@ -162,6 +162,14 @@ func TestSendTelemetry(t *testing.T) {
 	if err != nil {
 		t.Errorf("SendTelemetry failed due to %v", err)
 	}
+
+	i := 3
+	rpMgr := &ReportManager{}
+	rpMgr.Report = &i
+	err = rpMgr.SendReport(tb)
+	if err == nil {
+		t.Errorf("SendTelemetry not failed for incorrect report type")
+	}
 }
 
 func TestReceiveTelemetryData(t *testing.T) {

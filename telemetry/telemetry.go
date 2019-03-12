@@ -237,8 +237,10 @@ func (report *NPMReport) GetReport(clusterID, nodeName, npmVersion, kubernetesVe
 // SendReport will send telemetry report to HostNetAgent.
 func (reportMgr *ReportManager) SendReport(tb *TelemetryBuffer) error {
 	var err error
+	var report []byte
+
 	if tb != nil && tb.Connected {
-		report, err := reportMgr.ReportToBytes()
+		report, err = reportMgr.ReportToBytes()
 		if err == nil {
 			// If write fails, try to re-establish connections as server/client
 			if _, err = tb.Write(report); err != nil {
@@ -415,7 +417,10 @@ func (report *CNIReport) GetOrchestratorDetails() {
 }
 
 // ReportToBytes - returns the report bytes
-func (reportMgr *ReportManager) ReportToBytes() (report []byte, err error) {
+func (reportMgr *ReportManager) ReportToBytes() ([]byte, error) {
+	var err error
+	var report []byte
+
 	switch reportMgr.Report.(type) {
 	case *CNIReport:
 	case *NPMReport:
@@ -425,9 +430,10 @@ func (reportMgr *ReportManager) ReportToBytes() (report []byte, err error) {
 		err = fmt.Errorf("[Telemetry] Invalid report type")
 	}
 
-	if err == nil {
-		report, err = json.Marshal(reportMgr.Report)
+	if err != nil {
+		return []byte{}, err
 	}
 
-	return
+	report, err = json.Marshal(reportMgr.Report)
+	return report, err
 }
