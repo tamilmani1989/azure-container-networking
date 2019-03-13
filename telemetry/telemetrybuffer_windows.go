@@ -43,7 +43,7 @@ func (tb *TelemetryBuffer) Cleanup(name string) error {
 }
 
 // Check if telemetry unix domain socket exists
-func CheckIfSockExists() bool {
+func SockExists() bool {
 	if _, err := os.Stat(fmt.Sprintf(fdTemplate, FdName)); !os.IsNotExist(err) {
 		return true
 	}

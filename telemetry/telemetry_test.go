@@ -226,7 +226,7 @@ func TestClientCloseTelemetryConnection(t *testing.T) {
 		go tb.BufferAndPushData(0)
 	}
 
-	if !CheckIfSockExists() {
+	if !SockExists() {
 		t.Errorf("telemetry sock doesn't exist")
 	}
 

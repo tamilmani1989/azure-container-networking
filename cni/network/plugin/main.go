@@ -147,7 +147,7 @@ func startTelemetryService(path string) error {
 	log.Printf("[cni] Telemetry service started")
 
 	for attempt := 0; attempt < 5; attempt++ {
-		if telemetry.CheckIfSockExists() {
+		if telemetry.SockExists() {
 			break
 		}
 

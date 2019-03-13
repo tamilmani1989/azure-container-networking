@@ -41,7 +41,7 @@ func (tb *TelemetryBuffer) Cleanup(name string) error {
 	return os.Remove(fmt.Sprintf(fdTemplate, name))
 }
 
-func CheckIfSockExists() bool {
+func SockExists() bool {
 	if _, err := os.Stat(fmt.Sprintf(fdTemplate, FdName)); !os.IsNotExist(err) {
 		return true
 	}
