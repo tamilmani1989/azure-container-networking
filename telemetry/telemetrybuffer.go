@@ -28,7 +28,7 @@ const (
 	FdName                    = "azure-vnet-telemetry"
 	Delimiter                 = '\n'
 	azureHostReportURL        = "http://168.63.129.16/machine/plugins?comp=netagent&type=payload"
-	DefaultInterval           = 10 * time.Second
+	DefaultInterval           = 30 * time.Second
 	logName                   = "azure-vnet-telemetry"
 	MaxPayloadSize     uint16 = 65535
 	dnc                       = "DNC"
