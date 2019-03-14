@@ -3300,3 +3300,49 @@ func TestValidateBatching(t *testing.T) {
 		deleteResource(t, networkURL, http.StatusOK)
 	}
 }
+
+
+func TestRefreshNMAgentGoalState(t *testing.T) {
+	deploymentCount := 1
+	ncPerNetworkCount := 1
+	ipIndex := 0
+	deploymentInfos := make([]DeploymentInfo, deploymentCount)
+	for index := 0; index < deploymentCount; index++ {
+		id, _ := uuid.NewUUID()
+		networkDeploymentRequest := NetworkDeploymentRequest{
+			vnetID:              id.String(),
+			UseCustomDnsServers: true,
+			TagCount:            0,
+			WaitForJoin:         true,
+			WaitForGet:          true}
+		ncDeploymentRequests := make([]*NCDeploymentRequest, ncPerNetworkCount)
+		for ncIndex := 0; ncIndex < ncPerNetworkCount; ncIndex++ {
+			ipToReserve := "10.0.0." + strconv.FormatUint(uint64(4+ipIndex), 10)
+			ipIndex++
+
+			ncID, _ := uuid.NewUUID()
+			ncDeploymentRequest := NCDeploymentRequest{
+				AllocationRequest: api.AllocationRequest{
+					SubnetName:   "subnet1",
+					IPConstraint: ipToReserve},
+				AssociationInfo: api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context},
+				NCID:            ncID.String()}
+
+			ncDeploymentRequests[ncIndex] = &ncDeploymentRequest
+		}
+
+		deploymentInfos[index] = DeploymentInfo{NetworkDeploymentRequest: &networkDeploymentRequest, NCDeploymentRequests: ncDeploymentRequests}
+	}
+
+	deployedNetworkContainersInfo := DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, false)
+
+	var body bytes.Buffer
+	refreshURL := dncEP + "/refreshnmagentgoalstate" + apiVersion	
+	json.NewEncoder(&body).Encode("")
+	http.Post(refreshURL, "application/json", &body)
+	
+	// TODO: Validate that the refresh calls are received by NMAgent server
+	time.Sleep(100 * time.Second)
+
+	DeleteDeployments(t, deployedNetworkContainersInfo)
+}

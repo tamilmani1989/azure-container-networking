@@ -6,6 +6,7 @@ import (
 	"dnc/configuration"
 	"dnc/datastoreshim"
 	"dnc/logger/loggershim"
+	"dnc/nmagentcontracts"
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
@@ -2677,4 +2678,204 @@ func UpdateSharedSubnetDelegationMigration(completionStatus bool) *api.JsonErr {
 // IsFeatureSupported - Function to validate if the given feature is supported
 func IsFeatureSupported(featureID int) bool {
 	return dataStoreShim.IsFeatureSupported(featureID)
+}
+
+// GetAllNetworkContainers - Retrieve all network containers
+func GetAllNetworkContainers() (map[string]NCConfiguration, error) {
+	var hasMoreData bool
+	var context interface{}
+	var networkConfigs map[string]interface{}
+	var err error
+	var status int
+	ncConfigs := make(map[string]NCConfiguration)
+	for {
+		networkConfigs, hasMoreData, context, status, err = dataStoreShim.QueryAll(
+			networkContainerTableName,
+			context)
+		if err != nil {
+			if status == http.StatusNotFound {
+				return ncConfigs, nil
+			}
+
+			return nil, err
+		}
+
+		for ncKey, value := range networkConfigs {
+			serializedNCConfig := value.(string)
+			var ncConfig NCConfiguration
+			err = json.Unmarshal([]byte(serializedNCConfig), &ncConfig)
+			if err != nil {
+				loggershim.LS.Errorf("Unmarshalling nc config %s failed with error %s", serializedNCConfig, err.Error())
+				return nil, err
+			}
+
+			ncConfigs[ncKey] = ncConfig
+		}
+
+		if !hasMoreData {
+			break
+		}
+	}
+
+	return ncConfigs, nil
+}
+
+// GetNCGoalState - Get NC goal state from different tables.
+// Return the following.
+// 1. Constructed NC goal state
+// 2. If there was an error, True if the error is retriable , False otherwise.
+// 3. Error.
+func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.JsonErr) {
+	loggershim.LS.Debugf("Retrieving Network Container Goal state for container %s", repoNCConfig.NetworkContainerID)
+	nodeID := repoNCConfig.GetAssociationInfo().NodeID
+	repoReservationConfiguration, err :=
+		TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
+	if err != nil {
+		loggershim.LS.Errorf("Retrieval of IPReservation %s associated with the NetworkContainer %s failed with error:%s."+
+			"Marking this error as retriable.",
+			repoNCConfig.ReservationID,
+			repoNCConfig.NetworkContainerID,
+			err.String())
+		return nil, true, err
+	} else if repoReservationConfiguration == nil {
+		loggershim.LS.Errorf("IPReservation for Id %s associated with the NetworkContainer %s failed with error:%s. "+
+			"Marking this error as non retriable.",
+			repoNCConfig.ReservationID,
+			repoNCConfig.NetworkContainerID,
+			err.String())
+
+		msg := fmt.Sprintf(
+			"IPReservation for Id %s associated with Network Container %s in Network %s not found.",
+			repoNCConfig.ReservationID,
+			repoNCConfig.NetworkContainerID,
+			repoNCConfig.NetworkID)
+
+		return nil, false, &api.JsonErr{
+			Code:       api.ReservationNotFound,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	loggershim.LS.Debugf("Retrieved reservation config:%s", repoReservationConfiguration)
+
+	// Query NodeConfiguration table with nodeid and handle errors.
+	repoNodeConfig, err := TryQueryNodeConfiguration(nodeID)
+	if err != nil {
+		loggershim.LS.Errorf("Retrieval of node configuration for Node %s associated with the NetworkContainer %s failed with error:%s. "+
+			"Marking this error as retriable.",
+			nodeID,
+			repoNCConfig.NetworkContainerID,
+			err.String())
+
+		return nil, true, err
+	} else if repoNodeConfig == nil {
+		loggershim.LS.Errorf("Configuration for Node %s associated with the NetworkContainer %s not found. "+
+			"Marking this error as non retriable.",
+			nodeID,
+			repoNCConfig.NetworkContainerID)
+
+		msg := fmt.Sprintf(
+			"Configuration for Node %v associated with the NetworkContainer %v not found.",
+			nodeID,
+			repoNCConfig.NetworkContainerID)
+
+		return nil, false, &api.JsonErr{
+			Code:       api.NodeNotFound,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	loggershim.LS.Debugf("Retrieved repo node config:%s", repoNodeConfig)
+
+	repoSubnetConfiguration, err := TryQuerySubnetConfiguration(
+		repoNCConfig.NetworkID,
+		repoReservationConfiguration.AllocationRequest.SubnetName)
+	if err != nil {
+		loggershim.LS.Errorf("Retrieval of configuration for subnet %s associated with the Network %s failed with error:%s. "+
+			"Marking this error as retriable.",
+			repoReservationConfiguration.AllocationRequest.SubnetName,
+			repoNCConfig.NetworkID,
+			err.String())
+		return nil, true, err
+	} else if repoSubnetConfiguration == nil {
+		loggershim.LS.Errorf("Configuration for subnet %s associated with the Network %s not found. "+
+			"Marking this error as non retriable.",
+			repoReservationConfiguration.AllocationRequest.SubnetName,
+			repoNCConfig.NetworkID)
+
+		msg := fmt.Sprintf(
+			"Configuration for Subnet %v in Network %v not found.",
+			repoReservationConfiguration.AllocationRequest.SubnetName,
+			repoNCConfig.NetworkID)
+		return nil, false, &api.JsonErr{
+			Code:       api.SubnetNotFound,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	loggershim.LS.Debugf("Retrieved subnet config:%+v", repoSubnetConfiguration.String())
+	if repoSubnetConfiguration.Tags == nil {
+		repoSubnetConfiguration.Tags = make([]nmagentcontracts.Tag, 0)
+	}
+
+	tags := make([]nmagentcontracts.Tag, len(repoSubnetConfiguration.Tags))
+	for index, tag := range repoSubnetConfiguration.Tags {
+		tags[index] = tag
+	}
+
+	repoNetworkConfiguration, err := TryQueryNetworkConfiguration(repoNCConfig.NetworkID)
+	if err != nil {
+		loggershim.LS.Errorf("Retrieval of configuration for Network %s failed with error:%s. "+
+			"Marking this error as retriable.",
+			repoNCConfig.NetworkID,
+			err.String())
+		return nil, false, err
+	} else if repoNetworkConfiguration == nil {
+		loggershim.LS.Errorf("Configuration for Network %s not found. "+
+			"Marking this error as non retriable.",
+			repoNCConfig.NetworkID)
+
+		msg := fmt.Sprintf(
+			"Configuration for Network %v not found.",
+			repoNCConfig.NetworkID)
+		return nil, false, &api.JsonErr{
+			Code:       api.NetworkNotFound,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	loggershim.LS.Debugf("Retrieved network configuration:%s", repoNetworkConfiguration)
+	dnsServers, err := GetDNSServers(repoNetworkConfiguration, repoSubnetConfiguration)
+	var associatedInterfaceID string
+	assocInfo := repoNCConfig.GetAssociationInfo()
+
+	if len(assocInfo.InterfaceID) == 0 {
+		associatedInterfaceID = repoNodeConfig.NodeInfo.IPAddresses[0]
+	} else {
+		associatedInterfaceID = assocInfo.InterfaceID
+	}
+
+	ncGoalState := &NCGoalState{
+		NetworkContainerID:    repoNCConfig.NetworkContainerID,
+		Version:               repoNCConfig.CNSVersion,
+		NetworkID:             repoNCConfig.NetworkID,
+		AllocatedIPSubnet:     repoReservationConfiguration.AllocatedSubnet,
+		BaseSubnet:            repoSubnetConfiguration.IPSubnet,
+		BaseSubnetName:        repoSubnetConfiguration.SubnetName,
+		AccessToken:           repoSubnetConfiguration.AccessToken,
+		GatewayIP:             repoSubnetConfiguration.Gateway,
+		DNSServers:            dnsServers,
+		AssociatedNodeID:      nodeID,
+		AssociatedInterfaceID: associatedInterfaceID,
+		NodeInterfaceID:       repoNodeConfig.NodeInfo.IPAddresses[0],
+		CNetSubnets:           strings.Split(repoNetworkConfiguration.CNetSpace, ","),
+		VNetSubnets:           strings.Split(repoNetworkConfiguration.VNetSpace, ","),
+		TagsInfo:              tags,
+		ContainerType:         assocInfo.ContainerType,
+		OrchestratorContext:   assocInfo.OrchestratorContext,
+		VnetVersion:           repoNetworkConfiguration.Version,
+		VlanID:                int(repoNodeConfig.NetworkVlanIDMap[repoNCConfig.NetworkID]),
+		LocalIP:               repoNCConfig.LocalIP}
+
+	return ncGoalState, false, nil
 }
