@@ -21,6 +21,8 @@ import (
 
 var initiateMigration bool = true
 
+var refreshNMAgentGoalState bool = true
+
 const (
 	localIPSubnetAddressString            = "169.254.0.0/16"
 	imdsIPSubnetString                    = "169.254.169.254/32"
@@ -28,30 +30,6 @@ const (
 	localIPSubnetPrefixLength             = 16
 	unauthorizePublishErrRetryDurationSec = 60
 )
-
-// NCGoalState - Struct to cache the Network Container Goal State
-type NCGoalState struct {
-	NetworkContainerID    string
-	Version               uint64
-	NetworkID             string
-	AllocatedIPSubnet     string
-	BaseSubnet            string
-	BaseSubnetName        string
-	AccessToken           string
-	GatewayIP             string
-	DNSServers            []string
-	AssociatedNodeID      string
-	AssociatedInterfaceID string
-	CNetSubnets           []string
-	VNetSubnets           []string
-	NodeInterfaceID       string
-	TagsInfo              []nmagentcontracts.Tag
-	ContainerType         string
-	OrchestratorContext   json.RawMessage
-	VlanID                int
-	VnetVersion           uint64
-	LocalIP               string
-}
 
 func getSessionInfo(request *datamodel.RequestContext) map[string]string {
 	sessionInfo := make(map[string]string)
@@ -117,166 +95,6 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 
 		datamodel.AddRequestToPendingQueue(requestID, requestContext)
 	}
-}
-
-// getNCGoalState - Get NC goal state from different tables.
-// Return the following.
-// 1. Constructed NC goal state
-// 2. If there was an error, True if the error is retriable , False otherwise.
-// 3. Error.
-func getNCGoalState(repoNCConfig *datamodel.NCConfiguration) (*NCGoalState, bool, *api.JsonErr) {
-	logger.Debugf("Retrieving Network Container Goal state for container %s", repoNCConfig.NetworkContainerID)
-	nodeID := repoNCConfig.GetAssociationInfo().NodeID
-	repoReservationConfiguration, err :=
-		datamodel.TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
-	if err != nil {
-		logger.Errorf("Retrieval of IPReservation %s associated with the NetworkContainer %s failed with error:%s."+
-			"Marking this error as retriable.",
-			repoNCConfig.ReservationID,
-			repoNCConfig.NetworkContainerID,
-			err.String())
-		return nil, true, err
-	} else if repoReservationConfiguration == nil {
-		logger.Errorf("IPReservation for Id %s associated with the NetworkContainer %s failed with error:%s. "+
-			"Marking this error as non retriable.",
-			repoNCConfig.ReservationID,
-			repoNCConfig.NetworkContainerID,
-			err.String())
-
-		msg := fmt.Sprintf(
-			"IPReservation for Id %s associated with Network Container %s in Network %s not found.",
-			repoNCConfig.ReservationID,
-			repoNCConfig.NetworkContainerID,
-			repoNCConfig.NetworkID)
-
-		return nil, false, &api.JsonErr{
-			Code:       api.ReservationNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
-	}
-
-	logger.Debugf("Retrieved reservation config:%s", repoReservationConfiguration)
-
-	// Query NodeConfiguration table with nodeid and handle errors.
-	repoNodeConfig, err := datamodel.TryQueryNodeConfiguration(nodeID)
-	if err != nil {
-		logger.Errorf("Retrieval of node configuration for Node %s associated with the NetworkContainer %s failed with error:%s. "+
-			"Marking this error as retriable.",
-			nodeID,
-			repoNCConfig.NetworkContainerID,
-			err.String())
-
-		return nil, true, err
-	} else if repoNodeConfig == nil {
-		logger.Errorf("Configuration for Node %s associated with the NetworkContainer %s not found. "+
-			"Marking this error as non retriable.",
-			nodeID,
-			repoNCConfig.NetworkContainerID)
-
-		msg := fmt.Sprintf(
-			"Configuration for Node %v associated with the NetworkContainer %v not found.",
-			nodeID,
-			repoNCConfig.NetworkContainerID)
-
-		return nil, false, &api.JsonErr{
-			Code:       api.NodeNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
-	}
-
-	logger.Debugf("Retrieved repo node config:%s", repoNodeConfig)
-
-	repoSubnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
-		repoNCConfig.NetworkID,
-		repoReservationConfiguration.AllocationRequest.SubnetName)
-	if err != nil {
-		logger.Errorf("Retrieval of configuration for subnet %s associated with the Network %s failed with error:%s. "+
-			"Marking this error as retriable.",
-			repoReservationConfiguration.AllocationRequest.SubnetName,
-			repoNCConfig.NetworkID,
-			err.String())
-		return nil, true, err
-	} else if repoSubnetConfiguration == nil {
-		logger.Errorf("Configuration for subnet %s associated with the Network %s not found. "+
-			"Marking this error as non retriable.",
-			repoReservationConfiguration.AllocationRequest.SubnetName,
-			repoNCConfig.NetworkID)
-
-		msg := fmt.Sprintf(
-			"Configuration for Subnet %v in Network %v not found.",
-			repoReservationConfiguration.AllocationRequest.SubnetName,
-			repoNCConfig.NetworkID)
-		return nil, false, &api.JsonErr{
-			Code:       api.SubnetNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
-	}
-
-	logger.Debugf("Retrieved subnet config:%+v", repoSubnetConfiguration.String())
-	if repoSubnetConfiguration.Tags == nil {
-		repoSubnetConfiguration.Tags = make([]nmagentcontracts.Tag, 0)
-	}
-
-	tags := make([]nmagentcontracts.Tag, len(repoSubnetConfiguration.Tags))
-	for index, tag := range repoSubnetConfiguration.Tags {
-		tags[index] = tag
-	}
-
-	repoNetworkConfiguration, err := datamodel.TryQueryNetworkConfiguration(repoNCConfig.NetworkID)
-	if err != nil {
-		logger.Errorf("Retrieval of configuration for Network %s failed with error:%s. "+
-			"Marking this error as retriable.",
-			repoNCConfig.NetworkID,
-			err.String())
-		return nil, false, err
-	} else if repoNetworkConfiguration == nil {
-		logger.Errorf("Configuration for Network %s not found. "+
-			"Marking this error as non retriable.",
-			repoNCConfig.NetworkID)
-
-		msg := fmt.Sprintf(
-			"Configuration for Network %v not found.",
-			repoNCConfig.NetworkID)
-		return nil, false, &api.JsonErr{
-			Code:       api.NetworkNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
-	}
-
-	logger.Debugf("Retrieved network configuration:%s", repoNetworkConfiguration)
-	dnsServers, err := datamodel.GetDNSServers(repoNetworkConfiguration, repoSubnetConfiguration)
-	var associatedInterfaceID string
-	assocInfo := repoNCConfig.GetAssociationInfo()
-
-	if len(assocInfo.InterfaceID) == 0 {
-		associatedInterfaceID = repoNodeConfig.NodeInfo.IPAddresses[0]
-	} else {
-		associatedInterfaceID = assocInfo.InterfaceID
-	}
-
-	ncGoalState := &NCGoalState{
-		NetworkContainerID:    repoNCConfig.NetworkContainerID,
-		Version:               repoNCConfig.CNSVersion,
-		NetworkID:             repoNCConfig.NetworkID,
-		AllocatedIPSubnet:     repoReservationConfiguration.AllocatedSubnet,
-		BaseSubnet:            repoSubnetConfiguration.IPSubnet,
-		BaseSubnetName:        repoSubnetConfiguration.SubnetName,
-		AccessToken:           repoSubnetConfiguration.AccessToken,
-		GatewayIP:             repoSubnetConfiguration.Gateway,
-		DNSServers:            dnsServers,
-		AssociatedNodeID:      nodeID,
-		AssociatedInterfaceID: associatedInterfaceID,
-		NodeInterfaceID:       repoNodeConfig.NodeInfo.IPAddresses[0],
-		CNetSubnets:           strings.Split(repoNetworkConfiguration.CNetSpace, ","),
-		VNetSubnets:           strings.Split(repoNetworkConfiguration.VNetSpace, ","),
-		TagsInfo:              tags,
-		ContainerType:         assocInfo.ContainerType,
-		OrchestratorContext:   assocInfo.OrchestratorContext,
-		VnetVersion:           repoNetworkConfiguration.Version,
-		VlanID:                int(repoNodeConfig.NetworkVlanIDMap[repoNCConfig.NetworkID]),
-		LocalIP:               repoNCConfig.LocalIP}
-
-	return ncGoalState, false, nil
 }
 
 // Post request to host agentg to express the intent for joining a network.
@@ -1289,7 +1107,7 @@ func processNetworkContainerAssociate(
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string) (bool, *api.JsonErr) {
 	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
-	ncGoalState, isRetriableError, ncGoalStateErr := getNCGoalState(repoNCConfig)
+	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
 			return false, ncGoalStateErr
@@ -1628,7 +1446,7 @@ func processNetworkContainerPublish(
 	repoNCConfig *datamodel.NCConfiguration,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
-	ncGoalState, isRetriableError, ncGoalStateErr := getNCGoalState(repoNCConfig)
+	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
 			return false, ncGoalStateErr
@@ -1743,7 +1561,7 @@ func processNetworkContainerPublish(
 
 func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	defer utils.RecordTime(time.Now(), utils.TracePrefix(2), repoNCConfig.NetworkContainerID)
-	ncGoalState, isRetriableError, ncGoalStateErr := getNCGoalState(repoNCConfig)
+	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
 			return false, ncGoalStateErr
@@ -1967,6 +1785,11 @@ func monitorRequests() {
 		select {
 		case <-monitorTimerChannel:
 			if replicaInstance.IsReplicaPrimary() {
+				if refreshNMAgentGoalState {
+					ctrler.RefreshNMAgentGoalState()
+					refreshNMAgentGoalState = false
+				}
+
 				processPendingRequests()
 			}
 			break
@@ -1975,6 +1798,10 @@ func monitorRequests() {
 			networkMonitorStartProcessing <- true
 			tagMonitorStartProcessing <- true
 			refreshNCStartProcessing <- true
+			if refreshNMAgentGoalState {
+				ctrler.RefreshNMAgentGoalState()
+				refreshNMAgentGoalState = false
+			}			
 			processPendingRequests()
 			break
 

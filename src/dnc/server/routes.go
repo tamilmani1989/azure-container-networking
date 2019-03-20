@@ -187,4 +187,10 @@ var routes = Routes{
 		"/iswaitingfornodecleanup/networks/{networkID}/networkcontainer/{networkContainerID}",
 		IsWaitingForNodeCleanup,
 	},
+	Route{
+		"RefreshNMAgentGoalState",
+		"POST",
+		"/refreshnmagentgoalstate",
+		RefreshNMAgentGoalState,
+	},
 }

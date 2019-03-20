@@ -512,3 +512,8 @@ func (c *Controller) RelinquishPrimaryStatus() {
 func (c *Controller) GetRefreshMonitorStatus() api.RefreshMonitorStatus {
 	return c.Replica.GetRefreshMonitorStatus()
 }
+
+// GetPrimaryIPEndpoint - Retrieves the current primary replica endpoint
+func (c *Controller) RefreshNMAgentGoalState() () {
+	go c.RefreshNetworkContainersNMAgentGoalState()
+}

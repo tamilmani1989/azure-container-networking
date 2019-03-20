@@ -1059,3 +1059,9 @@ func IsWaitingForNodeCleanup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
+// RefreshNMAgentGoalState - Refresh NMAgent goal state
+func RefreshNMAgentGoalState(w http.ResponseWriter, r *http.Request) {
+		ctrler.RefreshNMAgentGoalState()
+		w.WriteHeader(http.StatusOK)
+}
