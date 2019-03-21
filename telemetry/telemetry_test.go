@@ -272,6 +272,16 @@ func TestReadConfigFile(t *testing.T) {
 	if config.ReportToHostIntervalInSeconds != 30 {
 		t.Errorf("ReportToHostIntervalInSeconds not expected value. Got %d", config.ReportToHostIntervalInSeconds)
 	}
+
+	config, err = ReadConfigFile("a.config")
+	if err == nil {
+		t.Errorf("[Telemetry] Didn't throw not found error: %v", err)
+	}
+
+	config, err = ReadConfigFile("telemetry.go")
+	if err == nil {
+		t.Errorf("[Telemetry] Didn't report invalid telemetry config: %v", err)
+	}
 }
 
 func TestStartTelemetryService(t *testing.T) {
