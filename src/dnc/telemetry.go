@@ -67,22 +67,24 @@ CONNECT:
 							nodeConfig, jsonerr := datamodel.TryQueryNodeConfigurationByKey(nodeKey)
 							sessionManager.EndReadSession(sessionInfo)
 							if jsonerr == nil {
-								// loop through the deployed network containers in each node
-								for networkID, ncMap := range nodeConfig.DeployedNetworkContainerMap {
-									reservedIPs, jsonerr := reportNetworkConfiguration(nodeID, networkID, allocations)
-									if jsonerr == nil {
-										// if a reservationID matches an existing reservation, combine the corresponding ncID and its IP
-										for ncID, reservationID := range ncMap {
-											for subnet := range allocations[networkID] {
-												if ip, exists := reservedIPs[reservationID]; exists {
-													allocations[networkID][subnet][nodeID] = append(allocations[networkID][subnet][nodeID], ncID+":"+ip)
-													break
+								if nodeConfig != nil {
+									// loop through the deployed network containers in each node
+									for networkID, ncMap := range nodeConfig.DeployedNetworkContainerMap {
+										reservedIPs, jsonerr := reportNetworkConfiguration(nodeID, networkID, allocations)
+										if jsonerr == nil {
+											// if a reservationID matches an existing reservation, combine the corresponding ncID and its IP
+											for ncID, reservationID := range ncMap {
+												for subnet := range allocations[networkID] {
+													if ip, exists := reservedIPs[reservationID]; exists {
+														allocations[networkID][subnet][nodeID] = append(allocations[networkID][subnet][nodeID], ncID+":"+ip)
+														break
+													}
 												}
 											}
+										} else {
+											err = fmt.Errorf(jsonerr.String())
+											goto cleanup
 										}
-									} else {
-										err = fmt.Errorf(jsonerr.String())
-										goto cleanup
 									}
 								}
 							} else {
