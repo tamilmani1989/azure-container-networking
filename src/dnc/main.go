@@ -186,7 +186,7 @@ func startReplica(c *controller.Controller) {
 	go monitorNetworkUpdates()
 	go monitorTagUpdates()
 	go monitorNetworkContainers()
-	go sendTelemetry()
+	// go sendTelemetry()
 }
 
 func main() {

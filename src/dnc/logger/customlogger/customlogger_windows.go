@@ -4,7 +4,6 @@ import (
 	"dnc/configuration"
 	"fmt"
 	"os"
-	"regexp"
 	"syscall"
 	"unsafe"
 
@@ -86,15 +85,15 @@ func (l *CustomLogger) Errorf(format string, args ...interface{}) {
 	}()
 
 	l.instance.Printf(format, args...)
-	go func() {
-		msg := fmt.Sprintf(format, args...)
-		codeStr := regexp.MustCompile(`Code:(\w*)`).FindString(msg)
-		if len(codeStr) > errorcodePrefix {
-			l.reports <- telemetry.DNCReport{Errorcode: codeStr[errorcodePrefix:], EventMessage: msg}
-		} else {
-			l.reports <- telemetry.DNCReport{EventMessage: msg}
-		}
-	}()
+	// go func() {
+	// 	msg := fmt.Sprintf(format, args...)
+	// 	codeStr := regexp.MustCompile(`Code:(\w*)`).FindString(msg)
+	// 	if len(codeStr) > errorcodePrefix {
+	// 		l.reports <- telemetry.DNCReport{Errorcode: codeStr[errorcodePrefix:], EventMessage: msg}
+	// 	} else {
+	// 		l.reports <- telemetry.DNCReport{EventMessage: msg}
+	// 	}
+	// }()
 
 	if ptr, err := convertStrToPass(fmt.Sprintf(format, args...)); err == nil {
 		syscall.Syscall(uintptr(l.procEventLog), uintptr(2), uintptr(1), ptr, 0)
