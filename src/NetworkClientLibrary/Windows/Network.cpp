@@ -546,7 +546,7 @@ Return Value:
 		return -1;
 	}
 
-	pRow->dwForwardDest = inet_addr("169.254.169.254");
+	pRow->dwForwardDest = inet_addr("168.63.129.16");
 	pRow->dwForwardNextHop = inet_addr(primaryCa);
 	pRow->dwForwardPolicy = 0; // see http://www.ietf.org/rfc/rfc1354.txt
 	pRow->dwForwardProto = MIB_IPPROTO_NETMGMT;
@@ -603,7 +603,7 @@ Return Value:
 	printRoutingTable();
 	createRouteToWireServer();
 	printRoutingTable();
-	SOCKET sock = connectToHost("169.254.169.254", 80);
+	SOCKET sock = connectToHost("168.63.129.16", 80);
 
 	if (sock == INVALID_SOCKET)
 	{
@@ -756,11 +756,11 @@ Return Value:
 	printRoutingTable();
 	createRouteToWireServer();
 	printRoutingTable();
-	SOCKET sock = connectToHost("169.254.169.254", 80);
+	SOCKET sock = connectToHost("168.63.129.16", 80);
 
 	if (sock == INVALID_SOCKET)
 	{
-		LOGERR("Connect to 169.254.169.254 failed.");
+		LOGERR("Connect to 168.63.129.16 failed.");
 		return -1;
 	}
 

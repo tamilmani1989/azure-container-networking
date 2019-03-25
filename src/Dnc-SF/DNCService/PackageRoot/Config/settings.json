@@ -8,7 +8,7 @@
     }
   },
   "HostAgentSettings": {
-    "WireServerIP": "169.254.169.254",
+    "WireServerIP": "168.63.129.16",
     "ConnectionStrings": {
       "JoinNetworkURLFmt": "http://{0}/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/{1}/api-version/1",
       "GetNetworkConfigurationURLFmt": "http://{0}/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/{1}/api-version/1",
