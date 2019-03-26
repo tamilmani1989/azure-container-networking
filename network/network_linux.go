@@ -60,13 +60,14 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 
 	// Create the network object.
 	nw := &network{
-		Id:               nwInfo.Id,
-		Mode:             nwInfo.Mode,
-		Endpoints:        make(map[string]*endpoint),
-		extIf:            extIf,
-		VlanId:           vlanid,
-		DNS:              nwInfo.DNS,
-		EnableSnatOnHost: nwInfo.EnableSnatOnHost,
+		Id:                       nwInfo.Id,
+		Mode:                     nwInfo.Mode,
+		Endpoints:                make(map[string]*endpoint),
+		extIf:                    extIf,
+		VlanId:                   vlanid,
+		DNS:                      nwInfo.DNS,
+		EnableSnatOnHost:         nwInfo.EnableSnatOnHost,
+		AllowInboundFromHostToNC: nwInfo.AllowInboundFromHostToNC,
 	}
 
 	return nw, nil
@@ -76,8 +77,14 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 func (nm *networkManager) deleteNetworkImpl(nw *network) error {
 	var networkClient NetworkClient
 
+	nwInfo, err := nm.GetNetworkInfo(nw.Id)
+	if err != nil {
+		log.Printf("Error while getting network info: %v", err)
+		return nil
+	}
+
 	if nw.VlanId != 0 {
-		networkClient = NewOVSClient(nw.extIf.BridgeName, nw.extIf.Name, "", nw.DNS.Servers, nw.EnableSnatOnHost)
+		networkClient = NewOVSClient(nw.extIf.BridgeName, nw.extIf.Name, "", nwInfo)
 	} else {
 		networkClient = NewLinuxBridgeClient(nw.extIf.BridgeName, nw.extIf.Name, nw.Mode)
 	}
@@ -201,7 +208,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 			snatBridgeIP, _ = opt[SnatBridgeIPKey].(string)
 		}
 
-		networkClient = NewOVSClient(bridgeName, extIf.Name, snatBridgeIP, nwInfo.DNS.Servers, nwInfo.EnableSnatOnHost)
+		networkClient = NewOVSClient(bridgeName, extIf.Name, snatBridgeIP, nwInfo)
 	} else {
 		networkClient = NewLinuxBridgeClient(bridgeName, extIf.Name, nwInfo.Mode)
 	}

@@ -265,3 +265,39 @@ func AddVlanDropRule() error {
 	_, err = platform.ExecuteCommand(cmd)
 	return err
 }
+
+func AllowInboundFromContainerHost(snatBridgeIPWithPrefix string) error {
+	ip, ipNet, _ := net.ParseCIDR(snatBridgeIPWithPrefix)
+	cmd := fmt.Sprintf("iptables -t filter -I OUTPUT 1 -s %s -d %s -j ACCEPT", ip.String(), ipNet.String())
+	_, err := platform.ExecuteCommand(cmd)
+	if err == nil {
+		log.Printf("AddInboundFromContainerHost: setting up output chain failed with %v", err)
+		return err
+	}
+
+	cmd = fmt.Sprintf("iptables -t filter -I INPUT 1 -i %s -m state --state ESTABLISHED,RELATED -j ACCEPT", SnatBridgeName)
+	_, err = platform.ExecuteCommand(cmd)
+	if err == nil {
+		log.Printf("AddInboundFromContainerHost: setting up output chain failed with %v", err)
+	}
+
+	return err
+}
+
+func DeleteInboundFromContainerHost(snatBridgeIPWithPrefix string) error {
+	ip, ipNet, _ := net.ParseCIDR(snatBridgeIPWithPrefix)
+	cmd := fmt.Sprintf("iptables -t filter -D OUTPUT -s %s -d %s -j ACCEPT", ip.String(), ipNet.String())
+	_, err := platform.ExecuteCommand(cmd)
+	if err == nil {
+		log.Printf("AddInboundFromContainerHost: setting up output chain failed with %v", err)
+		return err
+	}
+
+	cmd = fmt.Sprintf("iptables -t filter -D INPUT -i %s -m state --state ESTABLISHED,RELATED -j ACCEPT", SnatBridgeName)
+	_, err = platform.ExecuteCommand(cmd)
+	if err == nil {
+		log.Printf("AddInboundFromContainerHost: setting up output chain failed with %v", err)
+	}
+
+	return err
+}

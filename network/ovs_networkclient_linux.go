@@ -12,11 +12,12 @@ import (
 )
 
 type OVSNetworkClient struct {
-	bridgeName             string
-	hostInterfaceName      string
-	snatBridgeIP           string
-	skipAddressesFromBlock []string
-	enableSnatOnHost       bool
+	bridgeName               string
+	hostInterfaceName        string
+	snatBridgeIP             string
+	skipAddressesFromBlock   []string
+	enableSnatOnHost         bool
+	allowInboundFromHostToNC bool
 }
 
 const (
@@ -55,14 +56,16 @@ func updateOVSConfig(option string) error {
 	return nil
 }
 
-func NewOVSClient(bridgeName, hostInterfaceName, snatBridgeIP string, skipAddressesFromBlock []string, enableSnatOnHost bool) *OVSNetworkClient {
+func NewOVSClient(bridgeName, hostInterfaceName, snatBridgeIP string, nwInfo *NetworkInfo) *OVSNetworkClient {
 	ovsClient := &OVSNetworkClient{
-		bridgeName:             bridgeName,
-		hostInterfaceName:      hostInterfaceName,
-		snatBridgeIP:           snatBridgeIP,
-		skipAddressesFromBlock: skipAddressesFromBlock,
-		enableSnatOnHost:       enableSnatOnHost,
+		bridgeName:               bridgeName,
+		hostInterfaceName:        hostInterfaceName,
+		snatBridgeIP:             snatBridgeIP,
+		skipAddressesFromBlock:   nwInfo.DNS.Servers,
+		enableSnatOnHost:         nwInfo.EnableSnatOnHost,
+		allowInboundFromHostToNC: nwInfo.AllowInboundFromHostToNC,
 	}
+	log.Printf("allowInboundFromHostToNC %v", nwInfo.AllowInboundFromHostToNC)
 
 	return ovsClient
 }
@@ -76,7 +79,7 @@ func (client *OVSNetworkClient) CreateBridge() error {
 		return err
 	}
 
-	if client.enableSnatOnHost {
+	if client.enableSnatOnHost || client.allowInboundFromHostToNC {
 		if err := ovssnat.CreateSnatBridge(client.snatBridgeIP, client.bridgeName); err != nil {
 			log.Printf("[net] Creating snat bridge failed with erro %v", err)
 			return err
@@ -86,7 +89,14 @@ func (client *OVSNetworkClient) CreateBridge() error {
 			return err
 		}
 
-		return ovssnat.AddVlanDropRule()
+		if err := ovssnat.AddVlanDropRule(); err != nil {
+			return err
+		}
+	}
+
+	log.Printf("allowInboundFromHostToNC %v", client.allowInboundFromHostToNC)
+	if client.allowInboundFromHostToNC {
+		return ovssnat.AllowInboundFromContainerHost(client.snatBridgeIP)
 	}
 
 	return nil
@@ -98,13 +108,19 @@ func (client *OVSNetworkClient) DeleteBridge() error {
 		return err
 	}
 
-	if client.enableSnatOnHost {
+	if client.enableSnatOnHost || client.allowInboundFromHostToNC {
 		ovssnat.DeleteMasqueradeRule()
 
 		if err := ovssnat.DeleteSnatBridge(client.bridgeName); err != nil {
 			log.Printf("Deleting snat bridge failed with error %v", err)
 			return err
 		}
+	}
+
+	if client.allowInboundFromHostToNC {
+		err := ovssnat.DeleteInboundFromContainerHost(client.snatBridgeIP)
+		log.Printf("Deleting allowInboundFromHostToNC rule failed with: %v", err)
+		return nil
 	}
 
 	return nil
