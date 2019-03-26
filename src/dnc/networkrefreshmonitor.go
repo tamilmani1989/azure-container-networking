@@ -295,15 +295,10 @@ func refreshNetworkConfiguration(
 		ipSubnetMap[subnetName] = subnetKey
 		updatedSubnetCfg := subnetsInUpdatedResponse[subnetName]
 
-		// If the UpdateStatus for the subnet is pending, set the current subnet config
-		// with the values from the updated response
-		if currentRepoSubnetCfg.UpdateStatus == datamodel.SubnetUpdatePending {
-			currentRepoSubnetCfg.IPSubnet = updatedSubnetCfg.AddressPrefix
-			currentRepoSubnetCfg.Gateway = updatedSubnetCfg.DefaultGateway
-			currentRepoSubnetCfg.IsDelegatedSubnet = true
-		}
-
 		currentRepoSubnetCfg.Tags = updatedSubnetCfg.Tags
+		currentRepoSubnetCfg.IPSubnet = updatedSubnetCfg.AddressPrefix
+		currentRepoSubnetCfg.Gateway = updatedSubnetCfg.DefaultGateway
+		currentRepoSubnetCfg.IsDelegatedSubnet = true
 		currentRepoSubnetCfg.UpdateStatus = datamodel.SubnetUpdateCompleted
 		datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
 		if failureDetail != nil {

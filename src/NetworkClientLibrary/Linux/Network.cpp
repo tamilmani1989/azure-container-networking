@@ -162,7 +162,7 @@ Return Value:
 
 	if (handle)
 	{
-		curl_easy_setopt(handle, CURLOPT_URL, "http://169.254.169.254/machine/plugins?comp=nmagent&type=getinterfaceinfov1");
+		curl_easy_setopt(handle, CURLOPT_URL, "http://168.63.129.16/machine/plugins?comp=nmagent&type=getinterfaceinfov1");
 		curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, saveData);
 		string s;
 		initString(&s);
@@ -222,7 +222,7 @@ Return Value:
 
 	if (handle)
 	{
-		curl_easy_setopt(handle, CURLOPT_URL, "http://169.254.169.254/machine/plugins?comp=nmagent&type=getinterfaceinfov1");
+		curl_easy_setopt(handle, CURLOPT_URL, "http://168.63.129.16/machine/plugins?comp=nmagent&type=getinterfaceinfov1");
 		curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, saveData);
 		string s;
 		long httpCode=0;

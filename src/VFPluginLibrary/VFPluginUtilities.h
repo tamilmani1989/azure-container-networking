@@ -23,7 +23,7 @@ Tamilmani Manoharan (tamanoha) 10-October-2017
 #define IAAS_KEY L"SOFTWARE\\Microsoft\\NetAgent"
 #define PAAS_KEY L"SOFTWARE\\Microsoft\\GuestAgent"
 #define HOSTNETAGENT_ADDRESS_KEY L"HostNetAgentAddress"
-#define DEFAULT_HOSTNETAGENT_ADDRESS L"169.254.169.254"
+#define DEFAULT_HOSTNETAGENT_ADDRESS L"168.63.129.16"
 
 #define INSTALL_KEY L"VF_INSTALL"
 #define INSTALL_VALUE L"True"

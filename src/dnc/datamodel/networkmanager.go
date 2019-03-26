@@ -776,7 +776,7 @@ func QueryNetworkConfiguration(networkID string) (*NetworkConfiguration, *api.Js
 		return nil, &api.JsonErr{
 			Code:       api.NetworkNotFound,
 			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+			HTTPStatus: http.StatusNotFound}
 	}
 
 	return networkConfiguration, nil
@@ -837,7 +837,7 @@ func QuerySubnetConfigurationByKey(subnetKey string) (*SubnetConfiguration, *api
 		return nil, &api.JsonErr{
 			Code:       api.SubnetNotFound,
 			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+			HTTPStatus: http.StatusNotFound}
 	}
 
 	return subnetConfiguration, nil
@@ -858,7 +858,7 @@ func QuerySubnetConfiguration(networkID, subnetName string) (*SubnetConfiguratio
 		return nil, &api.JsonErr{
 			Code:       api.SubnetNotFound,
 			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+			HTTPStatus: http.StatusNotFound}
 	}
 
 	return subnetConfiguration, nil
@@ -1912,7 +1912,7 @@ func GetSubnetDNSServers(repoSubnetConfiguration *SubnetConfiguration) ([]string
 
 		return nil, &api.JsonErr{
 			Code:       api.NetworkNotFound,
-			HTTPStatus: http.StatusBadRequest,
+			HTTPStatus: http.StatusNotFound,
 			Text:       msg}
 	}
 

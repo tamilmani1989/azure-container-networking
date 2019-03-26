@@ -1,9 +1,6 @@
 package acnlogger
 
 import (
-	"fmt"
-	"regexp"
-
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/telemetry"
 )
@@ -45,15 +42,15 @@ func (l *AcnLogger) Debugf(format string, args ...interface{}) {
 // Errorf :- Log errors using AcnLogger
 func (l *AcnLogger) Errorf(format string, args ...interface{}) {
 	l.instance.Printf(format, args...)
-	go func() {
-		msg := fmt.Sprintf(format, args...)
-		codeStr := regexp.MustCompile(`Code:(\w*)`).FindString(msg)
-		if len(codeStr) > errorcodePrefix {
-			l.reports <- telemetry.DNCReport{Errorcode: codeStr[errorcodePrefix:], EventMessage: msg}
-		} else {
-			l.reports <- telemetry.DNCReport{EventMessage: msg}
-		}
-	}()
+	// go func() {
+	// 	msg := fmt.Sprintf(format, args...)
+	// 	codeStr := regexp.MustCompile(`Code:(\w*)`).FindString(msg)
+	// 	if len(codeStr) > errorcodePrefix {
+	// 		l.reports <- telemetry.DNCReport{Errorcode: codeStr[errorcodePrefix:], EventMessage: msg}
+	// 	} else {
+	// 		l.reports <- telemetry.DNCReport{EventMessage: msg}
+	// 	}
+	// }()
 }
 
 // Close :- Close AcnLogger
