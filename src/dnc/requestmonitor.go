@@ -21,6 +21,8 @@ import (
 
 var initiateMigration bool = true
 
+var refreshNMAgentGoalState bool = true
+
 const (
 	localIPSubnetAddressString            = "169.254.0.0/16"
 	imdsIPSubnetString                    = "169.254.169.254/32"
@@ -1783,6 +1785,11 @@ func monitorRequests() {
 		select {
 		case <-monitorTimerChannel:
 			if replicaInstance.IsReplicaPrimary() {
+				if refreshNMAgentGoalState {
+					ctrler.RefreshNMAgentGoalState()
+					refreshNMAgentGoalState = false
+				}
+
 				processPendingRequests()
 			}
 			break
@@ -1791,6 +1798,10 @@ func monitorRequests() {
 			networkMonitorStartProcessing <- true
 			tagMonitorStartProcessing <- true
 			refreshNCStartProcessing <- true
+			if refreshNMAgentGoalState {
+				ctrler.RefreshNMAgentGoalState()
+				refreshNMAgentGoalState = false
+			}			
 			processPendingRequests()
 			break
 

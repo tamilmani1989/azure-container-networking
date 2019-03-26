@@ -182,6 +182,7 @@ func startReplica(c *controller.Controller) {
 
 	ticker.Stop()
 	go masterElectionShim.Start()
+	go ctrler.RefreshNMAgentGoalState()
 	go monitorRequests()
 	go monitorNetworkUpdates()
 	go monitorTagUpdates()
