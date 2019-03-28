@@ -287,8 +287,7 @@ func (nm *networkManager) GetNetworkInfo(networkId string) (*NetworkInfo, error)
 		Mode:             nw.Mode,
 		EnableSnatOnHost: nw.EnableSnatOnHost,
 		DNS:              nw.DNS,
-		AllowInboundFromHostToNC: nw.AllowInboundFromHostToNC,
-		Options:                  make(map[string]interface{}),
+		Options:          make(map[string]interface{}),
 	}
 
 	getNetworkInfoImpl(nwInfo, nw)

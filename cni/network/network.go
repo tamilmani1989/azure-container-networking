@@ -389,11 +389,10 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 					Gateway: gateway,
 				},
 			},
-			BridgeName:               nwCfg.Bridge,
-			EnableSnatOnHost:         nwCfg.EnableSnatOnHost,
-			AllowInboundFromHostToNC: true,
-			DNS:      nwDNSInfo,
-			Policies: policies,
+			BridgeName:       nwCfg.Bridge,
+			EnableSnatOnHost: nwCfg.EnableSnatOnHost,
+			DNS:              nwDNSInfo,
+			Policies:         policies,
 		}
 
 		nwInfo.Options = make(map[string]interface{})
