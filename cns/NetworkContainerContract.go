@@ -134,6 +134,7 @@ type GetNetworkContainerResponse struct {
 	MultiTenancyInfo           MultiTenancyInfo
 	PrimaryInterfaceIdentifier string
 	LocalIPConfiguration       IPConfiguration
+	AllowHostToNCCommunication bool
 	Response                   Response
 }
 

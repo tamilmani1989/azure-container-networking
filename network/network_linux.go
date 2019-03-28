@@ -52,6 +52,7 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 		if opt != nil && opt[VlanIDKey] != nil {
 			vlanid, _ = strconv.Atoi(opt[VlanIDKey].(string))
 		}
+
 	case opModeTransparent:
 		break
 	default:
@@ -60,14 +61,13 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 
 	// Create the network object.
 	nw := &network{
-		Id:                       nwInfo.Id,
-		Mode:                     nwInfo.Mode,
-		Endpoints:                make(map[string]*endpoint),
-		extIf:                    extIf,
-		VlanId:                   vlanid,
-		DNS:                      nwInfo.DNS,
-		EnableSnatOnHost:         nwInfo.EnableSnatOnHost,
-		AllowInboundFromHostToNC: nwInfo.AllowInboundFromHostToNC,
+		Id:               nwInfo.Id,
+		Mode:             nwInfo.Mode,
+		Endpoints:        make(map[string]*endpoint),
+		extIf:            extIf,
+		VlanId:           vlanid,
+		DNS:              nwInfo.DNS,
+		EnableSnatOnHost: nwInfo.EnableSnatOnHost,
 	}
 
 	return nw, nil
@@ -77,14 +77,8 @@ func (nm *networkManager) newNetworkImpl(nwInfo *NetworkInfo, extIf *externalInt
 func (nm *networkManager) deleteNetworkImpl(nw *network) error {
 	var networkClient NetworkClient
 
-	nwInfo, err := nm.GetNetworkInfo(nw.Id)
-	if err != nil {
-		log.Printf("Error while getting network info: %v", err)
-		return nil
-	}
-
 	if nw.VlanId != 0 {
-		networkClient = NewOVSClient(nw.extIf.BridgeName, nw.extIf.Name, "", nwInfo)
+		networkClient = NewOVSClient(nw.extIf.BridgeName, nw.extIf.Name)
 	} else {
 		networkClient = NewLinuxBridgeClient(nw.extIf.BridgeName, nw.extIf.Name, nw.Mode)
 	}
@@ -202,13 +196,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 
 	opt, _ := nwInfo.Options[genericData].(map[string]interface{})
 	if opt != nil && opt[VlanIDKey] != nil {
-		snatBridgeIP := ""
-
-		if opt != nil && opt[SnatBridgeIPKey] != nil {
-			snatBridgeIP, _ = opt[SnatBridgeIPKey].(string)
-		}
-
-		networkClient = NewOVSClient(bridgeName, extIf.Name, snatBridgeIP, nwInfo)
+		networkClient = NewOVSClient(bridgeName, extIf.Name)
 	} else {
 		networkClient = NewLinuxBridgeClient(bridgeName, extIf.Name, nwInfo.Mode)
 	}
