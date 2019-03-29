@@ -5,5 +5,6 @@
     <Parameter Name="DNCService_PartitionCount" DefaultValue="9" />
     <Parameter Name="DNCService_TargetReplicaSetSize" DefaultValue="5" />
     <Parameter Name="DNCServiceWebService_InstanceCount" DefaultValue="-1" />
+    <Parameter Name="DNCService_DNSName" DefaultValue="sfdnc.app" />
   </Parameters>
 </Application>
