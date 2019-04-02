@@ -38,10 +38,7 @@
     <Content Include="..\DNCService\PackageRoot\Config\*.*">
       <Link>ApplicationPackageRoot\DNCServicePkg\Config\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Content>
-    <Content Condition="'$(runtimeidentifierConfig)' == 'win10-x64'" Include="..\DNCService\PackageRoot\ServiceManifest-Windows.xml">
-      <Link>ApplicationPackageRoot\DNCServicePkg\ServiceManifest.xml</Link>
-    </Content>
-	<Content Condition="'$(runtimeidentifierConfig)' == 'linux-x64'" Include="..\DNCService\PackageRoot\ServiceManifest-Linux.xml">
+    <Content Condition="'$(runtimeidentifierConfig)' == 'win10-x64'" Include="..\DNCService\PackageRoot\ServiceManifest.xml">
       <Link>ApplicationPackageRoot\DNCServicePkg\ServiceManifest.xml</Link>
     </Content>
   </ItemGroup>

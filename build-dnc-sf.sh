@@ -32,14 +32,8 @@ if [ "$Operation"="Build" ]; then
     echo '---------- Building win10-x64 ----------'
     dotnet build "src/Dnc-SF/DNCService/DNCService.csproj" --configuration $BuildConfig -r win10-x64
 
-    echo '---------- Building linux-x64 ----------'
-    dotnet build "src/Dnc-SF/DNCService/DNCService.csproj" --configuration $BuildConfig -r linux-x64
-
     echo '---------- Publishing win10-x64 ----------'
     dotnet publish "src/Dnc-SF/DNCService/DNCService.csproj" --configuration $BuildConfig -r win10-x64 --self-contained true
-
-    echo '---------- Publishing linux-x64 ----------'
-    dotnet publish "src/Dnc-SF/DNCService/DNCService.csproj" --configuration $BuildConfig -r linux-x64 --self-contained true
 
     # Save the exit code from make
     EX=$?
@@ -53,7 +47,6 @@ if [ "$Operation"="Build" ]; then
     echo '---------- Prepare DNC SF Application ----------'
     nuget restore "src/Dnc-SF/DncSFProj/packages.config" -PackagesDirectory "src/Dnc-SF/DncSFProj/packages"
     dotnet msbuild "src/Dnc-SF/DncSFProj/DncApplication.sfproj" -p:Configuration=$BuildConfig /t:Package /p:runtimeidentifierConfig=win10-x64
-    dotnet msbuild "src/Dnc-SF/DncSFProj/DncApplication.sfproj" -p:Configuration=$BuildConfig /t:Package /p:runtimeidentifierConfig=linux-x64
 
     # Save the exit code from make
     EX=$?
