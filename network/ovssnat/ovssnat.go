@@ -68,9 +68,6 @@ func (client *OVSSnatClient) CreateSnatEndpoint(bridgeName string) error {
 		return err
 	}
 
-	snatContainerVeth, _ := net.InterfaceByName(client.containerSnatVethName)
-	client.containerSnatVethMac = snatContainerVeth.HardwareAddr
-
 	return netlink.SetLinkMaster(client.hostSnatVethName, SnatBridgeName)
 }
 
@@ -141,9 +138,12 @@ func (client *OVSSnatClient) AllowInboundFromHostToNC() error {
 		return err
 	}
 
-	err = netlink.AddOrRemoveStaticArp(netlink.ADD, SnatBridgeName, containerIP, client.containerSnatVethMac)
+	snatContainerVeth, _ := net.InterfaceByName(client.containerSnatVethName)
+
+	log.Printf("Adding static arp entry for ip %s mac %s", containerIP, snatContainerVeth.HardwareAddr.String())
+	err = netlink.AddOrRemoveStaticArp(netlink.ADD, SnatBridgeName, containerIP, snatContainerVeth.HardwareAddr)
 	if err != nil {
-		log.Printf("AllowInboundFromHostToNC: Error adding static arp entry for ip %s mac %s %v", err, containerIP, client.containerSnatVethMac.String())
+		log.Printf("AllowInboundFromHostToNC: Error adding static arp entry for ip %s mac %s: %v", containerIP, snatContainerVeth.HardwareAddr.String(), err)
 	}
 
 	return err
@@ -159,9 +159,10 @@ func (client *OVSSnatClient) DeleteInboundFromHostToNC() error {
 		log.Printf("DeleteInboundFromHostToNC: Error removing output rule %v", err)
 	}
 
-	err = netlink.AddOrRemoveStaticArp(netlink.REMOVE, SnatBridgeName, containerIP, client.containerSnatVethMac)
+	log.Printf("Removing static arp entry for ip %s ", containerIP)
+	err = netlink.AddOrRemoveStaticArp(netlink.REMOVE, SnatBridgeName, containerIP, nil)
 	if err != nil {
-		log.Printf("AllowInboundFromHostToNC: Error removing static arp entry for ip %s mac %s %v", err, containerIP, client.containerSnatVethMac.String())
+		log.Printf("AllowInboundFromHostToNC: Error removing static arp entry for ip %s: %v", containerIP, err)
 	}
 
 	return err
