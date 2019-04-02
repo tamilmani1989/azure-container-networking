@@ -24,6 +24,9 @@ environment:
                                                                         # copy source into container from host before each step and full copy
                                                                         # out back to host after each step. It may be very slow if you have a
                                                                         # giant repository.
+                                                                        # Pick up artifacts from phase_1 of build job
+workspace_options:
+  enable_legacy_networking: true
 
 # The following is a metadata section that describes the versioning scheme and basic version datacenter to use. This data will be used to
 # generate content in the .version folder for use by your custom versioning steps.

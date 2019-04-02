@@ -5,12 +5,12 @@
                  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ServiceTypes>
-    <StatefulServiceType ServiceTypeName="DNCServiceType" HasPersistedState="true" />
+    <StatefulServiceType ServiceTypeName="DNCServiceType" HasPersistedState="true"/>
   </ServiceTypes>
   <CodePackage Name="Code" Version="1.0.0">
     <EntryPoint>
       <ExeHost>
-        <Program>entryPoint.cmd</Program>
+        <Program>DNCService.exe</Program>
         <ConsoleRedirection FileRetentionCount="5" FileMaxSizeInKb="2048"/>
       </ExeHost>
     </EntryPoint>
