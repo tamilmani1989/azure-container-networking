@@ -1,15 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Stateful Service Application</Description>
-    <Authors> </Authors>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <RuntimeFrameworkVersion>2.0.4</RuntimeFrameworkVersion>
     <AssemblyName>DNCService</AssemblyName>
     <PackageId>DNCService</PackageId>
     <PackageTargetFallback>$(PackageTargetFallback)</PackageTargetFallback>
-    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\DNCService.Interfaces\DNCService.Interfaces.csproj" />
@@ -31,20 +28,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Server.IISIntegration" Version="2.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.1.1" />
     <PackageReference Include="WindowsAzure.Storage" Version="9.3.1" />
-  </ItemGroup>
-  <ItemGroup>
-    <ContentWithTargetPath Include="Scripts\entryPoint.cmd">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>entryPoint.cmd</TargetPath>
-    </ContentWithTargetPath>
-    <ContentWithTargetPath Include="Scripts\dotnet-include.sh">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>dotnet-include.sh</TargetPath>
-    </ContentWithTargetPath>
-    <ContentWithTargetPath Include="Scripts\entryPoint.sh">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>entryPoint.sh</TargetPath>
-    </ContentWithTargetPath>
   </ItemGroup>
   <ProjectExtensions>
     <VisualStudio><UserProperties /></VisualStudio>

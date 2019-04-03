@@ -124,7 +124,7 @@ namespace DNCService
                                 .UseContentRoot(Directory.GetCurrentDirectory())
                                 .UseStartup<Startup>()
                                 .UseApplicationInsights()
-                                .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.UseUniqueServiceUrl)
+                                .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.None)
                                 .UseUrls(url)
                                 .Build();
                         })));

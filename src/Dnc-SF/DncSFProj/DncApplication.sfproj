@@ -7,6 +7,7 @@
     <MinToolsVersion>1.5</MinToolsVersion>
     <SupportedMSBuildNuGetPackageVersion>1.6.6</SupportedMSBuildNuGetPackageVersion>
     <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <PackageLocation>pkg\$(Configuration)\$(runtimeidentifierConfig)</PackageLocation>
   </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -22,9 +23,6 @@
     <None Include="Scripts\Deploy-FabricApplication.ps1" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DNCService\DNCService.csproj" />
-  </ItemGroup>
-  <ItemGroup>
     <Content Include="app.config" />
     <Content Include="ApplicationPackageRoot\ApplicationManifest.xml" />
     <Content Include="ApplicationParameters\Cloud.xml" />
@@ -32,6 +30,17 @@
     <Content Include="packages.config" />
     <Content Include="PublishProfiles\Cloud.xml" />
     <Content Include="PublishProfiles\Local.Node.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\DNCService\bin\$(Configuration)\netcoreapp2.0\$(runtimeidentifierConfig)\publish\*.*">
+      <Link>ApplicationPackageRoot\DNCServicePkg\Code\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+    <Content Include="..\DNCService\PackageRoot\Config\*.*">
+      <Link>ApplicationPackageRoot\DNCServicePkg\Config\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+    <Content Condition="'$(runtimeidentifierConfig)' == 'win10-x64'" Include="..\DNCService\PackageRoot\ServiceManifest.xml">
+      <Link>ApplicationPackageRoot\DNCServicePkg\ServiceManifest.xml</Link>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" />
   <PropertyGroup>

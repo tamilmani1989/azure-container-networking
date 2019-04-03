@@ -24,6 +24,9 @@ environment:
                                                                         # copy source into container from host before each step and full copy
                                                                         # out back to host after each step. It may be very slow if you have a
                                                                         # giant repository.
+                                                                        # Pick up artifacts from phase_1 of build job
+workspace_options:
+  enable_legacy_networking: true
 
 # The following is a metadata section that describes the versioning scheme and basic version datacenter to use. This data will be used to
 # generate content in the .version folder for use by your custom versioning steps.
@@ -48,8 +51,8 @@ version:
                                                                         # Currently unused, but will be used in the future to refer to the
                                                                         # artifacts as a group by name.
   major: 2019                                                           # The major version number.
-  minor: 3                                                              # The minor version number
-  tag: '26.1'                                                           # Tag to use for semantic versioning.
+  minor: 4                                                              # The minor version number
+  tag: '3.1'                                                           # Tag to use for semantic versioning.
   system: 'patch'                                                       # Versioning scheme to use.
                                                                         # patch         - 1.0.MMddyyrrrr will be generated
                                                                         # buildrevision - 1.0.MMddyy.rrrr will be generated.

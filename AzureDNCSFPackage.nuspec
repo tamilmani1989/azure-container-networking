@@ -24,13 +24,9 @@ This service will expose restful API surface that will be used for bottoms up ne
     <tags></tags>
   </metadata>
   <files>
-    <file src="$drop$\DNCServicePkg\Code\**\*" target="content\linux\DNCServicePkg\Code" />
-    <file src="$drop$\DNCServicePkg\Config\**\*" target="content\linux\DNCServicePkg\Config" />
-    <file src="$drop$\DNCServicePkg\ServiceManifest-Linux.xml" target="content\linux\DNCServicePkg\ServiceManifest.xml" />
-    <file src="$drop$\ApplicationManifest.xml" target="content\linux\ApplicationManifest.xml" />
-    <file src="$drop$\DNCServicePkg\Code\**\*" target="content\windows\DNCServicePkg\Code" />
-    <file src="$drop$\DNCServicePkg\Config\**\*" target="content\windows\DNCServicePkg\Config" />
-    <file src="$drop$\DNCServicePkg\ServiceManifest-Windows.xml" target="content\windows\DNCServicePkg\ServiceManifest.xml" />
-    <file src="$drop$\ApplicationManifest.xml" target="content\windows\ApplicationManifest.xml" />
+    <file src="$drop$\win10-x64\DNCServicePkg\Code\**\*" target="content\win10-x64\DNCServicePkg\Code" />
+    <file src="$drop$\win10-x64\DNCServicePkg\Config\**\*" target="content\win10-x64\DNCServicePkg\Config" />
+    <file src="$drop$\win10-x64\DNCServicePkg\ServiceManifest.xml" target="content\win10-x64\DNCServicePkg\ServiceManifest.xml" />
+    <file src="$drop$\win10-x64\ApplicationManifest.xml" target="content\win10-x64\ApplicationManifest.xml" />
   </files>
 </package>
