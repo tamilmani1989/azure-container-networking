@@ -41,7 +41,6 @@ typedef void(*ExternalLogMethod)(int logLevel, char* message);
 
 class AquaLogging
 {
-
 	static void LogNarrowString(char *narrow, int level, bool conOutputEnabled);
 	static void LogWideString(wchar_t *wide, int level, bool conOutputEnabled);
 	static DWORD ConvertWcharToChar(wchar_t *messageW, char *message);
@@ -57,11 +56,11 @@ class AquaLogging
 	static bool externalLogInitialized;
 };
 
-static char logMsg[2048];
-static wchar_t logMsgw[2048];
+static char logMsg[AquaLogging::msgSize];
+static wchar_t logMsgw[AquaLogging::msgSize];
 
-static char logMsg_l[2048];
-static wchar_t logMsgw_l[2048];
+static char logMsg_l[AquaLogging::msgSize];
+static wchar_t logMsgw_l[AquaLogging::msgSize];
 
 enum level
 {
@@ -78,10 +77,10 @@ enum level
 #define LOGERR(...); snprintf(logMsg_l, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(err, logMsg_l);
 #define LOGVERBOSE(...); snprintf(logMsg_l, AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Log(verbose, logMsg_l);
 
-#define LOGINFOW(...); _snwprintf_s(logMsgw_l, sizeof(wchar_t)*AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Logw(info, (char *)logMsgw_l);
-#define LOGWARNW(...); _snwprintf_s(logMsgw_l, sizeof(wchar_t)*AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Logw(warn, (char *)logMsgw_l);
-#define LOGERRW(...); _snwprintf_s(logMsgw_l, sizeof(wchar_t)*AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Logw(err, (char *)logMsgw_l);
-#define LOGVERBOSEW(...); _snwprintf_s(logMsgw_l, sizeof(wchar_t)*AquaLogging::msgSize,__VA_ARGS__); AquaLogging::Logw(verbose, (char *)logMsgw_l);
+#define LOGINFOW(...); _snwprintf_s(logMsgw_l, _countof(logMsgw_l), _TRUNCATE, __VA_ARGS__); AquaLogging::Logw(info, (char *)logMsgw_l);
+#define LOGWARNW(...); _snwprintf_s(logMsgw_l, _countof(logMsgw_l), _TRUNCATE,__VA_ARGS__); AquaLogging::Logw(warn, (char *)logMsgw_l);
+#define LOGERRW(...); _snwprintf_s(logMsgw_l, _countof(logMsgw_l), _TRUNCATE, __VA_ARGS__); AquaLogging::Logw(err, (char *)logMsgw_l);
+#define LOGVERBOSEW(...); _snwprintf_s(logMsgw_l, _countof(logMsgw_l), _TRUNCATE, __VA_ARGS__); AquaLogging::Logw(verbose, (char *)logMsgw_l);
 
 
 }}}}}
