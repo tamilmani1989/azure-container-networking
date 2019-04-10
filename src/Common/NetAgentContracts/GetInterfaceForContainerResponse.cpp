@@ -42,7 +42,6 @@ Return Value:
 
 --*/
 {
-    InitializeFieldIdMap();
     SetMembersFromJson(JsonObject);
 }
 
@@ -142,7 +141,6 @@ Return Value:
 
 --*/
 {
-    InitializeFieldIdMap();
 }
 
 Response::Response(json::object& JsonObject) : ReturnCode(0)
@@ -162,7 +160,6 @@ Return Value:
 
 --*/
 {
-    InitializeFieldIdMap();
     SetMembersFromJson(JsonObject);
 }
 
@@ -237,7 +234,6 @@ Return Value:
 
 --*/
 {
-    InitializeFieldIdMap();
 }
 
 NetworkInterface::NetworkInterface(json::object& JsonObject)
@@ -257,7 +253,6 @@ Return Value:
 
 --*/
 {
-    InitializeFieldIdMap();
     SetMembersFromJson(JsonObject);
 }
 
@@ -336,7 +331,6 @@ Return Value:
 
 --*/
 {
-    InitializeFieldIdMap();
     SetMembersFromJson(JsonObject);
 }
 

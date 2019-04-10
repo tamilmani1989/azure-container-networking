@@ -41,7 +41,6 @@ Return Value:
 None.
 --*/
 {
-	InitializeFieldIdMap();
 }
 
 HealthReport::HealthReport(
@@ -67,8 +66,7 @@ Return Value:
 --*/
 {
     this->ContainerId.assign(ContainerId.c_str());
-	InitializeFieldIdMap();
-    SetMembersFromJson(JsonObject);
+	SetMembersFromJson(JsonObject);
 }
 
 void

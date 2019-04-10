@@ -42,7 +42,6 @@ Return Value:
 
 --*/
 {
-	InitializeFieldIdMap();
 	SetMembersFromJson(JsonObject);
 }
 
@@ -64,9 +63,6 @@ Return Value:
 
 --*/
 {
-	PluginReport::InitializeFieldIdMap();
-	Metadata::InitializeFieldIdMap();
-	
 	NPMReportFieldIdMap[IS_NEW_INSTANCE_STR] = NPMEnum::NPMReportKey::IsNewInstance;
 	NPMReportFieldIdMap[CLUSTERID] = NPMEnum::NPMReportKey::ClusterID;
 	NPMReportFieldIdMap[NODENAME_STR] = NPMEnum::NPMReportKey::NodeName;

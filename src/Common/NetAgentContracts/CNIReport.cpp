@@ -66,8 +66,6 @@ Return Value:
 
 --*/
 {
-    PluginReport::InitializeFieldIdMap();
-
     // TODO: Remove STARTFLAG_STR in future versions.
     // This is here for backward compatibility for now.
     CNIReportFieldIdMap[STARTFLAG_STR] = CNIEnum::CNIReportKey::IsNewInstance;

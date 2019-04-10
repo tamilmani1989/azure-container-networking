@@ -19,6 +19,7 @@ Environment:
 // ------------------------------------------------------------------- Includes
 //
 
+#include "GetInterfaceForContainerResponse.h"
 #include "HostNetAgent.h"
 #include "RequestHandlers.h"
 
@@ -330,7 +331,7 @@ Return Value:
         return -1;
     }
 
-	packagesInfoInstance = PackagesInfo::GetInstance();
+    packagesInfoInstance = PackagesInfo::GetInstance();
     if (packagesInfoInstance == NULL)
     {
         LOGERRW(L"Failed to allocate memory for packagesInfo.");
@@ -381,8 +382,19 @@ Return Value:
         return hr;
     }
 
+    GetInterfaceForContainerResponse::InitializeFieldIdMap();
+    NetworkInterface::InitializeFieldIdMap();
+    ClusterState::InitializeFieldIdMap();
+    Response::InitializeFieldIdMap();
+    IPSubnet::InitializeFieldIdMap();
+    Metadata::InitializeFieldIdMap();
     HealthReport::InitializeFieldIdMap();
-	CNIReport::InitializeFieldIdMap();
+    PluginReport::InitializeFieldIdMap();
+    CNIReport::InitializeFieldIdMap();
+    CNSReport::InitializeFieldIdMap();
+    DNCReport::InitializeFieldIdMap();
+    NPMReport::InitializeFieldIdMap();
+    Payload::InitializeFieldIdMap();
 
     std::thread listenerThread(StartListener);
     listenerThread.join();

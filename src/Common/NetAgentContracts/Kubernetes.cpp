@@ -39,7 +39,6 @@ Return Value:
 
 --*/
 {
-	InitializeFieldIdMap();
 }
 
 ClusterState::ClusterState(json::object & JsonObject)
@@ -59,7 +58,6 @@ Return Value:
 
 --*/
 {
-	InitializeFieldIdMap();
 	SetMembersFromJson(JsonObject);
 }
 

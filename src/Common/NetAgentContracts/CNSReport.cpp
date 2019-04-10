@@ -42,7 +42,6 @@ Return Value:
 
 --*/
 {
-    InitializeFieldIdMap();
     SetMembersFromJson(JsonObject);
 }
 
@@ -64,9 +63,6 @@ Return Value:
 
 --*/
 {
-    PluginReport::InitializeFieldIdMap();
-    Metadata::InitializeFieldIdMap();
-
     CNSReportFieldIdMap[IS_NEW_INSTANCE_STR] = CNSEnum::CNSReportKey::IsNewInstance;
     CNSReportFieldIdMap[EVENT_MESSAGE_STR] = CNSEnum::CNSReportKey::EventMessage;
     CNSReportFieldIdMap[DNC_PARTITION_KEY_STR] = CNSEnum::CNSReportKey::PartitionKey;

@@ -16,6 +16,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="GetInterfaceForContainerResponse.cpp" />
     <ClCompile Include="HealthReport.cpp" />
     <ClCompile Include="CNIReport.cpp" />
 	  <ClCompile Include="NPMReport.cpp" />

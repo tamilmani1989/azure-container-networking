@@ -42,7 +42,6 @@ Return Value:
 
 --*/
 {
-    InitializeFieldIdMap();
     SetMembersFromJson(JsonObject);
 }
 
@@ -64,9 +63,6 @@ Return Value:
 
 --*/
 {
-    PluginReport::InitializeFieldIdMap();
-    Metadata::InitializeFieldIdMap();
-    
     DNCReportFieldIdMap[IS_NEW_INSTANCE_STR] = DNCEnum::DNCReportKey::IsNewInstance;
     DNCReportFieldIdMap[EVENT_MESSAGE_STR] = DNCEnum::DNCReportKey::EventMessage;
     DNCReportFieldIdMap[PARTITION_KEY_STR] = DNCEnum::DNCReportKey::PartitionKey;
