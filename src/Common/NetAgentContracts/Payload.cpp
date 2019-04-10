@@ -42,7 +42,6 @@ Return Value:
 
 --*/
 {
-    InitializeFieldIdMap();
     SetMembersFromJson(JsonObject);
 }
 
