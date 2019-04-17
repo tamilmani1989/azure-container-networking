@@ -142,6 +142,8 @@ type DNCSettings struct {
 	ReportToHostInterval int
 	// Concurrent request to process in a given batch. Defualt 5.
 	ConcurrentRequestsToProcess int
+	// Flag to disable the telemetry. Default is false
+	DisableTelemetry bool
 }
 
 // Configuration - Details related to dnc configuration settings

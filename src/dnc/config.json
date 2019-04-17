@@ -64,6 +64,7 @@
         "TagRefreshInterval":60000,
         "NetworkContainerRefreshInterval": 60000,
         "ReportToHostInterval": 60000,
-        "ConcurrentRequestsToProcess": 5
+        "ConcurrentRequestsToProcess": 5,
+        "DisableTelemetry": false
     }
 }

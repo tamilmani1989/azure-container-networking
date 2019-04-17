@@ -51,11 +51,17 @@ case $1 in
         ;;
     "get" )
         mkdir $DIR/src/github && cd $_
-        cniVersion=$(curl -L -s -H 'Accept: application/json' https://github.com/Azure/azure-container-networking/releases/latest | sed -e 's/.*"tag_name":"\([^"]*\)".*/\1/')
-        curl -LO https://github.com/Azure/azure-container-networking/releases/download/$cniVersion/azure-vnet-cni-multitenancy-windows-amd64-$cniVersion.zip
-        curl -LO https://github.com/Azure/azure-container-networking/releases/download/$cniVersion/azure-vnet-cni-multitenancy-linux-amd64-$cniVersion.tgz
-        unzip azure-vnet-cni-multitenancy-windows-amd64-$cniVersion.zip
-        tar -xvzf azure-vnet-cni-multitenancy-linux-amd64-$cniVersion.tgz
+        latestVersion=$(curl -L -s -H 'Accept: application/json' https://github.com/Azure/azure-container-networking/releases/latest | sed -e 's/.*"tag_name":"\([^"]*\)".*/\1/')
+        # Get latest version of CNI
+        curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-vnet-cni-multitenancy-windows-amd64-$latestVersion.zip
+        curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-vnet-cni-multitenancy-linux-amd64-$latestVersion.tgz
+        unzip azure-vnet-cni-multitenancy-windows-amd64-$latestVersion.zip
+        tar -xvzf azure-vnet-cni-multitenancy-linux-amd64-$latestVersion.tgz
+        # Get latest version of CNS
+        curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-cns-windows-amd64-$latestVersion.zip
+        curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-cns-linux-amd64-$latestVersion.tgz
+        unzip azure-cns-windows-amd64-$latestVersion.zip
+        tar -xvzf azure-cns-linux-amd64-$latestVersion.tgz
         rm *.zip
         rm *.tgz
         ;;

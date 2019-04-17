@@ -2,6 +2,7 @@ package customlogger
 
 import (
 	"dnc/configuration"
+	"dnc/logger"
 	"fmt"
 	"os"
 	"syscall"
@@ -9,10 +10,6 @@ import (
 
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/telemetry"
-)
-
-const (
-	errorcodePrefix = 5
 )
 
 // CustomLogger :- struct to hold CustomLogger settings.
@@ -61,7 +58,7 @@ func (l *CustomLogger) Init(stderr bool, reports chan telemetry.DNCReport) {
 	l.reports = reports
 }
 
-// Log :- Log using CustomLogger
+// Debugf :- Log debug statements using CustomLogger
 func (l *CustomLogger) Debugf(format string, args ...interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -76,7 +73,7 @@ func (l *CustomLogger) Debugf(format string, args ...interface{}) {
 	}
 }
 
-// Log :- Log using CustomLogger
+// Errorf :- Log errors using CustomLogger
 func (l *CustomLogger) Errorf(format string, args ...interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -85,15 +82,17 @@ func (l *CustomLogger) Errorf(format string, args ...interface{}) {
 	}()
 
 	l.instance.Printf(format, args...)
-	// go func() {
-	// 	msg := fmt.Sprintf(format, args...)
-	// 	codeStr := regexp.MustCompile(`Code:(\w*)`).FindString(msg)
-	// 	if len(codeStr) > errorcodePrefix {
-	// 		l.reports <- telemetry.DNCReport{Errorcode: codeStr[errorcodePrefix:], EventMessage: msg}
-	// 	} else {
-	// 		l.reports <- telemetry.DNCReport{EventMessage: msg}
-	// 	}
-	// }()
+	if l.reports != nil {
+		go func() {
+			msg := fmt.Sprintf(format, args...)
+			codeStr := logger.CompiledRegex.FindString(msg)
+			if len(codeStr) > logger.ErrorCodePrefix {
+				l.reports <- telemetry.DNCReport{Errorcode: codeStr[logger.ErrorCodePrefix:], EventMessage: msg}
+			} else {
+				l.reports <- telemetry.DNCReport{EventMessage: msg}
+			}
+		}()
+	}
 
 	if ptr, err := convertStrToPass(fmt.Sprintf(format, args...)); err == nil {
 		syscall.Syscall(uintptr(l.procEventLog), uintptr(2), uintptr(1), ptr, 0)

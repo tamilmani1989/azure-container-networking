@@ -5,7 +5,6 @@ import (
 	"dnc/datamodel"
 	"encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"time"
 
@@ -17,32 +16,22 @@ import (
 const (
 	// DNCTelemetryFile - telemetry file path.
 	DNCTelemetryFile = platform.DNCRuntimePath + "AzureDNCTelemetry.json"
-	// HostNetAgentURL - Host Net Agent url and content type
-	HostNetAgentURL = "http://169.254.169.254/machine/plugins?comp=netagent&type=dncreport"
 	// HeartBeatInterval for reporting to mds
-	heartBeatIntervalInMinutes = 1
+	heartBeatIntervalInMinutes = 30
 	// Retrywaittime before trying to attempt connection again
-	retryWaitTimeInSeconds = 60
-	// Time interval to send data to host
-	reportToHostIntervalInSeconds = 60
+	retryWaitTimeInSeconds          = 60
+	telemetryNumRetries             = 5
+	telemetryWaitTimeInMilliseconds = 200
 )
 
 func sendTelemetry() {
 CONNECT:
-	telemetryBuffer := telemetry.NewTelemetryBuffer("")
-	err := telemetryBuffer.StartServer()
-	if err == nil || telemetryBuffer.FdExists {
-		if err := telemetryBuffer.Connect(); err != nil {
-			log.Printf("[Telemetry] Failed to establish telemetry manager connection. %v", err)
-			time.Sleep(time.Second * retryWaitTimeInSeconds)
-			goto CONNECT
-		}
-
-		go telemetryBuffer.BufferAndPushData(reportToHostIntervalInSeconds)
+	tb := telemetry.NewTelemetryBuffer("")
+	tb.ConnectToTelemetryService(telemetryNumRetries, telemetryWaitTimeInMilliseconds)
+	if tb.Connected {
 		heartbeat := time.NewTicker(time.Minute * heartBeatIntervalInMinutes).C
 		reportMgr := telemetry.ReportManager{
-			HostNetAgentURL: HostNetAgentURL,
-			ContentType:     telemetry.ContentType,
+			ContentType: telemetry.ContentType,
 			Report: &telemetry.DNCReport{
 				PartitionKey: config.DataStoreSettings.AzureStorageInfo.PartitionKey,
 			},
@@ -112,7 +101,7 @@ CONNECT:
 					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("Errorcode").SetString(msg.Errorcode)
 
 				case <-telemetryStopProcessing:
-					telemetryBuffer.Cancel()
+					tb.Close()
 					return
 				}
 
@@ -129,8 +118,8 @@ CONNECT:
 				report, err := reportMgr.ReportToBytes()
 				if err == nil {
 					// If write fails, try to re-establish connections as server/client
-					if _, err = telemetryBuffer.Write(report); err != nil {
-						telemetryBuffer.Cancel()
+					if _, err = tb.Write(report); err != nil {
+						tb.Close()
 						goto CONNECT
 					}
 				}
@@ -138,10 +127,6 @@ CONNECT:
 				time.Sleep(time.Minute * 1)
 			}
 		}
-	} else {
-		logger.Debugf("[Telemetry] Failed to Start Telemetry Service %v", err)
-		time.Sleep(time.Second * retryWaitTimeInSeconds)
-		goto CONNECT
 	}
 }
 
