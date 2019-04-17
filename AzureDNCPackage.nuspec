@@ -27,7 +27,9 @@ This service will also require persisting the configurations and the states that
   </metadata>
   <files>
     <file src="$drop$\azure-dnc.exe" target="content" />
+    <file src="$drop$\azure-vnet-telemetry.exe" target="content" />
     <file src="$drop$\azure-dnc" target="content\linux\azure-dnc" />
+    <file src="$drop$\azure-vnet-telemetry" target="content\linux\azure-vnet-telemetry" />
     <file src="C:\source\src\dnc\config.json" target="content" />
     <file src="C:\source\src\dnc\config.json" target="content\linux" />
   </files>
