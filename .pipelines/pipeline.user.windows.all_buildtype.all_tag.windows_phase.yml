@@ -58,7 +58,7 @@ version:
                                                                         # artifacts as a group by name.
   major: 2019                                                           # The major version number.
   minor: 4                                                              # The minor version number
-  tag: '16.1'                                                           # Tag to use for semantic versioning.
+  tag: '17.1'                                                           # Tag to use for semantic versioning.
   system: 'patch' 
 
 static_analysis_options:                          
@@ -130,7 +130,7 @@ package:
     - !!buildcommand                                                    # We are not doing anything here. In fact, we could have omitted the
       name: 'Package DNC Windows'                                       # package stage entirely.
       command: 'package_sign.cmd'
-      arguments: 'package drop_dnc DNC'
+      arguments: 'package drop_dnc DNC drop_github'
       artifacts:
         - from: '.'
           to: 'AzureDNC'

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>Microsoft.Azure.Internal.$branch$AzureCNS</id>
+    <version>$version$</version>
+    <title>AzureCNS from $branch$</title>
+    <authors>connetdevs@microsoft.com</authors>
+    <owners>connetdevs@microsoft.com</owners>
+    <description>This library can be used to provide CNS service on Azure.
+    Code is in the GIT repo Networking-Aquarius</description>
+    <projectUrl>http://www.Microsoft.com</projectUrl>
+    <licenseUrl>http://www.Microsoft.com/license</licenseUrl>
+    <copyright>Copyright (c) Microsoft Corporation</copyright>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <tags></tags>
+  </metadata>
+  <files>
+    <file src="$drop$\azure-cns.exe" target="content" />
+    <file src="$drop$\azure-cns" target="content\linux\azure-cns" />
+    <file src="$drop$\azure-vnet-telemetry.exe" target="content" />
+    <file src="$drop$\azure-vnet-telemetry" target="content\linux\azure-vnet-telemetry" />
+    <file src="$drop$\azure-vnet-telemetry.config" target="content" />
+    <file src="$drop$\azure-vnet-telemetry.config" target="content\linux" />
+  </files>
+</package>
