@@ -56,8 +56,8 @@ var sleepIntervalBetweenNetworkBatches time.Duration
 // SleepIntervalBetweenNetworkRefresh
 var sleepIntervalBetweenNetworkRefresh time.Duration
 
-// Interval between batch reports send to host
-var reportToHostInterval time.Duration
+// Flag to disable telemetry
+var disableTelemetry bool
 
 func init() {
 	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
@@ -70,7 +70,11 @@ func init() {
 
 	config = configuration.Load(configpath)
 	setDncConfigDefaults()
+	disableTelemetry = config.DNCSettings.DisableTelemetry
 	logger = loggershim.NewLoggerShim(config)
+	if disableTelemetry {
+		reports = nil
+	}
 	logger.Init(stderr, reports)
 	replicaInstance = replica.NewReplica(
 		config.ServerSettings,
@@ -92,7 +96,7 @@ func init() {
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
 	sleepIntervalBetweenNetworkBatches = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkBatches) * time.Millisecond
 	sleepIntervalBetweenNetworkRefresh = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkRefresh) * time.Millisecond
-	reportToHostInterval = time.Duration(config.DNCSettings.ReportToHostInterval) * time.Millisecond
+	disableTelemetry = config.DNCSettings.DisableTelemetry
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
@@ -186,7 +190,9 @@ func startReplica(c *controller.Controller) {
 	go monitorNetworkUpdates()
 	go monitorTagUpdates()
 	go monitorNetworkContainers()
-	// go sendTelemetry()
+	if !disableTelemetry {
+		go sendTelemetry()
+	}
 }
 
 func main() {

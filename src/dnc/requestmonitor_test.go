@@ -186,7 +186,6 @@ func StartDnc() {
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
 	sleepIntervalBetweenNetworkBatches = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkBatches) * time.Millisecond
 	sleepIntervalBetweenNetworkRefresh = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkRefresh) * time.Millisecond
-	reportToHostInterval = time.Duration(config.DNCSettings.ReportToHostInterval) * time.Millisecond
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
@@ -3301,7 +3300,6 @@ func TestValidateBatching(t *testing.T) {
 	}
 }
 
-
 func TestRefreshNMAgentGoalState(t *testing.T) {
 	deploymentCount := 1
 	ncPerNetworkCount := 1
@@ -3337,10 +3335,10 @@ func TestRefreshNMAgentGoalState(t *testing.T) {
 	deployedNetworkContainersInfo := DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, false)
 
 	var body bytes.Buffer
-	refreshURL := dncEP + "/refreshnmagentgoalstate" + apiVersion	
+	refreshURL := dncEP + "/refreshnmagentgoalstate" + apiVersion
 	json.NewEncoder(&body).Encode("")
 	http.Post(refreshURL, "application/json", &body)
-	
+
 	// TODO: Validate that the refresh calls are received by NMAgent server
 	time.Sleep(100 * time.Second)
 

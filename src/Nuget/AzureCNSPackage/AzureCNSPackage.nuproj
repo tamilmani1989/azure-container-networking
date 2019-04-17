@@ -42,6 +42,9 @@
         <File Include="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer\azure-cns.exe">
             <TargetPath>content\windows</TargetPath>
         </File>
+        <File Include="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer\azure-vnet-telemetry.exe">
+            <TargetPath>content\windows</TargetPath>
+        </File>
     </ItemGroup>
   <Import Project="$(PkgNuProj)\NuProj.Targets" />
 </Project>

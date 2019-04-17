@@ -58,7 +58,7 @@ version:
                                                                         # artifacts as a group by name.
   major: 2019                                                           # The major version number.
   minor: 4                                                              # The minor version number
-  tag: '3.1'                                                           # Tag to use for semantic versioning.
+  tag: '16.1'                                                           # Tag to use for semantic versioning.
   system: 'patch' 
 
 static_analysis_options:                          
@@ -156,6 +156,16 @@ package:
           to: 'AzureCNI'
           include:
             - '*AzureCNI.*.nupkg'
+      
+    - !!buildcommand
+      name: 'Package CNS'
+      command: 'package_sign.cmd'
+      arguments: 'package drop_github CNS'
+      artifacts:
+        - from: '.'
+          to: 'AzureCNS'
+          include:
+            - '*AzureCNS.*.nupkg'
 
 # Everything should be signed and packaged by this point and we will just be pushing/publishing here.
 # publish:

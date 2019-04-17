@@ -2,13 +2,11 @@ package customlogger
 
 import (
 	"dnc/configuration"
+	"dnc/logger"
+	"fmt"
 
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/telemetry"
-)
-
-const (
-	errorcodePrefix = 5
 )
 
 // CustomLogger :- struct to hold CustomLogger settings.
@@ -44,15 +42,17 @@ func (l *CustomLogger) Debugf(format string, args ...interface{}) {
 // Errorf :- Log errors using CustomLogger
 func (l *CustomLogger) Errorf(format string, args ...interface{}) {
 	l.instance.Printf(format, args...)
-	// go func() {
-	// 	msg := fmt.Sprintf(format, args...)
-	// 	codeStr := regexp.MustCompile(`Code:(\w*)`).FindString(msg)
-	// 	if len(codeStr) > errorcodePrefix {
-	// 		l.reports <- telemetry.DNCReport{Errorcode: codeStr[errorcodePrefix:], EventMessage: msg}
-	// 	} else {
-	// 		l.reports <- telemetry.DNCReport{EventMessage: msg}
-	// 	}
-	// }()
+	if l.reports != nil {
+		go func() {
+			msg := fmt.Sprintf(format, args...)
+			codeStr := logger.CompiledRegex.FindString(msg)
+			if len(codeStr) > logger.ErrorCodePrefix {
+				l.reports <- telemetry.DNCReport{Errorcode: codeStr[logger.ErrorCodePrefix:], EventMessage: msg}
+			} else {
+				l.reports <- telemetry.DNCReport{EventMessage: msg}
+			}
+		}()
+	}
 }
 
 // Close :- Close CustomLogger
