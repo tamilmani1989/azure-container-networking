@@ -4,8 +4,8 @@
     <id>Microsoft.Azure.Internal.$branch$AzureDNC</id>
     <version>$version$</version>
     <title>AzureDNC from $branch$</title>
-    <authors>connectdevs@microsoft.com</authors>
-    <owners>connectdevs@microsoft.com</owners>
+    <authors>connetdevs@microsoft.com</authors>
+    <owners>connetdevs@microsoft.com</owners>
     <description>The delegated network controller service is highly available service that works in coordination with the orchestrator and will be responsible for the following.   
 
 1. Management of delegated customer’s network address spaces. 
@@ -27,9 +27,9 @@ This service will also require persisting the configurations and the states that
   </metadata>
   <files>
     <file src="$drop$\azure-dnc.exe" target="content" />
-    <file src="$drop$\azure-vnet-telemetry.exe" target="content" />
+    <file src="$gitdrop$\azure-vnet-telemetry.exe" target="content" />
     <file src="$drop$\azure-dnc" target="content\linux\azure-dnc" />
-    <file src="$drop$\azure-vnet-telemetry" target="content\linux\azure-vnet-telemetry" />
+    <file src="$gitdrop$\azure-vnet-telemetry" target="content\linux\azure-vnet-telemetry" />
     <file src="C:\source\src\dnc\config.json" target="content" />
     <file src="C:\source\src\dnc\config.json" target="content\linux" />
   </files>
