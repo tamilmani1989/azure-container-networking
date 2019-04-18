@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iperfs-pod
+  labels: 
+    app: iperfs
+spec:
+  selector:
+    matchLabels:
+      app: iperfs
+  template:
+    metadata:
+      labels:
+        app: iperfs
+    spec:
+      containers:
+      - name: iperfs-container
+        image: tamilmani1989/ubuntu-tools
+        command: ["/bin/bash"]
+        args: ["-c", "iperf3 -s -p 9000 -V"]
+      hostNetwork: true
+      nodeSelector:
+        role: iperfs

@@ -1,0 +1,40 @@
+{
+  "apiVersion": "vlabs",
+  "properties": {
+    "orchestratorProfile": {
+      "orchestratorType": "Kubernetes",
+	  "kubernetesConfig":{
+         "networkPlugin":"azure",
+         "networkPolicy":"azure"
+      }
+    },
+    "masterProfile": {
+      "count": 1,
+      "dnsPrefix": "runner-notaccelnet",
+      "vmSize": "Standard_D13_v2_Promo"
+    },
+    "agentPoolProfiles": [
+      {
+        "name": "agentpool1",
+        "count": 2,
+        "vmSize": "Standard_D13_v2_Promo",
+        "availabilityProfile": "AvailabilitySet",
+		    "acceleratedNetworkingEnabled": false
+      }
+    ],
+    "linuxProfile": {
+      "adminUsername": "acn",
+      "ssh": {
+        "publicKeys": [
+          {
+              "keyData":""
+          }
+        ]
+      }
+    },
+    "servicePrincipalProfile": {
+         "clientId":"http://azure-cli-2018-10-18-23-25-04",
+         "secret":""
+    }
+  }
+}
