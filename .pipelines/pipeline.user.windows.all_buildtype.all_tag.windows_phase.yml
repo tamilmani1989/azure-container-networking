@@ -105,6 +105,8 @@ build:
         include:
           - '**\azure-vnet.exe'
           - '**\azure-vnet-ipam.exe'
+          - '**\azure-vnet-telemetry.exe'
+          - '**\azure-cns.exe'
           - '**\10-azure.conflist'
 
 package_sources:
