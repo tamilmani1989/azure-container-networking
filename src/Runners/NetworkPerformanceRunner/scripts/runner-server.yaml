@@ -1,0 +1,55 @@
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: runner-sa
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: default
+  name: runner-role
+rules:
+- apiGroups: ["", "apps"]
+  resources: ["pods", "nodes", "services", "deployments", "containers", "pods/exec", "pods/log"]
+  verbs: ["get", "create", "delete", "update", "list", "logs"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: default
+  name: runner-role-binding
+subjects:
+- kind: ServiceAccount
+  name: runner-sa
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: runner-role
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: runner-server-svc
+spec:
+  selector:
+    app: runner-server
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 9009
+  type: LoadBalancer
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: runner-server
+  labels:
+    app: runner-server
+spec:
+  serviceAccountName: runner-sa
+  containers:
+  - image: jaertsun/runner-server:latest
+    name: runner-server
+    ports:
+      - containerPort: 9009

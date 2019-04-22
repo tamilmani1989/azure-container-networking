@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iperfc-pod
+  labels: 
+    app: iperfc
+spec:
+  hostNetwork: true
+  containers:
+  - name: iperf-container
+    image: tamilmani1989/ubuntu-tools
+    command: ["/bin/bash"]
+    args: ["-c", "iperf3 -c 10.240.0.4 -t 60 -p 9000 -V -J && ping 10.240.0.4 -c 60"]
+  restartPolicy: Never
+  nodeSelector:
+    role: iperfc

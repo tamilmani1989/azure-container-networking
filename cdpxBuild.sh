@@ -56,6 +56,7 @@ case $1 in
         curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-vnet-cni-multitenancy-windows-amd64-$latestVersion.zip
         curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-vnet-cni-multitenancy-linux-amd64-$latestVersion.tgz
         unzip azure-vnet-cni-multitenancy-windows-amd64-$latestVersion.zip
+        mv 10-azure.conflist 10-azure-win.conflist
         tar -xvzf azure-vnet-cni-multitenancy-linux-amd64-$latestVersion.tgz
         # Get latest version of CNS
         curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-cns-windows-amd64-$latestVersion.zip

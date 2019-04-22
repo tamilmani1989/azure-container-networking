@@ -23,7 +23,7 @@
     <file src="$drop$\azure-vnet-ipam" target="content\linux\azure-vnet-ipam" />
     <file src="$drop$\azure-vnet-telemetry.exe" target="content" />
     <file src="$drop$\azure-vnet-telemetry" target="content\linux\azure-vnet-telemetry" />
-    <file src="$drop$\10-azure.conflist" target="content" />
+    <file src="$drop$\10-azure-win.conflist" target="content\10-azure.conflist" />
     <file src="$drop$\10-azure.conflist" target="content\linux" />
   </files>
 </package>
