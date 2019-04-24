@@ -344,7 +344,6 @@ func (iptMgr *IptablesManager) Run(entry *IptEntry) (int, error) {
 	}
 
 	cmdArgs := append([]string{util.IptablesWaitFlag, entry.LockWaitTimeInSeconds, iptMgr.OperationFlag, entry.Chain}, entry.Specs...)
-
 	cmdOut, err := exec.Command(entry.Command, cmdArgs...).Output()
 	log.Printf("%s\n", string(cmdOut))
 
