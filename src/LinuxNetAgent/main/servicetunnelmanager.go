@@ -1,7 +1,7 @@
 package main
 
 import (
-	"LinuxNetAgent/ExtensionHandler"
+	extensionhandler "LinuxNetAgent/ExtensionHandler"
 	"LinuxNetAgent/servicetunnel"
 	"net"
 
@@ -17,7 +17,12 @@ const (
 )
 
 func installTools() {
-	_, err := platform.ExecuteCommand("apt -y update")
+	_, err := platform.ExecuteCommand("apt-get clean")
+	if err != nil {
+		log.Printf("apt-get failed with error %v", err)
+	}
+
+	_, err = platform.ExecuteCommand("apt -y update")
 	if err != nil {
 		log.Printf("apt update failed with error %v", err)
 	}

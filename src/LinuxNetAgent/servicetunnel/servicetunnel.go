@@ -8,20 +8,30 @@ import (
 
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
+	"github.com/Azure/azure-container-networking/npm/iptm"
+	"github.com/Azure/azure-container-networking/npm/util"
 	"github.com/Azure/azure-container-networking/platform"
 	"golang.org/x/sys/unix"
 )
 
+// Commands
 const (
-	Add = "allow"
-	Del = "delete allow"
+	Add = iota
+	Del
+)
+
+// Protocols
+const (
+	TCP = "tcp"
+	UDP = "udp"
 )
 
 const (
-	routePrefix = "fd00::/8"
-	fakeGateway = "fe80::944:63c6:6ed9:2336"
-	hostMac     = "12:34:56:78:9a:bc"
-	ipV6Prefix  = "2603:10e1:100:2:"
+	routePrefix  = "fd00::/8"
+	fakeGateway  = "fe80::944:63c6:6ed9:2336"
+	hostMac      = "12:34:56:78:9a:bc"
+	ipV6Prefix   = "2603:10e1:100:2:"
+	lockWaitTime = "60"
 )
 
 type ServiceTunnel struct {
@@ -35,18 +45,6 @@ type ServiceTunnel struct {
 	VethName2            string
 	VethMac              string
 	Routes               []*netlink.Route
-}
-
-func (st *ServiceTunnel) InstallTools() error {
-	if _, err := platform.ExecuteCommand("apt -y update"); err != nil {
-		return err
-	}
-
-	if _, err := platform.ExecuteCommand("apt install -y ebtables"); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (st *ServiceTunnel) GetPrimaryIP() error {
@@ -359,59 +357,123 @@ func (st *ServiceTunnel) DeleteSTBridge(disconnect bool) error {
 	return netlink.DeleteLink(st.PrimaryInterfaceName)
 }
 
-func (st *ServiceTunnel) ConfgureFirewallRules(cmd string, portsToOpen []int) error {
+func (st *ServiceTunnel) ConfgureFirewallRules(cmd int, portsToOpen []int) error {
 	if len(st.IPv4Addresses) <= 0 {
 		return fmt.Errorf("IPV6 not specified")
 	}
 
-	ip, _, _ := net.ParseCIDR(st.IPv4Addresses[0])
-
-	for _, port := range portsToOpen {
-		ufwCmd := fmt.Sprintf("ufw %v to %v port %v", cmd, ip.String(), port)
-		_, err := platform.ExecuteCommand(ufwCmd)
-		if err != nil {
-			log.Printf("add ufw command failed with error %v", err)
-			return err
-		}
-
-		ufwCmd = fmt.Sprintf("ufw %v to %v port %v", cmd, st.IPv6Address, port)
-		_, err = platform.ExecuteCommand(ufwCmd)
-		if err != nil {
-			log.Printf("add ufw command failed with error %v", err)
-			return err
-		}
+	if st.IPv6Address == "" {
+		return fmt.Errorf("IPv6 Address is empty")
 	}
 
-	if cmd == Add {
-		if err := addIPv6ForwardRule(st.IPv6Address); err != nil {
-			log.Printf("Adding ip6table forward rule failed with error %v", err)
-			return err
-		}
-	} else if cmd == Del {
-		if err := deleteIPv6ForwardRule(st.IPv6Address); err != nil {
-			log.Printf("Deleting ip6table forward rule failed with error %v", err)
-			return err
-		}
+	log.Printf("Configure firewall rules. Received %d command", cmd)
+
+	ip, _, _ := net.ParseCIDR(st.IPv4Addresses[0])
+
+	filterEntry := &iptm.IptEntry{
+		Name:  util.IptablesFilterTable,
+		Chain: util.IptablesInputChain,
+		LockWaitTimeInSeconds: lockWaitTime,
+	}
+
+	forwardEntry := &iptm.IptEntry{
+		Command: util.Ip6tables,
+		Name:    util.IptablesFilterTable,
+		Chain:   util.IptablesForwardChain,
+		LockWaitTimeInSeconds: lockWaitTime,
+		Specs: []string{
+			util.IptablesDFlag,
+			st.IPv6Address,
+			util.IptablesJumpFlag,
+			util.IptablesAccept,
+		},
+	}
+
+	if err := addorDeleteFilterEntryHelper(cmd, ip.String(), portsToOpen, filterEntry); err != nil {
+		log.Printf("addorDeleteFilterEntryHelper failed with: %v", err)
+		return err
+	}
+
+	filterEntry.Command = util.Ip6tables
+
+	if err := addorDeleteFilterEntryHelper(cmd, st.IPv6Address, portsToOpen, filterEntry); err != nil {
+		log.Printf("addorDeleteFilterEntryHelper failed with: %v", err)
+		return err
+	}
+
+	if err := addorDeleteForwardEntryHelper(cmd, forwardEntry); err != nil {
+		log.Printf("addorDeleteForwardEntryHelper failed with: %v", err)
+		return err
 	}
 
 	return nil
 }
 
-func addIPv6ForwardRule(ipv6Address string) error {
-	cmd := fmt.Sprintf("ip6tables -t filter -C FORWARD -d %v -j ACCEPT", ipv6Address)
-	_, err := platform.ExecuteCommand(cmd)
-	if err == nil {
-		log.Printf("ip6table forward rule already exists")
+func addorDeleteForwardEntryHelper(cmd int, iptEntry *iptm.IptEntry) error {
+	iptMgr := iptm.NewIptablesManager()
+
+	if cmd == Add {
+		return iptMgr.Add(iptEntry)
+	}
+
+	return iptMgr.Delete(iptEntry)
+}
+
+func addorDeleteFilterEntryHelper(cmd int, ipAddress string, portsToOpen []int, iptEntry *iptm.IptEntry) error {
+	if iptEntry == nil {
+		return fmt.Errorf("iptentry is nil")
+	}
+
+	if len(portsToOpen) <= 0 {
 		return nil
 	}
 
-	cmd = fmt.Sprintf("ip6tables -t filter -I FORWARD 1 -d %v -j ACCEPT", ipv6Address)
-	_, err = platform.ExecuteCommand(cmd)
-	return err
-}
+	multiPortsString := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(portsToOpen)), ","), "[]")
+	iptMgr := iptm.NewIptablesManager()
 
-func deleteIPv6ForwardRule(ipv6Address string) error {
-	cmd := fmt.Sprintf("ip6tables -t filter -D FORWARD -d %v -j ACCEPT", ipv6Address)
-	_, err := platform.ExecuteCommand(cmd)
-	return err
+	tcpSpec := []string{
+		util.IptablesDFlag,
+		ipAddress,
+		util.IptablesProtFlag,
+		TCP,
+		util.IptablesMatchFlag,
+		util.IptablesMultiportFlag,
+		util.IptablesMultiDestportFlag,
+		multiPortsString,
+		util.IptablesJumpFlag,
+		util.IptablesAccept,
+	}
+
+	udpSpec := []string{
+		util.IptablesDFlag,
+		ipAddress,
+		util.IptablesProtFlag,
+		UDP,
+		util.IptablesMatchFlag,
+		util.IptablesMultiportFlag,
+		util.IptablesMultiDestportFlag,
+		multiPortsString,
+		util.IptablesJumpFlag,
+		util.IptablesAccept,
+	}
+
+	defer func() { iptEntry.Specs = nil }()
+
+	if cmd == Add {
+		iptEntry.Specs = tcpSpec
+		if err := iptMgr.Add(iptEntry); err != nil {
+			return err
+		}
+
+		iptEntry.Specs = udpSpec
+		return iptMgr.Add(iptEntry)
+	}
+
+	iptEntry.Specs = tcpSpec
+	if err := iptMgr.Delete(iptEntry); err != nil {
+		log.Printf("Deleting iptable rule %v failed %v", iptEntry, err)
+	}
+
+	iptEntry.Specs = udpSpec
+	return iptMgr.Delete(iptEntry)
 }

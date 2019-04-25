@@ -1,7 +1,7 @@
 package main
 
 import (
-	"LinuxNetAgent/ExtensionHandler"
+	extensionhandler "LinuxNetAgent/ExtensionHandler"
 	"flag"
 	"fmt"
 	"os"
@@ -12,7 +12,7 @@ import (
 
 const (
 	DEFAULT_TIMEOUT_IN_SECS = 10
-	DEFAULT_MAX_RETRIES     = 5
+	DEFAULT_MAX_RETRIES     = 20
 	DEFAULT_LOGDIR          = "/var/log"
 	enable                  = "enable"
 	disable                 = "disable"
