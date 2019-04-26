@@ -9,25 +9,29 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
+	"github.com/Azure/azure-container-networking/platform"
 	"golang.org/x/sys/unix"
 )
 
 const (
 	// Prefix for bridge names.
 	bridgePrefix = "azure"
-
 	// Virtual MAC address used by Azure VNET.
-	virtualMacAddress = "12:34:56:78:9a:bc"
-
-	SnatBridgeIPKey = "snatBridgeIP"
-
-	LocalIPKey = "localIP"
-
-	InfraVnetIPKey = "infraVnetIP"
-
-	OptVethName = "vethname"
+	virtualMacAddress     = "12:34:56:78:9a:bc"
+	versionID             = "VERSION_ID"
+	distroID              = "ID"
+	ubuntuStr             = "ubuntu"
+	nameserverStr         = "nameserver"
+	ubuntuVersion18       = 18
+	defaultDnsServerIP    = "168.63.129.16"
+	systemdResolvConfFile = "/run/systemd/resolve/resolv.conf"
+	SnatBridgeIPKey       = "snatBridgeIP"
+	LocalIPKey            = "localIP"
+	InfraVnetIPKey        = "infraVnetIP"
+	OptVethName           = "vethname"
 )
 
 // Linux implementation of route.
@@ -168,6 +172,77 @@ func (nm *networkManager) applyIPConfig(extIf *externalInterface, targetIf *net.
 	return nil
 }
 
+func readDnsServerIP() (string, error) {
+	linesArr, err := common.ReadFileByLines(systemdResolvConfFile)
+	if err != nil {
+		return "", err
+	}
+
+	for _, line := range linesArr {
+		if strings.Contains(line, nameserverStr) {
+			dnsServerLine := strings.Split(line, " ")
+			if len(dnsServerLine) > 1 {
+				return dnsServerLine[1], nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("Dns server ip not found")
+}
+
+func getMajorVersion(version string) (int, error) {
+	versionSplit := strings.Split(version, ".")
+	if len(versionSplit) > 0 {
+		retrieved_version, err := strconv.Atoi(versionSplit[0])
+		if err != nil {
+			return 0, err
+		}
+
+		return retrieved_version, err
+	}
+
+	return 0, fmt.Errorf("Error getting major version")
+}
+
+func setDnsServer(dnsIP, ifName string) error {
+	cmd := fmt.Sprintf("systemd-resolve --interface=%s --set-dns=%s", ifName, dnsIP)
+	_, err := platform.ExecuteCommand(cmd)
+	return err
+}
+
+func applyDnsConfig(ifName string) error {
+	osInfo, err := platform.GetOSDetails()
+	if err != nil {
+		return err
+	}
+
+	version := osInfo[versionID]
+	distro := osInfo[distroID]
+
+	if strings.EqualFold(distro, ubuntuStr) {
+		version = strings.Trim(version, "\"")
+		log.Printf("OS version %s", version)
+
+		retrieved_version, err := getMajorVersion(version)
+		if err != nil {
+			log.Printf(" Not setting dns. Unable to retrieve major version: %v", err)
+			return nil
+		}
+
+		if retrieved_version >= ubuntuVersion18 {
+			dnsServerIP, err := readDnsServerIP()
+			if err != nil {
+				log.Printf("Failed to read dns server ip from file %v: %v", systemdResolvConfFile, err)
+				dnsServerIP = defaultDnsServerIP
+			}
+
+			return setDnsServer(dnsServerIP, ifName)
+		}
+	}
+
+	return nil
+}
+
 // ConnectExternalInterface connects the given host interface to a bridge.
 func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwInfo *NetworkInfo) error {
 	var err error
@@ -280,11 +355,16 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	err = nm.applyIPConfig(extIf, bridge)
 	if err != nil {
 		log.Printf("[net] Failed to apply interface IP configuration: %v.", err)
+		return err
+	}
+
+	log.Printf("Applying dns config on interface %v", bridgeName)
+	if err := applyDnsConfig(bridgeName); err != nil {
+		log.Printf("[net] Failed to apply interface DNS configuration: %v.", err)
+		//return err
 	}
 
 	extIf.BridgeName = bridgeName
-	err = nil
-
 	log.Printf("[net] Connected interface %v to bridge %v.", extIf.Name, extIf.BridgeName)
 
 	return nil
