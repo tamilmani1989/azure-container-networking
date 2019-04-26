@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
 	"github.com/Azure/azure-container-networking/platform"
@@ -24,7 +23,7 @@ const (
 	versionID             = "VERSION_ID"
 	distroID              = "ID"
 	ubuntuStr             = "ubuntu"
-	nameserverStr         = "nameserver"
+	dnsServersStr         = "DNS Servers"
 	ubuntuVersion18       = 18
 	defaultDnsServerIP    = "168.63.129.16"
 	systemdResolvConfFile = "/run/systemd/resolve/resolv.conf"
@@ -32,6 +31,12 @@ const (
 	LocalIPKey            = "localIP"
 	InfraVnetIPKey        = "infraVnetIP"
 	OptVethName           = "vethname"
+)
+
+const (
+	lineDelimiter  = "\n"
+	colonDelimiter = ":"
+	dotDelimiter   = "."
 )
 
 // Linux implementation of route.
@@ -143,6 +148,86 @@ func (nm *networkManager) saveIPConfig(hostIf *net.Interface, extIf *externalInt
 	return err
 }
 
+func getMajorVersion(version string) (int, error) {
+	versionSplit := strings.Split(version, dotDelimiter)
+	if len(versionSplit) > 0 {
+		retrieved_version, err := strconv.Atoi(versionSplit[0])
+		if err != nil {
+			return 0, err
+		}
+
+		return retrieved_version, err
+	}
+
+	return 0, fmt.Errorf("[net] Error getting major version")
+}
+
+func isGreaterOrEqaulUbuntuVersion(versionToMatch int) bool {
+	osInfo, err := platform.GetOSDetails()
+	if err != nil {
+		log.Printf("[net] Unable to get OS Details: %v", err)
+		return false
+	}
+
+	version := osInfo[versionID]
+	distro := osInfo[distroID]
+
+	if strings.EqualFold(distro, ubuntuStr) {
+		version = strings.Trim(version, "\"")
+		log.Printf("[net] Ubuntu version %s", version)
+
+		retrieved_version, err := getMajorVersion(version)
+		if err != nil {
+			log.Printf("[net] Not setting dns. Unable to retrieve major version: %v", err)
+			return false
+		}
+
+		if retrieved_version >= versionToMatch {
+			return true
+		}
+	}
+
+	return false
+}
+
+func readDnsServerIP(ifName string) (string, error) {
+	cmd := fmt.Sprintf("systemd-resolve --status %s", ifName)
+	out, err := platform.ExecuteCommand(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	lineArr := strings.Split(out, lineDelimiter)
+	if len(lineArr) <= 0 {
+		return "", fmt.Errorf("[net] Output of cmd %s returned nothing", cmd)
+	}
+
+	for _, line := range lineArr {
+		if strings.Contains(line, dnsServersStr) {
+			dnsServerSplit := strings.Split(line, colonDelimiter)
+			if len(dnsServerSplit) > 1 {
+				return dnsServerSplit[1], nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("[net] Dns server ip not set on interface %v", ifName)
+}
+
+func saveDnsConfig(extIf *externalInterface) {
+	var err error
+
+	extIf.DNSServerIP, err = readDnsServerIP(extIf.Name)
+	if err != nil {
+		log.Printf("[net] Failed to read dns server IP from interface %v: %v", extIf.Name, err)
+		extIf.DNSServerIP = defaultDnsServerIP
+		return
+	}
+
+	extIf.DNSServerIP = strings.TrimSpace(extIf.DNSServerIP)
+	log.Printf("[net] Saved DNS server IP %v from %v", extIf.DNSServerIP, extIf.Name)
+}
+
 // ApplyIPConfig applies a previously saved IP configuration to an interface.
 func (nm *networkManager) applyIPConfig(extIf *externalInterface, targetIf *net.Interface) error {
 	// Add IP addresses.
@@ -172,75 +257,10 @@ func (nm *networkManager) applyIPConfig(extIf *externalInterface, targetIf *net.
 	return nil
 }
 
-func readDnsServerIP() (string, error) {
-	linesArr, err := common.ReadFileByLines(systemdResolvConfFile)
-	if err != nil {
-		return "", err
-	}
-
-	for _, line := range linesArr {
-		if strings.Contains(line, nameserverStr) {
-			dnsServerLine := strings.Split(line, " ")
-			if len(dnsServerLine) > 1 {
-				return dnsServerLine[1], nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("Dns server ip not found")
-}
-
-func getMajorVersion(version string) (int, error) {
-	versionSplit := strings.Split(version, ".")
-	if len(versionSplit) > 0 {
-		retrieved_version, err := strconv.Atoi(versionSplit[0])
-		if err != nil {
-			return 0, err
-		}
-
-		return retrieved_version, err
-	}
-
-	return 0, fmt.Errorf("Error getting major version")
-}
-
-func setDnsServer(dnsIP, ifName string) error {
-	cmd := fmt.Sprintf("systemd-resolve --interface=%s --set-dns=%s", ifName, dnsIP)
+func applyDnsConfig(extIf *externalInterface, ifName string) error {
+	cmd := fmt.Sprintf("systemd-resolve --interface=%s --set-dns=%s", ifName, extIf.DNSServerIP)
 	_, err := platform.ExecuteCommand(cmd)
 	return err
-}
-
-func applyDnsConfig(ifName string) error {
-	osInfo, err := platform.GetOSDetails()
-	if err != nil {
-		return err
-	}
-
-	version := osInfo[versionID]
-	distro := osInfo[distroID]
-
-	if strings.EqualFold(distro, ubuntuStr) {
-		version = strings.Trim(version, "\"")
-		log.Printf("OS version %s", version)
-
-		retrieved_version, err := getMajorVersion(version)
-		if err != nil {
-			log.Printf(" Not setting dns. Unable to retrieve major version: %v", err)
-			return nil
-		}
-
-		if retrieved_version >= ubuntuVersion18 {
-			dnsServerIP, err := readDnsServerIP()
-			if err != nil {
-				log.Printf("Failed to read dns server ip from file %v: %v", systemdResolvConfFile, err)
-				dnsServerIP = defaultDnsServerIP
-			}
-
-			return setDnsServer(dnsServerIP, ifName)
-		}
-	}
-
-	return nil
 }
 
 // ConnectExternalInterface connects the given host interface to a bridge.
@@ -312,6 +332,12 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 		log.Printf("[net] Failed to save IP configuration for interface %v: %v.", hostIf.Name, err)
 	}
 
+	isGreaterOrEqualUbuntu18 := isGreaterOrEqaulUbuntuVersion(ubuntuVersion18)
+	if isGreaterOrEqualUbuntu18 {
+		log.Printf("[net] Saving dns config from %v", extIf.Name)
+		saveDnsConfig(extIf)
+	}
+
 	// External interface down.
 	log.Printf("[net] Setting link %v state down.", hostIf.Name)
 	err = netlink.SetLinkState(hostIf.Name, false)
@@ -358,10 +384,15 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 		return err
 	}
 
-	log.Printf("Applying dns config on interface %v", bridgeName)
-	if err := applyDnsConfig(bridgeName); err != nil {
-		log.Printf("[net] Failed to apply interface DNS configuration: %v.", err)
-		//return err
+	if isGreaterOrEqualUbuntu18 {
+		log.Printf("[net] Applying dns config on %v", bridgeName)
+
+		if err := applyDnsConfig(extIf, bridgeName); err != nil {
+			log.Printf("[net] Failed to apply DNS configuration: %v.", err)
+			//return err
+		}
+
+		log.Printf("[net] Applied dns IP %v on %v", extIf.DNSServerIP, bridgeName)
 	}
 
 	extIf.BridgeName = bridgeName
