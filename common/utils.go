@@ -148,8 +148,11 @@ func ReadFileByLines(filename string) ([]string, error) {
 			if err != io.EOF {
 				return nil, fmt.Errorf("Error reading %s file error %v", filename, err)
 			}
+
+			lineStrArr = append(lineStrArr, lineStr)
 			break
 		}
+
 		lineStrArr = append(lineStrArr, lineStr)
 	}
 
