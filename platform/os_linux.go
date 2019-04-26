@@ -30,7 +30,8 @@ const (
 	NPMRuntimePath = "/var/run/"
 	// DNCRuntimePath is the path where DNC logging files are stored.
 	DNCRuntimePath = "/var/run/"
-	osReleaseFile  = "/etc/os-release"
+	// This file contains OS details
+	osReleaseFile = "/etc/os-release"
 )
 
 // GetOSInfo returns OS version information.

@@ -169,13 +169,13 @@ func isGreaterOrEqaulUbuntuVersion(versionToMatch int) bool {
 		return false
 	}
 
+	log.Printf("[net] OSInfo: %+v", osInfo)
+
 	version := osInfo[versionID]
 	distro := osInfo[distroID]
 
 	if strings.EqualFold(distro, ubuntuStr) {
 		version = strings.Trim(version, "\"")
-		log.Printf("[net] Ubuntu version %s", version)
-
 		retrieved_version, err := getMajorVersion(version)
 		if err != nil {
 			log.Printf("[net] Not setting dns. Unable to retrieve major version: %v", err)
@@ -196,6 +196,8 @@ func readDnsServerIP(ifName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	log.Printf("[net] console output for above cmd: %s", out)
 
 	lineArr := strings.Split(out, lineDelimiter)
 	if len(lineArr) <= 0 {
