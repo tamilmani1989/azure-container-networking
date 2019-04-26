@@ -45,5 +45,16 @@ func TestReadFileByLines(t *testing.T) {
 	if lines[1] != "" {
 		t.Errorf("Expected empty line but got %s", lines[1])
 	}
+}
 
+func TestFileExists(t *testing.T) {
+	isExist, err := CheckIfFileExists("testfiles/test1")
+	if err != nil || !isExist {
+		t.Errorf("Returned file not found %v", err)
+	}
+
+	isExist, err = CheckIfFileExists("testfiles/filenotfound")
+	if err != nil || isExist {
+		t.Errorf("Returned file found")
+	}
 }
