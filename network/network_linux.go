@@ -389,7 +389,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 
 		if err := applyDnsConfig(extIf, bridgeName); err != nil {
 			log.Printf("[net] Failed to apply DNS configuration: %v.", err)
-			//return err
+			return err
 		}
 
 		log.Printf("[net] Applied dns IP %v on %v", extIf.DNSServerIP, bridgeName)
