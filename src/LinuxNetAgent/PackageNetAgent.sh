@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-version="1.4.0.0"
+version="1.6.0.0"
 scriptdir=$(dirname "$0")
 outdir=$scriptdir/out/AquariusLinux
 zippath="$scriptdir/out/AquariusLinux_$version.zip"
