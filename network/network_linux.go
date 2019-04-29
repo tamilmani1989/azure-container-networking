@@ -24,7 +24,7 @@ const (
 	distroID              = "ID"
 	ubuntuStr             = "ubuntu"
 	dnsServersStr         = "DNS Servers"
-	ubuntuVersion18       = 18
+	ubuntuVersion17       = 17
 	defaultDnsServerIP    = "168.63.129.16"
 	systemdResolvConfFile = "/run/systemd/resolve/resolv.conf"
 	SnatBridgeIPKey       = "snatBridgeIP"
@@ -334,8 +334,8 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 		log.Printf("[net] Failed to save IP configuration for interface %v: %v.", hostIf.Name, err)
 	}
 
-	isGreaterOrEqualUbuntu18 := isGreaterOrEqaulUbuntuVersion(ubuntuVersion18)
-	if isGreaterOrEqualUbuntu18 {
+	isGreaterOrEqualUbuntu17 := isGreaterOrEqaulUbuntuVersion(ubuntuVersion17)
+	if isGreaterOrEqualUbuntu17 {
 		log.Printf("[net] Saving dns config from %v", extIf.Name)
 		saveDnsConfig(extIf)
 	}
@@ -386,7 +386,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 		return err
 	}
 
-	if isGreaterOrEqualUbuntu18 {
+	if isGreaterOrEqualUbuntu17 {
 		log.Printf("[net] Applying dns config on %v", bridgeName)
 
 		if err := applyDnsConfig(extIf, bridgeName); err != nil {
