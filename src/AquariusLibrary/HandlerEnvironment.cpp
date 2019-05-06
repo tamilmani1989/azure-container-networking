@@ -353,4 +353,10 @@ Return Value:
         delete[] configFolderPath;
         configFolderPath = NULL;
     }
+
+    if(statusFolderPath)
+    {
+        delete[] statusFolderPath;
+        statusFolderPath = NULL;
+    }
 }
