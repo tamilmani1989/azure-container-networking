@@ -46,6 +46,8 @@ public:
 
     TEST_CLASS_CLEANUP(TestCleanup);
 
+    TEST_METHOD(TestStatusToJson);
+    TEST_METHOD(TestWriteStatusToFile);
     TEST_METHOD(TestInstallUninstall);
 	TEST_METHOD(TestInitializeService);
 	TEST_METHOD(TestGetPluginMetadata);

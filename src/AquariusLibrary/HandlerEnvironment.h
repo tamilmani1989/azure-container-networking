@@ -37,6 +37,7 @@ class HandlerEnvironment
 
     wchar_t *logFolderPath=nullptr;
     wchar_t *configFolderPath=nullptr;
+    wchar_t *statusFolderPath=nullptr;
 
     int ReadHandlerEnvironmentFile(wchar_t *exeLocation);
     void Cleanup();

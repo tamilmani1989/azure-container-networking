@@ -20,8 +20,9 @@
     <ClCompile Include="AquariusInstaller.cpp" />
     <ClCompile Include="AquariusService.cpp" />
     <ClCompile Include="AquariusSvcBase.cpp" />
-    <ClCompile Include="ConfigParser.cpp" />    
-    <ClCompile Include="HandlerEnvironment.cpp" />    
+    <ClCompile Include="ConfigParser.cpp" />
+    <ClCompile Include="HandlerEnvironment.cpp" />
+    <ClCompile Include="StatusHandler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AquariusInstaller.h" />

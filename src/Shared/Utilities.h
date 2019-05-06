@@ -36,4 +36,5 @@ public:
 	static void PopulateServiceExeLocation(wchar_t* packageStoreLocation);
 	static void SetRelativePathFromExe(wchar_t *relPath);
 	static int GetServiceName(wchar_t *svcName, size_t size);
+	static DWORD ConvertWcharToChar(wchar_t *messageW, char *message, size_t msgSize);
 };

@@ -41,14 +41,14 @@ Return Value:
 {
     json::value enablePluginsVal=NULL;
     json::array arrval = val.as_array();
-        
-    for (auto arrIter = arrval.cbegin(); arrIter != arrval.cend(); ++arrIter)	
+
+    for (auto arrIter = arrval.cbegin(); arrIter != arrval.cend(); ++arrIter)
     {
         for(auto handlerIter = arrIter->as_object().cbegin(); handlerIter != arrIter->as_object().cend(); ++handlerIter)
         {
             const utility::string_t &handlerKey = handlerIter->first;
             const json::value &handlerValue = handlerIter->second;
-            
+
             if (wcscmp(handlerKey.c_str(), L"handlerSettings") == 0)
             {
                 for (auto publicIter = handlerValue.as_object().cbegin(); publicIter != handlerValue.as_object().cend(); ++publicIter)
@@ -62,13 +62,13 @@ Return Value:
                         {
                             const utility::string_t &configKey = pluginIter->first;
                             const json::value &configValue = pluginIter->second;
-                            
+
                             if (wcscmp(configKey.c_str(), L"PluginsToEnable") == 0)
                             {
-                                LOGINFO("Got the key pluginstoenable");		
+                                LOGINFO("Got the key pluginstoenable");
                                 json::array pluginsArr = configValue.as_array();
-                                
-                                for (auto iter = pluginsArr.cbegin(); iter != pluginsArr.cend(); ++iter)	
+
+                                for (auto iter = pluginsArr.cbegin(); iter != pluginsArr.cend(); ++iter)
                                 {
                                     std::wstring plugin = iter->as_string();
                                     LOGINFOW(L"Insert plugin:%s\n", plugin.c_str());
@@ -111,14 +111,14 @@ Return Value:
 --*/
 {
     std::wstring fName(filename);
-    size_t lastindex  = fName.find_last_of(L"."); 
-    
+    size_t lastindex  = fName.find_last_of(L".");
+
     if (lastindex == string::npos)
     {
         return NULL;
     }
-    
-    std::wstring rawname = fName.substr(0, lastindex); 
+
+    std::wstring rawname = fName.substr(0, lastindex);
 
     return rawname;
 }
@@ -154,11 +154,9 @@ return number < 0 if elem1 < elem2 and > 0 if elem1 > elem2 and 0 if eleme1 is e
 
     if (file1.empty() || file2.empty())
     {
-        LOGINFO("getBaseFileName returns NULL");
+        LOGINFO("getBaseFileName returns empty");
         return 0;
     }
-
-    LOGINFOW(L"file1 %s file2 %s\n", file1.c_str(), file2.c_str());
 
     int num1 = _wtoi(file1.c_str());
     int num2 = _wtoi(file2.c_str());
@@ -200,13 +198,13 @@ Return Value:
 
     while (INVALID_HANDLE_VALUE != hFind) {
         fdata.push_back(fd);
-        
+
         if (!::FindNextFile(hFind, &fd)) {
             ::FindClose(hFind);
             break;
         }
     }
-    
+
     if (fdata.size() <= 0)
     {
         LOGINFO("fdata vector which holds files info is empty\n")
@@ -219,11 +217,12 @@ Return Value:
         sizeof(WIN32_FIND_DATA),
         sortFileBySeqNumber);
 
+    this->latestSequenceNumber = getBaseFilename(fdata.back().cFileName);
     size_t len = wcslen(fdata.back().cFileName)+1;
     wchar_t *latestFile = new wchar_t[len];
-    
+
     wcscpy_s(latestFile, len, fdata.back().cFileName);
-    
+
     return latestFile;
 }
 
@@ -236,24 +235,24 @@ Routine Description:
 
 Arguments:
     configFilePath - path of config file
-    
+
 Return Value:
     returns contents of config file read in string
 --*/
 {
     std::string str;
     std::fstream fp(configFilePath);
-    
+
     if(!fp)
     {
         LOGINFOW(L"Not able to open file %s", configFilePath);
         return str;
     }
 
-    fp.seekg(0, std::ios::end);   
+    fp.seekg(0, std::ios::end);
 
     std::streamoff size = fp.tellg();
-    
+
     if(size < 0)
     {
         LOGINFO("tellg() function failed in read config file");
@@ -276,7 +275,7 @@ std::string HandlerConfig::ReadLatestConfigFile(wchar_t *configFolderPath)
 /*++
 
 Routine Description:
-    This function finds and reads the latest config file 
+    This function finds and reads the latest config file
 
 Arguments:
     configFolderPath - config folder location
@@ -296,27 +295,27 @@ Return Value:
     LOGINFOW(L"Inside readHandlerEnvFields");
 
     wchar_t *configDir = new wchar_t[totalLen];
-    
+
     if (!configDir)
     {
         LOGINFO("Error while allocating for configDir\n");
         goto Cleanup;
     }
-    
+
     err = wcscpy_s(configDir, totalLen, configFolderPath);
-    
+
     if(err != 0)
     {
         LOGINFO("Error while copying config dir path:%d\n", err);
-        goto Cleanup;		
+        goto Cleanup;
     }
 
     err = wcscat_s(configDir, totalLen, CONFIG_EXTENSION);
-    
+
     if(err != 0)
     {
         LOGINFO("Error while concatenating config dir path with extension:%d\n", err);
-        goto Cleanup;			
+        goto Cleanup;
     }
 
     configFile = getLatestConfigFilePath(configDir);
@@ -344,7 +343,7 @@ Return Value:
     if(err != 0)
     {
         LOGINFO("Error while copying config file path:%d\n", err);
-        goto Cleanup;			
+        goto Cleanup;
     }
 
     err = wcscat_s(configFilePath, totalLen, L"\\");
@@ -352,15 +351,15 @@ Return Value:
     if(err != 0)
     {
         LOGINFO("Error while concatenating config file path with \\:%d\n", err);
-        goto Cleanup;;						
-    }	
+        goto Cleanup;;
+    }
 
     err = wcscat_s(configFilePath, totalLen, configFile);
 
     if(err != 0)
     {
         LOGINFO("Error while concatenating to config file path %d\n", err);
-        goto Cleanup;							
+        goto Cleanup;
     }
 
     LOGINFOW(L"Config File path:%s\n", configFilePath);
@@ -404,19 +403,19 @@ Return Value:
 
     ss << str.c_str();
     json::value val = json::value::parse(ss);
-    
+
     for (auto iter = val.as_object().cbegin(); iter != val.as_object().cend(); ++iter)
     {
         const utility::string_t &key = iter->first;
         const json::value &val = iter->second;
-        
+
         if (wcscmp(key.c_str(), L"runtimeSettings") != 0)
         {
             LOGINFOW(L"Expecting runtimeSettings but found %s", key.c_str());
             return -1;
         }
 
-        readNetAgentConfig(val,this);	
+        readNetAgentConfig(val,this);
 
     }
 
