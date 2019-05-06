@@ -37,11 +37,11 @@ class HandlerConfig
     std::set<std::wstring> pluginsToStart;
     std::wstring restServerPort;
     bool disableRestServer = false;
-    
-    std::wstring getBaseFilename(const wchar_t *filename);
+    std::wstring latestSequenceNumber;
+
     wchar_t *getLatestConfigFilePath(wchar_t *configDir);
     std::string readConfigFile(wchar_t *configFilePath);
-    
+
     int ParseConfigFile(std::string str);
     std::string ReadLatestConfigFile(wchar_t *configFolder);
     void Cleanup();

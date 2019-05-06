@@ -27,7 +27,8 @@ Tamilmani Manoharan (tamanoha) 08-Aug-2017
 #include <string>
 #include "AquariusTest.h"
 #include "AquariusService.h"
-#include "AquariusInstaller.h"	
+#include "StatusHandler.h"
+#include "AquariusInstaller.h"
 #include "RegistryOps.h"
 #include "Utilities.h"
 #undef __WFILE__
@@ -41,18 +42,55 @@ using namespace Microsoft::Azure::Networking::Aqua::ClientLibrary;
 AquariusService *service;
 PluginMetadata *allPluginsMetadata = nullptr;
 int pluginCount=0;
+StatusHandler sHandler;
 
 void setupTestLogging()
 {
 
 	wchar_t *logLocation = new wchar_t[MAX_PATH];
-	
+
 	GetCurrentDirectory(MAX_PATH, logLocation);
 	wcsncat_s(logLocation, MAX_PATH, L"test\\AquariusTest\\Logs", MAX_PATH);
 
 	LOGSETUP(logLocation, L"AquariusTest");
 
 	delete[] logLocation;
+}
+
+void
+AquariusTest::TestStatusToJson()
+{
+	sHandler.version.assign(L"1.0");
+	sHandler.status.code = 0;
+	sHandler.status.status.assign(L"Success");
+	sHandler.status.formattedMessage.message.assign(L"completed");
+
+	json::value value = sHandler.ToJson();
+	wstring data = value.serialize();
+	VERIFY_IS_NOT_NULL(data.c_str());
+}
+
+void
+AquariusTest::TestWriteStatusToFile()
+{
+	vector<json::value> handlers;
+	WIN32_FILE_ATTRIBUTE_DATA fad;
+
+	json::value value = sHandler.ToJson();
+	handlers.push_back(value);
+	StatusHandler::WriteExtensionStatus(".\\test\\AquariusTest\\test", handlers);
+
+	int ret = GetFileAttributesEx(L".\\test\\AquariusTest\\test", GetFileExInfoStandard, &fad);
+	VERIFY_ARE_EQUAL(ret, 1, L"Get file attributes passed");
+
+    LARGE_INTEGER size;
+    size.HighPart = fad.nFileSizeHigh;
+    size.LowPart = fad.nFileSizeLow;
+
+	VERIFY_IS_GREATER_THAN(size.QuadPart, 0, L"Extension status was written to file");
+
+	ret = remove(".\\test\\AquariusTest\\test" );
+	VERIFY_ARE_EQUAL(ret, 0, L"Extension status file was removed");
 }
 
 void
@@ -73,10 +111,10 @@ Return Value:
 	AquariusInstaller installer;
 
 	setupTestLogging();
-	
+
 	HKEY configKey = RegistryOps::CreateOrOpenRegistryKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Aquarius");
 	VERIFY_IS_NOT_NULL(configKey);
-	
+
 	installer.InstallService(
 		SERVICE_NAME,               // Name of service
 		SERVICE_DISPLAY_NAME,       // Name to display
@@ -84,7 +122,7 @@ Return Value:
 		SERVICE_DEPENDENCIES,       // Dependencies
 		SERVICE_ACCOUNT,            // Service running account
 		SERVICE_PASSWORD            // Password of the account
-	);   
+	);
 
 	installer.UninstallService(SERVICE_NAME);
 }
@@ -117,7 +155,7 @@ Return Value:
 	service->aqPackageManager->GetPackageStoreLocation(packageStoreLocation);
 
 	if (service->aquariusKernel == nullptr)
-	{		
+	{
 		GetCurrentDirectory(MAX_PATH, packageStoreLocation);
 		wcsncat_s(packageStoreLocation, MAX_PATH, L"test\\AquariusTest\\Plugins", MAX_PATH);
 		service->aquariusKernel = new AquariusKernel(packageStoreLocation);
@@ -143,7 +181,7 @@ Return Value:
 
 --*/
 {
-	try 
+	try
 	{
 		pluginCount = service->aqPackageManager->RetrievePluginsMetadata(&allPluginsMetadata);
 		VERIFY_ARE_EQUAL(pluginCount, 2, L"GetPluginMetaData Passed");
@@ -160,7 +198,7 @@ AquariusTest::TestProcessConfig()
 /*++
 
 Routine Description:
-	This function tests reading plugins to start from configuration file 
+	This function tests reading plugins to start from configuration file
 
 Arguments:
     None
@@ -171,10 +209,10 @@ Return Value:
 --*/
 {
 	wchar_t curDir[MAX_PATH];
-	
+
 	GetCurrentDirectory(MAX_PATH, curDir);
 	wcscat_s(curDir, L"\\test\\AquariusTest\\Plugins");
-	
+
 	int ret = service->ProcessConfig(curDir);
 	VERIFY_ARE_EQUAL(ret, 0, L"ProcessConfig return success");
 
@@ -205,13 +243,13 @@ Return Value:
 
 --*/
 {
-	try 
+	try
 	{
 		service->aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata);
 	}
 	catch(...)
 	{
-		VERIFY_IS_TRUE(false);		
+		VERIFY_IS_TRUE(false);
 	}
 }
 

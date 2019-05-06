@@ -49,7 +49,7 @@ int GetLogLocationFromRegistry(wchar_t *logDirPath, DWORD bufferSize)
 
     DWORD size = bufferSize;
     LONG nError = RegistryOps::GetStringFromRegistry(returnKey, LOGDIR_KEY, logDirPath, &size, false);
-    
+
     StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
         L"returned from getstringfromregistry for key %s with return value %ld", LOGDIR_KEY, nError);
     AquariusUtilities::WriteEventLogEntry(szMessage);
@@ -72,7 +72,7 @@ int setupDefaultLogLocation(wchar_t *logDirPath)
 {
     errno_t err = 0;
     AquariusUtilities::PopulateServiceExeLocation(logDirPath);
-    
+
     if (wcscat_s(logDirPath, MAX_PATH, L"\\Logs") != 0)
     {
         AquariusUtilities::WriteErrorLogEntry(L"wcscat failed for constructing log folder");
@@ -99,7 +99,7 @@ Routine Description:
     This helper function is to retrieve necessary fields from the json object
 
 Arguments:
-    jsonValue - json of handlerenvironment 
+    jsonValue - json of handlerenvironment
 
 Return Value:
     returns 0 on success else returns -1
@@ -107,14 +107,17 @@ Return Value:
 --*/
 {
 
-    wchar_t *configPath = NULL, *logPath = NULL;
+    wchar_t *configPath = NULL;
+    wchar_t *logPath = NULL;
+    wchar_t *statusPath = NULL;
     wchar_t logDirPath[MAX_PATH];
     wchar_t configDirPath[MAX_PATH];
+    wchar_t statusDirPath[MAX_PATH];
 
     errno_t err = 0;
-    
+
     LOGINFOW(L" Inside readHandlerEnvFields\n");
-    
+
     for (auto iter = val.as_object().cbegin(); iter != val.as_object().cend(); ++iter)
     {
         const utility::string_t &key = iter->first;
@@ -129,11 +132,16 @@ Return Value:
         {
             logPath = (wchar_t *)configVal.as_string().c_str();
         }
+
+        else if(wcscmp(L"statusFolder", key.c_str()) == 0)
+        {
+            statusPath = (wchar_t *)configVal.as_string().c_str();
+        }
     }
-    
+
     LOGINFOW(L" Retrieved config Folder Path: %s Log Folder :%s", configPath, logPath);
 
-    if(configPath==NULL || logPath == NULL)
+    if(configPath==NULL || logPath == NULL || statusPath == NULL)
     {
         return -1;
     }
@@ -145,9 +153,22 @@ Return Value:
         {
             LOGERRW(L"wcscat failed for constructing config folder:%s", configDirPath);
             return -1;
-        }			
+        }
 
         configPath = configDirPath;
+    }
+
+    if(wcslen(statusPath)==0)
+    {
+        AquariusUtilities::WriteErrorLogEntry(L"Status path is empty. This should not happen.");
+        AquariusUtilities::PopulateServiceExeLocation(statusDirPath);
+        if(wcscat_s(statusDirPath, MAX_PATH, L"\\status") != 0)
+        {
+             AquariusUtilities::WriteErrorLogEntry(L"wcscat failed for constructing status folder");
+            return -1;
+        }
+
+        statusPath = statusDirPath;
     }
 
     if(wcslen(logPath)==0)
@@ -167,7 +188,7 @@ Return Value:
 
     size_t len = wcslen(configPath)+1;
     envObj->configFolderPath = new wchar_t[len];
-    
+
     if (!envObj->configFolderPath)
     {
         LOGINFO("Error in Allocating ConfigFolderPath\n");
@@ -175,7 +196,7 @@ Return Value:
     }
 
     err = wcscpy_s(envObj->configFolderPath, len, configPath);
-    
+
     if(err != 0)
     {
         LOGINFO("Error while using wcscpy_s to copy config dir path %d\n", err);
@@ -186,7 +207,7 @@ Return Value:
 
     len = wcslen(logPath)+1;
     envObj->logFolderPath = new wchar_t[len];
-    
+
     if (!envObj->logFolderPath)
     {
         LOGINFO("Error in Allocating ConfigFolderPath\n");
@@ -194,12 +215,31 @@ Return Value:
     }
 
     err = wcscpy_s(envObj->logFolderPath, len, logPath);
-    
+
     if(err != 0)
     {
         LOGINFO("Error while using wcscpy_s to copy config dir path %d\n", err);
         delete[] envObj->logFolderPath;
         envObj->logFolderPath = nullptr;
+        return -1;
+    }
+
+    len = wcslen(statusPath)+1;
+    envObj->statusFolderPath = new wchar_t[len];
+
+    if (!envObj->statusFolderPath)
+    {
+        LOGINFO("Error in Allocating statusFolderPath\n");
+        return -1;
+    }
+
+    err = wcscpy_s(envObj->statusFolderPath, len, statusPath);
+
+    if(err != 0)
+    {
+        LOGINFO("Error while using wcscpy_s to copy status dir path %d\n", err);
+        delete[] envObj->statusFolderPath;
+        envObj->statusFolderPath = nullptr;
         return -1;
     }
 
@@ -248,10 +288,10 @@ Return Value:
         return -1;
     }
 
-    fp.seekg(0, std::ios::end);  
-    
+    fp.seekg(0, std::ios::end);
+
     std::streamoff size = fp.tellg();
-    
+
     if(size < 0)
     {
         LOGINFO("tellg() function failed in GetConfigFolferLocation");
@@ -273,13 +313,13 @@ Return Value:
     json::value val = json::value::parse(ss);
     json::array arrval = val.as_array();
 
-    for (auto arrIter = arrval.cbegin(); arrIter != arrval.cend(); ++arrIter)	
+    for (auto arrIter = arrval.cbegin(); arrIter != arrval.cend(); ++arrIter)
     {
         for (auto iter = arrIter->as_object().cbegin(); iter != arrIter->as_object().cend(); ++iter)
         {
             const utility::string_t &key = iter->first;
             LOGINFOW(L"key:%s\n",key.c_str());
-            
+
             if(wcscmp(L"handlerEnvironment", key.c_str()) == 0)
             {
                 const json::value &handlerVal = iter->second;

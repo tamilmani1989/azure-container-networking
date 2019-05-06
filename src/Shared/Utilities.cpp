@@ -90,7 +90,7 @@ void AquariusUtilities::WriteErrorLogEntry(PWSTR pszFunction)
 
 	HANDLE hEventSource;
 	LPCWSTR lpszStrings[2] = { nullptr, nullptr };
-	
+
 	if(AquariusUtilities::GetServiceName(svcName, sizeof(svcName)) != 0)
 	{
 		AquariusUtilities::WriteEventLogEntry(L"NetAgent:: Unable to retrieve service name..");
@@ -129,21 +129,21 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 
 	for (int i = 0; i<count; i++)
 	{
-		if (pluginsMetadata[i].location != nullptr) 
+		if (pluginsMetadata[i].location != nullptr)
 		{
 			delete [] pluginsMetadata[i].location;
 			pluginsMetadata[i].location = nullptr;
 			AquariusUtilities::allocator--;
 		}
 
-		if (pluginsMetadata[i].currentVersion != nullptr) 
+		if (pluginsMetadata[i].currentVersion != nullptr)
 		{
 			delete [] pluginsMetadata[i].currentVersion;
 			pluginsMetadata[i].currentVersion = nullptr;
 			AquariusUtilities::allocator--;
 		}
 
-		if (pluginsMetadata[i].entryPoint != nullptr) 
+		if (pluginsMetadata[i].entryPoint != nullptr)
 		{
 			delete[] pluginsMetadata[i].entryPoint;
 			pluginsMetadata[i].entryPoint = nullptr;
@@ -156,15 +156,15 @@ void AquariusUtilities::ReleasePluginMetadata(int count, PluginMetadata * plugin
 void AquariusUtilities::PopulateServiceExeLocation(wchar_t* packageStoreLocation)
 {
 	wchar_t szMessage[MAX_PATH];
-	
+
 	if (GetModuleFileName(nullptr, packageStoreLocation, MAX_PATH) == 0)
 	{
 		StringCchPrintf(szMessage, ARRAYSIZE(szMessage),
 			L"Failed to get location of the plugins w/err 0x%08lx Returning %s\n",
 			GetLastError(), AquariusUtilities::defaultPackageStoreLocation);
 		AquariusUtilities::WriteEventLogEntry(szMessage);
-		wcscpy_s(packageStoreLocation, 
-			wcsnlen(defaultPackageStoreLocation, MAX_PATH) + 1, 
+		wcscpy_s(packageStoreLocation,
+			wcsnlen(defaultPackageStoreLocation, MAX_PATH) + 1,
 			defaultPackageStoreLocation);
 		return;
 	}
@@ -202,7 +202,7 @@ int AquariusUtilities::GetServiceName(wchar_t *svcName, size_t size)
 
 	if(GetModuleBaseName(GetCurrentProcess(), GetModuleHandle(NULL), svcName, (DWORD)size) == 0)
 	{
-		AquariusUtilities::WriteEventLogEntry(L"Error while retrieving process name");     
+		AquariusUtilities::WriteEventLogEntry(L"Error while retrieving process name");
 		wprintf(L"Error while retrieving process name:%d\n", GetLastError());
 		return ret;
 	}
@@ -210,7 +210,7 @@ int AquariusUtilities::GetServiceName(wchar_t *svcName, size_t size)
 	while(svcName[i] != '.' && svcName[i] != '\0')
 	{
 		i++;
-	}		
+	}
 
 	if(svcName[i] == '\0')
 	{
@@ -219,13 +219,40 @@ int AquariusUtilities::GetServiceName(wchar_t *svcName, size_t size)
 
 	svcName[i]='\0';
 
-	
+
 	if(wcscat_s(svcName, size, L"Svc") != 0)
 	{
-		AquariusUtilities::WriteEventLogEntry(L"wcscat_s failed while creating service name");     
+		AquariusUtilities::WriteEventLogEntry(L"wcscat_s failed while creating service name");
 		wprintf(L"wcscat_s failed while creating service name:%d\n", GetLastError());
 		return ret;
 	}
 
 	return 0;
+}
+
+DWORD AquariusUtilities::ConvertWcharToChar(
+	wchar_t *messageW,
+	char *message,
+	size_t msgSize)
+/*++
+
+Routine Description:
+
+	Converts a wchar_t* to char*.
+
+Arguments:
+
+	messageW : wide string
+	message: (out parameter) narrow string equivalent of wide string
+
+Return Value:
+
+	0 on success, error code otherwise
+
+--*/
+{
+	size_t converted;
+	size_t wideSize = sizeof(wchar_t) * (wcsnlen(messageW, msgSize) + 1);
+	DWORD error = wcstombs_s(&converted, message, wideSize, messageW, _TRUNCATE);
+	return error;
 }

@@ -2,17 +2,18 @@
 * Module Name:  AquariusService.cpp
 * Project:      Aquarius
 * Copyright (c) Microsoft Corporation.
-* 
-* Provides a sample service class that derives from the service base class - 
-* AquariusSvcBase. The sample service logs the service start and stop 
-* information to the Application event log, and shows how to run the main 
+*
+* Provides a sample service class that derives from the service base class -
+* AquariusSvcBase. The sample service logs the service start and stop
+* information to the Application event log, and shows how to run the main
 * function of the service in a thread pool worker thread.
-* 
+*
 \***************************************************************************/
 
 #pragma region Includes
 #include "AquariusService.h"
 #include "ThreadPool.h"
+#include "StatusHandler.h"
 #include <strsafe.h>
 #include "../Shared/Utilities.h"
 #include "../Kernel/JobManager.h"
@@ -47,7 +48,7 @@ Return Value:
 
     get_aquariusSvc_mutex.lock();
     static AquariusService *service=nullptr;
-        
+
     if(!service)
     {
         if(AquariusUtilities::GetServiceName(svcName, sizeof(svcName)) != 0)
@@ -83,7 +84,7 @@ Return Value:
     if(!instances &&  count > 0)
     {
         instances = new PluginMetadata[count];
-        
+
         if(instances != nullptr)
         {
             memset(instances, 0, count*(sizeof(PluginMetadata)));
@@ -94,16 +95,16 @@ Return Value:
     return instances;
 }
 
-AquariusService::AquariusService(PWSTR pszServiceName, 
-                               BOOL fCanStop, 
-                               BOOL fCanShutdown, 
+AquariusService::AquariusService(PWSTR pszServiceName,
+                               BOOL fCanStop,
+                               BOOL fCanShutdown,
                                BOOL fCanPauseContinue)
 : AquariusSvcBase(pszServiceName, fCanStop, fCanShutdown, fCanPauseContinue)
 /*++
 
 Routine Description:
     Aquarius Service constructor to intialize aquarius service object. This function also creates event to communicate
-    with service worker thread and rest server thread. 
+    with service worker thread and rest server thread.
 
 Arguments:
     pszServiceName - service name
@@ -114,7 +115,7 @@ Return Value:
 {
     LOGINFOW(L"Going to send a reset event to AquariusSvc");
     m_hStoppedEvent[RESTSERVER_THREAD] = NULL;
-    // Create a manual-reset event that is not signaled at first to indicate 
+    // Create a manual-reset event that is not signaled at first to indicate
     // the stopped signal of the service.
     m_hStoppedEvent[AQUARIUS_THREAD] = CreateEvent(nullptr, TRUE, FALSE, nullptr);
 
@@ -130,7 +131,7 @@ Return Value:
     {
         LOGINFOW(L"Got a null event m_hStopEvent Going to throw the last error.");
         throw GetLastError();
-    }    
+    }
 }
 
 AquariusService::~AquariusService(void)
@@ -242,25 +243,25 @@ Return Value:
 {
     LOGINFO("Get Handler triggerd");
     AquariusService *aqSvc = GetAquariusService();
-    
+
     if(!aqSvc)
     {
         LOGINFO("Aquarius Service not initialized\n");
-        request.reply(status_codes::status_codes::InternalError, nullptr);		
+        request.reply(status_codes::status_codes::InternalError, nullptr);
     }
-    
+
     aqSvc->AquariusServiceLock();
     int pluginCount = aqSvc->GetPluginCount();
-    
+
     if(pluginCount==-1)
     {
         LOGINFO("Aquarius Package Manager not initialized\n");
         request.reply(status_codes::status_codes::InternalError, nullptr);
     }
 
-    LOGINFO("Plugincount:%d\n",pluginCount);	
+    LOGINFO("Plugincount:%d\n",pluginCount);
     PluginMetadata *pluginData = GetPluginInstances(pluginCount);
-    
+
     if(pluginData == NULL)
     {
         LOGINFO("GetInsatances for plugin data returns null\n");
@@ -269,15 +270,18 @@ Return Value:
 
     int i=0;
     json::value obj;
-    
+    vector<json::value> sHandlerArray;
+    StatusHandler statusHandler;
+
     for(i=0;i<pluginCount;i++)
-    {		
+    {
+        Substatus substatus;
         LOGINFOW(L"Plugin Name %s State %d exitStatus %d blockrole %d.",
             pluginData[i].name, pluginData[i].processState, pluginData[i].exitStatus, pluginData[i].blockRole);
 
         json::value pluginStatus;
         pluginStatus[L"state"] = pluginData[i].processState;
-    
+
         if (pluginData[i].blockRole == 1)
         {
             pluginStatus[L"exitStatus"] = pluginData[i].exitStatus;
@@ -288,8 +292,40 @@ Return Value:
         }
 
         obj[pluginData[i].name] = pluginStatus;
+
+        substatus.name.assign(pluginData[i].name);
+        substatus.code = pluginData[i].exitStatus;
+        substatus.status.assign(L"Success");
+        substatus.formattedMessage.lang.assign(L"en-US");
+        substatus.formattedMessage.message.assign(L"ST Completed");
+        statusHandler.status.substatus.push_back(substatus);
     }
-    
+
+    statusHandler.version.assign(L"1.0");
+    statusHandler.status.name.assign(L"Aquarius");
+    statusHandler.status.code=0;
+    statusHandler.status.status.assign(L"Success");
+    statusHandler.status.formattedMessage.lang.assign(L"en-US");
+    statusHandler.status.formattedMessage.message.assign(L"Completed");
+
+    json::value sHandlerValue = statusHandler.ToJson();
+    sHandlerArray.push_back(sHandlerValue);
+
+    WCHAR statusFileW[MAX_PATH];
+    char statusFile[MAX_PATH];
+
+    swprintf_s(statusFileW, MAX_PATH, L"%s\\%s.status", aqSvc->handlerEnvObject.statusFolderPath, aqSvc->handlerConfigObject.latestSequenceNumber.c_str());
+
+    if (AquariusUtilities::ConvertWcharToChar(statusFileW, statusFile, MAX_PATH) == 0)
+    {
+        StatusHandler::WriteExtensionStatus(statusFile, sHandlerArray);
+    }
+    else
+    {
+        LOGERRW(L"error writing status. Cannot convert wchar to char filename %s", statusFileW);
+    }
+
+
     aqSvc->AquariusServiceUnLock();
     request.reply(status_codes::OK, obj);
 }
@@ -298,7 +334,7 @@ void AquariusService::RestServerThreadHandler()
 /*++
 
 Routine Description:
-    Rest Server thread handler. This function creates a rest server on localhost and listens on RESTSERVER_PORT. 
+    Rest Server thread handler. This function creates a rest server on localhost and listens on RESTSERVER_PORT.
 
 Arguments:
 
@@ -306,15 +342,15 @@ Return Value:
 
 --*/
 {
-    LOGINFO("RestServerThread Created!!");	
+    LOGINFO("RestServerThread Created!!");
 
     if(handlerConfigObject.restServerPort.empty())
     {
         handlerConfigObject.restServerPort = RESTSERVER_PORT;
     }
 
-    RestServer restServer(HTTP_PROTO, LOCALHOST, handlerConfigObject.restServerPort, PLUGIN_STATUS, postHandler, getHandler); 
-    
+    RestServer restServer(HTTP_PROTO, LOCALHOST, handlerConfigObject.restServerPort, PLUGIN_STATUS, postHandler, getHandler);
+
     DWORD status = restServer.Listen();
     if (status != 0 )
     {
@@ -337,9 +373,9 @@ Return Value:
 //
 //   FUNCTION: AquariusService::OnStart(DWORD, LPWSTR *)
 //
-//   PURPOSE: The function is executed when a Start command is sent to the 
-//   service by the SCM or when the operating system starts (for a service 
-//   that starts automatically). It specifies actions to take when the 
+//   PURPOSE: The function is executed when a Start command is sent to the
+//   service by the SCM or when the operating system starts (for a service
+//   that starts automatically). It specifies actions to take when the
 //   service starts.
 //
 void AquariusService::OnStart(DWORD dwArgc, LPWSTR *lpszArgv)
@@ -393,7 +429,7 @@ Return Value:
     aqPackageManager->GetPackageStoreLocation(packageStoreLocation);
 
     if (aquariusKernel == nullptr)
-    {		
+    {
         aquariusKernel = new AquariusKernel(packageStoreLocation);
         AquariusUtilities::allocator++;
     }
@@ -402,7 +438,7 @@ Return Value:
 
     service_objects_mutex.lock();
     int ret = ProcessConfig(exeLocation);
-    
+
     if(ret != 0)
     {
         LOGINFO("ProcessConfig Failed\n");
@@ -411,7 +447,7 @@ Return Value:
     service_objects_mutex.unlock();
 }
 
-// The method performs the main function of the service. It runs 
+// The method performs the main function of the service. It runs
 // on a thread pool worker thread.
 void AquariusService::ServiceWorkerThread(void)
 {
@@ -419,9 +455,9 @@ void AquariusService::ServiceWorkerThread(void)
     //initial timeout will be 3 minutes
     int timeout = 180000;
     PluginMetadata *allPluginsMetadata = nullptr;
-    
+
     service_objects_mutex.lock();
-    try 
+    try
     {
         if (aqPackageManager != nullptr)
         {
@@ -431,7 +467,7 @@ void AquariusService::ServiceWorkerThread(void)
             }
             else
             {
-                pluginCount = aqPackageManager->GetPluginCount();	 
+                pluginCount = aqPackageManager->GetPluginCount();
             }
         }
     }
@@ -440,13 +476,13 @@ void AquariusService::ServiceWorkerThread(void)
         service_objects_mutex.unlock();
         throw;
     }
-    
+
     aquariusKernel->LoadPlugins(pluginCount, allPluginsMetadata);
     service_objects_mutex.unlock();
 
     while (true)
     {
-        try 
+        try
         {
             if (aquariusKernel != nullptr)
             {
@@ -474,7 +510,7 @@ void AquariusService::ServiceWorkerThread(void)
             LOGERRW(L"AquariusService wait event error  0x%08lx", error);
             throw GetLastError();
         }
-        
+
         // making it up one hr. First timeout will be three minutes and the rest will be 1 hour.
         timeout = MAX_TIMEOUT_MILLISECS;
     }
@@ -497,7 +533,7 @@ void AquariusService::ServiceWorkerThread(void)
     }
 
     AquariusUtilities::ReleasePluginMetadata(pluginCount, allPluginsMetadata);
-    
+
     LOGINFO("Free up Aquarius Service data objects");
 
     handlerConfigObject.Cleanup();
@@ -526,7 +562,7 @@ Return Value:
     service_objects_mutex.lock();
 
 
-    // Indicate that the service is stopping and wait for the finish of the 
+    // Indicate that the service is stopping and wait for the finish of the
     // main service function (ServiceWorkerThread).
 
     if (m_hStopEvent)
@@ -536,7 +572,7 @@ Return Value:
 
     LOGINFO("# of allocations that were nto deleted: %d.",
         AquariusUtilities::allocator);
-    
+
     if (m_hStoppedEvent[RESTSERVER_THREAD])
     {
         LOGINFOW(L"Waiting for AquariusSvc and Restserver to exit");
@@ -605,14 +641,14 @@ Routine Description:
 
 Arguments:
     exeLocation - Location of Aquarius exe
-    
+
 Return Value:
     return 0 on success else -1
 
 --*/
-{	
+{
     int ret = handlerEnvObject.ReadHandlerEnvironmentFile(exeLocation);
-        
+
     if(ret!=0)
     {
         LOGINFOW(L"ReadHandlerEnvironmentFile function failed for exe location %s\n", exeLocation);
@@ -621,10 +657,11 @@ Return Value:
 
     LOGSETUP(handlerEnvObject.logFolderPath, AQUARIUS_LOG_PREFIX);
 
-    LOGINFOW(L"Config Folder Path: %s Log Folder :%s", handlerEnvObject.configFolderPath, handlerEnvObject.logFolderPath);
+    LOGINFOW(L"Config Folder Path: %s Log Folder :%s statusFolder :%s",
+        handlerEnvObject.configFolderPath, handlerEnvObject.logFolderPath, handlerEnvObject.statusFolderPath);
 
     std::string str = handlerConfigObject.ReadLatestConfigFile(handlerEnvObject.configFolderPath);
-    
+
     if(str.empty())
     {
         LOGERRW(L"ReadLatestConfigFile failed. Returned empty string");
@@ -638,6 +675,6 @@ Return Value:
         LOGINFOW(L"ReadHandlerEnvironmentFile function failed for exe location %s\n", exeLocation);
         return -1;
     }
-    
+
     return 0;
 }
