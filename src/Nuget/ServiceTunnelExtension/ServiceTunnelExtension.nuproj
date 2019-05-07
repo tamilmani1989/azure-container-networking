@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" DefaultTargets="Build;CreatePackage" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>f91d094f-7ee7-4f10-9816-274d61596466</ProjectGuid>
+  </PropertyGroup>
+  <!-- Nuget generation properties -->
+  <PropertyGroup>
+    <NoPackageAnalysis>true</NoPackageAnalysis>
+    <Id>Microsoft.WindowsAzure.Internal.$(GitBranchName)ServiceTunnelExtension</Id>
+    <Version>$(BuildVersion)</Version>
+    <Title>ServiceTunnelExtension Package</Title>
+    <Authors>sdnagent@microsoft.com</Authors>
+    <Owners>sdnagent@microsoft.com</Owners>
+    <Description>ServiceTunnelExtension</Description>
+    <ReleaseNotes>
+    </ReleaseNotes>
+    <Summary>This Package can be used to setup servicetunnel inside windows VMs</Summary>
+    <ProjectUrl>http://www.Microsoft.com</ProjectUrl>
+    <LicenseUrl>http://www.Microsoft.com/license</LicenseUrl>
+    <Copyright>Copyright (c) Microsoft Corporation</Copyright>
+    <RequireLicenseAcceptance>False</RequireLicenseAcceptance>
+    <Tags>
+    </Tags>
+  </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="$(BinariesBuildTypeArchDirectory)\AquariusPackage\Aquarius\Plugins\ServiceTunnelExtension\Code">
+        <TargetPath>content</TargetPath>
+        <Recursive>true</Recursive>
+    </Folder>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(SRCROOT)\AquariusPackage\AquariusPackage.proj" />
+  </ItemGroup>
+  <Import Project="$(PkgNuProj)\NuProj.Targets" />
+</Project>
