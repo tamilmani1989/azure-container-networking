@@ -6,6 +6,7 @@
     <ProjectReference Include="AzureDNCPackage\AzureDNCPackage.nuproj" />
     <ProjectReference Include="NetworkClientLibrary\NetworkClientLibrary.nuproj" />
     <ProjectReference Include="NetAgentPackage\NetAgentPackage.nuproj" />
+    <ProjectReference Include="ServiceTunnelExtension\ServiceTunnelExtension.nuproj" />
   </ItemGroup>
   <Import Project="$(MsBuildBinPath)\Microsoft.Common.Targets" />
   <PropertyGroup>
