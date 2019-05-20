@@ -37,6 +37,8 @@ using namespace web;
 #define ERROR_MESSAGE_STR L"ErrorMessage"
 #define EVENT_MESSAGE_STR L"EventMessage"
 #define UPTIME_STR L"UpTime"
+#define TIMESTAMP_STR L"Timestamp"
+
 //
 // Enums for fields in the NPM report.
 //
@@ -53,6 +55,7 @@ namespace NPMEnum
 		ErrorMessage,
 		EventMessage,
 		UpTime,
+		Timestamp,
 		ClusterState,
 		Metadata
 	};
@@ -93,6 +96,9 @@ public:
 
 	// The Azure NPM instance's running time.
 	wstring UpTime;
+
+	// The Timestamp of the report
+	wstring Timestamp;
 
 	// State of the kubernetes cluster.
 	ClusterState ClusterState;
