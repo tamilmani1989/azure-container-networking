@@ -24,11 +24,9 @@ func Logger(inner http.Handler, name string) http.Handler {
 			return
 		}
 
-		if strings.Contains(r.RequestURI, "/azurestoragesettings") {
-			if ctrler.IsReplicaReady() {
-				return
-			}
-		} else if strings.Contains(r.RequestURI, "/azurestoragesettingsv2") {
+		if strings.Contains(r.RequestURI, "/azurestoragesettings") ||
+			strings.Contains(r.RequestURI, "/azurestoragesettingsv2") ||
+			strings.Contains(r.RequestURI, "/azurestoragesettingsv3") {
 			if ctrler.IsReplicaReady() {
 				return
 			}

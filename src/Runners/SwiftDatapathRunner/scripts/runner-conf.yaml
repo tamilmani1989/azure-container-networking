@@ -1,0 +1,76 @@
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: runner-sa
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: default
+  name: runner-role
+rules:
+- apiGroups: ["", "apps"]
+  resources: ["pods", "nodes", "services", "deployments", "containers", "pods/exec", "pods/log"]
+  verbs: ["get", "create", "delete", "update", "list"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: default
+  name: runner-role-binding
+subjects:
+- kind: ServiceAccount
+  name: runner-sa
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: runner-role
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: runner-service
+spec:
+  selector:
+    app: swift-runner
+  type: LoadBalancer
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 9009
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: swift-runner-pod
+  labels:
+    app: swift-runner 
+spec:
+  selector:
+    matchLabels:
+      app: swift-runner
+  template:
+    metadata:
+      labels:
+        app: swift-runner
+    spec:
+      hostNetwork: true
+      serviceAccountName: runner-sa
+      containers:
+      - name: swift-runner
+        image: mcr.microsoft.com/containernetworking/swift-runner:latest
+        imagePullPolicy: Always
+        ports:
+          - containerPort: 9009
+        env:
+        - name: CUST_VNET
+          value: "4bb7c8c6-3f1d-4dbd-89b1-a9aede5e55cf"
+        - name: SERVICE_TUNNEL_EP
+          value: "https://southcentralusst0.blob.core.windows.net/swift/testblob.txt"
+        - name: BLOB
+          value: "centralus-sr-blob"
+        - name: CONTAINER
+          value: "centralus-sr-container"
+        - name: NODE
+          value: "k8s-agentpool1-37111790-0"

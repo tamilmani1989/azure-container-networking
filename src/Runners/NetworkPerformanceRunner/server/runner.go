@@ -211,7 +211,7 @@ func triggerNetworkPerformanceTests(w http.ResponseWriter) (err error) {
 
 		log.Printf("Error getting logs: %+v", err)
 	}
-	// delete container if all tests have passed
+
 	exec.Command("kubectl", "delete", "-f", clientyml).Run()
 	testLock.Lock()
 	testRunning = false

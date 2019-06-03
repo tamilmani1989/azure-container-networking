@@ -1,0 +1,113 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" Condition=" '$(EnvironmentConfig)' != '' " />
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props') And '$(EnvironmentConfig)' == ''" />
+  <Import Project="$(PkgBond_CSharp_5_3_1)\build\Bond.CSharp.props" Condition="Exists('$(PkgBond_CSharp_5_3_1)\build\Bond.CSharp.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{2DF5CB6A-163B-48B5-A237-16A0748D81E7}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>SwiftRunner</RootNamespace>
+    <AssemblyName>SwiftRunnerDatapath</AssemblyName>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <NuGetPackageImportStamp></NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Bond">
+      <HintPath Condition="Exists('packages')">$(PkgBond_Runtime_CSharp_5_3_1)\lib\net45\Bond.dll</HintPath>
+      <HintPath Condition="Exists('$(PkgBond_Runtime_CSharp_5_3_1)\lib\net45\Bond.dll')">$(PkgBond_Runtime_CSharp_5_3_1)\lib\net45\Bond.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Bond.Attributes">
+      <HintPath Condition="Exists('packages')">$(PkgBond_Runtime_CSharp_5_3_1)\lib\net45\Bond.Attributes.dll</HintPath>
+      <HintPath Condition="Exists('$(PkgBond_Runtime_CSharp_5_3_1)\lib\net45\Bond.Attributes.dll')">$(PkgBond_Runtime_CSharp_5_3_1)\lib\net45\Bond.Attributes.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Bond.IO">
+      <HintPath Condition="Exists('packages')">$(PkgBond_Runtime_CSharp_5_3_1)\lib\net45\Bond.IO.dll</HintPath>
+      <HintPath Condition="Exists('$(PkgBond_Runtime_CSharp_5_3_1)\lib\net45\Bond.IO.dll')">$(PkgBond_Runtime_CSharp_5_3_1)\lib\net45\Bond.IO.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Bond.JSON">
+      <HintPath Condition="Exists('packages')">$(PkgBond_Runtime_CSharp_5_3_1)\lib\net45\Bond.JSON.dll</HintPath>
+      <HintPath Condition="Exists('$(PkgBond_Runtime_CSharp_5_3_1)\lib\net45\Bond.JSON.dll')">$(PkgBond_Runtime_CSharp_5_3_1)\lib\net45\Bond.JSON.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.Cloud.InstrumentationFramework.Events">
+      <HintPath Condition="Exists('packages')">$(PkgMicrosoft_Cloud_InstrumentationFramework_3_0_6_57)\lib\net40\Microsoft.Cloud.InstrumentationFramework.Events.dll</HintPath>
+      <HintPath Condition="Exists('$(PkgMicrosoft_Cloud_InstrumentationFramework_3_0_6_57)\lib\net40\Microsoft.Cloud.InstrumentationFramework.Events.dll')">$(PkgMicrosoft_Cloud_InstrumentationFramework_3_0_6_57)\lib\net40\Microsoft.Cloud.InstrumentationFramework.Events.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.Cloud.InstrumentationFramework.Health">
+      <HintPath Condition="Exists('packages')">$(PkgMicrosoft_Cloud_InstrumentationFramework_3_0_6_57)\lib\net40\Microsoft.Cloud.InstrumentationFramework.Health.dll</HintPath>
+      <HintPath Condition="Exists('$(PkgMicrosoft_Cloud_InstrumentationFramework_3_0_6_57)\lib\net40\Microsoft.Cloud.InstrumentationFramework.Health.dll')">$(PkgMicrosoft_Cloud_InstrumentationFramework_3_0_6_57)\lib\net40\Microsoft.Cloud.InstrumentationFramework.Health.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.Cloud.InstrumentationFramework.Metrics">
+      <HintPath Condition="Exists('packages')">$(PkgMicrosoft_Cloud_InstrumentationFramework_3_0_6_57)\lib\net40\Microsoft.Cloud.InstrumentationFramework.Metrics.dll</HintPath>
+      <HintPath Condition="Exists('$(PkgMicrosoft_Cloud_InstrumentationFramework_3_0_6_57)\lib\net40\Microsoft.Cloud.InstrumentationFramework.Metrics.dll')">$(PkgMicrosoft_Cloud_InstrumentationFramework_3_0_6_57)\lib\net40\Microsoft.Cloud.InstrumentationFramework.Metrics.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath Condition="Exists('packages')">$(PkgNewtonsoft_Json_11_0_2)\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <HintPath Condition="Exists('$(PkgNewtonsoft_Json_11_0_2)\lib\net45\Newtonsoft.Json.dll')">$(PkgNewtonsoft_Json_11_0_2)\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+      <HintPath>$(PkgNewtonsoft_Json)\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="RunnerAuthorBase">
+      <HintPath Condition="Exists('packages')">$(PkgMDS_Runner_55_0_0_23)\lib\net40\RunnerAuthorBase.dll</HintPath>
+      <HintPath Condition="Exists('$(PkgMDS_Runner_55_0_0_23)\lib\net40\RunnerAuthorBase.dll')">$(PkgMDS_Runner_55_0_0_23)\lib\net40\RunnerAuthorBase.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Threading" />
+    <Reference Include="Newtonsoft.Json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="StartRunner.cs" />
+    <Compile Include="Runner.cs" />
+    <Compile Include="contracts\DncDataPathResponse.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="RunnerDefinition.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
+    </Content>
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.CSharp.targets" Condition=" '$(EnvironmentConfig)' != '' " />
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" Condition=" '$(EnvironmentConfig)' == '' " />
+  <Import Project="$(PkgBond_CSharp_5_3_1)\build\Bond.CSharp.targets" Condition="Exists('$(PkgBond_CSharp_5_3_1)\build\Bond.CSharp.targets')" />
+  <Import Project="$(PkgMicrosoft_Cloud_InstrumentationFramework_3_0_6_57)\build\Microsoft.Cloud.InstrumentationFramework.targets" Condition="Exists('$(PkgMicrosoft_Cloud_InstrumentationFramework_3_0_6_57)\build\Microsoft.Cloud.InstrumentationFramework.targets')" />
+</Project>

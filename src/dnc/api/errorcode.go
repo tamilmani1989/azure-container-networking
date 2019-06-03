@@ -159,6 +159,7 @@ const (
 
 	// InvalidNetworkContainerRequest - Network container request is invalid
 	InvalidNetworkContainerRequest
+
 	// NetworkConfigurationRetrievalFailed - Retrieval of network configuration retrieval failed.
 	NetworkConfigurationRetrievalFailed
 
@@ -188,6 +189,12 @@ const (
 
 	// NodeContainerCapacityExhausted - The node has reached it's capacity for deployed network containers.
 	NodeContainerCapacityExhausted
+
+	// InvalidBlobName - BlobName cannot be empty.
+	InvalidBlobName
+
+	// InvalidContainerName - ContainerName cannot be empty.
+	InvalidContainerName
 )
 
 func (e ErrorCode) String() string {
@@ -377,6 +384,12 @@ func (e ErrorCode) String() string {
 
 	case NodeContainerCapacityExhausted:
 		return "NodeContainerCapacityExhausted"
+
+	case InvalidBlobName:
+		return "InvalidBlobName"
+
+	case InvalidContainerName:
+		return "InvalidContainerName"
 	}
 
 	return "Unknown Status"

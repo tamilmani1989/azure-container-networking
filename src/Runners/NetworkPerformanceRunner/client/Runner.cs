@@ -28,7 +28,7 @@ namespace NetworkPerformanceRunner
         private const string Namespace = "Namespace";
         private const string K8sEPKey = "K8sEP";
         private const string NetworkingTypeKey = "NetworkingType";
-        private const string DatapathStatusURLFmt = "http://{0}.eastus2euap.cloudapp.azure.com/networkPerformanceRunner";
+        private const string NetworkPerformanceURLFmt = "http://{0}.eastus2euap.cloudapp.azure.com/networkPerformanceRunner";
         private string k8sEP;
         private string networkingType;
         private ErrorContext mdmErr;
@@ -206,7 +206,7 @@ namespace NetworkPerformanceRunner
             if (!string.IsNullOrEmpty(k8sEP))
             {
                 string triggerStatusUrl = string.Format(
-                    DatapathStatusURLFmt,
+                    NetworkPerformanceURLFmt,
                     k8sEP);
                 HttpClient httpClient = new HttpClient();
                 httpClient.Timeout = new TimeSpan(0, 4, 0);
@@ -239,7 +239,7 @@ namespace NetworkPerformanceRunner
                             }
                             break;
                         default:
-                            Console.WriteLine("Exit 2: Failed to get network performance results.");
+                            Console.WriteLine("Failed to get network performance results.");
                             break;
                     }
                 }
@@ -248,7 +248,7 @@ namespace NetworkPerformanceRunner
                     if (e.Response != null)
                     {
                         string responseContent = new StreamReader(e.Response.GetResponseStream()).ReadToEnd();
-                        Console.WriteLine("Exit 3 {0}", responseContent);
+                        Console.WriteLine("WebException: {0}", responseContent);
                         throw new Exception($"Response :{responseContent}", e);
                     }
                 }
@@ -256,7 +256,7 @@ namespace NetworkPerformanceRunner
                 {
                     foreach (Exception aex in ae.InnerExceptions)
                     {
-                        Console.WriteLine("Exit 4 {0}", aex.Message);
+                        Console.WriteLine("AggregateException: {0}", aex.Message);
                     }
                     throw new Exception($"Response :{ae.Message}");
                 }

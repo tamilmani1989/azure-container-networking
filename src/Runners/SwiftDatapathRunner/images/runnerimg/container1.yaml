@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: container1
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: container1
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: container1
+    spec:
+      containers:
+      - name: container1
+        image: mcr.microsoft.com/containernetworking/swift-nc:latest
+        ports:
+        - containerPort: 80
+      dnsConfig:
+        nameservers:
+          - 168.63.129.16
