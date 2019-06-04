@@ -188,40 +188,47 @@ namespace NetworkManager
             }
 
             HashSet<string> removedSubnets;
-            NMAgentToRepoTranslators.UpdateNetworkAndSubnetConfigurations(
+            bool needUpdate = NMAgentToRepoTranslators.UpdateNetworkAndSubnetConfigurations(
                 networkConfig,
                 subnetConfigMap,
                 virtualNetworkResponse,
                 out removedSubnets);
 
-            // Mark the join operation as completed.
-            networkConfig.State = NetworkState.Join;
-            networkConfig.Status = Status.Completed;
-
-            await RepositoryHelper.CreateOrUpdateReliableDictionary(
-                transaction,
-                NetworkConfigReliableCollection,
-                NetworkConfiguration.GetNetworkKey(networkConfig.NetworkID),
-                networkConfig);
-
-            foreach (KeyValuePair<string, SubnetConfiguration> subnetKvp in subnetConfigMap)
+            if (needUpdate)
             {
+                // Mark the join operation as completed.
+                networkConfig.State = NetworkState.Join;
+                networkConfig.Status = Status.Completed;
+
                 await RepositoryHelper.CreateOrUpdateReliableDictionary(
                     transaction,
-                    SubnetConfigReliableCollection,
-                    subnetKvp.Key,
-                    subnetKvp.Value);
-            }
+                    NetworkConfigReliableCollection,
+                    NetworkConfiguration.GetNetworkKey(networkConfig.NetworkID),
+                    networkConfig);
 
-            foreach (string removedSubnet in removedSubnets)
+                foreach (KeyValuePair<string, SubnetConfiguration> subnetKvp in subnetConfigMap)
+                {
+                    await RepositoryHelper.CreateOrUpdateReliableDictionary(
+                        transaction,
+                        SubnetConfigReliableCollection,
+                        subnetKvp.Key,
+                        subnetKvp.Value);
+                }
+
+                foreach (string removedSubnet in removedSubnets ?? Enumerable.Empty<string>())
+                {
+                    await RepositoryHelper.RemoveFromReliableDictionary(
+                        transaction,
+                        SubnetConfigReliableCollection,
+                        removedSubnet);
+                }
+
+                ServiceEventSource.Current.Message($"Updated network config:{networkConfig}");
+            }
+            else
             {
-                await RepositoryHelper.RemoveFromReliableDictionary(
-                    transaction,
-                    SubnetConfigReliableCollection,
-                    removedSubnet);
+                ServiceEventSource.Current.Message($"Network config update is not needed");
             }
-
-            ServiceEventSource.Current.Message($"Updated network config:{networkConfig}");
         }
 
         public async Task UpdateNetworkConfiguration(
