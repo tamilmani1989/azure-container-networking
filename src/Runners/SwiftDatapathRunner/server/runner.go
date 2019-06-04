@@ -136,6 +136,8 @@ const (
 	running = "Running"
 	cnsyml  = "cns.yaml"
 	dncyml  = "dnc.yaml"
+	pod0IP  = "10.0.1.4"
+	pod1IP  = "10.0.1.5"
 )
 
 var (

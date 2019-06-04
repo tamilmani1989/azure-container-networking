@@ -21,15 +21,19 @@ func triggerDatapathTests(w http.ResponseWriter) (err error) {
 	// create container and run datapath tests
 	if err = createnc(false); err == nil {
 		// sleep and wait for pod creation
-		time.Sleep(1 * time.Minute)
+		time.Sleep(10 * time.Second)
 		// get container ID and remove wrapping quotes
-		output, _ := exec.Command("kubectl", "get", "pod", "-l", "app=container1", "-o", "jsonpath=\"{.items[0].metadata.name}\"").CombinedOutput()
+		output, _ := exec.Command("kubectl", "get", "pods", "-l", "app=container1", "-o", "jsonpath=\"{.items[0].metadata.name}\"").CombinedOutput()
 		containerID := string(output[1 : len(output)-1])
 		// wait for container to become ready (up to 2 minutes)
 		for start := time.Now(); time.Since(start) < time.Minute*2; time.Sleep(5 * time.Second) {
 			output, _ = exec.Command("kubectl", "get", "pods", containerID, "-o", "jsonpath=\"{.status.phase}\"").CombinedOutput()
 			if result := string(output[1 : len(output)-1]); result == running {
-				break
+				output, _ = exec.Command("kubectl", "get", "pods", containerID, "-o", "jsonpath=\"{.status.podIP}\"").CombinedOutput()
+				result = string(output[1 : len(output)-1])
+				if result == pod0IP || result == pod1IP {
+					break
+				}
 			}
 		}
 		// test storage endpoint (service tunneling)
