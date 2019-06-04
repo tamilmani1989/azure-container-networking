@@ -9,6 +9,9 @@
   <ServiceManifestImport>
     <ServiceManifestRef ServiceManifestName="DNCServicePkg" ServiceManifestVersion="1.0.1" />
     <ConfigOverrides />
+    <Policies>
+        <RunAsPolicy CodePackageRef="Code" UserRef="DncSystem" EntryPointType="All"/>
+    </Policies>
   </ServiceManifestImport>
   <DefaultServices>
     <Service Name="DNCService" ServiceDnsName="[DNCService_DNSName]">
@@ -17,4 +20,9 @@
       </StatefulService>
     </Service>
   </DefaultServices>
+  <Principals>
+    <Users>
+        <User Name="DncSystem" AccountType="LocalSystem"/>
+    </Users>
+  </Principals>
 </ApplicationManifest>
