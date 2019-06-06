@@ -126,7 +126,7 @@ namespace SwiftRunner
                     {
                         this.LogHealthy("SwiftDatapathRunner is healthy.");
                         Console.Error.WriteLine("Logging error from tests: {0}", datapath.LastError);
-                        if (!nic2nicMetric.LogValue(datapath.Nic2Nic ? 0 : 1,
+                        if (!nic2nicMetric.LogValue(datapath.Nic2Nic ? 1 : 2,
                                 this.Environment,
                                 this.RunnerInstance,
                                 k8sEP,
@@ -136,7 +136,7 @@ namespace SwiftRunner
                             Console.WriteLine("Failed to emit Nic2Nic metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
 
-                        if (!serviceTunnelMetric.LogValue(datapath.ServiceTunnel ? 0 : 1,
+                        if (!serviceTunnelMetric.LogValue(datapath.ServiceTunnel ? 1 : 2,
                                 this.Environment,
                                 this.RunnerInstance,
                                 k8sEP,
@@ -146,7 +146,7 @@ namespace SwiftRunner
                             Console.WriteLine("Failed to emit ServiceTunnel metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
 
-                        if (!nic2VmMetric.LogValue(datapath.Nic2VM ? 0 : 1,
+                        if (!nic2VmMetric.LogValue(datapath.Nic2VM ? 1 : 2,
                                 this.Environment,
                                 this.RunnerInstance,
                                 k8sEP,
@@ -156,7 +156,7 @@ namespace SwiftRunner
                             Console.WriteLine("Failed to emit Nic2VM metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
 
-                        if (!vnet2VnetGWMetric.LogValue(datapath.Vnet2VnetGW ? 0 : 1,
+                        if (!vnet2VnetGWMetric.LogValue(datapath.Vnet2VnetGW ? 1 : 2,
                                 this.Environment,
                                 this.RunnerInstance,
                                 k8sEP,
@@ -166,7 +166,7 @@ namespace SwiftRunner
                             Console.WriteLine("Failed to emit Vnet2VnetGW metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
 
-                        if (!vnet2VnetPeeringMetric.LogValue(datapath.Vnet2VnetPeering ? 0 : 1,
+                        if (!vnet2VnetPeeringMetric.LogValue(datapath.Vnet2VnetPeering ? 1 : 2,
                                 this.Environment,
                                 this.RunnerInstance,
                                 k8sEP,
