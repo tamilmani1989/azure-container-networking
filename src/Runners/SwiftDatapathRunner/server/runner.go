@@ -452,10 +452,10 @@ func createnc(original bool) (err error) {
 		} else {
 			for i := 0; i < attempts; i++ {
 				time.Sleep(secondsBetweenAttempts)
-				getresponse, err := http.Get(tmpURL)
-				if err == nil {
+				getresponse, innerErr := http.Get(tmpURL)
+				if innerErr == nil {
 					var ncresponse NetworkContainerResponse
-					if err = decodeResponse(getresponse, &ncresponse); err == nil {
+					if innerErr = decodeResponse(getresponse, &ncresponse); innerErr == nil {
 						// if create nc completed with no errors, continue with pod creation
 						if (ncresponse.RequestStatus.Status == "Completed" ||
 							ncresponse.RequestStatus.Status == "Refreshing") &&
@@ -469,10 +469,13 @@ func createnc(original bool) (err error) {
 							}
 							exec.Command("kubectl", "apply", "-f", config).Run()
 							getresponse.Body.Close()
+							err = nil
 							break
 						} else {
-							err = fmt.Errorf("%+v", ncresponse)
+							err = fmt.Errorf("Create NC failed: %+v", ncresponse)
 						}
+					} else {
+						err = fmt.Errorf("Create NC failed: %+v", innerErr)
 					}
 
 					getresponse.Body.Close()
