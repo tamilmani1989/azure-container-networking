@@ -1,0 +1,3 @@
+{
+    "commandToExecute": "POD=$(kubectl get pod -l app=swift-runner -o jsonpath=\"{.items[0].metadata.name}\") && kubectl delete pod $POD && sleep 10 && POD=$(kubectl get pod -l app=swift-runner -o jsonpath=\"{.items[0].metadata.name}\") && kubectl cp /home/acn/storage.json $POD:/ && kubectl cp /home/acn/subnet.json $POD:/"
+}

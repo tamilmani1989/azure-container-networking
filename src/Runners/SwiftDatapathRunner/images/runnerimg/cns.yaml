@@ -1,0 +1,61 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: cns-service
+spec:
+  selector:
+    app: cns
+  ports:
+    - name: cns-port
+      port: 10090
+      targetPort: 10090
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cns-pod
+  labels:
+    app: cns
+spec:
+  selector:
+    matchLabels:
+      app: cns
+  template:
+    metadata:
+      labels:
+        app: cns
+    spec:
+      hostNetwork: true
+      containers:
+      - name: cns-container
+        image: mcr.microsoft.com/containernetworking/azure-cns:latest
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: log
+          mountPath: /var/log
+        - name: cni
+          mountPath: /opt/cni/bin
+        - name: cniconfig
+          mountPath: /etc/cni/net.d
+        - name: telemetry-sock
+          mountPath: /var/run
+        ports:
+        - containerPort: 10090
+      volumes:
+      - name: log
+        hostPath:
+          path: /var/log
+          type: Directory
+      - name: cni
+        hostPath:
+          path: /opt/cni/bin
+          type: Directory
+      - name: cniconfig
+        hostPath:
+          path: /etc/cni/net.d
+          type: Directory
+      - name: telemetry-sock
+        hostPath:
+          path: /var/run
+          type: Directory

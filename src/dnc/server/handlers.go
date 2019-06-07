@@ -922,6 +922,54 @@ func InitializeAzureStorageV2(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// InitializeAzureStorageV3 - Handler for initializing datastore settings to establish a connection.
+func InitializeAzureStorageV3(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	blobName, ok := vars["blob"]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidBlobName,
+			HTTPStatus: http.StatusBadRequest,
+			Text:       "BlobName is missing"})
+		return
+	}
+
+	containerName, ok := vars["container"]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidContainerName,
+			HTTPStatus: http.StatusBadRequest,
+			Text:       "ContainerName is missing"})
+		return
+	}
+
+	var request api.AzureStorageRequest
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	if err := decodeRequestBody(r, &request); err != nil {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		if err := json.NewEncoder(w).Encode(err); err != nil {
+			panic(err)
+		}
+
+		return
+	}
+
+	if validationErr := request.Validate(); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	t := ctrler.InitializeAzureStorageV3(request, blobName, containerName)
+	if t != nil {
+		w.WriteHeader(t.HTTPStatus)
+		if err := json.NewEncoder(w).Encode(&t); err != nil {
+			panic(err)
+		}
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
 // RelinquishPrimaryStatus - Relinquish replica primary status
 func RelinquishPrimaryStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -1062,6 +1110,6 @@ func IsWaitingForNodeCleanup(w http.ResponseWriter, r *http.Request) {
 
 // RefreshNMAgentGoalState - Refresh NMAgent goal state
 func RefreshNMAgentGoalState(w http.ResponseWriter, r *http.Request) {
-		ctrler.RefreshNMAgentGoalState()
-		w.WriteHeader(http.StatusOK)
+	ctrler.RefreshNMAgentGoalState()
+	w.WriteHeader(http.StatusOK)
 }

@@ -492,6 +492,21 @@ func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2)
 	return nil
 }
 
+// InitializeAzureStorageV3 - Tries to establish a connection with azure storage with information provided in request.
+func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, blobName string, containerName string) *api.JsonErr {
+	loggershim.LS.Debugf("Initialize Azure Storage requestV3: %s", request.String())
+	config.DataStoreSettings.AzureStorageInfo.AccountName = request.AccountName
+	config.DataStoreSettings.AzureStorageInfo.Key = request.Key
+	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
+	config.MasterElectionSettings.BlobStorageSettings.BlobName = blobName
+	config.MasterElectionSettings.BlobStorageSettings.ContainerName = containerName
+	masterElectionShim.SetDataStoreSettings(config)
+	masterElectionShim.Init()
+	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	c.UpdateReplicaStatus(true)
+	return nil
+}
+
 // IsReplicaReady - Function to check if this replica is ready
 func (c *Controller) IsReplicaReady() bool {
 	return c.Replica.IsReplicaReady()
@@ -514,6 +529,6 @@ func (c *Controller) GetRefreshMonitorStatus() api.RefreshMonitorStatus {
 }
 
 // GetPrimaryIPEndpoint - Retrieves the current primary replica endpoint
-func (c *Controller) RefreshNMAgentGoalState() () {
+func (c *Controller) RefreshNMAgentGoalState() {
 	go c.RefreshNetworkContainersNMAgentGoalState()
 }

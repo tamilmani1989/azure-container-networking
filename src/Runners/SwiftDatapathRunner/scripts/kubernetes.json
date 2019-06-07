@@ -1,0 +1,71 @@
+{
+  "apiVersion": "vlabs",
+  "properties": {
+    "orchestratorProfile": {
+      "orchestratorType": "Kubernetes",
+      "orchestratorRelease": "1.14",
+      "kubernetesConfig": {
+        "azureCNIURLLinux": "https://github.com/Azure/azure-container-networking/releases/download/v1.0.22/azure-vnet-cni-multitenancy-linux-amd64-v1.0.22.tgz",
+        "azureCNIURLWindows": "https://github.com/Azure/azure-container-networking/releases/download/v1.0.22/azure-vnet-cni-multitenancy-windows-amd64-v1.0.22.zip",
+        "addons": [
+          {
+            "name": "kubernetes-dashboard",
+            "enabled" : false
+          },
+          {
+            "name": "blobfuse",
+            "enabled" : false
+          },
+          {
+            "name": "kube-dns",
+            "enabled" : false
+          },
+          {
+            "name": "metrics-server",
+            "enabled" : false
+          },
+          {
+            "name": "kube-dns",
+            "enabled" : false
+          },
+          {
+            "name": "tiller",
+            "enabled" : false
+          },
+          {
+            "name": "keyvault-flexvolume",
+            "enabled" : false
+          }
+        ]
+      }
+    },
+    "masterProfile": {
+      "count": 1,
+      "dnsPrefix": "centralus-sr-rg",
+      "vmSize": "Standard_DS1_v2"
+    },
+    "agentPoolProfiles": [
+      {
+        "name": "agentpool1",
+        "count": 1,
+        "vmSize": "Standard_DS1_v2",
+        "availabilityProfile": "AvailabilitySet",
+        "acceleratedNetworkingEnabled": false
+      }
+    ],
+    "linuxProfile": {
+      "adminUsername": "acn",
+      "ssh": {
+        "publicKeys": [
+          {
+            "keyData": ""
+          }
+        ]
+      }
+    },
+    "servicePrincipalProfile": {
+      "clientId": "aaf1de2b-61e2-4fba-91e6-94128dc7b095",
+      "secret": ""
+    }
+  }
+}

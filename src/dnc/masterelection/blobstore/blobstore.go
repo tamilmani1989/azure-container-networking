@@ -385,6 +385,8 @@ func (b *BlobStore) SetDataStoreSettings(config *configuration.Configuration) {
 	b.blobStorageSettings.AccountName = config.DataStoreSettings.AzureStorageInfo.AccountName
 	b.blobStorageSettings.Key = config.DataStoreSettings.AzureStorageInfo.Key
 	b.blobStorageSettings.PartitionKey = config.DataStoreSettings.AzureStorageInfo.PartitionKey
+	b.blobStorageSettings.BlobName = config.MasterElectionSettings.BlobStorageSettings.BlobName
+	b.blobStorageSettings.ContainerName = config.MasterElectionSettings.BlobStorageSettings.ContainerName
 	b.mutex.Unlock()
 }
 

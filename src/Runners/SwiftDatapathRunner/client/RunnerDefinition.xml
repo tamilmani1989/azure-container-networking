@@ -1,0 +1,307 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Runners>
+  <RunnerDefinition RunnerName="SwiftRunnerDatapath" Description="Swift runner (client) will query a runner (server) that sits on a swift/dnc setup in each region to determine e2e health.">
+    <!-- Any configuration Name/Value can be put into GlobalConfiguration, EnvironmentConfiguration or local configuration section. 
+         LocalConfigurations gets higher precedance than EnvironmentConfiguration which gets higher precedence over GlobalConfiguration. -->
+    <GlobalConfiguration>
+      <Configuration Name="Component" Value="MyComponent" />
+      <!-- Replace it with your component name. -->
+      <Configuration Name="Description" Value="TBD" />
+      <Configuration Name="MDMAccountName" Value="NetAgentHotPathProd" />
+      <Configuration Name="Namespace" Value="SwiftRunner" />
+      <!-- This is the expected frequency which the runners run at, also corresponds to the life time of the health reports submitted by the runner. Default value is 10 if none is provided. -->
+      <Configuration Name="ExpectedIntervalInMinutes" Value="20" />
+      <Configuration Name="Owner" Value="connetdevs@microsoft.com" />
+    </GlobalConfiguration>
+    <!-- On-Behalf Health Reporting setup 
+      HealthAccountName: Your MDM Account.
+      CertThumbprint: (Optional) Thumbprint of a certificate used to emit health reports. 
+                      The certificate must be installed in the runner container.
+      HealthEndpoint: (Optional) Specific health endpoint to emit the health reports to. 
+                      If not provided then it will use the default for the Geneva Warm Path endpoint. -->
+    <GlobalHealthDimension HealthAccountName="NetAgentHotPathProd" />
+    <Environment EnvironmentName="Prod">
+      <EnvironmentConfiguration>
+        <!-- Override global configuration value of Owner for Environment Prod -->
+        <Configuration Name="Owner" Value="connetdevs@microsoft.com" />
+      </EnvironmentConfiguration>
+      <!-- We recommmend specifying runner location where you want to start this runner instance. To get deployable location by endpoint, please view: 
+           https://jarvis.dc.ad.msft.net/?page=documents&section=f787c5ad-c22e-48aa-898a-1a042632f9d1&id=38973aa5-5931-4dd4-bae1-ef96f31ddf28
+           If not specified whatever specified on command line will be applied to all the instances.
+           Some sample command line parameters. You can pass any parameters you want.
+          <CommandLineParameters>-queuelength:10 -accountname:myaccount1</CommandLineParameters> -->
+      <RunnerInstance RunnerInstanceName="westus2Runner" Location="runnersvcprodmwh01">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="52.175.223.37" />
+          <Configuration Name="PartitionKey" Value="westus2-canary" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="eastus2Runner" Location="runnersvcprodbn3">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="104.209.134.174" />
+          <Configuration Name="PartitionKey" Value="eastus2-sr" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="eastusRunner" Location="runnersvcprodbl2">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="40.117.62.247" />
+          <Configuration Name="PartitionKey" Value="eastus-sr" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="westeuropeRunner" Location="runnersvcprodam3">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="137.117.155.31" />
+          <Configuration Name="PartitionKey" Value="westeurope-sr" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="northeuropeRunner" Location="runnersvcproddb4">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="40.127.104.2" />
+          <Configuration Name="PartitionKey" Value="northeurope-sr" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="southeastasiaRunner" Location="runnersvcprodsg3">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="13.76.0.52" />
+          <Configuration Name="PartitionKey" Value="southeastasia-sr" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="southcentralusRunner" Location="runnersvcprodsn3">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="104.215.117.130" />
+          <Configuration Name="PartitionKey" Value="southcentralus-sr" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <!--
+      <RunnerInstance RunnerInstanceName="westcentralusRunner" Location="runnersvcprodcy4">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="japanwestRunner" Location="runnersvcprodos1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="westusRunner" Location="runnersvcprodby3">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="brazilsouthRunner" Location="runnersvcprodcq1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="westindiaRunner" Location="runnersvcprodbm1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="northcentralusRunner" Location="runnersvcprodch2">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="centralusRunner" Location="runnersvcproddm2">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="eastasiaRunner" Location="runnersvcprodhk2">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="japaneastRunner" Location="runnersvcprodkw1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="southindiaRunner" Location="runnersvcprodma1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="australiasoutheastRunner" Location="runnersvcprodml1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="centralindiaRunner" Location="runnersvcprodpn1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="australiaeastRunner" Location="runnersvcprodsy3">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="canadaeastRunner" Location="runnersvcprodyq1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="canadacentralRunner" Location="runnersvcprodyt1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="uknorthRunner" Location="runnersvcprodmm1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="uksouth2Runner" Location="runnersvcprodlo1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="ukwestRunner" Location="runnersvcprodcw1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="uksouthRunner" Location="runnersvcprodln1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="koreacentralRunner" Location="runnersvcprodse1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="koreasouthRunner" Location="runnersvcprodps1">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="francecentralRunner" Location="runnersvcprodpar20">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      <RunnerInstance RunnerInstanceName="francesouthRunner" Location="runnersvcprodmrs20">
+        <CommandExe>SwiftRunnerDatapath.exe</CommandExe>
+        <CommandLineParameters>
+        </CommandLineParameters>
+        <LocalConfigurations>
+          <Configuration Name="K8sEP" Value="dummy" />
+          <Configuration Name="PartitionKey" Value="dummy" />
+        </LocalConfigurations>
+      </RunnerInstance>
+      -->
+    </Environment>
+  </RunnerDefinition>
+</Runners>

@@ -72,6 +72,7 @@ Return Value:
 	NPMReportFieldIdMap[ERROR_MESSAGE_STR] = NPMEnum::NPMReportKey::ErrorMessage;
 	NPMReportFieldIdMap[EVENT_MESSAGE_STR] = NPMEnum::NPMReportKey::EventMessage;
 	NPMReportFieldIdMap[UPTIME_STR] = NPMEnum::NPMReportKey::UpTime;
+	NPMReportFieldIdMap[TIMESTAMP_STR] = NPMEnum::NPMReportKey::Timestamp;
 	NPMReportFieldIdMap[CLUSTER_STATE_STR] = NPMEnum::NPMReportKey::ClusterState;
 	NPMReportFieldIdMap[METADATA_STR] = NPMEnum::NPMReportKey::Metadata;
 }
@@ -132,6 +133,9 @@ Return Value:
 	case NPMEnum::NPMReportKey::UpTime:
 		UpTime = Value.as_string();
 		break;
+	case NPMEnum::NPMReportKey::Timestamp:
+		Timestamp = Value.as_string();
+		break;
 	case NPMEnum::NPMReportKey::ClusterState:
 		ClusterState = ClusterState::ClusterState(Value.as_object());
 		break;
@@ -159,15 +163,16 @@ Return Value:
 --*/
 {
 	wstring s = L"NPMReport: {";
-	s += L"IsNewInstance: " + ConvertBoolToWstring(IsNewInstance) +L"\n";
-	s += L"ClusterID: " + ClusterId +L"\n";
-	s += L"NODENAME: " + NodeName +L"\n";
-	s += L"InstanceName: " + InstanceName +L"\n";
-	s += L"NpmVersion: " + NpmVersion +L"\n";
-	s += L"KubernetesVersion: " + KubernetesVersion +L"\n";
-	s += L"ErrorMessage: " + ErrorMessage +L"\n";
-	s += L"EventMessage: " + EventMessage +L"\n";
-	s += L"UpTime: " + UpTime +L"\n";
+	s += L"IsNewInstance: " + ConvertBoolToWstring(IsNewInstance) + L"\n";
+	s += L"ClusterID: " + ClusterId + L"\n";
+	s += L"NODENAME: " + NodeName + L"\n";
+	s += L"InstanceName: " + InstanceName + L"\n";
+	s += L"NpmVersion: " + NpmVersion + L"\n";
+	s += L"KubernetesVersion: " + KubernetesVersion + L"\n";
+	s += L"ErrorMessage: " + ErrorMessage + L"\n";
+	s += L"EventMessage: " + EventMessage + L"\n";
+	s += L"UpTime: " + UpTime + L"\n";
+	s += L"Timestamp: " + Timestamp + L"\n";
 	ClusterState.Print();
 	Metadata.Print();
 
