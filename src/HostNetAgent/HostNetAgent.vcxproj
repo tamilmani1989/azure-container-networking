@@ -16,6 +16,7 @@
         $(SrcRoot)\Common\Inc;
         $(SrcRoot)\Logging;
         $(SRCROOT)\Common\NetAgentContracts;
+        $(PkgPfHEMigrationModule_Release);
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>

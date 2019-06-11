@@ -22,6 +22,28 @@ Environment:
 #include "GetInterfaceForContainerResponse.h"
 #include "HostNetAgent.h"
 #include "RequestHandlers.h"
+#include "pfhemigration.h"
+
+// Extern variables used in pfhemigration.h - PLEASE DO NOT USE THEM ANYWHERE ELSE IN THE SOURCE
+TCHAR * g_pMigrationErrorMessage;
+const TCHAR * g_pServiceName;
+const TCHAR ** g_imageNamesToKill;
+int g_imageNameCount;
+bool g_monitoringEnabled;
+void(*g_pfWriteLog)(bool, const TCHAR*);
+TCHAR * g_pDataFolder;
+
+void WriteLog(bool isError, const WCHAR * message)
+{
+    if (isError)
+    {
+        LOGERRW(message);
+    }
+    else
+    {
+        LOGINFOW(message);
+    }
+}
 
 DWORD 
 AgentParseCommandLine(
@@ -344,6 +366,15 @@ Return Value:
         LOGERRW(L"Failed to initialize packages info.");
         return err;
     }
+
+    const WCHAR * imageNamesToKill[] = { L"HostNetAgent.exe" }; // killing the host first so that it doesn't start agent immediately.
+
+    if (!ProcessPilotFishSwitchLogic(L"HostNetAgent", sizeof(imageNamesToKill) / sizeof(WCHAR*), imageNamesToKill, Argc, Argv, true, WriteLog))
+    {
+        LOGERRW(L"ProcessPilotFishSwitchLogic failed");
+        return hr;
+    }
+    LOGINFOW(L"ProcessPilotFishSwitchLogic returned. Continuing with business logic.");
 
     monAgent = MonAgent::GetInstance();
     if (monAgent == NULL)
