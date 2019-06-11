@@ -138,6 +138,9 @@ const (
 	dncyml  = "dnc.yaml"
 	pod0IP  = "10.0.1.4"
 	pod1IP  = "10.0.1.5"
+	// We wait for a maximum of 3 minutes (18*10 seconds) for create NC to return a valid status.
+	attempts                             = 18
+	secondsBetweenAttempts time.Duration = 10 * time.Second
 )
 
 var (
@@ -447,31 +450,45 @@ func createnc(original bool) (err error) {
 				err = fmt.Errorf("Createnc failed with message %s [error code: %d]", respErr.Text, respErr.Code)
 			}
 		} else {
-			// sleep for 5s NC goal state to be persisted
-			time.Sleep(5 * time.Second)
-
-			response, err = http.Get(tmpURL)
-			if err == nil {
-				var ncresponse NetworkContainerResponse
-				if err = decodeResponse(response, ncresponse); err == nil {
-					if ncresponse.RequestStatus.FailureDetail.Code == 0 {
-						// create container
-						var config string
-						if original {
-							config = "container0.yaml"
+			for i := 0; i < attempts; i++ {
+				time.Sleep(secondsBetweenAttempts)
+				getresponse, innerErr := http.Get(tmpURL)
+				if innerErr == nil {
+					var ncresponse NetworkContainerResponse
+					if innerErr = decodeResponse(getresponse, &ncresponse); innerErr == nil {
+						// if create nc completed with no errors, continue with pod creation
+						if (ncresponse.RequestStatus.Status == "Completed" ||
+							ncresponse.RequestStatus.Status == "Refreshing") &&
+							ncresponse.RequestStatus.FailureDetail.Code.String() == "Unknown Status" {
+							// create container
+							var config string
+							if original {
+								config = "container0.yaml"
+							} else {
+								config = "container1.yaml"
+							}
+							exec.Command("kubectl", "apply", "-f", config).Run()
+							getresponse.Body.Close()
+							err = nil
+							break
 						} else {
-							config = "container1.yaml"
+							err = fmt.Errorf("Create NC failed: %+v", ncresponse)
 						}
-						exec.Command("kubectl", "apply", "-f", config).Run()
 					} else {
-						err = fmt.Errorf("%+v", ncresponse.RequestStatus.FailureDetail)
+						err = fmt.Errorf("Create NC failed: %+v", innerErr)
 					}
+
+					getresponse.Body.Close()
 				}
 			}
 		}
 	}
 
-	log.Printf("%+v", err)
+	if err != nil {
+		deletenc(original)
+		log.Printf("%+v", err)
+	}
+
 	return
 }
 
