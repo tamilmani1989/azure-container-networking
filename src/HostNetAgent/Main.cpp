@@ -369,7 +369,7 @@ Return Value:
 
     const WCHAR * imageNamesToKill[] = { L"HostNetAgent.exe" }; // killing the host first so that it doesn't start agent immediately.
 
-    if (!ProcessPilotFishSwitchLogic(L"HostNetAgent", sizeof(imageNamesToKill) / sizeof(WCHAR*), imageNamesToKill, Argc, Argv, true, WriteLog))
+    if (!ProcessPilotFishSwitchLogic(L"HostNetAgent", sizeof(imageNamesToKill) / sizeof(WCHAR*), imageNamesToKill, (int)Argc, (const WCHAR **)Argv, true, WriteLog))
     {
         LOGERRW(L"ProcessPilotFishSwitchLogic failed");
         return hr;
