@@ -19,6 +19,8 @@ Environment:
 // ------------------------------------------------------------------- Includes
 //
 
+#pragma comment(lib, "version.lib")
+
 #include "GetInterfaceForContainerResponse.h"
 #include "HostNetAgent.h"
 #include "RequestHandlers.h"
