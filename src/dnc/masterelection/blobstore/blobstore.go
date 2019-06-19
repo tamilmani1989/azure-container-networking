@@ -101,7 +101,6 @@ func (b *BlobStore) createBlob() error {
 	b.blob = cnt.GetBlobReference(b.blobStorageSettings.BlobName)
 	blobExist, checkBlobErr := b.blob.Exists()
 	if checkBlobErr != nil {
-		loggershim.LS.Errorf("Check if blob exist failed: %s", checkBlobErr.Error())
 		return fmt.Errorf("create block blob failed as blob exist check failed: %+v", checkBlobErr)
 	}
 
@@ -114,7 +113,6 @@ func (b *BlobStore) createBlob() error {
 					loggershim.LS.Debugf("Blob exist and there exist as lease on the blob", storagErr.StatusCode)
 				}
 			} else {
-				loggershim.LS.Errorf("create block blob failed: %s", err.Error())
 				return fmt.Errorf("create block blob failed: %v", err)
 			}
 		}
@@ -129,8 +127,7 @@ func (b *BlobStore) getIPAddress() (string, error) {
 	if ipAddress == "" {
 		ipAddress, err = getLocalIP()
 		if err != nil {
-			loggershim.LS.Errorf("Failed to retrieve IP Address due to error: %s", err.Error())
-			return "", err
+			return "", fmt.Errorf("Failed to retrive ip address due to error: %s", err.Error())
 		}
 	}
 
@@ -142,7 +139,6 @@ func (b *BlobStore) UpdatePrimaryIPEndpoint() error {
 
 	ipEndpoint, err := b.GetReplicaIPEndpoint()
 	if err != nil {
-		loggershim.LS.Errorf("Failed to get local IP address due to error: %s", err.Error())
 		return err
 	}
 
@@ -151,10 +147,8 @@ func (b *BlobStore) UpdatePrimaryIPEndpoint() error {
 		blockIDEncoded,
 		[]byte(ipEndpoint),
 		putBlockOptions)
-
 	if err != nil {
-		loggershim.LS.Errorf("PutBlock failed: %s", err.Error())
-		return err
+		return fmt.Errorf("PutBlock failed: %s", err.Error())
 	}
 
 	blocks := []storage.Block{
@@ -165,11 +159,9 @@ func (b *BlobStore) UpdatePrimaryIPEndpoint() error {
 
 	err = b.blob.PutBlockList(blocks, putBlockListOptions)
 	if err != nil {
-		loggershim.LS.Errorf("PutBlockList failed: %s", err.Error())
-		return err
+		return fmt.Errorf("PutBlockList failed: %s", err.Error())
 	}
-	loggershim.LS.Errorf("Replica %v got elected as primary", ipEndpoint)
-	loggershim.LS.Debugf("Successfully updated the blob")
+	loggershim.LS.Debugf("Replica %v got elected as primary", ipEndpoint)
 	b.replicaChangeNotificationCallback(true)
 	b.primaryIPEndpointNotificationCallback(ipEndpoint)
 
@@ -213,7 +205,6 @@ func (b *BlobStore) TryAcquireLease() error {
 			select {
 			case <-leaseAcquireRetryTimer.C:
 				if resetLeaseAcquireTimer {
-					loggershim.LS.Debugf("Creating timer with AcquireRetryIntervalInSecs:%v", b.blobStorageSettings.AcquireRetryIntervalInSecs)
 					leaseAcquireRetryTimer.Stop()
 					leaseAcquireRetryTimer = time.NewTicker(
 						time.Second * time.Duration(b.blobStorageSettings.AcquireRetryIntervalInSecs))
@@ -232,6 +223,7 @@ func (b *BlobStore) TryAcquireLease() error {
 				for updateRetryCount < 2 {
 					err := b.UpdatePrimaryIPEndpoint()
 					if err != nil {
+						loggershim.LS.Errorf("%s", err.Error())
 						time.Sleep(updateBlobRetryInterval)
 						updateRetryCount++
 					} else {
@@ -254,6 +246,7 @@ func (b *BlobStore) TryAcquireLease() error {
 				for updateRetryCount < 2 {
 					err := b.UpdatePrimaryIPEndpoint()
 					if err != nil {
+						loggershim.LS.Errorf("%s", err.Error())
 						time.Sleep(updateBlobRetryInterval)
 						updateRetryCount++
 					} else {
@@ -275,7 +268,6 @@ func (b *BlobStore) TryAcquireLease() error {
 
 				leaseAcquireRetryTimer.Stop()
 
-				loggershim.LS.Debugf("Creating timer with AcquireRetryIntervalInSecs:%v", updatedLeaseAcquireIntervalTimeInSecs)
 				leaseAcquireRetryTimer = time.NewTicker(time.Second * time.Duration(updatedLeaseAcquireIntervalTimeInSecs))
 				resetLeaseAcquireTimer = true
 				goto AcquireLease
@@ -293,7 +285,6 @@ func (b *BlobStore) TryAcquireLease() error {
 				renewLeaseErr := b.blob.RenewLease(b.leaseID, nil)
 				if renewLeaseErr != nil {
 					loggershim.LS.Errorf("Renew lease failed: %s", renewLeaseErr.Error())
-					loggershim.LS.Errorf("Replica %v got demoted")
 					b.replicaChangeNotificationCallback(false)
 					goto AcquireLease
 				}
@@ -315,7 +306,6 @@ func (b *BlobStore) TryAcquireLease() error {
 				if releaseLeaseErr != nil {
 					loggershim.LS.Debugf("Release lease failed: LeaseId:%s , Error:%s", b.leaseID, leaseErr.Error())
 				}
-				loggershim.LS.Debugf("Creating timer with AcquireRetryIntervalInSecs:%s", updatedLeaseAcquireIntervalTimeInSecs)
 				leaseAcquireRetryTimer = time.NewTicker(
 					time.Second * time.Duration(updatedLeaseAcquireIntervalTimeInSecs))
 				resetLeaseAcquireTimer = true
@@ -365,10 +355,10 @@ func (b *BlobStore) GetReplicaIPEndpoint() (string, error) {
 // IsPrimary - Method to check if the given replica is primary.
 func (b *BlobStore) IsPrimary() (bool, error) {
 	primaryEP, err := b.GetPrimaryIPEndpoint()
-	loggershim.LS.Debugf("GetPrimaryIPEndpoint: %s", primaryEP)
 	if err != nil {
 		return false, err
 	}
+	loggershim.LS.Debugf("GetPrimaryIPEndpoint: %s", primaryEP)
 
 	replicaIP, err := b.getIPAddress()
 	if err != nil {

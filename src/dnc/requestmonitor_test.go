@@ -1042,7 +1042,7 @@ func generateDefaultCnsResponderContextMap(t *testing.T, ncDeploymentRequests []
 		cnsDeleteNCResponse := &cns.DeleteNetworkContainerResponse{
 			Response: cns.Response{
 				ReturnCode: 0,
-				Message:    "Successfully delelted NC"}}
+				Message:    "Successfully deleted NC"}}
 		context.CreateOrUpdateNCResponse = &CnsCreateOrUpdateNCResponse{
 			HTTPStatus: http.StatusOK,
 			SignalInfo: SignalInfo{

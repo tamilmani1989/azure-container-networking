@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"dnc/logger/loggershim"
 )
@@ -15,8 +14,6 @@ var supportedAPIVersions = map[string]bool{"2018-03-01": true}
 
 func Logger(inner http.Handler, name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-
 		// Validate if the API version is supported.
 		_, err := getandValidateAPIVersion(r)
 		if err != nil {
@@ -93,14 +90,6 @@ func Logger(inner http.Handler, name string) http.Handler {
 		}
 
 		inner.ServeHTTP(w, r)
-
-		loggershim.LS.Debugf(
-			"%s\t%s\t%s\t%s",
-			r.Method,
-			r.RequestURI,
-			name,
-			time.Since(start).String(),
-		)
 	})
 }
 
