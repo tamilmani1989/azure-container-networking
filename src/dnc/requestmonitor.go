@@ -381,16 +381,13 @@ func validateAndRetrieveNetworkConfigurationUpdate(
 	// Cleanup all the subnets that are no longer present in the received configuration.
 	for subnetName, repoSubnetConfig := range currentSubnets {
 		_, exists := subnetNamesInResponse[subnetName]
+		// If a subnet has been deleted outside of DNC,
+		// delete it only if there are no resources in them
 		if !exists {
 			if len(repoSubnetConfig.Reservations) > 0 {
-				msg := fmt.Sprintf(
-					"Subnet %s is removed but there are allocations. SubnetConfig:%s",
+				logger.Debugf("Subnet %s in network %s is removed but there are allocations.",
 					repoSubnetConfig.SubnetName,
-					repoSubnetConfig.String())
-				return false, &api.JsonErr{
-					Code:       api.NetworkJoinFailed,
-					Text:       msg,
-					HTTPStatus: http.StatusInternalServerError}, nil, nil, nil
+					repoSubnetConfig.NetworkID)
 			}
 
 			subnetsToRemove[subnetName] = true
