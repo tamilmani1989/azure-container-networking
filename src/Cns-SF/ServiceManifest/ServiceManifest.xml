@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ServiceManifest Name="CnsWrapperService" Version="1.0.0" xsi:schemaLocation="http://schemas.microsoft.com/2011/01/fabric WinFabServiceModel.xsd" xmlns="http://schemas.microsoft.com/2011/01/fabric" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Description>Cns Wrapper Service</Description>
+  <ServiceTypes>
+    <StatelessServiceType ServiceTypeName="CnsWrapperServiceType">
+    </StatelessServiceType>
+  </ServiceTypes>
+  <CodePackage Name="Code" Version="1.0.0">
+    <EntryPoint>
+      <ExeHost>
+        <Program>CnsWrapperService.exe</Program>
+        <ConsoleRedirection FileRetentionCount="5" FileMaxSizeInKb="2048"/>
+      </ExeHost>
+    </EntryPoint>
+  </CodePackage>
+
+  <ConfigPackage Name="Config" Version="1.0.0" />
+
+  <Resources>
+    <Endpoints>
+      <Endpoint Protocol="http" Name="AzureCnsEndpoint" Type="Input" Port="10090" />
+      <Endpoint Protocol="http" Name="AzureCnsEndpointOverride" Type="Input" />
+    </Endpoints>
+  </Resources>
+</ServiceManifest>
