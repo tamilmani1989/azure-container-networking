@@ -1153,19 +1153,12 @@ func processNetworkContainerAssociate(
 
 	// Release the session locks when calling in to cns
 	sessionManager.EndWriteSession(sessionInfo)
-	sessionLockReleased := true
-	defer func() {
-		if sessionLockReleased {
-			sessionManager.BeginWriteSession(sessionInfo)
-		}
-	}()
 
 	logger.Debugf("[CNS] create/update NC %s", ncGoalState.NetworkContainerID)
 	w, respErr := http.Post(createOrUpdateNCURL, "application/json; charset=utf-8", &body)
 
 	// Reacquire the session locks post calling in to cns
 	sessionManager.BeginWriteSession(sessionInfo)
-	sessionLockReleased = false
 
 	if respErr != nil {
 		msg := fmt.Sprintf("Post to URL %s for NC %v failed with error %v",
@@ -1280,12 +1273,7 @@ func processNetworkContainerDisAssociate(
 	}
 
 	sessionManager.EndWriteSession(sessionInfo)
-	sessionLockReleased := true
-	defer func() {
-		if sessionLockReleased {
-			sessionManager.BeginWriteSession(sessionInfo)
-		}
-	}()
+
 	var body bytes.Buffer
 	json.NewEncoder(&body).Encode(info)
 	deleteNCURL := fmt.Sprintf(
@@ -1294,8 +1282,9 @@ func processNetworkContainerDisAssociate(
 
 	logger.Debugf("[CNS] delete NC %s", repoNCConfig.NetworkContainerID)
 	w, respErr := http.Post(deleteNCURL, "application/json", &body)
+
 	sessionManager.BeginWriteSession(sessionInfo)
-	sessionLockReleased = false
+
 	if respErr != nil {
 		repoNCConfig.FailureDetail = api.JsonErr{
 			Code: api.DisAssociationFailed,
