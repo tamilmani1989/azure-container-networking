@@ -59,14 +59,14 @@ version:
   major: 2019                                                           # The major version number.
   minor: 6                                                              # The minor version number
   tag: '6.1'                                                            # Tag to use for semantic versioning.
-  system: 'patch' 
+  system: 'patch'
 
-static_analysis_options:                          
-  binskim_options:  
+static_analysis_options:
+  binskim_options:
     disable_tool_scan: true
-    files_to_scan:     
+    files_to_scan:
       - from: 'src\dnc\'
-        exclude:                         
+        exclude:
           - '**/*'
 
 # An optional user defined stage for performing any compilation, code generation etc.
@@ -158,7 +158,7 @@ package:
           to: 'AzureCNI'
           include:
             - '*AzureCNI.*.nupkg'
-      
+
     - !!buildcommand
       name: 'Package CNS'
       command: 'package_sign.cmd'
@@ -168,6 +168,16 @@ package:
           to: 'AzureCNS'
           include:
             - '*AzureCNS.*.nupkg'
+
+    - !!buildcommand
+      name: 'Package LinuxNetAgent'
+      command: 'package-AquariusLinux.cmd'
+      arguments: 'package drop_linux_netagent AquariusLinux'
+      artifacts:
+        - from: '.'
+          to: 'AquariusLinux'
+          include:
+            - '*AquariusLinux.*.nupkg'
 
 # Everything should be signed and packaged by this point and we will just be pushing/publishing here.
 # publish:

@@ -100,9 +100,18 @@ build:
             - 'src/LinuxNetAgent/build.log'
         artifacts:
           - from: 'src/LinuxNetAgent/main'
-            to: 'drop_dnc'
+            to: 'drop_linux_netagent'
             include:
               - 'servicetunnel'
+          - from: 'src/LinuxNetAgent/scripts'
+            to: 'drop_linux_netagent'
+            include:
+              - '*.sh'
+          - from: 'src/LinuxNetAgent'
+            to: 'drop_linux_netagent'
+            include:
+              - 'manifest.xml'
+              - 'HandlerManifest.json'
 
     - !!buildcommand
         name: 'Build DNC Windows'
@@ -152,7 +161,7 @@ package:
         command: 'src/LinuxNetAgent/PackageNetAgent.sh'
         artifacts:
           - from: 'src/LinuxNetAgent/out'
-            to: 'drop_dnc'
+            to: 'drop_linux_netagent'
             include:
               - '*.zip'
 
