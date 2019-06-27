@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Settings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.microsoft.com/2011/01/fabric">
+  <Section Name="Config">
+    <Parameter Name="WrapperShutdownThreadWaitTimeout" Value="00:00:01" />
+    <Parameter Name="WrapperMainThreadShutdownCheck" Value="00:00:01" />
+    <Parameter Name="WrapperMainLoopTimeout" Value="00:00:01" />
+    <Parameter Name="WrapperThreadWaitTimeout" Value="00:00:01" />
+    <Parameter Name="EnablePortOverride" Value="false" /> <!-- true for dev environment -->
+    <Parameter Name="DisableCnm" Value="true" />
+  </Section>
+</Settings>

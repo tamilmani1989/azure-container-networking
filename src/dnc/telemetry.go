@@ -110,7 +110,6 @@ CONNECT:
 					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("UUID").SetString(id.String())
 				}
 
-				logger.Debugf("[Telemetry] %+v", reportMgr.Report)
 				if !reportMgr.GetReportState(DNCTelemetryFile) {
 					reportMgr.SetReportState(DNCTelemetryFile)
 				}

@@ -1042,7 +1042,7 @@ func generateDefaultCnsResponderContextMap(t *testing.T, ncDeploymentRequests []
 		cnsDeleteNCResponse := &cns.DeleteNetworkContainerResponse{
 			Response: cns.Response{
 				ReturnCode: 0,
-				Message:    "Successfully delelted NC"}}
+				Message:    "Successfully deleted NC"}}
 		context.CreateOrUpdateNCResponse = &CnsCreateOrUpdateNCResponse{
 			HTTPStatus: http.StatusOK,
 			SignalInfo: SignalInfo{
@@ -1671,6 +1671,7 @@ func AreCnsRequestsEqual(expected, received cns.CreateNetworkContainerRequest, v
 
 	return true
 }
+
 func createNetworkContainer(
 	t *testing.T,
 	nodeID string,
@@ -1817,6 +1818,25 @@ func createNetworkContainer(
 	if deleteErrResp.Code != api.NodeInUse {
 		t.Fatalf("Delete node expected to fail with error %s, Error response %s \n", api.NodeInUse.String(), deleteErrResp.String())
 	}
+
+	savedSubnets := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.Subnets
+
+	// delete subnets from NMAgent before cleanup up Dnc
+	nmAgentServer.Lock.Lock()
+	nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.Subnets = make([]nmagentcontracts.Subnet, 0)
+	nmAgentServer.Lock.Unlock()
+
+	refreshNetworkConfiguration(datamodel.GetNetworkKey(vnetID), true)
+
+	fmt.Printf("Delete subnets %+v when allocations exist. Expected to fail\n", savedSubnets)
+	subnetConfig := getSubnetConfiguration(t, dncEP, vnetID, savedSubnets[0].SubnetName, apiVersion)
+	if subnetConfig.SubnetName != savedSubnets[0].SubnetName {
+		t.Fatalf("Subnet %s deleted even though NC %s exists", savedSubnets[0], ncid)
+	}
+
+	nmAgentServer.Lock.Lock()
+	nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.Subnets = savedSubnets
+	nmAgentServer.Lock.Unlock()
 
 	reservationURL := dncEP + "/networks/" + vnetID + "/reservations/" + reservationID + apiVersion
 	if len(reservationID) > 0 {

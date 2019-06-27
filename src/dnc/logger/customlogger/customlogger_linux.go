@@ -37,6 +37,11 @@ func (l *CustomLogger) Init(stderr bool, reports chan telemetry.DNCReport) {
 // Debugf :- Log debug statements using CustomLogger
 func (l *CustomLogger) Debugf(format string, args ...interface{}) {
 	l.instance.Debugf(format, args...)
+	if l.reports != nil {
+		go func() {
+			l.reports <- telemetry.DNCReport{EventMessage: fmt.Sprintf(format, args...)}
+		}()
+	}
 }
 
 // Errorf :- Log errors using CustomLogger

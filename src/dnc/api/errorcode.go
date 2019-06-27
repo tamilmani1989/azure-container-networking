@@ -130,8 +130,8 @@ const (
 	// NetworkJoinFailed - Join of network failed.
 	NetworkJoinFailed
 
-	// DeocodeResponseFailed - Deocoding of http response failed
-	DeocodeResponseFailed
+	// DecodeResponseFailed - Deocoding of http response failed
+	DecodeResponseFailed
 
 	// ParseResponseCodeFailed - Parsing of response code failed
 	ParseResponseCodeFailed
@@ -325,8 +325,8 @@ func (e ErrorCode) String() string {
 	case NetworkJoinFailed:
 		return "NetworkJoinFailed"
 
-	case DeocodeResponseFailed:
-		return "DeocodeResponseFailed"
+	case DecodeResponseFailed:
+		return "DecodeResponseFailed"
 
 	case ParseResponseCodeFailed:
 		return "ParseResponseCodeFailed"

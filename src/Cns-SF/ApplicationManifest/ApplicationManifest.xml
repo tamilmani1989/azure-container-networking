@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ApplicationManifest ApplicationTypeName="CnsWrapperServiceApplicationType" ApplicationTypeVersion="1.0.0" xsi:schemaLocation="http://schemas.microsoft.com/2011/01/fabric/WinFabServiceModel.xsd" xmlns="http://schemas.microsoft.com/2011/01/fabric" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Description>Cns Wrapper Application</Description>
+  <ServiceManifestImport>
+    <ServiceManifestRef ServiceManifestName="CnsWrapperService" ServiceManifestVersion="1.0.0"/>
+    <ConfigOverrides>
+      <ConfigOverride Name="Config" />
+    </ConfigOverrides>
+    <Policies>
+      <RunAsPolicy CodePackageRef="Code" UserRef="SYSTEM" EntryPointType="All"/>
+    </Policies>
+  </ServiceManifestImport>
+  <DefaultServices>
+    <Service Name="CnsWrapperService">
+      <StatelessService ServiceTypeName="CnsWrapperServiceType" InstanceCount="-1">
+        <SingletonPartition />
+      </StatelessService>
+    </Service>
+  </DefaultServices>
+  <Principals>
+    <Users>
+      <User Name="SYSTEM" AccountType="LocalSystem"/>
+    </Users>
+  </Principals>
+</ApplicationManifest>

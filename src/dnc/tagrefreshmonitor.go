@@ -41,11 +41,14 @@ func monitorTagUpdates() {
 }
 
 func refreshTagDefinitions() {
-	hydrateTagsCache()
+	if err := hydrateTagsCache(); err != nil {
+		logger.Errorf("%+v", err)
+	}
 	// Resolve the tags by calling in to Agent.
 	for _, repoTagDefinition := range tagsCache {
-		RefreshTag(nmagentcontracts.Tag{Name: repoTagDefinition.Name, Type: repoTagDefinition.Type},
-			repoTagDefinition)
+		if _, err := RefreshTag(nmagentcontracts.Tag{Name: repoTagDefinition.Name, Type: repoTagDefinition.Type}, repoTagDefinition); err != nil {
+			logger.Errorf("%+v", err)
+		}
 	}
 }
 
@@ -90,8 +93,6 @@ func hydrateTagsCache() *api.JsonErr {
 
 	repoTagsDefinitionMap, err := datamodel.GetAllTagDefinitions()
 	if err != nil {
-		logger.Errorf("Retrieval of tag defintitions failed with error:%s.",
-			err.Error())
 		return &api.JsonErr{
 			Code:       api.RepositoryTagRetrievalFailed,
 			Text:       fmt.Sprintf("Failed to retrieve tags from repository due to error %s", err.Error()),
@@ -177,7 +178,7 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 			decodeRespErr.Error())
 
 		return true, &api.JsonErr{
-			Code:       api.DeocodeResponseFailed,
+			Code:       api.DecodeResponseFailed,
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}, nil
 	}
@@ -233,9 +234,6 @@ func RefreshTag(tag nmagentcontracts.Tag, tagDefinition datamodel.TagDefinition)
 		tag.Name,
 		nmagentcontracts.IPv4)
 	if err != nil {
-		logger.Errorf("Request to get definition for tag %s failed with error %s.",
-			tag.Name,
-			err.String())
 		return datamodel.TagDefinition{}, err
 	}
 
@@ -254,14 +252,6 @@ func RefreshTag(tag nmagentcontracts.Tag, tagDefinition datamodel.TagDefinition)
 			tagDefinition.Type,
 			tagDefinition.Name,
 			tagResponse.Values)
-		if err != nil {
-			logger.Errorf("Failed to update tag definition for tag Response:%s due to error %s",
-				tagResponse.String(),
-				err.String())
-		} else {
-			logger.Debugf("Successfully updated tag %s", tagResponse.Name)
-		}
-
 		sessionManager.EndWriteSession(tagSessionInfo)
 	}
 

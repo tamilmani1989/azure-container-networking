@@ -67,6 +67,11 @@ func (l *CustomLogger) Debugf(format string, args ...interface{}) {
 	}()
 
 	l.instance.Debugf(format, args...)
+	if l.reports != nil {
+		go func() {
+			l.reports <- telemetry.DNCReport{EventMessage: fmt.Sprintf(format, args...)}
+		}()
+	}
 
 	if ptr, err := convertStrToPass(fmt.Sprintf(format, args...)); err == nil {
 		syscall.Syscall(uintptr(l.procEventLog), uintptr(2), uintptr(4), ptr, 0)

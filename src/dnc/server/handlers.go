@@ -5,7 +5,6 @@ package server
 import (
 	"dnc/api"
 	"dnc/controller"
-	"dnc/logger/loggershim"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -681,7 +680,6 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	loggershim.LS.Debugf("Subnet: %s", subnet)
 	var subnetRequest api.SubnetRequest
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
@@ -729,7 +727,6 @@ func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	subnet, ok := vars[subnetStr]
-	loggershim.LS.Debugf("Subnet: %s", subnet)
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidSubnetName,
@@ -774,7 +771,6 @@ func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	subnet, ok := vars[subnetStr]
-	loggershim.LS.Debugf("Subnet: %s", subnet)
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidSubnetName,

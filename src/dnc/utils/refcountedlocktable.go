@@ -35,14 +35,7 @@ func (refCountedLockTable *RefCountedLockTable) Unlock(lockName string) {
 }
 
 func (refCountedLockTable *RefCountedLockTable) lock(lockName string, read bool) {
-	// _, fileFullPath, line, _ := runtime.Caller(3)
-	// fileName := ""
-	// if len(fileFullPath) > 0 {
-	// 	fileName = filepath.Base(fileFullPath)
-	// }
-
 	refCountedLockTable.mutex.Lock()
-	// loggershim.LS.Debugf("Acquiring lock:%s, Read:%d", lockName, read)
 	lock, ok := refCountedLockTable.table[lockName]
 	if !ok {
 		lock = &RefCountedLock{refCount: 0}
@@ -58,18 +51,9 @@ func (refCountedLockTable *RefCountedLockTable) lock(lockName string, read bool)
 	} else {
 		lock.Lock()
 	}
-
-	// loggershim.LS.Debugf("Acquired lock:%s, Read:%v. File:%s, Line:%d", lockName, read, fileName, line)
 }
 
 func (refCountedLockTable *RefCountedLockTable) unlock(lockName string, read bool) {
-	// _, fileFullPath, line, _ := runtime.Caller(3)
-	// fileName := ""
-	// if len(fileFullPath) > 0 {
-	// 	fileName = filepath.Base(fileFullPath)
-	// }
-
-	// loggershim.LS.Debugf("Releasing lock:%s, Read:%v", lockName, read)
 	refCountedLockTable.mutex.Lock()
 	defer refCountedLockTable.mutex.Unlock()
 	lock, ok := refCountedLockTable.table[lockName]
@@ -80,12 +64,8 @@ func (refCountedLockTable *RefCountedLockTable) unlock(lockName string, read boo
 			lock.Unlock()
 		}
 		lock.Release()
-		// loggershim.LS.Debugf("Decremented Count:%d", lock.refCount)
 		if lock.refCount == 0 {
-			// loggershim.LS.Debugf("Deleting Lock:%s", lockName)
 			delete(refCountedLockTable.table, lockName)
-		} else {
-			// loggershim.LS.Debugf("Refernece count on lock %s after release %d", lockName, lock.refCount)
 		}
 	}
 }
