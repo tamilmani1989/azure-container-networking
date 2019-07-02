@@ -32,5 +32,7 @@ This service will also require persisting the configurations and the states that
     <file src="$gitdrop$\azure-vnet-telemetry" target="content\linux\azure-vnet-telemetry" />
     <file src="C:\source\src\dnc\config.json" target="content" />
     <file src="C:\source\src\dnc\config.json" target="content\linux" />
+    <file src="$gitdrop$\azure-vnet-telemetry.config" target="content" />
+    <file src="$gitdrop$\azure-vnet-telemetry.config" target="content\linux" />
   </files>
 </package>
