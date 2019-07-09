@@ -1986,10 +1986,12 @@ func GetNetworkContainerResponse(
 		FailureDetail: ncConfig.FailureDetail}
 	associationInfo := ncConfig.GetAssociationInfo()
 	response := api.NetworkContainerResponse{
-		NcID:            ncConfig.NetworkContainerID,
-		AssociationInfo: associationInfo,
-		RequestStatus:   requestStatus,
-		VlanID:          vlanID}
+		NcID:                       ncConfig.NetworkContainerID,
+		AssociationInfo:            associationInfo,
+		RequestStatus:              requestStatus,
+		VlanID:                     vlanID,
+		LocalIP:                    ncConfig.LocalIP,
+		AllowHostToNCCommunication: ncConfig.GetAllowHostToNCCommunicationStatus()}
 
 	if ipConfiguration != nil {
 		response.IPConfiguration = *ipConfiguration
