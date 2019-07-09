@@ -55,7 +55,7 @@ func setEndpointOptions(cnsNwConfig *cns.GetNetworkContainerResponse, epInfo *ne
 		epInfo.Data[network.LocalIPKey] = cnsNwConfig.LocalIPConfiguration.IPSubnet.IPAddress + "/" + strconv.Itoa(int(cnsNwConfig.LocalIPConfiguration.IPSubnet.PrefixLength))
 		epInfo.Data[network.SnatBridgeIPKey] = cnsNwConfig.LocalIPConfiguration.GatewayIPAddress + "/" + strconv.Itoa(int(cnsNwConfig.LocalIPConfiguration.IPSubnet.PrefixLength))
 		epInfo.AllowInboundFromHostToNC = cnsNwConfig.AllowHostToNCCommunication
-
+		epInfo.AllowInboundFromNCToHost = true //cnsNwConfig.AllowNCToHostCommunication
 	}
 
 	epInfo.Data[network.OptVethName] = vethName

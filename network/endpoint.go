@@ -34,6 +34,7 @@ type endpoint struct {
 	EnableInfraVnet          bool
 	EnableMultitenancy       bool
 	AllowInboundFromHostToNC bool
+	AllowInboundFromNCToHost bool
 	NetworkNameSpace         string `json:",omitempty"`
 	ContainerID              string
 	PODName                  string `json:",omitempty"`
@@ -60,6 +61,7 @@ type EndpointInfo struct {
 	EnableInfraVnet          bool
 	EnableMultiTenancy       bool
 	AllowInboundFromHostToNC bool
+	AllowInboundFromNCToHost bool
 	PODName                  string
 	PODNameSpace             string
 	Data                     map[string]interface{}
@@ -197,6 +199,7 @@ func (ep *endpoint) getInfo() *EndpointInfo {
 		EnableInfraVnet:          ep.EnableInfraVnet,
 		EnableMultiTenancy:       ep.EnableMultitenancy,
 		AllowInboundFromHostToNC: ep.AllowInboundFromHostToNC,
+		AllowInboundFromNCToHost: ep.AllowInboundFromNCToHost,
 		IfName:       ep.IfName,
 		ContainerID:  ep.ContainerID,
 		NetNsPath:    ep.NetworkNameSpace,

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/Azure/azure-container-networking/iptables"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
-	"github.com/Azure/azure-container-networking/platform"
 )
 
 /*RFC For Private Address Space: https://tools.ietf.org/html/rfc1918
@@ -99,40 +99,27 @@ func AssignIPToInterface(interfaceName string, ipAddresses []net.IPNet) error {
 }
 
 func addOrDeleteFilterRule(bridgeName string, action string, ipAddress string, chainName string, target string) error {
-	var cmd string
+	var err error
 	option := "i"
 
-	if chainName == "OUTPUT" {
+	if chainName == iptables.Output {
 		option = "o"
 	}
 
-	if action != "D" {
-		cmd = fmt.Sprintf("iptables -t filter -C %v -%v %v -d %v -j %v", chainName, option, bridgeName, ipAddress, target)
-		_, err := platform.ExecuteCommand(cmd)
-		if err == nil {
-			log.Printf("Iptable filter for private ipaddr %v on %v chain %v target rule already exists", ipAddress, chainName, target)
-			return nil
-		}
+	matchCondition := fmt.Sprintf("-%s %s -d %s", option, bridgeName, ipAddress)
+
+	if action == iptables.Insert {
+		err = iptables.InsertIptableRule(iptables.Filter, chainName, matchCondition, target)
+	} else if action == iptables.Append {
+		err = iptables.AppendIptableRule(iptables.Filter, chainName, matchCondition, target)
+	} else if action == iptables.Delete {
+		err = iptables.DeleteIptableRule(iptables.Filter, chainName, matchCondition, target)
 	}
 
-	if target != "ACCEPT" {
-		cmd = fmt.Sprintf("iptables -t filter -%v %v -%v %v -d %v -j %v", action, chainName, option, bridgeName, ipAddress, target)
-	} else {
-		action = "I"
-		cmd = fmt.Sprintf("iptables -t filter -%v %v 1 -%v %v -d %v -j %v", action, chainName, option, bridgeName, ipAddress, target)
-	}
-
-	_, err := platform.ExecuteCommand(cmd)
-	if err != nil {
-		log.Printf("Iptable filter %v action for private ipaddr %v on %v chain %v target failed with %v", action, ipAddress, chainName, target, err)
-		return err
-	}
-
-	return nil
+	return err
 }
 
-func AddOrDeletePrivateIPBlockRule(bridgeName string, skipAddresses []string, action string) error {
-	privateIPAddresses := getPrivateIPSpace()
+func AllowIPAddresses(bridgeName string, skipAddresses []string, action string) error {
 	chains := getFilterChains()
 	target := getFilterchainTarget()
 
@@ -152,6 +139,16 @@ func AddOrDeletePrivateIPBlockRule(bridgeName string, skipAddresses []string, ac
 		}
 
 	}
+
+	return nil
+}
+
+func BlockIPAddresses(bridgeName string, action string) error {
+	privateIPAddresses := getPrivateIPSpace()
+	chains := getFilterChains()
+	target := getFilterchainTarget()
+
+	log.Printf("[net] Addresses to block %v", privateIPAddresses)
 
 	for _, ipAddress := range privateIPAddresses {
 		if err := addOrDeleteFilterRule(bridgeName, action, ipAddress, chains[0], target[1]); err != nil {

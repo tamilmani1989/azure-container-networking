@@ -24,6 +24,7 @@ type OVSEndpointClient struct {
 	enableSnatOnHost         bool
 	enableInfraVnet          bool
 	allowInboundFromHostToNC bool
+	allowInboundFromNCToHost bool
 }
 
 const (
@@ -49,6 +50,7 @@ func NewOVSEndpointClient(
 		enableSnatOnHost:         epInfo.EnableSnatOnHost,
 		enableInfraVnet:          epInfo.EnableInfraVnet,
 		allowInboundFromHostToNC: epInfo.AllowInboundFromHostToNC,
+		allowInboundFromNCToHost: epInfo.AllowInboundFromNCToHost,
 	}
 
 	NewInfraVnetClient(client, epInfo.Id[:7])

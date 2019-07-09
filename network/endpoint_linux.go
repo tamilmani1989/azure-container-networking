@@ -122,6 +122,7 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 				EnableSnatOnHost:         epInfo.EnableSnatOnHost,
 				EnableMultitenancy:       epInfo.EnableMultiTenancy,
 				AllowInboundFromHostToNC: epInfo.AllowInboundFromHostToNC,
+				AllowInboundFromNCToHost: epInfo.AllowInboundFromNCToHost,
 			}
 
 			if containerIf != nil {
@@ -203,6 +204,7 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 		EnableInfraVnet:          epInfo.EnableInfraVnet,
 		EnableMultitenancy:       epInfo.EnableMultiTenancy,
 		AllowInboundFromHostToNC: epInfo.AllowInboundFromHostToNC,
+		AllowInboundFromNCToHost: epInfo.AllowInboundFromNCToHost,
 		NetworkNameSpace:         epInfo.NetNsPath,
 		ContainerID:              epInfo.ContainerID,
 		PODName:                  epInfo.PODName,

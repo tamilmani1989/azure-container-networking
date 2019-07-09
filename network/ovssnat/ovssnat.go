@@ -9,6 +9,7 @@ import (
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
 	"github.com/Azure/azure-container-networking/network/epcommon"
+
 	"github.com/Azure/azure-container-networking/ovsctl"
 	"github.com/Azure/azure-container-networking/platform"
 )
@@ -17,6 +18,8 @@ const (
 	azureSnatVeth0  = "azSnatveth0"
 	azureSnatVeth1  = "azSnatveth1"
 	azureSnatIfName = "eth1"
+	cniOutputChain  = "AZURECNIOUTPUT"
+	cniInputChain   = "AZURECNIINPUT"
 	SnatBridgeName  = "azSnatbr"
 	ImdsIP          = "169.254.169.254/32"
 )
@@ -71,9 +74,18 @@ func (client *OVSSnatClient) CreateSnatEndpoint(bridgeName string) error {
 	return netlink.SetLinkMaster(client.hostSnatVethName, SnatBridgeName)
 }
 
-func (client *OVSSnatClient) AddPrivateIPBlockRule() error {
-	if err := epcommon.AddOrDeletePrivateIPBlockRule(SnatBridgeName, client.SkipAddressesFromBlock, "A"); err != nil {
-		log.Printf("AddPrivateIPBlockRule failed with error %v", err)
+func (client *OVSSnatClient) AllowIPAddresses() error {
+	if err := epcommon.AllowIPAddresses(SnatBridgeName, client.SkipAddressesFromBlock, iptables.Insert); err != nil {
+		log.Printf("AllowIPAddresses failed with error %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (client *OVSSnatClient) BlockIPAddresses() error {
+	if err := epcommon.BlockIPAddresses(SnatBridgeName, iptables.Append); err != nil {
+		log.Printf("AllowIPAddresses failed with error %v", err)
 		return err
 	}
 
@@ -99,13 +111,11 @@ func (client *OVSSnatClient) AllowInboundFromHostToNC() error {
 	bridgeIP, _, _ := net.ParseCIDR(client.snatBridgeIP)
 	containerIP, _, _ := net.ParseCIDR(client.localIP)
 
-	// Create cnioutput chain
 	if err := iptables.CreateCNIChain(iptables.Filter, iptables.CNIOutputChain); err != nil {
 		log.Printf("AllowInboundFromHostToNC: Creating %v failed with error: %v", iptables.CNIOutputChain, err)
 		return err
 	}
 
-	// Forward from Output to cnioutput chain
 	if err := iptables.InsertIptableRule(iptables.Filter, iptables.Output, "", iptables.CNIOutputChain); err != nil {
 		log.Printf("AllowInboundFromHostToNC: Inserting forward rule to %v failed with error: %v", iptables.CNIOutputChain, err)
 		return err
@@ -163,6 +173,76 @@ func (client *OVSSnatClient) DeleteInboundFromHostToNC() error {
 	err = netlink.AddOrRemoveStaticArp(netlink.REMOVE, SnatBridgeName, containerIP, nil)
 	if err != nil {
 		log.Printf("AllowInboundFromHostToNC: Error removing static arp entry for ip %s: %v", containerIP, err)
+	}
+
+	return err
+}
+
+func (client *OVSSnatClient) AllowInboundFromNCToHost() error {
+	bridgeIP, _, _ := net.ParseCIDR(client.snatBridgeIP)
+	containerIP, _, _ := net.ParseCIDR(client.localIP)
+
+	if err := iptables.CreateCNIChain(iptables.Filter, iptables.CNIInputChain); err != nil {
+		log.Printf("AllowInboundFromHostToNC: Creating %v failed with error: %v", iptables.CNIInputChain, err)
+		return err
+	}
+
+	// Forward from Input to cniinput chain
+	if err := iptables.InsertIptableRule(iptables.Filter, iptables.Input, "", iptables.CNIInputChain); err != nil {
+		log.Printf("AllowInboundFromHostToNC: Inserting forward rule to %v failed with error: %v", iptables.CNIInputChain, err)
+		return err
+	}
+
+	// Allow Host to NC traffic
+	matchCondition := fmt.Sprintf("-s %s -d %s", containerIP.String(), bridgeIP.String())
+	err := iptables.InsertIptableRule(iptables.Filter, iptables.CNIInputChain, matchCondition, iptables.Accept)
+	if err != nil {
+		log.Printf("AllowInboundFromHostToNC: Inserting output rule failed: %v", err)
+		return err
+	}
+
+	if err := iptables.CreateCNIChain(iptables.Filter, iptables.CNIOutputChain); err != nil {
+		log.Printf("AllowInboundFromHostToNC: Creating %v failed with error: %v", iptables.CNIOutputChain, err)
+		return err
+	}
+
+	if err := iptables.InsertIptableRule(iptables.Filter, iptables.Output, "", iptables.CNIOutputChain); err != nil {
+		log.Printf("AllowInboundFromHostToNC: Inserting forward rule to %v failed with error: %v", iptables.CNIOutputChain, err)
+		return err
+	}
+
+	matchCondition = fmt.Sprintf(" -o %s -m state --state ESTABLISHED,RELATED", SnatBridgeName)
+	err = iptables.InsertIptableRule(iptables.Filter, iptables.CNIOutputChain, matchCondition, iptables.Accept)
+	if err != nil {
+		log.Printf("AllowInboundFromHostToNC: Inserting input rule failed: %v", err)
+		return err
+	}
+
+	snatContainerVeth, _ := net.InterfaceByName(client.containerSnatVethName)
+
+	log.Printf("Adding static arp entry for ip %s mac %s", containerIP, snatContainerVeth.HardwareAddr.String())
+	err = netlink.AddOrRemoveStaticArp(netlink.ADD, SnatBridgeName, containerIP, snatContainerVeth.HardwareAddr)
+	if err != nil {
+		log.Printf("AllowInboundFromNCToHost: Error adding static arp entry for ip %s mac %s: %v", containerIP, snatContainerVeth.HardwareAddr.String(), err)
+	}
+
+	return err
+}
+
+func (client *OVSSnatClient) DeleteInboundFromNCToHost() error {
+	bridgeIP, _, _ := net.ParseCIDR(client.snatBridgeIP)
+	containerIP, _, _ := net.ParseCIDR(client.localIP)
+
+	matchCondition := fmt.Sprintf("-s %s -d %s", containerIP.String(), bridgeIP.String())
+	err := iptables.DeleteIptableRule(iptables.Filter, iptables.CNIInputChain, matchCondition, iptables.Accept)
+	if err != nil {
+		log.Printf("DeleteInboundFromNCToHost: Error removing output rule %v", err)
+	}
+
+	log.Printf("Removing static arp entry for ip %s ", containerIP)
+	err = netlink.AddOrRemoveStaticArp(netlink.REMOVE, SnatBridgeName, containerIP, nil)
+	if err != nil {
+		log.Printf("DeleteInboundFromNCToHost: Error removing static arp entry for ip %s: %v", containerIP, err)
 	}
 
 	return err
@@ -283,17 +363,8 @@ func DeleteSnatBridge(bridgeName string) error {
 
 func AddMasqueradeRule(snatBridgeIPWithPrefix string) error {
 	_, ipNet, _ := net.ParseCIDR(snatBridgeIPWithPrefix)
-	cmd := fmt.Sprintf("iptables -t nat -C POSTROUTING -s %v -j MASQUERADE", ipNet.String())
-	_, err := platform.ExecuteCommand(cmd)
-	if err == nil {
-		log.Printf("iptable snat rule already exists")
-		return nil
-	}
-
-	cmd = fmt.Sprintf("iptables -t nat -A POSTROUTING -s %v -j MASQUERADE", ipNet.String())
-	log.Printf("Adding iptable snat rule %v", cmd)
-	_, err = platform.ExecuteCommand(cmd)
-	return err
+	matchCondition := fmt.Sprintf("-s %s", ipNet.String())
+	return iptables.InsertIptableRule(iptables.Nat, iptables.Postrouting, matchCondition, iptables.Masquerade)
 }
 
 func DeleteMasqueradeRule() error {
@@ -311,10 +382,8 @@ func DeleteMasqueradeRule() error {
 		}
 
 		if ipAddr.To4() != nil {
-			cmd := fmt.Sprintf("iptables -t nat -D POSTROUTING -s %v -j MASQUERADE", ipNet.String())
-			log.Printf("Deleting iptable snat rule %v", cmd)
-			_, err = platform.ExecuteCommand(cmd)
-			return err
+			matchCondition := fmt.Sprintf("-s %s", ipNet.String())
+			return iptables.DeleteIptableRule(iptables.Nat, iptables.Postrouting, matchCondition, iptables.Masquerade)
 		}
 	}
 
