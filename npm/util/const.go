@@ -4,12 +4,15 @@ package util
 
 //kubernetes related constants.
 const (
-	KubeSystemFlag          string = "kube-system"
-	KubePodTemplateHashFlag string = "pod-template-hash"
-	KubeAllPodsFlag         string = "all-pod"
-	KubeAllNamespacesFlag   string = "all-namespace"
-	KubeAppFlag             string = "k8s-app"
-	KubeProxyFlag           string = "kube-proxy"
+	KubeSystemFlag             string = "kube-system"
+	KubePodTemplateHashFlag    string = "pod-template-hash"
+	KubeAllPodsFlag            string = "all-pod"
+	KubeAllNamespacesFlag      string = "all-namespace"
+	KubeAppFlag                string = "k8s-app"
+	KubeProxyFlag              string = "kube-proxy"
+	KubePodStatusFailedFlag    string = "Failed"
+	KubePodStatusSucceededFlag string = "Succeeded"
+	KubePodStatusUnknownFlag   string = "Unknown"
 
 	// The version of k8s that accept "AND" between namespaceSelector and podSelector is "1.11"
 	k8sMajorVerForNewPolicyDef string = "1"
@@ -19,6 +22,7 @@ const (
 //iptables related constants.
 const (
 	Iptables                         string = "iptables"
+	Ip6tables                        string = "ip6tables"
 	IptablesSave                     string = "iptables-save"
 	IptablesRestore                  string = "iptables-restore"
 	IptablesConfigFile               string = "/var/log/iptables.conf"
@@ -47,8 +51,11 @@ const (
 	IptablesMatchSetFlag             string = "--match-set"
 	IptablesStateFlag                string = "state"
 	IptablesMatchStateFlag           string = "--state"
+	IptablesMultiportFlag            string = "multiport"
+	IptablesMultiDestportFlag        string = "--dports"
 	IptablesRelatedState             string = "RELATED"
 	IptablesEstablishedState         string = "ESTABLISHED"
+	IptablesFilterTable              string = "filter"
 	IptablesAzureChain               string = "AZURE-NPM"
 	IptablesAzureIngressPortChain    string = "AZURE-NPM-INGRESS-PORT"
 	IptablesAzureIngressFromChain    string = "AZURE-NPM-INGRESS-FROM"
@@ -60,6 +67,7 @@ const (
 	IptablesAzureEgressToPodChain    string = "AZURE-NPM-EGRESS-TO-POD"
 	IptablesAzureTargetSetsChain     string = "AZURE-NPM-TARGET-SETS"
 	IptablesForwardChain             string = "FORWARD"
+	IptablesInputChain               string = "INPUT"
 )
 
 //ipset related constants.
