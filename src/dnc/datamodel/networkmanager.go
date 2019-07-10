@@ -1493,8 +1493,7 @@ func GetNetworkContainerConfiguration(networkID,
 	networkContainerConfig, err := TryQueryNetworkContainer(
 		networkID, networkContainerID)
 	if err != nil {
-		loggershim.LS.Debugf("TryQueryNetworkContainer returned error %+v", err)
-		return nil, nil
+		return nil, err
 	}
 
 	if networkContainerConfig == nil {
@@ -1770,24 +1769,15 @@ func GetNodeIDForNetworkContainer(networkID, ncID string) (string, *api.JsonErr)
 
 // PurgeNetworkContainerAssociations - Process relase of resevation associated with network container
 func PurgeNetworkContainerAssociations(ncConfiguration *NCConfiguration, updateVlan bool) *api.JsonErr {
-	nodeID := ncConfiguration.GetAssociationInfo().NodeID
+	associationInfo := ncConfiguration.GetAssociationInfo()
 	err := UpdateNodeConfigurationNetworkContainerSet(
-		nodeID,
+		associationInfo.NodeID,
 		ncConfiguration.NetworkID,
 		ncConfiguration.NetworkContainerID,
 		ncConfiguration.ReservationID,
-		ncConfiguration.GetAssociationInfo().ContainerType,
+		associationInfo.ContainerType,
 		updateVlan,
 		true)
-	if err != nil {
-		return err
-	}
-
-	if ncConfiguration.ImplicitReservation {
-		err = DeleteIPReservation(ncConfiguration.NetworkID, ncConfiguration.ReservationID, true)
-	} else {
-		err = UpdateNCToReservationAssociation(ncConfiguration, true)
-	}
 
 	return err
 }

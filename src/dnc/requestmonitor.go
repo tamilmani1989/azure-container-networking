@@ -968,7 +968,12 @@ Cleanup:
 
 func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	defer utils.RecordTime(stateTransitionDateTime, "ContainerUnreserve", repoNCConfig.NetworkContainerID)
-	err := datamodel.PurgeNetworkContainerAssociations(repoNCConfig, updateVlan(repoNCConfig.GetAssociationInfo().ContainerType))
+	var err *api.JsonErr
+	if repoNCConfig.ImplicitReservation {
+		err = datamodel.DeleteIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID, true)
+	} else {
+		err = datamodel.UpdateNCToReservationAssociation(repoNCConfig, true)
+	}
 	if err != nil {
 		return false, err
 	}
