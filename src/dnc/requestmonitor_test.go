@@ -903,6 +903,42 @@ func validateNodeInfoResponse(
 	}
 }
 
+func validateNetworkContainerInfoResponse(
+	t *testing.T,
+	dncEP string,
+	vnetID string,
+	ncID string,
+	apiVersion string,
+	networkContainerInfoReq *CreateNetworkContainerRequest) error {
+	networkContainerConfigResponse := getNetworkContainerConfiguration(t, dncEP, vnetID, ncID, apiVersion)
+
+	if !reflect.DeepEqual(networkContainerConfigResponse.AssociationInfo,
+		networkContainerInfoReq.AssociationInfo) {
+		return fmt.Errorf("Mismatch for association info")
+	}
+
+	if len(networkContainerInfoReq.AllocationRequest.IPConstraint) > 0 {
+		ipAddress, _, err := net.ParseCIDR(networkContainerConfigResponse.IPConfiguration.IPAddress)
+		if err != nil {
+			return fmt.Errorf("Failed to parse the allocated IP address: %s with error: %v",
+				networkContainerConfigResponse.IPConfiguration.IPAddress, err)
+		}
+
+		if networkContainerInfoReq.AllocationRequest.IPConstraint != ipAddress.String() {
+			return fmt.Errorf("Failed to allocate the requested IP address")
+		}
+	}
+
+	if len(networkContainerInfoReq.AllocationRequest.SubnetName) > 0 {
+		if networkContainerInfoReq.AllocationRequest.SubnetName !=
+			networkContainerConfigResponse.IPConfiguration.SubnetName {
+			return fmt.Errorf("Mismatch for Subnet names")
+		}
+	}
+
+	return nil
+}
+
 func getSubnetConfiguration(
 	t *testing.T,
 	dncEP string,
@@ -1839,6 +1875,16 @@ func createNetworkContainer(
 		fmt.Printf("Successfully created network container using dynamic IP [%s]\n", ncid)
 	} else {
 		fmt.Printf("Successfully created network container using specific IP [%s]\n", ncid)
+	}
+
+	networkcontainerreq := CreateNetworkContainerRequest{
+		AllocationRequest:          *allocationRequest,
+		AssociationInfo:            *associationInfo,
+		AllowHostToNCCommunication: allowHostToNCCommunication}
+
+	if err := validateNetworkContainerInfoResponse(t, dncEP, vnetID, ncid, apiVersion, &networkcontainerreq); err != nil {
+		t.Errorf("Network container validation failed for network container due to error: %v\n", err)
+		t.Fatal(err)
 	}
 
 	networkURL := dncEP + "/networks/" + vnetID + apiVersion

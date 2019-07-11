@@ -17,7 +17,7 @@ type IPConfiguration struct {
 
 func (ipConfiguration *IPConfiguration) String() string {
 	return fmt.Sprintf(
-		"IPConfiguration:[NetworkID:%s, SubnetName: %s IPSubnet: %s IPAsdress:%s GatewayIP:%s, DNSServers:%s]",
+		"IPConfiguration:[NetworkID:%s, SubnetName: %s IPSubnet: %s IPAddress:%s GatewayIP:%s, DNSServers:%s]",
 		ipConfiguration.NetworkID, ipConfiguration.SubnetName, ipConfiguration.IPSubnet,
 		ipConfiguration.IPAddress, ipConfiguration.GatewayIP, strings.Join(ipConfiguration.DNSServers, ","))
 }
