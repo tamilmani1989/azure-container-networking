@@ -15,13 +15,17 @@ import (
 )
 
 const (
-	azureSnatVeth0  = "azSnatveth0"
-	azureSnatVeth1  = "azSnatveth1"
-	azureSnatIfName = "eth1"
-	cniOutputChain  = "AZURECNIOUTPUT"
-	cniInputChain   = "AZURECNIINPUT"
-	SnatBridgeName  = "azSnatbr"
-	ImdsIP          = "169.254.169.254/32"
+	azureSnatVeth0      = "azSnatveth0"
+	azureSnatVeth1      = "azSnatveth1"
+	azureSnatIfName     = "eth1"
+	cniOutputChain      = "AZURECNIOUTPUT"
+	cniInputChain       = "AZURECNIINPUT"
+	SnatBridgeName      = "azSnatbr"
+	ImdsIP              = "169.254.169.254/32"
+	vlanDropDeleteRule  = "ebtables -t nat -D PREROUTING -p 802_1Q -j DROP"
+	vlanDropAddRule     = "ebtables -t nat -A PREROUTING -p 802_1Q -j DROP"
+	vlanDropMatch       = "-p 802_1Q -j DROP"
+	l2PreroutingEntries = "ebtables -t nat -L PREROUTING"
 )
 
 type OVSSnatClient struct {
@@ -35,11 +39,12 @@ type OVSSnatClient struct {
 
 func NewSnatClient(hostIfName string, contIfName string, localIP string, snatBridgeIP string, skipAddressesFromBlock []string) OVSSnatClient {
 	log.Printf("Initialize new snat client")
-	snatClient := OVSSnatClient{}
-	snatClient.hostSnatVethName = hostIfName
-	snatClient.containerSnatVethName = contIfName
-	snatClient.localIP = localIP
-	snatClient.snatBridgeIP = snatBridgeIP
+	snatClient := OVSSnatClient{
+		hostSnatVethName:      hostIfName,
+		containerSnatVethName: contIfName,
+		localIP:               localIP,
+		snatBridgeIP:          snatBridgeIP,
+	}
 
 	for _, address := range skipAddressesFromBlock {
 		snatClient.SkipAddressesFromBlock = append(snatClient.SkipAddressesFromBlock, address)
@@ -107,9 +112,14 @@ func (client *OVSSnatClient) SetupSnatContainerInterface() error {
 	return nil
 }
 
-func (client *OVSSnatClient) AllowInboundFromHostToNC() error {
+func getNCLocalAndGatewayIP(client *OVSSnatClient) (net.IP, net.IP) {
 	bridgeIP, _, _ := net.ParseCIDR(client.snatBridgeIP)
 	containerIP, _, _ := net.ParseCIDR(client.localIP)
+	return bridgeIP, containerIP
+}
+
+func (client *OVSSnatClient) AllowInboundFromHostToNC() error {
+	bridgeIP, containerIP := getNCLocalAndGatewayIP(client)
 
 	if err := iptables.CreateCNIChain(iptables.Filter, iptables.CNIOutputChain); err != nil {
 		log.Printf("AllowInboundFromHostToNC: Creating %v failed with error: %v", iptables.CNIOutputChain, err)
@@ -160,8 +170,7 @@ func (client *OVSSnatClient) AllowInboundFromHostToNC() error {
 }
 
 func (client *OVSSnatClient) DeleteInboundFromHostToNC() error {
-	bridgeIP, _, _ := net.ParseCIDR(client.snatBridgeIP)
-	containerIP, _, _ := net.ParseCIDR(client.localIP)
+	bridgeIP, containerIP := getNCLocalAndGatewayIP(client)
 
 	matchCondition := fmt.Sprintf("-s %s -d %s", bridgeIP.String(), containerIP.String())
 	err := iptables.DeleteIptableRule(iptables.Filter, iptables.CNIOutputChain, matchCondition, iptables.Accept)
@@ -179,8 +188,7 @@ func (client *OVSSnatClient) DeleteInboundFromHostToNC() error {
 }
 
 func (client *OVSSnatClient) AllowInboundFromNCToHost() error {
-	bridgeIP, _, _ := net.ParseCIDR(client.snatBridgeIP)
-	containerIP, _, _ := net.ParseCIDR(client.localIP)
+	bridgeIP, containerIP := getNCLocalAndGatewayIP(client)
 
 	if err := iptables.CreateCNIChain(iptables.Filter, iptables.CNIInputChain); err != nil {
 		log.Printf("AllowInboundFromHostToNC: Creating %v failed with error: %v", iptables.CNIInputChain, err)
@@ -230,8 +238,7 @@ func (client *OVSSnatClient) AllowInboundFromNCToHost() error {
 }
 
 func (client *OVSSnatClient) DeleteInboundFromNCToHost() error {
-	bridgeIP, _, _ := net.ParseCIDR(client.snatBridgeIP)
-	containerIP, _, _ := net.ParseCIDR(client.localIP)
+	bridgeIP, containerIP := getNCLocalAndGatewayIP(client)
 
 	matchCondition := fmt.Sprintf("-s %s -d %s", containerIP.String(), bridgeIP.String())
 	err := iptables.DeleteIptableRule(iptables.Filter, iptables.CNIInputChain, matchCondition, iptables.Accept)
@@ -338,8 +345,7 @@ func CreateSnatBridge(snatBridgeIP string, mainInterface string) error {
 }
 
 func DeleteSnatBridge(bridgeName string) error {
-	cmd := "ebtables -t nat -D PREROUTING -p 802_1Q -j DROP"
-	_, err := platform.ExecuteCommand(cmd)
+	_, err := platform.ExecuteCommand(vlanDropDeleteRule)
 	if err != nil {
 		log.Printf("Deleting ebtable vlan drop rule failed with error %v", err)
 	}
@@ -391,21 +397,19 @@ func DeleteMasqueradeRule() error {
 }
 
 func AddVlanDropRule() error {
-	cmd := "ebtables -t nat -L PREROUTING"
-	out, err := platform.ExecuteCommand(cmd)
+	out, err := platform.ExecuteCommand(l2PreroutingEntries)
 	if err != nil {
 		log.Printf("Error while listing ebtable rules %v", err)
 		return err
 	}
 
 	out = strings.TrimSpace(out)
-	if strings.Contains(out, "-p 802_1Q -j DROP") {
+	if strings.Contains(out, vlanDropMatch) {
 		log.Printf("vlan drop rule already exists")
 		return nil
 	}
 
-	cmd = "ebtables -t nat -A PREROUTING -p 802_1Q -j DROP"
-	log.Printf("Adding ebtable rule to drop vlan traffic on snat bridge %v", cmd)
-	_, err = platform.ExecuteCommand(cmd)
+	log.Printf("Adding ebtable rule to drop vlan traffic on snat bridge %v", vlanDropAddRule)
+	_, err = platform.ExecuteCommand(vlanDropAddRule)
 	return err
 }

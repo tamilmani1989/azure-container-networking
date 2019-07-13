@@ -32,7 +32,7 @@ const (
 // target
 const (
 	Accept     = "ACCEPT"
-	Drop       = "Drop"
+	Drop       = "DROP"
 	Masquerade = "MASQUERADE"
 )
 

@@ -86,7 +86,7 @@ func DeleteSnatEndpoint(client *OVSEndpointClient) error {
 	return nil
 }
 
-func DeleteSnatEndpointRules(client *OVSEndpointClient) error {
+func DeleteSnatEndpointRules(client *OVSEndpointClient) {
 	if client.allowInboundFromHostToNC {
 		client.snatClient.DeleteInboundFromHostToNC()
 	}
@@ -94,6 +94,4 @@ func DeleteSnatEndpointRules(client *OVSEndpointClient) error {
 	if client.allowInboundFromNCToHost {
 		client.snatClient.DeleteInboundFromNCToHost()
 	}
-
-	return nil
 }

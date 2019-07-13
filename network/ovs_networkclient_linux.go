@@ -108,7 +108,6 @@ func (client *OVSNetworkClient) AddL2Rules(extIf *externalInterface) error {
 
 func (client *OVSNetworkClient) DeleteL2Rules(extIf *externalInterface) {
 	ovsctl.DeletePortFromOVS(client.bridgeName, client.hostInterfaceName)
-
 }
 
 func (client *OVSNetworkClient) SetBridgeMasterToHostInterface() error {
