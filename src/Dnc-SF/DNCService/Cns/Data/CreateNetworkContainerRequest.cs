@@ -139,14 +139,14 @@ namespace Cns.Data
                 using (var algorithm = SHA256.Create())
                 {
                     byte[] tokenHash = algorithm.ComputeHash(Encoding.ASCII.GetBytes(AuthorizationToken));
-                    tokenHashString = Encoding.Default.GetString(tokenHash);
+                    tokenHashString = System.BitConverter.ToString(tokenHash).Replace("-", "").ToLower();
                 }
             }
             return $"[Version:{Version} NetworkContainerType:{NetworkContainerType} " +
                     $"NetworkContainerID:{NetworkContainerID} " +
                     $"PrimaryInterfaceIdentifier:{PrimaryInterfaceIdentifier} " +
-                    $"AuthorizationToken : {tokenHashString}" +
-                    $"OrchestratorContext :{orchestratorContextStr} " +
+                    $"AuthorizationToken:{tokenHashString}" +
+                    $"OrchestratorContext:{orchestratorContextStr} " +
                     $"IPConfiguration:{IPConfiguration} LocalIPConfiguration:{LocalIPConfiguration} " +
                     $"MultiTenancyInfo:{MultiTenancyInfo} " +
                     $"CnetAddressSpace:{cnetAddressSpaceStr} Routes:{routesStr}]";
