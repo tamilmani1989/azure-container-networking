@@ -79,6 +79,9 @@ func (client *OVSSnatClient) CreateSnatEndpoint(bridgeName string) error {
 	return netlink.SetLinkMaster(client.hostSnatVethName, SnatBridgeName)
 }
 
+/**
+ This fucntion adds iptables rules  that allows only specific Private IPs via linux bridge
+**/
 func (client *OVSSnatClient) AllowIPAddresses() error {
 	if err := epcommon.AllowIPAddresses(SnatBridgeName, client.SkipAddressesFromBlock, iptables.Insert); err != nil {
 		log.Printf("AllowIPAddresses failed with error %v", err)
@@ -88,6 +91,9 @@ func (client *OVSSnatClient) AllowIPAddresses() error {
 	return nil
 }
 
+/**
+ This fucntion adds iptables rules  that blocks all private IPs flowing via linux bridge
+**/
 func (client *OVSSnatClient) BlockIPAddresses() error {
 	if err := epcommon.BlockIPAddresses(SnatBridgeName, iptables.Append); err != nil {
 		log.Printf("AllowIPAddresses failed with error %v", err)
@@ -118,6 +124,9 @@ func getNCLocalAndGatewayIP(client *OVSSnatClient) (net.IP, net.IP) {
 	return bridgeIP, containerIP
 }
 
+/**
+	This function adds iptables rules that allows only host to NC communication and not the other way
+**/
 func (client *OVSSnatClient) AllowInboundFromHostToNC() error {
 	bridgeIP, containerIP := getNCLocalAndGatewayIP(client)
 
@@ -131,7 +140,7 @@ func (client *OVSSnatClient) AllowInboundFromHostToNC() error {
 		return err
 	}
 
-	// Allow Host to NC traffic
+	// Allow connection from Host to NC
 	matchCondition := fmt.Sprintf("-s %s -d %s", bridgeIP.String(), containerIP.String())
 	err := iptables.InsertIptableRule(iptables.Filter, iptables.CNIOutputChain, matchCondition, iptables.Accept)
 	if err != nil {
@@ -151,6 +160,7 @@ func (client *OVSSnatClient) AllowInboundFromHostToNC() error {
 		return err
 	}
 
+	// Accept packets from NC only if established connection
 	matchCondition = fmt.Sprintf(" -i %s -m state --state ESTABLISHED,RELATED", SnatBridgeName)
 	err = iptables.InsertIptableRule(iptables.Filter, iptables.CNIInputChain, matchCondition, iptables.Accept)
 	if err != nil {
@@ -160,6 +170,7 @@ func (client *OVSSnatClient) AllowInboundFromHostToNC() error {
 
 	snatContainerVeth, _ := net.InterfaceByName(client.containerSnatVethName)
 
+	// Add static arp entry for localIP to prevent arp going out of VM
 	log.Printf("Adding static arp entry for ip %s mac %s", containerIP, snatContainerVeth.HardwareAddr.String())
 	err = netlink.AddOrRemoveStaticArp(netlink.ADD, SnatBridgeName, containerIP, snatContainerVeth.HardwareAddr)
 	if err != nil {
@@ -187,6 +198,9 @@ func (client *OVSSnatClient) DeleteInboundFromHostToNC() error {
 	return err
 }
 
+/**
+	This function adds iptables rules that allows only NC to Host communication and not the other way
+**/
 func (client *OVSSnatClient) AllowInboundFromNCToHost() error {
 	bridgeIP, containerIP := getNCLocalAndGatewayIP(client)
 
@@ -201,7 +215,7 @@ func (client *OVSSnatClient) AllowInboundFromNCToHost() error {
 		return err
 	}
 
-	// Allow Host to NC traffic
+	// Allow NC to Host connection
 	matchCondition := fmt.Sprintf("-s %s -d %s", containerIP.String(), bridgeIP.String())
 	err := iptables.InsertIptableRule(iptables.Filter, iptables.CNIInputChain, matchCondition, iptables.Accept)
 	if err != nil {
@@ -219,6 +233,7 @@ func (client *OVSSnatClient) AllowInboundFromNCToHost() error {
 		return err
 	}
 
+	// Accept packets from Host only if established connection
 	matchCondition = fmt.Sprintf(" -o %s -m state --state ESTABLISHED,RELATED", SnatBridgeName)
 	err = iptables.InsertIptableRule(iptables.Filter, iptables.CNIOutputChain, matchCondition, iptables.Accept)
 	if err != nil {
@@ -228,6 +243,7 @@ func (client *OVSSnatClient) AllowInboundFromNCToHost() error {
 
 	snatContainerVeth, _ := net.InterfaceByName(client.containerSnatVethName)
 
+	// Add static arp entry for localIP to prevent arp going out of VM
 	log.Printf("Adding static arp entry for ip %s mac %s", containerIP, snatContainerVeth.HardwareAddr.String())
 	err = netlink.AddOrRemoveStaticArp(netlink.ADD, SnatBridgeName, containerIP, snatContainerVeth.HardwareAddr)
 	if err != nil {
@@ -272,6 +288,9 @@ func (client *OVSSnatClient) DeleteSnatEndpoint() error {
 	return nil
 }
 
+/**
+	This function creates linux bridge which will be used for outbound connectivity by NCs
+**/
 func CreateSnatBridge(snatBridgeIP string, mainInterface string) error {
 	_, err := net.InterfaceByName(SnatBridgeName)
 	if err == nil {
@@ -367,6 +386,9 @@ func DeleteSnatBridge(bridgeName string) error {
 	return err
 }
 
+/**
+	This function adds iptable rules that will snat all traffic that has source ip in apipa range and coming via linux bridge
+**/
 func AddMasqueradeRule(snatBridgeIPWithPrefix string) error {
 	_, ipNet, _ := net.ParseCIDR(snatBridgeIPWithPrefix)
 	matchCondition := fmt.Sprintf("-s %s", ipNet.String())
@@ -396,6 +418,9 @@ func DeleteMasqueradeRule() error {
 	return nil
 }
 
+/**
+	Drop all vlan traffic on linux bridge
+**/
 func AddVlanDropRule() error {
 	out, err := platform.ExecuteCommand(l2PreroutingEntries)
 	if err != nil {
