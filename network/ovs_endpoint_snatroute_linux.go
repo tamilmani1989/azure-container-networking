@@ -28,14 +28,17 @@ func AddSnatEndpoint(client *OVSEndpointClient) error {
 
 func AddSnatEndpointRules(client *OVSEndpointClient) error {
 	if client.enableSnatOnHost || client.allowInboundFromHostToNC || client.allowInboundFromNCToHost {
-		if err := client.snatClient.AllowIPAddresses(); err != nil {
+		// Allow specific Private IPs via Snat Bridge
+		if err := client.snatClient.AllowIPAddressesOnSnatBrdige(); err != nil {
 			return err
 		}
 
-		if err := client.snatClient.BlockIPAddresses(); err != nil {
+		// Block Private IPs via Snat Bridge
+		if err := client.snatClient.BlockIPAddressesOnSnatBrdige(); err != nil {
 			return err
 		}
 
+		// Add route for 169.254.169.54 in host via azure0, otherwise it will route via snat bridge
 		if err := AddStaticRoute(ovssnat.ImdsIP, client.bridgeName); err != nil {
 			return err
 		}

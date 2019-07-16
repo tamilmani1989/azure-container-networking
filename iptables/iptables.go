@@ -1,5 +1,7 @@
 package iptables
 
+// This package contains wrapper functions to program iptables rules
+
 import (
 	"fmt"
 
@@ -43,11 +45,18 @@ const (
 	Delete = "D"
 )
 
+// states
+const (
+	Established = "ESTABLISHED"
+	Related     = "RELATED"
+)
+
 const (
 	iptables    = "iptables"
 	lockTimeout = 60
 )
 
+// Run iptables command
 func runCmd(params string) error {
 	cmd := fmt.Sprintf("%s -w %d %s", iptables, lockTimeout, params)
 	if _, err := platform.ExecuteCommand(cmd); err != nil {
@@ -68,7 +77,7 @@ func ChainExists(tableName, chainName string) bool {
 }
 
 // create new iptable chain under specified table name
-func CreateCNIChain(tableName, chainName string) error {
+func CreateChain(tableName, chainName string) error {
 	var err error
 
 	if !ChainExists(tableName, chainName) {
