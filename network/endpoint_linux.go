@@ -178,7 +178,7 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	// Create the endpoint object.
 	ep = &endpoint{
 		Id:                 epInfo.Id,
-		IfName:             epInfo.IfName,
+		IfName:             contIfName,
 		HostIfName:         hostIfName,
 		MacAddress:         containerIf.HardwareAddr,
 		InfraVnetIP:        epInfo.InfraVnetIP,
