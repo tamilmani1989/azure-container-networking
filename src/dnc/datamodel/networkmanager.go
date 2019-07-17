@@ -1551,7 +1551,7 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 		return nil
 	}
 
-	if !networkContainerConfig.MarkedForDelete {
+	if !networkContainerConfig.MarkedForDelete || networkContainerConfig.Status == Failed {
 		networkContainerConfig.MarkedForDelete = true
 		networkContainerConfig.Status = Pending
 		revertState, err := GetRevertState(networkContainerConfig.State)

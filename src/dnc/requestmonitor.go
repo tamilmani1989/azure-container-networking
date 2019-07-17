@@ -586,8 +586,7 @@ Cleanup:
 		// Non retriable errors, mark the operation as failed.
 		repoNetworkConfiguration.Status = datamodel.Failed
 		repoNetworkConfiguration.FailureDetail = *failureDetail
-		err = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
-		if err != nil {
+		if err = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration); err != nil {
 			return false, err
 		}
 	}
@@ -737,8 +736,7 @@ Cleanup:
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
-	err = datamodel.PersistNCConfiguration(repoNCConfig, false)
-	if err != nil {
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, false); err != nil {
 		return false, err
 	}
 
@@ -793,12 +791,10 @@ Cleanup:
 
 	if markPrepareFailed {
 		repoNCConfig.Status = datamodel.Failed
-		logger.Errorf("IPReservation failed %s", failureDetail.String())
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
-	err = datamodel.PersistNCConfiguration(repoNCConfig, false)
-	if err != nil {
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, false); err != nil {
 		return false, err
 	}
 
@@ -869,8 +865,7 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
-	err = datamodel.PersistNCConfiguration(repoNCConfig, false)
-	if err != nil {
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, false); err != nil {
 		return false, err
 	}
 
@@ -958,8 +953,7 @@ Cleanup:
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
-	err = datamodel.PersistNCConfiguration(repoNCConfig, false)
-	if err != nil {
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, false); err != nil {
 		return false, err
 	}
 

@@ -411,15 +411,13 @@ func DeleteNetworkContainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := ctrler.DeleteNetworkContainer(networkID, ncID)
-
-	if err == nil {
+	if err := ctrler.DeleteNetworkContainer(networkID, ncID); err == nil {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		return
+	} else {
+		setRequestFailed(w, err)
 	}
-
-	setRequestFailed(w, err)
 }
 
 // CreateNetworkContainer - Handler for create network container
