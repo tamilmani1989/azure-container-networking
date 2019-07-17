@@ -1254,7 +1254,6 @@ func processNetworkContainerDisAssociate(
 
 	// Query NodeConfiguration table with nodeID and handle errors.
 	repoNodeConfig, err := datamodel.TryQueryNodeConfiguration(nodeID)
-
 	if err != nil {
 		return false, err
 	} else if repoNodeConfig == nil {

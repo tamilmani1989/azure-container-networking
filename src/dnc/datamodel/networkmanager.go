@@ -2734,7 +2734,7 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 
 	repoNetworkConfiguration, err := TryQueryNetworkConfiguration(repoNCConfig.NetworkID)
 	if err != nil {
-		return nil, false, err
+		return nil, true, err
 	} else if repoNetworkConfiguration == nil {
 		msg := fmt.Sprintf(
 			"Configuration for Network %v not found.",
