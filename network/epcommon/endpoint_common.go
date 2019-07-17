@@ -108,11 +108,12 @@ func addOrDeleteFilterRule(bridgeName string, action string, ipAddress string, c
 
 	matchCondition := fmt.Sprintf("-%s %s -d %s", option, bridgeName, ipAddress)
 
-	if action == iptables.Insert {
+	switch action {
+	case iptables.Insert:
 		err = iptables.InsertIptableRule(iptables.Filter, chainName, matchCondition, target)
-	} else if action == iptables.Append {
+	case iptables.Append:
 		err = iptables.AppendIptableRule(iptables.Filter, chainName, matchCondition, target)
-	} else if action == iptables.Delete {
+	case iptables.Delete:
 		err = iptables.DeleteIptableRule(iptables.Filter, chainName, matchCondition, target)
 	}
 

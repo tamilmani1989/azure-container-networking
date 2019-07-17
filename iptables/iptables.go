@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/Azure/azure-container-networking/log"
-
 	"github.com/Azure/azure-container-networking/platform"
 )
 
