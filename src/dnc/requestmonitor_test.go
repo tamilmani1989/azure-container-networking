@@ -534,6 +534,19 @@ func TestNetwork(t *testing.T) {
 	nmAgentServer.Context = nmAgentResponderContext
 	nmAgentServer.Lock.Unlock()
 
+	// Verify if GetNetworkStatus returns appropriate error
+	getNetworkStatusURL := dncEP + "/networks/" + vnetID + "/status" + apiVersion
+	if getNetworkStatusResponse, err := http.Get(getNetworkStatusURL); err == nil {
+		defer getNetworkStatusResponse.Body.Close()
+
+		if getNetworkStatusResponse.StatusCode != http.StatusNotFound {
+			t.Fatalf("GetNetworkStatus returned incorrect error code. Expected: 404. Received: %d",
+				getNetworkStatusResponse.StatusCode)
+		}
+	} else {
+		t.Fatalf("GetNetworkStatus failed with error: %+v\n", err)
+	}
+
 	response, err := http.Post(dncEP+"/networks/"+vnetID+apiVersion, "application/json", &body)
 	if err != nil {
 		t.Fatalf("CreateNetwork failed with error: %+v\n", err)
@@ -616,8 +629,34 @@ func TestSubnet(t *testing.T) {
 	json.NewEncoder(&body).Encode(subnetReq)
 	id, _ := uuid.NewUUID()
 	vnetID := id.String()
+	resourceURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + apiVersion
 
-	response, err := http.Post(dncEP+"/networks/"+vnetID+"/subnets/"+subnetName+apiVersion, "application/json", &body)
+	// Verify if GetSubnetStatus returns appropriate error
+	getSubnetStatusURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + "/status" + apiVersion
+	if getSubnetStatusResponse, err := http.Get(getSubnetStatusURL); err == nil {
+		defer getSubnetStatusResponse.Body.Close()
+
+		if getSubnetStatusResponse.StatusCode != http.StatusNotFound {
+			t.Fatalf("GetSubnetStatus returned incorrect error code. Expected: 404. Received: %d",
+				getSubnetStatusResponse.StatusCode)
+		}
+	} else {
+		t.Fatalf("GetSubnetStatus failed with error: %+v\n", err)
+	}
+
+	// Verify if GetSubnetInfo returns appropriate error
+	if getSubnetInfoResponse, err := http.Get(resourceURL); err == nil {
+		defer getSubnetInfoResponse.Body.Close()
+
+		if getSubnetInfoResponse.StatusCode != http.StatusNotFound {
+			t.Fatalf("GetSubnetInfoResponse returned incorrect error code. Expected: 404. Received: %d",
+				getSubnetInfoResponse.StatusCode)
+		}
+	} else {
+		t.Fatalf("GetSubnetInfo failed with error: %+v\n", err)
+	}
+
+	response, err := http.Post(resourceURL, "application/json", &body)
 	if err != nil {
 		t.Fatalf("JoinSubnet failed with error: %+v\n", err)
 	}
@@ -646,7 +685,7 @@ func TestSubnet(t *testing.T) {
 	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
-	resourceURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + apiVersion
+
 	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeReq)
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
@@ -751,6 +790,7 @@ func TestContainer(t *testing.T) {
 	id, _ := uuid.NewUUID()
 	vnetID := id.String()
 
+	ValidateNetworkContainerGetAPI(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainer(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainer(t, nodeID, nodeReq, networkContainerReq5, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerUsingReservation(t, nodeID, nodeReq, networkContainerReq3, dncEP, vnetID, ncID2, apiVersion)
@@ -766,6 +806,50 @@ func TestContainer(t *testing.T) {
 	CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTags(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerDeployedInTaggedSubnetsAndAddNewTag(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTag(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
+}
+
+func ValidateNetworkContainerGetAPI(
+	t *testing.T,
+	nodeID string,
+	nodeInfoReq api.NodeInfoRequest,
+	networkcontainerreq CreateNetworkContainerRequest,
+	dncEP, vnetID, ncID, apiVersion string) {
+	fmt.Println("****CreateNetworkContainer Test**********")
+	fmt.Println("****ValidateNetworkContainerGetAPI**********")
+	setupNetworkAndJoinSubnet(t, dncEP, vnetID, networkcontainerreq.AllocationRequest.SubnetName, apiVersion, true, 0)
+	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeInfoReq)
+
+	// Verify if GetNetworkContainerStatus returns appropriate error
+	getNetworkContainerStatusURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + "/status" + apiVersion
+	if getNetworkContainerStatusResponse, err := http.Get(getNetworkContainerStatusURL); err == nil {
+		defer getNetworkContainerStatusResponse.Body.Close()
+
+		if getNetworkContainerStatusResponse.StatusCode != http.StatusNotFound {
+			t.Fatalf("GetSubnetStatus returned incorrect error code. Expected: 404. Received: %d",
+				getNetworkContainerStatusResponse.StatusCode)
+		}
+	} else {
+		t.Fatalf("GetNetworkContainerStatus failed with error: %+v\n", err)
+	}
+
+	// Verify if GetNetworkContainerInfo returns appropriate error
+	getNetworkContainerInfoURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	if getNetworkContainerInfoResponse, err := http.Get(getNetworkContainerInfoURL); err == nil {
+		defer getNetworkContainerInfoResponse.Body.Close()
+
+		if getNetworkContainerInfoResponse.StatusCode != http.StatusNotFound {
+			t.Fatalf("getNetworkContainerInfoResponse returned incorrect error code. Expected: 404. Received: %d",
+				getNetworkContainerInfoResponse.StatusCode)
+		}
+	} else {
+		t.Fatalf("GetSubnetInfo failed with error: %+v\n", err)
+	}
+
+	networkURL := dncEP + "/networks/" + vnetID + apiVersion
+	deleteResource(t, networkURL, http.StatusOK)
+
+	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
+	deleteResource(t, nodeURL, http.StatusOK)
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
