@@ -4,7 +4,7 @@
       "AccountName": "",
       "Key": "",
       "PartitionKey": "",
-      "EnableSharedSubnetDelegation": true
+      "EnableSharedSubnetDelegation": false
     }
   },
   "HostAgentSettings": {
