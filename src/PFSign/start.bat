@@ -1,0 +1,1 @@
+HostNetAgent.exe /configFile "..\HostPluginPackage\NetAgentHostPlugin.PluginSpecific.xml" /pf
