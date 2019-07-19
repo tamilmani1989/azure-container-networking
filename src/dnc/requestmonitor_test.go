@@ -45,6 +45,7 @@ type CreateNetworkContainerRequest struct {
 	AllocationRequest          api.AllocationRequest
 	AssociationInfo            api.AssociationInfo
 	AllowHostToNCCommunication bool
+	AllowNCToHostCommunication bool
 }
 
 type CreateNetworkContainerRequestV2 struct {
@@ -52,6 +53,7 @@ type CreateNetworkContainerRequestV2 struct {
 	AllocationRequest          api.AllocationRequest
 	AssociationInfo            api.AssociationInfo
 	AllowHostToNCCommunication bool
+	AllowNCToHostCommunication bool
 }
 
 type OrchestratorContext struct {
@@ -127,7 +129,8 @@ var (
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.AzureContainerInstance,
 			OrchestratorContext: context},
-		AllowHostToNCCommunication: true}
+		AllowHostToNCCommunication: true,
+		AllowNCToHostCommunication: true}
 	networkContainerReq5 = CreateNetworkContainerRequest{
 		AllocationRequest: api.AllocationRequest{
 			SubnetName:     "subnet1",
@@ -138,7 +141,8 @@ var (
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.AzureContainerInstance,
 			OrchestratorContext: context},
-		AllowHostToNCCommunication: true}
+		AllowHostToNCCommunication: true,
+		AllowNCToHostCommunication: true}
 	ncID  = "0e2f40cd-8fe1-420f-af43-1c4d5c5bb83b"
 	ncID2 = "b8be30e0-7b79-42cb-bdb1-8c0ecd77d52a"
 
@@ -1822,6 +1826,12 @@ func AreCnsRequestsEqual(expected, received cns.CreateNetworkContainerRequest, v
 		return false
 	}
 
+	if expected.AllowNCToHostCommunication != received.AllowNCToHostCommunication {
+		fmt.Printf("Expected.AllowNCToHostCommunication %t Received.AllowNCToHostCommunication:%t",
+			expected.AllowNCToHostCommunication, received.AllowNCToHostCommunication)
+		return false
+	}
+
 	return true
 }
 
@@ -1833,7 +1843,8 @@ func createNetworkContainer(
 	associationInfo *api.AssociationInfo,
 	reservationID, dncEP, vnetID, ncid, apiVersion string,
 	tagCount int,
-	allowHostToNCCommunication bool) {
+	allowHostToNCCommunication bool,
+	allowNCToHostCommunication bool) {
 	fmt.Println("****CreateNetworkContainer Test**********")
 
 	setupNetworkAndJoinSubnet(t, dncEP, vnetID, allocationRequest.SubnetName, apiVersion, true, tagCount)
@@ -1882,7 +1893,8 @@ func createNetworkContainer(
 			CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
 			OrchestratorContext:        context,
 			MultiTenancyInfo:           req.MultiTenancyInfo,
-			AllowHostToNCCommunication: allowHostToNCCommunication}
+			AllowHostToNCCommunication: allowHostToNCCommunication,
+			AllowNCToHostCommunication: allowNCToHostCommunication}
 		fmt.Printf("ReceivedResponse:%+v\n", req)
 		fmt.Printf("ExpectedResponse:%+v\n", expectedReq)
 
@@ -1908,13 +1920,15 @@ func createNetworkContainer(
 			AllocationRequest:          *allocationRequest,
 			AssociationInfo:            *associationInfo,
 			ReservationID:              reservationID,
-			AllowHostToNCCommunication: allowHostToNCCommunication}
+			AllowHostToNCCommunication: allowHostToNCCommunication,
+			AllowNCToHostCommunication: allowNCToHostCommunication}
 		json.NewEncoder(&body).Encode(networkcontainerreq)
 	} else {
 		networkcontainerreq := CreateNetworkContainerRequest{
 			AllocationRequest:          *allocationRequest,
 			AssociationInfo:            *associationInfo,
-			AllowHostToNCCommunication: allowHostToNCCommunication}
+			AllowHostToNCCommunication: allowHostToNCCommunication,
+			AllowNCToHostCommunication: allowNCToHostCommunication}
 		json.NewEncoder(&body).Encode(networkcontainerreq)
 	}
 	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncid + apiVersion
@@ -2053,7 +2067,8 @@ func CreateNetworkContainer(
 		ncid,
 		apiVersion,
 		0,
-		networkcontainerreq.AllowHostToNCCommunication)
+		networkcontainerreq.AllowHostToNCCommunication,
+		networkcontainerreq.AllowNCToHostCommunication)
 }
 
 func CreateNetworkContainerUsingReservation(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequestV2, dncEP, vnetID, ncid, apiVersion string) {
@@ -2070,7 +2085,8 @@ func CreateNetworkContainerUsingReservation(t *testing.T, nodeID string, nodeInf
 		ncid,
 		apiVersion,
 		0,
-		networkContainerReq.AllowHostToNCCommunication)
+		networkContainerReq.AllowHostToNCCommunication,
+		networkcontainerreq.AllowNCToHostCommunication)
 }
 
 func CreateNetworkContainerDeployedInTaggedSubnets(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
@@ -2087,7 +2103,8 @@ func CreateNetworkContainerDeployedInTaggedSubnets(t *testing.T, nodeID string, 
 		ncid,
 		apiVersion,
 		2,
-		networkcontainerreq.AllowHostToNCCommunication)
+		networkcontainerreq.AllowHostToNCCommunication,
+		networkcontainerreq.AllowNCToHostCommunication)
 }
 
 func convertAddressStringsToCnsIPSubnets(networksString string) []cns.IPSubnet {

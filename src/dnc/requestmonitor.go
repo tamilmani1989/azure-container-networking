@@ -1134,6 +1134,7 @@ func processNetworkContainerAssociate(
 		GatewayIPAddress: localIPGatewayString}
 
 	allowHostToNCCommunicationStatus := repoNCConfig.GetAllowHostToNCCommunicationStatus()
+	allowNCToHostCommunicationStatus := repoNCConfig.GetAllowNCToHostCommunicationStatus()
 
 	info := &cns.CreateNetworkContainerRequest{
 		Version:                    strconv.FormatUint(repoNCConfig.CNSVersion, 10),
@@ -1146,7 +1147,8 @@ func processNetworkContainerAssociate(
 		OrchestratorContext:        ncGoalState.OrchestratorContext,
 		MultiTenancyInfo:           cns.MultiTenancyInfo{EncapType: cns.Vlan, ID: ncGoalState.VlanID},
 		LocalIPConfiguration:       localIPConfiguaration,
-		AllowHostToNCCommunication: allowHostToNCCommunicationStatus}
+		AllowHostToNCCommunication: allowHostToNCCommunicationStatus,
+		AllowNCToHostCommunication: allowNCToHostCommunicationStatus}
 
 	json.NewEncoder(&body).Encode(info)
 	createOrUpdateNCURL := fmt.Sprintf(

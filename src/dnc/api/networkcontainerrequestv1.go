@@ -9,12 +9,14 @@ type NetworkContainerRequestV1 struct {
 	ReservationID              string          `json:"ReservationID"`
 	AssociationInfo            AssociationInfo `json:"AssociationInfo"`
 	AllowHostToNCCommunication bool            `json:"AllowHostToNCCommunication"`
+	AllowNCToHostCommunication bool            `json:"AllowNCToHostCommunication"`
 }
 
 func (networkContainerRequestV1 *NetworkContainerRequestV1) String() string {
 	return fmt.Sprintf(
-		"NetworkContainerRequestV1:[ReservationID:%s, AssociationInfo:%s, AllowHostToNCCommunication:%t]",
-		networkContainerRequestV1.ReservationID, networkContainerRequestV1.AssociationInfo.String(), networkContainerRequestV1.AllowHostToNCCommunication)
+		"NetworkContainerRequestV1:[ReservationID:%s, AssociationInfo:%s, AllowHostToNCCommunication:%t AllowNCToHostCommunication:%t]",
+		networkContainerRequestV1.ReservationID, networkContainerRequestV1.AssociationInfo.String(), networkContainerRequestV1.AllowHostToNCCommunication,
+		networkContainerRequestV1.AllowNCToHostCommunication)
 }
 
 // Validate - Validates the NetworkContainerRequestV1

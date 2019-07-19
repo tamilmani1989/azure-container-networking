@@ -30,10 +30,18 @@ func (ncConfiguration *NCConfiguration) GetAssociationInfo() api.AssociationInfo
 	return ncConfiguration.RequestV2.AssociationInfo
 }
 
-// GetAllowHostToNCCommunicationStatus - Retrieves association info assocuated with NC.
+// GetAllowHostToNCCommunicationStatus - Retrieves association info associated with NC.
 func (ncConfiguration *NCConfiguration) GetAllowHostToNCCommunicationStatus() bool {
 	if len(ncConfiguration.RequestV1.AssociationInfo.NodeID) != 0 {
 		return ncConfiguration.RequestV1.AllowHostToNCCommunication
 	}
 	return ncConfiguration.RequestV2.AllowHostToNCCommunication
+}
+
+// GetAllowNCToHostCommunicationStatus - Retrieves association info associated with NC.
+func (ncConfiguration *NCConfiguration) GetAllowNCToHostCommunicationStatus() bool {
+	if len(ncConfiguration.RequestV1.AssociationInfo.NodeID) != 0 {
+		return ncConfiguration.RequestV1.AllowNCToHostCommunication
+	}
+	return ncConfiguration.RequestV2.AllowNCToHostCommunication
 }

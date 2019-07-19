@@ -13,10 +13,13 @@ type NetworkContainerResponse struct {
 	VlanID                     uint16          `json:"VlanID"`
 	LocalIP                    string          `json:"LocalIP"`
 	AllowHostToNCCommunication bool            `json:"AllowHostToNCCommunication"`
+	AllowNCToHostCommunication bool            `json:"AllowNCToHostCommunication"`
 }
 
 func (r *NetworkContainerResponse) String() string {
 	return fmt.Sprintf(
-		"NetworkContainerResponse:[NetworkContainerID:%s, IPConfiguration:%s, AssociationInfo:%s, RequestStatus:%s, VlanID:%d, LocalIP:%s, AllowHostToNCCommunication:%t]",
-		r.NcID, r.IPConfiguration.String(), r.AssociationInfo.String(), r.RequestStatus.String(), r.VlanID, r.LocalIP, r.AllowHostToNCCommunication)
+		`NetworkContainerResponse:[NetworkContainerID:%s, IPConfiguration:%s, AssociationInfo:%s,
+		RequestStatus:%s, VlanID:%d, LocalIP:%s, AllowHostToNCCommunication:%t, AllowNCToHostCommunication:%t]`,
+		r.NcID, r.IPConfiguration.String(), r.AssociationInfo.String(), r.RequestStatus.String(), r.VlanID, r.LocalIP, r.AllowHostToNCCommunication,
+		r.AllowNCToHostCommunication)
 }
