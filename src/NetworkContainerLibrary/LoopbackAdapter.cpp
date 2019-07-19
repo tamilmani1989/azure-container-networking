@@ -559,7 +559,9 @@ Return Value:
 	BOOL setupDiGetDevRegPropResult = false;
 	// Retrieve the PnP property of the device.
 	wchar_t friendlyName[MAX_PATH];
-	setupDiGetDevRegPropResult = SetupDiGetDeviceRegistryProperty(
+	for (int i=0; i<3 && !setupDiGetDevRegPropResult; ++i)
+	{
+		setupDiGetDevRegPropResult = SetupDiGetDeviceRegistryProperty(
 		deviceInfoSet,
 		&deviceInfoData,
 		SPDRP_FRIENDLYNAME,
@@ -567,6 +569,7 @@ Return Value:
 		(PBYTE)friendlyName, //PropertyBuffer
 		sizeof(friendlyName),
 		NULL);
+	}
 	if (!setupDiGetDevRegPropResult)
 	{
 		LOGINFOW(

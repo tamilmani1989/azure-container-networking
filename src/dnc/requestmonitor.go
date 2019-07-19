@@ -586,8 +586,7 @@ Cleanup:
 		// Non retriable errors, mark the operation as failed.
 		repoNetworkConfiguration.Status = datamodel.Failed
 		repoNetworkConfiguration.FailureDetail = *failureDetail
-		err = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
-		if err != nil {
+		if err = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration); err != nil {
 			return false, err
 		}
 	}
@@ -737,8 +736,7 @@ Cleanup:
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
-	err = datamodel.PersistNCConfiguration(repoNCConfig, false)
-	if err != nil {
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, false); err != nil {
 		return false, err
 	}
 
@@ -793,12 +791,10 @@ Cleanup:
 
 	if markPrepareFailed {
 		repoNCConfig.Status = datamodel.Failed
-		logger.Errorf("IPReservation failed %s", failureDetail.String())
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
-	err = datamodel.PersistNCConfiguration(repoNCConfig, false)
-	if err != nil {
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, false); err != nil {
 		return false, err
 	}
 
@@ -869,8 +865,7 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
-	err = datamodel.PersistNCConfiguration(repoNCConfig, false)
-	if err != nil {
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, false); err != nil {
 		return false, err
 	}
 
@@ -958,8 +953,7 @@ Cleanup:
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
-	err = datamodel.PersistNCConfiguration(repoNCConfig, false)
-	if err != nil {
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, false); err != nil {
 		return false, err
 	}
 
@@ -968,7 +962,12 @@ Cleanup:
 
 func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	defer utils.RecordTime(stateTransitionDateTime, "ContainerUnreserve", repoNCConfig.NetworkContainerID)
-	err := datamodel.PurgeNetworkContainerAssociations(repoNCConfig, updateVlan(repoNCConfig.GetAssociationInfo().ContainerType))
+	var err *api.JsonErr
+	if repoNCConfig.ImplicitReservation {
+		err = datamodel.DeleteIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID, true)
+	} else {
+		err = datamodel.UpdateNCToReservationAssociation(repoNCConfig, true)
+	}
 	if err != nil {
 		return false, err
 	}
@@ -1134,6 +1133,8 @@ func processNetworkContainerAssociate(
 		IPSubnet:         localIPSubnet,
 		GatewayIPAddress: localIPGatewayString}
 
+	allowHostToNCCommunicationStatus := repoNCConfig.GetAllowHostToNCCommunicationStatus()
+
 	info := &cns.CreateNetworkContainerRequest{
 		Version:                    strconv.FormatUint(repoNCConfig.CNSVersion, 10),
 		NetworkContainerType:       ncGoalState.ContainerType,
@@ -1144,7 +1145,8 @@ func processNetworkContainerAssociate(
 		CnetAddressSpace:           cnsCnetAddresses,
 		OrchestratorContext:        ncGoalState.OrchestratorContext,
 		MultiTenancyInfo:           cns.MultiTenancyInfo{EncapType: cns.Vlan, ID: ncGoalState.VlanID},
-		LocalIPConfiguration:       localIPConfiguaration}
+		LocalIPConfiguration:       localIPConfiguaration,
+		AllowHostToNCCommunication: allowHostToNCCommunicationStatus}
 
 	json.NewEncoder(&body).Encode(info)
 	createOrUpdateNCURL := fmt.Sprintf(
@@ -1252,7 +1254,6 @@ func processNetworkContainerDisAssociate(
 
 	// Query NodeConfiguration table with nodeID and handle errors.
 	repoNodeConfig, err := datamodel.TryQueryNodeConfiguration(nodeID)
-
 	if err != nil {
 		return false, err
 	} else if repoNodeConfig == nil {

@@ -47,7 +47,7 @@ case $1 in
     "test" )
         cd $DIR/src/dnc
         export DNC_CONFIGURATION_PATH=$DIR/src/dnc/config_test.json
-        go test -timeout 1000s -coverprofile coverage-dnc.out
+        go test -timeout 2000s -coverprofile coverage-dnc.out
         ;;
     "get" )
         mkdir $DIR/src/github && cd $_

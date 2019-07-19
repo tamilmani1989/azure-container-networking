@@ -42,14 +42,16 @@ type JoinSubnetRequest struct {
 }
 
 type CreateNetworkContainerRequest struct {
-	AllocationRequest api.AllocationRequest
-	AssociationInfo   api.AssociationInfo
+	AllocationRequest          api.AllocationRequest
+	AssociationInfo            api.AssociationInfo
+	AllowHostToNCCommunication bool
 }
 
 type CreateNetworkContainerRequestV2 struct {
-	ReservationID     string
-	AllocationRequest api.AllocationRequest
-	AssociationInfo   api.AssociationInfo
+	ReservationID              string
+	AllocationRequest          api.AllocationRequest
+	AssociationInfo            api.AssociationInfo
+	AllowHostToNCCommunication bool
 }
 
 type OrchestratorContext struct {
@@ -114,6 +116,29 @@ var (
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.AzureContainerInstance,
 			OrchestratorContext: context}}
+	networkContainerReq4 = CreateNetworkContainerRequestV2{
+		ReservationID: "b56ebb26-fed6-4765-b501-9e5488cc1df6",
+		AllocationRequest: api.AllocationRequest{
+			SubnetName:     "subnet1",
+			IPConstraint:   "",
+			NodeConstraint: ""},
+		AssociationInfo: api.AssociationInfo{
+			NodeID:              "testnode",
+			InterfaceID:         "127.0.0.1",
+			ContainerType:       cns.AzureContainerInstance,
+			OrchestratorContext: context},
+		AllowHostToNCCommunication: true}
+	networkContainerReq5 = CreateNetworkContainerRequest{
+		AllocationRequest: api.AllocationRequest{
+			SubnetName:     "subnet1",
+			IPConstraint:   "",
+			NodeConstraint: ""},
+		AssociationInfo: api.AssociationInfo{
+			NodeID:              "testnode",
+			InterfaceID:         "127.0.0.1",
+			ContainerType:       cns.AzureContainerInstance,
+			OrchestratorContext: context},
+		AllowHostToNCCommunication: true}
 	ncID  = "0e2f40cd-8fe1-420f-af43-1c4d5c5bb83b"
 	ncID2 = "b8be30e0-7b79-42cb-bdb1-8c0ecd77d52a"
 
@@ -159,7 +184,7 @@ func Setup() error {
 func StartDnc() {
 	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
 	if !found {
-		configpath = "config.json"
+		configpath = "config_test.json"
 	}
 
 	config = configuration.Load(configpath)
@@ -509,6 +534,19 @@ func TestNetwork(t *testing.T) {
 	nmAgentServer.Context = nmAgentResponderContext
 	nmAgentServer.Lock.Unlock()
 
+	// Verify if GetNetworkStatus returns appropriate error
+	getNetworkStatusURL := dncEP + "/networks/" + vnetID + "/status" + apiVersion
+	if getNetworkStatusResponse, err := http.Get(getNetworkStatusURL); err == nil {
+		defer getNetworkStatusResponse.Body.Close()
+
+		if getNetworkStatusResponse.StatusCode != http.StatusNotFound {
+			t.Fatalf("GetNetworkStatus returned incorrect error code. Expected: 404. Received: %d",
+				getNetworkStatusResponse.StatusCode)
+		}
+	} else {
+		t.Fatalf("GetNetworkStatus failed with error: %+v\n", err)
+	}
+
 	response, err := http.Post(dncEP+"/networks/"+vnetID+apiVersion, "application/json", &body)
 	if err != nil {
 		t.Fatalf("CreateNetwork failed with error: %+v\n", err)
@@ -591,8 +629,34 @@ func TestSubnet(t *testing.T) {
 	json.NewEncoder(&body).Encode(subnetReq)
 	id, _ := uuid.NewUUID()
 	vnetID := id.String()
+	resourceURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + apiVersion
 
-	response, err := http.Post(dncEP+"/networks/"+vnetID+"/subnets/"+subnetName+apiVersion, "application/json", &body)
+	// Verify if GetSubnetStatus returns appropriate error
+	getSubnetStatusURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + "/status" + apiVersion
+	if getSubnetStatusResponse, err := http.Get(getSubnetStatusURL); err == nil {
+		defer getSubnetStatusResponse.Body.Close()
+
+		if getSubnetStatusResponse.StatusCode != http.StatusNotFound {
+			t.Fatalf("GetSubnetStatus returned incorrect error code. Expected: 404. Received: %d",
+				getSubnetStatusResponse.StatusCode)
+		}
+	} else {
+		t.Fatalf("GetSubnetStatus failed with error: %+v\n", err)
+	}
+
+	// Verify if GetSubnetInfo returns appropriate error
+	if getSubnetInfoResponse, err := http.Get(resourceURL); err == nil {
+		defer getSubnetInfoResponse.Body.Close()
+
+		if getSubnetInfoResponse.StatusCode != http.StatusNotFound {
+			t.Fatalf("GetSubnetInfoResponse returned incorrect error code. Expected: 404. Received: %d",
+				getSubnetInfoResponse.StatusCode)
+		}
+	} else {
+		t.Fatalf("GetSubnetInfo failed with error: %+v\n", err)
+	}
+
+	response, err := http.Post(resourceURL, "application/json", &body)
 	if err != nil {
 		t.Fatalf("JoinSubnet failed with error: %+v\n", err)
 	}
@@ -621,7 +685,7 @@ func TestSubnet(t *testing.T) {
 	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
-	resourceURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + apiVersion
+
 	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeReq)
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
@@ -726,8 +790,11 @@ func TestContainer(t *testing.T) {
 	id, _ := uuid.NewUUID()
 	vnetID := id.String()
 
+	ValidateNetworkContainerGetAPI(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainer(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
+	CreateNetworkContainer(t, nodeID, nodeReq, networkContainerReq5, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerUsingReservation(t, nodeID, nodeReq, networkContainerReq3, dncEP, vnetID, ncID2, apiVersion)
+	CreateNetworkContainerUsingReservation(t, nodeID, nodeReq, networkContainerReq4, dncEP, vnetID, ncID2, apiVersion)
 	CreateNetworkContainerDeployedInTaggedSubnets(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndUpdateCnetSpace(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndAddCnetSpace(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
@@ -739,6 +806,50 @@ func TestContainer(t *testing.T) {
 	CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTags(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerDeployedInTaggedSubnetsAndAddNewTag(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTag(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
+}
+
+func ValidateNetworkContainerGetAPI(
+	t *testing.T,
+	nodeID string,
+	nodeInfoReq api.NodeInfoRequest,
+	networkcontainerreq CreateNetworkContainerRequest,
+	dncEP, vnetID, ncID, apiVersion string) {
+	fmt.Println("****CreateNetworkContainer Test**********")
+	fmt.Println("****ValidateNetworkContainerGetAPI**********")
+	setupNetworkAndJoinSubnet(t, dncEP, vnetID, networkcontainerreq.AllocationRequest.SubnetName, apiVersion, true, 0)
+	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeInfoReq)
+
+	// Verify if GetNetworkContainerStatus returns appropriate error
+	getNetworkContainerStatusURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + "/status" + apiVersion
+	if getNetworkContainerStatusResponse, err := http.Get(getNetworkContainerStatusURL); err == nil {
+		defer getNetworkContainerStatusResponse.Body.Close()
+
+		if getNetworkContainerStatusResponse.StatusCode != http.StatusNotFound {
+			t.Fatalf("GetSubnetStatus returned incorrect error code. Expected: 404. Received: %d",
+				getNetworkContainerStatusResponse.StatusCode)
+		}
+	} else {
+		t.Fatalf("GetNetworkContainerStatus failed with error: %+v\n", err)
+	}
+
+	// Verify if GetNetworkContainerInfo returns appropriate error
+	getNetworkContainerInfoURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	if getNetworkContainerInfoResponse, err := http.Get(getNetworkContainerInfoURL); err == nil {
+		defer getNetworkContainerInfoResponse.Body.Close()
+
+		if getNetworkContainerInfoResponse.StatusCode != http.StatusNotFound {
+			t.Fatalf("getNetworkContainerInfoResponse returned incorrect error code. Expected: 404. Received: %d",
+				getNetworkContainerInfoResponse.StatusCode)
+		}
+	} else {
+		t.Fatalf("GetSubnetInfo failed with error: %+v\n", err)
+	}
+
+	networkURL := dncEP + "/networks/" + vnetID + apiVersion
+	deleteResource(t, networkURL, http.StatusOK)
+
+	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
+	deleteResource(t, nodeURL, http.StatusOK)
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
@@ -874,6 +985,42 @@ func validateNodeInfoResponse(
 			t.Fatalf("Received IP Address %s not found in the expected list", ipAddressString)
 		}
 	}
+}
+
+func validateNetworkContainerInfoResponse(
+	t *testing.T,
+	dncEP string,
+	vnetID string,
+	ncID string,
+	apiVersion string,
+	networkContainerInfoReq *CreateNetworkContainerRequest) error {
+	networkContainerConfigResponse := getNetworkContainerConfiguration(t, dncEP, vnetID, ncID, apiVersion)
+
+	if !reflect.DeepEqual(networkContainerConfigResponse.AssociationInfo,
+		networkContainerInfoReq.AssociationInfo) {
+		return fmt.Errorf("Mismatch for association info")
+	}
+
+	if len(networkContainerInfoReq.AllocationRequest.IPConstraint) > 0 {
+		ipAddress, _, err := net.ParseCIDR(networkContainerConfigResponse.IPConfiguration.IPAddress)
+		if err != nil {
+			return fmt.Errorf("Failed to parse the allocated IP address: %s with error: %v",
+				networkContainerConfigResponse.IPConfiguration.IPAddress, err)
+		}
+
+		if networkContainerInfoReq.AllocationRequest.IPConstraint != ipAddress.String() {
+			return fmt.Errorf("Failed to allocate the requested IP address")
+		}
+	}
+
+	if len(networkContainerInfoReq.AllocationRequest.SubnetName) > 0 {
+		if networkContainerInfoReq.AllocationRequest.SubnetName !=
+			networkContainerConfigResponse.IPConfiguration.SubnetName {
+			return fmt.Errorf("Mismatch for Subnet names")
+		}
+	}
+
+	return nil
 }
 
 func getSubnetConfiguration(
@@ -1636,7 +1783,7 @@ func AreCnsRequestsEqual(expected, received cns.CreateNetworkContainerRequest, v
 		}
 	}
 
-	if !reflect.DeepEqual(expected.MultiTenancyInfo, expected.MultiTenancyInfo) {
+	if !reflect.DeepEqual(expected.MultiTenancyInfo, received.MultiTenancyInfo) {
 		fmt.Printf("Expected.MultiTenancyInfo %+v Received.MultiTenancyInfo:%+v",
 			expected.MultiTenancyInfo, received.MultiTenancyInfo)
 		return false
@@ -1663,9 +1810,15 @@ func AreCnsRequestsEqual(expected, received cns.CreateNetworkContainerRequest, v
 				strconv.Itoa(int(cnetAddressSpace.PrefixLength))
 	}
 
-	if !utils.AreSetsEqual(receivedCnetAddressSpace, receivedCnetAddressSpace) {
+	if !utils.AreSetsEqual(expectedCnetAddressSpace, receivedCnetAddressSpace) {
 		fmt.Printf("Expected.CnetAddressSpace %+v Received.CnetAddressSpace:%+v",
 			expected.CnetAddressSpace, received.CnetAddressSpace)
+		return false
+	}
+
+	if expected.AllowHostToNCCommunication != received.AllowHostToNCCommunication {
+		fmt.Printf("Expected.AllowHostToNCCommunication %t Received.AllowHostToNCCommunication:%t",
+			expected.AllowHostToNCCommunication, received.AllowHostToNCCommunication)
 		return false
 	}
 
@@ -1679,7 +1832,8 @@ func createNetworkContainer(
 	allocationRequest *api.AllocationRequest,
 	associationInfo *api.AssociationInfo,
 	reservationID, dncEP, vnetID, ncid, apiVersion string,
-	tagCount int) {
+	tagCount int,
+	allowHostToNCCommunication bool) {
 	fmt.Println("****CreateNetworkContainer Test**********")
 
 	setupNetworkAndJoinSubnet(t, dncEP, vnetID, allocationRequest.SubnetName, apiVersion, true, tagCount)
@@ -1727,7 +1881,8 @@ func createNetworkContainer(
 			AuthorizationToken:         "",
 			CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
 			OrchestratorContext:        context,
-			MultiTenancyInfo:           req.MultiTenancyInfo}
+			MultiTenancyInfo:           req.MultiTenancyInfo,
+			AllowHostToNCCommunication: allowHostToNCCommunication}
 		fmt.Printf("ReceivedResponse:%+v\n", req)
 		fmt.Printf("ExpectedResponse:%+v\n", expectedReq)
 
@@ -1750,14 +1905,16 @@ func createNetworkContainer(
 	var respErr api.JsonErr
 	if len(reservationID) > 0 {
 		networkcontainerreq := CreateNetworkContainerRequestV2{
-			AllocationRequest: *allocationRequest,
-			AssociationInfo:   *associationInfo,
-			ReservationID:     reservationID}
+			AllocationRequest:          *allocationRequest,
+			AssociationInfo:            *associationInfo,
+			ReservationID:              reservationID,
+			AllowHostToNCCommunication: allowHostToNCCommunication}
 		json.NewEncoder(&body).Encode(networkcontainerreq)
 	} else {
 		networkcontainerreq := CreateNetworkContainerRequest{
-			AllocationRequest: *allocationRequest,
-			AssociationInfo:   *associationInfo}
+			AllocationRequest:          *allocationRequest,
+			AssociationInfo:            *associationInfo,
+			AllowHostToNCCommunication: allowHostToNCCommunication}
 		json.NewEncoder(&body).Encode(networkcontainerreq)
 	}
 	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncid + apiVersion
@@ -1802,6 +1959,16 @@ func createNetworkContainer(
 		fmt.Printf("Successfully created network container using dynamic IP [%s]\n", ncid)
 	} else {
 		fmt.Printf("Successfully created network container using specific IP [%s]\n", ncid)
+	}
+
+	networkcontainerreq := CreateNetworkContainerRequest{
+		AllocationRequest:          *allocationRequest,
+		AssociationInfo:            *associationInfo,
+		AllowHostToNCCommunication: allowHostToNCCommunication}
+
+	if err := validateNetworkContainerInfoResponse(t, dncEP, vnetID, ncid, apiVersion, &networkcontainerreq); err != nil {
+		t.Errorf("Network container validation failed for network container due to error: %v\n", err)
+		t.Fatal(err)
 	}
 
 	networkURL := dncEP + "/networks/" + vnetID + apiVersion
@@ -1869,7 +2036,10 @@ func createNetworkContainer(
 	deleteResource(t, nodeURL, http.StatusOK)
 }
 
-func CreateNetworkContainer(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
+func CreateNetworkContainer(
+	t *testing.T,
+	nodeID string,
+	nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
 	fmt.Println("****CreateNetworkContainer Test**********")
 	createNetworkContainer(
 		t,
@@ -1882,7 +2052,8 @@ func CreateNetworkContainer(t *testing.T, nodeID string, nodeInfoReq api.NodeInf
 		vnetID,
 		ncid,
 		apiVersion,
-		0)
+		0,
+		networkcontainerreq.AllowHostToNCCommunication)
 }
 
 func CreateNetworkContainerUsingReservation(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequestV2, dncEP, vnetID, ncid, apiVersion string) {
@@ -1898,7 +2069,8 @@ func CreateNetworkContainerUsingReservation(t *testing.T, nodeID string, nodeInf
 		vnetID,
 		ncid,
 		apiVersion,
-		0)
+		0,
+		networkContainerReq.AllowHostToNCCommunication)
 }
 
 func CreateNetworkContainerDeployedInTaggedSubnets(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
@@ -1914,7 +2086,8 @@ func CreateNetworkContainerDeployedInTaggedSubnets(t *testing.T, nodeID string, 
 		vnetID,
 		ncid,
 		apiVersion,
-		2)
+		2,
+		networkcontainerreq.AllowHostToNCCommunication)
 }
 
 func convertAddressStringsToCnsIPSubnets(networksString string) []cns.IPSubnet {

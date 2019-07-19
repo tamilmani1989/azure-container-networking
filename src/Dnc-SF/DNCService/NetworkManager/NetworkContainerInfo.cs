@@ -205,7 +205,7 @@ namespace NetworkManager
             using (var algorithm = SHA256.Create())
             {
                 byte[] tokenHash = algorithm.ComputeHash(Encoding.ASCII.GetBytes(this.AccessToken));
-                tokenHashString = Encoding.Default.GetString(tokenHash);
+                tokenHashString = System.BitConverter.ToString(tokenHash).Replace("-", "").ToLower();
             }
             return $"[NetworkID:{this.NetworkID}, NetworkID:{this.NodeID} " +
                 $"NetworkContainerID:{this.NetworkContainerID} , NodeInterfaceID:{this.NodeInterfaceID}" +

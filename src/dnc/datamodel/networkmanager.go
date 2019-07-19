@@ -1493,8 +1493,7 @@ func GetNetworkContainerConfiguration(networkID,
 	networkContainerConfig, err := TryQueryNetworkContainer(
 		networkID, networkContainerID)
 	if err != nil {
-		loggershim.LS.Debugf("TryQueryNetworkContainer returned error %+v", err)
-		return nil, nil
+		return nil, err
 	}
 
 	if networkContainerConfig == nil {
@@ -1552,7 +1551,7 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 		return nil
 	}
 
-	if !networkContainerConfig.MarkedForDelete {
+	if !networkContainerConfig.MarkedForDelete || networkContainerConfig.Status == Failed {
 		networkContainerConfig.MarkedForDelete = true
 		networkContainerConfig.Status = Pending
 		revertState, err := GetRevertState(networkContainerConfig.State)
@@ -1770,24 +1769,15 @@ func GetNodeIDForNetworkContainer(networkID, ncID string) (string, *api.JsonErr)
 
 // PurgeNetworkContainerAssociations - Process relase of resevation associated with network container
 func PurgeNetworkContainerAssociations(ncConfiguration *NCConfiguration, updateVlan bool) *api.JsonErr {
-	nodeID := ncConfiguration.GetAssociationInfo().NodeID
+	associationInfo := ncConfiguration.GetAssociationInfo()
 	err := UpdateNodeConfigurationNetworkContainerSet(
-		nodeID,
+		associationInfo.NodeID,
 		ncConfiguration.NetworkID,
 		ncConfiguration.NetworkContainerID,
 		ncConfiguration.ReservationID,
-		ncConfiguration.GetAssociationInfo().ContainerType,
+		associationInfo.ContainerType,
 		updateVlan,
 		true)
-	if err != nil {
-		return err
-	}
-
-	if ncConfiguration.ImplicitReservation {
-		err = DeleteIPReservation(ncConfiguration.NetworkID, ncConfiguration.ReservationID, true)
-	} else {
-		err = UpdateNCToReservationAssociation(ncConfiguration, true)
-	}
 
 	return err
 }
@@ -1986,10 +1976,12 @@ func GetNetworkContainerResponse(
 		FailureDetail: ncConfig.FailureDetail}
 	associationInfo := ncConfig.GetAssociationInfo()
 	response := api.NetworkContainerResponse{
-		NcID:            ncConfig.NetworkContainerID,
-		AssociationInfo: associationInfo,
-		RequestStatus:   requestStatus,
-		VlanID:          vlanID}
+		NcID:                       ncConfig.NetworkContainerID,
+		AssociationInfo:            associationInfo,
+		RequestStatus:              requestStatus,
+		VlanID:                     vlanID,
+		LocalIP:                    ncConfig.LocalIP,
+		AllowHostToNCCommunication: ncConfig.GetAllowHostToNCCommunicationStatus()}
 
 	if ipConfiguration != nil {
 		response.IPConfiguration = *ipConfiguration
@@ -2742,7 +2734,7 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 
 	repoNetworkConfiguration, err := TryQueryNetworkConfiguration(repoNCConfig.NetworkID)
 	if err != nil {
-		return nil, false, err
+		return nil, true, err
 	} else if repoNetworkConfiguration == nil {
 		msg := fmt.Sprintf(
 			"Configuration for Network %v not found.",

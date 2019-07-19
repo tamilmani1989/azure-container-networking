@@ -19,7 +19,7 @@ type NCConfiguration struct {
 	FailureDetail         api.JsonErr
 	MarkedForDelete       bool
 	APIVersion            string
-	LocalIP				  string
+	LocalIP               string
 }
 
 // GetAssociationInfo - Retrieves association info assocuated with NC.
@@ -28,4 +28,12 @@ func (ncConfiguration *NCConfiguration) GetAssociationInfo() api.AssociationInfo
 		return ncConfiguration.RequestV1.AssociationInfo
 	}
 	return ncConfiguration.RequestV2.AssociationInfo
+}
+
+// GetAllowHostToNCCommunicationStatus - Retrieves association info assocuated with NC.
+func (ncConfiguration *NCConfiguration) GetAllowHostToNCCommunicationStatus() bool {
+	if len(ncConfiguration.RequestV1.AssociationInfo.NodeID) != 0 {
+		return ncConfiguration.RequestV1.AllowHostToNCCommunication
+	}
+	return ncConfiguration.RequestV2.AllowHostToNCCommunication
 }

@@ -410,8 +410,7 @@ func (c *Controller) PromoteContainerState(networkID, ncID string) *api.JsonErr 
 		return err
 	}
 
-	datamodel.PromoteContainerState(repoNCConfig)
-	return datamodel.PersistNCConfiguration(repoNCConfig, false)
+	return datamodel.PromoteContainerState(repoNCConfig)
 }
 
 // SkipNodeCleanupForNetworkContainer - Attempt to promote container stuck in an undesirable state (as a result of unreachable node)
