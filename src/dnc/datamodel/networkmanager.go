@@ -1981,7 +1981,8 @@ func GetNetworkContainerResponse(
 		RequestStatus:              requestStatus,
 		VlanID:                     vlanID,
 		LocalIP:                    ncConfig.LocalIP,
-		AllowHostToNCCommunication: ncConfig.GetAllowHostToNCCommunicationStatus()}
+		AllowHostToNCCommunication: ncConfig.GetAllowHostToNCCommunicationStatus(),
+		AllowNCToHostCommunication: ncConfig.GetAllowNCToHostCommunicationStatus()}
 
 	if ipConfiguration != nil {
 		response.IPConfiguration = *ipConfiguration
