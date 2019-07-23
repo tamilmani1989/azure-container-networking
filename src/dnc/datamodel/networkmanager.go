@@ -1562,7 +1562,7 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 			networkContainerConfig.NetworkContainerID,
 			networkContainerConfig.State, revertState)
 		networkContainerConfig.State = revertState
-		return PersistNCConfiguration(networkContainerConfig, true)
+		return PersistNCConfiguration(networkContainerConfig, AddToPendingQ)
 	}
 
 	return nil
@@ -2193,7 +2193,7 @@ func CreateOrUpdateNCRequestV1(
 		APIVersion:          apiVersion,
 		CNSVersion:          0}
 
-	return PersistNCConfiguration(&ncConfiguration, true)
+	return PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
 }
 
 // CreateOrUpdateNCRequestV2 - Persists NetworkContainerRequestV2
@@ -2286,7 +2286,7 @@ func CreateOrUpdateNCRequestV2(
 		APIVersion:          apiVersion,
 		CNSVersion:          0}
 
-	return PersistNCConfiguration(&ncConfiguration, true)
+	return PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
 }
 
 type NetworkContainerInfo struct {

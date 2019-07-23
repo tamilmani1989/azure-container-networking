@@ -431,8 +431,10 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 	}
 
 	response.Body.Close()
+	// Set failure to previous error and check if it gets reset after promotion
 	var req api.NetworkContainerResponse
-	for ; req.RequestStatus.FailureDetail.Code != api.DisAssociationFailed; time.Sleep(1 * time.Second) {
+	req.RequestStatus.FailureDetail.Code = api.DisAssociationFailed
+	for ; req.RequestStatus.FailureDetail.Code != 0; time.Sleep(1 * time.Second) {
 		response, err = http.Get(ncURL)
 		if err != nil {
 			t.Fatalf("Failed to get NC status.")

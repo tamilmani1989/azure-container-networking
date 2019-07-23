@@ -736,7 +736,7 @@ Cleanup:
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
-	if err = datamodel.PersistNCConfiguration(repoNCConfig, false); err != nil {
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
 		return false, err
 	}
 
@@ -794,7 +794,7 @@ Cleanup:
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
-	if err = datamodel.PersistNCConfiguration(repoNCConfig, false); err != nil {
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
 		return false, err
 	}
 
@@ -865,7 +865,7 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
-	if err = datamodel.PersistNCConfiguration(repoNCConfig, false); err != nil {
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
 		return false, err
 	}
 
@@ -953,7 +953,7 @@ Cleanup:
 		repoNCConfig.FailureDetail = *failureDetail
 	}
 
-	if err = datamodel.PersistNCConfiguration(repoNCConfig, false); err != nil {
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
 		return false, err
 	}
 
@@ -975,7 +975,7 @@ func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration, s
 	repoNCConfig.State = datamodel.Purge
 	repoNCConfig.Status = datamodel.Pending
 
-	err = datamodel.PersistNCConfiguration(repoNCConfig, false)
+	err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	if err != nil {
 		return false, err
 	}
@@ -1032,7 +1032,7 @@ func processNetworkContainerAssociate(
 
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = *ncGoalStateErr
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
 	cnetAddressesCount := len(ncGoalState.CNetSubnets)
@@ -1084,7 +1084,7 @@ func processNetworkContainerAssociate(
 			HTTPStatus: http.StatusBadRequest}
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = failureDetail
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
 	ipSubnet.IPAddress = allocatedIP
@@ -1118,7 +1118,7 @@ func processNetworkContainerAssociate(
 				HTTPStatus: http.StatusBadRequest}
 			repoNCConfig.Status = datamodel.Failed
 			repoNCConfig.FailureDetail = failureDetail
-			return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+			return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 		}
 
 		cnsIPSubnet := cns.IPSubnet{IPAddress: ipAddressString, PrefixLength: uint8(prefix)}
@@ -1232,7 +1232,7 @@ func processNetworkContainerAssociate(
 			HTTPStatus: http.StatusBadRequest}
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = failureDetail
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
 	if repoNCConfig.State == datamodel.RefreshAssociation {
@@ -1244,7 +1244,7 @@ func processNetworkContainerAssociate(
 	repoNCConfig.ProgrammedTagsInfo = updatedTagInfo
 	repoNCConfig.ProgrammedVnetVersion = ncGoalState.VnetVersion
 	repoNCConfig.Status = datamodel.Pending
-	return false, datamodel.PersistNCConfiguration(repoNCConfig, false)
+	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
 func processNetworkContainerDisAssociate(
@@ -1267,7 +1267,7 @@ func processNetworkContainerDisAssociate(
 			HTTPStatus: http.StatusBadRequest}
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = failureDetail
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
 	primaryInterfaceID := repoNodeConfig.NodeInfo.IPAddresses[0]
@@ -1296,7 +1296,7 @@ func processNetworkContainerDisAssociate(
 				primaryInterfaceID,
 				respErr.Error()),
 			HTTPStatus: http.StatusInternalServerError}
-		datamodel.PersistNCConfiguration(repoNCConfig, false)
+		datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 		return false, &repoNCConfig.FailureDetail
 	}
 
@@ -1309,7 +1309,7 @@ func processNetworkContainerDisAssociate(
 			Code:       api.DisAssociationFailed,
 			Text:       decodeErr.Error(),
 			HTTPStatus: http.StatusBadRequest}
-		datamodel.PersistNCConfiguration(repoNCConfig, false)
+		datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 		return false, &repoNCConfig.FailureDetail
 	}
 
@@ -1327,7 +1327,7 @@ func processNetworkContainerDisAssociate(
 			Code:       api.DisAssociationFailed,
 			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
-		return false, datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
 	logger.Debugf("[CNS] DisAssociated NC %s from node %s",
@@ -1335,7 +1335,7 @@ func processNetworkContainerDisAssociate(
 		repoNCConfig.GetAssociationInfo().NodeID)
 	repoNCConfig.State = datamodel.UnReserve
 	repoNCConfig.Status = datamodel.Pending
-	return false, datamodel.PersistNCConfiguration(repoNCConfig, false)
+	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
 func processNetworkContainerPublish(
@@ -1350,7 +1350,7 @@ func processNetworkContainerPublish(
 
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = *ncGoalStateErr
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
 	var body bytes.Buffer
@@ -1371,7 +1371,7 @@ func processNetworkContainerPublish(
 		ncGoalState.AssociatedInterfaceID,
 		ncGoalState.NetworkContainerID,
 		ncGoalState.AccessToken)
-	logger.Debugf("[NMAgent][Response] %s, body:%s", ncGoalState.NetworkContainerID, ncRequest.String())
+	logger.Debugf("[NMAgent] %s, body:%s", ncGoalState.NetworkContainerID, ncRequest.String())
 
 	resp, respErr := http.Post(createNCURL, "application/json", &body)
 	if respErr != nil {
@@ -1404,7 +1404,7 @@ func processNetworkContainerPublish(
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	logger.Debugf("[NMAgent] create NC response %s", createNetworkContainerResponse.String())
+	logger.Debugf("[NMAgent][Response] %s", createNetworkContainerResponse.String())
 	putNCResponseCode, parseErr := strconv.ParseInt(createNetworkContainerResponse.ResponseCode, 10, 32)
 	if parseErr != nil {
 		msg := fmt.Sprintf(
@@ -1441,12 +1441,12 @@ func processNetworkContainerPublish(
 			Text:       msg,
 			HTTPStatus: int(putNCResponseCode)}
 
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
 	repoNCConfig.State = datamodel.Program
 	repoNCConfig.Status = datamodel.Pending
-	return false, datamodel.PersistNCConfiguration(repoNCConfig, false)
+	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
 func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
@@ -1459,7 +1459,7 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration, s
 
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = *ncGoalStateErr
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
 	// Empty body is required as wireserver cannot handle a post without the body.
@@ -1542,12 +1542,12 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration, s
 			Code:       api.UnpublishingFailed,
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
 	repoNCConfig.State = datamodel.DisAssociate
 	repoNCConfig.Status = datamodel.Pending
-	return false, datamodel.PersistNCConfiguration(repoNCConfig, false)
+	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
 func processNetworkContainerRevert(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
@@ -1556,7 +1556,7 @@ func processNetworkContainerRevert(repoNCConfig *datamodel.NCConfiguration, stat
 	logger.Debugf("Reverting NC %s to node %s", repoNCConfig.NetworkContainerID, associationInfo.NodeID)
 	repoNCConfig.State = datamodel.UnPublish
 	repoNCConfig.Status = datamodel.Pending
-	return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+	return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
 func processNetworkContainerProgram(
@@ -1568,7 +1568,7 @@ func processNetworkContainerProgram(
 	logger.Debugf("NC programming completed NC Id:%s ElapsedTime:%s",
 		repoNCConfig.NetworkContainerID,
 		time.Since(createdDateTime))
-	return true, datamodel.PersistNCConfiguration(repoNCConfig, false)
+	return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
 func processNetworkContainerRequest(

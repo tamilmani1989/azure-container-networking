@@ -331,7 +331,7 @@ func CreateAssociationTask(nodeID, networkID, networkContainerID string) *api.Js
 	if repoNetworkContainerConfiguration.State == datamodel.Program &&
 		repoNetworkContainerConfiguration.Status == datamodel.Completed {
 		repoNetworkContainerConfiguration.State = datamodel.RefreshAssociation
-		return datamodel.PersistNCConfiguration(repoNetworkContainerConfiguration, true)
+		return datamodel.PersistNCConfiguration(repoNetworkContainerConfiguration, datamodel.AddToPendingQ)
 	}
 
 	return nil
