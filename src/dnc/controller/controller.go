@@ -531,3 +531,8 @@ func (c *Controller) GetRefreshMonitorStatus() api.RefreshMonitorStatus {
 func (c *Controller) RefreshNMAgentGoalState() {
 	go c.RefreshNetworkContainersNMAgentGoalState()
 }
+
+// DumpStorageState - dumps DNC storage state
+func (c *Controller) DumpStorageState() error {
+	return datamodel.DumpStorageState(config.DataStoreSettings.AzureStorageInfo.PartitionKey)
+}

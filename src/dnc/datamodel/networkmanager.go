@@ -44,6 +44,34 @@ func Init(dataStoreSettings configuration.DataStoreSettings, interval int, min, 
 	return nil
 }
 
+// DumpStorageState - Function to dump storage state.
+func DumpStorageState(partitionKey string) (err error) {
+	for tableName := range TableToColumnMap {
+		var context interface{}
+		var kvMap map[string]interface{}
+		var hasMoreRows = true
+		var innerErr error
+		for hasMoreRows {
+			kvMap, hasMoreRows, context, _, innerErr = dataStoreShim.QueryAllInPartition(tableName, partitionKey, context)
+			if innerErr == nil {
+				jsonStr, _ := json.Marshal(kvMap)
+				fileName := tableName + ".db"
+				fp, innerErr := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0664))
+				if innerErr == nil {
+					fp.Write(jsonStr)
+					fp.Close()
+				}
+			}
+
+			if innerErr != nil {
+				err = innerErr
+			}
+		}
+	}
+
+	return err
+}
+
 // DumpState - Function to dump test state.
 func DumpState() {
 	for tableName := range TableToColumnMap {
