@@ -211,6 +211,7 @@ func (reportMgr *ReportManager) SendReport(tb *TelemetryBuffer) error {
 		if err == nil {
 			// If write fails, try to re-establish connections as server/client
 			if _, err = tb.Write(report); err != nil {
+				log.Printf("[Telelmetry] Telelmtry write failed: %v", err)
 				tb.Cancel()
 			}
 		}
