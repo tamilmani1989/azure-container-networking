@@ -84,6 +84,12 @@ namespace Cns.Data
         public Route[] Routes { get; private set; }
 
         /// <summary>
+        /// Flag to represent if Host to NC communication is allowed.
+        /// </summary>
+        [JsonProperty("AllowHostToNCCommunication")]
+        public bool AllowHostToNCCommunication { get; private set; }
+
+        /// <summary>
         /// Constructor.
         /// </summary>
         /// <param name="version"></param>
@@ -95,6 +101,7 @@ namespace Cns.Data
         /// <param name="multiTenancyInfo"></param>
         /// <param name="cnetAddressSpace"></param>
         /// <param name="routes"></param>
+        /// <param name="allowHostToNCCommunication"></param>
         public CreateNetworkContainerRequest(
             string version,
             string ncType,
@@ -105,7 +112,8 @@ namespace Cns.Data
             IPConfiguration localIPConfiguration,
             MultiTenancyInfo multiTenancyInfo,
             IPSubnet[] cnetAddressSpace,
-            Route[] routes)
+            Route[] routes,
+            bool allowHostToNCCommunication)
         {
             Version = version;
             NetworkContainerType = ncType;
@@ -117,6 +125,7 @@ namespace Cns.Data
             MultiTenancyInfo = multiTenancyInfo;
             CnetAddressSpace = cnetAddressSpace;
             Routes = routes;
+            AllowHostToNCCommunication = allowHostToNCCommunication;
         }
 
         /// <summary>
@@ -149,7 +158,8 @@ namespace Cns.Data
                     $"OrchestratorContext:{orchestratorContextStr} " +
                     $"IPConfiguration:{IPConfiguration} LocalIPConfiguration:{LocalIPConfiguration} " +
                     $"MultiTenancyInfo:{MultiTenancyInfo} " +
-                    $"CnetAddressSpace:{cnetAddressSpaceStr} Routes:{routesStr}]";
+                    $"CnetAddressSpace:{cnetAddressSpaceStr} Routes:{routesStr}] " +
+                    $"AllowHostToNCCommunication:{AllowHostToNCCommunication}";
         }
     }
 }

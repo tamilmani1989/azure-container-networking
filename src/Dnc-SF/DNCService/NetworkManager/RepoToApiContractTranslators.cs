@@ -132,7 +132,9 @@ namespace NetworkManager
                 ipconfiguration,
                 ncConfiguration.Request.AssociationInfo,
                 ncConfiguration.Request.NetworkProfileID,
-                requestStatus);
+                requestStatus,
+                ncConfiguration.LocalIP,
+                ncConfiguration.Request.AllowHostToNCCommunication);
         }
     }
 }

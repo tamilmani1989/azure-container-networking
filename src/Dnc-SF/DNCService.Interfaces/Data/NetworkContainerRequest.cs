@@ -36,6 +36,12 @@ namespace DNCService.API
         public AssociationInfo AssociationInfo { get; private set; }
 
         /// <summary>
+        /// Flag to represent if Host to NC communication is allowed.
+        /// </summary>
+        [DataMember]
+        public bool AllowHostToNCCommunication { get; private set; }
+
+        /// <summary>
         /// Default constructor.
         /// </summary>
         public NetworkContainerRequest() { }
@@ -44,10 +50,17 @@ namespace DNCService.API
         /// Constructor.
         /// </summary>
         /// <param name="associationInfo">Supply the association info.</param>
-        public NetworkContainerRequest(AssociationInfo associationInfo, string networkProfileID)
+        /// <param name="networkProfileID">Supply the network profile ID.</param>
+        /// <param name="allowHostToNCCommunication">Supply the flag to represent 
+        /// if Host to NC communication is allowed.</param>
+        public NetworkContainerRequest(
+            AssociationInfo associationInfo,
+            string networkProfileID,
+            bool allowHostToNCCommunication)
         {
-            this.AssociationInfo = associationInfo;
-            this.NetworkProfileID = networkProfileID;
+            AssociationInfo = associationInfo;
+            NetworkProfileID = networkProfileID;
+            AllowHostToNCCommunication = allowHostToNCCommunication;
         }
 
         /// <summary>
@@ -56,7 +69,8 @@ namespace DNCService.API
         /// <returns>String representation of the NetworkContainerRequest object.</returns>
         public override string ToString()
         {
-            return $"ID:{ID} networkProfileID:{NetworkProfileID} AssociationInfo:{AssociationInfo}";
+            return $"ID:{ID} networkProfileID:{NetworkProfileID} AssociationInfo:{AssociationInfo}" +
+                $" AllowHostToNCCommunication: {AllowHostToNCCommunication}";
         }
 
         public abstract object Clone();
