@@ -195,6 +195,9 @@ const (
 
 	// InvalidContainerName - ContainerName cannot be empty.
 	InvalidContainerName
+
+	// Failed to retrieve CPU Cores
+	NumberOfCPUCoresRetrievalFailed
 )
 
 func (e ErrorCode) String() string {
@@ -390,6 +393,9 @@ func (e ErrorCode) String() string {
 
 	case InvalidContainerName:
 		return "InvalidContainerName"
+
+	case NumberOfCPUCoresRetrievalFailed:
+		return "NumberOfCPUCoresRetrievalFailed"
 	}
 
 	return "Unknown Status"

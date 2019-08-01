@@ -218,7 +218,12 @@ func StartDnc() {
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
-		datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+		datamodel.Init(
+			config.CNSSettings,
+			config.DataStoreSettings,
+			config.DNCSettings.RequestRetryBaseInterval,
+			config.VlanSettings.Min,
+			config.VlanSettings.Max)
 		ctrler.UpdateReplicaStatus(true)
 	}
 
@@ -1124,6 +1129,11 @@ type CnsDeleteNCResponse struct {
 	DeleteNCResponse        *cns.DeleteNetworkContainerResponse
 }
 
+type CnsNumOfCPUCoresResponse struct {
+	HTTPStatus         int
+	NumOfCoresResponse *cns.NumOfCPUCoresResponse
+}
+
 type GetNetworkResponse struct {
 	SignalInfo      SignalInfo
 	HTTPStatus      int
@@ -1150,6 +1160,7 @@ type CnsResponderContext struct {
 	T                        *testing.T
 	CreateOrUpdateNCResponse *CnsCreateOrUpdateNCResponse
 	DeleteNCResponse         *CnsDeleteNCResponse
+	NumOfCoresResponse       *CnsNumOfCPUCoresResponse
 }
 
 type CnsResponderContextMap map[string]*CnsResponderContext
@@ -1196,6 +1207,7 @@ func generateDefaultCnsResponderContextMap(t *testing.T, ncDeploymentRequests []
 			Response: cns.Response{
 				ReturnCode: 0,
 				Message:    "Successfully deleted NC"}}
+
 		context.CreateOrUpdateNCResponse = &CnsCreateOrUpdateNCResponse{
 			HTTPStatus: http.StatusOK,
 			SignalInfo: SignalInfo{
@@ -1525,6 +1537,25 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 			Message:    "Successfully set orchestrator type"}
 		json.NewEncoder(w).Encode(cnsResponse)
 	}
+
+	if strings.Contains(r.RequestURI, "hostcpucores") &&
+		r.Method == "GET" {
+		cnsContextLock.RLock()
+		cnsResponderContext, ok := cnsResponderContextMap["usecustomcpucorresponse"]
+		cnsContextLock.RUnlock()
+		if !ok {
+			CnsNumOfCPUCoresResp := cns.NumOfCPUCoresResponse{
+				Response: cns.Response{
+					ReturnCode: 0,
+					Message:    "Successfully retrieved CPU cores"},
+				NumOfCPUCores: 16}
+			json.NewEncoder(w).Encode(CnsNumOfCPUCoresResp)
+		} else {
+			w.WriteHeader(cnsResponderContext.NumOfCoresResponse.HTTPStatus)
+			json.NewEncoder(w).Encode(cnsResponderContext.NumOfCoresResponse.NumOfCoresResponse)
+		}
+	}
+
 }
 
 func GetNetworkStatus(t *testing.T, resourceStatusURL string, expectedStatusCode int) string {
@@ -3028,6 +3059,7 @@ func DeleteDeployments(t *testing.T, deployedNetworkContainersInfo *DeployedNetw
 	}
 }
 func TestValidateSubnetExhaustion(t *testing.T) {
+	fmt.Println("****ValidateSubnetExhaustion Test**********")
 	deploymentCount := 1
 	ncPerNetworkCount := 3
 	deploymentInfos := make([]DeploymentInfo, deploymentCount)
@@ -3086,6 +3118,7 @@ func TestValidateSubnetExhaustion(t *testing.T) {
 }
 
 func TestValidateThrottlingOnGetNetwork(t *testing.T) {
+	fmt.Println("****ValidateThrottlingOnGetNetwork Test**********")
 	vnetsCount := 5
 	networkDeploymentRequests := make([]*NetworkDeploymentRequest, 0)
 	for index := 0; index < vnetsCount; index++ {
@@ -3199,6 +3232,7 @@ func TestValidateThrottlingOnGetNetwork(t *testing.T) {
 }
 
 func TestValidateThrottlingOnJoin(t *testing.T) {
+	fmt.Println("****ValidateThrottlingOnJoin Test**********")
 	vnetsCount := 5
 	networkDeploymentRequests := make([]*NetworkDeploymentRequest, 0)
 	for index := 0; index < vnetsCount; index++ {
@@ -3321,6 +3355,7 @@ func TestValidateThrottlingOnJoin(t *testing.T) {
 }
 
 func TestValidateBatching(t *testing.T) {
+	fmt.Println("****ValidateBatching Test**********")
 	layout := "2006-01-02 15:04:05 -0700 MST"
 	configpath := "config_test.json"
 	config := configuration.Load(configpath)
@@ -3513,6 +3548,7 @@ func TestValidateBatching(t *testing.T) {
 }
 
 func TestRefreshNMAgentGoalState(t *testing.T) {
+	fmt.Println("****RefreshNMAgentGoalState Test**********")
 	deploymentCount := 1
 	ncPerNetworkCount := 1
 	ipIndex := 0
@@ -3555,4 +3591,80 @@ func TestRefreshNMAgentGoalState(t *testing.T) {
 	time.Sleep(100 * time.Second)
 
 	DeleteDeployments(t, deployedNetworkContainersInfo)
+}
+
+func TestNodeNicLimit(t *testing.T) {
+	fmt.Println("****ValidateNodeNicLimit Test**********")
+	ncDeploymentRequests := []*NCDeploymentRequest{&NCDeploymentRequest{
+		NCID: ncID}}
+
+	fmt.Println("Started CNS Server", cnsServer.Server.URL)
+	cnsServer.SetupTest()
+
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
+
+	contextWithCPUCores := new(CnsResponderContext)
+	CnsNumOfCPUCoresResp := &cns.NumOfCPUCoresResponse{
+		Response: cns.Response{
+			ReturnCode: 0,
+			Message:    "Successfully retrieved CPU cores"},
+		NumOfCPUCores: 1}
+	contextWithCPUCores.NumOfCoresResponse = &CnsNumOfCPUCoresResponse{
+		HTTPStatus:         http.StatusOK,
+		NumOfCoresResponse: CnsNumOfCPUCoresResp}
+
+	cnsResponderContextMap["usecustomcpucorresponse"] = contextWithCPUCores
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
+	setupNetworkAndJoinSubnet(
+		t, dncEP, vnetID, networkContainerReq.AllocationRequest.SubnetName, apiVersion, true, 0)
+	fmt.Printf("Created node %s with info %+v\n", nodeID, nodeReq)
+	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeReq)
+	fmt.Printf("Successfully created node [%s]\n", nodeID)
+
+	var (
+		body    bytes.Buffer
+		respErr api.JsonErr
+	)
+
+	json.NewEncoder(&body).Encode(networkContainerReq)
+
+	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	response, err := http.Post(ncURL, "application/json", &body)
+	if err != nil {
+		t.Fatalf("CreateNetworkContainer was failed with error: %+v\n", err)
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
+			t.Fatalf("CreateNetworkContainer POST request failed with response %+v Err:%+v", respErr, err)
+		}
+	}
+
+	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + "/status" + apiVersion
+	reqStatus := WaitForResourceState(t, ncURLStatus, "Failed", http.StatusBadRequest, 2)
+
+	if !reqStatus {
+		t.Fatalf("CreateNetworkContainer request didn't reach the expected status (Failed) in 2 seconds")
+	}
+
+	// Clean up
+	// delete NC
+	deleteResource(t, ncURL, http.StatusOK)
+	if !WaitForResourceCleanup(t, ncURL, 4) {
+		t.Fatalf("Failed to cleanup network container %s\n", ncID)
+	}
+
+	networkURL := dncEP + "/networks/" + vnetID + apiVersion
+	deleteResource(t, networkURL, http.StatusOK)
+
+	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
+	deleteResource(t, nodeURL, http.StatusOK)
 }

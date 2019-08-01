@@ -828,7 +828,13 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 		reservationConfiguration, err = generateAndPersistImplicitReservationRequest(
 			repoNCConfig)
 		if err != nil {
-			return false, err
+			if err.Code == api.NodeContainerCapacityExhausted {
+				// if NC limit has been reached the error is non-retriable.
+				markPrepareFailed = true
+				failureDetail = err
+			} else {
+				return false, err
+			}
 		}
 	} else {
 		if reservationConfiguration.Status == datamodel.Pending {
@@ -857,12 +863,13 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 		}
 	}
 
-	repoNCConfig.State = datamodel.Reserve
-	repoNCConfig.Status = datamodel.Pending
-
+	// Only move to the next state in case of success
 	if markPrepareFailed {
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = *failureDetail
+	} else {
+		repoNCConfig.State = datamodel.Reserve
+		repoNCConfig.Status = datamodel.Pending
 	}
 
 	if err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {

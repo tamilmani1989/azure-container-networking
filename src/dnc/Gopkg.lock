@@ -19,7 +19,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e029491994bf04a271c1e4affdf2b945538c4d5c2b7ff1ff2df0b9007e2270bc"
+  digest = "1:234937166b27bc970379ed0e5be802a1563207ea2c17a96778e20f0245a0cad9"
   name = "github.com/Azure/azure-container-networking"
   packages = [
     "cnm",
@@ -41,7 +41,7 @@
     "telemetry",
   ]
   pruneopts = "UT"
-  revision = "edabc6dd39cc622dd9f94cb147560109bdcbb812"
+  revision = "2c7dc77367614e0ec1cc06cea8184494d285304c"
 
 [[projects]]
   branch = "master"
