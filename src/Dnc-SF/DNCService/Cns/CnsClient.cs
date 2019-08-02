@@ -124,7 +124,7 @@ namespace Cns
             }
 
             string getNumOfCPUCoresUrl = string.Format(
-                        dncConfiguration.CNSSettings.ConnectionStrings.GetNetworkcontainerstatusURLFmt,
+                        dncConfiguration.CNSSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt,
                         nodeInterfaceID);
 
             ServiceEventSource.Current.Message("getNumOfCPUCoresUrl:{0}", getNumOfCPUCoresUrl);

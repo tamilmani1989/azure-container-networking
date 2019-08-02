@@ -51,11 +51,6 @@ namespace DNCService
             /// Get tag definitions URL.
             /// </summary>
             public string GetSystemTagDefinitionURLFmt { get; set; }
-
-            /// <summary>
-            /// Get number of CPU cores URL.
-            /// </summary>
-            public string GetNumOfCPUCoresURLFmt { get; set; }
         }
 
         /// <summary>
@@ -93,6 +88,11 @@ namespace DNCService
             /// Get NC status URL.
             /// </summary>
             public string GetNetworkcontainerstatusURLFmt { get; set; }
+
+            /// <summary>
+            /// Get number of CPU cores URL.
+            /// </summary>
+            public string GetNumOfCPUCoresURLFmt { get; set; }
         }
 
         /// <summary>
