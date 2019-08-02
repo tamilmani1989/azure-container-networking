@@ -472,7 +472,7 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
@@ -486,7 +486,7 @@ func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2)
 	config.DataStoreSettings.AzureStorageInfo.RegionalStorageConnectionString = request.RegionalStorageConnectionString
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
@@ -501,7 +501,7 @@ func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, b
 	config.MasterElectionSettings.BlobStorageSettings.ContainerName = containerName
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
@@ -530,4 +530,9 @@ func (c *Controller) GetRefreshMonitorStatus() api.RefreshMonitorStatus {
 // GetPrimaryIPEndpoint - Retrieves the current primary replica endpoint
 func (c *Controller) RefreshNMAgentGoalState() {
 	go c.RefreshNetworkContainersNMAgentGoalState()
+}
+
+// DumpStorageState - dumps DNC storage state
+func (c *Controller) DumpStorageState() error {
+	return datamodel.DumpStorageState(config.DataStoreSettings.AzureStorageInfo.PartitionKey)
 }

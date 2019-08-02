@@ -17,6 +17,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Azure/azure-container-networking/cns"
 )
 
 var dataStoreShim *datastoreshim.DataStoreShim
@@ -24,9 +26,10 @@ var requestBaseInterval = 1000
 var minVlan uint16 = 1
 var maxVlan uint16 = 2048
 var maxContainersPerNode = 10
+var cnsSettings configuration.CNSSettings
 
 // Init - Initialize repository.
-func Init(dataStoreSettings configuration.DataStoreSettings, interval int, min, max uint16) error {
+func Init(cnsConfigSettings configuration.CNSSettings, dataStoreSettings configuration.DataStoreSettings, interval int, min, max uint16) error {
 	requestBaseInterval = interval
 	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
@@ -41,7 +44,36 @@ func Init(dataStoreSettings configuration.DataStoreSettings, interval int, min, 
 		maxVlan = max
 	}
 
+	cnsSettings = cnsConfigSettings
 	return nil
+}
+
+// DumpStorageState - Function to dump storage state.
+func DumpStorageState(partitionKey string) (err error) {
+	for tableName := range TableToColumnMap {
+		var context interface{}
+		var kvMap map[string]interface{}
+		var hasMoreRows = true
+		var innerErr error
+		for hasMoreRows {
+			kvMap, hasMoreRows, context, _, innerErr = dataStoreShim.QueryAllInPartition(tableName, partitionKey, context)
+			if innerErr == nil {
+				jsonStr, _ := json.Marshal(kvMap)
+				fileName := tableName + ".db"
+				fp, innerErr := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0664))
+				if innerErr == nil {
+					fp.Write(jsonStr)
+					fp.Close()
+				}
+			}
+
+			if innerErr != nil {
+				err = innerErr
+			}
+		}
+	}
+
+	return err
 }
 
 // DumpState - Function to dump test state.
@@ -412,18 +444,24 @@ func UpdateNodeConfigurationNetworkContainerSet(
 		}
 
 		vnetMap[ncID] = reservationID
-	}
 
-	ncCount := 0
-	for _, ncToVnetMap := range nodeConfig.DeployedNetworkContainerMap {
-		ncCount += len(ncToVnetMap)
-	}
+		ncCount := 0
+		for _, ncToVnetMap := range nodeConfig.DeployedNetworkContainerMap {
+			ncCount += len(ncToVnetMap)
+		}
 
-	if ncCount > maxContainersPerNode {
-		return &api.JsonErr{
-			Code:       api.NodeContainerCapacityExhausted,
-			Text:       fmt.Sprintf("Node [%s] has reached maximum capacity [%d]", nodeConfig.NodeID, maxContainersPerNode),
-			HTTPStatus: http.StatusBadRequest}
+		ncLimit, respErr := getNCLimitForNode(nodeConfig.NodeInfo.IPAddresses[0])
+		if respErr != nil {
+			loggershim.LS.Debugf("Failed to retrieve NC limit for node with error %+v", nodeID, respErr.String())
+			return respErr
+		}
+
+		if ncCount > ncLimit {
+			return &api.JsonErr{
+				Code:       api.NodeContainerCapacityExhausted,
+				Text:       fmt.Sprintf("Node [%s] has reached maximum capacity [%d]", nodeConfig.NodeID, ncLimit),
+				HTTPStatus: http.StatusBadRequest}
+		}
 	}
 
 	return persistNodeConfiguration(nodeConfig)
@@ -1562,7 +1600,7 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 			networkContainerConfig.NetworkContainerID,
 			networkContainerConfig.State, revertState)
 		networkContainerConfig.State = revertState
-		return PersistNCConfiguration(networkContainerConfig, true)
+		return PersistNCConfiguration(networkContainerConfig, AddToPendingQ)
 	}
 
 	return nil
@@ -2193,7 +2231,7 @@ func CreateOrUpdateNCRequestV1(
 		APIVersion:          apiVersion,
 		CNSVersion:          0}
 
-	return PersistNCConfiguration(&ncConfiguration, true)
+	return PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
 }
 
 // CreateOrUpdateNCRequestV2 - Persists NetworkContainerRequestV2
@@ -2286,7 +2324,7 @@ func CreateOrUpdateNCRequestV2(
 		APIVersion:          apiVersion,
 		CNSVersion:          0}
 
-	return PersistNCConfiguration(&ncConfiguration, true)
+	return PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
 }
 
 type NetworkContainerInfo struct {
@@ -2779,4 +2817,70 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 		LocalIP:               repoNCConfig.LocalIP}
 
 	return ncGoalState, false, nil
+}
+
+// The function queries CNS running on a node to get number of logical cores configuration data.
+// If for some reason the request fails, we return default value of 10.
+func getNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
+	getNumOfCoresURL := fmt.Sprintf(
+		cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt,
+		nodeIP)
+
+	w, respErr := http.Get(getNumOfCoresURL)
+	if respErr != nil {
+		msg := fmt.Sprintf(
+			"Error encountered while querying number of cores for node IP %s with error %+v ",
+			nodeIP,
+			respErr.Error())
+		return 0, &api.JsonErr{
+			Code:       api.NumberOfCPUCoresRetrievalFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	defer w.Body.Close()
+
+	// This is expected, in case cns used doesn't support the API
+	if w.StatusCode == http.StatusNotFound {
+		loggershim.LS.Debugf("Error encountered while querying number of cores for node IP %s with error %+v ",
+			nodeIP,
+			w.StatusCode)
+		return maxContainersPerNode, nil
+	}
+
+	if w.StatusCode != http.StatusOK {
+		msg := fmt.Sprintf(
+			"Error encountered while querying number of cores for node IP %s with error %+v ",
+			nodeIP,
+			w.StatusCode)
+		return 0, &api.JsonErr{
+			Code:       api.NumberOfCPUCoresRetrievalFailed,
+			Text:       msg,
+			HTTPStatus: w.StatusCode}
+	}
+
+	var resp cns.NumOfCPUCoresResponse
+	if respErr = utils.DecodeResponse(w, &resp); respErr != nil {
+		msg := fmt.Sprintf("Error encountered while decoding the NumOfCPUCoresResponse for node IP %s with error %+v",
+			nodeIP,
+			respErr.Error())
+		return 0, &api.JsonErr{
+			Code:       api.DecodeResponseFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	if resp.Response.ReturnCode != 0 {
+		msg := fmt.Sprintf(
+			"GetNumOfCPUCores for node IP %s failed with errorcode %v and msg %s",
+			nodeIP,
+			resp.Response.ReturnCode,
+			resp.Response.Message)
+		return 0, &api.JsonErr{
+			Code:       api.NumberOfCPUCoresRetrievalFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	return (resp.NumOfCPUCores - 1), nil
 }

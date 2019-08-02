@@ -34,21 +34,25 @@ namespace DNCService.API
         /// </summary>
         /// <param name="reservationID">Supply the ID of the reservation.</param>
         /// <param name="associationInfo">Supply the association info.</param>
+        /// <param name="allowHostToNCCommunication">Flag to represent 
+        /// if Host to NC communication is allowed.</param>
         public NetworkContainerRequestV1(
             string networkProfileID,
             string reservationID,
-            AssociationInfo associationInfo) : base(associationInfo, networkProfileID)
+            AssociationInfo associationInfo,
+            bool allowHostToNCCommunication) : base(associationInfo, networkProfileID, allowHostToNCCommunication)
         {
-            this.ReservationID = reservationID;
+            ReservationID = reservationID;
         }
 
         /// <summary>
         /// Copy constructor.
         /// </summary>
         /// <param name="ncRequest">Supply the request object to be copied.</param>
-        public NetworkContainerRequestV1(NetworkContainerRequestV1 ncRequest) : base(ncRequest.AssociationInfo, ncRequest.NetworkProfileID)
+        public NetworkContainerRequestV1(NetworkContainerRequestV1 ncRequest) : 
+            base(ncRequest.AssociationInfo, ncRequest.NetworkProfileID, ncRequest.AllowHostToNCCommunication)
         {
-            this.ReservationID = ncRequest.ReservationID;
+            ReservationID = ncRequest.ReservationID;
         }
 
         /// <summary>
@@ -57,7 +61,7 @@ namespace DNCService.API
         /// <returns>String representation of the NetworkContainerRequestV1 object.</returns>
         public override string ToString()
         {
-            return $"[{base.ToString()} ReservationID:{this.ReservationID}]";
+            return $"[{base.ToString()} ReservationID:{ReservationID}]";
         }
 
         /// <summary>

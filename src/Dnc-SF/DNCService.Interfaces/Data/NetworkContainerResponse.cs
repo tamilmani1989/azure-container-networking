@@ -54,6 +54,18 @@ namespace DNCService.API
         public RequestStatus RequestStatus { get; private set; }
 
         /// <summary>
+        /// Local IP used for Host to NC Communication
+        /// </summary>
+        [DataMember]
+        public string LocalIP { get; private set; }
+
+        /// <summary>
+        /// Flag to represent if Host to NC communication is allowed.
+        /// </summary>
+        [DataMember]
+        public bool AllowHostToNCCommunication { get; private set; }
+
+        /// <summary>
         /// Constructor.
         /// </summary>
         /// <param name="id">Supply the ID of the network container.</param>
@@ -61,20 +73,26 @@ namespace DNCService.API
         /// <param name="ipConfiguration">Supply the IP configuration.</param>
         /// <param name="associationInfo">Supply the association info,</param>
         /// <param name="requestStatus">Supply the status of the network container.</param>
+        /// <param name="localIP">Local IP used for Host to NC Communication.</param>
+        /// <param name="allowHostToNCCommunication">Flag to represent if Host to NC communication is allowed.</param>
         public NetworkContainerResponse(
             string id,
             int vlanID,
             IPConfiguration ipConfiguration, 
             AssociationInfo associationInfo, 
             string networkProfileID,
-            RequestStatus requestStatus)
+            RequestStatus requestStatus,
+            string localIP,
+            bool allowHostToNCCommunication)
         {
-            this.ID = id;
-            this.VlanID = vlanID;
-            this.IPConfiguration = ipConfiguration;
-            this.AssociationInfo = associationInfo;
-            this.NetworkProfileID = networkProfileID;
-            this.RequestStatus = requestStatus;
+            ID = id;
+            VlanID = vlanID;
+            IPConfiguration = ipConfiguration;
+            AssociationInfo = associationInfo;
+            NetworkProfileID = networkProfileID;
+            RequestStatus = requestStatus;
+            LocalIP = localIP;
+            AllowHostToNCCommunication = allowHostToNCCommunication;
         }
 
         /// <summary>
@@ -83,9 +101,9 @@ namespace DNCService.API
         /// <returns>String representation of the NetworkContainerResponse object.</returns>
         public override string ToString()
         {
-            return $"ID:{this.ID} VlanID:{this.VlanID} NetworkProfileID:{this.NetworkProfileID} " +
-                $"IPConfiguration:{this.IPConfiguration} AssociationInfo:{this.AssociationInfo} " +
-                $"RequestStatus:{this.RequestStatus}";
+            return $"ID:{ID} VlanID:{VlanID} NetworkProfileID:{NetworkProfileID} IPConfiguration:{IPConfiguration}" +
+                $" AssociationInfo:{this.AssociationInfo} RequestStatus:{this.RequestStatus} LocalIP: {LocalIP} " +
+                $" AllowHostToNCCommunication: {AllowHostToNCCommunication}";
         }
     }
 }

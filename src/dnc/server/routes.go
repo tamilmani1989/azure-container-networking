@@ -199,4 +199,10 @@ var routes = Routes{
 		"/refreshnmagentgoalstate",
 		RefreshNMAgentGoalState,
 	},
+	Route{
+		"DumpStorageState",
+		"POST",
+		"/dumpstoragestate",
+		DumpStorageState,
+	},
 }

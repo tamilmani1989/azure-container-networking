@@ -1107,3 +1107,14 @@ func RefreshNMAgentGoalState(w http.ResponseWriter, r *http.Request) {
 	ctrler.RefreshNMAgentGoalState()
 	w.WriteHeader(http.StatusOK)
 }
+
+// DumpStorageState - dumps DNC storage state
+func DumpStorageState(w http.ResponseWriter, r *http.Request) {
+	if err := ctrler.DumpStorageState(); err != nil {
+		setRequestFailed(w, &api.JsonErr{
+			Text:       err.Error(),
+			HTTPStatus: http.StatusInternalServerError})
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+}

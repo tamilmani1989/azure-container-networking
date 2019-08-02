@@ -61,6 +61,11 @@ namespace NetworkManager
         /// </summary>
         public List<Cns.Data.IPSubnet> CnsCnetAddresses { get; private set; }
 
+        /// <summary>
+        /// Flag to represent if Host to NC communication is allowed.
+        /// </summary>
+        public bool AllowHostToNCCommunication { get; private set; }
+
         public NetworkContainerInfo(
             string networkID,
             string nodeID,
@@ -83,7 +88,8 @@ namespace NetworkManager
             Status status,
             string localIP,
             ICollection<Tag> tagSet,
-            UInt64 vnetVersion)
+            UInt64 vnetVersion,
+            bool allowHostToNCCommunication)
         {
             this.NetworkID = networkID;
             this.NodeID = nodeID;
@@ -108,6 +114,7 @@ namespace NetworkManager
             this.Tags = new List<Tag>(tagSet);
             this.VnetVersion = vnetVersion;
             CnsCnetAddresses = new List<Cns.Data.IPSubnet>();
+            this.AllowHostToNCCommunication = allowHostToNCCommunication;
         }
 
         public NetworkContainerInfo(NetworkContainerInfo ncConfig)
@@ -135,6 +142,7 @@ namespace NetworkManager
             this.Tags = new List<Tag>(Tags);
             this.VnetVersion = ncConfig.VnetVersion;
             CnsCnetAddresses = new List<Cns.Data.IPSubnet>(ncConfig.CnsCnetAddresses);
+            this.AllowHostToNCCommunication = ncConfig.AllowHostToNCCommunication;
         }
 
         public CreateOrUpdateNetworkContainerRequest GetCreateNMAgentNetworkContainerRequest()
@@ -196,7 +204,8 @@ namespace NetworkManager
                 localIPConfiguration,
                 multiTenancyInfo,
                 CnsCnetAddresses.ToArray(),
-                null);
+                null,
+                this.AllowHostToNCCommunication);
         }
 
         public override string ToString()
@@ -215,7 +224,7 @@ namespace NetworkManager
                 $"CnsVersion:{this.CnsVersion} ContainerType:{this.ContainerType}" +
                 $"CnetAddressSpace:{this.CnetAddressSpace} " +
                 $"NetworkContainerState:{NetworkContainerState} Status:{this.Status} LocalIP:{this.LocalIP} " +
-                $"Tags:{Tags} VnetVersion:{VnetVersion}]";
+                $"Tags:{Tags} VnetVersion:{VnetVersion}] AllowHostToNCCommunication:{AllowHostToNCCommunication}";
         }
 
         public static string GetNetworkContainerKey(
@@ -230,4 +239,4 @@ namespace NetworkManager
             return new NetworkContainerInfo(this);
         }
     }
-}                    
+}
