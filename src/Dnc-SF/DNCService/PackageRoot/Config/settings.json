@@ -22,7 +22,8 @@
       "CreateOrUpdateNetworkContainerURLFmt": "http://{0}:10090/network/createorupdatenetworkcontainer",
       "DeleteNetworkContainerURLFmt": "http://{0}:10090/network/deletenetworkcontainer",
       "SetOrchestratorTypeURLFmt": "http://{0}:10090/network/setorchestratortype",
-      "GetNetworkcontainerstatusURLFmt": "http://{0}:10090/network/getnetworkcontainerstatus"
+      "GetNetworkcontainerstatusURLFmt": "http://{0}:10090/network/getnetworkcontainerstatus",
+      "GetNumOfCPUCoresURLFmt": "http://{0}:10090/hostcpucores"
     }
   },
   "VlanSettings": {

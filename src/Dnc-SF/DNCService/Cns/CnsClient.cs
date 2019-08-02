@@ -28,6 +28,17 @@ namespace Cns
         /// </summary>
         private TagsCacheManager tagsCacheManager;
 
+        /// <summary>
+        /// Value CNS return for number of cores on a node, when it is running
+        /// in simuation mode.
+        /// </summary>
+        internal const int PerNodeCPUCoresInSimulationMode = 12;
+
+        /// <summary>
+        /// default value of cores returned in case
+        /// </summary>
+        internal const int defaultCPUCoresPerNode = 11;
+
         public CnsClient(
             DncConfiguration dncConfiguration,
             TagsCacheManager tagsCacheManager)
@@ -102,6 +113,75 @@ namespace Cns
             ServiceEventSource.Current.Message($"NC created successfully:{createNCResponse}");
             return;
 
+        }
+
+        public async Task<int> GetNumOfCPUCores(string nodeInterfaceID)
+        {
+            if (dncConfiguration.CnsSimulatorMode)
+            {
+                // default response in the simulation mode
+                return PerNodeCPUCoresInSimulationMode;
+            }
+
+            string getNumOfCPUCoresUrl = string.Format(
+                        dncConfiguration.CNSSettings.ConnectionStrings.GetNetworkcontainerstatusURLFmt,
+                        nodeInterfaceID);
+
+            ServiceEventSource.Current.Message("getNumOfCPUCoresUrl:{0}", getNumOfCPUCoresUrl);
+
+            HttpClient httpClient = new HttpClient();
+            HttpResponseMessage response;
+            try
+            {
+                response = await httpClient.GetAsync(getNumOfCPUCoresUrl);
+            }
+            catch (Exception exception)
+            {
+                throw new DncCnsException(
+                    new ErrorInfo(ErrorCode.NumberOfCPUCoresRetrievalFailed,
+                        $"Failed to get number of CPU cores from CNS due to exception {exception}",
+                        ErrorType.Retriable));
+            }
+
+            // This is expected, in case cns used doesn't support the API
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return defaultCPUCoresPerNode;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new DncCnsException(
+                 new ErrorInfo(ErrorCode.NumberOfCPUCoresRetrievalFailed,
+                     $"Failed to get number of CPU cores from CNS, non-success http code returned, {response.StatusCode}",
+                     ErrorType.Retriable));
+            }
+
+            string responseBody = await response.Content.ReadAsStringAsync();
+            Cns.Data.NumberOfCPUCoresResponse numCPUCoresResponse = null;
+            try
+            {
+                numCPUCoresResponse = JsonConvert.DeserializeObject<Cns.Data.NumberOfCPUCoresResponse>(
+                    responseBody);
+            }
+            catch (Exception exception)
+            {
+                throw new DncCnsException(
+                    new ErrorInfo(ErrorCode.DecodeResponseFailed,
+                        $"Failed to decode number of CPU cores response {numCPUCoresResponse} due to exception {exception}",
+                        ErrorType.Retriable));
+            }
+
+            if (numCPUCoresResponse.Response.ReturnCode != 0)
+            {
+                throw new DncCnsException(
+                    new ErrorInfo(ErrorCode.NumberOfCPUCoresRetrievalFailed,
+                        $"Failed to retrieve number of CPU cores from CNS, returned error code " +
+                        $"{numCPUCoresResponse.Response.ReturnCode}",
+                        ErrorType.Retriable));
+            }
+
+            return numCPUCoresResponse.NumOfCPUCores;
         }
 
         public async Task DeleteNetworkContainer(
