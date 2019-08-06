@@ -3,6 +3,7 @@ package network
 import (
 	"fmt"
 
+	"github.com/Azure/azure-container-networking/network/epcommon"
 	"github.com/Azure/azure-container-networking/network/ovssnat"
 )
 
@@ -43,6 +44,10 @@ func AddSnatEndpointRules(client *OVSEndpointClient) error {
 			return err
 		}
 
+		if err := epcommon.EnableIPForwarding(ovssnat.SnatBridgeName); err != nil {
+			return err
+		}
+
 		if client.allowInboundFromHostToNC {
 			if err := client.snatClient.AllowInboundFromHostToNC(); err != nil {
 				return err
@@ -52,6 +57,7 @@ func AddSnatEndpointRules(client *OVSEndpointClient) error {
 		if client.allowInboundFromNCToHost {
 			return client.snatClient.AllowInboundFromNCToHost()
 		}
+
 	}
 
 	return nil

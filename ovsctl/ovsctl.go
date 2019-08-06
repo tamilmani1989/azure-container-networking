@@ -91,13 +91,20 @@ func AddArpSnatRule(bridgeName string, mac string, macHex string, ofport string)
 	return nil
 }
 
-func AddIpSnatRule(bridgeName string, port string, mac string, outport string) error {
+func AddIpSnatRule(bridgeName string, ip net.IP, vlanID int, port string, mac string, outport string) error {
+	var cmd string
 	if outport == "" {
 		outport = "normal"
 	}
 
-	cmd := fmt.Sprintf("ovs-ofctl add-flow %v priority=20,ip,in_port=%s,vlan_tci=0,actions=mod_dl_src:%s,strip_vlan,%v",
-		bridgeName, port, mac, outport)
+	if vlanID != 0 {
+		cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=20,ip,nw_src=%s,in_port=%s,vlan_tci=0,actions=mod_dl_src:%s,mod_vlan_vid:%v,%v",
+			bridgeName, ip.String(), port, mac, vlanID, outport)
+	} else {
+		cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=20,ip,nw_src=%s,in_port=%s,vlan_tci=0,actions=mod_dl_src:%s,strip_vlan,%v",
+			bridgeName, ip.String(), port, mac, outport)
+	}
+
 	_, err := platform.ExecuteCommand(cmd)
 	if err != nil {
 		log.Printf("[ovs] Adding IP SNAT rule failed with error %v", err)
@@ -177,15 +184,15 @@ func AddArpReplyRule(bridgeName string, port string, ip net.IP, mac string, vlan
 	return nil
 }
 
-func AddMacDnatRule(bridgeName string, port string, ip net.IP, mac string, vlanid int) error {
+func AddMacDnatRule(bridgeName string, port string, ip net.IP, mac string, vlanid int, containerPort string) error {
 	var cmd string
 
 	if vlanid != 0 {
-		cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_vlan=%v,in_port=%s,actions=mod_dl_dst:%s,normal",
-			bridgeName, ip.String(), vlanid, port, mac)
+		cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_vlan=%v,in_port=%s,actions=mod_dl_dst:%s,strip_vlan,%s",
+			bridgeName, ip.String(), vlanid, port, mac, containerPort)
 	} else {
-		cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,in_port=%s,actions=mod_dl_dst:%s,normal",
-			bridgeName, ip.String(), port, mac)
+		cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,in_port=%s,actions=mod_dl_dst:%s,strip_vlan,%s",
+			bridgeName, ip.String(), port, mac, containerPort)
 	}
 	_, err := platform.ExecuteCommand(cmd)
 	if err != nil {

@@ -90,7 +90,7 @@ func (client *OVSEndpointClient) AddEndpointRules(epInfo *EndpointInfo) error {
 	}
 
 	log.Printf("[ovs] Get ovs port for interface %v.", client.hostVethName)
-	containerPort, err := ovsctl.GetOVSPortNumber(client.hostVethName)
+	containerOvsPort, err := ovsctl.GetOVSPortNumber(client.hostVethName)
 	if err != nil {
 		log.Printf("[ovs] Get ofport failed with error %v", err)
 		return err
@@ -103,12 +103,6 @@ func (client *OVSEndpointClient) AddEndpointRules(epInfo *EndpointInfo) error {
 		return err
 	}
 
-	// IP SNAT Rule
-	log.Printf("[ovs] Adding IP SNAT rule for egress traffic on %v.", containerPort)
-	if err := ovsctl.AddIpSnatRule(client.bridgeName, containerPort, client.hostPrimaryMac, ""); err != nil {
-		return err
-	}
-
 	for _, ipAddr := range epInfo.IPAddresses {
 		// Add Arp Reply Rules
 		// Set Vlan id on arp request packet and forward it to table 1
@@ -116,9 +110,15 @@ func (client *OVSEndpointClient) AddEndpointRules(epInfo *EndpointInfo) error {
 			return err
 		}
 
+		// IP SNAT Rule
+		log.Printf("[ovs] Adding IP SNAT rule for egress traffic on %v.", containerOvsPort)
+		if err := ovsctl.AddIpSnatRule(client.bridgeName, ipAddr.IP, client.vlanID, containerOvsPort, client.hostPrimaryMac, hostPort); err != nil {
+			return err
+		}
+
 		// Add IP DNAT rule based on dst ip and vlanid
-		log.Printf("[ovs] Adding MAC DNAT rule for IP address %v on %v.", ipAddr.IP.String(), hostPort)
-		if err := ovsctl.AddMacDnatRule(client.bridgeName, hostPort, ipAddr.IP, client.containerMac, client.vlanID); err != nil {
+		log.Printf("[ovs] Adding MAC DNAT rule for IP address %v on hostport %v, containerport: %v", ipAddr.IP.String(), hostPort, containerOvsPort)
+		if err := ovsctl.AddMacDnatRule(client.bridgeName, hostPort, ipAddr.IP, client.containerMac, client.vlanID, containerOvsPort); err != nil {
 			return err
 		}
 	}
