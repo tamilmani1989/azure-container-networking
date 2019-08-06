@@ -13,23 +13,20 @@ func TestMain(m *testing.M) {
 
 func TestAllowInboundFromHostToNC(t *testing.T) {
 	client := &OVSSnatClient{
-		snatBridgeIP: "169.254.0.1/16",
-		localIP:      "169.254.0.4/16",
-		containerSnatVethName : "eth0"
+		snatBridgeIP:          "169.254.0.1/16",
+		localIP:               "169.254.0.4/16",
+		containerSnatVethName: "eth0",
 	}
 
-	err := client.AllowInboundFromHostToNC()
-	if err != nil {
+	if err := client.AllowInboundFromHostToNC(); err != nil {
 		t.Errorf("Error adding inbound rule: %v", err)
 	}
 
-	err = client.AllowInboundFromHostToNC()
-	if err != nil {
+	if err := client.AllowInboundFromHostToNC(); err != nil {
 		t.Errorf("Error adding existing inbound rule: %v", err)
 	}
 
-	err = client.DeleteInboundFromHostToNC()
-	if err != nil {
+	if err := client.DeleteInboundFromHostToNC(); err != nil {
 		t.Errorf("Error removing inbound rule: %v", err)
 	}
 }
