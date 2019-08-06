@@ -110,13 +110,16 @@ func (client *OVSEndpointClient) AddEndpointRules(epInfo *EndpointInfo) error {
 			return err
 		}
 
-		// IP SNAT Rule
+		// IP SNAT Rule - Change src mac to VM Mac for packets coming from container host veth port.
+		// This rule also checks if packets coming from right source ip based on the ovs port to prevent ip spoofing.
+		// Otherwise it drops the packet.
 		log.Printf("[ovs] Adding IP SNAT rule for egress traffic on %v.", containerOVSPort)
 		if err := ovsctl.AddIpSnatRule(client.bridgeName, ipAddr.IP, client.vlanID, containerOVSPort, client.hostPrimaryMac, hostPort); err != nil {
 			return err
 		}
 
-		// Add IP DNAT rule based on dst ip and vlanid
+		// Add IP DNAT rule based on dst ip and vlanid - This rule changes the destination mac to corresponding container mac based on the ip and
+		// forwards the packet to corresponding container hostveth port
 		log.Printf("[ovs] Adding MAC DNAT rule for IP address %v on hostport %v, containerport: %v", ipAddr.IP.String(), hostPort, containerOVSPort)
 		if err := ovsctl.AddMacDnatRule(client.bridgeName, hostPort, ipAddr.IP, client.containerMac, client.vlanID, containerOVSPort); err != nil {
 			return err
