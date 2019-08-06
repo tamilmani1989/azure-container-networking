@@ -7,7 +7,7 @@ using DNCService.API;
 namespace NetworkManager.DataModel
 {
     [DataContract]
-    public class NetworkConfiguration : ICloneable
+    public class NetworkConfiguration : ICloneable, IExtensibleDataObject
     {
         [DataMember]
         public string NetworkID { get; private set; }
@@ -234,5 +234,15 @@ namespace NetworkManager.DataModel
         {
             return new NetworkConfiguration(this);
         }
+
+        #region IExtensibleDataObject Members
+
+        /// <summary>
+        /// Enables round-tripping of data contracts.
+        /// </summary>
+        ExtensionDataObject IExtensibleDataObject.ExtensionData { get; set; }
+
+        #endregion
+
     }
 }
