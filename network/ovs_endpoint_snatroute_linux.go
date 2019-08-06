@@ -57,7 +57,6 @@ func AddSnatEndpointRules(client *OVSEndpointClient) error {
 		if client.allowInboundFromNCToHost {
 			return client.snatClient.AllowInboundFromNCToHost()
 		}
-
 	}
 
 	return nil
