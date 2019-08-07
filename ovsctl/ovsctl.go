@@ -41,13 +41,7 @@ func DeleteOVSBridge(bridgeName string) error {
 }
 
 func AddPortOnOVSBridge(hostIfName string, bridgeName string, vlanID int) error {
-	cmd := ""
-
-	if vlanID == 0 {
-		cmd = fmt.Sprintf("ovs-vsctl add-port %s %s", bridgeName, hostIfName)
-	} else {
-		cmd = fmt.Sprintf("ovs-vsctl add-port %s %s tag=%d", bridgeName, hostIfName, vlanID)
-	}
+	cmd := fmt.Sprintf("ovs-vsctl add-port %s %s", bridgeName, hostIfName)
 	_, err := platform.ExecuteCommand(cmd)
 	if err != nil {
 		log.Printf("[ovs] Error while setting OVS as master to primary interface %v", err)
