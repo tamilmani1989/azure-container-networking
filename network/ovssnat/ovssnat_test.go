@@ -91,7 +91,7 @@ func TestAllowInboundFromNCToHost(t *testing.T) {
 		t.Errorf("Error adding existing inbound rule: %v", err)
 	}
 
-	if err := client.AllowInboundFromNCToHost(); err != nil {
+	if err := client.DeleteInboundFromNCToHost(); err != nil {
 		t.Errorf("Error removing inbound rule: %v", err)
 	}
 
