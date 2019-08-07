@@ -28,7 +28,7 @@ RFC for Link Local Addresses: https://tools.ietf.org/html/rfc3927
 */
 
 const (
-	enableIpForwardCmd = "sysctl -w net.ipv4.ip_forward=1"
+	enableIPForwardCmd = "sysctl -w net.ipv4.ip_forward=1"
 )
 
 func getPrivateIPSpace() []string {
@@ -179,17 +179,17 @@ func BlockIPAddresses(bridgeName string, action string) error {
 func EnableIPForwarding(ifName string) error {
 	// Enable ip forwading on linux vm.
 	// sysctl -w net.ipv4.ip_forward=1
-	cmd := fmt.Sprintf(enableIpForwardCmd)
+	cmd := fmt.Sprintf(enableIPForwardCmd)
 	_, err := platform.ExecuteCommand(cmd)
 	if err != nil {
-		log.Printf("[snat] Enable ipforwarding failed with: %v", err)
+		log.Printf("[net] Enable ipforwarding failed with: %v", err)
 		return err
 	}
 
 	// Append a rule in forward chain to allow forwarding from bridge
 	match := fmt.Sprintf("-o %v", ifName)
 	if err := iptables.AppendIptableRule(iptables.Filter, iptables.Forward, match, iptables.Accept); err != nil {
-		log.Printf("[snat] Appending forward chain rule: allow traffic coming from snatbridge failed with: %v", err)
+		log.Printf("[net] Appending forward chain rule: allow traffic coming from snatbridge failed with: %v", err)
 		return err
 	}
 
