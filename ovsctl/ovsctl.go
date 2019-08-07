@@ -91,30 +91,19 @@ func AddArpSnatRule(bridgeName string, mac string, macHex string, ofport string)
 	return nil
 }
 
-// IP SNAT Rule - Change src mac to VM Mac for packets coming from container host veth port.
-func AddIpSnatRule(bridgeName string, ip net.IP, vlanID int, port string, mac string, outport string) error {
-	var cmd string
+func AddIpSnatRule(bridgeName string, port string, mac string, outport string) error {
 	if outport == "" {
 		outport = "normal"
 	}
 
-	// This rule also checks if packets coming from right source ip based on the ovs port to prevent ip spoofing.
-	// Otherwise it drops the packet.
-	if vlanID != 0 {
-		cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=20,ip,nw_src=%s,in_port=%s,vlan_tci=0,actions=mod_dl_src:%s,mod_vlan_vid:%v,%v",
-			bridgeName, ip.String(), port, mac, vlanID, outport)
-	} else {
-		cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=20,ip,nw_src=%s,in_port=%s,vlan_tci=0,actions=mod_dl_src:%s,strip_vlan,%v",
-			bridgeName, ip.String(), port, mac, outport)
-	}
-
+	cmd := fmt.Sprintf("ovs-ofctl add-flow %v priority=20,ip,in_port=%s,vlan_tci=0,actions=mod_dl_src:%s,strip_vlan,%v",
+		bridgeName, port, mac, outport)
 	_, err := platform.ExecuteCommand(cmd)
 	if err != nil {
 		log.Printf("[ovs] Adding IP SNAT rule failed with error %v", err)
 		return err
 	}
 
-	// Drop other packets which doesn't satisfy above condition
 	cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=10,ip,in_port=%s,actions=drop",
 		bridgeName, port)
 	_, err = platform.ExecuteCommand(cmd)
@@ -188,18 +177,15 @@ func AddArpReplyRule(bridgeName string, port string, ip net.IP, mac string, vlan
 	return nil
 }
 
-// Add MAC DNAT rule based on dst ip and vlanid
-func AddMacDnatRule(bridgeName string, port string, ip net.IP, mac string, vlanid int, containerPort string) error {
+func AddMacDnatRule(bridgeName string, port string, ip net.IP, mac string, vlanid int) error {
 	var cmd string
 
-	// This rule changes the destination mac to speciifed mac based on the ip and vlanid.
-	// and forwards the packet to corresponding container hostveth port
 	if vlanid != 0 {
-		cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_vlan=%v,in_port=%s,actions=mod_dl_dst:%s,strip_vlan,%s",
-			bridgeName, ip.String(), vlanid, port, mac, containerPort)
+		cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_vlan=%v,in_port=%s,actions=mod_dl_dst:%s,normal",
+			bridgeName, ip.String(), vlanid, port, mac)
 	} else {
-		cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,in_port=%s,actions=mod_dl_dst:%s,strip_vlan,%s",
-			bridgeName, ip.String(), port, mac, containerPort)
+		cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,in_port=%s,actions=mod_dl_dst:%s,normal",
+			bridgeName, ip.String(), port, mac)
 	}
 	_, err := platform.ExecuteCommand(cmd)
 	if err != nil {
