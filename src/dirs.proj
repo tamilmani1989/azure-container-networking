@@ -49,5 +49,9 @@
     </ProjectFile> 
   </ItemGroup>
     
+  <ItemGroup>
+      <ProjectFile Include="PFSign\ServiceSign.proj" />
+  </ItemGroup>
+  
   <Import Project="$(ExtendedTargetsPath)\Traversal.targets" />
 </Project>
