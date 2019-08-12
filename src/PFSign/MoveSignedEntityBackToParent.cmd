@@ -1,0 +1,13 @@
+set GPARENTPATH=%1
+set PARENTPATH=%2
+set CURRENTPATH=%3
+
+echo %GPARENTPATH%
+echo %PARENTPATH%
+echo %CURRENTPATH%
+
+move "%PARENTPATH%\*.csv" "%GPARENTPATH%\"
+
+move "%CURRENTPATH%\*" "%PARENTPATH%\"
+
+rmdir "%CURRENTPATH%"

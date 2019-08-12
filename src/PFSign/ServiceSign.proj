@@ -4,6 +4,10 @@
   <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
   <Import Project="$(PkgServiceSignTask)\content\FolderSigning.targets" />
 
+  <ItemGroup>
+    <ProjectReference Include="$(SrcRoot)\HostNetAgent\HostNetAgent.vcxproj"/>
+  </ItemGroup>
+
   <PropertyGroup>
     <AppOutput>$(BinariesBuildTypeArchDirectory)\HostNetAgent</AppOutput>
     <ModernAPSigning>true</ModernAPSigning>
@@ -30,10 +34,11 @@
       GeneratePackageForSigning;
       GeneratePathsForSigning;
       $(SignOutputDependsOn)
+      MoveSignedEntityBackToParent;
     </BuildDependsOn>	
    </PropertyGroup>
    <Target Name="CreateBuildShare" AfterTargets="Build">
-    <Message Text="CreateBuildShare started" Importance="high" />   
+    <Message Text="CreateBuildShare started" Importance="high" />  
     <Exec Command="$(MsBuildThisFileDirectory)\CreateBuildShare.cmd $(AppOutput)" />
     <Message Text="CreateBuildShare finished" Importance="high" />
   </Target>
@@ -55,24 +60,13 @@
     <MakeDir Directories="$(OutputPath)"/>
 
     <Error Condition="!Exists('%(FoldersToSign.Identity)')" Text="Path %(FoldersToSign.Identity) not exists" />
+    <Message Text="Done With signing" Importance="high" />
   </Target>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  <Target Name="MoveSignedEntityBackToParent" AfterTargets="GeneratePathsForSigning">
+    <Message Text="MoveSignedEntityBackToParent started" Importance="high" />  
+    <Exec Command="$(MsBuildThisFileDirectory)\MoveSignedEntityBackToParent.cmd $(BinariesBuildTypeArchDirectory) $(AppOutput) $(AppOutput)\HostNetAgent" />
+    <Message Text="MoveSignedEntityBackToParent finished" Importance="high" />
+  </Target>
 
 </Project>

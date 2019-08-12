@@ -6,21 +6,21 @@
 #
 # CreateBuildShare
 #
-#   CreateBuildShare from $BinariesBuildTypeArchDirectory . "$(BinariesBuildTypeArchDirectory)\HostNetAgent" to $packageDestDir
+#   CreateBuildShare from "$(BinariesBuildTypeArchDirectory)\HostNetAgent" to $packageDestDir
 #   which will then be signed for PfClient.
 #
 
 use strict;
 use warnings FATAL => 'uninitialized';
 use File::Path;
-use Logmsg;
+# use Logmsg;
 
 my $arrSize = @ARGV;
 
 my $packageDestDir = $ARGV[0];
 
-logmsg("Start CreateBuildShare.cmd");
-logmsg("dest: $packageDestDir");
+#logmsg("Start CreateBuildShare.cmd");
+#logmsg("dest: $packageDestDir");
 
 Run_cmd("copy /Y .\\start.bat $packageDestDir",1,1);
 Run_cmd("copy /Y .\\ServiceConfig.ini $packageDestDir",1,1);
@@ -62,7 +62,7 @@ sub Run_cmd
 
     if (!$Quiet)
     {
-        logmsg($result);
+        #logmsg($result);
     }
 
     # return success
