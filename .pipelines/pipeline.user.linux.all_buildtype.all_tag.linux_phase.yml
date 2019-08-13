@@ -139,16 +139,6 @@ build:
             include:
               - 'azure-dnc'
 
-    - !!buildcommand
-        name: 'Build DNC for SF'
-        command: 'build-dnc-sf.sh'
-        arguments: 'Build Release'
-        artifacts:
-          - from: 'src/Dnc-SF/DncSFProj/pkg/'
-            to: 'drop_dnc_sf'
-            include:
-              - '**/*'
-
 # An optional user defined stage for performing packaging. This exists as a separate stage because some build processes do a
 # compile-sign-package-sign model. For example, Windows based builds use this model. Linux builds typically follow a
 # compile-hash-package-hash-sign hash model. For those folks, package may not need to exist as a separate step.

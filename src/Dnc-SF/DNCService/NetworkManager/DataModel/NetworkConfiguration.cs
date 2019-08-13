@@ -183,7 +183,7 @@ namespace NetworkManager.DataModel
                 throw new Exception($"CNetspace cannot be null or empty.");
             }
             CnetSpace.Clear();
-            CnetSpace.AddRange(cnetSpace.Split(","));
+            CnetSpace.AddRange(cnetSpace.Split(','));
         }
 
         public void SetVNetSpace(string vnetSpace)
@@ -193,7 +193,7 @@ namespace NetworkManager.DataModel
                 throw new Exception($"VNetspace cannot be null or empty.");
             }
             VnetSpace.Clear();
-            VnetSpace.AddRange(vnetSpace.Split(","));
+            VnetSpace.AddRange(vnetSpace.Split(','));
         }
 
         public override string ToString()

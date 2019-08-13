@@ -59,7 +59,7 @@ namespace NetworkManager.DataModel
             this.AccessToken = accessToken;
             this.IsJoined = isJoined;
             this.tags = new HashSet<Tag>();
-            this.reservations = new Dictionary<string, string>(reservations);
+            this.reservations = new Dictionary<string, string>(reservations.ToImmutableDictionary());
             if (tagSet != null)
             {
                 this.tags.UnionWith(tagSet);
