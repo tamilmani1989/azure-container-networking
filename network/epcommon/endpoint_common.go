@@ -187,8 +187,7 @@ func EnableIPForwarding(ifName string) error {
 	}
 
 	// Append a rule in forward chain to allow forwarding from bridge
-	match := fmt.Sprintf("-o %v", ifName)
-	if err := iptables.AppendIptableRule(iptables.Filter, iptables.Forward, match, iptables.Accept); err != nil {
+	if err := iptables.AppendIptableRule(iptables.Filter, iptables.Forward, "", iptables.Accept); err != nil {
 		log.Printf("[net] Appending forward chain rule: allow traffic coming from snatbridge failed with: %v", err)
 		return err
 	}
