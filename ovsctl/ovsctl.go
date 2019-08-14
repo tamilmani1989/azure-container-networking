@@ -14,6 +14,13 @@ const (
 	defaultMacForArpResponse = "12:34:56:78:9a:bc"
 )
 
+// Open flow rule priorities. Higher the number higher the priority
+const (
+	low  = 10
+	mid  = 15
+	high = 20
+)
+
 func CreateOVSBridge(bridgeName string) error {
 	log.Printf("[ovs] Creating OVS Bridge %v", bridgeName)
 
@@ -63,7 +70,7 @@ func GetOVSPortNumber(interfaceName string) (string, error) {
 }
 
 func AddVMIpAcceptRule(bridgeName string, primaryIP string, mac string) error {
-	cmd := fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_dst=%s,priority=20,actions=normal", bridgeName, primaryIP, mac)
+	cmd := fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_dst=%s,priority=%d,actions=normal", bridgeName, primaryIP, mac, high)
 	_, err := platform.ExecuteCommand(cmd)
 	if err != nil {
 		log.Printf("[ovs] Adding SNAT rule failed with error %v", err)
@@ -74,8 +81,8 @@ func AddVMIpAcceptRule(bridgeName string, primaryIP string, mac string) error {
 }
 
 func AddArpSnatRule(bridgeName string, mac string, macHex string, ofport string) error {
-	cmd := fmt.Sprintf(`ovs-ofctl add-flow %v table=1,priority=10,arp,arp_op=1,actions='mod_dl_src:%s,
-		load:0x%s->NXM_NX_ARP_SHA[],output:%s'`, bridgeName, mac, macHex, ofport)
+	cmd := fmt.Sprintf(`ovs-ofctl add-flow %v table=1,priority=%d,arp,arp_op=1,actions='mod_dl_src:%s,
+		load:0x%s->NXM_NX_ARP_SHA[],output:%s'`, bridgeName, low, mac, macHex, ofport)
 	_, err := platform.ExecuteCommand(cmd)
 	if err != nil {
 		log.Printf("[ovs] Adding ARP SNAT rule failed with error %v", err)
@@ -92,14 +99,14 @@ func AddIpSnatRule(bridgeName string, ip net.IP, vlanID int, port string, mac st
 		outport = "normal"
 	}
 
+	commonPrefix := fmt.Sprintf("ovs-ofctl add-flow %v priority=%d,ip,nw_src=%s,in_port=%s,vlan_tci=0,actions=mod_dl_src:%s", bridgeName, high, ip.String(), port, mac)
+
 	// This rule also checks if packets coming from right source ip based on the ovs port to prevent ip spoofing.
 	// Otherwise it drops the packet.
 	if vlanID != 0 {
-		cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=20,ip,nw_src=%s,in_port=%s,vlan_tci=0,actions=mod_dl_src:%s,mod_vlan_vid:%v,%v",
-			bridgeName, ip.String(), port, mac, vlanID, outport)
+		cmd = fmt.Sprintf("%s,mod_vlan_vid:%v,%v", commonPrefix, vlanID, outport)
 	} else {
-		cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=20,ip,nw_src=%s,in_port=%s,vlan_tci=0,actions=mod_dl_src:%s,strip_vlan,%v",
-			bridgeName, ip.String(), port, mac, outport)
+		cmd = fmt.Sprintf("%s,strip_vlan,%v", commonPrefix, outport)
 	}
 
 	_, err := platform.ExecuteCommand(cmd)
@@ -109,8 +116,8 @@ func AddIpSnatRule(bridgeName string, ip net.IP, vlanID int, port string, mac st
 	}
 
 	// Drop other packets which doesn't satisfy above condition
-	cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=10,ip,in_port=%s,actions=drop",
-		bridgeName, port)
+	cmd = fmt.Sprintf("ovs-ofctl add-flow %v priority=%d,ip,in_port=%s,actions=drop",
+		bridgeName, low, port)
 	_, err = platform.ExecuteCommand(cmd)
 	if err != nil {
 		log.Printf("[ovs] Dropping vlantag packet rule failed with error %v", err)
@@ -139,11 +146,11 @@ func AddFakeArpReply(bridgeName string, ip net.IP) error {
 	ipAddrInt := common.IpToInt(ip)
 
 	log.Printf("[ovs] Adding ARP reply rule for IP address %v ", ip.String())
-	cmd := fmt.Sprintf(`ovs-ofctl add-flow %s arp,arp_op=1,priority=20,actions='load:0x2->NXM_OF_ARP_OP[],
+	cmd := fmt.Sprintf(`ovs-ofctl add-flow %s arp,arp_op=1,priority=%d,actions='load:0x2->NXM_OF_ARP_OP[],
 			move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],mod_dl_src:%s,
 			move:NXM_NX_ARP_SHA[]->NXM_NX_ARP_THA[],move:NXM_OF_ARP_TPA[]->NXM_OF_ARP_SPA[],
 			load:0x%s->NXM_NX_ARP_SHA[],load:0x%x->NXM_OF_ARP_TPA[],IN_PORT'`,
-		bridgeName, defaultMacForArpResponse, macAddrHex, ipAddrInt)
+		bridgeName, high, defaultMacForArpResponse, macAddrHex, ipAddrInt)
 	_, err := platform.ExecuteCommand(cmd)
 	if err != nil {
 		log.Printf("[ovs] Adding ARP reply rule failed with error %v", err)
@@ -168,11 +175,11 @@ func AddArpReplyRule(bridgeName string, port string, ip net.IP, mac string, vlan
 
 	// If arp fields matches, set arp reply rule for the request
 	log.Printf("[ovs] Adding ARP reply rule for IP address %v and vlanid %v.", ip, vlanid)
-	cmd = fmt.Sprintf(`ovs-ofctl add-flow %s table=1,arp,arp_tpa=%s,dl_vlan=%v,arp_op=1,priority=20,actions='load:0x2->NXM_OF_ARP_OP[],
+	cmd = fmt.Sprintf(`ovs-ofctl add-flow %s table=1,arp,arp_tpa=%s,dl_vlan=%v,arp_op=1,priority=%d,actions='load:0x2->NXM_OF_ARP_OP[],
 			move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],mod_dl_src:%s,
 			move:NXM_NX_ARP_SHA[]->NXM_NX_ARP_THA[],move:NXM_OF_ARP_SPA[]->NXM_OF_ARP_TPA[],
 			load:0x%s->NXM_NX_ARP_SHA[],load:0x%x->NXM_OF_ARP_SPA[],strip_vlan,IN_PORT'`,
-		bridgeName, ip.String(), vlanid, mac, macAddrHex, ipAddrInt)
+		bridgeName, ip.String(), vlanid, high, mac, macAddrHex, ipAddrInt)
 	_, err = platform.ExecuteCommand(cmd)
 	if err != nil {
 		log.Printf("[ovs] Adding ARP reply rule failed with error %v", err)
@@ -185,15 +192,14 @@ func AddArpReplyRule(bridgeName string, port string, ip net.IP, mac string, vlan
 // Add MAC DNAT rule based on dst ip and vlanid
 func AddMacDnatRule(bridgeName string, port string, ip net.IP, mac string, vlanid int, containerPort string) error {
 	var cmd string
-
 	// This rule changes the destination mac to speciifed mac based on the ip and vlanid.
 	// and forwards the packet to corresponding container hostveth port
+
+	commonPrefix := fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,in_port=%s", bridgeName, ip.String(), port)
 	if vlanid != 0 {
-		cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,dl_vlan=%v,in_port=%s,actions=mod_dl_dst:%s,strip_vlan,%s",
-			bridgeName, ip.String(), vlanid, port, mac, containerPort)
+		cmd = fmt.Sprintf("%s,dl_vlan=%v,actions=mod_dl_dst:%s,strip_vlan,%s", commonPrefix, vlanid, mac, containerPort)
 	} else {
-		cmd = fmt.Sprintf("ovs-ofctl add-flow %s ip,nw_dst=%s,in_port=%s,actions=mod_dl_dst:%s,strip_vlan,%s",
-			bridgeName, ip.String(), port, mac, containerPort)
+		cmd = fmt.Sprintf("%s,actions=mod_dl_dst:%s,strip_vlan,%s", commonPrefix, mac, containerPort)
 	}
 	_, err := platform.ExecuteCommand(cmd)
 	if err != nil {
