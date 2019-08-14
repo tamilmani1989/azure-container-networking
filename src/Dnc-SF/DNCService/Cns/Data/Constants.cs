@@ -17,5 +17,6 @@ namespace Cns.Data
 
         public const string ClearContainer = "ClearContainer";
         public const string AzureContainerInstance = "AzureContainerInstance";
+        public const string JobObject = "JobObject";
     }
 }

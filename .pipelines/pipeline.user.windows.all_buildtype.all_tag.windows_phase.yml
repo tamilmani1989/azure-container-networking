@@ -11,7 +11,7 @@ environment:
   runtime:
     provider: 'appcontainer'                                            # Currently only appcontainer is supported future will bring
                                                                         # oscontainer and virtualmachine
-    image: 'cdpxtest.azurecr.io/global/external-vse2015u3:2.0'          # This is the image that your pipeline will run in.
+    image: 'cdpxwin.azurecr.io/global/vse2017u5-external-azsdk-ext-win14393.1884:4.2'          # This is the image that your pipeline will run in.
                                                                         # For (appcontainer), Docker Hub public Microsoft repository images
                                                                         # can be used.
                                                                         # Example microsoft/dotnet:1.1.1-sdk-nanoserver. Or the CDP team
@@ -58,7 +58,7 @@ version:
                                                                         # artifacts as a group by name.
   major: 2019                                                           # The major version number.
   minor: 8                                                              # The minor version number
-  tag: '1.1'                                                            # Tag to use for semantic versioning.
+  tag: '14.1'                                                            # Tag to use for semantic versioning.
   system: 'patch'
 
 static_analysis_options:
@@ -75,6 +75,16 @@ static_analysis_options:
 # Eventually, network access will be limited or cut-off in this stage.
 build:
   commands:
+  
+  - !!buildcommand
+    name: 'Build DNC for SF'
+    command: 'build-dnc-sf.cmd'
+    arguments: 'Release'
+    artifacts:
+      - from: 'src/Dnc-SF/DncSFProj/pkg/'
+        to: 'drop_dnc_sf'
+        include:
+          - '**/*'
 
   - !!buildcommand
     name: 'Sign DNC Windows'
@@ -88,9 +98,9 @@ build:
   - !!buildcommand
     name: 'Sign DNC for SF'
     command: 'package-sign-dnc-sf.cmd'
-    arguments: 'Sign Release linux_phase_drop_dnc_sf'
+    arguments: 'Sign Release drop_dnc_sf'
     artifacts:
-      - from: 'linux_phase_drop_dnc_sf'
+      - from: 'drop_dnc_sf'
         include:
           - '**/DNCService.dll'
           - '**/DNCService.Interfaces.dll'
@@ -142,7 +152,7 @@ package:
     - !!buildcommand
       name: 'Package DNC for SF'
       command: 'package-sign-dnc-sf.cmd'
-      arguments: 'Package Release linux_phase_drop_dnc_sf'
+      arguments: 'Package Release drop_dnc_sf'
       artifacts:
         - from: '.'
           to: 'AzureDNC-SF'

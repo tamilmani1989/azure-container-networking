@@ -127,7 +127,7 @@ namespace DNCService
                                 .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.None)
                                 .UseUrls(url)
                                 .Build();
-                        })));
+                        }), "DNCListener"));
             return serviceReplicaListeners.ToArray();
         }
 
