@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>Microsoft.Azure.Internal.$branch$AzureCNSSF</id>
+    <version>$version$</version>
+    <title>AzureCNS for SF from $branch$</title>
+    <authors>connetdevs@microsoft.com;dejandu@microsoft.com</authors>
+    <owners>connetdevs@microsoft.com;dejandu@microsoft.com</owners>
+    <description>The SF wrapper for AzureCNS that works in coordination with the DNC. This package includes:
+
+1. SF based wrapper for AzureCNS.
+
+2. Latest version of AzureCNS.
+</description>
+    <projectUrl>http://www.Microsoft.com</projectUrl>
+    <licenseUrl>http://www.Microsoft.com/license</licenseUrl>
+    <copyright>Copyright (c) Microsoft Corporation</copyright>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <tags></tags>
+  </metadata>
+  <files>
+    <file src="$drop$\**\*" target="content\win10-x64\CnsWrapperApp" />
+  </files>
+</package>

@@ -34,9 +34,9 @@ namespace CnsWrapperService
             get { return GetBoolConfigurationValue(Constants.ConfigPackage, "EnablePortOverride", false); }
         }
 
-        public static bool DisableCnm
+        public static bool StartCnm
         {
-            get { return GetBoolConfigurationValue(Constants.ConfigPackage, "DisableCnm", true); }
+            get { return GetBoolConfigurationValue(Constants.ConfigPackage, "StartCnm", false); }
         }
 
         private static bool GetBoolConfigurationValue(string section, string parameter, bool defaultValue)
