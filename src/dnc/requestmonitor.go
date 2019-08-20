@@ -20,7 +20,10 @@ import (
 	"github.com/google/uuid"
 )
 
-var initiateMigration bool = true
+var (
+	initiateMigration bool = true
+	containerTypes         = make(map[string]bool)
+)
 
 const (
 	localIPSubnetAddressString      = "169.254.0.0/16"
@@ -1143,6 +1146,8 @@ func processNetworkContainerAssociate(
 	allowHostToNCCommunicationStatus := repoNCConfig.GetAllowHostToNCCommunicationStatus()
 	allowNCToHostCommunicationStatus := repoNCConfig.GetAllowNCToHostCommunicationStatus()
 
+	containerTypes[ncGoalState.ContainerType] = true
+
 	info := &cns.CreateNetworkContainerRequest{
 		Version:                    strconv.FormatUint(repoNCConfig.CNSVersion, 10),
 		NetworkContainerType:       ncGoalState.ContainerType,
@@ -1572,9 +1577,6 @@ func processNetworkContainerProgram(
 	defer utils.RecordTime(createdDateTime, "ContainerProgram", repoNCConfig.NetworkContainerID)
 	repoNCConfig.State = datamodel.Program
 	repoNCConfig.Status = datamodel.Completed
-	logger.Debugf("NC programming completed NC Id:%s ElapsedTime:%s",
-		repoNCConfig.NetworkContainerID,
-		time.Since(createdDateTime))
 	return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
