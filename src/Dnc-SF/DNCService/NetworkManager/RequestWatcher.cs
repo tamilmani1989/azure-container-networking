@@ -1224,20 +1224,6 @@ namespace NetworkManager
                         requestContext.NodeID,
                         new ErrorInfo(ErrorCode.NodeNotFound, "Node not found", ErrorType.NonRetriable));
                 }
-
-                int exhaustedNCCapacity = nodeConfig.DeployedNCMap.Count;
-                int nodeNCCapcity = await getNodeNCLimit(nodeConfig.NodeInfo.IPAddresses[0]);
-
-                if(exhaustedNCCapacity >= nodeNCCapcity)
-                {
-                    throw new DncNetworkContainerException(
-                        requestContext.NetworkID,
-                        requestContext.NodeID,
-                        new ErrorInfo(ErrorCode.NodeContainerCapacityExhausted,
-                        $"Node NC Capacity {nodeNCCapcity} exhausted",
-                        ErrorType.NonRetriable));
-                }
-
                 nodeConfig.AddNetworkContainer(requestContext.NetworkID,
                     NCConfiguration.GetNetworkContainerIDFromKey(requestContext.RequestID));
 
@@ -1327,26 +1313,6 @@ namespace NetworkManager
         private bool isSharedSubnetDelegationEnabled()
         {
             return azureStorageClient.IsSharedSubnetDelegationEnabled();
-        }
-
-        /// <summary>
-        /// Returns number of containers allowed on a node.
-        /// </summary>
-        /// <returns> (number of logical cores of a node - 1) </returns>
-        private async Task<int> getNodeNCLimit(string nodeInterfaceID)
-        {
-            try
-            {
-                int numCPUCores = await cnsClient.GetNumOfCPUCores(nodeInterfaceID);
-                return (numCPUCores - 1);
-            }
-            catch(Exception ex)
-            {
-                ServiceEventSource.Current.Message(
-                    $"Failed to get number of cpu cores on node {nodeInterfaceID} due to exception {ex}");
-
-                throw ex;
-            }
         }
     }
 }

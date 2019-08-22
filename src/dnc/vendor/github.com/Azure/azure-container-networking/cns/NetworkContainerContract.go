@@ -26,7 +26,6 @@ const (
 	ClearContainer         = "ClearContainer"
 	Docker                 = "Docker"
 	Basic                  = "Basic"
-	JobObject              = "JobObject"
 )
 
 // Orchestrator Types

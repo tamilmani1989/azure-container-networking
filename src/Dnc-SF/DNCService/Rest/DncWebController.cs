@@ -18,8 +18,6 @@ using System;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace DNCService.Rest
 {
@@ -151,15 +149,19 @@ namespace DNCService.Rest
                             ErrorType.NonRetriable));
                 }
 
-                if (!IsOrchestratorSupported(nodeInfoRequest.OrchestratorType))
+                if (!nodeInfoRequest.OrchestratorType.Equals(
+                    Cns.Data.Constants.ServiceFabric,
+                    StringComparison.CurrentCultureIgnoreCase) &&
+                    !nodeInfoRequest.OrchestratorType.Equals(
+                    Cns.Data.Constants.Kubernetes,
+                    StringComparison.CurrentCultureIgnoreCase))
                 {
                     throw new DncNodeManagementException(
                         "",
                         new ErrorInfo(
                             ErrorCode.InvalidNodeRequest,
                             $"Orchestrator type {nodeInfoRequest.OrchestratorType} is invalid. " +
-                            $"Supported orchestrators " +
-                            $"{GetSupportedOrchestrators().Aggregate((a,b) => string.Format("{0}, {1}", a, b))}.",
+                            $"Supported orchestrators {Cns.Data.Constants.ServiceFabric}, {Cns.Data.Constants.Kubernetes}.",
                             (int)HttpStatusCode.BadRequest,
                             ErrorType.NonRetriable));
                 }
@@ -440,7 +442,12 @@ namespace DNCService.Rest
                             ErrorType.NonRetriable));
                 }
 
-                if (!IsContainerTypeSupported(networkContainerRequest.AssociationInfo.ContainerType))
+                if (!networkContainerRequest.AssociationInfo.ContainerType.Equals(
+                    Cns.Data.Constants.ClearContainer,
+                    StringComparison.CurrentCultureIgnoreCase) &&
+                    !networkContainerRequest.AssociationInfo.ContainerType.Equals(
+                    Cns.Data.Constants.AzureContainerInstance,
+                    StringComparison.CurrentCultureIgnoreCase))
                 {
                     throw new DncNetworkContainerException(
                         networkID,
@@ -448,8 +455,7 @@ namespace DNCService.Rest
                         new ErrorInfo(
                             ErrorCode.InvalidNodeRequest,
                             $"Container type {networkContainerRequest.AssociationInfo.ContainerType} is invalid. " +
-                            $"Supported container types " +
-                            $"{GetSupportedContainerTypes().Aggregate((a, b) => string.Format("{0}, {1}", a, b))}.",
+                            $"Supported container types {Cns.Data.Constants.ClearContainer}, {Cns.Data.Constants.AzureContainerInstance}.",
                             (int)HttpStatusCode.BadRequest,
                             ErrorType.NonRetriable));
                 }
@@ -887,57 +893,6 @@ namespace DNCService.Rest
             var buffer = new byte[Convert.ToInt32(context.Request.ContentLength)];
             await context.Request.Body.ReadAsync(buffer, 0, buffer.Length);
             return buffer;
-        }
-
-        /// <summary>
-        /// Helper to get supported container types
-        /// </summary>
-        /// <returns>The list of supported container types.</returns>
-        private static List<string> GetSupportedContainerTypes()
-        {
-            List<string> supportedContainerTypes = new List<string>
-            {
-                Cns.Data.Constants.ClearContainer,
-                Cns.Data.Constants.AzureContainerInstance,
-                Cns.Data.Constants.JobObject
-            };
-
-            return supportedContainerTypes;
-        }
-
-        /// <summary>
-        /// Helper to check if the given container type is supported
-        /// </summary>
-        /// <returns>bool to indicate if the given container type is supported.</returns>
-        private static bool IsContainerTypeSupported(string containerType)
-        {
-            return GetSupportedContainerTypes().Any(
-                item => item.Equals(containerType, StringComparison.CurrentCultureIgnoreCase));
-        }
-
-        /// <summary>
-        /// Helper to get supported orchestrators
-        /// </summary>
-        /// <returns>The list of supported orchestrators.</returns>
-        private static List<string> GetSupportedOrchestrators()
-        {
-            List<string> supportedOrchestrators = new List<string>
-            {
-                Cns.Data.Constants.ServiceFabric,
-                Cns.Data.Constants.Kubernetes
-            };
-
-            return supportedOrchestrators;
-        }
-
-        /// <summary>
-        /// Helper to check if the given orchestrator is supported
-        /// </summary>
-        /// <returns>bool to indicate if the given orchestrator is supported.</returns>
-        private static bool IsOrchestratorSupported(string orchestrator)
-        {
-            return GetSupportedOrchestrators().Any(
-                item => item.Equals(orchestrator, StringComparison.CurrentCultureIgnoreCase));
         }
     }
 }

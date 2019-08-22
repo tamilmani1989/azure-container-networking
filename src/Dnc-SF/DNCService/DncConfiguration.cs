@@ -88,11 +88,6 @@ namespace DNCService
             /// Get NC status URL.
             /// </summary>
             public string GetNetworkcontainerstatusURLFmt { get; set; }
-
-            /// <summary>
-            /// Get number of CPU cores URL.
-            /// </summary>
-            public string GetNumOfCPUCoresURLFmt { get; set; }
         }
 
         /// <summary>

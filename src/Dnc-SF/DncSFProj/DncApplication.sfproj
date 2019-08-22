@@ -7,7 +7,7 @@
     <MinToolsVersion>1.5</MinToolsVersion>
     <SupportedMSBuildNuGetPackageVersion>1.6.6</SupportedMSBuildNuGetPackageVersion>
     <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
-    <PackageLocation>pkg\$(Configuration)</PackageLocation>
+    <PackageLocation>pkg\$(Configuration)\$(runtimeidentifierConfig)</PackageLocation>
   </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -32,13 +32,13 @@
     <Content Include="PublishProfiles\Local.Node.xml" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\DNCService\bin\$(Configuration)\net462\**\*.*">
+    <Content Include="..\DNCService\bin\$(Configuration)\netcoreapp2.0\$(runtimeidentifierConfig)\publish\*.*">
       <Link>ApplicationPackageRoot\DNCServicePkg\Code\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Content>
     <Content Include="..\DNCService\PackageRoot\Config\*.*">
       <Link>ApplicationPackageRoot\DNCServicePkg\Config\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Content>
-    <Content Include="..\DNCService\PackageRoot\ServiceManifest.xml">
+    <Content Condition="'$(runtimeidentifierConfig)' == 'win10-x64'" Include="..\DNCService\PackageRoot\ServiceManifest.xml">
       <Link>ApplicationPackageRoot\DNCServicePkg\ServiceManifest.xml</Link>
     </Content>
   </ItemGroup>

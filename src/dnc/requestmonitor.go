@@ -1676,8 +1676,6 @@ func updateVlan(containerType string) bool {
 	case cns.AzureContainerInstance:
 		fallthrough
 	case cns.Docker:
-		fallthrough
-	case cns.JobObject:
 		return true
 	default:
 		return false

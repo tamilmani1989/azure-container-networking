@@ -9,7 +9,7 @@ using System.Text;
 namespace NetworkManager.DataModel
 {
     [DataContract]
-    public class NetworkProfile : ICloneable, IExtensibleDataObject
+    public class NetworkProfile : ICloneable
     {
         [DataMember]
         public string NetworkProfileID { get; set; }
@@ -33,15 +33,5 @@ namespace NetworkManager.DataModel
         {
             return new NetworkProfile(this);
         }
-
-        #region IExtensibleDataObject Members
-
-        /// <summary>
-        /// Enables round-tripping of data contracts.
-        /// </summary>
-        ExtensionDataObject IExtensibleDataObject.ExtensionData { get; set; }
-
-        #endregion
-
     }
 }

@@ -1030,8 +1030,6 @@ func (service *HTTPRestService) saveNetworkContainerGoalState(req cns.CreateNetw
 	case cns.Docker:
 		fallthrough
 	case cns.Basic:
-		fallthrough
-	case cns.JobObject:
 		switch service.state.OrchestratorType {
 		case cns.Kubernetes:
 			fallthrough
@@ -1059,14 +1057,8 @@ func (service *HTTPRestService) saveNetworkContainerGoalState(req cns.CreateNetw
 			break
 
 		default:
-			errMsg := fmt.Sprintf("Unsupported orchestrator type: %s", service.state.OrchestratorType)
-			log.Errorf(errMsg)
-			return UnsupportedOrchestratorType, errMsg
+			log.Printf("Invalid orchestrator type %v", service.state.OrchestratorType)
 		}
-	default:
-		errMsg := fmt.Sprintf("Unsupported network container type %s", req.NetworkContainerType)
-		log.Errorf(errMsg)
-		return UnsupportedNetworkContainerType, errMsg
 	}
 
 	service.saveState()

@@ -52,7 +52,7 @@ version:
                                                                         # artifacts as a group by name.
   major: 2019                                                           # The major version number.
   minor: 8                                                              # The minor version number
-  tag: '14.1'                                                            # Tag to use for semantic versioning.
+  tag: '1.1'                                                            # Tag to use for semantic versioning.
   system: 'patch'                                                       # Versioning scheme to use.
                                                                         # patch         - 1.0.MMddyyrrrr will be generated
                                                                         # buildrevision - 1.0.MMddyy.rrrr will be generated.
@@ -138,6 +138,16 @@ build:
             to: 'drop_dnc'
             include:
               - 'azure-dnc'
+
+    - !!buildcommand
+        name: 'Build DNC for SF'
+        command: 'build-dnc-sf.sh'
+        arguments: 'Build Release'
+        artifacts:
+          - from: 'src/Dnc-SF/DncSFProj/pkg/'
+            to: 'drop_dnc_sf'
+            include:
+              - '**/*'
 
 # An optional user defined stage for performing packaging. This exists as a separate stage because some build processes do a
 # compile-sign-package-sign model. For example, Windows based builds use this model. Linux builds typically follow a
