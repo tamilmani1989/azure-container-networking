@@ -11,7 +11,7 @@ using System;
 using System.Runtime.Serialization;
 
 namespace DNCService.API
-{ 
+{
     [KnownType(typeof(NetworkContainerRequestV1))]
     [KnownType(typeof(NetworkContainerRequestV2))]
     [DataContract]
@@ -42,6 +42,12 @@ namespace DNCService.API
         public bool AllowHostToNCCommunication { get; private set; }
 
         /// <summary>
+        /// Flag to represent if NC to Host communication is allowed.
+        /// </summary>
+        [DataMember]
+        public bool AllowNCToHostCommunication { get; private set; }
+
+        /// <summary>
         /// Default constructor.
         /// </summary>
         public NetworkContainerRequest() { }
@@ -51,16 +57,19 @@ namespace DNCService.API
         /// </summary>
         /// <param name="associationInfo">Supply the association info.</param>
         /// <param name="networkProfileID">Supply the network profile ID.</param>
-        /// <param name="allowHostToNCCommunication">Supply the flag to represent 
+        /// <param name="allowHostToNCCommunication">Supply the flag to represent
         /// if Host to NC communication is allowed.</param>
         public NetworkContainerRequest(
             AssociationInfo associationInfo,
             string networkProfileID,
-            bool allowHostToNCCommunication)
+            bool allowHostToNCCommunication,
+            bool allowNCToHostCommunication
+            )
         {
             AssociationInfo = associationInfo;
             NetworkProfileID = networkProfileID;
             AllowHostToNCCommunication = allowHostToNCCommunication;
+            AllowNCToHostCommunication = allowNCToHostCommunication;
         }
 
         /// <summary>
@@ -70,7 +79,8 @@ namespace DNCService.API
         public override string ToString()
         {
             return $"ID:{ID} networkProfileID:{NetworkProfileID} AssociationInfo:{AssociationInfo}" +
-                $" AllowHostToNCCommunication: {AllowHostToNCCommunication}";
+                $" AllowHostToNCCommunication: {AllowHostToNCCommunication}" +
+                $" AllowNCToHostCommunication: {AllowNCToHostCommunication}";
         }
 
         public abstract object Clone();

@@ -3,8 +3,7 @@
   <PropertyGroup>
     <Description>DNCService.Interfaces Class Library</Description>
     <Authors></Authors>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <RuntimeFrameworkVersion>2.0.4</RuntimeFrameworkVersion>    
+    <TargetFramework>net462</TargetFramework>    
     <AssemblyName>DNCService.Interfaces</AssemblyName>
     <PackageId>DNCService.Interfaces</PackageId>
     <NetStandardImplicitPackageVersion>2.0.0</NetStandardImplicitPackageVersion>

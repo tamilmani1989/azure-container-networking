@@ -204,22 +204,31 @@ namespace DNCService.API
         NodeContainerCapacityExhausted = 62,
 
         [EnumMember]
-        UnSupportedAddressFamily = 63,
+        InvalidBlobName = 63,
 
         [EnumMember]
-        RequestNotsupported = 64,
+        InvalidContainerName = 64,
 
         [EnumMember]
-        InvalidNodeRequest = 65,
+        UnSupportedAddressFamily = 65,
 
         [EnumMember]
-        InvalidSubnetRequest = 66,
+        RequestNotsupported = 66,
 
         [EnumMember]
-        InvalidNetworkProfileId = 67,
+        InvalidNodeRequest = 67,
 
         [EnumMember]
-        InvalidNetworkRequest = 68,
+        InvalidSubnetRequest = 68,
+
+        [EnumMember]
+        InvalidNetworkProfileId = 69,
+
+        [EnumMember]
+        InvalidNetworkRequest = 70,
+
+        [EnumMember]
+        NumberOfCPUCoresRetrievalFailed = 71,
 
         // Note: This Enum struct must be identical to dnc/api/errorcode.go
         // Update both when adding new enum members.

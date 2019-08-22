@@ -66,6 +66,11 @@ namespace NetworkManager
         /// </summary>
         public bool AllowHostToNCCommunication { get; private set; }
 
+       /// <summary>
+        /// Flag to represent if NC to Host communication is allowed.
+        /// </summary>
+        public bool AllowNCToHostCommunication { get; private set; }
+
         public NetworkContainerInfo(
             string networkID,
             string nodeID,
@@ -89,7 +94,8 @@ namespace NetworkManager
             string localIP,
             ICollection<Tag> tagSet,
             UInt64 vnetVersion,
-            bool allowHostToNCCommunication)
+            bool allowHostToNCCommunication,
+            bool allowNCToHostCommunication)
         {
             this.NetworkID = networkID;
             this.NodeID = nodeID;
@@ -115,6 +121,7 @@ namespace NetworkManager
             this.VnetVersion = vnetVersion;
             CnsCnetAddresses = new List<Cns.Data.IPSubnet>();
             this.AllowHostToNCCommunication = allowHostToNCCommunication;
+            this.AllowNCToHostCommunication = allowNCToHostCommunication;
         }
 
         public NetworkContainerInfo(NetworkContainerInfo ncConfig)
@@ -143,6 +150,7 @@ namespace NetworkManager
             this.VnetVersion = ncConfig.VnetVersion;
             CnsCnetAddresses = new List<Cns.Data.IPSubnet>(ncConfig.CnsCnetAddresses);
             this.AllowHostToNCCommunication = ncConfig.AllowHostToNCCommunication;
+            this.AllowNCToHostCommunication = ncConfig.AllowNCToHostCommunication;
         }
 
         public CreateOrUpdateNetworkContainerRequest GetCreateNMAgentNetworkContainerRequest()
@@ -205,7 +213,8 @@ namespace NetworkManager
                 multiTenancyInfo,
                 CnsCnetAddresses.ToArray(),
                 null,
-                this.AllowHostToNCCommunication);
+                this.AllowHostToNCCommunication,
+                this.AllowNCToHostCommunication);
         }
 
         public override string ToString()
@@ -224,7 +233,8 @@ namespace NetworkManager
                 $"CnsVersion:{this.CnsVersion} ContainerType:{this.ContainerType}" +
                 $"CnetAddressSpace:{this.CnetAddressSpace} " +
                 $"NetworkContainerState:{NetworkContainerState} Status:{this.Status} LocalIP:{this.LocalIP} " +
-                $"Tags:{Tags} VnetVersion:{VnetVersion}] AllowHostToNCCommunication:{AllowHostToNCCommunication}";
+                $"Tags:{Tags} VnetVersion:{VnetVersion}] AllowHostToNCCommunication:{AllowHostToNCCommunication} " +
+                $"AllowNCToHostCommunication:{AllowNCToHostCommunication}";
         }
 
         public static string GetNetworkContainerKey(

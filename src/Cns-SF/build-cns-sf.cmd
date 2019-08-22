@@ -1,1 +1,0 @@
-msbuild CnsWrapperService.csproj /p:platform=x64
