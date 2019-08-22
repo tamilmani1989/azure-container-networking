@@ -898,6 +898,41 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, true)
 }
 
+func TestStressMultiVnetNodeNC(t *testing.T) {
+	deploymentCount := 2
+	ncPerNetworkCount := 10
+	ipIndex := 0
+	deploymentInfos := make([]DeploymentInfo, deploymentCount)
+	for index := 0; index < deploymentCount; index++ {
+		id, _ := uuid.NewUUID()
+		networkDeploymentRequest := NetworkDeploymentRequest{
+			vnetID:              id.String(),
+			UseCustomDnsServers: true,
+			TagCount:            0,
+			WaitForJoin:         true,
+			WaitForGet:          true}
+		ncDeploymentRequests := make([]*NCDeploymentRequest, ncPerNetworkCount)
+		for ncIndex := 0; ncIndex < ncPerNetworkCount; ncIndex++ {
+			ipToReserve := "10.0.0." + strconv.FormatUint(uint64(4+ipIndex), 10)
+			ipIndex++
+
+			ncID, _ := uuid.NewUUID()
+			ncDeploymentRequest := NCDeploymentRequest{
+				AllocationRequest: api.AllocationRequest{
+					SubnetName:   "subnet1",
+					IPConstraint: ipToReserve},
+				AssociationInfo: api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context},
+				NCID:            ncID.String()}
+
+			ncDeploymentRequests[ncIndex] = &ncDeploymentRequest
+		}
+
+		deploymentInfos[index] = DeploymentInfo{NetworkDeploymentRequest: &networkDeploymentRequest, NCDeploymentRequests: ncDeploymentRequests}
+	}
+
+	DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, true)
+}
+
 func addOrUpdateNode(
 	t *testing.T,
 	dncEP string,
@@ -2811,6 +2846,8 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 		for _, ncDeploymentRequest := range ncDeploymentRequestList {
 			ncDeploymentRequests[index] = ncDeploymentRequest
 			index++
+			fmt.Printf("tempdebug ncDeploymentRequests :%v\n", ncDeploymentRequest)
+			fmt.Printf("tempdebug index :%d", index)
 		}
 	}
 
@@ -2939,6 +2976,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 				fmt.Println("Response matches with the expected request")
 				return true
 			}
+			fmt.Printf("tempdebug cnsResponderContextMap for: %v\n", ncDeploymentRequest.NCID)
 			cnsResponderContextMap.getContext(ncDeploymentRequest.NCID).CreateOrUpdateNCResponse.ValidateNCRequest = ncRequestValidatorFunc
 		}
 
@@ -2990,13 +3028,16 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 		for _, ncDeploymentRequest := range ncDeploymentRequests {
 			fmt.Printf("Waiting for create NC:%s\n", ncDeploymentRequest.NCID)
 			chans = append(chans, cnsResponderContextMap.getContext(ncDeploymentRequest.NCID).CreateOrUpdateNCResponse.Signal)
+			fmt.Printf("tempdebug: chans %+v\n", chans)
 		}
 	}
 	cases := make([]reflect.SelectCase, len(chans))
 	for i, ch := range chans {
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
+		fmt.Printf("tempdebug: cases %+v\n", cases[i])
 	}
 	remaining := len(chans)
+	fmt.Printf("tempdebug: remaining %d\n", remaining)
 	for remaining > 0 {
 		chosen, value, _ := reflect.Select(cases)
 		fmt.Printf("Received signal for CreateOrUpdate NC:%+v\n", value)
