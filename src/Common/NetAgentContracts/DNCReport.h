@@ -35,10 +35,7 @@ using namespace web;
 #define MEMORY_USAGE_STR L"MemoryUsage"
 #define PROCESSES_STR L"Processes"
 #define TIMESTAMP_STR L"Timestamp"
-#define NUMBER_OF_NODES_STR L"NumberOfNodes"
-#define NUMBER_OF_NCS_STR L"NumberOfNCs"
-#define ORCHESTRATOR_STR L"Orchestrator"
-#define CONTAINER_TYPE_STR L"ContainerType"
+#define UUID_STR L"UUID"
 #define ERRORCODE_STR L"Errorcode"
 
 //
@@ -56,10 +53,7 @@ namespace DNCEnum
         MemoryUsage,
         Processes,
         Timestamp,
-        NumberOfNodes,
-        NumberOfNCs,
-        Orchestrator,
-        ContainerType,
+        UUID,
         Errorcode,
         Compute
     };
@@ -98,17 +92,8 @@ public:
     // Timestamp
     wstring Timestamp;
 
-    // NumberOfNodes
-    int NumberOfNodes = 0;
-
-    // NumberOfNCs
-    int NumberOfNCs = 0;
-
-    // Orchestrator
-    wstring Orchestrator;
-
-    // ContainerType
-    wstring ContainerType;
+    // UUID
+    wstring UUID;
 
     // Errorcode
     wstring Errorcode;

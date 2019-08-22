@@ -7,7 +7,7 @@ using DNCService.API;
 namespace NetworkManager.DataModel
 {
     [DataContract]
-    public class NetworkConfiguration : ICloneable, IExtensibleDataObject
+    public class NetworkConfiguration : ICloneable
     {
         [DataMember]
         public string NetworkID { get; private set; }
@@ -183,7 +183,7 @@ namespace NetworkManager.DataModel
                 throw new Exception($"CNetspace cannot be null or empty.");
             }
             CnetSpace.Clear();
-            CnetSpace.AddRange(cnetSpace.Split(','));
+            CnetSpace.AddRange(cnetSpace.Split(","));
         }
 
         public void SetVNetSpace(string vnetSpace)
@@ -193,7 +193,7 @@ namespace NetworkManager.DataModel
                 throw new Exception($"VNetspace cannot be null or empty.");
             }
             VnetSpace.Clear();
-            VnetSpace.AddRange(vnetSpace.Split(','));
+            VnetSpace.AddRange(vnetSpace.Split(","));
         }
 
         public override string ToString()
@@ -234,15 +234,5 @@ namespace NetworkManager.DataModel
         {
             return new NetworkConfiguration(this);
         }
-
-        #region IExtensibleDataObject Members
-
-        /// <summary>
-        /// Enables round-tripping of data contracts.
-        /// </summary>
-        ExtensionDataObject IExtensibleDataObject.ExtensionData { get; set; }
-
-        #endregion
-
     }
 }

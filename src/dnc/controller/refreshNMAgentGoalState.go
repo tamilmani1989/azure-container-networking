@@ -172,7 +172,7 @@ func (c *Controller) refreshNetworkContainerNMAgentGoalState(ncKey string,
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	loggershim.LS.Debugf("[NMAgent][Response] refresh %s\n", createNetworkContainerResponse.String())
+	loggershim.LS.Debugf("[NMAgent] create/update NC response %s\n", createNetworkContainerResponse.String())
 	putNCResponseCode, parseErr := strconv.ParseInt(createNetworkContainerResponse.ResponseCode, 10, 32)
 	if parseErr != nil {
 		msg := fmt.Sprintf(

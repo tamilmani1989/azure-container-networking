@@ -35,14 +35,11 @@ namespace DNCService.API
         /// <param name="associationInfo">Supply the association info.</param>
         /// <param name="allowHostToNCCommunication"> Supply the flag to represent
         /// if Host to NC communication is allowed.</param>
-        /// <param name="allowNCToHostCommunication"> Supply the flag to represent
-        /// if NC to Host communication is allowed.</param>
         public NetworkContainerRequestV2(
             string networkProfileID,
             IPAllocationRequest allocationRequest,
             AssociationInfo associationInfo,
-            bool allowHostToNCCommunication,
-            bool allowNCToHostCommunication) : base(associationInfo, networkProfileID, allowHostToNCCommunication, allowNCToHostCommunication)
+            bool allowHostToNCCommunication) : base(associationInfo, networkProfileID, allowHostToNCCommunication)
         {
             this.AllocationRequest = allocationRequest;
         }
@@ -54,7 +51,7 @@ namespace DNCService.API
         public override object Clone()
         {
             return new NetworkContainerRequestV2(
-                NetworkProfileID, AllocationRequest, AssociationInfo, AllowHostToNCCommunication, AllowNCToHostCommunication);
+                NetworkProfileID, AllocationRequest, AssociationInfo, AllowHostToNCCommunication);
         }
 
         /// <summary>

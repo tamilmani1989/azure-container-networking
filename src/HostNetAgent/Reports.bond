@@ -28,10 +28,7 @@ struct DNCEvent:Ifx.ObjectTextPropertySchema
     210: required wstring EventMessage;
     220: required wstring Timestamp;
     230: required wstring Errorcode;
-    240: required int32 NumberOfNodes;
-    250: required int32 NumberOfNCs;
-    260: required wstring Orchestrator;
-    270: required wstring ContainerType;
+    240: required wstring UUID;
 };
 
 struct CNSEvent:Ifx.ObjectTextPropertySchema

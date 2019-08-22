@@ -23,6 +23,7 @@
     <ProjectFile Include="NetworkContainer\NetworkContainer.vcxproj" />
     <ProjectFile Include="AzureCNSPackage\AzureCNSPackage.proj" />
     <ProjectFile Include="AzureDNCPackage\AzureDNCPackage.proj" />
+    <ProjectFile Include="Cns-SF\CnsWrapperService.csproj" />
     <ProjectFile Include="Ifx\IfxEvents.vcxproj" />
     <ProjectFile Include="Hijacker\hijacker.vcxproj" />
     <ProjectFile Include="Hijacker\Dll\injection.vcxproj" />

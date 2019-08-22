@@ -23,10 +23,9 @@ const (
 const (
 	AzureContainerInstance = "AzureContainerInstance"
 	WebApps                = "WebApps"
+	ClearContainer         = "ClearContainer"
 	Docker                 = "Docker"
 	Basic                  = "Basic"
-	JobObject              = "JobObject"
-	COW                    = "COW" // Container on Windows
 )
 
 // Orchestrator Types
@@ -171,7 +170,7 @@ type AttachContainerToNetworkResponse struct {
 	Response Response
 }
 
-// DetachContainerFromNetworkResponse specifies response of detaching network container from network.
+// DetachNetworkContainerToNetworkResponse specifies response of detaching network container from network.
 type DetachContainerFromNetworkResponse struct {
 	Response Response
 }

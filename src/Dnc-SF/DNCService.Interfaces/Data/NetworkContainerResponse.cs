@@ -66,11 +66,6 @@ namespace DNCService.API
         public bool AllowHostToNCCommunication { get; private set; }
 
         /// <summary>
-        /// Flag to represent if NC to Host communication is allowed.
-        /// </summary>
-        [DataMember]
-        public bool AllowNCToHostCommunication { get; private set; }
-        /// <summary>
         /// Constructor.
         /// </summary>
         /// <param name="id">Supply the ID of the network container.</param>
@@ -80,17 +75,15 @@ namespace DNCService.API
         /// <param name="requestStatus">Supply the status of the network container.</param>
         /// <param name="localIP">Local IP used for Host to NC Communication.</param>
         /// <param name="allowHostToNCCommunication">Flag to represent if Host to NC communication is allowed.</param>
-        /// <param name="allowNCToHostCommunication">Flag to represent if NC to Host communication is allowed.</param>
         public NetworkContainerResponse(
             string id,
             int vlanID,
-            IPConfiguration ipConfiguration,
-            AssociationInfo associationInfo,
+            IPConfiguration ipConfiguration, 
+            AssociationInfo associationInfo, 
             string networkProfileID,
             RequestStatus requestStatus,
             string localIP,
-            bool allowHostToNCCommunication,
-            bool allowNCToHostCommunication)
+            bool allowHostToNCCommunication)
         {
             ID = id;
             VlanID = vlanID;
@@ -100,7 +93,6 @@ namespace DNCService.API
             RequestStatus = requestStatus;
             LocalIP = localIP;
             AllowHostToNCCommunication = allowHostToNCCommunication;
-            AllowNCToHostCommunication = allowNCToHostCommunication;
         }
 
         /// <summary>
@@ -111,8 +103,7 @@ namespace DNCService.API
         {
             return $"ID:{ID} VlanID:{VlanID} NetworkProfileID:{NetworkProfileID} IPConfiguration:{IPConfiguration}" +
                 $" AssociationInfo:{this.AssociationInfo} RequestStatus:{this.RequestStatus} LocalIP: {LocalIP} " +
-                $" AllowHostToNCCommunication: {AllowHostToNCCommunication}" +
-                $" AllowNCToHostCommunication: {AllowNCToHostCommunication}";
+                $" AllowHostToNCCommunication: {AllowHostToNCCommunication}";
         }
     }
 }

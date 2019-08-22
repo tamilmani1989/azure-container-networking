@@ -71,10 +71,7 @@ Return Value:
     DNCReportFieldIdMap[MEMORY_USAGE_STR] = DNCEnum::DNCReportKey::MemoryUsage;
     DNCReportFieldIdMap[PROCESSES_STR] = DNCEnum::DNCReportKey::Processes;
     DNCReportFieldIdMap[TIMESTAMP_STR] = DNCEnum::DNCReportKey::Timestamp;
-    DNCReportFieldIdMap[NUMBER_OF_NODES_STR] = DNCEnum::DNCReportKey::NumberOfNodes;
-    DNCReportFieldIdMap[NUMBER_OF_NCS_STR] = DNCEnum::DNCReportKey::NumberOfNCs;
-    DNCReportFieldIdMap[ORCHESTRATOR_STR] = DNCEnum::DNCReportKey::Orchestrator;
-    DNCReportFieldIdMap[CONTAINER_TYPE_STR] = DNCEnum::DNCReportKey::ContainerType;
+    DNCReportFieldIdMap[UUID_STR] = DNCEnum::DNCReportKey::UUID;
     DNCReportFieldIdMap[ERRORCODE_STR] = DNCEnum::DNCReportKey::Errorcode;
     DNCReportFieldIdMap[METADATA_STR] = DNCEnum::DNCReportKey::Compute;
 }
@@ -132,17 +129,8 @@ Return Value:
     case DNCEnum::DNCReportKey::Timestamp:
         Timestamp = Value.as_string();
         break;
-    case DNCEnum::DNCReportKey::NumberOfNodes:
-        NumberOfNodes = Value.as_integer();
-        break;
-    case DNCEnum::DNCReportKey::NumberOfNCs:
-        NumberOfNCs = Value.as_integer();
-        break;
-    case DNCEnum::DNCReportKey::Orchestrator:
-        Orchestrator = Value.as_string();
-        break;
-    case DNCEnum::DNCReportKey::ContainerType:
-        ContainerType = Value.as_string();
+    case DNCEnum::DNCReportKey::UUID:
+        UUID = Value.as_string();
         break;
     case DNCEnum::DNCReportKey::Errorcode:
         Errorcode = Value.as_string();
@@ -179,10 +167,7 @@ Return Value:
     s += L"MemoryUsage: " + MemoryUsage + L"\n";
     s += L"Processes: " + Processes + L"\n";
     s += L"Timestamp: " + Timestamp + L"\n";
-    s += L"NumberOfNodes: " + to_wstring(NumberOfNodes) + L"\n";
-    s += L"NumberOfNCs: " + to_wstring(NumberOfNCs) + L"\n";
-    s += L"Orchestrator: " + Orchestrator + L"\n";
-    s += L"ContainerType: " + ContainerType + L"\n";
+    s += L"UUID: " + UUID + L"\n";
     s += L"Errorcode: " + Errorcode + L"\n";
     Metadata.Print();
 

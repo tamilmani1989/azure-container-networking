@@ -6,6 +6,6 @@
     <Parameter Name="WrapperMainLoopTimeout" Value="00:00:01" />
     <Parameter Name="WrapperThreadWaitTimeout" Value="00:00:01" />
     <Parameter Name="EnablePortOverride" Value="false" /> <!-- true for dev environment -->
-    <Parameter Name="StartCnm" Value="false" />
+    <Parameter Name="DisableCnm" Value="true" />
   </Section>
 </Settings>

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Azure/azure-container-networking/platform"
 	"github.com/Azure/azure-container-networking/telemetry"
+	"github.com/google/uuid"
 )
 
 const (
@@ -24,7 +25,6 @@ const (
 )
 
 func sendTelemetry() {
-	orchestrator := ""
 CONNECT:
 	tb := telemetry.NewTelemetryBuffer("")
 	tb.ConnectToTelemetryService(telemetryNumRetries, telemetryWaitTimeInMilliseconds)
@@ -44,14 +44,10 @@ CONNECT:
 			if replicaInstance.IsReplicaPrimary() {
 				select {
 				case <-heartbeat:
-					numberOfNodes := 0
-					numberOfNCs := 0
-					containerTypesSlice := make([]string, len(containerTypes))
+					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("EventMessage").SetString("Heartbeat")
 					// get all nodes and their configurations
 					nodes, err := datamodel.GetAllNodeIDs()
 					if err == nil {
-						numberOfNodes = len(nodes)
-						// allocations - mapping of networkID to subnet to nodeID to ncID:ip
 						allocations := make(map[string]map[string]map[string][]string)
 						for nodeKey := range nodes {
 							nodeID := datamodel.GetNodeIDFromKey(nodeKey)
@@ -61,14 +57,11 @@ CONNECT:
 							sessionManager.EndReadSession(sessionInfo)
 							if jsonerr == nil {
 								if nodeConfig != nil {
-									// Currently we will only have one orchestrator per DNC ring, so we can record any orchestrator from nodeinfo
-									orchestrator = nodeConfig.NodeInfo.OrchestratorType
 									// loop through the deployed network containers in each node
 									for networkID, ncMap := range nodeConfig.DeployedNetworkContainerMap {
 										reservedIPs, jsonerr := reportNetworkConfiguration(nodeID, networkID, allocations)
 										if jsonerr == nil {
 											// if a reservationID matches an existing reservation, combine the corresponding ncID and its IP
-											numberOfNCs += len(ncMap)
 											for ncID, reservationID := range ncMap {
 												for subnet := range allocations[networkID] {
 													if ip, exists := reservedIPs[reservationID]; exists {
@@ -93,28 +86,12 @@ CONNECT:
 						if err == nil {
 							reflect.ValueOf(reportMgr.Report).Elem().FieldByName("Allocations").SetString(string(allocationsStr))
 						}
-
-						i := 0
-						for containerType := range containerTypes {
-							containerTypesSlice[i] = containerType
-							i++
-						}
-
-						containerTypesStr, err := json.Marshal(containerTypesSlice)
-						if err == nil {
-							reflect.ValueOf(reportMgr.Report).Elem().FieldByName("ContainerType").SetString(string(containerTypesStr))
-						}
 					}
 
 				cleanup:
 					if err != nil {
 						logger.Debugf("[telemetry] %s", err.Error())
 					}
-
-					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("EventMessage").SetString("Heartbeat")
-					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("NumberOfNodes").SetInt(int64(numberOfNodes))
-					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("NumberOfNCs").SetInt(int64(numberOfNCs))
-					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("Orchestrator").SetString(orchestrator)
 
 					// We can use this upon CLA approval
 					// reportMgr.GetSystemDetails()
@@ -129,6 +106,9 @@ CONNECT:
 				}
 
 				reflect.ValueOf(reportMgr.Report).Elem().FieldByName("Timestamp").SetString(time.Now().UTC().String())
+				if id, err := uuid.NewUUID(); err == nil {
+					reflect.ValueOf(reportMgr.Report).Elem().FieldByName("UUID").SetString(id.String())
+				}
 
 				if !reportMgr.GetReportState(DNCTelemetryFile) {
 					reportMgr.SetReportState(DNCTelemetryFile)
@@ -167,7 +147,7 @@ func reportNetworkConfiguration(nodeID, networkID string, allocations map[string
 					}
 
 					if _, exists := allocations[networkID][subnetName][nodeID]; !exists {
-						allocations[networkID][subnetName][nodeID] = make([]string, 0)
+						allocations[networkID][subnetName][nodeID] = make([]string, 1)
 					}
 
 					reservedIPs[reservation] = ip

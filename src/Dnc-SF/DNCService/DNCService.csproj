@@ -2,7 +2,8 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net462</TargetFramework>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <RuntimeFrameworkVersion>2.0.4</RuntimeFrameworkVersion>
     <AssemblyName>DNCService</AssemblyName>
     <PackageId>DNCService</PackageId>
     <PackageTargetFallback>$(PackageTargetFallback)</PackageTargetFallback>

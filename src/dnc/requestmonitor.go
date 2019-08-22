@@ -20,17 +20,13 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	initiateMigration bool = true
-	containerTypes         = make(map[string]bool)
-)
+var initiateMigration bool = true
 
 const (
-	// NMAgent using 169.254.0.0 to 169.254.3.255. So allocating a range not conflicting with that.
-	localIPSubnetAddressString      = "169.254.128.0/17"
+	localIPSubnetAddressString      = "169.254.0.0/16"
 	imdsIPSubnetString              = "169.254.169.254/32"
-	localIPGatewayString            = "169.254.128.1"
-	localIPSubnetPrefixLength       = 17
+	localIPGatewayString            = "169.254.0.1"
+	localIPSubnetPrefixLength       = 16
 	unauthorizedErrRetryDurationSec = 60
 )
 
@@ -680,7 +676,7 @@ func getAllocatedLocalAddressesOnNode(nodeID string) (map[string]*net.IPNet, *ap
 	return allocatedLocalAddresses, nil
 }
 
-// This function allocate a local ip from 169.254.128.0/17 address space
+// This function allocate a local ip from 169.254.0.0/16 address space
 func processAllocateLocalIP(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	var markProcessingFailed bool
 	var allocatedIP *net.IPNet
@@ -1147,8 +1143,6 @@ func processNetworkContainerAssociate(
 	allowHostToNCCommunicationStatus := repoNCConfig.GetAllowHostToNCCommunicationStatus()
 	allowNCToHostCommunicationStatus := repoNCConfig.GetAllowNCToHostCommunicationStatus()
 
-	containerTypes[ncGoalState.ContainerType] = true
-
 	info := &cns.CreateNetworkContainerRequest{
 		Version:                    strconv.FormatUint(repoNCConfig.CNSVersion, 10),
 		NetworkContainerType:       ncGoalState.ContainerType,
@@ -1578,6 +1572,9 @@ func processNetworkContainerProgram(
 	defer utils.RecordTime(createdDateTime, "ContainerProgram", repoNCConfig.NetworkContainerID)
 	repoNCConfig.State = datamodel.Program
 	repoNCConfig.Status = datamodel.Completed
+	logger.Debugf("NC programming completed NC Id:%s ElapsedTime:%s",
+		repoNCConfig.NetworkContainerID,
+		time.Since(createdDateTime))
 	return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
@@ -1679,8 +1676,6 @@ func updateVlan(containerType string) bool {
 	case cns.AzureContainerInstance:
 		fallthrough
 	case cns.Docker:
-		fallthrough
-	case cns.JobObject:
 		return true
 	default:
 		return false

@@ -2,7 +2,7 @@
 // <copyright file="RequestWatcher.cs" company="Microsoft">
 //     Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
-//
+// 
 //-----------------------------------------------------------------------
 
 using Cns;
@@ -23,15 +23,14 @@ namespace NetworkManager
 {
     /// <summary>
     /// Constants for local IP subnet.
-    /// NMAgent using 169.254.0.0 to 169.254.3.255. So allocating a range not conflicting with that
     /// </summary>
     ///
     public class LocalIPSubnetConstants
     {
-        public const string LocalIPSubnet = "169.254.128.0/17";
+        public const string LocalIPSubnet = "169.254.0.0/16";
         public const string ImdsSubnet = "169.254.169.254/32";
-        public const string LocalIPGateway = "169.254.128.1";
-        public const int LocalIPSubnetPrefix = 17;
+        public const string LocalIPGateway = "169.254.0.1";
+        public const int LocalIPSubnetPrefix = 16;
     }
 
     /// <summary>
@@ -1225,20 +1224,6 @@ namespace NetworkManager
                         requestContext.NodeID,
                         new ErrorInfo(ErrorCode.NodeNotFound, "Node not found", ErrorType.NonRetriable));
                 }
-
-                int exhaustedNCCapacity = nodeConfig.DeployedNCMap.Count;
-                int nodeNCCapcity = await getNodeNCLimit(nodeConfig.NodeInfo.IPAddresses[0]);
-
-                if(exhaustedNCCapacity >= nodeNCCapcity)
-                {
-                    throw new DncNetworkContainerException(
-                        requestContext.NetworkID,
-                        requestContext.NodeID,
-                        new ErrorInfo(ErrorCode.NodeContainerCapacityExhausted,
-                        $"Node NC Capacity {nodeNCCapcity} exhausted",
-                        ErrorType.NonRetriable));
-                }
-
                 nodeConfig.AddNetworkContainer(requestContext.NetworkID,
                     NCConfiguration.GetNetworkContainerIDFromKey(requestContext.RequestID));
 
@@ -1328,26 +1313,6 @@ namespace NetworkManager
         private bool isSharedSubnetDelegationEnabled()
         {
             return azureStorageClient.IsSharedSubnetDelegationEnabled();
-        }
-
-        /// <summary>
-        /// Returns number of containers allowed on a node.
-        /// </summary>
-        /// <returns> (number of logical cores of a node - 1) </returns>
-        private async Task<int> getNodeNCLimit(string nodeInterfaceID)
-        {
-            try
-            {
-                int numCPUCores = await cnsClient.GetNumOfCPUCores(nodeInterfaceID);
-                return (numCPUCores - 1);
-            }
-            catch(Exception ex)
-            {
-                ServiceEventSource.Current.Message(
-                    $"Failed to get number of cpu cores on node {nodeInterfaceID} due to exception {ex}");
-
-                throw ex;
-            }
         }
     }
 }

@@ -84,9 +84,9 @@ namespace CnsWrapperService
                 _azureCnsPort = FabricRuntime.GetActivationContext().GetEndpoint(endpoint).Port;
                 _additionalCmdLineArguments = string.Empty;
 
-                if (WrapperConfiguration.StartCnm)
+                if (WrapperConfiguration.DisableCnm)
                 {
-                    _additionalCmdLineArguments += " -startcnm";
+                    _additionalCmdLineArguments += " -stopcnm true";
                 }
 
                 _additionalCmdLineArguments.Trim();

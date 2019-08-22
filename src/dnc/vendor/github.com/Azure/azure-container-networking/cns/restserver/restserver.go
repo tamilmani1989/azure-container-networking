@@ -191,7 +191,7 @@ func (service *HTTPRestService) Stop() {
 	log.Printf("[Azure CNS]  Service stopped.")
 }
 
-// GetPartitionKey - Get dnc/service partition key
+// Get dnc/service partition key
 func (service *HTTPRestService) GetPartitionKey() (dncPartitionKey string) {
 	service.lock.Lock()
 	dncPartitionKey = service.dncPartitionKey
@@ -1025,13 +1025,11 @@ func (service *HTTPRestService) saveNetworkContainerGoalState(req cns.CreateNetw
 	switch req.NetworkContainerType {
 	case cns.AzureContainerInstance:
 		fallthrough
+	case cns.ClearContainer:
+		fallthrough
 	case cns.Docker:
 		fallthrough
 	case cns.Basic:
-		fallthrough
-	case cns.JobObject:
-		fallthrough
-	case cns.COW:
 		switch service.state.OrchestratorType {
 		case cns.Kubernetes:
 			fallthrough
@@ -1059,14 +1057,8 @@ func (service *HTTPRestService) saveNetworkContainerGoalState(req cns.CreateNetw
 			break
 
 		default:
-			errMsg := fmt.Sprintf("Unsupported orchestrator type: %s", service.state.OrchestratorType)
-			log.Errorf(errMsg)
-			return UnsupportedOrchestratorType, errMsg
+			log.Printf("Invalid orchestrator type %v", service.state.OrchestratorType)
 		}
-	default:
-		errMsg := fmt.Sprintf("Unsupported network container type %s", req.NetworkContainerType)
-		log.Errorf(errMsg)
-		return UnsupportedNetworkContainerType, errMsg
 	}
 
 	service.saveState()

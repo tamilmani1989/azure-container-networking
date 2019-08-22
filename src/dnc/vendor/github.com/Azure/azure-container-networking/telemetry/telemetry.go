@@ -171,10 +171,7 @@ type DNCReport struct {
 	PartitionKey  string
 	Allocations   string
 	Timestamp     string
-	NumberOfNodes int
-	NumberOfNCs   int
-	Orchestrator  string
-	ContainerType string
+	UUID          string
 	Errorcode     string
 	Metadata      Metadata `json:"compute"`
 }

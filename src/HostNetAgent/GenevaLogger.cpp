@@ -1606,10 +1606,7 @@ Return Value:
     dncReport.EventMessage = DNCReport.EventMessage;
     dncReport.Timestamp = DNCReport.Timestamp;
     dncReport.Errorcode = DNCReport.Errorcode;
-    dncReport.NumberOfNodes = DNCReport.NumberOfNodes;
-    dncReport.NumberOfNCs = DNCReport.NumberOfNCs;
-    dncReport.Orchestrator = DNCReport.Orchestrator;
-    dncReport.ContainerType = DNCReport.ContainerType;
+    dncReport.UUID = DNCReport.UUID;
 
     hr = Ifx::LogExtendedObjectTextPropertyChange(
         L"Report",

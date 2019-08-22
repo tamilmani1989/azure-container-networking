@@ -51,7 +51,7 @@ namespace NetworkManager
             List<string> dnsServers = new List<string>();
             if (!string.IsNullOrWhiteSpace(virtualNetworkResponse.DNSServers))
             {
-                dnsServers.AddRange(virtualNetworkResponse.DNSServers.Split(','));
+                dnsServers.AddRange(virtualNetworkResponse.DNSServers.Split(","));
             }
 
             networkConfiguration.SetDnsServers(dnsServers);

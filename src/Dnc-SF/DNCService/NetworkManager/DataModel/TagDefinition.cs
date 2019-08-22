@@ -6,7 +6,7 @@ using System.Runtime.Serialization;
 namespace NetworkManager.DataModel
 {
     [DataContract]
-    public class TagDefinition : ICloneable, IExtensibleDataObject
+    public class TagDefinition : ICloneable
     {
         [DataMember]
         public string Name { get; private set; }
@@ -85,15 +85,5 @@ namespace NetworkManager.DataModel
         {
             return new TagDefinition(this);
         }
-
-        #region IExtensibleDataObject Members
-
-        /// <summary>
-        /// Enables round-tripping of data contracts.
-        /// </summary>
-        ExtensionDataObject IExtensibleDataObject.ExtensionData { get; set; }
-
-        #endregion
-
     }
 }
