@@ -899,8 +899,14 @@ func TestCreateMultipleNetworks(t *testing.T) {
 }
 
 func TestStressMultiVnetNodeNC(t *testing.T) {
-	deploymentCount := 2
+	deploymentCount := 5
 	ncPerNetworkCount := 10
+	nodeCount := 20
+	nodeMap := make([]string, 0)
+	for node := 0; node < nodeCount; node++ {
+		nodeMap = append(nodeMap, fmt.Sprintf("Node-%d", node))
+	}
+	nodeIndex := 0
 	ipIndex := 0
 	deploymentInfos := make([]DeploymentInfo, deploymentCount)
 	for index := 0; index < deploymentCount; index++ {
@@ -921,10 +927,11 @@ func TestStressMultiVnetNodeNC(t *testing.T) {
 				AllocationRequest: api.AllocationRequest{
 					SubnetName:   "subnet1",
 					IPConstraint: ipToReserve},
-				AssociationInfo: api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context},
+				AssociationInfo: api.AssociationInfo{NodeID: nodeMap[nodeIndex%nodeCount] /*nodeID*/, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context},
 				NCID:            ncID.String()}
 
 			ncDeploymentRequests[ncIndex] = &ncDeploymentRequest
+			nodeIndex++
 		}
 
 		deploymentInfos[index] = DeploymentInfo{NetworkDeploymentRequest: &networkDeploymentRequest, NCDeploymentRequests: ncDeploymentRequests}
@@ -1196,6 +1203,7 @@ type CnsResponderContext struct {
 	CreateOrUpdateNCResponse *CnsCreateOrUpdateNCResponse
 	DeleteNCResponse         *CnsDeleteNCResponse
 	NumOfCoresResponse       *CnsNumOfCPUCoresResponse
+	AdapterCreated           bool
 }
 
 type CnsResponderContextMap map[string]*CnsResponderContext
@@ -1406,6 +1414,7 @@ func NMAgentResponder(w http.ResponseWriter, r *http.Request, context interface{
 	nmagentResponderContext := context.(*NMAgentResponderContext)
 	//fmt.Printf("Received URL:%s, Method:%s\n", r.RequestURI, r.Method)
 	if strings.Contains(r.RequestURI, "joinedVirtualNetworks") {
+		time.Sleep(time.Millisecond * 350)
 		if r.Method == "GET" {
 			vnetID := strings.Split(r.URL.Path, "/")[2]
 			//fmt.Printf("Get network response for network:%s, %+v\n", vnetID, r)
@@ -1524,6 +1533,12 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 		fmt.Printf("NCRequest:%+v\n", ncRequest)
 		cnsContextLock.RLock()
 		cnsResponderContext := cnsResponderContextMap[ncRequest.NetworkContainerid]
+		if !cnsResponderContext.AdapterCreated {
+			time.Sleep(time.Second * 5)
+			fmt.Printf("CNS created loopback adapter for %s\n", ncRequest.NetworkContainerid)
+			cnsResponderContext.AdapterCreated = true
+		}
+
 		cnsContextLock.RUnlock()
 		if cnsResponderContext == nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -2864,7 +2879,11 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 		addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeInfoReq)
 	}
 
-	nodeLocalIPMap := make(map[string]string)
+	//nodeLocalIPMap := make(map[string]string)
+	nodeLocalIPMap := make(map[string]map[string]string)
+	for nodeID := range nodesMap {
+		nodeLocalIPMap[nodeID] = make(map[string]string)
+	}
 
 	for vnetID, ncDeploymentRequests := range ncDeploymentRequestsMapByNetwork {
 		fmt.Printf("vnetID:%s, ncRequests:%+v", vnetID, ncDeploymentRequests)
@@ -2954,25 +2973,30 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 					return false
 				}
 
-				if associatedncID, ok := nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress]; ok {
-					if associatedncID != networkContainerID {
-						fmt.Printf("Local IP %s received as part of NC %s is already associated with %s",
-							req.LocalIPConfiguration.IPSubnet.IPAddress,
-							networkContainerID,
-							associatedncID)
+				/*
+					localIpMap := nodeLocalIPMap[ncDeploymentRequest.AssociationInfo.NodeID]
+					if associatedncID, ok := localIpMap[req.LocalIPConfiguration.IPSubnet.IPAddress]; ok {
+						if associatedncID != networkContainerID {
+							fmt.Printf("Local IP %s received as part of NC %s is already associated with %s",
+								req.LocalIPConfiguration.IPSubnet.IPAddress,
+								networkContainerID,
+								associatedncID)
+							return false
+						}
+					}
+
+					//localIpMap[req.LocalIPConfiguration.IPSubnet.IPAddress] = networkContainerID
+					nodeLocalIPMap[ncDeploymentRequest.AssociationInfo.NodeID][req.LocalIPConfiguration.IPSubnet.IPAddress] = networkContainerID
+
+					if !AreCnsRequestsEqual(expectedReq, req, vnetIPMap) {
+						fmt.Printf("Mismatch in expected and received Cns create or update request. "+
+							"\nExpected:%+v\nReceived:%+v\n",
+							expectedReq,
+							req)
 						return false
 					}
-				}
+				*/
 
-				nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress] = networkContainerID
-
-				if !AreCnsRequestsEqual(expectedReq, req, vnetIPMap) {
-					fmt.Printf("Mismatch in expected and received Cns create or update request. "+
-						"\nExpected:%+v\nReceived:%+v\n",
-						expectedReq,
-						req)
-					return false
-				}
 				fmt.Println("Response matches with the expected request")
 				return true
 			}

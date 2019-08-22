@@ -25,7 +25,7 @@ var dataStoreShim *datastoreshim.DataStoreShim
 var requestBaseInterval = 1000
 var minVlan uint16 = 1
 var maxVlan uint16 = 2048
-var maxContainersPerNode = 10
+var maxContainersPerNode = 100
 var cnsSettings configuration.CNSSettings
 
 // Init - Initialize repository.
@@ -450,18 +450,20 @@ func UpdateNodeConfigurationNetworkContainerSet(
 			ncCount += len(ncToVnetMap)
 		}
 
-		ncLimit, respErr := getNCLimitForNode(nodeConfig.NodeInfo.IPAddresses[0])
-		if respErr != nil {
-			loggershim.LS.Debugf("Failed to retrieve NC limit for node with error %+v", nodeID, respErr.String())
-			return respErr
-		}
+		/*
+			ncLimit, respErr := getNCLimitForNode(nodeConfig.NodeInfo.IPAddresses[0])
+			if respErr != nil {
+				loggershim.LS.Debugf("Failed to retrieve NC limit for node with error %+v", nodeID, respErr.String())
+				return respErr
+			}
 
-		if ncCount > ncLimit {
-			return &api.JsonErr{
-				Code:       api.NodeContainerCapacityExhausted,
-				Text:       fmt.Sprintf("Node [%s] has reached maximum capacity [%d]", nodeConfig.NodeID, ncLimit),
-				HTTPStatus: http.StatusBadRequest}
-		}
+			if ncCount > ncLimit {
+				return &api.JsonErr{
+					Code:       api.NodeContainerCapacityExhausted,
+					Text:       fmt.Sprintf("Node [%s] has reached maximum capacity [%d]", nodeConfig.NodeID, ncLimit),
+					HTTPStatus: http.StatusBadRequest}
+			}
+		*/
 	}
 
 	return persistNodeConfiguration(nodeConfig)
@@ -670,6 +672,7 @@ func AddIPAllocation(networkID, subnetName, allocatedIP, reservationKey string) 
 		return jsonErr
 	}
 
+	loggershim.LS.Errorf("debug: Allocated IP: %s", allocatedIP)
 	return nil
 }
 
