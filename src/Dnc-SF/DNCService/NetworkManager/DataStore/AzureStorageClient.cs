@@ -176,7 +176,7 @@ namespace NetworkManager.DataModel
 
                 do
                 {
-                    TableQuerySegment dynamicTableEntities =
+                    TableQuerySegment<DynamicTableEntity> dynamicTableEntities =
                         await tables[Constants.IPAllocationsTableName].ExecuteQuerySegmentedAsync(
                             tableQuery,
                             continuationToken,

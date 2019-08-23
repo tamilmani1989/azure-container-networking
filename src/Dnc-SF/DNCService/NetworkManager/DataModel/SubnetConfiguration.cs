@@ -8,7 +8,7 @@ using DNCService;
 namespace NetworkManager.DataModel
 {
     [DataContract]
-    public class SubnetConfiguration : ICloneable
+    public class SubnetConfiguration : ICloneable, IExtensibleDataObject
     {
         [DataMember]
         public string NetworkID { get; private set; }
@@ -59,7 +59,7 @@ namespace NetworkManager.DataModel
             this.AccessToken = accessToken;
             this.IsJoined = isJoined;
             this.tags = new HashSet<Tag>();
-            this.reservations = new Dictionary<string, string>(reservations);
+            this.reservations = new Dictionary<string, string>(reservations.ToImmutableDictionary());
             if (tagSet != null)
             {
                 this.tags.UnionWith(tagSet);
@@ -139,5 +139,15 @@ namespace NetworkManager.DataModel
         {
             return new SubnetConfiguration(this);
         }
+
+        #region IExtensibleDataObject Members
+
+        /// <summary>
+        /// Enables round-tripping of data contracts.
+        /// </summary>
+        ExtensionDataObject IExtensibleDataObject.ExtensionData { get; set; }
+
+        #endregion
+
     }
 }

@@ -2,7 +2,7 @@
 // <copyright file="RequestResetMonitor.cs" company="Microsoft">
 //     Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
-// 
+//
 //-----------------------------------------------------------------------
 
 using DNCService;
@@ -134,7 +134,8 @@ namespace NetworkManager
                 ncConfiguration.Request.NetworkProfileID,
                 requestStatus,
                 ncConfiguration.LocalIP,
-                ncConfiguration.Request.AllowHostToNCCommunication);
+                ncConfiguration.Request.AllowHostToNCCommunication,
+                ncConfiguration.Request.AllowNCToHostCommunication);
         }
     }
 }

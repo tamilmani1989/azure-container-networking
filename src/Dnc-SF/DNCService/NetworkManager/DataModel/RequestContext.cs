@@ -6,7 +6,7 @@ using System.Text;
 namespace NetworkManager.DataModel
 {
     [DataContract]
-    public class RequestContext :ICloneable
+    public class RequestContext :ICloneable, IExtensibleDataObject
     {
         [DataMember]
         public string RequestID { get; private set; }
@@ -88,5 +88,14 @@ namespace NetworkManager.DataModel
         {
             return new RequestContext(this);
         }
+
+        #region IExtensibleDataObject Members
+
+        /// <summary>
+        /// Enables round-tripping of data contracts.
+        /// </summary>
+        ExtensionDataObject IExtensibleDataObject.ExtensionData { get; set; }
+
+        #endregion
     }
 }
