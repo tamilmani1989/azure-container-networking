@@ -23,11 +23,12 @@ import (
 var initiateMigration bool = true
 
 const (
-	localIPSubnetAddressString      = "169.254.0.0/16"
-	imdsIPSubnetString              = "169.254.169.254/32"
-	localIPGatewayString            = "169.254.0.1"
-	localIPSubnetPrefixLength       = 16
-	unauthorizedErrRetryDurationSec = 60
+	localIPSubnetAddressString            = "169.254.0.0/16"
+	imdsIPSubnetString                    = "169.254.169.254/32"
+	localIPGatewayString                  = "169.254.0.1"
+	localIPSubnetPrefixLength             = 16
+	unauthorizedErrRetryDurationSec       = 60
+	defaultMaxConcurrentRequestsToProcess = 1000
 )
 
 func getSessionInfo(request *datamodel.RequestContext) map[string]string {
@@ -90,6 +91,8 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 			requestContext.StateTransitionDateTime = time.Now().UTC()
 		}
 
+		// Mark the request as not in-process
+		requestContext.InProcess = false
 		datamodel.AddRequestToPendingQueue(requestID, requestContext)
 	}
 }
@@ -677,7 +680,10 @@ func getAllocatedLocalAddressesOnNode(nodeID string) (map[string]*net.IPNet, *ap
 }
 
 // This function allocate a local ip from 169.254.0.0/16 address space
-func processAllocateLocalIP(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+func processAllocateLocalIP(
+	repoNCConfig *datamodel.NCConfiguration,
+	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
+	defer utils.RecordTime(stateTransitionDateTime, "ContainerReserveLocalIP", repoNCConfig.NetworkContainerID)
 	var markProcessingFailed bool
 	var allocatedIP *net.IPNet
 	var failureDetail *api.JsonErr
@@ -1251,6 +1257,7 @@ func processNetworkContainerAssociate(
 	repoNCConfig.ProgrammedTagsInfo = updatedTagInfo
 	repoNCConfig.ProgrammedVnetVersion = ncGoalState.VnetVersion
 	repoNCConfig.Status = datamodel.Pending
+
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
@@ -1626,7 +1633,7 @@ func processNetworkContainerRequest(
 			return true, nil
 		}
 
-		return processAllocateLocalIP(repoNCConfig)
+		return processAllocateLocalIP(repoNCConfig, stateTransitionDateTime)
 
 	case datamodel.Associate:
 		fallthrough
@@ -1685,12 +1692,27 @@ func updateVlan(containerType string) bool {
 }
 
 func monitorRequests() {
+
+	maxConcurrentRequestsToProcess := defaultMaxConcurrentRequestsToProcess
+	if config.DNCSettings.ConcurrentRequestsToProcess != 0 {
+		maxConcurrentRequestsToProcess = config.DNCSettings.ConcurrentRequestsToProcess
+	}
+
+	// Dummy channel to coordinate the number of concurrent goroutines.
+	// This channel should be buffered otherwise we will be immediately blocked
+	// when trying to fill it.
+	concurrentGoroutines := make(chan struct{}, maxConcurrentRequestsToProcess)
+	// Fill the dummy channel with maxNbConcurrentGoroutines empty struct.
+	for i := 0; i < maxConcurrentRequestsToProcess; i++ {
+		concurrentGoroutines <- struct{}{}
+	}
+
 	monitorTimerChannel := time.NewTicker(time.Millisecond * 1000).C
 	for {
 		select {
 		case <-monitorTimerChannel:
 			if replicaInstance.IsReplicaPrimary() {
-				processPendingRequests()
+				processPendingRequests(concurrentGoroutines)
 			}
 			break
 
@@ -1698,7 +1720,7 @@ func monitorRequests() {
 			networkMonitorStartProcessing <- true
 			tagMonitorStartProcessing <- true
 			refreshNCStartProcessing <- true
-			processPendingRequests()
+			processPendingRequests(concurrentGoroutines)
 			break
 
 		case <-cancelProcessing:
@@ -1712,8 +1734,8 @@ func monitorRequests() {
 	}
 }
 
-// Monitor that periodically processes pending reqguests in the work item queue.
-func processPendingRequests() {
+// Monitor that periodically processes pending requests in the work item queue.
+func processPendingRequests(concurrentGoroutines chan struct{}) {
 	if initiateMigration {
 		if err := datamodel.ProcessSharedSubnetDelegationMigration(); err != nil {
 			logger.Errorf("ProcessSharedSubnetDelegationMigration failed %v", err)
@@ -1730,50 +1752,18 @@ func processPendingRequests() {
 
 	requestsToProcess := make([]string, 0, len(requests))
 	for requestID, requestContext := range requests {
-		if time.Now().UTC().Sub(requestContext.LastRetriedDateTime) > requestContext.RetryInterval {
+		if time.Now().UTC().Sub(requestContext.LastRetriedDateTime) > requestContext.RetryInterval &&
+			requestContext.InProcess == false {
 			requestsToProcess = append(requestsToProcess, requestID)
+
+			// Mark the request as in-process
+			requestContext.InProcess = true
+			datamodel.AddRequestToPendingQueue(requestID, &requestContext)
 		}
 	}
 
-	maxConcurrentRequestsToProcess := 5
-	if config.DNCSettings.ConcurrentRequestsToProcess != 0 {
-		maxConcurrentRequestsToProcess = config.DNCSettings.ConcurrentRequestsToProcess
-	}
+	logger.Debugf("Number of requests to process in the current batch: %d", len(requestsToProcess))
 
-	if len(requestsToProcess) < maxConcurrentRequestsToProcess {
-		maxConcurrentRequestsToProcess = len(requestsToProcess)
-	}
-
-	// Dummy channel to coordinate the number of concurrent goroutines.
-	// This channel should be buffered otherwise we will be immediately blocked
-	// when trying to fill it.
-	concurrentGoroutines := make(chan struct{}, maxConcurrentRequestsToProcess)
-	// Fill the dummy channel with maxNbConcurrentGoroutines empty struct.
-	for i := 0; i < maxConcurrentRequestsToProcess; i++ {
-		concurrentGoroutines <- struct{}{}
-	}
-
-	// The done channel indicates when a single goroutine has
-	// finished its job.
-	done := make(chan bool)
-	// The waitForAllJobs channel allows the main program
-	// to wait until we have indeed done all the jobs.
-	waitForAllJobs := make(chan bool)
-
-	// Collect all the jobs, and since the job is finished, we can
-	// release another spot for a goroutine.
-	go func() {
-		for i := 0; i < len(requestsToProcess); i++ {
-			<-done
-			// Say that another goroutine can now start.
-			concurrentGoroutines <- struct{}{}
-		}
-		// We have collected all the jobs, the program
-		// can now terminate
-		waitForAllJobs <- true
-	}()
-
-	// Try to start nbJobs jobs
 	for i := 0; i < len(requestsToProcess); i++ {
 		// Try to receive from the concurrentGoroutines channel. When we have something,
 		// it means we can start a new goroutine because another one finished.
@@ -1782,6 +1772,7 @@ func processPendingRequests() {
 		<-concurrentGoroutines
 		requestID := requestsToProcess[i]
 		requestContext := requests[requestID]
+
 		go func(rid string, rc datamodel.RequestContext) {
 			switch rc.Type {
 			case datamodel.NetworkContainerRequest:
@@ -1797,10 +1788,7 @@ func processPendingRequests() {
 					rid)
 			}
 			processRequest(rid, &rc)
-			done <- true
+			concurrentGoroutines <- struct{}{}
 		}(requestID, requestContext)
 	}
-
-	// Wait for all jobs to finish
-	<-waitForAllJobs
 }
