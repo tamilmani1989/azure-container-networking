@@ -25,7 +25,7 @@ var dataStoreShim *datastoreshim.DataStoreShim
 var requestBaseInterval = 1000
 var minVlan uint16 = 1
 var maxVlan uint16 = 2048
-var maxContainersPerNode = 100
+var maxContainersPerNode = 10
 var cnsSettings configuration.CNSSettings
 
 // Init - Initialize repository.
@@ -450,20 +450,18 @@ func UpdateNodeConfigurationNetworkContainerSet(
 			ncCount += len(ncToVnetMap)
 		}
 
-		/*
-			ncLimit, respErr := getNCLimitForNode(nodeConfig.NodeInfo.IPAddresses[0])
-			if respErr != nil {
-				loggershim.LS.Debugf("Failed to retrieve NC limit for node with error %+v", nodeID, respErr.String())
-				return respErr
-			}
+		ncLimit, respErr := getNCLimitForNode(nodeConfig.NodeInfo.IPAddresses[0])
+		if respErr != nil {
+			loggershim.LS.Debugf("Failed to retrieve NC limit for node with error %+v", nodeID, respErr.String())
+			return respErr
+		}
 
-			if ncCount > ncLimit {
-				return &api.JsonErr{
-					Code:       api.NodeContainerCapacityExhausted,
-					Text:       fmt.Sprintf("Node [%s] has reached maximum capacity [%d]", nodeConfig.NodeID, ncLimit),
-					HTTPStatus: http.StatusBadRequest}
-			}
-		*/
+		if ncCount > ncLimit {
+			return &api.JsonErr{
+				Code:       api.NodeContainerCapacityExhausted,
+				Text:       fmt.Sprintf("Node [%s] has reached maximum capacity [%d]", nodeConfig.NodeID, ncLimit),
+				HTTPStatus: http.StatusBadRequest}
+		}
 	}
 
 	return persistNodeConfiguration(nodeConfig)
@@ -672,7 +670,7 @@ func AddIPAllocation(networkID, subnetName, allocatedIP, reservationKey string) 
 		return jsonErr
 	}
 
-	loggershim.LS.Errorf("Allocated IP: %s for reservation key: %s", allocatedIP, reservationKey)
+	loggershim.LS.Debugf("Allocated IP: %s for reservation key: %s", allocatedIP, reservationKey)
 	return nil
 }
 
@@ -2825,7 +2823,7 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 // The function queries CNS running on a node to get number of logical cores configuration data.
 // If for some reason the request fails, we return default value of 10.
 func getNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
-    // Check if the setting is there.
+	// Check if the setting is there.
 	if cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt == "" {
 		loggershim.LS.Debugf("GetNumOfCPUCoresURLFmt setting not present, returning default value")
 		return maxContainersPerNode, nil

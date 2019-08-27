@@ -26,21 +26,13 @@ var (
 )
 
 const (
-<<<<<<< HEAD
-	localIPSubnetAddressString            = "169.254.0.0/16"
+	// NMAgent using 169.254.0.0 to 169.254.3.255. So allocating a range not conflicting with that.
+	localIPSubnetAddressString            = "169.254.128.0/17"
 	imdsIPSubnetString                    = "169.254.169.254/32"
-	localIPGatewayString                  = "169.254.0.1"
-	localIPSubnetPrefixLength             = 16
+	localIPGatewayString                  = "169.254.128.1"
+	localIPSubnetPrefixLength             = 17
 	unauthorizedErrRetryDurationSec       = 60
 	defaultMaxConcurrentRequestsToProcess = 1000
-=======
-	// NMAgent using 169.254.0.0 to 169.254.3.255. So allocating a range not conflicting with that.
-	localIPSubnetAddressString      = "169.254.128.0/17"
-	imdsIPSubnetString              = "169.254.169.254/32"
-	localIPGatewayString            = "169.254.128.1"
-	localIPSubnetPrefixLength       = 17
-	unauthorizedErrRetryDurationSec = 60
->>>>>>> origin/dev
 )
 
 func getSessionInfo(request *datamodel.RequestContext) map[string]string {

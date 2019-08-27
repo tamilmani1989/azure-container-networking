@@ -1540,7 +1540,7 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 		cnsContextLock.RLock()
 		cnsResponderContext := cnsResponderContextMap[ncRequest.NetworkContainerid]
 		if !cnsResponderContext.AdapterCreated {
-			//time.Sleep(time.Second * 2)
+			time.Sleep(time.Second * 2)
 			fmt.Printf("CNS created loopback adapter for %s\n", ncRequest.NetworkContainerid)
 			cnsResponderContext.AdapterCreated = true
 		}
