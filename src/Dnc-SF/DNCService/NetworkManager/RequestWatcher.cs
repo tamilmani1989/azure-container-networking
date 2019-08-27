@@ -2,7 +2,7 @@
 // <copyright file="RequestWatcher.cs" company="Microsoft">
 //     Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
-// 
+//
 //-----------------------------------------------------------------------
 
 using Cns;
@@ -23,14 +23,15 @@ namespace NetworkManager
 {
     /// <summary>
     /// Constants for local IP subnet.
+    /// NMAgent using 169.254.0.0 to 169.254.3.255. So allocating a range not conflicting with that
     /// </summary>
     ///
     public class LocalIPSubnetConstants
     {
-        public const string LocalIPSubnet = "169.254.0.0/16";
+        public const string LocalIPSubnet = "169.254.128.0/17";
         public const string ImdsSubnet = "169.254.169.254/32";
-        public const string LocalIPGateway = "169.254.0.1";
-        public const int LocalIPSubnetPrefix = 16;
+        public const string LocalIPGateway = "169.254.128.1";
+        public const int LocalIPSubnetPrefix = 17;
     }
 
     /// <summary>

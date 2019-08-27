@@ -897,7 +897,7 @@ namespace DNCService.Rest
         {
             List<string> supportedContainerTypes = new List<string>
             {
-                Cns.Data.Constants.ClearContainer,
+                Cns.Data.Constants.COW,
                 Cns.Data.Constants.AzureContainerInstance,
                 Cns.Data.Constants.JobObject
             };

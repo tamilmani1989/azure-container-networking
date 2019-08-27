@@ -2,7 +2,7 @@
 // <copyright file="CreateNetworkContainerRequest.cs" company="Microsoft">
 //     Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
-// 
+//
 //-----------------------------------------------------------------------
 
 using Newtonsoft.Json;
@@ -89,6 +89,13 @@ namespace Cns.Data
         [JsonProperty("AllowHostToNCCommunication")]
         public bool AllowHostToNCCommunication { get; private set; }
 
+
+        /// <summary>
+        /// Flag to represent if NC to Host communication is allowed.
+        /// </summary>
+        [JsonProperty("AllowNCToHostCommunication")]
+        public bool AllowNCToHostCommunication { get; private set; }
+
         /// <summary>
         /// Constructor.
         /// </summary>
@@ -102,6 +109,7 @@ namespace Cns.Data
         /// <param name="cnetAddressSpace"></param>
         /// <param name="routes"></param>
         /// <param name="allowHostToNCCommunication"></param>
+        /// <param name="allowNCToHostCommunication"></param>
         public CreateNetworkContainerRequest(
             string version,
             string ncType,
@@ -113,7 +121,8 @@ namespace Cns.Data
             MultiTenancyInfo multiTenancyInfo,
             IPSubnet[] cnetAddressSpace,
             Route[] routes,
-            bool allowHostToNCCommunication)
+            bool allowHostToNCCommunication,
+            bool allowNCToHostCommunication)
         {
             Version = version;
             NetworkContainerType = ncType;
@@ -126,6 +135,7 @@ namespace Cns.Data
             CnetAddressSpace = cnetAddressSpace;
             Routes = routes;
             AllowHostToNCCommunication = allowHostToNCCommunication;
+            AllowNCToHostCommunication = allowNCToHostCommunication;
         }
 
         /// <summary>
@@ -159,7 +169,8 @@ namespace Cns.Data
                     $"IPConfiguration:{IPConfiguration} LocalIPConfiguration:{LocalIPConfiguration} " +
                     $"MultiTenancyInfo:{MultiTenancyInfo} " +
                     $"CnetAddressSpace:{cnetAddressSpaceStr} Routes:{routesStr}] " +
-                    $"AllowHostToNCCommunication:{AllowHostToNCCommunication}";
+                    $"AllowHostToNCCommunication:{AllowHostToNCCommunication} " +
+                    $"AllowNCToHostCommunication:{AllowNCToHostCommunication}";
         }
     }
 }

@@ -15,8 +15,8 @@ namespace Cns.Data
         public const string ServiceFabric = "ServiceFabric";
         public const string Kubernetes = "Kubernetes";
 
-        public const string ClearContainer = "ClearContainer";
         public const string AzureContainerInstance = "AzureContainerInstance";
         public const string JobObject = "JobObject";
+        public const string COW = "COW";
     }
 }

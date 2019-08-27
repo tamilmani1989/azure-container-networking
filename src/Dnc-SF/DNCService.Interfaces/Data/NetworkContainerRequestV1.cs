@@ -34,13 +34,16 @@ namespace DNCService.API
         /// </summary>
         /// <param name="reservationID">Supply the ID of the reservation.</param>
         /// <param name="associationInfo">Supply the association info.</param>
-        /// <param name="allowHostToNCCommunication">Flag to represent 
+        /// <param name="allowHostToNCCommunication">Flag to represent
         /// if Host to NC communication is allowed.</param>
+        /// <param name="allowNCToHostCommunication">Flag to represent
+        /// if NC to Host communication is allowed.</param>
         public NetworkContainerRequestV1(
             string networkProfileID,
             string reservationID,
             AssociationInfo associationInfo,
-            bool allowHostToNCCommunication) : base(associationInfo, networkProfileID, allowHostToNCCommunication)
+            bool allowHostToNCCommunication,
+            bool allowNCToHostCommunication) : base(associationInfo, networkProfileID, allowHostToNCCommunication, allowNCToHostCommunication)
         {
             ReservationID = reservationID;
         }
@@ -49,8 +52,8 @@ namespace DNCService.API
         /// Copy constructor.
         /// </summary>
         /// <param name="ncRequest">Supply the request object to be copied.</param>
-        public NetworkContainerRequestV1(NetworkContainerRequestV1 ncRequest) : 
-            base(ncRequest.AssociationInfo, ncRequest.NetworkProfileID, ncRequest.AllowHostToNCCommunication)
+        public NetworkContainerRequestV1(NetworkContainerRequestV1 ncRequest) :
+            base(ncRequest.AssociationInfo, ncRequest.NetworkProfileID, ncRequest.AllowHostToNCCommunication, ncRequest.AllowNCToHostCommunication)
         {
             ReservationID = ncRequest.ReservationID;
         }

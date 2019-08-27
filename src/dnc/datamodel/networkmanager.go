@@ -2825,6 +2825,12 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 // The function queries CNS running on a node to get number of logical cores configuration data.
 // If for some reason the request fails, we return default value of 10.
 func getNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
+    // Check if the setting is there.
+	if cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt == "" {
+		loggershim.LS.Debugf("GetNumOfCPUCoresURLFmt setting not present, returning default value")
+		return maxContainersPerNode, nil
+	}
+
 	getNumOfCoresURL := fmt.Sprintf(
 		cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt,
 		nodeIP)
