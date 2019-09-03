@@ -5,11 +5,12 @@
   <Import Project="$(PkgServiceSignTask)\content\FolderSigning.targets" />
 
   <ItemGroup>
-    <ProjectReference Include="$(SrcRoot)\HostNetAgent\HostNetAgent.vcxproj"/>
+    <ProjectReference Include="$(SrcRoot)\NetAgentPackage\NetAgentPackage.proj"/>
   </ItemGroup>
 
   <PropertyGroup>
-    <AppOutput>$(BinariesBuildTypeArchDirectory)\HostNetAgent</AppOutput>
+    <InputWithAllBinaries>$(BinariesBuildTypeArchDirectory)\Artifacts\NetAgent</InputWithAllBinaries>
+    <AppOutput>$(BinariesBuildTypeArchDirectory)\App\HostNetAgent</AppOutput>
     <ModernAPSigning>true</ModernAPSigning>
     <APServiceSigner>$(PkgServiceSignTask)\content</APServiceSigner>
     <IsValidateFilesEnabled>false</IsValidateFilesEnabled>
@@ -30,20 +31,20 @@
 
     <BuildDependsOn>
       $(BuildDependsOn);
-      CreateBuildShare;
+      CreatePackageWithAllBinaries;
       GeneratePackageForSigning;
       GeneratePathsForSigning;
       $(SignOutputDependsOn)
       MoveSignedEntityBackToParent;
     </BuildDependsOn>	
    </PropertyGroup>
-   <Target Name="CreateBuildShare" AfterTargets="Build">
-    <Message Text="CreateBuildShare started" Importance="high" />  
-    <Exec Command="$(MsBuildThisFileDirectory)\CreateBuildShare.cmd $(AppOutput)" />
-    <Message Text="CreateBuildShare finished" Importance="high" />
+   <Target Name="CreatePackageWithAllBinaries" AfterTargets="Build">
+    <Message Text="CreatePackageWithAllBinaries started" Importance="high" />  
+    <Exec Command="$(MsBuildThisFileDirectory)\CreatePackageWithAllBinaries.cmd $(InputWithAllBinaries) $(AppOutput)" />
+    <Message Text="CreatePackageWithAllBinaries finished" Importance="high" />
   </Target>
 
-  <Target Name="GeneratePackageForSigning" AfterTargets="CreateBuildShare">
+  <Target Name="GeneratePackageForSigning" AfterTargets="CreatePackageWithAllBinaries">
     <Message Text="GeneratePackageForSigning started" Importance="high" />   
     <Exec Command="$(MsBuildThisFileDirectory)\GeneratePackageForSigning.cmd $(AppOutput)" />
     <Message Text="GeneratePackageForSigning finished" Importance="high" />
@@ -65,7 +66,7 @@
 
   <Target Name="MoveSignedEntityBackToParent" AfterTargets="GeneratePathsForSigning">
     <Message Text="MoveSignedEntityBackToParent started" Importance="high" />  
-    <Exec Command="$(MsBuildThisFileDirectory)\MoveSignedEntityBackToParent.cmd $(BinariesBuildTypeArchDirectory) $(AppOutput) $(AppOutput)\HostNetAgent" />
+    <Exec Command="$(MsBuildThisFileDirectory)\MoveSignedEntityBackToParent.cmd $(BinariesBuildTypeArchDirectory)\App $(AppOutput) $(AppOutput)\HostNetAgent" />
     <Message Text="MoveSignedEntityBackToParent finished" Importance="high" />
   </Target>
 
