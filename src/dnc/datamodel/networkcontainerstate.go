@@ -79,7 +79,9 @@ func PromoteContainerState(ncConfig *NCConfiguration) *api.JsonErr {
 			ncConfig.State = DisAssociate
 		}
 
-		return PersistNCConfiguration(ncConfig, false)
+		ncConfig.FailureDetail = api.JsonErr{}
+		ncConfig.Status = Pending
+		return PersistNCConfiguration(ncConfig, AddToPendingQ)
 	}
 
 	return nil

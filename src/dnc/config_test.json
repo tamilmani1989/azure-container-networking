@@ -33,7 +33,8 @@
             "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
             "GetNetworkContainerStatusURLFmt": "http://%s:10090/network/getnetworkcontainerstatus",
             "SetOrchestratorTypeURLFmt" : "http://%s:10090/network/setorchestratortype",
-            "GetNetworkcontainerstatusURLFmt":"http://%s:10090/network/getnetworkcontainerstatus"
+            "GetNetworkcontainerstatusURLFmt":"http://%s:10090/network/getnetworkcontainerstatus",
+            "GetNumOfCPUCoresURLFmt":"http://%s:10090/hostcpucores"
         }
     },
     "VlanSettings":{

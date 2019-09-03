@@ -9,12 +9,12 @@ pushd $PWD
 export DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Get our Go compiler
-GODIR="$DIR/go1-10"
+GODIR="$DIR/go1-12"
 if [ ! -d $GODIR ]; then
     mkdir -p $GODIR
-    wget https://storage.googleapis.com/golang/go1.10.2.linux-amd64.tar.gz
-    tar -C $GODIR -xvf go1.10.2.linux-amd64.tar.gz
-    rm go1.10.2.linux-amd64.tar.gz
+    wget https://storage.googleapis.com/golang/go1.12.6.linux-amd64.tar.gz
+    tar -C $GODIR -xvf go1.12.6.linux-amd64.tar.gz
+    rm go1.12.6.linux-amd64.tar.gz
 fi
 
 # Set env variables
@@ -47,7 +47,7 @@ case $1 in
     "test" )
         cd $DIR/src/dnc
         export DNC_CONFIGURATION_PATH=$DIR/src/dnc/config_test.json
-        go test -timeout 1000s -coverprofile coverage-dnc.out
+        go test -timeout 2000s -coverprofile coverage-dnc.out
         ;;
     "get" )
         mkdir $DIR/src/github && cd $_

@@ -43,6 +43,13 @@ const (
 	TagRepositoryName = "TagRepository"
 )
 
+const (
+	// AddToPendingQ - add item to pending queue
+	AddToPendingQ = true
+	// DontAddToPendingQ - do not add to pending queue
+	DontAddToPendingQ = false
+)
+
 // TableToColumnMap - Table name to column map
 var TableToColumnMap = map[string]string{
 	subnetConfigurationTableName:                     subnetConfigurationTag,

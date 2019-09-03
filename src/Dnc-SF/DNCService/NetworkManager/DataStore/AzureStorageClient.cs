@@ -77,6 +77,22 @@ namespace NetworkManager.DataModel
 
             if (IsSharedSubnetDelegationEnabled())
             {
+                if (string.IsNullOrEmpty(AccountName))
+                {
+                    throw new DncAzureStorageException(
+                      new ErrorInfo(ErrorCode.InvalidAzureStorageInfo,
+                          "Failed to initialize AzureStorageClient - Invalid Account Name",
+                          ErrorType.NonRetriable));
+                }
+
+                if (string.IsNullOrEmpty(AccountKey))
+                {
+                    throw new DncAzureStorageException(
+                      new ErrorInfo(ErrorCode.InvalidAzureStorageInfo,
+                          "Failed to initialize AzureStorageClient - Invalid Account Key",
+                          ErrorType.NonRetriable));
+                }
+
                 string connectionString = "DefaultEndpointsProtocol=https;" +
                     $"AccountName={AccountName};" +
                     $"AccountKey={AccountKey};" +
@@ -120,10 +136,10 @@ namespace NetworkManager.DataModel
                         string errorMsg = (exception.InnerException == null) ?
                             exception.Message : exception.InnerException.Message;
                         ServiceEventSource.Current.Message($"Failed to initialize AzureStorageClient" +
-                            $" due to error: {errorMsg}");
+                            $" due to Exception: {exception}");
                         throw new DncAzureStorageException(
                             new ErrorInfo(ErrorCode.StatusInternalServerError,
-                                "Failed to initialize AzureStorageClient",
+                                $"Failed to initialize AzureStorageClient due to error: {errorMsg}",
                                 ErrorType.NonRetriable));
                     }
                 }
@@ -160,7 +176,7 @@ namespace NetworkManager.DataModel
 
                 do
                 {
-                    TableQuerySegment dynamicTableEntities =
+                    TableQuerySegment<DynamicTableEntity> dynamicTableEntities =
                         await tables[Constants.IPAllocationsTableName].ExecuteQuerySegmentedAsync(
                             tableQuery,
                             continuationToken,

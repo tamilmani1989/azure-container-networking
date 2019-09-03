@@ -130,8 +130,8 @@ const (
 	// NetworkJoinFailed - Join of network failed.
 	NetworkJoinFailed
 
-	// DeocodeResponseFailed - Deocoding of http response failed
-	DeocodeResponseFailed
+	// DecodeResponseFailed - Deocoding of http response failed
+	DecodeResponseFailed
 
 	// ParseResponseCodeFailed - Parsing of response code failed
 	ParseResponseCodeFailed
@@ -195,6 +195,27 @@ const (
 
 	// InvalidContainerName - ContainerName cannot be empty.
 	InvalidContainerName
+
+	// UnSupportedAddressFamily - Address family is not supported.
+	UnSupportedAddressFamily
+
+	// RequestNotsupported - Request is not supported.
+	RequestNotsupported
+
+	// InvalidNodeRequest - Invalid node request.
+	InvalidNodeRequest
+
+	// InvalidSubnetRequest - Invalid subnet request.
+	InvalidSubnetRequest
+
+	// InvalidNetworkProfileId - Invalid network profile id
+	InvalidNetworkProfileId
+
+	// InvalidNetworkRequest - Invalid Network request
+	InvalidNetworkRequest
+
+	// NumberOfCPUCoresRetrievalFailed - Failed to retrieve CPU Cores
+	NumberOfCPUCoresRetrievalFailed
 )
 
 func (e ErrorCode) String() string {
@@ -325,8 +346,8 @@ func (e ErrorCode) String() string {
 	case NetworkJoinFailed:
 		return "NetworkJoinFailed"
 
-	case DeocodeResponseFailed:
-		return "DeocodeResponseFailed"
+	case DecodeResponseFailed:
+		return "DecodeResponseFailed"
 
 	case ParseResponseCodeFailed:
 		return "ParseResponseCodeFailed"
@@ -390,6 +411,27 @@ func (e ErrorCode) String() string {
 
 	case InvalidContainerName:
 		return "InvalidContainerName"
+
+	case UnSupportedAddressFamily:
+		return "UnSupportedAddressFamily"
+
+	case RequestNotsupported:
+		return "RequestNotsupported"
+
+	case InvalidNodeRequest:
+		return "InvalidNodeRequest"
+
+	case InvalidSubnetRequest:
+		return "InvalidSubnetRequest"
+
+	case InvalidNetworkProfileId:
+		return "InvalidNetworkProfileId"
+
+	case InvalidNetworkRequest:
+		return "InvalidNetworkRequest"
+
+	case NumberOfCPUCoresRetrievalFailed:
+		return "NumberOfCPUCoresRetrievalFailed"
 	}
 
 	return "Unknown Status"

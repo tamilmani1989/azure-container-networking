@@ -31,7 +31,7 @@ namespace DNCService.API
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
-            serializer.Serialize(writer, value);
+            writer.WriteRawValue(value.ToString());
         }
     }
 }

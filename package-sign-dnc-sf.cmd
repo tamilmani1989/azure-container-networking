@@ -4,7 +4,7 @@ set FolderLocation=%3
 pushd "%~dp0"
 
 if %Operation%=="Sign" (
-    robocopy %CDP_TEMP_PRIOR_DROP_FOLDER_CONTAINER_PATH%\current\drop\linux_phase\outputs\build\drop_dnc_sf\%BuildConfig% %~dp0%FolderLocation% /e
+    robocopy %~dp0src\Dnc-SF\DncSFProj\pkg\%BuildConfig% %~dp0%FolderLocation% /e
 
     rem Check exit code and return if necessary
     if "%ERRORLEVEL%" neq "0" (

@@ -127,7 +127,7 @@ namespace DNCService
                                 .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.None)
                                 .UseUrls(url)
                                 .Build();
-                        })));
+                        }), "DNCListener"));
             return serviceReplicaListeners.ToArray();
         }
 
@@ -318,34 +318,47 @@ namespace DNCService
                 List<ReservationConfiguration> reservationConfigurations = new List<ReservationConfiguration>();
                 using (ITransaction tx = RepositoryHelper.GetTransaction())
                 {
-                    string networkKey = NetworkConfiguration.GetNetworkKey(networkID);
-
                     networkConfig = await RepositoryHelper.GetFromReliableDictionary(
                         tx,
                         networkRepositoryManager.NetworkConfigReliableCollection,
-                        networkKey);
-                    ServiceEventSource.Current.Message($"Retrieved network config.{networkConfig}");
-                    string subnetKey = SubnetConfiguration.GetSubnetConfigurationKey(networkID, subnetName);
+                        NetworkConfiguration.GetNetworkKey(networkID));
+                    if (networkConfig == null)
+                    {
+                        throw new DncNetworkManagementException(
+                            networkID,
+                            new ErrorInfo(ErrorCode.NetworkNotFound,
+                                "Network configuration not found",
+                                (int)HttpStatusCode.NotFound,
+                                ErrorType.NonRetriable));
+                    }
+
                     subnetConfiguration = await RepositoryHelper.GetFromReliableDictionary(
                         tx,
                         networkRepositoryManager.SubnetConfigReliableCollection,
-                        subnetKey);
-                    foreach(string reservationID in subnetConfiguration.Reservations.Keys)
+                        SubnetConfiguration.GetSubnetConfigurationKey(networkID, subnetName));
+                    if (subnetConfiguration == null)
                     {
-                        string reservationKey = ReservationConfiguration.GetReservationKey(
+                        throw new DncNetworkManagementException(
                             networkID,
-                            reservationID);
+                            new ErrorInfo(
+                                ErrorCode.SubnetNotFound,
+                                $"Subnet {subnetName} not found",
+                                (int)HttpStatusCode.NotFound,
+                                ErrorType.NonRetriable));
+                    }
+
+                    foreach (string reservationID in subnetConfiguration.Reservations.Keys)
+                    {
                         ReservationConfiguration reservationConfiguration = await
                             RepositoryHelper.GetFromReliableDictionary(
                                 tx,
                                 networkRepositoryManager.ReservationReliableCollection,
-                                reservationKey);
+                                ReservationConfiguration.GetReservationKey(networkID, reservationID));
                         if(reservationConfiguration != null)
                         {
                             reservationConfigurations.Add(reservationConfiguration);
                         }
                     }
-                    ServiceEventSource.Current.Message($"Retrieved network config.{subnetConfiguration}");
                 }
 
                 return RepoToApiContractTranslators.GetSubnetConfigurationResponse(
@@ -391,9 +404,9 @@ namespace DNCService
                 }
                 catch (Exception exception)
                 {
-                    DncManagementException dncManagementException =
-                        (DncManagementException)exception;
-                    return (new RequestStatus("", "", dncManagementException.ErrorInfo));
+                    ServiceEventSource.Current.Message(
+                        $"Failed to get network {networkID} with exception:{exception}");
+                    throw;
                 }
 
                 RequestStatus requestStatus =
@@ -458,9 +471,9 @@ namespace DNCService
                 }
                 catch (Exception exception)
                 {
-                    DncManagementException dncManagementException =
-                        (DncManagementException)exception;
-                    return (new RequestStatus("", "", dncManagementException.ErrorInfo));
+                    ServiceEventSource.Current.Message(
+                        $"Failed to get subnet {subnetName} in network {networkID} with exception:{exception}");
+                    throw;
                 }
 
                 if (subnetConfig.IsJoined)
@@ -509,15 +522,15 @@ namespace DNCService
                         throw new DncNetworkContainerException(
                             networkID,
                             networkContainerID,
-                            new ErrorInfo(ErrorCode.NetworkContainerNotFound, "Container not found",
+                            new ErrorInfo(ErrorCode.NetworkContainerNotFound, "Network Container not found",
                                 (int)HttpStatusCode.NotFound, ErrorType.NonRetriable));
                     }
                 }
                 catch (Exception exception)
                 {
-                    DncManagementException dncManagementException =
-                        (DncManagementException)exception;
-                    return (new RequestStatus("", "", dncManagementException.ErrorInfo));
+                    ServiceEventSource.Current.Message(
+                        $"Failed to get network container {networkContainerID} with exception:{exception}");
+                    throw;
                 }
 
                 RequestStatus requestStatus =

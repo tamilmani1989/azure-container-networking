@@ -51,8 +51,8 @@ version:
                                                                         # Currently unused, but will be used in the future to refer to the
                                                                         # artifacts as a group by name.
   major: 2019                                                           # The major version number.
-  minor: 6                                                              # The minor version number
-  tag: '6.1'                                                            # Tag to use for semantic versioning.
+  minor: 8                                                              # The minor version number
+  tag: '22.1'                                                            # Tag to use for semantic versioning.
   system: 'patch'                                                       # Versioning scheme to use.
                                                                         # patch         - 1.0.MMddyyrrrr will be generated
                                                                         # buildrevision - 1.0.MMddyy.rrrr will be generated.
@@ -100,9 +100,18 @@ build:
             - 'src/LinuxNetAgent/build.log'
         artifacts:
           - from: 'src/LinuxNetAgent/main'
-            to: 'drop_dnc'
+            to: 'drop_linux_netagent'
             include:
               - 'servicetunnel'
+          - from: 'src/LinuxNetAgent/scripts'
+            to: 'drop_linux_netagent'
+            include:
+              - '*.sh'
+          - from: 'src/LinuxNetAgent'
+            to: 'drop_linux_netagent'
+            include:
+              - 'manifest.xml'
+              - 'HandlerManifest.json'
 
     - !!buildcommand
         name: 'Build DNC Windows'
@@ -130,16 +139,6 @@ build:
             include:
               - 'azure-dnc'
 
-    - !!buildcommand
-        name: 'Build DNC for SF'
-        command: 'build-dnc-sf.sh'
-        arguments: 'Build Release'
-        artifacts:
-          - from: 'src/Dnc-SF/DncSFProj/pkg/'
-            to: 'drop_dnc_sf'
-            include:
-              - '**/*'
-
 # An optional user defined stage for performing packaging. This exists as a separate stage because some build processes do a
 # compile-sign-package-sign model. For example, Windows based builds use this model. Linux builds typically follow a
 # compile-hash-package-hash-sign hash model. For those folks, package may not need to exist as a separate step.
@@ -152,7 +151,7 @@ package:
         command: 'src/LinuxNetAgent/PackageNetAgent.sh'
         artifacts:
           - from: 'src/LinuxNetAgent/out'
-            to: 'drop_dnc'
+            to: 'drop_linux_netagent'
             include:
               - '*.zip'
 

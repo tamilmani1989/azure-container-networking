@@ -584,7 +584,9 @@ namespace NetworkManager
                 ncConfiguration.Status,
                 ncConfiguration.LocalIP,
                 tags,
-                networkConfiguration.VnetVersion);
+                networkConfiguration.VnetVersion,
+                ncConfiguration.Request.AllowHostToNCCommunication,
+                ncConfiguration.Request.AllowNCToHostCommunication);
         }
 
         public async Task UpdateNodeConfigurationUntransacted(

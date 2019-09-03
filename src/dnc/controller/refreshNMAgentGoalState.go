@@ -29,29 +29,23 @@ func (c *Controller) ReJoinAllNetworks(networksMap map[string]bool) {
 	for ok := true; ok; ok = len(networksMap) > 0 {
 		iteration++
 		index := 0
-		loggershim.LS.Debugf("Current iteration:%d", iteration)
 		failedNetworks := make(map[string]bool)
-		for networkID, _ := range networksMap {
-			loggershim.LS.Debugf("Index:%d, Joining network for ID:%s", index, networkID)
-			_,err,_ := postRequestToAgentForNetworkJoin(networkID)
+		for networkID := range networksMap {
+			_, err, _ := postRequestToAgentForNetworkJoin(networkID)
 
 			time.Sleep(1 * time.Second)
 
 			if err != nil {
-				loggershim.LS.Errorf("Failed to join network for NMAgent goal state for NC %s", networkID)
+				loggershim.LS.Errorf("%s", err.String())
 				failedNetworks[networkID] = true
 			}
-
-			loggershim.LS.Debugf("Index:%d Joined network for NC:%s", index, networkID)
-
 			index++
 		}
 
 		networksMap = failedNetworks
-		loggershim.LS.Debugf("Failed Network count:%d", len(failedNetworks))
 
 		if iteration > 10 {
-			loggershim.LS.Debugf("Exhausted retries. Current retry count:%d", iteration)
+			loggershim.LS.Debugf("Exhausted retries. Current retry count:%d. Failed network count:%d.", iteration, len(failedNetworks))
 			break
 		}
 
@@ -65,8 +59,6 @@ func (c *Controller) RefreshNetworkContainersNMAgentGoalState() {
 		return
 	}
 
-	loggershim.LS.Errorf("Retrieved NCs count to refresh %d", len(ncsMap))
-
 	networksMap := make(map[string]bool)
 	for _, ncconfig := range ncsMap {
 		networksMap[ncconfig.NetworkID] = true
@@ -78,30 +70,24 @@ func (c *Controller) RefreshNetworkContainersNMAgentGoalState() {
 	for ok := true; ok; ok = len(ncsMap) > 0 {
 		iteration++
 		index := 0
-		loggershim.LS.Debugf("Current iteration:%d", iteration)
 		failedNCsMap := make(map[string]datamodel.NCConfiguration)
 		for ncKey, ncConfig := range ncsMap {
 			sessionInfo := c.getNCSessionInfo(&ncConfig)
-			loggershim.LS.Debugf("Index:%d, Publishing NC goal state for NC:%s", index, ncKey)
 			_, err := c.refreshNetworkContainerNMAgentGoalState(ncKey, sessionInfo)
 
 			time.Sleep(1 * time.Second)
 
 			if err != nil {
-				loggershim.LS.Errorf("Failed to refresh NMAgent goal state for NC %s", ncKey)
+				loggershim.LS.Errorf("Failed to refresh NMAgent goal state for NC %s with error:%+v", ncKey, err)
 				failedNCsMap[ncKey] = ncConfig
 			}
-
-			loggershim.LS.Debugf("Index:%d Published NC goal state for NC:%s", index, ncKey)
-
 			index++
 		}
 
 		ncsMap = failedNCsMap
-		loggershim.LS.Debugf("Failed NCs count:%d", len(failedNCsMap))
 
 		if iteration > 10 {
-			loggershim.LS.Debugf("Exhausted retries. Current retry count:%d", iteration)
+			loggershim.LS.Debugf("Exhausted retries. Current retry count:%d. Failed NCs count:%d.", iteration, len(failedNCsMap))
 			break
 		}
 
@@ -114,19 +100,14 @@ func (c *Controller) refreshNetworkContainerNMAgentGoalState(ncKey string,
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 	repoNCConfig, err := datamodel.TryQueryNetworkContainerByKey(ncKey)
 	if err != nil {
-		loggershim.LS.Errorf("Failed to get network container configuration for ID:%s. Error:%s\n",
-			ncKey,
-			err.String())
 		return false, err
 	}
 
 	if repoNCConfig == nil {
-		loggershim.LS.Debugf("Failed to find network container configuration in repository for ID %s\n", ncKey)
 		return true, nil
 	}
 
 	if repoNCConfig.MarkedForDelete {
-		loggershim.LS.Debugf("Skipping porcessing NC %s as it is marked for delete\n", ncKey)
 		return true, nil
 	}
 
@@ -153,30 +134,29 @@ func (c *Controller) refreshNetworkContainerNMAgentGoalState(ncKey string,
 		ncGoalState.NodeInterfaceID,
 		ncGoalState.NetworkContainerID,
 		ncGoalState.AccessToken)
-	loggershim.LS.Debugf("Create Url:%s, body:%s\n", createNCURL, ncRequest.String())
 
 	resp, respErr := http.Post(createNCURL, "application/json", &body)
 	if respErr != nil {
-		loggershim.LS.Errorf("Failed to publish network container goal state for Id %s to host agent with error %v "+
+		msg := fmt.Sprintf("Failed to publish network container goal state for Id %s to host agent with error %v "+
 			"Marking as retriable error \n",
 			repoNCConfig.NetworkContainerID,
 			respErr.Error())
 		return false, &api.JsonErr{
 			Code:       api.PublishingFailed,
-			Text:       respErr.Error(),
+			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		loggershim.LS.Errorf("Failed to publish network container goal state for Id %s to host agent with error code %d "+
+		msg := fmt.Sprintf("Failed to publish network container goal state for Id %s to host agent with error code %d "+
 			"Marking as retriable error \n",
 			repoNCConfig.NetworkContainerID,
 			resp.StatusCode)
 		return false, &api.JsonErr{
 			Code:       api.PublishingFailed,
-			Text:       resp.Status,
+			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
@@ -187,16 +167,16 @@ func (c *Controller) refreshNetworkContainerNMAgentGoalState(ncKey string,
 			repoNCConfig.NetworkContainerID,
 			decodeRespErr.Error())
 		return false, &api.JsonErr{
-			Code:       api.DeocodeResponseFailed,
+			Code:       api.DecodeResponseFailed,
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	loggershim.LS.Debugf("Received response for create network container response %s\n", createNetworkContainerResponse.String())
+	loggershim.LS.Debugf("[NMAgent][Response] refresh %s\n", createNetworkContainerResponse.String())
 	putNCResponseCode, parseErr := strconv.ParseInt(createNetworkContainerResponse.ResponseCode, 10, 32)
 	if parseErr != nil {
 		msg := fmt.Sprintf(
-			"Failed to convert response code %s  to integer when parsing put NC response for NC %s.",
+			"Failed to convert response code %s to integer when parsing put NC response for NC %s.",
 			createNetworkContainerResponse.ResponseCode,
 			repoNCConfig.NetworkContainerID)
 		return false, &api.JsonErr{
@@ -224,7 +204,7 @@ func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, boo
 		config.HostAgentSettings.WireServerIP,
 		networkID)
 
-	loggershim.LS.Debugf("postRequestToAgentForNetworkJoin url %s", joinURL)
+	loggershim.LS.Debugf("[NMAgent] joining network [%s]", networkID)
 
 	// Empty body is required as wireserver cannot handle a post without the body.
 	var body bytes.Buffer
@@ -235,8 +215,6 @@ func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, boo
 			"Join for network [%s] failed with reponse error [%s]. Marking this error as retriable",
 			networkID,
 			joinRespErr.Error())
-		loggershim.LS.Errorf("postRequestToAgentForNetworkJoin %s", msg)
-
 		return true, &api.JsonErr{
 			Code:       api.JoinDenied,
 			Text:       msg,
@@ -249,7 +227,6 @@ func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, boo
 		msg := fmt.Sprintf(
 			"Join for network [%s] is pending. Marking this error as retriable",
 			networkID)
-
 		return true, &api.JsonErr{
 			Code:       api.JoinPending,
 			Text:       msg,

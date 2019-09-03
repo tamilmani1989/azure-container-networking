@@ -43,15 +43,21 @@
 
     <Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
     <Exec Command="cp $(PkgVisualCppTools)\lib\native\redist\x64\Microsoft.VC141.CRT\*.dll $(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
-    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\IfxMetrics.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />     
-    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\IfxEvents.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />     
+    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\IfxMetrics.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
+    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\IfxEvents.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)\Plugins\ServiceTunnelExtension\Code" />
 
     <Exec Command="cp $(PkgWindows_UCRT)\ucrt\DLLs\x64\*.dll $(AquariusPackage)\$(Aquarius)" />
     <Exec Command="cp $(PkgVisualCppTools)\lib\native\redist\x64\Microsoft.VC141.CRT\*.dll $(AquariusPackage)\$(Aquarius)" />
     <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\IfxMetrics.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)" />
-    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\IfxEvents.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)" />  
-  
+    <Copy SourceFiles="$(PkgMicrosoft_Cloud_InstrumentationFramework)\build\native\lib\IfxEvents.dll" DestinationFolder="$(AquariusPackage)\$(Aquarius)" />
   </Target>
+
+  <ItemGroup>
+    <Robocopy Include="$(AquariusLinux)\content\*">
+      <FileMatch>*.*</FileMatch>
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\AquariusLinuxPackage</DestinationFolder>
+    </Robocopy>
+  </ItemGroup>
 
   <ItemGroup>
     <QCustomInput Include="AqEventMessage.mc" />

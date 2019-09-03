@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 namespace NetworkManager.DataModel
 {
     [DataContract]
-    public class NCConfiguration :ICloneable
+    public class NCConfiguration :ICloneable, IExtensibleDataObject
     {
         [DataMember]
         public string NetworkContainerID { get; private set; }
@@ -160,6 +160,15 @@ namespace NetworkManager.DataModel
         {
             return new NCConfiguration(this);
         }
+
+        #region IExtensibleDataObject Members
+
+        /// <summary>
+        /// Enables round-tripping of data contracts.
+        /// </summary>
+        ExtensionDataObject IExtensibleDataObject.ExtensionData { get; set; }
+
+        #endregion
 
     }
 }

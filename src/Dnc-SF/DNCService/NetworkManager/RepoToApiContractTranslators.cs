@@ -2,7 +2,7 @@
 // <copyright file="RequestResetMonitor.cs" company="Microsoft">
 //     Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
-// 
+//
 //-----------------------------------------------------------------------
 
 using DNCService;
@@ -10,6 +10,9 @@ using DNCService.API;
 using NetworkManager.DataModel;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+
 namespace NetworkManager
 {
     /// <summary>
@@ -60,13 +63,21 @@ namespace NetworkManager
                 ipAllocationDataSet.Add(GetIPAllocationData(reservationConfiguration));
             }
 
+            // Encrypt the access token
+            string tokenHashString;
+            using (var algorithm = SHA256.Create())
+            {
+                byte[] tokenHash = algorithm.ComputeHash(Encoding.ASCII.GetBytes(subnetConfiguration.AccessToken));
+                tokenHashString = System.BitConverter.ToString(tokenHash).Replace("-", "").ToLower();
+            }
+
             return new SubnetResponse(
                 networkConfiguration.NetworkID,
                 subnetConfiguration.SubnetName,
                 subnetConfiguration.IPSubnet.ToString(),
                 subnetConfiguration.Gateway,
                 dnsServers.Select(item => item.ToString()).ToArray(),
-                subnetConfiguration.AccessToken,
+                tokenHashString,
                 ipAllocationDataSet.ToArray());
         }
 
@@ -121,7 +132,10 @@ namespace NetworkManager
                 ipconfiguration,
                 ncConfiguration.Request.AssociationInfo,
                 ncConfiguration.Request.NetworkProfileID,
-                requestStatus);
+                requestStatus,
+                ncConfiguration.LocalIP,
+                ncConfiguration.Request.AllowHostToNCCommunication,
+                ncConfiguration.Request.AllowNCToHostCommunication);
         }
     }
 }

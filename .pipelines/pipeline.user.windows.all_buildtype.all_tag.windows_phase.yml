@@ -11,7 +11,7 @@ environment:
   runtime:
     provider: 'appcontainer'                                            # Currently only appcontainer is supported future will bring
                                                                         # oscontainer and virtualmachine
-    image: 'cdpxtest.azurecr.io/global/external-vse2015u3:2.0'          # This is the image that your pipeline will run in.
+    image: 'cdpxwin.azurecr.io/global/vse2017u5-external-azsdk-ext-win14393.1884:4.2'          # This is the image that your pipeline will run in.
                                                                         # For (appcontainer), Docker Hub public Microsoft repository images
                                                                         # can be used.
                                                                         # Example microsoft/dotnet:1.1.1-sdk-nanoserver. Or the CDP team
@@ -57,16 +57,16 @@ version:
                                                                         # Currently unused, but will be used in the future to refer to the
                                                                         # artifacts as a group by name.
   major: 2019                                                           # The major version number.
-  minor: 6                                                              # The minor version number
-  tag: '6.1'                                                            # Tag to use for semantic versioning.
-  system: 'patch' 
+  minor: 8                                                              # The minor version number
+  tag: '22.1'                                                            # Tag to use for semantic versioning.
+  system: 'patch'
 
-static_analysis_options:                          
-  binskim_options:  
+static_analysis_options:
+  binskim_options:
     disable_tool_scan: true
-    files_to_scan:     
+    files_to_scan:
       - from: 'src\dnc\'
-        exclude:                         
+        exclude:
           - '**/*'
 
 # An optional user defined stage for performing any compilation, code generation etc.
@@ -75,6 +75,26 @@ static_analysis_options:
 # Eventually, network access will be limited or cut-off in this stage.
 build:
   commands:
+  
+  - !!buildcommand
+    name: 'Build DNC for SF'
+    command: 'build-dnc-sf.cmd'
+    arguments: 'Release'
+    artifacts:
+      - from: 'src/Dnc-SF/DncSFProj/pkg/'
+        to: 'drop_dnc_sf'
+        include:
+          - '**/*'
+
+  - !!buildcommand
+    name: 'Build CNS SF wrapper'
+    command: 'build-cns-sf.cmd'
+    arguments: 'Release'
+    artifacts:
+      - from: 'src/Cns-SF/pkg/'
+        to: 'drop_cns_sf'
+        include:
+          - '**/*'
 
   - !!buildcommand
     name: 'Sign DNC Windows'
@@ -88,13 +108,24 @@ build:
   - !!buildcommand
     name: 'Sign DNC for SF'
     command: 'package-sign-dnc-sf.cmd'
-    arguments: 'Sign Release linux_phase_drop_dnc_sf'
+    arguments: 'Sign Release drop_dnc_sf'
     artifacts:
-      - from: 'linux_phase_drop_dnc_sf'
+      - from: 'drop_dnc_sf'
         include:
           - '**/DNCService.dll'
           - '**/DNCService.Interfaces.dll'
           - '**/DNCService.exe'
+
+  - !!buildcommand
+    name: 'Sign CNS for SF'
+    command: 'package-sign-cns-sf.cmd'
+    arguments: 'Sign Release drop_cns_sf'
+    artifacts:
+      - from: 'drop_cns_sf'
+        include:
+          - '**/azure-cns.exe'
+          - '**/azure-vnet-telemetry.exe'
+          - '**/CnsWrapperService.exe'
 
   - !!buildcommand
     name: 'Sign GitHub Binaries'
@@ -142,7 +173,7 @@ package:
     - !!buildcommand
       name: 'Package DNC for SF'
       command: 'package-sign-dnc-sf.cmd'
-      arguments: 'Package Release linux_phase_drop_dnc_sf'
+      arguments: 'Package Release drop_dnc_sf'
       artifacts:
         - from: '.'
           to: 'AzureDNC-SF'
@@ -158,7 +189,7 @@ package:
           to: 'AzureCNI'
           include:
             - '*AzureCNI.*.nupkg'
-      
+
     - !!buildcommand
       name: 'Package CNS'
       command: 'package_sign.cmd'
@@ -168,6 +199,26 @@ package:
           to: 'AzureCNS'
           include:
             - '*AzureCNS.*.nupkg'
+
+    - !!buildcommand
+      name: 'Package CNS for SF'
+      command: 'package-sign-cns-sf.cmd'
+      arguments: 'Package Release drop_cns_sf'
+      artifacts:
+        - from: '.'
+          to: 'AzureCNS-SF'
+          include:
+            - '*AzureCNSSF.*.nupkg'
+
+    - !!buildcommand
+      name: 'Package LinuxNetAgent'
+      command: 'package-AquariusLinux.cmd'
+      arguments: 'package drop_linux_netagent AquariusLinux'
+      artifacts:
+        - from: '.'
+          to: 'AquariusLinux'
+          include:
+            - '*AquariusLinux.*.nupkg'
 
 # Everything should be signed and packaged by this point and we will just be pushing/publishing here.
 # publish:

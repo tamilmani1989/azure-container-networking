@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>Microsoft.Azure.Internal.$branch$AzureAquariusLinux</id>
+    <version>$version$</version>
+    <title>AquariusLinux from $branch$</title>
+    <authors>connetdevs@microsoft.com</authors>
+    <owners>connetdevs@microsoft.com</owners>
+    <description>AquariusLinux extension for linux service tunnel</description>
+    <projectUrl>http://www.Microsoft.com</projectUrl>
+    <licenseUrl>http://www.Microsoft.com/license</licenseUrl>
+    <copyright>Copyright (c) Microsoft Corporation</copyright>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <tags></tags>
+  </metadata>
+  <files>
+    <file src="$drop$\servicetunnel" target="content\AquariusLinux" />
+    <file src="$drop$\install.sh" target="content\AquariusLinux" />
+    <file src="$drop$\enable.sh" target="content\AquariusLinux" />
+    <file src="$drop$\update.sh" target="content\AquariusLinux" />
+    <file src="$drop$\disable.sh" target="content\AquariusLinux" />
+    <file src="$drop$\uninstall.sh" target="content\AquariusLinux" />
+    <file src="$drop$\manifest.xml" target="content\AquariusLinux" />
+    <file src="$drop$\handlermanifest.json" target="content\AquariusLinux" />
+  </files>
+</package>

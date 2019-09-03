@@ -43,7 +43,6 @@ func NewController(replica *replica.Replica, sessionsManager *utils.SessionManag
 
 // PersistNodeInfo - Persist node configuration.
 func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoRequest, apiVersion string) *api.JsonErr {
-	loggershim.LS.Debugf("Create Node request: %s", nodeInfo.String())
 	// Send OrchestratorType to CNS
 	info := &cns.SetOrchestratorTypeRequest{OrchestratorType: nodeInfo.OrchestratorType, DncPartitionKey: config.DataStoreSettings.AzureStorageInfo.PartitionKey}
 	var body bytes.Buffer
@@ -53,6 +52,7 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 	setOrchestratorTypeURL := fmt.Sprintf(
 		setOrchestratorTypeURLFmt,
 		nodeInfo.IPAddresses[0])
+	loggershim.LS.Debugf("[CNS] create/update %s", nodeInfo.String())
 	w, respErr := http.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
 	if respErr != nil {
 		msg := fmt.Sprintf("Post to URL %v for node %s failed with error %s",
@@ -117,7 +117,7 @@ func (c *Controller) PersistIPReservationRequest(
 	reservationID string,
 	allocationRequest api.AllocationRequest,
 	apiVersion string) *api.JsonErr {
-	loggershim.LS.Debugf("Reserve IP request: %s", allocationRequest.String())
+	loggershim.LS.Debugf("[Request] %s ReservationID: %s", allocationRequest.String(), reservationID)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	if len(allocationRequest.NodeConstraint) > 0 {
 		sessionInfo[datamodel.NodeRepositoryName] = allocationRequest.NodeConstraint
@@ -345,7 +345,7 @@ func (c *Controller) PersistNetworkJoinRequest(
 	networkID string,
 	networkInfo api.NetworkInfoRequest,
 	apiVersion string) *api.JsonErr {
-	loggershim.LS.Debugf("Join VNet request: %s", networkInfo.String())
+	loggershim.LS.Debugf("[Request] Join Vnet %s", networkID)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
@@ -360,7 +360,7 @@ func (c *Controller) PersistSubnetDelegationRequest(
 	networkID,
 	subnet string,
 	subnetInfo api.SubnetRequest) *api.JsonErr {
-	loggershim.LS.Debugf("Put Subnet request: %s", subnetInfo.String())
+	loggershim.LS.Debugf("[Request] Put Subnet %s for Vnet %s", subnet, networkID)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
@@ -380,7 +380,7 @@ func (c *Controller) PersistNetworkContainerRequestV1(
 	networkID, ncID string,
 	ncRequestV1 *api.NetworkContainerRequestV1,
 	apiVersion string) *api.JsonErr {
-	loggershim.LS.Debugf("Create Network Container (v1) NC: {%s} request: %s", ncID, ncRequestV1.String())
+	loggershim.LS.Debugf("[Request] %s NC:%s", ncRequestV1.String(), ncID)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
@@ -392,7 +392,7 @@ func (c *Controller) PersistNetworkContainerRequestV2(
 	networkID, ncID string,
 	ncRequestV2 *api.NetworkContainerRequestV2,
 	apiVersion string) *api.JsonErr {
-	loggershim.LS.Debugf("Create Network Container (v2) NC: {%s} request: %s", ncID, ncRequestV2.String())
+	loggershim.LS.Debugf("[Request] %s NC:%s", ncRequestV2.String(), ncID)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
@@ -410,8 +410,7 @@ func (c *Controller) PromoteContainerState(networkID, ncID string) *api.JsonErr 
 		return err
 	}
 
-	datamodel.PromoteContainerState(repoNCConfig)
-	return datamodel.PersistNCConfiguration(repoNCConfig, false)
+	return datamodel.PromoteContainerState(repoNCConfig)
 }
 
 // SkipNodeCleanupForNetworkContainer - Attempt to promote container stuck in an undesirable state (as a result of unreachable node)
@@ -467,34 +466,34 @@ func (c *Controller) GetReplicaIPEndpoint() (string, error) {
 
 // InitializeAzureStorage - Tries to establish a connection with azure storage with information provided in request.
 func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *api.JsonErr {
-	loggershim.LS.Debugf("Initialize Azure Storage request: %s", request.String())
+	loggershim.LS.Debugf("[Request] %s", request.String())
 	config.DataStoreSettings.AzureStorageInfo.AccountName = request.AccountName
 	config.DataStoreSettings.AzureStorageInfo.Key = request.Key
 	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
 
 // InitializeAzureStorageV2 - Tries to establish a connection with azure storage with information provided in request.
 func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2) *api.JsonErr {
-	loggershim.LS.Debugf("Initialize Azure Storage requestV2: %s", request.String())
+	loggershim.LS.Debugf("[Request] %s", request.String())
 	config.DataStoreSettings.AzureStorageInfo.AccountName = request.AccountName
 	config.DataStoreSettings.AzureStorageInfo.Key = request.Key
 	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
 	config.DataStoreSettings.AzureStorageInfo.RegionalStorageConnectionString = request.RegionalStorageConnectionString
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
 
 // InitializeAzureStorageV3 - Tries to establish a connection with azure storage with information provided in request.
 func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, blobName string, containerName string) *api.JsonErr {
-	loggershim.LS.Debugf("Initialize Azure Storage requestV3: %s", request.String())
+	loggershim.LS.Debugf("[Request] %s", request.String())
 	config.DataStoreSettings.AzureStorageInfo.AccountName = request.AccountName
 	config.DataStoreSettings.AzureStorageInfo.Key = request.Key
 	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
@@ -502,7 +501,7 @@ func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, b
 	config.MasterElectionSettings.BlobStorageSettings.ContainerName = containerName
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
@@ -519,7 +518,7 @@ func (c *Controller) UpdateReplicaStatus(isReplicaReady bool) {
 
 // RelinquishPrimaryStatus - Relinquish replica primary status
 func (c *Controller) RelinquishPrimaryStatus() {
-	loggershim.LS.Debugf("Relinquisihing primary replica status")
+	loggershim.LS.Debugf("[Request] Relinquisihing primary replica status")
 	masterElectionShim.RelinquishPrimaryStatus()
 }
 
@@ -531,4 +530,9 @@ func (c *Controller) GetRefreshMonitorStatus() api.RefreshMonitorStatus {
 // GetPrimaryIPEndpoint - Retrieves the current primary replica endpoint
 func (c *Controller) RefreshNMAgentGoalState() {
 	go c.RefreshNetworkContainersNMAgentGoalState()
+}
+
+// DumpStorageState - dumps DNC storage state
+func (c *Controller) DumpStorageState() error {
+	return datamodel.DumpStorageState(config.DataStoreSettings.AzureStorageInfo.PartitionKey)
 }

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"reflect"
 
 	"github.com/denisenkom/go-mssqldb"
 )
@@ -127,7 +126,6 @@ func isSQLObjectExistError(err error) bool {
 }
 
 func getHTTPStatusCode(err error) int {
-	loggershim.LS.Debugf("Error Type: %s", reflect.TypeOf(err))
 	if driverErr, ok := err.(mssql.Error); ok { // Now the error number is accessible directly
 		isTransient := isTransientSQLError(driverErr.Number)
 		if isTransient {
@@ -265,8 +263,6 @@ func (azureSQL *AzureSQL) Query(tableName, rowKey string) (interface{}, int, err
 		return nil, -1, err
 	}
 
-	loggershim.LS.Debugf("Cmd:%s", selectCmd)
-
 	defer rows.Close()
 
 	// Iterate through the result set.
@@ -360,7 +356,6 @@ func (azureSQL *AzureSQL) KeyExist(tableName, rowKey string) (bool, error) {
 	var count int
 	for rows.Next() {
 		err := rows.Scan(&count)
-		loggershim.LS.Debugf("Count %d", count)
 		if err != nil {
 			loggershim.LS.Errorf("Failed to parse the retrieved count. CountCmd:%s, Error:%s", countCmd, err.Error())
 			return false, err
@@ -429,8 +424,6 @@ func (azureSQL *AzureSQL) insertOrUpdateRow(tableName, rowKey, propertyName stri
 			loggershim.LS.Errorf("Failed to retrieve rows affected from the result, InsertCmd:%s, Error:%s", insertCmd, err.Error())
 			return err
 		}
-
-		loggershim.LS.Debugf("Inserted RowCount %d", rowCount)
 	}
 	return err
 }

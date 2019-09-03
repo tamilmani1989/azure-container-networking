@@ -2,7 +2,6 @@ package allocationhelper
 
 import (
 	"dnc/api"
-	"dnc/logger/loggershim"
 	"dnc/utils"
 	"encoding/binary"
 	"fmt"
@@ -222,7 +221,6 @@ func IsRequestedRangeAllocatable(baseIPSubnet *net.IPNet, allocatedSubnets map[s
 		}
 
 		for _, allocatedSubnet := range allocatedSubnets {
-			loggershim.LS.Debugf("IPToAllocate: %+v AllocatedSubnets: %+v\n", ipToAllocate, allocatedSubnet)
 			if allocatedSubnet.Contains(ipToAllocate) {
 				return false, &api.JsonErr{
 					Code:       api.InvalidIPConstraint,

@@ -7,7 +7,7 @@ using System.Text;
 namespace NetworkManager.DataModel
 {
     [DataContract]
-    public class ReservationConfiguration : ICloneable
+    public class ReservationConfiguration : ICloneable, IExtensibleDataObject
     {
         [DataMember]
         public string ReservationID { get; private set; }
@@ -108,5 +108,15 @@ namespace NetworkManager.DataModel
             reservationConfiguration.AssociatedNCID = this.AssociatedNCID;
             return reservationConfiguration;
         }
+
+        #region IExtensibleDataObject Members
+
+        /// <summary>
+        /// Enables round-tripping of data contracts.
+        /// </summary>
+        ExtensionDataObject IExtensibleDataObject.ExtensionData { get; set; }
+
+        #endregion
+
     }
 }

@@ -5,7 +5,6 @@ package server
 import (
 	"dnc/api"
 	"dnc/controller"
-	"dnc/logger/loggershim"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -412,15 +411,13 @@ func DeleteNetworkContainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := ctrler.DeleteNetworkContainer(networkID, ncID)
-
-	if err == nil {
+	if err := ctrler.DeleteNetworkContainer(networkID, ncID); err == nil {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		return
+	} else {
+		setRequestFailed(w, err)
 	}
-
-	setRequestFailed(w, err)
 }
 
 // CreateNetworkContainer - Handler for create network container
@@ -540,6 +537,8 @@ func getNetworkContainerRequestV1(body []byte) (*api.NetworkContainerRequestV1, 
 			case cns.WebApps:
 				fallthrough
 			case cns.Docker:
+				fallthrough
+			case cns.JobObject:
 				return &ncRequestV1, nil
 			}
 		}
@@ -561,6 +560,8 @@ func getNetworkContainerRequestV2(body []byte) (*api.NetworkContainerRequestV2, 
 		case cns.WebApps:
 			fallthrough
 		case cns.Docker:
+			fallthrough
+		case cns.JobObject:
 			return &ncRequestV2, nil
 		}
 	}
@@ -681,7 +682,6 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	loggershim.LS.Debugf("Subnet: %s", subnet)
 	var subnetRequest api.SubnetRequest
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
@@ -729,7 +729,6 @@ func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	subnet, ok := vars[subnetStr]
-	loggershim.LS.Debugf("Subnet: %s", subnet)
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidSubnetName,
@@ -774,7 +773,6 @@ func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	subnet, ok := vars[subnetStr]
-	loggershim.LS.Debugf("Subnet: %s", subnet)
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
 			Code:       api.InvalidSubnetName,
@@ -1112,4 +1110,15 @@ func IsWaitingForNodeCleanup(w http.ResponseWriter, r *http.Request) {
 func RefreshNMAgentGoalState(w http.ResponseWriter, r *http.Request) {
 	ctrler.RefreshNMAgentGoalState()
 	w.WriteHeader(http.StatusOK)
+}
+
+// DumpStorageState - dumps DNC storage state
+func DumpStorageState(w http.ResponseWriter, r *http.Request) {
+	if err := ctrler.DumpStorageState(); err != nil {
+		setRequestFailed(w, &api.JsonErr{
+			Text:       err.Error(),
+			HTTPStatus: http.StatusInternalServerError})
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
 }

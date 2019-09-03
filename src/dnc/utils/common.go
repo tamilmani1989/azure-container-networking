@@ -147,7 +147,6 @@ func DecodeResponse(w *http.Response, response interface{}) error {
 	}
 
 	if err != nil {
-		loggershim.LS.Errorf("%s", err.Error())
 		return err
 	}
 

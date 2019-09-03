@@ -52,7 +52,7 @@ namespace DNCService.API
             using (var algorithm = SHA256.Create())
             {
                 byte[] tokenHash = algorithm.ComputeHash(Encoding.ASCII.GetBytes(this.AuthenticationToken));
-                tokenHashString = System.Text.Encoding.Default.GetString(tokenHash);
+                tokenHashString = System.BitConverter.ToString(tokenHash).Replace("-", "").ToLower();
             }
             return $"SubnetName:{this.SubnetName} AuthenticationToken:{tokenHashString}";
         }
