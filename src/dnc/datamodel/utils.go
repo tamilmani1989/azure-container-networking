@@ -26,6 +26,7 @@ func GetNetworkKey(networkID string) string {
 	return fmt.Sprintf(networkKey, networkID)
 }
 
+// GetNetworkKey - Helper function to get network id from network key.
 func GetNetworkIdFromKey(key string) string {
 	emptyKey := fmt.Sprintf(networkKey, "")
 	return strings.Split(key, emptyKey)[1]

@@ -216,6 +216,12 @@ const (
 
 	// NumberOfCPUCoresRetrievalFailed - Failed to retrieve CPU Cores
 	NumberOfCPUCoresRetrievalFailed
+
+	// PropertyValueTooLargeStorageError - Storage operation failed due to large property value
+	PropertyValueTooLargeStorageError
+
+	// FailedToUpdateSubnetWithReservationInfo - Failed to updatr subnet configuration in storage with reservation info.
+	FailedToUpdateSubnetWithReservationInfo
 )
 
 func (e ErrorCode) String() string {
@@ -432,6 +438,12 @@ func (e ErrorCode) String() string {
 
 	case NumberOfCPUCoresRetrievalFailed:
 		return "NumberOfCPUCoresRetrievalFailed"
+
+	case PropertyValueTooLargeStorageError:
+		return "PropertyValueTooLargeStorageError"
+
+	case FailedToUpdateSubnetWithReservationInfo:
+		return "FailedToUpdateSubnetWithReservationInfo"
 	}
 
 	return "Unknown Status"
