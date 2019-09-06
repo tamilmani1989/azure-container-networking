@@ -97,7 +97,7 @@ build:
         command: 'src/LinuxNetAgent/BuildNetAgent.sh'
         logs:
         - include:
-            - 'src/LinuxNetAgent/build.log'
+            - 'src/LinuxNetAgent/main/build.log'
         artifacts:
           - from: 'src/LinuxNetAgent/main'
             to: 'drop_linux_netagent'
