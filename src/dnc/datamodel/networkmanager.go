@@ -121,12 +121,20 @@ func PutSubnetConfiguration(subnetConfiguration *SubnetConfiguration) *api.JsonE
 
 	err = dataStoreShim.InsertOrUpdate(subnetConfigurationTableName, subnetKey, TableToColumnMap[subnetConfigurationTableName], string(jsonSerializedBytes[:]))
 	if err != nil {
+		errorCode := api.StatusInternalServerError
+
+		// Special case for the property value too large storage error
+		if strings.Contains(err.Error(), "ErrorCode=PropertyValueTooLarge") {
+			errorCode = api.PropertyValueTooLargeStorageError
+		}
+
 		msg := fmt.Sprintf(
 			"Failed to persist updated configuration for subnet key %s. Error:%s",
 			subnetKey,
 			err.Error())
+
 		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
+			Code:       errorCode,
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
 	}
@@ -2822,7 +2830,7 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 // The function queries CNS running on a node to get number of logical cores configuration data.
 // If for some reason the request fails, we return default value of 10.
 func getNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
-    // Check if the setting is there.
+	// Check if the setting is there.
 	if cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt == "" {
 		loggershim.LS.Debugf("GetNumOfCPUCoresURLFmt setting not present, returning default value")
 		return maxContainersPerNode, nil
