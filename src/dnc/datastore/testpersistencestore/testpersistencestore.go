@@ -3,14 +3,9 @@ package testpersistencestore
 import (
 	"dnc/configuration"
 	"dnc/logger/loggershim"
-	"fmt"
 	"net/http"
 	"sync"
 )
-
-var dummyCounter int
-
-const conflictCounter = 1
 
 // TestPersistenceStore :- datastore : map[ TableName ] map [ key ] value
 type TestPersistenceStore struct {
@@ -59,14 +54,6 @@ func (testpersistencestore *TestPersistenceStore) InsertOrUpdate(tableName, rowK
 func (testpersistencestore *TestPersistenceStore) InsertInPartition(tableName, partitionKay, rowKey, propertyName string, value interface{}) (
 	int, error) {
 
-	// Simulate the scenario where the entry is already present in the table.
-	if dummyCounter < conflictCounter {
-		dummyCounter++
-		loggershim.LS.Debugf("Data entry is already present in the table")
-		return http.StatusConflict, fmt.Errorf("Data entry is already present in the table")
-	}
-
-	dummyCounter = 0
 	testpersistencestore.InsertOrUpdate(tableName, rowKey, propertyName, value)
 
 	return http.StatusOK, nil

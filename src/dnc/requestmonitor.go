@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Azure/azure-container-networking/cns"
@@ -95,8 +96,6 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 			requestContext.StateTransitionDateTime = time.Now().UTC()
 		}
 
-		// Mark the request as not in-process
-		requestContext.InProcess = false
 		datamodel.AddRequestToPendingQueue(requestID, requestContext)
 	}
 }
@@ -1695,6 +1694,8 @@ func updateVlan(containerType string) bool {
 }
 
 func monitorRequests() {
+	// Sync map for keeping track of in-process requests
+	var inProcessRequestsMap sync.Map
 
 	maxConcurrentRequestsToProcess := defaultMaxConcurrentRequestsToProcess
 	if config.DNCSettings.ConcurrentRequestsToProcess != 0 {
@@ -1705,7 +1706,7 @@ func monitorRequests() {
 	// This channel should be buffered otherwise we will be immediately blocked
 	// when trying to fill it.
 	concurrentGoroutines := make(chan struct{}, maxConcurrentRequestsToProcess)
-	// Fill the dummy channel with maxNbConcurrentGoroutines empty struct.
+
 	for i := 0; i < maxConcurrentRequestsToProcess; i++ {
 		concurrentGoroutines <- struct{}{}
 	}
@@ -1715,7 +1716,7 @@ func monitorRequests() {
 		select {
 		case <-monitorTimerChannel:
 			if replicaInstance.IsReplicaPrimary() {
-				processPendingRequests(concurrentGoroutines)
+				processPendingRequests(concurrentGoroutines, &inProcessRequestsMap)
 			}
 			break
 
@@ -1723,7 +1724,7 @@ func monitorRequests() {
 			networkMonitorStartProcessing <- true
 			tagMonitorStartProcessing <- true
 			refreshNCStartProcessing <- true
-			processPendingRequests(concurrentGoroutines)
+			processPendingRequests(concurrentGoroutines, &inProcessRequestsMap)
 			break
 
 		case <-cancelProcessing:
@@ -1738,7 +1739,9 @@ func monitorRequests() {
 }
 
 // Monitor that periodically processes pending requests in the work item queue.
-func processPendingRequests(concurrentGoroutines chan struct{}) {
+func processPendingRequests(
+	concurrentGoroutines chan struct{},
+	inProcessRequestsMap *sync.Map) {
 	if initiateMigration {
 		if err := datamodel.ProcessSharedSubnetDelegationMigration(); err != nil {
 			logger.Errorf("ProcessSharedSubnetDelegationMigration failed %v", err)
@@ -1755,19 +1758,25 @@ func processPendingRequests(concurrentGoroutines chan struct{}) {
 
 	requestsToProcess := make([]string, 0, len(requests))
 	for requestID, requestContext := range requests {
+		_, isRequestInProcess := inProcessRequestsMap.Load(requestID)
+
 		if time.Now().UTC().Sub(requestContext.LastRetriedDateTime) > requestContext.RetryInterval &&
-			requestContext.InProcess == false {
+			!isRequestInProcess {
 			requestsToProcess = append(requestsToProcess, requestID)
 
-			// Mark the request as in-process
-			requestContext.InProcess = true
-			datamodel.AddRequestToPendingQueue(requestID, &requestContext)
+			// Add the request in the in-process map
+			inProcessRequestsMap.Store(requestID, struct{}{})
 		}
 	}
 
 	logger.Debugf("Number of requests to process in the current batch: %d", len(requestsToProcess))
 
 	for i := 0; i < len(requestsToProcess); i++ {
+		// Return if the replica is not primary
+		if !replicaInstance.IsReplicaPrimary() {
+			break
+		}
+
 		// Try to receive from the concurrentGoroutines channel. When we have something,
 		// it means we can start a new goroutine because another one finished.
 		// Otherwise, it will block the execution until an execution
@@ -1776,7 +1785,7 @@ func processPendingRequests(concurrentGoroutines chan struct{}) {
 		requestID := requestsToProcess[i]
 		requestContext := requests[requestID]
 
-		go func(rid string, rc datamodel.RequestContext) {
+		go func(rid string, rc datamodel.RequestContext, inProcessRequestsMap *sync.Map) {
 			switch rc.Type {
 			case datamodel.NetworkContainerRequest:
 				logger.Debugf("Processing %s [%s] on Node [%s]",
@@ -1790,8 +1799,12 @@ func processPendingRequests(concurrentGoroutines chan struct{}) {
 					rc.Type.String(),
 					rid)
 			}
+
 			processRequest(rid, &rc)
 			concurrentGoroutines <- struct{}{}
-		}(requestID, requestContext)
+
+			// Remove the request from the in-process map
+			inProcessRequestsMap.Delete(rid)
+		}(requestID, requestContext, inProcessRequestsMap)
 	}
 }
