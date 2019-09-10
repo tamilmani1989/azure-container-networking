@@ -1833,6 +1833,42 @@ func PurgeNetworkContainerAssociations(ncConfiguration *NCConfiguration, updateV
 	return err
 }
 
+// GetNetworkConfiguration = Retrieve network configuration (e.g. delegated subnets in a network)
+func GetNetworkConfiguration(networkID string) (*api.NetworkConfigurationResponse, *api.JsonErr) {
+	var networkConfigurationResponse api.NetworkConfigurationResponse
+	networkConfiguration, err := TryQueryNetworkConfiguration(networkID)
+	if err != nil {
+		return nil, err
+	}
+
+	if networkConfiguration == nil {
+		return nil, &api.JsonErr{
+			Code:       api.NetworkNotFound,
+			HTTPStatus: http.StatusNotFound,
+			Text:       fmt.Sprintf("Network %s not found", networkID)}
+	}
+
+	networkConfigurationResponse.DelegatedSubnets = make([]string, 0)
+	for subnet := range networkConfiguration.Subnets {
+		subnetConfiguration, err := TryQuerySubnetConfiguration(networkID, subnet)
+		if err != nil {
+			return nil, err
+		}
+
+		// Ignore the cases where there is a mismatch in Network and Subnet tables
+		// Refresh network will handle/cleanup these cases
+		if subnetConfiguration == nil {
+			continue
+		}
+
+		if len(subnetConfiguration.AccessToken) > 0 {
+			networkConfigurationResponse.DelegatedSubnets = append(networkConfigurationResponse.DelegatedSubnets, subnet)
+		}
+	}
+
+	return &networkConfigurationResponse, nil
+}
+
 // DeleteNetworkConfiguration :-
 func DeleteNetworkConfiguration(networkID string) *api.JsonErr {
 	networkConfiguration, err := TryQueryNetworkConfiguration(networkID)

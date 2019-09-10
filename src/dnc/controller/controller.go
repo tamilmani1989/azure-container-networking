@@ -368,6 +368,14 @@ func (c *Controller) PersistSubnetDelegationRequest(
 	return datamodel.UpdateSubnet(networkID, subnet, subnetInfo, isDelete)
 }
 
+// GetNetwork - Get network configuration (e.g. delegated subnets in network)
+func (c *Controller) GetNetwork(networkID string) (*api.NetworkConfigurationResponse, *api.JsonErr) {
+	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	c.SessionManager.BeginReadSession(sessionInfo)
+	defer c.SessionManager.EndReadSession(sessionInfo)
+	return datamodel.GetNetworkConfiguration(networkID)
+}
+
 // DeleteNetwork - Delete a network
 func (c *Controller) DeleteNetwork(networkID string) *api.JsonErr {
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}

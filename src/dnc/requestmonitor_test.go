@@ -593,6 +593,7 @@ func TestNetwork(t *testing.T) {
 	fmt.Printf("Received Get Network request signal for context:%+v\n", nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse)
 	WaitForResourceState(t, resourceStatusURL, "Completed", http.StatusOK, 2)
 	fmt.Printf("Successfully created network [%s]\n", vnetID)
+
 	networkURL := dncEP + "/networks/" + vnetID + apiVersion
 	deleteResource(t, networkURL, http.StatusOK)
 
@@ -640,6 +641,7 @@ func TestSubnet(t *testing.T) {
 	json.NewEncoder(&body).Encode(subnetReq)
 	id, _ := uuid.NewUUID()
 	vnetID := id.String()
+	networkURL := dncEP + "/networks/" + vnetID + apiVersion
 	resourceURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + apiVersion
 
 	// Verify if GetSubnetStatus returns appropriate error
@@ -732,7 +734,70 @@ func TestSubnet(t *testing.T) {
 	}
 
 	fmt.Printf("Deleting network %s\n", vnetID)
+	deleteResource(t, networkURL, http.StatusOK)
+}
+
+func TestRetrieveDelegatedSubnets(t *testing.T) {
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
 	networkURL := dncEP + "/networks/" + vnetID + apiVersion
+	setupNetworkAndJoinSubnet(t, dncEP, vnetID, subnetName, apiVersion, true, 0)
+
+	// Validata that only 1 subnet will be returned (since only one has a valid auth token)
+	var networkResponse api.NetworkConfigurationResponse
+	response, err := http.Get(networkURL)
+	if err != nil {
+		t.Fatalf("GetNetwork failed with error: %+v\n", err)
+	}
+
+	defer response.Body.Close()
+
+	if err = utils.DecodeResponse(response, &networkResponse); err != nil {
+		t.Fatalf("Failed to decode network response for resource URL:%s. Error:%+v",
+			networkURL,
+			err)
+	}
+
+	if len(networkResponse.DelegatedSubnets) != 1 {
+		t.Fatalf("Failed to retrieve delegated subnets.")
+	}
+
+	// Mark a subnet as 'deleted' by setting the auth token to empty, and
+	// make sure we retrieve 0 delegated subnets
+	deleteSubnetURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + apiVersion
+	resourceStatusURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + "/status" + apiVersion
+	request, err := http.NewRequest("DELETE", deleteSubnetURL, nil)
+	if err != nil {
+		t.Fatalf("Failed to create DeleteSubnet request")
+	}
+
+	response2, err := client.Do(request)
+	if err != nil {
+		t.Fatalf("DeleteSubnet update failed with error: %+v\n", err)
+	}
+
+	response2.Body.Close()
+
+	WaitForResourceState(t, resourceStatusURL, "Completed", http.StatusOK, 2)
+
+	response2, err = http.Get(networkURL)
+	if err != nil {
+		t.Fatalf("GetNetwork failed with error: %+v\n", err)
+	}
+
+	defer response2.Body.Close()
+
+	if err = utils.DecodeResponse(response2, &networkResponse); err != nil {
+		t.Fatalf("Failed to decode network response for resource URL:%s. Error:%+v",
+			networkURL,
+			err)
+	}
+
+	if len(networkResponse.DelegatedSubnets) != 0 {
+		t.Fatalf("Failed to get the correct number of subnets. Expected: <0>, Actual: <%d>", len(networkResponse.DelegatedSubnets))
+	}
+
+	fmt.Printf("Deleting network %s\n", vnetID)
 	deleteResource(t, networkURL, http.StatusOK)
 }
 

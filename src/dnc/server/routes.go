@@ -49,6 +49,12 @@ var routes = Routes{
 		GetNetworkStatus,
 	},
 	Route{
+		"GetNetwork",
+		"GET",
+		"/networks/{networkID}",
+		GetNetwork,
+	},
+	Route{
 		"ReserveIP",
 		"POST",
 		"/networks/{networkID}/reservations/{reservationID}",
