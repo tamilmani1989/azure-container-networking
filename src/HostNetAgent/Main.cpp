@@ -39,10 +39,12 @@ void WriteLog(bool isError, const WCHAR * message)
 {
     if (isError)
     {
-        LOGERRW(message);
+        wprintf(message);
+        LOGINFOW(message);
     }
     else
     {
+        wprintf(message);
         LOGINFOW(message);
     }
 }
@@ -334,16 +336,6 @@ Return Value:
         return err;
     }
 
-    const WCHAR * imageNamesToKill[] = { L"HostNetAgent.exe" }; // killing the host first so that it doesn't start agent immediately.
-
-    if (!ProcessPilotFishSwitchLogic(L"HostNetAgent", sizeof(imageNamesToKill) / sizeof(WCHAR*), imageNamesToKill, (int)Argc, (const WCHAR **)Argv, true, WriteLog))
-    {
-        LOGERRW(L"ProcessPilotFishSwitchLogic failed");
-        return hr;
-    }
-    
-    LOGINFOW(L"ProcessPilotFishSwitchLogic returned. Continuing with business logic.");
-
     logPath == NULL ? logLocation.assign(DEFAULT_LOG_LOCATION) : logLocation.assign(logPath);
 
     if (packagePath == NULL) {
@@ -378,6 +370,19 @@ Return Value:
         LOGERRW(L"Failed to initialize packages info.");
         return err;
     }
+
+const WCHAR * imageNamesToKill[] = { L"HostNetAgent.exe" }; // killing the host first so that it doesn't start agent immediately.
+
+     wprintf(L"before switch logic");
+     LOGINFOW(L"before switch logic");
+    if (!ProcessPilotFishSwitchLogic(L"HostNetAgent", sizeof(imageNamesToKill) / sizeof(WCHAR*), imageNamesToKill, (int)Argc, (const WCHAR **)Argv, true, WriteLog))
+    {
+        wprintf(L"ProcessPilotFishSwitchLogic failed");
+        LOGERRW(L"ProcessPilotFishSwitchLogic failed");
+        return hr;
+    }
+    wprintf(L"after logic");
+    LOGINFOW(L"ProcessPilotFishSwitchLogic returned. Continuing with business logic.");
 
     monAgent = MonAgent::GetInstance();
     if (monAgent == NULL)

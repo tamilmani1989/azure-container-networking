@@ -2,12 +2,12 @@
 <NetAgentConfiguration>
         <MonitoringConfig>
           <EnableMA>True</EnableMA>
-          <MDMAccount>$NetAgentMdmAccountName$</MDMAccount>
-          <MDMStampURL>$MdmStampEndpointURL$</MDMStampURL>
-          <GcsEnvironment>$NetAgentGcsEnvironment$</GcsEnvironment>
-          <GcsAccount>$NetAgentGcsAccount$</GcsAccount>
-          <GcsNamespace>$NetAgentGcsNamespace$</GcsNamespace>
-          <GcsRegion>$NetAgentGcsRegion$</GcsRegion>
-          <GcsDsmsUrl>$NetAgentGcsDsmsUrl$</GcsDsmsUrl>
+          <MDMAccount>NetAgentContainerTest</MDMAccount>
+          <MDMStampURL>https://global.metrics.nsatc.net/</MDMStampURL>
+          <GcsEnvironment>Test</GcsEnvironment>
+          <GcsAccount>NetAgentContainerWarmTest</GcsAccount>
+          <GcsNamespace>NetAgentContainerWarmTest</GcsNamespace>
+          <GcsRegion>westus</GcsRegion>
+          <GcsDsmsUrl>/genevacustomers/monitoring/prod/warmpath/test/vnetmds/certificates/chained/vnetdsmdscert.pfx</GcsDsmsUrl>
         </MonitoringConfig>
 </NetAgentConfiguration>
