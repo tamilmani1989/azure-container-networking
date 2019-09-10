@@ -140,6 +140,12 @@ var routes = Routes{
 		GetSubnetConfiguration,
 	},
 	Route{
+		"DeleteSubnet",
+		"DELETE",
+		"/networks/{networkID}/subnets/{subnet}",
+		PutSubnet,
+	},
+	Route{
 		"DeleteNetwork",
 		"DELETE",
 		"/networks/{networkID}",

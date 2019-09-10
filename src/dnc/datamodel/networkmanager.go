@@ -1690,7 +1690,8 @@ func CreateNetwork(
 func UpdateSubnet(
 	networkID,
 	subnet string,
-	subnetRequest api.SubnetRequest) *api.JsonErr {
+	subnetRequest api.SubnetRequest,
+	isDelete bool) *api.JsonErr {
 	networkConfig, err := TryQueryNetworkConfiguration(networkID)
 	if err != nil {
 		return err
@@ -1794,14 +1795,18 @@ func UpdateSubnet(
 
 	}
 
-	subnetConfiguration.Joined = true
-	subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken
-	err = PutSubnetConfiguration(subnetConfiguration)
-	if err != nil {
-		return err
+	if isDelete && len(subnetConfiguration.Reservations) > 0 {
+		msg := fmt.Sprintf("Cannot remove authentication token while subnet %s has allocations", subnet)
+		return &api.JsonErr{
+			Code:       api.InvalidSubnetRequest,
+			HTTPStatus: http.StatusBadRequest,
+			Text:       msg}
 	}
 
-	return nil
+	subnetConfiguration.Joined = !isDelete
+	subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken
+
+	return PutSubnetConfiguration(subnetConfiguration)
 }
 
 // GetNodeIDForNetworkContainer - Helper to retrieve node Id from NC configuration.

@@ -682,28 +682,35 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isDelete := r.Method == http.MethodDelete
 	var subnetRequest api.SubnetRequest
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-
-	if err := decodeRequestBody(r, &subnetRequest); err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		if err := json.NewEncoder(w).Encode(err); err != nil {
-			panic(err)
-		}
-		return
-	}
 
 	if validationErr := ValidateNetworkRequest(networkID); validationErr != nil {
 		setRequestFailed(w, validationErr)
 		return
 	}
 
-	if validationErr := subnetRequest.Validate(); validationErr != nil {
-		setRequestFailed(w, validationErr)
-		return
+	// If method is DELETE, set the Auth Token to empty
+	// else decode the request body
+	if isDelete {
+		subnetRequest.AuthenticationToken = ""
+	} else {
+		if err := decodeRequestBody(r, &subnetRequest); err != nil {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			if err := json.NewEncoder(w).Encode(err); err != nil {
+				panic(err)
+			}
+			return
+		}
+
+		if validationErr := subnetRequest.Validate(); validationErr != nil {
+			setRequestFailed(w, validationErr)
+			return
+		}
 	}
 
-	t := ctrler.PersistSubnetDelegationRequest(networkID, strings.ToLower(subnet), subnetRequest)
+	t := ctrler.PersistSubnetDelegationRequest(networkID, strings.ToLower(subnet), subnetRequest, isDelete)
 	if t != nil {
 		setRequestFailed(w, t)
 	} else {

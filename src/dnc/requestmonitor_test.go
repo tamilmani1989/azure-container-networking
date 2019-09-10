@@ -655,18 +655,6 @@ func TestSubnet(t *testing.T) {
 		t.Fatalf("GetSubnetStatus failed with error: %+v\n", err)
 	}
 
-	// Verify if GetSubnetInfo returns appropriate error
-	if getSubnetInfoResponse, err := http.Get(resourceURL); err == nil {
-		defer getSubnetInfoResponse.Body.Close()
-
-		if getSubnetInfoResponse.StatusCode != http.StatusNotFound {
-			t.Fatalf("GetSubnetInfoResponse returned incorrect error code. Expected: 404. Received: %d",
-				getSubnetInfoResponse.StatusCode)
-		}
-	} else {
-		t.Fatalf("GetSubnetInfo failed with error: %+v\n", err)
-	}
-
 	response, err := http.Post(resourceURL, "application/json", &body)
 	if err != nil {
 		t.Fatalf("JoinSubnet failed with error: %+v\n", err)
@@ -679,13 +667,8 @@ func TestSubnet(t *testing.T) {
 	}
 
 	err = utils.DecodeResponse(response, &responseErr)
-	fmt.Printf("JoinSubnet failed with response %+v Err:%+v\n", responseErr, err)
 	if err != nil && !strings.Contains(err.Error(), "Request failed with HTTP error 404") {
 		t.Fatalf("JoinSubnet decode failed with response %+v Err:%+v", responseErr, err)
-	}
-
-	if responseErr.Code != api.NetworkNotFound {
-		t.Fatalf("JoinSubnet expected to fail with error code %s, Received response %s", responseErr.Code.String(), api.NetworkNotFound.String())
 	}
 
 	// join subnet with network
@@ -697,19 +680,18 @@ func TestSubnet(t *testing.T) {
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
-	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeReq)
 	networkDeploymentRequests := []*NetworkDeploymentRequest{
 		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
 
 	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
 	json.NewEncoder(&body).Encode(subnetReq)
-	fmt.Printf("Joining subnet %s, network %s. AccessToken:%s\n", vnetID, subnetName, subnetReq.AuthenticationToken)
+	fmt.Printf("Joining subnet %s, network %s. AccessToken:%s\n", subnetName, vnetID, subnetReq.AuthenticationToken)
 	response, err = http.Post(resourceURL, "application/json", &body)
 	if err != nil {
 		t.Fatalf("JoinSubnet failed with error: %+v\n", err)
 	}
 
-	defer response.Body.Close()
+	response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("JoinSubnet failed with status code %d\n", response.StatusCode)
@@ -722,20 +704,32 @@ func TestSubnet(t *testing.T) {
 			subnetReq.AuthenticationToken)
 	}
 
-	subnetReq2 := api.SubnetRequest{
-		AuthenticationToken: "Key2-" + vnetID}
-	json.NewEncoder(&body).Encode(subnetReq2)
 	resourceStatusURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + "/status" + apiVersion
 
 	WaitForResourceState(t, resourceStatusURL, "Completed", http.StatusOK, 2)
 
-	fmt.Printf("Updating subnet %s, network %s with accessToken:%s\n", vnetID, subnetName, subnetReq2.AuthenticationToken)
-	response, err = http.Post(resourceURL, "application/json", &body)
+	request, err := http.NewRequest("DELETE", resourceURL, nil)
+	if err != nil {
+		t.Fatalf("Failed to create DeleteSubnet request")
+	}
+
+	response, err = client.Do(request)
 	if err != nil {
 		t.Fatalf("JoinSubnet update failed with error: %+v\n", err)
 	}
 
 	response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("JoinSubnet failed with status code %d\n", response.StatusCode)
+	}
+
+	subnetConfiguration2 := getSubnetConfiguration(t, dncEP, vnetID, subnetName, apiVersion)
+	if subnetConfiguration2.AccessToken != fmt.Sprintf("%x", sha256.Sum256([]byte(""))) {
+		t.Fatalf("AccessToken mismatch. Received:%s , Expected:%s\n",
+			subnetConfiguration2.AccessToken,
+			"")
+	}
 
 	fmt.Printf("Deleting network %s\n", vnetID)
 	networkURL := dncEP + "/networks/" + vnetID + apiVersion
@@ -1718,7 +1712,7 @@ func setupNetworkAndJoinSubnet(t *testing.T, dncEP, vnetID, subnetName, apiVersi
 
 	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
 	subnetReq := api.SubnetRequest{
-		AuthenticationToken: "Key1-" + vnetID}
+		AuthenticationToken: vnetID}
 	json.NewEncoder(&body).Encode(subnetReq)
 	fmt.Printf("Joining subnet %s, network %s. AccessToken:%s\n", subnetName, vnetID, subnetReq.AuthenticationToken)
 	response, err := http.Post(resourceURL, "application/json", &body)
@@ -2780,7 +2774,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 		for subnetName := range subnetMap {
 			var body bytes.Buffer
 			subnetReq := api.SubnetRequest{
-				AuthenticationToken: "Key1-" + vnetID}
+				AuthenticationToken: vnetID}
 			json.NewEncoder(&body).Encode(subnetReq)
 			subnetURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + apiVersion
 			fmt.Printf("Joining subnet %s, network %s. AccessToken:%s\n", vnetID, subnetName, subnetReq.AuthenticationToken)

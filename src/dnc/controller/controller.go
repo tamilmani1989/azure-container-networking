@@ -359,12 +359,13 @@ func (c *Controller) PersistNetworkJoinRequest(
 func (c *Controller) PersistSubnetDelegationRequest(
 	networkID,
 	subnet string,
-	subnetInfo api.SubnetRequest) *api.JsonErr {
+	subnetInfo api.SubnetRequest,
+	isDelete bool) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] Put Subnet %s for Vnet %s", subnet, networkID)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
-	return datamodel.UpdateSubnet(networkID, subnet, subnetInfo)
+	return datamodel.UpdateSubnet(networkID, subnet, subnetInfo, isDelete)
 }
 
 // DeleteNetwork - Delete a network
