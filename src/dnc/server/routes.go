@@ -90,6 +90,14 @@ var routes = Routes{
 		"/networks/{networkID}/networkcontainers/{networkContainerID}/status",
 		GetNetworkContainerStatus,
 	},
+
+	// Returns the NC entry in the NC table
+	Route{
+		"GetNetworkContainerConfiguration",
+		"GET",
+		"/networks/{networkID}/networkcontainer/{networkContainerID}/configuration",
+		GetNetworkContainerConfiguration,
+	},
 	// Route{
 	// 	"Reservations",
 	// 	"GET",

@@ -3727,3 +3727,109 @@ func TestNodeNicLimit(t *testing.T) {
 	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
 	deleteResource(t, nodeURL, http.StatusOK)
 }
+
+func TestNodeNicLimitReservationDelete(t *testing.T) {
+	fmt.Println("****TestNodeNicLimitReservationDelete**********")
+	ncDeploymentRequests := []*NCDeploymentRequest{&NCDeploymentRequest{
+		NCID: ncID}}
+
+	fmt.Println("Started CNS Server", cnsServer.Server.URL)
+	cnsServer.SetupTest()
+
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
+
+	contextWithCPUCores := new(CnsResponderContext)
+	CnsNumOfCPUCoresResp := &cns.NumOfCPUCoresResponse{
+		Response: cns.Response{
+			ReturnCode: 0,
+			Message:    "Successfully retrieved CPU cores"},
+		NumOfCPUCores: 1}
+	contextWithCPUCores.NumOfCoresResponse = &CnsNumOfCPUCoresResponse{
+		HTTPStatus:         http.StatusOK,
+		NumOfCoresResponse: CnsNumOfCPUCoresResp}
+
+	cnsResponderContextMap["usecustomcpucorresponse"] = contextWithCPUCores
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
+	setupNetworkAndJoinSubnet(
+		t, dncEP, vnetID, networkContainerReq.AllocationRequest.SubnetName, apiVersion, true, 0)
+	fmt.Printf("Created node %s with info %+v\n", nodeID, nodeReq)
+	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeReq)
+	fmt.Printf("Successfully created node [%s]\n", nodeID)
+
+	var (
+		body    bytes.Buffer
+		respErr api.JsonErr
+	)
+
+	json.NewEncoder(&body).Encode(networkContainerReq)
+
+	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	response, err := http.Post(ncURL, "application/json", &body)
+	if err != nil {
+		t.Fatalf("CreateNetworkContainer was failed with error: %+v\n", err)
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
+			t.Fatalf("CreateNetworkContainer POST request failed with response %+v Err:%+v", respErr, err)
+		}
+	}
+
+	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + "/status" + apiVersion
+	reqStatus := WaitForResourceState(t, ncURLStatus, "Failed", http.StatusBadRequest, 2)
+
+	if !reqStatus {
+		t.Fatalf("CreateNetworkContainer request didn't reach the expected status (Failed) in 2 seconds")
+	}
+
+	ncURLConfig := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + "/configuration" + apiVersion
+	configResponse, err := http.Get(ncURLConfig)
+	if err != nil {
+		t.Fatalf("Get NetworkContainerConfguration was failed with error: %+v\n", err)
+	}
+
+	defer configResponse.Body.Close()
+
+	var ncConfig datamodel.NCConfiguration
+	decodeRespErr := utils.DecodeResponse(configResponse, &ncConfig)
+	if decodeRespErr != nil {
+		t.Fatalf("Failed to decode NetworkContainerConfgurationresponse for: %+v\n", decodeRespErr)
+	}
+
+	reservationIDStr := ncConfig.ReservationID
+	reservationStatusURL := dncEP + "/networks/" + vnetID + "/reservations/" + reservationIDStr + "/status" + apiVersion
+
+	// Clean up
+	// delete NC
+	deleteResource(t, ncURL, http.StatusOK)
+	if !WaitForResourceCleanup(t, ncURL, 4) {
+		t.Fatalf("Failed to cleanup network container %s\n", ncID)
+	}
+
+	// verify reservation doesn't exist, after NC has been deleted.
+	response, err = http.Get(reservationStatusURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// StatusBadRequest gets thrown if the reservation doesn't exist.
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Received Invalid status code %d, Expected:%d",
+			response.StatusCode,
+			http.StatusBadRequest)
+	}
+
+	networkURL := dncEP + "/networks/" + vnetID + apiVersion
+	deleteResource(t, networkURL, http.StatusOK)
+
+	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
+	deleteResource(t, nodeURL, http.StatusOK)
+}

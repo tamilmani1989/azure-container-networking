@@ -581,6 +581,50 @@ func GetNetworkContainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ncConfig, getNCConfigErr := ctrler.GetNetworkContainer(networkID, ncID)
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	if getNCConfigErr != nil {
+		w.WriteHeader(getNCConfigErr.HTTPStatus)
+		if err := json.NewEncoder(w).Encode(getNCConfigErr); err != nil {
+			panic(err)
+		}
+	} else {
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(ncConfig); err != nil {
+			panic(err)
+		}
+	}
+}
+
+// GetNetworkContainerConfiguration - Query network container configuration
+func GetNetworkContainerConfiguration(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var networkID string
+	var ncID string
+	var ok bool
+	networkID, ok = vars[networkIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	ncID, ok = vars[networkContainerIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.NetworkContainerNotFound,
+			Text:       api.NetworkContainerIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateNetworkContainerRequest(networkID, ncID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
 	ncConfig, getNCConfigErr := ctrler.GetNetworkContainerConfiguration(networkID, ncID)
 	w.Header().Set(contentTypeStr, defaultContentType)
 	if getNCConfigErr != nil {
@@ -1109,7 +1153,7 @@ func IsWaitingForNodeCleanup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ncConfig, err := ctrler.GetNetworkContainerConfiguration(networkID, ncID)
+	ncConfig, err := ctrler.GetNetworkContainer(networkID, ncID)
 	if err != nil {
 		setRequestFailed(w, err)
 	} else {

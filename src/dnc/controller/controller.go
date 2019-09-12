@@ -440,13 +440,23 @@ func (c *Controller) SkipNodeCleanupForNetworkContainer(networkID, ncID string) 
 	return nil
 }
 
-// GetNetworkContainerConfiguration - Retrieves the network configuration
-func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*api.NetworkContainerResponse, *api.JsonErr) {
+// GetNetworkContainerConfiguration - Retrieves the complete network configuration
+func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*datamodel.NCConfiguration, *api.JsonErr) {
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
 	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, ncID)
+	if err != nil {
+		return nil, err
+	}
+
+	return ncConfig, nil
+}
+
+// GetNetworkContainer - Retrieves the network configuration
+func (c *Controller) GetNetworkContainer(networkID, ncID string) (*api.NetworkContainerResponse, *api.JsonErr) {
+	ncConfig, err := c.GetNetworkContainerConfiguration(networkID, ncID)
 	if err != nil {
 		return nil, err
 	}
