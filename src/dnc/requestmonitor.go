@@ -22,8 +22,8 @@ import (
 )
 
 var (
-	initiateMigration bool = true
-	containerTypes         = make(map[string]bool)
+	initiateMigration = true
+	containerTypes    sync.Map
 )
 
 const (
@@ -1152,7 +1152,7 @@ func processNetworkContainerAssociate(
 	allowHostToNCCommunicationStatus := repoNCConfig.GetAllowHostToNCCommunicationStatus()
 	allowNCToHostCommunicationStatus := repoNCConfig.GetAllowNCToHostCommunicationStatus()
 
-	containerTypes[ncGoalState.ContainerType] = true
+	containerTypes.Store(ncGoalState.ContainerType, true)
 
 	info := &cns.CreateNetworkContainerRequest{
 		Version:                    strconv.FormatUint(repoNCConfig.CNSVersion, 10),
@@ -1785,7 +1785,7 @@ func processPendingRequests(
 		requestID := requestsToProcess[i]
 		requestContext := requests[requestID]
 
-		go func(rid string, rc datamodel.RequestContext, inProcessRequestsMap *sync.Map) {
+		go func(rid string, rc datamodel.RequestContext, requestsMap *sync.Map, goroutines chan struct{}) {
 			switch rc.Type {
 			case datamodel.NetworkContainerRequest:
 				logger.Debugf("Processing %s [%s] on Node [%s]",
@@ -1801,10 +1801,10 @@ func processPendingRequests(
 			}
 
 			processRequest(rid, &rc)
-			concurrentGoroutines <- struct{}{}
+			goroutines <- struct{}{}
 
 			// Remove the request from the in-process map
-			inProcessRequestsMap.Delete(rid)
-		}(requestID, requestContext, inProcessRequestsMap)
+			requestsMap.Delete(rid)
+		}(requestID, requestContext, inProcessRequestsMap, concurrentGoroutines)
 	}
 }
