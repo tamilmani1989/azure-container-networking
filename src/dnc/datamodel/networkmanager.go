@@ -1600,14 +1600,20 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 	if !networkContainerConfig.MarkedForDelete || networkContainerConfig.Status == Failed {
 		networkContainerConfig.MarkedForDelete = true
 		networkContainerConfig.Status = Pending
-		revertState, err := GetRevertState(networkContainerConfig.State)
-		if err != nil {
-			return err
+		networkContainerConfig.FailureDetail = api.JsonErr{}
+		// only retrieve the revert state if NC is not in any of the delete states
+		if !IsDeleteInProgress(networkContainerConfig.State) {
+			revertState, err := GetRevertState(networkContainerConfig.State)
+			if err != nil {
+				return err
+			}
+
+			loggershim.LS.Debugf("NC %s transitioning from state %s to %s",
+				networkContainerConfig.NetworkContainerID,
+				networkContainerConfig.State, revertState)
+			networkContainerConfig.State = revertState
 		}
-		loggershim.LS.Debugf("NC %s transitioning from state %s to %s",
-			networkContainerConfig.NetworkContainerID,
-			networkContainerConfig.State, revertState)
-		networkContainerConfig.State = revertState
+
 		return PersistNCConfiguration(networkContainerConfig, AddToPendingQ)
 	}
 
