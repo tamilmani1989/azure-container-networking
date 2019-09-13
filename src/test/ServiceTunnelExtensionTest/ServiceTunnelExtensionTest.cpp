@@ -14,7 +14,7 @@
 #undef __WFILE__
 #undef __WFUNCTION__
 #include "ServiceTunnelLibrary.h"
-	
+
 
 using namespace std;
 using namespace WEX::TestExecution;
@@ -61,7 +61,7 @@ ServiceTunnelExtensionTest::TestReadFromRcf()
 
 	hr = WcsDupHr(L".\\test\\ServiceTunnelExtensionTest\\rcf", &rcfDir);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"WcsDupHr passed");
-	
+
 	GetCurrentDirectory(sizeof(curDir), curDir);
 
 	error = AppendStrings(&rcfLocation,
@@ -94,6 +94,26 @@ ServiceTunnelExtensionTest::TestReadFromRcf()
 
 }
 
+// Check if ipv6 address exist after disabling and enabling adapter.
+void checkIPV6Exist()
+{
+	ServiceTunnelConfigurator svcTunnelConfigurator;
+	SOCKADDR_IN6 sa;
+	char ipv6CharArray[sizeof(sa.sin6_addr.u.Byte) + 1];
+
+	std::set<string> ipv6Addresses = svcTunnelConfigurator.GetIPV6AddressesOfAdapter(IPV6IfIndex);
+
+	_bstr_t ip(IPV6Address.c_str());
+	const char* ipv6 = ip;
+
+	inet_pton(AF_INET6, ipv6, &(sa.sin6_addr));
+	memcpy(ipv6CharArray, sa.sin6_addr.u.Byte, sizeof(sa.sin6_addr.u.Byte));
+	ipv6CharArray[sizeof(sa.sin6_addr.u.Byte)] = '\0';
+
+	bool status = ipv6Addresses.find(ipv6CharArray) != ipv6Addresses.end();
+	VERIFY_IS_TRUE(status, L"ipv6 exists");
+}
+
 // Test deleting and adding IPV6 address to loopback adapter.
 void
 ServiceTunnelExtensionTest::TestSetIpv6Address()
@@ -102,6 +122,7 @@ ServiceTunnelExtensionTest::TestSetIpv6Address()
 	HRESULT hr = S_OK;
 	hr = svcTunnelConfigurator.NetIfSetIpv6Address(IPV6IfIndex, IPV6Address.c_str());
 	VERIFY_ARE_EQUAL(hr, S_OK, L"NetIfSetIpv6Address passed");
+	checkIPV6Exist();
 }
 
 // Test Enable weak host routing for both test and loopback adapter.
@@ -136,6 +157,22 @@ ServiceTunnelExtensionTest::TestGetInterfaceByIpAddress()
 
 }
 
+// Check if neighbor exist after disabling and enabling adapter.
+void checkNeighborsExist()
+{
+	ServiceTunnelConfigurator svcTunnelConfigurator;
+	ULONG ret = svcTunnelConfigurator.CheckIfNeighborEntryExists(IPV4IfIndex, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS);
+	VERIFY_ARE_EQUAL((ULONG)0, ret, L"Neighbor exists");
+}
+
+// Check if route exist after disabling and enabling adapter.
+void checkRouteExist()
+{
+	ServiceTunnelConfigurator svcTunnelConfigurator;
+	ULONG ret = svcTunnelConfigurator.CheckIfRouteExists(IPV4IfIndex, SERVICE_TUNNEL_SOURCE_PREFIX, SERVICE_TUNNEL_SOURCE_PREFIX_LEN, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS);
+	VERIFY_ARE_EQUAL((ULONG)0, ret, L"Route exists");
+}
+
 // Test deleting and adding neighbor entry on test adapter interface.
 void
 ServiceTunnelExtensionTest::TestAddDeleteNeighbor()
@@ -145,6 +182,8 @@ ServiceTunnelExtensionTest::TestAddDeleteNeighbor()
 
 	hr = svcTunnelConfigurator.NetIfAddNeighbor(IPV4IfIndex, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_MAC_ADDRESS);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"NetIfAddNeighbor passed");
+
+	checkNeighborsExist();
 
 	hr = svcTunnelConfigurator.NetIfDeleteNeighbor(IPV4IfIndex, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_MAC_ADDRESS);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"NetIfDeleteNeighbor passed");
@@ -167,46 +206,12 @@ ServiceTunnelExtensionTest::TestAddDeleteIPRoute()
 	hr = svcTunnelConfigurator.NetIfAddIPv6Route(IPV4IfIndex, stDstPrefix, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"NetIfAddIPv6Route passed");
 
+	checkRouteExist();
+
 	hr = svcTunnelConfigurator.NetIfDeleteIPv6Route(IPV4IfIndex, stDstPrefix, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"NetIfDeleteIPv6Route passed");
-
 }
 
-// Check if neighbor exist after disabling and enabling adapter.
-void checkNeighborsExist()
-{
-	ServiceTunnelConfigurator svcTunnelConfigurator;
-	ULONG ret = svcTunnelConfigurator.CheckIfNeighborEntryExists(IPV4IfIndex, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS);
-	VERIFY_ARE_EQUAL((ULONG)0, ret, L"Neighbor exists");
-}
-
-// Check if route exist after disabling and enabling adapter.
-void checkRouteExist()
-{
-	ServiceTunnelConfigurator svcTunnelConfigurator;
-	ULONG ret = svcTunnelConfigurator.CheckIfRouteExists(IPV4IfIndex, SERVICE_TUNNEL_SOURCE_PREFIX, SERVICE_TUNNEL_SOURCE_PREFIX_LEN, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS);
-	VERIFY_ARE_EQUAL((ULONG)0, ret, L"Route exists");
-}
-
-// Check if ipv6 address exist after disabling and enabling adapter.
-void checkIPV6Exist()
-{
-	ServiceTunnelConfigurator svcTunnelConfigurator;
-	SOCKADDR_IN6 sa;
-	char ipv6CharArray[sizeof(sa.sin6_addr.u.Byte) + 1];
-
-	std::set<string> ipv6Addresses = svcTunnelConfigurator.GetIPV6AddressesOfAdapter(IPV6IfIndex);
-	
-	_bstr_t ip(IPV6Address.c_str());
-	const char* ipv6 = ip;
-
-	inet_pton(AF_INET6, ipv6, &(sa.sin6_addr));
-	memcpy(ipv6CharArray, sa.sin6_addr.u.Byte, sizeof(sa.sin6_addr.u.Byte));
-	ipv6CharArray[sizeof(sa.sin6_addr.u.Byte)] = '\0';
-
-	bool status = ipv6Addresses.find(ipv6CharArray) != ipv6Addresses.end();
-	VERIFY_IS_TRUE(status, L"ipv6 exists");
-}
 
 // Test Diable and Enable adapter and check all tables.
 void
@@ -217,7 +222,7 @@ ServiceTunnelExtensionTest::TestDiableEnableAdapter()
 	DWORD exitCode = 0;
 	HRESULT hr = S_OK;
 	MIB_IF_ROW2 row = { 0 };
-	
+
 	row.InterfaceIndex = IPV4IfIndex;
 	GetIfEntry2(&row);
 
@@ -332,34 +337,6 @@ ServiceTunnelExtensionTest::TestReadFromRcfWithSTAddr()
 
 }
 
-
-//Test APIs are idempotent even if they called any number of times.
-void
-ServiceTunnelExtensionTest::TestIPRouteNeighExist()
-{
-	ServiceTunnelConfigurator svcTunnelConfigurator;
-	HRESULT hr = S_OK;
-	WCHAR stDstPrefix[MAX_PATH];
-	WCHAR prefixLen[INET6_ADDRSTRLEN];
-
-	checkIPV6Exist();
-
-	hr = svcTunnelConfigurator.NetIfAddNeighbor(IPV4IfIndex, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_MAC_ADDRESS);
-	VERIFY_ARE_EQUAL(hr, S_OK, L"NetIfAddNeighbor passed");
-
-	checkNeighborsExist();
-
-	swprintf_s(prefixLen, sizeof(prefixLen), L"%d", SERVICE_TUNNEL_SOURCE_PREFIX_LEN);
-	wcscpy_s(stDstPrefix, SERVICE_TUNNEL_SOURCE_PREFIX);
-	wcscat_s(stDstPrefix, L"/");
-	wcscat_s(stDstPrefix, prefixLen);
-
-	hr = svcTunnelConfigurator.NetIfAddIPv6Route(IPV4IfIndex, stDstPrefix, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS);
-	VERIFY_ARE_EQUAL(hr, S_OK, L"NetIfAddIPv6Route passed");
-
-	checkRouteExist();
-}
-
 HRESULT SetupLogging(
 )
 {
@@ -441,12 +418,6 @@ ServiceTunnelExtensionTest::TestUninstallAdapter()
 	wcscat_s(stDstPrefix, prefixLen);
 	HRESULT hr = installer.RemoveLoopbackAdapter(SERVICE_TUNNEL_INTERFACE_NAME);
 	VERIFY_ARE_EQUAL(hr, S_OK, L"UninstallAdapter passed");
-
-	hr = svcTunnelConfigurator.NetIfDeleteIPv6Route(IPV4IfIndex, stDstPrefix, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS);
-	VERIFY_ARE_EQUAL(hr, S_OK, L"NetIfDeleteIPv6Route passed");
-
-	hr = svcTunnelConfigurator.NetIfDeleteNeighbor(IPV4IfIndex, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_IP_ADDRESS, SERVICE_TUNNEL_ENDPOINT_FAKE_GW_MAC_ADDRESS);
-	VERIFY_ARE_EQUAL(hr, S_OK, L"NetIfDeleteNeighbor passed");
 }
 
 bool ServiceTunnelExtensionTest::TestSetup()

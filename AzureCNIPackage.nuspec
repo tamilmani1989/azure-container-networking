@@ -4,8 +4,8 @@
     <id>Microsoft.Azure.Internal.$branch$AzureCNI</id>
     <version>$version$</version>
     <title>AzureCNI from $branch$</title>
-    <authors>connetdevs@microsoft.com</authors>
-    <owners>connetdevs@microsoft.com</owners>
+    <authors>acn@microsoft.com</authors>
+    <owners>acn@microsoft.com</owners>
     <description>CNI plugin (azure-vnet) is responsible for inserting a network interface into the container network namespace (e.g. one end of a veth pair) 
     and making any necessary changes on the host (e.g. attaching the other end of the veth into a bridge).
     It should then assign the IP to the interface and setup the routes consistent with 

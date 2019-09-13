@@ -359,12 +359,21 @@ func (c *Controller) PersistNetworkJoinRequest(
 func (c *Controller) PersistSubnetDelegationRequest(
 	networkID,
 	subnet string,
-	subnetInfo api.SubnetRequest) *api.JsonErr {
+	subnetInfo api.SubnetRequest,
+	isDelete bool) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] Put Subnet %s for Vnet %s", subnet, networkID)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
-	return datamodel.UpdateSubnet(networkID, subnet, subnetInfo)
+	return datamodel.UpdateSubnet(networkID, subnet, subnetInfo, isDelete)
+}
+
+// GetNetwork - Get network configuration (e.g. delegated subnets in network)
+func (c *Controller) GetNetwork(networkID string) (*api.NetworkConfigurationResponse, *api.JsonErr) {
+	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	c.SessionManager.BeginReadSession(sessionInfo)
+	defer c.SessionManager.EndReadSession(sessionInfo)
+	return datamodel.GetNetworkConfiguration(networkID)
 }
 
 // DeleteNetwork - Delete a network
@@ -431,13 +440,23 @@ func (c *Controller) SkipNodeCleanupForNetworkContainer(networkID, ncID string) 
 	return nil
 }
 
-// GetNetworkContainerConfiguration - Retrieves the network configuration
-func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*api.NetworkContainerResponse, *api.JsonErr) {
+// GetNetworkContainerConfiguration - Retrieves the complete network configuration
+func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*datamodel.NCConfiguration, *api.JsonErr) {
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
 	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, ncID)
+	if err != nil {
+		return nil, err
+	}
+
+	return ncConfig, nil
+}
+
+// GetNetworkContainer - Retrieves the network configuration
+func (c *Controller) GetNetworkContainer(networkID, ncID string) (*api.NetworkContainerResponse, *api.JsonErr) {
+	ncConfig, err := c.GetNetworkContainerConfiguration(networkID, ncID)
 	if err != nil {
 		return nil, err
 	}

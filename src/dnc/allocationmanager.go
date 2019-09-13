@@ -29,8 +29,10 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 		return false, err
 	}
 
+	// If the parent reservation entry doesn't exist then it must have
+	// got deleted via separate delete reservation/container request.
 	if repoReservationRequest == nil {
-		return false, nil
+		return true, nil // don't add new pending work queue item, error
 	}
 
 	subnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
@@ -186,6 +188,16 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 				"Failed to persist updating reservation request %s in subnet configuration due to error %s",
 				repoReservationRequest.String(),
 				err.String())
+
+			if err.Code == api.PropertyValueTooLargeStorageError {
+				markAllocationAsFailed = true
+				failureDetail = &api.JsonErr{
+					Code:       api.FailedToUpdateSubnetWithReservationInfo,
+					HTTPStatus: http.StatusBadRequest,
+					Text:       err.Text}
+				goto Cleanup
+			}
+
 			return false, err
 		}
 

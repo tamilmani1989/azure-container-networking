@@ -121,12 +121,20 @@ func PutSubnetConfiguration(subnetConfiguration *SubnetConfiguration) *api.JsonE
 
 	err = dataStoreShim.InsertOrUpdate(subnetConfigurationTableName, subnetKey, TableToColumnMap[subnetConfigurationTableName], string(jsonSerializedBytes[:]))
 	if err != nil {
+		errorCode := api.StatusInternalServerError
+
+		// Special case for the property value too large storage error
+		if strings.Contains(err.Error(), "ErrorCode=PropertyValueTooLarge") {
+			errorCode = api.PropertyValueTooLargeStorageError
+		}
+
 		msg := fmt.Sprintf(
 			"Failed to persist updated configuration for subnet key %s. Error:%s",
 			subnetKey,
 			err.Error())
+
 		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
+			Code:       errorCode,
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
 	}
@@ -1683,7 +1691,8 @@ func CreateNetwork(
 func UpdateSubnet(
 	networkID,
 	subnet string,
-	subnetRequest api.SubnetRequest) *api.JsonErr {
+	subnetRequest api.SubnetRequest,
+	isDelete bool) *api.JsonErr {
 	networkConfig, err := TryQueryNetworkConfiguration(networkID)
 	if err != nil {
 		return err
@@ -1787,14 +1796,18 @@ func UpdateSubnet(
 
 	}
 
-	subnetConfiguration.Joined = true
-	subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken
-	err = PutSubnetConfiguration(subnetConfiguration)
-	if err != nil {
-		return err
+	if isDelete && len(subnetConfiguration.Reservations) > 0 {
+		msg := fmt.Sprintf("Cannot remove authentication token while subnet %s has allocations", subnet)
+		return &api.JsonErr{
+			Code:       api.InvalidSubnetRequest,
+			HTTPStatus: http.StatusBadRequest,
+			Text:       msg}
 	}
 
-	return nil
+	subnetConfiguration.Joined = !isDelete
+	subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken
+
+	return PutSubnetConfiguration(subnetConfiguration)
 }
 
 // GetNodeIDForNetworkContainer - Helper to retrieve node Id from NC configuration.
@@ -1819,6 +1832,42 @@ func PurgeNetworkContainerAssociations(ncConfiguration *NCConfiguration, updateV
 		true)
 
 	return err
+}
+
+// GetNetworkConfiguration = Retrieve network configuration (e.g. delegated subnets in a network)
+func GetNetworkConfiguration(networkID string) (*api.NetworkConfigurationResponse, *api.JsonErr) {
+	var networkConfigurationResponse api.NetworkConfigurationResponse
+	networkConfiguration, err := TryQueryNetworkConfiguration(networkID)
+	if err != nil {
+		return nil, err
+	}
+
+	if networkConfiguration == nil {
+		return nil, &api.JsonErr{
+			Code:       api.NetworkNotFound,
+			HTTPStatus: http.StatusNotFound,
+			Text:       fmt.Sprintf("Network %s not found", networkID)}
+	}
+
+	networkConfigurationResponse.DelegatedSubnets = make([]string, 0)
+	for subnet := range networkConfiguration.Subnets {
+		subnetConfiguration, err := TryQuerySubnetConfiguration(networkID, subnet)
+		if err != nil {
+			return nil, err
+		}
+
+		// Ignore the cases where there is a mismatch in Network and Subnet tables
+		// Refresh network will handle/cleanup these cases
+		if subnetConfiguration == nil {
+			continue
+		}
+
+		if len(subnetConfiguration.AccessToken) > 0 {
+			networkConfigurationResponse.DelegatedSubnets = append(networkConfigurationResponse.DelegatedSubnets, subnet)
+		}
+	}
+
+	return &networkConfigurationResponse, nil
 }
 
 // DeleteNetworkConfiguration :-

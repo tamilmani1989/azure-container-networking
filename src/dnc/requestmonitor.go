@@ -611,12 +611,9 @@ func generateAndPersistImplicitReservationRequest(repoNCConfig *datamodel.NCConf
 		AssociatedNCID:    repoNCConfig.NetworkContainerID}
 
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
-	err := datamodel.PutIPReservationConfiguration(&reservationConfiguration)
-	if err != nil {
-		return nil, err
-	}
 
-	err = datamodel.UpdateNodeConfigurationNetworkContainerSet(
+	// Try placing the container on the node.
+	err := datamodel.UpdateNodeConfigurationNetworkContainerSet(
 		nodeID,
 		reservationConfiguration.NetworkID,
 		reservationConfiguration.AssociatedNCID,
@@ -632,12 +629,19 @@ func generateAndPersistImplicitReservationRequest(repoNCConfig *datamodel.NCConf
 		return nil, err
 	}
 
+	// Try saving the reservation data.
+	err = datamodel.PutIPReservationConfiguration(&reservationConfiguration)
+	if err != nil {
+		return nil, err
+	}
+
 	reservationKey := datamodel.GetReservationKey(reservationConfiguration.NetworkID, reservationConfiguration.ReservationID)
 	requestContext := datamodel.RequestContext{
 		Type:      datamodel.ReservationRequest,
 		NetworkID: repoNCConfig.NetworkID,
 		NodeID:    nodeID}
 
+	// Add reservation pending work queue item.
 	err = datamodel.AddRequestToPendingQueue(reservationKey, &requestContext)
 	if err != nil {
 		return nil, err

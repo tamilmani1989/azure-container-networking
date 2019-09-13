@@ -51,8 +51,8 @@ version:
                                                                         # Currently unused, but will be used in the future to refer to the
                                                                         # artifacts as a group by name.
   major: 2019                                                           # The major version number.
-  minor: 8                                                              # The minor version number
-  tag: '22.1'                                                            # Tag to use for semantic versioning.
+  minor: 9                                                              # The minor version number
+  tag: '13.1'                                                            # Tag to use for semantic versioning.
   system: 'patch'                                                       # Versioning scheme to use.
                                                                         # patch         - 1.0.MMddyyrrrr will be generated
                                                                         # buildrevision - 1.0.MMddyy.rrrr will be generated.
@@ -97,7 +97,7 @@ build:
         command: 'src/LinuxNetAgent/BuildNetAgent.sh'
         logs:
         - include:
-            - 'src/LinuxNetAgent/build.log'
+            - 'src/LinuxNetAgent/main/build.log'
         artifacts:
           - from: 'src/LinuxNetAgent/main'
             to: 'drop_linux_netagent'

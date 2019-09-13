@@ -4,8 +4,8 @@
     <id>Microsoft.Azure.Internal.$branch$AzureCNSSF</id>
     <version>$version$</version>
     <title>AzureCNS for SF from $branch$</title>
-    <authors>connetdevs@microsoft.com;dejandu@microsoft.com</authors>
-    <owners>connetdevs@microsoft.com;dejandu@microsoft.com</owners>
+    <authors>acn@microsoft.com;dejandu@microsoft.com</authors>
+    <owners>acn@microsoft.com;dejandu@microsoft.com</owners>
     <description>The SF wrapper for AzureCNS that works in coordination with the DNC. This package includes:
 
 1. SF based wrapper for AzureCNS.

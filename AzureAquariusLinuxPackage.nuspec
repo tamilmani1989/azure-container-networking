@@ -4,8 +4,8 @@
     <id>Microsoft.Azure.Internal.$branch$AzureAquariusLinux</id>
     <version>$version$</version>
     <title>AquariusLinux from $branch$</title>
-    <authors>connetdevs@microsoft.com</authors>
-    <owners>connetdevs@microsoft.com</owners>
+    <authors>acn@microsoft.com</authors>
+    <owners>acn@microsoft.com</owners>
     <description>AquariusLinux extension for linux service tunnel</description>
     <projectUrl>http://www.Microsoft.com</projectUrl>
     <licenseUrl>http://www.Microsoft.com/license</licenseUrl>
