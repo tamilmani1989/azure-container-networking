@@ -11,7 +11,7 @@
       <Configuration Name="Namespace" Value="NetworkPerformanceRunner" />
       <!-- This is the expected frequency which the runners run at, also corresponds to the life time of the health reports submitted by the runner. Default value is 10 if none is provided. -->
       <Configuration Name="ExpectedIntervalInMinutes" Value="20" />
-      <Configuration Name="Owner" Value="connetdevs@microsoft.com" />
+      <Configuration Name="Owner" Value="acn@microsoft.com" />
     </GlobalConfiguration>
     <!-- On-Behalf Health Reporting setup 
       HealthAccountName: Your MDM Account.
@@ -23,7 +23,7 @@
     <Environment EnvironmentName="Prod">
       <EnvironmentConfiguration>
         <!-- Override global configuration value of Owner for Environment Prod -->
-        <Configuration Name="Owner" Value="connetdevs@microsoft.com" />
+        <Configuration Name="Owner" Value="acn@microsoft.com" />
       </EnvironmentConfiguration>
       <!-- We recommmend specifying runner location where you want to start this runner instance. To get deployable location by endpoint, please view: 
            https://jarvis.dc.ad.msft.net/?page=documents&section=f787c5ad-c22e-48aa-898a-1a042632f9d1&id=38973aa5-5931-4dd4-bae1-ef96f31ddf28

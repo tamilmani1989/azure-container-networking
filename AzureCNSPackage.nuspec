@@ -4,8 +4,8 @@
     <id>Microsoft.Azure.Internal.$branch$AzureCNS</id>
     <version>$version$</version>
     <title>AzureCNS from $branch$</title>
-    <authors>connetdevs@microsoft.com</authors>
-    <owners>connetdevs@microsoft.com</owners>
+    <authors>acn@microsoft.com</authors>
+    <owners>acn@microsoft.com</owners>
     <description>This library can be used to provide CNS service on Azure.
     Code is in the GIT repo Networking-Aquarius</description>
     <projectUrl>http://www.Microsoft.com</projectUrl>
