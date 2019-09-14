@@ -962,6 +962,82 @@ Cleanup:
 	return markProcessingFailed, nil
 }
 
+/*
+func processNetworkContainerReserve(
+	repoNCConfig *datamodel.NCConfiguration,
+	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
+	defer utils.RecordTime(stateTransitionDateTime, "ContainerReserve", repoNCConfig.NetworkContainerID)
+	var markProcessingFailed bool
+	var failureDetail *api.JsonErr
+	repoReservation, err := datamodel.TryQueryIPReservation(
+		repoNCConfig.NetworkID,
+		repoNCConfig.ReservationID)
+	if err != nil {
+		return false, err
+	}
+
+	if repoNCConfig == nil {
+		markProcessingFailed = true
+		failureDetail = &api.JsonErr{
+			Code:       api.ReservationNotFound,
+			HTTPStatus: http.StatusBadRequest,
+			Text: fmt.Sprintf(
+				"Failed to find reservation %s associated with network container %s",
+				repoNCConfig.ReservationID,
+				repoNCConfig.NetworkContainerID)}
+
+		goto Cleanup
+	}
+
+	if repoReservation.Status == datamodel.Completed {
+		repoNCConfig.State = datamodel.AllocateLocalIP
+		repoNCConfig.Status = datamodel.Pending
+
+		repoSubnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
+			repoNCConfig.NetworkID,
+			repoReservation.AllocationRequest.SubnetName)
+		if err != nil {
+			return true, err
+		}
+		if repoSubnetConfiguration == nil {
+			msg := fmt.Sprintf(
+				"Configuration for Subnet %s in Network %v not found.",
+				repoReservation.AllocationRequest.SubnetName,
+				repoNCConfig.NetworkID)
+			markProcessingFailed = true
+			failureDetail = &api.JsonErr{
+				Code:       api.SubnetNotFound,
+				Text:       msg,
+				HTTPStatus: http.StatusBadRequest}
+		}
+
+		repoNCConfig.ProgrammedTagsInfo = make(map[string]uint64)
+
+		for _, tag := range repoSubnetConfiguration.Tags {
+			tagsDefinitionKey := datamodel.GetTagDefintionKey(tag.Type, tag.Name)
+			repoNCConfig.ProgrammedTagsInfo[tagsDefinitionKey] = 0
+		}
+	}
+
+	if repoReservation.Status == datamodel.Failed {
+		markProcessingFailed = true
+		failureDetail = &repoReservation.FailureDetail
+	}
+
+Cleanup:
+	if markProcessingFailed {
+		repoNCConfig.Status = datamodel.Failed
+		repoNCConfig.FailureDetail = *failureDetail
+	}
+
+	if err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
+		return false, err
+	}
+
+	return markProcessingFailed, nil
+}
+*/
+
 func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	defer utils.RecordTime(stateTransitionDateTime, "ContainerUnreserve", repoNCConfig.NetworkContainerID)
 	var err *api.JsonErr
@@ -1580,6 +1656,7 @@ func processNetworkContainerRequest(
 	createdDateTime time.Time,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	repoNCConfig, err := datamodel.TryQueryNetworkContainerByKey(networkContainerKey)
+	// TODO: replace these false, true with a const for more readable code
 	if err != nil {
 		return false, err
 	}
@@ -1589,67 +1666,48 @@ func processNetworkContainerRequest(
 		return true, nil
 	}
 
-	// Check if NC has been marked for delete and ensure that we are in the correct revert state.
-	if repoNCConfig.MarkedForDelete && !datamodel.IsDeleteInProgress(repoNCConfig.State) {
-		revertState, err := datamodel.GetRevertState(repoNCConfig.State)
-		if err != nil {
-			return false, err
-		}
-		repoNCConfig.State = revertState
-	}
-
 	removeRequestFromPendingQueue := false
 
 	// Continue advancing the NC state to completion while there is no error (err == nil) and
 	// indication to remove the request from the pending queue (!removeRequestFromPendingQueue)
 	for !removeRequestFromPendingQueue && err == nil {
-		// what happens if the NC gets marked for deletion while we are in this loop?
-		// Can it even happen?
+		// Check if NC has been marked for delete and if so ensure that we are in the correct deletion state.
+		if repoNCConfig.MarkedForDelete && !datamodel.IsDeleteInProgress(repoNCConfig.State) {
+			revertState, err := datamodel.GetRevertState(repoNCConfig.State)
+			if err != nil {
+				logger.Errorf("Failed to get the deletion state for NC: %s, current state: %s",
+					repoNCConfig.NetworkContainerID, repoNCConfig.State)
+				return false, err
+			}
+			repoNCConfig.State = revertState
+		}
+
+		// comment?
+		// why is this only for create path?
+		if datamodel.IsNCCreateInProgress(repoNCConfig.State) && repoNCConfig.Status == datamodel.Failed {
+			return true, nil
+		}
+
 		switch repoNCConfig.State {
 		case datamodel.Prepare:
-			if repoNCConfig.Status == datamodel.Failed {
-				return true, nil
-			}
-
 			removeRequestFromPendingQueue, err = prepareNetworkContainer(repoNCConfig, stateTransitionDateTime)
 
 		case datamodel.Reserve:
-			// ashvin todo: why are these ifs oonly in create path?
-			if repoNCConfig.Status == datamodel.Failed {
-				return true, nil
-			}
-
+			// handle the reservation - which is a big part.
 			removeRequestFromPendingQueue, err = processNetworkContainerReserve(repoNCConfig, stateTransitionDateTime)
 
 		case datamodel.AllocateLocalIP:
-			if repoNCConfig.Status == datamodel.Failed {
-				return true, nil
-			}
-
 			return processAllocateLocalIP(repoNCConfig, stateTransitionDateTime)
 
 		case datamodel.Associate:
 			fallthrough
-
 		case datamodel.RefreshAssociation:
-			if repoNCConfig.Status == datamodel.Failed {
-				return true, nil
-			}
-
 			return processNetworkContainerAssociate(repoNCConfig, sessionInfo, stateTransitionDateTime)
 
 		case datamodel.Publish:
-			if repoNCConfig.Status == datamodel.Failed {
-				return true, nil
-			}
-
 			return processNetworkContainerPublish(repoNCConfig, stateTransitionDateTime)
 
 		case datamodel.Program:
-			if repoNCConfig.Status == datamodel.Failed {
-				return true, nil
-			}
-
 			return processNetworkContainerProgram(repoNCConfig, createdDateTime)
 
 		case datamodel.Revert:

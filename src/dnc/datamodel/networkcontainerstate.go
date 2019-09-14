@@ -48,6 +48,17 @@ const (
 	AllocateLocalIP
 )
 
+// IsNCCreateInProgress - True if nc is in creation states
+func IsNCCreateInProgress(ncState NetworkContainerState) bool {
+	return ncState == Prepare ||
+		ncState == Reserve ||
+		ncState == AllocateLocalIP ||
+		ncState == Associate ||
+		ncState == RefreshAssociation ||
+		ncState == Publish ||
+		ncState == Program
+}
+
 // IsDeleteInProgress - True if nc is in termination states
 func IsDeleteInProgress(ncState NetworkContainerState) bool {
 	return ncState == UnPublish ||
