@@ -29,9 +29,6 @@ const (
 	// UnPublish - NC is pending unpublishing.
 	UnPublish
 
-	// Revert - NC goal state is reverted
-	Revert
-
 	// DisAssociate - NC is pending disassociation.
 	DisAssociate
 
@@ -62,7 +59,6 @@ func IsNCCreateInProgress(ncState NetworkContainerState) bool {
 // IsDeleteInProgress - True if nc is in termination states
 func IsDeleteInProgress(ncState NetworkContainerState) bool {
 	return ncState == UnPublish ||
-		ncState == Revert ||
 		ncState == DisAssociate ||
 		ncState == UnReserve ||
 		ncState == Purge
@@ -85,7 +81,7 @@ func PromoteContainerState(ncConfig *NCConfiguration) *api.JsonErr {
 		case Publish:
 			fallthrough
 		case Program:
-			ncConfig.State = Revert
+			ncConfig.State = UnPublish
 		case UnPublish:
 			ncConfig.State = DisAssociate
 		}
@@ -120,9 +116,6 @@ func (networkContainerState NetworkContainerState) String() string {
 
 	case UnPublish:
 		return "UnPublish"
-
-	case Revert:
-		return "Revert"
 
 	case DisAssociate:
 		return "DisAssociate"

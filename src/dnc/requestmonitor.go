@@ -895,7 +895,7 @@ func processNetworkContainerReserve(
 	defer utils.RecordTime(stateTransitionDateTime, "ContainerReserve", repoNCConfig.NetworkContainerID)
 
 	var (
-		err                  error
+		err                  *api.JsonErr
 		failureDetail        *api.JsonErr
 		markProcessingFailed bool
 		repoReservation      *datamodel.ReservationConfiguration
@@ -996,84 +996,9 @@ Cleanup:
 	return markProcessingFailed, nil
 }
 
-/*
-func processNetworkContainerReserve(
-	repoNCConfig *datamodel.NCConfiguration,
-	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	defer utils.RecordTime(stateTransitionDateTime, "ContainerReserve", repoNCConfig.NetworkContainerID)
-	var markProcessingFailed bool
-	var failureDetail *api.JsonErr
-	repoReservation, err := datamodel.TryQueryIPReservation(
-		repoNCConfig.NetworkID,
-		repoNCConfig.ReservationID)
-	if err != nil {
-		return false, err
-	}
-
-	if repoNCConfig == nil {
-		markProcessingFailed = true
-		failureDetail = &api.JsonErr{
-			Code:       api.ReservationNotFound,
-			HTTPStatus: http.StatusBadRequest,
-			Text: fmt.Sprintf(
-				"Failed to find reservation %s associated with network container %s",
-				repoNCConfig.ReservationID,
-				repoNCConfig.NetworkContainerID)}
-
-		goto Cleanup
-	}
-
-	if repoReservation.Status == datamodel.Completed {
-		repoNCConfig.State = datamodel.AllocateLocalIP
-		repoNCConfig.Status = datamodel.Pending
-
-		repoSubnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
-			repoNCConfig.NetworkID,
-			repoReservation.AllocationRequest.SubnetName)
-		if err != nil {
-			return true, err
-		}
-		if repoSubnetConfiguration == nil {
-			msg := fmt.Sprintf(
-				"Configuration for Subnet %s in Network %v not found.",
-				repoReservation.AllocationRequest.SubnetName,
-				repoNCConfig.NetworkID)
-			markProcessingFailed = true
-			failureDetail = &api.JsonErr{
-				Code:       api.SubnetNotFound,
-				Text:       msg,
-				HTTPStatus: http.StatusBadRequest}
-		}
-
-		repoNCConfig.ProgrammedTagsInfo = make(map[string]uint64)
-
-		for _, tag := range repoSubnetConfiguration.Tags {
-			tagsDefinitionKey := datamodel.GetTagDefintionKey(tag.Type, tag.Name)
-			repoNCConfig.ProgrammedTagsInfo[tagsDefinitionKey] = 0
-		}
-	}
-
-	if repoReservation.Status == datamodel.Failed {
-		markProcessingFailed = true
-		failureDetail = &repoReservation.FailureDetail
-	}
-
-Cleanup:
-	if markProcessingFailed {
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = *failureDetail
-	}
-
-	if err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
-		return false, err
-	}
-
-	return markProcessingFailed, nil
-}
-*/
-
 func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	defer utils.RecordTime(stateTransitionDateTime, "ContainerUnreserve", repoNCConfig.NetworkContainerID)
+
 	var err *api.JsonErr
 	if repoNCConfig.ImplicitReservation {
 		err = datamodel.DeleteIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID, true)
@@ -1097,6 +1022,7 @@ func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration, s
 
 func processNetworkContainerPurge(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	defer utils.RecordTime(stateTransitionDateTime, "ContainerPurge", repoNCConfig.NetworkContainerID)
+
 	err := datamodel.PurgeNetworkContainerAssociations(repoNCConfig, updateVlan(repoNCConfig.GetAssociationInfo().ContainerType))
 	if err != nil {
 		return false, err
@@ -1374,6 +1300,7 @@ func processNetworkContainerDisAssociate(
 	sessionInfo map[string]string,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	defer utils.RecordTime(stateTransitionDateTime, "ContainerDisassociate", repoNCConfig.NetworkContainerID)
+
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
 
 	// Query NodeConfiguration table with nodeID and handle errors.
@@ -1574,6 +1501,7 @@ func processNetworkContainerPublish(
 
 func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	defer utils.RecordTime(stateTransitionDateTime, "ContainerUnpublish", repoNCConfig.NetworkContainerID)
+
 	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
@@ -1673,15 +1601,6 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration, s
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
-func processNetworkContainerRevert(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	defer utils.RecordTime(stateTransitionDateTime, "ContainerRevert", repoNCConfig.NetworkContainerID)
-	associationInfo := repoNCConfig.GetAssociationInfo()
-	logger.Debugf("Reverting NC %s to node %s", repoNCConfig.NetworkContainerID, associationInfo.NodeID)
-	repoNCConfig.State = datamodel.UnPublish
-	repoNCConfig.Status = datamodel.Pending
-	return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
-}
-
 func processNetworkContainerProgram(
 	repoNCConfig *datamodel.NCConfiguration,
 	createdDateTime time.Time) (bool, *api.JsonErr) {
@@ -1758,29 +1677,25 @@ func processNetworkContainerRequest(
 		case datamodel.Program:
 			removeRequestFromPendingQueue, err = processNetworkContainerProgram(repoNCConfig, createdDateTime)
 
-		case datamodel.Revert:
-			return processNetworkContainerRevert(repoNCConfig, stateTransitionDateTime)
-
 		case datamodel.UnPublish:
-			return processNetworkContainerUnPublish(repoNCConfig, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerUnPublish(repoNCConfig, stateTransitionDateTime)
 
 		case datamodel.DisAssociate:
-			return processNetworkContainerDisAssociate(repoNCConfig, sessionInfo, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerDisAssociate(repoNCConfig, sessionInfo, stateTransitionDateTime)
 
 		case datamodel.UnReserve:
-			return processNetworkContainerUnReserve(repoNCConfig, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerUnReserve(repoNCConfig, stateTransitionDateTime)
 
 		case datamodel.Purge:
-			return processNetworkContainerPurge(repoNCConfig, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerPurge(repoNCConfig, stateTransitionDateTime)
 
 		default:
 			logger.Errorf("NC: %s processing failed due to invalid state %s", repoNCConfig.NetworkContainerID, repoNCConfig.State)
+			return true, nil
 		}
 	}
 
 	return removeRequestFromPendingQueue, err
-
-	//return true, nil
 }
 
 func updateVlan(containerType string) bool {
