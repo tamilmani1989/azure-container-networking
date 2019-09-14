@@ -696,6 +696,7 @@ func processAllocateLocalIP(
 	repoNCConfig *datamodel.NCConfiguration,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	defer utils.RecordTime(stateTransitionDateTime, "ContainerReserveLocalIP", repoNCConfig.NetworkContainerID)
+
 	var markProcessingFailed bool
 	var allocatedIP *net.IPNet
 	var failureDetail *api.JsonErr
@@ -1133,8 +1134,15 @@ func hasTagsChanged(resolvedTags map[string]datamodel.TagDefinition, currentTags
 func processNetworkContainerAssociate(
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string,
+	refreshAssociation bool,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	defer utils.RecordTime(stateTransitionDateTime, "ContainerAssociate", repoNCConfig.NetworkContainerID)
+	ncOperation := "ContainerAssociate"
+	if refreshAssociation {
+		ncOperation = "ContainerRefreshAssociate"
+	}
+
+	defer utils.RecordTime(stateTransitionDateTime, ncOperation, repoNCConfig.NetworkContainerID)
+
 	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
@@ -1456,6 +1464,7 @@ func processNetworkContainerPublish(
 	repoNCConfig *datamodel.NCConfiguration,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	defer utils.RecordTime(stateTransitionDateTime, "ContainerPublish", repoNCConfig.NetworkContainerID)
+
 	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
 	if ncGoalStateErr != nil {
 		if isRetriableError {
@@ -1676,7 +1685,9 @@ func processNetworkContainerRevert(repoNCConfig *datamodel.NCConfiguration, stat
 func processNetworkContainerProgram(
 	repoNCConfig *datamodel.NCConfiguration,
 	createdDateTime time.Time) (bool, *api.JsonErr) {
+	// TODO: can we print reprogram - to help with debugging and identifying the state correctly from the logs?
 	defer utils.RecordTime(createdDateTime, "ContainerProgram", repoNCConfig.NetworkContainerID)
+
 	repoNCConfig.State = datamodel.Program
 	repoNCConfig.Status = datamodel.Completed
 	return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
@@ -1729,18 +1740,23 @@ func processNetworkContainerRequest(
 			removeRequestFromPendingQueue, err = processNetworkContainerReserve(repoNCConfig, stateTransitionDateTime)
 
 		case datamodel.AllocateLocalIP:
-			return processAllocateLocalIP(repoNCConfig, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processAllocateLocalIP(repoNCConfig, stateTransitionDateTime)
 
 		case datamodel.Associate:
-			fallthrough
+			refreshAssociation := false
+			removeRequestFromPendingQueue, err =
+				processNetworkContainerAssociate(repoNCConfig, sessionInfo, refreshAssociation, stateTransitionDateTime)
+
 		case datamodel.RefreshAssociation:
-			return processNetworkContainerAssociate(repoNCConfig, sessionInfo, stateTransitionDateTime)
+			refreshAssociation := true
+			removeRequestFromPendingQueue, err =
+				processNetworkContainerAssociate(repoNCConfig, sessionInfo, refreshAssociation, stateTransitionDateTime)
 
 		case datamodel.Publish:
-			return processNetworkContainerPublish(repoNCConfig, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerPublish(repoNCConfig, stateTransitionDateTime)
 
 		case datamodel.Program:
-			return processNetworkContainerProgram(repoNCConfig, createdDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerProgram(repoNCConfig, createdDateTime)
 
 		case datamodel.Revert:
 			return processNetworkContainerRevert(repoNCConfig, stateTransitionDateTime)
@@ -1762,7 +1778,9 @@ func processNetworkContainerRequest(
 		}
 	}
 
-	return true, nil
+	return removeRequestFromPendingQueue, err
+
+	//return true, nil
 }
 
 func updateVlan(containerType string) bool {
