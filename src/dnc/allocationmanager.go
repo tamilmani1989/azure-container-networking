@@ -33,6 +33,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 	// got deleted via separate delete reservation/container request.
 	if repoReservationRequest == nil {
 		// repoReservation failure details should be set
+		logger.Errorf("tempdebug: Here1")
 		return true, nil // don't add new pending work queue item, error
 	}
 
@@ -54,6 +55,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 	if len(repoReservationRequest.AllocatedSubnet) != 0 {
 		// TODO: add log here - this would result in getting the reservation request deleted from queue w/o getting processed.
 		// repoReservation failure details should be set
+		logger.Errorf("tempdebug: Here2")
 		return true, nil
 	}
 
@@ -205,6 +207,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 		}
 
 		err = datamodel.PutIPReservationConfiguration(repoReservationRequest)
+		logger.Errorf("tempdebug: Here: repoReservationRequest: %+v", repoReservationRequest)
 		if err != nil {
 			err.Text = fmt.Sprintf(
 				"Failed to mark reservation request %s as succeded due to error %s",
@@ -237,6 +240,7 @@ Cleanup:
 		}
 	}
 
+	logger.Errorf("tempdebug: Here3")
 	return true, nil
 }
 
