@@ -927,9 +927,9 @@ func ValidateNetworkContainerGetAPI(
 
 func TestCreateMultipleNetworks(t *testing.T) {
 	fmt.Println("****TestCreateMultipleNetworks Test**********")
-	deploymentCount := 1   // Number of vnets
-	ncPerNetworkCount := 1 // Number of NCs per vnet
-	nodeCount := 2
+	deploymentCount := 10   // Number of vnets
+	ncPerNetworkCount := 10 // Number of NCs per vnet
+	nodeCount := 200
 	nodeMap := make([]string, 0)
 	for node := 0; node < nodeCount; node++ {
 		nodeMap = append(nodeMap, fmt.Sprintf("Node-%d", node))

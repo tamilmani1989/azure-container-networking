@@ -1506,11 +1506,6 @@ func PersistNCConfiguration(ncConfiguration *NCConfiguration, addToPendingQueue 
 	}
 
 	if addToPendingQueue {
-		// If this is intended to be a new request for deletion, any existing RequestContext in
-		// pending queue needs to be overwritten.
-		// It's possible to have a RequestContext in pending queue belonging to refreshAssociation
-		// If deleteNC is triggered, it will use the incorrect createTime of the existing request
-		// context causing the unpublish and in turn the complete deletion time calculation to be erroneous
 		requestContext := RequestContext{
 			Type:      NetworkContainerRequest,
 			NetworkID: ncConfiguration.NetworkID,
@@ -1615,6 +1610,15 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 			networkContainerConfig.State, revertState)
 		networkContainerConfig.State = revertState
 		loggershim.LS.Debugf("tempdebug ProcessNetworkContainerForRelease: %+v", networkContainerConfig)
+
+		// This is intended to be a new request for deletion, any existing RequestContext for this NC in
+		// the pending queue needs to be deleted.
+		// It's possible to have a RequestContext in pending queue belonging to refreshAssociation when
+		// deleteNC is triggered. This results in using the incorrect timestamps causing the unpublish
+		// and in turn the complete deletion time calculation to be erroneous.
+		requestID := GetNCKey(networkContainerConfig.NetworkID, networkContainerConfig.NetworkContainerID)
+		RemovePendingRequest(requestID)
+
 		return PersistNCConfiguration(networkContainerConfig, AddToPendingQ)
 	}
 
