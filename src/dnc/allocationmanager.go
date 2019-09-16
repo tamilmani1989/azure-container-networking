@@ -32,9 +32,15 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 	// If the parent reservation entry doesn't exist then it must have
 	// got deleted via separate delete reservation/container request.
 	if repoReservationRequest == nil {
-		// repoReservation failure details should be set
-		logger.Errorf("tempdebug: Here1")
-		return true, nil // don't add new pending work queue item, error
+		// Add the failure detail to the repoReservation
+		markAllocationAsFailed = true
+		failureDetail = &api.JsonErr{
+			Code:       api.AllocationFailed,
+			HTTPStatus: http.StatusNotFound,
+			Text: fmt.Sprintf(
+				"Failed to allocate address for requestID: %s. Reservation entry does not exist",
+				reservationKey)}
+		goto Cleanup
 	}
 
 	subnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
@@ -53,10 +59,15 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 	}
 
 	if len(repoReservationRequest.AllocatedSubnet) != 0 {
-		// TODO: add log here - this would result in getting the reservation request deleted from queue w/o getting processed.
-		// repoReservation failure details should be set
-		logger.Errorf("tempdebug: Here2")
-		return true, nil
+		// Add the failure detail to the repoReservation
+		markAllocationAsFailed = true
+		failureDetail = &api.JsonErr{
+			Code:       api.AllocationFailed,
+			HTTPStatus: http.StatusBadRequest,
+			Text: fmt.Sprintf(
+				"Failed to allocate address for request %s. Reservation already has allocated address",
+				repoReservationRequest.AllocationRequest.String())}
+		goto Cleanup
 	}
 
 	addressesToIgnore, allocatedIP, err = getAllocationsInSubnet(repoReservationRequest.NetworkID,
@@ -207,7 +218,6 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 		}
 
 		err = datamodel.PutIPReservationConfiguration(repoReservationRequest)
-		logger.Errorf("tempdebug: Here: repoReservationRequest: %+v", repoReservationRequest)
 		if err != nil {
 			err.Text = fmt.Sprintf(
 				"Failed to mark reservation request %s as succeded due to error %s",
@@ -240,7 +250,6 @@ Cleanup:
 		}
 	}
 
-	logger.Errorf("tempdebug: Here3")
 	return true, nil
 }
 

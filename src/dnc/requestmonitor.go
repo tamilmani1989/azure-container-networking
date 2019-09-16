@@ -52,7 +52,6 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 	var removeWorkItem bool
 	var err *api.JsonErr
 
-	// ashvin: we don;t need these locks here
 	sessionInfo := getSessionInfo(requestContext)
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
@@ -921,8 +920,8 @@ func processNetworkContainerReserve(
 		// Indication to remove the request from pending queue without setting the reservation status
 		// to complete indicates that IP reservation failed as non-retriable operation
 		if removeRequestFromPendingQueue && repoReservation.Status != datamodel.Completed {
-			logger.Errorf("tempdebug: Reserve: removeRequestFromPendingQueue: %s, reservation status: %s",
-				removeRequestFromPendingQueue, repoReservation.Status)
+			logger.Errorf("Failed to complete IP reservation for NC: %s due to error: %s",
+				repoNCConfig.NetworkContainerID, repoReservation.FailureDetail.Text)
 			markProcessingFailed = true
 			failureDetail = &repoReservation.FailureDetail
 
@@ -1586,7 +1585,6 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration, s
 func processNetworkContainerProgram(
 	repoNCConfig *datamodel.NCConfiguration,
 	createdDateTime time.Time) (bool, *api.JsonErr) {
-	// TODO: can we print reprogram - to help with debugging and identifying the state correctly from the logs?
 	defer utils.RecordTime(createdDateTime, "ContainerProgram", repoNCConfig.NetworkContainerID)
 
 	repoNCConfig.State = datamodel.Program
@@ -1598,13 +1596,12 @@ func processNetworkContainerRequest(
 	requestContext *datamodel.RequestContext,
 	networkContainerKey string,
 	sessionInfo map[string]string) (bool, *api.JsonErr) {
-	//networkID := requestContext.NetworkID
 	requestID := networkContainerKey
 	createdDateTime := requestContext.CreatedDateTime
 	stateTransitionDateTime := requestContext.StateTransitionDateTime
 
 	repoNCConfig, err := datamodel.TryQueryNetworkContainerByKey(networkContainerKey)
-	// TODO: replace these false, true with a const for more readable code
+
 	if err != nil {
 		return false, err
 	}
@@ -1615,9 +1612,6 @@ func processNetworkContainerRequest(
 	}
 
 	removeRequestFromPendingQueue := false
-
-	logger.Errorf("tempdebug: state: %s, State transition time1: %v, State transition time2: %v",
-		repoNCConfig.State, stateTransitionDateTime, requestContext.StateTransitionDateTime)
 
 	// Continue advancing the NC state to completion while there is no error (err == nil) and
 	// indication to remove the request from the pending queue (!removeRequestFromPendingQueue)
@@ -1633,8 +1627,6 @@ func processNetworkContainerRequest(
 			repoNCConfig.State = revertState
 		}
 
-		// comment?
-		// why is this only for create path?
 		if datamodel.IsNCCreateInProgress(repoNCConfig.State) && repoNCConfig.Status == datamodel.Failed {
 			return true, nil
 		}
@@ -1645,8 +1637,6 @@ func processNetworkContainerRequest(
 
 		case datamodel.Reserve:
 			removeRequestFromPendingQueue, err = processNetworkContainerReserve(repoNCConfig, stateTransitionDateTime)
-			logger.Errorf("tempdebug: NC state: %s, removeRequest: %t, err: %v",
-				repoNCConfig.State, removeRequestFromPendingQueue, err)
 
 		case datamodel.AllocateLocalIP:
 			removeRequestFromPendingQueue, err = processAllocateLocalIP(repoNCConfig, stateTransitionDateTime)
@@ -1668,8 +1658,6 @@ func processNetworkContainerRequest(
 			removeRequestFromPendingQueue, err = processNetworkContainerProgram(repoNCConfig, createdDateTime)
 
 		case datamodel.UnPublish:
-			logger.Errorf("tempdebug: UnPublish, State transition time: %v",
-				stateTransitionDateTime)
 			removeRequestFromPendingQueue, err = processNetworkContainerUnPublish(repoNCConfig, stateTransitionDateTime)
 
 		case datamodel.DisAssociate:

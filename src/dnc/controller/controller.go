@@ -466,7 +466,6 @@ func (c *Controller) GetNetworkContainer(networkID, ncID string) (*api.NetworkCo
 
 // DeleteNetworkContainer - Deletes a network container.
 func (c *Controller) DeleteNetworkContainer(networkID, ncID string) *api.JsonErr {
-	// TODO: There is no need for network lock. NC lock is sufficient.
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)

@@ -1314,7 +1314,6 @@ func AddRequestToPendingQueue(
 		requestContext.CreatedDateTime = time.Now().UTC()
 		requestContext.RetryInterval = time.Duration(requestBaseInterval) * time.Millisecond
 		requestContext.StateTransitionDateTime = requestContext.CreatedDateTime
-		loggershim.LS.Errorf("tempdebug: requestContext.StateTransitionDateTime: %v", requestContext.StateTransitionDateTime)
 	}
 
 	jsonSerializedBytes, err := json.Marshal(requestContext)
@@ -1346,7 +1345,6 @@ func AddRequestToPendingQueue(
 			Text:       msg}
 	}
 
-	loggershim.LS.Errorf("tempdebug: requestContext SUCCESS: %+v", requestContext)
 	return nil
 }
 
@@ -1609,7 +1607,6 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 			networkContainerConfig.NetworkContainerID,
 			networkContainerConfig.State, revertState)
 		networkContainerConfig.State = revertState
-		loggershim.LS.Debugf("tempdebug ProcessNetworkContainerForRelease: %+v", networkContainerConfig)
 
 		// This is intended to be a new request for deletion, any existing RequestContext for this NC in
 		// the pending queue needs to be deleted.
