@@ -16,12 +16,16 @@ import (
 const reservedIPCount = 4
 
 func processIPReservationAllocation(networkID, reservationKey string) (bool, *api.JsonErr) {
-	var markAllocationAsFailed bool
-	var failureDetail *api.JsonErr
-	var allocatedIP *net.IPNet
-	var ipSubnet *net.IPNet
-	var reservedAddresses map[string]*net.IPNet
-	var nodeID string
+	var (
+		markAllocationAsFailed bool
+		failureDetail          *api.JsonErr
+		allocatedIP            *net.IPNet
+		ipSubnet               *net.IPNet
+		reservedAddresses      map[string]*net.IPNet
+		nodeID                 string
+		err                    *api.JsonErr
+		subnetConfiguration    *datamodel.SubnetConfiguration
+	)
 	addressesToIgnore := make(map[string]*net.IPNet)
 	isWebAppsContainer := false
 	repoReservationRequest, err := datamodel.TryQueryIPReservationByKey(reservationKey)
@@ -43,7 +47,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 		goto Cleanup
 	}
 
-	subnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
+	subnetConfiguration, err = datamodel.TryQuerySubnetConfiguration(
 		repoReservationRequest.NetworkID, repoReservationRequest.AllocationRequest.SubnetName)
 	if err != nil {
 		return false, err
