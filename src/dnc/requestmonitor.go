@@ -690,7 +690,7 @@ func getAllocatedLocalAddressesOnNode(nodeID string) (map[string]*net.IPNet, *ap
 func processAllocateLocalIP(
 	repoNCConfig *datamodel.NCConfiguration,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	defer utils.RecordTime(stateTransitionDateTime, "ContainerReserveLocalIP", repoNCConfig.NetworkContainerID)
+	defer utils.RecordTime(stateTransitionDateTime, "ContainerAllocateLocalIP", repoNCConfig.NetworkContainerID)
 	var markProcessingFailed bool
 	var allocatedIP *net.IPNet
 	var failureDetail *api.JsonErr
