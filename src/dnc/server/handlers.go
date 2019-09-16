@@ -18,13 +18,19 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// url parameters string
+// url parameters
 const (
-	networkIDStr          string = "networkID"
-	networkContainerIDStr string = "networkContainerID"
-	nodeIDStr             string = "nodeID"
-	reservationIDStr      string = "reservationID"
-	subnetStr             string = "subnet"
+	networkIDStr          = "networkID"
+	networkContainerIDStr = "networkContainerID"
+	nodeIDStr             = "nodeID"
+	reservationIDStr      = "reservationID"
+	subnetStr             = "subnet"
+)
+
+// content types
+const (
+	contentTypeStr     = "Content-Type"
+	defaultContentType = "application/json; charset=UTF-8"
 )
 
 var ctrler *controller.Controller
@@ -65,7 +71,7 @@ func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 
 	var nodeInfo api.NodeInfoRequest
 
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	if err := decodeRequestBody(r, &nodeInfo); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		if err := json.NewEncoder(w).Encode(err); err != nil {
@@ -102,7 +108,7 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nodeInfo, getErr := ctrler.GetNodeInfo(nodeID)
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	if getErr == nil {
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(&nodeInfo); err != nil {
@@ -127,7 +133,7 @@ func DeleteNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	deleteNodeErr := ctrler.DeleteNode(nodeID)
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 
 	if deleteNodeErr == nil {
 		w.WriteHeader(http.StatusOK)
@@ -165,7 +171,7 @@ func ReserveIP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var allocationRequest api.AllocationRequest
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	if err := decodeRequestBody(r, &allocationRequest); err != nil {
 		jsonErr := api.JsonErr{
 			Code:       api.JsonBodyUnMarshalFailed,
@@ -224,7 +230,7 @@ func GetReservation(w http.ResponseWriter, r *http.Request) {
 	reservationCfg, getErr := ctrler.GetReservationConfiguration(
 		networkID,
 		reservationID)
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	if getErr == nil {
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(&reservationCfg); err != nil {
@@ -265,7 +271,7 @@ func GetReservationStatus(w http.ResponseWriter, r *http.Request) {
 	reservationStatus, getErr := ctrler.GetReservationStatus(
 		networkID,
 		reservationID)
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	if getErr == nil {
 		w.WriteHeader(http.StatusOK)
 		if reservationStatus != nil {
@@ -315,32 +321,9 @@ func DeleteReservation(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	setRequestFailed(w, deleteErr)
 }
-
-// func ReservationsBynetworkID(w http.ResponseWriter, r *http.Request) {
-// 	vars := mux.Vars(r)
-// 	var networkID string
-// 	networkID = vars["networkID"]
-// 	reservationIDs := ctrler.GetReservationsBynetworkID(networkID)
-// 	if reservationIDs != nil {
-// 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-// 		w.WriteHeader(http.StatusOK)
-// 		if err := json.NewEncoder(w).Encode(&reservationIDs); err != nil {
-// 			panic(err)
-// 		}
-// 		return
-// 	}
-
-// 	// If we didn't find it, 404
-// 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-// 	w.WriteHeader(http.StatusNotFound)
-// 	if err := json.NewEncoder(w).Encode(JsonErr{Code: http.StatusNotFound, Text: "Not Found"}); err != nil {
-// 		panic(err)
-// 	}
-
-// }
 
 // GetNetworkContainerStatus - Handler for querying network container status
 func GetNetworkContainerStatus(w http.ResponseWriter, r *http.Request) {
@@ -372,7 +355,7 @@ func GetNetworkContainerStatus(w http.ResponseWriter, r *http.Request) {
 		networkID,
 		ncID)
 
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	if getErr == nil {
 		w.WriteHeader(retcode)
 		if ncStatus != nil {
@@ -412,7 +395,7 @@ func DeleteNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := ctrler.DeleteNetworkContainer(networkID, ncID); err == nil {
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.Header().Set(contentTypeStr, defaultContentType)
 		w.WriteHeader(http.StatusOK)
 		return
 	} else {
@@ -453,7 +436,7 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 
 	body, err = ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
 	if err != nil {
@@ -598,8 +581,52 @@ func GetNetworkContainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ncConfig, getNCConfigErr := ctrler.GetNetworkContainerConfiguration(networkID, ncID)
+	ncConfig, getNCConfigErr := ctrler.GetNetworkContainer(networkID, ncID)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	if getNCConfigErr != nil {
+		w.WriteHeader(getNCConfigErr.HTTPStatus)
+		if err := json.NewEncoder(w).Encode(getNCConfigErr); err != nil {
+			panic(err)
+		}
+	} else {
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(ncConfig); err != nil {
+			panic(err)
+		}
+	}
+}
+
+// GetNetworkContainerConfiguration - Query network container configuration
+func GetNetworkContainerConfiguration(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	var networkID string
+	var ncID string
+	var ok bool
+	networkID, ok = vars[networkIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	ncID, ok = vars[networkContainerIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.NetworkContainerNotFound,
+			Text:       api.NetworkContainerIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateNetworkContainerRequest(networkID, ncID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	ncConfig, getNCConfigErr := ctrler.GetNetworkContainerConfiguration(networkID, ncID)
+	w.Header().Set(contentTypeStr, defaultContentType)
 	if getNCConfigErr != nil {
 		w.WriteHeader(getNCConfigErr.HTTPStatus)
 		if err := json.NewEncoder(w).Encode(getNCConfigErr); err != nil {
@@ -626,7 +653,7 @@ func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 
 	var networkInfo api.NetworkInfoRequest
 	var err error
@@ -661,6 +688,37 @@ func CreateNetwork(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetNetwork - Handler for retrieving the network configuration (e.g. delegated subnets)
+func GetNetwork(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	networkID, ok := vars[networkIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if validationErr := ValidateNetworkRequest(networkID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	w.Header().Set(contentTypeStr, defaultContentType)
+
+	networkConfiguration, getErr := ctrler.GetNetwork(networkID)
+	if getErr == nil {
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(networkConfiguration); err != nil {
+			panic(err)
+		}
+		return
+	}
+
+	setRequestFailed(w, getErr)
+}
+
 // PutSubnet - Handler for put delgate subnet
 func PutSubnet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -682,28 +740,35 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isDelete := r.Method == http.MethodDelete
 	var subnetRequest api.SubnetRequest
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-
-	if err := decodeRequestBody(r, &subnetRequest); err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		if err := json.NewEncoder(w).Encode(err); err != nil {
-			panic(err)
-		}
-		return
-	}
+	w.Header().Set(contentTypeStr, defaultContentType)
 
 	if validationErr := ValidateNetworkRequest(networkID); validationErr != nil {
 		setRequestFailed(w, validationErr)
 		return
 	}
 
-	if validationErr := subnetRequest.Validate(); validationErr != nil {
-		setRequestFailed(w, validationErr)
-		return
+	// If method is DELETE, set the Auth Token to empty
+	// else decode the request body
+	if isDelete {
+		subnetRequest.AuthenticationToken = ""
+	} else {
+		if err := decodeRequestBody(r, &subnetRequest); err != nil {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			if err := json.NewEncoder(w).Encode(err); err != nil {
+				panic(err)
+			}
+			return
+		}
+
+		if validationErr := subnetRequest.Validate(); validationErr != nil {
+			setRequestFailed(w, validationErr)
+			return
+		}
 	}
 
-	t := ctrler.PersistSubnetDelegationRequest(networkID, strings.ToLower(subnet), subnetRequest)
+	t := ctrler.PersistSubnetDelegationRequest(networkID, strings.ToLower(subnet), subnetRequest, isDelete)
 	if t != nil {
 		setRequestFailed(w, t)
 	} else {
@@ -741,7 +806,7 @@ func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
 		networkID,
 		strings.ToLower(subnet))
 
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	if getErr == nil {
 		w.WriteHeader(retCode)
 		if subnetStatus != nil {
@@ -785,7 +850,7 @@ func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 		networkID,
 		strings.ToLower(subnet))
 
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	if getErr == nil {
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(&subnetConfiguration); err != nil {
@@ -816,7 +881,7 @@ func DeleteNetwork(w http.ResponseWriter, r *http.Request) {
 	}
 
 	t := ctrler.DeleteNetwork(networkID)
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	if t != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	} else {
@@ -845,7 +910,7 @@ func GetNetworkStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	networkStatus, retcode, getErr := ctrler.GetNetworkStatus(networkID)
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	if getErr == nil {
 		w.WriteHeader(retcode)
 		if networkStatus != nil {
@@ -863,7 +928,7 @@ func GetNetworkStatus(w http.ResponseWriter, r *http.Request) {
 // InitializeAzureStorage - Handler for initializing datastore settings to establish a connection.
 func InitializeAzureStorage(w http.ResponseWriter, r *http.Request) {
 	var request api.AzureStorageRequest
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 
 	if err := decodeRequestBody(r, &request); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
@@ -893,7 +958,7 @@ func InitializeAzureStorage(w http.ResponseWriter, r *http.Request) {
 // InitializeAzureStorageV2 - Handler for initializing datastore settings to establish a connection.
 func InitializeAzureStorageV2(w http.ResponseWriter, r *http.Request) {
 	var request api.AzureStorageRequestV2
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 
 	if err := decodeRequestBody(r, &request); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
@@ -942,7 +1007,7 @@ func InitializeAzureStorageV3(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var request api.AzureStorageRequest
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	if err := decodeRequestBody(r, &request); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		if err := json.NewEncoder(w).Encode(err); err != nil {
@@ -970,14 +1035,14 @@ func InitializeAzureStorageV3(w http.ResponseWriter, r *http.Request) {
 
 // RelinquishPrimaryStatus - Relinquish replica primary status
 func RelinquishPrimaryStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	ctrler.RelinquishPrimaryStatus()
 	w.WriteHeader(http.StatusOK)
 }
 
 // RefreshMonitorStatus - Retrieve refresh monitor status
 func RefreshMonitorStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	refreshMonitorStatus := ctrler.GetRefreshMonitorStatus()
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(&refreshMonitorStatus); err != nil {
@@ -1028,7 +1093,7 @@ func SkipNodeCleanupForNetworkContainer(w http.ResponseWriter, r *http.Request) 
 	var ncID string
 	var ok bool
 
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set(contentTypeStr, defaultContentType)
 	networkID, ok = vars[networkIDStr]
 	if !ok {
 		setRequestFailed(w, &api.JsonErr{
@@ -1088,7 +1153,7 @@ func IsWaitingForNodeCleanup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ncConfig, err := ctrler.GetNetworkContainerConfiguration(networkID, ncID)
+	ncConfig, err := ctrler.GetNetworkContainer(networkID, ncID)
 	if err != nil {
 		setRequestFailed(w, err)
 	} else {
