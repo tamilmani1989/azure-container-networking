@@ -914,7 +914,7 @@ func processNetworkContainerReserve(
 		return false, err
 	}
 
-	if repoNCConfig == nil {
+	if repoReservation == nil {
 		markProcessingFailed = true
 		failureDetail = &api.JsonErr{
 			Code:       api.ReservationNotFound,
