@@ -1612,6 +1612,14 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 				networkContainerConfig.NetworkContainerID,
 				networkContainerConfig.State, revertState)
 			networkContainerConfig.State = revertState
+
+			// This is intended to be a new request for deletion, any existing RequestContext for this NC in
+			// the pending queue needs to be deleted.
+			// It's possible to have a RequestContext in pending queue belonging to refreshAssociation when
+			// deleteNC is triggered. This results in using the incorrect timestamps causing the unpublish
+			// and in turn the complete deletion time calculation to be erroneous.
+			requestID := GetNCKey(networkContainerConfig.NetworkID, networkContainerConfig.NetworkContainerID)
+			RemovePendingRequest(requestID)
 		}
 
 		return PersistNCConfiguration(networkContainerConfig, AddToPendingQ)
