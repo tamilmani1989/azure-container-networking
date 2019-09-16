@@ -114,7 +114,7 @@ Return Value:
 
             indx++;
             *ResourcePath = ArgumentList[indx];
-        } else if ((_wcsicmp(ArgumentList[indx], ) == 0) &&
+        } else if ((_wcsicmp(ArgumentList[indx], LOG_PATH_CMDLINE_FLAG) == 0) &&
                    (indx + 1 < ArgumentCount)) {
 
             indx++;
