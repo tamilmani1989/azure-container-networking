@@ -83,7 +83,6 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 		datamodel.RemovePendingRequest(requestID)
 	} else {
 		if err != nil {
-			logger.Errorf("%+v", err)
 			requestContext.LastRetriedDateTime = time.Now().UTC()
 		} else {
 			requestContext.LastRetriedDateTime = time.Time{}
@@ -91,6 +90,7 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 			requestContext.StateTransitionDateTime = time.Now().UTC()
 		}
 
+		logger.Errorf("Adding request: %+v back in pending queue due to error: %v", requestContext, err)
 		datamodel.AddRequestToPendingQueue(requestID, requestContext)
 	}
 }
