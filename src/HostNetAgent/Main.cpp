@@ -39,12 +39,10 @@ void WriteLog(bool isError, const WCHAR * message)
 {
     if (isError)
     {
-        wprintf(message);
         LOGINFOW(message);
     }
     else
     {
-        wprintf(message);
         LOGINFOW(message);
     }
 }
@@ -116,7 +114,7 @@ Return Value:
 
             indx++;
             *ResourcePath = ArgumentList[indx];
-        } else if ((_wcsicmp(ArgumentList[indx], LOG_PATH_CMDLINE_FLAG) == 0) &&
+        } else if ((_wcsicmp(ArgumentList[indx], ) == 0) &&
                    (indx + 1 < ArgumentCount)) {
 
             indx++;
@@ -371,17 +369,15 @@ Return Value:
         return err;
     }
 
-const WCHAR * imageNamesToKill[] = { L"HostNetAgent.exe" }; // killing the host first so that it doesn't start agent immediately.
+    const WCHAR * imageNamesToKill[] = { L"HostNetAgent.exe" }; // killing the host first so that it doesn't start agent immediately.
 
-     wprintf(L"before switch logic");
-     LOGINFOW(L"before switch logic");
+     
+    LOGINFOW(L"Starting switch logic ....");
     if (!ProcessPilotFishSwitchLogic(L"HostNetAgent", sizeof(imageNamesToKill) / sizeof(WCHAR*), imageNamesToKill, (int)Argc, (const WCHAR **)Argv, true, WriteLog))
     {
-        wprintf(L"ProcessPilotFishSwitchLogic failed");
         LOGERRW(L"ProcessPilotFishSwitchLogic failed");
-        return hr;
+        return -1;
     }
-    wprintf(L"after logic");
     LOGINFOW(L"ProcessPilotFishSwitchLogic returned. Continuing with business logic.");
 
     monAgent = MonAgent::GetInstance();
