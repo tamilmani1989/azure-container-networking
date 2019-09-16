@@ -1761,6 +1761,8 @@ func processPendingRequests(
 	}
 
 	requestsToProcess := make([]string, 0, len(requests))
+	currentBatchRequestCount := 0
+
 	for requestID, requestContext := range requests {
 		_, isRequestInProcess := inProcessRequestsMap.Load(requestID)
 
@@ -1770,10 +1772,11 @@ func processPendingRequests(
 
 			// Add the request in the in-process map
 			inProcessRequestsMap.Store(requestID, struct{}{})
+			currentBatchRequestCount++
 		}
 	}
 
-	logger.Debugf("Number of requests to process in the current batch: %d", len(requestsToProcess))
+	logger.Debugf("Number of requests to process in the current batch: %d", currentBatchRequestCount)
 
 	for i := 0; i < len(requestsToProcess); i++ {
 		// Return if the replica is not primary
