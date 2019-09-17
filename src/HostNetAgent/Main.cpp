@@ -39,7 +39,7 @@ void WriteLog(bool isError, const WCHAR * message)
 {
     if (isError)
     {
-        LOGINFOW(message);
+        LOGERRW(message);
     }
     else
     {
