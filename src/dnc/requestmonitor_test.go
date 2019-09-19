@@ -345,7 +345,7 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 		context, _ := json.Marshal(podInfo)
 		expectedReq := cns.CreateNetworkContainerRequest{
 			Version:                    "1",
-			NetworkContainerType:       cns.AzureContainerInstance,
+			NetworkContainerType:       networkContainerReq.AssociationInfo.ContainerType,
 			NetworkContainerid:         "Swift_" + ncID,
 			PrimaryInterfaceIdentifier: networkContainerReq.AssociationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
@@ -2078,7 +2078,7 @@ func createNetworkContainer(
 		context, _ := json.Marshal(podInfo)
 		expectedReq := cns.CreateNetworkContainerRequest{
 			Version:                    "1",
-			NetworkContainerType:       cns.AzureContainerInstance,
+			NetworkContainerType:       associationInfo.ContainerType,
 			NetworkContainerid:         "Swift_" + ncid,
 			PrimaryInterfaceIdentifier: associationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
