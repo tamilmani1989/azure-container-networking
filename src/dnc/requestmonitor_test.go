@@ -306,8 +306,6 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 	}
 
 	fmt.Println("CnetSpace;", cnetSpace)
-	fmt.Println("Started CNS Server", cnsServer.Server.URL)
-	cnsServer.SetupTest()
 	allocatedIP := "10.0.0.4"
 	if len(networkContainerReq.AllocationRequest.IPConstraint) > 0 {
 		allocatedIP = networkContainerReq.AllocationRequest.IPConstraint
@@ -350,7 +348,6 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 
 	cnsResponderContextMap.getContext(ncID).CreateOrUpdateNCResponse.ValidateNCRequest = ncRequestValidatorFunc
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
@@ -851,6 +848,12 @@ func TestReservation(t *testing.T) {
 
 func TestContainer(t *testing.T) {
 	cnsServer.SetupTest()
+	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
 	id, _ := uuid.NewUUID()
 	vnetID := id.String()
 
@@ -881,12 +884,6 @@ func ValidateNetworkContainerGetAPI(
 	dncEP, vnetID, ncID, apiVersion string) {
 	fmt.Println("****CreateNetworkContainer Test**********")
 	fmt.Println("****ValidateNetworkContainerGetAPI**********")
-	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
-	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
-	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
-	cnsServer.Context = cnsResponderContextMap
-	cnsServer.Lock.Unlock()
 	setupNetworkAndJoinSubnet(t, dncEP, vnetID, networkcontainerreq.AllocationRequest.SubnetName, apiVersion, true, 0)
 	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeInfoReq)
 
@@ -932,14 +929,9 @@ func ValidateNetworkContainerDeleteAPI(
 	fmt.Println("****ValidateNetworkContainerDeleteAPI**********")
 	ncDeploymentRequests := []*NCDeploymentRequest{&NCDeploymentRequest{
 		NCID: ncID}}
-
-	fmt.Println("Started CNS Server", cnsServer.Server.URL)
-	cnsServer.SetupTest()
-
 	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
 
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
@@ -2038,8 +2030,6 @@ func createNetworkContainer(
 		}
 	}
 	fmt.Println("CnetSpace;", cnetSpace)
-	fmt.Println("Started CNS Server", cnsServer.Server.URL)
-	cnsServer.SetupTest()
 	allocatedIP := "10.0.0.4"
 	if len(allocationRequest.IPConstraint) > 0 {
 		allocatedIP = allocationRequest.IPConstraint
@@ -2084,7 +2074,6 @@ func createNetworkContainer(
 
 	cnsResponderContextMap.getContext(ncid).CreateOrUpdateNCResponse.ValidateNCRequest = ncRequestValidatorFunc
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
@@ -2317,10 +2306,8 @@ func createNetworkContainerAndUpdateNetworkConfig(
 	fmt.Println("Started CNS Server", cnsServer.Server.URL)
 	ncDeploymentRequests := []*NCDeploymentRequest{&NCDeploymentRequest{
 		NCID: ncid}}
-	cnsServer.SetupTest()
 	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
@@ -2418,7 +2405,6 @@ func createNetworkContainerAndUpdateNetworkConfig(
 
 	updatedCnsResponderContextMap.getContext(ncid).CreateOrUpdateNCResponse.ValidateNCRequest = updateNCRequestValidatorFunc
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = updatedCnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
@@ -2956,11 +2942,8 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 		}
 	}
 
-	fmt.Println("Started CNS Server", cnsServer.Server.URL)
-	cnsServer.SetupTest()
 	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
@@ -3087,7 +3070,6 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 	}
 
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
