@@ -46,6 +46,7 @@ func (n *NodeInfoRequest) Validate() *JsonErr {
 	case cns.WebApps:
 	case cns.Kubernetes:
 	case cns.Batch:
+	case cns.ServiceFabric:
 	default:
 		return &JsonErr{
 			Code:       InvalidOrchestratorType,

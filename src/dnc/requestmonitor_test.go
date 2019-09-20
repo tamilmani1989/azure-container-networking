@@ -69,6 +69,11 @@ var (
 		IPAddresses:      []string{"127.0.0.1"},
 		LocationType:     "",
 		OrchestratorType: cns.Kubernetes}
+
+	sfNodeReq = api.NodeInfoRequest{
+		IPAddresses:      []string{"127.0.0.1"},
+		LocationType:     "",
+		OrchestratorType: cns.ServiceFabric}
 	nodeID = "testnode"
 
 	networkReq = CreateNetworkRequest{"AzureNet"}
@@ -140,6 +145,18 @@ var (
 			NodeID:              "testnode",
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.AzureContainerInstance,
+			OrchestratorContext: context},
+		AllowHostToNCCommunication: true,
+		AllowNCToHostCommunication: true}
+	networkContainerReq6 = CreateNetworkContainerRequest{
+		AllocationRequest: api.AllocationRequest{
+			SubnetName:     "subnet1",
+			IPConstraint:   "",
+			NodeConstraint: ""},
+		AssociationInfo: api.AssociationInfo{
+			NodeID:              "testnode",
+			InterfaceID:         "127.0.0.1",
+			ContainerType:       cns.COW,
 			OrchestratorContext: context},
 		AllowHostToNCCommunication: true,
 		AllowNCToHostCommunication: true}
@@ -326,7 +343,7 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 		context, _ := json.Marshal(podInfo)
 		expectedReq := cns.CreateNetworkContainerRequest{
 			Version:                    "1",
-			NetworkContainerType:       cns.AzureContainerInstance,
+			NetworkContainerType:       networkContainerReq.AssociationInfo.ContainerType,
 			NetworkContainerid:         "Swift_" + ncID,
 			PrimaryInterfaceIdentifier: networkContainerReq.AssociationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
@@ -861,6 +878,7 @@ func TestContainer(t *testing.T) {
 	ValidateNetworkContainerDeleteAPI(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainer(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainer(t, nodeID, nodeReq, networkContainerReq5, dncEP, vnetID, ncID, apiVersion)
+	CreateNetworkContainer(t, nodeID, sfNodeReq, networkContainerReq6, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerUsingReservation(t, nodeID, nodeReq, networkContainerReq3, dncEP, vnetID, ncID2, apiVersion)
 	CreateNetworkContainerUsingReservation(t, nodeID, nodeReq, networkContainerReq4, dncEP, vnetID, ncID2, apiVersion)
 	CreateNetworkContainerDeployedInTaggedSubnets(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
@@ -2050,7 +2068,7 @@ func createNetworkContainer(
 		context, _ := json.Marshal(podInfo)
 		expectedReq := cns.CreateNetworkContainerRequest{
 			Version:                    "1",
-			NetworkContainerType:       cns.AzureContainerInstance,
+			NetworkContainerType:       associationInfo.ContainerType,
 			NetworkContainerid:         "Swift_" + ncid,
 			PrimaryInterfaceIdentifier: associationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
