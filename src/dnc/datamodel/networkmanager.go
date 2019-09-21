@@ -1601,14 +1601,28 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 	if !networkContainerConfig.MarkedForDelete || networkContainerConfig.Status == Failed {
 		networkContainerConfig.MarkedForDelete = true
 		networkContainerConfig.Status = Pending
-		revertState, err := GetRevertState(networkContainerConfig.State)
-		if err != nil {
-			return err
+		networkContainerConfig.FailureDetail = api.JsonErr{}
+		// only retrieve the revert state if NC is not in any of the delete states
+		if !IsDeleteInProgress(networkContainerConfig.State) {
+			revertState, err := GetRevertState(networkContainerConfig.State)
+			if err != nil {
+				return err
+			}
+
+			loggershim.LS.Debugf("NC %s transitioning from state %s to %s",
+				networkContainerConfig.NetworkContainerID,
+				networkContainerConfig.State, revertState)
+			networkContainerConfig.State = revertState
+
+			// This is intended to be a new request for deletion, any existing RequestContext for this NC in
+			// the pending queue needs to be deleted.
+			// It's possible to have a RequestContext in pending queue belonging to refreshAssociation when
+			// deleteNC is triggered. This results in using the incorrect timestamps causing the unpublish
+			// and in turn the complete deletion time calculation to be erroneous.
+			requestID := GetNCKey(networkContainerConfig.NetworkID, networkContainerConfig.NetworkContainerID)
+			RemovePendingRequest(requestID)
 		}
-		loggershim.LS.Debugf("NC %s transitioning from state %s to %s",
-			networkContainerConfig.NetworkContainerID,
-			networkContainerConfig.State, revertState)
-		networkContainerConfig.State = revertState
+
 		return PersistNCConfiguration(networkContainerConfig, AddToPendingQ)
 	}
 
