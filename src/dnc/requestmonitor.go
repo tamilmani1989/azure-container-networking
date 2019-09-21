@@ -673,8 +673,8 @@ func getAllocatedLocalAddressesOnNode(nodeID string) (map[string]*net.IPNet, *ap
 func processAllocateLocalIP(
 	repoNCConfig *datamodel.NCConfiguration,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	defer utils.RecordTime(stateTransitionDateTime, "ContainerReserveLocalIP", repoNCConfig.NetworkContainerID)
-
+	defer utils.RecordTime(stateTransitionDateTime, "ContainerAllocateLocalIP", repoNCConfig.NetworkContainerID)
+	
 	var markProcessingFailed bool
 	var allocatedIP *net.IPNet
 	var failureDetail *api.JsonErr
@@ -1453,26 +1453,38 @@ func processNetworkContainerPublish(
 		// If authentication failure is still seen fail the request
 		// This workaround is needed because sometimes there is a latency in sending the new authentication token
 		// to pubsub. This workaround hides that till the latency is addressed.
-		if putNCResponseCode == http.StatusUnauthorized &&
-			time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec {
-			msg := fmt.Sprintf("Create NC %s pending. Response code: %d, time elapsed: %.0f sec",
-				repoNCConfig.NetworkContainerID,
-				putNCResponseCode,
-				time.Since(stateTransitionDateTime).Seconds())
-			return false, &api.JsonErr{
-				Code:       api.ProcessingPending,
+		if putNCResponseCode == http.StatusUnauthorized {
+			if time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec {
+				msg := fmt.Sprintf("Create NC %s pending. Response code: %d, time elapsed: %.0f sec",
+					repoNCConfig.NetworkContainerID,
+					putNCResponseCode,
+					time.Since(stateTransitionDateTime).Seconds())
+				return false, &api.JsonErr{
+					Code:       api.ProcessingPending,
+					Text:       msg,
+					HTTPStatus: http.StatusUnauthorized}
+			}
+
+			// Mark the request as non-retriable if it fails for retry duration
+			msg := fmt.Sprintf("Failed to publish NC: %s with status code: %v. Marking as non retriable.",
+				repoNCConfig.NetworkContainerID, putNCResponseCode)
+			repoNCConfig.Status = datamodel.Failed
+			repoNCConfig.FailureDetail = api.JsonErr{
+				Code:       api.PublishingFailed,
 				Text:       msg,
 				HTTPStatus: http.StatusUnauthorized}
+
+			return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 		}
 
-		msg := fmt.Sprintf("Failed to publish NC %s with status code %v.", repoNCConfig.NetworkContainerID, putNCResponseCode)
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = api.JsonErr{
+		// Retry if NMAgent error response code is anything other than http.StatusUnauthorized
+		msg := fmt.Sprintf("Failed to publish NC: %s with status code: %v. Marking as retriable.",
+			repoNCConfig.NetworkContainerID, putNCResponseCode)
+
+		return false, &api.JsonErr{
 			Code:       api.PublishingFailed,
 			Text:       msg,
 			HTTPStatus: int(putNCResponseCode)}
-
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
 	repoNCConfig.State = datamodel.Program
@@ -1556,25 +1568,37 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration, s
 		// If authentication failure is still seen fail the request
 		// This workaround is needed because sometimes there is a latency in sending the new authentication token
 		// to pubsub. This workaround hides that till the latency is addressed.
-		if deleteNCResponseCode == http.StatusUnauthorized &&
-			time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec {
-			msg := fmt.Sprintf("Delete NC %s pending. Response code: %d, time elapsed: %.0f sec",
-				repoNCConfig.NetworkContainerID,
-				deleteNCResponseCode,
-				time.Since(stateTransitionDateTime).Seconds())
-			return false, &api.JsonErr{
-				Code:       api.ProcessingPending,
+		if deleteNCResponseCode == http.StatusUnauthorized {
+			if time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec {
+				msg := fmt.Sprintf("Delete NC %s pending. Response code: %d, time elapsed: %.0f sec",
+					repoNCConfig.NetworkContainerID,
+					deleteNCResponseCode,
+					time.Since(stateTransitionDateTime).Seconds())
+				return false, &api.JsonErr{
+					Code:       api.ProcessingPending,
+					Text:       msg,
+					HTTPStatus: http.StatusUnauthorized}
+			}
+
+			// Mark the request as non-retriable if it fails for retry duration
+			msg := fmt.Sprintf("Failed to unpublish NC: %s with status code: %v. Marking as non retriable.",
+				repoNCConfig.NetworkContainerID, deleteNCResponseCode)
+			repoNCConfig.Status = datamodel.Failed
+			repoNCConfig.FailureDetail = api.JsonErr{
+				Code:       api.UnpublishingFailed,
 				Text:       msg,
 				HTTPStatus: http.StatusUnauthorized}
+			return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 		}
 
-		msg := fmt.Sprintf("Failed to unpublish NC with status code %v. Marking as non retriable.", deleteNCResponseCode)
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = api.JsonErr{
+		// Retry if NMAgent error response code is anything other than http.StatusUnauthorized
+		msg := fmt.Sprintf("Failed to unpublish NC: %s with status code: %v. Marking as retriable.",
+			repoNCConfig.NetworkContainerID, deleteNCResponseCode)
+
+		return false, &api.JsonErr{
 			Code:       api.UnpublishingFailed,
 			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+			HTTPStatus: int(deleteNCResponseCode)}
 	}
 
 	repoNCConfig.State = datamodel.DisAssociate
