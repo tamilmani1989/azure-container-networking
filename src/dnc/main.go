@@ -44,6 +44,11 @@ var dncServer server.Server
 var replicaInstance *replica.Replica
 var stderr bool
 
+const (
+	maxLogFileSize  = 16 * 1024 * 1024 // Set 16MB as the max log file size
+	maxLogFileCount = 8                // Set 8 as max log file count.
+)
+
 //  Base retry interval
 var requestContextRetryInterval time.Duration
 
@@ -72,10 +77,12 @@ func init() {
 	setDncConfigDefaults()
 	disableTelemetry = config.DNCSettings.DisableTelemetry
 	logger = loggershim.NewLoggerShim(config)
+
 	if disableTelemetry {
 		reports = nil
 	}
 	logger.Init(stderr, reports)
+	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
 	replicaInstance = replica.NewReplica(
 		config.ServerSettings,
 		GetNetworkRefreshMonitorStatus)

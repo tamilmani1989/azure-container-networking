@@ -160,12 +160,12 @@ var (
 	client        = &http.Client{Transport: tr}
 	nmAgentServer *MockServer
 	cnsServer     *MockServer
+)
 
-	defaultNumCPUCores            = 16
-	updatedNumCPUCoresForLoadTest = 300
-
-	// Induce 5% error for nmagent and cns responses
-	induceErrorPercent = 5
+const (
+	defaultNumCPUCores            = 16               // Default CPU cores for general tests
+	updatedNumCPUCoresForLoadTest = 300              // Higher CPU cores for simulating load test
+	induceErrorPercent = 5							 // Induce 5% error for nmagent and cns responses
 )
 
 // TestMain :- main
@@ -202,6 +202,7 @@ func StartDnc() {
 	setDncConfigDefaults()
 	logger = loggershim.NewLoggerShim(config)
 	logger.Init(stderr, reports)
+	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
 	replicaInstance = replica.NewReplica(
 		config.ServerSettings,
 		GetNetworkRefreshMonitorStatus)
