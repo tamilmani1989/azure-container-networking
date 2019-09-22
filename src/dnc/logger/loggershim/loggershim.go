@@ -17,6 +17,7 @@ type LoggerInterface interface {
 	Debugf(format string, args ...interface{})
 	Errorf(format string, args ...interface{})
 	Close()
+	SetLogFileLimits(maxFileSize, maxFileCount int)
 }
 
 // LoggerShim :- Information to initialize azure-container-networking logger
@@ -56,4 +57,9 @@ func (loggerShim *LoggerShim) Errorf(format string, args ...interface{}) {
 // Close :- Close logger
 func (loggerShim *LoggerShim) Close() {
 	loggerShim.loggerInterface.Close()
+}
+
+// SetLogFileLimits :- Set the limits for the log file
+func (loggerShim *LoggerShim) SetLogFileLimits(maxFileSize, maxFileCount int) {
+	loggerShim.loggerInterface.SetLogFileLimits(maxFileSize, maxFileCount)
 }
