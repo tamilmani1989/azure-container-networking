@@ -21,12 +21,15 @@ import (
 	"github.com/Azure/azure-container-networking/cns"
 )
 
-var dataStoreShim *datastoreshim.DataStoreShim
-var requestBaseInterval = 1000
-var minVlan uint16 = 1
-var maxVlan uint16 = 2048
-var maxContainersPerNode = 10
-var cnsSettings configuration.CNSSettings
+var (
+	dataStoreShim        *datastoreshim.DataStoreShim
+	cnsSettings          configuration.CNSSettings
+	requestBaseInterval         = 1000
+	minVlan              uint16 = 1
+	maxVlan              uint16 = 2048
+	maxContainersPerNode        = 10
+	HttpClientTimeout           = time.Duration(5 * time.Second)
+)
 
 // Init - Initialize repository.
 func Init(cnsConfigSettings configuration.CNSSettings, dataStoreSettings configuration.DataStoreSettings, interval int, min, max uint16) error {
@@ -2895,7 +2898,11 @@ func getNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 		cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt,
 		nodeIP)
 
-	w, respErr := http.Get(getNumOfCoresURL)
+	httpClient := http.Client{
+		Timeout: HttpClientTimeout,
+	}
+
+	w, respErr := httpClient.Get(getNumOfCoresURL)
 	if respErr != nil {
 		msg := fmt.Sprintf(
 			"Error encountered while querying number of cores for node IP %s with error %+v ",

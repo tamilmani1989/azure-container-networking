@@ -1175,8 +1175,12 @@ func processNetworkContainerAssociate(
 	// Release the session locks when calling in to cns
 	sessionManager.EndWriteSession(sessionInfo)
 
+	httpClient := http.Client{
+		Timeout: datamodel.HttpClientTimeout,
+	}
+
 	logger.Debugf("[CNS] create/update NC %s", ncGoalState.NetworkContainerID)
-	w, respErr := http.Post(createOrUpdateNCURL, "application/json; charset=utf-8", &body)
+	w, respErr := httpClient.Post(createOrUpdateNCURL, "application/json; charset=utf-8", &body)
 
 	// Reacquire the session locks post calling in to cns
 	sessionManager.BeginWriteSession(sessionInfo)
@@ -1300,8 +1304,12 @@ func processNetworkContainerDisAssociate(
 		config.CNSSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
 		primaryInterfaceID)
 
+	httpClient := http.Client{
+		Timeout: datamodel.HttpClientTimeout,
+	}
+
 	logger.Debugf("[CNS] delete NC %s", repoNCConfig.NetworkContainerID)
-	w, respErr := http.Post(deleteNCURL, "application/json", &body)
+	w, respErr := httpClient.Post(deleteNCURL, "application/json", &body)
 
 	sessionManager.BeginWriteSession(sessionInfo)
 
