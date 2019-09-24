@@ -53,7 +53,12 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 		setOrchestratorTypeURLFmt,
 		nodeInfo.IPAddresses[0])
 	loggershim.LS.Debugf("[CNS] create/update %s", nodeInfo.String())
-	w, respErr := http.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
+
+	httpClient := http.Client{
+		Timeout: datamodel.HttpClientTimeout,
+	}
+
+	w, respErr := httpClient.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
 	if respErr != nil {
 		msg := fmt.Sprintf("Post to URL %v for node %s failed with error %s",
 			setOrchestratorTypeURL,
