@@ -33,6 +33,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// This is a test code.
+
 type CreateNetworkRequest struct {
 	NetworkType string
 }
