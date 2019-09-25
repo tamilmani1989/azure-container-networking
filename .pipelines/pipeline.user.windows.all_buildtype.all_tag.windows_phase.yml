@@ -180,6 +180,16 @@ package:
           include:
             - '*AzureDNCSF.*.nupkg'
 
+   - !!buildcommand                                                    
+      name: 'Package GO-DNC Windows as SF app'   
+      command: 'package_sign.cmd'
+      arguments: 'package drop_dnc DNC drop_github'
+      artifacts:
+        - from: '.'
+          to: 'AzureSFDNC'
+          include:
+            - '*AzureSFDNC.*.nupkg'
+
     - !!buildcommand
       name: 'Package CNI'
       command: 'package_sign.cmd'
