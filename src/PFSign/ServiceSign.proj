@@ -4,6 +4,15 @@
   <Import Project="$(ExtendedTargetsPath)\NoTarget.targets" />
   <Import Project="$(PkgServiceSignTask)\content\FolderSigning.targets" />
 
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories);
+        $(PkgCloudnet_INIParser);
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
   <ItemGroup>
     <ProjectReference Include="$(SrcRoot)\NetAgentPackage\NetAgentPackage.proj"/>
   </ItemGroup>
@@ -16,6 +25,7 @@
     <IsValidateFilesEnabled>false</IsValidateFilesEnabled>
     <AvoidRename>true</AvoidRename>
     <FileNameCheckSpace>false</FileNameCheckSpace>
+    <CopyStartBatAndServiceConf>true</CopyStartBatAndServiceConf>
 
     <!-- If set to true, legacy cert (Autopilot Root CA) signing header will appear in build drop manifest file. -->
     <!-- If not set, default is true. -->
@@ -40,7 +50,8 @@
    </PropertyGroup>
    <Target Name="CreatePackageWithAllBinaries" AfterTargets="Build">
     <Message Text="CreatePackageWithAllBinaries started" Importance="high" />  
-    <Exec Command="$(MsBuildThisFileDirectory)\CreatePackageWithAllBinaries.cmd $(InputWithAllBinaries) $(AppOutput)" />
+    <Exec Command="$(MsBuildThisFileDirectory)\CreatePackageWithAllBinaries.cmd $(InputWithAllBinaries) $(AppOutput) $(CopyStartBatAndServiceConf)" />
+    <Exec Command="$(MsBuildThisFileDirectory)\CreatePackageWithAllBinaries.cmd $(PkgCloudnet_INIParser)\lib $(AppOutput)\INIParserBinaries false" />
     <Message Text="CreatePackageWithAllBinaries finished" Importance="high" />
   </Target>
 
