@@ -12,7 +12,7 @@
       <ExeHost>
         <Program>azure-dnc.exe</Program>
         <WorkingFolder>CodeBase</WorkingFolder>
-        <ConsoleRedirection FileRetentionCount="5" FileMaxSizeInKb="2048"/>
+        <ConsoleRedirection FileRetentionCount="8" FileMaxSizeInKb="16384"/>
       </ExeHost>
     </EntryPoint>
   </CodePackage>
