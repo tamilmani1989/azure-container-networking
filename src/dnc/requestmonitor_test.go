@@ -69,6 +69,11 @@ var (
 		IPAddresses:      []string{"127.0.0.1"},
 		LocationType:     "",
 		OrchestratorType: cns.Kubernetes}
+
+	sfNodeReq = api.NodeInfoRequest{
+		IPAddresses:      []string{"127.0.0.1"},
+		LocationType:     "",
+		OrchestratorType: cns.ServiceFabric}
 	nodeID = "testnode"
 
 	networkReq = CreateNetworkRequest{"AzureNet"}
@@ -140,6 +145,18 @@ var (
 			NodeID:              "testnode",
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.AzureContainerInstance,
+			OrchestratorContext: context},
+		AllowHostToNCCommunication: true,
+		AllowNCToHostCommunication: true}
+	networkContainerReq6 = CreateNetworkContainerRequest{
+		AllocationRequest: api.AllocationRequest{
+			SubnetName:     "subnet1",
+			IPConstraint:   "",
+			NodeConstraint: ""},
+		AssociationInfo: api.AssociationInfo{
+			NodeID:              "testnode",
+			InterfaceID:         "127.0.0.1",
+			ContainerType:       cns.COW,
 			OrchestratorContext: context},
 		AllowHostToNCCommunication: true,
 		AllowNCToHostCommunication: true}
@@ -312,8 +329,6 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 	}
 
 	fmt.Println("CnetSpace;", cnetSpace)
-	fmt.Println("Started CNS Server", cnsServer.Server.URL)
-	cnsServer.SetupTest()
 	allocatedIP := "10.0.0.4"
 	if len(networkContainerReq.AllocationRequest.IPConstraint) > 0 {
 		allocatedIP = networkContainerReq.AllocationRequest.IPConstraint
@@ -334,7 +349,7 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 		context, _ := json.Marshal(podInfo)
 		expectedReq := cns.CreateNetworkContainerRequest{
 			Version:                    "1",
-			NetworkContainerType:       cns.AzureContainerInstance,
+			NetworkContainerType:       networkContainerReq.AssociationInfo.ContainerType,
 			NetworkContainerid:         "Swift_" + ncID,
 			PrimaryInterfaceIdentifier: networkContainerReq.AssociationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
@@ -356,7 +371,6 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 
 	cnsResponderContextMap.getContext(ncID).CreateOrUpdateNCResponse.ValidateNCRequest = ncRequestValidatorFunc
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
@@ -857,6 +871,12 @@ func TestReservation(t *testing.T) {
 
 func TestContainer(t *testing.T) {
 	cnsServer.SetupTest()
+	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
 	id, _ := uuid.NewUUID()
 	vnetID := id.String()
 
@@ -864,6 +884,7 @@ func TestContainer(t *testing.T) {
 	ValidateNetworkContainerDeleteAPI(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainer(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainer(t, nodeID, nodeReq, networkContainerReq5, dncEP, vnetID, ncID, apiVersion)
+	CreateNetworkContainer(t, nodeID, sfNodeReq, networkContainerReq6, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerUsingReservation(t, nodeID, nodeReq, networkContainerReq3, dncEP, vnetID, ncID2, apiVersion)
 	CreateNetworkContainerUsingReservation(t, nodeID, nodeReq, networkContainerReq4, dncEP, vnetID, ncID2, apiVersion)
 	CreateNetworkContainerDeployedInTaggedSubnets(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
@@ -887,12 +908,6 @@ func ValidateNetworkContainerGetAPI(
 	dncEP, vnetID, ncID, apiVersion string) {
 	fmt.Println("****CreateNetworkContainer Test**********")
 	fmt.Println("****ValidateNetworkContainerGetAPI**********")
-	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
-	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
-	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
-	cnsServer.Context = cnsResponderContextMap
-	cnsServer.Lock.Unlock()
 	setupNetworkAndJoinSubnet(t, dncEP, vnetID, networkcontainerreq.AllocationRequest.SubnetName, apiVersion, true, 0)
 	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeInfoReq)
 
@@ -938,14 +953,9 @@ func ValidateNetworkContainerDeleteAPI(
 	fmt.Println("****ValidateNetworkContainerDeleteAPI**********")
 	ncDeploymentRequests := []*NCDeploymentRequest{&NCDeploymentRequest{
 		NCID: ncID}}
-
-	fmt.Println("Started CNS Server", cnsServer.Server.URL)
-	cnsServer.SetupTest()
-
 	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
 
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
@@ -2054,8 +2064,6 @@ func createNetworkContainer(
 		}
 	}
 	fmt.Println("CnetSpace;", cnetSpace)
-	fmt.Println("Started CNS Server", cnsServer.Server.URL)
-	cnsServer.SetupTest()
 	allocatedIP := "10.0.0.4"
 	if len(allocationRequest.IPConstraint) > 0 {
 		allocatedIP = allocationRequest.IPConstraint
@@ -2076,7 +2084,7 @@ func createNetworkContainer(
 		context, _ := json.Marshal(podInfo)
 		expectedReq := cns.CreateNetworkContainerRequest{
 			Version:                    "1",
-			NetworkContainerType:       cns.AzureContainerInstance,
+			NetworkContainerType:       associationInfo.ContainerType,
 			NetworkContainerid:         "Swift_" + ncid,
 			PrimaryInterfaceIdentifier: associationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
@@ -2100,7 +2108,6 @@ func createNetworkContainer(
 
 	cnsResponderContextMap.getContext(ncid).CreateOrUpdateNCResponse.ValidateNCRequest = ncRequestValidatorFunc
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
@@ -2333,10 +2340,8 @@ func createNetworkContainerAndUpdateNetworkConfig(
 	fmt.Println("Started CNS Server", cnsServer.Server.URL)
 	ncDeploymentRequests := []*NCDeploymentRequest{&NCDeploymentRequest{
 		NCID: ncid}}
-	cnsServer.SetupTest()
 	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
@@ -2434,7 +2439,6 @@ func createNetworkContainerAndUpdateNetworkConfig(
 
 	updatedCnsResponderContextMap.getContext(ncid).CreateOrUpdateNCResponse.ValidateNCRequest = updateNCRequestValidatorFunc
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = updatedCnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
@@ -2977,8 +2981,6 @@ func DeployNetworkContainers(
 		}
 	}
 
-	fmt.Println("Started CNS Server", cnsServer.Server.URL)
-	cnsServer.SetupTest()
 	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
 
 	if updatedCPUCores > 0 {
@@ -2995,7 +2997,6 @@ func DeployNetworkContainers(
 	}
 
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
@@ -3129,7 +3130,6 @@ func DeployNetworkContainers(
 	}
 
 	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
 
