@@ -95,7 +95,7 @@ CONNECT:
 						}
 
 						containerTypes.Range(func(key interface{}, value interface{}) bool {
-							containerTypesSlice = append(containerTypesSlice, value.(string))
+							containerTypesSlice = append(containerTypesSlice, key.(string))
 							return true
 						})
 
