@@ -20,6 +20,7 @@
   <PropertyGroup>
     <InputWithAllBinaries>$(BinariesBuildTypeArchDirectory)\Artifacts\NetAgent</InputWithAllBinaries>
     <AppOutput>$(BinariesBuildTypeArchDirectory)\App\HostNetAgent</AppOutput>
+    <ParentPFBits>$(BinariesBuildTypeArchDirectory)\App</ParentPFBits>
     <ModernAPSigning>true</ModernAPSigning>
     <APServiceSigner>$(PkgServiceSignTask)\content</APServiceSigner>
     <IsValidateFilesEnabled>false</IsValidateFilesEnabled>
@@ -45,7 +46,6 @@
       GeneratePackageForSigning;
       GeneratePathsForSigning;
       $(SignOutputDependsOn)
-      MoveSignedEntityBackToParent;
     </BuildDependsOn>	
    </PropertyGroup>
    <Target Name="CreatePackageWithAllBinaries" AfterTargets="Build">
@@ -57,7 +57,7 @@
 
   <Target Name="GeneratePackageForSigning" AfterTargets="CreatePackageWithAllBinaries">
     <Message Text="GeneratePackageForSigning started" Importance="high" />   
-    <Exec Command="$(MsBuildThisFileDirectory)\GeneratePackageForSigning.cmd $(AppOutput)" />
+    <Exec Command="$(MsBuildThisFileDirectory)\GeneratePackageForSigning.cmd $(ParentPFBits) " />
     <Message Text="GeneratePackageForSigning finished" Importance="high" />
   </Target>
 
@@ -73,12 +73,6 @@
 
     <Error Condition="!Exists('%(FoldersToSign.Identity)')" Text="Path %(FoldersToSign.Identity) not exists" />
     <Message Text="Done With signing" Importance="high" />
-  </Target>
-
-  <Target Name="MoveSignedEntityBackToParent" AfterTargets="GeneratePathsForSigning">
-    <Message Text="MoveSignedEntityBackToParent started" Importance="high" />  
-    <Exec Command="$(MsBuildThisFileDirectory)\MoveSignedEntityBackToParent.cmd $(BinariesBuildTypeArchDirectory)\App $(AppOutput) $(AppOutput)\HostNetAgent" />
-    <Message Text="MoveSignedEntityBackToParent finished" Importance="high" />
   </Target>
 
 </Project>

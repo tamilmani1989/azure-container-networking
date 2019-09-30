@@ -1,5 +1,6 @@
-set OUTPUTROOT=%1
+set PARENT=%1
 
-echo %OUTPUTROOT%
-mkdir "%OUTPUTROOT%\HostNetAgent"
-move "%OUTPUTROOT%\*" "%OUTPUTROOT%\HostNetAgent\"
+echo %PARENT%
+mkdir "%PARENT%\HostNetAgentCopy"
+move "%PARENT%\HostNetAgent" "%PARENT%\HostNetAgentCopy"
+rename "%PARENT%\HostNetAgentCopy" "HostNetAgent"
