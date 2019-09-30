@@ -110,7 +110,7 @@ func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, boo
 	// Empty body is required as wireserver cannot handle a post without the body.
 	var body bytes.Buffer
 	json.NewEncoder(&body).Encode("")
-	joinResponse, joinRespErr := http.Post(joinURL, "application/json", &body)
+	joinResponse, joinRespErr := datamodel.GetHttpClient().Post(joinURL, "application/json", &body)
 	if joinRespErr != nil {
 		msg := fmt.Sprintf(
 			"Join for network [%s] failed with reponse error [%s]. Marking this error as retriable",
@@ -162,7 +162,7 @@ func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nm
 		config.HostAgentSettings.WireServerIP,
 		networkID)
 
-	getResponse, getRespErr := http.Get(getURL)
+	getResponse, getRespErr := datamodel.GetHttpClient().Get(getURL)
 	if getRespErr != nil {
 		msg := fmt.Sprintf(
 			"Retrieval of network configuration for network [%s] failed with error [%s]. Marking this error as retriable.",
@@ -1175,12 +1175,8 @@ func processNetworkContainerAssociate(
 	// Release the session locks when calling in to cns
 	sessionManager.EndWriteSession(sessionInfo)
 
-	httpClient := http.Client{
-		Timeout: datamodel.HttpClientTimeout,
-	}
-
 	logger.Debugf("[CNS] create/update NC %s", ncGoalState.NetworkContainerID)
-	w, respErr := httpClient.Post(createOrUpdateNCURL, "application/json; charset=utf-8", &body)
+	w, respErr := datamodel.GetHttpClient().Post(createOrUpdateNCURL, "application/json; charset=utf-8", &body)
 
 	// Reacquire the session locks post calling in to cns
 	sessionManager.BeginWriteSession(sessionInfo)
@@ -1304,12 +1300,8 @@ func processNetworkContainerDisAssociate(
 		config.CNSSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
 		primaryInterfaceID)
 
-	httpClient := http.Client{
-		Timeout: datamodel.HttpClientTimeout,
-	}
-
 	logger.Debugf("[CNS] delete NC %s", repoNCConfig.NetworkContainerID)
-	w, respErr := httpClient.Post(deleteNCURL, "application/json", &body)
+	w, respErr := datamodel.GetHttpClient().Post(deleteNCURL, "application/json", &body)
 
 	sessionManager.BeginWriteSession(sessionInfo)
 
@@ -1398,7 +1390,7 @@ func processNetworkContainerPublish(
 		ncGoalState.AccessToken)
 	logger.Debugf("[NMAgent] %s, body:%s", ncGoalState.NetworkContainerID, ncRequest.String())
 
-	resp, respErr := http.Post(createNCURL, "application/json", &body)
+	resp, respErr := datamodel.GetHttpClient().Post(createNCURL, "application/json", &body)
 	if respErr != nil {
 		return false, &api.JsonErr{
 			Code:       api.PublishingFailed,
@@ -1510,7 +1502,7 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration, s
 		ncGoalState.AccessToken)
 	logger.Debugf("[NMAgent] deleting NC %s", ncGoalState.NetworkContainerID)
 
-	resp, respErr := http.Post(deleteNCURL, "application/json", &body)
+	resp, respErr := datamodel.GetHttpClient().Post(deleteNCURL, "application/json", &body)
 	if respErr != nil {
 		return false, &api.JsonErr{
 			Code: api.UnpublishingFailed,

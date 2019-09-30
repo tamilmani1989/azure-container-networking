@@ -28,11 +28,17 @@ var (
 	minVlan              uint16 = 1
 	maxVlan              uint16 = 2048
 	maxContainersPerNode        = 10
-	HttpClientTimeout           = time.Duration(5 * time.Second)
+	httpClientSettings   configuration.HttpClientSettings
+	httpClient           *http.Client
 )
 
 // Init - Initialize repository.
-func Init(cnsConfigSettings configuration.CNSSettings, dataStoreSettings configuration.DataStoreSettings, interval int, min, max uint16) error {
+func Init(
+	cnsConfigSettings configuration.CNSSettings,
+	dataStoreSettings configuration.DataStoreSettings,
+	httpClientConfigSettings configuration.HttpClientSettings,
+	interval int,
+	min, max uint16) error {
 	requestBaseInterval = interval
 	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
@@ -48,7 +54,25 @@ func Init(cnsConfigSettings configuration.CNSSettings, dataStoreSettings configu
 	}
 
 	cnsSettings = cnsConfigSettings
+	httpClientSettings = httpClientConfigSettings
 	return nil
+}
+
+// GetHttpClient - Return the http client object
+func GetHttpClient() *http.Client {
+	if httpClient == nil {
+		httpClient = &http.Client{
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout: time.Duration(httpClientSettings.ConnectionTimeout) * time.Second,
+				}).DialContext,
+				TLSHandshakeTimeout:   time.Duration(httpClientSettings.ConnectionTimeout) * time.Second,
+				ResponseHeaderTimeout: time.Duration(httpClientSettings.ResponseHeaderTimeout) * time.Second,
+			},
+		}
+	}
+
+	return httpClient
 }
 
 // DumpStorageState - Function to dump storage state.
@@ -2898,11 +2922,7 @@ func getNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 		cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt,
 		nodeIP)
 
-	httpClient := http.Client{
-		Timeout: HttpClientTimeout,
-	}
-
-	w, respErr := httpClient.Get(getNumOfCoresURL)
+	w, respErr := GetHttpClient().Get(getNumOfCoresURL)
 	if respErr != nil {
 		msg := fmt.Sprintf(
 			"Error encountered while querying number of cores for node IP %s with error %+v ",

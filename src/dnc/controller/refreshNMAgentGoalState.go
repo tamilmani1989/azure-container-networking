@@ -135,7 +135,7 @@ func (c *Controller) refreshNetworkContainerNMAgentGoalState(ncKey string,
 		ncGoalState.NetworkContainerID,
 		ncGoalState.AccessToken)
 
-	resp, respErr := http.Post(createNCURL, "application/json", &body)
+	resp, respErr := datamodel.GetHttpClient().Post(createNCURL, "application/json", &body)
 	if respErr != nil {
 		msg := fmt.Sprintf("Failed to publish network container goal state for Id %s to host agent with error %v "+
 			"Marking as retriable error \n",
@@ -209,7 +209,7 @@ func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, boo
 	// Empty body is required as wireserver cannot handle a post without the body.
 	var body bytes.Buffer
 	json.NewEncoder(&body).Encode("")
-	joinResponse, joinRespErr := http.Post(joinURL, "application/json", &body)
+	joinResponse, joinRespErr := datamodel.GetHttpClient().Post(joinURL, "application/json", &body)
 	if joinRespErr != nil {
 		msg := fmt.Sprintf(
 			"Join for network [%s] failed with reponse error [%s]. Marking this error as retriable",

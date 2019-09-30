@@ -67,5 +67,9 @@
         "ReportToHostInterval": 60000,
         "ConcurrentRequestsToProcess": 1000,
         "DisableTelemetry": false
+    },
+    "HttpClientSettings":{
+        "ConnectionTimeout":5,
+        "ResponseHeaderTimeout":120
     }
 }

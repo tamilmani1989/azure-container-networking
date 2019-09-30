@@ -155,7 +155,7 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 		config.HostAgentSettings.WireServerIP,
 		tagName,
 		addressType)
-	getResponse, getRespErr := http.Get(getURL)
+	getResponse, getRespErr := datamodel.GetHttpClient().Get(getURL)
 	if getRespErr != nil {
 		msg := fmt.Sprintf(
 			"Retrieval of system tag definition for tag [%s] failed with error [%s]. Marking this error as retriable.",

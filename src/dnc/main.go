@@ -100,7 +100,8 @@ func init() {
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
-		datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+		datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.HttpClientSettings,
+			config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
 		ctrler.UpdateReplicaStatus(true)
 	}
 }
@@ -154,6 +155,16 @@ func setDncConfigDefaults() {
 	if config.DNCSettings.SleepIntervalBetweenNetworkRefresh == 0 {
 		// Set default to 1 min
 		config.DNCSettings.SleepIntervalBetweenNetworkRefresh = 300
+	}
+
+	if config.HttpClientSettings.ConnectionTimeout == 0 {
+		// set the default connection timeout to 5 seconds
+		config.HttpClientSettings.ConnectionTimeout = 5
+	}
+
+	if config.HttpClientSettings.ResponseHeaderTimeout == 0 {
+		// set the default response header timeout to 120 seconds
+		config.HttpClientSettings.ResponseHeaderTimeout = 120
 	}
 }
 
