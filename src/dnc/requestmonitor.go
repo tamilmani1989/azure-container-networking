@@ -1723,6 +1723,8 @@ func updateVlan(containerType string) bool {
 	case cns.Docker:
 		fallthrough
 	case cns.JobObject:
+		fallthrough
+	case cns.COW:
 		return true
 	default:
 		return false
