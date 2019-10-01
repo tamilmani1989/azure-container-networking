@@ -48,3 +48,6 @@
       <BuildInParallel>false</BuildInParallel>
     </ProjectFile> 
   </ItemGroup>
+    
+  <Import Project="$(ExtendedTargetsPath)\Traversal.targets" />
+</Project>
