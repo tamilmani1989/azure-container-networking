@@ -1,0 +1,144 @@
+package cmd
+
+import (
+	"fmt"
+	"net/http"
+
+	"github.com/spf13/cobra"
+)
+
+func GetCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "get",
+		Short: "Gets an item from DNC",
+	}
+	cmd.AddCommand(getNodeCmd())
+	cmd.AddCommand(getVnetCmd())
+	cmd.AddCommand(getSubnetCmd())
+
+	return cmd
+}
+
+func getNodeCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "node",
+		Short: "Gets a node",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("Inside delete Run with args: %v\n", args)
+			id, _ := cmd.Flags().GetString("id")
+
+			node, err := DncClient.GetNode(id)
+			if err.HTTPStatus != http.StatusOK {
+				fmt.Println(err)
+				return
+			}
+			fmt.Printf("%+v\n", node)
+		},
+	}
+	cmd.Flags().String("id", "", "set name")
+	return cmd
+}
+
+func getVnetCmd() *cobra.Command {
+
+	var cmd = &cobra.Command{
+		Use:   "vnet",
+		Short: "Gets an item from DNC",
+	}
+	cmd.AddCommand(getVnetStatusCmd())
+	cmd.AddCommand(getVnetConfigCmd())
+
+	return cmd
+}
+
+func getVnetStatusCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "status",
+		Short: "Gets a vnet",
+		Run: func(cmd *cobra.Command, args []string) {
+			id, _ := cmd.Flags().GetString("id")
+
+			vnet, err := DncClient.GetNetworkStatus(id)
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				fmt.Println(err)
+				return
+			}
+			fmt.Printf("%+v\n", vnet)
+		},
+	}
+	cmd.Flags().String("id", "", "set name")
+	return cmd
+}
+
+func getVnetConfigCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "config",
+		Short: "Gets a vnet",
+		Run: func(cmd *cobra.Command, args []string) {
+			id, _ := cmd.Flags().GetString("id")
+
+			vnet, err := DncClient.GetNetworkConfiguration(id)
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				fmt.Println(err)
+				return
+			}
+			fmt.Printf("%+v\n", vnet)
+		},
+	}
+	cmd.Flags().String("id", "", "set name")
+	return cmd
+}
+
+func getSubnetCmd() *cobra.Command {
+
+	var cmd = &cobra.Command{
+		Use:   "subnet",
+		Short: "Gets an subnet from DNC",
+	}
+	cmd.AddCommand(getSubnetStatusCmd())
+	cmd.AddCommand(getSubnetConfigCmd())
+
+	return cmd
+}
+
+func getSubnetStatusCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "status",
+		Short: "Gets a vnet",
+		Run: func(cmd *cobra.Command, args []string) {
+			vnetid, _ := cmd.Flags().GetString("vnet-id")
+			subnetid, _ := cmd.Flags().GetString("subnet-id")
+
+			vnet, err := DncClient.GetSubnetStatus(vnetid, subnetid)
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				fmt.Println(err)
+				return
+			}
+			fmt.Printf("%+v\n", vnet)
+		},
+	}
+	cmd.Flags().String("vnet-id", "", "vnet-id")
+	cmd.Flags().String("subnet-id", "", "subnet-id")
+	return cmd
+}
+
+func getSubnetConfigCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "config",
+		Short: "Gets a vnet",
+		Run: func(cmd *cobra.Command, args []string) {
+			vnetid, _ := cmd.Flags().GetString("vnet-id")
+			subnetid, _ := cmd.Flags().GetString("subnet-id")
+
+			vnet, err := DncClient.GetSubnetConfiguration(vnetid, subnetid)
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				fmt.Println(err)
+				return
+			}
+			fmt.Printf("%+v\n", vnet)
+		},
+	}
+	cmd.Flags().String("vnet-id", "", "vnet-id")
+	cmd.Flags().String("subnet-id", "", "subnet-id")
+	return cmd
+}
