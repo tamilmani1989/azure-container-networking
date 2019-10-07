@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"dnc/dnctl/common"
 	"fmt"
 	"net/http"
 
@@ -15,6 +16,7 @@ func GetCmd() *cobra.Command {
 	cmd.AddCommand(getNodeCmd())
 	cmd.AddCommand(getVnetCmd())
 	cmd.AddCommand(getSubnetCmd())
+	cmd.AddCommand(getNetworkContainerCmd())
 
 	return cmd
 }
@@ -24,18 +26,17 @@ func getNodeCmd() *cobra.Command {
 		Use:   "node",
 		Short: "Gets a node",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("Inside delete Run with args: %v\n", args)
 			id, _ := cmd.Flags().GetString("id")
 
 			node, err := DncClient.GetNode(id)
 			if err.HTTPStatus != http.StatusOK {
-				fmt.Println(err)
+				common.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", node)
 		},
 	}
-	cmd.Flags().String("id", "", "set name")
+	cmd.Flags().String("id", "", "Node id")
 	return cmd
 }
 
@@ -60,7 +61,7 @@ func getVnetStatusCmd() *cobra.Command {
 
 			vnet, err := DncClient.GetNetworkStatus(id)
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				fmt.Println(err)
+				common.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", vnet)
@@ -79,7 +80,7 @@ func getVnetConfigCmd() *cobra.Command {
 
 			vnet, err := DncClient.GetNetworkConfiguration(id)
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				fmt.Println(err)
+				common.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", vnet)
@@ -111,7 +112,7 @@ func getSubnetStatusCmd() *cobra.Command {
 
 			vnet, err := DncClient.GetSubnetStatus(vnetid, subnetid)
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				fmt.Println(err)
+				common.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", vnet)
@@ -125,14 +126,14 @@ func getSubnetStatusCmd() *cobra.Command {
 func getSubnetConfigCmd() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "config",
-		Short: "Gets a vnet",
+		Short: "Gets a subnet",
 		Run: func(cmd *cobra.Command, args []string) {
 			vnetid, _ := cmd.Flags().GetString("vnet-id")
-			subnetid, _ := cmd.Flags().GetString("subnet-id")
+			ncid, _ := cmd.Flags().GetString("nc-id")
 
-			vnet, err := DncClient.GetSubnetConfiguration(vnetid, subnetid)
+			vnet, err := DncClient.GetSubnetConfiguration(vnetid, ncid)
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				fmt.Println(err)
+				common.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", vnet)
@@ -140,5 +141,76 @@ func getSubnetConfigCmd() *cobra.Command {
 	}
 	cmd.Flags().String("vnet-id", "", "vnet-id")
 	cmd.Flags().String("subnet-id", "", "subnet-id")
+	return cmd
+}
+
+func getNetworkContainerCmd() *cobra.Command {
+
+	var cmd = &cobra.Command{
+		Use:   "nc",
+		Short: "Gets an network container from DNC",
+
+		Run: func(cmd *cobra.Command, args []string) {
+			vnetid, _ := cmd.Flags().GetString("vnet-id")
+			ncid, _ := cmd.Flags().GetString("nc-id")
+
+			vnet, err := DncClient.GetNC(vnetid, ncid)
+
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				common.PrettyPrint(err)
+				return
+			}
+			fmt.Printf("%+v\n", vnet)
+		},
+	}
+	cmd.Flags().String("vnet-id", "", "vnet-id")
+	cmd.Flags().String("nc-id", "", "nc-id")
+
+	cmd.AddCommand(getNetworkContainerConfigCmd())
+	cmd.AddCommand(getNetworkContainerStatusCmd())
+	return cmd
+}
+
+func getNetworkContainerConfigCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "config",
+		Short: "Gets a NC Config",
+		Run: func(cmd *cobra.Command, args []string) {
+			vnetid, _ := cmd.Flags().GetString("vnet-id")
+			ncid, _ := cmd.Flags().GetString("nc-id")
+
+			vnet, err := DncClient.GetNCConfiguration(vnetid, ncid)
+
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				common.PrettyPrint(err)
+				return
+			}
+			fmt.Printf("%+v\n", vnet)
+		},
+	}
+	cmd.Flags().String("vnet-id", "", "vnet-id")
+	cmd.Flags().String("nc-id", "", "nc-id")
+	return cmd
+}
+
+func getNetworkContainerStatusCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "status",
+		Short: "Gets a NC status",
+		Run: func(cmd *cobra.Command, args []string) {
+			vnetid, _ := cmd.Flags().GetString("vnet-id")
+			ncid, _ := cmd.Flags().GetString("nc-id")
+
+			vnet, err := DncClient.GetNCStatus(vnetid, ncid)
+
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				common.PrettyPrint(err)
+				return
+			}
+			fmt.Printf("%+v\n", vnet)
+		},
+	}
+	cmd.Flags().String("vnet-id", "", "vnet-id")
+	cmd.Flags().String("nc-id", "", "nc-id")
 	return cmd
 }

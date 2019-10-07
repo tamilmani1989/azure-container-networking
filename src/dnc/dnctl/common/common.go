@@ -1,5 +1,10 @@
 package common
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // dnctl actions
 const (
 	Register   = "Register"
@@ -18,3 +23,8 @@ const (
 	Reservation      = "Reservation"
 	NetworkContainer = "NetworkContainer"
 )
+
+func PrettyPrint(obj interface{}) {
+	b, _ := json.MarshalIndent(obj, "", "  ")
+	fmt.Print(string(b))
+}

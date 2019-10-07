@@ -19,7 +19,7 @@ func NewRootCmd() *cobra.Command {
 			file, _ := ioutil.ReadFile(ClientConfigPath)
 			var dncClient dncclient.DncClient
 			_ = json.Unmarshal([]byte(file), &dncClient)
-			DncClient = dncclient.NewDncClient(dncClient.DncEP, dncClient.Blob, dncClient.Container, dncClient.PartitionKey)
+			DncClient = dncclient.NewDncClient(dncClient.DncEP)
 		},
 	}
 	return rootCmd

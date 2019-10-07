@@ -1,7 +1,8 @@
 package cmd
 
 import (
-	"fmt"
+	"dnc/dnctl/common"
+	"net/http"
 
 	"github.com/spf13/cobra"
 )
@@ -13,7 +14,7 @@ func RegisterCmd() *cobra.Command {
 	}
 	registercmd.AddCommand(registerNodeCmd())
 	registercmd.AddCommand(registerVnetCmd())
-	registercmd.AddCommand(registerNetworkProfileCmd())
+	registercmd.AddCommand(registerSubnet())
 	registercmd.Aliases = []string{"reg"}
 	return registercmd
 }
@@ -28,7 +29,9 @@ func registerNodeCmd() *cobra.Command {
 			orchtype, _ := cmd.Flags().GetString("orchestrator-type")
 
 			err := DncClient.AddNode(nodeid, ipaddr, orchtype)
-			fmt.Println(err)
+			if err != nil {
+				common.PrettyPrint(err)
+			}
 		},
 	}
 	cmd.Flags().String("id", "", "Name of the node")
@@ -46,26 +49,38 @@ func registerVnetCmd() *cobra.Command {
 		Use:   "vnet",
 		Short: "Registers a VNET",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("Inside delete Run with args: %v\n", args)
-			flagname, _ := cmd.Flags().GetString("name")
-			fmt.Printf("flags %+v\n", flagname)
+			vnetid, _ := cmd.Flags().GetString("id")
+
+			err := DncClient.AddNetwork(vnetid)
+			if err != nil {
+				common.PrettyPrint(err)
+			}
 		},
 	}
-	cmd.Flags().StringP("name", "n", "", "Set your name")
+	cmd.Flags().String("id", "", "The VNET ID for delegation")
+	cmd.MarkFlagRequired("id")
+
 	return cmd
 }
 
-func registerNetworkProfileCmd() *cobra.Command {
+func registerSubnet() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "networkprofile",
-		Short: "Registers a Network Profile",
+		Use:   "subnet",
+		Short: "Registers a subnet",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("Inside delete Run with args: %v\n", args)
-			flagname, _ := cmd.Flags().GetString("name")
-			fmt.Printf("flags %+v\n", flagname)
+			vnetid, _ := cmd.Flags().GetString("vnet-id")
+			subnetid, _ := cmd.Flags().GetString("subnet-id")
+			authtoken, _ := cmd.Flags().GetString("auth-token")
+
+			err := DncClient.AddSubnet(vnetid, subnetid, authtoken)
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				common.PrettyPrint(err)
+				return
+			}
 		},
 	}
-	cmd.Aliases = []string{"netprof"}
-	cmd.Flags().StringP("name", "n", "", "Set your name")
+	cmd.Flags().String("vnet-id", "", "vnet-id")
+	cmd.Flags().String("subnet-id", "", "subnet-id")
+	cmd.Flags().String("auth-token", "", "auth-token")
 	return cmd
 }
