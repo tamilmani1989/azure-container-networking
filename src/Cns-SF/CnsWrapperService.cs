@@ -89,6 +89,11 @@ namespace CnsWrapperService
                     _additionalCmdLineArguments += " -startcnm";
                 }
 
+                if (WrapperConfiguration.SetupHnsAtStartup)
+                {
+                    _additionalCmdLineArguments += string.Format(" -defaultextnetworktype {0}", WrapperConfiguration.DefaultExtNetworkType);
+                }
+
                 _additionalCmdLineArguments.Trim();
 
                 _mainThread = new Thread(this.Run);
