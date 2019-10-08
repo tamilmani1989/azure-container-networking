@@ -5,6 +5,7 @@ package server
 import (
 	"dnc/api"
 	"dnc/controller"
+	"dnc/utils"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -42,7 +43,7 @@ func SetController(c *controller.Controller) {
 
 // Index - Index handler
 func Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Welcome to DNC service!!!!!\n")
+	fmt.Fprint(w, utils.Version)
 }
 
 func decodeRequestBody(request *http.Request, decodedBody interface{}) error {

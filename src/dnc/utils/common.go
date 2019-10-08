@@ -15,6 +15,10 @@ import (
 	"github.com/google/uuid"
 )
 
+var (
+	Version = "no version provided"
+)
+
 type Uint16s []uint16
 
 func (s Uint16s) Len() int           { return len(s) }
