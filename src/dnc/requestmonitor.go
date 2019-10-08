@@ -1792,8 +1792,8 @@ func processPendingRequests(
 	for requestID, requestContext := range requests {
 		_, isRequestInProcess := inProcessRequestsMap.Load(requestID)
 
-		if time.Now().UTC().Sub(requestContext.LastRetriedDateTime) > requestContext.RetryInterval &&
-			!isRequestInProcess {
+		if !isRequestInProcess &&
+			time.Now().UTC().Sub(requestContext.LastRetriedDateTime) > requestContext.RetryInterval {
 			requestsToProcess = append(requestsToProcess, requestID)
 
 			// Add the request in the in-process map
@@ -1804,7 +1804,7 @@ func processPendingRequests(
 
 	logger.Debugf("Number of requests to process in the current batch: %d", currentBatchRequestCount)
 
-	for i := 0; i < len(requestsToProcess); i++ {
+	for i := 0; i < currentBatchRequestCount; i++ {
 		// Return if the replica is not primary
 		if !replicaInstance.IsReplicaPrimary() {
 			break
@@ -1834,10 +1834,9 @@ func processPendingRequests(
 			}
 
 			processRequest(rid, &rc)
-			goroutines <- struct{}{}
-
 			// Remove the request from the in-process map
 			requestsMap.Delete(rid)
+			goroutines <- struct{}{}
 		}(requestID, requestContext, inProcessRequestsMap, concurrentGoroutines)
 	}
 }
