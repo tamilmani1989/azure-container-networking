@@ -20,44 +20,46 @@ import (
 	"github.com/Azure/azure-container-networking/telemetry"
 )
 
-var isPrimary struct{ flag int32 }
-var cancelProcessing = make(chan bool)
-var startProcessing = make(chan bool)
-var startChan = make(chan bool)
-var doneChan = make(chan bool)
-var demoteChan = make(chan bool)
-var networkMonitorStartProcessing = make(chan bool)
-var tagMonitorStartProcessing = make(chan bool)
-var networkMonitorStopProcessing = make(chan bool)
-var tagMonitorStopProcessing = make(chan bool)
-var refreshNCStartProcessing = make(chan bool)
-var refreshNCStopProcessing = make(chan bool)
-var telemetryStopProcessing = make(chan bool)
-var reports = make(chan telemetry.DNCReport)
+var (
+	isPrimary                     struct{ flag int32 }
+	cancelProcessing              = make(chan bool)
+	startProcessing               = make(chan bool)
+	startChan                     = make(chan bool)
+	doneChan                      = make(chan bool)
+	demoteChan                    = make(chan bool)
+	networkMonitorStartProcessing = make(chan bool)
+	tagMonitorStartProcessing     = make(chan bool)
+	networkMonitorStopProcessing  = make(chan bool)
+	tagMonitorStopProcessing      = make(chan bool)
+	refreshNCStartProcessing      = make(chan bool)
+	refreshNCStopProcessing       = make(chan bool)
+	telemetryStopProcessing       = make(chan bool)
+	reports                       = make(chan telemetry.DNCReport)
 
-var config *configuration.Configuration
-var masterElectionShim *masterelectionshim.MasterElectionShim
-var logger *loggershim.LoggerShim
-var sessionManager *utils.SessionManager
-var ctrler *controller.Controller
-var dncServer server.Server
-var replicaInstance *replica.Replica
-var stderr bool
+	config             *configuration.Configuration
+	masterElectionShim *masterelectionshim.MasterElectionShim
+	logger             *loggershim.LoggerShim
+	sessionManager     *utils.SessionManager
+	ctrler             *controller.Controller
+	dncServer          server.Server
+	replicaInstance    *replica.Replica
+	stderr             bool
 
-//  Base retry interval
-var requestContextRetryInterval time.Duration
+	//  Base retry interval
+	requestContextRetryInterval time.Duration
 
-//  Max request process backoff interval
-var maxRequestBackoffInterval time.Duration
+	//  Max request process backoff interval
+	maxRequestBackoffInterval time.Duration
 
-// SleepIntervalBetweenBatches
-var sleepIntervalBetweenNetworkBatches time.Duration
+	// SleepIntervalBetweenBatches
+	sleepIntervalBetweenNetworkBatches time.Duration
 
-// SleepIntervalBetweenNetworkRefresh
-var sleepIntervalBetweenNetworkRefresh time.Duration
+	// SleepIntervalBetweenNetworkRefresh
+	sleepIntervalBetweenNetworkRefresh time.Duration
 
-// Flag to disable telemetry
-var disableTelemetry bool
+	// Flag to disable telemetry
+	disableTelemetry bool
+)
 
 func init() {
 	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
