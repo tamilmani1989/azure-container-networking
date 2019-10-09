@@ -12,6 +12,8 @@ import (
 	"dnc/server"
 	"dnc/utils"
 	"flag"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -59,6 +61,9 @@ var (
 
 	// Flag to disable telemetry
 	disableTelemetry bool
+
+	// HTTP client object to be reused wherever needed
+	httpClient *http.Client
 )
 
 func init() {
@@ -89,7 +94,18 @@ func init() {
 		startChan,
 		doneChan,
 		demoteChan)
-	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt, masterElectionShim, config)
+
+	httpClient = &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: time.Duration(config.HttpClientSettings.ConnectionTimeout) * time.Second,
+			}).DialContext,
+			ResponseHeaderTimeout: time.Duration(config.HttpClientSettings.ResponseHeaderTimeout) * time.Second,
+		},
+	}
+
+	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
+		masterElectionShim, config, httpClient)
 	dncServer = server.Server{
 		ServerSettings: config.ServerSettings,
 		Controller:     ctrler}
@@ -102,8 +118,8 @@ func init() {
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
-		datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.HttpClientSettings,
-			config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+		datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
+			config.VlanSettings.Min, config.VlanSettings.Max, httpClient)
 		ctrler.UpdateReplicaStatus(true)
 	}
 }

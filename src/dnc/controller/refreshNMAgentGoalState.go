@@ -31,7 +31,7 @@ func (c *Controller) ReJoinAllNetworks(networksMap map[string]bool) {
 		index := 0
 		failedNetworks := make(map[string]bool)
 		for networkID := range networksMap {
-			_, err, _ := postRequestToAgentForNetworkJoin(networkID)
+			_, err, _ := c.postRequestToAgentForNetworkJoin(networkID)
 
 			time.Sleep(1 * time.Second)
 
@@ -135,7 +135,7 @@ func (c *Controller) refreshNetworkContainerNMAgentGoalState(ncKey string,
 		ncGoalState.NetworkContainerID,
 		ncGoalState.AccessToken)
 
-	resp, respErr := datamodel.HttpClient.Post(createNCURL, "application/json", &body)
+	resp, respErr := c.httpClient.Post(createNCURL, "application/json", &body)
 	if respErr != nil {
 		msg := fmt.Sprintf("Failed to publish network container goal state for Id %s to host agent with error %v "+
 			"Marking as retriable error \n",
@@ -198,7 +198,7 @@ func (c *Controller) refreshNetworkContainerNMAgentGoalState(ncKey string,
 
 // Post request to host agent to express the intent for joining a network.
 // Returns IsRetirbale, optional error if any, isThrottled
-func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, bool) {
+func (c *Controller) postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, bool) {
 	joinURL := fmt.Sprintf(
 		config.HostAgentSettings.ConnectionStrings.JoinNetworkURLFmt,
 		config.HostAgentSettings.WireServerIP,
@@ -209,7 +209,7 @@ func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, boo
 	// Empty body is required as wireserver cannot handle a post without the body.
 	var body bytes.Buffer
 	json.NewEncoder(&body).Encode("")
-	joinResponse, joinRespErr := datamodel.HttpClient.Post(joinURL, "application/json", &body)
+	joinResponse, joinRespErr := c.httpClient.Post(joinURL, "application/json", &body)
 	if joinRespErr != nil {
 		msg := fmt.Sprintf(
 			"Join for network [%s] failed with reponse error [%s]. Marking this error as retriable",

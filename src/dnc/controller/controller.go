@@ -27,14 +27,21 @@ var (
 type Controller struct {
 	Replica        *replica.Replica
 	SessionManager *utils.SessionManager
+	httpClient     *http.Client
 }
 
 // NewController - Create a NewController
-func NewController(replica *replica.Replica, sessionsManager *utils.SessionManager, setOrchestratorTypeUrlFmt string,
-	electionShim *masterelectionshim.MasterElectionShim, configuration *configuration.Configuration) *Controller {
+func NewController(
+	replica *replica.Replica,
+	sessionsManager *utils.SessionManager,
+	setOrchestratorTypeUrlFmt string,
+	electionShim *masterelectionshim.MasterElectionShim,
+	configuration *configuration.Configuration,
+	httpClient *http.Client) *Controller {
 	controller := new(Controller)
 	controller.Replica = replica
 	controller.SessionManager = sessionsManager
+	controller.httpClient = httpClient
 	setOrchestratorTypeURLFmt = setOrchestratorTypeUrlFmt
 	masterElectionShim = electionShim
 	config = configuration
@@ -54,7 +61,7 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 		nodeInfo.IPAddresses[0])
 	loggershim.LS.Debugf("[CNS] create/update %s", nodeInfo.String())
 
-	w, respErr := datamodel.HttpClient.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
+	w, respErr := c.httpClient.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
 	if respErr != nil {
 		msg := fmt.Sprintf("Post to URL %v for node %s failed with error %s",
 			setOrchestratorTypeURL,
@@ -492,8 +499,8 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.HttpClientSettings,
-		config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
+		config.VlanSettings.Min, config.VlanSettings.Max, c.httpClient)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
@@ -507,8 +514,8 @@ func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2)
 	config.DataStoreSettings.AzureStorageInfo.RegionalStorageConnectionString = request.RegionalStorageConnectionString
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.HttpClientSettings,
-		config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
+		config.VlanSettings.Min, config.VlanSettings.Max, c.httpClient)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
@@ -523,8 +530,8 @@ func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, b
 	config.MasterElectionSettings.BlobStorageSettings.ContainerName = containerName
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.HttpClientSettings,
-		config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
+		config.VlanSettings.Min, config.VlanSettings.Max, c.httpClient)
 	c.UpdateReplicaStatus(true)
 	return nil
 }

@@ -28,16 +28,16 @@ var (
 	minVlan              uint16 = 1
 	maxVlan              uint16 = 2048
 	maxContainersPerNode        = 10
-	HttpClient           *http.Client
+	httpClient           *http.Client
 )
 
 // Init - Initialize repository.
 func Init(
 	cnsConfigSettings configuration.CNSSettings,
 	dataStoreSettings configuration.DataStoreSettings,
-	httpClientConfigSettings configuration.HttpClientSettings,
 	interval int,
-	min, max uint16) error {
+	min, max uint16,
+	httpClientArg *http.Client) error {
 	requestBaseInterval = interval
 	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
@@ -53,16 +53,7 @@ func Init(
 	}
 
 	cnsSettings = cnsConfigSettings
-
-	HttpClient = &http.Client{
-		Transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout: time.Duration(httpClientConfigSettings.ConnectionTimeout) * time.Second,
-			}).DialContext,
-			TLSHandshakeTimeout:   time.Duration(httpClientConfigSettings.ConnectionTimeout) * time.Second,
-			ResponseHeaderTimeout: time.Duration(httpClientConfigSettings.ResponseHeaderTimeout) * time.Second,
-		},
-	}
+	httpClient = httpClientArg
 
 	return nil
 }
@@ -2914,7 +2905,7 @@ func getNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 		cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt,
 		nodeIP)
 
-	w, respErr := HttpClient.Get(getNumOfCoresURL)
+	w, respErr := httpClient.Get(getNumOfCoresURL)
 	if respErr != nil {
 		msg := fmt.Sprintf(
 			"Error encountered while querying number of cores for node IP %s with error %+v ",
