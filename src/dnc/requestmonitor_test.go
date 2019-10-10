@@ -223,7 +223,16 @@ func StartDnc() {
 		startChan,
 		doneChan,
 		demoteChan)
-	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt, masterElectionShim, config)
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: time.Duration(config.HttpClientSettings.ConnectionTimeout) * time.Second,
+			}).DialContext,
+			ResponseHeaderTimeout: time.Duration(config.HttpClientSettings.ResponseHeaderTimeout) * time.Second,
+		},
+	}
+	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
+		masterElectionShim, config, httpClient)
 	dncServer = server.Server{
 		ServerSettings: config.ServerSettings,
 		Controller:     ctrler}
@@ -240,7 +249,8 @@ func StartDnc() {
 			config.DataStoreSettings,
 			config.DNCSettings.RequestRetryBaseInterval,
 			config.VlanSettings.Min,
-			config.VlanSettings.Max)
+			config.VlanSettings.Max,
+			httpClient)
 		ctrler.UpdateReplicaStatus(true)
 	}
 

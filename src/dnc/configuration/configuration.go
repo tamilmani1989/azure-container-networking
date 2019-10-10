@@ -147,6 +147,14 @@ type DNCSettings struct {
 	DisableTelemetry bool
 }
 
+// HttpClientSettings: Http client settings to be used when making http calls to CNS and NMAgent from DNC
+type HttpClientSettings struct {
+	// ConnectionTimeout indicates the timeout used to establish the connection
+	ConnectionTimeout int
+	// ResponseHeaderTimeout indicates the timeout used to get the header
+	ResponseHeaderTimeout int
+}
+
 // Configuration - Details related to dnc configuration settings
 type Configuration struct {
 	OrchestartorType       string
@@ -158,6 +166,7 @@ type Configuration struct {
 	CNSSettings            CNSSettings
 	VlanSettings           VlanSettings
 	DNCSettings            DNCSettings
+	HttpClientSettings     HttpClientSettings
 }
 
 // Load the JSON config file

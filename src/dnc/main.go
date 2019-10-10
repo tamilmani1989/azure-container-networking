@@ -12,6 +12,8 @@ import (
 	"dnc/server"
 	"dnc/utils"
 	"flag"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -59,6 +61,9 @@ var (
 
 	// Flag to disable telemetry
 	disableTelemetry bool
+
+	// HTTP client object to be reused wherever needed
+	httpClient *http.Client
 )
 
 func init() {
@@ -89,7 +94,21 @@ func init() {
 		startChan,
 		doneChan,
 		demoteChan)
-	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt, masterElectionShim, config)
+
+	// Creating http client object to be reused instead of creating one every time.
+	// This helps make use of the cached tcp connections.
+	// Clients are safe for concurrent use by multiple goroutines.
+	httpClient = &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: time.Duration(config.HttpClientSettings.ConnectionTimeout) * time.Second,
+			}).DialContext,
+			ResponseHeaderTimeout: time.Duration(config.HttpClientSettings.ResponseHeaderTimeout) * time.Second,
+		},
+	}
+
+	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
+		masterElectionShim, config, httpClient)
 	dncServer = server.Server{
 		ServerSettings: config.ServerSettings,
 		Controller:     ctrler}
@@ -102,7 +121,8 @@ func init() {
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
-		datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+		datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
+			config.VlanSettings.Min, config.VlanSettings.Max, httpClient)
 		ctrler.UpdateReplicaStatus(true)
 	}
 }
@@ -156,6 +176,16 @@ func setDncConfigDefaults() {
 	if config.DNCSettings.SleepIntervalBetweenNetworkRefresh == 0 {
 		// Set default to 1 min
 		config.DNCSettings.SleepIntervalBetweenNetworkRefresh = 300
+	}
+
+	if config.HttpClientSettings.ConnectionTimeout == 0 {
+		// set the default connection timeout to 5 seconds
+		config.HttpClientSettings.ConnectionTimeout = 5
+	}
+
+	if config.HttpClientSettings.ResponseHeaderTimeout == 0 {
+		// set the default response header timeout to 120 seconds
+		config.HttpClientSettings.ResponseHeaderTimeout = 120
 	}
 }
 

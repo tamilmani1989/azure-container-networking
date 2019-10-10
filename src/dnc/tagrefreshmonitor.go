@@ -12,10 +12,12 @@ import (
 	"time"
 )
 
-var tagsCache = make(map[string]datamodel.TagDefinition)
-var tagsCacheLock sync.RWMutex
-var tagsCacheRehydrated = false
-var defaultTagRefreshInterval = 30000
+var (
+	tagsCache                 = make(map[string]datamodel.TagDefinition)
+	tagsCacheLock             sync.RWMutex
+	tagsCacheRehydrated       = false
+	defaultTagRefreshInterval = 30000
+)
 
 func monitorTagUpdates() {
 	if config.DNCSettings.TagRefreshInterval == 0 {
@@ -155,7 +157,7 @@ func getSystemTagDefinitionFromAgent(tagName, addressType string) (bool, *api.Js
 		config.HostAgentSettings.WireServerIP,
 		tagName,
 		addressType)
-	getResponse, getRespErr := http.Get(getURL)
+	getResponse, getRespErr := httpClient.Get(getURL)
 	if getRespErr != nil {
 		msg := fmt.Sprintf(
 			"Retrieval of system tag definition for tag [%s] failed with error [%s]. Marking this error as retriable.",
