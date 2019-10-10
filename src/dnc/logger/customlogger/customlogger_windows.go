@@ -117,3 +117,8 @@ func convertStrToPass(s string) (uintptr, error) {
 
 	return uintptr(unsafe.Pointer(&arr[0])), nil
 }
+
+// SetLogFileLimits :- Set the limits for the log file
+func (l *CustomLogger) SetLogFileLimits(maxFileSize int, maxFileCount int) {
+	l.instance.SetLogFileLimits(maxFileSize, maxFileCount)
+}

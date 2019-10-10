@@ -64,3 +64,8 @@ func (l *CustomLogger) Errorf(format string, args ...interface{}) {
 func (l *CustomLogger) Close() {
 	l.instance.Close()
 }
+
+// SetLogFileLimits :- Set the limits for the log file
+func (l *CustomLogger) SetLogFileLimits(maxFileSize, maxFileCount int) {
+	l.instance.SetLogFileLimits(maxFileSize, maxFileCount)
+}

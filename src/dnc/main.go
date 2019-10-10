@@ -66,6 +66,11 @@ var (
 	httpClient *http.Client
 )
 
+const (
+	maxLogFileSize  = 16 * 1024 * 1024 // Set 16MB as the max log file size
+	maxLogFileCount = 8                // Set 8 as max log file count.
+)
+
 func init() {
 	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
 	flag.Parse()
@@ -83,6 +88,7 @@ func init() {
 		reports = nil
 	}
 	logger.Init(stderr, reports)
+	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
 	replicaInstance = replica.NewReplica(
 		config.ServerSettings,
 		GetNetworkRefreshMonitorStatus)
