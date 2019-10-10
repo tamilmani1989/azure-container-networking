@@ -46,7 +46,7 @@ CONNECT:
 				case <-heartbeat:
 					numberOfNodes := 0
 					numberOfNCs := 0
-					containerTypesSlice := make([]string, len(containerTypes))
+					var containerTypesSlice []string
 					// get all nodes and their configurations
 					nodes, err := datamodel.GetAllNodeIDs()
 					if err == nil {
@@ -94,11 +94,10 @@ CONNECT:
 							reflect.ValueOf(reportMgr.Report).Elem().FieldByName("Allocations").SetString(string(allocationsStr))
 						}
 
-						i := 0
-						for containerType := range containerTypes {
-							containerTypesSlice[i] = containerType
-							i++
-						}
+						containerTypes.Range(func(key interface{}, value interface{}) bool {
+							containerTypesSlice = append(containerTypesSlice, key.(string))
+							return true
+						})
 
 						containerTypesStr, err := json.Marshal(containerTypesSlice)
 						if err == nil {

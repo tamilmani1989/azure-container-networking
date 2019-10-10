@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Azure/azure-container-networking/cns"
@@ -21,8 +22,8 @@ import (
 )
 
 var (
-	initiateMigration bool = true
-	containerTypes         = make(map[string]bool)
+	initiateMigration = true
+	containerTypes    sync.Map
 )
 
 const (
@@ -1151,7 +1152,7 @@ func processNetworkContainerAssociate(
 	allowHostToNCCommunicationStatus := repoNCConfig.GetAllowHostToNCCommunicationStatus()
 	allowNCToHostCommunicationStatus := repoNCConfig.GetAllowNCToHostCommunicationStatus()
 
-	containerTypes[ncGoalState.ContainerType] = true
+	containerTypes.Store(ncGoalState.ContainerType, true)
 
 	info := &cns.CreateNetworkContainerRequest{
 		Version:                    strconv.FormatUint(repoNCConfig.CNSVersion, 10),
