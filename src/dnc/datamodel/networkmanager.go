@@ -21,15 +21,23 @@ import (
 	"github.com/Azure/azure-container-networking/cns"
 )
 
-var dataStoreShim *datastoreshim.DataStoreShim
-var requestBaseInterval = 1000
-var minVlan uint16 = 1
-var maxVlan uint16 = 2048
-var maxContainersPerNode = 10
-var cnsSettings configuration.CNSSettings
+var (
+	dataStoreShim        *datastoreshim.DataStoreShim
+	cnsSettings          configuration.CNSSettings
+	requestBaseInterval         = 1000
+	minVlan              uint16 = 1
+	maxVlan              uint16 = 2048
+	maxContainersPerNode        = 10
+	httpClient           *http.Client
+)
 
 // Init - Initialize repository.
-func Init(cnsConfigSettings configuration.CNSSettings, dataStoreSettings configuration.DataStoreSettings, interval int, min, max uint16) error {
+func Init(
+	cnsConfigSettings configuration.CNSSettings,
+	dataStoreSettings configuration.DataStoreSettings,
+	interval int,
+	min, max uint16,
+	httpClientArg *http.Client) error {
 	requestBaseInterval = interval
 	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
@@ -45,6 +53,8 @@ func Init(cnsConfigSettings configuration.CNSSettings, dataStoreSettings configu
 	}
 
 	cnsSettings = cnsConfigSettings
+	httpClient = httpClientArg
+
 	return nil
 }
 
@@ -2896,7 +2906,7 @@ func getNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 		cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt,
 		nodeIP)
 
-	w, respErr := http.Get(getNumOfCoresURL)
+	w, respErr := httpClient.Get(getNumOfCoresURL)
 	if respErr != nil {
 		msg := fmt.Sprintf(
 			"Error encountered while querying number of cores for node IP %s with error %+v ",
