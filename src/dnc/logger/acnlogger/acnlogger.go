@@ -63,3 +63,8 @@ func (l *AcnLogger) Errorf(format string, args ...interface{}) {
 func (l *AcnLogger) Close() {
 	l.instance.Close()
 }
+
+// SetLogFileLimits :- Set the limits for the log file
+func (l *AcnLogger) SetLogFileLimits(maxFileSize, maxFileCount int) {
+	l.instance.SetLogFileLimits(maxFileSize, maxFileCount)
+}
