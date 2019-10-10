@@ -95,6 +95,9 @@ func init() {
 		doneChan,
 		demoteChan)
 
+	// Creating http client object to be reused instead of creating one every time.
+	// This helps make use of the cached tcp connections.
+	// Clients are safe for concurrent use by multiple goroutines.
 	httpClient = &http.Client{
 		Transport: &http.Transport{
 			DialContext: (&net.Dialer{
