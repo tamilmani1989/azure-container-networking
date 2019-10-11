@@ -36,15 +36,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 	// If the parent reservation entry doesn't exist then it must have
 	// got deleted via separate delete reservation/container request.
 	if repoReservationRequest == nil {
-		// Add the failure detail to the repoReservation
-		markAllocationAsFailed = true
-		failureDetail = &api.JsonErr{
-			Code:       api.AllocationFailed,
-			HTTPStatus: http.StatusNotFound,
-			Text: fmt.Sprintf(
-				"Failed to allocate address for requestID: %s. Reservation entry does not exist",
-				reservationKey)}
-		goto Cleanup
+		return true, nil // don't add new pending work queue item, error
 	}
 
 	subnetConfiguration, err = datamodel.TryQuerySubnetConfiguration(
@@ -63,15 +55,7 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 	}
 
 	if len(repoReservationRequest.AllocatedSubnet) != 0 {
-		// Add the failure detail to the repoReservation
-		markAllocationAsFailed = true
-		failureDetail = &api.JsonErr{
-			Code:       api.AllocationFailed,
-			HTTPStatus: http.StatusBadRequest,
-			Text: fmt.Sprintf(
-				"Failed to allocate address for request %s. Reservation already has allocated address",
-				repoReservationRequest.AllocationRequest.String())}
-		goto Cleanup
+		return true, nil
 	}
 
 	addressesToIgnore, allocatedIP, err = getAllocationsInSubnet(repoReservationRequest.NetworkID,

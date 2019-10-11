@@ -607,7 +607,7 @@ func generateImplicitReservationConfig(repoNCConfig *datamodel.NCConfiguration) 
 
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
 
-	// Add NC to the containe map on the node. This will fail if the node has
+	// Add NC to the container map on the node. This will fail if the node has
 	// reached the NC limit
 	err := datamodel.UpdateNodeConfigurationNetworkContainerSet(
 		nodeID,
