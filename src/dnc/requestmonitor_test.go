@@ -179,8 +179,8 @@ var (
 )
 
 const (
-	defaultNumCPUCores            = 16               // Default CPU cores for general tests
-	updatedNumCPUCoresForLoadTest = 300              // Higher CPU cores for simulating load test
+	defaultNumCPUCores            = 16  // Default CPU cores for general tests
+	updatedNumCPUCoresForLoadTest = 300 // Higher CPU cores for simulating load test
 )
 
 // TestMain :- main
@@ -1086,7 +1086,7 @@ func addOrUpdateNode(
 	var response *http.Response
 
 	json.NewEncoder(&body).Encode(nodeInfoReq)
-	fmt.Printf("NodeID:%s, NodeInfo%s", nodeID, nodeInfoReq.String())
+	fmt.Printf("NodeID: %s, NodeInfo: %s", nodeID, nodeInfoReq.String())
 	response, err = http.Post(dncEP+"/nodes/"+nodeID+apiVersion, "application/json", &body)
 	if err != nil {
 		t.Fatalf("CreateNode failed with error: %+v\n", err)
@@ -2983,7 +2983,7 @@ func DeployNetworkContainers(
 
 	ncDeploymentRequests := make([]*NCDeploymentRequest, totalNCs)
 	index := 0
-	fmt.Printf("Total NCs:%d", totalNCs)
+	fmt.Printf("Total NCs:%d\n", totalNCs)
 	for _, ncDeploymentRequestList := range ncDeploymentRequestsMapByNetwork {
 		for _, ncDeploymentRequest := range ncDeploymentRequestList {
 			ncDeploymentRequests[index] = ncDeploymentRequest
