@@ -84,6 +84,7 @@ func init() {
 	setDncConfigDefaults()
 	disableTelemetry = config.DNCSettings.DisableTelemetry
 	logger = loggershim.NewLoggerShim(config)
+
 	if disableTelemetry {
 		reports = nil
 	}

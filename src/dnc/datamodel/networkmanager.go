@@ -679,7 +679,7 @@ func AddIPAllocation(networkID, subnetName, allocatedIP, reservationKey string) 
 		if status == http.StatusConflict {
 			jsonErr.Code = api.ReservationInUse
 			jsonErr.HTTPStatus = status
-			jsonErr.Text = fmt.Sprintf("IP %+v is unavailable for allocation", allocatedIP)
+			jsonErr.Text = fmt.Sprintf("IP %+v is unavailable for allocation for key: %s", allocatedIP, reservationKey)
 		} else {
 			jsonErr.Code = api.StatusInternalServerError
 			jsonErr.HTTPStatus = http.StatusInternalServerError
@@ -688,6 +688,7 @@ func AddIPAllocation(networkID, subnetName, allocatedIP, reservationKey string) 
 		return jsonErr
 	}
 
+	loggershim.LS.Debugf("Allocated IP: %s for reservation key: %s", allocatedIP, reservationKey)
 	return nil
 }
 

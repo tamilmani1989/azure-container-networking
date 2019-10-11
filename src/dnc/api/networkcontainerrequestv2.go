@@ -14,7 +14,7 @@ type NetworkContainerRequestV2 struct {
 
 func (networkContainerRequestV2 *NetworkContainerRequestV2) String() string {
 	return fmt.Sprintf(
-		"NetworkContainerRequestV1:[AllocationRequest:%s, AssociationInfo:%s, AllowHostToNCCommunication:%t, AllowNCToHostCommunication:%t]",
+		"NetworkContainerRequestV2:[AllocationRequest:%s, AssociationInfo:%s, AllowHostToNCCommunication:%t, AllowNCToHostCommunication:%t]",
 		networkContainerRequestV2.AllocationRequest.String(), networkContainerRequestV2.AssociationInfo.String(), networkContainerRequestV2.AllowHostToNCCommunication,
 		networkContainerRequestV2.AllowNCToHostCommunication)
 }

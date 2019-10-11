@@ -178,6 +178,11 @@ var (
 	cnsServer     *MockServer
 )
 
+const (
+	defaultNumCPUCores            = 16  // Default CPU cores for general tests
+	updatedNumCPUCoresForLoadTest = 300 // Higher CPU cores for simulating load test
+)
+
 // TestMain :- main
 func TestMain(m *testing.M) {
 	if err := Setup(); err != nil {
@@ -347,7 +352,7 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 	ncDeploymentRequests2 := []*NCDeploymentRequest{&NCDeploymentRequest{
 		NCID: ncID}}
 	cnsResponderContextMap = generateDefaultCnsResponderContextMap(t, ncDeploymentRequests2)
-	ncRequestValidatorFunc := func(t *testing.T, req cns.CreateNetworkContainerRequest) bool {
+	ncRequestValidatorFunc := func(t *testing.T, req cns.CreateNetworkContainerRequest, ncDeploymentRequests *NCDeploymentRequest) bool {
 		podInfo := OrchestratorContext{
 			PodName:      "testpodname",
 			PodNamespace: "testpodnamespace"}
@@ -1027,8 +1032,15 @@ func ValidateNetworkContainerDeleteAPI(
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
-	deploymentCount := 2
-	ncPerNetworkCount := 5
+	fmt.Println("****TestCreateMultipleNetworks Test**********")
+	deploymentCount := 10   // Number of vnets
+	ncPerNetworkCount := 10 // Number of NCs per vnet
+	nodeCount := 200
+	nodeMap := make([]string, 0)
+	for node := 0; node < nodeCount; node++ {
+		nodeMap = append(nodeMap, fmt.Sprintf("Node-%d", node))
+	}
+	nodeIndex := 0
 	ipIndex := 0
 	deploymentInfos := make([]DeploymentInfo, deploymentCount)
 	for index := 0; index < deploymentCount; index++ {
@@ -1049,16 +1061,17 @@ func TestCreateMultipleNetworks(t *testing.T) {
 				AllocationRequest: api.AllocationRequest{
 					SubnetName:   "subnet1",
 					IPConstraint: ipToReserve},
-				AssociationInfo: api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context},
+				AssociationInfo: api.AssociationInfo{NodeID: nodeMap[nodeIndex%nodeCount], InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context},
 				NCID:            ncID.String()}
 
 			ncDeploymentRequests[ncIndex] = &ncDeploymentRequest
+			nodeIndex++
 		}
 
 		deploymentInfos[index] = DeploymentInfo{NetworkDeploymentRequest: &networkDeploymentRequest, NCDeploymentRequests: ncDeploymentRequests}
 	}
 
-	DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, true)
+	DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, true, updatedNumCPUCoresForLoadTest)
 }
 
 func addOrUpdateNode(
@@ -1073,7 +1086,7 @@ func addOrUpdateNode(
 	var response *http.Response
 
 	json.NewEncoder(&body).Encode(nodeInfoReq)
-	fmt.Printf("NodeID:%s, NodeInfo%s", nodeID, nodeInfoReq.String())
+	fmt.Printf("NodeID: %s, NodeInfo: %s", nodeID, nodeInfoReq.String())
 	response, err = http.Post(dncEP+"/nodes/"+nodeID+apiVersion, "application/json", &body)
 	if err != nil {
 		t.Fatalf("CreateNode failed with error: %+v\n", err)
@@ -1276,7 +1289,7 @@ type JoinResponse struct {
 	SignalInfo
 }
 
-type ValidateNCRequest func(*testing.T, cns.CreateNetworkContainerRequest) bool
+type ValidateNCRequest func(*testing.T, cns.CreateNetworkContainerRequest, *NCDeploymentRequest) bool
 
 type CnsCreateOrUpdateNCResponse struct {
 	HTTPStatus int
@@ -1324,6 +1337,7 @@ type CnsResponderContext struct {
 	CreateOrUpdateNCResponse *CnsCreateOrUpdateNCResponse
 	DeleteNCResponse         *CnsDeleteNCResponse
 	NumOfCoresResponse       *CnsNumOfCPUCoresResponse
+	NCDeploymentRequest      *NCDeploymentRequest
 }
 
 type CnsResponderContextMap map[string]*CnsResponderContext
@@ -1603,7 +1617,6 @@ func NMAgentResponder(w http.ResponseWriter, r *http.Request, context interface{
 		}
 	} else if strings.Contains(r.RequestURI, "systemTags") {
 		shouldSignal := true
-
 		nmagentContextLock.RLock()
 		for _, networkResponseContext := range nmagentResponderContext.NetworkResponseMap {
 			if networkResponseContext.GetNetworkResponse != nil {
@@ -1652,6 +1665,7 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 		fmt.Printf("NCRequest:%+v\n", ncRequest)
 		cnsContextLock.RLock()
 		cnsResponderContext := cnsResponderContextMap[ncRequest.NetworkContainerid]
+
 		cnsContextLock.RUnlock()
 		if cnsResponderContext == nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -1659,7 +1673,8 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 		}
 
 		if cnsResponderContext.CreateOrUpdateNCResponse.ValidateNCRequest != nil {
-			if !cnsResponderContext.CreateOrUpdateNCResponse.ValidateNCRequest(cnsResponderContext.T, ncRequest) {
+			deploymentRequest := cnsResponderContext.NCDeploymentRequest
+			if !cnsResponderContext.CreateOrUpdateNCResponse.ValidateNCRequest(cnsResponderContext.T, ncRequest, deploymentRequest) {
 				fmt.Println("Setting response status with internal server error")
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -1711,7 +1726,7 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 				Response: cns.Response{
 					ReturnCode: 0,
 					Message:    "Successfully retrieved CPU cores"},
-				NumOfCPUCores: 16}
+				NumOfCPUCores: defaultNumCPUCores}
 			json.NewEncoder(w).Encode(CnsNumOfCPUCoresResp)
 		} else {
 			w.WriteHeader(cnsResponderContext.NumOfCoresResponse.HTTPStatus)
@@ -2072,7 +2087,7 @@ func createNetworkContainer(
 	ncDeploymentRequests := []*NCDeploymentRequest{&NCDeploymentRequest{
 		NCID: ncid}}
 	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
-	ncRequestValidatorFunc := func(t *testing.T, req cns.CreateNetworkContainerRequest) bool {
+	ncRequestValidatorFunc := func(t *testing.T, req cns.CreateNetworkContainerRequest, deploymentRequest *NCDeploymentRequest) bool {
 		podInfo := OrchestratorContext{
 			PodName:      "testpodname",
 			PodNamespace: "testpodnamespace"}
@@ -2406,7 +2421,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 		PrefixLength: 24}
 	ipConfig.GatewayIPAddress = "10.0.0.1"
 	updatedCnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
-	updateNCRequestValidatorFunc := func(t *testing.T, req cns.CreateNetworkContainerRequest) bool {
+	updateNCRequestValidatorFunc := func(t *testing.T, req cns.CreateNetworkContainerRequest, deploymentRequest *NCDeploymentRequest) bool {
 		podInfo := OrchestratorContext{
 			PodName:      "testpodname",
 			PodNamespace: "testpodnamespace"}
@@ -2898,7 +2913,12 @@ func getNextIP(ip net.IP) {
 	}
 }
 
-func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentInfos []DeploymentInfo, deleteDeployments bool) *DeployedNetworkContainersInfo {
+func DeployNetworkContainers(
+	t *testing.T,
+	dncEP, apiVersion string,
+	deploymentInfos []DeploymentInfo,
+	deleteDeployments bool,
+	updatedCPUCores int) *DeployedNetworkContainersInfo {
 	networkDeploymentRequests := make([]*NetworkDeploymentRequest, 0)
 	ncDeploymentRequestsMapByNetwork := make(map[string][]*NCDeploymentRequest)
 	networkSubnetsMap := make(map[string]map[string]bool)
@@ -2963,7 +2983,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 
 	ncDeploymentRequests := make([]*NCDeploymentRequest, totalNCs)
 	index := 0
-	fmt.Printf("Total NCs:%d", totalNCs)
+	fmt.Printf("Total NCs:%d\n", totalNCs)
 	for _, ncDeploymentRequestList := range ncDeploymentRequestsMapByNetwork {
 		for _, ncDeploymentRequest := range ncDeploymentRequestList {
 			ncDeploymentRequests[index] = ncDeploymentRequest
@@ -2972,6 +2992,20 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 	}
 
 	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
+
+	if updatedCPUCores > 0 {
+		contextWithCPUCores := new(CnsResponderContext)
+		CnsNumOfCPUCoresResp := &cns.NumOfCPUCoresResponse{
+			Response: cns.Response{
+				ReturnCode: 0,
+				Message:    "Successfully retrieved CPU cores"},
+			NumOfCPUCores: updatedCPUCores}
+		contextWithCPUCores.NumOfCoresResponse = &CnsNumOfCPUCoresResponse{
+			HTTPStatus:         http.StatusOK,
+			NumOfCoresResponse: CnsNumOfCPUCoresResp}
+		cnsResponderContextMap["usecustomcpucorresponse"] = contextWithCPUCores
+	}
+
 	cnsServer.Lock.Lock()
 	cnsServer.Context = cnsResponderContextMap
 	cnsServer.Lock.Unlock()
@@ -2981,7 +3015,10 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 		addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeInfoReq)
 	}
 
-	nodeLocalIPMap := make(map[string]string)
+	nodeLocalIPMap := make(map[string]map[string]string)
+	for nodeID := range nodesMap {
+		nodeLocalIPMap[nodeID] = make(map[string]string)
+	}
 
 	for vnetID, ncDeploymentRequests := range ncDeploymentRequestsMapByNetwork {
 		fmt.Printf("vnetID:%s, ncRequests:%+v", vnetID, ncDeploymentRequests)
@@ -3030,17 +3067,16 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 					PrefixLength: 24}
 			}
 			ipConfig.GatewayIPAddress = "10.0.0.1"
-			networkContainerID := "Swift_" + ncDeploymentRequest.NCID
 			podInfo := OrchestratorContext{
 				PodName:      "testpodname",
 				PodNamespace: "testpodnamespace"}
 			context, _ := json.Marshal(podInfo)
-			ncRequestValidatorFunc := func(t *testing.T, req cns.CreateNetworkContainerRequest) bool {
+			ncRequestValidatorFunc := func(t *testing.T, req cns.CreateNetworkContainerRequest, deploymentRequest *NCDeploymentRequest) bool {
 				expectedReq := cns.CreateNetworkContainerRequest{
 					Version:                    "1",
 					NetworkContainerType:       cns.AzureContainerInstance,
-					NetworkContainerid:         networkContainerID,
-					PrimaryInterfaceIdentifier: ncDeploymentRequest.AssociationInfo.InterfaceID,
+					NetworkContainerid:         "Swift_" + deploymentRequest.NCID,
+					PrimaryInterfaceIdentifier: deploymentRequest.AssociationInfo.InterfaceID,
 					IPConfiguration:            ipConfig,
 					AuthorizationToken:         accessToken,
 					CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
@@ -3049,7 +3085,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 				fmt.Printf("ReceivedResponse:%+v\n", req)
 				fmt.Printf("ExpectedResponse:%+v\n", expectedReq)
 				var expectedIP string
-				if len(ncDeploymentRequest.ReservationID) > 0 {
+				if len(deploymentRequest.ReservationID) > 0 {
 					expectedIP = expectedReq.IPConfiguration.IPSubnet.IPAddress + "/" + strconv.FormatInt(int64(expectedReq.IPConfiguration.IPSubnet.PrefixLength), 10)
 				} else {
 					expectedIP = ""
@@ -3071,17 +3107,19 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 					return false
 				}
 
-				if associatedncID, ok := nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress]; ok {
-					if associatedncID != networkContainerID {
-						fmt.Printf("Local IP %s received as part of NC %s is already associated with %s",
+				if associatedncID, ok :=
+					nodeLocalIPMap[deploymentRequest.AssociationInfo.NodeID][req.LocalIPConfiguration.IPSubnet.IPAddress]; ok {
+					if associatedncID != deploymentRequest.NCID {
+						fmt.Printf("Local IP %s received as part of NC %s is already associated with %s on node: %s\n",
 							req.LocalIPConfiguration.IPSubnet.IPAddress,
-							networkContainerID,
-							associatedncID)
+							deploymentRequest.NCID,
+							associatedncID,
+							deploymentRequest.AssociationInfo.NodeID)
 						return false
 					}
+				} else {
+					nodeLocalIPMap[deploymentRequest.AssociationInfo.NodeID][req.LocalIPConfiguration.IPSubnet.IPAddress] = deploymentRequest.NCID
 				}
-
-				nodeLocalIPMap[req.LocalIPConfiguration.IPSubnet.IPAddress] = networkContainerID
 
 				if !AreCnsRequestsEqual(expectedReq, req, vnetIPMap) {
 					fmt.Printf("Mismatch in expected and received Cns create or update request. "+
@@ -3090,10 +3128,13 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 						req)
 					return false
 				}
+
 				fmt.Println("Response matches with the expected request")
 				return true
 			}
+
 			cnsResponderContextMap.getContext(ncDeploymentRequest.NCID).CreateOrUpdateNCResponse.ValidateNCRequest = ncRequestValidatorFunc
+			cnsResponderContextMap.getContext(ncDeploymentRequest.NCID).NCDeploymentRequest = ncDeploymentRequest
 		}
 
 	}
@@ -3160,7 +3201,7 @@ func DeployNetworkContainers(t *testing.T, dncEP, apiVersion string, deploymentI
 
 	for vnetID, ncDeploymentRequests := range ncDeploymentRequestsMapByNetwork {
 		for _, ncDeploymentRequest := range ncDeploymentRequests {
-			fmt.Printf("Waiting for create  NC:%s\n", ncDeploymentRequest.NCID)
+			fmt.Printf("Waiting for NC creation to complete: %s\n", ncDeploymentRequest.NCID)
 			ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncDeploymentRequest.NCID + "/status" + apiVersion
 			WaitForResourceState(t, ncURLStatus, "Completed", http.StatusOK, 2)
 		}
@@ -3186,8 +3227,34 @@ func DeleteDeployments(t *testing.T, deployedNetworkContainersInfo *DeployedNetw
 			fmt.Printf("Deleting NC:%s\n", ncDeploymentRequest)
 			ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncDeploymentRequest.NCID + apiVersion
 			deleteResource(t, ncURL, http.StatusOK)
-			fmt.Printf("Waiting for delete NC Url:%s\n", ncURL)
-			<-deployedNetworkContainersInfo.CNSResponderContextMap.getContext(ncDeploymentRequest.NCID).DeleteNCResponse.SignalInfo.Signal
+		}
+	}
+
+	var chans = []chan string{}
+	for _, ncDeploymentRequests := range deployedNetworkContainersInfo.NCDeploymentRequestsMapByNetwork {
+		for _, ncDeploymentRequest := range ncDeploymentRequests {
+			fmt.Printf("Waiting for delete NC:%s\n", ncDeploymentRequest.NCID)
+			chans = append(chans,
+				deployedNetworkContainersInfo.CNSResponderContextMap.getContext(ncDeploymentRequest.NCID).DeleteNCResponse.SignalInfo.Signal)
+		}
+	}
+	cases := make([]reflect.SelectCase, len(chans))
+	for i, ch := range chans {
+		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
+	}
+	remaining := len(chans)
+	for remaining > 0 {
+		chosen, value, _ := reflect.Select(cases)
+		fmt.Printf("Received signal for Delete NC:%+v\n", value)
+		cases[chosen].Chan = reflect.ValueOf(nil)
+		remaining--
+		continue
+	}
+
+	for vnetID, ncDeploymentRequests := range deployedNetworkContainersInfo.NCDeploymentRequestsMapByNetwork {
+		for _, ncDeploymentRequest := range ncDeploymentRequests {
+			fmt.Printf("Waiting for NC deletion to complete: %s\n", ncDeploymentRequest.NCID)
+			ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncDeploymentRequest.NCID + apiVersion
 
 			if !WaitForResourceCleanup(t, ncURL, 4) {
 				t.Fatalf("Failed to cleanup network container %s", ncDeploymentRequest.NCID)
@@ -3211,6 +3278,7 @@ func DeleteDeployments(t *testing.T, deployedNetworkContainersInfo *DeployedNetw
 		deleteResource(t, networkURL, http.StatusOK)
 	}
 }
+
 func TestValidateSubnetExhaustion(t *testing.T) {
 	fmt.Println("****ValidateSubnetExhaustion Test**********")
 	deploymentCount := 1
@@ -3241,7 +3309,7 @@ func TestValidateSubnetExhaustion(t *testing.T) {
 		deploymentInfos[index] = DeploymentInfo{NetworkDeploymentRequest: &networkDeploymentRequest, NCDeploymentRequests: ncDeploymentRequests}
 	}
 
-	deployedNetworkContainersInfo := DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, false)
+	deployedNetworkContainersInfo := DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, false, defaultNumCPUCores)
 	id, _ = uuid.NewUUID()
 	ncIDToFail := id.String()
 	deploymentRequestToFail := CreateNetworkContainerRequest{
@@ -3733,7 +3801,7 @@ func TestRefreshNMAgentGoalState(t *testing.T) {
 		deploymentInfos[index] = DeploymentInfo{NetworkDeploymentRequest: &networkDeploymentRequest, NCDeploymentRequests: ncDeploymentRequests}
 	}
 
-	deployedNetworkContainersInfo := DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, false)
+	deployedNetworkContainersInfo := DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, false, defaultNumCPUCores)
 
 	var body bytes.Buffer
 	refreshURL := dncEP + "/refreshnmagentgoalstate" + apiVersion
