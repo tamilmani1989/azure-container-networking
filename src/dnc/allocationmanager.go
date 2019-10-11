@@ -15,7 +15,20 @@ import (
 
 const reservedIPCount = 4
 
-func processIPReservationAllocation(networkID, reservationKey string) (bool, *api.JsonErr) {
+func processIPReservationAllocationWithKey(
+	networkID,
+	reservationKey string) (bool, *api.JsonErr) {
+	repoReservation, err := datamodel.TryQueryIPReservationByKey(reservationKey)
+	if err != nil {
+		return false, err
+	}
+
+	return processIPReservationAllocation(networkID, repoReservation)
+}
+
+func processIPReservationAllocation(
+	networkID string,
+	repoReservationRequest *datamodel.ReservationConfiguration) (bool, *api.JsonErr) {
 	var (
 		markAllocationAsFailed bool
 		failureDetail          *api.JsonErr
@@ -28,16 +41,16 @@ func processIPReservationAllocation(networkID, reservationKey string) (bool, *ap
 	)
 	addressesToIgnore := make(map[string]*net.IPNet)
 	isWebAppsContainer := false
-	repoReservationRequest, err := datamodel.TryQueryIPReservationByKey(reservationKey)
-	if err != nil {
-		return false, err
-	}
 
 	// If the parent reservation entry doesn't exist then it must have
 	// got deleted via separate delete reservation/container request.
 	if repoReservationRequest == nil {
 		return true, nil // don't add new pending work queue item, error
 	}
+
+	// Generate reservationKey
+	reservationKey := datamodel.GetReservationKey(
+		repoReservationRequest.NetworkID, repoReservationRequest.ReservationID)
 
 	subnetConfiguration, err = datamodel.TryQuerySubnetConfiguration(
 		repoReservationRequest.NetworkID, repoReservationRequest.AllocationRequest.SubnetName)

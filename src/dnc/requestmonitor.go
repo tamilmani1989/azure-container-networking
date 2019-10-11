@@ -67,7 +67,7 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 		break
 
 	case datamodel.ReservationRequest:
-		removeWorkItem, err = processIPReservationAllocation(requestContext.NetworkID, requestID)
+		removeWorkItem, err = processIPReservationAllocationWithKey(requestContext.NetworkID, requestID)
 		break
 
 	case datamodel.NetworkContainerRequest:
@@ -904,13 +904,13 @@ func processNetworkContainerReserve(
 
 	// If the reservation status is pending, process IP allocation
 	if repoReservation.Status == datamodel.Pending {
-		removeRequestFromPendingQueue, err :=
-			processIPReservationAllocation(repoNCConfig.NetworkID,
-				datamodel.GetReservationKey(repoNCConfig.NetworkID, repoNCConfig.ReservationID))
+		ipReservationAllocationComplete, err :=
+			processIPReservationAllocation(repoNCConfig.NetworkID, repoReservation)
 
-		// Return if the request should remain in the pending queue
-		if !removeRequestFromPendingQueue {
-			return removeRequestFromPendingQueue, err
+		// Return if the IP reservation allocation did not complete. This indicates that
+		// the operation ran into retriable error.
+		if !ipReservationAllocationComplete {
+			return false, err
 		}
 
 		repoReservation, err = datamodel.TryQueryIPReservation(
@@ -920,9 +920,9 @@ func processNetworkContainerReserve(
 			return false, err
 		}
 
-		// Indication to remove the request from pending queue without setting the reservation status
-		// to complete indicates that IP reservation failed as non-retriable operation
-		if removeRequestFromPendingQueue && repoReservation.Status != datamodel.Completed {
+		// If IP reservation allocation completed without setting the reservation status
+		// to complete, it indicates that IP reservation failed as non-retriable operation
+		if repoReservation.Status != datamodel.Completed {
 			logger.Errorf("Failed to complete IP reservation for NC: %s due to error: %s",
 				repoNCConfig.NetworkContainerID, repoReservation.FailureDetail.Text)
 			markProcessingFailed = true
