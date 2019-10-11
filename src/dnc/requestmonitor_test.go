@@ -180,9 +180,9 @@ var (
 )
 
 const (
-	defaultNumCPUCores            = 16               // Default CPU cores for general tests
-	updatedNumCPUCoresForLoadTest = 300              // Higher CPU cores for simulating load test
-	induceErrorPercent = 5							 // Induce 5% error for nmagent and cns responses
+	defaultNumCPUCores            = 16  // Default CPU cores for general tests
+	updatedNumCPUCoresForLoadTest = 300 // Higher CPU cores for simulating load test
+	induceErrorPercent = 5				// Induce 5% error for nmagent and cns responses
 )
 
 // TestMain :- main
@@ -231,7 +231,16 @@ func StartDnc() {
 		startChan,
 		doneChan,
 		demoteChan)
-	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt, masterElectionShim, config)
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: time.Duration(config.HttpClientSettings.ConnectionTimeout) * time.Second,
+			}).DialContext,
+			ResponseHeaderTimeout: time.Duration(config.HttpClientSettings.ResponseHeaderTimeout) * time.Second,
+		},
+	}
+	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
+		masterElectionShim, config, httpClient)
 	dncServer = server.Server{
 		ServerSettings: config.ServerSettings,
 		Controller:     ctrler}
@@ -248,7 +257,8 @@ func StartDnc() {
 			config.DataStoreSettings,
 			config.DNCSettings.RequestRetryBaseInterval,
 			config.VlanSettings.Min,
-			config.VlanSettings.Max)
+			config.VlanSettings.Max,
+			httpClient)
 		ctrler.UpdateReplicaStatus(true)
 	}
 
@@ -1078,7 +1088,7 @@ func addOrUpdateNode(
 	var response *http.Response
 
 	json.NewEncoder(&body).Encode(nodeInfoReq)
-	fmt.Printf("NodeID:%s, NodeInfo%s", nodeID, nodeInfoReq.String())
+	fmt.Printf("NodeID: %s, NodeInfo: %s", nodeID, nodeInfoReq.String())
 	response, err = http.Post(dncEP+"/nodes/"+nodeID+apiVersion, "application/json", &body)
 	if err != nil {
 		t.Fatalf("CreateNode failed with error: %+v\n", err)

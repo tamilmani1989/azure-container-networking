@@ -22,6 +22,7 @@ export GOOS=$2
 export GOPATH=$DIR
 export GOROOT="$GODIR/go"
 export PATH=$GOROOT/bin:$PATH
+export VERSION=$CDP_MAJOR_NUMBER_ONLY.$CDP_MINOR_NUMBER_ONLY.$CDP_VERSION_TAG_ONLY
 
 case $1 in
     "build" )
@@ -33,10 +34,10 @@ case $1 in
         # Target OS specific parameters.
         if [ "$GOOS" = "windows" ];then
             # Windows.
-            go build -o azure-dnc.exe >& build.log
+            go build -o azure-dnc.exe -ldflags "-X dnc/utils.Version=$VERSION -s -w" >& build.log
         else
             # Linux.
-            go build -o azure-dnc >& build.log
+            go build -o azure-dnc -ldflags "-X dnc/utils.Version=$VERSION -s -w" >& build.log
         fi
         ;;
     "package" )

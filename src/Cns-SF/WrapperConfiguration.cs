@@ -39,6 +39,29 @@ namespace CnsWrapperService
             get { return GetBoolConfigurationValue(Constants.ConfigPackage, "StartCnm", false); }
         }
 
+        public static bool SetupHnsAtStartup
+        {
+            get { return GetBoolConfigurationValue(Constants.ConfigPackage, "SetupHnsAtStartup", false); }
+        }
+
+        public static string DefaultExtNetworkType
+        {
+            get { return GetStringConfigurationValue(Constants.ConfigPackage, "DefaultExtNetworkType", "l2bridge"); }
+        }
+
+        private static string GetStringConfigurationValue(string section, string parameter, string defaultValue)
+        {
+            string result;
+            string configValue = GetConfigurationValue(section, parameter);
+
+            if (string.IsNullOrEmpty(configValue))
+            {
+                return defaultValue;
+            }
+
+            return configValue;
+        }
+
         private static bool GetBoolConfigurationValue(string section, string parameter, bool defaultValue)
         {
             bool result;

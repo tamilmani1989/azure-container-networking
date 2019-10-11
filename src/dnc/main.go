@@ -12,6 +12,8 @@ import (
 	"dnc/server"
 	"dnc/utils"
 	"flag"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -20,49 +22,54 @@ import (
 	"github.com/Azure/azure-container-networking/telemetry"
 )
 
-var isPrimary struct{ flag int32 }
-var cancelProcessing = make(chan bool)
-var startProcessing = make(chan bool)
-var startChan = make(chan bool)
-var doneChan = make(chan bool)
-var demoteChan = make(chan bool)
-var networkMonitorStartProcessing = make(chan bool)
-var tagMonitorStartProcessing = make(chan bool)
-var networkMonitorStopProcessing = make(chan bool)
-var tagMonitorStopProcessing = make(chan bool)
-var refreshNCStartProcessing = make(chan bool)
-var refreshNCStopProcessing = make(chan bool)
-var telemetryStopProcessing = make(chan bool)
-var reports = make(chan telemetry.DNCReport)
+var (
+	isPrimary                     struct{ flag int32 }
+	cancelProcessing              = make(chan bool)
+	startProcessing               = make(chan bool)
+	startChan                     = make(chan bool)
+	doneChan                      = make(chan bool)
+	demoteChan                    = make(chan bool)
+	networkMonitorStartProcessing = make(chan bool)
+	tagMonitorStartProcessing     = make(chan bool)
+	networkMonitorStopProcessing  = make(chan bool)
+	tagMonitorStopProcessing      = make(chan bool)
+	refreshNCStartProcessing      = make(chan bool)
+	refreshNCStopProcessing       = make(chan bool)
+	telemetryStopProcessing       = make(chan bool)
+	reports                       = make(chan telemetry.DNCReport)
 
-var config *configuration.Configuration
-var masterElectionShim *masterelectionshim.MasterElectionShim
-var logger *loggershim.LoggerShim
-var sessionManager *utils.SessionManager
-var ctrler *controller.Controller
-var dncServer server.Server
-var replicaInstance *replica.Replica
-var stderr bool
+	config             *configuration.Configuration
+	masterElectionShim *masterelectionshim.MasterElectionShim
+	logger             *loggershim.LoggerShim
+	sessionManager     *utils.SessionManager
+	ctrler             *controller.Controller
+	dncServer          server.Server
+	replicaInstance    *replica.Replica
+	stderr             bool
+
+	//  Base retry interval
+	requestContextRetryInterval time.Duration
+
+	//  Max request process backoff interval
+	maxRequestBackoffInterval time.Duration
+
+	// SleepIntervalBetweenBatches
+	sleepIntervalBetweenNetworkBatches time.Duration
+
+	// SleepIntervalBetweenNetworkRefresh
+	sleepIntervalBetweenNetworkRefresh time.Duration
+
+	// Flag to disable telemetry
+	disableTelemetry bool
+
+	// HTTP client object to be reused wherever needed
+	httpClient *http.Client
+)
 
 const (
 	maxLogFileSize  = 16 * 1024 * 1024 // Set 16MB as the max log file size
 	maxLogFileCount = 8                // Set 8 as max log file count.
 )
-
-//  Base retry interval
-var requestContextRetryInterval time.Duration
-
-//  Max request process backoff interval
-var maxRequestBackoffInterval time.Duration
-
-// SleepIntervalBetweenBatches
-var sleepIntervalBetweenNetworkBatches time.Duration
-
-// SleepIntervalBetweenNetworkRefresh
-var sleepIntervalBetweenNetworkRefresh time.Duration
-
-// Flag to disable telemetry
-var disableTelemetry bool
 
 func init() {
 	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
@@ -94,7 +101,21 @@ func init() {
 		startChan,
 		doneChan,
 		demoteChan)
-	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt, masterElectionShim, config)
+
+	// Creating http client object to be reused instead of creating one every time.
+	// This helps make use of the cached tcp connections.
+	// Clients are safe for concurrent use by multiple goroutines.
+	httpClient = &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: time.Duration(config.HttpClientSettings.ConnectionTimeout) * time.Second,
+			}).DialContext,
+			ResponseHeaderTimeout: time.Duration(config.HttpClientSettings.ResponseHeaderTimeout) * time.Second,
+		},
+	}
+
+	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
+		masterElectionShim, config, httpClient)
 	dncServer = server.Server{
 		ServerSettings: config.ServerSettings,
 		Controller:     ctrler}
@@ -107,7 +128,8 @@ func init() {
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
-		datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval, config.VlanSettings.Min, config.VlanSettings.Max)
+		datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
+			config.VlanSettings.Min, config.VlanSettings.Max, httpClient)
 		ctrler.UpdateReplicaStatus(true)
 	}
 }
@@ -161,6 +183,16 @@ func setDncConfigDefaults() {
 	if config.DNCSettings.SleepIntervalBetweenNetworkRefresh == 0 {
 		// Set default to 1 min
 		config.DNCSettings.SleepIntervalBetweenNetworkRefresh = 300
+	}
+
+	if config.HttpClientSettings.ConnectionTimeout == 0 {
+		// set the default connection timeout to 5 seconds
+		config.HttpClientSettings.ConnectionTimeout = 5
+	}
+
+	if config.HttpClientSettings.ResponseHeaderTimeout == 0 {
+		// set the default response header timeout to 120 seconds
+		config.HttpClientSettings.ResponseHeaderTimeout = 120
 	}
 }
 

@@ -3,8 +3,11 @@ package testpersistencestore
 import (
 	"dnc/configuration"
 	"dnc/logger/loggershim"
+	"fmt"
+	"math/rand"
 	"net/http"
 	"sync"
+	"time"
 )
 
 // TestPersistenceStore :- datastore : map[ TableName ] map [ key ] value
@@ -13,6 +16,8 @@ type TestPersistenceStore struct {
 	datastore map[string]map[string]interface{}
 	locks     map[string]*sync.RWMutex
 }
+
+const induceErrorPercent = 5 // Induce 5% error for a particular operation
 
 // Init :- Initialize a TestPersistenceStore struct for testing purposes.
 func (testpersistencestore *TestPersistenceStore) Init(tableToColumnMap map[string]string) {
@@ -51,8 +56,14 @@ func (testpersistencestore *TestPersistenceStore) InsertOrUpdate(tableName, rowK
 }
 
 // InsertInPartition - Insert a row in the specific partition of the given table.
-func (testpersistencestore *TestPersistenceStore) InsertInPartition(tableName, partitionKay, rowKey, propertyName string, value interface{}) (
-	int, error) {
+func (testpersistencestore *TestPersistenceStore) InsertInPartition(
+	tableName, partitionKay, rowKey, propertyName string, value interface{}) (int, error) {
+	// Induce error to simulate the collisions due to multiple DNCs trying to allocate the same IP
+	// in case of shared subnet delegation
+	if testpersistencestore.induceError(induceErrorPercent) {
+		loggershim.LS.Errorf("Data entry is already present in the table")
+		return http.StatusConflict, fmt.Errorf("Data entry is already present in the table")
+	}
 
 	testpersistencestore.InsertOrUpdate(tableName, rowKey, propertyName, value)
 
@@ -120,4 +131,19 @@ func (testpersistencestore *TestPersistenceStore) KeyExist(tableName, rowKey str
 
 	loggershim.LS.Debugf("rowKey [%s] %s in [%s].", rowKey, existstr, tableName)
 	return retrieved, nil
+}
+
+// Induce error in the processing
+// This function induces error with provided percent probability
+func (testpersistencestore *TestPersistenceStore) induceError(percentProbability int) bool {
+	induceError := false
+	// Create a random num generator with a new seed every time to
+	// avoid deterministic number generation
+	randNumGen := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	if randNumGen.Intn(100) < percentProbability {
+		induceError = true
+	}
+
+	return induceError
 }
