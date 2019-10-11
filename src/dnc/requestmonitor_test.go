@@ -212,6 +212,7 @@ func StartDnc() {
 	setDncConfigDefaults()
 	logger = loggershim.NewLoggerShim(config)
 	logger.Init(stderr, reports)
+	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
 	replicaInstance = replica.NewReplica(
 		config.ServerSettings,
 		GetNetworkRefreshMonitorStatus)
