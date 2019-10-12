@@ -912,24 +912,6 @@ func processNetworkContainerReserve(
 		if !ipReservationAllocationComplete {
 			return false, err
 		}
-
-		repoReservation, err = datamodel.TryQueryIPReservation(
-			repoNCConfig.NetworkID,
-			repoNCConfig.ReservationID)
-		if err != nil {
-			return false, err
-		}
-
-		// If IP reservation allocation completed without setting the reservation status
-		// to complete, it indicates that IP reservation failed as non-retriable operation
-		if repoReservation.Status != datamodel.Completed {
-			logger.Errorf("Failed to complete IP reservation for NC: %s due to error: %s",
-				repoNCConfig.NetworkContainerID, repoReservation.FailureDetail.Text)
-			markProcessingFailed = true
-			failureDetail = &repoReservation.FailureDetail
-
-			goto Cleanup
-		}
 	}
 
 	if repoReservation.Status == datamodel.Completed {
