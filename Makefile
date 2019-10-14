@@ -314,6 +314,7 @@ test-all:
         ./netlink/ \
         ./store/ \
         ./telemetry/ \
+		./aitelemetry/ \
         ./cnm/network/ \
         ./cni/ipam/ \
         ./cns/ipamclient/ \

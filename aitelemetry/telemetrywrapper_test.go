@@ -19,11 +19,18 @@ func TestMain(m *testing.M) {
 	}
 
 	exitCode := m.Run()
+
+	if runtime.GOOS == "linux" {
+		platform.ExecuteCommand("rm /tmp/azuremetadata.json")
+	} else {
+		platform.ExecuteCommand("del azuremetadata.json")
+	}
+
 	os.Exit(exitCode)
 }
 
 func TestNewAITelemetry(t *testing.T) {
-	th = NewAITelemetry("00ca2a73-c8d6-4929-a0c2-cf84545ec225", "testapp", "v1.0.26")
+	th = NewAITelemetry("00ca2a73-c8d6-4929-a0c2-cf84545ec225", "testapp", "v1.0.26", 4096, 2, false, 10)
 	if th == nil {
 		t.Errorf("Error intializing AI telemetry")
 	}

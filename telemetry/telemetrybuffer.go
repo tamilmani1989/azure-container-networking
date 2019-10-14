@@ -426,7 +426,7 @@ func (buf *Buffer) push(x interface{}) {
 		if err != nil {
 			log.Logf("saving host metadata failed with :%v", err)
 		}
-		kvs.Unlock(false)
+		kvs.Unlock(true)
 	}
 
 	switch x.(type) {

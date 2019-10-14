@@ -22,39 +22,44 @@ const (
 
 func messageListener() appinsights.DiagnosticsMessageListener {
 	return appinsights.NewDiagnosticsMessageListener(func(msg string) error {
-		log.Printf("[%s] %s\n", time.Now().Format(time.UnixDate), msg)
+		log.Printf("[AppInsights] [%s] %s\n", time.Now().Format(time.UnixDate), msg)
 		return nil
 	})
 }
 
-func getmetadata(th *TelemetryHandle) error {
+func getMetadata(th *TelemetryHandle) {
+	var metadata common.Metadata
+	var err error
+
 	// check if metadata in memory otherwise initiate wireserver request
-	if !th.isMetadataInitialized {
-		var err error
-		th.metadata, err = common.GetHostMetadata(metadataFile)
-		if err != nil {
-			log.Printf("Error getting metadata %v", err)
-			return err
+	for true {
+		metadata, err = common.GetHostMetadata(metadataFile)
+		if err == nil || !th.enableMetadataRefreshThread {
+			break
 		}
 
-		th.isMetadataInitialized = true
-
-		// Save metadata retrieved from wireserver to a file
-		kvs, err := store.NewJsonFileStore(metadataFile)
-		if err != nil {
-			log.Printf("Error acuiring lock for writing metadata file: %v", err)
-		}
-
-		kvs.Lock(true)
-		err = common.SaveHostMetadata(th.metadata, metadataFile)
-		if err != nil {
-			log.Printf("saving host metadata failed with :%v", err)
-		}
-		kvs.Unlock(false)
-
+		log.Printf("[AppInsights] Error getting metadata %v. Sleep for %d", err, th.refreshTimeout)
+		time.Sleep(time.Duration(th.refreshTimeout) * time.Second)
 	}
 
-	return nil
+	//acquire lock before writing to telemetry handle
+	th.rwmutex.Lock()
+	th.metadata = metadata
+	th.rwmutex.Unlock()
+
+	// Save metadata retrieved from wireserver to a file
+	kvs, err := store.NewJsonFileStore(metadataFile)
+	if err != nil {
+		log.Printf("[AppInsights] Error initializing kvs store: %v", err)
+		return
+	}
+
+	kvs.Lock(true)
+	err = common.SaveHostMetadata(th.metadata, metadataFile)
+	kvs.Unlock(true)
+	if err != nil {
+		log.Printf("[AppInsights] saving host metadata failed with :%v", err)
+	}
 }
 
 // NewAITelemetry creates telemetry handle with user specified appinsights key.
@@ -62,20 +67,32 @@ func NewAITelemetry(
 	key string,
 	appName string,
 	appVersion string,
+	batchSize int,
+	batchInterval int,
+	enableMetadataRefreshThread bool,
+	refreshTimeout int,
 ) *TelemetryHandle {
 
 	telemetryConfig := appinsights.NewTelemetryConfiguration(key)
-	telemetryConfig.MaxBatchSize = 8192
-	telemetryConfig.MaxBatchInterval = time.Duration(1) * time.Second
+	telemetryConfig.MaxBatchSize = batchSize
+	telemetryConfig.MaxBatchInterval = time.Duration(batchInterval) * time.Second
 
-	telemetryHandle := &TelemetryHandle{
-		client:       appinsights.NewTelemetryClientFromConfig(telemetryConfig),
-		AppName:      appName,
-		AppVersion:   appVersion,
-		diagListener: messageListener(),
+	th := &TelemetryHandle{
+		client:                      appinsights.NewTelemetryClientFromConfig(telemetryConfig),
+		appName:                     appName,
+		appVersion:                  appVersion,
+		diagListener:                messageListener(),
+		enableMetadataRefreshThread: enableMetadataRefreshThread,
+		refreshTimeout:              refreshTimeout,
 	}
 
-	return telemetryHandle
+	if th.enableMetadataRefreshThread {
+		go getMetadata(th)
+	} else {
+		getMetadata(th)
+	}
+
+	return th
 }
 
 // TrackLog function sends report (trace) to appinsights resource. It overrides few of the existing columns with app information
@@ -87,17 +104,21 @@ func (th *TelemetryHandle) TrackLog(report Report) {
 	//Override few of existing columns with metadata
 	trace.Tags.User().SetAuthUserId(runtime.GOOS)
 	trace.Tags.Operation().SetId(report.Context)
-	trace.Tags.Operation().SetParentId(th.AppName)
+	trace.Tags.Operation().SetParentId(th.appName)
 
 	// copy app specified custom dimension
 	for key, value := range report.CustomDimensions {
 		trace.Properties[key] = value
 	}
 
-	trace.Properties[appVersionStr] = th.AppVersion
+	trace.Properties[appVersionStr] = th.appVersion
 
-	var err error
-	if err = getmetadata(th); err == nil {
+	th.rwmutex.RLock()
+	metadata := th.metadata
+	th.rwmutex.RUnlock()
+
+	// Check if metadata is populated
+	if metadata.SubscriptionID != "" {
 		// copy metadata from wireserver to trace
 		trace.Tags.User().SetAccountId(th.metadata.SubscriptionID)
 		trace.Tags.User().SetId(th.metadata.VMName)
@@ -105,33 +126,38 @@ func (th *TelemetryHandle) TrackLog(report Report) {
 		trace.Properties[resourceGroupStr] = th.metadata.ResourceGroupName
 		trace.Properties[vmSizeStr] = th.metadata.VMSize
 		trace.Properties[osVersionStr] = th.metadata.OSVersion
-	} else {
-		log.Printf("Error retrieving metadata from wireserver: %v", err)
 	}
 
 	// send to appinsights
 	th.client.Track(trace)
-
 }
 
+// TrackMetric function sends metric to appinsights resource. It overrides few of the existing columns with app information
+// and for rest it uses custom dimesion
 func (th *TelemetryHandle) TrackMetric(metric Metric) {
+	// Initialize new metric
 	aimetric := appinsights.NewMetricTelemetry(metric.Name, metric.Value)
 
-	var err error
-	if err = getmetadata(th); err == nil {
+	th.rwmutex.RLock()
+	metadata := th.metadata
+	th.rwmutex.RUnlock()
+
+	// Check if metadata is populated
+	if metadata.SubscriptionID != "" {
 		aimetric.Properties[locationStr] = th.metadata.Location
 		aimetric.Properties[subscriptionIDStr] = th.metadata.SubscriptionID
-	} else {
-		log.Printf("Error retrieving metadata from wireserver: %v", err)
 	}
 
+	// copy custom dimensions
 	for key, value := range metric.CustomDimensions {
 		aimetric.Properties[key] = value
 	}
 
+	// send metric to appinsights
 	th.client.Track(aimetric)
 }
 
+// Close - should be called for each NewAITelemetry call. Will release resources acquired
 func (th *TelemetryHandle) Close(timeout int) {
 	if timeout <= 0 {
 		timeout = defaultTimeout

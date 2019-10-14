@@ -1,5 +1,10 @@
 package aitelemetry
 
-const (
-	metadataFile = "azuremetadata.json"
+import (
+	"os"
+	"path/filepath"
+)
+
+var (
+	metadataFile = filepath.FromSlash(os.Getenv("TEMP")) + "\\azuremetadata.json"
 )
