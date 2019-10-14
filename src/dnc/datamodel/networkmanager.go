@@ -1580,11 +1580,9 @@ func GetRevertState(ncState NetworkContainerState) (NetworkContainerState, *api.
 		return DisAssociate, nil
 
 	case RefreshAssociation:
-		return UnPublish, nil
-
+		fallthrough
 	case Publish:
-		return UnPublish, nil
-
+		fallthrough
 	case Program:
 		return UnPublish, nil
 

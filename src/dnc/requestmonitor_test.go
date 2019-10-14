@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"os"
 	"reflect"
@@ -181,6 +182,7 @@ var (
 const (
 	defaultNumCPUCores            = 16  // Default CPU cores for general tests
 	updatedNumCPUCoresForLoadTest = 300 // Higher CPU cores for simulating load test
+	induceErrorPercent = 5				// Induce 5% error for nmagent and cns responses
 )
 
 // TestMain :- main
@@ -1604,10 +1606,24 @@ func NMAgentResponder(w http.ResponseWriter, r *http.Request, context interface{
 		w.WriteHeader(http.StatusOK)
 		if r.Method == "POST" {
 			if strings.Contains(r.RequestURI, "DELETE") {
+				// Induce error in response
+				if induceError(induceErrorPercent) {
+					fmt.Println("Setting response status with internal server error")
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+
 				deleteResponse := nmagentcontracts.DeleteNetworkContainerResponse{
 					ResponseCode: "200"}
 				json.NewEncoder(w).Encode(deleteResponse)
 			} else {
+				// Induce error in response
+				if induceError(induceErrorPercent) {
+					fmt.Println("Setting response status with internal server error")
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+
 				var ncReq nmagentcontracts.CreateOrUpdateNetworkContainerRequest
 				json.NewDecoder(r.Body).Decode(&ncReq)
 				putResponse := nmagentcontracts.CreateNetworkContainerResponse{ResponseCode: "200", Version: ncReq.Version}
@@ -1672,6 +1688,13 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 			return
 		}
 
+		// Induce error in response
+		if induceError(induceErrorPercent) {
+			fmt.Println("Setting response status with internal server error")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
 		if cnsResponderContext.CreateOrUpdateNCResponse.ValidateNCRequest != nil {
 			deploymentRequest := cnsResponderContext.NCDeploymentRequest
 			if !cnsResponderContext.CreateOrUpdateNCResponse.ValidateNCRequest(cnsResponderContext.T, ncRequest, deploymentRequest) {
@@ -1680,6 +1703,7 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 				return
 			}
 		}
+
 		w.WriteHeader(cnsResponderContext.CreateOrUpdateNCResponse.HTTPStatus)
 		json.NewEncoder(w).Encode(cnsResponderContext.CreateOrUpdateNCResponse.CreateNCResponse)
 		if signalTest(&cnsResponderContext.CreateOrUpdateNCResponse.SignalInfo, ncRequest.NetworkContainerid) {
@@ -3994,4 +4018,19 @@ func TestNodeNicLimitReservationDelete(t *testing.T) {
 
 	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
 	deleteResource(t, nodeURL, http.StatusOK)
+}
+
+// Induce error in the processing
+// This function induces error with provided percent probability
+func induceError(percentProbability int) bool {
+	induceError := false
+	// Create a random num generator with a new seed every time to
+	// avoid deterministic number generation
+	randNumGen := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	if randNumGen.Intn(100) < percentProbability {
+		induceError = true
+	}
+
+	return induceError
 }
