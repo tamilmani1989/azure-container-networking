@@ -42,7 +42,7 @@ func getMetadata(th *TelemetryHandle) {
 		time.Sleep(time.Duration(th.refreshTimeout) * time.Second)
 	}
 
-	//acquire lock before writing to telemetry handle
+	//acquire write lock before writing metadata to telemetry handle
 	th.rwmutex.Lock()
 	th.metadata = metadata
 	th.rwmutex.Unlock()
@@ -128,7 +128,7 @@ func (th *TelemetryHandle) TrackLog(report Report) {
 		trace.Properties[osVersionStr] = th.metadata.OSVersion
 	}
 
-	// send to appinsights
+	// send to appinsights resource
 	th.client.Track(trace)
 }
 
@@ -138,6 +138,7 @@ func (th *TelemetryHandle) TrackMetric(metric Metric) {
 	// Initialize new metric
 	aimetric := appinsights.NewMetricTelemetry(metric.Name, metric.Value)
 
+	// Acquire read lock to read metadata
 	th.rwmutex.RLock()
 	metadata := th.metadata
 	th.rwmutex.RUnlock()
