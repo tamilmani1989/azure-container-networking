@@ -4,7 +4,9 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/log"
+	"github.com/Azure/azure-container-networking/store"
 	"github.com/microsoft/ApplicationInsights-Go/appinsights"
 )
 
@@ -29,17 +31,27 @@ func getmetadata(th *TelemetryHandle) error {
 	// check if metadata in memory otherwise initiate wireserver request
 	if !th.isMetadataInitialized {
 		var err error
-		th.metadata, err = getHostMetadata()
+		th.metadata, err = common.GetHostMetadata(metadataFile)
 		if err != nil {
 			log.Printf("Error getting metadata %v", err)
 			return err
-		} else {
-			th.isMetadataInitialized = true
-			err = saveHostMetadata(th.metadata)
-			if err != nil {
-				log.Printf("saving host metadata failed with :%v", err)
-			}
 		}
+
+		th.isMetadataInitialized = true
+
+		// Save metadata retrieved from wireserver to a file
+		kvs, err := store.NewJsonFileStore(metadataFile)
+		if err != nil {
+			log.Printf("Error acuiring lock for writing metadata file: %v", err)
+		}
+
+		kvs.Lock(true)
+		err = common.SaveHostMetadata(th.metadata, metadataFile)
+		if err != nil {
+			log.Printf("saving host metadata failed with :%v", err)
+		}
+		kvs.Unlock(false)
+
 	}
 
 	return nil
