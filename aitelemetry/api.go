@@ -22,7 +22,7 @@ type Metric struct {
 }
 
 // TelmetryHandle holds appinsight handles and metadata
-type TelemetryHandle struct {
+type telemetryHandle struct {
 	telemetryConfig             *appinsights.TelemetryConfiguration
 	appName                     string
 	appVersion                  string
@@ -32,4 +32,16 @@ type TelemetryHandle struct {
 	enableMetadataRefreshThread bool
 	refreshTimeout              int
 	rwmutex                     sync.RWMutex
+}
+
+// Telemetry Interface to send metrics/Logs to appinsights
+type TelemetryHandle interface {
+	// TrackLog function sends report (trace) to appinsights resource. It overrides few of the existing columns with app information
+	// and for rest it uses custom dimesion
+	TrackLog(report Report)
+	// TrackMetric function sends metric to appinsights resource. It overrides few of the existing columns with app information
+	// and for rest it uses custom dimesion
+	TrackMetric(metric Metric)
+	// Close - should be called for each NewAITelemetry call. Will release resources acquired
+	Close(timeout int)
 }

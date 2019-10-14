@@ -27,7 +27,7 @@ func messageListener() appinsights.DiagnosticsMessageListener {
 	})
 }
 
-func getMetadata(th *TelemetryHandle) {
+func getMetadata(th *telemetryHandle) {
 	var metadata common.Metadata
 	var err error
 
@@ -71,13 +71,13 @@ func NewAITelemetry(
 	batchInterval int,
 	enableMetadataRefreshThread bool,
 	refreshTimeout int,
-) *TelemetryHandle {
+) TelemetryHandle {
 
 	telemetryConfig := appinsights.NewTelemetryConfiguration(key)
 	telemetryConfig.MaxBatchSize = batchSize
 	telemetryConfig.MaxBatchInterval = time.Duration(batchInterval) * time.Second
 
-	th := &TelemetryHandle{
+	th := &telemetryHandle{
 		client:                      appinsights.NewTelemetryClientFromConfig(telemetryConfig),
 		appName:                     appName,
 		appVersion:                  appVersion,
@@ -97,7 +97,7 @@ func NewAITelemetry(
 
 // TrackLog function sends report (trace) to appinsights resource. It overrides few of the existing columns with app information
 // and for rest it uses custom dimesion
-func (th *TelemetryHandle) TrackLog(report Report) {
+func (th *telemetryHandle) TrackLog(report Report) {
 	// Initialize new trace message
 	trace := appinsights.NewTraceTelemetry(report.Message, appinsights.Warning)
 
@@ -134,7 +134,7 @@ func (th *TelemetryHandle) TrackLog(report Report) {
 
 // TrackMetric function sends metric to appinsights resource. It overrides few of the existing columns with app information
 // and for rest it uses custom dimesion
-func (th *TelemetryHandle) TrackMetric(metric Metric) {
+func (th *telemetryHandle) TrackMetric(metric Metric) {
 	// Initialize new metric
 	aimetric := appinsights.NewMetricTelemetry(metric.Name, metric.Value)
 
@@ -159,7 +159,7 @@ func (th *TelemetryHandle) TrackMetric(metric Metric) {
 }
 
 // Close - should be called for each NewAITelemetry call. Will release resources acquired
-func (th *TelemetryHandle) Close(timeout int) {
+func (th *telemetryHandle) Close(timeout int) {
 	if timeout <= 0 {
 		timeout = defaultTimeout
 	}

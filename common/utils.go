@@ -66,6 +66,7 @@ type Metadata struct {
 	KernelVersion        string
 }
 
+// This is how metadata server returns in response for querying metadata
 type metadataWrapper struct {
 	Metadata Metadata `json:"compute"`
 }
