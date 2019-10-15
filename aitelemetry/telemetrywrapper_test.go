@@ -8,7 +8,7 @@ import (
 	"github.com/Azure/azure-container-networking/platform"
 )
 
-var th *TelemetryHandle
+var th TelemetryHandle
 
 func TestMain(m *testing.M) {
 
@@ -45,9 +45,6 @@ func TestTrackMetric(t *testing.T) {
 
 	metric.CustomDimensions["dim1"] = "col1"
 	th.TrackMetric(metric)
-	if th.metadata.Location != "eastus" {
-		t.Errorf("Metadata is not retrieved Got location as %v", th.metadata.Location)
-	}
 }
 
 func TestTrackLog(t *testing.T) {
@@ -59,9 +56,6 @@ func TestTrackLog(t *testing.T) {
 
 	report.CustomDimensions["dim1"] = "col1"
 	th.TrackLog(report)
-	if th.metadata.Location != "eastus" {
-		t.Errorf("Metadata is not retrieved Got location as %v", th.metadata.Location)
-	}
 }
 
 func TestClose(t *testing.T) {
