@@ -32,7 +32,7 @@ func getMetadata(th *telemetryHandle) {
 	var err error
 
 	// check if metadata in memory otherwise initiate wireserver request
-	for true {
+	for {
 		metadata, err = common.GetHostMetadata(metadataFile)
 		if err == nil || !th.enableMetadataRefreshThread {
 			break
@@ -113,6 +113,7 @@ func (th *telemetryHandle) TrackLog(report Report) {
 
 	trace.Properties[appVersionStr] = th.appVersion
 
+	// Acquire read lock to read metadata
 	th.rwmutex.RLock()
 	metadata := th.metadata
 	th.rwmutex.RUnlock()
