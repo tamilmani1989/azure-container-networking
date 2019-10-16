@@ -18,7 +18,8 @@ import (
 type NMAgent struct {
 	Server       *httptest.Server
 	ResponseFunc func(http.ResponseWriter, *http.Request)
-	Lock         sync.Mutex
+	errdVnets    sync.Map
+	errdNcs      sync.Map
 }
 
 var (
@@ -43,6 +44,12 @@ func init() {
 	configuration.SetDncConfigDefaults(config)
 	nmagent.ResponseFunc = responder
 	nmagent.setupServer(config.HostAgentSettings.WireServerIP)
+	nmagent.errdVnets.Store(utils.GenericFailureVnet, 2)
+	nmagent.errdVnets.Store(utils.ThrottledVnet, 2)
+	nmagent.errdVnets.Store(utils.PendingVnet, 2)
+	nmagent.errdNcs.Store(utils.GenericFailureNC, 2)
+	nmagent.errdNcs.Store(utils.ThrottledNC, 2)
+	nmagent.errdNcs.Store(utils.UnauthorizedNC, 2)
 }
 
 func main() {
@@ -74,46 +81,43 @@ func responder(w http.ResponseWriter, r *http.Request) {
 
 func handlePost(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(r.RequestURI, "networkContainers") {
-		responseCode := "200"
 		ncID := regNC.FindStringSubmatch(r.RequestURI)
-		if len(ncID) < 1 {
+		if len(ncID) < 2 {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-
-		switch ncID[1] {
-		case utils.OneMinuteFailureNC:
-			responseCode = "500"
-		case utils.ThrottledNC:
-			responseCode = "403"
-		case utils.UnauthorizedNC:
-			responseCode = "401"
-		}
-
 		// delete NC call
 		if strings.Contains(r.RequestURI, "DELETE") {
-			json.NewEncoder(w).Encode(nmagentcontracts.DeleteNetworkContainerResponse{ResponseCode: responseCode})
+			json.NewEncoder(w).Encode(nmagentcontracts.DeleteNetworkContainerResponse{ResponseCode: generateNcResponseCode(ncID[1])})
 		} else {
 			// create NC call
 			var ncReq nmagentcontracts.CreateOrUpdateNetworkContainerRequest
 			json.NewDecoder(r.Body).Decode(&ncReq)
-			json.NewEncoder(w).Encode(nmagentcontracts.CreateNetworkContainerResponse{ResponseCode: responseCode, Version: ncReq.Version})
+			json.NewEncoder(w).Encode(nmagentcontracts.CreateNetworkContainerResponse{ResponseCode: generateNcResponseCode(ncID[1]), Version: ncReq.Version})
 		}
 	} else if strings.Contains(r.RequestURI, "joinedVirtualNetworks") {
 		responseCode := http.StatusOK
 		vnet := regVnet.FindStringSubmatch(r.RequestURI)
-		if len(vnet) < 1 {
+		if len(vnet) < 2 {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		switch vnet[1] {
-		case utils.OneMinuteFailureVnet:
-			responseCode = http.StatusInternalServerError
+		case utils.GenericFailureVnet:
+			res, _ := nmagent.errdVnets.Load(utils.GenericFailureVnet)
+			count := res.(int)
+			if count > 0 {
+				responseCode = http.StatusInternalServerError
+				nmagent.errdVnets.Store(utils.GenericFailureVnet, count-1)
+			}
 		case utils.ThrottledVnet:
-			responseCode = http.StatusForbidden
-		case utils.PendingVnet:
-			responseCode = http.StatusProcessing
+			res, _ := nmagent.errdVnets.Load(utils.ThrottledVnet)
+			count := res.(int)
+			if count > 0 {
+				responseCode = http.StatusForbidden
+				nmagent.errdVnets.Store(utils.ThrottledVnet, count-1)
+			}
 		}
 
 		w.WriteHeader(responseCode)
@@ -126,6 +130,25 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 
 func handleGet(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(r.RequestURI, "joinedVirtualNetworks") {
+		var (
+			responseCode = http.StatusOK
+			vnet         = regVnet.FindStringSubmatch(r.RequestURI)
+		)
+
+		if len(vnet) < 2 {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if vnet[1] == utils.PendingVnet {
+			res, _ := nmagent.errdVnets.Load(utils.PendingVnet)
+			count := res.(int)
+			if count > 0 {
+				responseCode = http.StatusProcessing
+				nmagent.errdVnets.Store(utils.PendingVnet, count-1)
+			}
+		}
+
 		var (
 			subnets = []nmagentcontracts.Subnet{
 				nmagentcontracts.Subnet{
@@ -145,7 +168,7 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 		subnets[0].Tags = getTags(1)
 
 		vnetResponse := nmagentcontracts.VirtualNetworkResponse{
-			ResponseCode: strconv.Itoa(http.StatusOK),
+			ResponseCode: strconv.Itoa(responseCode),
 			CNetSpace:    utils.DefaultCnetSpace,
 			DNSServers:   utils.DefaultDNSServers,
 			VNetSpace:    utils.DefaultVnetSpace,
@@ -187,4 +210,33 @@ func getTags(tagCount int) []nmagentcontracts.Tag {
 	}
 
 	return tagsArray
+}
+
+func generateNcResponseCode(ncID string) (responseCode string) {
+	responseCode = "200"
+	switch ncID {
+	case utils.GenericFailureNC:
+		res, _ := nmagent.errdNcs.Load(utils.GenericFailureNC)
+		count := res.(int)
+		if count > 0 {
+			responseCode = "500"
+			nmagent.errdNcs.Store(utils.GenericFailureNC, count-1)
+		}
+	case utils.ThrottledNC:
+		res, _ := nmagent.errdNcs.Load(utils.ThrottledNC)
+		count := res.(int)
+		if count > 0 {
+			responseCode = "403"
+			nmagent.errdNcs.Store(utils.ThrottledNC, count-1)
+		}
+	case utils.UnauthorizedNC:
+		res, _ := nmagent.errdNcs.Load(utils.UnauthorizedNC)
+		count := res.(int)
+		if count > 0 {
+			responseCode = "401"
+			nmagent.errdNcs.Store(utils.UnauthorizedNC, count-1)
+		}
+	}
+
+	return
 }

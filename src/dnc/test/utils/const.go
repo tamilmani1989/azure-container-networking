@@ -18,14 +18,23 @@ const (
 
 // vnets
 const (
-	OneMinuteFailureVnet = "3c35875a-bfaf-4192-a511-303a7e0a5039"
-	ThrottledVnet        = "8ecb43ed-96f6-4670-bb67-3f7d4dd39880"
-	PendingVnet          = "c774ea03-0009-46aa-8774-b9fcb2aba33a"
+	GenericFailureVnet = "3c35875a-bfaf-4192-a511-303a7e0a5039"
+	ThrottledVnet      = "8ecb43ed-96f6-4670-bb67-3f7d4dd39880"
+	PendingVnet        = "c774ea03-0009-46aa-8774-b9fcb2aba33a"
 )
 
 // NCs
 const (
-	OneMinuteFailureNC = "6a8d7f5d-7fcc-4a25-a9e1-e828000bbafb"
-	ThrottledNC        = "acd1b609-763f-4dd6-9ca4-c4cb2c4a16d1"
-	UnauthorizedNC     = "617a3122-1ef6-481c-b6dc-9851fef130b2"
+	GenericFailureNC = "6a8d7f5d-7fcc-4a25-a9e1-e828000bbafb"
+	ThrottledNC      = "acd1b609-763f-4dd6-9ca4-c4cb2c4a16d1"
+	UnauthorizedNC   = "617a3122-1ef6-481c-b6dc-9851fef130b2"
+)
+
+// defaults
+const (
+	StandardNode  = "Node1"
+	LocalHost     = "127.0.0.1"
+	StandardVnet  = "6a7e5d77-1ab4-42c7-ac41-39c208db7d6c"
+	StandardVnet2 = "0b06abb8-3601-443a-a39f-61de40f474af"
+	StandardVnet3 = "3ea285c0-2c61-47d0-bcc0-1d7529f978f7"
 )

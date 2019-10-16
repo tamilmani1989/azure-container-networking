@@ -85,6 +85,8 @@ func (c *DncClient) InitAzStorage(accountName, key, partitionKey, blob, containe
 				failedToDecodeResponse(respErr, common.Register, common.AzStorage, err)
 			}
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -116,6 +118,8 @@ func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType string) (respErr *a
 				failedToDecodeResponse(respErr, common.Register, common.Node, err)
 			}
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -140,6 +144,8 @@ func (c *DncClient) AddNetwork(networkId string) (respErr *api.JsonErr) {
 				failedToDecodeResponse(respErr, common.Register, common.Network, err)
 			}
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -164,6 +170,8 @@ func (c *DncClient) AddSubnet(networkId, subnetId, authenticationToken string) (
 				failedToDecodeResponse(respErr, common.Register, common.Subnet, err)
 			}
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -219,6 +227,8 @@ func (c *DncClient) AddNc(nodeId, networkId, ncId, reservationId, subnet,
 				failedToDecodeResponse(respErr, common.Register, common.NetworkContainer, err)
 			}
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -246,6 +256,8 @@ func (c *DncClient) AddReservation(networkId, subnet, ipConstraint, nodeConstrai
 				failedToDecodeResponse(respErr, common.Register, common.Reservation, err)
 			}
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -276,6 +288,8 @@ func (c *DncClient) GetNode(nodeId string) (nodeCfg *api.NodeInfoResponse, respE
 		} else {
 			failedWithStatus(respErr, common.Get, common.Node, response.StatusCode)
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -302,6 +316,8 @@ func (c *DncClient) GetNetworkConfiguration(networkId string) (networkCfg *api.N
 		} else {
 			failedWithStatus(respErr, common.Get, common.Network, response.StatusCode)
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -328,6 +344,8 @@ func (c *DncClient) GetNetworkStatus(networkId string) (requestStatus *api.Reque
 		} else {
 			failedWithStatus(respErr, common.Get, common.Network+" status", response.StatusCode)
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -354,6 +372,8 @@ func (c *DncClient) GetSubnetConfiguration(networkId, subnet string) (subnetCfg 
 		} else {
 			failedWithStatus(respErr, common.Get, common.Subnet, response.StatusCode)
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -380,6 +400,8 @@ func (c *DncClient) GetSubnetStatus(networkId, subnet string) (requestStatus *ap
 		} else {
 			failedWithStatus(respErr, common.Get, common.Subnet+" status", response.StatusCode)
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -406,6 +428,8 @@ func (c *DncClient) GetNC(networkId, ncId string) (nc *api.NetworkContainerRespo
 		} else {
 			failedWithStatus(respErr, common.Get, common.NetworkContainer, response.StatusCode)
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -432,6 +456,8 @@ func (c *DncClient) GetNCConfiguration(networkId, ncId string) (ncCfg *datamodel
 		} else {
 			failedWithStatus(respErr, common.Get, common.NetworkContainer+" configuration", response.StatusCode)
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -458,6 +484,8 @@ func (c *DncClient) GetNCStatus(networkId, ncId string) (requestStatus *api.Requ
 		} else {
 			failedWithStatus(respErr, common.Get, common.NetworkContainer+" status", response.StatusCode)
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -484,6 +512,8 @@ func (c *DncClient) GetReservation(networkId, reservationId string) (reservation
 		} else {
 			failedWithStatus(respErr, common.Get, common.Reservation, response.StatusCode)
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -510,6 +540,8 @@ func (c *DncClient) DeleteNode(nodeId string) (respErr *api.JsonErr) {
 				failedToDecodeResponse(respErr, common.Delete, common.Node, err)
 			}
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -532,6 +564,8 @@ func (c *DncClient) DeleteNetwork(networkId string) (respErr *api.JsonErr) {
 				failedToDecodeResponse(respErr, common.Delete, common.Network, err)
 			}
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -554,6 +588,8 @@ func (c *DncClient) DeleteSubnet(networkId, subnet string) (respErr *api.JsonErr
 				failedToDecodeResponse(respErr, common.Delete, common.Subnet, err)
 			}
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -576,6 +612,8 @@ func (c *DncClient) DeleteNC(networkId, ncId string) (respErr *api.JsonErr) {
 				failedToDecodeResponse(respErr, common.Delete, common.NetworkContainer, err)
 			}
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -602,6 +640,8 @@ func (c *DncClient) PromoteNCState(networkId, ncId string) (respErr *api.JsonErr
 				failedToDecodeResponse(respErr, common.Promote, common.NetworkContainer, err)
 			}
 		}
+	} else {
+		reportClientErr(respErr, err)
 	}
 	return
 }
@@ -660,4 +700,9 @@ func failedToDecodeResponse(respErr *api.JsonErr, action, resource string, err e
 func failedWithStatus(respErr *api.JsonErr, action, resource string, statusCode int) {
 	respErr.HTTPStatus = statusCode
 	respErr.Text = fmt.Sprintf("[dnctl] failed to %s %s with status %d", action, resource, statusCode)
+}
+
+func reportClientErr(respErr *api.JsonErr, err error) {
+	respErr.HTTPStatus = http.StatusAccepted
+	respErr.Text = err.Error()
 }
