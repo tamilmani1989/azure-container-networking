@@ -197,3 +197,55 @@ func Load(configFile string) *Configuration {
 
 	return &config
 }
+
+func SetDncConfigDefaults(config *Configuration) {
+	if config.DNCSettings.RequestRetryBaseInterval == 0 {
+		// Set default to 1 sec.
+		config.DNCSettings.RequestRetryBaseInterval = 1000
+	}
+
+	if config.DNCSettings.ConcurrentRequestsToProcess == 0 {
+		// Set default to 5
+		config.DNCSettings.ConcurrentRequestsToProcess = 5
+	}
+
+	if config.DNCSettings.MaxRequestBackoffInterval == 0 {
+		// Set default to 16 secs
+		config.DNCSettings.MaxRequestBackoffInterval = 16000
+	}
+
+	if config.DNCSettings.NetworkRefreshInterval == 0 {
+		// Set default to 1 min.
+		config.DNCSettings.NetworkRefreshInterval = 60000
+	}
+
+	if config.DNCSettings.TagRefreshInterval == 0 {
+		// Set default to 1 min.
+		config.DNCSettings.TagRefreshInterval = 60000
+	}
+
+	if config.DNCSettings.NetworkContainerRefreshInterval == 0 {
+		// Set default to 1 min
+		config.DNCSettings.NetworkContainerRefreshInterval = 60000
+	}
+
+	if config.DNCSettings.NetworkRefreshBatchSize == 0 {
+		// Set default to 60
+		config.DNCSettings.NetworkRefreshBatchSize = 60
+	}
+
+	if config.DNCSettings.SleepIntervalBetweenNetworkBatches == 0 {
+		// Set default to 1 min
+		config.DNCSettings.SleepIntervalBetweenNetworkBatches = 60000
+	}
+
+	if config.DNCSettings.ReportToHostInterval < 60000 {
+		// Set default to 1 min
+		config.DNCSettings.ReportToHostInterval = 60000
+	}
+
+	if config.DNCSettings.SleepIntervalBetweenNetworkRefresh == 0 {
+		// Set default to 1 min
+		config.DNCSettings.SleepIntervalBetweenNetworkRefresh = 300
+	}
+}

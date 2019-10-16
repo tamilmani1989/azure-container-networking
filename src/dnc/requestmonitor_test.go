@@ -182,7 +182,7 @@ var (
 const (
 	defaultNumCPUCores            = 16  // Default CPU cores for general tests
 	updatedNumCPUCoresForLoadTest = 300 // Higher CPU cores for simulating load test
-	induceErrorPercent = 5				// Induce 5% error for nmagent and cns responses
+	induceErrorPercent            = 5   // Induce 5% error for nmagent and cns responses
 )
 
 // TestMain :- main
@@ -216,7 +216,7 @@ func StartDnc() {
 	}
 
 	config = configuration.Load(configpath)
-	setDncConfigDefaults()
+	configuration.SetDncConfigDefaults(config)
 	logger = loggershim.NewLoggerShim(config)
 	logger.Init(stderr, reports)
 	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
