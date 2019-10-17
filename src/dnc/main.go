@@ -129,7 +129,7 @@ func init() {
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
 		datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
-			config.VlanSettings.Min, config.VlanSettings.Max, httpClient)
+			config.VlanSettings.Min, config.VlanSettings.Max, httpClient, config.DNCSettings.EnforceNICLimit)
 		ctrler.UpdateReplicaStatus(true)
 	}
 }

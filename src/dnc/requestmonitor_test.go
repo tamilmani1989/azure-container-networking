@@ -258,7 +258,8 @@ func StartDnc() {
 			config.DNCSettings.RequestRetryBaseInterval,
 			config.VlanSettings.Min,
 			config.VlanSettings.Max,
-			httpClient)
+			httpClient,
+			config.DNCSettings.EnforceNICLimit)
 		ctrler.UpdateReplicaStatus(true)
 	}
 

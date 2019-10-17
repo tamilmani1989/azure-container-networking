@@ -500,7 +500,7 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
 	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
-		config.VlanSettings.Min, config.VlanSettings.Max, c.httpClient)
+		config.VlanSettings.Min, config.VlanSettings.Max, c.httpClient, config.DNCSettings.EnforceNICLimit)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
@@ -515,7 +515,7 @@ func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2)
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
 	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
-		config.VlanSettings.Min, config.VlanSettings.Max, c.httpClient)
+		config.VlanSettings.Min, config.VlanSettings.Max, c.httpClient, config.DNCSettings.EnforceNICLimit)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
@@ -531,7 +531,7 @@ func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, b
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
 	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
-		config.VlanSettings.Min, config.VlanSettings.Max, c.httpClient)
+		config.VlanSettings.Min, config.VlanSettings.Max, c.httpClient, config.DNCSettings.EnforceNICLimit)
 	c.UpdateReplicaStatus(true)
 	return nil
 }

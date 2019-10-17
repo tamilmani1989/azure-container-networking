@@ -29,6 +29,7 @@ var (
 	maxVlan              uint16 = 2048
 	maxContainersPerNode        = 10
 	httpClient           *http.Client
+	enforceNICLimit      bool // zero value is false
 )
 
 // Init - Initialize repository.
@@ -37,7 +38,8 @@ func Init(
 	dataStoreSettings configuration.DataStoreSettings,
 	interval int,
 	min, max uint16,
-	httpClientArg *http.Client) error {
+	httpClientArg *http.Client,
+	enforceNICLimitFlag bool) error {
 	requestBaseInterval = interval
 	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
@@ -54,6 +56,7 @@ func Init(
 
 	cnsSettings = cnsConfigSettings
 	httpClient = httpClientArg
+	enforceNICLimit = enforceNICLimitFlag
 
 	return nil
 }
@@ -366,6 +369,7 @@ func UpdateNodeConstrainedReservationSet(
 	return persistNodeConfiguration(nodeConfiguration)
 }
 
+// GetNextVlanID - Generate new Vlan ID
 func GetNextVlanID(networkVlanIDMap map[string]uint16) (uint16, *api.JsonErr) {
 	v := make(utils.Uint16s, 0, len(networkVlanIDMap))
 	for _, value := range networkVlanIDMap {
@@ -470,7 +474,7 @@ func UpdateNodeConfigurationNetworkContainerSet(
 
 		ncLimit, respErr := getNCLimitForNode(nodeConfig.NodeInfo.IPAddresses[0])
 		if respErr != nil {
-			loggershim.LS.Debugf("Failed to retrieve NC limit for node with error %+v", nodeID, respErr.String())
+			loggershim.LS.Debugf("Failed to retrieve NC limit for node [%s] with error %+v", nodeID, respErr.String())
 			return respErr
 		}
 
@@ -2894,9 +2898,13 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 // The function queries CNS running on a node to get number of logical cores configuration data.
 // If for some reason the request fails, we return default value of 10.
 func getNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
-	// Check if the setting is there.
-	if cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt == "" {
-		loggershim.LS.Debugf("GetNumOfCPUCoresURLFmt setting not present, returning default value")
+	loggershim.LS.Debugf("getNCLimit called with settings values GetNumOfCPUCoresURLFmt: %s, EnforceNICLimit: %t",
+		cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt,
+		enforceNICLimit)
+
+	// Check configuration settings.
+	if cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt == "" || !enforceNICLimit {
+		loggershim.LS.Debugf("Returning default NIC limit value")
 		return maxContainersPerNode, nil
 	}
 

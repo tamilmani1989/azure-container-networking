@@ -52,7 +52,8 @@
         "NetworkContainerRefreshInterval": 1000,
         "ReportToHostInterval": 60000,
         "ConcurrentRequestsToProcess" : 1000,
-        "DisableTelemetry": false
+        "DisableTelemetry": false,
+        "EnforceNICLimit" : true
     },
     "HttpClientSettings":{
         "ConnectionTimeout":5,

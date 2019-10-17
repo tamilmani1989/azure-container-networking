@@ -145,6 +145,8 @@ type DNCSettings struct {
 	ConcurrentRequestsToProcess int
 	// Flag to disable the telemetry. Default is false
 	DisableTelemetry bool
+	// Flag to determine, if DNC should enforce NIC limit or not?
+	EnforceNICLimit bool
 }
 
 // HttpClientSettings: Http client settings to be used when making http calls to CNS and NMAgent from DNC
