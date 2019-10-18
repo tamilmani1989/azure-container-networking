@@ -269,12 +269,12 @@ func GetReservationStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reservationStatus, getErr := ctrler.GetReservationStatus(
+	reservationStatus, retcode, getErr := ctrler.GetReservationStatus(
 		networkID,
 		reservationID)
 	w.Header().Set(contentTypeStr, defaultContentType)
 	if getErr == nil {
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(retcode)
 		if reservationStatus != nil {
 			if err := json.NewEncoder(w).Encode(&reservationStatus); err != nil {
 				panic(err)

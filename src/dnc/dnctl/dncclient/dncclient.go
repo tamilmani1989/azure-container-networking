@@ -19,14 +19,13 @@ const (
 	nodeApi                    = "%s/nodes/%s" + apiVersion
 	networkApi                 = "%s/networks/%s" + apiVersion
 	networkStatusApi           = "%s/networks/%s/status" + apiVersion
-	reserveIpApi               = "%s/networks/%s/reservations/%s" + apiVersion
-	reserveIpStatusApi         = "%s/networks/%s/reservations/%s/status" + apiVersion
+	reservationApi             = "%s/networks/%s/reservations/%s" + apiVersion
+	reservationStatusApi       = "%s/networks/%s/reservations/%s/status" + apiVersion
 	subnetApi                  = "%s/networks/%s/subnets/%s" + apiVersion
 	subnetStatusApi            = "%s/networks/%s/subnets/%s/status" + apiVersion
 	ncApi                      = "%s/networks/%s/networkcontainer/%s" + apiVersion
 	ncStatusApi                = "%s/networks/%s/networkcontainers/%s/status" + apiVersion
 	ncConfigurationApi         = "%s/networks/%s/networkcontainer/%s/configuration" + apiVersion
-	reservationApi             = "%s/networks/%s/reservations/%s" + apiVersion
 	promoteApi                 = "%s/promotenetworkcontainerstate/networks/%s/networkcontainer/%s" + apiVersion
 	isWaitingForNodeCleanupApi = "%s/iswaitingfornodecleanup/networks/%s/networkcontainer/%s" + apiVersion
 	skipNodeCleanupApi         = "%s/skipnodecleanupfornetworkcontainer/networks/%s/networkcontainer/%s" + apiVersion
@@ -518,6 +517,34 @@ func (c *DncClient) GetReservation(networkId, reservationId string) (reservation
 	return
 }
 
+func (c *DncClient) GetReservationStatus(networkId, reservationId string) (reservationStatus *api.RequestStatus, respErr *api.JsonErr) {
+	var (
+		response              *http.Response
+		err                   error
+		reservationURL        = fmt.Sprintf(reservationStatusApi, c.DncEP, networkId, reservationId)
+		reservationStatusResp api.RequestStatus
+	)
+
+	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
+	response, err = httpc.Get(reservationURL)
+	if err == nil {
+		defer response.Body.Close()
+
+		if response.StatusCode == http.StatusOK {
+			if err = utils.DecodeResponse(response, &reservationStatusResp); err != nil {
+				failedToDecodeResponse(respErr, common.Get, common.Reservation, err)
+			} else {
+				reservationStatus = &reservationStatusResp
+			}
+		} else {
+			failedWithStatus(respErr, common.Get, common.Reservation, response.StatusCode)
+		}
+	} else {
+		reportClientErr(respErr, err)
+	}
+	return
+}
+
 /*
  * Delete APIs
  */
@@ -610,6 +637,30 @@ func (c *DncClient) DeleteNC(networkId, ncId string) (respErr *api.JsonErr) {
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
 				failedToDecodeResponse(respErr, common.Delete, common.NetworkContainer, err)
+			}
+		}
+	} else {
+		reportClientErr(respErr, err)
+	}
+	return
+}
+
+func (c *DncClient) DeleteReservation(networkId, reservationId string) (respErr *api.JsonErr) {
+	var (
+		response       *http.Response
+		err            error
+		reservationURL = fmt.Sprintf(reservationApi, c.DncEP, networkId, reservationId)
+		req, _         = http.NewRequest(delete, reservationURL, nil)
+	)
+
+	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
+	response, err = httpc.Do(req)
+	if err == nil {
+		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			if err = utils.DecodeResponse(response, &respErr); err != nil {
+				failedToDecodeResponse(respErr, common.Delete, common.Reservation, err)
 			}
 		}
 	} else {

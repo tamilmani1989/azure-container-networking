@@ -154,11 +154,21 @@ func (c *Controller) GetReservationConfiguration(
 // GetReservationStatus - Get reservation status
 func (c *Controller) GetReservationStatus(
 	networkID,
-	reservationID string) (*api.RequestStatus, *api.JsonErr) {
+	reservationID string) (*api.RequestStatus, int, *api.JsonErr) {
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginReadSession(sessionInfo)
 	defer c.SessionManager.EndReadSession(sessionInfo)
-	return datamodel.GetReservationStatus(networkID, reservationID)
+
+	reservationCfg, err := datamodel.QueryIPReservation(networkID, reservationID)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	requestStatus := &api.RequestStatus{
+		State:         reservationCfg.ReservationState.String(),
+		Status:        reservationCfg.Status.String(),
+		FailureDetail: reservationCfg.FailureDetail}
+	return requestStatus, generateStatus(reservationCfg.Status, &reservationCfg.FailureDetail), err
 }
 
 // DeleteReservation - Delete reservation configuration.

@@ -4007,11 +4007,11 @@ func TestNodeNicLimitReservationDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// StatusBadRequest gets thrown if the reservation doesn't exist.
-	if response.StatusCode != http.StatusBadRequest {
+	// StatusNotFound gets thrown if the reservation doesn't exist.
+	if response.StatusCode != http.StatusNotFound {
 		t.Fatalf("Received Invalid status code %d, Expected:%d",
 			response.StatusCode,
-			http.StatusBadRequest)
+			http.StatusNotFound)
 	}
 
 	networkURL := dncEP + "/networks/" + vnetID + apiVersion

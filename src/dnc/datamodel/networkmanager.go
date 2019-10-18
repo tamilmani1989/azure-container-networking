@@ -957,7 +957,7 @@ func QueryIPReservation(networkID, reservationID string) (*ReservationConfigurat
 		return nil, &api.JsonErr{
 			Code:       api.ReservationNotFound,
 			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+			HTTPStatus: http.StatusNotFound}
 	}
 
 	return reservationConfiguration, nil

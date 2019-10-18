@@ -66,7 +66,7 @@ func TestBasicSubnetAPIs(t *testing.T) {
 		vnetID              = id.String()
 		id2, _              = uuid.NewUUID()
 		authenticationToken = id2.String()
-		subnetID            = "subnet1"
+		subnetID            = utils.Subnet1
 	)
 
 	addNetwork(t, vnetID, defaultRequestTimeout)
@@ -75,10 +75,32 @@ func TestBasicSubnetAPIs(t *testing.T) {
 	deleteNetwork(t, vnetID)
 }
 
+func TestBasicReservationAPIs(t *testing.T) {
+	var (
+		id, _               = uuid.NewUUID()
+		reservationID       = id.String()
+		id2, _              = uuid.NewUUID()
+		authenticationToken = id2.String()
+		nodeID              = utils.StandardNode
+		vnetID              = utils.StandardVnet
+		subnetID            = utils.Subnet1
+	)
+
+	addNode(t, nodeID, utils.LocalHost, cns.Kubernetes)
+	addNetwork(t, vnetID, defaultRequestTimeout)
+	addSubnet(t, vnetID, subnetID, authenticationToken)
+	addReservation(t, nodeID, vnetID, subnetID, "", reservationID, defaultRequestTimeout)
+
+	deleteReservation(t, vnetID, reservationID)
+	deleteNetwork(t, vnetID)
+	deleteNode(t, nodeID)
+}
+
 func TestBasicNCAPIs(t *testing.T) {
 	var (
 		nodeID              = utils.StandardNode
 		ipaddr              = utils.LocalHost
+		nodeIface           = utils.NodeIface
 		orchestratorType    = cns.Kubernetes
 		containerType       = cns.AzureContainerInstance
 		id, _               = uuid.NewUUID()
@@ -103,7 +125,7 @@ func TestBasicNCAPIs(t *testing.T) {
 				DNSServers: []string{"8.8.8.8", "9.9.9.9"}},
 			AssociationInfo: api.AssociationInfo{
 				NodeID:              nodeID,
-				InterfaceID:         ipaddr,
+				InterfaceID:         nodeIface,
 				ContainerType:       containerType,
 				OrchestratorContext: context},
 			RequestStatus: api.RequestStatus{
@@ -119,8 +141,8 @@ func TestBasicNCAPIs(t *testing.T) {
 	addNode(t, nodeID, ipaddr, orchestratorType)
 	addNetwork(t, vnetID, defaultRequestTimeout)
 	addSubnet(t, vnetID, subnetID, authenticationToken)
-	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", ipaddr, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout)
-	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", ipaddr, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout)
+	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", nodeIface, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout)
+	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", nodeIface, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout)
 
 	if recievedNcResp, respErr = dnctl.GetNC(vnetID, ncID); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Failed to retrieve nc response with error %+v", respErr)
@@ -217,7 +239,7 @@ func testGenericFailureNc(t *testing.T) {
 		podNamespace  = "default"
 	)
 
-	addNc(t, nodeID, vnetID, ncID, "", utils.Subnet1, "", "", utils.LocalHost, containerType, podName, podNamespace, false, false, errdRequestTimeout)
+	addNc(t, nodeID, vnetID, ncID, "", utils.Subnet1, "", "", utils.NodeIface, containerType, podName, podNamespace, false, false, errdRequestTimeout)
 	deleteNc(t, vnetID, ncID)
 }
 
@@ -232,7 +254,7 @@ func testThrottledNc(t *testing.T) {
 		podNamespace  = "default"
 	)
 
-	addNc(t, nodeID, vnetID, ncID, "", utils.Subnet1, "", "", utils.LocalHost, containerType, podName, podNamespace, false, false, errdRequestTimeout)
+	addNc(t, nodeID, vnetID, ncID, "", utils.Subnet1, "", "", utils.NodeIface, containerType, podName, podNamespace, false, false, errdRequestTimeout)
 	deleteNc(t, vnetID, ncID)
 }
 
@@ -247,7 +269,7 @@ func testUnauthorizedNc(t *testing.T) {
 		podNamespace  = "default"
 	)
 
-	addNc(t, nodeID, vnetID, ncID, "", utils.Subnet1, "", "", utils.LocalHost, containerType, podName, podNamespace, false, false, errdRequestTimeout)
+	addNc(t, nodeID, vnetID, ncID, "", utils.Subnet1, "", "", utils.NodeIface, containerType, podName, podNamespace, false, false, errdRequestTimeout)
 	deleteNc(t, vnetID, ncID)
 }
 
@@ -438,6 +460,67 @@ func deleteSubnet(t *testing.T, vnetID, subnetID string) {
 		}
 
 		t.Fatalf("Unregister subnet failed with error %+v", respErr)
+	}
+}
+
+func addReservation(t *testing.T, nodeID, vnetID, subnetID, ipConstraint, reservationID string, timeout time.Duration) {
+	var (
+		respErr                   *api.JsonErr
+		reservationStatus         *api.RequestStatus
+		expectedReservationStatus = &api.RequestStatus{
+			State:  "Process",
+			Status: "Completed"}
+	)
+
+	if respErr = dnctl.AddReservation(vnetID, subnetID, ipConstraint, nodeID, reservationID); respErr.HTTPStatus != http.StatusOK {
+		t.Fatalf("Register reservation failed with error %+v", respErr)
+	}
+
+	for start := time.Now(); ; {
+		reservationStatus, respErr = dnctl.GetReservationStatus(vnetID, reservationID)
+		if respErr.HTTPStatus == http.StatusOK {
+			break
+		}
+
+		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < timeout {
+			continue
+		}
+
+		t.Fatalf("Register reservation failed with error %+v", respErr)
+	}
+
+	if !reflect.DeepEqual(reservationStatus, expectedReservationStatus) {
+		t.Fatalf("Register reservation failed;\nrecieved %+v\nexpected %+v", reservationStatus, expectedReservationStatus)
+	}
+}
+
+func deleteReservation(t *testing.T, vnetID, reservationID string) {
+	var respErr *api.JsonErr
+
+	for start := time.Now(); ; {
+		respErr = dnctl.DeleteReservation(vnetID, reservationID)
+		if respErr.HTTPStatus == http.StatusOK {
+			break
+		}
+
+		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < defaultRequestTimeout {
+			continue
+		}
+
+		t.Fatalf("Unregister reservation failed with error %+v", respErr)
+	}
+
+	for start := time.Now(); ; {
+		_, respErr = dnctl.GetReservationStatus(vnetID, reservationID)
+		if respErr.HTTPStatus == http.StatusNotFound {
+			break
+		}
+
+		if (respErr.HTTPStatus == http.StatusOK || respErr.HTTPStatus == http.StatusAccepted) && time.Since(start) < defaultRequestTimeout {
+			continue
+		}
+
+		t.Fatalf("Unregister reservation failed with error %+v", respErr)
 	}
 }
 

@@ -192,8 +192,8 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 }
 
 var updatedTagDefinitions = map[string]nmagentcontracts.TagResponse{
-	"XStore":   nmagentcontracts.TagResponse{ResponseCode: "200", Name: "XStore", Values: []string{"167.10.10.0/24", "168.10.10.0/24", "144.10.12.12/24"}},
-	"AzureSql": nmagentcontracts.TagResponse{ResponseCode: "200", Name: "AzureSql", Values: []string{"132.10.10.0/24", "133.10.10.0/24", "134.10.12.12/24"}}}
+	"XStore":   nmagentcontracts.TagResponse{ResponseCode: "200", Name: "XStore", Values: []string{"167.10.10.0/24", "168.10.10.0/24", "144.10.12.0/24"}},
+	"AzureSql": nmagentcontracts.TagResponse{ResponseCode: "200", Name: "AzureSql", Values: []string{"132.10.10.0/24", "133.10.10.0/24", "134.10.12.0/24"}}}
 
 func getTags(tagCount int) []nmagentcontracts.Tag {
 	var (

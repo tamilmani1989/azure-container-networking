@@ -34,6 +34,7 @@ const (
 const (
 	StandardNode  = "Node1"
 	LocalHost     = "127.0.0.1"
+	NodeIface     = "10.0.0.4"
 	StandardVnet  = "6a7e5d77-1ab4-42c7-ac41-39c208db7d6c"
 	StandardVnet2 = "0b06abb8-3601-443a-a39f-61de40f474af"
 	StandardVnet3 = "3ea285c0-2c61-47d0-bcc0-1d7529f978f7"
