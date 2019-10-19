@@ -19,6 +19,7 @@ var (
 	dnctl                   *dncclient.DncClient
 	defaultRequestTimeout   = time.Second * 4
 	defaultNCRequestTimeout = time.Second * 10
+	defaultSleep            = time.Second * 1
 	errdRequestTimeout      = time.Second * 30
 )
 
@@ -46,7 +47,7 @@ func TestBasicNodeAPIs(t *testing.T) {
 
 	addNode(t, nodeID, ipaddr, orchestratorType)
 	addNode(t, nodeID, ipaddr, orchestratorType)
-	deleteNode(t, nodeID)
+	deleteNode(t, nodeID, http.StatusNotFound)
 }
 
 func TestBasicVnetAPIs(t *testing.T) {
@@ -57,7 +58,7 @@ func TestBasicVnetAPIs(t *testing.T) {
 
 	addNetwork(t, vnetID, defaultRequestTimeout)
 	addNetwork(t, vnetID, defaultRequestTimeout)
-	deleteNetwork(t, vnetID)
+	deleteNetwork(t, vnetID, http.StatusNotFound)
 }
 
 func TestBasicSubnetAPIs(t *testing.T) {
@@ -72,7 +73,7 @@ func TestBasicSubnetAPIs(t *testing.T) {
 	addNetwork(t, vnetID, defaultRequestTimeout)
 	addSubnet(t, vnetID, subnetID, authenticationToken)
 	addSubnet(t, vnetID, subnetID, authenticationToken)
-	deleteNetwork(t, vnetID)
+	deleteNetwork(t, vnetID, http.StatusNotFound)
 }
 
 func TestBasicReservationAPIs(t *testing.T) {
@@ -90,10 +91,11 @@ func TestBasicReservationAPIs(t *testing.T) {
 	addNetwork(t, vnetID, defaultRequestTimeout)
 	addSubnet(t, vnetID, subnetID, authenticationToken)
 	addReservation(t, nodeID, vnetID, subnetID, "", reservationID, defaultRequestTimeout)
-
+	// validate that delete network will fail when a reservation exists
+	deleteNetwork(t, vnetID, http.StatusBadRequest)
 	deleteReservation(t, vnetID, reservationID)
-	deleteNetwork(t, vnetID)
-	deleteNode(t, nodeID)
+	deleteNetwork(t, vnetID, http.StatusNotFound)
+	deleteNode(t, nodeID, http.StatusNotFound)
 }
 
 func TestBasicNCAPIs(t *testing.T) {
@@ -155,9 +157,12 @@ func TestBasicNCAPIs(t *testing.T) {
 		}
 	}
 
+	// validate that delete node and vnet will fail when NC exists
+	deleteNode(t, nodeID, http.StatusBadRequest)
+	deleteNetwork(t, vnetID, http.StatusBadRequest)
 	deleteNc(t, vnetID, ncID)
-	deleteNetwork(t, vnetID)
-	deleteNode(t, nodeID)
+	deleteNetwork(t, vnetID, http.StatusNotFound)
+	deleteNode(t, nodeID, http.StatusNotFound)
 }
 
 func TestRetrieveDelegatedSubnets(t *testing.T) {
@@ -198,25 +203,25 @@ func TestRetrieveDelegatedSubnets(t *testing.T) {
 		t.Fatalf("Failed to retrieve the expected number of delegated subnets;\nrecieved %d\nexpected 1", len(vnetCfg.DelegatedSubnets))
 	}
 
-	deleteNetwork(t, vnetID)
+	deleteNetwork(t, vnetID, http.StatusNotFound)
 }
 
 func testGenericFailureVnet(t *testing.T) {
 	t.Parallel()
 	addNetwork(t, utils.GenericFailureVnet, errdRequestTimeout)
-	deleteNetwork(t, utils.GenericFailureVnet)
+	deleteNetwork(t, utils.GenericFailureVnet, http.StatusNotFound)
 }
 
 func testThrottledVnet(t *testing.T) {
 	t.Parallel()
 	addNetwork(t, utils.ThrottledVnet, errdRequestTimeout)
-	deleteNetwork(t, utils.ThrottledVnet)
+	deleteNetwork(t, utils.ThrottledVnet, http.StatusNotFound)
 }
 
 func testPendingVnet(t *testing.T) {
 	t.Parallel()
 	addNetwork(t, utils.PendingVnet, errdRequestTimeout)
-	deleteNetwork(t, utils.PendingVnet)
+	deleteNetwork(t, utils.PendingVnet, http.StatusNotFound)
 }
 
 func TestVnetFailures(t *testing.T) {
@@ -294,10 +299,10 @@ func TestNcFailures(t *testing.T) {
 		t.Run("TestUnauthorizedNc", testUnauthorizedNc)
 	})
 
-	deleteNetwork(t, utils.StandardVnet)
-	deleteNetwork(t, utils.StandardVnet2)
-	deleteNetwork(t, utils.StandardVnet3)
-	deleteNode(t, nodeID)
+	deleteNetwork(t, utils.StandardVnet, http.StatusNotFound)
+	deleteNetwork(t, utils.StandardVnet2, http.StatusNotFound)
+	deleteNetwork(t, utils.StandardVnet3, http.StatusNotFound)
+	deleteNode(t, nodeID, http.StatusNotFound)
 }
 
 func addNode(t *testing.T, nodeID, ipaddr, orchestratorType string) {
@@ -324,33 +329,40 @@ func addNode(t *testing.T, nodeID, ipaddr, orchestratorType string) {
 	}
 }
 
-func deleteNode(t *testing.T, nodeID string) {
-	var respErr *api.JsonErr
+func deleteNode(t *testing.T, nodeID string, status int) {
+	var (
+		respErr                      *api.JsonErr
+		deleteStatus, validateDelete = deleteHelper(status)
+	)
 
 	for start := time.Now(); ; {
 		respErr = dnctl.DeleteNode(nodeID)
-		if respErr.HTTPStatus == http.StatusOK {
+		if respErr.HTTPStatus == deleteStatus {
 			break
 		}
 
 		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < defaultRequestTimeout {
+			time.Sleep(defaultSleep)
 			continue
 		}
 
 		t.Fatalf("Unregister node failed with error %+v", respErr)
 	}
 
-	for start := time.Now(); ; {
-		_, respErr = dnctl.GetNode(nodeID)
-		if respErr.HTTPStatus == http.StatusNotFound {
-			break
-		}
+	if validateDelete {
+		for start := time.Now(); ; {
+			_, respErr = dnctl.GetNode(nodeID)
+			if respErr.HTTPStatus == http.StatusNotFound {
+				break
+			}
 
-		if (respErr.HTTPStatus == http.StatusOK || respErr.HTTPStatus == http.StatusAccepted) && time.Since(start) < defaultRequestTimeout {
-			continue
-		}
+			if (respErr.HTTPStatus == http.StatusOK || respErr.HTTPStatus == http.StatusAccepted) && time.Since(start) < defaultRequestTimeout {
+				time.Sleep(defaultSleep)
+				continue
+			}
 
-		t.Fatalf("Unregister node failed with error %+v", respErr)
+			t.Fatalf("Unregister node failed with error %+v", respErr)
+		}
 	}
 }
 
@@ -374,6 +386,7 @@ func addNetwork(t *testing.T, vnetID string, timeout time.Duration) {
 		}
 
 		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < timeout {
+			time.Sleep(defaultSleep)
 			continue
 		}
 
@@ -385,33 +398,41 @@ func addNetwork(t *testing.T, vnetID string, timeout time.Duration) {
 	}
 }
 
-func deleteNetwork(t *testing.T, vnetID string) {
-	var respErr *api.JsonErr
+func deleteNetwork(t *testing.T, vnetID string, status int) {
+	var (
+		respErr                      *api.JsonErr
+		deleteStatus, validateDelete = deleteHelper(status)
+	)
 
 	for start := time.Now(); ; {
 		respErr = dnctl.DeleteNetwork(vnetID)
-		if respErr.HTTPStatus == http.StatusOK {
+		if respErr.HTTPStatus == deleteStatus {
 			break
 		}
 
 		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < defaultRequestTimeout {
+			time.Sleep(defaultSleep)
 			continue
 		}
 
 		t.Fatalf("Unregister network failed with error %+v", respErr)
 	}
 
-	for start := time.Now(); ; {
-		_, respErr = dnctl.GetNetworkStatus(vnetID)
-		if respErr.HTTPStatus == http.StatusNotFound {
-			break
-		}
+	// if expected status is 404, check to see if resource has been deleted
+	if validateDelete {
+		for start := time.Now(); ; {
+			_, respErr = dnctl.GetNetworkStatus(vnetID)
+			if respErr.HTTPStatus == http.StatusNotFound {
+				break
+			}
 
-		if (respErr.HTTPStatus == http.StatusOK || respErr.HTTPStatus == http.StatusAccepted) && time.Since(start) < defaultRequestTimeout {
-			continue
-		}
+			if (respErr.HTTPStatus == http.StatusOK || respErr.HTTPStatus == http.StatusAccepted) && time.Since(start) < defaultRequestTimeout {
+				time.Sleep(defaultSleep)
+				continue
+			}
 
-		t.Fatalf("Unregister network failed with error %+v", respErr)
+			t.Fatalf("Unregister network failed with error %+v", respErr)
+		}
 	}
 }
 
@@ -435,6 +456,7 @@ func addSubnet(t *testing.T, vnetID, subnetID, authToken string) {
 		}
 
 		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < defaultRequestTimeout {
+			time.Sleep(defaultSleep)
 			continue
 		}
 
@@ -456,6 +478,7 @@ func deleteSubnet(t *testing.T, vnetID, subnetID string) {
 		}
 
 		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < defaultRequestTimeout {
+			time.Sleep(defaultSleep)
 			continue
 		}
 
@@ -483,6 +506,7 @@ func addReservation(t *testing.T, nodeID, vnetID, subnetID, ipConstraint, reserv
 		}
 
 		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < timeout {
+			time.Sleep(defaultSleep)
 			continue
 		}
 
@@ -504,6 +528,7 @@ func deleteReservation(t *testing.T, vnetID, reservationID string) {
 		}
 
 		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < defaultRequestTimeout {
+			time.Sleep(defaultSleep)
 			continue
 		}
 
@@ -517,6 +542,7 @@ func deleteReservation(t *testing.T, vnetID, reservationID string) {
 		}
 
 		if (respErr.HTTPStatus == http.StatusOK || respErr.HTTPStatus == http.StatusAccepted) && time.Since(start) < defaultRequestTimeout {
+			time.Sleep(defaultSleep)
 			continue
 		}
 
@@ -544,6 +570,7 @@ func addNc(t *testing.T, nodeID, vnetID, ncID, reservationID, subnetID, ipConstr
 		}
 
 		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < timeout {
+			time.Sleep(defaultSleep)
 			continue
 		}
 
@@ -568,6 +595,7 @@ func deleteNc(t *testing.T, vnetID, ncID string) {
 		}
 
 		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < defaultRequestTimeout {
+			time.Sleep(defaultSleep)
 			continue
 		}
 
@@ -581,9 +609,18 @@ func deleteNc(t *testing.T, vnetID, ncID string) {
 		}
 
 		if (respErr.HTTPStatus == http.StatusOK || respErr.HTTPStatus == http.StatusAccepted) && time.Since(start) < defaultNCRequestTimeout {
+			time.Sleep(defaultSleep)
 			continue
 		}
 
 		t.Fatalf("Delete nc failed with error %+v", respErr)
 	}
+}
+
+func deleteHelper(status int) (expectedStatus int, validateDelete bool) {
+	expectedStatus = status
+	if status == http.StatusNotFound {
+		expectedStatus, validateDelete = http.StatusOK, true
+	}
+	return
 }

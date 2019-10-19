@@ -96,31 +96,13 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(nmagentcontracts.CreateNetworkContainerResponse{ResponseCode: generateNcResponseCode(ncID[1]), Version: ncReq.Version})
 		}
 	} else if strings.Contains(r.RequestURI, "joinedVirtualNetworks") {
-		responseCode := http.StatusOK
 		vnet := regVnet.FindStringSubmatch(r.RequestURI)
 		if len(vnet) < 2 {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		switch vnet[1] {
-		case utils.GenericFailureVnet:
-			res, _ := nmagent.errdVnets.Load(utils.GenericFailureVnet)
-			count := res.(int)
-			if count > 0 {
-				responseCode = http.StatusInternalServerError
-				nmagent.errdVnets.Store(utils.GenericFailureVnet, count-1)
-			}
-		case utils.ThrottledVnet:
-			res, _ := nmagent.errdVnets.Load(utils.ThrottledVnet)
-			count := res.(int)
-			if count > 0 {
-				responseCode = http.StatusForbidden
-				nmagent.errdVnets.Store(utils.ThrottledVnet, count-1)
-			}
-		}
-
-		w.WriteHeader(responseCode)
+		w.WriteHeader(generateVnetResponseCode(vnet[1], true))
 		return
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -131,22 +113,12 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 func handleGet(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(r.RequestURI, "joinedVirtualNetworks") {
 		var (
-			responseCode = http.StatusOK
-			vnet         = regVnet.FindStringSubmatch(r.RequestURI)
+			vnet = regVnet.FindStringSubmatch(r.RequestURI)
 		)
 
 		if len(vnet) < 2 {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
-		}
-
-		if vnet[1] == utils.PendingVnet {
-			res, _ := nmagent.errdVnets.Load(utils.PendingVnet)
-			count := res.(int)
-			if count > 0 {
-				responseCode = http.StatusProcessing
-				nmagent.errdVnets.Store(utils.PendingVnet, count-1)
-			}
 		}
 
 		var (
@@ -168,7 +140,7 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 		subnets[0].Tags = getTags(1)
 
 		vnetResponse := nmagentcontracts.VirtualNetworkResponse{
-			ResponseCode: strconv.Itoa(responseCode),
+			ResponseCode: strconv.Itoa(generateVnetResponseCode(vnet[1], false)),
 			CNetSpace:    utils.DefaultCnetSpace,
 			DNSServers:   utils.DefaultDNSServers,
 			VNetSpace:    utils.DefaultVnetSpace,
@@ -235,6 +207,40 @@ func generateNcResponseCode(ncID string) (responseCode string) {
 		if count > 0 {
 			responseCode = "401"
 			nmagent.errdNcs.Store(utils.UnauthorizedNC, count-1)
+		}
+	}
+
+	return
+}
+
+func generateVnetResponseCode(vnetID string, isPost bool) (responseCode int) {
+	responseCode = http.StatusOK
+	if isPost {
+		switch vnetID {
+		case utils.GenericFailureVnet:
+			res, _ := nmagent.errdVnets.Load(utils.GenericFailureVnet)
+			count := res.(int)
+			if count > 0 {
+				responseCode = http.StatusInternalServerError
+				nmagent.errdVnets.Store(utils.GenericFailureVnet, count-1)
+			}
+		case utils.ThrottledVnet:
+			res, _ := nmagent.errdVnets.Load(utils.ThrottledVnet)
+			count := res.(int)
+			if count > 0 {
+				responseCode = http.StatusForbidden
+				nmagent.errdVnets.Store(utils.ThrottledVnet, count-1)
+			}
+		}
+	} else {
+		switch vnetID {
+		case utils.PendingVnet:
+			res, _ := nmagent.errdVnets.Load(utils.PendingVnet)
+			count := res.(int)
+			if count > 0 {
+				responseCode = http.StatusProcessing
+				nmagent.errdVnets.Store(utils.PendingVnet, count-1)
+			}
 		}
 	}
 
