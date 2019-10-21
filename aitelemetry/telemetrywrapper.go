@@ -20,11 +20,23 @@ const (
 	defaultTimeout    = 10
 )
 
-func messageListener() appinsights.DiagnosticsMessageListener {
-	return appinsights.NewDiagnosticsMessageListener(func(msg string) error {
-		log.Printf("[AppInsights] [%s] %s\n", time.Now().Format(time.UnixDate), msg)
-		return nil
-	})
+var enableLogging bool
+
+func messageListener(enableLogging bool) appinsights.DiagnosticsMessageListener {
+	if enableLogging {
+		return appinsights.NewDiagnosticsMessageListener(func(msg string) error {
+			debuglog("[AppInsights] [%s] %s\n", time.Now().Format(time.UnixDate), msg)
+			return nil
+		})
+	}
+
+	return nil
+}
+
+func debuglog(format string, args ...interface{}) {
+	if enableLogging {
+		log.Printf(format, args...)
+	}
 }
 
 func getMetadata(th *telemetryHandle) {
@@ -38,7 +50,7 @@ func getMetadata(th *telemetryHandle) {
 			break
 		}
 
-		log.Printf("[AppInsights] Error getting metadata %v. Sleep for %d", err, th.refreshTimeout)
+		debuglog("[AppInsights] Error getting metadata %v. Sleep for %d", err, th.refreshTimeout)
 		time.Sleep(time.Duration(th.refreshTimeout) * time.Second)
 	}
 
@@ -50,7 +62,7 @@ func getMetadata(th *telemetryHandle) {
 	// Save metadata retrieved from wireserver to a file
 	kvs, err := store.NewJsonFileStore(metadataFile)
 	if err != nil {
-		log.Printf("[AppInsights] Error initializing kvs store: %v", err)
+		debuglog("[AppInsights] Error initializing kvs store: %v", err)
 		return
 	}
 
@@ -58,38 +70,39 @@ func getMetadata(th *telemetryHandle) {
 	err = common.SaveHostMetadata(th.metadata, metadataFile)
 	kvs.Unlock(true)
 	if err != nil {
-		log.Printf("[AppInsights] saving host metadata failed with :%v", err)
+		debuglog("[AppInsights] saving host metadata failed with :%v", err)
 	}
 }
 
-// NewAITelemetry creates telemetry handle with user specified appinsights key.
+// NewAITelemetry creates telemetry handle with user specified appinsights id.
 func NewAITelemetry(
-	key string,
-	appName string,
-	appVersion string,
-	batchSize int,
-	batchInterval int,
-	enableMetadataRefreshThread bool,
-	refreshTimeout int,
+	id string,
+	aiConfig AIConfig,
 ) TelemetryHandle {
 
-	telemetryConfig := appinsights.NewTelemetryConfiguration(key)
-	telemetryConfig.MaxBatchSize = batchSize
-	telemetryConfig.MaxBatchInterval = time.Duration(batchInterval) * time.Second
+	telemetryConfig := appinsights.NewTelemetryConfiguration(id)
+	telemetryConfig.MaxBatchSize = aiConfig.BatchSize
+	telemetryConfig.MaxBatchInterval = time.Duration(aiConfig.BatchInterval) * time.Second
 
 	th := &telemetryHandle{
 		client:                      appinsights.NewTelemetryClientFromConfig(telemetryConfig),
-		appName:                     appName,
-		appVersion:                  appVersion,
-		diagListener:                messageListener(),
-		enableMetadataRefreshThread: enableMetadataRefreshThread,
-		refreshTimeout:              refreshTimeout,
+		appName:                     aiConfig.AppName,
+		appVersion:                  aiConfig.AppVersion,
+		diagListener:                messageListener(aiConfig.EnableLogging),
+		enableMetadataRefreshThread: aiConfig.EnableMetadataRefreshThread,
+		refreshTimeout:              aiConfig.RefreshTimeout,
+		enableTrace:                 aiConfig.EnableTrace,
+		enableMetric:                aiConfig.EnableMetric,
 	}
 
-	if th.enableMetadataRefreshThread {
-		go getMetadata(th)
-	} else {
-		getMetadata(th)
+	enableLogging = aiConfig.EnableLogging
+
+	if !aiConfig.EnableTrace && !aiConfig.EnableMetric {
+		if th.enableMetadataRefreshThread {
+			go getMetadata(th)
+		} else {
+			getMetadata(th)
+		}
 	}
 
 	return th
@@ -98,6 +111,10 @@ func NewAITelemetry(
 // TrackLog function sends report (trace) to appinsights resource. It overrides few of the existing columns with app information
 // and for rest it uses custom dimesion
 func (th *telemetryHandle) TrackLog(report Report) {
+	if !th.enableTrace {
+		return
+	}
+
 	// Initialize new trace message
 	trace := appinsights.NewTraceTelemetry(report.Message, appinsights.Warning)
 
@@ -136,6 +153,10 @@ func (th *telemetryHandle) TrackLog(report Report) {
 // TrackMetric function sends metric to appinsights resource. It overrides few of the existing columns with app information
 // and for rest it uses custom dimesion
 func (th *telemetryHandle) TrackMetric(metric Metric) {
+	if !th.enableMetric {
+		return
+	}
+
 	// Initialize new metric
 	aimetric := appinsights.NewMetricTelemetry(metric.Name, metric.Value)
 

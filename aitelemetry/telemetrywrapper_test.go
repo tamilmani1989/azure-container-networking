@@ -30,7 +30,18 @@ func TestMain(m *testing.M) {
 }
 
 func TestNewAITelemetry(t *testing.T) {
-	th = NewAITelemetry("00ca2a73-c8d6-4929-a0c2-cf84545ec225", "testapp", "v1.0.26", 4096, 2, false, 10)
+	aiConfig := AIConfig{
+		AppName:                     "testapp",
+		AppVersion:                  "v1.0.26",
+		BatchSize:                   4096,
+		BatchInterval:               2,
+		EnableMetadataRefreshThread: false,
+		RefreshTimeout:              10,
+		EnableLogging:               true,
+		EnableMetric:                true,
+		EnableTrace:                 true,
+	}
+	th = NewAITelemetry("00ca2a73-c8d6-4929-a0c2-cf84545ec225", aiConfig)
 	if th == nil {
 		t.Errorf("Error intializing AI telemetry")
 	}
@@ -60,4 +71,23 @@ func TestTrackLog(t *testing.T) {
 
 func TestClose(t *testing.T) {
 	th.Close(10)
+}
+
+func TestClosewithoutSend(t *testing.T) {
+	aiConfig := AIConfig{
+		AppName:                     "testapp",
+		AppVersion:                  "v1.0.26",
+		BatchSize:                   4096,
+		BatchInterval:               2,
+		EnableMetadataRefreshThread: false,
+		RefreshTimeout:              10,
+		EnableLogging:               true,
+	}
+
+	thtest := NewAITelemetry("00ca2a73-c8d6-4929-a0c2-cf84545ec225", aiConfig)
+	if thtest == nil {
+		t.Errorf("Error intializing AI telemetry")
+	}
+
+	thtest.Close(10)
 }
