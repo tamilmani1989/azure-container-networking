@@ -21,6 +21,18 @@ type Metric struct {
 	CustomDimensions map[string]string
 }
 
+type AIConfig struct {
+	AppName                     string
+	AppVersion                  string
+	BatchSize                   int
+	BatchInterval               int
+	EnableMetadataRefreshThread bool
+	RefreshTimeout              int
+	EnableLogging               bool
+	EnableTrace                 bool
+	EnableMetric                bool
+}
+
 // TelmetryHandle holds appinsight handles and metadata
 type telemetryHandle struct {
 	telemetryConfig             *appinsights.TelemetryConfiguration
@@ -31,6 +43,8 @@ type telemetryHandle struct {
 	client                      appinsights.TelemetryClient
 	enableMetadataRefreshThread bool
 	refreshTimeout              int
+	enableTrace                 bool
+	enableMetric                bool
 	rwmutex                     sync.RWMutex
 }
 
