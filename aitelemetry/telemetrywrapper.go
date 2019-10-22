@@ -15,15 +15,15 @@ const (
 	vmSizeStr         = "VMSize"
 	osVersionStr      = "OSVersion"
 	locationStr       = "Region"
-	appVersionStr     = "Appversion"
+	appNameStr        = "AppName"
 	subscriptionIDStr = "SubscriptionID"
 	defaultTimeout    = 10
 )
 
-var enableLogging bool
+var disableLogging bool
 
-func messageListener(enableLogging bool) appinsights.DiagnosticsMessageListener {
-	if enableLogging {
+func messageListener(disableLogging bool) appinsights.DiagnosticsMessageListener {
+	if !disableLogging {
 		return appinsights.NewDiagnosticsMessageListener(func(msg string) error {
 			debuglog("[AppInsights] [%s] %s\n", time.Now().Format(time.UnixDate), msg)
 			return nil
@@ -34,7 +34,7 @@ func messageListener(enableLogging bool) appinsights.DiagnosticsMessageListener 
 }
 
 func debuglog(format string, args ...interface{}) {
-	if enableLogging {
+	if !disableLogging {
 		log.Printf(format, args...)
 	}
 }
@@ -88,16 +88,16 @@ func NewAITelemetry(
 		client:                      appinsights.NewTelemetryClientFromConfig(telemetryConfig),
 		appName:                     aiConfig.AppName,
 		appVersion:                  aiConfig.AppVersion,
-		diagListener:                messageListener(aiConfig.EnableLogging),
+		diagListener:                messageListener(aiConfig.DisableLogging),
 		enableMetadataRefreshThread: aiConfig.EnableMetadataRefreshThread,
 		refreshTimeout:              aiConfig.RefreshTimeout,
-		enableTrace:                 aiConfig.EnableTrace,
-		enableMetric:                aiConfig.EnableMetric,
+		disableTrace:                aiConfig.DisableTrace,
+		disableMetric:               aiConfig.DisableMetric,
 	}
 
-	enableLogging = aiConfig.EnableLogging
+	disableLogging = aiConfig.DisableLogging
 
-	if !aiConfig.EnableTrace && !aiConfig.EnableMetric {
+	if !th.disableTrace || !th.disableMetric {
 		if th.enableMetadataRefreshThread {
 			go getMetadata(th)
 		} else {
@@ -111,7 +111,7 @@ func NewAITelemetry(
 // TrackLog function sends report (trace) to appinsights resource. It overrides few of the existing columns with app information
 // and for rest it uses custom dimesion
 func (th *telemetryHandle) TrackLog(report Report) {
-	if !th.enableTrace {
+	if th.disableTrace {
 		return
 	}
 
@@ -121,14 +121,14 @@ func (th *telemetryHandle) TrackLog(report Report) {
 	//Override few of existing columns with metadata
 	trace.Tags.User().SetAuthUserId(runtime.GOOS)
 	trace.Tags.Operation().SetId(report.Context)
-	trace.Tags.Operation().SetParentId(th.appName)
+	trace.Tags.Operation().SetParentId(th.appVersion)
 
 	// copy app specified custom dimension
 	for key, value := range report.CustomDimensions {
 		trace.Properties[key] = value
 	}
 
-	trace.Properties[appVersionStr] = th.appVersion
+	trace.Properties[appNameStr] = th.appName
 
 	// Acquire read lock to read metadata
 	th.rwmutex.RLock()
@@ -153,7 +153,7 @@ func (th *telemetryHandle) TrackLog(report Report) {
 // TrackMetric function sends metric to appinsights resource. It overrides few of the existing columns with app information
 // and for rest it uses custom dimesion
 func (th *telemetryHandle) TrackMetric(metric Metric) {
-	if !th.enableMetric {
+	if th.disableMetric {
 		return
 	}
 

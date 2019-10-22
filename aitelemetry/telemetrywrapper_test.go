@@ -37,9 +37,6 @@ func TestNewAITelemetry(t *testing.T) {
 		BatchInterval:               2,
 		EnableMetadataRefreshThread: false,
 		RefreshTimeout:              10,
-		EnableLogging:               true,
-		EnableMetric:                true,
-		EnableTrace:                 true,
 	}
 	th = NewAITelemetry("00ca2a73-c8d6-4929-a0c2-cf84545ec225", aiConfig)
 	if th == nil {
@@ -81,7 +78,7 @@ func TestClosewithoutSend(t *testing.T) {
 		BatchInterval:               2,
 		EnableMetadataRefreshThread: false,
 		RefreshTimeout:              10,
-		EnableLogging:               true,
+		DisableLogging:              true,
 	}
 
 	thtest := NewAITelemetry("00ca2a73-c8d6-4929-a0c2-cf84545ec225", aiConfig)
