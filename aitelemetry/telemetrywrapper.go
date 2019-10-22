@@ -43,15 +43,15 @@ func getMetadata(th *telemetryHandle) {
 	var metadata common.Metadata
 	var err error
 
+	if th.refreshTimeout < 4 {
+		th.refreshTimeout = defaultTimeout
+	}
+
 	// check if metadata in memory otherwise initiate wireserver request
 	for {
 		metadata, err = common.GetHostMetadata(metadataFile)
 		if err == nil || th.disableMetadataRefreshThread {
 			break
-		}
-
-		if th.refreshTimeout < 4 {
-			th.refreshTimeout = defaultTimeout
 		}
 
 		debuglog("[AppInsights] Error getting metadata %v. Sleep for %d", err, th.refreshTimeout)
