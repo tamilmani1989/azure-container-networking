@@ -46,7 +46,7 @@ func getMetadata(th *telemetryHandle) {
 	// check if metadata in memory otherwise initiate wireserver request
 	for {
 		metadata, err = common.GetHostMetadata(metadataFile)
-		if err == nil || !th.enableMetadataRefreshThread {
+		if err == nil || th.disableMetadataRefreshThread {
 			break
 		}
 

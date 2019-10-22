@@ -37,13 +37,13 @@ func TestMain(m *testing.M) {
 
 func TestNewAITelemetry(t *testing.T) {
 	aiConfig := AIConfig{
-		AppName:                     "testapp",
-		AppVersion:                  "v1.0.26",
-		BatchSize:                   4096,
-		BatchInterval:               2,
-		EnableMetadataRefreshThread: false,
-		RefreshTimeout:              10,
-		DebugMode:                   true,
+		AppName:                      "testapp",
+		AppVersion:                   "v1.0.26",
+		BatchSize:                    4096,
+		BatchInterval:                2,
+		RefreshTimeout:               10,
+		DebugMode:                    true,
+		DisableMetadataRefreshThread: true,
 	}
 	th = NewAITelemetry("00ca2a73-c8d6-4929-a0c2-cf84545ec225", aiConfig)
 	if th == nil {
@@ -79,12 +79,12 @@ func TestClose(t *testing.T) {
 
 func TestClosewithoutSend(t *testing.T) {
 	aiConfig := AIConfig{
-		AppName:                     "testapp",
-		AppVersion:                  "v1.0.26",
-		BatchSize:                   4096,
-		BatchInterval:               2,
-		EnableMetadataRefreshThread: false,
-		RefreshTimeout:              10,
+		AppName:                      "testapp",
+		AppVersion:                   "v1.0.26",
+		BatchSize:                    4096,
+		BatchInterval:                2,
+		DisableMetadataRefreshThread: true,
+		RefreshTimeout:               10,
 	}
 
 	thtest := NewAITelemetry("00ca2a73-c8d6-4929-a0c2-cf84545ec225", aiConfig)
