@@ -98,6 +98,7 @@ func NewAITelemetry(
 		refreshTimeout:               aiConfig.RefreshTimeout,
 		disableTrace:                 aiConfig.DisableTrace,
 		disableMetric:                aiConfig.DisableMetric,
+		disableAll:                   aiConfig.DisableAll,
 	}
 
 	if !th.disableTrace || !th.disableMetric {
@@ -114,7 +115,7 @@ func NewAITelemetry(
 // TrackLog function sends report (trace) to appinsights resource. It overrides few of the existing columns with app information
 // and for rest it uses custom dimesion
 func (th *telemetryHandle) TrackLog(report Report) {
-	if th.disableTrace {
+	if th.disableTrace || th.disableAll {
 		return
 	}
 
@@ -156,7 +157,7 @@ func (th *telemetryHandle) TrackLog(report Report) {
 // TrackMetric function sends metric to appinsights resource. It overrides few of the existing columns with app information
 // and for rest it uses custom dimesion
 func (th *telemetryHandle) TrackMetric(metric Metric) {
-	if th.disableMetric {
+	if th.disableMetric || th.disableAll {
 		return
 	}
 
