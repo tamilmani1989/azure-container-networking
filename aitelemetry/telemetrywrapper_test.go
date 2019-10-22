@@ -35,6 +35,23 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
+func TestEmptyAIKey(t *testing.T) {
+	aiConfig := AIConfig{
+		AppName:                      "testapp",
+		AppVersion:                   "v1.0.26",
+		BatchSize:                    4096,
+		BatchInterval:                2,
+		RefreshTimeout:               10,
+		DebugMode:                    true,
+		DisableMetadataRefreshThread: true,
+	}
+	th := NewAITelemetry("", aiConfig)
+	if th == nil {
+		t.Errorf("Error intializing AI telemetry")
+	}
+	th.Close(10)
+}
+
 func TestNewAITelemetry(t *testing.T) {
 	aiConfig := AIConfig{
 		AppName:                      "testapp",
