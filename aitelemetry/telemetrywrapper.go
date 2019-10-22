@@ -86,21 +86,21 @@ func NewAITelemetry(
 	debugMode = aiConfig.DebugMode
 
 	th := &telemetryHandle{
-		client:                      appinsights.NewTelemetryClientFromConfig(telemetryConfig),
-		appName:                     aiConfig.AppName,
-		appVersion:                  aiConfig.AppVersion,
-		diagListener:                messageListener(),
-		enableMetadataRefreshThread: aiConfig.EnableMetadataRefreshThread,
-		refreshTimeout:              aiConfig.RefreshTimeout,
-		disableTrace:                aiConfig.DisableTrace,
-		disableMetric:               aiConfig.DisableMetric,
+		client:                       appinsights.NewTelemetryClientFromConfig(telemetryConfig),
+		appName:                      aiConfig.AppName,
+		appVersion:                   aiConfig.AppVersion,
+		diagListener:                 messageListener(),
+		disableMetadataRefreshThread: aiConfig.DisableMetadataRefreshThread,
+		refreshTimeout:               aiConfig.RefreshTimeout,
+		disableTrace:                 aiConfig.DisableTrace,
+		disableMetric:                aiConfig.DisableMetric,
 	}
 
 	if !th.disableTrace || !th.disableMetric {
-		if th.enableMetadataRefreshThread {
-			go getMetadata(th)
-		} else {
+		if th.disableMetadataRefreshThread {
 			getMetadata(th)
+		} else {
+			go getMetadata(th)
 		}
 	}
 
