@@ -7,7 +7,9 @@ import (
 	"dnc/test/utils"
 	"net/http"
 	"os"
+	"os/exec"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -115,7 +117,7 @@ func TestBasicNCAPIs(t *testing.T) {
 		podName             = "container1"
 		podNamespace        = "default"
 		context             = []byte(`{"PodName":"` + podName + `","PodNamespace":"` + podNamespace + `"}`)
-		recievedNcResp      *api.NetworkContainerResponse
+		receivedNcResp      *api.NetworkContainerResponse
 		expectedNcResp      = &api.NetworkContainerResponse{
 			NcID: ncID,
 			IPConfiguration: api.IPConfiguration{
@@ -146,18 +148,37 @@ func TestBasicNCAPIs(t *testing.T) {
 	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", nodeIface, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout)
 	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", nodeIface, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout)
 
-	if recievedNcResp, respErr = dnctl.GetNC(vnetID, ncID); respErr.HTTPStatus != http.StatusOK {
+	if receivedNcResp, respErr = dnctl.GetNC(vnetID, ncID); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Failed to retrieve nc response with error %+v", respErr)
 	}
 
-	if !reflect.DeepEqual(recievedNcResp, expectedNcResp) {
+	if !reflect.DeepEqual(receivedNcResp, expectedNcResp) {
 		expectedNcResp.RequestStatus.State = "RefreshAssociation"
-		if !reflect.DeepEqual(recievedNcResp, expectedNcResp) {
-			t.Fatalf("Create nc data mismatch;\nrecieved %+v\nexpected %+v", recievedNcResp, expectedNcResp)
+		if !reflect.DeepEqual(receivedNcResp, expectedNcResp) {
+			t.Fatalf("Create nc data mismatch;\nreceived %+v\nexpected %+v", receivedNcResp, expectedNcResp)
 		}
 	}
 
-	// validate that delete node and vnet will fail when NC exists
+	// usage: docker-run.sh <container-name> <namespace> <image>
+	if _, err := exec.Command("/bin/sh", "-c", "./docker-run.sh "+podName+" "+podNamespace+" nginx:alpine").CombinedOutput(); err != nil {
+		t.Fatalf("Failed to start container with err %+v", err)
+	}
+
+	cmd := "docker exec " + podName + " ip a | grep \"global eth0\" | awk '{print $2}'"
+	if output, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput(); err != nil {
+		t.Fatalf("Failed to start container with err %+v", err)
+	} else {
+		ncIP := strings.TrimRight(string(output), "\n")
+		if ncIP != "10.0.1.4/24" {
+			t.Fatalf("Created container IP mismatch;\nreceived %+v\nexpected %+v", ncIP, "10.0.1.4/24")
+		}
+	}
+
+	// usage: docker-run.sh <container-name> <namespace> <image>
+	if _, err := exec.Command("/bin/sh", "-c", "./docker-del.sh "+podName+" "+podNamespace).CombinedOutput(); err != nil {
+		t.Fatalf("Failed to delete container with err %+v", err)
+	}
+
 	deleteNode(t, nodeID, http.StatusBadRequest)
 	deleteNetwork(t, vnetID, http.StatusBadRequest)
 	deleteNc(t, vnetID, ncID)
@@ -184,7 +205,7 @@ func TestRetrieveDelegatedSubnets(t *testing.T) {
 		t.Fatalf("Get network configuration failed with error %+v", respErr)
 	}
 	if len(vnetCfg.DelegatedSubnets) != 1 {
-		t.Fatalf("Failed to retrieve the expected number of delegated subnets;\nrecieved %d\nexpected 1", len(vnetCfg.DelegatedSubnets))
+		t.Fatalf("Failed to retrieve the expected number of delegated subnets;\nreceived %d\nexpected 1", len(vnetCfg.DelegatedSubnets))
 	}
 
 	addSubnet(t, vnetID, subnetID2, authenticationToken)
@@ -192,7 +213,7 @@ func TestRetrieveDelegatedSubnets(t *testing.T) {
 		t.Fatalf("Get network configuration failed with error %+v", respErr)
 	}
 	if len(vnetCfg.DelegatedSubnets) != 2 {
-		t.Fatalf("Failed to retrieve the expected number of delegated subnets;\nrecieved %d\nexpected 2", len(vnetCfg.DelegatedSubnets))
+		t.Fatalf("Failed to retrieve the expected number of delegated subnets;\nreceived %d\nexpected 2", len(vnetCfg.DelegatedSubnets))
 	}
 
 	deleteSubnet(t, vnetID, subnetID)
@@ -200,7 +221,7 @@ func TestRetrieveDelegatedSubnets(t *testing.T) {
 		t.Fatalf("Get network configuration failed with error %+v", respErr)
 	}
 	if len(vnetCfg.DelegatedSubnets) != 1 {
-		t.Fatalf("Failed to retrieve the expected number of delegated subnets;\nrecieved %d\nexpected 1", len(vnetCfg.DelegatedSubnets))
+		t.Fatalf("Failed to retrieve the expected number of delegated subnets;\nreceived %d\nexpected 1", len(vnetCfg.DelegatedSubnets))
 	}
 
 	deleteNetwork(t, vnetID, http.StatusNotFound)
@@ -318,13 +339,13 @@ func addNode(t *testing.T, nodeID, ipaddr, orchestratorType string) {
 	if nodeCfg, respErr = dnctl.GetNode(nodeID); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Register node failed with error %+v", respErr)
 	} else {
-		recievedNodeCfg := nodeCfg.NodeInfo
+		receivedNodeCfg := nodeCfg.NodeInfo
 		expectedNodeCfg := api.NodeInfoRequest{
 			IPAddresses:      []string{ipaddr},
 			LocationType:     "",
 			OrchestratorType: orchestratorType}
-		if recievedNodeCfg.String() != expectedNodeCfg.String() {
-			t.Fatalf("Register node failed;\nrecieved %+v\nexpected %+v", recievedNodeCfg, expectedNodeCfg)
+		if receivedNodeCfg.String() != expectedNodeCfg.String() {
+			t.Fatalf("Register node failed;\nreceived %+v\nexpected %+v", receivedNodeCfg, expectedNodeCfg)
 		}
 	}
 }
@@ -394,7 +415,7 @@ func addNetwork(t *testing.T, vnetID string, timeout time.Duration) {
 	}
 
 	if !reflect.DeepEqual(vnetStatus, expectedNetworkStatus) {
-		t.Fatalf("Register network failed;\nrecieved %+v\nexpected %+v", vnetStatus, expectedNetworkStatus)
+		t.Fatalf("Register network failed;\nreceived %+v\nexpected %+v", vnetStatus, expectedNetworkStatus)
 	}
 }
 
@@ -464,7 +485,7 @@ func addSubnet(t *testing.T, vnetID, subnetID, authToken string) {
 	}
 
 	if !reflect.DeepEqual(subnetStatus, expectedSubnetStatus) {
-		t.Fatalf("Register subnet failed;\nrecieved %+v\nexpected %+v", subnetStatus, expectedSubnetStatus)
+		t.Fatalf("Register subnet failed;\nreceived %+v\nexpected %+v", subnetStatus, expectedSubnetStatus)
 	}
 }
 
@@ -580,7 +601,7 @@ func addNc(t *testing.T, nodeID, vnetID, ncID, reservationID, subnetID, ipConstr
 	if !reflect.DeepEqual(ncStatus, expectedNcStatus) {
 		expectedNcStatus.State = "RefreshAssociation"
 		if !reflect.DeepEqual(ncStatus, expectedNcStatus) {
-			t.Fatalf("Create nc failed;\nrecieved %+v\nexpected %+v", ncStatus, expectedNcStatus)
+			t.Fatalf("Create nc failed;\nreceived %+v\nexpected %+v", ncStatus, expectedNcStatus)
 		}
 	}
 }
