@@ -1,7 +1,9 @@
 package aitelemetry
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -15,7 +17,9 @@ func TestMain(m *testing.M) {
 	if runtime.GOOS == "linux" {
 		platform.ExecuteCommand("cp metadata_test.json /tmp/azuremetadata.json")
 	} else {
-		platform.ExecuteCommand("copy metadata_test.json azuremetadata.json")
+		metadataFile := filepath.FromSlash(os.Getenv("TEMP")) + "\\azuremetadata.json"
+		cmd := fmt.Sprintf("copy metadata_test.json %s", metadataFile)
+		platform.ExecuteCommand(cmd)
 	}
 
 	exitCode := m.Run()
@@ -23,7 +27,9 @@ func TestMain(m *testing.M) {
 	if runtime.GOOS == "linux" {
 		platform.ExecuteCommand("rm /tmp/azuremetadata.json")
 	} else {
-		platform.ExecuteCommand("del azuremetadata.json")
+		metadataFile := filepath.FromSlash(os.Getenv("TEMP")) + "\\azuremetadata.json"
+		cmd := fmt.Sprintf("del %s", metadataFile)
+		platform.ExecuteCommand(cmd)
 	}
 
 	os.Exit(exitCode)
@@ -37,6 +43,7 @@ func TestNewAITelemetry(t *testing.T) {
 		BatchInterval:               2,
 		EnableMetadataRefreshThread: false,
 		RefreshTimeout:              10,
+		DebugMode:                   true,
 	}
 	th = NewAITelemetry("00ca2a73-c8d6-4929-a0c2-cf84545ec225", aiConfig)
 	if th == nil {
@@ -78,7 +85,6 @@ func TestClosewithoutSend(t *testing.T) {
 		BatchInterval:               2,
 		EnableMetadataRefreshThread: false,
 		RefreshTimeout:              10,
-		DisableLogging:              true,
 	}
 
 	thtest := NewAITelemetry("00ca2a73-c8d6-4929-a0c2-cf84545ec225", aiConfig)

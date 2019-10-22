@@ -28,7 +28,7 @@ type AIConfig struct {
 	BatchInterval               int
 	EnableMetadataRefreshThread bool
 	RefreshTimeout              int
-	DisableLogging              bool
+	DebugMode                   bool
 	DisableTrace                bool
 	DisableMetric               bool
 }

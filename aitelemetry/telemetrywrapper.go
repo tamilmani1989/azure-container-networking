@@ -20,10 +20,10 @@ const (
 	defaultTimeout    = 10
 )
 
-var disableLogging bool
+var debugMode bool
 
-func messageListener(disableLogging bool) appinsights.DiagnosticsMessageListener {
-	if !disableLogging {
+func messageListener() appinsights.DiagnosticsMessageListener {
+	if debugMode {
 		return appinsights.NewDiagnosticsMessageListener(func(msg string) error {
 			debuglog("[AppInsights] [%s] %s\n", time.Now().Format(time.UnixDate), msg)
 			return nil
@@ -34,7 +34,7 @@ func messageListener(disableLogging bool) appinsights.DiagnosticsMessageListener
 }
 
 func debuglog(format string, args ...interface{}) {
-	if !disableLogging {
+	if debugMode {
 		log.Printf(format, args...)
 	}
 }
@@ -83,19 +83,18 @@ func NewAITelemetry(
 	telemetryConfig := appinsights.NewTelemetryConfiguration(id)
 	telemetryConfig.MaxBatchSize = aiConfig.BatchSize
 	telemetryConfig.MaxBatchInterval = time.Duration(aiConfig.BatchInterval) * time.Second
+	debugMode = aiConfig.DebugMode
 
 	th := &telemetryHandle{
 		client:                      appinsights.NewTelemetryClientFromConfig(telemetryConfig),
 		appName:                     aiConfig.AppName,
 		appVersion:                  aiConfig.AppVersion,
-		diagListener:                messageListener(aiConfig.DisableLogging),
+		diagListener:                messageListener(),
 		enableMetadataRefreshThread: aiConfig.EnableMetadataRefreshThread,
 		refreshTimeout:              aiConfig.RefreshTimeout,
 		disableTrace:                aiConfig.DisableTrace,
 		disableMetric:               aiConfig.DisableMetric,
 	}
-
-	disableLogging = aiConfig.DisableLogging
 
 	if !th.disableTrace || !th.disableMetric {
 		if th.enableMetadataRefreshThread {
