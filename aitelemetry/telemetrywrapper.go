@@ -50,6 +50,10 @@ func getMetadata(th *telemetryHandle) {
 			break
 		}
 
+		if th.refreshTimeout < 4 {
+			th.refreshTimeout = defaultTimeout
+		}
+
 		debuglog("[AppInsights] Error getting metadata %v. Sleep for %d", err, th.refreshTimeout)
 		time.Sleep(time.Duration(th.refreshTimeout) * time.Second)
 	}
