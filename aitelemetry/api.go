@@ -29,9 +29,6 @@ type AIConfig struct {
 	DisableMetadataRefreshThread bool
 	RefreshTimeout               int
 	DebugMode                    bool
-	DisableTrace                 bool
-	DisableMetric                bool
-	DisableAll                   bool
 }
 
 // TelmetryHandle holds appinsight handles and metadata
@@ -44,9 +41,6 @@ type telemetryHandle struct {
 	client                       appinsights.TelemetryClient
 	disableMetadataRefreshThread bool
 	refreshTimeout               int
-	disableTrace                 bool
-	disableMetric                bool
-	disableAll                   bool
 	rwmutex                      sync.RWMutex
 }
 

@@ -17,6 +17,7 @@ const (
 	locationStr       = "Region"
 	appNameStr        = "AppName"
 	subscriptionIDStr = "SubscriptionID"
+	vmNameStr         = "VMName"
 	defaultTimeout    = 10
 )
 
@@ -96,17 +97,12 @@ func NewAITelemetry(
 		diagListener:                 messageListener(),
 		disableMetadataRefreshThread: aiConfig.DisableMetadataRefreshThread,
 		refreshTimeout:               aiConfig.RefreshTimeout,
-		disableTrace:                 aiConfig.DisableTrace,
-		disableMetric:                aiConfig.DisableMetric,
-		disableAll:                   aiConfig.DisableAll,
 	}
 
-	if !th.disableTrace || !th.disableMetric {
-		if th.disableMetadataRefreshThread {
-			getMetadata(th)
-		} else {
-			go getMetadata(th)
-		}
+	if th.disableMetadataRefreshThread {
+		getMetadata(th)
+	} else {
+		go getMetadata(th)
 	}
 
 	return th
@@ -115,10 +111,6 @@ func NewAITelemetry(
 // TrackLog function sends report (trace) to appinsights resource. It overrides few of the existing columns with app information
 // and for rest it uses custom dimesion
 func (th *telemetryHandle) TrackLog(report Report) {
-	if th.disableTrace || th.disableAll {
-		return
-	}
-
 	// Initialize new trace message
 	trace := appinsights.NewTraceTelemetry(report.Message, appinsights.Warning)
 
@@ -157,10 +149,6 @@ func (th *telemetryHandle) TrackLog(report Report) {
 // TrackMetric function sends metric to appinsights resource. It overrides few of the existing columns with app information
 // and for rest it uses custom dimesion
 func (th *telemetryHandle) TrackMetric(metric Metric) {
-	if th.disableMetric || th.disableAll {
-		return
-	}
-
 	// Initialize new metric
 	aimetric := appinsights.NewMetricTelemetry(metric.Name, metric.Value)
 
@@ -173,6 +161,7 @@ func (th *telemetryHandle) TrackMetric(metric Metric) {
 	if metadata.SubscriptionID != "" {
 		aimetric.Properties[locationStr] = th.metadata.Location
 		aimetric.Properties[subscriptionIDStr] = th.metadata.SubscriptionID
+		aimetric.Properties[vmNameStr] = th.metadata.VMName
 	}
 
 	// copy custom dimensions
