@@ -59,6 +59,11 @@ func getMetadata(th *telemetryHandle) {
 		time.Sleep(time.Duration(th.refreshTimeout) * time.Second)
 	}
 
+	if err != nil {
+		debuglog("[AppInsights] Error getting metadata %v", err)
+		return
+	}
+
 	//acquire write lock before writing metadata to telemetry handle
 	th.rwmutex.Lock()
 	th.metadata = metadata
