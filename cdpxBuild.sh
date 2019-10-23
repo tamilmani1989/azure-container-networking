@@ -48,7 +48,14 @@ case $1 in
     "test" )
         cd $DIR/src/dnc
         export DNC_CONFIGURATION_PATH=$DIR/src/dnc/config_test.json
-        go test -timeout 2000s -coverprofile coverage-dnc.out
+        go test -run "[^*TestCreateMultipleNetworks*]" -timeout 2000s -coverprofile coverage-dnc.out
+        zip azure-dnc-test-logs.zip /var/log/azure-dnc*
+        ;;
+    "loadtest" )
+        cd $DIR/src/dnc
+        export DNC_CONFIGURATION_PATH=$DIR/src/dnc/config_test.json
+        go test -run "^(TestCreateMultipleNetworks)$" -timeout 2000s -coverprofile coverage-dnc.out
+        zip azure-dnc-load-test-logs.zip /var/log/azure-dnc*
         ;;
     "get" )
         mkdir $DIR/src/github && cd $_

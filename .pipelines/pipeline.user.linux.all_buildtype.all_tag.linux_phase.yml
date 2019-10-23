@@ -193,7 +193,17 @@ test:
         - title: 'Unit Tests'
           type: 'xunit'
           include:
-            - 'src/dnc/azure-dnc.log'
+            - 'src/dnc/azure-dnc-test-logs.zip'
+
+    - !!testcommand
+      name: 'Loadtest DNC'
+      command: 'cdpxBuild.sh'
+      arguments: 'loadtest linux amd64'
+      testresults:
+        - title: 'Unit Tests'
+          type: 'xunit'
+          include:
+            - 'src/dnc/azure-dnc-load-test-logs.zip'
 
 # An optional, interim user defined stage for performing publishing of the build. Examples include, dropping the files to a network share,
 # pushing packages to a package repository, uploading binaries to blob store etc.

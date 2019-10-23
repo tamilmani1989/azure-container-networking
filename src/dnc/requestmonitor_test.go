@@ -3033,6 +3033,7 @@ func DeployNetworkContainers(
 
 	cnsServer.Lock.Lock()
 	cnsServer.Context = cnsResponderContextMap
+	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Lock.Unlock()
 
 	for nodeID := range nodesMap {
