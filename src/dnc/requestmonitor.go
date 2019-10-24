@@ -926,7 +926,7 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 				return false, err
 			}
 		} else {
-			logger.Errorf("Successfully created reservation config: %+v for NC: %s",
+			logger.Debugf("Successfully created reservation config: %+v for NC: %s",
 				reservationConfiguration, repoNCConfig.NetworkContainerID)
 		}
 	}
