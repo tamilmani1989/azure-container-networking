@@ -16,6 +16,13 @@ func GetReservationKey(networkID, reservationID string) string {
 	return fmt.Sprintf(ipReservationKey, networkID, reservationID)
 }
 
+// GetReservationIDFromKey - Helper function to get reservation ID from key.
+func GetReservationIDFromKey(key string) string {
+	// ipReservationKey = Network_%s_Reservation_%s
+	// Splitting on _ gives [1] as NetworkID and [3] as ReservationID
+	return strings.Split(key, "_")[3]
+}
+
 // GetNodeKey - Helper function to generate node key.
 func GetNodeKey(nodeID string) string {
 	return fmt.Sprintf(nodeKey, nodeID)
@@ -26,7 +33,7 @@ func GetNetworkKey(networkID string) string {
 	return fmt.Sprintf(networkKey, networkID)
 }
 
-// GetNetworkKey - Helper function to get network id from network key.
+// GetNetworkIdFromKey - Helper function to get network id from network key.
 func GetNetworkIdFromKey(key string) string {
 	emptyKey := fmt.Sprintf(networkKey, "")
 	return strings.Split(key, emptyKey)[1]
@@ -46,4 +53,11 @@ func GetTagDefintionKey(tagType, tagName string) string {
 func GetNodeIDFromKey(key string) string {
 	emptyKey := fmt.Sprintf(nodeKey, "")
 	return strings.Split(key, emptyKey)[1]
+}
+
+// GetNCIdFromKey - Helper function to get network container id from key.
+func GetNCIdFromKey(key string) string {
+	// ncKey = Network_%s_ID_%s
+	// Splitting on _ gives [1] as NetworkID and [3] as ncID
+	return strings.Split(key, "_")[3]
 }

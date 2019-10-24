@@ -299,11 +299,10 @@ func refreshNetworkConfiguration(
 
 // CreateAssociationTask - Create network container association task
 func CreateAssociationTask(nodeID, networkID, networkContainerID string) *api.JsonErr {
-	sessionInfo := map[string]string{
-		datamodel.NodeRepositoryName:    nodeID,
-		datamodel.NetworkRepositoryName: networkID}
+	sessionInfo := map[string]string{datamodel.NCRepositoryName: networkContainerID}
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
+
 	repoNetworkContainerConfiguration, err := datamodel.TryQueryNetworkContainer(
 		networkID,
 		networkContainerID)

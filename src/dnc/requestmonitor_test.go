@@ -223,7 +223,12 @@ func StartDnc() {
 	replicaInstance = replica.NewReplica(
 		config.ServerSettings,
 		GetNetworkRefreshMonitorStatus)
-	sessionManager = utils.NewSessionManager([]string{datamodel.NodeRepositoryName, datamodel.NetworkRepositoryName, datamodel.TagRepositoryName})
+	sessionManager = utils.NewSessionManager([]string{
+		datamodel.NCRepositoryName,
+		datamodel.NodeRepositoryName,
+		datamodel.NetworkRepositoryName,
+		datamodel.ReservationRepositoryName,
+		datamodel.TagRepositoryName})
 	masterElectionShim = masterelectionshim.NewMasterElectionShim(
 		config,
 		replicaInstance.UpdateReplicaStatus,

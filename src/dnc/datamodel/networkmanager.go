@@ -398,7 +398,9 @@ func GetNextVlanID(networkVlanIDMap map[string]uint16) (uint16, *api.JsonErr) {
 
 // UpdateNodeConfigurationNetworkContainerSet - Remove NC from node configuration
 func UpdateNodeConfigurationNetworkContainerSet(
-	nodeID, networkID, ncID, reservationID, containerType string, updateVlan, remove bool) *api.JsonErr {
+	nodeID, networkID, ncID, reservationID, containerType string,
+	updateVlan, remove bool,
+	ncLimit int) *api.JsonErr {
 	nodeConfig, err := TryQueryNodeConfiguration(nodeID)
 	if err != nil {
 		msg := fmt.Sprintf(
@@ -470,12 +472,6 @@ func UpdateNodeConfigurationNetworkContainerSet(
 		ncCount := 0
 		for _, ncToVnetMap := range nodeConfig.DeployedNetworkContainerMap {
 			ncCount += len(ncToVnetMap)
-		}
-
-		ncLimit, respErr := getNCLimitForNode(nodeConfig.NodeInfo.IPAddresses[0])
-		if respErr != nil {
-			loggershim.LS.Debugf("Failed to retrieve NC limit for node [%s] with error %+v", nodeID, respErr.String())
-			return respErr
 		}
 
 		if ncCount > ncLimit {
@@ -1600,6 +1596,7 @@ func GetRevertState(ncState NetworkContainerState) (NetworkContainerState, *api.
 
 // ProcessNetworkContainerForRelease - Process network container configuration pending release.
 func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *api.JsonErr {
+	loggershim.LS.Debugf("ProcessNetworkContainerForRelease: %s", networkContainerID)
 	networkContainerConfig, err := TryQueryNetworkContainer(
 		networkID, networkContainerID)
 	if err != nil {
@@ -1855,7 +1852,8 @@ func PurgeNetworkContainerAssociations(ncConfiguration *NCConfiguration, updateV
 		ncConfiguration.ReservationID,
 		associationInfo.ContainerType,
 		updateVlan,
-		true)
+		true,
+		0)
 
 	return err
 }
@@ -2897,7 +2895,7 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 
 // The function queries CNS running on a node to get number of logical cores configuration data.
 // If for some reason the request fails, we return default value of 10.
-func getNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
+func GetNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 	loggershim.LS.Debugf("getNCLimit called with settings values GetNumOfCPUCoresURLFmt: %s, EnforceNICLimit: %t",
 		cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt,
 		enforceNICLimit)

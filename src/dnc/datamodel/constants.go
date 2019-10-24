@@ -33,6 +33,12 @@ const (
 )
 
 const (
+	// NCRepositoryName - Repository name for network container.
+	NCRepositoryName = "NCRepository"
+
+	// ReservationRepositoryName - Repository name for reservation.
+	ReservationRepositoryName = "ReservationRepository"
+
 	// NodeRepositoryName - Repository name for node.
 	NodeRepositoryName = "NodeRepository"
 

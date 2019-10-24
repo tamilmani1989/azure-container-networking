@@ -126,13 +126,11 @@ func (c *Controller) PersistIPReservationRequest(
 	allocationRequest api.AllocationRequest,
 	apiVersion string) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] %s ReservationID: %s", allocationRequest.String(), reservationID)
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
-	if len(allocationRequest.NodeConstraint) > 0 {
-		sessionInfo[datamodel.NodeRepositoryName] = allocationRequest.NodeConstraint
-	}
 
+	sessionInfo := map[string]string{datamodel.ReservationRepositoryName: reservationID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
+
 	return datamodel.PersistIPReservationRequest(
 		networkID,
 		reservationID,
@@ -144,7 +142,7 @@ func (c *Controller) PersistIPReservationRequest(
 func (c *Controller) GetReservationConfiguration(
 	networkID string,
 	reservationID string) (*api.ReservationResponse, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	sessionInfo := map[string]string{datamodel.ReservationRepositoryName: reservationID}
 	c.SessionManager.BeginReadSession(sessionInfo)
 	defer c.SessionManager.EndReadSession(sessionInfo)
 
@@ -155,7 +153,7 @@ func (c *Controller) GetReservationConfiguration(
 func (c *Controller) GetReservationStatus(
 	networkID,
 	reservationID string) (*api.RequestStatus, int, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	sessionInfo := map[string]string{datamodel.ReservationRepositoryName: reservationID}
 	c.SessionManager.BeginReadSession(sessionInfo)
 	defer c.SessionManager.EndReadSession(sessionInfo)
 
@@ -175,9 +173,21 @@ func (c *Controller) GetReservationStatus(
 func (c *Controller) DeleteReservation(
 	networkID string,
 	reservationID string) *api.JsonErr {
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	sessionInfo := map[string]string{
+		datamodel.ReservationRepositoryName: reservationID,
+		datamodel.NetworkRepositoryName:     networkID,
+	}
+	// Check if the node session lock is required
+	reservationConfig, err := datamodel.TryQueryIPReservation(networkID, reservationID)
+	if reservationConfig != nil && err == nil {
+		if len(reservationConfig.AllocationRequest.NodeConstraint) != 0 {
+			sessionInfo[datamodel.NodeRepositoryName] = reservationConfig.AllocationRequest.NodeConstraint
+		}
+	}
+
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
+
 	return datamodel.DeleteIPReservation(networkID, reservationID, false)
 }
 
@@ -223,6 +233,7 @@ func (c *Controller) GetSubnetStatus(networkID, subnetName string) (*api.Request
 	var requestReturnCode int
 	var requestStatus api.RequestStatus
 	requestStatus.State = datamodel.Join.String()
+
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginReadSession(sessionInfo)
 	defer c.SessionManager.EndReadSession(sessionInfo)
@@ -270,9 +281,9 @@ func (c *Controller) GetSubnetStatus(networkID, subnetName string) (*api.Request
 
 // GetSubnetConfiguration - Get subnet configuration
 func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.SubnetConfigurationResponse, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
-	c.SessionManager.BeginReadSession(sessionInfo)
-	defer c.SessionManager.EndReadSession(sessionInfo)
+	sessionInfoNetwork := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	c.SessionManager.BeginReadSession(sessionInfoNetwork)
+	defer c.SessionManager.EndReadSession(sessionInfoNetwork)
 
 	repoSubnetConfiguration, err := datamodel.QuerySubnetConfiguration(
 		networkID,
@@ -284,7 +295,10 @@ func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.
 	ipAllocationsData := make(api.IPAllocationsData, len(repoSubnetConfiguration.Reservations))
 	index := 0
 	for reservationID := range repoSubnetConfiguration.Reservations {
+		sessionInfoReservation := map[string]string{datamodel.ReservationRepositoryName: reservationID}
+		c.SessionManager.BeginReadSession(sessionInfoReservation)
 		repoReservationConfiguration, err := datamodel.QueryIPReservation(networkID, reservationID)
+		c.SessionManager.EndReadSession(sessionInfoReservation)
 		if err != nil {
 			msg := fmt.Sprintf(
 				"Failed to retrieve reservation configuration for reservation:[%s] in network [%s] due to error:{%s}",
@@ -332,7 +346,7 @@ func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.
 // GetNetworkContainerStatus - Get network container status
 func (c *Controller) GetNetworkContainerStatus(
 	networkID, networkContainerID string) (*api.RequestStatus, int, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	sessionInfo := map[string]string{datamodel.NCRepositoryName: networkContainerID}
 	c.SessionManager.BeginReadSession(sessionInfo)
 	defer c.SessionManager.EndReadSession(sessionInfo)
 
@@ -364,9 +378,11 @@ func (c *Controller) PersistNetworkJoinRequest(
 	networkInfo api.NetworkInfoRequest,
 	apiVersion string) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] Join Vnet %s", networkID)
+
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
+
 	return datamodel.CreateNetwork(
 		networkID,
 		networkInfo,
@@ -380,9 +396,11 @@ func (c *Controller) PersistSubnetDelegationRequest(
 	subnetInfo api.SubnetRequest,
 	isDelete bool) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] Put Subnet %s for Vnet %s", subnet, networkID)
+
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
+
 	return datamodel.UpdateSubnet(networkID, subnet, subnetInfo, isDelete)
 }
 
@@ -391,6 +409,7 @@ func (c *Controller) GetNetwork(networkID string) (*api.NetworkConfigurationResp
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginReadSession(sessionInfo)
 	defer c.SessionManager.EndReadSession(sessionInfo)
+
 	return datamodel.GetNetworkConfiguration(networkID)
 }
 
@@ -399,6 +418,7 @@ func (c *Controller) DeleteNetwork(networkID string) *api.JsonErr {
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
+
 	return datamodel.DeleteNetworkConfiguration(networkID)
 }
 
@@ -408,9 +428,15 @@ func (c *Controller) PersistNetworkContainerRequestV1(
 	ncRequestV1 *api.NetworkContainerRequestV1,
 	apiVersion string) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] %s NC:%s", ncRequestV1.String(), ncID)
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
-	c.SessionManager.BeginWriteSession(sessionInfo)
-	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	sessionInfoWrite := map[string]string{datamodel.NCRepositoryName: ncID}
+	c.SessionManager.BeginWriteSession(sessionInfoWrite)
+	defer c.SessionManager.EndWriteSession(sessionInfoWrite)
+
+	sessionInfoRead := map[string]string{datamodel.NodeRepositoryName: ncRequestV1.AssociationInfo.NodeID}
+	c.SessionManager.BeginReadSession(sessionInfoRead)
+	defer c.SessionManager.EndReadSession(sessionInfoRead)
+
 	return datamodel.CreateOrUpdateNCRequestV1(networkID, ncID, ncRequestV1, apiVersion)
 }
 
@@ -420,15 +446,24 @@ func (c *Controller) PersistNetworkContainerRequestV2(
 	ncRequestV2 *api.NetworkContainerRequestV2,
 	apiVersion string) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] %s NC:%s", ncRequestV2.String(), ncID)
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
-	c.SessionManager.BeginWriteSession(sessionInfo)
-	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	sessionInfoWrite := map[string]string{datamodel.NCRepositoryName: ncID}
+	c.SessionManager.BeginWriteSession(sessionInfoWrite)
+	defer c.SessionManager.EndWriteSession(sessionInfoWrite)
+
+	sessionInfoRead := map[string]string{
+		datamodel.NodeRepositoryName:    ncRequestV2.AssociationInfo.NodeID,
+		datamodel.NetworkRepositoryName: networkID,
+	}
+	c.SessionManager.BeginReadSession(sessionInfoRead)
+	defer c.SessionManager.EndReadSession(sessionInfoRead)
+
 	return datamodel.CreateOrUpdateNCRequestV2(networkID, ncID, ncRequestV2, apiVersion)
 }
 
 // PromoteContainerState - Attempt to promote container stuck in an undesirable state (as a result of unreachable node)
 func (c *Controller) PromoteContainerState(networkID, ncID string) *api.JsonErr {
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	sessionInfo := map[string]string{datamodel.NCRepositoryName: ncID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
@@ -442,7 +477,7 @@ func (c *Controller) PromoteContainerState(networkID, ncID string) *api.JsonErr 
 
 // SkipNodeCleanupForNetworkContainer - Attempt to promote container stuck in an undesirable state (as a result of unreachable node)
 func (c *Controller) SkipNodeCleanupForNetworkContainer(networkID, ncID string) *api.JsonErr {
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	sessionInfo := map[string]string{datamodel.NCRepositoryName: ncID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
@@ -460,9 +495,9 @@ func (c *Controller) SkipNodeCleanupForNetworkContainer(networkID, ncID string) 
 
 // GetNetworkContainerConfiguration - Retrieves the complete network configuration
 func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*datamodel.NCConfiguration, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
-	c.SessionManager.BeginWriteSession(sessionInfo)
-	defer c.SessionManager.EndWriteSession(sessionInfo)
+	sessionInfo := map[string]string{datamodel.NCRepositoryName: ncID}
+	c.SessionManager.BeginReadSession(sessionInfo)
+	defer c.SessionManager.EndReadSession(sessionInfo)
 
 	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, ncID)
 	if err != nil {
@@ -472,7 +507,7 @@ func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*
 	return ncConfig, nil
 }
 
-// GetNetworkContainer - Retrieves the network configuration
+// GetNetworkContainer - Retrieves the network container configuration
 func (c *Controller) GetNetworkContainer(networkID, ncID string) (*api.NetworkContainerResponse, *api.JsonErr) {
 	ncConfig, err := c.GetNetworkContainerConfiguration(networkID, ncID)
 	if err != nil {
@@ -484,7 +519,8 @@ func (c *Controller) GetNetworkContainer(networkID, ncID string) (*api.NetworkCo
 
 // DeleteNetworkContainer - Deletes a network container.
 func (c *Controller) DeleteNetworkContainer(networkID, ncID string) *api.JsonErr {
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	loggershim.LS.Debugf("[Request] DeleteNetworkContainer: %s", ncID)
+	sessionInfo := map[string]string{datamodel.NCRepositoryName: ncID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 

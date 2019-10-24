@@ -96,8 +96,10 @@ func (c *Controller) RefreshNetworkContainersNMAgentGoalState() {
 
 func (c *Controller) refreshNetworkContainerNMAgentGoalState(ncKey string,
 	sessionInfo map[string]string) (bool, *api.JsonErr) {
-	c.SessionManager.BeginWriteSession(sessionInfo)
-	defer c.SessionManager.EndWriteSession(sessionInfo)
+	sessionInfoWrite := map[string]string{datamodel.NCRepositoryName: datamodel.GetNCIdFromKey(ncKey)}
+	c.SessionManager.BeginWriteSession(sessionInfoWrite)
+	defer c.SessionManager.EndWriteSession(sessionInfoWrite)
+
 	repoNCConfig, err := datamodel.TryQueryNetworkContainerByKey(ncKey)
 	if err != nil {
 		return false, err
@@ -111,7 +113,15 @@ func (c *Controller) refreshNetworkContainerNMAgentGoalState(ncKey string,
 		return true, nil
 	}
 
+	sessionInfoRead := map[string]string{
+		datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
+		datamodel.NetworkRepositoryName:     repoNCConfig.NetworkID,
+		datamodel.NodeRepositoryName:        repoNCConfig.GetAssociationInfo().NodeID,
+	}
+	c.SessionManager.BeginReadSession(sessionInfoRead)
 	ncGoalState, _, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
+	c.SessionManager.EndReadSession(sessionInfoRead)
+
 	if ncGoalStateErr != nil {
 		return false, ncGoalStateErr
 	}
