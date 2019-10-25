@@ -16,6 +16,13 @@ Param(
 
 )
 
+'''
+usage:
+.\invoke-cni.ps1 <container_name> <namespace> <container_id> [ADD/DEL] <dns_json_array>
+For example,
+.\invoke-cni.ps1 container1 default 051c2709ff8de1a4042d236491e67c9f48ffa1b38d4023cc48675e0f0bd17d8a ADD '["1.2.3.4","5.6.7.8"]'
+'''
+
 $env:CNI_CONTAINERID=$contid
 $env:CNI_COMMAND=$command
 
