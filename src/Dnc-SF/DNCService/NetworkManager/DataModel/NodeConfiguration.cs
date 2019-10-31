@@ -94,7 +94,7 @@ namespace NetworkManager.DataModel
         {
             if (!this.networkVlanIDMap.ContainsKey(networkID))
             {
-                HashSet<ushort> allocatedVlanIDs = new HashSet<ushort>(this.NetworkVlanIDMap.Values);
+                HashSet<ushort> allocatedVlanIDs = this.NetworkVlanIDMap.Values.ToHashSet();
                 this.networkVlanIDMap[networkID] = GetNextVlanID(
                     networkID,
                     allocatedVlanIDs);

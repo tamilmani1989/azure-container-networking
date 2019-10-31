@@ -24,9 +24,9 @@ This service will expose restful API surface that will be used for bottoms up ne
     <tags></tags>
   </metadata>
   <files>
-    <file src="$drop$\DNCServicePkg\Code\**\*" target="content\win10-x64\DNCServicePkg\Code" />
-    <file src="$drop$\DNCServicePkg\Config\**\*" target="content\win10-x64\DNCServicePkg\Config" />
-    <file src="$drop$\DNCServicePkg\ServiceManifest.xml" target="content\win10-x64\DNCServicePkg\ServiceManifest.xml" />
-    <file src="$drop$\ApplicationManifest.xml" target="content\win10-x64\ApplicationManifest.xml" />
+	<file src="$drop$\win10-x64\DNCServicePkg\Code\**\*" target="content\win10-x64\DNCServicePkg\Code" />
+    <file src="$drop$\win10-x64\DNCServicePkg\Config\**\*" target="content\win10-x64\DNCServicePkg\Config" />
+    <file src="$drop$\win10-x64\DNCServicePkg\ServiceManifest.xml" target="content\win10-x64\DNCServicePkg\ServiceManifest.xml" />
+    <file src="$drop$\win10-x64\ApplicationManifest.xml" target="content\win10-x64\ApplicationManifest.xml" />
   </files>
 </package>

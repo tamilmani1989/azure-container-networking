@@ -18,7 +18,8 @@
   <ConfigPackage Name="Config" Version="1.0.2" />
   <Resources>
     <Endpoints>
-      <Endpoint Protocol="http" Name="ServiceEndpoint" Type="Input" Port="9001" />
+      <Endpoint Name="ServiceEndpointV2" />
+      <Endpoint Protocol="http" Name="KestrelEndpoint" Type="Input" Port="9001" />
       <Endpoint Name="ReplicatorEndpoint" />
     </Endpoints>
   </Resources>

@@ -110,7 +110,7 @@ namespace DNCService
             serviceReplicaListeners.Add(new ServiceReplicaListener(
                 serviceContext =>
                     new KestrelCommunicationListener(
-                        serviceContext, "ServiceEndpoint",
+                        serviceContext, "KestrelEndpoint",
                         (url, listener) =>
                         {
                             ServiceEventSource.Current.ServiceMessage(serviceContext, $"Starting Kestrel on {url}");

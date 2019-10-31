@@ -75,16 +75,6 @@ static_analysis_options:
 # Eventually, network access will be limited or cut-off in this stage.
 build:
   commands:
-  
-  - !!buildcommand
-    name: 'Build DNC for SF'
-    command: 'build-dnc-sf.cmd'
-    arguments: 'Release'
-    artifacts:
-      - from: 'src/Dnc-SF/DncSFProj/pkg/'
-        to: 'drop_dnc_sf'
-        include:
-          - '**/*'
 
   - !!buildcommand
     name: 'Build CNS SF wrapper'
@@ -108,9 +98,9 @@ build:
   - !!buildcommand
     name: 'Sign DNC for SF'
     command: 'package-sign-dnc-sf.cmd'
-    arguments: 'Sign Release drop_dnc_sf'
+    arguments: 'Sign Release linux_phase_drop_dnc_sf'
     artifacts:
-      - from: 'drop_dnc_sf'
+      - from: 'linux_phase_drop_dnc_sf'
         include:
           - '**/DNCService.dll'
           - '**/DNCService.Interfaces.dll'
@@ -173,7 +163,7 @@ package:
     - !!buildcommand
       name: 'Package DNC for SF'
       command: 'package-sign-dnc-sf.cmd'
-      arguments: 'Package Release drop_dnc_sf'
+      arguments: 'Package Release linux_phase_drop_dnc_sf'
       artifacts:
         - from: '.'
           to: 'AzureDNC-SF'
