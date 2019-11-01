@@ -5,6 +5,7 @@ package ipam
 
 import (
 	"encoding/xml"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -84,13 +85,22 @@ func (s *azureSource) refresh() error {
 		return err
 	}
 
+	httpClient := &http.Client{Timeout: time.Second * 5}
+
+	log.Printf("[ipam] Wireserver call %v to retrieve IP List", s.queryUrl)
 	// Fetch configuration.
-	resp, err := http.Get(s.queryUrl)
+	resp, err := httpClient.Get(s.queryUrl)
 	if err != nil {
+		log.Printf("[ipam] wireserver call failed with: %v", err)
 		return err
 	}
 
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("[ipam] http return error code for wireserver call %d", resp.StatusCode)
+		return fmt.Errorf("http error %d", resp.StatusCode)
+	}
 
 	// Decode XML document.
 	var doc common.XmlDocument
