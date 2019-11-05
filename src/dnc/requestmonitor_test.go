@@ -264,7 +264,8 @@ func StartDnc() {
 			config.VlanSettings.Min,
 			config.VlanSettings.Max,
 			httpClient,
-			config.DNCSettings.EnforceNICLimit)
+			config.DNCSettings.EnforceNICLimit,
+			config.HostAgentSettings.WireServerIP)
 		ctrler.UpdateReplicaStatus(true)
 	}
 
@@ -2435,7 +2436,7 @@ func createNetworkContainerAndUpdateNetworkConfig(
 	if len(updatedNMAgentResponsderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.DNSServers) != 0 {
 		dnsServers = strings.Split(updatedNMAgentResponsderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.DNSServers, ",")
 	} else {
-		dnsServers = []string{"10.0.0.2", "10.0.0.3"}
+		dnsServers = []string{"168.63.129.16"}
 	}
 
 	cnetSpace := updatedNMAgentResponsderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.CNetSpace

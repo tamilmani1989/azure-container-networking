@@ -127,14 +127,6 @@ func GetFirstAddressInSubnet(ipSubnet *net.IPNet) net.IP {
 	return utils.Int2IP(GetFirstAddressAsUInt32InSubnet(ipSubnet))
 }
 
-func GetDNSServerAddressesForSubnet(ipSubnet *net.IPNet) []string {
-	dnsServerAddresses := make([]string, 2)
-	dnsServerAddresses[0] = utils.Int2IP(GetFirstAddressAsUInt32InSubnet(ipSubnet) + 2).String()
-	dnsServerAddresses[1] = utils.Int2IP(GetFirstAddressAsUInt32InSubnet(ipSubnet) + 3).String()
-
-	return dnsServerAddresses
-}
-
 func AllocateSubnetFromAddressRange(
 	startingAddress uint32,
 	endingAddress uint32,

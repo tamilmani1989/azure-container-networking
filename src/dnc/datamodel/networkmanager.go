@@ -30,6 +30,7 @@ var (
 	maxContainersPerNode        = 10
 	httpClient           *http.Client
 	enforceNICLimit      bool // zero value is false
+	defaultDNSServer     string
 )
 
 // Init - Initialize repository.
@@ -39,7 +40,8 @@ func Init(
 	interval int,
 	min, max uint16,
 	httpClientArg *http.Client,
-	enforceNICLimitFlag bool) error {
+	enforceNICLimitFlag bool,
+	wireServerIP string) error {
 	requestBaseInterval = interval
 	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
@@ -52,6 +54,10 @@ func Init(
 
 	if max > minVlan {
 		maxVlan = max
+	}
+
+	if wireServerIP != "" {
+		defaultDNSServer = "168.63.129.16"
 	}
 
 	cnsSettings = cnsConfigSettings
@@ -1979,28 +1985,14 @@ func GetSubnetDNSServers(repoSubnetConfiguration *SubnetConfiguration) ([]string
 	return GetDNSServers(repoNetworkConfiguration, repoSubnetConfiguration)
 }
 
+// GetDNSServers - VNET config published by RNM to pubsub has empty DNS Servers for non-custom cases, and customer provided addresses for the custom cases
 func GetDNSServers(repoNetworkConfiguration *NetworkConfiguration, repoSubnetConfiguration *SubnetConfiguration) ([]string, *api.JsonErr) {
 	var dnsServers []string
 	if repoNetworkConfiguration.DNSServers != nil &&
 		len(repoNetworkConfiguration.DNSServers) != 0 {
 		dnsServers = repoNetworkConfiguration.DNSServers
 	} else {
-		ipSubnet, err := utils.ParseIPNet(repoSubnetConfiguration.IPSubnet)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to parse subnet %s for subnet %s for network %s due to error %s",
-				repoSubnetConfiguration.IPSubnet,
-				repoSubnetConfiguration.SubnetName,
-				repoSubnetConfiguration.NetworkID,
-				err.Error())
-			loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
-
-			return nil, &api.JsonErr{
-				Code:       api.InvalidIPSubnet,
-				HTTPStatus: http.StatusInternalServerError,
-				Text:       msg}
-		}
-
-		dnsServers = allocationhelper.GetDNSServerAddressesForSubnet(ipSubnet)
+		dnsServers = []string{defaultDNSServer}
 	}
 
 	return dnsServers, nil
