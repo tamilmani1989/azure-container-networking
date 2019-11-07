@@ -143,8 +143,6 @@ type DNCSettings struct {
 	ReportToHostInterval int
 	// Concurrent request to process in a given batch. Defualt 5.
 	ConcurrentRequestsToProcess int
-	// Flag to disable the telemetry. Default is false
-	DisableTelemetry bool
 	// Flag to determine, if DNC should enforce NIC limit or not?
 	EnforceNICLimit bool
 	// Number of NICs that are allowed per virtual core
@@ -159,6 +157,22 @@ type HttpClientSettings struct {
 	ResponseHeaderTimeout int
 }
 
+// TelemetrySettings DNC telemetry settings
+type TelemetrySettings struct {
+	// Flag to disable the telemetry. Default is false
+	DisableTelemetry bool
+	// Configure how many bytes can be sent in one call to the data collector
+	TelemetryBatchSizeBytes int
+	// Configure the maximum delay before sending queued telemetry in milliseconds
+	TelemetryBatchIntervalInSecs int
+	// Enable thread for getting metadata from wireserver
+	DisableMetadataRefreshThread bool
+	// Refresh interval in milliseconds for metadata thread
+	RefreshIntervalInSecs int
+	// Disable debug logging for telemetry messages
+	DebugMode bool
+}
+
 // Configuration - Details related to dnc configuration settings
 type Configuration struct {
 	OrchestartorType       string
@@ -171,6 +185,7 @@ type Configuration struct {
 	VlanSettings           VlanSettings
 	DNCSettings            DNCSettings
 	HttpClientSettings     HttpClientSettings
+	TelemetrySettings      TelemetrySettings
 }
 
 // Load the JSON config file
@@ -203,53 +218,88 @@ func Load(configFile string) *Configuration {
 }
 
 func SetDncConfigDefaults(config *Configuration) {
-	if config.DNCSettings.RequestRetryBaseInterval == 0 {
+	setDNCSettingDefaults(&config.DNCSettings)
+	setHttpSettingDefaults(&config.HttpClientSettings)
+	setTelemetrySettingDefaults(&config.TelemetrySettings)
+}
+
+func setDNCSettingDefaults(dncSettings *DNCSettings) {
+	if dncSettings.RequestRetryBaseInterval == 0 {
 		// Set default to 1 sec.
-		config.DNCSettings.RequestRetryBaseInterval = 1000
+		dncSettings.RequestRetryBaseInterval = 1000
 	}
 
-	if config.DNCSettings.ConcurrentRequestsToProcess == 0 {
+	if dncSettings.ConcurrentRequestsToProcess == 0 {
 		// Set default to 5
-		config.DNCSettings.ConcurrentRequestsToProcess = 5
+		dncSettings.ConcurrentRequestsToProcess = 5
 	}
 
-	if config.DNCSettings.MaxRequestBackoffInterval == 0 {
+	if dncSettings.MaxRequestBackoffInterval == 0 {
 		// Set default to 16 secs
-		config.DNCSettings.MaxRequestBackoffInterval = 16000
+		dncSettings.MaxRequestBackoffInterval = 16000
 	}
 
-	if config.DNCSettings.NetworkRefreshInterval == 0 {
+	if dncSettings.NetworkRefreshInterval == 0 {
 		// Set default to 1 min.
-		config.DNCSettings.NetworkRefreshInterval = 60000
+		dncSettings.NetworkRefreshInterval = 60000
 	}
 
-	if config.DNCSettings.TagRefreshInterval == 0 {
+	if dncSettings.TagRefreshInterval == 0 {
 		// Set default to 1 min.
-		config.DNCSettings.TagRefreshInterval = 60000
+		dncSettings.TagRefreshInterval = 60000
 	}
 
-	if config.DNCSettings.NetworkContainerRefreshInterval == 0 {
+	if dncSettings.NetworkContainerRefreshInterval == 0 {
 		// Set default to 1 min
-		config.DNCSettings.NetworkContainerRefreshInterval = 60000
+		dncSettings.NetworkContainerRefreshInterval = 60000
 	}
 
-	if config.DNCSettings.NetworkRefreshBatchSize == 0 {
+	if dncSettings.NetworkRefreshBatchSize == 0 {
 		// Set default to 60
-		config.DNCSettings.NetworkRefreshBatchSize = 60
+		dncSettings.NetworkRefreshBatchSize = 60
 	}
 
-	if config.DNCSettings.SleepIntervalBetweenNetworkBatches == 0 {
+	if dncSettings.SleepIntervalBetweenNetworkBatches == 0 {
 		// Set default to 1 min
-		config.DNCSettings.SleepIntervalBetweenNetworkBatches = 60000
+		dncSettings.SleepIntervalBetweenNetworkBatches = 60000
 	}
 
-	if config.DNCSettings.ReportToHostInterval < 60000 {
+	if dncSettings.ReportToHostInterval < 60000 {
 		// Set default to 1 min
-		config.DNCSettings.ReportToHostInterval = 60000
+		dncSettings.ReportToHostInterval = 60000
 	}
 
-	if config.DNCSettings.SleepIntervalBetweenNetworkRefresh == 0 {
+	if dncSettings.SleepIntervalBetweenNetworkRefresh == 0 {
 		// Set default to 1 min
-		config.DNCSettings.SleepIntervalBetweenNetworkRefresh = 300
+		dncSettings.SleepIntervalBetweenNetworkRefresh = 300
+	}
+}
+
+func setHttpSettingDefaults(httpClientSettings *HttpClientSettings) {
+	if httpClientSettings.ConnectionTimeout == 0 {
+		// set the default connection timeout to 5 seconds
+		httpClientSettings.ConnectionTimeout = 5
+	}
+
+	if httpClientSettings.ResponseHeaderTimeout == 0 {
+		// set the default response header timeout to 120 seconds
+		httpClientSettings.ResponseHeaderTimeout = 120
+	}
+}
+
+func setTelemetrySettingDefaults(telemetrySettings *TelemetrySettings) {
+	if telemetrySettings.RefreshIntervalInSecs == 0 {
+		// set the default refresh interval of metadata thread to 15 seconds
+		telemetrySettings.RefreshIntervalInSecs = 15
+	}
+
+	if telemetrySettings.TelemetryBatchIntervalInSecs == 0 {
+		// set the default AI telemetry batch interval to 7 seconds
+		telemetrySettings.TelemetryBatchIntervalInSecs = 7
+	}
+
+	if telemetrySettings.TelemetryBatchSizeBytes == 0 {
+		// set the default AI telemetry batch size to 16384 bytes
+		telemetrySettings.TelemetryBatchSizeBytes = 16384
 	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dnc/aiwrapper"
 	"dnc/api"
 	"dnc/datamodel"
 	"encoding/json"
@@ -178,4 +179,33 @@ func reportNetworkConfiguration(nodeID, networkID string, allocations map[string
 	}
 
 	return reservedIPs, err
+}
+
+func setOrchestratorForTelemetry() {
+	var nodeID string
+	nodes, err := datamodel.GetAllNodeIDs()
+	if err == nil {
+		for nodeKey := range nodes {
+			nodeID = datamodel.GetNodeIDFromKey(nodeKey)
+			break
+		}
+	}
+
+	if nodeID == "" {
+		logger.Debugf("No nodes added for DNC")
+		return
+	}
+
+	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
+	sessionManager.BeginReadSession(sessionInfo)
+	nodeConfig, jsonerr := datamodel.QueryNodeConfiguration(nodeID)
+	sessionManager.EndReadSession(sessionInfo)
+
+	if err != nil {
+		logger.Errorf("QueryNodeConfiguration returned error %v", jsonerr)
+		return
+	}
+
+	logger.Debugf("Orchestrator type: %v", nodeConfig.NodeInfo.OrchestratorType)
+	aiwrapper.OrchestratorType = nodeConfig.NodeInfo.OrchestratorType
 }

@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"crypto/sha256"
+	"dnc/aiwrapper"
 	"dnc/api"
 	"dnc/configuration"
 	"dnc/datamodel"
@@ -54,6 +55,9 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 	info := &cns.SetOrchestratorTypeRequest{OrchestratorType: nodeInfo.OrchestratorType, DncPartitionKey: config.DataStoreSettings.AzureStorageInfo.PartitionKey}
 	var body bytes.Buffer
 	var resp cns.Response
+
+	// Can be used whenver we send logs/metric
+	aiwrapper.OrchestratorType = nodeInfo.OrchestratorType
 
 	json.NewEncoder(&body).Encode(info)
 	setOrchestratorTypeURL := fmt.Sprintf(

@@ -138,7 +138,7 @@ build:
             to: 'drop_dnc'
             include:
               - 'azure-dnc'
-              
+
     - !!buildcommand
         name: 'Build DNC for SF'
         command: 'build-dnc-sf.sh'

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"dnc/aiwrapper"
 	"dnc/allocationhelper"
 	"dnc/api"
 	"dnc/datamodel"
@@ -17,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/cns"
 	"github.com/google/uuid"
 )
@@ -1497,9 +1499,38 @@ func processNetworkContainerDisAssociate(
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
+func getDimensions(repoNCConfig *datamodel.NCConfiguration) map[string]string {
+	customDimensions := make(map[string]string)
+	associationInfo := repoNCConfig.GetAssociationInfo()
+
+	customDimensions[aiwrapper.NetworkContainerIDStr] = repoNCConfig.NetworkContainerID
+	customDimensions[aiwrapper.NetworkIDStr] = repoNCConfig.NetworkID
+	customDimensions[aiwrapper.ContainerTypeStr] = associationInfo.ContainerType
+	customDimensions[aiwrapper.NodeIDStr] = associationInfo.NodeID
+	customDimensions[aiwrapper.DNCVersionStr] = utils.Version
+
+	return customDimensions
+}
+
+func sendNCMetric(
+	metricName string,
+	metricValue float64,
+	status string,
+	repoNCConfig *datamodel.NCConfiguration) {
+	metric := aitelemetry.Metric{
+		Name:             metricName,
+		Value:            metricValue,
+		CustomDimensions: getDimensions(repoNCConfig),
+	}
+
+	metric.CustomDimensions[aiwrapper.StatusStr] = status
+	go aiwrapper.SendMetric(metric)
+}
+
 func processNetworkContainerPublish(
 	repoNCConfig *datamodel.NCConfiguration,
-	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
+	stateTransitionDateTime time.Time,
+	createdDateTime time.Time) (bool, *api.JsonErr) {
 	ncState := "Container" + repoNCConfig.State.String()
 	defer utils.RecordTime(stateTransitionDateTime, ncState, repoNCConfig.NetworkContainerID)
 
@@ -1627,6 +1658,11 @@ func processNetworkContainerPublish(
 
 	repoNCConfig.State = datamodel.Program
 	repoNCConfig.Status = datamodel.Pending
+
+	creationTimeMs := time.Since(createdDateTime).Milliseconds()
+	sendNCMetric(aiwrapper.NCCreationTimeMetric, float64(creationTimeMs),
+		aiwrapper.Succeeded, repoNCConfig)
+
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
@@ -1777,13 +1813,15 @@ func processNetworkContainerRequest(
 		repoNCConfig                  *datamodel.NCConfiguration
 	)
 
-	/*
-		sessionInfo := map[string]string{
-			datamodel.NCRepositoryName: datamodel.GetNCIdFromKey(networkContainerKey),
+	defer func() {
+		if !datamodel.IsDeleteInProgress(repoNCConfig.State) {
+			if removeRequestFromPendingQueue && repoNCConfig.Status == datamodel.Failed {
+				creationTimeMs := time.Since(createdDateTime).Milliseconds()
+				sendNCMetric(aiwrapper.NCCreationTimeMetric,
+					float64(creationTimeMs), aiwrapper.Failed, repoNCConfig)
+			}
 		}
-		sessionManager.BeginWriteSession(sessionInfo)
-		defer sessionManager.EndWriteSession(sessionInfo)
-	*/
+	}()
 
 	// Continue advancing the NC state to completion while there is no error (err == nil) and
 	// indication to remove the request from the pending queue (!removeRequestFromPendingQueue)
@@ -1831,7 +1869,7 @@ func processNetworkContainerRequest(
 			removeRequestFromPendingQueue, err = processNetworkContainerAssociate(repoNCConfig, sessionInfo, stateTransitionDateTime)
 
 		case datamodel.Publish:
-			removeRequestFromPendingQueue, err = processNetworkContainerPublish(repoNCConfig, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerPublish(repoNCConfig, stateTransitionDateTime, createdDateTime)
 
 		case datamodel.Program:
 			removeRequestFromPendingQueue, err = processNetworkContainerProgram(repoNCConfig, createdDateTime)

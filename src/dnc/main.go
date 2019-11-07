@@ -3,6 +3,7 @@
 package main
 
 import (
+	"dnc/aiwrapper"
 	"dnc/configuration"
 	"dnc/controller"
 	"dnc/datamodel"
@@ -19,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/telemetry"
 )
 
@@ -72,9 +74,6 @@ const (
 )
 
 func init() {
-	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
-	flag.Parse()
-
 	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
 	if !found {
 		configpath = "config.json"
@@ -82,12 +81,23 @@ func init() {
 
 	config = configuration.Load(configpath)
 	configuration.SetDncConfigDefaults(config)
-	disableTelemetry = config.DNCSettings.DisableTelemetry
+	disableTelemetry = config.TelemetrySettings.DisableTelemetry
 	logger = loggershim.NewLoggerShim(config)
 
 	if disableTelemetry {
 		reports = nil
+	} else {
+		aiConfig := aitelemetry.AIConfig{
+			BatchSize:                    config.TelemetrySettings.TelemetryBatchSizeBytes,
+			BatchInterval:                config.TelemetrySettings.TelemetryBatchIntervalInSecs,
+			RefreshTimeout:               config.TelemetrySettings.RefreshIntervalInSecs,
+			DisableMetadataRefreshThread: config.TelemetrySettings.DisableMetadataRefreshThread,
+			DebugMode:                    config.TelemetrySettings.DebugMode,
+		}
+
+		aiwrapper.CreateTelemetryHandle(aiConfig)
 	}
+
 	logger.Init(stderr, reports)
 	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
 	replicaInstance = replica.NewReplica(
@@ -129,7 +139,6 @@ func init() {
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
 	sleepIntervalBetweenNetworkBatches = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkBatches) * time.Millisecond
 	sleepIntervalBetweenNetworkRefresh = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkRefresh) * time.Millisecond
-	disableTelemetry = config.DNCSettings.DisableTelemetry
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
@@ -144,6 +153,8 @@ func init() {
 			config.HostAgentSettings.WireServerIP)
 		ctrler.UpdateReplicaStatus(true)
 	}
+
+	setOrchestratorForTelemetry()
 }
 
 func processExitCallback() {
@@ -185,6 +196,9 @@ func startReplica(c *controller.Controller) {
 }
 
 func main() {
+	// From go 1.13, we can't use flags api in package init as it conflicts with go test init.
+	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
+	flag.Parse()
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go ProcessExitMonitor(sigs, processExitCallback)

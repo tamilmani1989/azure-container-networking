@@ -1,22 +1,22 @@
-{  
-    "DataStoreSettings":{  
-       "AzureStorageInfo":{  
+{
+    "DataStoreSettings":{
+       "AzureStorageInfo":{
           "AccountName":"",
           "Key":"",
           "PartitionKey":""
        },
-       "AzureSQLInfo":{  
+       "AzureSQLInfo":{
           "Host":"",
           "Database":"",
           "User":"",
           "Password":""
-       } 
+       }
     },
-    "ServerSettings":{  
+    "ServerSettings":{
        "IPAddress":"",
        "Port":"9000"
     },
-    "MasterElectionSettings":{  
+    "MasterElectionSettings":{
         "BlobStorageSettings":{
          "AccountName":"",
          "Key":"",
@@ -29,8 +29,8 @@
         }
     },
     "HostAgentSettings":{
-        "WireServerIP":"168.63.129.16", 
-        "ConnectionStrings":{           
+        "WireServerIP":"168.63.129.16",
+        "ConnectionStrings":{
             "JoinNetworkURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
             "GetNetworkConfigurationURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
             "PutNetworkContainerURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
@@ -41,7 +41,7 @@
     "CustomLoggerSettings":{
         "FnName":"",
         "Dll":""
-    },    
+    },
     "CNSSettings":{
         "ConnectionStrings" :{
             "CreateOrUpdateNetworkContainerURLFmt" : "http://%s:10090/network/createorupdatenetworkcontainer",
@@ -66,12 +66,19 @@
         "NetworkContainerRefreshInterval": 60000,
         "ReportToHostInterval": 60000,
         "ConcurrentRequestsToProcess": 1000,
-        "DisableTelemetry": false,
         "EnforceNICLimit" : true,
         "NICsAllowedPerVirtualCore" : 3
     },
     "HttpClientSettings":{
         "ConnectionTimeout":5,
         "ResponseHeaderTimeout":120
+    },
+    "TelemetrySettings":{
+        "TelemetryBatchSizeBytes": 16384,
+        "TelemetryBatchIntervalInSecs": 7,
+        "RefreshIntervalInSecs": 15,
+        "DisableMetadataRefreshThread": false,
+        "DisableTelemetry": false,
+        "DebugMode": false
     }
 }

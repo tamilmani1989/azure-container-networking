@@ -19,6 +19,9 @@ import (
 	"strings"
 	"time"
 
+	"dnc/aiwrapper"
+
+	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/cns"
 )
 
@@ -2251,6 +2254,23 @@ func GetReservationStatus(networkID, reservationID string) (*api.RequestStatus, 
 	return requestStatus, nil
 }
 
+func sendNCCreationReqMetric(networkID, ncID, status string, associationInfo api.AssociationInfo) {
+	metric := aitelemetry.Metric{
+		Name: aiwrapper.NCCreationReqCountMetric,
+		// Value 1.0 is to track number of NC Create Requests
+		Value:            1.0,
+		CustomDimensions: make(map[string]string),
+	}
+
+	metric.CustomDimensions[aiwrapper.NetworkIDStr] = networkID
+	metric.CustomDimensions[aiwrapper.NetworkContainerIDStr] = ncID
+	metric.CustomDimensions[aiwrapper.StatusStr] = status
+	metric.CustomDimensions[aiwrapper.NodeIDStr] = associationInfo.NodeID
+	metric.CustomDimensions[aiwrapper.ContainerTypeStr] = associationInfo.ContainerType
+
+	go aiwrapper.SendMetric(metric)
+}
+
 // CreateOrUpdateNCRequestV1 :-
 func CreateOrUpdateNCRequestV1(
 	networkID, ncID string,
@@ -2272,6 +2292,17 @@ func CreateOrUpdateNCRequestV1(
 		return nil
 	}
 
+	defer func() {
+		var status string
+		if err != nil {
+			status = aiwrapper.Invalid
+		} else {
+			status = aiwrapper.Valid
+		}
+		// Metric for getting number of NC Creation Requests
+		sendNCCreationReqMetric(networkID, ncID, status, ncRequestV1.AssociationInfo)
+	}()
+
 	nodeConfig, err := TryQueryNodeConfiguration(ncRequestV1.AssociationInfo.NodeID)
 	if err != nil {
 		return err
@@ -2282,10 +2313,11 @@ func CreateOrUpdateNCRequestV1(
 			"Failed when trying to retrieve configuration for node:%s due to error:%s",
 			ncRequestV1.AssociationInfo.NodeID,
 			err)
-		return &api.JsonErr{
+		err = &api.JsonErr{
 			Code:       api.NodeNotFound,
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
+		return err
 	}
 
 	ncConfiguration := NCConfiguration{
@@ -2299,7 +2331,8 @@ func CreateOrUpdateNCRequestV1(
 		APIVersion:          apiVersion,
 		CNSVersion:          0}
 
-	return PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
+	err = PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
+	return err
 }
 
 // CreateOrUpdateNCRequestV2 - Persists NetworkContainerRequestV2
@@ -2323,6 +2356,17 @@ func CreateOrUpdateNCRequestV2(
 		return nil
 	}
 
+	defer func() {
+		var status string
+		if err != nil {
+			status = aiwrapper.Invalid
+		} else {
+			status = aiwrapper.Valid
+		}
+		// Metric for getting number of NC Creation Requests
+		sendNCCreationReqMetric(networkID, ncID, status, ncRequestV2.AssociationInfo)
+	}()
+
 	nodeConfig, err := TryQueryNodeConfiguration(ncRequestV2.AssociationInfo.NodeID)
 	if err != nil {
 		return err
@@ -2333,10 +2377,11 @@ func CreateOrUpdateNCRequestV2(
 			"Failed when trying to retrieve configuration for node:%s due to error:%s",
 			ncRequestV2.AssociationInfo.NodeID,
 			err)
-		return &api.JsonErr{
+		err = &api.JsonErr{
 			Code:       api.NodeNotFound,
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
+		return err
 	}
 
 	networkConfig, err := QueryNetworkConfiguration(networkID)
@@ -2349,10 +2394,11 @@ func CreateOrUpdateNCRequestV2(
 			"Cannot create network container in network %v as it is not in join state. Current State:%v",
 			ncID,
 			networkConfig.NetworkState.String())
-		return &api.JsonErr{
+		err = &api.JsonErr{
 			Code:       api.NetworkStateInvalid,
 			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
+		return err
 	}
 
 	if networkConfig.Status != Completed {
@@ -2360,10 +2406,11 @@ func CreateOrUpdateNCRequestV2(
 			"Cannot create network container in network %v as the status of the join operation is not completed. Current State:%v",
 			ncID,
 			networkConfig.Status.String())
-		return &api.JsonErr{
+		err = &api.JsonErr{
 			Code:       api.NetworkStateInvalid,
 			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
+		return err
 	}
 
 	subnetConfig, err := QuerySubnetConfiguration(networkID, ncRequestV2.AllocationRequest.SubnetName)
@@ -2376,10 +2423,11 @@ func CreateOrUpdateNCRequestV2(
 			"Cannot create network container in network %v subnet %v as it has not completed the join operation.",
 			ncID,
 			ncRequestV2.AllocationRequest.SubnetName)
-		return &api.JsonErr{
+		err = &api.JsonErr{
 			Code:       api.SubnetIsNotJoined,
 			Text:       msg,
 			HTTPStatus: http.StatusBadRequest}
+		return err
 	}
 
 	ncConfiguration := NCConfiguration{
@@ -2392,7 +2440,8 @@ func CreateOrUpdateNCRequestV2(
 		APIVersion:          apiVersion,
 		CNSVersion:          0}
 
-	return PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
+	err = PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
+	return err
 }
 
 type NetworkContainerInfo struct {

@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
-GODIR="$DIR/go1-12"
+GODIR="$DIR/go1-13"
 if [ ! -d $GODIR ]; then
     mkdir -p $GODIR
-    wget https://storage.googleapis.com/golang/go1.12.6.linux-amd64.tar.gz
-    tar -C $GODIR -xvf go1.12.6.linux-amd64.tar.gz
-    rm go1.12.6.linux-amd64.tar.gz
+    wget https://dl.google.com/go/go1.13.3.linux-amd64.tar.gz
+    tar -C $GODIR -xvf go1.13.3.linux-amd64.tar.gz
+    rm go1.13.3.linux-amd64.tar.gz
 fi
 
 # Set env variables
