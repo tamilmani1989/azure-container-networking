@@ -545,8 +545,14 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
-		config.VlanSettings.Min, config.VlanSettings.Max, c.httpClient, config.DNCSettings.EnforceNICLimit, config.HostAgentSettings.WireServerIP)
+	datamodel.Init(
+		config.CNSSettings,
+		config.DataStoreSettings,
+		config.DNCSettings,
+		config.VlanSettings.Min,
+		config.VlanSettings.Max,
+		c.httpClient,
+		config.HostAgentSettings.WireServerIP)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
@@ -560,8 +566,14 @@ func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2)
 	config.DataStoreSettings.AzureStorageInfo.RegionalStorageConnectionString = request.RegionalStorageConnectionString
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
-		config.VlanSettings.Min, config.VlanSettings.Max, c.httpClient, config.DNCSettings.EnforceNICLimit, config.HostAgentSettings.WireServerIP)
+	datamodel.Init(
+		config.CNSSettings,
+		config.DataStoreSettings,
+		config.DNCSettings,
+		config.VlanSettings.Min,
+		config.VlanSettings.Max,
+		c.httpClient,
+		config.HostAgentSettings.WireServerIP)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
@@ -576,8 +588,14 @@ func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, b
 	config.MasterElectionSettings.BlobStorageSettings.ContainerName = containerName
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(config.CNSSettings, config.DataStoreSettings, config.DNCSettings.RequestRetryBaseInterval,
-		config.VlanSettings.Min, config.VlanSettings.Max, c.httpClient, config.DNCSettings.EnforceNICLimit, config.HostAgentSettings.WireServerIP)
+	datamodel.Init(
+		config.CNSSettings,
+		config.DataStoreSettings,
+		config.DNCSettings,
+		config.VlanSettings.Min,
+		config.VlanSettings.Max,
+		c.httpClient,
+		config.HostAgentSettings.WireServerIP)
 	c.UpdateReplicaStatus(true)
 	return nil
 }
@@ -603,7 +621,7 @@ func (c *Controller) GetRefreshMonitorStatus() api.RefreshMonitorStatus {
 	return c.Replica.GetRefreshMonitorStatus()
 }
 
-// GetPrimaryIPEndpoint - Retrieves the current primary replica endpoint
+// RefreshNMAgentGoalState - Retrieves the current primary replica endpoint
 func (c *Controller) RefreshNMAgentGoalState() {
 	go c.RefreshNetworkContainersNMAgentGoalState()
 }

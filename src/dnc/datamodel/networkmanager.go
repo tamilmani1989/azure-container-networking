@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -22,27 +23,27 @@ import (
 )
 
 var (
-	dataStoreShim        *datastoreshim.DataStoreShim
-	cnsSettings          configuration.CNSSettings
-	requestBaseInterval         = 1000
-	minVlan              uint16 = 1
-	maxVlan              uint16 = 2048
-	maxContainersPerNode        = 10
-	httpClient           *http.Client
-	enforceNICLimit      bool // zero value is false
-	defaultDNSServer     string
+	dataStoreShim             *datastoreshim.DataStoreShim
+	cnsSettings               configuration.CNSSettings
+	requestBaseInterval              = 1000
+	minVlan                   uint16 = 1
+	maxVlan                   uint16 = 2048
+	maxContainersPerNode             = 10
+	httpClient                *http.Client
+	defaultDNSServer          string
+	enforceNICLimit           bool // zero value is false
+	nicsAllowedPerVirtualCore uint16
 )
 
 // Init - Initialize repository.
 func Init(
 	cnsConfigSettings configuration.CNSSettings,
 	dataStoreSettings configuration.DataStoreSettings,
-	interval int,
+	dncSettings configuration.DNCSettings,
 	min, max uint16,
 	httpClientArg *http.Client,
-	enforceNICLimitFlag bool,
 	wireServerIP string) error {
-	requestBaseInterval = interval
+	requestBaseInterval = dncSettings.RequestRetryBaseInterval
 	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
 		RestoreState()
@@ -62,7 +63,8 @@ func Init(
 
 	cnsSettings = cnsConfigSettings
 	httpClient = httpClientArg
-	enforceNICLimit = enforceNICLimitFlag
+	enforceNICLimit = dncSettings.EnforceNICLimit
+	nicsAllowedPerVirtualCore = dncSettings.NICsAllowedPerVirtualCore
 
 	return nil
 }
@@ -2958,5 +2960,9 @@ func GetNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	return (resp.NumOfCPUCores - 1), nil
+	// Total numbers of containers/nics based on number of cores
+	// Convert to Float is needed, as Floor takes float datatype inputs
+	totalNicsBasedOnCores := float64(nicsAllowedPerVirtualCore * uint16(resp.NumOfCPUCores))
+	allowedNumOfNics := int(math.Floor(totalNicsBasedOnCores) - 1) // -1 to account for VM management NIC
+	return allowedNumOfNics, nil
 }

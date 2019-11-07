@@ -260,11 +260,10 @@ func StartDnc() {
 		datamodel.Init(
 			config.CNSSettings,
 			config.DataStoreSettings,
-			config.DNCSettings.RequestRetryBaseInterval,
+			config.DNCSettings,
 			config.VlanSettings.Min,
 			config.VlanSettings.Max,
 			httpClient,
-			config.DNCSettings.EnforceNICLimit,
 			config.HostAgentSettings.WireServerIP)
 		ctrler.UpdateReplicaStatus(true)
 	}

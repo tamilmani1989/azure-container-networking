@@ -147,9 +147,11 @@ type DNCSettings struct {
 	DisableTelemetry bool
 	// Flag to determine, if DNC should enforce NIC limit or not?
 	EnforceNICLimit bool
+	// Number of NICs that are allowed per virtual core
+	NICsAllowedPerVirtualCore uint16
 }
 
-// HttpClientSettings: Http client settings to be used when making http calls to CNS and NMAgent from DNC
+// HttpClientSettings - Http client settings to be used when making http calls to CNS and NMAgent from DNC
 type HttpClientSettings struct {
 	// ConnectionTimeout indicates the timeout used to establish the connection
 	ConnectionTimeout int

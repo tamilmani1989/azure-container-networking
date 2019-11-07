@@ -53,7 +53,8 @@
         "ReportToHostInterval": 60000,
         "ConcurrentRequestsToProcess" : 1000,
         "DisableTelemetry": false,
-        "EnforceNICLimit" : true
+        "EnforceNICLimit" : true,
+        "NICsAllowedPerVirtualCore" : 1
     },
     "HttpClientSettings":{
         "ConnectionTimeout":5,
