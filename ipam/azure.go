@@ -98,8 +98,8 @@ func (s *azureSource) refresh() error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("[ipam] http return error code for wireserver call %d", resp.StatusCode)
-		return fmt.Errorf("http error %d", resp.StatusCode)
+		log.Errorf("[ipam] http return error code for wireserver call %+v", resp)
+		return fmt.Errorf("wireserver http error %+v", resp)
 	}
 
 	// Decode XML document.
