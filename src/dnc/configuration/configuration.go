@@ -302,4 +302,9 @@ func setTelemetrySettingDefaults(telemetrySettings *TelemetrySettings) {
 		// set the default AI telemetry batch size to 16384 bytes
 		telemetrySettings.TelemetryBatchSizeBytes = 16384
 	}
+
+	if config.DNCSettings.NICsAllowedPerVirtualCore == 0 {
+		// Set default to 3
+		config.DNCSettings.SleepIntervalBetweenNetworkRefresh = 3
+	}
 }
