@@ -273,6 +273,11 @@ func setDNCSettingDefaults(dncSettings *DNCSettings) {
 		// Set default to 1 min
 		dncSettings.SleepIntervalBetweenNetworkRefresh = 300
 	}
+
+	if dncSettings.NICsAllowedPerVirtualCore == 0 {
+		// Set default to 3
+		dncSettings.SleepIntervalBetweenNetworkRefresh = 3
+	}
 }
 
 func setHttpSettingDefaults(httpClientSettings *HttpClientSettings) {
@@ -301,10 +306,5 @@ func setTelemetrySettingDefaults(telemetrySettings *TelemetrySettings) {
 	if telemetrySettings.TelemetryBatchSizeBytes == 0 {
 		// set the default AI telemetry batch size to 16384 bytes
 		telemetrySettings.TelemetryBatchSizeBytes = 16384
-	}
-
-	if config.DNCSettings.NICsAllowedPerVirtualCore == 0 {
-		// Set default to 3
-		config.DNCSettings.SleepIntervalBetweenNetworkRefresh = 3
 	}
 }
