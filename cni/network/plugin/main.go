@@ -187,6 +187,8 @@ func main() {
 			reportPluginError(reportManager, tb, err)
 			tb.Close()
 		}
+
+		//removeOrphanLockFile(platform.CNIRuntimePath + name + ".json" + ".lock")
 		return
 	}
 

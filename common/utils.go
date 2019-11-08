@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/Azure/azure-container-networking/log"
@@ -258,3 +259,4 @@ func SaveHostMetadata(metadata Metadata, fileName string) error {
 
 	return err
 }
+
