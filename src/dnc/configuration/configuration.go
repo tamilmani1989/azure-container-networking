@@ -308,3 +308,43 @@ func setTelemetrySettingDefaults(telemetrySettings *TelemetrySettings) {
 		telemetrySettings.TelemetryBatchSizeBytes = 16384
 	}
 }
+
+// OverrideConfigFromEnv - Overrides some static configuration with environment variables
+func OverrideConfigFromEnv(config *Configuration) {
+
+	if blobName := os.Getenv("DNCBlobName"); len(blobName) != 0 {
+		config.MasterElectionSettings.BlobStorageSettings.BlobName = blobName
+	}
+
+	if containerName := os.Getenv("DNCContainerName"); len(containerName) != 0 {
+		config.MasterElectionSettings.BlobStorageSettings.ContainerName = containerName
+	}
+
+	if port := os.Getenv("DNCPort"); len(port) != 0 {
+		config.ServerSettings.Port = port
+	}
+
+	if accountName := os.Getenv("DataStoreStorageName"); len(accountName) != 0 {
+		config.DataStoreSettings.AzureStorageInfo.AccountName = accountName
+	}
+
+	if accountKey := os.Getenv("DataStoreStorageKey"); len(accountKey) != 0 {
+		config.DataStoreSettings.AzureStorageInfo.Key = accountKey
+	}
+
+	if dataStorePartitionKey := os.Getenv("DataStorePartitionKey"); len(dataStorePartitionKey) != 0 {
+		config.DataStoreSettings.AzureStorageInfo.PartitionKey = dataStorePartitionKey
+	}
+
+	if masterName := os.Getenv("MasterElectionStorageName"); len(masterName) != 0 {
+		config.MasterElectionSettings.BlobStorageSettings.AccountName = masterName
+	}
+
+	if masterKey := os.Getenv("MasterElectionStorageKey"); len(masterKey) != 0 {
+		config.MasterElectionSettings.BlobStorageSettings.Key = masterKey
+	}
+
+	if masterElectionPartitionKey := os.Getenv("MasterElectionPartitionKey"); len(masterElectionPartitionKey) != 0 {
+		config.MasterElectionSettings.BlobStorageSettings.PartitionKey = masterElectionPartitionKey
+	}
+}

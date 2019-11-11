@@ -80,6 +80,7 @@ func init() {
 	}
 
 	config = configuration.Load(configpath)
+	configuration.OverrideConfigFromEnv(config)
 	configuration.SetDncConfigDefaults(config)
 	disableTelemetry = config.TelemetrySettings.DisableTelemetry
 	logger = loggershim.NewLoggerShim(config)
