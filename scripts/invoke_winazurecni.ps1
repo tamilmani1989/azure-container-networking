@@ -1,4 +1,4 @@
-#This script  is to invoke cni for windows containers. It has an option to configure dns via cni.
+#This script  is to invoke cni for windows containers. It has an option to configure dns related info via cni.
 Param(
 	[parameter(Mandatory=$true)]
 	[string] $containerName,
