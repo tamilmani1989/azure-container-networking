@@ -1120,9 +1120,16 @@ func processNetworkContainerPurge(repoNCConfig *datamodel.NCConfiguration, state
 
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: repoNCConfig.GetAssociationInfo().NodeID}
 	sessionManager.BeginWriteSession(sessionInfo)
-	defer sessionManager.EndWriteSession(sessionInfo)
 
-	err := datamodel.PurgeNetworkContainerAssociations(repoNCConfig, updateVlan(repoNCConfig.GetAssociationInfo().ContainerType))
+	var err *api.JsonErr
+	defer func() {
+		sessionManager.EndWriteSession(sessionInfo)
+		if err != nil {
+			logger.Errorf("processNetworkContainerPurge failed for NC: %s with error: %v", repoNCConfig.NetworkContainerID, err)
+		}
+	}()
+
+	err = datamodel.PurgeNetworkContainerAssociations(repoNCConfig, updateVlan(repoNCConfig.GetAssociationInfo().ContainerType))
 	if err != nil {
 		return false, err
 	}
@@ -1814,7 +1821,7 @@ func processNetworkContainerRequest(
 	)
 
 	defer func() {
-		if !datamodel.IsDeleteInProgress(repoNCConfig.State) {
+		if repoNCConfig != nil && !datamodel.IsDeleteInProgress(repoNCConfig.State) {
 			if removeRequestFromPendingQueue && repoNCConfig.Status == datamodel.Failed {
 				creationTimeMs := time.Since(createdDateTime).Milliseconds()
 				sendNCMetric(aiwrapper.NCCreationTimeMetric,
