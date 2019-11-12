@@ -19,20 +19,38 @@ Param(
 	[string] $dnssuffix,
 
 	[parameter (Mandatory=$false)]
-	[string] $confPath
+	[string] $netns,
 
+	[parameter (Mandatory=$false)]
+	[string] $cnidir,
+
+	[parameter (Mandatory=$false)]
+	[string] $confPath
 )
 
 
 $env:CNI_CONTAINERID=$contid
 $env:CNI_COMMAND=$command
 
-$env:CNI_NETNS='none'
-$env:CNI_PATH='C:\k\azurecni\bin'
-$env:PATH="$env:CNI_PATH;"+$env:PATH
+
 $k8sargs='IgnoreUnknown=1;K8S_POD_NAMESPACE={0};K8S_POD_NAME={1};K8S_POD_INFRA_CONTAINER_ID={2}' -f $namespace, $containerName, $contid
 $env:CNI_ARGS=$k8sargs
 $env:CNI_IFNAME='eth0'
+
+if ($netns -eq "") {
+	$netns='none'
+}
+$env:CNI_NETNS=$netns
+
+if ($cnidir -eq "") {
+	$cnidir='C:\k\azurecni\bin'
+}
+$env:CNI_PATH=$cnidir
+$env:PATH="$env:CNI_PATH;"+$env:PATH
+
+if ($confPath -eq "") {
+	$confPath='C:\k\azurecni\netconf\10-azure.conflist'
+}
 
 <#
 usage:
@@ -43,9 +61,7 @@ eg: .\cni.ps1 container1 default 01fb3472a90a2ee282b8f15665bd38dc76100922fc7c9c5
 #>
 
 #read conflist and extract plugin component
-if ($confPath -eq "") {
-	$confPath="C:\k\azurecni\netconf\10-azure.conflist"
-}
+
 $content = Get-Content -Raw -Path $confPath
 
 $jobj = ConvertFrom-Json $content
