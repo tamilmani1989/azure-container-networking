@@ -34,12 +34,13 @@ $k8sargs='IgnoreUnknown=1;K8S_POD_NAMESPACE={0};K8S_POD_NAME={1};K8S_POD_INFRA_C
 $env:CNI_ARGS=$k8sargs
 $env:CNI_IFNAME='eth0'
 
-'''
+<#
 usage:
 .\invoke-cni.ps1 <container_name> <namespace> <container_id> [ADD/DEL] <dns_array> <dns_suffix>
 <dns_array> - values should be quoted and comma separated
 <dns_suffix> - values should be quoted and comma separated
-'''
+eg: .\cni.ps1 container1 default 01fb3472a90a2ee282b8f15665bd38dc76100922fc7c9c5dd689f578231c9b97 ADD '"1.2.3.4"' '"asd.net"'
+#>
 
 #read conflist and extract plugin component
 if ($confPath -eq "") {
