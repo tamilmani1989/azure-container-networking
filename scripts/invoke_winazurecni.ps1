@@ -1,3 +1,4 @@
+#This script  is to invoke cni for windows containers. It has an option to configure dns via cni.
 Param(
 	[parameter(Mandatory=$true)]
 	[string] $containerName,
@@ -15,8 +16,10 @@ Param(
 	[string] $dns,
 
 	[parameter (Mandatory=$false)]
-	[string] $dnssuffix
+	[string] $dnssuffix,
 
+	[parameter (Mandatory=$false)]
+	[string] $confPath
 
 )
 
@@ -38,23 +41,40 @@ usage:
 <dns_suffix> - values should be quoted and comma separated
 '''
 
-$content = Get-Content -Raw -Path C:\k\azurecni\netconf\10-azure.conflist
+#read conflist and extract plugin component
+if ($confPath -eq "") {
+	$confPath="C:\k\azurecni\netconf\10-azure.conflist"
+}
+$content = Get-Content -Raw -Path $confPath
+
 $jobj = ConvertFrom-Json $content
 $plugin=$jobj.plugins[0]
+
+# add name and version in plugin section
 $plugin|add-member -Name "name" -Value $jobj.name -MemberType Noteproperty
 $plugin|add-member -Name "cniVersion" -Value $jobj.cniVersion -MemberType Noteproperty
+
+#remove array datatype as it adds name and value by default
 $arrayDataType = get-TypeData  System.Array
 Remove-TypeData  System.Array
 
-
+#add dnsserver and dnssuffix(searches) as runtimeconfig parameters
 if ($dns -ne "" -Or $dnssuffix -ne "") {
 	$dnsjson = "[" + $dns + "]"
 	$serverarray = convertfrom-json $dnsjson
-	$dnsobj = New-Object -TypeName PSObject
-	$dnsobj|add-member -Name "servers" -Value $serverarray -MemberType Noteproperty
+	$configobj = New-Object -TypeName PSObject
+	# add servers array to config object
+	$configobj|add-member -Name "servers" -Value $serverarray -MemberType Noteproperty
 	$dnssuffixjson = "[" + $dnssuffix + "]"
 	$searcharray = convertfrom-json $dnssuffixjson
-	$dnsobj|add-member -Name "searches" -Value $searcharray -MemberType Noteproperty
+	# add searches array to config object
+	$configobj|add-member -Name "searches" -Value $searcharray -MemberType Noteproperty
+
+	# add config object child of dns object
+	$dnsobj = New-Object -TypeName PSObject
+	$dnsobj|add-member -Name "dns" -Value $configobj -MemberType Noteproperty
+
+	# add dns object as child to plugin object
 	$plugin|add-member -Name "runtimeConfig" -Value $dnsobj -MemberType Noteproperty
 }
 
@@ -62,4 +82,5 @@ $jsonconfig=ConvertTo-Json $plugin -Depth 6
 echo $jsonconfig
 $res=(echo $jsonconfig | azure-vnet)
 echo $res
+#restore the array datatype
 Update-TypeData -TypeData $arrayDataType
