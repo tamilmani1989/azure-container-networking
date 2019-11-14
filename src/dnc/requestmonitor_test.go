@@ -444,7 +444,9 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 	// stop CNS here and promote NC state after termination fails
 	cnsServer.TearDownSuite()
 	deleteResource(t, ncURL, http.StatusOK)
-	if WaitForResourceCleanup(t, ncURL, 4) {
+	// Wait of 10 seconds is needed because unpublish via CNS will timeout after 5 seconds and then
+	// will unpublish via DNC node. 5 more seconds for disassociate to time out
+	if WaitForResourceCleanup(t, ncURL, 10) {
 		t.Fatalf("We should not be able to clean up NC yet")
 	}
 
@@ -1318,6 +1320,16 @@ type CnsNumOfCPUCoresResponse struct {
 	NumOfCoresResponse *cns.NumOfCPUCoresResponse
 }
 
+type CnsPublishNetworkContainerResponse struct {
+	HTTPStatus        int
+	PublishNCResponse *cns.PublishNetworkContainerResponse
+}
+
+type CnsUnpublishNetworkContainerResponse struct {
+	HTTPStatus          int
+	UnpublishNCResponse *cns.UnpublishNetworkContainerResponse
+}
+
 type GetNetworkResponse struct {
 	SignalInfo      SignalInfo
 	HTTPStatus      int
@@ -1344,6 +1356,8 @@ type CnsResponderContext struct {
 	T                        *testing.T
 	CreateOrUpdateNCResponse *CnsCreateOrUpdateNCResponse
 	DeleteNCResponse         *CnsDeleteNCResponse
+	PublishNCResponse        *CnsPublishNetworkContainerResponse
+	UnpublishNCResponse      *CnsUnpublishNetworkContainerResponse
 	NumOfCoresResponse       *CnsNumOfCPUCoresResponse
 	NCDeploymentRequest      *NCDeploymentRequest
 }
@@ -1392,6 +1406,24 @@ func generateDefaultCnsResponderContextMap(t *testing.T, ncDeploymentRequests []
 			Response: cns.Response{
 				ReturnCode: 0,
 				Message:    "Successfully deleted NC"}}
+		cnsPublishNCResponse := &cns.PublishNetworkContainerResponse{
+			Response: cns.Response{
+				ReturnCode: 0,
+				Message:    "",
+			},
+			PublishErrorStr:     "",
+			PublishStatusCode:   http.StatusOK,
+			PublishResponseBody: make([]byte, 1),
+		}
+		cnsUnpublishNCResponse := &cns.UnpublishNetworkContainerResponse{
+			Response: cns.Response{
+				ReturnCode: 0,
+				Message:    "",
+			},
+			UnpublishErrorStr:     "",
+			UnpublishStatusCode:   http.StatusOK,
+			UnpublishResponseBody: make([]byte, 1),
+		}
 
 		context.CreateOrUpdateNCResponse = &CnsCreateOrUpdateNCResponse{
 			HTTPStatus: http.StatusOK,
@@ -1410,6 +1442,16 @@ func generateDefaultCnsResponderContextMap(t *testing.T, ncDeploymentRequests []
 				CurrentSignalCount: 0},
 			DeleteNCResponse:        cnsDeleteNCResponse,
 			ExpectedDeleteNCRequest: nil}
+
+		context.PublishNCResponse = &CnsPublishNetworkContainerResponse{
+			HTTPStatus:        http.StatusOK,
+			PublishNCResponse: cnsPublishNCResponse,
+		}
+
+		context.UnpublishNCResponse = &CnsUnpublishNetworkContainerResponse{
+			HTTPStatus:          http.StatusOK,
+			UnpublishNCResponse: cnsUnpublishNCResponse,
+		}
 
 		cnsRespoonderContextMap["Swift_"+ncDeploymentRequest.NCID] = context
 	}
@@ -1764,6 +1806,61 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 		}
 	}
 
+	if strings.Contains(r.RequestURI, "unpublishnetworkcontainer") &&
+		r.Method == "POST" {
+		var ncRequest cns.UnpublishNetworkContainerRequest
+		json.NewDecoder(r.Body).Decode(&ncRequest)
+		fmt.Printf("NC Request:%+v \n", ncRequest)
+		cnsContextLock.RLock()
+		cnsResponderContext, ok := cnsResponderContextMap["Swift_"+ncRequest.NetworkContainerID]
+		cnsContextLock.RUnlock()
+		if !ok {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(cnsResponderContext.UnpublishNCResponse.HTTPStatus)
+		// Generate UnpublishNCResponse
+		var deleteNCResponse nmagentcontracts.DeleteNetworkContainerResponse
+		// Induce error in response
+		if induceError(induceErrorPercent) {
+			fmt.Println("Inducing error for deleteNC from nmagent")
+			deleteNCResponse.ResponseCode = "401" // Authentication error
+		} else {
+			deleteNCResponse.ResponseCode = "200"
+		}
+		cnsResponderContext.UnpublishNCResponse.UnpublishNCResponse.UnpublishStatusCode = http.StatusOK
+		unpublishResponseBody, _ := json.Marshal(deleteNCResponse)
+		cnsResponderContext.UnpublishNCResponse.UnpublishNCResponse.UnpublishResponseBody = unpublishResponseBody
+		json.NewEncoder(w).Encode(cnsResponderContext.UnpublishNCResponse.UnpublishNCResponse)
+	} else if strings.Contains(r.RequestURI, "publishnetworkcontainer") &&
+		r.Method == "POST" {
+		var ncRequest cns.PublishNetworkContainerRequest
+		json.NewDecoder(r.Body).Decode(&ncRequest)
+		fmt.Printf("NC Request:%+v \n", ncRequest)
+		cnsContextLock.RLock()
+		cnsResponderContext, ok := cnsResponderContextMap["Swift_"+ncRequest.NetworkContainerID]
+		cnsContextLock.RUnlock()
+		if !ok {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(cnsResponderContext.PublishNCResponse.HTTPStatus)
+		// Generate PublishNCResponse
+		var putNCResponse nmagentcontracts.CreateNetworkContainerResponse
+		// Induce error in response
+		if induceError(induceErrorPercent) {
+			fmt.Println("Inducing error for putNC from nmagent")
+			putNCResponse.ResponseCode = "401" // Authentication error
+		} else {
+			putNCResponse.ResponseCode = "200"
+		}
+		putNCResponse.Version = "1"
+		cnsResponderContext.PublishNCResponse.PublishNCResponse.PublishStatusCode = http.StatusOK
+		publishResponseBody, _ := json.Marshal(putNCResponse)
+		cnsResponderContext.PublishNCResponse.PublishNCResponse.PublishResponseBody = publishResponseBody
+		json.NewEncoder(w).Encode(cnsResponderContext.PublishNCResponse.PublishNCResponse)
+	}
 }
 
 func GetNetworkStatus(t *testing.T, resourceStatusURL string, expectedStatusCode int) string {

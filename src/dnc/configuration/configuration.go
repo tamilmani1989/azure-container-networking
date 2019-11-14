@@ -108,6 +108,8 @@ type CNSConnectionStrings struct {
 	SetOrchestratorTypeURLFmt            string
 	GetNetworkcontainerstatusURLFmt      string
 	GetNumOfCPUCoresURLFmt               string
+	PublishNetworkContainerURLFmt        string
+	UnpublishNetworkContainerURLFmt      string
 }
 
 // CNSSettings CNS settings

@@ -11,7 +11,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:bede9d27b42b128e713208837912d336f7da1f6eb21d39aa0333838d27b12401"
+  digest = "1:f5192c77d44b97e28e03f306317d76d4e7fc175ff2fbe1d85f405a77edd7a8e6"
   name = "github.com/Azure/azure-container-networking"
   packages = [
     "aitelemetry",
@@ -24,6 +24,7 @@
     "cns/imdsclient",
     "cns/ipamclient",
     "cns/networkcontainers",
+    "cns/nmagentclient",
     "cns/restserver",
     "cns/routes",
     "common",
@@ -35,7 +36,7 @@
     "telemetry",
   ]
   pruneopts = "UT"
-  revision = "19720a1a971bf2699fe6516c44994da4751f6da5"
+  revision = "cd236e1f59516d613a66169e1ad7c44d989cf17f"
 
 [[projects]]
   branch = "master"
@@ -246,6 +247,7 @@
   input-imports = [
     "github.com/Azure/azure-container-networking/aitelemetry",
     "github.com/Azure/azure-container-networking/cns",
+    "github.com/Azure/azure-container-networking/cns/restserver",
     "github.com/Azure/azure-container-networking/log",
     "github.com/Azure/azure-container-networking/platform",
     "github.com/Azure/azure-container-networking/telemetry",

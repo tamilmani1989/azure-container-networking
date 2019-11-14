@@ -34,7 +34,9 @@
             "GetNetworkContainerStatusURLFmt": "http://%s:10090/network/getnetworkcontainerstatus",
             "SetOrchestratorTypeURLFmt" : "http://%s:10090/network/setorchestratortype",
             "GetNetworkcontainerstatusURLFmt":"http://%s:10090/network/getnetworkcontainerstatus",
-            "GetNumOfCPUCoresURLFmt":"http://%s:10090/hostcpucores"
+            "GetNumOfCPUCoresURLFmt":"http://%s:10090/hostcpucores",
+            "PublishNetworkContainerURLFmt" : "http://%s:10090/network/publishnetworkcontainer",
+            "UnpublishNetworkContainerURLFmt" : "http://%s:10090/network/unpublishnetworkcontainer"
         }
     },
     "VlanSettings":{

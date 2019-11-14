@@ -11,6 +11,7 @@ import (
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/cns"
+	"github.com/Azure/azure-container-networking/cns/restserver"
 	"github.com/google/uuid"
 )
 
@@ -36,6 +38,7 @@ const (
 	localIPSubnetPrefixLength             = 17
 	unauthorizedErrRetryDurationSec       = 60
 	defaultMaxConcurrentRequestsToProcess = 1000
+	defaultContentType                    = "application/json; charset=UTF-8"
 )
 
 func getSessionInfo(request *datamodel.RequestContext) map[string]string {
@@ -116,24 +119,17 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 	}
 }
 
-// Post request to host agentg to express the intent for joining a network.
+// Decode the response received for join network request.
 // Returns IsRetirbale, optional error if any, isThrottled
-func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, bool) {
-	joinURL := fmt.Sprintf(
-		config.HostAgentSettings.ConnectionStrings.JoinNetworkURLFmt,
-		config.HostAgentSettings.WireServerIP,
-		networkID)
-
-	loggershim.LS.Debugf("[NMAgent] joining network [%s]", networkID)
-	// Empty body is required as wireserver cannot handle a post without the body.
-	var body bytes.Buffer
-	json.NewEncoder(&body).Encode("")
-	joinResponse, joinRespErr := httpClient.Post(joinURL, "application/json", &body)
-	if joinRespErr != nil {
+func decodeNetworkJoinResponse(
+	networkID string,
+	joinResponse *http.Response,
+	joinErr error) (bool, *api.JsonErr, bool) {
+	if joinErr != nil {
 		msg := fmt.Sprintf(
 			"Join for network [%s] failed with reponse error [%s]. Marking this error as retriable",
 			networkID,
-			joinRespErr.Error())
+			joinErr.Error())
 		return true, &api.JsonErr{
 			Code:       api.JoinDenied,
 			Text:       msg,
@@ -171,6 +167,23 @@ func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, boo
 	}
 
 	return false, nil, false
+}
+
+// Post request to host nmagent to express the intent for joining a network.
+// Returns IsRetriable, optional error if any, isThrottled
+func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, bool) {
+	joinURL := fmt.Sprintf(
+		config.HostAgentSettings.ConnectionStrings.JoinNetworkURLFmt,
+		config.HostAgentSettings.WireServerIP,
+		networkID)
+
+	loggershim.LS.Debugf("[NMAgent] joining network [%s]", networkID)
+	// Empty body is required as wireserver cannot handle a post without the body.
+	var body bytes.Buffer
+	json.NewEncoder(&body).Encode("")
+	joinResponse, joinRespErr := httpClient.Post(joinURL, "application/json", &body)
+
+	return decodeNetworkJoinResponse(networkID, joinResponse, joinRespErr)
 }
 
 // Retrieve network configuration from host agent.
@@ -1315,7 +1328,7 @@ func processNetworkContainerAssociate(
 	sessionManager.EndWriteSession(sessionInfo)
 
 	logger.Debugf("[CNS] create/update NC %s", ncGoalState.NetworkContainerID)
-	w, respErr := httpClient.Post(createOrUpdateNCURL, "application/json; charset=utf-8", &body)
+	w, respErr := httpClient.Post(createOrUpdateNCURL, defaultContentType, &body)
 
 	// Reacquire the session locks post calling in to cns
 	sessionManager.BeginWriteSession(sessionInfo)
@@ -1382,7 +1395,9 @@ func processNetworkContainerAssociate(
 		repoNCConfig.State = retrievedRepoNCConfig.State
 	}
 
-	if resp.Response.ReturnCode != 0 {
+	// If the NC gets marked for delete while calling CNS, in case of error that request needs to be
+	// marked as retriable error to avoid losing it and delete NC getting stuck
+	if resp.Response.ReturnCode != 0 && !repoNCConfig.MarkedForDelete {
 		msg := fmt.Sprintf("Associate NC %v to node %v failed with response %+v",
 			ncGoalState.NetworkContainerID,
 			ncGoalState.NodeInterfaceID,
@@ -1536,6 +1551,7 @@ func sendNCMetric(
 
 func processNetworkContainerPublish(
 	repoNCConfig *datamodel.NCConfiguration,
+	sessionInfo map[string]string,
 	stateTransitionDateTime time.Time,
 	createdDateTime time.Time) (bool, *api.JsonErr) {
 	ncState := "Container" + repoNCConfig.State.String()
@@ -1560,7 +1576,14 @@ func processNetworkContainerPublish(
 		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
-	var body bytes.Buffer
+	var (
+		resp               *http.Response
+		respErr            error
+		body               bytes.Buffer
+		publishViaCNS      bool
+		publishViaCNSError bool
+	)
+
 	var ncRequest nmagentcontracts.CreateOrUpdateNetworkContainerRequest
 	ncRequest.IPV4Addresses = make([]string, 1)
 	ncRequest.IPV4Addresses[0] = strings.Split(ncGoalState.AllocatedIPSubnet, "/")[0]
@@ -1578,9 +1601,139 @@ func processNetworkContainerPublish(
 		ncGoalState.AssociatedInterfaceID,
 		ncGoalState.NetworkContainerID,
 		ncGoalState.AccessToken)
-	logger.Debugf("[NMAgent] %s, body:%s", ncGoalState.NetworkContainerID, ncRequest.String())
 
-	resp, respErr := httpClient.Post(createNCURL, "application/json", &body)
+	if config.CNSSettings.ConnectionStrings.PublishNetworkContainerURLFmt != "" {
+		publishViaCNS = true
+	}
+
+	logger.Debugf("[NMAgent] Creating NC: %s, publishViaCNS: %t, body:%s",
+		ncGoalState.NetworkContainerID, publishViaCNS, ncRequest.String())
+
+	if publishViaCNS {
+		// Publish NC through CNS. CNS typically runs on the worker node and this path helps
+		// minimize the wireserver throttling.
+		// Create JoinNetworkURL
+		joinNetworkURL := fmt.Sprintf(
+			config.HostAgentSettings.ConnectionStrings.JoinNetworkURLFmt,
+			config.HostAgentSettings.WireServerIP,
+			ncGoalState.NetworkID)
+
+		publishNCRequest := &cns.PublishNetworkContainerRequest{
+			NetworkID:                         ncGoalState.NetworkID,
+			NetworkContainerID:                ncGoalState.NetworkContainerID,
+			JoinNetworkURL:                    joinNetworkURL,
+			CreateNetworkContainerURL:         createNCURL,
+			CreateNetworkContainerRequestBody: body.Bytes(),
+		}
+
+		var publishNCRequestBody bytes.Buffer
+		json.NewEncoder(&publishNCRequestBody).Encode(publishNCRequest)
+
+		publishNCURL := fmt.Sprintf(
+			config.CNSSettings.ConnectionStrings.PublishNetworkContainerURLFmt,
+			ncGoalState.NodeInterfaceID)
+
+		logger.Debugf("[CNS] Publish NC %s, body:%s", ncGoalState.NetworkContainerID, ncRequest.String())
+		// Release the session locks before making call to CNS
+		sessionManager.EndWriteSession(sessionInfo)
+
+		respPublishCNS, respPublishCNSErr :=
+			httpClient.Post(publishNCURL, defaultContentType, &publishNCRequestBody)
+
+		// Reacquire the session locks after receiving response from CNS
+		sessionManager.BeginWriteSession(sessionInfo)
+
+		var httpNetError bool
+		if respPublishCNSErr != nil {
+			// Return as retriable error if the error is not http network error.
+			// If the error is http network error, publish NC will be done from the DNC node
+			if _, httpNetError = respPublishCNSErr.(net.Error); !httpNetError {
+				return false, &api.JsonErr{
+					Code: api.PublishingFailed,
+					Text: fmt.Sprintf("Failed to publish NC %s via CNS. Error: %s",
+						ncGoalState.NetworkContainerID, respPublishCNSErr.Error()),
+					HTTPStatus: http.StatusInternalServerError}
+			}
+		} else {
+			// Close the response body if the error is nil
+			defer respPublishCNS.Body.Close()
+		}
+
+		// Check if CNS used doesn't support the API
+		var apiNotSupportedInCNS bool
+		if respPublishCNS != nil && respPublishCNS.StatusCode == http.StatusNotFound {
+			apiNotSupportedInCNS = true
+		}
+
+		// If HTTP call to CNS returns network error or if the API is not supported by CNS,
+		// set the flag to publish NC from DNC node
+		if httpNetError || apiNotSupportedInCNS {
+			publishViaCNSError = true
+			logger.Debugf("[CNS] Publish via CNS failed. httpNetError: %t, apiNotSupportedInCNS: %t "+
+				"Publishing NC: %s from DNC node", httpNetError, apiNotSupportedInCNS, ncGoalState.NetworkContainerID)
+		}
+
+		// Proceed with decoding if there is no fatal error with publishing via CNS
+		if !publishViaCNSError {
+			var publishNCResponse cns.PublishNetworkContainerResponse
+			if decodeRespErr := utils.DecodeResponse(respPublishCNS, &publishNCResponse); decodeRespErr != nil {
+				msg := fmt.Sprintf("Failed to decode publish NC %s response. Error: %s",
+					repoNCConfig.NetworkContainerID,
+					decodeRespErr.Error())
+				return false, &api.JsonErr{
+					Code:       api.DecodeResponseFailed,
+					Text:       msg,
+					HTTPStatus: http.StatusInternalServerError}
+			}
+
+			logger.Debugf("[CNS][Response] Publish NC %s, %+v", ncGoalState.NetworkContainerID, publishNCResponse)
+
+			// Construct response error and response from PublishNetworkContainerResponse received from CNS.
+			if publishNCResponse.PublishErrorStr != "" {
+				respErr = fmt.Errorf(publishNCResponse.PublishErrorStr)
+			}
+
+			resp = &http.Response{
+				StatusCode: publishNCResponse.PublishStatusCode,
+				Body:       ioutil.NopCloser(bytes.NewBuffer(publishNCResponse.PublishResponseBody)),
+			}
+
+			// If the network publish failed, decode the response and return the error
+			if publishNCResponse.Response.ReturnCode == restserver.NetworkJoinFailed {
+				logger.Errorf("[CNS] Publish NC %s failed due to network join error. HttpStatusCode: %d, Error: %s",
+					ncGoalState.NetworkContainerID, publishNCResponse.PublishStatusCode, publishNCResponse.PublishErrorStr)
+
+				isRetriable, errJoinNetwork, _ := decodeNetworkJoinResponse(ncGoalState.NetworkID, resp, respErr)
+				return !isRetriable, errJoinNetwork // !isRetriable indicates not to remove request from pending queue
+			}
+
+			// If the error is unexpected failure, mark this as retriable error
+			if publishNCResponse.Response.ReturnCode == restserver.UnexpectedError {
+				msg := fmt.Sprintf("Failed to publish NC %s via CNS. Error: %s",
+					repoNCConfig.NetworkContainerID,
+					publishNCResponse.Response.Message)
+				return false, &api.JsonErr{
+					Code:       api.PublishingFailed,
+					Text:       msg,
+					HTTPStatus: http.StatusInternalServerError}
+			}
+		}
+	}
+
+	// If the publish from CNS is not supported or if the publish call to CNS returned http network error,
+	// publish the NC from the DNC node.
+	if !publishViaCNS || publishViaCNSError {
+		// Release the session locks before making call to NMAgent
+		sessionManager.EndWriteSession(sessionInfo)
+
+		// If the API to publish NC through CNS is not supported / used in the config file,
+		// publish the NC by making the call to NMAgent on the same host as DNC
+		resp, respErr = httpClient.Post(createNCURL, "application/json", &body)
+
+		// Reacquire the session locks after receiving response from NMAgent
+		sessionManager.BeginWriteSession(sessionInfo)
+	}
+
 	if respErr != nil {
 		return false, &api.JsonErr{
 			Code:       api.PublishingFailed,
@@ -1611,7 +1764,9 @@ func processNetworkContainerPublish(
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	logger.Debugf("[NMAgent][Response] %s", createNetworkContainerResponse.String())
+	logger.Debugf("[NMAgent][Response] %s, publishViaCNS: %t",
+		createNetworkContainerResponse.String(), publishViaCNS)
+
 	putNCResponseCode, parseErr := strconv.ParseInt(createNetworkContainerResponse.ResponseCode, 10, 32)
 	if parseErr != nil {
 		msg := fmt.Sprintf(
@@ -1624,13 +1779,50 @@ func processNetworkContainerPublish(
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
+	// Retrieve the latest NC configuration as the current copy of the configuration
+	// could have been updated while we were in the process of calling cns.
+	retrievedRepoNCConfig, ncRetrievalErr := datamodel.TryQueryNetworkContainer(
+		ncGoalState.NetworkID,
+		ncGoalState.NetworkContainerID)
+	if ncRetrievalErr != nil {
+		msg := fmt.Sprintf(
+			"Publish NC %v failed with error %s",
+			ncGoalState.NetworkContainerID,
+			ncRetrievalErr.String())
+		return false, &api.JsonErr{
+			Code:       api.PublishingFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	if retrievedRepoNCConfig == nil {
+		msg := fmt.Sprintf(
+			"Publish NC %v failed as NC configuration was not found",
+			ncGoalState.NetworkContainerID)
+		return true, &api.JsonErr{
+			Code:       api.PublishingFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	// Copy over the delete flag as NC could have been deleted while calling CNS / NMAgent for publish.
+	repoNCConfig.MarkedForDelete = retrievedRepoNCConfig.MarkedForDelete
+
+	// If the NC is marked for deletion, copy the state as it could have been changed too
+	if repoNCConfig.MarkedForDelete {
+		repoNCConfig.State = retrievedRepoNCConfig.State
+	}
+
 	if putNCResponseCode != http.StatusOK {
 		// If the response code is authentication failure, retry the request for the preset duration.
 		// If authentication failure is still seen fail the request
 		// This workaround is needed because sometimes there is a latency in sending the new authentication token
 		// to pubsub. This workaround hides that till the latency is addressed.
+		// If the NC gets marked for delete while calling CNS / NMAgent, in case of error that request needs to be
+		// marked as retriable error to avoid losing it and delete NC getting stuck
 		if putNCResponseCode == http.StatusUnauthorized {
-			if time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec {
+			if (time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec) ||
+				repoNCConfig.MarkedForDelete {
 				msg := fmt.Sprintf("Create NC %s pending. Response code: %d, time elapsed: %.0f sec",
 					repoNCConfig.NetworkContainerID,
 					putNCResponseCode,
@@ -1663,7 +1855,9 @@ func processNetworkContainerPublish(
 			HTTPStatus: int(putNCResponseCode)}
 	}
 
-	repoNCConfig.State = datamodel.Program
+	if repoNCConfig.State == datamodel.Publish {
+		repoNCConfig.State = datamodel.Program
+	}
 	repoNCConfig.Status = datamodel.Pending
 
 	creationTimeMs := time.Since(createdDateTime).Milliseconds()
@@ -1673,7 +1867,10 @@ func processNetworkContainerPublish(
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
-func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
+func processNetworkContainerUnPublish(
+	repoNCConfig *datamodel.NCConfiguration,
+	sessionInfo map[string]string,
+	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	ncState := "Container" + repoNCConfig.State.String()
 	defer utils.RecordTime(stateTransitionDateTime, ncState, repoNCConfig.NetworkContainerID)
 
@@ -1696,8 +1893,15 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration, s
 		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
+	var (
+		resp                 *http.Response
+		respErr              error
+		body                 bytes.Buffer
+		unpublishViaCNS      bool
+		unpublishViaCNSError bool
+	)
+
 	// Empty body is required as wireserver cannot handle a post without the body.
-	var body bytes.Buffer
 	json.NewEncoder(&body).Encode("")
 	deleteNCURL := fmt.Sprintf(
 		config.HostAgentSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
@@ -1705,9 +1909,139 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration, s
 		ncGoalState.AssociatedInterfaceID,
 		ncGoalState.NetworkContainerID,
 		ncGoalState.AccessToken)
-	logger.Debugf("[NMAgent] deleting NC %s", ncGoalState.NetworkContainerID)
 
-	resp, respErr := httpClient.Post(deleteNCURL, "application/json", &body)
+	if config.CNSSettings.ConnectionStrings.UnpublishNetworkContainerURLFmt != "" {
+		unpublishViaCNS = true
+	}
+
+	logger.Debugf("[NMAgent] deleting NC %s, unpublishViaCNS: %t",
+		ncGoalState.NetworkContainerID, unpublishViaCNS)
+
+	if unpublishViaCNS {
+		// Unpublish NC through CNS. CNS typically runs on the worker node and this path helps
+		// minimize the wireserver throttling.
+		// Create JoinNetworkURL
+		joinNetworkURL := fmt.Sprintf(
+			config.HostAgentSettings.ConnectionStrings.JoinNetworkURLFmt,
+			config.HostAgentSettings.WireServerIP,
+			ncGoalState.NetworkID)
+
+		unpublishNCRequest := &cns.UnpublishNetworkContainerRequest{
+			NetworkID:                 ncGoalState.NetworkID,
+			NetworkContainerID:        ncGoalState.NetworkContainerID,
+			JoinNetworkURL:            joinNetworkURL,
+			DeleteNetworkContainerURL: deleteNCURL,
+		}
+
+		var unpublishNCRequestBody bytes.Buffer
+		json.NewEncoder(&unpublishNCRequestBody).Encode(unpublishNCRequest)
+
+		unpublishNCURL := fmt.Sprintf(
+			config.CNSSettings.ConnectionStrings.UnpublishNetworkContainerURLFmt,
+			ncGoalState.NodeInterfaceID)
+
+		logger.Debugf("[CNS] Unpublish NC %s", ncGoalState.NetworkContainerID)
+		// Release the session locks before making call to NMAgent
+		sessionManager.EndWriteSession(sessionInfo)
+
+		respUnpublishCNS, respUnpublishCNSErr :=
+			httpClient.Post(unpublishNCURL, defaultContentType, &unpublishNCRequestBody)
+
+		// Reacquire the session locks after receiving response from NMAgent
+		sessionManager.BeginWriteSession(sessionInfo)
+
+		var httpNetError bool
+		if respUnpublishCNSErr != nil {
+			// Return as retriable error if the error is not http network error.
+			// If the error is http network error, unpublish NC will be done from the DNC node
+			_, httpNetError = respUnpublishCNSErr.(net.Error)
+			if !httpNetError {
+				return false, &api.JsonErr{
+					Code: api.UnpublishingFailed,
+					Text: fmt.Sprintf("Failed to unpublish NC %s via CNS. Error: %s",
+						ncGoalState.NetworkContainerID, respUnpublishCNSErr.Error()),
+					HTTPStatus: http.StatusInternalServerError}
+			}
+		} else {
+			// Close the response body if the error is nil
+			defer respUnpublishCNS.Body.Close()
+		}
+
+		// Check if CNS used doesn't support the API
+		var apiNotSupportedInCNS bool
+		if respUnpublishCNS != nil && respUnpublishCNS.StatusCode == http.StatusNotFound {
+			apiNotSupportedInCNS = true
+		}
+
+		// If HTTP call to CNS returns network error or if the API is not supported by CNS,
+		// set the flag to unpublish NC from DNC node
+		if httpNetError || apiNotSupportedInCNS {
+			unpublishViaCNSError = true
+			logger.Debugf("[CNS] Unpublish via CNS failed. httpNetError: %t, apiNotSupportedInCNS: %t "+
+				"Unpublishing NC: %s from DNC node", httpNetError, apiNotSupportedInCNS, ncGoalState.NetworkContainerID)
+		}
+
+		// Proceed with decoding if there is no fatal error with unpublishing via CNS
+		if !unpublishViaCNSError {
+			var unpublishNCResponse cns.UnpublishNetworkContainerResponse
+			if decodeRespErr := utils.DecodeResponse(respUnpublishCNS, &unpublishNCResponse); decodeRespErr != nil {
+				msg := fmt.Sprintf("Failed to decode unpublish NC %s response. Error: %s",
+					repoNCConfig.NetworkContainerID,
+					decodeRespErr.Error())
+				return false, &api.JsonErr{
+					Code:       api.DecodeResponseFailed,
+					Text:       msg,
+					HTTPStatus: http.StatusInternalServerError}
+			}
+
+			logger.Debugf("[CNS][Response] Unpublish NC %s, %+v", ncGoalState.NetworkContainerID, unpublishNCResponse)
+
+			// Construct response error and response from UnpublishNetworkContainerResponse received from CNS.
+			if unpublishNCResponse.UnpublishErrorStr != "" {
+				respErr = fmt.Errorf(unpublishNCResponse.UnpublishErrorStr)
+			}
+
+			resp = &http.Response{
+				StatusCode: unpublishNCResponse.UnpublishStatusCode,
+				Body:       ioutil.NopCloser(bytes.NewBuffer(unpublishNCResponse.UnpublishResponseBody)),
+			}
+
+			// If the network publish failed, decode the response and return the error
+			if unpublishNCResponse.Response.ReturnCode == restserver.NetworkJoinFailed {
+				logger.Errorf("[CNS] Unpublish NC %s failed due to network join error. HttpStatusCode: %d, Error: %s",
+					ncGoalState.NetworkContainerID, unpublishNCResponse.UnpublishStatusCode, unpublishNCResponse.UnpublishErrorStr)
+
+				isRetriable, errJoinNetwork, _ := decodeNetworkJoinResponse(ncGoalState.NetworkID, resp, respErr)
+				return !isRetriable, errJoinNetwork // !isRetriable indicates not to remove request from pending queue
+			}
+
+			// If the error is unexpected failure, mark this as retriable error
+			if unpublishNCResponse.Response.ReturnCode == restserver.UnexpectedError {
+				msg := fmt.Sprintf("Failed to unpublish NC %s via CNS. Error: %s",
+					repoNCConfig.NetworkContainerID,
+					unpublishNCResponse.Response.Message)
+				return false, &api.JsonErr{
+					Code:       api.UnpublishingFailed,
+					Text:       msg,
+					HTTPStatus: http.StatusInternalServerError}
+			}
+		}
+	}
+
+	// If the unpublish from CNS is not supported or if the unpublish call to CNS returned http network error,
+	// unpublish the NC from the DNC node.
+	if !unpublishViaCNS || unpublishViaCNSError {
+		// Release the session locks before making call to NMAgent
+		sessionManager.EndWriteSession(sessionInfo)
+
+		// If the API to unpublish NC through CNS is not supported / used in the config file,
+		// unpublish the NC by making the call to NMAgent on the same host as DNC
+		resp, respErr = httpClient.Post(deleteNCURL, "application/json", &body)
+
+		// Reacquire the session locks after receiving response from NMAgent
+		sessionManager.BeginWriteSession(sessionInfo)
+	}
+
 	if respErr != nil {
 		return false, &api.JsonErr{
 			Code: api.UnpublishingFailed,
@@ -1739,9 +2073,11 @@ func processNetworkContainerUnPublish(repoNCConfig *datamodel.NCConfiguration, s
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	logger.Debugf("[NMAgent][Response] %s for NC: %s",
+	logger.Debugf("[NMAgent][Response] %s for NC: %s, unpublishViaCNS: %t",
 		deleteNCResponse.String(),
-		repoNCConfig.NetworkContainerID)
+		repoNCConfig.NetworkContainerID,
+		unpublishViaCNS)
+
 	deleteNCResponseCode, parseErr := strconv.ParseInt(deleteNCResponse.ResponseCode, 10, 64)
 	if parseErr != nil {
 		msg := fmt.Sprintf(
@@ -1876,13 +2212,13 @@ func processNetworkContainerRequest(
 			removeRequestFromPendingQueue, err = processNetworkContainerAssociate(repoNCConfig, sessionInfo, stateTransitionDateTime)
 
 		case datamodel.Publish:
-			removeRequestFromPendingQueue, err = processNetworkContainerPublish(repoNCConfig, stateTransitionDateTime, createdDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerPublish(repoNCConfig, sessionInfo, stateTransitionDateTime, createdDateTime)
 
 		case datamodel.Program:
 			removeRequestFromPendingQueue, err = processNetworkContainerProgram(repoNCConfig, createdDateTime)
 
 		case datamodel.UnPublish:
-			removeRequestFromPendingQueue, err = processNetworkContainerUnPublish(repoNCConfig, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerUnPublish(repoNCConfig, sessionInfo, stateTransitionDateTime)
 
 		case datamodel.DisAssociate:
 			removeRequestFromPendingQueue, err = processNetworkContainerDisAssociate(repoNCConfig, sessionInfo, stateTransitionDateTime)
