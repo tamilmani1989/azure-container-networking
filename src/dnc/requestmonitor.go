@@ -34,7 +34,6 @@ const (
 	// NMAgent using 169.254.0.0 to 169.254.3.255. So allocating a range not conflicting with that.
 	localIPSubnetAddressString            = "169.254.128.0/17"
 	imdsIPSubnetString                    = "169.254.169.254/32"
-	localIPGatewayString                  = "169.254.128.1"
 	localIPSubnetPrefixLength             = 17
 	unauthorizedErrRetryDurationSec       = 60
 	defaultMaxConcurrentRequestsToProcess = 1000
@@ -1176,6 +1175,18 @@ func hasTagsChanged(resolvedTags map[string]datamodel.TagDefinition, currentTags
 	return false
 }
 
+func getLocalIPGateway(ipsubnet string) (string, error) {
+	_, ipNet, err := net.ParseCIDR(ipsubnet)
+	if err != nil {
+		logger.Errorf("parseCIDR for %v failed %v", ipsubnet, err)
+		return "", err
+	}
+
+	ipstart := utils.IP2Int(ipNet.IP)
+	ipstart = ipstart + 1
+	return utils.Int2IP(ipstart).String(), nil
+}
+
 func processNetworkContainerAssociate(
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string,
@@ -1295,10 +1306,20 @@ func processNetworkContainerAssociate(
 	localIPSubnet := cns.IPSubnet{
 		IPAddress:    ncGoalState.LocalIP,
 		PrefixLength: localIPSubnetPrefixLength}
+	localIPPrefix := fmt.Sprintf("%s/%d", localIPSubnet.IPAddress, localIPSubnet.PrefixLength)
+	localGWIP, err := getLocalIPGateway(localIPPrefix)
+	if err != nil {
+		return false, &api.JsonErr{
+			HTTPStatus: http.StatusInternalServerError,
+			Text:       fmt.Sprintf("getlocalgatewayIP failed: %v", err),
+			Code:       api.StatusInternalServerError,
+		}
+	}
 
 	localIPConfiguaration := cns.IPConfiguration{
 		IPSubnet:         localIPSubnet,
-		GatewayIPAddress: localIPGatewayString}
+		GatewayIPAddress: localGWIP,
+	}
 
 	allowHostToNCCommunicationStatus := repoNCConfig.GetAllowHostToNCCommunicationStatus()
 	allowNCToHostCommunicationStatus := repoNCConfig.GetAllowNCToHostCommunicationStatus()

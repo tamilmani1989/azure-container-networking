@@ -3226,7 +3226,7 @@ func DeployNetworkContainers(
 					return false
 				}
 
-				if req.LocalIPConfiguration.GatewayIPAddress != localIPGatewayString || req.LocalIPConfiguration.IPSubnet.PrefixLength != localIPSubnetPrefixLength {
+				if req.LocalIPConfiguration.GatewayIPAddress != "169.254.128.1" || req.LocalIPConfiguration.IPSubnet.PrefixLength != localIPSubnetPrefixLength {
 					return false
 				}
 
