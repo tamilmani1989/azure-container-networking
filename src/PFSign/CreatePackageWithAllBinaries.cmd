@@ -11,5 +11,5 @@ IF %CopyStartBatAndServiceConf% == true (
 xcopy /s /y /h "start.bat" %DES%
 xcopy /s /y /h "ServiceConfig.ini" %DES%
 xcopy /s /y /h "..\HostPluginPackage\NetAgentHostPlugin.PluginSpecific.xml" %DES%
-@powershell -Command "get-content %DES%/NetAgentHostPlugin.PluginSpecific.xml | %%{$_ -replace \"NetAgentGcsRegion\",\"Region\"} > %DES%/PluginSpecificTemplate.xml"
+copy "..\HostPluginPackage\NetAgentHostPlugin.PluginSpecific.xml" %DES%\NetAgentHostPlugin.PluginSpecificTemplate.xml
 )

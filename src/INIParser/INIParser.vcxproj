@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(EnvironmentConfig)" />
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A87C5F5B-67E1-4CEE-A33C-5B1CBA088F6E}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>INIParser</RootNamespace>
+    <OutputPath>INIParser</OutputPath>
+  </PropertyGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>NDEBUG</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="logger\log.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="INIParser.cpp" />
+    <ClCompile Include="logger\log.cpp" />
+  </ItemGroup>
+  <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+   <ItemGroup>
+    <Robocopy Include="$(OutDir)">
+      <DestinationFolder>$(BinariesBuildTypeArchDirectory)\INIParser</DestinationFolder>
+      <IsRecursive>True</IsRecursive>
+    </Robocopy>
+  </ItemGroup>
+</Project>

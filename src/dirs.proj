@@ -35,6 +35,9 @@
     <ProjectFile Include="CodeSignMisc\CodesignSettings.proj" Condition="'$(IsOfficialBuild)' != ''">
       <BuildInParallel>false</BuildInParallel>
     </ProjectFile>
+    <ProjectFile Include="INIParser\INIParser.vcxproj" Condition="'$(QBUILD)'!='1'">
+      <BuildInParallel>false</BuildInParallel>
+    </ProjectFile>
     <ProjectFile Include="NetAgentPackage\NetAgentPackage.proj" Condition="'$(QBUILD)'!='1'">
       <BuildInParallel>false</BuildInParallel>
     </ProjectFile>

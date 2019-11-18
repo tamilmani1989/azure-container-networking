@@ -6,7 +6,7 @@ if exist %ConfigFileFolder% (
     mkdir %ConfigFileFolder%
 )
 
-set ConfigFilePath=%ConfigFileFolder%\\PluginSpecificTemplate.xml
+set ConfigFilePath=%ConfigFileFolder%\\PluginSpecific.xml
 
 :: following code checks if the pluginspecific template has already been populated, else it runs the parser.exe to generate the settings file for HostNetAgent
 
@@ -15,7 +15,7 @@ IF EXIST %ConfigFilePath% (
 ) ELSE (   
     ECHO Running IniParser.exe as below
     ECHO IniParser.exe PluginSpecificFileName OutFileName CloudGroupMappingHeaderFile DcmtFlattenedFile CloudName SharedIni GlobalValuesIni
-    .\\INIParserBinaries\\INIParser\\IniParser.exe -pluginSpecificTemplate .\\PluginSpecificTemplate.xml -pluginSpecificOutfile %ConfigFilePath% -cloudGroupMappingHeaderFile %datadir%\\HostNetAgentDataDeployment\\HostNetAgentDCMT\\CloudGroups.ini.flattened.ini -dcmtSettingsIniFile %datadir%\\HostNetAgentDataDeployment\\HostNetAgentDCMT\\dcmtSettingsHostNetAgent.ini.flattened.ini -inputCloudName %environment% -serviceName HostNetAgent -sharedIni %datadir%\\AutopilotData\\Shared.ini.flattened.ini
+    .\\INIParserBinaries\\IniParser.exe -pluginSpecificTemplate .\\NetAgentHostPlugin.PluginSpecificTemplate.xml -pluginSpecificOutfile %ConfigFilePath% -cloudGroupMappingHeaderFile %datadir%\\HostNetAgentDataDeployment\\HostNetAgentDCMT\\CloudGroups.ini.flattened.ini -dcmtSettingsIniFile %datadir%\\HostNetAgentDataDeployment\\HostNetAgentDCMT\\dcmtSettingsHostNetAgent.ini.flattened.ini -inputCloudName %environment% -serviceName HostNetAgent -sharedIni %datadir%\\AutopilotData\\Shared.ini.flattened.ini
     IF %errorlevel% NEQ 0 (
     ECHO Found issue with IniParser.exe %errorlevel%, exiting
     exit /b

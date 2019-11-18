@@ -8,17 +8,18 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         %(AdditionalIncludeDirectories);
-        $(PkgCloudnet_INIParser);
       </AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
 
   <ItemGroup>
     <ProjectReference Include="$(SrcRoot)\NetAgentPackage\NetAgentPackage.proj"/>
+    <ProjectReference Include="$(SrcRoot)\INIParser\INIParser\INIParser.vcxproj"/>
   </ItemGroup>
 
   <PropertyGroup>
     <InputWithAllBinaries>$(BinariesBuildTypeArchDirectory)\Artifacts\NetAgent</InputWithAllBinaries>
+    <InputWithParserBinaries>$(BinariesBuildTypeArchDirectory)\INIParser</InputWithParserBinaries>
     <AppOutput>$(BinariesBuildTypeArchDirectory)\App\HostNetAgent</AppOutput>
     <ParentPFBits>$(BinariesBuildTypeArchDirectory)\App</ParentPFBits>
     <ModernAPSigning>true</ModernAPSigning>
@@ -51,7 +52,7 @@
    <Target Name="CreatePackageWithAllBinaries" AfterTargets="Build">
     <Message Text="CreatePackageWithAllBinaries started" Importance="high" />  
     <Exec Command="$(MsBuildThisFileDirectory)\CreatePackageWithAllBinaries.cmd $(InputWithAllBinaries) $(AppOutput) $(CopyStartBatAndServiceConf)" />
-    <Exec Command="$(MsBuildThisFileDirectory)\CreatePackageWithAllBinaries.cmd $(PkgCloudnet_INIParser)\lib $(AppOutput)\INIParserBinaries false" />
+    <Exec Command="$(MsBuildThisFileDirectory)\CreatePackageWithAllBinaries.cmd $(InputWithParserBinaries) $(AppOutput)\INIParserBinaries false" />
     <Message Text="CreatePackageWithAllBinaries finished" Importance="high" />
   </Target>
 
