@@ -188,9 +188,25 @@ func main() {
 			tb.Close()
 		}
 
-		//removeOrphanLockFile(platform.CNIRuntimePath + name + ".json" + ".lock")
+		if netPlugin.Plugin.IsSafeToRemoveLock(name) {
+			log.Printf("[CNI] Removing lock file as process holding lock exited.")
+			if errUninit := netPlugin.Plugin.UninitializeKeyValueStore(true); errUninit != nil {
+				log.Errorf("Failed to uninitialize key-value store of network plugin, err:%v.\n", errUninit)
+			}
+		}
+
 		return
 	}
+
+	defer func() {
+		if errUninit := netPlugin.Plugin.UninitializeKeyValueStore(false); errUninit != nil {
+			log.Errorf("Failed to uninitialize key-value store of network plugin, err:%v.\n", errUninit)
+		}
+
+		if recover() != nil {
+			return
+		}
+	}()
 
 	// Start telemetry process if not already started. This should be done inside lock, otherwise multiple process
 	// end up creating/killing telemetry process results in undesired state.
@@ -200,16 +216,6 @@ func main() {
 
 	t := time.Now()
 	cniReport.Timestamp = t.Format("2006-01-02 15:04:05")
-
-	defer func() {
-		if errUninit := netPlugin.Plugin.UninitializeKeyValueStore(); errUninit != nil {
-			log.Errorf("Failed to uninitialize key-value store of network plugin, err:%v.\n", errUninit)
-		}
-
-		if recover() != nil {
-			return
-		}
-	}()
 
 	if err = netPlugin.Start(&config); err != nil {
 		log.Errorf("Failed to start network plugin, err:%v.\n", err)
@@ -230,7 +236,7 @@ func main() {
 	netPlugin.Stop()
 
 	// release cni lock
-	if errUninit := netPlugin.Plugin.UninitializeKeyValueStore(); errUninit != nil {
+	if errUninit := netPlugin.Plugin.UninitializeKeyValueStore(false); errUninit != nil {
 		log.Errorf("Failed to uninitialize key-value store of network plugin, err:%v.\n", errUninit)
 	}
 

@@ -6,8 +6,10 @@ package cni
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/log"
@@ -186,9 +188,9 @@ func (plugin *Plugin) InitializeKeyValueStore(config *common.PluginConfig) error
 }
 
 // Uninitialize key-value store
-func (plugin *Plugin) UninitializeKeyValueStore() error {
+func (plugin *Plugin) UninitializeKeyValueStore(forceUnlock bool) error {
 	if plugin.Store != nil {
-		err := plugin.Store.Unlock(false)
+		err := plugin.Store.Unlock(forceUnlock)
 		if err != nil {
 			log.Printf("[cni] Failed to unlock store: %v.", err)
 			return err
@@ -197,4 +199,38 @@ func (plugin *Plugin) UninitializeKeyValueStore() error {
 	plugin.Store = nil
 
 	return nil
+}
+
+// check if safe to remove lockfile
+func (plugin *Plugin) IsSafeToRemoveLock(processName string) bool {
+	if plugin.Store != nil {
+		lockFileName := plugin.Store.GetLockFileName()
+
+		content, err := ioutil.ReadFile(lockFileName)
+		if err != nil {
+			log.Errorf("Failed to read lock file :%v, ", err)
+			return false
+		}
+
+		if len(content) <= 0 {
+			log.Errorf("Num bytes read from lock file is 0")
+			return false
+		}
+
+		pid := string(content)
+		pid = strings.Trim(pid, "\n")
+
+		pName, err := platform.GetProcessNameByID(pid)
+		if err != nil {
+			return true
+		}
+
+		log.Printf("[CNI] Process name for pid %s is %s", pid, pName)
+
+		if pName != processName {
+			return true
+		}
+	}
+
+	return false
 }

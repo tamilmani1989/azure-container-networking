@@ -150,7 +150,11 @@ func executePowershellCommand(command string) (string, error) {
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	cmd.Run()
+
+	err = cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("%s:%s", err.Error(), stderr.String())
+	}
 
 	return strings.TrimSpace(stdout.String()), nil
 }
@@ -185,4 +189,41 @@ func SetSdnRemoteArpMacAddress() error {
 
 func GetOSDetails() (map[string]string, error) {
 	return nil, nil
+}
+
+func IsProcessRunning(pidstr string) bool {
+	cmd := fmt.Sprintf("Get-Process -Id %s", pidstr)
+	out, err := executePowershellCommand(cmd)
+	if err != nil {
+		log.Printf("Process is not running. Output:%v, Error %v", out, err)
+		return false
+	}
+
+	return true
+}
+
+func GetProcessNameByID(pidstr string) (string, error) {
+	cmd := fmt.Sprintf("Get-Process -Id %s|Format-List", pidstr)
+	out, err := executePowershellCommand(cmd)
+	if err != nil {
+		log.Printf("Process is not running. Output:%v, Error %v", out, err)
+		return "", err
+	}
+
+	if len(out) <= 0 {
+		log.Printf("Output length is 0")
+		return "", fmt.Errorf("get-process output length is 0")
+	}
+
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "Name") {
+			pName := strings.Split(line, ":")
+			if len(pName) > 1 {
+				return strings.TrimSpace(pName[1]), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("Process not found")
 }
