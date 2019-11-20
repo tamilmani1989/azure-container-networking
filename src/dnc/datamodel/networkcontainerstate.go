@@ -29,6 +29,9 @@ const (
 	// UnPublish - NC is pending unpublishing.
 	UnPublish
 
+	// Revert - NC goal state is reverted
+	Revert
+
 	// DisAssociate - NC is pending disassociation.
 	DisAssociate
 
@@ -116,6 +119,9 @@ func (networkContainerState NetworkContainerState) String() string {
 
 	case UnPublish:
 		return "UnPublish"
+
+	case Revert:
+		return "Revert"
 
 	case DisAssociate:
 		return "DisAssociate"
