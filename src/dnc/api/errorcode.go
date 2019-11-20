@@ -222,6 +222,9 @@ const (
 
 	// FailedToUpdateSubnetWithReservationInfo - Failed to updatr subnet configuration in storage with reservation info.
 	FailedToUpdateSubnetWithReservationInfo
+
+	// StatusBadRequest - Bad request.
+	StatusBadRequest
 )
 
 func (e ErrorCode) String() string {
@@ -252,6 +255,9 @@ func (e ErrorCode) String() string {
 
 	case StatusInternalServerError:
 		return "StatusInternalServerError"
+
+	case StatusBadRequest:
+		return "StatusBadRequest"
 
 	case NetworkStatusInvalid:
 		return "NetworkStatusInvalid"

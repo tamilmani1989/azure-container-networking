@@ -113,6 +113,10 @@ func TestBasicNCAPIs(t *testing.T) {
 		authenticationToken = id2.String()
 		id3, _              = uuid.NewUUID()
 		ncID                = id3.String()
+		id4, _              = uuid.NewUUID()
+		ncID2               = id4.String()
+		id5, _              = uuid.NewUUID()
+		reservationID       = id5.String()
 		subnetID            = utils.Subnet1
 		podName             = "container1"
 		podNamespace        = "default"
@@ -147,6 +151,19 @@ func TestBasicNCAPIs(t *testing.T) {
 	addSubnet(t, vnetID, subnetID, authenticationToken)
 	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", nodeIface, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout)
 	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", nodeIface, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout)
+	// Adding another nc with the same orchestrator context on the same node should fail (v2)
+	// using GenericFailureNC here but this call will never reach NMAgent and is expected to fail in networkmanager.go
+	if respErr := dnctl.AddNc(nodeID, vnetID, utils.GenericFailureNC, "", subnetID, "", "", nodeIface, cns.AzureContainerInstance, podName, podNamespace, false, false); respErr == nil {
+		t.Fatalf("Failed to block duplicate orchestrator contexts with different NC IDs")
+	}
+	// create nc with reservation
+	addReservation(t, nodeID, vnetID, subnetID, "", reservationID, defaultRequestTimeout)
+	addNc(t, nodeID, vnetID, ncID2, reservationID, subnetID, "", nodeID, nodeIface, containerType, podName+"2", podNamespace, false, false, defaultNCRequestTimeout)
+	// Adding another nc with the same orchestrator context on the same node should fail (v1)
+	// Using the same reservationID over here but this is expected to fail before we persist nc configuration
+	if respErr := dnctl.AddNc(nodeID, vnetID, utils.GenericFailureNC, reservationID, subnetID, "", nodeID, nodeIface, cns.AzureContainerInstance, podName+"2", podNamespace, false, false); respErr == nil {
+		t.Fatalf("Failed to block duplicate orchestrator contexts with different NC IDs")
+	}
 
 	if receivedNcResp, respErr = dnctl.GetNC(vnetID, ncID); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Failed to retrieve nc response with error %+v", respErr)
@@ -174,7 +191,6 @@ func TestBasicNCAPIs(t *testing.T) {
 		}
 	}
 
-	// usage: docker-run.sh <container-name> <namespace> <image>
 	if _, err := exec.Command("/bin/sh", "-c", "./docker-del.sh "+podName+" "+podNamespace).CombinedOutput(); err != nil {
 		t.Fatalf("Failed to delete container with err %+v", err)
 	}
@@ -182,6 +198,8 @@ func TestBasicNCAPIs(t *testing.T) {
 	deleteNode(t, nodeID, http.StatusBadRequest)
 	deleteNetwork(t, vnetID, http.StatusBadRequest)
 	deleteNc(t, vnetID, ncID)
+	deleteNc(t, vnetID, ncID2)
+	deleteReservation(t, vnetID, reservationID)
 	deleteNetwork(t, vnetID, http.StatusNotFound)
 	deleteNode(t, nodeID, http.StatusNotFound)
 }

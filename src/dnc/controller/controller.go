@@ -331,7 +331,6 @@ func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.
 			AssociatedNetworkContainerID: repoReservationConfiguration.AssociatedNCID,
 			ReservationID:                repoReservationConfiguration.ReservationID}
 		index++
-
 	}
 
 	dnsServers, err := datamodel.GetSubnetDNSServers(repoSubnetConfiguration)

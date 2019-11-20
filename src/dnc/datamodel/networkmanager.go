@@ -1,6 +1,7 @@
 package datamodel
 
 import (
+	"bytes"
 	"dnc/allocationhelper"
 	"dnc/api"
 	"dnc/configuration"
@@ -2303,21 +2304,20 @@ func CreateOrUpdateNCRequestV1(
 		sendNCCreationReqMetric(networkID, ncID, status, ncRequestV1.AssociationInfo)
 	}()
 
-	nodeConfig, err := TryQueryNodeConfiguration(ncRequestV1.AssociationInfo.NodeID)
+	var nodeInfo *api.NodeInfoResponse
+	nodeInfo, err = GetNodeInfo(ncRequestV1.AssociationInfo.NodeID)
 	if err != nil {
 		return err
 	}
 
-	if nodeConfig == nil {
-		msg := fmt.Sprintf(
-			"Failed when trying to retrieve configuration for node:%s due to error:%s",
-			ncRequestV1.AssociationInfo.NodeID,
-			err)
-		err = &api.JsonErr{
-			Code:       api.NodeNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-		return err
+	for _, nc := range nodeInfo.NetworkContainers {
+		if bytes.Compare(nc.AssociationInfo.OrchestratorContext, ncRequestV1.AssociationInfo.OrchestratorContext) == 0 {
+			err = &api.JsonErr{
+				Code:       api.StatusBadRequest,
+				Text:       fmt.Sprintf("Illegal create nc operation due to duplicate orchestrator context with nc: %s", nc.NcID),
+				HTTPStatus: http.StatusBadRequest}
+			return err
+		}
 	}
 
 	ncConfiguration := NCConfiguration{
@@ -2367,21 +2367,20 @@ func CreateOrUpdateNCRequestV2(
 		sendNCCreationReqMetric(networkID, ncID, status, ncRequestV2.AssociationInfo)
 	}()
 
-	nodeConfig, err := TryQueryNodeConfiguration(ncRequestV2.AssociationInfo.NodeID)
+	var nodeInfo *api.NodeInfoResponse
+	nodeInfo, err = GetNodeInfo(ncRequestV2.AssociationInfo.NodeID)
 	if err != nil {
 		return err
 	}
 
-	if nodeConfig == nil {
-		msg := fmt.Sprintf(
-			"Failed when trying to retrieve configuration for node:%s due to error:%s",
-			ncRequestV2.AssociationInfo.NodeID,
-			err)
-		err = &api.JsonErr{
-			Code:       api.NodeNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-		return err
+	for _, nc := range nodeInfo.NetworkContainers {
+		if bytes.Compare(nc.AssociationInfo.OrchestratorContext, ncRequestV2.AssociationInfo.OrchestratorContext) == 0 {
+			err = &api.JsonErr{
+				Code:       api.StatusBadRequest,
+				Text:       fmt.Sprintf("Illegal create nc operation due to duplicate orchestrator context with nc: %s", nc.NcID),
+				HTTPStatus: http.StatusBadRequest}
+			return err
+		}
 	}
 
 	networkConfig, err := QueryNetworkConfiguration(networkID)
