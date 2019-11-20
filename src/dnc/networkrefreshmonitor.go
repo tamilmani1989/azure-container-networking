@@ -327,7 +327,13 @@ func CreateAssociationTask(nodeID, networkID, networkContainerID string) *api.Js
 		repoNetworkContainerConfiguration.Status == datamodel.Denied {
 		return nil
 	}
-	if repoNetworkContainerConfiguration.State == datamodel.Program &&
+
+	// Additonal check for NC state of RefreshAssociation is needed because
+	// it may happen that NC state changes to refreshAssociation from Program but
+	// DNC fails to add pending request in the queue due to DNC crash or upgrading
+	// the DNC during deployment
+	if (repoNetworkContainerConfiguration.State == datamodel.Program ||
+		repoNetworkContainerConfiguration.State == datamodel.RefreshAssociation) &&
 		repoNetworkContainerConfiguration.Status == datamodel.Completed {
 		repoNetworkContainerConfiguration.State = datamodel.RefreshAssociation
 		return datamodel.PersistNCConfiguration(repoNetworkContainerConfiguration, datamodel.AddToPendingQ)
