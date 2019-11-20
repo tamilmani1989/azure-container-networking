@@ -18,9 +18,12 @@ import (
 const (
 	// Host URL to query.
 	azureQueryUrl = "http://168.63.129.16/machine/plugins?comp=nmagent&type=getinterfaceinfov1"
-
 	// Minimum time interval between consecutive queries.
 	azureQueryInterval = 10 * time.Second
+	// http connection timeout
+	httpConnectionTimeout = 10
+	// http response header timeout
+	responseHeaderTimeout = 10
 )
 
 // Microsoft Azure IPAM configuration source.
@@ -85,7 +88,11 @@ func (s *azureSource) refresh() error {
 		return err
 	}
 
-	httpClient := &http.Client{Timeout: time.Second * 5}
+	httpClient := common.InitHttpClient(httpConnectionTimeout, responseHeaderTimeout)
+	if httpClient == nil {
+		log.Errorf("[ipam] Failed intializing http client")
+		return fmt.Errorf("Error intializing http client")
+	}
 
 	log.Printf("[ipam] Wireserver call %v to retrieve IP List", s.queryUrl)
 	// Fetch configuration.
