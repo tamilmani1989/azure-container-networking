@@ -6,6 +6,7 @@ package platform
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -60,8 +61,9 @@ func GetOSInfo() string {
 	return "windows"
 }
 
-func Init() error {
-	_, err := executePowershellCommand("Get-Process -Id 0")
+func GetProcessSupport() error {
+	cmd := fmt.Sprintf("Get-Process -Id %v", os.Getpid())
+	_, err := executePowershellCommand(cmd)
 	return err
 }
 

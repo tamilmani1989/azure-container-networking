@@ -47,8 +47,10 @@ func GetOSInfo() string {
 	return string(info)
 }
 
-func Init() error {
-	return nil
+func GetProcessSupport() error {
+	cmd := fmt.Sprintf("ps -p %v -o comm=", os.Getpid())
+	_, err := ExecuteCommand(cmd)
+	return err
 }
 
 // GetLastRebootTime returns the last time the system rebooted.

@@ -204,8 +204,14 @@ func (plugin *Plugin) UninitializeKeyValueStore(force bool) error {
 // check if safe to remove lockfile
 func (plugin *Plugin) IsSafeToRemoveLock(processName string) bool {
 	if plugin != nil && plugin.Store != nil {
-		lockFileName := plugin.Store.GetLockFileName()
+		// check if get process command supported
+		if cmdErr := platform.GetProcessSupport(); cmdErr != nil {
+			log.Errorf("Get process cmd not supported. Error %v", cmdErr)
+			return false
+		}
 
+		// Read pid from lockfile
+		lockFileName := plugin.Store.GetLockFileName()
 		content, err := ioutil.ReadFile(lockFileName)
 		if err != nil {
 			log.Errorf("Failed to read lock file :%v, ", err)
@@ -217,8 +223,9 @@ func (plugin *Plugin) IsSafeToRemoveLock(processName string) bool {
 			return false
 		}
 
+		// Get the process name if running and
+		// check if that matches with our expected process
 		pid := strings.Trim(string(content), "\n")
-
 		pName, err := platform.GetProcessNameByID(pid)
 		if err != nil {
 			return true
