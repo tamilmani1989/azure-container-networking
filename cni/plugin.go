@@ -188,9 +188,9 @@ func (plugin *Plugin) InitializeKeyValueStore(config *common.PluginConfig) error
 }
 
 // Uninitialize key-value store
-func (plugin *Plugin) UninitializeKeyValueStore(forceUnlock bool) error {
+func (plugin *Plugin) UninitializeKeyValueStore(force bool) error {
 	if plugin.Store != nil {
-		err := plugin.Store.Unlock(forceUnlock)
+		err := plugin.Store.Unlock(force)
 		if err != nil {
 			log.Printf("[cni] Failed to unlock store: %v.", err)
 			return err
@@ -203,7 +203,7 @@ func (plugin *Plugin) UninitializeKeyValueStore(forceUnlock bool) error {
 
 // check if safe to remove lockfile
 func (plugin *Plugin) IsSafeToRemoveLock(processName string) bool {
-	if plugin.Store != nil {
+	if plugin != nil && plugin.Store != nil {
 		lockFileName := plugin.Store.GetLockFileName()
 
 		content, err := ioutil.ReadFile(lockFileName)
@@ -217,8 +217,7 @@ func (plugin *Plugin) IsSafeToRemoveLock(processName string) bool {
 			return false
 		}
 
-		pid := string(content)
-		pid = strings.Trim(pid, "\n")
+		pid := strings.Trim(string(content), "\n")
 
 		pName, err := platform.GetProcessNameByID(pid)
 		if err != nil {

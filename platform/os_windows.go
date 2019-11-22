@@ -60,6 +60,11 @@ func GetOSInfo() string {
 	return "windows"
 }
 
+func Init() error {
+	_, err := executePowershellCommand("Get-Process -Id 0")
+	return err
+}
+
 // GetLastRebootTime returns the last time the system rebooted.
 func GetLastRebootTime() (time.Time, error) {
 	out, err := exec.Command("cmd", "/c", "wmic os get lastbootuptime").Output()

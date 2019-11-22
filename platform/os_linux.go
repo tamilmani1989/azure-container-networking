@@ -47,6 +47,10 @@ func GetOSInfo() string {
 	return string(info)
 }
 
+func Init() error {
+	return nil
+}
+
 // GetLastRebootTime returns the last time the system rebooted.
 func GetLastRebootTime() (time.Time, error) {
 	// Query last reboot time.
