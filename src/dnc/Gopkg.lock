@@ -11,7 +11,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:f5192c77d44b97e28e03f306317d76d4e7fc175ff2fbe1d85f405a77edd7a8e6"
+  digest = "1:18517a437ee00094969ac48be66a72c8a3f47574cf5858dde2322cf5b16f429d"
   name = "github.com/Azure/azure-container-networking"
   packages = [
     "aitelemetry",
@@ -36,18 +36,18 @@
     "telemetry",
   ]
   pruneopts = "UT"
-  revision = "cd236e1f59516d613a66169e1ad7c44d989cf17f"
+  revision = "e0ba7ad924775246857534b5d67349a994581c13"
 
 [[projects]]
   branch = "master"
-  digest = "1:17a2bb194e9bc6ad0e4df17f966fa3c879a750ddf32a17913e493b99cb9e2152"
+  digest = "1:6845f5590c3c1b5ef7d65532aa14e5abb9d07fab9cd76de7117594ee7cdbc68d"
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
     "storage",
     "version",
   ]
   pruneopts = "UT"
-  revision = "c521f31a1cb0ae14801ad34017a7b111f4cef7af"
+  revision = "0820c0553d6c410603056869f7b0e52d61ce5bee"
 
 [[projects]]
   digest = "1:dcf25ae752511462b05f08dc4be431e0c3231941071669c9230939a3600aa2b9"
@@ -87,32 +87,33 @@
   version = "v0.4.14"
 
 [[projects]]
-  digest = "1:8cf3e59c26d185775c218c4ac3e63ba8dac9c2692d97e99152a353f7344b5a1d"
+  digest = "1:4b95ad148b073d810c1bc49340156f9473251c2c608f98755655e31a98b401de"
   name = "github.com/Microsoft/hcsshim"
   packages = [
     ".",
     "hcn",
     "internal/cni",
-    "internal/guestrequest",
-    "internal/guid",
+    "internal/cow",
     "internal/hcs",
     "internal/hcserror",
     "internal/hns",
     "internal/interop",
+    "internal/log",
     "internal/logfields",
     "internal/longpath",
     "internal/mergemaps",
+    "internal/oc",
     "internal/regstate",
     "internal/runhcs",
     "internal/safefile",
     "internal/schema1",
     "internal/schema2",
     "internal/timeout",
+    "internal/vmcompute",
     "internal/wclayer",
   ]
   pruneopts = "UT"
-  revision = "f92b8fb9c92e17da496af5a69e3ee13fbe9916e1"
-  version = "v0.8.6"
+  revision = "2a08d6fcd23883573a39ba32ab7ed2b197a9a9eb"
 
 [[projects]]
   digest = "1:2ec44c70c9733c563accbe36cc628f79b662dbe98b12bc78376bf17202556212"
@@ -158,6 +159,14 @@
   revision = "cb61b32ac6fe84d34b81730175f91965e43d0f90"
 
 [[projects]]
+  branch = "master"
+  digest = "1:b7cb6054d3dff43b38ad2e92492f220f57ae6087ee797dca298139776749ace8"
+  name = "github.com/golang/groupcache"
+  packages = ["lru"]
+  pruneopts = "UT"
+  revision = "611e8accdfc92c4187d399e95ce826046d4c8d73"
+
+[[projects]]
   digest = "1:582b704bebaa06b48c29b0cec224a6058a09c86883aaddabde889cd1a5f73e1b"
   name = "github.com/google/uuid"
   packages = ["."]
@@ -167,11 +176,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a896fbc48bee0d1422f58ab2bbc1d20ddfe4021ec7137f48c651603dbb9629aa"
+  digest = "1:ab9ff65f12858dd2509fc9b57fe25f8127eb4b983ab715825efec393af17693c"
   name = "github.com/gorilla/mux"
   packages = ["."]
   pruneopts = "UT"
-  revision = "f395758b854c4efa789b8c1e9b73479704c548cb"
+  revision = "49c01487a141b49f8ffe06277f3dca3ee80a55fa"
 
 [[projects]]
   digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
@@ -222,16 +231,30 @@
   version = "v1.0.5"
 
 [[projects]]
+  digest = "1:aed53a5fa03c1270457e331cf8b7e210e3088a2278fec552c5c5d29c1664e161"
+  name = "go.opencensus.io"
+  packages = [
+    ".",
+    "internal",
+    "trace",
+    "trace/internal",
+    "trace/tracestate",
+  ]
+  pruneopts = "UT"
+  revision = "aad2c527c5defcf89b5afab7f37274304195a6b2"
+  version = "v0.22.2"
+
+[[projects]]
   branch = "master"
   digest = "1:100a36e16f77aaad7c9144ab26bcefb92c5b6ebed5b137f935fdc11f541fa5b8"
   name = "golang.org/x/crypto"
   packages = ["md4"]
   pruneopts = "UT"
-  revision = "8986dd9e96cf0a6f74da406c005ba3df38527c04"
+  revision = "ac88ee75c92c889b97e05591e9a39b6480c538b3"
 
 [[projects]]
   branch = "master"
-  digest = "1:e4be99c910dfd3322b04bb6318bea19560e87b50fd0e43f5d7b8cb59c278e3ab"
+  digest = "1:99bc3fc2b40dfcb98a64141cc0095f0235a72917e005b44dde8d78129934732d"
   name = "golang.org/x/sys"
   packages = [
     "unix",
@@ -239,7 +262,7 @@
     "windows/registry",
   ]
   pruneopts = "UT"
-  revision = "f43be2a4598cf3a47be9f94f0c28197ed9eae611"
+  revision = "bd437916bb0eb726b873ee8e9b2dcf212d32e2fd"
 
 [solve-meta]
   analyzer-name = "dep"

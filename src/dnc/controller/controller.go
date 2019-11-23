@@ -52,9 +52,14 @@ func NewController(
 // PersistNodeInfo - Persist node configuration.
 func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoRequest, apiVersion string) *api.JsonErr {
 	// Send OrchestratorType to CNS
-	info := &cns.SetOrchestratorTypeRequest{OrchestratorType: nodeInfo.OrchestratorType, DncPartitionKey: config.DataStoreSettings.AzureStorageInfo.PartitionKey}
-	var body bytes.Buffer
-	var resp cns.Response
+	var (
+		info = &cns.SetOrchestratorTypeRequest{
+			OrchestratorType: nodeInfo.OrchestratorType,
+			DncPartitionKey:  config.DataStoreSettings.AzureStorageInfo.PartitionKey,
+			NodeID:           nodeID}
+		body bytes.Buffer
+		resp cns.Response
+	)
 
 	// Can be used whenver we send logs/metric
 	aiwrapper.OrchestratorType = nodeInfo.OrchestratorType
@@ -91,9 +96,10 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 	}
 
 	if resp.ReturnCode != 0 {
-		msg := fmt.Sprintf("Create node %s failed with error code %d",
+		msg := fmt.Sprintf("Create node %s failed with error code %d. %s",
 			nodeID,
-			resp.ReturnCode)
+			resp.ReturnCode,
+			resp.Message)
 		return &api.JsonErr{
 			Code:       api.NodeProcessingFailedDueToInternalError,
 			Text:       msg,
