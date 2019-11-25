@@ -11,17 +11,19 @@ import (
 )
 
 type Server struct {
-	ServerSettings configuration.ServerSettings
-	Controller     *controller.Controller
-	Endpoint       string
-	Router         *mux.Router
+	ServerSettings      configuration.ServerSettings
+	Controller          *controller.Controller
+	Endpoint            string
+	Router              *mux.Router
+	ReverseProxyEnabled bool
+	ConnectionTimeout   int
 }
 
 func (server *Server) Init() error {
 	var err error
 	server.Endpoint, err = server.Controller.Replica.GetReplicaIPEndpoint()
 	utils.OnErrorFail(err, "GetReplicaIPEndpoint failed")
-	server.Router = NewRouter()
+	server.Router = NewRouter(server.ReverseProxyEnabled, server.ConnectionTimeout)
 	SetController(server.Controller)
 	return nil
 }

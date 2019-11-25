@@ -56,7 +56,8 @@
         "ConcurrentRequestsToProcess" : 1000,
         "DisableTelemetry": false,
         "EnforceNICLimit" : true,
-        "NICsAllowedPerVirtualCore" : 1
+        "NICsAllowedPerVirtualCore" : 1,
+        "ReverseProxyEnabled" : false
     },
     "HttpClientSettings":{
         "ConnectionTimeout":5,

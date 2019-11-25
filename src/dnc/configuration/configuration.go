@@ -149,6 +149,8 @@ type DNCSettings struct {
 	EnforceNICLimit bool
 	// Number of NICs that are allowed per virtual core
 	NICsAllowedPerVirtualCore uint16
+	// Flag to determine whether DNC should forward requests instead of relying on client to handle redirects
+	ReverseProxyEnabled bool
 }
 
 // HttpClientSettings - Http client settings to be used when making http calls to CNS and NMAgent from DNC

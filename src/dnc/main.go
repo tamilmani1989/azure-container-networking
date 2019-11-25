@@ -133,8 +133,10 @@ func init() {
 	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
 		masterElectionShim, config, httpClient)
 	dncServer = server.Server{
-		ServerSettings: config.ServerSettings,
-		Controller:     ctrler}
+		ServerSettings:      config.ServerSettings,
+		Controller:          ctrler,
+		ReverseProxyEnabled: config.DNCSettings.ReverseProxyEnabled,
+		ConnectionTimeout:   config.HttpClientSettings.ConnectionTimeout}
 	dncServer.Init()
 	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond

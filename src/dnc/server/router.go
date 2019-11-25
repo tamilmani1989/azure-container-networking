@@ -6,14 +6,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func NewRouter() *mux.Router {
+func NewRouter(reverseProxyEnabled bool, connectionTimeout int) *mux.Router {
 
 	router := mux.NewRouter().StrictSlash(true)
 	for _, route := range routes {
 		var handler http.Handler
 
 		handler = route.HandlerFunc
-		handler = Logger(handler, route.Name)
+		handler = Logger(handler, route.Name, reverseProxyEnabled, connectionTimeout)
 
 		router.
 			Methods(route.Method).

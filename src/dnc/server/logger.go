@@ -4,15 +4,19 @@ import (
 	"dnc/api"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"strings"
+	"time"
 
 	"dnc/logger/loggershim"
 )
 
 var supportedAPIVersions = map[string]bool{"2018-03-01": true}
 
-func Logger(inner http.Handler, name string) http.Handler {
+func Logger(inner http.Handler, name string, reverseProxyEnabled bool, connectionTimeout int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Validate if the API version is supported.
 		_, err := getandValidateAPIVersion(r)
@@ -48,49 +52,58 @@ func Logger(inner http.Handler, name string) http.Handler {
 
 				primaryEP, err = ctrler.GetPrimaryIPEndpoint()
 				if err != nil {
-					jsonErr := api.JsonErr{
-						Code: api.PrimaryNotAvailable}
-					w.WriteHeader(http.StatusInternalServerError)
-					if err := json.NewEncoder(w).Encode(jsonErr); err != nil {
-						panic(err)
-					}
+					setRequestFailed(w, &api.JsonErr{
+						Code: api.PrimaryNotAvailable})
 
 					return
 				}
 
 				replicaEP, err := ctrler.GetReplicaIPEndpoint()
 				if err != nil {
-					jsonErr := api.JsonErr{
-						Code: api.PrimaryNotAvailable}
-					w.WriteHeader(http.StatusInternalServerError)
-					if err := json.NewEncoder(w).Encode(jsonErr); err != nil {
-						panic(err)
-					}
+					setRequestFailed(w, &api.JsonErr{
+						Code: api.PrimaryNotAvailable})
 
 					return
 				}
 
 				if strings.Compare(primaryEP, replicaEP) == 0 {
 					err = fmt.Errorf("Primary replica not ready")
-					jsonErr := api.JsonErr{
-						Code: api.PrimaryNotAvailable}
-					w.WriteHeader(http.StatusInternalServerError)
-					if err := json.NewEncoder(w).Encode(jsonErr); err != nil {
-						panic(err)
-					}
+					setRequestFailed(w, &api.JsonErr{
+						Code: api.PrimaryNotAvailable})
 
 					return
 				}
 
 				target := "http://" + primaryEP + r.URL.String()
-				loggershim.LS.Debugf("Redirecting to %s", target)
-				http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+				if reverseProxyEnabled {
+					loggershim.LS.Debugf("Forwarding to %s", target)
+					forwardToPrimary(target, primaryEP, w, r, connectionTimeout)
+				} else {
+					loggershim.LS.Debugf("Redirecting to %s", target)
+					http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+				}
 				return
 			}
 		}
 
 		inner.ServeHTTP(w, r)
 	})
+}
+
+func forwardToPrimary(target, primaryEP string, w http.ResponseWriter, r *http.Request, connectionTimeout int) {
+	url, _ := url.ParseRequestURI(target)
+	p := httputil.NewSingleHostReverseProxy(url)
+	p.Director = func(req *http.Request) {
+		req.URL.Scheme = "http"
+		req.URL.Host = req.Host
+		req.Host = primaryEP
+	}
+	p.Transport = &http.Transport{
+		Dial: (&net.Dialer{
+			Timeout: time.Duration(connectionTimeout) * time.Second,
+		}).Dial,
+	}
+	p.ServeHTTP(w, r)
 }
 
 func isReplicaOperation(r *http.Request) bool {

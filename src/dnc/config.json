@@ -69,7 +69,8 @@
         "ReportToHostInterval": 60000,
         "ConcurrentRequestsToProcess": 1000,
         "EnforceNICLimit" : true,
-        "NICsAllowedPerVirtualCore" : 3
+        "NICsAllowedPerVirtualCore" : 3,
+        "ReverseProxyEnabled" : false
     },
     "HttpClientSettings":{
         "ConnectionTimeout":5,
