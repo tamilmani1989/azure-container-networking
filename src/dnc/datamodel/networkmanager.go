@@ -2829,8 +2829,7 @@ func GetAllNetworkContainers() (map[string]NCConfiguration, error) {
 // 3. Error.
 func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.JsonErr) {
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
-	repoReservationConfiguration, err :=
-		TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
+	repoReservationConfiguration, err := TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
 	if err != nil {
 		return nil, true, err
 	} else if repoReservationConfiguration == nil {

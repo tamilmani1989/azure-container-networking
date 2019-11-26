@@ -82,5 +82,8 @@ func registerSubnet() *cobra.Command {
 	cmd.Flags().String("vnet-id", "", "vnet-id")
 	cmd.Flags().String("subnet-id", "", "subnet-id")
 	cmd.Flags().String("auth-token", "", "auth-token")
+	cmd.MarkFlagRequired("vnet-id")
+	cmd.MarkFlagRequired("subnet-id")
+	cmd.MarkFlagRequired("auth-id")
 	return cmd
 }

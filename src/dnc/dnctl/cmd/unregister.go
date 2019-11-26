@@ -72,8 +72,8 @@ func unregisterSubnetCmd() *cobra.Command {
 	}
 	cmd.Flags().String("vnet-id", "", "Vnet ID")
 	cmd.Flags().String("subnet-id", "", "Subnet ID")
-
-	cmd.MarkFlagRequired("id")
+	cmd.MarkFlagRequired("vnet-id")
+	cmd.MarkFlagRequired("subnet-id")
 
 	return cmd
 }

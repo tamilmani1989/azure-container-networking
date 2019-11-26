@@ -15,6 +15,7 @@ func GetCmd() *cobra.Command {
 	}
 	cmd.AddCommand(getNodeCmd())
 	cmd.AddCommand(getVnetCmd())
+	cmd.AddCommand(getReservationCmd())
 	cmd.AddCommand(getSubnetCmd())
 	cmd.AddCommand(getNetworkContainerCmd())
 
@@ -37,11 +38,11 @@ func getNodeCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("id", "", "Node id")
+	cmd.MarkFlagRequired("id")
 	return cmd
 }
 
 func getVnetCmd() *cobra.Command {
-
 	var cmd = &cobra.Command{
 		Use:   "vnet",
 		Short: "Gets an item from DNC",
@@ -68,6 +69,7 @@ func getVnetStatusCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("id", "", "set name")
+	cmd.MarkFlagRequired("id")
 	return cmd
 }
 
@@ -87,11 +89,11 @@ func getVnetConfigCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("id", "", "set name")
+	cmd.MarkFlagRequired("id")
 	return cmd
 }
 
 func getSubnetCmd() *cobra.Command {
-
 	var cmd = &cobra.Command{
 		Use:   "subnet",
 		Short: "Gets an subnet from DNC",
@@ -120,6 +122,8 @@ func getSubnetStatusCmd() *cobra.Command {
 	}
 	cmd.Flags().String("vnet-id", "", "vnet-id")
 	cmd.Flags().String("subnet-id", "", "subnet-id")
+	cmd.MarkFlagRequired("vnet-id")
+	cmd.MarkFlagRequired("subnet-id")
 	return cmd
 }
 
@@ -141,11 +145,70 @@ func getSubnetConfigCmd() *cobra.Command {
 	}
 	cmd.Flags().String("vnet-id", "", "vnet-id")
 	cmd.Flags().String("subnet-id", "", "subnet-id")
+	cmd.MarkFlagRequired("vnet-id")
+	cmd.MarkFlagRequired("subnet-id")
+	return cmd
+}
+
+func getReservationCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "reservation",
+		Short: "Gets an reservation from DNC",
+	}
+	cmd.Aliases = []string{"res"}
+	cmd.AddCommand(getReservationStatusCmd())
+	cmd.AddCommand(getReservationConfigCmd())
+
+	return cmd
+}
+
+func getReservationStatusCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "status",
+		Short: "Gets reservation status",
+		Run: func(cmd *cobra.Command, args []string) {
+			vnetid, _ := cmd.Flags().GetString("vnet-id")
+			reservationid, _ := cmd.Flags().GetString("reservation-id")
+
+			reservation, err := DncClient.GetReservationStatus(vnetid, reservationid)
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				common.PrettyPrint(err)
+				return
+			}
+			fmt.Printf("%+v\n", reservation)
+		},
+	}
+	cmd.Flags().String("vnet-id", "", "vnet-id")
+	cmd.Flags().String("reservation-id", "", "reservation-id")
+	cmd.MarkFlagRequired("vnet-id")
+	cmd.MarkFlagRequired("reservation-id")
+	return cmd
+}
+
+func getReservationConfigCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "config",
+		Short: "Gets reservation configuration",
+		Run: func(cmd *cobra.Command, args []string) {
+			vnetid, _ := cmd.Flags().GetString("vnet-id")
+			reservationid, _ := cmd.Flags().GetString("reservation-id")
+
+			reservation, err := DncClient.GetReservation(vnetid, reservationid)
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				common.PrettyPrint(err)
+				return
+			}
+			fmt.Printf("%+v\n", reservation)
+		},
+	}
+	cmd.Flags().String("vnet-id", "", "vnet-id")
+	cmd.Flags().String("reservation-id", "", "reservation-id")
+	cmd.MarkFlagRequired("vnet-id")
+	cmd.MarkFlagRequired("reservation-id")
 	return cmd
 }
 
 func getNetworkContainerCmd() *cobra.Command {
-
 	var cmd = &cobra.Command{
 		Use:   "nc",
 		Short: "Gets an network container from DNC",
@@ -163,9 +226,6 @@ func getNetworkContainerCmd() *cobra.Command {
 			fmt.Printf("%+v\n", vnet)
 		},
 	}
-	cmd.Flags().String("vnet-id", "", "vnet-id")
-	cmd.Flags().String("nc-id", "", "nc-id")
-
 	cmd.AddCommand(getNetworkContainerConfigCmd())
 	cmd.AddCommand(getNetworkContainerStatusCmd())
 	return cmd
@@ -190,6 +250,8 @@ func getNetworkContainerConfigCmd() *cobra.Command {
 	}
 	cmd.Flags().String("vnet-id", "", "vnet-id")
 	cmd.Flags().String("nc-id", "", "nc-id")
+	cmd.MarkFlagRequired("vnet-id")
+	cmd.MarkFlagRequired("nc-id")
 	return cmd
 }
 
@@ -212,5 +274,7 @@ func getNetworkContainerStatusCmd() *cobra.Command {
 	}
 	cmd.Flags().String("vnet-id", "", "vnet-id")
 	cmd.Flags().String("nc-id", "", "nc-id")
+	cmd.MarkFlagRequired("vnet-id")
+	cmd.MarkFlagRequired("nc-id")
 	return cmd
 }
