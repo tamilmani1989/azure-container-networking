@@ -225,6 +225,7 @@ func SetDncConfigDefaults(config *Configuration) {
 	setDNCSettingDefaults(&config.DNCSettings)
 	setHttpSettingDefaults(&config.HttpClientSettings)
 	setTelemetrySettingDefaults(&config.TelemetrySettings)
+	setBlobStorageSettings(&config.MasterElectionSettings.BlobStorageSettings)
 }
 
 func setDNCSettingDefaults(dncSettings *DNCSettings) {
@@ -310,6 +311,15 @@ func setTelemetrySettingDefaults(telemetrySettings *TelemetrySettings) {
 	if telemetrySettings.TelemetryBatchSizeBytes == 0 {
 		// set the default AI telemetry batch size to 16384 bytes
 		telemetrySettings.TelemetryBatchSizeBytes = 16384
+	}
+}
+
+func setBlobStorageSettings(blobStorageSettings *BlobStorageSettings) {
+	// The max lease interval supported by blob is 60 seconds
+	// https://docs.microsoft.com/en-us/rest/api/storageservices/lease-blob
+	// Cap the lease interval to 60 seconds
+	if blobStorageSettings.LeaseIntervalInSecs > 60 {
+		blobStorageSettings.LeaseIntervalInSecs = 60
 	}
 }
 
