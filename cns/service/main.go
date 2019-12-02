@@ -149,13 +149,6 @@ var args = acn.ArgumentList{
 		DefaultValue: "",
 	},
 	{
-		Name:         acn.OptTelemetry,
-		Shorthand:    acn.OptTelemetryAlias,
-		Description:  "Set to false to disable telemetry",
-		Type:         "bool",
-		DefaultValue: true,
-	},
-	{
 		Name:         acn.OptHttpConnectionTimeout,
 		Shorthand:    acn.OptHttpConnectionTimeoutAlias,
 		Description:  "Set HTTP connection timeout in seconds to be used by http client in CNS",
@@ -195,7 +188,6 @@ func main() {
 	startCNM := acn.GetArg(acn.OptStartAzureCNM).(bool)
 	vers := acn.GetArg(acn.OptVersion).(bool)
 	createDefaultExtNetworkType := acn.GetArg(acn.OptCreateDefaultExtNetworkType).(string)
-	telemetryEnabled := acn.GetArg(acn.OptTelemetry).(bool)
 	httpConnectionTimeout := acn.GetArg(acn.OptHttpConnectionTimeout).(int)
 	httpResponseHeaderTimeout := acn.GetArg(acn.OptHttpResponseHeaderTimeout).(int)
 
@@ -214,19 +206,43 @@ func main() {
 
 	var err error
 	// Create logging provider.
-	log.SetName(name)
-	log.SetLevel(logLevel)
-	if logDirectory != "" {
-		log.SetLogDirectory(logDirectory)
-	}
+	// log.SetName(name)
+	// log.SetLevel(logLevel)
+	// if logDirectory != "" {
+	// 	log.SetLogDirectory(logDirectory)
+	// }
 
-	err = log.SetTarget(logTarget)
+	// err = log.SetTarget(logTarget)
+	// if err != nil {
+	// 	fmt.Printf("Failed to configure logging: %v\n", err)
+	// 	return
+	// }
+
+	logger.InitLogger(name, logLevel, logTarget)
+	logger.SetLogDirectory(logDirectory)
+
+	cnsconfig, err := configuration.ReadConfig()
 	if err != nil {
-		fmt.Printf("Failed to configure logging: %v\n", err)
-		return
+		logger.Errorf("[Azure CNS] Error reading cns config: %v", err)
 	}
 
-	logger.InitLogger(name, false)
+	log.Printf("[Azure CNS] Read config :%+v", config)
+	configuration.SetCNSConfigDefaults(&cnsconfig)
+
+	if !cnsconfig.TelemetrySettings.DisableAll {
+		ts := cnsconfig.TelemetrySettings
+		aiConfig := aitelemetry.AIConfig{
+			AppName:                      name,
+			AppVersion:                   version,
+			BatchSize:                    ts.TelemetryBatchSizeBytes,
+			BatchInterval:                ts.TelemetryBatchIntervalInSecs,
+			RefreshTimeout:               ts.RefreshIntervalInSecs,
+			DisableMetadataRefreshThread: ts.DisableMetadataRefreshThread,
+			DebugMode:                    ts.DebugMode,
+		}
+
+		logger.InitAI(aiConfig, ts.DisableTrace, ts.DisableMetric)
+	}
 
 	// Log platform information.
 	logger.Printf("Running on %v", platform.GetOSInfo())
@@ -269,39 +285,17 @@ func main() {
 		}
 	}
 
-	config, err := configuration.readConfig()
-	if err != nil {
-		logger.Errorf("[Azure CNS] Error reading cns config: %v", err)
-	}
-
-	configuration.SetCNSConfigDefaults()
-
 	// Start CNS.
 	if httpRestService != nil {
-		if telemetryEnabled {
-			aiConfig := aitelemetry.AIConfig{
-				AppName:                      name,
-				AppVersion:                   version,
-				BatchSize:                    config.TelemetrySettings.TelemetryBatchSizeBytes,
-				BatchInterval:                config.TelemetrySettings.TelemetryBatchIntervalInSecs,
-				RefreshTimeout:               config.TelemetrySettings.RefreshIntervalInSecs,
-				DisableMetadataRefreshThread: config.TelemetrySettings.DisableMetadataRefreshThread,
-				DebugMode:                    config.TelemetrySettings.DebugMode,
-			}
-
-			telemetry.CreateTelemetryHandle(aiConfig)
-
-			go telemetry.SendCnsTelemetry(
-				reports,
-				httpRestService.(*restserver.HTTPRestService),
-				telemetryStopProcessing)
-		}
-
 		err = httpRestService.Start(&config)
 		if err != nil {
 			logger.Errorf("Failed to start CNS, err:%v.\n", err)
 			return
 		}
+	}
+
+	if !cnsconfig.TelemetrySettings.DisableAll {
+		go logger.SendCnsTelemetry()
 	}
 
 	var netPlugin network.NetPlugin
@@ -390,5 +384,5 @@ func main() {
 		}
 	}
 
-	log.Close()
+	logger.Close()
 }

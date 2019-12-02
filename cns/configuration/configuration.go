@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Azure/azure-container-networking/log"
+	"github.com/Azure/azure-container-networking/cns/logger"
 )
 
 const (
@@ -18,8 +18,12 @@ type CNSConfig struct {
 }
 
 type TelemetrySettings struct {
-	// Flag to disable the telemetry. Default is false
-	DisableTelemetry bool
+	// Flag to disable the telemetry.
+	DisableAll bool
+	// Flag to Disable sending trace.
+	DisableTrace bool
+	// Flag to Disable sending metric.
+	DisableMetric bool
 	// Configure how many bytes can be sent in one call to the data collector
 	TelemetryBatchSizeBytes int
 	// Configure the maximum delay before sending queued telemetry in milliseconds
@@ -40,7 +44,7 @@ func ReadConfig() (CNSConfig, error) {
 	if !found {
 		dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 		if err != nil {
-			log.Errorf("[Configuration] Failed to find exe dir:%v", err)
+			logger.Errorf("[Configuration] Failed to find exe dir:%v", err)
 			return cnsConfig, err
 		}
 
@@ -49,7 +53,7 @@ func ReadConfig() (CNSConfig, error) {
 
 	content, err := ioutil.ReadFile(configpath)
 	if err != nil {
-		log.Errorf("[Configuration] Failed to read config file :%v", err)
+		logger.Errorf("[Configuration] Failed to read config file :%v", err)
 		return cnsConfig, err
 	}
 

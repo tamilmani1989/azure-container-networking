@@ -11,42 +11,44 @@ const (
 	waitTimeInSecs = 10
 )
 
-var Log *CNSLogger
+var (
+	Log        *CNSLogger
+	aiMetadata string
+)
 
 type CNSLogger struct {
-	logger               *log.logger
-	th                   *telemetryHandle
-	DisableAILogging     bool
+	logger               *log.Logger
+	th                   aitelemetry.TelemetryHandle
+	Orchestrartor        string
+	NodeID               string
 	DisableTraceLogging  bool
 	DisableMetricLogging bool
 }
 
-func InitLogger(fileName string, aiConfig aitelmetry.AIConfig, disableAILogging, disableTraceLogging, disableMetricLogging bool) {
-	logLevel := log.LevelDebug
-	logTarget := log.TargetLogfile
-
+func InitLogger(fileName string, logLevel, logTarget int) {
 	Log = &CNSLogger{
-		logger:               log.NewLogger(fileName, logLevel, logTarget),
-		disableAILogging:     disableAILogging,
-		DisableTraceLogging:  disableTraceLogging,
-		DisableMetricLogging: disableMetricLogging,
+		logger: log.NewLogger(fileName, logLevel, logTarget),
 	}
+}
 
-	if !disableAILogging {
-		Log.th = aitelemetry.NewAITelemetry(aiMetadata, aiConfig)
-	}
+func InitAI(aiConfig aitelemetry.AIConfig, disableTraceLogging, disableMetricLogging bool) {
+	Log.th = aitelemetry.NewAITelemetry(aiMetadata, aiConfig)
+	Log.DisableMetricLogging = disableMetricLogging
+	Log.DisableTraceLogging = disableTraceLogging
 }
 
 func Close() {
 	Log.logger.Close()
-	Log.th.Close(waitTimeInSecs)
+	if Log.th != nil {
+		Log.th.Close(waitTimeInSecs)
+	}
 }
 
 func SetLogDirectory(dir string) {
 	Log.logger.SetLogDirectory(dir)
 }
 
-func SetReportDetails(
+func SetContextDetails(
 	orchestrartor string,
 	nodeID string,
 ) {
@@ -54,35 +56,54 @@ func SetReportDetails(
 	Log.NodeID = nodeID
 }
 
+func sendTraceInternal(msg string) {
+	report := aitelemetry.Report{CustomDimensions: make(map[string]string)}
+	report.Message = msg
+	report.CustomDimensions[OrchestratorTypeStr] = Log.Orchestrartor
+	report.CustomDimensions[NodeIDStr] = Log.NodeID
+	report.Context = Log.NodeID
+	Log.th.TrackLog(report)
+}
+
 func Printf(format string, args ...interface{}) {
 	Log.logger.Printf(format, args...)
-	if !l.disableAILogging && !l.disableTraceLogging {
-		report = aitelemetry.Report{CustomDimensions: make(map[string]string)}
-		report.Message = fmt.Sprintf(format, args...)
-		report.CustomDimensions[OrchestrartorTypeStr] = Log.Orchestrartor
-		report.CustomDimensions[NodeIDStr] = Log.NodeID
-		report.Context = nodeID
-		Log.th.TrackLog(report)
+
+	if Log.th == nil || Log.DisableTraceLogging {
+		return
 	}
+
+	msg := fmt.Sprintf(format, args...)
+	sendTraceInternal(msg)
+}
+
+func Debugf(format string, args ...interface{}) {
+	Log.logger.Debugf(format, args...)
+
+	if Log.th == nil || Log.DisableTraceLogging {
+		return
+	}
+
+	msg := fmt.Sprintf(format, args...)
+	sendTraceInternal(msg)
 }
 
 func Errorf(format string, args ...interface{}) {
 	Log.logger.Errorf(format, args...)
-	if !l.disableAILogging && !l.disableTraceLogging {
-		report = aitelemetry.Report{CustomDimensions: make(map[string]string)}
-		report.Message = fmt.Sprintf(format, args...)
-		report.CustomDimensions[OrchestrartorTypeStr] = Log.Orchestrartor
-		report.CustomDimensions[NodeIDStr] = Log.NodeID
-		report.Context = nodeID
-		Log.th.TrackLog(report)
+
+	if Log.th == nil || Log.DisableTraceLogging {
+		return
 	}
+
+	msg := fmt.Sprintf(format, args...)
+	sendTraceInternal(msg)
 }
 
-
-func SendMetric(metric aitelemetry.metric) {
-	if !l.disableAILogging && !l.disableMetric {
-		metric.CustomDimensions[OrchestrartorTypeStr] = Log.Orchestrartor
-		metric.CustomDimensions[NodeIDStr] = Log.NodeID
-		Log.th.TrackMetric(metric)
+func SendMetric(metric aitelemetry.Metric) {
+	if Log.th == nil || Log.DisableMetricLogging {
+		return
 	}
+
+	metric.CustomDimensions[OrchestratorTypeStr] = Log.Orchestrartor
+	metric.CustomDimensions[NodeIDStr] = Log.NodeID
+	Log.th.TrackMetric(metric)
 }
