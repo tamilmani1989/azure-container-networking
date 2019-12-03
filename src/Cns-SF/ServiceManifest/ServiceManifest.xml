@@ -9,6 +9,7 @@
     <EntryPoint>
       <ExeHost>
         <Program>CnsWrapperService.exe</Program>
+        <WorkingFolder>CodeBase</WorkingFolder>
         <ConsoleRedirection FileRetentionCount="5" FileMaxSizeInKb="2048"/>
       </ExeHost>
     </EntryPoint>
