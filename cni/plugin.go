@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
-	"strings"
 
 	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/log"
@@ -202,12 +201,12 @@ func (plugin *Plugin) UninitializeKeyValueStore(force bool) error {
 }
 
 // check if safe to remove lockfile
-func (plugin *Plugin) IsSafeToRemoveLock(processName string) bool {
+func (plugin *Plugin) IsSafeToRemoveLock(processName string) (bool, error) {
 	if plugin != nil && plugin.Store != nil {
 		// check if get process command supported
 		if cmdErr := platform.GetProcessSupport(); cmdErr != nil {
 			log.Errorf("Get process cmd not supported. Error %v", cmdErr)
-			return false
+			return false, cmdErr
 		}
 
 		// Read pid from lockfile
@@ -215,28 +214,28 @@ func (plugin *Plugin) IsSafeToRemoveLock(processName string) bool {
 		content, err := ioutil.ReadFile(lockFileName)
 		if err != nil {
 			log.Errorf("Failed to read lock file :%v, ", err)
-			return false
+			return false, err
 		}
 
 		if len(content) <= 0 {
 			log.Errorf("Num bytes read from lock file is 0")
-			return false
+			return false, fmt.Errorf("Num bytes read from lock file is 0")
 		}
 
+		log.Printf("Read from Lock file:%s", content)
 		// Get the process name if running and
 		// check if that matches with our expected process
-		pid := strings.Trim(string(content), "\n")
-		pName, err := platform.GetProcessNameByID(pid)
+		pName, err := platform.GetProcessNameByID(string(content))
 		if err != nil {
-			return true
+			return true, nil
 		}
 
-		log.Printf("[CNI] Process name for pid %s is %s", pid, pName)
+		log.Printf("[CNI] Process name is %s", pName)
 
 		if pName != processName {
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	return false, fmt.Errorf("plugin store nil")
 }

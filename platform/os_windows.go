@@ -152,6 +152,8 @@ func executePowershellCommand(command string) (string, error) {
 		return "", fmt.Errorf("Failed to find powershell executable")
 	}
 
+	log.Printf("[Azure-Utils] %s", command)
+
 	cmd := exec.Command(ps, command)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -198,18 +200,8 @@ func GetOSDetails() (map[string]string, error) {
 	return nil, nil
 }
 
-func IsProcessRunning(pidstr string) bool {
-	cmd := fmt.Sprintf("Get-Process -Id %s", pidstr)
-	out, err := executePowershellCommand(cmd)
-	if err != nil {
-		log.Printf("Process is not running. Output:%v, Error %v", out, err)
-		return false
-	}
-
-	return true
-}
-
 func GetProcessNameByID(pidstr string) (string, error) {
+	pidstr = strings.Trim(pidstr, "\r\n")
 	cmd := fmt.Sprintf("Get-Process -Id %s|Format-List", pidstr)
 	out, err := executePowershellCommand(cmd)
 	if err != nil {

@@ -9,9 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/Azure/azure-container-networking/common"
@@ -137,29 +135,8 @@ func GetOSDetails() (map[string]string, error) {
 	return osInfoArr, nil
 }
 
-func IsProcessRunning(pidstr string) bool {
-	pid, err := strconv.Atoi(pidstr)
-	if err != nil {
-		log.Errorf("Cannot convert processid to int: %v", err)
-		return false
-	}
-
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		log.Printf("Failed to find process: %s", err)
-		return false
-	}
-
-	err = process.Signal(syscall.Signal(0))
-	log.Printf("process.Signal on pid %d returned: %v", pid, err)
-	if err != nil {
-		return false
-	}
-
-	return true
-}
-
 func GetProcessNameByID(pidstr string) (string, error) {
+	pidstr = strings.Trim(pidstr, "\n")
 	cmd := fmt.Sprintf("ps -p %s -o comm=", pidstr)
 	out, err := ExecuteCommand(cmd)
 	if err != nil {

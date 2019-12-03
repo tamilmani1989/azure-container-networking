@@ -188,8 +188,8 @@ func main() {
 			tb.Close()
 		}
 
-		if netPlugin.Plugin.IsSafeToRemoveLock(name) {
-			log.Printf("[CNI] Removing lock file as process holding lock exited.")
+		if isSafe, err := netPlugin.Plugin.IsSafeToRemoveLock(name); isSafe {
+			log.Printf("[CNI] Removing lock file as process holding lock exited. Error:%v", err)
 			if errUninit := netPlugin.Plugin.UninitializeKeyValueStore(true); errUninit != nil {
 				log.Errorf("Failed to uninitialize key-value store of network plugin, err:%v.\n", errUninit)
 			}

@@ -26,18 +26,6 @@ func TestGetOSDetails(t *testing.T) {
 	}
 }
 
-func TestIsProcessRunning(t *testing.T) {
-	status := IsProcessRunning(strconv.Itoa(os.Getpid()))
-	if !status {
-		t.Errorf("IsProcessRunning failed. Expected: process should be running")
-	}
-
-	status = IsProcessRunning("-1")
-	if status {
-		t.Errorf("IsProcessRunning failed. Expected: Process should not run")
-	}
-}
-
 func TestGetProcessNameByID(t *testing.T) {
 	pName, err := GetProcessNameByID(strconv.Itoa(os.Getpid()))
 	if err != nil {
