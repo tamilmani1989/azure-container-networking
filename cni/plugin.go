@@ -237,5 +237,6 @@ func (plugin *Plugin) IsSafeToRemoveLock(processName string) (bool, error) {
 		}
 	}
 
+	log.Errorf("Plugin store is nil")
 	return false, fmt.Errorf("plugin store nil")
 }
