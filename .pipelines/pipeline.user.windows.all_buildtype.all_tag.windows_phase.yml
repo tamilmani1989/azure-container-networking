@@ -57,8 +57,8 @@ version:
                                                                         # Currently unused, but will be used in the future to refer to the
                                                                         # artifacts as a group by name.
   major: 2019                                                           # The major version number.
-  minor: 11                                                             # The minor version number
-  tag: '14.1'                                                           # Tag to use for semantic versioning.
+  minor: 12                                                             # The minor version number
+  tag: '05.1'                                                           # Tag to use for semantic versioning.
   system: 'patch'
 
 static_analysis_options:
