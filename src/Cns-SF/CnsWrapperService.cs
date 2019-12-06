@@ -94,6 +94,12 @@ namespace CnsWrapperService
                     _additionalCmdLineArguments += string.Format(" -defaultextnetworktype {0}", WrapperConfiguration.DefaultExtNetworkType);
                 }
 
+                string storeFilePath = WrapperConfiguration.StoreFilePath;
+                if (!string.IsNullOrEmpty(storeFilePath))
+                {
+                    _additionalCmdLineArguments += string.Format(" -storefilepath {0}", storeFilePath);
+                }
+
                 _additionalCmdLineArguments.Trim();
 
                 _mainThread = new Thread(this.Run);

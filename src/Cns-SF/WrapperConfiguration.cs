@@ -49,6 +49,11 @@ namespace CnsWrapperService
             get { return GetStringConfigurationValue(Constants.ConfigPackage, "DefaultExtNetworkType", "l2bridge"); }
         }
 
+        public static string StoreFilePath
+        {
+            get { return GetStringConfigurationValue(Constants.ConfigPackage, "StoreFilePath", ""); }
+        }
+
         private static string GetStringConfigurationValue(string section, string parameter, string defaultValue)
         {
             string result;

@@ -9,5 +9,6 @@
     <Parameter Name="StartCnm" Value="false" />
     <Parameter Name="SetupHnsAtStartup" Value="true" />
     <Parameter Name="DefaultExtNetworkType" Value="l2bridge" />
+    <Parameter Name="StoreFilePath" Value="" />
   </Section>
 </Settings>

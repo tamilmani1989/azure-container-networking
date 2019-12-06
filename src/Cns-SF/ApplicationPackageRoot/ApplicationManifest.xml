@@ -1,18 +1,50 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ApplicationManifest ApplicationTypeName="CnsWrapperServiceApplicationType" ApplicationTypeVersion="1.0.0" xsi:schemaLocation="http://schemas.microsoft.com/2011/01/fabric/WinFabServiceModel.xsd" xmlns="http://schemas.microsoft.com/2011/01/fabric" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ApplicationManifest ApplicationTypeName="CnsWrapperServiceApplicationType" ApplicationTypeVersion="2.0.0" xsi:schemaLocation="http://schemas.microsoft.com/2011/01/fabric/WinFabServiceModel.xsd" xmlns="http://schemas.microsoft.com/2011/01/fabric" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Description>Cns Wrapper Application</Description>
+    <Parameters>
+      <Parameter Name="Cns_InstanceCount" DefaultValue="-1" />
+      <Parameter Name="Cns_Port" DefaultValue="10090" />
+      <Parameter Name="Cns_Setting_WrapperShutdownThreadWaitTimeout" DefaultValue="00:00:01" />
+      <Parameter Name="Cns_Setting_WrapperMainThreadShutdownCheck" DefaultValue="00:00:01" />
+      <Parameter Name="Cns_Setting_WrapperMainLoopTimeout" DefaultValue="00:00:01" />
+      <Parameter Name="Cns_Setting_WrapperThreadWaitTimeout" DefaultValue="00:00:01" />
+      <Parameter Name="Cns_Setting_EnablePortOverride" DefaultValue="false" />
+      <Parameter Name="Cns_Setting_StartCnm" DefaultValue="false" />
+      <Parameter Name="Cns_Setting_SetupHnsAtStartup" DefaultValue="true" />
+      <Parameter Name="Cns_Setting_DefaultExtNetworkType" DefaultValue="l2bridge" />
+      <Parameter Name="Cns_Setting_StoreFilePath" DefaultValue="" />
+    </Parameters>
   <ServiceManifestImport>
-    <ServiceManifestRef ServiceManifestName="CnsWrapperService" ServiceManifestVersion="1.0.0"/>
+    <ServiceManifestRef ServiceManifestName="CnsWrapperService" ServiceManifestVersion="2.0.0"/>
     <ConfigOverrides>
-      <ConfigOverride Name="Config" />
+      <ConfigOverride Name="Config">
+        <Settings>
+          <Section Name="Config">
+            <Parameter Name="WrapperShutdownThreadWaitTimeout" Value="[Cns_Settting_WrapperShutdownThreadWaitTimeout]" />
+            <Parameter Name="WrapperMainThreadShutdownCheck" Value="[Cns_Settting_WrapperMainThreadShutdownCheck]" />
+            <Parameter Name="WrapperMainLoopTimeout" Value="[Cns_Settting_WrapperMainLoopTimeout]" />
+            <Parameter Name="WrapperThreadWaitTimeout" Value="[Cns_Settting_WrapperThreadWaitTimeout]" />
+            <Parameter Name="EnablePortOverride" Value="[Cns_Settting_EnablePortOverride]" />
+            <Parameter Name="StartCnm" Value="[Cns_Settting_StartCnm]" />
+            <Parameter Name="SetupHnsAtStartup" Value="[Cns_Settting_SetupHnsAtStartup]" />
+            <Parameter Name="DefaultExtNetworkType" Value="[Cns_Settting_DefaultExtNetworkType]" />
+            <Parameter Name="StoreFilePath" DefaultValue="[Cns_Settting_StoreFilePath]" />
+          </Section>
+        </Settings>
+      </ConfigOverride>
     </ConfigOverrides>
+    <ResourceOverrides>
+      <Endpoints>
+        <Endpoint Protocol="http" Name="AzureCnsEndpoint" Type="Input" Port="[Cns_Port]" />
+      </Endpoints>
+    </ResourceOverrides>
     <Policies>
       <RunAsPolicy CodePackageRef="Code" UserRef="SYSTEM" EntryPointType="All"/>
     </Policies>
   </ServiceManifestImport>
   <DefaultServices>
     <Service Name="CnsWrapperService">
-      <StatelessService ServiceTypeName="CnsWrapperServiceType" InstanceCount="-1">
+      <StatelessService ServiceTypeName="CnsWrapperServiceType" InstanceCount="[Cns_InstanceCount]">
         <SingletonPartition />
       </StatelessService>
     </Service>
