@@ -114,6 +114,7 @@ func NewHTTPRestService(config *common.ServiceConfig) (HTTPService, error) {
 
 	serviceState := &httpRestServiceState{}
 	serviceState.Networks = make(map[string]*networkInfo)
+	serviceState.joinedNetworks = make(map[string]struct{})
 
 	return &HTTPRestService{
 		Service:          service,
@@ -125,7 +126,6 @@ func NewHTTPRestService(config *common.ServiceConfig) (HTTPService, error) {
 		routingTable:     routingTable,
 		state:            serviceState,
 	}, nil
-
 }
 
 // Start starts the CNS listener.
@@ -1760,10 +1760,6 @@ func (service *HTTPRestService) isNetworkJoined(networkID string) bool {
 	namedLock.LockAcquire(stateJoinedNetworks)
 	defer namedLock.LockRelease(stateJoinedNetworks)
 
-	if service.state.joinedNetworks == nil {
-		service.state.joinedNetworks = make(map[string]struct{})
-	}
-
 	_, exists := service.state.joinedNetworks[networkID]
 
 	return exists
@@ -1822,16 +1818,13 @@ func (service *HTTPRestService) publishNetworkContainer(w http.ResponseWriter, r
 
 	switch r.Method {
 	case "POST":
-		// Join Network if not joined already
-		isNetworkJoined = service.isNetworkJoined(req.NetworkID)
-		if !isNetworkJoined {
-			publishResponse, publishError, err = service.joinNetwork(req.NetworkID, req.JoinNetworkURL)
-			if err == nil {
-				isNetworkJoined = true
-			} else {
-				returnMessage = err.Error()
-				returnCode = NetworkJoinFailed
-			}
+		// Join the network
+		publishResponse, publishError, err = service.joinNetwork(req.NetworkID, req.JoinNetworkURL)
+		if err == nil {
+			isNetworkJoined = true
+		} else {
+			returnMessage = err.Error()
+			returnCode = NetworkJoinFailed
 		}
 
 		if isNetworkJoined {
