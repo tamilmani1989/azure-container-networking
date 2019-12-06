@@ -20,15 +20,15 @@
       <ConfigOverride Name="Config">
         <Settings>
           <Section Name="Config">
-            <Parameter Name="WrapperShutdownThreadWaitTimeout" Value="[Cns_Settting_WrapperShutdownThreadWaitTimeout]" />
-            <Parameter Name="WrapperMainThreadShutdownCheck" Value="[Cns_Settting_WrapperMainThreadShutdownCheck]" />
-            <Parameter Name="WrapperMainLoopTimeout" Value="[Cns_Settting_WrapperMainLoopTimeout]" />
-            <Parameter Name="WrapperThreadWaitTimeout" Value="[Cns_Settting_WrapperThreadWaitTimeout]" />
-            <Parameter Name="EnablePortOverride" Value="[Cns_Settting_EnablePortOverride]" />
-            <Parameter Name="StartCnm" Value="[Cns_Settting_StartCnm]" />
-            <Parameter Name="SetupHnsAtStartup" Value="[Cns_Settting_SetupHnsAtStartup]" />
-            <Parameter Name="DefaultExtNetworkType" Value="[Cns_Settting_DefaultExtNetworkType]" />
-            <Parameter Name="StoreFilePath" DefaultValue="[Cns_Settting_StoreFilePath]" />
+            <Parameter Name="WrapperShutdownThreadWaitTimeout" Value="[Cns_Setting_WrapperShutdownThreadWaitTimeout]" />
+            <Parameter Name="WrapperMainThreadShutdownCheck" Value="[Cns_Setting_WrapperMainThreadShutdownCheck]" />
+            <Parameter Name="WrapperMainLoopTimeout" Value="[Cns_Setting_WrapperMainLoopTimeout]" />
+            <Parameter Name="WrapperThreadWaitTimeout" Value="[Cns_Setting_WrapperThreadWaitTimeout]" />
+            <Parameter Name="EnablePortOverride" Value="[Cns_Setting_EnablePortOverride]" />
+            <Parameter Name="StartCnm" Value="[Cns_Setting_StartCnm]" />
+            <Parameter Name="SetupHnsAtStartup" Value="[Cns_Setting_SetupHnsAtStartup]" />
+            <Parameter Name="DefaultExtNetworkType" Value="[Cns_Setting_DefaultExtNetworkType]" />
+            <Parameter Name="StoreFilePath" DefaultValue="[Cns_Setting_StoreFilePath]" />
           </Section>
         </Settings>
       </ConfigOverride>
