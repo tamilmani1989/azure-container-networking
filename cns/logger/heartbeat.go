@@ -25,6 +25,7 @@ func SendCnsTelemetry() {
 	for {
 		select {
 		case <-heartbeat:
+			Printf("[Azure-CNS] Sending hearbeat")
 			SendMetric(metric)
 		}
 	}

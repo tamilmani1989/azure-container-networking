@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	defaultConfigName = "config.json"
+	defaultConfigName = "cns_config.json"
 )
 
 type CNSConfig struct {

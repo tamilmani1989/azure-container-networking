@@ -52,6 +52,7 @@ func SetContextDetails(
 	orchestrartor string,
 	nodeID string,
 ) {
+	Printf("SetContext details called with: %v orchestrator nodeID %v", orchestrartor, nodeID)
 	Log.Orchestrartor = orchestrartor
 	Log.NodeID = nodeID
 }

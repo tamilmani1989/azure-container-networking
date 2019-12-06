@@ -204,6 +204,7 @@ func (service *HTTPRestService) Start(config *common.ServiceConfig) error {
 	responseHeaderTimeout, _ := service.GetOption(acn.OptHttpResponseHeaderTimeout).(int)
 	acn.InitHttpClient(connectionTimeout, responseHeaderTimeout)
 
+	logger.SetContextDetails(service.state.OrchestratorType, service.state.NodeID)
 	logger.Printf("[Azure CNS]  Listening.")
 	return nil
 }

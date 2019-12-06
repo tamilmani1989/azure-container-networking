@@ -35,10 +35,6 @@ const (
 // Version is populated by make during build.
 var version string
 
-// Reports channel
-var reports = make(chan interface{})
-var telemetryStopProcessing = make(chan bool)
-
 // Command line arguments for CNS.
 var args = acn.ArgumentList{
 	{
@@ -226,7 +222,7 @@ func main() {
 		logger.Errorf("[Azure CNS] Error reading cns config: %v", err)
 	}
 
-	log.Printf("[Azure CNS] Read config :%+v", config)
+	log.Printf("[Azure CNS] Read config :%+v", cnsconfig)
 	configuration.SetCNSConfigDefaults(&cnsconfig)
 
 	if !cnsconfig.TelemetrySettings.DisableAll {
@@ -371,8 +367,6 @@ func main() {
 	if httpRestService != nil {
 		httpRestService.Stop()
 	}
-
-	telemetryStopProcessing <- true
 
 	if startCNM {
 		if netPlugin != nil {
