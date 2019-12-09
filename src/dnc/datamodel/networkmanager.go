@@ -2043,8 +2043,12 @@ func getIPConfiguration(repoReservationConfiguration *ReservationConfiguration) 
 // GetNetworkContainerResponse - Get network container response for network config.
 func GetNetworkContainerResponse(
 	ncConfig *NCConfiguration) (*api.NetworkContainerResponse, *api.JsonErr) {
-	var ipConfiguration *api.IPConfiguration
-	var nodeConfiguration *NodeConfiguration
+	var (
+		err                      *api.JsonErr
+		ipConfiguration          *api.IPConfiguration
+		nodeConfiguration        *NodeConfiguration
+		reservationConfiguration *ReservationConfiguration
+	)
 
 	if ncConfig == nil {
 		return nil, &api.JsonErr{
@@ -2053,24 +2057,27 @@ func GetNetworkContainerResponse(
 			Text:       "GetNetworkContainerResponse on nil NCConfiguration"}
 	}
 
-	if ncConfig.State != Prepare &&
-		!(ncConfig.State == Reserve && ncConfig.Status != Completed) {
-		reservationConfiguration, err := QueryIPReservation(
-			ncConfig.NetworkID,
-			ncConfig.ReservationID)
-		if err != nil {
-			return nil, err
-		}
+	reservationConfiguration, err = QueryIPReservation(
+		ncConfig.NetworkID,
+		ncConfig.ReservationID)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to get IP reservation in GetNetworkContainerResponse for NC: %s,"+
+			" NC state: %s. Error: %v", ncConfig.NetworkContainerID, ncConfig.State.String(), err)
+	}
 
+	if reservationConfiguration != nil {
 		ipConfiguration, err = getIPConfiguration(reservationConfiguration)
 		if err != nil {
-			return nil, err
+			loggershim.LS.Errorf("Failed to get IP configuration for reservation: %s "+
+				"in GetNetworkContainerResponse for NC: %s. Error: %v",
+				ncConfig.ReservationID, ncConfig.NetworkContainerID, err)
 		}
+	}
 
-		nodeConfiguration, err = QueryNodeConfiguration(ncConfig.GetAssociationInfo().NodeID)
-		if err != nil {
-			return nil, err
-		}
+	nodeConfiguration, err = QueryNodeConfiguration(ncConfig.GetAssociationInfo().NodeID)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to get node configuration for node: %s in GetNetworkContainerResponse."+
+			"for NC: %s. Error: %v", ncConfig.GetAssociationInfo().NodeID, ncConfig.NetworkContainerID, err)
 	}
 
 	var vlanID uint16
@@ -2114,6 +2121,34 @@ func translateRepoToContractReservationResponse(
 		AllocationRequest: reservationConfiguration.AllocationRequest,
 		AllocatedIPSubnet: reservationConfiguration.AllocatedSubnet,
 		RequestStatus:     requestStatus}
+}
+
+// getOrchestratorContextList - Returns the list of orchestrator contexts for all the NCs for a given node.
+func getOrchestratorContextList(nodeID string) (map[string][]byte, *api.JsonErr) {
+	orchestratorContextList := make(map[string][]byte)
+
+	repoNodeConfiguration, err := TryQueryNodeConfiguration(nodeID)
+	if err != nil {
+		return orchestratorContextList, err
+	}
+
+	if repoNodeConfiguration == nil {
+		return orchestratorContextList, &api.JsonErr{
+			Code:       api.NodeNotFound,
+			Text:       fmt.Sprintf("Node %s not found", nodeID),
+			HTTPStatus: http.StatusNotFound}
+	}
+
+	for networkID, ncMap := range repoNodeConfiguration.DeployedNetworkContainerMap {
+		for ncID := range ncMap {
+			ncConfig, err := GetNetworkContainerConfiguration(networkID, ncID)
+			if err == nil && ncConfig != nil {
+				orchestratorContextList[ncConfig.NetworkContainerID] = ncConfig.GetAssociationInfo().OrchestratorContext
+			}
+		}
+	}
+
+	return orchestratorContextList, nil
 }
 
 // GetNodeInfo - Get node configuration for a given node.
@@ -2297,6 +2332,7 @@ func CreateOrUpdateNCRequestV1(
 		var status string
 		if err != nil {
 			status = aiwrapper.Invalid
+			loggershim.LS.Errorf("CreateOrUpdateNCRequestV1 failed. Error: %v", err)
 		} else {
 			status = aiwrapper.Valid
 		}
@@ -2304,17 +2340,22 @@ func CreateOrUpdateNCRequestV1(
 		sendNCCreationReqMetric(networkID, ncID, status, ncRequestV1.AssociationInfo)
 	}()
 
-	var nodeInfo *api.NodeInfoResponse
-	nodeInfo, err = GetNodeInfo(ncRequestV1.AssociationInfo.NodeID)
+	var orchestratorContextList map[string][]byte
+	orchestratorContextList, err = getOrchestratorContextList(ncRequestV1.AssociationInfo.NodeID)
 	if err != nil {
 		return err
 	}
 
-	for _, nc := range nodeInfo.NetworkContainers {
-		if bytes.Compare(nc.AssociationInfo.OrchestratorContext, ncRequestV1.AssociationInfo.OrchestratorContext) == 0 {
+	// Marshal the orchestrator context for the incoming request. This is needed to compare with the
+	// existing orchestrator contexts because when saving the orchestrator context to NCConfig, it
+	// gets marshaled.
+	marshaledOrchestratorContext, _ := json.Marshal(ncRequestV1.AssociationInfo.OrchestratorContext)
+
+	for ncid, orchestratorContext := range orchestratorContextList {
+		if bytes.Compare(orchestratorContext, marshaledOrchestratorContext) == 0 {
 			err = &api.JsonErr{
 				Code:       api.StatusBadRequest,
-				Text:       fmt.Sprintf("Illegal create nc operation due to duplicate orchestrator context with nc: %s", nc.NcID),
+				Text:       fmt.Sprintf("Illegal create nc operation due to duplicate orchestrator context with nc: %s", ncid),
 				HTTPStatus: http.StatusBadRequest}
 			return err
 		}
@@ -2360,6 +2401,7 @@ func CreateOrUpdateNCRequestV2(
 		var status string
 		if err != nil {
 			status = aiwrapper.Invalid
+			loggershim.LS.Errorf("CreateOrUpdateNCRequestV2 failed. Error: %v", err)
 		} else {
 			status = aiwrapper.Valid
 		}
@@ -2367,17 +2409,22 @@ func CreateOrUpdateNCRequestV2(
 		sendNCCreationReqMetric(networkID, ncID, status, ncRequestV2.AssociationInfo)
 	}()
 
-	var nodeInfo *api.NodeInfoResponse
-	nodeInfo, err = GetNodeInfo(ncRequestV2.AssociationInfo.NodeID)
+	var orchestratorContextList map[string][]byte
+	orchestratorContextList, err = getOrchestratorContextList(ncRequestV2.AssociationInfo.NodeID)
 	if err != nil {
 		return err
 	}
 
-	for _, nc := range nodeInfo.NetworkContainers {
-		if bytes.Compare(nc.AssociationInfo.OrchestratorContext, ncRequestV2.AssociationInfo.OrchestratorContext) == 0 {
+	// Marshal the orchestrator context for the incoming request. This is needed to compare with the
+	// existing orchestrator contexts because when saving the orchestrator context to NCConfig, it
+	// gets marshaled.
+	marshaledOrchestratorContext, _ := json.Marshal(ncRequestV2.AssociationInfo.OrchestratorContext)
+
+	for ncid, orchestratorContext := range orchestratorContextList {
+		if bytes.Compare(orchestratorContext, marshaledOrchestratorContext) == 0 {
 			err = &api.JsonErr{
 				Code:       api.StatusBadRequest,
-				Text:       fmt.Sprintf("Illegal create nc operation due to duplicate orchestrator context with nc: %s", nc.NcID),
+				Text:       fmt.Sprintf("Illegal create nc operation due to duplicate orchestrator context with nc: %s", ncid),
 				HTTPStatus: http.StatusBadRequest}
 			return err
 		}
