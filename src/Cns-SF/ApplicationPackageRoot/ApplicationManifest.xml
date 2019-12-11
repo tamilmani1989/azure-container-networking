@@ -28,7 +28,7 @@
             <Parameter Name="StartCnm" Value="[Cns_Setting_StartCnm]" />
             <Parameter Name="SetupHnsAtStartup" Value="[Cns_Setting_SetupHnsAtStartup]" />
             <Parameter Name="DefaultExtNetworkType" Value="[Cns_Setting_DefaultExtNetworkType]" />
-            <Parameter Name="StoreFilePath" DefaultValue="[Cns_Setting_StoreFilePath]" />
+            <Parameter Name="StoreFilePath" Value="[Cns_Setting_StoreFilePath]" />
           </Section>
         </Settings>
       </ConfigOverride>
