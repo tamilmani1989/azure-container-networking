@@ -94,6 +94,12 @@ namespace CnsWrapperService
                     _additionalCmdLineArguments += string.Format(" -defaultextnetworktype {0}", WrapperConfiguration.DefaultExtNetworkType);
                 }
 
+                _additionalCmdLineArguments += string.Format(
+                    " -telemetry {0} -httpcontimeout {1} -httprespheadertimeout {2}",
+                    WrapperConfiguration.EnableTelemetry,
+                    WrapperConfiguration.HttpConnectionTimeoutInSeconds,
+                    WrapperConfiguration.HttpResponseHeaderTimeoutInSeconds);
+
                 string storeFilePath = WrapperConfiguration.StoreFilePath;
                 if (!string.IsNullOrEmpty(storeFilePath))
                 {

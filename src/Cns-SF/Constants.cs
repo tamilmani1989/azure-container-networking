@@ -34,6 +34,12 @@ namespace CnsWrapperService
         internal static readonly TimeSpan DefaultWrapperShutdownThreadWaitTimeout = DefaultWrapperThreadWaitTimeout;
 
         internal static readonly TimeSpan DefaultWrapperMainLoopTimeout = TimeSpan.FromMilliseconds(DefaultWrapperThreadWaitTimeout.TotalMilliseconds / 2);
+
+        internal static readonly int DefaultHttpConnectionTimeoutInSeconds = 5;
+
+        internal static readonly int DefaultHttpResponseHeaderTimeoutInSeconds = 120;
+
+        internal static readonly bool EnableTelemetry = true;
         
         #endregion
     }

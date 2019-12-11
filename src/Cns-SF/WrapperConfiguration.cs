@@ -49,6 +49,36 @@ namespace CnsWrapperService
             get { return GetStringConfigurationValue(Constants.ConfigPackage, "DefaultExtNetworkType", "l2bridge"); }
         }
 
+        public static bool EnableTelemetry
+        {
+            get { return GetBoolConfigurationValue(
+                Constants.ConfigPackage,
+                "EnableTelemetry",
+                Constants.EnableTelemetry); }
+        }
+
+        public static int HttpConnectionTimeoutInSeconds
+        {
+            get
+            {
+                return GetIntConfigurationValue(
+                    Constants.ConfigPackage,
+                    "HttpConnectionTimeoutInSeconds",
+                    Constants.DefaultHttpConnectionTimeoutInSeconds);
+            }
+        }
+
+        public static int HttpResponseHeaderTimeoutInSeconds
+        {
+            get
+            {
+                return GetIntConfigurationValue(
+                    Constants.ConfigPackage,
+                    "HttpResponseHeaderTimeoutInSeconds",
+                    Constants.DefaultHttpResponseHeaderTimeoutInSeconds);
+            }
+        }
+
         public static string StoreFilePath
         {
             get { return GetStringConfigurationValue(Constants.ConfigPackage, "StoreFilePath", ""); }
@@ -56,7 +86,6 @@ namespace CnsWrapperService
 
         private static string GetStringConfigurationValue(string section, string parameter, string defaultValue)
         {
-            string result;
             string configValue = GetConfigurationValue(section, parameter);
 
             if (string.IsNullOrEmpty(configValue))
@@ -97,6 +126,20 @@ namespace CnsWrapperService
 
             return returnResult;
         }
+
+        private static int GetIntConfigurationValue(string section, string parameter, int defaultIntValue)
+        {
+            int result;
+            string configValue = GetConfigurationValue(section, parameter);
+
+            if(!string.IsNullOrEmpty(configValue) && int.TryParse(configValue, out result))
+            {
+                return result;
+            }
+
+            return defaultIntValue;
+        }
+
 
         private static string GetConfigurationValue(string section, string parameter)
         {
