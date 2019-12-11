@@ -7,7 +7,7 @@
     <Description>Azure VM Networking</Description>
     <SourcePath>%BinariesBuildTypeArchDirectory%</SourcePath>
     <StrongNameCert>72</StrongNameCert>
-    <AuthenticodeCert>401</AuthenticodeCert>
+    <AuthenticodeCert>400</AuthenticodeCert>
     <FileDescription>Azure VM Networking</FileDescription>
     <BatchDescription>Azure VM Networking %BuildNumber%</BatchDescription>
     <Approvers>nsrivast,susharm,ligxie</Approvers>
