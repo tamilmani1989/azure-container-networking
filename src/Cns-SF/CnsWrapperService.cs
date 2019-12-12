@@ -84,21 +84,18 @@ namespace CnsWrapperService
                 _azureCnsPort = FabricRuntime.GetActivationContext().GetEndpoint(endpoint).Port;
                 _additionalCmdLineArguments = string.Empty;
 
-                if (WrapperConfiguration.StartCnm)
-                {
-                    _additionalCmdLineArguments += " -startcnm";
-                }
-
                 if (WrapperConfiguration.SetupHnsAtStartup)
                 {
                     _additionalCmdLineArguments += string.Format(" -defaultextnetworktype {0}", WrapperConfiguration.DefaultExtNetworkType);
                 }
 
+                // Note : Bool parameter values are passed as follows : <bool-parameter>=<bool-parameter value> 
                 _additionalCmdLineArguments += string.Format(
-                    " -telemetry {0} -httpcontimeout {1} -httprespheadertimeout {2}",
+                    " -telemetry={0} -httpcontimeout {1} -httprespheadertimeout {2} -startcnm={3}",
                     WrapperConfiguration.EnableTelemetry,
                     WrapperConfiguration.HttpConnectionTimeoutInSeconds,
-                    WrapperConfiguration.HttpResponseHeaderTimeoutInSeconds);
+                    WrapperConfiguration.HttpResponseHeaderTimeoutInSeconds,
+                    WrapperConfiguration.StartCnm);
 
                 string storeFilePath = WrapperConfiguration.StoreFilePath;
                 if (!string.IsNullOrEmpty(storeFilePath))
