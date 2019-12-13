@@ -1,0 +1,41 @@
+{
+    "SrcRoot": "src",
+    "OutRoot": "out\\retail-amd64",
+
+    "OmitExtensions":  [
+              ],
+    "OmitFiles":  [
+              ],
+    "OmitPaths":  [
+               "AqEventMessage",
+               "Aqua.HNSOverlayPlugin",
+               "Aqua.NetworkClient",
+               "aquanix",
+               "aquanixconsole",
+               "AquariusGaExt",
+               "AquariusLibrary",
+               "AquariusLinuxPackage",
+               "AzureDNCPackage",
+               "bond",
+               "bond-apply",
+               "CloudUnitTests",
+               "detours",
+               "Hijacker",
+               "HnsClient",
+               "HNSOverlayPlugin",
+               "HostNetAgentTests",
+               "IfxEvents",
+               "Injection",
+               "Kernel",
+               "NetAgentContracts",
+               "NetworkClient",
+               "NetworkClientLibrary",
+               "PackMan",
+               "RDPackage",
+               "RDTools",
+               "Shared",
+               "Test",
+               "VFPlugin",
+               "VFPluginLibrary"
+              ]
+}
