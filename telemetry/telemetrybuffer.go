@@ -33,7 +33,7 @@ type TelemetryConfig struct {
 	DisableMetric                 bool
 	DisableMetadataThread         bool
 	DebugMode                     bool
-	RefreshTimeout                int
+	RefreshTimeoutInSecs          int
 	BatchIntervalInSecs           int
 	BatchSizeInBytes              int
 }

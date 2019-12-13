@@ -152,6 +152,7 @@ func main() {
 		AppVersion:                   version,
 		BatchSize:                    config.BatchSizeInBytes,
 		BatchInterval:                config.BatchIntervalInSecs,
+		RefreshTimeout:               config.RefreshTimeoutInSecs,
 		DisableMetadataRefreshThread: config.DisableMetadataThread,
 		DebugMode:                    config.DebugMode,
 	}
