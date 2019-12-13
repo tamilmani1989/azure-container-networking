@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/platform"
@@ -98,6 +99,7 @@ type CNIReport struct {
 	InterfaceDetails    InterfaceInfo
 	BridgeDetails       BridgeInfo
 	Metadata            common.Metadata `json:"compute"`
+	Metric              aitelemetry.Metric
 }
 
 // Azure CNS Telemetry Report structure.
@@ -382,4 +384,22 @@ func (reportMgr *ReportManager) ReportToBytes() ([]byte, error) {
 
 	report, err = json.Marshal(reportMgr.Report)
 	return report, err
+}
+
+func SendCNIMetric(cniReport *CNIReport, tb *TelemetryBuffer) error {
+	var err error
+	var report []byte
+
+	if tb != nil && tb.Connected {
+		reportMgr := &ReportManager{Report: cniReport}
+		report, err = reportMgr.ReportToBytes()
+		if err == nil {
+			// If write fails, try to re-establish connections as server/client
+			if _, err = tb.Write(report); err != nil {
+				tb.Cancel()
+			}
+		}
+	}
+
+	return err
 }

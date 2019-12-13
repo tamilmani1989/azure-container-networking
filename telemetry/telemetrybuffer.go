@@ -28,6 +28,14 @@ import (
 // TelemetryConfig - telemetry config read by telemetry service
 type TelemetryConfig struct {
 	ReportToHostIntervalInSeconds time.Duration `json:"reportToHostIntervalInSeconds"`
+	DisableAll                    bool
+	DisableTrace                  bool
+	DisableMetric                 bool
+	DisableMetadataThread         bool
+	DebugMode                     bool
+	RefreshTimeout                int
+	BatchIntervalInSecs           int
+	BatchSizeInBytes              int
 }
 
 // FdName - file descriptor name
@@ -443,7 +451,7 @@ func (buf *Buffer) push(x interface{}) {
 		}
 		cniReport := x.(CNIReport)
 		cniReport.Metadata = metadata
-		buf.CNIReports = append(buf.CNIReports, cniReport)
+		SendAITelemetry(cniReport)
 	case NPMReport:
 		if len(buf.NPMReports) >= MaxNumReports {
 			return

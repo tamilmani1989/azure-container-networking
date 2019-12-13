@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/Azure/azure-container-networking/aitelemetry"
 	acn "github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/telemetry"
@@ -15,6 +16,7 @@ import (
 
 const (
 	reportToHostIntervalInSeconds = 30
+	pluginName                    = "AzureCNI"
 	azureVnetTelemetry            = "azure-vnet-telemetry"
 	configExtension               = ".config"
 )
@@ -145,7 +147,18 @@ func main() {
 		config.ReportToHostIntervalInSeconds = reportToHostIntervalInSeconds
 	}
 
+	aiConfig := aitelemetry.AIConfig{
+		AppName:                      pluginName,
+		AppVersion:                   version,
+		BatchSize:                    config.BatchSizeInBytes,
+		BatchInterval:                config.BatchIntervalInSecs,
+		DisableMetadataRefreshThread: config.DisableMetadataThread,
+		DebugMode:                    config.DebugMode,
+	}
+
+	telemetry.CreateAITelemetryHandle(aiConfig, config.DisableAll, config.DisableTrace, config.DisableMetric)
 	log.Logf("[Telemetry] Report to host for an interval of %d seconds", config.ReportToHostIntervalInSeconds)
 	tb.BufferAndPushData(config.ReportToHostIntervalInSeconds * time.Second)
+	telemetry.CloseAITelemetryHandle()
 	log.Close()
 }

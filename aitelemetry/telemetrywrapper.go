@@ -18,6 +18,7 @@ const (
 	appNameStr        = "AppName"
 	subscriptionIDStr = "SubscriptionID"
 	vmNameStr         = "VMName"
+	versionStr        = "AppVersion"
 	defaultTimeout    = 10
 )
 
@@ -167,6 +168,7 @@ func (th *telemetryHandle) TrackMetric(metric Metric) {
 		aimetric.Properties[locationStr] = th.metadata.Location
 		aimetric.Properties[subscriptionIDStr] = th.metadata.SubscriptionID
 		aimetric.Properties[vmNameStr] = th.metadata.VMName
+		aimetric.Properties[versionStr] = th.appVersion
 	}
 
 	// copy custom dimensions
