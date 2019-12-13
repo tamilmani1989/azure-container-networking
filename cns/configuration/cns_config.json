@@ -1,0 +1,8 @@
+{
+    "TelemetrySettings": {
+        "TelemetryBatchSizeBytes": 16384,
+        "TelemetryBatchIntervalInSecs": 15,
+        "RefreshIntervalInSecs": 15,
+        "DebugMode": true
+    }
+}

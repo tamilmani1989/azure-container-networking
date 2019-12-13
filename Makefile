@@ -38,10 +38,12 @@ CNSFILES = \
 	$(wildcard cns/*.go) \
 	$(wildcard cns/cnsclient/*.go) \
 	$(wildcard cns/common/*.go) \
+	$(wildcard cns/configuration/*.go) \
 	$(wildcard cns/dockerclient/*.go) \
 	$(wildcard cns/imdsclient/*.go) \
 	$(wildcard cns/ipamclient/*.go) \
 	$(wildcard cns/hnsclient/*.go) \
+	$(wildcard cns/logger/*.go) \
 	$(wildcard cns/nmagentclient/*.go) \
 	$(wildcard cns/restserver/*.go) \
 	$(wildcard cns/routes/*.go) \
