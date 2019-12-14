@@ -161,5 +161,6 @@ func main() {
 	log.Logf("[Telemetry] Report to host for an interval of %d seconds", config.ReportToHostIntervalInSeconds)
 	tb.BufferAndPushData(config.ReportToHostIntervalInSeconds * time.Second)
 	telemetry.CloseAITelemetryHandle()
+
 	log.Close()
 }

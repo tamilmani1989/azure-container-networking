@@ -8,7 +8,6 @@ import (
 var (
 	aiMetadata     string
 	th             aitelemetry.TelemetryHandle
-	gDisableAll    bool
 	gDisableTrace  bool
 	gDisableMetric bool
 )
@@ -18,8 +17,12 @@ const (
 )
 
 func CreateAITelemetryHandle(aiConfig aitelemetry.AIConfig, disableAll, disableMetric, disableTrace bool) {
+	if disableAll {
+		log.Printf("Telemetry is disabled")
+		return
+	}
+
 	th = aitelemetry.NewAITelemetry(aiMetadata, aiConfig)
-	gDisableAll = disableAll
 	gDisableMetric = disableMetric
 	gDisableTrace = disableTrace
 }
@@ -48,8 +51,7 @@ func sendReport(cnireport CNIReport) {
 }
 
 func SendAITelemetry(cnireport CNIReport) {
-	if gDisableAll {
-		log.Printf("Sending Telemetry data is disabled")
+	if th == nil {
 		return
 	}
 
@@ -61,5 +63,7 @@ func SendAITelemetry(cnireport CNIReport) {
 }
 
 func CloseAITelemetryHandle() {
-	th.Close(waitTimeInSecs)
+	if th != nil {
+		th.Close(waitTimeInSecs)
+	}
 }
