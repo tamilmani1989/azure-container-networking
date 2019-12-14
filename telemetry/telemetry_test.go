@@ -186,13 +186,6 @@ func TestSendTelemetry(t *testing.T) {
 	}
 }
 
-func TestReceiveTelemetryData(t *testing.T) {
-	time.Sleep(300 * time.Millisecond)
-	if len(tb.buffer.CNIReports) != 1 {
-		t.Errorf("buffer doesn't contain CNI report")
-	}
-}
-
 func TestCloseTelemetryConnection(t *testing.T) {
 	tb.Cancel()
 	time.Sleep(300 * time.Millisecond)
