@@ -3,6 +3,10 @@
         "TelemetryBatchSizeBytes": 16384,
         "TelemetryBatchIntervalInSecs": 15,
         "RefreshIntervalInSecs": 15,
-        "DebugMode": true
+        "DisableAll": false,
+        "DisableTrace": false,
+        "DisableMetric": false,
+        "DisableMetadataRefreshThread": false,
+        "DebugMode": false
     }
 }

@@ -201,27 +201,14 @@ func main() {
 	}
 
 	// Initialize CNS.
+	var err error
 	var config common.ServiceConfig
 	config.Version = version
 	config.Name = name
-
 	// Create a channel to receive unhandled errors from CNS.
 	config.ErrChan = make(chan error, 1)
 
-	var err error
 	// Create logging provider.
-	// log.SetName(name)
-	// log.SetLevel(logLevel)
-	// if logDirectory != "" {
-	// 	log.SetLogDirectory(logDirectory)
-	// }
-
-	// err = log.SetTarget(logTarget)
-	// if err != nil {
-	// 	fmt.Printf("Failed to configure logging: %v\n", err)
-	// 	return
-	// }
-
 	logger.InitLogger(name, logLevel, logTarget)
 	logger.SetLogDirectory(logDirectory)
 
