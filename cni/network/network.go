@@ -307,6 +307,8 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		return err
 	}
 
+	plugin.report.ContainerName = k8sPodName + ":" + k8sNamespace
+
 	if nwCfg.MultiTenancy {
 		// Initialize CNSClient
 		cnsclient.InitCnsClient(nwCfg.CNSUrl)
