@@ -201,8 +201,11 @@ func main() {
 	}
 
 	// Initialize CNS.
-	var err error
-	var config common.ServiceConfig
+	var (
+		err    error
+		config common.ServiceConfig
+	)
+
 	config.Version = version
 	config.Name = name
 	// Create a channel to receive unhandled errors from CNS.
@@ -287,7 +290,7 @@ func main() {
 	}
 
 	if !cnsconfig.TelemetrySettings.DisableAll {
-		go logger.SendCnsTelemetry()
+		go logger.SendCnsTelemetry(cnsconfig.TelemetrySettings.HeartBeatIntervalInMins)
 	}
 
 	var netPlugin network.NetPlugin

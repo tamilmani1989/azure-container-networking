@@ -1,3 +1,4 @@
+// Copyright Microsoft. All rights reserved.
 package logger
 
 const (

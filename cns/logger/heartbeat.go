@@ -1,4 +1,4 @@
-// Copyright 2018 Microsoft. All rights reserved.
+// Copyright Microsoft. All rights reserved.
 // MIT License
 
 package logger
@@ -9,15 +9,13 @@ import (
 	"github.com/Azure/azure-container-networking/aitelemetry"
 )
 
-const (
-	heartbeatIntervalInMinutes = 30
-)
-
 // SendCnsTelemetry - handles cns telemetry reports
-func SendCnsTelemetry() {
-	heartbeat := time.NewTicker(time.Minute * heartbeatIntervalInMinutes).C
+func SendCnsTelemetry(heartbeatIntervalInMins int) {
+
+	heartbeat := time.NewTicker(time.Minute * time.Duration(heartbeatIntervalInMins)).C
 	metric := aitelemetry.Metric{
-		Name:             HeartBeatMetricStr,
+		Name: HeartBeatMetricStr,
+		// This signifies 1 heartbeat is sent. Sum of this metric will give us number of heartbeats received
 		Value:            1.0,
 		CustomDimensions: make(map[string]string),
 	}

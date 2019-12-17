@@ -1,3 +1,4 @@
+// Copyright Microsoft. All rights reserved.
 package configuration
 
 import (
@@ -28,6 +29,8 @@ type TelemetrySettings struct {
 	TelemetryBatchSizeBytes int
 	// Configure the maximum delay before sending queued telemetry in milliseconds
 	TelemetryBatchIntervalInSecs int
+	// Heartbeat interval for sending heartbeat metric
+	HeartBeatIntervalInMins int
 	// Enable thread for getting metadata from wireserver
 	DisableMetadataRefreshThread bool
 	// Refresh interval in milliseconds for metadata thread
@@ -36,6 +39,7 @@ type TelemetrySettings struct {
 	DebugMode bool
 }
 
+// This functions reads cns config file and save it in a structure
 func ReadConfig() (CNSConfig, error) {
 	var cnsConfig CNSConfig
 
@@ -48,8 +52,11 @@ func ReadConfig() (CNSConfig, error) {
 			return cnsConfig, err
 		}
 
-		configpath = dir + string(os.PathSeparator) + defaultConfigName
+		configpath = filepath.Join(dir, defaultConfigName)
+		//dir + string(os.PathSeparator) + defaultConfigName
 	}
+
+	logger.Debugf("Config path:%s", configpath)
 
 	content, err := ioutil.ReadFile(configpath)
 	if err != nil {
@@ -61,6 +68,7 @@ func ReadConfig() (CNSConfig, error) {
 	return cnsConfig, err
 }
 
+// set telmetry setting defaults
 func setTelemetrySettingDefaults(telemetrySettings TelemetrySettings) {
 	if telemetrySettings.RefreshIntervalInSecs == 0 {
 		// set the default refresh interval of metadata thread to 15 seconds
@@ -76,8 +84,14 @@ func setTelemetrySettingDefaults(telemetrySettings TelemetrySettings) {
 		// set the default AI telemetry batch size to 32768 bytes
 		telemetrySettings.TelemetryBatchSizeBytes = 32768
 	}
+
+	if telemetrySettings.HeartBeatIntervalInMins == 0 {
+		// set the default Heartbeat interval to 30 minutes
+		telemetrySettings.HeartBeatIntervalInMins = 30
+	}
 }
 
+// Set Default values of CNS config if not specified
 func SetCNSConfigDefaults(config *CNSConfig) {
 	setTelemetrySettingDefaults(config.TelemetrySettings)
 }

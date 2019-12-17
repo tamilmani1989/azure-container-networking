@@ -4,9 +4,7 @@
         "TelemetryBatchIntervalInSecs": 15,
         "RefreshIntervalInSecs": 15,
         "DisableAll": false,
-        "DisableTrace": false,
-        "DisableMetric": false,
-        "DisableMetadataRefreshThread": false,
+        "HeartBeatIntervalInMins": 30,
         "DebugMode": false
     }
 }

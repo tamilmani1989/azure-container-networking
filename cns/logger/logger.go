@@ -1,3 +1,4 @@
+// Copyright Microsoft. All rights reserved.
 package logger
 
 import (
@@ -8,6 +9,7 @@ import (
 )
 
 const (
+	// Wait time for closing AI telemetry session.
 	waitTimeInSecs = 10
 )
 
@@ -19,24 +21,27 @@ var (
 type CNSLogger struct {
 	logger               *log.Logger
 	th                   aitelemetry.TelemetryHandle
-	Orchestrartor        string
+	Orchestrator         string
 	NodeID               string
 	DisableTraceLogging  bool
 	DisableMetricLogging bool
 }
 
+// Initialize CNS Logger
 func InitLogger(fileName string, logLevel, logTarget int) {
 	Log = &CNSLogger{
 		logger: log.NewLogger(fileName, logLevel, logTarget),
 	}
 }
 
+// Intialize CNS AI telmetry instance
 func InitAI(aiConfig aitelemetry.AIConfig, disableTraceLogging, disableMetricLogging bool) {
 	Log.th = aitelemetry.NewAITelemetry(aiMetadata, aiConfig)
 	Log.DisableMetricLogging = disableMetricLogging
 	Log.DisableTraceLogging = disableTraceLogging
 }
 
+// Close CNS and AI telemetry handle
 func Close() {
 	Log.logger.Close()
 	if Log.th != nil {
@@ -48,19 +53,18 @@ func SetLogDirectory(dir string) {
 	Log.logger.SetLogDirectory(dir)
 }
 
-func SetContextDetails(
-	orchestrartor string,
-	nodeID string,
-) {
-	Printf("SetContext details called with: %v orchestrator nodeID %v", orchestrartor, nodeID)
-	Log.Orchestrartor = orchestrartor
+// Set context details for logs and metrics
+func SetContextDetails(orchestrator string, nodeID string) {
+	Printf("SetContext details called with: %v orchestrator nodeID %v", orchestrator, nodeID)
+	Log.Orchestrator = orchestrator
 	Log.NodeID = nodeID
 }
 
+// Send AI telemetry trace
 func sendTraceInternal(msg string) {
 	report := aitelemetry.Report{CustomDimensions: make(map[string]string)}
 	report.Message = msg
-	report.CustomDimensions[OrchestratorTypeStr] = Log.Orchestrartor
+	report.CustomDimensions[OrchestratorTypeStr] = Log.Orchestrator
 	report.CustomDimensions[NodeIDStr] = Log.NodeID
 	report.Context = Log.NodeID
 	Log.th.TrackLog(report)
@@ -99,12 +103,13 @@ func Errorf(format string, args ...interface{}) {
 	sendTraceInternal(msg)
 }
 
+// Send AI telemetry metric
 func SendMetric(metric aitelemetry.Metric) {
 	if Log.th == nil || Log.DisableMetricLogging {
 		return
 	}
 
-	metric.CustomDimensions[OrchestratorTypeStr] = Log.Orchestrartor
+	metric.CustomDimensions[OrchestratorTypeStr] = Log.Orchestrator
 	metric.CustomDimensions[NodeIDStr] = Log.NodeID
 	Log.th.TrackMetric(metric)
 }
