@@ -11,7 +11,6 @@ import (
 
 // SendCnsTelemetry - handles cns telemetry reports
 func SendCnsTelemetry(heartbeatIntervalInMins int) {
-
 	heartbeat := time.NewTicker(time.Minute * time.Duration(heartbeatIntervalInMins)).C
 	metric := aitelemetry.Metric{
 		Name: HeartBeatMetricStr,
@@ -23,7 +22,6 @@ func SendCnsTelemetry(heartbeatIntervalInMins int) {
 	for {
 		select {
 		case <-heartbeat:
-			Printf("[Azure-CNS] Sending hearbeat")
 			SendMetric(metric)
 		}
 	}
