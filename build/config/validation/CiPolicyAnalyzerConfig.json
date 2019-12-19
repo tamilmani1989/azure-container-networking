@@ -10,6 +10,7 @@
                "AqEventMessage",
                "Aqua.HNSOverlayPlugin",
                "Aqua.NetworkClient",
+               "Aqua.NetworkClientLibrary",
                "aquanix",
                "aquanixconsole",
                "AquariusGaExt",
@@ -34,7 +35,7 @@
                "RDPackage",
                "RDTools",
                "Shared",
-               "Test",
+               "test",
                "VFPlugin",
                "VFPluginLibrary"
               ]
