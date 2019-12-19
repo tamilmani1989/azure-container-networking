@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -190,21 +189,27 @@ func (plugin *netPlugin) getPodInfo(args string) (string, string, error) {
 	return k8sPodName, k8sNamespace, nil
 }
 
-func setCustomDimensions(cniMetric *telemetry.CNIReport, nwCfg *cni.NetworkConfig, err error) {
+func SetCustomDimensions(cniMetric *telemetry.CNIReport, nwCfg *cni.NetworkConfig, err error) {
+	if cniMetric == nil {
+		log.Errorf("[CNI] Unable to set custom dimension. Report is nil")
+		return
+	}
+
 	if err != nil {
 		cniMetric.Metric.CustomDimensions[telemetry.StatusStr] = telemetry.FailedStr
 	} else {
 		cniMetric.Metric.CustomDimensions[telemetry.StatusStr] = telemetry.SucceededStr
 	}
 
-	if nwCfg.MultiTenancy {
-		cniMetric.Metric.CustomDimensions[telemetry.CNIModeStr] = telemetry.MultiTenancyStr
-	} else {
-		cniMetric.Metric.CustomDimensions[telemetry.CNIModeStr] = telemetry.SingleTenancyStr
-	}
+	if nwCfg != nil {
+		if nwCfg.MultiTenancy {
+			cniMetric.Metric.CustomDimensions[telemetry.CNIModeStr] = telemetry.MultiTenancyStr
+		} else {
+			cniMetric.Metric.CustomDimensions[telemetry.CNIModeStr] = telemetry.SingleTenancyStr
+		}
 
-	cniMetric.Metric.CustomDimensions[telemetry.CNINetworkModeStr] = nwCfg.Mode
-	cniMetric.Metric.CustomDimensions[telemetry.OSTypeStr] = runtime.GOOS
+		cniMetric.Metric.CustomDimensions[telemetry.CNINetworkModeStr] = nwCfg.Mode
+	}
 }
 
 func (plugin *netPlugin) setCNIReportDetails(nwCfg *cni.NetworkConfig, opType string, msg string) {
@@ -272,7 +277,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 			Value:            float64(operationTimeMs),
 			CustomDimensions: make(map[string]string),
 		}
-		setCustomDimensions(&cniMetric, nwCfg, err)
+		SetCustomDimensions(&cniMetric, nwCfg, err)
 		telemetry.SendCNIMetric(&cniMetric, plugin.tb)
 
 		// Add Interfaces to result.
@@ -772,7 +777,7 @@ func (plugin *netPlugin) Delete(args *cniSkel.CmdArgs) error {
 		Value:            float64(operationTimeMs),
 		CustomDimensions: make(map[string]string),
 	}
-	setCustomDimensions(&cniMetric, nwCfg, nil)
+	SetCustomDimensions(&cniMetric, nwCfg, nil)
 	telemetry.SendCNIMetric(&cniMetric, plugin.tb)
 
 	return nil
@@ -815,7 +820,7 @@ func (plugin *netPlugin) Update(args *cniSkel.CmdArgs) error {
 			Value:            float64(operationTimeMs),
 			CustomDimensions: make(map[string]string),
 		}
-		setCustomDimensions(&cniMetric, nwCfg, err)
+		SetCustomDimensions(&cniMetric, nwCfg, err)
 		telemetry.SendCNIMetric(&cniMetric, plugin.tb)
 
 		if result == nil {

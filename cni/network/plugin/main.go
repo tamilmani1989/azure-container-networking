@@ -240,18 +240,19 @@ func main() {
 		log.Errorf("Failed to uninitialize key-value store of network plugin, err:%v.\n", errUninit)
 	}
 
-	if err != nil {
-		reportPluginError(reportManager, tb, err)
-		panic("network plugin execute fatal error")
-	}
-
 	executionTimeMs := time.Since(startTime).Milliseconds()
 	cnimetric.Metric = aitelemetry.Metric{
 		Name:             telemetry.CNIExecutimeMetricStr,
 		Value:            float64(executionTimeMs),
 		CustomDimensions: make(map[string]string),
 	}
+	network.SetCustomDimensions(&cnimetric, nil, err)
 	telemetry.SendCNIMetric(&cnimetric, tb)
+
+	if err != nil {
+		reportPluginError(reportManager, tb, err)
+		panic("network plugin execute fatal error")
+	}
 
 	// Report CNI successfully finished execution.
 	reflect.ValueOf(reportManager.Report).Elem().FieldByName("CniSucceeded").SetBool(true)

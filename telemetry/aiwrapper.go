@@ -2,6 +2,8 @@
 package telemetry
 
 import (
+	"runtime"
+
 	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/log"
 )
@@ -58,6 +60,7 @@ func SendAITelemetry(cnireport CNIReport) {
 	}
 
 	if cnireport.Metric.Name != "" && !gDisableMetric {
+		cnireport.Metric.CustomDimensions[OSTypeStr] = runtime.GOOS
 		th.TrackMetric(cnireport.Metric)
 	} else if !gDisableTrace {
 		sendReport(cnireport)
