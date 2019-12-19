@@ -10,6 +10,7 @@ xcopy /s /y /h %SRC% %DES%
 IF %CopyStartBatAndServiceConf% == true (
 xcopy /s /y /h "start.bat" %DES%
 xcopy /s /y /h "ServiceConfig.ini" %DES%
+xcopy /s /y /h "WatchdogHeartbeatTest.xml" %DES%
 xcopy /s /y /h "..\HostPluginPackage\NetAgentHostPlugin.PluginSpecific.xml" %DES%
 copy "..\HostPluginPackage\NetAgentHostPlugin.PluginSpecific.xml" %DES%\NetAgentHostPlugin.PluginSpecificTemplate.xml
 )

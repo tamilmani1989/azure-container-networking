@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HeartbeatWatchdog xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="ap:HeartbeatWatchdogSchema" xsi:schemaLocation="ap:HeartbeatWatchdogSchema D:\APGold\autopilotservice\Global\tools\XPingTemplates\heartbeat\HeartbeatWatchdogSchema.xsd">
+  <ExecutionIntervalMin>3</ExecutionIntervalMin>
+  <Owner>rah</Owner>
+  <HeartbeatFilePath>pfhemigration\HostNetAgent-xping.csv</HeartbeatFilePath>
+  <HeartbeatIntervalMin>10</HeartbeatIntervalMin>
+  <IsActive>true</IsActive>
+  <DelayMs>10000</DelayMs>
+  <TriggerRollback>true</TriggerRollback>
+</HeartbeatWatchdog>
