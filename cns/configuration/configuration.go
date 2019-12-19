@@ -56,7 +56,7 @@ func ReadConfig() (CNSConfig, error) {
 		//dir + string(os.PathSeparator) + defaultConfigName
 	}
 
-	logger.Debugf("Config path:%s", configpath)
+	logger.Printf("Config path:%s", configpath)
 
 	content, err := ioutil.ReadFile(configpath)
 	if err != nil {
