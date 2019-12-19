@@ -1,3 +1,5 @@
+// Copyright Microsoft. All rights reserved.
+
 package telemetry
 
 const (

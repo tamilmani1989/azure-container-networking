@@ -15,10 +15,13 @@ import (
 )
 
 const (
-	reportToHostIntervalInSeconds = 30
-	pluginName                    = "AzureCNI"
-	azureVnetTelemetry            = "azure-vnet-telemetry"
-	configExtension               = ".config"
+	defaultReportToHostIntervalInSecs = 30
+	defaultRefreshTimeoutInSecs       = 15
+	defaultBatchSizeInBytes           = 16384
+	defaultBatchIntervalInSecs        = 15
+	pluginName                        = "AzureCNI"
+	azureVnetTelemetry                = "azure-vnet-telemetry"
+	configExtension                   = ".config"
 )
 
 var version string
@@ -78,6 +81,24 @@ func printVersion() {
 	fmt.Printf("Version %v\n", version)
 }
 
+func setTelemetryDefaults(config *telemetry.TelemetryConfig) {
+	if config.ReportToHostIntervalInSeconds == 0 {
+		config.ReportToHostIntervalInSeconds = defaultReportToHostIntervalInSecs
+	}
+
+	if config.RefreshTimeoutInSecs == 0 {
+		config.RefreshTimeoutInSecs = defaultRefreshTimeoutInSecs
+	}
+
+	if config.BatchIntervalInSecs == 0 {
+		config.BatchIntervalInSecs = defaultBatchIntervalInSecs
+	}
+
+	if config.BatchSizeInBytes == 0 {
+		config.BatchSizeInBytes = defaultBatchSizeInBytes
+	}
+}
+
 func main() {
 	var tb *telemetry.TelemetryBuffer
 	var config telemetry.TelemetryConfig
@@ -125,6 +146,8 @@ func main() {
 
 	log.Logf("read config returned %+v", config)
 
+	setTelemetryDefaults(&config)
+
 	// Cleaning up orphan socket if present
 	tbtemp := telemetry.NewTelemetryBuffer("")
 	tbtemp.Cleanup(telemetry.FdName)
@@ -141,10 +164,6 @@ func main() {
 		log.Logf("[Telemetry] Telemetry service starting failed: %v", err)
 		tb.Cleanup(telemetry.FdName)
 		time.Sleep(time.Millisecond * 200)
-	}
-
-	if config.ReportToHostIntervalInSeconds == 0 {
-		config.ReportToHostIntervalInSeconds = reportToHostIntervalInSeconds
 	}
 
 	aiConfig := aitelemetry.AIConfig{

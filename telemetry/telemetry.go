@@ -386,9 +386,12 @@ func (reportMgr *ReportManager) ReportToBytes() ([]byte, error) {
 	return report, err
 }
 
+// This function for sending CNI metrics to telemetry service
 func SendCNIMetric(cniReport *CNIReport, tb *TelemetryBuffer) error {
-	var err error
-	var report []byte
+	var (
+		err    error
+		report []byte
+	)
 
 	if tb != nil && tb.Connected {
 		reportMgr := &ReportManager{Report: cniReport}

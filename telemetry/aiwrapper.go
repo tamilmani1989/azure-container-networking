@@ -1,3 +1,4 @@
+// Copyright Microsoft. All rights reserved.
 package telemetry
 
 import (
@@ -13,6 +14,7 @@ var (
 )
 
 const (
+	// Wait time for AI to gracefully close AI telemetry session
 	waitTimeInSecs = 10
 )
 
