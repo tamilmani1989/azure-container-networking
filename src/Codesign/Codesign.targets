@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+      <DefaultPRSCertificate>143360005</DefaultPRSCertificate>
+      <Enable_PRS_DelaySign Condition="'$(IsOfficialBuild)'=='true'">1</Enable_PRS_DelaySign>
+    </PropertyGroup>
+
+    <Import Project="$(PkgLocalSigning)\LocalSigning.targets" />
+
+    <Target Name="GetFilesToSign" BeforeTargets="LocalSignFiles;PRSSignFiles" Condition="'$(ENABLE_CODESIGN)' != '1' and '$(Enable_PRS_DelaySign)' == '1'" DependsOnTargets="Build" AfterTargets="Build">
+      <CreateItem Include="$(OutDir)$(TargetName)$(TargetExt)" >
+       <Output TaskParameter="Include" ItemName="FilesToSign"/>
+      </CreateItem>
+    </Target>
+</Project>

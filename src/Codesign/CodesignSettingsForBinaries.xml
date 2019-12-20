@@ -38,8 +38,6 @@
 		  <File>%BinariesBuildTypeArchDirectory%\VFPlugin\VFPlugin.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\HostNetAgent\HostNetAgent.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\HostNetAgentPackage\HostNetAgent.exe</File>
-		  <File>%BinariesBuildTypeArchDirectory%\INIParser\INIParser.exe</File>
-		  <File>%BinariesBuildTypeArchDirectory%\App\HostNetAgent\HostNetAgent\INIParserBinaries\INIParser.exe</File>
 		  <File>%BinariesBuildTypeArchDirectory%\Aqua.RestServer\Aqua.RestServer.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\Aqua.Logging\Aqua.Logging.dll</File>
 		  <File>%BinariesBuildTypeArchDirectory%\HostNetAgentPackage\Aqua.Logging.dll</File>

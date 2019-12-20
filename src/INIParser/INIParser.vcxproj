@@ -33,6 +33,7 @@
     <ClCompile Include="logger\log.cpp" />
   </ItemGroup>
   <Import Project="$(ExtendedTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="..\CodeSign\Codesign.targets" />
    <ItemGroup>
     <Robocopy Include="$(OutDir)">
       <DestinationFolder>$(BinariesBuildTypeArchDirectory)\INIParser</DestinationFolder>
