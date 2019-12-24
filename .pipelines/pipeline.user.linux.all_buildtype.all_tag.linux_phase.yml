@@ -112,7 +112,7 @@ build:
             include:
               - 'manifest.xml'
               - 'HandlerManifest.json'
-              
+
     - !!buildcommand
         name: 'Build Linux ServiceTunnel'
         command: 'src/LinuxServiceTunnel/BuildServiceTunnel.sh'
@@ -185,7 +185,7 @@ package:
           - from: 'src/LinuxServiceTunnel/out'
             to: 'drop_linux_servicetunnel'
             include:
-              - '*.zip'              
+              - '*.zip'
 # An optional user defined stage for running tests that need network access. Note that unit tests and others that do not need network access
 # can be run in build or package stages itself. Any artifacts built in this stage will be separated out and will not be signed.
 # However, we recommend that tests always be run in the test stage.
@@ -218,12 +218,12 @@ test:
 
     - !!testcommand
       name: 'Test LinuxServiceTunnel'
-      command: 'src/LinuxServiceTunnel/TestLinuxServiceTunnel.sh'
+      command: 'src/LinuxServiceTunnel/TestServiceTunnel.sh'
       testresults:
         - title: 'Unit Tests'
           type: 'xunit'
           include:
-            - '/var/log/testservicetunnel.log'            
+            - '/var/log/testservicetunnel.log'
 
     - !!testcommand
       name: 'Test DNC'
