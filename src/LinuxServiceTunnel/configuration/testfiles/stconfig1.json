@@ -1,0 +1,7 @@
+{
+    "PortsToOpen": [540],
+    "PrimaryInterfaceName" : "eth1",
+    "BridgeName": "az0",
+    "Veth1Name": "azveth1",
+    "Veth2Name": "azveth2"
+}

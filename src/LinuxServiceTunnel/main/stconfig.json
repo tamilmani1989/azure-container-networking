@@ -1,0 +1,7 @@
+{
+    "PortsToOpen": [80,443],
+    "PrimaryInterfaceName" : "eth0",
+    "BridgeName": "azure0",
+    "Veth1Name": "azstveth0",
+    "Veth2Name": "azstveth1"
+}
