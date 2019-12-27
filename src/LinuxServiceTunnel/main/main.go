@@ -58,8 +58,8 @@ func main() {
 	serviceTunnelConfig, err := configuration.ReadConfigFile(configFileName)
 	if err != nil {
 		log.Errorf("Error reading servicetunnel config: %v", err)
-		os.Exit(2)
 	}
+	configuration.SetConfigDefaults(&serviceTunnelConfig)
 
 	log.Printf("servicetunnel config %+v", serviceTunnelConfig)
 

@@ -11,7 +11,7 @@ import (
 
 const (
 	primaryIfName = "eth0"
-	bridgeName    = "azure0"
+	bridgeName    = "azurest"
 	veth1Name     = "azstveth0"
 	veth2Name     = "azstveth1"
 )

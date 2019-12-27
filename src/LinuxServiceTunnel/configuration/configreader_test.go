@@ -80,7 +80,7 @@ func TestSetDefaults(t *testing.T) {
 		t.Fatalf("The value of PrimaryInterfaceName is not correct expected:eth1 Actual:%v", stconfig.PrimaryInterfaceName)
 	}
 
-	if stconfig.BridgeName != "azure0" {
+	if stconfig.BridgeName != "azurest" {
 		t.Fatalf("The value of BridgeName is not correct expected:az0 Actual:%v", stconfig.BridgeName)
 
 	}
