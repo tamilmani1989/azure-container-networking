@@ -7,12 +7,20 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/platform"
 )
 
 var th TelemetryHandle
 
 func TestMain(m *testing.M) {
+	log.SetLogDirectory("/var/log/")
+	log.SetName("testaitelemetry")
+	log.SetLevel(log.LevelInfo)
+	err := log.SetTarget(log.TargetLogfile)
+	if err == nil {
+		fmt.Printf("TestST LogDir configuration succeeded\n")
+	}
 
 	if runtime.GOOS == "linux" {
 		platform.ExecuteCommand("cp metadata_test.json /tmp/azuremetadata.json")
@@ -36,6 +44,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestEmptyAIKey(t *testing.T) {
+	os.Setenv("AZACN_TESTENV", "test")
+
 	aiConfig := AIConfig{
 		AppName:                      "testapp",
 		AppVersion:                   "v1.0.26",
@@ -53,6 +63,8 @@ func TestEmptyAIKey(t *testing.T) {
 }
 
 func TestNewAITelemetry(t *testing.T) {
+	os.Setenv("AZACN_TESTENV", "test")
+
 	aiConfig := AIConfig{
 		AppName:                      "testapp",
 		AppVersion:                   "v1.0.26",
@@ -95,6 +107,8 @@ func TestClose(t *testing.T) {
 }
 
 func TestClosewithoutSend(t *testing.T) {
+	os.Setenv("AZACN_TESTENV", "test")
+
 	aiConfig := AIConfig{
 		AppName:                      "testapp",
 		AppVersion:                   "v1.0.26",

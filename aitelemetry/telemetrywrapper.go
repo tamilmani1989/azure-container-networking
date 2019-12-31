@@ -1,6 +1,7 @@
 package aitelemetry
 
 import (
+	"os"
 	"runtime"
 	"time"
 
@@ -19,6 +20,7 @@ const (
 	subscriptionIDStr = "SubscriptionID"
 	vmNameStr         = "VMName"
 	versionStr        = "AppVersion"
+	azurePublicCloud  = "AzurePublicCloud"
 	defaultTimeout    = 10
 )
 
@@ -90,6 +92,14 @@ func NewAITelemetry(
 	id string,
 	aiConfig AIConfig,
 ) TelemetryHandle {
+	env, _ := os.LookupEnv("AZACN_TESTENV")
+	if env != "test" {
+		cloudName, err := common.GetAzureCloud()
+		if cloudName != azurePublicCloud {
+			debuglog("[AppInsights] This is not azure public cloud.%s err:%v", cloudName, err)
+			return nil
+		}
+	}
 
 	telemetryConfig := appinsights.NewTelemetryConfiguration(id)
 	telemetryConfig.MaxBatchSize = aiConfig.BatchSize
