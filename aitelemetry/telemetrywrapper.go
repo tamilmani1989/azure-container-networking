@@ -92,6 +92,8 @@ func NewAITelemetry(
 	id string,
 	aiConfig AIConfig,
 ) TelemetryHandle {
+	debugMode = aiConfig.DebugMode
+
 	env, _ := os.LookupEnv("AZACN_TESTENV")
 	if env != "test" {
 		cloudName, err := common.GetAzureCloud()
@@ -99,12 +101,13 @@ func NewAITelemetry(
 			debuglog("[AppInsights] This is not azure public cloud.%s err:%v", cloudName, err)
 			return nil
 		}
+
+		log.Printf("[AppInsights] CloudName: %s\n", cloudName)
 	}
 
 	telemetryConfig := appinsights.NewTelemetryConfiguration(id)
 	telemetryConfig.MaxBatchSize = aiConfig.BatchSize
 	telemetryConfig.MaxBatchInterval = time.Duration(aiConfig.BatchInterval) * time.Second
-	debugMode = aiConfig.DebugMode
 
 	th := &telemetryHandle{
 		client:                       appinsights.NewTelemetryClientFromConfig(telemetryConfig),
