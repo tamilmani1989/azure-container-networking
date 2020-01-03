@@ -107,10 +107,7 @@ func (plugin *netPlugin) Start(config *common.PluginConfig) error {
 	// Log platform information.
 	log.Printf("[cni-net] Plugin %v version %v.", plugin.Name, plugin.Version)
 	log.Printf("[cni-net] Running on %v", platform.GetOSInfo())
-	out, err := platform.ExecuteCommand("iptables --version")
-	log.Printf("[cni-net] iptable version:%s, err:%v", out, err)
-	out, err = platform.ExecuteCommand("ebtables --version")
-	log.Printf("[cni-net] ebtable version %s, err:%v", out, err)
+	platform.PrintDependencyPackageDetails()
 	common.LogNetworkInterfaces()
 
 	// Initialize network manager.
