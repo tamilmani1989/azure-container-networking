@@ -17,6 +17,7 @@ import (
 	"github.com/Azure/azure-container-networking/cns"
 	"github.com/Azure/azure-container-networking/cns/cnsclient"
 	"github.com/Azure/azure-container-networking/common"
+	"github.com/Azure/azure-container-networking/iptables"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/network"
 	"github.com/Azure/azure-container-networking/platform"
@@ -239,6 +240,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		}
 	}
 
+	iptables.DisableIPTableLock = nwCfg.DisableIPTableLock
 	plugin.setCNIReportDetails(nwCfg, CNI_ADD, "")
 
 	defer func() {
@@ -587,6 +589,8 @@ func (plugin *netPlugin) Get(args *cniSkel.CmdArgs) error {
 
 	log.Printf("[cni-net] Read network configuration %+v.", nwCfg)
 
+	iptables.DisableIPTableLock = nwCfg.DisableIPTableLock
+
 	// Parse Pod arguments.
 	if k8sPodName, k8sNamespace, err = plugin.getPodInfo(args.Args); err != nil {
 		return err
@@ -665,6 +669,7 @@ func (plugin *netPlugin) Delete(args *cniSkel.CmdArgs) error {
 
 	log.Printf("[cni-net] Read network configuration %+v.", nwCfg)
 
+	iptables.DisableIPTableLock = nwCfg.DisableIPTableLock
 	plugin.setCNIReportDetails(nwCfg, CNI_DEL, "")
 
 	// Parse Pod arguments.
@@ -758,6 +763,7 @@ func (plugin *netPlugin) Update(args *cniSkel.CmdArgs) error {
 
 	log.Printf("[cni-net] Read network configuration %+v.", nwCfg)
 
+	iptables.DisableIPTableLock = nwCfg.DisableIPTableLock
 	plugin.setCNIReportDetails(nwCfg, CNI_UPDATE, "")
 
 	defer func() {
