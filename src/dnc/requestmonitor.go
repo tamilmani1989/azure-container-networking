@@ -433,12 +433,6 @@ func validateAndRetrieveNetworkConfigurationUpdate(
 
 // Routine that processes virtual network request.
 func processVirtualNetworkRequest(requestContext *datamodel.RequestContext) (bool, *api.JsonErr) {
-	/*
-		sessionInfo := map[string]string{datamodel.NetworkRepositoryName: requestContext.NetworkID}
-		sessionManager.BeginWriteSession(sessionInfo)
-		defer sessionManager.EndWriteSession(sessionInfo)
-	*/
-
 	repoNetworkConfiguration, err := datamodel.TryQueryNetworkConfiguration(requestContext.NetworkID)
 	if err != nil {
 		return false, err
