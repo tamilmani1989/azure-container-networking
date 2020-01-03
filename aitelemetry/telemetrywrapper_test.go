@@ -40,6 +40,7 @@ func TestMain(m *testing.M) {
 		platform.ExecuteCommand(cmd)
 	}
 
+	log.Close()
 	os.Exit(exitCode)
 }
 
