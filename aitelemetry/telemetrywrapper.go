@@ -12,16 +12,16 @@ import (
 )
 
 const (
-	resourceGroupStr  = "ResourceGroup"
-	vmSizeStr         = "VMSize"
-	osVersionStr      = "OSVersion"
-	locationStr       = "Region"
-	appNameStr        = "AppName"
-	subscriptionIDStr = "SubscriptionID"
-	vmNameStr         = "VMName"
-	versionStr        = "AppVersion"
-	azurePublicCloud  = "AzurePublicCloud"
-	defaultTimeout    = 10
+	resourceGroupStr    = "ResourceGroup"
+	vmSizeStr           = "VMSize"
+	osVersionStr        = "OSVersion"
+	locationStr         = "Region"
+	appNameStr          = "AppName"
+	subscriptionIDStr   = "SubscriptionID"
+	vmNameStr           = "VMName"
+	versionStr          = "AppVersion"
+	azurePublicCloudStr = "AzurePublicCloud"
+	defaultTimeout      = 10
 )
 
 var debugMode bool
@@ -29,7 +29,7 @@ var debugMode bool
 func messageListener() appinsights.DiagnosticsMessageListener {
 	if debugMode {
 		return appinsights.NewDiagnosticsMessageListener(func(msg string) error {
-			debuglog("[AppInsights] [%s] %s\n", time.Now().Format(time.UnixDate), msg)
+			debugLog("[AppInsights] [%s] %s\n", time.Now().Format(time.UnixDate), msg)
 			return nil
 		})
 	}
@@ -37,7 +37,7 @@ func messageListener() appinsights.DiagnosticsMessageListener {
 	return nil
 }
 
-func debuglog(format string, args ...interface{}) {
+func debugLog(format string, args ...interface{}) {
 	if debugMode {
 		log.Printf(format, args...)
 	}
@@ -58,12 +58,12 @@ func getMetadata(th *telemetryHandle) {
 			break
 		}
 
-		debuglog("[AppInsights] Error getting metadata %v. Sleep for %d", err, th.refreshTimeout)
+		debugLog("[AppInsights] Error getting metadata %v. Sleep for %d", err, th.refreshTimeout)
 		time.Sleep(time.Duration(th.refreshTimeout) * time.Second)
 	}
 
 	if err != nil {
-		debuglog("[AppInsights] Error getting metadata %v", err)
+		debugLog("[AppInsights] Error getting metadata %v", err)
 		return
 	}
 
@@ -75,7 +75,7 @@ func getMetadata(th *telemetryHandle) {
 	// Save metadata retrieved from wireserver to a file
 	kvs, err := store.NewJsonFileStore(metadataFile)
 	if err != nil {
-		debuglog("[AppInsights] Error initializing kvs store: %v", err)
+		debugLog("[AppInsights] Error initializing kvs store: %v", err)
 		return
 	}
 
@@ -83,7 +83,7 @@ func getMetadata(th *telemetryHandle) {
 	err = common.SaveHostMetadata(th.metadata, metadataFile)
 	kvs.Unlock(true)
 	if err != nil {
-		debuglog("[AppInsights] saving host metadata failed with :%v", err)
+		debugLog("[AppInsights] saving host metadata failed with :%v", err)
 	}
 }
 
@@ -97,8 +97,8 @@ func NewAITelemetry(
 	env, _ := os.LookupEnv("AZACN_TESTENV")
 	if env != "test" {
 		cloudName, err := common.GetAzureCloud()
-		if cloudName != azurePublicCloud {
-			debuglog("[AppInsights] This is not azure public cloud.%s err:%v", cloudName, err)
+		if cloudName != azurePublicCloudStr {
+			debugLog("[AppInsights] This is not azure public cloud:%s err:%v", cloudName, err)
 			return nil
 		}
 
