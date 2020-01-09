@@ -99,7 +99,10 @@ type CNIReport struct {
 	InterfaceDetails    InterfaceInfo
 	BridgeDetails       BridgeInfo
 	Metadata            common.Metadata `json:"compute"`
-	Metric              aitelemetry.Metric
+}
+
+type AIMetric struct {
+	Metric aitelemetry.Metric
 }
 
 // Azure CNS Telemetry Report structure.
@@ -374,6 +377,7 @@ func (reportMgr *ReportManager) ReportToBytes() ([]byte, error) {
 	case *NPMReport:
 	case *DNCReport:
 	case *CNSReport:
+	case *AIMetric:
 	default:
 		err = fmt.Errorf("[Telemetry] Invalid report type")
 	}
@@ -387,14 +391,14 @@ func (reportMgr *ReportManager) ReportToBytes() ([]byte, error) {
 }
 
 // This function for sending CNI metrics to telemetry service
-func SendCNIMetric(cniReport *CNIReport, tb *TelemetryBuffer) error {
+func SendCNIMetric(cniMetric *AIMetric, tb *TelemetryBuffer) error {
 	var (
 		err    error
 		report []byte
 	)
 
 	if tb != nil && tb.Connected {
-		reportMgr := &ReportManager{Report: cniReport}
+		reportMgr := &ReportManager{Report: cniMetric}
 		report, err = reportMgr.ReportToBytes()
 		if err == nil {
 			// If write fails, try to re-establish connections as server/client

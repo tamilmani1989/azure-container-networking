@@ -39,7 +39,11 @@ func CreateAITelemetryHandle(aiConfig aitelemetry.AIConfig, disableAll, disableM
 	return nil
 }
 
-func sendReport(cnireport CNIReport) {
+func SendAITelemetry(cnireport CNIReport) {
+	if th == nil || gDisableTrace {
+		return
+	}
+
 	var msg string
 	if cnireport.ErrorMessage != "" {
 		msg = cnireport.ErrorMessage
@@ -62,17 +66,13 @@ func sendReport(cnireport CNIReport) {
 	th.TrackLog(report)
 }
 
-func SendAITelemetry(cnireport CNIReport) {
-	if th == nil {
+func SendAIMetric(aiMetric AIMetric) {
+	if th == nil || gDisableMetric {
 		return
 	}
 
-	if cnireport.Metric.Name != "" && !gDisableMetric {
-		cnireport.Metric.CustomDimensions[OSTypeStr] = runtime.GOOS
-		th.TrackMetric(cnireport.Metric)
-	} else if !gDisableTrace {
-		sendReport(cnireport)
-	}
+	aiMetric.Metric.CustomDimensions[OSTypeStr] = runtime.GOOS
+	th.TrackMetric(aiMetric.Metric)
 }
 
 func CloseAITelemetryHandle() {

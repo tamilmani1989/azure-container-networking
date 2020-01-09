@@ -189,7 +189,7 @@ func (plugin *netPlugin) getPodInfo(args string) (string, string, error) {
 	return k8sPodName, k8sNamespace, nil
 }
 
-func SetCustomDimensions(cniMetric *telemetry.CNIReport, nwCfg *cni.NetworkConfig, err error) {
+func SetCustomDimensions(cniMetric *telemetry.AIMetric, nwCfg *cni.NetworkConfig, err error) {
 	if cniMetric == nil {
 		log.Errorf("[CNI] Unable to set custom dimension. Report is nil")
 		return
@@ -244,7 +244,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		enableInfraVnet  bool
 		enableSnatForDns bool
 		nwDNSInfo        network.DNSInfo
-		cniMetric        telemetry.CNIReport
+		cniMetric        telemetry.AIMetric
 	)
 
 	startTime := time.Now()
@@ -688,7 +688,7 @@ func (plugin *netPlugin) Delete(args *cniSkel.CmdArgs) error {
 		networkId    string
 		nwInfo       *network.NetworkInfo
 		epInfo       *network.EndpointInfo
-		cniMetric    telemetry.CNIReport
+		cniMetric    telemetry.AIMetric
 	)
 
 	startTime := time.Now()
@@ -795,7 +795,7 @@ func (plugin *netPlugin) Update(args *cniSkel.CmdArgs) error {
 		cnsClient           *cnsclient.CNSClient
 		orchestratorContext []byte
 		targetNetworkConfig *cns.GetNetworkContainerResponse
-		cniMetric           telemetry.CNIReport
+		cniMetric           telemetry.AIMetric
 	)
 
 	startTime := time.Now()

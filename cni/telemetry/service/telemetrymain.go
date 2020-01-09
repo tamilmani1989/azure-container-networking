@@ -166,7 +166,7 @@ func main() {
 		tb = telemetry.NewTelemetryBuffer("")
 
 		log.Logf("[Telemetry] Starting telemetry server")
-		err = tb.StartServer()
+		err = tb.StartServer(config.DisableTelemetryToNetAgent)
 		if err == nil || tb.FdExists {
 			break
 		}

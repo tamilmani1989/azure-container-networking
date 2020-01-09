@@ -141,7 +141,7 @@ func main() {
 	var (
 		config    common.PluginConfig
 		err       error
-		cnimetric telemetry.CNIReport
+		cnimetric telemetry.AIMetric
 	)
 
 	log.SetName(name)
