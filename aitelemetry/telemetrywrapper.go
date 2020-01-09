@@ -105,7 +105,7 @@ func isPublicEnvironment(retryCount, waitTimeInSecs int) (bool, error) {
 		if cloudName == azurePublicCloudStr {
 			debugLog("[AppInsights] CloudName: %s\n", cloudName)
 			return true, nil
-		} else if err != nil {
+		} else if err == nil {
 			debugLog("[AppInsights] This is not azure public cloud:%s", cloudName)
 			return false, fmt.Errorf("Not an azure public cloud: %s", cloudName)
 		}
