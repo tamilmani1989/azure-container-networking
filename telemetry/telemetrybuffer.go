@@ -36,6 +36,8 @@ type TelemetryConfig struct {
 	RefreshTimeoutInSecs          int
 	BatchIntervalInSecs           int
 	BatchSizeInBytes              int
+	GetEnvRetryCount              int
+	GetEnvRetryWaitTimeInSecs     int
 }
 
 // FdName - file descriptor name
@@ -452,6 +454,7 @@ func (buf *Buffer) push(x interface{}) {
 		cniReport := x.(CNIReport)
 		cniReport.Metadata = metadata
 		SendAITelemetry(cniReport)
+		buf.CNIReports = append(buf.CNIReports, cniReport)
 	case NPMReport:
 		if len(buf.NPMReports) >= MaxNumReports {
 			return

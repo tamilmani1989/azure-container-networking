@@ -1,6 +1,7 @@
 package aitelemetry
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 	"time"
@@ -87,22 +88,45 @@ func getMetadata(th *telemetryHandle) {
 	}
 }
 
+func isPublicEnvironment(retryCount, waitTimeInSecs int) (bool, error) {
+	var (
+		cloudName string
+		err       error
+	)
+
+	env, _ := os.LookupEnv("AZACN_TESTENV")
+	if env == "test" {
+		debugLog("Test environment")
+		return true, nil
+	}
+
+	for i := 0; i < retryCount; i++ {
+		cloudName, err = common.GetAzureCloud()
+		if cloudName == azurePublicCloudStr {
+			debugLog("[AppInsights] CloudName: %s\n", cloudName)
+			return true, nil
+		} else if err != nil {
+			debugLog("[AppInsights] This is not azure public cloud:%s", cloudName)
+			return false, fmt.Errorf("Not an azure public cloud: %s", cloudName)
+		}
+
+		debugLog("GetAzureCloud returned err :%v", err)
+		time.Sleep(time.Duration(waitTimeInSecs) * time.Second)
+	}
+
+	return false, err
+}
+
 // NewAITelemetry creates telemetry handle with user specified appinsights id.
 func NewAITelemetry(
 	id string,
 	aiConfig AIConfig,
-) TelemetryHandle {
+) (TelemetryHandle, error) {
 	debugMode = aiConfig.DebugMode
 
-	env, _ := os.LookupEnv("AZACN_TESTENV")
-	if env != "test" {
-		cloudName, err := common.GetAzureCloud()
-		if cloudName != azurePublicCloudStr {
-			debugLog("[AppInsights] This is not azure public cloud:%s err:%v", cloudName, err)
-			return nil
-		}
-
-		log.Printf("[AppInsights] CloudName: %s\n", cloudName)
+	isPublic, err := isPublicEnvironment(aiConfig.GetEnvRetryCount, aiConfig.GetEnvRetryWaitTimeInSecs)
+	if !isPublic {
+		return nil, err
 	}
 
 	telemetryConfig := appinsights.NewTelemetryConfiguration(id)
@@ -124,7 +148,7 @@ func NewAITelemetry(
 		go getMetadata(th)
 	}
 
-	return th
+	return th, nil
 }
 
 // TrackLog function sends report (trace) to appinsights resource. It overrides few of the existing columns with app information

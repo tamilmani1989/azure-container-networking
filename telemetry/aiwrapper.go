@@ -2,6 +2,7 @@
 package telemetry
 
 import (
+	"fmt"
 	"runtime"
 
 	"github.com/Azure/azure-container-networking/aitelemetry"
@@ -20,15 +21,22 @@ const (
 	waitTimeInSecs = 10
 )
 
-func CreateAITelemetryHandle(aiConfig aitelemetry.AIConfig, disableAll, disableMetric, disableTrace bool) {
+func CreateAITelemetryHandle(aiConfig aitelemetry.AIConfig, disableAll, disableMetric, disableTrace bool) error {
+	var err error
+
 	if disableAll {
 		log.Printf("Telemetry is disabled")
-		return
+		return fmt.Errorf("Telmetry disabled")
 	}
 
-	th = aitelemetry.NewAITelemetry(aiMetadata, aiConfig)
+	th, err = aitelemetry.NewAITelemetry(aiMetadata, aiConfig)
+	if err != nil {
+		return err
+	}
+
 	gDisableMetric = disableMetric
 	gDisableTrace = disableTrace
+	return nil
 }
 
 func sendReport(cnireport CNIReport) {

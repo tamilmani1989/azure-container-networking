@@ -97,6 +97,14 @@ func setTelemetryDefaults(config *telemetry.TelemetryConfig) {
 	if config.BatchSizeInBytes == 0 {
 		config.BatchSizeInBytes = defaultBatchSizeInBytes
 	}
+
+	if config.GetEnvRetryCount == 0 {
+		config.GetEnvRetryCount = 2
+	}
+
+	if config.GetEnvRetryWaitTimeInSecs == 0 {
+		config.GetEnvRetryWaitTimeInSecs = 3
+	}
 }
 
 func main() {
@@ -148,6 +156,8 @@ func main() {
 
 	setTelemetryDefaults(&config)
 
+	log.Logf("Config after setting defaults %+v", config)
+
 	// Cleaning up orphan socket if present
 	tbtemp := telemetry.NewTelemetryBuffer("")
 	tbtemp.Cleanup(telemetry.FdName)
@@ -174,9 +184,12 @@ func main() {
 		RefreshTimeout:               config.RefreshTimeoutInSecs,
 		DisableMetadataRefreshThread: config.DisableMetadataThread,
 		DebugMode:                    config.DebugMode,
+		GetEnvRetryCount:             config.GetEnvRetryCount,
+		GetEnvRetryWaitTimeInSecs:    config.GetEnvRetryWaitTimeInSecs,
 	}
 
-	telemetry.CreateAITelemetryHandle(aiConfig, config.DisableAll, config.DisableTrace, config.DisableMetric)
+	err = telemetry.CreateAITelemetryHandle(aiConfig, config.DisableAll, config.DisableTrace, config.DisableMetric)
+	log.Printf("[Telemetry] AI Handle creation status:%v", err)
 	log.Logf("[Telemetry] Report to host for an interval of %d seconds", config.ReportToHostIntervalInSeconds)
 	tb.BufferAndPushData(config.ReportToHostIntervalInSeconds * time.Second)
 	telemetry.CloseAITelemetryHandle()
