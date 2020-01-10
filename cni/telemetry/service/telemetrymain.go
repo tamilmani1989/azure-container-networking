@@ -19,6 +19,8 @@ const (
 	defaultRefreshTimeoutInSecs       = 15
 	defaultBatchSizeInBytes           = 16384
 	defaultBatchIntervalInSecs        = 15
+	defaultGetEnvRetryCount           = 2
+	defaultGetEnvRetryWaitTimeInSecs  = 3
 	pluginName                        = "AzureCNI"
 	azureVnetTelemetry                = "azure-vnet-telemetry"
 	configExtension                   = ".config"
@@ -99,11 +101,11 @@ func setTelemetryDefaults(config *telemetry.TelemetryConfig) {
 	}
 
 	if config.GetEnvRetryCount == 0 {
-		config.GetEnvRetryCount = 2
+		config.GetEnvRetryCount = defaultGetEnvRetryCount
 	}
 
 	if config.GetEnvRetryWaitTimeInSecs == 0 {
-		config.GetEnvRetryWaitTimeInSecs = 3
+		config.GetEnvRetryWaitTimeInSecs = defaultGetEnvRetryWaitTimeInSecs
 	}
 }
 

@@ -2,7 +2,6 @@ package aitelemetry
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 	"time"
 
@@ -88,20 +87,14 @@ func getMetadata(th *telemetryHandle) {
 	}
 }
 
-func isPublicEnvironment(retryCount, waitTimeInSecs int) (bool, error) {
+func isPublicEnvironment(url string, retryCount, waitTimeInSecs int) (bool, error) {
 	var (
 		cloudName string
 		err       error
 	)
 
-	env, _ := os.LookupEnv("AZACN_TESTENV")
-	if env == "test" {
-		debugLog("Test environment")
-		return true, nil
-	}
-
 	for i := 0; i < retryCount; i++ {
-		cloudName, err = common.GetAzureCloud()
+		cloudName, err = common.GetAzureCloud(url)
 		if cloudName == azurePublicCloudStr {
 			debugLog("[AppInsights] CloudName: %s\n", cloudName)
 			return true, nil
@@ -119,12 +112,19 @@ func isPublicEnvironment(retryCount, waitTimeInSecs int) (bool, error) {
 
 // NewAITelemetry creates telemetry handle with user specified appinsights id.
 func NewAITelemetry(
+	azEnvUrl string,
 	id string,
 	aiConfig AIConfig,
 ) (TelemetryHandle, error) {
 	debugMode = aiConfig.DebugMode
 
-	isPublic, err := isPublicEnvironment(aiConfig.GetEnvRetryCount, aiConfig.GetEnvRetryWaitTimeInSecs)
+	if id == "" {
+		debugLog("Empty AI key")
+		return nil, fmt.Errorf("AI key is empty")
+	}
+
+	// check if azure instance is in public cloud
+	isPublic, err := isPublicEnvironment(azEnvUrl, aiConfig.GetEnvRetryCount, aiConfig.GetEnvRetryWaitTimeInSecs)
 	if !isPublic {
 		return nil, err
 	}

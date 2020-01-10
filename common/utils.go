@@ -291,8 +291,13 @@ func SaveHostMetadata(metadata Metadata, fileName string) error {
 	return err
 }
 
-func GetAzureCloud() (string, error) {
-	req, err := http.NewRequest("GET", azCloudUrl, nil)
+func GetAzureCloud(url string) (string, error) {
+	if url == "" {
+		url = azCloudUrl
+	}
+
+	log.Printf("GetAzureCloud querying url: %s", url)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
 	}
