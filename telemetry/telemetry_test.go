@@ -106,7 +106,7 @@ func TestMain(m *testing.M) {
 	reportManager.Report = &CNIReport{}
 
 	tb = NewTelemetryBuffer(hostAgentUrl)
-	err = tb.StartServer()
+	err = tb.StartServer(false)
 	if err == nil {
 		go tb.BufferAndPushData(0)
 	}
@@ -197,7 +197,7 @@ func TestCloseTelemetryConnection(t *testing.T) {
 func TestServerCloseTelemetryConnection(t *testing.T) {
 	// create server telemetrybuffer and start server
 	tb = NewTelemetryBuffer(hostAgentUrl)
-	err := tb.StartServer()
+	err := tb.StartServer(false)
 	if err == nil {
 		go tb.BufferAndPushData(0)
 	}
@@ -228,7 +228,7 @@ func TestServerCloseTelemetryConnection(t *testing.T) {
 func TestClientCloseTelemetryConnection(t *testing.T) {
 	// create server telemetrybuffer and start server
 	tb = NewTelemetryBuffer(hostAgentUrl)
-	err := tb.StartServer()
+	err := tb.StartServer(false)
 	if err == nil {
 		go tb.BufferAndPushData(0)
 	}
