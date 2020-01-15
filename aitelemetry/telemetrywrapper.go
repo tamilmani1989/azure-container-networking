@@ -206,6 +206,7 @@ func (th *telemetryHandle) TrackMetric(metric Metric) {
 		aimetric.Properties[subscriptionIDStr] = th.metadata.SubscriptionID
 		aimetric.Properties[vmNameStr] = th.metadata.VMName
 		aimetric.Properties[versionStr] = th.appVersion
+		aimetric.Properties[resourceGroupStr] = th.metadata.ResourceGroupName
 	}
 
 	// copy custom dimensions
