@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<ApplicationManifest xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ApplicationTypeName="DNCServiceApplicationType" ApplicationTypeVersion="1.0.2" xmlns="http://schemas.microsoft.com/2011/01/fabric" ManifestId="71bac519-696c-4fcb-9423-226eda994978">
+<ApplicationManifest xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ApplicationTypeName="DNCServiceApplicationType" ApplicationTypeVersion="1.0.3" xmlns="http://schemas.microsoft.com/2011/01/fabric" ManifestId="71bac519-696c-4fcb-9423-226eda994978">
   <Parameters>
     <Parameter Name="DNCService_InstanceCount" DefaultValue="3" />
     <Parameter Name="DNCService_DNSName" DefaultValue="sfdnc.app" />
@@ -8,16 +8,30 @@
     <Parameter Name="MasterElectionPartitionKey" DefaultValue=""/>
     <Parameter Name="DNCContainerName" DefaultValue=""/>
     <Parameter Name="DNCPort" DefaultValue="9001"/>
+    <Parameter Name="DNCIpAddress" DefaultValue=""/>
+    <Parameter Name="DataStoreStorageName" DefaultValue=""/>
+    <Parameter Name="DataStoreStorageKey" DefaultValue=""/>
+    <Parameter Name="MasterElectionStorageName" DefaultValue=""/>
+    <Parameter Name="MasterElectionStorageKey" DefaultValue=""/>
   </Parameters>
   <ServiceManifestImport>
-    <ServiceManifestRef ServiceManifestName="DNCServicePkg" ServiceManifestVersion="1.0.2" />
+    <ServiceManifestRef ServiceManifestName="DNCServicePkg" ServiceManifestVersion="1.0.3" />
     <ConfigOverrides />
-    <ResourceOverrides />
+    <ResourceOverrides>
+      <Endpoints>
+        <Endpoint Protocol="http" Name="ServiceEndpoint" Type="Input" Port="[DNCPort]" />
+      </Endpoints>
+    </ResourceOverrides>
     <EnvironmentOverrides CodePackageRef="Code">
       <EnvironmentVariable Name="DNCBlobName" Value="[DNCBlobStorageName]"/>
       <EnvironmentVariable Name="DNCContainerName" Value="[DNCContainerName]"/>
+      <EnvironmentVariable Name="DNCIpAddress" Value="[DNCIpAddress]"/>
       <EnvironmentVariable Name="DNCPort" Value="[DNCPort]"/>
+      <EnvironmentVariable Name="DataStoreStorageName" Value="[DataStoreStorageName]"/>
+      <EnvironmentVariable Name="DataStoreStorageKey" Value="[DataStoreStorageKey]"/>
       <EnvironmentVariable Name="DataStorePartitionKey" Value="[DataStorePartitionKey]"/>
+      <EnvironmentVariable Name="MasterElectionStorageName" Value="[MasterElectionStorageName]"/>
+      <EnvironmentVariable Name="MasterElectionStorageKey" Value="[MasterElectionStorageKey]"/>
       <EnvironmentVariable Name="MasterElectionPartitionKey" Value="[MasterElectionPartitionKey]"/>
     </EnvironmentOverrides>
     <Policies>

@@ -361,4 +361,8 @@ func OverrideConfigFromEnv(config *Configuration) {
 	if masterElectionPartitionKey := os.Getenv("MasterElectionPartitionKey"); len(masterElectionPartitionKey) != 0 {
 		config.MasterElectionSettings.BlobStorageSettings.PartitionKey = masterElectionPartitionKey
 	}
+
+	if ipAddress := os.Getenv("DNCIpAddress"); len(ipAddress) != 0 {
+		config.ServerSettings.IPAddress = ipAddress
+	}
 }

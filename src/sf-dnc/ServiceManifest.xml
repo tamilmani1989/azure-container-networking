@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ServiceManifest Name="DNCServicePkg"
-                 Version="1.0.2"
+                 Version="1.0.3"
                  xmlns="http://schemas.microsoft.com/2011/01/fabric"
                  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ServiceTypes>
     <StatelessServiceType ServiceTypeName="DNCServiceType" UseImplicitHost="true"/>
   </ServiceTypes>
-  <CodePackage Name="Code" Version="1.0.2">
+  <CodePackage Name="Code" Version="1.0.3">
     <EntryPoint>
       <ExeHost>
         <Program>azure-dnc.exe</Program>
@@ -18,15 +18,20 @@
     <EnvironmentVariables>
       <EnvironmentVariable Name="DNCBlobName" Value=""/>
       <EnvironmentVariable Name="DNCContainerName" Value=""/>
+      <EnvironmentVariable Name="DNCIpAddress" Value=""/>
       <EnvironmentVariable Name="DNCPort" Value=""/>
+      <EnvironmentVariable Name="DataStoreStorageName" Value=""/>
+      <EnvironmentVariable Name="DataStoreStorageKey" Value=""/>
       <EnvironmentVariable Name="DataStorePartitionKey" Value=""/>
+      <EnvironmentVariable Name="MasterElectionStorageName" Value=""/>
+      <EnvironmentVariable Name="MasterElectionStorageKey" Value=""/>
       <EnvironmentVariable Name="MasterElectionPartitionKey" Value=""/>
     </EnvironmentVariables>
   </CodePackage>
-  <ConfigPackage Name="Config" Version="1.0.2" />
+  <ConfigPackage Name="Config" Version="1.0.3" />
   <Resources>
     <Endpoints>
-      <Endpoint Protocol="http" Name="ServiceEndpoint" Type="Input" Port="9001" />
+      <Endpoint Protocol="http" Name="ServiceEndpoint" Type="Input" />
     </Endpoints>
   </Resources>
 </ServiceManifest>
