@@ -25,7 +25,7 @@ This service will expose restful API surface that will be used for bottoms up ne
   </metadata>
   <files>
     <file src="$drop$\azure-dnc.exe" target="content\win10-x64\DNCServicePkg\Code" />
-    <file src="C:\source\src\dnc\config.json" target="content\win10-x64\DNCServicePkg\Code" />
+    <file src="$drop$\sf_dnc_config.json" target="content\win10-x64\DNCServicePkg\Code\config.json" />
     <file src="$gitdrop$\azure-vnet-telemetry.exe" target="content\win10-x64\DNCServicePkg\Code" />
     <file src="$gitdrop$\azure-vnet-telemetry.config" target="content\win10-x64\DNCServicePkg\Code" />
     <file src="C:\source\src\sf-dnc\Settings.xml" target="content\win10-x64\DNCServicePkg\Config" />

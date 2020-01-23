@@ -72,6 +72,10 @@ case $1 in
         rm *.zip
         rm *.tgz
         ;;
+    "configupdate" )
+        cd $DIR/src/dnc
+        sed 's/#LeaderElectionTest#/""/g' config.json | sed 's/#LeaderElectionBlob#/""/g' > sf_dnc_config.json
+        ;;
 esac
 
 # Save the exit code from make
