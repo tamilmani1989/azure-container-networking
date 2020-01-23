@@ -26,6 +26,30 @@
       <EnvironmentVariable Name="MasterElectionStorageName" Value=""/>
       <EnvironmentVariable Name="MasterElectionStorageKey" Value=""/>
       <EnvironmentVariable Name="MasterElectionPartitionKey" Value=""/>
+      <EnvironmentVariable Name="LeaseIntervalInSecs" Value=""/>
+      <EnvironmentVariable Name="LeaseRenewIntervalInSecs" Value=""/>
+      <EnvironmentVariable Name="AcquireRetryIntervalInSecs" Value=""/>
+      <EnvironmentVariable Name="RequestRetryBaseInterval" Value=""/>
+      <EnvironmentVariable Name="MaxRequestBackoffInterval" Value=""/>
+      <EnvironmentVariable Name="NetworkRefreshInterval" Value=""/>
+      <EnvironmentVariable Name="NetworkRefreshBatchSize" Value=""/>
+      <EnvironmentVariable Name="SleepIntervalBetweenNetworkBatches" Value=""/>
+      <EnvironmentVariable Name="SleepIntervalBetweenNetworkRefresh" Value=""/>
+      <EnvironmentVariable Name="TagRefreshInterval" Value=""/>
+      <EnvironmentVariable Name="NetworkContainerRefreshInterval" Value=""/>
+      <EnvironmentVariable Name="ReportToHostInterval" Value=""/>
+      <EnvironmentVariable Name="ConcurrentRequestsToProcess" Value=""/>
+      <EnvironmentVariable Name="EnforceNICLimit" Value=""/>
+      <EnvironmentVariable Name="NICsAllowedPerVirtualCore" Value=""/>
+      <EnvironmentVariable Name="ReverseProxyEnabled" Value=""/>
+      <EnvironmentVariable Name="ConnectionTimeout" Value=""/>
+      <EnvironmentVariable Name="ResponseHeaderTimeout" Value=""/>
+      <EnvironmentVariable Name="TelemetryBatchSizeBytes" Value=""/>
+      <EnvironmentVariable Name="TelemetryBatchIntervalInSecs" Value=""/>
+      <EnvironmentVariable Name="RefreshIntervalInSecs" Value=""/>
+      <EnvironmentVariable Name="DisableMetadataRefreshThread" Value=""/>
+      <EnvironmentVariable Name="DisableTelemetry" Value=""/>
+      <EnvironmentVariable Name="DebugMode" Value=""/>
     </EnvironmentVariables>
   </CodePackage>
   <ConfigPackage Name="Config" Version="1.0.3" />

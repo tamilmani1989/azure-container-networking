@@ -334,6 +334,10 @@ func OverrideConfigFromEnv(config *Configuration) {
 		config.MasterElectionSettings.BlobStorageSettings.ContainerName = containerName
 	}
 
+	if ipAddress := os.Getenv("DNCIpAddress"); len(ipAddress) != 0 {
+		config.ServerSettings.IPAddress = ipAddress
+	}
+
 	if port := os.Getenv("DNCPort"); len(port) != 0 {
 		config.ServerSettings.Port = port
 	}
@@ -362,7 +366,99 @@ func OverrideConfigFromEnv(config *Configuration) {
 		config.MasterElectionSettings.BlobStorageSettings.PartitionKey = masterElectionPartitionKey
 	}
 
-	if ipAddress := os.Getenv("DNCIpAddress"); len(ipAddress) != 0 {
-		config.ServerSettings.IPAddress = ipAddress
+	if leaseIntervalInSecs := os.Getenv("LeaseIntervalInSecs"); len(leaseIntervalInSecs) != 0 {
+		config.MasterElectionSettings.BlobStorageSettings.LeaseIntervalInSecs = ParseInt64(leaseIntervalInSecs)
+	}
+
+	if leaseRenewIntervalInSecs := os.Getenv("LeaseRenewIntervalInSecs"); len(leaseRenewIntervalInSecs) != 0 {
+		config.MasterElectionSettings.BlobStorageSettings.LeaseRenewIntervalInSecs = ParseInt64(leaseRenewIntervalInSecs)
+	}
+
+	if acquireRetryIntervalInSecs := os.Getenv("AcquireRetryIntervalInSecs"); len(acquireRetryIntervalInSecs) != 0 {
+		config.MasterElectionSettings.BlobStorageSettings.AcquireRetryIntervalInSecs = ParseInt64(acquireRetryIntervalInSecs)
+	}
+
+	if requestRetryBaseInterval := os.Getenv("RequestRetryBaseInterval"); len(requestRetryBaseInterval) != 0 {
+		config.DNCSettings.RequestRetryBaseInterval = ParseInt(requestRetryBaseInterval)
+	}
+
+	if maxRequestBackoffInterval := os.Getenv("MaxRequestBackoffInterval"); len(maxRequestBackoffInterval) != 0 {
+		config.DNCSettings.MaxRequestBackoffInterval = ParseInt(maxRequestBackoffInterval)
+	}
+
+	if networkRefreshInterval := os.Getenv("NetworkRefreshInterval"); len(networkRefreshInterval) != 0 {
+		config.DNCSettings.NetworkRefreshInterval = ParseInt(networkRefreshInterval)
+	}
+
+	if networkRefreshBatchSize := os.Getenv("NetworkRefreshBatchSize"); len(networkRefreshBatchSize) != 0 {
+		config.DNCSettings.NetworkRefreshBatchSize = ParseInt(networkRefreshBatchSize)
+	}
+
+	if sleepIntervalBetweenNetworkBatches := os.Getenv("SleepIntervalBetweenNetworkBatches"); len(sleepIntervalBetweenNetworkBatches) != 0 {
+		config.DNCSettings.SleepIntervalBetweenNetworkBatches = ParseInt(sleepIntervalBetweenNetworkBatches)
+	}
+
+	if sleepIntervalBetweenNetworkRefresh := os.Getenv("SleepIntervalBetweenNetworkRefresh"); len(sleepIntervalBetweenNetworkRefresh) != 0 {
+		config.DNCSettings.SleepIntervalBetweenNetworkRefresh = ParseInt(sleepIntervalBetweenNetworkRefresh)
+	}
+
+	if networkContainerRefreshInterval := os.Getenv("NetworkContainerRefreshInterval"); len(networkContainerRefreshInterval) != 0 {
+		config.DNCSettings.NetworkContainerRefreshInterval = ParseInt(networkContainerRefreshInterval)
+	}
+
+	if tagRefreshInterval := os.Getenv("TagRefreshInterval"); len(tagRefreshInterval) != 0 {
+		config.DNCSettings.TagRefreshInterval = ParseInt(tagRefreshInterval)
+	}
+
+	if reportToHostInterval := os.Getenv("ReportToHostInterval"); len(reportToHostInterval) != 0 {
+		config.DNCSettings.ReportToHostInterval = ParseInt(reportToHostInterval)
+	}
+
+	if concurrentRequestsToProcess := os.Getenv("ConcurrentRequestsToProcess"); len(concurrentRequestsToProcess) != 0 {
+		config.DNCSettings.ConcurrentRequestsToProcess = ParseInt(concurrentRequestsToProcess)
+	}
+
+	if enforceNICLimit := os.Getenv("EnforceNICLimit"); len(enforceNICLimit) != 0 {
+		config.DNCSettings.EnforceNICLimit = ParseBool(enforceNICLimit)
+	}
+
+	if nicsAllowedPerVirtualCore := os.Getenv("NICsAllowedPerVirtualCore"); len(nicsAllowedPerVirtualCore) != 0 {
+		config.DNCSettings.NICsAllowedPerVirtualCore = ParseUInt16(nicsAllowedPerVirtualCore)
+	}
+
+	if reverseProxyEnabled := os.Getenv("ReverseProxyEnabled"); len(reverseProxyEnabled) != 0 {
+		config.DNCSettings.ReverseProxyEnabled = ParseBool(reverseProxyEnabled)
+	}
+
+	if connectionTimeout := os.Getenv("ConnectionTimeout"); len(connectionTimeout) != 0 {
+		config.HttpClientSettings.ConnectionTimeout = ParseInt(connectionTimeout)
+	}
+
+	if responseHeaderTimeout := os.Getenv("ResponseHeaderTimeout"); len(responseHeaderTimeout) != 0 {
+		config.HttpClientSettings.ResponseHeaderTimeout = ParseInt(responseHeaderTimeout)
+	}
+
+	if telemetryBatchSizeBytes := os.Getenv("TelemetryBatchSizeBytes"); len(telemetryBatchSizeBytes) != 0 {
+		config.TelemetrySettings.TelemetryBatchSizeBytes = ParseInt(telemetryBatchSizeBytes)
+	}
+
+	if telemetryBatchIntervalInSecs := os.Getenv("TelemetryBatchIntervalInSecs"); len(telemetryBatchIntervalInSecs) != 0 {
+		config.TelemetrySettings.TelemetryBatchIntervalInSecs = ParseInt(telemetryBatchIntervalInSecs)
+	}
+
+	if refreshIntervalInSecs := os.Getenv("RefreshIntervalInSecs"); len(refreshIntervalInSecs) != 0 {
+		config.TelemetrySettings.RefreshIntervalInSecs = ParseInt(refreshIntervalInSecs)
+	}
+
+	if disableMetadataRefreshThread := os.Getenv("DisableMetadataRefreshThread"); len(disableMetadataRefreshThread) != 0 {
+		config.TelemetrySettings.DisableMetadataRefreshThread = ParseBool(disableMetadataRefreshThread)
+	}
+
+	if disableTelemetry := os.Getenv("DisableTelemetry"); len(disableTelemetry) != 0 {
+		config.TelemetrySettings.DisableTelemetry = ParseBool(disableTelemetry)
+	}
+
+	if debugMode := os.Getenv("DebugMode"); len(debugMode) != 0 {
+		config.TelemetrySettings.DebugMode = ParseBool(debugMode)
 	}
 }

@@ -13,6 +13,30 @@
     <Parameter Name="DataStoreStorageKey" DefaultValue=""/>
     <Parameter Name="MasterElectionStorageName" DefaultValue=""/>
     <Parameter Name="MasterElectionStorageKey" DefaultValue=""/>
+    <Parameter Name="LeaseIntervalInSecs" DefaultValue="60"/>
+    <Parameter Name="LeaseRenewIntervalInSecs" DefaultValue="30"/>
+    <Parameter Name="AcquireRetryIntervalInSecs" DefaultValue="30"/>
+    <Parameter Name="RequestRetryBaseInterval" DefaultValue="1000"/>
+    <Parameter Name="MaxRequestBackoffInterval" DefaultValue="16000"/>
+    <Parameter Name="NetworkRefreshInterval" DefaultValue="60000"/>
+    <Parameter Name="NetworkRefreshBatchSize" DefaultValue="60"/>
+    <Parameter Name="SleepIntervalBetweenNetworkBatches" DefaultValue="60000"/>
+    <Parameter Name="SleepIntervalBetweenNetworkRefresh" DefaultValue="300"/>
+    <Parameter Name="TagRefreshInterval" DefaultValue="60000"/>
+    <Parameter Name="NetworkContainerRefreshInterval" DefaultValue="60000"/>
+    <Parameter Name="ReportToHostInterval" DefaultValue="60000"/>
+    <Parameter Name="ConcurrentRequestsToProcess" DefaultValue="1000"/>
+    <Parameter Name="EnforceNICLimit" DefaultValue="true"/>
+    <Parameter Name="NICsAllowedPerVirtualCore" DefaultValue="3"/>
+    <Parameter Name="ReverseProxyEnabled" DefaultValue="false"/>
+    <Parameter Name="ConnectionTimeout" DefaultValue="5"/>
+    <Parameter Name="ResponseHeaderTimeout" DefaultValue="120"/>
+    <Parameter Name="TelemetryBatchSizeBytes" DefaultValue="16384"/>
+    <Parameter Name="TelemetryBatchIntervalInSecs" DefaultValue="7"/>
+    <Parameter Name="RefreshIntervalInSecs" DefaultValue="15"/>
+    <Parameter Name="DisableMetadataRefreshThread" DefaultValue="false"/>
+    <Parameter Name="DisableTelemetry" DefaultValue="false"/>
+    <Parameter Name="DebugMode" DefaultValue="false"/>
   </Parameters>
   <ServiceManifestImport>
     <ServiceManifestRef ServiceManifestName="DNCServicePkg" ServiceManifestVersion="1.0.3" />
@@ -33,6 +57,30 @@
       <EnvironmentVariable Name="MasterElectionStorageName" Value="[MasterElectionStorageName]"/>
       <EnvironmentVariable Name="MasterElectionStorageKey" Value="[MasterElectionStorageKey]"/>
       <EnvironmentVariable Name="MasterElectionPartitionKey" Value="[MasterElectionPartitionKey]"/>
+      <EnvironmentVariable Name="LeaseIntervalInSecs" Value="[LeaseIntervalInSecs]"/>
+      <EnvironmentVariable Name="LeaseRenewIntervalInSecs" Value="[LeaseRenewIntervalInSecs]"/>
+      <EnvironmentVariable Name="AcquireRetryIntervalInSecs" Value="[AcquireRetryIntervalInSecs]"/>
+      <EnvironmentVariable Name="RequestRetryBaseInterval" Value="[RequestRetryBaseInterval]"/>
+      <EnvironmentVariable Name="MaxRequestBackoffInterval" Value="[MaxRequestBackoffInterval]"/>
+      <EnvironmentVariable Name="NetworkRefreshInterval" Value="[NetworkRefreshInterval]"/>
+      <EnvironmentVariable Name="NetworkRefreshBatchSize" Value="[NetworkRefreshBatchSize]"/>
+      <EnvironmentVariable Name="SleepIntervalBetweenNetworkBatches" Value="[SleepIntervalBetweenNetworkBatches]"/>
+      <EnvironmentVariable Name="SleepIntervalBetweenNetworkRefresh" Value="[SleepIntervalBetweenNetworkRefresh]"/>
+      <EnvironmentVariable Name="TagRefreshInterval" Value="[TagRefreshInterval]"/>
+      <EnvironmentVariable Name="NetworkContainerRefreshInterval" Value="[NetworkContainerRefreshInterval]"/>
+      <EnvironmentVariable Name="ReportToHostInterval" Value="[ReportToHostInterval]"/>
+      <EnvironmentVariable Name="ConcurrentRequestsToProcess" Value="[ConcurrentRequestsToProcess]"/>
+      <EnvironmentVariable Name="EnforceNICLimit" Value="[EnforceNICLimit]"/>
+      <EnvironmentVariable Name="NICsAllowedPerVirtualCore" Value="[NICsAllowedPerVirtualCore]"/>
+      <EnvironmentVariable Name="ReverseProxyEnabled" Value="[ReverseProxyEnabled]"/>
+      <EnvironmentVariable Name="ConnectionTimeout" Value="[ConnectionTimeout]"/>
+      <EnvironmentVariable Name="ResponseHeaderTimeout" Value="[ResponseHeaderTimeout]"/>
+      <EnvironmentVariable Name="TelemetryBatchSizeBytes" Value="[TelemetryBatchSizeBytes]"/>
+      <EnvironmentVariable Name="TelemetryBatchIntervalInSecs" Value="[TelemetryBatchIntervalInSecs]"/>
+      <EnvironmentVariable Name="RefreshIntervalInSecs" Value="[RefreshIntervalInSecs]"/>
+      <EnvironmentVariable Name="DisableMetadataRefreshThread" Value="[DisableMetadataRefreshThread]"/>
+      <EnvironmentVariable Name="DisableTelemetry" Value="[DisableTelemetry]"/>
+      <EnvironmentVariable Name="DebugMode" Value="[DebugMode]"/>
     </EnvironmentOverrides>
     <Policies>
       <RunAsPolicy CodePackageRef="Code" UserRef="DncSystem" EntryPointType="All"/>
