@@ -96,17 +96,6 @@ build:
           - '**\azure-dnc.exe'
 
   - !!buildcommand
-    name: 'Sign DNC for SF'
-    command: 'package-sign-dnc-sf.cmd'
-    arguments: 'Sign Release linux_phase_drop_dnc_sf'
-    artifacts:
-      - from: 'linux_phase_drop_dnc_sf'
-        include:
-          - '**/DNCService.dll'
-          - '**/DNCService.Interfaces.dll'
-          - '**/DNCService.exe'
-
-  - !!buildcommand
     name: 'Sign CNS for SF'
     command: 'package-sign-cns-sf.cmd'
     arguments: 'Sign Release drop_cns_sf'
@@ -159,16 +148,6 @@ package:
           to: 'AzureDNC'
           include:
             - '*AzureDNC.*.nupkg'
-
-    - !!buildcommand
-      name: 'Package DNC for SF'
-      command: 'package-sign-dnc-sf.cmd'
-      arguments: 'Package Release linux_phase_drop_dnc_sf'
-      artifacts:
-        - from: '.'
-          to: 'AzureDNC-SF'
-          include:
-            - '*AzureDNCSF.*.nupkg'
 
     - !!buildcommand                                                    
       name: 'Package GODNC for SF'   
