@@ -50,11 +50,9 @@ CONNECT:
 		reportMgr.GetReportState(cnsTelemetryFile)
 		reportMgr.GetKernelVersion()
 
-		Printf("Wait for events...")
 		for {
 			select {
 			case <-heartbeat:
-				Printf("Send hearbeat")
 				SendMetric(metric)
 			case msg := <-reports:
 				codeStr := codeRegex.FindString(msg.(string))
