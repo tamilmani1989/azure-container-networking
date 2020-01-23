@@ -35,6 +35,10 @@ const (
 // Version is populated by make during build.
 var version string
 
+// Reports channel
+var reports = make(chan interface{})
+var telemetryStopProcessing = make(chan bool)
+
 // Command line arguments for CNS.
 var args = acn.ArgumentList{
 	{
@@ -220,10 +224,12 @@ func main() {
 		logger.Errorf("[Azure CNS] Error reading cns config: %v", err)
 	}
 
-	log.Printf("[Azure CNS] Read config :%+v", cnsconfig)
+	logger.Printf("[Azure CNS] Read config :%+v", cnsconfig)
 	configuration.SetCNSConfigDefaults(&cnsconfig)
 
-	if !cnsconfig.TelemetrySettings.DisableAll {
+	disableTelemetry := cnsconfig.TelemetrySettings.DisableAll
+
+	if !disableTelemetry {
 		ts := cnsconfig.TelemetrySettings
 		aiConfig := aitelemetry.AIConfig{
 			AppName:                      name,
@@ -236,6 +242,7 @@ func main() {
 		}
 
 		logger.InitAI(aiConfig, ts.DisableTrace, ts.DisableMetric)
+		logger.InitReportChannel(reports)
 	}
 
 	// Log platform information.
@@ -243,7 +250,7 @@ func main() {
 
 	err = acn.CreateDirectory(storeFileLocation)
 	if err != nil {
-		log.Errorf("Failed to create File Store directory %s, due to Error:%v", storeFileLocation, err.Error())
+		logger.Errorf("Failed to create File Store directory %s, due to Error:%v", storeFileLocation, err.Error())
 		return
 	}
 
@@ -251,7 +258,7 @@ func main() {
 	storeFileName := storeFileLocation + name + ".json"
 	config.Store, err = store.NewJsonFileStore(storeFileName)
 	if err != nil {
-		log.Errorf("Failed to create store file: %s, due to error %v\n", storeFileName, err)
+		logger.Errorf("Failed to create store file: %s, due to error %v\n", storeFileName, err)
 		return
 	}
 
@@ -289,8 +296,9 @@ func main() {
 		}
 	}
 
-	if !cnsconfig.TelemetrySettings.DisableAll {
-		go logger.SendCnsTelemetry(cnsconfig.TelemetrySettings.HeartBeatIntervalInMins)
+	if !disableTelemetry {
+		go logger.SendCnsTelemetry(reports, cnsconfig.TelemetrySettings.HeartBeatIntervalInMins,
+			telemetryStopProcessing)
 	}
 
 	var netPlugin network.NetPlugin
@@ -321,7 +329,7 @@ func main() {
 		pluginStoreFile := storeFileLocation + pluginName + ".json"
 		pluginConfig.Store, err = store.NewJsonFileStore(pluginStoreFile)
 		if err != nil {
-			log.Errorf("Failed to create plugin store file %s, due to error : %v\n", pluginStoreFile, err)
+			logger.Errorf("Failed to create plugin store file %s, due to error : %v\n", pluginStoreFile, err)
 			return
 		}
 
@@ -361,6 +369,10 @@ func main() {
 		} else {
 			logger.Printf("[Azure CNS] Failed to delete default ext network due to error: %v", err)
 		}
+	}
+
+	if !disableTelemetry {
+		telemetryStopProcessing <- true
 	}
 
 	// Cleanup.
