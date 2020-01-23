@@ -1,0 +1,9 @@
+{
+ "tool": "Credential Scanner",
+ "suppressions": [
+  {
+    "placeholder": "password-for-the-user-name",
+    "_justification": "Fake password used in github vendor code."
+  }
+ ]
+}

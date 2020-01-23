@@ -1,0 +1,13 @@
+# Binaries
+out/*
+output/*
+
+# Artifacts
+azure-*.json
+ipam-*.xml
+
+# Environment
+.vscode/*
+
+# Coverage 
+*.out

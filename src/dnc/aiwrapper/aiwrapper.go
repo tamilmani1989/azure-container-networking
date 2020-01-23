@@ -23,7 +23,7 @@ func CreateTelemetryHandle(aiConfig aitelemetry.AIConfig) {
 
 	aiConfig.AppVersion = utils.Version
 	aiConfig.AppName = appName
-	th = aitelemetry.NewAITelemetry(aiMetadata, aiConfig)
+	th, _ = aitelemetry.NewAITelemetry("", aiMetadata, aiConfig)
 }
 
 func CloseTelemetryHandle() {
