@@ -2363,6 +2363,13 @@ func processPendingRequests(
 	for i := 0; i < currentBatchRequestCount; i++ {
 		// Return if the replica is not primary
 		if !replicaInstance.IsReplicaPrimary() {
+			// Remove the requestIDs from the inProcessRequestMap which will not be processed
+			for reqIndex := i; reqIndex < currentBatchRequestCount; reqIndex++ {
+				logger.Debugf("Removing unprocessed request from the current batch: %s",
+					requestsToProcess[reqIndex])
+				inProcessRequestsMap.Delete(requestsToProcess[reqIndex])
+			}
+
 			break
 		}
 

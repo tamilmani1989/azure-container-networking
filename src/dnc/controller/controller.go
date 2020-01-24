@@ -424,6 +424,7 @@ func (c *Controller) GetNetwork(networkID string) (*api.NetworkConfigurationResp
 
 // DeleteNetwork - Delete a network
 func (c *Controller) DeleteNetwork(networkID string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] DeleteNetwork: %s", networkID)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
