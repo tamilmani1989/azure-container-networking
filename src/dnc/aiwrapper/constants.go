@@ -1,7 +1,7 @@
 package aiwrapper
 
 const (
-	appName = "DNC"
+	AppName = "DNC"
 )
 
 const (

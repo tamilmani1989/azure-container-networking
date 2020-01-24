@@ -50,6 +50,9 @@
       <EnvironmentVariable Name="DisableMetadataRefreshThread" Value=""/>
       <EnvironmentVariable Name="DisableTelemetry" Value=""/>
       <EnvironmentVariable Name="DebugMode" Value=""/>
+      <EnvironmentVariable Name="DisableAiLogging" Value=""/>
+      <EnvironmentVariable Name="GetEnvRetryCount" Value=""/>
+      <EnvironmentVariable Name="GetEnvRetryWaitTimeInSecs" Value=""/>
     </EnvironmentVariables>
   </CodePackage>
   <ConfigPackage Name="Config" Version="1.0.3" />

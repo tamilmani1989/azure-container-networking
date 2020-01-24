@@ -4,7 +4,6 @@ import (
 	"dnc/configuration"
 	"dnc/logger/acnlogger"
 	"dnc/logger/customlogger"
-
 	"github.com/Azure/azure-container-networking/telemetry"
 )
 
@@ -33,7 +32,7 @@ func NewLoggerShim(cfg *configuration.Configuration) *LoggerShim {
 	if LS.loggerSettings != (configuration.CustomLoggerSettings{}) {
 		LS.loggerInterface = customlogger.NewCustomLogger(cfg.CustomLoggerSettings)
 	} else {
-		LS.loggerInterface = acnlogger.NewAcnLogger()
+		LS.loggerInterface = acnlogger.NewAcnLogger(cfg)
 	}
 
 	return LS

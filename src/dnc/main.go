@@ -85,6 +85,8 @@ func init() {
 	disableTelemetry = config.TelemetrySettings.DisableTelemetry
 	logger = loggershim.NewLoggerShim(config)
 
+	var aiTelemetryErr error
+
 	if disableTelemetry {
 		reports = nil
 	} else {
@@ -94,13 +96,24 @@ func init() {
 			RefreshTimeout:               config.TelemetrySettings.RefreshIntervalInSecs,
 			DisableMetadataRefreshThread: config.TelemetrySettings.DisableMetadataRefreshThread,
 			DebugMode:                    config.TelemetrySettings.DebugMode,
+			AppVersion:                   utils.Version,
+			AppName:                      aiwrapper.AppName,
+			GetEnvRetryCount:             config.TelemetrySettings.GetEnvRetryCount,
+			GetEnvRetryWaitTimeInSecs:    config.TelemetrySettings.GetEnvRetryWaitTimeInSecs,
 		}
 
-		aiwrapper.CreateTelemetryHandle(aiConfig)
+		aiTelemetryErr = aiwrapper.CreateTelemetryHandle(aiConfig)
 	}
 
 	logger.Init(stderr, reports)
 	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
+
+	if(aiTelemetryErr != nil){
+		logger.Errorf("Error initializing AI telemetry handle. %v", aiTelemetryErr)
+	}else{
+		logger.Debugf("Successfully initialized AI telemetry.")
+	}
+
 	replicaInstance = replica.NewReplica(
 		config.ServerSettings,
 		GetNetworkRefreshMonitorStatus)

@@ -82,6 +82,7 @@
         "RefreshIntervalInSecs": 15,
         "DisableMetadataRefreshThread": false,
         "DisableTelemetry": false,
-        "DebugMode": false
+        "DebugMode": false,
+        "DisableAiLogging": false
     }
 }

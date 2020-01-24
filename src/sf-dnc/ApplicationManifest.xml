@@ -37,6 +37,9 @@
     <Parameter Name="DisableMetadataRefreshThread" DefaultValue="false"/>
     <Parameter Name="DisableTelemetry" DefaultValue="false"/>
     <Parameter Name="DebugMode" DefaultValue="false"/>
+	<Parameter Name="DisableAiLogging" DefaultValue="false"/>
+	<Parameter Name="GetEnvRetryCount" DefaultValue="5"/>
+	<Parameter Name="GetEnvRetryWaitTimeInSecs" DefaultValue="3"/>
   </Parameters>
   <ServiceManifestImport>
     <ServiceManifestRef ServiceManifestName="DNCServicePkg" ServiceManifestVersion="1.0.3" />
@@ -81,6 +84,9 @@
       <EnvironmentVariable Name="DisableMetadataRefreshThread" Value="[DisableMetadataRefreshThread]"/>
       <EnvironmentVariable Name="DisableTelemetry" Value="[DisableTelemetry]"/>
       <EnvironmentVariable Name="DebugMode" Value="[DebugMode]"/>
+      <EnvironmentVariable Name="DisableAiLogging" Value="[DisableAiLogging]"/>
+      <EnvironmentVariable Name="GetEnvRetryCount" Value="[GetEnvRetryCount]"/>
+      <EnvironmentVariable Name="GetEnvRetryWaitTimeInSecs" Value="[GetEnvRetryWaitTimeInSecs]"/>
     </EnvironmentOverrides>
     <Policies>
       <RunAsPolicy CodePackageRef="Code" UserRef="DncSystem" EntryPointType="All"/>

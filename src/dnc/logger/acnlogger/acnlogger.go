@@ -1,22 +1,27 @@
 package acnlogger
 
 import (
+	"dnc/configuration"
+	"dnc/aiwrapper"
 	"dnc/logger"
 	"fmt"
 
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/telemetry"
+	"github.com/Azure/azure-container-networking/aitelemetry"	
 )
 
 // AcnLogger :- struct to hold AcnLogger settings.
 type AcnLogger struct {
 	instance *log.Logger
 	reports  chan telemetry.DNCReport
+	telemetrySettings configuration.TelemetrySettings
 }
 
 // NewAcnLogger :- Create new AcnLogger
-func NewAcnLogger() *AcnLogger {
+func NewAcnLogger(cfg *configuration.Configuration) *AcnLogger {
 	acnLogger := new(AcnLogger)
+	acnLogger.telemetrySettings = cfg.TelemetrySettings
 	return acnLogger
 }
 
@@ -38,7 +43,11 @@ func (l *AcnLogger) Debugf(format string, args ...interface{}) {
 	l.instance.Debugf(format, args...)
 	if l.reports != nil {
 		go func() {
-			l.reports <- telemetry.DNCReport{EventMessage: fmt.Sprintf(format, args...)}
+			msg := fmt.Sprintf(format, args...)
+			l.reports <- telemetry.DNCReport{EventMessage: msg}
+			if(!l.telemetrySettings.DisableAiLogging) {
+				logAiMessage("Debug", msg)
+			}
 		}()
 	}
 }
@@ -55,6 +64,10 @@ func (l *AcnLogger) Errorf(format string, args ...interface{}) {
 			} else {
 				l.reports <- telemetry.DNCReport{EventMessage: msg}
 			}
+
+			if(!l.telemetrySettings.DisableAiLogging) {
+				logAiMessage("Error", msg)
+			}
 		}()
 	}
 }
@@ -67,4 +80,22 @@ func (l *AcnLogger) Close() {
 // SetLogFileLimits :- Set the limits for the log file
 func (l *AcnLogger) SetLogFileLimits(maxFileSize, maxFileCount int) {
 	l.instance.SetLogFileLimits(maxFileSize, maxFileCount)
+}
+
+// LogAiMessage :- Logs Application insights message.
+func logAiMessage(messageType string, msg string) {
+	report := aitelemetry.Report{CustomDimensions: make(map[string]string)}
+	report.Message = msg
+
+	// Indicates whether this message is error or debug message.
+	report.CustomDimensions["MessageType"] = messageType
+
+	codeStr := logger.CompiledRegex.FindString(msg)
+
+	// If there is an error code add it to dimensions.
+	if len(codeStr) > logger.ErrorCodePrefix {
+		report.CustomDimensions["ErrorCode"] = codeStr
+	}
+
+	aiwrapper.Trace(report)
 }

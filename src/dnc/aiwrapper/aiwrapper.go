@@ -1,8 +1,6 @@
 package aiwrapper
 
 import (
-	"dnc/utils"
-
 	"github.com/Azure/azure-container-networking/aitelemetry"
 )
 
@@ -16,14 +14,19 @@ var (
 	th               aitelemetry.TelemetryHandle
 )
 
-func CreateTelemetryHandle(aiConfig aitelemetry.AIConfig) {
+func CreateTelemetryHandle(aiConfig aitelemetry.AIConfig) error {
 	if aiMetadata == "" {
-		return
+		return nil;
 	}
 
-	aiConfig.AppVersion = utils.Version
-	aiConfig.AppName = appName
-	th, _ = aitelemetry.NewAITelemetry("", aiMetadata, aiConfig)
+	var err error
+	th, err = aitelemetry.NewAITelemetry("", aiMetadata, aiConfig)
+
+	if(err != nil){
+		return err;
+	}
+
+	return nil;
 }
 
 func CloseTelemetryHandle() {
@@ -37,4 +40,16 @@ func SendMetric(metric aitelemetry.Metric) {
 
 	metric.CustomDimensions[OrchestratorStr] = OrchestratorType
 	th.TrackMetric(metric)
+}
+
+// Trace the report to AI.
+func Trace(report aitelemetry.Report) {
+	if th == nil {
+		return
+	}
+
+	report.CustomDimensions[OrchestratorStr] = OrchestratorType
+	report.CustomDimensions["Context"] = "AzureDNC"
+	report.Context = OrchestratorType
+	th.TrackLog(report)
 }

@@ -175,6 +175,12 @@ type TelemetrySettings struct {
 	RefreshIntervalInSecs int
 	// Disable debug logging for telemetry messages
 	DebugMode bool
+	// Disable logging to App Insights. 
+	DisableAiLogging bool
+    // Retry wait time in seconds for AI telemetry.
+	GetEnvRetryWaitTimeInSecs int
+    // Retry count for AI telemetry.
+	GetEnvRetryCount int
 }
 
 // Configuration - Details related to dnc configuration settings
@@ -311,6 +317,14 @@ func setTelemetrySettingDefaults(telemetrySettings *TelemetrySettings) {
 	if telemetrySettings.TelemetryBatchSizeBytes == 0 {
 		// set the default AI telemetry batch size to 16384 bytes
 		telemetrySettings.TelemetryBatchSizeBytes = 16384
+	}
+
+	if (telemetrySettings.GetEnvRetryWaitTimeInSecs == 0) {
+		telemetrySettings.GetEnvRetryWaitTimeInSecs = 3
+	}
+
+	if (telemetrySettings.GetEnvRetryCount == 0) {
+		telemetrySettings.GetEnvRetryCount =  5
 	}
 }
 
@@ -460,5 +474,17 @@ func OverrideConfigFromEnv(config *Configuration) {
 
 	if debugMode := os.Getenv("DebugMode"); len(debugMode) != 0 {
 		config.TelemetrySettings.DebugMode = ParseBool(debugMode)
+	}
+
+	if disableAiLogging := os.Getenv("DisableAiLogging"); len(disableAiLogging) !=0 {
+		config.TelemetrySettings.DisableAiLogging = ParseBool(disableAiLogging)
+	}
+
+	if getEnvRetryWaitTimeInSecs := os.Getenv("GetEnvRetryWaitTimeInSecs"); len(getEnvRetryWaitTimeInSecs) != 0 {
+		config.TelemetrySettings.GetEnvRetryWaitTimeInSecs = ParseInt(getEnvRetryWaitTimeInSecs)
+	}
+
+	if getEnvRetryCount  := os.Getenv("GetEnvRetryCount"); len(getEnvRetryCount) != 0 {
+		config.TelemetrySettings.GetEnvRetryCount = ParseInt(getEnvRetryCount)
 	}
 }
