@@ -168,9 +168,8 @@ func init() {
 			httpClient,
 			config.HostAgentSettings.WireServerIP)
 		ctrler.UpdateReplicaStatus(true)
+		setOrchestratorForTelemetry()
 	}
-
-	setOrchestratorForTelemetry()
 }
 
 func processExitCallback() {

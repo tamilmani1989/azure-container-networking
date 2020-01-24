@@ -563,6 +563,10 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 		c.httpClient,
 		config.HostAgentSettings.WireServerIP)
 	c.UpdateReplicaStatus(true)
+
+	// TODO: set the orchestrator for AI telemetry
+	// setOrchestratorForTelemetry()
+
 	return nil
 }
 
@@ -584,6 +588,10 @@ func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2)
 		c.httpClient,
 		config.HostAgentSettings.WireServerIP)
 	c.UpdateReplicaStatus(true)
+
+	// TODO: set the orchestrator for AI telemetry
+	// setOrchestratorForTelemetry()
+
 	return nil
 }
 
@@ -606,6 +614,10 @@ func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, b
 		c.httpClient,
 		config.HostAgentSettings.WireServerIP)
 	c.UpdateReplicaStatus(true)
+
+	// TODO: set the orchestrator for AI telemetry
+	// setOrchestratorForTelemetry()
+
 	return nil
 }
 
