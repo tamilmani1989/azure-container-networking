@@ -156,11 +156,11 @@ func reportNetworkConfiguration(nodeID, networkID string, allocations map[string
 	sessionManager.BeginReadSession(sessionInfo)
 	networkConfig, err := datamodel.TryQueryNetworkConfiguration(networkID)
 	sessionManager.EndReadSession(sessionInfo)
-	if err == nil {
+	if err == nil && networkConfig != nil {
 		allocations[networkID] = make(map[string]map[string][]string)
 		for subnetName, subnetKey := range networkConfig.Subnets {
 			subnetConfig, err := datamodel.TryQuerySubnetConfigurationByKey(subnetKey)
-			if err == nil {
+			if err == nil && subnetConfig != nil {
 				for reservation, ip := range subnetConfig.Reservations {
 					if _, exists := allocations[networkID][subnetName]; !exists {
 						allocations[networkID][subnetName] = make(map[string][]string)
@@ -173,9 +173,17 @@ func reportNetworkConfiguration(nodeID, networkID string, allocations map[string
 					reservedIPs[reservation] = ip
 				}
 			} else {
+				if subnetConfig == nil {
+					logger.Errorf("UNEXPECTED ERROR: subnet configuration not found for subnet: %s", subnetKey)
+				}
+
 				break
 			}
 		}
+	}
+
+	if networkConfig == nil {
+		logger.Errorf("UNEXPECTED ERROR: network configuration not found for network: %s", networkID)
 	}
 
 	return reservedIPs, err

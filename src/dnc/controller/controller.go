@@ -115,6 +115,7 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 
 // DeleteNode - Delete node configuration
 func (c *Controller) DeleteNode(nodeID string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] DeleteNode: %s", nodeID)
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
