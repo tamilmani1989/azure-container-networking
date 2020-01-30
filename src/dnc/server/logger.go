@@ -3,7 +3,6 @@ package server
 import (
 	"dnc/api"
 	"encoding/json"
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -53,7 +52,9 @@ func Logger(inner http.Handler, name string, reverseProxyEnabled bool, connectio
 				primaryEP, err = ctrler.GetPrimaryIPEndpoint()
 				if err != nil {
 					setRequestFailed(w, &api.JsonErr{
-						Code: api.PrimaryNotAvailable})
+						Code:       api.PrimaryNotAvailable,
+						Text:       api.PrimaryNotAvailable.String(),
+						HTTPStatus: http.StatusInternalServerError})
 
 					return
 				}
@@ -61,15 +62,20 @@ func Logger(inner http.Handler, name string, reverseProxyEnabled bool, connectio
 				replicaEP, err := ctrler.GetReplicaIPEndpoint()
 				if err != nil {
 					setRequestFailed(w, &api.JsonErr{
-						Code: api.PrimaryNotAvailable})
+						Code:       api.PrimaryNotAvailable,
+						Text:       api.PrimaryNotAvailable.String(),
+						HTTPStatus: http.StatusInternalServerError})
 
 					return
 				}
 
 				if strings.Compare(primaryEP, replicaEP) == 0 {
-					err = fmt.Errorf("Primary replica not ready")
+					loggershim.LS.Errorf("Primary replica not ready. primaryEp: %s, replicaEp: %s",
+						primaryEP, replicaEP)
 					setRequestFailed(w, &api.JsonErr{
-						Code: api.PrimaryNotAvailable})
+						Code:       api.PrimaryNotAvailable,
+						Text:       api.PrimaryNotAvailable.String(),
+						HTTPStatus: http.StatusInternalServerError})
 
 					return
 				}
@@ -132,6 +138,13 @@ func getandValidateAPIVersion(request *http.Request) (string, *api.JsonErr) {
 }
 
 func setRequestFailed(w http.ResponseWriter, jsonErr *api.JsonErr) {
+	// Validate if the HTTPStatus is valid. w.WriteHeader needs it to be valid otherwise it panics.
+	if len(http.StatusText(jsonErr.HTTPStatus)) == 0 {
+		loggershim.LS.Errorf("Invalid HTTP status code set for setRequestFailed. httpStatus: %d",
+			jsonErr.HTTPStatus)
+		jsonErr.HTTPStatus = http.StatusInternalServerError
+	}
+
 	w.WriteHeader(jsonErr.HTTPStatus)
 	if err := json.NewEncoder(w).Encode(jsonErr); err != nil {
 		panic(err)
