@@ -44,10 +44,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	log.SetLogDirectory(*logDir)
 	log.SetName("servicetunnel")
 	log.SetLevel(log.LevelInfo)
-	if err = log.SetTarget(log.TargetLogfile); err == nil {
+	if err = log.SetTargetLogDirectory(log.TargetLogfile, *logDir); err == nil {
 		fmt.Printf("LogDir configuration succeeded for dir %v\n", logDir)
 	}
 

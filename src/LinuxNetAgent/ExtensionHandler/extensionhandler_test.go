@@ -9,10 +9,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	log.SetLogDirectory(".")
 	log.SetName("testextensionhandler")
 	log.SetLevel(log.LevelInfo)
-	err := log.SetTarget(log.TargetLogfile)
+	err := log.SetTargetLogDirectory(log.TargetLogfile, ".")
 	if err == nil {
 		fmt.Printf("TestExtension LogDir configuration succeeded\n")
 	}

@@ -9,10 +9,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	log.SetLogDirectory("/var/log/")
 	log.SetName("testservicetunnel")
 	log.SetLevel(log.LevelInfo)
-	err := log.SetTarget(log.TargetLogfile)
+	err := log.SetTargetLogDirectory(log.TargetLogfile, "/var/log/")
 	if err == nil {
 		fmt.Printf("TestST LogDir configuration succeeded\n")
 	}

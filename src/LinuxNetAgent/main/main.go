@@ -50,10 +50,9 @@ func main() {
 
 	for i := 0; i < *maxRetries; i++ {
 		var err error
-		log.SetLogDirectory(handlerEnv.Env.LogFolder)
 		log.SetName("servicetunnel")
 		log.SetLevel(log.LevelInfo)
-		if err = log.SetTarget(log.TargetLogfile); err == nil {
+		if err = log.SetTargetLogDirectory(log.TargetLogfile, handlerEnv.Env.LogFolder); err == nil {
 			fmt.Printf("LogDir configuration succeeded for dir %v\n", handlerEnv.Env.LogFolder)
 			logConfig = true
 			break
@@ -64,10 +63,9 @@ func main() {
 	}
 
 	if !logConfig {
-		log.SetLogDirectory(DEFAULT_LOGDIR)
 		log.SetName("servicetunnel")
 		log.SetLevel(log.LevelInfo)
-		if err := log.SetTarget(log.TargetLogfile); err == nil {
+		if err := log.SetTargetLogDirectory(log.TargetLogfile, DEFAULT_LOGDIR); err == nil {
 			fmt.Printf("LogDir configuration succeeded for dir %v\n", DEFAULT_LOGDIR)
 		}
 	}
