@@ -124,9 +124,9 @@ func (c *Controller) DeleteNode(nodeID string) *api.JsonErr {
 
 // GetNodeInfo - Get node configuration.
 func (c *Controller) GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
-	c.SessionManager.BeginReadSession(sessionInfo)
-	defer c.SessionManager.EndReadSession(sessionInfo)
+	// No read lock is required because Azure Storage uses snapshot isolation to allow
+	// read operations to happen concurrently with writes in the same partition. It
+	// guarantees reads to see consistent data while updates are happening
 	return datamodel.GetNodeInfo(nodeID)
 }
 
@@ -153,9 +153,9 @@ func (c *Controller) PersistIPReservationRequest(
 func (c *Controller) GetReservationConfiguration(
 	networkID string,
 	reservationID string) (*api.ReservationResponse, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.ReservationRepositoryName: reservationID}
-	c.SessionManager.BeginReadSession(sessionInfo)
-	defer c.SessionManager.EndReadSession(sessionInfo)
+	// No read lock is required because Azure Storage uses snapshot isolation to allow
+	// read operations to happen concurrently with writes in the same partition. It
+	// guarantees reads to see consistent data while updates are happening
 
 	return datamodel.GetReservationResponse(networkID, reservationID)
 }
@@ -164,9 +164,9 @@ func (c *Controller) GetReservationConfiguration(
 func (c *Controller) GetReservationStatus(
 	networkID,
 	reservationID string) (*api.RequestStatus, int, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.ReservationRepositoryName: reservationID}
-	c.SessionManager.BeginReadSession(sessionInfo)
-	defer c.SessionManager.EndReadSession(sessionInfo)
+	// No read lock is required because Azure Storage uses snapshot isolation to allow
+	// read operations to happen concurrently with writes in the same partition. It
+	// guarantees reads to see consistent data while updates are happening
 
 	reservationCfg, err := datamodel.QueryIPReservation(networkID, reservationID)
 	if err != nil {
@@ -221,10 +221,9 @@ func generateStatus(status datamodel.Status, errorInfo *api.JsonErr) int {
 
 // GetNetworkStatus - Get network status
 func (c *Controller) GetNetworkStatus(networkID string) (*api.RequestStatus, int, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
-	c.SessionManager.BeginReadSession(sessionInfo)
-	defer c.SessionManager.EndReadSession(sessionInfo)
-
+	// No read lock is required because Azure Storage uses snapshot isolation to allow
+	// read operations to happen concurrently with writes in the same partition. It
+	// guarantees reads to see consistent data while updates are happening
 	vnetCfg, err := datamodel.QueryNetworkConfiguration(networkID)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
@@ -245,10 +244,9 @@ func (c *Controller) GetSubnetStatus(networkID, subnetName string) (*api.Request
 	var requestStatus api.RequestStatus
 	requestStatus.State = datamodel.Join.String()
 
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
-	c.SessionManager.BeginReadSession(sessionInfo)
-	defer c.SessionManager.EndReadSession(sessionInfo)
-
+	// No read lock is required because Azure Storage uses snapshot isolation to allow
+	// read operations to happen concurrently with writes in the same partition. It
+	// guarantees reads to see consistent data while updates are happening
 	subnetConfig, err := datamodel.QuerySubnetConfiguration(
 		networkID,
 		subnetName)
@@ -292,10 +290,9 @@ func (c *Controller) GetSubnetStatus(networkID, subnetName string) (*api.Request
 
 // GetSubnetConfiguration - Get subnet configuration
 func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.SubnetConfigurationResponse, *api.JsonErr) {
-	sessionInfoNetwork := map[string]string{datamodel.NetworkRepositoryName: networkID}
-	c.SessionManager.BeginReadSession(sessionInfoNetwork)
-	defer c.SessionManager.EndReadSession(sessionInfoNetwork)
-
+	// No read lock is required because Azure Storage uses snapshot isolation to allow
+	// read operations to happen concurrently with writes in the same partition. It
+	// guarantees reads to see consistent data while updates are happening
 	repoSubnetConfiguration, err := datamodel.QuerySubnetConfiguration(
 		networkID,
 		subnetName)
@@ -306,10 +303,7 @@ func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.
 	ipAllocationsData := make(api.IPAllocationsData, len(repoSubnetConfiguration.Reservations))
 	index := 0
 	for reservationID := range repoSubnetConfiguration.Reservations {
-		sessionInfoReservation := map[string]string{datamodel.ReservationRepositoryName: reservationID}
-		c.SessionManager.BeginReadSession(sessionInfoReservation)
 		repoReservationConfiguration, err := datamodel.QueryIPReservation(networkID, reservationID)
-		c.SessionManager.EndReadSession(sessionInfoReservation)
 		if err != nil {
 			msg := fmt.Sprintf(
 				"Failed to retrieve reservation configuration for reservation:[%s] in network [%s] due to error:{%s}",
@@ -356,10 +350,9 @@ func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.
 // GetNetworkContainerStatus - Get network container status
 func (c *Controller) GetNetworkContainerStatus(
 	networkID, networkContainerID string) (*api.RequestStatus, int, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.NCRepositoryName: networkContainerID}
-	c.SessionManager.BeginReadSession(sessionInfo)
-	defer c.SessionManager.EndReadSession(sessionInfo)
-
+	// No read lock is required because Azure Storage uses snapshot isolation to allow
+	// read operations to happen concurrently with writes in the same partition. It
+	// guarantees reads to see consistent data while updates are happening
 	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, networkContainerID)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
@@ -416,9 +409,9 @@ func (c *Controller) PersistSubnetDelegationRequest(
 
 // GetNetwork - Get network configuration (e.g. delegated subnets in network)
 func (c *Controller) GetNetwork(networkID string) (*api.NetworkConfigurationResponse, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
-	c.SessionManager.BeginReadSession(sessionInfo)
-	defer c.SessionManager.EndReadSession(sessionInfo)
+	// No read lock is required because Azure Storage uses snapshot isolation to allow
+	// read operations to happen concurrently with writes in the same partition. It
+	// guarantees reads to see consistent data while updates are happening
 
 	return datamodel.GetNetworkConfiguration(networkID)
 }
@@ -506,10 +499,9 @@ func (c *Controller) SkipNodeCleanupForNetworkContainer(networkID, ncID string) 
 
 // GetNetworkContainerConfiguration - Retrieves the complete network configuration
 func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*datamodel.NCConfiguration, *api.JsonErr) {
-	sessionInfo := map[string]string{datamodel.NCRepositoryName: ncID}
-	c.SessionManager.BeginReadSession(sessionInfo)
-	defer c.SessionManager.EndReadSession(sessionInfo)
-
+	// No read lock is required because Azure Storage uses snapshot isolation to allow
+	// read operations to happen concurrently with writes in the same partition. It
+	// guarantees reads to see consistent data while updates are happening
 	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, ncID)
 	if err != nil {
 		return nil, err
