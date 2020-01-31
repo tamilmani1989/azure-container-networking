@@ -17,6 +17,8 @@
   <files>
     <file src="$drop$\azure-cns.exe" target="content" />
     <file src="$drop$\azure-cns" target="content\linux\azure-cns" />
+    <file src="$drop$\cns_config.json" target="content\linux" />
+    <file src="$drop$\cns_config.json" target="content" />
     <file src="$drop$\azure-vnet-telemetry.exe" target="content" />
     <file src="$drop$\azure-vnet-telemetry" target="content\linux\azure-vnet-telemetry" />
     <file src="$drop$\azure-vnet-telemetry.config" target="content" />
