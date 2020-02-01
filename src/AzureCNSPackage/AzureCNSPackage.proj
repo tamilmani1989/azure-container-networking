@@ -5,5 +5,6 @@
     <Copy SourceFiles="$(CNS)\content\windows\azure-cns.exe" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer" />
     <Copy SourceFiles="$(CNS)\content\windows\azure-vnet-telemetry.exe" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer" />
     <Copy SourceFiles="$(CNS)\content\windows\azure-vnet-telemetry.config" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer" />
+    <Copy SourceFiles="$(CNS)\content\windows\cns_config.json" DestinationFolder="$(BinariesBuildTypeArchDirectory)\AzureNetworkContainer" />
   </Target>
 </Project>
