@@ -47,7 +47,7 @@
     <ProjectFile Include="HostPluginPackage\NetAgentIndependentDeployment.proj" Condition="'$(QBUILD)'!='1'">
       <BuildInParallel>false</BuildInParallel>
     </ProjectFile>
-	<ProjectFile Include="PFSign\ServiceSign.proj" Condition="'$(QBUILD)'!='1'">
+    <ProjectFile Include="PFSign\ServiceSign.proj" Condition="'$(QBUILD)'!='1'">
       <BuildInParallel>false</BuildInParallel>
     </ProjectFile>
     <ProjectFile Include="Nuget\dirs.proj" Condition="'$(IsOfficialBuild)' != ''">
