@@ -807,6 +807,7 @@ func processAllocateLocalIP(
 	repoNCConfig.LocalIP = allocatedIP.IP.String()
 	repoNCConfig.State = datamodel.Associate
 	repoNCConfig.Status = datamodel.Pending
+	repoNCConfig.FailureDetail = api.JsonErr{}
 
 Cleanup:
 
@@ -885,6 +886,7 @@ func processNetworkContainerV1(repoNCConfig *datamodel.NCConfiguration) (bool, *
 
 	repoNCConfig.State = datamodel.Reserve
 	repoNCConfig.Status = datamodel.Pending
+	repoNCConfig.FailureDetail = api.JsonErr{}
 
 Cleanup:
 
@@ -946,6 +948,7 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 	} else {
 		repoNCConfig.State = datamodel.Reserve
 		repoNCConfig.Status = datamodel.Pending
+		repoNCConfig.FailureDetail = api.JsonErr{}
 	}
 
 	if err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
@@ -1027,6 +1030,7 @@ func processNetworkContainerReserve(
 	if repoReservation.Status == datamodel.Completed {
 		repoNCConfig.State = datamodel.AllocateLocalIP
 		repoNCConfig.Status = datamodel.Pending
+		repoNCConfig.FailureDetail = api.JsonErr{}
 
 		repoSubnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
 			repoNCConfig.NetworkID,
@@ -1111,6 +1115,7 @@ func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration, s
 
 	repoNCConfig.State = datamodel.Purge
 	repoNCConfig.Status = datamodel.Pending
+	repoNCConfig.FailureDetail = api.JsonErr{}
 
 	err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	if err != nil {
@@ -1435,6 +1440,7 @@ func processNetworkContainerAssociate(
 	repoNCConfig.ProgrammedTagsInfo = updatedTagInfo
 	repoNCConfig.ProgrammedVnetVersion = ncGoalState.VnetVersion
 	repoNCConfig.Status = datamodel.Pending
+	repoNCConfig.FailureDetail = api.JsonErr{}
 
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
@@ -1533,6 +1539,7 @@ func processNetworkContainerDisAssociate(
 		repoNCConfig.GetAssociationInfo().NodeID)
 	repoNCConfig.State = datamodel.UnReserve
 	repoNCConfig.Status = datamodel.Pending
+	repoNCConfig.FailureDetail = api.JsonErr{}
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
@@ -1874,6 +1881,7 @@ func processNetworkContainerPublish(
 		repoNCConfig.State = datamodel.Program
 	}
 	repoNCConfig.Status = datamodel.Pending
+	repoNCConfig.FailureDetail = api.JsonErr{}
 
 	creationTimeMs := time.Since(createdDateTime).Milliseconds()
 	sendNCMetric(aiwrapper.NCCreationTimeMetric, float64(creationTimeMs),
@@ -2144,6 +2152,7 @@ func processNetworkContainerUnPublish(
 
 	repoNCConfig.State = datamodel.DisAssociate
 	repoNCConfig.Status = datamodel.Pending
+	repoNCConfig.FailureDetail = api.JsonErr{}
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
@@ -2155,6 +2164,7 @@ func processNetworkContainerProgram(
 
 	repoNCConfig.State = datamodel.Program
 	repoNCConfig.Status = datamodel.Completed
+	repoNCConfig.FailureDetail = api.JsonErr{}
 	return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
