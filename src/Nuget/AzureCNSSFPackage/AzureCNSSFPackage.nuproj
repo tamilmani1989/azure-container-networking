@@ -9,7 +9,7 @@
   <!-- Nuget generation properties -->
   <PropertyGroup>
     <NoPackageAnalysis>true</NoPackageAnalysis>
-    <Id>Microsoft.Azure.Internal.Aquarius.$(GitBranchName).AzureCNSSF</Id>
+    <Id>Microsoft.Azure.Internal.$(GitBranchName)AzureCNSSF</Id>
     <Version>$(BuildVersion)</Version>
     <Title>AzureCNS from $(GitBranchName)</Title>
     <Authors>connectdevs@microsoft.com</Authors>
