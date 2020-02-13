@@ -2187,6 +2187,7 @@ func processNetworkContainerRequest(
 				creationTimeMs := time.Since(createdDateTime).Milliseconds()
 				sendNCMetric(aiwrapper.NCCreationTimeMetric,
 					float64(creationTimeMs), aiwrapper.Failed, repoNCConfig)
+				logger.Errorf("NC creation failed for NC: %s", datamodel.GetNCIdFromKey(networkContainerKey))
 			}
 		}
 	}()
