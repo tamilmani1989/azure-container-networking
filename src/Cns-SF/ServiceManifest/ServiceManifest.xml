@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ServiceManifest Name="CnsWrapperService" Version="2.0.3" xsi:schemaLocation="http://schemas.microsoft.com/2011/01/fabric WinFabServiceModel.xsd" xmlns="http://schemas.microsoft.com/2011/01/fabric" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ServiceManifest Name="CnsWrapperService" Version="2020.1.31.1" xsi:schemaLocation="http://schemas.microsoft.com/2011/01/fabric WinFabServiceModel.xsd" xmlns="http://schemas.microsoft.com/2011/01/fabric" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Description>Cns Wrapper Service</Description>
   <ServiceTypes>
     <StatelessServiceType ServiceTypeName="CnsWrapperServiceType">
     </StatelessServiceType>
   </ServiceTypes>
-  <CodePackage Name="Code" Version="2.0.3">
+  <CodePackage Name="Code" Version="2020.1.31.1">
     <EntryPoint>
       <ExeHost>
         <Program>CnsWrapperService.exe</Program>
@@ -15,7 +15,7 @@
     </EntryPoint>
   </CodePackage>
 
-  <ConfigPackage Name="Config" Version="2.0.3" />
+  <ConfigPackage Name="Config" Version="2020.1.31.1" />
 
   <Resources>
     <Endpoints>
