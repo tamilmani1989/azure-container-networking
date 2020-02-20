@@ -94,25 +94,81 @@ func (plugin *cniV6Plugin) SetCNIReport(report *telemetry.CNIReport, tb *telemet
 func (plugin *cniV6Plugin) Add(args *cniSkel.CmdArgs) error {
 	var (
 		result *cniTypesCurr.Result
+		nwCfg  *cni.NetworkConfig
 		err    error
 	)
 
 	log.Printf("[cni-v6] Processing ADD command with args {ContainerID:%v Netns:%v IfName:%v Args:%v Path:%v StdinData:%s}.",
 		args.ContainerID, args.Netns, args.IfName, args.Args, args.Path, args.StdinData)
 
-	defer func() { log.Printf("[cni-v6] ADD command completed with result:%+v err:%v.", result, err) }()
+	// Parse network configuration from stdin.
+	nwCfg, err = cni.ParseNetworkConfig(args.StdinData)
+	if err != nil {
+		err = plugin.Errorf("Failed to parse network configuration: %v.", err)
+		return err
+	}
+
+	log.Printf("[cni-net] Read network configuration %+v.", nwCfg)
+
+	defer func() {
+		if result == nil {
+			result = &cniTypesCurr.Result{}
+		}
+
+		res, vererr := result.GetAsVersion(nwCfg.CNIVersion)
+		if vererr != nil {
+			log.Printf("GetAsVersion failed with error %v", vererr)
+			plugin.Error(vererr)
+		}
+
+		if err == nil && res != nil {
+			// Output the result to stdout.
+			res.Print()
+		}
+
+		log.Printf("[cni-v6] ADD command completed with result:%+v err:%v.", result, err)
+	}()
 
 	return nil
 }
 
 // Delete handles CNI delete commands.
 func (plugin *cniV6Plugin) Delete(args *cniSkel.CmdArgs) error {
-	var err error
+	var (
+		result *cniTypesCurr.Result
+		nwCfg  *cni.NetworkConfig
+		err    error
+	)
 
 	log.Printf("[cni-v6] Processing DEL command with args {ContainerID:%v Netns:%v IfName:%v Args:%v Path:%v StdinData:%s}.",
 		args.ContainerID, args.Netns, args.IfName, args.Args, args.Path, args.StdinData)
+	// Parse network configuration from stdin.
+	nwCfg, err = cni.ParseNetworkConfig(args.StdinData)
+	if err != nil {
+		err = plugin.Errorf("Failed to parse network configuration: %v.", err)
+		return err
+	}
 
-	defer func() { log.Printf("[cni-v6] DEL command completed with err:%v.", err) }()
+	log.Printf("[cni-net] Read network configuration %+v.", nwCfg)
+
+	defer func() {
+		if result == nil {
+			result = &cniTypesCurr.Result{}
+		}
+
+		res, vererr := result.GetAsVersion(nwCfg.CNIVersion)
+		if vererr != nil {
+			log.Printf("GetAsVersion failed with error %v", vererr)
+			plugin.Error(vererr)
+		}
+
+		if err == nil && res != nil {
+			// Output the result to stdout.
+			res.Print()
+		}
+
+		log.Printf("[cni-v6] DEL command completed with err:%v.", err)
+	}()
 
 	return nil
 }
