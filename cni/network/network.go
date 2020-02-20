@@ -1026,27 +1026,3 @@ func determineSnat() (bool, bool, error) {
 
 	return snatConfig.EnableSnatForDns, snatConfig.EnableSnatOnHost, nil
 }
-
-func (plugin *netPlugin) AddV6(args *cniSkel.CmdArgs) error {
-	log.Printf("[cni-net] Processing ADDV6 command with args {Netns:%v Args:%v Path:%v}.",
-		args.Netns, args.Args, args.Path)
-	return nil
-}
-
-func (plugin *netPlugin) DeleteV6(args *cniSkel.CmdArgs) error {
-	log.Printf("[cni-net] Processing DELV6 command with args {Netns:%v Args:%v Path:%v}.",
-		args.Netns, args.Args, args.Path)
-	return nil
-}
-
-func (plugin *netPlugin) UpdateV6(args *cniSkel.CmdArgs) error {
-	log.Printf("[cni-net] Processing UPDATEV6 command with args {Netns:%v Args:%v Path:%v}.",
-		args.Netns, args.Args, args.Path)
-	return nil
-}
-
-func (plugin *netPlugin) GetV6(args *cniSkel.CmdArgs) error {
-	log.Printf("[cni-net] Processing DELETEV6 command with args {Netns:%v Args:%v Path:%v}.",
-		args.Netns, args.Args, args.Path)
-	return nil
-}
