@@ -466,11 +466,11 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 					Gateway: gateway,
 				},
 			},
-			BridgeName:                    nwCfg.Bridge,
-			EnableSnatOnHost:              nwCfg.EnableSnatOnHost,
-			DNS:                           nwDNSInfo,
-			Policies:                      policies,
-			NetNs:                         args.Netns,
+			BridgeName:       nwCfg.Bridge,
+			EnableSnatOnHost: nwCfg.EnableSnatOnHost,
+			DNS:              nwDNSInfo,
+			Policies:         policies,
+			NetNs:            args.Netns,
 			DisableHairpinOnHostInterface: nwCfg.DisableHairpinOnHostInterface,
 		}
 
@@ -1024,4 +1024,28 @@ func determineSnat() (bool, bool, error) {
 	log.Printf("[cni-net] EnableSnatOnHost set to %t; EnableSnatForDns set to %t", snatConfig.EnableSnatOnHost, snatConfig.EnableSnatForDns)
 
 	return snatConfig.EnableSnatForDns, snatConfig.EnableSnatOnHost, nil
+}
+
+func (plugin *netPlugin) AddV6(args *cniSkel.CmdArgs) error {
+	log.Printf("[cni-net] Processing ADDV6 command with args {Netns:%v Args:%v Path:%v}.",
+		args.Netns, args.Args, args.Path)
+	return nil
+}
+
+func (plugin *netPlugin) DeleteV6(args *cniSkel.CmdArgs) error {
+	log.Printf("[cni-net] Processing DELV6 command with args {Netns:%v Args:%v Path:%v}.",
+		args.Netns, args.Args, args.Path)
+	return nil
+}
+
+func (plugin *netPlugin) UpdateV6(args *cniSkel.CmdArgs) error {
+	log.Printf("[cni-net] Processing UPDATEV6 command with args {Netns:%v Args:%v Path:%v}.",
+		args.Netns, args.Args, args.Path)
+	return nil
+}
+
+func (plugin *netPlugin) GetV6(args *cniSkel.CmdArgs) error {
+	log.Printf("[cni-net] Processing DELETEV6 command with args {Netns:%v Args:%v Path:%v}.",
+		args.Netns, args.Args, args.Path)
+	return nil
 }
