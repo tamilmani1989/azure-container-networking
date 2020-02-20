@@ -26,16 +26,16 @@ namespace SwiftRunner
             public bool ServiceTunnel { get; private set; }
 
             /// <summary>
-            /// Nic2Nic
+            /// Nc2Nc
             /// </summary>
-            [JsonProperty("Nic2Nic")]
-            public bool Nic2Nic { get; private set; }
+            [JsonProperty("Nc2Nc")]
+            public bool Nc2Nc { get; private set; }
 
             /// <summary>
-            /// Nic2VM
+            /// Nc2VM
             /// </summary>
-            [JsonProperty("Nic2VM")]
-            public bool Nic2VM { get; private set; }
+            [JsonProperty("Nc2VM")]
+            public bool Nc2VM { get; private set; }
 
             /// <summary>
             /// Vnet2VnetGW
@@ -50,6 +50,30 @@ namespace SwiftRunner
             public bool Vnet2VnetPeering { get; private set; }
 
             /// <summary>
+            /// NonRFCVnet2VnetPeering
+            /// </summary>
+            [JsonProperty("NonRFCVnet2VnetPeering")]
+            public bool NonRFCVnet2VnetPeering { get; private set; }
+
+            /// <summary>
+            /// NSG
+            /// </summary>
+            [JsonProperty("NSG")]
+            public bool NSG { get; private set; }
+
+            /// <summary>
+            /// UDR
+            /// </summary>
+            [JsonProperty("UDR")]
+            public bool UDR { get; private set; }
+
+            /// <summary>
+            /// PrivateLink
+            /// </summary>
+            [JsonProperty("PrivateLink")]
+            public bool PrivateLink { get; private set; }
+
+            /// <summary>
             /// LastError
             /// </summary>
             [JsonProperty("LastError")]
@@ -61,10 +85,14 @@ namespace SwiftRunner
             public DncDataPathResponse()
             {
                 ServiceTunnel = false;
-                Nic2Nic = false;
-                Nic2VM = false;
+                Nc2Nc = false;
+                Nc2VM = false;
                 Vnet2VnetGW =  false;
                 Vnet2VnetPeering = false;
+                NonRFCVnet2VnetPeering = false;
+                NSG = false;
+                UDR = false;
+                PrivateLink = false;
                 LastError = "";
             }
 
@@ -75,10 +103,14 @@ namespace SwiftRunner
             public DncDataPathResponse(DncDataPathResponse response)
             {
                 ServiceTunnel = response.ServiceTunnel;
-                Nic2Nic = response.Nic2Nic;
-                Nic2VM = response.Nic2VM;
+                Nc2Nc = response.Nc2Nc;
+                Nc2VM = response.Nc2VM;
                 Vnet2VnetGW = response.Vnet2VnetGW;
                 Vnet2VnetPeering = response.Vnet2VnetPeering;
+                NonRFCVnet2VnetPeering = response.NonRFCVnet2VnetPeering;
+                NSG = response.NSG;
+                UDR = response.UDR;
+                PrivateLink = response.PrivateLink;
                 LastError = response.LastError;
             }
 
@@ -86,23 +118,32 @@ namespace SwiftRunner
             /// Constructor.
             /// </summary>
             /// <param name="serviceTunnel"></param>
-            /// <param name="nic2Nic"></param>
-            /// <param name="nic2VM"></param>
+            /// <param name="nc2Nc"></param>
+            /// <param name="nc2VM"></param>
             /// <param name="vnet2VnetGW"></param>
+            /// <param name="vnet2VnetPeering"></param>
+            /// <param name="nonRfcVnet2VnetPeering"></param>
+            /// <param name="nsg"></param>
+            /// <param name="udr"></param>
+            /// <param name="privateLink"></param>
             /// <param name="lastError"></param>
-            public DncDataPathResponse(bool serviceTunnel, bool nic2Nic, bool nic2VM, bool vnet2VnetGW, bool vnet2VnetPeering, string lastError)
+            public DncDataPathResponse(bool serviceTunnel, bool nc2Nc, bool nc2VM, bool vnet2VnetGW, bool vnet2VnetPeering, bool nonRfcVnet2VnetPeering, bool nsg, bool udr, bool privateLink, string lastError)
             {
                 ServiceTunnel = serviceTunnel;
-                Nic2Nic = nic2Nic;
-                Nic2VM = nic2VM;
+                Nc2Nc = nc2Nc;
+                Nc2VM = nc2VM;
                 Vnet2VnetGW = vnet2VnetGW;
                 Vnet2VnetPeering = vnet2VnetPeering;
+                NonRFCVnet2VnetPeering = nonRfcVnet2VnetPeering;
+                NSG = nsg;
+                UDR = udr;
+                PrivateLink = privateLink;
                 LastError = lastError;
             }
 
             public bool Healthy()
             {
-                return ServiceTunnel && Nic2Nic && Nic2VM && Vnet2VnetGW && Vnet2VnetPeering;
+                return ServiceTunnel && Nc2Nc && Nc2VM && Vnet2VnetGW && Vnet2VnetPeering && NonRFCVnet2VnetPeering && NSG && UDR && PrivateLink;
             }
 
             /// <summary>
@@ -111,7 +152,7 @@ namespace SwiftRunner
             /// <returns>String representation of the object.</returns>
             public override string ToString()
             {
-                return $"[serviceTunnel:{ServiceTunnel} nic2Nic:{Nic2Nic} nic2VM:{Nic2VM} vnet2VnetGW:{Vnet2VnetGW} vnet2VnetPeering:{Vnet2VnetPeering} lastError:{LastError}]";
+                return $"[serviceTunnel:{ServiceTunnel} Nc2Nc:{Nc2Nc} Nc2VM:{Nc2VM} vnet2VnetGW:{Vnet2VnetGW} vnet2VnetPeering:{Vnet2VnetPeering} nonRfcVnet2VnetPeering:{NonRFCVnet2VnetPeering} nsg:{NSG} udr:{UDR} privateLink:{PrivateLink} lastError:{LastError}]";
             }
         }
     }

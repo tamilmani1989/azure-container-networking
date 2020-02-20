@@ -1,12 +1,9 @@
 FROM alpine:3.8
 
-ENV ENV="/etc/profile"
-
 RUN apk update; \
     apk add --no-cache bash; \
     apk add --no-cache curl; \
-    apk add --no-cache ca-certificates
-    
-RUN echo "echo 'nameserver 168.63.129.16' > /etc/resolv.conf" >> /etc/profile
+    apk add ca-certificates; \
+    rm -rf /var/cache/apk/*
 
-CMD ["/bin/sh", "-c", "tail -f /dev/null"]
+ENTRYPOINT ["tail", "-f", "/dev/null"]

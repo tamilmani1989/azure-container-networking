@@ -1,45 +1,37 @@
-# Param(
-#     [parameter(mandatory=$true, HelpMessage="Azure subscription id")]
-#     [String]
-#     $subscriptionId,
-#     [parameter(mandatory=$true, HelpMessage="Deployment region")]
-#     [String]
-#     $region,
-#     [parameter(mandatory=$true, HelpMessage="Full path to public ssh key")]
-#     [String]
-#     $sshPubKeyPath,
-#     [parameter(mandatory=$true, HelpMessage="Full path to runner yaml and json files")]
-#     [String]
-#     $configurationFilesPath,
-#     [parameter(mandatory=$true, HelpMessage="Full path to kubernetes json file (for aks-engine)")]
-#     [String]
-#     $k8sConfig,
-#     [parameter(mandatory=$true, HelpMessage="Full path to RunnerDefinition.xml")]
-#     [String]
-#     $runnerDefinitionXml,
-#     [parameter(mandatory=$true, HelpMessage="Full path to RunnerDefinition.xml")]
-#     [String]
-#     $runnerDefinitionXml
-# )
+#find the aquarius gopath
+$gopath = $env:GOPATH -split ';'
+foreach ($path in $gopath) {
+    if ($path -Match "Aquarius") {
+        $gopath = $path;
+    }
+}
+
+# cd to the aquarius gopath directory
+$runnerpath = $gopath + "\src\Runners\SwiftDatapathRunner"
+$configurationFilesPath = $runnerpath + "\scripts"
+
 ## mandatory values
+$storageKey = ####
 $subscriptionId = "9bd7ff15-396a-4478-a89b-4d8ae7e302b6"
-$region = "westcentralus"
+$region = "eastus2euap"
 $sshPubKeyPath = "C:\Users\tsch\.ssh\id_rsa2\acs-key.pub"
-$configurationFilesPath = "C:\Users\tsch\git\goprojects\aquarius_dev\src\Runners\SwiftDatapathRunner\scripts"
-$k8sConfig = "C:\Users\tsch\git\goprojects\aquarius_dev\src\Runners\SwiftDatapathRunner\scripts"
-$runnerDefinitionXml = "C:\Users\tsch\git\goprojects\aquarius_dev\src\Runners\SwiftDatapathRunner\client\RunnerDefinition.xml"
+$runnerDefinitionXml = "$runnerpath\client\RunnerDefinition.xml"
 $windows = $false
+$canary = $true
 
 ## automated variables (const)
 $delegatedSubnet = "delegated"
+$plSubnet = "privateLinkSubnet"
 $resourceGroup = $region + "-sr-rg"
 $runnerName = $region + "Runner"
 $storageAcc = $region + "st0"
+$plStorageAcc = $region + "plst0"
 $clusterName = $region + "srCluster0"
 $partitionKey = $region + "-sr"
 $custaVnetName = "custa-vnet"
 $custbVnetName = "custb-vnet"
 $custcVnetName = "custc-vnet"
+$custdVnetName = "custd-vnet"
 $service = "default/runner-service"
 $sharedGWKey = "12d11bfe-9849-4e62-b6f2-bc8af37f7456"
 
@@ -50,13 +42,9 @@ if ($windows) {
     $partitionKey += 'W'
 }
 
-## set values in storage.json
-$json = "$configurationFilesPath\storage.json"
-$content = Get-Content $json | ConvertFrom-json
-$content.PartitionKey = $partitionKey
-$content | ConvertTo-Json | set-content $json
-
-## set blob and container in runner-conf.yaml
+## set storage key, partition key, blob and container in runner-conf.yaml
+(Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_STORAGE_KEY", $storageKey | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+(Get-Content $configurationFilesPath\runner-conf.yaml) -replace "([""'].*?)-partition", """$partitionKey-partition".ToLower() | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
 (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "([""'].*?)-blob", """$partitionKey-blob".ToLower() | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
 (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "([""'].*?)-container", """$partitionKey-container".ToLower() | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
 
@@ -65,98 +53,442 @@ Write-Host "Logging in..."
 Login-AzureRmAccount
 $null = Select-AzureRmSubscription -SubscriptionId $subscriptionId
 
+## login and select subscription for az cli
+az login
+az account set --subscription $subscriptionId
+
 ## set mcr credentials
 $pswrd = (az keyvault secret show -n registry-key --vault-name msint --query value).Replace("`"","")
 (Get-Content $configurationFilesPath\configure-master.sh) -replace "REPLACEPASSWORD", $pswrd | Out-File $configurationFilesPath\configure-master.sh -Encoding ASCII
 
 ## create resource group in region
-az group create --name $resourceGroup --location $region | jq-win64.exe -r '.properties.provisioningState'
+az group create -n $resourceGroup -l $region | jq.exe -r '.properties.provisioningState'
 if ($?) {
     ## deploy k8s cluster
     Write-Host "Creating k8s cluster"
-    (Get-Content $k8sConfig\kubernetes.json) -replace "`"dnsPrefix`":.*", "`"dnsPrefix`": `"$resourceGroup`"," | Out-File $k8sConfig\kubernetes.json -Encoding ASCII
-    (Get-Content $k8sConfig\kubernetes.json) -replace "`"keyData`":.*", "`"keyData`": `"$(cat $sshPubKeyPath)`"" | Out-File $k8sConfig\kubernetes.json -Encoding ASCII
-    aks-engine.exe generate $k8sConfig\kubernetes.json
-    az group deployment create --name $clusterName --resource-group $resourceGroup --template-file .\_output\$resourceGroup\azuredeploy.json --parameters .\_output\$resourceGroup\azuredeploy.parameters.json
+    (Get-Content $configurationFilesPath\kubernetes.json) -replace "`"dnsPrefix`":.*", "`"dnsPrefix`": `"$resourceGroup`"," | Out-File $configurationFilesPath\kubernetes.json -Encoding ASCII
+    (Get-Content $configurationFilesPath\kubernetes.json) -replace "`"keyData`":.*", "`"keyData`": `"$(cat $sshPubKeyPath)`"" | Out-File $configurationFilesPath\kubernetes.json -Encoding ASCII
+    # use aks-engine in prod and aks in canary
+    aks-engine.exe generate $configurationFilesPath\kubernetes.json
+    az group deployment create `
+        -n $clusterName `
+        -g $resourceGroup `
+        --template-file .\_output\$resourceGroup\azuredeploy.json `
+        --parameters .\_output\$resourceGroup\azuredeploy.parameters.json
 
     if ($?) {
         ## retrieve data from k8s cluster
-        $infraVnetName = az network vnet list -g $resourceGroup | jq-win64.exe -r '.[0].name'
-        $infraVnet = (az network vnet list -g $resourceGroup | jq-win64.exe --arg infraVnetName "$infraVnetName" '.[] | select(.name==$infraVnetName) | .resourceGuid').Replace("`"","")
-        $k8sEP = az network public-ip list --resource-group $resourceGroup | jq-win64.exe -r '.[0].ipAddress'
-        $agentVmName = az vm list --resource-group $resourceGroup | jq-win64.exe -r '.[0].osProfile.computerName'
-        $masterVmName = az vm list --resource-group $resourceGroup | jq-win64.exe -r '.[1].osProfile.computerName'
+        $infraVnetName = az network vnet list -g $resourceGroup | jq.exe -r '.[0].name'
+        $infraVnet = (az network vnet list -g $resourceGroup | jq.exe --arg infraVnetName "$infraVnetName" '.[] | select(.name==$infraVnetName) | .resourceGuid').Replace("`"","")
+        $k8sEP = az network public-ip list -g $resourceGroup | jq.exe -r '.[0].ipAddress'
+        $agentVm1Name = az vm list -g $resourceGroup | jq.exe -r '.[0].osProfile.computerName'
+        $agentVm2Name = az vm list -g $resourceGroup | jq.exe -r '.[1].osProfile.computerName'
+        $masterVmName = az vm list -g $resourceGroup | jq.exe -r '.[2].osProfile.computerName'
+        if ($agentVm1Name.Contains("master")) {
+            $temp = $agentVm1Name
+            $agentVm1Name = $masterVmName
+            $masterVmName = $temp
+        } elseif ($agentVm2Name.Contains("master")) {
+            $temp = $agentVm2Name
+            $agentVm2Name = $masterVmName
+            $masterVmName = $temp
+        }
 
-        ## save node name
-        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace """k8s-agentpool1-(.*?"")", """$agentVmName""" | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+        ## save node names
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace """k8s-agentpool1-(.*?)-0""", """$agentVm1Name""" | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace """k8s-agentpool1-(.*?)-1""", """$agentVm2Name""" | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+        (Get-Content $configurationFilesPath\configure-master.sh) -replace "NODE-1", $agentVm1Name | Out-File $configurationFilesPath\configure-master.sh -Encoding ASCII
+        (Get-Content $configurationFilesPath\configure-master.sh) -replace "NODE-2", $agentVm2Name | Out-File $configurationFilesPath\configure-master.sh -Encoding ASCII
 
-        ## create customer A vnet; create 'delegated' subnet; create vnet2vnet gateway subnet; and deploy a vm in it
-        az network vnet create -g $resourceGroup -n $custaVnetName --address-prefix 10.0.0.0/16 --subnet-name default --subnet-prefix 10.0.0.0/24
-        $subnetId = (az network vnet subnet create --address-prefix 10.0.1.0/24 --name $delegatedSubnet --resource-group $resourceGroup --vnet-name $custaVnetName --service-endpoints Microsoft.Storage | jq-win64.exe -r '.id')
-        az vm create -n custa-vm1 -g $resourceGroup --image UbuntuLTS --vnet-name $custaVnetName --subnet default --admin-username acn --ssh-key-value $sshPubKeyPath
-        $custVnet = (az network vnet list -g $resourceGroup | jq-win64.exe --arg custaVnetName "$custaVnetName" '.[] | select(.name==$custaVnetName) | .resourceGuid').Replace("`"","")
+        ## create customer A vnet; create 'delegated' subnet; and deploy 2 VMs in it
+        az network vnet create -g $resourceGroup `
+            -n $custaVnetName `
+            --address-prefix 10.0.0.0/16 `
+            --subnet-name default `
+            --subnet-prefix 10.0.0.0/24
+        $subnetId = (az network vnet subnet create `
+                        --address-prefix 10.0.1.0/24 `
+                        -n $delegatedSubnet `
+                        -g $resourceGroup `
+                        --vnet-name $custaVnetName `
+                        --service-endpoints Microsoft.Storage | jq.exe -r '.id')
+        $vm1Nic = (az vm create `
+            -n custa-vm1 `
+            -g $resourceGroup `
+            --image UbuntuLTS `
+            --vnet-name $custaVnetName `
+            --subnet default `
+            --admin-username acn `
+            --ssh-key-value $sshPubKeyPath | jq.exe -r '.networkProfile.networkInterfaces[0].id').Split('/')[8]
+        az vm create `
+            -n custa-vm2 `
+            -g $resourceGroup `
+            --image UbuntuLTS `
+            --vnet-name $custaVnetName `
+            --subnet default `
+            --admin-username acn `
+            --ssh-key-value $sshPubKeyPath
+        $custVnet = (az network vnet list -g $resourceGroup | jq.exe --arg custaVnetName "$custaVnetName" '.[] | select(.name==$custaVnetName) | .resourceGuid').Replace("`"","")
         (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "(\{){0,1}[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\}){0,1}", "$custVnet" | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
-        az network vnet subnet create --address-prefix 10.0.255.0/27 --name GatewaySubnet --resource-group $resourceGroup --vnet-name $custaVnetName
-        az network public-ip create -n custaGWIP -g $resourceGroup --allocation-method Dynamic
-        az network vnet-gateway create -n custaGW --public-ip-address custaGWIP -g $resourceGroup --vnet $custaVnetName --gateway-type Vpn --sku VpnGw1 --vpn-type RouteBased --no-wait
+        
+        ## create vnet2vnet subnet and gateway
+        az network vnet subnet create `
+            --address-prefix 10.0.255.0/27 `
+            -n GatewaySubnet `
+            -g $resourceGroup `
+            --vnet-name $custaVnetName
+        az network public-ip create `
+            -n custaGWIP `
+            -g $resourceGroup `
+            --allocation-method Dynamic
+        az network vnet-gateway create `
+            -n custaGW `
+            --public-ip-address custaGWIP `
+            -g $resourceGroup `
+            --vnet $custaVnetName `
+            --gateway-type Vpn `
+            --sku VpnGw1 `
+            --vpn-type RouteBased `
+            --no-wait
+        
+        ## create Private Link subnet; storage resource; disable network policies on subnet; configure private dns zone
+        az network vnet subnet create `
+            --address-prefix 10.0.2.0/24 `
+            -n $plSubnet `
+            -g $resourceGroup `
+            --vnet-name $custaVnetName
+        az network vnet subnet update `
+            -n $plSubnet `
+            -g $resourceGroup `
+            --vnet-name $custaVnetName `
+            --disable-private-endpoint-network-policies true
+        az vm create `
+            -n privateLink-vm1 `
+            -g $resourceGroup `
+            --image UbuntuLTS `
+            --vnet-name $custaVnetName `
+            --subnet $plSubnet `
+            --admin-username acn `
+            --ssh-key-value $sshPubKeyPath
+        az storage account create `
+            -n $plStorageAcc `
+            -g $resourceGroup `
+            -l $region `
+            --sku Standard_LRS `
+            --kind StorageV2 `
+            --https-only false `
+            --default-action Allow
+        az storage account network-rule add `
+            -g $resourceGroup `
+            --account-name $plStorageAcc `
+            --vnet-name $custaVnetName `
+            --subnet $delegatedSubnet
+        az storage container create `
+            -n swiftpl `
+            --account-name $plStorageAcc `
+            --public-access container
+        az storage blob upload `
+            -f $configurationFilesPath\testblob.txt `
+            -c swiftpl `
+            -n testblob.txt `
+            --account-name $plStorageAcc
+        az storage account update `
+            -n $plStorageAcc `
+            -g $resourceGroup `
+            --default-action Deny
+        $privateResourceId = (az storage account show -n $plStorageAcc -g $resourceGroup --query 'id')
+        az network private-endpoint create `
+            -n myPrivateEndpoint `
+            -g $resourceGroup `
+            --vnet-name $custaVnetName `
+            --subnet $plSubnet `
+            --private-connection-resource-id $privateResourceId `
+            --connection-name myConnection `
+            --group-ids blob
+        $ifaceId = (az network private-endpoint show `
+                        -n myPrivateEndpoint `
+                        -g $resourceGroup `
+                        --query 'networkInterfaces[0].id')
+        $privateIp = (az resource show --ids $ifaceId --api-version 2019-04-01 -o json | jq.exe -r '.properties.ipConfigurations[0].properties.privateIPAddress')
+        az network private-dns zone create `
+            -n "privatelink.blob.core.windows.net" `
+            -g $resourceGroup
+        az network private-dns link vnet create `
+            -n myDnsLink `
+            -g $resourceGroup `
+            -z "privatelink.blob.core.windows.net" `
+            -v $custaVnetName `
+            --registration-enabled false
+        az network private-dns record-set a create `
+            -n $plStorageAcc `
+            -z privatelink.blob.core.windows.net `
+            -g $resourceGroup
+        az network private-dns record-set a add-record `
+            -n $plStorageAcc `
+            -z privatelink.blob.core.windows.net `
+            -g $resourceGroup `
+            -a $privateIp
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "https://.*.blob.core.windows.net/swiftpl/testblob.txt", "https://$plStorageAcc.blob.core.windows.net/swiftpl/testblob.txt" | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        ## create UDR (testing NC->Next-Hop VM->Destination VM)
+        az network route-table create `
+            -g $resourceGroup `
+            -n udrt
+        az network route-table route create `
+            -g $resourceGroup `
+            --route-table-name udrt `
+            -n route1 `
+            --next-hop-type VirtualAppliance `
+            --address-prefix 10.0.0.5/32 `
+            --next-hop-ip-address 10.0.1.5
+        az network vnet subnet update `
+            --vnet-name $custaVnetName `
+            -n $delegatedSubnet `
+            -g $resourceGroup `
+            --route-table udrt
+        # az network nic update `
+        #     -n $vm1Nic `
+        #     -g $resourceGroup `
+        #     --ip-forwarding true
+        # az vm extension set `
+        #     -g $resourceGroup `
+        #     --vm-name custa-vm1 `
+        #     -n customScript `
+        #     --publisher Microsoft.Azure.Extensions `
+        #     --settings $configurationFilesPath/enableFwd.json
 
         ## create customber B vnet; create gateway subnet; create vnet2vnet gateway subnet; and deploy a vm in it
-        az network vnet create -g $resourceGroup -n $custbVnetName --address-prefix 20.0.0.0/16 --subnet-name default --subnet-prefix 20.0.0.0/24
-        az network vnet subnet create --address-prefix 20.0.255.0/27 --name GatewaySubnet --resource-group $resourceGroup --vnet-name $custbVnetName
-        az network public-ip create -n custbGWIP -g $resourceGroup --allocation-method Dynamic
-        az network vnet-gateway create -n custbGW --public-ip-address custbGWIP -g $resourceGroup --vnet $custbVnetName --gateway-type Vpn --sku VpnGw1 --vpn-type RouteBased
-        az vm create -n custb-vm1 -g $resourceGroup --image UbuntuLTS --vnet-name $custbVnetName --subnet default --admin-username acn --ssh-key-value $sshPubKeyPath
+        az network vnet create `
+            -g $resourceGroup `
+            -n $custbVnetName `
+            --address-prefix 20.0.0.0/16 `
+            --subnet-name default `
+            --subnet-prefix 20.0.0.0/24
+        az network vnet subnet create `
+            --address-prefix 20.0.255.0/27 `
+            -n GatewaySubnet `
+            -g $resourceGroup `
+            --vnet-name $custbVnetName
+        az network public-ip create `
+            -n custbGWIP `
+            -g $resourceGroup `
+            --allocation-method Dynamic
+        az network vnet-gateway create `
+            -n custbGW `
+            --public-ip-address custbGWIP `
+            -g $resourceGroup `
+            --vnet $custbVnetName `
+            --gateway-type Vpn `
+            --sku VpnGw1 `
+            --vpn-type RouteBased
+        az vm create -n custb-vm1 `
+            -g $resourceGroup `
+            --image UbuntuLTS `
+            --vnet-name $custbVnetName `
+            --subnet default `
+            --admin-username acn `
+            --ssh-key-value $sshPubKeyPath
 
-        ## connect custa and custb vnets
-        az network vpn-connection create -n custa2custb -g $resourceGroup --vnet-gateway1 custaGW --shared-key $sharedGWKey --vnet-gateway2 custbGW
-        az network vpn-connection create -n custb2custa -g $resourceGroup --vnet-gateway1 custbGW --shared-key $sharedGWKey --vnet-gateway2 custaGW
+        ## connect custa and custb vnets (for GW tests)
+        az network vpn-connection create `
+            -n custa2custb `
+            -g $resourceGroup `
+            --vnet-gateway1 custaGW `
+            --shared-key $sharedGWKey `
+            --vnet-gateway2 custbGW
+        az network vpn-connection create `
+            -n custb2custa `
+            -g $resourceGroup `
+            --vnet-gateway1 custbGW `
+            --shared-key $sharedGWKey `
+            --vnet-gateway2 custaGW
 
-        ## create custc vnet and VM (for vnet peering test)
-        az network vnet create -g $resourceGroup -n $custcVnetName --address-prefix 30.0.0.0/16 --subnet-name default --subnet-prefix 30.0.0.0/24
-        az vm create -n custc-vm1 -g $resourceGroup --image UbuntuLTS --vnet-name $custcVnetName --subnet default --admin-username acn --ssh-key-value $sshPubKeyPath
-        $peerA = $(az network vnet show --resource-group $resourceGroup --name $custaVnetName --query id --out tsv)
-        $peerC = $(az network vnet show --resource-group $resourceGroup --name $custcVnetName --query id --out tsv)
-        az network vnet peering create --name custa-custc --resource-group $resourceGroup --vnet-name $custaVnetName --remote-vnet-id $peerC --allow-vnet-access
-        az network vnet peering create --name custc-custa --resource-group $resourceGroup --vnet-name $custcVnetName --remote-vnet-id $peerA --allow-vnet-access
+        ## create custc vnet and VM (RFC1918 peering)
+        az network vnet create `
+            -g $resourceGroup `
+            -n $custcVnetName `
+            --address-prefix 172.16.0.0/16 `
+            --subnet-name default `
+            --subnet-prefix 172.16.0.0/24
+        az vm create `
+            -n custc-vm1 `
+            -g $resourceGroup `
+            --image UbuntuLTS `
+            --vnet-name $custcVnetName `
+            --subnet default `
+            --admin-username acn `
+            --ssh-key-value $sshPubKeyPath
+        $peerA = $(az network vnet show `
+                    -g $resourceGroup `
+                    -n $custaVnetName `
+                    --query id `
+                    --out tsv)
+        $peerC = $(az network vnet show `
+                    -g $resourceGroup `
+                    -n $custcVnetName `
+                    --query id `
+                    --out tsv)
+        az network vnet peering create `
+            -n custa-custc `
+            -g $resourceGroup `
+            --vnet-name $custaVnetName `
+            --remote-vnet $peerC `
+            --allow-vnet-access
+        az network vnet peering create `
+            -n custc-custa `
+            -g $resourceGroup `
+            --vnet-name $custcVnetName `
+            --remote-vnet $peerA `
+            --allow-vnet-access
+
+        ## create custd vnet and VM (Non-RFC1918 peering)
+        az network vnet create `
+            -g $resourceGroup `
+            -n $custdVnetName `
+            --address-prefix 30.0.0.0/16 `
+            --subnet-name default `
+            --subnet-prefix 30.0.0.0/24
+        az vm create `
+            -n custd-vm1 `
+            -g $resourceGroup `
+            --image UbuntuLTS `
+            --vnet-name $custdVnetName `
+            --subnet default `
+            --admin-username acn `
+            --ssh-key-value $sshPubKeyPath
+        $peerD = $(az network vnet show `
+                    -g $resourceGroup `
+                    -n $custdVnetName `
+                    --query id `
+                    --out tsv)
+        az network vnet peering create `
+            -n custa-custd `
+            -g $resourceGroup `
+            --vnet-name $custaVnetName `
+            --remote-vnet $peerD `
+            --allow-vnet-access
+        az network vnet peering create `
+            -n custd-custa `
+            -g $resourceGroup `
+            --vnet-name $custdVnetName `
+            --remote-vnet $peerA `
+            --allow-vnet-access
 
         ## create storage endpoint (for service tunnel test)
-        az storage account create -n $storageAcc -g $resourceGroup -l $region --sku Standard_LRS
-        az storage account network-rule add --resource-group $resourceGroup --account-name $storageAcc --subnet $subnetId
-        az storage container create -n swift --account-name $storageAcc --public-access blob
-        az storage blob upload -f $configurationFilesPath\testblob.txt -c swift -n testblob.txt --account-name $storageAcc
+        az storage account create `
+            -n $storageAcc `
+            -g $resourceGroup `
+            -l $region `
+            --sku Standard_LRS `
+            --default-action Allow
+        az storage account network-rule add `
+            -g $resourceGroup `
+            --account-name $storageAcc `
+            --subnet $subnetId
+        az storage container create `
+            -n swift `
+            --account-name $storageAcc `
+            --public-access container
+        az storage blob upload `
+            -f $configurationFilesPath\testblob.txt `
+            -c swift `
+            -n testblob.txt `
+            --account-name $storageAcc
+        az storage account update `
+            -n $storageAcc `
+            -g $resourceGroup `
+            --default-action Deny
         (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "https://.*.blob.core.windows.net/swift/testblob.txt", "https://$storageAcc.blob.core.windows.net/swift/testblob.txt" | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
 
-        ## set the vnet so we can delete if we want to
-        $virtualNetwork = Get-AzureRmVirtualNetwork -Name $custaVnetName -ResourceGroupName $resourceGroup
-        Set-AzureRmVirtualNetwork -VirtualNetwork $virtualNetwork
-        $virtualNetwork = Get-AzureRmVirtualNetwork -Name $custbVnetName -ResourceGroupName $resourceGroup
-        Set-AzureRmVirtualNetwork -VirtualNetwork $virtualNetwork
-        $virtualNetwork = Get-AzureRmVirtualNetwork -Name $custcVnetName -ResourceGroupName $resourceGroup
-        Set-AzureRmVirtualNetwork -VirtualNetwork $virtualNetwork
-        
+        ## create NSG
+        az network nsg create `
+            -g $resourceGroup `
+            -n myNsg `
+            --tags e2e_nsg
+        az network nsg rule create `
+            -g $resourceGroup `
+            -n denyPingFromPod2 `
+            --nsg-name myNsg `
+            --priority 400 `
+            --source-address-prefixes 10.0.1.5/32 `
+            --destination-address-prefixes 10.0.0.5/32 `
+            --access deny `
+            --protocol Icmp `
+            --destination-port-ranges * `
+            --description "Deny pod2 to ping a VM in default subnet"
+        az network vnet subnet update `
+            -g $resourceGroup `
+            -n default `
+            --vnet-name $custaVnetName `
+            --network-security-group myNsg
+        az network vnet subnet update `
+            -g $resourceGroup `
+            -n $delegatedSubnet `
+            --vnet-name $custaVnetName `
+            --network-security-group myNsg
+
         ## SWITCH OVER TO SAW/JIT ACCESS -> swiftify and retrieve authToken using $infraVnet and $custVnet
-        ## replace the authToken in subnet.json and continue
         Write-Host "Values for delegation...`nInfraVnet: $infraVnet`nCustVnet: $custVnet`nDncEP: $k8sEP"
 
-        ## transfer configuration files to master node
-        echo yes | scp $configurationFilesPath\subnet.json acn@$k8sEP`:/home/acn
-        scp $configurationFilesPath\storage.json acn@$k8sEP`:/home/acn
+        ## replace the authToken in runner-conf.yaml and continue
+        $authToken = "4413692c-e47b-4d62-b137-2c523cc9d87e"
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_AUTHENTICATION_TOKEN", $authToken | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        Read-Host 'Press any key to continue... (1/2)'
+        Read-Host 'Press any key to confirm continuation... (2/2)'
+
+        ## transfer configuration file to master node
         scp $configurationFilesPath\runner-conf.yaml acn@$k8sEP`:/home/acn
 
         ## take the following output and replace the script value in configure.json IFF we change commands in configure.sh
         ## [run in bash] cat configure-master.sh | gzip -9 | base64 -w 0
         ## update credentials in configure master script
 
-        ## setup the services by running the configuration scripts
-        az vm extension set --resource-group $resourceGroup --vm-name $agentVmName --name customScript --publisher Microsoft.Azure.Extensions --protected-settings $configurationFilesPath\configure-agent.json
-        az vm restart --resource-group $resourceGroup --vm-name $agentVmName
+        ## setup CNI in node 1 to retrieve network info from CNS via node IP
+        $nodeIP = (az vm list-ip-addresses `
+            -g $resourceGroup `
+            -n $agentVm1Name | jq.exe -r '.[0].virtualMachine.network.privateIpAddresses[0]')
+        (Get-Content $configurationFilesPath\configure-agent.sh) -replace "<NODE-IP>", $nodeIP | Out-File $configurationFilesPath\configure-agent.sh -Encoding ASCII
+        az vm extension set `
+            -g $resourceGroup `
+            --vm-name $agentVm1Name `
+            -n customScript `
+            --publisher Microsoft.Azure.Extensions `
+            --protected-settings $configurationFilesPath\configure-agent.json
+        az vm restart `
+            -g $resourceGroup `
+            -n $agentVm1Name
+        ## reset configure-agent.sh before running this second part to configure node 2
+        $nodeIP = (az vm list-ip-addresses `
+            -g $resourceGroup `
+            -n $agentVm2Name | jq.exe -r '.[0].virtualMachine.network.privateIpAddresses[0]')
+        (Get-Content $configurationFilesPath\configure-agent.sh) -replace "<NODE-IP>", $nodeIP | Out-File $configurationFilesPath\configure-agent.sh -Encoding ASCII
+        az vm extension set `
+            -g $resourceGroup `
+            --vm-name $agentVm2Name `
+            -n customScript `
+            --publisher Microsoft.Azure.Extensions `
+            --protected-settings $configurationFilesPath\configure-agent.json
+        az vm restart `
+            -g $resourceGroup `
+            -n $agentVm2Name
         Start-Sleep -s 60
-        az vm extension set --resource-group $resourceGroup --vm-name $masterVmName --name customScript --publisher Microsoft.Azure.Extensions --protected-settings $configurationFilesPath\configure-master.json
+        ## set credentials on master to pull private dnc image and apply runner-conf.yaml
+        az vm extension set `
+            -g $resourceGroup `
+            --vm-name $masterVmName `
+            -n customScript `
+            --publisher Microsoft.Azure.Extensions `
+            --protected-settings $configurationFilesPath\configure-master.json
 
         ## get the external ip for canary client (may take some time before available...)
         Start-Sleep -s 45
-        $canaryEP = (az network public-ip list --resource-group $resourceGroup | jq-win64.exe --arg service "$service" '.[] | select(.tags.service==$service) | .name').Replace("`"","")
-        az network public-ip update -g $resourceGroup -n $canaryEP --dns-name swiftrunner --allocation-method Static
+        $canaryEP = (az network public-ip list -g $resourceGroup | jq.exe --arg service "$service" '.[] | select(.tags.service==$service) | .name').Replace("`"","")
+        az network public-ip update `
+            -g $resourceGroup `
+            -n $canaryEP `
+            --dns-name swiftrunner `
+            --allocation-method Static
 
         ## set values in RunnerDefinition.xml
         $xml = New-Object xml

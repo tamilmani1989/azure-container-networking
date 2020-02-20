@@ -21,11 +21,22 @@ spec:
   selector:
     matchLabels:
       app: cns
+  replicas: 2
   template:
     metadata:
       labels:
         app: cns
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - cns
+            topologyKey: kubernetes.io/hostname
       hostNetwork: true
       containers:
       - name: cns-container
@@ -38,10 +49,15 @@ spec:
           mountPath: /opt/cni/bin
         - name: cniconfig
           mountPath: /etc/cni/net.d
-        - name: telemetry-sock
-          mountPath: /var/run
+        - name: cnsconfig
+          mountPath: /var/lib/azure-network
         ports:
         - containerPort: 10090
+        env:
+        - name: CNSIpAddress
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
       volumes:
       - name: log
         hostPath:
@@ -55,7 +71,7 @@ spec:
         hostPath:
           path: /etc/cni/net.d
           type: Directory
-      - name: telemetry-sock
+      - name: cnsconfig
         hostPath:
-          path: /var/run
+          path: /var/lib/azure-network
           type: Directory

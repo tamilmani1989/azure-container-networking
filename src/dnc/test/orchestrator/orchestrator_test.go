@@ -23,9 +23,12 @@ var (
 	defaultNCRequestTimeout = time.Second * 10
 	defaultSleep            = time.Second * 1
 	errdRequestTimeout      = time.Second * 30
+	devEnv                  bool
 )
 
 func init() {
+	// determine if tests are being run on dev machine
+	_, devEnv = os.LookupEnv("DNC_DEV")
 	// use DNC config set with test storage settings
 	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
 	if !found {
@@ -176,23 +179,25 @@ func TestBasicNCAPIs(t *testing.T) {
 		}
 	}
 
-	// usage: docker-run.sh <container-name> <namespace> <image>
-	if _, err := exec.Command("/bin/sh", "-c", "./docker-run.sh "+podName+" "+podNamespace+" nginx:alpine").CombinedOutput(); err != nil {
-		t.Fatalf("Failed to start container with err %+v", err)
-	}
-
-	cmd := "docker exec " + podName + " ip a | grep \"global eth0\" | awk '{print $2}'"
-	if output, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput(); err != nil {
-		t.Fatalf("Failed to start container with err %+v", err)
-	} else {
-		ncIP := strings.TrimRight(string(output), "\n")
-		if ncIP != "10.0.1.4/24" {
-			t.Fatalf("Created container IP mismatch;\nreceived %+v\nexpected %+v", ncIP, "10.0.1.4/24")
+	if !devEnv {
+		// usage: docker-run.sh <container-name> <namespace> <image>
+		if _, err := exec.Command("/bin/sh", "-c", "./docker-run.sh "+podName+" "+podNamespace+" nginx:alpine").CombinedOutput(); err != nil {
+			t.Fatalf("Failed to start container with err %+v", err)
 		}
-	}
 
-	if _, err := exec.Command("/bin/sh", "-c", "./docker-del.sh "+podName+" "+podNamespace).CombinedOutput(); err != nil {
-		t.Fatalf("Failed to delete container with err %+v", err)
+		cmd := "docker exec " + podName + " ip a | grep \"global eth0\" | awk '{print $2}'"
+		if output, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput(); err != nil {
+			t.Fatalf("Failed to start container with err %+v", err)
+		} else {
+			ncIP := strings.TrimRight(string(output), "\n")
+			if ncIP != "10.0.1.4/24" {
+				t.Fatalf("Created container IP mismatch;\nreceived %+v\nexpected %+v", ncIP, "10.0.1.4/24")
+			}
+		}
+
+		if _, err := exec.Command("/bin/sh", "-c", "./docker-del.sh "+podName+" "+podNamespace).CombinedOutput(); err != nil {
+			t.Fatalf("Failed to delete container with err %+v", err)
+		}
 	}
 
 	deleteNode(t, nodeID, http.StatusBadRequest)

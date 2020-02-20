@@ -33,27 +33,30 @@ namespace SwiftRunner
         private string partitionKey;
         private string region;
         private ErrorContext mdmErr;
-        private MeasureMetric4D nic2nicMetric;
-        private MeasureMetric4D serviceTunnelMetric;
-        private MeasureMetric4D nic2VmMetric;
-        private MeasureMetric4D vnet2VnetGWMetric;
-        private MeasureMetric4D vnet2VnetPeeringMetric;
-
+        private MeasureMetric4D ServiceTunnelMetric;
+        private MeasureMetric4D Nc2VmMetric;
+        private MeasureMetric4D Nc2NcMetric;
+        private MeasureMetric4D Vnet2VnetGWMetric;
+        private MeasureMetric4D Vnet2VnetPeeringMetric;
+        private MeasureMetric4D NonRFCVnet2VnetPeeringMetric;
+        private MeasureMetric4D NsgMetric;
+        private MeasureMetric4D UdrMetric;
+        private MeasureMetric4D PrivateLinkMetric;
 
         public Runner(string[] args)
             : base(args)
         {
             mdmErr = new ErrorContext();
-            nic2nicMetric = MeasureMetric4D.Create(
+            Nc2NcMetric = MeasureMetric4D.Create(
                             this.GetConfigurationValue(MDMAccountName),
                             this.GetConfigurationValue(Namespace),
-                            "Nic2Nic",
+                            "Nc2Nc",
                             "Environment",
                             "RunnerInstance",
                             "DncEndPoint",
                             "PartitionKey",
                             ref mdmErr);
-            serviceTunnelMetric = MeasureMetric4D.Create(
+            ServiceTunnelMetric = MeasureMetric4D.Create(
                             this.GetConfigurationValue(MDMAccountName),
                             this.GetConfigurationValue(Namespace),
                             "ServiceTunnel",
@@ -62,16 +65,16 @@ namespace SwiftRunner
                             "DncEndPoint",
                             "PartitionKey",
                             ref mdmErr);
-            nic2VmMetric = MeasureMetric4D.Create(
+            Nc2VmMetric = MeasureMetric4D.Create(
                             this.GetConfigurationValue(MDMAccountName),
                             this.GetConfigurationValue(Namespace),
-                            "Nic2VM",
+                            "Nc2VM",
                             "Environment",
                             "RunnerInstance",
                             "DncEndPoint",
                             "PartitionKey",
                             ref mdmErr);
-            vnet2VnetGWMetric = MeasureMetric4D.Create(
+            Vnet2VnetGWMetric = MeasureMetric4D.Create(
                             this.GetConfigurationValue(MDMAccountName),
                             this.GetConfigurationValue(Namespace),
                             "Vnet2VnetGW",
@@ -80,10 +83,46 @@ namespace SwiftRunner
                             "DncEndPoint",
                             "PartitionKey",
                             ref mdmErr);
-            vnet2VnetPeeringMetric = MeasureMetric4D.Create(
+            Vnet2VnetPeeringMetric = MeasureMetric4D.Create(
                             this.GetConfigurationValue(MDMAccountName),
                             this.GetConfigurationValue(Namespace),
                             "Vnet2VnetPeering",
+                            "Environment",
+                            "RunnerInstance",
+                            "DncEndPoint",
+                            "PartitionKey",
+                            ref mdmErr);
+            NonRFCVnet2VnetPeeringMetric = MeasureMetric4D.Create(
+                            this.GetConfigurationValue(MDMAccountName),
+                            this.GetConfigurationValue(Namespace),
+                            "NonRFCVnet2VnetPeering",
+                            "Environment",
+                            "RunnerInstance",
+                            "DncEndPoint",
+                            "PartitionKey",
+                            ref mdmErr);
+            NsgMetric = MeasureMetric4D.Create(
+                            this.GetConfigurationValue(MDMAccountName),
+                            this.GetConfigurationValue(Namespace),
+                            "NSG",
+                            "Environment",
+                            "RunnerInstance",
+                            "DncEndPoint",
+                            "PartitionKey",
+                            ref mdmErr);
+            UdrMetric = MeasureMetric4D.Create(
+                            this.GetConfigurationValue(MDMAccountName),
+                            this.GetConfigurationValue(Namespace),
+                            "UDR",
+                            "Environment",
+                            "RunnerInstance",
+                            "DncEndPoint",
+                            "PartitionKey",
+                            ref mdmErr);
+            PrivateLinkMetric = MeasureMetric4D.Create(
+                            this.GetConfigurationValue(MDMAccountName),
+                            this.GetConfigurationValue(Namespace),
+                            "PrivateLink",
                             "Environment",
                             "RunnerInstance",
                             "DncEndPoint",
@@ -96,17 +135,13 @@ namespace SwiftRunner
             this.WriteRunnerInfo();
             this.ReadConfigurationValues();
 
-            if (nic2nicMetric == null || 
-                nic2VmMetric == null || 
-                serviceTunnelMetric == null || 
-                vnet2VnetGWMetric == null || 
-                vnet2VnetPeeringMetric == null)
+            if (!ValidMetrics())
             {
-                Console.WriteLine("Exit 0: Failed to create metric(s).");
+                Console.Error.WriteLine("Exit 0: Failed to create metric(s).");
                 return;
             }
 
-            // We trigger datapath tests every half an hour
+            // We trigger e2e tests every half an hour
             for (;;)
             {
                 SwiftRunner.contracts.DncDataPathResponse datapath = null;
@@ -125,55 +160,99 @@ namespace SwiftRunner
                     if (datapath != null)
                     {
                         this.LogHealthy("SwiftDatapathRunner is healthy.");
-                        Console.Error.WriteLine("Logging error from tests: {0}", datapath.LastError);
-                        if (!nic2nicMetric.LogValue(datapath.Nic2Nic ? 1 : 2,
+
+                        if (datapath.LastError != "") {
+                            Console.WriteLine("Logging error from tests: {0}", datapath.LastError);
+                        }
+                        
+                        if (!Nc2NcMetric.LogValue(datapath.Nc2Nc ? 1 : 2,
                                 this.Environment,
                                 this.RunnerInstance,
                                 k8sEP,
                                 partitionKey,
                                 ref mdmErr))
                         {
-                            Console.WriteLine("Failed to emit Nic2Nic metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                            Console.Error.WriteLine("Failed to emit Nc2Nc metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
 
-                        if (!serviceTunnelMetric.LogValue(datapath.ServiceTunnel ? 1 : 2,
+                        if (!ServiceTunnelMetric.LogValue(datapath.ServiceTunnel ? 1 : 2,
                                 this.Environment,
                                 this.RunnerInstance,
                                 k8sEP,
                                 partitionKey,
                                 ref mdmErr))
                         {
-                            Console.WriteLine("Failed to emit ServiceTunnel metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                            Console.Error.WriteLine("Failed to emit ServiceTunnel metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
 
-                        if (!nic2VmMetric.LogValue(datapath.Nic2VM ? 1 : 2,
+                        if (!Nc2VmMetric.LogValue(datapath.Nc2VM ? 1 : 2,
                                 this.Environment,
                                 this.RunnerInstance,
                                 k8sEP,
                                 partitionKey,
                                 ref mdmErr))
                         {
-                            Console.WriteLine("Failed to emit Nic2VM metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                            Console.Error.WriteLine("Failed to emit Nc2VM metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
 
-                        if (!vnet2VnetGWMetric.LogValue(datapath.Vnet2VnetGW ? 1 : 2,
+                        if (!Vnet2VnetGWMetric.LogValue(datapath.Vnet2VnetGW ? 1 : 2,
                                 this.Environment,
                                 this.RunnerInstance,
                                 k8sEP,
                                 partitionKey,
                                 ref mdmErr))
                         {
-                            Console.WriteLine("Failed to emit Vnet2VnetGW metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                            Console.Error.WriteLine("Failed to emit Vnet2VnetGW metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
 
-                        if (!vnet2VnetPeeringMetric.LogValue(datapath.Vnet2VnetPeering ? 1 : 2,
+                        if (!Vnet2VnetPeeringMetric.LogValue(datapath.Vnet2VnetPeering ? 1 : 2,
                                 this.Environment,
                                 this.RunnerInstance,
                                 k8sEP,
                                 partitionKey,
                                 ref mdmErr))
                         {
-                            Console.WriteLine("Failed to emit Vnet2VnetPeering metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                            Console.Error.WriteLine("Failed to emit Vnet2VnetPeering metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
+
+                        if (!NonRFCVnet2VnetPeeringMetric.LogValue(datapath.NonRFCVnet2VnetPeering ? 1 : 2,
+                                this.Environment,
+                                this.RunnerInstance,
+                                k8sEP,
+                                partitionKey,
+                                ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emit NonRFCVnet2VnetPeering metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
+
+                        if (!NsgMetric.LogValue(datapath.NSG ? 1 : 2,
+                                this.Environment,
+                                this.RunnerInstance,
+                                k8sEP,
+                                partitionKey,
+                                ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emit NSG metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
+
+                        if (!UdrMetric.LogValue(datapath.UDR ? 1 : 2,
+                                this.Environment,
+                                this.RunnerInstance,
+                                k8sEP,
+                                partitionKey,
+                                ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emit UDR metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
+
+                        if (!PrivateLinkMetric.LogValue(datapath.PrivateLink ? 1 : 2,
+                                this.Environment,
+                                this.RunnerInstance,
+                                k8sEP,
+                                partitionKey,
+                                ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emit PrivateLink metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
                     }
                     else
@@ -268,6 +347,19 @@ namespace SwiftRunner
             Console.WriteLine("Configurations read: K8sEP = {0} PartitionKey = {1}",
                 k8sEP,
                 partitionKey);
+        }
+
+        private bool ValidMetrics()
+        {
+            return Nc2NcMetric != null &&
+                Nc2VmMetric != null && 
+                ServiceTunnelMetric != null &&
+                Vnet2VnetGWMetric != null &&
+                Vnet2VnetPeeringMetric != null &&
+                NonRFCVnet2VnetPeeringMetric != null &&
+                NsgMetric != null &&
+                UdrMetric != null &&
+                PrivateLinkMetric != null;
         }
     }
 }

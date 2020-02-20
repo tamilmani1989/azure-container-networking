@@ -21,11 +21,22 @@ spec:
   selector:
     matchLabels:
       app: dnc
+  replicas: 2
   template:
     metadata:
       labels:
         app: dnc
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - dnc
+            topologyKey: kubernetes.io/hostname
       hostNetwork: true
       containers:
       - name: dnc-container
@@ -34,18 +45,17 @@ spec:
         volumeMounts:
         - name: log
           mountPath: /var/log
-        - name: telemetry-sock
-          mountPath: /var/run
         ports:
         - containerPort: 9000
+        env:
+        - name: DNCIpAddress
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
       imagePullSecrets:
         - name: msint.azurecr.io-key
       volumes:
       - name: log
         hostPath:
           path: /var/log
-          type: Directory
-      - name: telemetry-sock
-        hostPath:
-          path: /var/run
           type: Directory
