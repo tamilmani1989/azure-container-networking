@@ -6,7 +6,7 @@ const (
 
 const (
 	// Metrics
-	NCCreationTimeMetric     = "NCCreationTimeMs"
+	NCProcessTimeMetric      = "NCProcessTimeMs"
 	NCCreationReqCountMetric = "NCCreationRequestCount"
 
 	// Dimensions
@@ -18,6 +18,7 @@ const (
 	RegionStr             = "Region"
 	DNCVersionStr         = "DNCVersion"
 	StatusStr             = "Status"
+	NCStateStr            = "NCState"
 
 	// Status
 	Failed    = "Failed"

@@ -748,15 +748,13 @@ func getAllocatedLocalAddressesOnNode(nodeID string) (map[string]*net.IPNet, *ap
 
 // This function allocate a local ip from 169.254.128.0/17 address space
 func processAllocateLocalIP(
-	repoNCConfig *datamodel.NCConfiguration,
-	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	ncState := "Container" + repoNCConfig.State.String()
-	defer utils.RecordTime(stateTransitionDateTime, ncState, repoNCConfig.NetworkContainerID)
-
-	var markProcessingFailed bool
-	var allocatedIP *net.IPNet
-	var failureDetail *api.JsonErr
-	var allocationErr error
+	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	var (
+		markProcessingFailed bool
+		allocatedIP          *net.IPNet
+		failureDetail        *api.JsonErr
+		allocationErr        error
+	)
 
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
 
@@ -958,10 +956,8 @@ func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *
 	return markPrepareFailed, nil
 }
 
-func prepareNetworkContainer(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	ncState := "Container" + repoNCConfig.State.String()
-	defer utils.RecordTime(stateTransitionDateTime, ncState, repoNCConfig.NetworkContainerID)
-
+func prepareNetworkContainer(
+	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	if !repoNCConfig.ImplicitReservation {
 		return processNetworkContainerV1(repoNCConfig)
 	}
@@ -970,11 +966,7 @@ func prepareNetworkContainer(repoNCConfig *datamodel.NCConfiguration, stateTrans
 }
 
 func processNetworkContainerReserve(
-	repoNCConfig *datamodel.NCConfiguration,
-	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	ncState := "Container" + repoNCConfig.State.String()
-	defer utils.RecordTime(stateTransitionDateTime, ncState, repoNCConfig.NetworkContainerID)
-
+	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	var (
 		err                  *api.JsonErr
 		failureDetail        *api.JsonErr
@@ -1076,10 +1068,8 @@ Cleanup:
 	return markProcessingFailed, nil
 }
 
-func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	ncState := "Container" + repoNCConfig.State.String()
-	defer utils.RecordTime(stateTransitionDateTime, ncState, repoNCConfig.NetworkContainerID)
-
+func processNetworkContainerUnReserve(
+	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	var err *api.JsonErr
 	if repoNCConfig.ImplicitReservation {
 		sessionInfo := map[string]string{
@@ -1125,10 +1115,9 @@ func processNetworkContainerUnReserve(repoNCConfig *datamodel.NCConfiguration, s
 	return false, nil
 }
 
-func processNetworkContainerPurge(repoNCConfig *datamodel.NCConfiguration, stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	ncState := "Container" + repoNCConfig.State.String()
-	defer utils.RecordTime(stateTransitionDateTime, ncState, repoNCConfig.NetworkContainerID)
-
+func processNetworkContainerPurge(
+	repoNCConfig *datamodel.NCConfiguration,
+	createdDateTime time.Time) (bool, *api.JsonErr) {
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: repoNCConfig.GetAssociationInfo().NodeID}
 	sessionManager.BeginWriteSession(sessionInfo)
 
@@ -1149,6 +1138,10 @@ func processNetworkContainerPurge(repoNCConfig *datamodel.NCConfiguration, state
 	if err != nil {
 		return false, err
 	}
+
+	deletionTimeMs := time.Since(createdDateTime).Milliseconds()
+	sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(deletionTimeMs),
+		aiwrapper.Succeeded, "Container"+datamodel.Purge.String(), repoNCConfig)
 
 	return true, nil
 }
@@ -1188,11 +1181,7 @@ func getLocalIPGateway(ipsubnet string) (string, error) {
 
 func processNetworkContainerAssociate(
 	repoNCConfig *datamodel.NCConfiguration,
-	sessionInfo map[string]string,
-	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	ncState := "Container" + repoNCConfig.State.String()
-	defer utils.RecordTime(stateTransitionDateTime, ncState, repoNCConfig.NetworkContainerID)
-
+	sessionInfo map[string]string) (bool, *api.JsonErr) {
 	sessionInfoRead := map[string]string{
 		datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
 		datamodel.NetworkRepositoryName:     repoNCConfig.NetworkID,
@@ -1447,11 +1436,7 @@ func processNetworkContainerAssociate(
 
 func processNetworkContainerDisAssociate(
 	repoNCConfig *datamodel.NCConfiguration,
-	sessionInfo map[string]string,
-	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	ncState := "Container" + repoNCConfig.State.String()
-	defer utils.RecordTime(stateTransitionDateTime, ncState, repoNCConfig.NetworkContainerID)
-
+	sessionInfo map[string]string) (bool, *api.JsonErr) {
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
 
 	sessionInfoRead := map[string]string{datamodel.NodeRepositoryName: nodeID}
@@ -1559,7 +1544,7 @@ func getDimensions(repoNCConfig *datamodel.NCConfiguration) map[string]string {
 func sendNCMetric(
 	metricName string,
 	metricValue float64,
-	status string,
+	status, ncState string,
 	repoNCConfig *datamodel.NCConfiguration) {
 	metric := aitelemetry.Metric{
 		Name:             metricName,
@@ -1568,6 +1553,7 @@ func sendNCMetric(
 	}
 
 	metric.CustomDimensions[aiwrapper.StatusStr] = status
+	metric.CustomDimensions[aiwrapper.NCStateStr] = ncState
 	go aiwrapper.SendMetric(metric)
 }
 
@@ -1576,9 +1562,6 @@ func processNetworkContainerPublish(
 	sessionInfo map[string]string,
 	stateTransitionDateTime time.Time,
 	createdDateTime time.Time) (bool, *api.JsonErr) {
-	ncState := "Container" + repoNCConfig.State.String()
-	defer utils.RecordTime(stateTransitionDateTime, ncState, repoNCConfig.NetworkContainerID)
-
 	sessionInfoRead := map[string]string{
 		datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
 		datamodel.NetworkRepositoryName:     repoNCConfig.NetworkID,
@@ -1884,8 +1867,8 @@ func processNetworkContainerPublish(
 	repoNCConfig.FailureDetail = api.JsonErr{}
 
 	creationTimeMs := time.Since(createdDateTime).Milliseconds()
-	sendNCMetric(aiwrapper.NCCreationTimeMetric, float64(creationTimeMs),
-		aiwrapper.Succeeded, repoNCConfig)
+	sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(creationTimeMs),
+		aiwrapper.Succeeded, "Container"+datamodel.Program.String(), repoNCConfig)
 
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
@@ -1894,9 +1877,6 @@ func processNetworkContainerUnPublish(
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
-	ncState := "Container" + repoNCConfig.State.String()
-	defer utils.RecordTime(stateTransitionDateTime, ncState, repoNCConfig.NetworkContainerID)
-
 	sessionInfoRead := map[string]string{
 		datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
 		datamodel.NetworkRepositoryName:     repoNCConfig.NetworkID,
@@ -2157,11 +2137,7 @@ func processNetworkContainerUnPublish(
 }
 
 func processNetworkContainerProgram(
-	repoNCConfig *datamodel.NCConfiguration,
-	createdDateTime time.Time) (bool, *api.JsonErr) {
-	ncState := "Container" + repoNCConfig.State.String()
-	defer utils.RecordTime(createdDateTime, ncState, repoNCConfig.NetworkContainerID)
-
+	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	repoNCConfig.State = datamodel.Program
 	repoNCConfig.Status = datamodel.Completed
 	repoNCConfig.FailureDetail = api.JsonErr{}
@@ -2182,12 +2158,21 @@ func processNetworkContainerRequest(
 	)
 
 	defer func() {
-		if repoNCConfig != nil && !datamodel.IsDeleteInProgress(repoNCConfig.State) {
+		if repoNCConfig != nil {
 			if removeRequestFromPendingQueue && repoNCConfig.Status == datamodel.Failed {
-				creationTimeMs := time.Since(createdDateTime).Milliseconds()
-				sendNCMetric(aiwrapper.NCCreationTimeMetric,
-					float64(creationTimeMs), aiwrapper.Failed, repoNCConfig)
-				logger.Errorf("NC creation failed for NC: %s", datamodel.GetNCIdFromKey(networkContainerKey))
+				processingTime := time.Since(createdDateTime).Milliseconds()
+				var ncState string
+				if datamodel.IsDeleteInProgress(repoNCConfig.State) {
+					ncState = "Container" + datamodel.Purge.String()
+					logger.Errorf("NC deletion failed for NC: %s",
+						datamodel.GetNCIdFromKey(networkContainerKey))
+				} else {
+					ncState = "Container" + datamodel.Program.String()
+					logger.Errorf("NC creation failed for NC: %s",
+						datamodel.GetNCIdFromKey(networkContainerKey))
+				}
+				sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(processingTime),
+					aiwrapper.Failed, ncState, repoNCConfig)
 			}
 		}
 	}()
@@ -2221,44 +2206,57 @@ func processNetworkContainerRequest(
 			return true, nil
 		}
 
+		ncState := repoNCConfig.State
+
 		switch repoNCConfig.State {
 		case datamodel.Prepare:
-			removeRequestFromPendingQueue, err = prepareNetworkContainer(repoNCConfig, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = prepareNetworkContainer(repoNCConfig)
 
 		case datamodel.Reserve:
-			removeRequestFromPendingQueue, err = processNetworkContainerReserve(repoNCConfig, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerReserve(repoNCConfig)
 
 		case datamodel.AllocateLocalIP:
-			removeRequestFromPendingQueue, err = processAllocateLocalIP(repoNCConfig, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processAllocateLocalIP(repoNCConfig)
 
 		case datamodel.Associate:
 			fallthrough
 
 		case datamodel.RefreshAssociation:
-			removeRequestFromPendingQueue, err = processNetworkContainerAssociate(repoNCConfig, sessionInfo, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerAssociate(repoNCConfig, sessionInfo)
 
 		case datamodel.Publish:
 			removeRequestFromPendingQueue, err = processNetworkContainerPublish(repoNCConfig, sessionInfo, stateTransitionDateTime, createdDateTime)
 
 		case datamodel.Program:
-			removeRequestFromPendingQueue, err = processNetworkContainerProgram(repoNCConfig, createdDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerProgram(repoNCConfig)
 
 		case datamodel.UnPublish:
 			removeRequestFromPendingQueue, err = processNetworkContainerUnPublish(repoNCConfig, sessionInfo, stateTransitionDateTime)
 
 		case datamodel.DisAssociate:
-			removeRequestFromPendingQueue, err = processNetworkContainerDisAssociate(repoNCConfig, sessionInfo, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerDisAssociate(repoNCConfig, sessionInfo)
 
 		case datamodel.UnReserve:
-			removeRequestFromPendingQueue, err = processNetworkContainerUnReserve(repoNCConfig, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerUnReserve(repoNCConfig)
 
 		case datamodel.Purge:
-			removeRequestFromPendingQueue, err = processNetworkContainerPurge(repoNCConfig, stateTransitionDateTime)
+			removeRequestFromPendingQueue, err = processNetworkContainerPurge(repoNCConfig, createdDateTime)
 
 		default:
 			logger.Errorf("NC: %s processing failed due to invalid state %s", repoNCConfig.NetworkContainerID, repoNCConfig.State)
 			return true, nil
 		}
+
+		var processStatus string
+		if !removeRequestFromPendingQueue && err == nil {
+			processStatus = aiwrapper.Succeeded
+		} else {
+			processStatus = aiwrapper.Failed
+		}
+
+		// Record the time taken for NC state processing and send the NC process time metric
+		recordNetworkContainerProcessingTime(repoNCConfig, ncState,
+			processStatus, createdDateTime, stateTransitionDateTime)
 
 		if !removeRequestFromPendingQueue && err == nil {
 			requestContext.LastRetriedDateTime = time.Time{}
@@ -2273,6 +2271,33 @@ func processNetworkContainerRequest(
 	}
 
 	return removeRequestFromPendingQueue, err
+}
+
+// Record the time taken for NC state processing and send the NC process time metric
+func recordNetworkContainerProcessingTime(
+	repoNCConfig *datamodel.NCConfiguration,
+	ncState datamodel.NetworkContainerState,
+	processStatus string,
+	createdDateTime, stateTransitionDateTime time.Time) {
+	if ncState == datamodel.Program ||
+		ncState == datamodel.Purge {
+		// Program and purge times are calculated based on request create time. This provides
+		// the total time taken to program (create) and delete the NC.
+		utils.RecordTime(createdDateTime, "Container"+ncState.String(), repoNCConfig.NetworkContainerID)
+	} else {
+		utils.RecordTime(stateTransitionDateTime, "Container"+ncState.String(), repoNCConfig.NetworkContainerID)
+	}
+
+	// Upload state process time metric for all the states. Program and Purge times are calulcated
+	// based on request create time and RefreshAssociation is excluded to avoid flooding the metric
+	// data as every NC will periodically go through refreshAssociation
+	if ncState != datamodel.Program &&
+		ncState != datamodel.Purge &&
+		ncState != datamodel.RefreshAssociation {
+		processTimeMs := time.Since(stateTransitionDateTime).Milliseconds()
+		sendNCMetric(aiwrapper.NCProcessTimeMetric,
+			float64(processTimeMs), processStatus, "Container"+ncState.String(), repoNCConfig)
+	}
 }
 
 func updateVlan(containerType string) bool {
