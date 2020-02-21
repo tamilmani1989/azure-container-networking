@@ -4,13 +4,15 @@
 package cniv6
 
 import (
+	"os"
+
 	"github.com/Azure/azure-container-networking/cni"
 	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/ipam"
 	"github.com/Azure/azure-container-networking/log"
+	"github.com/Azure/azure-container-networking/network"
 	"github.com/Azure/azure-container-networking/platform"
 	"github.com/Azure/azure-container-networking/telemetry"
-
 	cniSkel "github.com/containernetworking/cni/pkg/skel"
 	cniTypesCurr "github.com/containernetworking/cni/pkg/types/current"
 )
@@ -95,6 +97,7 @@ func (plugin *cniV6Plugin) Add(args *cniSkel.CmdArgs) error {
 	var (
 		result *cniTypesCurr.Result
 		nwCfg  *cni.NetworkConfig
+		ns     *network.Namespace
 		err    error
 	)
 
@@ -115,6 +118,22 @@ func (plugin *cniV6Plugin) Add(args *cniSkel.CmdArgs) error {
 			result = &cniTypesCurr.Result{}
 		}
 
+		// _, ipv6net, _ := net.ParseCIDR("fc00::2/64")
+		// ipv6net := net.IPNet{IP: ipaddr, Mask: net.CIDRMask(24, 32)}
+		// ip := &cniTypesCurr.IPConfig{
+		// 	Version: "6",
+		// 	Address: ipv6net,
+		// 	Gateway: net.ParseIP("fc00::1"),
+		// }
+
+		// result.IPs = append(result.IPs, ip)
+
+		iface := &cniTypesCurr.Interface{
+			Name: args.IfName,
+		}
+
+		result.Interfaces = append(result.Interfaces, iface)
+
 		res, vererr := result.GetAsVersion(nwCfg.CNIVersion)
 		if vererr != nil {
 			log.Printf("GetAsVersion failed with error %v", vererr)
@@ -128,6 +147,30 @@ func (plugin *cniV6Plugin) Add(args *cniSkel.CmdArgs) error {
 
 		log.Printf("[cni-v6] ADD command completed with result:%+v err:%v.", result, err)
 	}()
+
+	log.Printf("[cni-v6] Entering container namespace")
+	ns, err = network.OpenNamespace(args.Netns)
+	if err != nil {
+		return err
+	}
+	defer ns.Close()
+
+	// Enter the container network namespace.
+	log.Printf("[net] Entering netns %v.", args.Netns)
+	if err = ns.Enter(); err != nil {
+		return err
+	}
+
+	// Return to host network namespace.
+	defer func() {
+		log.Printf("[net] Exiting netns %v.", args.Netns)
+		if err := ns.Exit(); err != nil {
+			log.Printf("[net] Failed to exit netns, err:%v.", err)
+		}
+	}()
+
+	platform.ExecuteCommand("sysctl -w net.ipv6.conf.all.disable_ipv6=0")
+	platform.ExecuteCommand("ip -6 addr add fc00::2/64 dev eth0")
 
 	return nil
 }
@@ -182,3 +225,75 @@ func (plugin *cniV6Plugin) Get(args *cniSkel.CmdArgs) error {
 func (plugin *cniV6Plugin) Update(args *cniSkel.CmdArgs) error {
 	return nil
 }
+
+// Namespace represents a network namespace.
+type Namespace struct {
+	file   *os.File
+	prevNs *Namespace
+}
+
+// // OpenNamespace creates a new namespace object for the given netns path.
+// func OpenNamespace(nsPath string) (*Namespace, error) {
+// 	fd, err := os.Open(nsPath)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return &Namespace{file: fd}, nil
+// }
+
+// func (ns *Namespace) Close() error {
+// 	if ns.file == nil {
+// 		return nil
+// 	}
+
+// 	err := ns.file.Close()
+// 	if err != nil {
+// 		return fmt.Errorf("Failed to close namespace %v, err:%v", ns.file.Name(), err)
+// 	}
+
+// 	ns.file = nil
+
+// 	return nil
+// }
+
+// // Enter puts the caller thread inside the namespace.
+// func (ns *Namespace) Enter() error {
+// 	var err error
+
+// 	ns.prevNs, err = GetCurrentThreadNamespace()
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	runtime.LockOSThread()
+
+// 	err = ns.set()
+// 	if err != nil {
+// 		runtime.UnlockOSThread()
+// 		return err
+// 	}
+
+// 	// Recycle the netlink socket for the new network namespace.
+// 	netlink.ResetSocket()
+
+// 	return nil
+// }
+
+// // Exit puts the caller thread to its previous namespace.
+// func (ns *Namespace) Exit() error {
+// 	err := ns.prevNs.set()
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	ns.prevNs.Close()
+// 	ns.prevNs = nil
+
+// 	runtime.UnlockOSThread()
+
+// 	// Recycle the netlink socket for the new network namespace.
+// 	netlink.ResetSocket()
+
+// 	return nil
+// }
