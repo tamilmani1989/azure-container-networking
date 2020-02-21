@@ -3602,6 +3602,46 @@ func TestNodeNicLimitReservationDelete(t *testing.T) {
 	deleteResource(t, nodeURL, http.StatusOK)
 }
 
+func TestPublishingRequestMarshallingLogicForSuccess(t *testing.T) {
+	fmt.Println("****TestPublishingRequestMarshallingLogicForSuccess**********")
+	var ncRequest nmagentcontracts.CreateOrUpdateNetworkContainerRequest
+	ncRequest.IPV4Addresses = make([]string, 1)
+	ncRequest.IPV4Addresses[0] = "10.0.0.0"
+	ncRequest.Policies = make([]string, 0)
+	ncRequest.SubnetName = "test"
+	ncRequest.Version = strconv.FormatUint(5, 10)
+	ncRequest.VirtualNetworkID = "048622d9-49c2-4cad-94ff-7112e6f2ab5a"
+	ncRequest.VlanID = 1
+
+	var body bytes.Buffer
+	err := json.NewEncoder(&body).Encode(ncRequest)
+
+	if err != nil {
+		t.Fatalf("Marshalling was not supposed to fail, observerd error [%s]", err.Error())
+	}
+
+	fmt.Printf("Encoded string [%s]\n", body.String())
+}
+
+func TestPublishingRequestMarshallingLogicForFailure(t *testing.T) {
+	fmt.Println("****TestPublishingRequestMarshallingLogicForFailure**********")
+	var ncRequest nmagentcontracts.CreateOrUpdateNetworkContainerRequest
+	ncRequest.IPV4Addresses = make([]string, 1)
+	ncRequest.IPV4Addresses[0] = "" // Empty IPAddress
+	ncRequest.Policies = make([]string, 0)
+	ncRequest.SubnetName = "test"
+	ncRequest.Version = strconv.FormatUint(5, 10)
+	ncRequest.VirtualNetworkID = "048622d9-49c2-4cad-94ff-7112e6f2ab5a"
+	ncRequest.VlanID = 1
+
+	var body bytes.Buffer
+	err := json.NewEncoder(&body).Encode(ncRequest)
+
+	if err == nil {
+		t.Fatalf("Marshalling was supposed to fail")
+	}
+}
+
 // Induce error in the processing
 // This function induces error with provided percent probability
 func induceError(percentProbability int) bool {

@@ -1631,8 +1631,21 @@ func processNetworkContainerPublish(
 			CreateNetworkContainerRequestBody: body.Bytes(),
 		}
 
+		// Make sure the publishing data is correctly encoded.
+		// If not, fail the request with fatal error.
 		var publishNCRequestBody bytes.Buffer
-		json.NewEncoder(&publishNCRequestBody).Encode(publishNCRequest)
+		if encodeErr := json.NewEncoder(&publishNCRequestBody).Encode(publishNCRequest); encodeErr != nil {
+			msg := fmt.Sprintf("Publish operation failed for NC %s due to encoding error: %s",
+				ncGoalState.NetworkContainerID,
+				encodeErr.Error())
+			loggershim.LS.Errorf(msg)
+			repoNCConfig.Status = datamodel.Failed
+			repoNCConfig.FailureDetail = api.JsonErr{
+				Code:       api.PublishingFailed,
+				Text:       msg,
+				HTTPStatus: http.StatusBadRequest}
+			return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+		}
 
 		publishNCURL := fmt.Sprintf(
 			config.CNSSettings.ConnectionStrings.PublishNetworkContainerURLFmt,

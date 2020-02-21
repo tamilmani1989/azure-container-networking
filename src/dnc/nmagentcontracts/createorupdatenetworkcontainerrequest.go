@@ -1,6 +1,8 @@
 package nmagentcontracts
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -30,4 +32,40 @@ func (ncRequest *CreateOrUpdateNetworkContainerRequest) String() string {
 		ncRequest.Version,
 		ncRequest.VirtualNetworkID,
 		ncRequest.VlanID)
+}
+
+// MarshalJSON - Custom Marshal handler to enforce validation
+func (ncRequest CreateOrUpdateNetworkContainerRequest) MarshalJSON() ([]byte, error) {
+	objectMap := make(map[string]interface{})
+
+	if ncRequest.IPV4Addresses == nil || len(ncRequest.IPV4Addresses) == 0 {
+		return nil, errors.New("IPV4Addresses field cannot be empty")
+	}
+
+	for _, ipAddress := range ncRequest.IPV4Addresses {
+		if ipAddress == "" {
+			return nil, errors.New("Empty IPAddress specified in IPV4Addresses")
+		}
+	}
+
+	if ncRequest.SubnetName == "" {
+		return nil, errors.New("Subnet field cannot be empty")
+	}
+
+	if ncRequest.Version == "" {
+		return nil, errors.New("Version field cannot be empty")
+	}
+
+	if ncRequest.VirtualNetworkID == "" {
+		return nil, errors.New("Network ID field cannot be empty")
+	}
+
+	objectMap["ipV4Addresses"] = ncRequest.IPV4Addresses
+	objectMap["subnetName"] = ncRequest.SubnetName
+	objectMap["version"] = ncRequest.Version
+	objectMap["policies"] = ncRequest.Policies
+	objectMap["virtualNetworkId"] = ncRequest.VirtualNetworkID
+	objectMap["vlanId"] = ncRequest.VlanID
+
+	return json.Marshal(objectMap)
 }
