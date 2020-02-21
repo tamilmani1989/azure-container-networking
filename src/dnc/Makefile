@@ -37,6 +37,8 @@ DNC_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/dnc
 DNCTL_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/dnctl
 RUNNER_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/runner
 
+DNC_AI_ID = 4a542967-4721-4c64-a2a7-eb9428c634b4
+
 # Target OS specific parameters
 ifeq ($(GOOS),linux)
 	# Linux.
@@ -78,7 +80,7 @@ clean:
 # Build the Azure DNC Service
 $(DNC_BUILD_DIR)/dnc$(EXE_EXT): $(DNCFILES)
 	export CGO_ENABLED=0; \
-	go build -v -o $(DNC_BUILD_DIR)/dnc$(EXE_EXT) -ldflags "-X dnc/utils.Version=$(VERSION) -s -w" *.go
+	go build -v -o $(DNC_BUILD_DIR)/dnc$(EXE_EXT) -ldflags "-X dnc/utils.Version=$(VERSION) -X dnc/aiwrapper.aiMetadata=$(DNC_AI_ID) -s -w" *.go
 
 # Build dnctl
 $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT): $(DNCTLFILES)
