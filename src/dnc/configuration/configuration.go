@@ -151,6 +151,8 @@ type DNCSettings struct {
 	NICsAllowedPerVirtualCore uint16
 	// Flag to determine whether DNC should forward requests instead of relying on client to handle redirects
 	ReverseProxyEnabled bool
+	// Max time latency allowed for data store operations before recording the operation latency in the log.
+	ThresholdForLoggingDataStoreOpLatencyMs int
 }
 
 // HttpClientSettings - Http client settings to be used when making http calls to CNS and NMAgent from DNC
@@ -175,11 +177,11 @@ type TelemetrySettings struct {
 	RefreshIntervalInSecs int
 	// Disable debug logging for telemetry messages
 	DebugMode bool
-	// Disable logging to App Insights. 
+	// Disable logging to App Insights.
 	DisableAiLogging bool
-    // Retry wait time in seconds for AI telemetry.
+	// Retry wait time in seconds for AI telemetry.
 	GetEnvRetryWaitTimeInSecs int
-    // Retry count for AI telemetry.
+	// Retry count for AI telemetry.
 	GetEnvRetryCount int
 }
 
@@ -289,6 +291,11 @@ func setDNCSettingDefaults(dncSettings *DNCSettings) {
 		// Set default to 3
 		dncSettings.SleepIntervalBetweenNetworkRefresh = 3
 	}
+
+	if dncSettings.ThresholdForLoggingDataStoreOpLatencyMs == 0 {
+		// Set default to 1 second
+		dncSettings.ThresholdForLoggingDataStoreOpLatencyMs = 1000
+	}
 }
 
 func setHttpSettingDefaults(httpClientSettings *HttpClientSettings) {
@@ -319,12 +326,12 @@ func setTelemetrySettingDefaults(telemetrySettings *TelemetrySettings) {
 		telemetrySettings.TelemetryBatchSizeBytes = 16384
 	}
 
-	if (telemetrySettings.GetEnvRetryWaitTimeInSecs == 0) {
+	if telemetrySettings.GetEnvRetryWaitTimeInSecs == 0 {
 		telemetrySettings.GetEnvRetryWaitTimeInSecs = 3
 	}
 
-	if (telemetrySettings.GetEnvRetryCount == 0) {
-		telemetrySettings.GetEnvRetryCount =  5
+	if telemetrySettings.GetEnvRetryCount == 0 {
+		telemetrySettings.GetEnvRetryCount = 5
 	}
 }
 
@@ -476,7 +483,7 @@ func OverrideConfigFromEnv(config *Configuration) {
 		config.TelemetrySettings.DebugMode = ParseBool(debugMode)
 	}
 
-	if disableAiLogging := os.Getenv("DisableAiLogging"); len(disableAiLogging) !=0 {
+	if disableAiLogging := os.Getenv("DisableAiLogging"); len(disableAiLogging) != 0 {
 		config.TelemetrySettings.DisableAiLogging = ParseBool(disableAiLogging)
 	}
 
@@ -484,7 +491,12 @@ func OverrideConfigFromEnv(config *Configuration) {
 		config.TelemetrySettings.GetEnvRetryWaitTimeInSecs = ParseInt(getEnvRetryWaitTimeInSecs)
 	}
 
-	if getEnvRetryCount  := os.Getenv("GetEnvRetryCount"); len(getEnvRetryCount) != 0 {
+	if getEnvRetryCount := os.Getenv("GetEnvRetryCount"); len(getEnvRetryCount) != 0 {
 		config.TelemetrySettings.GetEnvRetryCount = ParseInt(getEnvRetryCount)
+	}
+
+	if thresholdForLoggingDataStoreOpLatencyMs :=
+		os.Getenv("ThresholdForLoggingDataStoreOpLatencyMs"); len(thresholdForLoggingDataStoreOpLatencyMs) != 0 {
+		config.DNCSettings.ThresholdForLoggingDataStoreOpLatencyMs = ParseInt(thresholdForLoggingDataStoreOpLatencyMs)
 	}
 }

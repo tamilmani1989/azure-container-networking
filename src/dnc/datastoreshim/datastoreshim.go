@@ -52,50 +52,14 @@ type DataStoreShim struct {
 
 // NewDataStoreShim - Create a new datastore shim
 func NewDataStoreShim(
-	dataStoreConfiguration configuration.DataStoreSettings,
+	dataStoreSettings configuration.DataStoreSettings,
+	dncSettings configuration.DNCSettings,
 	tableToColumnMap map[string]string) *DataStoreShim {
 	dataStoreShim := new(DataStoreShim)
-	dataStoreShim.dataStoreSettings = dataStoreConfiguration
+	dataStoreShim.dataStoreSettings = dataStoreSettings
 	dataStoreShim.SupportedFeatures = make(map[int]bool)
-	dataStoreShim.Init(tableToColumnMap)
+	dataStoreShim.Init(tableToColumnMap, dncSettings.ThresholdForLoggingDataStoreOpLatencyMs)
 	return dataStoreShim
-}
-
-func (wf insertOrUpdateFunc) InsertOrUpdate(tableName, rowKey string, propertyName string, value interface{}) error {
-	return wf(tableName, rowKey, propertyName, value)
-}
-
-func (wf insertInPartitionFunc) InsertInPartition(tableName, partitionKey, rowKey string, propertyName string, value interface{}) (int, error) {
-	return wf(tableName, partitionKey, rowKey, propertyName, value)
-}
-
-func (wf deleteFunc) Delete(tableName, rowKey string) error {
-	return wf(tableName, rowKey)
-}
-
-func (wf deleteInPartitionFunc) DeleteInPartition(tableName, partitionKey, rowKey string) error {
-	return wf(tableName, partitionKey, rowKey)
-}
-
-func (wf queryFunc) Query(tableName, rowKey string) (interface{}, int, error) {
-	return wf(tableName, rowKey)
-}
-
-func (wf queryInPartitionFunc) QueryInPartition(tableName, partitionKey, rowKey string) (interface{}, int, error) {
-	return wf(tableName, partitionKey, rowKey)
-}
-
-func (wf queryAllFunc) QueryAll(tableName string, context interface{}) (map[string]interface{}, bool, interface{}, int, error) {
-	return wf(tableName, context)
-}
-
-func (wf queryAllInPartitionFunc) QueryAllInPartition(tableName, partitionKey string, context interface{}) (
-	map[string]interface{}, bool, interface{}, int, error) {
-	return wf(tableName, partitionKey, context)
-}
-
-func (wf keyExistFunc) KeyExist(tableName, rowKey string) (bool, error) {
-	return wf(tableName, rowKey)
 }
 
 // IsFeatureSupported - Function to validate if the given feature is supported
@@ -108,10 +72,12 @@ func (dataStoreShim *DataStoreShim) IsFeatureSupported(featureID int) bool {
 }
 
 // Init - Function to initialize data store.
-func (dataStoreShim *DataStoreShim) Init(tableToColumnMap map[string]string) {
+func (dataStoreShim *DataStoreShim) Init(
+	tableToColumnMap map[string]string,
+	thresholdForLoggingDataStoreOpLatencyMs int) {
 	if dataStoreShim.dataStoreSettings.AzureStorageInfo != (configuration.AzureStorageInfo{}) {
 		azStorage := azurestorage.AzureStorage{AzureStorageInfo: dataStoreShim.dataStoreSettings.AzureStorageInfo}
-		azStorage.Init(tableToColumnMap)
+		azStorage.Init(tableToColumnMap, thresholdForLoggingDataStoreOpLatencyMs)
 		dataStoreShim.Query = queryFunc(azStorage.Query)
 		dataStoreShim.QueryInPartition = queryInPartitionFunc(azStorage.QueryInPartition)
 		dataStoreShim.Delete = deleteFunc(azStorage.Delete)

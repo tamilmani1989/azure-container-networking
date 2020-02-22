@@ -6,10 +6,11 @@ const (
 
 const (
 	// Metrics
-	NCProcessTimeMetric      = "NCProcessTimeMs"
-	NCCreationReqCountMetric = "NCCreationRequestCount"
+	NCProcessTimeMetric          = "NCProcessTimeMs"
+	NCCreationReqCountMetric     = "NCCreationRequestCount"
+	DataStoreOperationTimeMetric = "DataStoreOperationTimeMs"
 
-	// Dimensions
+	// NC dimensions
 	NetworkContainerIDStr = "NetworkContainerID"
 	NetworkIDStr          = "VnetID"
 	ContainerTypeStr      = "ContainerType"
@@ -19,6 +20,10 @@ const (
 	DNCVersionStr         = "DNCVersion"
 	StatusStr             = "Status"
 	NCStateStr            = "NCState"
+
+	// DataStore operation dimensions
+	OperationStr = "DataStoreOperation"
+	TableNameStr = "TableName"
 
 	// Status
 	Failed    = "Failed"

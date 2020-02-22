@@ -70,7 +70,8 @@
         "ConcurrentRequestsToProcess": 1000,
         "EnforceNICLimit" : true,
         "NICsAllowedPerVirtualCore" : 3,
-        "ReverseProxyEnabled" : false
+        "ReverseProxyEnabled" : false,
+        "ThresholdForLoggingDataStoreOpLatencyMs" : 1000
     },
     "HttpClientSettings":{
         "ConnectionTimeout":5,

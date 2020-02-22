@@ -40,6 +40,7 @@
     <Parameter Name="DisableAiLogging" DefaultValue="false"/>
     <Parameter Name="GetEnvRetryCount" DefaultValue="5"/>
     <Parameter Name="GetEnvRetryWaitTimeInSecs" DefaultValue="3"/>
+    <Parameter Name="ThresholdForLoggingDataStoreOpLatencyMs" DefaultValue="1000"/>
   </Parameters>
   <ServiceManifestImport>
     <ServiceManifestRef ServiceManifestName="DNCServicePkg" ServiceManifestVersion="2020.1.31.1" />
@@ -87,6 +88,7 @@
       <EnvironmentVariable Name="DisableAiLogging" Value="[DisableAiLogging]"/>
       <EnvironmentVariable Name="GetEnvRetryCount" Value="[GetEnvRetryCount]"/>
       <EnvironmentVariable Name="GetEnvRetryWaitTimeInSecs" Value="[GetEnvRetryWaitTimeInSecs]"/>
+      <EnvironmentVariable Name="ThresholdForLoggingDataStoreOpLatencyMs" Value="[ThresholdForLoggingDataStoreOpLatencyMs]"/>
     </EnvironmentOverrides>
     <Policies>
       <RunAsPolicy CodePackageRef="Code" UserRef="DncSystem" EntryPointType="All"/>

@@ -53,6 +53,7 @@
       <EnvironmentVariable Name="DisableAiLogging" Value=""/>
       <EnvironmentVariable Name="GetEnvRetryCount" Value=""/>
       <EnvironmentVariable Name="GetEnvRetryWaitTimeInSecs" Value=""/>
+      <EnvironmentVariable Name="ThresholdForLoggingDataStoreOpLatencyMs" Value=""/>
     </EnvironmentVariables>
   </CodePackage>
   <ConfigPackage Name="Config" Version="2020.1.31.1" />

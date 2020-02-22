@@ -1,6 +1,8 @@
 package azurestorage
 
 import (
+	"crypto/sha256"
+	"dnc/aiwrapper"
 	"dnc/configuration"
 	"dnc/logger/loggershim"
 	"dnc/utils"
@@ -8,10 +10,14 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"crypto/sha256"
+	"time"
 
+	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-sdk-for-go/storage"
 )
+
+// Max time latency allowed for data store operations before recording the operation latency in the log.
+var thresholdForLoggingDataStoreOpLatencyMs int
 
 // AzureStorage = Storage object to manage tables in a partition
 type AzureStorage struct {
@@ -22,7 +28,9 @@ type AzureStorage struct {
 }
 
 // Init - Initialize azure storage.
-func (azureStorage *AzureStorage) Init(tableToColumnMap map[string]string) {
+func (azureStorage *AzureStorage) Init(
+	tableToColumnMap map[string]string,
+	thresholdForLoggingDataStoreOpLatencyMsArg int) {
 	storageClient, err := storage.NewBasicClient(
 		azureStorage.AzureStorageInfo.AccountName,
 		azureStorage.AzureStorageInfo.Key)
@@ -30,6 +38,7 @@ func (azureStorage *AzureStorage) Init(tableToColumnMap map[string]string) {
 	utils.OnErrorFail(err, "Create client failed")
 	azureStorage.tableClient = storageClient.GetTableService()
 	azureStorage.initTableNameToTableClientMap(tableToColumnMap)
+	thresholdForLoggingDataStoreOpLatencyMs = thresholdForLoggingDataStoreOpLatencyMsArg
 	if len(strings.TrimSpace(azureStorage.AzureStorageInfo.RegionalStorageConnectionString)) > 0 {
 		azureStorage.initRegionalStorage()
 	}
@@ -60,8 +69,42 @@ func (azureStorage *AzureStorage) initTableNameToTableClientMap(tableToColumnMap
 	}
 }
 
+// TODO: Move this processing time recording functionality in datastoreshim so that it runs irrespective
+// of the underlying storage. The current code is not set up to do that because the datastoreshim just sets
+// the function pointers to the selected underlying storage. datastoreshim implementation needs to be changed
+// to call recordProcessingTime first and then call the underlying storage function.
+func recordProcessingTime(
+	start time.Time,
+	operation, tableName string) {
+	timeElapsedMs := time.Since(start).Milliseconds()
+	if timeElapsedMs > int64(thresholdForLoggingDataStoreOpLatencyMs) {
+		loggershim.LS.Debugf("[AzureStorage] Operation: %s, Table: %s, TimeMs: %v",
+			operation, tableName, timeElapsedMs)
+	}
+
+	sendDataStoreMetric(aiwrapper.DataStoreOperationTimeMetric, float64(timeElapsedMs),
+		operation, tableName)
+}
+
+func sendDataStoreMetric(
+	metricName string,
+	metricValue float64,
+	operation, tableName string) {
+	metric := aitelemetry.Metric{
+		Name:             metricName,
+		Value:            metricValue,
+		CustomDimensions: make(map[string]string),
+	}
+
+	metric.CustomDimensions[aiwrapper.OperationStr] = operation
+	metric.CustomDimensions[aiwrapper.TableNameStr] = tableName
+	go aiwrapper.SendMetric(metric)
+}
+
 // Delete - Deletes a row in a given table.
 func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
+	defer recordProcessingTime(time.Now(), "Delete", tableName)
+
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
@@ -82,6 +125,8 @@ func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
 
 // DeleteInPartition - Deletes a row in the partition of the given table.
 func (azureStorage *AzureStorage) DeleteInPartition(tableName, partitionKey, rowKey string) error {
+	defer recordProcessingTime(time.Now(), "DeleteInPartition", tableName)
+
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
@@ -93,39 +138,52 @@ func (azureStorage *AzureStorage) DeleteInPartition(tableName, partitionKey, row
 
 // InsertOrUpdate - InsertOrUpdate a row in a given table.
 func (azureStorage *AzureStorage) InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error {
+	defer recordProcessingTime(time.Now(), "InsertOrUpdate", tableName)
+
 	return azureStorage.insertOrUpdateRow(tableName, rowKey, propertyName, value)
 }
 
 // InsertInPartition - Insert a row in the specific partition of the given table.
 func (azureStorage *AzureStorage) InsertInPartition(tableName, partitionKay, rowKey, propertyName string, value interface{}) (
 	int, error) {
+	defer recordProcessingTime(time.Now(), "InsertInPartition", tableName)
+
 	return azureStorage.insertRowInPartition(tableName, partitionKay, rowKey, propertyName, value)
 }
 
 // Query - Query a row in a given table.
 func (azureStorage *AzureStorage) Query(tableName, rowKey string) (interface{}, int, error) {
+	defer recordProcessingTime(time.Now(), "Query", tableName)
+
 	return azureStorage.getRow(tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
 }
 
 // QueryInPartition - Query a row in the given partition of the table.
 func (azureStorage *AzureStorage) QueryInPartition(tableName, partitionKey, rowKey string) (interface{}, int, error) {
+	defer recordProcessingTime(time.Now(), "QueryInPartition", tableName)
+
 	return azureStorage.getRow(tableName, partitionKey, rowKey)
 }
 
 // QueryAllRows - Query a row in a given table.
 func (azureStorage *AzureStorage) QueryAllRows(tableName string, context interface{}) (
 	map[string]interface{}, bool, interface{}, int, error) {
+	defer recordProcessingTime(time.Now(), "QueryAllRows", tableName)
+
 	return azureStorage.getRows(tableName, azureStorage.AzureStorageInfo.PartitionKey, context)
 }
 
 // QueryAllRowsInPartition - Query all rows in the specific partition of the given table.
 func (azureStorage *AzureStorage) QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) (
 	map[string]interface{}, bool, interface{}, int, error) {
+	defer recordProcessingTime(time.Now(), "QueryAllRowsInPartition", tableName)
+
 	return azureStorage.getRows(tableName, partitionKey, context)
 }
 
 // KeyExist - check if key exist in a given table.
 func (azureStorage *AzureStorage) KeyExist(tableName, rowKey string) (bool, error) {
+	defer recordProcessingTime(time.Now(), "KeyExist", tableName)
 	property, status, err := azureStorage.getRow(tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
 	if property == nil {
 		if status == http.StatusNotFound {
@@ -177,63 +235,6 @@ func (azureStorage *AzureStorage) insertRowInPartition(tableName, partitionKay, 
 	return http.StatusOK, nil
 }
 
-// func InsertOrUpdate1(
-// 	updateEntities UpdateEntities) error {
-
-// 	var partitionTableMap = make(map[string]TablePartitionBatchMapTuple)
-
-// 	for _, updateEntity := range updateEntities {
-// 		var tableBatch *storage.TableBatch
-// 		var table *storage.Table
-// 		var entity *storage.Entity
-// 		var tablePartitionBatchMapTuple TablePartitionBatchMapTuple
-// 		var tableExists bool
-// 		var partitionExists bool
-// 		if tablePartitionBatchMapTuple, tableExists = partitionTableMap[updateEntity.TableName]; !tableExists {
-// 			table = tableClient.GetTableReference(updateEntity.TableName)
-// 			table.Create(30, storage.EmptyPayload, nil)
-// 			tablePartitionBatchMapTuple = TablePartitionBatchMapTuple{table, make(map[string]*storage.TableBatch)}
-// 			partitionTableMap[updateEntity.TableName] = tablePartitionBatchMapTuple
-// 		} else {
-// 			table = tablePartitionBatchMapTuple.Table
-// 		}
-
-// 		if tableBatch, partitionExists = tablePartitionBatchMapTuple.PartitionBatchMap[updateEntity.PartitionKey]; !partitionExists {
-// 			tableBatch = table.NewBatch()
-// 			tablePartitionBatchMapTuple.PartitionBatchMap[updateEntity.PartitionKey] = tableBatch
-// 		}
-
-// 		entity = table.GetEntityReference(updateEntity.PartitionKey, updateEntity.RowKey)
-// 		if updateEntity.Type == InsertOrReplaceEntity {
-// 			entity.Properties = updateEntity.Properties
-// 			tableBatch.InsertOrReplaceEntity(entity, true)
-// 		} else {
-// 			tableBatch.DeleteEntity(entity, true)
-// 		}
-// 	}
-
-// 	for tableName, tablePartitionBatchMapTuple := range partitionTableMap {
-// 		for partitionName, tableBatch := range tablePartitionBatchMapTuple.PartitionBatchMap {
-// 			fmt.Println(tableBatch.BatchEntitySlice[0].PartitionKey, tableBatch.BatchEntitySlice[0].RowKey, tableBatch.BatchEntitySlice[0].Properties, tableBatch.BatchEntitySlice[0].Table.Name)
-// 			err := tableBatch.ExecuteBatch()
-// 			if err != nil {
-// 				fmt.Println("Insert Error", err)
-// 				return fmt.Errorf("InsertOrUpdate failed TableName:%s Partition Name %s Error%v", tableName, partitionName, err)
-// 			}
-// 		}
-// 	}
-
-// 	for _, updateEntity := range updateEntities {
-// 		tablePartitionBatchMapTuple, _ := partitionTableMap[updateEntity.TableName]
-// 		if updateEntity.Type == InsertOrReplaceEntity {
-// 			entity := tablePartitionBatchMapTuple.Table.GetEntityReference(updateEntity.PartitionKey, updateEntity.RowKey)
-// 			entity.Get(30, storage.FullMetadata, nil)
-// 			fmt.Println("Retrieved Entity:", entity)
-// 		}
-// 	}
-// 	return nil
-// }
-
 func (azureStorage *AzureStorage) getRow(tableName string, partitionKey string, rowKey string) (interface{}, int, error) {
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
@@ -261,9 +262,11 @@ func (azureStorage *AzureStorage) getRow(tableName string, partitionKey string, 
 
 func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string, context interface{}) (
 	map[string]interface{}, bool, interface{}, int, error) {
-	var entitiesResult *storage.EntityQueryResult
+	var (
+		entitiesResult *storage.EntityQueryResult
+		err            error
+	)
 
-	var err error
 	if context == nil {
 		tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 		if !ok {
@@ -306,14 +309,6 @@ func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string,
 	}
 	return result, hasMoreRows, returnContext, http.StatusOK, nil
 }
-
-// type EntityWithContext struct {
-// 	RowKey     string
-// 	Properties map[string]interface{}
-// 	Context    interface{}
-// }
-
-// type EntitiesWithContext []EntityWithContext
 
 // getEnvVarOrExit returns the value of specified environment variable or terminates if it's not defined.
 func getEnvVarOrExit(varName string) string {

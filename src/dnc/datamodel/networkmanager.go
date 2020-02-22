@@ -48,7 +48,7 @@ func Init(
 	httpClientArg *http.Client,
 	wireServerIP string) error {
 	requestBaseInterval = dncSettings.RequestRetryBaseInterval
-	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, TableToColumnMap)
+	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, dncSettings, TableToColumnMap)
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
 		RestoreState()
 	}
