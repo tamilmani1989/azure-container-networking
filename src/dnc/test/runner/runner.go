@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -43,7 +44,7 @@ const (
 
 	datapathReportFile = "./datapathReport.json"
 
-	privateLinkEP = "https://myserver.privatelink.blob.core.windows.net./swift/testblob.txt"
+	privateLinkDomain = ".privatelink.blob.core.windows.net"
 )
 
 // Runner - Listens to Jarvis runner (client) to run tests and retrieve results
@@ -63,6 +64,8 @@ type SwiftDatapath struct {
 	NSG                    bool
 	UDR                    bool
 	PrivateLink            bool
+	ExternalDNS            bool
+	PrivateDNS             bool
 	LastError              string
 }
 
@@ -98,12 +101,17 @@ var (
 		Vnet2VnetGW:            true,
 		Vnet2VnetPeering:       true,
 		NonRFCVnet2VnetPeering: true,
-		NSG:         true,
-		UDR:         true,
-		PrivateLink: true}
+		NSG:                    true,
+		UDR:                    true,
+		PrivateLink:            true,
+		ExternalDNS:            true,
+		PrivateDNS:             true}
 	// blob endpoint
 	blobEP   string
 	plblobEP string
+	// regex for private DNS
+	regPrivateDNS = regexp.MustCompile(`https://(.*).blob.core.windows.net/swiftpl/testblob.txt`)
+	privateDNS    []string
 )
 
 func init() {
@@ -173,6 +181,11 @@ func init() {
 	plblobEP, found = os.LookupEnv("PRIVATELINK_EP")
 	if !found {
 		os.Exit(10)
+	}
+
+	privateDNS = regPrivateDNS.FindStringSubmatch(plblobEP)
+	if len(privateDNS) < 2 {
+		os.Exit(11)
 	}
 
 	runner.responseFunc = responder
@@ -268,10 +281,13 @@ func e2eTests() {
 			Vnet2VnetGW:            true,
 			Vnet2VnetPeering:       true,
 			NonRFCVnet2VnetPeering: true,
-			NSG:         true,
-			UDR:         true,
-			PrivateLink: true}
+			NSG:                    true,
+			UDR:                    true,
+			PrivateLink:            true,
+			ExternalDNS:            true,
+			PrivateDNS:             true}
 		srcPod, pod2, podIP1, podIP2 string
+		output                       []byte
 	)
 
 	if err = swiftSetup(); err != nil {
@@ -349,6 +365,18 @@ func e2eTests() {
 	if err == nil {
 		report.NSG = false
 		lastErr = fmt.Errorf("NSG failed: %+v", err)
+	}
+	// test external DNS resolution
+	output, err = exec.Command("kubectl", "exec", srcPod, "--", "dig", "+short", "google.com").CombinedOutput()
+	if err != nil || net.ParseIP(string(output[1:len(output)-1])) == nil {
+		report.ExternalDNS = false
+		lastErr = fmt.Errorf("ExternalDNS failed: unable to resolve google.com")
+	}
+	// test private link DNS resolution
+	output, err = exec.Command("kubectl", "exec", srcPod, "--", "dig", "+short", privateDNS[1]+privateLinkDomain).CombinedOutput()
+	if err != nil || net.ParseIP(string(output[1:len(output)-1])) == nil {
+		report.PrivateDNS = false
+		lastErr = fmt.Errorf("PrivateDNS failed: unable resolve %+v with err %+v", privateDNS[1]+privateLinkDomain, err)
 	}
 
 	// clean up all the NC states for next test (we only clean up when datapath is healthy)

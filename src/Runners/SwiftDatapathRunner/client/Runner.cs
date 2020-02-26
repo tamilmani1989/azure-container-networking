@@ -42,6 +42,8 @@ namespace SwiftRunner
         private MeasureMetric4D NsgMetric;
         private MeasureMetric4D UdrMetric;
         private MeasureMetric4D PrivateLinkMetric;
+        private MeasureMetric4D ExternalDNSMetric;
+        private MeasureMetric4D PrivateDNSMetric;
 
         public Runner(string[] args)
             : base(args)
@@ -123,6 +125,24 @@ namespace SwiftRunner
                             this.GetConfigurationValue(MDMAccountName),
                             this.GetConfigurationValue(Namespace),
                             "PrivateLink",
+                            "Environment",
+                            "RunnerInstance",
+                            "DncEndPoint",
+                            "PartitionKey",
+                            ref mdmErr);
+            ExternalDNSMetric = MeasureMetric4D.Create(
+                            this.GetConfigurationValue(MDMAccountName),
+                            this.GetConfigurationValue(Namespace),
+                            "ExternalDNS",
+                            "Environment",
+                            "RunnerInstance",
+                            "DncEndPoint",
+                            "PartitionKey",
+                            ref mdmErr);
+            PrivateDNSMetric = MeasureMetric4D.Create(
+                            this.GetConfigurationValue(MDMAccountName),
+                            this.GetConfigurationValue(Namespace),
+                            "PrivateDNS",
                             "Environment",
                             "RunnerInstance",
                             "DncEndPoint",
@@ -254,6 +274,26 @@ namespace SwiftRunner
                         {
                             Console.Error.WriteLine("Failed to emit PrivateLink metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
+
+                        if (!ExternalDNSMetric.LogValue(datapath.ExternalDNS ? 1 : 2,
+                                this.Environment,
+                                this.RunnerInstance,
+                                k8sEP,
+                                partitionKey,
+                                ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emit ExternalDNS metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
+
+                        if (!PrivateDNSMetric.LogValue(datapath.PrivateDNS ? 1 : 2,
+                                this.Environment,
+                                this.RunnerInstance,
+                                k8sEP,
+                                partitionKey,
+                                ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emit PrivateDNS metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
                     }
                     else
                     {
@@ -359,7 +399,9 @@ namespace SwiftRunner
                 NonRFCVnet2VnetPeeringMetric != null &&
                 NsgMetric != null &&
                 UdrMetric != null &&
-                PrivateLinkMetric != null;
+                PrivateLinkMetric != null &&
+                ExternalDNSMetric != null &&
+                PrivateDNSMetric != null;
         }
     }
 }
