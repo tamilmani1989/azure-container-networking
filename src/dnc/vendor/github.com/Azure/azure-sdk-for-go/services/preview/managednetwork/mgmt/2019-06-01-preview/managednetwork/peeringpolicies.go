@@ -38,7 +38,8 @@ func NewPeeringPoliciesClient(subscriptionID string) PeeringPoliciesClient {
 	return NewPeeringPoliciesClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewPeeringPoliciesClientWithBaseURI creates an instance of the PeeringPoliciesClient client.
+// NewPeeringPoliciesClientWithBaseURI creates an instance of the PeeringPoliciesClient client using a custom endpoint.
+// Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewPeeringPoliciesClientWithBaseURI(baseURI string, subscriptionID string) PeeringPoliciesClient {
 	return PeeringPoliciesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -308,7 +309,7 @@ func (client PeeringPoliciesClient) ListByManagedNetwork(ctx context.Context, re
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMaximum, Rule: int64(20), Chain: nil},
-					{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("managednetwork.PeeringPoliciesClient", "ListByManagedNetwork", err.Error())
 	}

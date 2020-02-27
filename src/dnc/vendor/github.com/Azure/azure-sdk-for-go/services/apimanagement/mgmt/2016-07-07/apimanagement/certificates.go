@@ -36,7 +36,8 @@ func NewCertificatesClient(subscriptionID string) CertificatesClient {
 	return NewCertificatesClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewCertificatesClientWithBaseURI creates an instance of the CertificatesClient client.
+// NewCertificatesClientWithBaseURI creates an instance of the CertificatesClient client using a custom endpoint.  Use
+// this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewCertificatesClientWithBaseURI(baseURI string, subscriptionID string) CertificatesClient {
 	return CertificatesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -350,10 +351,10 @@ func (client CertificatesClient) ListByService(ctx context.Context, resourceGrou
 				{Target: "serviceName", Name: validation.Pattern, Rule: `^[a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$`, Chain: nil}}},
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
-				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil}}}}},
+				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil}}}}},
 		{TargetValue: skip,
 			Constraints: []validation.Constraint{{Target: "skip", Name: validation.Null, Rule: false,
-				Chain: []validation.Constraint{{Target: "skip", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil}}}}}}); err != nil {
+				Chain: []validation.Constraint{{Target: "skip", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil}}}}}}); err != nil {
 		return result, validation.NewError("apimanagement.CertificatesClient", "ListByService", err.Error())
 	}
 

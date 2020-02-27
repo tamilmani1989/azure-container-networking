@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -123,6 +123,7 @@ type BillingMeters = original.BillingMeters
 type BillingResources = original.BillingResources
 type BillingResponseListResult = original.BillingResponseListResult
 type CapabilitiesResult = original.CapabilitiesResult
+type ClientGroupInfo = original.ClientGroupInfo
 type Cluster = original.Cluster
 type ClusterConfigurations = original.ClusterConfigurations
 type ClusterCreateParametersExtended = original.ClusterCreateParametersExtended
@@ -166,6 +167,7 @@ type ExtensionsDisableMonitoringFuture = original.ExtensionsDisableMonitoringFut
 type ExtensionsEnableMonitoringFuture = original.ExtensionsEnableMonitoringFuture
 type GatewaySettings = original.GatewaySettings
 type HardwareProfile = original.HardwareProfile
+type KafkaRestProperties = original.KafkaRestProperties
 type LinuxOperatingSystemProfile = original.LinuxOperatingSystemProfile
 type LocalizedName = original.LocalizedName
 type LocationsClient = original.LocationsClient

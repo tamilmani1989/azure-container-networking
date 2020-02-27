@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,8 +28,10 @@ type InstancePoolsClientAPI = original.InstancePoolsClientAPI
 type ManagedDatabaseRestoreDetailsClientAPI = original.ManagedDatabaseRestoreDetailsClientAPI
 type ManagedDatabaseSensitivityLabelsClientAPI = original.ManagedDatabaseSensitivityLabelsClientAPI
 type ManagedDatabasesClientAPI = original.ManagedDatabasesClientAPI
+type ManagedInstanceOperationsClientAPI = original.ManagedInstanceOperationsClientAPI
 type ManagedInstanceVulnerabilityAssessmentsClientAPI = original.ManagedInstanceVulnerabilityAssessmentsClientAPI
 type ManagedInstancesClientAPI = original.ManagedInstancesClientAPI
 type PrivateEndpointConnectionsClientAPI = original.PrivateEndpointConnectionsClientAPI
+type ServerAzureADAdministratorsClientAPI = original.ServerAzureADAdministratorsClientAPI
 type ServerVulnerabilityAssessmentsClientAPI = original.ServerVulnerabilityAssessmentsClientAPI
 type UsagesClientAPI = original.UsagesClientAPI

@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,16 +54,6 @@ const (
 	Failed    ProvisioningState = original.Failed
 	Succeeded ProvisioningState = original.Succeeded
 	Updating  ProvisioningState = original.Updating
-)
-
-type ProvisioningState1 = original.ProvisioningState1
-
-const (
-	ProvisioningState1Creating  ProvisioningState1 = original.ProvisioningState1Creating
-	ProvisioningState1Deleting  ProvisioningState1 = original.ProvisioningState1Deleting
-	ProvisioningState1Failed    ProvisioningState1 = original.ProvisioningState1Failed
-	ProvisioningState1Succeeded ProvisioningState1 = original.ProvisioningState1Succeeded
-	ProvisioningState1Updating  ProvisioningState1 = original.ProvisioningState1Updating
 )
 
 type ResourceIdentityType = original.ResourceIdentityType
@@ -148,6 +138,7 @@ type ImageTemplateSharedImageVersionSource = original.ImageTemplateSharedImageVe
 type ImageTemplateShellCustomizer = original.ImageTemplateShellCustomizer
 type ImageTemplateSource = original.ImageTemplateSource
 type ImageTemplateUpdateParameters = original.ImageTemplateUpdateParameters
+type ImageTemplateVMProfile = original.ImageTemplateVMProfile
 type ImageTemplateVhdDistributor = original.ImageTemplateVhdDistributor
 type InnerError = original.InnerError
 type Operation = original.Operation
@@ -208,9 +199,6 @@ func NewWithBaseURI(baseURI string, subscriptionID string) BaseClient {
 }
 func PossibleProvisioningErrorCodeValues() []ProvisioningErrorCode {
 	return original.PossibleProvisioningErrorCodeValues()
-}
-func PossibleProvisioningState1Values() []ProvisioningState1 {
-	return original.PossibleProvisioningState1Values()
 }
 func PossibleProvisioningStateValues() []ProvisioningState {
 	return original.PossibleProvisioningStateValues()

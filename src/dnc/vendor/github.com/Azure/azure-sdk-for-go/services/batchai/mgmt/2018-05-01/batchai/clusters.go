@@ -36,7 +36,8 @@ func NewClustersClient(subscriptionID string) ClustersClient {
 	return NewClustersClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewClustersClientWithBaseURI creates an instance of the ClustersClient client.
+// NewClustersClientWithBaseURI creates an instance of the ClustersClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewClustersClientWithBaseURI(baseURI string, subscriptionID string) ClustersClient {
 	return ClustersClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -398,7 +399,7 @@ func (client ClustersClient) ListByWorkspace(ctx context.Context, resourceGroupN
 		{TargetValue: maxResults,
 			Constraints: []validation.Constraint{{Target: "maxResults", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "maxResults", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "maxResults", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "maxResults", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("batchai.ClustersClient", "ListByWorkspace", err.Error())
 	}

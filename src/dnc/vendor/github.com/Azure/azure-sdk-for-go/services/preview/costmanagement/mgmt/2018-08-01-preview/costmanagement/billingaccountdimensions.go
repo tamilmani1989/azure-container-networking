@@ -36,7 +36,9 @@ func NewBillingAccountDimensionsClient(subscriptionID string) BillingAccountDime
 	return NewBillingAccountDimensionsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewBillingAccountDimensionsClientWithBaseURI creates an instance of the BillingAccountDimensionsClient client.
+// NewBillingAccountDimensionsClientWithBaseURI creates an instance of the BillingAccountDimensionsClient client using
+// a custom endpoint.  Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign
+// clouds, Azure stack).
 func NewBillingAccountDimensionsClientWithBaseURI(baseURI string, subscriptionID string) BillingAccountDimensionsClient {
 	return BillingAccountDimensionsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -67,7 +69,7 @@ func (client BillingAccountDimensionsClient) List(ctx context.Context, billingAc
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("costmanagement.BillingAccountDimensionsClient", "List", err.Error())
 	}

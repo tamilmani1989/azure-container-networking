@@ -16,17 +16,17 @@ var (
 
 func CreateTelemetryHandle(aiConfig aitelemetry.AIConfig) error {
 	if aiMetadata == "" {
-		return nil;
+		return nil
 	}
 
 	var err error
 	th, err = aitelemetry.NewAITelemetry("", aiMetadata, aiConfig)
 
-	if(err != nil){
-		return err;
+	if err != nil {
+		return err
 	}
 
-	return nil;
+	return nil
 }
 
 func CloseTelemetryHandle() {
@@ -52,4 +52,29 @@ func Trace(report aitelemetry.Report) {
 	report.CustomDimensions["Context"] = "AzureDNC"
 	report.Context = OrchestratorType
 	th.TrackLog(report)
+}
+
+func Event(event aitelemetry.Event) {
+	if th == nil {
+		return
+	}
+
+	event.Properties[OrchestratorStr] = OrchestratorType
+	event.Properties["Context"] = "AzureDNC"
+	th.TrackEvent(event)
+}
+
+// Logs NC snapshots to AI telemetry.
+func LogNCSnapsnot(networkContainerId string, networkId string, subnetName string, nodeId string) {
+	// Log NC Snapshot
+	aiEvent := aitelemetry.Event{
+		EventName:  DNCNCSnapshotStr,
+		Properties: make(map[string]string),
+		ResourceID: networkContainerId,
+	}
+
+	aiEvent.Properties[NetworkIDStr] = networkId
+	aiEvent.Properties[SubNetStr] = subnetName
+	aiEvent.Properties[NodeIDStr] = nodeId
+	Event(aiEvent)
 }

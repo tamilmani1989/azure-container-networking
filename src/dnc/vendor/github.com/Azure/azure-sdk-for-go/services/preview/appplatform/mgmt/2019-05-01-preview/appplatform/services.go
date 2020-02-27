@@ -36,7 +36,8 @@ func NewServicesClient(subscriptionID string) ServicesClient {
 	return NewServicesClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewServicesClientWithBaseURI creates an instance of the ServicesClient client.
+// NewServicesClientWithBaseURI creates an instance of the ServicesClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewServicesClientWithBaseURI(baseURI string, subscriptionID string) ServicesClient {
 	return ServicesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -132,7 +133,7 @@ func (client ServicesClient) CheckNameAvailabilityResponder(resp *http.Response)
 // from the Azure Resource Manager API or the portal.
 // serviceName - the name of the Service resource.
 // resource - parameters for the create or update operation
-func (client ServicesClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, serviceName string, resource *ServiceResource) (result ServicesCreateOrUpdateFuture, err error) {
+func (client ServicesClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, serviceName string, resource ServiceResource) (result ServicesCreateOrUpdateFuture, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ServicesClient.CreateOrUpdate")
 		defer func() {
@@ -145,13 +146,11 @@ func (client ServicesClient) CreateOrUpdate(ctx context.Context, resourceGroupNa
 	}
 	if err := validation.Validate([]validation.Validation{
 		{TargetValue: resource,
-			Constraints: []validation.Constraint{{Target: "resource", Name: validation.Null, Rule: false,
-				Chain: []validation.Constraint{{Target: "resource.Properties", Name: validation.Null, Rule: false,
-					Chain: []validation.Constraint{{Target: "resource.Properties.ConfigServerProperties", Name: validation.Null, Rule: false,
-						Chain: []validation.Constraint{{Target: "resource.Properties.ConfigServerProperties.ConfigServer", Name: validation.Null, Rule: false,
-							Chain: []validation.Constraint{{Target: "resource.Properties.ConfigServerProperties.ConfigServer.GitProperty", Name: validation.Null, Rule: false,
-								Chain: []validation.Constraint{{Target: "resource.Properties.ConfigServerProperties.ConfigServer.GitProperty.URI", Name: validation.Null, Rule: true, Chain: nil}}},
-							}},
+			Constraints: []validation.Constraint{{Target: "resource.Properties", Name: validation.Null, Rule: false,
+				Chain: []validation.Constraint{{Target: "resource.Properties.ConfigServerProperties", Name: validation.Null, Rule: false,
+					Chain: []validation.Constraint{{Target: "resource.Properties.ConfigServerProperties.ConfigServer", Name: validation.Null, Rule: false,
+						Chain: []validation.Constraint{{Target: "resource.Properties.ConfigServerProperties.ConfigServer.GitProperty", Name: validation.Null, Rule: false,
+							Chain: []validation.Constraint{{Target: "resource.Properties.ConfigServerProperties.ConfigServer.GitProperty.URI", Name: validation.Null, Rule: true, Chain: nil}}},
 						}},
 					}},
 				}}}}}); err != nil {
@@ -174,7 +173,7 @@ func (client ServicesClient) CreateOrUpdate(ctx context.Context, resourceGroupNa
 }
 
 // CreateOrUpdatePreparer prepares the CreateOrUpdate request.
-func (client ServicesClient) CreateOrUpdatePreparer(ctx context.Context, resourceGroupName string, serviceName string, resource *ServiceResource) (*http.Request, error) {
+func (client ServicesClient) CreateOrUpdatePreparer(ctx context.Context, resourceGroupName string, serviceName string, resource ServiceResource) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"resourceGroupName": autorest.Encode("path", resourceGroupName),
 		"serviceName":       autorest.Encode("path", serviceName),
@@ -191,11 +190,8 @@ func (client ServicesClient) CreateOrUpdatePreparer(ctx context.Context, resourc
 		autorest.AsPut(),
 		autorest.WithBaseURL(client.BaseURI),
 		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppPlatform/Spring/{serviceName}", pathParameters),
+		autorest.WithJSON(resource),
 		autorest.WithQueryParameters(queryParameters))
-	if resource != nil {
-		preparer = autorest.DecoratePreparer(preparer,
-			autorest.WithJSON(resource))
-	}
 	return preparer.Prepare((&http.Request{}).WithContext(ctx))
 }
 
@@ -843,7 +839,7 @@ func (client ServicesClient) ListTestKeysResponder(resp *http.Response) (result 
 // from the Azure Resource Manager API or the portal.
 // serviceName - the name of the Service resource.
 // regenerateTestKeyRequest - parameters for the operation
-func (client ServicesClient) RegenerateTestKey(ctx context.Context, resourceGroupName string, serviceName string, regenerateTestKeyRequest *RegenerateTestKeyRequestPayload) (result TestKeys, err error) {
+func (client ServicesClient) RegenerateTestKey(ctx context.Context, resourceGroupName string, serviceName string, regenerateTestKeyRequest RegenerateTestKeyRequestPayload) (result TestKeys, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ServicesClient.RegenerateTestKey")
 		defer func() {
@@ -876,7 +872,7 @@ func (client ServicesClient) RegenerateTestKey(ctx context.Context, resourceGrou
 }
 
 // RegenerateTestKeyPreparer prepares the RegenerateTestKey request.
-func (client ServicesClient) RegenerateTestKeyPreparer(ctx context.Context, resourceGroupName string, serviceName string, regenerateTestKeyRequest *RegenerateTestKeyRequestPayload) (*http.Request, error) {
+func (client ServicesClient) RegenerateTestKeyPreparer(ctx context.Context, resourceGroupName string, serviceName string, regenerateTestKeyRequest RegenerateTestKeyRequestPayload) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"resourceGroupName": autorest.Encode("path", resourceGroupName),
 		"serviceName":       autorest.Encode("path", serviceName),
@@ -893,11 +889,8 @@ func (client ServicesClient) RegenerateTestKeyPreparer(ctx context.Context, reso
 		autorest.AsPost(),
 		autorest.WithBaseURL(client.BaseURI),
 		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppPlatform/Spring/{serviceName}/regenerateTestKey", pathParameters),
+		autorest.WithJSON(regenerateTestKeyRequest),
 		autorest.WithQueryParameters(queryParameters))
-	if regenerateTestKeyRequest != nil {
-		preparer = autorest.DecoratePreparer(preparer,
-			autorest.WithJSON(regenerateTestKeyRequest))
-	}
 	return preparer.Prepare((&http.Request{}).WithContext(ctx))
 }
 
@@ -927,7 +920,7 @@ func (client ServicesClient) RegenerateTestKeyResponder(resp *http.Response) (re
 // from the Azure Resource Manager API or the portal.
 // serviceName - the name of the Service resource.
 // resource - parameters for the update operation
-func (client ServicesClient) Update(ctx context.Context, resourceGroupName string, serviceName string, resource *ServiceResource) (result ServicesUpdateFuture, err error) {
+func (client ServicesClient) Update(ctx context.Context, resourceGroupName string, serviceName string, resource ServiceResource) (result ServicesUpdateFuture, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ServicesClient.Update")
 		defer func() {
@@ -954,7 +947,7 @@ func (client ServicesClient) Update(ctx context.Context, resourceGroupName strin
 }
 
 // UpdatePreparer prepares the Update request.
-func (client ServicesClient) UpdatePreparer(ctx context.Context, resourceGroupName string, serviceName string, resource *ServiceResource) (*http.Request, error) {
+func (client ServicesClient) UpdatePreparer(ctx context.Context, resourceGroupName string, serviceName string, resource ServiceResource) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"resourceGroupName": autorest.Encode("path", resourceGroupName),
 		"serviceName":       autorest.Encode("path", serviceName),
@@ -971,11 +964,8 @@ func (client ServicesClient) UpdatePreparer(ctx context.Context, resourceGroupNa
 		autorest.AsPatch(),
 		autorest.WithBaseURL(client.BaseURI),
 		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppPlatform/Spring/{serviceName}", pathParameters),
+		autorest.WithJSON(resource),
 		autorest.WithQueryParameters(queryParameters))
-	if resource != nil {
-		preparer = autorest.DecoratePreparer(preparer,
-			autorest.WithJSON(resource))
-	}
 	return preparer.Prepare((&http.Request{}).WithContext(ctx))
 }
 

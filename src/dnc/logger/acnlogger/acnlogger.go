@@ -1,20 +1,20 @@
 package acnlogger
 
 import (
-	"dnc/configuration"
 	"dnc/aiwrapper"
+	"dnc/configuration"
 	"dnc/logger"
 	"fmt"
 
+	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/telemetry"
-	"github.com/Azure/azure-container-networking/aitelemetry"	
 )
 
 // AcnLogger :- struct to hold AcnLogger settings.
 type AcnLogger struct {
-	instance *log.Logger
-	reports  chan telemetry.DNCReport
+	instance          *log.Logger
+	reports           chan telemetry.DNCReport
 	telemetrySettings configuration.TelemetrySettings
 }
 
@@ -34,7 +34,7 @@ func (l *AcnLogger) Init(stderr bool, reports chan telemetry.DNCReport) {
 		logTarget = log.TargetStdOutAndLogFile
 	}
 
-	l.instance = log.NewLogger("azure-dnc", logLevel, logTarget)
+	l.instance = log.NewLogger("azure-dnc", logLevel, logTarget, "")
 	l.reports = reports
 }
 
@@ -45,7 +45,7 @@ func (l *AcnLogger) Debugf(format string, args ...interface{}) {
 		go func() {
 			msg := fmt.Sprintf(format, args...)
 			l.reports <- telemetry.DNCReport{EventMessage: msg}
-			if(!l.telemetrySettings.DisableAiLogging) {
+			if !l.telemetrySettings.DisableAiLogging {
 				logAiMessage("Debug", msg)
 			}
 		}()
@@ -65,7 +65,7 @@ func (l *AcnLogger) Errorf(format string, args ...interface{}) {
 				l.reports <- telemetry.DNCReport{EventMessage: msg}
 			}
 
-			if(!l.telemetrySettings.DisableAiLogging) {
+			if !l.telemetrySettings.DisableAiLogging {
 				logAiMessage("Error", msg)
 			}
 		}()

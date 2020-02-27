@@ -36,7 +36,9 @@ func NewPolicyTrackedResourcesClient() PolicyTrackedResourcesClient {
 	return NewPolicyTrackedResourcesClientWithBaseURI(DefaultBaseURI)
 }
 
-// NewPolicyTrackedResourcesClientWithBaseURI creates an instance of the PolicyTrackedResourcesClient client.
+// NewPolicyTrackedResourcesClientWithBaseURI creates an instance of the PolicyTrackedResourcesClient client using a
+// custom endpoint.  Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds,
+// Azure stack).
 func NewPolicyTrackedResourcesClientWithBaseURI(baseURI string) PolicyTrackedResourcesClient {
 	return PolicyTrackedResourcesClient{NewWithBaseURI(baseURI)}
 }
@@ -60,7 +62,7 @@ func (client PolicyTrackedResourcesClient) ListQueryResultsForManagementGroup(ct
 	if err := validation.Validate([]validation.Validation{
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
-				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil}}}}}}); err != nil {
+				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil}}}}}}); err != nil {
 		return result, validation.NewError("policyinsights.PolicyTrackedResourcesClient", "ListQueryResultsForManagementGroup", err.Error())
 	}
 
@@ -189,7 +191,7 @@ func (client PolicyTrackedResourcesClient) ListQueryResultsForResource(ctx conte
 	if err := validation.Validate([]validation.Validation{
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
-				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil}}}}}}); err != nil {
+				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil}}}}}}); err != nil {
 		return result, validation.NewError("policyinsights.PolicyTrackedResourcesClient", "ListQueryResultsForResource", err.Error())
 	}
 
@@ -318,7 +320,7 @@ func (client PolicyTrackedResourcesClient) ListQueryResultsForResourceGroup(ctx 
 	if err := validation.Validate([]validation.Validation{
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
-				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil}}}}}}); err != nil {
+				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil}}}}}}); err != nil {
 		return result, validation.NewError("policyinsights.PolicyTrackedResourcesClient", "ListQueryResultsForResourceGroup", err.Error())
 	}
 
@@ -447,7 +449,7 @@ func (client PolicyTrackedResourcesClient) ListQueryResultsForSubscription(ctx c
 	if err := validation.Validate([]validation.Validation{
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
-				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil}}}}}}); err != nil {
+				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil}}}}}}); err != nil {
 		return result, validation.NewError("policyinsights.PolicyTrackedResourcesClient", "ListQueryResultsForSubscription", err.Error())
 	}
 

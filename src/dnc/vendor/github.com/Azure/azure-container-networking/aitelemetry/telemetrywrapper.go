@@ -12,20 +12,48 @@ import (
 )
 
 const (
-	resourceGroupStr    = "ResourceGroup"
-	vmSizeStr           = "VMSize"
-	osVersionStr        = "OSVersion"
-	locationStr         = "Region"
-	appNameStr          = "AppName"
-	subscriptionIDStr   = "SubscriptionID"
-	vmNameStr           = "VMName"
-	vmIDStr             = "VMID"
-	versionStr          = "AppVersion"
-	azurePublicCloudStr = "AzurePublicCloud"
-	defaultTimeout      = 10
+	resourceGroupStr                 = "ResourceGroup"
+	vmSizeStr                        = "VMSize"
+	osVersionStr                     = "OSVersion"
+	osStr                            = "OS"
+	locationStr                      = "Region"
+	appNameStr                       = "AppName"
+	subscriptionIDStr                = "SubscriptionID"
+	vmNameStr                        = "VMName"
+	vmIDStr                          = "VMID"
+	versionStr                       = "AppVersion"
+	azurePublicCloudStr              = "AzurePublicCloud"
+	defaultTimeout                   = 10
+	defaultBatchIntervalInSecs       = 15
+	defaultBatchSizeInBytes          = 32768
+	defaultGetEnvRetryCount          = 5
+	defaultGetEnvRetryWaitTimeInSecs = 3
+	defaultRefreshTimeoutInSecs      = 10
 )
 
 var debugMode bool
+
+func setAIConfigDefaults(config *AIConfig) {
+	if config.RefreshTimeout == 0 {
+		config.RefreshTimeout = defaultRefreshTimeoutInSecs
+	}
+
+	if config.BatchInterval == 0 {
+		config.BatchInterval = defaultBatchIntervalInSecs
+	}
+
+	if config.BatchSize == 0 {
+		config.BatchSize = defaultBatchSizeInBytes
+	}
+
+	if config.GetEnvRetryCount == 0 {
+		config.GetEnvRetryCount = defaultGetEnvRetryCount
+	}
+
+	if config.GetEnvRetryWaitTimeInSecs == 0 {
+		config.GetEnvRetryWaitTimeInSecs = defaultGetEnvRetryWaitTimeInSecs
+	}
+}
 
 func messageListener() appinsights.DiagnosticsMessageListener {
 	if debugMode {
@@ -124,6 +152,8 @@ func NewAITelemetry(
 		return nil, fmt.Errorf("AI key is empty")
 	}
 
+	setAIConfigDefaults(&aiConfig)
+
 	// check if azure instance is in public cloud
 	isPublic, err := isPublicEnvironment(azEnvUrl, aiConfig.GetEnvRetryCount, aiConfig.GetEnvRetryWaitTimeInSecs)
 	if !isPublic {
@@ -178,17 +208,61 @@ func (th *telemetryHandle) TrackLog(report Report) {
 	// Check if metadata is populated
 	if metadata.SubscriptionID != "" {
 		// copy metadata from wireserver to trace
-		trace.Tags.User().SetAccountId(th.metadata.SubscriptionID)
-		trace.Tags.User().SetId(th.metadata.VMName)
-		trace.Properties[locationStr] = th.metadata.Location
-		trace.Properties[resourceGroupStr] = th.metadata.ResourceGroupName
-		trace.Properties[vmSizeStr] = th.metadata.VMSize
-		trace.Properties[osVersionStr] = th.metadata.OSVersion
-		trace.Properties[vmIDStr] = th.metadata.VMID
+		trace.Tags.User().SetAccountId(metadata.SubscriptionID)
+		trace.Tags.User().SetId(metadata.VMName)
+		trace.Properties[locationStr] = metadata.Location
+		trace.Properties[resourceGroupStr] = metadata.ResourceGroupName
+		trace.Properties[vmSizeStr] = metadata.VMSize
+		trace.Properties[osVersionStr] = metadata.OSVersion
+		trace.Properties[vmIDStr] = metadata.VMID
+		trace.Tags.Session().SetId(metadata.VMID)
 	}
 
 	// send to appinsights resource
 	th.client.Track(trace)
+}
+
+// TrackEvent function sends events to appinsights resource. It overrides a few of the existing columns
+// with app information.
+func (th *telemetryHandle) TrackEvent(event Event) {
+	// Initialize new event message
+	aiEvent := appinsights.NewEventTelemetry(event.EventName)
+	// OperationId => resourceID (e.g.: NCID)
+	aiEvent.Tags.Operation().SetId(event.ResourceID)
+
+	// Copy the properties, if supplied
+	if event.Properties != nil {
+		for key, value := range event.Properties {
+			aiEvent.Properties[key] = value
+		}
+	}
+
+	// Acquire read lock to read metadata
+	th.rwmutex.RLock()
+	metadata := th.metadata
+	th.rwmutex.RUnlock()
+
+	// Add metadata
+	if metadata.SubscriptionID != "" {
+		aiEvent.Tags.User().SetAccountId(metadata.SubscriptionID)
+		// AnonId => VMName
+		aiEvent.Tags.User().SetId(metadata.VMName)
+		// SessionId => VMID
+		aiEvent.Tags.Session().SetId(metadata.VMID)
+		aiEvent.Properties[locationStr] = metadata.Location
+		aiEvent.Properties[resourceGroupStr] = metadata.ResourceGroupName
+		aiEvent.Properties[vmSizeStr] = metadata.VMSize
+		aiEvent.Properties[osVersionStr] = metadata.OSVersion
+		aiEvent.Properties[vmIDStr] = metadata.VMID
+		aiEvent.Properties[vmNameStr] = metadata.VMName
+	}
+
+	aiEvent.Tags.Operation().SetParentId(th.appVersion)
+	aiEvent.Tags.User().SetAuthUserId(runtime.GOOS)
+	aiEvent.Properties[osStr] = runtime.GOOS
+	aiEvent.Properties[appNameStr] = th.appName
+	aiEvent.Properties[versionStr] = th.appVersion
+	th.client.Track(aiEvent)
 }
 
 // TrackMetric function sends metric to appinsights resource. It overrides few of the existing columns with app information
@@ -204,12 +278,13 @@ func (th *telemetryHandle) TrackMetric(metric Metric) {
 
 	// Check if metadata is populated
 	if metadata.SubscriptionID != "" {
-		aimetric.Properties[locationStr] = th.metadata.Location
-		aimetric.Properties[subscriptionIDStr] = th.metadata.SubscriptionID
-		aimetric.Properties[vmNameStr] = th.metadata.VMName
+		aimetric.Properties[locationStr] = metadata.Location
+		aimetric.Properties[subscriptionIDStr] = metadata.SubscriptionID
+		aimetric.Properties[vmNameStr] = metadata.VMName
 		aimetric.Properties[versionStr] = th.appVersion
 		aimetric.Properties[resourceGroupStr] = th.metadata.ResourceGroupName
-		aimetric.Properties[vmIDStr] = th.metadata.VMID
+		aimetric.Properties[vmIDStr] = metadata.VMID
+		aimetric.Tags.Session().SetId(metadata.VMID)
 	}
 
 	// copy custom dimensions

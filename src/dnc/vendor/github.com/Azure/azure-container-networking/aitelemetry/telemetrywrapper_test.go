@@ -22,10 +22,9 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	log.SetLogDirectory("/var/log/")
 	log.SetName("testaitelemetry")
 	log.SetLevel(log.LevelInfo)
-	err := log.SetTarget(log.TargetLogfile)
+	err := log.SetTargetLogDirectory(log.TargetLogfile, "/var/log/")
 	if err == nil {
 		fmt.Printf("TestST LogDir configuration succeeded\n")
 	}
@@ -128,6 +127,18 @@ func TestTrackLog(t *testing.T) {
 
 	report.CustomDimensions["dim1"] = "col1"
 	th.TrackLog(report)
+}
+
+func TestTrackEvent(t *testing.T) {
+	event := Event{
+		EventName:  "testEvent",
+		ResourceID: "SomeResourceId",
+		Properties: make(map[string]string),
+	}
+
+	event.Properties["P1"] = "V1"
+	event.Properties["P2"] = "V2"
+	th.TrackEvent(event)
 }
 
 func TestClose(t *testing.T) {

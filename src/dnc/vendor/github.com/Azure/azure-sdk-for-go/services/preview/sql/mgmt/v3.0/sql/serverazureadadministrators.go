@@ -38,7 +38,9 @@ func NewServerAzureADAdministratorsClient(subscriptionID string) ServerAzureADAd
 	return NewServerAzureADAdministratorsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewServerAzureADAdministratorsClientWithBaseURI creates an instance of the ServerAzureADAdministratorsClient client.
+// NewServerAzureADAdministratorsClientWithBaseURI creates an instance of the ServerAzureADAdministratorsClient client
+// using a custom endpoint.  Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign
+// clouds, Azure stack).
 func NewServerAzureADAdministratorsClientWithBaseURI(baseURI string, subscriptionID string) ServerAzureADAdministratorsClient {
 	return ServerAzureADAdministratorsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -49,8 +51,8 @@ func NewServerAzureADAdministratorsClientWithBaseURI(baseURI string, subscriptio
 // resourceGroupName - the name of the resource group that contains the resource. You can obtain this value
 // from the Azure Resource Manager API or the portal.
 // serverName - the name of the server.
-// properties - the required parameters for creating or updating an Active Directory Administrator.
-func (client ServerAzureADAdministratorsClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, serverName string, properties ServerAzureADAdministrator) (result ServerAzureADAdministratorsCreateOrUpdateFuture, err error) {
+// parameters - the required parameters for creating or updating an Active Directory Administrator.
+func (client ServerAzureADAdministratorsClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, serverName string, parameters ServerAzureADAdministrator) (result ServerAzureADAdministratorsCreateOrUpdateFuture, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ServerAzureADAdministratorsClient.CreateOrUpdate")
 		defer func() {
@@ -62,17 +64,16 @@ func (client ServerAzureADAdministratorsClient) CreateOrUpdate(ctx context.Conte
 		}()
 	}
 	if err := validation.Validate([]validation.Validation{
-		{TargetValue: properties,
-			Constraints: []validation.Constraint{{Target: "properties.ServerAdministratorProperties", Name: validation.Null, Rule: false,
-				Chain: []validation.Constraint{{Target: "properties.ServerAdministratorProperties.AdministratorType", Name: validation.Null, Rule: true, Chain: nil},
-					{Target: "properties.ServerAdministratorProperties.Login", Name: validation.Null, Rule: true, Chain: nil},
-					{Target: "properties.ServerAdministratorProperties.Sid", Name: validation.Null, Rule: true, Chain: nil},
-					{Target: "properties.ServerAdministratorProperties.TenantID", Name: validation.Null, Rule: true, Chain: nil},
+		{TargetValue: parameters,
+			Constraints: []validation.Constraint{{Target: "parameters.AdministratorProperties", Name: validation.Null, Rule: false,
+				Chain: []validation.Constraint{{Target: "parameters.AdministratorProperties.AdministratorType", Name: validation.Null, Rule: true, Chain: nil},
+					{Target: "parameters.AdministratorProperties.Login", Name: validation.Null, Rule: true, Chain: nil},
+					{Target: "parameters.AdministratorProperties.Sid", Name: validation.Null, Rule: true, Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("sql.ServerAzureADAdministratorsClient", "CreateOrUpdate", err.Error())
 	}
 
-	req, err := client.CreateOrUpdatePreparer(ctx, resourceGroupName, serverName, properties)
+	req, err := client.CreateOrUpdatePreparer(ctx, resourceGroupName, serverName, parameters)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "sql.ServerAzureADAdministratorsClient", "CreateOrUpdate", nil, "Failure preparing request")
 		return
@@ -88,15 +89,15 @@ func (client ServerAzureADAdministratorsClient) CreateOrUpdate(ctx context.Conte
 }
 
 // CreateOrUpdatePreparer prepares the CreateOrUpdate request.
-func (client ServerAzureADAdministratorsClient) CreateOrUpdatePreparer(ctx context.Context, resourceGroupName string, serverName string, properties ServerAzureADAdministrator) (*http.Request, error) {
+func (client ServerAzureADAdministratorsClient) CreateOrUpdatePreparer(ctx context.Context, resourceGroupName string, serverName string, parameters ServerAzureADAdministrator) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
-		"administratorName": autorest.Encode("path", "activeDirectory"),
+		"administratorName": autorest.Encode("path", "ActiveDirectory"),
 		"resourceGroupName": autorest.Encode("path", resourceGroupName),
 		"serverName":        autorest.Encode("path", serverName),
 		"subscriptionId":    autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2014-04-01"
+	const APIVersion = "2018-06-01-preview"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -106,7 +107,7 @@ func (client ServerAzureADAdministratorsClient) CreateOrUpdatePreparer(ctx conte
 		autorest.AsPut(),
 		autorest.WithBaseURL(client.BaseURI),
 		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Sql/servers/{serverName}/administrators/{administratorName}", pathParameters),
-		autorest.WithJSON(properties),
+		autorest.WithJSON(parameters),
 		autorest.WithQueryParameters(queryParameters))
 	return preparer.Prepare((&http.Request{}).WithContext(ctx))
 }
@@ -171,13 +172,13 @@ func (client ServerAzureADAdministratorsClient) Delete(ctx context.Context, reso
 // DeletePreparer prepares the Delete request.
 func (client ServerAzureADAdministratorsClient) DeletePreparer(ctx context.Context, resourceGroupName string, serverName string) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
-		"administratorName": autorest.Encode("path", "activeDirectory"),
+		"administratorName": autorest.Encode("path", "ActiveDirectory"),
 		"resourceGroupName": autorest.Encode("path", resourceGroupName),
 		"serverName":        autorest.Encode("path", serverName),
 		"subscriptionId":    autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2014-04-01"
+	const APIVersion = "2018-06-01-preview"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -205,18 +206,17 @@ func (client ServerAzureADAdministratorsClient) DeleteSender(req *http.Request) 
 
 // DeleteResponder handles the response to the Delete request. The method always
 // closes the http.Response Body.
-func (client ServerAzureADAdministratorsClient) DeleteResponder(resp *http.Response) (result ServerAzureADAdministrator, err error) {
+func (client ServerAzureADAdministratorsClient) DeleteResponder(resp *http.Response) (result autorest.Response, err error) {
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted, http.StatusNoContent),
-		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
-	result.Response = autorest.Response{Response: resp}
+	result.Response = resp
 	return
 }
 
-// Get returns an server Administrator.
+// Get gets a server Administrator.
 // Parameters:
 // resourceGroupName - the name of the resource group that contains the resource. You can obtain this value
 // from the Azure Resource Manager API or the portal.
@@ -256,13 +256,13 @@ func (client ServerAzureADAdministratorsClient) Get(ctx context.Context, resourc
 // GetPreparer prepares the Get request.
 func (client ServerAzureADAdministratorsClient) GetPreparer(ctx context.Context, resourceGroupName string, serverName string) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
-		"administratorName": autorest.Encode("path", "activeDirectory"),
+		"administratorName": autorest.Encode("path", "ActiveDirectory"),
 		"resourceGroupName": autorest.Encode("path", resourceGroupName),
 		"serverName":        autorest.Encode("path", serverName),
 		"subscriptionId":    autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2014-04-01"
+	const APIVersion = "2018-06-01-preview"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -295,22 +295,23 @@ func (client ServerAzureADAdministratorsClient) GetResponder(resp *http.Response
 	return
 }
 
-// ListByServer returns a list of server Administrators.
+// ListByServer gets a list of server Administrators.
 // Parameters:
 // resourceGroupName - the name of the resource group that contains the resource. You can obtain this value
 // from the Azure Resource Manager API or the portal.
 // serverName - the name of the server.
-func (client ServerAzureADAdministratorsClient) ListByServer(ctx context.Context, resourceGroupName string, serverName string) (result ServerAdministratorListResult, err error) {
+func (client ServerAzureADAdministratorsClient) ListByServer(ctx context.Context, resourceGroupName string, serverName string) (result AdministratorListResultPage, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ServerAzureADAdministratorsClient.ListByServer")
 		defer func() {
 			sc := -1
-			if result.Response.Response != nil {
-				sc = result.Response.Response.StatusCode
+			if result.alr.Response.Response != nil {
+				sc = result.alr.Response.Response.StatusCode
 			}
 			tracing.EndSpan(ctx, sc, err)
 		}()
 	}
+	result.fn = client.listByServerNextResults
 	req, err := client.ListByServerPreparer(ctx, resourceGroupName, serverName)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "sql.ServerAzureADAdministratorsClient", "ListByServer", nil, "Failure preparing request")
@@ -319,12 +320,12 @@ func (client ServerAzureADAdministratorsClient) ListByServer(ctx context.Context
 
 	resp, err := client.ListByServerSender(req)
 	if err != nil {
-		result.Response = autorest.Response{Response: resp}
+		result.alr.Response = autorest.Response{Response: resp}
 		err = autorest.NewErrorWithError(err, "sql.ServerAzureADAdministratorsClient", "ListByServer", resp, "Failure sending request")
 		return
 	}
 
-	result, err = client.ListByServerResponder(resp)
+	result.alr, err = client.ListByServerResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "sql.ServerAzureADAdministratorsClient", "ListByServer", resp, "Failure responding to request")
 	}
@@ -340,7 +341,7 @@ func (client ServerAzureADAdministratorsClient) ListByServerPreparer(ctx context
 		"subscriptionId":    autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2014-04-01"
+	const APIVersion = "2018-06-01-preview"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -362,7 +363,7 @@ func (client ServerAzureADAdministratorsClient) ListByServerSender(req *http.Req
 
 // ListByServerResponder handles the response to the ListByServer request. The method always
 // closes the http.Response Body.
-func (client ServerAzureADAdministratorsClient) ListByServerResponder(resp *http.Response) (result ServerAdministratorListResult, err error) {
+func (client ServerAzureADAdministratorsClient) ListByServerResponder(resp *http.Response) (result AdministratorListResult, err error) {
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
@@ -370,5 +371,42 @@ func (client ServerAzureADAdministratorsClient) ListByServerResponder(resp *http
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
 	result.Response = autorest.Response{Response: resp}
+	return
+}
+
+// listByServerNextResults retrieves the next set of results, if any.
+func (client ServerAzureADAdministratorsClient) listByServerNextResults(ctx context.Context, lastResults AdministratorListResult) (result AdministratorListResult, err error) {
+	req, err := lastResults.administratorListResultPreparer(ctx)
+	if err != nil {
+		return result, autorest.NewErrorWithError(err, "sql.ServerAzureADAdministratorsClient", "listByServerNextResults", nil, "Failure preparing next results request")
+	}
+	if req == nil {
+		return
+	}
+	resp, err := client.ListByServerSender(req)
+	if err != nil {
+		result.Response = autorest.Response{Response: resp}
+		return result, autorest.NewErrorWithError(err, "sql.ServerAzureADAdministratorsClient", "listByServerNextResults", resp, "Failure sending next results request")
+	}
+	result, err = client.ListByServerResponder(resp)
+	if err != nil {
+		err = autorest.NewErrorWithError(err, "sql.ServerAzureADAdministratorsClient", "listByServerNextResults", resp, "Failure responding to next results request")
+	}
+	return
+}
+
+// ListByServerComplete enumerates all values, automatically crossing page boundaries as required.
+func (client ServerAzureADAdministratorsClient) ListByServerComplete(ctx context.Context, resourceGroupName string, serverName string) (result AdministratorListResultIterator, err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/ServerAzureADAdministratorsClient.ListByServer")
+		defer func() {
+			sc := -1
+			if result.Response().Response.Response != nil {
+				sc = result.page.Response().Response.Response.StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
+	result.page, err = client.ListByServer(ctx, resourceGroupName, serverName)
 	return
 }

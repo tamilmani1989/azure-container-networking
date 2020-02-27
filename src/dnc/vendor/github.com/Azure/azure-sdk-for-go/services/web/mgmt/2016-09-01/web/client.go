@@ -46,7 +46,8 @@ func New(subscriptionID string) BaseClient {
 	return NewWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewWithBaseURI creates an instance of the BaseClient client.
+// NewWithBaseURI creates an instance of the BaseClient client using a custom endpoint.  Use this when interacting with
+// an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewWithBaseURI(baseURI string, subscriptionID string) BaseClient {
 	return BaseClient{
 		Client:         autorest.NewClientWithUserAgent(UserAgent()),
@@ -1145,7 +1146,7 @@ func (client BaseClient) Validate(ctx context.Context, resourceGroupName string,
 				{Target: "validateRequest.Location", Name: validation.Null, Rule: true, Chain: nil},
 				{Target: "validateRequest.ValidateProperties", Name: validation.Null, Rule: true,
 					Chain: []validation.Constraint{{Target: "validateRequest.ValidateProperties.Capacity", Name: validation.Null, Rule: false,
-						Chain: []validation.Constraint{{Target: "validateRequest.ValidateProperties.Capacity", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil}}},
+						Chain: []validation.Constraint{{Target: "validateRequest.ValidateProperties.Capacity", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil}}},
 					}}}}}); err != nil {
 		return result, validation.NewError("web.BaseClient", "Validate", err.Error())
 	}

@@ -21,6 +21,8 @@ const (
 	StatusStr               = "Status"
 	NCStateStr              = "NCState"
 	NCOperationErrorCodeStr = "ErrorCode"
+	SubNetStr               = "SubNet"
+	DNCNCSnapshotStr        = "DNCNCSnapshot"
 
 	// DataStore operation dimensions
 	OperationStr = "DataStoreOperation"

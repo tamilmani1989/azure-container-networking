@@ -37,7 +37,9 @@ func NewScopeAssignmentsClient(subscriptionID string) ScopeAssignmentsClient {
 	return NewScopeAssignmentsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewScopeAssignmentsClientWithBaseURI creates an instance of the ScopeAssignmentsClient client.
+// NewScopeAssignmentsClientWithBaseURI creates an instance of the ScopeAssignmentsClient client using a custom
+// endpoint.  Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure
+// stack).
 func NewScopeAssignmentsClientWithBaseURI(baseURI string, subscriptionID string) ScopeAssignmentsClient {
 	return ScopeAssignmentsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -46,9 +48,9 @@ func NewScopeAssignmentsClientWithBaseURI(baseURI string, subscriptionID string)
 // Parameters:
 // parameters - parameters supplied to the specify which Managed Network this scope is being assigned
 // scope - the base resource of the scope assignment to create. The scope can be any REST resource instance.
-// For example, use '/subscriptions/{subscription-id}/' for a subscription,
-// '/subscriptions/{subscription-id}/resourceGroups/{resource-group-name}' for a resource group, and
-// '/subscriptions/{subscription-id}/resourceGroups/{resource-group-name}/providers/{resource-provider}/{resource-type}/{resource-name}'
+// For example, use 'subscriptions/{subscription-id}' for a subscription,
+// 'subscriptions/{subscription-id}/resourceGroups/{resource-group-name}' for a resource group, and
+// 'subscriptions/{subscription-id}/resourceGroups/{resource-group-name}/providers/{resource-provider}/{resource-type}/{resource-name}'
 // for a resource.
 // scopeAssignmentName - the name of the scope assignment to create.
 func (client ScopeAssignmentsClient) CreateOrUpdate(ctx context.Context, parameters ScopeAssignment, scope string, scopeAssignmentName string) (result ScopeAssignment, err error) {

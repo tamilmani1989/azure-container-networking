@@ -36,7 +36,8 @@ func NewAPIOperationsClient(subscriptionID string) APIOperationsClient {
 	return NewAPIOperationsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewAPIOperationsClientWithBaseURI creates an instance of the APIOperationsClient client.
+// NewAPIOperationsClientWithBaseURI creates an instance of the APIOperationsClient client using a custom endpoint.
+// Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewAPIOperationsClientWithBaseURI(baseURI string, subscriptionID string) APIOperationsClient {
 	return APIOperationsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -385,10 +386,10 @@ func (client APIOperationsClient) ListByApis(ctx context.Context, resourceGroupN
 				{Target: "apiid", Name: validation.Pattern, Rule: `^[^*#&+:<>?]+$`, Chain: nil}}},
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
-				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil}}}}},
+				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil}}}}},
 		{TargetValue: skip,
 			Constraints: []validation.Constraint{{Target: "skip", Name: validation.Null, Rule: false,
-				Chain: []validation.Constraint{{Target: "skip", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil}}}}}}); err != nil {
+				Chain: []validation.Constraint{{Target: "skip", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil}}}}}}); err != nil {
 		return result, validation.NewError("apimanagement.APIOperationsClient", "ListByApis", err.Error())
 	}
 

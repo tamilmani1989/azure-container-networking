@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,7 +42,6 @@ type MultiLanguageInput = original.MultiLanguageInput
 type RequestStatistics = original.RequestStatistics
 type SentimentBatchResult = original.SentimentBatchResult
 type SentimentBatchResultItem = original.SentimentBatchResultItem
-type SetObject = original.SetObject
 
 func New(endpoint string) BaseClient {
 	return original.New(endpoint)

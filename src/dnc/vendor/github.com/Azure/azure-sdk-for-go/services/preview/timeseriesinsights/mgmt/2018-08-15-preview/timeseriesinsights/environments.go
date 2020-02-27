@@ -36,7 +36,8 @@ func NewEnvironmentsClient(subscriptionID string) EnvironmentsClient {
 	return NewEnvironmentsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewEnvironmentsClientWithBaseURI creates an instance of the EnvironmentsClient client.
+// NewEnvironmentsClientWithBaseURI creates an instance of the EnvironmentsClient client using a custom endpoint.  Use
+// this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewEnvironmentsClientWithBaseURI(baseURI string, subscriptionID string) EnvironmentsClient {
 	return EnvironmentsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -66,7 +67,7 @@ func (client EnvironmentsClient) CreateOrUpdate(ctx context.Context, resourceGro
 			Constraints: []validation.Constraint{{Target: "parameters.Sku", Name: validation.Null, Rule: true,
 				Chain: []validation.Constraint{{Target: "parameters.Sku.Capacity", Name: validation.Null, Rule: true,
 					Chain: []validation.Constraint{{Target: "parameters.Sku.Capacity", Name: validation.InclusiveMaximum, Rule: int64(10), Chain: nil},
-						{Target: "parameters.Sku.Capacity", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+						{Target: "parameters.Sku.Capacity", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 					}},
 				}}}}}); err != nil {
 		return result, validation.NewError("timeseriesinsights.EnvironmentsClient", "CreateOrUpdate", err.Error())

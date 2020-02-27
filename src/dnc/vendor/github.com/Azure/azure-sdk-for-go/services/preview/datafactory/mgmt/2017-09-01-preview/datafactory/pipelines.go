@@ -37,7 +37,8 @@ func NewPipelinesClient(subscriptionID string) PipelinesClient {
 	return NewPipelinesClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewPipelinesClientWithBaseURI creates an instance of the PipelinesClient client.
+// NewPipelinesClientWithBaseURI creates an instance of the PipelinesClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewPipelinesClientWithBaseURI(baseURI string, subscriptionID string) PipelinesClient {
 	return PipelinesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -77,7 +78,7 @@ func (client PipelinesClient) CreateOrUpdate(ctx context.Context, resourceGroupN
 		{TargetValue: pipeline,
 			Constraints: []validation.Constraint{{Target: "pipeline.Pipeline", Name: validation.Null, Rule: true,
 				Chain: []validation.Constraint{{Target: "pipeline.Pipeline.Concurrency", Name: validation.Null, Rule: false,
-					Chain: []validation.Constraint{{Target: "pipeline.Pipeline.Concurrency", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil}}},
+					Chain: []validation.Constraint{{Target: "pipeline.Pipeline.Concurrency", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil}}},
 				}}}}}); err != nil {
 		return result, validation.NewError("datafactory.PipelinesClient", "CreateOrUpdate", err.Error())
 	}

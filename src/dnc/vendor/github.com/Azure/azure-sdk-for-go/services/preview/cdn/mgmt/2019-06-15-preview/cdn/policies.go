@@ -36,7 +36,8 @@ func NewPoliciesClient(subscriptionID string, subscriptionID1 string) PoliciesCl
 	return NewPoliciesClientWithBaseURI(DefaultBaseURI, subscriptionID, subscriptionID1)
 }
 
-// NewPoliciesClientWithBaseURI creates an instance of the PoliciesClient client.
+// NewPoliciesClientWithBaseURI creates an instance of the PoliciesClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewPoliciesClientWithBaseURI(baseURI string, subscriptionID string, subscriptionID1 string) PoliciesClient {
 	return PoliciesClient{NewWithBaseURI(baseURI, subscriptionID, subscriptionID1)}
 }
@@ -69,7 +70,7 @@ func (client PoliciesClient) CreateOrUpdate(ctx context.Context, resourceGroupNa
 				Chain: []validation.Constraint{{Target: "cdnWebApplicationFirewallPolicy.WebApplicationFirewallPolicyProperties.PolicySettings", Name: validation.Null, Rule: false,
 					Chain: []validation.Constraint{{Target: "cdnWebApplicationFirewallPolicy.WebApplicationFirewallPolicyProperties.PolicySettings.DefaultCustomBlockResponseStatusCode", Name: validation.Null, Rule: false,
 						Chain: []validation.Constraint{{Target: "cdnWebApplicationFirewallPolicy.WebApplicationFirewallPolicyProperties.PolicySettings.DefaultCustomBlockResponseStatusCode", Name: validation.InclusiveMaximum, Rule: int64(599), Chain: nil},
-							{Target: "cdnWebApplicationFirewallPolicy.WebApplicationFirewallPolicyProperties.PolicySettings.DefaultCustomBlockResponseStatusCode", Name: validation.InclusiveMinimum, Rule: 200, Chain: nil},
+							{Target: "cdnWebApplicationFirewallPolicy.WebApplicationFirewallPolicyProperties.PolicySettings.DefaultCustomBlockResponseStatusCode", Name: validation.InclusiveMinimum, Rule: int64(200), Chain: nil},
 						}},
 						{Target: "cdnWebApplicationFirewallPolicy.WebApplicationFirewallPolicyProperties.PolicySettings.DefaultCustomBlockResponseBody", Name: validation.Null, Rule: false,
 							Chain: []validation.Constraint{{Target: "cdnWebApplicationFirewallPolicy.WebApplicationFirewallPolicyProperties.PolicySettings.DefaultCustomBlockResponseBody", Name: validation.Pattern, Rule: `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})$`, Chain: nil}}},

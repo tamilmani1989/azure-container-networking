@@ -37,7 +37,8 @@ func NewRerunTriggersClient(subscriptionID string) RerunTriggersClient {
 	return NewRerunTriggersClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewRerunTriggersClientWithBaseURI creates an instance of the RerunTriggersClient client.
+// NewRerunTriggersClientWithBaseURI creates an instance of the RerunTriggersClient client using a custom endpoint.
+// Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewRerunTriggersClientWithBaseURI(baseURI string, subscriptionID string) RerunTriggersClient {
 	return RerunTriggersClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -182,7 +183,7 @@ func (client RerunTriggersClient) Create(ctx context.Context, resourceGroupName 
 				{Target: "rerunTumblingWindowTriggerActionParameters.EndTime", Name: validation.Null, Rule: true, Chain: nil},
 				{Target: "rerunTumblingWindowTriggerActionParameters.MaxConcurrency", Name: validation.Null, Rule: true,
 					Chain: []validation.Constraint{{Target: "rerunTumblingWindowTriggerActionParameters.MaxConcurrency", Name: validation.InclusiveMaximum, Rule: int64(50), Chain: nil},
-						{Target: "rerunTumblingWindowTriggerActionParameters.MaxConcurrency", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+						{Target: "rerunTumblingWindowTriggerActionParameters.MaxConcurrency", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 					}}}}}); err != nil {
 		return result, validation.NewError("datafactory.RerunTriggersClient", "Create", err.Error())
 	}

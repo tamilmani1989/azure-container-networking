@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ const (
 type AccountExpand = original.AccountExpand
 
 const (
+	AccountExpandBlobRestoreStatus   AccountExpand = original.AccountExpandBlobRestoreStatus
 	AccountExpandGeoReplicationStats AccountExpand = original.AccountExpandGeoReplicationStats
 )
 
@@ -63,6 +64,14 @@ const (
 	Change  Action1 = original.Change
 	Release Action1 = original.Release
 	Renew   Action1 = original.Renew
+)
+
+type BlobRestoreProgressStatus = original.BlobRestoreProgressStatus
+
+const (
+	Complete   BlobRestoreProgressStatus = original.Complete
+	Failed     BlobRestoreProgressStatus = original.Failed
+	InProgress BlobRestoreProgressStatus = original.InProgress
 )
 
 type Bypass = original.Bypass
@@ -133,6 +142,13 @@ const (
 	MicrosoftStorage  KeySource = original.MicrosoftStorage
 )
 
+type KeyType = original.KeyType
+
+const (
+	KeyTypeAccount KeyType = original.KeyTypeAccount
+	KeyTypeService KeyType = original.KeyTypeService
+)
+
 type Kind = original.Kind
 
 const (
@@ -196,10 +212,10 @@ const (
 type PrivateEndpointConnectionProvisioningState = original.PrivateEndpointConnectionProvisioningState
 
 const (
-	Creating  PrivateEndpointConnectionProvisioningState = original.Creating
-	Deleting  PrivateEndpointConnectionProvisioningState = original.Deleting
-	Failed    PrivateEndpointConnectionProvisioningState = original.Failed
-	Succeeded PrivateEndpointConnectionProvisioningState = original.Succeeded
+	PrivateEndpointConnectionProvisioningStateCreating  PrivateEndpointConnectionProvisioningState = original.PrivateEndpointConnectionProvisioningStateCreating
+	PrivateEndpointConnectionProvisioningStateDeleting  PrivateEndpointConnectionProvisioningState = original.PrivateEndpointConnectionProvisioningStateDeleting
+	PrivateEndpointConnectionProvisioningStateFailed    PrivateEndpointConnectionProvisioningState = original.PrivateEndpointConnectionProvisioningStateFailed
+	PrivateEndpointConnectionProvisioningStateSucceeded PrivateEndpointConnectionProvisioningState = original.PrivateEndpointConnectionProvisioningStateSucceeded
 )
 
 type PrivateEndpointServiceConnectionStatus = original.PrivateEndpointServiceConnectionStatus
@@ -213,9 +229,9 @@ const (
 type ProvisioningState = original.ProvisioningState
 
 const (
-	ProvisioningStateCreating     ProvisioningState = original.ProvisioningStateCreating
-	ProvisioningStateResolvingDNS ProvisioningState = original.ProvisioningStateResolvingDNS
-	ProvisioningStateSucceeded    ProvisioningState = original.ProvisioningStateSucceeded
+	Creating     ProvisioningState = original.Creating
+	ResolvingDNS ProvisioningState = original.ResolvingDNS
+	Succeeded    ProvisioningState = original.Succeeded
 )
 
 type PublicAccess = original.PublicAccess
@@ -238,6 +254,13 @@ type ReasonCode = original.ReasonCode
 const (
 	NotAvailableForSubscription ReasonCode = original.NotAvailableForSubscription
 	QuotaID                     ReasonCode = original.QuotaID
+)
+
+type RoutingChoice = original.RoutingChoice
+
+const (
+	InternetRouting  RoutingChoice = original.InternetRouting
+	MicrosoftRouting RoutingChoice = original.MicrosoftRouting
 )
 
 type Services = original.Services
@@ -310,11 +333,13 @@ const (
 type Account = original.Account
 type AccountCheckNameAvailabilityParameters = original.AccountCheckNameAvailabilityParameters
 type AccountCreateParameters = original.AccountCreateParameters
+type AccountInternetEndpoints = original.AccountInternetEndpoints
 type AccountKey = original.AccountKey
 type AccountListKeysResult = original.AccountListKeysResult
 type AccountListResult = original.AccountListResult
 type AccountListResultIterator = original.AccountListResultIterator
 type AccountListResultPage = original.AccountListResultPage
+type AccountMicrosoftEndpoints = original.AccountMicrosoftEndpoints
 type AccountProperties = original.AccountProperties
 type AccountPropertiesCreateParameters = original.AccountPropertiesCreateParameters
 type AccountPropertiesUpdateParameters = original.AccountPropertiesUpdateParameters
@@ -324,12 +349,16 @@ type AccountUpdateParameters = original.AccountUpdateParameters
 type AccountsClient = original.AccountsClient
 type AccountsCreateFuture = original.AccountsCreateFuture
 type AccountsFailoverFuture = original.AccountsFailoverFuture
+type AccountsRestoreBlobRangesFuture = original.AccountsRestoreBlobRangesFuture
 type ActiveDirectoryProperties = original.ActiveDirectoryProperties
 type AzureEntityResource = original.AzureEntityResource
 type AzureFilesIdentityBasedAuthentication = original.AzureFilesIdentityBasedAuthentication
 type BaseClient = original.BaseClient
 type BlobContainer = original.BlobContainer
 type BlobContainersClient = original.BlobContainersClient
+type BlobRestoreParameters = original.BlobRestoreParameters
+type BlobRestoreRange = original.BlobRestoreRange
+type BlobRestoreStatus = original.BlobRestoreStatus
 type BlobServiceItems = original.BlobServiceItems
 type BlobServiceProperties = original.BlobServiceProperties
 type BlobServicePropertiesProperties = original.BlobServicePropertiesProperties
@@ -407,11 +436,14 @@ type PrivateLinkResourcesClient = original.PrivateLinkResourcesClient
 type PrivateLinkServiceConnectionState = original.PrivateLinkServiceConnectionState
 type ProxyResource = original.ProxyResource
 type Resource = original.Resource
+type RestorePolicyProperties = original.RestorePolicyProperties
 type Restriction = original.Restriction
+type RoutingPreference = original.RoutingPreference
 type SKUCapability = original.SKUCapability
 type ServiceSasParameters = original.ServiceSasParameters
 type ServiceSpecification = original.ServiceSpecification
 type Sku = original.Sku
+type SkuInformation = original.SkuInformation
 type SkuListResult = original.SkuListResult
 type SkusClient = original.SkusClient
 type TagProperty = original.TagProperty
@@ -528,6 +560,9 @@ func PossibleAction1Values() []Action1 {
 func PossibleActionValues() []Action {
 	return original.PossibleActionValues()
 }
+func PossibleBlobRestoreProgressStatusValues() []BlobRestoreProgressStatus {
+	return original.PossibleBlobRestoreProgressStatusValues()
+}
 func PossibleBypassValues() []Bypass {
 	return original.PossibleBypassValues()
 }
@@ -554,6 +589,9 @@ func PossibleKeyPermissionValues() []KeyPermission {
 }
 func PossibleKeySourceValues() []KeySource {
 	return original.PossibleKeySourceValues()
+}
+func PossibleKeyTypeValues() []KeyType {
+	return original.PossibleKeyTypeValues()
 }
 func PossibleKindValues() []Kind {
 	return original.PossibleKindValues()
@@ -593,6 +631,9 @@ func PossibleReasonCodeValues() []ReasonCode {
 }
 func PossibleReasonValues() []Reason {
 	return original.PossibleReasonValues()
+}
+func PossibleRoutingChoiceValues() []RoutingChoice {
+	return original.PossibleRoutingChoiceValues()
 }
 func PossibleServicesValues() []Services {
 	return original.PossibleServicesValues()

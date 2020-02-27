@@ -38,7 +38,8 @@ func NewPoolClient() PoolClient {
 	return NewPoolClientWithBaseURI(DefaultBaseURI)
 }
 
-// NewPoolClientWithBaseURI creates an instance of the PoolClient client.
+// NewPoolClientWithBaseURI creates an instance of the PoolClient client using a custom endpoint.  Use this when
+// interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewPoolClientWithBaseURI(baseURI string) PoolClient {
 	return PoolClient{NewWithBaseURI(baseURI)}
 }
@@ -1029,7 +1030,7 @@ func (client PoolClient) List(ctx context.Context, filter string, selectParamete
 		{TargetValue: maxResults,
 			Constraints: []validation.Constraint{{Target: "maxResults", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "maxResults", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "maxResults", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "maxResults", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("batch.PoolClient", "List", err.Error())
 	}
@@ -1196,7 +1197,7 @@ func (client PoolClient) ListUsageMetrics(ctx context.Context, startTime *date.T
 		{TargetValue: maxResults,
 			Constraints: []validation.Constraint{{Target: "maxResults", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "maxResults", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "maxResults", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "maxResults", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("batch.PoolClient", "ListUsageMetrics", err.Error())
 	}

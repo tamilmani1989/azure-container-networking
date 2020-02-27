@@ -36,7 +36,8 @@ func NewFileServicesClient(subscriptionID string) FileServicesClient {
 	return NewFileServicesClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewFileServicesClientWithBaseURI creates an instance of the FileServicesClient client.
+// NewFileServicesClientWithBaseURI creates an instance of the FileServicesClient client using a custom endpoint.  Use
+// this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewFileServicesClientWithBaseURI(baseURI string, subscriptionID string) FileServicesClient {
 	return FileServicesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -262,7 +263,7 @@ func (client FileServicesClient) SetServiceProperties(ctx context.Context, resou
 				Chain: []validation.Constraint{{Target: "parameters.FileServicePropertiesProperties.ShareDeleteRetentionPolicy", Name: validation.Null, Rule: false,
 					Chain: []validation.Constraint{{Target: "parameters.FileServicePropertiesProperties.ShareDeleteRetentionPolicy.Days", Name: validation.Null, Rule: false,
 						Chain: []validation.Constraint{{Target: "parameters.FileServicePropertiesProperties.ShareDeleteRetentionPolicy.Days", Name: validation.InclusiveMaximum, Rule: int64(365), Chain: nil},
-							{Target: "parameters.FileServicePropertiesProperties.ShareDeleteRetentionPolicy.Days", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+							{Target: "parameters.FileServicePropertiesProperties.ShareDeleteRetentionPolicy.Days", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 						}},
 					}},
 				}}}}}); err != nil {
@@ -304,6 +305,7 @@ func (client FileServicesClient) SetServicePropertiesPreparer(ctx context.Contex
 		"api-version": APIVersion,
 	}
 
+	parameters.Sku = nil
 	preparer := autorest.CreatePreparer(
 		autorest.AsContentType("application/json; charset=utf-8"),
 		autorest.AsPut(),

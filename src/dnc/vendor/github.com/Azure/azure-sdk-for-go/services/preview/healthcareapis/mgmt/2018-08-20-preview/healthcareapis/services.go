@@ -36,7 +36,8 @@ func NewServicesClient(subscriptionID string) ServicesClient {
 	return NewServicesClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewServicesClientWithBaseURI creates an instance of the ServicesClient client.
+// NewServicesClientWithBaseURI creates an instance of the ServicesClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewServicesClientWithBaseURI(baseURI string, subscriptionID string) ServicesClient {
 	return ServicesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -155,13 +156,13 @@ func (client ServicesClient) CreateOrUpdate(ctx context.Context, resourceGroupNa
 					{Target: "serviceDescription.Properties.CosmosDbConfiguration", Name: validation.Null, Rule: false,
 						Chain: []validation.Constraint{{Target: "serviceDescription.Properties.CosmosDbConfiguration.OfferThroughput", Name: validation.Null, Rule: false,
 							Chain: []validation.Constraint{{Target: "serviceDescription.Properties.CosmosDbConfiguration.OfferThroughput", Name: validation.InclusiveMaximum, Rule: int64(10000), Chain: nil},
-								{Target: "serviceDescription.Properties.CosmosDbConfiguration.OfferThroughput", Name: validation.InclusiveMinimum, Rule: 400, Chain: nil},
+								{Target: "serviceDescription.Properties.CosmosDbConfiguration.OfferThroughput", Name: validation.InclusiveMinimum, Rule: int64(400), Chain: nil},
 							}},
 						}},
 					{Target: "serviceDescription.Properties.CorsConfiguration", Name: validation.Null, Rule: false,
 						Chain: []validation.Constraint{{Target: "serviceDescription.Properties.CorsConfiguration.MaxAge", Name: validation.Null, Rule: false,
 							Chain: []validation.Constraint{{Target: "serviceDescription.Properties.CorsConfiguration.MaxAge", Name: validation.InclusiveMaximum, Rule: int64(99999), Chain: nil},
-								{Target: "serviceDescription.Properties.CorsConfiguration.MaxAge", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+								{Target: "serviceDescription.Properties.CorsConfiguration.MaxAge", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 							}},
 						}},
 				}}}}}); err != nil {

@@ -36,7 +36,8 @@ func NewManagedClustersClient(subscriptionID string) ManagedClustersClient {
 	return NewManagedClustersClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewManagedClustersClientWithBaseURI creates an instance of the ManagedClustersClient client.
+// NewManagedClustersClientWithBaseURI creates an instance of the ManagedClustersClient client using a custom endpoint.
+// Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewManagedClustersClientWithBaseURI(baseURI string, subscriptionID string) ManagedClustersClient {
 	return ManagedClustersClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -92,7 +93,7 @@ func (client ManagedClustersClient) CreateOrUpdate(ctx context.Context, resource
 								Chain: []validation.Constraint{{Target: "parameters.ManagedClusterProperties.NetworkProfile.LoadBalancerProfile.ManagedOutboundIPs", Name: validation.Null, Rule: false,
 									Chain: []validation.Constraint{{Target: "parameters.ManagedClusterProperties.NetworkProfile.LoadBalancerProfile.ManagedOutboundIPs.Count", Name: validation.Null, Rule: false,
 										Chain: []validation.Constraint{{Target: "parameters.ManagedClusterProperties.NetworkProfile.LoadBalancerProfile.ManagedOutboundIPs.Count", Name: validation.InclusiveMaximum, Rule: int64(100), Chain: nil},
-											{Target: "parameters.ManagedClusterProperties.NetworkProfile.LoadBalancerProfile.ManagedOutboundIPs.Count", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+											{Target: "parameters.ManagedClusterProperties.NetworkProfile.LoadBalancerProfile.ManagedOutboundIPs.Count", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 										}},
 									}},
 								}},

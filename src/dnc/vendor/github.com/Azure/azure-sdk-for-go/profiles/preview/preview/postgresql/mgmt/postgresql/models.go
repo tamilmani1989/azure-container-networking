@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,6 +44,12 @@ type GeoRedundantBackup = original.GeoRedundantBackup
 const (
 	Disabled GeoRedundantBackup = original.Disabled
 	Enabled  GeoRedundantBackup = original.Enabled
+)
+
+type IdentityType = original.IdentityType
+
+const (
+	SystemAssigned IdentityType = original.SystemAssigned
 )
 
 type OperationOrigin = original.OperationOrigin
@@ -150,6 +156,7 @@ type PerformanceTierProperties = original.PerformanceTierProperties
 type PerformanceTierServiceLevelObjectives = original.PerformanceTierServiceLevelObjectives
 type ProxyResource = original.ProxyResource
 type ReplicasClient = original.ReplicasClient
+type ResourceIdentity = original.ResourceIdentity
 type SecurityAlertPolicyProperties = original.SecurityAlertPolicyProperties
 type Server = original.Server
 type ServerAdministratorProperties = original.ServerAdministratorProperties
@@ -277,6 +284,9 @@ func PossibleCreateModeValues() []CreateMode {
 }
 func PossibleGeoRedundantBackupValues() []GeoRedundantBackup {
 	return original.PossibleGeoRedundantBackupValues()
+}
+func PossibleIdentityTypeValues() []IdentityType {
+	return original.PossibleIdentityTypeValues()
 }
 func PossibleOperationOriginValues() []OperationOrigin {
 	return original.PossibleOperationOriginValues()

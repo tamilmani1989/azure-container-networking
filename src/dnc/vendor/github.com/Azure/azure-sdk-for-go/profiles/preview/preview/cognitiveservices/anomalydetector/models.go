@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +34,8 @@ const (
 
 type APIError = original.APIError
 type BaseClient = original.BaseClient
+type ChangePointDetectRequest = original.ChangePointDetectRequest
+type ChangePointDetectResponse = original.ChangePointDetectResponse
 type EntireDetectResponse = original.EntireDetectResponse
 type LastDetectResponse = original.LastDetectResponse
 type Point = original.Point

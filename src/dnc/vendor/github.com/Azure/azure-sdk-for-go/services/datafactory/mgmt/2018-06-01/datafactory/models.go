@@ -1099,6 +1099,23 @@ func PossibleSapHanaAuthenticationTypeValues() []SapHanaAuthenticationType {
 	return []SapHanaAuthenticationType{SapHanaAuthenticationTypeBasic, SapHanaAuthenticationTypeWindows}
 }
 
+// SapHanaPartitionOption enumerates the values for sap hana partition option.
+type SapHanaPartitionOption string
+
+const (
+	// SapHanaPartitionOptionNone ...
+	SapHanaPartitionOptionNone SapHanaPartitionOption = "None"
+	// SapHanaPartitionOptionPhysicalPartitionsOfTable ...
+	SapHanaPartitionOptionPhysicalPartitionsOfTable SapHanaPartitionOption = "PhysicalPartitionsOfTable"
+	// SapHanaPartitionOptionSapHanaDynamicRange ...
+	SapHanaPartitionOptionSapHanaDynamicRange SapHanaPartitionOption = "SapHanaDynamicRange"
+)
+
+// PossibleSapHanaPartitionOptionValues returns an array of possible values for the SapHanaPartitionOption const type.
+func PossibleSapHanaPartitionOptionValues() []SapHanaPartitionOption {
+	return []SapHanaPartitionOption{SapHanaPartitionOptionNone, SapHanaPartitionOptionPhysicalPartitionsOfTable, SapHanaPartitionOptionSapHanaDynamicRange}
+}
+
 // SapTablePartitionOption enumerates the values for sap table partition option.
 type SapTablePartitionOption string
 
@@ -2000,6 +2017,41 @@ func PossibleTypeBasicDatasetCompressionValues() []TypeBasicDatasetCompression {
 	return []TypeBasicDatasetCompression{TypeBZip2, TypeDatasetCompression, TypeDeflate, TypeGZip, TypeZipDeflate}
 }
 
+// TypeBasicDatasetLocation enumerates the values for type basic dataset location.
+type TypeBasicDatasetLocation string
+
+const (
+	// TypeAmazonS3Location ...
+	TypeAmazonS3Location TypeBasicDatasetLocation = "AmazonS3Location"
+	// TypeAzureBlobFSLocation ...
+	TypeAzureBlobFSLocation TypeBasicDatasetLocation = "AzureBlobFSLocation"
+	// TypeAzureBlobStorageLocation ...
+	TypeAzureBlobStorageLocation TypeBasicDatasetLocation = "AzureBlobStorageLocation"
+	// TypeAzureDataLakeStoreLocation ...
+	TypeAzureDataLakeStoreLocation TypeBasicDatasetLocation = "AzureDataLakeStoreLocation"
+	// TypeAzureFileStorageLocation ...
+	TypeAzureFileStorageLocation TypeBasicDatasetLocation = "AzureFileStorageLocation"
+	// TypeDatasetLocation ...
+	TypeDatasetLocation TypeBasicDatasetLocation = "DatasetLocation"
+	// TypeFileServerLocation ...
+	TypeFileServerLocation TypeBasicDatasetLocation = "FileServerLocation"
+	// TypeFtpServerLocation ...
+	TypeFtpServerLocation TypeBasicDatasetLocation = "FtpServerLocation"
+	// TypeGoogleCloudStorageLocation ...
+	TypeGoogleCloudStorageLocation TypeBasicDatasetLocation = "GoogleCloudStorageLocation"
+	// TypeHdfsLocation ...
+	TypeHdfsLocation TypeBasicDatasetLocation = "HdfsLocation"
+	// TypeHTTPServerLocation ...
+	TypeHTTPServerLocation TypeBasicDatasetLocation = "HttpServerLocation"
+	// TypeSftpLocation ...
+	TypeSftpLocation TypeBasicDatasetLocation = "SftpLocation"
+)
+
+// PossibleTypeBasicDatasetLocationValues returns an array of possible values for the TypeBasicDatasetLocation const type.
+func PossibleTypeBasicDatasetLocationValues() []TypeBasicDatasetLocation {
+	return []TypeBasicDatasetLocation{TypeAmazonS3Location, TypeAzureBlobFSLocation, TypeAzureBlobStorageLocation, TypeAzureDataLakeStoreLocation, TypeAzureFileStorageLocation, TypeDatasetLocation, TypeFileServerLocation, TypeFtpServerLocation, TypeGoogleCloudStorageLocation, TypeHdfsLocation, TypeHTTPServerLocation, TypeSftpLocation}
+}
+
 // TypeBasicDatasetStorageFormat enumerates the values for type basic dataset storage format.
 type TypeBasicDatasetStorageFormat string
 
@@ -2057,6 +2109,40 @@ const (
 // PossibleTypeBasicFactoryRepoConfigurationValues returns an array of possible values for the TypeBasicFactoryRepoConfiguration const type.
 func PossibleTypeBasicFactoryRepoConfigurationValues() []TypeBasicFactoryRepoConfiguration {
 	return []TypeBasicFactoryRepoConfiguration{TypeFactoryGitHubConfiguration, TypeFactoryRepoConfiguration, TypeFactoryVSTSConfiguration}
+}
+
+// TypeBasicFormatReadSettings enumerates the values for type basic format read settings.
+type TypeBasicFormatReadSettings string
+
+const (
+	// TypeDelimitedTextReadSettings ...
+	TypeDelimitedTextReadSettings TypeBasicFormatReadSettings = "DelimitedTextReadSettings"
+	// TypeFormatReadSettings ...
+	TypeFormatReadSettings TypeBasicFormatReadSettings = "FormatReadSettings"
+)
+
+// PossibleTypeBasicFormatReadSettingsValues returns an array of possible values for the TypeBasicFormatReadSettings const type.
+func PossibleTypeBasicFormatReadSettingsValues() []TypeBasicFormatReadSettings {
+	return []TypeBasicFormatReadSettings{TypeDelimitedTextReadSettings, TypeFormatReadSettings}
+}
+
+// TypeBasicFormatWriteSettings enumerates the values for type basic format write settings.
+type TypeBasicFormatWriteSettings string
+
+const (
+	// TypeAvroWriteSettings ...
+	TypeAvroWriteSettings TypeBasicFormatWriteSettings = "AvroWriteSettings"
+	// TypeDelimitedTextWriteSettings ...
+	TypeDelimitedTextWriteSettings TypeBasicFormatWriteSettings = "DelimitedTextWriteSettings"
+	// TypeFormatWriteSettings ...
+	TypeFormatWriteSettings TypeBasicFormatWriteSettings = "FormatWriteSettings"
+	// TypeJSONWriteSettings ...
+	TypeJSONWriteSettings TypeBasicFormatWriteSettings = "JsonWriteSettings"
+)
+
+// PossibleTypeBasicFormatWriteSettingsValues returns an array of possible values for the TypeBasicFormatWriteSettings const type.
+func PossibleTypeBasicFormatWriteSettingsValues() []TypeBasicFormatWriteSettings {
+	return []TypeBasicFormatWriteSettings{TypeAvroWriteSettings, TypeDelimitedTextWriteSettings, TypeFormatWriteSettings, TypeJSONWriteSettings}
 }
 
 // TypeBasicIntegrationRuntime enumerates the values for type basic integration runtime.
@@ -2315,6 +2401,41 @@ func PossibleTypeBasicSsisObjectMetadataValues() []TypeBasicSsisObjectMetadata {
 	return []TypeBasicSsisObjectMetadata{TypeEnvironment, TypeFolder, TypePackage, TypeProject, TypeSsisObjectMetadata}
 }
 
+// TypeBasicStoreReadSettings enumerates the values for type basic store read settings.
+type TypeBasicStoreReadSettings string
+
+const (
+	// TypeAmazonS3ReadSettings ...
+	TypeAmazonS3ReadSettings TypeBasicStoreReadSettings = "AmazonS3ReadSettings"
+	// TypeAzureBlobFSReadSettings ...
+	TypeAzureBlobFSReadSettings TypeBasicStoreReadSettings = "AzureBlobFSReadSettings"
+	// TypeAzureBlobStorageReadSettings ...
+	TypeAzureBlobStorageReadSettings TypeBasicStoreReadSettings = "AzureBlobStorageReadSettings"
+	// TypeAzureDataLakeStoreReadSettings ...
+	TypeAzureDataLakeStoreReadSettings TypeBasicStoreReadSettings = "AzureDataLakeStoreReadSettings"
+	// TypeAzureFileStorageReadSettings ...
+	TypeAzureFileStorageReadSettings TypeBasicStoreReadSettings = "AzureFileStorageReadSettings"
+	// TypeFileServerReadSettings ...
+	TypeFileServerReadSettings TypeBasicStoreReadSettings = "FileServerReadSettings"
+	// TypeFtpReadSettings ...
+	TypeFtpReadSettings TypeBasicStoreReadSettings = "FtpReadSettings"
+	// TypeGoogleCloudStorageReadSettings ...
+	TypeGoogleCloudStorageReadSettings TypeBasicStoreReadSettings = "GoogleCloudStorageReadSettings"
+	// TypeHdfsReadSettings ...
+	TypeHdfsReadSettings TypeBasicStoreReadSettings = "HdfsReadSettings"
+	// TypeHTTPReadSettings ...
+	TypeHTTPReadSettings TypeBasicStoreReadSettings = "HttpReadSettings"
+	// TypeSftpReadSettings ...
+	TypeSftpReadSettings TypeBasicStoreReadSettings = "SftpReadSettings"
+	// TypeStoreReadSettings ...
+	TypeStoreReadSettings TypeBasicStoreReadSettings = "StoreReadSettings"
+)
+
+// PossibleTypeBasicStoreReadSettingsValues returns an array of possible values for the TypeBasicStoreReadSettings const type.
+func PossibleTypeBasicStoreReadSettingsValues() []TypeBasicStoreReadSettings {
+	return []TypeBasicStoreReadSettings{TypeAmazonS3ReadSettings, TypeAzureBlobFSReadSettings, TypeAzureBlobStorageReadSettings, TypeAzureDataLakeStoreReadSettings, TypeAzureFileStorageReadSettings, TypeFileServerReadSettings, TypeFtpReadSettings, TypeGoogleCloudStorageReadSettings, TypeHdfsReadSettings, TypeHTTPReadSettings, TypeSftpReadSettings, TypeStoreReadSettings}
+}
+
 // TypeBasicStoreWriteSettings enumerates the values for type basic store write settings.
 type TypeBasicStoreWriteSettings string
 
@@ -2327,13 +2448,15 @@ const (
 	TypeAzureDataLakeStoreWriteSettings TypeBasicStoreWriteSettings = "AzureDataLakeStoreWriteSettings"
 	// TypeFileServerWriteSettings ...
 	TypeFileServerWriteSettings TypeBasicStoreWriteSettings = "FileServerWriteSettings"
+	// TypeSftpWriteSettings ...
+	TypeSftpWriteSettings TypeBasicStoreWriteSettings = "SftpWriteSettings"
 	// TypeStoreWriteSettings ...
 	TypeStoreWriteSettings TypeBasicStoreWriteSettings = "StoreWriteSettings"
 )
 
 // PossibleTypeBasicStoreWriteSettingsValues returns an array of possible values for the TypeBasicStoreWriteSettings const type.
 func PossibleTypeBasicStoreWriteSettingsValues() []TypeBasicStoreWriteSettings {
-	return []TypeBasicStoreWriteSettings{TypeAzureBlobFSWriteSettings, TypeAzureBlobStorageWriteSettings, TypeAzureDataLakeStoreWriteSettings, TypeFileServerWriteSettings, TypeStoreWriteSettings}
+	return []TypeBasicStoreWriteSettings{TypeAzureBlobFSWriteSettings, TypeAzureBlobStorageWriteSettings, TypeAzureDataLakeStoreWriteSettings, TypeFileServerWriteSettings, TypeSftpWriteSettings, TypeStoreWriteSettings}
 }
 
 // TypeBasicTrigger enumerates the values for type basic trigger.
@@ -8566,16 +8689,17 @@ type AmazonS3Location struct {
 	Version interface{} `json:"version,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - Type of dataset storage location.
-	Type *string `json:"type,omitempty"`
 	// FolderPath - Specify the folder path of dataset. Type: string (or Expression with resultType string)
 	FolderPath interface{} `json:"folderPath,omitempty"`
 	// FileName - Specify the file name of dataset. Type: string (or Expression with resultType string).
 	FileName interface{} `json:"fileName,omitempty"`
+	// Type - Possible values include: 'TypeDatasetLocation', 'TypeHdfsLocation', 'TypeHTTPServerLocation', 'TypeSftpLocation', 'TypeFtpServerLocation', 'TypeGoogleCloudStorageLocation', 'TypeAzureFileStorageLocation', 'TypeFileServerLocation', 'TypeAmazonS3Location', 'TypeAzureDataLakeStoreLocation', 'TypeAzureBlobFSLocation', 'TypeAzureBlobStorageLocation'
+	Type TypeBasicDatasetLocation `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for AmazonS3Location.
 func (asl AmazonS3Location) MarshalJSON() ([]byte, error) {
+	asl.Type = TypeAmazonS3Location
 	objectMap := make(map[string]interface{})
 	if asl.BucketName != nil {
 		objectMap["bucketName"] = asl.BucketName
@@ -8583,19 +8707,84 @@ func (asl AmazonS3Location) MarshalJSON() ([]byte, error) {
 	if asl.Version != nil {
 		objectMap["version"] = asl.Version
 	}
-	if asl.Type != nil {
-		objectMap["type"] = asl.Type
-	}
 	if asl.FolderPath != nil {
 		objectMap["folderPath"] = asl.FolderPath
 	}
 	if asl.FileName != nil {
 		objectMap["fileName"] = asl.FileName
 	}
+	if asl.Type != "" {
+		objectMap["type"] = asl.Type
+	}
 	for k, v := range asl.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsLocation is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsHdfsLocation() (*HdfsLocation, bool) {
+	return nil, false
+}
+
+// AsHTTPServerLocation is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsHTTPServerLocation() (*HTTPServerLocation, bool) {
+	return nil, false
+}
+
+// AsSftpLocation is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsSftpLocation() (*SftpLocation, bool) {
+	return nil, false
+}
+
+// AsFtpServerLocation is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsFtpServerLocation() (*FtpServerLocation, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageLocation is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageLocation is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool) {
+	return nil, false
+}
+
+// AsFileServerLocation is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsFileServerLocation() (*FileServerLocation, bool) {
+	return nil, false
+}
+
+// AsAmazonS3Location is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsAmazonS3Location() (*AmazonS3Location, bool) {
+	return &asl, true
+}
+
+// AsAzureDataLakeStoreLocation is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSLocation is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageLocation is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool) {
+	return nil, false
+}
+
+// AsDatasetLocation is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsDatasetLocation() (*DatasetLocation, bool) {
+	return nil, false
+}
+
+// AsBasicDatasetLocation is the BasicDatasetLocation implementation for AmazonS3Location.
+func (asl AmazonS3Location) AsBasicDatasetLocation() (BasicDatasetLocation, bool) {
+	return &asl, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for AmazonS3Location struct.
@@ -8637,15 +8826,6 @@ func (asl *AmazonS3Location) UnmarshalJSON(body []byte) error {
 				}
 				asl.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				asl.Type = &typeVar
-			}
 		case "folderPath":
 			if v != nil {
 				var folderPath interface{}
@@ -8663,6 +8843,15 @@ func (asl *AmazonS3Location) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				asl.FileName = fileName
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicDatasetLocation
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				asl.Type = typeVar
 			}
 		}
 	}
@@ -8688,14 +8877,15 @@ type AmazonS3ReadSettings struct {
 	ModifiedDatetimeEnd interface{} `json:"modifiedDatetimeEnd,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// Type - Possible values include: 'TypeStoreReadSettings', 'TypeHdfsReadSettings', 'TypeHTTPReadSettings', 'TypeSftpReadSettings', 'TypeFtpReadSettings', 'TypeGoogleCloudStorageReadSettings', 'TypeAzureFileStorageReadSettings', 'TypeFileServerReadSettings', 'TypeAmazonS3ReadSettings', 'TypeAzureDataLakeStoreReadSettings', 'TypeAzureBlobFSReadSettings', 'TypeAzureBlobStorageReadSettings'
+	Type TypeBasicStoreReadSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for AmazonS3ReadSettings.
 func (asrs AmazonS3ReadSettings) MarshalJSON() ([]byte, error) {
+	asrs.Type = TypeAmazonS3ReadSettings
 	objectMap := make(map[string]interface{})
 	if asrs.Recursive != nil {
 		objectMap["recursive"] = asrs.Recursive
@@ -8718,16 +8908,81 @@ func (asrs AmazonS3ReadSettings) MarshalJSON() ([]byte, error) {
 	if asrs.ModifiedDatetimeEnd != nil {
 		objectMap["modifiedDatetimeEnd"] = asrs.ModifiedDatetimeEnd
 	}
-	if asrs.Type != nil {
-		objectMap["type"] = asrs.Type
-	}
 	if asrs.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = asrs.MaxConcurrentConnections
+	}
+	if asrs.Type != "" {
+		objectMap["type"] = asrs.Type
 	}
 	for k, v := range asrs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsHdfsReadSettings() (*HdfsReadSettings, bool) {
+	return nil, false
+}
+
+// AsHTTPReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsHTTPReadSettings() (*HTTPReadSettings, bool) {
+	return nil, false
+}
+
+// AsSftpReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsSftpReadSettings() (*SftpReadSettings, bool) {
+	return nil, false
+}
+
+// AsFtpReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsFtpReadSettings() (*FtpReadSettings, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsFileServerReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsFileServerReadSettings() (*FileServerReadSettings, bool) {
+	return nil, false
+}
+
+// AsAmazonS3ReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool) {
+	return &asrs, true
+}
+
+// AsAzureDataLakeStoreReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsStoreReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsStoreReadSettings() (*StoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsBasicStoreReadSettings is the BasicStoreReadSettings implementation for AmazonS3ReadSettings.
+func (asrs AmazonS3ReadSettings) AsBasicStoreReadSettings() (BasicStoreReadSettings, bool) {
+	return &asrs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for AmazonS3ReadSettings struct.
@@ -8814,15 +9069,6 @@ func (asrs *AmazonS3ReadSettings) UnmarshalJSON(body []byte) error {
 				}
 				asrs.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				asrs.Type = &typeVar
-			}
 		case "maxConcurrentConnections":
 			if v != nil {
 				var maxConcurrentConnections interface{}
@@ -8831,6 +9077,15 @@ func (asrs *AmazonS3ReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				asrs.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreReadSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				asrs.Type = typeVar
 			}
 		}
 	}
@@ -9790,10 +10045,51 @@ func (ad *AvroDataset) UnmarshalJSON(body []byte) error {
 // AvroDatasetTypeProperties avro dataset properties.
 type AvroDatasetTypeProperties struct {
 	// Location - The location of the avro storage.
-	Location *DatasetLocation `json:"location,omitempty"`
+	Location BasicDatasetLocation `json:"location,omitempty"`
 	// AvroCompressionCodec - Possible values include: 'None', 'Deflate', 'Snappy', 'Xz', 'Bzip2'
 	AvroCompressionCodec AvroCompressionCodec `json:"avroCompressionCodec,omitempty"`
 	AvroCompressionLevel *int32               `json:"avroCompressionLevel,omitempty"`
+}
+
+// UnmarshalJSON is the custom unmarshaler for AvroDatasetTypeProperties struct.
+func (adtp *AvroDatasetTypeProperties) UnmarshalJSON(body []byte) error {
+	var m map[string]*json.RawMessage
+	err := json.Unmarshal(body, &m)
+	if err != nil {
+		return err
+	}
+	for k, v := range m {
+		switch k {
+		case "location":
+			if v != nil {
+				location, err := unmarshalBasicDatasetLocation(*v)
+				if err != nil {
+					return err
+				}
+				adtp.Location = location
+			}
+		case "avroCompressionCodec":
+			if v != nil {
+				var avroCompressionCodec AvroCompressionCodec
+				err = json.Unmarshal(*v, &avroCompressionCodec)
+				if err != nil {
+					return err
+				}
+				adtp.AvroCompressionCodec = avroCompressionCodec
+			}
+		case "avroCompressionLevel":
+			if v != nil {
+				var avroCompressionLevel int32
+				err = json.Unmarshal(*v, &avroCompressionLevel)
+				if err != nil {
+					return err
+				}
+				adtp.AvroCompressionLevel = &avroCompressionLevel
+			}
+		}
+	}
+
+	return nil
 }
 
 // AvroFormat the data stored in Avro format.
@@ -10251,7 +10547,7 @@ func (as *AvroSink) UnmarshalJSON(body []byte) error {
 // AvroSource a copy activity Avro source.
 type AvroSource struct {
 	// StoreSettings - Avro store settings.
-	StoreSettings *StoreReadSettings `json:"storeSettings,omitempty"`
+	StoreSettings BasicStoreReadSettings `json:"storeSettings,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -10268,9 +10564,7 @@ type AvroSource struct {
 func (as AvroSource) MarshalJSON() ([]byte, error) {
 	as.Type = TypeAvroSource
 	objectMap := make(map[string]interface{})
-	if as.StoreSettings != nil {
-		objectMap["storeSettings"] = as.StoreSettings
-	}
+	objectMap["storeSettings"] = as.StoreSettings
 	if as.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = as.SourceRetryCount
 	}
@@ -10750,12 +11044,11 @@ func (as *AvroSource) UnmarshalJSON(body []byte) error {
 		switch k {
 		case "storeSettings":
 			if v != nil {
-				var storeSettings StoreReadSettings
-				err = json.Unmarshal(*v, &storeSettings)
+				storeSettings, err := unmarshalBasicStoreReadSettings(*v)
 				if err != nil {
 					return err
 				}
-				as.StoreSettings = &storeSettings
+				as.StoreSettings = storeSettings
 			}
 		default:
 			if v != nil {
@@ -10819,12 +11112,13 @@ type AvroWriteSettings struct {
 	RecordNamespace *string `json:"recordNamespace,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The write setting type.
-	Type *string `json:"type,omitempty"`
+	// Type - Possible values include: 'TypeFormatWriteSettings', 'TypeJSONWriteSettings', 'TypeDelimitedTextWriteSettings', 'TypeAvroWriteSettings'
+	Type TypeBasicFormatWriteSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for AvroWriteSettings.
 func (aws AvroWriteSettings) MarshalJSON() ([]byte, error) {
+	aws.Type = TypeAvroWriteSettings
 	objectMap := make(map[string]interface{})
 	if aws.RecordName != nil {
 		objectMap["recordName"] = aws.RecordName
@@ -10832,13 +11126,38 @@ func (aws AvroWriteSettings) MarshalJSON() ([]byte, error) {
 	if aws.RecordNamespace != nil {
 		objectMap["recordNamespace"] = aws.RecordNamespace
 	}
-	if aws.Type != nil {
+	if aws.Type != "" {
 		objectMap["type"] = aws.Type
 	}
 	for k, v := range aws.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsJSONWriteSettings is the BasicFormatWriteSettings implementation for AvroWriteSettings.
+func (aws AvroWriteSettings) AsJSONWriteSettings() (*JSONWriteSettings, bool) {
+	return nil, false
+}
+
+// AsDelimitedTextWriteSettings is the BasicFormatWriteSettings implementation for AvroWriteSettings.
+func (aws AvroWriteSettings) AsDelimitedTextWriteSettings() (*DelimitedTextWriteSettings, bool) {
+	return nil, false
+}
+
+// AsAvroWriteSettings is the BasicFormatWriteSettings implementation for AvroWriteSettings.
+func (aws AvroWriteSettings) AsAvroWriteSettings() (*AvroWriteSettings, bool) {
+	return &aws, true
+}
+
+// AsFormatWriteSettings is the BasicFormatWriteSettings implementation for AvroWriteSettings.
+func (aws AvroWriteSettings) AsFormatWriteSettings() (*FormatWriteSettings, bool) {
+	return nil, false
+}
+
+// AsBasicFormatWriteSettings is the BasicFormatWriteSettings implementation for AvroWriteSettings.
+func (aws AvroWriteSettings) AsBasicFormatWriteSettings() (BasicFormatWriteSettings, bool) {
+	return &aws, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for AvroWriteSettings struct.
@@ -10882,12 +11201,12 @@ func (aws *AvroWriteSettings) UnmarshalJSON(body []byte) error {
 			}
 		case "type":
 			if v != nil {
-				var typeVar string
+				var typeVar TypeBasicFormatWriteSettings
 				err = json.Unmarshal(*v, &typeVar)
 				if err != nil {
 					return err
 				}
-				aws.Type = &typeVar
+				aws.Type = typeVar
 			}
 		}
 	}
@@ -13666,22 +13985,20 @@ type AzureBlobFSLocation struct {
 	FileSystem interface{} `json:"fileSystem,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - Type of dataset storage location.
-	Type *string `json:"type,omitempty"`
 	// FolderPath - Specify the folder path of dataset. Type: string (or Expression with resultType string)
 	FolderPath interface{} `json:"folderPath,omitempty"`
 	// FileName - Specify the file name of dataset. Type: string (or Expression with resultType string).
 	FileName interface{} `json:"fileName,omitempty"`
+	// Type - Possible values include: 'TypeDatasetLocation', 'TypeHdfsLocation', 'TypeHTTPServerLocation', 'TypeSftpLocation', 'TypeFtpServerLocation', 'TypeGoogleCloudStorageLocation', 'TypeAzureFileStorageLocation', 'TypeFileServerLocation', 'TypeAmazonS3Location', 'TypeAzureDataLakeStoreLocation', 'TypeAzureBlobFSLocation', 'TypeAzureBlobStorageLocation'
+	Type TypeBasicDatasetLocation `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for AzureBlobFSLocation.
 func (abfl AzureBlobFSLocation) MarshalJSON() ([]byte, error) {
+	abfl.Type = TypeAzureBlobFSLocation
 	objectMap := make(map[string]interface{})
 	if abfl.FileSystem != nil {
 		objectMap["fileSystem"] = abfl.FileSystem
-	}
-	if abfl.Type != nil {
-		objectMap["type"] = abfl.Type
 	}
 	if abfl.FolderPath != nil {
 		objectMap["folderPath"] = abfl.FolderPath
@@ -13689,10 +14006,78 @@ func (abfl AzureBlobFSLocation) MarshalJSON() ([]byte, error) {
 	if abfl.FileName != nil {
 		objectMap["fileName"] = abfl.FileName
 	}
+	if abfl.Type != "" {
+		objectMap["type"] = abfl.Type
+	}
 	for k, v := range abfl.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsLocation is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsHdfsLocation() (*HdfsLocation, bool) {
+	return nil, false
+}
+
+// AsHTTPServerLocation is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsHTTPServerLocation() (*HTTPServerLocation, bool) {
+	return nil, false
+}
+
+// AsSftpLocation is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsSftpLocation() (*SftpLocation, bool) {
+	return nil, false
+}
+
+// AsFtpServerLocation is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsFtpServerLocation() (*FtpServerLocation, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageLocation is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageLocation is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool) {
+	return nil, false
+}
+
+// AsFileServerLocation is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsFileServerLocation() (*FileServerLocation, bool) {
+	return nil, false
+}
+
+// AsAmazonS3Location is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsAmazonS3Location() (*AmazonS3Location, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreLocation is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSLocation is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool) {
+	return &abfl, true
+}
+
+// AsAzureBlobStorageLocation is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool) {
+	return nil, false
+}
+
+// AsDatasetLocation is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsDatasetLocation() (*DatasetLocation, bool) {
+	return nil, false
+}
+
+// AsBasicDatasetLocation is the BasicDatasetLocation implementation for AzureBlobFSLocation.
+func (abfl AzureBlobFSLocation) AsBasicDatasetLocation() (BasicDatasetLocation, bool) {
+	return &abfl, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for AzureBlobFSLocation struct.
@@ -13725,15 +14110,6 @@ func (abfl *AzureBlobFSLocation) UnmarshalJSON(body []byte) error {
 				}
 				abfl.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				abfl.Type = &typeVar
-			}
 		case "folderPath":
 			if v != nil {
 				var folderPath interface{}
@@ -13751,6 +14127,15 @@ func (abfl *AzureBlobFSLocation) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				abfl.FileName = fileName
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicDatasetLocation
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				abfl.Type = typeVar
 			}
 		}
 	}
@@ -13774,14 +14159,15 @@ type AzureBlobFSReadSettings struct {
 	ModifiedDatetimeEnd interface{} `json:"modifiedDatetimeEnd,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// Type - Possible values include: 'TypeStoreReadSettings', 'TypeHdfsReadSettings', 'TypeHTTPReadSettings', 'TypeSftpReadSettings', 'TypeFtpReadSettings', 'TypeGoogleCloudStorageReadSettings', 'TypeAzureFileStorageReadSettings', 'TypeFileServerReadSettings', 'TypeAmazonS3ReadSettings', 'TypeAzureDataLakeStoreReadSettings', 'TypeAzureBlobFSReadSettings', 'TypeAzureBlobStorageReadSettings'
+	Type TypeBasicStoreReadSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for AzureBlobFSReadSettings.
 func (abfrs AzureBlobFSReadSettings) MarshalJSON() ([]byte, error) {
+	abfrs.Type = TypeAzureBlobFSReadSettings
 	objectMap := make(map[string]interface{})
 	if abfrs.Recursive != nil {
 		objectMap["recursive"] = abfrs.Recursive
@@ -13801,16 +14187,81 @@ func (abfrs AzureBlobFSReadSettings) MarshalJSON() ([]byte, error) {
 	if abfrs.ModifiedDatetimeEnd != nil {
 		objectMap["modifiedDatetimeEnd"] = abfrs.ModifiedDatetimeEnd
 	}
-	if abfrs.Type != nil {
-		objectMap["type"] = abfrs.Type
-	}
 	if abfrs.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = abfrs.MaxConcurrentConnections
+	}
+	if abfrs.Type != "" {
+		objectMap["type"] = abfrs.Type
 	}
 	for k, v := range abfrs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsHdfsReadSettings() (*HdfsReadSettings, bool) {
+	return nil, false
+}
+
+// AsHTTPReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsHTTPReadSettings() (*HTTPReadSettings, bool) {
+	return nil, false
+}
+
+// AsSftpReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsSftpReadSettings() (*SftpReadSettings, bool) {
+	return nil, false
+}
+
+// AsFtpReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsFtpReadSettings() (*FtpReadSettings, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsFileServerReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsFileServerReadSettings() (*FileServerReadSettings, bool) {
+	return nil, false
+}
+
+// AsAmazonS3ReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool) {
+	return &abfrs, true
+}
+
+// AsAzureBlobStorageReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsStoreReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsStoreReadSettings() (*StoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsBasicStoreReadSettings is the BasicStoreReadSettings implementation for AzureBlobFSReadSettings.
+func (abfrs AzureBlobFSReadSettings) AsBasicStoreReadSettings() (BasicStoreReadSettings, bool) {
+	return &abfrs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for AzureBlobFSReadSettings struct.
@@ -13888,15 +14339,6 @@ func (abfrs *AzureBlobFSReadSettings) UnmarshalJSON(body []byte) error {
 				}
 				abfrs.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				abfrs.Type = &typeVar
-			}
 		case "maxConcurrentConnections":
 			if v != nil {
 				var maxConcurrentConnections interface{}
@@ -13905,6 +14347,15 @@ func (abfrs *AzureBlobFSReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				abfrs.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreReadSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				abfrs.Type = typeVar
 			}
 		}
 	}
@@ -14834,7 +15285,7 @@ type AzureBlobFSWriteSettings struct {
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
 	// CopyBehavior - The type of copy behavior for copy sink.
 	CopyBehavior interface{} `json:"copyBehavior,omitempty"`
-	// Type - Possible values include: 'TypeStoreWriteSettings', 'TypeFileServerWriteSettings', 'TypeAzureDataLakeStoreWriteSettings', 'TypeAzureBlobFSWriteSettings', 'TypeAzureBlobStorageWriteSettings'
+	// Type - Possible values include: 'TypeStoreWriteSettings', 'TypeFileServerWriteSettings', 'TypeAzureDataLakeStoreWriteSettings', 'TypeAzureBlobFSWriteSettings', 'TypeAzureBlobStorageWriteSettings', 'TypeSftpWriteSettings'
 	Type TypeBasicStoreWriteSettings `json:"type,omitempty"`
 }
 
@@ -14877,6 +15328,11 @@ func (abfws AzureBlobFSWriteSettings) AsAzureBlobFSWriteSettings() (*AzureBlobFS
 
 // AsAzureBlobStorageWriteSettings is the BasicStoreWriteSettings implementation for AzureBlobFSWriteSettings.
 func (abfws AzureBlobFSWriteSettings) AsAzureBlobStorageWriteSettings() (*AzureBlobStorageWriteSettings, bool) {
+	return nil, false
+}
+
+// AsSftpWriteSettings is the BasicStoreWriteSettings implementation for AzureBlobFSWriteSettings.
+func (abfws AzureBlobFSWriteSettings) AsSftpWriteSettings() (*SftpWriteSettings, bool) {
 	return nil, false
 }
 
@@ -15683,22 +16139,20 @@ type AzureBlobStorageLocation struct {
 	Container interface{} `json:"container,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - Type of dataset storage location.
-	Type *string `json:"type,omitempty"`
 	// FolderPath - Specify the folder path of dataset. Type: string (or Expression with resultType string)
 	FolderPath interface{} `json:"folderPath,omitempty"`
 	// FileName - Specify the file name of dataset. Type: string (or Expression with resultType string).
 	FileName interface{} `json:"fileName,omitempty"`
+	// Type - Possible values include: 'TypeDatasetLocation', 'TypeHdfsLocation', 'TypeHTTPServerLocation', 'TypeSftpLocation', 'TypeFtpServerLocation', 'TypeGoogleCloudStorageLocation', 'TypeAzureFileStorageLocation', 'TypeFileServerLocation', 'TypeAmazonS3Location', 'TypeAzureDataLakeStoreLocation', 'TypeAzureBlobFSLocation', 'TypeAzureBlobStorageLocation'
+	Type TypeBasicDatasetLocation `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for AzureBlobStorageLocation.
 func (absl AzureBlobStorageLocation) MarshalJSON() ([]byte, error) {
+	absl.Type = TypeAzureBlobStorageLocation
 	objectMap := make(map[string]interface{})
 	if absl.Container != nil {
 		objectMap["container"] = absl.Container
-	}
-	if absl.Type != nil {
-		objectMap["type"] = absl.Type
 	}
 	if absl.FolderPath != nil {
 		objectMap["folderPath"] = absl.FolderPath
@@ -15706,10 +16160,78 @@ func (absl AzureBlobStorageLocation) MarshalJSON() ([]byte, error) {
 	if absl.FileName != nil {
 		objectMap["fileName"] = absl.FileName
 	}
+	if absl.Type != "" {
+		objectMap["type"] = absl.Type
+	}
 	for k, v := range absl.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsLocation is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsHdfsLocation() (*HdfsLocation, bool) {
+	return nil, false
+}
+
+// AsHTTPServerLocation is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsHTTPServerLocation() (*HTTPServerLocation, bool) {
+	return nil, false
+}
+
+// AsSftpLocation is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsSftpLocation() (*SftpLocation, bool) {
+	return nil, false
+}
+
+// AsFtpServerLocation is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsFtpServerLocation() (*FtpServerLocation, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageLocation is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageLocation is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool) {
+	return nil, false
+}
+
+// AsFileServerLocation is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsFileServerLocation() (*FileServerLocation, bool) {
+	return nil, false
+}
+
+// AsAmazonS3Location is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsAmazonS3Location() (*AmazonS3Location, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreLocation is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSLocation is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageLocation is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool) {
+	return &absl, true
+}
+
+// AsDatasetLocation is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsDatasetLocation() (*DatasetLocation, bool) {
+	return nil, false
+}
+
+// AsBasicDatasetLocation is the BasicDatasetLocation implementation for AzureBlobStorageLocation.
+func (absl AzureBlobStorageLocation) AsBasicDatasetLocation() (BasicDatasetLocation, bool) {
+	return &absl, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for AzureBlobStorageLocation struct.
@@ -15742,15 +16264,6 @@ func (absl *AzureBlobStorageLocation) UnmarshalJSON(body []byte) error {
 				}
 				absl.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				absl.Type = &typeVar
-			}
 		case "folderPath":
 			if v != nil {
 				var folderPath interface{}
@@ -15769,6 +16282,15 @@ func (absl *AzureBlobStorageLocation) UnmarshalJSON(body []byte) error {
 				}
 				absl.FileName = fileName
 			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicDatasetLocation
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				absl.Type = typeVar
+			}
 		}
 	}
 
@@ -15783,6 +16305,8 @@ type AzureBlobStorageReadSettings struct {
 	WildcardFolderPath interface{} `json:"wildcardFolderPath,omitempty"`
 	// WildcardFileName - Azure blob wildcardFileName. Type: string (or Expression with resultType string).
 	WildcardFileName interface{} `json:"wildcardFileName,omitempty"`
+	// Prefix - The prefix filter for the Azure Blob name. Type: string (or Expression with resultType string).
+	Prefix interface{} `json:"prefix,omitempty"`
 	// EnablePartitionDiscovery - Indicates whether to enable partition discovery.
 	EnablePartitionDiscovery *bool `json:"enablePartitionDiscovery,omitempty"`
 	// ModifiedDatetimeStart - The start of file's modified datetime. Type: string (or Expression with resultType string).
@@ -15791,14 +16315,15 @@ type AzureBlobStorageReadSettings struct {
 	ModifiedDatetimeEnd interface{} `json:"modifiedDatetimeEnd,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// Type - Possible values include: 'TypeStoreReadSettings', 'TypeHdfsReadSettings', 'TypeHTTPReadSettings', 'TypeSftpReadSettings', 'TypeFtpReadSettings', 'TypeGoogleCloudStorageReadSettings', 'TypeAzureFileStorageReadSettings', 'TypeFileServerReadSettings', 'TypeAmazonS3ReadSettings', 'TypeAzureDataLakeStoreReadSettings', 'TypeAzureBlobFSReadSettings', 'TypeAzureBlobStorageReadSettings'
+	Type TypeBasicStoreReadSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for AzureBlobStorageReadSettings.
 func (absrs AzureBlobStorageReadSettings) MarshalJSON() ([]byte, error) {
+	absrs.Type = TypeAzureBlobStorageReadSettings
 	objectMap := make(map[string]interface{})
 	if absrs.Recursive != nil {
 		objectMap["recursive"] = absrs.Recursive
@@ -15809,6 +16334,9 @@ func (absrs AzureBlobStorageReadSettings) MarshalJSON() ([]byte, error) {
 	if absrs.WildcardFileName != nil {
 		objectMap["wildcardFileName"] = absrs.WildcardFileName
 	}
+	if absrs.Prefix != nil {
+		objectMap["prefix"] = absrs.Prefix
+	}
 	if absrs.EnablePartitionDiscovery != nil {
 		objectMap["enablePartitionDiscovery"] = absrs.EnablePartitionDiscovery
 	}
@@ -15818,16 +16346,81 @@ func (absrs AzureBlobStorageReadSettings) MarshalJSON() ([]byte, error) {
 	if absrs.ModifiedDatetimeEnd != nil {
 		objectMap["modifiedDatetimeEnd"] = absrs.ModifiedDatetimeEnd
 	}
-	if absrs.Type != nil {
-		objectMap["type"] = absrs.Type
-	}
 	if absrs.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = absrs.MaxConcurrentConnections
+	}
+	if absrs.Type != "" {
+		objectMap["type"] = absrs.Type
 	}
 	for k, v := range absrs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsHdfsReadSettings() (*HdfsReadSettings, bool) {
+	return nil, false
+}
+
+// AsHTTPReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsHTTPReadSettings() (*HTTPReadSettings, bool) {
+	return nil, false
+}
+
+// AsSftpReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsSftpReadSettings() (*SftpReadSettings, bool) {
+	return nil, false
+}
+
+// AsFtpReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsFtpReadSettings() (*FtpReadSettings, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsFileServerReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsFileServerReadSettings() (*FileServerReadSettings, bool) {
+	return nil, false
+}
+
+// AsAmazonS3ReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool) {
+	return &absrs, true
+}
+
+// AsStoreReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsStoreReadSettings() (*StoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsBasicStoreReadSettings is the BasicStoreReadSettings implementation for AzureBlobStorageReadSettings.
+func (absrs AzureBlobStorageReadSettings) AsBasicStoreReadSettings() (BasicStoreReadSettings, bool) {
+	return &absrs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for AzureBlobStorageReadSettings struct.
@@ -15865,6 +16458,15 @@ func (absrs *AzureBlobStorageReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				absrs.WildcardFileName = wildcardFileName
+			}
+		case "prefix":
+			if v != nil {
+				var prefix interface{}
+				err = json.Unmarshal(*v, &prefix)
+				if err != nil {
+					return err
+				}
+				absrs.Prefix = prefix
 			}
 		case "enablePartitionDiscovery":
 			if v != nil {
@@ -15905,15 +16507,6 @@ func (absrs *AzureBlobStorageReadSettings) UnmarshalJSON(body []byte) error {
 				}
 				absrs.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				absrs.Type = &typeVar
-			}
 		case "maxConcurrentConnections":
 			if v != nil {
 				var maxConcurrentConnections interface{}
@@ -15922,6 +16515,15 @@ func (absrs *AzureBlobStorageReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				absrs.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreReadSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				absrs.Type = typeVar
 			}
 		}
 	}
@@ -15939,7 +16541,7 @@ type AzureBlobStorageWriteSettings struct {
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
 	// CopyBehavior - The type of copy behavior for copy sink.
 	CopyBehavior interface{} `json:"copyBehavior,omitempty"`
-	// Type - Possible values include: 'TypeStoreWriteSettings', 'TypeFileServerWriteSettings', 'TypeAzureDataLakeStoreWriteSettings', 'TypeAzureBlobFSWriteSettings', 'TypeAzureBlobStorageWriteSettings'
+	// Type - Possible values include: 'TypeStoreWriteSettings', 'TypeFileServerWriteSettings', 'TypeAzureDataLakeStoreWriteSettings', 'TypeAzureBlobFSWriteSettings', 'TypeAzureBlobStorageWriteSettings', 'TypeSftpWriteSettings'
 	Type TypeBasicStoreWriteSettings `json:"type,omitempty"`
 }
 
@@ -15983,6 +16585,11 @@ func (absws AzureBlobStorageWriteSettings) AsAzureBlobFSWriteSettings() (*AzureB
 // AsAzureBlobStorageWriteSettings is the BasicStoreWriteSettings implementation for AzureBlobStorageWriteSettings.
 func (absws AzureBlobStorageWriteSettings) AsAzureBlobStorageWriteSettings() (*AzureBlobStorageWriteSettings, bool) {
 	return &absws, true
+}
+
+// AsSftpWriteSettings is the BasicStoreWriteSettings implementation for AzureBlobStorageWriteSettings.
+func (absws AzureBlobStorageWriteSettings) AsSftpWriteSettings() (*SftpWriteSettings, bool) {
+	return nil, false
 }
 
 // AsStoreWriteSettings is the BasicStoreWriteSettings implementation for AzureBlobStorageWriteSettings.
@@ -21591,30 +22198,96 @@ func (adlslstp *AzureDataLakeStoreLinkedServiceTypeProperties) UnmarshalJSON(bod
 type AzureDataLakeStoreLocation struct {
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - Type of dataset storage location.
-	Type *string `json:"type,omitempty"`
 	// FolderPath - Specify the folder path of dataset. Type: string (or Expression with resultType string)
 	FolderPath interface{} `json:"folderPath,omitempty"`
 	// FileName - Specify the file name of dataset. Type: string (or Expression with resultType string).
 	FileName interface{} `json:"fileName,omitempty"`
+	// Type - Possible values include: 'TypeDatasetLocation', 'TypeHdfsLocation', 'TypeHTTPServerLocation', 'TypeSftpLocation', 'TypeFtpServerLocation', 'TypeGoogleCloudStorageLocation', 'TypeAzureFileStorageLocation', 'TypeFileServerLocation', 'TypeAmazonS3Location', 'TypeAzureDataLakeStoreLocation', 'TypeAzureBlobFSLocation', 'TypeAzureBlobStorageLocation'
+	Type TypeBasicDatasetLocation `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for AzureDataLakeStoreLocation.
 func (adlsl AzureDataLakeStoreLocation) MarshalJSON() ([]byte, error) {
+	adlsl.Type = TypeAzureDataLakeStoreLocation
 	objectMap := make(map[string]interface{})
-	if adlsl.Type != nil {
-		objectMap["type"] = adlsl.Type
-	}
 	if adlsl.FolderPath != nil {
 		objectMap["folderPath"] = adlsl.FolderPath
 	}
 	if adlsl.FileName != nil {
 		objectMap["fileName"] = adlsl.FileName
 	}
+	if adlsl.Type != "" {
+		objectMap["type"] = adlsl.Type
+	}
 	for k, v := range adlsl.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsLocation is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsHdfsLocation() (*HdfsLocation, bool) {
+	return nil, false
+}
+
+// AsHTTPServerLocation is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsHTTPServerLocation() (*HTTPServerLocation, bool) {
+	return nil, false
+}
+
+// AsSftpLocation is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsSftpLocation() (*SftpLocation, bool) {
+	return nil, false
+}
+
+// AsFtpServerLocation is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsFtpServerLocation() (*FtpServerLocation, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageLocation is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageLocation is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool) {
+	return nil, false
+}
+
+// AsFileServerLocation is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsFileServerLocation() (*FileServerLocation, bool) {
+	return nil, false
+}
+
+// AsAmazonS3Location is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsAmazonS3Location() (*AmazonS3Location, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreLocation is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool) {
+	return &adlsl, true
+}
+
+// AsAzureBlobFSLocation is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageLocation is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool) {
+	return nil, false
+}
+
+// AsDatasetLocation is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsDatasetLocation() (*DatasetLocation, bool) {
+	return nil, false
+}
+
+// AsBasicDatasetLocation is the BasicDatasetLocation implementation for AzureDataLakeStoreLocation.
+func (adlsl AzureDataLakeStoreLocation) AsBasicDatasetLocation() (BasicDatasetLocation, bool) {
+	return &adlsl, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for AzureDataLakeStoreLocation struct.
@@ -21638,15 +22311,6 @@ func (adlsl *AzureDataLakeStoreLocation) UnmarshalJSON(body []byte) error {
 				}
 				adlsl.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				adlsl.Type = &typeVar
-			}
 		case "folderPath":
 			if v != nil {
 				var folderPath interface{}
@@ -21664,6 +22328,15 @@ func (adlsl *AzureDataLakeStoreLocation) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				adlsl.FileName = fileName
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicDatasetLocation
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				adlsl.Type = typeVar
 			}
 		}
 	}
@@ -21687,14 +22360,15 @@ type AzureDataLakeStoreReadSettings struct {
 	ModifiedDatetimeEnd interface{} `json:"modifiedDatetimeEnd,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// Type - Possible values include: 'TypeStoreReadSettings', 'TypeHdfsReadSettings', 'TypeHTTPReadSettings', 'TypeSftpReadSettings', 'TypeFtpReadSettings', 'TypeGoogleCloudStorageReadSettings', 'TypeAzureFileStorageReadSettings', 'TypeFileServerReadSettings', 'TypeAmazonS3ReadSettings', 'TypeAzureDataLakeStoreReadSettings', 'TypeAzureBlobFSReadSettings', 'TypeAzureBlobStorageReadSettings'
+	Type TypeBasicStoreReadSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for AzureDataLakeStoreReadSettings.
 func (adlsrs AzureDataLakeStoreReadSettings) MarshalJSON() ([]byte, error) {
+	adlsrs.Type = TypeAzureDataLakeStoreReadSettings
 	objectMap := make(map[string]interface{})
 	if adlsrs.Recursive != nil {
 		objectMap["recursive"] = adlsrs.Recursive
@@ -21714,16 +22388,81 @@ func (adlsrs AzureDataLakeStoreReadSettings) MarshalJSON() ([]byte, error) {
 	if adlsrs.ModifiedDatetimeEnd != nil {
 		objectMap["modifiedDatetimeEnd"] = adlsrs.ModifiedDatetimeEnd
 	}
-	if adlsrs.Type != nil {
-		objectMap["type"] = adlsrs.Type
-	}
 	if adlsrs.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = adlsrs.MaxConcurrentConnections
+	}
+	if adlsrs.Type != "" {
+		objectMap["type"] = adlsrs.Type
 	}
 	for k, v := range adlsrs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsHdfsReadSettings() (*HdfsReadSettings, bool) {
+	return nil, false
+}
+
+// AsHTTPReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsHTTPReadSettings() (*HTTPReadSettings, bool) {
+	return nil, false
+}
+
+// AsSftpReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsSftpReadSettings() (*SftpReadSettings, bool) {
+	return nil, false
+}
+
+// AsFtpReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsFtpReadSettings() (*FtpReadSettings, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsFileServerReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsFileServerReadSettings() (*FileServerReadSettings, bool) {
+	return nil, false
+}
+
+// AsAmazonS3ReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool) {
+	return &adlsrs, true
+}
+
+// AsAzureBlobFSReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsStoreReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsStoreReadSettings() (*StoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsBasicStoreReadSettings is the BasicStoreReadSettings implementation for AzureDataLakeStoreReadSettings.
+func (adlsrs AzureDataLakeStoreReadSettings) AsBasicStoreReadSettings() (BasicStoreReadSettings, bool) {
+	return &adlsrs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for AzureDataLakeStoreReadSettings struct.
@@ -21801,15 +22540,6 @@ func (adlsrs *AzureDataLakeStoreReadSettings) UnmarshalJSON(body []byte) error {
 				}
 				adlsrs.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				adlsrs.Type = &typeVar
-			}
 		case "maxConcurrentConnections":
 			if v != nil {
 				var maxConcurrentConnections interface{}
@@ -21818,6 +22548,15 @@ func (adlsrs *AzureDataLakeStoreReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				adlsrs.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreReadSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				adlsrs.Type = typeVar
 			}
 		}
 	}
@@ -22731,7 +23470,7 @@ type AzureDataLakeStoreWriteSettings struct {
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
 	// CopyBehavior - The type of copy behavior for copy sink.
 	CopyBehavior interface{} `json:"copyBehavior,omitempty"`
-	// Type - Possible values include: 'TypeStoreWriteSettings', 'TypeFileServerWriteSettings', 'TypeAzureDataLakeStoreWriteSettings', 'TypeAzureBlobFSWriteSettings', 'TypeAzureBlobStorageWriteSettings'
+	// Type - Possible values include: 'TypeStoreWriteSettings', 'TypeFileServerWriteSettings', 'TypeAzureDataLakeStoreWriteSettings', 'TypeAzureBlobFSWriteSettings', 'TypeAzureBlobStorageWriteSettings', 'TypeSftpWriteSettings'
 	Type TypeBasicStoreWriteSettings `json:"type,omitempty"`
 }
 
@@ -22771,6 +23510,11 @@ func (adlsws AzureDataLakeStoreWriteSettings) AsAzureBlobFSWriteSettings() (*Azu
 
 // AsAzureBlobStorageWriteSettings is the BasicStoreWriteSettings implementation for AzureDataLakeStoreWriteSettings.
 func (adlsws AzureDataLakeStoreWriteSettings) AsAzureBlobStorageWriteSettings() (*AzureBlobStorageWriteSettings, bool) {
+	return nil, false
+}
+
+// AsSftpWriteSettings is the BasicStoreWriteSettings implementation for AzureDataLakeStoreWriteSettings.
+func (adlsws AzureDataLakeStoreWriteSettings) AsSftpWriteSettings() (*SftpWriteSettings, bool) {
 	return nil, false
 }
 
@@ -23511,30 +24255,96 @@ func (afslstp *AzureFileStorageLinkedServiceTypeProperties) UnmarshalJSON(body [
 type AzureFileStorageLocation struct {
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - Type of dataset storage location.
-	Type *string `json:"type,omitempty"`
 	// FolderPath - Specify the folder path of dataset. Type: string (or Expression with resultType string)
 	FolderPath interface{} `json:"folderPath,omitempty"`
 	// FileName - Specify the file name of dataset. Type: string (or Expression with resultType string).
 	FileName interface{} `json:"fileName,omitempty"`
+	// Type - Possible values include: 'TypeDatasetLocation', 'TypeHdfsLocation', 'TypeHTTPServerLocation', 'TypeSftpLocation', 'TypeFtpServerLocation', 'TypeGoogleCloudStorageLocation', 'TypeAzureFileStorageLocation', 'TypeFileServerLocation', 'TypeAmazonS3Location', 'TypeAzureDataLakeStoreLocation', 'TypeAzureBlobFSLocation', 'TypeAzureBlobStorageLocation'
+	Type TypeBasicDatasetLocation `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for AzureFileStorageLocation.
 func (afsl AzureFileStorageLocation) MarshalJSON() ([]byte, error) {
+	afsl.Type = TypeAzureFileStorageLocation
 	objectMap := make(map[string]interface{})
-	if afsl.Type != nil {
-		objectMap["type"] = afsl.Type
-	}
 	if afsl.FolderPath != nil {
 		objectMap["folderPath"] = afsl.FolderPath
 	}
 	if afsl.FileName != nil {
 		objectMap["fileName"] = afsl.FileName
 	}
+	if afsl.Type != "" {
+		objectMap["type"] = afsl.Type
+	}
 	for k, v := range afsl.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsLocation is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsHdfsLocation() (*HdfsLocation, bool) {
+	return nil, false
+}
+
+// AsHTTPServerLocation is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsHTTPServerLocation() (*HTTPServerLocation, bool) {
+	return nil, false
+}
+
+// AsSftpLocation is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsSftpLocation() (*SftpLocation, bool) {
+	return nil, false
+}
+
+// AsFtpServerLocation is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsFtpServerLocation() (*FtpServerLocation, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageLocation is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageLocation is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool) {
+	return &afsl, true
+}
+
+// AsFileServerLocation is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsFileServerLocation() (*FileServerLocation, bool) {
+	return nil, false
+}
+
+// AsAmazonS3Location is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsAmazonS3Location() (*AmazonS3Location, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreLocation is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSLocation is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageLocation is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool) {
+	return nil, false
+}
+
+// AsDatasetLocation is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsDatasetLocation() (*DatasetLocation, bool) {
+	return nil, false
+}
+
+// AsBasicDatasetLocation is the BasicDatasetLocation implementation for AzureFileStorageLocation.
+func (afsl AzureFileStorageLocation) AsBasicDatasetLocation() (BasicDatasetLocation, bool) {
+	return &afsl, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for AzureFileStorageLocation struct.
@@ -23558,15 +24368,6 @@ func (afsl *AzureFileStorageLocation) UnmarshalJSON(body []byte) error {
 				}
 				afsl.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				afsl.Type = &typeVar
-			}
 		case "folderPath":
 			if v != nil {
 				var folderPath interface{}
@@ -23584,6 +24385,15 @@ func (afsl *AzureFileStorageLocation) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				afsl.FileName = fileName
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicDatasetLocation
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				afsl.Type = typeVar
 			}
 		}
 	}
@@ -23607,14 +24417,15 @@ type AzureFileStorageReadSettings struct {
 	ModifiedDatetimeEnd interface{} `json:"modifiedDatetimeEnd,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// Type - Possible values include: 'TypeStoreReadSettings', 'TypeHdfsReadSettings', 'TypeHTTPReadSettings', 'TypeSftpReadSettings', 'TypeFtpReadSettings', 'TypeGoogleCloudStorageReadSettings', 'TypeAzureFileStorageReadSettings', 'TypeFileServerReadSettings', 'TypeAmazonS3ReadSettings', 'TypeAzureDataLakeStoreReadSettings', 'TypeAzureBlobFSReadSettings', 'TypeAzureBlobStorageReadSettings'
+	Type TypeBasicStoreReadSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for AzureFileStorageReadSettings.
 func (afsrs AzureFileStorageReadSettings) MarshalJSON() ([]byte, error) {
+	afsrs.Type = TypeAzureFileStorageReadSettings
 	objectMap := make(map[string]interface{})
 	if afsrs.Recursive != nil {
 		objectMap["recursive"] = afsrs.Recursive
@@ -23634,16 +24445,81 @@ func (afsrs AzureFileStorageReadSettings) MarshalJSON() ([]byte, error) {
 	if afsrs.ModifiedDatetimeEnd != nil {
 		objectMap["modifiedDatetimeEnd"] = afsrs.ModifiedDatetimeEnd
 	}
-	if afsrs.Type != nil {
-		objectMap["type"] = afsrs.Type
-	}
 	if afsrs.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = afsrs.MaxConcurrentConnections
+	}
+	if afsrs.Type != "" {
+		objectMap["type"] = afsrs.Type
 	}
 	for k, v := range afsrs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsHdfsReadSettings() (*HdfsReadSettings, bool) {
+	return nil, false
+}
+
+// AsHTTPReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsHTTPReadSettings() (*HTTPReadSettings, bool) {
+	return nil, false
+}
+
+// AsSftpReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsSftpReadSettings() (*SftpReadSettings, bool) {
+	return nil, false
+}
+
+// AsFtpReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsFtpReadSettings() (*FtpReadSettings, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool) {
+	return &afsrs, true
+}
+
+// AsFileServerReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsFileServerReadSettings() (*FileServerReadSettings, bool) {
+	return nil, false
+}
+
+// AsAmazonS3ReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsStoreReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsStoreReadSettings() (*StoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsBasicStoreReadSettings is the BasicStoreReadSettings implementation for AzureFileStorageReadSettings.
+func (afsrs AzureFileStorageReadSettings) AsBasicStoreReadSettings() (BasicStoreReadSettings, bool) {
+	return &afsrs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for AzureFileStorageReadSettings struct.
@@ -23721,15 +24597,6 @@ func (afsrs *AzureFileStorageReadSettings) UnmarshalJSON(body []byte) error {
 				}
 				afsrs.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				afsrs.Type = &typeVar
-			}
 		case "maxConcurrentConnections":
 			if v != nil {
 				var maxConcurrentConnections interface{}
@@ -23738,6 +24605,15 @@ func (afsrs *AzureFileStorageReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				afsrs.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreReadSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				afsrs.Type = typeVar
 			}
 		}
 	}
@@ -44323,7 +45199,7 @@ func (bd *BinaryDataset) UnmarshalJSON(body []byte) error {
 // BinaryDatasetTypeProperties binary dataset properties.
 type BinaryDatasetTypeProperties struct {
 	// Location - The location of the Binary storage.
-	Location *DatasetLocation `json:"location,omitempty"`
+	Location BasicDatasetLocation `json:"location,omitempty"`
 	// Compression - The data compression method used for the binary dataset.
 	Compression BasicDatasetCompression `json:"compression,omitempty"`
 }
@@ -44339,12 +45215,11 @@ func (bdtp *BinaryDatasetTypeProperties) UnmarshalJSON(body []byte) error {
 		switch k {
 		case "location":
 			if v != nil {
-				var location DatasetLocation
-				err = json.Unmarshal(*v, &location)
+				location, err := unmarshalBasicDatasetLocation(*v)
 				if err != nil {
 					return err
 				}
-				bdtp.Location = &location
+				bdtp.Location = location
 			}
 		case "compression":
 			if v != nil {
@@ -44681,7 +45556,7 @@ func (bs *BinarySink) UnmarshalJSON(body []byte) error {
 // BinarySource a copy activity Binary source.
 type BinarySource struct {
 	// StoreSettings - Binary store settings.
-	StoreSettings *StoreReadSettings `json:"storeSettings,omitempty"`
+	StoreSettings BasicStoreReadSettings `json:"storeSettings,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -44698,9 +45573,7 @@ type BinarySource struct {
 func (bs BinarySource) MarshalJSON() ([]byte, error) {
 	bs.Type = TypeBinarySource
 	objectMap := make(map[string]interface{})
-	if bs.StoreSettings != nil {
-		objectMap["storeSettings"] = bs.StoreSettings
-	}
+	objectMap["storeSettings"] = bs.StoreSettings
 	if bs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = bs.SourceRetryCount
 	}
@@ -45180,12 +46053,11 @@ func (bs *BinarySource) UnmarshalJSON(body []byte) error {
 		switch k {
 		case "storeSettings":
 			if v != nil {
-				var storeSettings StoreReadSettings
-				err = json.Unmarshal(*v, &storeSettings)
+				storeSettings, err := unmarshalBasicStoreReadSettings(*v)
 				if err != nil {
 					return err
 				}
-				bs.StoreSettings = &storeSettings
+				bs.StoreSettings = storeSettings
 			}
 		default:
 			if v != nil {
@@ -67588,34 +68460,193 @@ func NewDatasetListResponsePage(getNextPage func(context.Context, DatasetListRes
 	return DatasetListResponsePage{fn: getNextPage}
 }
 
+// BasicDatasetLocation dataset location.
+type BasicDatasetLocation interface {
+	AsHdfsLocation() (*HdfsLocation, bool)
+	AsHTTPServerLocation() (*HTTPServerLocation, bool)
+	AsSftpLocation() (*SftpLocation, bool)
+	AsFtpServerLocation() (*FtpServerLocation, bool)
+	AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool)
+	AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool)
+	AsFileServerLocation() (*FileServerLocation, bool)
+	AsAmazonS3Location() (*AmazonS3Location, bool)
+	AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool)
+	AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool)
+	AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool)
+	AsDatasetLocation() (*DatasetLocation, bool)
+}
+
 // DatasetLocation dataset location.
 type DatasetLocation struct {
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - Type of dataset storage location.
-	Type *string `json:"type,omitempty"`
 	// FolderPath - Specify the folder path of dataset. Type: string (or Expression with resultType string)
 	FolderPath interface{} `json:"folderPath,omitempty"`
 	// FileName - Specify the file name of dataset. Type: string (or Expression with resultType string).
 	FileName interface{} `json:"fileName,omitempty"`
+	// Type - Possible values include: 'TypeDatasetLocation', 'TypeHdfsLocation', 'TypeHTTPServerLocation', 'TypeSftpLocation', 'TypeFtpServerLocation', 'TypeGoogleCloudStorageLocation', 'TypeAzureFileStorageLocation', 'TypeFileServerLocation', 'TypeAmazonS3Location', 'TypeAzureDataLakeStoreLocation', 'TypeAzureBlobFSLocation', 'TypeAzureBlobStorageLocation'
+	Type TypeBasicDatasetLocation `json:"type,omitempty"`
+}
+
+func unmarshalBasicDatasetLocation(body []byte) (BasicDatasetLocation, error) {
+	var m map[string]interface{}
+	err := json.Unmarshal(body, &m)
+	if err != nil {
+		return nil, err
+	}
+
+	switch m["type"] {
+	case string(TypeHdfsLocation):
+		var hl HdfsLocation
+		err := json.Unmarshal(body, &hl)
+		return hl, err
+	case string(TypeHTTPServerLocation):
+		var hsl HTTPServerLocation
+		err := json.Unmarshal(body, &hsl)
+		return hsl, err
+	case string(TypeSftpLocation):
+		var sl SftpLocation
+		err := json.Unmarshal(body, &sl)
+		return sl, err
+	case string(TypeFtpServerLocation):
+		var fsl FtpServerLocation
+		err := json.Unmarshal(body, &fsl)
+		return fsl, err
+	case string(TypeGoogleCloudStorageLocation):
+		var gcsl GoogleCloudStorageLocation
+		err := json.Unmarshal(body, &gcsl)
+		return gcsl, err
+	case string(TypeAzureFileStorageLocation):
+		var afsl AzureFileStorageLocation
+		err := json.Unmarshal(body, &afsl)
+		return afsl, err
+	case string(TypeFileServerLocation):
+		var fsl FileServerLocation
+		err := json.Unmarshal(body, &fsl)
+		return fsl, err
+	case string(TypeAmazonS3Location):
+		var asl AmazonS3Location
+		err := json.Unmarshal(body, &asl)
+		return asl, err
+	case string(TypeAzureDataLakeStoreLocation):
+		var adlsl AzureDataLakeStoreLocation
+		err := json.Unmarshal(body, &adlsl)
+		return adlsl, err
+	case string(TypeAzureBlobFSLocation):
+		var abfl AzureBlobFSLocation
+		err := json.Unmarshal(body, &abfl)
+		return abfl, err
+	case string(TypeAzureBlobStorageLocation):
+		var absl AzureBlobStorageLocation
+		err := json.Unmarshal(body, &absl)
+		return absl, err
+	default:
+		var dl DatasetLocation
+		err := json.Unmarshal(body, &dl)
+		return dl, err
+	}
+}
+func unmarshalBasicDatasetLocationArray(body []byte) ([]BasicDatasetLocation, error) {
+	var rawMessages []*json.RawMessage
+	err := json.Unmarshal(body, &rawMessages)
+	if err != nil {
+		return nil, err
+	}
+
+	dlArray := make([]BasicDatasetLocation, len(rawMessages))
+
+	for index, rawMessage := range rawMessages {
+		dl, err := unmarshalBasicDatasetLocation(*rawMessage)
+		if err != nil {
+			return nil, err
+		}
+		dlArray[index] = dl
+	}
+	return dlArray, nil
 }
 
 // MarshalJSON is the custom marshaler for DatasetLocation.
 func (dl DatasetLocation) MarshalJSON() ([]byte, error) {
+	dl.Type = TypeDatasetLocation
 	objectMap := make(map[string]interface{})
-	if dl.Type != nil {
-		objectMap["type"] = dl.Type
-	}
 	if dl.FolderPath != nil {
 		objectMap["folderPath"] = dl.FolderPath
 	}
 	if dl.FileName != nil {
 		objectMap["fileName"] = dl.FileName
 	}
+	if dl.Type != "" {
+		objectMap["type"] = dl.Type
+	}
 	for k, v := range dl.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsLocation is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsHdfsLocation() (*HdfsLocation, bool) {
+	return nil, false
+}
+
+// AsHTTPServerLocation is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsHTTPServerLocation() (*HTTPServerLocation, bool) {
+	return nil, false
+}
+
+// AsSftpLocation is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsSftpLocation() (*SftpLocation, bool) {
+	return nil, false
+}
+
+// AsFtpServerLocation is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsFtpServerLocation() (*FtpServerLocation, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageLocation is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageLocation is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool) {
+	return nil, false
+}
+
+// AsFileServerLocation is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsFileServerLocation() (*FileServerLocation, bool) {
+	return nil, false
+}
+
+// AsAmazonS3Location is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsAmazonS3Location() (*AmazonS3Location, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreLocation is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSLocation is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageLocation is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool) {
+	return nil, false
+}
+
+// AsDatasetLocation is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsDatasetLocation() (*DatasetLocation, bool) {
+	return &dl, true
+}
+
+// AsBasicDatasetLocation is the BasicDatasetLocation implementation for DatasetLocation.
+func (dl DatasetLocation) AsBasicDatasetLocation() (BasicDatasetLocation, bool) {
+	return &dl, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for DatasetLocation struct.
@@ -67639,15 +68670,6 @@ func (dl *DatasetLocation) UnmarshalJSON(body []byte) error {
 				}
 				dl.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				dl.Type = &typeVar
-			}
 		case "folderPath":
 			if v != nil {
 				var folderPath interface{}
@@ -67665,6 +68687,15 @@ func (dl *DatasetLocation) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				dl.FileName = fileName
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicDatasetLocation
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				dl.Type = typeVar
 			}
 		}
 	}
@@ -70961,7 +71992,7 @@ func (dtd *DelimitedTextDataset) UnmarshalJSON(body []byte) error {
 // DelimitedTextDatasetTypeProperties delimitedText dataset properties.
 type DelimitedTextDatasetTypeProperties struct {
 	// Location - The location of the delimited text storage.
-	Location *DatasetLocation `json:"location,omitempty"`
+	Location BasicDatasetLocation `json:"location,omitempty"`
 	// ColumnDelimiter - The column delimiter. Type: string (or Expression with resultType string).
 	ColumnDelimiter interface{} `json:"columnDelimiter,omitempty"`
 	// RowDelimiter - The row delimiter. Type: string (or Expression with resultType string).
@@ -70981,29 +72012,149 @@ type DelimitedTextDatasetTypeProperties struct {
 	NullValue interface{} `json:"nullValue,omitempty"`
 }
 
+// UnmarshalJSON is the custom unmarshaler for DelimitedTextDatasetTypeProperties struct.
+func (dtdtp *DelimitedTextDatasetTypeProperties) UnmarshalJSON(body []byte) error {
+	var m map[string]*json.RawMessage
+	err := json.Unmarshal(body, &m)
+	if err != nil {
+		return err
+	}
+	for k, v := range m {
+		switch k {
+		case "location":
+			if v != nil {
+				location, err := unmarshalBasicDatasetLocation(*v)
+				if err != nil {
+					return err
+				}
+				dtdtp.Location = location
+			}
+		case "columnDelimiter":
+			if v != nil {
+				var columnDelimiter interface{}
+				err = json.Unmarshal(*v, &columnDelimiter)
+				if err != nil {
+					return err
+				}
+				dtdtp.ColumnDelimiter = columnDelimiter
+			}
+		case "rowDelimiter":
+			if v != nil {
+				var rowDelimiter interface{}
+				err = json.Unmarshal(*v, &rowDelimiter)
+				if err != nil {
+					return err
+				}
+				dtdtp.RowDelimiter = rowDelimiter
+			}
+		case "encodingName":
+			if v != nil {
+				var encodingName interface{}
+				err = json.Unmarshal(*v, &encodingName)
+				if err != nil {
+					return err
+				}
+				dtdtp.EncodingName = encodingName
+			}
+		case "compressionCodec":
+			if v != nil {
+				var compressionCodec interface{}
+				err = json.Unmarshal(*v, &compressionCodec)
+				if err != nil {
+					return err
+				}
+				dtdtp.CompressionCodec = compressionCodec
+			}
+		case "compressionLevel":
+			if v != nil {
+				var compressionLevel interface{}
+				err = json.Unmarshal(*v, &compressionLevel)
+				if err != nil {
+					return err
+				}
+				dtdtp.CompressionLevel = compressionLevel
+			}
+		case "quoteChar":
+			if v != nil {
+				var quoteChar interface{}
+				err = json.Unmarshal(*v, &quoteChar)
+				if err != nil {
+					return err
+				}
+				dtdtp.QuoteChar = quoteChar
+			}
+		case "escapeChar":
+			if v != nil {
+				var escapeChar interface{}
+				err = json.Unmarshal(*v, &escapeChar)
+				if err != nil {
+					return err
+				}
+				dtdtp.EscapeChar = escapeChar
+			}
+		case "firstRowAsHeader":
+			if v != nil {
+				var firstRowAsHeader interface{}
+				err = json.Unmarshal(*v, &firstRowAsHeader)
+				if err != nil {
+					return err
+				}
+				dtdtp.FirstRowAsHeader = firstRowAsHeader
+			}
+		case "nullValue":
+			if v != nil {
+				var nullValue interface{}
+				err = json.Unmarshal(*v, &nullValue)
+				if err != nil {
+					return err
+				}
+				dtdtp.NullValue = nullValue
+			}
+		}
+	}
+
+	return nil
+}
+
 // DelimitedTextReadSettings delimited text read settings.
 type DelimitedTextReadSettings struct {
 	// SkipLineCount - Indicates the number of non-empty rows to skip when reading data from input files. Type: integer (or Expression with resultType integer).
 	SkipLineCount interface{} `json:"skipLineCount,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
+	// Type - Possible values include: 'TypeFormatReadSettings', 'TypeDelimitedTextReadSettings'
+	Type TypeBasicFormatReadSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for DelimitedTextReadSettings.
 func (dtrs DelimitedTextReadSettings) MarshalJSON() ([]byte, error) {
+	dtrs.Type = TypeDelimitedTextReadSettings
 	objectMap := make(map[string]interface{})
 	if dtrs.SkipLineCount != nil {
 		objectMap["skipLineCount"] = dtrs.SkipLineCount
 	}
-	if dtrs.Type != nil {
+	if dtrs.Type != "" {
 		objectMap["type"] = dtrs.Type
 	}
 	for k, v := range dtrs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsDelimitedTextReadSettings is the BasicFormatReadSettings implementation for DelimitedTextReadSettings.
+func (dtrs DelimitedTextReadSettings) AsDelimitedTextReadSettings() (*DelimitedTextReadSettings, bool) {
+	return &dtrs, true
+}
+
+// AsFormatReadSettings is the BasicFormatReadSettings implementation for DelimitedTextReadSettings.
+func (dtrs DelimitedTextReadSettings) AsFormatReadSettings() (*FormatReadSettings, bool) {
+	return nil, false
+}
+
+// AsBasicFormatReadSettings is the BasicFormatReadSettings implementation for DelimitedTextReadSettings.
+func (dtrs DelimitedTextReadSettings) AsBasicFormatReadSettings() (BasicFormatReadSettings, bool) {
+	return &dtrs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for DelimitedTextReadSettings struct.
@@ -71038,12 +72189,12 @@ func (dtrs *DelimitedTextReadSettings) UnmarshalJSON(body []byte) error {
 			}
 		case "type":
 			if v != nil {
-				var typeVar string
+				var typeVar TypeBasicFormatReadSettings
 				err = json.Unmarshal(*v, &typeVar)
 				if err != nil {
 					return err
 				}
-				dtrs.Type = &typeVar
+				dtrs.Type = typeVar
 			}
 		}
 	}
@@ -71386,7 +72537,7 @@ func (dts *DelimitedTextSink) UnmarshalJSON(body []byte) error {
 // DelimitedTextSource a copy activity DelimitedText source.
 type DelimitedTextSource struct {
 	// StoreSettings - DelimitedText store settings.
-	StoreSettings *StoreReadSettings `json:"storeSettings,omitempty"`
+	StoreSettings BasicStoreReadSettings `json:"storeSettings,omitempty"`
 	// FormatSettings - DelimitedText format settings.
 	FormatSettings *DelimitedTextReadSettings `json:"formatSettings,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
@@ -71405,9 +72556,7 @@ type DelimitedTextSource struct {
 func (dts DelimitedTextSource) MarshalJSON() ([]byte, error) {
 	dts.Type = TypeDelimitedTextSource
 	objectMap := make(map[string]interface{})
-	if dts.StoreSettings != nil {
-		objectMap["storeSettings"] = dts.StoreSettings
-	}
+	objectMap["storeSettings"] = dts.StoreSettings
 	if dts.FormatSettings != nil {
 		objectMap["formatSettings"] = dts.FormatSettings
 	}
@@ -71890,12 +73039,11 @@ func (dts *DelimitedTextSource) UnmarshalJSON(body []byte) error {
 		switch k {
 		case "storeSettings":
 			if v != nil {
-				var storeSettings StoreReadSettings
-				err = json.Unmarshal(*v, &storeSettings)
+				storeSettings, err := unmarshalBasicStoreReadSettings(*v)
 				if err != nil {
 					return err
 				}
-				dts.StoreSettings = &storeSettings
+				dts.StoreSettings = storeSettings
 			}
 		case "formatSettings":
 			if v != nil {
@@ -71968,12 +73116,13 @@ type DelimitedTextWriteSettings struct {
 	FileExtension interface{} `json:"fileExtension,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The write setting type.
-	Type *string `json:"type,omitempty"`
+	// Type - Possible values include: 'TypeFormatWriteSettings', 'TypeJSONWriteSettings', 'TypeDelimitedTextWriteSettings', 'TypeAvroWriteSettings'
+	Type TypeBasicFormatWriteSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for DelimitedTextWriteSettings.
 func (dtws DelimitedTextWriteSettings) MarshalJSON() ([]byte, error) {
+	dtws.Type = TypeDelimitedTextWriteSettings
 	objectMap := make(map[string]interface{})
 	if dtws.QuoteAllText != nil {
 		objectMap["quoteAllText"] = dtws.QuoteAllText
@@ -71981,13 +73130,38 @@ func (dtws DelimitedTextWriteSettings) MarshalJSON() ([]byte, error) {
 	if dtws.FileExtension != nil {
 		objectMap["fileExtension"] = dtws.FileExtension
 	}
-	if dtws.Type != nil {
+	if dtws.Type != "" {
 		objectMap["type"] = dtws.Type
 	}
 	for k, v := range dtws.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsJSONWriteSettings is the BasicFormatWriteSettings implementation for DelimitedTextWriteSettings.
+func (dtws DelimitedTextWriteSettings) AsJSONWriteSettings() (*JSONWriteSettings, bool) {
+	return nil, false
+}
+
+// AsDelimitedTextWriteSettings is the BasicFormatWriteSettings implementation for DelimitedTextWriteSettings.
+func (dtws DelimitedTextWriteSettings) AsDelimitedTextWriteSettings() (*DelimitedTextWriteSettings, bool) {
+	return &dtws, true
+}
+
+// AsAvroWriteSettings is the BasicFormatWriteSettings implementation for DelimitedTextWriteSettings.
+func (dtws DelimitedTextWriteSettings) AsAvroWriteSettings() (*AvroWriteSettings, bool) {
+	return nil, false
+}
+
+// AsFormatWriteSettings is the BasicFormatWriteSettings implementation for DelimitedTextWriteSettings.
+func (dtws DelimitedTextWriteSettings) AsFormatWriteSettings() (*FormatWriteSettings, bool) {
+	return nil, false
+}
+
+// AsBasicFormatWriteSettings is the BasicFormatWriteSettings implementation for DelimitedTextWriteSettings.
+func (dtws DelimitedTextWriteSettings) AsBasicFormatWriteSettings() (BasicFormatWriteSettings, bool) {
+	return &dtws, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for DelimitedTextWriteSettings struct.
@@ -72031,12 +73205,12 @@ func (dtws *DelimitedTextWriteSettings) UnmarshalJSON(body []byte) error {
 			}
 		case "type":
 			if v != nil {
-				var typeVar string
+				var typeVar TypeBasicFormatWriteSettings
 				err = json.Unmarshal(*v, &typeVar)
 				if err != nil {
 					return err
 				}
-				dtws.Type = &typeVar
+				dtws.Type = typeVar
 			}
 		}
 	}
@@ -75516,6 +76690,34 @@ func (dtd *DrillTableDataset) UnmarshalJSON(body []byte) error {
 	}
 
 	return nil
+}
+
+// DWCopyCommandDefaultValue default value.
+type DWCopyCommandDefaultValue struct {
+	// ColumnName - Column name. Type: object (or Expression with resultType string).
+	ColumnName interface{} `json:"columnName,omitempty"`
+	// DefaultValue - The default value of the column. Type: object (or Expression with resultType string).
+	DefaultValue interface{} `json:"defaultValue,omitempty"`
+}
+
+// DWCopyCommandSettings DW Copy Command settings.
+type DWCopyCommandSettings struct {
+	// DefaultValues - Specifies the default values for each target column in SQL DW. The default values in the property overwrite the DEFAULT constraint set in the DB, and identity column cannot have a default value. Type: array of objects (or Expression with resultType array of objects).
+	DefaultValues *[]DWCopyCommandDefaultValue `json:"defaultValues,omitempty"`
+	// AdditionalOptions - Additional options directly passed to SQL DW in Copy Command. Type: key value pairs (value should be string type) (or Expression with resultType object). Example: "additionalOptions": { "MAXERRORS": "1000", "DATEFORMAT": "'ymd'" }
+	AdditionalOptions map[string]*string `json:"additionalOptions"`
+}
+
+// MarshalJSON is the custom marshaler for DWCopyCommandSettings.
+func (dccs DWCopyCommandSettings) MarshalJSON() ([]byte, error) {
+	objectMap := make(map[string]interface{})
+	if dccs.DefaultValues != nil {
+		objectMap["defaultValues"] = dccs.DefaultValues
+	}
+	if dccs.AdditionalOptions != nil {
+		objectMap["additionalOptions"] = dccs.AdditionalOptions
+	}
+	return json.Marshal(objectMap)
 }
 
 // DynamicsAXLinkedService dynamics AX linked service.
@@ -84333,6 +85535,16 @@ type ExecuteDataFlowActivityTypeProperties struct {
 	Staging *DataFlowStagingInfo `json:"staging,omitempty"`
 	// IntegrationRuntime - The integration runtime reference.
 	IntegrationRuntime *IntegrationRuntimeReference `json:"integrationRuntime,omitempty"`
+	// Compute - Compute properties for data flow activity.
+	Compute *ExecuteDataFlowActivityTypePropertiesCompute `json:"compute,omitempty"`
+}
+
+// ExecuteDataFlowActivityTypePropertiesCompute compute properties for data flow activity.
+type ExecuteDataFlowActivityTypePropertiesCompute struct {
+	// ComputeType - Compute type of the cluster which will execute data flow job. Possible values include: 'General', 'MemoryOptimized', 'ComputeOptimized'
+	ComputeType DataFlowComputeType `json:"computeType,omitempty"`
+	// CoreCount - Core count of the cluster which will execute data flow job. Supported values are: 8, 16, 32, 48, 80, 144 and 272.
+	CoreCount *int32 `json:"coreCount,omitempty"`
 }
 
 // ExecutePipelineActivity execute pipeline activity.
@@ -86971,30 +88183,96 @@ func (fslstp *FileServerLinkedServiceTypeProperties) UnmarshalJSON(body []byte) 
 type FileServerLocation struct {
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - Type of dataset storage location.
-	Type *string `json:"type,omitempty"`
 	// FolderPath - Specify the folder path of dataset. Type: string (or Expression with resultType string)
 	FolderPath interface{} `json:"folderPath,omitempty"`
 	// FileName - Specify the file name of dataset. Type: string (or Expression with resultType string).
 	FileName interface{} `json:"fileName,omitempty"`
+	// Type - Possible values include: 'TypeDatasetLocation', 'TypeHdfsLocation', 'TypeHTTPServerLocation', 'TypeSftpLocation', 'TypeFtpServerLocation', 'TypeGoogleCloudStorageLocation', 'TypeAzureFileStorageLocation', 'TypeFileServerLocation', 'TypeAmazonS3Location', 'TypeAzureDataLakeStoreLocation', 'TypeAzureBlobFSLocation', 'TypeAzureBlobStorageLocation'
+	Type TypeBasicDatasetLocation `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for FileServerLocation.
 func (fsl FileServerLocation) MarshalJSON() ([]byte, error) {
+	fsl.Type = TypeFileServerLocation
 	objectMap := make(map[string]interface{})
-	if fsl.Type != nil {
-		objectMap["type"] = fsl.Type
-	}
 	if fsl.FolderPath != nil {
 		objectMap["folderPath"] = fsl.FolderPath
 	}
 	if fsl.FileName != nil {
 		objectMap["fileName"] = fsl.FileName
 	}
+	if fsl.Type != "" {
+		objectMap["type"] = fsl.Type
+	}
 	for k, v := range fsl.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsLocation is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsHdfsLocation() (*HdfsLocation, bool) {
+	return nil, false
+}
+
+// AsHTTPServerLocation is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsHTTPServerLocation() (*HTTPServerLocation, bool) {
+	return nil, false
+}
+
+// AsSftpLocation is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsSftpLocation() (*SftpLocation, bool) {
+	return nil, false
+}
+
+// AsFtpServerLocation is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsFtpServerLocation() (*FtpServerLocation, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageLocation is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageLocation is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool) {
+	return nil, false
+}
+
+// AsFileServerLocation is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsFileServerLocation() (*FileServerLocation, bool) {
+	return &fsl, true
+}
+
+// AsAmazonS3Location is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsAmazonS3Location() (*AmazonS3Location, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreLocation is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSLocation is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageLocation is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool) {
+	return nil, false
+}
+
+// AsDatasetLocation is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsDatasetLocation() (*DatasetLocation, bool) {
+	return nil, false
+}
+
+// AsBasicDatasetLocation is the BasicDatasetLocation implementation for FileServerLocation.
+func (fsl FileServerLocation) AsBasicDatasetLocation() (BasicDatasetLocation, bool) {
+	return &fsl, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for FileServerLocation struct.
@@ -87018,15 +88296,6 @@ func (fsl *FileServerLocation) UnmarshalJSON(body []byte) error {
 				}
 				fsl.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				fsl.Type = &typeVar
-			}
 		case "folderPath":
 			if v != nil {
 				var folderPath interface{}
@@ -87044,6 +88313,15 @@ func (fsl *FileServerLocation) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				fsl.FileName = fileName
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicDatasetLocation
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				fsl.Type = typeVar
 			}
 		}
 	}
@@ -87067,14 +88345,15 @@ type FileServerReadSettings struct {
 	ModifiedDatetimeEnd interface{} `json:"modifiedDatetimeEnd,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// Type - Possible values include: 'TypeStoreReadSettings', 'TypeHdfsReadSettings', 'TypeHTTPReadSettings', 'TypeSftpReadSettings', 'TypeFtpReadSettings', 'TypeGoogleCloudStorageReadSettings', 'TypeAzureFileStorageReadSettings', 'TypeFileServerReadSettings', 'TypeAmazonS3ReadSettings', 'TypeAzureDataLakeStoreReadSettings', 'TypeAzureBlobFSReadSettings', 'TypeAzureBlobStorageReadSettings'
+	Type TypeBasicStoreReadSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for FileServerReadSettings.
 func (fsrs FileServerReadSettings) MarshalJSON() ([]byte, error) {
+	fsrs.Type = TypeFileServerReadSettings
 	objectMap := make(map[string]interface{})
 	if fsrs.Recursive != nil {
 		objectMap["recursive"] = fsrs.Recursive
@@ -87094,16 +88373,81 @@ func (fsrs FileServerReadSettings) MarshalJSON() ([]byte, error) {
 	if fsrs.ModifiedDatetimeEnd != nil {
 		objectMap["modifiedDatetimeEnd"] = fsrs.ModifiedDatetimeEnd
 	}
-	if fsrs.Type != nil {
-		objectMap["type"] = fsrs.Type
-	}
 	if fsrs.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = fsrs.MaxConcurrentConnections
+	}
+	if fsrs.Type != "" {
+		objectMap["type"] = fsrs.Type
 	}
 	for k, v := range fsrs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsHdfsReadSettings() (*HdfsReadSettings, bool) {
+	return nil, false
+}
+
+// AsHTTPReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsHTTPReadSettings() (*HTTPReadSettings, bool) {
+	return nil, false
+}
+
+// AsSftpReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsSftpReadSettings() (*SftpReadSettings, bool) {
+	return nil, false
+}
+
+// AsFtpReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsFtpReadSettings() (*FtpReadSettings, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsFileServerReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsFileServerReadSettings() (*FileServerReadSettings, bool) {
+	return &fsrs, true
+}
+
+// AsAmazonS3ReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsStoreReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsStoreReadSettings() (*StoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsBasicStoreReadSettings is the BasicStoreReadSettings implementation for FileServerReadSettings.
+func (fsrs FileServerReadSettings) AsBasicStoreReadSettings() (BasicStoreReadSettings, bool) {
+	return &fsrs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for FileServerReadSettings struct.
@@ -87181,15 +88525,6 @@ func (fsrs *FileServerReadSettings) UnmarshalJSON(body []byte) error {
 				}
 				fsrs.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				fsrs.Type = &typeVar
-			}
 		case "maxConcurrentConnections":
 			if v != nil {
 				var maxConcurrentConnections interface{}
@@ -87198,6 +88533,15 @@ func (fsrs *FileServerReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				fsrs.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreReadSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				fsrs.Type = typeVar
 			}
 		}
 	}
@@ -87213,7 +88557,7 @@ type FileServerWriteSettings struct {
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
 	// CopyBehavior - The type of copy behavior for copy sink.
 	CopyBehavior interface{} `json:"copyBehavior,omitempty"`
-	// Type - Possible values include: 'TypeStoreWriteSettings', 'TypeFileServerWriteSettings', 'TypeAzureDataLakeStoreWriteSettings', 'TypeAzureBlobFSWriteSettings', 'TypeAzureBlobStorageWriteSettings'
+	// Type - Possible values include: 'TypeStoreWriteSettings', 'TypeFileServerWriteSettings', 'TypeAzureDataLakeStoreWriteSettings', 'TypeAzureBlobFSWriteSettings', 'TypeAzureBlobStorageWriteSettings', 'TypeSftpWriteSettings'
 	Type TypeBasicStoreWriteSettings `json:"type,omitempty"`
 }
 
@@ -87253,6 +88597,11 @@ func (fsws FileServerWriteSettings) AsAzureBlobFSWriteSettings() (*AzureBlobFSWr
 
 // AsAzureBlobStorageWriteSettings is the BasicStoreWriteSettings implementation for FileServerWriteSettings.
 func (fsws FileServerWriteSettings) AsAzureBlobStorageWriteSettings() (*AzureBlobStorageWriteSettings, bool) {
+	return nil, false
+}
+
+// AsSftpWriteSettings is the BasicStoreWriteSettings implementation for FileServerWriteSettings.
+func (fsws FileServerWriteSettings) AsSftpWriteSettings() (*SftpWriteSettings, bool) {
 	return nil, false
 }
 
@@ -89636,24 +90985,83 @@ func (featp *ForEachActivityTypeProperties) UnmarshalJSON(body []byte) error {
 	return nil
 }
 
+// BasicFormatReadSettings format read settings.
+type BasicFormatReadSettings interface {
+	AsDelimitedTextReadSettings() (*DelimitedTextReadSettings, bool)
+	AsFormatReadSettings() (*FormatReadSettings, bool)
+}
+
 // FormatReadSettings format read settings.
 type FormatReadSettings struct {
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
+	// Type - Possible values include: 'TypeFormatReadSettings', 'TypeDelimitedTextReadSettings'
+	Type TypeBasicFormatReadSettings `json:"type,omitempty"`
+}
+
+func unmarshalBasicFormatReadSettings(body []byte) (BasicFormatReadSettings, error) {
+	var m map[string]interface{}
+	err := json.Unmarshal(body, &m)
+	if err != nil {
+		return nil, err
+	}
+
+	switch m["type"] {
+	case string(TypeDelimitedTextReadSettings):
+		var dtrs DelimitedTextReadSettings
+		err := json.Unmarshal(body, &dtrs)
+		return dtrs, err
+	default:
+		var frs FormatReadSettings
+		err := json.Unmarshal(body, &frs)
+		return frs, err
+	}
+}
+func unmarshalBasicFormatReadSettingsArray(body []byte) ([]BasicFormatReadSettings, error) {
+	var rawMessages []*json.RawMessage
+	err := json.Unmarshal(body, &rawMessages)
+	if err != nil {
+		return nil, err
+	}
+
+	frsArray := make([]BasicFormatReadSettings, len(rawMessages))
+
+	for index, rawMessage := range rawMessages {
+		frs, err := unmarshalBasicFormatReadSettings(*rawMessage)
+		if err != nil {
+			return nil, err
+		}
+		frsArray[index] = frs
+	}
+	return frsArray, nil
 }
 
 // MarshalJSON is the custom marshaler for FormatReadSettings.
 func (frs FormatReadSettings) MarshalJSON() ([]byte, error) {
+	frs.Type = TypeFormatReadSettings
 	objectMap := make(map[string]interface{})
-	if frs.Type != nil {
+	if frs.Type != "" {
 		objectMap["type"] = frs.Type
 	}
 	for k, v := range frs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsDelimitedTextReadSettings is the BasicFormatReadSettings implementation for FormatReadSettings.
+func (frs FormatReadSettings) AsDelimitedTextReadSettings() (*DelimitedTextReadSettings, bool) {
+	return nil, false
+}
+
+// AsFormatReadSettings is the BasicFormatReadSettings implementation for FormatReadSettings.
+func (frs FormatReadSettings) AsFormatReadSettings() (*FormatReadSettings, bool) {
+	return &frs, true
+}
+
+// AsBasicFormatReadSettings is the BasicFormatReadSettings implementation for FormatReadSettings.
+func (frs FormatReadSettings) AsBasicFormatReadSettings() (BasicFormatReadSettings, bool) {
+	return &frs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for FormatReadSettings struct.
@@ -89679,12 +91087,12 @@ func (frs *FormatReadSettings) UnmarshalJSON(body []byte) error {
 			}
 		case "type":
 			if v != nil {
-				var typeVar string
+				var typeVar TypeBasicFormatReadSettings
 				err = json.Unmarshal(*v, &typeVar)
 				if err != nil {
 					return err
 				}
-				frs.Type = &typeVar
+				frs.Type = typeVar
 			}
 		}
 	}
@@ -89692,24 +91100,103 @@ func (frs *FormatReadSettings) UnmarshalJSON(body []byte) error {
 	return nil
 }
 
+// BasicFormatWriteSettings format write settings.
+type BasicFormatWriteSettings interface {
+	AsJSONWriteSettings() (*JSONWriteSettings, bool)
+	AsDelimitedTextWriteSettings() (*DelimitedTextWriteSettings, bool)
+	AsAvroWriteSettings() (*AvroWriteSettings, bool)
+	AsFormatWriteSettings() (*FormatWriteSettings, bool)
+}
+
 // FormatWriteSettings format write settings.
 type FormatWriteSettings struct {
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The write setting type.
-	Type *string `json:"type,omitempty"`
+	// Type - Possible values include: 'TypeFormatWriteSettings', 'TypeJSONWriteSettings', 'TypeDelimitedTextWriteSettings', 'TypeAvroWriteSettings'
+	Type TypeBasicFormatWriteSettings `json:"type,omitempty"`
+}
+
+func unmarshalBasicFormatWriteSettings(body []byte) (BasicFormatWriteSettings, error) {
+	var m map[string]interface{}
+	err := json.Unmarshal(body, &m)
+	if err != nil {
+		return nil, err
+	}
+
+	switch m["type"] {
+	case string(TypeJSONWriteSettings):
+		var jws JSONWriteSettings
+		err := json.Unmarshal(body, &jws)
+		return jws, err
+	case string(TypeDelimitedTextWriteSettings):
+		var dtws DelimitedTextWriteSettings
+		err := json.Unmarshal(body, &dtws)
+		return dtws, err
+	case string(TypeAvroWriteSettings):
+		var aws AvroWriteSettings
+		err := json.Unmarshal(body, &aws)
+		return aws, err
+	default:
+		var fws FormatWriteSettings
+		err := json.Unmarshal(body, &fws)
+		return fws, err
+	}
+}
+func unmarshalBasicFormatWriteSettingsArray(body []byte) ([]BasicFormatWriteSettings, error) {
+	var rawMessages []*json.RawMessage
+	err := json.Unmarshal(body, &rawMessages)
+	if err != nil {
+		return nil, err
+	}
+
+	fwsArray := make([]BasicFormatWriteSettings, len(rawMessages))
+
+	for index, rawMessage := range rawMessages {
+		fws, err := unmarshalBasicFormatWriteSettings(*rawMessage)
+		if err != nil {
+			return nil, err
+		}
+		fwsArray[index] = fws
+	}
+	return fwsArray, nil
 }
 
 // MarshalJSON is the custom marshaler for FormatWriteSettings.
 func (fws FormatWriteSettings) MarshalJSON() ([]byte, error) {
+	fws.Type = TypeFormatWriteSettings
 	objectMap := make(map[string]interface{})
-	if fws.Type != nil {
+	if fws.Type != "" {
 		objectMap["type"] = fws.Type
 	}
 	for k, v := range fws.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsJSONWriteSettings is the BasicFormatWriteSettings implementation for FormatWriteSettings.
+func (fws FormatWriteSettings) AsJSONWriteSettings() (*JSONWriteSettings, bool) {
+	return nil, false
+}
+
+// AsDelimitedTextWriteSettings is the BasicFormatWriteSettings implementation for FormatWriteSettings.
+func (fws FormatWriteSettings) AsDelimitedTextWriteSettings() (*DelimitedTextWriteSettings, bool) {
+	return nil, false
+}
+
+// AsAvroWriteSettings is the BasicFormatWriteSettings implementation for FormatWriteSettings.
+func (fws FormatWriteSettings) AsAvroWriteSettings() (*AvroWriteSettings, bool) {
+	return nil, false
+}
+
+// AsFormatWriteSettings is the BasicFormatWriteSettings implementation for FormatWriteSettings.
+func (fws FormatWriteSettings) AsFormatWriteSettings() (*FormatWriteSettings, bool) {
+	return &fws, true
+}
+
+// AsBasicFormatWriteSettings is the BasicFormatWriteSettings implementation for FormatWriteSettings.
+func (fws FormatWriteSettings) AsBasicFormatWriteSettings() (BasicFormatWriteSettings, bool) {
+	return &fws, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for FormatWriteSettings struct.
@@ -89735,12 +91222,12 @@ func (fws *FormatWriteSettings) UnmarshalJSON(body []byte) error {
 			}
 		case "type":
 			if v != nil {
-				var typeVar string
+				var typeVar TypeBasicFormatWriteSettings
 				err = json.Unmarshal(*v, &typeVar)
 				if err != nil {
 					return err
 				}
-				fws.Type = &typeVar
+				fws.Type = typeVar
 			}
 		}
 	}
@@ -89760,14 +91247,15 @@ type FtpReadSettings struct {
 	UseBinaryTransfer *bool `json:"useBinaryTransfer,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// Type - Possible values include: 'TypeStoreReadSettings', 'TypeHdfsReadSettings', 'TypeHTTPReadSettings', 'TypeSftpReadSettings', 'TypeFtpReadSettings', 'TypeGoogleCloudStorageReadSettings', 'TypeAzureFileStorageReadSettings', 'TypeFileServerReadSettings', 'TypeAmazonS3ReadSettings', 'TypeAzureDataLakeStoreReadSettings', 'TypeAzureBlobFSReadSettings', 'TypeAzureBlobStorageReadSettings'
+	Type TypeBasicStoreReadSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for FtpReadSettings.
 func (frs FtpReadSettings) MarshalJSON() ([]byte, error) {
+	frs.Type = TypeFtpReadSettings
 	objectMap := make(map[string]interface{})
 	if frs.Recursive != nil {
 		objectMap["recursive"] = frs.Recursive
@@ -89781,16 +91269,81 @@ func (frs FtpReadSettings) MarshalJSON() ([]byte, error) {
 	if frs.UseBinaryTransfer != nil {
 		objectMap["useBinaryTransfer"] = frs.UseBinaryTransfer
 	}
-	if frs.Type != nil {
-		objectMap["type"] = frs.Type
-	}
 	if frs.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = frs.MaxConcurrentConnections
+	}
+	if frs.Type != "" {
+		objectMap["type"] = frs.Type
 	}
 	for k, v := range frs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsHdfsReadSettings() (*HdfsReadSettings, bool) {
+	return nil, false
+}
+
+// AsHTTPReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsHTTPReadSettings() (*HTTPReadSettings, bool) {
+	return nil, false
+}
+
+// AsSftpReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsSftpReadSettings() (*SftpReadSettings, bool) {
+	return nil, false
+}
+
+// AsFtpReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsFtpReadSettings() (*FtpReadSettings, bool) {
+	return &frs, true
+}
+
+// AsGoogleCloudStorageReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsFileServerReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsFileServerReadSettings() (*FileServerReadSettings, bool) {
+	return nil, false
+}
+
+// AsAmazonS3ReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsStoreReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsStoreReadSettings() (*StoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsBasicStoreReadSettings is the BasicStoreReadSettings implementation for FtpReadSettings.
+func (frs FtpReadSettings) AsBasicStoreReadSettings() (BasicStoreReadSettings, bool) {
+	return &frs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for FtpReadSettings struct.
@@ -89850,15 +91403,6 @@ func (frs *FtpReadSettings) UnmarshalJSON(body []byte) error {
 				}
 				frs.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				frs.Type = &typeVar
-			}
 		case "maxConcurrentConnections":
 			if v != nil {
 				var maxConcurrentConnections interface{}
@@ -89867,6 +91411,15 @@ func (frs *FtpReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				frs.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreReadSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				frs.Type = typeVar
 			}
 		}
 	}
@@ -90591,30 +92144,96 @@ func (fslstp *FtpServerLinkedServiceTypeProperties) UnmarshalJSON(body []byte) e
 type FtpServerLocation struct {
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - Type of dataset storage location.
-	Type *string `json:"type,omitempty"`
 	// FolderPath - Specify the folder path of dataset. Type: string (or Expression with resultType string)
 	FolderPath interface{} `json:"folderPath,omitempty"`
 	// FileName - Specify the file name of dataset. Type: string (or Expression with resultType string).
 	FileName interface{} `json:"fileName,omitempty"`
+	// Type - Possible values include: 'TypeDatasetLocation', 'TypeHdfsLocation', 'TypeHTTPServerLocation', 'TypeSftpLocation', 'TypeFtpServerLocation', 'TypeGoogleCloudStorageLocation', 'TypeAzureFileStorageLocation', 'TypeFileServerLocation', 'TypeAmazonS3Location', 'TypeAzureDataLakeStoreLocation', 'TypeAzureBlobFSLocation', 'TypeAzureBlobStorageLocation'
+	Type TypeBasicDatasetLocation `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for FtpServerLocation.
 func (fsl FtpServerLocation) MarshalJSON() ([]byte, error) {
+	fsl.Type = TypeFtpServerLocation
 	objectMap := make(map[string]interface{})
-	if fsl.Type != nil {
-		objectMap["type"] = fsl.Type
-	}
 	if fsl.FolderPath != nil {
 		objectMap["folderPath"] = fsl.FolderPath
 	}
 	if fsl.FileName != nil {
 		objectMap["fileName"] = fsl.FileName
 	}
+	if fsl.Type != "" {
+		objectMap["type"] = fsl.Type
+	}
 	for k, v := range fsl.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsLocation is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsHdfsLocation() (*HdfsLocation, bool) {
+	return nil, false
+}
+
+// AsHTTPServerLocation is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsHTTPServerLocation() (*HTTPServerLocation, bool) {
+	return nil, false
+}
+
+// AsSftpLocation is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsSftpLocation() (*SftpLocation, bool) {
+	return nil, false
+}
+
+// AsFtpServerLocation is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsFtpServerLocation() (*FtpServerLocation, bool) {
+	return &fsl, true
+}
+
+// AsGoogleCloudStorageLocation is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageLocation is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool) {
+	return nil, false
+}
+
+// AsFileServerLocation is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsFileServerLocation() (*FileServerLocation, bool) {
+	return nil, false
+}
+
+// AsAmazonS3Location is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsAmazonS3Location() (*AmazonS3Location, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreLocation is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSLocation is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageLocation is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool) {
+	return nil, false
+}
+
+// AsDatasetLocation is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsDatasetLocation() (*DatasetLocation, bool) {
+	return nil, false
+}
+
+// AsBasicDatasetLocation is the BasicDatasetLocation implementation for FtpServerLocation.
+func (fsl FtpServerLocation) AsBasicDatasetLocation() (BasicDatasetLocation, bool) {
+	return &fsl, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for FtpServerLocation struct.
@@ -90638,15 +92257,6 @@ func (fsl *FtpServerLocation) UnmarshalJSON(body []byte) error {
 				}
 				fsl.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				fsl.Type = &typeVar
-			}
 		case "folderPath":
 			if v != nil {
 				var folderPath interface{}
@@ -90664,6 +92274,15 @@ func (fsl *FtpServerLocation) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				fsl.FileName = fileName
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicDatasetLocation
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				fsl.Type = typeVar
 			}
 		}
 	}
@@ -91736,8 +93355,8 @@ type GoogleAdWordsLinkedServiceTypeProperties struct {
 	AuthenticationType GoogleAdWordsAuthenticationType `json:"authenticationType,omitempty"`
 	// RefreshToken - The refresh token obtained from Google for authorizing access to AdWords for UserAuthentication.
 	RefreshToken BasicSecretBase `json:"refreshToken,omitempty"`
-	// ClientID - The client id of the google application used to acquire the refresh token.
-	ClientID BasicSecretBase `json:"clientId,omitempty"`
+	// ClientID - The client id of the google application used to acquire the refresh token. Type: string (or Expression with resultType string).
+	ClientID interface{} `json:"clientId,omitempty"`
 	// ClientSecret - The client secret of the google application used to acquire the refresh token.
 	ClientSecret BasicSecretBase `json:"clientSecret,omitempty"`
 	// Email - The service account email ID that is used for ServiceAuthentication and can only be used on self-hosted IR.
@@ -91797,7 +93416,8 @@ func (gawlstp *GoogleAdWordsLinkedServiceTypeProperties) UnmarshalJSON(body []by
 			}
 		case "clientId":
 			if v != nil {
-				clientID, err := unmarshalBasicSecretBase(*v)
+				var clientID interface{}
+				err = json.Unmarshal(*v, &clientID)
 				if err != nil {
 					return err
 				}
@@ -93682,8 +95302,8 @@ type GoogleBigQueryLinkedServiceTypeProperties struct {
 	AuthenticationType GoogleBigQueryAuthenticationType `json:"authenticationType,omitempty"`
 	// RefreshToken - The refresh token obtained from Google for authorizing access to BigQuery for UserAuthentication.
 	RefreshToken BasicSecretBase `json:"refreshToken,omitempty"`
-	// ClientID - The client id of the google application used to acquire the refresh token.
-	ClientID BasicSecretBase `json:"clientId,omitempty"`
+	// ClientID - The client id of the google application used to acquire the refresh token. Type: string (or Expression with resultType string).
+	ClientID interface{} `json:"clientId,omitempty"`
 	// ClientSecret - The client secret of the google application used to acquire the refresh token.
 	ClientSecret BasicSecretBase `json:"clientSecret,omitempty"`
 	// Email - The service account email ID that is used for ServiceAuthentication and can only be used on self-hosted IR.
@@ -93753,7 +95373,8 @@ func (gbqlstp *GoogleBigQueryLinkedServiceTypeProperties) UnmarshalJSON(body []b
 			}
 		case "clientId":
 			if v != nil {
-				clientID, err := unmarshalBasicSecretBase(*v)
+				var clientID interface{}
+				err = json.Unmarshal(*v, &clientID)
 				if err != nil {
 					return err
 				}
@@ -95686,16 +97307,17 @@ type GoogleCloudStorageLocation struct {
 	Version interface{} `json:"version,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - Type of dataset storage location.
-	Type *string `json:"type,omitempty"`
 	// FolderPath - Specify the folder path of dataset. Type: string (or Expression with resultType string)
 	FolderPath interface{} `json:"folderPath,omitempty"`
 	// FileName - Specify the file name of dataset. Type: string (or Expression with resultType string).
 	FileName interface{} `json:"fileName,omitempty"`
+	// Type - Possible values include: 'TypeDatasetLocation', 'TypeHdfsLocation', 'TypeHTTPServerLocation', 'TypeSftpLocation', 'TypeFtpServerLocation', 'TypeGoogleCloudStorageLocation', 'TypeAzureFileStorageLocation', 'TypeFileServerLocation', 'TypeAmazonS3Location', 'TypeAzureDataLakeStoreLocation', 'TypeAzureBlobFSLocation', 'TypeAzureBlobStorageLocation'
+	Type TypeBasicDatasetLocation `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for GoogleCloudStorageLocation.
 func (gcsl GoogleCloudStorageLocation) MarshalJSON() ([]byte, error) {
+	gcsl.Type = TypeGoogleCloudStorageLocation
 	objectMap := make(map[string]interface{})
 	if gcsl.BucketName != nil {
 		objectMap["bucketName"] = gcsl.BucketName
@@ -95703,19 +97325,84 @@ func (gcsl GoogleCloudStorageLocation) MarshalJSON() ([]byte, error) {
 	if gcsl.Version != nil {
 		objectMap["version"] = gcsl.Version
 	}
-	if gcsl.Type != nil {
-		objectMap["type"] = gcsl.Type
-	}
 	if gcsl.FolderPath != nil {
 		objectMap["folderPath"] = gcsl.FolderPath
 	}
 	if gcsl.FileName != nil {
 		objectMap["fileName"] = gcsl.FileName
 	}
+	if gcsl.Type != "" {
+		objectMap["type"] = gcsl.Type
+	}
 	for k, v := range gcsl.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsLocation is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsHdfsLocation() (*HdfsLocation, bool) {
+	return nil, false
+}
+
+// AsHTTPServerLocation is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsHTTPServerLocation() (*HTTPServerLocation, bool) {
+	return nil, false
+}
+
+// AsSftpLocation is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsSftpLocation() (*SftpLocation, bool) {
+	return nil, false
+}
+
+// AsFtpServerLocation is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsFtpServerLocation() (*FtpServerLocation, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageLocation is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool) {
+	return &gcsl, true
+}
+
+// AsAzureFileStorageLocation is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool) {
+	return nil, false
+}
+
+// AsFileServerLocation is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsFileServerLocation() (*FileServerLocation, bool) {
+	return nil, false
+}
+
+// AsAmazonS3Location is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsAmazonS3Location() (*AmazonS3Location, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreLocation is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSLocation is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageLocation is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool) {
+	return nil, false
+}
+
+// AsDatasetLocation is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsDatasetLocation() (*DatasetLocation, bool) {
+	return nil, false
+}
+
+// AsBasicDatasetLocation is the BasicDatasetLocation implementation for GoogleCloudStorageLocation.
+func (gcsl GoogleCloudStorageLocation) AsBasicDatasetLocation() (BasicDatasetLocation, bool) {
+	return &gcsl, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for GoogleCloudStorageLocation struct.
@@ -95757,15 +97444,6 @@ func (gcsl *GoogleCloudStorageLocation) UnmarshalJSON(body []byte) error {
 				}
 				gcsl.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				gcsl.Type = &typeVar
-			}
 		case "folderPath":
 			if v != nil {
 				var folderPath interface{}
@@ -95783,6 +97461,15 @@ func (gcsl *GoogleCloudStorageLocation) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				gcsl.FileName = fileName
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicDatasetLocation
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				gcsl.Type = typeVar
 			}
 		}
 	}
@@ -95808,14 +97495,15 @@ type GoogleCloudStorageReadSettings struct {
 	ModifiedDatetimeEnd interface{} `json:"modifiedDatetimeEnd,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// Type - Possible values include: 'TypeStoreReadSettings', 'TypeHdfsReadSettings', 'TypeHTTPReadSettings', 'TypeSftpReadSettings', 'TypeFtpReadSettings', 'TypeGoogleCloudStorageReadSettings', 'TypeAzureFileStorageReadSettings', 'TypeFileServerReadSettings', 'TypeAmazonS3ReadSettings', 'TypeAzureDataLakeStoreReadSettings', 'TypeAzureBlobFSReadSettings', 'TypeAzureBlobStorageReadSettings'
+	Type TypeBasicStoreReadSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for GoogleCloudStorageReadSettings.
 func (gcsrs GoogleCloudStorageReadSettings) MarshalJSON() ([]byte, error) {
+	gcsrs.Type = TypeGoogleCloudStorageReadSettings
 	objectMap := make(map[string]interface{})
 	if gcsrs.Recursive != nil {
 		objectMap["recursive"] = gcsrs.Recursive
@@ -95838,16 +97526,81 @@ func (gcsrs GoogleCloudStorageReadSettings) MarshalJSON() ([]byte, error) {
 	if gcsrs.ModifiedDatetimeEnd != nil {
 		objectMap["modifiedDatetimeEnd"] = gcsrs.ModifiedDatetimeEnd
 	}
-	if gcsrs.Type != nil {
-		objectMap["type"] = gcsrs.Type
-	}
 	if gcsrs.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = gcsrs.MaxConcurrentConnections
+	}
+	if gcsrs.Type != "" {
+		objectMap["type"] = gcsrs.Type
 	}
 	for k, v := range gcsrs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsHdfsReadSettings() (*HdfsReadSettings, bool) {
+	return nil, false
+}
+
+// AsHTTPReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsHTTPReadSettings() (*HTTPReadSettings, bool) {
+	return nil, false
+}
+
+// AsSftpReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsSftpReadSettings() (*SftpReadSettings, bool) {
+	return nil, false
+}
+
+// AsFtpReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsFtpReadSettings() (*FtpReadSettings, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool) {
+	return &gcsrs, true
+}
+
+// AsAzureFileStorageReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsFileServerReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsFileServerReadSettings() (*FileServerReadSettings, bool) {
+	return nil, false
+}
+
+// AsAmazonS3ReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsStoreReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsStoreReadSettings() (*StoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsBasicStoreReadSettings is the BasicStoreReadSettings implementation for GoogleCloudStorageReadSettings.
+func (gcsrs GoogleCloudStorageReadSettings) AsBasicStoreReadSettings() (BasicStoreReadSettings, bool) {
+	return &gcsrs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for GoogleCloudStorageReadSettings struct.
@@ -95934,15 +97687,6 @@ func (gcsrs *GoogleCloudStorageReadSettings) UnmarshalJSON(body []byte) error {
 				}
 				gcsrs.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				gcsrs.Type = &typeVar
-			}
 		case "maxConcurrentConnections":
 			if v != nil {
 				var maxConcurrentConnections interface{}
@@ -95951,6 +97695,15 @@ func (gcsrs *GoogleCloudStorageReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				gcsrs.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreReadSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				gcsrs.Type = typeVar
 			}
 		}
 	}
@@ -100397,30 +102150,96 @@ func (hlstp *HdfsLinkedServiceTypeProperties) UnmarshalJSON(body []byte) error {
 type HdfsLocation struct {
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - Type of dataset storage location.
-	Type *string `json:"type,omitempty"`
 	// FolderPath - Specify the folder path of dataset. Type: string (or Expression with resultType string)
 	FolderPath interface{} `json:"folderPath,omitempty"`
 	// FileName - Specify the file name of dataset. Type: string (or Expression with resultType string).
 	FileName interface{} `json:"fileName,omitempty"`
+	// Type - Possible values include: 'TypeDatasetLocation', 'TypeHdfsLocation', 'TypeHTTPServerLocation', 'TypeSftpLocation', 'TypeFtpServerLocation', 'TypeGoogleCloudStorageLocation', 'TypeAzureFileStorageLocation', 'TypeFileServerLocation', 'TypeAmazonS3Location', 'TypeAzureDataLakeStoreLocation', 'TypeAzureBlobFSLocation', 'TypeAzureBlobStorageLocation'
+	Type TypeBasicDatasetLocation `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for HdfsLocation.
 func (hl HdfsLocation) MarshalJSON() ([]byte, error) {
+	hl.Type = TypeHdfsLocation
 	objectMap := make(map[string]interface{})
-	if hl.Type != nil {
-		objectMap["type"] = hl.Type
-	}
 	if hl.FolderPath != nil {
 		objectMap["folderPath"] = hl.FolderPath
 	}
 	if hl.FileName != nil {
 		objectMap["fileName"] = hl.FileName
 	}
+	if hl.Type != "" {
+		objectMap["type"] = hl.Type
+	}
 	for k, v := range hl.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsLocation is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsHdfsLocation() (*HdfsLocation, bool) {
+	return &hl, true
+}
+
+// AsHTTPServerLocation is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsHTTPServerLocation() (*HTTPServerLocation, bool) {
+	return nil, false
+}
+
+// AsSftpLocation is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsSftpLocation() (*SftpLocation, bool) {
+	return nil, false
+}
+
+// AsFtpServerLocation is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsFtpServerLocation() (*FtpServerLocation, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageLocation is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageLocation is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool) {
+	return nil, false
+}
+
+// AsFileServerLocation is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsFileServerLocation() (*FileServerLocation, bool) {
+	return nil, false
+}
+
+// AsAmazonS3Location is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsAmazonS3Location() (*AmazonS3Location, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreLocation is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSLocation is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageLocation is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool) {
+	return nil, false
+}
+
+// AsDatasetLocation is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsDatasetLocation() (*DatasetLocation, bool) {
+	return nil, false
+}
+
+// AsBasicDatasetLocation is the BasicDatasetLocation implementation for HdfsLocation.
+func (hl HdfsLocation) AsBasicDatasetLocation() (BasicDatasetLocation, bool) {
+	return &hl, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for HdfsLocation struct.
@@ -100444,15 +102263,6 @@ func (hl *HdfsLocation) UnmarshalJSON(body []byte) error {
 				}
 				hl.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				hl.Type = &typeVar
-			}
 		case "folderPath":
 			if v != nil {
 				var folderPath interface{}
@@ -100470,6 +102280,15 @@ func (hl *HdfsLocation) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				hl.FileName = fileName
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicDatasetLocation
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				hl.Type = typeVar
 			}
 		}
 	}
@@ -100495,14 +102314,15 @@ type HdfsReadSettings struct {
 	DistcpSettings *DistcpSettings `json:"distcpSettings,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// Type - Possible values include: 'TypeStoreReadSettings', 'TypeHdfsReadSettings', 'TypeHTTPReadSettings', 'TypeSftpReadSettings', 'TypeFtpReadSettings', 'TypeGoogleCloudStorageReadSettings', 'TypeAzureFileStorageReadSettings', 'TypeFileServerReadSettings', 'TypeAmazonS3ReadSettings', 'TypeAzureDataLakeStoreReadSettings', 'TypeAzureBlobFSReadSettings', 'TypeAzureBlobStorageReadSettings'
+	Type TypeBasicStoreReadSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for HdfsReadSettings.
 func (hrs HdfsReadSettings) MarshalJSON() ([]byte, error) {
+	hrs.Type = TypeHdfsReadSettings
 	objectMap := make(map[string]interface{})
 	if hrs.Recursive != nil {
 		objectMap["recursive"] = hrs.Recursive
@@ -100525,16 +102345,81 @@ func (hrs HdfsReadSettings) MarshalJSON() ([]byte, error) {
 	if hrs.DistcpSettings != nil {
 		objectMap["distcpSettings"] = hrs.DistcpSettings
 	}
-	if hrs.Type != nil {
-		objectMap["type"] = hrs.Type
-	}
 	if hrs.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = hrs.MaxConcurrentConnections
+	}
+	if hrs.Type != "" {
+		objectMap["type"] = hrs.Type
 	}
 	for k, v := range hrs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsHdfsReadSettings() (*HdfsReadSettings, bool) {
+	return &hrs, true
+}
+
+// AsHTTPReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsHTTPReadSettings() (*HTTPReadSettings, bool) {
+	return nil, false
+}
+
+// AsSftpReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsSftpReadSettings() (*SftpReadSettings, bool) {
+	return nil, false
+}
+
+// AsFtpReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsFtpReadSettings() (*FtpReadSettings, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsFileServerReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsFileServerReadSettings() (*FileServerReadSettings, bool) {
+	return nil, false
+}
+
+// AsAmazonS3ReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsStoreReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsStoreReadSettings() (*StoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsBasicStoreReadSettings is the BasicStoreReadSettings implementation for HdfsReadSettings.
+func (hrs HdfsReadSettings) AsBasicStoreReadSettings() (BasicStoreReadSettings, bool) {
+	return &hrs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for HdfsReadSettings struct.
@@ -100621,15 +102506,6 @@ func (hrs *HdfsReadSettings) UnmarshalJSON(body []byte) error {
 				}
 				hrs.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				hrs.Type = &typeVar
-			}
 		case "maxConcurrentConnections":
 			if v != nil {
 				var maxConcurrentConnections interface{}
@@ -100638,6 +102514,15 @@ func (hrs *HdfsReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				hrs.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreReadSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				hrs.Type = typeVar
 			}
 		}
 	}
@@ -108393,14 +110278,15 @@ type HTTPReadSettings struct {
 	RequestTimeout interface{} `json:"requestTimeout,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// Type - Possible values include: 'TypeStoreReadSettings', 'TypeHdfsReadSettings', 'TypeHTTPReadSettings', 'TypeSftpReadSettings', 'TypeFtpReadSettings', 'TypeGoogleCloudStorageReadSettings', 'TypeAzureFileStorageReadSettings', 'TypeFileServerReadSettings', 'TypeAmazonS3ReadSettings', 'TypeAzureDataLakeStoreReadSettings', 'TypeAzureBlobFSReadSettings', 'TypeAzureBlobStorageReadSettings'
+	Type TypeBasicStoreReadSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for HTTPReadSettings.
 func (hrs HTTPReadSettings) MarshalJSON() ([]byte, error) {
+	hrs.Type = TypeHTTPReadSettings
 	objectMap := make(map[string]interface{})
 	if hrs.RequestMethod != nil {
 		objectMap["requestMethod"] = hrs.RequestMethod
@@ -108414,16 +110300,81 @@ func (hrs HTTPReadSettings) MarshalJSON() ([]byte, error) {
 	if hrs.RequestTimeout != nil {
 		objectMap["requestTimeout"] = hrs.RequestTimeout
 	}
-	if hrs.Type != nil {
-		objectMap["type"] = hrs.Type
-	}
 	if hrs.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = hrs.MaxConcurrentConnections
+	}
+	if hrs.Type != "" {
+		objectMap["type"] = hrs.Type
 	}
 	for k, v := range hrs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsHdfsReadSettings() (*HdfsReadSettings, bool) {
+	return nil, false
+}
+
+// AsHTTPReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsHTTPReadSettings() (*HTTPReadSettings, bool) {
+	return &hrs, true
+}
+
+// AsSftpReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsSftpReadSettings() (*SftpReadSettings, bool) {
+	return nil, false
+}
+
+// AsFtpReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsFtpReadSettings() (*FtpReadSettings, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsFileServerReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsFileServerReadSettings() (*FileServerReadSettings, bool) {
+	return nil, false
+}
+
+// AsAmazonS3ReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsStoreReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsStoreReadSettings() (*StoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsBasicStoreReadSettings is the BasicStoreReadSettings implementation for HTTPReadSettings.
+func (hrs HTTPReadSettings) AsBasicStoreReadSettings() (BasicStoreReadSettings, bool) {
+	return &hrs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for HTTPReadSettings struct.
@@ -108483,15 +110434,6 @@ func (hrs *HTTPReadSettings) UnmarshalJSON(body []byte) error {
 				}
 				hrs.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				hrs.Type = &typeVar
-			}
 		case "maxConcurrentConnections":
 			if v != nil {
 				var maxConcurrentConnections interface{}
@@ -108500,6 +110442,15 @@ func (hrs *HTTPReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				hrs.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreReadSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				hrs.Type = typeVar
 			}
 		}
 	}
@@ -108513,22 +110464,20 @@ type HTTPServerLocation struct {
 	RelativeURL interface{} `json:"relativeUrl,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - Type of dataset storage location.
-	Type *string `json:"type,omitempty"`
 	// FolderPath - Specify the folder path of dataset. Type: string (or Expression with resultType string)
 	FolderPath interface{} `json:"folderPath,omitempty"`
 	// FileName - Specify the file name of dataset. Type: string (or Expression with resultType string).
 	FileName interface{} `json:"fileName,omitempty"`
+	// Type - Possible values include: 'TypeDatasetLocation', 'TypeHdfsLocation', 'TypeHTTPServerLocation', 'TypeSftpLocation', 'TypeFtpServerLocation', 'TypeGoogleCloudStorageLocation', 'TypeAzureFileStorageLocation', 'TypeFileServerLocation', 'TypeAmazonS3Location', 'TypeAzureDataLakeStoreLocation', 'TypeAzureBlobFSLocation', 'TypeAzureBlobStorageLocation'
+	Type TypeBasicDatasetLocation `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for HTTPServerLocation.
 func (hsl HTTPServerLocation) MarshalJSON() ([]byte, error) {
+	hsl.Type = TypeHTTPServerLocation
 	objectMap := make(map[string]interface{})
 	if hsl.RelativeURL != nil {
 		objectMap["relativeUrl"] = hsl.RelativeURL
-	}
-	if hsl.Type != nil {
-		objectMap["type"] = hsl.Type
 	}
 	if hsl.FolderPath != nil {
 		objectMap["folderPath"] = hsl.FolderPath
@@ -108536,10 +110485,78 @@ func (hsl HTTPServerLocation) MarshalJSON() ([]byte, error) {
 	if hsl.FileName != nil {
 		objectMap["fileName"] = hsl.FileName
 	}
+	if hsl.Type != "" {
+		objectMap["type"] = hsl.Type
+	}
 	for k, v := range hsl.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsLocation is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsHdfsLocation() (*HdfsLocation, bool) {
+	return nil, false
+}
+
+// AsHTTPServerLocation is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsHTTPServerLocation() (*HTTPServerLocation, bool) {
+	return &hsl, true
+}
+
+// AsSftpLocation is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsSftpLocation() (*SftpLocation, bool) {
+	return nil, false
+}
+
+// AsFtpServerLocation is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsFtpServerLocation() (*FtpServerLocation, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageLocation is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageLocation is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool) {
+	return nil, false
+}
+
+// AsFileServerLocation is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsFileServerLocation() (*FileServerLocation, bool) {
+	return nil, false
+}
+
+// AsAmazonS3Location is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsAmazonS3Location() (*AmazonS3Location, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreLocation is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSLocation is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageLocation is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool) {
+	return nil, false
+}
+
+// AsDatasetLocation is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsDatasetLocation() (*DatasetLocation, bool) {
+	return nil, false
+}
+
+// AsBasicDatasetLocation is the BasicDatasetLocation implementation for HTTPServerLocation.
+func (hsl HTTPServerLocation) AsBasicDatasetLocation() (BasicDatasetLocation, bool) {
+	return &hsl, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for HTTPServerLocation struct.
@@ -108572,15 +110589,6 @@ func (hsl *HTTPServerLocation) UnmarshalJSON(body []byte) error {
 				}
 				hsl.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				hsl.Type = &typeVar
-			}
 		case "folderPath":
 			if v != nil {
 				var folderPath interface{}
@@ -108598,6 +110606,15 @@ func (hsl *HTTPServerLocation) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				hsl.FileName = fileName
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicDatasetLocation
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				hsl.Type = typeVar
 			}
 		}
 	}
@@ -117037,6 +119054,8 @@ type IntegrationRuntimeVNetProperties struct {
 	VNetID *string `json:"vNetId,omitempty"`
 	// Subnet - The name of the subnet this integration runtime will join.
 	Subnet *string `json:"subnet,omitempty"`
+	// PublicIPs - Resource IDs of the public IP addresses that this integration runtime will use.
+	PublicIPs *[]string `json:"publicIPs,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for IntegrationRuntimeVNetProperties.
@@ -117047,6 +119066,9 @@ func (irvnp IntegrationRuntimeVNetProperties) MarshalJSON() ([]byte, error) {
 	}
 	if irvnp.Subnet != nil {
 		objectMap["subnet"] = irvnp.Subnet
+	}
+	if irvnp.PublicIPs != nil {
+		objectMap["publicIPs"] = irvnp.PublicIPs
 	}
 	for k, v := range irvnp.AdditionalProperties {
 		objectMap[k] = v
@@ -117092,6 +119114,15 @@ func (irvnp *IntegrationRuntimeVNetProperties) UnmarshalJSON(body []byte) error 
 					return err
 				}
 				irvnp.Subnet = &subnet
+			}
+		case "publicIPs":
+			if v != nil {
+				var publicIPs []string
+				err = json.Unmarshal(*v, &publicIPs)
+				if err != nil {
+					return err
+				}
+				irvnp.PublicIPs = &publicIPs
 			}
 		}
 	}
@@ -119620,7 +121651,7 @@ func (jd *JSONDataset) UnmarshalJSON(body []byte) error {
 // JSONDatasetTypeProperties json dataset properties.
 type JSONDatasetTypeProperties struct {
 	// Location - The location of the json data storage.
-	Location *DatasetLocation `json:"location,omitempty"`
+	Location BasicDatasetLocation `json:"location,omitempty"`
 	// EncodingName - The code page name of the preferred encoding. If not specified, the default value is UTF-8, unless BOM denotes another Unicode encoding. Refer to the name column of the table in the following link to set supported values: https://msdn.microsoft.com/library/system.text.encoding.aspx. Type: string (or Expression with resultType string).
 	EncodingName interface{} `json:"encodingName,omitempty"`
 	// Compression - The data compression method used for the json dataset.
@@ -119638,12 +121669,11 @@ func (jdtp *JSONDatasetTypeProperties) UnmarshalJSON(body []byte) error {
 		switch k {
 		case "location":
 			if v != nil {
-				var location DatasetLocation
-				err = json.Unmarshal(*v, &location)
+				location, err := unmarshalBasicDatasetLocation(*v)
 				if err != nil {
 					return err
 				}
-				jdtp.Location = &location
+				jdtp.Location = location
 			}
 		case "encodingName":
 			if v != nil {
@@ -120193,7 +122223,7 @@ func (js *JSONSink) UnmarshalJSON(body []byte) error {
 // JSONSource a copy activity Json source.
 type JSONSource struct {
 	// StoreSettings - Json store settings.
-	StoreSettings *StoreReadSettings `json:"storeSettings,omitempty"`
+	StoreSettings BasicStoreReadSettings `json:"storeSettings,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -120210,9 +122240,7 @@ type JSONSource struct {
 func (js JSONSource) MarshalJSON() ([]byte, error) {
 	js.Type = TypeJSONSource
 	objectMap := make(map[string]interface{})
-	if js.StoreSettings != nil {
-		objectMap["storeSettings"] = js.StoreSettings
-	}
+	objectMap["storeSettings"] = js.StoreSettings
 	if js.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = js.SourceRetryCount
 	}
@@ -120692,12 +122720,11 @@ func (js *JSONSource) UnmarshalJSON(body []byte) error {
 		switch k {
 		case "storeSettings":
 			if v != nil {
-				var storeSettings StoreReadSettings
-				err = json.Unmarshal(*v, &storeSettings)
+				storeSettings, err := unmarshalBasicStoreReadSettings(*v)
 				if err != nil {
 					return err
 				}
-				js.StoreSettings = &storeSettings
+				js.StoreSettings = storeSettings
 			}
 		default:
 			if v != nil {
@@ -120759,23 +122786,49 @@ type JSONWriteSettings struct {
 	FilePattern JSONWriteFilePattern `json:"filePattern,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The write setting type.
-	Type *string `json:"type,omitempty"`
+	// Type - Possible values include: 'TypeFormatWriteSettings', 'TypeJSONWriteSettings', 'TypeDelimitedTextWriteSettings', 'TypeAvroWriteSettings'
+	Type TypeBasicFormatWriteSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for JSONWriteSettings.
 func (jws JSONWriteSettings) MarshalJSON() ([]byte, error) {
+	jws.Type = TypeJSONWriteSettings
 	objectMap := make(map[string]interface{})
 	if jws.FilePattern != "" {
 		objectMap["filePattern"] = jws.FilePattern
 	}
-	if jws.Type != nil {
+	if jws.Type != "" {
 		objectMap["type"] = jws.Type
 	}
 	for k, v := range jws.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsJSONWriteSettings is the BasicFormatWriteSettings implementation for JSONWriteSettings.
+func (jws JSONWriteSettings) AsJSONWriteSettings() (*JSONWriteSettings, bool) {
+	return &jws, true
+}
+
+// AsDelimitedTextWriteSettings is the BasicFormatWriteSettings implementation for JSONWriteSettings.
+func (jws JSONWriteSettings) AsDelimitedTextWriteSettings() (*DelimitedTextWriteSettings, bool) {
+	return nil, false
+}
+
+// AsAvroWriteSettings is the BasicFormatWriteSettings implementation for JSONWriteSettings.
+func (jws JSONWriteSettings) AsAvroWriteSettings() (*AvroWriteSettings, bool) {
+	return nil, false
+}
+
+// AsFormatWriteSettings is the BasicFormatWriteSettings implementation for JSONWriteSettings.
+func (jws JSONWriteSettings) AsFormatWriteSettings() (*FormatWriteSettings, bool) {
+	return nil, false
+}
+
+// AsBasicFormatWriteSettings is the BasicFormatWriteSettings implementation for JSONWriteSettings.
+func (jws JSONWriteSettings) AsBasicFormatWriteSettings() (BasicFormatWriteSettings, bool) {
+	return &jws, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for JSONWriteSettings struct.
@@ -120810,12 +122863,12 @@ func (jws *JSONWriteSettings) UnmarshalJSON(body []byte) error {
 			}
 		case "type":
 			if v != nil {
-				var typeVar string
+				var typeVar TypeBasicFormatWriteSettings
 				err = json.Unmarshal(*v, &typeVar)
 				if err != nil {
 					return err
 				}
-				jws.Type = &typeVar
+				jws.Type = typeVar
 			}
 		}
 	}
@@ -135781,52 +137834,11 @@ func (msls *MySQLLinkedService) UnmarshalJSON(body []byte) error {
 // MySQLLinkedServiceTypeProperties mySQL linked service properties.
 type MySQLLinkedServiceTypeProperties struct {
 	// ConnectionString - The connection string.
-	ConnectionString BasicSecretBase `json:"connectionString,omitempty"`
+	ConnectionString interface{} `json:"connectionString,omitempty"`
 	// Password - The Azure key vault secret reference of password in connection string.
 	Password *AzureKeyVaultSecretReference `json:"password,omitempty"`
 	// EncryptedCredential - The encrypted credential used for authentication. Credentials are encrypted using the integration runtime credential manager. Type: string (or Expression with resultType string).
 	EncryptedCredential interface{} `json:"encryptedCredential,omitempty"`
-}
-
-// UnmarshalJSON is the custom unmarshaler for MySQLLinkedServiceTypeProperties struct.
-func (mslstp *MySQLLinkedServiceTypeProperties) UnmarshalJSON(body []byte) error {
-	var m map[string]*json.RawMessage
-	err := json.Unmarshal(body, &m)
-	if err != nil {
-		return err
-	}
-	for k, v := range m {
-		switch k {
-		case "connectionString":
-			if v != nil {
-				connectionString, err := unmarshalBasicSecretBase(*v)
-				if err != nil {
-					return err
-				}
-				mslstp.ConnectionString = connectionString
-			}
-		case "password":
-			if v != nil {
-				var password AzureKeyVaultSecretReference
-				err = json.Unmarshal(*v, &password)
-				if err != nil {
-					return err
-				}
-				mslstp.Password = &password
-			}
-		case "encryptedCredential":
-			if v != nil {
-				var encryptedCredential interface{}
-				err = json.Unmarshal(*v, &encryptedCredential)
-				if err != nil {
-					return err
-				}
-				mslstp.EncryptedCredential = encryptedCredential
-			}
-		}
-	}
-
-	return nil
 }
 
 // MySQLSource a copy activity source for MySQL databases.
@@ -149956,9 +151968,41 @@ func (od *OrcDataset) UnmarshalJSON(body []byte) error {
 // OrcDatasetTypeProperties ORC dataset properties.
 type OrcDatasetTypeProperties struct {
 	// Location - The location of the ORC data storage.
-	Location *DatasetLocation `json:"location,omitempty"`
+	Location BasicDatasetLocation `json:"location,omitempty"`
 	// OrcCompressionCodec - Possible values include: 'OrcCompressionCodecNone', 'OrcCompressionCodecZlib', 'OrcCompressionCodecSnappy'
 	OrcCompressionCodec OrcCompressionCodec `json:"orcCompressionCodec,omitempty"`
+}
+
+// UnmarshalJSON is the custom unmarshaler for OrcDatasetTypeProperties struct.
+func (odtp *OrcDatasetTypeProperties) UnmarshalJSON(body []byte) error {
+	var m map[string]*json.RawMessage
+	err := json.Unmarshal(body, &m)
+	if err != nil {
+		return err
+	}
+	for k, v := range m {
+		switch k {
+		case "location":
+			if v != nil {
+				location, err := unmarshalBasicDatasetLocation(*v)
+				if err != nil {
+					return err
+				}
+				odtp.Location = location
+			}
+		case "orcCompressionCodec":
+			if v != nil {
+				var orcCompressionCodec OrcCompressionCodec
+				err = json.Unmarshal(*v, &orcCompressionCodec)
+				if err != nil {
+					return err
+				}
+				odtp.OrcCompressionCodec = orcCompressionCodec
+			}
+		}
+	}
+
+	return nil
 }
 
 // OrcFormat the data stored in Optimized Row Columnar (ORC) format.
@@ -150402,7 +152446,7 @@ func (osVar *OrcSink) UnmarshalJSON(body []byte) error {
 // OrcSource a copy activity ORC source.
 type OrcSource struct {
 	// StoreSettings - ORC store settings.
-	StoreSettings *StoreReadSettings `json:"storeSettings,omitempty"`
+	StoreSettings BasicStoreReadSettings `json:"storeSettings,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -150419,9 +152463,7 @@ type OrcSource struct {
 func (osVar OrcSource) MarshalJSON() ([]byte, error) {
 	osVar.Type = TypeOrcSource
 	objectMap := make(map[string]interface{})
-	if osVar.StoreSettings != nil {
-		objectMap["storeSettings"] = osVar.StoreSettings
-	}
+	objectMap["storeSettings"] = osVar.StoreSettings
 	if osVar.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = osVar.SourceRetryCount
 	}
@@ -150901,12 +152943,11 @@ func (osVar *OrcSource) UnmarshalJSON(body []byte) error {
 		switch k {
 		case "storeSettings":
 			if v != nil {
-				var storeSettings StoreReadSettings
-				err = json.Unmarshal(*v, &storeSettings)
+				storeSettings, err := unmarshalBasicStoreReadSettings(*v)
 				if err != nil {
 					return err
 				}
-				osVar.StoreSettings = &storeSettings
+				osVar.StoreSettings = storeSettings
 			}
 		default:
 			if v != nil {
@@ -151587,8 +153628,40 @@ func (pd *ParquetDataset) UnmarshalJSON(body []byte) error {
 // ParquetDatasetTypeProperties parquet dataset properties.
 type ParquetDatasetTypeProperties struct {
 	// Location - The location of the parquet storage.
-	Location         *DatasetLocation `json:"location,omitempty"`
-	CompressionCodec interface{}      `json:"compressionCodec,omitempty"`
+	Location         BasicDatasetLocation `json:"location,omitempty"`
+	CompressionCodec interface{}          `json:"compressionCodec,omitempty"`
+}
+
+// UnmarshalJSON is the custom unmarshaler for ParquetDatasetTypeProperties struct.
+func (pdtp *ParquetDatasetTypeProperties) UnmarshalJSON(body []byte) error {
+	var m map[string]*json.RawMessage
+	err := json.Unmarshal(body, &m)
+	if err != nil {
+		return err
+	}
+	for k, v := range m {
+		switch k {
+		case "location":
+			if v != nil {
+				location, err := unmarshalBasicDatasetLocation(*v)
+				if err != nil {
+					return err
+				}
+				pdtp.Location = location
+			}
+		case "compressionCodec":
+			if v != nil {
+				var compressionCodec interface{}
+				err = json.Unmarshal(*v, &compressionCodec)
+				if err != nil {
+					return err
+				}
+				pdtp.CompressionCodec = compressionCodec
+			}
+		}
+	}
+
+	return nil
 }
 
 // ParquetFormat the data stored in Parquet format.
@@ -152032,7 +154105,7 @@ func (ps *ParquetSink) UnmarshalJSON(body []byte) error {
 // ParquetSource a copy activity Parquet source.
 type ParquetSource struct {
 	// StoreSettings - Parquet store settings.
-	StoreSettings *StoreReadSettings `json:"storeSettings,omitempty"`
+	StoreSettings BasicStoreReadSettings `json:"storeSettings,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -152049,9 +154122,7 @@ type ParquetSource struct {
 func (ps ParquetSource) MarshalJSON() ([]byte, error) {
 	ps.Type = TypeParquetSource
 	objectMap := make(map[string]interface{})
-	if ps.StoreSettings != nil {
-		objectMap["storeSettings"] = ps.StoreSettings
-	}
+	objectMap["storeSettings"] = ps.StoreSettings
 	if ps.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ps.SourceRetryCount
 	}
@@ -152531,12 +154602,11 @@ func (ps *ParquetSource) UnmarshalJSON(body []byte) error {
 		switch k {
 		case "storeSettings":
 			if v != nil {
-				var storeSettings StoreReadSettings
-				err = json.Unmarshal(*v, &storeSettings)
+				storeSettings, err := unmarshalBasicStoreReadSettings(*v)
 				if err != nil {
 					return err
 				}
-				ps.StoreSettings = &storeSettings
+				ps.StoreSettings = storeSettings
 			}
 		default:
 			if v != nil {
@@ -157756,52 +159826,11 @@ func (psls *PostgreSQLLinkedService) UnmarshalJSON(body []byte) error {
 // PostgreSQLLinkedServiceTypeProperties postgreSQL linked service properties.
 type PostgreSQLLinkedServiceTypeProperties struct {
 	// ConnectionString - The connection string.
-	ConnectionString BasicSecretBase `json:"connectionString,omitempty"`
+	ConnectionString interface{} `json:"connectionString,omitempty"`
 	// Password - The Azure key vault secret reference of password in connection string.
 	Password *AzureKeyVaultSecretReference `json:"password,omitempty"`
 	// EncryptedCredential - The encrypted credential used for authentication. Credentials are encrypted using the integration runtime credential manager. Type: string (or Expression with resultType string).
 	EncryptedCredential interface{} `json:"encryptedCredential,omitempty"`
-}
-
-// UnmarshalJSON is the custom unmarshaler for PostgreSQLLinkedServiceTypeProperties struct.
-func (pslstp *PostgreSQLLinkedServiceTypeProperties) UnmarshalJSON(body []byte) error {
-	var m map[string]*json.RawMessage
-	err := json.Unmarshal(body, &m)
-	if err != nil {
-		return err
-	}
-	for k, v := range m {
-		switch k {
-		case "connectionString":
-			if v != nil {
-				connectionString, err := unmarshalBasicSecretBase(*v)
-				if err != nil {
-					return err
-				}
-				pslstp.ConnectionString = connectionString
-			}
-		case "password":
-			if v != nil {
-				var password AzureKeyVaultSecretReference
-				err = json.Unmarshal(*v, &password)
-				if err != nil {
-					return err
-				}
-				pslstp.Password = &password
-			}
-		case "encryptedCredential":
-			if v != nil {
-				var encryptedCredential interface{}
-				err = json.Unmarshal(*v, &encryptedCredential)
-				if err != nil {
-					return err
-				}
-				pslstp.EncryptedCredential = encryptedCredential
-			}
-		}
-	}
-
-	return nil
 }
 
 // PostgreSQLSource a copy activity source for PostgreSQL databases.
@@ -181818,12 +183847,22 @@ func (shlsp *SapHanaLinkedServiceProperties) UnmarshalJSON(body []byte) error {
 	return nil
 }
 
+// SapHanaPartitionSettings the settings that will be leveraged for SAP HANA source partitioning.
+type SapHanaPartitionSettings struct {
+	// PartitionColumnName - The name of the column that will be used for proceeding range partitioning. Type: string (or Expression with resultType string).
+	PartitionColumnName interface{} `json:"partitionColumnName,omitempty"`
+}
+
 // SapHanaSource a copy activity source for SAP HANA source.
 type SapHanaSource struct {
 	// Query - SAP HANA Sql query. Type: string (or Expression with resultType string).
 	Query interface{} `json:"query,omitempty"`
 	// PacketSize - The packet size of data read from SAP HANA. Type: integer(or Expression with resultType integer).
 	PacketSize interface{} `json:"packetSize,omitempty"`
+	// PartitionOption - The partition mechanism that will be used for SAP HANA read in parallel. Possible values include: 'SapHanaPartitionOptionNone', 'SapHanaPartitionOptionPhysicalPartitionsOfTable', 'SapHanaPartitionOptionSapHanaDynamicRange'
+	PartitionOption SapHanaPartitionOption `json:"partitionOption,omitempty"`
+	// PartitionSettings - The settings that will be leveraged for SAP HANA source partitioning.
+	PartitionSettings *SapHanaPartitionSettings `json:"partitionSettings,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
@@ -181847,6 +183886,12 @@ func (shs SapHanaSource) MarshalJSON() ([]byte, error) {
 	}
 	if shs.PacketSize != nil {
 		objectMap["packetSize"] = shs.PacketSize
+	}
+	if shs.PartitionOption != "" {
+		objectMap["partitionOption"] = shs.PartitionOption
+	}
+	if shs.PartitionSettings != nil {
+		objectMap["partitionSettings"] = shs.PartitionSettings
 	}
 	if shs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = shs.QueryTimeout
@@ -182345,6 +184390,24 @@ func (shs *SapHanaSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				shs.PacketSize = packetSize
+			}
+		case "partitionOption":
+			if v != nil {
+				var partitionOption SapHanaPartitionOption
+				err = json.Unmarshal(*v, &partitionOption)
+				if err != nil {
+					return err
+				}
+				shs.PartitionOption = partitionOption
+			}
+		case "partitionSettings":
+			if v != nil {
+				var partitionSettings SapHanaPartitionSettings
+				err = json.Unmarshal(*v, &partitionSettings)
+				if err != nil {
+					return err
+				}
+				shs.PartitionSettings = &partitionSettings
 			}
 		case "queryTimeout":
 			if v != nil {
@@ -190162,30 +192225,96 @@ type SetVariableActivityTypeProperties struct {
 type SftpLocation struct {
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - Type of dataset storage location.
-	Type *string `json:"type,omitempty"`
 	// FolderPath - Specify the folder path of dataset. Type: string (or Expression with resultType string)
 	FolderPath interface{} `json:"folderPath,omitempty"`
 	// FileName - Specify the file name of dataset. Type: string (or Expression with resultType string).
 	FileName interface{} `json:"fileName,omitempty"`
+	// Type - Possible values include: 'TypeDatasetLocation', 'TypeHdfsLocation', 'TypeHTTPServerLocation', 'TypeSftpLocation', 'TypeFtpServerLocation', 'TypeGoogleCloudStorageLocation', 'TypeAzureFileStorageLocation', 'TypeFileServerLocation', 'TypeAmazonS3Location', 'TypeAzureDataLakeStoreLocation', 'TypeAzureBlobFSLocation', 'TypeAzureBlobStorageLocation'
+	Type TypeBasicDatasetLocation `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for SftpLocation.
 func (sl SftpLocation) MarshalJSON() ([]byte, error) {
+	sl.Type = TypeSftpLocation
 	objectMap := make(map[string]interface{})
-	if sl.Type != nil {
-		objectMap["type"] = sl.Type
-	}
 	if sl.FolderPath != nil {
 		objectMap["folderPath"] = sl.FolderPath
 	}
 	if sl.FileName != nil {
 		objectMap["fileName"] = sl.FileName
 	}
+	if sl.Type != "" {
+		objectMap["type"] = sl.Type
+	}
 	for k, v := range sl.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsLocation is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsHdfsLocation() (*HdfsLocation, bool) {
+	return nil, false
+}
+
+// AsHTTPServerLocation is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsHTTPServerLocation() (*HTTPServerLocation, bool) {
+	return nil, false
+}
+
+// AsSftpLocation is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsSftpLocation() (*SftpLocation, bool) {
+	return &sl, true
+}
+
+// AsFtpServerLocation is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsFtpServerLocation() (*FtpServerLocation, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageLocation is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsGoogleCloudStorageLocation() (*GoogleCloudStorageLocation, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageLocation is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsAzureFileStorageLocation() (*AzureFileStorageLocation, bool) {
+	return nil, false
+}
+
+// AsFileServerLocation is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsFileServerLocation() (*FileServerLocation, bool) {
+	return nil, false
+}
+
+// AsAmazonS3Location is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsAmazonS3Location() (*AmazonS3Location, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreLocation is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsAzureDataLakeStoreLocation() (*AzureDataLakeStoreLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSLocation is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsAzureBlobFSLocation() (*AzureBlobFSLocation, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageLocation is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsAzureBlobStorageLocation() (*AzureBlobStorageLocation, bool) {
+	return nil, false
+}
+
+// AsDatasetLocation is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsDatasetLocation() (*DatasetLocation, bool) {
+	return nil, false
+}
+
+// AsBasicDatasetLocation is the BasicDatasetLocation implementation for SftpLocation.
+func (sl SftpLocation) AsBasicDatasetLocation() (BasicDatasetLocation, bool) {
+	return &sl, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for SftpLocation struct.
@@ -190209,15 +192338,6 @@ func (sl *SftpLocation) UnmarshalJSON(body []byte) error {
 				}
 				sl.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				sl.Type = &typeVar
-			}
 		case "folderPath":
 			if v != nil {
 				var folderPath interface{}
@@ -190235,6 +192355,15 @@ func (sl *SftpLocation) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				sl.FileName = fileName
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicDatasetLocation
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				sl.Type = typeVar
 			}
 		}
 	}
@@ -190256,14 +192385,15 @@ type SftpReadSettings struct {
 	ModifiedDatetimeEnd interface{} `json:"modifiedDatetimeEnd,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// Type - Possible values include: 'TypeStoreReadSettings', 'TypeHdfsReadSettings', 'TypeHTTPReadSettings', 'TypeSftpReadSettings', 'TypeFtpReadSettings', 'TypeGoogleCloudStorageReadSettings', 'TypeAzureFileStorageReadSettings', 'TypeFileServerReadSettings', 'TypeAmazonS3ReadSettings', 'TypeAzureDataLakeStoreReadSettings', 'TypeAzureBlobFSReadSettings', 'TypeAzureBlobStorageReadSettings'
+	Type TypeBasicStoreReadSettings `json:"type,omitempty"`
 }
 
 // MarshalJSON is the custom marshaler for SftpReadSettings.
 func (srs SftpReadSettings) MarshalJSON() ([]byte, error) {
+	srs.Type = TypeSftpReadSettings
 	objectMap := make(map[string]interface{})
 	if srs.Recursive != nil {
 		objectMap["recursive"] = srs.Recursive
@@ -190280,16 +192410,81 @@ func (srs SftpReadSettings) MarshalJSON() ([]byte, error) {
 	if srs.ModifiedDatetimeEnd != nil {
 		objectMap["modifiedDatetimeEnd"] = srs.ModifiedDatetimeEnd
 	}
-	if srs.Type != nil {
-		objectMap["type"] = srs.Type
-	}
 	if srs.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = srs.MaxConcurrentConnections
+	}
+	if srs.Type != "" {
+		objectMap["type"] = srs.Type
 	}
 	for k, v := range srs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsHdfsReadSettings() (*HdfsReadSettings, bool) {
+	return nil, false
+}
+
+// AsHTTPReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsHTTPReadSettings() (*HTTPReadSettings, bool) {
+	return nil, false
+}
+
+// AsSftpReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsSftpReadSettings() (*SftpReadSettings, bool) {
+	return &srs, true
+}
+
+// AsFtpReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsFtpReadSettings() (*FtpReadSettings, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsFileServerReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsFileServerReadSettings() (*FileServerReadSettings, bool) {
+	return nil, false
+}
+
+// AsAmazonS3ReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsStoreReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsStoreReadSettings() (*StoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsBasicStoreReadSettings is the BasicStoreReadSettings implementation for SftpReadSettings.
+func (srs SftpReadSettings) AsBasicStoreReadSettings() (BasicStoreReadSettings, bool) {
+	return &srs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for SftpReadSettings struct.
@@ -190358,15 +192553,6 @@ func (srs *SftpReadSettings) UnmarshalJSON(body []byte) error {
 				}
 				srs.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				srs.Type = &typeVar
-			}
 		case "maxConcurrentConnections":
 			if v != nil {
 				var maxConcurrentConnections interface{}
@@ -190375,6 +192561,15 @@ func (srs *SftpReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				srs.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreReadSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				srs.Type = typeVar
 			}
 		}
 	}
@@ -191119,6 +193314,140 @@ func (sslstp *SftpServerLinkedServiceTypeProperties) UnmarshalJSON(body []byte) 
 					return err
 				}
 				sslstp.HostKeyFingerprint = hostKeyFingerprint
+			}
+		}
+	}
+
+	return nil
+}
+
+// SftpWriteSettings sftp write settings.
+type SftpWriteSettings struct {
+	// OperationTimeout - Specifies the timeout for writing each chunk to SFTP server. Default value: 01:00:00 (one hour). Type: string (or Expression with resultType string).
+	OperationTimeout interface{} `json:"operationTimeout,omitempty"`
+	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
+	AdditionalProperties map[string]interface{} `json:""`
+	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
+	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// CopyBehavior - The type of copy behavior for copy sink.
+	CopyBehavior interface{} `json:"copyBehavior,omitempty"`
+	// Type - Possible values include: 'TypeStoreWriteSettings', 'TypeFileServerWriteSettings', 'TypeAzureDataLakeStoreWriteSettings', 'TypeAzureBlobFSWriteSettings', 'TypeAzureBlobStorageWriteSettings', 'TypeSftpWriteSettings'
+	Type TypeBasicStoreWriteSettings `json:"type,omitempty"`
+}
+
+// MarshalJSON is the custom marshaler for SftpWriteSettings.
+func (sws SftpWriteSettings) MarshalJSON() ([]byte, error) {
+	sws.Type = TypeSftpWriteSettings
+	objectMap := make(map[string]interface{})
+	if sws.OperationTimeout != nil {
+		objectMap["operationTimeout"] = sws.OperationTimeout
+	}
+	if sws.MaxConcurrentConnections != nil {
+		objectMap["maxConcurrentConnections"] = sws.MaxConcurrentConnections
+	}
+	if sws.CopyBehavior != nil {
+		objectMap["copyBehavior"] = sws.CopyBehavior
+	}
+	if sws.Type != "" {
+		objectMap["type"] = sws.Type
+	}
+	for k, v := range sws.AdditionalProperties {
+		objectMap[k] = v
+	}
+	return json.Marshal(objectMap)
+}
+
+// AsFileServerWriteSettings is the BasicStoreWriteSettings implementation for SftpWriteSettings.
+func (sws SftpWriteSettings) AsFileServerWriteSettings() (*FileServerWriteSettings, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreWriteSettings is the BasicStoreWriteSettings implementation for SftpWriteSettings.
+func (sws SftpWriteSettings) AsAzureDataLakeStoreWriteSettings() (*AzureDataLakeStoreWriteSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSWriteSettings is the BasicStoreWriteSettings implementation for SftpWriteSettings.
+func (sws SftpWriteSettings) AsAzureBlobFSWriteSettings() (*AzureBlobFSWriteSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageWriteSettings is the BasicStoreWriteSettings implementation for SftpWriteSettings.
+func (sws SftpWriteSettings) AsAzureBlobStorageWriteSettings() (*AzureBlobStorageWriteSettings, bool) {
+	return nil, false
+}
+
+// AsSftpWriteSettings is the BasicStoreWriteSettings implementation for SftpWriteSettings.
+func (sws SftpWriteSettings) AsSftpWriteSettings() (*SftpWriteSettings, bool) {
+	return &sws, true
+}
+
+// AsStoreWriteSettings is the BasicStoreWriteSettings implementation for SftpWriteSettings.
+func (sws SftpWriteSettings) AsStoreWriteSettings() (*StoreWriteSettings, bool) {
+	return nil, false
+}
+
+// AsBasicStoreWriteSettings is the BasicStoreWriteSettings implementation for SftpWriteSettings.
+func (sws SftpWriteSettings) AsBasicStoreWriteSettings() (BasicStoreWriteSettings, bool) {
+	return &sws, true
+}
+
+// UnmarshalJSON is the custom unmarshaler for SftpWriteSettings struct.
+func (sws *SftpWriteSettings) UnmarshalJSON(body []byte) error {
+	var m map[string]*json.RawMessage
+	err := json.Unmarshal(body, &m)
+	if err != nil {
+		return err
+	}
+	for k, v := range m {
+		switch k {
+		case "operationTimeout":
+			if v != nil {
+				var operationTimeout interface{}
+				err = json.Unmarshal(*v, &operationTimeout)
+				if err != nil {
+					return err
+				}
+				sws.OperationTimeout = operationTimeout
+			}
+		default:
+			if v != nil {
+				var additionalProperties interface{}
+				err = json.Unmarshal(*v, &additionalProperties)
+				if err != nil {
+					return err
+				}
+				if sws.AdditionalProperties == nil {
+					sws.AdditionalProperties = make(map[string]interface{})
+				}
+				sws.AdditionalProperties[k] = additionalProperties
+			}
+		case "maxConcurrentConnections":
+			if v != nil {
+				var maxConcurrentConnections interface{}
+				err = json.Unmarshal(*v, &maxConcurrentConnections)
+				if err != nil {
+					return err
+				}
+				sws.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "copyBehavior":
+			if v != nil {
+				var copyBehavior interface{}
+				err = json.Unmarshal(*v, &copyBehavior)
+				if err != nil {
+					return err
+				}
+				sws.CopyBehavior = copyBehavior
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreWriteSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				sws.Type = typeVar
 			}
 		}
 	}
@@ -194996,6 +197325,10 @@ type SQLDWSink struct {
 	AllowPolyBase interface{} `json:"allowPolyBase,omitempty"`
 	// PolyBaseSettings - Specifies PolyBase-related settings when allowPolyBase is true.
 	PolyBaseSettings *PolybaseSettings `json:"polyBaseSettings,omitempty"`
+	// AllowCopyCommand - Indicates to use Copy Command to copy data into SQL Data Warehouse. Type: boolean (or Expression with resultType boolean).
+	AllowCopyCommand interface{} `json:"allowCopyCommand,omitempty"`
+	// CopyCommandSettings - Specifies Copy Command related settings when allowCopyCommand is true.
+	CopyCommandSettings *DWCopyCommandSettings `json:"copyCommandSettings,omitempty"`
 	// TableOption - The option to handle sink table, such as autoCreate. For now only 'autoCreate' value is supported. Type: string (or Expression with resultType string).
 	TableOption interface{} `json:"tableOption,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
@@ -195026,6 +197359,12 @@ func (sds SQLDWSink) MarshalJSON() ([]byte, error) {
 	}
 	if sds.PolyBaseSettings != nil {
 		objectMap["polyBaseSettings"] = sds.PolyBaseSettings
+	}
+	if sds.AllowCopyCommand != nil {
+		objectMap["allowCopyCommand"] = sds.AllowCopyCommand
+	}
+	if sds.CopyCommandSettings != nil {
+		objectMap["copyCommandSettings"] = sds.CopyCommandSettings
 	}
 	if sds.TableOption != nil {
 		objectMap["tableOption"] = sds.TableOption
@@ -195269,6 +197608,24 @@ func (sds *SQLDWSink) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				sds.PolyBaseSettings = &polyBaseSettings
+			}
+		case "allowCopyCommand":
+			if v != nil {
+				var allowCopyCommand interface{}
+				err = json.Unmarshal(*v, &allowCopyCommand)
+				if err != nil {
+					return err
+				}
+				sds.AllowCopyCommand = allowCopyCommand
+			}
+		case "copyCommandSettings":
+			if v != nil {
+				var copyCommandSettings DWCopyCommandSettings
+				err = json.Unmarshal(*v, &copyCommandSettings)
+				if err != nil {
+					return err
+				}
+				sds.CopyCommandSettings = &copyCommandSettings
 			}
 		case "tableOption":
 			if v != nil {
@@ -203485,29 +205842,188 @@ type StoredProcedureParameter struct {
 	Type StoredProcedureParameterType `json:"type,omitempty"`
 }
 
+// BasicStoreReadSettings connector read setting.
+type BasicStoreReadSettings interface {
+	AsHdfsReadSettings() (*HdfsReadSettings, bool)
+	AsHTTPReadSettings() (*HTTPReadSettings, bool)
+	AsSftpReadSettings() (*SftpReadSettings, bool)
+	AsFtpReadSettings() (*FtpReadSettings, bool)
+	AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool)
+	AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool)
+	AsFileServerReadSettings() (*FileServerReadSettings, bool)
+	AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool)
+	AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool)
+	AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool)
+	AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool)
+	AsStoreReadSettings() (*StoreReadSettings, bool)
+}
+
 // StoreReadSettings connector read setting.
 type StoreReadSettings struct {
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
-	// Type - The read setting type.
-	Type *string `json:"type,omitempty"`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
+	// Type - Possible values include: 'TypeStoreReadSettings', 'TypeHdfsReadSettings', 'TypeHTTPReadSettings', 'TypeSftpReadSettings', 'TypeFtpReadSettings', 'TypeGoogleCloudStorageReadSettings', 'TypeAzureFileStorageReadSettings', 'TypeFileServerReadSettings', 'TypeAmazonS3ReadSettings', 'TypeAzureDataLakeStoreReadSettings', 'TypeAzureBlobFSReadSettings', 'TypeAzureBlobStorageReadSettings'
+	Type TypeBasicStoreReadSettings `json:"type,omitempty"`
+}
+
+func unmarshalBasicStoreReadSettings(body []byte) (BasicStoreReadSettings, error) {
+	var m map[string]interface{}
+	err := json.Unmarshal(body, &m)
+	if err != nil {
+		return nil, err
+	}
+
+	switch m["type"] {
+	case string(TypeHdfsReadSettings):
+		var hrs HdfsReadSettings
+		err := json.Unmarshal(body, &hrs)
+		return hrs, err
+	case string(TypeHTTPReadSettings):
+		var hrs HTTPReadSettings
+		err := json.Unmarshal(body, &hrs)
+		return hrs, err
+	case string(TypeSftpReadSettings):
+		var srs SftpReadSettings
+		err := json.Unmarshal(body, &srs)
+		return srs, err
+	case string(TypeFtpReadSettings):
+		var frs FtpReadSettings
+		err := json.Unmarshal(body, &frs)
+		return frs, err
+	case string(TypeGoogleCloudStorageReadSettings):
+		var gcsrs GoogleCloudStorageReadSettings
+		err := json.Unmarshal(body, &gcsrs)
+		return gcsrs, err
+	case string(TypeAzureFileStorageReadSettings):
+		var afsrs AzureFileStorageReadSettings
+		err := json.Unmarshal(body, &afsrs)
+		return afsrs, err
+	case string(TypeFileServerReadSettings):
+		var fsrs FileServerReadSettings
+		err := json.Unmarshal(body, &fsrs)
+		return fsrs, err
+	case string(TypeAmazonS3ReadSettings):
+		var asrs AmazonS3ReadSettings
+		err := json.Unmarshal(body, &asrs)
+		return asrs, err
+	case string(TypeAzureDataLakeStoreReadSettings):
+		var adlsrs AzureDataLakeStoreReadSettings
+		err := json.Unmarshal(body, &adlsrs)
+		return adlsrs, err
+	case string(TypeAzureBlobFSReadSettings):
+		var abfrs AzureBlobFSReadSettings
+		err := json.Unmarshal(body, &abfrs)
+		return abfrs, err
+	case string(TypeAzureBlobStorageReadSettings):
+		var absrs AzureBlobStorageReadSettings
+		err := json.Unmarshal(body, &absrs)
+		return absrs, err
+	default:
+		var srs StoreReadSettings
+		err := json.Unmarshal(body, &srs)
+		return srs, err
+	}
+}
+func unmarshalBasicStoreReadSettingsArray(body []byte) ([]BasicStoreReadSettings, error) {
+	var rawMessages []*json.RawMessage
+	err := json.Unmarshal(body, &rawMessages)
+	if err != nil {
+		return nil, err
+	}
+
+	srsArray := make([]BasicStoreReadSettings, len(rawMessages))
+
+	for index, rawMessage := range rawMessages {
+		srs, err := unmarshalBasicStoreReadSettings(*rawMessage)
+		if err != nil {
+			return nil, err
+		}
+		srsArray[index] = srs
+	}
+	return srsArray, nil
 }
 
 // MarshalJSON is the custom marshaler for StoreReadSettings.
 func (srs StoreReadSettings) MarshalJSON() ([]byte, error) {
+	srs.Type = TypeStoreReadSettings
 	objectMap := make(map[string]interface{})
-	if srs.Type != nil {
-		objectMap["type"] = srs.Type
-	}
 	if srs.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = srs.MaxConcurrentConnections
+	}
+	if srs.Type != "" {
+		objectMap["type"] = srs.Type
 	}
 	for k, v := range srs.AdditionalProperties {
 		objectMap[k] = v
 	}
 	return json.Marshal(objectMap)
+}
+
+// AsHdfsReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsHdfsReadSettings() (*HdfsReadSettings, bool) {
+	return nil, false
+}
+
+// AsHTTPReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsHTTPReadSettings() (*HTTPReadSettings, bool) {
+	return nil, false
+}
+
+// AsSftpReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsSftpReadSettings() (*SftpReadSettings, bool) {
+	return nil, false
+}
+
+// AsFtpReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsFtpReadSettings() (*FtpReadSettings, bool) {
+	return nil, false
+}
+
+// AsGoogleCloudStorageReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsGoogleCloudStorageReadSettings() (*GoogleCloudStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureFileStorageReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsAzureFileStorageReadSettings() (*AzureFileStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsFileServerReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsFileServerReadSettings() (*FileServerReadSettings, bool) {
+	return nil, false
+}
+
+// AsAmazonS3ReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsAmazonS3ReadSettings() (*AmazonS3ReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureDataLakeStoreReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsAzureDataLakeStoreReadSettings() (*AzureDataLakeStoreReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobFSReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsAzureBlobFSReadSettings() (*AzureBlobFSReadSettings, bool) {
+	return nil, false
+}
+
+// AsAzureBlobStorageReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsAzureBlobStorageReadSettings() (*AzureBlobStorageReadSettings, bool) {
+	return nil, false
+}
+
+// AsStoreReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsStoreReadSettings() (*StoreReadSettings, bool) {
+	return &srs, true
+}
+
+// AsBasicStoreReadSettings is the BasicStoreReadSettings implementation for StoreReadSettings.
+func (srs StoreReadSettings) AsBasicStoreReadSettings() (BasicStoreReadSettings, bool) {
+	return &srs, true
 }
 
 // UnmarshalJSON is the custom unmarshaler for StoreReadSettings struct.
@@ -203531,15 +206047,6 @@ func (srs *StoreReadSettings) UnmarshalJSON(body []byte) error {
 				}
 				srs.AdditionalProperties[k] = additionalProperties
 			}
-		case "type":
-			if v != nil {
-				var typeVar string
-				err = json.Unmarshal(*v, &typeVar)
-				if err != nil {
-					return err
-				}
-				srs.Type = &typeVar
-			}
 		case "maxConcurrentConnections":
 			if v != nil {
 				var maxConcurrentConnections interface{}
@@ -203548,6 +206055,15 @@ func (srs *StoreReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				srs.MaxConcurrentConnections = maxConcurrentConnections
+			}
+		case "type":
+			if v != nil {
+				var typeVar TypeBasicStoreReadSettings
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				srs.Type = typeVar
 			}
 		}
 	}
@@ -203561,6 +206077,7 @@ type BasicStoreWriteSettings interface {
 	AsAzureDataLakeStoreWriteSettings() (*AzureDataLakeStoreWriteSettings, bool)
 	AsAzureBlobFSWriteSettings() (*AzureBlobFSWriteSettings, bool)
 	AsAzureBlobStorageWriteSettings() (*AzureBlobStorageWriteSettings, bool)
+	AsSftpWriteSettings() (*SftpWriteSettings, bool)
 	AsStoreWriteSettings() (*StoreWriteSettings, bool)
 }
 
@@ -203572,7 +206089,7 @@ type StoreWriteSettings struct {
 	MaxConcurrentConnections interface{} `json:"maxConcurrentConnections,omitempty"`
 	// CopyBehavior - The type of copy behavior for copy sink.
 	CopyBehavior interface{} `json:"copyBehavior,omitempty"`
-	// Type - Possible values include: 'TypeStoreWriteSettings', 'TypeFileServerWriteSettings', 'TypeAzureDataLakeStoreWriteSettings', 'TypeAzureBlobFSWriteSettings', 'TypeAzureBlobStorageWriteSettings'
+	// Type - Possible values include: 'TypeStoreWriteSettings', 'TypeFileServerWriteSettings', 'TypeAzureDataLakeStoreWriteSettings', 'TypeAzureBlobFSWriteSettings', 'TypeAzureBlobStorageWriteSettings', 'TypeSftpWriteSettings'
 	Type TypeBasicStoreWriteSettings `json:"type,omitempty"`
 }
 
@@ -203600,6 +206117,10 @@ func unmarshalBasicStoreWriteSettings(body []byte) (BasicStoreWriteSettings, err
 		var absws AzureBlobStorageWriteSettings
 		err := json.Unmarshal(body, &absws)
 		return absws, err
+	case string(TypeSftpWriteSettings):
+		var sws SftpWriteSettings
+		err := json.Unmarshal(body, &sws)
+		return sws, err
 	default:
 		var sws StoreWriteSettings
 		err := json.Unmarshal(body, &sws)
@@ -203661,6 +206182,11 @@ func (sws StoreWriteSettings) AsAzureBlobFSWriteSettings() (*AzureBlobFSWriteSet
 
 // AsAzureBlobStorageWriteSettings is the BasicStoreWriteSettings implementation for StoreWriteSettings.
 func (sws StoreWriteSettings) AsAzureBlobStorageWriteSettings() (*AzureBlobStorageWriteSettings, bool) {
+	return nil, false
+}
+
+// AsSftpWriteSettings is the BasicStoreWriteSettings implementation for StoreWriteSettings.
+func (sws StoreWriteSettings) AsSftpWriteSettings() (*SftpWriteSettings, bool) {
 	return nil, false
 }
 
@@ -214267,6 +216793,8 @@ type WebHookActivityTypeProperties struct {
 	Body interface{} `json:"body,omitempty"`
 	// Authentication - Authentication method used for calling the endpoint.
 	Authentication *WebActivityAuthentication `json:"authentication,omitempty"`
+	// ReportStatusOnCallBack - When set to true, statusCode, output and error in callback request body will be consumed by activity. The activity can be marked as failed by setting statusCode >= 400 in callback request. Default is false. Type: boolean (or Expression with resultType boolean).
+	ReportStatusOnCallBack interface{} `json:"reportStatusOnCallBack,omitempty"`
 }
 
 // WebLinkedService web linked service.

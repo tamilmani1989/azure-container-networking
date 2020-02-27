@@ -36,7 +36,9 @@ func NewHybridConnectionsClient(subscriptionID string) HybridConnectionsClient {
 	return NewHybridConnectionsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewHybridConnectionsClientWithBaseURI creates an instance of the HybridConnectionsClient client.
+// NewHybridConnectionsClientWithBaseURI creates an instance of the HybridConnectionsClient client using a custom
+// endpoint.  Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure
+// stack).
 func NewHybridConnectionsClientWithBaseURI(baseURI string, subscriptionID string) HybridConnectionsClient {
 	return HybridConnectionsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -71,7 +73,7 @@ func (client HybridConnectionsClient) CreateOrUpdate(ctx context.Context, resour
 			Constraints: []validation.Constraint{{Target: "parameters.HybridConnectionProperties", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "parameters.HybridConnectionProperties.ListenerCount", Name: validation.Null, Rule: false,
 					Chain: []validation.Constraint{{Target: "parameters.HybridConnectionProperties.ListenerCount", Name: validation.InclusiveMaximum, Rule: int64(25), Chain: nil},
-						{Target: "parameters.HybridConnectionProperties.ListenerCount", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+						{Target: "parameters.HybridConnectionProperties.ListenerCount", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 					}},
 				}}}}}); err != nil {
 		return result, validation.NewError("relay.HybridConnectionsClient", "CreateOrUpdate", err.Error())

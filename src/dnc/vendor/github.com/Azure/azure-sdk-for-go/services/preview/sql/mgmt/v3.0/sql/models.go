@@ -180,13 +180,17 @@ const (
 	SupportedEditions CapabilityGroup = "supportedEditions"
 	// SupportedElasticPoolEditions ...
 	SupportedElasticPoolEditions CapabilityGroup = "supportedElasticPoolEditions"
+	// SupportedInstancePoolEditions ...
+	SupportedInstancePoolEditions CapabilityGroup = "supportedInstancePoolEditions"
+	// SupportedManagedInstanceEditions ...
+	SupportedManagedInstanceEditions CapabilityGroup = "supportedManagedInstanceEditions"
 	// SupportedManagedInstanceVersions ...
 	SupportedManagedInstanceVersions CapabilityGroup = "supportedManagedInstanceVersions"
 )
 
 // PossibleCapabilityGroupValues returns an array of possible values for the CapabilityGroup const type.
 func PossibleCapabilityGroupValues() []CapabilityGroup {
-	return []CapabilityGroup{SupportedEditions, SupportedElasticPoolEditions, SupportedManagedInstanceVersions}
+	return []CapabilityGroup{SupportedEditions, SupportedElasticPoolEditions, SupportedInstancePoolEditions, SupportedManagedInstanceEditions, SupportedManagedInstanceVersions}
 }
 
 // CapabilityStatus enumerates the values for capability status.
@@ -898,6 +902,19 @@ func PossibleOperationOriginValues() []OperationOrigin {
 	return []OperationOrigin{OperationOriginSystem, OperationOriginUser}
 }
 
+// PauseDelayTimeUnit enumerates the values for pause delay time unit.
+type PauseDelayTimeUnit string
+
+const (
+	// Minutes ...
+	Minutes PauseDelayTimeUnit = "Minutes"
+)
+
+// PossiblePauseDelayTimeUnitValues returns an array of possible values for the PauseDelayTimeUnit const type.
+func PossiblePauseDelayTimeUnitValues() []PauseDelayTimeUnit {
+	return []PauseDelayTimeUnit{Minutes}
+}
+
 // PerformanceLevelUnit enumerates the values for performance level unit.
 type PerformanceLevelUnit string
 
@@ -1190,6 +1207,27 @@ func PossibleSecurityAlertPolicyUseServerDefaultValues() []SecurityAlertPolicyUs
 	return []SecurityAlertPolicyUseServerDefault{SecurityAlertPolicyUseServerDefaultDisabled, SecurityAlertPolicyUseServerDefaultEnabled}
 }
 
+// SensitivityLabelRank enumerates the values for sensitivity label rank.
+type SensitivityLabelRank string
+
+const (
+	// SensitivityLabelRankCritical ...
+	SensitivityLabelRankCritical SensitivityLabelRank = "Critical"
+	// SensitivityLabelRankHigh ...
+	SensitivityLabelRankHigh SensitivityLabelRank = "High"
+	// SensitivityLabelRankLow ...
+	SensitivityLabelRankLow SensitivityLabelRank = "Low"
+	// SensitivityLabelRankMedium ...
+	SensitivityLabelRankMedium SensitivityLabelRank = "Medium"
+	// SensitivityLabelRankNone ...
+	SensitivityLabelRankNone SensitivityLabelRank = "None"
+)
+
+// PossibleSensitivityLabelRankValues returns an array of possible values for the SensitivityLabelRank const type.
+func PossibleSensitivityLabelRankValues() []SensitivityLabelRank {
+	return []SensitivityLabelRank{SensitivityLabelRankCritical, SensitivityLabelRankHigh, SensitivityLabelRankLow, SensitivityLabelRankMedium, SensitivityLabelRankNone}
+}
+
 // SensitivityLabelSource enumerates the values for sensitivity label source.
 type SensitivityLabelSource string
 
@@ -1376,6 +1414,23 @@ const (
 // PossibleServiceObjectiveNameValues returns an array of possible values for the ServiceObjectiveName const type.
 func PossibleServiceObjectiveNameValues() []ServiceObjectiveName {
 	return []ServiceObjectiveName{ServiceObjectiveNameBasic, ServiceObjectiveNameDS100, ServiceObjectiveNameDS1000, ServiceObjectiveNameDS1200, ServiceObjectiveNameDS1500, ServiceObjectiveNameDS200, ServiceObjectiveNameDS2000, ServiceObjectiveNameDS300, ServiceObjectiveNameDS400, ServiceObjectiveNameDS500, ServiceObjectiveNameDS600, ServiceObjectiveNameDW100, ServiceObjectiveNameDW1000, ServiceObjectiveNameDW10000c, ServiceObjectiveNameDW1000c, ServiceObjectiveNameDW1200, ServiceObjectiveNameDW1500, ServiceObjectiveNameDW15000c, ServiceObjectiveNameDW1500c, ServiceObjectiveNameDW200, ServiceObjectiveNameDW2000, ServiceObjectiveNameDW2000c, ServiceObjectiveNameDW2500c, ServiceObjectiveNameDW300, ServiceObjectiveNameDW3000, ServiceObjectiveNameDW30000c, ServiceObjectiveNameDW3000c, ServiceObjectiveNameDW400, ServiceObjectiveNameDW500, ServiceObjectiveNameDW5000c, ServiceObjectiveNameDW600, ServiceObjectiveNameDW6000, ServiceObjectiveNameDW6000c, ServiceObjectiveNameDW7500c, ServiceObjectiveNameElasticPool, ServiceObjectiveNameFree, ServiceObjectiveNameP1, ServiceObjectiveNameP11, ServiceObjectiveNameP15, ServiceObjectiveNameP2, ServiceObjectiveNameP3, ServiceObjectiveNameP4, ServiceObjectiveNameP6, ServiceObjectiveNamePRS1, ServiceObjectiveNamePRS2, ServiceObjectiveNamePRS4, ServiceObjectiveNamePRS6, ServiceObjectiveNameS0, ServiceObjectiveNameS1, ServiceObjectiveNameS12, ServiceObjectiveNameS2, ServiceObjectiveNameS3, ServiceObjectiveNameS4, ServiceObjectiveNameS6, ServiceObjectiveNameS7, ServiceObjectiveNameS9, ServiceObjectiveNameSystem, ServiceObjectiveNameSystem0, ServiceObjectiveNameSystem1, ServiceObjectiveNameSystem2, ServiceObjectiveNameSystem2L, ServiceObjectiveNameSystem3, ServiceObjectiveNameSystem3L, ServiceObjectiveNameSystem4, ServiceObjectiveNameSystem4L}
+}
+
+// StorageAccountType enumerates the values for storage account type.
+type StorageAccountType string
+
+const (
+	// GRS ...
+	GRS StorageAccountType = "GRS"
+	// LRS ...
+	LRS StorageAccountType = "LRS"
+	// ZRS ...
+	ZRS StorageAccountType = "ZRS"
+)
+
+// PossibleStorageAccountTypeValues returns an array of possible values for the StorageAccountType const type.
+func PossibleStorageAccountTypeValues() []StorageAccountType {
+	return []StorageAccountType{GRS, LRS, ZRS}
 }
 
 // StorageKeyType enumerates the values for storage key type.
@@ -1692,6 +1747,165 @@ func PossibleVulnerabilityAssessmentScanTriggerTypeValues() []VulnerabilityAsses
 	return []VulnerabilityAssessmentScanTriggerType{VulnerabilityAssessmentScanTriggerTypeOnDemand, VulnerabilityAssessmentScanTriggerTypeRecurring}
 }
 
+// AdministratorListResult a list of active directory administrators.
+type AdministratorListResult struct {
+	autorest.Response `json:"-"`
+	// Value - READ-ONLY; Array of results.
+	Value *[]ServerAzureADAdministrator `json:"value,omitempty"`
+	// NextLink - READ-ONLY; Link to retrieve next page of results.
+	NextLink *string `json:"nextLink,omitempty"`
+}
+
+// AdministratorListResultIterator provides access to a complete listing of ServerAzureADAdministrator
+// values.
+type AdministratorListResultIterator struct {
+	i    int
+	page AdministratorListResultPage
+}
+
+// NextWithContext advances to the next value.  If there was an error making
+// the request the iterator does not advance and the error is returned.
+func (iter *AdministratorListResultIterator) NextWithContext(ctx context.Context) (err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/AdministratorListResultIterator.NextWithContext")
+		defer func() {
+			sc := -1
+			if iter.Response().Response.Response != nil {
+				sc = iter.Response().Response.Response.StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
+	iter.i++
+	if iter.i < len(iter.page.Values()) {
+		return nil
+	}
+	err = iter.page.NextWithContext(ctx)
+	if err != nil {
+		iter.i--
+		return err
+	}
+	iter.i = 0
+	return nil
+}
+
+// Next advances to the next value.  If there was an error making
+// the request the iterator does not advance and the error is returned.
+// Deprecated: Use NextWithContext() instead.
+func (iter *AdministratorListResultIterator) Next() error {
+	return iter.NextWithContext(context.Background())
+}
+
+// NotDone returns true if the enumeration should be started or is not yet complete.
+func (iter AdministratorListResultIterator) NotDone() bool {
+	return iter.page.NotDone() && iter.i < len(iter.page.Values())
+}
+
+// Response returns the raw server response from the last page request.
+func (iter AdministratorListResultIterator) Response() AdministratorListResult {
+	return iter.page.Response()
+}
+
+// Value returns the current value or a zero-initialized value if the
+// iterator has advanced beyond the end of the collection.
+func (iter AdministratorListResultIterator) Value() ServerAzureADAdministrator {
+	if !iter.page.NotDone() {
+		return ServerAzureADAdministrator{}
+	}
+	return iter.page.Values()[iter.i]
+}
+
+// Creates a new instance of the AdministratorListResultIterator type.
+func NewAdministratorListResultIterator(page AdministratorListResultPage) AdministratorListResultIterator {
+	return AdministratorListResultIterator{page: page}
+}
+
+// IsEmpty returns true if the ListResult contains no values.
+func (alr AdministratorListResult) IsEmpty() bool {
+	return alr.Value == nil || len(*alr.Value) == 0
+}
+
+// administratorListResultPreparer prepares a request to retrieve the next set of results.
+// It returns nil if no more results exist.
+func (alr AdministratorListResult) administratorListResultPreparer(ctx context.Context) (*http.Request, error) {
+	if alr.NextLink == nil || len(to.String(alr.NextLink)) < 1 {
+		return nil, nil
+	}
+	return autorest.Prepare((&http.Request{}).WithContext(ctx),
+		autorest.AsJSON(),
+		autorest.AsGet(),
+		autorest.WithBaseURL(to.String(alr.NextLink)))
+}
+
+// AdministratorListResultPage contains a page of ServerAzureADAdministrator values.
+type AdministratorListResultPage struct {
+	fn  func(context.Context, AdministratorListResult) (AdministratorListResult, error)
+	alr AdministratorListResult
+}
+
+// NextWithContext advances to the next page of values.  If there was an error making
+// the request the page does not advance and the error is returned.
+func (page *AdministratorListResultPage) NextWithContext(ctx context.Context) (err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/AdministratorListResultPage.NextWithContext")
+		defer func() {
+			sc := -1
+			if page.Response().Response.Response != nil {
+				sc = page.Response().Response.Response.StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
+	next, err := page.fn(ctx, page.alr)
+	if err != nil {
+		return err
+	}
+	page.alr = next
+	return nil
+}
+
+// Next advances to the next page of values.  If there was an error making
+// the request the page does not advance and the error is returned.
+// Deprecated: Use NextWithContext() instead.
+func (page *AdministratorListResultPage) Next() error {
+	return page.NextWithContext(context.Background())
+}
+
+// NotDone returns true if the page enumeration should be started or is not yet complete.
+func (page AdministratorListResultPage) NotDone() bool {
+	return !page.alr.IsEmpty()
+}
+
+// Response returns the raw server response from the last page request.
+func (page AdministratorListResultPage) Response() AdministratorListResult {
+	return page.alr
+}
+
+// Values returns the slice of values for the current page or nil if there are no values.
+func (page AdministratorListResultPage) Values() []ServerAzureADAdministrator {
+	if page.alr.IsEmpty() {
+		return nil
+	}
+	return *page.alr.Value
+}
+
+// Creates a new instance of the AdministratorListResultPage type.
+func NewAdministratorListResultPage(getNextPage func(context.Context, AdministratorListResult) (AdministratorListResult, error)) AdministratorListResultPage {
+	return AdministratorListResultPage{fn: getNextPage}
+}
+
+// AdministratorProperties properties of a active directory administrator.
+type AdministratorProperties struct {
+	// AdministratorType - Type of the sever administrator.
+	AdministratorType *string `json:"administratorType,omitempty"`
+	// Login - Login name of the server administrator.
+	Login *string `json:"login,omitempty"`
+	// Sid - SID (object ID) of the server administrator.
+	Sid *uuid.UUID `json:"sid,omitempty"`
+	// TenantID - Tenant ID of the administrator.
+	TenantID *uuid.UUID `json:"tenantId,omitempty"`
+}
+
 // AutomaticTuningOptions automatic tuning properties for individual advisors.
 type AutomaticTuningOptions struct {
 	// DesiredState - Automatic tuning option desired state. Possible values include: 'AutomaticTuningOptionModeDesiredOff', 'AutomaticTuningOptionModeDesiredOn', 'AutomaticTuningOptionModeDesiredDefault'
@@ -1736,6 +1950,22 @@ func (atsp AutomaticTuningServerProperties) MarshalJSON() ([]byte, error) {
 		objectMap["options"] = atsp.Options
 	}
 	return json.Marshal(objectMap)
+}
+
+// AutoPauseDelayTimeRange supported auto pause delay time range
+type AutoPauseDelayTimeRange struct {
+	// MinValue - READ-ONLY; Minimum value
+	MinValue *int32 `json:"minValue,omitempty"`
+	// MaxValue - READ-ONLY; Maximum value
+	MaxValue *int32 `json:"maxValue,omitempty"`
+	// StepSize - READ-ONLY; Step value for discrete values between the minimum value and the maximum value.
+	StepSize *int32 `json:"stepSize,omitempty"`
+	// Default - READ-ONLY; Default value is no value is provided
+	Default *int32 `json:"default,omitempty"`
+	// Unit - READ-ONLY; Unit of time that delay is expressed in. Possible values include: 'Minutes'
+	Unit PauseDelayTimeUnit `json:"unit,omitempty"`
+	// DoNotPauseValue - READ-ONLY; Value that is used to not pause (infinite delay before pause)
+	DoNotPauseValue *int32 `json:"doNotPauseValue,omitempty"`
 }
 
 // BackupLongTermRetentionPoliciesCreateOrUpdateFuture an abstraction for monitoring and retrieving the
@@ -4348,6 +4578,10 @@ type EditionCapability struct {
 	SupportedServiceLevelObjectives *[]ServiceObjectiveCapability `json:"supportedServiceLevelObjectives,omitempty"`
 	// ZoneRedundant - READ-ONLY; Whether or not zone redundancy is supported for the edition.
 	ZoneRedundant *bool `json:"zoneRedundant,omitempty"`
+	// ReadScale - READ-ONLY; The read scale capability for the edition.
+	ReadScale *ReadScaleCapability `json:"readScale,omitempty"`
+	// SupportedStorageCapabilities - READ-ONLY; The list of supported storage capabilities for this edition
+	SupportedStorageCapabilities *[]StorageCapability `json:"supportedStorageCapabilities,omitempty"`
 	// Status - READ-ONLY; The status of the capability. Possible values include: 'CapabilityStatusVisible', 'CapabilityStatusAvailable', 'CapabilityStatusDefault', 'CapabilityStatusDisabled'
 	Status CapabilityStatus `json:"status,omitempty"`
 	// Reason - The reason for the capability not being available.
@@ -5215,6 +5449,8 @@ type ElasticPoolPerformanceLevelCapability struct {
 	SupportedPerDatabaseMaxSizes *[]MaxSizeRangeCapability `json:"supportedPerDatabaseMaxSizes,omitempty"`
 	// SupportedPerDatabaseMaxPerformanceLevels - READ-ONLY; The list of supported per database max performance levels.
 	SupportedPerDatabaseMaxPerformanceLevels *[]ElasticPoolPerDatabaseMaxPerformanceLevelCapability `json:"supportedPerDatabaseMaxPerformanceLevels,omitempty"`
+	// ZoneRedundant - READ-ONLY; Whether or not zone redundancy is supported for the performance level.
+	ZoneRedundant *bool `json:"zoneRedundant,omitempty"`
 	// Status - READ-ONLY; The status of the capability. Possible values include: 'CapabilityStatusVisible', 'CapabilityStatusAvailable', 'CapabilityStatusDefault', 'CapabilityStatusDisabled'
 	Status CapabilityStatus `json:"status,omitempty"`
 	// Reason - The reason for the capability not being available.
@@ -7486,6 +7722,32 @@ func (IP *InstancePool) UnmarshalJSON(body []byte) error {
 	return nil
 }
 
+// InstancePoolEditionCapability the instance pool capability
+type InstancePoolEditionCapability struct {
+	// Name - READ-ONLY; The instance pool version name.
+	Name *string `json:"name,omitempty"`
+	// SupportedFamilies - READ-ONLY; The supported families.
+	SupportedFamilies *[]InstancePoolFamilyCapability `json:"supportedFamilies,omitempty"`
+	// Status - READ-ONLY; The status of the capability. Possible values include: 'CapabilityStatusVisible', 'CapabilityStatusAvailable', 'CapabilityStatusDefault', 'CapabilityStatusDisabled'
+	Status CapabilityStatus `json:"status,omitempty"`
+	// Reason - The reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
+}
+
+// InstancePoolFamilyCapability the instance pool family capability.
+type InstancePoolFamilyCapability struct {
+	// Name - READ-ONLY; Family name.
+	Name *string `json:"name,omitempty"`
+	// SupportedLicenseTypes - READ-ONLY; List of supported license types.
+	SupportedLicenseTypes *[]LicenseTypeCapability `json:"supportedLicenseTypes,omitempty"`
+	// SupportedVcoresValues - READ-ONLY; List of supported virtual cores values.
+	SupportedVcoresValues *[]InstancePoolVcoresCapability `json:"supportedVcoresValues,omitempty"`
+	// Status - READ-ONLY; The status of the capability. Possible values include: 'CapabilityStatusVisible', 'CapabilityStatusAvailable', 'CapabilityStatusDefault', 'CapabilityStatusDisabled'
+	Status CapabilityStatus `json:"status,omitempty"`
+	// Reason - The reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
+}
+
 // InstancePoolListResult a list of Azure SQL instance pools.
 type InstancePoolListResult struct {
 	autorest.Response `json:"-"`
@@ -7736,6 +7998,20 @@ func (ipu InstancePoolUpdate) MarshalJSON() ([]byte, error) {
 		objectMap["tags"] = ipu.Tags
 	}
 	return json.Marshal(objectMap)
+}
+
+// InstancePoolVcoresCapability the managed instance virtual cores capability.
+type InstancePoolVcoresCapability struct {
+	// Name - READ-ONLY; The virtual cores identifier.
+	Name *string `json:"name,omitempty"`
+	// Value - READ-ONLY; The virtual cores value.
+	Value *int32 `json:"value,omitempty"`
+	// StorageLimit - READ-ONLY; Storage limit.
+	StorageLimit *MaxSizeCapability `json:"storageLimit,omitempty"`
+	// Status - READ-ONLY; The status of the capability. Possible values include: 'CapabilityStatusVisible', 'CapabilityStatusAvailable', 'CapabilityStatusDefault', 'CapabilityStatusDisabled'
+	Status CapabilityStatus `json:"status,omitempty"`
+	// Reason - The reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
 }
 
 // Job a job.
@@ -11837,10 +12113,6 @@ type ManagedInstanceFamilyCapability struct {
 	SupportedLicenseTypes *[]LicenseTypeCapability `json:"supportedLicenseTypes,omitempty"`
 	// SupportedVcoresValues - READ-ONLY; List of supported virtual cores values.
 	SupportedVcoresValues *[]ManagedInstanceVcoresCapability `json:"supportedVcoresValues,omitempty"`
-	// IncludedMaxSize - READ-ONLY; Included size.
-	IncludedMaxSize *MaxSizeCapability `json:"includedMaxSize,omitempty"`
-	// SupportedStorageSizes - READ-ONLY; Storage size ranges.
-	SupportedStorageSizes *[]MaxSizeRangeCapability `json:"supportedStorageSizes,omitempty"`
 	// Status - READ-ONLY; The status of the capability. Possible values include: 'CapabilityStatusVisible', 'CapabilityStatusAvailable', 'CapabilityStatusDefault', 'CapabilityStatusDisabled'
 	Status CapabilityStatus `json:"status,omitempty"`
 	// Reason - The reason for the capability not being available.
@@ -12521,6 +12793,14 @@ type ManagedInstanceVcoresCapability struct {
 	Name *string `json:"name,omitempty"`
 	// Value - READ-ONLY; The virtual cores value.
 	Value *int32 `json:"value,omitempty"`
+	// IncludedMaxSize - READ-ONLY; Included size.
+	IncludedMaxSize *MaxSizeCapability `json:"includedMaxSize,omitempty"`
+	// SupportedStorageSizes - READ-ONLY; Storage size ranges.
+	SupportedStorageSizes *[]MaxSizeRangeCapability `json:"supportedStorageSizes,omitempty"`
+	// InstancePoolSupported - READ-ONLY; True if this service objective is supported for managed instances in an instance pool.
+	InstancePoolSupported *bool `json:"instancePoolSupported,omitempty"`
+	// StandaloneSupported - READ-ONLY; True if this service objective is supported for standalone managed instances.
+	StandaloneSupported *bool `json:"standaloneSupported,omitempty"`
 	// Status - READ-ONLY; The status of the capability. Possible values include: 'CapabilityStatusVisible', 'CapabilityStatusAvailable', 'CapabilityStatusDefault', 'CapabilityStatusDisabled'
 	Status CapabilityStatus `json:"status,omitempty"`
 	// Reason - The reason for the capability not being available.
@@ -12533,6 +12813,8 @@ type ManagedInstanceVersionCapability struct {
 	Name *string `json:"name,omitempty"`
 	// SupportedEditions - READ-ONLY; The list of supported managed instance editions.
 	SupportedEditions *[]ManagedInstanceEditionCapability `json:"supportedEditions,omitempty"`
+	// SupportedInstancePoolEditions - READ-ONLY; The list of supported instance pool editions.
+	SupportedInstancePoolEditions *[]InstancePoolEditionCapability `json:"supportedInstancePoolEditions,omitempty"`
 	// Status - READ-ONLY; The status of the capability. Possible values include: 'CapabilityStatusVisible', 'CapabilityStatusAvailable', 'CapabilityStatusDefault', 'CapabilityStatusDisabled'
 	Status CapabilityStatus `json:"status,omitempty"`
 	// Reason - The reason for the capability not being available.
@@ -13180,6 +13462,16 @@ type MetricValue struct {
 	Timestamp *date.Time `json:"timestamp,omitempty"`
 	// Total - READ-ONLY; The total value of the metric.
 	Total *float64 `json:"total,omitempty"`
+}
+
+// MinCapacityCapability the min capacity capability
+type MinCapacityCapability struct {
+	// Value - READ-ONLY; Min capacity value
+	Value *float64 `json:"value,omitempty"`
+	// Status - READ-ONLY; The status of the capability. Possible values include: 'CapabilityStatusVisible', 'CapabilityStatusAvailable', 'CapabilityStatusDefault', 'CapabilityStatusDisabled'
+	Status CapabilityStatus `json:"status,omitempty"`
+	// Reason - The reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
 }
 
 // Name ARM Usage Name
@@ -13878,6 +14170,16 @@ type ProxyResource struct {
 	Name *string `json:"name,omitempty"`
 	// Type - READ-ONLY; Resource type.
 	Type *string `json:"type,omitempty"`
+}
+
+// ReadScaleCapability the read scale capability.
+type ReadScaleCapability struct {
+	// MaxNumberOfReplicas - READ-ONLY; The maximum number of read scale replicas.
+	MaxNumberOfReplicas *int32 `json:"maxNumberOfReplicas,omitempty"`
+	// Status - READ-ONLY; The status of the capability. Possible values include: 'CapabilityStatusVisible', 'CapabilityStatusAvailable', 'CapabilityStatusDefault', 'CapabilityStatusDisabled'
+	Status CapabilityStatus `json:"status,omitempty"`
+	// Reason - The reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
 }
 
 // RecommendedElasticPool represents a recommended elastic pool.
@@ -15363,6 +15665,8 @@ type SensitivityLabelProperties struct {
 	InformationTypeID *string `json:"informationTypeId,omitempty"`
 	// IsDisabled - READ-ONLY; Is sensitivity recommendation disabled. Applicable for recommended sensitivity label only. Specifies whether the sensitivity recommendation on this column is disabled (dismissed) or not.
 	IsDisabled *bool `json:"isDisabled,omitempty"`
+	// Rank - Possible values include: 'SensitivityLabelRankNone', 'SensitivityLabelRankLow', 'SensitivityLabelRankMedium', 'SensitivityLabelRankHigh', 'SensitivityLabelRankCritical'
+	Rank SensitivityLabelRank `json:"rank,omitempty"`
 }
 
 // Server an Azure SQL Database server.
@@ -15491,25 +15795,6 @@ func (s *Server) UnmarshalJSON(body []byte) error {
 	return nil
 }
 
-// ServerAdministratorListResult the response to a list Active Directory Administrators request.
-type ServerAdministratorListResult struct {
-	autorest.Response `json:"-"`
-	// Value - The list of server Active Directory Administrators for the server.
-	Value *[]ServerAzureADAdministrator `json:"value,omitempty"`
-}
-
-// ServerAdministratorProperties the properties of an server Administrator.
-type ServerAdministratorProperties struct {
-	// AdministratorType - The type of administrator.
-	AdministratorType *string `json:"administratorType,omitempty"`
-	// Login - The server administrator login value.
-	Login *string `json:"login,omitempty"`
-	// Sid - The server administrator Sid (Secure ID).
-	Sid *uuid.UUID `json:"sid,omitempty"`
-	// TenantID - The server Active Directory Administrator tenant id.
-	TenantID *uuid.UUID `json:"tenantId,omitempty"`
-}
-
 // ServerAutomaticTuning server-level Automatic Tuning.
 type ServerAutomaticTuning struct {
 	autorest.Response `json:"-"`
@@ -15583,11 +15868,11 @@ func (sat *ServerAutomaticTuning) UnmarshalJSON(body []byte) error {
 	return nil
 }
 
-// ServerAzureADAdministrator an server Active Directory Administrator.
+// ServerAzureADAdministrator azure Active Directory administrator.
 type ServerAzureADAdministrator struct {
 	autorest.Response `json:"-"`
-	// ServerAdministratorProperties - The properties of the resource.
-	*ServerAdministratorProperties `json:"properties,omitempty"`
+	// AdministratorProperties - Resource properties.
+	*AdministratorProperties `json:"properties,omitempty"`
 	// ID - READ-ONLY; Resource ID.
 	ID *string `json:"id,omitempty"`
 	// Name - READ-ONLY; Resource name.
@@ -15599,8 +15884,8 @@ type ServerAzureADAdministrator struct {
 // MarshalJSON is the custom marshaler for ServerAzureADAdministrator.
 func (saaa ServerAzureADAdministrator) MarshalJSON() ([]byte, error) {
 	objectMap := make(map[string]interface{})
-	if saaa.ServerAdministratorProperties != nil {
-		objectMap["properties"] = saaa.ServerAdministratorProperties
+	if saaa.AdministratorProperties != nil {
+		objectMap["properties"] = saaa.AdministratorProperties
 	}
 	return json.Marshal(objectMap)
 }
@@ -15616,12 +15901,12 @@ func (saaa *ServerAzureADAdministrator) UnmarshalJSON(body []byte) error {
 		switch k {
 		case "properties":
 			if v != nil {
-				var serverAdministratorProperties ServerAdministratorProperties
-				err = json.Unmarshal(*v, &serverAdministratorProperties)
+				var administratorProperties AdministratorProperties
+				err = json.Unmarshal(*v, &administratorProperties)
 				if err != nil {
 					return err
 				}
-				saaa.ServerAdministratorProperties = &serverAdministratorProperties
+				saaa.AdministratorProperties = &administratorProperties
 			}
 		case "id":
 			if v != nil {
@@ -15693,7 +15978,7 @@ type ServerAzureADAdministratorsDeleteFuture struct {
 
 // Result returns the result of the asynchronous operation.
 // If the operation has not completed it will return an error.
-func (future *ServerAzureADAdministratorsDeleteFuture) Result(client ServerAzureADAdministratorsClient) (saaa ServerAzureADAdministrator, err error) {
+func (future *ServerAzureADAdministratorsDeleteFuture) Result(client ServerAzureADAdministratorsClient) (ar autorest.Response, err error) {
 	var done bool
 	done, err = future.DoneWithContext(context.Background(), client)
 	if err != nil {
@@ -15704,13 +15989,7 @@ func (future *ServerAzureADAdministratorsDeleteFuture) Result(client ServerAzure
 		err = azure.NewAsyncOpIncompleteError("sql.ServerAzureADAdministratorsDeleteFuture")
 		return
 	}
-	sender := autorest.DecorateSender(client, autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...))
-	if saaa.Response.Response, err = future.GetResult(sender); err == nil && saaa.Response.Response.StatusCode != http.StatusNoContent {
-		saaa, err = client.DeleteResponder(saaa.Response.Response)
-		if err != nil {
-			err = autorest.NewErrorWithError(err, "sql.ServerAzureADAdministratorsDeleteFuture", "Result", saaa.Response.Response, "Failure responding to request")
-		}
-	}
+	ar.Response = future.Response()
 	return
 }
 
@@ -17664,6 +17943,14 @@ type ServiceObjectiveCapability struct {
 	SupportedLicenseTypes *[]LicenseTypeCapability `json:"supportedLicenseTypes,omitempty"`
 	// IncludedMaxSize - READ-ONLY; The included (free) max size.
 	IncludedMaxSize *MaxSizeCapability `json:"includedMaxSize,omitempty"`
+	// ZoneRedundant - READ-ONLY; Whether or not zone redundancy is supported for the service objective.
+	ZoneRedundant *bool `json:"zoneRedundant,omitempty"`
+	// SupportedAutoPauseDelay - READ-ONLY; Supported time range for auto pause delay
+	SupportedAutoPauseDelay *AutoPauseDelayTimeRange `json:"supportedAutoPauseDelay,omitempty"`
+	// SupportedMinCapacities - READ-ONLY; List of supported min capacities
+	SupportedMinCapacities *[]MinCapacityCapability `json:"supportedMinCapacities,omitempty"`
+	// ComputeModel - READ-ONLY; The compute model
+	ComputeModel *string `json:"computeModel,omitempty"`
 	// Status - READ-ONLY; The status of the capability. Possible values include: 'CapabilityStatusVisible', 'CapabilityStatusAvailable', 'CapabilityStatusDefault', 'CapabilityStatusDisabled'
 	Status CapabilityStatus `json:"status,omitempty"`
 	// Reason - The reason for the capability not being available.
@@ -17832,6 +18119,16 @@ type SloUsageMetric struct {
 	ServiceLevelObjectiveID *uuid.UUID `json:"serviceLevelObjectiveId,omitempty"`
 	// InRangeTimeRatio - READ-ONLY; Gets or sets inRangeTimeRatio for SLO usage metric.
 	InRangeTimeRatio *float64 `json:"inRangeTimeRatio,omitempty"`
+}
+
+// StorageCapability the storage account type capability.
+type StorageCapability struct {
+	// StorageAccountType - READ-ONLY; The storage account type for the database's backups. Possible values include: 'GRS', 'LRS', 'ZRS'
+	StorageAccountType StorageAccountType `json:"storageAccountType,omitempty"`
+	// Status - READ-ONLY; The status of the capability. Possible values include: 'CapabilityStatusVisible', 'CapabilityStatusAvailable', 'CapabilityStatusDefault', 'CapabilityStatusDisabled'
+	Status CapabilityStatus `json:"status,omitempty"`
+	// Reason - The reason for the capability not being available.
+	Reason *string `json:"reason,omitempty"`
 }
 
 // SubscriptionUsage usage Metric of a Subscription in a Location.
@@ -21196,4 +21493,580 @@ type VulnerabilityAssessmentScanRecordProperties struct {
 	StorageContainerPath *string `json:"storageContainerPath,omitempty"`
 	// NumberOfFailedSecurityChecks - READ-ONLY; The number of failed security checks.
 	NumberOfFailedSecurityChecks *int32 `json:"numberOfFailedSecurityChecks,omitempty"`
+}
+
+// WorkloadClassifier workload classifier operations for a data warehouse
+type WorkloadClassifier struct {
+	autorest.Response `json:"-"`
+	// WorkloadClassifierProperties - Resource properties.
+	*WorkloadClassifierProperties `json:"properties,omitempty"`
+	// ID - READ-ONLY; Resource ID.
+	ID *string `json:"id,omitempty"`
+	// Name - READ-ONLY; Resource name.
+	Name *string `json:"name,omitempty"`
+	// Type - READ-ONLY; Resource type.
+	Type *string `json:"type,omitempty"`
+}
+
+// MarshalJSON is the custom marshaler for WorkloadClassifier.
+func (wc WorkloadClassifier) MarshalJSON() ([]byte, error) {
+	objectMap := make(map[string]interface{})
+	if wc.WorkloadClassifierProperties != nil {
+		objectMap["properties"] = wc.WorkloadClassifierProperties
+	}
+	return json.Marshal(objectMap)
+}
+
+// UnmarshalJSON is the custom unmarshaler for WorkloadClassifier struct.
+func (wc *WorkloadClassifier) UnmarshalJSON(body []byte) error {
+	var m map[string]*json.RawMessage
+	err := json.Unmarshal(body, &m)
+	if err != nil {
+		return err
+	}
+	for k, v := range m {
+		switch k {
+		case "properties":
+			if v != nil {
+				var workloadClassifierProperties WorkloadClassifierProperties
+				err = json.Unmarshal(*v, &workloadClassifierProperties)
+				if err != nil {
+					return err
+				}
+				wc.WorkloadClassifierProperties = &workloadClassifierProperties
+			}
+		case "id":
+			if v != nil {
+				var ID string
+				err = json.Unmarshal(*v, &ID)
+				if err != nil {
+					return err
+				}
+				wc.ID = &ID
+			}
+		case "name":
+			if v != nil {
+				var name string
+				err = json.Unmarshal(*v, &name)
+				if err != nil {
+					return err
+				}
+				wc.Name = &name
+			}
+		case "type":
+			if v != nil {
+				var typeVar string
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				wc.Type = &typeVar
+			}
+		}
+	}
+
+	return nil
+}
+
+// WorkloadClassifierListResult a list of workload classifiers for a workload group.
+type WorkloadClassifierListResult struct {
+	autorest.Response `json:"-"`
+	// Value - READ-ONLY; Array of results.
+	Value *[]WorkloadClassifier `json:"value,omitempty"`
+	// NextLink - READ-ONLY; Link to retrieve next page of results.
+	NextLink *string `json:"nextLink,omitempty"`
+}
+
+// WorkloadClassifierListResultIterator provides access to a complete listing of WorkloadClassifier values.
+type WorkloadClassifierListResultIterator struct {
+	i    int
+	page WorkloadClassifierListResultPage
+}
+
+// NextWithContext advances to the next value.  If there was an error making
+// the request the iterator does not advance and the error is returned.
+func (iter *WorkloadClassifierListResultIterator) NextWithContext(ctx context.Context) (err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/WorkloadClassifierListResultIterator.NextWithContext")
+		defer func() {
+			sc := -1
+			if iter.Response().Response.Response != nil {
+				sc = iter.Response().Response.Response.StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
+	iter.i++
+	if iter.i < len(iter.page.Values()) {
+		return nil
+	}
+	err = iter.page.NextWithContext(ctx)
+	if err != nil {
+		iter.i--
+		return err
+	}
+	iter.i = 0
+	return nil
+}
+
+// Next advances to the next value.  If there was an error making
+// the request the iterator does not advance and the error is returned.
+// Deprecated: Use NextWithContext() instead.
+func (iter *WorkloadClassifierListResultIterator) Next() error {
+	return iter.NextWithContext(context.Background())
+}
+
+// NotDone returns true if the enumeration should be started or is not yet complete.
+func (iter WorkloadClassifierListResultIterator) NotDone() bool {
+	return iter.page.NotDone() && iter.i < len(iter.page.Values())
+}
+
+// Response returns the raw server response from the last page request.
+func (iter WorkloadClassifierListResultIterator) Response() WorkloadClassifierListResult {
+	return iter.page.Response()
+}
+
+// Value returns the current value or a zero-initialized value if the
+// iterator has advanced beyond the end of the collection.
+func (iter WorkloadClassifierListResultIterator) Value() WorkloadClassifier {
+	if !iter.page.NotDone() {
+		return WorkloadClassifier{}
+	}
+	return iter.page.Values()[iter.i]
+}
+
+// Creates a new instance of the WorkloadClassifierListResultIterator type.
+func NewWorkloadClassifierListResultIterator(page WorkloadClassifierListResultPage) WorkloadClassifierListResultIterator {
+	return WorkloadClassifierListResultIterator{page: page}
+}
+
+// IsEmpty returns true if the ListResult contains no values.
+func (wclr WorkloadClassifierListResult) IsEmpty() bool {
+	return wclr.Value == nil || len(*wclr.Value) == 0
+}
+
+// workloadClassifierListResultPreparer prepares a request to retrieve the next set of results.
+// It returns nil if no more results exist.
+func (wclr WorkloadClassifierListResult) workloadClassifierListResultPreparer(ctx context.Context) (*http.Request, error) {
+	if wclr.NextLink == nil || len(to.String(wclr.NextLink)) < 1 {
+		return nil, nil
+	}
+	return autorest.Prepare((&http.Request{}).WithContext(ctx),
+		autorest.AsJSON(),
+		autorest.AsGet(),
+		autorest.WithBaseURL(to.String(wclr.NextLink)))
+}
+
+// WorkloadClassifierListResultPage contains a page of WorkloadClassifier values.
+type WorkloadClassifierListResultPage struct {
+	fn   func(context.Context, WorkloadClassifierListResult) (WorkloadClassifierListResult, error)
+	wclr WorkloadClassifierListResult
+}
+
+// NextWithContext advances to the next page of values.  If there was an error making
+// the request the page does not advance and the error is returned.
+func (page *WorkloadClassifierListResultPage) NextWithContext(ctx context.Context) (err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/WorkloadClassifierListResultPage.NextWithContext")
+		defer func() {
+			sc := -1
+			if page.Response().Response.Response != nil {
+				sc = page.Response().Response.Response.StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
+	next, err := page.fn(ctx, page.wclr)
+	if err != nil {
+		return err
+	}
+	page.wclr = next
+	return nil
+}
+
+// Next advances to the next page of values.  If there was an error making
+// the request the page does not advance and the error is returned.
+// Deprecated: Use NextWithContext() instead.
+func (page *WorkloadClassifierListResultPage) Next() error {
+	return page.NextWithContext(context.Background())
+}
+
+// NotDone returns true if the page enumeration should be started or is not yet complete.
+func (page WorkloadClassifierListResultPage) NotDone() bool {
+	return !page.wclr.IsEmpty()
+}
+
+// Response returns the raw server response from the last page request.
+func (page WorkloadClassifierListResultPage) Response() WorkloadClassifierListResult {
+	return page.wclr
+}
+
+// Values returns the slice of values for the current page or nil if there are no values.
+func (page WorkloadClassifierListResultPage) Values() []WorkloadClassifier {
+	if page.wclr.IsEmpty() {
+		return nil
+	}
+	return *page.wclr.Value
+}
+
+// Creates a new instance of the WorkloadClassifierListResultPage type.
+func NewWorkloadClassifierListResultPage(getNextPage func(context.Context, WorkloadClassifierListResult) (WorkloadClassifierListResult, error)) WorkloadClassifierListResultPage {
+	return WorkloadClassifierListResultPage{fn: getNextPage}
+}
+
+// WorkloadClassifierProperties workload classifier definition. For more information look at
+// sys.workload_management_workload_classifiers (DMV).
+type WorkloadClassifierProperties struct {
+	// MemberName - The workload classifier member name.
+	MemberName *string `json:"memberName,omitempty"`
+	// Label - The workload classifier label.
+	Label *string `json:"label,omitempty"`
+	// Context - The workload classifier context.
+	Context *string `json:"context,omitempty"`
+	// StartTime - The workload classifier start time for classification.
+	StartTime *string `json:"startTime,omitempty"`
+	// EndTime - The workload classifier end time for classification.
+	EndTime *string `json:"endTime,omitempty"`
+	// Importance - The workload classifier importance.
+	Importance *string `json:"importance,omitempty"`
+}
+
+// WorkloadClassifiersCreateOrUpdateFuture an abstraction for monitoring and retrieving the results of a
+// long-running operation.
+type WorkloadClassifiersCreateOrUpdateFuture struct {
+	azure.Future
+}
+
+// Result returns the result of the asynchronous operation.
+// If the operation has not completed it will return an error.
+func (future *WorkloadClassifiersCreateOrUpdateFuture) Result(client WorkloadClassifiersClient) (wc WorkloadClassifier, err error) {
+	var done bool
+	done, err = future.DoneWithContext(context.Background(), client)
+	if err != nil {
+		err = autorest.NewErrorWithError(err, "sql.WorkloadClassifiersCreateOrUpdateFuture", "Result", future.Response(), "Polling failure")
+		return
+	}
+	if !done {
+		err = azure.NewAsyncOpIncompleteError("sql.WorkloadClassifiersCreateOrUpdateFuture")
+		return
+	}
+	sender := autorest.DecorateSender(client, autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...))
+	if wc.Response.Response, err = future.GetResult(sender); err == nil && wc.Response.Response.StatusCode != http.StatusNoContent {
+		wc, err = client.CreateOrUpdateResponder(wc.Response.Response)
+		if err != nil {
+			err = autorest.NewErrorWithError(err, "sql.WorkloadClassifiersCreateOrUpdateFuture", "Result", wc.Response.Response, "Failure responding to request")
+		}
+	}
+	return
+}
+
+// WorkloadClassifiersDeleteFuture an abstraction for monitoring and retrieving the results of a
+// long-running operation.
+type WorkloadClassifiersDeleteFuture struct {
+	azure.Future
+}
+
+// Result returns the result of the asynchronous operation.
+// If the operation has not completed it will return an error.
+func (future *WorkloadClassifiersDeleteFuture) Result(client WorkloadClassifiersClient) (ar autorest.Response, err error) {
+	var done bool
+	done, err = future.DoneWithContext(context.Background(), client)
+	if err != nil {
+		err = autorest.NewErrorWithError(err, "sql.WorkloadClassifiersDeleteFuture", "Result", future.Response(), "Polling failure")
+		return
+	}
+	if !done {
+		err = azure.NewAsyncOpIncompleteError("sql.WorkloadClassifiersDeleteFuture")
+		return
+	}
+	ar.Response = future.Response()
+	return
+}
+
+// WorkloadGroup workload group operations for a data warehouse
+type WorkloadGroup struct {
+	autorest.Response `json:"-"`
+	// WorkloadGroupProperties - Resource properties.
+	*WorkloadGroupProperties `json:"properties,omitempty"`
+	// ID - READ-ONLY; Resource ID.
+	ID *string `json:"id,omitempty"`
+	// Name - READ-ONLY; Resource name.
+	Name *string `json:"name,omitempty"`
+	// Type - READ-ONLY; Resource type.
+	Type *string `json:"type,omitempty"`
+}
+
+// MarshalJSON is the custom marshaler for WorkloadGroup.
+func (wg WorkloadGroup) MarshalJSON() ([]byte, error) {
+	objectMap := make(map[string]interface{})
+	if wg.WorkloadGroupProperties != nil {
+		objectMap["properties"] = wg.WorkloadGroupProperties
+	}
+	return json.Marshal(objectMap)
+}
+
+// UnmarshalJSON is the custom unmarshaler for WorkloadGroup struct.
+func (wg *WorkloadGroup) UnmarshalJSON(body []byte) error {
+	var m map[string]*json.RawMessage
+	err := json.Unmarshal(body, &m)
+	if err != nil {
+		return err
+	}
+	for k, v := range m {
+		switch k {
+		case "properties":
+			if v != nil {
+				var workloadGroupProperties WorkloadGroupProperties
+				err = json.Unmarshal(*v, &workloadGroupProperties)
+				if err != nil {
+					return err
+				}
+				wg.WorkloadGroupProperties = &workloadGroupProperties
+			}
+		case "id":
+			if v != nil {
+				var ID string
+				err = json.Unmarshal(*v, &ID)
+				if err != nil {
+					return err
+				}
+				wg.ID = &ID
+			}
+		case "name":
+			if v != nil {
+				var name string
+				err = json.Unmarshal(*v, &name)
+				if err != nil {
+					return err
+				}
+				wg.Name = &name
+			}
+		case "type":
+			if v != nil {
+				var typeVar string
+				err = json.Unmarshal(*v, &typeVar)
+				if err != nil {
+					return err
+				}
+				wg.Type = &typeVar
+			}
+		}
+	}
+
+	return nil
+}
+
+// WorkloadGroupListResult a list of workload groups.
+type WorkloadGroupListResult struct {
+	autorest.Response `json:"-"`
+	// Value - READ-ONLY; Array of results.
+	Value *[]WorkloadGroup `json:"value,omitempty"`
+	// NextLink - READ-ONLY; Link to retrieve next page of results.
+	NextLink *string `json:"nextLink,omitempty"`
+}
+
+// WorkloadGroupListResultIterator provides access to a complete listing of WorkloadGroup values.
+type WorkloadGroupListResultIterator struct {
+	i    int
+	page WorkloadGroupListResultPage
+}
+
+// NextWithContext advances to the next value.  If there was an error making
+// the request the iterator does not advance and the error is returned.
+func (iter *WorkloadGroupListResultIterator) NextWithContext(ctx context.Context) (err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/WorkloadGroupListResultIterator.NextWithContext")
+		defer func() {
+			sc := -1
+			if iter.Response().Response.Response != nil {
+				sc = iter.Response().Response.Response.StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
+	iter.i++
+	if iter.i < len(iter.page.Values()) {
+		return nil
+	}
+	err = iter.page.NextWithContext(ctx)
+	if err != nil {
+		iter.i--
+		return err
+	}
+	iter.i = 0
+	return nil
+}
+
+// Next advances to the next value.  If there was an error making
+// the request the iterator does not advance and the error is returned.
+// Deprecated: Use NextWithContext() instead.
+func (iter *WorkloadGroupListResultIterator) Next() error {
+	return iter.NextWithContext(context.Background())
+}
+
+// NotDone returns true if the enumeration should be started or is not yet complete.
+func (iter WorkloadGroupListResultIterator) NotDone() bool {
+	return iter.page.NotDone() && iter.i < len(iter.page.Values())
+}
+
+// Response returns the raw server response from the last page request.
+func (iter WorkloadGroupListResultIterator) Response() WorkloadGroupListResult {
+	return iter.page.Response()
+}
+
+// Value returns the current value or a zero-initialized value if the
+// iterator has advanced beyond the end of the collection.
+func (iter WorkloadGroupListResultIterator) Value() WorkloadGroup {
+	if !iter.page.NotDone() {
+		return WorkloadGroup{}
+	}
+	return iter.page.Values()[iter.i]
+}
+
+// Creates a new instance of the WorkloadGroupListResultIterator type.
+func NewWorkloadGroupListResultIterator(page WorkloadGroupListResultPage) WorkloadGroupListResultIterator {
+	return WorkloadGroupListResultIterator{page: page}
+}
+
+// IsEmpty returns true if the ListResult contains no values.
+func (wglr WorkloadGroupListResult) IsEmpty() bool {
+	return wglr.Value == nil || len(*wglr.Value) == 0
+}
+
+// workloadGroupListResultPreparer prepares a request to retrieve the next set of results.
+// It returns nil if no more results exist.
+func (wglr WorkloadGroupListResult) workloadGroupListResultPreparer(ctx context.Context) (*http.Request, error) {
+	if wglr.NextLink == nil || len(to.String(wglr.NextLink)) < 1 {
+		return nil, nil
+	}
+	return autorest.Prepare((&http.Request{}).WithContext(ctx),
+		autorest.AsJSON(),
+		autorest.AsGet(),
+		autorest.WithBaseURL(to.String(wglr.NextLink)))
+}
+
+// WorkloadGroupListResultPage contains a page of WorkloadGroup values.
+type WorkloadGroupListResultPage struct {
+	fn   func(context.Context, WorkloadGroupListResult) (WorkloadGroupListResult, error)
+	wglr WorkloadGroupListResult
+}
+
+// NextWithContext advances to the next page of values.  If there was an error making
+// the request the page does not advance and the error is returned.
+func (page *WorkloadGroupListResultPage) NextWithContext(ctx context.Context) (err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/WorkloadGroupListResultPage.NextWithContext")
+		defer func() {
+			sc := -1
+			if page.Response().Response.Response != nil {
+				sc = page.Response().Response.Response.StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
+	next, err := page.fn(ctx, page.wglr)
+	if err != nil {
+		return err
+	}
+	page.wglr = next
+	return nil
+}
+
+// Next advances to the next page of values.  If there was an error making
+// the request the page does not advance and the error is returned.
+// Deprecated: Use NextWithContext() instead.
+func (page *WorkloadGroupListResultPage) Next() error {
+	return page.NextWithContext(context.Background())
+}
+
+// NotDone returns true if the page enumeration should be started or is not yet complete.
+func (page WorkloadGroupListResultPage) NotDone() bool {
+	return !page.wglr.IsEmpty()
+}
+
+// Response returns the raw server response from the last page request.
+func (page WorkloadGroupListResultPage) Response() WorkloadGroupListResult {
+	return page.wglr
+}
+
+// Values returns the slice of values for the current page or nil if there are no values.
+func (page WorkloadGroupListResultPage) Values() []WorkloadGroup {
+	if page.wglr.IsEmpty() {
+		return nil
+	}
+	return *page.wglr.Value
+}
+
+// Creates a new instance of the WorkloadGroupListResultPage type.
+func NewWorkloadGroupListResultPage(getNextPage func(context.Context, WorkloadGroupListResult) (WorkloadGroupListResult, error)) WorkloadGroupListResultPage {
+	return WorkloadGroupListResultPage{fn: getNextPage}
+}
+
+// WorkloadGroupProperties workload group definition. For more information look at
+// sys.workload_management_workload_groups (DMV).
+type WorkloadGroupProperties struct {
+	// MinResourcePercent - The workload group minimum percentage resource.
+	MinResourcePercent *int32 `json:"minResourcePercent,omitempty"`
+	// MaxResourcePercent - The workload group cap percentage resource.
+	MaxResourcePercent *int32 `json:"maxResourcePercent,omitempty"`
+	// MinResourcePercentPerRequest - The workload group request minimum grant percentage.
+	MinResourcePercentPerRequest *float64 `json:"minResourcePercentPerRequest,omitempty"`
+	// MaxResourcePercentPerRequest - The workload group request maximum grant percentage.
+	MaxResourcePercentPerRequest *float64 `json:"maxResourcePercentPerRequest,omitempty"`
+	// Importance - The workload group importance level.
+	Importance *string `json:"importance,omitempty"`
+	// QueryExecutionTimeout - The workload group query execution timeout.
+	QueryExecutionTimeout *int32 `json:"queryExecutionTimeout,omitempty"`
+}
+
+// WorkloadGroupsCreateOrUpdateFuture an abstraction for monitoring and retrieving the results of a
+// long-running operation.
+type WorkloadGroupsCreateOrUpdateFuture struct {
+	azure.Future
+}
+
+// Result returns the result of the asynchronous operation.
+// If the operation has not completed it will return an error.
+func (future *WorkloadGroupsCreateOrUpdateFuture) Result(client WorkloadGroupsClient) (wg WorkloadGroup, err error) {
+	var done bool
+	done, err = future.DoneWithContext(context.Background(), client)
+	if err != nil {
+		err = autorest.NewErrorWithError(err, "sql.WorkloadGroupsCreateOrUpdateFuture", "Result", future.Response(), "Polling failure")
+		return
+	}
+	if !done {
+		err = azure.NewAsyncOpIncompleteError("sql.WorkloadGroupsCreateOrUpdateFuture")
+		return
+	}
+	sender := autorest.DecorateSender(client, autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...))
+	if wg.Response.Response, err = future.GetResult(sender); err == nil && wg.Response.Response.StatusCode != http.StatusNoContent {
+		wg, err = client.CreateOrUpdateResponder(wg.Response.Response)
+		if err != nil {
+			err = autorest.NewErrorWithError(err, "sql.WorkloadGroupsCreateOrUpdateFuture", "Result", wg.Response.Response, "Failure responding to request")
+		}
+	}
+	return
+}
+
+// WorkloadGroupsDeleteFuture an abstraction for monitoring and retrieving the results of a long-running
+// operation.
+type WorkloadGroupsDeleteFuture struct {
+	azure.Future
+}
+
+// Result returns the result of the asynchronous operation.
+// If the operation has not completed it will return an error.
+func (future *WorkloadGroupsDeleteFuture) Result(client WorkloadGroupsClient) (ar autorest.Response, err error) {
+	var done bool
+	done, err = future.DoneWithContext(context.Background(), client)
+	if err != nil {
+		err = autorest.NewErrorWithError(err, "sql.WorkloadGroupsDeleteFuture", "Result", future.Response(), "Polling failure")
+		return
+	}
+	if !done {
+		err = azure.NewAsyncOpIncompleteError("sql.WorkloadGroupsDeleteFuture")
+		return
+	}
+	ar.Response = future.Response()
+	return
 }

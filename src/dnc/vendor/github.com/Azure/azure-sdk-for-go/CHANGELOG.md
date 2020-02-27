@@ -1,5 +1,210 @@
 # CHANGELOG
 
+## `v39.1.0`
+
+### New Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| apimanagement | 2019-12-01-preview |
+| reservations | 2019-07-19-preview |
+
+## `v39.0.0`
+
+### New Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| appconfiguration | 2019-11-01-preview |
+| backup | 2019-06-15 |
+| containerregistry | 2019-08-15-preview |
+| containerservice | 2020-01-01 |
+| digitaltwins | 2020-03-01-preview |
+| documentdb | 2019-12-12 |
+| frontdoor | 2020-01-01 |
+| hybridcompute | 2019-12-12 |
+| kusto | 2019-11-09 |
+| netapp | 2019-11-01 |
+| network | 2019-11-01 |
+| support | 2019-05-01-preview |
+
+### Updated Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| blueprint | 2018-11-01-preview |
+| compute | 2019-07-01 |
+| containerservice | 2019-11-01 |
+| eventgrid | 2020-04-01-preview |
+| hdinsight | 2015-03-01-preview<br/>2018-06-01-preview |
+| healthcareapis | 2019-09-16 |
+| keyvault | 2018-02-14 |
+| operationalinsights | 2015-11-01-preview |
+| policy | 2019-09-01 |
+| qnamaker | v4.0 |
+| search | 2015-08-19 |
+| siterecovery | 2018-07-10 |
+| sql | 2017-03-01-preview<br/>2018-06-01-preview<br/>v3.0 |
+| web | 2019-08-01 |
+
+### BreakingChanges
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| apimanagement | 2019-01-01 |
+| containerservice | 2017-07-01<br/>2017-08-31<br/>2017-09-30<br/>2018-03-31 |
+| insights | 2018-03-01<br/>2018-09-01<br/>2018-11-01-preview<br/>2019-03-01<br/>2019-06-01 |
+| machinelearningservices | 2018-11-19<br/>2019-05-01<br/>2019-06-01<br/>2019-11-01<br/>2020-01-01 |
+| managedapplications | 2019-07-01 |
+| mariadb | 2018-06-01 |
+| netapp | 2019-05-01<br/>2019-06-01<br/>2019-07-01<br/>2019-08-01<br/>2019-10-01 |
+| network | 2019-09-01 |
+| security | v1.0<br/>v2.0<br/>v3.0 |
+| securityinsight | 2017-08-01-preview |
+| siterecovery | 2018-01-10 |
+| storage | 2019-06-01 |
+
+## `v38.2.0`
+
+### New Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| attestation | 2018-09-01-preview |
+| eventgrid | 2020-04-01-preview |
+| storagesync | 2019-06-01 |
+
+## `v38.1.0`
+
+### New Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| frontdoor | 2019-10-01<br/>2019-11-01 |
+
+### Updated Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| storage | 2019-06-01 |
+
+## `v38.0.0`
+
+### New Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| containerregistry | 2019-12-01-preview |
+| databoxedge | 2019-08-01 |
+| machinelearningservices | 2020-01-01 |
+| netapp | 2019-10-01 |
+| windowsesu | 2019-09-16-preview |
+
+### Updated Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| anomalydetector | v1.0 |
+| hdinsight | 2015-03-01-preview<br/>2018-06-01-preview |
+| insights | 2015-05-01 |
+| media | 2018-07-01 |
+| personalizer | v1.0 |
+| resourcehealth | 2017-07-01 |
+| servicebus | 2018-01-01-preview |
+| siterecovery | 2018-07-10 |
+
+### BreakingChanges
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| authorization | 2015-07-01<br/>2017-10-01-preview |
+| blueprint | 2018-11-01-preview |
+| compute | 2018-10-01<br/>2019-03-01<br/>2019-07-01 |
+| containerservice | 2019-11-01 |
+| customerlockbox | 2018-02-28-preview |
+| databricks | 2018-04-01 |
+| datafactory | 2018-06-01 |
+| features | 2019-07-01 |
+| managedservices | 2018-06-01<br/>2019-04-01 |
+| resources | 2015-11-01<br/>2016-02-01<br/>2016-07-01<br/>2016-09-01<br/>2017-05-10<br/>2018-02-01<br/>2018-05-01<br/>2019-03-01<br/>2019-05-01 |
+| security | v1.0<br/>v2.0<br/>v3.0 |
+| servicefabric | 2017-07-01-preview<br/>2018-02-01<br/>2019-03-01<br/>2019-03-01-preview |
+| sql | v3.0 |
+| textanalytics | v2.1 |
+
+## `v37.2.0`
+
+### New Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| containerservice | 2019-11-01 |
+| deploymentmanager | 2019-11-01-preview |
+
+### Updated Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| containerservice | 2017-07-01<br/>2017-08-31<br/>2017-09-30<br/>2018-03-31 |
+| machinelearningservices | 2019-11-01 |
+
+## `v37.1.0`
+
+### Updated Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| iotcentral | 2018-09-01 |
+
+## `v37.0.0`
+
+### New Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| azuredata | 2017-03-01-preview |
+| backup | 2019-05-13 |
+| customerlockbox | 2018-02-28-preview |
+| managedapplications | 2019-07-01 |
+| servicefabric | 7.0 |
+| siterecovery | 2018-07-10 |
+
+### Updated Packages
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| azurestack | 2017-06-01 |
+| compute | 2018-04-01<br/>2018-06-01<br/>2018-10-01<br/>2019-03-01 |
+| containerregistry | 2019-06-01-preview |
+| containerservice | 2019-10-01 |
+| datashare | 2018-11-01-preview<br/>2019-11-01 |
+| hanaonazure | 2017-11-03-preview |
+| mysql | 2017-12-01<br/>2017-12-01-preview |
+| network | 2019-09-01 |
+| policyinsights | 2019-10-01 |
+| postgresql | 2017-12-01-preview |
+| qnamaker | v4.0 |
+| securityinsight | 2017-08-01-preview |
+| sql | 2015-05-01-preview<br/>2018-06-01-preview |
+| sqlvirtualmachine | 2017-03-01-preview |
+
+### BreakingChanges
+
+| Package Name | API Version |
+| -----------: | :---------: |
+| appplatform | 2019-05-01-preview |
+| backup | 2017-07-01 |
+| cdn | 2019-06-15-preview |
+| compute | 2019-07-01 |
+| datafactory | 2018-06-01 |
+| documentdb | 2019-08-01<br/>2019-08-01-preview |
+| network | 2019-08-01 |
+| resourcegraph | 2018-09-01 |
+| security | v1.0<br/>v2.0<br/>v3.0 |
+| sql | 2017-03-01-preview<br/>v3.0 |
+| storage | 2019-06-01 |
+| virtualmachineimagebuilder | 2019-05-01-preview |
+
 ## `v36.2.0`
 
 ### New Packages

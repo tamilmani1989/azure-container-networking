@@ -54,7 +54,7 @@ func (l *CustomLogger) Init(stderr bool, reports chan telemetry.DNCReport) {
 	}
 
 	l.logLevel = log.LevelDebug
-	l.instance = log.NewLogger("azure-dnc", l.logLevel, l.logTarget)
+	l.instance = log.NewLogger("azure-dnc", l.logLevel, l.logTarget, "")
 	l.reports = reports
 }
 

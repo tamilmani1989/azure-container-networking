@@ -36,7 +36,9 @@ func NewGremlinResourcesClient(subscriptionID string, subscriptionID1 string) Gr
 	return NewGremlinResourcesClientWithBaseURI(DefaultBaseURI, subscriptionID, subscriptionID1)
 }
 
-// NewGremlinResourcesClientWithBaseURI creates an instance of the GremlinResourcesClient client.
+// NewGremlinResourcesClientWithBaseURI creates an instance of the GremlinResourcesClient client using a custom
+// endpoint.  Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure
+// stack).
 func NewGremlinResourcesClientWithBaseURI(baseURI string, subscriptionID string, subscriptionID1 string) GremlinResourcesClient {
 	return GremlinResourcesClient{NewWithBaseURI(baseURI, subscriptionID, subscriptionID1)}
 }
@@ -175,7 +177,7 @@ func (client GremlinResourcesClient) CreateUpdateGremlinGraph(ctx context.Contex
 						{Target: "createUpdateGremlinGraphParameters.GremlinGraphCreateUpdateProperties.Resource.PartitionKey", Name: validation.Null, Rule: false,
 							Chain: []validation.Constraint{{Target: "createUpdateGremlinGraphParameters.GremlinGraphCreateUpdateProperties.Resource.PartitionKey.Version", Name: validation.Null, Rule: false,
 								Chain: []validation.Constraint{{Target: "createUpdateGremlinGraphParameters.GremlinGraphCreateUpdateProperties.Resource.PartitionKey.Version", Name: validation.InclusiveMaximum, Rule: int64(2), Chain: nil},
-									{Target: "createUpdateGremlinGraphParameters.GremlinGraphCreateUpdateProperties.Resource.PartitionKey.Version", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+									{Target: "createUpdateGremlinGraphParameters.GremlinGraphCreateUpdateProperties.Resource.PartitionKey.Version", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 								}},
 							}},
 					}},

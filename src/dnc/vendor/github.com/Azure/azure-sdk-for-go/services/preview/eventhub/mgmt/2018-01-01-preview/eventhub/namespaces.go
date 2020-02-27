@@ -37,7 +37,8 @@ func NewNamespacesClient(subscriptionID string) NamespacesClient {
 	return NewNamespacesClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewNamespacesClientWithBaseURI creates an instance of the NamespacesClient client.
+// NewNamespacesClientWithBaseURI creates an instance of the NamespacesClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewNamespacesClientWithBaseURI(baseURI string, subscriptionID string) NamespacesClient {
 	return NamespacesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -70,13 +71,13 @@ func (client NamespacesClient) CreateOrUpdate(ctx context.Context, resourceGroup
 			Constraints: []validation.Constraint{{Target: "parameters.Sku", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "parameters.Sku.Capacity", Name: validation.Null, Rule: false,
 					Chain: []validation.Constraint{{Target: "parameters.Sku.Capacity", Name: validation.InclusiveMaximum, Rule: int64(20), Chain: nil},
-						{Target: "parameters.Sku.Capacity", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+						{Target: "parameters.Sku.Capacity", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 					}},
 				}},
 				{Target: "parameters.EHNamespaceProperties", Name: validation.Null, Rule: false,
 					Chain: []validation.Constraint{{Target: "parameters.EHNamespaceProperties.MaximumThroughputUnits", Name: validation.Null, Rule: false,
 						Chain: []validation.Constraint{{Target: "parameters.EHNamespaceProperties.MaximumThroughputUnits", Name: validation.InclusiveMaximum, Rule: int64(20), Chain: nil},
-							{Target: "parameters.EHNamespaceProperties.MaximumThroughputUnits", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+							{Target: "parameters.EHNamespaceProperties.MaximumThroughputUnits", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 						}},
 					}}}}}); err != nil {
 		return result, validation.NewError("eventhub.NamespacesClient", "CreateOrUpdate", err.Error())

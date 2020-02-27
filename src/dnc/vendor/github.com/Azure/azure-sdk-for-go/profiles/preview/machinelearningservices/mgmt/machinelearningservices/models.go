@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ package machinelearningservices
 import (
 	"context"
 
-	original "github.com/Azure/azure-sdk-for-go/services/machinelearningservices/mgmt/2019-11-01/machinelearningservices"
+	original "github.com/Azure/azure-sdk-for-go/services/machinelearningservices/mgmt/2020-01-01/machinelearningservices"
 )
 
 const (
@@ -77,6 +77,13 @@ const (
 	ComputeTypeBasicComputeSecretsComputeTypeVirtualMachine ComputeTypeBasicComputeSecrets = original.ComputeTypeBasicComputeSecretsComputeTypeVirtualMachine
 )
 
+type EncryptionStatus = original.EncryptionStatus
+
+const (
+	Disabled EncryptionStatus = original.Disabled
+	Enabled  EncryptionStatus = original.Enabled
+)
+
 type NodeState = original.NodeState
 
 const (
@@ -88,16 +95,33 @@ const (
 	Unusable  NodeState = original.Unusable
 )
 
+type PrivateEndpointConnectionProvisioningState = original.PrivateEndpointConnectionProvisioningState
+
+const (
+	Creating  PrivateEndpointConnectionProvisioningState = original.Creating
+	Deleting  PrivateEndpointConnectionProvisioningState = original.Deleting
+	Failed    PrivateEndpointConnectionProvisioningState = original.Failed
+	Succeeded PrivateEndpointConnectionProvisioningState = original.Succeeded
+)
+
+type PrivateEndpointServiceConnectionStatus = original.PrivateEndpointServiceConnectionStatus
+
+const (
+	Approved PrivateEndpointServiceConnectionStatus = original.Approved
+	Pending  PrivateEndpointServiceConnectionStatus = original.Pending
+	Rejected PrivateEndpointServiceConnectionStatus = original.Rejected
+)
+
 type ProvisioningState = original.ProvisioningState
 
 const (
-	Canceled  ProvisioningState = original.Canceled
-	Creating  ProvisioningState = original.Creating
-	Deleting  ProvisioningState = original.Deleting
-	Failed    ProvisioningState = original.Failed
-	Succeeded ProvisioningState = original.Succeeded
-	Unknown   ProvisioningState = original.Unknown
-	Updating  ProvisioningState = original.Updating
+	ProvisioningStateCanceled  ProvisioningState = original.ProvisioningStateCanceled
+	ProvisioningStateCreating  ProvisioningState = original.ProvisioningStateCreating
+	ProvisioningStateDeleting  ProvisioningState = original.ProvisioningStateDeleting
+	ProvisioningStateFailed    ProvisioningState = original.ProvisioningStateFailed
+	ProvisioningStateSucceeded ProvisioningState = original.ProvisioningStateSucceeded
+	ProvisioningStateUnknown   ProvisioningState = original.ProvisioningStateUnknown
+	ProvisioningStateUpdating  ProvisioningState = original.ProvisioningStateUpdating
 )
 
 type QuotaUnit = original.QuotaUnit
@@ -144,8 +168,8 @@ const (
 type Status1 = original.Status1
 
 const (
-	Disabled Status1 = original.Disabled
-	Enabled  Status1 = original.Enabled
+	Status1Disabled Status1 = original.Status1Disabled
+	Status1Enabled  Status1 = original.Status1Enabled
 )
 
 type UnderlyingResourceAction = original.UnderlyingResourceAction
@@ -194,12 +218,14 @@ type DataLakeAnalyticsProperties = original.DataLakeAnalyticsProperties
 type Databricks = original.Databricks
 type DatabricksComputeSecrets = original.DatabricksComputeSecrets
 type DatabricksProperties = original.DatabricksProperties
+type EncryptionProperty = original.EncryptionProperty
 type Error = original.Error
 type ErrorDetail = original.ErrorDetail
 type ErrorResponse = original.ErrorResponse
 type HDInsight = original.HDInsight
 type HDInsightProperties = original.HDInsightProperties
 type Identity = original.Identity
+type KeyVaultProperties = original.KeyVaultProperties
 type ListAmlUserFeatureResult = original.ListAmlUserFeatureResult
 type ListAmlUserFeatureResultIterator = original.ListAmlUserFeatureResultIterator
 type ListAmlUserFeatureResultPage = original.ListAmlUserFeatureResultPage
@@ -223,6 +249,15 @@ type PaginatedComputeResourcesList = original.PaginatedComputeResourcesList
 type PaginatedComputeResourcesListIterator = original.PaginatedComputeResourcesListIterator
 type PaginatedComputeResourcesListPage = original.PaginatedComputeResourcesListPage
 type Password = original.Password
+type PrivateEndpoint = original.PrivateEndpoint
+type PrivateEndpointConnection = original.PrivateEndpointConnection
+type PrivateEndpointConnectionProperties = original.PrivateEndpointConnectionProperties
+type PrivateEndpointConnectionsClient = original.PrivateEndpointConnectionsClient
+type PrivateLinkResource = original.PrivateLinkResource
+type PrivateLinkResourceListResult = original.PrivateLinkResourceListResult
+type PrivateLinkResourceProperties = original.PrivateLinkResourceProperties
+type PrivateLinkResourcesClient = original.PrivateLinkResourcesClient
+type PrivateLinkServiceConnectionState = original.PrivateLinkServiceConnectionState
 type QuotaBaseProperties = original.QuotaBaseProperties
 type QuotaUpdateParameters = original.QuotaUpdateParameters
 type QuotasClient = original.QuotasClient
@@ -266,6 +301,7 @@ type WorkspacePropertiesUpdateParameters = original.WorkspacePropertiesUpdatePar
 type WorkspaceSku = original.WorkspaceSku
 type WorkspaceUpdateParameters = original.WorkspaceUpdateParameters
 type WorkspacesClient = original.WorkspacesClient
+type WorkspacesCreateOrUpdateFuture = original.WorkspacesCreateOrUpdateFuture
 
 func New(subscriptionID string) BaseClient {
 	return original.New(subscriptionID)
@@ -305,6 +341,18 @@ func NewPaginatedComputeResourcesListIterator(page PaginatedComputeResourcesList
 }
 func NewPaginatedComputeResourcesListPage(getNextPage func(context.Context, PaginatedComputeResourcesList) (PaginatedComputeResourcesList, error)) PaginatedComputeResourcesListPage {
 	return original.NewPaginatedComputeResourcesListPage(getNextPage)
+}
+func NewPrivateEndpointConnectionsClient(subscriptionID string) PrivateEndpointConnectionsClient {
+	return original.NewPrivateEndpointConnectionsClient(subscriptionID)
+}
+func NewPrivateEndpointConnectionsClientWithBaseURI(baseURI string, subscriptionID string) PrivateEndpointConnectionsClient {
+	return original.NewPrivateEndpointConnectionsClientWithBaseURI(baseURI, subscriptionID)
+}
+func NewPrivateLinkResourcesClient(subscriptionID string) PrivateLinkResourcesClient {
+	return original.NewPrivateLinkResourcesClient(subscriptionID)
+}
+func NewPrivateLinkResourcesClientWithBaseURI(baseURI string, subscriptionID string) PrivateLinkResourcesClient {
+	return original.NewPrivateLinkResourcesClientWithBaseURI(baseURI, subscriptionID)
 }
 func NewQuotasClient(subscriptionID string) QuotasClient {
 	return original.NewQuotasClient(subscriptionID)
@@ -366,8 +414,17 @@ func PossibleComputeTypeBasicComputeValues() []ComputeTypeBasicCompute {
 func PossibleComputeTypeValues() []ComputeType {
 	return original.PossibleComputeTypeValues()
 }
+func PossibleEncryptionStatusValues() []EncryptionStatus {
+	return original.PossibleEncryptionStatusValues()
+}
 func PossibleNodeStateValues() []NodeState {
 	return original.PossibleNodeStateValues()
+}
+func PossiblePrivateEndpointConnectionProvisioningStateValues() []PrivateEndpointConnectionProvisioningState {
+	return original.PossiblePrivateEndpointConnectionProvisioningStateValues()
+}
+func PossiblePrivateEndpointServiceConnectionStatusValues() []PrivateEndpointServiceConnectionStatus {
+	return original.PossiblePrivateEndpointServiceConnectionStatusValues()
 }
 func PossibleProvisioningStateValues() []ProvisioningState {
 	return original.PossibleProvisioningStateValues()

@@ -38,7 +38,8 @@ func NewTaskClient() TaskClient {
 	return NewTaskClientWithBaseURI(DefaultBaseURI)
 }
 
-// NewTaskClientWithBaseURI creates an instance of the TaskClient client.
+// NewTaskClientWithBaseURI creates an instance of the TaskClient client using a custom endpoint.  Use this when
+// interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewTaskClientWithBaseURI(baseURI string) TaskClient {
 	return TaskClient{NewWithBaseURI(baseURI)}
 }
@@ -586,7 +587,7 @@ func (client TaskClient) List(ctx context.Context, jobID string, filter string, 
 		{TargetValue: maxResults,
 			Constraints: []validation.Constraint{{Target: "maxResults", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "maxResults", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "maxResults", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "maxResults", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("batch.TaskClient", "List", err.Error())
 	}

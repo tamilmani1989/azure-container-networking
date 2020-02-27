@@ -1894,6 +1894,9 @@ func processNetworkContainerPublish(
 	sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(creationTimeMs),
 		aiwrapper.Succeeded, "Container"+datamodel.Program.String(), repoNCConfig, nil)
 
+	// Log NC Snapshot
+	aiwrapper.LogNCSnapsnot(ncGoalState.NetworkContainerID, ncGoalState.NetworkID, ncGoalState.BaseSubnetName, ncGoalState.AssociatedNodeID)
+
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 

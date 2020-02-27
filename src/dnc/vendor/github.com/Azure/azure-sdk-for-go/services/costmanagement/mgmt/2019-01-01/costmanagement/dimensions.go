@@ -36,7 +36,8 @@ func NewDimensionsClient(subscriptionID string) DimensionsClient {
 	return NewDimensionsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewDimensionsClientWithBaseURI creates an instance of the DimensionsClient client.
+// NewDimensionsClientWithBaseURI creates an instance of the DimensionsClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewDimensionsClientWithBaseURI(baseURI string, subscriptionID string) DimensionsClient {
 	return DimensionsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -74,7 +75,7 @@ func (client DimensionsClient) ListBySubscription(ctx context.Context, scope str
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("costmanagement.DimensionsClient", "ListBySubscription", err.Error())
 	}

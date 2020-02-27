@@ -35,7 +35,8 @@ func NewBindingsClient(subscriptionID string) BindingsClient {
 	return NewBindingsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewBindingsClientWithBaseURI creates an instance of the BindingsClient client.
+// NewBindingsClientWithBaseURI creates an instance of the BindingsClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewBindingsClientWithBaseURI(baseURI string, subscriptionID string) BindingsClient {
 	return BindingsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -48,7 +49,7 @@ func NewBindingsClientWithBaseURI(baseURI string, subscriptionID string) Binding
 // appName - the name of the App resource.
 // bindingName - the name of the Binding resource.
 // bindingResource - parameters for the create or update operation
-func (client BindingsClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, serviceName string, appName string, bindingName string, bindingResource *BindingResource) (result BindingResource, err error) {
+func (client BindingsClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, serviceName string, appName string, bindingName string, bindingResource BindingResource) (result BindingResource, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/BindingsClient.CreateOrUpdate")
 		defer func() {
@@ -81,7 +82,7 @@ func (client BindingsClient) CreateOrUpdate(ctx context.Context, resourceGroupNa
 }
 
 // CreateOrUpdatePreparer prepares the CreateOrUpdate request.
-func (client BindingsClient) CreateOrUpdatePreparer(ctx context.Context, resourceGroupName string, serviceName string, appName string, bindingName string, bindingResource *BindingResource) (*http.Request, error) {
+func (client BindingsClient) CreateOrUpdatePreparer(ctx context.Context, resourceGroupName string, serviceName string, appName string, bindingName string, bindingResource BindingResource) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"appName":           autorest.Encode("path", appName),
 		"bindingName":       autorest.Encode("path", bindingName),
@@ -100,11 +101,8 @@ func (client BindingsClient) CreateOrUpdatePreparer(ctx context.Context, resourc
 		autorest.AsPut(),
 		autorest.WithBaseURL(client.BaseURI),
 		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppPlatform/Spring/{serviceName}/apps/{appName}/bindings/{bindingName}", pathParameters),
+		autorest.WithJSON(bindingResource),
 		autorest.WithQueryParameters(queryParameters))
-	if bindingResource != nil {
-		preparer = autorest.DecoratePreparer(preparer,
-			autorest.WithJSON(bindingResource))
-	}
 	return preparer.Prepare((&http.Request{}).WithContext(ctx))
 }
 
@@ -417,7 +415,7 @@ func (client BindingsClient) ListComplete(ctx context.Context, resourceGroupName
 // appName - the name of the App resource.
 // bindingName - the name of the Binding resource.
 // bindingResource - parameters for the update operation
-func (client BindingsClient) Update(ctx context.Context, resourceGroupName string, serviceName string, appName string, bindingName string, bindingResource *BindingResource) (result BindingResource, err error) {
+func (client BindingsClient) Update(ctx context.Context, resourceGroupName string, serviceName string, appName string, bindingName string, bindingResource BindingResource) (result BindingResource, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/BindingsClient.Update")
 		defer func() {
@@ -450,7 +448,7 @@ func (client BindingsClient) Update(ctx context.Context, resourceGroupName strin
 }
 
 // UpdatePreparer prepares the Update request.
-func (client BindingsClient) UpdatePreparer(ctx context.Context, resourceGroupName string, serviceName string, appName string, bindingName string, bindingResource *BindingResource) (*http.Request, error) {
+func (client BindingsClient) UpdatePreparer(ctx context.Context, resourceGroupName string, serviceName string, appName string, bindingName string, bindingResource BindingResource) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"appName":           autorest.Encode("path", appName),
 		"bindingName":       autorest.Encode("path", bindingName),
@@ -469,11 +467,8 @@ func (client BindingsClient) UpdatePreparer(ctx context.Context, resourceGroupNa
 		autorest.AsPatch(),
 		autorest.WithBaseURL(client.BaseURI),
 		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.AppPlatform/Spring/{serviceName}/apps/{appName}/bindings/{bindingName}", pathParameters),
+		autorest.WithJSON(bindingResource),
 		autorest.WithQueryParameters(queryParameters))
-	if bindingResource != nil {
-		preparer = autorest.DecoratePreparer(preparer,
-			autorest.WithJSON(bindingResource))
-	}
 	return preparer.Prepare((&http.Request{}).WithContext(ctx))
 }
 

@@ -36,7 +36,8 @@ func NewPoolsClient(subscriptionID string) PoolsClient {
 	return NewPoolsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewPoolsClientWithBaseURI creates an instance of the PoolsClient client.
+// NewPoolsClientWithBaseURI creates an instance of the PoolsClient client using a custom endpoint.  Use this when
+// interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewPoolsClientWithBaseURI(baseURI string, subscriptionID string) PoolsClient {
 	return PoolsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -69,7 +70,7 @@ func (client PoolsClient) CreateOrUpdate(ctx context.Context, body CapacityPool,
 						}},
 						{Target: "body.PoolProperties.Size", Name: validation.Null, Rule: true,
 							Chain: []validation.Constraint{{Target: "body.PoolProperties.Size", Name: validation.InclusiveMaximum, Rule: int64(549755813888000), Chain: nil},
-								{Target: "body.PoolProperties.Size", Name: validation.InclusiveMinimum, Rule: 4398046511104, Chain: nil},
+								{Target: "body.PoolProperties.Size", Name: validation.InclusiveMinimum, Rule: int64(4398046511104), Chain: nil},
 							}},
 					}}}},
 		{TargetValue: resourceGroupName,

@@ -50,13 +50,15 @@ func PossibleAccessTierValues() []AccessTier {
 type AccountExpand string
 
 const (
+	// AccountExpandBlobRestoreStatus ...
+	AccountExpandBlobRestoreStatus AccountExpand = "blobRestoreStatus"
 	// AccountExpandGeoReplicationStats ...
 	AccountExpandGeoReplicationStats AccountExpand = "geoReplicationStats"
 )
 
 // PossibleAccountExpandValues returns an array of possible values for the AccountExpand const type.
 func PossibleAccountExpandValues() []AccountExpand {
-	return []AccountExpand{AccountExpandGeoReplicationStats}
+	return []AccountExpand{AccountExpandBlobRestoreStatus, AccountExpandGeoReplicationStats}
 }
 
 // AccountStatus enumerates the values for account status.
@@ -106,6 +108,23 @@ const (
 // PossibleAction1Values returns an array of possible values for the Action1 const type.
 func PossibleAction1Values() []Action1 {
 	return []Action1{Acquire, Break, Change, Release, Renew}
+}
+
+// BlobRestoreProgressStatus enumerates the values for blob restore progress status.
+type BlobRestoreProgressStatus string
+
+const (
+	// Complete ...
+	Complete BlobRestoreProgressStatus = "Complete"
+	// Failed ...
+	Failed BlobRestoreProgressStatus = "Failed"
+	// InProgress ...
+	InProgress BlobRestoreProgressStatus = "InProgress"
+)
+
+// PossibleBlobRestoreProgressStatusValues returns an array of possible values for the BlobRestoreProgressStatus const type.
+func PossibleBlobRestoreProgressStatusValues() []BlobRestoreProgressStatus {
+	return []BlobRestoreProgressStatus{Complete, Failed, InProgress}
 }
 
 // Bypass enumerates the values for bypass.
@@ -253,6 +272,21 @@ func PossibleKeySourceValues() []KeySource {
 	return []KeySource{MicrosoftKeyvault, MicrosoftStorage}
 }
 
+// KeyType enumerates the values for key type.
+type KeyType string
+
+const (
+	// KeyTypeAccount ...
+	KeyTypeAccount KeyType = "Account"
+	// KeyTypeService ...
+	KeyTypeService KeyType = "Service"
+)
+
+// PossibleKeyTypeValues returns an array of possible values for the KeyType const type.
+func PossibleKeyTypeValues() []KeyType {
+	return []KeyType{KeyTypeAccount, KeyTypeService}
+}
+
 // Kind enumerates the values for kind.
 type Kind string
 
@@ -385,19 +419,19 @@ func PossiblePermissionsValues() []Permissions {
 type PrivateEndpointConnectionProvisioningState string
 
 const (
-	// Creating ...
-	Creating PrivateEndpointConnectionProvisioningState = "Creating"
-	// Deleting ...
-	Deleting PrivateEndpointConnectionProvisioningState = "Deleting"
-	// Failed ...
-	Failed PrivateEndpointConnectionProvisioningState = "Failed"
-	// Succeeded ...
-	Succeeded PrivateEndpointConnectionProvisioningState = "Succeeded"
+	// PrivateEndpointConnectionProvisioningStateCreating ...
+	PrivateEndpointConnectionProvisioningStateCreating PrivateEndpointConnectionProvisioningState = "Creating"
+	// PrivateEndpointConnectionProvisioningStateDeleting ...
+	PrivateEndpointConnectionProvisioningStateDeleting PrivateEndpointConnectionProvisioningState = "Deleting"
+	// PrivateEndpointConnectionProvisioningStateFailed ...
+	PrivateEndpointConnectionProvisioningStateFailed PrivateEndpointConnectionProvisioningState = "Failed"
+	// PrivateEndpointConnectionProvisioningStateSucceeded ...
+	PrivateEndpointConnectionProvisioningStateSucceeded PrivateEndpointConnectionProvisioningState = "Succeeded"
 )
 
 // PossiblePrivateEndpointConnectionProvisioningStateValues returns an array of possible values for the PrivateEndpointConnectionProvisioningState const type.
 func PossiblePrivateEndpointConnectionProvisioningStateValues() []PrivateEndpointConnectionProvisioningState {
-	return []PrivateEndpointConnectionProvisioningState{Creating, Deleting, Failed, Succeeded}
+	return []PrivateEndpointConnectionProvisioningState{PrivateEndpointConnectionProvisioningStateCreating, PrivateEndpointConnectionProvisioningStateDeleting, PrivateEndpointConnectionProvisioningStateFailed, PrivateEndpointConnectionProvisioningStateSucceeded}
 }
 
 // PrivateEndpointServiceConnectionStatus enumerates the values for private endpoint service connection status.
@@ -421,17 +455,17 @@ func PossiblePrivateEndpointServiceConnectionStatusValues() []PrivateEndpointSer
 type ProvisioningState string
 
 const (
-	// ProvisioningStateCreating ...
-	ProvisioningStateCreating ProvisioningState = "Creating"
-	// ProvisioningStateResolvingDNS ...
-	ProvisioningStateResolvingDNS ProvisioningState = "ResolvingDNS"
-	// ProvisioningStateSucceeded ...
-	ProvisioningStateSucceeded ProvisioningState = "Succeeded"
+	// Creating ...
+	Creating ProvisioningState = "Creating"
+	// ResolvingDNS ...
+	ResolvingDNS ProvisioningState = "ResolvingDNS"
+	// Succeeded ...
+	Succeeded ProvisioningState = "Succeeded"
 )
 
 // PossibleProvisioningStateValues returns an array of possible values for the ProvisioningState const type.
 func PossibleProvisioningStateValues() []ProvisioningState {
-	return []ProvisioningState{ProvisioningStateCreating, ProvisioningStateResolvingDNS, ProvisioningStateSucceeded}
+	return []ProvisioningState{Creating, ResolvingDNS, Succeeded}
 }
 
 // PublicAccess enumerates the values for public access.
@@ -479,6 +513,21 @@ const (
 // PossibleReasonCodeValues returns an array of possible values for the ReasonCode const type.
 func PossibleReasonCodeValues() []ReasonCode {
 	return []ReasonCode{NotAvailableForSubscription, QuotaID}
+}
+
+// RoutingChoice enumerates the values for routing choice.
+type RoutingChoice string
+
+const (
+	// InternetRouting ...
+	InternetRouting RoutingChoice = "InternetRouting"
+	// MicrosoftRouting ...
+	MicrosoftRouting RoutingChoice = "MicrosoftRouting"
+)
+
+// PossibleRoutingChoiceValues returns an array of possible values for the RoutingChoice const type.
+func PossibleRoutingChoiceValues() []RoutingChoice {
+	return []RoutingChoice{InternetRouting, MicrosoftRouting}
 }
 
 // Services enumerates the values for services.
@@ -877,6 +926,19 @@ func (acp *AccountCreateParameters) UnmarshalJSON(body []byte) error {
 	return nil
 }
 
+// AccountInternetEndpoints the URIs that are used to perform a retrieval of a public blob, file, web or
+// dfs object via a internet routing endpoint.
+type AccountInternetEndpoints struct {
+	// Blob - READ-ONLY; Gets the blob endpoint.
+	Blob *string `json:"blob,omitempty"`
+	// File - READ-ONLY; Gets the file endpoint.
+	File *string `json:"file,omitempty"`
+	// Web - READ-ONLY; Gets the web endpoint.
+	Web *string `json:"web,omitempty"`
+	// Dfs - READ-ONLY; Gets the dfs endpoint.
+	Dfs *string `json:"dfs,omitempty"`
+}
+
 // AccountKey an access key for the storage account.
 type AccountKey struct {
 	// KeyName - READ-ONLY; Name of the key.
@@ -1040,9 +1102,26 @@ func NewAccountListResultPage(getNextPage func(context.Context, AccountListResul
 	return AccountListResultPage{fn: getNextPage}
 }
 
+// AccountMicrosoftEndpoints the URIs that are used to perform a retrieval of a public blob, queue, table,
+// web or dfs object via a microsoft routing endpoint.
+type AccountMicrosoftEndpoints struct {
+	// Blob - READ-ONLY; Gets the blob endpoint.
+	Blob *string `json:"blob,omitempty"`
+	// Queue - READ-ONLY; Gets the queue endpoint.
+	Queue *string `json:"queue,omitempty"`
+	// Table - READ-ONLY; Gets the table endpoint.
+	Table *string `json:"table,omitempty"`
+	// File - READ-ONLY; Gets the file endpoint.
+	File *string `json:"file,omitempty"`
+	// Web - READ-ONLY; Gets the web endpoint.
+	Web *string `json:"web,omitempty"`
+	// Dfs - READ-ONLY; Gets the dfs endpoint.
+	Dfs *string `json:"dfs,omitempty"`
+}
+
 // AccountProperties properties of the storage account.
 type AccountProperties struct {
-	// ProvisioningState - READ-ONLY; Gets the status of the storage account at the time the operation was called. Possible values include: 'ProvisioningStateCreating', 'ProvisioningStateResolvingDNS', 'ProvisioningStateSucceeded'
+	// ProvisioningState - READ-ONLY; Gets the status of the storage account at the time the operation was called. Possible values include: 'Creating', 'ResolvingDNS', 'Succeeded'
 	ProvisioningState ProvisioningState `json:"provisioningState,omitempty"`
 	// PrimaryEndpoints - READ-ONLY; Gets the URLs that are used to perform a retrieval of a public blob, queue, or table object. Note that Standard_ZRS and Premium_LRS accounts only return the blob endpoint.
 	PrimaryEndpoints *Endpoints `json:"primaryEndpoints,omitempty"`
@@ -1082,6 +1161,10 @@ type AccountProperties struct {
 	LargeFileSharesState LargeFileSharesState `json:"largeFileSharesState,omitempty"`
 	// PrivateEndpointConnections - READ-ONLY; List of private endpoint connection associated with the specified storage account
 	PrivateEndpointConnections *[]PrivateEndpointConnection `json:"privateEndpointConnections,omitempty"`
+	// RoutingPreference - Maintains information about the network routing choice opted by the user for data transfer
+	RoutingPreference *RoutingPreference `json:"routingPreference,omitempty"`
+	// BlobRestoreStatus - READ-ONLY; Blob restore status
+	BlobRestoreStatus *BlobRestoreStatus `json:"blobRestoreStatus,omitempty"`
 }
 
 // AccountPropertiesCreateParameters the parameters used to create the storage account.
@@ -1102,6 +1185,8 @@ type AccountPropertiesCreateParameters struct {
 	IsHnsEnabled *bool `json:"isHnsEnabled,omitempty"`
 	// LargeFileSharesState - Allow large file shares if sets to Enabled. It cannot be disabled once it is enabled. Possible values include: 'Disabled', 'Enabled'
 	LargeFileSharesState LargeFileSharesState `json:"largeFileSharesState,omitempty"`
+	// RoutingPreference - Maintains information about the network routing choice opted by the user for data transfer
+	RoutingPreference *RoutingPreference `json:"routingPreference,omitempty"`
 }
 
 // AccountPropertiesUpdateParameters the parameters used when updating a storage account.
@@ -1120,6 +1205,8 @@ type AccountPropertiesUpdateParameters struct {
 	NetworkRuleSet *NetworkRuleSet `json:"networkAcls,omitempty"`
 	// LargeFileSharesState - Allow large file shares if sets to Enabled. It cannot be disabled once it is enabled. Possible values include: 'Disabled', 'Enabled'
 	LargeFileSharesState LargeFileSharesState `json:"largeFileSharesState,omitempty"`
+	// RoutingPreference - Maintains information about the network routing choice opted by the user for data transfer
+	RoutingPreference *RoutingPreference `json:"routingPreference,omitempty"`
 }
 
 // AccountRegenerateKeyParameters the parameters used to regenerate the storage account key.
@@ -1197,6 +1284,35 @@ func (future *AccountsFailoverFuture) Result(client AccountsClient) (ar autorest
 		return
 	}
 	ar.Response = future.Response()
+	return
+}
+
+// AccountsRestoreBlobRangesFuture an abstraction for monitoring and retrieving the results of a
+// long-running operation.
+type AccountsRestoreBlobRangesFuture struct {
+	azure.Future
+}
+
+// Result returns the result of the asynchronous operation.
+// If the operation has not completed it will return an error.
+func (future *AccountsRestoreBlobRangesFuture) Result(client AccountsClient) (brs BlobRestoreStatus, err error) {
+	var done bool
+	done, err = future.DoneWithContext(context.Background(), client)
+	if err != nil {
+		err = autorest.NewErrorWithError(err, "storage.AccountsRestoreBlobRangesFuture", "Result", future.Response(), "Polling failure")
+		return
+	}
+	if !done {
+		err = azure.NewAsyncOpIncompleteError("storage.AccountsRestoreBlobRangesFuture")
+		return
+	}
+	sender := autorest.DecorateSender(client, autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...))
+	if brs.Response.Response, err = future.GetResult(sender); err == nil && brs.Response.Response.StatusCode != http.StatusNoContent {
+		brs, err = client.RestoreBlobRangesResponder(brs.Response.Response)
+		if err != nil {
+			err = autorest.NewErrorWithError(err, "storage.AccountsRestoreBlobRangesFuture", "Result", brs.Response.Response, "Failure responding to request")
+		}
+	}
 	return
 }
 
@@ -1416,6 +1532,35 @@ func (bc *BlobContainer) UnmarshalJSON(body []byte) error {
 	return nil
 }
 
+// BlobRestoreParameters blob restore parameters
+type BlobRestoreParameters struct {
+	// TimeToRestore - Restore blob to the specified time.
+	TimeToRestore *date.Time `json:"timeToRestore,omitempty"`
+	// BlobRanges - Blob ranges to restore.
+	BlobRanges *[]BlobRestoreRange `json:"blobRanges,omitempty"`
+}
+
+// BlobRestoreRange blob range
+type BlobRestoreRange struct {
+	// StartRange - Blob start range. Empty means account start.
+	StartRange *string `json:"startRange,omitempty"`
+	// EndRange - Blob end range. Empty means account end.
+	EndRange *string `json:"endRange,omitempty"`
+}
+
+// BlobRestoreStatus blob restore status.
+type BlobRestoreStatus struct {
+	autorest.Response `json:"-"`
+	// Status - READ-ONLY; The status of blob restore progress. Possible values are: - InProgress: Indicates that blob restore is ongoing. - Complete: Indicates that blob restore has been completed successfully. - Failed: Indicates that blob restore is failed. Possible values include: 'InProgress', 'Complete', 'Failed'
+	Status BlobRestoreProgressStatus `json:"status,omitempty"`
+	// FailureReason - READ-ONLY; Failure reason when blob restore is failed.
+	FailureReason *string `json:"failureReason,omitempty"`
+	// RestoreID - READ-ONLY; Id for tracking blob restore request.
+	RestoreID *string `json:"restoreId,omitempty"`
+	// Parameters - READ-ONLY; Blob restore request parameters.
+	Parameters *BlobRestoreParameters `json:"parameters,omitempty"`
+}
+
 // BlobServiceItems ...
 type BlobServiceItems struct {
 	autorest.Response `json:"-"`
@@ -1428,6 +1573,8 @@ type BlobServiceProperties struct {
 	autorest.Response `json:"-"`
 	// BlobServicePropertiesProperties - The properties of a storage account’s Blob service.
 	*BlobServicePropertiesProperties `json:"properties,omitempty"`
+	// Sku - READ-ONLY; Sku name and tier.
+	Sku *Sku `json:"sku,omitempty"`
 	// ID - READ-ONLY; Fully qualified resource Id for the resource. Ex - /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}
 	ID *string `json:"id,omitempty"`
 	// Name - READ-ONLY; The name of the resource
@@ -1462,6 +1609,15 @@ func (bsp *BlobServiceProperties) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				bsp.BlobServicePropertiesProperties = &blobServiceProperties
+			}
+		case "sku":
+			if v != nil {
+				var sku Sku
+				err = json.Unmarshal(*v, &sku)
+				if err != nil {
+					return err
+				}
+				bsp.Sku = &sku
 			}
 		case "id":
 			if v != nil {
@@ -1508,8 +1664,8 @@ type BlobServicePropertiesProperties struct {
 	AutomaticSnapshotPolicyEnabled *bool `json:"automaticSnapshotPolicyEnabled,omitempty"`
 	// ChangeFeed - The blob service properties for change feed events.
 	ChangeFeed *ChangeFeed `json:"changeFeed,omitempty"`
-	// ContainerDeleteRetentionPolicy - The blob service properties for container soft delete.
-	ContainerDeleteRetentionPolicy *DeleteRetentionPolicy `json:"containerDeleteRetentionPolicy,omitempty"`
+	// RestorePolicy - The blob service properties for blob restore policy.
+	RestorePolicy *RestorePolicyProperties `json:"restorePolicy,omitempty"`
 }
 
 // ChangeFeed the blob service properties for change feed events.
@@ -1622,11 +1778,11 @@ type DateAfterModification struct {
 	DaysAfterModificationGreaterThan *float64 `json:"daysAfterModificationGreaterThan,omitempty"`
 }
 
-// DeleteRetentionPolicy the blob service properties for soft delete.
+// DeleteRetentionPolicy the service properties for soft delete.
 type DeleteRetentionPolicy struct {
-	// Enabled - Indicates whether DeleteRetentionPolicy is enabled for the Blob service.
+	// Enabled - Indicates whether DeleteRetentionPolicy is enabled.
 	Enabled *bool `json:"enabled,omitempty"`
-	// Days - Indicates the number of days that the deleted blob should be retained. The minimum specified value can be 1 and the maximum value can be 365.
+	// Days - Indicates the number of days that the deleted item should be retained. The minimum specified value can be 1 and the maximum value can be 365.
 	Days *int32 `json:"days,omitempty"`
 }
 
@@ -1654,6 +1810,8 @@ type EncryptionService struct {
 	Enabled *bool `json:"enabled,omitempty"`
 	// LastEnabledTime - READ-ONLY; Gets a rough estimate of the date/time when the encryption was last enabled by the user. Only returned when encryption is enabled. There might be some unencrypted blobs which were written after this time, as it is just a rough estimate.
 	LastEnabledTime *date.Time `json:"lastEnabledTime,omitempty"`
+	// KeyType - Encryption key type to be used for the encryption service. 'Account' key type implies that an account-scoped encryption key will be used. 'Service' key type implies that a default service key is used. Possible values include: 'KeyTypeService', 'KeyTypeAccount'
+	KeyType KeyType `json:"keyType,omitempty"`
 }
 
 // EncryptionServices a list of services that support encryption.
@@ -1662,9 +1820,9 @@ type EncryptionServices struct {
 	Blob *EncryptionService `json:"blob,omitempty"`
 	// File - The encryption function of the file storage service.
 	File *EncryptionService `json:"file,omitempty"`
-	// Table - READ-ONLY; The encryption function of the table storage service.
+	// Table - The encryption function of the table storage service.
 	Table *EncryptionService `json:"table,omitempty"`
-	// Queue - READ-ONLY; The encryption function of the queue storage service.
+	// Queue - The encryption function of the queue storage service.
 	Queue *EncryptionService `json:"queue,omitempty"`
 }
 
@@ -1683,6 +1841,10 @@ type Endpoints struct {
 	Web *string `json:"web,omitempty"`
 	// Dfs - READ-ONLY; Gets the dfs endpoint.
 	Dfs *string `json:"dfs,omitempty"`
+	// MicrosoftEndpoints - Gets the microsoft routing storage endpoints.
+	MicrosoftEndpoints *AccountMicrosoftEndpoints `json:"microsoftEndpoints,omitempty"`
+	// InternetEndpoints - Gets the internet routing storage endpoints
+	InternetEndpoints *AccountInternetEndpoints `json:"internetEndpoints,omitempty"`
 }
 
 // ErrorResponse an error response from the storage resource provider.
@@ -1705,6 +1867,8 @@ type FileServiceProperties struct {
 	autorest.Response `json:"-"`
 	// FileServicePropertiesProperties - The properties of File services in storage account.
 	*FileServicePropertiesProperties `json:"properties,omitempty"`
+	// Sku - READ-ONLY; Sku name and tier.
+	Sku *Sku `json:"sku,omitempty"`
 	// ID - READ-ONLY; Fully qualified resource Id for the resource. Ex - /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{resourceType}/{resourceName}
 	ID *string `json:"id,omitempty"`
 	// Name - READ-ONLY; The name of the resource
@@ -1739,6 +1903,15 @@ func (fsp *FileServiceProperties) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				fsp.FileServicePropertiesProperties = &fileServiceProperties
+			}
+		case "sku":
+			if v != nil {
+				var sku Sku
+				err = json.Unmarshal(*v, &sku)
+				if err != nil {
+					return err
+				}
+				fsp.Sku = &sku
 			}
 		case "id":
 			if v != nil {
@@ -2101,7 +2274,7 @@ type FileShareProperties struct {
 	LastModifiedTime *date.Time `json:"lastModifiedTime,omitempty"`
 	// Metadata - A name-value pair to associate with the share as metadata.
 	Metadata map[string]*string `json:"metadata"`
-	// ShareQuota - The maximum size of the share, in gigabytes. Must be greater than 0, and less than or equal to 5TB (5120).
+	// ShareQuota - The maximum size of the share, in gigabytes. Must be greater than 0, and less than or equal to 5TB (5120). For Large File Shares, the maximum size is 102400.
 	ShareQuota *int32 `json:"shareQuota,omitempty"`
 }
 
@@ -2962,7 +3135,7 @@ type PrivateEndpointConnectionProperties struct {
 	PrivateEndpoint *PrivateEndpoint `json:"privateEndpoint,omitempty"`
 	// PrivateLinkServiceConnectionState - A collection of information about the state of the connection between service consumer and provider.
 	PrivateLinkServiceConnectionState *PrivateLinkServiceConnectionState `json:"privateLinkServiceConnectionState,omitempty"`
-	// ProvisioningState - The provisioning state of the private endpoint connection resource. Possible values include: 'Succeeded', 'Creating', 'Deleting', 'Failed'
+	// ProvisioningState - The provisioning state of the private endpoint connection resource. Possible values include: 'PrivateEndpointConnectionProvisioningStateSucceeded', 'PrivateEndpointConnectionProvisioningStateCreating', 'PrivateEndpointConnectionProvisioningStateDeleting', 'PrivateEndpointConnectionProvisioningStateFailed'
 	ProvisioningState PrivateEndpointConnectionProvisioningState `json:"provisioningState,omitempty"`
 }
 
@@ -3087,6 +3260,14 @@ type Resource struct {
 	Type *string `json:"type,omitempty"`
 }
 
+// RestorePolicyProperties the blob service properties for blob restore policy
+type RestorePolicyProperties struct {
+	// Enabled - Blob restore is enabled if set to true.
+	Enabled *bool `json:"enabled,omitempty"`
+	// Days - how long this blob can be restored. It should be great than zero and less than DeleteRetentionPolicy.days.
+	Days *int32 `json:"days,omitempty"`
+}
+
 // Restriction the restriction because of which SKU cannot be used.
 type Restriction struct {
 	// Type - READ-ONLY; The type of restrictions. As of now only possible value for this is location.
@@ -3095,6 +3276,17 @@ type Restriction struct {
 	Values *[]string `json:"values,omitempty"`
 	// ReasonCode - The reason for the restriction. As of now this can be "QuotaId" or "NotAvailableForSubscription". Quota Id is set when the SKU has requiredQuotas parameter as the subscription does not belong to that quota. The "NotAvailableForSubscription" is related to capacity at DC. Possible values include: 'QuotaID', 'NotAvailableForSubscription'
 	ReasonCode ReasonCode `json:"reasonCode,omitempty"`
+}
+
+// RoutingPreference routing preference defines the type of network, either microsoft or internet routing
+// to be used to deliver the user data, the default option is microsoft routing
+type RoutingPreference struct {
+	// RoutingChoice - Routing Choice defines the kind of network routing opted by the user. Possible values include: 'MicrosoftRouting', 'InternetRouting'
+	RoutingChoice RoutingChoice `json:"routingChoice,omitempty"`
+	// PublishMicrosoftEndpoints - A boolean flag which indicates whether microsoft routing storage endpoints are to be published
+	PublishMicrosoftEndpoints *bool `json:"publishMicrosoftEndpoints,omitempty"`
+	// PublishInternetEndpoints - A boolean flag which indicates whether internet routing storage endpoints are to be published
+	PublishInternetEndpoints *bool `json:"publishInternetEndpoints,omitempty"`
 }
 
 // ServiceSasParameters the parameters to list service SAS credentials of a specific resource.
@@ -3145,9 +3337,26 @@ type ServiceSpecification struct {
 
 // Sku the SKU of the storage account.
 type Sku struct {
-	// Name - Gets or sets the SKU name. Required for account creation; optional for update. Note that in older versions, SKU name was called accountType. Possible values include: 'StandardLRS', 'StandardGRS', 'StandardRAGRS', 'StandardZRS', 'PremiumLRS', 'PremiumZRS', 'StandardGZRS', 'StandardRAGZRS'
+	// Name - Possible values include: 'StandardLRS', 'StandardGRS', 'StandardRAGRS', 'StandardZRS', 'PremiumLRS', 'PremiumZRS', 'StandardGZRS', 'StandardRAGZRS'
 	Name SkuName `json:"name,omitempty"`
-	// Tier - READ-ONLY; Gets the SKU tier. This is based on the SKU name. Possible values include: 'Standard', 'Premium'
+	// Tier - Possible values include: 'Standard', 'Premium'
+	Tier SkuTier `json:"tier,omitempty"`
+}
+
+// SKUCapability the capability information in the specified SKU, including file encryption, network ACLs,
+// change notification, etc.
+type SKUCapability struct {
+	// Name - READ-ONLY; The name of capability, The capability information in the specified SKU, including file encryption, network ACLs, change notification, etc.
+	Name *string `json:"name,omitempty"`
+	// Value - READ-ONLY; A string value to indicate states of given capability. Possibly 'true' or 'false'.
+	Value *string `json:"value,omitempty"`
+}
+
+// SkuInformation storage SKU and its properties
+type SkuInformation struct {
+	// Name - Possible values include: 'StandardLRS', 'StandardGRS', 'StandardRAGRS', 'StandardZRS', 'PremiumLRS', 'PremiumZRS', 'StandardGZRS', 'StandardRAGZRS'
+	Name SkuName `json:"name,omitempty"`
+	// Tier - Possible values include: 'Standard', 'Premium'
 	Tier SkuTier `json:"tier,omitempty"`
 	// ResourceType - READ-ONLY; The type of the resource, usually it is 'storageAccounts'.
 	ResourceType *string `json:"resourceType,omitempty"`
@@ -3161,20 +3370,11 @@ type Sku struct {
 	Restrictions *[]Restriction `json:"restrictions,omitempty"`
 }
 
-// SKUCapability the capability information in the specified SKU, including file encryption, network ACLs,
-// change notification, etc.
-type SKUCapability struct {
-	// Name - READ-ONLY; The name of capability, The capability information in the specified SKU, including file encryption, network ACLs, change notification, etc.
-	Name *string `json:"name,omitempty"`
-	// Value - READ-ONLY; A string value to indicate states of given capability. Possibly 'true' or 'false'.
-	Value *string `json:"value,omitempty"`
-}
-
 // SkuListResult the response from the List Storage SKUs operation.
 type SkuListResult struct {
 	autorest.Response `json:"-"`
 	// Value - READ-ONLY; Get the list result of storage SKUs and their properties.
-	Value *[]Sku `json:"value,omitempty"`
+	Value *[]SkuInformation `json:"value,omitempty"`
 }
 
 // TagProperty a tag of the LegalHold of a blob container.

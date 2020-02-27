@@ -35,13 +35,16 @@ func NewOperationsClient() OperationsClient {
 	return NewOperationsClientWithBaseURI(DefaultBaseURI)
 }
 
-// NewOperationsClientWithBaseURI creates an instance of the OperationsClient client.
+// NewOperationsClientWithBaseURI creates an instance of the OperationsClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewOperationsClientWithBaseURI(baseURI string) OperationsClient {
 	return OperationsClient{NewWithBaseURI(baseURI)}
 }
 
 // List gets a list of the operations.
-func (client OperationsClient) List(ctx context.Context) (result OperationList, err error) {
+// Parameters:
+// APIVersion - the API version to use for this operation.
+func (client OperationsClient) List(ctx context.Context, APIVersion string) (result OperationList, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/OperationsClient.List")
 		defer func() {
@@ -52,7 +55,7 @@ func (client OperationsClient) List(ctx context.Context) (result OperationList, 
 			tracing.EndSpan(ctx, sc, err)
 		}()
 	}
-	req, err := client.ListPreparer(ctx)
+	req, err := client.ListPreparer(ctx, APIVersion)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "managedservices.OperationsClient", "List", nil, "Failure preparing request")
 		return
@@ -74,8 +77,7 @@ func (client OperationsClient) List(ctx context.Context) (result OperationList, 
 }
 
 // ListPreparer prepares the List request.
-func (client OperationsClient) ListPreparer(ctx context.Context) (*http.Request, error) {
-	const APIVersion = "2018-06-01-preview"
+func (client OperationsClient) ListPreparer(ctx context.Context, APIVersion string) (*http.Request, error) {
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}

@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 
 package netapp
 
-import original "github.com/Azure/azure-sdk-for-go/services/netapp/mgmt/2019-08-01/netapp"
+import original "github.com/Azure/azure-sdk-for-go/services/netapp/mgmt/2019-11-01/netapp"
 
 const (
 	DefaultBaseURI = original.DefaultBaseURI
@@ -34,11 +34,43 @@ const (
 	MicrosoftNetAppnetAppAccountscapacityPoolsvolumessnapshots CheckNameResourceTypes = original.MicrosoftNetAppnetAppAccountscapacityPoolsvolumessnapshots
 )
 
+type EndpointType = original.EndpointType
+
+const (
+	Dst EndpointType = original.Dst
+	Src EndpointType = original.Src
+)
+
 type InAvailabilityReasonType = original.InAvailabilityReasonType
 
 const (
 	AlreadyExists InAvailabilityReasonType = original.AlreadyExists
 	Invalid       InAvailabilityReasonType = original.Invalid
+)
+
+type MirrorState = original.MirrorState
+
+const (
+	Broken        MirrorState = original.Broken
+	Mirrored      MirrorState = original.Mirrored
+	Uninitialized MirrorState = original.Uninitialized
+)
+
+type RelationshipStatus = original.RelationshipStatus
+
+const (
+	Idle         RelationshipStatus = original.Idle
+	Transferring RelationshipStatus = original.Transferring
+)
+
+type ReplicationSchedule = original.ReplicationSchedule
+
+const (
+	OneZerominutely ReplicationSchedule = original.OneZerominutely
+	Daily           ReplicationSchedule = original.Daily
+	Hourly          ReplicationSchedule = original.Hourly
+	Monthly         ReplicationSchedule = original.Monthly
+	Weekly          ReplicationSchedule = original.Weekly
 )
 
 type ServiceLevel = original.ServiceLevel
@@ -57,6 +89,7 @@ type AccountsClient = original.AccountsClient
 type AccountsCreateOrUpdateFuture = original.AccountsCreateOrUpdateFuture
 type AccountsDeleteFuture = original.AccountsDeleteFuture
 type ActiveDirectory = original.ActiveDirectory
+type AuthorizeRequest = original.AuthorizeRequest
 type BaseClient = original.BaseClient
 type CapacityPool = original.CapacityPool
 type CapacityPoolList = original.CapacityPoolList
@@ -67,7 +100,6 @@ type MetricSpecification = original.MetricSpecification
 type MountTarget = original.MountTarget
 type MountTargetList = original.MountTargetList
 type MountTargetProperties = original.MountTargetProperties
-type MountTargetsClient = original.MountTargetsClient
 type Operation = original.Operation
 type OperationDisplay = original.OperationDisplay
 type OperationListResult = original.OperationListResult
@@ -78,18 +110,20 @@ type PoolProperties = original.PoolProperties
 type PoolsClient = original.PoolsClient
 type PoolsCreateOrUpdateFuture = original.PoolsCreateOrUpdateFuture
 type PoolsDeleteFuture = original.PoolsDeleteFuture
+type PoolsUpdateFuture = original.PoolsUpdateFuture
 type ReplicationObject = original.ReplicationObject
+type ReplicationStatus = original.ReplicationStatus
 type ResourceClient = original.ResourceClient
 type ResourceNameAvailability = original.ResourceNameAvailability
 type ResourceNameAvailabilityRequest = original.ResourceNameAvailabilityRequest
 type ServiceSpecification = original.ServiceSpecification
 type Snapshot = original.Snapshot
-type SnapshotPatch = original.SnapshotPatch
 type SnapshotProperties = original.SnapshotProperties
 type SnapshotsClient = original.SnapshotsClient
 type SnapshotsCreateFuture = original.SnapshotsCreateFuture
 type SnapshotsDeleteFuture = original.SnapshotsDeleteFuture
 type SnapshotsList = original.SnapshotsList
+type SnapshotsUpdateFuture = original.SnapshotsUpdateFuture
 type Volume = original.Volume
 type VolumeList = original.VolumeList
 type VolumePatch = original.VolumePatch
@@ -98,9 +132,16 @@ type VolumePatchPropertiesExportPolicy = original.VolumePatchPropertiesExportPol
 type VolumeProperties = original.VolumeProperties
 type VolumePropertiesDataProtection = original.VolumePropertiesDataProtection
 type VolumePropertiesExportPolicy = original.VolumePropertiesExportPolicy
+type VolumeRevert = original.VolumeRevert
+type VolumesAuthorizeReplicationFuture = original.VolumesAuthorizeReplicationFuture
+type VolumesBreakReplicationFuture = original.VolumesBreakReplicationFuture
 type VolumesClient = original.VolumesClient
 type VolumesCreateOrUpdateFuture = original.VolumesCreateOrUpdateFuture
 type VolumesDeleteFuture = original.VolumesDeleteFuture
+type VolumesDeleteReplicationFuture = original.VolumesDeleteReplicationFuture
+type VolumesResyncReplicationFuture = original.VolumesResyncReplicationFuture
+type VolumesRevertFuture = original.VolumesRevertFuture
+type VolumesUpdateFuture = original.VolumesUpdateFuture
 
 func New(subscriptionID string) BaseClient {
 	return original.New(subscriptionID)
@@ -110,12 +151,6 @@ func NewAccountsClient(subscriptionID string) AccountsClient {
 }
 func NewAccountsClientWithBaseURI(baseURI string, subscriptionID string) AccountsClient {
 	return original.NewAccountsClientWithBaseURI(baseURI, subscriptionID)
-}
-func NewMountTargetsClient(subscriptionID string) MountTargetsClient {
-	return original.NewMountTargetsClient(subscriptionID)
-}
-func NewMountTargetsClientWithBaseURI(baseURI string, subscriptionID string) MountTargetsClient {
-	return original.NewMountTargetsClientWithBaseURI(baseURI, subscriptionID)
 }
 func NewOperationsClient(subscriptionID string) OperationsClient {
 	return original.NewOperationsClient(subscriptionID)
@@ -153,8 +188,20 @@ func NewWithBaseURI(baseURI string, subscriptionID string) BaseClient {
 func PossibleCheckNameResourceTypesValues() []CheckNameResourceTypes {
 	return original.PossibleCheckNameResourceTypesValues()
 }
+func PossibleEndpointTypeValues() []EndpointType {
+	return original.PossibleEndpointTypeValues()
+}
 func PossibleInAvailabilityReasonTypeValues() []InAvailabilityReasonType {
 	return original.PossibleInAvailabilityReasonTypeValues()
+}
+func PossibleMirrorStateValues() []MirrorState {
+	return original.PossibleMirrorStateValues()
+}
+func PossibleRelationshipStatusValues() []RelationshipStatus {
+	return original.PossibleRelationshipStatusValues()
+}
+func PossibleReplicationScheduleValues() []ReplicationSchedule {
+	return original.PossibleReplicationScheduleValues()
 }
 func PossibleServiceLevelValues() []ServiceLevel {
 	return original.PossibleServiceLevelValues()

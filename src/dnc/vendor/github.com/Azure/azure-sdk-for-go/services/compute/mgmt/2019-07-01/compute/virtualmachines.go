@@ -36,7 +36,8 @@ func NewVirtualMachinesClient(subscriptionID string) VirtualMachinesClient {
 	return NewVirtualMachinesClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewVirtualMachinesClientWithBaseURI creates an instance of the VirtualMachinesClient client.
+// NewVirtualMachinesClientWithBaseURI creates an instance of the VirtualMachinesClient client using a custom endpoint.
+// Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewVirtualMachinesClientWithBaseURI(baseURI string, subscriptionID string) VirtualMachinesClient {
 	return VirtualMachinesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -207,7 +208,8 @@ func (client VirtualMachinesClient) ConvertToManagedDisksResponder(resp *http.Re
 	return
 }
 
-// CreateOrUpdate the operation to create or update a virtual machine.
+// CreateOrUpdate the operation to create or update a virtual machine. Please note some properties can be set only
+// during virtual machine creation.
 // Parameters:
 // resourceGroupName - the name of the resource group.
 // VMName - the name of the virtual machine.
@@ -462,7 +464,11 @@ func (client VirtualMachinesClient) DeleteResponder(resp *http.Response) (result
 	return
 }
 
-// Generalize sets the state of the virtual machine to generalized.
+// Generalize sets the OS state of the virtual machine to generalized. It is recommended to sysprep the virtual machine
+// before performing this operation. <br>For Windows, please refer to [Create a managed image of a generalized VM in
+// Azure](https://docs.microsoft.com/en-us/azure/virtual-machines/windows/capture-image-resource).<br>For Linux, please
+// refer to [How to create an image of a virtual machine or
+// VHD](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/capture-image).
 // Parameters:
 // resourceGroupName - the name of the resource group.
 // VMName - the name of the virtual machine.

@@ -36,7 +36,8 @@ func NewClustersClient() ClustersClient {
 	return NewClustersClientWithBaseURI(DefaultBaseURI)
 }
 
-// NewClustersClientWithBaseURI creates an instance of the ClustersClient client.
+// NewClustersClientWithBaseURI creates an instance of the ClustersClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewClustersClientWithBaseURI(baseURI string) ClustersClient {
 	return ClustersClient{NewWithBaseURI(baseURI)}
 }
@@ -45,9 +46,10 @@ func NewClustersClientWithBaseURI(baseURI string) ClustersClient {
 // Parameters:
 // resourceGroupName - the name of the resource group.
 // clusterName - the name of the cluster resource
+// APIVersion - the version of the API.
 // subscriptionID - the customer subscription identifier
 // parameters - the cluster resource.
-func (client ClustersClient) Create(ctx context.Context, resourceGroupName string, clusterName string, subscriptionID string, parameters Cluster) (result ClustersCreateFuture, err error) {
+func (client ClustersClient) Create(ctx context.Context, resourceGroupName string, clusterName string, APIVersion string, subscriptionID string, parameters Cluster) (result ClustersCreateFuture, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ClustersClient.Create")
 		defer func() {
@@ -84,25 +86,25 @@ func (client ClustersClient) Create(ctx context.Context, resourceGroupName strin
 							{Target: "parameters.ClusterProperties.UpgradeDescription.HealthPolicy", Name: validation.Null, Rule: true,
 								Chain: []validation.Constraint{{Target: "parameters.ClusterProperties.UpgradeDescription.HealthPolicy.MaxPercentUnhealthyNodes", Name: validation.Null, Rule: false,
 									Chain: []validation.Constraint{{Target: "parameters.ClusterProperties.UpgradeDescription.HealthPolicy.MaxPercentUnhealthyNodes", Name: validation.InclusiveMaximum, Rule: int64(100), Chain: nil},
-										{Target: "parameters.ClusterProperties.UpgradeDescription.HealthPolicy.MaxPercentUnhealthyNodes", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+										{Target: "parameters.ClusterProperties.UpgradeDescription.HealthPolicy.MaxPercentUnhealthyNodes", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 									}},
 									{Target: "parameters.ClusterProperties.UpgradeDescription.HealthPolicy.MaxPercentUnhealthyApplications", Name: validation.Null, Rule: false,
 										Chain: []validation.Constraint{{Target: "parameters.ClusterProperties.UpgradeDescription.HealthPolicy.MaxPercentUnhealthyApplications", Name: validation.InclusiveMaximum, Rule: int64(100), Chain: nil},
-											{Target: "parameters.ClusterProperties.UpgradeDescription.HealthPolicy.MaxPercentUnhealthyApplications", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+											{Target: "parameters.ClusterProperties.UpgradeDescription.HealthPolicy.MaxPercentUnhealthyApplications", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 										}},
 								}},
 							{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy", Name: validation.Null, Rule: false,
 								Chain: []validation.Constraint{{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy.MaxPercentDeltaUnhealthyNodes", Name: validation.Null, Rule: true,
 									Chain: []validation.Constraint{{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy.MaxPercentDeltaUnhealthyNodes", Name: validation.InclusiveMaximum, Rule: int64(100), Chain: nil},
-										{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy.MaxPercentDeltaUnhealthyNodes", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+										{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy.MaxPercentDeltaUnhealthyNodes", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 									}},
 									{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy.MaxPercentUpgradeDomainDeltaUnhealthyNodes", Name: validation.Null, Rule: true,
 										Chain: []validation.Constraint{{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy.MaxPercentUpgradeDomainDeltaUnhealthyNodes", Name: validation.InclusiveMaximum, Rule: int64(100), Chain: nil},
-											{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy.MaxPercentUpgradeDomainDeltaUnhealthyNodes", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+											{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy.MaxPercentUpgradeDomainDeltaUnhealthyNodes", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 										}},
 									{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy.MaxPercentDeltaUnhealthyApplications", Name: validation.Null, Rule: true,
 										Chain: []validation.Constraint{{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy.MaxPercentDeltaUnhealthyApplications", Name: validation.InclusiveMaximum, Rule: int64(100), Chain: nil},
-											{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy.MaxPercentDeltaUnhealthyApplications", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+											{Target: "parameters.ClusterProperties.UpgradeDescription.DeltaHealthPolicy.MaxPercentDeltaUnhealthyApplications", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 										}},
 								}},
 						}},
@@ -110,7 +112,7 @@ func (client ClustersClient) Create(ctx context.Context, resourceGroupName strin
 		return result, validation.NewError("servicefabric.ClustersClient", "Create", err.Error())
 	}
 
-	req, err := client.CreatePreparer(ctx, resourceGroupName, clusterName, subscriptionID, parameters)
+	req, err := client.CreatePreparer(ctx, resourceGroupName, clusterName, APIVersion, subscriptionID, parameters)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "servicefabric.ClustersClient", "Create", nil, "Failure preparing request")
 		return
@@ -126,14 +128,13 @@ func (client ClustersClient) Create(ctx context.Context, resourceGroupName strin
 }
 
 // CreatePreparer prepares the Create request.
-func (client ClustersClient) CreatePreparer(ctx context.Context, resourceGroupName string, clusterName string, subscriptionID string, parameters Cluster) (*http.Request, error) {
+func (client ClustersClient) CreatePreparer(ctx context.Context, resourceGroupName string, clusterName string, APIVersion string, subscriptionID string, parameters Cluster) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"clusterName":       autorest.Encode("path", clusterName),
 		"resourceGroupName": autorest.Encode("path", resourceGroupName),
 		"subscriptionId":    autorest.Encode("path", subscriptionID),
 	}
 
-	const APIVersion = "2017-07-01-preview"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -178,8 +179,9 @@ func (client ClustersClient) CreateResponder(resp *http.Response) (result Cluste
 // Parameters:
 // resourceGroupName - the name of the resource group.
 // clusterName - the name of the cluster resource
+// APIVersion - the version of the API.
 // subscriptionID - the customer subscription identifier
-func (client ClustersClient) Delete(ctx context.Context, resourceGroupName string, clusterName string, subscriptionID string) (result autorest.Response, err error) {
+func (client ClustersClient) Delete(ctx context.Context, resourceGroupName string, clusterName string, APIVersion string, subscriptionID string) (result autorest.Response, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ClustersClient.Delete")
 		defer func() {
@@ -190,7 +192,7 @@ func (client ClustersClient) Delete(ctx context.Context, resourceGroupName strin
 			tracing.EndSpan(ctx, sc, err)
 		}()
 	}
-	req, err := client.DeletePreparer(ctx, resourceGroupName, clusterName, subscriptionID)
+	req, err := client.DeletePreparer(ctx, resourceGroupName, clusterName, APIVersion, subscriptionID)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "servicefabric.ClustersClient", "Delete", nil, "Failure preparing request")
 		return
@@ -212,14 +214,13 @@ func (client ClustersClient) Delete(ctx context.Context, resourceGroupName strin
 }
 
 // DeletePreparer prepares the Delete request.
-func (client ClustersClient) DeletePreparer(ctx context.Context, resourceGroupName string, clusterName string, subscriptionID string) (*http.Request, error) {
+func (client ClustersClient) DeletePreparer(ctx context.Context, resourceGroupName string, clusterName string, APIVersion string, subscriptionID string) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"clusterName":       autorest.Encode("path", clusterName),
 		"resourceGroupName": autorest.Encode("path", resourceGroupName),
 		"subscriptionId":    autorest.Encode("path", subscriptionID),
 	}
 
-	const APIVersion = "2017-07-01-preview"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -255,8 +256,9 @@ func (client ClustersClient) DeleteResponder(resp *http.Response) (result autore
 // Parameters:
 // resourceGroupName - the name of the resource group.
 // clusterName - the name of the cluster resource
+// APIVersion - the version of the API.
 // subscriptionID - the customer subscription identifier
-func (client ClustersClient) Get(ctx context.Context, resourceGroupName string, clusterName string, subscriptionID string) (result Cluster, err error) {
+func (client ClustersClient) Get(ctx context.Context, resourceGroupName string, clusterName string, APIVersion string, subscriptionID string) (result Cluster, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ClustersClient.Get")
 		defer func() {
@@ -267,7 +269,7 @@ func (client ClustersClient) Get(ctx context.Context, resourceGroupName string, 
 			tracing.EndSpan(ctx, sc, err)
 		}()
 	}
-	req, err := client.GetPreparer(ctx, resourceGroupName, clusterName, subscriptionID)
+	req, err := client.GetPreparer(ctx, resourceGroupName, clusterName, APIVersion, subscriptionID)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "servicefabric.ClustersClient", "Get", nil, "Failure preparing request")
 		return
@@ -289,14 +291,13 @@ func (client ClustersClient) Get(ctx context.Context, resourceGroupName string, 
 }
 
 // GetPreparer prepares the Get request.
-func (client ClustersClient) GetPreparer(ctx context.Context, resourceGroupName string, clusterName string, subscriptionID string) (*http.Request, error) {
+func (client ClustersClient) GetPreparer(ctx context.Context, resourceGroupName string, clusterName string, APIVersion string, subscriptionID string) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"clusterName":       autorest.Encode("path", clusterName),
 		"resourceGroupName": autorest.Encode("path", resourceGroupName),
 		"subscriptionId":    autorest.Encode("path", subscriptionID),
 	}
 
-	const APIVersion = "2017-07-01-preview"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -331,8 +332,9 @@ func (client ClustersClient) GetResponder(resp *http.Response) (result Cluster, 
 
 // List list cluster resource
 // Parameters:
+// APIVersion - the version of the API.
 // subscriptionID - the customer subscription identifier
-func (client ClustersClient) List(ctx context.Context, subscriptionID string) (result ClusterListResult, err error) {
+func (client ClustersClient) List(ctx context.Context, APIVersion string, subscriptionID string) (result ClusterListResult, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ClustersClient.List")
 		defer func() {
@@ -343,7 +345,7 @@ func (client ClustersClient) List(ctx context.Context, subscriptionID string) (r
 			tracing.EndSpan(ctx, sc, err)
 		}()
 	}
-	req, err := client.ListPreparer(ctx, subscriptionID)
+	req, err := client.ListPreparer(ctx, APIVersion, subscriptionID)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "servicefabric.ClustersClient", "List", nil, "Failure preparing request")
 		return
@@ -365,12 +367,11 @@ func (client ClustersClient) List(ctx context.Context, subscriptionID string) (r
 }
 
 // ListPreparer prepares the List request.
-func (client ClustersClient) ListPreparer(ctx context.Context, subscriptionID string) (*http.Request, error) {
+func (client ClustersClient) ListPreparer(ctx context.Context, APIVersion string, subscriptionID string) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"subscriptionId": autorest.Encode("path", subscriptionID),
 	}
 
-	const APIVersion = "2017-07-01-preview"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -406,8 +407,9 @@ func (client ClustersClient) ListResponder(resp *http.Response) (result ClusterL
 // ListByResourceGroup list cluster resource by resource group
 // Parameters:
 // resourceGroupName - the name of the resource group.
+// APIVersion - the version of the API.
 // subscriptionID - the customer subscription identifier
-func (client ClustersClient) ListByResourceGroup(ctx context.Context, resourceGroupName string, subscriptionID string) (result ClusterListResult, err error) {
+func (client ClustersClient) ListByResourceGroup(ctx context.Context, resourceGroupName string, APIVersion string, subscriptionID string) (result ClusterListResult, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ClustersClient.ListByResourceGroup")
 		defer func() {
@@ -418,7 +420,7 @@ func (client ClustersClient) ListByResourceGroup(ctx context.Context, resourceGr
 			tracing.EndSpan(ctx, sc, err)
 		}()
 	}
-	req, err := client.ListByResourceGroupPreparer(ctx, resourceGroupName, subscriptionID)
+	req, err := client.ListByResourceGroupPreparer(ctx, resourceGroupName, APIVersion, subscriptionID)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "servicefabric.ClustersClient", "ListByResourceGroup", nil, "Failure preparing request")
 		return
@@ -440,13 +442,12 @@ func (client ClustersClient) ListByResourceGroup(ctx context.Context, resourceGr
 }
 
 // ListByResourceGroupPreparer prepares the ListByResourceGroup request.
-func (client ClustersClient) ListByResourceGroupPreparer(ctx context.Context, resourceGroupName string, subscriptionID string) (*http.Request, error) {
+func (client ClustersClient) ListByResourceGroupPreparer(ctx context.Context, resourceGroupName string, APIVersion string, subscriptionID string) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"resourceGroupName": autorest.Encode("path", resourceGroupName),
 		"subscriptionId":    autorest.Encode("path", subscriptionID),
 	}
 
-	const APIVersion = "2017-07-01-preview"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -483,10 +484,11 @@ func (client ClustersClient) ListByResourceGroupResponder(resp *http.Response) (
 // Parameters:
 // resourceGroupName - the name of the resource group.
 // clusterName - the name of the cluster resource
+// APIVersion - the version of the API.
 // subscriptionID - the customer subscription identifier
 // parameters - the parameters which contains the property value and property name which used to update the
 // cluster configuration.
-func (client ClustersClient) Update(ctx context.Context, resourceGroupName string, clusterName string, subscriptionID string, parameters ClusterUpdateParameters) (result ClustersUpdateFuture, err error) {
+func (client ClustersClient) Update(ctx context.Context, resourceGroupName string, clusterName string, APIVersion string, subscriptionID string, parameters ClusterUpdateParameters) (result ClustersUpdateFuture, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ClustersClient.Update")
 		defer func() {
@@ -497,7 +499,7 @@ func (client ClustersClient) Update(ctx context.Context, resourceGroupName strin
 			tracing.EndSpan(ctx, sc, err)
 		}()
 	}
-	req, err := client.UpdatePreparer(ctx, resourceGroupName, clusterName, subscriptionID, parameters)
+	req, err := client.UpdatePreparer(ctx, resourceGroupName, clusterName, APIVersion, subscriptionID, parameters)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "servicefabric.ClustersClient", "Update", nil, "Failure preparing request")
 		return
@@ -513,14 +515,13 @@ func (client ClustersClient) Update(ctx context.Context, resourceGroupName strin
 }
 
 // UpdatePreparer prepares the Update request.
-func (client ClustersClient) UpdatePreparer(ctx context.Context, resourceGroupName string, clusterName string, subscriptionID string, parameters ClusterUpdateParameters) (*http.Request, error) {
+func (client ClustersClient) UpdatePreparer(ctx context.Context, resourceGroupName string, clusterName string, APIVersion string, subscriptionID string, parameters ClusterUpdateParameters) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"clusterName":       autorest.Encode("path", clusterName),
 		"resourceGroupName": autorest.Encode("path", resourceGroupName),
 		"subscriptionId":    autorest.Encode("path", subscriptionID),
 	}
 
-	const APIVersion = "2017-07-01-preview"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}

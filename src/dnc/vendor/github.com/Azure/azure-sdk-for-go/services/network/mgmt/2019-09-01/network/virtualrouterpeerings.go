@@ -36,7 +36,9 @@ func NewVirtualRouterPeeringsClient(subscriptionID string) VirtualRouterPeerings
 	return NewVirtualRouterPeeringsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewVirtualRouterPeeringsClientWithBaseURI creates an instance of the VirtualRouterPeeringsClient client.
+// NewVirtualRouterPeeringsClientWithBaseURI creates an instance of the VirtualRouterPeeringsClient client using a
+// custom endpoint.  Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds,
+// Azure stack).
 func NewVirtualRouterPeeringsClientWithBaseURI(baseURI string, subscriptionID string) VirtualRouterPeeringsClient {
 	return VirtualRouterPeeringsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -63,7 +65,7 @@ func (client VirtualRouterPeeringsClient) CreateOrUpdate(ctx context.Context, re
 			Constraints: []validation.Constraint{{Target: "parameters.VirtualRouterPeeringProperties", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "parameters.VirtualRouterPeeringProperties.PeerAsn", Name: validation.Null, Rule: false,
 					Chain: []validation.Constraint{{Target: "parameters.VirtualRouterPeeringProperties.PeerAsn", Name: validation.InclusiveMaximum, Rule: int64(4294967295), Chain: nil},
-						{Target: "parameters.VirtualRouterPeeringProperties.PeerAsn", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+						{Target: "parameters.VirtualRouterPeeringProperties.PeerAsn", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 					}},
 				}}}}}); err != nil {
 		return result, validation.NewError("network.VirtualRouterPeeringsClient", "CreateOrUpdate", err.Error())

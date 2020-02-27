@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 
 package deploymentmanagerapi
 
-import original "github.com/Azure/azure-sdk-for-go/services/preview/deploymentmanager/mgmt/2018-09-01-preview/deploymentmanager/deploymentmanagerapi"
+import original "github.com/Azure/azure-sdk-for-go/services/preview/deploymentmanager/mgmt/2019-11-01-preview/deploymentmanager/deploymentmanagerapi"
 
 type ArtifactSourcesClientAPI = original.ArtifactSourcesClientAPI
 type OperationsClientAPI = original.OperationsClientAPI

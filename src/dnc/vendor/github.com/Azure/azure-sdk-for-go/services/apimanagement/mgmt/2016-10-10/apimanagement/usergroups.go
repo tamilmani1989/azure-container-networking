@@ -36,7 +36,8 @@ func NewUserGroupsClient(subscriptionID string) UserGroupsClient {
 	return NewUserGroupsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewUserGroupsClientWithBaseURI creates an instance of the UserGroupsClient client.
+// NewUserGroupsClientWithBaseURI creates an instance of the UserGroupsClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewUserGroupsClientWithBaseURI(baseURI string, subscriptionID string) UserGroupsClient {
 	return UserGroupsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -75,10 +76,10 @@ func (client UserGroupsClient) ListByUsers(ctx context.Context, resourceGroupNam
 				{Target: "UID", Name: validation.Pattern, Rule: `^[^*#&+:<>?]+$`, Chain: nil}}},
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
-				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil}}}}},
+				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil}}}}},
 		{TargetValue: skip,
 			Constraints: []validation.Constraint{{Target: "skip", Name: validation.Null, Rule: false,
-				Chain: []validation.Constraint{{Target: "skip", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil}}}}}}); err != nil {
+				Chain: []validation.Constraint{{Target: "skip", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil}}}}}}); err != nil {
 		return result, validation.NewError("apimanagement.UserGroupsClient", "ListByUsers", err.Error())
 	}
 

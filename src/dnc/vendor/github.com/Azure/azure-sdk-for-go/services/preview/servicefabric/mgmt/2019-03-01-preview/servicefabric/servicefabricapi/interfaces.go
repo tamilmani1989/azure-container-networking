@@ -47,7 +47,8 @@ var _ ClusterVersionsClientAPI = (*servicefabric.ClusterVersionsClient)(nil)
 
 // OperationsClientAPI contains the set of methods on the OperationsClient type.
 type OperationsClientAPI interface {
-	List(ctx context.Context) (result servicefabric.OperationListResultPage, err error)
+	List(ctx context.Context, APIVersion string) (result servicefabric.OperationListResultPage, err error)
+	ListComplete(ctx context.Context, APIVersion string) (result servicefabric.OperationListResultIterator, err error)
 }
 
 var _ OperationsClientAPI = (*servicefabric.OperationsClient)(nil)

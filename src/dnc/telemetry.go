@@ -59,6 +59,7 @@ CONNECT:
 							sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 							sessionManager.BeginReadSession(sessionInfo)
 							nodeConfig, jsonerr := datamodel.TryQueryNodeConfigurationByKey(nodeKey)
+
 							sessionManager.EndReadSession(sessionInfo)
 							if jsonerr == nil {
 								if nodeConfig != nil {
@@ -74,6 +75,8 @@ CONNECT:
 												for subnet := range allocations[networkID] {
 													if ip, exists := reservedIPs[reservationID]; exists {
 														allocations[networkID][subnet][nodeID] = append(allocations[networkID][subnet][nodeID], ncID+":"+ip)
+														// Log to event snapshots
+														aiwrapper.LogNCSnapsnot(ncID, networkID, subnet, nodeID)
 														break
 													}
 												}

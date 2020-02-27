@@ -36,7 +36,8 @@ func NewWCFRelaysClient(subscriptionID string) WCFRelaysClient {
 	return NewWCFRelaysClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewWCFRelaysClientWithBaseURI creates an instance of the WCFRelaysClient client.
+// NewWCFRelaysClientWithBaseURI creates an instance of the WCFRelaysClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewWCFRelaysClientWithBaseURI(baseURI string, subscriptionID string) WCFRelaysClient {
 	return WCFRelaysClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -71,7 +72,7 @@ func (client WCFRelaysClient) CreateOrUpdate(ctx context.Context, resourceGroupN
 			Constraints: []validation.Constraint{{Target: "parameters.WcfRelayProperties", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "parameters.WcfRelayProperties.ListenerCount", Name: validation.Null, Rule: false,
 					Chain: []validation.Constraint{{Target: "parameters.WcfRelayProperties.ListenerCount", Name: validation.InclusiveMaximum, Rule: int64(25), Chain: nil},
-						{Target: "parameters.WcfRelayProperties.ListenerCount", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+						{Target: "parameters.WcfRelayProperties.ListenerCount", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 					}},
 				}}}}}); err != nil {
 		return result, validation.NewError("relay.WCFRelaysClient", "CreateOrUpdate", err.Error())

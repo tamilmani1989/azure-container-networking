@@ -36,7 +36,8 @@ func NewSQLResourcesClient(subscriptionID string) SQLResourcesClient {
 	return NewSQLResourcesClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewSQLResourcesClientWithBaseURI creates an instance of the SQLResourcesClient client.
+// NewSQLResourcesClientWithBaseURI creates an instance of the SQLResourcesClient client using a custom endpoint.  Use
+// this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewSQLResourcesClientWithBaseURI(baseURI string, subscriptionID string) SQLResourcesClient {
 	return SQLResourcesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -75,7 +76,7 @@ func (client SQLResourcesClient) CreateUpdateSQLContainer(ctx context.Context, r
 						{Target: "createUpdateSQLContainerParameters.SQLContainerCreateUpdateProperties.Resource.PartitionKey", Name: validation.Null, Rule: false,
 							Chain: []validation.Constraint{{Target: "createUpdateSQLContainerParameters.SQLContainerCreateUpdateProperties.Resource.PartitionKey.Version", Name: validation.Null, Rule: false,
 								Chain: []validation.Constraint{{Target: "createUpdateSQLContainerParameters.SQLContainerCreateUpdateProperties.Resource.PartitionKey.Version", Name: validation.InclusiveMaximum, Rule: int64(2), Chain: nil},
-									{Target: "createUpdateSQLContainerParameters.SQLContainerCreateUpdateProperties.Resource.PartitionKey.Version", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+									{Target: "createUpdateSQLContainerParameters.SQLContainerCreateUpdateProperties.Resource.PartitionKey.Version", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 								}},
 							}},
 					}},
@@ -1930,7 +1931,7 @@ func (client SQLResourcesClient) ListSQLStoredProceduresPreparer(ctx context.Con
 	preparer := autorest.CreatePreparer(
 		autorest.AsGet(),
 		autorest.WithBaseURL(client.BaseURI),
-		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DocumentDB/databaseAccounts/{accountName}/sqlDatabases/{databaseName}/containers/{containerName}/storedProcedures/", pathParameters),
+		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DocumentDB/databaseAccounts/{accountName}/sqlDatabases/{databaseName}/containers/{containerName}/storedProcedures", pathParameters),
 		autorest.WithQueryParameters(queryParameters))
 	return preparer.Prepare((&http.Request{}).WithContext(ctx))
 }
@@ -2023,7 +2024,7 @@ func (client SQLResourcesClient) ListSQLTriggersPreparer(ctx context.Context, re
 	preparer := autorest.CreatePreparer(
 		autorest.AsGet(),
 		autorest.WithBaseURL(client.BaseURI),
-		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DocumentDB/databaseAccounts/{accountName}/sqlDatabases/{databaseName}/containers/{containerName}/triggers/", pathParameters),
+		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DocumentDB/databaseAccounts/{accountName}/sqlDatabases/{databaseName}/containers/{containerName}/triggers", pathParameters),
 		autorest.WithQueryParameters(queryParameters))
 	return preparer.Prepare((&http.Request{}).WithContext(ctx))
 }
@@ -2116,7 +2117,7 @@ func (client SQLResourcesClient) ListSQLUserDefinedFunctionsPreparer(ctx context
 	preparer := autorest.CreatePreparer(
 		autorest.AsGet(),
 		autorest.WithBaseURL(client.BaseURI),
-		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DocumentDB/databaseAccounts/{accountName}/sqlDatabases/{databaseName}/containers/{containerName}/userDefinedFunctions/", pathParameters),
+		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DocumentDB/databaseAccounts/{accountName}/sqlDatabases/{databaseName}/containers/{containerName}/userDefinedFunctions", pathParameters),
 		autorest.WithQueryParameters(queryParameters))
 	return preparer.Prepare((&http.Request{}).WithContext(ctx))
 }

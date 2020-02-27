@@ -129,6 +129,12 @@ type CreateKbDTO struct {
 	Urls *[]string `json:"urls,omitempty"`
 	// Files - List of files from which to Extract Q-A.
 	Files *[]FileDTO `json:"files,omitempty"`
+	// EnableHierarchicalExtraction - Enable hierarchical extraction of Q-A from files and urls. Value to be considered False if this field is not present.
+	EnableHierarchicalExtraction *bool `json:"enableHierarchicalExtraction,omitempty"`
+	// DefaultAnswerUsedForExtraction - Text string to be used as the answer in any Q-A which has no extracted answer from the document but has a hierarchy. Required when EnableHierarchicalExtraction field is set to True.
+	DefaultAnswerUsedForExtraction *string `json:"defaultAnswerUsedForExtraction,omitempty"`
+	// Language - Language of the knowledgebase.
+	Language *string `json:"language,omitempty"`
 }
 
 // CreateKbInputDTO input to create KB.
@@ -160,6 +166,8 @@ type EndpointKeysDTO struct {
 	InstalledVersion *string `json:"installedVersion,omitempty"`
 	// LastStableVersion - Latest version of runtime.
 	LastStableVersion *string `json:"lastStableVersion,omitempty"`
+	// Language - Language setting of runtime.
+	Language *string `json:"language,omitempty"`
 }
 
 // EndpointSettingsDTO endpoint settings.
@@ -389,6 +397,10 @@ type UpdateKbOperationDTO struct {
 	Delete *UpdateKbOperationDTODelete `json:"delete,omitempty"`
 	// Update - An instance of UpdateKbContentsDTO for Update Operation
 	Update *UpdateKbOperationDTOUpdate `json:"update,omitempty"`
+	// EnableHierarchicalExtraction - Enable hierarchical extraction of Q-A from files and urls. The value set during KB creation will be used if this field is not present.
+	EnableHierarchicalExtraction *bool `json:"enableHierarchicalExtraction,omitempty"`
+	// DefaultAnswerUsedForExtraction - Text string to be used as the answer in any Q-A which has no extracted answer from the document but has a hierarchy. Required when EnableHierarchicalExtraction field is set to True.
+	DefaultAnswerUsedForExtraction *string `json:"defaultAnswerUsedForExtraction,omitempty"`
 }
 
 // UpdateKbOperationDTOAdd an instance of CreateKbInputDTO for add operation

@@ -37,7 +37,8 @@ func NewVirtualMachineImageTemplatesClient(subscriptionID string) VirtualMachine
 }
 
 // NewVirtualMachineImageTemplatesClientWithBaseURI creates an instance of the VirtualMachineImageTemplatesClient
-// client.
+// client using a custom endpoint.  Use this when interacting with an Azure cloud that uses a non-standard base URI
+// (sovereign clouds, Azure stack).
 func NewVirtualMachineImageTemplatesClientWithBaseURI(baseURI string, subscriptionID string) VirtualMachineImageTemplatesClient {
 	return VirtualMachineImageTemplatesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -65,7 +66,7 @@ func (client VirtualMachineImageTemplatesClient) CreateOrUpdate(ctx context.Cont
 					{Target: "parameters.ImageTemplateProperties.Distribute", Name: validation.Null, Rule: true, Chain: nil},
 					{Target: "parameters.ImageTemplateProperties.BuildTimeoutInMinutes", Name: validation.Null, Rule: false,
 						Chain: []validation.Constraint{{Target: "parameters.ImageTemplateProperties.BuildTimeoutInMinutes", Name: validation.InclusiveMaximum, Rule: int64(960), Chain: nil},
-							{Target: "parameters.ImageTemplateProperties.BuildTimeoutInMinutes", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+							{Target: "parameters.ImageTemplateProperties.BuildTimeoutInMinutes", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 						}},
 				}}}},
 		{TargetValue: imageTemplateName,

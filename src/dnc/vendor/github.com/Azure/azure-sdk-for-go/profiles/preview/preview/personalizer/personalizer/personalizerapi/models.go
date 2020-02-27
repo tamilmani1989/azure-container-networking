@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,4 +22,9 @@ package personalizerapi
 import original "github.com/Azure/azure-sdk-for-go/services/preview/personalizer/v1.0/personalizer/personalizerapi"
 
 type BaseClientAPI = original.BaseClientAPI
+type EvaluationsClientAPI = original.EvaluationsClientAPI
 type EventsClientAPI = original.EventsClientAPI
+type LogClientAPI = original.LogClientAPI
+type ModelClientAPI = original.ModelClientAPI
+type PolicyClientAPI = original.PolicyClientAPI
+type ServiceConfigurationClientAPI = original.ServiceConfigurationClientAPI

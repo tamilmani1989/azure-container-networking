@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,6 +62,7 @@ const (
 type ContentKeyPolicyFairPlayRentalAndLeaseKeyType = original.ContentKeyPolicyFairPlayRentalAndLeaseKeyType
 
 const (
+	DualExpiry          ContentKeyPolicyFairPlayRentalAndLeaseKeyType = original.DualExpiry
 	PersistentLimited   ContentKeyPolicyFairPlayRentalAndLeaseKeyType = original.PersistentLimited
 	PersistentUnlimited ContentKeyPolicyFairPlayRentalAndLeaseKeyType = original.PersistentUnlimited
 	Undefined           ContentKeyPolicyFairPlayRentalAndLeaseKeyType = original.Undefined
@@ -122,6 +123,7 @@ type EncoderNamedPreset = original.EncoderNamedPreset
 const (
 	AACGoodQualityAudio              EncoderNamedPreset = original.AACGoodQualityAudio
 	AdaptiveStreaming                EncoderNamedPreset = original.AdaptiveStreaming
+	ContentAwareEncoding             EncoderNamedPreset = original.ContentAwareEncoding
 	ContentAwareEncodingExperimental EncoderNamedPreset = original.ContentAwareEncodingExperimental
 	H264MultipleBitrate1080p         EncoderNamedPreset = original.H264MultipleBitrate1080p
 	H264MultipleBitrate720p          EncoderNamedPreset = original.H264MultipleBitrate720p
@@ -556,6 +558,7 @@ type ContentKeyPolicyCollectionIterator = original.ContentKeyPolicyCollectionIte
 type ContentKeyPolicyCollectionPage = original.ContentKeyPolicyCollectionPage
 type ContentKeyPolicyConfiguration = original.ContentKeyPolicyConfiguration
 type ContentKeyPolicyFairPlayConfiguration = original.ContentKeyPolicyFairPlayConfiguration
+type ContentKeyPolicyFairPlayOfflineRentalConfiguration = original.ContentKeyPolicyFairPlayOfflineRentalConfiguration
 type ContentKeyPolicyOpenRestriction = original.ContentKeyPolicyOpenRestriction
 type ContentKeyPolicyOption = original.ContentKeyPolicyOption
 type ContentKeyPolicyPlayReadyConfiguration = original.ContentKeyPolicyPlayReadyConfiguration

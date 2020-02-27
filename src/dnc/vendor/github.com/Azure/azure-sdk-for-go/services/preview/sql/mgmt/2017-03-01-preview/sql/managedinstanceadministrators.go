@@ -39,7 +39,8 @@ func NewManagedInstanceAdministratorsClient(subscriptionID string) ManagedInstan
 }
 
 // NewManagedInstanceAdministratorsClientWithBaseURI creates an instance of the ManagedInstanceAdministratorsClient
-// client.
+// client using a custom endpoint.  Use this when interacting with an Azure cloud that uses a non-standard base URI
+// (sovereign clouds, Azure stack).
 func NewManagedInstanceAdministratorsClientWithBaseURI(baseURI string, subscriptionID string) ManagedInstanceAdministratorsClient {
 	return ManagedInstanceAdministratorsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -49,9 +50,8 @@ func NewManagedInstanceAdministratorsClientWithBaseURI(baseURI string, subscript
 // resourceGroupName - the name of the resource group that contains the resource. You can obtain this value
 // from the Azure Resource Manager API or the portal.
 // managedInstanceName - the name of the managed instance.
-// administratorName - the requested administrator name.
 // parameters - the requested administrator parameters.
-func (client ManagedInstanceAdministratorsClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, managedInstanceName string, administratorName string, parameters ManagedInstanceAdministrator) (result ManagedInstanceAdministratorsCreateOrUpdateFuture, err error) {
+func (client ManagedInstanceAdministratorsClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, managedInstanceName string, parameters ManagedInstanceAdministrator) (result ManagedInstanceAdministratorsCreateOrUpdateFuture, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ManagedInstanceAdministratorsClient.CreateOrUpdate")
 		defer func() {
@@ -72,7 +72,7 @@ func (client ManagedInstanceAdministratorsClient) CreateOrUpdate(ctx context.Con
 		return result, validation.NewError("sql.ManagedInstanceAdministratorsClient", "CreateOrUpdate", err.Error())
 	}
 
-	req, err := client.CreateOrUpdatePreparer(ctx, resourceGroupName, managedInstanceName, administratorName, parameters)
+	req, err := client.CreateOrUpdatePreparer(ctx, resourceGroupName, managedInstanceName, parameters)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "sql.ManagedInstanceAdministratorsClient", "CreateOrUpdate", nil, "Failure preparing request")
 		return
@@ -88,9 +88,9 @@ func (client ManagedInstanceAdministratorsClient) CreateOrUpdate(ctx context.Con
 }
 
 // CreateOrUpdatePreparer prepares the CreateOrUpdate request.
-func (client ManagedInstanceAdministratorsClient) CreateOrUpdatePreparer(ctx context.Context, resourceGroupName string, managedInstanceName string, administratorName string, parameters ManagedInstanceAdministrator) (*http.Request, error) {
+func (client ManagedInstanceAdministratorsClient) CreateOrUpdatePreparer(ctx context.Context, resourceGroupName string, managedInstanceName string, parameters ManagedInstanceAdministrator) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
-		"administratorName":   autorest.Encode("path", administratorName),
+		"administratorName":   autorest.Encode("path", "ActiveDirectory"),
 		"managedInstanceName": autorest.Encode("path", managedInstanceName),
 		"resourceGroupName":   autorest.Encode("path", resourceGroupName),
 		"subscriptionId":      autorest.Encode("path", client.SubscriptionID),
@@ -142,8 +142,7 @@ func (client ManagedInstanceAdministratorsClient) CreateOrUpdateResponder(resp *
 // resourceGroupName - the name of the resource group that contains the resource. You can obtain this value
 // from the Azure Resource Manager API or the portal.
 // managedInstanceName - the name of the managed instance.
-// administratorName - the administrator name.
-func (client ManagedInstanceAdministratorsClient) Delete(ctx context.Context, resourceGroupName string, managedInstanceName string, administratorName string) (result ManagedInstanceAdministratorsDeleteFuture, err error) {
+func (client ManagedInstanceAdministratorsClient) Delete(ctx context.Context, resourceGroupName string, managedInstanceName string) (result ManagedInstanceAdministratorsDeleteFuture, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ManagedInstanceAdministratorsClient.Delete")
 		defer func() {
@@ -154,7 +153,7 @@ func (client ManagedInstanceAdministratorsClient) Delete(ctx context.Context, re
 			tracing.EndSpan(ctx, sc, err)
 		}()
 	}
-	req, err := client.DeletePreparer(ctx, resourceGroupName, managedInstanceName, administratorName)
+	req, err := client.DeletePreparer(ctx, resourceGroupName, managedInstanceName)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "sql.ManagedInstanceAdministratorsClient", "Delete", nil, "Failure preparing request")
 		return
@@ -170,9 +169,9 @@ func (client ManagedInstanceAdministratorsClient) Delete(ctx context.Context, re
 }
 
 // DeletePreparer prepares the Delete request.
-func (client ManagedInstanceAdministratorsClient) DeletePreparer(ctx context.Context, resourceGroupName string, managedInstanceName string, administratorName string) (*http.Request, error) {
+func (client ManagedInstanceAdministratorsClient) DeletePreparer(ctx context.Context, resourceGroupName string, managedInstanceName string) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
-		"administratorName":   autorest.Encode("path", administratorName),
+		"administratorName":   autorest.Encode("path", "ActiveDirectory"),
 		"managedInstanceName": autorest.Encode("path", managedInstanceName),
 		"resourceGroupName":   autorest.Encode("path", resourceGroupName),
 		"subscriptionId":      autorest.Encode("path", client.SubscriptionID),
@@ -221,8 +220,7 @@ func (client ManagedInstanceAdministratorsClient) DeleteResponder(resp *http.Res
 // resourceGroupName - the name of the resource group that contains the resource. You can obtain this value
 // from the Azure Resource Manager API or the portal.
 // managedInstanceName - the name of the managed instance.
-// administratorName - the administrator name.
-func (client ManagedInstanceAdministratorsClient) Get(ctx context.Context, resourceGroupName string, managedInstanceName string, administratorName string) (result ManagedInstanceAdministrator, err error) {
+func (client ManagedInstanceAdministratorsClient) Get(ctx context.Context, resourceGroupName string, managedInstanceName string) (result ManagedInstanceAdministrator, err error) {
 	if tracing.IsEnabled() {
 		ctx = tracing.StartSpan(ctx, fqdn+"/ManagedInstanceAdministratorsClient.Get")
 		defer func() {
@@ -233,7 +231,7 @@ func (client ManagedInstanceAdministratorsClient) Get(ctx context.Context, resou
 			tracing.EndSpan(ctx, sc, err)
 		}()
 	}
-	req, err := client.GetPreparer(ctx, resourceGroupName, managedInstanceName, administratorName)
+	req, err := client.GetPreparer(ctx, resourceGroupName, managedInstanceName)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "sql.ManagedInstanceAdministratorsClient", "Get", nil, "Failure preparing request")
 		return
@@ -255,9 +253,9 @@ func (client ManagedInstanceAdministratorsClient) Get(ctx context.Context, resou
 }
 
 // GetPreparer prepares the Get request.
-func (client ManagedInstanceAdministratorsClient) GetPreparer(ctx context.Context, resourceGroupName string, managedInstanceName string, administratorName string) (*http.Request, error) {
+func (client ManagedInstanceAdministratorsClient) GetPreparer(ctx context.Context, resourceGroupName string, managedInstanceName string) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
-		"administratorName":   autorest.Encode("path", administratorName),
+		"administratorName":   autorest.Encode("path", "ActiveDirectory"),
 		"managedInstanceName": autorest.Encode("path", managedInstanceName),
 		"resourceGroupName":   autorest.Encode("path", resourceGroupName),
 		"subscriptionId":      autorest.Encode("path", client.SubscriptionID),

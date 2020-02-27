@@ -38,7 +38,8 @@ func NewComputeNodeClient() ComputeNodeClient {
 	return NewComputeNodeClientWithBaseURI(DefaultBaseURI)
 }
 
-// NewComputeNodeClientWithBaseURI creates an instance of the ComputeNodeClient client.
+// NewComputeNodeClientWithBaseURI creates an instance of the ComputeNodeClient client using a custom endpoint.  Use
+// this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewComputeNodeClientWithBaseURI(baseURI string) ComputeNodeClient {
 	return ComputeNodeClient{NewWithBaseURI(baseURI)}
 }
@@ -813,7 +814,7 @@ func (client ComputeNodeClient) List(ctx context.Context, poolID string, filter 
 		{TargetValue: maxResults,
 			Constraints: []validation.Constraint{{Target: "maxResults", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "maxResults", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "maxResults", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "maxResults", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("batch.ComputeNodeClient", "List", err.Error())
 	}

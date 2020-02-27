@@ -37,7 +37,8 @@ func NewPriceSheetClient(subscriptionID string) PriceSheetClient {
 	return NewPriceSheetClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewPriceSheetClientWithBaseURI creates an instance of the PriceSheetClient client.
+// NewPriceSheetClientWithBaseURI creates an instance of the PriceSheetClient client using a custom endpoint.  Use this
+// when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewPriceSheetClientWithBaseURI(baseURI string, subscriptionID string) PriceSheetClient {
 	return PriceSheetClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -66,7 +67,7 @@ func (client PriceSheetClient) Get(ctx context.Context, expand string, skiptoken
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("consumption.PriceSheetClient", "Get", err.Error())
 	}
@@ -165,7 +166,7 @@ func (client PriceSheetClient) GetByBillingPeriod(ctx context.Context, billingPe
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("consumption.PriceSheetClient", "GetByBillingPeriod", err.Error())
 	}

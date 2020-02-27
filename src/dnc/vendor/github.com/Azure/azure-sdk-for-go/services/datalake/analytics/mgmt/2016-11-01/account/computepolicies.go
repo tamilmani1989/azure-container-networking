@@ -36,7 +36,8 @@ func NewComputePoliciesClient(subscriptionID string) ComputePoliciesClient {
 	return NewComputePoliciesClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewComputePoliciesClientWithBaseURI creates an instance of the ComputePoliciesClient client.
+// NewComputePoliciesClientWithBaseURI creates an instance of the ComputePoliciesClient client using a custom endpoint.
+// Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewComputePoliciesClientWithBaseURI(baseURI string, subscriptionID string) ComputePoliciesClient {
 	return ComputePoliciesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -65,9 +66,9 @@ func (client ComputePoliciesClient) CreateOrUpdate(ctx context.Context, resource
 			Constraints: []validation.Constraint{{Target: "parameters.CreateOrUpdateComputePolicyProperties", Name: validation.Null, Rule: true,
 				Chain: []validation.Constraint{{Target: "parameters.CreateOrUpdateComputePolicyProperties.ObjectID", Name: validation.Null, Rule: true, Chain: nil},
 					{Target: "parameters.CreateOrUpdateComputePolicyProperties.MaxDegreeOfParallelismPerJob", Name: validation.Null, Rule: false,
-						Chain: []validation.Constraint{{Target: "parameters.CreateOrUpdateComputePolicyProperties.MaxDegreeOfParallelismPerJob", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil}}},
+						Chain: []validation.Constraint{{Target: "parameters.CreateOrUpdateComputePolicyProperties.MaxDegreeOfParallelismPerJob", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil}}},
 					{Target: "parameters.CreateOrUpdateComputePolicyProperties.MinPriorityPerJob", Name: validation.Null, Rule: false,
-						Chain: []validation.Constraint{{Target: "parameters.CreateOrUpdateComputePolicyProperties.MinPriorityPerJob", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil}}},
+						Chain: []validation.Constraint{{Target: "parameters.CreateOrUpdateComputePolicyProperties.MinPriorityPerJob", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil}}},
 				}}}}}); err != nil {
 		return result, validation.NewError("account.ComputePoliciesClient", "CreateOrUpdate", err.Error())
 	}

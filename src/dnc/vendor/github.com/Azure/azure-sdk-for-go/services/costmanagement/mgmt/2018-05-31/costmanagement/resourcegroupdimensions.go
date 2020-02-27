@@ -36,7 +36,9 @@ func NewResourceGroupDimensionsClient(subscriptionID string) ResourceGroupDimens
 	return NewResourceGroupDimensionsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewResourceGroupDimensionsClientWithBaseURI creates an instance of the ResourceGroupDimensionsClient client.
+// NewResourceGroupDimensionsClientWithBaseURI creates an instance of the ResourceGroupDimensionsClient client using a
+// custom endpoint.  Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds,
+// Azure stack).
 func NewResourceGroupDimensionsClientWithBaseURI(baseURI string, subscriptionID string) ResourceGroupDimensionsClient {
 	return ResourceGroupDimensionsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -67,7 +69,7 @@ func (client ResourceGroupDimensionsClient) List(ctx context.Context, resourceGr
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("costmanagement.ResourceGroupDimensionsClient", "List", err.Error())
 	}

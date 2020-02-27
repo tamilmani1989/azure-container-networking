@@ -36,7 +36,8 @@ func NewBlobServicesClient(subscriptionID string) BlobServicesClient {
 	return NewBlobServicesClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewBlobServicesClientWithBaseURI creates an instance of the BlobServicesClient client.
+// NewBlobServicesClientWithBaseURI creates an instance of the BlobServicesClient client using a custom endpoint.  Use
+// this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewBlobServicesClientWithBaseURI(baseURI string, subscriptionID string) BlobServicesClient {
 	return BlobServicesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -262,14 +263,15 @@ func (client BlobServicesClient) SetServiceProperties(ctx context.Context, resou
 				Chain: []validation.Constraint{{Target: "parameters.BlobServicePropertiesProperties.DeleteRetentionPolicy", Name: validation.Null, Rule: false,
 					Chain: []validation.Constraint{{Target: "parameters.BlobServicePropertiesProperties.DeleteRetentionPolicy.Days", Name: validation.Null, Rule: false,
 						Chain: []validation.Constraint{{Target: "parameters.BlobServicePropertiesProperties.DeleteRetentionPolicy.Days", Name: validation.InclusiveMaximum, Rule: int64(365), Chain: nil},
-							{Target: "parameters.BlobServicePropertiesProperties.DeleteRetentionPolicy.Days", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+							{Target: "parameters.BlobServicePropertiesProperties.DeleteRetentionPolicy.Days", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 						}},
 					}},
-					{Target: "parameters.BlobServicePropertiesProperties.ContainerDeleteRetentionPolicy", Name: validation.Null, Rule: false,
-						Chain: []validation.Constraint{{Target: "parameters.BlobServicePropertiesProperties.ContainerDeleteRetentionPolicy.Days", Name: validation.Null, Rule: false,
-							Chain: []validation.Constraint{{Target: "parameters.BlobServicePropertiesProperties.ContainerDeleteRetentionPolicy.Days", Name: validation.InclusiveMaximum, Rule: int64(365), Chain: nil},
-								{Target: "parameters.BlobServicePropertiesProperties.ContainerDeleteRetentionPolicy.Days", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
-							}},
+					{Target: "parameters.BlobServicePropertiesProperties.RestorePolicy", Name: validation.Null, Rule: false,
+						Chain: []validation.Constraint{{Target: "parameters.BlobServicePropertiesProperties.RestorePolicy.Enabled", Name: validation.Null, Rule: true, Chain: nil},
+							{Target: "parameters.BlobServicePropertiesProperties.RestorePolicy.Days", Name: validation.Null, Rule: false,
+								Chain: []validation.Constraint{{Target: "parameters.BlobServicePropertiesProperties.RestorePolicy.Days", Name: validation.InclusiveMaximum, Rule: int64(365), Chain: nil},
+									{Target: "parameters.BlobServicePropertiesProperties.RestorePolicy.Days", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
+								}},
 						}},
 				}}}}}); err != nil {
 		return result, validation.NewError("storage.BlobServicesClient", "SetServiceProperties", err.Error())
@@ -310,6 +312,7 @@ func (client BlobServicesClient) SetServicePropertiesPreparer(ctx context.Contex
 		"api-version": APIVersion,
 	}
 
+	parameters.Sku = nil
 	preparer := autorest.CreatePreparer(
 		autorest.AsContentType("application/json; charset=utf-8"),
 		autorest.AsPut(),

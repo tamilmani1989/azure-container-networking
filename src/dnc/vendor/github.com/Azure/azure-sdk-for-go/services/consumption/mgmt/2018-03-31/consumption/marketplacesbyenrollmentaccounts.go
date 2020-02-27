@@ -38,7 +38,8 @@ func NewMarketplacesByEnrollmentAccountsClient(subscriptionID string) Marketplac
 }
 
 // NewMarketplacesByEnrollmentAccountsClientWithBaseURI creates an instance of the
-// MarketplacesByEnrollmentAccountsClient client.
+// MarketplacesByEnrollmentAccountsClient client using a custom endpoint.  Use this when interacting with an Azure
+// cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewMarketplacesByEnrollmentAccountsClientWithBaseURI(baseURI string, subscriptionID string) MarketplacesByEnrollmentAccountsClient {
 	return MarketplacesByEnrollmentAccountsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -69,7 +70,7 @@ func (client MarketplacesByEnrollmentAccountsClient) List(ctx context.Context, e
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("consumption.MarketplacesByEnrollmentAccountsClient", "List", err.Error())
 	}
@@ -208,7 +209,7 @@ func (client MarketplacesByEnrollmentAccountsClient) ListByBillingPeriod(ctx con
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("consumption.MarketplacesByEnrollmentAccountsClient", "ListByBillingPeriod", err.Error())
 	}

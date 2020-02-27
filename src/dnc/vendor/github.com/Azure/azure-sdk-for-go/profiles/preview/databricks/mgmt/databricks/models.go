@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,14 @@ import (
 
 const (
 	DefaultBaseURI = original.DefaultBaseURI
+)
+
+type CustomParameterType = original.CustomParameterType
+
+const (
+	Bool   CustomParameterType = original.Bool
+	Object CustomParameterType = original.Object
+	String CustomParameterType = original.String
 )
 
 type ProvisioningState = original.ProvisioningState
@@ -59,6 +67,10 @@ type Resource = original.Resource
 type Sku = original.Sku
 type TrackedResource = original.TrackedResource
 type Workspace = original.Workspace
+type WorkspaceCustomBooleanParameter = original.WorkspaceCustomBooleanParameter
+type WorkspaceCustomObjectParameter = original.WorkspaceCustomObjectParameter
+type WorkspaceCustomParameters = original.WorkspaceCustomParameters
+type WorkspaceCustomStringParameter = original.WorkspaceCustomStringParameter
 type WorkspaceListResult = original.WorkspaceListResult
 type WorkspaceListResultIterator = original.WorkspaceListResultIterator
 type WorkspaceListResultPage = original.WorkspaceListResultPage
@@ -99,6 +111,9 @@ func NewWorkspacesClient(subscriptionID string) WorkspacesClient {
 }
 func NewWorkspacesClientWithBaseURI(baseURI string, subscriptionID string) WorkspacesClient {
 	return original.NewWorkspacesClientWithBaseURI(baseURI, subscriptionID)
+}
+func PossibleCustomParameterTypeValues() []CustomParameterType {
+	return original.PossibleCustomParameterTypeValues()
 }
 func PossibleProvisioningStateValues() []ProvisioningState {
 	return original.PossibleProvisioningStateValues()

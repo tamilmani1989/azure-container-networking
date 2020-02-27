@@ -38,7 +38,8 @@ func NewUsageDetailsByEnrollmentAccountClient(subscriptionID string) UsageDetail
 }
 
 // NewUsageDetailsByEnrollmentAccountClientWithBaseURI creates an instance of the UsageDetailsByEnrollmentAccountClient
-// client.
+// client using a custom endpoint.  Use this when interacting with an Azure cloud that uses a non-standard base URI
+// (sovereign clouds, Azure stack).
 func NewUsageDetailsByEnrollmentAccountClientWithBaseURI(baseURI string, subscriptionID string) UsageDetailsByEnrollmentAccountClient {
 	return UsageDetailsByEnrollmentAccountClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -73,7 +74,7 @@ func (client UsageDetailsByEnrollmentAccountClient) List(ctx context.Context, en
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("consumption.UsageDetailsByEnrollmentAccountClient", "List", err.Error())
 	}
@@ -223,7 +224,7 @@ func (client UsageDetailsByEnrollmentAccountClient) ListByBillingPeriod(ctx cont
 		{TargetValue: top,
 			Constraints: []validation.Constraint{{Target: "top", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "top", Name: validation.InclusiveMaximum, Rule: int64(1000), Chain: nil},
-					{Target: "top", Name: validation.InclusiveMinimum, Rule: 1, Chain: nil},
+					{Target: "top", Name: validation.InclusiveMinimum, Rule: int64(1), Chain: nil},
 				}}}}}); err != nil {
 		return result, validation.NewError("consumption.UsageDetailsByEnrollmentAccountClient", "ListByBillingPeriod", err.Error())
 	}

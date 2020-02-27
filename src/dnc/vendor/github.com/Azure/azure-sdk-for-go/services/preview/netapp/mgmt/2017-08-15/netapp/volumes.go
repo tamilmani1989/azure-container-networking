@@ -36,7 +36,8 @@ func NewVolumesClient(subscriptionID string) VolumesClient {
 	return NewVolumesClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewVolumesClientWithBaseURI creates an instance of the VolumesClient client.
+// NewVolumesClientWithBaseURI creates an instance of the VolumesClient client using a custom endpoint.  Use this when
+// interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewVolumesClientWithBaseURI(baseURI string, subscriptionID string) VolumesClient {
 	return VolumesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -71,7 +72,7 @@ func (client VolumesClient) CreateOrUpdate(ctx context.Context, body Volume, res
 						{Target: "body.VolumeProperties.CreationToken", Name: validation.Null, Rule: true, Chain: nil},
 						{Target: "body.VolumeProperties.UsageThreshold", Name: validation.Null, Rule: false,
 							Chain: []validation.Constraint{{Target: "body.VolumeProperties.UsageThreshold", Name: validation.InclusiveMaximum, Rule: int64(109951162777600), Chain: nil},
-								{Target: "body.VolumeProperties.UsageThreshold", Name: validation.InclusiveMinimum, Rule: 107374182400, Chain: nil},
+								{Target: "body.VolumeProperties.UsageThreshold", Name: validation.InclusiveMinimum, Rule: int64(107374182400), Chain: nil},
 							}},
 					}}}},
 		{TargetValue: resourceGroupName,

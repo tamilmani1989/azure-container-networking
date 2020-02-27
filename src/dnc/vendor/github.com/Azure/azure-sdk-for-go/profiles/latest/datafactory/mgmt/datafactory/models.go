@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -532,6 +532,14 @@ const (
 	SapHanaAuthenticationTypeWindows SapHanaAuthenticationType = original.SapHanaAuthenticationTypeWindows
 )
 
+type SapHanaPartitionOption = original.SapHanaPartitionOption
+
+const (
+	SapHanaPartitionOptionNone                      SapHanaPartitionOption = original.SapHanaPartitionOptionNone
+	SapHanaPartitionOptionPhysicalPartitionsOfTable SapHanaPartitionOption = original.SapHanaPartitionOptionPhysicalPartitionsOfTable
+	SapHanaPartitionOptionSapHanaDynamicRange       SapHanaPartitionOption = original.SapHanaPartitionOptionSapHanaDynamicRange
+)
+
 type SapTablePartitionOption = original.SapTablePartitionOption
 
 const (
@@ -970,6 +978,23 @@ const (
 	TypeZipDeflate         TypeBasicDatasetCompression = original.TypeZipDeflate
 )
 
+type TypeBasicDatasetLocation = original.TypeBasicDatasetLocation
+
+const (
+	TypeAmazonS3Location           TypeBasicDatasetLocation = original.TypeAmazonS3Location
+	TypeAzureBlobFSLocation        TypeBasicDatasetLocation = original.TypeAzureBlobFSLocation
+	TypeAzureBlobStorageLocation   TypeBasicDatasetLocation = original.TypeAzureBlobStorageLocation
+	TypeAzureDataLakeStoreLocation TypeBasicDatasetLocation = original.TypeAzureDataLakeStoreLocation
+	TypeAzureFileStorageLocation   TypeBasicDatasetLocation = original.TypeAzureFileStorageLocation
+	TypeDatasetLocation            TypeBasicDatasetLocation = original.TypeDatasetLocation
+	TypeFileServerLocation         TypeBasicDatasetLocation = original.TypeFileServerLocation
+	TypeFtpServerLocation          TypeBasicDatasetLocation = original.TypeFtpServerLocation
+	TypeGoogleCloudStorageLocation TypeBasicDatasetLocation = original.TypeGoogleCloudStorageLocation
+	TypeHdfsLocation               TypeBasicDatasetLocation = original.TypeHdfsLocation
+	TypeHTTPServerLocation         TypeBasicDatasetLocation = original.TypeHTTPServerLocation
+	TypeSftpLocation               TypeBasicDatasetLocation = original.TypeSftpLocation
+)
+
 type TypeBasicDatasetStorageFormat = original.TypeBasicDatasetStorageFormat
 
 const (
@@ -996,6 +1021,22 @@ const (
 	TypeFactoryGitHubConfiguration TypeBasicFactoryRepoConfiguration = original.TypeFactoryGitHubConfiguration
 	TypeFactoryRepoConfiguration   TypeBasicFactoryRepoConfiguration = original.TypeFactoryRepoConfiguration
 	TypeFactoryVSTSConfiguration   TypeBasicFactoryRepoConfiguration = original.TypeFactoryVSTSConfiguration
+)
+
+type TypeBasicFormatReadSettings = original.TypeBasicFormatReadSettings
+
+const (
+	TypeDelimitedTextReadSettings TypeBasicFormatReadSettings = original.TypeDelimitedTextReadSettings
+	TypeFormatReadSettings        TypeBasicFormatReadSettings = original.TypeFormatReadSettings
+)
+
+type TypeBasicFormatWriteSettings = original.TypeBasicFormatWriteSettings
+
+const (
+	TypeAvroWriteSettings          TypeBasicFormatWriteSettings = original.TypeAvroWriteSettings
+	TypeDelimitedTextWriteSettings TypeBasicFormatWriteSettings = original.TypeDelimitedTextWriteSettings
+	TypeFormatWriteSettings        TypeBasicFormatWriteSettings = original.TypeFormatWriteSettings
+	TypeJSONWriteSettings          TypeBasicFormatWriteSettings = original.TypeJSONWriteSettings
 )
 
 type TypeBasicIntegrationRuntime = original.TypeBasicIntegrationRuntime
@@ -1124,6 +1165,23 @@ const (
 	TypeSsisObjectMetadata TypeBasicSsisObjectMetadata = original.TypeSsisObjectMetadata
 )
 
+type TypeBasicStoreReadSettings = original.TypeBasicStoreReadSettings
+
+const (
+	TypeAmazonS3ReadSettings           TypeBasicStoreReadSettings = original.TypeAmazonS3ReadSettings
+	TypeAzureBlobFSReadSettings        TypeBasicStoreReadSettings = original.TypeAzureBlobFSReadSettings
+	TypeAzureBlobStorageReadSettings   TypeBasicStoreReadSettings = original.TypeAzureBlobStorageReadSettings
+	TypeAzureDataLakeStoreReadSettings TypeBasicStoreReadSettings = original.TypeAzureDataLakeStoreReadSettings
+	TypeAzureFileStorageReadSettings   TypeBasicStoreReadSettings = original.TypeAzureFileStorageReadSettings
+	TypeFileServerReadSettings         TypeBasicStoreReadSettings = original.TypeFileServerReadSettings
+	TypeFtpReadSettings                TypeBasicStoreReadSettings = original.TypeFtpReadSettings
+	TypeGoogleCloudStorageReadSettings TypeBasicStoreReadSettings = original.TypeGoogleCloudStorageReadSettings
+	TypeHdfsReadSettings               TypeBasicStoreReadSettings = original.TypeHdfsReadSettings
+	TypeHTTPReadSettings               TypeBasicStoreReadSettings = original.TypeHTTPReadSettings
+	TypeSftpReadSettings               TypeBasicStoreReadSettings = original.TypeSftpReadSettings
+	TypeStoreReadSettings              TypeBasicStoreReadSettings = original.TypeStoreReadSettings
+)
+
 type TypeBasicStoreWriteSettings = original.TypeBasicStoreWriteSettings
 
 const (
@@ -1131,6 +1189,7 @@ const (
 	TypeAzureBlobStorageWriteSettings   TypeBasicStoreWriteSettings = original.TypeAzureBlobStorageWriteSettings
 	TypeAzureDataLakeStoreWriteSettings TypeBasicStoreWriteSettings = original.TypeAzureDataLakeStoreWriteSettings
 	TypeFileServerWriteSettings         TypeBasicStoreWriteSettings = original.TypeFileServerWriteSettings
+	TypeSftpWriteSettings               TypeBasicStoreWriteSettings = original.TypeSftpWriteSettings
 	TypeStoreWriteSettings              TypeBasicStoreWriteSettings = original.TypeStoreWriteSettings
 )
 
@@ -1314,10 +1373,13 @@ type BasicCustomSetupBase = original.BasicCustomSetupBase
 type BasicDataFlow = original.BasicDataFlow
 type BasicDataset = original.BasicDataset
 type BasicDatasetCompression = original.BasicDatasetCompression
+type BasicDatasetLocation = original.BasicDatasetLocation
 type BasicDatasetStorageFormat = original.BasicDatasetStorageFormat
 type BasicDependencyReference = original.BasicDependencyReference
 type BasicExecutionActivity = original.BasicExecutionActivity
 type BasicFactoryRepoConfiguration = original.BasicFactoryRepoConfiguration
+type BasicFormatReadSettings = original.BasicFormatReadSettings
+type BasicFormatWriteSettings = original.BasicFormatWriteSettings
 type BasicIntegrationRuntime = original.BasicIntegrationRuntime
 type BasicIntegrationRuntimeStatus = original.BasicIntegrationRuntimeStatus
 type BasicLinkedIntegrationRuntimeType = original.BasicLinkedIntegrationRuntimeType
@@ -1325,6 +1387,7 @@ type BasicLinkedService = original.BasicLinkedService
 type BasicMultiplePipelineTrigger = original.BasicMultiplePipelineTrigger
 type BasicSecretBase = original.BasicSecretBase
 type BasicSsisObjectMetadata = original.BasicSsisObjectMetadata
+type BasicStoreReadSettings = original.BasicStoreReadSettings
 type BasicStoreWriteSettings = original.BasicStoreWriteSettings
 type BasicTabularSource = original.BasicTabularSource
 type BasicTrigger = original.BasicTrigger
@@ -1393,6 +1456,8 @@ type CustomActivityTypeProperties = original.CustomActivityTypeProperties
 type CustomDataSourceLinkedService = original.CustomDataSourceLinkedService
 type CustomDataset = original.CustomDataset
 type CustomSetupBase = original.CustomSetupBase
+type DWCopyCommandDefaultValue = original.DWCopyCommandDefaultValue
+type DWCopyCommandSettings = original.DWCopyCommandSettings
 type DataFlow = original.DataFlow
 type DataFlowDebugCommandPayload = original.DataFlowDebugCommandPayload
 type DataFlowDebugCommandRequest = original.DataFlowDebugCommandRequest
@@ -1490,6 +1555,7 @@ type EnvironmentVariableSetup = original.EnvironmentVariableSetup
 type EnvironmentVariableSetupTypeProperties = original.EnvironmentVariableSetupTypeProperties
 type ExecuteDataFlowActivity = original.ExecuteDataFlowActivity
 type ExecuteDataFlowActivityTypeProperties = original.ExecuteDataFlowActivityTypeProperties
+type ExecuteDataFlowActivityTypePropertiesCompute = original.ExecuteDataFlowActivityTypePropertiesCompute
 type ExecutePipelineActivity = original.ExecutePipelineActivity
 type ExecutePipelineActivityTypeProperties = original.ExecutePipelineActivityTypeProperties
 type ExecuteSSISPackageActivity = original.ExecuteSSISPackageActivity
@@ -1890,6 +1956,7 @@ type SapEccResourceDatasetTypeProperties = original.SapEccResourceDatasetTypePro
 type SapEccSource = original.SapEccSource
 type SapHanaLinkedService = original.SapHanaLinkedService
 type SapHanaLinkedServiceProperties = original.SapHanaLinkedServiceProperties
+type SapHanaPartitionSettings = original.SapHanaPartitionSettings
 type SapHanaSource = original.SapHanaSource
 type SapHanaTableDataset = original.SapHanaTableDataset
 type SapHanaTableDatasetTypeProperties = original.SapHanaTableDatasetTypeProperties
@@ -1926,6 +1993,7 @@ type SftpLocation = original.SftpLocation
 type SftpReadSettings = original.SftpReadSettings
 type SftpServerLinkedService = original.SftpServerLinkedService
 type SftpServerLinkedServiceTypeProperties = original.SftpServerLinkedServiceTypeProperties
+type SftpWriteSettings = original.SftpWriteSettings
 type ShopifyLinkedService = original.ShopifyLinkedService
 type ShopifyLinkedServiceTypeProperties = original.ShopifyLinkedServiceTypeProperties
 type ShopifyObjectDataset = original.ShopifyObjectDataset
@@ -2366,6 +2434,9 @@ func PossibleSapCloudForCustomerSinkWriteBehaviorValues() []SapCloudForCustomerS
 func PossibleSapHanaAuthenticationTypeValues() []SapHanaAuthenticationType {
 	return original.PossibleSapHanaAuthenticationTypeValues()
 }
+func PossibleSapHanaPartitionOptionValues() []SapHanaPartitionOption {
+	return original.PossibleSapHanaPartitionOptionValues()
+}
 func PossibleSapTablePartitionOptionValues() []SapTablePartitionOption {
 	return original.PossibleSapTablePartitionOptionValues()
 }
@@ -2432,6 +2503,9 @@ func PossibleTypeBasicDataFlowValues() []TypeBasicDataFlow {
 func PossibleTypeBasicDatasetCompressionValues() []TypeBasicDatasetCompression {
 	return original.PossibleTypeBasicDatasetCompressionValues()
 }
+func PossibleTypeBasicDatasetLocationValues() []TypeBasicDatasetLocation {
+	return original.PossibleTypeBasicDatasetLocationValues()
+}
 func PossibleTypeBasicDatasetStorageFormatValues() []TypeBasicDatasetStorageFormat {
 	return original.PossibleTypeBasicDatasetStorageFormatValues()
 }
@@ -2444,6 +2518,12 @@ func PossibleTypeBasicDependencyReferenceValues() []TypeBasicDependencyReference
 func PossibleTypeBasicFactoryRepoConfigurationValues() []TypeBasicFactoryRepoConfiguration {
 	return original.PossibleTypeBasicFactoryRepoConfigurationValues()
 }
+func PossibleTypeBasicFormatReadSettingsValues() []TypeBasicFormatReadSettings {
+	return original.PossibleTypeBasicFormatReadSettingsValues()
+}
+func PossibleTypeBasicFormatWriteSettingsValues() []TypeBasicFormatWriteSettings {
+	return original.PossibleTypeBasicFormatWriteSettingsValues()
+}
 func PossibleTypeBasicIntegrationRuntimeStatusValues() []TypeBasicIntegrationRuntimeStatus {
 	return original.PossibleTypeBasicIntegrationRuntimeStatusValues()
 }
@@ -2455,6 +2535,9 @@ func PossibleTypeBasicLinkedServiceValues() []TypeBasicLinkedService {
 }
 func PossibleTypeBasicSsisObjectMetadataValues() []TypeBasicSsisObjectMetadata {
 	return original.PossibleTypeBasicSsisObjectMetadataValues()
+}
+func PossibleTypeBasicStoreReadSettingsValues() []TypeBasicStoreReadSettings {
+	return original.PossibleTypeBasicStoreReadSettingsValues()
 }
 func PossibleTypeBasicStoreWriteSettingsValues() []TypeBasicStoreWriteSettings {
 	return original.PossibleTypeBasicStoreWriteSettingsValues()

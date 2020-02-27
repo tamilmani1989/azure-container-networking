@@ -1,6 +1,6 @@
 // +build go1.9
 
-// Copyright 2019 Microsoft Corporation
+// Copyright 2020 Microsoft Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import original "github.com/Azure/azure-sdk-for-go/services/policyinsights/mgmt/
 
 type OperationsClientAPI = original.OperationsClientAPI
 type PolicyEventsClientAPI = original.PolicyEventsClientAPI
+type PolicyMetadataClientAPI = original.PolicyMetadataClientAPI
 type PolicyStatesClientAPI = original.PolicyStatesClientAPI
 type PolicyTrackedResourcesClientAPI = original.PolicyTrackedResourcesClientAPI
 type RemediationsClientAPI = original.RemediationsClientAPI

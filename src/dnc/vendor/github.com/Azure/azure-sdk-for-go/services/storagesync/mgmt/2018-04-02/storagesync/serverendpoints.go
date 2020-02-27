@@ -36,7 +36,8 @@ func NewServerEndpointsClient(subscriptionID string) ServerEndpointsClient {
 	return NewServerEndpointsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewServerEndpointsClientWithBaseURI creates an instance of the ServerEndpointsClient client.
+// NewServerEndpointsClientWithBaseURI creates an instance of the ServerEndpointsClient client using a custom endpoint.
+// Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewServerEndpointsClientWithBaseURI(baseURI string, subscriptionID string) ServerEndpointsClient {
 	return ServerEndpointsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -70,7 +71,7 @@ func (client ServerEndpointsClient) Create(ctx context.Context, resourceGroupNam
 			Constraints: []validation.Constraint{{Target: "parameters.ServerEndpointCreateParametersProperties", Name: validation.Null, Rule: false,
 				Chain: []validation.Constraint{{Target: "parameters.ServerEndpointCreateParametersProperties.VolumeFreeSpacePercent", Name: validation.Null, Rule: false,
 					Chain: []validation.Constraint{{Target: "parameters.ServerEndpointCreateParametersProperties.VolumeFreeSpacePercent", Name: validation.InclusiveMaximum, Rule: int64(100), Chain: nil},
-						{Target: "parameters.ServerEndpointCreateParametersProperties.VolumeFreeSpacePercent", Name: validation.InclusiveMinimum, Rule: 0, Chain: nil},
+						{Target: "parameters.ServerEndpointCreateParametersProperties.VolumeFreeSpacePercent", Name: validation.InclusiveMinimum, Rule: int64(0), Chain: nil},
 					}},
 				}}}}}); err != nil {
 		return result, validation.NewError("storagesync.ServerEndpointsClient", "Create", err.Error())
