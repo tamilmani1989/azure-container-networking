@@ -75,11 +75,11 @@ func (azureStorage *AzureStorage) initTableNameToTableClientMap(tableToColumnMap
 // to call recordProcessingTime first and then call the underlying storage function.
 func recordProcessingTime(
 	start time.Time,
-	operation, tableName string) {
+	operation, tableName, partitionKey, rowKey string) {
 	timeElapsedMs := time.Since(start).Milliseconds()
 	if timeElapsedMs > int64(thresholdForLoggingDataStoreOpLatencyMs) {
-		loggershim.LS.Debugf("[AzureStorage] Operation: %s, Table: %s, TimeMs: %v",
-			operation, tableName, timeElapsedMs)
+		loggershim.LS.Debugf("[AzureStorage] Operation: %s, Table: %s, PartitionKey: %s,"+
+			" rowKey: %s, TimeMs: %v", operation, tableName, partitionKey, rowKey, timeElapsedMs)
 	}
 
 	sendDataStoreMetric(aiwrapper.DataStoreOperationTimeMetric, float64(timeElapsedMs),
@@ -103,7 +103,7 @@ func sendDataStoreMetric(
 
 // Delete - Deletes a row in a given table.
 func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
-	defer recordProcessingTime(time.Now(), "Delete", tableName)
+	defer recordProcessingTime(time.Now(), "Delete", tableName, azureStorage.PartitionKey, rowKey)
 
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
@@ -125,7 +125,7 @@ func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
 
 // DeleteInPartition - Deletes a row in the partition of the given table.
 func (azureStorage *AzureStorage) DeleteInPartition(tableName, partitionKey, rowKey string) error {
-	defer recordProcessingTime(time.Now(), "DeleteInPartition", tableName)
+	defer recordProcessingTime(time.Now(), "DeleteInPartition", tableName, partitionKey, rowKey)
 
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
@@ -138,7 +138,7 @@ func (azureStorage *AzureStorage) DeleteInPartition(tableName, partitionKey, row
 
 // InsertOrUpdate - InsertOrUpdate a row in a given table.
 func (azureStorage *AzureStorage) InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error {
-	defer recordProcessingTime(time.Now(), "InsertOrUpdate", tableName)
+	defer recordProcessingTime(time.Now(), "InsertOrUpdate", tableName, azureStorage.PartitionKey, rowKey)
 
 	return azureStorage.insertOrUpdateRow(tableName, rowKey, propertyName, value)
 }
@@ -146,21 +146,21 @@ func (azureStorage *AzureStorage) InsertOrUpdate(tableName, rowKey, propertyName
 // InsertInPartition - Insert a row in the specific partition of the given table.
 func (azureStorage *AzureStorage) InsertInPartition(tableName, partitionKay, rowKey, propertyName string, value interface{}) (
 	int, error) {
-	defer recordProcessingTime(time.Now(), "InsertInPartition", tableName)
+	defer recordProcessingTime(time.Now(), "InsertInPartition", tableName, partitionKay, rowKey)
 
 	return azureStorage.insertRowInPartition(tableName, partitionKay, rowKey, propertyName, value)
 }
 
 // Query - Query a row in a given table.
 func (azureStorage *AzureStorage) Query(tableName, rowKey string) (interface{}, int, error) {
-	defer recordProcessingTime(time.Now(), "Query", tableName)
+	defer recordProcessingTime(time.Now(), "Query", tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
 
 	return azureStorage.getRow(tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
 }
 
 // QueryInPartition - Query a row in the given partition of the table.
 func (azureStorage *AzureStorage) QueryInPartition(tableName, partitionKey, rowKey string) (interface{}, int, error) {
-	defer recordProcessingTime(time.Now(), "QueryInPartition", tableName)
+	defer recordProcessingTime(time.Now(), "QueryInPartition", tableName, partitionKey, rowKey)
 
 	return azureStorage.getRow(tableName, partitionKey, rowKey)
 }
@@ -168,7 +168,7 @@ func (azureStorage *AzureStorage) QueryInPartition(tableName, partitionKey, rowK
 // QueryAllRows - Query a row in a given table.
 func (azureStorage *AzureStorage) QueryAllRows(tableName string, context interface{}) (
 	map[string]interface{}, bool, interface{}, int, error) {
-	defer recordProcessingTime(time.Now(), "QueryAllRows", tableName)
+	defer recordProcessingTime(time.Now(), "QueryAllRows", tableName, azureStorage.AzureStorageInfo.PartitionKey, "NA")
 
 	return azureStorage.getRows(tableName, azureStorage.AzureStorageInfo.PartitionKey, context)
 }
@@ -176,14 +176,14 @@ func (azureStorage *AzureStorage) QueryAllRows(tableName string, context interfa
 // QueryAllRowsInPartition - Query all rows in the specific partition of the given table.
 func (azureStorage *AzureStorage) QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) (
 	map[string]interface{}, bool, interface{}, int, error) {
-	defer recordProcessingTime(time.Now(), "QueryAllRowsInPartition", tableName)
+	defer recordProcessingTime(time.Now(), "QueryAllRowsInPartition", tableName, partitionKey, "NA")
 
 	return azureStorage.getRows(tableName, partitionKey, context)
 }
 
 // KeyExist - check if key exist in a given table.
 func (azureStorage *AzureStorage) KeyExist(tableName, rowKey string) (bool, error) {
-	defer recordProcessingTime(time.Now(), "KeyExist", tableName)
+	defer recordProcessingTime(time.Now(), "KeyExist", tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
 	property, status, err := azureStorage.getRow(tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
 	if property == nil {
 		if status == http.StatusNotFound {
