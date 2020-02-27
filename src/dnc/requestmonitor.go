@@ -1141,7 +1141,7 @@ func processNetworkContainerPurge(
 
 	deletionTimeMs := time.Since(createdDateTime).Milliseconds()
 	sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(deletionTimeMs),
-		aiwrapper.Succeeded, "Container"+datamodel.Purge.String(), repoNCConfig)
+		aiwrapper.Succeeded, "Container"+datamodel.Purge.String(), repoNCConfig, nil)
 
 	return true, nil
 }
@@ -1545,7 +1545,8 @@ func sendNCMetric(
 	metricName string,
 	metricValue float64,
 	status, ncState string,
-	repoNCConfig *datamodel.NCConfiguration) {
+	repoNCConfig *datamodel.NCConfiguration,
+	err *api.JsonErr) {
 	metric := aitelemetry.Metric{
 		Name:             metricName,
 		Value:            metricValue,
@@ -1554,7 +1555,17 @@ func sendNCMetric(
 
 	metric.CustomDimensions[aiwrapper.StatusStr] = status
 	metric.CustomDimensions[aiwrapper.NCStateStr] = ncState
+
+	errorCode := "NoError"
+
+	if err != nil {
+		errorCode = err.Code.String()
+	}
+
+	metric.CustomDimensions[aiwrapper.NCOperationErrorCodeStr] = errorCode
 	go aiwrapper.SendMetric(metric)
+
+	loggershim.LS.Debugf("[DNCOperationStatus] OperationName: %s, NetworkContainerId: %s, Status: %s, ErrorCode: %s", ncState, repoNCConfig.NetworkContainerID, status, errorCode)
 }
 
 func processNetworkContainerPublish(
@@ -1881,7 +1892,7 @@ func processNetworkContainerPublish(
 
 	creationTimeMs := time.Since(createdDateTime).Milliseconds()
 	sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(creationTimeMs),
-		aiwrapper.Succeeded, "Container"+datamodel.Program.String(), repoNCConfig)
+		aiwrapper.Succeeded, "Container"+datamodel.Program.String(), repoNCConfig, nil)
 
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
@@ -2185,7 +2196,7 @@ func processNetworkContainerRequest(
 						datamodel.GetNCIdFromKey(networkContainerKey))
 				}
 				sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(processingTime),
-					aiwrapper.Failed, ncState, repoNCConfig)
+					aiwrapper.Failed, ncState, repoNCConfig, err)
 			}
 		}
 	}()
@@ -2269,7 +2280,7 @@ func processNetworkContainerRequest(
 
 		// Record the time taken for NC state processing and send the NC process time metric
 		recordNetworkContainerProcessingTime(repoNCConfig, ncState,
-			processStatus, createdDateTime, stateTransitionDateTime)
+			processStatus, createdDateTime, stateTransitionDateTime, err)
 
 		if !removeRequestFromPendingQueue && err == nil {
 			requestContext.LastRetriedDateTime = time.Time{}
@@ -2291,7 +2302,8 @@ func recordNetworkContainerProcessingTime(
 	repoNCConfig *datamodel.NCConfiguration,
 	ncState datamodel.NetworkContainerState,
 	processStatus string,
-	createdDateTime, stateTransitionDateTime time.Time) {
+	createdDateTime, stateTransitionDateTime time.Time,
+	err *api.JsonErr) {
 	if ncState == datamodel.Program ||
 		ncState == datamodel.Purge {
 		// Program and purge times are calculated based on request create time. This provides
@@ -2309,7 +2321,7 @@ func recordNetworkContainerProcessingTime(
 		ncState != datamodel.RefreshAssociation {
 		processTimeMs := time.Since(stateTransitionDateTime).Milliseconds()
 		sendNCMetric(aiwrapper.NCProcessTimeMetric,
-			float64(processTimeMs), processStatus, "Container"+ncState.String(), repoNCConfig)
+			float64(processTimeMs), processStatus, "Container"+ncState.String(), repoNCConfig, err)
 	}
 }
 

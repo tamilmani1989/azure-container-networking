@@ -10,16 +10,17 @@ const (
 	NCCreationReqCountMetric     = "NCCreationRequestCount"
 	DataStoreOperationTimeMetric = "DataStoreOperationTimeMs"
 
-	// NC dimensions
-	NetworkContainerIDStr = "NetworkContainerID"
-	NetworkIDStr          = "VnetID"
-	ContainerTypeStr      = "ContainerType"
-	OrchestratorStr       = "Orchestrator"
-	NodeIDStr             = "NodeID"
-	RegionStr             = "Region"
-	DNCVersionStr         = "DNCVersion"
-	StatusStr             = "Status"
-	NCStateStr            = "NCState"
+	// Dimensions
+	NetworkContainerIDStr   = "NetworkContainerID"
+	NetworkIDStr            = "VnetID"
+	ContainerTypeStr        = "ContainerType"
+	OrchestratorStr         = "Orchestrator"
+	NodeIDStr               = "NodeID"
+	RegionStr               = "Region"
+	DNCVersionStr           = "DNCVersion"
+	StatusStr               = "Status"
+	NCStateStr              = "NCState"
+	NCOperationErrorCodeStr = "ErrorCode"
 
 	// DataStore operation dimensions
 	OperationStr = "DataStoreOperation"
