@@ -3462,6 +3462,14 @@ type AddDataFlowToDebugSessionResponse struct {
 	JobVersion *string `json:"jobVersion,omitempty"`
 }
 
+// AdditionalColumns specify the column name and value of additional columns.
+type AdditionalColumns struct {
+	// Name - Additional column name. Type: string (or Expression with resultType string).
+	Name interface{} `json:"name,omitempty"`
+	// Value - Additional column value. Type: string (or Expression with resultType string).
+	Value interface{} `json:"value,omitempty"`
+}
+
 // AmazonMWSLinkedService amazon Marketplace Web Service linked service.
 type AmazonMWSLinkedService struct {
 	// AmazonMWSLinkedServiceTypeProperties - Amazon Marketplace Web Service linked service properties.
@@ -4816,6 +4824,8 @@ type AmazonMWSSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -4837,6 +4847,9 @@ func (ams AmazonMWSSource) MarshalJSON() ([]byte, error) {
 	}
 	if ams.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ams.QueryTimeout
+	}
+	if ams.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ams.AdditionalColumns
 	}
 	if ams.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ams.SourceRetryCount
@@ -5332,6 +5345,15 @@ func (ams *AmazonMWSSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ams.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ams.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -6086,6 +6108,8 @@ type AmazonRedshiftSource struct {
 	RedshiftUnloadSettings *RedshiftUnloadSettings `json:"redshiftUnloadSettings,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -6110,6 +6134,9 @@ func (ars AmazonRedshiftSource) MarshalJSON() ([]byte, error) {
 	}
 	if ars.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ars.QueryTimeout
+	}
+	if ars.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ars.AdditionalColumns
 	}
 	if ars.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ars.SourceRetryCount
@@ -6614,6 +6641,15 @@ func (ars *AmazonRedshiftSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ars.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ars.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -8869,6 +8905,8 @@ type AmazonS3ReadSettings struct {
 	WildcardFileName interface{} `json:"wildcardFileName,omitempty"`
 	// Prefix - The prefix filter for the S3 object name. Type: string (or Expression with resultType string).
 	Prefix interface{} `json:"prefix,omitempty"`
+	// FileListPath - Point to a text file that lists each file (relative path to the path configured in the dataset) that you want to copy. Type: string (or Expression with resultType string).
+	FileListPath interface{} `json:"fileListPath,omitempty"`
 	// EnablePartitionDiscovery - Indicates whether to enable partition discovery.
 	EnablePartitionDiscovery *bool `json:"enablePartitionDiscovery,omitempty"`
 	// ModifiedDatetimeStart - The start of file's modified datetime. Type: string (or Expression with resultType string).
@@ -8898,6 +8936,9 @@ func (asrs AmazonS3ReadSettings) MarshalJSON() ([]byte, error) {
 	}
 	if asrs.Prefix != nil {
 		objectMap["prefix"] = asrs.Prefix
+	}
+	if asrs.FileListPath != nil {
+		objectMap["fileListPath"] = asrs.FileListPath
 	}
 	if asrs.EnablePartitionDiscovery != nil {
 		objectMap["enablePartitionDiscovery"] = asrs.EnablePartitionDiscovery
@@ -9029,6 +9070,15 @@ func (asrs *AmazonS3ReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				asrs.Prefix = prefix
+			}
+		case "fileListPath":
+			if v != nil {
+				var fileListPath interface{}
+				err = json.Unmarshal(*v, &fileListPath)
+				if err != nil {
+					return err
+				}
+				asrs.FileListPath = fileListPath
 			}
 		case "enablePartitionDiscovery":
 			if v != nil {
@@ -10548,6 +10598,8 @@ func (as *AvroSink) UnmarshalJSON(body []byte) error {
 type AvroSource struct {
 	// StoreSettings - Avro store settings.
 	StoreSettings BasicStoreReadSettings `json:"storeSettings,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -10565,6 +10617,9 @@ func (as AvroSource) MarshalJSON() ([]byte, error) {
 	as.Type = TypeAvroSource
 	objectMap := make(map[string]interface{})
 	objectMap["storeSettings"] = as.StoreSettings
+	if as.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = as.AdditionalColumns
+	}
 	if as.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = as.SourceRetryCount
 	}
@@ -11049,6 +11104,15 @@ func (as *AvroSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				as.StoreSettings = storeSettings
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				as.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -14151,6 +14215,8 @@ type AzureBlobFSReadSettings struct {
 	WildcardFolderPath interface{} `json:"wildcardFolderPath,omitempty"`
 	// WildcardFileName - Azure blobFS wildcardFileName. Type: string (or Expression with resultType string).
 	WildcardFileName interface{} `json:"wildcardFileName,omitempty"`
+	// FileListPath - Point to a text file that lists each file (relative path to the path configured in the dataset) that you want to copy. Type: string (or Expression with resultType string).
+	FileListPath interface{} `json:"fileListPath,omitempty"`
 	// EnablePartitionDiscovery - Indicates whether to enable partition discovery.
 	EnablePartitionDiscovery *bool `json:"enablePartitionDiscovery,omitempty"`
 	// ModifiedDatetimeStart - The start of file's modified datetime. Type: string (or Expression with resultType string).
@@ -14177,6 +14243,9 @@ func (abfrs AzureBlobFSReadSettings) MarshalJSON() ([]byte, error) {
 	}
 	if abfrs.WildcardFileName != nil {
 		objectMap["wildcardFileName"] = abfrs.WildcardFileName
+	}
+	if abfrs.FileListPath != nil {
+		objectMap["fileListPath"] = abfrs.FileListPath
 	}
 	if abfrs.EnablePartitionDiscovery != nil {
 		objectMap["enablePartitionDiscovery"] = abfrs.EnablePartitionDiscovery
@@ -14299,6 +14368,15 @@ func (abfrs *AzureBlobFSReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				abfrs.WildcardFileName = wildcardFileName
+			}
+		case "fileListPath":
+			if v != nil {
+				var fileListPath interface{}
+				err = json.Unmarshal(*v, &fileListPath)
+				if err != nil {
+					return err
+				}
+				abfrs.FileListPath = fileListPath
 			}
 		case "enablePartitionDiscovery":
 			if v != nil {
@@ -16307,6 +16385,8 @@ type AzureBlobStorageReadSettings struct {
 	WildcardFileName interface{} `json:"wildcardFileName,omitempty"`
 	// Prefix - The prefix filter for the Azure Blob name. Type: string (or Expression with resultType string).
 	Prefix interface{} `json:"prefix,omitempty"`
+	// FileListPath - Point to a text file that lists each file (relative path to the path configured in the dataset) that you want to copy. Type: string (or Expression with resultType string).
+	FileListPath interface{} `json:"fileListPath,omitempty"`
 	// EnablePartitionDiscovery - Indicates whether to enable partition discovery.
 	EnablePartitionDiscovery *bool `json:"enablePartitionDiscovery,omitempty"`
 	// ModifiedDatetimeStart - The start of file's modified datetime. Type: string (or Expression with resultType string).
@@ -16336,6 +16416,9 @@ func (absrs AzureBlobStorageReadSettings) MarshalJSON() ([]byte, error) {
 	}
 	if absrs.Prefix != nil {
 		objectMap["prefix"] = absrs.Prefix
+	}
+	if absrs.FileListPath != nil {
+		objectMap["fileListPath"] = absrs.FileListPath
 	}
 	if absrs.EnablePartitionDiscovery != nil {
 		objectMap["enablePartitionDiscovery"] = absrs.EnablePartitionDiscovery
@@ -16467,6 +16550,15 @@ func (absrs *AzureBlobStorageReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				absrs.Prefix = prefix
+			}
+		case "fileListPath":
+			if v != nil {
+				var fileListPath interface{}
+				err = json.Unmarshal(*v, &fileListPath)
+				if err != nil {
+					return err
+				}
+				absrs.FileListPath = fileListPath
 			}
 		case "enablePartitionDiscovery":
 			if v != nil {
@@ -18896,6 +18988,8 @@ type AzureDataExplorerSource struct {
 	NoTruncation interface{} `json:"noTruncation,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9]))..
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -18920,6 +19014,9 @@ func (ades AzureDataExplorerSource) MarshalJSON() ([]byte, error) {
 	}
 	if ades.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ades.QueryTimeout
+	}
+	if ades.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ades.AdditionalColumns
 	}
 	if ades.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ades.SourceRetryCount
@@ -19424,6 +19521,15 @@ func (ades *AzureDataExplorerSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ades.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ades.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -22352,6 +22458,8 @@ type AzureDataLakeStoreReadSettings struct {
 	WildcardFolderPath interface{} `json:"wildcardFolderPath,omitempty"`
 	// WildcardFileName - ADLS wildcardFileName. Type: string (or Expression with resultType string).
 	WildcardFileName interface{} `json:"wildcardFileName,omitempty"`
+	// FileListPath - Point to a text file that lists each file (relative path to the path configured in the dataset) that you want to copy. Type: string (or Expression with resultType string).
+	FileListPath interface{} `json:"fileListPath,omitempty"`
 	// EnablePartitionDiscovery - Indicates whether to enable partition discovery.
 	EnablePartitionDiscovery *bool `json:"enablePartitionDiscovery,omitempty"`
 	// ModifiedDatetimeStart - The start of file's modified datetime. Type: string (or Expression with resultType string).
@@ -22378,6 +22486,9 @@ func (adlsrs AzureDataLakeStoreReadSettings) MarshalJSON() ([]byte, error) {
 	}
 	if adlsrs.WildcardFileName != nil {
 		objectMap["wildcardFileName"] = adlsrs.WildcardFileName
+	}
+	if adlsrs.FileListPath != nil {
+		objectMap["fileListPath"] = adlsrs.FileListPath
 	}
 	if adlsrs.EnablePartitionDiscovery != nil {
 		objectMap["enablePartitionDiscovery"] = adlsrs.EnablePartitionDiscovery
@@ -22500,6 +22611,15 @@ func (adlsrs *AzureDataLakeStoreReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				adlsrs.WildcardFileName = wildcardFileName
+			}
+		case "fileListPath":
+			if v != nil {
+				var fileListPath interface{}
+				err = json.Unmarshal(*v, &fileListPath)
+				if err != nil {
+					return err
+				}
+				adlsrs.FileListPath = fileListPath
 			}
 		case "enablePartitionDiscovery":
 			if v != nil {
@@ -23464,6 +23584,8 @@ func (adlss *AzureDataLakeStoreSource) UnmarshalJSON(body []byte) error {
 
 // AzureDataLakeStoreWriteSettings azure data lake store write settings.
 type AzureDataLakeStoreWriteSettings struct {
+	// ExpiryDateTime - Specifies the expiry time of the written files. The time is applied to the UTC time zone in the format of "2018-12-01T05:00:00Z". Default value is NULL. Type: integer (or Expression with resultType integer).
+	ExpiryDateTime interface{} `json:"expiryDateTime,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
@@ -23478,6 +23600,9 @@ type AzureDataLakeStoreWriteSettings struct {
 func (adlsws AzureDataLakeStoreWriteSettings) MarshalJSON() ([]byte, error) {
 	adlsws.Type = TypeAzureDataLakeStoreWriteSettings
 	objectMap := make(map[string]interface{})
+	if adlsws.ExpiryDateTime != nil {
+		objectMap["expiryDateTime"] = adlsws.ExpiryDateTime
+	}
 	if adlsws.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = adlsws.MaxConcurrentConnections
 	}
@@ -23537,6 +23662,15 @@ func (adlsws *AzureDataLakeStoreWriteSettings) UnmarshalJSON(body []byte) error 
 	}
 	for k, v := range m {
 		switch k {
+		case "expiryDateTime":
+			if v != nil {
+				var expiryDateTime interface{}
+				err = json.Unmarshal(*v, &expiryDateTime)
+				if err != nil {
+					return err
+				}
+				adlsws.ExpiryDateTime = expiryDateTime
+			}
 		default:
 			if v != nil {
 				var additionalProperties interface{}
@@ -24409,6 +24543,8 @@ type AzureFileStorageReadSettings struct {
 	WildcardFolderPath interface{} `json:"wildcardFolderPath,omitempty"`
 	// WildcardFileName - Azure File Storage wildcardFileName. Type: string (or Expression with resultType string).
 	WildcardFileName interface{} `json:"wildcardFileName,omitempty"`
+	// FileListPath - Point to a text file that lists each file (relative path to the path configured in the dataset) that you want to copy. Type: string (or Expression with resultType string).
+	FileListPath interface{} `json:"fileListPath,omitempty"`
 	// EnablePartitionDiscovery - Indicates whether to enable partition discovery.
 	EnablePartitionDiscovery *bool `json:"enablePartitionDiscovery,omitempty"`
 	// ModifiedDatetimeStart - The start of file's modified datetime. Type: string (or Expression with resultType string).
@@ -24435,6 +24571,9 @@ func (afsrs AzureFileStorageReadSettings) MarshalJSON() ([]byte, error) {
 	}
 	if afsrs.WildcardFileName != nil {
 		objectMap["wildcardFileName"] = afsrs.WildcardFileName
+	}
+	if afsrs.FileListPath != nil {
+		objectMap["fileListPath"] = afsrs.FileListPath
 	}
 	if afsrs.EnablePartitionDiscovery != nil {
 		objectMap["enablePartitionDiscovery"] = afsrs.EnablePartitionDiscovery
@@ -24557,6 +24696,15 @@ func (afsrs *AzureFileStorageReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				afsrs.WildcardFileName = wildcardFileName
+			}
+		case "fileListPath":
+			if v != nil {
+				var fileListPath interface{}
+				err = json.Unmarshal(*v, &fileListPath)
+				if err != nil {
+					return err
+				}
+				afsrs.FileListPath = fileListPath
 			}
 		case "enablePartitionDiscovery":
 			if v != nil {
@@ -26933,6 +27081,8 @@ type AzureMariaDBSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -26954,6 +27104,9 @@ func (amds AzureMariaDBSource) MarshalJSON() ([]byte, error) {
 	}
 	if amds.QueryTimeout != nil {
 		objectMap["queryTimeout"] = amds.QueryTimeout
+	}
+	if amds.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = amds.AdditionalColumns
 	}
 	if amds.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = amds.SourceRetryCount
@@ -27449,6 +27602,15 @@ func (amds *AzureMariaDBSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				amds.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				amds.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -31587,6 +31749,8 @@ type AzureMySQLSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -31608,6 +31772,9 @@ func (amss AzureMySQLSource) MarshalJSON() ([]byte, error) {
 	}
 	if amss.QueryTimeout != nil {
 		objectMap["queryTimeout"] = amss.QueryTimeout
+	}
+	if amss.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = amss.AdditionalColumns
 	}
 	if amss.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = amss.SourceRetryCount
@@ -32103,6 +32270,15 @@ func (amss *AzureMySQLSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				amss.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				amss.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -33724,6 +33900,8 @@ type AzurePostgreSQLSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -33745,6 +33923,9 @@ func (apss AzurePostgreSQLSource) MarshalJSON() ([]byte, error) {
 	}
 	if apss.QueryTimeout != nil {
 		objectMap["queryTimeout"] = apss.QueryTimeout
+	}
+	if apss.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = apss.AdditionalColumns
 	}
 	if apss.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = apss.SourceRetryCount
@@ -34240,6 +34421,15 @@ func (apss *AzurePostgreSQLSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				apss.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				apss.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -40549,6 +40739,8 @@ type AzureSQLSource struct {
 	ProduceAdditionalTypes interface{} `json:"produceAdditionalTypes,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -40579,6 +40771,9 @@ func (ass AzureSQLSource) MarshalJSON() ([]byte, error) {
 	}
 	if ass.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ass.QueryTimeout
+	}
+	if ass.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ass.AdditionalColumns
 	}
 	if ass.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ass.SourceRetryCount
@@ -41101,6 +41296,15 @@ func (ass *AzureSQLSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ass.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ass.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -43392,6 +43596,8 @@ type AzureTableSource struct {
 	AzureTableSourceIgnoreTableNotFound interface{} `json:"azureTableSourceIgnoreTableNotFound,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -43416,6 +43622,9 @@ func (ats AzureTableSource) MarshalJSON() ([]byte, error) {
 	}
 	if ats.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ats.QueryTimeout
+	}
+	if ats.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ats.AdditionalColumns
 	}
 	if ats.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ats.SourceRetryCount
@@ -43920,6 +44129,15 @@ func (ats *AzureTableSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ats.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ats.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -46127,7 +46345,7 @@ type BlobEventsTrigger struct {
 	RuntimeState TriggerRuntimeState `json:"runtimeState,omitempty"`
 	// Annotations - List of tags that can be used for describing the trigger.
 	Annotations *[]interface{} `json:"annotations,omitempty"`
-	// Type - Possible values include: 'TypeTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeChainingTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
+	// Type - Possible values include: 'TypeTrigger', 'TypeChainingTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
 	Type TypeBasicTrigger `json:"type,omitempty"`
 }
 
@@ -46156,13 +46374,13 @@ func (bet BlobEventsTrigger) MarshalJSON() ([]byte, error) {
 	return json.Marshal(objectMap)
 }
 
-// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for BlobEventsTrigger.
-func (bet BlobEventsTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
+// AsChainingTrigger is the BasicTrigger implementation for BlobEventsTrigger.
+func (bet BlobEventsTrigger) AsChainingTrigger() (*ChainingTrigger, bool) {
 	return nil, false
 }
 
-// AsChainingTrigger is the BasicTrigger implementation for BlobEventsTrigger.
-func (bet BlobEventsTrigger) AsChainingTrigger() (*ChainingTrigger, bool) {
+// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for BlobEventsTrigger.
+func (bet BlobEventsTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
 	return nil, false
 }
 
@@ -47269,7 +47487,7 @@ type BlobTrigger struct {
 	RuntimeState TriggerRuntimeState `json:"runtimeState,omitempty"`
 	// Annotations - List of tags that can be used for describing the trigger.
 	Annotations *[]interface{} `json:"annotations,omitempty"`
-	// Type - Possible values include: 'TypeTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeChainingTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
+	// Type - Possible values include: 'TypeTrigger', 'TypeChainingTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
 	Type TypeBasicTrigger `json:"type,omitempty"`
 }
 
@@ -47298,13 +47516,13 @@ func (bt BlobTrigger) MarshalJSON() ([]byte, error) {
 	return json.Marshal(objectMap)
 }
 
-// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for BlobTrigger.
-func (bt BlobTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
+// AsChainingTrigger is the BasicTrigger implementation for BlobTrigger.
+func (bt BlobTrigger) AsChainingTrigger() (*ChainingTrigger, bool) {
 	return nil, false
 }
 
-// AsChainingTrigger is the BasicTrigger implementation for BlobTrigger.
-func (bt BlobTrigger) AsChainingTrigger() (*ChainingTrigger, bool) {
+// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for BlobTrigger.
+func (bt BlobTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
 	return nil, false
 }
 
@@ -48138,6 +48356,8 @@ type CassandraSource struct {
 	ConsistencyLevel CassandraSourceReadConsistencyLevels `json:"consistencyLevel,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -48162,6 +48382,9 @@ func (cs CassandraSource) MarshalJSON() ([]byte, error) {
 	}
 	if cs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = cs.QueryTimeout
+	}
+	if cs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = cs.AdditionalColumns
 	}
 	if cs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = cs.SourceRetryCount
@@ -48666,6 +48889,15 @@ func (cs *CassandraSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				cs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				cs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -49360,7 +49592,7 @@ type ChainingTrigger struct {
 	RuntimeState TriggerRuntimeState `json:"runtimeState,omitempty"`
 	// Annotations - List of tags that can be used for describing the trigger.
 	Annotations *[]interface{} `json:"annotations,omitempty"`
-	// Type - Possible values include: 'TypeTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeChainingTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
+	// Type - Possible values include: 'TypeTrigger', 'TypeChainingTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
 	Type TypeBasicTrigger `json:"type,omitempty"`
 }
 
@@ -49389,14 +49621,14 @@ func (ct ChainingTrigger) MarshalJSON() ([]byte, error) {
 	return json.Marshal(objectMap)
 }
 
-// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for ChainingTrigger.
-func (ct ChainingTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
-	return nil, false
-}
-
 // AsChainingTrigger is the BasicTrigger implementation for ChainingTrigger.
 func (ct ChainingTrigger) AsChainingTrigger() (*ChainingTrigger, bool) {
 	return &ct, true
+}
+
+// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for ChainingTrigger.
+func (ct ChainingTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
+	return nil, false
 }
 
 // AsTumblingWindowTrigger is the BasicTrigger implementation for ChainingTrigger.
@@ -51440,6 +51672,8 @@ func (cdsfas *CommonDataServiceForAppsSink) UnmarshalJSON(body []byte) error {
 type CommonDataServiceForAppsSource struct {
 	// Query - FetchXML is a proprietary query language that is used in Microsoft Common Data Service for Apps (online & on-premises). Type: string (or Expression with resultType string).
 	Query interface{} `json:"query,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -51458,6 +51692,9 @@ func (cdsfas CommonDataServiceForAppsSource) MarshalJSON() ([]byte, error) {
 	objectMap := make(map[string]interface{})
 	if cdsfas.Query != nil {
 		objectMap["query"] = cdsfas.Query
+	}
+	if cdsfas.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = cdsfas.AdditionalColumns
 	}
 	if cdsfas.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = cdsfas.SourceRetryCount
@@ -51944,6 +52181,15 @@ func (cdsfas *CommonDataServiceForAppsSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				cdsfas.Query = query
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				cdsfas.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -53400,6 +53646,8 @@ type ConcurSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -53421,6 +53669,9 @@ func (cs ConcurSource) MarshalJSON() ([]byte, error) {
 	}
 	if cs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = cs.QueryTimeout
+	}
+	if cs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = cs.AdditionalColumns
 	}
 	if cs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = cs.SourceRetryCount
@@ -53916,6 +54167,15 @@ func (cs *ConcurSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				cs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				cs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -54780,10 +55040,16 @@ type CopyActivityTypeProperties struct {
 	EnableSkipIncompatibleRow interface{} `json:"enableSkipIncompatibleRow,omitempty"`
 	// RedirectIncompatibleRowSettings - Redirect incompatible row settings when EnableSkipIncompatibleRow is true.
 	RedirectIncompatibleRowSettings *RedirectIncompatibleRowSettings `json:"redirectIncompatibleRowSettings,omitempty"`
+	// LogStorageSettings - Log storage settings customer need to provide when enabling session log.
+	LogStorageSettings *LogStorageSettings `json:"logStorageSettings,omitempty"`
 	// PreserveRules - Preserve Rules.
 	PreserveRules *[]interface{} `json:"preserveRules,omitempty"`
 	// Preserve - Preserve rules.
 	Preserve *[]interface{} `json:"preserve,omitempty"`
+	// ValidateDataConsistency - Whether to enable Data Consistency validation. Type: boolean (or Expression with resultType boolean).
+	ValidateDataConsistency interface{} `json:"validateDataConsistency,omitempty"`
+	// SkipErrorFile - Specify the fault tolerance for data consistency.
+	SkipErrorFile *SkipErrorFile `json:"skipErrorFile,omitempty"`
 }
 
 // UnmarshalJSON is the custom unmarshaler for CopyActivityTypeProperties struct.
@@ -54874,6 +55140,15 @@ func (catp *CopyActivityTypeProperties) UnmarshalJSON(body []byte) error {
 				}
 				catp.RedirectIncompatibleRowSettings = &redirectIncompatibleRowSettings
 			}
+		case "logStorageSettings":
+			if v != nil {
+				var logStorageSettings LogStorageSettings
+				err = json.Unmarshal(*v, &logStorageSettings)
+				if err != nil {
+					return err
+				}
+				catp.LogStorageSettings = &logStorageSettings
+			}
 		case "preserveRules":
 			if v != nil {
 				var preserveRules []interface{}
@@ -54891,6 +55166,24 @@ func (catp *CopyActivityTypeProperties) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				catp.Preserve = &preserve
+			}
+		case "validateDataConsistency":
+			if v != nil {
+				var validateDataConsistency interface{}
+				err = json.Unmarshal(*v, &validateDataConsistency)
+				if err != nil {
+					return err
+				}
+				catp.ValidateDataConsistency = validateDataConsistency
+			}
+		case "skipErrorFile":
+			if v != nil {
+				var skipErrorFile SkipErrorFile
+				err = json.Unmarshal(*v, &skipErrorFile)
+				if err != nil {
+					return err
+				}
+				catp.SkipErrorFile = &skipErrorFile
 			}
 		}
 	}
@@ -58682,6 +58975,8 @@ type CosmosDbMongoDbAPISource struct {
 	BatchSize interface{} `json:"batchSize,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -58709,6 +59004,9 @@ func (cdmdas CosmosDbMongoDbAPISource) MarshalJSON() ([]byte, error) {
 	}
 	if cdmdas.QueryTimeout != nil {
 		objectMap["queryTimeout"] = cdmdas.QueryTimeout
+	}
+	if cdmdas.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = cdmdas.AdditionalColumns
 	}
 	if cdmdas.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = cdmdas.SourceRetryCount
@@ -59222,6 +59520,15 @@ func (cdmdas *CosmosDbMongoDbAPISource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				cdmdas.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				cdmdas.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -60226,6 +60533,8 @@ type CosmosDbSQLAPISource struct {
 	PageSize interface{} `json:"pageSize,omitempty"`
 	// PreferredRegions - Preferred regions. Type: array of strings (or Expression with resultType array of strings).
 	PreferredRegions interface{} `json:"preferredRegions,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -60250,6 +60559,9 @@ func (cdsas CosmosDbSQLAPISource) MarshalJSON() ([]byte, error) {
 	}
 	if cdsas.PreferredRegions != nil {
 		objectMap["preferredRegions"] = cdsas.PreferredRegions
+	}
+	if cdsas.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = cdsas.AdditionalColumns
 	}
 	if cdsas.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = cdsas.SourceRetryCount
@@ -60754,6 +61066,15 @@ func (cdsas *CosmosDbSQLAPISource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				cdsas.PreferredRegions = preferredRegions
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				cdsas.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -61432,6 +61753,8 @@ type CouchbaseSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -61453,6 +61776,9 @@ func (cs CouchbaseSource) MarshalJSON() ([]byte, error) {
 	}
 	if cs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = cs.QueryTimeout
+	}
+	if cs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = cs.AdditionalColumns
 	}
 	if cs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = cs.SourceRetryCount
@@ -61948,6 +62274,15 @@ func (cs *CouchbaseSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				cs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				cs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -69695,21 +70030,23 @@ func (d2ls *Db2LinkedService) UnmarshalJSON(body []byte) error {
 
 // Db2LinkedServiceTypeProperties dB2 linked service properties.
 type Db2LinkedServiceTypeProperties struct {
-	// Server - Server name for connection. Type: string (or Expression with resultType string).
+	// ConnectionString - The connection string. It is mutually exclusive with server, database, authenticationType, userName, packageCollection and certificateCommonName property. Type: string, SecureString or AzureKeyVaultSecretReference.
+	ConnectionString interface{} `json:"connectionString,omitempty"`
+	// Server - Server name for connection. It is mutually exclusive with connectionString property. Type: string (or Expression with resultType string).
 	Server interface{} `json:"server,omitempty"`
-	// Database - Database name for connection. Type: string (or Expression with resultType string).
+	// Database - Database name for connection. It is mutually exclusive with connectionString property. Type: string (or Expression with resultType string).
 	Database interface{} `json:"database,omitempty"`
-	// AuthenticationType - AuthenticationType to be used for connection. Possible values include: 'Basic'
+	// AuthenticationType - AuthenticationType to be used for connection. It is mutually exclusive with connectionString property. Possible values include: 'Basic'
 	AuthenticationType Db2AuthenticationType `json:"authenticationType,omitempty"`
-	// Username - Username for authentication. Type: string (or Expression with resultType string).
+	// Username - Username for authentication. It is mutually exclusive with connectionString property. Type: string (or Expression with resultType string).
 	Username interface{} `json:"username,omitempty"`
 	// Password - Password for authentication.
 	Password BasicSecretBase `json:"password,omitempty"`
-	// PackageCollection - Under where packages are created when querying database. Type: string (or Expression with resultType string).
+	// PackageCollection - Under where packages are created when querying database. It is mutually exclusive with connectionString property. Type: string (or Expression with resultType string).
 	PackageCollection interface{} `json:"packageCollection,omitempty"`
-	// CertificateCommonName - Certificate Common Name when TLS is enabled. Type: string (or Expression with resultType string).
+	// CertificateCommonName - Certificate Common Name when TLS is enabled. It is mutually exclusive with connectionString property. Type: string (or Expression with resultType string).
 	CertificateCommonName interface{} `json:"certificateCommonName,omitempty"`
-	// EncryptedCredential - The encrypted credential used for authentication. Credentials are encrypted using the integration runtime credential manager. Type: string (or Expression with resultType string).
+	// EncryptedCredential - The encrypted credential used for authentication. Credentials are encrypted using the integration runtime credential manager. It is mutually exclusive with connectionString property. Type: string (or Expression with resultType string).
 	EncryptedCredential interface{} `json:"encryptedCredential,omitempty"`
 }
 
@@ -69722,6 +70059,15 @@ func (d2lstp *Db2LinkedServiceTypeProperties) UnmarshalJSON(body []byte) error {
 	}
 	for k, v := range m {
 		switch k {
+		case "connectionString":
+			if v != nil {
+				var connectionString interface{}
+				err = json.Unmarshal(*v, &connectionString)
+				if err != nil {
+					return err
+				}
+				d2lstp.ConnectionString = connectionString
+			}
 		case "server":
 			if v != nil {
 				var server interface{}
@@ -69805,6 +70151,8 @@ type Db2Source struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -69826,6 +70174,9 @@ func (d2s Db2Source) MarshalJSON() ([]byte, error) {
 	}
 	if d2s.QueryTimeout != nil {
 		objectMap["queryTimeout"] = d2s.QueryTimeout
+	}
+	if d2s.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = d2s.AdditionalColumns
 	}
 	if d2s.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = d2s.SourceRetryCount
@@ -70321,6 +70672,15 @@ func (d2s *Db2Source) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				d2s.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				d2s.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -72540,6 +72900,8 @@ type DelimitedTextSource struct {
 	StoreSettings BasicStoreReadSettings `json:"storeSettings,omitempty"`
 	// FormatSettings - DelimitedText format settings.
 	FormatSettings *DelimitedTextReadSettings `json:"formatSettings,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -72559,6 +72921,9 @@ func (dts DelimitedTextSource) MarshalJSON() ([]byte, error) {
 	objectMap["storeSettings"] = dts.StoreSettings
 	if dts.FormatSettings != nil {
 		objectMap["formatSettings"] = dts.FormatSettings
+	}
+	if dts.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = dts.AdditionalColumns
 	}
 	if dts.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = dts.SourceRetryCount
@@ -73053,6 +73418,15 @@ func (dts *DelimitedTextSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				dts.FormatSettings = &formatSettings
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				dts.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -74291,6 +74665,8 @@ type DocumentDbCollectionSource struct {
 	NestingSeparator interface{} `json:"nestingSeparator,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -74315,6 +74691,9 @@ func (ddcs DocumentDbCollectionSource) MarshalJSON() ([]byte, error) {
 	}
 	if ddcs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ddcs.QueryTimeout
+	}
+	if ddcs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ddcs.AdditionalColumns
 	}
 	if ddcs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ddcs.SourceRetryCount
@@ -74819,6 +75198,15 @@ func (ddcs *DocumentDbCollectionSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ddcs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ddcs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -75507,6 +75895,8 @@ type DrillSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -75528,6 +75918,9 @@ func (ds DrillSource) MarshalJSON() ([]byte, error) {
 	}
 	if ds.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ds.QueryTimeout
+	}
+	if ds.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ds.AdditionalColumns
 	}
 	if ds.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ds.SourceRetryCount
@@ -76023,6 +76416,15 @@ func (ds *DrillSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ds.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ds.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -78037,6 +78439,8 @@ type DynamicsAXSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -78058,6 +78462,9 @@ func (das DynamicsAXSource) MarshalJSON() ([]byte, error) {
 	}
 	if das.QueryTimeout != nil {
 		objectMap["queryTimeout"] = das.QueryTimeout
+	}
+	if das.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = das.AdditionalColumns
 	}
 	if das.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = das.SourceRetryCount
@@ -78553,6 +78960,15 @@ func (das *DynamicsAXSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				das.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				das.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -80337,6 +80753,8 @@ func (dcs *DynamicsCrmSink) UnmarshalJSON(body []byte) error {
 type DynamicsCrmSource struct {
 	// Query - FetchXML is a proprietary query language that is used in Microsoft Dynamics CRM (online & on-premises). Type: string (or Expression with resultType string).
 	Query interface{} `json:"query,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -80355,6 +80773,9 @@ func (dcs DynamicsCrmSource) MarshalJSON() ([]byte, error) {
 	objectMap := make(map[string]interface{})
 	if dcs.Query != nil {
 		objectMap["query"] = dcs.Query
+	}
+	if dcs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = dcs.AdditionalColumns
 	}
 	if dcs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = dcs.SourceRetryCount
@@ -80841,6 +81262,15 @@ func (dcs *DynamicsCrmSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				dcs.Query = query
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				dcs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -82625,6 +83055,8 @@ func (ds *DynamicsSink) UnmarshalJSON(body []byte) error {
 type DynamicsSource struct {
 	// Query - FetchXML is a proprietary query language that is used in Microsoft Dynamics (online & on-premises). Type: string (or Expression with resultType string).
 	Query interface{} `json:"query,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -82643,6 +83075,9 @@ func (ds DynamicsSource) MarshalJSON() ([]byte, error) {
 	objectMap := make(map[string]interface{})
 	if ds.Query != nil {
 		objectMap["query"] = ds.Query
+	}
+	if ds.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ds.AdditionalColumns
 	}
 	if ds.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ds.SourceRetryCount
@@ -83129,6 +83564,15 @@ func (ds *DynamicsSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ds.Query = query
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ds.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -84506,6 +84950,8 @@ type EloquaSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -84527,6 +84973,9 @@ func (es EloquaSource) MarshalJSON() ([]byte, error) {
 	}
 	if es.QueryTimeout != nil {
 		objectMap["queryTimeout"] = es.QueryTimeout
+	}
+	if es.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = es.AdditionalColumns
 	}
 	if es.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = es.SourceRetryCount
@@ -85022,6 +85471,15 @@ func (es *EloquaSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				es.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				es.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -88337,6 +88795,8 @@ type FileServerReadSettings struct {
 	WildcardFolderPath interface{} `json:"wildcardFolderPath,omitempty"`
 	// WildcardFileName - FileServer wildcardFileName. Type: string (or Expression with resultType string).
 	WildcardFileName interface{} `json:"wildcardFileName,omitempty"`
+	// FileListPath - Point to a text file that lists each file (relative path to the path configured in the dataset) that you want to copy. Type: string (or Expression with resultType string).
+	FileListPath interface{} `json:"fileListPath,omitempty"`
 	// EnablePartitionDiscovery - Indicates whether to enable partition discovery.
 	EnablePartitionDiscovery *bool `json:"enablePartitionDiscovery,omitempty"`
 	// ModifiedDatetimeStart - The start of file's modified datetime. Type: string (or Expression with resultType string).
@@ -88363,6 +88823,9 @@ func (fsrs FileServerReadSettings) MarshalJSON() ([]byte, error) {
 	}
 	if fsrs.WildcardFileName != nil {
 		objectMap["wildcardFileName"] = fsrs.WildcardFileName
+	}
+	if fsrs.FileListPath != nil {
+		objectMap["fileListPath"] = fsrs.FileListPath
 	}
 	if fsrs.EnablePartitionDiscovery != nil {
 		objectMap["enablePartitionDiscovery"] = fsrs.EnablePartitionDiscovery
@@ -88485,6 +88948,15 @@ func (fsrs *FileServerReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				fsrs.WildcardFileName = wildcardFileName
+			}
+		case "fileListPath":
+			if v != nil {
+				var fileListPath interface{}
+				err = json.Unmarshal(*v, &fileListPath)
+				if err != nil {
+					return err
+				}
+				fsrs.FileListPath = fileListPath
 			}
 		case "enablePartitionDiscovery":
 			if v != nil {
@@ -89702,6 +90174,8 @@ func (fss *FileSystemSink) UnmarshalJSON(body []byte) error {
 type FileSystemSource struct {
 	// Recursive - If true, files under the folder path will be read recursively. Default is true. Type: boolean (or Expression with resultType boolean).
 	Recursive interface{} `json:"recursive,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -89720,6 +90194,9 @@ func (fss FileSystemSource) MarshalJSON() ([]byte, error) {
 	objectMap := make(map[string]interface{})
 	if fss.Recursive != nil {
 		objectMap["recursive"] = fss.Recursive
+	}
+	if fss.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = fss.AdditionalColumns
 	}
 	if fss.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = fss.SourceRetryCount
@@ -90206,6 +90683,15 @@ func (fss *FileSystemSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				fss.Recursive = recursive
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				fss.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -91243,6 +91729,8 @@ type FtpReadSettings struct {
 	WildcardFolderPath interface{} `json:"wildcardFolderPath,omitempty"`
 	// WildcardFileName - Ftp wildcardFileName. Type: string (or Expression with resultType string).
 	WildcardFileName interface{} `json:"wildcardFileName,omitempty"`
+	// FileListPath - Point to a text file that lists each file (relative path to the path configured in the dataset) that you want to copy. Type: string (or Expression with resultType string).
+	FileListPath interface{} `json:"fileListPath,omitempty"`
 	// UseBinaryTransfer - Specify whether to use binary transfer mode for FTP stores.
 	UseBinaryTransfer *bool `json:"useBinaryTransfer,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
@@ -91265,6 +91753,9 @@ func (frs FtpReadSettings) MarshalJSON() ([]byte, error) {
 	}
 	if frs.WildcardFileName != nil {
 		objectMap["wildcardFileName"] = frs.WildcardFileName
+	}
+	if frs.FileListPath != nil {
+		objectMap["fileListPath"] = frs.FileListPath
 	}
 	if frs.UseBinaryTransfer != nil {
 		objectMap["useBinaryTransfer"] = frs.UseBinaryTransfer
@@ -91381,6 +91872,15 @@ func (frs *FtpReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				frs.WildcardFileName = wildcardFileName
+			}
+		case "fileListPath":
+			if v != nil {
+				var fileListPath interface{}
+				err = json.Unmarshal(*v, &fileListPath)
+				if err != nil {
+					return err
+				}
+				frs.FileListPath = fileListPath
 			}
 		case "useBinaryTransfer":
 			if v != nil {
@@ -94102,6 +94602,8 @@ type GoogleAdWordsSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -94123,6 +94625,9 @@ func (gaws GoogleAdWordsSource) MarshalJSON() ([]byte, error) {
 	}
 	if gaws.QueryTimeout != nil {
 		objectMap["queryTimeout"] = gaws.QueryTimeout
+	}
+	if gaws.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = gaws.AdditionalColumns
 	}
 	if gaws.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = gaws.SourceRetryCount
@@ -94618,6 +95123,15 @@ func (gaws *GoogleAdWordsSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				gaws.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				gaws.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -96059,6 +96573,8 @@ type GoogleBigQuerySource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -96080,6 +96596,9 @@ func (gbqs GoogleBigQuerySource) MarshalJSON() ([]byte, error) {
 	}
 	if gbqs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = gbqs.QueryTimeout
+	}
+	if gbqs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = gbqs.AdditionalColumns
 	}
 	if gbqs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = gbqs.SourceRetryCount
@@ -96575,6 +97094,15 @@ func (gbqs *GoogleBigQuerySource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				gbqs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				gbqs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -97487,6 +98015,8 @@ type GoogleCloudStorageReadSettings struct {
 	WildcardFileName interface{} `json:"wildcardFileName,omitempty"`
 	// Prefix - The prefix filter for the Google Cloud Storage object name. Type: string (or Expression with resultType string).
 	Prefix interface{} `json:"prefix,omitempty"`
+	// FileListPath - Point to a text file that lists each file (relative path to the path configured in the dataset) that you want to copy. Type: string (or Expression with resultType string).
+	FileListPath interface{} `json:"fileListPath,omitempty"`
 	// EnablePartitionDiscovery - Indicates whether to enable partition discovery.
 	EnablePartitionDiscovery *bool `json:"enablePartitionDiscovery,omitempty"`
 	// ModifiedDatetimeStart - The start of file's modified datetime. Type: string (or Expression with resultType string).
@@ -97516,6 +98046,9 @@ func (gcsrs GoogleCloudStorageReadSettings) MarshalJSON() ([]byte, error) {
 	}
 	if gcsrs.Prefix != nil {
 		objectMap["prefix"] = gcsrs.Prefix
+	}
+	if gcsrs.FileListPath != nil {
+		objectMap["fileListPath"] = gcsrs.FileListPath
 	}
 	if gcsrs.EnablePartitionDiscovery != nil {
 		objectMap["enablePartitionDiscovery"] = gcsrs.EnablePartitionDiscovery
@@ -97647,6 +98180,15 @@ func (gcsrs *GoogleCloudStorageReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				gcsrs.Prefix = prefix
+			}
+		case "fileListPath":
+			if v != nil {
+				var fileListPath interface{}
+				err = json.Unmarshal(*v, &fileListPath)
+				if err != nil {
+					return err
+				}
+				gcsrs.FileListPath = fileListPath
 			}
 		case "enablePartitionDiscovery":
 			if v != nil {
@@ -98344,6 +98886,8 @@ type GreenplumSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -98365,6 +98909,9 @@ func (gs GreenplumSource) MarshalJSON() ([]byte, error) {
 	}
 	if gs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = gs.QueryTimeout
+	}
+	if gs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = gs.AdditionalColumns
 	}
 	if gs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = gs.SourceRetryCount
@@ -98860,6 +99407,15 @@ func (gs *GreenplumSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				gs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				gs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -100895,6 +101451,8 @@ type HBaseSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -100916,6 +101474,9 @@ func (hbs HBaseSource) MarshalJSON() ([]byte, error) {
 	}
 	if hbs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = hbs.QueryTimeout
+	}
+	if hbs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = hbs.AdditionalColumns
 	}
 	if hbs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = hbs.SourceRetryCount
@@ -101411,6 +101972,15 @@ func (hbs *HBaseSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				hbs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				hbs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -102304,6 +102874,8 @@ type HdfsReadSettings struct {
 	WildcardFolderPath interface{} `json:"wildcardFolderPath,omitempty"`
 	// WildcardFileName - HDFS wildcardFileName. Type: string (or Expression with resultType string).
 	WildcardFileName interface{} `json:"wildcardFileName,omitempty"`
+	// FileListPath - Point to a text file that lists each file (relative path to the path configured in the dataset) that you want to copy. Type: string (or Expression with resultType string).
+	FileListPath interface{} `json:"fileListPath,omitempty"`
 	// EnablePartitionDiscovery - Indicates whether to enable partition discovery.
 	EnablePartitionDiscovery *bool `json:"enablePartitionDiscovery,omitempty"`
 	// ModifiedDatetimeStart - The start of file's modified datetime. Type: string (or Expression with resultType string).
@@ -102332,6 +102904,9 @@ func (hrs HdfsReadSettings) MarshalJSON() ([]byte, error) {
 	}
 	if hrs.WildcardFileName != nil {
 		objectMap["wildcardFileName"] = hrs.WildcardFileName
+	}
+	if hrs.FileListPath != nil {
+		objectMap["fileListPath"] = hrs.FileListPath
 	}
 	if hrs.EnablePartitionDiscovery != nil {
 		objectMap["enablePartitionDiscovery"] = hrs.EnablePartitionDiscovery
@@ -102457,6 +103032,15 @@ func (hrs *HdfsReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				hrs.WildcardFileName = wildcardFileName
+			}
+		case "fileListPath":
+			if v != nil {
+				var fileListPath interface{}
+				err = json.Unmarshal(*v, &fileListPath)
+				if err != nil {
+					return err
+				}
+				hrs.FileListPath = fileListPath
 			}
 		case "enablePartitionDiscovery":
 			if v != nil {
@@ -108283,6 +108867,8 @@ type HiveSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -108304,6 +108890,9 @@ func (hs HiveSource) MarshalJSON() ([]byte, error) {
 	}
 	if hs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = hs.QueryTimeout
+	}
+	if hs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = hs.AdditionalColumns
 	}
 	if hs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = hs.SourceRetryCount
@@ -108799,6 +109388,15 @@ func (hs *HiveSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				hs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				hs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -112516,6 +113114,8 @@ type HubspotSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -112537,6 +113137,9 @@ func (hs HubspotSource) MarshalJSON() ([]byte, error) {
 	}
 	if hs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = hs.QueryTimeout
+	}
+	if hs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = hs.AdditionalColumns
 	}
 	if hs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = hs.SourceRetryCount
@@ -113032,6 +113635,15 @@ func (hs *HubspotSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				hs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				hs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -114842,6 +115454,8 @@ type ImpalaSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -114863,6 +115477,9 @@ func (is ImpalaSource) MarshalJSON() ([]byte, error) {
 	}
 	if is.QueryTimeout != nil {
 		objectMap["queryTimeout"] = is.QueryTimeout
+	}
+	if is.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = is.AdditionalColumns
 	}
 	if is.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = is.SourceRetryCount
@@ -115358,6 +115975,15 @@ func (is *ImpalaSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				is.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				is.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -116430,6 +117056,8 @@ type InformixSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -116451,6 +117079,9 @@ func (is InformixSource) MarshalJSON() ([]byte, error) {
 	}
 	if is.QueryTimeout != nil {
 		objectMap["queryTimeout"] = is.QueryTimeout
+	}
+	if is.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = is.AdditionalColumns
 	}
 	if is.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = is.SourceRetryCount
@@ -116946,6 +117577,15 @@ func (is *InformixSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				is.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				is.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -120463,6 +121103,8 @@ type JiraSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -120484,6 +121126,9 @@ func (js JiraSource) MarshalJSON() ([]byte, error) {
 	}
 	if js.QueryTimeout != nil {
 		objectMap["queryTimeout"] = js.QueryTimeout
+	}
+	if js.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = js.AdditionalColumns
 	}
 	if js.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = js.SourceRetryCount
@@ -120979,6 +121624,15 @@ func (js *JiraSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				js.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				js.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -122224,6 +122878,8 @@ func (js *JSONSink) UnmarshalJSON(body []byte) error {
 type JSONSource struct {
 	// StoreSettings - Json store settings.
 	StoreSettings BasicStoreReadSettings `json:"storeSettings,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -122241,6 +122897,9 @@ func (js JSONSource) MarshalJSON() ([]byte, error) {
 	js.Type = TypeJSONSource
 	objectMap := make(map[string]interface{})
 	objectMap["storeSettings"] = js.StoreSettings
+	if js.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = js.AdditionalColumns
+	}
 	if js.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = js.SourceRetryCount
 	}
@@ -122725,6 +123384,15 @@ func (js *JSONSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				js.StoreSettings = storeSettings
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				js.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -126278,6 +126946,8 @@ type MagentoSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -126299,6 +126969,9 @@ func (ms MagentoSource) MarshalJSON() ([]byte, error) {
 	}
 	if ms.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ms.QueryTimeout
+	}
+	if ms.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ms.AdditionalColumns
 	}
 	if ms.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ms.SourceRetryCount
@@ -126794,6 +127467,15 @@ func (ms *MagentoSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ms.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ms.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -127883,6 +128565,8 @@ type MariaDBSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -127904,6 +128588,9 @@ func (mds MariaDBSource) MarshalJSON() ([]byte, error) {
 	}
 	if mds.QueryTimeout != nil {
 		objectMap["queryTimeout"] = mds.QueryTimeout
+	}
+	if mds.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = mds.AdditionalColumns
 	}
 	if mds.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = mds.SourceRetryCount
@@ -128399,6 +129086,15 @@ func (mds *MariaDBSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				mds.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				mds.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -130390,6 +131086,8 @@ type MarketoSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -130411,6 +131109,9 @@ func (ms MarketoSource) MarshalJSON() ([]byte, error) {
 	}
 	if ms.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ms.QueryTimeout
+	}
+	if ms.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ms.AdditionalColumns
 	}
 	if ms.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ms.SourceRetryCount
@@ -130906,6 +131607,15 @@ func (ms *MarketoSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ms.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ms.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -131976,6 +132686,8 @@ func (mas *MicrosoftAccessSink) UnmarshalJSON(body []byte) error {
 type MicrosoftAccessSource struct {
 	// Query - Database query. Type: string (or Expression with resultType string).
 	Query interface{} `json:"query,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -131994,6 +132706,9 @@ func (mas MicrosoftAccessSource) MarshalJSON() ([]byte, error) {
 	objectMap := make(map[string]interface{})
 	if mas.Query != nil {
 		objectMap["query"] = mas.Query
+	}
+	if mas.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = mas.AdditionalColumns
 	}
 	if mas.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = mas.SourceRetryCount
@@ -132480,6 +133195,15 @@ func (mas *MicrosoftAccessSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				mas.Query = query
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				mas.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -134612,6 +135336,8 @@ func (mdlstp *MongoDbLinkedServiceTypeProperties) UnmarshalJSON(body []byte) err
 type MongoDbSource struct {
 	// Query - Database query. Should be a SQL-92 query expression. Type: string (or Expression with resultType string).
 	Query interface{} `json:"query,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -134630,6 +135356,9 @@ func (mds MongoDbSource) MarshalJSON() ([]byte, error) {
 	objectMap := make(map[string]interface{})
 	if mds.Query != nil {
 		objectMap["query"] = mds.Query
+	}
+	if mds.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = mds.AdditionalColumns
 	}
 	if mds.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = mds.SourceRetryCount
@@ -135116,6 +135845,15 @@ func (mds *MongoDbSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				mds.Query = query
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				mds.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -136416,6 +137154,8 @@ type MongoDbV2Source struct {
 	BatchSize interface{} `json:"batchSize,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -136443,6 +137183,9 @@ func (mdvs MongoDbV2Source) MarshalJSON() ([]byte, error) {
 	}
 	if mdvs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = mdvs.QueryTimeout
+	}
+	if mdvs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = mdvs.AdditionalColumns
 	}
 	if mdvs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = mdvs.SourceRetryCount
@@ -136957,6 +137700,15 @@ func (mdvs *MongoDbV2Source) UnmarshalJSON(body []byte) error {
 				}
 				mdvs.QueryTimeout = queryTimeout
 			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				mdvs.AdditionalColumns = &additionalColumns
+			}
 		default:
 			if v != nil {
 				var additionalProperties interface{}
@@ -137031,7 +137783,7 @@ type MultiplePipelineTrigger struct {
 	RuntimeState TriggerRuntimeState `json:"runtimeState,omitempty"`
 	// Annotations - List of tags that can be used for describing the trigger.
 	Annotations *[]interface{} `json:"annotations,omitempty"`
-	// Type - Possible values include: 'TypeTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeChainingTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
+	// Type - Possible values include: 'TypeTrigger', 'TypeChainingTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
 	Type TypeBasicTrigger `json:"type,omitempty"`
 }
 
@@ -137102,13 +137854,13 @@ func (mpt MultiplePipelineTrigger) MarshalJSON() ([]byte, error) {
 	return json.Marshal(objectMap)
 }
 
-// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for MultiplePipelineTrigger.
-func (mpt MultiplePipelineTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
+// AsChainingTrigger is the BasicTrigger implementation for MultiplePipelineTrigger.
+func (mpt MultiplePipelineTrigger) AsChainingTrigger() (*ChainingTrigger, bool) {
 	return nil, false
 }
 
-// AsChainingTrigger is the BasicTrigger implementation for MultiplePipelineTrigger.
-func (mpt MultiplePipelineTrigger) AsChainingTrigger() (*ChainingTrigger, bool) {
+// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for MultiplePipelineTrigger.
+func (mpt MultiplePipelineTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
 	return nil, false
 }
 
@@ -137847,6 +138599,8 @@ type MySQLSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -137868,6 +138622,9 @@ func (mss MySQLSource) MarshalJSON() ([]byte, error) {
 	}
 	if mss.QueryTimeout != nil {
 		objectMap["queryTimeout"] = mss.QueryTimeout
+	}
+	if mss.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = mss.AdditionalColumns
 	}
 	if mss.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = mss.SourceRetryCount
@@ -138363,6 +139120,15 @@ func (mss *MySQLSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				mss.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				mss.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -139675,6 +140441,8 @@ type NetezzaSource struct {
 	PartitionSettings *NetezzaPartitionSettings `json:"partitionSettings,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -139702,6 +140470,9 @@ func (ns NetezzaSource) MarshalJSON() ([]byte, error) {
 	}
 	if ns.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ns.QueryTimeout
+	}
+	if ns.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ns.AdditionalColumns
 	}
 	if ns.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ns.SourceRetryCount
@@ -140215,6 +140986,15 @@ func (ns *NetezzaSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ns.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ns.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -142272,6 +143052,8 @@ type ODataResourceDatasetTypeProperties struct {
 type ODataSource struct {
 	// Query - OData query. For example, "$top=1". Type: string (or Expression with resultType string).
 	Query interface{} `json:"query,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -142290,6 +143072,9 @@ func (ods ODataSource) MarshalJSON() ([]byte, error) {
 	objectMap := make(map[string]interface{})
 	if ods.Query != nil {
 		objectMap["query"] = ods.Query
+	}
+	if ods.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ods.AdditionalColumns
 	}
 	if ods.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ods.SourceRetryCount
@@ -142776,6 +143561,15 @@ func (ods *ODataSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ods.Query = query
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ods.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -143848,6 +144642,8 @@ type OdbcSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -143869,6 +144665,9 @@ func (osVar OdbcSource) MarshalJSON() ([]byte, error) {
 	}
 	if osVar.QueryTimeout != nil {
 		objectMap["queryTimeout"] = osVar.QueryTimeout
+	}
+	if osVar.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = osVar.AdditionalColumns
 	}
 	if osVar.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = osVar.SourceRetryCount
@@ -144364,6 +145163,15 @@ func (osVar *OdbcSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				osVar.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				osVar.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -149230,6 +150038,8 @@ type OracleServiceCloudSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -149251,6 +150061,9 @@ func (oscs OracleServiceCloudSource) MarshalJSON() ([]byte, error) {
 	}
 	if oscs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = oscs.QueryTimeout
+	}
+	if oscs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = oscs.AdditionalColumns
 	}
 	if oscs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = oscs.SourceRetryCount
@@ -149747,6 +150560,15 @@ func (oscs *OracleServiceCloudSource) UnmarshalJSON(body []byte) error {
 				}
 				oscs.QueryTimeout = queryTimeout
 			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				oscs.AdditionalColumns = &additionalColumns
+			}
 		default:
 			if v != nil {
 				var additionalProperties interface{}
@@ -150132,6 +150954,8 @@ type OracleSource struct {
 	PartitionOption OraclePartitionOption `json:"partitionOption,omitempty"`
 	// PartitionSettings - The settings that will be leveraged for Oracle source partitioning.
 	PartitionSettings *OraclePartitionSettings `json:"partitionSettings,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -150159,6 +150983,9 @@ func (osVar OracleSource) MarshalJSON() ([]byte, error) {
 	}
 	if osVar.PartitionSettings != nil {
 		objectMap["partitionSettings"] = osVar.PartitionSettings
+	}
+	if osVar.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = osVar.AdditionalColumns
 	}
 	if osVar.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = osVar.SourceRetryCount
@@ -150672,6 +151499,15 @@ func (osVar *OracleSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				osVar.PartitionSettings = &partitionSettings
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				osVar.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -152447,6 +153283,8 @@ func (osVar *OrcSink) UnmarshalJSON(body []byte) error {
 type OrcSource struct {
 	// StoreSettings - ORC store settings.
 	StoreSettings BasicStoreReadSettings `json:"storeSettings,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -152464,6 +153302,9 @@ func (osVar OrcSource) MarshalJSON() ([]byte, error) {
 	osVar.Type = TypeOrcSource
 	objectMap := make(map[string]interface{})
 	objectMap["storeSettings"] = osVar.StoreSettings
+	if osVar.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = osVar.AdditionalColumns
+	}
 	if osVar.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = osVar.SourceRetryCount
 	}
@@ -152948,6 +153789,15 @@ func (osVar *OrcSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				osVar.StoreSettings = storeSettings
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				osVar.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -154106,6 +154956,8 @@ func (ps *ParquetSink) UnmarshalJSON(body []byte) error {
 type ParquetSource struct {
 	// StoreSettings - Parquet store settings.
 	StoreSettings BasicStoreReadSettings `json:"storeSettings,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -154123,6 +154975,9 @@ func (ps ParquetSource) MarshalJSON() ([]byte, error) {
 	ps.Type = TypeParquetSource
 	objectMap := make(map[string]interface{})
 	objectMap["storeSettings"] = ps.StoreSettings
+	if ps.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ps.AdditionalColumns
+	}
 	if ps.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ps.SourceRetryCount
 	}
@@ -154607,6 +155462,15 @@ func (ps *ParquetSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ps.StoreSettings = storeSettings
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ps.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -155984,6 +156848,8 @@ type PaypalSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -156005,6 +156871,9 @@ func (ps PaypalSource) MarshalJSON() ([]byte, error) {
 	}
 	if ps.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ps.QueryTimeout
+	}
+	if ps.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ps.AdditionalColumns
 	}
 	if ps.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ps.SourceRetryCount
@@ -156500,6 +157369,15 @@ func (ps *PaypalSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ps.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ps.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -157942,6 +158820,8 @@ type PhoenixSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -157963,6 +158843,9 @@ func (ps PhoenixSource) MarshalJSON() ([]byte, error) {
 	}
 	if ps.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ps.QueryTimeout
+	}
+	if ps.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ps.AdditionalColumns
 	}
 	if ps.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ps.SourceRetryCount
@@ -158458,6 +159341,15 @@ func (ps *PhoenixSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ps.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ps.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -159839,6 +160731,8 @@ type PostgreSQLSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -159860,6 +160754,9 @@ func (pss PostgreSQLSource) MarshalJSON() ([]byte, error) {
 	}
 	if pss.QueryTimeout != nil {
 		objectMap["queryTimeout"] = pss.QueryTimeout
+	}
+	if pss.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = pss.AdditionalColumns
 	}
 	if pss.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = pss.SourceRetryCount
@@ -160355,6 +161252,15 @@ func (pss *PostgreSQLSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				pss.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				pss.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -162443,6 +163349,8 @@ type PrestoSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -162464,6 +163372,9 @@ func (ps PrestoSource) MarshalJSON() ([]byte, error) {
 	}
 	if ps.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ps.QueryTimeout
+	}
+	if ps.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ps.AdditionalColumns
 	}
 	if ps.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ps.SourceRetryCount
@@ -162959,6 +163870,15 @@ func (ps *PrestoSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ps.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ps.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -164492,6 +165412,8 @@ type QuickBooksSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -164513,6 +165435,9 @@ func (qbs QuickBooksSource) MarshalJSON() ([]byte, error) {
 	}
 	if qbs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = qbs.QueryTimeout
+	}
+	if qbs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = qbs.AdditionalColumns
 	}
 	if qbs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = qbs.SourceRetryCount
@@ -165009,6 +165934,15 @@ func (qbs *QuickBooksSource) UnmarshalJSON(body []byte) error {
 				}
 				qbs.QueryTimeout = queryTimeout
 			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				qbs.AdditionalColumns = &additionalColumns
+			}
 		default:
 			if v != nil {
 				var additionalProperties interface{}
@@ -165329,6 +166263,8 @@ type RedshiftUnloadSettings struct {
 type RelationalSource struct {
 	// Query - Database query. Type: string (or Expression with resultType string).
 	Query interface{} `json:"query,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -165347,6 +166283,9 @@ func (rs RelationalSource) MarshalJSON() ([]byte, error) {
 	objectMap := make(map[string]interface{})
 	if rs.Query != nil {
 		objectMap["query"] = rs.Query
+	}
+	if rs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = rs.AdditionalColumns
 	}
 	if rs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = rs.SourceRetryCount
@@ -165833,6 +166772,15 @@ func (rs *RelationalSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				rs.Query = query
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				rs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -166508,235 +167456,6 @@ type RelationalTableDatasetTypeProperties struct {
 	TableName interface{} `json:"tableName,omitempty"`
 }
 
-// RerunTriggerListResponse a list of rerun triggers.
-type RerunTriggerListResponse struct {
-	autorest.Response `json:"-"`
-	// Value - List of rerun triggers.
-	Value *[]RerunTriggerResource `json:"value,omitempty"`
-	// NextLink - READ-ONLY; The continuation token for getting the next page of results, if any remaining results exist, null otherwise.
-	NextLink *string `json:"nextLink,omitempty"`
-}
-
-// RerunTriggerListResponseIterator provides access to a complete listing of RerunTriggerResource values.
-type RerunTriggerListResponseIterator struct {
-	i    int
-	page RerunTriggerListResponsePage
-}
-
-// NextWithContext advances to the next value.  If there was an error making
-// the request the iterator does not advance and the error is returned.
-func (iter *RerunTriggerListResponseIterator) NextWithContext(ctx context.Context) (err error) {
-	if tracing.IsEnabled() {
-		ctx = tracing.StartSpan(ctx, fqdn+"/RerunTriggerListResponseIterator.NextWithContext")
-		defer func() {
-			sc := -1
-			if iter.Response().Response.Response != nil {
-				sc = iter.Response().Response.Response.StatusCode
-			}
-			tracing.EndSpan(ctx, sc, err)
-		}()
-	}
-	iter.i++
-	if iter.i < len(iter.page.Values()) {
-		return nil
-	}
-	err = iter.page.NextWithContext(ctx)
-	if err != nil {
-		iter.i--
-		return err
-	}
-	iter.i = 0
-	return nil
-}
-
-// Next advances to the next value.  If there was an error making
-// the request the iterator does not advance and the error is returned.
-// Deprecated: Use NextWithContext() instead.
-func (iter *RerunTriggerListResponseIterator) Next() error {
-	return iter.NextWithContext(context.Background())
-}
-
-// NotDone returns true if the enumeration should be started or is not yet complete.
-func (iter RerunTriggerListResponseIterator) NotDone() bool {
-	return iter.page.NotDone() && iter.i < len(iter.page.Values())
-}
-
-// Response returns the raw server response from the last page request.
-func (iter RerunTriggerListResponseIterator) Response() RerunTriggerListResponse {
-	return iter.page.Response()
-}
-
-// Value returns the current value or a zero-initialized value if the
-// iterator has advanced beyond the end of the collection.
-func (iter RerunTriggerListResponseIterator) Value() RerunTriggerResource {
-	if !iter.page.NotDone() {
-		return RerunTriggerResource{}
-	}
-	return iter.page.Values()[iter.i]
-}
-
-// Creates a new instance of the RerunTriggerListResponseIterator type.
-func NewRerunTriggerListResponseIterator(page RerunTriggerListResponsePage) RerunTriggerListResponseIterator {
-	return RerunTriggerListResponseIterator{page: page}
-}
-
-// IsEmpty returns true if the ListResult contains no values.
-func (rtlr RerunTriggerListResponse) IsEmpty() bool {
-	return rtlr.Value == nil || len(*rtlr.Value) == 0
-}
-
-// rerunTriggerListResponsePreparer prepares a request to retrieve the next set of results.
-// It returns nil if no more results exist.
-func (rtlr RerunTriggerListResponse) rerunTriggerListResponsePreparer(ctx context.Context) (*http.Request, error) {
-	if rtlr.NextLink == nil || len(to.String(rtlr.NextLink)) < 1 {
-		return nil, nil
-	}
-	return autorest.Prepare((&http.Request{}).WithContext(ctx),
-		autorest.AsJSON(),
-		autorest.AsGet(),
-		autorest.WithBaseURL(to.String(rtlr.NextLink)))
-}
-
-// RerunTriggerListResponsePage contains a page of RerunTriggerResource values.
-type RerunTriggerListResponsePage struct {
-	fn   func(context.Context, RerunTriggerListResponse) (RerunTriggerListResponse, error)
-	rtlr RerunTriggerListResponse
-}
-
-// NextWithContext advances to the next page of values.  If there was an error making
-// the request the page does not advance and the error is returned.
-func (page *RerunTriggerListResponsePage) NextWithContext(ctx context.Context) (err error) {
-	if tracing.IsEnabled() {
-		ctx = tracing.StartSpan(ctx, fqdn+"/RerunTriggerListResponsePage.NextWithContext")
-		defer func() {
-			sc := -1
-			if page.Response().Response.Response != nil {
-				sc = page.Response().Response.Response.StatusCode
-			}
-			tracing.EndSpan(ctx, sc, err)
-		}()
-	}
-	next, err := page.fn(ctx, page.rtlr)
-	if err != nil {
-		return err
-	}
-	page.rtlr = next
-	return nil
-}
-
-// Next advances to the next page of values.  If there was an error making
-// the request the page does not advance and the error is returned.
-// Deprecated: Use NextWithContext() instead.
-func (page *RerunTriggerListResponsePage) Next() error {
-	return page.NextWithContext(context.Background())
-}
-
-// NotDone returns true if the page enumeration should be started or is not yet complete.
-func (page RerunTriggerListResponsePage) NotDone() bool {
-	return !page.rtlr.IsEmpty()
-}
-
-// Response returns the raw server response from the last page request.
-func (page RerunTriggerListResponsePage) Response() RerunTriggerListResponse {
-	return page.rtlr
-}
-
-// Values returns the slice of values for the current page or nil if there are no values.
-func (page RerunTriggerListResponsePage) Values() []RerunTriggerResource {
-	if page.rtlr.IsEmpty() {
-		return nil
-	}
-	return *page.rtlr.Value
-}
-
-// Creates a new instance of the RerunTriggerListResponsePage type.
-func NewRerunTriggerListResponsePage(getNextPage func(context.Context, RerunTriggerListResponse) (RerunTriggerListResponse, error)) RerunTriggerListResponsePage {
-	return RerunTriggerListResponsePage{fn: getNextPage}
-}
-
-// RerunTriggerResource rerunTrigger resource type.
-type RerunTriggerResource struct {
-	// Properties - Properties of the rerun trigger.
-	Properties *RerunTumblingWindowTrigger `json:"properties,omitempty"`
-	// ID - READ-ONLY; The resource identifier.
-	ID *string `json:"id,omitempty"`
-	// Name - READ-ONLY; The resource name.
-	Name *string `json:"name,omitempty"`
-	// Type - READ-ONLY; The resource type.
-	Type *string `json:"type,omitempty"`
-	// Etag - READ-ONLY; Etag identifies change in the resource.
-	Etag *string `json:"etag,omitempty"`
-}
-
-// RerunTriggersCancelFuture an abstraction for monitoring and retrieving the results of a long-running
-// operation.
-type RerunTriggersCancelFuture struct {
-	azure.Future
-}
-
-// Result returns the result of the asynchronous operation.
-// If the operation has not completed it will return an error.
-func (future *RerunTriggersCancelFuture) Result(client RerunTriggersClient) (ar autorest.Response, err error) {
-	var done bool
-	done, err = future.DoneWithContext(context.Background(), client)
-	if err != nil {
-		err = autorest.NewErrorWithError(err, "datafactory.RerunTriggersCancelFuture", "Result", future.Response(), "Polling failure")
-		return
-	}
-	if !done {
-		err = azure.NewAsyncOpIncompleteError("datafactory.RerunTriggersCancelFuture")
-		return
-	}
-	ar.Response = future.Response()
-	return
-}
-
-// RerunTriggersStartFuture an abstraction for monitoring and retrieving the results of a long-running
-// operation.
-type RerunTriggersStartFuture struct {
-	azure.Future
-}
-
-// Result returns the result of the asynchronous operation.
-// If the operation has not completed it will return an error.
-func (future *RerunTriggersStartFuture) Result(client RerunTriggersClient) (ar autorest.Response, err error) {
-	var done bool
-	done, err = future.DoneWithContext(context.Background(), client)
-	if err != nil {
-		err = autorest.NewErrorWithError(err, "datafactory.RerunTriggersStartFuture", "Result", future.Response(), "Polling failure")
-		return
-	}
-	if !done {
-		err = azure.NewAsyncOpIncompleteError("datafactory.RerunTriggersStartFuture")
-		return
-	}
-	ar.Response = future.Response()
-	return
-}
-
-// RerunTriggersStopFuture an abstraction for monitoring and retrieving the results of a long-running
-// operation.
-type RerunTriggersStopFuture struct {
-	azure.Future
-}
-
-// Result returns the result of the asynchronous operation.
-// If the operation has not completed it will return an error.
-func (future *RerunTriggersStopFuture) Result(client RerunTriggersClient) (ar autorest.Response, err error) {
-	var done bool
-	done, err = future.DoneWithContext(context.Background(), client)
-	if err != nil {
-		err = autorest.NewErrorWithError(err, "datafactory.RerunTriggersStopFuture", "Result", future.Response(), "Polling failure")
-		return
-	}
-	if !done {
-		err = azure.NewAsyncOpIncompleteError("datafactory.RerunTriggersStopFuture")
-		return
-	}
-	ar.Response = future.Response()
-	return
-}
-
 // RerunTumblingWindowTrigger trigger that schedules pipeline reruns for all fixed time interval windows
 // from a requested start time to requested end time.
 type RerunTumblingWindowTrigger struct {
@@ -166750,7 +167469,7 @@ type RerunTumblingWindowTrigger struct {
 	RuntimeState TriggerRuntimeState `json:"runtimeState,omitempty"`
 	// Annotations - List of tags that can be used for describing the trigger.
 	Annotations *[]interface{} `json:"annotations,omitempty"`
-	// Type - Possible values include: 'TypeTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeChainingTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
+	// Type - Possible values include: 'TypeTrigger', 'TypeChainingTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
 	Type TypeBasicTrigger `json:"type,omitempty"`
 }
 
@@ -166776,14 +167495,14 @@ func (rtwt RerunTumblingWindowTrigger) MarshalJSON() ([]byte, error) {
 	return json.Marshal(objectMap)
 }
 
-// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for RerunTumblingWindowTrigger.
-func (rtwt RerunTumblingWindowTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
-	return &rtwt, true
-}
-
 // AsChainingTrigger is the BasicTrigger implementation for RerunTumblingWindowTrigger.
 func (rtwt RerunTumblingWindowTrigger) AsChainingTrigger() (*ChainingTrigger, bool) {
 	return nil, false
+}
+
+// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for RerunTumblingWindowTrigger.
+func (rtwt RerunTumblingWindowTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
+	return &rtwt, true
 }
 
 // AsTumblingWindowTrigger is the BasicTrigger implementation for RerunTumblingWindowTrigger.
@@ -166898,16 +167617,6 @@ func (rtwt *RerunTumblingWindowTrigger) UnmarshalJSON(body []byte) error {
 	return nil
 }
 
-// RerunTumblingWindowTriggerActionParameters rerun tumbling window trigger Parameters.
-type RerunTumblingWindowTriggerActionParameters struct {
-	// StartTime - The start time for the time period for which restatement is initiated. Only UTC time is currently supported.
-	StartTime *date.Time `json:"startTime,omitempty"`
-	// EndTime - The end time for the time period for which restatement is initiated. Only UTC time is currently supported.
-	EndTime *date.Time `json:"endTime,omitempty"`
-	// MaxConcurrency - The max number of parallel time windows (ready for execution) for which a rerun is triggered.
-	MaxConcurrency *int32 `json:"maxConcurrency,omitempty"`
-}
-
 // RerunTumblingWindowTriggerTypeProperties rerun Trigger properties.
 type RerunTumblingWindowTriggerTypeProperties struct {
 	// ParentTrigger - The parent trigger reference.
@@ -166916,8 +167625,8 @@ type RerunTumblingWindowTriggerTypeProperties struct {
 	RequestedStartTime *date.Time `json:"requestedStartTime,omitempty"`
 	// RequestedEndTime - The end time for the time period for which restatement is initiated. Only UTC time is currently supported.
 	RequestedEndTime *date.Time `json:"requestedEndTime,omitempty"`
-	// MaxConcurrency - The max number of parallel time windows (ready for execution) for which a rerun is triggered.
-	MaxConcurrency *int32 `json:"maxConcurrency,omitempty"`
+	// RerunConcurrency - The max number of parallel time windows (ready for execution) for which a rerun is triggered.
+	RerunConcurrency *int32 `json:"rerunConcurrency,omitempty"`
 }
 
 // Resource azure Data Factory top-level resource.
@@ -168270,6 +168979,8 @@ type ResponsysSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -168291,6 +169002,9 @@ func (rs ResponsysSource) MarshalJSON() ([]byte, error) {
 	}
 	if rs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = rs.QueryTimeout
+	}
+	if rs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = rs.AdditionalColumns
 	}
 	if rs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = rs.SourceRetryCount
@@ -168786,6 +169500,15 @@ func (rs *ResponsysSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				rs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				rs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -170217,6 +170940,8 @@ type RestSource struct {
 	HTTPRequestTimeout interface{} `json:"httpRequestTimeout,omitempty"`
 	// RequestInterval - The time to await before sending next page request.
 	RequestInterval interface{} `json:"requestInterval,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -170250,6 +170975,9 @@ func (rs RestSource) MarshalJSON() ([]byte, error) {
 	}
 	if rs.RequestInterval != nil {
 		objectMap["requestInterval"] = rs.RequestInterval
+	}
+	if rs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = rs.AdditionalColumns
 	}
 	if rs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = rs.SourceRetryCount
@@ -170781,6 +171509,15 @@ func (rs *RestSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				rs.RequestInterval = requestInterval
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				rs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -171491,8 +172228,10 @@ type SalesforceLinkedServiceTypeProperties struct {
 	Username interface{} `json:"username,omitempty"`
 	// Password - The password for Basic authentication of the Salesforce instance.
 	Password BasicSecretBase `json:"password,omitempty"`
-	// SecurityToken - The security token is required to remotely access Salesforce instance.
+	// SecurityToken - The security token is optional to remotely access Salesforce instance.
 	SecurityToken BasicSecretBase `json:"securityToken,omitempty"`
+	// APIVersion - The Salesforce API version used in ADF. Type: string (or Expression with resultType string).
+	APIVersion interface{} `json:"apiVersion,omitempty"`
 	// EncryptedCredential - The encrypted credential used for authentication. Credentials are encrypted using the integration runtime credential manager. Type: string (or Expression with resultType string).
 	EncryptedCredential interface{} `json:"encryptedCredential,omitempty"`
 }
@@ -171539,6 +172278,15 @@ func (slstp *SalesforceLinkedServiceTypeProperties) UnmarshalJSON(body []byte) e
 					return err
 				}
 				slstp.SecurityToken = securityToken
+			}
+		case "apiVersion":
+			if v != nil {
+				var APIVersion interface{}
+				err = json.Unmarshal(*v, &APIVersion)
+				if err != nil {
+					return err
+				}
+				slstp.APIVersion = APIVersion
 			}
 		case "encryptedCredential":
 			if v != nil {
@@ -172867,6 +173615,8 @@ type SalesforceMarketingCloudSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -172888,6 +173638,9 @@ func (smcs SalesforceMarketingCloudSource) MarshalJSON() ([]byte, error) {
 	}
 	if smcs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = smcs.QueryTimeout
+	}
+	if smcs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = smcs.AdditionalColumns
 	}
 	if smcs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = smcs.SourceRetryCount
@@ -173383,6 +174136,15 @@ func (smcs *SalesforceMarketingCloudSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				smcs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				smcs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -174673,8 +175435,10 @@ type SalesforceServiceCloudLinkedServiceTypeProperties struct {
 	Username interface{} `json:"username,omitempty"`
 	// Password - The password for Basic authentication of the Salesforce instance.
 	Password BasicSecretBase `json:"password,omitempty"`
-	// SecurityToken - The security token is required to remotely access Salesforce instance.
+	// SecurityToken - The security token is optional to remotely access Salesforce instance.
 	SecurityToken BasicSecretBase `json:"securityToken,omitempty"`
+	// APIVersion - The Salesforce API version used in ADF. Type: string (or Expression with resultType string).
+	APIVersion interface{} `json:"apiVersion,omitempty"`
 	// ExtendedProperties - Extended properties appended to the connection string. Type: string (or Expression with resultType string).
 	ExtendedProperties interface{} `json:"extendedProperties,omitempty"`
 	// EncryptedCredential - The encrypted credential used for authentication. Credentials are encrypted using the integration runtime credential manager. Type: string (or Expression with resultType string).
@@ -174723,6 +175487,15 @@ func (ssclstp *SalesforceServiceCloudLinkedServiceTypeProperties) UnmarshalJSON(
 					return err
 				}
 				ssclstp.SecurityToken = securityToken
+			}
+		case "apiVersion":
+			if v != nil {
+				var APIVersion interface{}
+				err = json.Unmarshal(*v, &APIVersion)
+				if err != nil {
+					return err
+				}
+				ssclstp.APIVersion = APIVersion
 			}
 		case "extendedProperties":
 			if v != nil {
@@ -175723,6 +176496,8 @@ type SalesforceServiceCloudSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// ReadBehavior - The read behavior for the operation. Default is Query. Possible values include: 'Query', 'QueryAll'
 	ReadBehavior SalesforceSourceReadBehavior `json:"readBehavior,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -175744,6 +176519,9 @@ func (sscs SalesforceServiceCloudSource) MarshalJSON() ([]byte, error) {
 	}
 	if sscs.ReadBehavior != "" {
 		objectMap["readBehavior"] = sscs.ReadBehavior
+	}
+	if sscs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = sscs.AdditionalColumns
 	}
 	if sscs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = sscs.SourceRetryCount
@@ -176240,6 +177018,15 @@ func (sscs *SalesforceServiceCloudSource) UnmarshalJSON(body []byte) error {
 				}
 				sscs.ReadBehavior = readBehavior
 			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				sscs.AdditionalColumns = &additionalColumns
+			}
 		default:
 			if v != nil {
 				var additionalProperties interface{}
@@ -176651,6 +177438,8 @@ type SalesforceSource struct {
 	ReadBehavior SalesforceSourceReadBehavior `json:"readBehavior,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -176675,6 +177464,9 @@ func (ss SalesforceSource) MarshalJSON() ([]byte, error) {
 	}
 	if ss.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ss.QueryTimeout
+	}
+	if ss.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ss.AdditionalColumns
 	}
 	if ss.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ss.SourceRetryCount
@@ -177179,6 +177971,15 @@ func (ss *SalesforceSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ss.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ss.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -178531,6 +179332,8 @@ type SapBwSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -178552,6 +179355,9 @@ func (sbs SapBwSource) MarshalJSON() ([]byte, error) {
 	}
 	if sbs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = sbs.QueryTimeout
+	}
+	if sbs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = sbs.AdditionalColumns
 	}
 	if sbs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = sbs.SourceRetryCount
@@ -179047,6 +179853,15 @@ func (sbs *SapBwSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				sbs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				sbs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -180719,6 +181534,8 @@ type SapCloudForCustomerSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -180740,6 +181557,9 @@ func (scfcs SapCloudForCustomerSource) MarshalJSON() ([]byte, error) {
 	}
 	if scfcs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = scfcs.QueryTimeout
+	}
+	if scfcs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = scfcs.AdditionalColumns
 	}
 	if scfcs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = scfcs.SourceRetryCount
@@ -181235,6 +182055,15 @@ func (scfcs *SapCloudForCustomerSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				scfcs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				scfcs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -182585,6 +183414,8 @@ type SapEccSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -182606,6 +183437,9 @@ func (ses SapEccSource) MarshalJSON() ([]byte, error) {
 	}
 	if ses.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ses.QueryTimeout
+	}
+	if ses.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ses.AdditionalColumns
 	}
 	if ses.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ses.SourceRetryCount
@@ -183101,6 +183935,15 @@ func (ses *SapEccSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ses.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ses.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -183865,6 +184708,8 @@ type SapHanaSource struct {
 	PartitionSettings *SapHanaPartitionSettings `json:"partitionSettings,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -183895,6 +184740,9 @@ func (shs SapHanaSource) MarshalJSON() ([]byte, error) {
 	}
 	if shs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = shs.QueryTimeout
+	}
+	if shs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = shs.AdditionalColumns
 	}
 	if shs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = shs.SourceRetryCount
@@ -184417,6 +185265,15 @@ func (shs *SapHanaSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				shs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				shs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -185805,6 +186662,8 @@ type SapOpenHubSource struct {
 	BaseRequestID interface{} `json:"baseRequestId,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -185829,6 +186688,9 @@ func (sohs SapOpenHubSource) MarshalJSON() ([]byte, error) {
 	}
 	if sohs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = sohs.QueryTimeout
+	}
+	if sohs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = sohs.AdditionalColumns
 	}
 	if sohs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = sohs.SourceRetryCount
@@ -186333,6 +187195,15 @@ func (sohs *SapOpenHubSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				sohs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				sohs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -188465,6 +189336,8 @@ type SapTableSource struct {
 	PartitionSettings *SapTablePartitionSettings `json:"partitionSettings,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -188507,6 +189380,9 @@ func (sts SapTableSource) MarshalJSON() ([]byte, error) {
 	}
 	if sts.QueryTimeout != nil {
 		objectMap["queryTimeout"] = sts.QueryTimeout
+	}
+	if sts.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = sts.AdditionalColumns
 	}
 	if sts.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = sts.SourceRetryCount
@@ -189066,6 +189942,15 @@ func (sts *SapTableSource) UnmarshalJSON(body []byte) error {
 				}
 				sts.QueryTimeout = queryTimeout
 			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				sts.AdditionalColumns = &additionalColumns
+			}
 		default:
 			if v != nil {
 				var additionalProperties interface{}
@@ -189134,7 +190019,7 @@ type ScheduleTrigger struct {
 	RuntimeState TriggerRuntimeState `json:"runtimeState,omitempty"`
 	// Annotations - List of tags that can be used for describing the trigger.
 	Annotations *[]interface{} `json:"annotations,omitempty"`
-	// Type - Possible values include: 'TypeTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeChainingTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
+	// Type - Possible values include: 'TypeTrigger', 'TypeChainingTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
 	Type TypeBasicTrigger `json:"type,omitempty"`
 }
 
@@ -189163,13 +190048,13 @@ func (st ScheduleTrigger) MarshalJSON() ([]byte, error) {
 	return json.Marshal(objectMap)
 }
 
-// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for ScheduleTrigger.
-func (st ScheduleTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
+// AsChainingTrigger is the BasicTrigger implementation for ScheduleTrigger.
+func (st ScheduleTrigger) AsChainingTrigger() (*ChainingTrigger, bool) {
 	return nil, false
 }
 
-// AsChainingTrigger is the BasicTrigger implementation for ScheduleTrigger.
-func (st ScheduleTrigger) AsChainingTrigger() (*ChainingTrigger, bool) {
+// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for ScheduleTrigger.
+func (st ScheduleTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
 	return nil, false
 }
 
@@ -191315,6 +192200,8 @@ type ServiceNowSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -191336,6 +192223,9 @@ func (sns ServiceNowSource) MarshalJSON() ([]byte, error) {
 	}
 	if sns.QueryTimeout != nil {
 		objectMap["queryTimeout"] = sns.QueryTimeout
+	}
+	if sns.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = sns.AdditionalColumns
 	}
 	if sns.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = sns.SourceRetryCount
@@ -191831,6 +192721,15 @@ func (sns *ServiceNowSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				sns.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				sns.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -192379,6 +193278,8 @@ type SftpReadSettings struct {
 	WildcardFolderPath interface{} `json:"wildcardFolderPath,omitempty"`
 	// WildcardFileName - Sftp wildcardFileName. Type: string (or Expression with resultType string).
 	WildcardFileName interface{} `json:"wildcardFileName,omitempty"`
+	// FileListPath - Point to a text file that lists each file (relative path to the path configured in the dataset) that you want to copy. Type: string (or Expression with resultType string).
+	FileListPath interface{} `json:"fileListPath,omitempty"`
 	// ModifiedDatetimeStart - The start of file's modified datetime. Type: string (or Expression with resultType string).
 	ModifiedDatetimeStart interface{} `json:"modifiedDatetimeStart,omitempty"`
 	// ModifiedDatetimeEnd - The end of file's modified datetime. Type: string (or Expression with resultType string).
@@ -192403,6 +193304,9 @@ func (srs SftpReadSettings) MarshalJSON() ([]byte, error) {
 	}
 	if srs.WildcardFileName != nil {
 		objectMap["wildcardFileName"] = srs.WildcardFileName
+	}
+	if srs.FileListPath != nil {
+		objectMap["fileListPath"] = srs.FileListPath
 	}
 	if srs.ModifiedDatetimeStart != nil {
 		objectMap["modifiedDatetimeStart"] = srs.ModifiedDatetimeStart
@@ -192522,6 +193426,15 @@ func (srs *SftpReadSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				srs.WildcardFileName = wildcardFileName
+			}
+		case "fileListPath":
+			if v != nil {
+				var fileListPath interface{}
+				err = json.Unmarshal(*v, &fileListPath)
+				if err != nil {
+					return err
+				}
+				srs.FileListPath = fileListPath
 			}
 		case "modifiedDatetimeStart":
 			if v != nil {
@@ -193325,6 +194238,8 @@ func (sslstp *SftpServerLinkedServiceTypeProperties) UnmarshalJSON(body []byte) 
 type SftpWriteSettings struct {
 	// OperationTimeout - Specifies the timeout for writing each chunk to SFTP server. Default value: 01:00:00 (one hour). Type: string (or Expression with resultType string).
 	OperationTimeout interface{} `json:"operationTimeout,omitempty"`
+	// UseTempFileRename - Upload to temporary file(s) and rename. Disable this option if your SFTP server doesn't support rename operation. Type: boolean (or Expression with resultType boolean).
+	UseTempFileRename interface{} `json:"useTempFileRename,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// MaxConcurrentConnections - The maximum concurrent connection count for the source data store. Type: integer (or Expression with resultType integer).
@@ -193341,6 +194256,9 @@ func (sws SftpWriteSettings) MarshalJSON() ([]byte, error) {
 	objectMap := make(map[string]interface{})
 	if sws.OperationTimeout != nil {
 		objectMap["operationTimeout"] = sws.OperationTimeout
+	}
+	if sws.UseTempFileRename != nil {
+		objectMap["useTempFileRename"] = sws.UseTempFileRename
 	}
 	if sws.MaxConcurrentConnections != nil {
 		objectMap["maxConcurrentConnections"] = sws.MaxConcurrentConnections
@@ -193409,6 +194327,15 @@ func (sws *SftpWriteSettings) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				sws.OperationTimeout = operationTimeout
+			}
+		case "useTempFileRename":
+			if v != nil {
+				var useTempFileRename interface{}
+				err = json.Unmarshal(*v, &useTempFileRename)
+				if err != nil {
+					return err
+				}
+				sws.UseTempFileRename = useTempFileRename
 			}
 		default:
 			if v != nil {
@@ -194766,6 +195693,8 @@ type ShopifySource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -194787,6 +195716,9 @@ func (ss ShopifySource) MarshalJSON() ([]byte, error) {
 	}
 	if ss.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ss.QueryTimeout
+	}
+	if ss.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ss.AdditionalColumns
 	}
 	if ss.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ss.SourceRetryCount
@@ -195283,6 +196215,15 @@ func (ss *ShopifySource) UnmarshalJSON(body []byte) error {
 				}
 				ss.QueryTimeout = queryTimeout
 			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ss.AdditionalColumns = &additionalColumns
+			}
 		default:
 			if v != nil {
 				var additionalProperties interface{}
@@ -195335,6 +196276,14 @@ func (ss *ShopifySource) UnmarshalJSON(body []byte) error {
 	}
 
 	return nil
+}
+
+// SkipErrorFile skip error file.
+type SkipErrorFile struct {
+	// FileMissing - Skip if file is deleted by other client during copy. Default is true. Type: boolean (or Expression with resultType boolean).
+	FileMissing interface{} `json:"fileMissing,omitempty"`
+	// DataInconsistency - Skip if source/sink file changed by other concurrent write. Default is false. Type: boolean (or Expression with resultType boolean).
+	DataInconsistency interface{} `json:"dataInconsistency,omitempty"`
 }
 
 // SparkDatasetTypeProperties spark Properties
@@ -196746,6 +197695,8 @@ type SparkSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -196767,6 +197718,9 @@ func (ss SparkSource) MarshalJSON() ([]byte, error) {
 	}
 	if ss.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ss.QueryTimeout
+	}
+	if ss.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ss.AdditionalColumns
 	}
 	if ss.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ss.SourceRetryCount
@@ -197263,6 +198217,15 @@ func (ss *SparkSource) UnmarshalJSON(body []byte) error {
 				}
 				ss.QueryTimeout = queryTimeout
 			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ss.AdditionalColumns = &additionalColumns
+			}
 		default:
 			if v != nil {
 				var additionalProperties interface{}
@@ -197718,6 +198681,8 @@ type SQLDWSource struct {
 	StoredProcedureParameters interface{} `json:"storedProcedureParameters,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -197745,6 +198710,9 @@ func (sds SQLDWSource) MarshalJSON() ([]byte, error) {
 	}
 	if sds.QueryTimeout != nil {
 		objectMap["queryTimeout"] = sds.QueryTimeout
+	}
+	if sds.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = sds.AdditionalColumns
 	}
 	if sds.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = sds.SourceRetryCount
@@ -198259,6 +199227,15 @@ func (sds *SQLDWSource) UnmarshalJSON(body []byte) error {
 				}
 				sds.QueryTimeout = queryTimeout
 			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				sds.AdditionalColumns = &additionalColumns
+			}
 		default:
 			if v != nil {
 				var additionalProperties interface{}
@@ -198716,6 +199693,8 @@ type SQLMISource struct {
 	ProduceAdditionalTypes interface{} `json:"produceAdditionalTypes,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -198746,6 +199725,9 @@ func (sms SQLMISource) MarshalJSON() ([]byte, error) {
 	}
 	if sms.QueryTimeout != nil {
 		objectMap["queryTimeout"] = sms.QueryTimeout
+	}
+	if sms.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = sms.AdditionalColumns
 	}
 	if sms.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = sms.SourceRetryCount
@@ -199268,6 +200250,15 @@ func (sms *SQLMISource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				sms.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				sms.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -200395,6 +201386,8 @@ type SQLServerSource struct {
 	ProduceAdditionalTypes interface{} `json:"produceAdditionalTypes,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -200425,6 +201418,9 @@ func (sss SQLServerSource) MarshalJSON() ([]byte, error) {
 	}
 	if sss.QueryTimeout != nil {
 		objectMap["queryTimeout"] = sss.QueryTimeout
+	}
+	if sss.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = sss.AdditionalColumns
 	}
 	if sss.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = sss.SourceRetryCount
@@ -200947,6 +201943,15 @@ func (sss *SQLServerSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				sss.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				sss.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -202400,8 +203405,12 @@ type SQLSource struct {
 	SQLReaderStoredProcedureName interface{} `json:"sqlReaderStoredProcedureName,omitempty"`
 	// StoredProcedureParameters - Value and type setting for stored procedure parameters. Example: "{Parameter1: {value: "1", type: "int"}}".
 	StoredProcedureParameters map[string]*StoredProcedureParameter `json:"storedProcedureParameters"`
+	// IsolationLevel - Specifies the transaction locking behavior for the SQL source. Allowed values: ReadCommitted/ReadUncommitted/RepeatableRead/Serializable/Snapshot. The default value is ReadCommitted. Type: string (or Expression with resultType string).
+	IsolationLevel interface{} `json:"isolationLevel,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -202427,8 +203436,14 @@ func (ss SQLSource) MarshalJSON() ([]byte, error) {
 	if ss.StoredProcedureParameters != nil {
 		objectMap["storedProcedureParameters"] = ss.StoredProcedureParameters
 	}
+	if ss.IsolationLevel != nil {
+		objectMap["isolationLevel"] = ss.IsolationLevel
+	}
 	if ss.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ss.QueryTimeout
+	}
+	if ss.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ss.AdditionalColumns
 	}
 	if ss.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ss.SourceRetryCount
@@ -202934,6 +203949,15 @@ func (ss *SQLSource) UnmarshalJSON(body []byte) error {
 				}
 				ss.StoredProcedureParameters = storedProcedureParameters
 			}
+		case "isolationLevel":
+			if v != nil {
+				var isolationLevel interface{}
+				err = json.Unmarshal(*v, &isolationLevel)
+				if err != nil {
+					return err
+				}
+				ss.IsolationLevel = isolationLevel
+			}
 		case "queryTimeout":
 			if v != nil {
 				var queryTimeout interface{}
@@ -202942,6 +203966,15 @@ func (ss *SQLSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ss.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ss.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -204330,6 +205363,8 @@ type SquareSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -204351,6 +205386,9 @@ func (ss SquareSource) MarshalJSON() ([]byte, error) {
 	}
 	if ss.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ss.QueryTimeout
+	}
+	if ss.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ss.AdditionalColumns
 	}
 	if ss.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ss.SourceRetryCount
@@ -204846,6 +205884,15 @@ func (ss *SquareSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ss.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ss.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -207399,6 +208446,8 @@ type SybaseSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -207420,6 +208469,9 @@ func (ss SybaseSource) MarshalJSON() ([]byte, error) {
 	}
 	if ss.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ss.QueryTimeout
+	}
+	if ss.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ss.AdditionalColumns
 	}
 	if ss.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ss.SourceRetryCount
@@ -207915,6 +208967,15 @@ func (ss *SybaseSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ss.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ss.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -208656,6 +209717,8 @@ type BasicTabularSource interface {
 type TabularSource struct {
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -208935,6 +209998,9 @@ func (ts TabularSource) MarshalJSON() ([]byte, error) {
 	objectMap := make(map[string]interface{})
 	if ts.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ts.QueryTimeout
+	}
+	if ts.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ts.AdditionalColumns
 	}
 	if ts.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ts.SourceRetryCount
@@ -209421,6 +210487,15 @@ func (ts *TabularSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ts.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ts.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -210187,6 +211262,8 @@ type TeradataSource struct {
 	PartitionSettings *TeradataPartitionSettings `json:"partitionSettings,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -210214,6 +211291,9 @@ func (ts TeradataSource) MarshalJSON() ([]byte, error) {
 	}
 	if ts.QueryTimeout != nil {
 		objectMap["queryTimeout"] = ts.QueryTimeout
+	}
+	if ts.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ts.AdditionalColumns
 	}
 	if ts.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ts.SourceRetryCount
@@ -210727,6 +211807,15 @@ func (ts *TeradataSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				ts.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ts.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -211660,8 +212749,8 @@ type Transformation struct {
 
 // BasicTrigger azure data factory nested object which contains information about creating pipeline run
 type BasicTrigger interface {
-	AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool)
 	AsChainingTrigger() (*ChainingTrigger, bool)
+	AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool)
 	AsTumblingWindowTrigger() (*TumblingWindowTrigger, bool)
 	AsBlobEventsTrigger() (*BlobEventsTrigger, bool)
 	AsBlobTrigger() (*BlobTrigger, bool)
@@ -211681,7 +212770,7 @@ type Trigger struct {
 	RuntimeState TriggerRuntimeState `json:"runtimeState,omitempty"`
 	// Annotations - List of tags that can be used for describing the trigger.
 	Annotations *[]interface{} `json:"annotations,omitempty"`
-	// Type - Possible values include: 'TypeTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeChainingTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
+	// Type - Possible values include: 'TypeTrigger', 'TypeChainingTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
 	Type TypeBasicTrigger `json:"type,omitempty"`
 }
 
@@ -211693,14 +212782,14 @@ func unmarshalBasicTrigger(body []byte) (BasicTrigger, error) {
 	}
 
 	switch m["type"] {
-	case string(TypeRerunTumblingWindowTrigger):
-		var rtwt RerunTumblingWindowTrigger
-		err := json.Unmarshal(body, &rtwt)
-		return rtwt, err
 	case string(TypeChainingTrigger):
 		var ct ChainingTrigger
 		err := json.Unmarshal(body, &ct)
 		return ct, err
+	case string(TypeRerunTumblingWindowTrigger):
+		var rtwt RerunTumblingWindowTrigger
+		err := json.Unmarshal(body, &rtwt)
+		return rtwt, err
 	case string(TypeTumblingWindowTrigger):
 		var twt TumblingWindowTrigger
 		err := json.Unmarshal(body, &twt)
@@ -211765,13 +212854,13 @@ func (t Trigger) MarshalJSON() ([]byte, error) {
 	return json.Marshal(objectMap)
 }
 
-// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for Trigger.
-func (t Trigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
+// AsChainingTrigger is the BasicTrigger implementation for Trigger.
+func (t Trigger) AsChainingTrigger() (*ChainingTrigger, bool) {
 	return nil, false
 }
 
-// AsChainingTrigger is the BasicTrigger implementation for Trigger.
-func (t Trigger) AsChainingTrigger() (*ChainingTrigger, bool) {
+// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for Trigger.
+func (t Trigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
 	return nil, false
 }
 
@@ -211972,6 +213061,14 @@ func (tdr TriggerDependencyReference) AsBasicDependencyReference() (BasicDepende
 	return &tdr, true
 }
 
+// TriggerFilterParameters query parameters for triggers.
+type TriggerFilterParameters struct {
+	// ContinuationToken - The continuation token for getting the next page of results. Null for first page.
+	ContinuationToken *string `json:"continuationToken,omitempty"`
+	// ParentTriggerName - The name of the parent TumblingWindowTrigger to get the child rerun triggers
+	ParentTriggerName *string `json:"parentTriggerName,omitempty"`
+}
+
 // TriggerListResponse a list of trigger resources.
 type TriggerListResponse struct {
 	autorest.Response `json:"-"`
@@ -212136,6 +213233,15 @@ func (tpr TriggerPipelineReference) MarshalJSON() ([]byte, error) {
 		objectMap["parameters"] = tpr.Parameters
 	}
 	return json.Marshal(objectMap)
+}
+
+// TriggerQueryResponse a query of triggers.
+type TriggerQueryResponse struct {
+	autorest.Response `json:"-"`
+	// Value - List of triggers.
+	Value *[]TriggerResource `json:"value,omitempty"`
+	// ContinuationToken - The continuation token for getting the next page of results, if any remaining results exist, null otherwise.
+	ContinuationToken *string `json:"continuationToken,omitempty"`
 }
 
 // TriggerReference trigger reference type.
@@ -212508,7 +213614,7 @@ type TumblingWindowTrigger struct {
 	RuntimeState TriggerRuntimeState `json:"runtimeState,omitempty"`
 	// Annotations - List of tags that can be used for describing the trigger.
 	Annotations *[]interface{} `json:"annotations,omitempty"`
-	// Type - Possible values include: 'TypeTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeChainingTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
+	// Type - Possible values include: 'TypeTrigger', 'TypeChainingTrigger', 'TypeRerunTumblingWindowTrigger', 'TypeTumblingWindowTrigger', 'TypeBlobEventsTrigger', 'TypeBlobTrigger', 'TypeScheduleTrigger', 'TypeMultiplePipelineTrigger'
 	Type TypeBasicTrigger `json:"type,omitempty"`
 }
 
@@ -212537,13 +213643,13 @@ func (twt TumblingWindowTrigger) MarshalJSON() ([]byte, error) {
 	return json.Marshal(objectMap)
 }
 
-// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for TumblingWindowTrigger.
-func (twt TumblingWindowTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
+// AsChainingTrigger is the BasicTrigger implementation for TumblingWindowTrigger.
+func (twt TumblingWindowTrigger) AsChainingTrigger() (*ChainingTrigger, bool) {
 	return nil, false
 }
 
-// AsChainingTrigger is the BasicTrigger implementation for TumblingWindowTrigger.
-func (twt TumblingWindowTrigger) AsChainingTrigger() (*ChainingTrigger, bool) {
+// AsRerunTumblingWindowTrigger is the BasicTrigger implementation for TumblingWindowTrigger.
+func (twt TumblingWindowTrigger) AsRerunTumblingWindowTrigger() (*RerunTumblingWindowTrigger, bool) {
 	return nil, false
 }
 
@@ -214232,6 +215338,8 @@ type VerticaSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -214253,6 +215361,9 @@ func (vs VerticaSource) MarshalJSON() ([]byte, error) {
 	}
 	if vs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = vs.QueryTimeout
+	}
+	if vs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = vs.AdditionalColumns
 	}
 	if vs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = vs.SourceRetryCount
@@ -214748,6 +215859,15 @@ func (vs *VerticaSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				vs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				vs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -217504,6 +218624,8 @@ func (wlstp WebLinkedServiceTypeProperties) AsBasicWebLinkedServiceTypePropertie
 
 // WebSource a copy activity source for web page table.
 type WebSource struct {
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -217520,6 +218642,9 @@ type WebSource struct {
 func (ws WebSource) MarshalJSON() ([]byte, error) {
 	ws.Type = TypeWebSource
 	objectMap := make(map[string]interface{})
+	if ws.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = ws.AdditionalColumns
+	}
 	if ws.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = ws.SourceRetryCount
 	}
@@ -217997,6 +219122,15 @@ func (ws *WebSource) UnmarshalJSON(body []byte) error {
 	}
 	for k, v := range m {
 		switch k {
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				ws.AdditionalColumns = &additionalColumns
+			}
 		default:
 			if v != nil {
 				var additionalProperties interface{}
@@ -219995,6 +221129,8 @@ type XeroSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -220016,6 +221152,9 @@ func (xs XeroSource) MarshalJSON() ([]byte, error) {
 	}
 	if xs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = xs.QueryTimeout
+	}
+	if xs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = xs.AdditionalColumns
 	}
 	if xs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = xs.SourceRetryCount
@@ -220511,6 +221650,15 @@ func (xs *XeroSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				xs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				xs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {
@@ -221877,6 +223025,8 @@ type ZohoSource struct {
 	Query interface{} `json:"query,omitempty"`
 	// QueryTimeout - Query timeout. Type: string (or Expression with resultType string), pattern: ((\d+)\.)?(\d\d):(60|([0-5][0-9])):(60|([0-5][0-9])).
 	QueryTimeout interface{} `json:"queryTimeout,omitempty"`
+	// AdditionalColumns - Specifies the additional columns to be added to source data. Type: array of objects (or Expression with resultType array of objects).
+	AdditionalColumns *[]AdditionalColumns `json:"additionalColumns,omitempty"`
 	// AdditionalProperties - Unmatched properties from the message are deserialized this collection
 	AdditionalProperties map[string]interface{} `json:""`
 	// SourceRetryCount - Source retry count. Type: integer (or Expression with resultType integer).
@@ -221898,6 +223048,9 @@ func (zs ZohoSource) MarshalJSON() ([]byte, error) {
 	}
 	if zs.QueryTimeout != nil {
 		objectMap["queryTimeout"] = zs.QueryTimeout
+	}
+	if zs.AdditionalColumns != nil {
+		objectMap["additionalColumns"] = zs.AdditionalColumns
 	}
 	if zs.SourceRetryCount != nil {
 		objectMap["sourceRetryCount"] = zs.SourceRetryCount
@@ -222393,6 +223546,15 @@ func (zs *ZohoSource) UnmarshalJSON(body []byte) error {
 					return err
 				}
 				zs.QueryTimeout = queryTimeout
+			}
+		case "additionalColumns":
+			if v != nil {
+				var additionalColumns []AdditionalColumns
+				err = json.Unmarshal(*v, &additionalColumns)
+				if err != nil {
+					return err
+				}
+				zs.AdditionalColumns = &additionalColumns
 			}
 		default:
 			if v != nil {

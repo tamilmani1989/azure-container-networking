@@ -10,20 +10,20 @@
 [[projects]]
   branch = "master"
   name = "github.com/Azure/azure-container-networking"
-  packages = ["aitelemetry","cnm","cnm/ipam","cns","cns/common","cns/dockerclient","cns/hnsclient","cns/imdsclient","cns/ipamclient","cns/networkcontainers","cns/nmagentclient","cns/restserver","cns/routes","common","ipam","log","network/policy","platform","store","telemetry"]
-  revision = "19ac791afc9247b587ba4ac7a4039f3fadb79f66"
+  packages = ["aitelemetry","cnm","cnm/ipam","cns","cns/common","cns/dockerclient","cns/hnsclient","cns/imdsclient","cns/ipamclient","cns/logger","cns/networkcontainers","cns/nmagentclient","cns/restserver","cns/routes","common","ipam","log","network/policy","platform","store","telemetry"]
+  revision = "2ecca215be6162951bc3c8bbb06c4d708faae2ed"
 
 [[projects]]
-  branch = "master"
   name = "github.com/Azure/azure-sdk-for-go"
   packages = ["storage","version"]
-  revision = "0820c0553d6c410603056869f7b0e52d61ce5bee"
+  revision = "090dc0ee4d8d2d60e2a9525774d967a4111a2b0c"
+  version = "v40.0.0"
 
 [[projects]]
   name = "github.com/Azure/go-autorest"
   packages = ["autorest","autorest/adal","autorest/azure","autorest/date","logger","tracing"]
-  revision = "3492b2aff5036c67228ab3c7dba3577c871db200"
-  version = "v13.3.0"
+  revision = "327ff6ce8b902f9afe648d5ea8ff6dc26c26f150"
+  version = "v13.4.0"
 
 [[projects]]
   name = "github.com/Microsoft/ApplicationInsights-Go"
@@ -51,7 +51,7 @@
   branch = "master"
   name = "github.com/denisenkom/go-mssqldb"
   packages = [".","internal/cp","internal/decimal","internal/querytext"]
-  revision = "cfbb681360f0a7de54ae77703318f0e60d422e00"
+  revision = "bbfc9a55622eeb8e47808e0f7270efcf5ae3dce2"
 
 [[projects]]
   name = "github.com/dgrijalva/jwt-go"
@@ -69,7 +69,7 @@
   branch = "master"
   name = "github.com/golang/groupcache"
   packages = ["lru"]
-  revision = "611e8accdfc92c4187d399e95ce826046d4c8d73"
+  revision = "8c9f03a8e57eb486e42badaed3fb287da51807ba"
 
 [[projects]]
   name = "github.com/google/uuid"
@@ -78,10 +78,10 @@
   version = "v1.1.1"
 
 [[projects]]
-  branch = "master"
   name = "github.com/gorilla/mux"
   packages = ["."]
-  revision = "49c01487a141b49f8ffe06277f3dca3ee80a55fa"
+  revision = "75dcda0896e109a2a22c9315bca3bb21b87b2ba5"
+  version = "v1.7.4"
 
 [[projects]]
   name = "github.com/inconshreveable/mousetrap"
@@ -110,8 +110,8 @@
 [[projects]]
   name = "github.com/spf13/cobra"
   packages = ["."]
-  revision = "f2b07da1e2c38d5f12845a4f607e2e1018cbb1f5"
-  version = "v0.0.5"
+  revision = "0da06874266c88228b8f14615396a1f6bfc90ed7"
+  version = "v0.0.6"
 
 [[projects]]
   name = "github.com/spf13/pflag"
@@ -122,20 +122,20 @@
 [[projects]]
   name = "go.opencensus.io"
   packages = [".","internal","trace","trace/internal","trace/tracestate"]
-  revision = "aad2c527c5defcf89b5afab7f37274304195a6b2"
-  version = "v0.22.2"
+  revision = "d835ff86be02193d324330acdb7d65546b05f814"
+  version = "v0.22.3"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["md4"]
-  revision = "ac88ee75c92c889b97e05591e9a39b6480c538b3"
+  revision = "2aa609cf4a9d7d1126360de73b55b6002f9e052a"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix","windows","windows/registry"]
-  revision = "bd437916bb0eb726b873ee8e9b2dcf212d32e2fd"
+  revision = "d5e6a3e2c0ae16fc7480523ebcb7fd4dd3215489"
 
 [solve-meta]
   analyzer-name = "dep"
