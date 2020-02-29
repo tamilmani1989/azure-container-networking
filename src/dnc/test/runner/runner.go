@@ -24,6 +24,9 @@ import (
 const (
 	cnsEP = "127.0.0.1"
 
+	nc1IP = "10.0.1.4"
+	nc2IP = "10.0.1.5"
+
 	cnsyml = "cns.yaml"
 	dncyml = "dnc.yaml"
 
@@ -70,8 +73,7 @@ type SwiftDatapath struct {
 }
 
 var (
-	dncEP1      string
-	dncEP2      string
+	dncEP       string
 	runner      = new(Runner)
 	dnctl       *dncclient.DncClient
 	testRunning bool
@@ -147,8 +149,7 @@ func init() {
 	output, _ := exec.Command("kubectl", "get", "nodes", "-o", jsonPath).CombinedOutput()
 	iface1 = string(output[1 : len(output)-1])
 
-	dncEP1 = "http://" + iface1 + ":9000"
-	dncEP2 = "http://" + iface2 + ":9000"
+	dncEP = "http://" + iface1 + ":9000"
 
 	node2, found = os.LookupEnv("NODE2")
 	if !found {
@@ -190,7 +191,7 @@ func init() {
 
 	runner.responseFunc = responder
 	runner.setupServer(":9009")
-	dnctl = dncclient.NewDncClient(dncEP1)
+	dnctl = dncclient.NewDncClient(dncEP)
 }
 
 func main() {
@@ -306,7 +307,7 @@ func e2eTests() {
 	if err != nil {
 		goto WriteJsonReport
 	}
-	if podIP1 != "10.0.1.4" {
+	if podIP1 != nc1IP {
 		temp := srcPod
 		srcPod = pod2
 		pod2 = temp
@@ -434,11 +435,11 @@ func swiftSetup() error {
 		return err
 	}
 
-	if err = addNc(node1, vnetID, nc1, "", subnetID, "", "", iface1, containerType, podName1, podNamespace, false, false, defaultNCRequestTimeout); err != nil {
+	if err = addNc(node1, vnetID, nc1, "", subnetID, nc1IP, "", iface1, containerType, podName1, podNamespace, false, false, defaultNCRequestTimeout); err != nil {
 		return err
 	}
 
-	if err = addNc(node2, vnetID, nc2, "", subnetID, "", "", iface2, containerType, podName2, podNamespace, false, false, defaultNCRequestTimeout); err != nil {
+	if err = addNc(node2, vnetID, nc2, "", subnetID, nc2IP, "", iface2, containerType, podName2, podNamespace, false, false, defaultNCRequestTimeout); err != nil {
 		return err
 	}
 
