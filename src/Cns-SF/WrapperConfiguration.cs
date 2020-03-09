@@ -1,4 +1,8 @@
-﻿using System;
+﻿//-----------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation.  All rights reserved.
+//-----------------------------------------------------------------------------
+
+using System;
 using System.Collections.Generic;
 using System.Fabric;
 using System.Linq;
@@ -82,6 +86,127 @@ namespace CnsWrapperService
         public static string StoreFilePath
         {
             get { return GetStringConfigurationValue(Constants.ConfigPackage, "StoreFilePath", ""); }
+        }
+
+        public static bool DisableAll
+        { 
+            get 
+            { 
+                return GetBoolConfigurationValue(
+                    Constants.ConfigPackage,
+                    "DisableAll",
+                    Constants.DefaultDisableAll);
+            }
+        }
+
+        public static bool DisableTrace
+        {
+            get 
+            {
+                return GetBoolConfigurationValue(
+                    Constants.ConfigPackage,
+                    "DisableTrace",
+                    Constants.DefaultDisableTrace); 
+            }
+        }
+
+        public static bool DisableMetric
+        {
+            get
+            {
+                return GetBoolConfigurationValue(
+                    Constants.ConfigPackage,
+                    "DisableMetric",
+                    Constants.DefaultDisableMetric);
+            }
+        }
+
+        public static bool DisableEvent
+        {
+            get
+            {
+                return GetBoolConfigurationValue(
+                    Constants.ConfigPackage,
+                    "DisableEvent",
+                    Constants.DefaultDisableEvent);
+            }
+        }
+
+        public static int TelemetryBatchSizeBytes
+        {
+            get
+            {
+                return GetIntConfigurationValue(
+                    Constants.ConfigPackage,
+                    "TelemetryBatchSizeBytes",
+                    Constants.DefaultTelemetryBatchSizeBytes);
+            }
+        }
+
+        public static int TelemetryBatchIntervalInSecs
+        {
+            get
+            {
+                return GetIntConfigurationValue(
+                    Constants.ConfigPackage,
+                    "TelemetryBatchIntervalInSecs",
+                    Constants.DefaultTelemetryBatchIntervalInSecs);
+            }
+        }
+
+        public static int HeartBeatIntervalInMins
+        {
+            get
+            {
+                return GetIntConfigurationValue(
+                    Constants.ConfigPackage,
+                    "HeartBeatIntervalInMins",
+                    Constants.DefaultHeartBeatIntervalInMins);
+            }
+        }
+
+        public static bool DisableMetadataRefreshThread
+        {
+            get
+            {
+                return GetBoolConfigurationValue(
+                    Constants.ConfigPackage,
+                    "DisableMetadataRefreshThread",
+                    Constants.DefaultDisableMetadataRefreshThread);
+            }
+        }
+
+        public static int RefreshIntervalInSecs
+        {
+            get
+            {
+                return GetIntConfigurationValue(
+                    Constants.ConfigPackage,
+                    "RefreshIntervalInSecs",
+                    Constants.DefaultRefreshIntervalInSecs);
+            }
+        }
+
+        public static bool DebugMode
+        {
+            get
+            {
+                return GetBoolConfigurationValue(
+                    Constants.ConfigPackage,
+                    "DebugMode",
+                    Constants.DefaultDebugMode);
+            }
+        }
+
+        public static int SnapshotIntervalInMins
+        {
+            get
+            {
+                return GetIntConfigurationValue(
+                    Constants.ConfigPackage,
+                    "SnapshotIntervalInMins",
+                    Constants.DefaultSnapshotIntervalInMins);
+            }
         }
 
         private static string GetStringConfigurationValue(string section, string parameter, string defaultValue)

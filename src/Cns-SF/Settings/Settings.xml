@@ -13,5 +13,17 @@
     <Parameter Name="HttpConnectionTimeoutInSeconds" Value="5" />
     <Parameter Name="HttpResponseHeaderTimeoutInSeconds" Value="120" />
     <Parameter Name="StoreFilePath" Value="" />
+      <!-- keep in sync with config file https://github.com/Azure/azure-container-networking/blob/master/cns/configuration/cns_config.json -->
+    <Parameter Name="DisableAll" Value="false"/>
+    <Parameter Name="DisableTrace" Value="false"/>
+    <Parameter Name="DisableMetric" Value="false"/>
+    <Parameter Name="DisableEvent" Value="false"/>
+    <Parameter Name="TelemetryBatchSizeBytes" Value="32768"/>
+    <Parameter Name="TelemetryBatchIntervalInSecs" Value="30"/>
+    <Parameter Name="HeartBeatIntervalInMins" Value="30"/>
+    <Parameter Name="DisableMetadataRefreshThread" Value="false"/>
+    <Parameter Name="RefreshIntervalInSecs" Value="15"/>
+    <Parameter Name="DebugMode" Value="false"/>
+    <Parameter Name="SnapshotIntervalInMins" Value="60"/>
   </Section>
 </Settings>

@@ -40,7 +40,29 @@ namespace CnsWrapperService
         internal static readonly int DefaultHttpResponseHeaderTimeoutInSeconds = 120;
 
         internal static readonly bool EnableTelemetry = true;
-        
+
+        internal static readonly bool DefaultDisableAll = false;
+
+        internal static readonly bool DefaultDisableTrace = false;
+
+        internal static readonly bool DefaultDisableMetric = false;
+
+        internal static readonly bool DefaultDisableEvent = false;
+
+        internal static readonly int DefaultTelemetryBatchSizeBytes = 32768;
+
+        internal static readonly int DefaultTelemetryBatchIntervalInSecs = 30;
+
+        internal static readonly int DefaultHeartBeatIntervalInMins = 30;
+
+        internal static readonly bool DefaultDisableMetadataRefreshThread = false;
+
+        internal static readonly int DefaultRefreshIntervalInSecs = 15;
+
+        internal static readonly bool DefaultDebugMode = false;
+
+        internal static readonly int DefaultSnapshotIntervalInMins = 60;
+
         #endregion
     }
 }

@@ -85,6 +85,11 @@ build:
         to: 'drop_cns_sf'
         include:
           - '**/*'
+        exclude:
+          - 'Release/CnsWrapperService/Code/cns_config.json'
+          - 'Release/CnsWrapperService/Code/azure-cns'
+          - 'Release/CnsWrapperService/Code/azure-vnet'
+          - 'Release/CnsWrapperService/Code/azure-vnet-ipam'
 
   - !!buildcommand
     name: 'Sign DNC Windows'

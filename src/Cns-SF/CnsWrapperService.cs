@@ -1,4 +1,8 @@
-﻿using System;
+﻿//-----------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation.  All rights reserved.
+//-----------------------------------------------------------------------------
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Fabric;
@@ -102,6 +106,9 @@ namespace CnsWrapperService
                 {
                     _additionalCmdLineArguments += string.Format(" -storefilepath {0}", storeFilePath);
                 }
+
+                // Creates cns_config.json file from settings specified in package XML files
+                TelemetrySettingsService.CreateCNSConfigFile();
 
                 _additionalCmdLineArguments.Trim();
 

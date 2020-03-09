@@ -16,6 +16,18 @@
       <Parameter Name="Cns_Setting_HttpConnectionTimeoutInSeconds" DefaultValue="5" />
       <Parameter Name="Cns_Setting_HttpResponseHeaderTimeoutInSeconds" DefaultValue="120" />
       <Parameter Name="Cns_Setting_StoreFilePath" DefaultValue="" />
+        <!-- keep in sync with config file https://github.com/Azure/azure-container-networking/blob/master/cns/configuration/cns_config.json -->
+      <Parameter Name="Cns_Setting_DisableAll" DefaultValue="false"/>
+      <Parameter Name="Cns_Setting_DisableTrace" DefaultValue="false"/>
+      <Parameter Name="Cns_Setting_DisableMetric" DefaultValue="false"/>
+      <Parameter Name="Cns_Setting_DisableEvent" DefaultValue="false"/>
+      <Parameter Name="Cns_Setting_TelemetryBatchSizeBytes" DefaultValue="32768"/>
+      <Parameter Name="Cns_Setting_TelemetryBatchIntervalInSecs" DefaultValue="30"/>
+      <Parameter Name="Cns_Setting_HeartBeatIntervalInMins" DefaultValue="30"/>
+      <Parameter Name="Cns_Setting_DisableMetadataRefreshThread" DefaultValue="false"/>
+      <Parameter Name="Cns_Setting_RefreshIntervalInSecs" DefaultValue="15"/>
+      <Parameter Name="Cns_Setting_DebugMode" DefaultValue="false"/>
+      <Parameter Name="Cns_Setting_SnapshotIntervalInMins" DefaultValue="60"/>
     </Parameters>
   <ServiceManifestImport>
     <ServiceManifestRef ServiceManifestName="CnsWrapperService" ServiceManifestVersion="2020.2.27.1"/>
@@ -35,6 +47,18 @@
             <Parameter Name="HttpConnectionTimeoutInSeconds" Value="[Cns_Setting_HttpConnectionTimeoutInSeconds]" />
             <Parameter Name="HttpResponseHeaderTimeoutInSeconds" Value="[Cns_Setting_HttpResponseHeaderTimeoutInSeconds]" />
             <Parameter Name="StoreFilePath" Value="[Cns_Setting_StoreFilePath]" />
+              <!-- keep in sync with config file https://github.com/Azure/azure-container-networking/blob/master/cns/configuration/cns_config.json -->
+            <Parameter Name="DisableAll" Value="[Cns_Setting_DisableAll]"/>
+            <Parameter Name="DisableTrace" Value="[Cns_Setting_DisableTrace]"/>
+            <Parameter Name="DisableMetric" Value="[Cns_Setting_DisableMetric]"/>
+            <Parameter Name="DisableEvent" Value="[Cns_Setting_DisableEvent]"/>
+            <Parameter Name="TelemetryBatchSizeBytes" Value="[Cns_Setting_TelemetryBatchSizeBytes]"/>
+            <Parameter Name="TelemetryBatchIntervalInSecs" Value="[Cns_Setting_TelemetryBatchIntervalInSecs]"/>
+            <Parameter Name="HeartBeatIntervalInMins" Value="[Cns_Setting_HeartBeatIntervalInMins]"/>
+            <Parameter Name="DisableMetadataRefreshThread" Value="[Cns_Setting_DisableMetadataRefreshThread]"/>
+            <Parameter Name="RefreshIntervalInSecs" Value="[Cns_Setting_RefreshIntervalInSecs]"/>
+            <Parameter Name="DebugMode" Value="[Cns_Setting_DebugMode]"/>
+            <Parameter Name="SnapshotIntervalInMins" Value="[Cns_Setting_SnapshotIntervalInMins]"/>
           </Section>
         </Settings>
       </ConfigOverride>
