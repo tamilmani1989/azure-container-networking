@@ -419,7 +419,7 @@ func validateAndRetrieveNetworkConfigurationUpdate(
 		// delete it only if there are no resources in them
 		if !exists {
 			if len(repoSubnetConfig.Reservations) > 0 {
-				logger.Debugf("Subnet %s in network %s is removed but there are allocations.",
+				logger.Errorf("Error: Leaked NC's detected: Subnet %s in network %s is removed but there are allocations.",
 					repoSubnetConfig.SubnetName,
 					repoSubnetConfig.NetworkID)
 			}
