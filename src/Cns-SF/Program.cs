@@ -112,6 +112,11 @@ namespace CnsWrapperService
                 while (!CanCloseInstance.WaitOne(WrapperConfiguration.MainThreadShutdownCheck))
                 {
                 }
+
+                // Remove-ServiceFabricService calls CloseAsync on the service and after CloseAsync is finished it sends Ctrl+C to the process. 
+                // Ctrl+C has to be handled successfully in order to finish Remove-ServiceFabricService.
+                // 
+                ShutdownSignalled.WaitOne();
             }
             catch (Exception e)
             {
@@ -158,7 +163,7 @@ namespace CnsWrapperService
         {
             // Signal shutdown to all services and wait for them to quit.
             //
-            _shutdownSignalled.Set();
+            ShutdownSignalled.Set();
             CnsWrapperService.WaitForWrappedService(WrapperConfiguration.ShutdownThreadWaitTimeout);
             return true;
         }

@@ -59,10 +59,6 @@ namespace CnsWrapperService
             _waitInstanceClose.Set();
 
             WaitForWrappedService(WrapperConfiguration.ThreadWaitTimeout);
-
-            // Signal that we can close this host exe
-            //
-            Program.CanCloseInstance.Set();
         }
 
         protected override void InstanceClose()
@@ -214,9 +210,11 @@ namespace CnsWrapperService
 
                 WaitHandle[] waitingHandles = { _azureCnsClosed, _waitInstanceClose, Program.ShutdownSignalled };
 
+                int signalIndex = -1;
+
                 while (true)
                 {
-                    int signalIndex = WaitHandle.WaitAny(waitingHandles, WrapperConfiguration.MainLoopTimeout);
+                    signalIndex = WaitHandle.WaitAny(waitingHandles, WrapperConfiguration.MainLoopTimeout);
                     if (signalIndex != WaitHandle.WaitTimeout)
                     {
                         break;
@@ -225,9 +223,19 @@ namespace CnsWrapperService
 
                 Program.WrapperSetup.GetLogger().LogInfo("Out of the main thread loop");
 
-                // Call instance close to expedite wrapper close.
+                // Notify that process can be closed.
                 //
-                InstanceClose();
+                Program.CanCloseInstance.Set();
+
+                // Remove-ServiceFabricService calls CloseAsync on the service and after CloseAsync is finished it sends Ctrl+C to the process. 
+                // Ctrl+C has to be handled successfully in order to finish successfully Remove-ServiceFabricService.
+                // When azure-cns.exe exited or shutdown is sent to the main process we are setting that main process should shutdown.
+                // As explained, CloseAsync (_waitInstanceClose in this logic) will be followed with Ctrl+C (ShutdownSignalled.Set()).
+                // 
+                if (signalIndex == 0 || signalIndex == 2)
+                {
+                    Program.ShutdownSignalled.Set();
+                }
             }
             catch (Exception e)
             {
