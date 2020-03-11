@@ -58,7 +58,8 @@ az login
 az account set --subscription $subscriptionId
 
 ## set mcr credentials
-$pswrd = (az keyvault secret show -n registry-key --vault-name msint --query value).Replace("`"","")
+$appid = (az keyvault secret show -n registry-appid --vault-name msint-community --query value).Replace("`"","")
+$pswrd = (az keyvault secret show -n registry-key --vault-name msint-community --query value).Replace("`"","")
 (Get-Content $configurationFilesPath\configure-master.sh) -replace "REPLACEPASSWORD", $pswrd | Out-File $configurationFilesPath\configure-master.sh -Encoding ASCII
 
 ## create resource group in region
