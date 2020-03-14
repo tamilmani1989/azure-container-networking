@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/google/uuid"
 )
 
@@ -155,4 +156,19 @@ func DecodeResponse(w *http.Response, response interface{}) error {
 	}
 
 	return err
+}
+
+// EnvironmentFromName - Azure environment from string
+func EnvironmentFromName(name string) azure.Environment {
+	switch name {
+	case "USGovernmentCloud":
+		return azure.USGovernmentCloud
+	case "ChinaCloud":
+		return azure.ChinaCloud
+	case "GermanCloud":
+		return azure.GermanCloud
+	default:
+		// We default to public cloud
+		return azure.PublicCloud
+	}
 }

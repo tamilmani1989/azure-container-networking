@@ -22,6 +22,7 @@ type AzureStorageInfo struct {
 	PartitionKey                    string
 	EnableSharedSubnetDelegation    bool
 	RegionalStorageConnectionString string
+	Environment                     string
 }
 
 // AzureSQLInfo - Details to connect to azure sql database.
@@ -371,6 +372,10 @@ func OverrideConfigFromEnv(config *Configuration) {
 		config.DataStoreSettings.AzureStorageInfo.Key = accountKey
 	}
 
+	if accountEnv := os.Getenv("DataStoreStorageEnvironment"); len(accountEnv) != 0 {
+		config.DataStoreSettings.AzureStorageInfo.Environment = accountEnv
+	}
+
 	if dataStorePartitionKey := os.Getenv("DataStorePartitionKey"); len(dataStorePartitionKey) != 0 {
 		config.DataStoreSettings.AzureStorageInfo.PartitionKey = dataStorePartitionKey
 	}
@@ -381,6 +386,10 @@ func OverrideConfigFromEnv(config *Configuration) {
 
 	if masterKey := os.Getenv("MasterElectionStorageKey"); len(masterKey) != 0 {
 		config.MasterElectionSettings.BlobStorageSettings.Key = masterKey
+	}
+
+	if masterEnv := os.Getenv("MasterElectionStorageEnvironment"); len(masterEnv) != 0 {
+		config.MasterElectionSettings.BlobStorageSettings.Environment = masterEnv
 	}
 
 	if masterElectionPartitionKey := os.Getenv("MasterElectionPartitionKey"); len(masterElectionPartitionKey) != 0 {

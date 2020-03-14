@@ -61,8 +61,10 @@ func NewBlobStore(
 
 // Init - Initialize blob storage for primary election.
 func (b *BlobStore) Init() {
-	accountName, key, _ := b.getDataStoreSettings()
-	client, err := storage.NewBasicClient(accountName, key)
+	accountName, key, _, env := b.getDataStoreSettings()
+	cloudEnv := utils.EnvironmentFromName(env)
+	loggershim.LS.Debugf("Environment type for data store settings %+v", cloudEnv)
+	client, err := storage.NewBasicClientOnSovereignCloud(accountName, key, cloudEnv)
 	onErrorFail(err, "Create client failed")
 	b.blobClient = client.GetBlobService()
 }
@@ -76,7 +78,7 @@ func (b *BlobStore) Cleanup() {
 
 // Start - Start the leader election process
 func (b *BlobStore) Start() {
-	accountName, key, partitionKey := b.getDataStoreSettings()
+	accountName, key, partitionKey, _ := b.getDataStoreSettings()
 	if accountName == "" ||
 		key == "" ||
 		partitionKey == "" {
@@ -380,11 +382,11 @@ func (b *BlobStore) SetDataStoreSettings(config *configuration.Configuration) {
 	b.mutex.Unlock()
 }
 
-// getDataStoreSettings - Function that return datastore settings (AccountName, Key, PartitionKey)
-func (b *BlobStore) getDataStoreSettings() (string, string, string) {
+// getDataStoreSettings - Function that return datastore settings (AccountName, Key, PartitionKey, Environment)
+func (b *BlobStore) getDataStoreSettings() (string, string, string, string) {
 	b.mutex.RLock()
 	defer b.mutex.RUnlock()
-	return b.blobStorageSettings.AccountName, b.blobStorageSettings.Key, b.blobStorageSettings.PartitionKey
+	return b.blobStorageSettings.AccountName, b.blobStorageSettings.Key, b.blobStorageSettings.PartitionKey, b.blobStorageSettings.Environment
 }
 
 func getLocalIP() (string, error) {

@@ -11,8 +11,10 @@
     <Parameter Name="DNCIpAddress" DefaultValue=""/>
     <Parameter Name="DataStoreStorageName" DefaultValue=""/>
     <Parameter Name="DataStoreStorageKey" DefaultValue=""/>
+    <Parameter Name="DataStoreStorageEnvironment" DefaultValue=""/>
     <Parameter Name="MasterElectionStorageName" DefaultValue=""/>
     <Parameter Name="MasterElectionStorageKey" DefaultValue=""/>
+    <Parameter Name="MasterElectionStorageEnvironment" DefaultValue=""/>
     <Parameter Name="LeaseIntervalInSecs" DefaultValue="60"/>
     <Parameter Name="LeaseRenewIntervalInSecs" DefaultValue="30"/>
     <Parameter Name="AcquireRetryIntervalInSecs" DefaultValue="30"/>
@@ -57,9 +59,11 @@
       <EnvironmentVariable Name="DNCPort" Value="[DNCPort]"/>
       <EnvironmentVariable Name="DataStoreStorageName" Value="[DataStoreStorageName]"/>
       <EnvironmentVariable Name="DataStoreStorageKey" Value="[DataStoreStorageKey]"/>
+      <EnvironmentVariable Name="DataStoreStorageEnvironment" Value="[DataStoreStorageEnvironment]"/>
       <EnvironmentVariable Name="DataStorePartitionKey" Value="[DataStorePartitionKey]"/>
       <EnvironmentVariable Name="MasterElectionStorageName" Value="[MasterElectionStorageName]"/>
       <EnvironmentVariable Name="MasterElectionStorageKey" Value="[MasterElectionStorageKey]"/>
+      <EnvironmentVariable Name="MasterElectionStorageEnvironment" Value="[MasterElectionStorageEnvironment]"/>
       <EnvironmentVariable Name="MasterElectionPartitionKey" Value="[MasterElectionPartitionKey]"/>
       <EnvironmentVariable Name="LeaseIntervalInSecs" Value="[LeaseIntervalInSecs]"/>
       <EnvironmentVariable Name="LeaseRenewIntervalInSecs" Value="[LeaseRenewIntervalInSecs]"/>

@@ -22,9 +22,11 @@
       <EnvironmentVariable Name="DNCPort" Value=""/>
       <EnvironmentVariable Name="DataStoreStorageName" Value=""/>
       <EnvironmentVariable Name="DataStoreStorageKey" Value=""/>
+      <EnvironmentVariable Name="DataStoreStorageEnvironment" Value=""/>
       <EnvironmentVariable Name="DataStorePartitionKey" Value=""/>
       <EnvironmentVariable Name="MasterElectionStorageName" Value=""/>
       <EnvironmentVariable Name="MasterElectionStorageKey" Value=""/>
+      <EnvironmentVariable Name="MasterElectionStorageEnvironment" Value=""/>
       <EnvironmentVariable Name="MasterElectionPartitionKey" Value=""/>
       <EnvironmentVariable Name="LeaseIntervalInSecs" Value=""/>
       <EnvironmentVariable Name="LeaseRenewIntervalInSecs" Value=""/>
