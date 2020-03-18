@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// UnregisterCmd can do unregister object with DNC
 func UnregisterCmd() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "unregister",

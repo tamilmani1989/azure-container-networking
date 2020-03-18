@@ -6,10 +6,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// DeleteCmd can delete an item to DNC
 func DeleteCmd() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "delete",
-		Short: "Adds an item to DNC",
+		Short: "Deletes an item to DNC",
 	}
 	cmd.AddCommand(deleteNetworkContainerCmd())
 	cmd.AddCommand(deleteReservationCmd())
@@ -20,8 +21,8 @@ func DeleteCmd() *cobra.Command {
 
 func deleteNetworkContainerCmd() *cobra.Command {
 	var (
-		vnetId string
-		ncId   string
+		vnetID string
+		ncID   string
 	)
 
 	var cmd = &cobra.Command{
@@ -29,14 +30,14 @@ func deleteNetworkContainerCmd() *cobra.Command {
 		Short: "Deletes a network container",
 		Run: func(cmd *cobra.Command, args []string) {
 
-			err := DncClient.DeleteNC(vnetId, ncId)
+			err := DncClient.DeleteNC(vnetID, ncID)
 			if err != nil {
 				common.PrettyPrint(err)
 			}
 		},
 	}
-	cmd.Flags().StringVar(&vnetId, "vnet-id", "", "Network ID")
-	cmd.Flags().StringVar(&ncId, "nc-id", "", "Network Container ID")
+	cmd.Flags().StringVar(&vnetID, "vnet-id", "", "Network ID")
+	cmd.Flags().StringVar(&ncID, "nc-id", "", "Network Container ID")
 	cmd.MarkFlagRequired("vnet-id")
 	cmd.MarkFlagRequired("nc-id")
 	return cmd
@@ -44,8 +45,8 @@ func deleteNetworkContainerCmd() *cobra.Command {
 
 func deleteReservationCmd() *cobra.Command {
 	var (
-		vnetId        string
-		reservationId string
+		vnetID        string
+		reservationID string
 	)
 
 	var cmd = &cobra.Command{
@@ -53,15 +54,15 @@ func deleteReservationCmd() *cobra.Command {
 		Short: "Delete a reservation",
 		Run: func(cmd *cobra.Command, args []string) {
 
-			err := DncClient.DeleteReservation(vnetId, reservationId)
+			err := DncClient.DeleteReservation(vnetID, reservationID)
 			if err != nil {
 				common.PrettyPrint(err)
 			}
 		},
 	}
 	cmd.Aliases = []string{"res"}
-	cmd.Flags().StringVar(&vnetId, "vnet-id", "", "Network ID")
-	cmd.Flags().StringVar(&reservationId, "reservation-id", "", "Reservation ID")
+	cmd.Flags().StringVar(&vnetID, "vnet-id", "", "Network ID")
+	cmd.Flags().StringVar(&reservationID, "reservation-id", "", "Reservation ID")
 	cmd.MarkFlagRequired("vnet-id")
 	cmd.MarkFlagRequired("reservation-id")
 	return cmd

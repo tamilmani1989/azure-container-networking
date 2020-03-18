@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// GetCmd can get an item from DNC
 func GetCmd() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "get",

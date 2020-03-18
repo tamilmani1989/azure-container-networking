@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// RegisterCmd can register an object
 func RegisterCmd() *cobra.Command {
 	var registercmd = &cobra.Command{
 		Use:   "register",

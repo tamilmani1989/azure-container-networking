@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// CreateCmd can adds a resource to DNC
 func CreateCmd() *cobra.Command {
 	var createcmd = &cobra.Command{
 		Use:   "create",
@@ -18,14 +19,14 @@ func CreateCmd() *cobra.Command {
 
 func createNetworkContainerCmd() *cobra.Command {
 	var (
-		nodeId         string
-		networkId      string
-		ncId           string
-		reservationId  string
+		nodeID         string
+		networkID      string
+		ncID           string
+		reservationID  string
 		subnet         string
 		ipConstraint   string
 		nodeConstraint string
-		ifaceId        string
+		ifaceID        string
 		containerType  string
 		podName        string
 		podNamespace   string
@@ -38,20 +39,20 @@ func createNetworkContainerCmd() *cobra.Command {
 		Short: "Creates a network container",
 		Run: func(cmd *cobra.Command, args []string) {
 
-			err := DncClient.AddNc(nodeId, networkId, ncId, reservationId, subnet, ipConstraint, nodeConstraint, ifaceId, containerType, podName, podNamespace, host2NC, NC2host)
+			err := DncClient.AddNc(nodeID, networkID, ncID, reservationID, subnet, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, host2NC, NC2host)
 			if err != nil {
 				common.PrettyPrint(err)
 			}
 		},
 	}
-	cmd.Flags().StringVar(&nodeId, "node-id", "", "Node ID")
-	cmd.Flags().StringVar(&networkId, "network-id", "", "Network ID")
-	cmd.Flags().StringVar(&ncId, "nc-id", "", "Network Container ID")
-	cmd.Flags().StringVar(&reservationId, "reservation-id", "", "Reservation ID")
+	cmd.Flags().StringVar(&nodeID, "node-id", "", "Node ID")
+	cmd.Flags().StringVar(&networkID, "network-id", "", "Network ID")
+	cmd.Flags().StringVar(&ncID, "nc-id", "", "Network Container ID")
+	cmd.Flags().StringVar(&reservationID, "reservation-id", "", "Reservation ID")
 	cmd.Flags().StringVar(&subnet, "subnet", "", "subnet")
 	cmd.Flags().StringVar(&ipConstraint, "ip-constraint", "", "IP constraint")
 	cmd.Flags().StringVar(&nodeConstraint, "node-constraint", "", "Node constraint")
-	cmd.Flags().StringVar(&ifaceId, "interface-id", "", "Interface ID")
+	cmd.Flags().StringVar(&ifaceID, "interface-id", "", "Interface ID")
 	cmd.Flags().StringVar(&containerType, "container-type", "", "Container type")
 	cmd.Flags().StringVar(&podName, "pod-name", "", "Pod name")
 	cmd.Flags().StringVar(&podNamespace, "pod-namespace", "", "Pod namespace")
@@ -71,11 +72,11 @@ func createNetworkContainerCmd() *cobra.Command {
 
 func createReservationCmd() *cobra.Command {
 	var (
-		networkId      string
+		networkID      string
 		subnet         string
 		ipConstraint   string
 		nodeConstraint string
-		reservationId  string
+		reservationID  string
 	)
 
 	var cmd = &cobra.Command{
@@ -83,14 +84,14 @@ func createReservationCmd() *cobra.Command {
 		Short: "Creates a reservation",
 		Run: func(cmd *cobra.Command, args []string) {
 
-			err := DncClient.AddReservation(networkId, subnet, ipConstraint, nodeConstraint, reservationId)
+			err := DncClient.AddReservation(networkID, subnet, ipConstraint, nodeConstraint, reservationID)
 			if err != nil {
 				common.PrettyPrint(err)
 			}
 		},
 	}
 	cmd.Aliases = []string{"res"}
-	cmd.Flags().StringVar(&networkId, "network-id", "", "Network ID")
+	cmd.Flags().StringVar(&networkID, "network-id", "", "Network ID")
 	cmd.Flags().StringVar(&subnet, "subnet", "", "Subnet Name")
 	cmd.Flags().StringVar(&subnet, "ipConstraint", "", "ipConstraint")
 	cmd.Flags().StringVar(&subnet, "nodeConstraint", "", "nodeConstraint")

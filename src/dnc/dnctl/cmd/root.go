@@ -9,10 +9,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// DncClient for customer consume
 var DncClient *dncclient.DncClient
 
+// ClientConfigPath used
 var ClientConfigPath = ".dncclientconfig.json"
 
+// NewRootCmd returns a root
 func NewRootCmd() *cobra.Command {
 	var rootCmd = &cobra.Command{
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {

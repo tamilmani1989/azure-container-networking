@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// ConfigCmd can manipulate current DNC config
 func ConfigCmd() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "config",
