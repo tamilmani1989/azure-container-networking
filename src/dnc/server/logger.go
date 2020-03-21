@@ -109,6 +109,18 @@ func forwardToPrimary(target, primaryEP string, w http.ResponseWriter, r *http.R
 			Timeout: time.Duration(connectionTimeout) * time.Second,
 		}).Dial,
 	}
+
+	// This is based on golang's reverseproxy, default error handler, only difference is
+	// it logs using our custome logger, rather standard one.
+	// https://golang.org/src/net/http/httputil/reverseproxy.go?3655:3716#L159
+	p.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
+		// Assumption is if this is called, error will not be nil
+		// same as library implementation.
+		loggershim.LS.Errorf("HTTP: Proxy error : %+v", err)
+		rw.WriteHeader(http.StatusBadGateway)
+		return
+	}
+
 	p.ServeHTTP(w, r)
 }
 
