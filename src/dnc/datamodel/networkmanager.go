@@ -598,7 +598,7 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 		reservationConfiguration.NetworkID,
 		reservationConfiguration.AllocationRequest.SubnetName)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	if subnetConfiguration != nil {
