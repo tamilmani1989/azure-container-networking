@@ -145,6 +145,12 @@ func setRequestFailed(w http.ResponseWriter, jsonErr *api.JsonErr) {
 		jsonErr.HTTPStatus = http.StatusInternalServerError
 	}
 
+	// log the response for the requests that fail with 500 error.
+	// shouldn't be chatty as we don't expect to return this error code, often.
+	if jsonErr.HTTPStatus == http.StatusInternalServerError {
+		loggershim.LS.Errorf("500 (Internal server error) returned with response : %v", jsonErr)
+	}
+
 	w.WriteHeader(jsonErr.HTTPStatus)
 	if err := json.NewEncoder(w).Encode(jsonErr); err != nil {
 		panic(err)
