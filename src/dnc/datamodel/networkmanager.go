@@ -235,6 +235,12 @@ func ValidateAndUpdateIPReservationDependencies(
 	var networkContainerConfiguration *NCConfiguration
 	var err *api.JsonErr
 
+	defer func() {
+		if err != nil {
+			loggershim.LS.Errorf("ValidateAndUpdateIPReservationDependencies failed. Error: %v", err)
+		}
+	}()
+
 	subnetConfiguration, err = QuerySubnetConfiguration(
 		reservationConfiguration.NetworkID,
 		reservationConfiguration.AllocationRequest.SubnetName)
@@ -250,11 +256,11 @@ func ValidateAndUpdateIPReservationDependencies(
 			reservationConfiguration.AllocationRequest.SubnetName,
 			reservationConfiguration.NetworkID,
 			parseErr.Error())
-		loggershim.LS.Errorf("%s: %s.", utils.TracePrefix(2), msg)
-		return &api.JsonErr{
+		err = &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			HTTPStatus: http.StatusInternalServerError,
 			Text:       msg}
+		return err
 	}
 
 	if reservationConfiguration.AllocationRequest.IPConstraint != "" {
@@ -292,10 +298,11 @@ func ValidateAndUpdateIPReservationDependencies(
 						"NodeConstraint:%s , NetworkContainer associated node :%s",
 					reservationConfiguration.AllocationRequest.NodeConstraint,
 					networkContainerConfiguration.GetAssociationInfo().NodeID)
-				return &api.JsonErr{
+				err = &api.JsonErr{
 					Code:       api.NodeConstraintMismatch,
 					Text:       msg,
 					HTTPStatus: http.StatusBadRequest}
+				return err
 			}
 		}
 
@@ -1728,27 +1735,36 @@ func UpdateSubnet(
 	subnet string,
 	subnetRequest api.SubnetRequest,
 	isDelete bool) *api.JsonErr {
-	networkConfig, err := TryQueryNetworkConfiguration(networkID)
+	var err *api.JsonErr
+	var networkConfig *NetworkConfiguration
+	defer func() {
+		if err != nil {
+			loggershim.LS.Errorf("UpdateSubnet failed. Error %v", err)
+		}
+	}()
+	networkConfig, err = TryQueryNetworkConfiguration(networkID)
 	if err != nil {
 		return err
 	}
 
 	if networkConfig == nil {
 		msg := fmt.Sprintf("Network with ID %s not found", networkID)
-		return &api.JsonErr{
+		err = &api.JsonErr{
 			Code:       api.NetworkNotFound,
 			HTTPStatus: http.StatusNotFound,
 			Text:       msg}
+		return err
 	}
 
 	if networkConfig.NetworkState == Join && networkConfig.Status != Completed {
 		msg := fmt.Sprintf("Network with ID %s join is not completed. Current Status: %s",
 			networkID,
 			networkConfig.Status.String())
-		return &api.JsonErr{
+		err = &api.JsonErr{
 			Code:       api.NetworkStatusInvalid,
 			HTTPStatus: http.StatusBadRequest,
 			Text:       msg}
+		return err
 	}
 
 	var subnetFound = true
@@ -1776,19 +1792,20 @@ func UpdateSubnet(
 			msg := fmt.Sprintf("Subnet %s not found in Network with ID %s. Failure to insert subnet in config.",
 				subnet,
 				networkID)
-			return &api.JsonErr{
+			err = &api.JsonErr{
 				Code:       api.SubnetNotFound,
 				HTTPStatus: http.StatusBadRequest,
 				Text:       msg}
+			return err
 		}
 
 		requestContext := RequestContext{
 			Type:      VirtualNetworkRequest,
 			NetworkID: networkID}
 
-		AddRequestToPendingQueue(GetNetworkKey(networkID), &requestContext)
+		err = AddRequestToPendingQueue(GetNetworkKey(networkID), &requestContext)
 
-		return nil
+		return err
 	}
 
 	subnetConfiguration, err := TryQuerySubnetConfiguration(networkID, subnet)
@@ -1800,10 +1817,11 @@ func UpdateSubnet(
 		msg := fmt.Sprintf("Subnet %s configuration not found. Network with ID %s",
 			subnet,
 			networkID)
-		return &api.JsonErr{
+		err = &api.JsonErr{
 			Code:       api.SubnetConfigurationNotFound,
 			HTTPStatus: http.StatusBadRequest,
 			Text:       msg}
+		return err
 	}
 
 	if subnetConfiguration.UpdateStatus == SubnetUpdatePending {
@@ -1814,35 +1832,38 @@ func UpdateSubnet(
 		msg := fmt.Sprintf("Network %s does not contain the specified subnet %s",
 			networkID,
 			subnet)
-		return &api.JsonErr{
+		err = &api.JsonErr{
 			Code:       api.SubnetNotFound,
 			HTTPStatus: http.StatusNotFound,
 			Text:       msg}
+		return err
 	}
 
 	if !subnetConfiguration.IsDelegatedSubnet {
 		msg := fmt.Sprintf("Subnet %s is not a delegated subnet. Network with ID %s",
 			subnet,
 			networkID)
-		return &api.JsonErr{
+		err = &api.JsonErr{
 			Code:       api.SubnetIsNotDelegated,
 			HTTPStatus: http.StatusBadRequest,
 			Text:       msg}
-
+		return err
 	}
 
 	if isDelete && len(subnetConfiguration.Reservations) > 0 {
 		msg := fmt.Sprintf("Cannot remove authentication token while subnet %s has allocations", subnet)
-		return &api.JsonErr{
+		err = &api.JsonErr{
 			Code:       api.InvalidSubnetRequest,
 			HTTPStatus: http.StatusBadRequest,
 			Text:       msg}
+		return err
 	}
 
 	subnetConfiguration.Joined = !isDelete
 	subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken
 
-	return PutSubnetConfiguration(subnetConfiguration)
+	err = PutSubnetConfiguration(subnetConfiguration)
+	return err
 }
 
 // GetNodeIDForNetworkContainer - Helper to retrieve node Id from NC configuration.
@@ -1971,6 +1992,7 @@ func DeleteNetworkConfiguration(networkID string) *api.JsonErr {
 	return nil
 }
 
+// GetSubnetDNSServers will query network config and return dns servers.
 func GetSubnetDNSServers(repoSubnetConfiguration *SubnetConfiguration) ([]string, *api.JsonErr) {
 	repoNetworkConfiguration, err := TryQueryNetworkConfiguration(repoSubnetConfiguration.NetworkID)
 	if err != nil {
