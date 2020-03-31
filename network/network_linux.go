@@ -11,6 +11,7 @@ import (
 
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
+	"github.com/Azure/azure-container-networking/network/epcommon"
 	"github.com/Azure/azure-container-networking/platform"
 	"golang.org/x/sys/unix"
 )
@@ -90,7 +91,8 @@ func (nm *networkManager) deleteNetworkImpl(nw *network) error {
 	if nw.VlanId != 0 {
 		networkClient = NewOVSClient(nw.extIf.BridgeName, nw.extIf.Name)
 	} else {
-		networkClient = NewLinuxBridgeClient(nw.extIf.BridgeName, nw.extIf.Name, nw.Mode)
+		nwInfo, _ := nm.GetNetworkInfo(nw.Id)
+		networkClient = NewLinuxBridgeClient(nw.extIf.BridgeName, nw.extIf.Name, nwInfo)
 	}
 
 	// Disconnect the interface if this was the last network using it.
@@ -287,8 +289,11 @@ func applyDnsConfig(extIf *externalInterface, ifName string) error {
 
 // ConnectExternalInterface connects the given host interface to a bridge.
 func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwInfo *NetworkInfo) error {
-	var err error
-	var networkClient NetworkClient
+	var (
+		err           error
+		networkClient NetworkClient
+	)
+
 	log.Printf("[net] Connecting interface %v.", extIf.Name)
 	defer func() { log.Printf("[net] Connecting interface %v completed with err:%v.", extIf.Name, err) }()
 
@@ -314,7 +319,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	if opt != nil && opt[VlanIDKey] != nil {
 		networkClient = NewOVSClient(bridgeName, extIf.Name)
 	} else {
-		networkClient = NewLinuxBridgeClient(bridgeName, extIf.Name, nwInfo.Mode)
+		networkClient = NewLinuxBridgeClient(bridgeName, extIf.Name, *nwInfo)
 	}
 
 	// Check if the bridge already exists.
@@ -416,6 +421,18 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 		log.Printf("[net] Applied dns config %v on %v", extIf.DNSInfo, bridgeName)
 	}
 
+	if nwInfo.IPV6Mode != "" {
+		if err := addIpv6NatGateway(nwInfo); err != nil {
+			log.Errorf("[net] Adding IPv6 Nat Gateway failed:%v", err)
+			return err
+		}
+
+		if err := addIpv6SnatRule(extIf); err != nil {
+			log.Errorf("[net] Adding IPv6 Snat Rule failed:%v", err)
+			return err
+		}
+	}
+
 	extIf.BridgeName = bridgeName
 	log.Printf("[net] Connected interface %v to bridge %v.", extIf.Name, extIf.BridgeName)
 
@@ -448,6 +465,34 @@ func (nm *networkManager) disconnectExternalInterface(extIf *externalInterface, 
 	extIf.Routes = nil
 
 	log.Printf("[net] Disconnected interface %v.", extIf.Name)
+}
+
+func addIpv6NatGateway(nwInfo *NetworkInfo) error {
+	if nwInfo.IPV6Mode == IPV6Nat {
+		log.Printf("[net] Adding ipv6 nat gateway on azure bridge")
+		for _, subnetInfo := range nwInfo.Subnets {
+			if subnetInfo.Family == platform.AfINET6 {
+				ipAddr := []net.IPNet{{
+					IP:   subnetInfo.Gateway,
+					Mask: subnetInfo.Prefix.Mask,
+				}}
+				return epcommon.AssignIPToInterface(nwInfo.BridgeName, ipAddr)
+			}
+		}
+	}
+
+	return nil
+}
+
+func addIpv6SnatRule(extIf *externalInterface) error {
+	log.Printf("[net] Adding ipv6 snat rule")
+	for _, ipAddr := range extIf.IPAddresses {
+		if ipAddr.IP.To4() == nil {
+			return epcommon.AddSnatRule("", ipAddr.IP)
+		}
+	}
+
+	return nil
 }
 
 func getNetworkInfoImpl(nwInfo *NetworkInfo, nw *network) {

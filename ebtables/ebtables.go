@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-container-networking/log"
+	"github.com/Azure/azure-container-networking/platform"
 )
 
 const (
@@ -82,11 +83,34 @@ func SetVepaMode(bridgeName string, downstreamIfNamePrefix string, upstreamMacAd
 
 // SetDnatForIPAddress sets a MAC DNAT rule for an IP address.
 func SetDnatForIPAddress(interfaceName string, ipAddress net.IP, macAddress net.HardwareAddr, action string) error {
-	command := fmt.Sprintf(
-		"ebtables -t nat %s PREROUTING -p IPv4 -i %s --ip-dst %s -j dnat --to-dst %s --dnat-target ACCEPT",
-		action, interfaceName, ipAddress.String(), macAddress.String())
+	protocol := "IPv4"
+	dst := "--ip-dst"
+	if ipAddress.To4() == nil {
+		protocol = "IPv6"
+		dst = "--ip6-dst"
+	}
 
-	return executeShellCommand(command)
+	command := fmt.Sprintf(
+		"ebtables -t nat %s PREROUTING -p %s -i %s %s %s -j dnat --to-dst %s --dnat-target ACCEPT",
+		action, protocol, interfaceName, dst, ipAddress.String(), macAddress.String())
+
+	out, err := platform.ExecuteCommand(command)
+	log.Printf("dnat out:%s", out)
+	return err
+}
+
+func SetBrouteRule(ipNet net.IPNet, action string) error {
+	protocol := "IPv4"
+	dst := "--ip-dst"
+	if ipNet.IP.To4() == nil {
+		protocol = "IPv6"
+		dst = "--ip6-dst"
+	}
+	cmd := fmt.Sprintf("ebtables -t broute %s BROUTING -p %s %s %s -j redirect --redirect-target ACCEPT",
+		action, protocol, dst, ipNet.String())
+	log.Printf("ebcmd:%s", cmd)
+	_, err := platform.ExecuteCommand(cmd)
+	return err
 }
 
 func executeShellCommand(command string) error {

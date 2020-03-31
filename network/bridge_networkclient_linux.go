@@ -2,6 +2,7 @@ package network
 
 import (
 	"net"
+	"strings"
 
 	"github.com/Azure/azure-container-networking/ebtables"
 	"github.com/Azure/azure-container-networking/log"
@@ -11,13 +12,13 @@ import (
 type LinuxBridgeClient struct {
 	bridgeName        string
 	hostInterfaceName string
-	mode              string
+	nwInfo            NetworkInfo
 }
 
-func NewLinuxBridgeClient(bridgeName string, hostInterfaceName string, mode string) *LinuxBridgeClient {
+func NewLinuxBridgeClient(bridgeName string, hostInterfaceName string, nwInfo NetworkInfo) *LinuxBridgeClient {
 	client := &LinuxBridgeClient{
 		bridgeName:        bridgeName,
-		mode:              mode,
+		nwInfo:            nwInfo,
 		hostInterfaceName: hostInterfaceName,
 	}
 
@@ -80,8 +81,12 @@ func (client *LinuxBridgeClient) AddL2Rules(extIf *externalInterface) error {
 		return err
 	}
 
+	if err := client.addBrouteServiceCidrs(); err != nil {
+		return err
+	}
+
 	// Enable VEPA for host policy enforcement if necessary.
-	if client.mode == opModeTunnel {
+	if client.nwInfo.Mode == opModeTunnel {
 		log.Printf("[net] Enabling VEPA mode for %v.", client.hostInterfaceName)
 		if err := ebtables.SetVepaMode(client.bridgeName, commonInterfacePrefix, virtualMacAddress, ebtables.Append); err != nil {
 			return err
@@ -104,4 +109,25 @@ func (client *LinuxBridgeClient) SetBridgeMasterToHostInterface() error {
 
 func (client *LinuxBridgeClient) SetHairpinOnHostInterface(enable bool) error {
 	return netlink.SetLinkHairpin(client.hostInterfaceName, enable)
+}
+
+func (client *LinuxBridgeClient) addBrouteServiceCidrs() error {
+	if client.nwInfo.ServiceCidrs != "" {
+		serviceCidrs := strings.Split(client.nwInfo.ServiceCidrs, ",")
+		for _, ipCidrStr := range serviceCidrs {
+			log.Printf("[net] Adding brouting rule for service cidr %s.", ipCidrStr)
+
+			ip, ipNet, _ := net.ParseCIDR(ipCidrStr)
+			svcAddr := net.IPNet{
+				IP:   ip,
+				Mask: ipNet.Mask,
+			}
+
+			if err := ebtables.SetBrouteRule(svcAddr, ebtables.Append); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

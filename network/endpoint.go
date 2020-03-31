@@ -71,6 +71,7 @@ type EndpointInfo struct {
 	Data                     map[string]interface{}
 	InfraVnetAddressSpace    string
 	SkipHotAttachEp          bool
+	IPV6Mode                 string
 }
 
 // RouteInfo contains information about an IP route.
