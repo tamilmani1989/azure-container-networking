@@ -372,6 +372,10 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		}
 		result.Interfaces = append(result.Interfaces, iface)
 
+		if resultV6 != nil {
+			result.IPs = append(result.IPs, resultV6.IPs...)
+		}
+
 		addSnatInterface(nwCfg, result)
 		// Convert result to the requested CNI version.
 		res, vererr := result.GetAsVersion(nwCfg.CNIVersion)
@@ -614,6 +618,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		Data:               make(map[string]interface{}),
 		DNS:                epDNSInfo,
 		Policies:           policies,
+		IPsToRouteViaHost:  nwCfg.IPsToRouteViaHost,
 		EnableSnatOnHost:   nwCfg.EnableSnatOnHost,
 		EnableMultiTenancy: nwCfg.MultiTenancy,
 		EnableInfraVnet:    enableInfraVnet,

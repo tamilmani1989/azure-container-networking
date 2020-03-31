@@ -54,6 +54,7 @@ type NetworkConfig struct {
 	IPV6Mode                      string   `json:"ipv6Mode,omitempty"`
 	ServiceCidrs                  string   `json:"serviceCidrs,omitempty"`
 	PodNamespaceForDualNetwork    []string `json:"podNamespaceForDualNetwork,omitempty"`
+	IPsToRouteViaHost             []string `json:"ipsToRouteViaHost,omitempty"`
 	MultiTenancy                  bool     `json:"multiTenancy,omitempty"`
 	EnableSnatOnHost              bool     `json:"enableSnatOnHost,omitempty"`
 	EnableExactMatchForPodName    bool     `json:"enableExactMatchForPodName,omitempty"`

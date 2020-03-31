@@ -123,7 +123,7 @@ func (client *LinuxBridgeClient) addBrouteServiceCidrs() error {
 				Mask: ipNet.Mask,
 			}
 
-			if err := ebtables.SetBrouteRule(svcAddr, ebtables.Append); err != nil {
+			if err := ebtables.SetBrouteAcceptCidr(svcAddr, ebtables.Append); err != nil {
 				return err
 			}
 		}

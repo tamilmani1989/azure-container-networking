@@ -5,80 +5,81 @@ package ebtables
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
-	"os/exec"
 	"strings"
 
-	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/platform"
 )
 
 const (
-	// Ebtables actions.
+	// Ebtable actions.
 	Append = "-A"
 	Delete = "-D"
+	// Ebtable tables.
+	Nat    = "nat"
+	Broute = "broute"
+	// Ebtable chains.
+	PreRouting  = "PREROUTING"
+	PostRouting = "POSTROUTING"
+	Brouting    = "BROUTING"
 )
-
-// InstallEbtables installs the ebtables package.
-func installEbtables() {
-	version, _ := ioutil.ReadFile("/proc/version")
-	os := strings.ToLower(string(version))
-
-	if strings.Contains(os, "ubuntu") {
-		executeShellCommand("apt-get install ebtables")
-	} else if strings.Contains(os, "redhat") {
-		executeShellCommand("yum install ebtables")
-	} else {
-		log.Printf("Unable to detect OS platform. Please make sure the ebtables package is installed.")
-	}
-}
 
 // SetSnatForInterface sets a MAC SNAT rule for an interface.
 func SetSnatForInterface(interfaceName string, macAddress net.HardwareAddr, action string) error {
-	command := fmt.Sprintf(
-		"ebtables -t nat %s POSTROUTING -s unicast -o %s -j snat --to-src %s --snat-arp --snat-target ACCEPT",
-		action, interfaceName, macAddress.String())
+	table := Nat
+	chain := PostRouting
+	rule := fmt.Sprintf("-s unicast -o %s -j snat --to-src %s --snat-arp --snat-target ACCEPT",
+		interfaceName, macAddress.String())
 
-	return executeShellCommand(command)
+	return runEbCmd(table, action, chain, rule)
 }
 
 // SetArpReply sets an ARP reply rule for the given target IP address and MAC address.
 func SetArpReply(ipAddress net.IP, macAddress net.HardwareAddr, action string) error {
-	command := fmt.Sprintf(
-		"ebtables -t nat %s PREROUTING -p ARP --arp-op Request --arp-ip-dst %s -j arpreply --arpreply-mac %s --arpreply-target DROP",
-		action, ipAddress, macAddress.String())
+	table := Nat
+	chain := PreRouting
+	rule := fmt.Sprintf("-p ARP --arp-op Request --arp-ip-dst %s -j arpreply --arpreply-mac %s --arpreply-target DROP",
+		ipAddress, macAddress.String())
 
-	return executeShellCommand(command)
+	return runEbCmd(table, action, chain, rule)
+}
+
+// SetBrouteAccept sets an EB rule.
+func SetBrouteAccept(ipAddress, action string) error {
+	table := Broute
+	chain := Brouting
+	rule := fmt.Sprintf("--ip-dst %s -p IPv4 -j redirect --redirect-target ACCEPT", ipAddress)
+
+	return runEbCmd(table, action, chain, rule)
 }
 
 // SetDnatForArpReplies sets a MAC DNAT rule for ARP replies received on an interface.
 func SetDnatForArpReplies(interfaceName string, action string) error {
-	command := fmt.Sprintf(
-		"ebtables -t nat %s PREROUTING -p ARP -i %s --arp-op Reply -j dnat --to-dst ff:ff:ff:ff:ff:ff --dnat-target ACCEPT",
-		action, interfaceName)
+	table := Nat
+	chain := PreRouting
+	rule := fmt.Sprintf("-p ARP -i %s --arp-op Reply -j dnat --to-dst ff:ff:ff:ff:ff:ff --dnat-target ACCEPT",
+		interfaceName)
 
-	return executeShellCommand(command)
+	return runEbCmd(table, action, chain, rule)
 }
 
 // SetVepaMode sets the VEPA mode for a bridge and its ports.
 func SetVepaMode(bridgeName string, downstreamIfNamePrefix string, upstreamMacAddress string, action string) error {
-	if !strings.HasPrefix(bridgeName, downstreamIfNamePrefix) {
-		command := fmt.Sprintf(
-			"ebtables -t nat %s PREROUTING -i %s -j dnat --to-dst %s --dnat-target ACCEPT",
-			action, bridgeName, upstreamMacAddress)
+	table := Nat
+	chain := PreRouting
 
-		err := executeShellCommand(command)
-		if err != nil {
+	if !strings.HasPrefix(bridgeName, downstreamIfNamePrefix) {
+		rule := fmt.Sprintf("-i %s -j dnat --to-dst %s --dnat-target ACCEPT", bridgeName, upstreamMacAddress)
+
+		if err := runEbCmd(table, action, chain, rule); err != nil {
 			return err
 		}
 	}
 
-	command := fmt.Sprintf(
-		"ebtables -t nat %s PREROUTING -i %s+ -j dnat --to-dst %s --dnat-target ACCEPT",
-		action, downstreamIfNamePrefix, upstreamMacAddress)
+	rule2 := fmt.Sprintf("-i %s+ -j dnat --to-dst %s --dnat-target ACCEPT",
+		downstreamIfNamePrefix, upstreamMacAddress)
 
-	return executeShellCommand(command)
+	return runEbCmd(table, action, chain, rule2)
 }
 
 // SetDnatForIPAddress sets a MAC DNAT rule for an IP address.
@@ -90,35 +91,92 @@ func SetDnatForIPAddress(interfaceName string, ipAddress net.IP, macAddress net.
 		dst = "--ip6-dst"
 	}
 
-	command := fmt.Sprintf(
-		"ebtables -t nat %s PREROUTING -p %s -i %s %s %s -j dnat --to-dst %s --dnat-target ACCEPT",
-		action, protocol, interfaceName, dst, ipAddress.String(), macAddress.String())
+	table := Nat
+	chain := PreRouting
+	rule := fmt.Sprintf("-p %s -i %s %s %s -j dnat --to-dst %s --dnat-target ACCEPT",
+		protocol, interfaceName, dst, ipAddress.String(), macAddress.String())
 
-	out, err := platform.ExecuteCommand(command)
-	log.Printf("dnat out:%s", out)
-	return err
+	return runEbCmd(table, action, chain, rule)
 }
 
-func SetBrouteRule(ipNet net.IPNet, action string) error {
+// SetEbRule sets any given eb rule
+func SetEbRule(table, action, chain, rule string) error {
+	return runEbCmd(table, action, chain, rule)
+}
+
+// GetEbtableRules gets EB rules for a table and chain.
+func GetEbtableRules(tableName, chainName string) ([]string, error) {
+	var (
+		inChain bool
+		rules   []string
+	)
+
+	command := fmt.Sprintf(
+		"ebtables -t %s -L %s --Lmac2",
+		tableName, chainName)
+	out, err := platform.ExecuteCommand(command)
+	if err != nil {
+		return nil, err
+	}
+
+	// Splits lines and finds rules.
+	lines := strings.Split(out, "\n")
+	chainTitle := fmt.Sprintf("Bridge chain: %s", chainName)
+
+	for _, line := range lines {
+		if strings.HasPrefix(line, chainTitle) {
+			inChain = true
+			continue
+		}
+		if inChain {
+			if strings.HasPrefix(line, "-") {
+				rules = append(rules, strings.TrimSpace(line))
+			} else {
+				break
+			}
+		}
+	}
+
+	return rules, nil
+}
+
+func SetBrouteAcceptCidr(ipNet net.IPNet, action string) error {
 	protocol := "IPv4"
 	dst := "--ip-dst"
 	if ipNet.IP.To4() == nil {
 		protocol = "IPv6"
 		dst = "--ip6-dst"
 	}
-	cmd := fmt.Sprintf("ebtables -t broute %s BROUTING -p %s %s %s -j redirect --redirect-target ACCEPT",
-		action, protocol, dst, ipNet.String())
-	log.Printf("ebcmd:%s", cmd)
-	_, err := platform.ExecuteCommand(cmd)
-	return err
+
+	table := Broute
+	chain := Brouting
+	rule := fmt.Sprintf("-p %s %s %s -j redirect --redirect-target ACCEPT",
+		protocol, dst, ipNet.String())
+
+	return runEbCmd(table, action, chain, rule)
+
 }
 
-func executeShellCommand(command string) error {
-	log.Debugf("[ebtables] %s", command)
-	cmd := exec.Command("sh", "-c", command)
-	err := cmd.Start()
+// EbTableRuleExists checks if eb rule exists in table and chain.
+func EbTableRuleExists(tableName, chainName, matchSet string) (bool, error) {
+	rules, err := GetEbtableRules(tableName, chainName)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return cmd.Wait()
+
+	for _, rule := range rules {
+		if rule == matchSet {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// runEbCmd runs an EB rule command.
+func runEbCmd(table, action, chain, rule string) error {
+	command := fmt.Sprintf("ebtables -t %s %s %s %s", table, action, chain, rule)
+	_, err := platform.ExecuteCommand(command)
+
+	return err
 }
