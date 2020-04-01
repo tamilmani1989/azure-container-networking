@@ -107,6 +107,12 @@ func sendDataStoreMetric(
 // Delete - Deletes a row in a given table.
 func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
 	defer recordProcessingTime(time.Now(), "Delete", tableName, azureStorage.PartitionKey, rowKey)
+	// utils.PanicRecover() cannot be inside anonymous defer func as recover() doesn't work as a part of anonymous func.
+	// e.g. following will not work
+	// defer func() {
+	//     utils.PanicRecover()
+	// }()
+	defer utils.PanicRecover()
 
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
@@ -115,20 +121,18 @@ func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
 	table := *tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(azureStorage.PartitionKey, rowKey)
 
-	// The Delete function may panic due to nil resp (in resp.StatusCode),
-	// so we will try to recover and proceed from there.
-	defer func() {
-		if r := recover(); r != nil {
-			loggershim.LS.Errorf("[Azure DNC] Recovered from crash due to %+v", r)
-		}
-	}()
-
 	return entity.Delete(true, nil)
 }
 
 // DeleteInPartition - Deletes a row in the partition of the given table.
 func (azureStorage *AzureStorage) DeleteInPartition(tableName, partitionKey, rowKey string) error {
 	defer recordProcessingTime(time.Now(), "DeleteInPartition", tableName, partitionKey, rowKey)
+	// utils.PanicRecover() cannot be inside anonymous defer func as recover() doesn't work as a part of anonymous func.
+	// e.g. following will not work
+	// defer func() {
+	//     utils.PanicRecover()
+	// }()
+	defer utils.PanicRecover()
 
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
@@ -199,6 +203,7 @@ func (azureStorage *AzureStorage) KeyExist(tableName, rowKey string) (bool, erro
 }
 
 func (azureStorage *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyName string, value interface{}) error {
+	defer utils.PanicRecover()
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
@@ -215,6 +220,7 @@ func (azureStorage *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyN
 
 func (azureStorage *AzureStorage) insertRowInPartition(tableName, partitionKay, rowKey, propertyName string, value interface{}) (
 	int, error) {
+	defer utils.PanicRecover()
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
 		return http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
@@ -239,6 +245,7 @@ func (azureStorage *AzureStorage) insertRowInPartition(tableName, partitionKay, 
 }
 
 func (azureStorage *AzureStorage) getRow(tableName string, partitionKey string, rowKey string) (interface{}, int, error) {
+	defer utils.PanicRecover()
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
 		return nil, http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
@@ -265,6 +272,7 @@ func (azureStorage *AzureStorage) getRow(tableName string, partitionKey string, 
 
 func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string, context interface{}) (
 	map[string]interface{}, bool, interface{}, int, error) {
+	defer utils.PanicRecover()
 	var (
 		entitiesResult *storage.EntityQueryResult
 		err            error

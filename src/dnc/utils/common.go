@@ -172,3 +172,12 @@ func EnvironmentFromName(name string) azure.Environment {
 		return azure.PublicCloud
 	}
 }
+
+// PanicRecover try to recover from crash and proceed
+// recover() must be called directly from defer function.
+// Don't nested it in an anonymous function.
+func PanicRecover() {
+	if r := recover(); r != nil {
+		loggershim.LS.Errorf("[Azure DNC] Recovered from crash due to %+v", r)
+	}
+}
