@@ -326,17 +326,10 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	bridge, err := net.InterfaceByName(bridgeName)
 	if err != nil {
 		// Create the bridge.
-		if err := networkClient.CreateBridge(); err != nil {
+		if err = networkClient.CreateBridge(); err != nil {
 			log.Printf("Error while creating bridge %+v", err)
 			return err
 		}
-
-		// On failure, delete the bridge.
-		defer func() {
-			if err != nil {
-				networkClient.DeleteBridge()
-			}
-		}()
 
 		bridge, err = net.InterfaceByName(bridgeName)
 		if err != nil {
@@ -347,6 +340,13 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 		log.Printf("[net] Found existing bridge %v.", bridgeName)
 	}
 
+	defer func() {
+		if err != nil {
+			log.Printf("[net] cleanup network")
+			nm.disconnectExternalInterface(extIf, networkClient)
+		}
+	}()
+
 	// Save host IP configuration.
 	err = nm.saveIPConfig(hostIf, extIf)
 	if err != nil {
@@ -356,7 +356,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	isGreaterOrEqualUbuntu17 := isGreaterOrEqaulUbuntuVersion(ubuntuVersion17)
 	if isGreaterOrEqualUbuntu17 {
 		log.Printf("[net] Saving dns config from %v", extIf.Name)
-		if err := saveDnsConfig(extIf); err != nil {
+		if err = saveDnsConfig(extIf); err != nil {
 			log.Printf("[net] Failed to save dns config: %v", err)
 			return err
 		}
@@ -371,7 +371,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 
 	// Connect the external interface to the bridge.
 	log.Printf("[net] Setting link %v master %v.", hostIf.Name, bridgeName)
-	if err := networkClient.SetBridgeMasterToHostInterface(); err != nil {
+	if err = networkClient.SetBridgeMasterToHostInterface(); err != nil {
 		return err
 	}
 
@@ -398,7 +398,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	// External interface hairpin on.
 	if !nwInfo.DisableHairpinOnHostInterface {
 		log.Printf("[net] Setting link %v hairpin on.", hostIf.Name)
-		if err := networkClient.SetHairpinOnHostInterface(true); err != nil {
+		if err = networkClient.SetHairpinOnHostInterface(true); err != nil {
 			return err
 		}
 	}
@@ -413,7 +413,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	if isGreaterOrEqualUbuntu17 {
 		log.Printf("[net] Applying dns config on %v", bridgeName)
 
-		if err := applyDnsConfig(extIf, bridgeName); err != nil {
+		if err = applyDnsConfig(extIf, bridgeName); err != nil {
 			log.Printf("[net] Failed to apply DNS configuration: %v.", err)
 			return err
 		}
@@ -422,12 +422,12 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	}
 
 	if nwInfo.IPV6Mode != "" {
-		if err := addIpv6NatGateway(nwInfo); err != nil {
+		if err = addIpv6NatGateway(nwInfo); err != nil {
 			log.Errorf("[net] Adding IPv6 Nat Gateway failed:%v", err)
 			return err
 		}
 
-		if err := addIpv6SnatRule(extIf); err != nil {
+		if err = addIpv6SnatRule(extIf); err != nil {
 			log.Errorf("[net] Adding IPv6 Snat Rule failed:%v", err)
 			return err
 		}

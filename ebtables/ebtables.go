@@ -18,11 +18,12 @@ const (
 	// Ebtable tables.
 	Nat    = "nat"
 	Broute = "broute"
+	Filter = "filter"
 	// Ebtable chains.
 	PreRouting  = "PREROUTING"
 	PostRouting = "POSTROUTING"
 	Brouting    = "BROUTING"
-	Filter      = "FILTER"
+	Forward     = "FORWARD"
 )
 
 // SetSnatForInterface sets a MAC SNAT rule for an interface.
@@ -102,8 +103,8 @@ func SetDnatForIPAddress(interfaceName string, ipAddress net.IP, macAddress net.
 
 // Drop Icmpv6 discovery messages going out of interface
 func DropICMPv6Solicitation(interfaceName string, action string) error {
-	table := Nat
-	chain := Filter
+	table := Filter
+	chain := Forward
 
 	rule := fmt.Sprintf("-p IPv6 --ip6-proto ipv6-icmp --ip6-icmp-type neighbour-solicitation -o %s -j DROP",
 		interfaceName)

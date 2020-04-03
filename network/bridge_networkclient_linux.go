@@ -81,7 +81,7 @@ func (client *LinuxBridgeClient) AddL2Rules(extIf *externalInterface) error {
 		return err
 	}
 
-	if err := client.addBrouteServiceCidrs(); err != nil {
+	if err := client.setBrouteServiceCidrs(ebtables.Append); err != nil {
 		return err
 	}
 
@@ -107,6 +107,10 @@ func (client *LinuxBridgeClient) DeleteL2Rules(extIf *externalInterface) {
 	ebtables.SetDnatForArpReplies(extIf.Name, ebtables.Delete)
 	ebtables.SetArpReply(extIf.IPAddresses[0].IP, extIf.MacAddress, ebtables.Delete)
 	ebtables.SetSnatForInterface(extIf.Name, extIf.MacAddress, ebtables.Delete)
+	client.setBrouteServiceCidrs(ebtables.Delete)
+	if client.nwInfo.IPV6Mode != "" {
+		ebtables.DropICMPv6Solicitation(extIf.Name, ebtables.Delete)
+	}
 }
 
 func (client *LinuxBridgeClient) SetBridgeMasterToHostInterface() error {
@@ -117,11 +121,11 @@ func (client *LinuxBridgeClient) SetHairpinOnHostInterface(enable bool) error {
 	return netlink.SetLinkHairpin(client.hostInterfaceName, enable)
 }
 
-func (client *LinuxBridgeClient) addBrouteServiceCidrs() error {
+func (client *LinuxBridgeClient) setBrouteServiceCidrs(action string) error {
 	if client.nwInfo.ServiceCidrs != "" {
 		serviceCidrs := strings.Split(client.nwInfo.ServiceCidrs, ",")
 		for _, ipCidrStr := range serviceCidrs {
-			log.Printf("[net] Adding brouting rule for service cidr %s.", ipCidrStr)
+			log.Printf("[net] Setting brouting rule for service cidr %s. Action", ipCidrStr)
 
 			ip, ipNet, _ := net.ParseCIDR(ipCidrStr)
 			svcAddr := net.IPNet{
@@ -129,7 +133,7 @@ func (client *LinuxBridgeClient) addBrouteServiceCidrs() error {
 				Mask: ipNet.Mask,
 			}
 
-			if err := ebtables.SetBrouteAcceptCidr(svcAddr, ebtables.Append); err != nil {
+			if err := ebtables.SetBrouteAcceptCidr(svcAddr, action); err != nil {
 				return err
 			}
 		}
