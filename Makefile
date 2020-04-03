@@ -376,7 +376,8 @@ test-all:
 		./aitelemetry/ \
         ./cnm/network/ \
         ./cni/ipam/ \
-        ./cns/ipamclient/ 
+        ./cns/ipamclient/ \
+        ./cnms/service/
 	cd npm/ && go test -v -covermode count -coverprofile=coverage-npm.out \
         ./iptm/ \
         ./ipsm/ \

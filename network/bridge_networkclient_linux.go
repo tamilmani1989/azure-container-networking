@@ -85,6 +85,12 @@ func (client *LinuxBridgeClient) AddL2Rules(extIf *externalInterface) error {
 		return err
 	}
 
+	if client.nwInfo.IPV6Mode != "" {
+		if err := ebtables.DropICMPv6Solicitation(client.hostInterfaceName, ebtables.Append); err != nil {
+			return err
+		}
+	}
+
 	// Enable VEPA for host policy enforcement if necessary.
 	if client.nwInfo.Mode == opModeTunnel {
 		log.Printf("[net] Enabling VEPA mode for %v.", client.hostInterfaceName)

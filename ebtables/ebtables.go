@@ -22,6 +22,7 @@ const (
 	PreRouting  = "PREROUTING"
 	PostRouting = "POSTROUTING"
 	Brouting    = "BROUTING"
+	Filter      = "FILTER"
 )
 
 // SetSnatForInterface sets a MAC SNAT rule for an interface.
@@ -95,6 +96,17 @@ func SetDnatForIPAddress(interfaceName string, ipAddress net.IP, macAddress net.
 	chain := PreRouting
 	rule := fmt.Sprintf("-p %s -i %s %s %s -j dnat --to-dst %s --dnat-target ACCEPT",
 		protocol, interfaceName, dst, ipAddress.String(), macAddress.String())
+
+	return runEbCmd(table, action, chain, rule)
+}
+
+// Drop Icmpv6 discovery messages going out of interface
+func DropICMPv6Solicitation(interfaceName string, action string) error {
+	table := Nat
+	chain := Filter
+
+	rule := fmt.Sprintf("-p IPv6 --ip6-proto ipv6-icmp --ip6-icmp-type neighbour-solicitation -o %s -j DROP",
+		interfaceName)
 
 	return runEbCmd(table, action, chain, rule)
 }

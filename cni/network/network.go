@@ -246,24 +246,29 @@ func addNatIPV6SubnetInfo(nwCfg *cni.NetworkConfig,
 func (plugin *netPlugin) invokeIpamDel(
 	result *cniTypesCurr.Result,
 	ipamType string,
-	nwCfg *cni.NetworkConfig,
+	nwCfg cni.NetworkConfig,
 	isDeletePoolOnError bool) {
 
 	if result != nil {
+		if ipamType == ipamV6 {
+			nwCfg.Ipam.Environment = common.OptEnvironmentIPv6NodeIpam
+			nwCfg.Ipam.Type = ipamType
+		}
+
 		nwCfg.Ipam.Subnet = result.IPs[0].Address.String()
 		nwCfg.Ipam.Address = result.IPs[0].Address.IP.String()
-		plugin.DelegateDel(ipamType, nwCfg)
+		plugin.DelegateDel(ipamType, &nwCfg)
 
 		// Release pool
 		if isDeletePoolOnError {
 			nwCfg.Ipam.Address = ""
-			plugin.DelegateDel(ipamType, nwCfg)
+			plugin.DelegateDel(ipamType, &nwCfg)
 		}
 	}
 }
 
 func (plugin *netPlugin) invokeIpamAdd(
-	nwCfg *cni.NetworkConfig,
+	nwCfg cni.NetworkConfig,
 	nwInfo network.NetworkInfo,
 	isDeletePoolOnError bool) (*cniTypesCurr.Result, *cniTypesCurr.Result, error) {
 
@@ -278,7 +283,7 @@ func (plugin *netPlugin) invokeIpamAdd(
 	}
 
 	// Call into IPAM plugin to allocate an address pool for the network.
-	result, err = plugin.DelegateAdd(nwCfg.Ipam.Type, nwCfg)
+	result, err = plugin.DelegateAdd(nwCfg.Ipam.Type, &nwCfg)
 	if err != nil {
 		err = plugin.Errorf("Failed to allocate pool: %v", err)
 		return result, resultV6, err
@@ -291,11 +296,14 @@ func (plugin *netPlugin) invokeIpamAdd(
 	}()
 
 	if nwCfg.IPV6Mode != "" {
+		nwCfg.Ipam.Environment = common.OptEnvironmentIPv6NodeIpam
+		nwCfg.Ipam.Type = ipamV6
+
 		if len(nwInfo.Subnets) > 1 {
 			nwCfg.Ipam.Subnet = nwInfo.Subnets[1].Prefix.String()
 		}
 
-		resultV6, err = plugin.DelegateAdd(ipamV6, nwCfg)
+		resultV6, err = plugin.DelegateAdd(ipamV6, &nwCfg)
 		if err != nil {
 			err = plugin.Errorf("Failed to allocate v6 pool: %v", err)
 		}
@@ -481,30 +489,18 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		log.Printf("[cni-net] Creating network %v.", networkId)
 
 		if !nwCfg.MultiTenancy {
-			result, resultV6, err = plugin.invokeIpamAdd(nwCfg, nwInfo, true)
+			result, resultV6, err = plugin.invokeIpamAdd(*nwCfg, nwInfo, true)
 			if err != nil {
 				return err
 			}
 
 			defer func() {
 				if err != nil {
-					plugin.invokeIpamDel(result, nwCfg.Ipam.Type, nwCfg, true)
-					plugin.invokeIpamDel(resultV6, ipamV6, nwCfg, true)
+					plugin.invokeIpamDel(result, nwCfg.Ipam.Type, *nwCfg, true)
+					plugin.invokeIpamDel(resultV6, ipamV6, *nwCfg, true)
 				}
 			}()
 
-			// resultV6 = &cniTypesCurr.Result{}
-			// ip6Net := net.IPNet{
-			// 	IP:   net.ParseIP("fc00::1"),
-			// 	Mask: net.CIDRMask(64, 128),
-			// }
-			// gw6 := net.ParseIP("fc00::0")
-			// ip6config := &cniTypesCurr.IPConfig{
-			// 	Version: "6",
-			// 	Address: ip6Net,
-			// 	Gateway: gw6,
-			// }
-			// resultV6.IPs = append(resultV6.IPs, ip6config)
 			subnetPrefix = result.IPs[0].Address
 		}
 
@@ -577,30 +573,17 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 			// Network already exists.
 			log.Printf("[cni-net] Found network %v with subnet %v.", networkId, nwInfo.Subnets[0].Prefix.String())
 
-			result, resultV6, err = plugin.invokeIpamAdd(nwCfg, nwInfo, false)
+			result, resultV6, err = plugin.invokeIpamAdd(*nwCfg, nwInfo, false)
 			if err != nil {
 				return err
 			}
 
 			defer func() {
 				if err != nil {
-					plugin.invokeIpamDel(result, nwCfg.Ipam.Type, nwCfg, false)
-					plugin.invokeIpamDel(resultV6, ipamV6, nwCfg, false)
+					plugin.invokeIpamDel(result, nwCfg.Ipam.Type, *nwCfg, false)
+					plugin.invokeIpamDel(resultV6, ipamV6, *nwCfg, false)
 				}
 			}()
-
-			// resultV6 = &cniTypesCurr.Result{}
-			// ip6Net := net.IPNet{
-			// 	IP:   net.ParseIP("fc00::2"),
-			// 	Mask: net.CIDRMask(64, 128),
-			// }
-			// gw6 := net.ParseIP("fc00::0")
-			// ip6config := &cniTypesCurr.IPConfig{
-			// 	Version: "6",
-			// 	Address: ip6Net,
-			// 	Gateway: gw6,
-			// }
-			// resultV6.IPs = append(resultV6.IPs, ip6config)
 		}
 	}
 
@@ -645,10 +628,6 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 
 	// Populate routes.
 	for _, route := range result.Routes {
-		epInfo.Routes = append(epInfo.Routes, network.RouteInfo{Dst: route.Dst, Gw: route.GW})
-	}
-
-	for _, route := range resultV6.Routes {
 		epInfo.Routes = append(epInfo.Routes, network.RouteInfo{Dst: route.Dst, Gw: route.GW})
 	}
 
@@ -889,13 +868,16 @@ func (plugin *netPlugin) Delete(args *cniSkel.CmdArgs) error {
 					err = plugin.Errorf("Failed to release ipv4 address: %v", err)
 				}
 			} else {
+				nwCfgIpv6 := *nwCfg
+				nwCfgIpv6.Ipam.Environment = common.OptEnvironmentIPv6NodeIpam
+				nwCfgIpv6.Ipam.Type = ipamV6
 				if len(nwInfo.Subnets) > 1 {
-					nwCfg.Ipam.Subnet = nwInfo.Subnets[1].Prefix.String()
+					nwCfgIpv6.Ipam.Subnet = nwInfo.Subnets[1].Prefix.String()
 				}
 
 				log.Printf("Releasing ipv6 address :%s pool: %s",
-					nwCfg.Ipam.Address, nwCfg.Ipam.Subnet)
-				if err = plugin.DelegateDel(ipamV6, nwCfg); err != nil {
+					nwCfgIpv6.Ipam.Address, nwCfgIpv6.Ipam.Subnet)
+				if err = plugin.DelegateDel(nwCfgIpv6.Ipam.Type, &nwCfgIpv6); err != nil {
 					log.Printf("Failed to release ipv6 address: %v", err)
 					err = plugin.Errorf("Failed to release ipv6 address: %v", err)
 				}
