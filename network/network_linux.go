@@ -91,8 +91,7 @@ func (nm *networkManager) deleteNetworkImpl(nw *network) error {
 	if nw.VlanId != 0 {
 		networkClient = NewOVSClient(nw.extIf.BridgeName, nw.extIf.Name)
 	} else {
-		nwInfo, _ := nm.GetNetworkInfo(nw.Id)
-		networkClient = NewLinuxBridgeClient(nw.extIf.BridgeName, nw.extIf.Name, nwInfo)
+		networkClient = NewLinuxBridgeClient(nw.extIf.BridgeName, nw.extIf.Name, NetworkInfo{})
 	}
 
 	// Disconnect the interface if this was the last network using it.
