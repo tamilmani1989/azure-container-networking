@@ -622,8 +622,10 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		epInfo.IPAddresses = append(epInfo.IPAddresses, ipconfig.Address)
 	}
 
-	for _, ipconfig := range resultV6.IPs {
-		epInfo.IPAddresses = append(epInfo.IPAddresses, ipconfig.Address)
+	if resultV6 != nil {
+		for _, ipconfig := range resultV6.IPs {
+			epInfo.IPAddresses = append(epInfo.IPAddresses, ipconfig.Address)
+		}
 	}
 
 	// Populate routes.
