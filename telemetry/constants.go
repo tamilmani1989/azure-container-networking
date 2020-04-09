@@ -5,11 +5,10 @@ package telemetry
 const (
 
 	// Metric Names
-	CNIExecutimeMetricStr   = "CNIExecutionTimeMs"
-	CNIV6ExecutimeMetricStr = "CNIV6ExecutionTimeMs"
-	CNIAddTimeMetricStr     = "CNIAddTimeMs"
-	CNIDelTimeMetricStr     = "CNIDelTimeMs"
-	CNIUpdateTimeMetricStr  = "CNIUpdateTimeMs"
+	CNIExecutimeMetricStr  = "CNIExecutionTimeMs"
+	CNIAddTimeMetricStr    = "CNIAddTimeMs"
+	CNIDelTimeMetricStr    = "CNIDelTimeMs"
+	CNIUpdateTimeMetricStr = "CNIUpdateTimeMs"
 
 	// Dimension Names
 	ContextStr        = "Context"

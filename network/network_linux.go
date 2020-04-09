@@ -426,7 +426,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 			return err
 		}
 
-		if err = addIpv6SnatRule(extIf); err != nil {
+		if err = addIpv6SnatRule(extIf, nwInfo.IPV6Mode); err != nil {
 			log.Errorf("[net] Adding IPv6 Snat Rule failed:%v", err)
 			return err
 		}
@@ -466,6 +466,7 @@ func (nm *networkManager) disconnectExternalInterface(extIf *externalInterface, 
 	log.Printf("[net] Disconnected interface %v.", extIf.Name)
 }
 
+// Add ipv6 nat gateway IP on bridge
 func addIpv6NatGateway(nwInfo *NetworkInfo) error {
 	if nwInfo.IPV6Mode == IPV6Nat {
 		log.Printf("[net] Adding ipv6 nat gateway on azure bridge")
@@ -483,11 +484,14 @@ func addIpv6NatGateway(nwInfo *NetworkInfo) error {
 	return nil
 }
 
-func addIpv6SnatRule(extIf *externalInterface) error {
-	log.Printf("[net] Adding ipv6 snat rule")
-	for _, ipAddr := range extIf.IPAddresses {
-		if ipAddr.IP.To4() == nil {
-			return epcommon.AddSnatRule("", ipAddr.IP)
+// snat ipv6 traffic to secondary ipv6 ip before leaving VM
+func addIpv6SnatRule(extIf *externalInterface, ipv6Mode string) error {
+	if ipv6Mode == IPV6Nat {
+		log.Printf("[net] Adding ipv6 snat rule")
+		for _, ipAddr := range extIf.IPAddresses {
+			if ipAddr.IP.To4() == nil {
+				return epcommon.AddSnatRule("", ipAddr.IP)
+			}
 		}
 	}
 

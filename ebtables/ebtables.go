@@ -153,6 +153,8 @@ func GetEbtableRules(tableName, chainName string) ([]string, error) {
 	return rules, nil
 }
 
+// SetBrouteAcceptCidr - broute chain MAC redirect rule. Will change mac target address to bridge port
+// that receives the frame.
 func SetBrouteAcceptCidr(ipNet net.IPNet, action string) error {
 	protocol := "IPv4"
 	dst := "--ip-dst"

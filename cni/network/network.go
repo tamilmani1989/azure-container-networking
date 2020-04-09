@@ -803,6 +803,7 @@ func (plugin *netPlugin) Delete(args *cniSkel.CmdArgs) error {
 		log.Printf("[cni-net] Failed to get POD info due to error: %v", err)
 	}
 
+	plugin.setCNIReportDetails(nwCfg, CNI_DEL, "")
 	iptables.DisableIPTableLock = nwCfg.DisableIPTableLock
 
 	if nwCfg.MultiTenancy {
@@ -834,13 +835,6 @@ func (plugin *netPlugin) Delete(args *cniSkel.CmdArgs) error {
 	}
 
 	defer func() {
-		msg = fmt.Sprintf("CNI DEL succeeded : Released ip %+v podname %v namespace %v", nwCfg.Ipam.Address, k8sPodName, k8sNamespace)
-		if err != nil {
-			msg = fmt.Sprintf("CNI DEL failed : ip %+v podname %v namespace %v", nwCfg.Ipam.Address, k8sPodName, k8sNamespace)
-		}
-
-		plugin.setCNIReportDetails(nwCfg, CNI_DEL, msg)
-
 		operationTimeMs := time.Since(startTime).Milliseconds()
 		cniMetric.Metric = aitelemetry.Metric{
 			Name:             telemetry.CNIDelTimeMetricStr,
@@ -894,6 +888,9 @@ func (plugin *netPlugin) Delete(args *cniSkel.CmdArgs) error {
 			err = plugin.Errorf("Failed to release address: %v", err)
 		}
 	}
+
+	msg = fmt.Sprintf("CNI DEL succeeded : Released ip %+v podname %v namespace %v", nwCfg.Ipam.Address, k8sPodName, k8sNamespace)
+	plugin.setCNIReportDetails(nwCfg, CNI_DEL, msg)
 
 	return err
 }
