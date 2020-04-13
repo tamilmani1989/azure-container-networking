@@ -12,12 +12,47 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/google/uuid"
+)
+
+const (
+	StorageTableApiVersion = "2019-07-07"
 )
 
 var (
 	Version = "no version provided"
+
+	// CosmosDbEndpoints - Endpoint Suffix for CosmosDb Table Storage for different clouds/env
+	// For RX (USNAt) : https://microsoft.sharepoint.com/teams/LX/unrestricted/SitePages/DNS%20Endpoints%20for%20RX.aspx
+	// For EX (USSEC) : https://microsoft.sharepoint.com/teams/LX/unrestricted/SitePages/DNS%20Endpoints.aspx
+	// Other reference : https://github.com/Azure/go-autorest/blob/master/autorest/azure/environments.go
+	CosmosDbEndpoints = map[string]string{
+		"":                  "cosmos.azure.com",
+		"publiccloud":       "cosmos.azure.com",
+		"usgovernmentcloud": "cosmos.azure.us",
+		"chinacloud":        "cosmos.azure.cn",
+		"germancloud":       "cosmos.microsoftazure.de",
+		"usseccloud":        "cosmos.azure.eaglex.ic.gov",
+		"usnatcloud":        "cosmos.azure.microsoft.scloud",
+	}
+
+	// TableStorageEndpoints - Endpoints Suffix for Azure Table Storage for different clouds/env
+	TableStorageEndpoints = map[string]string{
+		"":                  "core.windows.net",
+		"publiccloud":       "core.windows.net",
+		"usgovernmentcloud": "core.usgovcloudapi.net",
+		"chinacloud":        "core.chinacloudapi.cn",
+		"germancloud":       "core.cloudapi.de",
+		"usseccloud":        "core.eaglex.ic.gov",
+		"usnatcloud":        "core.microsoft.scloud",
+	}
+
+	// CosmosDbAdditionalHeaders - Headers specific to cosmos db
+	CosmosDbAdditionalHeaders = map[string]string{
+		"MaxDataServiceVersion": "3.0;NetFx",
+		"DataServiceVersion":    "3.0",
+	}
 )
 
 type Uint16s []uint16
@@ -158,19 +193,34 @@ func DecodeResponse(w *http.Response, response interface{}) error {
 	return err
 }
 
-// EnvironmentFromName - Azure environment from string
-func EnvironmentFromName(name string) azure.Environment {
-	switch name {
-	case "USGovernmentCloud":
-		return azure.USGovernmentCloud
-	case "ChinaCloud":
-		return azure.ChinaCloud
-	case "GermanCloud":
-		return azure.GermanCloud
-	default:
-		// We default to public cloud
-		return azure.PublicCloud
+// GetStorageClient - Gets the Storage Client
+func GetStorageClient(accountName string, accountKey string, envName string, isUsingCosmosDb bool) (storage.Client, error) {
+	var (
+		storageClient  storage.Client
+		err            error
+		endpointSuffix string
+		endpointExists bool
+	)
+
+	lowerEnvName := strings.ToLower(envName)
+	if isUsingCosmosDb {
+		endpointSuffix, endpointExists = CosmosDbEndpoints[lowerEnvName]
+	} else {
+		endpointSuffix, endpointExists = TableStorageEndpoints[lowerEnvName]
 	}
+
+	if !endpointExists {
+		return storageClient, fmt.Errorf("Storage Base Endpoint with UsingCosmosDb:%v for Env:'%s' not found", isUsingCosmosDb, envName)
+	}
+
+	storageClient, err = storage.NewClient(accountName, accountKey, endpointSuffix, StorageTableApiVersion, true)
+
+	// CosmosDb Specific headers
+	if isUsingCosmosDb && err == nil {
+		storageClient.AddAdditionalHeaders(CosmosDbAdditionalHeaders)
+	}
+
+	return storageClient, err
 }
 
 // PanicRecover try to recover from crash and proceed

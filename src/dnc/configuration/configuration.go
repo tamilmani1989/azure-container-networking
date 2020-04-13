@@ -23,6 +23,7 @@ type AzureStorageInfo struct {
 	EnableSharedSubnetDelegation    bool
 	RegionalStorageConnectionString string
 	Environment                     string
+	IsUsingCosmosDb                 bool
 }
 
 // AzureSQLInfo - Details to connect to azure sql database.
@@ -374,6 +375,10 @@ func OverrideConfigFromEnv(config *Configuration) {
 
 	if accountEnv := os.Getenv("DataStoreStorageEnvironment"); len(accountEnv) != 0 {
 		config.DataStoreSettings.AzureStorageInfo.Environment = accountEnv
+	}
+
+	if dataStoreUsingCosmosDb := os.Getenv("DataStoreUsingCosmosDb"); len(dataStoreUsingCosmosDb) != 0 {
+		config.DataStoreSettings.AzureStorageInfo.IsUsingCosmosDb = ParseBool(dataStoreUsingCosmosDb)
 	}
 
 	if dataStorePartitionKey := os.Getenv("DataStorePartitionKey"); len(dataStorePartitionKey) != 0 {

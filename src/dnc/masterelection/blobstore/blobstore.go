@@ -3,7 +3,7 @@ package blobstore
 import (
 	"dnc/configuration"
 	"dnc/logger/loggershim"
-	"dnc/masterelection/common"
+	callbacks "dnc/masterelection/common"
 	"dnc/utils"
 	"encoding/base64"
 	"fmt"
@@ -62,9 +62,9 @@ func NewBlobStore(
 // Init - Initialize blob storage for primary election.
 func (b *BlobStore) Init() {
 	accountName, key, _, env := b.getDataStoreSettings()
-	cloudEnv := utils.EnvironmentFromName(env)
-	loggershim.LS.Debugf("Environment type for data store settings %+v", cloudEnv)
-	client, err := storage.NewBasicClientOnSovereignCloud(accountName, key, cloudEnv)
+
+	loggershim.LS.Debugf("Environment type for azure store settings %s", env)
+	client, err := utils.GetStorageClient(accountName, key, env, false)
 	onErrorFail(err, "Create client failed")
 	b.blobClient = client.GetBlobService()
 }

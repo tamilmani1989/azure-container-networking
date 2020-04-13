@@ -23,6 +23,7 @@
       <EnvironmentVariable Name="DataStoreStorageName" Value=""/>
       <EnvironmentVariable Name="DataStoreStorageKey" Value=""/>
       <EnvironmentVariable Name="DataStoreStorageEnvironment" Value=""/>
+      <EnvironmentVariable Name="DataStoreUsingCosmosDb" Value=""/>
       <EnvironmentVariable Name="DataStorePartitionKey" Value=""/>
       <EnvironmentVariable Name="MasterElectionStorageName" Value=""/>
       <EnvironmentVariable Name="MasterElectionStorageKey" Value=""/>

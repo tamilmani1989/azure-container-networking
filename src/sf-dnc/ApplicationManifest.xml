@@ -12,6 +12,7 @@
     <Parameter Name="DataStoreStorageName" DefaultValue=""/>
     <Parameter Name="DataStoreStorageKey" DefaultValue=""/>
     <Parameter Name="DataStoreStorageEnvironment" DefaultValue=""/>
+    <Parameter Name="DataStoreUsingCosmosDb" DefaultValue=""/>
     <Parameter Name="MasterElectionStorageName" DefaultValue=""/>
     <Parameter Name="MasterElectionStorageKey" DefaultValue=""/>
     <Parameter Name="MasterElectionStorageEnvironment" DefaultValue=""/>
@@ -61,6 +62,7 @@
       <EnvironmentVariable Name="DataStoreStorageKey" Value="[DataStoreStorageKey]"/>
       <EnvironmentVariable Name="DataStoreStorageEnvironment" Value="[DataStoreStorageEnvironment]"/>
       <EnvironmentVariable Name="DataStorePartitionKey" Value="[DataStorePartitionKey]"/>
+      <EnvironmentVariable Name="DataStoreUsingCosmosDb" Value="[DataStoreUsingCosmosDb]"/>
       <EnvironmentVariable Name="MasterElectionStorageName" Value="[MasterElectionStorageName]"/>
       <EnvironmentVariable Name="MasterElectionStorageKey" Value="[MasterElectionStorageKey]"/>
       <EnvironmentVariable Name="MasterElectionStorageEnvironment" Value="[MasterElectionStorageEnvironment]"/>

@@ -31,12 +31,12 @@ type AzureStorage struct {
 func (azureStorage *AzureStorage) Init(
 	tableToColumnMap map[string]string,
 	thresholdForLoggingDataStoreOpLatencyMsArg int) {
-	cloudEnv := utils.EnvironmentFromName(azureStorage.AzureStorageInfo.Environment)
-	loggershim.LS.Debugf("Environment type for azure store settings %+v", cloudEnv)
-	storageClient, err := storage.NewBasicClientOnSovereignCloud(
+	loggershim.LS.Debugf("Environment type for azure store settings %s", azureStorage.AzureStorageInfo.Environment)
+	storageClient, err := utils.GetStorageClient(
 		azureStorage.AzureStorageInfo.AccountName,
 		azureStorage.AzureStorageInfo.Key,
-		cloudEnv)
+		azureStorage.AzureStorageInfo.Environment,
+		azureStorage.AzureStorageInfo.IsUsingCosmosDb)
 
 	utils.OnErrorFail(err, "Create client failed")
 	azureStorage.tableClient = storageClient.GetTableService()

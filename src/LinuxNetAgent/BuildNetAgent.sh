@@ -17,7 +17,6 @@ export GOPATH=$scriptdir/../..
 rm -rf  $scriptdir/../github.com
 rm -rf  $scriptdir/../golang.org
 go version
-export GO111MODULE=off
 go get "golang.org/x/sys/unix"
 go get "github.com/Azure/azure-container-networking/cnm"
 cd $scriptdir/main
