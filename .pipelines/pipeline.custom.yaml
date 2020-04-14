@@ -17,7 +17,7 @@ stages:
           demands: agent.os -equals Linux
 
         container:
-          image: containernetworking/pipeline-ci:1.0.5
+          image: "$(BUILD_IMAGE)"
           options: "--privileged"
 
         # Go setup for the vmImage:
@@ -30,9 +30,12 @@ stages:
         steps:
           - bash: |
               echo $UID
+              sudo rm -rf $(System.DefaultWorkingDirectory)/*
               sudo rm /run/docker/plugins/test.sock || true
               sudo ip link del dev dummy || true
             displayName: "Set up OS environment"
+
+          - checkout: self
 
           - bash: |
               echo "##vso[task.setvariable variable=Tag;isOutput=true]$(git describe --tags --abbrev=0 | sed 's/\./-/g')"
@@ -52,12 +55,12 @@ stages:
 
           - script: |
               echo Build tag is $(Env.Tag)
-              go build
-              go build ./test/nmagent/
-              go build -o dnctl-bin ./dnctl/ 
+              go build -v ./test/nmagent/
+              go build -v -o dnctl-bin ./dnctl/
+              go build -v
             workingDirectory: "$(modulePath)"
             name: "BuildDNC"
-            displayName: "Set build environmental variables"
+            displayName: "Build DNC Binaries"
 
           - task: AzureCLI@2
             inputs:

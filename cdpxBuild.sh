@@ -9,12 +9,12 @@ pushd $PWD
 export DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Get our Go compiler
-GODIR="$DIR/go1-13"
+GODIR="$DIR/go1-14"
 if [ ! -d $GODIR ]; then
     mkdir -p $GODIR
-    wget https://dl.google.com/go/go1.13.3.linux-amd64.tar.gz
-    tar -C $GODIR -xvf go1.13.3.linux-amd64.tar.gz
-    rm go1.13.3.linux-amd64.tar.gz
+    wget https://dl.google.com/go/go1.14.2.linux-amd64.tar.gz
+    tar -C $GODIR -xvf go1.14.2.linux-amd64.tar.gz
+    rm go1.14.2.linux-amd64.tar.gz
 fi
 
 # Set env variables
