@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -229,5 +230,16 @@ func GetStorageClient(accountName string, accountKey string, envName string, isU
 func PanicRecover() {
 	if r := recover(); r != nil {
 		loggershim.LS.Errorf("[Azure DNC] Recovered from crash due to %+v", r)
+		loggershim.LS.Errorf("[Azure DNC] Crash stack trace: %s", string(debug.Stack()))
+	}
+}
+
+// PanicRecoverAndExitWithStackTrace - recovery from panic, print a failure message and stack trace and exit the program
+func PanicRecoverAndExitWithStackTrace(context string) {
+	if r := recover(); r != nil {
+		loggershim.LS.Errorf("[%s]. %+v", context, r)
+		loggershim.LS.Errorf(
+			"[%s]. Stack trace: %s", context, string(debug.Stack()))
+		os.Exit(1)
 	}
 }

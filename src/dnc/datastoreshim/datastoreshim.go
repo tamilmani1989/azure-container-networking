@@ -4,7 +4,7 @@ import (
 	"dnc/configuration"
 	"dnc/datastore/azuresql"
 	"dnc/datastore/azurestorage"
-	"dnc/datastore/orchestratorstore"
+	orchestratorstorage "dnc/datastore/orchestratorstore"
 	"dnc/datastore/testpersistencestore"
 	"dnc/logger/loggershim"
 	"dnc/utils"
@@ -14,11 +14,16 @@ import (
 
 type dataStoreInterfaces interface {
 	InsertInPartition(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error)
+	InsertInPartitionProperties(tableName, partitionKay, rowKey string, properties map[string]interface{}) (int, error)
 	InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error
+	UpdateInPartition(tableName, partitionKay, rowKey string, properties map[string]interface{}) error
+	UpdateInPartitionWithEtag(tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error
 	Delete(tableName, rowKey string) error
 	DeleteInPartition(tableName, partitionKey, rowKey string) error
 	Query(tableName, rowKey string) (interface{}, int, error)
 	QueryInPartition(tableName, partitionKey, rowKey string) (interface{}, int, error)
+	QueryInPartitionWithEtag(tableName, partitionKey, rowKey string) (interface{}, string, int, error)
+	QueryInPartitionWithEtagProperties(tableName, partitionKey, rowKey string) (map[string]interface{}, string, int, error)
 	QueryAll(tableName string, context interface{}) (map[string]interface{}, bool, interface{}, int, error)
 	QueryAllInPartition(tableName, partitionKey string, context interface{}) (map[string]interface{}, bool, interface{}, int, error)
 	KeyExist(tableName, rowKey string) (bool, error)
@@ -26,28 +31,38 @@ type dataStoreInterfaces interface {
 }
 
 type insertInPartitionFunc func(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error)
+type insertInPartitionPropertiesFunc func(tableName, partitionKay, rowKey string, properties map[string]interface{}) (int, error)
 type insertOrUpdateFunc func(tableName, rowKey, propertyName string, value interface{}) error
+type updateInPartitionFunc func(tableName, partitionKay, rowKey string, properties map[string]interface{}) error
+type updateInPartitionWithEtagFunc func(tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error
 type deleteFunc func(tableName, rowKey string) error
 type deleteInPartitionFunc func(tableName, partitionKey, rowKey string) error
 type queryFunc func(tableName, rowKey string) (interface{}, int, error)
 type queryInPartitionFunc func(tableName, partitionKey, rowKey string) (interface{}, int, error)
+type queryInPartitionWithEtagFunc func(tableName, partitionKey, rowKey string) (interface{}, string, int, error)
+type queryInPartitionWithEtagPropertiesFunc func(tableName, partitionKey, rowKey string) (map[string]interface{}, string, int, error)
 type queryAllFunc func(tableName string, context interface{}) (map[string]interface{}, bool, interface{}, int, error)
 type queryAllInPartitionFunc func(tableName, partitionKey string, context interface{}) (map[string]interface{}, bool, interface{}, int, error)
 type keyExistFunc func(tableName, rowKey string) (bool, error)
 
 // DataStoreShim - Struct to cache the data store management functions
 type DataStoreShim struct {
-	dataStoreSettings   configuration.DataStoreSettings
-	SupportedFeatures   map[int]bool
-	InsertInPartition   insertInPartitionFunc
-	InsertOrUpdate      insertOrUpdateFunc
-	Delete              deleteFunc
-	DeleteInPartition   deleteInPartitionFunc
-	Query               queryFunc
-	QueryInPartition    queryInPartitionFunc
-	QueryAll            queryAllFunc
-	QueryAllInPartition queryAllInPartitionFunc
-	KeyExist            keyExistFunc
+	dataStoreSettings                  configuration.DataStoreSettings
+	SupportedFeatures                  map[int]bool
+	InsertInPartition                  insertInPartitionFunc
+	InsertOrUpdate                     insertOrUpdateFunc
+	Delete                             deleteFunc
+	DeleteInPartition                  deleteInPartitionFunc
+	Query                              queryFunc
+	QueryInPartition                   queryInPartitionFunc
+	QueryAll                           queryAllFunc
+	QueryAllInPartition                queryAllInPartitionFunc
+	KeyExist                           keyExistFunc
+	UpdateInPartition                  updateInPartitionFunc
+	UpdateInPartitionWithEtag          updateInPartitionWithEtagFunc
+	QueryInPartitionWithEtag           queryInPartitionWithEtagFunc
+	QueryInPartitionWithEtagProperties queryInPartitionWithEtagPropertiesFunc
+	InsertInPartitionProperties        insertInPartitionPropertiesFunc
 }
 
 // NewDataStoreShim - Create a new datastore shim
@@ -84,9 +99,14 @@ func (dataStoreShim *DataStoreShim) Init(
 		dataStoreShim.DeleteInPartition = deleteInPartitionFunc(azStorage.DeleteInPartition)
 		dataStoreShim.InsertOrUpdate = insertOrUpdateFunc(azStorage.InsertOrUpdate)
 		dataStoreShim.InsertInPartition = insertInPartitionFunc(azStorage.InsertInPartition)
+		dataStoreShim.InsertInPartitionProperties = insertInPartitionPropertiesFunc(azStorage.InsertInPartitionProperties)
 		dataStoreShim.QueryAll = queryAllFunc(azStorage.QueryAllRows)
 		dataStoreShim.QueryAllInPartition = queryAllInPartitionFunc(azStorage.QueryAllRowsInPartition)
 		dataStoreShim.KeyExist = keyExistFunc(azStorage.KeyExist)
+		dataStoreShim.UpdateInPartition = updateInPartitionFunc(azStorage.UpdateInPartition)
+		dataStoreShim.UpdateInPartitionWithEtag = updateInPartitionWithEtagFunc(azStorage.UpdateInPartitionWithEtag)
+		dataStoreShim.QueryInPartitionWithEtag = queryInPartitionWithEtagFunc(azStorage.QueryInPartitionWithEtag)
+		dataStoreShim.QueryInPartitionWithEtagProperties = queryInPartitionWithEtagPropertiesFunc(azStorage.QueryInPartitionWithEtagProperties)
 		// Default the feature to true
 		dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation] = true
 		loggershim.LS.Debugf("SharedSubnetDelegation %v", dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation])
@@ -115,6 +135,11 @@ func (dataStoreShim *DataStoreShim) Init(
 		dataStoreShim.QueryAll = queryAllFunc(tps.QueryAllRows)
 		dataStoreShim.QueryAllInPartition = queryAllInPartitionFunc(tps.QueryAllRowsInPartition)
 		dataStoreShim.KeyExist = keyExistFunc(tps.KeyExist)
+		dataStoreShim.UpdateInPartition = updateInPartitionFunc(tps.UpdateInPartition)
+		dataStoreShim.InsertInPartitionProperties = insertInPartitionPropertiesFunc(tps.InsertInPartitionProperties)
+		dataStoreShim.UpdateInPartitionWithEtag = updateInPartitionWithEtagFunc(tps.UpdateInPartitionWithEtag)
+		dataStoreShim.QueryInPartitionWithEtag = queryInPartitionWithEtagFunc(tps.QueryInPartitionWithEtag)
+		dataStoreShim.QueryInPartitionWithEtagProperties = queryInPartitionWithEtagPropertiesFunc(tps.QueryInPartitionWithEtagProperties)
 		// Default the feature to true
 		dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation] = true
 		loggershim.LS.Debugf("SharedSubnetDelegation %v", dataStoreShim.SupportedFeatures[configuration.SharedSubnetDelegation])

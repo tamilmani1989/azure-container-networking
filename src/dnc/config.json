@@ -19,6 +19,7 @@
        "Port":"9000"
     },
     "MasterElectionSettings":{
+        "UseDataStore":false,
         "BlobStorageSettings":{
          "AccountName":"",
          "Key":"",
@@ -28,7 +29,12 @@
          "ContainerName":#LeaderElectionTest#,
          "LeaseIntervalInSecs":60,
          "LeaseRenewIntervalInSecs":30,
-         "AcquireRetryIntervalInSecs":30         
+         "AcquireRetryIntervalInSecs":30
+        },
+        "DataStoreLeaseSettings":{
+         "LeaseIntervalInSecs":60,
+         "LeaseRenewIntervalInSecs":30,
+         "AcquireRetryIntervalInSecs":30
         }
     },
     "HostAgentSettings":{

@@ -2,8 +2,10 @@ package masterelectionshim
 
 import (
 	"dnc/configuration"
+	"dnc/datamodel"
 	"dnc/masterelection/blobstore"
-	"dnc/masterelection/common"
+	callbacks "dnc/masterelection/common"
+	storagetablelease "dnc/masterelection/storagetable"
 	"dnc/masterelection/testdataelection"
 	"dnc/utils"
 	"fmt"
@@ -45,7 +47,9 @@ func NewMasterElectionShim(
 	masterElectionShim.cancelEvent = cancel
 	masterElectionShim.startEvent = start
 	masterElectionShim.demoteEvent = demote
-	if masterElectionShim.masterElectionSettings.BlobStorageSettings != (configuration.BlobStorageSettings{}) {
+
+	useDataStore := masterElectionShim.masterElectionSettings.UseDataStore
+	if !useDataStore && masterElectionShim.masterElectionSettings.BlobStorageSettings != (configuration.BlobStorageSettings{}) {
 		blobStore := blobstore.NewBlobStore(
 			masterElectionShim.serverSettings,
 			masterElectionShim.masterElectionSettings.BlobStorageSettings,
@@ -55,6 +59,19 @@ func NewMasterElectionShim(
 			masterElectionShim.cancelEvent,
 			masterElectionShim.demoteEvent)
 		masterElectionShim.masterElectionInterface = blobStore
+	} else if useDataStore && masterElectionShim.masterElectionSettings.DataStoreLeaseSettings != (configuration.DataStoreLeaseSettings{}) {
+		storageTableLease := storagetablelease.NewStorageTableLease(
+			masterElectionShim.serverSettings,
+			cfg.DataStoreSettings,
+			masterElectionShim.masterElectionSettings.DataStoreLeaseSettings,
+			cfg.DNCSettings,
+			datamodel.TableToColumnMap,
+			masterElectionShim.replicaChangeNotificationCallback,
+			masterElectionShim.primaryIPEndpointNotificationCallback,
+			masterElectionShim.startEvent,
+			masterElectionShim.cancelEvent,
+			masterElectionShim.demoteEvent)
+		masterElectionShim.masterElectionInterface = storageTableLease
 	} else if masterElectionShim.masterElectionSettings.TestDataElectionSettings != (configuration.TestDataElectionSettings{}) {
 		testdataElection := testdataelection.NewTestDataElection(
 			masterElectionShim.serverSettings,
@@ -86,10 +103,12 @@ func (masterElectionShim *MasterElectionShim) Cleanup() {
 	masterElectionShim.masterElectionInterface.Cleanup()
 }
 
+// SetDataStoreSettings - set datastore settings for masterelection shim
 func (masterElectionShim *MasterElectionShim) SetDataStoreSettings(config *configuration.Configuration) {
 	masterElectionShim.masterElectionInterface.SetDataStoreSettings(config)
 }
 
+// RelinquishPrimaryStatus - Send an event to lose primary status
 func (masterElectionShim *MasterElectionShim) RelinquishPrimaryStatus() {
 	masterElectionShim.demoteEvent <- true
 }

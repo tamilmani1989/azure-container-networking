@@ -150,12 +150,40 @@ func (azureStorage *AzureStorage) InsertOrUpdate(tableName, rowKey, propertyName
 	return azureStorage.insertOrUpdateRow(tableName, rowKey, propertyName, value)
 }
 
-// InsertInPartition - Insert a row in the specific partition of the given table.
+// UpdateInPartition - Update (overwrite) a row in a given table if it exists.
+func (azureStorage *AzureStorage) UpdateInPartition(
+	tableName, partitionKay, rowKey string, properties map[string]interface{}) error {
+	defer recordProcessingTime(time.Now(), "UpdateInPartition", tableName, azureStorage.PartitionKey, rowKey)
+
+	return azureStorage.updateRowWithEtag(tableName, partitionKay, rowKey, "", properties)
+}
+
+// UpdateInPartitionWithEtag - Update (overwrite) a row in a given table if it exists.
+// Match with specified etag for update.
+func (azureStorage *AzureStorage) UpdateInPartitionWithEtag(
+	tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error {
+	defer recordProcessingTime(time.Now(), "UpdateInPartitionWithEtag", tableName, azureStorage.PartitionKey, rowKey)
+
+	return azureStorage.updateRowWithEtag(tableName, partitionKay, rowKey, etag, properties)
+}
+
+// InsertInPartition - Insert a row in the specific partition of the given table with one property
 func (azureStorage *AzureStorage) InsertInPartition(tableName, partitionKay, rowKey, propertyName string, value interface{}) (
 	int, error) {
 	defer recordProcessingTime(time.Now(), "InsertInPartition", tableName, partitionKay, rowKey)
 
-	return azureStorage.insertRowInPartition(tableName, partitionKay, rowKey, propertyName, value)
+	properties := make(map[string]interface{})
+	properties[propertyName] = value
+	return azureStorage.insertRowInPartition(tableName, partitionKay, rowKey, properties)
+}
+
+// InsertInPartitionProperties - Insert a row in the specific partition of the given table
+// with multiple properties
+func (azureStorage *AzureStorage) InsertInPartitionProperties(
+	tableName, partitionKay, rowKey string, properties map[string]interface{}) (int, error) {
+	defer recordProcessingTime(time.Now(), "InsertInPartitionProperties", tableName, partitionKay, rowKey)
+
+	return azureStorage.insertRowInPartition(tableName, partitionKay, rowKey, properties)
 }
 
 // Query - Query a row in a given table.
@@ -170,6 +198,22 @@ func (azureStorage *AzureStorage) QueryInPartition(tableName, partitionKey, rowK
 	defer recordProcessingTime(time.Now(), "QueryInPartition", tableName, partitionKey, rowKey)
 
 	return azureStorage.getRow(tableName, partitionKey, rowKey)
+}
+
+// QueryInPartitionWithEtag - Query a row in the given partition of the table. Returns etag along with first property
+func (azureStorage *AzureStorage) QueryInPartitionWithEtag(tableName, partitionKey, rowKey string) (interface{}, string, int, error) {
+	defer recordProcessingTime(time.Now(), "QueryInPartitionWithEtag", tableName, partitionKey, rowKey)
+
+	return azureStorage.getRowAndEtag(tableName, partitionKey, rowKey)
+}
+
+// QueryInPartitionWithEtagProperties - Query a row in the given partition of the table.
+// Returns etag along with all of the properties
+func (azureStorage *AzureStorage) QueryInPartitionWithEtagProperties(
+	tableName, partitionKey, rowKey string) (map[string]interface{}, string, int, error) {
+	defer recordProcessingTime(time.Now(), "QueryInPartitionWithEtagProperties", tableName, partitionKey, rowKey)
+
+	return azureStorage.getRowEtagProperties(tableName, partitionKey, rowKey)
 }
 
 // QueryAllRows - Query a row in a given table.
@@ -218,8 +262,31 @@ func (azureStorage *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyN
 	return err
 }
 
-func (azureStorage *AzureStorage) insertRowInPartition(tableName, partitionKay, rowKey, propertyName string, value interface{}) (
-	int, error) {
+func (azureStorage *AzureStorage) updateRowWithEtag(
+	tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error {
+	defer utils.PanicRecover()
+	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	if !ok {
+		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
+	}
+	table := *tableClient.GetTableReference(tableName)
+	entity := table.GetEntityReference(partitionKay, rowKey)
+	err := entity.Get(30, storage.FullMetadata, nil)
+	if err != nil {
+		return err
+	}
+
+	if etag != "" {
+		entity.OdataEtag = etag
+	}
+
+	entity.Properties = properties
+	err = entity.Update(false, nil)
+	return err
+}
+
+func (azureStorage *AzureStorage) insertRowInPartition(
+	tableName, partitionKay, rowKey string, properties map[string]interface{}) (int, error) {
 	defer utils.PanicRecover()
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
@@ -228,8 +295,6 @@ func (azureStorage *AzureStorage) insertRowInPartition(tableName, partitionKay, 
 	table := *tableClient.GetTableReference(tableName)
 	table.Create(30, storage.EmptyPayload, nil)
 	entity := table.GetEntityReference(partitionKay, rowKey)
-	properties := make(map[string]interface{})
-	properties[propertyName] = value
 	entity.Properties = properties
 
 	if err := entity.Insert(storage.FullMetadata, nil); err != nil {
@@ -244,30 +309,47 @@ func (azureStorage *AzureStorage) insertRowInPartition(tableName, partitionKay, 
 	return http.StatusOK, nil
 }
 
-func (azureStorage *AzureStorage) getRow(tableName string, partitionKey string, rowKey string) (interface{}, int, error) {
+func (azureStorage *AzureStorage) getRowEtagProperties(
+	tableName string, partitionKey string, rowKey string) (map[string]interface{}, string, int, error) {
 	defer utils.PanicRecover()
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
-		return nil, http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
+		return nil, "", http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
 	table := *tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(partitionKey, rowKey)
 	err := entity.Get(30, storage.FullMetadata, nil)
 	if err == nil {
-		if len(entity.Properties) != 1 {
-			return nil, http.StatusInternalServerError, fmt.Errorf("Properties missing columns")
-		}
-		for _, val := range entity.Properties {
-			return val, http.StatusOK, nil
-		}
+		return entity.Properties, entity.OdataEtag, http.StatusOK, nil
 	}
 
 	storagErr, ok := err.(storage.AzureStorageServiceError)
 	if ok {
-		return nil, storagErr.StatusCode, err
+		return nil, "", storagErr.StatusCode, err
 	}
 
-	return nil, http.StatusInternalServerError, err
+	return nil, "", http.StatusInternalServerError, err
+}
+
+func (azureStorage *AzureStorage) getRowAndEtag(
+	tableName string, partitionKey string, rowKey string) (interface{}, string, int, error) {
+	properties, etag, status, err := azureStorage.getRowEtagProperties(tableName, partitionKey, rowKey)
+	if err == nil {
+		if len(properties) != 1 {
+			return nil, "", http.StatusInternalServerError, fmt.Errorf("Properties missing columns")
+		}
+
+		for _, val := range properties {
+			return val, etag, status, nil
+		}
+	}
+
+	return nil, "", status, err
+}
+
+func (azureStorage *AzureStorage) getRow(tableName string, partitionKey string, rowKey string) (interface{}, int, error) {
+	property, _, statusCode, err := azureStorage.getRowAndEtag(tableName, partitionKey, rowKey)
+	return property, statusCode, err
 }
 
 func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string, context interface{}) (

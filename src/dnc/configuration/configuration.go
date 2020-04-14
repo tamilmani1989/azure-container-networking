@@ -70,10 +70,19 @@ type BlobStorageSettings struct {
 	AcquireRetryIntervalInSecs int64
 }
 
+// DataStoreLeaseSettings - settings for acquiring lease via storage table
+type DataStoreLeaseSettings struct {
+	LeaseIntervalInSecs        int64
+	LeaseRenewIntervalInSecs   int64
+	AcquireRetryIntervalInSecs int64
+}
+
 // MasterElectionSettings - Details related to settings for master election.
 type MasterElectionSettings struct {
+	UseDataStore             bool
 	BlobStorageSettings      BlobStorageSettings
 	TestDataElectionSettings TestDataElectionSettings
+	DataStoreLeaseSettings   DataStoreLeaseSettings
 }
 
 // CustomLoggerSettings :- Details related to settings for custom logging.

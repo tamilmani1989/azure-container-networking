@@ -11,13 +11,15 @@ const (
 	ipAllocationsTableName                           = "IPAllocationsTable"
 	sharedSubnetDelegationMigrationTableName         = "SharedSubnetDelegationMigrationTable"
 	sharedSubnetDelegationMigrationRegionalTableName = "SharedSubnetDelegationMigrationRegionalTable"
-	networkKey                                       = "Network_%s"
-	subnetConfigurationKey                           = "Network_%s_Subnet_%s"
-	ipReservationKey                                 = "Network_%s_Reservation_%s"
-	networkcontainerKey                              = "NC_%s"
-	nodeKey                                          = "Node_%s"
-	ncKey                                            = "Network_%s_ID_%s"
-	tagDefinitionKey                                 = "Tag_%s_%s"
+	// MasterElectionTableName - DNC master election table name
+	MasterElectionTableName = "MasterElectionTable"
+	networkKey              = "Network_%s"
+	subnetConfigurationKey  = "Network_%s_Subnet_%s"
+	ipReservationKey        = "Network_%s_Reservation_%s"
+	networkcontainerKey     = "NC_%s"
+	nodeKey                 = "Node_%s"
+	ncKey                   = "Network_%s_ID_%s"
+	tagDefinitionKey        = "Tag_%s_%s"
 )
 
 const (
@@ -30,6 +32,7 @@ const (
 	tagDefinitionsTag                  = "TagDefinitions"
 	ipAllocationTag                    = "IPAllocation"
 	sharedSubnetDelegationMigrationTag = "SharedSubnetDelegationMigrationComplete"
+	masterElectionTag                  = "MasterElection"
 )
 
 const (
@@ -67,4 +70,5 @@ var TableToColumnMap = map[string]string{
 	tagDefinitionTableName:                           tagDefinitionsTag,
 	ipAllocationsTableName:                           ipAllocationTag,
 	sharedSubnetDelegationMigrationTableName:         sharedSubnetDelegationMigrationTag,
-	sharedSubnetDelegationMigrationRegionalTableName: sharedSubnetDelegationMigrationTag}
+	sharedSubnetDelegationMigrationRegionalTableName: sharedSubnetDelegationMigrationTag,
+	MasterElectionTableName:                          masterElectionTag}

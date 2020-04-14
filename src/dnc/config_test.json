@@ -1,5 +1,5 @@
-{  
-   "DataStoreSettings":{  
+{
+   "DataStoreSettings":{
       "TestPersistenceStoreInfo":{
          "Test":"TestStore"
       }
@@ -9,13 +9,19 @@
       "Port":"9000"
    },
    "MasterElectionSettings":{
+       "UseDataStore":false,
        "TestDataElectionSettings":{
         "Test":"TestStore"
+       },
+       "DataStoreLeaseSettings":{
+        "LeaseIntervalInSecs":60,
+        "LeaseRenewIntervalInSecs":30,
+        "AcquireRetryIntervalInSecs":30
        }
    },
    "HostAgentSettings":{
-       "WireServerIP":"127.0.0.1:9001",     
-       "ConnectionStrings":{           
+       "WireServerIP":"127.0.0.1:9001",
+       "ConnectionStrings":{
             "JoinNetworkURLFmt": "http://%s/joinedVirtualNetworks/%s/api-version/1",
             "GetNetworkConfigurationURLFmt":"http://%s/joinedVirtualNetworks/%s/api-version/1",
             "PutNetworkContainerURLFmt":"http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
@@ -42,7 +48,7 @@
     "VlanSettings":{
         "Min":1,
         "Max":2048
-    },    
+    },
     "DNCSettings":{
         "RequestRetryBaseInterval":1000,
         "MaxRequestBackoffInterval":16000,
