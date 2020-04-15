@@ -28,8 +28,9 @@ RFC for Link Local Addresses: https://tools.ietf.org/html/rfc3927
 */
 
 const (
-	enableIPForwardCmd = "sysctl -w net.ipv4.ip_forward=1"
-	enableIPV6Cmd      = "sysctl -w net.ipv6.conf.all.disable_ipv6=%d"
+	enableIPForwardCmd   = "sysctl -w net.ipv4.ip_forward=1"
+	enableIPV6Cmd        = "sysctl -w net.ipv6.conf.all.disable_ipv6=%d"
+	enableIPV6ForwardCmd = "sysctl -w net.ipv6.conf.all.forwarding=1"
 )
 
 func getPrivateIPSpace() []string {
@@ -188,6 +189,17 @@ func EnableIPForwarding(ifName string) error {
 	// Append a rule in forward chain to allow forwarding from bridge
 	if err := iptables.AppendIptableRule(iptables.V4, iptables.Filter, iptables.Forward, "", iptables.Accept); err != nil {
 		log.Printf("[net] Appending forward chain rule: allow traffic coming from snatbridge failed with: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func EnableIPV6Forwarding() error {
+	cmd := fmt.Sprintf(enableIPV6ForwardCmd)
+	_, err := platform.ExecuteCommand(cmd)
+	if err != nil {
+		log.Printf("[net] Enable ipv6 forwarding failed with: %v", err)
 		return err
 	}
 

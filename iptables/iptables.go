@@ -28,6 +28,7 @@ const (
 const (
 	Filter = "filter"
 	Nat    = "nat"
+	Mangle = "mangle"
 )
 
 // target

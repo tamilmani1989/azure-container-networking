@@ -24,6 +24,12 @@ const (
 	PostRouting = "POSTROUTING"
 	Brouting    = "BROUTING"
 	Forward     = "FORWARD"
+	// Ebtable Protocols
+	IPV4 = "IPv4"
+	IPV6 = "IPv6"
+	// Ebtable Targets
+	Accept         = "ACCEPT"
+	RedirectAccept = "redirect --redirect-target ACCEPT"
 )
 
 // SetSnatForInterface sets a MAC SNAT rule for an interface.
@@ -155,21 +161,37 @@ func GetEbtableRules(tableName, chainName string) ([]string, error) {
 
 // SetBrouteAcceptCidr - broute chain MAC redirect rule. Will change mac target address to bridge port
 // that receives the frame.
-func SetBrouteAcceptCidr(ipNet net.IPNet, action string) error {
-	protocol := "IPv4"
+func SetBrouteAcceptByCidr(ipNet *net.IPNet, protocol, action, target string) error {
 	dst := "--ip-dst"
-	if ipNet.IP.To4() == nil {
-		protocol = "IPv6"
+	if protocol == IPV6 {
 		dst = "--ip6-dst"
 	}
 
+	var rule string
 	table := Broute
 	chain := Brouting
-	rule := fmt.Sprintf("-p %s %s %s -j redirect --redirect-target ACCEPT",
-		protocol, dst, ipNet.String())
+	if ipNet != nil {
+		rule = fmt.Sprintf("-p %s %s %s -j %s",
+			protocol, dst, ipNet.String(), target)
+	} else {
+		rule = fmt.Sprintf("-p %s -j %s",
+			protocol, target)
+	}
 
 	return runEbCmd(table, action, chain, rule)
+}
 
+func SetBrouteAcceptByInterface(ifName string, protocol, action, target string) error {
+	var rule string
+	table := Broute
+	chain := Brouting
+	if protocol == "" {
+		rule = fmt.Sprintf("-i %s -j %s", ifName, target)
+	} else {
+		rule = fmt.Sprintf("-p %s -i %s -j %s", protocol, ifName, target)
+	}
+
+	return runEbCmd(table, action, chain, rule)
 }
 
 // EbTableRuleExists checks if eb rule exists in table and chain.

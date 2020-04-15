@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Azure/azure-container-networking/iptables"
 	"github.com/Azure/azure-container-networking/log"
 	"github.com/Azure/azure-container-networking/netlink"
 	"github.com/Azure/azure-container-networking/network/epcommon"
@@ -420,14 +421,20 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 		log.Printf("[net] Applied dns config %v on %v", extIf.DNSInfo, bridgeName)
 	}
 
-	if nwInfo.IPV6Mode != "" {
+	if nwInfo.IPV6Mode == IPV6Nat {
 		if err = addIpv6NatGateway(nwInfo); err != nil {
 			log.Errorf("[net] Adding IPv6 Nat Gateway failed:%v", err)
 			return err
 		}
 
-		if err = addIpv6SnatRule(extIf, nwInfo.IPV6Mode); err != nil {
+		if err = addIpv6SnatRule(extIf, nwInfo); err != nil {
 			log.Errorf("[net] Adding IPv6 Snat Rule failed:%v", err)
+			return err
+		}
+
+		// unmark packet if set by kube-proxy
+		if err = iptables.InsertIptableRule(iptables.V6, iptables.Mangle, iptables.Postrouting, "", "MARK --set-mark 0x0"); err != nil {
+			log.Errorf("[net] Adding Iptable mangle rule failed:%v", err)
 			return err
 		}
 	}
@@ -468,16 +475,14 @@ func (nm *networkManager) disconnectExternalInterface(extIf *externalInterface, 
 
 // Add ipv6 nat gateway IP on bridge
 func addIpv6NatGateway(nwInfo *NetworkInfo) error {
-	if nwInfo.IPV6Mode == IPV6Nat {
-		log.Printf("[net] Adding ipv6 nat gateway on azure bridge")
-		for _, subnetInfo := range nwInfo.Subnets {
-			if subnetInfo.Family == platform.AfINET6 {
-				ipAddr := []net.IPNet{{
-					IP:   subnetInfo.Gateway,
-					Mask: subnetInfo.Prefix.Mask,
-				}}
-				return epcommon.AssignIPToInterface(nwInfo.BridgeName, ipAddr)
-			}
+	log.Printf("[net] Adding ipv6 nat gateway on azure bridge")
+	for _, subnetInfo := range nwInfo.Subnets {
+		if subnetInfo.Family == platform.AfINET6 {
+			ipAddr := []net.IPNet{{
+				IP:   subnetInfo.Gateway,
+				Mask: subnetInfo.Prefix.Mask,
+			}}
+			return epcommon.AssignIPToInterface(nwInfo.BridgeName, ipAddr)
 		}
 	}
 
@@ -485,12 +490,12 @@ func addIpv6NatGateway(nwInfo *NetworkInfo) error {
 }
 
 // snat ipv6 traffic to secondary ipv6 ip before leaving VM
-func addIpv6SnatRule(extIf *externalInterface, ipv6Mode string) error {
-	if ipv6Mode == IPV6Nat {
-		log.Printf("[net] Adding ipv6 snat rule")
-		for _, ipAddr := range extIf.IPAddresses {
-			if ipAddr.IP.To4() == nil {
-				return epcommon.AddSnatRule("", ipAddr.IP)
+func addIpv6SnatRule(extIf *externalInterface, nwInfo *NetworkInfo) error {
+	log.Printf("[net] Adding ipv6 snat rule")
+	for _, ipAddr := range extIf.IPAddresses {
+		if ipAddr.IP.To4() == nil {
+			if err := epcommon.AddSnatRule("", ipAddr.IP); err != nil {
+				return err
 			}
 		}
 	}

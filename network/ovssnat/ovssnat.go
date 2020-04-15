@@ -184,7 +184,7 @@ func (client *OVSSnatClient) AllowInboundFromHostToNC() error {
 
 	// Add static arp entry for localIP to prevent arp going out of VM
 	log.Printf("Adding static arp entry for ip %s mac %s", containerIP, snatContainerVeth.HardwareAddr.String())
-	err = netlink.AddOrRemoveStaticArp(netlink.ADD, SnatBridgeName, containerIP, snatContainerVeth.HardwareAddr)
+	err = netlink.AddOrRemoveStaticArp(netlink.ADD, SnatBridgeName, containerIP, snatContainerVeth.HardwareAddr, false)
 	if err != nil {
 		log.Printf("AllowInboundFromHostToNC: Error adding static arp entry for ip %s mac %s: %v", containerIP, snatContainerVeth.HardwareAddr.String(), err)
 	}
@@ -204,7 +204,7 @@ func (client *OVSSnatClient) DeleteInboundFromHostToNC() error {
 
 	// Remove static arp entry added for container local IP
 	log.Printf("Removing static arp entry for ip %s ", containerIP)
-	err = netlink.AddOrRemoveStaticArp(netlink.REMOVE, SnatBridgeName, containerIP, nil)
+	err = netlink.AddOrRemoveStaticArp(netlink.REMOVE, SnatBridgeName, containerIP, nil, false)
 	if err != nil {
 		log.Printf("AllowInboundFromHostToNC: Error removing static arp entry for ip %s: %v", containerIP, err)
 	}
@@ -262,7 +262,7 @@ func (client *OVSSnatClient) AllowInboundFromNCToHost() error {
 
 	// Add static arp entry for localIP to prevent arp going out of VM
 	log.Printf("Adding static arp entry for ip %s mac %s", containerIP, snatContainerVeth.HardwareAddr.String())
-	err = netlink.AddOrRemoveStaticArp(netlink.ADD, SnatBridgeName, containerIP, snatContainerVeth.HardwareAddr)
+	err = netlink.AddOrRemoveStaticArp(netlink.ADD, SnatBridgeName, containerIP, snatContainerVeth.HardwareAddr, false)
 	if err != nil {
 		log.Printf("AllowInboundFromNCToHost: Error adding static arp entry for ip %s mac %s: %v", containerIP, snatContainerVeth.HardwareAddr.String(), err)
 	}
@@ -282,7 +282,7 @@ func (client *OVSSnatClient) DeleteInboundFromNCToHost() error {
 
 	// Remove static arp entry added for container local IP
 	log.Printf("Removing static arp entry for ip %s ", containerIP)
-	err = netlink.AddOrRemoveStaticArp(netlink.REMOVE, SnatBridgeName, containerIP, nil)
+	err = netlink.AddOrRemoveStaticArp(netlink.REMOVE, SnatBridgeName, containerIP, nil, false)
 	if err != nil {
 		log.Printf("DeleteInboundFromNCToHost: Error removing static arp entry for ip %s: %v", containerIP, err)
 	}

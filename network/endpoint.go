@@ -73,6 +73,8 @@ type EndpointInfo struct {
 	InfraVnetAddressSpace    string
 	SkipHotAttachEp          bool
 	IPV6Mode                 string
+	VnetCidrs                string
+	ServiceCidrs             string
 }
 
 // RouteInfo contains information about an IP route.
@@ -83,6 +85,7 @@ type RouteInfo struct {
 	Protocol int
 	DevName  string
 	Scope    int
+	Priority int
 }
 
 // NewEndpoint creates a new endpoint in the network.

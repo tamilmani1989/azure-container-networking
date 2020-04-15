@@ -10,6 +10,12 @@ import (
 	"github.com/Azure/azure-container-networking/network/epcommon"
 )
 
+const (
+	defaultV6VnetCidr = "2001:1234:5678:9abc::/64"
+	defaultV6HostGw   = "fe80::1234:5678:9abc"
+	defaultHostGwMac  = "12:34:56:78:9a:bc"
+)
+
 type LinuxBridgeEndpointClient struct {
 	bridgeName        string
 	hostPrimaryIfName string
@@ -17,6 +23,7 @@ type LinuxBridgeEndpointClient struct {
 	containerVethName string
 	hostPrimaryMac    net.HardwareAddr
 	containerMac      net.HardwareAddr
+	hostIPAddresses   []*net.IPNet
 	mode              string
 }
 
@@ -33,7 +40,12 @@ func NewLinuxBridgeEndpointClient(
 		hostVethName:      hostVethName,
 		containerVethName: containerVethName,
 		hostPrimaryMac:    extIf.MacAddress,
+		hostIPAddresses:   []*net.IPNet{},
 		mode:              mode,
+	}
+
+	for _, ipAddr := range extIf.IPAddresses {
+		client.hostIPAddresses = append(client.hostIPAddresses, ipAddr)
 	}
 
 	return client
@@ -78,7 +90,7 @@ func (client *LinuxBridgeEndpointClient) AddEndpointRules(epInfo *EndpointInfo) 
 
 		if client.mode != opModeTunnel && ipAddr.IP.To4() != nil {
 			log.Printf("[net] Adding static arp for IP address %v and MAC %v in VM", ipAddr.String(), client.containerMac.String())
-			if err := netlink.AddOrRemoveStaticArp(netlink.ADD, client.bridgeName, ipAddr.IP, client.containerMac); err != nil {
+			if err := netlink.AddOrRemoveStaticArp(netlink.ADD, client.bridgeName, ipAddr.IP, client.containerMac, false); err != nil {
 				log.Printf("Failed setting arp in vm: %v", err)
 			}
 		}
@@ -116,7 +128,7 @@ func (client *LinuxBridgeEndpointClient) DeleteEndpointRules(ep *endpoint) {
 
 		if client.mode != opModeTunnel && ipAddr.IP.To4() != nil {
 			log.Printf("[net] Removing static arp for IP address %v and MAC %v from VM", ipAddr.String(), ep.MacAddress.String())
-			err := netlink.AddOrRemoveStaticArp(netlink.REMOVE, client.bridgeName, ipAddr.IP, ep.MacAddress)
+			err := netlink.AddOrRemoveStaticArp(netlink.REMOVE, client.bridgeName, ipAddr.IP, ep.MacAddress, false)
 			if err != nil {
 				log.Printf("Failed removing arp from vm: %v", err)
 			}
@@ -175,6 +187,14 @@ func (client *LinuxBridgeEndpointClient) ConfigureContainerInterfacesAndRoutes(e
 		return err
 	}
 
+	if err := client.setupIPV6Routes(epInfo); err != nil {
+		return err
+	}
+
+	if err := client.setIPV6NeighEntry(epInfo); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -213,6 +233,66 @@ func addRuleToRouteViaHost(epInfo *EndpointInfo) error {
 				log.Printf("[net] Failed to add EB rule to route via host: %v", err)
 				return err
 			}
+		}
+	}
+
+	return nil
+}
+
+func (client *LinuxBridgeEndpointClient) setupIPV6Routes(epInfo *EndpointInfo) error {
+	if epInfo.IPV6Mode != "" {
+		if epInfo.VnetCidrs == "" {
+			epInfo.VnetCidrs = defaultV6VnetCidr
+		}
+
+		routes := []RouteInfo{}
+		_, v6IpNet, _ := net.ParseCIDR(epInfo.VnetCidrs)
+		v6Gw := net.ParseIP(defaultV6HostGw)
+		vnetRoute := RouteInfo{
+			Dst:      *v6IpNet,
+			Gw:       v6Gw,
+			Priority: 101,
+		}
+
+		var vmV6Route RouteInfo
+
+		for _, ipAddr := range client.hostIPAddresses {
+			if ipAddr.IP.To4() == nil {
+				vmV6Route = RouteInfo{
+					Dst:      *ipAddr,
+					Priority: 100,
+				}
+			}
+		}
+
+		_, defIPNet, _ := net.ParseCIDR("::/0")
+		defaultV6Route := RouteInfo{
+			Dst: *defIPNet,
+			Gw:  v6Gw,
+		}
+
+		routes = append(routes, vnetRoute)
+		routes = append(routes, vmV6Route)
+		routes = append(routes, defaultV6Route)
+
+		log.Printf("[net] Adding ipv6 routes in container %+v", routes)
+		if err := addRoutes(client.containerVethName, routes); err != nil {
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func (client *LinuxBridgeEndpointClient) setIPV6NeighEntry(epInfo *EndpointInfo) error {
+	if epInfo.IPV6Mode != "" {
+		log.Printf("[net] Add neigh entry for host gw ip")
+		hardwareAddr, _ := net.ParseMAC(defaultHostGwMac)
+		hostGwIp := net.ParseIP(defaultV6HostGw)
+		if err := netlink.AddOrRemoveStaticArp(netlink.ADD, client.containerVethName,
+			hostGwIp, hardwareAddr, false); err != nil {
+			log.Printf("Failed setting neigh entry in container: %v", err)
+			return err
 		}
 	}
 

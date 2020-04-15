@@ -255,7 +255,8 @@ func (plugin *netPlugin) invokeIpamDel(
 			nwCfg.Ipam.Type = ipamType
 		}
 
-		nwCfg.Ipam.Subnet = result.IPs[0].Address.String()
+		_, subnet, _ := net.ParseCIDR(result.IPs[0].Address.String())
+		nwCfg.Ipam.Subnet = subnet.String()
 		nwCfg.Ipam.Address = result.IPs[0].Address.IP.String()
 		plugin.DelegateDel(ipamType, &nwCfg)
 
@@ -296,14 +297,15 @@ func (plugin *netPlugin) invokeIpamAdd(
 	}()
 
 	if nwCfg.IPV6Mode != "" {
-		nwCfg.Ipam.Environment = common.OptEnvironmentIPv6NodeIpam
-		nwCfg.Ipam.Type = ipamV6
+		nwCfg6 := nwCfg
+		nwCfg6.Ipam.Environment = common.OptEnvironmentIPv6NodeIpam
+		nwCfg6.Ipam.Type = ipamV6
 
 		if len(nwInfo.Subnets) > 1 {
-			nwCfg.Ipam.Subnet = nwInfo.Subnets[1].Prefix.String()
+			nwCfg6.Ipam.Subnet = nwInfo.Subnets[1].Prefix.String()
 		}
 
-		resultV6, err = plugin.DelegateAdd(ipamV6, &nwCfg)
+		resultV6, err = plugin.DelegateAdd(ipamV6, &nwCfg6)
 		if err != nil {
 			err = plugin.Errorf("Failed to allocate v6 pool: %v", err)
 		}
@@ -540,7 +542,7 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 			Mode:         nwCfg.Mode,
 			MasterIfName: masterIfName,
 			Subnets: []network.SubnetInfo{
-				network.SubnetInfo{
+				{
 					Family:  platform.AfINET,
 					Prefix:  subnetPrefix,
 					Gateway: gateway,
@@ -610,6 +612,8 @@ func (plugin *netPlugin) Add(args *cniSkel.CmdArgs) error {
 		PODNameSpace:       k8sNamespace,
 		SkipHotAttachEp:    false, // Hot attach at the time of endpoint creation
 		IPV6Mode:           nwCfg.IPV6Mode,
+		VnetCidrs:          nwCfg.VnetCidrs,
+		ServiceCidrs:       nwCfg.ServiceCidrs,
 	}
 
 	epPolicies := getPoliciesFromRuntimeCfg(nwCfg)
