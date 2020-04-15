@@ -39,7 +39,7 @@ const (
 	podName2     = "container2"
 
 	defaultRequestTimeout   time.Duration = time.Second * 4
-	defaultNCRequestTimeout time.Duration = time.Second * 10
+	defaultNCRequestTimeout time.Duration = time.Second * 20
 	defaultSleep            time.Duration = time.Second * 1
 	errdRequestTimeout      time.Duration = time.Second * 30
 
@@ -65,6 +65,7 @@ type SwiftDatapath struct {
 	Vnet2VnetPeering       bool
 	NonRFCVnet2VnetPeering bool
 	NSG                    bool
+	NSGwTags               bool
 	UDR                    bool
 	PrivateLink            bool
 	ExternalDNS            bool
@@ -95,19 +96,6 @@ var (
 	// NC context
 	context  = []byte(`{"PodName":"` + podName1 + `","PodNamespace":"` + podNamespace + `"}`)
 	context2 = []byte(`{"PodName":"` + podName2 + `","PodNamespace":"` + podNamespace + `"}`)
-	// passing report
-	healthyReport = SwiftDatapath{
-		ServiceTunnel:          true,
-		Nc2VM:                  true,
-		Nc2Nc:                  true,
-		Vnet2VnetGW:            true,
-		Vnet2VnetPeering:       true,
-		NonRFCVnet2VnetPeering: true,
-		NSG:                    true,
-		UDR:                    true,
-		PrivateLink:            true,
-		ExternalDNS:            true,
-		PrivateDNS:             true}
 	// blob endpoint
 	blobEP   string
 	plblobEP string
@@ -283,6 +271,7 @@ func e2eTests() {
 			Vnet2VnetPeering:       true,
 			NonRFCVnet2VnetPeering: true,
 			NSG:                    true,
+			NSGwTags:               true,
 			UDR:                    true,
 			PrivateLink:            true,
 			ExternalDNS:            true,
@@ -367,6 +356,12 @@ func e2eTests() {
 		report.NSG = false
 		lastErr = fmt.Errorf("NSG failed: %+v", err)
 	}
+	// test NSG with service tags
+	_, err = exec.Command("kubectl", "exec", pod2, "--", "wget", "google.com", "-O", "index.html").CombinedOutput()
+	if err == nil {
+		report.NSGwTags = false
+		lastErr = fmt.Errorf("NSGwTags failed: pod2 should not have outbound internet access")
+	}
 	// test external DNS resolution
 	output, err = exec.Command("kubectl", "exec", srcPod, "--", "dig", "+short", "google.com").CombinedOutput()
 	if err != nil || net.ParseIP(string(output[1:len(output)-1])) == nil {
@@ -381,10 +376,10 @@ func e2eTests() {
 	}
 
 	// clean up all the NC states for next test (we only clean up when datapath is healthy)
-	if reflect.DeepEqual(report, healthyReport) {
+	if lastErr == nil {
 		err = swiftTeardown()
 	} else {
-		err = lastErr
+		report.LastError = lastErr.Error()
 	}
 
 WriteJsonReport:
@@ -393,6 +388,7 @@ WriteJsonReport:
 		log.Printf("e2eTests failed: %+v", err)
 		report.LastError = err.Error()
 	}
+
 	jsonData, err := json.Marshal(report)
 	if err == nil {
 		jsonFile, err := os.Create(datapathReportFile)

@@ -62,6 +62,12 @@ namespace SwiftRunner
             public bool NSG { get; private set; }
 
             /// <summary>
+            /// NSGwTags
+            /// </summary>
+            [JsonProperty("NSGwTags")]
+            public bool NSGwTags { get; private set; }
+
+            /// <summary>
             /// UDR
             /// </summary>
             [JsonProperty("UDR")]
@@ -103,6 +109,7 @@ namespace SwiftRunner
                 Vnet2VnetPeering = false;
                 NonRFCVnet2VnetPeering = false;
                 NSG = false;
+                NSGwTags = false;
                 UDR = false;
                 PrivateLink = false;
                 ExternalDNS = false;
@@ -123,6 +130,7 @@ namespace SwiftRunner
                 Vnet2VnetPeering = response.Vnet2VnetPeering;
                 NonRFCVnet2VnetPeering = response.NonRFCVnet2VnetPeering;
                 NSG = response.NSG;
+                NSGwTags = response.NSGwTags;
                 UDR = response.UDR;
                 PrivateLink = response.PrivateLink;
                 ExternalDNS = response.ExternalDNS;
@@ -140,12 +148,13 @@ namespace SwiftRunner
             /// <param name="vnet2VnetPeering"></param>
             /// <param name="nonRfcVnet2VnetPeering"></param>
             /// <param name="nsg"></param>
+            /// <param name="nsgwTags"></param>
             /// <param name="udr"></param>
             /// <param name="privateLink"></param>
             /// <param name="externalDNS"></param>
             /// <param name="privateDNS"></param>
             /// <param name="lastError"></param>
-            public DncDataPathResponse(bool serviceTunnel, bool nc2Nc, bool nc2VM, bool vnet2VnetGW, bool vnet2VnetPeering, bool nonRfcVnet2VnetPeering, bool nsg, bool udr, bool privateLink, bool externalDNS, bool privateDNS, string lastError)
+            public DncDataPathResponse(bool serviceTunnel, bool nc2Nc, bool nc2VM, bool vnet2VnetGW, bool vnet2VnetPeering, bool nonRfcVnet2VnetPeering, bool nsg, bool nsgwTags, bool udr, bool privateLink, bool externalDNS, bool privateDNS, string lastError)
             {
                 ServiceTunnel = serviceTunnel;
                 Nc2Nc = nc2Nc;
@@ -154,6 +163,7 @@ namespace SwiftRunner
                 Vnet2VnetPeering = vnet2VnetPeering;
                 NonRFCVnet2VnetPeering = nonRfcVnet2VnetPeering;
                 NSG = nsg;
+                NSGwTags = nsgwTags;
                 UDR = udr;
                 PrivateLink = privateLink;
                 ExternalDNS = externalDNS;
@@ -163,7 +173,7 @@ namespace SwiftRunner
 
             public bool Healthy()
             {
-                return ServiceTunnel && Nc2Nc && Nc2VM && Vnet2VnetGW && Vnet2VnetPeering && NonRFCVnet2VnetPeering && NSG && UDR && PrivateLink && ExternalDNS && PrivateDNS;
+                return ServiceTunnel && Nc2Nc && Nc2VM && Vnet2VnetGW && Vnet2VnetPeering && NonRFCVnet2VnetPeering && NSG && NSGwTags && UDR && PrivateLink && ExternalDNS && PrivateDNS;
             }
 
             /// <summary>
@@ -172,7 +182,7 @@ namespace SwiftRunner
             /// <returns>String representation of the object.</returns>
             public override string ToString()
             {
-                return $"[serviceTunnel:{ServiceTunnel} Nc2Nc:{Nc2Nc} Nc2VM:{Nc2VM} vnet2VnetGW:{Vnet2VnetGW} vnet2VnetPeering:{Vnet2VnetPeering} nonRfcVnet2VnetPeering:{NonRFCVnet2VnetPeering} nsg:{NSG} udr:{UDR} privateLink:{PrivateLink} externalDNS:{ExternalDNS} privateDNS:{PrivateDNS} lastError:{LastError}]";
+                return $"[serviceTunnel:{ServiceTunnel} Nc2Nc:{Nc2Nc} Nc2VM:{Nc2VM} vnet2VnetGW:{Vnet2VnetGW} vnet2VnetPeering:{Vnet2VnetPeering} nonRfcVnet2VnetPeering:{NonRFCVnet2VnetPeering} nsg:{NSG} nsgwTags:{NSGwTags} udr:{UDR} privateLink:{PrivateLink} externalDNS:{ExternalDNS} privateDNS:{PrivateDNS} lastError:{LastError}]";
             }
         }
     }

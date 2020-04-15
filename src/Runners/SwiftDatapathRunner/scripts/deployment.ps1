@@ -417,6 +417,28 @@ if ($?) {
             --protocol Icmp `
             --destination-port-ranges * `
             --description "Deny pod2 to ping a VM in default subnet"
+        az network nsg rule create `
+            -g $resourceGroup
+            -n allowAAD `
+            --nsg-name myNsg `
+            --priority 100 `
+            --source-address-prefixes 10.0.1.5/32 `
+            --destination-address-prefixes AzureActiveDirectory `
+            --direction Outbound `
+            --protocol * `
+            --destination-port-ranges * `
+            --description "Allow pod2 to AAD"
+        az network nsg rule create `
+            -g $resourceGroup
+            -n denyInternetFromPod2 `
+            --nsg-name myNsg `
+            --priority 500 `
+            --source-address-prefixes 10.0.1.5/32 `
+            --destination-address-prefixes Internet `
+            --access deny `
+            --protocol * `
+            --destination-port-ranges * `
+            --description "Deny pod2 to internet"
         az network vnet subnet update `
             -g $resourceGroup `
             -n default `

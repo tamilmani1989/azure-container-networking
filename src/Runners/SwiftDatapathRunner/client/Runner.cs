@@ -40,6 +40,7 @@ namespace SwiftRunner
         private MeasureMetric4D Vnet2VnetPeeringMetric;
         private MeasureMetric4D NonRFCVnet2VnetPeeringMetric;
         private MeasureMetric4D NsgMetric;
+        private MeasureMetric4D NsgwTagsMetric;
         private MeasureMetric4D UdrMetric;
         private MeasureMetric4D PrivateLinkMetric;
         private MeasureMetric4D ExternalDNSMetric;
@@ -107,6 +108,15 @@ namespace SwiftRunner
                             this.GetConfigurationValue(MDMAccountName),
                             this.GetConfigurationValue(Namespace),
                             "NSG",
+                            "Environment",
+                            "RunnerInstance",
+                            "DncEndPoint",
+                            "PartitionKey",
+                            ref mdmErr);
+            NsgwTagsMetric = MeasureMetric4D.Create(
+                            this.GetConfigurationValue(MDMAccountName),
+                            this.GetConfigurationValue(Namespace),
+                            "NSGwTags",
                             "Environment",
                             "RunnerInstance",
                             "DncEndPoint",
@@ -182,7 +192,7 @@ namespace SwiftRunner
                         this.LogHealthy("SwiftDatapathRunner is healthy.");
 
                         if (datapath.LastError != "") {
-                            Console.WriteLine("Logging error from tests: {0}", datapath.LastError);
+                            this.LogDegraded("Logging error from tests: {0}", datapath.LastError);
                         }
                         
                         if (!Nc2NcMetric.LogValue(datapath.Nc2Nc ? 1 : 2,
@@ -253,6 +263,16 @@ namespace SwiftRunner
                                 ref mdmErr))
                         {
                             Console.Error.WriteLine("Failed to emit NSG metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
+
+                        if (!NsgwTagsMetric.LogValue(datapath.NSGwTags ? 1 : 2,
+                                this.Environment,
+                                this.RunnerInstance,
+                                k8sEP,
+                                partitionKey,
+                                ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emit NSGwTags metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
 
                         if (!UdrMetric.LogValue(datapath.UDR ? 1 : 2,
@@ -398,6 +418,7 @@ namespace SwiftRunner
                 Vnet2VnetPeeringMetric != null &&
                 NonRFCVnet2VnetPeeringMetric != null &&
                 NsgMetric != null &&
+                NsgwTagsMetric != null &&
                 UdrMetric != null &&
                 PrivateLinkMetric != null &&
                 ExternalDNSMetric != null &&
