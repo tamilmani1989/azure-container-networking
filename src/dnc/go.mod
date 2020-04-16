@@ -4,10 +4,10 @@ go 1.14
 
 require (
 	code.cloudfoundry.org/clock v1.0.0 // indirect
-	github.com/Azure/azure-container-networking v1.0.36-0.20200413204807-6fbeff5936fc
+	github.com/Azure/azure-container-networking v1.1.0
 	github.com/Azure/azure-sdk-for-go v40.6.0+incompatible
 	github.com/Azure/go-autorest v13.4.0+incompatible // indirect
-	github.com/Azure/go-autorest/autorest v0.9.0
+	github.com/Azure/go-autorest/autorest v0.9.0 // indirect
 	github.com/Microsoft/ApplicationInsights-Go v0.4.2 // indirect
 	github.com/Microsoft/go-winio v0.4.15-0.20190919025122-fc70bd9a86b5 // indirect
 	github.com/Microsoft/hcsshim v0.8.7-0.20191018141444-2a08d6fcd238 // indirect
