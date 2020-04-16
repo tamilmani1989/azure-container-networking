@@ -1,6 +1,10 @@
 package datamodel
 
-import "dnc/api"
+import (
+	"dnc/api"
+
+	"github.com/Azure/azure-container-networking/cns"
+)
 
 // NCConfiguration - struct to hold the network container configuration.
 type NCConfiguration struct {
@@ -44,4 +48,16 @@ func (ncConfiguration *NCConfiguration) GetAllowNCToHostCommunicationStatus() bo
 		return ncConfiguration.RequestV1.AllowNCToHostCommunication
 	}
 	return ncConfiguration.RequestV2.AllowNCToHostCommunication
+}
+
+// Endpoint Policies - Retrieves endpoint policies that were called as part of the network container request -
+func (ncConfiguration *NCConfiguration) GetEndpointPolicies() []cns.NetworkContainerRequestPolicies {
+	if ncConfiguration.RequestV1.EndpointPolicies != nil {
+		return ncConfiguration.RequestV1.EndpointPolicies
+	}
+
+	if ncConfiguration.RequestV2.EndpointPolicies != nil {
+		return ncConfiguration.RequestV2.EndpointPolicies
+	}
+	return nil
 }

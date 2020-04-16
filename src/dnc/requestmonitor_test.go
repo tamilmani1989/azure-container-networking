@@ -47,6 +47,7 @@ type CreateNetworkContainerRequest struct {
 	AssociationInfo            api.AssociationInfo
 	AllowHostToNCCommunication bool
 	AllowNCToHostCommunication bool
+	EndpointPolicies           []cns.NetworkContainerRequestPolicies
 }
 
 type CreateNetworkContainerRequestV2 struct {
@@ -55,11 +56,24 @@ type CreateNetworkContainerRequestV2 struct {
 	AssociationInfo            api.AssociationInfo
 	AllowHostToNCCommunication bool
 	AllowNCToHostCommunication bool
+	EndpointPolicies           []cns.NetworkContainerRequestPolicies
 }
 
 type OrchestratorContext struct {
 	PodName      string
 	PodNamespace string
+}
+
+type AclTestPolicySetting struct {
+	Protocols       string
+	Action          string
+	Direction       string
+	LocalAddresses  string
+	RemoteAddresses string
+	LocalPorts      string
+	RemotePorts     string
+	RuleType        string
+	Priority        uint16
 }
 
 // Unit Test Values
@@ -92,7 +106,9 @@ var (
 	podInfo = OrchestratorContext{
 		PodName:      "testpodname",
 		PodNamespace: "testpodnamespace"}
-	context, _          = json.Marshal(podInfo)
+	context, _            = json.Marshal(podInfo)
+	validEndPointPolicies = composeNetworkContainerEndpointPolicies("6", "Allow", "In", "127.0.0.1", "10.0.0.1", "1111",
+		"1112", "Switch", 2000, "AclPolicy", "APIPA")
 	networkContainerReq = CreateNetworkContainerRequest{
 		AllocationRequest: api.AllocationRequest{
 			SubnetName:     "subnet1",
@@ -160,7 +176,8 @@ var (
 			ContainerType:       cns.COW,
 			OrchestratorContext: context},
 		AllowHostToNCCommunication: true,
-		AllowNCToHostCommunication: true}
+		AllowNCToHostCommunication: true,
+		EndpointPolicies:           validEndPointPolicies}
 	ncID  = "0e2f40cd-8fe1-420f-af43-1c4d5c5bb83b"
 	ncID2 = "b8be30e0-7b79-42cb-bdb1-8c0ecd77d52a"
 
@@ -710,6 +727,109 @@ func validateNetworkContainerInfoResponse(
 	}
 
 	return nil
+}
+
+func validateNetworkContainerEndpointPolicies(
+	allocationRequest *api.AllocationRequest,
+	associationInfo *api.AssociationInfo,
+	dncEP string,
+	vnetID string,
+	ncID string,
+	apiVersion string) error {
+
+	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+
+	var body bytes.Buffer
+
+	invalidActionPolicy := composeNetworkContainerEndpointPolicies("6", "InvalidAction", "In", "127.0.0.1", "10.0.0.1", "1111",
+		"1112", "Switch", 2000, "AclPolicy", "APIPA")
+
+	networkcontainerReqInvalidAction := CreateNetworkContainerRequest{
+		AllocationRequest:          *allocationRequest,
+		AssociationInfo:            *associationInfo,
+		AllowHostToNCCommunication: true,
+		AllowNCToHostCommunication: true,
+		EndpointPolicies:           invalidActionPolicy}
+
+	invalidDirectionPolicy := composeNetworkContainerEndpointPolicies("6", "Allow", "InvalidDirection", "127.0.0.1", "10.0.0.1", "1111",
+		"1112", "Switch", 2000, "AclPolicy", "APIPA")
+
+	networkcontainerReqInvalidDirection := CreateNetworkContainerRequest{
+		AllocationRequest:          *allocationRequest,
+		AssociationInfo:            *associationInfo,
+		AllowHostToNCCommunication: true,
+		AllowNCToHostCommunication: true,
+		EndpointPolicies:           invalidDirectionPolicy}
+
+	invalidPriorityPolicy := composeNetworkContainerEndpointPolicies("6", "Allow", "In", "127.0.0.1", "10.0.0.1", "1111",
+		"1112", "Switch", 0, "AclPolicy", "APIPA")
+
+	networkcontainerreqinvalidPrior := CreateNetworkContainerRequest{
+		AllocationRequest:          *allocationRequest,
+		AssociationInfo:            *associationInfo,
+		AllowHostToNCCommunication: true,
+		AllowNCToHostCommunication: true,
+		EndpointPolicies:           invalidPriorityPolicy}
+
+	//confirm invalid action returns bad request
+	json.NewEncoder(&body).Encode(networkcontainerReqInvalidAction)
+	responseInvalidAction, _ := http.Post(ncURL, "application/json", &body)
+	if responseInvalidAction.StatusCode != http.StatusBadRequest {
+		return fmt.Errorf("Expected a 400 Bad Request when passing a invalid action but recieved %d status code", responseInvalidAction.StatusCode)
+	}
+
+	//confirm invalid direction returns bad request
+	json.NewEncoder(&body).Encode(networkcontainerReqInvalidDirection)
+	responseInvalidDirection, _ := http.Post(ncURL, "application/json", &body)
+	if responseInvalidDirection.StatusCode != http.StatusBadRequest {
+		return fmt.Errorf("Expected a 400 Bad Request when passing a invalid direction but recieved %d status code", responseInvalidDirection.StatusCode)
+	}
+
+	//confirm invalid prirority returns bad request
+	json.NewEncoder(&body).Encode(networkcontainerreqinvalidPrior)
+	responseInvalidPriority, _ := http.Post(ncURL, "application/json", &body)
+	if responseInvalidPriority.StatusCode != http.StatusBadRequest {
+		return fmt.Errorf("Expected a 400 Bad Request when passing a invalid priority but recieved %d status code", responseInvalidPriority.StatusCode)
+	}
+	fmt.Println("All invalid endpoint policy fields returned expected 400 bad request")
+	return nil
+}
+
+func composeNetworkContainerEndpointPolicies(
+	Protocols string,
+	Action string,
+	Direction string,
+	LocalAddresses string,
+	RemoteAddresses string,
+	LocalPorts string,
+	RemotePorts string,
+	RuleType string,
+	Priority uint16,
+	Type string,
+	EndpointType string) []cns.NetworkContainerRequestPolicies {
+
+	aclSetting := AclTestPolicySetting{
+		Action:          Action,
+		Direction:       Direction,
+		Protocols:       Protocols,
+		LocalAddresses:  LocalAddresses,
+		RemoteAddresses: RemoteAddresses,
+		LocalPorts:      LocalPorts,
+		RemotePorts:     RemotePorts,
+		RuleType:        RuleType,
+		Priority:        Priority,
+	}
+
+	endpointPolicySetting, _ := json.Marshal(aclSetting)
+	endPointPolicy := cns.NetworkContainerRequestPolicies{
+		Type:         Type,
+		EndpointType: EndpointType,
+		Settings:     endpointPolicySetting,
+	}
+	endPointPolicySlice := make([]cns.NetworkContainerRequestPolicies, 0)
+	endPointPolicies := append(endPointPolicySlice, endPointPolicy)
+
+	return endPointPolicies
 }
 
 func getSubnetConfiguration(
@@ -1674,7 +1794,8 @@ func createNetworkContainer(
 	reservationID, dncEP, vnetID, ncid, apiVersion string,
 	tagCount int,
 	allowHostToNCCommunication bool,
-	allowNCToHostCommunication bool) {
+	allowNCToHostCommunication bool,
+	endPointPolicies []cns.NetworkContainerRequestPolicies) {
 	fmt.Println("****CreateNetworkContainer Test**********")
 
 	setupNetworkAndJoinSubnet(t, dncEP, vnetID, allocationRequest.SubnetName, apiVersion, true, tagCount)
@@ -1722,7 +1843,8 @@ func createNetworkContainer(
 			OrchestratorContext:        context,
 			MultiTenancyInfo:           req.MultiTenancyInfo,
 			AllowHostToNCCommunication: allowHostToNCCommunication,
-			AllowNCToHostCommunication: allowNCToHostCommunication}
+			AllowNCToHostCommunication: allowNCToHostCommunication,
+			EndpointPolicies:           endPointPolicies}
 		fmt.Printf("ReceivedResponse:%+v\n", req)
 		fmt.Printf("ExpectedResponse:%+v\n", expectedReq)
 
@@ -1748,14 +1870,16 @@ func createNetworkContainer(
 			AssociationInfo:            *associationInfo,
 			ReservationID:              reservationID,
 			AllowHostToNCCommunication: allowHostToNCCommunication,
-			AllowNCToHostCommunication: allowNCToHostCommunication}
+			AllowNCToHostCommunication: allowNCToHostCommunication,
+			EndpointPolicies:           endPointPolicies}
 		json.NewEncoder(&body).Encode(networkcontainerreq)
 	} else {
 		networkcontainerreq := CreateNetworkContainerRequest{
 			AllocationRequest:          *allocationRequest,
 			AssociationInfo:            *associationInfo,
 			AllowHostToNCCommunication: allowHostToNCCommunication,
-			AllowNCToHostCommunication: allowNCToHostCommunication}
+			AllowNCToHostCommunication: allowNCToHostCommunication,
+			EndpointPolicies:           endPointPolicies}
 		json.NewEncoder(&body).Encode(networkcontainerreq)
 	}
 	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncid + apiVersion
@@ -1772,6 +1896,10 @@ func createNetworkContainer(
 			t.Fatalf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
 		}
 	}
+	if err := validateNetworkContainerEndpointPolicies(allocationRequest, associationInfo, dncEP, vnetID, ncid, apiVersion); err != nil {
+		t.Fatalf("Network container endpoint policy failed to handle validation with error: %+v", err)
+	}
+
 	var chans = []chan string{}
 	if nmAgentResponderContext.TagResponse != nil {
 		for _, tagResponse := range nmAgentResponderContext.TagResponse {
@@ -1895,7 +2023,8 @@ func CreateNetworkContainer(
 		apiVersion,
 		0,
 		networkcontainerreq.AllowHostToNCCommunication,
-		networkcontainerreq.AllowNCToHostCommunication)
+		networkcontainerreq.AllowNCToHostCommunication,
+		networkcontainerreq.EndpointPolicies)
 }
 
 func CreateNetworkContainerDeployedInTaggedSubnets(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
@@ -1913,7 +2042,8 @@ func CreateNetworkContainerDeployedInTaggedSubnets(t *testing.T, nodeID string, 
 		apiVersion,
 		2,
 		networkcontainerreq.AllowHostToNCCommunication,
-		networkcontainerreq.AllowNCToHostCommunication)
+		networkcontainerreq.AllowNCToHostCommunication,
+		nil)
 }
 
 func convertAddressStringsToCnsIPSubnets(networksString string) []cns.IPSubnet {

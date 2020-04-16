@@ -1311,6 +1311,7 @@ func processNetworkContainerAssociate(
 
 	allowHostToNCCommunicationStatus := repoNCConfig.GetAllowHostToNCCommunicationStatus()
 	allowNCToHostCommunicationStatus := repoNCConfig.GetAllowNCToHostCommunicationStatus()
+	endpointPolicies := repoNCConfig.GetEndpointPolicies()
 
 	containerTypes.Store(ncGoalState.ContainerType, true)
 
@@ -1326,7 +1327,8 @@ func processNetworkContainerAssociate(
 		MultiTenancyInfo:           cns.MultiTenancyInfo{EncapType: cns.Vlan, ID: ncGoalState.VlanID},
 		LocalIPConfiguration:       localIPConfiguaration,
 		AllowHostToNCCommunication: allowHostToNCCommunicationStatus,
-		AllowNCToHostCommunication: allowNCToHostCommunicationStatus}
+		AllowNCToHostCommunication: allowNCToHostCommunicationStatus,
+		EndpointPolicies:           endpointPolicies}
 
 	json.NewEncoder(&body).Encode(info)
 	createOrUpdateNCURL := fmt.Sprintf(

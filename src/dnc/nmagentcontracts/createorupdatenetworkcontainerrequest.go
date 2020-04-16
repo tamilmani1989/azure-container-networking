@@ -8,6 +8,7 @@ import (
 )
 
 // CreateOrUpdateNetworkContainerRequest - struct to hold info for create or update newtork container
+// TODO : Include Endpoint policies available in Create Network Container request - type is []cns.NetworkContainerRequestPolicies
 type CreateOrUpdateNetworkContainerRequest struct {
 	IPV4Addresses    []string `json:"ipV4Addresses"`
 	SubnetName       string   `json:"subnetName"`

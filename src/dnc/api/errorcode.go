@@ -225,6 +225,9 @@ const (
 
 	// StatusBadRequest - Bad request.
 	StatusBadRequest
+
+	//Invalid endpoint policy
+	InvalidEndpointPolicy
 )
 
 func (e ErrorCode) String() string {
@@ -450,6 +453,9 @@ func (e ErrorCode) String() string {
 
 	case FailedToUpdateSubnetWithReservationInfo:
 		return "FailedToUpdateSubnetWithReservationInfo"
+
+	case InvalidEndpointPolicy:
+		return "InvalidEndpointPolicy"
 	}
 
 	return "Unknown Status"
