@@ -418,6 +418,7 @@ func AddOrRemoveStaticArp(mode int, name string, ipaddr net.IP, mac net.Hardware
 		State:  uint16(state),
 	}
 
+	// NTF_PROXY is for setting neighbor proxy
 	if isProxy {
 		msg.Flags = msg.Flags | NTF_PROXY
 	}

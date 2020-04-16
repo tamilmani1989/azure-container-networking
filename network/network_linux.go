@@ -422,6 +422,7 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 	}
 
 	if nwInfo.IPV6Mode == IPV6Nat {
+		// adds pod cidr gateway ip to bridge
 		if err = addIpv6NatGateway(nwInfo); err != nil {
 			log.Errorf("[net] Adding IPv6 Nat Gateway failed:%v", err)
 			return err
@@ -432,7 +433,8 @@ func (nm *networkManager) connectExternalInterface(extIf *externalInterface, nwI
 			return err
 		}
 
-		// unmark packet if set by kube-proxy
+		// unmark packet if set by kube-proxy to skip kube-postrouting rule and processed
+		// by cni snat rule
 		if err = iptables.InsertIptableRule(iptables.V6, iptables.Mangle, iptables.Postrouting, "", "MARK --set-mark 0x0"); err != nil {
 			log.Errorf("[net] Adding Iptable mangle rule failed:%v", err)
 			return err

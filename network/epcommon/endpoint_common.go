@@ -29,7 +29,7 @@ RFC for Link Local Addresses: https://tools.ietf.org/html/rfc3927
 
 const (
 	enableIPForwardCmd   = "sysctl -w net.ipv4.ip_forward=1"
-	enableIPV6Cmd        = "sysctl -w net.ipv6.conf.all.disable_ipv6=%d"
+	toggleIPV6Cmd        = "sysctl -w net.ipv6.conf.all.disable_ipv6=%d"
 	enableIPV6ForwardCmd = "sysctl -w net.ipv6.conf.all.forwarding=1"
 )
 
@@ -209,7 +209,7 @@ func EnableIPV6Forwarding() error {
 // This functions enables/disables ipv6 setting based on enable parameter passed.
 func UpdateIPV6Setting(disable int) error {
 	// sysctl -w net.ipv6.conf.all.disable_ipv6=0/1
-	cmd := fmt.Sprintf(enableIPV6Cmd, disable)
+	cmd := fmt.Sprintf(toggleIPV6Cmd, disable)
 	_, err := platform.ExecuteCommand(cmd)
 	if err != nil {
 		log.Printf("[net] Update IPV6 Setting failed with: %v", err)
