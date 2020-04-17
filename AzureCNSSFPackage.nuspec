@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
-    <id>Microsoft.Azure.Internal.$branch$AzureCNSSF</id>
+    <id>Microsoft.Azure.Internal.Aquarius.$branch$AzureCNSSF</id>
     <version>$version$</version>
     <title>AzureCNS for SF from $branch$</title>
     <authors>acn@microsoft.com;dejandu@microsoft.com</authors>
