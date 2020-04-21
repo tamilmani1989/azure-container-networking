@@ -58,16 +58,26 @@ case $1 in
     "get" )
         mkdir $DIR/src/github && cd $_
         latestVersion=$(curl -L -s -H 'Accept: application/json' https://github.com/Azure/azure-container-networking/releases/latest | sed -e 's/.*"tag_name":"\([^"]*\)".*/\1/')
-        # Get latest version of CNI
+        # Get latest version of multitenant CNI, only multitenant is pushed as a Nuget
         curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-vnet-cni-multitenancy-windows-amd64-$latestVersion.zip
         curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-vnet-cni-multitenancy-linux-amd64-$latestVersion.tgz
         unzip azure-vnet-cni-multitenancy-windows-amd64-$latestVersion.zip
-        mv 10-azure.conflist 10-azure-win.conflist
+        mv 10-azure.conflist 10-azure-windows-multitenancy.conflist
         tar -xvzf azure-vnet-cni-multitenancy-linux-amd64-$latestVersion.tgz
+        mv 10-azure.conflist 10-azure-linux-multitenancy.conflist
+
+        # Get latest version of singletenant CNI
+        curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-vnet-cni-windows-amd64-$latestVersion.zip
+        curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-vnet-cni-linux-amd64-$latestVersion.tgz
+        unzip -o azure-vnet-cni-windows-amd64-$latestVersion.zip
+        mv 10-azure.conflist 10-azure-windows-singletenancy.conflist
+        tar -xvzf azure-vnet-cni-linux-amd64-$latestVersion.tgz
+        mv 10-azure.conflist 10-azure-linux-singletenancy.conflist
+
         # Get latest version of CNS
         curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-cns-windows-amd64-$latestVersion.zip
         curl -LO https://github.com/Azure/azure-container-networking/releases/download/$latestVersion/azure-cns-linux-amd64-$latestVersion.tgz
-        unzip azure-cns-windows-amd64-$latestVersion.zip
+        unzip -o azure-cns-windows-amd64-$latestVersion.zip
         tar -xvzf azure-cns-linux-amd64-$latestVersion.tgz
         rm *.zip
         rm *.tgz

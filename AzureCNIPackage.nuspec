@@ -25,7 +25,9 @@
     <file src="$drop$\azure-vnet-telemetry" target="content\linux\azure-vnet-telemetry" />
     <file src="$drop$\azure-vnet-telemetry.config" target="content" />
     <file src="$drop$\azure-vnet-telemetry.config" target="content\linux" />
-    <file src="$drop$\10-azure-win.conflist" target="content\10-azure.conflist" />
-    <file src="$drop$\10-azure.conflist" target="content\linux" />
+    <file src="$drop$\10-azure-windows-multitenancy.conflist" target="content\10-azure.conflist" />
+    <file src="$drop$\10-azure-linux-multitenancy.conflist" target="content\linux\10-azure.conflist" />
+    <file src="$drop$\10-azure-windows-singletenancy.conflist" target="content\singletenancy\10-azure.conflist" />
+    <file src="$drop$\10-azure-linux-singletenancy.conflist" target="content\singletenancy\linux\10-azure.conflist" />
   </files>
 </package>
