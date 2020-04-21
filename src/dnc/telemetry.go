@@ -212,7 +212,7 @@ func setOrchestratorForTelemetry() {
 	nodeConfig, jsonerr := datamodel.QueryNodeConfiguration(nodeID)
 	sessionManager.EndReadSession(sessionInfo)
 
-	if err != nil {
+	if jsonerr != nil {
 		logger.Errorf("QueryNodeConfiguration returned error %v", jsonerr)
 		return
 	}
