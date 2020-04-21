@@ -77,6 +77,19 @@ build:
   commands:
 
   - !!buildcommand
+    name: 'Sign GitHub Binaries'
+    command: 'package_sign.cmd'
+    arguments: 'sign drop_github'
+    artifacts:
+      - from: 'drop_github'
+        include:
+          - '**\azure-vnet.exe'
+          - '**\azure-vnet-ipam.exe'
+          - '**\azure-vnet-telemetry.exe'
+          - '**\azure-cns.exe'
+          - '**\10-azure.conflist'
+
+  - !!buildcommand
     name: 'Build CNS SF wrapper'
     command: 'build-cns-sf.cmd'
     arguments: 'Release'
@@ -84,12 +97,8 @@ build:
       - from: 'src/Cns-SF/pkg/'
         to: 'drop_cns_sf'
         include:
-          - '**/*'
-        exclude:
-          - 'Release/CnsWrapperService/Code/cns_config.json'
-          - 'Release/CnsWrapperService/Code/azure-cns'
-          - 'Release/CnsWrapperService/Code/azure-vnet'
-          - 'Release/CnsWrapperService/Code/azure-vnet-ipam'
+          - '**/azure-cns.exe'
+          - '**/azure-vnet-telemetry.exe'
 
   - !!buildcommand
     name: 'Sign DNC Windows'
@@ -110,19 +119,6 @@ build:
           - '**/azure-cns.exe'
           - '**/azure-vnet-telemetry.exe'
           - '**/CnsWrapperService.exe'
-
-  - !!buildcommand
-    name: 'Sign GitHub Binaries'
-    command: 'package_sign.cmd'
-    arguments: 'sign drop_github'
-    artifacts:
-      - from: 'drop_github'
-        include:
-          - '**\azure-vnet.exe'
-          - '**\azure-vnet-ipam.exe'
-          - '**\azure-vnet-telemetry.exe'
-          - '**\azure-cns.exe'
-          - '**\10-azure.conflist'
 
 package_sources:
   nuget:
