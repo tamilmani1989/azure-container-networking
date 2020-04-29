@@ -99,6 +99,7 @@ build:
         include:
           - '**/azure-cns.exe'
           - '**/azure-vnet-telemetry.exe'
+          - '**/Newtonsoft.Json.dll'
 
   - !!buildcommand
     name: 'Sign DNC Windows'
