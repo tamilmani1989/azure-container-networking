@@ -20,7 +20,9 @@
     <file src="$drop$\azure-vnet.exe" target="content" />
     <file src="$drop$\azure-vnet" target="content\linux\azure-vnet" />
     <file src="$drop$\azure-vnet-ipam.exe" target="content" />
+    <file src="$drop$\azure-vnet-ipamv6.exe" target="content" />
     <file src="$drop$\azure-vnet-ipam" target="content\linux\azure-vnet-ipam" />
+    <file src="$drop$\azure-vnet-ipamv6" target="content\linux\azure-vnet-ipamv6" />
     <file src="$drop$\azure-vnet-telemetry.exe" target="content" />
     <file src="$drop$\azure-vnet-telemetry" target="content\linux\azure-vnet-telemetry" />
     <file src="$drop$\azure-vnet-telemetry.config" target="content" />
