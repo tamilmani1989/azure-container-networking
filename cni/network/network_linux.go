@@ -126,7 +126,7 @@ func getPoliciesFromRuntimeCfg(nwCfg *cni.NetworkConfig) []policy.Policy {
 }
 
 func addIPV6EndpointPolicy(nwInfo network.NetworkInfo) (policy.Policy, error) {
-	return nil, nil
+	return polic.Policy{}, nil
 }
 
 func updateSubnetPrefix(cnsNetworkConfig *cns.GetNetworkContainerResponse, subnetPrefix *net.IPNet) error {
