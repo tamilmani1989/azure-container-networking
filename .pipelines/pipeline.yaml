@@ -57,7 +57,7 @@ stages:
               echo "##vso[task.setvariable variable=CommitHash;isOutput=true]$(git rev-parse HEAD)"
               echo "##vso[task.setvariable variable=Tag;isOutput=true]$(git describe --tags --always --dirty)"
               export BRANCH=$(Build.SourceBranchName)
-              echo Building branch $BRANCH from $(Build.SourceBranch) 
+              echo Building branch $BRANCH from $(Build.SourceBranch)
               if [[ "$BRANCH" == "master" ]]; then
                 echo "##vso[task.setvariable variable=Tag;isOutput=true]$(git describe --tags --abbrev=0)"
               fi
@@ -88,19 +88,20 @@ stages:
             workingDirectory: "$(modulePath)"
             name: "Build"
             displayName: "Build"
+            failOnStderr: true
 
           - bash: |
-              cd ./output 
+              cd ./output
               sudo find . -mindepth 2 -type f -regextype posix-extended ! -iregex '.*\.(zip|tgz)$' -delete
               sudo find . -mindepth 2 -type f -print -exec mv {} . \;
               sudo rm -R -- */ && cd ..
               # run test, echo exit status code to fd 3, pipe output from test to tee, which splits output to stdout and go-junit-report (which converts test output to report.xml), stdout from tee is redirected to fd 4. Take output written to fd 3 (which is the exit code of test), redirect to stdout, pipe to read from stdout then exit with that status code. Read all output from fd 4 (output from tee) and write to top stdout
-              { { { { 
-                    sudo -E env "PATH=$PATH" make test-all; 
-                    echo $? >&3; 
-                    } | tee >(go-junit-report > report.xml) >&4; 
-                  } 3>&1; 
-                } | { read xs; exit $xs; } 
+              { { { {
+                    sudo -E env "PATH=$PATH" make test-all;
+                    echo $? >&3;
+                    } | tee >(go-junit-report > report.xml) >&4;
+                  } 3>&1;
+                } | { read xs; exit $xs; }
               } 4>&1
             workingDirectory: "$(modulePath)"
             name: "Test"
