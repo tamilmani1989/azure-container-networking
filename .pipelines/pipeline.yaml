@@ -82,13 +82,24 @@ stages:
               echo Build tag is $(EnvironmentalVariables.Tag)
               export GOOS=windows
               make all-binaries VERSION=$(EnvironmentalVariables.Tag)
+            workingDirectory: "$(modulePath)"
+            name: "BuildWindows"
+            displayName: "Build Linux Binaries"
+
+            - script: |
+              export GOOS=linux
+              make all-binaries VERSION=$(EnvironmentalVariables.Tag)
+            workingDirectory: "$(modulePath)"
+            name: "BuildLinux"
+            displayName: "Build Linux Binaries"
+
+          - script: |
               export GOOS=linux
               make all-binaries VERSION=$(EnvironmentalVariables.Tag)
               sudo make azure-npm-image VERSION=$(EnvironmentalVariables.Tag)
             workingDirectory: "$(modulePath)"
-            name: "Build"
-            displayName: "Build"
-            failOnStderr: true
+            name: "BuildNPMImage"
+            displayName: "Build NPM Image"
 
           - bash: |
               cd ./output
