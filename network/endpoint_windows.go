@@ -151,7 +151,7 @@ func (nw *network) newEndpointImplHnsV1(epInfo *EndpointInfo) (*endpoint, error)
 	}
 
 	// add ipv6 neighbor entry for gateway IP to default mac in container
-	if err := nw.addIPV6NeighEntryForGw(epInfo); err != nil {
+	if err := nw.addIPv6NeighborEntryForGateway(epInfo); err != nil {
 		return nil, err
 	}
 
@@ -178,7 +178,7 @@ func (nw *network) newEndpointImplHnsV1(epInfo *EndpointInfo) (*endpoint, error)
 	return ep, nil
 }
 
-func (nw *network) addIPV6NeighEntryForGw(epInfo *EndpointInfo) error {
+func (nw *network) addIPv6NeighborEntryForGateway(epInfo *EndpointInfo) error {
 	var (
 		err error
 		out string
