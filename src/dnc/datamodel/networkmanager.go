@@ -2057,7 +2057,10 @@ func getIPConfiguration(repoReservationConfiguration *ReservationConfiguration) 
 		IPSubnet:   repoSubnetConfiguration.IPSubnet,
 		IPAddress:  repoReservationConfiguration.AllocatedSubnet,
 		GatewayIP:  repoSubnetConfiguration.Gateway,
-		DNSServers: dnsServers}
+		DNSServers: dnsServers,
+		// todo: should be filled once the actual logic to allocate IPs is implemented
+		SecondaryIPs: nil,
+	}
 
 	return &ipConfiguration, nil
 }

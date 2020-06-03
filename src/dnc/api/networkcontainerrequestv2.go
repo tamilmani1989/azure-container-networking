@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Azure/azure-container-networking/cns"
 )
@@ -14,14 +15,16 @@ type NetworkContainerRequestV2 struct {
 	AllowHostToNCCommunication bool                                  `json:"AllowHostToNCCommunication"`
 	AllowNCToHostCommunication bool                                  `json:"AllowNCToHostCommunication"`
 	EndpointPolicies           []cns.NetworkContainerRequestPolicies `json:"EndpointPolicies,omitempty"`
+	ToBeDeletedIPIds           []string                              `json:"ToBeDeletedIPIds"`
 }
 
 func (networkContainerRequestV2 *NetworkContainerRequestV2) String() string {
 	return fmt.Sprintf(
-		"NetworkContainerRequestV2:[AllocationRequest:%s, AssociationInfo:%s, AllowHostToNCCommunication:%t, AllowNCToHostCommunication:%t ,EndpointPolicies:%+v]",
+		"NetworkContainerRequestV2:[AllocationRequest:%s, AssociationInfo:%s, AllowHostToNCCommunication:%t, AllowNCToHostCommunication:%t, EndpointPolicies:%+v, ToBeDeletedIPIds:%s]",
 		networkContainerRequestV2.AllocationRequest.String(), networkContainerRequestV2.AssociationInfo.String(), networkContainerRequestV2.AllowHostToNCCommunication,
 		networkContainerRequestV2.AllowNCToHostCommunication,
-		networkContainerRequestV2.EndpointPolicies)
+		networkContainerRequestV2.EndpointPolicies,
+		strings.Join(networkContainerRequestV2.ToBeDeletedIPIds, ","))
 }
 
 // Validate - Validates network container request V2.

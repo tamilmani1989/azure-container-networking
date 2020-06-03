@@ -128,12 +128,14 @@ func TestBasicNCAPIs(t *testing.T) {
 		expectedNcResp      = &api.NetworkContainerResponse{
 			NcID: ncID,
 			IPConfiguration: api.IPConfiguration{
-				NetworkID:  vnetID,
-				SubnetName: subnetID,
-				IPSubnet:   utils.Subnet1AddrSpace,
-				IPAddress:  "10.0.1.4/32",
-				GatewayIP:  utils.Subnet1DefaultGW,
-				DNSServers: []string{"8.8.8.8", "9.9.9.9"}},
+				NetworkID:    vnetID,
+				SubnetName:   subnetID,
+				IPSubnet:     utils.Subnet1AddrSpace,
+				IPAddress:    "10.0.1.4/32",
+				GatewayIP:    utils.Subnet1DefaultGW,
+				DNSServers:   []string{"8.8.8.8", "9.9.9.9"},
+				SecondaryIPs: nil,
+			},
 			AssociationInfo: api.AssociationInfo{
 				NodeID:              nodeID,
 				InterfaceID:         nodeIface,

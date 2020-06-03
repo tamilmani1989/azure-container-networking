@@ -9,15 +9,16 @@ import (
 
 // AllocationRequest - Struct to hold allocation request.
 type AllocationRequest struct {
-	SubnetName     string `json:"SubnetName"`
-	IPConstraint   string `json:"IPConstraint"`
-	NodeConstraint string `json:"NodeConstraint"`
+	SubnetName       string `json:"SubnetName"`
+	IPConstraint     string `json:"IPConstraint"`
+	NodeConstraint   string `json:"NodeConstraint"`
+	SecondaryIPCount int    `json:"SecondaryIPCount"`
 }
 
 func (allocationRequest *AllocationRequest) String() string {
 	return fmt.Sprintf(
-		"AllocationRequest:[IPSubnet:{%s} IPConstraint:{%s} NodeConstraint:{%s}]",
-		allocationRequest.SubnetName, allocationRequest.IPConstraint, allocationRequest.NodeConstraint)
+		"AllocationRequest:[IPSubnet:{%s} IPConstraint:{%s} NodeConstraint:{%s} SecondaryIPCount:{%d}]",
+		allocationRequest.SubnetName, allocationRequest.IPConstraint, allocationRequest.NodeConstraint, allocationRequest.SecondaryIPCount)
 }
 
 // Validate - Validates the allocation request

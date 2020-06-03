@@ -2952,7 +2952,7 @@ func DeleteDeployments(t *testing.T, deployedNetworkContainersInfo *DeployedNetw
 
 	for vnetID, ncDeploymentRequests := range deployedNetworkContainersInfo.NCDeploymentRequestsMapByNetwork {
 		for _, ncDeploymentRequest := range ncDeploymentRequests {
-			fmt.Printf("Deleting NC:%s\n", ncDeploymentRequest)
+			fmt.Printf("Deleting NC:%+v\n", ncDeploymentRequest)
 			ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncDeploymentRequest.NCID + apiVersion
 			deleteResource(t, ncURL, http.StatusOK)
 		}
