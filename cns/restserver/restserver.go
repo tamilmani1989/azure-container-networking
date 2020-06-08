@@ -52,6 +52,9 @@ type HTTPRestService struct {
 	imdsClient       *imdsclient.ImdsClient
 	ipamClient       *ipamclient.IpamClient
 	networkContainer *networkcontainers.NetworkContainers
+	ContainerIPIDByOrchestratorContext map[string]string                 // OrchestratorContext is key and value is SecondaryIPID(uuid).
+	ContainerIPConfigState             map[string]containerIPConfigState // seondaryipid(uuid) is key
+	AllocatedIPCount                   map[string]struct{int} // key - ncid
 	routingTable     *routes.RoutingTable
 	store            store.KeyValueStore
 	state            *httpRestServiceState
@@ -69,16 +72,16 @@ type containerstatus struct {
 
 // httpRestServiceState contains the state we would like to persist.
 type httpRestServiceState struct {
-	Location                         string
-	NetworkType                      string
-	OrchestratorType                 string
-	NodeID                           string
-	Initialized                      bool
-	ContainerIDByOrchestratorContext map[string]string          // OrchestratorContext is key and value is NetworkContainerID.
-	ContainerStatus                  map[string]containerstatus // NetworkContainerID is key.
-	Networks                         map[string]*networkInfo
-	TimeStamp                        time.Time
-	joinedNetworks                   map[string]struct{}
+	Location                           string
+	NetworkType                        string
+	OrchestratorType                   string
+	NodeID                             string
+	Initialized                        bool
+	ContainerIDByOrchestratorContext   map[string]string          // OrchestratorContext is key and value is NetworkContainerID.
+	ContainerStatus                    map[string]containerstatus        // NetworkContainerID is key.
+	Networks                           map[string]*networkInfo
+	TimeStamp                          time.Time
+	joinedNetworks                     map[string]struct{}
 }
 
 type networkInfo struct {
@@ -177,6 +180,9 @@ func (service *HTTPRestService) Start(config *common.ServiceConfig) error {
 	listener.AddHandler(cns.DeleteHostNCApipaEndpointPath, service.deleteHostNCApipaEndpoint)
 	listener.AddHandler(cns.PublishNetworkContainer, service.publishNetworkContainer)
 	listener.AddHandler(cns.UnpublishNetworkContainer, service.unpublishNetworkContainer)
+	listener.AddHandler(cns.AllocateIPConfig, service.allocateIPConfig)
+	listener.AddHandler(cns.ReleaseIPConfig, service.releaseIPConfig)
+	listener.AddHandler(cns.ReconcileState, service.releaseIPConfig)
 
 	// handlers for v0.2
 	listener.AddHandler(cns.V2Prefix+cns.SetEnvironmentPath, service.setEnvironment)
@@ -1991,6 +1997,146 @@ func (service *HTTPRestService) unpublishNetworkContainer(w http.ResponseWriter,
 
 	err = service.Listener.Encode(w, &response)
 	logger.Response(service.Name, response, response.Response.ReturnCode, ReturnCodeToString(response.Response.ReturnCode), err)
+}
+
+func (service *HTTPRestService) allocateIPConfig(w http.ResponseWriter, r *http.Request) {
+	var (
+		err           error
+		req           cns.GetNetworkContainerRequest
+		ipConfig      cns.IPSubnet
+		returnCode    int
+		returnMessage string
+	)
+
+	err := service.Listener.Decode(w, r, &req)
+	logger.Request(service.Name, &req, err)
+	if err != nil {
+		return
+	}
+
+	if ipConfig, err = getIPConfig(service, req); err != nil {
+		returnCode = UnexpectedError
+		returnMessage = fmt.Sprintf("AllocateIPConfig failed: %v", err)
+	}
+
+	resp := cns.Response{
+		ReturnCode: returnCode,
+		Message:    returnMessage,
+	}
+
+	service.lock.Lock()
+	containerDetails := service.state.ContainerStatus[ipConfig.NCID]
+	service.lock.Unlock()
+
+	savedReq := containerDetails.CreateNetworkContainerRequest
+	reserveResp := &cns.GetNetworkContainerResponse{
+		Response:                   resp,
+		NetworkContainerID:         savedReq.NetworkContainerid,
+		IPConfiguration:            savedReq.IPConfiguration,
+		Routes:                     savedReq.Routes,
+		CnetAddressSpace:           savedReq.CnetAddressSpace,
+		MultiTenancyInfo:           savedReq.MultiTenancyInfo,
+		PrimaryInterfaceIdentifier: savedReq.PrimaryInterfaceIdentifier,
+		LocalIPConfiguration:       savedReq.LocalIPConfiguration,
+		AllowHostToNCCommunication: savedReq.AllowHostToNCCommunication,
+		AllowNCToHostCommunication: savedReq.AllowNCToHostCommunication,
+	}
+	reserveResp.IPConfiguration.IPSubnet = ipConfig
+
+	err = service.Listener.Encode(w, &reserveResp)
+	logger.Response(service.Name, reserveResp, resp.ReturnCode, ReturnCodeToString(resp.ReturnCode), err)
+}
+
+func (service *HTTPRestService) releaseIPConfig(w http.ResponseWriter, r *http.Request) {
+	var (
+		err           error
+		req           cns.GetNetworkContainerRequest
+		ipConfig      cns.IPSubnet
+		returnCode    int
+		returnMessage string
+	)
+
+	err = service.Listener.Decode(w, r, &req)
+	logger.Request(service.Name, &req, err)
+	if err != nil {
+		return
+	}
+
+	defer func() {
+		resp := cns.Response{}
+
+		if err ! = nil {
+			returnCode = UnexpectedError
+			returnMessage = err.Error()
+		}
+
+		err = service.Listener.Encode(w, &resp)
+		logger.Response(service.Name, resp, resp.ReturnCode, ReturnCodeToString(resp.ReturnCode), err)
+	}()
+
+	service.lock.Lock()
+	defer service.lock.Unlock()
+
+	if service.state.OrchestratorContext != cns.Kubernetes {
+		err = fmt.Errorf("AllocateIPconfig API supported only for kubernetes orchestrator")
+		return ipState, err
+	}
+
+	// retrieve podinfo  from orchestrator context
+	if err := json.UnMarshal(req.OrchestratorContext, &podInfo); err != nil {
+		return ipState, err
+	}
+
+
+	ipID := service.state.ContainerIPIDByOrchestratorContext[podInfo.PodName+podInfo.PodNamespace]
+	if ipID != nil {
+		if ipState, isExist = service.state.containerIPConfigState[ipID]; isExist {
+
+		}
+		return ipState, fmt.Errorf("Pod->IPIP exists but IPID to IPConfig doesn't exist")
+	} else {
+
+	}
+
+}
+
+// If IPConfig is already allocated for pod, it returns that else it returns one of the available ipconfigs.
+func getIPConfig(service *HTTPRestService, req cns.GetNetworkContainerRequest) (cns.ContainerIPConfigState, error) {
+
+	service.lock.Lock()
+	defer service.lock.Unlock()
+
+	var (
+		podInfo cns.KubernetesPodInfo
+		ipState cns.ContainerIPConfigState
+		isExist bool
+	)
+
+	if service.state.OrchestratorContext != cns.Kubernetes {
+		return ipState, fmt.Errorf("AllocateIPconfig API supported only for kubernetes orchestrator")
+	}
+
+	// retrieve podinfo  from orchestrator context
+	if err := json.UnMarshal(req.OrchestratorContext, &podInfo); err != nil {
+		return ipState, err
+	}
+
+	// check if ipconfig already allocated for this pod and return that
+	ipID := service.state.ContainerIPIDByOrchestratorContext[podInfo.PodName+podInfo.PodNamespace]
+	if ipID != nil {
+		if ipState, isExist = service.state.containerIPConfigState[ipID]; isExist {
+			return ipState, nil
+		}
+		return ipState, fmt.Errorf("Pod->IPIP exists but IPID to IPConfig doesn't exist")
+	}
+
+	// return free ipconfig
+	for _, ipState = range service.state.containerIPConfigState {
+		if ipState.state == cns.Available {
+			ipState.State = cns.Allocated
+			return ipState
+		}
+	}
 }
 
 func logNCSnapshot(createNetworkContainerRequest cns.CreateNetworkContainerRequest) {

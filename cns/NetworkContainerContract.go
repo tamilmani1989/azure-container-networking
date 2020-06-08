@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Container Network Service DNC Contract
+// Container Network Service DNC and CNI Contract
 const (
 	SetOrchestratorType                      = "/network/setorchestratortype"
 	CreateOrUpdateNetworkContainer           = "/network/createorupdatenetworkcontainer"
@@ -18,6 +18,8 @@ const (
 	GetNetworkContainerByOrchestratorContext = "/network/getnetworkcontainerbyorchestratorcontext"
 	AttachContainerToNetwork                 = "/network/attachcontainertonetwork"
 	DetachContainerFromNetwork               = "/network/detachcontainerfromnetwork"
+	AllocateIPConfig                         = "/network/allocateIPConfig"
+	ReleaseIPConfig                          = "/network/releaseIPConfig"
 )
 
 // NetworkContainer Prefixes
@@ -60,6 +62,7 @@ type CreateNetworkContainerRequest struct {
 	LocalIPConfiguration       IPConfiguration
 	OrchestratorContext        json.RawMessage
 	IPConfiguration            IPConfiguration
+	SecondaryIPConfigs         map[string]IPSubnet or struct {ipsubnet} //IPsubnet //uuid is key
 	MultiTenancyInfo           MultiTenancyInfo
 	CnetAddressSpace           []IPSubnet // To setup SNAT (should include service endpoint vips).
 	Routes                     []Route
@@ -104,6 +107,19 @@ type IPConfiguration struct {
 type IPSubnet struct {
 	IPAddress    string
 	PrefixLength uint8
+}
+
+type SecondaryIPConfig struct {
+	UUID     string
+	IPConfig IPSubnet
+}
+
+type ContainerIPConfigState struct {
+	IPConfig            IPSubnet
+	ID                  string //uuid
+	NCID                string
+	State               string
+	OrchestratorContext json.RawMessage
 }
 
 // Route describes an entry in routing table.
@@ -156,6 +172,12 @@ type GetNetworkContainerResponse struct {
 	Response                   Response
 	AllowHostToNCCommunication bool
 	AllowNCToHostCommunication bool
+}
+
+// To release secondary IPs allocated for orchestrator context. Both fields need to be specified.
+type ReleaseIPConfig struct {
+	IPAddress           string
+	OrchestratorContext json.RawMessage
 }
 
 // DeleteNetworkContainerRequest specifies the details about the request to delete a specifc network container.
