@@ -11,7 +11,7 @@ environment:
   runtime:
     provider: 'appcontainer'                                            # Currently only appcontainer is supported future will bring
                                                                         # oscontainer and virtualmachine
-    image: 'cdpxwin.azurecr.io/global/vse2017u5-external-azsdk-ext-win14393.1884:4.2'          # This is the image that your pipeline will run in.
+    image: 'cdpxwin1809.azurecr.io/global/vse2019:latest'               # This is the image that your pipeline will run in.
                                                                         # For (appcontainer), Docker Hub public Microsoft repository images
                                                                         # can be used.
                                                                         # Example microsoft/dotnet:1.1.1-sdk-nanoserver. Or the CDP team
@@ -31,7 +31,7 @@ signing_options:
 
 # Pick up artifacts from phase_1 of build job
 workspace_options:
-  download_current_artifacts: true
+# download_current_artifacts: true
   enable_legacy_networking: true
 
 # The following is a metadata section that describes the versioning scheme and basic version datacenter to use. This data will be used to
@@ -81,7 +81,7 @@ build:
     command: 'package_sign.cmd'
     arguments: 'sign drop_github'
     artifacts:
-      - from: 'drop_github'
+      - from: 'artifacts/linux-phase'
         include:
           - '**\azure-vnet.exe'
           - '**\azure-vnet-ipam.exe'
@@ -107,7 +107,7 @@ build:
     command: 'package_sign.cmd'
     arguments: 'sign drop_dnc'
     artifacts:
-      - from: 'drop_dnc'
+      - from: 'artifacts/linux-phase'
         include:
           - '**\azure-dnc.exe'
 

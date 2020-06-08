@@ -23,7 +23,7 @@ if %OPERATION%=="package" (
     )
 
 ) else if %OPERATION%=="sign" (
-    robocopy %CDP_TEMP_PRIOR_DROP_FOLDER_CONTAINER_PATH%\current\drop\linux_phase\outputs\build\%DROP% %~dp0%DROP% /e
+#    robocopy %CDP_TEMP_PRIOR_DROP_FOLDER_CONTAINER_PATH%\current\drop\linux_phase\outputs\build\%DROP% %~dp0%DROP% /e
 )
 
 if %ERRORLEVEL% LSS 8 (

@@ -21,9 +21,9 @@ if %Build%==true (
 	echo ---------- Prepare CnsWrapperService Application ----------
     nuget restore %~dp0\src\Cns-SF\packages.config -PackagesDirectory %~dp0\src\Cns-SF\packages
 	
-	robocopy %CDP_TEMP_PRIOR_DROP_FOLDER_CONTAINER_PATH%\current\drop\linux_phase\outputs\build\drop_github %~dp0\src\Cns-SF\bin\%BuildConfig%\net462 azure-cns.exe
-    robocopy %CDP_TEMP_PRIOR_DROP_FOLDER_CONTAINER_PATH%\current\drop\linux_phase\outputs\build\drop_github %~dp0\src\Cns-SF\bin\%BuildConfig%\net462 azure-vnet-telemetry.exe
-    robocopy %CDP_TEMP_PRIOR_DROP_FOLDER_CONTAINER_PATH%\current\drop\linux_phase\outputs\build\drop_github %~dp0\src\Cns-SF\bin\%BuildConfig%\net462 azure-vnet-telemetry.config
+    robocopy %BUILD_SOURCESDIRECTORY%\artifacts\linux_phase\outputs\build\drop_github %~dp0\src\Cns-SF\bin\%BuildConfig%\net462 azure-cns.exe
+    robocopy %BUILD_SOURCESDIRECTORY%\artifacts\linux_phase\outputs\build\drop_github %~dp0\src\Cns-SF\bin\%BuildConfig%\net462 azure-vnet-telemetry.exe
+    robocopy %BUILD_SOURCESDIRECTORY%\artifacts\linux_phase\outputs\build\drop_github %~dp0\src\Cns-SF\bin\%BuildConfig%\net462 azure-vnet-telemetry.config
 	
 	rem Check exit code and return if necessary
     if "%ERRORLEVEL%" neq "0" (
