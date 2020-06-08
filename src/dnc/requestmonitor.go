@@ -639,7 +639,7 @@ func getNCLimitForNode(nodeID string) (int, *api.JsonErr) {
 		var respErr *api.JsonErr
 		ncLimit, respErr = datamodel.GetNCLimitForNode(nodeConfig.NodeInfo.IPAddresses[0])
 		if respErr != nil {
-			loggershim.LS.Debugf("Failed to retrieve NC limit for node with error %+v", nodeID, respErr.String())
+			loggershim.LS.Errorf("Failed to retrieve NC limit for node: %s, with error: %s", nodeID, respErr.String())
 			return 0, respErr
 		}
 
@@ -647,7 +647,7 @@ func getNCLimitForNode(nodeID string) (int, *api.JsonErr) {
 	}
 
 	errMsg := fmt.Sprintf("Unable to get NC limit for the node because "+
-		"failure to get the node configuration for node: %s due to error: %v", nodeID, err)
+		"node configuration for node: %s couldn't be retrieved due to error: %v", nodeID, err)
 
 	return 0, &api.JsonErr{
 		Code:       api.StatusInternalServerError,
