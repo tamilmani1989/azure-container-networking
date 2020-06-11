@@ -125,6 +125,7 @@ type CNSConnectionStrings struct {
 
 // CNSSettings CNS settings
 type CNSSettings struct {
+	ChannelMode       string
 	ConnectionStrings CNSConnectionStrings
 }
 
@@ -240,10 +241,12 @@ func Load(configFile string) *Configuration {
 	return &config
 }
 
+// SetDncConfigDefaults setting default values for dnc config
 func SetDncConfigDefaults(config *Configuration) {
 	setDNCSettingDefaults(&config.DNCSettings)
 	setHttpSettingDefaults(&config.HttpClientSettings)
 	setTelemetrySettingDefaults(&config.TelemetrySettings)
+	setCNSSettingsDefaults(&config.CNSSettings)
 	setBlobStorageSettings(&config.MasterElectionSettings.BlobStorageSettings)
 }
 
@@ -343,6 +346,12 @@ func setTelemetrySettingDefaults(telemetrySettings *TelemetrySettings) {
 
 	if telemetrySettings.GetEnvRetryCount == 0 {
 		telemetrySettings.GetEnvRetryCount = 5
+	}
+}
+
+func setCNSSettingsDefaults(cnsSettings *CNSSettings) {
+	if cnsSettings.ChannelMode == "" {
+		cnsSettings.ChannelMode = "direct"
 	}
 }
 

@@ -1,92 +1,93 @@
 {
-    "DataStoreSettings":{
-       "AzureStorageInfo":{
-          "AccountName":"",
-          "Key":"",
-          "PartitionKey":"",
-          "Environment":"",
-          "IsUsingCosmosDb" : false
-       },
-       "AzureSQLInfo":{
-          "Host":"",
-          "Database":"",
-          "User":"",
-          "Password":""
-       }
-    },
-    "ServerSettings":{
-       "IPAddress":"",
-       "Port":"9000"
-    },
-    "MasterElectionSettings":{
-        "UseDataStore":false,
-        "BlobStorageSettings":{
-         "AccountName":"",
-         "Key":"",
-         "PartitionKey":"",
-         "Environment":"",
-         "BlobName":#LeaderElectionBlob#,
-         "ContainerName":#LeaderElectionTest#,
-         "LeaseIntervalInSecs":60,
-         "LeaseRenewIntervalInSecs":30,
-         "AcquireRetryIntervalInSecs":30
+    "DataStoreSettings": {
+        "AzureStorageInfo": {
+            "AccountName": "",
+            "Key": "",
+            "PartitionKey": "",
+            "Environment": "",
+            "IsUsingCosmosDb": false
         },
-        "DataStoreLeaseSettings":{
-         "LeaseIntervalInSecs":60,
-         "LeaseRenewIntervalInSecs":30,
-         "AcquireRetryIntervalInSecs":30
+        "AzureSQLInfo": {
+            "Host": "",
+            "Database": "",
+            "User": "",
+            "Password": ""
         }
     },
-    "HostAgentSettings":{
-        "WireServerIP":"168.63.129.16",
-        "ConnectionStrings":{
+    "ServerSettings": {
+        "IPAddress": "",
+        "Port": "9000"
+    },
+    "MasterElectionSettings": {
+        "UseDataStore": false,
+        "BlobStorageSettings": {
+            "AccountName": "",
+            "Key": "",
+            "PartitionKey": "",
+            "Environment": "",
+            "BlobName":#LeaderElectionBlob#,
+            "ContainerName":#LeaderElectionTest#,
+            "LeaseIntervalInSecs": 60,
+            "LeaseRenewIntervalInSecs": 30,
+            "AcquireRetryIntervalInSecs": 30
+        },
+        "DataStoreLeaseSettings": {
+            "LeaseIntervalInSecs": 60,
+            "LeaseRenewIntervalInSecs": 30,
+            "AcquireRetryIntervalInSecs": 30
+        }
+    },
+    "HostAgentSettings": {
+        "WireServerIP": "168.63.129.16",
+        "ConnectionStrings": {
             "JoinNetworkURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
-            "GetNetworkConfigurationURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
-            "PutNetworkContainerURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
-            "DeleteNetworkContainerURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
-            "GetSystemTagDefinitionURLFmt":"http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/systemTags/%s/ipVersion/%s/api-version/1"
+            "GetNetworkConfigurationURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
+            "PutNetworkContainerURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
+            "DeleteNetworkContainerURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
+            "GetSystemTagDefinitionURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/systemTags/%s/ipVersion/%s/api-version/1"
         }
     },
-    "CustomLoggerSettings":{
-        "FnName":"",
-        "Dll":""
+    "CustomLoggerSettings": {
+        "FnName": "",
+        "Dll": ""
     },
-    "CNSSettings":{
-        "ConnectionStrings" :{
-            "CreateOrUpdateNetworkContainerURLFmt" : "http://%s:10090/network/createorupdatenetworkcontainer",
+    "CNSSettings": {
+        "ChannelMode": "direct",
+        "ConnectionStrings": {
+            "CreateOrUpdateNetworkContainerURLFmt": "http://%s:10090/network/createorupdatenetworkcontainer",
             "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
-            "SetOrchestratorTypeURLFmt" : "http://%s:10090/network/setorchestratortype",
-            "GetNetworkcontainerstatusURLFmt":"http://%s:10090/network/getnetworkcontainerstatus",
-            "GetNumOfCPUCoresURLFmt":"http://%s:10090/hostcpucores",
-            "PublishNetworkContainerURLFmt" : "http://%s:10090/network/publishnetworkcontainer",
-            "UnpublishNetworkContainerURLFmt" : "http://%s:10090/network/unpublishnetworkcontainer"
+            "SetOrchestratorTypeURLFmt": "http://%s:10090/network/setorchestratortype",
+            "GetNetworkcontainerstatusURLFmt": "http://%s:10090/network/getnetworkcontainerstatus",
+            "GetNumOfCPUCoresURLFmt": "http://%s:10090/hostcpucores",
+            "PublishNetworkContainerURLFmt": "http://%s:10090/network/publishnetworkcontainer",
+            "UnpublishNetworkContainerURLFmt": "http://%s:10090/network/unpublishnetworkcontainer"
         }
     },
-    "VlanSettings":{
-        "Min":1,
-        "Max":2048
+    "VlanSettings": {
+        "Min": 1,
+        "Max": 2048
     },
-    "DNCSettings":{
-        "RequestRetryBaseInterval":1000,
-        "MaxRequestBackoffInterval":16000,
-        "NetworkRefreshInterval":60000,
-        "NetworkRefreshBatchSize":60,
-        "SleepIntervalBetweenNetworkBatches":60000,
-        "SleepIntervalBetweenNetworkRefresh":300,
-        "TagRefreshInterval":60000,
+    "DNCSettings": {
+        "RequestRetryBaseInterval": 1000,
+        "MaxRequestBackoffInterval": 16000,
+        "NetworkRefreshInterval": 60000,
+        "NetworkRefreshBatchSize": 60,
+        "SleepIntervalBetweenNetworkBatches": 60000,
+        "SleepIntervalBetweenNetworkRefresh": 300,
+        "TagRefreshInterval": 60000,
         "NetworkContainerRefreshInterval": 60000,
         "ReportToHostInterval": 60000,
         "ConcurrentRequestsToProcess": 1000,
-        "EnforceNICLimit" : true,
-        "NICsAllowedPerVirtualCore" : 3,
-        "ReverseProxyEnabled" : false,
-        "ThresholdForLoggingDataStoreOpLatencyMs" : 1000
+        "EnforceNICLimit": true,
+        "NICsAllowedPerVirtualCore": 3,
+        "ReverseProxyEnabled": false,
+        "ThresholdForLoggingDataStoreOpLatencyMs": 1000
     },
-    "HttpClientSettings":{
-        "ConnectionTimeout":5,
-        "ResponseHeaderTimeout":120
+    "HttpClientSettings": {
+        "ConnectionTimeout": 5,
+        "ResponseHeaderTimeout": 120
     },
-    "TelemetrySettings":{
+    "TelemetrySettings": {
         "TelemetryBatchSizeBytes": 16384,
         "TelemetryBatchIntervalInSecs": 7,
         "RefreshIntervalInSecs": 15,

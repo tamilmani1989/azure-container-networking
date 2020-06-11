@@ -628,33 +628,6 @@ Cleanup:
 	return true, nil
 }
 
-func getNCLimitForNode(nodeID string) (int, *api.JsonErr) {
-	sessionInfoRead := map[string]string{datamodel.NodeRepositoryName: nodeID}
-	sessionManager.BeginReadSession(sessionInfoRead)
-	nodeConfig, err := datamodel.TryQueryNodeConfiguration(nodeID)
-	sessionManager.EndReadSession(sessionInfoRead)
-
-	var ncLimit int
-	if nodeConfig != nil && err == nil {
-		var respErr *api.JsonErr
-		ncLimit, respErr = datamodel.GetNCLimitForNode(nodeConfig.NodeInfo.IPAddresses[0])
-		if respErr != nil {
-			loggershim.LS.Errorf("Failed to retrieve NC limit for node: %s, with error: %s", nodeID, respErr.String())
-			return 0, respErr
-		}
-
-		return ncLimit, nil
-	}
-
-	errMsg := fmt.Sprintf("Unable to get NC limit for the node because "+
-		"node configuration for node: %s couldn't be retrieved due to error: %v", nodeID, err)
-
-	return 0, &api.JsonErr{
-		Code:       api.StatusInternalServerError,
-		Text:       errMsg,
-		HTTPStatus: http.StatusInternalServerError}
-}
-
 func generateImplicitReservationConfig(repoNCConfig *datamodel.NCConfiguration) (
 	*datamodel.ReservationConfiguration, *api.JsonErr) {
 	reservationConfiguration := datamodel.ReservationConfiguration{
@@ -673,7 +646,7 @@ func generateImplicitReservationConfig(repoNCConfig *datamodel.NCConfiguration) 
 	)
 
 	// Retrieve the NC limit for the node
-	if ncLimit, err = getNCLimitForNode(nodeID); err != nil {
+	if ncLimit, err = cnsInterface.GetNCLimitForNode(nodeID); err != nil {
 		return nil, err
 	}
 
@@ -824,7 +797,7 @@ func processNetworkContainerV1(repoNCConfig *datamodel.NCConfiguration) (bool, *
 	)
 
 	// Retrieve the NC limit for the node
-	if ncLimit, err = getNCLimitForNode(associationInfo.NodeID); err != nil {
+	if ncLimit, err = cnsInterface.GetNCLimitForNode(associationInfo.NodeID); err != nil {
 		return false, err
 	}
 

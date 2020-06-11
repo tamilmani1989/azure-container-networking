@@ -4,6 +4,7 @@ package main
 
 import (
 	"dnc/aiwrapper"
+	"dnc/cnsinterface"
 	"dnc/configuration"
 	"dnc/controller"
 	"dnc/datamodel"
@@ -42,6 +43,7 @@ var (
 
 	config             *configuration.Configuration
 	masterElectionShim *masterelectionshim.MasterElectionShim
+	cnsInterface       cnsinterface.CnsInterface
 	logger             *loggershim.LoggerShim
 	sessionManager     *utils.SessionManager
 	ctrler             *controller.Controller
@@ -71,6 +73,7 @@ var (
 const (
 	maxLogFileSize  = 16 * 1024 * 1024 // Set 16MB as the max log file size
 	maxLogFileCount = 8                // Set 8 as max log file count.
+	directCnsChannelMode = "direct"
 )
 
 func init() {
@@ -130,6 +133,9 @@ func init() {
 		startChan,
 		doneChan,
 		demoteChan)
+	if (config.CNSSettings.ChannelMode == directCnsChannelMode) {
+		cnsInterface = cnsinterface.NewDirectClient(sessionManager)
+	}
 
 	// Creating http client object to be reused instead of creating one every time.
 	// This helps make use of the cached tcp connections.
