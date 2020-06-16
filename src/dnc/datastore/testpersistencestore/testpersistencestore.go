@@ -143,6 +143,20 @@ func (testpersistencestore *TestPersistenceStore) InsertInPartitionProperties(
 	return http.StatusOK, nil
 }
 
+func (testpersistencestore *TestPersistenceStore) UpsertBatch(tableName, _ string, batch map[string]map[string]interface{}) error {
+	testpersistencestore.locks[tableName].Lock()
+	defer func() {
+		testpersistencestore.locks[tableName].Unlock()
+	}()
+
+	for rowKey, rowProps := range batch {
+		tag := testpersistencestore.getEtag()
+		testpersistencestore.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: rowProps}
+	}
+
+	return nil
+}
+
 // Query :- Query an element using rowKey and tableName.
 func (testpersistencestore *TestPersistenceStore) Query(tableName, rowKey string) (interface{}, int, error) {
 	value, _, status, err := testpersistencestore.queryPropertyEtag(tableName, rowKey)

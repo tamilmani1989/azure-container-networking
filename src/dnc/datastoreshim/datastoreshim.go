@@ -12,27 +12,10 @@ import (
 	"strings"
 )
 
-type dataStoreInterfaces interface {
-	InsertInPartition(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error)
-	InsertInPartitionProperties(tableName, partitionKay, rowKey string, properties map[string]interface{}) (int, error)
-	InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error
-	UpdateInPartition(tableName, partitionKay, rowKey string, properties map[string]interface{}) error
-	UpdateInPartitionWithEtag(tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error
-	Delete(tableName, rowKey string) error
-	DeleteInPartition(tableName, partitionKey, rowKey string) error
-	Query(tableName, rowKey string) (interface{}, int, error)
-	QueryInPartition(tableName, partitionKey, rowKey string) (interface{}, int, error)
-	QueryInPartitionWithEtag(tableName, partitionKey, rowKey string) (interface{}, string, int, error)
-	QueryInPartitionWithEtagProperties(tableName, partitionKey, rowKey string) (map[string]interface{}, string, int, error)
-	QueryAll(tableName string, context interface{}) (map[string]interface{}, bool, interface{}, int, error)
-	QueryAllInPartition(tableName, partitionKey string, context interface{}) (map[string]interface{}, bool, interface{}, int, error)
-	KeyExist(tableName, rowKey string) (bool, error)
-	IsFeatureSupported(featureID int) bool
-}
-
 type insertInPartitionFunc func(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error)
 type insertInPartitionPropertiesFunc func(tableName, partitionKay, rowKey string, properties map[string]interface{}) (int, error)
 type insertOrUpdateFunc func(tableName, rowKey, propertyName string, value interface{}) error
+type upsertBatchFunc func(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
 type updateInPartitionFunc func(tableName, partitionKay, rowKey string, properties map[string]interface{}) error
 type updateInPartitionWithEtagFunc func(tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error
 type deleteFunc func(tableName, rowKey string) error
@@ -51,6 +34,7 @@ type DataStoreShim struct {
 	SupportedFeatures                  map[int]bool
 	InsertInPartition                  insertInPartitionFunc
 	InsertOrUpdate                     insertOrUpdateFunc
+	UpsertBatch                        upsertBatchFunc
 	Delete                             deleteFunc
 	DeleteInPartition                  deleteInPartitionFunc
 	Query                              queryFunc
@@ -100,6 +84,7 @@ func (dataStoreShim *DataStoreShim) Init(
 		dataStoreShim.InsertOrUpdate = insertOrUpdateFunc(azStorage.InsertOrUpdate)
 		dataStoreShim.InsertInPartition = insertInPartitionFunc(azStorage.InsertInPartition)
 		dataStoreShim.InsertInPartitionProperties = insertInPartitionPropertiesFunc(azStorage.InsertInPartitionProperties)
+		dataStoreShim.UpsertBatch = upsertBatchFunc(azStorage.UpsertBatch)
 		dataStoreShim.QueryAll = queryAllFunc(azStorage.QueryAllRows)
 		dataStoreShim.QueryAllInPartition = queryAllInPartitionFunc(azStorage.QueryAllRowsInPartition)
 		dataStoreShim.KeyExist = keyExistFunc(azStorage.KeyExist)
@@ -132,6 +117,7 @@ func (dataStoreShim *DataStoreShim) Init(
 		dataStoreShim.DeleteInPartition = deleteInPartitionFunc(tps.DeleteInPartition)
 		dataStoreShim.InsertOrUpdate = insertOrUpdateFunc(tps.InsertOrUpdate)
 		dataStoreShim.InsertInPartition = insertInPartitionFunc(tps.InsertInPartition)
+		dataStoreShim.UpsertBatch = upsertBatchFunc(tps.UpsertBatch)
 		dataStoreShim.QueryAll = queryAllFunc(tps.QueryAllRows)
 		dataStoreShim.QueryAllInPartition = queryAllInPartitionFunc(tps.QueryAllRowsInPartition)
 		dataStoreShim.KeyExist = keyExistFunc(tps.KeyExist)

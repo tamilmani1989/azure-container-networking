@@ -186,6 +186,28 @@ func (azureStorage *AzureStorage) InsertInPartitionProperties(
 	return azureStorage.insertRowInPartition(tableName, partitionKay, rowKey, properties)
 }
 
+// UpsertBatch inserts or replaces a batch of rows (row key to properties) for a given table and partition key
+// There is a limit of 100 items per batch
+func (azureStorage *AzureStorage) UpsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error {
+	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	if !ok {
+		return fmt.Errorf("cannot find valid table client for table %s", tableName)
+	}
+
+	table := tableClient.GetTableReference(tableName)
+
+	batch := table.NewBatch()
+	for rowKey, rowProperties := range batchItems {
+		entity := table.GetEntityReference(partitionKey, rowKey)
+		entity.Properties = rowProperties
+		// todo: is it correct to always use If-Match:*? not providing an etag basically forces the upsert
+		// entity.OdataEtag = ""
+		batch.InsertOrReplaceEntity(entity, false) // underlying sdk code does not ever use the second param
+	}
+
+	return batch.ExecuteBatch()
+}
+
 // Query - Query a row in a given table.
 func (azureStorage *AzureStorage) Query(tableName, rowKey string) (interface{}, int, error) {
 	defer recordProcessingTime(time.Now(), "Query", tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
