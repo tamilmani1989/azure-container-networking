@@ -1,0 +1,5 @@
+{
+	"kubernetesConfig": {
+		"kubeconfigPath": "kubeconfig.yaml"
+	}
+}

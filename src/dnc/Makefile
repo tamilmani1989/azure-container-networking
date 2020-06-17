@@ -26,16 +26,27 @@ DNCTLFILES = \
 RUNNERFILES = \
 	$(wildcard test/runner/*.go)
 
+# Source files for Request Controller
+REQCTRLFILES = \
+	$(wildcard requestcontroller/*.go) \
+	$(wildcard requestcontroller/buildinfo/*.go) \
+	$(wildcard requestcontroller/json/*.go) \
+	$(wildcard requestcontroller/reconcilers/*.go) \
+	$(wildcard cmd/requestcontroller/*.go) \
+	$(wildcard cmd/requestcontroller/cmd/*.go)
+
 # Build defaults
 GOOS ?= linux
 GOARCH ?= amd64
 
 DNCTL_DIR = dnctl
 RUNNER_DIR = test/runner
+REQCTRL_DIR = cmd/requestcontroller
 OUTPUT_DIR = output
 DNC_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/dnc
 DNCTL_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/dnctl
 RUNNER_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/runner
+REQCTRL_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/requestcontroller
 
 DNC_AI_ID = 4a542967-4721-4c64-a2a7-eb9428c634b4
 
@@ -62,15 +73,18 @@ DNCTL_ARCHIVE_NAME = dnctl-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 RUNNER_ARCHIVE_NAME = runner-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 DNC_IMAGE_ARCHIVE_NAME = dnc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 RUNNER_IMAGE_ARCHIVE_NAME = runner-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
+REQCTRL_ARCHIVE_NAME = requestcontroller-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 
 # Azure container networking service image paramters
 DNC_IMAGE = containernetworking.azurecr.io/internal/containernetworking/dnc
 RUNNER_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-runner
+REQCTRL_IMAGE = containernetworking.azurecr.io/internal/containernetworking/requestcontroller
 
 # Shorthand target names for convenience.
 dnc: $(DNC_BUILD_DIR)/dnc$(EXE_EXT) dnc-archive
 dnctl: $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT) dnctl-archive
 runner: $(RUNNER_BUILD_DIR)/runner$(EXE_EXT) runner-archive
+requestcontroller: $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT) requestcontroller-archive
 
 # Clean all build artifacts
 .PHONY: clean
@@ -91,6 +105,11 @@ $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT): $(DNCTLFILES)
 $(RUNNER_BUILD_DIR)/runner$(EXE_EXT): $(RUNNERFILES)
 	export CGO_ENABLED=0; \
 	go build -v -o $(RUNNER_BUILD_DIR)/runner$(EXE_EXT) $(RUNNER_DIR)/*.go
+
+# Build Request Controller
+$(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT): $(REQCTRLFILES)
+	export CGO_ENABLED=0; \
+	go build -v -o $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT) $(REQCTRL_DIR)/*.go
 
 # Build the Azure DNC image
 .PHONY: dnc-image
@@ -148,3 +167,10 @@ runner-archive:
 	chmod 0755 $(RUNNER_BUILD_DIR)/runner$(EXE_EXT)
 	cd $(RUNNER_BUILD_DIR) && $(ARCHIVE_CMD) $(RUNNER_ARCHIVE_NAME) runner$(EXE_EXT)
 	chown $(BUILD_USER):$(BUILD_USER) $(RUNNER_BUILD_DIR)/$(RUNNER_ARCHIVE_NAME)
+
+# Create a requetscontroller archive for the target platform
+.PHONY: requestcontroller-archive
+requestcontroller-archive:
+	chmod 0755 $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT)
+	cd $(REQCTRL_BUILD_DIR) && $(ARCHIVE_CMD) $(REQCTRL_ARCHIVE_NAME) requestcontroller$(EXE_EXT)
+	chown $(BUILD_USER):$(BUILD_USER) $(REQCTRL_BUILD_DIR)/$(REQCTRL_ARCHIVE_NAME)
