@@ -26,5 +26,22 @@ IF EXIST %ConfigFilePath% (
     )
 )
 
+set FOLDER=%datadir%\\Azure\\Logs\\HostNetAgent
+set SEMFILE=%datadir%\\pfhemigration\\HostNetAgent
+
+REM This is done to kill FDHE HNA in few nodes where PF is crashing with lot of log files
+IF NOT EXIST %SEMFILE% (
+    GOTO startagent
+)
+set COUNT=0
+for /f %%f in ('dir "%FOLDER%" ^| find /c ".log"') do set /a COUNT=%%f
+echo %COUNT%
+ 
+IF %COUNT% GTR 100 (
+     del /q "%FOLDER%\*.log"
+     taskkill /f /im "HostNetAgent.exe"
+ )
+ 
+:startagent
 HostNetAgent.exe /configFile %ConfigFilePath% /pf
 
