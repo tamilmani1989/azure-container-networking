@@ -71,8 +71,8 @@ var (
 )
 
 const (
-	maxLogFileSize  = 16 * 1024 * 1024 // Set 16MB as the max log file size
-	maxLogFileCount = 8                // Set 8 as max log file count.
+	maxLogFileSize       = 16 * 1024 * 1024 // Set 16MB as the max log file size
+	maxLogFileCount      = 8                // Set 8 as max log file count.
 	directCnsChannelMode = "direct"
 )
 
@@ -111,9 +111,9 @@ func init() {
 	logger.Init(stderr, reports)
 	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
 
-	if(aiTelemetryErr != nil){
+	if aiTelemetryErr != nil {
 		logger.Errorf("Error initializing AI telemetry handle. %v", aiTelemetryErr)
-	}else{
+	} else {
 		logger.Debugf("Successfully initialized AI telemetry.")
 	}
 
@@ -133,7 +133,7 @@ func init() {
 		startChan,
 		doneChan,
 		demoteChan)
-	if (config.CNSSettings.ChannelMode == directCnsChannelMode) {
+	if config.CNSSettings.ChannelMode == directCnsChannelMode {
 		cnsInterface = cnsinterface.NewDirectClient(sessionManager)
 	}
 
@@ -220,6 +220,7 @@ func main() {
 	// From go 1.13, we can't use flags api in package init as it conflicts with go test init.
 	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
 	flag.Parse()
+	logger.Init(stderr, reports)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go ProcessExitMonitor(sigs, processExitCallback)
