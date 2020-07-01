@@ -83,7 +83,7 @@ func Logger(inner http.Handler, name string, reverseProxyEnabled bool, connectio
 				target := "http://" + primaryEP + r.URL.String()
 				if reverseProxyEnabled {
 					loggershim.LS.Debugf("Forwarding to %s", target)
-					forwardToPrimary(target, primaryEP, w, r, connectionTimeout)
+					forwardToPrimary(target, w, r, connectionTimeout)
 				} else {
 					loggershim.LS.Debugf("Redirecting to %s", target)
 					http.Redirect(w, r, target, http.StatusTemporaryRedirect)
@@ -96,13 +96,14 @@ func Logger(inner http.Handler, name string, reverseProxyEnabled bool, connectio
 	})
 }
 
-func forwardToPrimary(target, primaryEP string, w http.ResponseWriter, r *http.Request, connectionTimeout int) {
+func forwardToPrimary(target string, w http.ResponseWriter, r *http.Request, connectionTimeout int) {
 	url, _ := url.ParseRequestURI(target)
 	p := httputil.NewSingleHostReverseProxy(url)
 	p.Director = func(req *http.Request) {
-		req.URL.Scheme = "http"
-		req.URL.Host = req.Host
-		req.Host = primaryEP
+		req.Header.Add("X-Forwarded-Host", req.Header.Get("Host"))
+		req.URL.Host = url.Host
+		req.URL.Scheme = url.Scheme
+		req.Host = url.Host
 	}
 	p.Transport = &http.Transport{
 		Dial: (&net.Dialer{
