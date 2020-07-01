@@ -176,6 +176,8 @@ func init() {
 		ctrler.UpdateReplicaStatus(true)
 		setOrchestratorForTelemetry()
 	}
+
+	initNetworkContainerStateMachine()
 }
 
 func processExitCallback() {

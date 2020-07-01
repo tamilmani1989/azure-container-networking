@@ -13,13 +13,14 @@ type ReservationConfiguration struct {
 	VniID           int
 	ReservationState
 	Status
-	FailureDetail       api.JsonErr
-	AllocationRequest   api.AllocationRequest
-	CreatedDateTime     string
-	LastUpdatedDateTime string
-	AssociatedNCID      string
-	MarkedForDelete     bool
-	APIVersion          string
+	FailureDetail         api.JsonErr
+	AllocationRequest     api.AllocationRequest
+	CreatedDateTime       string
+	LastUpdatedDateTime   string
+	AssociatedNCID        string
+	MarkedForDelete       bool
+	APIVersion            string
+	SecondaryReservations map[string]string // reservation id to ip address
 }
 
 func (r *ReservationConfiguration) String() string {

@@ -217,7 +217,9 @@ func TestBasicNCAPIs(t *testing.T) {
 
 	deleteNode(t, nodeID, http.StatusBadRequest)
 	deleteNetwork(t, vnetID, http.StatusBadRequest)
+	t.Log("deleting first nc")
 	deleteNc(t, vnetID, ncID)
+	t.Log("deleting second nc")
 	deleteNc(t, vnetID, ncID2)
 	deleteReservation(t, vnetID, reservationID)
 	deleteNetwork(t, vnetID, http.StatusNotFound)
@@ -742,7 +744,7 @@ func addNc(t *testing.T, nodeID, vnetID, ncID, reservationID, subnetID, ipConstr
 			Status: "Completed"}
 	)
 
-	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, "", subnetID, "", "", ifaceID, cns.AzureContainerInstance, podName, podNamespace, false, false); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, host2NC, NC2Host); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Create nc failed with error %+v", respErr)
 	}
 
@@ -796,7 +798,7 @@ func deleteNc(t *testing.T, vnetID, ncID string) {
 			continue
 		}
 
-		t.Fatalf("Delete nc failed with error %+v", respErr)
+		t.Fatalf("Delete nc id %s in vnet %s failed with error %+v", vnetID, ncID, respErr)
 	}
 }
 

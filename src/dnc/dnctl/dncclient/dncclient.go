@@ -8,6 +8,7 @@ import (
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -481,7 +482,9 @@ func (c *DncClient) GetNCStatus(networkId, ncId string) (requestStatus *api.Requ
 				requestStatus = &reqStatus
 			}
 		} else {
+			bs, _ := ioutil.ReadAll(response.Body)
 			failedWithStatus(respErr, common.Get, common.NetworkContainer+" status", response.StatusCode)
+			respErr.Text = fmt.Sprintf("%s: %s", respErr.Text, string(bs))
 		}
 	} else {
 		reportClientErr(respErr, err)

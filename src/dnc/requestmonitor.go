@@ -22,7 +22,6 @@ import (
 	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/cns"
 	"github.com/Azure/azure-container-networking/cns/restserver"
-	"github.com/google/uuid"
 )
 
 var (
@@ -39,18 +38,6 @@ const (
 	defaultMaxConcurrentRequestsToProcess = 1000
 	defaultContentType                    = "application/json; charset=UTF-8"
 )
-
-func getSessionInfo(request *datamodel.RequestContext) map[string]string {
-	sessionInfo := make(map[string]string)
-	if len(request.NetworkID) != 0 {
-		sessionInfo[datamodel.NetworkRepositoryName] = request.NetworkID
-	}
-	if len(request.NodeID) != 0 {
-		sessionInfo[datamodel.NodeRepositoryName] = request.NodeID
-	}
-
-	return sessionInfo
-}
 
 func processRequest(requestID string, requestContext *datamodel.RequestContext) {
 	var (
@@ -628,61 +615,6 @@ Cleanup:
 	return true, nil
 }
 
-func generateImplicitReservationConfig(repoNCConfig *datamodel.NCConfiguration) (
-	*datamodel.ReservationConfiguration, *api.JsonErr) {
-	reservationConfiguration := datamodel.ReservationConfiguration{
-		ReservationID:     repoNCConfig.ReservationID,
-		NetworkID:         repoNCConfig.NetworkID,
-		ReservationState:  datamodel.Allocate,
-		Status:            datamodel.Pending,
-		AllocationRequest: repoNCConfig.RequestV2.AllocationRequest,
-		AssociatedNCID:    repoNCConfig.NetworkContainerID}
-
-	nodeID := repoNCConfig.GetAssociationInfo().NodeID
-
-	var (
-		ncLimit int
-		err     *api.JsonErr
-	)
-
-	// Retrieve the NC limit for the node
-	if ncLimit, err = cnsInterface.GetNCLimitForNode(nodeID); err != nil {
-		return nil, err
-	}
-
-	sessionInfoWrite := map[string]string{datamodel.NodeRepositoryName: nodeID}
-	sessionManager.BeginWriteSession(sessionInfoWrite)
-
-	// Add NC to the container map on the node. This will fail if the node has
-	// reached the NC limit
-	err = datamodel.UpdateNodeConfigurationNetworkContainerSet(
-		nodeID,
-		reservationConfiguration.NetworkID,
-		reservationConfiguration.AssociatedNCID,
-		reservationConfiguration.ReservationID,
-		repoNCConfig.RequestV2.AssociationInfo.ContainerType,
-		updateVlan(repoNCConfig.RequestV2.AssociationInfo.ContainerType),
-		false,
-		ncLimit)
-
-	sessionManager.EndWriteSession(sessionInfoWrite)
-
-	if err != nil {
-		err.Text = fmt.Sprintf("Failed to add NC to %s to node %s. Error %v",
-			reservationConfiguration.AssociatedNCID,
-			nodeID,
-			err.Text)
-		return nil, err
-	}
-
-	// Persist reservation configuration.
-	if err = datamodel.PutIPReservationConfiguration(&reservationConfiguration); err != nil {
-		return nil, err
-	}
-
-	return &reservationConfiguration, nil
-}
-
 func getAllocatedLocalAddressesOnNode(nodeID string) (map[string]*net.IPNet, *api.JsonErr) {
 	nodeConfiguration, err := datamodel.QueryNodeConfiguration(nodeID)
 	if err != nil {
@@ -783,150 +715,6 @@ Cleanup:
 	}
 
 	return markProcessingFailed, nil
-}
-
-func processNetworkContainerV1(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	var markPrepareFailed bool
-	var failureDetail *api.JsonErr
-	var reservationConfiguration *datamodel.ReservationConfiguration
-	associationInfo := repoNCConfig.GetAssociationInfo()
-
-	var (
-		ncLimit int
-		err     *api.JsonErr
-	)
-
-	// Retrieve the NC limit for the node
-	if ncLimit, err = cnsInterface.GetNCLimitForNode(associationInfo.NodeID); err != nil {
-		return false, err
-	}
-
-	sessionInfoWrite := map[string]string{
-		datamodel.ReservationRepositoryName: repoNCConfig.RequestV1.ReservationID,
-		datamodel.NodeRepositoryName:        associationInfo.NodeID,
-	}
-	sessionManager.BeginWriteSession(sessionInfoWrite)
-	defer sessionManager.EndWriteSession(sessionInfoWrite)
-
-	err = datamodel.UpdateNodeConfigurationNetworkContainerSet(
-		associationInfo.NodeID,
-		repoNCConfig.NetworkID,
-		repoNCConfig.NetworkContainerID,
-		repoNCConfig.RequestV1.ReservationID,
-		associationInfo.ContainerType,
-		updateVlan(associationInfo.ContainerType),
-		false,
-		ncLimit)
-
-	if err != nil {
-		if err.HTTPStatus == http.StatusInternalServerError {
-			return false, err
-		}
-		markPrepareFailed = true
-		failureDetail = err
-		goto Cleanup
-	}
-
-	reservationConfiguration, err = datamodel.QueryIPReservation(
-		repoNCConfig.NetworkID,
-		repoNCConfig.ReservationID)
-	if err != nil {
-		if err.HTTPStatus == http.StatusInternalServerError {
-			return false, err
-		}
-
-		markPrepareFailed = true
-		failureDetail = err
-		goto Cleanup
-	}
-
-	reservationConfiguration.AssociatedNCID = repoNCConfig.NetworkContainerID
-	err = datamodel.PutIPReservationConfiguration(reservationConfiguration)
-	if err != nil {
-		return false, err
-	}
-
-	repoNCConfig.State = datamodel.Reserve
-	repoNCConfig.Status = datamodel.Pending
-	repoNCConfig.FailureDetail = api.JsonErr{}
-
-Cleanup:
-
-	if markPrepareFailed {
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = *failureDetail
-	}
-
-	if err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
-		return false, err
-	}
-
-	return markPrepareFailed, nil
-}
-
-func processNetworkContainerV2(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	var markPrepareFailed bool
-	var failureDetail *api.JsonErr
-
-	if len(repoNCConfig.ReservationID) == 0 {
-		reservationIDUUID, err := uuid.NewUUID()
-		if err != nil {
-			return false, &api.JsonErr{
-				Code:       api.StatusInternalServerError,
-				HTTPStatus: http.StatusInternalServerError,
-				Text:       fmt.Sprintf("Failed to generate UUID due to error:%s", err.Error())}
-		}
-
-		repoNCConfig.ReservationID = reservationIDUUID.String()
-	}
-
-	reservationConfiguration, err := datamodel.TryQueryIPReservation(
-		repoNCConfig.NetworkID,
-		repoNCConfig.ReservationID)
-	if err != nil {
-		return false, err
-	}
-
-	if reservationConfiguration == nil {
-		reservationConfiguration, err = generateImplicitReservationConfig(repoNCConfig)
-		if err != nil {
-			if err.Code == api.NodeContainerCapacityExhausted {
-				// if NC limit has been reached the error is non-retriable.
-				markPrepareFailed = true
-				failureDetail = err
-			} else {
-				return false, err
-			}
-		} else {
-			logger.Debugf("Successfully created reservation config: %+v for NC: %s",
-				reservationConfiguration, repoNCConfig.NetworkContainerID)
-		}
-	}
-
-	// Only move to the next state in case of success
-	if markPrepareFailed {
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = *failureDetail
-	} else {
-		repoNCConfig.State = datamodel.Reserve
-		repoNCConfig.Status = datamodel.Pending
-		repoNCConfig.FailureDetail = api.JsonErr{}
-	}
-
-	if err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
-		return false, err
-	}
-
-	return markPrepareFailed, nil
-}
-
-func prepareNetworkContainer(
-	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	if !repoNCConfig.ImplicitReservation {
-		return processNetworkContainerV1(repoNCConfig)
-	}
-
-	return processNetworkContainerV2(repoNCConfig)
 }
 
 func processNetworkContainerReserve(
@@ -2202,7 +1990,7 @@ func processNetworkContainerRequest(
 
 		switch repoNCConfig.State {
 		case datamodel.Prepare:
-			removeRequestFromPendingQueue, err = prepareNetworkContainer(repoNCConfig)
+			removeRequestFromPendingQueue, err = preparer.PrepareNetworkContainer(repoNCConfig)
 
 		case datamodel.Reserve:
 			removeRequestFromPendingQueue, err = processNetworkContainerReserve(repoNCConfig)

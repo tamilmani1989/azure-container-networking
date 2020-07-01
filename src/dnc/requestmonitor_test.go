@@ -220,9 +220,13 @@ func Setup() error {
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 1024
 	http.DefaultTransport.(*http.Transport).TLSHandshakeTimeout = 0 * time.Second
 	nmAgentServer = new(MockServer)
-	nmAgentServer.SetupServer("127.0.0.1:9001")
+	if err := nmAgentServer.SetupServer("127.0.0.1:9001"); err != nil {
+		return err
+	}
 	cnsServer = new(MockServer)
-	cnsServer.SetupServer("127.0.0.1:10090")
+	if err := cnsServer.SetupServer("127.0.0.1:10090"); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -878,7 +882,7 @@ type MockServer struct {
 	Context      interface{}
 }
 
-func (ts *MockServer) SetupServer(ipEP string) {
+func (ts *MockServer) SetupServer(ipEP string) error {
 	ts.Server = httptest.NewUnstartedServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ts.Lock.Lock()
@@ -887,9 +891,13 @@ func (ts *MockServer) SetupServer(ipEP string) {
 				ts.ResponseFunc(w, r, ts.Context)
 			}
 		}))
-	l, _ := net.Listen("tcp", ipEP)
+	l, err := net.Listen("tcp", ipEP)
+	if err != nil {
+		return err
+	}
 	ts.Server.Listener = l
 	ts.Server.Start()
+	return nil
 }
 
 func (s *MockServer) TearDownSuite() {
@@ -3009,68 +3017,68 @@ func DeleteDeployments(t *testing.T, deployedNetworkContainersInfo *DeployedNetw
 
 func TestValidateSubnetExhaustion(t *testing.T) {
 	fmt.Println("****ValidateSubnetExhaustion Test**********")
-	var (
-		deploymentCount   = 1
-		ncPerNetworkCount = 3
-		podNum            = 0
-		deploymentInfos   = make([]DeploymentInfo, deploymentCount)
-		id, _             = uuid.NewUUID()
-		vnetID            = id.String()
-	)
-	for index := 0; index < deploymentCount; index++ {
-		networkDeploymentRequest := NetworkDeploymentRequest{
-			vnetID:              vnetID,
-			UseCustomDnsServers: true,
-			TagCount:            0,
-			SubnetSize:          29,
-			WaitForJoin:         true,
-			WaitForGet:          true}
-		ncDeploymentRequests := make([]*NCDeploymentRequest, ncPerNetworkCount)
-		for ncIndex := 0; ncIndex < ncPerNetworkCount; ncIndex++ {
-			ncID, _ := uuid.NewUUID()
-			podInfo := OrchestratorContext{
-				PodName:      fmt.Sprintf("%s-%d", nodeID, podNum),
-				PodNamespace: "testpodnamespace"}
-			context, _ := json.Marshal(podInfo)
-			ncDeploymentRequest := NCDeploymentRequest{
-				AllocationRequest: api.AllocationRequest{
-					SubnetName: "subnet1"},
-				AssociationInfo: api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context},
-				NCID:            ncID.String()}
 
-			ncDeploymentRequests[ncIndex] = &ncDeploymentRequest
-			podNum++
-		}
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
 
-		deploymentInfos[index] = DeploymentInfo{NetworkDeploymentRequest: &networkDeploymentRequest, NCDeploymentRequests: ncDeploymentRequests}
+	networkDeploymentRequest := NetworkDeploymentRequest{
+		vnetID:              vnetID,
+		UseCustomDnsServers: true,
+		TagCount:            0,
+		SubnetSize:          29,
+		WaitForJoin:         true,
+		WaitForGet:          true,
 	}
 
+	ncPerNetworkCount := 3
+	ncDeploymentRequests := make([]*NCDeploymentRequest, ncPerNetworkCount)
+
+	for ncIndex := 0; ncIndex < ncPerNetworkCount; ncIndex++ {
+		ncID, _ := uuid.NewUUID()
+		podInfo := OrchestratorContext{
+			PodName:      fmt.Sprintf("%s-%d", nodeID, ncIndex),
+			PodNamespace: "testpodnamespace",
+		}
+		context, _ := json.Marshal(podInfo)
+		ncDeploymentRequest := NCDeploymentRequest{
+			AllocationRequest: api.AllocationRequest{SubnetName: "subnet1"},
+			AssociationInfo:   api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context},
+			NCID:              ncID.String(),
+		}
+		ncDeploymentRequests[ncIndex] = &ncDeploymentRequest
+	}
+
+	deploymentInfos := []DeploymentInfo{{NetworkDeploymentRequest: &networkDeploymentRequest, NCDeploymentRequests: ncDeploymentRequests}}
+
 	deployedNetworkContainersInfo := DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, false, defaultNumCPUCores)
+
 	id, _ = uuid.NewUUID()
 	ncIDToFail := id.String()
 	deploymentRequestToFail := CreateNetworkContainerRequest{
-		AllocationRequest: api.AllocationRequest{
-			SubnetName: "subnet1"},
-		AssociationInfo: api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context}}
+		AllocationRequest: api.AllocationRequest{SubnetName: "subnet1"},
+		AssociationInfo:   api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context},
+	}
 	var body bytes.Buffer
-	json.NewEncoder(&body).Encode(deploymentRequestToFail)
+	_ = json.NewEncoder(&body).Encode(deploymentRequestToFail)
 	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncIDToFail + apiVersion
 	response, err := http.Post(ncURL, "application/json", &body)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	defer response.Body.Close()
-	var respErr api.JsonErr
+
 	if response.StatusCode != http.StatusOK {
-		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
+		var respErr api.JsonErr
+		if err := utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
 			t.Fatalf("CreateNetworkContainer call failed with response %+v Err:%+v", respErr, err)
 		}
 	}
 	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncIDToFail + "/status" + apiVersion
 	WaitForResourceState(t, ncURLStatus, "Failed", http.StatusBadRequest, 2)
-	deleteResource(t, ncURL, http.StatusOK)
-	fmt.Printf("Cleaned up failed deployment")
+	if err := deleteResource(t, ncURL, http.StatusOK); err != nil {
+		t.Log(err)
+	}
+	fmt.Println("Cleaned up failed deployment")
 	DeleteDeployments(t, deployedNetworkContainersInfo)
 }
 
