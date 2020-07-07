@@ -56,7 +56,7 @@ stages:
           - script: |
               echo Build tag is $(Env.Tag)
               go build -v ./test/nmagent/
-              go build -v -o dnctl-bin ./dnctl/
+              go build -v -o dnctl-bin ./cmd/dnctl/
               go build -v
             workingDirectory: "$(modulePath)"
             name: "BuildDNC"

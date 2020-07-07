@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"dnc/dnctl/common"
+	"dnc/client"
 	"fmt"
 	"net/http"
 
@@ -32,7 +32,7 @@ func getNodeCmd() *cobra.Command {
 
 			node, err := DncClient.GetNode(id)
 			if err.HTTPStatus != http.StatusOK {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", node)
@@ -63,7 +63,7 @@ func getVnetStatusCmd() *cobra.Command {
 
 			vnet, err := DncClient.GetNetworkStatus(id)
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", vnet)
@@ -83,7 +83,7 @@ func getVnetConfigCmd() *cobra.Command {
 
 			vnet, err := DncClient.GetNetworkConfiguration(id)
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", vnet)
@@ -115,7 +115,7 @@ func getSubnetStatusCmd() *cobra.Command {
 
 			vnet, err := DncClient.GetSubnetStatus(vnetid, subnetid)
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", vnet)
@@ -138,7 +138,7 @@ func getSubnetConfigCmd() *cobra.Command {
 
 			vnet, err := DncClient.GetSubnetConfiguration(vnetid, ncid)
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", vnet)
@@ -173,7 +173,7 @@ func getReservationStatusCmd() *cobra.Command {
 
 			reservation, err := DncClient.GetReservationStatus(vnetid, reservationid)
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", reservation)
@@ -196,7 +196,7 @@ func getReservationConfigCmd() *cobra.Command {
 
 			reservation, err := DncClient.GetReservation(vnetid, reservationid)
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", reservation)
@@ -221,7 +221,7 @@ func getNetworkContainerCmd() *cobra.Command {
 			vnet, err := DncClient.GetNC(vnetid, ncid)
 
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", vnet)
@@ -243,7 +243,7 @@ func getNetworkContainerConfigCmd() *cobra.Command {
 			vnet, err := DncClient.GetNCConfiguration(vnetid, ncid)
 
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", vnet)
@@ -267,7 +267,7 @@ func getNetworkContainerStatusCmd() *cobra.Command {
 			vnet, err := DncClient.GetNCStatus(vnetid, ncid)
 
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 				return
 			}
 			fmt.Printf("%+v\n", vnet)

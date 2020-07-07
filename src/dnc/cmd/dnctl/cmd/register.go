@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"dnc/dnctl/common"
+	"dnc/client"
 	"net/http"
 
 	"github.com/spf13/cobra"
@@ -31,7 +31,7 @@ func registerNodeCmd() *cobra.Command {
 
 			err := DncClient.AddNode(nodeid, ipaddr, orchtype)
 			if err != nil {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 			}
 		},
 	}
@@ -54,7 +54,7 @@ func registerVnetCmd() *cobra.Command {
 
 			err := DncClient.AddNetwork(vnetid)
 			if err != nil {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 			}
 		},
 	}
@@ -75,7 +75,7 @@ func registerSubnet() *cobra.Command {
 
 			err := DncClient.AddSubnet(vnetid, subnetid, authtoken)
 			if err != nil && err.HTTPStatus != http.StatusOK {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 				return
 			}
 		},

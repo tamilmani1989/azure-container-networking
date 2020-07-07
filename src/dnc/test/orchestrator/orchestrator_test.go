@@ -3,8 +3,8 @@ package test
 import (
 	"context"
 	"dnc/api"
+	"dnc/client"
 	"dnc/configuration"
-	"dnc/dnctl/dncclient"
 	"dnc/requestcontroller"
 	reqk8s "dnc/requestcontroller/kubernetes"
 	"dnc/test/utils"
@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	dnctl                       *dncclient.DncClient
+	dnctl                       *client.DncClient
 	defaultRequestTimeout       = time.Second * 4
 	defaultNCRequestTimeout     = time.Second * 10
 	defaultSleep                = time.Second * 1
@@ -51,7 +51,7 @@ func init() {
 		panic("DNC EP not set correctly")
 	}
 
-	dnctl = dncclient.NewDncClient("http://" + config.ServerSettings.IPAddress + ":" + config.ServerSettings.Port)
+	dnctl = client.NewDncClient("http://" + config.ServerSettings.IPAddress + ":" + config.ServerSettings.Port)
 
 	requestControllerKubeconfig, _ = os.LookupEnv("REQUEST_CONTROLLER_KUBECONFIG")
 }

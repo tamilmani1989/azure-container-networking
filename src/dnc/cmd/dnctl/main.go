@@ -1,7 +1,7 @@
 package main
 
 import (
-	"dnc/dnctl/cmd"
+	"dnc/cmd/dnctl/cmd"
 )
 
 func main() {

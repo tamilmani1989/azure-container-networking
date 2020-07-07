@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"dnc/dnctl/common"
+	"dnc/client"
 
 	"github.com/spf13/cobra"
 )
@@ -41,7 +41,7 @@ func createNetworkContainerCmd() *cobra.Command {
 
 			err := DncClient.AddNc(nodeID, networkID, ncID, reservationID, subnet, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, host2NC, NC2host)
 			if err != nil {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 			}
 		},
 	}
@@ -86,7 +86,7 @@ func createReservationCmd() *cobra.Command {
 
 			err := DncClient.AddReservation(networkID, subnet, ipConstraint, nodeConstraint, reservationID)
 			if err != nil {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 			}
 		},
 	}

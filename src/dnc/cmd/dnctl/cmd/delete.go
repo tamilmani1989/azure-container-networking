@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"dnc/dnctl/common"
+	"dnc/client"
 
 	"github.com/spf13/cobra"
 )
@@ -32,7 +32,7 @@ func deleteNetworkContainerCmd() *cobra.Command {
 
 			err := DncClient.DeleteNC(vnetID, ncID)
 			if err != nil {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 			}
 		},
 	}
@@ -56,7 +56,7 @@ func deleteReservationCmd() *cobra.Command {
 
 			err := DncClient.DeleteReservation(vnetID, reservationID)
 			if err != nil {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 			}
 		},
 	}

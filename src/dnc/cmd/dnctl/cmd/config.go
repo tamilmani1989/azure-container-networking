@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"dnc/dnctl/common"
+	"dnc/client"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -43,7 +43,7 @@ func configViewCmd() *cobra.Command {
 		Use:   "view",
 		Short: "Views the current DNC client config on disk",
 		Run: func(cmd *cobra.Command, args []string) {
-			common.PrettyPrint(DncClient)
+			client.PrettyPrint(DncClient)
 		},
 	}
 	return cmd

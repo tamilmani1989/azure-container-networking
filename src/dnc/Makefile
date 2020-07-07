@@ -15,31 +15,15 @@ DNCFILES = \
 	$(wildcard server/*.go) \
 	$(wildcard utils/*.go)
 
-# Source files for building dnctl
-DNCTLFILES = \
-	$(wildcard dnctl/*.go) \
-	$(wildcard dnctl/cmd/*.go) \
-	$(wildcard dnctl/common/*.go) \
-	$(wildcard dnctl/dncclient/*.go)
-
 # Source files for building runner
 RUNNERFILES = \
 	$(wildcard test/runner/*.go)
-
-# Source files for Request Controller
-REQCTRLFILES = \
-	$(wildcard requestcontroller/*.go) \
-	$(wildcard requestcontroller/buildinfo/*.go) \
-	$(wildcard requestcontroller/json/*.go) \
-	$(wildcard requestcontroller/reconcilers/*.go) \
-	$(wildcard cmd/requestcontroller/*.go) \
-	$(wildcard cmd/requestcontroller/cmd/*.go)
 
 # Build defaults
 GOOS ?= linux
 GOARCH ?= amd64
 
-DNCTL_DIR = dnctl
+DNCTL_DIR = cmd/dnctl
 RUNNER_DIR = test/runner
 REQCTRL_DIR = cmd/requestcontroller
 OUTPUT_DIR = output
@@ -107,7 +91,8 @@ $(RUNNER_BUILD_DIR)/runner$(EXE_EXT): $(RUNNERFILES)
 	go build -v -o $(RUNNER_BUILD_DIR)/runner$(EXE_EXT) $(RUNNER_DIR)/*.go
 
 # Build Request Controller
-$(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT): $(REQCTRLFILES)
+.PHONY: $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT)
+$(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT):
 	export CGO_ENABLED=0; \
 	go build -v -o $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT) $(REQCTRL_DIR)/*.go
 

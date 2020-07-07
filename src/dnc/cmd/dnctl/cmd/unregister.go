@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"dnc/dnctl/common"
+	"dnc/client"
 
 	"github.com/spf13/cobra"
 )
@@ -28,7 +28,7 @@ func unregisterVnetCmd() *cobra.Command {
 
 			err := DncClient.DeleteNetwork(vnetid)
 			if err != nil {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 			}
 		},
 	}
@@ -47,7 +47,7 @@ func unregisterNodeCmd() *cobra.Command {
 
 			err := DncClient.DeleteNode(nodeid)
 			if err != nil {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 			}
 		},
 	}
@@ -67,7 +67,7 @@ func unregisterSubnetCmd() *cobra.Command {
 
 			err := DncClient.DeleteSubnet(vnetid, subnetid)
 			if err != nil {
-				common.PrettyPrint(err)
+				client.PrettyPrint(err)
 			}
 		},
 	}

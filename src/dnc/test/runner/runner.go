@@ -2,7 +2,7 @@ package main
 
 import (
 	"dnc/api"
-	"dnc/dnctl/dncclient"
+	"dnc/client"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -76,7 +76,7 @@ type SwiftDatapath struct {
 var (
 	dncEP       string
 	runner      = new(Runner)
-	dnctl       *dncclient.DncClient
+	dnctl       *client.DncClient
 	testRunning bool
 	testLock    sync.Mutex
 	// storage vars
@@ -179,7 +179,7 @@ func init() {
 
 	runner.responseFunc = responder
 	runner.setupServer(":9009")
-	dnctl = dncclient.NewDncClient(dncEP)
+	dnctl = client.NewDncClient(dncEP)
 }
 
 func main() {

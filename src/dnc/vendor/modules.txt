@@ -21,7 +21,6 @@ github.com/Azure/azure-container-networking/common
 github.com/Azure/azure-container-networking/ipam
 github.com/Azure/azure-container-networking/log
 github.com/Azure/azure-container-networking/network/policy
-github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha
 github.com/Azure/azure-container-networking/platform
 github.com/Azure/azure-container-networking/store
 github.com/Azure/azure-container-networking/telemetry

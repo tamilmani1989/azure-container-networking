@@ -1,10 +1,9 @@
-package dncclient
+package client
 
 import (
 	"bytes"
 	"dnc/api"
 	"dnc/datamodel"
-	"dnc/dnctl/common"
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
@@ -82,7 +81,7 @@ func (c *DncClient) InitAzStorage(accountName, key, partitionKey, blob, containe
 
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
-				failedToDecodeResponse(respErr, common.Register, common.AzStorage, err)
+				failedToDecodeResponse(respErr, Register, AzStorage, err)
 			}
 		}
 	} else {
@@ -115,7 +114,7 @@ func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType string) (respErr *a
 
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, respErr); err != nil {
-				failedToDecodeResponse(respErr, common.Register, common.Node, err)
+				failedToDecodeResponse(respErr, Register, Node, err)
 			}
 		}
 	} else {
@@ -141,7 +140,7 @@ func (c *DncClient) AddNetwork(networkId string) (respErr *api.JsonErr) {
 
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
-				failedToDecodeResponse(respErr, common.Register, common.Network, err)
+				failedToDecodeResponse(respErr, Register, Network, err)
 			}
 		}
 	} else {
@@ -167,7 +166,7 @@ func (c *DncClient) AddSubnet(networkId, subnetId, authenticationToken string) (
 
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
-				failedToDecodeResponse(respErr, common.Register, common.Subnet, err)
+				failedToDecodeResponse(respErr, Register, Subnet, err)
 			}
 		}
 	} else {
@@ -224,7 +223,7 @@ func (c *DncClient) AddNc(nodeId, networkId, ncId, reservationId, subnet,
 
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
-				failedToDecodeResponse(respErr, common.Register, common.NetworkContainer, err)
+				failedToDecodeResponse(respErr, Register, NetworkContainer, err)
 			}
 		}
 	} else {
@@ -253,7 +252,7 @@ func (c *DncClient) AddReservation(networkId, subnet, ipConstraint, nodeConstrai
 
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
-				failedToDecodeResponse(respErr, common.Register, common.Reservation, err)
+				failedToDecodeResponse(respErr, Register, Reservation, err)
 			}
 		}
 	} else {
@@ -281,12 +280,12 @@ func (c *DncClient) GetNode(nodeId string) (nodeCfg *api.NodeInfoResponse, respE
 
 		if response.StatusCode == http.StatusOK {
 			if err = utils.DecodeResponse(response, &nodeInfoResponse); err != nil {
-				failedToDecodeResponse(respErr, common.Get, common.Node, err)
+				failedToDecodeResponse(respErr, Get, Node, err)
 			} else {
 				nodeCfg = &nodeInfoResponse
 			}
 		} else {
-			failedWithStatus(respErr, common.Get, common.Node, response.StatusCode)
+			failedWithStatus(respErr, Get, Node, response.StatusCode)
 		}
 	} else {
 		reportClientErr(respErr, err)
@@ -309,12 +308,12 @@ func (c *DncClient) GetNetworkConfiguration(networkId string) (networkCfg *api.N
 
 		if response.StatusCode == http.StatusOK {
 			if err = utils.DecodeResponse(response, &networkConfigurationResponse); err != nil {
-				failedToDecodeResponse(respErr, common.Get, common.Network, err)
+				failedToDecodeResponse(respErr, Get, Network, err)
 			} else {
 				networkCfg = &networkConfigurationResponse
 			}
 		} else {
-			failedWithStatus(respErr, common.Get, common.Network, response.StatusCode)
+			failedWithStatus(respErr, Get, Network, response.StatusCode)
 		}
 	} else {
 		reportClientErr(respErr, err)
@@ -337,12 +336,12 @@ func (c *DncClient) GetNetworkStatus(networkId string) (requestStatus *api.Reque
 
 		if response.StatusCode == http.StatusOK {
 			if err = utils.DecodeResponse(response, &reqStatus); err != nil {
-				failedToDecodeResponse(respErr, common.Get, common.Network+" status", err)
+				failedToDecodeResponse(respErr, Get, Network+" status", err)
 			} else {
 				requestStatus = &reqStatus
 			}
 		} else {
-			failedWithStatus(respErr, common.Get, common.Network+" status", response.StatusCode)
+			failedWithStatus(respErr, Get, Network+" status", response.StatusCode)
 		}
 	} else {
 		reportClientErr(respErr, err)
@@ -365,12 +364,12 @@ func (c *DncClient) GetSubnetConfiguration(networkId, subnet string) (subnetCfg 
 
 		if response.StatusCode == http.StatusOK {
 			if err = utils.DecodeResponse(response, &subnetConfigurationResponse); err != nil {
-				failedToDecodeResponse(respErr, common.Get, common.Subnet, err)
+				failedToDecodeResponse(respErr, Get, Subnet, err)
 			} else {
 				subnetCfg = &subnetConfigurationResponse
 			}
 		} else {
-			failedWithStatus(respErr, common.Get, common.Subnet, response.StatusCode)
+			failedWithStatus(respErr, Get, Subnet, response.StatusCode)
 		}
 	} else {
 		reportClientErr(respErr, err)
@@ -393,12 +392,12 @@ func (c *DncClient) GetSubnetStatus(networkId, subnet string) (requestStatus *ap
 
 		if response.StatusCode == http.StatusOK {
 			if err = utils.DecodeResponse(response, &reqStatus); err != nil {
-				failedToDecodeResponse(respErr, common.Get, common.Subnet+" status", err)
+				failedToDecodeResponse(respErr, Get, Subnet+" status", err)
 			} else {
 				requestStatus = &reqStatus
 			}
 		} else {
-			failedWithStatus(respErr, common.Get, common.Subnet+" status", response.StatusCode)
+			failedWithStatus(respErr, Get, Subnet+" status", response.StatusCode)
 		}
 	} else {
 		reportClientErr(respErr, err)
@@ -421,12 +420,12 @@ func (c *DncClient) GetNC(networkId, ncId string) (nc *api.NetworkContainerRespo
 
 		if response.StatusCode == http.StatusOK {
 			if err = utils.DecodeResponse(response, &ncConfigurationResponse); err != nil {
-				failedToDecodeResponse(respErr, common.Get, common.NetworkContainer, err)
+				failedToDecodeResponse(respErr, Get, NetworkContainer, err)
 			} else {
 				nc = &ncConfigurationResponse
 			}
 		} else {
-			failedWithStatus(respErr, common.Get, common.NetworkContainer, response.StatusCode)
+			failedWithStatus(respErr, Get, NetworkContainer, response.StatusCode)
 		}
 	} else {
 		reportClientErr(respErr, err)
@@ -449,12 +448,12 @@ func (c *DncClient) GetNCConfiguration(networkId, ncId string) (ncCfg *datamodel
 
 		if response.StatusCode == http.StatusOK {
 			if err = utils.DecodeResponse(response, &ncConfiguration); err != nil {
-				failedToDecodeResponse(respErr, common.Get, common.NetworkContainer+" configuration", err)
+				failedToDecodeResponse(respErr, Get, NetworkContainer+" configuration", err)
 			} else {
 				ncCfg = &ncConfiguration
 			}
 		} else {
-			failedWithStatus(respErr, common.Get, common.NetworkContainer+" configuration", response.StatusCode)
+			failedWithStatus(respErr, Get, NetworkContainer+" configuration", response.StatusCode)
 		}
 	} else {
 		reportClientErr(respErr, err)
@@ -477,13 +476,13 @@ func (c *DncClient) GetNCStatus(networkId, ncId string) (requestStatus *api.Requ
 
 		if response.StatusCode == http.StatusOK {
 			if err = utils.DecodeResponse(response, &reqStatus); err != nil {
-				failedToDecodeResponse(respErr, common.Get, common.NetworkContainer+" status", err)
+				failedToDecodeResponse(respErr, Get, NetworkContainer+" status", err)
 			} else {
 				requestStatus = &reqStatus
 			}
 		} else {
 			bs, _ := ioutil.ReadAll(response.Body)
-			failedWithStatus(respErr, common.Get, common.NetworkContainer+" status", response.StatusCode)
+			failedWithStatus(respErr, Get, NetworkContainer+" status", response.StatusCode)
 			respErr.Text = fmt.Sprintf("%s: %s", respErr.Text, string(bs))
 		}
 	} else {
@@ -507,12 +506,12 @@ func (c *DncClient) GetReservation(networkId, reservationId string) (reservation
 
 		if response.StatusCode == http.StatusOK {
 			if err = utils.DecodeResponse(response, &reservationResponse); err != nil {
-				failedToDecodeResponse(respErr, common.Get, common.Reservation, err)
+				failedToDecodeResponse(respErr, Get, Reservation, err)
 			} else {
 				reservationCfg = &reservationResponse
 			}
 		} else {
-			failedWithStatus(respErr, common.Get, common.Reservation, response.StatusCode)
+			failedWithStatus(respErr, Get, Reservation, response.StatusCode)
 		}
 	} else {
 		reportClientErr(respErr, err)
@@ -535,12 +534,12 @@ func (c *DncClient) GetReservationStatus(networkId, reservationId string) (reser
 
 		if response.StatusCode == http.StatusOK {
 			if err = utils.DecodeResponse(response, &reservationStatusResp); err != nil {
-				failedToDecodeResponse(respErr, common.Get, common.Reservation, err)
+				failedToDecodeResponse(respErr, Get, Reservation, err)
 			} else {
 				reservationStatus = &reservationStatusResp
 			}
 		} else {
-			failedWithStatus(respErr, common.Get, common.Reservation, response.StatusCode)
+			failedWithStatus(respErr, Get, Reservation, response.StatusCode)
 		}
 	} else {
 		reportClientErr(respErr, err)
@@ -567,7 +566,7 @@ func (c *DncClient) DeleteNode(nodeId string) (respErr *api.JsonErr) {
 
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
-				failedToDecodeResponse(respErr, common.Delete, common.Node, err)
+				failedToDecodeResponse(respErr, Delete, Node, err)
 			}
 		}
 	} else {
@@ -591,7 +590,7 @@ func (c *DncClient) DeleteNetwork(networkId string) (respErr *api.JsonErr) {
 
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
-				failedToDecodeResponse(respErr, common.Delete, common.Network, err)
+				failedToDecodeResponse(respErr, Delete, Network, err)
 			}
 		}
 	} else {
@@ -615,7 +614,7 @@ func (c *DncClient) DeleteSubnet(networkId, subnet string) (respErr *api.JsonErr
 
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
-				failedToDecodeResponse(respErr, common.Delete, common.Subnet, err)
+				failedToDecodeResponse(respErr, Delete, Subnet, err)
 			}
 		}
 	} else {
@@ -639,7 +638,7 @@ func (c *DncClient) DeleteNC(networkId, ncId string) (respErr *api.JsonErr) {
 
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
-				failedToDecodeResponse(respErr, common.Delete, common.NetworkContainer, err)
+				failedToDecodeResponse(respErr, Delete, NetworkContainer, err)
 			}
 		}
 	} else {
@@ -663,7 +662,7 @@ func (c *DncClient) DeleteReservation(networkId, reservationId string) (respErr 
 
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
-				failedToDecodeResponse(respErr, common.Delete, common.Reservation, err)
+				failedToDecodeResponse(respErr, Delete, Reservation, err)
 			}
 		}
 	} else {
@@ -691,7 +690,7 @@ func (c *DncClient) PromoteNCState(networkId, ncId string) (respErr *api.JsonErr
 
 		if response.StatusCode != http.StatusOK {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
-				failedToDecodeResponse(respErr, common.Promote, common.NetworkContainer, err)
+				failedToDecodeResponse(respErr, Promote, NetworkContainer, err)
 			}
 		}
 	} else {
