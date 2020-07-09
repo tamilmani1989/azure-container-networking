@@ -92,6 +92,12 @@ namespace SwiftRunner
             public bool PrivateDNS { get; private set; }
 
             /// <summary>
+            /// MNAT
+            /// </summary>
+            [JsonProperty("MNAT")]
+            public bool MNAT { get; private set; }
+
+            /// <summary>
             /// LastError
             /// </summary>
             [JsonProperty("LastError")]
@@ -114,6 +120,7 @@ namespace SwiftRunner
                 PrivateLink = false;
                 ExternalDNS = false;
                 PrivateDNS = false;
+                MNAT = false;
                 LastError = "";
             }
 
@@ -135,6 +142,7 @@ namespace SwiftRunner
                 PrivateLink = response.PrivateLink;
                 ExternalDNS = response.ExternalDNS;
                 PrivateDNS = response.PrivateDNS;
+                MNAT = response.MNAT;
                 LastError = response.LastError;
             }
 
@@ -153,8 +161,23 @@ namespace SwiftRunner
             /// <param name="privateLink"></param>
             /// <param name="externalDNS"></param>
             /// <param name="privateDNS"></param>
+            /// <param name="MNAT"></param>
             /// <param name="lastError"></param>
-            public DncDataPathResponse(bool serviceTunnel, bool nc2Nc, bool nc2VM, bool vnet2VnetGW, bool vnet2VnetPeering, bool nonRfcVnet2VnetPeering, bool nsg, bool nsgwTags, bool udr, bool privateLink, bool externalDNS, bool privateDNS, string lastError)
+            public DncDataPathResponse(
+                bool serviceTunnel,
+                bool nc2Nc,
+                bool nc2VM,
+                bool vnet2VnetGW,
+                bool vnet2VnetPeering,
+                bool nonRfcVnet2VnetPeering,
+                bool nsg,
+                bool nsgwTags,
+                bool udr,
+                bool privateLink,
+                bool externalDNS,
+                bool privateDNS,
+                bool mnat,
+                string lastError)
             {
                 ServiceTunnel = serviceTunnel;
                 Nc2Nc = nc2Nc;
@@ -168,12 +191,25 @@ namespace SwiftRunner
                 PrivateLink = privateLink;
                 ExternalDNS = externalDNS;
                 PrivateDNS = privateDNS;
+                MNAT = mnat;
                 LastError = lastError;
             }
 
             public bool Healthy()
             {
-                return ServiceTunnel && Nc2Nc && Nc2VM && Vnet2VnetGW && Vnet2VnetPeering && NonRFCVnet2VnetPeering && NSG && NSGwTags && UDR && PrivateLink && ExternalDNS && PrivateDNS;
+                return ServiceTunnel &&
+                    Nc2Nc &&
+                    Nc2VM &&
+                    Vnet2VnetGW &&
+                    Vnet2VnetPeering &&
+                    NonRFCVnet2VnetPeering &&
+                    NSG &&
+                    NSGwTags &&
+                    UDR &&
+                    PrivateLink &&
+                    ExternalDNS &&
+                    PrivateDNS &&
+                    MNAT;
             }
 
             /// <summary>
@@ -182,7 +218,10 @@ namespace SwiftRunner
             /// <returns>String representation of the object.</returns>
             public override string ToString()
             {
-                return $"[serviceTunnel:{ServiceTunnel} Nc2Nc:{Nc2Nc} Nc2VM:{Nc2VM} vnet2VnetGW:{Vnet2VnetGW} vnet2VnetPeering:{Vnet2VnetPeering} nonRfcVnet2VnetPeering:{NonRFCVnet2VnetPeering} nsg:{NSG} nsgwTags:{NSGwTags} udr:{UDR} privateLink:{PrivateLink} externalDNS:{ExternalDNS} privateDNS:{PrivateDNS} lastError:{LastError}]";
+                return $"[serviceTunnel:{ServiceTunnel} Nc2Nc:{Nc2Nc} Nc2VM:{Nc2VM} vnet2VnetGW:{Vnet2VnetGW} " +
+                    $"vnet2VnetPeering:{Vnet2VnetPeering} nonRfcVnet2VnetPeering:{NonRFCVnet2VnetPeering} " +
+                    $"nsg:{NSG} nsgwTags:{NSGwTags} udr:{UDR} privateLink:{PrivateLink} externalDNS:{ExternalDNS} " +
+                    $"privateDNS:{PrivateDNS} mnat:{MNAT} lastError:{LastError}]";
             }
         }
     }

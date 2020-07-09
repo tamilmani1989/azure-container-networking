@@ -32,6 +32,7 @@ $custaVnetName = "custa-vnet"
 $custbVnetName = "custb-vnet"
 $custcVnetName = "custc-vnet"
 $custdVnetName = "custd-vnet"
+$custVnetWithMNAT = "cust-mnat"
 $service = "default/runner-service"
 $sharedGWKey = "12d11bfe-9849-4e62-b6f2-bc8af37f7456"
 
@@ -450,12 +451,51 @@ if ($?) {
             --vnet-name $custaVnetName `
             --network-security-group myNsg
 
-        ## SWITCH OVER TO SAW/JIT ACCESS -> swiftify and retrieve authToken using $infraVnet and $custVnet
-        Write-Host "Values for delegation...`nInfraVnet: $infraVnet`nCustVnet: $custVnet`nDncEP: $k8sEP"
+        ## Create public IP for NAT Gateway resource
+        az network public-ip create `
+            --resource-group $resourceGroup `
+            --name natGatewayIP `
+            --sku standard
 
-        ## replace the authToken in runner-conf.yaml and continue
+        ##  Create NAT Gateway resource
+        az network nat gateway create `
+            --resource-group $resourceGroup `
+            --name natgateway `
+            --public-ip-addresses natGatewayIP
+
+        ## Create Cust Vnet (exclusive) for NAT gateway
+        az network vnet create `
+            --resource-group $resourceGroup `
+            --location $region `
+            --name $custVnetWithMNAT `
+            --address-prefix 10.0.0.0/16 `
+            --subnet-name $delegatedSubnet `
+            --subnet-prefix 10.0.1.0/24
+
+        ## Attach the subnet from NAT Gateway VNET to NAT gateway resource
+        az network vnet subnet update `
+            --resource-group $resourceGroup `
+            --vnet-name $custVnetWithMNAT  `
+            --name  $delegatedSubnet `
+            --nat-gateway natgateway
+
+        ## Replace Cust Vnet with MNAT VNET id in runner-conf.yaml
+        $natGwIp = (az network public-ip show -g $resourceGroup -n natGatewayIP | jq.exe -r '.ipAddress')
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_MNAT_PUBLIC_IP", $natGwIp | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        $natVnetId = (az network vnet show -g $resourceGroup -n $custVnetWithMNAT | jq.exe -r '.resourceGuid')
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_CUST_VNET_WITH_MNAT_VNETID", $natVnetId | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        ## SWITCH OVER TO SAW/JIT ACCESS -> swiftify and retrieve authToken using $infraVnet, $custVnet and $custVnetWithMNAT
+        Write-Host "Values for delegation...`nInfraVnet: $infraVnet`nCustVnet: $custVnet`ncustVnetWithMNAT: $custVnetWithMNAT`nDncEP: $k8sEP"
+
+        ## replace the authToken in runner-conf.yaml
         $authToken = "4413692c-e47b-4d62-b137-2c523cc9d87e"
         (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_AUTHENTICATION_TOKEN", $authToken | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        ## replace the authToken for cust vnet with MNAT in runner-conf.yaml and continue
+        $authToken = "c18d2f22-b1e3-49f7-b462-a5c5bea5372e"
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT", $authToken | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
 
         Read-Host 'Press any key to continue... (1/2)'
         Read-Host 'Press any key to confirm continuation... (2/2)'

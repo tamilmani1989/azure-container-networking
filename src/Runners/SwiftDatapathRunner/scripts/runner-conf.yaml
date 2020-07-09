@@ -84,3 +84,9 @@ spec:
           value: "k8s-agentpool1-14938606-1"
         - name: AUTHENTICATION_TOKEN
           value: "REPLACE_WITH_AUTHENTICATION_TOKEN"
+        - name: CUST_VNET_WITH_MNAT
+          value: "REPLACE_WITH_CUST_VNET_WITH_MNAT_VNETID"
+        - name: AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT
+          value: "REPLACE_WITH_AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT"
+        - name: MNAT_PUBLIC_IP
+          value: "REPLACE_WITH_MNAT_PUBLIC_IP"

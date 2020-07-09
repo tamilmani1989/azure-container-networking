@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-container-networking/cns"
+	"github.com/google/uuid"
 )
 
 const (
@@ -37,6 +38,8 @@ const (
 	podName1     = "container1"
 	nc2          = "0bf30ce0-c61e-4c88-8c1b-ac8019f42bf2"
 	podName2     = "container2"
+	nc3          = "7df265e1-f1ba-45df-8e2b-62b93d889032"
+	podName3     = "container3mnat"
 
 	defaultRequestTimeout   time.Duration = time.Second * 4
 	defaultNCRequestTimeout time.Duration = time.Second * 20
@@ -70,6 +73,7 @@ type SwiftDatapath struct {
 	PrivateLink            bool
 	ExternalDNS            bool
 	PrivateDNS             bool
+	MNAT                   bool
 	LastError              string
 }
 
@@ -91,17 +95,22 @@ var (
 	iface1 string
 	iface2 string
 	// vnet vars
-	vnetID              string
-	authenticationToken string
+	vnetID                   string
+	authenticationToken      string
+	vnetWithMNATID           string
+	authTokenForVnetWithMNAT string
 	// NC context
 	context  = []byte(`{"PodName":"` + podName1 + `","PodNamespace":"` + podNamespace + `"}`)
 	context2 = []byte(`{"PodName":"` + podName2 + `","PodNamespace":"` + podNamespace + `"}`)
+	context3 = []byte(`{"PodName":"` + podName3 + `","PodNamespace":"` + podNamespace + `"}`)
 	// blob endpoint
 	blobEP   string
 	plblobEP string
 	// regex for private DNS
 	regPrivateDNS = regexp.MustCompile(`https://(.*).blob.core.windows.net/swiftpl/testblob.txt`)
 	privateDNS    []string
+	// MNAT resource public ip
+	mnatPublicIP string
 )
 
 func init() {
@@ -175,6 +184,33 @@ func init() {
 	privateDNS = regPrivateDNS.FindStringSubmatch(plblobEP)
 	if len(privateDNS) < 2 {
 		os.Exit(11)
+	}
+
+	vnetWithMNATID, found = os.LookupEnv("CUST_VNET_WITH_MNAT")
+	if !found || len(vnetWithMNATID) <= 0 {
+		os.Exit(12)
+	}
+
+	// Ensure it is a valid GUID
+	_, parseErr := uuid.Parse(vnetWithMNATID)
+	if parseErr != nil {
+		os.Exit(13)
+	}
+
+	authTokenForVnetWithMNAT, found = os.LookupEnv("AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT")
+	if !found || len(authTokenForVnetWithMNAT) <= 0 {
+		os.Exit(14)
+	}
+
+	// Ensure it is a valid GUID
+	_, parseErr = uuid.Parse(authTokenForVnetWithMNAT)
+	if parseErr != nil {
+		os.Exit(15)
+	}
+
+	mnatPublicIP, found = os.LookupEnv("MNAT_PUBLIC_IP")
+	if !found || len(net.ParseIP(mnatPublicIP)) <= 0 {
+		os.Exit(16)
 	}
 
 	runner.responseFunc = responder
@@ -275,9 +311,10 @@ func e2eTests() {
 			UDR:                    true,
 			PrivateLink:            true,
 			ExternalDNS:            true,
-			PrivateDNS:             true}
-		srcPod, pod2, podIP1, podIP2 string
-		output                       []byte
+			PrivateDNS:             true,
+			MNAT:                   true}
+		srcPod, pod2, pod3, podIP1, podIP2 string
+		output                             []byte
 	)
 
 	if err = swiftSetup(); err != nil {
@@ -292,10 +329,17 @@ func e2eTests() {
 	if err != nil {
 		goto WriteJsonReport
 	}
+
 	pod2, podIP2, err = getPodExecInfo(podName2)
 	if err != nil {
 		goto WriteJsonReport
 	}
+
+	pod3, _, err = getPodExecInfo(podName3)
+	if err != nil {
+		goto WriteJsonReport
+	}
+
 	if podIP1 != nc1IP {
 		temp := srcPod
 		srcPod = pod2
@@ -375,6 +419,27 @@ func e2eTests() {
 		lastErr = fmt.Errorf("PrivateDNS failed: unable resolve %+v with err %+v", privateDNS[1]+privateLinkDomain, err)
 	}
 
+	// test MNAT, the link below basically gives the src ip of the outbound packet
+	output, err = exec.Command("kubectl", "exec", pod3, "--", "curl", "https://api.ipify.org?format=json").CombinedOutput()
+	if err != nil {
+		report.MNAT = false
+		lastErr = fmt.Errorf("Managed NAT failed: MNAT verification command failed with error %+v", err)
+	}
+
+	// Check if the command output is non-empty
+	if report.MNAT && len(output) == 0 {
+		report.MNAT = false
+		lastErr = fmt.Errorf("Managed NAT failed: MNAT verification command output is empty.")
+	}
+
+	// Check if the command output has MNAT public IP
+	if report.MNAT && !strings.Contains(string(output[1:len(output)-1]), mnatPublicIP) {
+		report.MNAT = false
+		lastErr = fmt.Errorf("Managed NAT failed: MNAT verification command output: %s does not contain MNAT public IP %s",
+			string(output),
+			mnatPublicIP)
+	}
+
 	// clean up all the NC states for next test (we only clean up when datapath is healthy)
 	if lastErr == nil {
 		err = swiftTeardown()
@@ -427,7 +492,15 @@ func swiftSetup() error {
 		return err
 	}
 
+	if err = addNetwork(vnetWithMNATID, defaultNCRequestTimeout); err != nil {
+		return err
+	}
+
 	if err = addSubnet(vnetID, subnetID, authenticationToken); err != nil {
+		return err
+	}
+
+	if err = addSubnet(vnetWithMNATID, subnetID, authTokenForVnetWithMNAT); err != nil {
 		return err
 	}
 
@@ -439,11 +512,20 @@ func swiftSetup() error {
 		return err
 	}
 
+	// NC for MNAT on node1 (10.0.1.4)
+	if err = addNc(node1, vnetWithMNATID, nc3, "", subnetID, nc1IP, "", iface1, containerType, podName3, podNamespace, false, false, defaultNCRequestTimeout); err != nil {
+		return err
+	}
+
 	if err = createPod(podName1); err != nil {
 		return err
 	}
 
 	if err = createPod(podName2); err != nil {
+		return err
+	}
+
+	if err = createPod(podName3); err != nil {
 		return err
 	}
 
@@ -455,12 +537,17 @@ func swiftTeardown() (err error) {
 
 	deletePod(podName1)
 	deletePod(podName2)
+	deletePod(podName3)
 
 	if lastErr = deleteNc(vnetID, nc1); err != nil {
 		err = lastErr
 	}
 
 	if lastErr = deleteNc(vnetID, nc2); err != nil {
+		err = lastErr
+	}
+
+	if lastErr = deleteNc(vnetWithMNATID, nc3); err != nil {
 		err = lastErr
 	}
 

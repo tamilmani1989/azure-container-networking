@@ -7,6 +7,8 @@ COPY test/runner/container1.yaml container1.yaml
 
 COPY test/runner/container2.yaml container2.yaml
 
+COPY test/runner/container3mnat.yaml container3mnat.yaml
+
 COPY test/runner/cns.yaml cns.yaml
 
 COPY test/runner/dnc.yaml dnc.yaml

@@ -45,6 +45,7 @@ namespace SwiftRunner
         private MeasureMetric4D PrivateLinkMetric;
         private MeasureMetric4D ExternalDNSMetric;
         private MeasureMetric4D PrivateDNSMetric;
+        private MeasureMetric4D MNATMetric;
 
         public Runner(string[] args)
             : base(args)
@@ -158,6 +159,15 @@ namespace SwiftRunner
                             "DncEndPoint",
                             "PartitionKey",
                             ref mdmErr);
+            MNATMetric = MeasureMetric4D.Create(
+                this.GetConfigurationValue(MDMAccountName),
+                this.GetConfigurationValue(Namespace),
+                "MNAT",
+                "Environment",
+                "RunnerInstance",
+                "DncEndPoint",
+                "PartitionKey",
+                ref mdmErr);
         }
 
         public override void StartRunner()
@@ -314,6 +324,16 @@ namespace SwiftRunner
                         {
                             Console.Error.WriteLine("Failed to emit PrivateDNS metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
+
+                        if (!MNATMetric.LogValue(datapath.MNAT ? 1 : 2,
+                            this.Environment,
+                            this.RunnerInstance,
+                            k8sEP,
+                            partitionKey,
+                            ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emit MNAT metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
                     }
                     else
                     {
@@ -422,7 +442,8 @@ namespace SwiftRunner
                 UdrMetric != null &&
                 PrivateLinkMetric != null &&
                 ExternalDNSMetric != null &&
-                PrivateDNSMetric != null;
+                PrivateDNSMetric != null &&
+                MNATMetric != null;
         }
     }
 }
