@@ -36,6 +36,12 @@ case $1 in
         else
             # Linux.
             go build -o azure-dnc -ldflags "-X dnc/utils.Version=$VERSION -X dnc/aiwrapper.aiMetadata=$aiMetadata -s -w" >& build.log
+            echo "Building BondDataSerializer"
+            cd $DIR/src/BondDataSerializer
+            mkdir -p build
+            cd build
+            cmake ..
+            make
         fi
         ;;
     "package" )

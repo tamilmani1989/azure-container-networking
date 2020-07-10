@@ -1,0 +1,13 @@
+namespace Sdn.Bond.Data
+
+struct NcProperty
+{
+    0: wstring KeyName;
+    1: wstring Value;
+}
+
+struct NcData
+{
+    0: uint64              Version;
+    1: vector<NcProperty>  NcProperties;
+}

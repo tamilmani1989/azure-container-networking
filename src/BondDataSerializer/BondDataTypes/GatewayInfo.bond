@@ -1,0 +1,20 @@
+import "IPAddress.bond"
+import "VNetAddress.bond"
+
+namespace Sdn.Bond.Data
+
+enum GwType
+{
+    Unknown,
+    IpSec,
+    DirectAttach,
+    Backend
+}
+
+struct GatewayInfo
+{
+    0: IPAddress                     GwVip;
+    1: GwType                        Type = Unknown;
+    2: wstring                       GreKey;
+    3: nullable<vector<VNetAddress>> MseeMappings;
+}

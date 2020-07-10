@@ -7,11 +7,11 @@ environment:
   host:
     os: 'linux'                                                         # used to verify at runtime that correct host pool is being used
     flavor: 'ubuntu'                                                    # not used and will be removed in future
-    version: '16.04'                                                    # not used and will be removed in future
+    version: '18.04'                                                    # not used and will be removed in future
   runtime:
     provider: 'appcontainer'                                            # Currently only appcontainer is supported future will bring
                                                                         # oscontainer and virtualmachine
-    image: 'cdpxtest.azurecr.io/global/ubuntu-1604-all:1.0'             # This is the image that your pipeline will run in.
+    image: 'cdpxlinux.azurecr.io/global/ubuntu-1804-all:2.0'             # This is the image that your pipeline will run in.
                                                                         # For (appcontainer), Docker Hub public Microsoft repository images
                                                                         # can be used.
                                                                         # Example microsoft/dotnet:1.1.1-sdk-nanoserver. Or the CDP team
@@ -79,6 +79,12 @@ versioning:
 # All files in the artifacts sections will be collected, saved off and signed.
 # The signed files will be restored back to the original locations before the next stage is invoked.
 # Eventually, network access will be limited or cut-off in this stage.
+restore:
+  commands:
+   - !!defaultcommand
+     name: 'Build and setup Bond'
+     command: 'build-bond.sh'
+
 build:
   commands:
 

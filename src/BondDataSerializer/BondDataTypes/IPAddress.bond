@@ -1,0 +1,26 @@
+namespace Sdn.Bond.Data
+
+enum IPAddressType
+{
+    Unknown,
+    IPv4,
+    IPv6
+}
+
+struct IPAddress
+{
+    0: IPAddressType Type = Unknown;
+    1: uint16 Data1;
+    2: uint16 Data2;
+    3: uint16 Data3;
+    4: uint16 Data4;
+    5: uint16 Data5;
+    6: uint16 Data6;
+    7: uint16 Data7;
+    8: uint16 Data8;
+}
+
+struct IPAddressList
+{
+    0: vector<IPAddress> IPAddresses;
+};

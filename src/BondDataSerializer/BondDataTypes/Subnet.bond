@@ -1,0 +1,9 @@
+import "IPAddress.bond"
+
+namespace Sdn.Bond.Data
+
+struct Subnet
+{
+    0: IPAddress Address;
+    1: int32 Prefix;
+};

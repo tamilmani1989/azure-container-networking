@@ -1,0 +1,12 @@
+import "IPAddress.bond"
+import "MacAddress.bond"
+
+namespace Sdn.Bond.Data
+
+struct VNetAddress
+{
+    0: IPAddress CA;
+    1: IPAddress PA;
+    2: MacAddress Mac;
+    3: uint32 AzId;
+};

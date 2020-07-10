@@ -1,0 +1,90 @@
+import "IPAddress.bond"
+import "Subnet.bond"
+import "VNetAddress.bond"
+import "GatewayInfo.bond"
+
+namespace Sdn.Bond.Data
+
+enum SubnetPropertyType
+{
+    Unknown,
+    Routes,
+    Nsgs
+}
+
+enum LinkRecordType
+{
+    LinkRecordTypeUnknown, 
+    ConnectedVnetGroupLinkRecord,
+    ConnectedVnetGroupEmptyLinkRecord
+}
+
+struct VNetSubnet
+{
+    0: uint64                                            Version;
+    1: wstring                                           SubnetName;
+    2: Subnet                                            SubnetAddress;
+    3: uint16                                            SubnetId;
+    4: IPAddress                                         DefaultGateway;
+    5: wstring                                           ServiceName;
+    6: wstring                                           Token;
+    7: nullable<vector<wstring>>                         ServiceAddressTags;
+    8: nullable<map<SubnetPropertyType,vector<wstring>>> SubnetProperties;
+}
+
+struct PrivateIpInfo
+{
+    0: uint32                        LinkId;
+    1: IPAddress                     CustomerAddressIPv4;
+    2: wstring                       DnsFqdn;
+    3: bool                          IsRedirectEnabled;
+    4: wstring                       RedirectMapId;
+    5: wstring                       ServiceName;
+    6: wstring                       ServiceRegionID;
+    7: wstring                       ResourceID;
+    8: bool                          UseSdnAppliance;
+    9: nullable<wstring>             PrivateLinkServiceResourceId;
+}
+
+struct LinkRecord
+{
+    0: wstring                       LinkId;
+    1: nullable<vector<Subnet>>      LocalVnetAddressSpaces;
+    2: nullable<vector<Subnet>>      RemoteVnetAddressSpaces;
+    3: wstring                       LocalVnetRegion;
+    4: wstring                       RemoteVnetRegion;
+    5: wstring                       RemoteVnetId;
+    6: uint32                        RemoteVnetGreKey;
+    7: bool                          OpenAcls;
+    8: bool                          DisableSpoofGuard;
+    9: nullable<vector<GatewayInfo>> RemoteGateways;
+    10: nullable<vector<PrivateIpInfo>> PrivateIPs;
+    11: LinkRecordType               RecordType = LinkRecordTypeUnknown;
+    12: nullable<wstring>            ParentVnetVirtualRouterId;
+
+}
+
+struct LinkRecordList
+{
+    0: nullable<vector<LinkRecord>> LinkRecords;
+}
+
+struct VNetConfiguration
+{
+    0: uint64                           Version;
+    1: wstring                          Id;
+    2: nullable<vector<Subnet>>         VNetSpace;
+    3: nullable<vector<Subnet>>         CNetSpace;
+    4: uint16                           RegionId;
+    5: uint32                           GreKey;
+    6: nullable<vector<IPAddress>>      DnsServersInNetCfg;
+    7: wstring                          VnetIDnsZoneId;
+    8: nullable<vector<GatewayInfo>>    GatewayInfos;
+    9: nullable<vector<VNetSubnet>>     VNetSubnets;
+    10: nullable<vector<LinkRecord>>    VNetPeerings;
+    11: nullable<vector<wstring>>       SubnetNames;
+    12: nullable<wstring>               PrivateIPConfigPubSubPath;
+    13: nullable<wstring>               LnmId;
+    14: nullable<vector<PrivateIpInfo>> PrivateIPs;
+    15: nullable<vector<wstring>>       SdnApplianceDataVips;
+}
