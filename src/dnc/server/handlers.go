@@ -724,6 +724,22 @@ func GetNetwork(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, getErr)
 }
 
+// GetNetworks - Handler for retrieving the vnets that are managed by this DNC
+func GetNetworks(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set(contentTypeStr, defaultContentType)
+
+	networks, getErr := ctrler.GetNetworks()
+	if getErr == nil {
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(networks); err != nil {
+			panic(err)
+		}
+		return
+	}
+
+	setRequestFailed(w, getErr)
+}
+
 // PutSubnet - Handler for put delgate subnet
 func PutSubnet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)

@@ -76,6 +76,7 @@ func TestBasicVnetAPIs(t *testing.T) {
 
 	addNetwork(t, vnetID, defaultRequestTimeout)
 	addNetwork(t, vnetID, defaultRequestTimeout)
+	getNetworks(t, []string{vnetID})
 	deleteNetwork(t, vnetID, http.StatusNotFound)
 }
 
@@ -583,6 +584,23 @@ func addNetwork(t *testing.T, vnetID string, timeout time.Duration) {
 	}
 }
 
+func getNetworks(t *testing.T, expectedVnetIDs []string) {
+	var (
+		respErr          *api.JsonErr
+		networksResponse *api.NetworksResponse
+	)
+
+	if networksResponse, respErr = dnctl.GetNetworks(); respErr.HTTPStatus != http.StatusOK {
+		t.Fatalf("Failed to get all networks with error %+v", respErr)
+	}
+
+	for _, expectedVnetID := range expectedVnetIDs {
+		if !containsNetwork(networksResponse.NetworkInfos, expectedVnetID) {
+			t.Fatalf("Get Networks failed, expected %s in response but was not present", expectedVnetID)
+		}
+	}
+}
+
 func deleteNetwork(t *testing.T, vnetID string, status int) {
 	var (
 		respErr                      *api.JsonErr
@@ -813,4 +831,14 @@ func deleteHelper(status int) (expectedStatus int, validateDelete bool) {
 func (c RequestControllerConfigProvider) GetConfig() (requestcontroller.Config, error) {
 	kubeconfig := requestcontroller.KubernetesConfig{KubeconfigPath: c.kubeconfig}
 	return requestcontroller.Config{KubernetesConfig: kubeconfig}, nil
+}
+
+func containsNetwork(networkInfos []api.NetworkInfo, s string) bool {
+	for _, t := range networkInfos {
+		if t.GUID == s {
+			return true
+		}
+	}
+
+	return false
 }

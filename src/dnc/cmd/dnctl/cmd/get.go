@@ -50,6 +50,7 @@ func getVnetCmd() *cobra.Command {
 	}
 	cmd.AddCommand(getVnetStatusCmd())
 	cmd.AddCommand(getVnetConfigCmd())
+	cmd.AddCommand(getVnetIdsCmd())
 
 	return cmd
 }
@@ -91,6 +92,24 @@ func getVnetConfigCmd() *cobra.Command {
 	}
 	cmd.Flags().String("id", "", "set name")
 	cmd.MarkFlagRequired("id")
+	return cmd
+}
+
+func getVnetIdsCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "ids",
+		Short: "Gets all vnets",
+		Run: func(cmd *cobra.Command, args []string) {
+			networksResponse, err := DncClient.GetNetworks()
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				client.PrettyPrint(err)
+				return
+			}
+			for _, networkInfo := range networksResponse.NetworkInfos {
+				fmt.Printf("%v\n", networkInfo.GUID)
+			}
+		},
+	}
 	return cmd
 }
 

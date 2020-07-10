@@ -55,6 +55,12 @@ var routes = Routes{
 		GetNetwork,
 	},
 	Route{
+		"GetNetworks",
+		"GET",
+		"/networks",
+		GetNetworks,
+	},
+	Route{
 		"ReserveIP",
 		"POST",
 		"/networks/{networkID}/reservations/{reservationID}",

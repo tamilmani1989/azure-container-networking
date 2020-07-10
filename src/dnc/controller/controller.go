@@ -416,6 +416,15 @@ func (c *Controller) GetNetwork(networkID string) (*api.NetworkConfigurationResp
 	return datamodel.GetNetworkConfiguration(networkID)
 }
 
+// GetNetworks - Get vnets managed by this DNC
+func (c *Controller) GetNetworks() (*api.NetworksResponse, *api.JsonErr) {
+	// No read lock is required because Azure Storage uses snapshot isolation to allow
+	// read operations to happen concurrently with writes in the same partition. It
+	// guarantees reads to see consistent data while updates are happening
+
+	return datamodel.GetNetworks()
+}
+
 // DeleteNetwork - Delete a network
 func (c *Controller) DeleteNetwork(networkID string) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] DeleteNetwork: %s", networkID)

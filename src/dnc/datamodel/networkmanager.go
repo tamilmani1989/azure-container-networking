@@ -773,6 +773,44 @@ func QueryNodeConfiguration(nodeID string) (*NodeConfiguration, *api.JsonErr) {
 	return nodeConfiguration, nil
 }
 
+// TryQueryAllNetworks queries for all networkconfigurations managed by this dnc and returns their IDs
+func TryQueryAllNetworks() ([]string, error) {
+	var hasMoreData bool
+	var result map[string]interface{}
+	var returnContext interface{}
+	var status int
+	var err error
+	var networkGUIDs = make([]string, 0)
+
+	for {
+		result, hasMoreData, returnContext, status, err =
+			dataStoreShim.QueryAll(networkConfigurationTableName, returnContext)
+		if err != nil {
+			if status == http.StatusNotFound {
+				return make([]string, 0), nil
+			}
+
+			return nil, err
+		}
+
+		for _, value := range result {
+			serializedNetworkConfiguration := value.(string)
+			var networkConfiguration NetworkConfiguration
+			err = json.Unmarshal([]byte(serializedNetworkConfiguration), &networkConfiguration)
+			if err != nil {
+				return nil, err
+			}
+			networkGUIDs = append(networkGUIDs, networkConfiguration.NetworkID)
+		}
+
+		if !hasMoreData {
+			break
+		}
+	}
+
+	return networkGUIDs, nil
+}
+
 // TryQueryNetworkConfiguration - Query network configuration.
 func TryQueryNetworkConfiguration(networkID string) (*NetworkConfiguration, *api.JsonErr) {
 	networkKey := GetNetworkKey(networkID)
@@ -1889,6 +1927,27 @@ func PurgeNetworkContainerAssociations(ncConfiguration *NCConfiguration, updateV
 		0)
 
 	return err
+}
+
+// GetNetworks = Retrieve vnets managed by this dnc
+func GetNetworks() (*api.NetworksResponse, *api.JsonErr) {
+	var networksResponse api.NetworksResponse
+	networksResponse.NetworkInfos = make([]api.NetworkInfo, 0)
+	networkIDs, err := TryQueryAllNetworks()
+	if err != nil {
+		msg := fmt.Sprintf("Failed to retrieve networks due to error:[%s]", err)
+		return nil, &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError,
+		}
+	}
+
+	for _, networkID := range networkIDs {
+		networksResponse.NetworkInfos = append(networksResponse.NetworkInfos, api.NetworkInfo{GUID: networkID})
+	}
+
+	return &networksResponse, nil
 }
 
 // GetNetworkConfiguration = Retrieve network configuration (e.g. delegated subnets in a network)
