@@ -376,13 +376,13 @@ func TestRequestControllerAddNode(t *testing.T) {
 	var networkConfigs map[string]struct{} = map[string]struct{}{}
 
 	// NetworkConfig CreateFunc
-	createNetworkConfig := func(s string) error {
+	createNetworkConfig := func(ctx context.Context, s string) error {
 		networkConfigs[s] = struct{}{}
 		return nil
 	}
 
 	// NetworkConfig DeleteFunc
-	deleteNetworkConfig := func(s string) error {
+	deleteNetworkConfig := func(ctx context.Context, s string) error {
 		delete(networkConfigs, s)
 		return nil
 	}

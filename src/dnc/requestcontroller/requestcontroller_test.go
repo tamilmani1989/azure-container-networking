@@ -1,7 +1,10 @@
 package requestcontroller
 
-import "testing"
+import (
+	"testing"
+)
 
+// Test that applying defaults doesn't change config options that are already set
 func TestConfigApplyDefaults(t *testing.T) {
 	config := Config{
 		KubernetesConfig: KubernetesConfig{

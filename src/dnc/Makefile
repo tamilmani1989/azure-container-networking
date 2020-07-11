@@ -90,8 +90,8 @@ $(RUNNER_BUILD_DIR)/runner$(EXE_EXT): $(RUNNERFILES)
 	export CGO_ENABLED=0; \
 	go build -v -o $(RUNNER_BUILD_DIR)/runner$(EXE_EXT) $(RUNNER_DIR)/*.go
 
-# Build Request Controller
 .PHONY: $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT)
+# Build Request Controller
 $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT):
 	export CGO_ENABLED=0; \
 	go build -v -o $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT) $(REQCTRL_DIR)/*.go

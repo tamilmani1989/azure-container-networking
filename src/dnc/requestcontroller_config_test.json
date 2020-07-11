@@ -1,5 +1,9 @@
 {
 	"kubernetesConfig": {
-		"kubeconfigPath": "kubeconfig.yaml"
+		"kubeconfigPath": "C:\\Users\\matlong\\.kube\\config",
+		"namespace": "kube-system"
+	},
+	"requestScalerConfig": {
+		"batchSize": 16
 	}
 }
