@@ -1,5 +1,5 @@
 FROM ubuntu:19.10
-ARG DNC_BUILD_DIR
+ARG DNC_BUILD_DIR="."
 
 COPY $DNC_BUILD_DIR/dnc dnc
 

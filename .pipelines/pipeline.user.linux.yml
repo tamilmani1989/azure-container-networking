@@ -192,6 +192,21 @@ package:
             to: 'drop_linux_servicetunnel'
             include:
               - '*.zip'
+
+    - !!defaultcommand
+        name: 'Prepare DNC Docker Context'
+        command: 'cdpxBuild.sh'
+        arguments: 'package linux'
+
+    - !!dockerbuildcommand
+        name: 'Build DNC Image'
+        context_folder: 'src/dnc'
+        dockerfile_name: 'Dockerfile'
+        repository_name: 'dnc'
+        publish: true
+        export_to_artifact_path: 'output/dnc-linux-amd64.tar.gz'
+        metadata_file: 
+          artifact_path: 'output/dnc-linux-amd64-meta.json'
 # An optional user defined stage for running tests that need network access. Note that unit tests and others that do not need network access
 # can be run in build or package stages itself. Any artifacts built in this stage will be separated out and will not be signed.
 # However, we recommend that tests always be run in the test stage.

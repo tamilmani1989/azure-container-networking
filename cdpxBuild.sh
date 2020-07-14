@@ -45,9 +45,18 @@ case $1 in
         fi
         ;;
     "package" )
-        cd $DIR/Nuget/AzureDNCPackage
-        mono nuget.exe install
-        mono nuget.exe pack AzureDNCPackage.nuspec
+        # Target OS specific parameters.
+        if [ "$GOOS" = "windows" ];then
+            # Windows.
+            cd $DIR/Nuget/AzureDNCPackage
+            mono nuget.exe install
+            mono nuget.exe pack AzureDNCPackage.nuspec
+        else
+            # Linux.
+            cd $DIR/src/dnc
+            # The dockerfile requires the dnc binary be named dnc instead of azure-dnc
+            cp azure-dnc dnc
+        fi
         ;;
     "test" )
         cd $DIR/src/dnc
