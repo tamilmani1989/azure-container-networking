@@ -53,18 +53,18 @@ func (p *Preparer) PrepareNetworkContainerV2(ncConfig *datamodel.NCConfiguration
 	}
 
 	res := datamodel.ReservationConfiguration{
-		ReservationID:         ncConfig.ReservationID,
-		NetworkID:             ncConfig.NetworkID,
-		ReservationState:      datamodel.Allocate,
-		Status:                datamodel.Pending,
-		AllocationRequest:     ncConfig.RequestV2.AllocationRequest,
-		AssociatedNCID:        ncConfig.NetworkContainerID,
-		SecondaryReservations: make(map[string]string),
+		ReservationID:        ncConfig.ReservationID,
+		NetworkID:            ncConfig.NetworkID,
+		ReservationState:     datamodel.Allocate,
+		Status:               datamodel.Pending,
+		AllocationRequest:    ncConfig.RequestV2.AllocationRequest,
+		AssociatedNCID:       ncConfig.NetworkContainerID,
+		SecondaryAllocations: make(map[string]string),
 	}
 
 	for i := 0; i < ncConfig.RequestV2.AllocationRequest.SecondaryIPCount; i++ {
 		id, _ := uuid.NewUUID()
-		res.SecondaryReservations[id.String()] = ""
+		res.SecondaryAllocations[id.String()] = ""
 	}
 
 	if err := p.PersistReservation(&res); err != nil {

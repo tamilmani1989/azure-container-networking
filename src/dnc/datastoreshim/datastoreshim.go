@@ -16,6 +16,7 @@ type insertInPartitionFunc func(tableName, partitionKey, rowKey, propertyName st
 type insertInPartitionPropertiesFunc func(tableName, partitionKay, rowKey string, properties map[string]interface{}) (int, error)
 type insertOrUpdateFunc func(tableName, rowKey, propertyName string, value interface{}) error
 type upsertBatchFunc func(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
+type insertBatchFunc func(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
 type updateInPartitionFunc func(tableName, partitionKay, rowKey string, properties map[string]interface{}) error
 type updateInPartitionWithEtagFunc func(tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error
 type deleteFunc func(tableName, rowKey string) error
@@ -35,6 +36,7 @@ type DataStoreShim struct {
 	InsertInPartition                  insertInPartitionFunc
 	InsertOrUpdate                     insertOrUpdateFunc
 	UpsertBatch                        upsertBatchFunc
+	InsertBatch                        insertBatchFunc
 	Delete                             deleteFunc
 	DeleteInPartition                  deleteInPartitionFunc
 	Query                              queryFunc
@@ -85,6 +87,7 @@ func (dataStoreShim *DataStoreShim) Init(
 		dataStoreShim.InsertInPartition = insertInPartitionFunc(azStorage.InsertInPartition)
 		dataStoreShim.InsertInPartitionProperties = insertInPartitionPropertiesFunc(azStorage.InsertInPartitionProperties)
 		dataStoreShim.UpsertBatch = upsertBatchFunc(azStorage.UpsertBatch)
+		dataStoreShim.InsertBatch = insertBatchFunc(azStorage.InsertBatch)
 		dataStoreShim.QueryAll = queryAllFunc(azStorage.QueryAllRows)
 		dataStoreShim.QueryAllInPartition = queryAllInPartitionFunc(azStorage.QueryAllRowsInPartition)
 		dataStoreShim.KeyExist = keyExistFunc(azStorage.KeyExist)
@@ -118,6 +121,7 @@ func (dataStoreShim *DataStoreShim) Init(
 		dataStoreShim.InsertOrUpdate = insertOrUpdateFunc(tps.InsertOrUpdate)
 		dataStoreShim.InsertInPartition = insertInPartitionFunc(tps.InsertInPartition)
 		dataStoreShim.UpsertBatch = upsertBatchFunc(tps.UpsertBatch)
+		dataStoreShim.InsertBatch = insertBatchFunc(tps.InsertBatch)
 		dataStoreShim.QueryAll = queryAllFunc(tps.QueryAllRows)
 		dataStoreShim.QueryAllInPartition = queryAllInPartitionFunc(tps.QueryAllRowsInPartition)
 		dataStoreShim.KeyExist = keyExistFunc(tps.KeyExist)

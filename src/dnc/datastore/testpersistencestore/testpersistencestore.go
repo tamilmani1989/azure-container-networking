@@ -157,16 +157,46 @@ func (testpersistencestore *TestPersistenceStore) UpsertBatch(tableName, _ strin
 	return nil
 }
 
+func (testpersistencestore *TestPersistenceStore) InsertBatch(tableName, _ string, batch map[string]map[string]interface{}) error {
+	testpersistencestore.locks[tableName].Lock()
+	defer func() {
+		testpersistencestore.locks[tableName].Unlock()
+	}()
+
+	for rowKey, rowProps := range batch {
+		tag := testpersistencestore.getEtag()
+		testpersistencestore.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: rowProps}
+	}
+
+	return nil
+}
+
 // Query :- Query an element using rowKey and tableName.
 func (testpersistencestore *TestPersistenceStore) Query(tableName, rowKey string) (interface{}, int, error) {
-	value, _, status, err := testpersistencestore.queryPropertyEtag(tableName, rowKey)
+	value, _, status, err := testpersistencestore.queryAllPropertiesEtag(tableName, rowKey)
+	switch len(value) {
+	case 0:
+		return nil, status, err
+	case 1:
+		for _, v := range value {
+			return v, status, err
+		}
+	}
 	return value, status, err
 }
 
 // QueryInPartition - Query a row in the given partition of the table.
 func (testpersistencestore *TestPersistenceStore) QueryInPartition(tableName, partitionKey, rowKey string) (
 	interface{}, int, error) {
-	value, _, status, err := testpersistencestore.queryPropertyEtag(tableName, rowKey)
+	value, _, status, err := testpersistencestore.queryAllPropertiesEtag(tableName, rowKey)
+	switch len(value) {
+	case 0:
+		return nil, status, err
+	case 1:
+		for _, v := range value {
+			return v, status, err
+		}
+	}
 	return value, status, err
 }
 
@@ -185,7 +215,7 @@ func (testpersistencestore *TestPersistenceStore) QueryInPartitionWithEtagProper
 	return testpersistencestore.queryAllPropertiesEtag(tableName, rowKey)
 }
 
-// QueryAllRows - Query a row in a given table.
+// QueryAllRows - Query all rows in a given table.
 func (testpersistencestore *TestPersistenceStore) QueryAllRows(tableName string, context interface{}) (
 	map[string]interface{}, bool, interface{}, int, error) {
 	var status = http.StatusNotFound
@@ -197,12 +227,15 @@ func (testpersistencestore *TestPersistenceStore) QueryAllRows(tableName string,
 	}
 	queriedTable := make(map[string]interface{})
 	for key, rowProps := range testpersistencestore.datastore[tableName] {
-		if len(rowProps.properties) != 1 {
-			return nil, false, nil, http.StatusExpectationFailed, fmt.Errorf("More than one property found")
-		}
-
-		for _, value := range rowProps.properties {
-			queriedTable[key] = value
+		switch len(rowProps.properties) {
+		case 0:
+			return nil, false, nil, http.StatusExpectationFailed, fmt.Errorf("no properties found for key %v in table %v", key, tableName)
+		case 1:
+			for _, value := range rowProps.properties {
+				queriedTable[key] = value
+			}
+		default:
+			queriedTable[key] = rowProps.properties
 		}
 	}
 	return queriedTable, false, nil, status, nil

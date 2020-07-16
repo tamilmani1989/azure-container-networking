@@ -11,6 +11,10 @@ import (
 	"strings"
 )
 
+// reserved address count at the beginning of a subnet
+// see https://docs.microsoft.com/en-us/azure/virtual-network/virtual-networks-faq#are-there-any-restrictions-on-using-ip-addresses-within-these-subnets
+const reservedIPCount = 4
+
 func AllocateSubnetFromNetworkSpace(
 	baseSubnet *net.IPNet,
 	subnetsToIgnore map[string]*net.IPNet,
@@ -223,4 +227,26 @@ func IsRequestedRangeAllocatable(baseIPSubnet *net.IPNet, allocatedSubnets map[s
 	}
 
 	return true, nil
+}
+
+func GetReservedAddressesInSubnet(subnet *net.IPNet) (map[string]*net.IPNet, error) {
+	reservedAddresses := make(map[string]*net.IPNet)
+
+	start := utils.IP2Int(subnet.IP)
+	for i := 0; i < reservedIPCount; i++ {
+		reservedIP := fmt.Sprintf("%v/%s", utils.Int2IP(start+uint32(i)), utils.IPV4DefaultPrefix)
+		reservedSubnet, err := utils.ParseIPNet(reservedIP)
+		if err != nil {
+			return nil, err
+		}
+		reservedAddresses[reservedIP] = reservedSubnet
+	}
+
+	broadcastIP := fmt.Sprintf("%v/%s", GetLastAdressInSubnet(subnet), utils.IPV4DefaultPrefix)
+	broadcastSubnet, err := utils.ParseIPNet(broadcastIP)
+	if err != nil {
+		return nil, err
+	}
+	reservedAddresses[broadcastIP] = broadcastSubnet
+	return reservedAddresses, nil
 }

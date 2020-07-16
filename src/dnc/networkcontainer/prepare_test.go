@@ -103,8 +103,8 @@ func TestPrepareNetworkContainer_CreateHappyPath(t *testing.T) {
 	if nextReservationState.Status != datamodel.Pending {
 		t.Errorf("expected reservation to be in pending status, got %s", nextReservationState.Status)
 	}
-	if len(nextReservationState.SecondaryReservations) != secondaryIPCount {
-		t.Errorf("expected reservation count to be %d, got %d", secondaryIPCount, len(nextReservationState.SecondaryReservations))
+	if len(nextReservationState.SecondaryAllocations) != secondaryIPCount {
+		t.Errorf("expected secondary allocation count to be %d, got %d", secondaryIPCount, len(nextReservationState.SecondaryAllocations))
 	}
 
 	// node assertions

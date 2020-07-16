@@ -70,7 +70,7 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 		sessionManager.BeginWriteSession(sessionInfo)
 		defer sessionManager.EndWriteSession(sessionInfo)
 
-		removeWorkItem, err = processIPReservationAllocationWithKey(requestID)
+		removeWorkItem, err = ipAllocator.ProcessIPReservationAllocationWithKey(requestID)
 		break
 
 	case datamodel.NetworkContainerRequest:
@@ -680,7 +680,17 @@ func processAllocateLocalIP(
 	_, localIPSubnet, _ := net.ParseCIDR(localIPSubnetAddressString)
 
 	//ignore first few addresses on subnet
-	reservedIPSubnet := GetReservedAddressesInSubnet(localIPSubnet)
+	reservedIPSubnet, addrErr := allocationhelper.GetReservedAddressesInSubnet(localIPSubnet)
+	if addrErr != nil {
+		markProcessingFailed = true
+		failureDetail = &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			HTTPStatus: http.StatusInternalServerError,
+			Text:       fmt.Sprintf(addrErr.Error()),
+		}
+		// todo: this function needs to be cleaned up further to not rely on gotos
+		goto Cleanup
+	}
 
 	// join reservedIP map and allocatedLocalIP map
 	for subnetString, subnet := range reservedIPSubnet {
@@ -761,7 +771,7 @@ func processNetworkContainerReserve(
 
 	// If the reservation status is pending, process IP allocation
 	if repoReservation.Status == datamodel.Pending {
-		ipReservationAllocationComplete, err := processIPReservationAllocation(repoReservation)
+		ipReservationAllocationComplete, err := ipAllocator.ProcessIPReservationAllocation(repoReservation)
 
 		// Return if the IP reservation allocation did not complete. This indicates that
 		// the operation ran into retriable error.

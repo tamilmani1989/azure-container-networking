@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net/http"
 )
 
 // JsonErr - Struct to hold err info
@@ -19,4 +20,20 @@ func (j *JsonErr) String() string {
 // Error makes JsonErr implement the error interface
 func (j *JsonErr) Error() string {
 	return j.String()
+}
+
+func NotFound(code ErrorCode, msg string) *JsonErr {
+	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusNotFound}
+}
+
+func BadRequest(code ErrorCode, msg string) *JsonErr {
+	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusBadRequest}
+}
+
+func InternalServerError(code ErrorCode, msg string) *JsonErr {
+	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusInternalServerError}
+}
+
+func Conflict(code ErrorCode, msg string) *JsonErr {
+	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusConflict}
 }

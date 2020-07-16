@@ -20,6 +20,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/storage"
+
 	"dnc/aiwrapper"
 
 	"github.com/Azure/azure-container-networking/aitelemetry"
@@ -708,6 +710,27 @@ func AddIPAllocation(networkID, subnetName, allocatedIP, reservationKey string) 
 	}
 
 	loggershim.LS.Debugf("Allocated IP: %s for reservation key: %s", allocatedIP, reservationKey)
+	return nil
+}
+
+// AddIPAllocations adds a batch of allocations to the specified vnet and subnet name partition in IPAllocationsTable
+func AddIPAllocations(networkID, subnetName string, rows map[string]map[string]interface{}) *api.JsonErr {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+
+	if err := dataStoreShim.InsertBatch(ipAllocationsTableName, partitionKey, rows); err != nil {
+		storageErr, ok := err.(storage.AzureStorageServiceError)
+		if !ok {
+			return api.InternalServerError(api.StatusInternalServerError, err.Error())
+		}
+
+		switch storageErr.StatusCode {
+		case http.StatusConflict:
+			return api.Conflict(api.AllocationFailed, storageErr.Message)
+		default:
+			return api.InternalServerError(api.StatusInternalServerError, storageErr.Message)
+		}
+	}
+
 	return nil
 }
 
@@ -2110,15 +2133,19 @@ func getIPConfiguration(repoReservationConfiguration *ReservationConfiguration) 
 		return nil, err
 	}
 
+	secondaryIPs := make(map[string]api.IPInfo)
+	for reservationID, ipAddress := range repoReservationConfiguration.SecondaryAllocations {
+		secondaryIPs[reservationID] = api.IPInfo{IPAddress: ipAddress}
+	}
+
 	ipConfiguration := api.IPConfiguration{
-		NetworkID:  repoReservationConfiguration.NetworkID,
-		SubnetName: repoReservationConfiguration.AllocationRequest.SubnetName,
-		IPSubnet:   repoSubnetConfiguration.IPSubnet,
-		IPAddress:  repoReservationConfiguration.AllocatedSubnet,
-		GatewayIP:  repoSubnetConfiguration.Gateway,
-		DNSServers: dnsServers,
-		// todo: should be filled once the actual logic to allocate IPs is implemented
-		SecondaryIPs: nil,
+		NetworkID:    repoReservationConfiguration.NetworkID,
+		SubnetName:   repoReservationConfiguration.AllocationRequest.SubnetName,
+		IPSubnet:     repoSubnetConfiguration.IPSubnet,
+		IPAddress:    repoReservationConfiguration.AllocatedSubnet,
+		GatewayIP:    repoSubnetConfiguration.Gateway,
+		DNSServers:   dnsServers,
+		SecondaryIPs: secondaryIPs,
 	}
 
 	return &ipConfiguration, nil
@@ -2477,6 +2504,7 @@ func CreateOrUpdateNCRequestV2(
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
+	// todo: currently, this means no-op in case of an update
 	if ncConfig != nil {
 		return nil
 	}
@@ -2747,7 +2775,14 @@ func TryQueryIPAllocationByKey(partitionKey, ipAddress string) (string, *api.Jso
 		return "", nil
 	}
 
-	return value.(string), nil
+	switch v := value.(type) {
+	case string:
+		return v, nil
+	case map[string]interface{}:
+		return v[ipAllocationTag].(string), nil
+	default:
+		return "", nil
+	}
 }
 
 // EncodeIPAllocationKey - Encodes the primary key for IP allocations table
@@ -2886,8 +2921,11 @@ func TryQuerySharedSubnetDelegationMigration() (bool, *api.JsonErr) {
 	if value == nil {
 		return false, nil
 	}
-
-	return value.(bool), nil
+	b, ok := value.(bool)
+	if !ok {
+		return false, nil
+	}
+	return b, nil
 }
 
 // UpdateSharedSubnetDelegationMigration - Updates the migration table indicating the completion of the migration operation.

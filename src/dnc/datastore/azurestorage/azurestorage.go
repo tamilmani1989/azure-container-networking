@@ -19,6 +19,12 @@ import (
 // Max time latency allowed for data store operations before recording the operation latency in the log.
 var thresholdForLoggingDataStoreOpLatencyMs int
 
+const (
+	// maximum batch transaction size
+	// see https://docs.microsoft.com/en-us/rest/api/storageservices/performing-entity-group-transactions#requirements-for-entity-group-transactions
+	maxBatchSize = 100
+)
+
 // AzureStorage = Storage object to manage tables in a partition
 type AzureStorage struct {
 	configuration.AzureStorageInfo
@@ -208,6 +214,32 @@ func (azureStorage *AzureStorage) UpsertBatch(tableName, partitionKey string, ba
 	return batch.ExecuteBatch()
 }
 
+// InsertBatch inserts a batch of rows for a given table and partition key
+// The key in the batch represents the row key
+// The value in the batch (map[string]interface{}) represents row properties and their respective values
+// There is a limit of 100 items per batch
+func (azureStorage *AzureStorage) InsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error {
+	if len(batchItems) > maxBatchSize {
+		return fmt.Errorf("batch size should not exceed %d", maxBatchSize)
+	}
+
+	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	if !ok {
+		return fmt.Errorf("cannot find valid table client for table %s", tableName)
+	}
+
+	table := tableClient.GetTableReference(tableName)
+
+	batch := table.NewBatch()
+	for rowKey, rowProperties := range batchItems {
+		entity := table.GetEntityReference(partitionKey, rowKey)
+		entity.Properties = rowProperties
+		batch.InsertEntity(entity)
+	}
+
+	return batch.ExecuteBatch()
+}
+
 // Query - Query a row in a given table.
 func (azureStorage *AzureStorage) Query(tableName, rowKey string) (interface{}, int, error) {
 	defer recordProcessingTime(time.Now(), "Query", tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
@@ -275,6 +307,7 @@ func (azureStorage *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyN
 		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
 	table := *tableClient.GetTableReference(tableName)
+	// todo: should not attempt to create the table on every insert or update. move to app start up
 	table.Create(30, storage.EmptyPayload, nil)
 	entity := table.GetEntityReference(azureStorage.PartitionKey, rowKey)
 	properties := make(map[string]interface{})
@@ -315,6 +348,8 @@ func (azureStorage *AzureStorage) insertRowInPartition(
 		return http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
 	table := *tableClient.GetTableReference(tableName)
+
+	// todo: should not attempt to create the table on every insert. move to app start up
 	table.Create(30, storage.EmptyPayload, nil)
 	entity := table.GetEntityReference(partitionKay, rowKey)
 	entity.Properties = properties
@@ -357,12 +392,15 @@ func (azureStorage *AzureStorage) getRowAndEtag(
 	tableName string, partitionKey string, rowKey string) (interface{}, string, int, error) {
 	properties, etag, status, err := azureStorage.getRowEtagProperties(tableName, partitionKey, rowKey)
 	if err == nil {
-		if len(properties) != 1 {
-			return nil, "", http.StatusInternalServerError, fmt.Errorf("Properties missing columns")
-		}
-
-		for _, val := range properties {
-			return val, etag, status, nil
+		switch len(properties) {
+		case 0:
+			return nil, "", http.StatusInternalServerError, fmt.Errorf("entity %v in partition %v, table %v missing properties", rowKey, partitionKey, tableName)
+		case 1: // dnc pattern for most tables is one property per row
+			for _, val := range properties {
+				return val, etag, status, nil
+			}
+		default: // tables with possibly more than one property. property size may vary per row
+			return properties, etag, status, nil
 		}
 	}
 
@@ -387,32 +425,35 @@ func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string,
 		if !ok {
 			return nil, false, nil, http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
 		}
-		table := *tableClient.GetTableReference(tableName)
+		table := tableClient.GetTableReference(tableName)
 		queryOptions := storage.QueryOptions{
 			Filter: "PartitionKey eq '" + partitionKey + "'",
 		}
 
 		entitiesResult, err = table.QueryEntities(30, storage.FullMetadata, &queryOptions)
-
-		if err != nil {
-			storagErr, ok := err.(storage.AzureStorageServiceError)
-			if ok {
-				return nil, false, nil, storagErr.StatusCode, err
-			}
-			return nil, false, nil, http.StatusInternalServerError, err
-		}
 	} else {
 		entitiesResult = context.(*storage.EntityQueryResult)
 		entitiesResult, err = entitiesResult.NextResults(nil)
 	}
-
-	var result = make(map[string]interface{})
-	for _, entity := range entitiesResult.Entities {
-		if len(entity.Properties) != 1 {
-			return nil, false, nil, http.StatusInternalServerError, fmt.Errorf("Properties missing columns")
+	if err != nil {
+		storageErr, ok := err.(storage.AzureStorageServiceError)
+		if ok {
+			return nil, false, nil, storageErr.StatusCode, err
 		}
-		for _, val := range entity.Properties {
-			result[entity.RowKey] = val
+		return nil, false, nil, http.StatusInternalServerError, err
+	}
+
+	result := make(map[string]interface{})
+	for _, entity := range entitiesResult.Entities {
+		switch len(entity.Properties) {
+		case 0:
+			return nil, false, nil, http.StatusInternalServerError, fmt.Errorf("entity %v in partition %v, table %v missing properties", entity.RowKey, partitionKey, tableName)
+		case 1: // dnc pattern for most tables is one property per row
+			for _, val := range entity.Properties {
+				result[entity.RowKey] = val
+			}
+		default: // tables with possibly more than one property. property size may vary per row
+			result[entity.RowKey] = entity.Properties
 		}
 	}
 	var hasMoreRows = false

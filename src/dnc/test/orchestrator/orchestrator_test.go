@@ -148,7 +148,7 @@ func TestBasicNCAPIs(t *testing.T) {
 				IPAddress:    "10.0.1.4/32",
 				GatewayIP:    utils.Subnet1DefaultGW,
 				DNSServers:   []string{"8.8.8.8", "9.9.9.9"},
-				SecondaryIPs: nil,
+				SecondaryIPs: make(map[string]api.IPInfo),
 			},
 			AssociationInfo: api.AssociationInfo{
 				NodeID:              nodeID,

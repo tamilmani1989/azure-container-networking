@@ -20,9 +20,9 @@ const (
 func ParseIPNet(ipSubnetString string) (*net.IPNet, error) {
 	_, ipnet, err := net.ParseCIDR(ipSubnetString)
 	if err != nil {
-		fmt.Println("Error", ipSubnetString, err)
+		return nil, err
 	}
-	return ipnet, err
+	return ipnet, nil
 }
 
 // IP2Int - Helper to convert IP address to UInt32
