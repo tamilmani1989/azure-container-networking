@@ -13,7 +13,10 @@ DNCFILES = \
 	$(wildcard nmagentcontracts/*.go) \
 	$(wildcard replica/*.go) \
 	$(wildcard server/*.go) \
-	$(wildcard utils/*.go)
+	$(wildcard utils/*.go) \
+	$(wildcard MadariClient/*.go) \
+	$(wildcard resourceupdatehandler/*.go)
+	$(wildcard pubsubproxy/*.go)
 
 # Source files for building runner
 RUNNERFILES = \

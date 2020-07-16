@@ -24,6 +24,8 @@ export GOROOT="$GODIR/go"
 export PATH=$GOROOT/bin:$PATH
 export VERSION=$CDP_MAJOR_NUMBER_ONLY.$CDP_MINOR_NUMBER_ONLY.$CDP_VERSION_TAG_ONLY
 export aiMetadata="4a542967-4721-4c64-a2a7-eb9428c634b4"
+export LD_LIBRARY_PATH=$DIR/src/dnc/pubsubproxy/libs
+export CGO_LDFLAGS="-L $DIR/src/dnc/pubsubproxy/libs -lMadariNativeClient -lBondDataSerializer"
 case $1 in
     "build" )
         cd $DIR/src/dnc
@@ -32,9 +34,12 @@ case $1 in
         # Target OS specific parameters.
         if [ "$GOOS" = "windows" ];then
             # Windows.
+            echo "Building DNC"
             go build -o azure-dnc.exe -ldflags "-X dnc/utils.Version=$VERSION -X dnc/aiwrapper.aiMetadata=$aiMetadata -s -w" >& build.log
         else
             # Linux.
+            cd $DIR/src/dnc
+            echo "Building DNC"
             go build -o azure-dnc -ldflags "-X dnc/utils.Version=$VERSION -X dnc/aiwrapper.aiMetadata=$aiMetadata -s -w" >& build.log
             echo "Building BondDataSerializer"
             cd $DIR/src/BondDataSerializer
@@ -42,6 +47,10 @@ case $1 in
             cd build
             cmake ..
             make
+            cp libBondDataSerializer.so $LD_LIBRARY_PATH/
+            cd $DIR/src/dnc
+            echo "Building Managed DNC"
+            go build -tags enablePubsubProxy -o azure-mdnc -ldflags "-X dnc/utils.Version=$VERSION -X dnc/aiwrapper.aiMetadata=$aiMetadata -s -w" >& build.log
         fi
         ;;
     "package" )

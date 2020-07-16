@@ -1760,7 +1760,8 @@ func PersistNetworkConfiguration(
 func CreateNetwork(
 	networkID string,
 	networkInfo api.NetworkInfoRequest,
-	apiVersion string) *api.JsonErr {
+	apiVersion string,
+	addToPendingQueue bool) *api.JsonErr {
 	networkConfiguration, err := TryQueryNetworkConfiguration(networkID)
 	if err != nil {
 		return err
@@ -1786,8 +1787,11 @@ func CreateNetwork(
 		Type:      VirtualNetworkRequest,
 		NetworkID: networkID}
 
-	return AddRequestToPendingQueue(networkKey, &requestContext)
+	if addToPendingQueue {
+		return AddRequestToPendingQueue(networkKey, &requestContext)
+	}
 
+	return nil
 }
 
 // UpdateSubnet - Update subnet configuration
@@ -3082,6 +3086,7 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 		NetworkContainerID:    repoNCConfig.NetworkContainerID,
 		Version:               repoNCConfig.CNSVersion,
 		NetworkID:             repoNCConfig.NetworkID,
+		InfraNetworkID:        repoNodeConfig.NodeInfo.InfrastructureNetwork,
 		AllocatedIPSubnet:     repoReservationConfiguration.AllocatedSubnet,
 		BaseSubnet:            repoSubnetConfiguration.IPSubnet,
 		BaseSubnetName:        repoSubnetConfiguration.SubnetName,
@@ -3181,4 +3186,128 @@ func GetNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 	totalNicsBasedOnCores := float64(nicsAllowedPerVirtualCore * uint16(resp.NumOfCPUCores))
 	allowedNumOfNics := int(math.Floor(totalNicsBasedOnCores) - 1) // -1 to account for VM management NIC
 	return allowedNumOfNics, nil
+}
+
+// GetNcPendingPublishRequestContexts - Retrieve all NC publish / unpublish pending request contexts
+func GetNcPendingPublishRequestContexts() (map[string]NcPendingPublishRequestContext, error) {
+	var (
+		hasMoreData       = true
+		context           interface{}
+		requests          map[string]interface{}
+		err               error
+		status            int
+		requestsToProcess = make(map[string]NcPendingPublishRequestContext)
+	)
+
+	for hasMoreData {
+		requests, hasMoreData, context, status, err = dataStoreShim.QueryAll(
+			ncPendingPublishContextTableName,
+			context)
+		if err != nil {
+			if status == http.StatusNotFound {
+				return make(map[string]NcPendingPublishRequestContext), nil
+			}
+
+			return nil, err
+		}
+
+		for requestKey, value := range requests {
+			serializedRequestContext := value.(string)
+			var requestContext NcPendingPublishRequestContext
+			err = json.Unmarshal([]byte(serializedRequestContext), &requestContext)
+			requestsToProcess[requestKey] = requestContext
+		}
+	}
+
+	return requestsToProcess, nil
+}
+
+// RemoveNcPendingPublishContext - Remove pending NC publish / unpublish context from the table.
+func RemoveNcPendingPublishContext(
+	networkID, networkContainerID string,
+	pubSubID int) {
+	key := GetNcPendingPublishContextKey(networkID, networkContainerID, pubSubID)
+	dataStoreShim.Delete(ncPendingPublishContextTableName, key)
+}
+
+// CreateOrUpdateNcPendingPublishRequest - Creates or updates NC publish / unpublish context from the table.
+func CreateOrUpdateNcPendingPublishRequest(
+	requestContext *NcPendingPublishRequestContext) *api.JsonErr {
+	return persistNcPendingPublishContext(requestContext)
+}
+
+func persistNcPendingPublishContext(
+	context *NcPendingPublishRequestContext) *api.JsonErr {
+	var (
+		jsonSerializedBytes []byte
+		err                 error
+	)
+
+	jsonSerializedBytes, err = json.Marshal(context)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to serialize pending NC publish context for NC: %s, Error: %s",
+			context.NetworkContainerID,
+			err.Error())
+		loggershim.LS.Errorf("%s", msg)
+
+		return &api.JsonErr{
+			Code:       api.JsonMarshallingFailed,
+			HTTPStatus: http.StatusInternalServerError,
+			Text:       msg}
+	}
+
+	key := GetNcPendingPublishContextKey(context.NetworkID, context.NetworkContainerID, context.PubSubID)
+	err = dataStoreShim.InsertOrUpdate(ncPendingPublishContextTableName,
+		key,
+		TableToColumnMap[ncPendingPublishContextTableName],
+		string(jsonSerializedBytes[:]))
+	if err != nil {
+		msg := fmt.Sprintf(
+			"Failed to persist pending NC publish context for key: %s. Error: %s",
+			key,
+			err.Error())
+		loggershim.LS.Errorf("%s", msg)
+
+		return &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	return nil
+}
+
+func QueryNcPendingPublishContext(
+	key string) (*NcPendingPublishRequestContext, *api.JsonErr) {
+	var pendingPublishContext NcPendingPublishRequestContext
+	value, status, err := dataStoreShim.Query(ncPendingPublishContextTableName, key)
+	if err != nil && status != http.StatusNotFound {
+		msg := fmt.Sprintf(
+			"Failed to retrieve pending NC publish context for key:[%s] due to error:[%s]",
+			key,
+			err.Error())
+		return nil, &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	if value == nil {
+		return nil, nil
+	}
+
+	serializedContextData := value.(string)
+	err = json.Unmarshal([]byte(serializedContextData), &pendingPublishContext)
+	if err != nil {
+		msg := fmt.Sprintf(
+			"Failed to unmarshal pending NC publish context for key:[%s] due to error:[%s]",
+			key,
+			err)
+		return nil, &api.JsonErr{
+			Code:       api.JsonBodyUnMarshalFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	return &pendingPublishContext, nil
 }

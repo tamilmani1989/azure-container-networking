@@ -8,6 +8,9 @@ import (
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
 	"dnc/nmagentcontracts"
+	"dnc/pubsubproxy"
+	"dnc/resourceupdatehandler/networkupdatehandler"
+	"dnc/resourceupdatehandler/tagupdatehandler"
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
@@ -105,319 +108,6 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 	}
 }
 
-// Decode the response received for join network request.
-// Returns IsRetirbale, optional error if any, isThrottled
-func decodeNetworkJoinResponse(
-	networkID string,
-	joinResponse *http.Response,
-	joinErr error) (bool, *api.JsonErr, bool) {
-	if joinErr != nil {
-		msg := fmt.Sprintf(
-			"Join for network [%s] failed with reponse error [%s]. Marking this error as retriable",
-			networkID,
-			joinErr.Error())
-		return true, &api.JsonErr{
-			Code:       api.JoinDenied,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, false
-	}
-
-	defer joinResponse.Body.Close()
-
-	if joinResponse.StatusCode == http.StatusProcessing {
-		msg := fmt.Sprintf(
-			"Join for network [%s] is pending. Marking this error as retriable",
-			networkID)
-		return true, &api.JsonErr{
-			Code:       api.JoinPending,
-			Text:       msg,
-			HTTPStatus: http.StatusProcessing}, false
-	}
-
-	if joinResponse.StatusCode == http.StatusUnauthorized {
-		msg := fmt.Sprintf("Join for network [%s] is unauthorized. Marking this error as non retriable.", networkID)
-		return false, &api.JsonErr{
-			Code:       api.NetworkJoinFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusUnauthorized}, false
-	}
-
-	if joinResponse.StatusCode != http.StatusOK {
-		msg := fmt.Sprintf("Join for network [%s] failed with status [%d]. Marking this error as retriable.",
-			networkID,
-			joinResponse.StatusCode)
-		return true, &api.JsonErr{
-			Code:       api.NetworkJoinFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, joinResponse.StatusCode == http.StatusForbidden
-	}
-
-	return false, nil, false
-}
-
-// Post request to host nmagent to express the intent for joining a network.
-// Returns IsRetriable, optional error if any, isThrottled
-func postRequestToAgentForNetworkJoin(networkID string) (bool, *api.JsonErr, bool) {
-	joinURL := fmt.Sprintf(
-		config.HostAgentSettings.ConnectionStrings.JoinNetworkURLFmt,
-		config.HostAgentSettings.WireServerIP,
-		networkID)
-
-	loggershim.LS.Debugf("[NMAgent] joining network [%s]", networkID)
-	// Empty body is required as wireserver cannot handle a post without the body.
-	var body bytes.Buffer
-	json.NewEncoder(&body).Encode("")
-	joinResponse, joinRespErr := httpClient.Post(joinURL, "application/json", &body)
-
-	return decodeNetworkJoinResponse(networkID, joinResponse, joinRespErr)
-}
-
-// Retrieve network configuration from host agent.
-func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nmagentcontracts.VirtualNetworkResponse, bool) {
-	getURL := fmt.Sprintf(
-		config.HostAgentSettings.ConnectionStrings.GetNetworkConfigurationURLFmt,
-		config.HostAgentSettings.WireServerIP,
-		networkID)
-
-	getResponse, getRespErr := httpClient.Get(getURL)
-	if getRespErr != nil {
-		msg := fmt.Sprintf(
-			"Retrieval of network configuration for network [%s] failed with error [%s]. Marking this error as retriable.",
-			networkID,
-			getRespErr.Error())
-		return true, &api.JsonErr{
-			Code:       api.NetworkConfigurationRetrievalFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, nil, false
-	}
-
-	defer getResponse.Body.Close()
-
-	if getResponse.StatusCode != http.StatusOK {
-		msg := fmt.Sprintf("Get network configuration call for network %s failed with status[%d].",
-			networkID,
-			getResponse.StatusCode)
-		return true, &api.JsonErr{
-			Code:       api.NetworkJoinFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, nil, getResponse.StatusCode == http.StatusForbidden
-	}
-
-	var networkConfigurationResponse nmagentcontracts.VirtualNetworkResponse
-	decodeRespErr := utils.DecodeResponse(getResponse, &networkConfigurationResponse)
-	if decodeRespErr != nil {
-		msg := fmt.Sprintf("Failed to decode get virtual network configuration response for network %s due to error %s. "+
-			"Marking this error as retriable.",
-			networkID,
-			decodeRespErr.Error())
-		return true, &api.JsonErr{
-			Code:       api.DecodeResponseFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, nil, false
-	}
-
-	logger.Debugf("[NMAgent][Response] for network %s configuration:%s", networkID, networkConfigurationResponse.String())
-	getNetworkResponseCode, parseErr := strconv.ParseInt(networkConfigurationResponse.ResponseCode, 10, 64)
-	if parseErr != nil {
-		msg := fmt.Sprintf(
-			"Failed to convert response code %s  to integer when parsing network configuration response for network %s. "+
-				"Marking this error as retriable.",
-			networkConfigurationResponse.ResponseCode,
-			networkID)
-		return true, &api.JsonErr{
-			Code:       api.ParseResponseCodeFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, nil, false
-	}
-
-	if getNetworkResponseCode == http.StatusProcessing {
-		msg := fmt.Sprintf(
-			"GetNetworkConfiguration for network %s is pending", networkID)
-		return true, &api.JsonErr{
-			Code:       api.ProcessingPending,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, nil, false
-	}
-
-	if getNetworkResponseCode == http.StatusUnauthorized {
-		msg := fmt.Sprintf("Join for network %s is unauthorized", networkID)
-		return false, &api.JsonErr{
-			Code:       api.NetworkJoinFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusUnauthorized}, nil, false
-	}
-
-	if getNetworkResponseCode != http.StatusOK {
-		msg := fmt.Sprintf("Failed to retrieve network due to error %d", getNetworkResponseCode)
-		return true, &api.JsonErr{
-			Code:       api.NetworkJoinFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}, nil, false
-	}
-
-	return false, nil, &networkConfigurationResponse, false
-}
-
-func validateAndRetrieveNetworkConfigurationUpdate(
-	repoNetworkConfig *datamodel.NetworkConfiguration,
-	networkConfigResponse *nmagentcontracts.VirtualNetworkResponse) (
-	bool,
-	*api.JsonErr,
-	map[string]nmagentcontracts.Subnet,
-	map[string]bool, map[string]*datamodel.SubnetConfiguration) {
-	currentSubnets := make(map[string]*datamodel.SubnetConfiguration)
-
-	var currentDNSServers []string
-	var updatedDNSServers []string
-	if len(networkConfigResponse.DNSServers) != 0 {
-		updatedDNSServers = strings.Split(networkConfigResponse.DNSServers, ",")
-	} else {
-		updatedDNSServers = make([]string, 0)
-	}
-
-	if len(repoNetworkConfig.DNSServers) != 0 {
-		currentDNSServers = repoNetworkConfig.DNSServers
-	} else {
-		currentDNSServers = make([]string, 0)
-	}
-
-	hasDNSServersChanged := !utils.AreSetsEqual(currentDNSServers, updatedDNSServers)
-
-	var currentCnetSpaces []string
-	var updatedCnetSpaces []string
-	if len(networkConfigResponse.CNetSpace) != 0 {
-		updatedCnetSpaces = strings.Split(networkConfigResponse.CNetSpace, ",")
-	} else {
-		updatedCnetSpaces = make([]string, 0)
-	}
-
-	if len(repoNetworkConfig.CNetSpace) != 0 {
-		currentCnetSpaces = strings.Split(repoNetworkConfig.CNetSpace, ",")
-	} else {
-		currentCnetSpaces = make([]string, 0)
-	}
-
-	hasCnetSpacesChanged := !utils.AreSetsEqual(currentCnetSpaces, updatedCnetSpaces)
-
-	// Retrieve the current subnets from the repository.
-	for subnetName := range repoNetworkConfig.Subnets {
-		subnetConfiguration, subnetCfgErr := datamodel.TryQuerySubnetConfiguration(repoNetworkConfig.NetworkID, subnetName)
-		if subnetCfgErr != nil {
-			return (subnetCfgErr.Code == api.StatusInternalServerError), subnetCfgErr, nil, nil, nil
-		}
-
-		if subnetConfiguration != nil {
-			currentSubnets[subnetName] = subnetConfiguration
-		}
-	}
-
-	subnetsToRemove := make(map[string]bool)
-	subnetsToAdd := make(map[string]nmagentcontracts.Subnet)
-	subnetsToUpdate := make(map[string]*datamodel.SubnetConfiguration)
-	subnetNamesInResponse := make(map[string]bool)
-
-	// Iterate through all the subnets in the response.
-	for _, subnet := range networkConfigResponse.Subnets {
-		subnetNamesInResponse[subnet.SubnetName] = true
-		repoSubnetConfig, exist := currentSubnets[subnet.SubnetName]
-
-		if exist && repoSubnetConfig != nil {
-			// If the subnet exist in the repository and there are no allocations
-			// (i.e) no reservations exist, then mark the subnet for update.
-			if len(repoSubnetConfig.Reservations) == 0 {
-				subnetsToUpdate[subnet.SubnetName] = repoSubnetConfig
-				continue
-			}
-
-			// If reservations exists, then changing the IPSubnet is not allowed.
-			// This should never happen.
-			updatedSubnet, err := utils.ParseIPNet(subnet.AddressPrefix)
-			if err != nil {
-				msg := fmt.Sprintf("Failed to parse IPSubnet %s from received config %s",
-					subnet.AddressPrefix,
-					networkConfigResponse.String())
-				return false, &api.JsonErr{
-					Code:       api.NetworkJoinFailed,
-					Text:       msg,
-					HTTPStatus: http.StatusInternalServerError}, nil, nil, nil
-			}
-
-			currentSubnet, err := utils.ParseIPNet(repoSubnetConfig.IPSubnet)
-			if err != nil {
-				msg := fmt.Sprintf("Failed to parse IPSubnet %s from repo config %s.",
-					subnet.AddressPrefix,
-					repoSubnetConfig.String())
-				return false, &api.JsonErr{
-					Code:       api.NetworkJoinFailed,
-					Text:       msg,
-					HTTPStatus: http.StatusInternalServerError}, nil, nil, nil
-			}
-
-			if !utils.AreIPSubnetsEqual(currentSubnet, updatedSubnet) {
-				msg := fmt.Sprintf(
-					"Update of subnet %s is not allowed as there are allocations. Current subnet:%s, Updated subnet:%s.",
-					repoSubnetConfig.SubnetName,
-					currentSubnet.String(),
-					updatedSubnet.String())
-				return false, &api.JsonErr{
-					Code:       api.NetworkJoinFailed,
-					Text:       msg,
-					HTTPStatus: http.StatusInternalServerError}, nil, nil, nil
-			}
-
-			needsUpdate := hasDNSServersChanged || hasCnetSpacesChanged
-			if !needsUpdate {
-				var currentSTTags []string
-				var updatedSTTags []string
-				if len(subnet.Tags) != 0 {
-					updatedSTTags = make([]string, len(subnet.Tags))
-					for index, tag := range subnet.Tags {
-						updatedSTTags[index] = tag.Name
-					}
-				} else {
-					updatedSTTags = make([]string, 0)
-				}
-
-				if len(repoSubnetConfig.Tags) != 0 {
-					currentSTTags = make([]string, len(repoSubnetConfig.Tags))
-					for index, tag := range repoSubnetConfig.Tags {
-						currentSTTags[index] = tag.Name
-					}
-				} else {
-					currentSTTags = make([]string, 0)
-				}
-
-				needsUpdate = !utils.AreSetsEqual(currentSTTags, updatedSTTags)
-			}
-
-			if needsUpdate {
-				subnetsToUpdate[subnet.SubnetName] = repoSubnetConfig
-			}
-		} else {
-			// This is a new subnet and mark it to be added to the repository.
-			subnetsToAdd[subnet.SubnetName] = subnet
-		}
-	}
-
-	// Cleanup all the subnets that are no longer present in the received configuration.
-	for subnetName, repoSubnetConfig := range currentSubnets {
-		_, exists := subnetNamesInResponse[subnetName]
-		// If a subnet has been deleted outside of DNC,
-		// delete it only if there are no resources in them
-		if !exists {
-			if len(repoSubnetConfig.Reservations) > 0 {
-				logger.Errorf("Error: Leaked NC's detected: Subnet %s in network %s is removed but there are allocations.",
-					repoSubnetConfig.SubnetName,
-					repoSubnetConfig.NetworkID)
-			}
-
-			subnetsToRemove[subnetName] = true
-		}
-	}
-
-	return false, nil, subnetsToAdd, subnetsToRemove, subnetsToUpdate
-}
-
 // Routine that processes virtual network request.
 func processVirtualNetworkRequest(requestContext *datamodel.RequestContext) (bool, *api.JsonErr) {
 	repoNetworkConfiguration, err := datamodel.TryQueryNetworkConfiguration(requestContext.NetworkID)
@@ -435,7 +125,7 @@ func processVirtualNetworkRequest(requestContext *datamodel.RequestContext) (boo
 		return processVirtualNetworksPendingJoin(requestContext.NetworkID)
 
 	case datamodel.Refreshing:
-		_, success := refreshNetworkConfiguration(datamodel.GetNetworkKey(requestContext.NetworkID), true)
+		_, success := networkupdatehandler.RefreshNetworkConfiguration(datamodel.GetNetworkKey(requestContext.NetworkID), true)
 		if !success {
 			return false, &api.JsonErr{
 				Code:       api.NetworkJoinFailed,
@@ -449,18 +139,6 @@ func processVirtualNetworkRequest(requestContext *datamodel.RequestContext) (boo
 
 // Routine that processes join network request.
 func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
-	var failureDetail *api.JsonErr
-	var isRetriableError bool
-	var networkResponse *nmagentcontracts.VirtualNetworkResponse
-	var subnetsToAdd map[string]nmagentcontracts.Subnet
-	var subnetsToRemove map[string]bool
-	var subnetsToUpdate map[string]*datamodel.SubnetConfiguration
-	var subnetsInUpdatedResponse map[string]nmagentcontracts.Subnet
-	var ipSubnetMap map[string]string
-	var repoNetworkConfiguration *datamodel.NetworkConfiguration
-	var vnetVersion uint64
-	var dnsServers []string
-
 	// Network configuration is expected to be present as we will always
 	// add a dummy configuration and mark it as pending processing once
 	// a request is received.
@@ -474,145 +152,7 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 		return true, nil
 	}
 
-	isRetriableError, failureDetail, _ = postRequestToAgentForNetworkJoin(networkID)
-	if failureDetail != nil {
-		if isRetriableError {
-			return false, failureDetail
-		}
-		goto Cleanup
-	}
-
-	isRetriableError, failureDetail, networkResponse, _ = getNetworkConfigurationFromAgent(networkID)
-	if failureDetail != nil {
-		if isRetriableError {
-			return false, failureDetail
-		}
-		goto Cleanup
-	}
-
-	isRetriableError, failureDetail, subnetsToAdd, subnetsToRemove, subnetsToUpdate =
-		validateAndRetrieveNetworkConfigurationUpdate(
-			repoNetworkConfiguration,
-			networkResponse)
-
-	if failureDetail != nil {
-		if isRetriableError {
-			return false, failureDetail
-		}
-		goto Cleanup
-	}
-
-	for subnetName := range subnetsToRemove {
-		failureDetail = datamodel.DeleteSubnetConfiguration(networkID, subnetName)
-		if failureDetail != nil {
-			goto Cleanup
-		}
-	}
-
-	ipSubnetMap = make(map[string]string)
-	subnetsInUpdatedResponse = make(map[string]nmagentcontracts.Subnet)
-	for _, subnet := range networkResponse.Subnets {
-		subnetsInUpdatedResponse[subnet.SubnetName] = subnet
-		ipSubnetMap[subnet.SubnetName] = datamodel.GetSubnetKey(networkID, subnet.SubnetName)
-	}
-
-	// Commiting virtual network config in two phases.
-	// First phase, update only the configuration and the subnet
-	// list and the state is still pending join.
-	// This helps in driving cleanup as we have handle to all the subnets
-	// and we can handle any failures that happens when persisting subnet
-	// configurations.
-	if len(networkResponse.DNSServers) == 0 {
-		dnsServers = make([]string, 0)
-	} else {
-		dnsServers = strings.Split(networkResponse.DNSServers, ",")
-	}
-
-	if len(networkResponse.DNSServers) == 0 {
-		dnsServers = make([]string, 0)
-	} else {
-		dnsServers = strings.Split(networkResponse.DNSServers, ",")
-	}
-
-	vnetVersion, _ = strconv.ParseUint(networkResponse.VnetVersion, 10, 64)
-	repoNetworkConfiguration = &datamodel.NetworkConfiguration{
-		NetworkID:  networkID,
-		Version:    vnetVersion,
-		CNetSpace:  networkResponse.CNetSpace,
-		VNetSpace:  networkResponse.VNetSpace,
-		Subnets:    ipSubnetMap,
-		DNSServers: dnsServers}
-
-	failureDetail = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
-	if failureDetail != nil {
-		goto Cleanup
-	}
-
-	for subnetName := range subnetsToAdd {
-		updatedSubnetCfg := subnetsInUpdatedResponse[subnetName]
-		var tags []nmagentcontracts.Tag
-
-		if updatedSubnetCfg.Tags == nil || len(updatedSubnetCfg.Tags) == 0 {
-			tags = make([]nmagentcontracts.Tag, 0)
-		} else {
-			tags = updatedSubnetCfg.Tags
-		}
-
-		subnetConfig := datamodel.SubnetConfiguration{
-			NetworkID:         networkID,
-			SubnetName:        subnetName,
-			IPSubnet:          updatedSubnetCfg.AddressPrefix,
-			IsDelegatedSubnet: true,
-			Gateway:           updatedSubnetCfg.DefaultGateway,
-			Tags:              tags,
-			UpdateStatus:      datamodel.SubnetUpdateCompleted}
-		failureDetail = datamodel.PutSubnetConfiguration(&subnetConfig)
-		if failureDetail != nil {
-			goto Cleanup
-		}
-	}
-
-	for subnetName, currentRepoSubnetCfg := range subnetsToUpdate {
-		ipSubnetMap[subnetName] = datamodel.GetSubnetKey(networkID, subnetName)
-		updatedSubnetCfg := subnetsInUpdatedResponse[subnetName]
-		currentRepoSubnetCfg.Tags = updatedSubnetCfg.Tags
-		failureDetail = datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
-		if failureDetail != nil {
-			goto Cleanup
-		}
-
-		// Register tags (add them to cache) if subnet is delegated
-		if currentRepoSubnetCfg.IsDelegatedSubnet {
-			for _, tag := range currentRepoSubnetCfg.Tags {
-				if _, err := RegisterAndGetTagDefinition(tag); err != nil {
-					logger.Errorf("Failed to register and get tag definitions with error: %+v", err)
-				}
-			}
-		}
-	}
-
-	// Mark the join operation as completed.
-	repoNetworkConfiguration.NetworkState = datamodel.Join
-	repoNetworkConfiguration.Status = datamodel.Completed
-	failureDetail = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
-
-Cleanup:
-	// If it is an unknown failure then we return with marking the
-	// operation has failed so we can retry later.
-	if failureDetail != nil {
-		if failureDetail.Code == api.StatusInternalServerError {
-			return false, err
-		}
-
-		// Non retriable errors, mark the operation as failed.
-		repoNetworkConfiguration.Status = datamodel.Failed
-		repoNetworkConfiguration.FailureDetail = *failureDetail
-		if err = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration); err != nil {
-			return false, err
-		}
-	}
-
-	return true, nil
+	return networkupdatehandler.ProcessVirtualNetworkJoin(networkID, repoNetworkConfiguration)
 }
 
 func getAllocatedLocalAddressesOnNode(nodeID string) (map[string]*net.IPNet, *api.JsonErr) {
@@ -967,7 +507,7 @@ func processNetworkContainerAssociate(
 	resolvedTags := make(map[string]datamodel.TagDefinition)
 	var tagsResolutionErr *api.JsonErr
 	for _, tag := range ncGoalState.TagsInfo {
-		tagDefinition, tagErr := RegisterAndGetTagDefinition(tag)
+		tagDefinition, tagErr := tagupdatehandler.RegisterAndGetTagDefinition(tag)
 		if tagErr == nil {
 			tagKey := datamodel.GetTagDefintionKey(tag.Type, tag.Name)
 			resolvedTags[tagKey] = tagDefinition
@@ -1331,6 +871,124 @@ func sendNCMetric(
 	loggershim.LS.Debugf("[DNCOperationStatus] OperationName: %s, NetworkContainerId: %s, Status: %s, ErrorCode: %s", ncState, repoNCConfig.NetworkContainerID, status, errorCode)
 }
 
+func publishNetworkContainerWithPubSubProxy(
+	ncGoalState *datamodel.NCGoalState,
+	repoNCConfig *datamodel.NCConfiguration,
+	sessionInfo map[string]string,
+	stateTransitionDateTime time.Time,
+	createdDateTime time.Time) (bool, *api.JsonErr) {
+	// Release the session lock before making call to PubSubProxy
+	sessionManager.EndWriteSession(sessionInfo)
+
+	publishNcRequest := pubsubproxy.PublishNetworkContainerRequest{
+		NcID:             ncGoalState.NetworkContainerID,
+		InfraVnetID:      ncGoalState.InfraNetworkID,
+		NodeInterfaceIP:  ncGoalState.AssociatedInterfaceID,
+		SubnetAuthToken:  ncGoalState.AccessToken,
+		IPV4Addresses:    make([]string, 1),
+		SubnetName:       ncGoalState.BaseSubnetName,
+		Version:          strconv.FormatUint(ncGoalState.VnetVersion, 10),
+		Policies:         make([]string, 0),
+		VirtualNetworkID: ncGoalState.NetworkID,
+		VlanID:           ncGoalState.VlanID,
+	}
+	publishNcRequest.IPV4Addresses[0] = strings.Split(ncGoalState.AllocatedIPSubnet, "/")[0]
+
+	publishError := pubsubproxy.PublishNetworkContainer(publishNcRequest)
+
+	// Reacquire the session locks after making call to PubSubProxy
+	sessionManager.BeginWriteSession(sessionInfo)
+
+	if publishError != nil {
+		logger.Errorf("publishNetworkContainerWithPubSubProxy failed for NC: %d, Error: %v",
+			publishNcRequest.NcID, publishError)
+		if publishError.HTTPStatus == http.StatusInternalServerError {
+			return false, publishError
+		}
+	}
+
+	// Retrieve the latest NC configuration as the current copy of the configuration
+	// could have been updated while pubsubproxy processed the NC publish.
+	retrievedRepoNCConfig, ncRetrievalErr := datamodel.TryQueryNetworkContainer(
+		ncGoalState.NetworkID,
+		ncGoalState.NetworkContainerID)
+	if ncRetrievalErr != nil {
+		msg := fmt.Sprintf(
+			"Publish NC %v failed with error %s",
+			ncGoalState.NetworkContainerID,
+			ncRetrievalErr.String())
+		return false, &api.JsonErr{
+			Code:       api.PublishingFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError}
+	}
+
+	if retrievedRepoNCConfig == nil {
+		msg := fmt.Sprintf(
+			"Publish NC %v failed as NC configuration was not found",
+			ncGoalState.NetworkContainerID)
+		return true, &api.JsonErr{
+			Code:       api.PublishingFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	// Copy over the delete flag as NC could have been deleted while calling CNS / NMAgent for publish.
+	repoNCConfig.MarkedForDelete = retrievedRepoNCConfig.MarkedForDelete
+
+	// If the NC is marked for deletion, copy the state as it could have been changed too
+	if repoNCConfig.MarkedForDelete {
+		repoNCConfig.State = retrievedRepoNCConfig.State
+	}
+
+	if publishError != nil && publishError.HTTPStatus == http.StatusUnauthorized {
+		// If the response code is authentication failure, retry the request for the preset duration.
+		// If authentication failure is still seen fail the request
+		// This workaround is needed because sometimes there is a latency in sending the new authentication token
+		// to pubsub. This workaround hides that till the latency is addressed.
+		// If the NC gets marked for delete while calling CNS / NMAgent, in case of error that request needs to be
+		// marked as retriable error to avoid losing it and delete NC getting stuck
+		if (time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec) ||
+			repoNCConfig.MarkedForDelete {
+			msg := fmt.Sprintf("Create NC %s pending. Response code: %d, time elapsed: %.0f sec",
+				repoNCConfig.NetworkContainerID,
+				publishError.HTTPStatus,
+				time.Since(stateTransitionDateTime).Seconds())
+			return false, &api.JsonErr{
+				Code:       api.ProcessingPending,
+				Text:       msg,
+				HTTPStatus: http.StatusUnauthorized}
+		}
+
+		// Mark the request as non-retriable if it fails for retry duration
+		msg := fmt.Sprintf("Failed to publish NC: %s with status code: %v. Marking as non retriable.",
+			repoNCConfig.NetworkContainerID, publishError.HTTPStatus)
+		repoNCConfig.Status = datamodel.Failed
+		repoNCConfig.FailureDetail = api.JsonErr{
+			Code:       api.PublishingFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusUnauthorized}
+
+		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+	}
+
+	if repoNCConfig.State == datamodel.Publish {
+		repoNCConfig.State = datamodel.Program
+	}
+	repoNCConfig.Status = datamodel.Pending
+	repoNCConfig.FailureDetail = api.JsonErr{}
+
+	creationTimeMs := time.Since(createdDateTime).Milliseconds()
+	sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(creationTimeMs),
+		aiwrapper.Succeeded, "Container"+datamodel.Program.String(), repoNCConfig, nil)
+
+	// Log NC Snapshot
+	aiwrapper.LogNCSnapsnot(ncGoalState.NetworkContainerID, ncGoalState.NetworkID,
+		ncGoalState.BaseSubnetName, ncGoalState.AssociatedNodeID)
+
+	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+}
+
 func processNetworkContainerPublish(
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string,
@@ -1353,6 +1011,11 @@ func processNetworkContainerPublish(
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = *ncGoalStateErr
 		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+	}
+
+	if config.PubSubProxySettings.EnablePubSubProxy {
+		return publishNetworkContainerWithPubSubProxy(ncGoalState, repoNCConfig, sessionInfo,
+			stateTransitionDateTime, createdDateTime)
 	}
 
 	var (
@@ -1495,7 +1158,7 @@ func processNetworkContainerPublish(
 				logger.Errorf("[CNS] Publish NC %s failed due to network join error. HttpStatusCode: %d, Error: %s",
 					ncGoalState.NetworkContainerID, publishNCResponse.PublishStatusCode, publishNCResponse.PublishErrorStr)
 
-				isRetriable, errJoinNetwork, _ := decodeNetworkJoinResponse(ncGoalState.NetworkID, resp, respErr)
+				isRetriable, errJoinNetwork, _ := networkupdatehandler.DecodeNetworkJoinResponse(ncGoalState.NetworkID, resp, respErr)
 				return !isRetriable, errJoinNetwork // !isRetriable indicates not to remove request from pending queue
 			}
 
@@ -1663,6 +1326,78 @@ func processNetworkContainerPublish(
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
+func unpublishNetworkContainerWithPubSubProxy(
+	ncGoalState *datamodel.NCGoalState,
+	repoNCConfig *datamodel.NCConfiguration,
+	sessionInfo map[string]string,
+	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
+	// Release the session lock before making call to PubSubProxy
+	sessionManager.EndWriteSession(sessionInfo)
+
+	unpublishNcRequest := pubsubproxy.UnpublishNetworkContainerRequest{
+		NcID:            ncGoalState.NetworkContainerID,
+		InfraVnetID:     ncGoalState.InfraNetworkID,
+		NodeInterfaceIP: ncGoalState.AssociatedInterfaceID,
+		VnetID:          ncGoalState.NetworkID,
+		SubnetName:      ncGoalState.BaseSubnetName,
+		NcAllocatedIP:   ncGoalState.AllocatedIPSubnet,
+		SubnetAuthToken: ncGoalState.AccessToken,
+	}
+
+	unpublishErr := pubsubproxy.UnpublishNetworkContainer(unpublishNcRequest)
+
+	// Reacquire the session locks after making call to PubSubProxy
+	sessionManager.BeginWriteSession(sessionInfo)
+
+	if unpublishErr != nil {
+		logger.Errorf("unpublishNetworkContainerWithPubSubProxy failed for NC: %d, Error: %v",
+			unpublishNcRequest.NcID, unpublishErr)
+		if unpublishErr.HTTPStatus != http.StatusOK {
+			// If the response code is authentication failure, retry the request for the preset duration.
+			// If authentication failure is still seen fail the request
+			// This workaround is needed because sometimes there is a latency in sending the new authentication token
+			// to pubsub. This workaround hides that till the latency is addressed.
+			if unpublishErr.HTTPStatus == http.StatusUnauthorized {
+				if time.Since(stateTransitionDateTime).Seconds() < unauthorizedErrRetryDurationSec {
+					msg := fmt.Sprintf("Delete NC %s pending. Response code: %d, time elapsed: %.0f sec",
+						repoNCConfig.NetworkContainerID,
+						unpublishErr.HTTPStatus,
+						time.Since(stateTransitionDateTime).Seconds())
+					return false, &api.JsonErr{
+						Code:       api.ProcessingPending,
+						Text:       msg,
+						HTTPStatus: http.StatusUnauthorized}
+				}
+
+				// Mark the request as non-retriable if it fails for retry duration
+				msg := fmt.Sprintf("Failed to unpublish NC: %s with status code: %v. Marking as non retriable.",
+					repoNCConfig.NetworkContainerID, unpublishErr.HTTPStatus)
+				repoNCConfig.Status = datamodel.Failed
+				repoNCConfig.FailureDetail = api.JsonErr{
+					Code:       api.UnpublishingFailed,
+					Text:       msg,
+					HTTPStatus: http.StatusUnauthorized}
+				return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+			}
+
+			// Retry if error response code is anything other than http.StatusUnauthorized
+			msg := fmt.Sprintf("Failed to unpublish NC: %s with status code: %v. Marking as retriable.",
+				repoNCConfig.NetworkContainerID, unpublishErr.HTTPStatus)
+
+			return false, &api.JsonErr{
+				Code:       api.UnpublishingFailed,
+				Text:       msg,
+				HTTPStatus: unpublishErr.HTTPStatus}
+		}
+	}
+
+	repoNCConfig.State = datamodel.DisAssociate
+	repoNCConfig.Status = datamodel.Pending
+	repoNCConfig.FailureDetail = api.JsonErr{}
+
+	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+}
+
 func processNetworkContainerUnPublish(
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string,
@@ -1684,6 +1419,10 @@ func processNetworkContainerUnPublish(
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = *ncGoalStateErr
 		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+	}
+
+	if config.PubSubProxySettings.EnablePubSubProxy {
+		return unpublishNetworkContainerWithPubSubProxy(ncGoalState, repoNCConfig, sessionInfo, stateTransitionDateTime)
 	}
 
 	var (
@@ -1804,7 +1543,7 @@ func processNetworkContainerUnPublish(
 				logger.Errorf("[CNS] Unpublish NC %s failed due to network join error. HttpStatusCode: %d, Error: %s",
 					ncGoalState.NetworkContainerID, unpublishNCResponse.UnpublishStatusCode, unpublishNCResponse.UnpublishErrorStr)
 
-				isRetriable, errJoinNetwork, _ := decodeNetworkJoinResponse(ncGoalState.NetworkID, resp, respErr)
+				isRetriable, errJoinNetwork, _ := networkupdatehandler.DecodeNetworkJoinResponse(ncGoalState.NetworkID, resp, respErr)
 				return !isRetriable, errJoinNetwork // !isRetriable indicates not to remove request from pending queue
 			}
 
@@ -2134,15 +1873,15 @@ func monitorRequests() {
 			break
 
 		case <-startProcessing:
-			networkMonitorStartProcessing <- true
-			tagMonitorStartProcessing <- true
+			networkupdatehandler.NetworkMonitorStartProcessing <- true
+			tagupdatehandler.TagMonitorStartProcessing <- true
 			refreshNCStartProcessing <- true
 			processPendingRequests(concurrentGoroutines, &inProcessRequestsMap)
 			break
 
 		case <-cancelProcessing:
-			networkMonitorStopProcessing <- true
-			tagMonitorStopProcessing <- true
+			networkupdatehandler.NetworkMonitorStopProcessing <- true
+			tagupdatehandler.TagMonitorStopProcessing <- true
 			refreshNCStopProcessing <- true
 			telemetryStopProcessing <- true
 			logger.Debugf("Received signal to exit")

@@ -13,13 +13,17 @@ const (
 	sharedSubnetDelegationMigrationRegionalTableName = "SharedSubnetDelegationMigrationRegionalTable"
 	// MasterElectionTableName - DNC master election table name
 	MasterElectionTableName = "MasterElectionTable"
-	networkKey              = "Network_%s"
-	subnetConfigurationKey  = "Network_%s_Subnet_%s"
-	ipReservationKey        = "Network_%s_Reservation_%s"
-	networkcontainerKey     = "NC_%s"
-	nodeKey                 = "Node_%s"
-	ncKey                   = "Network_%s_ID_%s"
-	tagDefinitionKey        = "Tag_%s_%s"
+	// Table containing pending NC publish / unpublish context
+	ncPendingPublishContextTableName = "NcPendingPublishContextTable"
+
+	networkKey                 = "Network_%s"
+	subnetConfigurationKey     = "Network_%s_Subnet_%s"
+	ipReservationKey           = "Network_%s_Reservation_%s"
+	networkcontainerKey        = "NC_%s"
+	nodeKey                    = "Node_%s"
+	ncKey                      = "Network_%s_ID_%s"
+	tagDefinitionKey           = "Tag_%s_%s"
+	ncPendingPublishContextKey = "Network_%s_NC_%s_PubSubId_%d"
 )
 
 const (
@@ -33,6 +37,7 @@ const (
 	ipAllocationTag                    = "IPAllocation"
 	sharedSubnetDelegationMigrationTag = "SharedSubnetDelegationMigrationComplete"
 	masterElectionTag                  = "MasterElection"
+	ncPendingPublishContextTag         = "NcPendingPublishContext"
 )
 
 const (
@@ -50,6 +55,9 @@ const (
 
 	// TagRepositoryName - Repository name for tag defintions
 	TagRepositoryName = "TagRepository"
+
+	// NCPendingPublishRepositoryName - Repository name for NC Pending publish/unpublish tasks
+	NCPendingPublishRepositoryName = "NCPendingPublishRepository"
 )
 
 const (
@@ -71,4 +79,5 @@ var TableToColumnMap = map[string]string{
 	ipAllocationsTableName:                           ipAllocationTag,
 	sharedSubnetDelegationMigrationTableName:         sharedSubnetDelegationMigrationTag,
 	sharedSubnetDelegationMigrationRegionalTableName: sharedSubnetDelegationMigrationTag,
-	MasterElectionTableName:                          masterElectionTag}
+	MasterElectionTableName:                          masterElectionTag,
+	ncPendingPublishContextTableName:                 ncPendingPublishContextTag}

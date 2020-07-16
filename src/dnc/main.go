@@ -10,10 +10,14 @@ import (
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
 	"dnc/masterelection/masterelectionshim"
+	"dnc/pubsubproxy"
 	"dnc/replica"
+	"dnc/resourceupdatehandler/networkupdatehandler"
+	"dnc/resourceupdatehandler/tagupdatehandler"
 	"dnc/server"
 	"dnc/utils"
 	"flag"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -26,20 +30,16 @@ import (
 )
 
 var (
-	isPrimary                     struct{ flag int32 }
-	cancelProcessing              = make(chan bool)
-	startProcessing               = make(chan bool)
-	startChan                     = make(chan bool)
-	doneChan                      = make(chan bool)
-	demoteChan                    = make(chan bool)
-	networkMonitorStartProcessing = make(chan bool)
-	tagMonitorStartProcessing     = make(chan bool)
-	networkMonitorStopProcessing  = make(chan bool)
-	tagMonitorStopProcessing      = make(chan bool)
-	refreshNCStartProcessing      = make(chan bool)
-	refreshNCStopProcessing       = make(chan bool)
-	telemetryStopProcessing       = make(chan bool)
-	reports                       = make(chan telemetry.DNCReport)
+	isPrimary                struct{ flag int32 }
+	cancelProcessing         = make(chan bool)
+	startProcessing          = make(chan bool)
+	startChan                = make(chan bool)
+	doneChan                 = make(chan bool)
+	demoteChan               = make(chan bool)
+	refreshNCStartProcessing = make(chan bool)
+	refreshNCStopProcessing  = make(chan bool)
+	telemetryStopProcessing  = make(chan bool)
+	reports                  = make(chan telemetry.DNCReport)
 
 	config             *configuration.Configuration
 	masterElectionShim *masterelectionshim.MasterElectionShim
@@ -56,12 +56,6 @@ var (
 
 	//  Max request process backoff interval
 	maxRequestBackoffInterval time.Duration
-
-	// SleepIntervalBetweenBatches
-	sleepIntervalBetweenNetworkBatches time.Duration
-
-	// SleepIntervalBetweenNetworkRefresh
-	sleepIntervalBetweenNetworkRefresh time.Duration
 
 	// Flag to disable telemetry
 	disableTelemetry bool
@@ -119,7 +113,7 @@ func init() {
 
 	replicaInstance = replica.NewReplica(
 		config.ServerSettings,
-		GetNetworkRefreshMonitorStatus)
+		networkupdatehandler.GetNetworkRefreshMonitorStatus)
 	sessionManager = utils.NewSessionManager([]string{
 		datamodel.NCRepositoryName,
 		datamodel.NodeRepositoryName,
@@ -159,8 +153,6 @@ func init() {
 	dncServer.Init()
 	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
-	sleepIntervalBetweenNetworkBatches = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkBatches) * time.Millisecond
-	sleepIntervalBetweenNetworkRefresh = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkRefresh) * time.Millisecond
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
@@ -177,6 +169,15 @@ func init() {
 		setOrchestratorForTelemetry()
 	}
 
+	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
+	tagupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
+
+	if config.PubSubProxySettings.EnablePubSubProxy {
+		if err := pubsubproxy.Init(config.PubSubProxySettings, replicaInstance); err != nil {
+			log.Fatalln("Error initializing PubsubProxy. Error:", err)
+		}
+	}
+
 	initNetworkContainerStateMachine()
 }
 
@@ -191,6 +192,10 @@ func processExitCallback() {
 	}
 
 	cancelProcessing <- true
+
+	if config.PubSubProxySettings.EnablePubSubProxy {
+		pubsubproxy.Deinit()
+	}
 }
 
 func startReplica(c *controller.Controller) {
@@ -210,8 +215,14 @@ func startReplica(c *controller.Controller) {
 	ticker.Stop()
 	go masterElectionShim.Start()
 	go monitorRequests()
-	go monitorNetworkUpdates()
-	go monitorTagUpdates()
+
+	// Network refresh monitor is not needed if PubSubProxy is enabled since Pubsubproxy
+	// handles the network updates using pubsub subscribe mechanism for the networks
+	if !config.PubSubProxySettings.EnablePubSubProxy {
+		go networkupdatehandler.MonitorNetworkUpdates()
+	}
+
+	go tagupdatehandler.MonitorTagUpdates()
 	go monitorNetworkContainers()
 	if !disableTelemetry {
 		go sendTelemetry()

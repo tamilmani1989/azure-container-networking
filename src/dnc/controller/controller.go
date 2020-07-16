@@ -9,6 +9,7 @@ import (
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
 	"dnc/masterelection/masterelectionshim"
+	"dnc/pubsubproxy"
 	"dnc/replica"
 	"dnc/utils"
 	"encoding/json"
@@ -119,6 +120,7 @@ func (c *Controller) DeleteNode(nodeID string) *api.JsonErr {
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
+
 	return datamodel.DeleteNode(nodeID)
 }
 
@@ -386,10 +388,21 @@ func (c *Controller) PersistNetworkJoinRequest(
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	return datamodel.CreateNetwork(
-		networkID,
-		networkInfo,
-		apiVersion)
+	var addRequestToPendingQueue = true
+	if config.PubSubProxySettings.EnablePubSubProxy {
+		// If pubsubproxy is enabled, there is no need to add the vnet join request
+		// to the pending queue
+		addRequestToPendingQueue = false
+		err := datamodel.CreateNetwork(networkID, networkInfo, apiVersion, addRequestToPendingQueue)
+		if err != nil {
+			return err
+		}
+
+		pubsubproxy.RegisterVnet(networkID)
+		return nil
+	}
+
+	return datamodel.CreateNetwork(networkID, networkInfo, apiVersion, addRequestToPendingQueue)
 }
 
 // PersistSubnetDelegationRequest - Persist subnet delgation info.
@@ -432,7 +445,13 @@ func (c *Controller) DeleteNetwork(networkID string) *api.JsonErr {
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	return datamodel.DeleteNetworkConfiguration(networkID)
+	err := datamodel.DeleteNetworkConfiguration(networkID)
+	if err == nil && config.PubSubProxySettings.EnablePubSubProxy {
+		// Unsubscribe vnet notifications for PubSubProxy
+		pubsubproxy.UnregisterVnet(networkID)
+	}
+
+	return err
 }
 
 // PersistNetworkContainerRequestV1 - Persist network container request using dynamic allocation

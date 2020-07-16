@@ -197,6 +197,30 @@ type TelemetrySettings struct {
 	GetEnvRetryCount int
 }
 
+// PubSubProxySettings - Settings for PubSubProxy
+type PubSubProxySettings struct {
+	// Flag to enable PubSubProxy. Default is false
+	EnablePubSubProxy bool
+	// Max concurrent requests to process at any time. Default is 1000.
+	MaxConcurrentRequests int
+	// Base Back off interval on failure to process a request. Default is 1 sec
+	RequestRetryBaseInterval int
+	// Max time to back off on failure to process a request. Default is 16 sec
+	MaxRequestBackoffInterval int
+	// Number of PubSubs in the region - Zonal instances
+	NumPubSubs int
+	// Cert name to connect to PubSub
+	PubsubCertName string
+	// Connection endpoint for regional PubSub
+	PubsubConnectionEndpoint string
+	// Publisher port
+	PublisherPort string
+	// Subscriber port
+	SubscriberPort string
+	// List of PubSub VIPs
+	PubsubVips string
+}
+
 // Configuration - Details related to dnc configuration settings
 type Configuration struct {
 	OrchestartorType       string
@@ -210,6 +234,7 @@ type Configuration struct {
 	DNCSettings            DNCSettings
 	HttpClientSettings     HttpClientSettings
 	TelemetrySettings      TelemetrySettings
+	PubSubProxySettings    PubSubProxySettings
 }
 
 // Load the JSON config file
@@ -248,6 +273,7 @@ func SetDncConfigDefaults(config *Configuration) {
 	setTelemetrySettingDefaults(&config.TelemetrySettings)
 	setCNSSettingsDefaults(&config.CNSSettings)
 	setBlobStorageSettings(&config.MasterElectionSettings.BlobStorageSettings)
+	setPubSubProxySettings(&config.PubSubProxySettings)
 }
 
 func setDNCSettingDefaults(dncSettings *DNCSettings) {
@@ -361,6 +387,23 @@ func setBlobStorageSettings(blobStorageSettings *BlobStorageSettings) {
 	// Cap the lease interval to 60 seconds
 	if blobStorageSettings.LeaseIntervalInSecs > 60 {
 		blobStorageSettings.LeaseIntervalInSecs = 60
+	}
+}
+
+func setPubSubProxySettings(pubsubProxySettings *PubSubProxySettings) {
+	if pubsubProxySettings.RequestRetryBaseInterval == 0 {
+		// Set default to 1 sec.
+		pubsubProxySettings.RequestRetryBaseInterval = 1000
+	}
+
+	if pubsubProxySettings.MaxConcurrentRequests == 0 {
+		// Set default to 1000
+		pubsubProxySettings.MaxConcurrentRequests = 1000
+	}
+
+	if pubsubProxySettings.MaxRequestBackoffInterval == 0 {
+		// Set default to 16 secs
+		pubsubProxySettings.MaxRequestBackoffInterval = 16000
 	}
 }
 
@@ -530,5 +573,9 @@ func OverrideConfigFromEnv(config *Configuration) {
 	if thresholdForLoggingDataStoreOpLatencyMs :=
 		os.Getenv("ThresholdForLoggingDataStoreOpLatencyMs"); len(thresholdForLoggingDataStoreOpLatencyMs) != 0 {
 		config.DNCSettings.ThresholdForLoggingDataStoreOpLatencyMs = ParseInt(thresholdForLoggingDataStoreOpLatencyMs)
+	}
+
+	if enablePubSubProxy := os.Getenv("EnablePubSubProxy"); len(enablePubSubProxy) != 0 {
+		config.PubSubProxySettings.EnablePubSubProxy = ParseBool(enablePubSubProxy)
 	}
 }

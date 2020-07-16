@@ -57,6 +57,10 @@ stages:
               echo Build tag is $(Env.Tag)
               go build -v ./test/nmagent/
               go build -v -o dnctl-bin ./cmd/dnctl/
+              sudo apt update
+              sudo apt install -y --no-install-recommends clang cmake zlib1g-dev libboost-dev libboost-thread-dev gcc gdb build-essential libssl-dev
+              export CGO_LDFLAGS="-L $(modulePath)/pubsubproxy/libs -lMadariNativeClient -lBondDataSerializer"
+              export LD_LIBRARY_PATH=$(modulePath)/pubsubproxy/libs
               go build -v
             workingDirectory: "$(modulePath)"
             name: "BuildDNC"

@@ -1,9 +1,12 @@
-package main
+package tagupdatehandler
 
 import (
 	"dnc/api"
+	"dnc/configuration"
 	"dnc/datamodel"
+	"dnc/logger/loggershim"
 	"dnc/nmagentcontracts"
+	"dnc/replica"
 	"dnc/utils"
 	"fmt"
 	"net/http"
@@ -17,9 +20,30 @@ var (
 	tagsCacheLock             sync.RWMutex
 	tagsCacheRehydrated       = false
 	defaultTagRefreshInterval = 30000
+	config                    *configuration.Configuration
+	logger                    *loggershim.LoggerShim
+	replicaInstance           *replica.Replica
+	sessionManager            *utils.SessionManager
+	httpClient                *http.Client
+
+	TagMonitorStartProcessing = make(chan bool)
+	TagMonitorStopProcessing  = make(chan bool)
 )
 
-func monitorTagUpdates() {
+func Init(
+	cfg *configuration.Configuration,
+	replicaInst *replica.Replica,
+	sessionMgr *utils.SessionManager,
+	httpC *http.Client,
+	loggershim *loggershim.LoggerShim) {
+	config = cfg
+	replicaInstance = replicaInst
+	logger = loggershim
+	sessionManager = sessionMgr
+	httpClient = httpC
+}
+
+func MonitorTagUpdates() {
 	if config.DNCSettings.TagRefreshInterval == 0 {
 		config.DNCSettings.TagRefreshInterval = defaultTagRefreshInterval
 	}
@@ -33,10 +57,10 @@ func monitorTagUpdates() {
 				refreshTagDefinitions()
 			}
 			break
-		case <-tagMonitorStartProcessing:
+		case <-TagMonitorStartProcessing:
 			refreshTagDefinitions()
 			break
-		case <-tagMonitorStopProcessing:
+		case <-TagMonitorStopProcessing:
 			break
 		}
 	}
@@ -142,7 +166,7 @@ func updateTagsCacheWithDefinition(tagDefinition datamodel.TagDefinition) {
 	}
 }
 
-func checkAndAddTagsCache(networkConfiguration *nmagentcontracts.VirtualNetworkResponse) {
+func CheckAndAddTagsCache(networkConfiguration *nmagentcontracts.VirtualNetworkResponse) {
 	for _, subnetConfiguration := range networkConfiguration.Subnets {
 		for _, tag := range subnetConfiguration.Tags {
 			registerTagForProcessing(tag)

@@ -30,6 +30,8 @@ This service will also require persisting the configurations and the states that
     <file src="$gitdrop$\azure-vnet-telemetry.exe" target="content" />
     <file src="$drop$\azure-dnc" target="content\linux\azure-dnc" />
     <file src="$gitdrop$\azure-vnet-telemetry" target="content\linux\azure-vnet-telemetry" />
+    <file src="$drop$\libBondDataSerializer.so" target="content\linux\libBondDataSerializer.so" />
+    <file src="$drop$\libMadariNativeClient.so" target="content\linux\libMadariNativeClient.so" />
     <file src="C:\source\src\dnc\config.json" target="content" />
     <file src="C:\source\src\dnc\config.json" target="content\linux" />
     <file src="$gitdrop$\azure-vnet-telemetry.config" target="content" />

@@ -1,14 +1,16 @@
 package datamodel
 
 import (
-	"encoding/json"
 	"dnc/nmagentcontracts"
+	"encoding/json"
 )
+
 // NCGoalState - Struct to cache the Network Container Goal State
 type NCGoalState struct {
 	NetworkContainerID    string
 	Version               uint64
 	NetworkID             string
+	InfraNetworkID        string
 	AllocatedIPSubnet     string
 	BaseSubnet            string
 	BaseSubnetName        string

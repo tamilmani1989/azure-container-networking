@@ -2,6 +2,7 @@ package main
 
 import (
 	"dnc/datamodel"
+	"dnc/resourceupdatehandler/networkupdatehandler"
 	"time"
 )
 
@@ -50,7 +51,10 @@ func refreshNodeNetworkContainers(nodeKey string) {
 
 	for networkID, ncMap := range repoNodeConfiguration.DeployedNetworkContainerMap {
 		for ncID := range ncMap {
-			CreateAssociationTask(nodeID, networkID, ncID)
+			if err := networkupdatehandler.CreateAssociationTask(nodeID, networkID, ncID); err != nil {
+				logger.Errorf("Failed to create NC refresh association task for NC %s due to error %v",
+					ncID, err)
+			}
 		}
 	}
 }

@@ -157,6 +157,11 @@ build:
             to: 'drop_dnc'
             include:
               - 'azure-dnc'
+          - from: 'src/dnc/pubsubproxy/libs/'
+            to: 'drop_dnc'
+            include:
+              - 'libBondDataSerializer.so'
+              - 'libMadariNativeClient.so'
 
     - !!buildcommand
         name: 'Update DNC Config Files'

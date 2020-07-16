@@ -11,16 +11,17 @@ import (
 
 // NodeInfoRequest - Node ifnormation reuqest
 type NodeInfoRequest struct {
-	IPAddresses      []string `json:"ipaddresses"`
-	LocationType     string   `json:"locationtype"` // Optional.
-	OrchestratorType string   `json:"orchestratortype"`
+	IPAddresses           []string `json:"ipaddresses"`
+	LocationType          string   `json:"locationtype"` // Optional.
+	OrchestratorType      string   `json:"orchestratortype"`
+	InfrastructureNetwork string   `json:"infrastructurenetwork"`
 }
 
 func (n *NodeInfoRequest) String() string {
 	ipAddresses := strings.Join(n.IPAddresses, ",")
 	return fmt.Sprintf(
-		"NodeInfoRequest:[IPAddresses:%s Locationtype:%s OrchestratorType:%s]",
-		ipAddresses, n.LocationType, n.OrchestratorType)
+		"NodeInfoRequest:[IPAddresses:%s Locationtype:%s OrchestratorType:%s InfrastructureNetwork:%s]",
+		ipAddresses, n.LocationType, n.OrchestratorType, n.InfrastructureNetwork)
 }
 
 // Validate - Validates the node info request

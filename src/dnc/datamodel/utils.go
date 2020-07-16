@@ -61,3 +61,8 @@ func GetNCIdFromKey(key string) string {
 	// Splitting on _ gives [1] as NetworkID and [3] as ncID
 	return strings.Split(key, "_")[3]
 }
+
+// GetNcPendingPublishContextKey - Helper function to generate key.
+func GetNcPendingPublishContextKey(networkID, ncID string, pubSubID int) string {
+	return fmt.Sprintf(ncPendingPublishContextKey, networkID, ncID, pubSubID)
+}

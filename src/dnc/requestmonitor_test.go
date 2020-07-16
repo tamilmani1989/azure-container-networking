@@ -11,6 +11,8 @@ import (
 	"dnc/masterelection/masterelectionshim"
 	"dnc/nmagentcontracts"
 	"dnc/replica"
+	"dnc/resourceupdatehandler/networkupdatehandler"
+	"dnc/resourceupdatehandler/tagupdatehandler"
 	"dnc/server"
 	"dnc/utils"
 	"encoding/json"
@@ -243,7 +245,7 @@ func StartDnc() {
 	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
 	replicaInstance = replica.NewReplica(
 		config.ServerSettings,
-		GetNetworkRefreshMonitorStatus)
+		networkupdatehandler.GetNetworkRefreshMonitorStatus)
 	sessionManager = utils.NewSessionManager([]string{
 		datamodel.NCRepositoryName,
 		datamodel.NodeRepositoryName,
@@ -273,8 +275,6 @@ func StartDnc() {
 	dncServer.Init()
 	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
-	sleepIntervalBetweenNetworkBatches = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkBatches) * time.Millisecond
-	sleepIntervalBetweenNetworkRefresh = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkRefresh) * time.Millisecond
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
@@ -288,6 +288,9 @@ func StartDnc() {
 			config.HostAgentSettings.WireServerIP)
 		ctrler.UpdateReplicaStatus(true)
 	}
+
+	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
+	tagupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
 
 	go startReplica(ctrler)
 	dncServer.Start()
@@ -1970,7 +1973,7 @@ func createNetworkContainer(
 	nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.Subnets = make([]nmagentcontracts.Subnet, 0)
 	nmAgentServer.Lock.Unlock()
 
-	refreshNetworkConfiguration(datamodel.GetNetworkKey(vnetID), true)
+	networkupdatehandler.RefreshNetworkConfiguration(datamodel.GetNetworkKey(vnetID), true)
 
 	fmt.Printf("Delete subnets %+v when allocations exist. Expected to fail\n", savedSubnets)
 	subnetConfig := getSubnetConfiguration(t, dncEP, vnetID, savedSubnets[0].SubnetName, apiVersion)
