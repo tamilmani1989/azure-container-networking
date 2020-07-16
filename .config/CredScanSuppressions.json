@@ -4,6 +4,18 @@
   {
     "placeholder": "password-for-the-user-name",
     "_justification": "Fake password used in github vendor code."
-  }
+  },
+   {
+     "hash": "lG8qTNOnABsGdsb91eNBn6w8E/5Xtrbwxf6Q1Fi+hqw=",
+     "_justification": "Suppress the false positive password in go-mssqldb appveyor.yml"
+   },
+   {
+     "hash": "vDrbhDtUKe83ylx6QZGh9sDhxyHNKFYP6djh8jYHguM=",
+     "_justification": "Suppress the false positive password in go-mssqldb readme"
+   },
+   {
+     "hash": "8SJVyu72WoeDoIWcgOzcqC9EUYhTxmiJJr4WNiQwCS0=",
+     "_justification": "Suppress the false positive password reported in GAExtension AzureExtensionPackage"
+   }
  ]
 }
