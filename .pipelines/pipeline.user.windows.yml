@@ -91,18 +91,6 @@ build:
           - '**\10-azure.conflist'
 
   - !!buildcommand
-    name: 'Build CNS SF wrapper'
-    command: 'build-cns-sf.cmd'
-    arguments: 'Release'
-    artifacts:
-      - from: 'src/Cns-SF/pkg/'
-        to: 'drop_cns_sf'
-        include:
-          - '**/azure-cns.exe'
-          - '**/azure-vnet-telemetry.exe'
-          - '**/Newtonsoft.Json.dll'
-
-  - !!buildcommand
     name: 'Sign DNC Windows'
     command: 'package_sign.cmd'
     arguments: 'sign drop_dnc'
@@ -110,17 +98,6 @@ build:
       - from: 'artifacts/linux-phase'
         include:
           - '**\azure-dnc.exe'
-
-  - !!buildcommand
-    name: 'Sign CNS for SF'
-    command: 'package-sign-cns-sf.cmd'
-    arguments: 'Sign Release drop_cns_sf'
-    artifacts:
-      - from: 'drop_cns_sf'
-        include:
-          - '**/azure-cns.exe'
-          - '**/azure-vnet-telemetry.exe'
-          - '**/CnsWrapperService.exe'
 
 package_sources:
   nuget:
@@ -181,16 +158,6 @@ package:
           to: 'AzureCNS'
           include:
             - '*AzureCNS.*.nupkg'
-
-    - !!buildcommand
-      name: 'Package CNS for SF'
-      command: 'package-sign-cns-sf.cmd'
-      arguments: 'Package Release drop_cns_sf'
-      artifacts:
-        - from: '.'
-          to: 'AzureCNS-SF'
-          include:
-            - '*AzureCNSSF.*.nupkg'
 
     - !!buildcommand
       name: 'Package LinuxNetAgent'
