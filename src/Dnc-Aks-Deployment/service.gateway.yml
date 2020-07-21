@@ -1,0 +1,14 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: gateway
+spec:
+  selector:
+    app: dnc
+  type: LoadBalancer
+  loadBalancerIP: 52.253.230.95
+  ports:
+  - name: gateway-port
+    port: 80
+    targetPort: 5001
+    protocol: TCP

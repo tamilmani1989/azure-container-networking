@@ -1,0 +1,24 @@
+version: '3'
+services:
+  dnc-gateway:
+    build:
+      context: ..\Server
+      args:
+        GATEWAY_BUILD_DIR: src/bin/Debug/netcoreapp3.1/linux-x64
+    environment:
+      AzureServicesAuthConnectionString:
+      DNCIpAddress: "gateway-test-app"
+    image: acndev.azurecr.io/dnc-gateway
+    container_name: dnc-gateway
+    ports:
+        - "5001:5001"
+    links:
+      - "gateway-test-app:dnc"
+
+  gateway-test-app:
+    build:
+      context: .\TestApp
+    image: acndev.azurecr.io/gateway-test-app
+    container_name: gateway-test-app
+    ports:
+        - "9000:9000"

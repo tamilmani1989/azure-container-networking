@@ -1,0 +1,70 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: dnc-service
+spec:
+  selector:
+    app: dnc
+  type: LoadBalancer
+  ports:
+    - name: dnc-port
+      port: 9000
+      targetPort: 9000
+      protocol: TCP
+    - name: gateway-port
+      port: 80
+      targetPort: 5001
+      protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dnc-pod
+  labels:
+    app: dnc
+spec:
+  selector:
+    matchLabels:
+      app: dnc
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: dnc
+    spec:      
+      hostNetwork: true
+      containers:
+      - name: dnc-container
+        image: msint.azurecr.io/containernetworking/dnc:latest
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: log
+          mountPath: /var/log
+        ports:
+        - containerPort: 9000
+        env:
+        - name: DNCIpAddress
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+      - name: gateway-app
+        image: acndev.azurecr.io/dnc-gateway:latest
+        ports:
+        - containerPort: 5001
+          name: gatewayport
+        env:
+        - name: AzureServicesAuthConnectionString 
+          value: "RunAs=App;AppId=7123670b-b82c-4b5b-a2bf-4a36e47c8333;TenantId=72f988bf-86f1-41af-91ab-2d7cd011db47;AppKey=<add key for testing>"
+        - name: DNCIpAddress
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+      imagePullSecrets:
+        - name: msint.azurecr.io-key
+      volumes:
+      - name: log
+        hostPath:
+          path: /var/log
+          type: Directory

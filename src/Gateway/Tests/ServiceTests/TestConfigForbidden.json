@@ -1,0 +1,10 @@
+{
+  "Instance": "https://login.microsoftonline.com/{0}",
+  "TenantId": "73073094-f051-4be0-b779-ce802dd3b910",
+  "ClientId": "8a7c5aed-0f5d-4fd6-8d28-b2d915a84868",
+  "ClientSecret": "",
+  "BaseAddress": "https://localhost:5001",
+  "ResourceId": "api://2a5001b3-32e4-40c6-a08b-7e06b8059516/.default",
+  "StressTestIterations": 100,
+  "EnvVariableRequired": "AzureServicesAuthConnectionString,DncIpAddress"
+}

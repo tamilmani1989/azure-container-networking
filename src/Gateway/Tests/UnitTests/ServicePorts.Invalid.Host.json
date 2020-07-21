@@ -1,0 +1,14 @@
+// *** PLEASE READ ***
+// Specify forwarding host either via Host or via environment variable in HostEnvironmentVariable. If both are specified, host from environment name will supersede.
+// If none is specfied meaning host is empty and variable is not set in environment, "localhost" will be used as default host name
+{
+  "Services": [
+    {
+      "ServiceName": "dnc",
+      "Port": "9000",
+      "Scheme": "http",
+      "Host": "",
+      "HostEnvironmentVariable": ""
+    }
+  ]
+}
