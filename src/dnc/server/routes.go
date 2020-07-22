@@ -79,6 +79,12 @@ var routes = Routes{
 		CreateNetworkContainer,
 	},
 	Route{
+		"CreateOrUpdateNetworkContainer",
+		http.MethodPut,
+		"/networks/{networkID}/networkcontainer/{networkContainerID}",
+		CreateOrUpdateNetworkContainerV2,
+	},
+	Route{
 		"GetNetworkContainer",
 		"GET",
 		"/networks/{networkID}/networkcontainer/{networkContainerID}",

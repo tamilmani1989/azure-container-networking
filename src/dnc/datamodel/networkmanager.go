@@ -2508,9 +2508,8 @@ func CreateOrUpdateNCRequestV2(
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	// todo: currently, this means no-op in case of an update
 	if ncConfig != nil {
-		return nil
+		return UpdateNCRequestV2(ncConfig, ncRequestV2)
 	}
 
 	defer func() {
@@ -2604,6 +2603,52 @@ func CreateOrUpdateNCRequestV2(
 
 	err = PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
 	return err
+}
+
+func UpdateNCRequestV2(currentNC *NCConfiguration, ncRequestV2 *api.NetworkContainerRequestV2) *api.JsonErr {
+	// We will only process updates when there are differences between existing nc state and nc request
+	// that should result in changes to IP allocations
+	oldIPCount := currentNC.RequestV2.AllocationRequest.SecondaryIPCount
+	newIPCount := ncRequestV2.AllocationRequest.SecondaryIPCount
+
+	// Only the AKS-Swift workflow sets these fields
+	// Non-AKS-Swift workflows do not process updates
+	if len(ncRequestV2.ToBeDeletedIPIds) == 0 && oldIPCount == newIPCount {
+		loggershim.LS.Debugf("update request for nc id %s received, nothing to update", currentNC.NetworkContainerID)
+		return nil
+	}
+
+	// It is possible that a previous NC request is already going through processing as an update is received
+	// We must wait for the processing to be complete before we queue up another item, otherwise, we risk a
+	// race condition in which the updated records are persisted before current processing ends, and then
+	// at the end of the initial processing, the pending queue item is delete, without having processed the update.
+	if currentNC.Status != Completed {
+		msg := fmt.Sprintf("Network container id %s currently being processed in state %v. Cannot update while processing", currentNC.NetworkContainerID, currentNC.State.String())
+		// 409 Conflict may not be the most accurate error for this condition, but should signal the client to retry the request later
+		return api.Conflict(api.ProcessingPending, msg)
+	}
+
+	ncConfiguration := NCConfiguration{
+		NetworkContainerID:    currentNC.NetworkContainerID,
+		NetworkID:             currentNC.NetworkID,
+		ReservationID:         currentNC.ReservationID,
+		ImplicitReservation:   currentNC.ImplicitReservation,
+		RequestV2:             *ncRequestV2,
+		State:                 Prepare,
+		Status:                Pending,
+		CNSVersion:            currentNC.CNSVersion,
+		AgentVersion:          currentNC.AgentVersion,
+		ProgrammedVnetVersion: currentNC.ProgrammedVnetVersion,
+		ProgrammedTagsInfo:    currentNC.ProgrammedTagsInfo,
+		FailureDetail:         currentNC.FailureDetail,
+		MarkedForDelete:       false, // todo: handle this scenario when implementing deletes
+		APIVersion:            currentNC.APIVersion,
+		LocalIP:               currentNC.LocalIP,
+	}
+
+	// both nc and pending item operations are forced upserts
+	// nc lock should have been taken upstream, so this is safe.
+	return PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
 }
 
 type NetworkContainerInfo struct {

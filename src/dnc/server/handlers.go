@@ -507,6 +507,50 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// CreateOrUpdateNetworkContainerV2 - Handler for upsert of network container requests v2
+func CreateOrUpdateNetworkContainerV2(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set(contentTypeStr, defaultContentType)
+
+	apiVersion := r.URL.Query().Get("api-version")
+	pathVars := mux.Vars(r)
+
+	networkID, ok := pathVars[networkIDStr]
+	if !ok {
+		setRequestFailed(w, api.BadRequest(api.InvalidNetworkID, api.NetworkIDMissing))
+		return
+	}
+
+	ncID, ok := pathVars[networkContainerIDStr]
+	if !ok {
+		setRequestFailed(w, api.BadRequest(api.InvalidNetworkContainerID, api.NetworkContainerIDMissing))
+		return
+	}
+
+	if validationErr := ValidateNetworkContainerRequest(networkID, ncID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	var ncRequest api.NetworkContainerRequestV2
+	if err := json.NewDecoder(r.Body).Decode(&ncRequest); err != nil {
+		setRequestFailed(w, api.BadRequest(api.InvalidNetworkContainerRequest, fmt.Sprintf("Could not parse network container request body: %v", err)))
+		return
+	}
+
+	if validationErr := ncRequest.Validate(); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	ncPersistErr := ctrler.PersistNetworkContainerRequestV2(networkID, ncID, &ncRequest, apiVersion)
+	if ncPersistErr != nil {
+		setRequestFailed(w, ncPersistErr)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func getNetworkContainerRequestV1(body []byte) (*api.NetworkContainerRequestV1, error) {
 	var ncRequestV1 api.NetworkContainerRequestV1
 	if err := json.Unmarshal(body, &ncRequestV1); err != nil {
