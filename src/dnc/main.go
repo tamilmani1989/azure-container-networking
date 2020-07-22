@@ -113,6 +113,7 @@ func init() {
 
 	replicaInstance = replica.NewReplica(
 		config.ServerSettings,
+		config.HttpClientSettings,
 		networkupdatehandler.GetNetworkRefreshMonitorStatus)
 	sessionManager = utils.NewSessionManager([]string{
 		datamodel.NCRepositoryName,

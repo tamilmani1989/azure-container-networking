@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 
 	"github.com/Azure/azure-container-networking/cns"
 )
@@ -566,6 +567,11 @@ func (c *Controller) GetPrimaryIPEndpoint() (string, error) {
 // GetReplicaIPEndpoint - Retrieves the endpoint of this replica.
 func (c *Controller) GetReplicaIPEndpoint() (string, error) {
 	return c.Replica.GetReplicaIPEndpoint()
+}
+
+// GetPrimaryReverseProxy - Get the reverse proxy to the primary used by this replica
+func (c *Controller) GetPrimaryReverseProxy() *httputil.ReverseProxy {
+	return c.Replica.GetPrimaryReverseProxy()
 }
 
 // InitializeAzureStorage - Tries to establish a connection with azure storage with information provided in request.

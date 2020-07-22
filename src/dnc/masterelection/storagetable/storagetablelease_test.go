@@ -117,9 +117,9 @@ func TestPrimaryElection2(t *testing.T) {
 		panic(err)
 	}
 
-	r1 := replica.NewReplica(config.ServerSettings, refreshMonitor)
-	r2 := replica.NewReplica(config.ServerSettings, refreshMonitor)
-	r3 := replica.NewReplica(config.ServerSettings, refreshMonitor)
+	r1 := replica.NewReplica(config.ServerSettings, config.HttpClientSettings, refreshMonitor)
+	r2 := replica.NewReplica(config.ServerSettings, config.HttpClientSettings, refreshMonitor)
+	r3 := replica.NewReplica(config.ServerSettings, config.HttpClientSettings, refreshMonitor)
 
 	start1 := make(chan bool)
 	start2 := make(chan bool)
@@ -289,6 +289,7 @@ func TestInitialization(t *testing.T) {
 
 	replicaInstance := replica.NewReplica(
 		config.ServerSettings,
+		config.HttpClientSettings,
 		refreshMonitor)
 	st1 := NewStorageTableLease(
 		config.ServerSettings,
@@ -337,6 +338,7 @@ func setup() error {
 func getStorageTableLease() *StorageTableLease {
 	replicaInstance := replica.NewReplica(
 		config.ServerSettings,
+		config.HttpClientSettings,
 		refreshMonitor)
 	return TestNewStorageTableLease(
 		config.ServerSettings,

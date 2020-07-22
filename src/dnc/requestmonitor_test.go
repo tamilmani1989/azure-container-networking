@@ -245,6 +245,7 @@ func StartDnc() {
 	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
 	replicaInstance = replica.NewReplica(
 		config.ServerSettings,
+		config.HttpClientSettings,
 		networkupdatehandler.GetNetworkRefreshMonitorStatus)
 	sessionManager = utils.NewSessionManager([]string{
 		datamodel.NCRepositoryName,

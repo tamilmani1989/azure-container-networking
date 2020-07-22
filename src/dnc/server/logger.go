@@ -2,15 +2,10 @@ package server
 
 import (
 	"dnc/api"
-	"encoding/json"
-	"net"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"strings"
-	"time"
-
 	"dnc/logger/loggershim"
+	"encoding/json"
+	"net/http"
+	"strings"
 )
 
 var supportedAPIVersions = map[string]bool{"2018-03-01": true}
@@ -23,7 +18,6 @@ func Logger(inner http.Handler, name string, reverseProxyEnabled bool, connectio
 			setRequestFailed(w, err)
 			return
 		}
-
 		if strings.Contains(r.RequestURI, "/azurestoragesettings") ||
 			strings.Contains(r.RequestURI, "/azurestoragesettingsv2") ||
 			strings.Contains(r.RequestURI, "/azurestoragesettingsv3") {
@@ -83,7 +77,8 @@ func Logger(inner http.Handler, name string, reverseProxyEnabled bool, connectio
 				target := "http://" + primaryEP + r.URL.String()
 				if reverseProxyEnabled {
 					loggershim.LS.Debugf("Forwarding to %s", target)
-					forwardToPrimary(target, w, r, connectionTimeout)
+					reverseProxy := ctrler.GetPrimaryReverseProxy()
+					reverseProxy.ServeHTTP(w, r)
 				} else {
 					loggershim.LS.Debugf("Redirecting to %s", target)
 					http.Redirect(w, r, target, http.StatusTemporaryRedirect)
@@ -94,35 +89,6 @@ func Logger(inner http.Handler, name string, reverseProxyEnabled bool, connectio
 
 		inner.ServeHTTP(w, r)
 	})
-}
-
-func forwardToPrimary(target string, w http.ResponseWriter, r *http.Request, connectionTimeout int) {
-	url, _ := url.ParseRequestURI(target)
-	p := httputil.NewSingleHostReverseProxy(url)
-	p.Director = func(req *http.Request) {
-		req.Header.Add("X-Forwarded-Host", req.Header.Get("Host"))
-		req.URL.Host = url.Host
-		req.URL.Scheme = url.Scheme
-		req.Host = url.Host
-	}
-	p.Transport = &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout: time.Duration(connectionTimeout) * time.Second,
-		}).Dial,
-	}
-
-	// This is based on golang's reverseproxy, default error handler, only difference is
-	// it logs using our custome logger, rather standard one.
-	// https://golang.org/src/net/http/httputil/reverseproxy.go?3655:3716#L159
-	p.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
-		// Assumption is if this is called, error will not be nil
-		// same as library implementation.
-		loggershim.LS.Errorf("HTTP: Proxy error : %+v", err)
-		rw.WriteHeader(http.StatusBadGateway)
-		return
-	}
-
-	p.ServeHTTP(w, r)
 }
 
 func isReplicaOperation(r *http.Request) bool {

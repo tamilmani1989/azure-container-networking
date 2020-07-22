@@ -173,6 +173,11 @@ type HttpClientSettings struct {
 	ConnectionTimeout int
 	// ResponseHeaderTimeout indicates the timeout used to get the header
 	ResponseHeaderTimeout int
+	// Controls the maximum idle (keep-alive) connections to keep per-host
+	MaxIdleConnsPerHost int
+	// IdleConnTimeout is the maximum amount of time an idle (keep-alive)
+	// connection will remain idle before closing itself
+	IdleConnTimeout int
 }
 
 // TelemetrySettings DNC telemetry settings
@@ -347,6 +352,18 @@ func setHttpSettingDefaults(httpClientSettings *HttpClientSettings) {
 	if httpClientSettings.ResponseHeaderTimeout == 0 {
 		// set the default response header timeout to 120 seconds
 		httpClientSettings.ResponseHeaderTimeout = 120
+	}
+
+	if httpClientSettings.MaxIdleConnsPerHost == 0 {
+		// set the default max connections per host
+		// 100 is the value golang uses by its default http client
+		httpClientSettings.MaxIdleConnsPerHost = 100
+	}
+
+	if httpClientSettings.IdleConnTimeout == 0 {
+		// set the default idle connection timeout to 90 seconds
+		// 90 is the value golang uses by its default http client
+		httpClientSettings.IdleConnTimeout = 90
 	}
 }
 

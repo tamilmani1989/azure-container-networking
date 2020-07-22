@@ -4,10 +4,9 @@ import (
 	"dnc/configuration"
 	"dnc/controller"
 	"dnc/utils"
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
-
-	"github.com/gorilla/mux"
 )
 
 type Server struct {
