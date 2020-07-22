@@ -13,6 +13,7 @@ func main() {
 	rootCmd.AddCommand(cmd.CreateCmd())
 	rootCmd.AddCommand(cmd.DeleteCmd())
 	rootCmd.AddCommand(cmd.GetCmd())
+	rootCmd.AddCommand(cmd.UpsertCmd())
 
 	rootCmd.Execute()
 }

@@ -232,6 +232,45 @@ func (c *DncClient) AddNc(nodeId, networkId, ncId, reservationId, subnet,
 	return
 }
 
+func (c *DncClient) UpsertNcV2(networkId, ncId string, req api.NetworkContainerRequestV2) *api.JsonErr {
+	var (
+		body     bytes.Buffer
+		response *http.Response
+		err      error
+		ncURL                 = fmt.Sprintf(ncApi, c.DncEP, networkId, ncId)
+		respErr  *api.JsonErr = &api.JsonErr{}
+	)
+
+	err = json.NewEncoder(&body).Encode(req)
+	if err != nil {
+		respErr.Text = err.Error()
+		return respErr
+	}
+
+	httpReq, err := http.NewRequest(http.MethodPut, ncURL, &body)
+	if err != nil {
+		respErr.Text = err.Error()
+		return respErr
+	}
+	httpReq.Header.Add("Content-Type", jsonContentType)
+
+	response, err = httpc.Do(httpReq)
+	respErr.HTTPStatus = http.StatusOK
+	if err == nil {
+		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			if err = utils.DecodeResponse(response, &respErr); err != nil {
+				failedToDecodeResponse(respErr, Register, NetworkContainer, err)
+			}
+		}
+	} else {
+		reportClientErr(respErr, err)
+	}
+
+	return respErr
+}
+
 func (c *DncClient) AddReservation(networkId, subnet, ipConstraint, nodeConstraint, reservationId string) (respErr *api.JsonErr) {
 	var (
 		body           bytes.Buffer

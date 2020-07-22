@@ -15,7 +15,7 @@ DNCFILES = \
 	$(wildcard server/*.go) \
 	$(wildcard utils/*.go) \
 	$(wildcard MadariClient/*.go) \
-	$(wildcard resourceupdatehandler/*.go)
+	$(wildcard resourceupdatehandler/*.go) \
 	$(wildcard pubsubproxy/*.go)
 
 # Source files for building runner
@@ -84,7 +84,8 @@ $(DNC_BUILD_DIR)/dnc$(EXE_EXT): $(DNCFILES)
 	go build -v -o $(DNC_BUILD_DIR)/dnc$(EXE_EXT) -ldflags "-X dnc/utils.Version=$(VERSION) -X dnc/aiwrapper.aiMetadata=$(DNC_AI_ID) -s -w" *.go
 
 # Build dnctl
-$(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT): $(DNCTLFILES)
+.PHONY: $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT)
+$(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT):
 	export CGO_ENABLED=0; \
 	go build -v -o $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT) $(DNCTL_DIR)/*.go
 
