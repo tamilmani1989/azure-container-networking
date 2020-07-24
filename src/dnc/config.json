@@ -103,11 +103,11 @@
         "MaxConcurrentRequests": 1000,
         "RequestRetryBaseInterval": 1000,
         "MaxRequestBackoffInterval": 16000,
-        "NumPubSubs": #NumPubSubInstances#,
+        "NumPubSubs": 0,
         "PublisherPort": "18605",
         "SubscriberPort": "18600",
-        "PubsubCertName": #PubSubCertName#,
-        "PubsubConnectionEndpoint": #PubsubConnectionEp#,
-        "PubsubVips": #"AZ0VIP0,AZ0VIP1|AZ1VIP0,AZ1VIP1|AZ2VIP0,AZ2VIP1"#
+        "PubsubCertName": "",
+        "PubsubConnectionEndpoint": "",
+        "PubsubVips": "AZ0VIP0,AZ0VIP1|AZ1VIP0,AZ1VIP1|AZ2VIP0,AZ2VIP1"
     }
 }
