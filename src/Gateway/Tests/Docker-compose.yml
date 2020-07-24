@@ -4,7 +4,7 @@ services:
     build:
       context: ..\Server
       args:
-        GATEWAY_BUILD_DIR: src/bin/Debug/netcoreapp3.1/linux-x64
+        GATEWAY_BUILD_DIR: src/bin/Release/netcoreapp3.1/linux-x64
     environment:
       AzureServicesAuthConnectionString:
       DNCIpAddress: "gateway-test-app"

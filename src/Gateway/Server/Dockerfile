@@ -6,7 +6,7 @@ COPY $GATEWAY_BUILD_DIR /app
 
 WORKDIR /app
 
-RUN chmod +x DncGateway; \
+RUN chmod +x Gateway; \
     apt-get update; \
     apt-get upgrade; \
 	apt-get install -y ca-certificates; \
@@ -14,5 +14,5 @@ RUN chmod +x DncGateway; \
 
 EXPOSE 5001
 
-ENTRYPOINT ["/app/DncGateway"]
+ENTRYPOINT ["/app/Gateway"]
 
