@@ -33,7 +33,7 @@ type Preparer struct {
 // Returns whether item should be removed from pending queue, and any error during preparation
 func (p *Preparer) PrepareNetworkContainerV2(ncConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	if ncConfig.ReservationID == "" {
-		reservationIDUUID, err := uuid.NewUUID()
+		reservationIDUUID, err := uuid.NewRandom()
 		if err != nil {
 			return false, &api.JsonErr{
 				Code:       api.StatusInternalServerError,
@@ -63,7 +63,7 @@ func (p *Preparer) PrepareNetworkContainerV2(ncConfig *datamodel.NCConfiguration
 	}
 
 	for i := 0; i < ncConfig.RequestV2.AllocationRequest.SecondaryIPCount; i++ {
-		id, _ := uuid.NewUUID()
+		id, _ := uuid.NewRandom()
 		res.SecondaryAllocations[id.String()] = ""
 	}
 
