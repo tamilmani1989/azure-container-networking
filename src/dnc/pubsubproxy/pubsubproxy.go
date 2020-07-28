@@ -11,6 +11,7 @@ struct NC_DATA {
 	uint64_t NetworkContainerVersion;
     char* SubnetPrefix;
     char* CustomerAddress;
+	char* SecondaryCustomerAddresses;
     char* RoleInstanceId;
     char* RoleInstanceName;
     char* VnetId;
@@ -112,7 +113,8 @@ type PublishNetworkContainerRequest struct {
 	InfraVnetID      string
 	NodeInterfaceIP  string
 	SubnetAuthToken  string
-	IPV4Addresses    []string
+	PrimaryIP        string
+	SecondaryIPs     []string
 	SubnetName       string
 	Version          string
 	Policies         []string
@@ -181,7 +183,8 @@ func serializeNetworkContainerPublishData(
 
 	ncData.NetworkContainerVersion = C.uint64_t(networkContainerVersion)
 	ncData.SubnetPrefix = C.CString(cachedSubnetConfig.addressPrefix)
-	ncData.CustomerAddress = C.CString(ncPublishRequest.IPV4Addresses[0])
+	ncData.CustomerAddress = C.CString(ncPublishRequest.PrimaryIP)
+	ncData.SecondaryCustomerAddresses = C.CString(strings.Join(ncPublishRequest.SecondaryIPs, ","))
 	ncData.RoleInstanceId = C.CString(ncRoleInstanceId)
 	ncData.RoleInstanceName = C.CString(ncRoleInstanceName)
 	ncData.VnetId = C.CString(ncPublishRequest.VirtualNetworkID)
@@ -192,6 +195,7 @@ func serializeNetworkContainerPublishData(
 		C.free(serializedNcData)
 		C.free(unsafe.Pointer(ncData.SubnetPrefix))
 		C.free(unsafe.Pointer(ncData.CustomerAddress))
+		C.free(unsafe.Pointer(ncData.SecondaryCustomerAddresses))
 		C.free(unsafe.Pointer(ncData.RoleInstanceId))
 		C.free(unsafe.Pointer(ncData.RoleInstanceName))
 		C.free(unsafe.Pointer(ncData.VnetId))
@@ -303,6 +307,8 @@ func PublishNetworkContainer(
 			},
 			ncId:   ncPublishRequest.NcID,
 			vnetId: ncPublishRequest.VirtualNetworkID,
+			// todo: centralize all C (de)ser logic to a single location
+			// we are currently declaring the same C structs here and in workerpool.go as well
 			ncData: ncDataBytes,
 		}
 

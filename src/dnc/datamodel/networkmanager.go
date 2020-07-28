@@ -3127,12 +3127,20 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 		associatedInterfaceID = assocInfo.InterfaceID
 	}
 
+	secondaryIPs := make([]string, 0)
+	for _, ipAddress := range repoReservationConfiguration.SecondaryAllocations {
+		if ipAddress != "" {
+			secondaryIPs = append(secondaryIPs, ipAddress)
+		}
+	}
+
 	ncGoalState := &NCGoalState{
 		NetworkContainerID:    repoNCConfig.NetworkContainerID,
 		Version:               repoNCConfig.CNSVersion,
 		NetworkID:             repoNCConfig.NetworkID,
 		InfraNetworkID:        repoNodeConfig.NodeInfo.InfrastructureNetwork,
 		AllocatedIPSubnet:     repoReservationConfiguration.AllocatedSubnet,
+		SecondaryIPs:          secondaryIPs,
 		BaseSubnet:            repoSubnetConfiguration.IPSubnet,
 		BaseSubnetName:        repoSubnetConfiguration.SubnetName,
 		AccessToken:           repoSubnetConfiguration.AccessToken,

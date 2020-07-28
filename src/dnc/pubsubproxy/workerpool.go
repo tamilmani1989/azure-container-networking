@@ -11,6 +11,7 @@ struct NC_DATA {
 	uint64_t NetworkContainerVersion;
     char* SubnetPrefix;
     char* CustomerAddress;
+	char* SecondaryCustomerAddresses;
     char* RoleInstanceId;
     char* RoleInstanceName;
     char* VnetId;

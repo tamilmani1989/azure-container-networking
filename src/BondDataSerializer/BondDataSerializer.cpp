@@ -453,6 +453,8 @@ ResultStatus SerializeNetworkContainerPublishData(
     NcDataMap.insert(std::pair<std::wstring, std::wstring>(
         L"CustomerAddress", StringToWString(std::string(ncData->CustomerAddress))));
     NcDataMap.insert(std::pair<std::wstring, std::wstring>(
+        L"SecondaryCustomerAddresses", StringToWString(std::string(ncData->SecondaryCustomerAddresses))));
+    NcDataMap.insert(std::pair<std::wstring, std::wstring>(
         L"RoleInstanceId", StringToWString(std::string(ncData->RoleInstanceId))));
     NcDataMap.insert(std::pair<std::wstring, std::wstring>(
         L"RoleInstanceName", StringToWString(std::string(ncData->RoleInstanceName))));

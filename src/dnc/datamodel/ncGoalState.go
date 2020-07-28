@@ -12,6 +12,7 @@ type NCGoalState struct {
 	NetworkID             string
 	InfraNetworkID        string
 	AllocatedIPSubnet     string
+	SecondaryIPs          []string
 	BaseSubnet            string
 	BaseSubnetName        string
 	AccessToken           string

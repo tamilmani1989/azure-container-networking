@@ -880,19 +880,25 @@ func publishNetworkContainerWithPubSubProxy(
 	// Release the session lock before making call to PubSubProxy
 	sessionManager.EndWriteSession(sessionInfo)
 
+	var secondaryIPs []string
+	for _, secIP := range ncGoalState.SecondaryIPs {
+		// split will always be at least len==1 with a non empty separator
+		secondaryIPs = append(secondaryIPs, strings.Split(secIP, "/")[0])
+	}
+
 	publishNcRequest := pubsubproxy.PublishNetworkContainerRequest{
 		NcID:             ncGoalState.NetworkContainerID,
 		InfraVnetID:      ncGoalState.InfraNetworkID,
 		NodeInterfaceIP:  ncGoalState.AssociatedInterfaceID,
 		SubnetAuthToken:  ncGoalState.AccessToken,
-		IPV4Addresses:    make([]string, 1),
+		PrimaryIP:        strings.Split(ncGoalState.AllocatedIPSubnet, "/")[0],
+		SecondaryIPs:     secondaryIPs,
 		SubnetName:       ncGoalState.BaseSubnetName,
-		Version:          strconv.FormatUint(ncGoalState.VnetVersion, 10),
+		Version:          strconv.FormatUint(ncGoalState.Version, 10),
 		Policies:         make([]string, 0),
 		VirtualNetworkID: ncGoalState.NetworkID,
 		VlanID:           ncGoalState.VlanID,
 	}
-	publishNcRequest.IPV4Addresses[0] = strings.Split(ncGoalState.AllocatedIPSubnet, "/")[0]
 
 	publishError := pubsubproxy.PublishNetworkContainer(publishNcRequest)
 

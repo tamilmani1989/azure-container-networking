@@ -10,12 +10,15 @@ import (
 	"net/http"
 )
 
+// todo: extract request structs to different package to avoid duplication
+// we are currently declaring them twice due to build constraints
 type PublishNetworkContainerRequest struct {
 	NcID             string
 	InfraVnetID      string
 	NodeInterfaceIP  string
 	SubnetAuthToken  string
-	IPV4Addresses    []string
+	PrimaryIP        string
+	SecondaryIPs     []string
 	SubnetName       string
 	Version          string
 	Policies         []string
