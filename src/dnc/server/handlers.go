@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/Azure/azure-container-networking/cns"
@@ -26,6 +27,8 @@ const (
 	nodeIDStr             = "nodeID"
 	reservationIDStr      = "reservationID"
 	subnetStr             = "subnet"
+	infraNetworkIDStr     = "infraNetworkID"
+	coresStr              = "cores"
 )
 
 // content types
@@ -686,6 +689,169 @@ func GetNetworkContainerConfiguration(w http.ResponseWriter, r *http.Request) {
 		if err := json.NewEncoder(w).Encode(ncConfig); err != nil {
 			panic(err)
 		}
+	}
+}
+
+// RegisterNode - mark a node as registered
+func RegisterNode(w http.ResponseWriter, r *http.Request) {
+	apiVersion := r.URL.Query().Get("api-version")
+	vars := mux.Vars(r)
+
+	nodeID, ok := vars[nodeIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNodeID,
+			Text:       api.NodeIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	infraNetworkID, ok := vars[infraNetworkIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	coresStrFmt, ok := vars[coresStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNCLimit,
+			Text:       api.NCLimitMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	cores, atoiErr := strconv.Atoi(coresStrFmt)
+	if atoiErr != nil {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNCLimit,
+			Text:       fmt.Sprintf("Failed to convert %s with error %+v", coresStrFmt, atoiErr),
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	w.Header().Set(contentTypeStr, defaultContentType)
+
+	nodeConfig, err := ctrler.GetNodeConfiguration(nodeID)
+	if err != nil {
+		w.WriteHeader(err.HTTPStatus)
+		if err := json.NewEncoder(w).Encode(err); err != nil {
+			panic(err)
+		}
+	}
+
+	if nodeConfig == nil {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.NodeNotFound,
+			Text:       fmt.Sprintf("Node configuration for node %v not found.", nodeID),
+			HTTPStatus: http.StatusNotFound})
+		return
+	}
+
+	if nodeConfig.NodeInfo.InfrastructureNetwork != infraNetworkID {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       "Invalid node ID and infrastructure network combination",
+			HTTPStatus: http.StatusUnauthorized})
+		return
+	}
+
+	if err = ctrler.RegisterNode(nodeID, apiVersion, cores); err != nil {
+		w.WriteHeader(err.HTTPStatus)
+		if err := json.NewEncoder(w).Encode(err); err != nil {
+			panic(err)
+		}
+	}
+
+	info := &cns.SetOrchestratorTypeRequest{
+		OrchestratorType: nodeConfig.NodeInfo.OrchestratorType,
+		DncPartitionKey:  ctrler.GetConfig().DataStoreSettings.AzureStorageInfo.PartitionKey,
+		NodeID:           nodeID}
+
+	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		panic(err)
+	}
+}
+
+// SyncNodeNetworkContainers - compile and retrieve network container requests
+func SyncNodeNetworkContainers(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	nodeID, ok := vars[nodeIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNodeID,
+			Text:       api.NodeIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	infraNetworkID, ok := vars[infraNetworkIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	w.Header().Set(contentTypeStr, defaultContentType)
+
+	nodeConfig, err := ctrler.GetNodeConfiguration(nodeID)
+	if err != nil {
+		w.WriteHeader(err.HTTPStatus)
+		if err := json.NewEncoder(w).Encode(err); err != nil {
+			panic(err)
+		}
+	}
+
+	if !nodeConfig.Registered {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.UnregisteredNode,
+			Text:       "Node must be registered before sync",
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	if nodeConfig.NodeInfo.InfrastructureNetwork != infraNetworkID {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       "Invalid node ID and infrastructure network combination",
+			HTTPStatus: http.StatusUnauthorized})
+		return
+	}
+
+	var (
+		syncNodeInfo cns.NodeInfoResponse
+		config       = ctrler.GetConfig()
+	)
+
+	if config != nil {
+		syncNodeInfo.GetNCVersionURLFmt = config.HostAgentSettings.ConnectionStrings.GetNetworkContainerVersionURLFmt
+	}
+
+	for networkID, ncTuple := range nodeConfig.DeployedNetworkContainerMap {
+		for ncID := range ncTuple {
+			ncRequest, err := ctrler.GetNetworkContainerRequest(networkID, ncID)
+			if err != nil {
+				w.WriteHeader(err.HTTPStatus)
+				if err := json.NewEncoder(w).Encode(err); err != nil {
+					panic(err)
+				}
+				return
+			}
+
+			syncNodeInfo.NetworkContainers = append(syncNodeInfo.NetworkContainers, *ncRequest)
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(syncNodeInfo); err != nil {
+		panic(err)
 	}
 }
 

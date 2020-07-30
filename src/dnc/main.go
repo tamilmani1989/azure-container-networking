@@ -13,7 +13,6 @@ import (
 	"dnc/pubsubproxy"
 	"dnc/replica"
 	"dnc/resourceupdatehandler/networkupdatehandler"
-	"dnc/resourceupdatehandler/tagupdatehandler"
 	"dnc/server"
 	"dnc/utils"
 	"flag"
@@ -26,6 +25,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-container-networking/aitelemetry"
+	"github.com/Azure/azure-container-networking/cns"
 	"github.com/Azure/azure-container-networking/telemetry"
 )
 
@@ -65,9 +65,8 @@ var (
 )
 
 const (
-	maxLogFileSize       = 16 * 1024 * 1024 // Set 16MB as the max log file size
-	maxLogFileCount      = 8                // Set 8 as max log file count.
-	directCnsChannelMode = "direct"
+	maxLogFileSize  = 16 * 1024 * 1024 // Set 16MB as the max log file size
+	maxLogFileCount = 8                // Set 8 as max log file count.
 )
 
 func init() {
@@ -128,8 +127,11 @@ func init() {
 		startChan,
 		doneChan,
 		demoteChan)
-	if config.CNSSettings.ChannelMode == directCnsChannelMode {
-		cnsInterface = cnsinterface.NewDirectClient(sessionManager)
+	switch config.CNSSettings.ChannelMode {
+	case cns.Direct:
+		cnsInterface = cnsinterface.NewDirectClient(sessionManager, config.DNCSettings.EnforceNICLimit)
+	case cns.Managed:
+		cnsInterface = cnsinterface.NewLocalClient(sessionManager, config.DNCSettings.EnforceNICLimit)
 	}
 
 	// Creating http client object to be reused instead of creating one every time.
@@ -171,7 +173,6 @@ func init() {
 	}
 
 	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
-	tagupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
 
 	if config.PubSubProxySettings.EnablePubSubProxy {
 		if err := pubsubproxy.Init(config.PubSubProxySettings, replicaInstance); err != nil {
@@ -223,8 +224,11 @@ func startReplica(c *controller.Controller) {
 		go networkupdatehandler.MonitorNetworkUpdates()
 	}
 
-	go tagupdatehandler.MonitorTagUpdates()
-	go monitorNetworkContainers()
+	// NC refresh is not required in managed instances
+	if !config.DNCSettings.Managed {
+		go monitorNetworkContainers()
+	}
+
 	if !disableTelemetry {
 		go sendTelemetry()
 	}

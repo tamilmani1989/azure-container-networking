@@ -10,7 +10,6 @@ import (
 	"dnc/nmagentcontracts"
 	"dnc/pubsubproxy"
 	"dnc/resourceupdatehandler/networkupdatehandler"
-	"dnc/resourceupdatehandler/tagupdatehandler"
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
@@ -36,7 +35,6 @@ const (
 	// NMAgent using 169.254.0.0 to 169.254.3.255. So allocating a range not conflicting with that.
 	localIPSubnetAddressString            = "169.254.128.0/17"
 	imdsIPSubnetString                    = "169.254.169.254/32"
-	localIPSubnetPrefixLength             = 17
 	unauthorizedErrRetryDurationSec       = 60
 	defaultMaxConcurrentRequestsToProcess = 1000
 	defaultContentType                    = "application/json; charset=UTF-8"
@@ -248,8 +246,13 @@ func processAllocateLocalIP(
 		goto Cleanup
 	}
 
+	if config.DNCSettings.Managed {
+		repoNCConfig.State = datamodel.Publish
+	} else {
+		repoNCConfig.State = datamodel.Associate
+	}
+
 	repoNCConfig.LocalIP = allocatedIP.IP.String()
-	repoNCConfig.State = datamodel.Associate
 	repoNCConfig.Status = datamodel.Pending
 	repoNCConfig.FailureDetail = api.JsonErr{}
 
@@ -450,39 +453,6 @@ func processNetworkContainerPurge(
 	return true, nil
 }
 
-func hasTagsChanged(resolvedTags map[string]datamodel.TagDefinition, currentTags map[string]uint64) bool {
-	if len(resolvedTags) != len(currentTags) {
-		return true
-	}
-
-	for tagName, tagDefinition := range resolvedTags {
-		currentVersion, found := currentTags[tagName]
-		if !found {
-			logger.Debugf("TagName:%v not found", tagName)
-			return true
-		}
-
-		if currentVersion != tagDefinition.Version {
-			logger.Debugf("TagName:%v version change detected, Current:%v Updated:%v", tagName, currentVersion, tagDefinition.Version)
-			return true
-		}
-	}
-
-	return false
-}
-
-func getLocalIPGateway(ipsubnet string) (string, error) {
-	_, ipNet, err := net.ParseCIDR(ipsubnet)
-	if err != nil {
-		logger.Errorf("parseCIDR for %v failed %v", ipsubnet, err)
-		return "", err
-	}
-
-	ipstart := utils.IP2Int(ipNet.IP)
-	ipstart = ipstart + 1
-	return utils.Int2IP(ipstart).String(), nil
-}
-
 func processNetworkContainerAssociate(
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string) (bool, *api.JsonErr) {
@@ -505,134 +475,17 @@ func processNetworkContainerAssociate(
 		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
-	cnetAddressesCount := len(ncGoalState.CNetSubnets)
-	updatedTagInfo := make(map[string]uint64)
-	resolvedTags := make(map[string]datamodel.TagDefinition)
-	var tagsResolutionErr *api.JsonErr
-	for _, tag := range ncGoalState.TagsInfo {
-		tagDefinition, tagErr := tagupdatehandler.RegisterAndGetTagDefinition(tag)
-		if tagErr == nil {
-			tagKey := datamodel.GetTagDefintionKey(tag.Type, tag.Name)
-			resolvedTags[tagKey] = tagDefinition
-			cnetAddressesCount += len(resolvedTags[tagKey].Values)
-			updatedTagInfo[tagKey] = tagDefinition.Version
-		} else {
-			tagsResolutionErr = tagErr
-		}
-	}
-
-	if tagsResolutionErr != nil {
-		return false, tagsResolutionErr
-	}
-
-	if repoNCConfig.ProgrammedTagsInfo == nil {
-		repoNCConfig.ProgrammedTagsInfo = make(map[string]uint64)
-	}
-
-	if ncGoalState.VnetVersion != repoNCConfig.ProgrammedVnetVersion ||
-		hasTagsChanged(resolvedTags, repoNCConfig.ProgrammedTagsInfo) {
-		repoNCConfig.CNSVersion++
-	}
-
-	var body bytes.Buffer
-	var ipConfig cns.IPConfiguration
-	var ipSubnet cns.IPSubnet
-	var resp cns.CreateNetworkContainerResponse
-	var respErr error
-
-	ipConfig.DNSServers = ncGoalState.DNSServers
-	ipConfig.GatewayIPAddress = ncGoalState.GatewayIP
-	allocatedIP := strings.Split(ncGoalState.AllocatedIPSubnet, "/")[0]
-	_, baseSubnetPrefix, err := utils.GetIPAddressStringAndPrefix(ncGoalState.BaseSubnet)
-	if err != nil {
-		msg := fmt.Sprintf("Failed to parse base subnet string %v due to error %v",
-			ncGoalState.BaseSubnet,
-			err.Error())
-		failureDetail := api.JsonErr{
-			Code:       api.InvalidIPSubnet,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = failureDetail
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
-	}
-
-	ipSubnet.IPAddress = allocatedIP
-	ipSubnet.PrefixLength = uint8(baseSubnetPrefix)
-	ipConfig.IPSubnet = ipSubnet
-	cnetAddresses := make([]string, cnetAddressesCount)
-	cnsCnetAddresses := make([]cns.IPSubnet, cnetAddressesCount)
-	currentIndex := 0
-
-	for _, cnetAddressString := range ncGoalState.CNetSubnets {
-		cnetAddresses[currentIndex] = cnetAddressString
-		currentIndex++
-	}
-
-	for _, tagDefinitions := range resolvedTags {
-		for _, tagAddressString := range tagDefinitions.Values {
-			cnetAddresses[currentIndex] = tagAddressString
-			currentIndex++
-		}
-	}
-
-	for index, cnetAddressString := range cnetAddresses {
-		ipAddressString, prefix, parserErr := utils.GetIPAddressStringAndPrefix(cnetAddressString)
-		if parserErr != nil {
-			msg := fmt.Sprintf("Failed to parse Vnet subnet string %v due to error %v",
-				cnetAddressString,
-				err.Error())
-			failureDetail := api.JsonErr{
-				Code:       api.InvalidIPSubnet,
-				Text:       msg,
-				HTTPStatus: http.StatusBadRequest}
-			repoNCConfig.Status = datamodel.Failed
-			repoNCConfig.FailureDetail = failureDetail
-			return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
-		}
-
-		cnsIPSubnet := cns.IPSubnet{IPAddress: ipAddressString, PrefixLength: uint8(prefix)}
-		cnsCnetAddresses[index] = cnsIPSubnet
-	}
-
-	localIPSubnet := cns.IPSubnet{
-		IPAddress:    ncGoalState.LocalIP,
-		PrefixLength: localIPSubnetPrefixLength}
-	localIPPrefix := fmt.Sprintf("%s/%d", localIPSubnet.IPAddress, localIPSubnet.PrefixLength)
-	localGWIP, err := getLocalIPGateway(localIPPrefix)
-	if err != nil {
-		return false, &api.JsonErr{
-			HTTPStatus: http.StatusInternalServerError,
-			Text:       fmt.Sprintf("getlocalgatewayIP failed: %v", err),
-			Code:       api.StatusInternalServerError,
-		}
-	}
-
-	localIPConfiguaration := cns.IPConfiguration{
-		IPSubnet:         localIPSubnet,
-		GatewayIPAddress: localGWIP,
-	}
-
-	allowHostToNCCommunicationStatus := repoNCConfig.GetAllowHostToNCCommunicationStatus()
-	allowNCToHostCommunicationStatus := repoNCConfig.GetAllowNCToHostCommunicationStatus()
-	endpointPolicies := repoNCConfig.GetEndpointPolicies()
-
 	containerTypes.Store(ncGoalState.ContainerType, true)
 
-	info := &cns.CreateNetworkContainerRequest{
-		Version:                    strconv.FormatUint(repoNCConfig.CNSVersion, 10),
-		NetworkContainerType:       ncGoalState.ContainerType,
-		NetworkContainerid:         cns.SwiftPrefix + ncGoalState.NetworkContainerID,
-		PrimaryInterfaceIdentifier: ncGoalState.AssociatedInterfaceID,
-		IPConfiguration:            ipConfig,
-		AuthorizationToken:         "",
-		CnetAddressSpace:           cnsCnetAddresses,
-		OrchestratorContext:        ncGoalState.OrchestratorContext,
-		MultiTenancyInfo:           cns.MultiTenancyInfo{EncapType: cns.Vlan, ID: ncGoalState.VlanID},
-		LocalIPConfiguration:       localIPConfiguaration,
-		AllowHostToNCCommunication: allowHostToNCCommunicationStatus,
-		AllowNCToHostCommunication: allowNCToHostCommunicationStatus,
-		EndpointPolicies:           endpointPolicies}
+	var (
+		resp cns.CreateNetworkContainerResponse
+		body bytes.Buffer
+	)
+
+	info, removeRequestFromPendingQueue, err := datamodel.GetNetworkContainerRequest(ncGoalState, repoNCConfig)
+	if info == nil {
+		return removeRequestFromPendingQueue, err
+	}
 
 	json.NewEncoder(&body).Encode(info)
 	createOrUpdateNCURL := fmt.Sprintf(
@@ -732,7 +585,6 @@ func processNetworkContainerAssociate(
 		repoNCConfig.State = datamodel.Publish
 	}
 
-	repoNCConfig.ProgrammedTagsInfo = updatedTagInfo
 	repoNCConfig.ProgrammedVnetVersion = ncGoalState.VnetVersion
 	repoNCConfig.Status = datamodel.Pending
 	repoNCConfig.FailureDetail = api.JsonErr{}
@@ -745,11 +597,8 @@ func processNetworkContainerDisAssociate(
 	sessionInfo map[string]string) (bool, *api.JsonErr) {
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
 
-	sessionInfoRead := map[string]string{datamodel.NodeRepositoryName: nodeID}
-	sessionManager.BeginReadSession(sessionInfoRead)
 	// Query NodeConfiguration table with nodeID and handle errors.
 	repoNodeConfig, err := datamodel.TryQueryNodeConfiguration(nodeID)
-	sessionManager.EndReadSession(sessionInfoRead)
 
 	if err != nil {
 		return false, err
@@ -767,7 +616,7 @@ func processNetworkContainerDisAssociate(
 
 	primaryInterfaceID := repoNodeConfig.NodeInfo.IPAddresses[0]
 	info := &cns.DeleteNetworkContainerRequest{
-		NetworkContainerid: "Swift_" + repoNCConfig.NetworkContainerID,
+		NetworkContainerid: cns.SwiftPrefix + repoNCConfig.NetworkContainerID,
 	}
 
 	sessionManager.EndWriteSession(sessionInfo)
@@ -1400,7 +1249,7 @@ func unpublishNetworkContainerWithPubSubProxy(
 		}
 	}
 
-	repoNCConfig.State = datamodel.DisAssociate
+	repoNCConfig.State = datamodel.UnReserve
 	repoNCConfig.Status = datamodel.Pending
 	repoNCConfig.FailureDetail = api.JsonErr{}
 
@@ -1883,14 +1732,12 @@ func monitorRequests() {
 
 		case <-startProcessing:
 			networkupdatehandler.NetworkMonitorStartProcessing <- true
-			tagupdatehandler.TagMonitorStartProcessing <- true
 			refreshNCStartProcessing <- true
 			processPendingRequests(concurrentGoroutines, &inProcessRequestsMap)
 			break
 
 		case <-cancelProcessing:
 			networkupdatehandler.NetworkMonitorStopProcessing <- true
-			tagupdatehandler.TagMonitorStopProcessing <- true
 			refreshNCStopProcessing <- true
 			telemetryStopProcessing <- true
 			logger.Debugf("Received signal to exit")

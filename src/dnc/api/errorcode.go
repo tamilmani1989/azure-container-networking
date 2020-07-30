@@ -228,6 +228,12 @@ const (
 
 	//Invalid endpoint policy
 	InvalidEndpointPolicy
+
+	// UnregisteredNode - Cannot sync with an unregistered node
+	UnregisteredNode
+
+	// InvalidNCLimit - Invalid NC limit (failed to parse string)
+	InvalidNCLimit
 )
 
 func (e ErrorCode) String() string {
@@ -456,6 +462,12 @@ func (e ErrorCode) String() string {
 
 	case InvalidEndpointPolicy:
 		return "InvalidEndpointPolicy"
+
+	case UnregisteredNode:
+		return "UnregisteredNode"
+
+	case InvalidNCLimit:
+		return "InvalidNCLimit"
 	}
 
 	return "Unknown Status"

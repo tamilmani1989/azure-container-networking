@@ -98,11 +98,11 @@ type TestDataElectionSettings struct {
 
 // HostAgentConnectionStrings NMagent connection strings
 type HostAgentConnectionStrings struct {
-	JoinNetworkURLFmt             string
-	GetNetworkConfigurationURLFmt string
-	PutNetworkContainerURLFmt     string
-	DeleteNetworkContainerURLFmt  string
-	GetSystemTagDefinitionURLFmt  string
+	JoinNetworkURLFmt                string
+	GetNetworkConfigurationURLFmt    string
+	PutNetworkContainerURLFmt        string
+	DeleteNetworkContainerURLFmt     string
+	GetNetworkContainerVersionURLFmt string
 }
 
 // HostAgentSettings NMAgent connection URL settings.
@@ -165,6 +165,8 @@ type DNCSettings struct {
 	ReverseProxyEnabled bool
 	// Max time latency allowed for data store operations before recording the operation latency in the log.
 	ThresholdForLoggingDataStoreOpLatencyMs int
+	// Bool to determine whether DNC is running in managed mode.
+	Managed bool
 }
 
 // HttpClientSettings - Http client settings to be used when making http calls to CNS and NMAgent from DNC

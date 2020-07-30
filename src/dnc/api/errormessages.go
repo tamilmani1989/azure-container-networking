@@ -27,4 +27,7 @@ const (
 
 	// SubnetNameMissing - subnet parameter is missing from the URL.
 	SubnetNameMissing string = "SubnetName is missing"
+
+	// NCLimitMissing - nc limit parameter is missing from the URL.
+	NCLimitMissing string = "NC limit is missing"
 )

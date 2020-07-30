@@ -63,8 +63,8 @@ func TestBasicNodeAPIs(t *testing.T) {
 		orchestratorType = cns.Kubernetes
 	)
 
-	addNode(t, nodeID, ipaddr, orchestratorType)
-	addNode(t, nodeID, ipaddr, orchestratorType)
+	addNode(t, nodeID, ipaddr, orchestratorType, "")
+	addNode(t, nodeID, ipaddr, orchestratorType, "")
 	deleteNode(t, nodeID, http.StatusNotFound)
 }
 
@@ -106,7 +106,7 @@ func TestBasicReservationAPIs(t *testing.T) {
 		subnetID            = utils.Subnet1
 	)
 
-	addNode(t, nodeID, utils.LocalHost, cns.Kubernetes)
+	addNode(t, nodeID, utils.LocalHost, cns.Kubernetes, "")
 	addNetwork(t, vnetID, defaultRequestTimeout)
 	addSubnet(t, vnetID, subnetID, authenticationToken)
 	addReservation(t, nodeID, vnetID, subnetID, "", reservationID, defaultRequestTimeout)
@@ -165,7 +165,7 @@ func TestBasicNCAPIs(t *testing.T) {
 		respErr *api.JsonErr
 	)
 
-	addNode(t, nodeID, ipaddr, orchestratorType)
+	addNode(t, nodeID, ipaddr, orchestratorType, "")
 	addNetwork(t, vnetID, defaultRequestTimeout)
 	addSubnet(t, vnetID, subnetID, authenticationToken)
 	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", nodeIface, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout)
@@ -348,7 +348,7 @@ func TestNcFailures(t *testing.T) {
 		subnetID            = utils.Subnet1
 	)
 
-	addNode(t, nodeID, utils.LocalHost, cns.Kubernetes)
+	addNode(t, nodeID, utils.LocalHost, cns.Kubernetes, "")
 	addNetwork(t, utils.StandardVnet, defaultRequestTimeout)
 	addSubnet(t, utils.StandardVnet, subnetID, authenticationToken)
 	addNetwork(t, utils.StandardVnet2, defaultRequestTimeout)
@@ -491,13 +491,13 @@ func TestRequestControllerAddNode(t *testing.T) {
 	}
 }
 
-func addNode(t *testing.T, nodeID, ipaddr, orchestratorType string) {
+func addNode(t *testing.T, nodeID, ipaddr, orchestratorType, infraVnet string) {
 	var (
 		respErr *api.JsonErr
 		nodeCfg *api.NodeInfoResponse
 	)
 
-	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, infraVnet); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Register node failed with error %+v", respErr)
 	}
 

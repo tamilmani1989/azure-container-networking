@@ -19,6 +19,7 @@ import (
 
 const (
 	StorageTableApiVersion = "2019-07-07"
+	MaxContainersPerNode   = 10
 )
 
 var (
@@ -61,6 +62,10 @@ type Uint16s []uint16
 func (s Uint16s) Len() int           { return len(s) }
 func (s Uint16s) Less(i, j int) bool { return s[i] < s[j] }
 func (s Uint16s) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+const (
+	LocalIPSubnetPrefixLength = 17
+)
 
 // IsValidUUID - Validate that the string passed is a UUID
 func IsValidUUID(id string) bool {
@@ -185,10 +190,6 @@ func DecodeResponse(w *http.Response, response interface{}) error {
 		err = json.NewDecoder(w.Body).Decode(&response)
 	} else {
 		err = fmt.Errorf("Response body is empty")
-	}
-
-	if err != nil {
-		return err
 	}
 
 	return err

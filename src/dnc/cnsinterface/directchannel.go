@@ -11,23 +11,26 @@ import (
 
 // DirectClient - Struct to store the variables which client needs
 type DirectClient struct {
-	sessionManager *utils.SessionManager
+	sessionManager  *utils.SessionManager
+	enforceNicLimit bool
 }
 
 // NewDirectClient - Create a new CNS shim
-func NewDirectClient(sessionManager *utils.SessionManager) *DirectClient {
-	directClient := &DirectClient {
-		sessionManager: sessionManager,
+func NewDirectClient(sessionManager *utils.SessionManager, enforceNicLimit bool) *DirectClient {
+	directClient := &DirectClient{
+		sessionManager:  sessionManager,
+		enforceNicLimit: enforceNicLimit,
 	}
 	return directClient
 }
 
 // GetNCLimitForNode returns how many NCs can be created in this node
 func (client *DirectClient) GetNCLimitForNode(nodeID string) (int, *api.JsonErr) {
-	sessionInfoRead := map[string]string{datamodel.NodeRepositoryName: nodeID}
-	client.sessionManager.BeginReadSession(sessionInfoRead)
+	if !client.enforceNicLimit {
+		return utils.MaxContainersPerNode, nil
+	}
+
 	nodeConfig, err := datamodel.TryQueryNodeConfiguration(nodeID)
-	client.sessionManager.EndReadSession(sessionInfoRead)
 
 	if err != nil {
 		errMsg := fmt.Sprintf("Unable to get NC limit for the node because "+
@@ -35,9 +38,9 @@ func (client *DirectClient) GetNCLimitForNode(nodeID string) (int, *api.JsonErr)
 		return 0, &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			Text:       errMsg,
-			HTTPStatus: http.StatusInternalServerError}		
+			HTTPStatus: http.StatusInternalServerError}
 	}
-	
+
 	if nodeConfig == nil || &nodeConfig.NodeInfo == nil || nodeConfig.NodeInfo.IPAddresses == nil || len(nodeConfig.NodeInfo.IPAddresses) < 1 {
 		errMsg := fmt.Sprintf("Config for node: %s doesn't have IP address info", nodeID)
 		return 0, &api.JsonErr{

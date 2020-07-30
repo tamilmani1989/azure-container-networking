@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"dnc/api"
+	cli "dnc/client"
+	"dnc/cnsinterface"
 	"dnc/configuration"
 	"dnc/controller"
 	"dnc/datamodel"
@@ -12,7 +14,6 @@ import (
 	"dnc/nmagentcontracts"
 	"dnc/replica"
 	"dnc/resourceupdatehandler/networkupdatehandler"
-	"dnc/resourceupdatehandler/tagupdatehandler"
 	"dnc/server"
 	"dnc/utils"
 	"encoding/json"
@@ -185,6 +186,12 @@ var (
 
 	apiVersion = "?api-version=2018-03-01"
 
+	localIPConfiguaration = cns.IPConfiguration{
+		IPSubnet: cns.IPSubnet{
+			IPAddress:    "169.254.128.4",
+			PrefixLength: utils.LocalIPSubnetPrefixLength},
+		GatewayIPAddress: "169.254.128.1"}
+
 	// client :- Client with custom transport
 	tr = &http.Transport{
 		MaxIdleConnsPerHost: 1024,
@@ -217,7 +224,7 @@ func TestMain(m *testing.M) {
 
 // Setup :- Set up the environment (if necessary).
 func Setup() error {
-	go StartDnc()
+	go StartDnc(false)
 	time.Sleep(1 * time.Second)
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 1024
 	http.DefaultTransport.(*http.Transport).TLSHandshakeTimeout = 0 * time.Second
@@ -232,7 +239,7 @@ func Setup() error {
 	return nil
 }
 
-func StartDnc() {
+func StartDnc(managed bool) {
 	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
 	if !found {
 		configpath = "config_test.json"
@@ -240,6 +247,12 @@ func StartDnc() {
 
 	config = configuration.Load(configpath)
 	configuration.SetDncConfigDefaults(config)
+	config.DNCSettings.Managed = managed
+	if managed {
+		config.ServerSettings.IPAddress = "127.0.0.1"
+		config.ServerSettings.Port = "9002"
+		config.CNSSettings.ChannelMode = cns.Managed
+	}
 	logger = loggershim.NewLoggerShim(config)
 	logger.Init(stderr, reports)
 	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
@@ -260,6 +273,12 @@ func StartDnc() {
 		startChan,
 		doneChan,
 		demoteChan)
+	switch config.CNSSettings.ChannelMode {
+	case cns.Direct:
+		cnsInterface = cnsinterface.NewDirectClient(sessionManager, true)
+	case cns.Managed:
+		cnsInterface = cnsinterface.NewLocalClient(sessionManager, true)
+	}
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			DialContext: (&net.Dialer{
@@ -291,7 +310,7 @@ func StartDnc() {
 	}
 
 	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
-	tagupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
+	initNetworkContainerStateMachine()
 
 	go startReplica(ctrler)
 	dncServer.Start()
@@ -364,14 +383,6 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 
 	nmAgentResponderContext := nmAgentServer.Context.(*NMAgentResponderContext)
 
-	cnetSpace := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.CNetSpace
-	if nmAgentResponderContext.TagResponse != nil {
-		for _, tagResponse := range nmAgentResponderContext.TagResponse {
-			cnetSpace = cnetSpace + "," + strings.Join(tagResponse.Response.Values, ",")
-		}
-	}
-
-	fmt.Println("CnetSpace;", cnetSpace)
 	allocatedIP := "10.0.0.4"
 	if len(networkContainerReq.AllocationRequest.IPConstraint) > 0 {
 		allocatedIP = networkContainerReq.AllocationRequest.IPConstraint
@@ -382,7 +393,7 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 		IPAddress:    allocatedIP,
 		PrefixLength: 24}
 	ipConfig.GatewayIPAddress = "10.0.0.1"
-	ncDeploymentRequests2 := []*NCDeploymentRequest{&NCDeploymentRequest{
+	ncDeploymentRequests2 := []*NCDeploymentRequest{{
 		NCID: ncID}}
 	cnsResponderContextMap = generateDefaultCnsResponderContextMap(t, ncDeploymentRequests2)
 	ncRequestValidatorFunc := func(t *testing.T, req cns.CreateNetworkContainerRequest, ncDeploymentRequests *NCDeploymentRequest) bool {
@@ -391,13 +402,14 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 			PodNamespace: "testpodnamespace"}
 		context, _ := json.Marshal(podInfo)
 		expectedReq := cns.CreateNetworkContainerRequest{
-			Version:                    "1",
+			Version:                    req.Version,
 			NetworkContainerType:       networkContainerReq.AssociationInfo.ContainerType,
-			NetworkContainerid:         "Swift_" + ncID,
+			NetworkContainerid:         cns.SwiftPrefix + ncID,
 			PrimaryInterfaceIdentifier: networkContainerReq.AssociationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
 			AuthorizationToken:         "",
-			CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
+			LocalIPConfiguration:       localIPConfiguaration,
+			CnetAddressSpace:           make([]cns.IPSubnet, 0),
 			OrchestratorContext:        context,
 			MultiTenancyInfo:           req.MultiTenancyInfo}
 		fmt.Printf("ReceivedResponse:%+v\n", req)
@@ -432,28 +444,6 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 	if response.StatusCode != http.StatusOK {
 		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
 			t.Fatalf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
-		}
-	}
-
-	var chans = []chan string{}
-	if nmAgentResponderContext.TagResponse != nil {
-		for _, tagResponse := range nmAgentResponderContext.TagResponse {
-			fmt.Printf("Waiting for get %s tag definition\n", tagResponse.Response.Name)
-			chans = append(chans, tagResponse.SignalInfo.Signal)
-		}
-
-		cases := make([]reflect.SelectCase, len(chans))
-		for i, ch := range chans {
-			cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
-		}
-
-		remaining := len(chans)
-		for remaining > 0 {
-			chosen, value, _ := reflect.Select(cases)
-			fmt.Printf("Received signal value:%+v\n", value)
-			cases[chosen].Chan = reflect.ValueOf(nil)
-			remaining--
-			continue
 		}
 	}
 
@@ -540,17 +530,12 @@ func TestContainer(t *testing.T) {
 	vnetID := id.String()
 
 	CreateNetworkContainer(t, nodeID, sfNodeReq, networkContainerReq6, dncEP, vnetID, ncID, apiVersion)
-	CreateNetworkContainerDeployedInTaggedSubnets(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndUpdateCnetSpace(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndAddCnetSpace(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndRemoveCnetSpace(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndAddNewDNSServer(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndUpdateToUseAzureDNSServers(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndUpdateToUseCustomDNSServers(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
-	CreateNetworkContainerAndUpdateToUseTags(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
-	CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTags(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
-	CreateNetworkContainerDeployedInTaggedSubnetsAndAddNewTag(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
-	CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTag(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
@@ -996,7 +981,7 @@ var nmagentContextLock = &sync.RWMutex{}
 func (cxtMap CnsResponderContextMap) getContext(id string) *CnsResponderContext {
 	cnsContextLock.RLock()
 	defer cnsContextLock.RUnlock()
-	return cxtMap["Swift_"+id]
+	return cxtMap[cns.SwiftPrefix+id]
 }
 
 func (cxtMap NMAgentNetworkResponseMap) getContext(id string) *NMAgentNetworkResponse {
@@ -1077,36 +1062,9 @@ func generateDefaultCnsResponderContextMap(t *testing.T, ncDeploymentRequests []
 			UnpublishNCResponse: cnsUnpublishNCResponse,
 		}
 
-		cnsRespoonderContextMap["Swift_"+ncDeploymentRequest.NCID] = context
+		cnsRespoonderContextMap[cns.SwiftPrefix+ncDeploymentRequest.NCID] = context
 	}
 	return cnsRespoonderContextMap
-}
-
-var tagDefinitions = map[string]nmagentcontracts.TagResponse{
-	"XStore":   nmagentcontracts.TagResponse{ResponseCode: "200", Name: "XStore", Values: []string{"168.10.10.0/24", "144.10.12.12/24"}},
-	"AzureSql": nmagentcontracts.TagResponse{ResponseCode: "200", Name: "AzureSql", Values: []string{"132.10.10.0/24", "134.10.12.12/24"}}}
-
-var updatedTagDefinitions = map[string]nmagentcontracts.TagResponse{
-	"XStore":   nmagentcontracts.TagResponse{ResponseCode: "200", Name: "XStore", Values: []string{"167.10.10.0/24", "168.10.10.0/24", "144.10.12.12/24"}},
-	"AzureSql": nmagentcontracts.TagResponse{ResponseCode: "200", Name: "AzureSql", Values: []string{"132.10.10.0/24", "133.10.10.0/24", "134.10.12.12/24"}}}
-
-func getTags(tagCount int, isUpdate bool) []nmagentcontracts.Tag {
-	tagsArray := make([]nmagentcontracts.Tag, tagCount)
-	index := 0
-	tagDefinitionsToUse := tagDefinitions
-	if isUpdate {
-		tagDefinitionsToUse = updatedTagDefinitions
-	}
-	for tagName := range tagDefinitionsToUse {
-		if index < tagCount {
-			tagsArray[index] = nmagentcontracts.Tag{Name: tagName, Type: "System"}
-			index++
-		} else {
-			break
-		}
-	}
-
-	return tagsArray
 }
 
 type NetworkDeploymentRequest struct {
@@ -1130,7 +1088,6 @@ func generateDefaultNMAgentResponderContext(
 	useUpdatedTags bool) *NMAgentResponderContext {
 	context := new(NMAgentResponderContext)
 	context.NetworkResponseMap = make(NMAgentNetworkResponseMap)
-	tagList := make(map[string]nmagentcontracts.Tag)
 	for _, networkDeploymentRequest := range networkDeploymentRequests {
 		subnets := make([]nmagentcontracts.Subnet, 3)
 		subnetSize := 24
@@ -1143,16 +1100,6 @@ func generateDefaultNMAgentResponderContext(
 				SubnetName:     fmt.Sprintf("subnet%+v", index+1),
 				AddressPrefix:  fmt.Sprintf("10.0.%+v.0/%d", index, subnetSize),
 				DefaultGateway: fmt.Sprintf("10.0.%+v.1", index)}
-			if networkDeploymentRequest.TagCount > 0 {
-				if index == 0 {
-					fmt.Printf("Generating tags for subnet%s\n", subnet)
-					subnet.Tags = getTags(networkDeploymentRequest.TagCount, useUpdatedTags)
-					for _, tag := range subnet.Tags {
-						tagList[tag.Name] = tag
-					}
-					fmt.Printf("Generated tags for subnet%s\n", subnet)
-				}
-			}
 
 			subnets[index] = subnet
 		}
@@ -1196,23 +1143,6 @@ func generateDefaultNMAgentResponderContext(
 		nmagentContextLock.Lock()
 		context.NetworkResponseMap[networkDeploymentRequest.vnetID] = &response
 		nmagentContextLock.Unlock()
-	}
-
-	if len(tagList) > 0 {
-		responderTagsResponse := make(map[string]*TagResponse)
-		for _, tag := range tagList {
-			tagResponse := tagDefinitions[tag.Name]
-			responderTagsResponse[tag.Name] = &TagResponse{
-				HTTPStatus: http.StatusOK,
-				Response:   &nmagentcontracts.TagResponse{Name: tagResponse.Name, Values: tagResponse.Values, ResponseCode: tagResponse.ResponseCode},
-				SignalInfo: SignalInfo{
-					Signal:             make(chan string, 5),
-					SignalCount:        1,
-					CurrentSignalCount: 0}}
-		}
-		context.TagResponse = responderTagsResponse
-	} else {
-		context.TagResponse = nil
 	}
 
 	return context
@@ -1303,40 +1233,6 @@ func NMAgentResponder(w http.ResponseWriter, r *http.Request, context interface{
 				fmt.Printf("NC Publishing request:%+v, RequestURI:%+v\n", ncReq, r.RequestURI)
 			}
 		}
-	} else if strings.Contains(r.RequestURI, "systemTags") {
-		shouldSignal := true
-		nmagentContextLock.RLock()
-		for _, networkResponseContext := range nmagentResponderContext.NetworkResponseMap {
-			if networkResponseContext.GetNetworkResponse != nil {
-				if networkResponseContext.GetNetworkResponse.SignalInfo.CurrentSignalCount <
-					networkResponseContext.GetNetworkResponse.SignalInfo.SignalCount {
-					shouldSignal = false
-				}
-			}
-		}
-		nmagentContextLock.RUnlock()
-
-		if r.Method != "GET" {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		if nmagentResponderContext.TagResponse == nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		tagName := strings.Split(r.URL.Path, "/")[2]
-		tagResponse, ok := nmagentResponderContext.TagResponse[tagName]
-		if !ok {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		w.WriteHeader(tagResponse.HTTPStatus)
-		json.NewEncoder(w).Encode(tagResponse.Response)
-		if shouldSignal && signalTest(&tagResponse.SignalInfo, tagName) {
-			fmt.Printf("Set signal for tag request: %v\n", tagResponse.Response)
-		}
-		fmt.Printf("Responding to tag request, Name:%s\n", tagName)
-
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -1436,7 +1332,7 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 		json.NewDecoder(r.Body).Decode(&ncRequest)
 		fmt.Printf("NC Request:%+v \n", ncRequest)
 		cnsContextLock.RLock()
-		cnsResponderContext, ok := cnsResponderContextMap["Swift_"+ncRequest.NetworkContainerID]
+		cnsResponderContext, ok := cnsResponderContextMap[cns.SwiftPrefix+ncRequest.NetworkContainerID]
 		cnsContextLock.RUnlock()
 		if !ok {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -1462,7 +1358,7 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 		json.NewDecoder(r.Body).Decode(&ncRequest)
 		fmt.Printf("NC Request:%+v \n", ncRequest)
 		cnsContextLock.RLock()
-		cnsResponderContext, ok := cnsResponderContextMap["Swift_"+ncRequest.NetworkContainerID]
+		cnsResponderContext, ok := cnsResponderContextMap[cns.SwiftPrefix+ncRequest.NetworkContainerID]
 		cnsContextLock.RUnlock()
 		if !ok {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -1642,8 +1538,7 @@ func setupNetwork(t *testing.T, dncEP, apiVersion string, networkDeploymentReque
 func setupNetworkAndJoinSubnet(t *testing.T, dncEP, vnetID, subnetName, apiVersion string, addDNSServers bool, tagCount int) {
 	var body bytes.Buffer
 	resourceURL := dncEP + "/networks/" + vnetID + "/subnets/" + subnetName + apiVersion
-	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: addDNSServers, TagCount: tagCount, WaitForJoin: true, WaitForGet: true}}
+	networkDeploymentRequests := []*NetworkDeploymentRequest{{vnetID: vnetID, UseCustomDnsServers: addDNSServers, TagCount: tagCount, WaitForJoin: true, WaitForGet: true}}
 
 	setupNetwork(t, dncEP, apiVersion, networkDeploymentRequests)
 	subnetReq := api.SubnetRequest{
@@ -1755,33 +1650,6 @@ func AreCnsRequestsEqual(expected, received cns.CreateNetworkContainerRequest, v
 		return false
 	}
 
-	if len(expected.CnetAddressSpace) != len(received.CnetAddressSpace) {
-		fmt.Printf("Expected.CnetAddressSpace %+v Received.CnetAddressSpace:%+v",
-			expected.CnetAddressSpace, received.CnetAddressSpace)
-		return false
-	}
-
-	receivedCnetAddressSpace := make([]string, len(expected.CnetAddressSpace))
-	expectedCnetAddressSpace := make([]string, len(expected.CnetAddressSpace))
-
-	for index, cnetAddressSpace := range expected.CnetAddressSpace {
-		expectedCnetAddressSpace[index] =
-			cnetAddressSpace.IPAddress + "/" +
-				strconv.Itoa(int(cnetAddressSpace.PrefixLength))
-	}
-
-	for index, cnetAddressSpace := range received.CnetAddressSpace {
-		receivedCnetAddressSpace[index] =
-			cnetAddressSpace.IPAddress + "/" +
-				strconv.Itoa(int(cnetAddressSpace.PrefixLength))
-	}
-
-	if !utils.AreSetsEqual(expectedCnetAddressSpace, receivedCnetAddressSpace) {
-		fmt.Printf("Expected.CnetAddressSpace %+v Received.CnetAddressSpace:%+v",
-			expected.CnetAddressSpace, received.CnetAddressSpace)
-		return false
-	}
-
 	if expected.AllowHostToNCCommunication != received.AllowHostToNCCommunication {
 		fmt.Printf("Expected.AllowHostToNCCommunication %t Received.AllowHostToNCCommunication:%t",
 			expected.AllowHostToNCCommunication, received.AllowHostToNCCommunication)
@@ -1845,13 +1713,14 @@ func createNetworkContainer(
 			PodNamespace: "testpodnamespace"}
 		context, _ := json.Marshal(podInfo)
 		expectedReq := cns.CreateNetworkContainerRequest{
-			Version:                    "1",
+			Version:                    req.Version,
 			NetworkContainerType:       associationInfo.ContainerType,
-			NetworkContainerid:         "Swift_" + ncid,
+			NetworkContainerid:         cns.SwiftPrefix + ncid,
 			PrimaryInterfaceIdentifier: associationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
 			AuthorizationToken:         "",
-			CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
+			LocalIPConfiguration:       localIPConfiguaration,
+			CnetAddressSpace:           make([]cns.IPSubnet, 0),
 			OrchestratorContext:        context,
 			MultiTenancyInfo:           req.MultiTenancyInfo,
 			AllowHostToNCCommunication: allowHostToNCCommunication,
@@ -2039,39 +1908,6 @@ func CreateNetworkContainer(
 		networkcontainerreq.EndpointPolicies)
 }
 
-func CreateNetworkContainerDeployedInTaggedSubnets(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
-	fmt.Println("****CreateNetworkContainerDeployedInTaggedSubnets Test**********")
-	createNetworkContainer(
-		t,
-		nodeID,
-		nodeInfoReq,
-		&networkcontainerreq.AllocationRequest,
-		&networkcontainerreq.AssociationInfo,
-		"",
-		dncEP,
-		vnetID,
-		ncid,
-		apiVersion,
-		2,
-		networkcontainerreq.AllowHostToNCCommunication,
-		networkcontainerreq.AllowNCToHostCommunication,
-		nil)
-}
-
-func convertAddressStringsToCnsIPSubnets(networksString string) []cns.IPSubnet {
-
-	netAddresses := strings.Split(networksString, ",")
-	cnsAddresses := make([]cns.IPSubnet, len(netAddresses))
-	for index, netAddress := range netAddresses {
-		ipAddressString, prefix, _ := utils.GetIPAddressStringAndPrefix(netAddress)
-
-		cnsIPSubnet := cns.IPSubnet{IPAddress: ipAddressString, PrefixLength: uint8(prefix)}
-		cnsAddresses[index] = cnsIPSubnet
-	}
-
-	return cnsAddresses
-}
-
 func createNetworkContainerAndUpdateNetworkConfig(
 	t *testing.T,
 	nodeID string,
@@ -2170,13 +2006,14 @@ func createNetworkContainerAndUpdateNetworkConfig(
 			PodNamespace: "testpodnamespace"}
 		context, _ := json.Marshal(podInfo)
 		expectedReq := cns.CreateNetworkContainerRequest{
-			Version:                    "2",
+			Version:                    req.Version,
 			NetworkContainerType:       cns.AzureContainerInstance,
-			NetworkContainerid:         "Swift_" + ncid,
+			NetworkContainerid:         cns.SwiftPrefix + ncid,
 			PrimaryInterfaceIdentifier: networkcontainerreq.AssociationInfo.InterfaceID,
 			IPConfiguration:            ipConfig,
 			AuthorizationToken:         "",
-			CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
+			LocalIPConfiguration:       localIPConfiguaration,
+			CnetAddressSpace:           make([]cns.IPSubnet, 0),
 			OrchestratorContext:        context,
 			MultiTenancyInfo:           req.MultiTenancyInfo}
 		fmt.Printf("ReceivedResponse:%+v\n", req)
@@ -2452,188 +2289,6 @@ func CreateNetworkContainerAndUpdateToUseCustomDNSServers(t *testing.T, nodeID s
 		0)
 }
 
-func CreateNetworkContainerAndUpdateToUseTags(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
-	fmt.Println("****CreateNetworkContainerAndUpdateToUseTags Test**********")
-	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 2, WaitForJoin: true, WaitForGet: true}}
-
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
-		networkDeploymentRequests,
-		false)
-	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
-
-	networkResponseContext.GetNetworkResponse.NetworkResponse.VnetVersion = "6"
-	networkResponseContext.JoinResponse.HTTPStatus = http.StatusOK
-	networkResponseContext.JoinResponse.SignalInfo.SignalCount = 0
-	networkResponseContext.GetNetworkResponse.SignalInfo.SignalCount = 1
-	networkResponseContext.GetNetworkResponse.SignalInfo.CurrentSignalCount = 0
-	for _, tagResponse := range nmAgentResponderContext.TagResponse {
-		tagResponse.SignalInfo.SignalCount = 1
-		tagResponse.SignalInfo.CurrentSignalCount = 0
-	}
-
-	createNetworkContainerAndUpdateNetworkConfig(
-		t,
-		nodeID,
-		nodeInfoReq,
-		networkcontainerreq,
-		dncEP,
-		vnetID,
-		ncid,
-		apiVersion,
-		nmAgentResponderContext,
-		true,
-		0)
-}
-
-func CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTags(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
-	fmt.Println("****CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTags Test**********")
-	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 0, WaitForJoin: true, WaitForGet: true}}
-
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
-		networkDeploymentRequests,
-		false)
-	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
-
-	networkResponseContext.GetNetworkResponse.NetworkResponse.VnetVersion = "6"
-	networkResponseContext.JoinResponse.HTTPStatus = http.StatusOK
-	networkResponseContext.JoinResponse.SignalInfo.SignalCount = 0
-	networkResponseContext.GetNetworkResponse.SignalInfo.SignalCount = 1
-	networkResponseContext.GetNetworkResponse.SignalInfo.CurrentSignalCount = 0
-
-	createNetworkContainerAndUpdateNetworkConfig(
-		t,
-		nodeID,
-		nodeInfoReq,
-		networkcontainerreq,
-		dncEP,
-		vnetID,
-		ncid,
-		apiVersion,
-		nmAgentResponderContext,
-		true,
-		2)
-}
-
-func CreateNetworkContainerDeployedInTaggedSubnetsAndAddNewTag(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
-	fmt.Println("****CreateNetworkContainerDeployedInTaggedSubnetsAndAddNewTag Test**********")
-	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 2, WaitForJoin: true, WaitForGet: true}}
-
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
-		networkDeploymentRequests,
-		false)
-	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
-
-	networkResponseContext.GetNetworkResponse.NetworkResponse.VnetVersion = "6"
-	networkResponseContext.JoinResponse.HTTPStatus = http.StatusOK
-	networkResponseContext.JoinResponse.SignalInfo.SignalCount = 0
-	networkResponseContext.GetNetworkResponse.SignalInfo.SignalCount = 1
-	networkResponseContext.GetNetworkResponse.SignalInfo.CurrentSignalCount = 0
-
-	createNetworkContainerAndUpdateNetworkConfig(
-		t,
-		nodeID,
-		nodeInfoReq,
-		networkcontainerreq,
-		dncEP,
-		vnetID,
-		ncid,
-		apiVersion,
-		nmAgentResponderContext,
-		true,
-		1)
-}
-
-func CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTag(t *testing.T, nodeID string, nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
-	fmt.Println("****CreateNetworkContainerDeployedInTaggedSubnetsAndRemoveTag Test**********")
-	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 1, WaitForJoin: true, WaitForGet: true}}
-
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
-		networkDeploymentRequests,
-		false)
-	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
-
-	networkResponseContext.GetNetworkResponse.NetworkResponse.VnetVersion = "6"
-	networkResponseContext.JoinResponse.HTTPStatus = http.StatusOK
-	networkResponseContext.JoinResponse.SignalInfo.SignalCount = 0
-	networkResponseContext.GetNetworkResponse.SignalInfo.SignalCount = 1
-	networkResponseContext.GetNetworkResponse.SignalInfo.CurrentSignalCount = 0
-
-	createNetworkContainerAndUpdateNetworkConfig(
-		t,
-		nodeID,
-		nodeInfoReq,
-		networkcontainerreq,
-		dncEP,
-		vnetID,
-		ncid,
-		apiVersion,
-		nmAgentResponderContext,
-		true,
-		2)
-}
-
-func TestCreateNetworkContainerDeployedInTaggedSubnetsAndUpdateTags(t *testing.T) {
-	fmt.Println("****CreateNetworkContainerDeployedInTaggedSubnetsAndUpdateTags Test**********")
-	id, _ := uuid.NewUUID()
-	vnetID := id.String()
-
-	cnsServer.SetupTest()
-	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
-	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
-	cnsServer.Lock.Lock()
-	cnsServer.ResponseFunc = CNSResponder
-	cnsServer.Context = cnsResponderContextMap
-	cnsServer.Lock.Unlock()
-
-	networkDeploymentRequests := []*NetworkDeploymentRequest{
-		&NetworkDeploymentRequest{vnetID: vnetID, UseCustomDnsServers: true, TagCount: 2, WaitForJoin: true, WaitForGet: true}}
-
-	nmAgentResponderContext := generateDefaultNMAgentResponderContext(
-		networkDeploymentRequests,
-		true)
-	networkResponseContext := nmAgentResponderContext.NetworkResponseMap.getContext(vnetID)
-
-	networkResponseContext.GetNetworkResponse.NetworkResponse.VnetVersion = "6"
-	networkResponseContext.JoinResponse.HTTPStatus = http.StatusOK
-	networkResponseContext.JoinResponse.SignalInfo.SignalCount = 0
-	networkResponseContext.GetNetworkResponse.SignalInfo.SignalCount = 1
-	networkResponseContext.GetNetworkResponse.SignalInfo.CurrentSignalCount = 0
-
-	responderTagsResponse := make(map[string]*TagResponse)
-	index := 1
-	for tagName := range updatedTagDefinitions {
-		if index > networkDeploymentRequests[0].TagCount {
-			break
-		}
-		tagResponse := updatedTagDefinitions[tagName]
-		responderTagsResponse[tagName] = &TagResponse{
-			HTTPStatus: http.StatusOK,
-			Response:   &nmagentcontracts.TagResponse{Name: tagResponse.Name, Values: tagResponse.Values, ResponseCode: tagResponse.ResponseCode},
-			SignalInfo: SignalInfo{
-				Signal:             make(chan string),
-				SignalCount:        1,
-				CurrentSignalCount: 0}}
-		index++
-	}
-	nmAgentResponderContext.TagResponse = responderTagsResponse
-	createNetworkContainerAndUpdateNetworkConfig(
-		t,
-		nodeID,
-		nodeReq,
-		networkContainerReq,
-		dncEP,
-		vnetID,
-		ncID,
-		apiVersion,
-		nmAgentResponderContext,
-		true,
-		2)
-}
-
 type NCDeploymentRequest struct {
 	NCID              string
 	AllocationRequest api.AllocationRequest
@@ -2813,13 +2468,14 @@ func DeployNetworkContainers(
 			ipConfig.GatewayIPAddress = "10.0.0.1"
 			ncRequestValidatorFunc := func(t *testing.T, req cns.CreateNetworkContainerRequest, deploymentRequest *NCDeploymentRequest) bool {
 				expectedReq := cns.CreateNetworkContainerRequest{
-					Version:                    "1",
+					Version:                    req.Version,
 					NetworkContainerType:       cns.AzureContainerInstance,
-					NetworkContainerid:         "Swift_" + deploymentRequest.NCID,
+					NetworkContainerid:         cns.SwiftPrefix + deploymentRequest.NCID,
 					PrimaryInterfaceIdentifier: deploymentRequest.AssociationInfo.InterfaceID,
 					IPConfiguration:            ipConfig,
 					AuthorizationToken:         accessToken,
-					CnetAddressSpace:           convertAddressStringsToCnsIPSubnets(cnetSpace),
+					LocalIPConfiguration:       localIPConfiguaration,
+					CnetAddressSpace:           make([]cns.IPSubnet, 0),
 					OrchestratorContext:        deploymentRequest.AssociationInfo.OrchestratorContext,
 					MultiTenancyInfo:           req.MultiTenancyInfo}
 				fmt.Printf("ReceivedResponse:%+v\n", req)
@@ -2838,7 +2494,7 @@ func DeployNetworkContainers(
 					return false
 				}
 
-				if req.LocalIPConfiguration.GatewayIPAddress != "169.254.128.1" || req.LocalIPConfiguration.IPSubnet.PrefixLength != localIPSubnetPrefixLength {
+				if req.LocalIPConfiguration.GatewayIPAddress != "169.254.128.1" || req.LocalIPConfiguration.IPSubnet.PrefixLength != utils.LocalIPSubnetPrefixLength {
 					return false
 				}
 
@@ -3782,6 +3438,114 @@ func TestPublishingRequestMarshallingLogicForFailure(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Marshalling was supposed to fail")
 	}
+}
+
+func TestManagedDncAPIs(t *testing.T) {
+	processExitCallback()
+	// start dnc in managed mode
+	go StartDnc(true)
+	time.Sleep(2 * time.Second)
+
+	var (
+		mdncEP       = "http://127.0.0.1:9002"
+		dnctl        = cli.NewDncClient(mdncEP)
+		iface        = "127.0.0.1"
+		infraVnet    = "048622d9-49c2-4cad-94ff-7112e6f2ab5a"
+		ipConstraint = "10.0.0.4"
+		id, _        = uuid.NewUUID()
+		vnetID       = id.String()
+		body         bytes.Buffer
+	)
+
+	// register network/subnet and add node
+	setupNetworkAndJoinSubnet(t, mdncEP, vnetID, networkContainerReq.AllocationRequest.SubnetName, apiVersion, true, 0)
+	if respErr := dnctl.AddNode(nodeID, iface, cns.Kubernetes, infraVnet); respErr.HTTPStatus != http.StatusOK {
+		t.Fatalf("Register node failed with error %+v", respErr)
+	}
+
+	// test RegisterNode API
+	response, err := http.Post(fmt.Sprintf("%s/%s/node/%s/cores/%d%s", mdncEP, infraVnet, nodeID, 2, apiVersion), "application/json", &body)
+	if err == nil {
+		if response.StatusCode == http.StatusCreated {
+			var req cns.SetOrchestratorTypeRequest
+			expectedReq := cns.SetOrchestratorTypeRequest{OrchestratorType: cns.Kubernetes, DncPartitionKey: "", NodeID: nodeID}
+			json.NewDecoder(response.Body).Decode(&req)
+			if !reflect.DeepEqual(req, expectedReq) {
+				t.Fatalf("RegisterNode API is broken: expected %+v\treceived %+v", expectedReq, req)
+			}
+		} else {
+			t.Fatalf("Failed to register node with http status code %s", strconv.Itoa(response.StatusCode))
+		}
+
+		response.Body.Close()
+	} else {
+		t.Fatalf("Failed to register node with err: %+v", err)
+	}
+
+	// test SyncNodeNetworkContainers API
+	if respErr := dnctl.AddNc(nodeID, vnetID, ncID, "", networkContainerReq.AllocationRequest.SubnetName, ipConstraint, "", iface, networkContainerReq.AssociationInfo.ContainerType, podInfo.PodName, podInfo.PodNamespace, false, false); respErr.HTTPStatus != http.StatusOK {
+		t.Fatalf("Create nc failed with error %+v", respErr)
+	}
+
+	time.Sleep(4 * time.Second)
+
+	programmedNC, respErr := dnctl.GetNC(vnetID, ncID)
+	if respErr.HTTPStatus != http.StatusOK {
+		t.Fatalf("Get nc failed with error %+v", respErr)
+	}
+
+	response, err = http.Get(fmt.Sprintf("%s/%s/node/%s%s", mdncEP, infraVnet, nodeID, apiVersion))
+	if err == nil {
+		if response.StatusCode == http.StatusOK {
+			var (
+				req         cns.NodeInfoResponse
+				expectedReq = cns.NodeInfoResponse{
+					NetworkContainers: []cns.CreateNetworkContainerRequest{{
+						Version:                    "0",
+						NetworkContainerType:       networkContainerReq.AssociationInfo.ContainerType,
+						NetworkContainerid:         ncID,
+						PrimaryInterfaceIdentifier: iface,
+						AuthorizationToken:         vnetID,
+						LocalIPConfiguration: cns.IPConfiguration{
+							IPSubnet: cns.IPSubnet{
+								IPAddress:    "169.254.128.4",
+								PrefixLength: 17},
+							GatewayIPAddress: "169.254.128.1"},
+						OrchestratorContext: context,
+						IPConfiguration: cns.IPConfiguration{
+							DNSServers:       programmedNC.IPConfiguration.DNSServers,
+							GatewayIPAddress: programmedNC.IPConfiguration.GatewayIP,
+							IPSubnet: cns.IPSubnet{
+								IPAddress:    ipConstraint,
+								PrefixLength: 24}},
+						MultiTenancyInfo:           cns.MultiTenancyInfo{EncapType: cns.Vlan, ID: 1},
+						CnetAddressSpace:           make([]cns.IPSubnet, 0),
+						AllowHostToNCCommunication: false,
+						AllowNCToHostCommunication: false},
+					},
+					GetNCVersionURLFmt: "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/version/authenticationToken/%s/api-version/1"}
+			)
+
+			json.NewDecoder(response.Body).Decode(&req)
+			if !reflect.DeepEqual(req, expectedReq) {
+				t.Fatalf("SyncNodeNetworkContainers API is broken: expected %+v\treceived %+v", expectedReq, req)
+			}
+		}
+
+		response.Body.Close()
+	}
+
+	ncURL := mdncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	networkURL := mdncEP + "/networks/" + vnetID + apiVersion
+	nodeURL := mdncEP + "/nodes/" + nodeID + apiVersion
+
+	deleteResource(t, ncURL, http.StatusOK)
+	if !WaitForResourceCleanup(t, ncURL, 4) {
+		t.Fatalf("Failed to cleanup NC %s", ncID)
+	}
+
+	deleteResource(t, networkURL, http.StatusOK)
+	deleteResource(t, nodeURL, http.StatusOK)
 }
 
 // Induce error in the processing

@@ -1,6 +1,6 @@
 # code.cloudfoundry.org/clock v1.0.0
 code.cloudfoundry.org/clock
-# github.com/Azure/azure-container-networking v1.1.4
+# github.com/Azure/azure-container-networking v1.1.6
 ## explicit
 github.com/Azure/azure-container-networking/aitelemetry
 github.com/Azure/azure-container-networking/cnm
@@ -128,8 +128,7 @@ github.com/google/gofuzz
 # github.com/google/uuid v1.1.1
 ## explicit
 github.com/google/uuid
-# github.com/googleapis/gnostic v0.4.0
-## explicit
+# github.com/googleapis/gnostic v0.3.1
 github.com/googleapis/gnostic/OpenAPIv2
 github.com/googleapis/gnostic/compiler
 github.com/googleapis/gnostic/extensions

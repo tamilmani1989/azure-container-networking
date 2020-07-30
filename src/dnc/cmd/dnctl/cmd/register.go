@@ -15,7 +15,8 @@ func RegisterCmd() *cobra.Command {
 	}
 	registercmd.AddCommand(registerNodeCmd())
 	registercmd.AddCommand(registerVnetCmd())
-	registercmd.AddCommand(registerSubnet())
+	registercmd.AddCommand(registerSubnetCmd())
+	registercmd.AddCommand(registerAzStorageCmd())
 	registercmd.Aliases = []string{"reg"}
 	return registercmd
 }
@@ -28,8 +29,9 @@ func registerNodeCmd() *cobra.Command {
 			nodeid, _ := cmd.Flags().GetString("id")
 			ipaddr, _ := cmd.Flags().GetString("ip-address")
 			orchtype, _ := cmd.Flags().GetString("orchestrator-type")
+			infravnet, _ := cmd.Flags().GetString("infra-vnet")
 
-			err := DncClient.AddNode(nodeid, ipaddr, orchtype)
+			err := DncClient.AddNode(nodeid, ipaddr, orchtype, infravnet)
 			if err != nil {
 				client.PrettyPrint(err)
 			}
@@ -38,6 +40,7 @@ func registerNodeCmd() *cobra.Command {
 	cmd.Flags().String("id", "", "Name of the node")
 	cmd.Flags().String("ip-address", "", "IP Address of the node")
 	cmd.Flags().String("orchestrator-type", "", "The orchestrator type of the node")
+	cmd.Flags().String("infra-vnet", "", "Node infrastructure network (guid)")
 	cmd.MarkFlagRequired("id")
 	cmd.MarkFlagRequired("ip-address")
 	cmd.MarkFlagRequired("orchestrator-type")
@@ -64,7 +67,7 @@ func registerVnetCmd() *cobra.Command {
 	return cmd
 }
 
-func registerSubnet() *cobra.Command {
+func registerSubnetCmd() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "subnet",
 		Short: "Registers a subnet",
@@ -86,5 +89,36 @@ func registerSubnet() *cobra.Command {
 	cmd.MarkFlagRequired("vnet-id")
 	cmd.MarkFlagRequired("subnet-id")
 	cmd.MarkFlagRequired("auth-id")
+	return cmd
+}
+
+func registerAzStorageCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "azstorage",
+		Short: "Register and connect DNC to Azure storage",
+		Run: func(cmd *cobra.Command, args []string) {
+			accountName, _ := cmd.Flags().GetString("name")
+			key, _ := cmd.Flags().GetString("key")
+			partitionKey, _ := cmd.Flags().GetString("partition-key")
+			blob, _ := cmd.Flags().GetString("blob")
+			container, _ := cmd.Flags().GetString("container")
+
+			err := DncClient.InitAzStorage(accountName, key, partitionKey, blob, container)
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				client.PrettyPrint(err)
+				return
+			}
+		},
+	}
+	cmd.Flags().String("name", "", "Storage account name")
+	cmd.Flags().String("key", "", "Storage account key")
+	cmd.Flags().String("partition-key", "", "Storage partition")
+	cmd.Flags().String("blob", "", "Storage blob")
+	cmd.Flags().String("container", "", "Storage container")
+	cmd.MarkFlagRequired("name")
+	cmd.MarkFlagRequired("key")
+	cmd.MarkFlagRequired("partition-key")
+	cmd.MarkFlagRequired("blob")
+	cmd.MarkFlagRequired("container")
 	return cmd
 }

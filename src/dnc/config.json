@@ -44,7 +44,7 @@
             "GetNetworkConfigurationURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
             "PutNetworkContainerURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
             "DeleteNetworkContainerURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
-            "GetSystemTagDefinitionURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/systemTags/%s/ipVersion/%s/api-version/1"
+            "GetNetworkContainerVersionURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/version/authenticationToken/%s/api-version/1"
         }
     },
     "CustomLoggerSettings": {
@@ -52,7 +52,7 @@
         "Dll": ""
     },
     "CNSSettings": {
-        "ChannelMode": "direct",
+        "ChannelMode": "Direct",
         "ConnectionStrings": {
             "CreateOrUpdateNetworkContainerURLFmt": "http://%s:10090/network/createorupdatenetworkcontainer",
             "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
@@ -81,7 +81,8 @@
         "EnforceNICLimit": true,
         "NICsAllowedPerVirtualCore": 3,
         "ReverseProxyEnabled": false,
-        "ThresholdForLoggingDataStoreOpLatencyMs": 1000
+        "ThresholdForLoggingDataStoreOpLatencyMs": 1000,
+        "Managed": false
     },
     "HttpClientSettings": {
         "ConnectionTimeout": 5,

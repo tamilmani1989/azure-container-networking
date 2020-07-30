@@ -3,7 +3,7 @@ module dnc
 go 1.14
 
 require (
-	github.com/Azure/azure-container-networking v1.1.4
+	github.com/Azure/azure-container-networking v1.1.6
 	github.com/Azure/azure-sdk-for-go v40.6.0+incompatible
 	github.com/Azure/go-autorest/autorest/to v0.4.0 // indirect
 	github.com/denisenkom/go-mssqldb v0.0.0-20200206145737-bbfc9a55622e
@@ -11,7 +11,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.4.0 // indirect
 	github.com/google/uuid v1.1.1
-	github.com/googleapis/gnostic v0.4.0 // indirect
 	github.com/gorilla/mux v1.7.4
 	github.com/imdario/mergo v0.3.9 // indirect
 	github.com/json-iterator/go v1.1.9 // indirect

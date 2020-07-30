@@ -14,6 +14,8 @@ type NodeConfiguration struct {
 	DeployedNetworkContainerMap map[string]map[string]string
 	ConstrainedReservations     map[string]string
 	NetworkVlanIDMap            map[string]uint16
+	Registered                  bool
+	NcLimit                     int
 }
 
 // DumpDeployedNetworkContainers - Dump deployed containers
@@ -51,6 +53,6 @@ func (n *NodeConfiguration) String() string {
 	}
 
 	return fmt.Sprintf(
-		"[NodeID:%s, NodeInfo:%s NetworkContainers:%s ConstrainedReservations:%s",
-		n.NodeID, n.NodeInfo.String(), deployedNCs, reservationKeys)
+		"[NodeID:%s, NodeInfo:%s NetworkContainers:%s ConstrainedReservations:%s Registered:%t NcLimit:%d",
+		n.NodeID, n.NodeInfo.String(), deployedNCs, reservationKeys, n.Registered, n.NcLimit)
 }

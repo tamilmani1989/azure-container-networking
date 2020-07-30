@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 
 	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/cns"
+	"github.com/Azure/azure-container-networking/cns/logger"
 )
 
 var (
@@ -39,6 +41,7 @@ var (
 	defaultDNSServer          string
 	enforceNICLimit           bool // zero value is false
 	nicsAllowedPerVirtualCore uint16
+	managed                   bool
 )
 
 // Init - Initialize repository.
@@ -71,8 +74,16 @@ func Init(
 	httpClient = httpClientArg
 	enforceNICLimit = dncSettings.EnforceNICLimit
 	nicsAllowedPerVirtualCore = dncSettings.NICsAllowedPerVirtualCore
+	managed = dncSettings.Managed
 
 	return nil
+}
+
+func getNCLimitFromNumCores(numCPUCores int) int {
+	// Total numbers of containers/nics based on number of cores
+	// Convert to Float is needed, as Floor takes float datatype inputs
+	totalNicsBasedOnCores := float64(nicsAllowedPerVirtualCore * uint16(numCPUCores))
+	return int(math.Floor(totalNicsBasedOnCores) - 1) // -1 to account for VM management NIC
 }
 
 // DumpStorageState - Function to dump storage state.
@@ -1227,8 +1238,10 @@ func persistTagDefinition(tagDefinition *TagDefinition) *api.JsonErr {
 	return nil
 }
 
-// CreateOrUpdateNodeConfiguration - Creates Or Updates a node configuration.
+// CreateOrUpdateNodeConfiguration - Creates Or Updates a node configuration. Register should be true if called from RegisterNode.
 func CreateOrUpdateNodeConfiguration(
+	register bool,
+	cores int,
 	nodeID string,
 	nodeInfo api.NodeInfoRequest,
 	apiVersion string) *api.JsonErr {
@@ -1244,9 +1257,22 @@ func CreateOrUpdateNodeConfiguration(
 		repositoryNodeConfiguration.DeployedNetworkContainerMap = make(map[string]map[string]string)
 		repositoryNodeConfiguration.NetworkVlanIDMap = make(map[string]uint16)
 		repositoryNodeConfiguration.ConstrainedReservations = make(map[string]string)
+	} else if repositoryNodeConfiguration.NodeID == nodeID && len(repositoryNodeConfiguration.NetworkVlanIDMap) > 0 {
+		if len(nodeInfo.IPAddresses) > 0 && repositoryNodeConfiguration.NodeInfo.IPAddresses[0] != nodeInfo.IPAddresses[0] {
+			return &api.JsonErr{
+				Code:       api.NodeProcessingFailedDueToInternalError,
+				Text:       fmt.Sprintf("Failed to update node IP as there are allocations."),
+				HTTPStatus: http.StatusBadRequest}
+		}
 	}
 
-	repositoryNodeConfiguration.NodeInfo = nodeInfo
+	if register {
+		repositoryNodeConfiguration.Registered = true
+		repositoryNodeConfiguration.NcLimit = getNCLimitFromNumCores(cores)
+	} else {
+		repositoryNodeConfiguration.NodeInfo = nodeInfo
+	}
+
 	return persistNodeConfiguration(repositoryNodeConfiguration)
 }
 
@@ -1926,8 +1952,8 @@ func UpdateSubnet(
 
 	subnetConfiguration.Joined = !isDelete
 	subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken
-
 	err = PutSubnetConfiguration(subnetConfiguration)
+
 	return err
 }
 
@@ -2278,14 +2304,6 @@ func GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr) {
 			Code:       api.NodeNotFound,
 			Text:       fmt.Sprintf("Node %s not found", nodeID),
 			HTTPStatus: http.StatusNotFound}
-	}
-
-	if repoNodeConfiguration.DeployedNetworkContainerMap == nil {
-		repoNodeConfiguration.DeployedNetworkContainerMap = make(map[string]map[string]string)
-	}
-
-	if repoNodeConfiguration.ConstrainedReservations == nil {
-		repoNodeConfiguration.ConstrainedReservations = make(map[string]string)
 	}
 
 	var networkContainerResponses []api.NetworkContainerResponse
@@ -3099,11 +3117,6 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 		repoSubnetConfiguration.Tags = make([]nmagentcontracts.Tag, 0)
 	}
 
-	tags := make([]nmagentcontracts.Tag, len(repoSubnetConfiguration.Tags))
-	for index, tag := range repoSubnetConfiguration.Tags {
-		tags[index] = tag
-	}
-
 	repoNetworkConfiguration, err := TryQueryNetworkConfiguration(repoNCConfig.NetworkID)
 	if err != nil {
 		return nil, true, err
@@ -3151,7 +3164,7 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 		NodeInterfaceID:       repoNodeConfig.NodeInfo.IPAddresses[0],
 		CNetSubnets:           strings.Split(repoNetworkConfiguration.CNetSpace, ","),
 		VNetSubnets:           strings.Split(repoNetworkConfiguration.VNetSpace, ","),
-		TagsInfo:              tags,
+		TagsInfo:              make([]nmagentcontracts.Tag, 0),
 		ContainerType:         assocInfo.ContainerType,
 		OrchestratorContext:   assocInfo.OrchestratorContext,
 		VnetVersion:           repoNetworkConfiguration.Version,
@@ -3171,7 +3184,7 @@ func GetNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 	// Check configuration settings.
 	if cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt == "" || !enforceNICLimit {
 		loggershim.LS.Debugf("Returning default NIC limit value")
-		return maxContainersPerNode, nil
+		return utils.MaxContainersPerNode, nil
 	}
 
 	getNumOfCoresURL := fmt.Sprintf(
@@ -3234,11 +3247,7 @@ func GetNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	// Total numbers of containers/nics based on number of cores
-	// Convert to Float is needed, as Floor takes float datatype inputs
-	totalNicsBasedOnCores := float64(nicsAllowedPerVirtualCore * uint16(resp.NumOfCPUCores))
-	allowedNumOfNics := int(math.Floor(totalNicsBasedOnCores) - 1) // -1 to account for VM management NIC
-	return allowedNumOfNics, nil
+	return getNCLimitFromNumCores(resp.NumOfCPUCores), nil
 }
 
 // GetNcPendingPublishRequestContexts - Retrieve all NC publish / unpublish pending request contexts
@@ -3363,4 +3372,88 @@ func QueryNcPendingPublishContext(
 	}
 
 	return &pendingPublishContext, nil
+}
+
+// GetNetworkContainerRequest :- compile and retrieve cns.CreateNetworkContainerRequest to update CNS state
+func GetNetworkContainerRequest(ncGoalState *NCGoalState, ncConfig *NCConfiguration) (*cns.CreateNetworkContainerRequest, bool, *api.JsonErr) {
+	_, baseSubnetPrefix, err := utils.GetIPAddressStringAndPrefix(ncGoalState.BaseSubnet)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to parse base subnet string %v due to error %v",
+			ncGoalState.BaseSubnet,
+			err.Error())
+		failureDetail := api.JsonErr{
+			Code:       api.InvalidIPSubnet,
+			Text:       msg,
+			HTTPStatus: http.StatusBadRequest}
+		ncConfig.Status = Failed
+		ncConfig.FailureDetail = failureDetail
+		return nil, true, PersistNCConfiguration(ncConfig, DontAddToPendingQ)
+	}
+
+	if ncConfig.ProgrammedTagsInfo == nil {
+		ncConfig.ProgrammedTagsInfo = make(map[string]uint64)
+	}
+
+	var (
+		allocatedIP      = strings.Split(ncGoalState.AllocatedIPSubnet, "/")[0]
+		cnsCnetAddresses = make([]cns.IPSubnet, 0)
+		ipSubnet         = cns.IPSubnet{
+			IPAddress:    allocatedIP,
+			PrefixLength: uint8(baseSubnetPrefix)}
+		ipConfig = cns.IPConfiguration{
+			DNSServers:       ncGoalState.DNSServers,
+			GatewayIPAddress: ncGoalState.GatewayIP,
+			IPSubnet:         ipSubnet}
+	)
+
+	localIPSubnet := cns.IPSubnet{
+		IPAddress:    ncGoalState.LocalIP,
+		PrefixLength: utils.LocalIPSubnetPrefixLength}
+	localIPPrefix := fmt.Sprintf("%s/%d", localIPSubnet.IPAddress, localIPSubnet.PrefixLength)
+	localGWIP, err := getLocalIPGateway(localIPPrefix)
+	if err != nil {
+		return nil, false, &api.JsonErr{
+			HTTPStatus: http.StatusInternalServerError,
+			Text:       fmt.Sprintf("getlocalgatewayIP failed: %v", err),
+			Code:       api.StatusInternalServerError,
+		}
+	}
+
+	localIPConfiguaration := cns.IPConfiguration{
+		IPSubnet:         localIPSubnet,
+		GatewayIPAddress: localGWIP,
+	}
+
+	authToken := ""
+	prefix := cns.SwiftPrefix
+	if managed {
+		authToken = ncGoalState.AccessToken
+		prefix = ""
+	}
+
+	return &cns.CreateNetworkContainerRequest{
+		Version:                    strconv.FormatUint(ncConfig.CNSVersion, 10),
+		NetworkContainerType:       ncGoalState.ContainerType,
+		NetworkContainerid:         prefix + ncGoalState.NetworkContainerID,
+		PrimaryInterfaceIdentifier: ncGoalState.AssociatedInterfaceID,
+		IPConfiguration:            ipConfig,
+		AuthorizationToken:         authToken,
+		CnetAddressSpace:           cnsCnetAddresses,
+		OrchestratorContext:        ncGoalState.OrchestratorContext,
+		MultiTenancyInfo:           cns.MultiTenancyInfo{EncapType: cns.Vlan, ID: ncGoalState.VlanID},
+		LocalIPConfiguration:       localIPConfiguaration,
+		AllowHostToNCCommunication: ncConfig.GetAllowHostToNCCommunicationStatus(),
+		AllowNCToHostCommunication: ncConfig.GetAllowNCToHostCommunicationStatus()}, false, nil
+}
+
+func getLocalIPGateway(ipsubnet string) (string, error) {
+	_, ipNet, err := net.ParseCIDR(ipsubnet)
+	if err != nil {
+		logger.Errorf("parseCIDR for %v failed %v", ipsubnet, err)
+		return "", err
+	}
+
+	ipstart := utils.IP2Int(ipNet.IP)
+	ipstart = ipstart + 1
+	return utils.Int2IP(ipstart).String(), nil
 }

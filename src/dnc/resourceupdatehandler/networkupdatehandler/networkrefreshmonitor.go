@@ -8,7 +8,6 @@ import (
 	"dnc/logger/loggershim"
 	"dnc/nmagentcontracts"
 	"dnc/replica"
-	"dnc/resourceupdatehandler/tagupdatehandler"
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
@@ -216,7 +215,6 @@ func RefreshNetworkConfiguration(
 		}()
 	}
 
-	tagupdatehandler.CheckAndAddTagsCache(networkResponse)
 	if repoNetworkConfiguration.Version == networkVersion &&
 		repoNetworkConfiguration.Status != datamodel.Refreshing {
 		return false, true
@@ -398,14 +396,13 @@ func UpdateNetworkConfiguration(
 		isRetriableError         bool
 		subnetsToAdd             map[string]nmagentcontracts.Subnet
 		subnetsToRemove          map[string]bool
-		subnetsToUpdate          map[string]*datamodel.SubnetConfiguration
 		subnetsInUpdatedResponse map[string]nmagentcontracts.Subnet
 		ipSubnetMap              map[string]string
 		vnetVersion              uint64
 		dnsServers               []string
 	)
 
-	isRetriableError, failureDetail, subnetsToAdd, subnetsToRemove, subnetsToUpdate =
+	isRetriableError, failureDetail, subnetsToAdd, subnetsToRemove, _ =
 		validateAndRetrieveNetworkConfigurationUpdate(
 			repoNetworkConfiguration,
 			networkResponse)
@@ -484,25 +481,6 @@ func UpdateNetworkConfiguration(
 		failureDetail = datamodel.PutSubnetConfiguration(&subnetConfig)
 		if failureDetail != nil {
 			goto Cleanup
-		}
-	}
-
-	for subnetName, currentRepoSubnetCfg := range subnetsToUpdate {
-		ipSubnetMap[subnetName] = datamodel.GetSubnetKey(networkID, subnetName)
-		updatedSubnetCfg := subnetsInUpdatedResponse[subnetName]
-		currentRepoSubnetCfg.Tags = updatedSubnetCfg.Tags
-		failureDetail = datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
-		if failureDetail != nil {
-			goto Cleanup
-		}
-
-		// Register tags (add them to cache) if subnet is delegated
-		if currentRepoSubnetCfg.IsDelegatedSubnet {
-			for _, tag := range currentRepoSubnetCfg.Tags {
-				if _, err := tagupdatehandler.RegisterAndGetTagDefinition(tag); err != nil {
-					logger.Errorf("Failed to register and get tag definitions with error: %+v", err)
-				}
-			}
 		}
 	}
 
@@ -671,32 +649,7 @@ func validateAndRetrieveNetworkConfigurationUpdate(
 					HTTPStatus: http.StatusInternalServerError}, nil, nil, nil
 			}
 
-			needsUpdate := hasDNSServersChanged || hasCnetSpacesChanged
-			if !needsUpdate {
-				var currentSTTags []string
-				var updatedSTTags []string
-				if len(subnet.Tags) != 0 {
-					updatedSTTags = make([]string, len(subnet.Tags))
-					for index, tag := range subnet.Tags {
-						updatedSTTags[index] = tag.Name
-					}
-				} else {
-					updatedSTTags = make([]string, 0)
-				}
-
-				if len(repoSubnetConfig.Tags) != 0 {
-					currentSTTags = make([]string, len(repoSubnetConfig.Tags))
-					for index, tag := range repoSubnetConfig.Tags {
-						currentSTTags[index] = tag.Name
-					}
-				} else {
-					currentSTTags = make([]string, 0)
-				}
-
-				needsUpdate = !utils.AreSetsEqual(currentSTTags, updatedSTTags)
-			}
-
-			if needsUpdate {
+			if hasDNSServersChanged || hasCnetSpacesChanged {
 				subnetsToUpdate[subnet.SubnetName] = repoSubnetConfig
 			}
 		} else {

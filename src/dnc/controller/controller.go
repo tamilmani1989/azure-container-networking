@@ -51,68 +51,111 @@ func NewController(
 	return controller
 }
 
+// GetConfig :- retrieves the configuration passed to controller
+func (c *Controller) GetConfig() *configuration.Configuration {
+	return config
+}
+
 // PersistNodeInfo - Persist node configuration.
 func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoRequest, apiVersion string) *api.JsonErr {
-	// Send OrchestratorType to CNS
-	var (
-		info = &cns.SetOrchestratorTypeRequest{
-			OrchestratorType: nodeInfo.OrchestratorType,
-			DncPartitionKey:  config.DataStoreSettings.AzureStorageInfo.PartitionKey,
-			NodeID:           nodeID}
-		body bytes.Buffer
-		resp cns.Response
-	)
-
 	// Can be used whenver we send logs/metric
 	aiwrapper.OrchestratorType = nodeInfo.OrchestratorType
 
-	json.NewEncoder(&body).Encode(info)
-	setOrchestratorTypeURL := fmt.Sprintf(
-		setOrchestratorTypeURLFmt,
-		nodeInfo.IPAddresses[0])
-	loggershim.LS.Debugf("[CNS] create/update %s", nodeInfo.String())
+	if config.DNCSettings.Managed {
+		if !utils.IsValidUUID(nodeInfo.InfrastructureNetwork) {
+			return &api.JsonErr{
+				Code:       api.InvalidNetworkID,
+				Text:       "Infrastructure Network ID must be a valid uuid",
+				HTTPStatus: http.StatusBadRequest}
+		}
 
-	w, respErr := c.httpClient.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
-	if respErr != nil {
-		msg := fmt.Sprintf("Post to URL %v for node %s failed with error %s",
-			setOrchestratorTypeURL,
-			nodeID,
-			respErr.Error())
-		return &api.JsonErr{
-			Code:       api.NodeProcessingFailedDueToInternalError,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
-	}
+		switch nodeInfo.OrchestratorType {
+		case cns.ServiceFabric:
+			fallthrough
+		case cns.Kubernetes:
+			fallthrough
+		case cns.WebApps:
+			fallthrough
+		case cns.Batch:
+			fallthrough
+		case cns.DBforPostgreSQL:
+			fallthrough
+		case cns.AzureFirstParty:
+			break
+		default:
+			return &api.JsonErr{
+				Code:       api.InvalidOrchestratorType,
+				Text:       fmt.Sprintf("Invalid Orchestrator type %v", nodeInfo.OrchestratorType),
+				HTTPStatus: http.StatusBadRequest}
+		}
+	} else {
+		// Send OrchestratorType to CNS
+		var (
+			info = &cns.SetOrchestratorTypeRequest{
+				OrchestratorType: nodeInfo.OrchestratorType,
+				DncPartitionKey:  config.DataStoreSettings.AzureStorageInfo.PartitionKey,
+				NodeID:           nodeID}
+			body bytes.Buffer
+			resp cns.Response
+		)
 
-	defer w.Body.Close()
+		json.NewEncoder(&body).Encode(info)
+		setOrchestratorTypeURL := fmt.Sprintf(
+			setOrchestratorTypeURLFmt,
+			nodeInfo.IPAddresses[0])
+		loggershim.LS.Debugf("[CNS] create/update %s", nodeInfo.String())
 
-	respErr = utils.DecodeResponse(w, &resp)
-	if respErr != nil {
-		msg := fmt.Sprintf("Create node %s failed with error %s",
-			nodeID,
-			respErr.Error())
-		return &api.JsonErr{
-			Code:       api.NodeProcessingFailedDueToInternalError,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
-	}
+		w, respErr := c.httpClient.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
+		if respErr != nil {
+			msg := fmt.Sprintf("Post to URL %v for node %s failed with error %s",
+				setOrchestratorTypeURL,
+				nodeID,
+				respErr.Error())
+			return &api.JsonErr{
+				Code:       api.NodeProcessingFailedDueToInternalError,
+				Text:       msg,
+				HTTPStatus: http.StatusBadRequest}
+		}
 
-	if resp.ReturnCode != 0 {
-		msg := fmt.Sprintf("Create node %s failed with error code %d. %s",
-			nodeID,
-			resp.ReturnCode,
-			resp.Message)
-		return &api.JsonErr{
-			Code:       api.NodeProcessingFailedDueToInternalError,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+		defer w.Body.Close()
+
+		respErr = utils.DecodeResponse(w, &resp)
+		if respErr != nil {
+			msg := fmt.Sprintf("Create node %s failed with error %s",
+				nodeID,
+				respErr.Error())
+			return &api.JsonErr{
+				Code:       api.NodeProcessingFailedDueToInternalError,
+				Text:       msg,
+				HTTPStatus: http.StatusBadRequest}
+		}
+
+		if resp.ReturnCode != 0 {
+			msg := fmt.Sprintf("Create node %s failed with error code %d. %s",
+				nodeID,
+				resp.ReturnCode,
+				resp.Message)
+			return &api.JsonErr{
+				Code:       api.NodeProcessingFailedDueToInternalError,
+				Text:       msg,
+				HTTPStatus: http.StatusBadRequest}
+		}
 	}
 
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
+	// pass false and 0 for non-registration calls
+	return datamodel.CreateOrUpdateNodeConfiguration(false, 0, nodeID, *nodeInfo, apiVersion)
+}
 
-	return datamodel.CreateOrUpdateNodeConfiguration(nodeID, *nodeInfo, apiVersion)
+// RegisterNode - Register node
+func (c *Controller) RegisterNode(nodeID, apiVersion string, cores int) *api.JsonErr {
+	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
+	c.SessionManager.BeginWriteSession(sessionInfo)
+	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	return datamodel.CreateOrUpdateNodeConfiguration(true, cores, nodeID, api.NodeInfoRequest{}, apiVersion)
 }
 
 // DeleteNode - Delete node configuration
@@ -125,12 +168,17 @@ func (c *Controller) DeleteNode(nodeID string) *api.JsonErr {
 	return datamodel.DeleteNode(nodeID)
 }
 
-// GetNodeInfo - Get node configuration.
+// GetNodeInfo - Get node info
 func (c *Controller) GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr) {
 	// No read lock is required because Azure Storage uses snapshot isolation to allow
 	// read operations to happen concurrently with writes in the same partition. It
 	// guarantees reads to see consistent data while updates are happening
 	return datamodel.GetNodeInfo(nodeID)
+}
+
+// GetNodeConfiguration - Get node configuration
+func (c *Controller) GetNodeConfiguration(nodeID string) (*datamodel.NodeConfiguration, *api.JsonErr) {
+	return datamodel.TryQueryNodeConfiguration(nodeID)
 }
 
 // PersistIPReservationRequest - Persist reservation request
@@ -537,6 +585,32 @@ func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*
 	}
 
 	return ncConfig, nil
+}
+
+// GetNetworkContainerRequest - Retrieves cns.CreateNetworkContainerRequest
+func (c *Controller) GetNetworkContainerRequest(networkID, ncID string) (*cns.CreateNetworkContainerRequest, *api.JsonErr) {
+	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, ncID)
+	if err != nil {
+		return nil, err
+	}
+
+	ncGoalState, isRetriable, err := datamodel.GetNCGoalState(ncConfig)
+	if err != nil {
+		if isRetriable {
+			err.HTTPStatus = http.StatusProcessing
+		}
+		return nil, err
+	}
+
+	ncRequest, isRetriable, err := datamodel.GetNetworkContainerRequest(ncGoalState, ncConfig)
+	if err != nil {
+		if isRetriable {
+			err.HTTPStatus = http.StatusProcessing
+		}
+		return nil, err
+	}
+
+	return ncRequest, nil
 }
 
 // GetNetworkContainer - Retrieves the network container configuration

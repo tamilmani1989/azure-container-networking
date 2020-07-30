@@ -102,7 +102,6 @@ var routes = Routes{
 		"/networks/{networkID}/networkcontainers/{networkContainerID}/status",
 		GetNetworkContainerStatus,
 	},
-
 	// Returns the NC entry in the NC table
 	Route{
 		"GetNetworkContainerConfiguration",
@@ -110,13 +109,20 @@ var routes = Routes{
 		"/networks/{networkID}/networkcontainer/{networkContainerID}/configuration",
 		GetNetworkContainerConfiguration,
 	},
-	// Route{
-	// 	"Reservations",
-	// 	"GET",
-	// 	"/networks/{networkID}",
-	// 	ReservationsBynetworkID,
-	// },
-
+	// Register node (via CNS) in mDNC scenario
+	Route{
+		"RegisterNode",
+		"POST",
+		"/{infraNetworkID}/node/{nodeID}/cores/{cores}",
+		RegisterNode,
+	},
+	// Retrieves all NC requests on node in mDNC scenario
+	Route{
+		"SyncNodeNetworkContainers",
+		"GET",
+		"/{infraNetworkID}/node/{nodeID}",
+		SyncNodeNetworkContainers,
+	},
 	Route{
 		"GetReservation",
 		"GET",

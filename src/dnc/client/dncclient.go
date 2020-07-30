@@ -94,16 +94,17 @@ func (c *DncClient) InitAzStorage(accountName, key, partitionKey, blob, containe
  * Add APIs
  */
 
-func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType string) (respErr *api.JsonErr) {
+func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType, infraVnet string) (respErr *api.JsonErr) {
 	var (
 		body     bytes.Buffer
 		response *http.Response
 		err      error
 		nodeURL  = fmt.Sprintf(nodeApi, c.DncEP, nodeId)
 		nodeReq  = api.NodeInfoRequest{
-			IPAddresses:      []string{ipaddr},
-			LocationType:     "",
-			OrchestratorType: orchestratorType}
+			IPAddresses:           []string{ipaddr},
+			LocationType:          "",
+			OrchestratorType:      orchestratorType,
+			InfrastructureNetwork: infraVnet}
 	)
 
 	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
