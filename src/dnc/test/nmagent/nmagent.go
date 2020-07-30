@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/sirupsen/logrus"
 )
 
 type NMAgent struct {
@@ -54,6 +56,7 @@ func init() {
 
 func main() {
 	nmagent.Server.Start()
+	logrus.Infof("mock nmagent listening on %s", nmagent.Server.URL)
 	select {}
 }
 
@@ -64,7 +67,10 @@ func (s *NMAgent) setupServer(endpoint string) {
 				s.ResponseFunc(w, r)
 			}
 		}))
-	l, _ := net.Listen("tcp", endpoint)
+	l, err := net.Listen("tcp", endpoint)
+	if err != nil {
+		logrus.Fatalf("could not start mock nmagent: %v", err)
+	}
 	s.Server.Listener = l
 }
 

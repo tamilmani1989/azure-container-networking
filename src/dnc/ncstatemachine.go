@@ -16,7 +16,7 @@ func initNetworkContainerStateMachine() {
 	preparer = networkcontainer.Preparer{
 		CNS:                  cnsInterface,
 		Locks:                sessionManager,
-		PersistReservation:   datamodel.PutIPReservationConfiguration,
+		Reservations:         new(reservationRepo),
 		UpdateNodeContainers: datamodel.UpdateNodeConfigurationNetworkContainerSet,
 		PersistNC:            datamodel.PersistNCConfiguration,
 		Logger:               logger,

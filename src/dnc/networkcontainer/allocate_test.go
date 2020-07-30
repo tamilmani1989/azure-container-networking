@@ -35,7 +35,7 @@ func Test_Allocate(t *testing.T) {
 	allocator := IPAllocator{
 		Allocations:            &allocsRepo,
 		Subnets:                &subnetRepo,
-		Reservations:           &fakes.ReservationRepo{},
+		Reservations:           fakes.NewReservationRepo(),
 		EnableSubnetDelegation: true,
 	}
 
@@ -84,7 +84,7 @@ func TestIncompleteAllocation(t *testing.T) {
 	reservationID := "res1"
 	allocationID1 := "uuid1"
 
-	// this id was has not been allocated an ip yet
+	// this id has not been allocated an ip yet
 	allocationID2 := "uuid3"
 
 	// this is the current state of the allocations table
@@ -110,7 +110,7 @@ func TestIncompleteAllocation(t *testing.T) {
 	allocator := IPAllocator{
 		Allocations:            &allocsRepo,
 		Subnets:                &subnetRepo,
-		Reservations:           &fakes.ReservationRepo{},
+		Reservations:           fakes.NewReservationRepo(),
 		EnableSubnetDelegation: true,
 	}
 

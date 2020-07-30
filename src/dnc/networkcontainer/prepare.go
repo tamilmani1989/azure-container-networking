@@ -14,8 +14,6 @@ import (
 )
 
 // todo: convert to interfaces, which can be reused across state transitions
-type PersistReservationFunc func(ipReservation *datamodel.ReservationConfiguration) *api.JsonErr
-
 type UpdateNodeContainersFunc func(nodeID, networkID, ncID, reservationID, containerType string, updateVlan, remove bool, ncLimit int) *api.JsonErr
 
 type PersistNCFunc func(ncConfiguration *datamodel.NCConfiguration, addToPendingQueue bool) *api.JsonErr
@@ -23,7 +21,7 @@ type PersistNCFunc func(ncConfiguration *datamodel.NCConfiguration, addToPending
 type Preparer struct {
 	CNS                  cnsinterface.CnsInterface
 	Locks                *utils.SessionManager
-	PersistReservation   PersistReservationFunc
+	Reservations         IPReservationRepo
 	UpdateNodeContainers UpdateNodeContainersFunc
 	PersistNC            PersistNCFunc
 	Logger               loggershim.LoggerInterface
@@ -32,16 +30,20 @@ type Preparer struct {
 // PrepareNetworkContainerV2 prepares a network container that requires implicit reservations, and attempts to move it to reserve state.
 // Returns whether item should be removed from pending queue, and any error during preparation
 func (p *Preparer) PrepareNetworkContainerV2(ncConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	var res datamodel.ReservationConfiguration
 	if ncConfig.ReservationID == "" {
-		reservationIDUUID, err := uuid.NewRandom()
-		if err != nil {
-			return false, &api.JsonErr{
-				Code:       api.StatusInternalServerError,
-				HTTPStatus: http.StatusInternalServerError,
-				Text:       fmt.Sprintf("Failed to generate UUID due to error:%s", err.Error()),
-			}
+		res = newReservation(*ncConfig)
+		ncConfig.ReservationID = res.ReservationID
+	} else {
+		existingRes, err := p.Reservations.TryQueryIPReservation(ncConfig.NetworkID, ncConfig.ReservationID)
+		switch {
+		case err != nil:
+			return false, err
+		case existingRes == nil: // reservation id previously assigned, but no reservation created
+			res = newReservation(*ncConfig)
+		default: // reservation previously created, this is preparing an update
+			res = updatedReservation(*ncConfig, *existingRes)
 		}
-		ncConfig.ReservationID = reservationIDUUID.String()
 	}
 
 	if err := p.registerNCinNode(*ncConfig); err != nil {
@@ -52,32 +54,54 @@ func (p *Preparer) PrepareNetworkContainerV2(ncConfig *datamodel.NCConfiguration
 		return false, err
 	}
 
-	res := datamodel.ReservationConfiguration{
-		ReservationID:        ncConfig.ReservationID,
-		NetworkID:            ncConfig.NetworkID,
-		ReservationState:     datamodel.Allocate,
-		Status:               datamodel.Pending,
-		AllocationRequest:    ncConfig.RequestV2.AllocationRequest,
-		AssociatedNCID:       ncConfig.NetworkContainerID,
-		SecondaryAllocations: make(map[string]string),
-	}
-
-	for i := 0; i < ncConfig.RequestV2.AllocationRequest.SecondaryIPCount; i++ {
-		id, _ := uuid.NewRandom()
-		res.SecondaryAllocations[id.String()] = ""
-	}
-
-	if err := p.PersistReservation(&res); err != nil {
-		return false, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       err.Error(),
-			HTTPStatus: http.StatusInternalServerError,
-		}
+	if err := p.Reservations.PutIPReservationConfiguration(&res); err != nil {
+		return false, api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
 	p.Logger.Debugf("Successfully created reservation config: %+v for NC: %s", res, ncConfig.NetworkContainerID)
 	err := p.moveNCToReserveState(ncConfig)
 	return false, err
+}
+
+func newReservation(nc datamodel.NCConfiguration) datamodel.ReservationConfiguration {
+	resID := nc.ReservationID
+	if resID == "" {
+		resID = uuid.New().String()
+	}
+	res := datamodel.ReservationConfiguration{
+		ReservationID:        resID,
+		NetworkID:            nc.NetworkID,
+		ReservationState:     datamodel.Allocate,
+		Status:               datamodel.Pending,
+		AllocationRequest:    nc.RequestV2.AllocationRequest,
+		AssociatedNCID:       nc.NetworkContainerID,
+		SecondaryAllocations: make(map[string]string),
+	}
+	for i := 0; i < nc.RequestV2.AllocationRequest.SecondaryIPCount; i++ {
+		res.SecondaryAllocations[uuid.New().String()] = ""
+	}
+	return res
+}
+
+func updatedReservation(nc datamodel.NCConfiguration, res datamodel.ReservationConfiguration) datamodel.ReservationConfiguration {
+	ipCountDiff := nc.RequestV2.AllocationRequest.SecondaryIPCount - len(res.SecondaryAllocations)
+	if ipCountDiff == 0 {
+		return res // no change needed
+	}
+
+	res.ReservationState = datamodel.Allocate
+	res.Status = datamodel.Pending
+	res.AllocationRequest = nc.RequestV2.AllocationRequest
+
+	// scale up
+	if ipCountDiff > 0 {
+		for i := 0; i < ipCountDiff; i++ {
+			res.SecondaryAllocations[uuid.New().String()] = ""
+		}
+	}
+
+	// todo: handle scale down
+	return res
 }
 
 func (p *Preparer) registerNCinNode(ncConfig datamodel.NCConfiguration) *api.JsonErr {

@@ -6,18 +6,36 @@ import (
 )
 
 type ReservationRepo struct {
-	Payload datamodel.ReservationConfiguration
+	Data     map[string]datamodel.ReservationConfiguration
+	QueryErr *api.JsonErr
+	PutErr   *api.JsonErr
+}
+
+func NewReservationRepo() *ReservationRepo {
+	return &ReservationRepo{Data: make(map[string]datamodel.ReservationConfiguration)}
 }
 
 func (f *ReservationRepo) TryQueryIPReservation(networkID, reservationID string) (*datamodel.ReservationConfiguration, *api.JsonErr) {
-	return &f.Payload, nil
+	if f.QueryErr != nil {
+		return nil, f.QueryErr
+	}
+	return f.TryQueryIPReservationByKey(datamodel.GetReservationKey(networkID, reservationID))
 }
 
 func (f *ReservationRepo) TryQueryIPReservationByKey(key string) (*datamodel.ReservationConfiguration, *api.JsonErr) {
-	return &f.Payload, nil
+	if f.QueryErr != nil {
+		return nil, f.QueryErr
+	}
+	res := f.Data[key]
+	return &res, nil
 }
 
 func (f *ReservationRepo) PutIPReservationConfiguration(res *datamodel.ReservationConfiguration) *api.JsonErr {
+	if f.PutErr != nil {
+		return f.PutErr
+	}
+	key := datamodel.GetReservationKey(res.NetworkID, res.ReservationID)
+	f.Data[key] = *res
 	return nil
 }
 

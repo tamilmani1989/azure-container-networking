@@ -1,6 +1,7 @@
 package networkcontainer
 
 import (
+	"dnc/datamodel"
 	"net"
 	"testing"
 )
@@ -64,4 +65,62 @@ func Test_FindFreeIPs_Error(t *testing.T) {
 	if err != errCapacityExceeded {
 		t.Fatal("expected errCapacityExceeded error")
 	}
+}
+
+func TestReconcileReservation(t *testing.T) {
+	currState := map[string]*net.IPNet{
+		"key1": {IP: net.IP{10, 0, 0, 4}, Mask: net.IPMask{255, 255, 255, 255}},
+		"key2": {IP: net.IP{10, 0, 0, 5}, Mask: net.IPMask{255, 255, 255, 255}},
+		"key3": {IP: net.IP{10, 0, 0, 6}, Mask: net.IPMask{255, 255, 255, 255}},
+	}
+
+	t.Run("reservation already in sync with allocations", func(t *testing.T) {
+		res := datamodel.ReservationConfiguration{
+			ReservationID:   "key1",
+			AllocatedSubnet: "10.0.0.4/32",
+			SecondaryAllocations: map[string]string{
+				"key2": "10.0.0.5/32",
+				"key3": "10.0.0.6/32",
+			},
+		}
+
+		completed := reconcileReservation(&res, currState)
+		if !completed {
+			t.Error("expected reservation to be complete, as it is consistent with current db state")
+		}
+	})
+
+	t.Run("reservation in sync after reconcile", func(t *testing.T) {
+		res := datamodel.ReservationConfiguration{
+			ReservationID:   "key1",
+			AllocatedSubnet: "",
+			SecondaryAllocations: map[string]string{
+				"key2": "",
+				"key3": "",
+			},
+		}
+
+		completed := reconcileReservation(&res, currState)
+		if !completed {
+			t.Error("expected reservation to be complete, as it is consistent with current db state")
+		}
+	})
+
+	t.Run("reservation still needs allocations", func(t *testing.T) {
+		res := datamodel.ReservationConfiguration{
+			ReservationID:   "key1",
+			AllocatedSubnet: "10.0.0.4/32",
+			SecondaryAllocations: map[string]string{
+				"key2": "10.0.0.5/32",
+				"key3": "10.0.0.6/32",
+				"key4": "",
+				"key5": "",
+			},
+		}
+
+		completed := reconcileReservation(&res, currState)
+		if completed {
+			t.Error("expected reservation to be incomplete, as allocations still need to happen")
+		}
+	})
 }

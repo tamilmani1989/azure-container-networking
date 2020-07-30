@@ -2636,7 +2636,7 @@ func UpdateNCRequestV2(currentNC *NCConfiguration, ncRequestV2 *api.NetworkConta
 		RequestV2:             *ncRequestV2,
 		State:                 Prepare,
 		Status:                Pending,
-		CNSVersion:            currentNC.CNSVersion,
+		CNSVersion:            currentNC.CNSVersion + 1,
 		AgentVersion:          currentNC.AgentVersion,
 		ProgrammedVnetVersion: currentNC.ProgrammedVnetVersion,
 		ProgrammedTagsInfo:    currentNC.ProgrammedTagsInfo,
