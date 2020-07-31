@@ -16,6 +16,10 @@ const (
 	AZ03
 )
 
+const (
+	pubsubConnectionRetryInterval = time.Second * 2
+)
+
 type publisher struct {
 	pubsubId  int
 	isHealthy bool
@@ -286,24 +290,36 @@ func (callback madariPublisherCallback) OnSessionTerminationReceived() {
 	}
 }
 
-func initPublishers() error {
+func initPublishers() {
 	publisherContext = &publisherContextStruct{
 		numPublishers: numPubSubs,
 		publishers:    make(map[int]*publisher),
 	}
 
+	// Initialize the publishers
 	for pubsubId := AZ01; pubsubId <= numPubSubs; pubsubId++ {
 		publisherContext.publishers[pubsubId] = &publisher{
 			pubsubId: pubsubId,
 		}
-
-		err := createOrUpdatePublisher(publisherContext.publishers[pubsubId], getVipList(pubsubId))
-		if err != nil {
-			return err
-		}
 	}
 
-	return nil
+	// Create all the publishers
+	// Keep retrying until the publisher is created successfully
+	createdPublishers := make(map[int]struct{})
+	for len(createdPublishers) < numPubSubs {
+		for pubsubId := AZ01; pubsubId <= numPubSubs; pubsubId++ {
+			_, created := createdPublishers[pubsubId]
+			if !created {
+				err := createOrUpdatePublisher(publisherContext.publishers[pubsubId], getVipList(pubsubId))
+				if err == nil {
+					createdPublishers[pubsubId] = struct{}{}
+				} else {
+					loggershim.LS.Errorf("[PubSubProxy] Retriable error: %v", err)
+					time.Sleep(pubsubConnectionRetryInterval)
+				}
+			}
+		}
+	}
 }
 
 func createOrUpdatePublisher(
@@ -326,7 +342,7 @@ func createOrUpdatePublisher(
 			return nil
 		}
 
-		loggershim.LS.Errorf("[PubSubProxy] Failed to connect to VIP: %s due to error code: %v", vipList[vipId], errorCode)
+		loggershim.LS.Errorf("[PubSubProxy] Publisher failed to connect to VIP: %s due to error code: %v", vipList[vipId], errorCode)
 	}
 
 	return fmt.Errorf("Failed to create publisher: %d", publisher.pubsubId)

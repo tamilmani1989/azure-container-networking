@@ -244,7 +244,11 @@ func validateAuthToken(
 
 func PublishNetworkContainer(
 	ncPublishRequest PublishNetworkContainerRequest) *api.JsonErr {
+	// Hide the auth token in the logs
+	subnetAuthToken := ncPublishRequest.SubnetAuthToken
+	ncPublishRequest.SubnetAuthToken = "<contents-hidden>"
 	loggershim.LS.Debugf("[PubSubProxy] PublishNetworkContainer: %s, %+v", ncPublishRequest.NcID, ncPublishRequest)
+	ncPublishRequest.SubnetAuthToken = subnetAuthToken
 
 	if err := validateAuthToken(
 		ncPublishRequest.VirtualNetworkID,
@@ -385,10 +389,10 @@ func UnpublishNetworkContainer(
 func RegisterVnet(
 	vnetId string) {
 	// Subscribe only if not subscribed already
-	if (getActiveSubscriber().getCachedVnetConfig(vnetId) == nil) ||
-		(getActiveSubscriber().getCachedVnetConfig(vnetId).isSubscribed == false) {
-		getActiveSubscriber().subscribeCachedVnetConfig(vnetId)
+	if getActiveSubscriber().getCachedVnetConfig(vnetId) == nil ||
+		getActiveSubscriber().getCachedVnetConfig(vnetId).isSubscribed == false {
 		loggershim.LS.Debugf("[PubSubProxy] RegisterVnet: %s", vnetId)
+		getActiveSubscriber().subscribeCachedVnetConfig(vnetId)
 		vnetRegister := &vnetJob{
 			context: jobContext{
 				id:              createVnetJobId(vnetId),
@@ -433,7 +437,6 @@ func getVipList(
 func Init(
 	configSettings configuration.PubSubProxySettings,
 	replica *replica.Replica) error {
-	var err error
 	numPubSubs = configSettings.NumPubSubs
 	maxConcurrentRequests = configSettings.MaxConcurrentRequests
 	publisherPort = configSettings.PublisherPort
@@ -457,15 +460,8 @@ func Init(
 			numPubSubs, len(pubsubVipList))
 	}
 
-	if err = initPublishers(); err != nil {
-		loggershim.LS.Errorf("[PubSubProxy] initPublishers failed due to error: %v", err)
-		return err
-	}
-
-	if err = initSubscriber(); err != nil {
-		loggershim.LS.Errorf("[PubSubProxy] initSubscriber failed due to error: %v", err)
-		return err
-	}
+	go initPublishers()
+	go initSubscriber()
 
 	// Init worker pool
 	workerPool()

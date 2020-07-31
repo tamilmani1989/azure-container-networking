@@ -218,17 +218,17 @@ func (s *subscriber) deleteCachedVnetConfig(
 func (s *subscriber) subscribeCachedVnetConfig(
 	vnetId string) {
 	vnetConfig := s.getCachedVnetConfig(vnetId)
-	// If vnet config doesn't exist, create an entry as a subscribed vnet
-	if vnetConfig == nil {
-		s.cachedVnetConfigMap.Store(vnetId,
-			cachedVnetConfig{
-				isSubscribed: true,
-			})
-	} else {
+	if vnetConfig != nil {
 		// Mark the existing vnet as subscribed
 		vnetConfig.isSubscribed = true
 		s.cachedVnetConfigMap.Store(vnetId, *vnetConfig)
+		return
 	}
+
+	// If vnet config doesn't exist, create an entry as a subscribed vnet
+	s.cachedVnetConfigMap.Store(vnetId, cachedVnetConfig{
+		isSubscribed: true,
+	})
 }
 
 func (s *subscriber) unsubscribeCachedVnetConfigs() {
@@ -247,6 +247,7 @@ func (s *subscriber) updateCachedVnetConfig(
 	vnetConfig *VnetConfiguration) {
 	var cachedVnetConfig cachedVnetConfig
 	cachedVnetConfig.vnetVersion = vnetConfig.VnetVersion
+	cachedVnetConfig.isSubscribed = true
 	for _, subnetConfig := range vnetConfig.SubnetConfigs {
 		cachedSubnetConfig := cachedSubnetConfig{
 			subnetName:    subnetConfig.SubnetName,
@@ -384,22 +385,23 @@ func getActiveSubscriber() *subscriber {
 	return subscriberContext.subscriber
 }
 
-func initSubscriber() error {
+func initSubscriber() {
 	subscriberContext = &subscriberContextStruct{}
-	for pubsubId := AZ01; pubsubId <= numPubSubs; pubsubId++ {
-		subscriberContext.subscriber = &subscriber{
-			pubsubId: pubsubId,
-		}
+	subscriberContext.subscriber = &subscriber{}
 
-		// Only one instance of the subscriber is required. As a result, return once
-		// one subscriber instance is successfully created.
-		if err := createOrUpdateSubscriber(subscriberContext.subscriber,
-			getVipList(pubsubId)); err == nil {
-			return nil
+	// Keep retrying until the subscriber is created successfully
+	for !getActiveSubscriber().isHealthy {
+		for pubsubId := AZ01; pubsubId <= numPubSubs; pubsubId++ {
+			subscriberContext.subscriber.pubsubId = pubsubId
+
+			// Only one instance of the subscriber is required. As a result, return when
+			// one subscriber instance is successfully created.
+			if err := createOrUpdateSubscriber(subscriberContext.subscriber,
+				getVipList(pubsubId)); err == nil {
+				break
+			}
 		}
 	}
-
-	return fmt.Errorf("Failed to create subscriber")
 }
 
 func createOrUpdateSubscriber(
@@ -415,7 +417,7 @@ func createOrUpdateSubscriber(
 		errorCode := defaultSubscriber.Open(vipList[vipId], subscriberPort, pubsubCertName, pubsubConnectionEp)
 		// TODO: Replace 0 with error code enum from pubsub
 		if errorCode == 0 {
-			loggershim.LS.Debugf("Successfully created Subscriber with pubsub VIP: %s", vipList[vipId])
+			loggershim.LS.Debugf("[PubSubProxy] Successfully created Subscriber with pubsub VIP: %s", vipList[vipId])
 			subscriber.defaultSubscriber = defaultSubscriber
 			subscriber.callback = subscriberCallback
 			subscriber.isHealthy = true
@@ -427,7 +429,7 @@ func createOrUpdateSubscriber(
 			return nil
 		}
 
-		loggershim.LS.Errorf("Failed to connect to VIP: %s due to error code: %v", vipList[vipId], errorCode)
+		loggershim.LS.Errorf("[PubSubProxy] Subscriber failed to connect to VIP: %s due to error code: %v", vipList[vipId], errorCode)
 	}
 
 	return fmt.Errorf("Failed to create subscriber: %d", subscriber.pubsubId)

@@ -657,8 +657,8 @@ func updateVnetConfiguration(
 	}
 
 	if repoNetworkConfiguration.Version >= networkVersion {
-		loggershim.LS.Debugf("[PubSubProxy] Vnet version is the latest. RepoVnetVersion: %d UpdateVnetVersion: %d",
-			repoNetworkConfiguration.Version, networkVersion)
+		loggershim.LS.Debugf("[PubSubProxy] Vnet: %s version is the latest. RepoVnetVersion: %d UpdateVnetVersion: %d",
+			vnetID, repoNetworkConfiguration.Version, networkVersion)
 		return true, nil
 	}
 
