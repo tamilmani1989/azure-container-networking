@@ -1,12 +1,9 @@
 package test
 
 import (
-	"context"
 	"dnc/api"
 	"dnc/client"
 	"dnc/configuration"
-	"dnc/requestcontroller"
-	reqk8s "dnc/requestcontroller/kubernetes"
 	"dnc/test/utils"
 	"net/http"
 	"os"
@@ -18,24 +15,16 @@ import (
 
 	"github.com/Azure/azure-container-networking/cns"
 	"github.com/google/uuid"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 var (
-	dnctl                       *client.DncClient
-	defaultRequestTimeout       = time.Second * 4
-	defaultNCRequestTimeout     = time.Second * 10
-	defaultSleep                = time.Second * 1
-	errdRequestTimeout          = time.Second * 30
-	devEnv                      bool
-	requestControllerKubeconfig string
+	dnctl                   *client.DncClient
+	defaultRequestTimeout   = time.Second * 4
+	defaultNCRequestTimeout = time.Second * 10
+	defaultSleep            = time.Second * 1
+	errdRequestTimeout      = time.Second * 30
+	devEnv                  bool
 )
-
-type RequestControllerConfigProvider struct {
-	kubeconfig string
-}
 
 func init() {
 	// determine if tests are being run on dev machine
@@ -52,8 +41,6 @@ func init() {
 	}
 
 	dnctl = client.NewDncClient("http://" + config.ServerSettings.IPAddress + ":" + config.ServerSettings.Port)
-
-	requestControllerKubeconfig, _ = os.LookupEnv("REQUEST_CONTROLLER_KUBECONFIG")
 }
 
 func TestBasicNodeAPIs(t *testing.T) {
@@ -365,130 +352,6 @@ func TestNcFailures(t *testing.T) {
 	deleteNetwork(t, utils.StandardVnet2, http.StatusNotFound)
 	deleteNetwork(t, utils.StandardVnet3, http.StatusNotFound)
 	deleteNode(t, nodeID, http.StatusNotFound)
-}
-
-func TestRequestControllerAddNode(t *testing.T) {
-	if requestControllerKubeconfig == "" {
-		t.Skip("skipping because no kubeconfig was provided")
-	}
-
-	// Set of known NetworkConfigs
-	var networkConfigs map[string]struct{} = map[string]struct{}{}
-
-	// NetworkConfig CreateFunc
-	createNetworkConfig := func(ctx context.Context, s string) error {
-		networkConfigs[s] = struct{}{}
-		return nil
-	}
-
-	// NetworkConfig DeleteFunc
-	deleteNetworkConfig := func(ctx context.Context, s string) error {
-		delete(networkConfigs, s)
-		return nil
-	}
-
-	configProvider := RequestControllerConfigProvider{requestControllerKubeconfig}
-	reqCtrl, err := reqk8s.NewRequestControllerWithConfigProvider(configProvider)
-	if err != nil {
-		t.Fatalf("Could not create request controller: %v", err)
-	}
-
-	// add the function overrides
-	reqCtrl.
-		WithOverrideCreateNodeNetworkConfigFunc(createNetworkConfig).
-		WithOverrideDeleteNodeNetworkConfigFunc(deleteNetworkConfig)
-
-	// Start the request controller
-	exitChan := make(chan struct{})
-	defer close(exitChan) // stops request controller
-	go func() {
-		err := reqCtrl.Start(exitChan)
-		if err != nil {
-			t.Errorf("error starting request controller, %v", err)
-		}
-	}()
-
-	// Create a node and validate that a NetworkConfig was created for it
-	nodeName := "test-node"
-	node := &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: nodeName,
-		},
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	clientset, err := kubernetes.NewForConfig(reqCtrl.GetConfig())
-	if err != nil {
-		t.Fatalf("could not create k8s client %v", err)
-	}
-	nodeClient := clientset.CoreV1().Nodes()
-	result, err := nodeClient.Create(ctx, node, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("Could not create node, %v", err)
-	}
-
-	// Sleep for up to 5 seconds to let the NodeController catch up
-	retries := 5
-	foundNetworkConfig := false
-	for i := 0; i < retries; i++ {
-		if _, exists := networkConfigs[nodeName]; !exists {
-			time.Sleep(time.Second)
-		} else {
-			// found the NetworkConfig for the test node
-			foundNetworkConfig = true
-			break
-		}
-	}
-	if !foundNetworkConfig {
-		t.Fatalf("NetworkConfig does not exist for %v", nodeName)
-	}
-
-	// Delete the node and validate that its NetworkConfig was deleted
-	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	deletePropagation := metav1.DeletePropagationForeground
-	nodeClient.Delete(ctx, result.ObjectMeta.Name, metav1.DeleteOptions{
-		PropagationPolicy: &deletePropagation,
-	})
-	// Sleep for up to 5 seconds to let the NodeController catch up
-	retries = 5
-	networkConfigWasDeleted := false
-	for i := 0; i < retries; i++ {
-		if _, exists := networkConfigs[nodeName]; exists {
-			time.Sleep(time.Second)
-		} else {
-			// NetworkConfig was deleted properly
-			networkConfigWasDeleted = true
-			break
-		}
-	}
-	if !networkConfigWasDeleted {
-		t.Fatalf("NetworkConfig exists after Node deletion")
-	}
-	// Wait until Node is fully deleted
-	retries = 5
-	nodeDeleted := false
-	for i := 0; i < retries; i++ {
-		nodeList, err := nodeClient.List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			t.Fatalf("could not list Nodes to ensure deletion")
-		}
-		foundNode := false
-		for _, n := range nodeList.Items {
-			if n.Name == result.Name {
-				foundNode = true
-			}
-		}
-		if !foundNode {
-			nodeDeleted = true
-			break
-		}
-		time.Sleep(time.Second)
-	}
-
-	if !nodeDeleted {
-		t.Fatalf("Failed to delete Node %s", result.Name)
-	}
 }
 
 func addNode(t *testing.T, nodeID, ipaddr, orchestratorType, infraVnet string) {
@@ -826,11 +689,6 @@ func deleteHelper(status int) (expectedStatus int, validateDelete bool) {
 		expectedStatus, validateDelete = http.StatusOK, true
 	}
 	return
-}
-
-func (c RequestControllerConfigProvider) GetConfig() (requestcontroller.Config, error) {
-	kubeconfig := requestcontroller.KubernetesConfig{KubeconfigPath: c.kubeconfig}
-	return requestcontroller.Config{KubernetesConfig: kubeconfig}, nil
 }
 
 func containsNetwork(networkInfos []api.NetworkInfo, s string) bool {

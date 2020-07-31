@@ -1,3 +1,5 @@
+// Copyright 2020 Microsoft. All rights reserved.
+
 package json
 
 import (

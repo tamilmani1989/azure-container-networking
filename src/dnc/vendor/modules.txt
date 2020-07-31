@@ -1,4 +1,5 @@
 # code.cloudfoundry.org/clock v1.0.0
+## explicit
 code.cloudfoundry.org/clock
 # github.com/Azure/azure-container-networking v1.1.6
 ## explicit
@@ -147,13 +148,23 @@ github.com/inconshreveable/mousetrap
 ## explicit
 github.com/json-iterator/go
 # github.com/konsorten/go-windows-terminal-sequences v1.0.2
+## explicit
 github.com/konsorten/go-windows-terminal-sequences
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
+## explicit
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1
+## explicit
 github.com/modern-go/reflect2
+# github.com/opencontainers/image-spec v1.0.1
+## explicit
+# github.com/opencontainers/runtime-tools v0.0.0-20181011054405-1d69bd0f9c39
+## explicit
+# github.com/patrickmn/go-cache v2.1.0+incompatible
+## explicit
+github.com/patrickmn/go-cache
 # github.com/pkg/errors v0.8.1
 github.com/pkg/errors
 # github.com/prometheus/client_golang v1.0.0
@@ -170,8 +181,10 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 # github.com/satori/go.uuid v1.2.0
+## explicit
 github.com/satori/go.uuid
 # github.com/sirupsen/logrus v1.4.2
+## explicit
 github.com/sirupsen/logrus
 # github.com/spf13/cobra v1.0.0
 ## explicit

@@ -1,3 +1,5 @@
+// Copyright 2020 Microsoft. All rights reserved.
+
 package kubernetes
 
 import (
@@ -6,9 +8,11 @@ import (
 	"log"
 	"time"
 
+	dncclient "dnc/client"
 	"dnc/requestcontroller"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
+	cache "github.com/patrickmn/go-cache"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -19,7 +23,11 @@ import (
 )
 
 // NodeFinalizerName is the finalizer that is placed on Nodes
-const NodeFinalizerName = "finalizers.acn.azure.com/delete-after-nodenetworkconfig"
+const (
+	NNCFinalizerName     = "finalizers.acn.azure.com/dnc-operations"
+	VnetGUIDAnnotation   = "kubernetes.azure.com/podnetwork-resourceguid" // TODO: should we import aks-rp repo as dependency and get these values from there
+	SubnetNameAnnotation = "kubernetes.azure.com/podnetwork-subnet"
+)
 
 // RequestController implements requestcontroller.RequestController. RequestController watches Nodes and NetworkConfigs
 // and calls DNC functions as appropriate.
@@ -37,6 +45,7 @@ type K8sClient interface {
 	Get(ctx context.Context, key client.ObjectKey, obj runtime.Object) error
 	Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error
 	Delete(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error
+	Status() client.StatusWriter
 }
 
 // NewRequestControllerWithConfigProvider creates a new RequestController from the given ConfigProvider
@@ -83,6 +92,16 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 		return nil, err
 	}
 
+	dncClientRequestTimeout, err := time.ParseDuration(config.DNCClientConfig.RequestTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	dncClientAsyncWait, err := time.ParseDuration(config.DNCClientConfig.WaitBetweenAsyncCalls)
+	if err != nil {
+		return nil, err
+	}
+
 	// Add the Node reconciler
 	nodeReconciler := &NodeReconciler{
 		Client:           mgr.GetClient(),
@@ -97,46 +116,23 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 
 	// Add the NodeNetworkConfig reconciler
 	nodeNetworkConfigReconciler := &NodeNetworkConfigReconciler{
-		Client: mgr.GetClient(),
+		Client:                  mgr.GetClient(),
+		DncClient:               dncclient.NewDncClient(config.DNCClientConfig.DNCEndpoint),
+		DNCClientRequestTimeout: dncClientRequestTimeout,
+		DNCClientAsyncWait:      dncClientAsyncWait,
+		ScalerConfig:            config.RequestScalerConfig,
+		NodeIDToNCID:            cache.New(cache.NoExpiration, cache.NoExpiration),
+		RegisteredNodes:         cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
 	err = ctrl.NewControllerManagedBy(mgr).
 		For(&acnv1alpha.NodeNetworkConfig{}).
+		WithEventFilter(NodeNetworkConfigEventFilter{}).
 		Complete(nodeNetworkConfigReconciler)
 
 	return &RequestController{
 		Manager:        mgr,
 		nodeReconciler: nodeReconciler,
 	}, nil
-}
-
-// WithOverrideCreateNodeNetworkConfigFunc overrides the default NodeNetworkConfig creation
-func (r *RequestController) WithOverrideCreateNodeNetworkConfigFunc(f func(context.Context, string) error) *RequestController {
-	// check for nil here so we can chain function calls
-	if r == nil {
-		return nil
-	}
-
-	if r.nodeReconciler == nil {
-		return r
-	}
-
-	r.nodeReconciler.OverrideCreateNetworkConfigFunc = f
-	return r
-}
-
-// WithOverrideDeleteNodeNetworkConfigFunc overrides the default NodeNetworkConfig deletion
-func (r *RequestController) WithOverrideDeleteNodeNetworkConfigFunc(f func(context.Context, string) error) *RequestController {
-	// check for nil here so we can chain function calls
-	if r == nil {
-		return nil
-	}
-
-	if r.nodeReconciler == nil {
-		return r
-	}
-
-	r.nodeReconciler.OverrideDeleteNetworkConfigFunc = f
-	return r
 }
 
 // Start starts the RequestController

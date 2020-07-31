@@ -480,11 +480,11 @@ func swiftSetup() error {
 		return fmt.Errorf(respErr.String())
 	}
 
-	if err = addNode(node1, iface1, orchestratorType); err != nil {
+	if err = addNode(node1, iface1, orchestratorType, vnetID); err != nil {
 		return err
 	}
 
-	if err = addNode(node2, iface2, orchestratorType); err != nil {
+	if err = addNode(node2, iface2, orchestratorType, vnetID); err != nil {
 		return err
 	}
 
@@ -554,13 +554,13 @@ func swiftTeardown() (err error) {
 	return err
 }
 
-func addNode(nodeID, ipaddr, orchestratorType string) error {
+func addNode(nodeID, ipaddr, orchestratorType, vnetID string) error {
 	var (
 		respErr *api.JsonErr
 		nodeCfg *api.NodeInfoResponse
 	)
 
-	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, vnetID); respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Register node (create) failed with error %+v", respErr)
 	}
 
