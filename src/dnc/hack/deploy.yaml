@@ -1,0 +1,74 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: dnc-service
+spec:
+  selector:
+    app: dnc
+  ports:
+    - name: dnc-port
+      port: 9000
+      targetPort: 9000
+      protocol: TCP
+    - name: debug-port
+      port: 4000
+      targetPort: 4000
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dnc-pod
+  labels:
+    app: dnc
+spec:
+  selector:
+    matchLabels:
+      app: dnc
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: dnc
+        aadpodidbinding: aks-on-swift-test
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - dnc
+              topologyKey: kubernetes.io/hostname
+      hostNetwork: true
+      imagePullSecrets:
+        - name: acndev-acr
+      containers:
+        - name: dnc-container
+          image: acndev.azurecr.io/dnc-dev
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: log
+              mountPath: /var/log
+          ports:
+            - containerPort: 9001
+            - containerPort: 4000
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DNC_CONFIGURATION_PATH
+              value: ./hack/config_dev.json
+
+      volumes:
+        - name: log
+          hostPath:
+            path: /var/log
+            type: Directory

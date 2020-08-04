@@ -87,8 +87,8 @@
     "HttpClientSettings": {
         "ConnectionTimeout": 5,
         "ResponseHeaderTimeout": 120,
-        "MaxIdleConnsPerHost" : 100,
-        "IdleConnTimeout" : 90
+        "MaxIdleConnsPerHost": 100,
+        "IdleConnTimeout": 90
     },
     "TelemetrySettings": {
         "TelemetryBatchSizeBytes": 16384,
@@ -99,7 +99,7 @@
         "DebugMode": false,
         "DisableAiLogging": false
     },
-    "PubSubProxySettings":{
+    "PubSubProxySettings": {
         "EnablePubSubProxy": false,
         "MaxConcurrentRequests": 1000,
         "RequestRetryBaseInterval": 1000,
@@ -108,6 +108,7 @@
         "PublisherPort": "18605",
         "SubscriberPort": "18600",
         "PubsubCertName": "",
+        "PubsubCertKeyvaultName": "",
         "PubsubConnectionEndpoint": "",
         "PubsubVips": "AZ0VIP0,AZ0VIP1|AZ1VIP0,AZ1VIP1|AZ2VIP0,AZ2VIP1"
     }

@@ -53,6 +53,8 @@ struct ResultStatus SerializeNetworkContainerPublishData(struct NC_DATA*, void**
 import "C"
 
 import (
+	"context"
+	ad "dnc/activedirectory"
 	"dnc/api"
 	"dnc/configuration"
 	"dnc/datamodel"
@@ -61,6 +63,8 @@ import (
 	"dnc/utils"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -84,6 +88,9 @@ const (
 	ncRoleInstanceName = "WebFrontEnd"
 
 	pubsubVipListSeparator = "|"
+
+	// Keyvault
+	maxKeyvaultRetrievalTime = 10
 )
 
 type TagConfiguration struct {
@@ -450,6 +457,39 @@ func Init(
 	replicaInstance = replica
 	sessionManager = utils.NewSessionManager([]string{
 		datamodel.NCPendingPublishRepositoryName})
+
+	im, err := ad.NewIdentityManager()
+	if err != nil {
+		return fmt.Errorf("Failed initialize Pod Identity client: %v\n", err)
+	}
+
+	// add conditional for environments not in AKS/Swift with aad-pod-identity
+	akv, err := ad.NewKeyvaultClient(im, configSettings.PubsubCertKeyvaultName)
+	if err != nil {
+		return fmt.Errorf("Failed initialize Keyvault client: %v\n", err)
+	}
+
+	kvCertName := strings.TrimSuffix(pubsubCertName, filepath.Ext(pubsubCertName))
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		time.Duration(maxKeyvaultRetrievalTime*time.Second))
+	defer cancel()
+	cert, err := akv.GetCertificate(ctx, kvCertName)
+
+	if err != nil {
+		return fmt.Errorf("Failed to fetch keyvault certificate with error %v\n", err)
+	}
+
+	fi, err := os.Create(pubsubCertName)
+	if err != nil {
+		return fmt.Errorf("Failed to write certificate with error %v\n", err)
+	}
+	_, err = fi.Write(cert)
+	fi.Close()
+	if err != nil {
+		return fmt.Errorf("Failed to create pubsub certificate file %v\n", err)
+	}
 
 	if numPubSubs <= 0 {
 		return fmt.Errorf("Invalid number of pubsubs: %d", numPubSubs)

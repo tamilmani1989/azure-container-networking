@@ -1,0 +1,19 @@
+FROM golang
+RUN apt-get update
+RUN apt-get install -y supervisor sudo inotify-tools tar gcc jq
+RUN go get -v github.com/githubnemo/CompileDaemon
+RUN go get -v github.com/go-delve/delve/cmd/dlv
+RUN go install -v github.com/githubnemo/CompileDaemon
+RUN go install -v github.com/go-delve/delve/cmd/dlv
+RUN mkdir /src
+WORKDIR /src/
+ADD ./hack ./hack
+RUN make -f hack/Makefile pull-cni
+ADD . .
+COPY ./pubsubproxy/libs/libBondDataSerializer.so /usr/lib/
+COPY ./pubsubproxy/libs/libMadariNativeClient.so /usr/lib/
+ENV LD_LIBRARY_PATH="./pubsubproxy/libs"
+ENV CGO_LDFLAGS="-L ./pubsubproxy/libs -lMadariNativeClient -lBondDataSerializer"
+RUN go build -mod=vendor -gcflags="-N -l" -tags enablePubsubProxy -o ./bin/dnc 
+RUN rm -rf cmd/
+ENTRYPOINT make -f hack/Makefile start-dlv

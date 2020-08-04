@@ -71,6 +71,7 @@ const (
 
 func init() {
 	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
+
 	if !found {
 		configpath = "config.json"
 	}

@@ -218,6 +218,8 @@ type PubSubProxySettings struct {
 	NumPubSubs int
 	// Cert name to connect to PubSub
 	PubsubCertName string
+	// name of Keyvault where the pubsub certificate lives
+	PubsubCertKeyvaultName string
 	// Connection endpoint for regional PubSub
 	PubsubConnectionEndpoint string
 	// Publisher port

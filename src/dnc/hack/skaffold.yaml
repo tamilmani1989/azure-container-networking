@@ -1,0 +1,16 @@
+apiVersion: skaffold/v2beta4
+kind: Config
+metadata:
+  name: dnc
+build:
+  artifacts:
+  - image: acndev.azurecr.io/dnc-dev
+    custom:
+      buildCommand: make -f hack/Makefile build-dockerfile
+      dependencies:
+        paths:
+        - .
+deploy:
+  kubectl:
+    manifests:
+    - hack/deploy.yaml

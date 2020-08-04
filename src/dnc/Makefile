@@ -163,3 +163,8 @@ requestcontroller-archive:
 	chmod 0755 $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT)
 	cd $(REQCTRL_BUILD_DIR) && $(ARCHIVE_CMD) $(REQCTRL_ARCHIVE_NAME) requestcontroller$(EXE_EXT)
 	chown $(BUILD_USER):$(BUILD_USER) $(REQCTRL_BUILD_DIR)/$(REQCTRL_ARCHIVE_NAME)
+
+# Create a dev environment to step through debug in an AKS cluster using Skaffold
+.PHONY: dev
+dev:
+	skaffold dev -f hack/skaffold.yaml --port-forward
