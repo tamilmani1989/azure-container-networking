@@ -22,16 +22,23 @@ DNCFILES = \
 RUNNERFILES = \
 	$(wildcard test/runner/*.go)
 
+# Source files for LB Runner pod
+LBRUNNERNCFILES = \
+	$(wildcard test/lbrunnernc/*.go)
+
+
 # Build defaults
 GOOS ?= linux
 GOARCH ?= amd64
 
 DNCTL_DIR = cmd/dnctl
+LBRUNNERNC_DIR = test/lbrunnernc
 RUNNER_DIR = test/runner
 REQCTRL_DIR = cmd/requestcontroller
 OUTPUT_DIR = output
 DNC_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/dnc
 DNCTL_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/dnctl
+LBRUNNERNC_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/lbrunnernc
 RUNNER_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/runner
 REQCTRL_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/requestcontroller
 
@@ -57,19 +64,23 @@ ENSURE_OUTPUT_DIR_EXISTS := $(shell mkdir -p $(OUTPUT_DIR))
 # Archive file names.
 DNC_ARCHIVE_NAME = dnc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 DNCTL_ARCHIVE_NAME = dnctl-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
+LBRUNNERNC_ARCHIVE_NAME = lbrunnernc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 RUNNER_ARCHIVE_NAME = runner-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 DNC_IMAGE_ARCHIVE_NAME = dnc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
+LBRUNNERNC_IMAGE_ARCHIVE_NAME = lbrunnernc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 RUNNER_IMAGE_ARCHIVE_NAME = runner-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 REQCTRL_ARCHIVE_NAME = requestcontroller-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 
 # Azure container networking service image paramters
 DNC_IMAGE = containernetworking.azurecr.io/internal/containernetworking/dnc
+LBRUNNERNC_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-lbrunnernc
 RUNNER_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-runner
 REQCTRL_IMAGE = containernetworking.azurecr.io/internal/containernetworking/requestcontroller
 
 # Shorthand target names for convenience.
 dnc: $(DNC_BUILD_DIR)/dnc$(EXE_EXT) dnc-archive
 dnctl: $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT) dnctl-archive
+lbrunnernc: $(LBRUNNERNC_BUILD_DIR)/lbrunnernc$(EXE_EXT) lbrunnernc-archive
 runner: $(RUNNER_BUILD_DIR)/runner$(EXE_EXT) runner-archive
 requestcontroller: $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT) requestcontroller-archive
 
@@ -88,6 +99,11 @@ $(DNC_BUILD_DIR)/dnc$(EXE_EXT): $(DNCFILES)
 $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT):
 	export CGO_ENABLED=0; \
 	go build -v -o $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT) $(DNCTL_DIR)/*.go
+
+# Build lb runner nc image
+$(LBRUNNERNC_BUILD_DIR)/lbrunnernc$(EXE_EXT): $(LBRUNNERNCFILES)
+	export CGO_ENABLED=0; \
+	go build -v -o $(LBRUNNERNC_BUILD_DIR)/runner$(EXE_EXT) $(LBRUNNERNC_DIR)/*.go
 
 # Build runner
 $(RUNNER_BUILD_DIR)/runner$(EXE_EXT): $(RUNNERFILES)
@@ -126,10 +142,27 @@ ifeq ($(GOOS),linux)
 	docker save $(RUNNER_IMAGE):$(VERSION) | gzip -c > $(RUNNER_BUILD_DIR)/$(RUNNER_IMAGE_ARCHIVE_NAME)
 endif
 
+# Build the lb runner nc image
+.PHONY: lbrunnernc-image
+lbrunnernc-image: lbrunnernc
+ifeq ($(GOOS),linux)
+	docker build \
+	-f test/lbrunnernc/Dockerfile \
+	-t $(LBRUNNERNC_IMAGE):$(VERSION) \
+	--build-arg LBRUNNERNC_BUILD_DIR=$(LBRUNNERNC_BUILD_DIR) \
+	.
+	docker save $(LBRUNNERNC_IMAGE):$(VERSION) | gzip -c > $(LBRUNNERNC_BUILD_DIR)/$(LBRUNNERNC_IMAGE_ARCHIVE_NAME)
+endif
+
 # Publish the Azure dnc image to a Docker registry
 .PHONY: publish-dnc-image
 publish-dnc-image:
 	docker push $(DNC_IMAGE):$(VERSION)
+
+# Publish the lb runner nc image to a Docker registry
+.PHONY: publish-lbrunnernc-image
+publish-lbrunnernc-image:
+	docker push $(LBRUNNERNC_IMAGE):$(VERSION)
 
 # Publish the runner image to a Docker registry
 .PHONY: publish-runner-image
@@ -149,6 +182,13 @@ dnctl-archive:
 	chmod 0755 $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT)
 	cd $(DNCTL_BUILD_DIR) && $(ARCHIVE_CMD) $(DNCTL_ARCHIVE_NAME) dnctl$(EXE_EXT)
 	chown $(BUILD_USER):$(BUILD_USER) $(DNCTL_BUILD_DIR)/$(DNCTL_ARCHIVE_NAME)
+
+# Create a lb runner nc archive for the target platform
+.PHONY: lbrunnernc-archive
+lbrunnernc-archive:
+	chmod 0755 $(LBRUNNERNC_BUILD_DIR)/lbrunnernc$(EXE_EXT)
+	cd $(LBRUNNERNC_BUILD_DIR) && $(ARCHIVE_CMD) $(LBRUNNERNC_ARCHIVE_NAME) lbrunnernc$(EXE_EXT)
+	chown $(BUILD_USER):$(BUILD_USER) $(LBRUNNERNC_BUILD_DIR)/$(LBRUNNERNC_ARCHIVE_NAME)
 
 # Create a runner archive for the target platform
 .PHONY: runner-archive

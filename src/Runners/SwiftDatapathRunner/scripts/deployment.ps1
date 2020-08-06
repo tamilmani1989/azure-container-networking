@@ -33,6 +33,7 @@ $custbVnetName = "custb-vnet"
 $custcVnetName = "custc-vnet"
 $custdVnetName = "custd-vnet"
 $custVnetWithMNAT = "cust-mnat"
+$custVnetWithLB = "cust-lb"
 $service = "default/runner-service"
 $sharedGWKey = "12d11bfe-9849-4e62-b6f2-bc8af37f7456"
 
@@ -479,6 +480,55 @@ if ($?) {
             --name  $delegatedSubnet `
             --nat-gateway natgateway
 
+        ## Create Cust Vnet (exclusive) for LB
+        az network vnet create `
+            --resource-group $resourceGroup `
+            --location $region `
+            --name $custVnetWithLB `
+            --address-prefix 192.168.0.0/16 `
+            --subnet-name $delegatedSubnet `
+            --subnet-prefix 192.168.1.0/24
+
+        ## Create public IP for LB resource
+        az network public-ip create `
+            --resource-group $resourceGroup `
+            --name swiftlbfrontendip `
+            --sku standard
+
+       ## Create LB resource
+        az network lb create `
+            --resource-group $resourceGroup `
+            --name swiftlbforrunner `
+            --sku Standard `
+            --frontend-ip-name testfrontendip ` 
+            --public-ip-address swiftlbfrontendip
+
+       ## Create LB address pool
+        az network lb address-pool create `
+            --resource-group $resourceGroup `
+            --lb-name swiftlbforrunner `
+            --name testaddresspool `
+            --vnet $custVnetWithLB `
+            --backend-address name=addr1 ip-address=192.168.1.4
+
+        az network lb probe create `
+            --resource-group $resourceGroup `
+            --lb-name swiftlbforrunner `
+            --name testProbe `
+            --protocol tcp `
+            --port 9095
+ 
+        az network lb rule create `
+            --resource-group $resourceGroup `
+            --lb-name swiftlbforrunner `
+            --name testlbrule `
+            --protocol Tcp `
+            --frontend-ip-name testfrontendip `
+            --frontend-port 9095 `
+            --backend-pool-name testaddresspool `
+            --backend-port 9095 `
+            --probe-name testprobe
+
         ## Replace Cust Vnet with MNAT VNET id in runner-conf.yaml
         $natGwIp = (az network public-ip show -g $resourceGroup -n natGatewayIP | jq.exe -r '.ipAddress')
         (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_MNAT_PUBLIC_IP", $natGwIp | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
@@ -486,8 +536,15 @@ if ($?) {
         $natVnetId = (az network vnet show -g $resourceGroup -n $custVnetWithMNAT | jq.exe -r '.resourceGuid')
         (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_CUST_VNET_WITH_MNAT_VNETID", $natVnetId | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
 
-        ## SWITCH OVER TO SAW/JIT ACCESS -> swiftify and retrieve authToken using $infraVnet, $custVnet and $custVnetWithMNAT
-        Write-Host "Values for delegation...`nInfraVnet: $infraVnet`nCustVnet: $custVnet`ncustVnetWithMNAT: $custVnetWithMNAT`nDncEP: $k8sEP"
+        ## Replace Cust Vnet with LB VNET id in runner-conf.yaml
+        $swiftLbIp = (az network public-ip show -g $resourceGroup -n swiftlbfrontendip | jq.exe -r '.ipAddress')
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_SWIFTLB_PUBLIC_IP", $swiftLbIp | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        $custVnetWithLBId = (az network vnet show -g $resourceGroup -n $custVnetWithLB | jq.exe -r '.resourceGuid')
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_CUST_VNET_WITH_SWIFTLB_VNETID", $custVnetWithLBId | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        ## SWITCH OVER TO SAW/JIT ACCESS -> swiftify and retrieve authToken using $infraVnet, $custVnet, $custVnetWithMNAT and $custVnetWithLB
+        Write-Host "Values for delegation...`nInfraVnet: $infraVnet`nCustVnet: $custVnet`ncustVnetWithMNAT: $custVnetWithMNAT`custVnetWithLB: $custVnetWithLB`nDncEP: $k8sEP"
 
         ## replace the authToken in runner-conf.yaml
         $authToken = "4413692c-e47b-4d62-b137-2c523cc9d87e"
@@ -496,6 +553,10 @@ if ($?) {
         ## replace the authToken for cust vnet with MNAT in runner-conf.yaml and continue
         $authToken = "c18d2f22-b1e3-49f7-b462-a5c5bea5372e"
         (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT", $authToken | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        ## replace the authToken for cust vnet with LB in runner-conf.yaml and continue
+        $authToken = "74a93c9f-4b49-4293-9e48-7b8c6d9bcd48"
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTLB", $authToken | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
 
         Read-Host 'Press any key to continue... (1/2)'
         Read-Host 'Press any key to confirm continuation... (2/2)'

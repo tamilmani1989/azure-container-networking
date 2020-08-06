@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------------
-// <copyright file="DNCService.cs" company="Microsoft">
+// <copyright file="Runner.cs" company="Microsoft">
 //   Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
 // <summary>
@@ -46,6 +46,7 @@ namespace SwiftRunner
         private MeasureMetric4D ExternalDNSMetric;
         private MeasureMetric4D PrivateDNSMetric;
         private MeasureMetric4D MNATMetric;
+        private MeasureMetric4D LBMetric;
 
         public Runner(string[] args)
             : base(args)
@@ -163,6 +164,16 @@ namespace SwiftRunner
                 this.GetConfigurationValue(MDMAccountName),
                 this.GetConfigurationValue(Namespace),
                 "MNAT",
+                "Environment",
+                "RunnerInstance",
+                "DncEndPoint",
+                "PartitionKey",
+                ref mdmErr);
+
+            LBMetric = MeasureMetric4D.Create(
+                this.GetConfigurationValue(MDMAccountName),
+                this.GetConfigurationValue(Namespace),
+                "LB",
                 "Environment",
                 "RunnerInstance",
                 "DncEndPoint",
@@ -334,6 +345,16 @@ namespace SwiftRunner
                         {
                             Console.Error.WriteLine("Failed to emit MNAT metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
+
+                        if (!LBMetric.LogValue(datapath.LB ? 1 : 2,
+                            this.Environment,
+                            this.RunnerInstance,
+                            k8sEP,
+                            partitionKey,
+                            ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emit LB metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
                     }
                     else
                     {
@@ -443,7 +464,8 @@ namespace SwiftRunner
                 PrivateLinkMetric != null &&
                 ExternalDNSMetric != null &&
                 PrivateDNSMetric != null &&
-                MNATMetric != null;
+                MNATMetric != null &&
+                LBMetric != null;
         }
     }
 }

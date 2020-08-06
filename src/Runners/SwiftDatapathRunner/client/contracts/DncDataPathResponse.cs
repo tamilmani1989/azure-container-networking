@@ -1,5 +1,5 @@
 //--------------------------------------------------------------------------
-// <copyright file="DNCService.cs" company="Microsoft">
+// <copyright file="DncDataPathResponse.cs" company="Microsoft">
 //   Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
 // <summary>
@@ -98,6 +98,12 @@ namespace SwiftRunner
             public bool MNAT { get; private set; }
 
             /// <summary>
+            /// LB
+            /// </summary>
+            [JsonProperty("LB")]
+            public bool LB { get; private set; }
+
+            /// <summary>
             /// LastError
             /// </summary>
             [JsonProperty("LastError")]
@@ -121,6 +127,7 @@ namespace SwiftRunner
                 ExternalDNS = false;
                 PrivateDNS = false;
                 MNAT = false;
+                LB = false;
                 LastError = "";
             }
 
@@ -143,6 +150,7 @@ namespace SwiftRunner
                 ExternalDNS = response.ExternalDNS;
                 PrivateDNS = response.PrivateDNS;
                 MNAT = response.MNAT;
+                LB = response.LB;
                 LastError = response.LastError;
             }
 
@@ -162,6 +170,7 @@ namespace SwiftRunner
             /// <param name="externalDNS"></param>
             /// <param name="privateDNS"></param>
             /// <param name="MNAT"></param>
+            /// <param name="LB"></param>
             /// <param name="lastError"></param>
             public DncDataPathResponse(
                 bool serviceTunnel,
@@ -177,6 +186,7 @@ namespace SwiftRunner
                 bool externalDNS,
                 bool privateDNS,
                 bool mnat,
+                bool lb,
                 string lastError)
             {
                 ServiceTunnel = serviceTunnel;
@@ -192,6 +202,7 @@ namespace SwiftRunner
                 ExternalDNS = externalDNS;
                 PrivateDNS = privateDNS;
                 MNAT = mnat;
+                LB = lb;
                 LastError = lastError;
             }
 
@@ -209,7 +220,8 @@ namespace SwiftRunner
                     PrivateLink &&
                     ExternalDNS &&
                     PrivateDNS &&
-                    MNAT;
+                    MNAT &&
+                    LB;
             }
 
             /// <summary>
@@ -221,7 +233,7 @@ namespace SwiftRunner
                 return $"[serviceTunnel:{ServiceTunnel} Nc2Nc:{Nc2Nc} Nc2VM:{Nc2VM} vnet2VnetGW:{Vnet2VnetGW} " +
                     $"vnet2VnetPeering:{Vnet2VnetPeering} nonRfcVnet2VnetPeering:{NonRFCVnet2VnetPeering} " +
                     $"nsg:{NSG} nsgwTags:{NSGwTags} udr:{UDR} privateLink:{PrivateLink} externalDNS:{ExternalDNS} " +
-                    $"privateDNS:{PrivateDNS} mnat:{MNAT} lastError:{LastError}]";
+                    $"privateDNS:{PrivateDNS} mnat:{MNAT} lb:{LB} lastError:{LastError}]";
             }
         }
     }
