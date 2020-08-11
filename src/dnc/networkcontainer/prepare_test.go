@@ -20,18 +20,12 @@ func assertNCInReservePending(t *testing.T, nc datamodel.NCConfiguration) {
 	}
 }
 
-func assertReservationAllocatePending(t *testing.T, res datamodel.ReservationConfiguration, expectedIPCount int) {
-	if res.ReservationState != datamodel.Allocate {
-		t.Errorf("expected reservation to be in allocate state, got %s", res.ReservationState)
+func assertReservationIn(t *testing.T, res datamodel.ReservationConfiguration, state datamodel.ReservationState, status datamodel.Status) {
+	if res.ReservationState != state {
+		t.Errorf("expected reservation to be in %s state, got %s", state, res.ReservationState)
 	}
-	if res.Status != datamodel.Pending {
-		t.Errorf("expected reservation to be in pending status, got %s", res.Status)
-	}
-	if len(res.SecondaryAllocations) != expectedIPCount {
-		t.Errorf("expected secondary allocation count to be %d, got %d", expectedIPCount, len(res.SecondaryAllocations))
-	}
-	if res.AllocationRequest.SecondaryIPCount != expectedIPCount {
-		t.Errorf("expected ip count in allocation request to be %d, got %d", expectedIPCount, res.AllocationRequest.SecondaryIPCount)
+	if res.Status != status {
+		t.Errorf("expected reservation to be in %s status, got %s", status, res.Status)
 	}
 }
 
@@ -110,7 +104,13 @@ func TestPrepareNetworkContainer_CreateHappyPath(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected reservation with key %s, got none", expectedResKey)
 	}
-	assertReservationAllocatePending(t, nextReservationState, secondaryIPCount)
+	assertReservationIn(t, nextReservationState, datamodel.Allocate, datamodel.Pending)
+	if len(nextReservationState.SecondaryAllocations) != secondaryIPCount {
+		t.Errorf("expected secondary allocation count to be %d, got %d", secondaryIPCount, len(nextReservationState.SecondaryAllocations))
+	}
+	if nextReservationState.AllocationRequest.SecondaryIPCount != secondaryIPCount {
+		t.Errorf("expected ip count in allocation request to be %d, got %d", secondaryIPCount, nextReservationState.AllocationRequest.SecondaryIPCount)
+	}
 
 	// node assertions
 	res, ok := nextNodeState.DeployedNetworkContainerMap[vnetID][ncID]
@@ -122,25 +122,69 @@ func TestPrepareNetworkContainer_CreateHappyPath(t *testing.T) {
 	}
 }
 
-func TestPrepareNetworkContainer_UpdateScaleUp(t *testing.T) {
-	reservationID := "res1"
-	ncID := "nc1"
-	vnetID := "network1"
-	nodeID := "node1"
-	reservationKey := datamodel.GetReservationKey(vnetID, reservationID)
-	oldIPRequestCount := 5
-	newIPRequestCount := 10
+func TestPrepareNetworkContainerUpdate(t *testing.T) {
+	tests := []struct {
+		name                             string
+		requestedIPCount                 int
+		toBeDeletedIPs                   []string
+		expectedReservationStatus        datamodel.Status
+		expectedAllocationsInReservation int
+		isErrExpected                    bool
+	}{
+		{
+			name:                             "same ip counts, no IP ids to be deleted",
+			requestedIPCount:                 5,
+			toBeDeletedIPs:                   nil,
+			expectedReservationStatus:        datamodel.Completed, // since no further allocations will be needed
+			expectedAllocationsInReservation: 5,                   // since no change is needed
+		},
+		{
+			name:                             "same ip counts, IP ids to be deleted belong to allocated ips",
+			requestedIPCount:                 5,
+			toBeDeletedIPs:                   []string{"key1", "key2"},
+			expectedReservationStatus:        datamodel.Pending, // since we will need to allocate 2 more ips
+			expectedAllocationsInReservation: 7,                 // we won't remove the ids until the allocations are properly removed, but we should have 2 more ids to allocate
+		},
+		{
+			name:                             "scale up, no IP ids to be deleted",
+			requestedIPCount:                 10,
+			toBeDeletedIPs:                   nil,
+			expectedReservationStatus:        datamodel.Pending,
+			expectedAllocationsInReservation: 10, // only ids were added, and should match the requested count
+		},
+		{
+			name:                             "scale up, IP ids to be deleted belong to allocated ips",
+			requestedIPCount:                 8,
+			toBeDeletedIPs:                   []string{"key1", "key2"},
+			expectedReservationStatus:        datamodel.Pending,
+			expectedAllocationsInReservation: 10, // ids to be deleted remain, but we add 5 to account for the 2 that will be deleted plus the 5 needed to meet request
+		},
+		{
+			name:                             "scale down, IP ids to be deleted belong to allocated ips",
+			requestedIPCount:                 2,
+			toBeDeletedIPs:                   []string{"key2", "key4", "key5"},
+			expectedReservationStatus:        datamodel.Completed, // once removed, no more allocations needed
+			expectedAllocationsInReservation: 5,                   // no ids to add, but we won't remove until the reserve phase. deletion will happen regardless of reservation status
+		},
+		{
+			name:                             "scale down, IP ids to be deleted belong to allocated ips, but allocations still needed",
+			requestedIPCount:                 4,
+			toBeDeletedIPs:                   []string{"key2", "key5"},
+			expectedReservationStatus:        datamodel.Pending,
+			expectedAllocationsInReservation: 6, // we add 1 id that needs allocation
+		},
+		{
+			name:                      "scale down, not enough IP ids to be deleted to meet allocation request",
+			requestedIPCount:          1,
+			toBeDeletedIPs:            []string{"key2", "key5"},
+			expectedReservationStatus: datamodel.Pending,
+			isErrExpected:             true, // removing the 2 keys will not be enough to meet request
+		},
+	}
 
-	// existing reservation
-	reservationRepo := fakes.NewReservationRepo()
-	reservationRepo.Data[reservationKey] = datamodel.ReservationConfiguration{
-		ReservationID:     reservationID,
-		NetworkID:         vnetID,
-		AllocatedSubnet:   "10.0.0.4/32",
-		ReservationState:  datamodel.Allocate,
-		Status:            datamodel.Completed,
-		AllocationRequest: api.AllocationRequest{SecondaryIPCount: oldIPRequestCount},
-		AssociatedNCID:    ncID,
+	existingReservation := datamodel.ReservationConfiguration{
+		ReservationState: datamodel.Allocate,
+		Status:           datamodel.Completed,
 		SecondaryAllocations: map[string]string{
 			"key1": "10.0.0.5/32",
 			"key2": "10.0.0.6/32",
@@ -150,49 +194,42 @@ func TestPrepareNetworkContainer_UpdateScaleUp(t *testing.T) {
 		},
 	}
 
-	var nextNCState datamodel.NCConfiguration
-	preparer := Preparer{
-		Reservations:         reservationRepo,
-		UpdateNodeContainers: func(_, _, _, _, _ string, _, _ bool, _ int) *api.JsonErr { return nil },
-		PersistNC: func(nc *datamodel.NCConfiguration, _ bool) *api.JsonErr {
-			if nc != nil {
-				nextNCState = *nc
+	oldSecondaryIPCount := 5
+
+	for _, tt := range tests {
+		ts := tt
+		t.Run(ts.name, func(t *testing.T) {
+			reservation := cloneReservation(existingReservation)
+			reservation.AllocationRequest.SecondaryIPCount = oldSecondaryIPCount
+
+			incomingRequest := api.NetworkContainerRequestV2{
+				AllocationRequest: api.AllocationRequest{SecondaryIPCount: ts.requestedIPCount},
+				ToBeDeletedIPIds:  ts.toBeDeletedIPs,
 			}
-			return nil
-		},
-		CNS:    &fakeCNSChannel{limit: 3, err: nil},
-		Locks:  utils.NewSessionManager(nil),
-		Logger: new(dummyLogger),
-	}
 
-	currentNCState := datamodel.NCConfiguration{
-		NetworkContainerID: ncID,
-		NetworkID:          vnetID,
-		ReservationID:      reservationID,
-		RequestV2: api.NetworkContainerRequestV2{
-			AllocationRequest: api.AllocationRequest{SecondaryIPCount: newIPRequestCount},
-			AssociationInfo:   api.AssociationInfo{NodeID: nodeID},
-			ToBeDeletedIPIds:  nil,
-		},
+			updatedReservation, err := getUpdatedReservation(incomingRequest, reservation)
+			if ts.isErrExpected {
+				if err == nil {
+					t.Fatal("expected error, got none")
+				}
+			} else {
+				if err != nil {
+					t.Fatal(err)
+				}
+				assertReservationIn(t, updatedReservation, datamodel.Allocate, ts.expectedReservationStatus)
+			}
+		})
 	}
+}
 
-	removeFromQueue, err := preparer.PrepareNetworkContainerV2(&currentNCState)
-	if err != nil {
-		t.Errorf("did not expect error, got: %+v", err)
+func cloneReservation(res datamodel.ReservationConfiguration) datamodel.ReservationConfiguration {
+	m := make(map[string]string)
+	for k, v := range res.SecondaryAllocations {
+		m[k] = v
 	}
-	if removeFromQueue {
-		t.Error("did not expect removal from queue")
-	}
-
-	expectedResKey := datamodel.GetReservationKey(currentNCState.NetworkID, currentNCState.ReservationID)
-	nextReservationState, ok := reservationRepo.Data[expectedResKey]
-	if !ok {
-		t.Fatalf("expected reservation with key %s, got none", expectedResKey)
-	}
-	assertReservationAllocatePending(t, nextReservationState, newIPRequestCount)
-
-	assertNCInReservePending(t, nextNCState)
-	assertNCInReservePending(t, currentNCState)
+	r := res
+	r.SecondaryAllocations = m
+	return r
 }
 
 func TestPrepareNetworkContainer_Error(t *testing.T) {

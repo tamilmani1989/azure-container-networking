@@ -4,6 +4,7 @@ import (
 	"dnc/allocationhelper"
 	"dnc/api"
 	"dnc/datamodel"
+	"dnc/datastore/azurestorage"
 	"dnc/logger/loggershim"
 	"dnc/utils"
 	"fmt"
@@ -398,4 +399,39 @@ func (a *IPAllocator) markReservationAsFailed(req *datamodel.ReservationConfigur
 		return false, err
 	}
 	return true, nil
+}
+
+func (a *IPAllocator) DeallocateIPs(res datamodel.ReservationConfiguration, allocationIDs []string) *api.JsonErr {
+	allocIDsToDelete := make(map[string]struct{})
+	for _, allocID := range allocationIDs {
+		allocIDsToDelete[allocID] = struct{}{}
+	}
+
+	var (
+		batches [][]string
+		batch   []string
+	)
+
+	for allocID := range allocIDsToDelete {
+		if ipAddress, found := res.SecondaryAllocations[allocID]; found {
+			rowKey := datamodel.EncodeIPAllocationKey(ipAddress)
+			batch = append(batch, rowKey)
+			if len(batch) == azurestorage.MaxBatchSize {
+				batches = append(batches, batch)
+				batch = nil
+			}
+		}
+	}
+
+	if len(batch) > 0 {
+		batches = append(batches, batch)
+	}
+
+	for i := 0; i < len(batches); i++ {
+		if err := a.Allocations.DeleteIPAllocations(res.NetworkID, res.AllocationRequest.SubnetName, batches[i]); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

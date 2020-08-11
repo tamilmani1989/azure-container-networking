@@ -171,6 +171,19 @@ func (testpersistencestore *TestPersistenceStore) InsertBatch(tableName, _ strin
 	return nil
 }
 
+func (testpersistencestore *TestPersistenceStore) DeleteBatch(tableName, _ string, rowKeys []string) error {
+	testpersistencestore.locks[tableName].Lock()
+	defer func() {
+		testpersistencestore.locks[tableName].Unlock()
+	}()
+
+	for _, rowKey := range rowKeys {
+		delete(testpersistencestore.datastore[tableName], rowKey)
+	}
+
+	return nil
+}
+
 // Query :- Query an element using rowKey and tableName.
 func (testpersistencestore *TestPersistenceStore) Query(tableName, rowKey string) (interface{}, int, error) {
 	value, _, status, err := testpersistencestore.queryAllPropertiesEtag(tableName, rowKey)

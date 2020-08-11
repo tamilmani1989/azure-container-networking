@@ -4,16 +4,16 @@ import (
 	"dnc/api"
 	"dnc/datamodel"
 	"dnc/networkcontainer/fakes"
+	"math/rand"
 	"net"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func Test_Allocate(t *testing.T) {
 	allocsRepo := fakes.AllocationRepo{
-		Data: []struct {
-			Key   string
-			Value interface{}
-		}{
+		Data: []fakes.RepoKV{
 			{"172.16.0.10_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1"}},
 			{"172.16.0.13_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res2", allocIDProperty: "uuid1"}},
 			{"172.16.0.20_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res2", allocIDProperty: "uuid2"}},
@@ -89,10 +89,7 @@ func TestIncompleteAllocation(t *testing.T) {
 
 	// this is the current state of the allocations table
 	allocsRepo := fakes.AllocationRepo{
-		Data: []struct {
-			Key   string
-			Value interface{}
-		}{
+		Data: []fakes.RepoKV{
 			{"172.16.0.13_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1", allocIDProperty: reservationID}},
 			{"172.16.0.20_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1", allocIDProperty: allocationID1}},
 		},
@@ -155,4 +152,63 @@ func TestIncompleteAllocation(t *testing.T) {
 	if !baseSubnet.Contains(ip) {
 		t.Errorf("allocated ip %s is not within subnet %s", ip.String(), baseSubnet.String())
 	}
+}
+
+func TestDeallocate(t *testing.T) {
+	initialAllocCount := 240
+	allocationRows := make([]fakes.RepoKV, initialAllocCount)
+	allocationIDs := make([]string, initialAllocCount)
+	reservation := datamodel.ReservationConfiguration{
+		SecondaryAllocations: make(map[string]string),
+	}
+
+	// generate allocation rows, secondary allocations in reservation, and capture ids that can be referenced in request
+	_, baseSubnet, _ := net.ParseCIDR("10.0.0.0/16")
+	ips, err := findAllocatableIPs(baseSubnet, nil, initialAllocCount)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < len(allocationRows); i++ {
+		allocID := uuid.New().String()
+		allocationRows[i] = fakes.RepoKV{Key: ips[i].String() + "_32", Value: map[string]interface{}{allocIDProperty: allocID}}
+		allocationIDs[i] = allocID
+		reservation.SecondaryAllocations[allocID] = ips[i].String() + "/32"
+	}
+	allocRepo := fakes.AllocationRepo{Data: allocationRows, MaxPageSize: 100}
+	allocator := IPAllocator{Allocations: &allocRepo, Logger: new(dummyLogger)}
+
+	// randomly select a number of ids to be deleted
+	rand.Shuffle(len(allocationIDs), func(i, j int) {
+		allocationIDs[i], allocationIDs[j] = allocationIDs[j], allocationIDs[i]
+	})
+
+	deleteCount := 105
+	if err := allocator.DeallocateIPs(reservation, allocationIDs[:deleteCount]); err != nil {
+		t.Fatalf("did not expect error, got: %+v", err)
+	}
+
+	remainingIPIDs := extractAllocationIDs(allocRepo)
+	expectedCount := initialAllocCount - deleteCount
+
+	if len(remainingIPIDs) != expectedCount {
+		t.Fatalf("expected remaining IPs to be %d, got %d", expectedCount, len(remainingIPIDs))
+	}
+	for _, id := range allocationIDs[:deleteCount] {
+		if _, found := remainingIPIDs[id]; found {
+			t.Fatal("found an id that should have been removed")
+		}
+	}
+}
+
+func extractAllocationIDs(a fakes.AllocationRepo) map[string]struct{} {
+	allocIDs := make(map[string]struct{})
+	for _, kv := range a.Data {
+		allocID, ok := kv.Value.(map[string]interface{})[allocIDProperty].(string)
+		if !ok {
+			continue
+		}
+		allocIDs[allocID] = struct{}{}
+	}
+	return allocIDs
 }

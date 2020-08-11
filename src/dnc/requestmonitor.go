@@ -312,11 +312,20 @@ func processNetworkContainerReserve(
 		goto Cleanup
 	}
 
+	if len(repoNCConfig.RequestV2.ToBeDeletedIPIds) > 0 {
+		if err := ipAllocator.DeallocateIPs(*repoReservation, repoNCConfig.RequestV2.ToBeDeletedIPIds); err != nil {
+			return false, err
+		}
+		for _, allocID := range repoNCConfig.RequestV2.ToBeDeletedIPIds {
+			delete(repoReservation.SecondaryAllocations, allocID)
+		}
+		if err := datamodel.PutIPReservationConfiguration(repoReservation); err != nil {
+			return false, err
+		}
+	}
+
 	// If the reservation status is pending, process IP allocation
 	if repoReservation.Status == datamodel.Pending {
-		// we make sure the allocation request is up to date in case this is an update
-		repoReservation.AllocationRequest = repoNCConfig.RequestV2.AllocationRequest
-
 		ipReservationAllocationComplete, err := ipAllocator.ProcessIPReservationAllocation(repoReservation)
 
 		// Return if the IP reservation allocation did not complete. This indicates that

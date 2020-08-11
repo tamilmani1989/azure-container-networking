@@ -65,10 +65,10 @@ func (*allocationRepo) TryQueryAllIPAllocations(networkID, subnetName string, pa
 	return datamodel.TryQueryAllIPAllocations(networkID, subnetName, pageToken)
 }
 
-func (*allocationRepo) AddIPAllocation(networkID, subnetName, key, value string) *api.JsonErr {
-	return datamodel.AddIPAllocation(networkID, subnetName, key, value)
-}
-
 func (*allocationRepo) AddIPAllocations(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr {
 	return datamodel.AddIPAllocations(networkID, subnetName, batch)
+}
+
+func (*allocationRepo) DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
+	return datamodel.DeleteIPAllocations(networkID, subnetName, keys)
 }

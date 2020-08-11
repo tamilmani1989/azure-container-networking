@@ -37,3 +37,7 @@ func InternalServerError(code ErrorCode, msg string) *JsonErr {
 func Conflict(code ErrorCode, msg string) *JsonErr {
 	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusConflict}
 }
+
+func UnprocessableEntity(code ErrorCode, msg string) *JsonErr {
+	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusUnprocessableEntity}
+}

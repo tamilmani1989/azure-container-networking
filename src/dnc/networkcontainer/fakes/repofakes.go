@@ -51,11 +51,13 @@ func (f *SubnetRepo) UpdateSubnetReservationSet(networkID, reservationID, alloca
 	return nil
 }
 
+type RepoKV struct {
+	Key   string
+	Value interface{}
+}
+
 type AllocationRepo struct {
-	Data []struct {
-		Key   string
-		Value interface{}
-	}
+	Data        []RepoKV
 	MaxPageSize int
 }
 
@@ -66,7 +68,11 @@ func (f *AllocationRepo) AddIPAllocations(_, _ string, _ map[string]map[string]i
 func (f *AllocationRepo) TryQueryAllIPAllocations(_, _ string, pageToken interface{}) (map[string]interface{}, bool, interface{}, *api.JsonErr) {
 	index := 0
 	if pageToken != nil {
-		index = pageToken.(int)
+		idx, ok := pageToken.(int)
+		if !ok {
+			return nil, false, nil, api.InternalServerError(0, "wrong token type")
+		}
+		index = idx
 	}
 	if index > len(f.Data)-1 {
 		return nil, false, nil, nil
@@ -84,4 +90,16 @@ func (f *AllocationRepo) TryQueryAllIPAllocations(_, _ string, pageToken interfa
 	return out, nextPageToken != nil, nextPageToken, nil
 }
 
-func (f *AllocationRepo) AddIPAllocation(_, _, _, _ string) *api.JsonErr { return nil }
+func (f *AllocationRepo) DeleteIPAllocations(_, _ string, keys []string) *api.JsonErr {
+	tbd := make(map[string]struct{})
+	for _, key := range keys {
+		tbd[key] = struct{}{}
+	}
+	for i := 0; i < len(f.Data); i++ {
+		if _, found := tbd[f.Data[i].Key]; found {
+			f.Data = append(f.Data[:i], f.Data[i+1:]...)
+			i--
+		}
+	}
+	return nil
+}

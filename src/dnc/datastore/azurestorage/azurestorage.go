@@ -22,7 +22,7 @@ var thresholdForLoggingDataStoreOpLatencyMs int
 const (
 	// maximum batch transaction size
 	// see https://docs.microsoft.com/en-us/rest/api/storageservices/performing-entity-group-transactions#requirements-for-entity-group-transactions
-	maxBatchSize = 100
+	MaxBatchSize = 100
 )
 
 // AzureStorage = Storage object to manage tables in a partition
@@ -219,8 +219,8 @@ func (azureStorage *AzureStorage) UpsertBatch(tableName, partitionKey string, ba
 // The value in the batch (map[string]interface{}) represents row properties and their respective values
 // There is a limit of 100 items per batch
 func (azureStorage *AzureStorage) InsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error {
-	if len(batchItems) > maxBatchSize {
-		return fmt.Errorf("batch size should not exceed %d", maxBatchSize)
+	if len(batchItems) > MaxBatchSize {
+		return fmt.Errorf("batch size %d exceeds limit of %d", len(batchItems), MaxBatchSize)
 	}
 
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
@@ -235,6 +235,29 @@ func (azureStorage *AzureStorage) InsertBatch(tableName, partitionKey string, ba
 		entity := table.GetEntityReference(partitionKey, rowKey)
 		entity.Properties = rowProperties
 		batch.InsertEntity(entity)
+	}
+
+	return batch.ExecuteBatch()
+}
+
+// DeleteBatch deletes a batch of rows in a given table based on the given partition and row keys
+// There is a limit of 100 items per batch
+func (azureStorage *AzureStorage) DeleteBatch(tableName, partitionKey string, rowKeys []string) error {
+	if len(rowKeys) > MaxBatchSize {
+		return fmt.Errorf("batch size should not exceed %d", MaxBatchSize)
+	}
+
+	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	if !ok {
+		return fmt.Errorf("cannot find valid table client for table %s", tableName)
+	}
+
+	table := tableClient.GetTableReference(tableName)
+
+	batch := table.NewBatch()
+	for _, rowKey := range rowKeys {
+		entity := table.GetEntityReference(partitionKey, rowKey)
+		batch.DeleteEntityByForce(entity, true)
 	}
 
 	return batch.ExecuteBatch()

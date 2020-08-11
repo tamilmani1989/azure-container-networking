@@ -42,7 +42,11 @@ func (p *Preparer) PrepareNetworkContainerV2(ncConfig *datamodel.NCConfiguration
 		case existingRes == nil: // reservation id previously assigned, but no reservation created
 			res = newReservation(*ncConfig)
 		default: // reservation previously created, this is preparing an update
-			res = updatedReservation(*ncConfig, *existingRes)
+			p.Logger.Debugf("processing update for nc id %s, reservation id %s", ncConfig.NetworkContainerID, existingRes.ReservationID)
+			res, err = getUpdatedReservation(ncConfig.RequestV2, *existingRes)
+			if err != nil {
+				return p.markNCAsFailed(ncConfig, *err)
+			}
 		}
 	}
 
@@ -58,7 +62,7 @@ func (p *Preparer) PrepareNetworkContainerV2(ncConfig *datamodel.NCConfiguration
 		return false, api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
-	p.Logger.Debugf("Successfully created reservation config: %+v for NC: %s", res, ncConfig.NetworkContainerID)
+	p.Logger.Debugf("successfully persisted reservation config: %+v for nc %s", res, ncConfig.NetworkContainerID)
 	err := p.moveNCToReserveState(ncConfig)
 	return false, err
 }
@@ -83,25 +87,57 @@ func newReservation(nc datamodel.NCConfiguration) datamodel.ReservationConfigura
 	return res
 }
 
-func updatedReservation(nc datamodel.NCConfiguration, res datamodel.ReservationConfiguration) datamodel.ReservationConfiguration {
-	ipCountDiff := nc.RequestV2.AllocationRequest.SecondaryIPCount - len(res.SecondaryAllocations)
+// getUpdatedReservation compares the current allocation request and any ips that need to be deleted to an existing reservation.
+// If any IP allocations need to be made, it will return a reservation with new allocation ids that need to be processed,
+// and the reservation will be in a Pending state.
+// For any deletions that need to be processed, the ids will remain as part of the reservation, and should only be removed
+// once the associated records in the allocations table have been properly deleted.
+func getUpdatedReservation(req api.NetworkContainerRequestV2, res datamodel.ReservationConfiguration) (datamodel.ReservationConfiguration, *api.JsonErr) {
+	// requested to be deleted ip ids, which may or may not be part of the reservation anymore
+	requestedDeletions := make(map[string]struct{})
+	for _, allocID := range req.ToBeDeletedIPIds {
+		requestedDeletions[allocID] = struct{}{}
+	}
+
+	// we capture a count of allocations to be decreased for any tbd ips that exist in the current secondary allocations
+	// we use this to check for the state of allocations after accounting for removal of ips, and see if the request can
+	// be processed further.
+	allocCount := len(res.SecondaryAllocations)
+	for allocID := range res.SecondaryAllocations {
+		if _, found := requestedDeletions[allocID]; found {
+			allocCount--
+		}
+	}
+
+	// request count - (allocations - valid tbd ids)
+	ipCountDiff := req.AllocationRequest.SecondaryIPCount - allocCount
+
+	// we couldn't remove enough to meet the requested count, and we can't arbitrarily choose ids to remove.
+	// fail processing, client must retry with a different request
+	if ipCountDiff < 0 {
+		diff := len(res.SecondaryAllocations) - req.AllocationRequest.SecondaryIPCount
+		msg := fmt.Sprintf("not enough ips to be deleted to meet allocation request, required at least %d ids to be within existing reservation", diff)
+		return datamodel.ReservationConfiguration{}, api.UnprocessableEntity(api.InvalidNetworkContainerRequest, msg)
+	}
+
+	// whether we process further allocations or just deletes, we always want the reservation to have the latest allocation request
+	res.AllocationRequest = req.AllocationRequest
+
+	// after accounting for ips that will be deleted, reservation meets the requested count, so no further allocation is needed
 	if ipCountDiff == 0 {
-		return res // no change needed
+		res.ReservationState = datamodel.Allocate
+		res.Status = datamodel.Completed
+		return res, nil
+	}
+
+	// otherwise, we still need to add keys to meet the allocation request and mark reservation as pending
+	for i := 0; i < ipCountDiff; i++ {
+		res.SecondaryAllocations[uuid.New().String()] = ""
 	}
 
 	res.ReservationState = datamodel.Allocate
 	res.Status = datamodel.Pending
-	res.AllocationRequest = nc.RequestV2.AllocationRequest
-
-	// scale up
-	if ipCountDiff > 0 {
-		for i := 0; i < ipCountDiff; i++ {
-			res.SecondaryAllocations[uuid.New().String()] = ""
-		}
-	}
-
-	// todo: handle scale down
-	return res
+	return res, nil
 }
 
 func (p *Preparer) registerNCinNode(ncConfig datamodel.NCConfiguration) *api.JsonErr {

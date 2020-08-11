@@ -64,7 +64,6 @@ func reconcileReservation(req *datamodel.ReservationConfiguration, currState map
 		req.AllocatedSubnet = allocatedIP.String()
 	}
 
-	// todo: need to also consider ToBeDeletedIPs in order to handle updates appropriately
 	incomplete := false
 	for allocID, ipAddress := range req.SecondaryAllocations {
 		secIP := currState[allocID]
