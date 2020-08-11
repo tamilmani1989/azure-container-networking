@@ -1,0 +1,348 @@
+trigger: none
+
+stages:
+  - stage: build
+    condition: eq(variables.DNC_USE_CUSTOM_IP, false)
+    jobs:
+      - job: initialize_dnc
+        pool:
+          name: Networking-ContainerNetworking
+          demands: agent.os -equals Linux
+
+        container:
+          image: "$(BUILD_IMAGE)"
+          options: "--privileged"
+
+        # Go setup for the vmImage:
+        # - Agent.Name -equals agent-1C
+        # https://github.com/Microsoft/azure-pipelines-image-generation/blob/master/images/linux/scripts/installers/go.sh
+        variables:
+          GOPATH: "$(System.DefaultWorkingDirectory)/gopath" # Go workspace path
+          GOBIN: "$(GOPATH)/bin" # Go binaries path
+          modulePath: "$(GOPATH)/src/dnc" # $(build.repository.name)' # Path to the module's code
+
+        steps:
+          - bash: |
+              echo $UID
+              sudo rm -rf $(System.DefaultWorkingDirectory)/*
+              sudo rm /run/docker/plugins/test.sock || true
+              sudo ip link del dev dummy || true
+            displayName: "Set up OS environment"
+
+          - checkout: self
+
+          - bash: |
+              echo "##vso[task.setvariable variable=Tag;isOutput=true]$(git describe --tags --abbrev=0 | sed 's/\./-/g')"
+              echo "##vso[task.setvariable variable=Date;isOutput=true]$(date +\"%Y-%m-%d-%S\")"
+              go version
+              go env
+              mkdir -p '$(GOBIN)'
+              mkdir -p '$(GOPATH)/pkg'
+              mkdir -p '$(modulePath)'
+              shopt -s extglob
+              shopt -s dotglob
+              mv ./src/dnc/* '$(modulePath)/'
+              echo '##vso[task.prependpath]$(GOBIN)'
+              echo '##vso[task.prependpath]$(GOROOT)/bin'
+            name: "Env"
+            displayName: "Set up the Go environment"
+
+          - script: |
+              echo Build tag is $(Env.Tag)
+              go build -v ./test/nmagent/
+              go build -v ./test/cnsmock/
+              go build -v -o dnctl-bin ./cmd/dnctl/
+              sudo apt update
+              sudo apt install -y --no-install-recommends clang cmake zlib1g-dev libboost-dev libboost-thread-dev gcc gdb build-essential libssl-dev
+              export CGO_LDFLAGS="-L $(modulePath)/pubsubproxy/libs -lMadariNativeClient -lBondDataSerializer"
+              export LD_LIBRARY_PATH=$(modulePath)/pubsubproxy/libs
+              go build -v
+            workingDirectory: "$(modulePath)"
+            name: "BuildDNC"
+            displayName: "Build DNC Binaries"
+
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(VM_SUBSCRIPTION)
+              scriptLocation: "inlineScript"
+              scriptType: bash
+              inlineScript: |
+                az group create --location westus2 --name pipeline-build-$(Build.BuildNumber)
+                az vm create \
+                    --name buildvm-$(Build.BuildNumber) \
+                    --nsg-rule ssh \
+                    --subnet $(VM_SUBNET_NAME) \
+                    --resource-group pipeline-build-$(Build.BuildNumber) \
+                    --image UbuntuLTS \
+                    --admin-username acn \
+                    --generate-ssh-keys \
+                    --size $(DNC_VM_SIZE)
+                export PRIVATE_IP=$(az vm list-ip-addresses -g pipeline-build-$(Build.BuildNumber) -n buildvm-$(Build.BuildNumber) --query "[].virtualMachine.network.privateIpAddresses[0]" -o tsv)
+                echo "PRIVATE IP IS:"
+                echo $PRIVATE_IP
+                export IP=$(az vm list-ip-addresses -g pipeline-build-$(Build.BuildNumber) -n buildvm-$(Build.BuildNumber) --query "[].virtualMachine.network.publicIpAddresses[*].ipAddress" -o tsv)
+                echo "##vso[task.setvariable variable=IP;isOutput=true]$IP"
+                echo "##vso[task.setvariable variable=PRIVATE_IP;isOutput=true]$PRIVATE_IP"
+                echo $VM created at IP $IP
+                mkdir -p $(Build.ArtifactStagingDirectory)/keys && cp ~/.ssh/* $(Build.ArtifactStagingDirectory)/keys
+                az vm open-port --resource-group pipeline-build-$(Build.BuildNumber) --name buildvm-$(Build.BuildNumber) --port 9000
+              workingDirectory: "$(modulePath)"
+            name: "CreateVM"
+            displayName: Deploy Azure VM to test        
+
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              artifactName: "vmkeys"
+              pathtoPublish: "$(Build.ArtifactStagingDirectory)/keys"
+            displayName: "Store VM keys to artifacts"
+            condition: succeeded()
+            
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)/keys/id_rsa
+              artifactName: id_rsa
+
+          - script: |
+              export IP=$(CreateVM.PRIVATE_IP)
+              echo "##vso[task.setvariable variable=public_ip;isOutput=true]$(CreateVM.IP)"
+              echo "##vso[task.setvariable variable=private_ip;isOutput=true]$(CreateVM.PRIVATE_IP)"
+              ls -lah
+              cat config_load_test.json
+              sed -i 's#"Key": "",#"Key": "$(DATASTORE_KEY)",#g' config_load_test.json
+              cat config_load_test.json
+              function auto-retry()
+                {
+                    export i="0"
+                    false
+                    while [[ $? -ne 0 ]] && [[ $i -lt 5 ]]; do
+                        "$@" ||  sleep 3 &&  i=$[$i+1] && false
+                    done
+                }
+              auto-retry ssh -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa acn@$IP 'mkdir -p /home/acn/go/src/dnc' || (sleep 1;false)
+              echo Connecting to $IP...
+              scp -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa dnc acn@$IP:/home/acn
+              scp -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa nmagent acn@$IP:/home/acn
+              scp -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa cnsmock acn@$IP:/home/acn
+              scp -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa dnctl-bin acn@$IP:/home/acn/dnctl
+              scp -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa config_load_test.json acn@$IP:/home/acn
+              scp -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa -r * acn@$IP:/home/acn/go/src/dnc
+            workingDirectory: "$(modulePath)"
+            name: "CopyRemote"
+            displayName: "Copy binaries to remote VM"
+
+          - script: |
+              echo $(CreateVM.IP) > ip.txt
+              ssh -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa acn@$(CreateVM.IP) '
+                sudo mv dnctl /usr/bin/
+                sudo snap install --classic go;
+                echo "GOPATH=$HOME/go" >> ~/.bashrc
+                sudo apt-get update -y && sudo apt-get install jq gcc openvswitch-switch -y;
+                curl -fsSL https://get.docker.com -o get-docker.sh;
+                sudo sh get-docker.sh;
+                sudo usermod -aG docker acn '
+              ssh -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa acn@$(CreateVM.IP) '
+                export latestACNVersion=$(curl -L -s -H '"'"'Accept: application/json'"'"' https://github.com/Azure/azure-container-networking/releases/latest | jq .tag_name | tr -d '"'"'"'"'"' );
+                echo Installing CNI version - $latestACNVersion;
+                wget https://raw.githubusercontent.com/Azure/azure-container-networking/master/scripts/install-cni-multitenancy-plugin.sh;
+                chmod +x install-cni-multitenancy-plugin.sh;
+                sudo -E ./install-cni-multitenancy-plugin.sh $latestACNVersion;
+                wget https://github.com/Azure/azure-container-networking/releases/latest/download/azure-cns-linux-amd64-$latestACNVersion.tgz;
+                tar -zxvf *.tgz;
+                export DNC_CONFIGURATION_PATH=$(pwd)/config_load_test.json;
+                sudo -E ./dnc &> dnc-stdout.log &
+                sudo -E ./cnsmock &> azure-dnc-CNS-mock-stdout.log &
+                sudo -E ./nmagent &> azure-dnc-nmagent-mock-stdout.log & '
+            workingDirectory: "$(modulePath)"
+            name: "ConfigureRemoteVM"
+            displayName: "Configure remote VM"     
+
+
+  - stage: test
+    condition: always()
+    jobs:
+      - job: load_test
+        pool:
+          vmImage: 'ubuntu-18.04'
+        variables:
+        - name: JMETER_DIRECTORY_INPUT
+          value: $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/jmeter
+        - name: JMETER_DIRECTORY_OUTPUT
+          value: $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/results
+        - name: IP_ADDRESS
+          value: $[stageDependencies.build.initialize_dnc.outputs['CopyRemote.public_ip']]
+
+        steps:
+
+        - script: |
+            az login --service-principal --username $(ARM_CLIENT_ID) --password $(ARM_CLIENT_SECRET) --tenant $(ARM_TENANT_ID)
+            az account set --subscription $(ARM_SUBSCRIPTION_ID)
+          displayName: 'SETUP: Login on Azure CLI'
+
+        - script: |
+            az acr login -n $(TF_VAR_JMETER_IMAGE_REGISTRY_NAME)
+            docker pull $(TF_VAR_JMETER_DOCKER_IMAGE)
+          displayName: 'SETUP: Validate JMeter Docker Image'
+
+        - script: |
+            if [ $(DNC_USE_CUSTOM_IP) == "true" ]; then
+              echo "Using Custom IP"
+              echo $(DNC_CUSTOM_IP) > $(JMETER_DIRECTORY_INPUT)/ip.txt
+            else
+              echo "Using Generated VM IP"
+              echo $(IP_ADDRESS) > $(JMETER_DIRECTORY_INPUT)/ip.txt
+            fi
+            echo $(TEST_PLAN_NETS_PER_WORKER) > $(JMETER_DIRECTORY_INPUT)/net_count.txt
+            echo $(TEST_PLAN_SUBNETS_PER_NET) > $(JMETER_DIRECTORY_INPUT)/subnets_per_net_count.txt
+            echo $(TEST_PLAN_CONTAINERS_PER_NODE) > $(JMETER_DIRECTORY_INPUT)/containers_per_node_count.txt
+            echo $(TEST_PLAN_CONTAINERS_PER_SUBNET) > $(JMETER_DIRECTORY_INPUT)/containers_per_subnet_count.txt
+            echo $(TEST_PLAN_RETRY_LIMIT) > $(JMETER_DIRECTORY_INPUT)/try_limit.txt
+            echo $(TEST_PLAN_REQUESTS_PER_SECOND_PER_WORKER) > $(JMETER_DIRECTORY_INPUT)/requests_per_second.txt
+            docker run --name=jmxvalidator -v $(JMETER_DIRECTORY_INPUT):/jmeter -w /jmeter \
+            --entrypoint "TestPlanCheck.sh" $(TF_VAR_JMETER_DOCKER_IMAGE) \
+            --stats --tree-dump --jmx $(TF_VAR_JMETER_JMX_FILE)
+          displayName: 'SETUP: Validate JMX File'
+
+        - script: terraform init
+          workingDirectory: $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/terraform
+          displayName: 'SETUP: Run Terraform Init'
+
+        - script: terraform apply -target azurerm_storage_share.jmeter_share -auto-approve
+          workingDirectory: $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/terraform
+
+          env:
+            ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+            TF_VAR_JMETER_IMAGE_REGISTRY_PASSWORD: $(TF_VAR_JMETER_IMAGE_REGISTRY_PASSWORD)
+          displayName: 'SETUP: Run Terraform Apply (target=file share)'
+
+        - script: |
+            azcopy \
+            --source $(JMETER_DIRECTORY_INPUT) \
+            --destination $(terraform output storage_file_share_url) \
+            --dest-key $(terraform output storage_account_key) \
+            --recursive
+          workingDirectory: $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/terraform
+          displayName: 'SETUP: Transfer JMeter Files to Storage Account'
+
+        - script: terraform apply -auto-approve
+          workingDirectory: $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/terraform
+          env:
+            ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+            TF_VAR_JMETER_IMAGE_REGISTRY_PASSWORD: $(TF_VAR_JMETER_IMAGE_REGISTRY_PASSWORD)
+          displayName: 'SETUP: Run Terraform Apply (target=all)'
+
+        - script: |
+            RG=$(terraform output resource_group_name)
+            NAME=$(terraform output jmeter_controller_name)
+            echo "Running Test Plan with $(TF_VAR_JMETER_WORKERS_COUNT) Workers Each Creating $(TEST_PLAN_NETS_PER_WORKER) Networks with $(TEST_PLAN_SUBNETS_PER_NET) Subnets Per Network and $(TEST_PLAN_CONTAINERS_PER_SUBNET) Containers per Subnet"
+            echo "Each Worker is Sending $(TEST_PLAN_REQUESTS_PER_SECOND_PER_WORKER) Requests per Second."
+            echo "`date`: Started!"
+            k=0
+            max_loops=$(TEST_PLAN_TIME_CUTOFF_MINUTES)
+            while [ $(az container show -g $RG -n $NAME --query "containers[0].instanceView.currentState.state" -o tsv) == "Running" ] && [ $k -lt $max_loops ]; do
+              echo "`date`: Still Running..."
+              sleep 60
+              ((k=k+1))
+            done
+            echo "`date`: Finished!"
+          workingDirectory: $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/terraform
+          displayName: 'TEST: Wait Test Execution'
+
+        - script: az container logs -g $(terraform output resource_group_name) -n $(terraform output jmeter_controller_name)
+          workingDirectory: $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/terraform
+          displayName: 'Show JMeter Controller Logs'
+
+        - script: |
+            RESOURCE_GROUP=$(terraform output resource_group_name)
+            echo -n $(terraform output jmeter_workers_names) | xargs -t -d "," -I '{}' -n1 az container logs -g $RESOURCE_GROUP -n {} 
+          workingDirectory: $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/terraform
+          displayName: 'Show JMeter Worker Logs'
+
+        - script: |
+            azcopy \
+              --source $(terraform output storage_file_share_url) \
+              --destination $(JMETER_DIRECTORY_OUTPUT) \
+              --source-key $(terraform output storage_account_key) \
+              --recursive
+          workingDirectory: $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/terraform
+          displayName: 'Get JMeter Artifacts'
+
+        - script: |
+            JMETER_RESULTS=$(JMETER_DIRECTORY_OUTPUT)/$(terraform output jmeter_results_file)
+            JUNIT_RESULTS=$(JMETER_DIRECTORY_OUTPUT)/output.xml
+            echo "Load Test Plan: $(TF_VAR_JMETER_WORKERS_COUNT) Clients Each Creating $(TEST_PLAN_NETS_PER_WORKER) Networks with $(TEST_PLAN_SUBNETS_PER_NET) Subnets Per Network and $(TEST_PLAN_CONTAINERS_PER_SUBNET) Containers per Subnet"
+            echo "Each Worker is Sending $(TEST_PLAN_REQUESTS_PER_SECOND_PER_WORKER) Requests per Second."
+            python3 $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/scripts/jtl_junit_converter.py $JMETER_RESULTS $JUNIT_RESULTS $(THRESHOLD_NETWORK_CREATE_50) $(THRESHOLD_NETWORK_CREATE_90) $(THRESHOLD_NETWORK_CREATE_AVG) $(THRESHOLD_SUBNET_CREATE_50) $(THRESHOLD_SUBNET_CREATE_90) $(THRESHOLD_SUBNET_CREATE_AVG) $(THRESHOLD_CONTAINER_CREATE_50) $(THRESHOLD_CONTAINER_CREATE_90) $(THRESHOLD_CONTAINER_CREATE_AVG) $(THRESHOLD_CONTAINER_DELETE_50) $(THRESHOLD_CONTAINER_DELETE_90) $(THRESHOLD_CONTAINER_DELETE_AVG) 
+          workingDirectory: $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/terraform
+          displayName: 'RESULTS: Display Report and Create JUnit Tests'
+
+        - task: PublishTestResults@2
+          inputs:
+            testResultsFormat: 'JUnit'
+            testResultsFiles: '$(JMETER_DIRECTORY_OUTPUT)/output.xml'
+            failTaskOnFailedTests: false
+          displayName: 'Publish Load Testing Results'
+
+        - publish: $(JMETER_DIRECTORY_OUTPUT)
+          artifact: JMeterResults
+          condition: succeededOrFailed()
+          displayName: 'Publish Load Test Artifacts'
+
+        - script: terraform destroy -auto-approve
+          workingDirectory: $(System.DefaultWorkingDirectory)/src/dnc/test/jmeter/terraform
+          condition: succeededOrFailed()
+          env:
+            ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+            TF_VAR_JMETER_IMAGE_REGISTRY_PASSWORD: $(TF_VAR_JMETER_IMAGE_REGISTRY_PASSWORD)
+          displayName: 'TEARDOWN: Run Terraform Destroy'
+
+  - stage: clean_up
+    dependsOn: 
+    - test
+    - build
+    condition: eq(variables.DNC_USE_CUSTOM_IP, false)
+    jobs:
+      - job: fetch_logs_and_destroy
+        pool:
+          name: Networking-ContainerNetworking
+          demands: agent.os -equals Linux
+
+        container:
+          image: "$(BUILD_IMAGE)"
+          options: "--privileged"
+
+        variables:
+        - name: IP_ADDRESS
+          value: $[stageDependencies.build.initialize_dnc.outputs['CopyRemote.private_ip']]
+
+        steps:
+        - task: DownloadPipelineArtifact@2
+          inputs:
+            artifact: id_rsa
+
+        - script: |
+            chmod 400 $(Pipeline.Workspace)/id_rsa
+            mkdir -p $(Build.ArtifactStagingDirectory)/logs
+            scp -oStrictHostKeyChecking=no -i $(Pipeline.Workspace)/id_rsa -r acn@$(IP_ADDRESS):/var/log/azure-dnc* $(Build.ArtifactStagingDirectory)/logs
+            scp -oStrictHostKeyChecking=no -i $(Pipeline.Workspace)/id_rsa -r acn@$(IP_ADDRESS):/home/acn/azure-dnc* $(Build.ArtifactStagingDirectory)/logs
+          name: "FetchLogs"
+          displayName: "Fetch logs from remote VM"
+          condition: always()
+
+        - task: PublishBuildArtifacts@1
+          inputs:
+            artifactName: "logs"
+            pathtoPublish: "$(Build.ArtifactStagingDirectory)/logs"
+          displayName: "Publish test logs"
+          condition: always()
+          
+        - task: AzureCLI@2
+          condition: succeededOrFailed()
+          inputs:
+            azureSubscription: $(VM_SUBSCRIPTION)
+            scriptLocation: "inlineScript"
+            scriptType: bash
+            inlineScript: |
+              az group delete --name pipeline-build-$(Build.BuildNumber) --yes
+          name: "DestroyVM"
+          displayName: 'Destroy VM'
