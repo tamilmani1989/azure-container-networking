@@ -11,6 +11,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.ServiceTests
     using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Text;
     using System.Threading;
 
     using Microsoft.Azure.ContainerNetworking.Gateway.TestLib;
@@ -23,6 +24,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.ServiceTests
         public string Error;
         public TestConfig Config;
         public TestLib Lib;
+        public double Average;
     }
 
     public class ServiceTests
@@ -35,7 +37,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.ServiceTests
             string error;
 
             string token = testLib.FetchTokenWithConfidentialClient(config);
-            Assert.True(testLib.InvokeApi(config.BaseAddress, token, HttpStatusCode.OK, out error));
+            Assert.True(testLib.InvokeApi(config.BaseAddress, token, HttpStatusCode.OK, out error, out double timetaken));
         }
 
         [Fact]
@@ -47,7 +49,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.ServiceTests
             string error;
 
             string token = testLib.FetchTokenWithConfidentialClient(config);
-            Assert.True(testLib.InvokeApi(config.BaseAddress, token, HttpStatusCode.Forbidden, out error));
+            Assert.True(testLib.InvokeApi(config.BaseAddress, token, HttpStatusCode.Forbidden, out error, out double timetaken));
         }
 
         [Fact]
@@ -60,7 +62,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.ServiceTests
             TestLib testLib = new TestLib();
             string error;
 
-            Assert.True(testLib.InvokeApi(config.BaseAddress, expiredToken, HttpStatusCode.Unauthorized, out error));
+            Assert.True(testLib.InvokeApi(config.BaseAddress, expiredToken, HttpStatusCode.Unauthorized, out error, out double timetaken));
         }
 
         [Fact]
@@ -69,20 +71,39 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.ServiceTests
             TestConfig config = TestConfig.ReadFromJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "TestConfigSuccess.json"));
             TestLib testLib = new TestLib();
             string error;
+            double totalTime = 0;
 
             string token = testLib.FetchTokenWithConfidentialClient(config);
 
             for (int i = 0; i < config.StressTestIterations; ++i)
             {
-                bool success = testLib.InvokeApi(config.BaseAddress, token, HttpStatusCode.OK, out error);
+                DateTime startTime = DateTime.UtcNow;
+                bool success = testLib.InvokeApi(config.BaseAddress, token, HttpStatusCode.OK, out error, out double timetaken);
+                totalTime += (DateTime.UtcNow - startTime).TotalSeconds;
                 Assert.True(success, error);
             }
+
+            double avg = totalTime / config.StressTestIterations;
+            File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "Stress_Sequential.txt"), avg.ToString());
         }
 
         [Fact]
         public void InvokeApi_Stress_Parallel()
         {
-            TestConfig config = TestConfig.ReadFromJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "TestConfigSuccess.json"));
+            StressParallel("TestConfigSuccess.json", "Stress_Parallel.txt");
+        }
+
+        // TODO: Keep commented for now. This can be uncommented and used when testing
+        // TODO: token encrypted vs token unencrypted scenario.
+        //[Fact]
+        //public void InvokeApi_Stress_Parallel_Encrypted()
+        //{
+        //    StressParallel("TestConfigEncrypted.json", "Stress_Parallel_Encrypted.txt");
+        //}
+
+        private void StressParallel(string testConfigFileName, string timeOutputFileName)
+        {
+            TestConfig config = TestConfig.ReadFromJsonFile(Path.Combine(Directory.GetCurrentDirectory(), testConfigFileName));
             int count = config.StressTestIterations;
             int threadCount = config.StressTestThreadCount;
 
@@ -115,11 +136,15 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.ServiceTests
                 t.Join();
             }
 
+            double average = threadInOuts.Sum(x => x.Average) / threadInOuts.Count();
+            Console.WriteLine("Average time for api invoke: {0}", average);
+            File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), timeOutputFileName), average.ToString());
+
             ThreadInOut tio = threadInOuts.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Error));
             if (tio != null)
             {
                 int failedCount = threadInOuts.Count(x => !string.IsNullOrWhiteSpace(x.Error));
-                throw new Exception($"Error seen in parallel stress. Test failed: {failedCount}, Error: {tio.Error}");
+                throw new Exception($"Error seen in parallel stress. Test failed: {failedCount}/{count}, Error: {tio.Error}");
             }
         }
 
@@ -129,6 +154,8 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.ServiceTests
             TestConfig config = threadInOut.Config;
             TestLib testLib = threadInOut.Lib;
             int count = threadInOut.Iterations;
+            double totalTime = 0;
+            StringBuilder sb = new StringBuilder();
 
             try
             {
@@ -136,9 +163,21 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.ServiceTests
                 string error;
                 for (int i = 0; i < count; ++i)
                 {
-                    bool success = testLib.InvokeApi(config.BaseAddress, token, HttpStatusCode.OK, out error);
-                    Assert.True(success, error);
+                    try
+                    {
+                        bool success = testLib.InvokeApi(config.BaseAddress, token, HttpStatusCode.OK, out error, out double timetaken);
+                        totalTime += timetaken;
+
+                        Assert.True(success, error);
+                    }
+                    catch (Exception e)
+                    {
+                        sb.AppendLine(e.ToString());
+                    }
                 }
+
+                threadInOut.Error = sb.ToString();
+                threadInOut.Average = count > 0 ? totalTime / count : 0;
             }
             catch (Exception ex)
             {

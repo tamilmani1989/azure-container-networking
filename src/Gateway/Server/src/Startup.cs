@@ -32,6 +32,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
     using Microsoft.Extensions.Hosting;
     using Microsoft.Extensions.Logging;
     using Microsoft.IdentityModel.Logging;
+    using Microsoft.IdentityModel.Tokens;
     using Newtonsoft.Json;
 
     /// <summary>
@@ -133,6 +134,10 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
                 options.TokenValidationParameters.ValidateLifetime = true;
                 options.TokenValidationParameters.ValidateIssuer = false;
                 options.Events = JwtBearerMiddlewareDiagnostics.Subscribe(options.Events);
+
+                // Provide the TokenDecryption key
+                options.TokenValidationParameters.TokenDecryptionKey =
+                new X509SecurityKey(Certificates.GetEncryptionCertificate(Configuration));
             });
 
             // Set this to false, so claim type doesn't get mapped to long names.

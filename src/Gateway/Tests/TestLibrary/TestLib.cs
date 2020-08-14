@@ -7,12 +7,14 @@
 namespace Microsoft.Azure.ContainerNetworking.Gateway.TestLib
 {
     using System;
+    using System.IdentityModel.Tokens.Jwt;
     using System.Linq;
     using System.Net;
     using System.Net.Http;
     using System.Net.Http.Headers;
-
+    using System.Security.Cryptography.X509Certificates;
     using Microsoft.Identity.Client;
+    using Microsoft.IdentityModel.Tokens;
 
     /// <summary>
     /// This class internally creates a httpclient per instance. In this httpclient
@@ -46,16 +48,64 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.TestLib
         {
             IConfidentialClientApplication app;
 
-            app = ConfidentialClientApplicationBuilder.Create(config.ClientId)
-                .WithClientSecret(config.ClientSecret)
-                .WithAuthority(new Uri(config.Authority))
-                .Build();
+            if (!config.UseClientCertificate)
+            {
+                app = ConfidentialClientApplicationBuilder.Create(config.ClientId)
+                    .WithClientSecret(config.ClientSecret)
+                    .WithAuthority(new Uri(config.Authority))
+                    .Build();
+            }
+            else
+            {
+                X509Certificate2 cert = new X509Certificate2(config.ClientCertificatePath);
+                app = ConfidentialClientApplicationBuilder.Create(config.ClientId)
+                    .WithCertificate(cert)
+                    .WithAuthority(new Uri(config.Authority))
+                    .Build();
+            }
 
             string[] ResourceIds = new string[] { config.ResourceID };
 
             try
             {
-                AuthenticationResult result = app.AcquireTokenForClient(ResourceIds).ExecuteAsync().GetAwaiter().GetResult();
+                AuthenticationResult result =
+                    config.UseClientCertificate == false
+                    ? app.AcquireTokenForClient(ResourceIds).ExecuteAsync().GetAwaiter().GetResult()
+                    : app.AcquireTokenForClient(ResourceIds).WithSendX5C(true).ExecuteAsync().GetAwaiter().GetResult();
+
+                if (config.DecryptToken)
+                {
+                    X509Certificate2 cert = new X509Certificate2(config.DecryptTokenCertificatePath);
+                    var handler = new JwtSecurityTokenHandler();
+                    var claimsPrincipal = handler.ValidateToken(
+                        result.AccessToken,
+                        new TokenValidationParameters
+                        {
+                            ValidateAudience = false,
+                            ValidateIssuer = false,
+                            ValidateIssuerSigningKey = false,
+                            ValidateLifetime = false,
+                            RequireExpirationTime = false,
+                            RequireSignedTokens = false,
+                            SignatureValidator = delegate (string token, TokenValidationParameters parameters)
+                            {
+                                var jwt = new JwtSecurityToken(token);
+
+                                return jwt;
+                            },
+                            TokenDecryptionKey = new X509SecurityKey(cert)
+                        },
+                        out SecurityToken securityToken);
+
+
+                    JwtSecurityToken jwtd = securityToken as JwtSecurityToken;
+
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Decrypted token \n");
+                    Console.WriteLine(jwtd.InnerToken.RawData);
+                    Console.ResetColor();
+                }
+
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("Token acquired \n");
                 Console.WriteLine(result.AccessToken);
@@ -100,9 +150,10 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.TestLib
             return null;
         }
 
-        public bool InvokeApi(string requestUri, string token, HttpStatusCode expectedStatusCode, out string error)
+        public bool InvokeApi(string requestUri, string token, HttpStatusCode expectedStatusCode, out string error, out double timeTaken)
         {
             error = null;
+            timeTaken = 0;
 
             if (!string.IsNullOrEmpty(token))
             {
@@ -114,7 +165,9 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.TestLib
                 this.httpClient.DefaultRequestHeaders.Authorization =
                   new AuthenticationHeaderValue("bearer", token);
 
+                DateTime startTime = DateTime.UtcNow;
                 HttpResponseMessage response = this.httpClient.GetAsync(requestUri).GetAwaiter().GetResult();
+                timeTaken = (DateTime.UtcNow - startTime).TotalSeconds;
                 if (response.IsSuccessStatusCode)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
@@ -134,6 +187,6 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.TestLib
             }
 
             return false;
-        }        
+        }
     }
 }

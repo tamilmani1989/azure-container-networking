@@ -1,8 +1,24 @@
 ﻿{
   "Instance": "https://login.microsoftonline.com/{0}",
   "TenantId": "73073094-f051-4be0-b779-ce802dd3b910",
-  "ClientId": "af13f479-323b-46a9-94c7-1e5768dea0cc",
+  "ClientId": "074fa96b-ed4e-4a85-8a5d-0e7c3ce4b5f4",
   "ClientSecret": "",
   "BaseAddress": "https://localhost:5001",
-  "ResourceId": "api://2a5001b3-32e4-40c6-a08b-7e06b8059516/.default"
+  "ResourceId": "https://dnc.azure.com/.default",
+  "DecryptToken": true,
+  "DecryptTokenCertificatePath": ""
 }
+
+// TODO: Comment for now. Will be used later when DNC app in
+// first party portal is provisioned in PROD infrastructure tenant (f8cdef31-a31e-4b4a-93e4-5f571e91255a)
+//{
+//  "Instance": "https://login.windows-ppe.net/{0}",
+//  "TenantId": "563c161a-f814-45eb-bac4-9d780e7f3ee6",
+//  "ClientId": "a91b1853-4403-4f54-b5cb-d1ea19d90c37",
+//  "BaseAddress": "https://localhost:5001",
+//  "ResourceId": "https://dnc.azure.com/.default",
+//  "UseClientCertificate": true,
+//  "ClientCertificatePath": "",
+//  "DecryptToken": true,
+//  "DecryptTokenCertificatePath": ""
+//}

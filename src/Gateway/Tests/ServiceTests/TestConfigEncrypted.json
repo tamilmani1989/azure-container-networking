@@ -1,0 +1,12 @@
+{
+  "Instance": "https://login.windows-ppe.net/{0}",
+  "TenantId": "563c161a-f814-45eb-bac4-9d780e7f3ee6",
+  "ClientId": "a91b1853-4403-4f54-b5cb-d1ea19d90c37",
+  "BaseAddress": "https://localhost:5001",
+  "ResourceId": "https://dnc.azure.com/.default",
+  "StressTestIterations": 100,
+  "StressTestThreadCount": 50,
+  "UseClientCertificate": true,
+  "ClientCertificatePath": "",
+  "EnvVariableRequired": "AzureServicesAuthConnectionString,DncIpAddress"
+}

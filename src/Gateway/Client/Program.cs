@@ -26,6 +26,11 @@ namespace Microsoft.Azure.ContainerNetworking.GatewayClient
                 return;
             }
 
+            if (cmdArgs.DebugMode)
+            {
+                DebugBreak();
+            }
+
             Console.WriteLine("--> Auth mechanism: {0}", cmdArgs.AuthMechanism.ToString());
             Console.WriteLine("--> Action requested: {0}", cmdArgs.ActionToPerform.ToString());
 
@@ -40,7 +45,7 @@ namespace Microsoft.Azure.ContainerNetworking.GatewayClient
                     break;
                 case ClientActions.InvokeApi:
                     string token = FetchToken(testLib, config, cmdArgs.AuthMechanism);
-                    testLib.InvokeApi(config.BaseAddress, token, System.Net.HttpStatusCode.OK, out error);
+                    testLib.InvokeApi(config.BaseAddress, token, System.Net.HttpStatusCode.OK, out error, out double timeTaken);
                     break;
                 default:
                     break;
@@ -59,6 +64,28 @@ namespace Microsoft.Azure.ContainerNetworking.GatewayClient
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Allows waiting for debugger to attach and then breaks in.
+        /// </summary>
+        private static void DebugBreak()
+        {
+            Console.WriteLine("Waiting for Debugger to attach...");
+            while (!System.Diagnostics.Debugger.IsAttached)
+            {
+                System.Threading.Thread.Sleep(100);
+                if (Console.KeyAvailable)
+                {
+                    Console.ReadKey();
+                    break;
+                }
+            }
+
+            if (System.Diagnostics.Debugger.IsAttached)
+            {
+                System.Diagnostics.Debugger.Break();
+            }
         }
     }
 }

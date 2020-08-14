@@ -37,6 +37,11 @@ namespace Microsoft.Azure.ContainerNetworking.GatewayClient
             get; private set;
         }
 
+        public bool DebugMode
+        {
+            get; private set;
+        }
+
         public bool ParseArgs(string[] args)
         {
             int failed = -1;
@@ -59,6 +64,10 @@ namespace Microsoft.Azure.ContainerNetworking.GatewayClient
               " 2) invokeapi - will fetch token first using specified method (-u or -c) and then invoke BaseUrl in appsettings.json",
               CommandOptionType.SingleValue);
 
+            CommandOption debugOption = cmdLineApp.Option(
+             "-d|--debug",
+             "Deubg mode. Wait to attach a debugger to the process",
+             CommandOptionType.NoValue);
 
             cmdLineApp.OnExecute(() =>
             {
@@ -67,6 +76,11 @@ namespace Microsoft.Azure.ContainerNetworking.GatewayClient
                     cmdLineApp.ShowHelp();
                     printHelp = false;
                     return failed;
+                }
+
+                if (debugOption.HasValue())
+                {
+                    this.DebugMode = true;
                 }
 
                 if (authOption.HasValue())

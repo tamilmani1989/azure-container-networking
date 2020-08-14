@@ -58,6 +58,26 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway.TestLib
             get; set;
         }
 
+        public bool UseClientCertificate
+        {
+            get; set;
+        }
+
+        public string ClientCertificatePath
+        {
+            get; set;
+        }
+
+        public bool DecryptToken
+        {
+            get; set;
+        }
+
+        public string DecryptTokenCertificatePath
+        {
+            get; set;
+        }
+
         public static TestConfig ReadFromJsonFile(string path)
         {
             IConfiguration Configuration;

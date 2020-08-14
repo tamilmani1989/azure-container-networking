@@ -45,7 +45,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
                      {
                          options.ListenAnyIP(Convert.ToInt32(config["Port"]), listenOptions =>
                          {
-                             listenOptions.UseHttps(SslCertificate.GetFromKeyVault(config));
+                             listenOptions.UseHttps(Certificates.GetSslCertificate(config));
                          });
                      })
                     .UseStartup<Startup>();

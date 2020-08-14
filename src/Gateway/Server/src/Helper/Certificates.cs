@@ -18,30 +18,26 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
     /// <summary>
     /// Ssl certificate for gateway
     /// </summary>
-    internal class SslCertificate
-    {        
+    internal class Certificates
+    {
         /// <summary>
         /// Fetch SSL/TLS certificate from key vault (details of which are configured in appsettings.json)
         /// </summary>
         /// <param name="configuration">config object containing appsettings.json</param>
         /// <returns>Certificate object</returns>
-        public static X509Certificate2 GetFromKeyVault(IConfiguration configuration)
+        public static X509Certificate2 GetSslCertificate(IConfiguration configuration)
         {
-            return Retry.WithRetryCount(3, TimeSpan.FromSeconds(10), () => 
-            {
-                // Instantiate a new KeyVaultClient object, with an access token to Key Vault
-                // https://docs.microsoft.com/en-us/azure/key-vault/general/service-to-service-authentication#connection-string-support
-                AzureServiceTokenProvider azureServiceTokenProvider1 = new AzureServiceTokenProvider();
-                KeyVaultClient client = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider1.KeyVaultTokenCallback));
+            return FetchCertificateFromKV(configuration["KeyVault:Url"], configuration["KeyVault:SslCertName"]);
+        }
 
-                SecretBundle secret = client.GetSecretAsync(configuration["KeyVault:Url"], configuration["KeyVault:SslCertName"]).GetAwaiter().GetResult();
-
-                byte[] certBytes = Convert.FromBase64String(secret.Value);
-                X509Certificate2 sslCert = new X509Certificate2(certBytes);
-
-                return sslCert;
-            },
-            null);
+        /// <summary>
+        /// Fetch Encryption certificate from key vault (details of which are configured in appsettings.json)
+        /// </summary>
+        /// <param name="configuration">config object containing appsettings.json</param>
+        /// <returns>Certificate object</returns>
+        public static X509Certificate2 GetEncryptionCertificate(IConfiguration configuration)
+        {
+            return FetchCertificateFromKV(configuration["KeyVault:Url"], configuration["KeyVault:EncryptCertName"]);
         }
 
         /// <summary>
@@ -80,6 +76,31 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
 
                 return cert;
             }
+        }
+
+        /// <summary>
+        /// Fetch certificate from a key vault
+        /// </summary>
+        /// <param name="keyVaultUrl"></param>
+        /// <param name="certificateName"></param>
+        /// <returns></returns>
+        private static X509Certificate2 FetchCertificateFromKV(string keyVaultUrl, string certificateName)
+        {
+            return Retry.WithRetryCount(3, TimeSpan.FromSeconds(10), () =>
+            {
+                // Instantiate a new KeyVaultClient object, with an access token to Key Vault
+                // https://docs.microsoft.com/en-us/azure/key-vault/general/service-to-service-authentication#connection-string-support
+                AzureServiceTokenProvider azureServiceTokenProvider = new AzureServiceTokenProvider();
+                KeyVaultClient client = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
+
+                SecretBundle secret = client.GetSecretAsync(keyVaultUrl, certificateName).GetAwaiter().GetResult();
+
+                byte[] certBytes = Convert.FromBase64String(secret.Value);
+                X509Certificate2 sslCert = new X509Certificate2(certBytes);
+
+                return sslCert;
+            },
+            null);
         }
     }
 }
