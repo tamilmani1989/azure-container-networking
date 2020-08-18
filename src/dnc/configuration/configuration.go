@@ -483,6 +483,10 @@ func OverrideConfigFromEnv(config *Configuration) {
 		config.MasterElectionSettings.BlobStorageSettings.PartitionKey = masterElectionPartitionKey
 	}
 
+	if masterElectionUseDataStore := os.Getenv("MasterElectionUseDataStore"); len(masterElectionUseDataStore) != 0 {
+		config.MasterElectionSettings.UseDataStore = ParseBool(masterElectionUseDataStore)
+	}
+
 	if leaseIntervalInSecs := os.Getenv("LeaseIntervalInSecs"); len(leaseIntervalInSecs) != 0 {
 		config.MasterElectionSettings.BlobStorageSettings.LeaseIntervalInSecs = ParseInt64(leaseIntervalInSecs)
 	}

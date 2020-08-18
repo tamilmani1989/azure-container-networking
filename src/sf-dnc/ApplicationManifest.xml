@@ -16,6 +16,7 @@
     <Parameter Name="MasterElectionStorageName" DefaultValue=""/>
     <Parameter Name="MasterElectionStorageKey" DefaultValue=""/>
     <Parameter Name="MasterElectionStorageEnvironment" DefaultValue=""/>
+    <Parameter Name="MasterElectionUseDataStore" DefaultValue="false"/>
     <Parameter Name="LeaseIntervalInSecs" DefaultValue="60"/>
     <Parameter Name="LeaseRenewIntervalInSecs" DefaultValue="30"/>
     <Parameter Name="AcquireRetryIntervalInSecs" DefaultValue="30"/>
@@ -67,6 +68,7 @@
       <EnvironmentVariable Name="MasterElectionStorageKey" Value="[MasterElectionStorageKey]"/>
       <EnvironmentVariable Name="MasterElectionStorageEnvironment" Value="[MasterElectionStorageEnvironment]"/>
       <EnvironmentVariable Name="MasterElectionPartitionKey" Value="[MasterElectionPartitionKey]"/>
+      <EnvironmentVariable Name="MasterElectionUseDataStore" Value="[MasterElectionUseDataStore]"/>
       <EnvironmentVariable Name="LeaseIntervalInSecs" Value="[LeaseIntervalInSecs]"/>
       <EnvironmentVariable Name="LeaseRenewIntervalInSecs" Value="[LeaseRenewIntervalInSecs]"/>
       <EnvironmentVariable Name="AcquireRetryIntervalInSecs" Value="[AcquireRetryIntervalInSecs]"/>

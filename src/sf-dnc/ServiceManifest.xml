@@ -29,6 +29,7 @@
       <EnvironmentVariable Name="MasterElectionStorageKey" Value=""/>
       <EnvironmentVariable Name="MasterElectionStorageEnvironment" Value=""/>
       <EnvironmentVariable Name="MasterElectionPartitionKey" Value=""/>
+      <EnvironmentVariable Name="MasterElectionUseDataStore" DefaultValue=""/>
       <EnvironmentVariable Name="LeaseIntervalInSecs" Value=""/>
       <EnvironmentVariable Name="LeaseRenewIntervalInSecs" Value=""/>
       <EnvironmentVariable Name="AcquireRetryIntervalInSecs" Value=""/>
