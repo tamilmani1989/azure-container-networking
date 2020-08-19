@@ -56,7 +56,6 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
                 request.CertificateExtensions.Add(sanBuilder.Build());
 
                 var certificate = request.CreateSelfSigned(new DateTimeOffset(DateTime.UtcNow.AddDays(-1)), new DateTimeOffset(DateTime.UtcNow.AddDays(365)));
-                certificate.FriendlyName = subjectName;
 
                 X509Certificate2 cert = new X509Certificate2(certificate.Export(X509ContentType.Pfx));
 

@@ -201,6 +201,26 @@ build:
             include:
               - '**'
 
+    - !!buildcommand
+        name: 'Build DncRP Linux'
+        command: 'build-dncrp.sh'
+        arguments: 'build Release linux-x64'
+        artifacts:
+          - from: 'src/DncRP/Server/linux-x64'
+            to: 'drop_dncrp_linux'
+            include:
+              - '**'
+
+    - !!buildcommand
+        name: 'Build DncRP Windows'
+        command: 'build-dncrp.sh'
+        arguments: 'build Release win10-x64'
+        artifacts:
+          - from: 'src/DncRP/Server/win10-x64'
+            to: 'drop_dncrp_windows'
+            include:
+              - '**'
+
 # An optional user defined stage for performing packaging. This exists as a separate stage because some build processes do a
 # compile-sign-package-sign model. For example, Windows based builds use this model. Linux builds typically follow a
 # compile-hash-package-hash-sign hash model. For those folks, package may not need to exist as a separate step.
@@ -308,6 +328,16 @@ test:
           type: 'xunit'
           include:
             - 'src/Gateway/Tests/UnitTests/codecoverage/**/*.xml'
+
+    - !!testcommand
+      name: 'DncRP Unit tests'
+      command: 'build-dncrp.sh'
+      arguments: 'test Release linux-x64'
+      testresults:
+        - title: 'Unit Tests'
+          type: 'xunit'
+          include:
+            - 'src/DncRP/Tests/UnitTests/codecoverage/**/*.xml'
 
 # An optional, interim user defined stage for performing publishing of the build. Examples include, dropping the files to a network share,
 # pushing packages to a package repository, uploading binaries to blob store etc.
