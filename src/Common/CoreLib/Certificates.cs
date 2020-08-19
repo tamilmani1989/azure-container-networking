@@ -1,58 +1,44 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="SslCertificate.cs" company="Microsoft">
-//   © Microsoft Corporation. All rights reserved.
+﻿// -----------------------------------------------------------------------------
+// <copyright file="Certificates.cs" company="Microsoft">
+//   Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
-// --------------------------------------------------------------------------------------------------------------------
+//
+// -----------------------------------------------------------------------------
 
-namespace Microsoft.Azure.ContainerNetworking.Gateway
+namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
     using System;
     using System.Security.Cryptography;
     using System.Security.Cryptography.X509Certificates;
-
     using Microsoft.Azure.KeyVault;
     using Microsoft.Azure.KeyVault.Models;
     using Microsoft.Azure.Services.AppAuthentication;
-    using Microsoft.Extensions.Configuration;
 
-    /// <summary>
-    /// Ssl certificate for gateway
-    /// </summary>
-    internal class Certificates
+    public class Certificates
     {
         /// <summary>
         /// Fetch SSL/TLS certificate from key vault (details of which are configured in appsettings.json)
         /// </summary>
         /// <param name="configuration">config object containing appsettings.json</param>
         /// <returns>Certificate object</returns>
-        public static X509Certificate2 GetSslCertificate(IConfiguration configuration)
+        public static X509Certificate2 GetKeyVaultCertificate(string keyVaultUrl, string certificateName)
         {
-            return FetchCertificateFromKV(configuration["KeyVault:Url"], configuration["KeyVault:SslCertName"]);
-        }
-
-        /// <summary>
-        /// Fetch Encryption certificate from key vault (details of which are configured in appsettings.json)
-        /// </summary>
-        /// <param name="configuration">config object containing appsettings.json</param>
-        /// <returns>Certificate object</returns>
-        public static X509Certificate2 GetEncryptionCertificate(IConfiguration configuration)
-        {
-            return FetchCertificateFromKV(configuration["KeyVault:Url"], configuration["KeyVault:EncryptCertName"]);
+            return FetchCertificateFromKV(keyVaultUrl, certificateName);
         }
 
         /// <summary>
         /// Generate a self signed certificate for dnc gateway
         /// </summary>
         /// <returns></returns>
-        public static X509Certificate2 GenerateSelfSigned()
+        public static X509Certificate2 GenerateSelfSigned(string subjectName, string san = null)
         {
-            const string certificateName = "mdnc.azure.net";
-
             SubjectAlternativeNameBuilder sanBuilder = new SubjectAlternativeNameBuilder();
-            sanBuilder.AddDnsName("mdnc.azure.net");
-            sanBuilder.AddDnsName("*.mdnc.azure.net");
+            if (!string.IsNullOrWhiteSpace(san))
+            {
+                sanBuilder.AddDnsName(san);
+            }
 
-            X500DistinguishedName distinguishedName = new X500DistinguishedName($"CN={certificateName}");
+            X500DistinguishedName distinguishedName = new X500DistinguishedName($"CN={subjectName}");
 
             using (RSA rsa = RSA.Create(2048))
             {
@@ -70,7 +56,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
                 request.CertificateExtensions.Add(sanBuilder.Build());
 
                 var certificate = request.CreateSelfSigned(new DateTimeOffset(DateTime.UtcNow.AddDays(-1)), new DateTimeOffset(DateTime.UtcNow.AddDays(365)));
-                certificate.FriendlyName = certificateName;
+                certificate.FriendlyName = subjectName;
 
                 X509Certificate2 cert = new X509Certificate2(certificate.Export(X509ContentType.Pfx));
 

@@ -16,6 +16,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Common\CoreLib\CoreLib.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Update="ServicePorts.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

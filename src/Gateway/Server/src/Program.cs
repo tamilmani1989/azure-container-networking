@@ -10,6 +10,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
     using System.IO;
 
     using Microsoft.AspNetCore.Hosting;
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Hosting;
 
@@ -45,7 +46,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
                      {
                          options.ListenAnyIP(Convert.ToInt32(config["Port"]), listenOptions =>
                          {
-                             listenOptions.UseHttps(Certificates.GetSslCertificate(config));
+                             listenOptions.UseHttps(Certificates.GetKeyVaultCertificate(config["KeyVault:Url"], config["KeyVault:SslCertName"]));
                          });
                      })
                     .UseStartup<Startup>();

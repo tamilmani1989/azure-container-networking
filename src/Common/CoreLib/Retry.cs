@@ -5,7 +5,7 @@
 //
 // -----------------------------------------------------------------------------
 
-namespace Microsoft.Azure.ContainerNetworking.Gateway
+namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
     using System;
     using System.Threading;

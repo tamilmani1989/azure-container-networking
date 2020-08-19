@@ -7,14 +7,10 @@
 namespace Microsoft.Azure.ContainerNetworking.Gateway
 {
     using System;
-    using System.Collections.Generic;
     using System.IdentityModel.Tokens.Jwt;
     using System.Linq;
     using System.Net.Mime;
-    using System.Text.Json;
-    using Microsoft.ApplicationInsights.Channel;
     using Microsoft.ApplicationInsights.Extensibility;
-    using Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel;
     using Microsoft.AspNetCore.Authentication;
     using Microsoft.AspNetCore.Authentication.AzureAD.UI;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -25,10 +21,9 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc.Authorization;
-    using Microsoft.AspNetCore.Mvc.Formatters;
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
-    using Microsoft.Extensions.Diagnostics.HealthChecks;
     using Microsoft.Extensions.Hosting;
     using Microsoft.Extensions.Logging;
     using Microsoft.IdentityModel.Logging;
@@ -137,7 +132,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
 
                 // Provide the TokenDecryption key
                 options.TokenValidationParameters.TokenDecryptionKey =
-                new X509SecurityKey(Certificates.GetEncryptionCertificate(Configuration));
+                new X509SecurityKey(Certificates.GetKeyVaultCertificate(Configuration["KeyVault:Url"], Configuration["KeyVault:EncryptCertName"]));
             });
 
             // Set this to false, so claim type doesn't get mapped to long names.
