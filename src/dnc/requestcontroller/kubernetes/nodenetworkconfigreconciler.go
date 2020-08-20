@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-container-networking/cns"
@@ -161,7 +162,7 @@ func (n *NodeNetworkConfigReconciler) mustRecreateNNC(nodeNetworkConfig *acnv1al
 		ncResponse, _ = n.DncClient.GetNC(n.VnetGUID, ncID)
 	}
 
-	nnc := n.getNNCFromNCResponse(ncResponse, name, namespace)
+	nnc := n.getNewNNCFromNCResponse(ncResponse, name, namespace)
 
 	nncCreated := false
 	for retry := 0; retry < 30; retry++ {
@@ -208,11 +209,9 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(nodeNetworkConfig 
 	}
 
 	if n.VnetGUID == "" {
-		var found bool
-		var vnetGUID string
-		vnetGUID, found = node.Annotations[VnetGUIDAnnotation]
+		vnetGUID, found := node.Labels[VnetGUIDLabel]
 		if !found {
-			return fmt.Errorf("Could not find VNET from annotation %s", VnetGUIDAnnotation)
+			return fmt.Errorf("Could not find VNET from label %s", VnetGUIDLabel)
 		}
 		n.VnetGUID = vnetGUID
 	}
@@ -224,10 +223,10 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(nodeNetworkConfig 
 	}
 
 	// Create or Update the NC on DNC
-	subnetID, found := node.Annotations[SubnetNameAnnotation]
+	subnetID, found := node.Labels[SubnetNameLabel]
 	if !found {
 		// Don't know what subnet to use, so requeue
-		return fmt.Errorf("Could not find subnet from annotation %s", SubnetNameAnnotation)
+		return fmt.Errorf("Could not find subnet from label %s", SubnetNameLabel)
 	}
 
 	ncResponse, err := n.synchronousCreateOrUpdateNC(n.VnetGUID, nodeID, subnetID, nodeNetworkConfig.Spec.IPsNotInUse, nodeNetworkConfig.Spec.RequestedIPCount)
@@ -237,32 +236,7 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(nodeNetworkConfig 
 	}
 
 	// Publish k8s status
-	ipAssignments := make([]acnv1alpha.IPAssignment, len(ncResponse.IPConfiguration.SecondaryIPs))
-	index := 0
-	for id, ipInfo := range ncResponse.IPConfiguration.SecondaryIPs {
-		ipAssignments[index] = acnv1alpha.IPAssignment{
-			Name: id,
-			IP:   ipInfo.IPAddress,
-		}
-		index++
-	}
-	status := acnv1alpha.NodeNetworkConfigStatus{
-		Scaler: acnv1alpha.Scaler{
-			BatchSize:               n.ScalerConfig.BatchSize,
-			ReleaseThresholdPercent: n.ScalerConfig.ReleaseThresholdPercent,
-			RequestThresholdPercent: n.ScalerConfig.RequestThresholdPercent,
-		},
-		NetworkContainers: []acnv1alpha.NetworkContainer{
-			{
-				ID:             ncResponse.NcID,
-				PrimaryIP:      ncResponse.IPConfiguration.IPAddress,
-				SubnetID:       ncResponse.IPConfiguration.IPSubnet,
-				IPAssignments:  ipAssignments,
-				DefaultGateway: ncResponse.IPConfiguration.GatewayIP,
-				// TODO Netmask?
-			},
-		},
-	}
+	status := n.getNNCStatusFromNCResponse(ncResponse)
 	nodeNetworkConfig.Status = status
 	err = n.Client.Status().Update(context.TODO(), nodeNetworkConfig)
 	if err != nil {
@@ -338,11 +312,9 @@ func (n *NodeNetworkConfigReconciler) synchronousCreateOrUpdateNC(vnetID, nodeID
 		},
 		AssociationInfo: api.AssociationInfo{
 			NodeID:        nodeID,
-			ContainerType: cns.AzureContainerInstance,
+			ContainerType: cns.Docker,
 		},
-		AllowHostToNCCommunication: false,
-		AllowNCToHostCommunication: false,
-		ToBeDeletedIPIds:           toBeDeletedIps,
+		ToBeDeletedIPIds: toBeDeletedIps,
 	}
 
 	respErr = n.DncClient.UpsertNcV2(vnetID, ncID, ncReq)
@@ -393,7 +365,7 @@ func (n *NodeNetworkConfigReconciler) synchronousCreateNode(nodeID, ipAddress, v
 
 	// Create or Update the node
 
-	respErr := n.DncClient.AddNode(nodeID, ipAddress, cns.Kubernetes, vnetID)
+	respErr := n.DncClient.AddNode(nodeID, ipAddress, cns.KubernetesCRD, vnetID)
 	if respErr != nil && respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Failed to create node %s with error %+v", nodeID, respErr)
 	}
@@ -416,9 +388,10 @@ func (n *NodeNetworkConfigReconciler) synchronousCreateNode(nodeID, ipAddress, v
 
 	receivedNodeCfg := nodeCfg.NodeInfo
 	expectedNodeCfg := api.NodeInfoRequest{
-		IPAddresses:      []string{ipAddress},
-		LocationType:     "",
-		OrchestratorType: cns.Kubernetes}
+		IPAddresses:           []string{ipAddress},
+		OrchestratorType:      cns.KubernetesCRD,
+		InfrastructureNetwork: vnetID,
+	}
 	if receivedNodeCfg.String() != expectedNodeCfg.String() {
 		return fmt.Errorf("Register node failed;\nreceived %+v\nexpected %+v", receivedNodeCfg, expectedNodeCfg)
 	}
@@ -516,7 +489,7 @@ func (n *NodeNetworkConfigReconciler) synchronousDeleteNode(nodeID string) error
 	return nil
 }
 
-func (n *NodeNetworkConfigReconciler) getNNCFromNCResponse(nc *api.NetworkContainerResponse, name, namespace string) *acnv1alpha.NodeNetworkConfig {
+func (n *NodeNetworkConfigReconciler) getNewNNCFromNCResponse(nc *api.NetworkContainerResponse, name, namespace string) *acnv1alpha.NodeNetworkConfig {
 	// Start with the standard empty NNC
 	nnc := acnv1alpha.NodeNetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
@@ -526,34 +499,47 @@ func (n *NodeNetworkConfigReconciler) getNNCFromNCResponse(nc *api.NetworkContai
 		Spec: acnv1alpha.NodeNetworkConfigSpec{
 			RequestedIPCount: n.ScalerConfig.BatchSize,
 		},
-		Status: acnv1alpha.NodeNetworkConfigStatus{
-			Scaler: acnv1alpha.Scaler{
-				BatchSize:               n.ScalerConfig.BatchSize,
-				ReleaseThresholdPercent: n.ScalerConfig.ReleaseThresholdPercent,
-				RequestThresholdPercent: n.ScalerConfig.RequestThresholdPercent,
-			},
-		},
-	}
-
-	if nc != nil {
-		ipAssignments := make([]acnv1alpha.IPAssignment, len(nc.IPConfiguration.SecondaryIPs))
-		for id, ipInfo := range nc.IPConfiguration.SecondaryIPs {
-			ipAssignments = append(ipAssignments, acnv1alpha.IPAssignment{
-				Name: id,
-				IP:   ipInfo.IPAddress,
-			})
-		}
-
-		nnc.Spec.RequestedIPCount = int64(len(nc.IPConfiguration.SecondaryIPs))
-		nnc.Status.NetworkContainers = []acnv1alpha.NetworkContainer{
-			{
-				ID:            nc.NcID,
-				PrimaryIP:     nc.IPConfiguration.IPAddress,
-				SubnetID:      nc.IPConfiguration.SubnetName,
-				IPAssignments: ipAssignments,
-			},
-		}
+		Status: n.getNNCStatusFromNCResponse(nc),
 	}
 
 	return &nnc
+}
+
+// getNNCStatusFromNCResponse returns a NNC Status representing the NC response
+func (n *NodeNetworkConfigReconciler) getNNCStatusFromNCResponse(nc *api.NetworkContainerResponse) acnv1alpha.NodeNetworkConfigStatus {
+	nncStatus := acnv1alpha.NodeNetworkConfigStatus{}
+	if nc == nil {
+		return nncStatus
+	}
+
+	// Populate NetworkContainers list with nc response
+	ipAssignments := make([]acnv1alpha.IPAssignment, len(nc.IPConfiguration.SecondaryIPs))
+	index := 0
+	for id, ipInfo := range nc.IPConfiguration.SecondaryIPs {
+		ipAssignments[index] = acnv1alpha.IPAssignment{
+			Name: id,
+			IP:   strings.Split(ipInfo.IPAddress, "/")[0], //chop off the trailing /32
+		}
+		index++
+	}
+	nncStatus.NetworkContainers = []acnv1alpha.NetworkContainer{
+		{
+			ID:                 nc.NcID,
+			PrimaryIP:          strings.Split(nc.IPConfiguration.IPAddress, "/")[0], //chop off the /32
+			SubnetName:         nc.IPConfiguration.SubnetName,
+			DefaultGateway:     nc.IPConfiguration.GatewayIP,
+			SubnetAddressSpace: nc.IPConfiguration.IPSubnet,
+			IPAssignments:      ipAssignments,
+		},
+	}
+
+	// Populate scaler config with scaler config from n
+	scaler := acnv1alpha.Scaler{
+		BatchSize:               n.ScalerConfig.BatchSize,
+		ReleaseThresholdPercent: n.ScalerConfig.ReleaseThresholdPercent,
+		RequestThresholdPercent: n.ScalerConfig.RequestThresholdPercent,
+	}
+	nncStatus.Scaler = scaler
+
+	return nncStatus
 }

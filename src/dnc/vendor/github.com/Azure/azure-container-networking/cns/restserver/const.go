@@ -32,6 +32,9 @@ const (
 	InconsistentIPConfigState               = 29
 	InvalidSecondaryIPConfig                = 30
 	NetworkContainerPendingStatePropagation = 31
+	FailedToAllocateIpConfig                = 32
+	EmptyOrchestratorContext                = 33
+	UnsupportedOrchestratorContext          = 34
 	UnexpectedError                         = 99
 )
 

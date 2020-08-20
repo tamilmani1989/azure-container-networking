@@ -24,9 +24,9 @@ import (
 
 // NodeFinalizerName is the finalizer that is placed on Nodes
 const (
-	NNCFinalizerName     = "finalizers.acn.azure.com/dnc-operations"
-	VnetGUIDAnnotation   = "kubernetes.azure.com/podnetwork-resourceguid" // TODO: should we import aks-rp repo as dependency and get these values from there
-	SubnetNameAnnotation = "kubernetes.azure.com/podnetwork-subnet"
+	NNCFinalizerName = "finalizers.acn.azure.com/dnc-operations"
+	VnetGUIDLabel    = "kubernetes.azure.com/podnetwork-resourceguid"
+	SubnetNameLabel  = "kubernetes.azure.com/podnetwork-subnet"
 )
 
 // RequestController implements requestcontroller.RequestController. RequestController watches Nodes and NetworkConfigs
@@ -81,7 +81,8 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 
 	// Create a manager from the REST config and scheme
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-		Scheme: scheme,
+		Scheme:             scheme,
+		MetricsBindAddress: "0", //disable metrics, TODO: make this configurable
 	})
 	if err != nil {
 		return nil, err

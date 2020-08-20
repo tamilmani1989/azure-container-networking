@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	code.cloudfoundry.org/clock v1.0.0 // indirect
-	github.com/Azure/azure-container-networking v1.1.6
+	github.com/Azure/azure-container-networking v1.1.7-0.20200813005458-81194c256618
 	github.com/Azure/azure-sdk-for-go v40.6.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.10.2
 	github.com/Azure/go-autorest/autorest/adal v0.8.2

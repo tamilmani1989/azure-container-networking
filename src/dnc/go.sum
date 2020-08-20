@@ -9,6 +9,8 @@ github.com/Azure/azure-container-networking v1.1.5 h1:d4x0RyXjVbzsBRZM+Qe1KXKvWP
 github.com/Azure/azure-container-networking v1.1.5/go.mod h1:mDbcmPStvHz2KyvhdWMtcETHsgPuUYvzU5vBXfDHNaI=
 github.com/Azure/azure-container-networking v1.1.6 h1:4xcq3WK9zHrLe9PkOn1bHQ9t35a5hp9ig/Ffo3f5D+w=
 github.com/Azure/azure-container-networking v1.1.6/go.mod h1:8MOBvCKT7eHIgIjLLqa4I6NNzTHoi2WcPK/tHhIjwGo=
+github.com/Azure/azure-container-networking v1.1.7-0.20200813005458-81194c256618 h1:1zHnQaF/e4CDVBSRdXN1pNGp4SLBGpgLVJParDG/SNU=
+github.com/Azure/azure-container-networking v1.1.7-0.20200813005458-81194c256618/go.mod h1:8MOBvCKT7eHIgIjLLqa4I6NNzTHoi2WcPK/tHhIjwGo=
 github.com/Azure/azure-sdk-for-go v40.6.0+incompatible h1:ULjp/a/UsBfnZcl45jjywhcBKex/k/A1cG9s9NapLFw=
 github.com/Azure/azure-sdk-for-go v40.6.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78/go.mod h1:LmzpDX56iTiv29bbRTIsUNlaFfuhWRQBWjQdVyAevI8=

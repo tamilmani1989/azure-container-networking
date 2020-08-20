@@ -217,7 +217,11 @@ func (service *HTTPRestService) updateIpConfigsStateUntransacted(req cns.CreateN
 		if exists {
 			// pod ip exists, validate if state is not allocated, else fail
 			if ipConfigStatus.State == cns.Allocated {
-				errMsg := fmt.Sprintf("Failed to delete an Allocated IP %v", ipConfigStatus)
+				var expectedPodInfo cns.KubernetesPodInfo
+				if len(ipConfigStatus.OrchestratorContext) != 0 {
+					json.Unmarshal(ipConfigStatus.OrchestratorContext, &expectedPodInfo)
+				}
+				errMsg := fmt.Sprintf("Failed to delete an Allocated IP %v, PodInfo %+v", ipConfigStatus, expectedPodInfo)
 				return InconsistentIPConfigState, errMsg
 			}
 		}
@@ -616,6 +620,40 @@ func (service *HTTPRestService) SendNCSnapShotPeriodically(ncSnapshotIntervalInM
 			return
 		}
 	}
+}
+
+func (service *HTTPRestService) validateIpConfigRequest(ipConfigRequest cns.GetIPConfigRequest) (int, string) {
+	if service.state.OrchestratorType != cns.KubernetesCRD {
+		return UnsupportedOrchestratorType, fmt.Sprintf("ReleaseIPConfig API supported only for kubernetes orchestrator")
+	}
+
+	if ipConfigRequest.OrchestratorContext == nil {
+		return EmptyOrchestratorContext, fmt.Sprintf("OrchastratorContext is not set in the req: %+v", ipConfigRequest)
+	}
+
+	// retrieve podinfo  from orchestrator context
+	var podInfo cns.KubernetesPodInfo
+	if err := json.Unmarshal(ipConfigRequest.OrchestratorContext, &podInfo); err != nil {
+		return UnsupportedOrchestratorContext, err.Error()
+	}
+
+	return Success, ""
+}
+
+func (service *HTTPRestService) populateIpConfigInfoFromNCUntransacted(ncId string, ipConfiguration *cns.IPConfiguration) error {
+	var (
+		ncStatus containerstatus
+		exists   bool
+	)
+
+	if ncStatus, exists = service.state.ContainerStatus[ncId]; !exists {
+		return fmt.Errorf("Failed to get NC Configuration for NcId: %s", ncId)
+	}
+
+	ipConfiguration.DNSServers = ncStatus.CreateNetworkContainerRequest.IPConfiguration.DNSServers
+	ipConfiguration.GatewayIPAddress = ncStatus.CreateNetworkContainerRequest.IPConfiguration.GatewayIPAddress
+
+	return nil
 }
 
 // isNCWaitingForUpdate :- Determine whether NC version on NMA matches programmed version
