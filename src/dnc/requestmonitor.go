@@ -7,6 +7,7 @@ import (
 	"dnc/api"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
+	"dnc/networkcontainer"
 	"dnc/nmagentcontracts"
 	"dnc/pubsubproxy"
 	"dnc/resourceupdatehandler/networkupdatehandler"
@@ -445,7 +446,7 @@ func processNetworkContainerPurge(
 		}
 	}()
 
-	err = datamodel.PurgeNetworkContainerAssociations(repoNCConfig, updateVlan(repoNCConfig.GetAssociationInfo().ContainerType))
+	err = datamodel.PurgeNetworkContainerAssociations(repoNCConfig, networkcontainer.ShouldUpdateVlan(repoNCConfig.GetAssociationInfo().ContainerType))
 	if err != nil {
 		return false, err
 	}
@@ -1694,21 +1695,6 @@ func recordNetworkContainerProcessingTime(
 		processTimeMs := time.Since(stateTransitionDateTime).Milliseconds()
 		sendNCMetric(aiwrapper.NCProcessTimeMetric,
 			float64(processTimeMs), processStatus, "Container"+ncState.String(), repoNCConfig, err)
-	}
-}
-
-func updateVlan(containerType string) bool {
-	switch containerType {
-	case cns.AzureContainerInstance:
-		fallthrough
-	case cns.Docker:
-		fallthrough
-	case cns.JobObject:
-		fallthrough
-	case cns.COW:
-		return true
-	default:
-		return false
 	}
 }
 

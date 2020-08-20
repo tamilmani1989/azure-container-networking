@@ -471,7 +471,9 @@ func UpdateNodeConfigurationNetworkContainerSet(
 		if len(vnetMap) == 0 {
 			delete(nodeConfig.DeployedNetworkContainerMap, networkID)
 
-			if updateVlan {
+			// todo: this is hacky, but it prevents having to make another call in calling code to get the orchestrator type,
+			// which is only stored at the node level. clean up
+			if updateVlan && !(nodeConfig.NodeInfo.OrchestratorType == cns.KubernetesCRD) {
 				loggershim.LS.Debugf("Freeing VlanID:%d assigned to network %s on node %s",
 					nodeConfig.NetworkVlanIDMap[networkID],
 					networkID,
@@ -484,7 +486,7 @@ func UpdateNodeConfigurationNetworkContainerSet(
 			vnetMap = make(map[string]string)
 			nodeConfig.DeployedNetworkContainerMap[networkID] = vnetMap
 
-			if updateVlan {
+			if updateVlan && !(nodeConfig.NodeInfo.OrchestratorType == cns.KubernetesCRD) {
 				nodeConfig.NetworkVlanIDMap[networkID], err = GetNextVlanID(nodeConfig.NetworkVlanIDMap)
 				if err != nil {
 					return err
@@ -3202,8 +3204,12 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 		ContainerType:         assocInfo.ContainerType,
 		OrchestratorContext:   assocInfo.OrchestratorContext,
 		VnetVersion:           repoNetworkConfiguration.Version,
-		VlanID:                int(repoNodeConfig.NetworkVlanIDMap[repoNCConfig.NetworkID]),
 		LocalIP:               repoNCConfig.LocalIP}
+
+	// todo: temporary. find better way to skip from publishing to pubsub proxy if orchestrated by k8s crd
+	if repoNodeConfig.NodeInfo.OrchestratorType != cns.KubernetesCRD {
+		ncGoalState.VlanID = int(repoNodeConfig.NetworkVlanIDMap[repoNCConfig.NetworkID])
+	}
 
 	return ncGoalState, false, nil
 }

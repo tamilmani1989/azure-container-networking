@@ -74,6 +74,8 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 			fallthrough
 		case cns.Kubernetes:
 			fallthrough
+		case cns.KubernetesCRD:
+			fallthrough
 		case cns.WebApps:
 			fallthrough
 		case cns.Batch:

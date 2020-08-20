@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Azure/azure-container-networking/cns"
 	"github.com/google/uuid"
 )
 
@@ -157,7 +156,7 @@ func (p *Preparer) registerNCinNode(ncConfig datamodel.NCConfiguration) *api.Jso
 		ncConfig.NetworkContainerID,
 		ncConfig.ReservationID,
 		ncConfig.RequestV2.AssociationInfo.ContainerType,
-		shouldUpdateVlan(ncConfig.RequestV2.AssociationInfo.ContainerType),
+		ShouldUpdateVlan(ncConfig.RequestV2.AssociationInfo.ContainerType),
 		false,
 		ncLimit,
 	)
@@ -184,18 +183,6 @@ func (p *Preparer) moveNCToReserveState(ncConfig *datamodel.NCConfiguration) *ap
 	ncConfig.Status = datamodel.Pending
 	ncConfig.FailureDetail = api.JsonErr{}
 	return p.PersistNC(ncConfig, datamodel.DontAddToPendingQ)
-}
-
-func shouldUpdateVlan(containerType string) bool {
-	switch containerType {
-	case cns.AzureContainerInstance:
-	case cns.Docker:
-	case cns.JobObject:
-	case cns.COW:
-	default:
-		return false
-	}
-	return true
 }
 
 func (p *Preparer) PrepareNetworkContainer(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
@@ -228,7 +215,7 @@ func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration
 		ncConfig.NetworkContainerID,
 		ncConfig.RequestV1.ReservationID,
 		associationInfo.ContainerType,
-		shouldUpdateVlan(associationInfo.ContainerType),
+		ShouldUpdateVlan(associationInfo.ContainerType),
 		false,
 		ncLimit,
 	)
