@@ -40,7 +40,8 @@ type UnpublishNetworkContainerRequest struct {
 // publisherContext, subscribers and worker pool.
 func Init(
 	configSettings configuration.PubSubProxySettings,
-	replica *replica.Replica) error {
+	replica *replica.Replica,
+	certPath string) error {
 	return fmt.Errorf("PubSubProxy module build disabled. Build DNC using -tags enablePubsubProxy")
 }
 

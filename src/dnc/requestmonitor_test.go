@@ -109,7 +109,7 @@ var (
 	podInfo = OrchestratorContext{
 		PodName:      "testpodname",
 		PodNamespace: "testpodnamespace"}
-	context, _            = json.Marshal(podInfo)
+	orchContext, _        = json.Marshal(podInfo)
 	validEndPointPolicies = composeNetworkContainerEndpointPolicies("6", "Allow", "In", "127.0.0.1", "10.0.0.1", "1111",
 		"1112", "Switch", 2000, "AclPolicy", "APIPA")
 	networkContainerReq = CreateNetworkContainerRequest{
@@ -121,7 +121,7 @@ var (
 			NodeID:              "testnode",
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.AzureContainerInstance,
-			OrchestratorContext: context}}
+			OrchestratorContext: orchContext}}
 	networkContainerReq2 = CreateNetworkContainerRequest{
 		AllocationRequest: api.AllocationRequest{
 			SubnetName:     "subnet1",
@@ -131,7 +131,7 @@ var (
 			NodeID:              "testnode",
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.AzureContainerInstance,
-			OrchestratorContext: context}}
+			OrchestratorContext: orchContext}}
 	networkContainerReq3 = CreateNetworkContainerRequestV2{
 		ReservationID: "048622d9-49c2-4cad-94ff-7112e6f2ab5a",
 		AllocationRequest: api.AllocationRequest{
@@ -142,7 +142,7 @@ var (
 			NodeID:              "testnode",
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.AzureContainerInstance,
-			OrchestratorContext: context}}
+			OrchestratorContext: orchContext}}
 	networkContainerReq4 = CreateNetworkContainerRequestV2{
 		ReservationID: "b56ebb26-fed6-4765-b501-9e5488cc1df6",
 		AllocationRequest: api.AllocationRequest{
@@ -153,7 +153,7 @@ var (
 			NodeID:              "testnode",
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.AzureContainerInstance,
-			OrchestratorContext: context},
+			OrchestratorContext: orchContext},
 		AllowHostToNCCommunication: true,
 		AllowNCToHostCommunication: true}
 	networkContainerReq5 = CreateNetworkContainerRequest{
@@ -165,7 +165,7 @@ var (
 			NodeID:              "testnode",
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.AzureContainerInstance,
-			OrchestratorContext: context},
+			OrchestratorContext: orchContext},
 		AllowHostToNCCommunication: true,
 		AllowNCToHostCommunication: true}
 	networkContainerReq6 = CreateNetworkContainerRequest{
@@ -177,7 +177,7 @@ var (
 			NodeID:              "testnode",
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.COW,
-			OrchestratorContext: context},
+			OrchestratorContext: orchContext},
 		AllowHostToNCCommunication: true,
 		AllowNCToHostCommunication: true,
 		EndpointPolicies:           validEndPointPolicies}
@@ -2716,7 +2716,7 @@ func TestValidateSubnetExhaustion(t *testing.T) {
 	ncIDToFail := id.String()
 	deploymentRequestToFail := CreateNetworkContainerRequest{
 		AllocationRequest: api.AllocationRequest{SubnetName: "subnet1"},
-		AssociationInfo:   api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context},
+		AssociationInfo:   api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: orchContext},
 	}
 	var body bytes.Buffer
 	_ = json.NewEncoder(&body).Encode(deploymentRequestToFail)
@@ -3196,7 +3196,7 @@ func TestRefreshNMAgentGoalState(t *testing.T) {
 				AllocationRequest: api.AllocationRequest{
 					SubnetName:   "subnet1",
 					IPConstraint: ipToReserve},
-				AssociationInfo: api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: context},
+				AssociationInfo: api.AssociationInfo{NodeID: nodeID, InterfaceID: "127.0.0.1", ContainerType: cns.AzureContainerInstance, OrchestratorContext: orchContext},
 				NCID:            ncID.String()}
 
 			ncDeploymentRequests[ncIndex] = &ncDeploymentRequest
@@ -3511,7 +3511,7 @@ func TestManagedDncAPIs(t *testing.T) {
 								IPAddress:    "169.254.128.4",
 								PrefixLength: 17},
 							GatewayIPAddress: "169.254.128.1"},
-						OrchestratorContext: context,
+						OrchestratorContext: orchContext,
 						IPConfiguration: cns.IPConfiguration{
 							DNSServers:       programmedNC.IPConfiguration.DNSServers,
 							GatewayIPAddress: programmedNC.IPConfiguration.GatewayIP,

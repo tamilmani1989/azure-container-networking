@@ -3,6 +3,8 @@
 package main
 
 import (
+	"context"
+	ad "dnc/activedirectory"
 	"dnc/aiwrapper"
 	"dnc/cnsinterface"
 	"dnc/configuration"
@@ -16,6 +18,8 @@ import (
 	"dnc/server"
 	"dnc/utils"
 	"flag"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -175,13 +179,67 @@ func init() {
 
 	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
 
-	if config.PubSubProxySettings.EnablePubSubProxy {
-		if err := pubsubproxy.Init(config.PubSubProxySettings, replicaInstance); err != nil {
+	ctx := context.Background()
+	pubSubCfg := config.PubSubProxySettings
+
+	if pubSubCfg.EnablePubSubProxy {
+		certPath := pubSubCfg.PubsubCertFilePath
+		if certPath == "" {
+			path, err := getCertPath(ctx, pubSubCfg.PubsubCertKeyvaultName, pubSubCfg.PubsubCertName)
+			if err != nil {
+				log.Fatalln("Error writing temporary cert file. Error:", err)
+			}
+			certPath = path
+		}
+
+		if err := pubsubproxy.Init(pubSubCfg, replicaInstance, certPath); err != nil {
 			log.Fatalln("Error initializing PubsubProxy. Error:", err)
 		}
 	}
 
 	initNetworkContainerStateMachine()
+}
+
+const (
+	maxKeyvaultRetrievalTime = 10
+	tmpCertFilePattern       = "pubsubcert-*.pem"
+)
+
+// getCertPath fetches a certificate from keyvault, writes it to a temporary file, and returns its file path
+func getCertPath(ctx context.Context, keyvaultName, certName string) (string, error) {
+	im, err := ad.NewIdentityManager()
+	if err != nil {
+		return "", fmt.Errorf("failed to initialize pod identity client: %v", err)
+	}
+
+	akv, err := ad.NewKeyvaultClient(im, keyvaultName)
+	if err != nil {
+		return "", fmt.Errorf("failed to initialize keyvault client: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, maxKeyvaultRetrievalTime*time.Second)
+	defer cancel()
+
+	bs, err := akv.GetCertificate(ctx, certName)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch keyvault certificate: %v", err)
+	}
+
+	tempFile, err := ioutil.TempFile(os.TempDir(), tmpCertFilePattern)
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp cert file: %v", err)
+	}
+
+	_, err = tempFile.Write(bs)
+	if err != nil {
+		return "", fmt.Errorf("failed to write to file: %v", err)
+	}
+
+	if err := tempFile.Close(); err != nil {
+		return "", fmt.Errorf("failed to close file: %v", err)
+	}
+
+	return tempFile.Name(), nil
 }
 
 func processExitCallback() {

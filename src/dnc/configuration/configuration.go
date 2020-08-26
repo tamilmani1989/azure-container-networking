@@ -216,10 +216,12 @@ type PubSubProxySettings struct {
 	MaxRequestBackoffInterval int
 	// Number of PubSubs in the region - Zonal instances
 	NumPubSubs int
-	// Cert name to connect to PubSub
+	// Cert name in Keyvault
 	PubsubCertName string
-	// name of Keyvault where the pubsub certificate lives
+	// Name of Keyvault where the pubsub certificate lives
 	PubsubCertKeyvaultName string
+	// Optional cert filepath for pubsub. If set, Keyvault is bypassed
+	PubsubCertFilePath string
 	// Connection endpoint for regional PubSub
 	PubsubConnectionEndpoint string
 	// Publisher port
