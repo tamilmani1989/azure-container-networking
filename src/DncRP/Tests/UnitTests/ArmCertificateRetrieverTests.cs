@@ -15,6 +15,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
     using Xunit;
 
     public class CertRetrieverTestDependencies : IDisposable
@@ -55,8 +57,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             IImdsRetriever imdsRetriever = new TestImdsRetriever(azEnvName);
             IHttpUtility httpUtility = new TestHttpUtility();
+            ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility);
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
             IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
 
             Assert.True(certs.Count() != 0);
@@ -75,8 +78,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             IImdsRetriever imdsRetriever = new TestImdsRetriever(imdsFetchedEnv);
             IHttpUtility httpUtility = new TestHttpUtility();
+            ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, clientSpecifiedEnv);
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger, clientSpecifiedEnv);
             IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
 
             Assert.True(certs.Count() != 0);
@@ -94,8 +98,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             IImdsRetriever imdsRetriever = new TestImdsRetriever(imdsFetchedEnv);
             IHttpUtility httpUtility = new TestHttpUtility();
+            ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility);
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
             IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
 
             Assert.True(certs.Count() != 0);
@@ -112,8 +117,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             IImdsRetriever imdsRetriever = new TestImdsRetriever(imdsFetchedEnv);
             IHttpUtility httpUtility = new TestHttpUtility();
+            ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility);
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
 
             // Fetch certs and Validate that certs got fetched
             IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
@@ -142,8 +148,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             IImdsRetriever imdsRetriever = new TestImdsRetriever(imdsFetchedEnv);
             IHttpUtility httpUtility = new TestHttpUtility();
+            ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, null, 30);
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger, null, 30);
             IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
             Assert.True(certs.Count() != 0);
 
@@ -200,8 +207,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
                 IImdsRetriever imdsRetriever = new TestImdsRetriever(e);
                 IHttpUtility httpUtility = new TestHttpUtility();
+                ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
 
-                ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility);
+                ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
                 IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
 
                 Assert.True(certs.Count() != 0);
@@ -219,7 +227,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             IImdsRetriever imdsRetriever = new TestImdsRetriever(invalidEnv);
             IHttpUtility httpUtility = new TestHttpUtility();
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility);
+            ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
             await Assert.ThrowsAsync<InvalidAzureEnvironmentException>(async () => await retriever.GetCertificates());
         }
 
@@ -230,12 +239,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             IImdsRetriever imdsRetriever = new TestImdsRetriever(invalidEnv);
             IHttpUtility httpUtility = new TestHttpUtility();
+            ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
 
             // repeat the whole test multiple times
             for (int itr = 0; itr < 100; ++itr)
             {
                 // create 100 tasks for each iteration that will fetch certs
-                ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility);
+                ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
                 List<Task<IEnumerable<X509Certificate2>>> taskList = new List<Task<IEnumerable<X509Certificate2>>>();
                 for (int i = 0; i < 100; ++i)
                 {
@@ -274,8 +284,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             IImdsRetriever imdsRetriever = new TestImdsRetriever(imdsFetchedEnv);
             IHttpUtility httpUtility = new TestHttpUtility();
+            ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility);
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
             IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
             Assert.True(certs.Count() != 0);
 

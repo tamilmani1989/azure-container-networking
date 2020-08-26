@@ -7,14 +7,20 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using System;
+    using System.Collections.Generic;
     using System.Security.Claims;
+    using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authentication.Certificate;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Hosting;
+    using Microsoft.AspNetCore.Http;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Hosting;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Primitives;
 
     public class Startup
     {
@@ -33,11 +39,24 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             // Add custom properties to telemetry (log)
             IHttpUtility httpUtility = new HttpUtility();
-            services.AddSingleton(
-                typeof(ICertificateValidator),
-                new CertificateValidator(
-                    new ArmCertificateRetriever(
-                        Configuration, new ImdsRetriever(httpUtility), httpUtility, Configuration["AzureEnvironment"])));
+
+            services.AddSingleton<ICertificateRetriever, ArmCertificateRetriever>(provider =>
+            {
+                // TODO: Use IOptions instead of dierctly passing in Configuration
+                ILogger<ArmCertificateRetriever> logger = provider.GetRequiredService<ILogger<ArmCertificateRetriever>>();
+                return new ArmCertificateRetriever(
+                    Configuration,
+                    new ImdsRetriever(httpUtility), httpUtility, logger, Configuration["AzureEnvironment"]);
+            });
+
+            services.AddSingleton<ICertificateValidator, CertificateValidator>(provider =>
+            {
+                // TODO: Use IOptions instead of dierctly passing in Configuration
+                ILogger<CertificateValidator> logger = provider.GetRequiredService<ILogger<CertificateValidator>>();
+                ICertificateRetriever retriever = provider.GetRequiredService<ICertificateRetriever>();
+                return new CertificateValidator(
+                    retriever, logger, Configuration["Thumbprint"]);
+            });
 
             // The following line enables Application Insights telemetry collection.
             services.AddApplicationInsightsTelemetry();
@@ -47,6 +66,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             services.AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme)
                 .AddCertificate(options =>
                 {
+                    options.AllowedCertificateTypes = CertificateTypes.Chained;
                     options.Events = new CertificateAuthenticationEvents
                     {
                         OnCertificateValidated = async (context) =>
@@ -73,11 +93,20 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                                 context.Principal = new ClaimsPrincipal(
                                     new ClaimsIdentity(claims, context.Scheme.Name));
                                 context.Success();
+                                Console.WriteLine("OnCertificateValidated: success");
                             }
                             else
                             {
                                 context.Fail("authentication failed");
+                                Console.WriteLine("OnCertificateValidated: failed");
                             }
+                        },
+                        OnAuthenticationFailed = (context) =>
+                        {
+                            context.Fail("authentication failed");
+                            Console.WriteLine("OnAuthenticationFailed: {0}",
+                                context.Result != null ? context.Result.Failure.ToString() : "");
+                            return Task.CompletedTask;
                         }
                     };
                 });

@@ -13,6 +13,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
     using System.Security.Cryptography.X509Certificates;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
     using Xunit;
 
     public class CertValidatorTestDependencies : IDisposable
@@ -57,10 +59,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             IImdsRetriever imdsRetriever = new TestImdsRetriever(azEnvName);
             TestHttpUtility testHttpUtility = new TestHttpUtility();
             testHttpUtility.SetCertificates(new List<X509Certificate2> { clientCert });
-            IHttpUtility httpUtility = testHttpUtility;                       
+            IHttpUtility httpUtility = testHttpUtility;
+            ILogger<ArmCertificateRetriever> retlogger = new NullLogger<ArmCertificateRetriever>();
+            ILogger<CertificateValidator> certLogger = new NullLogger<CertificateValidator>();
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility);
-            ICertificateValidator certificateValidator = new CertificateValidator(retriever);
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, retlogger);
+            ICertificateValidator certificateValidator = new CertificateValidator(retriever, certLogger, null);
             bool isValid = await certificateValidator.IsValid(clientCert);
             Assert.True(isValid);
         }
@@ -72,10 +76,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             X509Certificate2 clientCert = Certificates.GenerateSelfSigned("unittest");
             IImdsRetriever imdsRetriever = new TestImdsRetriever(azEnvName);
-            IHttpUtility httpUtility = new TestHttpUtility();            
+            IHttpUtility httpUtility = new TestHttpUtility();
+            ILogger<ArmCertificateRetriever> retlogger = new NullLogger<ArmCertificateRetriever>();
+            ILogger<CertificateValidator> certLogger = new NullLogger<CertificateValidator>();
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility);
-            ICertificateValidator certificateValidator = new CertificateValidator(retriever);
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, retlogger);
+            ICertificateValidator certificateValidator = new CertificateValidator(retriever, certLogger, null);
             bool isValid = await certificateValidator.IsValid(clientCert);
             Assert.False(isValid);
         }
@@ -87,11 +93,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             X509Certificate2 clientCert = Certificates.GenerateSelfSigned("unittest");
             IImdsRetriever imdsRetriever = new TestImdsRetriever(azEnvName);
-            TestHttpUtility testHttpUtility = new TestHttpUtility();            
+            TestHttpUtility testHttpUtility = new TestHttpUtility();
             IHttpUtility httpUtility = testHttpUtility;
+            ILogger<ArmCertificateRetriever> retlogger = new NullLogger<ArmCertificateRetriever>();
+            ILogger<CertificateValidator> certLogger = new NullLogger<CertificateValidator>();
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility);
-            ICertificateValidator certificateValidator = new CertificateValidator(retriever);
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, retlogger);
+            ICertificateValidator certificateValidator = new CertificateValidator(retriever, certLogger, null);
             bool isValid = await certificateValidator.IsValid(clientCert);
             Assert.False(isValid);
 

@@ -20,7 +20,8 @@
     "DncRP": {
       "commandName": "Project",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"      
+        "ASPNETCORE_ENVIRONMENT": "",
+        "AzureServicesAuthConnectionString": ""
       }
     }
   }

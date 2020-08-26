@@ -1,0 +1,13 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: dncrp-service
+spec:
+  selector:
+    app: dncrp
+  type: LoadBalancer
+  ports:
+  - name: dncrp-port
+    port: 443
+    targetPort: 5002
+    protocol: TCP

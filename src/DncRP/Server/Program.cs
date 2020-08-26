@@ -44,10 +44,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 webBuilder
                 .UseKestrel(options =>
                 {
-                  options.ConfigureHttpsDefaults(o => 
-                    o.ClientCertificateMode = ClientCertificateMode.RequireCertificate);
+                    // Using AllowCertificate instead of RequireCertificate since with AllowCertificate, cert validation
+                    // errors show up in asp.net logs and help with debugging. With Require, it shows up as SSL error
+                    // and can be bit harder to debug.
+                    options.ConfigureHttpsDefaults(o =>
+                      o.ClientCertificateMode = ClientCertificateMode.AllowCertificate);
 
-                  options.ListenAnyIP(Convert.ToInt32(config["Port"]), listenOptions =>
+                    options.ListenAnyIP(Convert.ToInt32(config["Port"]), listenOptions =>
                     {
                         listenOptions.UseHttps(Certificates.GetKeyVaultCertificate(config["KeyVault:Url"], config["KeyVault:SslCertName"]));
                     });

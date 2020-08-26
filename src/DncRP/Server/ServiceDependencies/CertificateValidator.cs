@@ -7,17 +7,26 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using System;
     using System.Collections.Generic;
     using System.Security.Cryptography.X509Certificates;
     using System.Threading.Tasks;
+    using Microsoft.Extensions.Logging;
 
     public class CertificateValidator : ICertificateValidator
     {
         private ICertificateRetriever certsRetriever;
+        private string allowedCustomThumbprint;
+        private ILogger<CertificateValidator> logger;
 
-        public CertificateValidator(ICertificateRetriever certificateRetriever)
+        public CertificateValidator(
+            ICertificateRetriever certificateRetriever,
+            ILogger<CertificateValidator> logger,
+            string thumbprint)
         {
             this.certsRetriever = certificateRetriever;
+            this.allowedCustomThumbprint = thumbprint;
+            this.logger = logger;
         }
 
         /// <summary>
@@ -29,6 +38,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <returns></returns>
         public async Task<bool> IsValid(X509Certificate2 certificate)
         {
+            bool isValid;
+
+            if (!string.IsNullOrWhiteSpace(this.allowedCustomThumbprint))
+            {
+                isValid = certificate.Thumbprint.Equals(this.allowedCustomThumbprint, StringComparison.OrdinalIgnoreCase);
+                return this.LogIfCertValidationFailed(isValid, certificate);
+            }
+
             IEnumerable<X509Certificate2> allowedCerts = await this.certsRetriever.GetCertificates();
             if (VerifyCertificateMetadata(certificate, allowedCerts))
             {
@@ -39,7 +56,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // force it to not use cached values. This is our attempt to make sure that our cache
             // is not stale. Cache is refreshed every hour.
             allowedCerts = await this.certsRetriever.ForceGetCertificates();
-            return VerifyCertificateMetadata(certificate, allowedCerts);
+            isValid = VerifyCertificateMetadata(certificate, allowedCerts);
+            return this.LogIfCertValidationFailed(isValid, certificate);
         }
 
         /// <summary>
@@ -59,6 +77,26 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Log cert metadata if cert validation fails.
+        /// </summary>
+        /// <param name="isValidCert"></param>
+        /// <param name="cert"></param>
+        /// <returns>
+        /// return if validation failed or succeeded. This value is actually passed in by caller.
+        /// It is returned back to the caller
+        /// </returns>
+        private bool LogIfCertValidationFailed(bool isValidCert, X509Certificate2 cert)
+        {
+            if (!isValidCert)
+            {
+                this.logger.LogInformation(
+                    "Cert validation failed. Thumbprint:{0}, Subject:{1}, Issuer:{2}", cert.Thumbprint, cert.Subject, cert.Issuer);
+            }
+
+            return isValidCert;
         }
     }
 }

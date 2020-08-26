@@ -1,0 +1,12 @@
+version: '3'
+services:
+  dnc-rp:
+    build:
+      context: ../
+      dockerfile: ./DncRP/Dockerfile
+    environment:
+      AzureServicesAuthConnectionString:
+    image: acndev.azurecr.io/dncrp
+    container_name: dnc-rp
+    ports:
+        - "5002:5002"

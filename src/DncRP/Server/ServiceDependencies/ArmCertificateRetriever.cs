@@ -15,6 +15,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.Logging;
 
     /// <summary>
     /// TODO: Add an API in RP to trigger cert retrieval for any livesite scenario
@@ -35,6 +36,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private readonly SemaphoreSlim semaphoreSlim;
         private DateTime lastCertUpdateTime;
         private string azureEnvironment;
+        private ILogger<ArmCertificateRetriever> logger;
 
         /// <summary>
         /// Create an instance of CertificateRetriever
@@ -50,12 +52,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             IConfiguration configuration,
             IImdsRetriever imdsRetriever,
             IHttpUtility httpUtility,
+            ILogger<ArmCertificateRetriever> logger,
             string azureEnvName = null,
             int refreshCertPeriodInSeconds = 3600)
         {
             this.configuration = configuration;
             this.imdsRetriever = imdsRetriever;
             this.httpUtility = httpUtility;
+            this.logger = logger;
 
             if (!string.IsNullOrWhiteSpace(azureEnvName))
             {
