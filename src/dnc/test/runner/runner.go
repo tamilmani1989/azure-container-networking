@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/Azure/azure-container-networking/cns"
+	"github.com/Azure/azure-container-networking/cns/logger"
+	acnlog "github.com/Azure/azure-container-networking/log"
 	"github.com/google/uuid"
 )
 
@@ -141,21 +143,25 @@ func init() {
 	// retrieve necessary values
 	blobEP, found = os.LookupEnv("SERVICE_TUNNEL_EP")
 	if !found {
+		log.Print("Failed to lookup ENV variable:SERVICE_TUNNEL_EP")
 		os.Exit(1)
 	}
 
 	blob, found = os.LookupEnv("BLOB")
 	if !found {
+		log.Print("Failed to lookup ENV variable:BLOB")
 		os.Exit(2)
 	}
 
 	container, found = os.LookupEnv("CONTAINER")
 	if !found {
+		log.Print("Failed to lookup ENV variable: CONTAINER")
 		os.Exit(3)
 	}
 
 	node1, found = os.LookupEnv("NODE1")
 	if !found {
+		log.Print("Failed to lookup ENV variable: NODE1")
 		os.Exit(4)
 	}
 	jsonPath := "jsonpath=\"{.items[?(@.metadata.name==\"" + node1 + "\")].status.addresses[?(@.type==\"InternalIP\")].address}\""
@@ -164,8 +170,10 @@ func init() {
 
 	dncEP = "http://" + iface1 + ":9000"
 
+	log.Printf("DNC Endpoint : %s", dncEP)
 	node2, found = os.LookupEnv("NODE2")
 	if !found {
+		log.Print("Failed to lookup ENV variable: NODE2")
 		os.Exit(5)
 	}
 	jsonPath = "jsonpath=\"{.items[?(@.metadata.name==\"" + node2 + "\")].status.addresses[?(@.type==\"InternalIP\")].address}\""
@@ -174,86 +182,112 @@ func init() {
 
 	vnetID, found = os.LookupEnv("CUST_VNET")
 	if !found {
+		log.Print("Failed to lookup ENV variable: CUST_VNET")
 		os.Exit(6)
 	}
 
 	partitionKey, found = os.LookupEnv("PARTITION_KEY")
 	if !found {
+		log.Print("Failed to lookup ENV variable: PARTITION_KEY")
 		os.Exit(7)
 	}
 
 	storageKey, found = os.LookupEnv("STORAGE_KEY")
 	if !found {
+		log.Print("Failed to lookup ENV variable: STORAGE_KEY")
 		os.Exit(8)
 	}
 
 	authenticationToken, found = os.LookupEnv("AUTHENTICATION_TOKEN")
 	if !found {
+		log.Print("Failed to lookup ENV variable: AUTHENTICATION_TOKEN")
 		os.Exit(9)
 	}
 
 	plblobEP, found = os.LookupEnv("PRIVATELINK_EP")
 	if !found {
+		log.Print("Failed to lookup ENV variable: PRIVATELINK_EP")
 		os.Exit(10)
 	}
 
 	privateDNS = regPrivateDNS.FindStringSubmatch(plblobEP)
 	if len(privateDNS) < 2 {
+		log.Printf("Unable to retrive the private DNS from PRIVATELINK_EP : %s", plblobEP)
 		os.Exit(11)
 	}
 
 	vnetWithMNATID, found = os.LookupEnv("CUST_VNET_WITH_MNAT")
-	if !found || len(vnetWithMNATID) <= 0 {
+	if !found {
+		log.Print("Failed to lookup ENV variable: CUST_VNET_WITH_MNAT")
 		os.Exit(12)
 	}
 
 	// Ensure it is a valid GUID
 	_, parseErr := uuid.Parse(vnetWithMNATID)
 	if parseErr != nil {
+		log.Printf("Invalid value of CUST_VNET_WITH_MNAT: %s", vnetWithMNATID)
 		os.Exit(13)
 	}
 
 	authTokenForVnetWithMNAT, found = os.LookupEnv("AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT")
-	if !found || len(authTokenForVnetWithMNAT) <= 0 {
+	if !found {
+		log.Print("Failed to lookup ENV variable: AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT")
 		os.Exit(14)
 	}
 
 	// Ensure it is a valid GUID
 	_, parseErr = uuid.Parse(authTokenForVnetWithMNAT)
 	if parseErr != nil {
+		log.Printf("Invalid value for AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT: %s", authTokenForVnetWithMNAT)
 		os.Exit(15)
 	}
 
 	mnatPublicIP, found = os.LookupEnv("MNAT_PUBLIC_IP")
-	if !found || len(net.ParseIP(mnatPublicIP)) <= 0 {
+	if !found {
+		log.Print("Failed to lookup ENV variable:MNAT_PUBLIC_IP")
 		os.Exit(16)
 	}
 
-	vnetWithLBID, found = os.LookupEnv("CUST_VNET_WITH_SWIFTLB")
-	if !found || len(vnetWithLBID) <= 0 {
+	if len(net.ParseIP(mnatPublicIP)) <= 0 {
+		log.Printf("Invalid value for MNAT_PUBLIC_IP : %s", mnatPublicIP)
 		os.Exit(17)
+	}
+
+	vnetWithLBID, found = os.LookupEnv("CUST_VNET_WITH_SWIFTLB")
+	if !found {
+		log.Print("Failed to lookup ENV variable:CUST_VNET_WITH_SWIFTLB")
+		os.Exit(18)
 	}
 
 	// Ensure it is a valid GUID
 	_, parseErr = uuid.Parse(vnetWithLBID)
 	if parseErr != nil {
-		os.Exit(18)
+		log.Printf("Invalid value for CUST_VNET_WITH_SWIFTLB: %s", vnetWithLBID)
+		os.Exit(19)
 	}
 
 	authTokenForVnetWithLB, found = os.LookupEnv("AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTLB")
-	if !found || len(authTokenForVnetWithLB) <= 0 {
-		os.Exit(19)
+	if !found {
+		log.Print("Failed to lookup ENV variable:AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTLB")
+		os.Exit(20)
 	}
 
 	// Ensure it is a valid GUID
 	_, parseErr = uuid.Parse(authTokenForVnetWithLB)
 	if parseErr != nil {
-		os.Exit(20)
+		log.Printf("Invalid value for AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTLB: %s", authTokenForVnetWithLB)
+		os.Exit(21)
 	}
 
 	lbPublicIP, found = os.LookupEnv("SWIFTLB_PUBLIC_IP")
-	if !found || len(net.ParseIP(lbPublicIP)) <= 0 {
-		os.Exit(21)
+	if !found {
+		log.Print("Failed to lookup ENV variable: SWIFTLB_PUBLIC_IP")
+		os.Exit(22)
+	}
+
+	if len(net.ParseIP(lbPublicIP)) <= 0 {
+		log.Printf("Invalid value for SWIFTLB_PUBLIC_IP: %s", lbPublicIP)
+		os.Exit(23)
 	}
 
 	runner.responseFunc = responder
@@ -262,7 +296,11 @@ func init() {
 }
 
 func main() {
+	logLevel := acnlog.LevelDebug
+	logTarget := acnlog.TargetStdOutAndLogFile
+	logger.InitLogger("swiftrunner", logLevel, logTarget, "")
 	runner.server.Start()
+	logger.Printf("Runner server started successfully!")
 	select {}
 }
 
@@ -333,7 +371,10 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		swiftTeardown()
+		err := swiftTeardown()
+		if err != nil {
+			logger.Printf("Tearing down the runner setup failed with %+v", err)
+		}
 		testLock.Unlock()
 	}()
 }
@@ -361,8 +402,9 @@ func e2eTests() {
 		output                             []byte
 	)
 
+	logger.Printf("Running E2E tests!")
 	if err = swiftSetup(); err != nil {
-		log.Printf("swift setup failed with error: %+v", err)
+		logger.Printf("swift setup failed with error: %+v", err)
 		goto WriteJsonReport
 	}
 
@@ -392,72 +434,94 @@ func e2eTests() {
 	}
 
 	// test storage endpoint (service tunneling)
+	logger.Printf("Test storage endpoint (service tunneling)")
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "wget", blobEP, "-O", "testblob.txt").CombinedOutput()
 	if err != nil {
 		report.ServiceTunnel = false
 		lastErr = fmt.Errorf("ServiceTunnel failed: %+v", err)
 	}
-	// test nic to nic connection
+
+	// nic to nic connection
+	logger.Printf("Test nic to nic connection")
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "ping", "-c", "3", podIP2).CombinedOutput()
 	if err != nil {
 		report.Nc2Nc = false
 		lastErr = fmt.Errorf("Nc2Nc failed: %+v", err)
 	}
+
 	// test nic to vm connection
+	logger.Printf("Test nic to vm connection")
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "ping", "-c", "3", "10.0.0.4").CombinedOutput()
 	if err != nil {
 		report.Nc2VM = false
 		lastErr = fmt.Errorf("Nc2VM failed: %+v", err)
 	}
+
 	// test gateway (vnet to vnet)
+	logger.Printf("Test gateway (vnet to vnet)")
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "ping", "-c", "3", "20.0.0.4").CombinedOutput()
 	if err != nil {
 		report.Vnet2VnetGW = false
 		lastErr = fmt.Errorf("Vnet2VnetGW failed: %+v", err)
 	}
+
 	// test peering (vnet to vnet) RFC1918
+	logger.Printf(("Test peering (vnet to vnet) RFC1918"))
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "ping", "-c", "3", "172.16.0.4").CombinedOutput()
 	if err != nil {
 		report.Vnet2VnetPeering = false
 		lastErr = fmt.Errorf("Vnet2VnetPeering failed: %+v", err)
 	}
+
 	// test peering (vnet to vnet) Non-RFC1918
+	logger.Printf("Test peering (vnet to vnet) Non-RFC1918")
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "ping", "-c", "3", "30.0.0.4").CombinedOutput()
 	if err != nil {
 		report.NonRFCVnet2VnetPeering = false
 		lastErr = fmt.Errorf("NonRFCVnet2VnetPeering failed: %+v", err)
 	}
+
 	// test UDR (pod1->10.0.0.5 should fail because the next hop is 10.0.1.5 and 10.0.1.5->10.0.0.5 is blocked by nsg)
+	logger.Printf("Test UDR")
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "ping", "-c", "3", "10.0.0.5").CombinedOutput()
 	if err == nil {
 		report.UDR = false
 		lastErr = fmt.Errorf("UDR failed")
 	}
+
 	// test Private Link
+	logger.Printf("Test Private link")
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "wget", plblobEP, "-O", "testblob.txt").CombinedOutput()
 	if err != nil {
 		report.PrivateLink = false
 		lastErr = fmt.Errorf("Private Link failed: %+v", err)
 	}
+
 	// test NSG (ping to default subnet from 10.0.1.5 should be blocked/expected to fail)
+	logger.Printf("Test NSG")
 	_, err = exec.Command("kubectl", "exec", pod2, "--", "ping", "-c", "3", "10.0.0.5").CombinedOutput()
 	if err == nil {
 		report.NSG = false
 		lastErr = fmt.Errorf("NSG failed: %+v", err)
 	}
+
 	// test NSG with service tags
+	logger.Printf(("Test NSG with service tags"))
 	_, err = exec.Command("kubectl", "exec", pod2, "--", "wget", "google.com", "-O", "index.html").CombinedOutput()
 	if err == nil {
 		report.NSGwTags = false
 		lastErr = fmt.Errorf("NSGwTags failed: pod2 should not have outbound internet access")
 	}
+
 	// test external DNS resolution
+	logger.Printf("Test external dns resolution")
 	output, err = exec.Command("kubectl", "exec", srcPod, "--", "dig", "+short", "google.com").CombinedOutput()
 	if err != nil || net.ParseIP(string(output[1:len(output)-1])) == nil {
 		report.ExternalDNS = false
 		lastErr = fmt.Errorf("ExternalDNS failed: unable to resolve google.com")
 	}
 	// test private link DNS resolution
+	logger.Printf("Test private link dns resolution")
 	output, err = exec.Command("kubectl", "exec", srcPod, "--", "dig", "+short", privateDNS[1]+privateLinkDomain).CombinedOutput()
 	if err != nil || net.ParseIP(string(output[1:len(output)-1])) == nil {
 		report.PrivateDNS = false
@@ -465,6 +529,7 @@ func e2eTests() {
 	}
 
 	// test MNAT, the link below basically gives the src ip of the outbound packet
+	logger.Printf("Test outbound via MNAT")
 	output, err = exec.Command("kubectl", "exec", pod3, "--", "curl", "https://api.ipify.org?format=json").CombinedOutput()
 	if err != nil {
 		report.MNAT = false
@@ -472,12 +537,14 @@ func e2eTests() {
 	}
 
 	// Check if the command output is non-empty
+	logger.Printf("Checking output of the request sent via MNAT.")
 	if report.MNAT && len(output) == 0 {
 		report.MNAT = false
 		lastErr = fmt.Errorf("Managed NAT failed: MNAT verification command output is empty.")
 	}
 
 	// Check if the command output has MNAT public IP
+	logger.Printf("Validating output of request sent via MNAT to containt %s.", mnatPublicIP)
 	if report.MNAT && !strings.Contains(string(output[1:len(output)-1]), mnatPublicIP) {
 		report.MNAT = false
 		lastErr = fmt.Errorf("Managed NAT failed: MNAT verification command output: %s does not contain MNAT public IP %s",
@@ -485,7 +552,7 @@ func e2eTests() {
 			mnatPublicIP)
 	}
 
-	log.Printf("Verifying LB scenario")
+	logger.Printf("Verifying LB scenario")
 	// test, LB scenario
 	lbNCUrl = fmt.Sprintf(lbNCUrlFmt, lbPublicIP)
 	response, err = http.Get(lbNCUrl)
@@ -494,15 +561,15 @@ func e2eTests() {
 		lastErr = fmt.Errorf("LB scenario failed: Encountered error following HTTP GET request %s", err)
 	}
 
-	log.Printf("Checking HTTP status code of LB request")
+	logger.Printf("Checking HTTP status code of LB request")
 	// Check HTTP status code
 	if report.LB && response.StatusCode != http.StatusOK {
 		report.LB = false
-		lastErr = fmt.Errorf("LB scenario failed: Encountered non-200 status code for reading HTTP GET request %s",
+		lastErr = fmt.Errorf("LB scenario failed: Encountered non-200 status code for reading HTTP GET request %d",
 			response.StatusCode)
 	}
 
-	log.Printf("Reading LB request response")
+	logger.Printf("Reading LB request response")
 	// Reading output
 	output, err = ioutil.ReadAll(response.Body)
 	defer response.Body.Close()
@@ -511,14 +578,14 @@ func e2eTests() {
 		lastErr = fmt.Errorf("LB scenario failed: Encountered error reading HTTP GET request %s", err)
 	}
 
-	log.Printf("Checking LB request output")
+	logger.Printf("Checking LB request output")
 	// Check the length of output
 	if report.LB && len(output) == 0 {
 		report.LB = false
 		lastErr = fmt.Errorf("LB scenario failed: Request output via VIP is empty.")
 	}
 
-	log.Printf("Validating LB request output")
+	logger.Printf("Validating LB request output")
 	// Check if output contains
 	if report.LB && !strings.Contains(string(output), "LB") {
 		report.LB = false
@@ -526,12 +593,13 @@ func e2eTests() {
 			string(output))
 	}
 
-	log.Printf("Cleanup")
+	logger.Printf("E2E test cleanup.")
 	// clean up all the NC states for next test (we only clean up when datapath is healthy)
 	if lastErr == nil {
+		logger.Printf("E2E test tear down.")
 		err = swiftTeardown()
 		if err != nil {
-			log.Printf("Error happened while tearing down: %+v", err)
+			logger.Printf("Error happened while tearing down: %+v", err)
 		}
 	} else {
 		report.LastError = lastErr.Error()
@@ -540,7 +608,7 @@ func e2eTests() {
 WriteJsonReport:
 	// write failure to json
 	if err != nil {
-		log.Printf("e2eTests failed: %+v", err)
+		logger.Printf("e2eTests failed: %+v", err)
 		report.LastError = err.Error()
 	}
 
@@ -556,6 +624,7 @@ WriteJsonReport:
 	testLock.Lock()
 	testRunning = false
 	testLock.Unlock()
+	logger.Printf("Exiting E2E test block.")
 }
 
 func swiftSetup() error {
@@ -570,9 +639,10 @@ func swiftSetup() error {
 		return fmt.Errorf(respErr.String())
 	}
 
-	// Sleep for 60 seconds to accomodate for lease error
+	logger.Printf("Executing setup step for runner E2E test.")
+	// Sleep for 60 seconds to accommodate for lease error
 	time.Sleep(initialSleep)
-	log.Printf("Done with initial sleep.")
+	logger.Printf("Done with initial sleep.")
 
 	if err = addNode(node1, iface1, orchestratorType, vnetID); err != nil {
 		return err
@@ -640,10 +710,12 @@ func swiftSetup() error {
 		return err
 	}
 
+	logger.Printf("Successfully done with setup.")
 	return nil
 }
 
 func swiftTeardown() (err error) {
+	logger.Printf("Tearing down the runner setup.")
 	var lastErr error
 
 	deletePod(podName1)
@@ -676,7 +748,7 @@ func addNode(nodeID, ipaddr, orchestratorType, vnetID string) error {
 		nodeCfg *api.NodeInfoResponse
 	)
 
-	log.Printf("Registering node %s", nodeID)
+	logger.Printf("Registering node %s", nodeID)
 
 	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, vnetID); respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Register node (create) : %s failed with error %+v", nodeID, respErr)
@@ -705,6 +777,7 @@ func addNode(nodeID, ipaddr, orchestratorType, vnetID string) error {
 		return fmt.Errorf("Register node %s failed;\nreceived %+v\nexpected %+v", nodeID, receivedNodeCfg, expectedNodeCfg)
 	}
 
+	logger.Printf("Successfully registered node %s", nodeID)
 	return nil
 }
 
@@ -714,7 +787,7 @@ func deleteNode(nodeID string, status int) error {
 		deleteStatus, validateDelete = deleteHelper(status)
 	)
 
-	log.Printf("Unregistering node %s", nodeID)
+	logger.Printf("Unregistering node %s", nodeID)
 
 	for start := time.Now(); ; {
 		respErr = dnctl.DeleteNode(nodeID)
@@ -746,6 +819,7 @@ func deleteNode(nodeID string, status int) error {
 		}
 	}
 
+	logger.Printf("Successfully unregistered node %s", nodeID)
 	return nil
 }
 
@@ -758,7 +832,7 @@ func addNetwork(vnetID string, timeout time.Duration) error {
 			Status: "Completed"}
 	)
 
-	log.Printf("Registering network %s", vnetID)
+	logger.Printf("Registering network %s", vnetID)
 
 	if respErr = dnctl.AddNetwork(vnetID); respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Register network %s failed with error %+v", vnetID, respErr)
@@ -782,6 +856,7 @@ func addNetwork(vnetID string, timeout time.Duration) error {
 		return fmt.Errorf("Register network %s failed;\nreceived %+v\nexpected %+v", vnetID, vnetStatus, expectedNetworkStatus)
 	}
 
+	logger.Printf("Successfully registered network %s", vnetID)
 	return nil
 }
 
@@ -791,7 +866,7 @@ func deleteNetwork(vnetID string, status int) error {
 		deleteStatus, validateDelete = deleteHelper(status)
 	)
 
-	log.Printf("Unregistering network %s", vnetID)
+	logger.Printf("Unregistering network %s", vnetID)
 	for start := time.Now(); ; {
 		respErr = dnctl.DeleteNetwork(vnetID)
 		if respErr.HTTPStatus == deleteStatus {
@@ -823,6 +898,7 @@ func deleteNetwork(vnetID string, status int) error {
 		}
 	}
 
+	logger.Printf("Successfully unregistered network %s", vnetID)
 	return nil
 }
 
@@ -835,7 +911,7 @@ func addSubnet(vnetID, subnetID, authToken string) error {
 			Status: "Completed"}
 	)
 
-	log.Printf("Registering subnet %s in network %s", subnetID, vnetID)
+	logger.Printf("Registering subnet %s in network %s", subnetID, vnetID)
 	if respErr = dnctl.AddSubnet(vnetID, subnetID, authToken); respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Register subnet %s in network %s failed with error %+v", subnetID, vnetID, respErr)
 	}
@@ -862,13 +938,14 @@ func addSubnet(vnetID, subnetID, authToken string) error {
 			expectedSubnetStatus)
 	}
 
+	logger.Printf("Successfully registered subnet %s in network %s", subnetID, vnetID)
 	return nil
 }
 
 func deleteSubnet(vnetID, subnetID string) error {
 	var respErr *api.JsonErr
 
-	log.Printf("Unregistering subnet %s in network %s", subnetID, vnetID)
+	logger.Printf("Unregistering subnet %s in network %s", subnetID, vnetID)
 	for start := time.Now(); ; {
 		respErr = dnctl.DeleteSubnet(vnetID, subnetID)
 		if respErr.HTTPStatus == http.StatusOK {
@@ -883,6 +960,7 @@ func deleteSubnet(vnetID, subnetID string) error {
 		return fmt.Errorf("Unregister subnet %s in network %s failed with error %+v", subnetID, vnetID, respErr)
 	}
 
+	logger.Printf("Successfully unregistered subnet %s in network %s", subnetID, vnetID)
 	return nil
 }
 
@@ -895,7 +973,7 @@ func addReservation(nodeID, vnetID, subnetID, ipConstraint, reservationID string
 			Status: "Completed"}
 	)
 
-	log.Printf("Registering reservation %s in subnet %s in network %s",
+	logger.Printf("Registering reservation %s in subnet %s in network %s",
 		reservationID,
 		subnetID,
 		vnetID)
@@ -934,12 +1012,17 @@ func addReservation(nodeID, vnetID, subnetID, ipConstraint, reservationID string
 			expectedReservationStatus)
 	}
 
+	logger.Printf("Successfully registered reservation %s in subnet %s in network %s",
+		reservationID,
+		subnetID,
+		vnetID)
 	return nil
 }
 
 func deleteReservation(vnetID, reservationID string) error {
 	var respErr *api.JsonErr
 
+	logger.Printf("Deleting reservation %s in  network %s", reservationID, vnetID)
 	for start := time.Now(); ; {
 		respErr = dnctl.DeleteReservation(vnetID, reservationID)
 		if respErr.HTTPStatus == http.StatusOK {
@@ -968,6 +1051,7 @@ func deleteReservation(vnetID, reservationID string) error {
 		return fmt.Errorf("Unregister reservation failed with error %+v", respErr)
 	}
 
+	logger.Printf("Successfully deleted reservation %s in network %s", reservationID, vnetID)
 	return nil
 }
 
@@ -980,7 +1064,7 @@ func addNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeCons
 			Status: "Completed"}
 	)
 
-	log.Printf("Create nc %s in subnet %s in network %s and node %s", ncID, subnetID, vnetID, nodeID)
+	logger.Printf("Create nc %s in subnet %s in network %s and node %s", ncID, subnetID, vnetID, nodeID)
 	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, "", subnetID, "", "", ifaceID, cns.AzureContainerInstance, podName, podNamespace, false, false); respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Create nc %s in subnet %s in network %s and node %s failed with error %+v",
 			ncID,
@@ -1022,13 +1106,14 @@ func addNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeCons
 		}
 	}
 
+	logger.Printf("Successfully created nc %s in subnet %s in network %s and node %s", ncID, subnetID, vnetID, nodeID)
 	return nil
 }
 
 func deleteNc(vnetID, ncID string) error {
 	var respErr *api.JsonErr
 
-	log.Printf("Delete nc %s in network %s", ncID, vnetID)
+	logger.Printf("Delete nc %s in network %s", ncID, vnetID)
 	for start := time.Now(); ; {
 		respErr = dnctl.DeleteNC(vnetID, ncID)
 		if respErr.HTTPStatus == http.StatusOK {
@@ -1060,6 +1145,7 @@ func deleteNc(vnetID, ncID string) error {
 			respErr)
 	}
 
+	logger.Printf("Successfully deleted nc %s in network %s", ncID, vnetID)
 	return nil
 }
 
@@ -1074,18 +1160,18 @@ func deleteHelper(status int) (expectedStatus int, validateDelete bool) {
 func retrieveDatapathReport() (report *SwiftDatapath, err error) {
 	jsonFile, err := os.Open(datapathReportFile)
 	if err != nil {
-		log.Printf("Failed to retrieve datapath report with error: %+v", err)
+		logger.Printf("Failed to retrieve datapath report with error: %+v", err)
 		return nil, err
 	}
 
 	defer jsonFile.Close()
 	bytes, err := ioutil.ReadAll(jsonFile)
 	if err != nil {
-		log.Printf("Failed to retrieve datapath report with error: %+v", err)
+		logger.Printf("Failed to retrieve datapath report with error: %+v", err)
 		return nil, err
 	}
 	if err = json.Unmarshal(bytes, &report); err != nil {
-		log.Printf("Failed to retrieve datapath report with error: %+v", err)
+		logger.Printf("Failed to retrieve datapath report with error: %+v", err)
 		return nil, err
 	}
 
@@ -1093,16 +1179,19 @@ func retrieveDatapathReport() (report *SwiftDatapath, err error) {
 }
 
 func createPod(podName string) error {
+	logger.Printf("Creating Pod: %s", podName)
 	// podName is either container1/container2
 	return exec.Command("kubectl", "apply", "-f", podName+".yaml").Run()
 }
 
 func deletePod(podName string) error {
+	logger.Printf("deleting Pod: %s", podName)
 	// podName is either container1/container2
 	return exec.Command("kubectl", "delete", "-f", podName+".yaml").Run()
 }
 
 func getPodExecInfo(podName string) (containerID string, podIP string, err error) {
+	logger.Printf("Getting the pod exec info for %s", podName)
 	// get container ID and remove wrapping quotes
 	output, _ := exec.Command("kubectl", "get", "pods", "-l", "app="+podName, "-o", "jsonpath=\"{.items[0].metadata.name}\"").CombinedOutput()
 	containerID = string(output[1 : len(output)-1])
@@ -1123,5 +1212,6 @@ func getPodExecInfo(podName string) (containerID string, podIP string, err error
 		return "", "", fmt.Errorf("Failed to retrieve pod IP for podname %s", podName)
 	}
 
+	logger.Printf("Successfully retrieved the pod exec info for %s", podName)
 	return containerID, podIP, nil
 }
