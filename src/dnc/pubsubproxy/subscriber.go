@@ -17,9 +17,11 @@ const (
 )
 
 type subscriber struct {
-	pubsubId        int
+	pubsubAzId      string
+	vipList         []string
 	isHealthy       bool
 	stopRehydration chan bool
+	connectedVip string
 	madariSubscriber
 	sync.RWMutex
 	subscribeStatusError sync.Map
@@ -27,7 +29,10 @@ type subscriber struct {
 }
 
 type subscriberContextStruct struct {
-	subscriber *subscriber
+	subscriber         *subscriber
+	subscriberPort     string
+	pubsubCertName     string
+	pubsubConnectionEp string
 }
 
 type madariSubscriber struct {
@@ -36,7 +41,7 @@ type madariSubscriber struct {
 }
 
 type subscriberCallback struct {
-	pubsubId int
+	pubsubAzId string
 }
 
 type cachedVnetConfig struct {
@@ -55,9 +60,9 @@ type cachedSubnetConfig struct {
 var subscriberContext *subscriberContextStruct
 
 func createSubscriberCallback(
-	pubsubId int) subscriberCallback {
+	pubsubAzId string) subscriberCallback {
 	return subscriberCallback{
-		pubsubId: pubsubId,
+		pubsubAzId: pubsubAzId,
 	}
 }
 
@@ -86,12 +91,12 @@ func (s *subscriber) subscribe(
 		s.setupSubscribeStatusErrorChan(path)
 		if retCode := s.defaultSubscriber.Subscribe(partitionKey, relativePath, true); retCode != 0 {
 			s.deleteSubscribeStatusErrorChan(path)
-			return fmt.Errorf("Subscribing to pubsub: %d failed for path: %s due to error code: %d",
-				s.pubsubId, path, retCode)
+			return fmt.Errorf("Subscribing to pubsub: %s failed for path: %s due to error code: %d",
+				s.pubsubAzId, path, retCode)
 		}
 	} else {
-		return fmt.Errorf("Unhealthy Subscriber: %d. Subscribing failed for path: %s",
-			s.pubsubId, path)
+		return fmt.Errorf("Unhealthy Subscriber: %s. Subscribing failed for path: %s",
+			s.pubsubAzId, path)
 	}
 
 	return nil
@@ -106,12 +111,12 @@ func (s *subscriber) unsubscribe(
 	path := partitionKey + relativePath
 	if s.isHealthy {
 		if retCode := s.defaultSubscriber.Unsubscribe(partitionKey, relativePath); retCode != 0 {
-			return fmt.Errorf("Unsubscribing to pubsub: %d failed for path: %s due to error code: %d",
-				s.pubsubId, path, retCode)
+			return fmt.Errorf("Unsubscribing to pubsub: %s failed for path: %s due to error code: %d",
+				s.pubsubAzId, path, retCode)
 		}
 	} else {
-		return fmt.Errorf("Unhealthy Subscriber: %d. Unsubscribing failed for path: %s",
-			s.pubsubId, path)
+		return fmt.Errorf("Unhealthy Subscriber: %s. Unsubscribing failed for path: %s",
+			s.pubsubAzId, path)
 	}
 
 	return nil
@@ -126,14 +131,14 @@ func (s *subscriber) healthy() bool {
 func (s *subscriber) deinit() {
 	s.Lock()
 	if s.isHealthy {
-		loggershim.LS.Debugf("[PubSubProxy] Deinitializing Subscriber: %d", s.pubsubId)
+		loggershim.LS.Debugf("[PubSubProxy] Deinitializing Subscriber: %s", s.pubsubAzId)
 		s.isHealthy = false
 		s.updateSubscribeStatusErrorChan()
 		s.defaultSubscriber.Close()
 		DeleteDefaultMadariSubscriber(s.defaultSubscriber)
 		s.stopRehydration <- true
 		s.unsubscribeCachedVnetConfigs()
-		loggershim.LS.Debugf("[PubSubProxy] Successfully deinitialized Subscriber: %d", s.pubsubId)
+		loggershim.LS.Debugf("[PubSubProxy] Successfully deinitialized Subscriber: %s", s.pubsubAzId)
 	}
 	s.Unlock()
 }
@@ -144,9 +149,9 @@ func (s *subscriber) updateSubscribeStatusErrorChan() {
 			found := false
 			errChan, found = s.subscribeStatusError.Load(path)
 			if found && len(errChan.(chan error)) == 0 {
-				loggershim.LS.Debugf("[PubSubProxy] Subscriber: %d sending error on status channel for path: %s",
-					s.pubsubId, path.(string))
-				errChan.(chan error) <- fmt.Errorf("Unhealthy Subscriber: %d", s.pubsubId)
+				loggershim.LS.Debugf("[PubSubProxy] Subscriber: %s sending error on status channel for path: %s",
+					s.pubsubAzId, path.(string))
+				errChan.(chan error) <- fmt.Errorf("Unhealthy Subscriber: %s", s.pubsubAzId)
 			}
 			return true
 		})
@@ -173,8 +178,8 @@ func (s *subscriber) getSubscribeStatusError(
 	if found {
 		err = <-errChan.(chan error)
 	} else {
-		err = fmt.Errorf("Subscribe status error not found for pubsubId: %d. path: %s",
-			s.pubsubId, path)
+		err = fmt.Errorf("Subscribe status error not found for pubsubAzId: %s. path: %s",
+			s.pubsubAzId, path)
 	}
 
 	s.Lock()
@@ -333,8 +338,8 @@ func (callback subscriberCallback) OnFailureReceived(
 	errorCode int32) {
 	path := fmt.Sprintf("%s%s", partitionKey, relativePath)
 	err := fmt.Errorf("FailureDetails: Code: %d, Src: %v, Cause: %s", errorCode, errorSource, reason)
-	loggershim.LS.Errorf("[PubSubProxy] OnFailureReceived: Subscriber: %d. Path: %s. Error: %v",
-		callback.pubsubId, path, err)
+	loggershim.LS.Errorf("[PubSubProxy] OnFailureReceived: Subscriber: %s. Path: %s. Error: %v",
+		callback.pubsubAzId, path, err)
 	getActiveSubscriber().sendSubscribeStatusError(path, err)
 }
 
@@ -351,8 +356,8 @@ func (callback subscriberCallback) OnHealthNotificationReceived(
 }
 
 func (callback subscriberCallback) OnSessionTerminationReceived() {
-	loggershim.LS.Errorf("[PubSubProxy] OnSessionTerminationReceived: Subscriber PubSubId: %d",
-		callback.pubsubId)
+	loggershim.LS.Errorf("[PubSubProxy] OnSessionTerminationReceived: Subscriber PubSubId: %s",
+		callback.pubsubAzId)
 
 	// Deinitialize the subscriber marking it unhealthy to avoid receiving
 	// any further subscribe/unsubscribe requests
@@ -361,13 +366,13 @@ func (callback subscriberCallback) OnSessionTerminationReceived() {
 		subscriber.deinit()
 		// Re-initialize subscriber since this is unexpected session termination.
 		for {
-			err := createOrUpdateSubscriber(subscriber, getVipList(subscriber.pubsubId))
+			err := createOrUpdateSubscriber(subscriber)
 			if err == nil {
 				break
 			}
 
 			loggershim.LS.Errorf("[PubSubProxy] OnSessionTerminationReceived: "+
-				"createOrUpdateSubscriber failed for pubsubId: %d due to error: %v", subscriber.pubsubId, err)
+				"createOrUpdateSubscriber failed for pubsubAzId: %s due to error: %v", subscriber.pubsubAzId, err)
 			time.Sleep(time.Second * 1)
 			//TODO: This calls for a sev2
 		}
@@ -385,19 +390,25 @@ func getActiveSubscriber() *subscriber {
 	return subscriberContext.subscriber
 }
 
-func initSubscriber() {
-	subscriberContext = &subscriberContextStruct{}
+func initSubscriber(
+	settings pubsubSettings) {
+	subscriberContext = &subscriberContextStruct{
+		subscriberPort:     settings.subscriberPort,
+		pubsubCertName:     settings.pubsubCertName,
+		pubsubConnectionEp: settings.pubsubConnectionEp,
+	}
+
 	subscriberContext.subscriber = &subscriber{}
 
 	// Keep retrying until the subscriber is created successfully
 	for !getActiveSubscriber().isHealthy {
-		for pubsubId := AZ01; pubsubId <= numPubSubs; pubsubId++ {
-			subscriberContext.subscriber.pubsubId = pubsubId
+		for _, pubsubAzVips := range settings.pubsubVips {
+			subscriberContext.subscriber.pubsubAzId = pubsubAzVips.AzId
+			subscriberContext.subscriber.vipList = strings.Split(pubsubAzVips.VIPs, ",")
 
 			// Only one instance of the subscriber is required. As a result, return when
 			// one subscriber instance is successfully created.
-			if err := createOrUpdateSubscriber(subscriberContext.subscriber,
-				getVipList(pubsubId)); err == nil {
+			if err := createOrUpdateSubscriber(subscriberContext.subscriber); err == nil {
 				break
 			}
 		}
@@ -405,34 +416,35 @@ func initSubscriber() {
 }
 
 func createOrUpdateSubscriber(
-	subscriber *subscriber,
-	vipList []string) error {
+	subscriber *subscriber) error {
 	subscriber.Lock()
 	defer subscriber.Unlock()
 
 	// Loop through the available VIP list
-	for vipId := 0; vipId < len(vipList); vipId++ {
-		subscriberCallback := createSubscriberCallback(subscriber.pubsubId)
+	for _, vip := range subscriber.vipList {
+		subscriberCallback := createSubscriberCallback(subscriber.pubsubAzId)
 		defaultSubscriber := CreateDefaultMadariSubscriber(subscriberCallback)
-		errorCode := defaultSubscriber.Open(vipList[vipId], subscriberPort, pubsubCertName, pubsubConnectionEp)
+		errorCode := defaultSubscriber.Open(vip, subscriberContext.subscriberPort,
+			subscriberContext.pubsubCertName, subscriberContext.pubsubConnectionEp)
 		// TODO: Replace 0 with error code enum from pubsub
 		if errorCode == 0 {
-			loggershim.LS.Debugf("[PubSubProxy] Successfully created Subscriber with pubsub VIP: %s", vipList[vipId])
+			loggershim.LS.Debugf("[PubSubProxy] Successfully created subscriber %s with pubsub VIP: %s", subscriber.pubsubAzId, vip)
 			subscriber.defaultSubscriber = defaultSubscriber
 			subscriber.callback = subscriberCallback
 			subscriber.isHealthy = true
 			subscriber.stopRehydration = make(chan bool)
-
+			subscriber.connectedVip = vip
 			// Start the subscription rehydration loop
 			go subscriber.rehydrateSubscriptions()
 
 			return nil
 		}
 
-		loggershim.LS.Errorf("[PubSubProxy] Subscriber failed to connect to VIP: %s due to error code: %v", vipList[vipId], errorCode)
+		loggershim.LS.Errorf("[PubSubProxy] Subscriber %s failed to connect to VIP: %s due to error code: %v",
+			subscriber.pubsubAzId, vip, errorCode)
 	}
 
-	return fmt.Errorf("Failed to create subscriber: %d", subscriber.pubsubId)
+	return fmt.Errorf("Failed to create subscriber: %s", subscriber.pubsubAzId)
 }
 
 func deinitSubscriber() {

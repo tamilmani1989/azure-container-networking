@@ -63,6 +63,6 @@ func GetNCIdFromKey(key string) string {
 }
 
 // GetNcPendingPublishContextKey - Helper function to generate key.
-func GetNcPendingPublishContextKey(networkID, ncID string, pubSubID int) string {
-	return fmt.Sprintf(ncPendingPublishContextKey, networkID, ncID, pubSubID)
+func GetNcPendingPublishContextKey(networkID, ncID string, pubsubAzId string) string {
+	return fmt.Sprintf(ncPendingPublishContextKey, networkID, ncID, pubsubAzId)
 }

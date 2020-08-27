@@ -42,7 +42,7 @@ type NcPendingPublishRequestContext struct {
 	NetworkContainerID  string
 	InfraNetworkID      string
 	NodeInterfaceIP     string
-	PubSubID            int
+	PubsubAzId          string
 	NcData              []byte
 	CreatedDateTime     time.Time
 	LastRetriedDateTime time.Time
@@ -52,13 +52,13 @@ type NcPendingPublishRequestContext struct {
 // String - ToString implementation of request context.
 func (requestContext *NcPendingPublishRequestContext) String() string {
 	return fmt.Sprintf("NcPendingPublishRequestContext:[Type: %s, NetworkID: %s, NCID: %s, InfraNetworkID: %s, "+
-		"NodeInterfaceIP: %s, PubSubID:%d, NcData: %v, CreatedDateTime: %s, LastRetriedDateTime: %s, RetryInterval: %v]",
+		"NodeInterfaceIP: %s, PubsubAzId:%s, NcData: %v, CreatedDateTime: %s, LastRetriedDateTime: %s, RetryInterval: %v]",
 		requestContext.Type,
 		requestContext.NetworkID,
 		requestContext.NetworkContainerID,
 		requestContext.InfraNetworkID,
 		requestContext.NodeInterfaceIP,
-		requestContext.PubSubID,
+		requestContext.PubsubAzId,
 		requestContext.NcData,
 		requestContext.CreatedDateTime.String(),
 		requestContext.LastRetriedDateTime.String(),

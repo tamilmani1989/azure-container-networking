@@ -98,7 +98,7 @@ const (
 type jobContext struct {
 	id                  string
 	jobType             jobType
-	pubsubId            int
+	pubsubAzId          string
 	partitionKey        string
 	relativePath        string
 	lastRetriedDateTime time.Time
@@ -204,15 +204,15 @@ func processNcPendingRequests() {
 				loggershim.LS.Errorf("[PubSubProxy] Unknown type for NC pending publish context: %+v. "+
 					"Deleting the entry from the table.", requestContext)
 				datamodel.RemoveNcPendingPublishContext(requestContext.NetworkID,
-					requestContext.NetworkContainerID, requestContext.PubSubID)
+					requestContext.NetworkContainerID, requestContext.PubsubAzId)
 				continue
 			}
 
 			jobId := createNcJobId(requestContext.NetworkID,
-				requestContext.NetworkContainerID, requestContext.PubSubID)
+				requestContext.NetworkContainerID, requestContext.PubsubAzId)
 			jobContext := jobContext{
 				id:              jobId,
-				pubsubId:        requestContext.PubSubID,
+				pubsubAzId:      requestContext.PubsubAzId,
 				partitionKey:    generateVnetPartitionKey(requestContext.InfraNetworkID),
 				relativePath:    generateVnetNcPath(requestContext.NodeInterfaceIP, requestContext.NetworkContainerID),
 				createdDateTime: requestContext.CreatedDateTime,
@@ -336,9 +336,9 @@ func (job *ncJob) process() error {
 	loggershim.LS.Debugf("[PubSubProxy] Process Job-%s: %s", jobContext.jobType.String(), jobContext.id)
 
 	if jobContext.jobType == NetworkContainerPublish {
-		err = publishData(jobContext.pubsubId, jobContext.partitionKey, jobContext.relativePath, job.ncData)
+		err = publishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath, job.ncData)
 	} else if jobContext.jobType == NetworkContainerUnpublish {
-		err = unpublishData(jobContext.pubsubId, jobContext.partitionKey, jobContext.relativePath)
+		err = unpublishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath)
 	} else {
 		err = fmt.Errorf("Unknown job type: %s for job: %s", jobContext.jobType, jobContext.id)
 	}
@@ -347,13 +347,13 @@ func (job *ncJob) process() error {
 		err = fmt.Errorf("%s: %s failed for NC: %s due to error: %v",
 			jobContext.jobType.String(), jobContext.id, job.ncId, err)
 	} else {
-		statusError := getPublishStatusError(jobContext.pubsubId, path)
+		statusError := getPublishStatusError(jobContext.pubsubAzId, path)
 		if statusError != nil {
 			err = statusError
 		}
 	}
 
-	ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(job.vnetId, job.ncId, jobContext.pubsubId)
+	ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(job.vnetId, job.ncId, jobContext.pubsubAzId)
 	sessionInfo := map[string]string{datamodel.NCPendingPublishRepositoryName: ncPendingPublishContextKey}
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
@@ -383,7 +383,7 @@ func (job *ncJob) process() error {
 		// Delete the pending context table entry only if the timestamp matches.
 		// This avoids deletion of the updated entry
 		if jobContext.createdDateTime.Equal(pendingPublishContext.CreatedDateTime) {
-			datamodel.RemoveNcPendingPublishContext(job.vnetId, job.ncId, jobContext.pubsubId)
+			datamodel.RemoveNcPendingPublishContext(job.vnetId, job.ncId, jobContext.pubsubAzId)
 		}
 	}
 
@@ -586,8 +586,8 @@ func sizeofSubnetConfiguration() uintptr {
 func createNcJobId(
 	vnetId string,
 	ncId string,
-	pubsubId int) string {
-	return fmt.Sprintf("NC_%s_%s_%d", vnetId, ncId, pubsubId)
+	pubsubAzId string) string {
+	return fmt.Sprintf("NC_%s_%s_%s", vnetId, ncId, pubsubAzId)
 }
 
 func createVnetJobId(

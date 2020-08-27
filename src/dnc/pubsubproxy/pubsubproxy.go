@@ -89,6 +89,14 @@ const (
 	maxKeyvaultRetrievalTime = 10
 )
 
+type pubsubSettings struct {
+	pubsubVips         []configuration.PubsubVips
+	publisherPort      string
+	subscriberPort     string
+	pubsubCertName     string
+	pubsubConnectionEp string
+}
+
 type TagConfiguration struct {
 	Name string
 	Type string
@@ -136,13 +144,6 @@ type UnpublishNetworkContainerRequest struct {
 }
 
 var (
-	pubsubCertName          string
-	pubsubConnectionEp      string
-	publisherPort           string
-	subscriberPort          string
-	pubsubVips              string
-	pubsubVipList           []string
-	numPubSubs              int
 	maxConcurrentRequests   int
 	baseRetryInterval       time.Duration
 	maxRetryBackoffInterval time.Duration
@@ -274,21 +275,21 @@ func PublishNetworkContainer(
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	for pubsubId := AZ01; pubsubId <= publisherContext.numPublishers; pubsubId++ {
+	for pubsubAzId, _ := range publisherContext.publishers {
 		ncPendingPublishRequestContext := datamodel.NcPendingPublishRequestContext{
 			Type:               datamodel.NetworkContainerPublishRequest,
 			NetworkID:          ncPublishRequest.VirtualNetworkID,
 			NetworkContainerID: ncPublishRequest.NcID,
 			InfraNetworkID:     ncPublishRequest.InfraVnetID,
 			NodeInterfaceIP:    ncPublishRequest.NodeInterfaceIP,
-			PubSubID:           pubsubId,
+			PubsubAzId:         pubsubAzId,
 			NcData:             ncDataBytes,
 			CreatedDateTime:    time.Now().UTC(),
 			RetryInterval:      baseRetryInterval,
 		}
 
 		ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(ncPublishRequest.VirtualNetworkID,
-			ncPublishRequest.NcID, pubsubId)
+			ncPublishRequest.NcID, pubsubAzId)
 		sessionInfo := map[string]string{datamodel.NCPendingPublishRepositoryName: ncPendingPublishContextKey}
 		sessionManager.BeginWriteSession(sessionInfo)
 		err := datamodel.CreateOrUpdateNcPendingPublishRequest(&ncPendingPublishRequestContext)
@@ -304,9 +305,9 @@ func PublishNetworkContainer(
 
 		ncDataPublishJob := &ncJob{
 			context: jobContext{
-				id:              createNcJobId(ncPublishRequest.VirtualNetworkID, ncPublishRequest.NcID, pubsubId),
+				id:              createNcJobId(ncPublishRequest.VirtualNetworkID, ncPublishRequest.NcID, pubsubAzId),
 				jobType:         NetworkContainerPublish,
-				pubsubId:        pubsubId,
+				pubsubAzId:      pubsubAzId,
 				partitionKey:    generateVnetPartitionKey(ncPublishRequest.InfraVnetID),
 				relativePath:    generateVnetNcPath(ncPublishRequest.NodeInterfaceIP, ncPublishRequest.NcID),
 				createdDateTime: ncPendingPublishRequestContext.CreatedDateTime,
@@ -340,20 +341,20 @@ func UnpublishNetworkContainer(
 			HTTPStatus: err.HTTPStatus}
 	}
 
-	for pubsubId := AZ01; pubsubId <= publisherContext.numPublishers; pubsubId++ {
+	for pubsubAzId, _ := range publisherContext.publishers {
 		pendingNcUnpublishRequestContext := datamodel.NcPendingPublishRequestContext{
 			Type:               datamodel.NetworkContainerUnpublishRequest,
 			NetworkID:          ncUnpublishRequest.VnetID,
 			NetworkContainerID: ncUnpublishRequest.NcID,
 			InfraNetworkID:     ncUnpublishRequest.InfraVnetID,
 			NodeInterfaceIP:    ncUnpublishRequest.NodeInterfaceIP,
-			PubSubID:           pubsubId,
+			PubsubAzId:         pubsubAzId,
 			CreatedDateTime:    time.Now().UTC(),
 			RetryInterval:      baseRetryInterval,
 		}
 
 		ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(ncUnpublishRequest.VnetID,
-			ncUnpublishRequest.NcID, pubsubId)
+			ncUnpublishRequest.NcID, pubsubAzId)
 		sessionInfo := map[string]string{datamodel.NCPendingPublishRepositoryName: ncPendingPublishContextKey}
 		sessionManager.BeginWriteSession(sessionInfo)
 		err := datamodel.CreateOrUpdateNcPendingPublishRequest(&pendingNcUnpublishRequestContext)
@@ -370,9 +371,9 @@ func UnpublishNetworkContainer(
 
 		ncDataUnpublishJob := &ncJob{
 			context: jobContext{
-				id:              createNcJobId(ncUnpublishRequest.VnetID, ncUnpublishRequest.NcID, pubsubId),
+				id:              createNcJobId(ncUnpublishRequest.VnetID, ncUnpublishRequest.NcID, pubsubAzId),
 				jobType:         NetworkContainerUnpublish,
-				pubsubId:        pubsubId,
+				pubsubAzId:      pubsubAzId,
 				partitionKey:    generateVnetPartitionKey(ncUnpublishRequest.InfraVnetID),
 				relativePath:    generateVnetNcPath(ncUnpublishRequest.NodeInterfaceIP, ncUnpublishRequest.NcID),
 				createdDateTime: pendingNcUnpublishRequestContext.CreatedDateTime,
@@ -430,42 +431,34 @@ func UnregisterVnet(
 	}
 }
 
-func getVipList(
-	pubsubId int) []string {
-	return strings.Split(pubsubVipList[pubsubId-1], ",")
-}
-
 // Init initializes the pubsubproxy by creating
 // publisherContext, subscribers and worker pool.
 func Init(
 	configSettings configuration.PubSubProxySettings,
 	replica *replica.Replica,
 	certPath string) error {
-	numPubSubs = configSettings.NumPubSubs
 	maxConcurrentRequests = configSettings.MaxConcurrentRequests
-	publisherPort = configSettings.PublisherPort
-	subscriberPort = configSettings.SubscriberPort
-	pubsubCertName = certPath
-	pubsubConnectionEp = configSettings.PubsubConnectionEndpoint
-	pubsubVips = configSettings.PubsubVips
-	pubsubVipList = strings.Split(pubsubVips, pubsubVipListSeparator)
 	baseRetryInterval = time.Duration(configSettings.RequestRetryBaseInterval) * time.Millisecond
 	maxRetryBackoffInterval = time.Duration(configSettings.MaxRequestBackoffInterval) * time.Millisecond
 	replicaInstance = replica
 	sessionManager = utils.NewSessionManager([]string{
 		datamodel.NCPendingPublishRepositoryName})
 
+	numPubSubs := len(configSettings.PubsubVips)
 	if numPubSubs <= 0 {
 		return fmt.Errorf("Invalid number of pubsubs: %d", numPubSubs)
 	}
 
-	if numPubSubs != len(pubsubVipList) {
-		return fmt.Errorf("Mismatch between number of pubsubs: %d and VIP list count: %d",
-			numPubSubs, len(pubsubVipList))
+	pubsubSettings := pubsubSettings{
+		pubsubVips:         configSettings.PubsubVips,
+		publisherPort:      configSettings.PublisherPort,
+		subscriberPort:     configSettings.SubscriberPort,
+		pubsubCertName:     certPath,
+		pubsubConnectionEp: configSettings.PubsubConnectionEndpoint,
 	}
 
-	go initPublishers()
-	go initSubscriber()
+	go initPublishers(pubsubSettings)
+	go initSubscriber(pubsubSettings)
 
 	// Init worker pool
 	workerPool()

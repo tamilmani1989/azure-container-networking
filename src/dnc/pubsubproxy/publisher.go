@@ -6,14 +6,9 @@ import (
 	. "dnc/MadariClient"
 	"dnc/logger/loggershim"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
-)
-
-const (
-	AZ01 = iota + 1
-	AZ02
-	AZ03
 )
 
 const (
@@ -21,16 +16,21 @@ const (
 )
 
 type publisher struct {
-	pubsubId  int
-	isHealthy bool
+	pubsubAzId string
+	vipList    []string
+	isHealthy  bool
+	connectedVip string
 	madariPublisher
 	sync.RWMutex
 	publishStatusError sync.Map
 }
 
 type publisherContextStruct struct {
-	numPublishers int
-	publishers    map[int]*publisher
+	numPublishers      int
+	publishers         map[string]*publisher
+	publisherPort      string
+	pubsubCertName     string
+	pubsubConnectionEp string
 }
 
 type madariPublisher struct {
@@ -39,19 +39,19 @@ type madariPublisher struct {
 }
 
 type madariPublisherCallback struct {
-	pubsubId int
+	pubsubAzId string
 }
 
 var publisherContext *publisherContextStruct
 
 func getPublisher(
-	pubsubId int) (*publisher, error) {
-	if pubsubId > publisherContext.numPublishers {
-		return nil, fmt.Errorf("Invalid pubsubId: %d. Number of publishers: %d",
-			pubsubId, publisherContext.numPublishers)
+	pubsubAzId string) (*publisher, error) {
+	if _, found := publisherContext.publishers[pubsubAzId]; !found {
+		return nil, fmt.Errorf("Invalid pubsubAzId: %s. Number of publishers: %d",
+			pubsubAzId, publisherContext.numPublishers)
 	}
 
-	return publisherContext.publishers[pubsubId], nil
+	return publisherContext.publishers[pubsubAzId], nil
 }
 
 func (p *publisher) setupPublishStatusErrorChan(
@@ -81,12 +81,12 @@ func (p *publisher) publishData(
 		if retCode := p.defaultPublisher.UpdateNode(partitionKey, relativePath,
 			data, nil, MADARICREATEACTION_CREATEIFNOTEXISTS); retCode != 0 {
 			p.deletePublishStatusErrorChan(publishPath)
-			return fmt.Errorf("Publishing to pubsub: %d failed for path: %s due to error code: %d",
-				p.pubsubId, publishPath, retCode)
+			return fmt.Errorf("Publishing to pubsub: %s failed for path: %s due to error code: %d",
+				p.pubsubAzId, publishPath, retCode)
 		}
 	} else {
-		return fmt.Errorf("Unhealthy Publisher: %d. Publishing failed for path: %s",
-			p.pubsubId, publishPath)
+		return fmt.Errorf("Unhealthy Publisher: %s. Publishing failed for path: %s",
+			p.pubsubAzId, publishPath)
 	}
 
 	return nil
@@ -103,12 +103,12 @@ func (p *publisher) unpublishData(
 		p.setupPublishStatusErrorChan(unpublishPath)
 		if retCode := p.defaultPublisher.RemoveNode(partitionKey, relativePath); retCode != 0 {
 			p.deletePublishStatusErrorChan(unpublishPath)
-			return fmt.Errorf("Unpublishing to pubsub: %d failed for path: %s due to error code: %d",
-				p.pubsubId, unpublishPath, retCode)
+			return fmt.Errorf("Unpublishing to pubsub: %s failed for path: %s due to error code: %d",
+				p.pubsubAzId, unpublishPath, retCode)
 		}
 	} else {
-		return fmt.Errorf("Unhealthy Publisher: %d. Unublishing failed for path: %s",
-			p.pubsubId, unpublishPath)
+		return fmt.Errorf("Unhealthy Publisher: %s. Unublishing failed for path: %s",
+			p.pubsubAzId, unpublishPath)
 	}
 
 	return nil
@@ -123,12 +123,12 @@ func (p *publisher) healthy() bool {
 func (p *publisher) deinit() {
 	p.Lock()
 	if p.isHealthy {
-		loggershim.LS.Debugf("[PubSubProxy] Deinitializing Publisher: %d", p.pubsubId)
+		loggershim.LS.Debugf("[PubSubProxy] Deinitializing publisher: %s", p.pubsubAzId)
 		p.isHealthy = false
 		p.updatePublishStatusErrorChan()
 		p.defaultPublisher.Close()
 		DeleteDefaultMadariPublisher(p.defaultPublisher)
-		loggershim.LS.Debugf("[PubSubProxy] Successfully deinitialized publisher: %d", p.pubsubId)
+		loggershim.LS.Debugf("[PubSubProxy] Successfully deinitialized publisher: %s", p.pubsubAzId)
 	}
 	p.Unlock()
 }
@@ -139,9 +139,9 @@ func (p *publisher) updatePublishStatusErrorChan() {
 			found := false
 			errChan, found = p.publishStatusError.Load(publishPath)
 			if found && len(errChan.(chan error)) == 0 {
-				loggershim.LS.Debugf("[PubSubProxy] Publisher: %d sending error on status channel for path: %s",
-					p.pubsubId, publishPath.(string))
-				errChan.(chan error) <- fmt.Errorf("Unhealthy Publisher: %d", p.pubsubId)
+				loggershim.LS.Debugf("[PubSubProxy] Publisher: %s sending error on status channel for path: %s",
+					p.pubsubAzId, publishPath.(string))
+				errChan.(chan error) <- fmt.Errorf("Unhealthy Publisher: %s", p.pubsubAzId)
 			}
 			return true
 		})
@@ -168,7 +168,7 @@ func (p *publisher) getPublishStatusError(
 	if found {
 		err = <-errChan.(chan error)
 	} else {
-		err = fmt.Errorf("Publish status error not found for pubsubId: %d. path: %s", p.pubsubId, publishPath)
+		err = fmt.Errorf("Publish status error not found for pubsubAzId: %s. path: %s", p.pubsubAzId, publishPath)
 	}
 
 	p.Lock()
@@ -178,15 +178,15 @@ func (p *publisher) getPublishStatusError(
 }
 
 func publishData(
-	pubsubId int,
+	pubsubAzId string,
 	partitionKey string,
 	relativePath string,
 	data []byte) error {
-	if pubsubId > publisherContext.numPublishers {
-		return fmt.Errorf("Invalid pubsubId: %d. Number of publishers: %d", pubsubId, publisherContext.numPublishers)
+	if _, found := publisherContext.publishers[pubsubAzId]; !found {
+		return fmt.Errorf("Invalid pubsubAzId: %s. Number of publishers: %d", pubsubAzId, publisherContext.numPublishers)
 	}
 
-	publisher, err := getPublisher(pubsubId)
+	publisher, err := getPublisher(pubsubAzId)
 	if err != nil {
 		return err
 	}
@@ -195,14 +195,14 @@ func publishData(
 }
 
 func unpublishData(
-	pubsubId int,
+	pubsubAzId string,
 	partitionKey string,
 	relativePath string) error {
-	if pubsubId > publisherContext.numPublishers {
-		return fmt.Errorf("Invalid pubsubId: %d. Number of publishers: %d", pubsubId, publisherContext.numPublishers)
+	if _, found := publisherContext.publishers[pubsubAzId]; !found {
+		return fmt.Errorf("Invalid pubsubAzId: %s. Number of publishers: %d", pubsubAzId, publisherContext.numPublishers)
 	}
 
-	publisher, err := getPublisher(pubsubId)
+	publisher, err := getPublisher(pubsubAzId)
 	if err != nil {
 		return err
 	}
@@ -211,9 +211,9 @@ func unpublishData(
 }
 
 func getPublishStatusError(
-	pubsubId int,
+	pubsubAzId string,
 	publishPath string) error {
-	publisher, err := getPublisher(pubsubId)
+	publisher, err := getPublisher(pubsubAzId)
 	if err != nil {
 		return err
 	}
@@ -222,9 +222,9 @@ func getPublishStatusError(
 }
 
 func createMadariPublisherCallback(
-	pubsubId int) madariPublisherCallback {
+	pubsubAzId string) madariPublisherCallback {
 	return madariPublisherCallback{
-		pubsubId: pubsubId,
+		pubsubAzId: pubsubAzId,
 	}
 }
 
@@ -236,7 +236,7 @@ func (callback madariPublisherCallback) OnNotificationReceived(
 func (callback madariPublisherCallback) OnResultReceived(
 	result *MadariResult) {
 	publishPath := fmt.Sprintf("%s%s", result.PartitionKey, result.RelativePath)
-	publisher, _ := getPublisher(callback.pubsubId)
+	publisher, _ := getPublisher(callback.pubsubAzId)
 	publisher.sendPublishStatusError(publishPath, nil)
 }
 
@@ -248,9 +248,9 @@ func (callback madariPublisherCallback) OnFailureReceived(
 	errorCode int32) {
 	path := fmt.Sprintf("%s%s", partitionKey, relativePath)
 	err := fmt.Errorf("FailureDetails: Code: %d, Src: %v, Cause: %s", errorCode, errorSource, reason)
-	loggershim.LS.Errorf("[PubSubProxy] OnFailureReceived: Publisher: %d. Path: %s. Error: %v",
-		callback.pubsubId, path, err)
-	publisher, _ := getPublisher(callback.pubsubId)
+	loggershim.LS.Errorf("[PubSubProxy] OnFailureReceived: Publisher: %s. Path: %s. Error: %v",
+		callback.pubsubAzId, path, err)
+	publisher, _ := getPublisher(callback.pubsubAzId)
 	publisher.sendPublishStatusError(path, err)
 }
 
@@ -267,52 +267,56 @@ func (callback madariPublisherCallback) OnHealthNotificationReceived(
 }
 
 func (callback madariPublisherCallback) OnSessionTerminationReceived() {
-	loggershim.LS.Errorf("[PubSubProxy] OnSessionTerminationReceived: Publisher PubSubId: %d",
-		callback.pubsubId)
+	loggershim.LS.Errorf("[PubSubProxy] OnSessionTerminationReceived: Publisher PubSubId: %s",
+		callback.pubsubAzId)
 
 	// Deinitialize the publisher marking it unhealthy to avoid receiving
 	// any further publish/unpublish requests
-	publisher, _ := getPublisher(callback.pubsubId)
+	publisher, _ := getPublisher(callback.pubsubAzId)
 	if publisher.healthy() {
 		publisher.deinit()
 		// Re-initialize publisher since this is unexpected session termination.
 		for {
-			err := createOrUpdatePublisher(publisher, getVipList(publisher.pubsubId))
+			err := createOrUpdatePublisher(publisher)
 			if err == nil {
 				break
 			}
 
 			loggershim.LS.Errorf("[PubSubProxy] OnSessionTerminationReceived: "+
-				"createOrUpdatePublisher failed for pubsubId: %d due to error: %v", publisher.pubsubId, err)
+				"createOrUpdatePublisher failed for pubsubAzId: %s due to error: %v", publisher.pubsubAzId, err)
 			time.Sleep(time.Second * 1)
 			//TODO: This calls for a sev2
 		}
 	}
 }
 
-func initPublishers() {
+func initPublishers(
+	settings pubsubSettings) {
 	publisherContext = &publisherContextStruct{
-		numPublishers: numPubSubs,
-		publishers:    make(map[int]*publisher),
+		numPublishers:      len(settings.pubsubVips),
+		publishers:         make(map[string]*publisher),
+		publisherPort:      settings.publisherPort,
+		pubsubCertName:     settings.pubsubCertName,
+		pubsubConnectionEp: settings.pubsubConnectionEp,
 	}
 
 	// Initialize the publishers
-	for pubsubId := AZ01; pubsubId <= numPubSubs; pubsubId++ {
-		publisherContext.publishers[pubsubId] = &publisher{
-			pubsubId: pubsubId,
+	for _, pubsubVips := range settings.pubsubVips {
+		publisherContext.publishers[pubsubVips.AzId] = &publisher{
+			pubsubAzId: pubsubVips.AzId,
+			vipList:    strings.Split(pubsubVips.VIPs, ","),
 		}
 	}
 
 	// Create all the publishers
 	// Keep retrying until the publisher is created successfully
-	createdPublishers := make(map[int]struct{})
-	for len(createdPublishers) < numPubSubs {
-		for pubsubId := AZ01; pubsubId <= numPubSubs; pubsubId++ {
-			_, created := createdPublishers[pubsubId]
-			if !created {
-				err := createOrUpdatePublisher(publisherContext.publishers[pubsubId], getVipList(pubsubId))
+	createdPublishers := make(map[string]struct{})
+	for len(createdPublishers) < publisherContext.numPublishers {
+		for pubsubAzId, _ := range publisherContext.publishers {
+			if _, created := createdPublishers[pubsubAzId]; !created {
+				err := createOrUpdatePublisher(publisherContext.publishers[pubsubAzId])
 				if err == nil {
-					createdPublishers[pubsubId] = struct{}{}
+					createdPublishers[pubsubAzId] = struct{}{}
 				} else {
 					loggershim.LS.Errorf("[PubSubProxy] Retriable error: %v", err)
 					time.Sleep(pubsubConnectionRetryInterval)
@@ -323,29 +327,31 @@ func initPublishers() {
 }
 
 func createOrUpdatePublisher(
-	publisher *publisher,
-	vipList []string) error {
+	publisher *publisher) error {
 	publisher.Lock()
 	defer publisher.Unlock()
 
 	// Loop through the available VIP list
-	for vipId := 0; vipId < len(vipList); vipId++ {
-		madariPublisherCallback := createMadariPublisherCallback(publisher.pubsubId)
+	for _, vip := range publisher.vipList {
+		madariPublisherCallback := createMadariPublisherCallback(publisher.pubsubAzId)
 		defaultPublisher := CreateDefaultMadariPublisher(scheme, identifier, madariPublisherCallback)
-		errorCode := defaultPublisher.Open(vipList[vipId], publisherPort, pubsubCertName, pubsubConnectionEp)
+		errorCode := defaultPublisher.Open(vip, publisherContext.publisherPort,
+			publisherContext.pubsubCertName, publisherContext.pubsubConnectionEp)
 		// TODO: Replace 0 with error code enum from pubsub
 		if errorCode == 0 {
-			loggershim.LS.Debugf("[PubSubProxy] Successfully created Publisher with pubsub VIP: %s", vipList[vipId])
+			loggershim.LS.Debugf("[PubSubProxy] Successfully created Publisher %s with pubsub VIP: %s", publisher.pubsubAzId, vip)
 			publisher.defaultPublisher = defaultPublisher
 			publisher.callback = madariPublisherCallback
 			publisher.isHealthy = true
+			publisher.connectedVip = vip
 			return nil
 		}
 
-		loggershim.LS.Errorf("[PubSubProxy] Publisher failed to connect to VIP: %s due to error code: %v", vipList[vipId], errorCode)
+		loggershim.LS.Errorf("[PubSubProxy] Publisher %s failed to connect to VIP: %s due to error code: %v",
+			publisher.pubsubAzId, vip, errorCode)
 	}
 
-	return fmt.Errorf("Failed to create publisher: %d", publisher.pubsubId)
+	return fmt.Errorf("Failed to create publisher: %s", publisher.pubsubAzId)
 }
 
 func deinitPublishers() {

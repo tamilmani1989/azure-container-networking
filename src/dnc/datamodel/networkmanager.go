@@ -3327,8 +3327,8 @@ func GetNcPendingPublishRequestContexts() (map[string]NcPendingPublishRequestCon
 // RemoveNcPendingPublishContext - Remove pending NC publish / unpublish context from the table.
 func RemoveNcPendingPublishContext(
 	networkID, networkContainerID string,
-	pubSubID int) {
-	key := GetNcPendingPublishContextKey(networkID, networkContainerID, pubSubID)
+	pubsubAzId string) {
+	key := GetNcPendingPublishContextKey(networkID, networkContainerID, pubsubAzId)
 	dataStoreShim.Delete(ncPendingPublishContextTableName, key)
 }
 
@@ -3358,7 +3358,7 @@ func persistNcPendingPublishContext(
 			Text:       msg}
 	}
 
-	key := GetNcPendingPublishContextKey(context.NetworkID, context.NetworkContainerID, context.PubSubID)
+	key := GetNcPendingPublishContextKey(context.NetworkID, context.NetworkContainerID, context.PubsubAzId)
 	err = dataStoreShim.InsertOrUpdate(ncPendingPublishContextTableName,
 		key,
 		TableToColumnMap[ncPendingPublishContextTableName],

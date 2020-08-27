@@ -204,6 +204,12 @@ type TelemetrySettings struct {
 	GetEnvRetryCount int
 }
 
+// PubsubVips holds the VIPs for the given AZ (Availability Zone)
+type PubsubVips struct {
+	AzId string
+	VIPs string
+}
+
 // PubSubProxySettings - Settings for PubSubProxy
 type PubSubProxySettings struct {
 	// Flag to enable PubSubProxy. Default is false
@@ -214,8 +220,6 @@ type PubSubProxySettings struct {
 	RequestRetryBaseInterval int
 	// Max time to back off on failure to process a request. Default is 16 sec
 	MaxRequestBackoffInterval int
-	// Number of PubSubs in the region - Zonal instances
-	NumPubSubs int
 	// Cert name in Keyvault
 	PubsubCertName string
 	// Name of Keyvault where the pubsub certificate lives
@@ -229,7 +233,7 @@ type PubSubProxySettings struct {
 	// Subscriber port
 	SubscriberPort string
 	// List of PubSub VIPs
-	PubsubVips string
+	PubsubVips []PubsubVips
 }
 
 // Configuration - Details related to dnc configuration settings
@@ -428,6 +432,7 @@ func setPubSubProxySettings(pubsubProxySettings *PubSubProxySettings) {
 		// Set default to 16 secs
 		pubsubProxySettings.MaxRequestBackoffInterval = 16000
 	}
+
 }
 
 // OverrideConfigFromEnv - Overrides some static configuration with environment variables
