@@ -16,6 +16,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Http;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
+    using Microsoft.Azure.Cosmos.Table;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Hosting;
@@ -24,6 +25,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
     public class Startup
     {
+
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -56,6 +58,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 ICertificateRetriever retriever = provider.GetRequiredService<ICertificateRetriever>();
                 return new CertificateValidator(
                     retriever, logger, Configuration["Thumbprint"]);
+            });
+
+            services.AddSingleton<ITableOperations, TableOperations>(provider =>
+            {
+                ILogger<TableOperations> tableOperationsLogger = provider.GetRequiredService<ILogger<TableOperations>>();
+                ILogger<CosmosDbDataStore> cosmosDbLogger = provider.GetRequiredService<ILogger<CosmosDbDataStore>>();
+                return new TableOperations(
+                     new CosmosDbDataStore(Configuration, cosmosDbLogger), tableOperationsLogger);
             });
 
             // The following line enables Application Insights telemetry collection.
