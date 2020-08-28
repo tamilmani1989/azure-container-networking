@@ -24,6 +24,7 @@ type AzureStorageInfo struct {
 	RegionalStorageConnectionString string
 	Environment                     string
 	IsUsingCosmosDb                 bool
+	CosmosDBResourceID              string
 }
 
 // AzureSQLInfo - Details to connect to azure sql database.
@@ -149,13 +150,13 @@ type DNCSettings struct {
 	SleepIntervalBetweenNetworkBatches int
 	// Time interval to sleep between refresh of network. Default 300 milliseconds
 	SleepIntervalBetweenNetworkRefresh int
-	// System tag refresh interval. Defualt 1 min.
+	// System tag refresh interval. Default 1 min.
 	TagRefreshInterval int
 	// Refresh interval for sending goal states to CNS for an NC. Default 1 min.
 	NetworkContainerRefreshInterval int
 	// Refresh interval for sending batch reports to host. Default 1 min.
 	ReportToHostInterval int
-	// Concurrent request to process in a given batch. Defualt 5.
+	// Concurrent requests to process in a given batch. Default 1000.
 	ConcurrentRequestsToProcess int
 	// Flag to determine, if DNC should enforce NIC limit or not?
 	EnforceNICLimit bool
@@ -167,6 +168,24 @@ type DNCSettings struct {
 	ThresholdForLoggingDataStoreOpLatencyMs int
 	// Bool to determine whether DNC is running in managed mode.
 	Managed bool
+}
+
+// IdentitySettings - Information about managed identity for DNC
+type IdentitySettings struct {
+	// Managed Identity Resource ID, used to fetch ARM tokens through MSI
+	// When set, can be used to override storage account credentials
+	MSIResourceID string
+}
+
+// AzureEnvironment - Information about Azure environment
+type AzureEnvironment struct {
+	// One of:
+	// - AzurePublicCloud
+	// - AzureChinaCloud
+	// - AzureGermanCloud
+	// - AzureUSGovernmentCloud
+	// Defaults to AzurePublicCloud if none set
+	EnvironmentName string
 }
 
 // HttpClientSettings - Http client settings to be used when making http calls to CNS and NMAgent from DNC
@@ -238,7 +257,6 @@ type PubSubProxySettings struct {
 
 // Configuration - Details related to dnc configuration settings
 type Configuration struct {
-	OrchestartorType       string
 	DataStoreSettings      DataStoreSettings
 	ServerSettings         ServerSettings
 	MasterElectionSettings MasterElectionSettings
@@ -250,6 +268,8 @@ type Configuration struct {
 	HttpClientSettings     HttpClientSettings
 	TelemetrySettings      TelemetrySettings
 	PubSubProxySettings    PubSubProxySettings
+	IdentitySettings       IdentitySettings
+	AzureEnvironment       AzureEnvironment
 }
 
 // Load the JSON config file
@@ -289,6 +309,7 @@ func SetDncConfigDefaults(config *Configuration) {
 	setCNSSettingsDefaults(&config.CNSSettings)
 	setBlobStorageSettings(&config.MasterElectionSettings.BlobStorageSettings)
 	setPubSubProxySettings(&config.PubSubProxySettings)
+	setAzureEnvironment(&config.AzureEnvironment)
 }
 
 func setDNCSettingDefaults(dncSettings *DNCSettings) {
@@ -433,6 +454,12 @@ func setPubSubProxySettings(pubsubProxySettings *PubSubProxySettings) {
 		pubsubProxySettings.MaxRequestBackoffInterval = 16000
 	}
 
+}
+
+func setAzureEnvironment(azureEnv *AzureEnvironment) {
+	if azureEnv.EnvironmentName == "" {
+		azureEnv.EnvironmentName = "AzurePublicCloud"
+	}
 }
 
 // OverrideConfigFromEnv - Overrides some static configuration with environment variables
@@ -609,5 +636,17 @@ func OverrideConfigFromEnv(config *Configuration) {
 
 	if enablePubSubProxy := os.Getenv("EnablePubSubProxy"); len(enablePubSubProxy) != 0 {
 		config.PubSubProxySettings.EnablePubSubProxy = ParseBool(enablePubSubProxy)
+	}
+
+	if msiResourceID := os.Getenv("MSIResourceID"); msiResourceID != "" {
+		config.IdentitySettings.MSIResourceID = msiResourceID
+	}
+
+	if cosmosDBResourceID := os.Getenv("CosmosDBResourceID"); cosmosDBResourceID != "" {
+		config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID = cosmosDBResourceID
+	}
+
+	if azureEnvName := os.Getenv("AzureEnvironmentName"); azureEnvName != "" {
+		config.AzureEnvironment.EnvironmentName = azureEnvName
 	}
 }

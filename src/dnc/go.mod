@@ -7,7 +7,7 @@ require (
 	github.com/Azure/azure-container-networking v1.1.7-0.20200813005458-81194c256618
 	github.com/Azure/azure-sdk-for-go v40.6.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.10.2
-	github.com/Azure/go-autorest/autorest/adal v0.8.2
+	github.com/Azure/go-autorest/autorest/adal v0.9.2
 	github.com/Azure/go-autorest/autorest/to v0.3.0 // indirect
 	github.com/Azure/go-autorest/autorest/validation v0.2.0 // indirect
 	github.com/denisenkom/go-mssqldb v0.0.0-20200206145737-bbfc9a55622e
@@ -29,7 +29,6 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/tedsuo/ifrit v0.0.0-20191009134036-9a97d0632f00 // indirect
 	go.opencensus.io v0.22.3 // indirect
-	golang.org/x/crypto v0.0.0-20200221231518-2aa609cf4a9d // indirect
 	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	k8s.io/api v0.18.2

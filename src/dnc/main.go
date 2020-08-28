@@ -28,6 +28,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Azure/go-autorest/autorest/azure"
+
 	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/cns"
 	"github.com/Azure/azure-container-networking/telemetry"
@@ -162,6 +164,29 @@ func init() {
 	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
 
+	env, err := azure.EnvironmentFromName(config.AzureEnvironment.EnvironmentName)
+	if err != nil {
+		log.Fatalf("Invalid azure environment %s", config.AzureEnvironment.EnvironmentName)
+	}
+
+	ctx := context.Background()
+	if config.IdentitySettings.MSIResourceID != "" && config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID != "" {
+		tok, err := ad.GetARMOAuthTokenViaMSI(ctx, env.ResourceManagerEndpoint, config.IdentitySettings.MSIResourceID)
+		if err != nil {
+			log.Fatalln("Error getting ARM token via MSI. Error:", err)
+		}
+
+		// todo: discuss with team: what should be our workflow for key rotation?
+		ckf := ad.CosmosKeyFetcher{ARMEndpoint: env.ResourceManagerEndpoint}
+		rwKeys, err := ckf.GetReadWriteKeys(ctx, tok, config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID)
+		if err != nil {
+			log.Fatalln("Error getting Cosmos RW Keys. Error:", err)
+		}
+
+		// todo: other attributes such as account name can be extracted from the resource id and azure environment
+		config.DataStoreSettings.AzureStorageInfo.Key = rwKeys.PrimaryMasterKey
+	}
+
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
 		// TO DO : Pass config object itself.
@@ -179,7 +204,6 @@ func init() {
 
 	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
 
-	ctx := context.Background()
 	pubSubCfg := config.PubSubProxySettings
 
 	if pubSubCfg.EnablePubSubProxy {
