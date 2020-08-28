@@ -47,6 +47,7 @@ namespace SwiftRunner
         private MeasureMetric4D PrivateDNSMetric;
         private MeasureMetric4D MNATMetric;
         private MeasureMetric4D LBMetric;
+        private MeasureMetric4D SetupMetric;
 
         public Runner(string[] args)
             : base(args)
@@ -179,6 +180,15 @@ namespace SwiftRunner
                 "DncEndPoint",
                 "PartitionKey",
                 ref mdmErr);
+            SetupMetric = MeasureMetric4D.Create(
+                this.GetConfigurationValue(MDMAccountName),
+                this.GetConfigurationValue(Namespace),
+                "Setup",
+                "Environment",
+                "RunnerInstance",
+                "DncEndPoint",
+                "PartitionKey",
+                ref mdmErr);
         }
 
         public override void StartRunner()
@@ -212,7 +222,7 @@ namespace SwiftRunner
                     {
                         this.LogHealthy("SwiftDatapathRunner is healthy.");
 
-                        if (datapath.LastError != "") {
+                        if ((datapath.LastError != null) && (datapath.LastError.Length != 0)){
                             this.LogDegraded("Logging error from tests: {0}", datapath.LastError);
                         }
                         
@@ -355,10 +365,34 @@ namespace SwiftRunner
                         {
                             Console.Error.WriteLine("Failed to emit LB metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
+
+                        // If the error is setup related, we don't need a flurring incident, hence we just log a separate metric for setup error
+                        // in case of setup error, every else metric will be true but error message will be non-empty.
+                        // while in case of any scenario failure, one of the test case metric flag will be false, and errror message will be non-empty.
+                        if (!SetupMetric.LogValue(!DidSetUpFail(datapath) ? 1 : 2,
+                            this.Environment,
+                            this.RunnerInstance,
+                            k8sEP,
+                            partitionKey,
+                            ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emit setup metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
                     }
                     else
                     {
                         this.LogUnhealthy("Connection to cluster failed.");
+
+                        // Log setup metric
+                        if (!SetupMetric.LogValue(2,
+                            this.Environment,
+                            this.RunnerInstance,
+                            k8sEP,
+                            partitionKey,
+                            ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emit setup metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
                     }
 
                     // update to 30 min after testing...
@@ -422,8 +456,11 @@ namespace SwiftRunner
                 {
                     foreach (Exception aex in ae.InnerExceptions)
                     {
-                        Console.WriteLine("AggregateException: {0}", aex.Message);
+                        Console.WriteLine("Inner Exception: Type : {0}, Message: {1}", 
+                            aex.GetType().Name, 
+                            aex.Message);
                     }
+
                     throw new Exception($"Response :{ae.Message}");
                 }
             }
@@ -453,7 +490,7 @@ namespace SwiftRunner
         private bool ValidMetrics()
         {
             return Nc2NcMetric != null &&
-                Nc2VmMetric != null && 
+                Nc2VmMetric != null &&
                 ServiceTunnelMetric != null &&
                 Vnet2VnetGWMetric != null &&
                 Vnet2VnetPeeringMetric != null &&
@@ -465,7 +502,28 @@ namespace SwiftRunner
                 ExternalDNSMetric != null &&
                 PrivateDNSMetric != null &&
                 MNATMetric != null &&
-                LBMetric != null;
+                LBMetric != null &&
+                SetupMetric != null;
+        }
+
+        private bool DidSetUpFail(contracts.DncDataPathResponse datapathResponse)
+        {
+            return (datapathResponse.LastError != null) &&
+                (datapathResponse.LastError.Length != 0) &&
+                datapathResponse.ServiceTunnel &&
+                datapathResponse.Nc2Nc &&
+                datapathResponse.Nc2VM &&
+                datapathResponse.Vnet2VnetGW &&
+                datapathResponse.Vnet2VnetPeering &&
+                datapathResponse.NonRFCVnet2VnetPeering &&
+                datapathResponse.NSG &&
+                datapathResponse.NSGwTags &&
+                datapathResponse.UDR &&
+                datapathResponse.PrivateLink &&
+                datapathResponse.ExternalDNS &&
+                datapathResponse.PrivateDNS &&
+                datapathResponse.MNAT &&
+                datapathResponse.LB;
         }
     }
 }
