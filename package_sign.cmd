@@ -9,7 +9,7 @@ if %OPERATION%=="package" (
 
     :: if service is not DNC, then use version variable from above
     if %DROP%==drop_dnc (
-        nuget pack Azure%SERVICE%Package.nuspec -Properties branch=%BUILD_SOURCEBRANCHNAME%;drop="%~dp0%DROP%";gitdrop="%~dp0%GITDROP%";dir=%DIR%;version=%CDP_MAJOR_NUMBER_ONLY%.%CDP_MINOR_NUMBER_ONLY%.%CDP_VERSION_TAG_ONLY%
+        nuget pack Azure%SERVICE%Package.nuspec -Properties branch=%BUILD_SOURCEBRANCHNAME%;drop="%BUILD_SOURCESDIRECTORY%\artifacts\linux-phase\drop\linux_phase\outputs\build\%DROP%";gitdrop="%BUILD_SOURCESDIRECTORY%\artifacts\linux-phase\drop\linux_phase\outputs\build\%GITDROP%";dir=%DIR%;version=%CDP_MAJOR_NUMBER_ONLY%.%CDP_MINOR_NUMBER_ONLY%.%CDP_VERSION_TAG_ONLY%
     ) else (
         :: call azure-vnet.exe and save version, but then trim the 'v' character from the beginning
         setlocal enabledelayedexpansion
@@ -17,13 +17,14 @@ if %OPERATION%=="package" (
             set fullversion=%%v
             set version=!fullversion:~1!
             echo !version!
-            nuget pack Azure%SERVICE%Package.nuspec -Properties branch=%BUILD_SOURCEBRANCHNAME%;drop="%~dp0%DROP%";gitdrop="%~dp0%GITDROP%";dir=%DIR%;version=!version!
+            nuget pack Azure%SERVICE%Package.nuspec -Properties branch=%BUILD_SOURCEBRANCHNAME%;drop="%BUILD_SOURCESDIRECTORY%\artifacts\linux-phase\drop\linux_phase\outputs\build\%DROP%";gitdrop="%BUILD_SOURCESDIRECTORY%\artifacts\linux-phase\drop\linux_phase\outputs\build\%GITDROP%";dir=%DIR%;version=!version!
         )
         setlocal disabledelayedexpansion
     )
 
 ) else if %OPERATION%=="sign" (
-REM  robocopy %CDP_TEMP_PRIOR_DROP_FOLDER_CONTAINER_PATH%\current\drop\linux_phase\outputs\build\%DROP% %~dp0%DROP% /e
+ robocopy "%BUILD_SOURCESDIRECTORY%\artifacts\linux-phase\drop\linux_phase\outputs\build\%DROP%" "%~dp0%DROP%" /e /xf *.exe
+)
 )
 
 if %ERRORLEVEL% LSS 8 (
