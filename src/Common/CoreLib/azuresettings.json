@@ -1,0 +1,23 @@
+{
+  "AzureAdInstances": {
+    "azurecloud": "https://login.microsoftonline.com",
+    "azurechinacloud": "https://login.chinacloudapi.cn",
+    "azureusgovernment": "https://login.microsoftonline.us",
+    "azuregermancloud": "https://login.microsoftonline.de"
+  },
+  "ArmEndpoints": {
+    "azurecloud": "https://management.azure.com",
+    "azurechinacloud": "https://management.chinacloudapi.cn",
+    "azureusgovernment": "https://management.usgovcloudapi.net",
+    "azuregermancloud": "https://management.microsoftazure.de"
+  },
+  "AzureEnvironments": [
+    "azurecloud",
+    "azurechinacloud",
+    "azureusgovernment",
+    "azuregermancloud"
+  ],
+  "CosmosDb": {
+    "ListKeysUrlFormat": "%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.DocumentDb/databaseAccounts/%s/listKeys/?api-version=2016-03-31"
+  }
+}
