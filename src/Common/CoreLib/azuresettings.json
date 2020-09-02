@@ -3,19 +3,22 @@
     "azurecloud": "https://login.microsoftonline.com",
     "azurechinacloud": "https://login.chinacloudapi.cn",
     "azureusgovernment": "https://login.microsoftonline.us",
-    "azuregermancloud": "https://login.microsoftonline.de"
+    "azuregermancloud": "https://login.microsoftonline.de",
+    "dogfood": ""
   },
   "ArmEndpoints": {
     "azurecloud": "https://management.azure.com",
     "azurechinacloud": "https://management.chinacloudapi.cn",
     "azureusgovernment": "https://management.usgovcloudapi.net",
-    "azuregermancloud": "https://management.microsoftazure.de"
+    "azuregermancloud": "https://management.microsoftazure.de",
+    "dogfood": "https://api-dogfood-admin.resources.windows-int.net"
   },
   "AzureEnvironments": [
     "azurecloud",
     "azurechinacloud",
     "azureusgovernment",
-    "azuregermancloud"
+    "azuregermancloud",
+    "dogfood"
   ],
   "CosmosDb": {
     "ListKeysUrlFormat": "%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.DocumentDb/databaseAccounts/%s/listKeys/?api-version=2016-03-31"

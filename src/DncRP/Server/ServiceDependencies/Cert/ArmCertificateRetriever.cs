@@ -38,6 +38,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private string azureEnvironment;
         private ILogger<ArmCertificateRetriever> logger;
 
+        private const string certMetadataUri = "/metadata/authentication?api-version=2015-01-01";
+        private const string certPort = "24582";
+
         /// <summary>
         /// Create an instance of CertificateRetriever
         /// </summary>
@@ -105,6 +108,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 try
                 {
+                    // todo: Should this be initialized in the startup?
                     if (string.IsNullOrWhiteSpace(this.azureEnvironment))
                     {
                         InstanceResponse response = await this.imdsRetriever.GetInstanceMetadata(
@@ -114,11 +118,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                     if (this.ShouldFetchCertificates(doNotUseCache))
                     {
-                        // Retrieve certificates and cache in certificate list
-                        string endpoint = this.GetCertMetadataEndpoint();
+                        // sample "https://management.azure.com:24582/metadata/authentication?api-version=2015-01-01",
+                        var uri = this.GetCertMetadataEndpoint();
                         ArmCertMetadata metadata = await this.httpUtility.GetJsonAsync<ArmCertMetadata>(
                             this.httpClient,
-                            HttpCompletionOption.ResponseHeadersRead, endpoint);
+                            HttpCompletionOption.ResponseHeadersRead, uri);
 
                         List<X509Certificate2> certs = new List<X509Certificate2>();
                         foreach (ClientCertificate c in metadata.clientCertificates)
@@ -159,16 +163,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <returns></returns>
         private string GetCertMetadataEndpoint()
         {
-            switch (this.azureEnvironment)
+            string armEndpoint = AzureInfo.GetArmEndpoint(this.azureEnvironment.ToLower());
+
+            // Append the port 24582 for non-dogfood enviornments
+            if (this.azureEnvironment != "dogfood")
             {
-                case "azurechinacloud": return this.configuration["CertAuthEndPoints:Mooncake"];
-                case "azurecloud": return this.configuration["CertAuthEndPoints:Public"];
-                case "azuregermancloud": return this.configuration["CertAuthEndPoints:BlackForest"];
-                case "azureusgovernment": return this.configuration["CertAuthEndPoints:Fairfax"];
-                case "dogfood": return this.configuration["CertAuthEndPoints:DogFood"];
-                default:
-                    throw new InvalidAzureEnvironmentException($"Invalid environment {this.azureEnvironment}");
+                armEndpoint = armEndpoint + $":{certPort}";
             }
+
+            return armEndpoint + certMetadataUri;
         }
 
         /// <summary>
