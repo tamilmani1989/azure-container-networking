@@ -7,9 +7,18 @@
 
 namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
+    using System.Text.Json.Serialization;
+
     public class ComputeResponse
     {
-        public string azEnvironment
+        [JsonPropertyName("azEnvironment")]
+        public string AzureEnvironment
+        {
+            get; set;
+        }
+
+        [JsonPropertyName("location")]
+        public string AzureRegion
         {
             get; set;
         }
@@ -21,7 +30,8 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
     /// </summary>
     public class InstanceResponse
     {
-        public ComputeResponse compute
+        [JsonPropertyName("compute")]
+        public ComputeResponse Compute
         {
             get; set;
         }

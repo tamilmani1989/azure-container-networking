@@ -14,6 +14,13 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
 
     public class HttpUtility : IHttpUtility
     {
+        private HttpClient httpClient;
+
+        public HttpUtility(HttpClient httpClient)
+        {
+            this.httpClient = httpClient;
+        }
+
         /// <summary>
         /// Invoke REST API and deserialize its JSON result to caller specified object
         /// </summary>
@@ -22,10 +29,28 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <param name="option"></param>
         /// <param name="uri"></param>
         /// <returns></returns>
-        public async Task<T> GetJsonAsync<T>(HttpClient httpClient,HttpCompletionOption option,  string uri)
+        public async Task<T> GetJsonAsync<T>(HttpCompletionOption option, string uri)
         {
-            HttpResponseMessage httpResponse = await httpClient.GetAsync(uri, option);
+            HttpResponseMessage httpResponse = await this.httpClient.GetAsync(uri, option);
+            return await this.ParseHttpResponse<T>(httpResponse);
+        }
 
+        /// <summary>
+        /// Invoke REST API and deserialize its JSON result to caller specified object
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="httpClient"></param>
+        /// <param name="option"></param>
+        /// <param name="uri"></param>
+        /// <returns></returns>
+        public async Task<T> SendRequestAndGetJsonAsync<T>(HttpRequestMessage requestMessage)
+        {
+            HttpResponseMessage httpResponse = await this.httpClient.SendAsync(requestMessage);
+            return await this.ParseHttpResponse<T>(httpResponse);
+        }
+
+        private async Task<T> ParseHttpResponse<T>(HttpResponseMessage httpResponse)
+        {
             httpResponse.EnsureSuccessStatusCode(); // throws if not 200-299
 
             if (httpResponse.Content is object && httpResponse.Content.Headers.ContentType.MediaType == "application/json")
@@ -38,6 +63,6 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             }
 
             throw new InvalidDataException($"Invalid content type '{httpResponse.Content.Headers.ContentType.MediaType}' returned. ");
-        }    
+        }
     }
 }

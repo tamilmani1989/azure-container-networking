@@ -113,5 +113,39 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib.Unittests
                 Assert.True(string.Equals(actualAadInstance, expectedlAadInstance));
             }
         }
+
+        [Fact]
+        public void TestGetAadInstanceWithTrailingSlash()
+        {
+            IEnumerable<string> envs = AzureInfo.GetAzureEnvironments();
+
+            foreach (string e in envs)
+            {
+                string actualAadInstance = AzureInfo.GetAzureADInstance(e, true);
+                string expectedlAadInstance = "";
+                switch (e)
+                {
+                    case "azurecloud":
+                        expectedlAadInstance = "https://login.microsoftonline.com/";
+                        break;
+                    case "azurechinacloud":
+                        expectedlAadInstance = "https://login.chinacloudapi.cn/";
+                        break;
+                    case "azureusgovernment":
+                        expectedlAadInstance = "https://login.microsoftonline.us/";
+                        break;
+                    case "azuregermancloud":
+                        expectedlAadInstance = "https://login.microsoftonline.de/";
+                        break;
+                    case "dogfood":
+                        expectedlAadInstance = "";
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Invalid environment {e}");
+                }
+
+                Assert.True(string.Equals(actualAadInstance, expectedlAadInstance));
+            }
+        }
     }
 }

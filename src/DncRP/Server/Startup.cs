@@ -9,6 +9,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
     using System.Collections.Generic;
+    using System.Net.Http;
     using System.Security.Claims;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authentication.Certificate;
@@ -25,7 +26,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
     public class Startup
     {
-
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -40,7 +40,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public void ConfigureServices(IServiceCollection services)
         {
             // Add custom properties to telemetry (log)
-            IHttpUtility httpUtility = new HttpUtility();
+            IHttpUtility httpUtility = new HttpUtility(new HttpClient());
+            IImdsRetriever imdsRetriever = new ImdsRetriever(httpUtility);
+
+            this.InitializeContext(Configuration, imdsRetriever);
 
             services.AddSingleton<ICertificateRetriever, ArmCertificateRetriever>(provider =>
             {
@@ -48,7 +51,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 ILogger<ArmCertificateRetriever> logger = provider.GetRequiredService<ILogger<ArmCertificateRetriever>>();
                 return new ArmCertificateRetriever(
                     Configuration,
-                    new ImdsRetriever(httpUtility), httpUtility, logger, Configuration["AzureEnvironment"]);
+                    imdsRetriever, httpUtility, logger, Configuration["AzureEnvironment"]);
             });
 
             services.AddSingleton<ICertificateValidator, CertificateValidator>(provider =>
@@ -143,6 +146,25 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 endpoints.MapControllers();
             });
+        }
+
+        private void InitializeContext(IConfiguration configuration, IImdsRetriever imdsRetriever)
+        {
+            string azEnv = configuration["AzureEnvironment"];
+            string region = configuration["AzureRegion"];
+
+            if (!string.IsNullOrWhiteSpace(azEnv) && !string.IsNullOrWhiteSpace(region))
+            {
+                CurrentContext.SetContext(azEnv, region);
+            }
+
+            // https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md#avoid-using-taskrun-for-long-running-work-that-blocks-the-thread
+            // Blocking is not ideal here but this approach avoids deadblock and unwraps any exception thrown inside delegate in Run method
+            Task<InstanceResponse> task = Task.Run(() => imdsRetriever.GetInstanceMetadata(
+                              configuration["Imds:InstanceEndpoint"]));
+            InstanceResponse response = task.GetAwaiter().GetResult();
+
+            CurrentContext.SetContext(response.Compute.AzureEnvironment, response.Compute.AzureRegion);
         }
     }
 }

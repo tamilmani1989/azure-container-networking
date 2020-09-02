@@ -44,11 +44,6 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             return config.GetSection(azureAdInstances).GetChildren().ToDictionary(x => x.Key, y => y.Value);
         }
 
-        public static string GetCosmosDbListKeyUrlFormat()
-        {
-            return config["CosmosDb:ListKeysUrlFormat"];
-        }
-
         /// <summary>
         /// These environments were gotten from below azure powershell cli. When we 
         /// get instance metadata via IMDS, same environment values are returned
@@ -87,7 +82,8 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <param name="azureEnvironment"></param>
         /// <returns></returns>
         public static string GetAzureADInstance(
-            string azureEnvironment)
+            string azureEnvironment,
+            bool includeTrailingSlash = false)
         {
             if (string.IsNullOrEmpty(azureEnvironment))
             {
@@ -96,7 +92,13 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
 
             try
             {
-                return config.GetSection(azureAdInstances).GetSection(azureEnvironment).Value;
+                string instance = config.GetSection(azureAdInstances).GetSection(azureEnvironment).Value;
+                if (string.IsNullOrWhiteSpace(instance))
+                {
+                    return instance;
+                }
+
+                return string.Format("{0}{1}", instance, includeTrailingSlash ? "/" : "");
             }
             catch (Exception ex)
             {

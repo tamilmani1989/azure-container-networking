@@ -19,8 +19,5 @@
     "azureusgovernment",
     "azuregermancloud",
     "dogfood"
-  ],
-  "CosmosDb": {
-    "ListKeysUrlFormat": "%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.DocumentDb/databaseAccounts/%s/listKeys/?api-version=2016-03-31"
-  }
+  ]
 }

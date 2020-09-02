@@ -15,15 +15,17 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
     internal class TestImdsRetriever : IImdsRetriever
     {
         private string azureEnvironment;
+        private string azureRegion;
 
-        public TestImdsRetriever(string azureEnv)
+        public TestImdsRetriever(string azureEnv = "", string azureRegion = "")
         {
             this.azureEnvironment = azureEnv;
+            this.azureRegion = azureRegion;
         }
 
-        public async Task<InstanceResponse> GetInstanceMetadata(HttpClient httpClient, string imdsInstanceUri)
+        public async Task<InstanceResponse> GetInstanceMetadata(string imdsInstanceUri)
         {
-            return new InstanceResponse { compute = new ComputeResponse { azEnvironment = this.azureEnvironment } };
+            return new InstanceResponse { Compute = new ComputeResponse { AzureEnvironment = this.azureEnvironment, AzureRegion = this.azureRegion } };
         }
     }
 }

@@ -29,9 +29,9 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <param name="httpClient"></param>
         /// <param name="imdsInstanceUri"></param>
         /// <returns></returns>
-        public async Task<InstanceResponse> GetInstanceMetadata(HttpClient httpClient, string imdsInstanceUri)
+        public async Task<InstanceResponse> GetInstanceMetadata(string imdsInstanceUri)
         {
-            return await this.httpUtility.GetJsonAsync<InstanceResponse>(httpClient, HttpCompletionOption.ResponseHeadersRead, imdsInstanceUri);
+            return await this.httpUtility.GetJsonAsync<InstanceResponse>(HttpCompletionOption.ResponseHeadersRead, imdsInstanceUri);
         }
     }
 }

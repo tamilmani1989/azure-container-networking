@@ -25,7 +25,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             this.callerSpecifiedCerts = new List<X509Certificate2>();
         }
 
-        public async Task<T> GetJsonAsync<T>(HttpClient httpClient, HttpCompletionOption option, string uri)
+        public async Task<T> GetJsonAsync<T>(HttpCompletionOption option, string uri)
         {
             if (typeof(T) == typeof(ArmCertMetadata))
             {
@@ -34,6 +34,18 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             }
 
             throw new NotSupportedException($"Type {typeof(T).Name} is not supported");
+        }
+
+        /// <summary>
+        /// Send the specified Http request and deserialize the JSON response
+        /// into user specified type (T)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="requestMessage"></param>
+        /// <returns></returns>
+        public Task<T> SendRequestAndGetJsonAsync<T>(HttpRequestMessage requestMessage)
+        {
+            return default(Task<T>);
         }
 
         private async Task<ArmCertMetadata> GetArmCertMetadata(string uri)

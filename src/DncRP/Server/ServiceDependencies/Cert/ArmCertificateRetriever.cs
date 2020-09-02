@@ -32,7 +32,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
         private readonly TimeSpan timeout;
         private readonly List<X509Certificate2> certificateList;
-        private readonly HttpClient httpClient;
         private readonly SemaphoreSlim semaphoreSlim;
         private DateTime lastCertUpdateTime;
         private string azureEnvironment;
@@ -75,7 +74,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             this.timeout = TimeSpan.FromSeconds(refreshCertPeriodInSeconds);
-            this.httpClient = new HttpClient();
             this.lastCertUpdateTime = DateTime.MinValue;
             this.certificateList = new List<X509Certificate2>();
             this.semaphoreSlim = new SemaphoreSlim(1, 1);
@@ -112,8 +110,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     if (string.IsNullOrWhiteSpace(this.azureEnvironment))
                     {
                         InstanceResponse response = await this.imdsRetriever.GetInstanceMetadata(
-                            this.httpClient, configuration["Imds:InstanceEndpoint"]);
-                        this.azureEnvironment = response.compute.azEnvironment.ToLower();
+                            configuration["Imds:InstanceEndpoint"]);
+                        this.azureEnvironment = response.Compute.AzureEnvironment.ToLower();
                     }
 
                     if (this.ShouldFetchCertificates(doNotUseCache))
@@ -121,7 +119,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                         // sample "https://management.azure.com:24582/metadata/authentication?api-version=2015-01-01",
                         var uri = this.GetCertMetadataEndpoint();
                         ArmCertMetadata metadata = await this.httpUtility.GetJsonAsync<ArmCertMetadata>(
-                            this.httpClient,
                             HttpCompletionOption.ResponseHeadersRead, uri);
 
                         List<X509Certificate2> certs = new List<X509Certificate2>();

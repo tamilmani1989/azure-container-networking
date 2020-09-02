@@ -18,6 +18,6 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <param name="httpClient"></param>
         /// <param name="imdsInstanceUri"></param>
         /// <returns></returns>
-        Task<InstanceResponse> GetInstanceMetadata(HttpClient httpClient, string imdsInstanceUri);
+        Task<InstanceResponse> GetInstanceMetadata(string imdsInstanceUri);
     }
 }
