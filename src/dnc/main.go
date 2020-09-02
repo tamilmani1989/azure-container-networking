@@ -17,7 +17,6 @@ import (
 	"dnc/resourceupdatehandler/networkupdatehandler"
 	"dnc/server"
 	"dnc/utils"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -30,6 +29,7 @@ import (
 
 	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/cns"
+	acncommon "github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/telemetry"
 	"github.com/Azure/go-autorest/autorest/azure"
 )
@@ -75,10 +75,20 @@ const (
 	tmpCertFilePattern       = "pubsubcert-*.pem"
 )
 
-func main() {
-	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
-	flag.Parse()
+func printVersion() {
+	fmt.Printf("Azure Delegated Network Service\n")
+	fmt.Printf("Version %v\n", utils.Version)
+}
 
+func main() {
+	acncommon.ParseArgs(&args, printVersion)
+	vers := acncommon.GetArg(OptVersion).(bool)
+	if vers {
+		printVersion()
+		os.Exit(0)
+	}
+
+	stderr = acncommon.GetArg(OptLogTargetStderr).(bool)
 	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
 	if !found {
 		configpath = "config.json"
