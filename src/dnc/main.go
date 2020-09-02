@@ -28,15 +28,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Azure/go-autorest/autorest/azure"
-
 	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/cns"
 	"github.com/Azure/azure-container-networking/telemetry"
+	"github.com/Azure/go-autorest/autorest/azure"
 )
 
 var (
-	isPrimary                struct{ flag int32 }
 	cancelProcessing         = make(chan bool)
 	startProcessing          = make(chan bool)
 	startChan                = make(chan bool)
@@ -71,13 +69,17 @@ var (
 )
 
 const (
-	maxLogFileSize  = 16 * 1024 * 1024 // Set 16MB as the max log file size
-	maxLogFileCount = 8                // Set 8 as max log file count.
+	maxLogFileSize           = 16 * 1024 * 1024 // Set 16MB as the max log file size
+	maxLogFileCount          = 8                // Set 8 as max log file count.
+	maxKeyvaultRetrievalTime = 10
+	tmpCertFilePattern       = "pubsubcert-*.pem"
 )
 
-func init() {
-	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
+func main() {
+	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
+	flag.Parse()
 
+	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
 	if !found {
 		configpath = "config.json"
 	}
@@ -86,7 +88,6 @@ func init() {
 	configuration.OverrideConfigFromEnv(config)
 	configuration.SetDncConfigDefaults(config)
 	disableTelemetry = config.TelemetrySettings.DisableTelemetry
-	logger = loggershim.NewLoggerShim(config)
 
 	var aiTelemetryErr error
 
@@ -108,6 +109,7 @@ func init() {
 		aiTelemetryErr = aiwrapper.CreateTelemetryHandle(aiConfig)
 	}
 
+	logger = loggershim.NewLoggerShim(config)
 	logger.Init(stderr, reports)
 	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
 
@@ -134,6 +136,7 @@ func init() {
 		startChan,
 		doneChan,
 		demoteChan)
+
 	switch config.CNSSettings.ChannelMode {
 	case cns.Direct:
 		cnsInterface = cnsinterface.NewDirectClient(sessionManager, config.DNCSettings.EnforceNICLimit)
@@ -160,7 +163,11 @@ func init() {
 		Controller:          ctrler,
 		ReverseProxyEnabled: config.DNCSettings.ReverseProxyEnabled,
 		ConnectionTimeout:   config.HttpClientSettings.ConnectionTimeout}
-	dncServer.Init()
+
+	if err := dncServer.Init(); err != nil {
+		log.Fatalln("Error initializing dnc server. Error:", err)
+	}
+
 	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
 
@@ -190,7 +197,7 @@ func init() {
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
 		// TO DO : Pass config object itself.
-		datamodel.Init(
+		err := datamodel.Init(
 			config.CNSSettings,
 			config.DataStoreSettings,
 			config.DNCSettings,
@@ -198,6 +205,9 @@ func init() {
 			config.VlanSettings.Max,
 			httpClient,
 			config.HostAgentSettings.WireServerIP)
+		if err != nil {
+			log.Fatalln("Error initializing datamodel. Error:", err)
+		}
 		ctrler.UpdateReplicaStatus(true)
 		setOrchestratorForTelemetry()
 	}
@@ -222,12 +232,13 @@ func init() {
 	}
 
 	initNetworkContainerStateMachine()
-}
 
-const (
-	maxKeyvaultRetrievalTime = 10
-	tmpCertFilePattern       = "pubsubcert-*.pem"
-)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go ProcessExitMonitor(sigs, processExitCallback)
+	go startReplica(ctrler)
+	dncServer.Start()
+}
 
 // getCertPath fetches a certificate from keyvault, writes it to a temporary file, and returns its file path
 func getCertPath(ctx context.Context, keyvaultName, certName string) (string, error) {
@@ -315,16 +326,4 @@ func startReplica(c *controller.Controller) {
 	if !disableTelemetry {
 		go sendTelemetry()
 	}
-}
-
-func main() {
-	// From go 1.13, we can't use flags api in package init as it conflicts with go test init.
-	flag.BoolVar(&stderr, "stderr", false, "Set to true to write logs to stdout.")
-	flag.Parse()
-	logger.Init(stderr, reports)
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go ProcessExitMonitor(sigs, processExitCallback)
-	go startReplica(ctrler)
-	dncServer.Start()
 }

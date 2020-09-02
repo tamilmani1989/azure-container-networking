@@ -218,8 +218,6 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(m.Run())
-	nmAgentServer.TearDownSuite()
-	cnsServer.TearDownSuite()
 }
 
 // Setup :- Set up the environment (if necessary).
@@ -236,6 +234,7 @@ func Setup() error {
 	if err := cnsServer.SetupServer("127.0.0.1:10090"); err != nil {
 		return err
 	}
+	httpClient = http.DefaultClient
 	return nil
 }
 
