@@ -13,5 +13,6 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
     public static class CosmosDbUriFormats
     {
         public const string ListKeysUriFormat = "{0}/subscriptions/{1}/resourceGroups/{2}/providers/Microsoft.DocumentDb/databaseAccounts/{3}/listKeys/?api-version=2016-03-31";
+        public const string TableAPIConnectionStringFormat = "DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};TableEndpoint=https://{2}.table.cosmos.azure.com:443/;";
     }
 }

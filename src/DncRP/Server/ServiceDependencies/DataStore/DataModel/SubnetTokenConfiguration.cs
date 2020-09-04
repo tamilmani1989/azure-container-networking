@@ -17,7 +17,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     public class SubnetTokenConfiguration : ISubnetTokenConfiguration
     {
         private ITableDataStore dataStore;
-        private CloudTable subnetTokenTable;
         private const string tableName = "SubnetTokenConfiguration";
 
         /// <summary>
@@ -29,23 +28,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             ITableDataStore tableDataStore)
         {
             this.dataStore = tableDataStore;
-
-            // Create a table client for interacting with the table service 
-            CloudTableClient tableClient = dataStore.GetTableClient();
-            if (tableClient == null)
-            {
-                throw new ArgumentException("TableClient is not initialized");
-            }
-
-            subnetTokenTable = dataStore.GetTableClient().GetTableReference(tableName);
-            if (subnetTokenTable.CreateIfNotExists())
-            {
-                //logger.LogInformation($"Created Table named: {tableName}");
-            }
-            else
-            {
-                //logger.LogInformation($"Table {tableName} already exists");
-            }
         }
 
         /// <summary>
@@ -63,6 +45,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             try
             {
+                // Create a table client for interacting with the table service
+                CloudTableClient tableClient = await dataStore.GetTableClient();
+
+                CloudTable subnetTokenTable = tableClient.GetTableReference(tableName);
+                subnetTokenTable.CreateIfNotExists();
+
                 // Create the InsertOrReplace table operation
                 SubnetTokenConfigurationEntity entity = new SubnetTokenConfigurationEntity(vnetId, subnetName);
                 entity.PrimaryTokenId = primaryTokenId;

@@ -1,0 +1,82 @@
+﻿// -----------------------------------------------------------------------------
+// <copyright file="CosmosDbConnectionTests.cs" company="Microsoft">
+//   Copyright (c) Microsoft Corporation.  All rights reserved.
+// </copyright>
+//
+// -----------------------------------------------------------------------------
+
+namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
+{
+    using System;
+    using System.IO;
+    using System.Net.Http;
+    using System.Text.RegularExpressions;
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
+    using Microsoft.Azure.Cosmos.Table;
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.Logging;
+    using Moq;
+    using Xunit;
+    using Match = System.Text.RegularExpressions.Match;
+
+    public class CosmosDbConnectionTests
+    {
+        private IHttpUtility httpUtility;
+        private TestConfig testConfig;
+        private IConfiguration configuration;
+        private const string settingsFileName = "servicetests.settings.json";
+        private const string connectStrRegex = "RunAs=App;AppId=(.*);TenantId=(.*);AppKey=(.*)";
+
+        public CosmosDbConnectionTests()
+        {
+            this.httpUtility = new HttpUtility(new HttpClient());
+            var builder = new ConfigurationBuilder()
+              .SetBasePath(Directory.GetCurrentDirectory())
+              .AddJsonFile(settingsFileName);
+
+            configuration = builder.Build();
+            this.testConfig = configuration.Get<TestConfig>();
+        }
+
+        [Fact]
+        public async void TestCosmosDbConnection()
+        {
+            Match match = Regex.Match(this.testConfig.ConnectionString, connectStrRegex);
+            if (!match.Success)
+            {
+                throw new ArgumentException($"Invalid connection string {this.testConfig.ConnectionString}");
+            }
+
+            ClientIdentity clientIdentity = new ClientIdentity
+            {
+                AppId = match.Groups[1].Value,
+                TenantId = match.Groups[2].Value,
+                AppKey = match.Groups[3].Value,
+            };
+
+            DatastoreSettings datastoreSettings = new DatastoreSettings
+            {
+                SubscriptionId = this.testConfig.SubscriptionId,
+                DBAccountName = this.testConfig.DbAccountName,
+                ResourceGroup = this.testConfig.ResourceGroup,
+                Region = this.testConfig.AzureRegion
+            };
+
+            CurrentContext.SetContext(this.configuration["AzureEnvironment"], this.configuration["AzureRegion"]);
+
+            IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
+                this.httpUtility,
+                datastoreSettings,
+                clientIdentity);
+
+            Mock<ILogger<CosmosDbDataStore>> logger = new Mock<ILogger<CosmosDbDataStore>>();
+            ITableDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
+
+            CloudTableClient client = await dataStore.GetTableClient();
+            Assert.True(client != null);
+
+            CloudTable table = client.GetTableReference("MasterElectionTable");
+            Assert.True(table.Exists()); // This table exists in test cosmos db we have. This is the assumption here.
+        }
+    }
+}

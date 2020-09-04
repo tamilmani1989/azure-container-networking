@@ -8,8 +8,11 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
     using Microsoft.Azure.Cosmos.Table;
-    using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
 
     /// <summary>
@@ -17,59 +20,67 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     /// </summary>
     public class CosmosDbDataStore : ITableDataStore
     {
-        private IConfiguration configuration;
-        private string connectionString;
+        private IConnectionStringProvider connectionStringProvider;
         private CloudStorageAccount storageAccount;
         private CloudTableClient tableClient;
         ILogger<CosmosDbDataStore> logger;
+        private readonly SemaphoreSlim semaphoreSlim;
 
         /// <summary>
         /// Create an instance of CosmosDbDataStorage
         /// TODO: Pass the DataStore Settings
         /// </summary>
-        /// <param name="storageConnectionString">Connection string, configuration from appsettings.Json</param>
+        /// <param name="connectionStringProvider">
+        /// Connection string provider
+        /// </param>
         public CosmosDbDataStore(
-            IConfiguration configuration,
+            IConnectionStringProvider connectionStringProvider,
             ILogger<CosmosDbDataStore> logger)
         {
-            this.configuration = configuration;
+            this.connectionStringProvider = connectionStringProvider;
             this.logger = logger;
-
-            // Get the connection string
-            // TODO - This will be pulled from KeyVault using MSI
-            connectionString = this.configuration["DataStoreSettings:ConnectionString"];
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                throw new Exception("Storage Connection String (DataStoreSettings:ConnectionString) is not set");
-            }
-
-            Init();
+            this.semaphoreSlim = new SemaphoreSlim(1, 1);
         }
 
+
         /// <summary>
-        /// Initialize the CloudStorage
+        /// Get Table client.
+        /// TODO: This implementation will change based on whatever
+        /// TODO: key rotation mechanism we come up with.
         /// </summary>
         /// <returns></returns>
-        private void Init()
+        public async Task<CloudTableClient> GetTableClient()
         {
-            // Retrieve storage account information from connection string.try
+            await semaphoreSlim.WaitAsync();
+
             try
             {
-                storageAccount = CloudStorageAccount.Parse(connectionString);
+                if (this.storageAccount == null)
+                {
+                    IEnumerable<string> connectionStrs = await this.connectionStringProvider.GetConnectionStringsForTableAPI();
+
+                    // For now, just use the first one. Since we are not rotating keys, any one of these should work
+                    string connStr = connectionStrs.FirstOrDefault();
+                    this.storageAccount = CloudStorageAccount.Parse(connStr);
+
+                    // Create a table client for interacting with the table service
+                    this.tableClient = storageAccount.CreateCloudTableClient(new TableClientConfiguration());
+                }
             }
             catch (Exception ex)
             {
+                this.storageAccount = null;
+                this.tableClient = null;
+
                 logger.LogError($"Failed to initialize Storage Account: {ex}");
                 throw;
             }
+            finally
+            {
+                semaphoreSlim.Release();
+            }
 
-            // Create a table client for interacting with the table service
-            tableClient = storageAccount.CreateCloudTableClient(new TableClientConfiguration());
-        }
-
-        public CloudTableClient GetTableClient()
-        {
-            return tableClient;
+            return this.tableClient;
         }
     }
 }

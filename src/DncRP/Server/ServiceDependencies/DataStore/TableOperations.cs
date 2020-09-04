@@ -5,10 +5,10 @@
 //
 // -----------------------------------------------------------------------------
 
-using Microsoft.Extensions.Logging;
-
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using Microsoft.Extensions.Logging;
+
     /// <summary>
     /// TableOperations, this is used to initialize all DataModel interfaces
     /// </summary>

@@ -43,11 +43,18 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             IHttpUtility httpUtility = new HttpUtility(new HttpClient());
             IImdsRetriever imdsRetriever = new ImdsRetriever(httpUtility);
 
+            // initialize context first
             this.InitializeContext(Configuration, imdsRetriever);
+
+            DatastoreSettings[] datastoreSettings = Configuration.GetSection("DataStoreSettings").Get<DatastoreSettings[]>();
+            DatastoreSettings currentDatastoreSettings = datastoreSettings.FindByRegion(CurrentContext.AzureRegion);
+            ClientIdentity clientIdentity = Configuration.GetSection("Identity").Get<ClientIdentity>();
+            IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
+                httpUtility, currentDatastoreSettings, clientIdentity);
 
             services.AddSingleton<ICertificateRetriever, ArmCertificateRetriever>(provider =>
             {
-                // TODO: Use IOptions instead of dierctly passing in Configuration
+                // TODO: Use IOptions instead of directly passing in Configuration
                 ILogger<ArmCertificateRetriever> logger = provider.GetRequiredService<ILogger<ArmCertificateRetriever>>();
                 return new ArmCertificateRetriever(
                     Configuration,
@@ -56,7 +63,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             services.AddSingleton<ICertificateValidator, CertificateValidator>(provider =>
             {
-                // TODO: Use IOptions instead of dierctly passing in Configuration
+                // TODO: Use IOptions instead of directly passing in Configuration
                 ILogger<CertificateValidator> logger = provider.GetRequiredService<ILogger<CertificateValidator>>();
                 ICertificateRetriever retriever = provider.GetRequiredService<ICertificateRetriever>();
                 return new CertificateValidator(
@@ -68,7 +75,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 ILogger<TableOperations> tableOperationsLogger = provider.GetRequiredService<ILogger<TableOperations>>();
                 ILogger<CosmosDbDataStore> cosmosDbLogger = provider.GetRequiredService<ILogger<CosmosDbDataStore>>();
                 return new TableOperations(
-                     new CosmosDbDataStore(Configuration, cosmosDbLogger), tableOperationsLogger);
+                     new CosmosDbDataStore(connectionStringProvider, cosmosDbLogger), tableOperationsLogger);
             });
 
             // The following line enables Application Insights telemetry collection.

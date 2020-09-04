@@ -7,6 +7,8 @@
 
 namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
+    using System;
+    using System.Text;
     using System.Threading.Tasks;
     using Microsoft.Azure.Services.AppAuthentication;
 
@@ -29,12 +31,23 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// Default is azurecloud
         /// </param>
         /// <returns></returns>
-        public async Task<string> GetAccessTokenWithUserManagedIdentity(
-            string userManagedClientId,
+        public async Task<string> GetAccessToken(
+            ClientIdentity clientIdentity,
             string resource,
             string azureEnvironment)
         {
-            return await GetAccessToken($"RunAs=App;AppId={userManagedClientId}", resource, azureEnvironment);
+            if (string.IsNullOrWhiteSpace(clientIdentity.AppId))
+            {
+                throw new ArgumentException("AppId is null in clientIdentity");
+            }
+
+            StringBuilder sb = new StringBuilder($"RunAs=App;AppId={clientIdentity.AppId}");
+            if (!string.IsNullOrWhiteSpace(clientIdentity.TenantId) && !string.IsNullOrWhiteSpace(clientIdentity.AppKey))
+            {
+                sb.Append($";TenantId={clientIdentity.TenantId};AppKey={clientIdentity.AppKey}");
+            }
+
+            return await GetAccessToken(sb.ToString(), resource, azureEnvironment);
         }
 
         /// <summary>

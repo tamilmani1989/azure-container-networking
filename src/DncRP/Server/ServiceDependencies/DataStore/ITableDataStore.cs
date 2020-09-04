@@ -7,10 +7,8 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
-    using Microsoft.Azure.Cosmos.Table;
-    using System.Collections.Generic;
-    using System.Security.Cryptography.X509Certificates;
     using System.Threading.Tasks;
+    using Microsoft.Azure.Cosmos.Table;
 
     /// <summary>
     /// TableDataStore interface, used for initializing the backened data storage.
@@ -21,6 +19,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// GetTableClient
         /// </summary>
         /// <returns></returns>
-        CloudTableClient GetTableClient();
+        Task<CloudTableClient> GetTableClient();
     }
 }

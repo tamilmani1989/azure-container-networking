@@ -28,5 +28,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         {
             get; set;
         }
+
+        public string AzureEnvironment
+        {
+            get; set;
+        }
+
+        public string AzureRegion
+        {
+            get; set;
+        }
     }
 }

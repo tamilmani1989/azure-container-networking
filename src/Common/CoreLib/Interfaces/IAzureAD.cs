@@ -14,10 +14,11 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <summary>
         /// Get access token from AzureAD using user managed identity
         /// </summary>
-        /// <param name="userManagedClientId">
-        /// Client ID of user managed identity. A managed identity can have
-        /// object id as well as client id. This function takes client id.
-        /// Both client/object ID are guids
+        /// <param name="clientIdentity">
+        /// Client Identity. If managed identity is being used, pass in ONLY AppId
+        /// and that is enough. If service principal with key is being used, pass in
+        /// AppId, TenantId and AppKey. Note - For a user assigned managed identity
+        /// client id is the AppId.
         /// </param>
         /// <param name="resource">
         /// resource for which token is being requested. For example for ARM -
@@ -28,7 +29,8 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// Default is azurecloud
         /// </param>
         /// <returns></returns>
-        Task<string> GetAccessTokenWithUserManagedIdentity(string userManagedClientId, string resource, string azureEnvironment);
+        Task<string> GetAccessToken(
+            ClientIdentity clientIdentity, string resource, string azureEnvironment);
 
         /// <summary>
         /// Get access token from AzureAD with given connection string
