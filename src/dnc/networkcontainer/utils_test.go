@@ -2,6 +2,7 @@ package networkcontainer
 
 import (
 	"dnc/api"
+	"dnc/datamodel"
 	"fmt"
 
 	"github.com/Azure/azure-container-networking/telemetry"
@@ -10,6 +11,10 @@ import (
 type fakeCNSChannel struct {
 	limit int
 	err   *api.JsonErr
+}
+
+func (f *fakeCNSChannel) DeleteNC(_ *datamodel.NCConfiguration, _ map[string]string) *api.JsonErr {
+	return nil
 }
 
 func (f *fakeCNSChannel) GetNCLimitForNode(_ string) (int, *api.JsonErr) {

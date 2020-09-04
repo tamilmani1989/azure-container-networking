@@ -142,7 +142,7 @@ func getUpdatedReservation(req api.NetworkContainerRequestV2, res datamodel.Rese
 func (p *Preparer) registerNCinNode(ncConfig datamodel.NCConfiguration) *api.JsonErr {
 	nodeID := ncConfig.GetAssociationInfo().NodeID
 
-	ncLimit, err := p.CNS.GetNCLimitForNode(nodeID) // todo: this is just 1 in case of AKS Swift
+	ncLimit, err := p.CNS.GetNCLimitForNode(nodeID)
 	if err != nil {
 		return err
 	}

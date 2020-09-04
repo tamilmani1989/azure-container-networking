@@ -6,6 +6,7 @@ import (
 	"context"
 	ad "dnc/activedirectory"
 	"dnc/aiwrapper"
+	"dnc/cns"
 	"dnc/cnsinterface"
 	"dnc/configuration"
 	"dnc/controller"
@@ -24,11 +25,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/Azure/azure-container-networking/aitelemetry"
-	"github.com/Azure/azure-container-networking/cns"
 	acncommon "github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/telemetry"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -147,13 +148,6 @@ func main() {
 		doneChan,
 		demoteChan)
 
-	switch config.CNSSettings.ChannelMode {
-	case cns.Direct:
-		cnsInterface = cnsinterface.NewDirectClient(sessionManager, config.DNCSettings.EnforceNICLimit)
-	case cns.Managed:
-		cnsInterface = cnsinterface.NewLocalClient(sessionManager, config.DNCSettings.EnforceNICLimit)
-	}
-
 	// Creating http client object to be reused instead of creating one every time.
 	// This helps make use of the cached tcp connections.
 	// Clients are safe for concurrent use by multiple goroutines.
@@ -164,6 +158,26 @@ func main() {
 			}).DialContext,
 			ResponseHeaderTimeout: time.Duration(config.HttpClientSettings.ResponseHeaderTimeout) * time.Second,
 		},
+	}
+
+	switch strings.ToLower(config.CNSSettings.ChannelMode) {
+	case cnsinterface.Direct:
+		cnsInterface = &cnsinterface.DirectChannel{
+			SessionManager:  sessionManager,
+			EnforceNicLimit: config.DNCSettings.EnforceNICLimit,
+			CNSClient: &cns.Client{
+				Paths: config.CNSSettings.ConnectionStrings,
+				HTTP:  httpClient,
+			},
+			Logger: logger,
+		}
+	case cnsinterface.Managed:
+		cnsInterface = cnsinterface.NewManagedChannel(sessionManager, config.DNCSettings.EnforceNICLimit)
+	case cnsinterface.Disabled:
+		cnsInterface = &cnsinterface.DisabledChannel{NCLimit: 1}
+	default:
+		logger.Errorf("did not set a valid CNS channel: '%s'", config.CNSSettings.ChannelMode)
+		os.Exit(1)
 	}
 
 	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,

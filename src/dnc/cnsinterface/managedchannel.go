@@ -8,23 +8,23 @@ import (
 	"net/http"
 )
 
-// LocalClient - Struct to store the variables which client needs
-type LocalClient struct {
+// ManagedChannel - CNS interactions for managed DNC
+type ManagedChannel struct {
 	sessionManager  *utils.SessionManager
 	enforceNicLimit bool
 }
 
-// NewLocalClient - Create a new CNS shim
-func NewLocalClient(sessionManager *utils.SessionManager, enforceNicLimit bool) *LocalClient {
-	LocalClient := &LocalClient{
+// NewManagedChannel - Creates a new managed channel
+func NewManagedChannel(sessionManager *utils.SessionManager, enforceNicLimit bool) *ManagedChannel {
+	cl := &ManagedChannel{
 		sessionManager:  sessionManager,
 		enforceNicLimit: enforceNicLimit,
 	}
-	return LocalClient
+	return cl
 }
 
 // GetNCLimitForNode returns how many NCs can be created in this node
-func (client *LocalClient) GetNCLimitForNode(nodeID string) (int, *api.JsonErr) {
+func (client *ManagedChannel) GetNCLimitForNode(nodeID string) (int, *api.JsonErr) {
 	if !client.enforceNicLimit {
 		return utils.MaxContainersPerNode, nil
 	}
@@ -49,4 +49,9 @@ func (client *LocalClient) GetNCLimitForNode(nodeID string) (int, *api.JsonErr) 
 	}
 
 	return ncLimit, err
+}
+
+// todo: not sure what managed DNC channel behavior should be for nc deletion, implement
+func (client *ManagedChannel) DeleteNC(nc *datamodel.NCConfiguration, ncLock map[string]string) *api.JsonErr {
+	return nil
 }

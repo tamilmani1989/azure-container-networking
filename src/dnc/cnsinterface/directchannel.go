@@ -2,6 +2,7 @@ package cnsinterface
 
 import (
 	"dnc/api"
+	internalcns "dnc/cns"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
 	"dnc/utils"
@@ -9,24 +10,45 @@ import (
 	"net/http"
 )
 
-// DirectClient - Struct to store the variables which client needs
-type DirectClient struct {
-	sessionManager  *utils.SessionManager
-	enforceNicLimit bool
+// DirectChannel - Struct to store the variables which client needs
+type DirectChannel struct {
+	SessionManager  *utils.SessionManager
+	EnforceNicLimit bool
+	CNSClient       *internalcns.Client
+	Logger          loggershim.LoggerInterface
 }
 
-// NewDirectClient - Create a new CNS shim
-func NewDirectClient(sessionManager *utils.SessionManager, enforceNicLimit bool) *DirectClient {
-	directClient := &DirectClient{
-		sessionManager:  sessionManager,
-		enforceNicLimit: enforceNicLimit,
+func (c *DirectChannel) DeleteNC(nc *datamodel.NCConfiguration, ncLock map[string]string) *api.JsonErr {
+	nodeID := nc.GetAssociationInfo().NodeID
+	nodeConfig, apiErr := datamodel.TryQueryNodeConfiguration(nodeID)
+	if apiErr != nil {
+		return apiErr
 	}
-	return directClient
+	if nodeConfig == nil {
+		return api.BadRequestf(api.NodeNotFound, "no node config found for node id %s", nodeID)
+	}
+	if len(nodeConfig.NodeInfo.IPAddresses) < 1 {
+		return api.BadRequestf(api.InvalidNodeIPAddress, "no ip addresses found for node id %s", nodeID)
+	}
+
+	// todo: verify that this release/reacquiring the nc lock is really necessary
+	c.SessionManager.EndWriteSession(ncLock)
+	res, err := c.CNSClient.DeleteNetworkContainer(nodeConfig.NodeInfo.IPAddresses[0], nc.NetworkContainerID)
+	c.SessionManager.BeginWriteSession(ncLock)
+
+	if err != nil {
+		return api.InternalServerErrorf(api.DisAssociationFailed, "failed to delete NC in CNS: %+v", err)
+	}
+	if res.Response.ReturnCode != 0 {
+		return api.BadRequestf(api.DisAssociationFailed, "could not disassociate NC %s. return code %d. message: %v", nc.NetworkContainerID, res.Response.ReturnCode, res.Response.Message)
+	}
+	return nil
 }
 
+// todo: use DirectChannel dependencies instead of globals
 // GetNCLimitForNode returns how many NCs can be created in this node
-func (client *DirectClient) GetNCLimitForNode(nodeID string) (int, *api.JsonErr) {
-	if !client.enforceNicLimit {
+func (c *DirectChannel) GetNCLimitForNode(nodeID string) (int, *api.JsonErr) {
+	if !c.EnforceNicLimit {
 		return utils.MaxContainersPerNode, nil
 	}
 

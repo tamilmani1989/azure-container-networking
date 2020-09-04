@@ -30,8 +30,16 @@ func BadRequest(code ErrorCode, msg string) *JsonErr {
 	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusBadRequest}
 }
 
+func BadRequestf(code ErrorCode, format string, args ...interface{}) *JsonErr {
+	return &JsonErr{Code: code, Text: fmt.Sprintf(format, args...), HTTPStatus: http.StatusBadRequest}
+}
+
 func InternalServerError(code ErrorCode, msg string) *JsonErr {
 	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusInternalServerError}
+}
+
+func InternalServerErrorf(code ErrorCode, format string, args ...interface{}) *JsonErr {
+	return &JsonErr{Code: code, Text: fmt.Sprintf(format, args...), HTTPStatus: http.StatusInternalServerError}
 }
 
 func Conflict(code ErrorCode, msg string) *JsonErr {

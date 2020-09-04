@@ -406,6 +406,12 @@ func processNetworkContainerUnReserve(
 		sessionManager.BeginWriteSession(sessionInfo)
 		defer sessionManager.EndWriteSession(sessionInfo)
 
+		if reservationConfig != nil && len(reservationConfig.SecondaryAllocations) > 0 {
+			if err := ipAllocator.RemoveAllAllocations(*reservationConfig); err != nil {
+				return false, err
+			}
+		}
+
 		err = datamodel.DeleteIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID, true)
 	} else {
 		sessionInfo := map[string]string{
@@ -505,6 +511,7 @@ func processNetworkContainerAssociate(
 	// Release the session locks when calling in to cns
 	sessionManager.EndWriteSession(sessionInfo)
 
+	// todo: cns interface method
 	logger.Debugf("[CNS] create/update NC %s", ncGoalState.NetworkContainerID)
 	w, respErr := httpClient.Post(createOrUpdateNCURL, defaultContentType, &body)
 
@@ -602,95 +609,26 @@ func processNetworkContainerAssociate(
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 }
 
-func processNetworkContainerDisAssociate(
-	repoNCConfig *datamodel.NCConfiguration,
-	sessionInfo map[string]string) (bool, *api.JsonErr) {
-	nodeID := repoNCConfig.GetAssociationInfo().NodeID
+func processNetworkContainerDisAssociate(nc *datamodel.NCConfiguration, ncLock map[string]string) (bool, *api.JsonErr) {
+	if err := cnsInterface.DeleteNC(nc, ncLock); err != nil {
+		// we should only retry internal errors. all else should be marked as failed
+		removeFromQueue := err.HTTPStatus != http.StatusInternalServerError
+		if removeFromQueue {
+			nc.Status = datamodel.Failed
+		}
 
-	// Query NodeConfiguration table with nodeID and handle errors.
-	repoNodeConfig, err := datamodel.TryQueryNodeConfiguration(nodeID)
-
-	if err != nil {
-		return false, err
-	} else if repoNodeConfig == nil {
-		msg := fmt.Sprintf("Node configuration for node %v not found.",
-			nodeID)
-		failureDetail := api.JsonErr{
-			Code:       api.NodeNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = failureDetail
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+		nc.FailureDetail = *err
+		if persistErr := datamodel.PersistNCConfiguration(nc, datamodel.DontAddToPendingQ); persistErr != nil {
+			return false, persistErr
+		}
+		return removeFromQueue, err
 	}
 
-	primaryInterfaceID := repoNodeConfig.NodeInfo.IPAddresses[0]
-	info := &cns.DeleteNetworkContainerRequest{
-		NetworkContainerid: cns.SwiftPrefix + repoNCConfig.NetworkContainerID,
-	}
-
-	sessionManager.EndWriteSession(sessionInfo)
-
-	var body bytes.Buffer
-	json.NewEncoder(&body).Encode(info)
-	deleteNCURL := fmt.Sprintf(
-		config.CNSSettings.ConnectionStrings.DeleteNetworkContainerURLFmt,
-		primaryInterfaceID)
-
-	logger.Debugf("[CNS] delete NC %s", repoNCConfig.NetworkContainerID)
-	w, respErr := httpClient.Post(deleteNCURL, "application/json", &body)
-
-	sessionManager.BeginWriteSession(sessionInfo)
-
-	if respErr != nil {
-		repoNCConfig.FailureDetail = api.JsonErr{
-			Code: api.DisAssociationFailed,
-			Text: fmt.Sprintf("Failed to disassociate NC %s on node %v due to error %s",
-				info.NetworkContainerid,
-				primaryInterfaceID,
-				respErr.Error()),
-			HTTPStatus: http.StatusInternalServerError}
-		datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
-		return false, &repoNCConfig.FailureDetail
-	}
-
-	defer w.Body.Close()
-
-	var resp cns.DeleteNetworkContainerResponse
-	decodeErr := utils.DecodeResponse(w, &resp)
-	if decodeErr != nil {
-		repoNCConfig.FailureDetail = api.JsonErr{
-			Code:       api.DisAssociationFailed,
-			Text:       decodeErr.Error(),
-			HTTPStatus: http.StatusBadRequest}
-		datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
-		return false, &repoNCConfig.FailureDetail
-	}
-
-	logger.Debugf("[CNS] delete NC %s response %+v", repoNCConfig.NetworkContainerID, resp)
-
-	if resp.Response.ReturnCode != 0 {
-		msg := fmt.Sprintf("[CNS] Disassociate request associated with network container Id:%v returned status %v. "+
-			"Message:%v. "+
-			"Marking as non retriable error",
-			repoNCConfig.NetworkContainerID,
-			resp.Response.Message,
-			resp.Response.ReturnCode)
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = api.JsonErr{
-			Code:       api.DisAssociationFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
-		return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
-	}
-
-	logger.Debugf("[CNS] DisAssociated NC %s from node %s",
-		repoNCConfig.NetworkContainerID,
-		repoNCConfig.GetAssociationInfo().NodeID)
-	repoNCConfig.State = datamodel.UnReserve
-	repoNCConfig.Status = datamodel.Pending
-	repoNCConfig.FailureDetail = api.JsonErr{}
-	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+	logger.Debugf("[CNS] DisAssociated NC %s from node %s", nc.NetworkContainerID, nc.GetAssociationInfo().NodeID)
+	nc.State = datamodel.UnReserve
+	nc.Status = datamodel.Pending
+	nc.FailureDetail = api.JsonErr{}
+	return false, datamodel.PersistNCConfiguration(nc, datamodel.DontAddToPendingQ)
 }
 
 func getDimensions(repoNCConfig *datamodel.NCConfiguration) map[string]string {

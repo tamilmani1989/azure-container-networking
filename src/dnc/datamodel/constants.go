@@ -23,7 +23,7 @@ const (
 	nodeKey                    = "Node_%s"
 	ncKey                      = "Network_%s_ID_%s"
 	tagDefinitionKey           = "Tag_%s_%s"
-	ncPendingPublishContextKey = "Network_%s_NC_%s_PubSubId_%d"
+	ncPendingPublishContextKey = "Network_%s_NC_%s_PubSubId_%s"
 )
 
 const (

@@ -407,31 +407,37 @@ func (a *IPAllocator) DeallocateIPs(res datamodel.ReservationConfiguration, allo
 		allocIDsToDelete[allocID] = struct{}{}
 	}
 
-	var (
-		batches [][]string
-		batch   []string
-	)
-
+	var rowKeys []string
 	for allocID := range allocIDsToDelete {
 		if ipAddress, found := res.SecondaryAllocations[allocID]; found {
 			rowKey := datamodel.EncodeIPAllocationKey(ipAddress)
-			batch = append(batch, rowKey)
-			if len(batch) == azurestorage.MaxBatchSize {
-				batches = append(batches, batch)
-				batch = nil
-			}
+			rowKeys = append(rowKeys, rowKey)
 		}
 	}
 
-	if len(batch) > 0 {
-		batches = append(batches, batch)
+	return a.deleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
+}
+
+func (a *IPAllocator) RemoveAllAllocations(res datamodel.ReservationConfiguration) *api.JsonErr {
+	var rowKeys []string
+	for _, ipAddress := range res.SecondaryAllocations {
+		rowKey := datamodel.EncodeIPAllocationKey(ipAddress)
+		rowKeys = append(rowKeys, rowKey)
 	}
+	return a.deleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
+}
+
+func (a *IPAllocator) deleteAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
+	var batches [][]string
+	for len(keys) > azurestorage.MaxBatchSize {
+		keys, batches = keys[azurestorage.MaxBatchSize:], append(batches, keys[0:azurestorage.MaxBatchSize])
+	}
+	batches = append(batches, keys)
 
 	for i := 0; i < len(batches); i++ {
-		if err := a.Allocations.DeleteIPAllocations(res.NetworkID, res.AllocationRequest.SubnetName, batches[i]); err != nil {
+		if err := a.Allocations.DeleteIPAllocations(networkID, subnetName, batches[i]); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
