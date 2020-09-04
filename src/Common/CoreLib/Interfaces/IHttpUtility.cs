@@ -7,6 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
+    using System;
     using System.Net.Http;
     using System.Threading.Tasks;
 
@@ -30,5 +31,22 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <param name="requestMessage"></param>
         /// <returns></returns>
         Task<T> SendRequestAndGetJsonAsync<T>(HttpRequestMessage requestMessage);
+
+        /// <summary>
+        /// Invoke REST API to send the message and deserialized response in caller specified object.
+        /// </summary>
+        /// <typeparam name="TRequest">TRequest type, this will be serialized</typeparam>
+        /// <typeparam name="TResponse">TResponse type, this will be deserialized from response</typeparam>
+        /// <param name="httpClient">http client</param>
+        /// <param name="httpMethod">type of HTTPMethod (put/post)</param>
+        /// <param name="requestUri">Request URI</param>
+        /// <param name="requestBody">Request body of type TRequest</param>
+        /// <param name="accessToken">Authorization token</param>
+        /// <returns></returns>
+        Task<TResponse> SendRequestAndGetJsonAsync<TRequest, TResponse>(
+            HttpMethod httpMethod,
+            Uri requestUri,
+            TRequest requestBody,
+            string accessToken) where TResponse : class where TRequest : class;
     }
 }

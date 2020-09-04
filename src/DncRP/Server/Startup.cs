@@ -163,6 +163,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             if (!string.IsNullOrWhiteSpace(azEnv) && !string.IsNullOrWhiteSpace(region))
             {
                 CurrentContext.SetContext(azEnv, region);
+                return;
             }
 
             // https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md#avoid-using-taskrun-for-long-running-work-that-blocks-the-thread

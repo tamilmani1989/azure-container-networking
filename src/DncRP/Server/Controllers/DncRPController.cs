@@ -10,6 +10,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http.Extensions;
     using Microsoft.AspNetCore.Mvc;
+    using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
 
     [ApiController]
@@ -25,6 +26,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.logger = logger;
         }
 
+        /// <summary>
+        /// Customer will first Register Subscription with DNCRP
+        /// </summary>
+        /// <returns></returns>
         [Route("/subregistration")]
         public ContentResult HandleSubRegistration()
         {

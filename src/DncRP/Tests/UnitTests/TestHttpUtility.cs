@@ -14,6 +14,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
     using System.Text;
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
+    using Microsoft.Azure.ContainerNetworking.DncRP;
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
     internal class TestHttpUtility : IHttpUtility
@@ -47,6 +48,27 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         {
             return default(Task<T>);
         }
+
+        public async Task<TResponse> SendRequestAndGetJsonAsync<TRequest, TResponse>(
+            HttpMethod httpMethod,
+            Uri requestUri,
+            TRequest requestBody,
+            string accessToken) where TResponse : class where TRequest : class
+        {
+            if (typeof(TRequest) == typeof(ServiceAssociationLink))
+            {
+                object serviceAssociationLink = requestBody as ServiceAssociationLink;
+                return (TResponse)serviceAssociationLink;
+            }
+
+            if (typeof(TRequest) == typeof(ResourceOwnershipRequest))
+            {
+                object serviceResourceOwnership = new ResourceOwnershipResponse();
+                return (TResponse)serviceResourceOwnership;
+            }
+
+            throw new NotSupportedException($"Type {typeof(TRequest).Name} is not supported");
+	}
 
         private async Task<ArmCertMetadata> GetArmCertMetadata(string uri)
         {

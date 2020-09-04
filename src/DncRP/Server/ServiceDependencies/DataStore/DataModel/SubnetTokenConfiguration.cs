@@ -65,10 +65,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 // Get the request units consumed by the current operation. RequestCharge of a TableResult is only applied to Azure Cosmos DB
                 if (result.RequestCharge.HasValue)
                 {
-                    Console.WriteLine("Request Charge of InsertOrMerge Operation: " + result.RequestCharge);
+                    Console.WriteLine("SubnetTokenConfiguration: Request Charge of InsertOrMerge Operation: " + result.RequestCharge);
                 }
             }
-            catch (StorageException e)
+            catch (StorageException)
             {
                 // Add logger
                 throw;

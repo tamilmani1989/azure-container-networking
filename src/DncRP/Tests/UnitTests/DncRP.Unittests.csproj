@@ -1,10 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <IsPackable>false</IsPackable>
     <PreserveCompilationContext>true</PreserveCompilationContext>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="AzBroker\**" />
+    <EmbeddedResource Remove="AzBroker\**" />
+    <None Remove="AzBroker\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.5.0" />
