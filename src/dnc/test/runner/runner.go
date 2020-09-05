@@ -559,38 +559,39 @@ func e2eTests() {
 	if err != nil {
 		report.LB = false
 		lastErr = fmt.Errorf("LB scenario failed: Encountered error following HTTP GET request %s", err)
-	}
+	} else {
+		defer response.Body.Close()
+		logger.Printf("Checking HTTP status code of LB request")
+		// Check HTTP status code
+		if response.StatusCode != http.StatusOK {
+			report.LB = false
+			lastErr = fmt.Errorf("LB scenario failed: Encountered non-200 status code for reading HTTP GET request %d",
+				response.StatusCode)
+		} else {
+			logger.Printf("Reading LB request response")
+			// Reading output
+			output, err = ioutil.ReadAll(response.Body)
 
-	logger.Printf("Checking HTTP status code of LB request")
-	// Check HTTP status code
-	if report.LB && response.StatusCode != http.StatusOK {
-		report.LB = false
-		lastErr = fmt.Errorf("LB scenario failed: Encountered non-200 status code for reading HTTP GET request %d",
-			response.StatusCode)
-	}
+			if err != nil {
+				report.LB = false
+				lastErr = fmt.Errorf("LB scenario failed: Encountered error reading HTTP GET request %s", err)
+			} else {
+				logger.Printf("Checking LB request output")
+				// Check the length of output
+				if len(output) == 0 {
+					report.LB = false
+					lastErr = fmt.Errorf("LB scenario failed: Request output via VIP is empty.")
+				}
+			}
 
-	logger.Printf("Reading LB request response")
-	// Reading output
-	output, err = ioutil.ReadAll(response.Body)
-	defer response.Body.Close()
-	if report.LB && err != nil {
-		report.LB = false
-		lastErr = fmt.Errorf("LB scenario failed: Encountered error reading HTTP GET request %s", err)
-	}
-
-	logger.Printf("Checking LB request output")
-	// Check the length of output
-	if report.LB && len(output) == 0 {
-		report.LB = false
-		lastErr = fmt.Errorf("LB scenario failed: Request output via VIP is empty.")
-	}
-
-	logger.Printf("Validating LB request output")
-	// Check if output contains
-	if report.LB && !strings.Contains(string(output), "LB") {
-		report.LB = false
-		lastErr = fmt.Errorf("LB scenario failed: Request output via VIP: %s does not contain string LB Works",
-			string(output))
+			logger.Printf("Validating LB request output")
+			// Check if output contains
+			if report.LB && !strings.Contains(string(output), "LB") {
+				report.LB = false
+				lastErr = fmt.Errorf("LB scenario failed: Request output via VIP: %s does not contain string LB Works",
+					string(output))
+			}
+		}
 	}
 
 	logger.Printf("E2E test cleanup.")
