@@ -9,6 +9,7 @@ const (
 	NCProcessTimeMetric          = "NCProcessTimeMs"
 	NCCreationReqCountMetric     = "NCCreationRequestCount"
 	DataStoreOperationTimeMetric = "DataStoreOperationTimeMs"
+	LeakedNCEventMetric          = "LeakedNCEvent"
 
 	// Dimensions
 	NetworkContainerIDStr   = "NetworkContainerID"

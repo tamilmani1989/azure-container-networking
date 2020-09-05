@@ -2,6 +2,7 @@ package networkupdatehandler
 
 import (
 	"bytes"
+	"dnc/aiwrapper"
 	"dnc/api"
 	"dnc/configuration"
 	"dnc/datamodel"
@@ -15,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Azure/azure-container-networking/aitelemetry"
 )
 
 var (
@@ -668,6 +671,9 @@ func validateAndRetrieveNetworkConfigurationUpdate(
 				logger.Errorf("Error: Leaked NC's detected: Subnet %s in network %s is removed but there are allocations.",
 					repoSubnetConfig.SubnetName,
 					repoSubnetConfig.NetworkID)
+
+				// Send the metric
+				sendLeakedNCMetric(repoSubnetConfig.NetworkID, repoSubnetConfig.SubnetName, len(repoSubnetConfig.Reservations))
 			}
 
 			subnetsToRemove[subnetName] = true
@@ -828,4 +834,16 @@ func DecodeNetworkJoinResponse(
 	}
 
 	return false, nil, false
+}
+
+func sendLeakedNCMetric(networkID, subnetName string, ncCount int) {
+	metric := aitelemetry.Metric{
+		Name:             aiwrapper.LeakedNCEventMetric,
+		Value:            float64(ncCount),
+		CustomDimensions: make(map[string]string),
+	}
+
+	metric.CustomDimensions[aiwrapper.NetworkIDStr] = networkID
+	metric.CustomDimensions[aiwrapper.SubNetStr] = subnetName
+	go aiwrapper.SendMetric(metric)
 }
