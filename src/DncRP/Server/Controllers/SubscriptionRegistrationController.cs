@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="DncRPController.cs" company="Microsoft">
+// <copyright file="SubscriptionRegistrationController.cs" company="Microsoft">
 //   © Microsoft Corporation. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -13,25 +13,22 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
 
-    [ApiController]
-    [Route("/{**routePath}")]
-    [Authorize]
-    public class DncRPController : ControllerBase
+    public class SubscriptionRegistrationController : DncRpControllerBase
     {
-        private readonly ILogger<DncRPController> logger;
-
-        public DncRPController(
-            ILogger<DncRPController> logger)
+        public SubscriptionRegistrationController(
+            ILogger<SubscriptionRegistrationController> logger,
+            ITableOperations tableOperations)
+            : base(logger, tableOperations)
         {
-            this.logger = logger;
+            logger.LogInformation("SubscriptionRegistrationController initialized");
         }
 
         /// <summary>
         /// Customer will first Register Subscription with DNCRP
         /// </summary>
         /// <returns></returns>
-        [Route("/subregistration")]
-        public ContentResult HandleSubRegistration()
+        [Route("subscriptions/{subscriptionId}")]
+        public ContentResult HandleSubRegistration(string subscriptionId)
         {
             this.logger.LogInformation($"HandleSubRegistration URI: {HttpContext.Request.GetDisplayUrl()}");
             return new ContentResult { StatusCode = (int)HttpStatusCode.OK, Content = "DncRP testing", ContentType = "text/html" };
