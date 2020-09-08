@@ -9,9 +9,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Net.Http;
     using System.Security.Cryptography.X509Certificates;
+    using System.Security.Permissions;
     using System.Text;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.ContainerNetworking.DncRP;
@@ -20,6 +23,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
     internal class TestHttpUtility : IHttpUtility
     {
         private List<X509Certificate2> callerSpecifiedCerts;
+        private bool validateMetadataHeader = false;
 
         public TestHttpUtility()
         {
@@ -49,6 +53,40 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             return default(Task<T>);
         }
 
+        /// <summary>
+        /// Invoke Http request and deserialize its JSON result to caller specified object
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="requestMessage"></param>
+        /// <param name="option"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public async Task<T> SendRequestAndGetJsonAsync<T>(
+            HttpRequestMessage requestMessage, HttpCompletionOption option, CancellationToken token)
+        {
+            if (this.validateMetadataHeader)
+            {
+                if (!requestMessage.Headers.Contains("Metadata"))
+                {
+                    throw new Exception("No metadata header found in the request");
+                }
+
+                IEnumerable<string> values = requestMessage.Headers.GetValues("Metadata");
+                if (!values.Contains("true", StringComparer.OrdinalIgnoreCase))
+                {
+                    throw new Exception("Metadata header value not set to true");
+                }
+            }
+
+            if (typeof(T) == typeof(InstanceResponse))
+            {
+                object instance = new InstanceResponse { Compute = null };
+                return (T)instance;
+            }
+
+            throw new NotSupportedException($"Type {typeof(T).Name} is not supported");
+        }
+
         public async Task<TResponse> SendRequestAndGetJsonAsync<TRequest, TResponse>(
             HttpMethod httpMethod,
             Uri requestUri,
@@ -68,7 +106,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             }
 
             throw new NotSupportedException($"Type {typeof(TRequest).Name} is not supported");
-	}
+        }
 
         private async Task<ArmCertMetadata> GetArmCertMetadata(string uri)
         {
@@ -124,6 +162,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         {
             this.callerSpecifiedCerts.Clear();
             this.callerSpecifiedCerts.AddRange(certificates);
+        }
+
+        public void SetValidateMetadataHeaderFlag(bool value)
+        {
+            this.validateMetadataHeader = value;
         }
 
         private string GetCertSubNameForEnvironment(string uri)

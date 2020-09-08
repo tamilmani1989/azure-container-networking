@@ -8,12 +8,12 @@
 namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
     using System;
-    using System.Collections.Generic;
     using System.IO;
     using System.Net.Http;
     using System.Net.Http.Headers;
     using System.Text;
     using System.Text.Json;
+    using System.Threading;
     using System.Threading.Tasks;
 
     public class HttpUtility : IHttpUtility
@@ -54,12 +54,10 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         }
 
         /// <summary>
-        /// Invoke REST API and deserialize its JSON result to caller specified object
+        /// Invoke Http request and deserialize its JSON result to caller specified object
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="httpClient"></param>
-        /// <param name="option"></param>
-        /// <param name="uri"></param>
+        /// <param name="requestMessage"></param>
         /// <returns></returns>
         public async Task<T> SendRequestAndGetJsonAsync<T>(HttpRequestMessage requestMessage)
         {
@@ -67,6 +65,20 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             return await this.ParseHttpResponse<T>(httpResponse);
         }
 
+        /// <summary>
+        /// Invoke Http request and deserialize its JSON result to caller specified object
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="requestMessage"></param>
+        /// <param name="option"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public async Task<T> SendRequestAndGetJsonAsync<T>(
+            HttpRequestMessage requestMessage, HttpCompletionOption option, CancellationToken token)
+        {
+            HttpResponseMessage httpResponse = await this.httpClient.SendAsync(requestMessage, option, token);
+            return await this.ParseHttpResponse<T>(httpResponse);
+        }
 
         /// <summary>
         /// Invoke REST API to send the message and deserialized response in caller specified object.

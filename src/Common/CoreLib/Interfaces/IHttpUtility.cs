@@ -9,6 +9,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
     using System;
     using System.Net.Http;
+    using System.Threading;
     using System.Threading.Tasks;
 
     public interface IHttpUtility
@@ -31,6 +32,17 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <param name="requestMessage"></param>
         /// <returns></returns>
         Task<T> SendRequestAndGetJsonAsync<T>(HttpRequestMessage requestMessage);
+
+        /// <summary>
+        /// Invoke Http request and deserialize its JSON result to caller specified object
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="requestMessage"></param>
+        /// <param name="option"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        Task<T> SendRequestAndGetJsonAsync<T>(
+            HttpRequestMessage requestMessage, HttpCompletionOption option, CancellationToken token);
 
         /// <summary>
         /// Invoke REST API to send the message and deserialized response in caller specified object.

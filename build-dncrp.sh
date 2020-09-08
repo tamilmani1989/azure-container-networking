@@ -61,10 +61,19 @@ case "$Operation" in
 
 	if [ "$EX" -ne "0" ]; then
 		popd
-		echo "DncRP unit test failed"
+		echo "DncRP unit tests failed"
 		exit $EX
     fi
-	;;
+
+    echo "---------- Running CoreLib unit tests ----------"
+    dotnet test ../Common/CoreLibTests/CoreLib.Unittests.csproj --configuration $BuildConfig --runtime $Runtime --collect:"XPlat Code Coverage" -r ./codecoverage; EX=$?
+
+    if [ "$EX" -ne "0" ]; then
+        popd
+        echo "CoreLib unit tests failed"
+        exit $EX
+    fi
+    ;;
 esac
 
 

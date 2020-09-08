@@ -7,7 +7,9 @@
 
 namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
+    using System;
     using System.Net.Http;
+    using System.Threading;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -31,7 +33,15 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <returns></returns>
         public async Task<InstanceResponse> GetInstanceMetadata(string imdsInstanceUri)
         {
-            return await this.httpUtility.GetJsonAsync<InstanceResponse>(HttpCompletionOption.ResponseHeadersRead, imdsInstanceUri);
+            HttpRequestMessage requestMessage = new HttpRequestMessage
+            {
+                Method = HttpMethod.Get,
+                RequestUri = new Uri(imdsInstanceUri),
+            };
+
+            requestMessage.Headers.Add("Metadata", "true");
+            return await this.httpUtility.SendRequestAndGetJsonAsync<InstanceResponse>(
+                requestMessage, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None);
         }
     }
 }
