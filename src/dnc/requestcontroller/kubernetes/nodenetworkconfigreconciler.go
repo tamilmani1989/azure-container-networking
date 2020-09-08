@@ -6,11 +6,11 @@ import (
 	"context"
 	"dnc/api"
 	"dnc/requestcontroller"
+	"errors"
 	"fmt"
 	"log"
-	"net/http"
-	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Azure/azure-container-networking/cns"
@@ -26,14 +26,16 @@ import (
 
 // NodeNetworkConfigReconciler is a controller-runtime/pkg/reconcile Reconciler for NodeNetworkConfigs
 type NodeNetworkConfigReconciler struct {
-	Client                  K8sClient
-	DncClient               requestcontroller.DNCClient
-	DNCClientRequestTimeout time.Duration
-	DNCClientAsyncWait      time.Duration
-	ScalerConfig            requestcontroller.RequestScalerConfig
-	NodeIDToNCID            *cache.Cache // map name of NNC to NC ID
-	RegisteredNodes         *cache.Cache // Keep a map of nodes and ips to know what has already been registered on DNC
-	VnetGUID                string       //vnet managed by this DNC
+	Client            K8sClient
+	DncClient         requestcontroller.SynchronousDNCClient
+	ScalerConfig      requestcontroller.RequestScalerConfig
+	NodeInfoProvider  requestcontroller.NodeInfoProvider
+	NodeIDToNCID      *cache.Cache  // map name of NNC to NC ID
+	RegisteredNodes   *cache.Cache  // Keep a map of nodes and ips to know what has already been registered on DNC
+	RegisteredVnets   *cache.Cache  // Keep a set of VNET GUIDs registered on DNC
+	ReconcileTimeout  time.Duration // TODO: derive a context from this and pass to all functions where appropriate
+	vnetGUID          string        // TODO: make this a NC ID -> VnetGUID map to support multiple Vnets
+	registerVnetMutex sync.Mutex
 }
 
 var _ reconcile.Reconciler = &NodeNetworkConfigReconciler{}
@@ -103,14 +105,17 @@ func (n *NodeNetworkConfigReconciler) cleanUpNNC(nodeNetworkConfig *acnv1alpha.N
 		return err
 	}
 
-	err = n.synchronousDeleteNC(n.VnetGUID, nodeID, ncID)
+	// Remove NC from cache if present
+	n.NodeIDToNCID.Delete(nodeID)
+
+	err = n.DncClient.DeleteNC(context.TODO(), n.vnetGUID, ncID)
 	if err != nil {
 		// Could not clean up NC, so requeue
 		return err
 	}
 
 	// Delete Node from DNC
-	err = n.synchronousDeleteNode(nodeID)
+	err = n.DncClient.DeleteNode(context.TODO(), nodeID)
 	if err != nil {
 		// Error deleting Node, so requeue
 		return err
@@ -159,7 +164,7 @@ func (n *NodeNetworkConfigReconciler) mustRecreateNNC(nodeNetworkConfig *acnv1al
 	var ncResponse *api.NetworkContainerResponse
 	ncID, _ := n.getNCIDFromNodeID(nodeID) // If theres an error, we need to recreate the NC from scratch, so ignore it
 	if ncID != "" {
-		ncResponse, _ = n.DncClient.GetNC(n.VnetGUID, ncID)
+		ncResponse, _ = n.DncClient.GetNC(context.TODO(), n.vnetGUID, ncID)
 	}
 
 	nnc := n.getNewNNCFromNCResponse(ncResponse, name, namespace)
@@ -208,32 +213,66 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(nodeNetworkConfig 
 		return fmt.Errorf("Could not find InternalIP for Node %s", node.Name)
 	}
 
-	if n.VnetGUID == "" {
-		vnetGUID, found := node.Labels[VnetGUIDLabel]
-		if !found {
-			return fmt.Errorf("Could not find VNET from label %s", VnetGUIDLabel)
+	if n.vnetGUID == "" {
+		vnetGUID, err := n.NodeInfoProvider.GetVnetID(context.TODO(), nodeID)
+		if err != nil {
+			return err
 		}
-		n.VnetGUID = vnetGUID
+		n.vnetGUID = vnetGUID
 	}
 
-	err := n.synchronousCreateNode(nodeID, internalIPAddress, n.VnetGUID)
+	// Take lock on vnet so one goroutine registers and the rest wait
+	n.registerVnetMutex.Lock()
+	if _, foundVnet := n.RegisteredVnets.Get(n.vnetGUID); !foundVnet {
+		err := n.DncClient.RegisterVnet(context.TODO(), n.vnetGUID)
+		if err != nil {
+			return err
+		}
+		n.RegisteredVnets.Set(n.vnetGUID, nil, cache.NoExpiration)
+	}
+	n.registerVnetMutex.Unlock()
+
+	err := n.DncClient.UpsertNode(context.TODO(), nodeID, internalIPAddress, cns.KubernetesCRD, n.vnetGUID)
 	if err != nil {
 		// DNC client error, requeue
 		return err
 	}
 
 	// Create or Update the NC on DNC
-	subnetID, found := node.Labels[SubnetNameLabel]
-	if !found {
-		// Don't know what subnet to use, so requeue
-		return fmt.Errorf("Could not find subnet from label %s", SubnetNameLabel)
+	subnetID, err := n.NodeInfoProvider.GetSubnetName(context.TODO(), nodeID)
+	if err != nil {
+		return err
 	}
 
-	ncResponse, err := n.synchronousCreateOrUpdateNC(n.VnetGUID, nodeID, subnetID, nodeNetworkConfig.Spec.IPsNotInUse, nodeNetworkConfig.Spec.RequestedIPCount)
+	ncID, err := n.getNCIDFromNodeID(nodeID)
+	if err != nil {
+		return err
+	}
+
+	if ncID == "" {
+		// If there is no NC registered for the Node, then create a new one
+		ncID = uuid.New().String()
+	}
+
+	ncReq := api.NetworkContainerRequestV2{
+		AllocationRequest: api.AllocationRequest{
+			SubnetName:       subnetID,
+			SecondaryIPCount: int(nodeNetworkConfig.Spec.RequestedIPCount),
+		},
+		AssociationInfo: api.AssociationInfo{
+			NodeID:        nodeID,
+			ContainerType: cns.Docker,
+		},
+		ToBeDeletedIPIds: nodeNetworkConfig.Spec.IPsNotInUse,
+	}
+
+	err = n.DncClient.UpsertNcV2(context.TODO(), n.vnetGUID, ncID, ncReq)
 	if err != nil {
 		//DNC client error, requeue
 		return err
 	}
+
+	ncResponse, err := n.DncClient.GetNC(context.TODO(), n.vnetGUID, ncID)
 
 	// Publish k8s status
 	status := n.getNNCStatusFromNCResponse(ncResponse)
@@ -256,14 +295,17 @@ func (n *NodeNetworkConfigReconciler) getNCIDFromNodeID(nodeID string) (string, 
 		ncID = ncIDCached.(string)
 	} else {
 		// NC ID not found in cache, try to query DNC for the node to get its NC (assuming one NC per node)
-		nodeInfoResponse, apiErr := n.DncClient.GetNode(nodeID)
-		if apiErr != nil && apiErr.HTTPStatus != http.StatusOK {
-			if apiErr.Code == api.NodeNotFound {
-				// Node isn't found, so NC isn't found
-				return "", nil
+		nodeInfoResponse, err := n.DncClient.GetNode(context.TODO(), nodeID)
+		if err != nil {
+			var respErr *api.JsonErr
+			if errors.As(err, &respErr) {
+				if respErr.Code == api.NodeNotFound {
+					// Node isn't found, so NC isn't found
+					return "", nil
+				}
 			}
 			// return any other api error
-			return "", apiErr
+			return "", err
 		}
 
 		ncs := nodeInfoResponse.NetworkContainers
@@ -280,213 +322,6 @@ func (n *NodeNetworkConfigReconciler) getNCIDFromNodeID(nodeID string) (string, 
 	}
 
 	return ncID, nil
-}
-
-// TODO: Consider creating a syncronous client in "dnc/client" instead of maintiain the logic everywhere we need it
-// Polling logic comes from dnc/runner, when this is moved to client, we can eliminate polling logic here
-func (n *NodeNetworkConfigReconciler) synchronousCreateOrUpdateNC(vnetID, nodeID, subnetID string, toBeDeletedIps []string, desiredSecondaryIPCount int64) (*api.NetworkContainerResponse, error) {
-	var (
-		respErr          *api.JsonErr
-		ncStatus         *api.RequestStatus
-		expectedNcStatus = &api.RequestStatus{
-			State:  "Program",
-			Status: "Completed"}
-		ncResponse *api.NetworkContainerResponse
-	)
-
-	ncID, err := n.getNCIDFromNodeID(nodeID)
-	if err != nil {
-		return nil, err
-	}
-
-	if ncID == "" {
-		// If there is no NC registered for the Node, then create a new one
-		ncID = uuid.New().String()
-	}
-
-	//TODO: validate these parameters
-	ncReq := api.NetworkContainerRequestV2{
-		AllocationRequest: api.AllocationRequest{
-			SubnetName:       subnetID,
-			SecondaryIPCount: int(desiredSecondaryIPCount),
-		},
-		AssociationInfo: api.AssociationInfo{
-			NodeID:        nodeID,
-			ContainerType: cns.Docker,
-		},
-		ToBeDeletedIPIds: toBeDeletedIps,
-	}
-
-	respErr = n.DncClient.UpsertNcV2(vnetID, ncID, ncReq)
-	if respErr != nil && respErr.HTTPStatus != http.StatusOK {
-		return nil, respErr
-	}
-
-	for start := time.Now(); ; {
-		ncStatus, respErr = n.DncClient.GetNCStatus(vnetID, ncID)
-		if respErr.HTTPStatus == http.StatusOK {
-			break
-		}
-
-		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < n.DNCClientRequestTimeout {
-			time.Sleep(n.DNCClientAsyncWait)
-			continue
-		}
-
-		return nil, fmt.Errorf("Create nc failed with error %+v", respErr)
-	}
-
-	if !reflect.DeepEqual(ncStatus, expectedNcStatus) {
-		expectedNcStatus.State = "RefreshAssociation"
-		if !reflect.DeepEqual(ncStatus, expectedNcStatus) {
-			return nil, fmt.Errorf("Create nc failed;\nreceived %+v\nexpected %+v", ncStatus, expectedNcStatus)
-		}
-	}
-
-	ncResponse, respErr = n.DncClient.GetNC(vnetID, ncID)
-	if respErr != nil && respErr.HTTPStatus != http.StatusOK {
-		return nil, respErr
-	}
-
-	return ncResponse, nil
-}
-
-func (n *NodeNetworkConfigReconciler) synchronousCreateNode(nodeID, ipAddress, vnetID string) error {
-	// Check cache to see if Node has already been registered with this IP
-	ipCached, found := n.RegisteredNodes.Get(nodeID)
-	ip := ""
-	if found {
-		ip = ipCached.(string)
-		if ip == ipAddress {
-			// Node already exists on DNC with the correct IP
-			return nil
-		}
-	}
-
-	// Create or Update the node
-
-	respErr := n.DncClient.AddNode(nodeID, ipAddress, cns.KubernetesCRD, vnetID)
-	if respErr != nil && respErr.HTTPStatus != http.StatusOK {
-		return fmt.Errorf("Failed to create node %s with error %+v", nodeID, respErr)
-	}
-
-	var nodeCfg *api.NodeInfoResponse
-
-	for start := time.Now(); ; {
-		nodeCfg, respErr = n.DncClient.GetNode(nodeID)
-		if respErr.HTTPStatus == http.StatusOK {
-			break
-		}
-
-		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < n.DNCClientRequestTimeout {
-			time.Sleep(n.DNCClientAsyncWait)
-			continue
-		}
-
-		return fmt.Errorf("Register node (get) failed with error %+v", respErr)
-	}
-
-	receivedNodeCfg := nodeCfg.NodeInfo
-	expectedNodeCfg := api.NodeInfoRequest{
-		IPAddresses:           []string{ipAddress},
-		OrchestratorType:      cns.KubernetesCRD,
-		InfrastructureNetwork: vnetID,
-	}
-	if receivedNodeCfg.String() != expectedNodeCfg.String() {
-		return fmt.Errorf("Register node failed;\nreceived %+v\nexpected %+v", receivedNodeCfg, expectedNodeCfg)
-	}
-
-	//Add node and ip to cache
-	n.RegisteredNodes.Set(nodeID, ipAddress, cache.NoExpiration)
-
-	return nil
-}
-
-// synchronousDeleteNC is an idempotent function that calls deleteNC then waits until the NC has been deleted before returning.
-func (n *NodeNetworkConfigReconciler) synchronousDeleteNC(vnetID, nodeID, ncID string) error {
-	if ncID == "" {
-		// No NC ID means nothing to delete
-		return nil
-	}
-
-	// Remove it from cache if present
-	n.NodeIDToNCID.Delete(nodeID)
-
-	var respErr *api.JsonErr
-
-	for start := time.Now(); ; {
-		respErr = n.DncClient.DeleteNC(vnetID, ncID)
-		if respErr.HTTPStatus == http.StatusNotFound || respErr.HTTPStatus == http.StatusOK {
-			break
-		}
-
-		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < n.DNCClientRequestTimeout {
-			time.Sleep(n.DNCClientAsyncWait)
-			continue
-		}
-
-		return fmt.Errorf("Delete nc failed with error %+v", respErr)
-	}
-
-	for start := time.Now(); ; {
-		_, respErr = n.DncClient.GetNCStatus(vnetID, ncID)
-		if respErr.HTTPStatus == http.StatusNotFound {
-			break
-		}
-
-		if (respErr.HTTPStatus == http.StatusOK || respErr.HTTPStatus == http.StatusAccepted) && time.Since(start) < n.DNCClientRequestTimeout {
-			time.Sleep(n.DNCClientAsyncWait)
-			continue
-		}
-
-		return fmt.Errorf("Delete nc failed with error %+v", respErr)
-	}
-
-	return nil
-}
-
-// synchronousDeleteNode is an idempotent function that calls deleteNode on DNC and waits until the Node has been deleted before returning
-func (n *NodeNetworkConfigReconciler) synchronousDeleteNode(nodeID string) error {
-	if nodeID == "" {
-		// No node to delete
-		return nil
-	}
-
-	// Remove it from the cache if present
-	n.NodeIDToNCID.Delete(nodeID)
-	n.RegisteredNodes.Delete(nodeID)
-
-	var respErr *api.JsonErr
-
-	for start := time.Now(); ; {
-		respErr = n.DncClient.DeleteNode(nodeID)
-		if respErr.HTTPStatus == http.StatusNotFound || respErr.HTTPStatus == http.StatusOK {
-			break
-		}
-
-		if respErr.HTTPStatus == http.StatusAccepted && time.Since(start) < n.DNCClientRequestTimeout {
-			time.Sleep(n.DNCClientAsyncWait)
-			continue
-		}
-
-		return fmt.Errorf("Unregister node failed with error %+v", respErr)
-	}
-
-	for start := time.Now(); ; {
-		_, respErr = n.DncClient.GetNode(nodeID)
-		if respErr.HTTPStatus == http.StatusNotFound {
-			break
-		}
-
-		if (respErr.HTTPStatus == http.StatusOK || respErr.HTTPStatus == http.StatusAccepted) && time.Since(start) < n.DNCClientRequestTimeout {
-			time.Sleep(n.DNCClientAsyncWait)
-			continue
-		}
-
-		return fmt.Errorf("Unregister node failed with error %+v", respErr)
-	}
-
-	return nil
 }
 
 func (n *NodeNetworkConfigReconciler) getNewNNCFromNCResponse(nc *api.NetworkContainerResponse, name, namespace string) *acnv1alpha.NodeNetworkConfig {

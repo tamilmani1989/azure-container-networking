@@ -2,18 +2,21 @@
 
 package requestcontroller
 
-import "dnc/api"
+import (
+	"context"
+	"dnc/api"
+)
 
 const (
-	defaultConfigKubeconfigPath                 = "/etc/kubernetes/config.yaml"
-	defaultConfigNamespace                      = "default"
-	defaultConfigK8sClientTimeout               = "10s"
-	defaultConfigScalerBatchSize                = int64(16)
-	defaultConfigScalerReleaseThresholdPercent  = int64(150)
-	defaultConfigScalerRequestThresholdPercent  = int64(50)
-	defaultConfigDNCClientRequestTimeout        = "15s"
-	defaultConfigDNCClientWaitBetweenAsyncCalls = "3s"
-	defaultConfigDNCClientDNCEP                 = "http://127.0.0.1:9000"
+	defaultConfigKubeconfigPath                = "/etc/kubernetes/config.yaml"
+	defaultConfigNamespace                     = "default"
+	defaultConfigK8sClientTimeout              = "10s"
+	defaultConfigScalerBatchSize               = int64(16)
+	defaultConfigScalerReleaseThresholdPercent = int64(150)
+	defaultConfigScalerRequestThresholdPercent = int64(50)
+	defaultConfigDNCClientRequestTimeout       = "15s"
+	defaultConfigDNCClientPollingInterval      = "3s"
+	defaultConfigDNCClientDNCEP                = "http://127.0.0.1:9000"
 )
 
 // RequestController handles requests from CNS for IP allocations/deallocations and calls DNC functions
@@ -44,9 +47,9 @@ type RequestScalerConfig struct {
 
 // DNCClientConfig config for DNC client
 type DNCClientConfig struct {
-	RequestTimeout        string `json:"requestTimeout,omitempty"`
-	WaitBetweenAsyncCalls string `json:"waitBetweenAsyncCalls,omitempty"`
-	DNCEndpoint           string `json:"dncEndpoint,omitempty"`
+	RequestTimeout  string `json:"requestTimeout,omitempty"`
+	PollingInterval string `json:"pollingInterval,omitempty"`
+	DNCEndpoint     string `json:"dncEndpoint,omitempty"`
 }
 
 // ConfigProvider provides a Config via GetConfig
@@ -84,8 +87,8 @@ func (c *Config) ApplyDefaults() {
 		c.DNCClientConfig.RequestTimeout = defaultConfigDNCClientRequestTimeout
 	}
 
-	if c.DNCClientConfig.WaitBetweenAsyncCalls == "" {
-		c.DNCClientConfig.WaitBetweenAsyncCalls = defaultConfigDNCClientWaitBetweenAsyncCalls
+	if c.DNCClientConfig.PollingInterval == "" {
+		c.DNCClientConfig.PollingInterval = defaultConfigDNCClientPollingInterval
 	}
 
 	if c.DNCClientConfig.DNCEndpoint == "" {
@@ -93,13 +96,24 @@ func (c *Config) ApplyDefaults() {
 	}
 }
 
-//DNCClient is an interface that wraps the dnc/client.DncClient functions.
-type DNCClient interface {
-	GetNode(nodeId string) (*api.NodeInfoResponse, *api.JsonErr)
-	AddNode(nodeId, ipaddr, orchestratorType, infraVnet string) *api.JsonErr
-	DeleteNode(nodeId string) *api.JsonErr
-	GetNCStatus(networkId, ncId string) (*api.RequestStatus, *api.JsonErr)
-	GetNC(networkId, ncId string) (*api.NetworkContainerResponse, *api.JsonErr)
-	DeleteNC(networkId, ncId string) *api.JsonErr
-	UpsertNcV2(networkId, ncId string, req api.NetworkContainerRequestV2) *api.JsonErr
+//SynchronousDNCClient is an idempotent, syncronous DNC client.
+type SynchronousDNCClient interface {
+	GetNode(ctx context.Context, nodeID string) (*api.NodeInfoResponse, error)
+	UpsertNode(ctx context.Context, nodeID, ipAddress, orchestratorType, infraVnet string) error
+	DeleteNode(ctx context.Context, nodeID string) error
+	GetNC(ctx context.Context, networkID, ncID string) (*api.NetworkContainerResponse, error)
+	UpsertNcV2(ctx context.Context, networkID, ncID string, req api.NetworkContainerRequestV2) error
+	DeleteNC(ctx context.Context, networkID, ncID string) error
+	RegisterVnet(ctx context.Context, networkID string) error
+}
+
+//NodeInfoProvider get vnet/subnet config for given node
+type NodeInfoProvider interface {
+	GetVnetID(ctx context.Context, nodeID string) (string, error)
+	GetSubnetName(ctx context.Context, nodeID string) (string, error)
+}
+
+//VnetInfoProvider gets a vnet id from a DelegatedSubnetID
+type VnetInfoProvider interface {
+	GetVnetID(ctx context.Context, delegatedSubnetID string) (string, error)
 }

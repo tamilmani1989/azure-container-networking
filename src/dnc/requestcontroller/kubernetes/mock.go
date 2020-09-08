@@ -153,6 +153,3 @@ func getGVRFromObject(obj runtime.Object, scheme *runtime.Scheme) (schema.GroupV
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 	return gvr, nil
 }
-
-type mockDNCClient struct {
-}

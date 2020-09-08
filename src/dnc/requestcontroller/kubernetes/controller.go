@@ -10,6 +10,7 @@ import (
 
 	dncclient "dnc/client"
 	"dnc/requestcontroller"
+	syncdncclient "dnc/requestcontroller/dncclient"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 	cache "github.com/patrickmn/go-cache"
@@ -24,9 +25,9 @@ import (
 
 // NodeFinalizerName is the finalizer that is placed on Nodes
 const (
-	NNCFinalizerName = "finalizers.acn.azure.com/dnc-operations"
-	VnetGUIDLabel    = "kubernetes.azure.com/podnetwork-resourceguid"
-	SubnetNameLabel  = "kubernetes.azure.com/podnetwork-subnet"
+	NNCFinalizerName       = "finalizers.acn.azure.com/dnc-operations"
+	DelegatedSubnetIDLabel = "kubernetes.azure.com/podnetwork-resourceguid"
+	SubnetNameLabel        = "kubernetes.azure.com/podnetwork-subnet"
 )
 
 // RequestController implements requestcontroller.RequestController. RequestController watches Nodes and NetworkConfigs
@@ -98,7 +99,7 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 		return nil, err
 	}
 
-	dncClientAsyncWait, err := time.ParseDuration(config.DNCClientConfig.WaitBetweenAsyncCalls)
+	dncClientPollingInterval, err := time.ParseDuration(config.DNCClientConfig.PollingInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -115,15 +116,24 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 		WithEventFilter(NodeEventFilter{}).
 		Complete(nodeReconciler)
 
+	syncDncClient := syncdncclient.NewSynchronousDNCClient(dncclient.NewDncClient(config.DNCClientConfig.DNCEndpoint), dncClientPollingInterval)
+
+	// TODO: choose VnetInfoProvider based on config, e.g. CosmosDB for OpenAI, NodeLabel for AKS
+	nodeInfoProvider := NodeInfoProvider{
+		Client:           mgr.GetClient(),
+		VnetInfoProvider: NodeLabelVnetInfoProvider{},
+	}
+
 	// Add the NodeNetworkConfig reconciler
 	nodeNetworkConfigReconciler := &NodeNetworkConfigReconciler{
-		Client:                  mgr.GetClient(),
-		DncClient:               dncclient.NewDncClient(config.DNCClientConfig.DNCEndpoint),
-		DNCClientRequestTimeout: dncClientRequestTimeout,
-		DNCClientAsyncWait:      dncClientAsyncWait,
-		ScalerConfig:            config.RequestScalerConfig,
-		NodeIDToNCID:            cache.New(cache.NoExpiration, cache.NoExpiration),
-		RegisteredNodes:         cache.New(cache.NoExpiration, cache.NoExpiration),
+		Client:           mgr.GetClient(),
+		DncClient:        syncDncClient,
+		ScalerConfig:     config.RequestScalerConfig,
+		NodeInfoProvider: nodeInfoProvider,
+		NodeIDToNCID:     cache.New(cache.NoExpiration, cache.NoExpiration),
+		RegisteredNodes:  cache.New(cache.NoExpiration, cache.NoExpiration),
+		RegisteredVnets:  cache.New(cache.NoExpiration, cache.NoExpiration),
+		ReconcileTimeout: dncClientRequestTimeout,
 	}
 	err = ctrl.NewControllerManagedBy(mgr).
 		For(&acnv1alpha.NodeNetworkConfig{}).
