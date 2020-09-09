@@ -44,13 +44,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             IImdsRetriever imdsRetriever = new ImdsRetriever(httpUtility);
 
             // initialize context first
-            this.InitializeContext(Configuration, imdsRetriever);
+            ContextInitializer.InitializeContext(Configuration, imdsRetriever);
 
             DatastoreSettings[] datastoreSettings = Configuration.GetSection("DataStoreSettings").Get<DatastoreSettings[]>();
             DatastoreSettings currentDatastoreSettings = datastoreSettings.FindByRegion(CurrentContext.AzureRegion);
             ClientIdentity clientIdentity = Configuration.GetSection("Identity").Get<ClientIdentity>();
             IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
-                httpUtility, currentDatastoreSettings, clientIdentity);
+                httpUtility, currentDatastoreSettings);
 
             services.AddSingleton<ICertificateRetriever, ArmCertificateRetriever>(provider =>
             {
@@ -153,26 +153,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 endpoints.MapControllers();
             });
-        }
-
-        private void InitializeContext(IConfiguration configuration, IImdsRetriever imdsRetriever)
-        {
-            string azEnv = configuration["AzureEnvironment"];
-            string region = configuration["AzureRegion"];
-
-            if (!string.IsNullOrWhiteSpace(azEnv) && !string.IsNullOrWhiteSpace(region))
-            {
-                CurrentContext.SetContext(azEnv, region);
-                return;
-            }
-
-            // https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md#avoid-using-taskrun-for-long-running-work-that-blocks-the-thread
-            // Blocking is not ideal here but this approach avoids deadblock and unwraps any exception thrown inside delegate in Run method
-            Task<InstanceResponse> task = Task.Run(() => imdsRetriever.GetInstanceMetadata(
-                              configuration["Imds:InstanceEndpoint"]));
-            InstanceResponse response = task.GetAwaiter().GetResult();
-
-            CurrentContext.SetContext(response.Compute.AzureEnvironment, response.Compute.AzureRegion);
         }
     }
 }

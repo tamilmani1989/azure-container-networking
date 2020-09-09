@@ -5,5 +5,11 @@
   "DbAccountName": "acntestcosmosdb",
   "ConnectionString": "",
   "AzureEnvironment": "azurecloud",
-  "AzureRegion": "centralus"
+  "AzureRegion": "centralus",
+  "ClientIdentityCertificate": {
+    "AppId": "1efe5bbf-d5b1-4fe9-99fa-f55ce1c88679", // DNC APP ID in first portal
+    "TenantId": "563c161a-f814-45eb-bac4-9d780e7f3ee6", // AzTestDnc@testdnc.ccsctp.net, AzurePPE, 563c161a-f814-45eb-bac4-9d780e7f3ee6, testdnc.ccsctp.net User
+    "KeyVaultCertPath": "https://acnkv.vault.azure.net/secrets/AMEAADOnecert/0516cc85edd74b36b8908ab95eaadd0c",
+    "AzureEnvironment": "ppe"
+  }
 }

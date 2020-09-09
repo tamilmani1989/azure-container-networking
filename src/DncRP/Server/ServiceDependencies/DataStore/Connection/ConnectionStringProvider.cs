@@ -20,19 +20,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     public class ConnectionStringProvider : IConnectionStringProvider
     {
         private DatastoreSettings datastoreSettings;
-        private ClientIdentity clientIdentity;
         private IEnumerable<string> connectionStringsList;
         private readonly SemaphoreSlim semaphoreSlim;
         private IHttpUtility httpUtility;
 
         public ConnectionStringProvider(
             IHttpUtility httpUtility,
-            DatastoreSettings datastoreSettings,
-            ClientIdentity clientIdentity)
+            DatastoreSettings datastoreSettings)
         {
             this.httpUtility = httpUtility;
             this.datastoreSettings = datastoreSettings;
-            this.clientIdentity = clientIdentity;
             this.semaphoreSlim = new SemaphoreSlim(1, 1);
             this.connectionStringsList = null;
         }
@@ -50,7 +47,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                         // Get azure AD token
                         IAzureAD azureAD = new AzureAD();
                         string token = await azureAD.GetAccessToken(
-                            this.clientIdentity,
+                            CurrentContext.ManagedIdentity,
                             AzureInfo.GetArmEndpoint(CurrentContext.AzureEnvironment),
                             CurrentContext.AzureEnvironment);
 

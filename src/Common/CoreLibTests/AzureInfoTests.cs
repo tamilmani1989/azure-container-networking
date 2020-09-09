@@ -18,7 +18,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib.Unittests
         public void TestAzureEnvironments()
         {
             IEnumerable<string> envs = AzureInfo.GetAzureEnvironments();
-            Assert.True(envs.Count() == 5);
+            Assert.True(envs.Count() == 6);
         }
 
         [Fact]
@@ -57,6 +57,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib.Unittests
                 switch (e)
                 {
                     case "azurecloud":
+                    case "ppe":
                         expectedEndpoint = "https://management.azure.com";
                         break;
                     case "azurechinacloud":
@@ -103,6 +104,9 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib.Unittests
                     case "azuregermancloud":
                         expectedlAadInstance = "https://login.microsoftonline.de";
                         break;
+                    case "ppe":
+                        expectedlAadInstance = "https://login.windows-ppe.net";
+                        break;
                     case "dogfood":
                         expectedlAadInstance = "";
                         break;
@@ -136,6 +140,9 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib.Unittests
                         break;
                     case "azuregermancloud":
                         expectedlAadInstance = "https://login.microsoftonline.de/";
+                        break;
+                    case "ppe":
+                        expectedlAadInstance = "https://login.windows-ppe.net/";
                         break;
                     case "dogfood":
                         expectedlAadInstance = "";

@@ -19,6 +19,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
     using Microsoft.Extensions.Logging.Abstractions;
     using Xunit;
 
+    /// <summary>
+    /// If your tests make use of CurrentContext class, please
+    /// decorate the class with [Collection("Sequential")]
+    /// </summary>
+    [Collection("Sequential")]
     public class AzVnetBrokerTests
     {
         private IConfiguration Configuration;
@@ -34,7 +39,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             this.logger = new NullLogger<AzVNetBroker>();
             this.testHttpUtility = new TestHttpUtility();
-            CurrentContext.SetContext("dogfood", "testRegion");
         }
 
         /// <summary>
@@ -44,6 +48,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         [Fact]
         public async void Test_SetServiceAssociationLink()
         {
+            CurrentContext.SetContext("dogfood", "testRegion");
             AzVNetBroker vnetBroker = new AzVNetBroker(testHttpUtility, logger);
             Guid vnetId = Guid.NewGuid();
             ServiceAssociationLink sal = await vnetBroker.CreateOrUpdateServiceAssociationLink(
@@ -64,6 +69,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         [Fact]
         public async void Test_SetResourceOwnership()
         {
+            CurrentContext.SetContext("dogfood", "testRegion");
             AzVNetBroker vnetBroker = new AzVNetBroker(testHttpUtility, logger);
             Guid vnetId = Guid.NewGuid();
             ResourceOwnershipResponse resourceOwnershipResponse = await vnetBroker.SetResourceOwnershipForCustomerVnet(

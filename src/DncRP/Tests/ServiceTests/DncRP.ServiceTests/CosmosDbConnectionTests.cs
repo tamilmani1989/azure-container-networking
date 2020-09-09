@@ -52,6 +52,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 AppId = match.Groups[1].Value,
                 TenantId = match.Groups[2].Value,
                 AppKey = match.Groups[3].Value,
+                IdentityType = ClientIdentityType.SpClientSecret
             };
 
             DatastoreSettings datastoreSettings = new DatastoreSettings
@@ -63,11 +64,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             };
 
             CurrentContext.SetContext(this.configuration["AzureEnvironment"], this.configuration["AzureRegion"]);
+            CurrentContext.SetManagedIdentity(clientIdentity);
 
             IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
                 this.httpUtility,
-                datastoreSettings,
-                clientIdentity);
+                datastoreSettings);
 
             Mock<ILogger<CosmosDbDataStore>> logger = new Mock<ILogger<CosmosDbDataStore>>();
             ITableDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);

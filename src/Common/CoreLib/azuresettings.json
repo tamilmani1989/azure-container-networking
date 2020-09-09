@@ -4,6 +4,7 @@
     "azurechinacloud": "https://login.chinacloudapi.cn",
     "azureusgovernment": "https://login.microsoftonline.us",
     "azuregermancloud": "https://login.microsoftonline.de",
+    "ppe": "https://login.windows-ppe.net", //Pre production environment in first party portal
     "dogfood": ""
   },
   "ArmEndpoints": {
@@ -11,13 +12,15 @@
     "azurechinacloud": "https://management.chinacloudapi.cn",
     "azureusgovernment": "https://management.usgovcloudapi.net",
     "azuregermancloud": "https://management.microsoftazure.de",
-    "dogfood": "https://api-dogfood-admin.resources.windows-int.net"
+    "dogfood": "https://api-dogfood-admin.resources.windows-int.net",
+    "ppe": "https://management.azure.com" //Pre production environment in first party portal
   },
   "AzureEnvironments": [
     "azurecloud",
     "azurechinacloud",
     "azureusgovernment",
     "azuregermancloud",
-    "dogfood"
+    "dogfood",
+    "ppe"
   ]
 }

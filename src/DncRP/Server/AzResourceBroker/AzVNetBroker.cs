@@ -69,7 +69,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="subnetResourceId">The resourceId of the subnet.</param>
         private string GetSALResourceId(string subnetResourceId)
         {
-            return $"{subnetResourceId.TrimEnd('/')}/ServiceAssociationLinks/{SalName}";
+            return $"/{subnetResourceId.TrimEnd('/')}/ServiceAssociationLinks/{SalName}";
         }
 
         /// <summary>

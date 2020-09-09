@@ -7,6 +7,29 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 {
+    internal class TestClientIdentityCertificate
+    {
+        public string AppId
+        {
+            get; set;
+        }
+
+        public string TenantId
+        {
+            get; set;
+        }
+
+        public string KeyVaultCertPath
+        {
+            get; set;
+        }
+
+        public string AzureEnvironment
+        {
+            get; set;
+        }
+    }
+
     internal class TestConfig
     {
         public string SubscriptionId
@@ -35,6 +58,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         }
 
         public string AzureRegion
+        {
+            get; set;
+        }
+
+        public TestClientIdentityCertificate ClientIdentityCertificate
         {
             get; set;
         }

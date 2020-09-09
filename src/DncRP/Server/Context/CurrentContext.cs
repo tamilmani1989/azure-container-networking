@@ -7,6 +7,8 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
+
     /// <summary>
     /// Current execution context
     /// </summary>
@@ -22,10 +24,30 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             get; private set;
         }
 
+        public static ClientIdentity ManagedIdentity
+        {
+            get; private set;
+        }
+
+        public static ClientIdentity ArmAccessIdentity
+        {
+            get; private set;
+        }
+
         public static void SetContext(string azureEnv, string azureRegion)
         {
             AzureEnvironment = azureEnv;
             AzureRegion = azureRegion;
+        }
+
+        public static void SetManagedIdentity(ClientIdentity managedIdentity)
+        {
+            ManagedIdentity = managedIdentity;
+        }
+
+        public static void SetArmAccessIdentity(ClientIdentity armAccessIdentity)
+        {
+            ArmAccessIdentity = armAccessIdentity;
         }
     }
 }

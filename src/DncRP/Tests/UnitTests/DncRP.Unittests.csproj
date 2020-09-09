@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="unittests.settings.empty.json">
+    <None Update="unittests.settings.nullvalues.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="unittests.settings.json">
