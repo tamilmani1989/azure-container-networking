@@ -13,7 +13,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
 
-    public class SubscriptionRegistrationController : DncRpControllerBase
+    public class SubscriptionRegistrationController : DncRpControllerBase<SubscriptionRegistrationController>
     {
         public SubscriptionRegistrationController(
             ILogger<SubscriptionRegistrationController> logger,

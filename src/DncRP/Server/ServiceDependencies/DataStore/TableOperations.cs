@@ -15,6 +15,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     public class TableOperations : ITableOperations
     {
         private ISubnetTokenConfiguration subnetTokenConfiguration;
+        private IControllerConfiguration controllerConfiguration;
         private ITableDataStore dataStore;
         ILogger<TableOperations> logger;
 
@@ -40,11 +41,17 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private void Init()
         {
             subnetTokenConfiguration = new SubnetTokenConfiguration(dataStore);
+            controllerConfiguration = new ControllerConfiguration(dataStore);
         }
 
         public ISubnetTokenConfiguration SubnetTokenConfiguration
         {
             get => subnetTokenConfiguration;
+        }
+
+        public IControllerConfiguration ControllerConfiguration
+        {
+            get => controllerConfiguration;
         }
     }
 }

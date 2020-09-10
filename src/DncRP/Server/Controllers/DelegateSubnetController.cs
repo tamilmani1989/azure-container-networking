@@ -17,7 +17,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using Microsoft.Extensions.Logging;
     using Newtonsoft.Json;
 
-    public class DelegateSubnetController : DncRpControllerBase
+    public class DelegateSubnetController : DncRpControllerBase<DelegateSubnetController>
     {
         public DelegateSubnetController (
             ILogger<DelegateSubnetController> logger,

@@ -23,6 +23,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <returns></returns>
         ISubnetTokenConfiguration SubnetTokenConfiguration { get; }
 
-        // TODO - Add more handles for other Table operations
+        /// <summary>
+        /// ControllerConfiguration operations
+        /// </summary>
+        /// <returns></returns>
+        IControllerConfiguration ControllerConfiguration
+        {
+            get;
+        }
     }
 }

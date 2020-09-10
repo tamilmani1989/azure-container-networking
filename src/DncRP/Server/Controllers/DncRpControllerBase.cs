@@ -15,17 +15,17 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
     [ApiController]
     [Authorize]
-    public class DncRpControllerBase : ControllerBase
+    public class DncRpControllerBase<T> : ControllerBase
     {
-        protected readonly ILogger logger;
-        protected readonly ITableOperations tableOperatoins;
+        protected readonly ILogger<T> logger;
+        protected readonly ITableOperations tableOperations;
 
         public DncRpControllerBase(
-            ILogger logger,
+            ILogger<T> logger,
             ITableOperations tableOperations)
         {
             this.logger = logger;
-            this.tableOperatoins = tableOperations;
+            this.tableOperations = tableOperations;
         }
     }
 }
