@@ -13,8 +13,9 @@ import (
 )
 
 type MockSynchronousDNCClient struct {
-	vnets map[string]bool
-	nodes map[string]*api.NodeInfoResponse
+	vnets   map[string]bool
+	subnets map[string]bool
+	nodes   map[string]*api.NodeInfoResponse
 }
 
 var _ requestcontroller.SynchronousDNCClient = &MockSynchronousDNCClient{}
@@ -172,5 +173,15 @@ func (m *MockSynchronousDNCClient) RegisterVnet(ctx context.Context, networkID s
 		m.vnets = make(map[string]bool)
 	}
 	m.vnets[networkID] = true
+	return nil
+}
+
+func (m *MockSynchronousDNCClient) RegisterSubnet(ctx context.Context, networkID, subnetID, authenticationToken string) error {
+	fmt.Printf("RegisterSubnet(ctx, %s, %s, %s)\n", networkID, subnetID, authenticationToken)
+	// Not doing anything with this yet, but store it anyway
+	if m.subnets == nil {
+		m.subnets = make(map[string]bool)
+	}
+	m.subnets[subnetID] = true
 	return nil
 }

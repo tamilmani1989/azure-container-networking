@@ -5,6 +5,7 @@ package requestcontroller
 import (
 	"context"
 	"dnc/api"
+	"dnc/configuration"
 )
 
 const (
@@ -29,6 +30,8 @@ type Config struct {
 	KubernetesConfig    KubernetesConfig    `json:"kubernetesConfig,omitempty"`
 	RequestScalerConfig RequestScalerConfig `json:"requestScalerConfig,omitempty"`
 	DNCClientConfig     DNCClientConfig     `json:"dncClientConfig,omitempty"`
+	DataStoreSettings   configuration.DataStoreSettings
+	LoggingConfig       LoggingConfig `json:"loggingConfig,omitempty"`
 }
 
 // KubernetesConfig config for interacting with kubernetes cluster
@@ -52,9 +55,21 @@ type DNCClientConfig struct {
 	DNCEndpoint     string `json:"dncEndpoint,omitempty"`
 }
 
+type LoggingConfig struct {
+	ThresholdForLoggingDataStoreOpLatencyMs int `json:"thresholdForLoggingDataStoreOpLatencyMs,omitempty"`
+}
+
 // ConfigProvider provides a Config via GetConfig
 type ConfigProvider interface {
 	GetConfig() (Config, error)
+}
+
+type SubnetInfo struct {
+	DelegatedSubnetID string
+	SubnetName        string
+	PrimaryToken      string
+	SecondaryToken    string
+	VnetID            string
 }
 
 // ApplyDefaults applies the default values for configs if they are not set
@@ -94,6 +109,10 @@ func (c *Config) ApplyDefaults() {
 	if c.DNCClientConfig.DNCEndpoint == "" {
 		c.DNCClientConfig.DNCEndpoint = defaultConfigDNCClientDNCEP
 	}
+
+	if c.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs == 0 {
+		c.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs = 1000 // 1 second
+	}
 }
 
 //SynchronousDNCClient is an idempotent, syncronous DNC client.
@@ -105,15 +124,11 @@ type SynchronousDNCClient interface {
 	UpsertNcV2(ctx context.Context, networkID, ncID string, req api.NetworkContainerRequestV2) error
 	DeleteNC(ctx context.Context, networkID, ncID string) error
 	RegisterVnet(ctx context.Context, networkID string) error
+	RegisterSubnet(ctx context.Context, networkID, subnetID, authenticationToken string) error
 }
 
-//NodeInfoProvider get vnet/subnet config for given node
-type NodeInfoProvider interface {
-	GetVnetID(ctx context.Context, nodeID string) (string, error)
-	GetSubnetName(ctx context.Context, nodeID string) (string, error)
-}
-
-//VnetInfoProvider gets a vnet id from a DelegatedSubnetID
-type VnetInfoProvider interface {
-	GetVnetID(ctx context.Context, delegatedSubnetID string) (string, error)
+//SubnetInfoProvider get vnet/subnet config for given node. A SubnetInfoProvider's GetSubnetInfo may be called by mutliple concurrent goroutines,
+// so its implementation must be threadsafe
+type SubnetInfoProvider interface {
+	GetSubnetInfo(ctx context.Context, delegatedSubnetID, subnetName string) (SubnetInfo, error)
 }

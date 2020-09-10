@@ -217,3 +217,39 @@ func (s SynchronousDNCClient) RegisterVnet(ctx context.Context, networkID string
 
 	return nil
 }
+
+//RegisterSubnet registers the subnet on DNC
+func (s SynchronousDNCClient) RegisterSubnet(ctx context.Context, networkID, subnetID, authenticationToken string) error {
+	addSubnetRespErr := s.dncClient.AddSubnet(networkID, subnetID, authenticationToken)
+	// http.StatusOK means request is accepted, anything else means there was an error
+	if addSubnetRespErr.HTTPStatus != http.StatusOK {
+		return addSubnetRespErr
+	}
+
+	var subnetStatus *api.RequestStatus
+	var respErr *api.JsonErr
+
+	err := s.retrier.Do(ctx, func() error {
+		subnetStatus, respErr = s.dncClient.GetSubnetStatus(networkID, subnetID)
+		// http.StatusAccepted means request is still pending, anything else means it is done
+		if respErr.HTTPStatus != http.StatusAccepted {
+			return nil
+		}
+		return respErr
+	})
+
+	// If the context was cancelled or max attempts reached
+	if err != nil {
+		return err
+	}
+
+	if subnetStatus == nil {
+		return fmt.Errorf("Unable to retrieve subnet status, error: %+v", respErr)
+	}
+
+	if subnetStatus.State != "Join" || subnetStatus.Status != "Completed" {
+		return fmt.Errorf("Register subnet %s on network %s failed with response: %+v", subnetID, networkID, subnetStatus)
+	}
+
+	return nil
+}

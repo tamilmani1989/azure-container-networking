@@ -6,6 +6,8 @@ import (
 	"context"
 	"dnc/requestcontroller"
 	syncdncclient "dnc/requestcontroller/dncclient"
+	"fmt"
+	"sync"
 	"testing"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
@@ -16,11 +18,33 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+type mockSubnetInfoProvider struct {
+	subnetInfo map[string]map[string]requestcontroller.SubnetInfo // delegatedSubnetID -> {subnetName -> SubnetInfo, subnetName -> SubnetInfo}
+	mutex      sync.Mutex
+}
+
+func (m *mockSubnetInfoProvider) GetSubnetInfo(ctx context.Context, delegatedSubnetID, subnetName string) (requestcontroller.SubnetInfo, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	if _, foundDelegatedSubnet := m.subnetInfo[delegatedSubnetID]; foundDelegatedSubnet {
+		if subnetInfo, foundSubnetName := m.subnetInfo[delegatedSubnetID][subnetName]; foundSubnetName {
+			return subnetInfo, nil
+		}
+	}
+
+	return requestcontroller.SubnetInfo{}, fmt.Errorf("subnet %s info not found for delegatedSubnetID %s", subnetName, delegatedSubnetID)
+}
+
 // TestReconcileNewNNC tests that the node and NC are created on DNC
 func TestReconcileNewNNC(t *testing.T) {
 	nodeName := "test-node"
 	namespace := "test-namespace"
 	requestedIPCount := 16
+	delegatedSubnetID := "unique-delegated-subnet-id"
+	vnetGUID := "93ca9913-dc26-40fe-9e16-9164669590a0"
+	subnetName := "test-subnet"
+	subnetToken := "bd48a062-efa7-4c50-af4b-9c97add5b8cc"
 
 	k8sClient := newMockK8sClient()
 	dncClient := syncdncclient.MockSynchronousDNCClient{}
@@ -33,13 +57,22 @@ func TestReconcileNewNNC(t *testing.T) {
 			ReleaseThresholdPercent: 50,
 			RequestThresholdPercent: 150,
 		},
-		NodeInfoProvider: NodeInfoProvider{
-			Client:           k8sClient,
-			VnetInfoProvider: NodeLabelVnetInfoProvider{},
+		SubnetInfoProvider: &mockSubnetInfoProvider{
+			subnetInfo: map[string]map[string]requestcontroller.SubnetInfo{
+				delegatedSubnetID: {
+					subnetName: requestcontroller.SubnetInfo{
+						DelegatedSubnetID: delegatedSubnetID,
+						SubnetName:        subnetName,
+						VnetID:            vnetGUID,
+						PrimaryToken:      subnetToken,
+					},
+				},
+			},
 		},
-		NodeIDToNCID:    cache.New(cache.NoExpiration, cache.NoExpiration),
-		RegisteredNodes: cache.New(cache.NoExpiration, cache.NoExpiration),
-		RegisteredVnets: cache.New(cache.NoExpiration, cache.NoExpiration),
+		NodeIDToNCID:      cache.New(cache.NoExpiration, cache.NoExpiration),
+		RegisteredNodes:   cache.New(cache.NoExpiration, cache.NoExpiration),
+		RegisteredVnets:   cache.New(cache.NoExpiration, cache.NoExpiration),
+		RegisteredSubnets: cache.New(cache.NoExpiration, cache.NoExpiration),
 	}
 
 	nnc := acnv1alpha.NodeNetworkConfig{
@@ -55,8 +88,8 @@ func TestReconcileNewNNC(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
 			Labels: map[string]string{
-				DelegatedSubnetIDLabel: "4ca4a386-6b0c-4984-ab96-3a4a447ca3c0",
-				SubnetNameLabel:        "test-subnet",
+				DelegatedSubnetIDLabel: delegatedSubnetID,
+				SubnetNameLabel:        subnetName,
 			},
 		},
 		Status: corev1.NodeStatus{

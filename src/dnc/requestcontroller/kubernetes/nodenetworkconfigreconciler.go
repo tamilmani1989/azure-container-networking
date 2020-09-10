@@ -26,16 +26,18 @@ import (
 
 // NodeNetworkConfigReconciler is a controller-runtime/pkg/reconcile Reconciler for NodeNetworkConfigs
 type NodeNetworkConfigReconciler struct {
-	Client            K8sClient
-	DncClient         requestcontroller.SynchronousDNCClient
-	ScalerConfig      requestcontroller.RequestScalerConfig
-	NodeInfoProvider  requestcontroller.NodeInfoProvider
-	NodeIDToNCID      *cache.Cache  // map name of NNC to NC ID
-	RegisteredNodes   *cache.Cache  // Keep a map of nodes and ips to know what has already been registered on DNC
-	RegisteredVnets   *cache.Cache  // Keep a set of VNET GUIDs registered on DNC
-	ReconcileTimeout  time.Duration // TODO: derive a context from this and pass to all functions where appropriate
-	vnetGUID          string        // TODO: make this a NC ID -> VnetGUID map to support multiple Vnets
-	registerVnetMutex sync.Mutex
+	Client              K8sClient
+	DncClient           requestcontroller.SynchronousDNCClient
+	ScalerConfig        requestcontroller.RequestScalerConfig
+	SubnetInfoProvider  requestcontroller.SubnetInfoProvider
+	NodeIDToNCID        *cache.Cache  // map name of NNC to NC ID
+	RegisteredNodes     *cache.Cache  // Keep a map of nodes and ips to know what has already been registered on DNC
+	RegisteredVnets     *cache.Cache  // Keep a set of VNET GUIDs registered on DNC
+	RegisteredSubnets   *cache.Cache  // Keep a set of Subnets registered on DNC
+	ReconcileTimeout    time.Duration // TODO: derive a context from this and pass to all functions where appropriate
+	vnetGUID            string        // TODO: make this a NC ID -> VnetGUID map to support multiple Vnets
+	registerVnetMutex   sync.Mutex
+	registerSubnetMutex sync.Mutex
 }
 
 var _ reconcile.Reconciler = &NodeNetworkConfigReconciler{}
@@ -213,37 +215,39 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(nodeNetworkConfig 
 		return fmt.Errorf("Could not find InternalIP for Node %s", node.Name)
 	}
 
-	if n.vnetGUID == "" {
-		vnetGUID, err := n.NodeInfoProvider.GetVnetID(context.TODO(), nodeID)
-		if err != nil {
-			return err
-		}
-		n.vnetGUID = vnetGUID
+	delegatedSubnetID, found := node.Labels[DelegatedSubnetIDLabel]
+	if !found {
+		return fmt.Errorf("Label %s not found for node %s", DelegatedSubnetIDLabel, node.Name)
 	}
 
-	// Take lock on vnet so one goroutine registers and the rest wait
-	n.registerVnetMutex.Lock()
-	if _, foundVnet := n.RegisteredVnets.Get(n.vnetGUID); !foundVnet {
-		err := n.DncClient.RegisterVnet(context.TODO(), n.vnetGUID)
-		if err != nil {
-			return err
-		}
-		n.RegisteredVnets.Set(n.vnetGUID, nil, cache.NoExpiration)
+	subnetName, found := node.Labels[SubnetNameLabel]
+	if !found {
+		return fmt.Errorf("Label %s not found for node %s", SubnetNameLabel, node.Name)
 	}
-	n.registerVnetMutex.Unlock()
 
-	err := n.DncClient.UpsertNode(context.TODO(), nodeID, internalIPAddress, cns.KubernetesCRD, n.vnetGUID)
+	// Get subnet info, this is a threadsafe call
+	subnetInfo, err := n.SubnetInfoProvider.GetSubnetInfo(context.TODO(), delegatedSubnetID, subnetName)
+	if err != nil {
+		return err
+	}
+
+	// Register the vnet if not already registered
+	if err := n.ensureVnetIsRegistered(context.TODO(), subnetInfo.VnetID); err != nil {
+		return err
+	}
+
+	//Register the subnet if not already registered
+	if err := n.ensureSubnetIsRegistered(context.TODO(), subnetInfo.VnetID, subnetName, subnetInfo.PrimaryToken); err != nil {
+		return err
+	}
+
+	err = n.DncClient.UpsertNode(context.TODO(), nodeID, internalIPAddress, cns.KubernetesCRD, n.vnetGUID)
 	if err != nil {
 		// DNC client error, requeue
 		return err
 	}
 
 	// Create or Update the NC on DNC
-	subnetID, err := n.NodeInfoProvider.GetSubnetName(context.TODO(), nodeID)
-	if err != nil {
-		return err
-	}
-
 	ncID, err := n.getNCIDFromNodeID(nodeID)
 	if err != nil {
 		return err
@@ -256,7 +260,7 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(nodeNetworkConfig 
 
 	ncReq := api.NetworkContainerRequestV2{
 		AllocationRequest: api.AllocationRequest{
-			SubnetName:       subnetID,
+			SubnetName:       subnetName,
 			SecondaryIPCount: int(nodeNetworkConfig.Spec.RequestedIPCount),
 		},
 		AssociationInfo: api.AssociationInfo{
@@ -283,6 +287,36 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(nodeNetworkConfig 
 		return err
 	}
 
+	return nil
+}
+
+func (n *NodeNetworkConfigReconciler) ensureVnetIsRegistered(ctx context.Context, vnetID string) error {
+	// Take lock on vnet so one goroutine registers and the rest wait
+	n.registerVnetMutex.Lock()
+	defer n.registerVnetMutex.Unlock()
+	n.vnetGUID = vnetID
+	if _, found := n.RegisteredVnets.Get(n.vnetGUID); !found {
+		err := n.DncClient.RegisterVnet(ctx, n.vnetGUID)
+		if err != nil {
+			return err
+		}
+		n.RegisteredVnets.Set(n.vnetGUID, nil, cache.NoExpiration)
+	}
+
+	return nil
+}
+
+func (n *NodeNetworkConfigReconciler) ensureSubnetIsRegistered(ctx context.Context, vnetID, subnetName, authToken string) error {
+	// Take lock on subnet so one goroutine registers and the rest wait
+	n.registerSubnetMutex.Lock()
+	defer n.registerSubnetMutex.Unlock()
+	if _, found := n.RegisteredSubnets.Get(subnetName); !found {
+		err := n.DncClient.RegisterSubnet(context.TODO(), vnetID, subnetName, authToken)
+		if err != nil {
+			return err
+		}
+		n.RegisteredSubnets.Set(subnetName, nil, cache.NoExpiration)
+	}
 	return nil
 }
 

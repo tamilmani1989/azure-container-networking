@@ -9,7 +9,9 @@ import (
 	"time"
 
 	dncclient "dnc/client"
+
 	"dnc/requestcontroller"
+	"dnc/requestcontroller/datastore"
 	syncdncclient "dnc/requestcontroller/dncclient"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
@@ -118,22 +120,19 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 
 	syncDncClient := syncdncclient.NewSynchronousDNCClient(dncclient.NewDncClient(config.DNCClientConfig.DNCEndpoint), dncClientPollingInterval)
 
-	// TODO: choose VnetInfoProvider based on config, e.g. CosmosDB for OpenAI, NodeLabel for AKS
-	nodeInfoProvider := NodeInfoProvider{
-		Client:           mgr.GetClient(),
-		VnetInfoProvider: NodeLabelVnetInfoProvider{},
-	}
+	subnetInfoProvider := datastore.NewSubnetInfoProvider(config.DataStoreSettings, config.LoggingConfig)
 
 	// Add the NodeNetworkConfig reconciler
 	nodeNetworkConfigReconciler := &NodeNetworkConfigReconciler{
-		Client:           mgr.GetClient(),
-		DncClient:        syncDncClient,
-		ScalerConfig:     config.RequestScalerConfig,
-		NodeInfoProvider: nodeInfoProvider,
-		NodeIDToNCID:     cache.New(cache.NoExpiration, cache.NoExpiration),
-		RegisteredNodes:  cache.New(cache.NoExpiration, cache.NoExpiration),
-		RegisteredVnets:  cache.New(cache.NoExpiration, cache.NoExpiration),
-		ReconcileTimeout: dncClientRequestTimeout,
+		Client:             mgr.GetClient(),
+		DncClient:          syncDncClient,
+		ScalerConfig:       config.RequestScalerConfig,
+		SubnetInfoProvider: subnetInfoProvider,
+		NodeIDToNCID:       cache.New(cache.NoExpiration, cache.NoExpiration),
+		RegisteredNodes:    cache.New(cache.NoExpiration, cache.NoExpiration),
+		RegisteredVnets:    cache.New(cache.NoExpiration, cache.NoExpiration),
+		RegisteredSubnets:  cache.New(cache.NoExpiration, cache.NoExpiration),
+		ReconcileTimeout:   dncClientRequestTimeout,
 	}
 	err = ctrl.NewControllerManagedBy(mgr).
 		For(&acnv1alpha.NodeNetworkConfig{}).
