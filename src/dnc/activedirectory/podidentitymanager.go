@@ -14,9 +14,7 @@ import (
 )
 
 const (
-	// OAuthGrantTypeServicePrincipal for client credentials flow
-	OAuthGrantTypeServicePrincipal OAuthGrantType = iota
-	nmiendpoint                                   = "http://localhost:2579/host/token/"
+	nmiendpoint = "http://localhost:2579/host/token/"
 	// Pod Identity podnameheader
 	podnameheader = "podname"
 	// Pod Identity podnsheader
@@ -24,15 +22,13 @@ const (
 	minKeyVaultName     = 3
 	maxKeyVaultName     = 24
 	maxPodIdentityDelay = 120 * time.Second
-	podNameEnv          = "POD_NAME"
-	podNamespaceEnv     = "POD_NAMESPACE"
+
+	AADPodNameEnv      = "POD_NAME"
+	AADPodNamespaceEnv = "POD_NAMESPACE"
 )
 
-// OAuthGrantType specifies which grant type to use.
-type OAuthGrantType int
-
-// IdentityManager is used to interact with Keyvault by leveraging AAD Pod Identity
-type IdentityManager struct {
+// PodIdentityManager is used to interact with Keyvault by leveraging AAD Pod Identity
+type PodIdentityManager struct {
 	// Tenant ID is the id of the AAD tenant where the Managed Identity + Keyvault exists
 	TenantID string
 	// the type of azure cloud based on azure go sdk
@@ -49,24 +45,24 @@ type NMIResponse struct {
 	ClientID string     `json:"clientid"`
 }
 
-func NewIdentityManager() (IdentityManager, error) {
-	var im IdentityManager
+func NewPodIdentityManager() (*PodIdentityManager, error) {
+	var im PodIdentityManager
 	im.AzureCloudEnvironment = azure.PublicCloud
-	im.PodName = os.Getenv(podNameEnv)
-	im.PodNamespace = os.Getenv(podNamespaceEnv)
+	im.PodName = os.Getenv(AADPodNameEnv)
+	im.PodNamespace = os.Getenv(AADPodNamespaceEnv)
 
 	if im.PodName == "" {
-		return im, fmt.Errorf("%v environmental variable not supplied", podNameEnv)
+		return nil, fmt.Errorf("%v environmental variable not supplied", AADPodNameEnv)
 	}
 
 	if im.PodNamespace == "" {
-		return im, fmt.Errorf("%v environmental variable not supplied", podNamespaceEnv)
+		return nil, fmt.Errorf("%v environmental variable not supplied", AADPodNamespaceEnv)
 	}
 
-	return im, nil
+	return &im, nil
 }
 
-func (im *IdentityManager) GetServicePrincipalToken(resource string) (*adal.ServicePrincipalToken, error) {
+func (im *PodIdentityManager) GetServicePrincipalToken(resource string) (*adal.ServicePrincipalToken, error) {
 
 	// response object from NMI
 	var resp *http.Response
@@ -128,16 +124,11 @@ func (im *IdentityManager) GetServicePrincipalToken(resource string) (*adal.Serv
 }
 
 // ParseAzureEnvironment returns azure environment by name
-func parseAzureEnvironment(cloudName string) (*azure.Environment, error) {
-	var env azure.Environment
-	var err error
+func parseAzureEnvironment(cloudName string) (azure.Environment, error) {
 	if cloudName == "" {
-		env = azure.PublicCloud
-	} else {
-		env, err = azure.EnvironmentFromName(cloudName)
+		return azure.PublicCloud, nil
 	}
-
-	return &env, err
+	return azure.EnvironmentFromName(cloudName)
 }
 
 func getVaultDNSSuffix(cloudName string) (vaultTld string, err error) {

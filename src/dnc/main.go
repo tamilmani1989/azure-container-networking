@@ -130,6 +130,39 @@ func main() {
 		logger.Debugf("Successfully initialized AI telemetry.")
 	}
 
+	env, err := azure.EnvironmentFromName(config.AzureEnvironment.EnvironmentName)
+	if err != nil {
+		log.Fatalf("Invalid azure environment %s", config.AzureEnvironment.EnvironmentName)
+	}
+
+	tokenFetcher, err := getTokenFetcher()
+	if err != nil {
+		log.Fatalln("Error getting token fetcher. Error:", err)
+	}
+
+	ctx := context.Background()
+	if config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID != "" {
+		spt, err := tokenFetcher.GetServicePrincipalToken(env.ResourceManagerEndpoint)
+		if err != nil {
+			log.Fatalln("Error getting service principal token. Error:", err)
+		}
+
+		token, err := ad.GetFreshToken(ctx, spt)
+		if err != nil {
+			log.Fatalln("Error getting ARM token. Error:", err)
+		}
+
+		// todo: discuss with team: what should be our workflow for key rotation?
+		keyFetcher := ad.CosmosKeyFetcher{ARMEndpoint: env.ResourceManagerEndpoint}
+		keys, err := keyFetcher.GetReadWriteKeys(ctx, token, config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID)
+		if err != nil {
+			log.Fatalln("Error getting Cosmos RW Keys. Error:", err)
+		}
+
+		// todo: other attributes such as account name can be extracted from the resource id and azure environment
+		config.DataStoreSettings.AzureStorageInfo.Key = keys.PrimaryMasterKey
+	}
+
 	replicaInstance = replica.NewReplica(
 		config.ServerSettings,
 		config.HttpClientSettings,
@@ -195,29 +228,6 @@ func main() {
 	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
 
-	env, err := azure.EnvironmentFromName(config.AzureEnvironment.EnvironmentName)
-	if err != nil {
-		log.Fatalf("Invalid azure environment %s", config.AzureEnvironment.EnvironmentName)
-	}
-
-	ctx := context.Background()
-	if config.IdentitySettings.MSIResourceID != "" && config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID != "" {
-		tok, err := ad.GetARMOAuthTokenViaMSI(ctx, env.ResourceManagerEndpoint, config.IdentitySettings.MSIResourceID)
-		if err != nil {
-			log.Fatalln("Error getting ARM token via MSI. Error:", err)
-		}
-
-		// todo: discuss with team: what should be our workflow for key rotation?
-		ckf := ad.CosmosKeyFetcher{ARMEndpoint: env.ResourceManagerEndpoint}
-		rwKeys, err := ckf.GetReadWriteKeys(ctx, tok, config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID)
-		if err != nil {
-			log.Fatalln("Error getting Cosmos RW Keys. Error:", err)
-		}
-
-		// todo: other attributes such as account name can be extracted from the resource id and azure environment
-		config.DataStoreSettings.AzureStorageInfo.Key = rwKeys.PrimaryMasterKey
-	}
-
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
 		// TO DO : Pass config object itself.
@@ -243,7 +253,12 @@ func main() {
 	if pubSubCfg.EnablePubSubProxy {
 		certPath := pubSubCfg.PubsubCertFilePath
 		if certPath == "" {
-			path, err := getCertPath(ctx, pubSubCfg.PubsubCertKeyvaultName, pubSubCfg.PubsubCertName)
+			akv, err := ad.NewKeyvaultClient(tokenFetcher, env, config.PubSubProxySettings.PubsubCertKeyvaultName)
+			if err != nil {
+				log.Fatalln("Error initializing keyvault client. Error:", err)
+			}
+
+			path, err := getCertPath(ctx, akv, pubSubCfg.PubsubCertName)
 			if err != nil {
 				log.Fatalln("Error writing temporary cert file. Error:", err)
 			}
@@ -264,22 +279,29 @@ func main() {
 	dncServer.Start()
 }
 
+func getTokenFetcher() (ad.TokenFetcher, error) {
+	switch {
+	case usePodIdentityThroughNMI():
+		return ad.NewPodIdentityManager()
+	case config.IdentitySettings.MSIResourceID != "":
+		return &ad.MSITokenFetcher{ResourceID: config.IdentitySettings.MSIResourceID}, nil
+	default:
+		return new(ad.MSITokenFetcher), nil
+	}
+}
+
+func usePodIdentityThroughNMI() bool {
+	podNameEnv := os.Getenv(ad.AADPodNameEnv)
+	podNSEnv := os.Getenv(ad.AADPodNamespaceEnv)
+	return podNameEnv != "" && podNSEnv != ""
+}
+
 // getCertPath fetches a certificate from keyvault, writes it to a temporary file, and returns its file path
-func getCertPath(ctx context.Context, keyvaultName, certName string) (string, error) {
-	im, err := ad.NewIdentityManager()
-	if err != nil {
-		return "", fmt.Errorf("failed to initialize pod identity client: %v", err)
-	}
-
-	akv, err := ad.NewKeyvaultClient(im, keyvaultName)
-	if err != nil {
-		return "", fmt.Errorf("failed to initialize keyvault client: %v", err)
-	}
-
+func getCertPath(ctx context.Context, kvc *ad.KeyvaultClient, certName string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, maxKeyvaultRetrievalTime*time.Second)
 	defer cancel()
 
-	bs, err := akv.GetCertificate(ctx, certName)
+	bs, err := kvc.GetLatestCertificate(ctx, certName)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch keyvault certificate: %v", err)
 	}
