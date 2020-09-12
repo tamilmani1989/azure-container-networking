@@ -43,7 +43,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             if (!string.IsNullOrWhiteSpace(this.allowedCustomThumbprint))
             {
                 isValid = certificate.Thumbprint.Equals(this.allowedCustomThumbprint, StringComparison.OrdinalIgnoreCase);
-                return this.LogIfCertValidationFailed(isValid, certificate);
+                if (isValid)
+                {
+                    return true;
+                }
             }
 
             IEnumerable<X509Certificate2> allowedCerts = await this.certsRetriever.GetCertificates();
