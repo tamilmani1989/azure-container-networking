@@ -18,10 +18,18 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     public interface ITableOperations
     {
         /// <summary>
-        /// SubnetTokenConfiguration operations
+        /// SubnetTokenMap operations
         /// </summary>
         /// <returns></returns>
-        ISubnetTokenConfiguration SubnetTokenConfiguration { get; }
+        ISubnetTokenMapOperations SubnetTokenMapOperations { get; }
+
+        /// <summary>
+        /// DelegatedSubnetConfiguration operations
+        /// </summary>
+        /// <returns></returns>
+        IDelegatedSubnetConfigurationOperations DelegatedSubnetConfigurationOperations { get; }
+
+
 
         /// <summary>
         /// ControllerConfiguration operations

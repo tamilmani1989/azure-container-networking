@@ -11,6 +11,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     using System.IO;
     using System.Net.Http;
     using System.Text.RegularExpressions;
+    using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.Cosmos.Table;
     using Microsoft.Extensions.Configuration;
@@ -72,12 +73,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             Mock<ILogger<CosmosDbDataStore>> logger = new Mock<ILogger<CosmosDbDataStore>>();
             ITableDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
+            Task t = dataStore.InitAsync();
+            t.Wait();
 
-            CloudTableClient client = await dataStore.GetTableClient();
-            Assert.True(client != null);
+            const string tableName = "TestTable";
+            dataStore.CreateTable(tableName);
 
-            CloudTable table = client.GetTableReference("MasterElectionTable");
-            Assert.True(table.Exists()); // This table exists in test cosmos db we have. This is the assumption here.
+            TableEntity tableEntity = new TableEntity("testpartition", "testrow");
+            TableResult tableResult = await dataStore.InsertOrMergeEntityAsync(tableName, tableEntity);
+            Assert.True(tableResult.Result != null);
         }
     }
 }

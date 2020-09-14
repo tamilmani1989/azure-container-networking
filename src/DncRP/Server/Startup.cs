@@ -74,8 +74,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 ILogger<TableOperations> tableOperationsLogger = provider.GetRequiredService<ILogger<TableOperations>>();
                 ILogger<CosmosDbDataStore> cosmosDbLogger = provider.GetRequiredService<ILogger<CosmosDbDataStore>>();
-                return new TableOperations(
-                     new CosmosDbDataStore(connectionStringProvider, cosmosDbLogger), tableOperationsLogger);
+
+                // Initiazlize the CosmosDbStore
+                ITableDataStore cosmosDbStore = new CosmosDbDataStore(connectionStringProvider, cosmosDbLogger);
+                cosmosDbStore.InitAsync().GetAwaiter().GetResult();
+
+                return new TableOperations(cosmosDbStore, tableOperationsLogger);
             });
 
             // The following line enables Application Insights telemetry collection.
