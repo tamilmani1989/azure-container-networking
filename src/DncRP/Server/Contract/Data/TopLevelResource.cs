@@ -1,28 +1,26 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="ResourceDefinition.cs" company="Microsoft">
+// <copyright file="TopLevelResource.cs" company="Microsoft">
 //   © Microsoft Corporation. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
-    // System.Text.Json doesnt support Required Property, hence using Newtonsoft.Json
-    // https://docs.microsoft.com/en-us/dotnet/standard/serialization/system-text-json-migrate-from-newtonsoft-how-to#required-properties
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization;
 
-    public class ResourceDefinition
+    public class TopLevelResource
     {
         /// <summary>
         /// Gets the id for the resource.
         /// </summary>
-        [JsonProperty(Required = Required.Default)]
+        [JsonPropertyName("id")]
         public string Id
         {
             get
             {
                 if (string.IsNullOrEmpty(this.SubscriptionId) ||
-                    string.IsNullOrEmpty(this.ResourceType) ||
-                    string.IsNullOrEmpty(this.ResourceName))
+                    string.IsNullOrEmpty(this.Type) ||
+                    string.IsNullOrEmpty(this.Name))
                 {
                     return null;
                 }
@@ -30,6 +28,35 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 return GetFullyQualifiedResourceId();
             }
         }
+
+        /// <summary>
+        /// Gets or sets the location of the resource.
+        /// </summary>
+        [JsonPropertyName("location")]
+        public string Location { get; set; }
+
+        /// <summary>
+        /// Gets or sets the resource name.
+        /// </summary>
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
+
+        /// <summary>
+        /// Gets or sets the type of the resource.
+        /// </summary>
+        [JsonPropertyName("location")]
+        public string Type { get; protected set; }
+
+        /// <summary>
+        /// Gets or sets the type of the resource.
+        /// </summary>
+        [JsonPropertyName("state")]
+        public string State { get; protected set; }
+
+
+        [JsonPropertyName("properties")]
+        public TopLevelResourceProperties Properties { get; protected set; }
+
 
         /// <summary>
         /// Gets or sets the subscription.
@@ -44,18 +71,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public string ResourceGroup { get; set; }
 
         /// <summary>
-        /// Gets or sets the type of the resource.
-        /// </summary>
-        [JsonIgnore]
-        public string ResourceType { get; protected set; }
-
-        /// <summary>
-        /// Gets or sets the resource name.
-        /// </summary>
-        [JsonIgnore]
-        public string ResourceName { get; set; }
-
-        /// <summary>
         /// Gets or sets if this Resource is an Extension resource.
         /// </summary>
         [JsonIgnore]
@@ -65,7 +80,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// ParentResource Id, only set if isExtensionResource is set
         /// </summary>
         [JsonIgnore]
-        protected string parentResourceId {get; set;}
+        protected string parentResourceId { get; set; }
 
         /// <summary>
         /// Gets the fully qualified resource identifier.
@@ -78,10 +93,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             if (isExtensionResource)
             {
-                return $"/subscriptions/{SubscriptionId}/resourceGroups/{ResourceGroup}/providers/{parentResourceId}/providers/{ResourceType}/{ResourceName}";
+                return $"/subscriptions/{SubscriptionId}/resourceGroups/{ResourceGroup}/providers/{parentResourceId}/providers/{Type}/{Name}";
             }
 
-            return $"/subscriptions/{SubscriptionId}/resourceGroups/{ResourceGroup}/providers/{ResourceType}/{ResourceName}";
+            return $"/subscriptions/{SubscriptionId}/resourceGroups/{ResourceGroup}/providers/{Type}/{Name}";
         }
     }
 }

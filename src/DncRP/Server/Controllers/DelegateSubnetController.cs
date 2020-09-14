@@ -51,8 +51,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.logger.LogInformation($"PutDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
 
             // TODO Validate arguments
-
-            DelegateSubnetDefinition delegatedSubnetDefinition = await ExecuteDelegateSubnetAsync(subscriptionId, resourceGroup, vnetName, subnet, delegatedId);
+            DelegateSubnet delegatedSubnetDefinition = await ExecuteDelegateSubnetAsync(subscriptionId, resourceGroup, vnetName, subnet, delegatedId);
 
             // TODO - For long running operations in ARM need to return OperationStatus or ProvisioningState
             ContentResult result = new ContentResult { 
@@ -74,7 +73,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="subnet">Subnet</param>
         /// <param name="delegatedId">delegated Subnet Id</param>
         /// <returns></returns>
-        private async Task<DelegateSubnetDefinition> ExecuteDelegateSubnetAsync(
+        private async Task<DelegateSubnet> ExecuteDelegateSubnetAsync(
             string subscriptionId, 
             string resourceGroup, 
             string vnetName, 
@@ -86,7 +85,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             // Todo get the subnet token configuration
 
-            DelegateSubnetDefinition subDef = new DelegateSubnetDefinition(subscriptionId, resourceGroup, vnetName, subnet, delegatedId, Guid.NewGuid());
+            DelegateSubnet subDef = new DelegateSubnet(subscriptionId, resourceGroup, vnetName, subnet, delegatedId, Guid.NewGuid().ToString());
             return subDef;
         }
     }
