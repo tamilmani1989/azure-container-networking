@@ -19,7 +19,6 @@ import (
 	"dnc/server"
 	"dnc/utils"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -70,10 +69,10 @@ var (
 )
 
 const (
-	maxLogFileSize           = 16 * 1024 * 1024 // Set 16MB as the max log file size
-	maxLogFileCount          = 8                // Set 8 as max log file count.
-	maxKeyvaultRetrievalTime = 10
-	tmpCertFilePattern       = "pubsubcert-*.pem"
+	maxLogFileSize            = 16 * 1024 * 1024 // Set 16MB as the max log file size
+	maxLogFileCount           = 8                // Set 8 as max log file count.
+	maxKeyvaultRetrievalTime  = 10
+	tempPubSubCertFilePattern = "pubsubcert-*.pem"
 )
 
 func printVersion() {
@@ -306,21 +305,7 @@ func getCertPath(ctx context.Context, kvc *ad.KeyvaultClient, certName string) (
 		return "", fmt.Errorf("failed to fetch keyvault certificate: %v", err)
 	}
 
-	tempFile, err := ioutil.TempFile(os.TempDir(), tmpCertFilePattern)
-	if err != nil {
-		return "", fmt.Errorf("failed to create temp cert file: %v", err)
-	}
-
-	_, err = tempFile.Write(bs)
-	if err != nil {
-		return "", fmt.Errorf("failed to write to file: %v", err)
-	}
-
-	if err := tempFile.Close(); err != nil {
-		return "", fmt.Errorf("failed to close file: %v", err)
-	}
-
-	return tempFile.Name(), nil
+	return utils.ToTempFile(tempPubSubCertFilePattern, bs)
 }
 
 func processExitCallback() {

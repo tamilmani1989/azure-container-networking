@@ -2,6 +2,7 @@ package activedirectory
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -14,8 +15,10 @@ import (
 )
 
 const (
-	keyvaultRegex = `^[-A-Za-z0-9]+$`
-	blockType     = "CERTIFICATE"
+	keyvaultRegex     = `^[-A-Za-z0-9]+$`
+	blockType         = "CERTIFICATE"
+	pemContentType    = "application/x-pem-file"
+	pkcs12ContentType = "application/x-pkcs12"
 )
 
 type KeyvaultClient struct {
@@ -55,6 +58,36 @@ func NewKeyvaultClient(tf TokenFetcher, env azure.Environment, keyvaultName stri
 		Client:                baseKVClient,
 		vaultURL:              vaultURL,
 	}, nil
+}
+
+// GetLatestSecretPEM fetches the latest version of a secret and asserts it is PEM encoded.
+// Returns the base64 decoded bytes.
+func (kvc *KeyvaultClient) GetLatestSecretPEM(ctx context.Context, secretName string) ([]byte, error) {
+	sb, err := kvc.Client.GetSecret(ctx, kvc.vaultURL, secretName, "")
+	if err != nil {
+		return nil, err
+	}
+
+	if *sb.ContentType != pemContentType {
+		return nil, fmt.Errorf("unexpected content type %q", *sb.ContentType)
+	}
+
+	return base64.StdEncoding.DecodeString(*sb.Value)
+}
+
+// GetLatestSecretPKCS12 fetches the latest version of a secret and asserts it is PKCS12 (PFX) encoded.
+// Returns the base64 decoded bytes.
+func (kvc *KeyvaultClient) GetLatestSecretPKCS12(ctx context.Context, secretName string) ([]byte, error) {
+	sb, err := kvc.Client.GetSecret(ctx, kvc.vaultURL, secretName, "")
+	if err != nil {
+		return nil, err
+	}
+
+	if *sb.ContentType != pkcs12ContentType {
+		return nil, fmt.Errorf("unexpected content type %q", *sb.ContentType)
+	}
+
+	return base64.StdEncoding.DecodeString(*sb.Value)
 }
 
 // GetCertificate returns a PEM encoded certificate for the given cert name and version
