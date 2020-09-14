@@ -8,7 +8,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System.Collections.Generic;
-    using System.Text.Json.Serialization;
+    using Newtonsoft.Json;
 
     /// <summary>
     /// The service association link properties.
@@ -18,43 +18,43 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Gets or sets the link property of the service association link.
         /// </summary>
-        [JsonPropertyName("Link")]
+        [JsonProperty]
         public string Link { get; set; }
 
         /// <summary>
         /// Gets or sets the resource type that will be created by the association service.
         /// </summary>
-        [JsonPropertyName("LinkedResourceType")]
+        [JsonProperty]
         public string LinkedResourceType { get; set; }
 
         /// <summary>
         /// Gets or sets the VNet resource guid. NRP will do additional validation if provided.
         /// </summary>
-        [JsonPropertyName("ParentResourceGuid")]
+        [JsonProperty]
         public string ParentResourceGuid { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether allow NRP to delete the service association link.
         /// </summary>
-        [JsonPropertyName("AllowDelete")]
+        [JsonProperty]
         public bool? AllowDelete { get; set; }
 
         /// <summary>
         /// Gets or sets the locations.
         /// </summary>
-        [JsonPropertyName("Locations")]
+        [JsonProperty]
         public string[] Locations { get; set; }
 
         /// <summary>
         /// Gets or sets the service association detail.
         /// </summary>
-        [JsonPropertyName("Details")]
+        [JsonProperty]
         public IList<ServiceAssociationLinkDetail> Details { get; set; }
 
         /// <summary>
         /// Gets or sets the provisioning state.
         /// </summary>
-        [JsonPropertyName("ProvisioningState")]
+        [JsonProperty]
         public string ProvisioningState { get; set; }
     }
 }

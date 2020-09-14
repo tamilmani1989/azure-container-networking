@@ -6,14 +6,14 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
-    using System.Text.Json.Serialization;
+    using Newtonsoft.Json;
 
     public class TopLevelResource
     {
         /// <summary>
         /// Gets the id for the resource.
         /// </summary>
-        [JsonPropertyName("id")]
+        [JsonProperty(Required = Required.Always, PropertyName = "id")]
         public string Id
         {
             get
@@ -32,29 +32,25 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Gets or sets the location of the resource.
         /// </summary>
-        [JsonPropertyName("location")]
+        [JsonProperty(Required = Required.Default, PropertyName = "location")]
         public string Location { get; set; }
 
         /// <summary>
         /// Gets or sets the resource name.
         /// </summary>
-        [JsonPropertyName("name")]
+        [JsonProperty(Required = Required.Default, PropertyName = "name")]
         public string Name { get; set; }
 
         /// <summary>
         /// Gets or sets the type of the resource.
         /// </summary>
-        [JsonPropertyName("location")]
+        [JsonProperty(Required = Required.Default, PropertyName = "type")]
         public string Type { get; protected set; }
 
         /// <summary>
-        /// Gets or sets the type of the resource.
+        /// Properties of a TopLevelResource
         /// </summary>
-        [JsonPropertyName("state")]
-        public string State { get; protected set; }
-
-
-        [JsonPropertyName("properties")]
+        [JsonProperty(PropertyName = "properties")]
         public TopLevelResourceProperties Properties { get; protected set; }
 
 

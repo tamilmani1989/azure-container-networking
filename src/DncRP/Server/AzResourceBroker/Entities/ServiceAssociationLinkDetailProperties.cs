@@ -7,7 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
-    using System.Text.Json.Serialization;
+    using Newtonsoft.Json;
 
     /// <summary>
     /// The Azure service association link detail properties.
@@ -17,31 +17,31 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Gets or sets the provisioning state.
         /// </summary>
-        [JsonPropertyName("ProvisioningState")]
+        [JsonProperty]
         public string ProvisioningState { get; set; }
 
         /// <summary>
         /// Gets or sets the primary context request Id.
         /// </summary>
-        [JsonPropertyName("PrimaryContextRequestId")]
+        [JsonProperty]
         public string PrimaryContextRequestId { get; set; }
 
         /// <summary>
         /// Gets or sets the secondary context request Id.
         /// </summary>
-        [JsonPropertyName("SecondaryContextRequestId")]
+        [JsonProperty]
         public string SecondaryContextRequestId { get; set; }
 
         /// <summary>
         /// Gets or sets the primary context request Id.
         /// </summary>
-        [JsonPropertyName("PrimaryContextId")]
+        [JsonProperty]
         public string PrimaryContextId { get; set; }
 
         /// <summary>
         /// Gets or sets the secondary context request Id.
         /// </summary>
-        [JsonPropertyName("SecondaryContextId")]
+        [JsonProperty]
         public string SecondaryContextId { get; set; }
     }
 }

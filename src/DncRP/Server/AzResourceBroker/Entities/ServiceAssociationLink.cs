@@ -7,7 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
-    using System.Text.Json.Serialization;
+    using Newtonsoft.Json;
 
     /// <summary>
     /// The service association link resource.
@@ -17,25 +17,25 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Gets or sets the Id.
         /// </summary>
-        [JsonPropertyName("Id")]
+        [JsonProperty(Required = Required.Default)]
         public string Id { get; set; }
 
         /// <summary>
         /// Gets or sets the Name.
         /// </summary>
-        [JsonPropertyName("Name")]
+        [JsonProperty(Required = Required.Default)]
         public string Name { get; set; }
 
         /// <summary>
         /// Gets or sets the ETAG.
         /// </summary>
-        [JsonPropertyName("Etag")]
+        [JsonProperty]
         public string Etag { get; set; }
 
         /// <summary>
         /// Gets or sets the service association link properties.
         /// </summary>
-        [JsonPropertyName("Properties")]
+        [JsonProperty]
         public ServiceAssociationLinkProperties Properties { get; set; }
     }
 }

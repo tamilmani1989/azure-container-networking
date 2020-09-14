@@ -7,7 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
-    using System.Text.Json.Serialization;
+    using Newtonsoft.Json;
 
     /// <summary>
     /// The virtual network ownership response properties class.
@@ -17,19 +17,19 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Gets or sets a value indicating whether enable service endpoints.
         /// </summary>
-        [JsonPropertyName("EnableServiceEndpoints")]
+        [JsonProperty]
         public bool EnableServiceEndpoints { get; set; }
 
         /// <summary>
         /// Gets or sets the platform identifier.
         /// </summary>
-        [JsonPropertyName("PlatformIdentifier")]
+        [JsonProperty]
         public string PlatformIdentifier { get; set; }
 
         /// <summary>
         /// Gets or sets the owner.
         /// </summary>
-        [JsonPropertyName("Owner")]
+        [JsonProperty]
         public string Owner { get; set; }
     }
 }

@@ -7,7 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
-    using System.Text.Json.Serialization;
+    using Newtonsoft.Json;
 
     /// <summary>
     /// The virtual network ownership response class.
@@ -17,31 +17,31 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Gets or sets the Id.
         /// </summary>
-        [JsonPropertyName("Id")]
+        [JsonProperty]
         public string Id { get; set; }
 
         /// <summary>
         /// Gets or sets the request properties.
         /// </summary>
-        [JsonPropertyName("Properties")]
+        [JsonProperty]
         public VirtualNetworkOwnershipResponseProperties Properties { get; set; }
 
         /// <summary>
         /// Gets or sets the ownership action.
         /// </summary>
-        [JsonPropertyName("OwnershipAction")]
+        [JsonProperty]
         public VirtualNetworkOwnershipAction OwnershipAction { get; set; }
 
         /// <summary>
         /// Gets or sets the provisioning state.
         /// </summary>
-        [JsonPropertyName("ProvisioningState")]
+        [JsonProperty]
         public string ProvisioningState { get; set; }
 
         /// <summary>
         /// Gets or sets the type.
         /// </summary>
-        [JsonPropertyName("Type")]
+        [JsonProperty]
         public string Type { get; set; }
     }
 }
