@@ -1,6 +1,16 @@
 {
+	"DataStoreSettings": {
+		"AzureStorageInfo": {
+			"AccountName": "ramirocosmos",
+			"Key": "<cosmos key>",
+			"IsUsingCosmosDb": true
+		}
+	},
 	"kubernetesConfig": {
-		"kubeconfigPath": "C:\\Users\\matlong\\.kube\\config",
+		"kubeconfigInfo":  {
+			"mode": "file",
+			"file": "C:\\Users\\matlong\\.kube\\config"
+		},
 		"namespace": "kube-system"
 	},
 	"requestScalerConfig": {

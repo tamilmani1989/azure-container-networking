@@ -10,13 +10,15 @@ import (
 func TestConfigApplyDefaults(t *testing.T) {
 	config := Config{
 		KubernetesConfig: KubernetesConfig{
-			KubeconfigPath: "test",
+			KubeconfigInfo: KubeconfigInfo{
+				File: "test",
+			},
 		},
 	}
 	config.ApplyDefaults()
 
 	want := "test"
-	got := config.KubernetesConfig.KubeconfigPath
+	got := config.KubernetesConfig.KubeconfigInfo.File
 
 	if want != got {
 		t.Errorf("wanted %s, got %s", want, got)
@@ -26,7 +28,7 @@ func TestConfigApplyDefaults(t *testing.T) {
 	config.ApplyDefaults()
 
 	want = defaultConfigKubeconfigPath
-	got = config.KubernetesConfig.KubeconfigPath
+	got = config.KubernetesConfig.KubeconfigInfo.File
 
 	if want != got {
 		t.Errorf("wanted %s, got %s", want, got)

@@ -4,6 +4,8 @@ package requestcontroller
 
 import (
 	"context"
+	"sync"
+
 	"dnc/api"
 	"dnc/configuration"
 )
@@ -18,7 +20,19 @@ const (
 	defaultConfigDNCClientRequestTimeout       = "15s"
 	defaultConfigDNCClientPollingInterval      = "3s"
 	defaultConfigDNCClientDNCEP                = "http://127.0.0.1:9000"
+	defaultConfigKubeconfigInfoMode            = "file"
+	defaultConfigKubeloginBinaryPath           = "/usr/local/bin/kubelogin"
+	defaultConfigClientCertificatePath         = "/tmp/client-cert.pfx"
+	defaultAzureEnvironment                    = "AzurePublicCloud"
+	KubeconfigFileMode                         = "file"
+	KubeconfigDatastoreMode                    = "datastore"
 )
+
+/* Using a global lock since loggershim has a global var that needs to be initialized
+   in a threadsafe way. This will be removed when we refactor loggershim to remove the
+   global pointer
+*/
+var LoggershimMutex sync.Mutex
 
 // RequestController handles requests from CNS for IP allocations/deallocations and calls DNC functions
 type RequestController interface {
@@ -36,9 +50,20 @@ type Config struct {
 
 // KubernetesConfig config for interacting with kubernetes cluster
 type KubernetesConfig struct {
-	KubeconfigPath string `json:"kubeconfigPath,omitempty"`
-	Namespace      string `json:"namespace,omitempty"`
-	ClientTimeout  string `json:"clientTimeout,omitempty"`
+	KubeconfigInfo KubeconfigInfo `json:"kubeconfigInfo,omitempty"`
+	Namespace      string         `json:"namespace,omitempty"`
+	ClientTimeout  string         `json:"clientTimeout,omitempty"`
+}
+
+type KubeconfigInfo struct {
+	// Mode is one of (file | datastore)
+	Mode                  string `json:"mode"`
+	File                  string `json:"file"`
+	ManagedDNCGUID        string `json:"managedDNCGUID"`
+	ClientAppID           string `json:"clientAppID"`
+	ClientCertificatePath string `json:"clientCertificatePath"`
+	KubeloginBinaryPath   string `json:"kubeloginBinaryPath"`
+	AzureEnvironment      string `json:"azureEnvironmment"`
 }
 
 // RequestScalerConfig config for CNS requests
@@ -74,8 +99,12 @@ type SubnetInfo struct {
 
 // ApplyDefaults applies the default values for configs if they are not set
 func (c *Config) ApplyDefaults() {
-	if c.KubernetesConfig.KubeconfigPath == "" {
-		c.KubernetesConfig.KubeconfigPath = defaultConfigKubeconfigPath
+	if c.KubernetesConfig.KubeconfigInfo.Mode == "" {
+		c.KubernetesConfig.KubeconfigInfo.Mode = defaultConfigKubeconfigInfoMode
+	}
+
+	if c.KubernetesConfig.KubeconfigInfo.File == "" {
+		c.KubernetesConfig.KubeconfigInfo.File = defaultConfigKubeconfigPath
 	}
 
 	if c.KubernetesConfig.Namespace == "" {
@@ -113,6 +142,18 @@ func (c *Config) ApplyDefaults() {
 	if c.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs == 0 {
 		c.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs = 1000 // 1 second
 	}
+
+	if c.KubernetesConfig.KubeconfigInfo.ClientCertificatePath == "" {
+		c.KubernetesConfig.KubeconfigInfo.ClientCertificatePath = defaultConfigClientCertificatePath
+	}
+
+	if c.KubernetesConfig.KubeconfigInfo.KubeloginBinaryPath == "" {
+		c.KubernetesConfig.KubeconfigInfo.KubeloginBinaryPath = defaultConfigKubeloginBinaryPath
+	}
+
+	if c.KubernetesConfig.KubeconfigInfo.AzureEnvironment == "" {
+		c.KubernetesConfig.KubeconfigInfo.AzureEnvironment = defaultAzureEnvironment
+	}
 }
 
 //SynchronousDNCClient is an idempotent, syncronous DNC client.
@@ -131,4 +172,10 @@ type SynchronousDNCClient interface {
 // so its implementation must be threadsafe
 type SubnetInfoProvider interface {
 	GetSubnetInfo(ctx context.Context, delegatedSubnetID, subnetName string) (SubnetInfo, error)
+}
+
+//KubeconfigProvider gets all kubeconfig files as bytes that this RequestController will use to watch the API server
+type KubeconfigProvider interface {
+	//GetBytesForAll returns a map of {controller guid -> kubeconfig bytes} for each cluster that this RC watches
+	GetBytesForAll(ctx context.Context) (map[string][]byte, error)
 }

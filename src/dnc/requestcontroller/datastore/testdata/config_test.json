@@ -1,0 +1,20 @@
+{
+	"DataStoreSettings": {
+		"AzureStorageInfo": {
+			"AccountName": "ramirocosmos",
+			"Key": "<cosmos key>",
+			"IsUsingCosmosDb": true
+		}
+	},
+	"kubernetesConfig": {
+		"kubeconfigInfo":  {
+			"mode": "datastore",
+            "managedDNCGUID": "5c7e26be-7ff9-4aaf-9e16-0bc759605aea",
+            "clientAppID": "1efe5bbf-d5b1-4fe9-99fa-f55ce1c88679"
+		},
+		"namespace": "kube-system"
+	},
+	"requestScalerConfig": {
+		"batchSize": 16
+	}
+}
