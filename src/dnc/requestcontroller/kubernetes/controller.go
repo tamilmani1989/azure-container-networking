@@ -8,13 +8,15 @@ import (
 	"log"
 	"time"
 
+	ad "dnc/activedirectory"
 	dncclient "dnc/client"
-
 	"dnc/requestcontroller"
 	"dnc/requestcontroller/datastore"
 	syncdncclient "dnc/requestcontroller/dncclient"
+	"dnc/requestcontroller/keyvault"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
+	"github.com/Azure/go-autorest/autorest/azure"
 	cache "github.com/patrickmn/go-cache"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,9 +29,10 @@ import (
 
 // NodeFinalizerName is the finalizer that is placed on Nodes
 const (
-	NNCFinalizerName       = "finalizers.acn.azure.com/dnc-operations"
-	DelegatedSubnetIDLabel = "kubernetes.azure.com/podnetwork-resourceguid"
-	SubnetNameLabel        = "kubernetes.azure.com/podnetwork-subnet"
+	NNCFinalizerName            = "finalizers.acn.azure.com/dnc-operations"
+	DelegatedSubnetIDLabel      = "kubernetes.azure.com/podnetwork-resourceguid"
+	SubnetNameLabel             = "kubernetes.azure.com/podnetwork-subnet"
+	leaderElectionConfigmapName = "resourcelock.acn.azure.com"
 )
 
 // RequestController implements requestcontroller.RequestController. RequestController watches Nodes and NetworkConfigs
@@ -69,6 +72,17 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 		return nil, err
 	}
 
+	// Get the Cosmos token via MSI if necessary
+	if config.DataStoreSettings.AzureStorageInfo.IsUsingCosmosDb && config.DataStoreSettings.AzureStorageInfo.Key == "" {
+		log.Printf("Getting key for CosmosDB with MSI")
+		key, err := getCosmosKeyFromMSI(context.TODO(), config.CosmosMSISettings.MSIResourceID, config.CosmosMSISettings.CosmosResourceID, config.CosmosMSISettings.AzureEnvironment)
+		if err != nil {
+			return nil, err
+		}
+
+		config.DataStoreSettings.AzureStorageInfo.Key = key
+	}
+
 	// Choose a kubeconfig provider
 	var kubeconfigProvider requestcontroller.KubeconfigProvider
 	kubeconfigInfo := config.KubernetesConfig.KubeconfigInfo //later code references properties a lot, so make future line shorter
@@ -87,6 +101,26 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 	kubeconfigsBytes, err := kubeconfigProvider.GetBytesForAll(context.TODO())
 	if err != nil {
 		return nil, err
+	}
+
+	// Read the client certificate from keyvault if necessary
+	/* TODO: right now, this only supports one kubeconfig, even though we could build kubeconfigs for multiple clusters.
+	   This is because we're prompting for a client cert filename to write to disk in config, so we can only write
+	   one client cert. For now this is fine since we only support one kubeconfig per cluster, but we will need to
+	   overhaul how orchestrators pass in keyvault cert info (perhaps in a cosmos table?) to support multiple clusters.
+	*/
+	if kubeconfigInfo.ClientCertificateKeyvaultSecret.SecretName != "" {
+		certProvider := keyvault.ClientCertificateProvider{
+			MSIResourceID:    kubeconfigInfo.ClientCertificateKeyvaultSecret.MSIResourceID,
+			AzureEnvironment: kubeconfigInfo.ClientCertificateKeyvaultSecret.AzureEnvironment,
+			KeyvaultName:     kubeconfigInfo.ClientCertificateKeyvaultSecret.KeyvaultName,
+		}
+
+		err := certProvider.FetchAndStoreLatestPKCS12Secret(context.TODO(),
+			kubeconfigInfo.ClientCertificateKeyvaultSecret.SecretName, kubeconfigInfo.ClientCertificatePath)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	k8sClientTimeout, err := time.ParseDuration(config.KubernetesConfig.ClientTimeout)
@@ -122,8 +156,11 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 
 		// Create a manager from the REST config and scheme
 		mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-			Scheme:             scheme,
-			MetricsBindAddress: "0", //disable metrics, TODO: make this configurable
+			Scheme:                  scheme,
+			MetricsBindAddress:      "0", //disable metrics, TODO: make this configurable
+			LeaderElection:          true,
+			LeaderElectionNamespace: config.KubernetesConfig.Namespace,
+			LeaderElectionID:        leaderElectionConfigmapName,
 		})
 		if err != nil {
 			return nil, err
@@ -185,4 +222,33 @@ func (r *RequestController) Start(exitChan chan struct{}) error {
 	case <-exitChan:
 		return nil
 	}
+}
+
+func getCosmosKeyFromMSI(ctx context.Context, msiResourceID, cosmosResourceID, azureEnvironment string) (string, error) {
+	tokenFetcher := &ad.MSITokenFetcher{ResourceID: msiResourceID}
+	azureEnv, err := azure.EnvironmentFromName(azureEnvironment)
+	if err != nil {
+		return "", err
+	}
+
+	armEndpoint := azureEnv.ResourceManagerEndpoint
+
+	spt, err := tokenFetcher.GetServicePrincipalToken(armEndpoint)
+	if err != nil {
+		return "", err
+	}
+
+	token, err := ad.GetFreshToken(ctx, spt)
+	if err != nil {
+		return "", err
+	}
+
+	keyFetcher := ad.CosmosKeyFetcher{ARMEndpoint: armEndpoint}
+	keys, err := keyFetcher.GetReadWriteKeys(ctx, token, cosmosResourceID)
+	if err != nil {
+		return "", err
+	}
+
+	// todo: rotation still needs to be figured out
+	return keys.PrimaryMasterKey, nil
 }

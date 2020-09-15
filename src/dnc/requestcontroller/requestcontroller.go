@@ -45,7 +45,8 @@ type Config struct {
 	RequestScalerConfig RequestScalerConfig `json:"requestScalerConfig,omitempty"`
 	DNCClientConfig     DNCClientConfig     `json:"dncClientConfig,omitempty"`
 	DataStoreSettings   configuration.DataStoreSettings
-	LoggingConfig       LoggingConfig `json:"loggingConfig,omitempty"`
+	LoggingConfig       LoggingConfig     `json:"loggingConfig,omitempty"`
+	CosmosMSISettings   CosmosMSISettings `json:"cosmosMSISettings,omitempty"`
 }
 
 // KubernetesConfig config for interacting with kubernetes cluster
@@ -57,13 +58,21 @@ type KubernetesConfig struct {
 
 type KubeconfigInfo struct {
 	// Mode is one of (file | datastore)
-	Mode                  string `json:"mode"`
-	File                  string `json:"file"`
-	ManagedDNCGUID        string `json:"managedDNCGUID"`
-	ClientAppID           string `json:"clientAppID"`
-	ClientCertificatePath string `json:"clientCertificatePath"`
-	KubeloginBinaryPath   string `json:"kubeloginBinaryPath"`
-	AzureEnvironment      string `json:"azureEnvironmment"`
+	Mode                            string             `json:"mode"`
+	File                            string             `json:"file"`
+	ManagedDNCGUID                  string             `json:"managedDNCGUID"`
+	ClientAppID                     string             `json:"clientAppID"`
+	ClientCertificatePath           string             `json:"clientCertificatePath"`
+	KubeloginBinaryPath             string             `json:"kubeloginBinaryPath"`
+	AzureEnvironment                string             `json:"azureEnvironmment"`
+	ClientCertificateKeyvaultSecret KeyvaultSecretInfo `json:"clientCertificateKeyvaultSecret"`
+}
+
+type KeyvaultSecretInfo struct {
+	KeyvaultName     string `json:"keyvaultName"`
+	SecretName       string `json:"secretName"`
+	MSIResourceID    string `json:"msiResourceID"`
+	AzureEnvironment string `json:"azureEnvironment"`
 }
 
 // RequestScalerConfig config for CNS requests
@@ -82,6 +91,12 @@ type DNCClientConfig struct {
 
 type LoggingConfig struct {
 	ThresholdForLoggingDataStoreOpLatencyMs int `json:"thresholdForLoggingDataStoreOpLatencyMs,omitempty"`
+}
+
+type CosmosMSISettings struct {
+	AzureEnvironment string `json:"azureEnvironment,omitempty"`
+	MSIResourceID    string `json:"msiResourceID,omitempty"`
+	CosmosResourceID string `json:"cosmosResourceID,omitempty"`
 }
 
 // ConfigProvider provides a Config via GetConfig
