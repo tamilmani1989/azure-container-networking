@@ -150,6 +150,56 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         }
 
         /// <summary>
+        /// Inserts or replace a TableEntity into a given table. Idempotent if the entity is already updated.
+        /// </summary>
+        /// <param name="tableName">table name</param>
+        /// <param name="entity">table entity</param>
+        /// <returns>Result of an operation</returns>
+        public async Task<TableResult> InsertOrReplaceEntityAsync(string tableName, TableEntity entity)
+        {
+            try
+            {
+                CloudTable cloudTable = GetTable(tableName);
+
+                // Execute the operation.
+                TableOperation insertOrReplaceOperation = TableOperation.InsertOrReplace(entity);
+                TableResult tableResult = await ExecuteAsync(cloudTable, insertOrReplaceOperation, "InsertOrReplace");
+
+                return tableResult;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Failed to Insert entry in table: {tableName}, entity :{entity} ex:{ex}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Delete a TableEntity in the given table.
+        /// </summary>
+        /// <param name="tableName">table name</param>
+        /// <param name="entity">table entity</param>
+        /// <returns>Result of an operation</returns>
+        public async Task<TableResult> DeleteEntityAsync(string tableName, TableEntity entity)
+        {
+            try
+            {
+                CloudTable cloudTable = GetTable(tableName);
+
+                // Execute the operation.
+                TableOperation deleteOperation = TableOperation.Delete(entity);
+                TableResult tableResult = await ExecuteAsync(cloudTable, deleteOperation, "Delete");
+
+                return tableResult;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Failed to Delete entry in table: {tableName}, entity :{entity} ex:{ex}");
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Get the Table entity of a given tablename
         /// </summary>
         /// <typeparam name="T">TableEntity type</typeparam>

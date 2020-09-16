@@ -8,8 +8,8 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System.Collections.Generic;
-    using System.Text.Json;
-    using System.Text.Json.Serialization;
+    using Newtonsoft.Json;
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
 
     public class ErrorDefinition
     {
@@ -17,7 +17,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// Gets service specific error code which serves as the substatus for
         /// the HTTP error code.
         /// </summary>
-        [JsonPropertyName("code")]
+        [JsonProperty("code")]
         public string Code
         {
             get; set;
@@ -26,7 +26,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Gets description of the error.
         /// </summary>
-        [JsonPropertyName("message")]
+        [JsonProperty("message")]
         public string Message
         {
             get; set;
@@ -35,7 +35,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Gets internal error details.
         /// </summary>
-        [JsonPropertyName("details")]
+        [JsonProperty("details")]
         public IList<ErrorDefinition> Details
         {
             get; set;
@@ -47,7 +47,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Gets or sets error description
         /// </summary>
-        [JsonPropertyName("error")]
+        [JsonProperty("error")]
         public ErrorDefinition Error
         {
             get; set;
@@ -59,7 +59,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Gets or sets error description
         /// </summary>
-        [JsonPropertyName("ErrorResponse")]
+        [JsonProperty("ErrorResponse")]
         public ErrorResponse ErrorResponse
         {
             get; set;
@@ -85,7 +85,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 }
             };
 
-            return JsonSerializer.Serialize(details);
+            return JsonUtility.Serialize(details);
         }
     }
 }

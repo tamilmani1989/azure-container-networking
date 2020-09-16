@@ -28,12 +28,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 ResourceGuid = delegatedSubGuid,
 
                 // Todo update the state
-                State = ""
+                State = ProvisioningState.Unknown
             };
 
             this.isExtensionResource = true;
             this.parentResourceId = $"Microsoft.Network/virtualNetworks/{vnetName}/subnets/{subnetName}";
-            this.Type = DelegateSubnet.DelegatedResourceType;
+            this.Type = DelegatedResourceType;
         }
     }
 }

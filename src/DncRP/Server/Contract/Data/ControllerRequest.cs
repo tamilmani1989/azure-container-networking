@@ -7,7 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
-    using System.Text.Json.Serialization;
+    using Newtonsoft.Json;
 
     public enum ControllerType
     {
@@ -17,25 +17,25 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
     public class ControllerRequestProperties
     {
-        [JsonPropertyName("serverAppID")]
+        [JsonProperty("serverAppID")]
         public string ServerAppID
         {
             get; set;
         }
 
-        [JsonPropertyName("serverTenantID")]
+        [JsonProperty("serverTenantID")]
         public string ServerTenantID
         {
             get; set;
         }
 
-        [JsonPropertyName("clusterRootCA")]
+        [JsonProperty("clusterRootCA")]
         public string ClusterRootCA
         {
             get; set;
         }
 
-        [JsonPropertyName("apiServerEndpoint")]
+        [JsonProperty("apiServerEndpoint")]
         public string ApiServerEndpoint
         {
             get; set;
@@ -44,13 +44,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
     public class ControllerRequestParameters
     {
-        [JsonPropertyName("controllerType")]
+        [JsonProperty("controllerType")]
         public ControllerType Type
         {
             get; set;
         }
 
-        [JsonPropertyName("properties")]
+        [JsonProperty("properties")]
         public ControllerRequestProperties Properties
         {
             get; set;
@@ -59,7 +59,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
     public class ControllerRequest
     {
-        [JsonPropertyName("controllerParameters")]
+        [JsonProperty("controllerParameters")]
         public ControllerRequestParameters Parameters
         {
             get; set;

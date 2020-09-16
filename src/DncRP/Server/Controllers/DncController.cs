@@ -7,11 +7,10 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.IO;
     using System.Net;
     using System.Net.Http;
-    using System.Text.Json;
     using System.Threading.Tasks;
-    using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Logging;
@@ -36,8 +35,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpGet]
         public async Task<ContentResult> GetDncResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
-            return await this.ExecuteWithRetryAsync(() => this.tableOperations.ControllerConfiguration.GetDncController(
-                subscriptionId, resourceGroupName, resourceName));
+            return await this.ExecuteWithRetryAsync(() => this.tableOperations.ControllerConfiguration.GetDncControllerAsync(
+                subscriptionId, resourceGroupName, resourceName), HttpMethod.Get);
         }
 
         /// <summary>
@@ -47,11 +46,20 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpPut]
         public async Task<ContentResult> PutDncResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
-            // TODO : Get this from HttpContext
-            ControllerRequest requestBody = null;
+            if (HttpContext.Request.Body == null)
+            {
+                throw new EmptyRequestBody("Empty request body");
+            }
 
-            return await this.ExecuteWithRetryAsync(() => this.tableOperations.ControllerConfiguration.InsertOrReplaceDncController(
-                subscriptionId, resourceGroupName, resourceName, requestBody));
+            ControllerRequest request = null;
+            using (StreamReader stream = new StreamReader(HttpContext.Request.Body))
+            {
+                string jsonBody = await stream.ReadToEndAsync();
+                request = JsonUtility.Deserialize<ControllerRequest>(jsonBody);
+            }
+
+            return await this.ExecuteWithRetryAsync(() => this.tableOperations.ControllerConfiguration.InsertOrReplaceDncControllerAsync(
+                subscriptionId, resourceGroupName, resourceName, request), HttpMethod.Put);
         }
 
         /// <summary>
@@ -64,8 +72,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // TODO : Get this from HttpContext
             ControllerRequest requestBody = null;
 
-            return await this.ExecuteWithRetryAsync(() => this.tableOperations.ControllerConfiguration.MergeDncController(
-                subscriptionId, resourceGroupName, resourceName, requestBody));
+            return await this.ExecuteWithRetryAsync(() => this.tableOperations.ControllerConfiguration.MergeDncControllerAsync(
+                subscriptionId, resourceGroupName, resourceName, requestBody), HttpMethod.Patch);
         }
 
         /// <summary>
@@ -75,70 +83,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpDelete]
         public async Task<ContentResult> DeleteDncResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
-            return await this.ExecuteWithRetryAsync(() => this.tableOperations.ControllerConfiguration.DeleteDncController(
-               subscriptionId, resourceGroupName, resourceName), false);
-        }
-
-        /// <summary>
-        /// Execute a dnc controller API with retry and convert the result to ContentResult
-        /// </summary>
-        /// <param name="action"></param>
-        /// <param name="includeReponseInResult"></param>
-        /// <returns></returns>
-        private async Task<ContentResult> ExecuteWithRetryAsync(Func<Task<ControllerResponse>> action, bool includeReponseInResult = true)
-        {
-            ControllerResponse response = null;
-
-            try
-            {
-                response = await AsyncRetry.Retry<ControllerResponse>(async () =>
-                {
-                    return await action();
-                },
-                3, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(5), (e) => e is HttpRequestException).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError("Error in DncController API: {0}", ex);
-
-                response = new ControllerResponse
-                {
-                    Error = new ResponseError
-                    {
-                        Error = ex.Message,
-                        StatusCode = HttpStatusCode.InternalServerError
-                    }
-                };
-            }
-
-            return this.ConvertToContentResult(response, includeReponseInResult);
-        }
-
-        /// <summary>
-        /// Convert result to JSON
-        /// </summary>
-        /// <param name="response"></param>
-        /// <returns></returns>
-        private ContentResult ConvertToContentResult(ControllerResponse response, bool includeReponseInContent = true)
-        {
-            if (response.Error != null)
-            {
-                return new ContentResult
-                {
-                    Content = ErrorDetails.CreateErrorAsJson(response.Error.Error, (int)response.Error.StatusCode),
-                    ContentType = "application/json",
-                    StatusCode = (int)response.Error.StatusCode
-                };
-            }
-
-            int statusCode = response.Properties != null ? (int)response.Properties.State : (int)HttpStatusCode.OK;
-            string json = includeReponseInContent ? JsonSerializer.Serialize(response) : "";
-            return new ContentResult
-            {
-                Content = json,
-                ContentType = "application/json",
-                StatusCode = statusCode
-            };
+            return await this.ExecuteWithRetryAsync(() => this.tableOperations.ControllerConfiguration.DeleteDncControllerAsync(
+               subscriptionId, resourceGroupName, resourceName), HttpMethod.Delete);
         }
     }
 }

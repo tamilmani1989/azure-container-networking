@@ -35,6 +35,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         Task<TableResult> InsertOrMergeEntityAsync(string tableName, TableEntity entity);
 
         /// <summary>
+        /// Inserts or replace a TableEntity into a given table. Idempotent if the entity is already updated.
+        /// </summary>
+        /// <param name="tableName">table name</param>
+        /// <param name="entity">table entity</param>
+        /// <returns>Result of an operation</returns>
+        Task<TableResult> InsertOrReplaceEntityAsync(string tableName, TableEntity entity);
+
+        /// <summary>
         /// Get the Table entity of a given tablename
         /// </summary>
         /// <typeparam name="T">TableEntity type</typeparam>
@@ -43,5 +51,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="rowKey">row key</param>
         /// <returns></returns>
         Task<TableResult> GetEntityAsync<T>(string tableName, string partitionKey, string rowKey) where T : ITableEntity;
+
+        /// <summary>
+        /// Delete an entity. If it does not exists, 404 is returned
+        /// </summary>
+        /// <param name="tableName">table name</param>
+        /// <param name="entity">table entity</param>
+        /// <returns>Result of an operation</returns>
+        Task<TableResult> DeleteEntityAsync(string tableName, TableEntity entity);
     }
 }

@@ -9,7 +9,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using Newtonsoft.Json;
 
-    public abstract class TopLevelResourceProperties
+    public class TopLevelResourceProperties
     {
         /// <summary>
         /// Gets or sets the type of the resource.
@@ -21,6 +21,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// Gets or sets the type of the resource.
         /// </summary>
         [JsonProperty(Required = Required.Default, PropertyName = "state")]
-        public string State { get; set; }
+        public ProvisioningState State { get; set; }
     }
 }

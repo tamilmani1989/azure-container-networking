@@ -12,7 +12,6 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
     using System.Net.Http;
     using System.Net.Http.Headers;
     using System.Text;
-    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -29,15 +28,6 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// The header client request identifier.
         /// </summary>
         public const string HeaderClientRequestId = "x-ms-client-request-id";
-
-        /// <summary>
-        /// JsonOptions for Deserializing the response.
-        /// </summary>
-        public static readonly JsonSerializerOptions DeserializeJsonSerializerOptions = new JsonSerializerOptions
-        {
-            IgnoreNullValues = true,
-            PropertyNameCaseInsensitive = true
-        };
 
         /// <summary>
         /// Invoke REST API and deserialize its JSON result to caller specified object
@@ -109,7 +99,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
 
                 if (requestBody != null)
                 {
-                    request.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+                    request.Content = new StringContent(JsonUtility.Serialize(requestBody), Encoding.UTF8, "application/json");
                 }
 
                 var response = await httpClient.SendAsync(request);
@@ -126,9 +116,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             {
                 var contentStream = await httpResponse.Content.ReadAsStreamAsync();
 
-                return await JsonSerializer.DeserializeAsync<T>(
-                    contentStream,
-                    HttpUtility.DeserializeJsonSerializerOptions);
+                return JsonUtility.Deserialize<T>(contentStream);
             }
 
             throw new InvalidDataException($"Invalid content type '{httpResponse.Content.Headers.ContentType.MediaType}' returned. ");

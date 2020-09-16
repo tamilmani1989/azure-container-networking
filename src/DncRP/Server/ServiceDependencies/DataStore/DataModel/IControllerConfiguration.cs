@@ -18,7 +18,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceGroup"></param>
         /// <param name="controllerName"></param>
         /// <returns></returns>
-        Task<ControllerResponse> GetDncController(string subId, string resourceGroup, string controllerName);
+        Task<Controller> GetDncControllerAsync(string subId, string resourceGroup, string controllerName);
 
         /// <summary>
         /// Create a new DNC controller or replace an existing one
@@ -27,7 +27,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceGroup"></param>
         /// <param name="controllerName"></param>
         /// <returns></returns>
-        Task<ControllerResponse> InsertOrReplaceDncController(
+        Task<Controller> InsertOrReplaceDncControllerAsync(
             string subId, string resourceGroup, string controllerName, ControllerRequest controllerRequest);
 
         /// <summary>
@@ -37,7 +37,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceGroup"></param>
         /// <param name="controllerName"></param>
         /// <returns></returns>
-        Task<ControllerResponse> MergeDncController(
+        Task<Controller> MergeDncControllerAsync(
             string subId, string resourceGroup, string controllerName, ControllerRequest controllerRequest);
 
         /// <summary>
@@ -47,6 +47,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceGroup"></param>
         /// <param name="controllerName"></param>
         /// <returns></returns>
-        Task<ControllerResponse> DeleteDncController(string subId, string resourceGroup, string controllerName);
+        Task<Controller> DeleteDncControllerAsync(string subId, string resourceGroup, string controllerName);
     }
 }

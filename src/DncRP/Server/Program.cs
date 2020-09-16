@@ -22,9 +22,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="args"></param>
         public static void Main(string[] args)
         {
+            const string settingsFileName = "appsettings.json";
+
             var config = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: false)
+                .SetBasePath(AppInfo.GetFilePath(settingsFileName))
+                .AddJsonFile(settingsFileName, optional: false)
                 .AddCommandLine(args)
                 .Build();
 

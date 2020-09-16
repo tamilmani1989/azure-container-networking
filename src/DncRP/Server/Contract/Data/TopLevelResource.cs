@@ -10,6 +10,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
     public class TopLevelResource
     {
+        private string resId;
+        private string azureEnv;
+
         /// <summary>
         /// Gets the id for the resource.
         /// </summary>
@@ -18,6 +21,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             get
             {
+                if (!string.IsNullOrWhiteSpace(resId))
+                {
+                    return resId;
+                }
+
                 if (string.IsNullOrEmpty(this.SubscriptionId) ||
                     string.IsNullOrEmpty(this.Type) ||
                     string.IsNullOrEmpty(this.Name))
@@ -25,7 +33,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     return null;
                 }
 
-                return GetFullyQualifiedResourceId();
+                resId = GetFullyQualifiedResourceId();
+                return resId;
+            }
+
+            set
+            {
+                resId = value;
             }
         }
 
@@ -33,7 +47,22 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// Gets or sets the location of the resource.
         /// </summary>
         [JsonProperty(Required = Required.Default, PropertyName = "location")]
-        public string Location { get; set; }
+        public string Location
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(this.azureEnv))
+                {
+                    this.azureEnv = CurrentContext.AzureEnvironment;
+                }
+
+                return this.azureEnv;
+            }
+            set
+            {
+                this.azureEnv = value;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the resource name.
@@ -45,13 +74,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// Gets or sets the type of the resource.
         /// </summary>
         [JsonProperty(Required = Required.Default, PropertyName = "type")]
-        public string Type { get; protected set; }
+        public string Type { get; set; }
 
         /// <summary>
         /// Properties of a TopLevelResource
         /// </summary>
         [JsonProperty(PropertyName = "properties")]
-        public TopLevelResourceProperties Properties { get; protected set; }
+        public TopLevelResourceProperties Properties { get; set; }
 
 
         /// <summary>
@@ -65,6 +94,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         [JsonIgnore]
         public string ResourceGroup { get; set; }
+
+        /// <summary>
+        /// Gets or sets the name of the resource group.
+        /// </summary>
+        [JsonIgnore]
+        public TopLevelResourceError Error { get; set; }
 
         /// <summary>
         /// Gets or sets if this Resource is an Extension resource.

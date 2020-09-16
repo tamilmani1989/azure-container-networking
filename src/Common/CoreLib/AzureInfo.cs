@@ -24,7 +24,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         static AzureInfo()
         {
             config = new ConfigurationBuilder()
-               .SetBasePath(Directory.GetCurrentDirectory())
+               .SetBasePath(AppInfo.GetFilePath(settingsFileName))
                .AddJsonFile(settingsFileName, optional: false)
                .Build();
         }
