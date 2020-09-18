@@ -24,6 +24,7 @@ type NCConfiguration struct {
 	MarkedForDelete       bool
 	APIVersion            string
 	LocalIP               string
+	LocalMAC              string
 }
 
 // GetAssociationInfo - Retrieves association info assocuated with NC.

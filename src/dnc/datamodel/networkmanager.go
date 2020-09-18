@@ -1594,6 +1594,8 @@ func RemovePendingRequest(requestID string) {
 func PersistNCConfiguration(ncConfiguration *NCConfiguration, addToPendingQueue bool) *api.JsonErr {
 	var jsonSerializedBytes []byte
 	var err error
+	// Assigning empty string to LocalMAC field for now.
+	ncConfiguration.LocalMAC = ""
 	if ncConfiguration.FailureDetail != (api.JsonErr{}) {
 		loggershim.LS.Errorf("[%s] Error: %s", utils.TracePrefix(3), ncConfiguration.FailureDetail.String())
 	}
