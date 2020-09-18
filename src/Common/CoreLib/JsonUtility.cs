@@ -18,6 +18,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// The serialization settings.
         /// </summary>
         private static readonly JsonSerializerSettings serializationSettings;
+        private static readonly JsonSerializerSettings deserializeSettings;
         private static readonly JsonSerializerSettings serializationsettingsTypeHandling;
         private static readonly JsonSerializerSettings deserializationsettingsTypeHandling;
 
@@ -25,6 +26,16 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         {
             serializationSettings = new JsonSerializerSettings
             {
+                DateTimeZoneHandling = DateTimeZoneHandling.Utc,
+                Converters = new List<JsonConverter>
+                {
+                    new StringEnumConverter()
+                }
+            };
+
+            deserializeSettings = new JsonSerializerSettings
+            {
+                DateTimeZoneHandling = DateTimeZoneHandling.Utc,
                 Converters = new List<JsonConverter>
                 {
                     new StringEnumConverter()
@@ -47,16 +58,19 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         }
 
         /// <summary>
-        /// Deserialzation is done with default settings. It means TypeHandling is not
-        /// used and json won't get deserialized  properly into a derived class. For derived class
-        /// Serialization/Deserialization use API DeserializeWithTypeHandling and SerializeWithTypeHandling
+        /// Deserialzation is done with default settings.
+        /// For custom Settings, use another wrapper which accepts settings
+        /// 
+        /// In Default settings, TypeHandling is not used and json won't get deserialized 
+        /// properly into a derived class. For derived class Serialization/Deserialization 
+        /// use API DeserializeWithTypeHandling and SerializeWithTypeHandling.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="json"></param>
         /// <returns></returns>
         public static T Deserialize<T>(string json)
         {
-            return JsonConvert.DeserializeObject<T>(json);
+            return JsonConvert.DeserializeObject<T>(json, deserializeSettings);
         }
 
         /// <summary>
@@ -81,7 +95,19 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             }
         }
 
-        public static string Serialize(object input)
+        /// <summary>
+        /// Use the Deserialize Settings passed by caller.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="input"></param>
+        /// <param name="deserializeSettings"></param>
+        /// <returns></returns>
+        public static T Deserialize<T>(string json, JsonSerializerSettings deserializeSettings)
+        {
+            return JsonConvert.DeserializeObject<T>(json, deserializeSettings);
+        }
+
+        public static string Serialize<T>(T input)
         {
             return JsonConvert.SerializeObject(input, serializationSettings);
         }
@@ -89,6 +115,15 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         public static string SerializeWithTypeHandling(object input)
         {
             return JsonConvert.SerializeObject(input, serializationsettingsTypeHandling);
+        }
+
+        /// <summary>
+        /// Use the Serialize Settings passed by caller.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static string Serialize<T>(T input, JsonSerializerSettings serializeSettings)
+        {
+            return JsonConvert.SerializeObject(input, serializeSettings);
         }
     }
 }

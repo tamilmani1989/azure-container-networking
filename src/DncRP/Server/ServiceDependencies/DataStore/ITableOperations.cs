@@ -29,15 +29,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <returns></returns>
         IDelegatedSubnetConfigurationOperations DelegatedSubnetConfigurationOperations { get; }
 
-
-
         /// <summary>
         /// ControllerConfiguration operations
         /// </summary>
         /// <returns></returns>
-        IControllerConfiguration ControllerConfiguration
-        {
-            get;
-        }
+        IControllerConfiguration ControllerConfiguration { get; }
     }
 }

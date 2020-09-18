@@ -30,10 +30,5 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
- 
-
-  <ItemGroup>
-    <Folder Include="Operations\" />
-  </ItemGroup>
 
 </Project>

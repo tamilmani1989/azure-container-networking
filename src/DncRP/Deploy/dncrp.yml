@@ -18,12 +18,11 @@ spec:
       - name: dncrp-container
         image: acndev.azurecr.io/dncrp:latest
         imagePullPolicy: Always
+        env:
+        - name: AzureServicesAuthConnectionString 
+          value: "RunAs=App;AppId=262f78a7-6c32-4e3b-ae07-39840003dfc8"
         ports:
         - containerPort: 5002
           name: dncrpport
-        envFrom:
-        - secretRef:
-            name: acn-kv-secret
-
       imagePullSecrets:
         - name: acndev.azurecr.io-key

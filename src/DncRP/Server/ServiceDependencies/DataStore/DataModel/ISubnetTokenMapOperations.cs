@@ -22,13 +22,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="subnetName"></param>
         /// <param name="primaryTokenId"></param>
         /// <param name="secondaryTokenId"></param>
-        /// <param name="VnetId"></param>
+        /// <param name="vnetResourceGuid"></param>
         Task InsertOrUpdateAsync(
             string delegatedSubnetId,
             string subnet,
             string primaryTokenId,
             string secondaryTokenId,
-            Guid VnetId);
+            string vnetResourceGuid);
 
         /// <summary>
         /// Check if token exists for a given DelegatedSubnet.

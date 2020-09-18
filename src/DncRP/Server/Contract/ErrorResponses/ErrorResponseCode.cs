@@ -12,6 +12,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     public enum ErrorResponseCode
     {
         /// <summary>
+        /// Not Set
+        /// </summary>
+        None, 
+
+        /// <summary>
         /// VirtualNetworkResource Not found
         /// </summary>
         VirtualNetworkNotFound,
@@ -25,6 +30,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// Virtual Network not ready to allow delegate Subnet
         /// Provisioning State is not Succeeded.
         /// </summary>
-        VirtualNetworkNotReady
+        VirtualNetworkNotReady,
+
+        /// <summary>
+        /// DelegatedSubnet Resource Not found
+        /// </summary>
+        DelegatedSubnetResourceNotFound,
+
+        /// <summary>
+        /// SubnetAlreadyDelegatedToDifferentResource
+        /// </summary>
+        SubnetAlreadyDelegatedToDifferentResource,
     }
 }

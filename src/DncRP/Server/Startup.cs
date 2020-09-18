@@ -41,6 +41,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             // Add custom properties to telemetry (log)
             IHttpUtility httpUtility = new HttpUtility(new HttpClient());
+            services.AddSingleton<IHttpUtility, HttpUtility>(provider =>
+            {
+                return (HttpUtility)httpUtility;
+            });
+
             IImdsRetriever imdsRetriever = new ImdsRetriever(httpUtility);
 
             // initialize context first

@@ -85,7 +85,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 return new ContentResult
                 {
-                    Content = ErrorDetails.CreateErrorAsJson(response.Error.Error, response.Error.StatusCode),
+                    Content = ErrorDetails.CreateErrorAsJson(response.Error),
                     ContentType = "application/json",
                     StatusCode = response.Error.StatusCode
                 };

@@ -3,7 +3,7 @@
   "SubscriptionId": "9b8218f9-902a-4d20-a65c-e98acec5362f",
   "ResourceGroup": "testCosmosdb",
   "DbAccountName": "acntestcosmosdb",
-  "ConnectionString": "",
+  "KeyVaultConnectionString": "",
   "AzureEnvironment": "azurecloud",
   "AzureRegion": "centralus",
   "ClientIdentityCertificate": {
@@ -11,5 +11,9 @@
     "TenantId": "563c161a-f814-45eb-bac4-9d780e7f3ee6", // AzTestDnc@testdnc.ccsctp.net, AzurePPE, 563c161a-f814-45eb-bac4-9d780e7f3ee6, testdnc.ccsctp.net User
     "KeyVaultCertPath": "https://acnkv.vault.azure.net/secrets/AMEAADOnecert/0516cc85edd74b36b8908ab95eaadd0c",
     "AzureEnvironment": "ppe"
+  },
+  "DelegateSubnetClientCertificate": {
+    "AppId": "a91b1853-4403-4f54-b5cb-d1ea19d90c37", // DNCRP App Id //  "1efe5bbf-d5b1-4fe9-99fa-f55ce1c88679", // DNC APP ID in first portal
+    "KeyVaultCertPath": "https://acnkv.vault.azure.net/secrets/AMEAADOnecert/0516cc85edd74b36b8908ab95eaadd0c"
   }
 }

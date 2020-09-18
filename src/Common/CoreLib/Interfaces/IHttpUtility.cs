@@ -7,6 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
+    using Newtonsoft.Json;
     using System;
     using System.Net.Http;
     using System.Threading;
@@ -35,6 +36,16 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
 
         /// <summary>
         /// Invoke Http request and deserialize its JSON result to caller specified object
+        /// Deserialize it using the given settings
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="requestMessage"></param>
+        /// <param name="deserializeSettings"></param>
+        /// <returns></returns>
+        Task<T> SendRequestAndGetJsonAsync<T>(HttpRequestMessage requestMessage, JsonSerializerSettings deserializeSettings);
+
+        /// <summary>
+        /// Invoke Http request and deserialize its JSON result to caller specified object
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="requestMessage"></param>
@@ -45,20 +56,11 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             HttpRequestMessage requestMessage, HttpCompletionOption option, CancellationToken token);
 
         /// <summary>
-        /// Invoke REST API to send the message and deserialized response in caller specified object.
+        /// Send the specified Http request and retun the HttResponseMessage
         /// </summary>
-        /// <typeparam name="TRequest">TRequest type, this will be serialized</typeparam>
-        /// <typeparam name="TResponse">TResponse type, this will be deserialized from response</typeparam>
-        /// <param name="httpClient">http client</param>
-        /// <param name="httpMethod">type of HTTPMethod (put/post)</param>
-        /// <param name="requestUri">Request URI</param>
-        /// <param name="requestBody">Request body of type TRequest</param>
-        /// <param name="accessToken">Authorization token</param>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="requestMessage"></param>
         /// <returns></returns>
-        Task<TResponse> SendRequestAndGetJsonAsync<TRequest, TResponse>(
-            HttpMethod httpMethod,
-            Uri requestUri,
-            TRequest requestBody,
-            string accessToken) where TResponse : class where TRequest : class;
+        Task<HttpResponseMessage> SendAsync(HttpRequestMessage requestMessage);
     }
 }

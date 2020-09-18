@@ -8,6 +8,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.Net;
     using System.Threading.Tasks;
     using Microsoft.Azure.Cosmos.Table;
     using Microsoft.Azure.Documents.SystemFunctions;
@@ -20,7 +21,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     {
         private ITableDataStore dataStore;
         private ILogger logger; 
-        private const string tableName = "DelegatedSubnetConfiguration";
+        private const string tableName = "DelegatedSubnetResource";
 
         /// <summary>
         /// Create an instance of TableOperations
@@ -46,14 +47,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="subnet">subnetname</param>
         /// <param name="delegatedSubnetName">DelegatedSubnetId</param>
         /// <param name="delegatedSubnetGuid">DelegatedSubnet Guid</param>
+        /// <param name="vnetResourceGuid">VnetResourceGuid</param>
         /// <returns></returns>
-        public async Task InsertOrUpdateAsync(
+        public async Task<DelegateSubnet> InsertOrUpdateAsync(
             string subscriptionId,
             string resourceGroupName,
             string vnetName,
             string subnet,
-            string delegatedSubnetName,
-            string delegatedSubnetGuid)
+            string resourceName,
+            string delegatedSubnetGuid,
+            string vnetResourceGuid)
         {
             try
             {
@@ -61,19 +64,64 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 if (string.IsNullOrEmpty(delegatedSubnetGuid) ||
                     string.Equals(delegatedSubnetGuid, Guid.Empty.ToString()))
                 {
-                    // TODO: Add Exceptions for Data operations
-                    throw new Exception($"Invalid PrimaryTokenId, it is either null or empty Guid, delegatedSubnetGuid: {delegatedSubnetGuid}, Subnet: {subnet}");
+                    throw new Exception($"Invalid delegatedSubnetGuid, it is either null or empty Guid, subscriptionId: {subscriptionId}, Subnet: {subnet}");
                 }
 
-                // Create the InsertOrReplace table operation
-                DelegatedSubnetConfigurationEntity entity = new DelegatedSubnetConfigurationEntity(subscriptionId, resourceGroupName, vnetName, subnet);
-                entity.ResourceName = delegatedSubnetName;
-                entity.ResourceGuid = delegatedSubnetGuid;
+                // Cant add with invalid delegatedSubnetId
+                if (string.IsNullOrEmpty(vnetResourceGuid) ||
+                    string.Equals(vnetResourceGuid, Guid.Empty.ToString()))
+                {
+                    // TODO: Add Exceptions for Data operations
+                    throw new Exception($"Invalid vnetResourceGuid, it is either null or empty Guid, subscriptionId: {subscriptionId}, Subnet: {subnet}");
+                }
 
-                await dataStore.InsertOrMergeEntityAsync(tableName, entity);
+                // Check if entry already exists.
+                string rowKey = DelegatedSubnetConfigurationEntity.GetSubnetConfigurationKey(resourceGroupName, vnetName, subnet);
+                TableResult tableResult = await dataStore.GetEntityAsync<DelegatedSubnetConfigurationEntity>(tableName, subscriptionId, rowKey);
+                DelegatedSubnetConfigurationEntity delegatedSubnetConfigurationEntity = tableResult.Result as DelegatedSubnetConfigurationEntity;
+
+                if (delegatedSubnetConfigurationEntity == null)
+                {
+                    delegatedSubnetConfigurationEntity = new DelegatedSubnetConfigurationEntity(subscriptionId, resourceGroupName, vnetName, subnet);
+                    delegatedSubnetConfigurationEntity.CreatedDateUtc = DateTime.UtcNow;
+                    delegatedSubnetConfigurationEntity.VnetResourceGuid = vnetResourceGuid;
+                    delegatedSubnetConfigurationEntity.ResourceName = resourceName;
+                }
+                else
+                {
+                    if (!string.Equals(delegatedSubnetConfigurationEntity.ResourceName, resourceName, StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        throw new ErrorResponseMessageException(
+                            httpStatus: HttpStatusCode.NotFound,
+                            errorCode: ErrorResponseCode.SubnetAlreadyDelegatedToDifferentResource,
+                            errorMessage: $"This Subnet is already delegated to Resource: {delegatedSubnetConfigurationEntity.ResourceName}");
+                    }
+                    logger.LogInformation($"Updating the existing DelegatedSubnetConfigurationEntity:{delegatedSubnetConfigurationEntity}");
+                }
+
+                // todo - Add this field
+                delegatedSubnetConfigurationEntity.ProvisioningStatus = "";
+                delegatedSubnetConfigurationEntity.DelegatedSubnetGuid = delegatedSubnetGuid;
+
+                // todo - This will contain the ControllerId info
+                delegatedSubnetConfigurationEntity.Properties = "";
+
+                TableResult result = await dataStore.InsertOrMergeEntityAsync(tableName, delegatedSubnetConfigurationEntity);
+                DelegatedSubnetConfigurationEntity resultEntity = result.Result as DelegatedSubnetConfigurationEntity;
 
                 // TODO - Add Metric event
-                logger.LogInformation($"{tableName} - InsertorUpdate entity: {entity}");
+                logger.LogInformation($"{tableName} - InsertorUpdate entity: {resultEntity}");
+
+                return new DelegateSubnet(
+                    resultEntity.PartitionKey,
+                    resultEntity.ResourceGroup,
+                    resultEntity.VnetName,
+                    resultEntity.Subnet,
+                    resultEntity.ResourceName,
+                    resultEntity.DelegatedSubnetGuid)
+                {
+                    VNetResourceGuid = resultEntity.VnetResourceGuid
+                };
             }
             catch (Exception ex)
             {
@@ -89,32 +137,51 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceGroupName">resourcegroup name</param>
         /// <param name="vnetName">vnetName</param>
         /// <param name="subnet">subnet</param>
+        /// <param name="resourceName">resourcename</param>
+        /// <param name="throwOnResourceNameComparison">set if need to compare the DelegatedResource Name as well</param>
         /// <returns></returns>
-        public async Task<string> TryGetDelegatedSubnetGuidAsync(
+        public async Task<DelegateSubnet> TryGetDelegatedSubnetConfigurationAsync(
             string subscriptionId,
             string resourceGroupName,
             string vnetName,
-            string subnet)
-        {
-            try
-            {
-                string rowKey = DelegatedSubnetConfigurationEntity.GetSubnetConfigurationKey(resourceGroupName, vnetName, subnet);
-                TableResult tableResult = await dataStore.GetEntityAsync<DelegatedSubnetConfigurationEntity>(tableName, subscriptionId, rowKey);
-                DelegatedSubnetConfigurationEntity resultEntity = tableResult.Result as DelegatedSubnetConfigurationEntity;
+            string subnet,
+            string resourceName,
+            bool throwOnResourceNameComparison = false)
+    {
+            string rowKey = DelegatedSubnetConfigurationEntity.GetSubnetConfigurationKey(resourceGroupName, vnetName, subnet);
+            TableResult tableResult = await dataStore.GetEntityAsync<DelegatedSubnetConfigurationEntity>(tableName, subscriptionId, rowKey);
+            DelegatedSubnetConfigurationEntity resultEntity = tableResult.Result as DelegatedSubnetConfigurationEntity;
 
-                if (resultEntity == null)
+            if (resultEntity == null)
+            {
+                logger.LogInformation($"DelegatedSubnet configuration doesnt exist for subscription: {subscriptionId}, rowKey: {rowKey}");
+                return null;
+            }
+
+            if (!string.Equals(resultEntity.ResourceName, resourceName, StringComparison.InvariantCultureIgnoreCase))
+            {
+                logger.LogInformation($"DelegatedSubnet is assigned to a different resourceName: {resultEntity}, expected ResourceName: {resourceName}");
+                if (throwOnResourceNameComparison)
                 {
-                    logger.LogInformation($"DelegatedSubnet configuration doesnt exist for subscription: {subscriptionId}, rowKey: {rowKey}");
-                    return null;
+                    throw new ErrorResponseMessageException(
+                        httpStatus: HttpStatusCode.BadRequest,
+                        errorCode: ErrorResponseCode.SubnetAlreadyDelegatedToDifferentResource,
+                        errorMessage: $"This Subnet is already delegated to Resource: {resultEntity.ResourceName}");
                 }
 
-                return resultEntity.ResourceGuid;
+                return null;
             }
-            catch (Exception ex)
+
+            return new DelegateSubnet(
+                resultEntity.PartitionKey,
+                resultEntity.ResourceGroup,
+                resultEntity.VnetName,
+                resultEntity.Subnet,
+                resultEntity.ResourceName,
+                resultEntity.DelegatedSubnetGuid)
             {
-                logger.LogError($"Failed to inertorupdate entity in {tableName}, {ex}");
-                throw;
-            }
+                VNetResourceGuid = resultEntity.VnetResourceGuid
+            };
         }
     }
 }

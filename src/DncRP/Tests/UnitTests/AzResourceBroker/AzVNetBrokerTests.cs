@@ -11,6 +11,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Runtime.InteropServices;
     using System.Security.Cryptography.X509Certificates;
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
@@ -29,6 +30,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         private IConfiguration Configuration;
         private ILogger<AzVNetBroker> logger;
         private IHttpUtility testHttpUtility;
+        private AzVNetBroker azVNetBroker;
 
         public AzVnetBrokerTests()
         {
@@ -39,6 +41,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             this.logger = new NullLogger<AzVNetBroker>();
             this.testHttpUtility = new TestHttpUtility();
+            azVNetBroker = new AzVNetBroker(testHttpUtility, logger, new TestAzureAD());
+
+            CurrentContext.SetContext("dogfood", "testRegion");
+            CurrentContext.SetArmAccessIdentity(new ClientIdentity());
+            CurrentContext.SetManagedIdentity(new ClientIdentity());
         }
 
         /// <summary>
@@ -48,16 +55,23 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         [Fact]
         public async void Test_SetServiceAssociationLink()
         {
-            CurrentContext.SetContext("dogfood", "testRegion");
-            AzVNetBroker vnetBroker = new AzVNetBroker(testHttpUtility, logger);
             Guid vnetId = Guid.NewGuid();
-            ServiceAssociationLink sal = await vnetBroker.CreateOrUpdateServiceAssociationLink(
+            Guid primaryTokenId = Guid.NewGuid();
+            Guid secondaryTokenId = Guid.NewGuid();
+
+
+            const string subscriptionId = "subId";
+            const string rgname = "rg";
+            const string vnetName = "testVnet";
+            const string subnet = "testSubnet";
+            string vnetResourceId = AzVNetBroker.GetVNetResourceId(subscriptionId, rgname, vnetName);
+            string subnetResourceId = $"{vnetResourceId.TrimEnd('/')}/subnets/{subnet}";
+            ServiceAssociationLink sal = await azVNetBroker.CreateOrUpdateServiceAssociationLinkAsync(
                 "useast2euap",
-                "testSub",
-                vnetId,
-                "delegatedSubnetName",
-                Guid.NewGuid().ToString(),
-                Guid.NewGuid().ToString());
+                vnetId.ToString(),
+                subnetResourceId,
+                primaryTokenId,
+                secondaryTokenId);
 
             Assert.NotNull(sal);
         }
@@ -69,15 +83,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         [Fact]
         public async void Test_SetResourceOwnership()
         {
-            CurrentContext.SetContext("dogfood", "testRegion");
-            AzVNetBroker vnetBroker = new AzVNetBroker(testHttpUtility, logger);
-            Guid vnetId = Guid.NewGuid();
-            ResourceOwnershipResponse resourceOwnershipResponse = await vnetBroker.SetResourceOwnershipForCustomerVnet(
+            const string subscriptionId = "subId";
+            const string rgname = "rg";
+            const string vnetName = "testVnet";
+            string vnetResourceId = AzVNetBroker.GetVNetResourceId(subscriptionId, rgname, vnetName);
+            ResourceOwnershipResponse resourceOwnershipResponse = await azVNetBroker.SetResourceOwnershipForCustomerVnetAsync(
                 "useast2euap",
-                "testSub",
-                "testRG",
-                "testVnet",
-                VirtualNetworkOwnershipAction.Set);
+                vnetResourceId);
 
             Assert.NotNull(resourceOwnershipResponse);
         }

@@ -144,8 +144,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceGroup"></param>
         /// <param name="controllerName"></param>
         /// <returns></returns>
-        public async Task<Controller> MergeDncControllerAsync(
-            string subId, string resourceGroup, string controllerName, ControllerRequest controllerRequest)
+        public Task<Controller> MergeDncControllerAsync(
+           string subId, string resourceGroup, string controllerName, ControllerRequest controllerRequest)
         {
             throw new NotSupportedException();
         }

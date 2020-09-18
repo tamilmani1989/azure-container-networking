@@ -24,9 +24,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <param name="subscriptionId"></param>
         /// <returns></returns>
-        public static Task ValidateSubscriptionIsRegistered(string subscriptionId)
+        public static void ValidateSubscriptionIsRegistered(string subscriptionId)
         {
-            throw new NotImplementedException();
+            // TODO: Add implementation when PutRegisteration is handled.
         }
     }
 }

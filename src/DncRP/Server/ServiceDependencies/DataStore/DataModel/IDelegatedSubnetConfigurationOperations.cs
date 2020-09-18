@@ -24,14 +24,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="subnet">subnetname</param>
         /// <param name="delegatedSubnetName">DelegatedSubnetId</param>
         /// <param name="delegatedSubnetGuid">DelegatedSubnet Guid</param>
+        /// <param name="vnetResourceGuid">VnetResource Guid</param>
         /// <returns></returns>
-        Task InsertOrUpdateAsync(
+        Task<DelegateSubnet> InsertOrUpdateAsync(
             string subscriptionId,
             string resourceGroupName,
             string vnetName,
             string subnet,
             string delegatedSubnetName,
-            string delegatedSubnetGuid);
+            string delegatedSubnetGuid,
+            string vnetResourceGuid);
 
         /// <summary>
         /// Get the DelegatedSubnet Guid if an entity exists for a given Subnet.
@@ -41,10 +43,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="vnetName">vnetName</param>
         /// <param name="subnet">subnet</param>
         /// <returns></returns>
-        Task<string> TryGetDelegatedSubnetGuidAsync(
+        Task<DelegateSubnet> TryGetDelegatedSubnetConfigurationAsync(
             string subscriptionId,
             string resourceGroupName,
             string vnetName,
-            string subnet);
+            string subnet,
+            string resourceName,
+            bool throwOnResourceNameComparison = false);
     }
 }

@@ -49,7 +49,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string subnet,
             string primaryTokenId,
             string secondaryTokenId,
-            Guid VnetId)
+            string vnetResourceGuid)
         {
             try
             {
@@ -61,21 +61,33 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     throw new Exception($"Invalid PrimaryTokenId, it is either null or empty Guid, delegatedSubnetGuid: {delegatedSubnetGuid}, Subnet: {subnet}");
                 }
 
-                if (VnetId == Guid.Empty)
+                if (string.IsNullOrEmpty(vnetResourceGuid) ||
+                    string.Equals(vnetResourceGuid, Guid.Empty.ToString()))
                 {
                     throw new Exception($"Invalid VnetId, empty Guid, delegatedSubnetGuid: {delegatedSubnetGuid}, Subnet: {subnet}");
                 }
 
-                // Create the InsertOrReplace table operation
-                SubnetTokenMapEntity entity = new SubnetTokenMapEntity(delegatedSubnetGuid, subnet);
-                entity.PrimaryTokenId = primaryTokenId;
-                entity.SecondaryTokenId = secondaryTokenId;
-                entity.VnetId = VnetId;
+                // Check if entry already exists.
+                SubnetTokenMapEntity subnetTokenMapEntity = await TryGetSubnetTokenMapAsync(delegatedSubnetGuid, subnet);
 
-                await dataStore.InsertOrMergeEntityAsync(tableName, entity);
+                if (subnetTokenMapEntity == null)
+                {
+                    subnetTokenMapEntity = new SubnetTokenMapEntity(delegatedSubnetGuid, subnet);
+                    subnetTokenMapEntity.CreatedDateUtc = DateTime.UtcNow;
+                }
+                else
+                {
+                    logger.LogInformation($"Updating the existing SubnetTokenMapEntity:{subnetTokenMapEntity}");
+                }
+
+                subnetTokenMapEntity.PrimaryTokenId = primaryTokenId;
+                subnetTokenMapEntity.SecondaryTokenId = secondaryTokenId;
+                subnetTokenMapEntity.VnetResourceGuid = vnetResourceGuid;
+
+                TableResult result = await dataStore.InsertOrMergeEntityAsync(tableName, subnetTokenMapEntity);
 
                 // TODO - Add Metric event
-                logger.LogInformation($"{tableName} - InsertorUpdate entity: {entity}");
+                logger.LogInformation($"{tableName} - InsertorUpdate entity successful: {result.Result as SubnetTokenMapEntity}");
             }
             catch (Exception ex)
             {
@@ -91,21 +103,37 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="subnet"></param>
         /// <returns></returns>
         public async Task<bool> SubnetTokenExistsAsync(
-            string delegatedSubnetId,
+            string delegatedSubnetGuid,
             string subnet)
         {
             try
             {
-                TableResult tableResult = await dataStore.GetEntityAsync<DelegatedSubnetConfigurationEntity>(tableName, delegatedSubnetId, subnet);
-                SubnetTokenMapEntity subnetConfigurationEntity = tableResult.Result as SubnetTokenMapEntity;
+                SubnetTokenMapEntity subnetEntity = await TryGetSubnetTokenMapAsync(delegatedSubnetGuid, subnet);
+                return subnetEntity != null? true:false;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Failed to inertorupdate entity in {tableName}, {ex}");
+                throw;
+            }
+        }
 
-                if (subnetConfigurationEntity == null)
+        private async Task<SubnetTokenMapEntity> TryGetSubnetTokenMapAsync(
+            string delegatedSubnetGuid,
+            string subnet)
+        {
+            try
+            {
+                TableResult tableResult = await dataStore.GetEntityAsync<DelegatedSubnetConfigurationEntity>(tableName, delegatedSubnetGuid, subnet);
+                SubnetTokenMapEntity subnetTokenMapEntity = tableResult.Result as SubnetTokenMapEntity;
+
+                if (subnetTokenMapEntity == null)
                 {
-                    logger.LogInformation($"Subnet token doesnt exist for DelegatedSubnetId: {delegatedSubnetId}, SubnetName: {subnet}");
-                    return false;
+                    logger.LogInformation($"Subnet token doesnt exist for DelegatedSubnetId: {delegatedSubnetGuid}, SubnetName: {subnet}");
+                    return null;
                 }
 
-                return true;
+                return subnetTokenMapEntity;
             }
             catch (Exception ex)
             {

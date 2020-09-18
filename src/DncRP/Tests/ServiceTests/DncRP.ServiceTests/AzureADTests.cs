@@ -37,10 +37,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         [Fact]
         public async void TestGetAzureADTokenForArm()
         {
-            Match match = Regex.Match(this.testConfig.ConnectionString, connectStrRegex);
+            Match match = Regex.Match(this.testConfig.KeyVaultConnectionString, connectStrRegex);
             if (!match.Success)
             {
-                throw new ArgumentException($"Invalid connection string {this.testConfig.ConnectionString}");
+                throw new ArgumentException($"Invalid connection string {this.testConfig.KeyVaultConnectionString}");
             }
 
             ClientIdentity kvIdentity = new ClientIdentity

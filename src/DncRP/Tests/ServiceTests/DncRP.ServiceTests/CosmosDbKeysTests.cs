@@ -38,7 +38,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         public async void TestGetCosmosDbKeys()
         {
             string azEnvName = "azurecloud";
-            string connectionString = this.testConfig.ConnectionString;
+            string connectionString = this.testConfig.KeyVaultConnectionString;
 
             IAzureAD azureAD = new AzureAD();
             string armEndpoint = AzureInfo.GetArmEndpoint(azEnvName);

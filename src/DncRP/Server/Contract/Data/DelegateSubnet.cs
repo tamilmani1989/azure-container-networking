@@ -1,11 +1,13 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="DelegateSubnetDefinition.cs" company="Microsoft">
+// <copyright file="DelegateSubnet.cs" company="Microsoft">
 //   © Microsoft Corporation. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using Newtonsoft.Json;
+
     public class DelegateSubnet : TopLevelResource
     {
         /// <summary>
@@ -14,16 +16,32 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public const string DelegatedResourceType = "Microsoft.DelegatedNetwork/delegatedSubnets";
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DelegateSubnet"/> class.
+        /// VNET Resource Guid.
         /// </summary>
-        public DelegateSubnet(string subscriptionId, string resourceGroup, string vnetName, string subnetName, string resourceName, string delegatedSubGuid)
+        [JsonIgnore]
+        public string VNetResourceGuid { get; set; }
+
+        /// <summary>
+        ///  Initializes a new instance of the <see cref="DelegateSubnet"/> class.
+        /// </summary>
+        /// <param name="subscriptionId"></param>
+        /// <param name="resourceGroup"></param>
+        /// <param name="vnetName"></param>
+        /// <param name="subnetName"></param>
+        /// <param name="resourceName"></param>
+        /// <param name="delegatedSubGuid"></param>
+        public DelegateSubnet(
+            string subscriptionId, 
+            string resourceGroup, 
+            string vnetName, 
+            string subnetName, 
+            string resourceName, string delegatedSubGuid)
         {
             this.SubscriptionId = subscriptionId;
             this.ResourceGroup = resourceGroup;
             this.Name = resourceName;
             this.Properties = new DelegateSubnetProperties()
             {
-                DelegatedSubnetId = delegatedSubGuid,
                 // using the same value as DelegatedSubnetId. ResourceGuid is not exposed on Portal
                 ResourceGuid = delegatedSubGuid,
 
@@ -34,6 +52,24 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.isExtensionResource = true;
             this.parentResourceId = $"Microsoft.Network/virtualNetworks/{vnetName}/subnets/{subnetName}";
             this.Type = DelegatedResourceType;
+        }
+
+        public DelegateSubnet()
+        {
+
+        }
+
+        public static DelegateSubnet CreateErrorResponse(string errorMessage, int httpStatusCode, ErrorResponseCode errorResponseCode = ErrorResponseCode.None)
+        {
+            return new DelegateSubnet
+            {
+                Error = new TopLevelResourceError
+                {
+                    Error = errorMessage,
+                    StatusCode = httpStatusCode,
+                    ErrorResponseCode = errorResponseCode
+                }
+            };
         }
     }
 }

@@ -18,6 +18,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.ContainerNetworking.DncRP;
+    using Newtonsoft.Json;
+    using NetworkModel = Microsoft.Azure.Management.Network.Models;
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
     internal class TestHttpUtility : IHttpUtility
@@ -48,9 +50,46 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         /// <typeparam name="T"></typeparam>
         /// <param name="requestMessage"></param>
         /// <returns></returns>
-        public Task<T> SendRequestAndGetJsonAsync<T>(HttpRequestMessage requestMessage)
+        public async Task<T> SendRequestAndGetJsonAsync<T>(HttpRequestMessage requestMessage)
         {
-            return default(Task<T>);
+            return default(T);
+        }
+
+        /// <summary>
+        /// Invoke Http request and deserialize its JSON result to caller specified object
+        /// Deserialize it using the given settings
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="requestMessage"></param>
+        /// <param name="deserializeSettings"></param>
+        /// <returns></returns>
+        public async Task<T> SendRequestAndGetJsonAsync<T>(HttpRequestMessage requestMessage, JsonSerializerSettings deserializeSettings)
+        {
+            if (typeof(T) == typeof(NetworkModel.VirtualNetwork))
+            {
+                // split RequestURI
+                object virtualNetworkResponse = new NetworkModel.VirtualNetwork(
+                    $"/subscriptions /testSub/resourceGroups/testRg/providers/Microsoft.Network/virtualNetworks/testVnet",
+                    name: "testName",
+                    location: CurrentContext.AzureRegion,
+                    resourceGuid: Guid.NewGuid().ToString(),
+                    provisioningState: NetworkModel.ProvisioningState.Succeeded.ToString());
+
+                return (T)virtualNetworkResponse;
+            }
+            if (typeof(T) == typeof(ServiceAssociationLink))
+            {
+                object serviceAssociationLink = new ServiceAssociationLink();
+                return (T)serviceAssociationLink;
+            }
+
+            if (typeof(T) == typeof(ResourceOwnershipResponse))
+            {
+                object serviceResourceOwnership = new ResourceOwnershipResponse();
+                return (T)serviceResourceOwnership;
+            }
+
+            return default(T);
         }
 
         /// <summary>
@@ -85,27 +124,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             }
 
             throw new NotSupportedException($"Type {typeof(T).Name} is not supported");
-        }
-
-        public async Task<TResponse> SendRequestAndGetJsonAsync<TRequest, TResponse>(
-            HttpMethod httpMethod,
-            Uri requestUri,
-            TRequest requestBody,
-            string accessToken) where TResponse : class where TRequest : class
-        {
-            if (typeof(TRequest) == typeof(ServiceAssociationLink))
-            {
-                object serviceAssociationLink = requestBody as ServiceAssociationLink;
-                return (TResponse)serviceAssociationLink;
-            }
-
-            if (typeof(TRequest) == typeof(ResourceOwnershipRequest))
-            {
-                object serviceResourceOwnership = new ResourceOwnershipResponse();
-                return (TResponse)serviceResourceOwnership;
-            }
-
-            throw new NotSupportedException($"Type {typeof(TRequest).Name} is not supported");
         }
 
         private async Task<ArmCertMetadata> GetArmCertMetadata(string uri)
@@ -181,6 +199,21 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
                 default:
                     throw new InvalidAzureEnvironmentException($"Invalid uri: {uri}");
             }
+        }
+
+        public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage message)
+        {
+            HttpResponseMessage httpResponseMessage = new HttpResponseMessage();
+            if (message.RequestUri.ToString().Contains("https://management.azure.com/subscriptions/"))
+            {
+                // var authUrl = param.Split(',')[0].Split('=')[1];
+                //tenantId = authUrl.Substring(authUrl.LastIndexOf('/') + 1, 36);
+                string parameter = "TenantId=/tenant/72f988bf-86f1-41af-91ab-2d7cd011db47,TestAuth";
+                httpResponseMessage = new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized);
+                httpResponseMessage.Headers.WwwAuthenticate.Add(new System.Net.Http.Headers.AuthenticationHeaderValue("testSchema", parameter));
+            }
+
+            return httpResponseMessage;
         }
     }
 }

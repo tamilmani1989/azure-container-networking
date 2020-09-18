@@ -8,7 +8,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using Newtonsoft.Json;
 
-    public class TopLevelResource
+    public abstract class TopLevelResource
     {
         private string resId;
         private string azureEnv;
@@ -80,8 +80,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// Properties of a TopLevelResource
         /// </summary>
         [JsonProperty(PropertyName = "properties")]
-        public TopLevelResourceProperties Properties { get; set; }
-
+        public TopLevelResourceProperties Properties { get; protected set; }
 
         /// <summary>
         /// Gets or sets the subscription.

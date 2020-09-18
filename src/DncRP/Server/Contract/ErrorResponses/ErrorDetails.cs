@@ -68,10 +68,32 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Creates a ARM compatible Json schema with error message and code
         /// </summary>
+        /// <param name="topLevelResourceError">topLevelResourceError</param>
+        /// <returns></returns>
+        public static string CreateErrorAsJson(TopLevelResourceError topLevelResourceError)
+        {
+            ErrorDetails details = new ErrorDetails
+            {
+                ErrorResponse = new ErrorResponse
+                {
+                    Error = new ErrorDefinition
+                    {
+                        Message = topLevelResourceError.Error + $"InternalErrorResponse: {topLevelResourceError.ErrorResponseCode}",
+                        Code = topLevelResourceError.StatusCode.ToString()
+                    }
+                }
+            };
+
+            return JsonUtility.Serialize(details);
+        }
+
+        /// <summary>
+        /// Creates a ARM compatible Json schema with error message and code
+        /// </summary>
         /// <param name="errorMessage"></param>
         /// <param name="code"></param>
         /// <returns></returns>
-        public static string CreateErrorAsJson(string errorMessage, int code)
+        public static string CreateErrorAsJson(string errorMessage, int errorCode)
         {
             ErrorDetails details = new ErrorDetails
             {
@@ -80,7 +102,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     Error = new ErrorDefinition
                     {
                         Message = errorMessage,
-                        Code = code.ToString()
+                        Code = errorCode.ToString()
                     }
                 }
             };

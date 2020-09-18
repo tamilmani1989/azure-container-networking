@@ -8,6 +8,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 {
     using System.IO;
+    using System.Net.Http;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Configuration;
     using Xunit;

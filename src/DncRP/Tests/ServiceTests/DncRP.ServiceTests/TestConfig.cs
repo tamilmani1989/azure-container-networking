@@ -47,7 +47,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             get; set;
         }
 
-        public string ConnectionString
+        public string KeyVaultConnectionString
         {
             get; set;
         }
@@ -63,6 +63,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         }
 
         public TestClientIdentityCertificate ClientIdentityCertificate
+        {
+            get; set;
+        }
+
+        public TestClientIdentityCertificate DelegateSubnetClientCertificate
         {
             get; set;
         }
