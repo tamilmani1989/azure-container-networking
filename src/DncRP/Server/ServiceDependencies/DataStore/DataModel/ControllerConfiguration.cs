@@ -11,14 +11,17 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.Cosmos.Table;
+    using Microsoft.Extensions.Logging;
 
     internal class ControllerConfiguration : IControllerConfiguration
     {
         private ITableDataStore dataStore;
         private const string resourceTableName = "ControllerResource";
         private const string configTableName = "ControllerConfiguration";
-        private const string mdncId = "5c7e26be-7ff9-4aaf-9e16-0bc759605aea";
+        private const string mdncGuid = "5c7e26be-7ff9-4aaf-9e16-0bc759605aea";
+        private const string mdncFirstPartyId = "1efe5bbf-d5b1-4fe9-99fa-f55ce1c88679";
         private const string mdncUri = "https://openai.centralus.dnc.azure.com";
+        private ILogger logger;
 
         /// <summary>
         /// Create an instance of TableOperations
@@ -26,9 +29,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <param name="storageConnectionString">Connection string, configuration from appsettings.Json</param>
         public ControllerConfiguration(
-            ITableDataStore tableDataStore)
+            ITableDataStore tableDataStore,
+            ILogger logger)
         {
             this.dataStore = tableDataStore;
+            this.logger = logger;
 
             this.dataStore.CreateTable(resourceTableName);
             this.dataStore.CreateTable(configTableName);
@@ -64,7 +69,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 new ControllerProperties
                 {
                     State = this.ToRequestState(resourceEntity.State),
-                    DncAppId = mdncId,
+                    DncAppId = mdncFirstPartyId,
                     DncEndpoint = mdncUri
                 });
         }
@@ -81,6 +86,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public async Task<Controller> InsertOrReplaceDncControllerAsync(
             string subId, string resourceGroup, string controllerName, ControllerRequest controllerRequest)
         {
+            this.logger.LogInformation("Starting PUT controller resource. Sub:{0}, RG:{1}, ResourceName:{2}",
+                subId, resourceGroup, controllerName);
+
             // Create the InsertOrReplace table operation
             string rowKey = $"{resourceGroup}_{controllerName}";
 
@@ -101,12 +109,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 createdDate = cre.CreatedDateUtc;
             }
 
-            string propJson = JsonUtility.Serialize(controllerRequest.Parameters.Properties);
+            string propJson = JsonUtility.Serialize(controllerRequest.Properties.Parameters.Properties);
 
             ControllerResourceEntity resourceEntity = new ControllerResourceEntity(subId, rowKey);
             resourceEntity.ControllerId = controllerGuid;
-            resourceEntity.ManagedDNCId = mdncId;
-            resourceEntity.ControllerType = controllerRequest.Parameters.Type.ToString();
+            resourceEntity.ManagedDNCId = mdncGuid;
+            resourceEntity.ControllerType = controllerRequest.Properties.Parameters.Type.ToString();
             resourceEntity.Properties = propJson;
             resourceEntity.State = ProvisioningState.Succeeded.ToString();
             resourceEntity.CreatedDateUtc = createdDate;
@@ -115,16 +123,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             result = await this.dataStore.InsertOrReplaceEntityAsync(resourceTableName, resourceEntity);
             if (!HttpStatusCodeCheck.IsSuccess(result.HttpStatusCode))
             {
-                return Controller.CreateErrorResponse("Error in insert controller resource", result.HttpStatusCode);
+                return Controller.CreateErrorResponse("Error in put controller resource", result.HttpStatusCode);
             }
 
             resourceEntity = result.Result as ControllerResourceEntity;
 
             // insert entity into controller config table
-            int httpCode = await this.InsertOrReplaceControllerConfigAsync(mdncId, controllerGuid, controllerRequest.Parameters.Type, propJson);
+            int httpCode = await this.InsertOrReplaceControllerConfigAsync(mdncGuid, controllerGuid, controllerRequest.Properties.Parameters.Type, propJson);
             if (!HttpStatusCodeCheck.IsSuccess(httpCode))
             {
-                return Controller.CreateErrorResponse("Error in insert controller config", httpCode);
+                return Controller.CreateErrorResponse("Error in put controller config", httpCode);
             }
 
             return new Controller(
@@ -132,8 +140,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                new ControllerProperties
                {
                    State = this.ToRequestState(resourceEntity.State),
-                   DncAppId = mdncId,
-                   DncEndpoint = mdncUri
+                   DncAppId = mdncFirstPartyId,
+                   DncEndpoint = mdncUri,
+                   ResourceGuid = resourceEntity.ControllerId
                });
         }
 
@@ -162,6 +171,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <returns></returns>
         public async Task<Controller> DeleteDncControllerAsync(string subId, string resourceGroup, string controllerName)
         {
+            this.logger.LogInformation("Starting DELETE controller resource. Sub:{0}, RG:{1}, ResourceName:{2}",
+                subId, resourceGroup, controllerName);
+
             string resourceId = $"/subscriptions/{subId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/controller/{controllerName}";
 
             // Create Retrieve table operation
@@ -197,7 +209,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 new ControllerProperties
                 {
                     State = ProvisioningState.Succeeded,
-                    DncAppId = mdncId,
+                    DncAppId = mdncFirstPartyId,
                     DncEndpoint = mdncUri
                 });
         }

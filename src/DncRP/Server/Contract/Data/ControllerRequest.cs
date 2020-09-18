@@ -57,7 +57,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         }
     }
 
-    public class ControllerRequest
+    public class ArmProperties
     {
         [JsonProperty("controllerParameters")]
         public ControllerRequestParameters Parameters
@@ -65,4 +65,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             get; set;
         }
     }
+
+    public class ControllerRequest
+    {
+        [JsonProperty("properties")]
+        public ArmProperties Properties
+        {
+            get; set;
+        }
+    }
+
 }

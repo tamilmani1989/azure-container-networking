@@ -38,7 +38,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="action"></param>
         /// <param name="includeReponseInResult"></param>
         /// <returns></returns>
-        protected async Task<ContentResult> ExecuteWithRetryAsync<TResouce>(Func<Task<TResouce>> action, HttpMethod method) where TResouce : TopLevelResource
+        protected async Task<ContentResult> ExecuteWithRetryAsync<TResouce>(
+            Func<Task<TResouce>> action,
+            HttpMethod method,
+            string methodNameForLogging) where TResouce : TopLevelResource
         {
             TResouce response = null;
 
@@ -52,11 +55,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             catch (Exception ex)
             {
-                logger.LogError("Error in DncController API: {0}", ex);
+                logger.LogError("Error in API: {0}, {1}", methodNameForLogging, ex);
                 return this.ConvertToExceptionResult(ex.Message, (int)HttpStatusCode.InternalServerError);
             }
 
-            return this.ConvertToContentResult(response, method);
+            return this.ConvertToContentResult(response, method, methodNameForLogging);
         }
 
         /// <summary>
@@ -79,15 +82,19 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <param name="response"></param>
         /// <returns></returns>
-        protected ContentResult ConvertToContentResult<TResouce>(TResouce response, HttpMethod method) where TResouce : TopLevelResource
+        protected ContentResult ConvertToContentResult<TResouce>(TResouce response, HttpMethod method, string methodNameForLogging) where TResouce : TopLevelResource
         {
             if (response.Error != null)
             {
+                string jsonError = ErrorDetails.CreateErrorAsJson(response.Error.Error, response.Error.StatusCode);
+                int errorCode = (int)response.Error.StatusCode;
+                logger.LogError("Error in API {0}. Code:{1}, ErrorMsg:{2}", methodNameForLogging, errorCode, jsonError);
+
                 return new ContentResult
                 {
-                    Content = ErrorDetails.CreateErrorAsJson(response.Error),
+                    Content = jsonError,
                     ContentType = "application/json",
-                    StatusCode = response.Error.StatusCode
+                    StatusCode = errorCode
                 };
             }
 
@@ -106,6 +113,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             string json = JsonUtility.Serialize(response);
+
+            logger.LogInformation("Success from API {0}. Code:{1}, Response:{2}", methodNameForLogging, statusCode, json);
+
             return new ContentResult
             {
                 Content = json,

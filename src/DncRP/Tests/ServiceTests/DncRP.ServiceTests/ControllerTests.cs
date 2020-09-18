@@ -96,15 +96,18 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             ControllerRequest request = new ControllerRequest
             {
-                Parameters = new ControllerRequestParameters
+                Properties = new ArmProperties
                 {
-                    Type = ControllerType.Kubernetes,
-                    Properties = new ControllerRequestProperties
+                    Parameters = new ControllerRequestParameters
                     {
-                        ServerAppID = "546192d7-503f-477a-9cfe-4efc3ee2b6e1", // AAD ID for k8s apiserver auth
-                        ServerTenantID = "da6192d7-503f-477a-9cfe-4efc3ee2b6c3", // Tenant id of above AAD ID
-                        ClusterRootCA = "ddsadsad344mfdsfdl", // Root CA of k8s cluster
-                        ApiServerEndpoint = "https://testk8s.cloudapp.net"  //apiserver url that dnc needs to watch on
+                        Type = ControllerType.Kubernetes,
+                        Properties = new ControllerRequestProperties
+                        {
+                            ServerAppID = "546192d7-503f-477a-9cfe-4efc3ee2b6e1", // AAD ID for k8s apiserver auth
+                            ServerTenantID = "da6192d7-503f-477a-9cfe-4efc3ee2b6c3", // Tenant id of above AAD ID
+                            ClusterRootCA = "ddsadsad344mfdsfdl", // Root CA of k8s cluster
+                            ApiServerEndpoint = "https://testk8s.cloudapp.net"  //apiserver url that dnc needs to watch on
+                        }
                     }
                 }
             };
