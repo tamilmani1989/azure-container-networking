@@ -1,8 +1,8 @@
 package main
 
 import (
-	extensionhandler "LinuxNetAgent/ExtensionHandler"
-	"LinuxNetAgent/servicetunnel"
+	extensionhandler "linuxnetagent/ExtensionHandler"
+	"linuxnetagent/servicetunnel"
 	"net"
 
 	"github.com/Azure/azure-container-networking/log"

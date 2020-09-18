@@ -371,15 +371,15 @@ func (st *ServiceTunnel) ConfgureFirewallRules(cmd int, portsToOpen []int) error
 	ip, _, _ := net.ParseCIDR(st.IPv4Addresses[0])
 
 	filterEntry := &iptm.IptEntry{
-		Name:  util.IptablesFilterTable,
-		Chain: util.IptablesInputChain,
+		Name:                  util.IptablesFilterTable,
+		Chain:                 util.IptablesInputChain,
 		LockWaitTimeInSeconds: lockWaitTime,
 	}
 
 	forwardEntry := &iptm.IptEntry{
-		Command: util.Ip6tables,
-		Name:    util.IptablesFilterTable,
-		Chain:   util.IptablesForwardChain,
+		Command:               util.Ip6tables,
+		Name:                  util.IptablesFilterTable,
+		Chain:                 util.IptablesForwardChain,
 		LockWaitTimeInSeconds: lockWaitTime,
 		Specs: []string{
 			util.IptablesDFlag,

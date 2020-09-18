@@ -1,9 +1,9 @@
 package main
 
 import (
-	extensionhandler "LinuxNetAgent/ExtensionHandler"
 	"flag"
 	"fmt"
+	extensionhandler "linuxnetagent/ExtensionHandler"
 	"os"
 	"time"
 
