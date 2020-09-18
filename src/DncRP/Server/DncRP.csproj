@@ -20,6 +20,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Update="operationslist.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Update="runtimeconfig.template.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
