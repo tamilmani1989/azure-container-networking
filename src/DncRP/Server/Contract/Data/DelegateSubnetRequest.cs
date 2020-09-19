@@ -8,19 +8,34 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using Newtonsoft.Json;
 
+    public class DelegateSubnetRequestProperties
+    {
+        [JsonProperty("subnetDetails")]
+        public SubnetDetails SubnetDetails { get; set; }
+
+        [JsonProperty("controllerDetails")]
+        public ControllerDetails ControllerDetails { get; set; }
+    }
+
     public class DelegateRequestParameters
     {
-        [JsonProperty("controllerID")]
-        public string ControllerId
-        {
-            get; set;
-        }
+        [JsonProperty("location")]
+        public string Location { get; set; }
+
+        [JsonProperty("properties")]
+        public DelegateSubnetRequestProperties Properties { get; set; }
+    }
+
+    public class DeletagetSubnetArmProperties
+    {
+        [JsonProperty("parameters")]
+        public DelegateRequestParameters Parameters { get; set;  }
     }
 
     public class DelegateSubnetRequest
     {
-        [JsonProperty("delegateSubnetParameters")]
-        public DelegateRequestParameters Parameters
+        [JsonProperty("properties")]
+        public DeletagetSubnetArmProperties Properties
         {
             get; set;
         }

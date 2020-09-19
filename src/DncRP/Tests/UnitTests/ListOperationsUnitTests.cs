@@ -16,11 +16,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
     public class ListOperationsUnitTests
     {
         [Fact]
-        public async void Test_OperationsList_Json()
+        public void Test_OperationsList_Json()
         {
             Mock<ILogger<ListOperationsController>> logger = new Mock<ILogger<ListOperationsController>>();
             ListOperationsController listOperations = new ListOperationsController(null, logger.Object);
-            ContentResult result = await listOperations.GetOperationsList();
+            ContentResult result =  listOperations.GetOperationsList();
             Assert.NotNull(JObject.Parse(result.Content));
         }
     }

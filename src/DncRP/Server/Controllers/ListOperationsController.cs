@@ -37,7 +37,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <returns></returns>
         [HttpGet]
-        public async Task<ContentResult> GetOperationsList()
+        public ContentResult GetOperationsList()
         {
             string file = Path.Combine(AppInfo.GetFilePath(operationsListFile), operationsListFile);
             using (StreamReader r = new StreamReader(file))

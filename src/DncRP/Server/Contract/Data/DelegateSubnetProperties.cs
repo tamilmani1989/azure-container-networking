@@ -10,5 +10,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
     public class DelegateSubnetProperties : TopLevelResourceProperties
     {
+        [JsonProperty("subnetDetails")]
+        public SubnetDetails SubnetDetails { get; set; }
+
+        [JsonProperty("controllerDetails")]
+        public ControllerDetails ControllerDetails { get; set; }
     }
 }
