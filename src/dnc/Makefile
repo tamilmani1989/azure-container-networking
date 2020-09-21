@@ -120,7 +120,7 @@ $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT):
 .PHONY: dnc-image
 dnc-image: dnc
 ifeq ($(GOOS),linux)
-	docker build \
+	docker build --no-cache \
 	-f Dockerfile \
 	-t $(DNC_IMAGE):$(VERSION) \
 	--build-arg DNC_BUILD_DIR=$(DNC_BUILD_DIR) \
@@ -133,7 +133,7 @@ endif
 .PHONY: runner-image
 runner-image: runner
 ifeq ($(GOOS),linux)
-	docker build \
+	docker build --no-cache \
 	-f test/runner/Dockerfile \
 	-t $(RUNNER_IMAGE):$(VERSION) \
 	--build-arg RUNNER_BUILD_DIR=$(RUNNER_BUILD_DIR) \
@@ -146,7 +146,7 @@ endif
 .PHONY: lbrunnernc-image
 lbrunnernc-image: lbrunnernc
 ifeq ($(GOOS),linux)
-	docker build \
+	docker build --no-cache \
 	-f test/lbrunnernc/Dockerfile \
 	-t $(LBRUNNERNC_IMAGE):$(VERSION) \
 	--build-arg LBRUNNERNC_BUILD_DIR=$(LBRUNNERNC_BUILD_DIR) \
