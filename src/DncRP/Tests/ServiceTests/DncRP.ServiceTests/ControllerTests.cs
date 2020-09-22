@@ -89,6 +89,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             string[] strs = guid.Split(new string[] { "-" }, StringSplitOptions.RemoveEmptyEntries);
             string rgName = strs[0];
             string ctrlName = strs[1];
+            string location = "Test location";
+            string expectedId = $"/subscriptions/{this.testConfig.SubscriptionId}/resourceGroups/{rgName}/providers/Microsoft.DelegatedNetwork/controller/{ctrlName}";
 
             // Get resource and validate results
             ContentResult result = await dncController.GetDncResource(this.testConfig.SubscriptionId, rgName, ctrlName);
@@ -100,14 +102,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 {
                     Parameters = new ControllerRequestParameters
                     {
-                        Type = ControllerType.Kubernetes,
-                        Properties = new ControllerRequestProperties
-                        {
-                            ServerAppID = "546192d7-503f-477a-9cfe-4efc3ee2b6e1", // AAD ID for k8s apiserver auth
-                            ServerTenantID = "da6192d7-503f-477a-9cfe-4efc3ee2b6c3", // Tenant id of above AAD ID
-                            ClusterRootCA = "ddsadsad344mfdsfdl", // Root CA of k8s cluster
-                            ApiServerEndpoint = "https://testk8s.cloudapp.net"  //apiserver url that dnc needs to watch on
-                        }
+                        Location = location
                     }
                 }
             };
@@ -123,13 +118,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             // derived type which will add type information to json. Since this json is supposed to be
             // returned to clients, we want to avoid adding our internal type information to json result.
             JObject jsonDeserialized = JObject.Parse(result.Content);
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["id"].ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["name"].ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["location"].ToString()));
+            Assert.True(jsonDeserialized["id"].ToString().Equals(expectedId));
+            Assert.True(jsonDeserialized["name"].ToString().Equals(ctrlName));
+            Assert.True(jsonDeserialized["location"].ToString().Equals(location));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["type"].ToString()));
             Assert.True(jsonDeserialized["properties"]["state"].ToString().Equals(ProvisioningState.Succeeded.ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["dncAppId"].ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["dncEndpoint"].ToString()));
+            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["resourceGuid"].ToString()));
+            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["appId"].ToString()));
+            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["endpoint"].ToString()));
 
             // Get after Put
             // Get resource and validate results
@@ -137,13 +133,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Assert.True(HttpStatusCodeCheck.IsSuccess((int)result.StatusCode), "PutDncResource failed");
             Assert.True(result.StatusCode == (int)HttpStatusCode.OK, "PutDncResource failed created status check");
             jsonDeserialized = JObject.Parse(result.Content);
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["id"].ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["name"].ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["location"].ToString()));
+            Assert.True(jsonDeserialized["id"].ToString().Equals(expectedId));
+            Assert.True(jsonDeserialized["name"].ToString().Equals(ctrlName));
+            Assert.True(jsonDeserialized["location"].ToString().Equals(location));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["type"].ToString()));
             Assert.True(jsonDeserialized["properties"]["state"].ToString().Equals(ProvisioningState.Succeeded.ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["dncAppId"].ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["dncEndpoint"].ToString()));
+            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["resourceGuid"].ToString()));
+            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["appId"].ToString()));
+            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["endpoint"].ToString()));
 
             // Delete resouce and validate result
             result = await dncController.DeleteDncResource(this.testConfig.SubscriptionId, rgName, ctrlName);

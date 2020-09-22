@@ -34,9 +34,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Initializes a new instance of the <see cref="Controller"/> class.
         /// </summary>
-        public Controller(string subscriptionId, string resourceGroup, string resourceName, ControllerProperties properties) :
+        public Controller(string subscriptionId, string resourceGroup, string resourceName, string location, ControllerProperties properties) :
             this(subscriptionId, resourceGroup, resourceName)
         {
+            this.Location = location;
             this.Properties = properties;
         }
 

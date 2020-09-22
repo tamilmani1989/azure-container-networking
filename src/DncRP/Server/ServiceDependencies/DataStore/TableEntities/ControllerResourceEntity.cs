@@ -32,22 +32,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             RowKey = resourceGroup_controllerName;
         }
 
-        public string ControllerId
+        public string Location
         {
             get; set;
         }
 
-        public string ControllerType
-        {
-            get; set;
-        }
-
-        public string ManagedDNCId
-        {
-            get; set;
-        }
-
-        public string Properties
+        public string ResouceGuid
         {
             get; set;
         }
@@ -58,6 +48,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         }
 
         public string CreatedDateUtc
+        {
+            get; set;
+        }
+
+        public string Properties
         {
             get; set;
         }

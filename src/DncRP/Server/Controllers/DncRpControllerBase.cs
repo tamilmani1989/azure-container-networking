@@ -112,7 +112,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 }
             }
 
-            string json = JsonUtility.Serialize(response);
+            string json =  method == HttpMethod.Delete ? string.Empty : JsonUtility.Serialize(response);
 
             logger.LogInformation("Success from API {0}. Code:{1}, Response:{2}", methodNameForLogging, statusCode, json);
 

@@ -17,7 +17,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     {
         private ITableDataStore dataStore;
         private const string resourceTableName = "ControllerResource";
-        private const string configTableName = "ControllerConfiguration";
         private const string mdncGuid = "5c7e26be-7ff9-4aaf-9e16-0bc759605aea";
         private const string mdncFirstPartyId = "1efe5bbf-d5b1-4fe9-99fa-f55ce1c88679";
         private const string mdncUri = "https://openai.centralus.dnc.azure.com";
@@ -36,7 +35,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.logger = logger;
 
             this.dataStore.CreateTable(resourceTableName);
-            this.dataStore.CreateTable(configTableName);
         }
 
         /// <summary>
@@ -65,19 +63,21 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             ControllerResourceEntity resourceEntity = result.Result as ControllerResourceEntity;
 
             return new Controller(
-                subId, resourceGroup, controllerName,
+                subId, resourceGroup, controllerName, resourceEntity.Location,
                 new ControllerProperties
                 {
                     State = this.ToRequestState(resourceEntity.State),
-                    DncAppId = mdncFirstPartyId,
-                    DncEndpoint = mdncUri
+                    ResourceGuid = resourceEntity.ResouceGuid,
+                    PropertiesList = new ControllerPropertiesDetails
+                    {
+                        DncAppId = mdncFirstPartyId,
+                        DncEndpoint = mdncUri
+                    }
                 });
         }
 
         /// <summary>
-        /// Create a new DNC controller or replace an existing one. It works in two step.
-        /// a. First insert/replace an entity into ControllerResouce table
-        /// b. Next, insert/replace an entity into ControllerConfiguration table
+        /// Create a new DNC controller or replace an existing one.
         /// </summary>
         /// <param name="subId"></param>
         /// <param name="resourceGroup"></param>
@@ -96,28 +96,35 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // ControllerId can't be changed.
             TableResult result = await this.dataStore.GetEntityAsync<ControllerResourceEntity>(resourceTableName, subId, rowKey);
 
-            string controllerGuid, createdDate;
+            string resourceGuid, createdDate;
             if (HttpStatusCodeCheck.IsResourceNotFound(result.HttpStatusCode))
             {
-                controllerGuid = Guid.NewGuid().ToString();
+                resourceGuid = Guid.NewGuid().ToString();
                 createdDate = DateTime.UtcNow.ToString();
             }
             else
             {
-                ControllerResourceEntity cre = result.Result as ControllerResourceEntity;
-                controllerGuid = cre.ControllerId;
-                createdDate = cre.CreatedDateUtc;
+                ControllerResourceEntity entity = result.Result as ControllerResourceEntity;
+                resourceGuid = entity.ResouceGuid;
+                createdDate = entity.CreatedDateUtc;
             }
 
-            string propJson = JsonUtility.Serialize(controllerRequest.Properties.Parameters.Properties);
+            ControllerPropertiesDetails list = new ControllerPropertiesDetails
+            {
+                DncAppId = mdncFirstPartyId,
+                DncEndpoint = mdncUri
+            };
+
+            string propJson = JsonUtility.Serialize(list);
 
             ControllerResourceEntity resourceEntity = new ControllerResourceEntity(subId, rowKey);
-            resourceEntity.ControllerId = controllerGuid;
-            resourceEntity.ManagedDNCId = mdncGuid;
-            resourceEntity.ControllerType = controllerRequest.Properties.Parameters.Type.ToString();
-            resourceEntity.Properties = propJson;
+            resourceEntity.ResouceGuid = resourceGuid;
+            // Succeeded for now. In future, it will be Provisioning in the begining and will
+            // become succeeded or failed depending on if dnc deployment succeeds.
             resourceEntity.State = ProvisioningState.Succeeded.ToString();
             resourceEntity.CreatedDateUtc = createdDate;
+            resourceEntity.Location = controllerRequest.Properties.Parameters.Location;
+            resourceEntity.Properties = propJson;
 
             // Execute the operation.
             result = await this.dataStore.InsertOrReplaceEntityAsync(resourceTableName, resourceEntity);
@@ -128,22 +135,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             resourceEntity = result.Result as ControllerResourceEntity;
 
-            // insert entity into controller config table
-            int httpCode = await this.InsertOrReplaceControllerConfigAsync(mdncGuid, controllerGuid, controllerRequest.Properties.Parameters.Type, propJson);
-            if (!HttpStatusCodeCheck.IsSuccess(httpCode))
-            {
-                return Controller.CreateErrorResponse("Error in put controller config", httpCode);
-            }
-
             return new Controller(
-               subId, resourceGroup, controllerName,
-               new ControllerProperties
-               {
-                   State = this.ToRequestState(resourceEntity.State),
-                   DncAppId = mdncFirstPartyId,
-                   DncEndpoint = mdncUri,
-                   ResourceGuid = resourceEntity.ControllerId
-               });
+                subId, resourceGroup, controllerName, resourceEntity.Location,
+                new ControllerProperties
+                {
+                    State = this.ToRequestState(resourceEntity.State),
+                    ResourceGuid = resourceEntity.ResouceGuid,
+                    PropertiesList = JsonUtility.Deserialize<ControllerPropertiesDetails>(resourceEntity.Properties)
+                });
         }
 
         /// <summary>
@@ -179,84 +178,20 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // Create Retrieve table operation
             string rowKey = $"{resourceGroup}_{controllerName}";
             TableResult result = await this.dataStore.GetEntityAsync<ControllerResourceEntity>(resourceTableName, subId, rowKey);
-            if (!HttpStatusCodeCheck.IsSuccess(result.HttpStatusCode))
+            if (HttpStatusCodeCheck.IsResourceNotFound(result.HttpStatusCode))
             {
-                string msg = HttpStatusCodeCheck.IsResourceNotFound(result.HttpStatusCode)
-                    ? $"Resource '{resourceId}' does not exist"
-                    : string.Empty;
-
-                return Controller.CreateErrorResponse(msg, result.HttpStatusCode);
-            }
-
-            // First delete entry in config table. If resource not found in config table, that is not treated as error
-            ControllerResourceEntity resourceEntity = result.Result as ControllerResourceEntity;
-            await this.DeleteControllerConfigAsync(resourceEntity.ManagedDNCId, resourceEntity.ControllerId);
-            if (!HttpStatusCodeCheck.IsSuccess(result.HttpStatusCode) &&
-                !HttpStatusCodeCheck.IsResourceNotFound(result.HttpStatusCode))
-            {
-                return Controller.CreateErrorResponse("Error in delete controller config", result.HttpStatusCode);
+                return new Controller(subId, resourceGroup, controllerName);
             }
 
             // Now, delete entry in resource table
+            ControllerResourceEntity resourceEntity = result.Result as ControllerResourceEntity;
             result = await this.dataStore.DeleteEntityAsync(resourceTableName, resourceEntity);
             if (!HttpStatusCodeCheck.IsSuccess(result.HttpStatusCode))
             {
                 return Controller.CreateErrorResponse("Error in delete controller resource", result.HttpStatusCode);
             }
 
-            return new Controller(
-                subId, resourceGroup, controllerName,
-                new ControllerProperties
-                {
-                    State = ProvisioningState.Succeeded,
-                    DncAppId = mdncFirstPartyId,
-                    DncEndpoint = mdncUri
-                });
-        }
-
-        /// <summary>
-        /// Insert or replace an entity in Controller config table
-        /// </summary>
-        /// <param name="mdncId"></param>
-        /// <param name="controllerId"></param>
-        /// <param name="type"></param>
-        /// <param name="propertiesJson"></param>
-        /// <returns></returns>
-        private async Task<int> InsertOrReplaceControllerConfigAsync(
-            string mdncId, string controllerId, ControllerType type, string propertiesJson)
-        {
-            ControllerConfigurationEntity entity = new ControllerConfigurationEntity(mdncId, controllerId);
-            entity.ControllerType = type.ToString();
-            entity.Properties = propertiesJson;
-
-            // Execute Delete table operation
-            TableResult result = await this.dataStore.InsertOrReplaceEntityAsync(configTableName, entity);
-            return result.HttpStatusCode;
-        }
-
-        /// <summary>
-        /// Insert or replace an entity in Controller config table
-        /// </summary>
-        /// <param name="mdncId"></param>
-        /// <param name="controllerId"></param>
-        /// <param name="type"></param>
-        /// <param name="propertiesJson"></param>
-        /// <returns></returns>
-        private async Task<int> DeleteControllerConfigAsync(
-            string mdncId, string controllerId)
-        {
-            TableResult result = await this.dataStore.GetEntityAsync<ControllerConfigurationEntity>(configTableName, mdncId, controllerId);
-            if (!HttpStatusCodeCheck.IsSuccess(result.HttpStatusCode))
-            {
-                return result.HttpStatusCode;
-            }
-
-            ControllerConfigurationEntity entity = new ControllerConfigurationEntity(mdncId, controllerId);
-            entity.ETag = "*";
-
-            // Execute Delete table operation
-            result = await this.dataStore.DeleteEntityAsync(configTableName, entity);
-            return result.HttpStatusCode;
+            return new Controller(subId, resourceGroup, controllerName);
         }
 
         /// <summary>

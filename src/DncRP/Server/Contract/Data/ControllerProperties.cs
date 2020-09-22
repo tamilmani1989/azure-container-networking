@@ -11,13 +11,22 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
     public class ControllerProperties : TopLevelResourceProperties
     {
-        [JsonProperty("dncAppId")]
+        [JsonProperty("controllerProperties")]
+        public ControllerPropertiesDetails PropertiesList
+        {
+            get; set;
+        }
+    }
+
+    public class ControllerPropertiesDetails
+    {
+        [JsonProperty("appId")]
         public string DncAppId
         {
             get; set;
         }
 
-        [JsonProperty("dncEndpoint")]
+        [JsonProperty("endpoint")]
         public string DncEndpoint
         {
             get; set;
