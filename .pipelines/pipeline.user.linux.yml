@@ -79,12 +79,6 @@ versioning:
 # All files in the artifacts sections will be collected, saved off and signed.
 # The signed files will be restored back to the original locations before the next stage is invoked.
 # Eventually, network access will be limited or cut-off in this stage.
-restore:
-  commands:
-   - !!defaultcommand
-     name: 'Build and setup Bond'
-     command: 'build-bond.sh'
-
 build:
   commands:
 

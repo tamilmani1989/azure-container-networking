@@ -41,14 +41,16 @@ case $1 in
             cd $DIR/src/dnc
             echo "Building DNC"
             go build -o azure-dnc -ldflags "-X dnc/utils.Version=$VERSION -X dnc/aiwrapper.aiMetadata=$aiMetadata -s -w" >& build.log
-            echo "Building BondDataSerializer"
-            cd $DIR/src/BondDataSerializer
-            mkdir -p build
-            cd build
-            cmake ..
-            make
-            cp libBondDataSerializer.so $LD_LIBRARY_PATH/
-            cd $DIR/src/dnc
+            # Temporary workaround: Use pre-built bond serializer due to timeouts seen in the restore stage.
+            # Restore stage will be replaced by docker container to create c++ files.
+            #echo "Building BondDataSerializer"
+            #cd $DIR/src/BondDataSerializer
+            #mkdir -p build
+            #cd build
+            #cmake ..
+            #make
+            #cp libBondDataSerializer.so $LD_LIBRARY_PATH/
+            #cd $DIR/src/dnc
             echo "Building Managed DNC"
             go build -tags enablePubsubProxy -o azure-mdnc -ldflags "-X dnc/utils.Version=$VERSION -X dnc/aiwrapper.aiMetadata=$aiMetadata -s -w" >& build.log
         fi
