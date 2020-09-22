@@ -33,6 +33,7 @@
     <Parameter Name="EnforceNICLimit" DefaultValue="true"/>
     <Parameter Name="NICsAllowedPerVirtualCore" DefaultValue="3"/>
     <Parameter Name="ReverseProxyEnabled" DefaultValue="false"/>
+    <Parameter Name="BMMode" DefaultValue="false"/>
     <Parameter Name="ConnectionTimeout" DefaultValue="5"/>
     <Parameter Name="ResponseHeaderTimeout" DefaultValue="120"/>
     <Parameter Name="TelemetryBatchSizeBytes" DefaultValue="16384"/>
@@ -85,6 +86,7 @@
       <EnvironmentVariable Name="EnforceNICLimit" Value="[EnforceNICLimit]"/>
       <EnvironmentVariable Name="NICsAllowedPerVirtualCore" Value="[NICsAllowedPerVirtualCore]"/>
       <EnvironmentVariable Name="ReverseProxyEnabled" Value="[ReverseProxyEnabled]"/>
+      <EnvironmentVariable Name="BMMode" Value="[BMMode]"/>
       <EnvironmentVariable Name="ConnectionTimeout" Value="[ConnectionTimeout]"/>
       <EnvironmentVariable Name="ResponseHeaderTimeout" Value="[ResponseHeaderTimeout]"/>
       <EnvironmentVariable Name="TelemetryBatchSizeBytes" Value="[TelemetryBatchSizeBytes]"/>

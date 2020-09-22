@@ -61,14 +61,7 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 	// Can be used whenver we send logs/metric
 	aiwrapper.OrchestratorType = nodeInfo.OrchestratorType
 
-	if config.DNCSettings.Managed {
-		if !utils.IsValidUUID(nodeInfo.InfrastructureNetwork) {
-			return &api.JsonErr{
-				Code:       api.InvalidNetworkID,
-				Text:       "Infrastructure Network ID must be a valid uuid",
-				HTTPStatus: http.StatusBadRequest}
-		}
-
+	if config.DNCSettings.Managed || config.DNCSettings.BMMode {
 		switch nodeInfo.OrchestratorType {
 		case cns.ServiceFabric:
 			fallthrough

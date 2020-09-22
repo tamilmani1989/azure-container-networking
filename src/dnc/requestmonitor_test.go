@@ -1,3 +1,5 @@
+// +build !bmMode
+
 package main
 
 import (
@@ -5,17 +7,10 @@ import (
 	"crypto/sha256"
 	"dnc/api"
 	cli "dnc/client"
-	internalcns "dnc/cns"
-	"dnc/cnsinterface"
 	"dnc/configuration"
-	"dnc/controller"
 	"dnc/datamodel"
-	"dnc/logger/loggershim"
-	"dnc/masterelection/masterelectionshim"
 	"dnc/nmagentcontracts"
-	"dnc/replica"
 	"dnc/resourceupdatehandler/networkupdatehandler"
-	"dnc/server"
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
@@ -23,7 +18,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -37,14 +31,6 @@ import (
 	"github.com/Azure/azure-container-networking/cns"
 	"github.com/google/uuid"
 )
-
-type CreateNetworkRequest struct {
-	NetworkType string
-}
-
-type JoinSubnetRequest struct {
-	AuthenticationToken string
-}
 
 type CreateNetworkContainerRequest struct {
 	AllocationRequest          api.AllocationRequest
@@ -82,30 +68,10 @@ type AclTestPolicySetting struct {
 
 // Unit Test Values
 var (
-	dncEP = "http://127.0.0.1:9000"
-
-	nodeReq = api.NodeInfoRequest{
-		IPAddresses:      []string{"127.0.0.1"},
-		LocationType:     "",
-		OrchestratorType: cns.Kubernetes}
-
 	sfNodeReq = api.NodeInfoRequest{
 		IPAddresses:      []string{"127.0.0.1"},
 		LocationType:     "",
 		OrchestratorType: cns.ServiceFabric}
-	nodeID = "testnode"
-
-	networkReq = CreateNetworkRequest{"AzureNet"}
-	subnetReq  = JoinSubnetRequest{"0bb4132b-5932-4ec4-a47f-1b24f0eeb426"}
-	subnetName = "subnet1"
-
-	reservationReq = api.AllocationRequest{
-		SubnetName:   "subnet1",
-		IPConstraint: "10.0.0.15"}
-	reservationReq2 = api.AllocationRequest{
-		NodeConstraint: "testnode",
-		SubnetName:     "subnet1"}
-	reservationID = "f4c38099-e7bf-4850-97dc-97513a912523"
 
 	podInfo = OrchestratorContext{
 		PodName:      "testpodname",
@@ -123,52 +89,12 @@ var (
 			InterfaceID:         "127.0.0.1",
 			ContainerType:       cns.AzureContainerInstance,
 			OrchestratorContext: orchContext}}
-	networkContainerReq2 = CreateNetworkContainerRequest{
-		AllocationRequest: api.AllocationRequest{
-			SubnetName:     "subnet1",
-			IPConstraint:   "",
-			NodeConstraint: ""},
-		AssociationInfo: api.AssociationInfo{
-			NodeID:              "testnode",
-			InterfaceID:         "127.0.0.1",
-			ContainerType:       cns.AzureContainerInstance,
-			OrchestratorContext: orchContext}}
-	networkContainerReq3 = CreateNetworkContainerRequestV2{
-		ReservationID: "048622d9-49c2-4cad-94ff-7112e6f2ab5a",
-		AllocationRequest: api.AllocationRequest{
-			SubnetName:     "subnet1",
-			IPConstraint:   "",
-			NodeConstraint: ""},
-		AssociationInfo: api.AssociationInfo{
-			NodeID:              "testnode",
-			InterfaceID:         "127.0.0.1",
-			ContainerType:       cns.AzureContainerInstance,
-			OrchestratorContext: orchContext}}
-	networkContainerReq4 = CreateNetworkContainerRequestV2{
-		ReservationID: "b56ebb26-fed6-4765-b501-9e5488cc1df6",
-		AllocationRequest: api.AllocationRequest{
-			SubnetName:     "subnet1",
-			IPConstraint:   "",
-			NodeConstraint: ""},
-		AssociationInfo: api.AssociationInfo{
-			NodeID:              "testnode",
-			InterfaceID:         "127.0.0.1",
-			ContainerType:       cns.AzureContainerInstance,
-			OrchestratorContext: orchContext},
-		AllowHostToNCCommunication: true,
-		AllowNCToHostCommunication: true}
-	networkContainerReq5 = CreateNetworkContainerRequest{
-		AllocationRequest: api.AllocationRequest{
-			SubnetName:     "subnet1",
-			IPConstraint:   "",
-			NodeConstraint: ""},
-		AssociationInfo: api.AssociationInfo{
-			NodeID:              "testnode",
-			InterfaceID:         "127.0.0.1",
-			ContainerType:       cns.AzureContainerInstance,
-			OrchestratorContext: orchContext},
-		AllowHostToNCCommunication: true,
-		AllowNCToHostCommunication: true}
+	nodeID  = "testnode"
+	nodeReq = api.NodeInfoRequest{
+		IPAddresses:      []string{"127.0.0.1"},
+		LocationType:     "",
+		OrchestratorType: cns.Kubernetes,
+	}
 	networkContainerReq6 = CreateNetworkContainerRequest{
 		AllocationRequest: api.AllocationRequest{
 			SubnetName:     "subnet1",
@@ -182,10 +108,7 @@ var (
 		AllowHostToNCCommunication: true,
 		AllowNCToHostCommunication: true,
 		EndpointPolicies:           validEndPointPolicies}
-	ncID  = "0e2f40cd-8fe1-420f-af43-1c4d5c5bb83b"
-	ncID2 = "b8be30e0-7b79-42cb-bdb1-8c0ecd77d52a"
-
-	apiVersion = "?api-version=2018-03-01"
+	ncID = "0e2f40cd-8fe1-420f-af43-1c4d5c5bb83b"
 
 	localIPConfiguaration = cns.IPConfiguration{
 		IPSubnet: cns.IPSubnet{
@@ -212,21 +135,13 @@ const (
 	induceErrorPercent            = 5   // Induce 5% error for nmagent and cns responses
 )
 
-// TestMain :- main
-func TestMain(m *testing.M) {
-	if err := Setup(); err != nil {
-		panic(err)
-	}
-
-	os.Exit(m.Run())
-}
-
 // Setup :- Set up the environment (if necessary).
 func Setup() error {
 	go StartDnc(false)
 	time.Sleep(1 * time.Second)
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 1024
 	http.DefaultTransport.(*http.Transport).TLSHandshakeTimeout = 0 * time.Second
+
 	nmAgentServer = new(MockServer)
 	if err := nmAgentServer.SetupServer("127.0.0.1:9001"); err != nil {
 		return err
@@ -235,97 +150,9 @@ func Setup() error {
 	if err := cnsServer.SetupServer("127.0.0.1:10090"); err != nil {
 		return err
 	}
+
 	httpClient = http.DefaultClient
 	return nil
-}
-
-// todo: this is the exact same logic as in main. extract to a single location
-func StartDnc(managed bool) {
-	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
-	if !found {
-		configpath = "config_test.json"
-	}
-
-	config = configuration.Load(configpath)
-	configuration.SetDncConfigDefaults(config)
-	config.DNCSettings.Managed = managed
-	if managed {
-		config.ServerSettings.IPAddress = "127.0.0.1"
-		config.ServerSettings.Port = "9002"
-		config.CNSSettings.ChannelMode = cns.Managed
-	}
-	logger = loggershim.NewLoggerShim(config)
-	logger.Init(stderr, reports)
-	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
-	replicaInstance = replica.NewReplica(
-		config.ServerSettings,
-		config.HttpClientSettings,
-		networkupdatehandler.GetNetworkRefreshMonitorStatus)
-	sessionManager = utils.NewSessionManager([]string{
-		datamodel.NCRepositoryName,
-		datamodel.NodeRepositoryName,
-		datamodel.NetworkRepositoryName,
-		datamodel.ReservationRepositoryName,
-		datamodel.TagRepositoryName})
-	masterElectionShim = masterelectionshim.NewMasterElectionShim(
-		config,
-		replicaInstance.UpdateReplicaStatus,
-		replicaInstance.SetPrimaryIPEndpoint,
-		startChan,
-		doneChan,
-		demoteChan)
-
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout: time.Duration(config.HttpClientSettings.ConnectionTimeout) * time.Second,
-			}).DialContext,
-			ResponseHeaderTimeout: time.Duration(config.HttpClientSettings.ResponseHeaderTimeout) * time.Second,
-		},
-	}
-
-	switch config.CNSSettings.ChannelMode {
-	case cns.Direct:
-		cnsInterface = &cnsinterface.DirectChannel{
-			SessionManager:  sessionManager,
-			EnforceNicLimit: true,
-			CNSClient: &internalcns.Client{
-				Paths: config.CNSSettings.ConnectionStrings,
-				HTTP:  httpClient,
-			},
-			Logger: logger,
-		}
-	case cns.Managed:
-		cnsInterface = cnsinterface.NewManagedChannel(sessionManager, true)
-	}
-
-	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
-		masterElectionShim, config, httpClient)
-	dncServer = server.Server{
-		ServerSettings: config.ServerSettings,
-		Controller:     ctrler}
-	dncServer.Init()
-	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
-	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
-
-	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
-		masterElectionShim.Init()
-		datamodel.Init(
-			config.CNSSettings,
-			config.DataStoreSettings,
-			config.DNCSettings,
-			config.VlanSettings.Min,
-			config.VlanSettings.Max,
-			httpClient,
-			config.HostAgentSettings.WireServerIP)
-		ctrler.UpdateReplicaStatus(true)
-	}
-
-	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
-	initNetworkContainerStateMachine()
-
-	go startReplica(ctrler)
-	dncServer.Start()
 }
 
 func TestVlanGeneration(t *testing.T) {

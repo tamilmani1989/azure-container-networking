@@ -168,6 +168,8 @@ type DNCSettings struct {
 	ThresholdForLoggingDataStoreOpLatencyMs int
 	// Bool to determine whether DNC is running in managed mode.
 	Managed bool
+	// Boool to determine if DNC is running in Baremetal mode (BM) mode.
+	BMMode bool
 }
 
 // IdentitySettings - Information about managed identity for DNC
@@ -583,6 +585,10 @@ func OverrideConfigFromEnv(config *Configuration) {
 
 	if reverseProxyEnabled := os.Getenv("ReverseProxyEnabled"); len(reverseProxyEnabled) != 0 {
 		config.DNCSettings.ReverseProxyEnabled = ParseBool(reverseProxyEnabled)
+	}
+
+	if bmmode := os.Getenv("BMMode"); len(bmmode) != 0 {
+		config.DNCSettings.BMMode = ParseBool("BMMode")
 	}
 
 	if connectionTimeout := os.Getenv("ConnectionTimeout"); len(connectionTimeout) != 0 {

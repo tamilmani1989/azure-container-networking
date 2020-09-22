@@ -19,6 +19,9 @@ const (
 	// NodeIDMissing - Node ID parameter is missing from the URL.
 	NodeIDMissing string = "Node ID is missing"
 
+	// NodeIDNonGUIDValue - Node ID value must be a GUID in certain scenarios (BM Mode).
+	NodeIDNonGUIDValue string = "Node ID value must be a GUID."
+
 	// ReservationIDMissing - Reservation ID parameter is missing from the URL.
 	ReservationIDMissing string = "Reservation ID is missing"
 

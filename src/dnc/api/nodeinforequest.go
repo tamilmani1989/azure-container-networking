@@ -1,6 +1,8 @@
 package api
 
 import (
+	"dnc/configuration"
+	"dnc/utils"
 	"fmt"
 	"net"
 	"net/http"
@@ -15,17 +17,33 @@ type NodeInfoRequest struct {
 	LocationType          string   `json:"locationtype"` // Optional.
 	OrchestratorType      string   `json:"orchestratortype"`
 	InfrastructureNetwork string   `json:"infrastructurenetwork"`
+	AZID                  string   `json:"azid"`
 }
 
 func (n *NodeInfoRequest) String() string {
 	ipAddresses := strings.Join(n.IPAddresses, ",")
 	return fmt.Sprintf(
-		"NodeInfoRequest:[IPAddresses:%s Locationtype:%s OrchestratorType:%s InfrastructureNetwork:%s]",
-		ipAddresses, n.LocationType, n.OrchestratorType, n.InfrastructureNetwork)
+		"NodeInfoRequest:[IPAddresses:%s Locationtype:%s OrchestratorType:%s InfrastructureNetwork:%s AZID: %s]",
+		ipAddresses, n.LocationType, n.OrchestratorType, n.InfrastructureNetwork, n.AZID)
 }
 
 // Validate - Validates the node info request
-func (n *NodeInfoRequest) Validate() *JsonErr {
+func (n *NodeInfoRequest) Validate(configuration *configuration.Configuration) *JsonErr {
+	// Check for infrastructure network
+	if configuration.DNCSettings.Managed && !utils.IsValidUUID(n.InfrastructureNetwork) {
+		return &JsonErr{
+			Code:       InvalidNetworkID,
+			Text:       "Infrastructure Network ID must be a valid uuid",
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	if configuration.DNCSettings.BMMode && n.AZID == "" {
+		return &JsonErr{
+			Code:       InvalidNodeAZID,
+			Text:       "AZID field cannot be empty.",
+			HTTPStatus: http.StatusBadRequest}
+	}
+
 	if n.IPAddresses == nil || len(n.IPAddresses) < 1 {
 		return &JsonErr{
 			Code:       InvalidNodeIPAddress,

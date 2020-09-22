@@ -234,6 +234,9 @@ const (
 
 	// InvalidNCLimit - Invalid NC limit (failed to parse string)
 	InvalidNCLimit
+
+	// InvalidNodeAZID - Invalid AZID field for a Node
+	InvalidNodeAZID
 )
 
 func (e ErrorCode) String() string {
@@ -468,6 +471,8 @@ func (e ErrorCode) String() string {
 
 	case InvalidNCLimit:
 		return "InvalidNCLimit"
+	case InvalidNodeAZID:
+		return "InvalidNodeAZID"
 	}
 
 	return "Unknown Status"
