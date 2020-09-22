@@ -7,11 +7,6 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
-    using Microsoft.Azure.Cosmos.Table;
-    using System.Collections.Generic;
-    using System.Security.Cryptography.X509Certificates;
-    using System.Threading.Tasks;
-
     /// <summary>
     /// Defines interfaces for all the table operations supported.
     /// </summary>
@@ -34,5 +29,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <returns></returns>
         IControllerConfiguration ControllerConfiguration { get; }
+
+        IOrchestratorOperations OrchestratorOperations { get; }
     }
 }

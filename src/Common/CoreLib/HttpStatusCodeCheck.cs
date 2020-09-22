@@ -31,5 +31,15 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         {
             return statusCode == (int)HttpStatusCode.NotFound;
         }
+
+        public static bool IsInternalServerError(HttpStatusCode statusCode)
+        {
+            return statusCode == HttpStatusCode.InternalServerError;
+        }
+
+        public static bool IsInternalServerError(int statusCode)
+        {
+            return statusCode == (int)HttpStatusCode.InternalServerError;
+        }
     }
 }

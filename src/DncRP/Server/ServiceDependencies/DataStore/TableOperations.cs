@@ -17,6 +17,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private ISubnetTokenMapOperations subnetTokenMapOperation;
         private IControllerConfiguration controllerConfiguration;
         private IDelegatedSubnetConfigurationOperations delegatedSubnetConfiguration;
+        private IOrchestratorOperations orchestratorOperations;
         private ITableDataStore dataStore;
         ILogger<TableOperations> logger;
 
@@ -44,6 +45,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             subnetTokenMapOperation = new SubnetTokenMapOperations(dataStore, logger);
             controllerConfiguration = new ControllerConfiguration(dataStore, logger);
             delegatedSubnetConfiguration = new DelegatedSubnetConfigurationOperations(dataStore, logger);
+            orchestratorOperations = new OrchestratorOperations(dataStore, logger);
         }
 
         /// <summary>
@@ -65,6 +67,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public IControllerConfiguration ControllerConfiguration
         {
             get => controllerConfiguration;
+        }
+
+        public IOrchestratorOperations OrchestratorOperations
+        {
+            get => orchestratorOperations;
         }
     }
 }
