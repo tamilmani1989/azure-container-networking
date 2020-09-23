@@ -43,5 +43,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         [JsonProperty]
         public string SecondaryContextId { get; set; }
+
+        /// <summary>
+        /// ToString
+        /// </summary>
+        /// <returns></returns>
+        public override string ToString()
+        {
+            return $"ServiceAssociationLinkDetailProperties: ProvisioningState: {ProvisioningState}, " +
+                $"PrimaryContextRequestId: {PrimaryContextRequestId}, SecondaryContextRequestId: {SecondaryContextRequestId}," +
+                $"PrimaryContextId: {PrimaryContextId} SecondaryContextId: {SecondaryContextId}";
+        }
     }
 }

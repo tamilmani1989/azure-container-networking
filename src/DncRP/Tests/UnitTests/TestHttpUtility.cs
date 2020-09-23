@@ -24,12 +24,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
     internal class TestHttpUtility : IHttpUtility
     {
+        private bool validateCreateSal { get; set; }
+        private string PrimaryContextRequestId { get; set; }
         private List<X509Certificate2> callerSpecifiedCerts;
         private bool validateMetadataHeader = false;
 
-        public TestHttpUtility()
+        public TestHttpUtility(bool validateCreateSal = true)
         {
             this.callerSpecifiedCerts = new List<X509Certificate2>();
+            this.validateCreateSal = validateCreateSal;
+            PrimaryContextRequestId = String.Empty;
         }
 
         public async Task<T> GetJsonAsync<T>(HttpCompletionOption option, string uri)
@@ -79,7 +83,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             }
             if (typeof(T) == typeof(ServiceAssociationLink))
             {
-                object serviceAssociationLink = new ServiceAssociationLink();
+                var contentStream = await requestMessage.Content.ReadAsStringAsync();
+                object serviceAssociationLink = JsonUtility.Deserialize<ServiceAssociationLink>(contentStream);
+                ServiceAssociationLink sal = serviceAssociationLink as ServiceAssociationLink;
+                PrimaryContextRequestId = sal.Properties.Details[0].Properties.PrimaryContextRequestId;
                 return (T)serviceAssociationLink;
             }
 
@@ -126,6 +133,99 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             throw new NotSupportedException($"Type {typeof(T).Name} is not supported");
         }
 
+        /// <summary>
+        /// Set user specified certs in cache. These will be returned
+        /// along with generated certs.
+        /// </summary>
+        /// <param name="certificates"></param>
+        public void SetCertificates(IEnumerable<X509Certificate2> certificates)
+        {
+            this.callerSpecifiedCerts.Clear();
+            this.callerSpecifiedCerts.AddRange(certificates);
+        }
+
+        public void SetValidateMetadataHeaderFlag(bool value)
+        {
+            this.validateMetadataHeader = value;
+        }
+
+        public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage message)
+        {
+            HttpResponseMessage httpResponseMessage = new HttpResponseMessage();
+
+
+            if (message.RequestUri.ToString().Contains("ServiceAssociationLinks/ManagedDNC/Details/ManagedDNCDetail"))
+            {
+                // Returns the actualy SAL when Sal is created
+
+                if (validateCreateSal)
+                {
+                    if (string.IsNullOrEmpty(PrimaryContextRequestId))
+                    {
+                        httpResponseMessage.StatusCode = System.Net.HttpStatusCode.NotFound;
+                    }
+                    else
+                    {
+                        ServiceAssociationLinkDetail salDetail = new ServiceAssociationLinkDetail();
+                        salDetail.Id = Guid.NewGuid().ToString();
+                        salDetail.Name = "ManagedDNCDetail";
+                        salDetail.Properties = new ServiceAssociationLinkDetailProperties();
+                        salDetail.Properties.PrimaryContextId = Guid.NewGuid().ToString();
+                        salDetail.Properties.PrimaryContextRequestId = PrimaryContextRequestId;
+                        salDetail.Properties.SecondaryContextId = Guid.NewGuid().ToString();
+                        salDetail.Properties.SecondaryContextRequestId = Guid.NewGuid().ToString();
+
+                        string json = JsonUtility.Serialize(salDetail);
+
+                        httpResponseMessage.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                        httpResponseMessage.StatusCode = System.Net.HttpStatusCode.OK;
+                    }
+                }
+                else
+                {
+                    // This is scneario where SAL is already created and Get is returning the token info
+                    ServiceAssociationLinkDetail salDetail = new ServiceAssociationLinkDetail();
+                    salDetail.Id = Guid.NewGuid().ToString();
+                    salDetail.Name = "ManagedDNCDetail";
+                    salDetail.Properties = new ServiceAssociationLinkDetailProperties();
+                    salDetail.Properties.PrimaryContextId = Guid.NewGuid().ToString();
+                    salDetail.Properties.PrimaryContextRequestId = PrimaryContextRequestId;
+                    salDetail.Properties.SecondaryContextId = Guid.NewGuid().ToString();
+                    salDetail.Properties.SecondaryContextRequestId = Guid.NewGuid().ToString();
+
+                    string json = JsonUtility.Serialize(salDetail);
+
+                    httpResponseMessage.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                    httpResponseMessage.StatusCode = System.Net.HttpStatusCode.OK;
+                }
+            }
+
+            if (message.RequestUri.ToString().Contains("https://management.azure.com/subscriptions/"))
+            {
+                // var authUrl = param.Split(',')[0].Split('=')[1];
+                //tenantId = authUrl.Substring(authUrl.LastIndexOf('/') + 1, 36);
+                string parameter = "TenantId=/tenant/72f988bf-86f1-41af-91ab-2d7cd011db47,TestAuth";
+                httpResponseMessage = new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized);
+                httpResponseMessage.Headers.WwwAuthenticate.Add(new System.Net.Http.Headers.AuthenticationHeaderValue("testSchema", parameter));
+            }
+
+            return httpResponseMessage;
+        }
+
+        private string GetCertSubNameForEnvironment(string uri)
+        {
+            switch (uri)
+            {
+                case "https://management.azure.com:24582/metadata/authentication?api-version=2015-01-01": return "azurecloud";
+                case "https://api-dogfood-admin.resources.windows-int.net/metadata/authentication?api-version=2015-01-01": return "dogfood";
+                case "https://management.chinacloudapi.cn:24582/metadata/authentication?api-version=2015-01-01": return "azurechinacloud";
+                case "https://management.usgovcloudapi.net:24582/metadata/authentication?api-version=2015-01-01": return "azureusgovernment";
+                case "https://management.microsoftazure.de:24582/metadata/authentication?api-version=2015-01-01": return "azuregermancloud";
+                default:
+                    throw new InvalidAzureEnvironmentException($"Invalid uri: {uri}");
+            }
+        }
+
         private async Task<ArmCertMetadata> GetArmCertMetadata(string uri)
         {
             string certSubName = this.GetCertSubNameForEnvironment(uri);
@@ -169,51 +269,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             armCertMetadata.clientCertificates = clientCertificates.ToArray();
 
             return armCertMetadata;
-        }
-
-        /// <summary>
-        /// Set user specified certs in cache. These will be returned
-        /// along with generated certs.
-        /// </summary>
-        /// <param name="certificates"></param>
-        public void SetCertificates(IEnumerable<X509Certificate2> certificates)
-        {
-            this.callerSpecifiedCerts.Clear();
-            this.callerSpecifiedCerts.AddRange(certificates);
-        }
-
-        public void SetValidateMetadataHeaderFlag(bool value)
-        {
-            this.validateMetadataHeader = value;
-        }
-
-        private string GetCertSubNameForEnvironment(string uri)
-        {
-            switch (uri)
-            {
-                case "https://management.azure.com:24582/metadata/authentication?api-version=2015-01-01": return "azurecloud";
-                case "https://api-dogfood-admin.resources.windows-int.net/metadata/authentication?api-version=2015-01-01": return "dogfood";
-                case "https://management.chinacloudapi.cn:24582/metadata/authentication?api-version=2015-01-01": return "azurechinacloud";
-                case "https://management.usgovcloudapi.net:24582/metadata/authentication?api-version=2015-01-01": return "azureusgovernment";
-                case "https://management.microsoftazure.de:24582/metadata/authentication?api-version=2015-01-01": return "azuregermancloud";
-                default:
-                    throw new InvalidAzureEnvironmentException($"Invalid uri: {uri}");
-            }
-        }
-
-        public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage message)
-        {
-            HttpResponseMessage httpResponseMessage = new HttpResponseMessage();
-            if (message.RequestUri.ToString().Contains("https://management.azure.com/subscriptions/"))
-            {
-                // var authUrl = param.Split(',')[0].Split('=')[1];
-                //tenantId = authUrl.Substring(authUrl.LastIndexOf('/') + 1, 36);
-                string parameter = "TenantId=/tenant/72f988bf-86f1-41af-91ab-2d7cd011db47,TestAuth";
-                httpResponseMessage = new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized);
-                httpResponseMessage.Headers.WwwAuthenticate.Add(new System.Net.Http.Headers.AuthenticationHeaderValue("testSchema", parameter));
-            }
-
-            return httpResponseMessage;
         }
     }
 }

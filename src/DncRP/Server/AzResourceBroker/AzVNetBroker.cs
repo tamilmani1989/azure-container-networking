@@ -9,6 +9,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
     using System.Collections.Generic;
+    using System.IO;
+    using System.Net;
+    using System.Net.Http;
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Configuration;
@@ -83,6 +86,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         }
 
         /// <summary>
+        /// Gets the SAL detail resourceId for the subnet.
+        /// </summary>
+        /// <param name="subnetResourceId">The resourceId of the subnet.</param>
+        private string GetSALDetailResourceId(string subnetResourceId)
+        {
+            return $"{subnetResourceId.TrimEnd('/')}/ServiceAssociationLinks/{SalName}/Details/{SalDetailName}";
+        }
+
+        /// <summary>
         /// Get the virtual network.
         /// </summary>
         /// <param name="subscriptionId"></param>
@@ -113,52 +125,49 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="subnetResourceId">The resource Id of the subnet.</param>
         /// <param name="primaryContextRequestId">The primary context request Id.</param>
         /// <param name="secondaryContextRequestId">The secondary context request Id.</param>
-        public async Task<ServiceAssociationLink> CreateOrUpdateServiceAssociationLinkAsync(
+        public async Task<ServiceAssociationLinkDetail> GetOrCreateServiceAssociationLinkAsync(
             string subscriptionId,
             string parentResourceGuid,
-            string subnetResourceId,
-            Guid primaryContextRequestId,
-            Guid secondaryContextRequestId)
+            string subnetResourceId)
         {
-            if (primaryContextRequestId == Guid.Empty)
+            ServiceAssociationLink salRequest = null;
+            try
             {
-                throw new ArgumentNullException("primaryContextRequestId");
-            }
-
-            var sal = new ServiceAssociationLink
-            {
-                Properties = new ServiceAssociationLinkProperties
+                ServiceAssociationLinkDetail detail = await TryGetServiceAssociationLinkDetailAsync(subscriptionId, subnetResourceId);
+                if (detail != null && !String.IsNullOrEmpty(detail?.Properties?.PrimaryContextId))
                 {
-                    LinkedResourceType = LinkedResourceType
+                    return detail;
                 }
-            };
 
-            //sal.Properties.AllowDelete = true;
-            sal.Properties.Locations = new string[] { CurrentContext.AzureRegion };
-            sal.Properties.ParentResourceGuid = parentResourceGuid.ToString();
+                // Create the SAL
+                salRequest = CreateServiceAssociationLinkRequest(subscriptionId, parentResourceGuid, subnetResourceId);
 
-            sal.Properties.Details = new ServiceAssociationLinkDetail[]
-            {
-                new ServiceAssociationLinkDetail
+                ServiceAssociationLink salResponse = await PutResourceAsync<ServiceAssociationLink>(
+                            subscriptionId: subscriptionId,
+                            resourceId: this.GetSALResourceId(subnetResourceId),
+                            apiVersion: ApiVersion,
+                            requestBody: salRequest)
+                        .ConfigureAwait(continueOnCapturedContext: false);
+
+                // TODO: Handle response Provisioning State.
+                logger.LogInformation($"SAL Response: {salResponse}");
+
+                detail = await TryGetServiceAssociationLinkDetailAsync(subscriptionId, subnetResourceId);
+                if (detail == null || String.IsNullOrEmpty(detail?.Properties?.PrimaryContextId))
                 {
-                    Name = SalDetailName,
-                    Properties = new ServiceAssociationLinkDetailProperties()
+                    throw new Exception($"Failed to Get SAL detail for subnetResourceId:{subnetResourceId}, SALdetail: {detail}");
                 }
-            };
 
-            sal.Properties.Details[0].Properties.PrimaryContextRequestId = primaryContextRequestId.ToString();
-
-            if (secondaryContextRequestId != Guid.Empty)
-            {
-                sal.Properties.Details[0].Properties.SecondaryContextRequestId = secondaryContextRequestId.ToString();
+                return detail;
             }
-
-            return await PutResourceAsync<ServiceAssociationLink>(
-                        subscriptionId: subscriptionId,
-                        resourceId: this.GetSALResourceId(subnetResourceId),
-                        apiVersion: ApiVersion,
-                        requestBody: sal)
-                    .ConfigureAwait(continueOnCapturedContext: false);
+            catch (Exception ex)
+            {
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.InternalServerError,
+                    errorCode: ErrorResponseCode.ServiceAssociationLinkFailed,
+                    errorMessage: $"Failed to create SAL token, salRequest: {salRequest}, " +
+                    $"subnetResourceId:{subnetResourceId} internal ex: {ex}.");
+            }
         }
 
         /// <summary>
@@ -199,6 +208,89 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 action: "setResourceOwnership",
                 apiVersion: ApiVersion,
                 request: request);
+        }
+
+        /// <summary>
+        /// Deletes the service association link associated to this Subnet.
+        /// </summary>
+        /// <param name="subscriptionId">Subscription Id of the subnet.</param>
+        /// <param name="subnetResourceId">The resourceId of the subnet.</param>
+        public async void DeleteServiceAssociationLink(string subscriptionId, string subnetResourceId)
+        {
+            await this.DeleteResourceAsync<ServiceAssociationLink>(
+                subscriptionId,
+                resourceId: this.GetSALResourceId(subnetResourceId),
+                apiVersion: ApiVersion);
+        }
+
+        /// <summary>
+        /// Gets the service association link detail.
+        /// </summary>
+        /// <param name="subnetResourceId">The resource Id of the subnet</param>
+        public async Task<ServiceAssociationLinkDetail> TryGetServiceAssociationLinkDetailAsync(
+            string subscriptionId,
+            string subnetResourceId)
+        {
+            HttpResponseMessage httpResponse = await this.TryGetResourceAsync<ServiceAssociationLinkDetail>(
+                subscriptionId: subscriptionId,
+                resourceId: this.GetSALDetailResourceId(subnetResourceId),
+                apiVersion: ApiVersion);
+
+            if (httpResponse.StatusCode == HttpStatusCode.NotFound)
+            {
+                logger.LogInformation($"GetServiceAssociationLinkDetail not found for subnetResourceId:{subnetResourceId}");
+                return null;
+            }
+
+            if (!HttpStatusCodeCheck.IsSuccess(httpResponse.StatusCode))
+            {
+                throw new Exception($"ResponseMessage: {httpResponse.Content}, status code {httpResponse.StatusCode}, " +
+                   $"Reason: {httpResponse.ReasonPhrase}, " +
+                   $"Request: {httpResponse.RequestMessage}, ");
+            }
+
+            // Parse the response
+            if (httpResponse.Content == null ||
+                httpResponse.Content.Headers.ContentType.MediaType != "application/json")
+            {
+                throw new InvalidDataException($"Either Content is null or invalid content type '{httpResponse.Content}' returned. ");
+            }
+
+            var contentStream = await httpResponse.Content.ReadAsStringAsync();
+            return JsonUtility.Deserialize<ServiceAssociationLinkDetail>(contentStream, DeserializationSettings);
+        }
+
+        private ServiceAssociationLink CreateServiceAssociationLinkRequest(
+            string subscriptionId,
+            string parentResourceGuid,
+            string subnetResourceId)
+        {
+            var sal = new ServiceAssociationLink
+            {
+                Properties = new ServiceAssociationLinkProperties
+                {
+                    LinkedResourceType = LinkedResourceType
+                }
+            };
+
+            //sal.Properties.AllowDelete = true;
+            sal.Properties.Locations = new string[] { CurrentContext.AzureRegion };
+            sal.Properties.ParentResourceGuid = parentResourceGuid.ToString();
+
+            sal.Properties.Details = new ServiceAssociationLinkDetail[]
+            {
+                new ServiceAssociationLinkDetail
+                {
+                    Name = SalDetailName,
+                    Properties = new ServiceAssociationLinkDetailProperties()
+                }
+            };
+
+            sal.Properties.Details[0].Properties.PrimaryContextRequestId = Guid.NewGuid().ToString();
+            sal.Properties.Details[0].Properties.SecondaryContextRequestId = Guid.NewGuid().ToString();
+
+            logger.LogInformation($"Created ServiceAssociationLink: {sal}");
+            return sal;
         }
     }
 }

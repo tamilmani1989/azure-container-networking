@@ -37,5 +37,25 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         [JsonProperty]
         public ServiceAssociationLinkProperties Properties { get; set; }
+
+        /// <summary>
+        /// ToString
+        /// </summary>
+        /// <returns></returns>
+        public override string ToString()
+        {
+            string strMessage = $"ServiceAssociationLink: Id: {Id}, Name: {Name} ";
+            if (!string.IsNullOrEmpty(Etag))
+            {
+                strMessage += $" Etag: {Etag}";
+            }
+
+            if (Properties != null)
+            {
+                strMessage += $" Properties: {Properties}";
+            }
+
+            return strMessage;
+        }
     }
 }

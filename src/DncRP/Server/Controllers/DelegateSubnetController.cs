@@ -300,16 +300,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             // Create the SAL and generate the token
             string subnetResourceId = $"{VNetResourceId.TrimEnd('/')}/subnets/{subnet}";
-            Guid primaryTokenId = Guid.NewGuid();
-            Guid secondaryTokenId = Guid.NewGuid();
-            ServiceAssociationLink sal = await GetAzureVNetDataProvider().CreateOrUpdateServiceAssociationLinkAsync(
-                subscriptionId, vnetResourceGuid.ToString(), subnetResourceId, primaryTokenId, secondaryTokenId);
+            ServiceAssociationLinkDetail salDetail = await GetAzureVNetDataProvider().GetOrCreateServiceAssociationLinkAsync(
+                subscriptionId, vnetResourceGuid.ToString(), subnetResourceId);
 
             await tableOperations.SubnetTokenMapOperations.InsertOrUpdateAsync(
                     delegatedSubnetGuid,
                     subnet,
-                    primaryTokenId.ToString(),
-                    secondaryTokenId.ToString(),
+                    salDetail.Properties.PrimaryContextId,
+                    salDetail.Properties.SecondaryContextId,
                     vnetResourceGuid);
         }
 

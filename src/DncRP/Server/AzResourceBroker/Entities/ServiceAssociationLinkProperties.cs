@@ -56,5 +56,45 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         [JsonProperty]
         public string ProvisioningState { get; set; }
+
+        /// <summary>
+        /// ToString
+        /// </summary>
+        /// <returns></returns>
+        public override string ToString()
+        {
+            string strMessage = $"ServiceAssociationLinkProperties: ProvisioningState: {ProvisioningState}";
+            if (!string.IsNullOrEmpty(Link))
+            {
+                strMessage += $" Link: {Link}";
+            }
+
+            if (!string.IsNullOrEmpty(LinkedResourceType))
+            {
+                strMessage += $" LinkedResourceType: {LinkedResourceType}";
+            }
+
+            if (!string.IsNullOrEmpty(ParentResourceGuid))
+            {
+                strMessage += $" ParentResourceGuid: {ParentResourceGuid}";
+            }
+
+            if (AllowDelete != null)
+            {
+                strMessage += $" AllowDelete: {AllowDelete}";
+            }
+
+            if (Locations != null)
+            {
+                strMessage += $" Locations: {string.Join(",", Locations)}";
+            }
+
+            if (Details != null && Details.Count > 0)
+            {
+                strMessage += $" Details: {string.Join(",", Details)}";
+            }
+
+            return strMessage;
+        }
     }
 }

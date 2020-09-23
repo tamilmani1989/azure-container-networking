@@ -41,5 +41,30 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// SubnetAlreadyDelegatedToDifferentResource
         /// </summary>
         SubnetAlreadyDelegatedToDifferentResource,
+
+        /// <summary>
+        /// Cant update AssociatedSubnetId
+        /// </summary>
+        AssociatedSubnetIdChanged,
+
+        /// <summary>
+        /// Cant update associated ControllerId
+        /// </summary>
+        ControllerIdChanged,
+
+        /// <summary>
+        /// Invalid Associated SubnetId
+        /// </summary>
+        InvalidSubnetId,
+
+        /// <summary>
+        /// Delete SubnetTokenMap failed
+        /// </summary>
+        SubnetTokenMapDeleteFailed,
+
+        /// <summary>
+        /// Failed to create SAL token
+        /// </summary>
+        ServiceAssociationLinkFailed,
     }
 }
