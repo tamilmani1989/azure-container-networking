@@ -300,7 +300,7 @@ func getCertPath(ctx context.Context, kvc *ad.KeyvaultClient, certName string) (
 	ctx, cancel := context.WithTimeout(ctx, maxKeyvaultRetrievalTime*time.Second)
 	defer cancel()
 
-	bs, err := kvc.GetLatestCertificate(ctx, certName)
+	bs, err := kvc.GetLatestSecretPEM(ctx, certName)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch keyvault certificate: %v", err)
 	}

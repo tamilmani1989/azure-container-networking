@@ -72,7 +72,7 @@ func (kvc *KeyvaultClient) GetLatestSecretPEM(ctx context.Context, secretName st
 		return nil, fmt.Errorf("unexpected content type %q", *sb.ContentType)
 	}
 
-	return base64.StdEncoding.DecodeString(*sb.Value)
+	return []byte(*sb.Value), nil
 }
 
 // GetLatestSecretPKCS12 fetches the latest version of a secret and asserts it is PKCS12 (PFX) encoded.
