@@ -21,6 +21,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         Task<Controller> GetDncControllerAsync(string subId, string resourceGroup, string controllerName);
 
         /// <summary>
+        /// Get DNC controller using ARM controller ID as input
+        /// </summary>
+        /// <param name="armControllerId"></param>
+        /// <returns></returns>
+        Task<Controller> GetDncControllerAsync(string armControllerId);
+
+        /// <summary>
         /// Create a new DNC controller or replace an existing one
         /// </summary>
         /// <param name="subId"></param>

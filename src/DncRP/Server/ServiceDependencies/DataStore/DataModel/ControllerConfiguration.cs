@@ -8,12 +8,13 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.Net;
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.Cosmos.Table;
     using Microsoft.Extensions.Logging;
 
-    internal class ControllerConfiguration : IControllerConfiguration
+    public class ControllerConfiguration : IControllerConfiguration
     {
         private ITableDataStore dataStore;
         private const string resourceTableName = "ControllerResource";
@@ -74,6 +75,23 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                         DncEndpoint = mdncUri
                     }
                 });
+        }
+
+        /// <summary>
+        /// Get DNC controller using ARM controller ID as input
+        /// </summary>
+        /// <param name="armControllerId"></param>
+        /// <returns></returns>
+        public async Task<Controller> GetDncControllerAsync(string armControllerId)
+        {
+            Controller controller = null;
+            if (!Controller.TryParseController(armControllerId, out controller))
+            {
+                return Controller.CreateErrorResponse(
+                    "Invalid format for controller id", (int)HttpStatusCode.BadRequest, ErrorResponseCode.ControllerIdInvalidFormat);
+            }
+
+            return await this.GetDncControllerAsync(controller.SubscriptionId, controller.ResourceGroup, controller.Name);
         }
 
         /// <summary>

@@ -22,6 +22,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     using Newtonsoft.Json.Linq;
     using Xunit;
     using Match = System.Text.RegularExpressions.Match;
+    using Contracts = Microsoft.Azure.ContainerNetworking.DncRP;
 
     public class OrchestratorTests
     {
@@ -30,8 +31,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         private IConfiguration configuration;
         private ClientIdentity clientIdentity;
         private DatastoreSettings datastoreSettings;
+        private OrchestratorController orchController;
+        private DncController dncController;
         private const string settingsFileName = "servicetests.settings.json";
         private const string connectStrRegex = "RunAs=App;AppId=(.*);TenantId=(.*);AppKey=(.*)";
+        string location = "Test location";
 
         public OrchestratorTests()
         {
@@ -64,11 +68,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 ResourceGroup = this.testConfig.ResourceGroup,
                 Region = this.testConfig.AzureRegion
             };
-        }
 
-        [Fact]
-        public async void TestOrchestratorResource_Get_Put_Delete()
-        {
             CurrentContext.SetContext(this.configuration["AzureEnvironment"], this.configuration["AzureRegion"]);
             CurrentContext.SetManagedIdentity(clientIdentity);
 
@@ -79,28 +79,142 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Mock<ILogger<CosmosDbDataStore>> logger = new Mock<ILogger<CosmosDbDataStore>>();
             Mock<ILogger<TableOperations>> tableOpLogger = new Mock<ILogger<TableOperations>>();
             Mock<ILogger<OrchestratorController>> orchLogger = new Mock<ILogger<OrchestratorController>>();
+            Mock<ILogger<DncController>> dncCtrlLogger = new Mock<ILogger<DncController>>();
 
             CosmosDbDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
             dataStore.InitAsync().GetAwaiter().GetResult();
             ITableOperations tableOperations = new TableOperations(dataStore, tableOpLogger.Object);
-            OrchestratorController orchController = new OrchestratorController(tableOperations, orchLogger.Object);
+            this.orchController = new OrchestratorController(tableOperations, orchLogger.Object);
+            this.dncController = new DncController(tableOperations, dncCtrlLogger.Object);
+        }
 
+        [Fact]
+        public async void TestOrchestratorResource_Get_Put_Delete()
+        {
             string guid = Guid.NewGuid().ToString();
             string[] strs = guid.Split(new string[] { "-" }, StringSplitOptions.RemoveEmptyEntries);
             string rgName = strs[0];
-            string ctrlName = strs[1];
+            string orchName = strs[1];
+            string ctrlName = strs[2];
+            Orchestrator expectedOrch = new Orchestrator(this.testConfig.SubscriptionId, rgName, orchName);
 
-            // Get resource and validate results
-            ContentResult result = await orchController.GetOrchestratorResource(this.testConfig.SubscriptionId, rgName, ctrlName);
-            Assert.True(HttpStatusCodeCheck.IsInternalServerError((int)result.StatusCode));
+            // Get controller resource and validate results
+            ContentResult result = await dncController.GetDncResource(this.testConfig.SubscriptionId, rgName, ctrlName);
+            Assert.True(result.StatusCode == (int)HttpStatusCode.NotFound, "Resource exists but expectation is that it should not");
 
-            OrchestratorRequest request = new OrchestratorRequest
+            ControllerRequest request = new ControllerRequest
+            {
+                Properties = new ArmProperties
+                {
+                    Parameters = new ControllerRequestParameters
+                    {
+                        Location = location
+                    }
+                }
+            };
+
+            // Put controller resource and validate results
+            this.SetControllerHttpContext(dncController, this.testConfig.SubscriptionId, rgName, ctrlName, HttpMethod.Put, request);
+            result = await dncController.PutDncResource(this.testConfig.SubscriptionId, rgName, ctrlName);
+            Assert.True(HttpStatusCodeCheck.IsSuccess((int)result.StatusCode), "PutDncResource failed");
+            Assert.True(result.StatusCode == (int)HttpStatusCode.OK, "PutDncResource failed created status check");
+
+            // Get controller resource and validate results
+            result = await orchController.GetOrchestratorResource(this.testConfig.SubscriptionId, rgName, orchName);
+            Assert.True(HttpStatusCodeCheck.IsResourceNotFound((int)result.StatusCode));
+
+            OrchestratorRequest orchRequest = this.GetOrchestratorObject(this.GetControllerArmId(this.testConfig.SubscriptionId, rgName, ctrlName));
+
+            // Put orchestrator resource and validate results
+            this.SetOrchestratorHttpContext(orchController, this.testConfig.SubscriptionId, rgName, orchName, HttpMethod.Put, orchRequest);
+            result = await orchController.PutOrchestratorResource(this.testConfig.SubscriptionId, rgName, orchName);
+            Assert.True(HttpStatusCodeCheck.IsSuccess((int)result.StatusCode));
+            this.ValidateOrchestratorResponse(result.Content, orchRequest, expectedOrch);
+
+            // Get after Put. Get orchestrator resource and validate results
+            result = await orchController.GetOrchestratorResource(this.testConfig.SubscriptionId, rgName, orchName);
+            Assert.True(HttpStatusCodeCheck.IsSuccess((int)result.StatusCode));
+            this.ValidateOrchestratorResponse(result.Content, orchRequest, expectedOrch);
+
+            // Delete orchestrator resouce and validate result
+            result = await orchController.DeleteOrchestratorResource(this.testConfig.SubscriptionId, rgName, orchName);
+            Assert.True(HttpStatusCodeCheck.IsSuccess((int)result.StatusCode));
+
+            // Delete controller resouce and validate result
+            result = await dncController.DeleteDncResource(this.testConfig.SubscriptionId, rgName, ctrlName);
+            Assert.True(HttpStatusCodeCheck.IsSuccess((int)result.StatusCode));
+        }
+
+        [Fact]
+        public async void TestOrchestratorResource_Invalid_ControllerId()
+        {
+            string guid = Guid.NewGuid().ToString();
+            string[] strs = guid.Split(new string[] { "-" }, StringSplitOptions.RemoveEmptyEntries);
+            string rgName = strs[0];
+            string orchName = strs[1];
+            string ctrlName = strs[2];
+
+            // Get controller resource and validate results
+            ContentResult result = await orchController.GetOrchestratorResource(this.testConfig.SubscriptionId, rgName, orchName);
+            Assert.True(HttpStatusCodeCheck.IsResourceNotFound((int)result.StatusCode));
+
+            OrchestratorRequest orchRequest = this.GetOrchestratorObject(this.GetInvalidControllerArmId());
+
+            // Put orchestrator resource and validate results
+            this.SetOrchestratorHttpContext(orchController, this.testConfig.SubscriptionId, rgName, orchName, HttpMethod.Put, orchRequest);
+            result = await orchController.PutOrchestratorResource(this.testConfig.SubscriptionId, rgName, orchName);
+            Assert.True(HttpStatusCodeCheck.IsBadRequest((int)result.StatusCode));
+
+            int badRequest = (int)HttpStatusCode.BadRequest;
+            ErrorDetails errorDetails = JsonUtility.Deserialize<ErrorDetails>(result.Content);
+            Assert.True(errorDetails.ErrorResponse.Error.Code == badRequest.ToString());
+            Assert.True(errorDetails.ErrorResponse.Error.Message.Contains(
+                ErrorResponseCode.ControllerIdInvalidFormat.ToString(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void SetOrchestratorHttpContext(
+            OrchestratorController controller, string subId, string resourceGroup, string resourceName, HttpMethod method,
+            OrchestratorRequest request)
+        {
+            controller.ControllerContext = new ControllerContext();
+            controller.ControllerContext.HttpContext = new DefaultHttpContext();
+            controller.ControllerContext.HttpContext.Request.Host = new HostString($"localhost:5002");
+            controller.ControllerContext.HttpContext.Request.Path = new PathString($"/subscriptions/{subId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/orchestratorInstances/{resourceName}");
+            controller.ControllerContext.HttpContext.Request.Method = method.ToString();
+            controller.ControllerContext.HttpContext.Request.PathBase = "";
+            controller.ControllerContext.HttpContext.Request.Scheme = "https";
+
+            string json = JsonUtility.Serialize(request);
+            MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            controller.ControllerContext.HttpContext.Request.Body = stream;
+        }
+
+        private void SetControllerHttpContext(
+           DncController controller, string subId, string resourceGroup, string controllerName, HttpMethod method,
+           ControllerRequest request)
+        {
+            controller.ControllerContext = new ControllerContext();
+            controller.ControllerContext.HttpContext = new DefaultHttpContext();
+            controller.ControllerContext.HttpContext.Request.Host = new HostString($"localhost:5002");
+            controller.ControllerContext.HttpContext.Request.Path = new PathString($"/subscriptions/{subId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/controller/{controllerName}");
+            controller.ControllerContext.HttpContext.Request.Method = method.ToString();
+            controller.ControllerContext.HttpContext.Request.PathBase = "";
+            controller.ControllerContext.HttpContext.Request.Scheme = "https";
+
+            string json = JsonUtility.Serialize(request);
+            MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            controller.ControllerContext.HttpContext.Request.Body = stream;
+        }
+
+        private OrchestratorRequest GetOrchestratorObject(string controllerArmId)
+        {
+            return new OrchestratorRequest
             {
                 Properties = new OrchestratorArmProperties
                 {
                     Parameters = new OrchestratorRequestParameters
                     {
-                        Location = "TestLocation",
+                        Location = location,
                         Properties = new OrchestratorProperties
                         {
                             orchestratorInstanceDetails = new OrchestratorInstanceDetails
@@ -116,42 +230,39 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                             },
                             ControllerDetails = new ControllerDetails
                             {
-                                Id = ""
+                                Id = controllerArmId
                             }
                         }
                     }
                 }
             };
-
-            // Put resource and validate results
-            this.SetHttpContext(orchController, this.testConfig.SubscriptionId, rgName, ctrlName, HttpMethod.Put, request);
-            result = await orchController.PutOrchestratorResource(this.testConfig.SubscriptionId, rgName, ctrlName);
-            Assert.True(HttpStatusCodeCheck.IsInternalServerError((int)result.StatusCode));
-
-            // Get after Put. Get resource and validate results
-            result = await orchController.GetOrchestratorResource(this.testConfig.SubscriptionId, rgName, ctrlName);
-            Assert.True(HttpStatusCodeCheck.IsInternalServerError((int)result.StatusCode));
-
-            // Delete resouce and validate result
-            result = await orchController.DeleteOrchestratorResource(this.testConfig.SubscriptionId, rgName, ctrlName);
-            Assert.True(HttpStatusCodeCheck.IsInternalServerError((int)result.StatusCode));
         }
 
-        private void SetHttpContext(
-            OrchestratorController controller, string subId, string resourceGroup, string resourceName, HttpMethod method,
-            OrchestratorRequest request)
+        private string GetControllerArmId(string subId, string rgName, string ctrlName)
         {
-            controller.ControllerContext = new ControllerContext();
-            controller.ControllerContext.HttpContext = new DefaultHttpContext();
-            controller.ControllerContext.HttpContext.Request.Host = new HostString($"localhost:5002");
-            controller.ControllerContext.HttpContext.Request.Path = new PathString($"/subscriptions/{subId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/orchestratorInstances/{resourceName}");
-            controller.ControllerContext.HttpContext.Request.Method = method.ToString();
-            controller.ControllerContext.HttpContext.Request.PathBase = "";
-            controller.ControllerContext.HttpContext.Request.Scheme = "https";
+            Contracts.Controller ctlr = new Contracts.Controller(subId, rgName, ctrlName);
+            return ctlr.Id;
+        }
 
-            string json = JsonUtility.Serialize(request);
-            MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            controller.ControllerContext.HttpContext.Request.Body = stream;
+        private string GetInvalidControllerArmId()
+        {
+            return "/subscriptions/resourceGroups/Microsoft.DelegatedNetwork/controller/ctrlName";
+        }
+
+        private void ValidateOrchestratorResponse(string jsonResponse, OrchestratorRequest orchRequest, Orchestrator orch)
+        {
+            JObject jsonDeserialized = JObject.Parse(jsonResponse);
+            Assert.True(jsonDeserialized["id"].ToString().Equals(orch.Id));
+            Assert.True(jsonDeserialized["name"].ToString().Equals(orch.Name));
+            Assert.True(jsonDeserialized["location"].ToString().Equals(location));
+            Assert.True(jsonDeserialized["type"].ToString().Equals(orch.Type));
+            Assert.True(jsonDeserialized["properties"]["state"].ToString().Equals(ProvisioningState.Succeeded.ToString()));
+            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["resourceGuid"].ToString()));
+            Assert.True(jsonDeserialized["properties"]["orchestratorInstanceDetails"]["orchestratorType"].ToString().Equals(orchRequest.Properties.Parameters.Properties.orchestratorInstanceDetails.Type.ToString()));
+            Assert.True(jsonDeserialized["properties"]["orchestratorInstanceDetails"]["properties"]["orchestratorAppID"].ToString().Equals(orchRequest.Properties.Parameters.Properties.orchestratorInstanceDetails.Properties.AppId));
+            Assert.True(jsonDeserialized["properties"]["orchestratorInstanceDetails"]["properties"]["orchestratorTenantID"].ToString().Equals(orchRequest.Properties.Parameters.Properties.orchestratorInstanceDetails.Properties.TenantId));
+            Assert.True(jsonDeserialized["properties"]["orchestratorInstanceDetails"]["properties"]["clusterRootCA"].ToString().Equals(orchRequest.Properties.Parameters.Properties.orchestratorInstanceDetails.Properties.ClusterRootCA));
+            Assert.True(jsonDeserialized["properties"]["orchestratorInstanceDetails"]["properties"]["apiServerEndpoint"].ToString().Equals(orchRequest.Properties.Parameters.Properties.orchestratorInstanceDetails.Properties.ApiServerEndpoint));
         }
     }
 }

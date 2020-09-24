@@ -7,6 +7,8 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using System.Collections.Generic;
+
     public class Controller : TopLevelResource
     {
         /// <summary>
@@ -50,6 +52,45 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     StatusCode = httpStatusCode
                 }
             };
+        }
+
+        public static Controller CreateErrorResponse(string errorMessage, int httpStatusCode, ErrorResponseCode apiErrorCode)
+        {
+            return new Controller
+            {
+                Error = new TopLevelResourceError
+                {
+                    Error = errorMessage,
+                    StatusCode = httpStatusCode,
+                    ErrorResponseCode = apiErrorCode
+                }
+            };
+        }
+
+        /// <summary>
+        /// Get controller resouce by parsing ARM resource id
+        /// </summary>
+        /// <param name="armResourceId"></param>
+        /// <param name="controller"></param>
+        /// <returns></returns>
+        public static bool TryParseController(string armResourceId, out Controller controller)
+        {
+            Dictionary<string, string> dict = null;
+            if (!TryParseResourceId(armResourceId, out dict))
+            {
+                controller = null;
+                return false;
+            }
+
+            controller = new Controller
+            {
+                SubscriptionId = dict[ResourceConstants.SubscriptionId],
+                ResourceGroup = dict[ResourceConstants.ResourceGroup],
+                Name = dict[ResourceConstants.ResourceName],
+                Type = dict[ResourceConstants.ProviderType]
+            };
+
+            return true;
         }
     }
 }

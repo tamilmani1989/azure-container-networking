@@ -10,6 +10,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using System.Collections.Generic;
     using Newtonsoft.Json;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
+    using System.Text;
 
     public class ErrorDefinition
     {
@@ -102,6 +103,36 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     Error = new ErrorDefinition
                     {
                         Message = errorMessage,
+                        Code = errorCode.ToString()
+                    }
+                }
+            };
+
+            return JsonUtility.Serialize(details);
+        }
+
+        /// <summary>
+        /// Creates a ARM compatible Json schema with error message and code
+        /// </summary>
+        /// <param name="errorMessage"></param>
+        /// <param name="errorCode"></param>
+        /// <param name="apiErrorCode"></param>
+        /// <returns></returns>
+        public static string CreateErrorAsJson(string errorMessage, int errorCode, string apiErrorCode)
+        {
+            StringBuilder sb = new StringBuilder(errorMessage);
+            if (!string.IsNullOrWhiteSpace(apiErrorCode))
+            {
+                sb.Append($". InternalErrorResponse: {apiErrorCode}");
+            }
+
+            ErrorDetails details = new ErrorDetails
+            {
+                ErrorResponse = new ErrorResponse
+                {
+                    Error = new ErrorDefinition
+                    {
+                        Message = sb.ToString(),
                         Code = errorCode.ToString()
                     }
                 }

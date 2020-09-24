@@ -42,12 +42,18 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
         public static Orchestrator CreateErrorResponse(string errorMessage, int httpStatusCode)
         {
+            return CreateErrorResponse(errorMessage, httpStatusCode, ErrorResponseCode.None);
+        }
+
+        public static Orchestrator CreateErrorResponse(string errorMessage, int httpStatusCode, ErrorResponseCode apiErrorCode)
+        {
             return new Orchestrator
             {
                 Error = new TopLevelResourceError
                 {
                     Error = errorMessage,
-                    StatusCode = httpStatusCode
+                    StatusCode = httpStatusCode,
+                    ErrorResponseCode = apiErrorCode
                 }
             };
         }

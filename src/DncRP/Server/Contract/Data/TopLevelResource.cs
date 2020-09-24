@@ -6,6 +6,9 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Text.RegularExpressions;
     using Newtonsoft.Json;
 
     public abstract class TopLevelResource
@@ -110,6 +113,26 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         protected string GetFullyQualifiedResourceId()
         { 
             return $"/subscriptions/{SubscriptionId}/resourceGroups/{ResourceGroup}/providers/{Type}/{Name}";
+        }
+
+        protected static bool TryParseResourceId(string armResourceId, out Dictionary<string, string> resourceParts)
+        {
+            string regexStr = "/subscriptions/(.*)/resourceGroups/(.*)/providers/(.*)/(.*)";
+
+            Match match = Regex.Match(armResourceId, regexStr);
+            if (!match.Success)
+            {
+                resourceParts = null;
+                return match.Success;
+            }
+
+            resourceParts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            resourceParts[ResourceConstants.SubscriptionId] = match.Groups[1].Value;
+            resourceParts[ResourceConstants.ResourceGroup] = match.Groups[2].Value;
+            resourceParts[ResourceConstants.ProviderType] = match.Groups[3].Value;
+            resourceParts[ResourceConstants.ResourceName] = match.Groups[4].Value;
+
+            return match.Success;
         }
     }
 }

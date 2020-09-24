@@ -66,5 +66,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// Failed to create SAL token
         /// </summary>
         ServiceAssociationLinkFailed,
+
+        /// Controller ARM ID is not in correct format
+        /// </summary>
+        ControllerIdInvalidFormat
     }
 }

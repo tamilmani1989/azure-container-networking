@@ -45,7 +45,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             subnetTokenMapOperation = new SubnetTokenMapOperations(dataStore, logger);
             controllerConfiguration = new ControllerConfiguration(dataStore, logger);
             delegatedSubnetConfiguration = new DelegatedSubnetConfigurationOperations(dataStore, logger);
-            orchestratorOperations = new OrchestratorOperations(dataStore, logger);
+            orchestratorOperations = new OrchestratorOperations(dataStore, logger, controllerConfiguration);
         }
 
         /// <summary>

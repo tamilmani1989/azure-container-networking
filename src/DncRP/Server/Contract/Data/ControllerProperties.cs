@@ -20,14 +20,20 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
     public class ControllerPropertiesDetails
     {
-        [JsonProperty("appId")]
+        [JsonProperty("dncAppId")]
         public string DncAppId
         {
             get; set;
         }
 
-        [JsonProperty("endpoint")]
+        [JsonProperty("dncEndpoint")]
         public string DncEndpoint
+        {
+            get; set;
+        }
+
+        [JsonProperty("dncTenantId")]
+        public string DncTenantId
         {
             get; set;
         }

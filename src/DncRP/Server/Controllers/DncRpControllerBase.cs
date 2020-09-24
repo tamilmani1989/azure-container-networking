@@ -87,7 +87,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             if (response.Error != null)
             {
-                string jsonError = ErrorDetails.CreateErrorAsJson(response.Error.Error, response.Error.StatusCode);
+                string apiErrorCode = response.Error.ErrorResponseCode == ErrorResponseCode.None
+                    ? string.Empty
+                    : response.Error.ErrorResponseCode.ToString();
+
+                string jsonError = ErrorDetails.CreateErrorAsJson(
+                    response.Error.Error, response.Error.StatusCode, apiErrorCode);
                 int errorCode = (int)response.Error.StatusCode;
                 logger.LogError("Error in API {0}. Code:{1}, ErrorMsg:{2}", methodNameForLogging, errorCode, jsonError);
 

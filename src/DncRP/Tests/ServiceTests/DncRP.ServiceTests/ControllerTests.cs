@@ -124,8 +124,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["type"].ToString()));
             Assert.True(jsonDeserialized["properties"]["state"].ToString().Equals(ProvisioningState.Succeeded.ToString()));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["resourceGuid"].ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["appId"].ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["endpoint"].ToString()));
+            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["dncAppId"].ToString()));
+            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["dncEndpoint"].ToString()));
 
             // Get after Put
             // Get resource and validate results
@@ -139,8 +139,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["type"].ToString()));
             Assert.True(jsonDeserialized["properties"]["state"].ToString().Equals(ProvisioningState.Succeeded.ToString()));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["resourceGuid"].ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["appId"].ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["endpoint"].ToString()));
+            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["dncAppId"].ToString()));
+            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["dncEndpoint"].ToString()));
 
             // Delete resouce and validate result
             result = await dncController.DeleteDncResource(this.testConfig.SubscriptionId, rgName, ctrlName);
