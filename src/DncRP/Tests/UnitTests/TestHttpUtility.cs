@@ -83,6 +83,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             }
             if (typeof(T) == typeof(ServiceAssociationLink))
             {
+                if (requestMessage.Method == HttpMethod.Delete)
+                {
+                    return (T)default;
+                }
+
                 var contentStream = await requestMessage.Content.ReadAsStringAsync();
                 object serviceAssociationLink = JsonUtility.Deserialize<ServiceAssociationLink>(contentStream);
                 ServiceAssociationLink sal = serviceAssociationLink as ServiceAssociationLink;

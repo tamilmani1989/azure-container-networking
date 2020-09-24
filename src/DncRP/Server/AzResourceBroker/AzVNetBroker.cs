@@ -8,13 +8,11 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
-    using System.Collections.Generic;
     using System.IO;
     using System.Net;
     using System.Net.Http;
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
-    using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
     using NetworkModel = Microsoft.Azure.Management.Network.Models;
 
@@ -215,9 +213,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <param name="subscriptionId">Subscription Id of the subnet.</param>
         /// <param name="subnetResourceId">The resourceId of the subnet.</param>
-        public async void DeleteServiceAssociationLink(string subscriptionId, string subnetResourceId)
+        public async Task<ServiceAssociationLink> DeleteServiceAssociationLinkAsync(string subscriptionId, string subnetResourceId)
         {
-            await this.DeleteResourceAsync<ServiceAssociationLink>(
+            return await this.DeleteResourceAsync<ServiceAssociationLink>(
                 subscriptionId,
                 resourceId: this.GetSALResourceId(subnetResourceId),
                 apiVersion: ApiVersion);
@@ -236,7 +234,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 resourceId: this.GetSALDetailResourceId(subnetResourceId),
                 apiVersion: ApiVersion);
 
-            if (httpResponse.StatusCode == HttpStatusCode.NotFound)
+            if (HttpStatusCodeCheck.IsResourceNotFound(httpResponse.StatusCode))
             {
                 logger.LogInformation($"GetServiceAssociationLinkDetail not found for subnetResourceId:{subnetResourceId}");
                 return null;

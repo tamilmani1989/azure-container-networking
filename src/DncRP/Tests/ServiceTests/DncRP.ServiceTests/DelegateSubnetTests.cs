@@ -114,8 +114,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             await GetAndValidateDelegateSubnetAsync(delegateSubnetController, 
                 subscriptionId,
                 resourceGroup,
-                vnetName,
-                subnetName,
                 resourceName,
                 HttpStatusCode.NotFound);
 
@@ -135,8 +133,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             response = await GetAndValidateDelegateSubnetAsync(delegateSubnetController,
                 subscriptionId,
                 resourceGroup,
-                vnetName,
-                subnetName,
                 resourceName,
                 HttpStatusCode.OK,
                 response);
@@ -153,34 +149,43 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 HttpStatusCode.OK,
                 response);
 
-            // Failed to Put DelegateSubnet again using different ResurceName
-            await PutAndValidateAsync(
-                delegateSubnetController,
+            // TODO Failed to Put DelegateSubnet again using different ResurceName
+            //await PutAndValidateAsync(
+            //    delegateSubnetController,
+            //    subscriptionId,
+            //    resourceGroup,
+            //    vnetName,
+            //    subnetName,
+            //    "TestResource2",
+            //    HttpStatusCode.BadRequest,
+            //    response);
+
+            // Delete the DelegateSubnet
+            await delegateSubnetController.DeleteDelegateSubnet(
                 subscriptionId,
                 resourceGroup,
-                vnetName,
-                subnetName,
-                "TestResource2",
-                HttpStatusCode.BadRequest,
-                response);
+                resourceName);
+
+            // Get resource and validate results
+            await GetAndValidateDelegateSubnetAsync(delegateSubnetController,
+                subscriptionId,
+                resourceGroup,
+                resourceName,
+                HttpStatusCode.NotFound);
         }
 
         private async Task<DelegateSubnetResponse> GetAndValidateDelegateSubnetAsync(
             DelegateSubnetController delegateSubnetController,
             string subscriptionId,
             string resourceGroup,
-            string vnetName,
-            string subnetName,
             string resourceName,
             HttpStatusCode expectedStatusCode,
             DelegateSubnetResponse previousResponse = null)
         {
-            this.SetHttpContext(delegateSubnetController, subscriptionId, resourceGroup, vnetName, subnetName, resourceName, HttpMethod.Get, null);
+            this.SetHttpContext(delegateSubnetController, subscriptionId, resourceGroup, resourceName, HttpMethod.Get, null);
             ContentResult result = await delegateSubnetController.GetDelegateSubnet(
                 subscriptionId,
                 resourceGroup,
-                vnetName,
-                subnetName,
                 resourceName);
             Assert.True(result.StatusCode == (int)expectedStatusCode,
                 $"Failed GetDelegateSubnet, expectedCode: {(int)expectedStatusCode}, actual: {result.StatusCode} result: {result}");
@@ -204,12 +209,32 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             HttpStatusCode expectedStatusCode,
             DelegateSubnetResponse previousResponse = null)
         {
-            this.SetHttpContext(delegateSubnetController, subscriptionId, resourceGroup, vnetName, subnetName, resourceName, HttpMethod.Put, null);
+            DelegateSubnetRequest request = new DelegateSubnetRequest()
+            {
+                Properties = new DeletagetSubnetArmProperties()
+                {
+                    Parameters = new DelegateRequestParameters()
+                    {
+                        Location = CurrentContext.AzureRegion,
+                        Properties = new DelegateSubnetRequestProperties()
+                        {
+                            SubnetDetails = new SubnetDetails()
+                            {
+                                Id = $"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.Network/virtualNetworks/{vnetName}/subnets/{subnetName}"
+                            },
+                            ControllerDetails = new ControllerDetails()
+                            {
+                                Id = $"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/controller/TestController"
+                            }
+                        }
+                    }
+                }
+            };
+
+            this.SetHttpContext(delegateSubnetController, subscriptionId, resourceGroup, resourceName, HttpMethod.Put, request);
             ContentResult result = await delegateSubnetController.PutDelegateSubnet(
                 subscriptionId,
                 resourceGroup,
-                vnetName,
-                subnetName,
                 resourceName);
 
             Assert.True(result.StatusCode == (int)expectedStatusCode,
@@ -217,26 +242,41 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             DelegateSubnetResponse response = null;
             if (expectedStatusCode == HttpStatusCode.OK)
             {
-                response = ValidateDelegateResponse(result, previousResponse);
+                response = ValidateDelegateResponse(result, previousResponse, request);
             }
 
             return response;
         }
 
-        private DelegateSubnetResponse ValidateDelegateResponse(ContentResult result, DelegateSubnetResponse previousResponse)
+        private DelegateSubnetResponse ValidateDelegateResponse(ContentResult result, DelegateSubnetResponse previousResponse, DelegateSubnetRequest request = null)
         {
             DelegateSubnetResponse response = JsonUtility.Deserialize<DelegateSubnetResponse>(result.Content);
             Console.WriteLine($"DelegateSubnet Response: {response}");
 
             Assert.True(!string.IsNullOrWhiteSpace(response.Id));
             Assert.True(!string.IsNullOrWhiteSpace(response.Name));
-            Assert.True(!string.IsNullOrWhiteSpace(response.Location));
             Assert.True(!string.IsNullOrWhiteSpace(response.Type));
+            Assert.True(response.Location == CurrentContext.AzureRegion);
+
             Assert.NotNull(response.Properties);
             DelegateSubnetResponseProperties properties = response.Properties as DelegateSubnetResponseProperties;
 
-            //Assert.True(properties.State.Equals(ProvisioningState.Succeeded));
+            Assert.True(properties.State.Equals(ProvisioningState.Succeeded.ToString()));
             Assert.True(!string.IsNullOrWhiteSpace(properties.ResourceGuid));
+            Assert.NotNull(properties.SubnetDetails);
+            Assert.True(!string.IsNullOrWhiteSpace(properties.SubnetDetails.Id));
+
+            Assert.NotNull(properties.ControllerDetails);
+            Assert.True(!string.IsNullOrWhiteSpace(properties.ControllerDetails.Id));
+
+            if (request != null)
+            {
+                Assert.True(properties.SubnetDetails.Id == request.Properties.Parameters.Properties.SubnetDetails.Id,
+                    $" Latest Subnet Id: {properties.SubnetDetails.Id}, Previous SubnetId Id: {request.Properties.Parameters.Properties.SubnetDetails.Id}");
+
+                Assert.True(properties.ControllerDetails.Id == request.Properties.Parameters.Properties.ControllerDetails.Id,
+                    $" Latest Controller Id: {properties.ControllerDetails.Id}, Previous Controller Id: {request.Properties.Parameters.Properties.ControllerDetails.Id}");
+            }
 
             if (previousResponse != null)
             {
@@ -261,8 +301,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             DelegateSubnetController controller, 
             string subId, 
             string resourceGroup, 
-            string vnetName,
-            string subnet,
             string resourceName,
             HttpMethod method,
             DelegateSubnetRequest request)
@@ -270,7 +308,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             controller.ControllerContext = new ControllerContext();
             controller.ControllerContext.HttpContext = new DefaultHttpContext();
             controller.ControllerContext.HttpContext.Request.Host = new HostString($"localhost:5002");
-            controller.ControllerContext.HttpContext.Request.Path = new PathString($"/subscriptions/{subId}/resourceGroups/{resourceGroup}/providers/Microsoft.Network/virtualNetworks/{vnetName}/subnets/{subnet}/providers/Microsoft.DelegatedNetwork/delegatedSubnets/{resourceName}");
+            controller.ControllerContext.HttpContext.Request.Path = new PathString($"/subscriptions/{subId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/delegatedSubnets/{resourceName}");
             controller.ControllerContext.HttpContext.Request.Method = method.ToString();
             controller.ControllerContext.HttpContext.Request.PathBase = "";
             controller.ControllerContext.HttpContext.Request.Scheme = "https";

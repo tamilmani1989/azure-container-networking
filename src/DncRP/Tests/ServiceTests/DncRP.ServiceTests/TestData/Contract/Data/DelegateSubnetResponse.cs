@@ -21,6 +21,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         /// </summary>
         [JsonProperty(Required = Required.Default, PropertyName = "state")]
         public string State { get; set; }
+
+        [JsonProperty("subnetDetails")]
+        public SubnetDetails SubnetDetails { get; set; }
+
+        [JsonProperty("controllerDetails")]
+        public ControllerDetails ControllerDetails { get; set; }
     }
 
     /// <summary>

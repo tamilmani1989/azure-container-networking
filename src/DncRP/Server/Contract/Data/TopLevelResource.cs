@@ -101,18 +101,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public TopLevelResourceError Error { get; set; }
 
         /// <summary>
-        /// Gets or sets if this Resource is an Extension resource.
-        /// </summary>
-        [JsonIgnore]
-        protected bool isExtensionResource { get; set; }
-
-        /// <summary>
-        /// ParentResource Id, only set if isExtensionResource is set
-        /// </summary>
-        [JsonIgnore]
-        protected string parentResourceId { get; set; }
-
-        /// <summary>
         /// Gets the fully qualified resource identifier.
         /// </summary>
         /// <param name="subscriptionId">The subscription identifier.</param>
@@ -120,12 +108,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceType">The type.</param>
         /// <param name="resourceName">Name of the fully qualified.</param>
         protected string GetFullyQualifiedResourceId()
-        {
-            if (isExtensionResource)
-            {
-                return $"/subscriptions/{SubscriptionId}/resourceGroups/{ResourceGroup}/providers/{parentResourceId}/providers/{Type}/{Name}";
-            }
-
+        { 
             return $"/subscriptions/{SubscriptionId}/resourceGroups/{ResourceGroup}/providers/{Type}/{Name}";
         }
     }

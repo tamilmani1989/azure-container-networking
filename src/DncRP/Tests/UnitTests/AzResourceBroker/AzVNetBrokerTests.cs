@@ -49,7 +49,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         /// TODO: Create a TestHost which can validate the Request/Response
         /// </summary>
         [Fact]
-        public async void Test_SetServiceAssociationLink()
+        public async void Test_Set_Delete_ServiceAssociationLink()
         {
             Guid vnetId = Guid.NewGuid();
             const string subscriptionId = "subId";
@@ -79,6 +79,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
                 subnetResourceId);
 
             Assert.NotNull(sal);
+
+            await azVNetBroker.DeleteServiceAssociationLinkAsync(subscriptionId, subnetResourceId);
         }
 
         /// <summary>

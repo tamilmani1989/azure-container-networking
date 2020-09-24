@@ -66,7 +66,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 subId, resourceGroup, controllerName, resourceEntity.Location,
                 new ControllerProperties
                 {
-                    State = this.ToRequestState(resourceEntity.State),
+                    State = TopLevelResourceProperties.ParseProvisioningState(resourceEntity.State),
                     ResourceGuid = resourceEntity.ResouceGuid,
                     PropertiesList = new ControllerPropertiesDetails
                     {
@@ -139,7 +139,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 subId, resourceGroup, controllerName, resourceEntity.Location,
                 new ControllerProperties
                 {
-                    State = this.ToRequestState(resourceEntity.State),
+                    State = TopLevelResourceProperties.ParseProvisioningState(resourceEntity.State),
                     ResourceGuid = resourceEntity.ResouceGuid,
                     PropertiesList = JsonUtility.Deserialize<ControllerPropertiesDetails>(resourceEntity.Properties)
                 });
@@ -192,16 +192,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             return new Controller(subId, resourceGroup, controllerName);
-        }
-
-        /// <summary>
-        /// Convert state to enum
-        /// </summary>
-        /// <param name="state"></param>
-        /// <returns></returns>
-        private ProvisioningState ToRequestState(string state)
-        {
-            return (ProvisioningState)Enum.Parse(typeof(ProvisioningState), state, true);
         }
     }
 }

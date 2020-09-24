@@ -39,5 +39,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         Task<bool> SubnetTokenExistsAsync(
             string delegatedSubnetId,
             string subnet);
+
+        /// <summary>
+        /// Delete the SubnetTokenMap entity if exists.
+        /// </summary>
+        /// <param name="delegatedSubnetId"></param>
+        /// <param name="subnet"></param>
+        /// <returns></returns>
+        Task DeleteAsync(
+            string delegatedSubnetId,
+            string subnet);
     }
 }

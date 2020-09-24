@@ -35,11 +35,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
 
             deserializeSettings = new JsonSerializerSettings
             {
-                DateTimeZoneHandling = DateTimeZoneHandling.Utc,
-                Converters = new List<JsonConverter>
-                {
-                    new StringEnumConverter()
-                }
+                DateTimeZoneHandling = DateTimeZoneHandling.Utc
             };
 
             serializationsettingsTypeHandling = new JsonSerializerSettings

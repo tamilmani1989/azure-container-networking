@@ -8,6 +8,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using Newtonsoft.Json;
+    using System;
 
     public class TopLevelResourceProperties
     {
@@ -22,5 +23,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         [JsonProperty(Required = Required.Default, PropertyName = "state")]
         public ProvisioningState State { get; set; }
+
+        /// <summary>
+        /// Convert state to enum
+        /// </summary>
+        /// <param name="state"></param>
+        /// <returns></returns>
+        public static ProvisioningState ParseProvisioningState(string state)
+        {
+            return (ProvisioningState)Enum.Parse(typeof(ProvisioningState), state, true);
+        }
     }
 }

@@ -27,7 +27,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.ResourceGroup = resourceGroup;
             this.Name = resourceName;
 
-            this.isExtensionResource = false;
             this.Type = OrchestratorResourceType;
         }
 

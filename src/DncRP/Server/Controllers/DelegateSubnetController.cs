@@ -17,8 +17,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using Microsoft.Azure.Management.Network.Models;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Newtonsoft.Json;
+    using System.IO;
+    using System.Collections.Generic;
 
-    [Route("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.Network/virtualNetworks/{vnetName}/subnets/{subnet}/providers/Microsoft.DelegatedNetwork/delegatedSubnets/{delegatedSubnetName}")]
+    [Route("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/delegatedSubnets/{resourceName}")]
     public class DelegateSubnetController : DncRpControllerBase<DelegateSubnetController>
     {
         private IHttpUtility httpUtility;
@@ -41,17 +43,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <param name="subscriptionId">subscription id</param>
         /// <param name="resourceGroup">resource group name</param>
-        /// <param name="vnetName">VirtualNetwork name</param>
-        /// <param name="subnet">Subnet name</param>
-        /// <param name="delegatedId">Delegated subnet resource name</param>
+        /// <param name="resourceName">resourceName name</param>
         /// <returns></returns>
         [HttpGet]
         public async Task<ContentResult> GetDelegateSubnet(
             string subscriptionId,
             string resourceGroup,
-            string vnetName,
-            string subnet,
-            string delegatedSubnetName)
+            string resourceName)
         {
             this.logger.LogInformation($"GetDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
 
@@ -65,9 +63,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 DelegateSubnet delegatedSubnet = await tableOperations.DelegatedSubnetConfigurationOperations.TryGetDelegatedSubnetConfigurationAsync(
                     subscriptionId,
                     resourceGroup,
-                    vnetName,
-                    subnet,
-                    delegatedSubnetName);
+                    resourceName);
 
                 if (delegatedSubnet == null)
                 {
@@ -105,37 +101,31 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         }
 
         /// <summary>
-        /// PutDelegateSubnet. 
-        /// This is an Extension resource call Microsoft.Network/VirtualNetwork resource
-        /// 
-        /// TODO: Add DeleteDelegatedSubnet call
+        /// PutDelegateSubnet.
         /// </summary>
         /// <param name="subscriptionId">subscription id</param>
         /// <param name="resourceGroup">resource group name</param>
-        /// <param name="vnetName">VirtualNetwork name</param>
-        /// <param name="subnet">Subnet name</param>
-        /// <param name="delegatedId">Delegated subnet resource name</param>
+        /// <param name="resourceName">resourece name</param>
         /// <returns></returns>
         [HttpPut]
         public async Task<ContentResult> PutDelegateSubnet(
             string subscriptionId, 
             string resourceGroup, 
-            string vnetName, 
-            string subnet, 
-            string delegatedSubnetName)
+            string resourceName)
         {
             this.logger.LogInformation($"PutDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
 
-            // TODO Validate arguments
             try
             {
-                DelegateSubnet delegatedSubnetDefinition = await ExecuteDelegateSubnetAsync(subscriptionId, resourceGroup, vnetName, subnet, delegatedSubnetName);
+
+                DelegateSubnetRequest delegateSubnetRequest = await GetRequestAsync<DelegateSubnetRequest>(HttpContext.Request.Body, "PutDelegateSubnet");
+                DelegateSubnet delegateSubnetResponse = await ExecuteDelegateSubnetAsync(subscriptionId, resourceGroup, resourceName, delegateSubnetRequest);
 
                 // TODO - For long running operations in ARM need to return OperationStatus or ProvisioningState
                 ContentResult result = new ContentResult
                 {
                     StatusCode = (int)HttpStatusCode.OK,
-                    Content = JsonConvert.SerializeObject(delegatedSubnetDefinition),
+                    Content = JsonUtility.Serialize(delegateSubnetResponse),
                     ContentType = "application/json"
                 };
 
@@ -165,17 +155,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <param name="subscriptionId">subscription id</param>
         /// <param name="resourceGroup">resource group name</param>
-        /// <param name="vnetName">VirtualNetwork name</param>
-        /// <param name="subnet">Subnet name</param>
-        /// <param name="delegatedId">Delegated subnet resource name</param>
+        /// <param name="resourceName">resourceName name</param>
         /// <returns></returns>
         [HttpPatch]
         public Task<ContentResult> PatchDelegateSubnet(
             string subscriptionId,
             string resourceGroup,
-            string vnetName,
-            string subnet,
-            string delegatedId)
+            string resourceName)
         {
             throw new NotSupportedException("Patch-DelegateSubnet is not supported. Try Put-DelegateSubnet");
         }
@@ -185,56 +171,89 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <param name="subscriptionId">subscription id</param>
         /// <param name="resourceGroup">resource group name</param>
-        /// <param name="vnetName">VirtualNetwork name</param>
-        /// <param name="subnet">Subnet name</param>
-        /// <param name="delegatedId">Delegated subnet resource name</param>
+        /// <param name="resourceName">resourceName name</param>
         /// <returns></returns>
         [HttpDelete]
-        public Task<ContentResult> DeleteDelegateSubnet(
+        public async Task<ContentResult> DeleteDelegateSubnet(
             string subscriptionId,
             string resourceGroup,
-            string vnetName,
-            string subnet,
-            string delegatedId)
+            string resourceName)
         {
-            // TODO - Support this API later.
-            throw new NotSupportedException();
+            this.logger.LogInformation($"GetDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
+
+            // TODO Validate arguments
+            try
+            {
+                // Check if SubnetConfiguration is already defined
+                SubscriptionOperation.ValidateSubscriptionIsRegistered(subscriptionId);
+
+                await ExecuteDeleteDelegateSubnetAsync(subscriptionId, resourceGroup, resourceName);
+
+                ContentResult result = new ContentResult
+                {
+                    StatusCode = (int)HttpStatusCode.OK,
+                    Content = null,
+                    ContentType = "application/json"
+                };
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                string message = $"Failed to process PutDelegateSubnet call.";
+                int statusCode = (int)HttpStatusCode.InternalServerError;
+
+                ErrorResponseMessageException errorException = ex as ErrorResponseMessageException;
+                if (errorException != null)
+                {
+                    statusCode = (int)errorException.HttpStatus;
+                    message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}";
+                }
+
+                message += $"InternalException: {ex}";
+
+                return ConvertToExceptionResult(message, statusCode);
+            }
         }
 
         /// <summary>
         /// Asynchronously Delegate a subnet and generate subnet token if not 
         /// generated.
         /// </summary>
-        /// <param name="subscriptionId">subscription id</param>
-        /// <param name="resourceGroup">resource group name</param>
-        /// <param name="vnetName">Virtual Network name</param>
-        /// <param name="subnet">Subnet</param>
-        /// <param name="delegatedId">delegated Subnet Id</param>
+        /// <param name="subscriptionId"></param>
+        /// <param name="resourceGroup"></param>
+        /// <param name="resourceName"></param>
+        /// <param name="requestBody"></param>
         /// <returns></returns>
         private async Task<DelegateSubnet> ExecuteDelegateSubnetAsync(
             string subscriptionId, 
-            string resourceGroup, 
-            string vnetName, 
-            string subnet, 
-            string resourceName)
+            string resourceGroup,
+            string resourceName,
+            DelegateSubnetRequest requestBody)
         {
             // Check if SubnetConfiguration is already defined
             SubscriptionOperation.ValidateSubscriptionIsRegistered(subscriptionId);
+
+            string associatedSubnetId = requestBody.Properties.Parameters.Properties.SubnetDetails.Id;
+            string subnetSubId;
+            string subnetResourceGroupId;
+            string vnetName;
+            string subnetName;
+            ValidateAndGetSubnet(associatedSubnetId, out subnetSubId, out subnetResourceGroupId, out vnetName, out subnetName);
 
             // Check if DelegatedSubnetConfiguration exists
             DelegateSubnet delegateSubnet = await tableOperations.DelegatedSubnetConfigurationOperations.TryGetDelegatedSubnetConfigurationAsync(
                 subscriptionId,
                 resourceGroup,
-                vnetName,
-                subnet,
-                resourceName,
-                throwOnResourceNameComparison: true);
+                resourceName);
 
             if (delegateSubnet == null)
             {
+                // TODO: Validate if there doesn't exist any other DelegateSubnet associated to the same SubnetId
+
                 // Get the VirtualNetwork and ensure it is ready to update.
-                string VNetResourceId = AzVNetBroker.GetVNetResourceId(subscriptionId, resourceGroup, vnetName);
-                NetworkModel.VirtualNetwork virtualNetwork = await GetAzureVNetDataProvider().GetVirtualNetworkAsync(subscriptionId, VNetResourceId);
+                string VNetResourceId = AzVNetBroker.GetVNetResourceId(subnetSubId, subnetResourceGroupId, vnetName);
+                NetworkModel.VirtualNetwork virtualNetwork = await GetAzureVNetDataProvider().GetVirtualNetworkAsync(subnetSubId, VNetResourceId);
                 ValidateVirtualNetwork(virtualNetwork, VNetResourceId);
 
                 // Insert the Subnet configuration
@@ -242,36 +261,37 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 delegateSubnet = await tableOperations.DelegatedSubnetConfigurationOperations.InsertOrUpdateAsync(
                     subscriptionId,
                     resourceGroup,
-                    vnetName,
-                    subnet,
                     resourceName,
                     delegatedSubnetGuid,
-                    virtualNetwork.ResourceGuid);
+                    virtualNetwork.ResourceGuid,
+                    requestBody);
 
                 await CreateSubnetTokenAsync(
-                    subscriptionId,
-                    resourceGroup,
+                    subnetSubId,
+                    subnetName,
                     vnetName,
-                    subnet,
+                    subnetName,
                     delegatedSubnetGuid,
-                    virtualNetwork.ResourceGuid);
+                    virtualNetwork.ResourceGuid,
+                    associatedSubnetId);
             }
             else
             {
                 // check if SubnetToken exists
                 string delegatedSubnetGuid = delegateSubnet.Properties.ResourceGuid;
-                bool exists = await tableOperations.SubnetTokenMapOperations.SubnetTokenExistsAsync(delegatedSubnetGuid, subnet);
+                bool exists = await tableOperations.SubnetTokenMapOperations.SubnetTokenExistsAsync(delegatedSubnetGuid, subnetName);
                 if (!exists)
                 {
                     // Create if one is not created yet.
                     // TODO: Check if there is already an operation pending for this resource
                     await CreateSubnetTokenAsync(
-                        subscriptionId, 
-                        resourceGroup,
-                        vnetName, 
-                        subnet,
+                        subnetSubId,
+                        subnetName,
+                        vnetName,
+                        subnetName,
                         delegatedSubnetGuid,
-                        delegateSubnet.VNetResourceGuid);
+                        delegateSubnet.VNetResourceGuid,
+                        associatedSubnetId);
                 }
             }
 
@@ -279,38 +299,66 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         }
 
         private async Task CreateSubnetTokenAsync(
-            string subscriptionId, 
-            string resourceGroup, 
-            string vnetName, 
-            string subnet, 
+            string subnetSubId, 
+            string subnetResourceGroupId,
+            string vnetName,
+            string subnetName,
             string delegatedSubnetGuid, 
-            string vnetResourceGuid)
+            string vnetResourceGuid,
+            string subnetResourceId)
         {
-            logger.LogInformation($"Creating SubnetToken for:subscriptionId {subscriptionId}, ResourceGroup: {resourceGroup}, " +
-                $"vnetName: {vnetName}, subnet: {subnet}, delegatedSubnetGuid: {delegatedSubnetGuid}, vnetResourceGuid: {vnetResourceGuid}");
-            string VNetResourceId = AzVNetBroker.GetVNetResourceId(subscriptionId, resourceGroup, vnetName);
+            logger.LogInformation($"Creating SubnetToken for:subscriptionId {subnetSubId}, ResourceGroup: {subnetResourceGroupId}, " +
+                $"delegatedSubnetGuid: {delegatedSubnetGuid}, vnetResourceGuid: {vnetResourceGuid}, SubnetId: {subnetResourceId}");
+
+            string VNetResourceId = AzVNetBroker.GetVNetResourceId(subnetSubId, subnetResourceGroupId, vnetName);
 
             // SetResourceOwnership is already set
             // Avoid this call if Ownership is already set on a VNet
             ResourceOwnershipResponse resourceOwnershipResponse = 
                 await GetAzureVNetDataProvider()
                 .SetResourceOwnershipForCustomerVnetAsync(
-                    subscriptionId,
+                    subnetSubId,
                     VNetResourceId);
 
             // Create the SAL and generate the token
-            string subnetResourceId = $"{VNetResourceId.TrimEnd('/')}/subnets/{subnet}";
             ServiceAssociationLinkDetail salDetail = await GetAzureVNetDataProvider().GetOrCreateServiceAssociationLinkAsync(
-                subscriptionId, vnetResourceGuid.ToString(), subnetResourceId);
+                subnetSubId, vnetResourceGuid.ToString(), subnetResourceId);
 
             await tableOperations.SubnetTokenMapOperations.InsertOrUpdateAsync(
                     delegatedSubnetGuid,
-                    subnet,
+                    subnetName,
                     salDetail.Properties.PrimaryContextId,
                     salDetail.Properties.SecondaryContextId,
                     vnetResourceGuid);
         }
 
+        private void ValidateAndGetSubnet(string subnetResourceId, 
+            out string subnetSubId, 
+            out string subnetResourceGroupId, 
+            out string vnetName, 
+            out string subnetName)
+        {
+            subnetSubId = String.Empty;
+            subnetResourceGroupId = string.Empty;
+            vnetName = string.Empty;
+            subnetName = string.Empty;
+            Dictionary<string, string> subnetResources;
+
+            bool exists = ArmResourceIdParser.TryParseResourceId(subnetResourceId, "Microsoft.Network", out subnetSubId, out subnetResourceGroupId, out subnetResources);
+
+            // Resource keys are parsed in lower case
+            if (!exists ||
+                !subnetResources.ContainsKey(ArmResourceIdParser.VirtualNetworkKey) || !subnetResources.ContainsKey(ArmResourceIdParser.SubnetKey))
+            {
+                throw new ErrorResponseMessageException(
+                    httpStatus: HttpStatusCode.BadRequest,
+                    errorCode: ErrorResponseCode.InvalidSubnetId,
+                    errorMessage: $"SubnetId: {subnetResourceId} is invalid.");
+            }
+
+            vnetName = subnetResources[ArmResourceIdParser.VirtualNetworkKey];
+            subnetName = subnetResources[ArmResourceIdParser.SubnetKey];
+        }
 
         /// <summary>
         /// Gets the azure VNet data provider.
@@ -357,6 +405,54 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             //        errorCode: ErrorResponseCode.VirtualNetworkNotReady,
             //        errorMessage: $"ResourceId: {VNetResourceId} is not ready to allow Delegate Subnets. VirtualNetwork Provisioning State= {virtualNetwork.ProvisioningState}");
             //}
+        }
+
+        /// <summary>
+        /// Asynchronously delete a DelegateSubnet
+        /// </summary>
+        /// <param name="subscriptionId"></param>
+        /// <param name="resourceGroup"></param>
+        /// <param name="resourceName"></param>
+        /// <param name="requestBody"></param>
+        /// <returns></returns>
+        private async Task ExecuteDeleteDelegateSubnetAsync(
+            string subscriptionId,
+            string resourceGroup,
+            string resourceName)
+        {
+            // Check if DelegatedSubnetConfiguration exists
+            DelegateSubnet delegateSubnet = await tableOperations.DelegatedSubnetConfigurationOperations.TryGetDelegatedSubnetConfigurationAsync(
+                subscriptionId,
+                resourceGroup,
+                resourceName);
+
+            if (delegateSubnet == null)
+            {
+                logger.LogInformation($"DelegateSubnet, Resource {HttpContext.Request.GetDisplayUrl()} is already deleted");
+                return;
+            }
+
+            // Remove the SAL in NRP
+            DelegateSubnetProperties delegateSubnetProperties = delegateSubnet.Properties as DelegateSubnetProperties;
+
+            string associatedSubnetId = delegateSubnetProperties.SubnetDetails.Id;
+            string subnetSubId;
+            string subnetResourceGroupId;
+            string vnetName;
+            string subnetName;
+            ValidateAndGetSubnet(associatedSubnetId, out subnetSubId, out subnetResourceGroupId, out vnetName, out subnetName);
+
+            // Delete the SAL
+            await this.GetAzureVNetDataProvider().DeleteServiceAssociationLinkAsync(subnetSubId, associatedSubnetId);
+
+            // TODO handle deletion of Resourceownership if no other subnet has SAL created.
+
+            // Delete the TokenMap entry synchronously for now.
+            // Later we need to allow cleanup of NC's in this subnet in the background before token cleanup
+            await tableOperations.SubnetTokenMapOperations.DeleteAsync(delegateSubnetProperties.ResourceGuid, subnetName);
+
+            // Delete the DelegateSubnetConfiguration
+            await tableOperations.DelegatedSubnetConfigurationOperations.DeleteAsync(subscriptionId, resourceGroup, resourceName);
         }
     }
 }

@@ -85,18 +85,26 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             {
                 httpResponse.EnsureSuccessStatusCode(); // throws if not 200-299
 
-                if (httpResponse.Content is object && httpResponse.Content.Headers.ContentType.MediaType == "application/json")
+                if (httpResponse.Content != null)
                 {
-                    var contentStream = await httpResponse.Content.ReadAsStringAsync();
-                    if (deserializeSettings == null)
+                    // This API is only expectig response Content to be in Json format.
+                    if (httpResponse.Content is object && httpResponse.Content.Headers.ContentType.MediaType == "application/json")
                     {
-                        // use the default settings
-                        return JsonUtility.Deserialize<T>(contentStream);
+                        var contentStream = await httpResponse.Content.ReadAsStringAsync();
+                        if (deserializeSettings == null)
+                        {
+                            // use the default settings
+                            return JsonUtility.Deserialize<T>(contentStream);
+                        }
+                        else
+                        {
+                            return JsonUtility.Deserialize<T>(contentStream, deserializeSettings);
+                        }
                     }
-                    else
-                    {
-                        return JsonUtility.Deserialize<T>(contentStream, deserializeSettings);
-                    }
+                }
+                else
+                {
+                    return default(T);
                 }
             }
             catch (Exception ex)

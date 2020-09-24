@@ -214,7 +214,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string subscriptionId,
             HttpMethod httpMethod,
             Uri requestUri,
-            TRequest requestBody) where TResponse : class where TRequest : class
+            TRequest requestBody = null) where TResponse : class where TRequest : class
         {
             string tenantId = await GetTenantIdFromSubscriptionIdAsync(subscriptionId);
             string accessToken = await azureAd.GetAccessTokenForArm(

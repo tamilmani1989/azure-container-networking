@@ -33,24 +33,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public DelegateSubnet(
             string subscriptionId, 
             string resourceGroup, 
-            string vnetName, 
-            string subnetName, 
-            string resourceName, string delegatedSubGuid)
+            string resourceName, 
+            string location,
+            DelegateSubnetProperties delegateSubnetProperties)
         {
             this.SubscriptionId = subscriptionId;
             this.ResourceGroup = resourceGroup;
             this.Name = resourceName;
-            this.Properties = new DelegateSubnetProperties()
-            {
-                // using the same value as DelegatedSubnetId. ResourceGuid is not exposed on Portal
-                ResourceGuid = delegatedSubGuid,
+            this.Location = location;
+            this.Properties = delegateSubnetProperties;
 
-                // Todo update the state
-                State = ProvisioningState.Unknown
-            };
-
-            this.isExtensionResource = true;
-            this.parentResourceId = $"Microsoft.Network/virtualNetworks/{vnetName}/subnets/{subnetName}";
             this.Type = DelegatedResourceType;
         }
 

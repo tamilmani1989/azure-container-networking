@@ -7,6 +7,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.IO;
     using System.Net;
     using System.Net.Http;
     using System.Threading.Tasks;
@@ -123,5 +124,26 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 StatusCode = statusCode
             };
         }
+
+        protected async Task<TRequest> GetRequestAsync<TRequest>(Stream requestBody, string operationName)
+        {
+            if (requestBody == null)
+            {
+                throw new EmptyRequestBody("Empty request body");
+            }
+
+            TRequest request = default(TRequest);
+            using (StreamReader stream = new StreamReader(requestBody))
+            {
+                string jsonBody = await stream.ReadToEndAsync();
+                this.logger.LogInformation($"{operationName} Request body: {jsonBody}");
+
+                request = JsonUtility.Deserialize<TRequest>(jsonBody);
+            }
+
+            return request;
+        }
+
+        
     }
 }

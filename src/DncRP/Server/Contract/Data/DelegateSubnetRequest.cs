@@ -7,6 +7,8 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using Newtonsoft.Json;
+    using System;
+    using System.IO;
 
     public class DelegateSubnetRequestProperties
     {
