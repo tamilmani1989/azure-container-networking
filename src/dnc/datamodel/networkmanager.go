@@ -2277,22 +2277,10 @@ func translateRepoToContractReservationResponse(
 }
 
 // getOrchestratorContextList - Returns the list of orchestrator contexts for all the NCs for a given node.
-func getOrchestratorContextList(nodeID string) (map[string][]byte, *api.JsonErr) {
+func getOrchestratorContextListFromNodeConfig(nodeConfig *NodeConfiguration) (map[string][]byte, *api.JsonErr) {
 	orchestratorContextList := make(map[string][]byte)
 
-	repoNodeConfiguration, err := TryQueryNodeConfiguration(nodeID)
-	if err != nil {
-		return orchestratorContextList, err
-	}
-
-	if repoNodeConfiguration == nil {
-		return orchestratorContextList, &api.JsonErr{
-			Code:       api.NodeNotFound,
-			Text:       fmt.Sprintf("Node %s not found", nodeID),
-			HTTPStatus: http.StatusNotFound}
-	}
-
-	for networkID, ncMap := range repoNodeConfiguration.DeployedNetworkContainerMap {
+	for networkID, ncMap := range nodeConfig.DeployedNetworkContainerMap {
 		for ncID := range ncMap {
 			ncConfig, err := GetNetworkContainerConfiguration(networkID, ncID)
 			if err == nil && ncConfig != nil {
@@ -2302,6 +2290,17 @@ func getOrchestratorContextList(nodeID string) (map[string][]byte, *api.JsonErr)
 	}
 
 	return orchestratorContextList, nil
+}
+
+func validateNodeTypePlacement(containerType, nodeType string) *api.JsonErr {
+	if api.IsBareMetalNode(nodeType) != api.IsBareMetalContainer(containerType) {
+		return &api.JsonErr{
+			Code:       api.InvalidContainerPlacement,
+			Text:       fmt.Sprintf("Invalid Node for the Container Type"),
+			HTTPStatus: http.StatusBadRequest}
+	}
+
+	return nil
 }
 
 // GetNodeInfo - Get node configuration for a given node.
@@ -2485,8 +2484,28 @@ func CreateOrUpdateNCRequestV1(
 		sendNCCreationReqMetric(networkID, ncID, status, ncRequestV1.AssociationInfo)
 	}()
 
+	nodeID := ncRequestV1.AssociationInfo.NodeID
+	repoNodeConfiguration, err := TryQueryNodeConfiguration(nodeID)
+	if err != nil {
+		return err
+	}
+
+	if repoNodeConfiguration == nil {
+		return &api.JsonErr{
+			Code:       api.NodeNotFound,
+			Text:       fmt.Sprintf("Node %s not found", nodeID),
+			HTTPStatus: http.StatusNotFound}
+	}
+
+	err = validateNodeTypePlacement(
+		ncRequestV1.AssociationInfo.ContainerType,
+		repoNodeConfiguration.NodeInfo.NodeType)
+	if err != nil {
+		return err
+	}
+
 	var orchestratorContextList map[string][]byte
-	orchestratorContextList, err = getOrchestratorContextList(ncRequestV1.AssociationInfo.NodeID)
+	orchestratorContextList, err = getOrchestratorContextListFromNodeConfig(repoNodeConfiguration)
 	if err != nil {
 		return err
 	}
@@ -2554,8 +2573,28 @@ func CreateOrUpdateNCRequestV2(
 		sendNCCreationReqMetric(networkID, ncID, status, ncRequestV2.AssociationInfo)
 	}()
 
+	nodeID := ncRequestV2.AssociationInfo.NodeID
+	repoNodeConfiguration, err := TryQueryNodeConfiguration(nodeID)
+	if err != nil {
+		return err
+	}
+
+	if repoNodeConfiguration == nil {
+		return &api.JsonErr{
+			Code:       api.NodeNotFound,
+			Text:       fmt.Sprintf("Node %s not found", nodeID),
+			HTTPStatus: http.StatusNotFound}
+	}
+
+	err = validateNodeTypePlacement(
+		ncRequestV2.AssociationInfo.ContainerType,
+		repoNodeConfiguration.NodeInfo.NodeType)
+	if err != nil {
+		return err
+	}
+
 	var orchestratorContextList map[string][]byte
-	orchestratorContextList, err = getOrchestratorContextList(ncRequestV2.AssociationInfo.NodeID)
+	orchestratorContextList, err = getOrchestratorContextListFromNodeConfig(repoNodeConfiguration)
 	if err != nil {
 		return err
 	}

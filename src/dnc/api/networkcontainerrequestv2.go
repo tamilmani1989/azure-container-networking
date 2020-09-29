@@ -20,8 +20,10 @@ type NetworkContainerRequestV2 struct {
 
 func (networkContainerRequestV2 *NetworkContainerRequestV2) String() string {
 	return fmt.Sprintf(
-		"NetworkContainerRequestV2:[AllocationRequest:%s, AssociationInfo:%s, AllowHostToNCCommunication:%t, AllowNCToHostCommunication:%t, EndpointPolicies:%+v, ToBeDeletedIPIds:%s]",
-		networkContainerRequestV2.AllocationRequest.String(), networkContainerRequestV2.AssociationInfo.String(), networkContainerRequestV2.AllowHostToNCCommunication,
+		"NetworkContainerRequestV2:[AllocationRequest:%s, AssociationInfo:%s, AllowHostToNCCommunication:%t, AllowNCToHostCommunication:%t,"+
+			"EndpointPolicies:%+v, ToBeDeletedIPIds:%s ]",
+		networkContainerRequestV2.AllocationRequest.String(),
+		networkContainerRequestV2.AssociationInfo.String(), networkContainerRequestV2.AllowHostToNCCommunication,
 		networkContainerRequestV2.AllowNCToHostCommunication,
 		networkContainerRequestV2.EndpointPolicies,
 		strings.Join(networkContainerRequestV2.ToBeDeletedIPIds, ","))

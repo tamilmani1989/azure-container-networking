@@ -61,29 +61,8 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 	// Can be used whenver we send logs/metric
 	aiwrapper.OrchestratorType = nodeInfo.OrchestratorType
 
-	if config.DNCSettings.Managed || config.DNCSettings.BMMode {
-		switch nodeInfo.OrchestratorType {
-		case cns.ServiceFabric:
-			fallthrough
-		case cns.Kubernetes:
-			fallthrough
-		case cns.KubernetesCRD:
-			fallthrough
-		case cns.WebApps:
-			fallthrough
-		case cns.Batch:
-			fallthrough
-		case cns.DBforPostgreSQL:
-			fallthrough
-		case cns.AzureFirstParty:
-			break
-		default:
-			return &api.JsonErr{
-				Code:       api.InvalidOrchestratorType,
-				Text:       fmt.Sprintf("Invalid Orchestrator type %v", nodeInfo.OrchestratorType),
-				HTTPStatus: http.StatusBadRequest}
-		}
-	} else {
+	// Turn off the DNS-CNS for managed and baremetal node type
+	if !config.DNCSettings.Managed && !api.IsBareMetalNode(nodeInfo.NodeType) {
 		// Send OrchestratorType to CNS
 		var (
 			info = &cns.SetOrchestratorTypeRequest{

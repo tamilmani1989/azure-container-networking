@@ -34,6 +34,7 @@ func (associationInfo *AssociationInfo) Validate() *JsonErr {
 	case cns.Docker:
 	case cns.JobObject:
 	case cns.COW:
+	case BareMetalContainerType:
 	default:
 		return &JsonErr{Code: InvalidContainerType, Text: "Invalid container type.", HTTPStatus: http.StatusBadRequest}
 	}

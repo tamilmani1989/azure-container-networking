@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-container-networking/cns"
-	"github.com/google/uuid"
 
 	"github.com/gorilla/mux"
 )
@@ -75,18 +74,6 @@ func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	config := ctrler.GetConfig()
-	isBMNode := config.DNCSettings.BMMode
-
-	// Check if provided node name is a guid.
-	_, parseErr := uuid.Parse(nodeID)
-	if isBMNode && (parseErr != nil) {
-		setRequestFailed(w, &api.JsonErr{
-			Code:       api.InvalidNodeID,
-			Text:       api.NodeIDNonGUIDValue,
-			HTTPStatus: http.StatusBadRequest})
-		return
-	}
-
 	var nodeInfo api.NodeInfoRequest
 
 	w.Header().Set(contentTypeStr, defaultContentType)
@@ -97,7 +84,7 @@ func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if validationErr := nodeInfo.Validate(config); validationErr != nil {
+	if validationErr := nodeInfo.Validate(config, nodeID); validationErr != nil {
 		setRequestFailed(w, validationErr)
 		return
 	}

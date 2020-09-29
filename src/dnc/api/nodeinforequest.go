@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Azure/azure-container-networking/cns"
+	"github.com/google/uuid"
 )
 
 // NodeInfoRequest - Node ifnormation reuqest
@@ -17,18 +17,19 @@ type NodeInfoRequest struct {
 	LocationType          string   `json:"locationtype"` // Optional.
 	OrchestratorType      string   `json:"orchestratortype"`
 	InfrastructureNetwork string   `json:"infrastructurenetwork"`
-	AZID                  string   `json:"azid"`
+	AZID                  string   `json:"azid"`     // Optional
+	NodeType              string   `json:"nodetype"` // Optional.
 }
 
 func (n *NodeInfoRequest) String() string {
 	ipAddresses := strings.Join(n.IPAddresses, ",")
 	return fmt.Sprintf(
-		"NodeInfoRequest:[IPAddresses:%s Locationtype:%s OrchestratorType:%s InfrastructureNetwork:%s AZID: %s]",
-		ipAddresses, n.LocationType, n.OrchestratorType, n.InfrastructureNetwork, n.AZID)
+		"NodeInfoRequest:[IPAddresses:%s Locationtype:%s OrchestratorType:%s InfrastructureNetwork:%s AZID: %s NodeType: %s]",
+		ipAddresses, n.LocationType, n.OrchestratorType, n.InfrastructureNetwork, n.AZID, n.NodeType)
 }
 
 // Validate - Validates the node info request
-func (n *NodeInfoRequest) Validate(configuration *configuration.Configuration) *JsonErr {
+func (n *NodeInfoRequest) Validate(configuration *configuration.Configuration, nodeID string) *JsonErr {
 	// Check for infrastructure network
 	if configuration.DNCSettings.Managed && !utils.IsValidUUID(n.InfrastructureNetwork) {
 		return &JsonErr{
@@ -37,11 +38,27 @@ func (n *NodeInfoRequest) Validate(configuration *configuration.Configuration) *
 			HTTPStatus: http.StatusBadRequest}
 	}
 
-	if configuration.DNCSettings.BMMode && n.AZID == "" {
-		return &JsonErr{
-			Code:       InvalidNodeAZID,
-			Text:       "AZID field cannot be empty.",
-			HTTPStatus: http.StatusBadRequest}
+	// validate node type
+	if err := validateNodeType(n.NodeType); err != nil {
+		return err
+	}
+
+	if IsBareMetalNode(n.NodeType) {
+		// Check if provided node name is a guid.
+		_, parseErr := uuid.Parse(nodeID)
+		if parseErr != nil {
+			return &JsonErr{
+				Code:       InvalidNodeID,
+				Text:       NodeIDNonGUIDValue,
+				HTTPStatus: http.StatusBadRequest}
+		}
+
+		if n.AZID == "" {
+			return &JsonErr{
+				Code:       InvalidNodeAZID,
+				Text:       "AZID field cannot be empty.",
+				HTTPStatus: http.StatusBadRequest}
+		}
 	}
 
 	if n.IPAddresses == nil || len(n.IPAddresses) < 1 {
@@ -61,17 +78,9 @@ func (n *NodeInfoRequest) Validate(configuration *configuration.Configuration) *
 		}
 	}
 
-	switch n.OrchestratorType {
-	case cns.WebApps:
-	case cns.Kubernetes:
-	case cns.KubernetesCRD:
-	case cns.Batch:
-	case cns.ServiceFabric:
-	default:
-		return &JsonErr{
-			Code:       InvalidOrchestratorType,
-			Text:       "Node Orchestrator Type is invalid.",
-			HTTPStatus: http.StatusBadRequest}
+	// orchestrator type
+	if err := validateOrchestratorType(n.OrchestratorType); err != nil {
+		return err
 	}
 
 	return nil

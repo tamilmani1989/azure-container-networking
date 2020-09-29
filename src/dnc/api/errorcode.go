@@ -237,6 +237,12 @@ const (
 
 	// InvalidNodeAZID - Invalid AZID field for a Node
 	InvalidNodeAZID
+
+	// InvalidNodeType - Invalid node type
+	InvalidNodeType
+
+	// InvalidContainerPlacement - - Invalid node location type for the container Type
+	InvalidContainerPlacement
 )
 
 func (e ErrorCode) String() string {
@@ -471,8 +477,15 @@ func (e ErrorCode) String() string {
 
 	case InvalidNCLimit:
 		return "InvalidNCLimit"
+
 	case InvalidNodeAZID:
 		return "InvalidNodeAZID"
+
+	case InvalidNodeType:
+		return "InvalidNodeType"
+
+	case InvalidContainerPlacement:
+		return "InvalidContainerPlacement"
 	}
 
 	return "Unknown Status"
