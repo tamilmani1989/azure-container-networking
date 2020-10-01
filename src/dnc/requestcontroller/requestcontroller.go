@@ -22,7 +22,7 @@ const (
 	defaultConfigDNCClientDNCEP                = "http://127.0.0.1:9000"
 	defaultConfigKubeconfigInfoMode            = "file"
 	defaultConfigKubeloginBinaryPath           = "/usr/local/bin/kubelogin"
-	defaultConfigClientCertificatePath         = "/tmp/client-cert.pfx"
+	defaultConfigClientCertificatesDirectory   = "/etc/dnc/client-certificates"
 	defaultAzureEnvironment                    = "AzurePublicCloud"
 	KubeconfigFileMode                         = "file"
 	KubeconfigDatastoreMode                    = "datastore"
@@ -41,12 +41,13 @@ type RequestController interface {
 
 // Config config for RequestController
 type Config struct {
-	KubernetesConfig    KubernetesConfig    `json:"kubernetesConfig,omitempty"`
-	RequestScalerConfig RequestScalerConfig `json:"requestScalerConfig,omitempty"`
-	DNCClientConfig     DNCClientConfig     `json:"dncClientConfig,omitempty"`
-	DataStoreSettings   configuration.DataStoreSettings
-	LoggingConfig       LoggingConfig     `json:"loggingConfig,omitempty"`
-	CosmosMSISettings   CosmosMSISettings `json:"cosmosMSISettings,omitempty"`
+	KubernetesConfig       KubernetesConfig    `json:"kubernetesConfig,omitempty"`
+	RequestScalerConfig    RequestScalerConfig `json:"requestScalerConfig,omitempty"`
+	DNCClientConfig        DNCClientConfig     `json:"dncClientConfig,omitempty"`
+	DataStoreSettings      configuration.DataStoreSettings
+	LoggingConfig          LoggingConfig          `json:"loggingConfig,omitempty"`
+	CosmosMSISettings      CosmosMSISettings      `json:"cosmosMSISettings,omitempty"`
+	LeaderElectionSettings LeaderElectionSettings `json:"leaderElectionSettings,omitempty"`
 }
 
 // KubernetesConfig config for interacting with kubernetes cluster
@@ -58,19 +59,17 @@ type KubernetesConfig struct {
 
 type KubeconfigInfo struct {
 	// Mode is one of (file | datastore)
-	Mode                            string             `json:"mode"`
-	File                            string             `json:"file"`
-	ManagedDNCGUID                  string             `json:"managedDNCGUID"`
-	ClientAppID                     string             `json:"clientAppID"`
-	ClientCertificatePath           string             `json:"clientCertificatePath"`
-	KubeloginBinaryPath             string             `json:"kubeloginBinaryPath"`
-	AzureEnvironment                string             `json:"azureEnvironmment"`
-	ClientCertificateKeyvaultSecret KeyvaultSecretInfo `json:"clientCertificateKeyvaultSecret"`
+	Mode                             string       `json:"mode"`
+	File                             string       `json:"file"`
+	ManagedDNCGUID                   string       `json:"managedDNCGUID"`
+	ClientCertificatesDirectory      string       `json:"clientCertificatesDirectory"`
+	KubeloginBinaryPath              string       `json:"kubeloginBinaryPath"`
+	AzureEnvironment                 string       `json:"azureEnvironmment"`
+	ClientCertificatesKeyvaultConfig KeyvaultInfo `json:"clientCertificatesKeyvaultConfig"`
 }
 
-type KeyvaultSecretInfo struct {
+type KeyvaultInfo struct {
 	KeyvaultName     string `json:"keyvaultName"`
-	SecretName       string `json:"secretName"`
 	MSIResourceID    string `json:"msiResourceID"`
 	AzureEnvironment string `json:"azureEnvironment"`
 }
@@ -97,6 +96,11 @@ type CosmosMSISettings struct {
 	AzureEnvironment string `json:"azureEnvironment,omitempty"`
 	MSIResourceID    string `json:"msiResourceID,omitempty"`
 	CosmosResourceID string `json:"cosmosResourceID,omitempty"`
+}
+
+type LeaderElectionSettings struct {
+	Namespace string `json:"namespace,omitempty"`
+	Enabled   bool   `json:"enabled,omitempty"`
 }
 
 // ConfigProvider provides a Config via GetConfig
@@ -158,8 +162,8 @@ func (c *Config) ApplyDefaults() {
 		c.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs = 1000 // 1 second
 	}
 
-	if c.KubernetesConfig.KubeconfigInfo.ClientCertificatePath == "" {
-		c.KubernetesConfig.KubeconfigInfo.ClientCertificatePath = defaultConfigClientCertificatePath
+	if c.KubernetesConfig.KubeconfigInfo.ClientCertificatesDirectory == "" {
+		c.KubernetesConfig.KubeconfigInfo.ClientCertificatesDirectory = defaultConfigClientCertificatesDirectory
 	}
 
 	if c.KubernetesConfig.KubeconfigInfo.KubeloginBinaryPath == "" {
@@ -193,4 +197,9 @@ type SubnetInfoProvider interface {
 type KubeconfigProvider interface {
 	//GetBytesForAll returns a map of {controller guid -> kubeconfig bytes} for each cluster that this RC watches
 	GetBytesForAll(ctx context.Context) (map[string][]byte, error)
+}
+
+//SecretProvider provides a named secret
+type SecretProvider interface {
+	GetLatestSecret(ctx context.Context, name string) (string, error)
 }

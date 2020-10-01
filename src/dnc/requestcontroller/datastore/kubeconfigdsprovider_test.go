@@ -44,9 +44,8 @@ func TestGetBytesForAllWithCosmos(t *testing.T) {
 		t.Fatalf("Failed getting config with error: %v", err)
 	}
 
-	kubeconfigProvider := NewKubeconfigProvider(config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID,
-		config.DataStoreSettings, config.LoggingConfig, config.KubernetesConfig.KubeconfigInfo.ClientCertificatePath,
-		config.KubernetesConfig.KubeconfigInfo.ClientAppID, config.KubernetesConfig.KubeconfigInfo.KubeloginBinaryPath,
+	kubeconfigProvider := NewKubeconfigProvider(config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID, config.DataStoreSettings, config.LoggingConfig,
+		mockSecretProvider{}, config.KubernetesConfig.KubeconfigInfo.ClientCertificatesDirectory, config.KubernetesConfig.KubeconfigInfo.KubeloginBinaryPath,
 		config.KubernetesConfig.KubeconfigInfo.AzureEnvironment)
 
 	kubeconfigs, err := kubeconfigProvider.GetBytesForAll(context.Background())
@@ -90,4 +89,10 @@ func readFileIgnoreCarriageReturn(filename string) ([]byte, error) {
 	}
 
 	return content, nil
+}
+
+type mockSecretProvider struct{}
+
+func (m mockSecretProvider) GetLatestSecret(ctx context.Context, secretName string) (string, error) {
+	return "", nil
 }

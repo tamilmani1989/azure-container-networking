@@ -13,7 +13,6 @@ import (
 	"dnc/requestcontroller"
 	"dnc/requestcontroller/datastore"
 	syncdncclient "dnc/requestcontroller/dncclient"
-	"dnc/requestcontroller/keyvault"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -21,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,10 +29,10 @@ import (
 
 // NodeFinalizerName is the finalizer that is placed on Nodes
 const (
-	NNCFinalizerName            = "finalizers.acn.azure.com/dnc-operations"
-	DelegatedSubnetIDLabel      = "kubernetes.azure.com/podnetwork-resourceguid"
-	SubnetNameLabel             = "kubernetes.azure.com/podnetwork-subnet"
-	leaderElectionConfigmapName = "resourcelock.acn.azure.com"
+	NNCFinalizerName              = "finalizers.acn.azure.com/dnc-operations"
+	DelegatedSubnetIDLabel        = "kubernetes.azure.com/podnetwork-delegationguid"
+	SubnetNameLabel               = "kubernetes.azure.com/podnetwork-subnet"
+	leaderElectionConfigmapSuffix = ".resourcelock.acn.azure.com"
 )
 
 // RequestController implements requestcontroller.RequestController. RequestController watches Nodes and NetworkConfigs
@@ -87,13 +87,20 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 	var kubeconfigProvider requestcontroller.KubeconfigProvider
 	kubeconfigInfo := config.KubernetesConfig.KubeconfigInfo //later code references properties a lot, so make future line shorter
 	log.Printf("Creating kubeconfig provider for config mode %s", kubeconfigInfo.Mode)
+
 	switch mode := kubeconfigInfo.Mode; mode {
 	case requestcontroller.KubeconfigFileMode:
 		kubeconfigProvider = requestcontroller.KubeconfigFromFileProvider{kubeconfigInfo.File}
 	case requestcontroller.KubeconfigDatastoreMode:
-		kubeconfigProvider = datastore.NewKubeconfigProvider(kubeconfigInfo.ManagedDNCGUID, config.DataStoreSettings,
-			config.LoggingConfig, kubeconfigInfo.ClientCertificatePath, kubeconfigInfo.ClientAppID, kubeconfigInfo.KubeloginBinaryPath,
-			kubeconfigInfo.AzureEnvironment)
+		// Datastore mode requires secret from keyvault, so build keyvault client
+		keyvaultClient, err := getKeyvaultClientFromMSI(context.TODO(), kubeconfigInfo.ClientCertificatesKeyvaultConfig.KeyvaultName,
+			kubeconfigInfo.ClientCertificatesKeyvaultConfig.MSIResourceID, kubeconfigInfo.ClientCertificatesKeyvaultConfig.AzureEnvironment)
+		if err != nil {
+			return nil, err
+		}
+
+		kubeconfigProvider = datastore.NewKubeconfigProvider(kubeconfigInfo.ManagedDNCGUID, config.DataStoreSettings, config.LoggingConfig,
+			keyvaultClient, kubeconfigInfo.ClientCertificatesDirectory, kubeconfigInfo.KubeloginBinaryPath, kubeconfigInfo.AzureEnvironment)
 	default:
 		return nil, fmt.Errorf("Error creating kubeconfig provider from config mode: %s is not a valid mode for config.kubernetesConfig.kubeconfigInfo.mode", mode)
 	}
@@ -101,26 +108,6 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 	kubeconfigsBytes, err := kubeconfigProvider.GetBytesForAll(context.TODO())
 	if err != nil {
 		return nil, err
-	}
-
-	// Read the client certificate from keyvault if necessary
-	/* TODO: right now, this only supports one kubeconfig, even though we could build kubeconfigs for multiple clusters.
-	   This is because we're prompting for a client cert filename to write to disk in config, so we can only write
-	   one client cert. For now this is fine since we only support one kubeconfig per cluster, but we will need to
-	   overhaul how orchestrators pass in keyvault cert info (perhaps in a cosmos table?) to support multiple clusters.
-	*/
-	if kubeconfigInfo.ClientCertificateKeyvaultSecret.SecretName != "" {
-		certProvider := keyvault.ClientCertificateProvider{
-			MSIResourceID:    kubeconfigInfo.ClientCertificateKeyvaultSecret.MSIResourceID,
-			AzureEnvironment: kubeconfigInfo.ClientCertificateKeyvaultSecret.AzureEnvironment,
-			KeyvaultName:     kubeconfigInfo.ClientCertificateKeyvaultSecret.KeyvaultName,
-		}
-
-		err := certProvider.FetchAndStoreLatestPKCS12Secret(context.TODO(),
-			kubeconfigInfo.ClientCertificateKeyvaultSecret.SecretName, kubeconfigInfo.ClientCertificatePath)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	k8sClientTimeout, err := time.ParseDuration(config.KubernetesConfig.ClientTimeout)
@@ -146,9 +133,15 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 		Managers: make(map[string]manager.Manager),
 	}
 
-	for controllerID, kubeconfigBytes := range kubeconfigsBytes {
+	// Get in-cluster config for leader election configmaps
+	var leaderElectionConfig *rest.Config
+	if config.LeaderElectionSettings.Enabled {
+		leaderElectionConfig = ctrl.GetConfigOrDie()
+	}
+
+	for orchestratorID, kubeconfigBytes := range kubeconfigsBytes {
 		// Create a REST config from the kubeconfig bytes
-		log.Printf("Creating client for controller %s", controllerID)
+		log.Printf("Creating client for orchestrator %s", orchestratorID)
 		restConfig, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
 		if err != nil {
 			return nil, err
@@ -158,9 +151,10 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 		mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 			Scheme:                  scheme,
 			MetricsBindAddress:      "0", //disable metrics, TODO: make this configurable
-			LeaderElection:          true,
-			LeaderElectionNamespace: config.KubernetesConfig.Namespace,
-			LeaderElectionID:        leaderElectionConfigmapName,
+			LeaderElection:          config.LeaderElectionSettings.Enabled,
+			LeaderElectionNamespace: config.LeaderElectionSettings.Namespace,
+			LeaderElectionID:        fmt.Sprintf("%s%s", orchestratorID, leaderElectionConfigmapSuffix),
+			LeaderElectionConfig:    leaderElectionConfig,
 		})
 		if err != nil {
 			return nil, err
@@ -195,7 +189,7 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 			WithEventFilter(NodeNetworkConfigEventFilter{}).
 			Complete(nodeNetworkConfigReconciler)
 
-		requestController.Managers[controllerID] = mgr
+		requestController.Managers[orchestratorID] = mgr
 	}
 
 	return &requestController, nil
@@ -251,4 +245,19 @@ func getCosmosKeyFromMSI(ctx context.Context, msiResourceID, cosmosResourceID, a
 
 	// todo: rotation still needs to be figured out
 	return keys.PrimaryMasterKey, nil
+}
+
+func getKeyvaultClientFromMSI(ctx context.Context, keyvaultName, msiResourceID, azureEnvironmentName string) (*ad.KeyvaultClient, error) {
+	tokenFetcher := &ad.MSITokenFetcher{ResourceID: msiResourceID}
+	azureEnvironment, err := azure.EnvironmentFromName(azureEnvironmentName)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting AzureEnvironment from string %s: %w", azureEnvironment, err)
+	}
+
+	keyvaultClient, err := ad.NewKeyvaultClient(tokenFetcher, azureEnvironment, keyvaultName)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting keyvault client: %w", err)
+	}
+
+	return keyvaultClient, nil
 }

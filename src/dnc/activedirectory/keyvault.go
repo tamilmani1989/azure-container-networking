@@ -60,6 +60,16 @@ func NewKeyvaultClient(tf TokenFetcher, env azure.Environment, keyvaultName stri
 	}, nil
 }
 
+// GetLatestSecret fetches the latest version of a secret and returns it as a string
+func (kvc *KeyvaultClient) GetLatestSecret(ctx context.Context, secretName string) (string, error) {
+	sb, err := kvc.Client.GetSecret(ctx, kvc.vaultURL, secretName, "")
+	if err != nil {
+		return "", err
+	}
+
+	return *sb.Value, nil
+}
+
 // GetLatestSecretPEM fetches the latest version of a secret and asserts it is PEM encoded.
 // Returns the base64 decoded bytes.
 func (kvc *KeyvaultClient) GetLatestSecretPEM(ctx context.Context, secretName string) ([]byte, error) {

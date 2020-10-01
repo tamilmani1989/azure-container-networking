@@ -149,6 +149,10 @@ func (s SynchronousDNCClient) UpsertNcV2(ctx context.Context, networkID, ncID st
 		return err
 	}
 
+	if respErr.HTTPStatus != http.StatusOK {
+		return fmt.Errorf("UpsertNC %s failed for vnet %s with error %+v", ncID, networkID, respErr)
+	}
+
 	if ncStatus.Status != "Completed" || (ncStatus.State != "Program" && ncStatus.State != "RefreshAssociation") {
 		return fmt.Errorf("UpsertNC %s failed for vnet %s with error %+v", ncID, networkID, ncStatus)
 	}

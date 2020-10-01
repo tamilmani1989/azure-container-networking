@@ -12,7 +12,7 @@ type KubeconfigFromFileProvider struct {
 }
 
 const (
-	fromFileControllerType = "fromFile"
+	fromFileOrchestratorType = "from-file"
 )
 
 var _ KubeconfigProvider = KubeconfigFromFileProvider{}
@@ -23,5 +23,5 @@ func (k KubeconfigFromFileProvider) GetBytesForAll(ctx context.Context) (map[str
 		return nil, err
 	}
 
-	return map[string][]byte{fromFileControllerType: kubeconfigBytes}, nil
+	return map[string][]byte{fromFileOrchestratorType: kubeconfigBytes}, nil
 }

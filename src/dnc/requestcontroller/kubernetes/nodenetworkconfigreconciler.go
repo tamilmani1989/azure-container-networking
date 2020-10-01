@@ -44,16 +44,28 @@ var _ reconcile.Reconciler = &NodeNetworkConfigReconciler{}
 
 // Reconcile is called by controller-runtime when there is an add/update/delete event for a NodeNetworkConfig resource
 func (n *NodeNetworkConfigReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	name := request.NamespacedName.Name
+	name := request.NamespacedName.String()
 	log.Printf("Reconciling %s", name)
+	err := n.reconcile(request)
+	if err != nil {
+		log.Printf("Reconcile %s failed with error: %v", name, err)
+	} else {
+		log.Printf("Reconcile %s was successful", name)
+	}
+
+	return reconcile.Result{}, err
+}
+
+// reconcile is wrapped by Reconcile to provide logging
+func (n *NodeNetworkConfigReconciler) reconcile(request reconcile.Request) error {
+	name := request.NamespacedName.Name
 
 	// Get the NodeNetworkConfig from the cache
 	nodeNetworkConfig := acnv1alpha.NodeNetworkConfig{}
 	err := n.Client.Get(context.TODO(), request.NamespacedName, &nodeNetworkConfig)
 	if err != nil {
-		log.Printf("NodeNetworkConfigReconciler error retrieving NNC %s: %v", name, err)
 		// Ignore NotFound since an immediate requeue won't solve it
-		return reconcile.Result{}, client.IgnoreNotFound(err)
+		return client.IgnoreNotFound(fmt.Errorf("Error retrieving NNC: %w", err)) // IgnoreNotFound can handle wrapped errors
 	}
 
 	// Get the corresponding Node
@@ -61,17 +73,16 @@ func (n *NodeNetworkConfigReconciler) Reconcile(request reconcile.Request) (reco
 	err = n.Client.Get(context.TODO(), client.ObjectKey{Name: name}, &node)
 	if err != nil && !apierrors.IsNotFound(err) {
 		// Requeue due to client error
-		log.Printf("NodeNetworkConfigReconciler error: %v", err)
-		return reconcile.Result{}, err
+		return fmt.Errorf("Error getting Node from kubernetes API server: %w", err)
 	}
 
 	// If the corresponding Node isn't found or is being deleted, clean up this NNC
 	if (err != nil && apierrors.IsNotFound(err)) || !node.DeletionTimestamp.IsZero() {
 		err := n.cleanUpNNC(&nodeNetworkConfig, name)
 		if err != nil {
-			log.Printf("NodeNetworkConfigReconciler error while cleaning up NNC: %v", err)
+			err = fmt.Errorf("Error while cleaning up NNC: %w", err)
 		}
-		return reconcile.Result{}, err
+		return err
 	}
 
 	// Handle a create/update event
@@ -79,9 +90,9 @@ func (n *NodeNetworkConfigReconciler) Reconcile(request reconcile.Request) (reco
 		// A zero deletionTimestamp means create/update event
 		err := n.publishCreateOrUpdateNC(&nodeNetworkConfig, &node, name)
 		if err != nil {
-			log.Printf("NodeNetworkConfigReconciler publishCreateOrUpdateNC error: %v", err)
+			err = fmt.Errorf("publishCreateOrUpdateNC error: %w", err)
 		}
-		return reconcile.Result{}, err
+		return err
 	}
 
 	// Handle a deletion event
@@ -89,12 +100,11 @@ func (n *NodeNetworkConfigReconciler) Reconcile(request reconcile.Request) (reco
 		// The Node still exists, so we should let this NNC delete and then re-create it
 		err := n.mustRecreateNNC(&nodeNetworkConfig, &node, name)
 		if err != nil {
-			log.Printf("NodeNetworkConfigReconciler recreate NNC error: %v", err)
+			return fmt.Errorf("recreate NNC error: %w", err)
 		}
-		return reconcile.Result{}, err
 	}
 
-	return reconcile.Result{}, nil
+	return nil
 }
 
 // cleanUpNNC should be called when the NNC is being deleted and the corresponding Node either doesn't exist, or is being deleted.
@@ -184,6 +194,7 @@ func (n *NodeNetworkConfigReconciler) mustRecreateNNC(nodeNetworkConfig *acnv1al
 	if !nncCreated {
 		// If we get here, we're in a state where the NNC doesn't exist and we can't recreate it, but the DNC objects (Node and NC) still exist
 		// The only safe thing we can do is exit and restart so the Node Reconciler can recreate the NNCs
+		// TODO: make this safer so it doesn't depend on orchestrator to restart DNC-RC Pod, instead we should just restart manager
 		log.Printf("Cannot create NNC but DNC objects still exist. Exiting to trigger Reconcile loops for everything.")
 		panic("Could not create NNC in mustRecreateNNC")
 	}
@@ -296,6 +307,7 @@ func (n *NodeNetworkConfigReconciler) ensureVnetIsRegistered(ctx context.Context
 	defer n.registerVnetMutex.Unlock()
 	n.vnetGUID = vnetID
 	if _, found := n.RegisteredVnets.Get(n.vnetGUID); !found {
+		log.Printf("Vnet %s not found in local cache, registering on DNC", vnetID)
 		err := n.DncClient.RegisterVnet(ctx, n.vnetGUID)
 		if err != nil {
 			return err
@@ -311,6 +323,7 @@ func (n *NodeNetworkConfigReconciler) ensureSubnetIsRegistered(ctx context.Conte
 	n.registerSubnetMutex.Lock()
 	defer n.registerSubnetMutex.Unlock()
 	if _, found := n.RegisteredSubnets.Get(subnetName); !found {
+		log.Printf("Subnet %s in vnet %s not found in local cache, registering on DNC", subnetName, vnetID)
 		err := n.DncClient.RegisterSubnet(context.TODO(), vnetID, subnetName, authToken)
 		if err != nil {
 			return err

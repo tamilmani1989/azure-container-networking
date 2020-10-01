@@ -1,0 +1,42 @@
+{
+	"DataStoreSettings": {
+		"AzureStorageInfo": {
+			"AccountName": "cosmosdbopenaicanary",
+			"IsUsingCosmosDb": true
+		}
+	},
+	"kubernetesConfig": {
+		"kubeconfigInfo":  {
+			"mode": "datastore",
+			"managedDNCGUID": "1efe5bbf-d5b1-4fe9-99fa-f55ce1c88679",
+			"clientCertificatesDirectory": "/etc/dnc/client-certificates",
+			"clientCertificatesKeyvaultConfig": {
+				"keyvaultName": "acnKV",
+				"msiResourceID": "",
+				"azureEnvironment": "AzurePublicCloud"
+			},
+			"azureEnvironment": "AzurePublicCloud"
+		},
+		"namespace": "kube-system"
+	},
+	"requestScalerConfig": {
+		"batchSize": 16
+	},
+	"dncClientConfig": {
+		"requestTimeout": "10s",
+		"pollingInterval": "1s",
+		"dncEndpoint": "http://localhost:9000"
+	},
+	"loggingConfig": {
+		"thresholdForLoggingDataStoreOpLatencyMs": 1000
+	},
+	"cosmosMSISettings": {
+		"azureEnvironment": "AzurePublicCloud",
+    	"msiResourceID": "",
+    	"cosmosResourceID": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/rgopenAICanary/providers/Microsoft.DocumentDB/databaseAccounts/cosmosdbopenaicanary"
+	},
+	"leaderElectionSettings": {
+		"namespace": "default",
+		"enabled": true
+	}
+}
