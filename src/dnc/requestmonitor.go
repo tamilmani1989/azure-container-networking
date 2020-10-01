@@ -385,57 +385,57 @@ Cleanup:
 	return markProcessingFailed, nil
 }
 
-func processNetworkContainerUnReserve(
-	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	var err *api.JsonErr
-	if repoNCConfig.ImplicitReservation {
+func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.JsonErr {
+	if !ncConfig.ImplicitReservation {
 		sessionInfo := map[string]string{
-			datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
-			datamodel.NetworkRepositoryName:     repoNCConfig.NetworkID,
-		}
-
-		// Acquire Node lock only if needed
-		reservationConfig, err :=
-			datamodel.TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
-		if err == nil && reservationConfig != nil {
-			if len(reservationConfig.AllocationRequest.NodeConstraint) != 0 {
-				sessionInfo[datamodel.NodeRepositoryName] = repoNCConfig.GetAssociationInfo().NodeID
-			}
-		}
-
-		sessionManager.BeginWriteSession(sessionInfo)
-		defer sessionManager.EndWriteSession(sessionInfo)
-
-		if reservationConfig != nil && len(reservationConfig.SecondaryAllocations) > 0 {
-			if err := ipAllocator.RemoveAllAllocations(*reservationConfig); err != nil {
-				return false, err
-			}
-		}
-
-		err = datamodel.DeleteIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID, true)
-	} else {
-		sessionInfo := map[string]string{
-			datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
+			datamodel.ReservationRepositoryName: ncConfig.ReservationID,
 		}
 		sessionManager.BeginWriteSession(sessionInfo)
 		defer sessionManager.EndWriteSession(sessionInfo)
 
-		err = datamodel.UpdateNCToReservationAssociation(repoNCConfig, true)
+		if err := datamodel.UpdateNCToReservationAssociation(ncConfig, true); err != nil {
+			return err
+		}
+
+		return transitionNCTo(ncConfig, datamodel.Purge, datamodel.Pending)
 	}
+
+	sessionInfo := map[string]string{
+		datamodel.ReservationRepositoryName: ncConfig.ReservationID,
+		datamodel.NetworkRepositoryName:     ncConfig.NetworkID,
+	}
+
+	// Acquire Node lock only if needed
+	reservation, err := datamodel.TryQueryIPReservation(ncConfig.NetworkID, ncConfig.ReservationID)
 	if err != nil {
-		return false, err
+		return err
+	}
+	if reservation != nil && len(reservation.AllocationRequest.NodeConstraint) != 0 {
+		sessionInfo[datamodel.NodeRepositoryName] = ncConfig.GetAssociationInfo().NodeID
 	}
 
-	repoNCConfig.State = datamodel.Purge
-	repoNCConfig.Status = datamodel.Pending
-	repoNCConfig.FailureDetail = api.JsonErr{}
+	sessionManager.BeginWriteSession(sessionInfo)
+	defer sessionManager.EndWriteSession(sessionInfo)
 
-	err = datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
-	if err != nil {
-		return false, err
+	if reservation != nil && len(reservation.SecondaryAllocations) > 0 {
+		if err := ipAllocator.RemoveAllAllocations(*reservation); err != nil {
+			return err
+		}
 	}
 
-	return false, nil
+	if err := datamodel.DeleteIPReservation(ncConfig.NetworkID, ncConfig.ReservationID, true); err != nil {
+		return err
+	}
+
+	return transitionNCTo(ncConfig, datamodel.Purge, datamodel.Pending)
+}
+
+func transitionNCTo(nc *datamodel.NCConfiguration, state datamodel.NetworkContainerState, status datamodel.Status) *api.JsonErr {
+	nc.State = state
+	nc.Status = status
+	nc.FailureDetail = api.JsonErr{}
+
+	return datamodel.PersistNCConfiguration(nc, datamodel.DontAddToPendingQ)
 }
 
 func processNetworkContainerPurge(
@@ -1572,7 +1572,8 @@ func processNetworkContainerRequest(
 			removeRequestFromPendingQueue, err = processNetworkContainerDisAssociate(repoNCConfig, sessionInfo)
 
 		case datamodel.UnReserve:
-			removeRequestFromPendingQueue, err = processNetworkContainerUnReserve(repoNCConfig)
+			removeRequestFromPendingQueue = false // there is no obvious case where unreserving requires removing the item from the pending queue
+			err = processNetworkContainerUnReserve(repoNCConfig)
 
 		case datamodel.Purge:
 			removeRequestFromPendingQueue, err = processNetworkContainerPurge(repoNCConfig, createdDateTime)
