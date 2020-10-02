@@ -352,7 +352,7 @@ int XmlParser::ParseManifest(wchar_t* xmlFilePath, PluginMetadata *pluginData)
 		if (!IsValidEntryPoint(&pluginData->entryPoint))
 		{
 			LOGINFOW(L"Invalid entry point %s Relative/empty paths not allowed in entry point.", pluginData->entryPoint);
-			throw;
+			return -1;
 		}
 	
 		return 1;
