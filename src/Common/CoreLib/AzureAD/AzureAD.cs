@@ -57,6 +57,68 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <param name="keyVaultClientIdentity"></param>
         /// <param name="azureADClientIdentity"></param>
         /// <param name="resource"></param>
+        /// <param name="authorityUrl"></param>
+        /// <param name="azureEnvironment"></param>
+        /// <returns></returns>
+        public async Task<string> GetAccessToken(
+            ClientIdentity keyVaultClientIdentity,
+            ClientIdentity azureADClientIdentity,
+            string resource,
+            string authorityUrl,
+            string azureEnvironment)
+        {
+            if (keyVaultClientIdentity == null)
+            {
+                throw new ArgumentNullException("keyVaultlientIdentity");
+            }
+
+            if (azureADClientIdentity == null)
+            {
+                throw new ArgumentNullException("azureADClientIdentity");
+            }
+
+            if (string.IsNullOrWhiteSpace(resource))
+            {
+                throw new ArgumentNullException("resource");
+            }
+
+            if (string.IsNullOrWhiteSpace(authorityUrl))
+            {
+                throw new ArgumentNullException("authorityUrl");
+            }
+
+            if (string.IsNullOrWhiteSpace(azureEnvironment))
+            {
+                throw new ArgumentNullException("azureEnvironment");
+            }
+
+            // https://docs.microsoft.com/en-us/azure/key-vault/general/service-to-service-authentication#connection-string-support
+            string kvConnString = this.GetTokenProviderConnectionString(keyVaultClientIdentity);
+            X509Certificate2 cert = await this.FetchCertificateFromKV(
+                kvConnString, azureADClientIdentity.KeyVaultCertPath, azureEnvironment).ConfigureAwait(false);
+
+            Uri authority = new Uri(authorityUrl);
+            IConfidentialClientApplication app = ConfidentialClientApplicationBuilder.Create(azureADClientIdentity.AppId)
+                   .WithCertificate(cert)
+                   .WithAuthority(authority)
+                   .Build();
+
+            string[] ResourceIds = new string[] { resource };
+
+            AuthenticationResult result = await app.AcquireTokenForClient(ResourceIds).WithSendX5C(true).ExecuteAsync().ConfigureAwait(false);
+            return result.AccessToken;
+        }
+
+        /// <summary>
+        /// Get access token from Azure AD using a client identity that is stored
+        /// in key vault. In this case, first a call will be made to KeyVault
+        /// to fetch client identity and then using this fetched identity, call
+        /// will be made to AzureAD to fetch token. To access key vault, an identity
+        /// is needed in this case
+        /// </summary>
+        /// <param name="keyVaultClientIdentity"></param>
+        /// <param name="azureADClientIdentity"></param>
+        /// <param name="resource"></param>
         /// <param name="azureEnvironment"></param>
         /// <returns></returns>
         public async Task<string> GetAccessToken(
@@ -75,23 +137,27 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
                 throw new ArgumentNullException("azureADClientIdentity");
             }
 
-            this.ValidateADClientIdentityForKVScenario(azureADClientIdentity, "azureADClientIdentity");
+            if (string.IsNullOrWhiteSpace(azureADClientIdentity.TenantId))
+            {
+                throw new ArgumentNullException("azureADClientIdentity.TenantId");
+            }
 
-            // https://docs.microsoft.com/en-us/azure/key-vault/general/service-to-service-authentication#connection-string-support
-            string kvConnString = this.GetTokenProviderConnectionString(keyVaultClientIdentity);
-            X509Certificate2 cert = await this.FetchCertificateFromKV(
-                kvConnString, azureADClientIdentity.KeyVaultCertPath, azureEnvironment).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(resource))
+            {
+                throw new ArgumentNullException("resource");
+            }
 
-            Uri authority = new Uri($"{AzureInfo.GetAzureADInstance(azureEnvironment, true)}{azureADClientIdentity.TenantId}");
-            IConfidentialClientApplication app = ConfidentialClientApplicationBuilder.Create(azureADClientIdentity.AppId)
-                   .WithCertificate(cert)
-                   .WithAuthority(authority)
-                   .Build();
+            if (string.IsNullOrWhiteSpace(azureEnvironment))
+            {
+                throw new ArgumentNullException("azureEnvironment");
+            }
 
-            string[] ResourceIds = new string[] { resource };
-
-            AuthenticationResult result = await app.AcquireTokenForClient(ResourceIds).WithSendX5C(true).ExecuteAsync().ConfigureAwait(false);
-            return result.AccessToken;
+            return await GetAccessToken(
+                keyVaultClientIdentity,
+                azureADClientIdentity,
+                resource,
+                $"{AzureInfo.GetAzureADInstance(azureEnvironment, true)}{azureADClientIdentity.TenantId}",
+                azureEnvironment);
         }
 
         /// <summary>
@@ -112,22 +178,34 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             string tenantId,
             string azureEnvironment)
         {
+            if (keyVaultClientIdentity == null)
+            {
+                throw new ArgumentNullException("keyVaultlientIdentity");
+            }
+
+            if (azureADClientIdentity == null)
+            {
+                throw new ArgumentNullException("azureADClientIdentity");
+            }
+
             if (string.IsNullOrWhiteSpace(tenantId))
             {
                 throw new ArgumentNullException("tenantId");
             }
 
-            string resource = $"{AzureInfo.GetArmEndpoint(azureEnvironment)}//.default";
-            ClientIdentity localClientId = new ClientIdentity
+            if (string.IsNullOrWhiteSpace(azureEnvironment))
             {
-                AppId = azureADClientIdentity.AppId,
-                IdentityType = azureADClientIdentity.IdentityType,
-                AppKey = azureADClientIdentity.AppKey,
-                KeyVaultCertPath = azureADClientIdentity.KeyVaultCertPath,
-                TenantId = tenantId
-            };
+                throw new ArgumentNullException("azureEnvironment");
+            }
 
-            return await this.GetAccessToken(keyVaultClientIdentity, localClientId, resource, azureEnvironment).ConfigureAwait(false);
+            string resource = $"{AzureInfo.GetArmEndpoint(azureEnvironment)}//.default";
+
+            return await GetAccessToken(
+               keyVaultClientIdentity,
+               azureADClientIdentity,
+               resource,
+               $"{AzureInfo.GetAzureADInstance(azureEnvironment, true)}{tenantId}",
+               azureEnvironment).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -145,6 +223,16 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new ArgumentNullException("connectionString");
+            }
+
+            if (string.IsNullOrWhiteSpace(resource))
+            {
+                throw new ArgumentNullException("resource");
+            }
+
+            if (string.IsNullOrWhiteSpace(azureEnvironment))
+            {
+                throw new ArgumentNullException("azureEnvironment");
             }
 
             // https://docs.microsoft.com/en-us/azure/key-vault/general/service-to-service-authentication#connection-string-support
@@ -172,11 +260,10 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             else if (clientIdentity.IdentityType == ClientIdentityType.SpClientSecret)
             {
                 if (string.IsNullOrWhiteSpace(clientIdentity.AppId) ||
-                    string.IsNullOrWhiteSpace(clientIdentity.TenantId) ||
                     string.IsNullOrWhiteSpace(clientIdentity.AppKey))
                 {
                     throw new ArgumentException(
-                        $"For identity type '{ClientIdentityType.SpClientSecret}' AppId,TenantId,AppKey are required in clientIdentity");
+                        $"For identity type '{ClientIdentityType.SpClientSecret}' AppId,AppKey are required in clientIdentity");
                 }
 
                 connectionString = string.Format(TokenProviderConnectionStringFormats.ServicePrincipalAppKeyFormat,

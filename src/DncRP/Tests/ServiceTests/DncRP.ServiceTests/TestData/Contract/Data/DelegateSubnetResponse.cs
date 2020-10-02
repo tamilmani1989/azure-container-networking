@@ -19,7 +19,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         /// <summary>
         /// Gets or sets the type of the resource.
         /// </summary>
-        [JsonProperty(Required = Required.Default, PropertyName = "state")]
+        [JsonProperty(Required = Required.Default, PropertyName = "provisioningState")]
         public string State { get; set; }
 
         [JsonProperty("subnetDetails")]

@@ -7,6 +7,8 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using Newtonsoft.Json;
+
     public class Orchestrator : TopLevelResource
     {
         /// <summary>
@@ -33,11 +35,32 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Initializes a new instance of the <see cref="Orchestrator"/> class.
         /// </summary>
-        public Orchestrator(string subscriptionId, string resourceGroup, string resourceName, string location, OrchestratorProperties properties) :
+        public Orchestrator(
+            string subscriptionId,
+            string resourceGroup,
+            string resourceName,
+            string location,
+            OrchestratorKind kind,
+            OrchestratorProperties properties,
+            MSIIdentityResponse orchestratorIdentity) :
             this(subscriptionId, resourceGroup, resourceName)
         {
             this.Properties = properties;
             this.Location = location;
+            this.Kind = kind;
+            this.OrchestratorIdentity = orchestratorIdentity;
+        }
+
+        [JsonProperty("kind")]
+        public OrchestratorKind Kind
+        {
+            get; set;
+        }
+
+        [JsonProperty("identity")]
+        public MSIIdentityResponse OrchestratorIdentity
+        {
+            get; set;
         }
 
         public static Orchestrator CreateErrorResponse(string errorMessage, int httpStatusCode)

@@ -20,6 +20,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     using Xunit;
     using Match = System.Text.RegularExpressions.Match;
 
+    [Collection("ServiceTestsSequential")]
     public class CosmosDbConnectionTests
     {
         private IHttpUtility httpUtility;

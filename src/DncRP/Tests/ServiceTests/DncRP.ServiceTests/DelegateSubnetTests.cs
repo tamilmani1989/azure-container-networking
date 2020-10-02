@@ -28,9 +28,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     using Xunit;
     using Match = System.Text.RegularExpressions.Match;
 
+    [Collection("ServiceTestsSequential")]
     public class DelegateSubnetTests
     {
         private IHttpUtility httpUtility;
+        private IKeyVaultUtility keyVaultUtility;
         private TestConfig testConfig;
         private IConfiguration configuration;
         private const string settingsFileName = "servicetests.settings.json";
@@ -41,6 +43,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         public DelegateSubnetTests()
         {
             this.httpUtility = new HttpUtility(new HttpClient());
+            this.keyVaultUtility = new KeyVaultUtility();
             var builder = new ConfigurationBuilder()
               .SetBasePath(Directory.GetCurrentDirectory())
               .AddJsonFile(settingsFileName);
@@ -94,7 +97,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             CosmosDbDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
             dataStore.InitAsync().GetAwaiter().GetResult();
-            tableOperations = new TableOperations(dataStore, tableOpLogger.Object);
+            tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
         }
 
         [Fact]
@@ -238,7 +241,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 resourceName);
 
             Assert.True(result.StatusCode == (int)expectedStatusCode,
-                $"Failed PutDelegateSubnet, expectedCode: {(int)expectedStatusCode}, actual: {result.StatusCode} result: {result}");
+                $"Failed PutDelegateSubnet, expectedCode: {(int)expectedStatusCode}, actual: {result.StatusCode} result: {result.Content}");
             DelegateSubnetResponse response = null;
             if (expectedStatusCode == HttpStatusCode.OK)
             {

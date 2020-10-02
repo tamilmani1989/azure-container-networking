@@ -47,6 +47,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             });
 
             IImdsRetriever imdsRetriever = new ImdsRetriever(httpUtility);
+            IKeyVaultUtility keyVaultUtility = new KeyVaultUtility();
 
             // initialize context first
             ContextInitializer.InitializeContext(Configuration, imdsRetriever);
@@ -84,7 +85,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 ITableDataStore cosmosDbStore = new CosmosDbDataStore(connectionStringProvider, cosmosDbLogger);
                 cosmosDbStore.InitAsync().GetAwaiter().GetResult();
 
-                return new TableOperations(cosmosDbStore, tableOperationsLogger);
+                return new TableOperations(cosmosDbStore, tableOperationsLogger, httpUtility, keyVaultUtility);
             });
 
             // The following line enables Application Insights telemetry collection.

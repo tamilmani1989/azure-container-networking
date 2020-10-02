@@ -10,6 +10,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
     using Newtonsoft.Json;
     using System;
     using System.Net.Http;
+    using System.Net.Http.Headers;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -62,5 +63,17 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <param name="requestMessage"></param>
         /// <returns></returns>
         Task<HttpResponseMessage> SendAsync(HttpRequestMessage requestMessage);
+
+        /// <summary>
+        /// Invoke Http request and deserialize its JSON result to caller specified object.
+        /// It also return the response headers
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="requestMessage"></param>
+        /// <param name="option"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        Task<HttpResponseMessage> SendRequestAndGetHttpResponseAsync(
+            HttpRequestMessage requestMessage, HttpCompletionOption option, CancellationToken token);
     }
 }

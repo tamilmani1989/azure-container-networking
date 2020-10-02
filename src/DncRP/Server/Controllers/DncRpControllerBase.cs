@@ -7,11 +7,14 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Net;
     using System.Net.Http;
+    using System.Text;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Http.Extensions;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
@@ -118,7 +121,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 }
             }
 
-            string json =  method == HttpMethod.Delete ? string.Empty : JsonUtility.Serialize(response);
+            string json = method == HttpMethod.Delete ? string.Empty : JsonUtility.Serialize(response);
 
             logger.LogInformation("Success from API {0}. Code:{1}, Response:{2}", methodNameForLogging, statusCode, json);
 
@@ -149,6 +152,73 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             return request;
         }
 
-        
+        protected MSIIdentityMetadata GetIdentityFromRequestHeaders(HttpRequest httpRequest, OrchestratorRequest orchestratorRequest)
+        {
+            string urlHeader = ResourceConstants.IdentityUrlHeader;
+            string principalIdHeader = ResourceConstants.IdentityPrincipalIdHeader;
+            string homeTenantIdHeader = ResourceConstants.IdentityHomeTenantIdHeader;
+            string clientTenantIdHeader = ResourceConstants.IdentityClientTenantIdHeader;
+            MSIIdentityMetadata identity = new MSIIdentityMetadata();
+            StringBuilder sb = new StringBuilder();
+            string errorMsg;
+
+            if (httpRequest.Headers.ContainsKey(urlHeader))
+            {
+                identity.Url = httpRequest.Headers[urlHeader];
+                this.logger.LogInformation("{0}: {1}", urlHeader, httpRequest.Headers[urlHeader]);
+            }
+            else
+            {
+                errorMsg = $"{urlHeader} header not found in the request";
+                sb.AppendLine(errorMsg);
+                this.logger.LogInformation(errorMsg);
+            }
+
+            if (httpRequest.Headers.ContainsKey(principalIdHeader))
+            {
+                identity.PrincipalId = httpRequest.Headers[principalIdHeader];
+                this.logger.LogInformation("{0}: {1}", principalIdHeader, httpRequest.Headers[principalIdHeader]);
+            }
+            else
+            {
+                errorMsg = $"{principalIdHeader} header not found in the request";
+                sb.AppendLine(errorMsg);
+                this.logger.LogInformation(errorMsg);
+            }
+
+            if (httpRequest.Headers.ContainsKey(homeTenantIdHeader))
+            {
+                identity.HomeTenantId = httpRequest.Headers[homeTenantIdHeader];
+                this.logger.LogInformation("{0}: {1}", homeTenantIdHeader, httpRequest.Headers[homeTenantIdHeader]);
+            }
+            else
+            {
+                errorMsg = $"{homeTenantIdHeader} header not found in the request";
+                sb.AppendLine(errorMsg);
+                this.logger.LogInformation(errorMsg);
+            }
+
+            if (httpRequest.Headers.ContainsKey(clientTenantIdHeader))
+            {
+                identity.ClientTenantId = httpRequest.Headers[clientTenantIdHeader];
+                this.logger.LogInformation("{0}: {1}", clientTenantIdHeader, httpRequest.Headers[clientTenantIdHeader]);
+            }
+            else
+            {
+                errorMsg = $"{clientTenantIdHeader} header not found in the request";
+                sb.AppendLine(errorMsg);
+                this.logger.LogInformation(errorMsg);
+            }
+
+            identity.Type = orchestratorRequest.Properties.Parameters.IdentityParameter.IdentityType;
+            this.logger.LogInformation($"Identity type: {identity.Type}");
+
+            if (!string.IsNullOrWhiteSpace(sb.ToString()))
+            {
+                throw new Exception($"Error in identity headers. {sb.ToString()}");
+            }
+
+            return identity;
+        }
     }
 }

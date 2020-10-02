@@ -272,5 +272,20 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
 
             return httpResponseMessage;
         }
+
+        /// <summary>
+        /// Invoke Http request and deserialize its JSON result to caller specified object.
+        /// It also return the response headers
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="requestMessage"></param>
+        /// <param name="option"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public async Task<HttpResponseMessage> SendRequestAndGetHttpResponseAsync(
+            HttpRequestMessage requestMessage, HttpCompletionOption option, CancellationToken token)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

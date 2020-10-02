@@ -21,7 +21,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Gets or sets the type of the resource.
         /// </summary>
-        [JsonProperty(Required = Required.Default, PropertyName = "state")]
+        [JsonProperty(Required = Required.Default, PropertyName = "provisioningState")]
         public ProvisioningState State { get; set; }
 
         /// <summary>

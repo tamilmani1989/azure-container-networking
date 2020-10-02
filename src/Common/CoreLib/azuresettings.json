@@ -5,7 +5,7 @@
     "azureusgovernment": "https://login.microsoftonline.us",
     "azuregermancloud": "https://login.microsoftonline.de",
     "ppe": "https://login.windows-ppe.net", //Pre production environment in first party portal
-    "dogfood": ""
+    "dogfood": "https://login.windows-ppe.net"
   },
   "ArmEndpoints": {
     "azurecloud": "https://management.azure.com",
@@ -13,7 +13,7 @@
     "azureusgovernment": "https://management.usgovcloudapi.net",
     "azuregermancloud": "https://management.microsoftazure.de",
     "dogfood": "https://api-dogfood-admin.resources.windows-int.net",
-    "ppe": "https://management.azure.com" //Pre production environment in first party portal
+    "ppe": "https://management.core.windows.net" //Pre production environment in first party portal
   },
   "AzureEnvironments": [
     "azurecloud",

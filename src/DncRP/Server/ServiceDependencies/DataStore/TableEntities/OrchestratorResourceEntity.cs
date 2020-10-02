@@ -70,5 +70,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             get; set;
         }
+
+        public string IdentityMetadata
+        {
+            get; set;
+        }
     }
 }

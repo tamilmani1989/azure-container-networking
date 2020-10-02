@@ -34,6 +34,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             get; private set;
         }
 
+        public static string KeyVaultUrl
+        {
+            get; private set;
+        }
+
         public static void SetContext(string azureEnv, string azureRegion)
         {
             AzureEnvironment = azureEnv;
@@ -48,6 +53,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public static void SetArmAccessIdentity(ClientIdentity armAccessIdentity)
         {
             ArmAccessIdentity = armAccessIdentity;
+        }
+
+        public static void SetKeyVaultUrl(string keyvaultUrl)
+        {
+            KeyVaultUrl = keyvaultUrl;
         }
     }
 }

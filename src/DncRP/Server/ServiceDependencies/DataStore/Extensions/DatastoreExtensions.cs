@@ -17,25 +17,37 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string subId = entity.PartitionKey;
             string[] rowParts = entity.RowKey.Split(new string[] { "_" }, StringSplitOptions.None);
 
+            OrchestratorProperties props = JsonUtility.Deserialize<OrchestratorProperties>(entity.Properties);
+            props.ResourceGuid = entity.ResouceGuid;
+            props.State = TopLevelResourceProperties.ParseProvisioningState(entity.State);
+
+            MSIIdentityMetadata metadata = JsonUtility.Deserialize<MSIIdentityMetadata>(entity.IdentityMetadata);
+            MSIIdentityResponse identityResponse = new MSIIdentityResponse
+            {
+                PrincipalId = metadata.PrincipalId,
+                TenantId = metadata.HomeTenantId,
+                Type = metadata.Type
+            };
+
             return new Orchestrator(
                 subId,
                 rowParts[0],
                 rowParts[1],
                 entity.Location,
-                new OrchestratorProperties
-                {
-                    State = (ProvisioningState)Enum.Parse(typeof(ProvisioningState), entity.State, true),
-                    ResourceGuid = entity.ResouceGuid,
-                    ControllerDetails = new ControllerDetails
-                    {
-                        Id = entity.ControllerId
-                    },
-                    orchestratorInstanceDetails = new OrchestratorInstanceDetails
-                    {
-                        Type = (OrchestratorType)Enum.Parse(typeof(OrchestratorType), entity.OrchestratorType, true),
-                        Properties = JsonUtility.Deserialize<OrchestratorInstanceProperties>(entity.Properties)
-                    }
-                });
+                (OrchestratorKind)Enum.Parse(typeof(OrchestratorKind), entity.OrchestratorType, true),
+                props,
+                identityResponse);
+        }
+
+        public static OrchestratorPropertiesInternal ToPropertiesInternal(this OrchestratorProperties properties)
+        {
+            return new OrchestratorPropertiesInternal
+            {
+                ApiServerEndpoint = properties.ApiServerEndpoint,
+                AppId = properties.AppId,
+                ClusterRootCA = properties.ClusterRootCA,
+                TenantId = properties.TenantId
+            };
         }
     }
 }

@@ -10,14 +10,71 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
     public class OrchestratorProperties : TopLevelResourceProperties
     {
-        [JsonProperty("orchestratorInstanceDetails")]
-        public OrchestratorInstanceDetails orchestratorInstanceDetails
+        [JsonProperty("orchestratorAppId")]
+        public string AppId
+        {
+            get; set;
+        }
+
+        [JsonProperty("orchestratorTenantId")]
+        public string TenantId
+        {
+            get; set;
+        }
+
+        [JsonProperty("clusterRootCA")]
+        public string ClusterRootCA
+        {
+            get; set;
+        }
+
+        [JsonProperty("apiServerEndpoint")]
+        public string ApiServerEndpoint
         {
             get; set;
         }
 
         [JsonProperty("controllerDetails")]
         public ControllerDetails ControllerDetails
+        {
+            get; set;
+        }
+    }
+
+    public class OrchestratorPropertiesInternal
+    {
+        [JsonProperty("orchestratorAppId")]
+        public string AppId
+        {
+            get; set;
+        }
+
+        [JsonProperty("orchestratorTenantId")]
+        public string TenantId
+        {
+            get; set;
+        }
+
+        [JsonProperty("clusterRootCA")]
+        public string ClusterRootCA
+        {
+            get; set;
+        }
+
+        [JsonProperty("apiServerEndpoint")]
+        public string ApiServerEndpoint
+        {
+            get; set;
+        }
+
+        [JsonProperty("clientID")]
+        public string ClientId
+        {
+            get; set;
+        }
+
+        [JsonProperty("clientSecretName")]
+        public string ClientSecretName
         {
             get; set;
         }

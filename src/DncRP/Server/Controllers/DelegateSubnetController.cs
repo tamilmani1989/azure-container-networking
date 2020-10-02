@@ -96,6 +96,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 message += $"InternalException: {ex}";
 
+                this.logger.LogError($"{message}, StatusCode: {statusCode}");
+
                 return ConvertToExceptionResult(message, statusCode);
             }
         }
@@ -144,6 +146,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 }
 
                 message += $"InternalException: {ex}";
+
+                this.logger.LogError($"{message}, StatusCode: {statusCode}");
 
                 return ConvertToExceptionResult(message, statusCode);
             }
@@ -212,6 +216,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 message += $"InternalException: {ex}";
 
+                this.logger.LogError($"{message}, StatusCode: {statusCode}");
+
                 return ConvertToExceptionResult(message, statusCode);
             }
         }
@@ -268,7 +274,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 await CreateSubnetTokenAsync(
                     subnetSubId,
-                    subnetName,
+                    resourceGroup,
                     vnetName,
                     subnetName,
                     delegatedSubnetGuid,
@@ -286,7 +292,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     // TODO: Check if there is already an operation pending for this resource
                     await CreateSubnetTokenAsync(
                         subnetSubId,
-                        subnetName,
+                        resourceGroup,
                         vnetName,
                         subnetName,
                         delegatedSubnetGuid,

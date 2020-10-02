@@ -57,8 +57,10 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib.Unittests
                 switch (e)
                 {
                     case "azurecloud":
-                    case "ppe":
                         expectedEndpoint = "https://management.azure.com";
+                        break;
+                    case "ppe":
+                        expectedEndpoint = "https://management.core.windows.net";
                         break;
                     case "azurechinacloud":
                         expectedEndpoint = "https://management.chinacloudapi.cn";
@@ -108,7 +110,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib.Unittests
                         expectedlAadInstance = "https://login.windows-ppe.net";
                         break;
                     case "dogfood":
-                        expectedlAadInstance = "";
+                        expectedlAadInstance = "https://login.windows-ppe.net";
                         break;
                     default:
                         throw new InvalidOperationException($"Invalid environment {e}");
@@ -145,7 +147,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib.Unittests
                         expectedlAadInstance = "https://login.windows-ppe.net/";
                         break;
                     case "dogfood":
-                        expectedlAadInstance = "";
+                        expectedlAadInstance = "https://login.windows-ppe.net/";
                         break;
                     default:
                         throw new InvalidOperationException($"Invalid environment {e}");

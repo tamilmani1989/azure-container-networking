@@ -9,6 +9,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
     using Newtonsoft.Json;
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Net.Http;
     using System.Net.Http.Headers;
@@ -77,6 +78,22 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         {
             HttpResponseMessage httpResponse = await this.httpClient.SendAsync(requestMessage, option, token);
             return await this.ParseHttpResponse<T>(httpResponse);
+        }
+
+        /// <summary>
+        /// Invoke Http request and deserialize its JSON result to caller specified object.
+        /// It also return the response headers
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="requestMessage"></param>
+        /// <param name="option"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public async Task<HttpResponseMessage> SendRequestAndGetHttpResponseAsync(
+            HttpRequestMessage requestMessage, HttpCompletionOption option, CancellationToken token)
+        {
+            HttpResponseMessage httpResponse = await this.httpClient.SendAsync(requestMessage, option, token);
+            return httpResponse;
         }
 
         private async Task<T> ParseHttpResponse<T>(HttpResponseMessage httpResponse, JsonSerializerSettings deserializeSettings = null)

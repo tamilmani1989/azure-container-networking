@@ -23,9 +23,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     using Xunit;
     using Match = System.Text.RegularExpressions.Match;
 
+    [Collection("ServiceTestsSequential")]
     public class ControllerTests
     {
         private IHttpUtility httpUtility;
+        private IKeyVaultUtility keyVaultUtility;
         private TestConfig testConfig;
         private IConfiguration configuration;
         private ClientIdentity clientIdentity;
@@ -36,6 +38,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         public ControllerTests()
         {
             this.httpUtility = new HttpUtility(new HttpClient());
+            this.keyVaultUtility = new KeyVaultUtility();
             var builder = new ConfigurationBuilder()
               .SetBasePath(Directory.GetCurrentDirectory())
               .AddJsonFile(settingsFileName);
@@ -82,7 +85,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             CosmosDbDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
             dataStore.InitAsync().GetAwaiter().GetResult();
-            ITableOperations tableOperations = new TableOperations(dataStore, tableOpLogger.Object);
+            ITableOperations tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
             DncController dncController = new DncController(tableOperations, dncCtrlLogger.Object);
 
             string guid = Guid.NewGuid().ToString();
@@ -122,7 +125,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Assert.True(jsonDeserialized["name"].ToString().Equals(ctrlName));
             Assert.True(jsonDeserialized["location"].ToString().Equals(location));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["type"].ToString()));
-            Assert.True(jsonDeserialized["properties"]["state"].ToString().Equals(ProvisioningState.Succeeded.ToString()));
+            Assert.True(jsonDeserialized["properties"]["provisioningState"].ToString().Equals(ProvisioningState.Succeeded.ToString()));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["resourceGuid"].ToString()));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["dncAppId"].ToString()));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["dncEndpoint"].ToString()));
@@ -137,7 +140,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Assert.True(jsonDeserialized["name"].ToString().Equals(ctrlName));
             Assert.True(jsonDeserialized["location"].ToString().Equals(location));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["type"].ToString()));
-            Assert.True(jsonDeserialized["properties"]["state"].ToString().Equals(ProvisioningState.Succeeded.ToString()));
+            Assert.True(jsonDeserialized["properties"]["provisioningState"].ToString().Equals(ProvisioningState.Succeeded.ToString()));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["resourceGuid"].ToString()));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["dncAppId"].ToString()));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["dncEndpoint"].ToString()));

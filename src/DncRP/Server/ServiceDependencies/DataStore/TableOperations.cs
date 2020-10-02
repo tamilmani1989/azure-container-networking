@@ -7,6 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Logging;
 
     /// <summary>
@@ -20,6 +21,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private IOrchestratorOperations orchestratorOperations;
         private ITableDataStore dataStore;
         ILogger<TableOperations> logger;
+        IHttpUtility httpUtility;
+        IKeyVaultUtility keyVaultUtility;
 
         /// <summary>
         /// Create an instance of TableOperations
@@ -28,10 +31,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="storageConnectionString">Connection string, configuration from appsettings.Json</param>
         public TableOperations(
             ITableDataStore tableDataStore,
-            ILogger<TableOperations> logger)
+            ILogger<TableOperations> logger,
+            IHttpUtility httpUtility,
+            IKeyVaultUtility keyVaultUtility)
         {
             this.dataStore = tableDataStore;
             this.logger = logger;
+            this.httpUtility = httpUtility;
+            this.keyVaultUtility = keyVaultUtility;
 
             Init();
         }
@@ -45,7 +52,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             subnetTokenMapOperation = new SubnetTokenMapOperations(dataStore, logger);
             controllerConfiguration = new ControllerConfiguration(dataStore, logger);
             delegatedSubnetConfiguration = new DelegatedSubnetConfigurationOperations(dataStore, logger);
-            orchestratorOperations = new OrchestratorOperations(dataStore, logger, controllerConfiguration);
+            orchestratorOperations = new OrchestratorOperations(
+                dataStore, logger, controllerConfiguration, this.httpUtility, this.keyVaultUtility);
         }
 
         /// <summary>

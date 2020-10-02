@@ -18,7 +18,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     /// <summary>
     /// Class to handle CRUD operations for Orchestrator
     /// </summary>
-    [Route("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DelegatedNetwork/orchestratorInstances/{resourceName}")]
+    [Route("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DelegatedNetwork/orchestrators/{resourceName}")]
     public class OrchestratorController : DncRpControllerBase<OrchestratorController>
     {
         public OrchestratorController(
@@ -58,6 +58,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 this.logger.LogInformation("PutOrchestratorResource body: {0}", jsonBody);
 
                 request = JsonUtility.Deserialize<OrchestratorRequest>(jsonBody);
+                request.Identity = this.GetIdentityFromRequestHeaders(HttpContext.Request, request);
             }
 
             return await this.ExecuteWithRetryAsync(() => this.tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorAsync(

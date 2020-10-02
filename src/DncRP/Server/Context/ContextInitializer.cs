@@ -52,6 +52,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 CurrentContext.SetManagedIdentity(managedIdetity);
                 CurrentContext.SetArmAccessIdentity(azureADArmTokenIdentity);
             }
+
+            CurrentContext.SetKeyVaultUrl(configuration["KeyVault:Url"]);
         }
     }
 }

@@ -9,10 +9,37 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using Newtonsoft.Json;
 
+    public enum OrchestratorKind
+    {
+        Unknown = 0,
+        Kubernetes
+    }
+
+    public class OrchestratorIdentityParameter
+    {
+        [JsonProperty("type")]
+        public MSIIdentityType IdentityType
+        {
+            get; set;
+        }
+    }
+
     public class OrchestratorRequestParameters
     {
         [JsonProperty("location")]
         public string Location
+        {
+            get; set;
+        }
+
+        [JsonProperty("kind")]
+        public OrchestratorKind Kind
+        {
+            get; set;
+        }
+
+        [JsonProperty("identity")]
+        public OrchestratorIdentityParameter IdentityParameter
         {
             get; set;
         }
@@ -37,6 +64,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     {
         [JsonProperty("properties")]
         public OrchestratorArmProperties Properties
+        {
+            get; set;
+        }
+
+        [JsonIgnore]
+        public MSIIdentityMetadata Identity
         {
             get; set;
         }

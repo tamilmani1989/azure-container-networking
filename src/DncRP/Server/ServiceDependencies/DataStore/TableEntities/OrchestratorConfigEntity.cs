@@ -37,6 +37,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             get; set;
         }
 
+        public string IdentityProperties
+        {
+            get; set;
+        }
+
         public string OrchestratorType
         {
             get; set;
