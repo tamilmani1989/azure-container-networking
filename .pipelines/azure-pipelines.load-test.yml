@@ -149,6 +149,9 @@ stages:
                 sudo -E ./install-cni-multitenancy-plugin.sh $latestACNVersion;
                 wget https://github.com/Azure/azure-container-networking/releases/latest/download/azure-cns-linux-amd64-$latestACNVersion.tgz;
                 tar -zxvf *.tgz;
+                export DataStoreStorageName="'$(COSMOSDB_ACCOUNT_NAME)'"
+                export DataStoreStorageKey="'$(COSMOSDB_ACCOUNT_KEY)'"
+                export DataStorePartitionKey="loadtest'$(date +%F-%H%M%S)'"
                 export DNC_CONFIGURATION_PATH=$(pwd)/config_load_test.json;
                 sudo -E ./dnc &> dnc-stdout.log &
                 sudo -E ./cnsmock &> azure-dnc-CNS-mock-stdout.log &
@@ -196,6 +199,7 @@ stages:
             echo $(TEST_PLAN_SUBNETS_PER_NET) > $(JMETER_DIRECTORY_INPUT)/subnets_per_net_count.txt
             echo $(TEST_PLAN_CONTAINERS_PER_NODE) > $(JMETER_DIRECTORY_INPUT)/containers_per_node_count.txt
             echo $(TEST_PLAN_CONTAINERS_PER_SUBNET) > $(JMETER_DIRECTORY_INPUT)/containers_per_subnet_count.txt
+            echo $(TEST_PLAN_SECONDARY_IP_COUNT) > $(JMETER_DIRECTORY_INPUT)/secondary_ip_count.txt
             echo $(TEST_PLAN_RETRY_LIMIT) > $(JMETER_DIRECTORY_INPUT)/try_limit.txt
             echo $(TEST_PLAN_REQUESTS_PER_SECOND_PER_WORKER) > $(JMETER_DIRECTORY_INPUT)/requests_per_second.txt
             docker run --name=jmxvalidator -v $(JMETER_DIRECTORY_INPUT):/jmeter -w /jmeter \

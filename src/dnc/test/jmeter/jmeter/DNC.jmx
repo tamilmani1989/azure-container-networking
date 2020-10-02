@@ -52,6 +52,7 @@ net_count_path = selected_path + &quot;/net_count.txt&quot;;
 subnets_per_net_count_path = selected_path + &quot;/subnets_per_net_count.txt&quot;;
 containers_per_node_count_path = selected_path + &quot;/containers_per_node_count.txt&quot;;
 containers_per_subnet_count_path = selected_path + &quot;/containers_per_subnet_count.txt&quot;;
+secondary_ip_count_path = selected_path + &quot;/secondary_ip_count.txt&quot;;
 try_limit_path = selected_path + &quot;/try_limit.txt&quot;;
 requests_per_second_path = selected_path + &quot;/requests_per_second.txt&quot;;
 
@@ -59,6 +60,7 @@ String net_count = FileUtils.readLines(new File(net_count_path)).get(0);
 String subnets_per_net_count = FileUtils.readLines(new File(subnets_per_net_count_path)).get(0);
 String containers_per_node_count = FileUtils.readLines(new File(containers_per_node_count_path)).get(0);
 String containers_per_subnet_count = FileUtils.readLines(new File(containers_per_subnet_count_path)).get(0);
+String secondary_ip_count = FileUtils.readLines(new File(secondary_ip_count_path)).get(0);
 int try_limit = Integer.parseInt(FileUtils.readLines(new File(try_limit_path)).get(0));
 int requests_per_second = Integer.parseInt(FileUtils.readLines(new File(requests_per_second_path)).get(0));
 
@@ -73,7 +75,7 @@ if (local) {
 	command_permission = &quot;chmod +x &quot; + selected_path + &quot;/create_data.sh&quot;;   
 	Process process_permissiom = Runtime.getRuntime().exec(command_permission);
 	Thread.sleep(5000);
-	cmd_string = &quot;bash &quot; + selected_path + &quot;/create_data.sh &quot; + net_count + &quot; &quot; + subnets_per_net_count + &quot; &quot; + containers_per_subnet_count  + &quot; &quot;  + containers_per_node_count;
+	cmd_string = &quot;bash &quot; + selected_path + &quot;/create_data.sh &quot; + net_count + &quot; &quot; + subnets_per_net_count + &quot; &quot; + containers_per_subnet_count  + &quot; &quot;  + containers_per_node_count + &quot; &quot;  + secondary_ip_count;
 	System.out.println(cmd_string);
 	Process process = Runtime.getRuntime().exec(cmd_string);
 	Thread.sleep(30000);
@@ -916,21 +918,22 @@ vars.put(&quot;try_count&quot;, String.valueOf(try_count + 1));</stringProp>
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
                 <stringProp name="Argument.value">{&#xd;
-     &quot;AssociationInfo&quot;:  {&#xd;
-                             &quot;NodeID&quot;:  &quot;${node_id}&quot;,&#xd;
-                             &quot;OrchestratorContext&quot;:  {&#xd;
-                                                         &quot;PodName&quot;:  &quot;${pod_name}&quot;,&#xd;
-                                                         &quot;PodNamespace&quot;:  &quot;${pod_namespace}&quot;&#xd;
-                                                     },&#xd;
-                             &quot;InterfaceID&quot;:  &quot;${__machineIP}&quot;,&#xd;
-                             &quot;ContainerType&quot;:  &quot;AzureContainerInstance&quot;&#xd;
-                         },&#xd;
-     &quot;AllocationRequest&quot;:  {&#xd;
-                               &quot;SubnetName&quot;:  &quot;${subnet_id}&quot;&#xd;
-                           },&#xd;
-     &quot;AllowHostToNCCommunication&quot;: true,&#xd;
-     &quot;AllowNCToHostCommunication&quot;: true&#xd;
- }</stringProp>
+  &quot;AssociationInfo&quot;:  {&#xd;
+    &quot;NodeID&quot;:  &quot;${node_id}&quot;,&#xd;
+    &quot;OrchestratorContext&quot;:  {&#xd;
+      &quot;PodName&quot;:  &quot;${pod_name}&quot;,&#xd;
+      &quot;PodNamespace&quot;:  &quot;${pod_namespace}&quot;&#xd;
+    },&#xd;
+    &quot;InterfaceID&quot;:  &quot;${__machineIP}&quot;,&#xd;
+    &quot;ContainerType&quot;:  &quot;AzureContainerInstance&quot;&#xd;
+  },&#xd;
+  &quot;AllocationRequest&quot;:  {&#xd;
+    &quot;SubnetName&quot;:  &quot;${subnet_id}&quot;,&#xd;
+    &quot;SecondaryIPCount&quot;: ${secondary_ip_count}&#xd;
+  },&#xd;
+  &quot;AllowHostToNCCommunication&quot;: true,&#xd;
+  &quot;AllowNCToHostCommunication&quot;: true&#xd;
+}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
@@ -1048,7 +1051,7 @@ log.info(&quot;Container Created!&quot;);</stringProp>
         <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Container Config" enabled="true">
           <stringProp name="filename">${__P(container_path)}</stringProp>
           <stringProp name="fileEncoding"></stringProp>
-          <stringProp name="variableNames">subnet_id, net_id, container_id, node_id, pod_name, pod_namespace</stringProp>
+          <stringProp name="variableNames">subnet_id, net_id, container_id, node_id, pod_name, pod_namespace, secondary_ip_count</stringProp>
           <boolProp name="ignoreFirstLine">false</boolProp>
           <stringProp name="delimiter">,</stringProp>
           <boolProp name="quotedData">false</boolProp>

@@ -1,7 +1,10 @@
 {
     "DataStoreSettings": {
-        "TestPersistenceStoreInfo": {
-            "Test": "TestStore"
+        "AzureStorageInfo": {
+            "AccountName": "",
+            "Key": "",
+            "PartitionKey": "",
+            "IsUsingCosmosDb": true
         }
     },
     "ServerSettings": {
