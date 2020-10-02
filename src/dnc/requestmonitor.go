@@ -837,7 +837,7 @@ func processNetworkContainerPublish(
 	ncRequest.IPV4Addresses[0] = strings.Split(ncGoalState.AllocatedIPSubnet, "/")[0]
 	ncRequest.Policies = make([]string, 0)
 	ncRequest.SubnetName = ncGoalState.BaseSubnetName
-	ncRequest.Version = strconv.FormatUint(ncGoalState.VnetVersion, 10)
+	ncRequest.Version = strconv.FormatUint(ncGoalState.Version, 10)
 	ncRequest.VirtualNetworkID = ncGoalState.NetworkID
 	ncRequest.VlanID = ncGoalState.VlanID
 
