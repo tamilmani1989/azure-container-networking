@@ -24,7 +24,8 @@ Runtime=$3
 #!/bin/bash
 ## declare an array variable
 declare -a parray=("Server/DncRP.csproj"
-                   "Tests/UnitTests/DncRP.Unittests.csproj")
+                   "Tests/UnitTests/DncRP.Unittests.csproj"
+                   "Tests/ServiceTests/DncRP.ServiceTests/DncRP.ServiceTests.csproj")
 
 # get length of an array
 arraylength=${#parray[@]}
