@@ -85,7 +85,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             CosmosDbDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
             dataStore.InitAsync().GetAwaiter().GetResult();
+<<<<<<< HEAD
             ITableOperations tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
+=======
+            ITableOperations tableOperations = new TableOperations(dataStore, tableOpLogger.Object);
+
+            SubscriptionRegistrationTests.RegisterSub(this.testConfig.SubscriptionId, tableOperations);
+>>>>>>> DncRP: Subscription registration support
             DncController dncController = new DncController(tableOperations, dncCtrlLogger.Object);
 
             string guid = Guid.NewGuid().ToString();

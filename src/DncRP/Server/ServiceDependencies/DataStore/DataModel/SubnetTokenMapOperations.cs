@@ -88,7 +88,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             // TODO - Add Metric event
             logger.LogInformation($"{tableName} - InsertorUpdate entity successful: {result.Result as SubnetTokenMapEntity}");
-
         }
 
         /// <summary>

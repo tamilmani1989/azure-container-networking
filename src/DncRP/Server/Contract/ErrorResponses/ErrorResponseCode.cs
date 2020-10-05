@@ -67,8 +67,29 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         ServiceAssociationLinkFailed,
 
+        /// <summary>
         /// Controller ARM ID is not in correct format
         /// </summary>
-        ControllerIdInvalidFormat
+        ControllerIdInvalidFormat,
+
+        /// <summary>
+        /// TenantIdUpdateNotSupported
+        /// </summary>
+        TenantIdUpdateNotSupported,
+
+        /// <summary>
+        /// SubscriptionRegistrationFails
+        /// </summary>
+        SubscriptionRegistrationFails,
+
+        /// <summary>
+        /// SubscriptionNotRegistered
+        /// </summary>
+        SubscriptionNotRegistered,
+
+        /// <summary>
+        /// SubscriptionResourceDeleteFailed
+        /// </summary>
+        SubscriptionResourceDeleteFailed,
     }
 }

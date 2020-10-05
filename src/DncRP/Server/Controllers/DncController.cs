@@ -35,7 +35,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpGet]
         public async Task<ContentResult> GetDncResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
-            return await this.ExecuteWithRetryAsync(() => this.tableOperations.ControllerConfiguration.GetDncControllerAsync(
+            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.ControllerConfiguration.GetDncControllerAsync(
                 subscriptionId, resourceGroupName, resourceName), HttpMethod.Get, "GetController");
         }
 
@@ -60,7 +60,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 request = JsonUtility.Deserialize<ControllerRequest>(jsonBody);
             }
 
-            return await this.ExecuteWithRetryAsync(() => this.tableOperations.ControllerConfiguration.InsertOrReplaceDncControllerAsync(
+            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.ControllerConfiguration.InsertOrReplaceDncControllerAsync(
                 subscriptionId, resourceGroupName, resourceName, request), HttpMethod.Put, "PutController");
         }
 
@@ -74,7 +74,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // TODO : Get this from HttpContext
             ControllerRequest requestBody = null;
 
-            return await this.ExecuteWithRetryAsync(() => this.tableOperations.ControllerConfiguration.MergeDncControllerAsync(
+            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.ControllerConfiguration.MergeDncControllerAsync(
                 subscriptionId, resourceGroupName, resourceName, requestBody), HttpMethod.Patch, "PatchController");
         }
 
@@ -85,7 +85,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpDelete]
         public async Task<ContentResult> DeleteDncResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
-            return await this.ExecuteWithRetryAsync(() => this.tableOperations.ControllerConfiguration.DeleteDncControllerAsync(
+            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.ControllerConfiguration.DeleteDncControllerAsync(
                subscriptionId, resourceGroupName, resourceName), HttpMethod.Delete, "DeleteController");
         }
     }

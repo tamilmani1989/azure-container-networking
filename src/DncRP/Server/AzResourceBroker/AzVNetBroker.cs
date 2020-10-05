@@ -66,7 +66,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.logger = logger;
         }
 
-        public static string GetVNetResourceId(string subscriptionId,
+        public static string GetVNetResourceId(
+            string subscriptionId,
             string resourceGroup,
             string vnetName)
         {
@@ -95,53 +96,51 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Get the virtual network.
         /// </summary>
-        /// <param name="subscriptionId"></param>
-        /// <param name="resourceGroupName"></param>
-        /// <param name="vnetName"></param>
+        /// <param name="tenantId">Customer TenantId</param>
+        /// <param name="resourceId">VNet resource Id</param>
         /// <returns></returns>
         public async Task<NetworkModel.VirtualNetwork> GetVirtualNetworkAsync(
-            string subscriptionId,
+            string tenantId,
             string resourceId)
         {
             NetworkModel.VirtualNetwork virtualNetwork = await this.GetResourceAsync<NetworkModel.VirtualNetwork>(
-                subscriptionId: subscriptionId,
+                tenantId: tenantId,
                 resourceId: resourceId,
                 apiVersion: ApiVersion);
 
-            logger.LogInformation($"GetVirtualNetworkAsync: Subscription: {subscriptionId}, resourceId: {resourceId}, " +
+            logger.LogInformation($"GetVirtualNetworkAsync: tenantId: {tenantId}, resourceId: {resourceId}, " +
                 $"VnetGuid: {virtualNetwork.ResourceGuid}, Response: {virtualNetwork}");
 
             return virtualNetwork;
         }
 
+
         /// <summary>
-        /// Creates or updates the service association link.
+        /// Gets or Creates the service association link.
         /// </summary>
-        /// <param name="region">The location. TODO, get it from currentContext</param>
-        /// <param name="subscriptionId">Subscription id to get TokenAccess</param>
-        /// <param name="parentResourceGuid">The parent resource GUID.</param>
-        /// <param name="subnetResourceId">The resource Id of the subnet.</param>
-        /// <param name="primaryContextRequestId">The primary context request Id.</param>
-        /// <param name="secondaryContextRequestId">The secondary context request Id.</param>
+        /// <param name="tenantId">Customer tenantId</param>
+        /// <param name="vnetResourceId">VnetResourceId</param>
+        /// <param name="subnetResourceId">Subnet resourceId</param>
+        /// <returns></returns>
         public async Task<ServiceAssociationLinkDetail> GetOrCreateServiceAssociationLinkAsync(
-            string subscriptionId,
-            string parentResourceGuid,
+            string tenantId,
+            string vnetResourceId,
             string subnetResourceId)
         {
             ServiceAssociationLink salRequest = null;
             try
             {
-                ServiceAssociationLinkDetail detail = await TryGetServiceAssociationLinkDetailAsync(subscriptionId, subnetResourceId);
+                ServiceAssociationLinkDetail detail = await TryGetServiceAssociationLinkDetailAsync(tenantId, subnetResourceId);
                 if (detail != null && !String.IsNullOrEmpty(detail?.Properties?.PrimaryContextId))
                 {
                     return detail;
                 }
 
                 // Create the SAL
-                salRequest = CreateServiceAssociationLinkRequest(subscriptionId, parentResourceGuid, subnetResourceId);
+                salRequest = CreateServiceAssociationLinkRequest(vnetResourceId);
 
                 ServiceAssociationLink salResponse = await PutResourceAsync<ServiceAssociationLink>(
-                            subscriptionId: subscriptionId,
+                            tenantId: tenantId,
                             resourceId: this.GetSALResourceId(subnetResourceId),
                             apiVersion: ApiVersion,
                             requestBody: salRequest)
@@ -150,7 +149,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 // TODO: Handle response Provisioning State.
                 logger.LogInformation($"SAL Response: {salResponse}");
 
-                detail = await TryGetServiceAssociationLinkDetailAsync(subscriptionId, subnetResourceId);
+                detail = await TryGetServiceAssociationLinkDetailAsync(tenantId, subnetResourceId);
                 if (detail == null || String.IsNullOrEmpty(detail?.Properties?.PrimaryContextId))
                 {
                     throw new Exception($"Failed to Get SAL detail for subnetResourceId:{subnetResourceId}, SALdetail: {detail}");
@@ -171,14 +170,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <summary>
         /// Sets resource ownership.
         /// </summary>
-        /// <param name="region">region, get it from CurrentContext.</param>
-        /// <param name="subscriptionId">The subscription Id.</param>
-        /// <param name="resourceGroupName">The resource group name.</param>
-        /// <param name="virtualNetworkName">The virtual network name.</param>
-        /// <param name="action">The ownership action.</param>
-        /// <param name="enableServiceEndpoints">The flag indicating whether enable service endpoints.</param>
-        /// <returns>The resource ownership response.</returns>
+        /// <param name="tenantId">Customer TenantId</param>
+        /// <param name="subscriptionId">Subscription id</param>
+        /// <param name="vnetResourceId">Vnet ResourceId</param>
+        /// <returns></returns>
         public async Task<ResourceOwnershipResponse> SetResourceOwnershipForCustomerVnetAsync(
+            string tenantId,
             string subscriptionId,
             string vnetResourceId)
         {
@@ -201,7 +198,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             };
 
             return await PostResourceActionAsync<ResourceOwnershipRequest, ResourceOwnershipResponse>(
-                subscriptionId: subscriptionId,
+                tenantId: tenantId,
                 resourceId: resourceId,
                 action: "setResourceOwnership",
                 apiVersion: ApiVersion,
@@ -213,10 +210,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <param name="subscriptionId">Subscription Id of the subnet.</param>
         /// <param name="subnetResourceId">The resourceId of the subnet.</param>
-        public async Task<ServiceAssociationLink> DeleteServiceAssociationLinkAsync(string subscriptionId, string subnetResourceId)
+        public async Task<ServiceAssociationLink> DeleteServiceAssociationLinkAsync(
+            string tenantId, 
+            string subnetResourceId)
         {
             return await this.DeleteResourceAsync<ServiceAssociationLink>(
-                subscriptionId,
+                tenantId,
                 resourceId: this.GetSALResourceId(subnetResourceId),
                 apiVersion: ApiVersion);
         }
@@ -226,11 +225,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <param name="subnetResourceId">The resource Id of the subnet</param>
         public async Task<ServiceAssociationLinkDetail> TryGetServiceAssociationLinkDetailAsync(
-            string subscriptionId,
+            string tenantId,
             string subnetResourceId)
         {
             HttpResponseMessage httpResponse = await this.TryGetResourceAsync<ServiceAssociationLinkDetail>(
-                subscriptionId: subscriptionId,
+                tenantId: tenantId,
                 resourceId: this.GetSALDetailResourceId(subnetResourceId),
                 apiVersion: ApiVersion);
 
@@ -259,9 +258,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         }
 
         private ServiceAssociationLink CreateServiceAssociationLinkRequest(
-            string subscriptionId,
-            string parentResourceGuid,
-            string subnetResourceId)
+            string vnetResourceId)
         {
             var sal = new ServiceAssociationLink
             {
@@ -273,7 +270,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             //sal.Properties.AllowDelete = true;
             sal.Properties.Locations = new string[] { CurrentContext.AzureRegion };
-            sal.Properties.ParentResourceGuid = parentResourceGuid.ToString();
+            sal.Properties.ParentResourceGuid = vnetResourceId.ToString();
 
             sal.Properties.Details = new ServiceAssociationLinkDetail[]
             {

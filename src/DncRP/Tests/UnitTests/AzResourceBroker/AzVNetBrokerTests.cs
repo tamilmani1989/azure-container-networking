@@ -99,6 +99,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             const string vnetName = "testVnet";
             string vnetResourceId = AzVNetBroker.GetVNetResourceId(subscriptionId, rgname, vnetName);
             ResourceOwnershipResponse resourceOwnershipResponse = await azVNetBroker.SetResourceOwnershipForCustomerVnetAsync(
+                "tenantId",
                 "useast2euap",
                 vnetResourceId);
 

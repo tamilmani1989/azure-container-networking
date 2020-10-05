@@ -102,7 +102,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public AzResourceBroker(
             IHttpUtility httpUtility, 
             ILogger logger,
-            IAzureAD azureAd)
+            IAzureAD azureAd = null)
         {
             this.httpUtility = httpUtility;
             this.logger = logger;
@@ -119,7 +119,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resource">The desired resource.</param>
         /// <returns>The new resource.</returns>
         protected async Task<T> PutResourceAsync<T>(
-            string subscriptionId,
+            string tenantId,
             string resourceId, 
             string apiVersion, 
             T requestBody) where T : class
@@ -127,7 +127,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             var requestUri = GetResourceUri(resourceId.TrimEnd('/'), apiVersion);
 
             return await this.CallServerAndGetAsync<T, T>(
-                subscriptionId: subscriptionId,
+                tenantId: tenantId,
                 httpMethod: HttpMethod.Put,
                 requestUri: requestUri,
                 requestBody: requestBody);
@@ -145,7 +145,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="request">The request.</param>
         /// <returns>The response.</returns>
         protected async Task<TResponse> PostResourceActionAsync<TRequest, TResponse>(
-            string subscriptionId,
+            string tenantId,
             string resourceId, 
             string action, 
             string apiVersion, 
@@ -153,7 +153,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             var requestUri = GetResourceActionUri(resourceId.TrimEnd('/'), action.Trim('/'), apiVersion);
 
-            return await this.CallServerAndGetAsync<TRequest, TResponse>(subscriptionId: subscriptionId, httpMethod: HttpMethod.Post, requestUri: requestUri, requestBody: request);
+            return await this.CallServerAndGetAsync<TRequest, TResponse>(tenantId: tenantId, httpMethod: HttpMethod.Post, requestUri: requestUri, requestBody: request);
         }
 
         /// <summary>
@@ -163,12 +163,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceId">The resource Id.</param>
         /// <param name="apiVersion">The API version.</param>
         /// <returns>The resource.</returns>
-        protected async Task<T> GetResourceAsync<T>(string subscriptionId, string resourceId, string apiVersion) where T : class
+        protected async Task<T> GetResourceAsync<T>(string tenantId, string resourceId, string apiVersion) where T : class
         {
             Uri requestUri = GetResourceUri(resourceId.TrimEnd('/'), apiVersion);
 
             //Todo: Do we need TokenAccess for read operations?
-            return await this.CallServerAndGetAsync<T, T>(subscriptionId: subscriptionId, httpMethod: HttpMethod.Get, requestUri: requestUri, requestBody: null);
+            return await this.CallServerAndGetAsync<T, T>(tenantId: tenantId, httpMethod: HttpMethod.Get, requestUri: requestUri, requestBody: null);
         }
 
         /// <summary>
@@ -178,25 +178,28 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceId">The resource Id.</param>
         /// <param name="apiVersion">The API version.</param>
         /// <returns>HttpResponseMessage.</returns>
-        protected async Task<HttpResponseMessage> TryGetResourceAsync<T>(string subscriptionId, string resourceId, string apiVersion) where T : class
+        protected async Task<HttpResponseMessage> TryGetResourceAsync<T>(string tenantId, string resourceId, string apiVersion) where T : class
         {
             Uri requestUri = GetResourceUri(resourceId.TrimEnd('/'), apiVersion);
 
             //Todo: Do we need TokenAccess for read operations?
-            return await this.CallServerAsync<T>(subscriptionId: subscriptionId, httpMethod: HttpMethod.Get, requestUri: requestUri, requestBody: null);
+            return await this.CallServerAsync<T>(tenantId: tenantId, httpMethod: HttpMethod.Get, requestUri: requestUri, requestBody: null);
         }
+
 
         /// <summary>
         /// Delete resource internal method
         /// </summary>
-        /// <param name="resourceId">The resource ID</param>
-        /// <param name="apiVersion">The API version</param>
-        /// <param name="headers">The HTTP headers.</param>
-        protected async Task<T> DeleteResourceAsync<T>(string subscriptionId, string resourceId, string apiVersion) where T : class
+        /// <typeparam name="T"></typeparam>
+        /// <param name="tenantId">TenantId</param>
+        /// <param name="resourceId">Resource id to be deleted</param>
+        /// <param name="apiVersion">api version</param>
+        /// <returns></returns>
+        protected async Task<T> DeleteResourceAsync<T>(string tenantId, string resourceId, string apiVersion) where T : class
         {
             Uri requestUri = GetResourceUri(resourceId.TrimEnd('/'), apiVersion);
 
-            return await this.CallServerAndGetAsync<T, T>(subscriptionId: subscriptionId, httpMethod: HttpMethod.Delete, requestUri: requestUri, requestBody: null)
+            return await this.CallServerAndGetAsync<T, T>(tenantId: tenantId, httpMethod: HttpMethod.Delete, requestUri: requestUri, requestBody: null)
                 .ConfigureAwait(continueOnCapturedContext: false);
         }
 
@@ -211,12 +214,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="requestBody">Request body of type TRequest</param>
         /// <returns>response of type TResponse</returns>
         private async Task<TResponse> CallServerAndGetAsync<TRequest, TResponse>(
-            string subscriptionId,
+            string tenantId,
             HttpMethod httpMethod,
             Uri requestUri,
             TRequest requestBody = null) where TResponse : class where TRequest : class
         {
-            string tenantId = await GetTenantIdFromSubscriptionIdAsync(subscriptionId);
             string accessToken = await azureAd.GetAccessTokenForArm(
                 CurrentContext.ManagedIdentity,
                 CurrentContext.ArmAccessIdentity,
@@ -225,7 +227,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             if (String.IsNullOrEmpty(accessToken))
             {
-                throw new Exception($"Invalid accesstoken for subscriptionId: {subscriptionId}, tenantId: {tenantId}");
+                throw new Exception($"Invalid accesstoken for tenantId: {tenantId}");
             }
 
             using (var request = new HttpRequestMessage(httpMethod, requestUri))
@@ -246,12 +248,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="requestBody">Request body of type TRequest</param>
         /// <returns>response of type TResponse</returns>
         private async Task<HttpResponseMessage> CallServerAsync<TRequest>(
-            string subscriptionId,
+            string tenantId,
             HttpMethod httpMethod,
             Uri requestUri,
             TRequest requestBody) where TRequest : class
         {
-            string tenantId = await GetTenantIdFromSubscriptionIdAsync(subscriptionId);
             string accessToken = await azureAd.GetAccessTokenForArm(
                 CurrentContext.ManagedIdentity,
                 CurrentContext.ArmAccessIdentity,
@@ -260,7 +261,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             if (String.IsNullOrEmpty(accessToken))
             {
-                throw new Exception($"Invalid accesstoken for subscriptionId: {subscriptionId}, tenantId: {tenantId}");
+                throw new Exception($"Invalid accesstoken for tenantId: {tenantId}");
             }
 
             using (HttpRequestMessage request = new HttpRequestMessage(httpMethod, requestUri))
@@ -317,44 +318,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string apiVersion)
         {
             return new Uri($"{ArmEndpoint}{resourceId}/{action}?api-version={apiVersion}");
-        }
-
-        private async Task<string> GetTenantIdFromSubscriptionIdAsync(string subscriptionId)
-        {
-            string tenantId = null;
-            var httpRequestMessage = new HttpRequestMessage(
-                HttpMethod.Get,
-                string.Format("https://management.azure.com/subscriptions/{0}?api-version=2014-04-01", subscriptionId));
-            HttpResponseMessage httpResonseMessage = await httpUtility.SendAsync(httpRequestMessage);
-
-            // if the subscription is invalid (either a bad guid or a non-existant subscription), the status code will be a 404
-            // meaning the tenantId will be returned as null
-            if (httpResonseMessage.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                if (httpResonseMessage.Headers.WwwAuthenticate.Count <= 0)
-                {
-                    throw new Exception(
-                        $"No auth context found for authenticating to subscription {subscriptionId}");
-                }
-
-                var auth = httpResonseMessage.Headers.WwwAuthenticate.First();
-                var param = auth.Parameter;
-                try
-                {
-                    var authUrl = param.Split(',')[0].Split('=')[1];
-                    tenantId = authUrl.Substring(authUrl.LastIndexOf('/') + 1, 36);
-                }
-                catch (Exception ex)
-                {
-                    throw new InvalidOperationException($"Error parsing tenantId from WwwAuthenticate header. Was trying to parse {param}", ex);
-                }
-            }
-            else
-            {
-                throw new Exception($"Expected 401 response from unauthorized request to ARM, got {httpResonseMessage.StatusCode} instead.");
-            }
-
-            return tenantId;
         }
     }
 }

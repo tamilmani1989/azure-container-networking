@@ -43,6 +43,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="includeReponseInResult"></param>
         /// <returns></returns>
         protected async Task<ContentResult> ExecuteWithRetryAsync<TResouce>(
+            string subscriptionId,
             Func<Task<TResouce>> action,
             HttpMethod method,
             string methodNameForLogging) where TResouce : TopLevelResource
@@ -53,14 +54,27 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 response = await AsyncRetry.Retry<TResouce>(async () =>
                 {
+                    tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
                     return (TResouce)await action();
                 },
                 3, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(5), (e) => e is HttpRequestException).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                logger.LogError("Error in API: {0}, {1}", methodNameForLogging, ex);
-                return this.ConvertToExceptionResult(ex.Message, (int)HttpStatusCode.InternalServerError);
+                string message = $"Error in API: {methodNameForLogging}";
+                int statusCode = (int)HttpStatusCode.InternalServerError;
+
+                ErrorResponseMessageException errorException = ex as ErrorResponseMessageException;
+                if (errorException != null)
+                {
+                    statusCode = (int)errorException.HttpStatus;
+                    message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}";
+                }
+
+                message += $"InternalException: {ex}";
+
+                logger.LogError(message);
+                return ConvertToExceptionResult(message, statusCode);
             }
 
             return this.ConvertToContentResult(response, method, methodNameForLogging);

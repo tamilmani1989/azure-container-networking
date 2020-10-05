@@ -26,6 +26,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     using Microsoft.Azure.ContainerNetworking.DncRP.Unittests;
     using global::Azure.Security.KeyVault.Secrets;
 
+
     [Collection("ServiceTestsSequential")]
     public class OrchestratorTests
     {
@@ -101,6 +102,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             ITableOperations tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
             this.orchController = new OrchestratorController(tableOperations, orchLogger.Object);
             this.dncController = new DncController(tableOperations, dncCtrlLogger.Object);
+
+            SubscriptionRegistrationTests.RegisterSub(this.testConfig.SubscriptionId, tableOperations);
         }
 
         [Fact]

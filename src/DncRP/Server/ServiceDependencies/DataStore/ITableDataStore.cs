@@ -7,6 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using System.Collections.Generic;
     using System.Threading.Tasks;
     using Microsoft.Azure.Cosmos.Table;
 
@@ -51,6 +52,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="rowKey">row key</param>
         /// <returns></returns>
         Task<TableResult> GetEntityAsync<T>(string tableName, string partitionKey, string rowKey) where T : ITableEntity;
+
+        /// <summary>
+        /// Get the Table entity of a given tablename
+        /// </summary>
+        /// <typeparam name="T">TableEntity type</typeparam>
+        /// <param name="tableName">table name</param>
+        /// <param name="partitionKey">parition Key</param>
+        /// <returns></returns>
+        Task<ICollection<T>> GetEntitiesAsync<T>(string tableName, TableQuery<T> query) where T : ITableEntity, new();
 
         /// <summary>
         /// Delete an entity. If it does not exists, 404 is returned

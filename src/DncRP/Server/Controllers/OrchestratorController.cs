@@ -35,7 +35,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpGet]
         public async Task<ContentResult> GetOrchestratorResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
-            return await this.ExecuteWithRetryAsync(() => this.tableOperations.OrchestratorOperations.GetOrchestratorAsync(
+            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.OrchestratorOperations.GetOrchestratorAsync(
                 subscriptionId, resourceGroupName, resourceName), HttpMethod.Get, "GetOrchestrator");
         }
 
@@ -61,7 +61,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 request.Identity = this.GetIdentityFromRequestHeaders(HttpContext.Request, request);
             }
 
-            return await this.ExecuteWithRetryAsync(() => this.tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorAsync(
+            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.OrchestratorOperations.InsertOrReplaceOrchestratorAsync(
                 subscriptionId, resourceGroupName, resourceName, request), HttpMethod.Put, "PutOrchestrator");
         }
 
@@ -84,7 +84,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpDelete]
         public async Task<ContentResult> DeleteOrchestratorResource(string subscriptionId, string resourceGroupName, string resourceName)
         {
-            return await this.ExecuteWithRetryAsync(() => this.tableOperations.OrchestratorOperations.DeleteOrchestratorAsync(
+            return await this.ExecuteWithRetryAsync(subscriptionId, () => this.tableOperations.OrchestratorOperations.DeleteOrchestratorAsync(
                subscriptionId, resourceGroupName, resourceName), HttpMethod.Delete, "DeleteOrchestrator");
         }
     }

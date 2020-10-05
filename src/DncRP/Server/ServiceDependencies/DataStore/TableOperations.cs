@@ -19,6 +19,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private IControllerConfiguration controllerConfiguration;
         private IDelegatedSubnetConfigurationOperations delegatedSubnetConfiguration;
         private IOrchestratorOperations orchestratorOperations;
+        private ISubscriptionOperation subscriptionOperation;
         private ITableDataStore dataStore;
         ILogger<TableOperations> logger;
         IHttpUtility httpUtility;
@@ -54,6 +55,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             delegatedSubnetConfiguration = new DelegatedSubnetConfigurationOperations(dataStore, logger);
             orchestratorOperations = new OrchestratorOperations(
                 dataStore, logger, controllerConfiguration, this.httpUtility, this.keyVaultUtility);
+            subscriptionOperation = new SubscriptionOperation(dataStore, logger);
         }
 
         /// <summary>
@@ -80,6 +82,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public IOrchestratorOperations OrchestratorOperations
         {
             get => orchestratorOperations;
+        }
+
+        public ISubscriptionOperation SubscriptionOperation
+        {
+            get => subscriptionOperation;
         }
     }
 }

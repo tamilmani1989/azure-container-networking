@@ -31,5 +31,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         IControllerConfiguration ControllerConfiguration { get; }
 
         IOrchestratorOperations OrchestratorOperations { get; }
+
+        /// <summary>
+        /// SubscriptionRegistration operations
+        /// </summary>
+        /// <returns></returns>
+        ISubscriptionOperation SubscriptionOperation { get; }
     }
 }

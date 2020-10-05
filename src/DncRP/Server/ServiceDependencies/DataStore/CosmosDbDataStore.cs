@@ -226,6 +226,44 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
         }
 
+        /// <summary>
+        /// Get the list of Table Entities for a given table query
+        /// </summary>
+        /// <typeparam name="T">TableEntity type</typeparam>
+        /// <param name="tableName">table name</param>
+        /// <param name="query">Table query</param>
+        /// <param name="rowKey">row key</param>
+        /// <returns>Retrieved TableEntity</returns>
+        public async Task<ICollection<T>> GetEntitiesAsync<T>(string tableName, TableQuery<T> query) where T : ITableEntity, new()
+        {
+            try
+            {
+                CloudTable cloudTable = GetTable(tableName);
+                TableContinuationToken continuationToken = null;
+                List<T> resultList = new List<T>();
+
+                do
+                {
+                    // Loop until a null continuation token is received, indicating the end of the table.
+                    var tableQueryResult = await cloudTable.ExecuteQuerySegmentedAsync(query, continuationToken);
+                    if (tableQueryResult.Results?.Count > 0)
+                    {
+                        resultList.AddRange(tableQueryResult.Results);
+                    }
+
+                    continuationToken = tableQueryResult.ContinuationToken;
+                }
+                while (continuationToken != null);
+
+                return resultList;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Failed to Get entities in table: {tableName}, ex:{ex}");
+                throw;
+            }
+        }
+
         private async Task<TableResult> ExecuteAsync(CloudTable cloudTable, TableOperation operation, string opName)
         {
             TableResult tableResult = await cloudTable.ExecuteAsync(operation);

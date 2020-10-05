@@ -5,11 +5,12 @@
 //
 // -----------------------------------------------------------------------------
 
-using System;
-using System.Threading.Tasks;
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using System;
+    using System.Threading.Tasks;
+
     /// <summary>
     /// Defines SubnetTokenConfiguration interface for Data operations
     /// </summary>

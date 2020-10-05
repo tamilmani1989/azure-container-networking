@@ -38,6 +38,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         private const string settingsFileName = "servicetests.settings.json";
         private const string connectStrRegex = "RunAs=App;AppId=(.*);TenantId=(.*);AppKey=(.*)";
         private Mock<ILogger<DelegateSubnetController>> delSubLogger;
+        private Mock<ILogger<SubscriptionRegistrationController>> subscriptionLogger;
         private ITableOperations tableOperations;
 
         public DelegateSubnetTests()
@@ -94,20 +95,29 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Mock<ILogger<CosmosDbDataStore>> logger = new Mock<ILogger<CosmosDbDataStore>>();
             Mock<ILogger<TableOperations>> tableOpLogger = new Mock<ILogger<TableOperations>>();
             delSubLogger = new Mock<ILogger<DelegateSubnetController>>();
+            subscriptionLogger = new Mock<ILogger<SubscriptionRegistrationController>>();
 
             CosmosDbDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
             dataStore.InitAsync().GetAwaiter().GetResult();
+<<<<<<< HEAD
             tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
+=======
+            tableOperations = new TableOperations(dataStore, tableOpLogger.Object);
+
+>>>>>>> DncRP: Subscription registration support
         }
 
         [Fact]
         public async void TestDelegateSubnetController_Get_Put_Delete()
         {
+            // register Sub
+            string subscriptionId = this.testConfig.SubscriptionId;
+            SubscriptionRegistrationTests.RegisterSub(subscriptionId, tableOperations);
+
             // Pass TestHttpUtility for NRP operations.
             DelegateSubnetController delegateSubnetController = new DelegateSubnetController(delSubLogger.Object, tableOperations, new TestHttpUtility());
 
             Guid testGuid = Guid.NewGuid();
-            string subscriptionId = this.testConfig.SubscriptionId;
             string resourceGroup = $"testRG_{testGuid}";
             string vnetName = $"testvnet_{testGuid}";
             string subnetName = $"testsubnet_{testGuid}";
