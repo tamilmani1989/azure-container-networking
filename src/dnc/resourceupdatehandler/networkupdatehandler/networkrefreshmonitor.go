@@ -443,20 +443,14 @@ func UpdateNetworkConfiguration(
 		dnsServers = strings.Split(networkResponse.DNSServers, ",")
 	}
 
-	if len(networkResponse.DNSServers) == 0 {
-		dnsServers = make([]string, 0)
-	} else {
-		dnsServers = strings.Split(networkResponse.DNSServers, ",")
-	}
-
 	vnetVersion, _ = strconv.ParseUint(networkResponse.VnetVersion, 10, 64)
-	repoNetworkConfiguration = &datamodel.NetworkConfiguration{
-		NetworkID:  networkID,
-		Version:    vnetVersion,
-		CNetSpace:  networkResponse.CNetSpace,
-		VNetSpace:  networkResponse.VNetSpace,
-		Subnets:    ipSubnetMap,
-		DNSServers: dnsServers}
+
+	// Update the existing NetworkConfiguration with updated data
+	repoNetworkConfiguration.Version = vnetVersion
+	repoNetworkConfiguration.CNetSpace = networkResponse.CNetSpace
+	repoNetworkConfiguration.VNetSpace = networkResponse.VNetSpace
+	repoNetworkConfiguration.Subnets = ipSubnetMap
+	repoNetworkConfiguration.DNSServers = dnsServers
 
 	failureDetail = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
 	if failureDetail != nil {

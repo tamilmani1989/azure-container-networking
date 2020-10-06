@@ -2064,8 +2064,7 @@ func DeleteNetworkConfiguration(networkID string) *api.JsonErr {
 		return nil
 	}
 
-	subnetKeysToDelete := make([]string, len(networkConfiguration.Subnets))
-	index := 0
+	var subnetKeysToDelete []string
 
 	for subnetName := range networkConfiguration.Subnets {
 		subnetConfiguration, err := TryQuerySubnetConfiguration(networkID, subnetName)
@@ -2090,8 +2089,7 @@ func DeleteNetworkConfiguration(networkID string) *api.JsonErr {
 				Text:       msg}
 		}
 
-		subnetKeysToDelete[index] = subnetName
-		index++
+		subnetKeysToDelete = append(subnetKeysToDelete, subnetName)
 	}
 
 	for _, subnetName := range subnetKeysToDelete {
