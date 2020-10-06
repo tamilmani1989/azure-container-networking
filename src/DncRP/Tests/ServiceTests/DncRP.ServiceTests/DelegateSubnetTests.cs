@@ -99,12 +99,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             CosmosDbDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
             dataStore.InitAsync().GetAwaiter().GetResult();
-<<<<<<< HEAD
             tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
-=======
-            tableOperations = new TableOperations(dataStore, tableOpLogger.Object);
-
->>>>>>> DncRP: Subscription registration support
         }
 
         [Fact]

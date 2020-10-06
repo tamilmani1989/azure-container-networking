@@ -34,7 +34,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         {
             this.Configuration = new ConfigurationBuilder()
                .SetBasePath(Directory.GetCurrentDirectory())
-               .AddJsonFile("appsettings.json", optional: false)
+               .AddJsonFile("unittests.settings.json", optional: false)
                .Build();
 
             this.logger = new NullLogger<AzVNetBroker>();

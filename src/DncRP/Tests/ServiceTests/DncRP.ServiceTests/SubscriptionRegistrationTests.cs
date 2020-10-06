@@ -32,6 +32,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     public class SubscriptionRegistrationTests
     {
         private IHttpUtility httpUtility;
+        private IKeyVaultUtility keyVaultUtility;
         private TestConfig testConfig;
         private IConfiguration configuration;
         private const string settingsFileName = "servicetests.settings.json";
@@ -42,6 +43,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         public SubscriptionRegistrationTests()
         {
             this.httpUtility = new HttpUtility(new HttpClient());
+            this.keyVaultUtility = new KeyVaultUtility();
             var builder = new ConfigurationBuilder()
               .SetBasePath(Directory.GetCurrentDirectory())
               .AddJsonFile(settingsFileName);
@@ -95,7 +97,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             CosmosDbDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
             dataStore.InitAsync().GetAwaiter().GetResult();
-            tableOperations = new TableOperations(dataStore, tableOpLogger.Object);
+            tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
         }
 
         [Fact]
