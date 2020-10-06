@@ -1,0 +1,115 @@
+package networkcontainer
+
+import (
+	"dnc/api"
+	"dnc/configuration"
+	"dnc/datamodel"
+	"dnc/networkcontainer/fakes"
+	"testing"
+)
+
+func getConfiguration (isManaged bool) *configuration.Configuration  {
+	config := configuration.Configuration{
+		DNCSettings: configuration.DNCSettings{
+			Managed: isManaged,
+		},
+	}
+
+	return &config
+}
+
+func getNodeRepo (nodeId string, nodeType string) *fakes.NodeRepo  {
+	nodeRepo := fakes.NodeRepo{
+		FakeNodeConfig: datamodel.NodeConfiguration{
+			NodeID:                      nodeId,
+			NodeInfo:                    api.NodeInfoRequest{
+				NodeType: nodeType,
+			},
+		},
+	}
+
+	return &nodeRepo
+}
+
+func getNCConfig (nodeId string, containerType string) *datamodel.NCConfiguration  {
+	ncID := "nc1"
+	vnetID := "network1"
+	secondaryIPCount := 10
+
+	currentNCState := datamodel.NCConfiguration{
+		NetworkContainerID: ncID,
+		NetworkID:          vnetID,
+		RequestV2: api.NetworkContainerRequestV2{
+			AllocationRequest: api.AllocationRequest{
+				SecondaryIPCount: secondaryIPCount,
+			},
+			AssociationInfo: api.AssociationInfo{
+				NodeID:        nodeId,
+				ContainerType: containerType,
+			},
+			ToBeDeletedIPIds: nil,
+		},
+	}
+
+	return &currentNCState
+}
+
+func assertNCInPublishPending(t *testing.T, nc datamodel.NCConfiguration) {
+	if nc.State != datamodel.Publish {
+		t.Errorf("expected NC to be in Publish state, got %s", nc.State)
+	}
+	if nc.Status != datamodel.Pending {
+		t.Errorf("expected NC to be in Pending status, got %s", nc.Status)
+	}
+
+	// TODO: remove when MACAddress is properly populated.
+	if nc.MACAddress != "TempMAC" {
+		t.Error("MAC address was expected to be TempMAC.")
+	}
+}
+
+func TestAllocateMAC_HappyPath(t *testing.T){
+	var nextNCState   datamodel.NCConfiguration
+
+	nodeId := "testNodeId"
+
+	macAllocator := MacAllocator{
+		PersistNC: func(nc *datamodel.NCConfiguration, _ bool) *api.JsonErr {
+			if nc != nil {
+				nextNCState = *nc
+			}
+			return nil
+		},
+		Logger: new(dummyLogger),
+	}
+
+	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
+	if err != nil {
+		t.Errorf("did not expect error, got: %+v", err)
+	}
+	if removeFromQueue {
+		t.Error("Did not expect removal from queue")
+	}
+
+	// Assert network container.
+	assertNCInPublishPending(t, nextNCState)
+}
+
+func TestAllocateMAC_NonManagedDNC(t *testing.T){
+	nodeId := "testNodeId"
+
+	macAllocator := MacAllocator{
+		PersistNC: func(nc *datamodel.NCConfiguration, _ bool) *api.JsonErr {
+			return nil
+		},
+		Logger: new(dummyLogger),
+	}
+
+	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
+	if err != nil {
+		t.Errorf("Did not expect error, got: %+v", err)
+	}
+	if removeFromQueue {
+		t.Error("Did not expect removal from queue")
+	}
+}

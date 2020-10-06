@@ -46,6 +46,9 @@ const (
 
 	// AllocateLocalIP - Allocate Local IP
 	AllocateLocalIP
+
+	// AllocateMAC - Allocate Local MAC address
+	AllocateMAC
 )
 
 // IsNCCreateInProgress - True if nc is in creation states
@@ -53,6 +56,7 @@ func IsNCCreateInProgress(ncState NetworkContainerState) bool {
 	return ncState == Prepare ||
 		ncState == Reserve ||
 		ncState == AllocateLocalIP ||
+		ncState == AllocateMAC ||
 		ncState == Associate ||
 		ncState == RefreshAssociation ||
 		ncState == Publish ||
@@ -76,6 +80,8 @@ func PromoteContainerState(ncConfig *NCConfiguration) *api.JsonErr {
 		case UnReserve:
 			ncConfig.State = Purge
 		case AllocateLocalIP:
+			fallthrough
+		case AllocateMAC:
 			fallthrough
 		case Associate:
 			fallthrough
@@ -137,6 +143,9 @@ func (networkContainerState NetworkContainerState) String() string {
 
 	case AllocateLocalIP:
 		return "AllocateLocalIP"
+
+	case AllocateMAC:
+		return "AllocateMAC"
 	}
 
 	return "Unknown Status"

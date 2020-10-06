@@ -202,6 +202,20 @@ func processAllocateLocalIP(
 
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
 
+	// Local IP allocation is not needed for bare-metal containers.
+	// In that case change the NC config state to AllocateMAC and return.
+	containerType := repoNCConfig.GetAssociationInfo().ContainerType
+	if api.IsBareMetalContainer(containerType){
+		repoNCConfig.State = datamodel.AllocateMAC
+		repoNCConfig.Status = datamodel.Pending
+		repoNCConfig.FailureDetail = api.JsonErr{}
+		if err := datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
+			return false, err
+		}
+
+		return true, nil
+	}
+
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
@@ -1552,6 +1566,9 @@ func processNetworkContainerRequest(
 
 		case datamodel.AllocateLocalIP:
 			removeRequestFromPendingQueue, err = processAllocateLocalIP(repoNCConfig)
+
+		case datamodel.AllocateMAC:
+			removeRequestFromPendingQueue, err = macAllocator.ProcessAllocateMAC(repoNCConfig)
 
 		case datamodel.Associate:
 			fallthrough

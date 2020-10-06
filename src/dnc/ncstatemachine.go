@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	preparer    networkcontainer.Preparer
-	ipAllocator networkcontainer.IPAllocator
+	preparer     networkcontainer.Preparer
+	ipAllocator  networkcontainer.IPAllocator
+	macAllocator networkcontainer.MacAllocator
 )
 
 // todo: move other processing stages here
@@ -29,6 +30,11 @@ func initNetworkContainerStateMachine() {
 		Reservations:           new(reservationRepo),
 		Allocations:            new(allocationRepo),
 		EnableSubnetDelegation: datamodel.IsFeatureSupported(configuration.SharedSubnetDelegation),
+		Logger:                 logger,
+	}
+
+	macAllocator = networkcontainer.MacAllocator{
+		PersistNC:              datamodel.PersistNCConfiguration,
 		Logger:                 logger,
 	}
 }

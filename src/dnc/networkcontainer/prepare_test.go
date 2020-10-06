@@ -18,11 +18,6 @@ func assertNCInReservePending(t *testing.T, nc datamodel.NCConfiguration) {
 	if nc.ReservationID == "" {
 		t.Error("expected reservation id to have been assigned to NC, got none")
 	}
-
-	// TODO: remove when LocalMAC is properly populated.
-	if nc.LocalMAC != "" {
-		t.Error("LocalMAC was expected to be an empty string.")
-	}
 }
 
 func assertReservationIn(t *testing.T, res datamodel.ReservationConfiguration, state datamodel.ReservationState, status datamodel.Status) {

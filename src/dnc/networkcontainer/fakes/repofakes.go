@@ -103,3 +103,21 @@ func (f *AllocationRepo) DeleteIPAllocations(_, _ string, keys []string) *api.Js
 	}
 	return nil
 }
+
+type NodeRepo struct {
+	FakeNodeConfig datamodel.NodeConfiguration
+}
+
+func (n *NodeRepo) QueryNodeConfiguration(nodeID string) (*datamodel.NodeConfiguration, *api.JsonErr) {
+	return &n.FakeNodeConfig, nil
+}
+
+func (n *NodeRepo) UpdateNodeConstrainedReservationSetByNodeID(nodeID, networkID, reservationID string, remove bool) *api.JsonErr{
+	// TODO: implement to testing.
+	return nil
+}
+
+func (n *NodeRepo) UpdateNodeContainers(nodeID, networkID, ncID, reservationID, containerType string, updateVlan, remove bool, ncLimit int) *api.JsonErr{
+	// TODO: implement for testing.
+	return nil
+}
