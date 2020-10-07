@@ -71,7 +71,7 @@ func (c *DirectChannel) GetNCLimitForNode(nodeID string) (int, *api.JsonErr) {
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	loggershim.LS.Debugf("Try to retrieve NC limit for node: %s with node config %+v", nodeID, nodeConfig)
+	loggershim.LS.Debugf("Try to retrieve NC limit for node: %s", nodeID)
 	ncLimit, respErr := datamodel.GetNCLimitForNode(nodeConfig.NodeInfo.IPAddresses[0])
 	if respErr != nil {
 		loggershim.LS.Debugf("Failed to retrieve NC limit for node: %s with error: %v", nodeID, respErr.String())

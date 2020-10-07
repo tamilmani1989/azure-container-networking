@@ -205,7 +205,7 @@ func processAllocateLocalIP(
 	// Local IP allocation is not needed for bare-metal containers.
 	// In that case change the NC config state to AllocateMAC and return.
 	containerType := repoNCConfig.GetAssociationInfo().ContainerType
-	if api.IsBareMetalContainer(containerType){
+	if api.IsBareMetalContainer(containerType) {
 		repoNCConfig.State = datamodel.AllocateMAC
 		repoNCConfig.Status = datamodel.Pending
 		repoNCConfig.FailureDetail = api.JsonErr{}
@@ -961,7 +961,8 @@ func processNetworkContainerPublish(
 					HTTPStatus: http.StatusInternalServerError}
 			}
 
-			logger.Debugf("[CNS][Response] Publish NC %s, %+v", ncGoalState.NetworkContainerID, publishNCResponse)
+			logger.Debugf("[CNS][Response] Publish NC: %s, Response: %+v, PublishStatusCode: %d",
+				ncGoalState.NetworkContainerID, publishNCResponse.Response, publishNCResponse.PublishStatusCode)
 
 			// Construct response error and response from PublishNetworkContainerResponse received from CNS.
 			if publishNCResponse.PublishErrorStr != "" {
@@ -1346,7 +1347,8 @@ func processNetworkContainerUnPublish(
 					HTTPStatus: http.StatusInternalServerError}
 			}
 
-			logger.Debugf("[CNS][Response] Unpublish NC %s, %+v", ncGoalState.NetworkContainerID, unpublishNCResponse)
+			logger.Debugf("[CNS][Response] Unpublish NC: %s, Response: %+v, PublishStatusCode: %d",
+				ncGoalState.NetworkContainerID, unpublishNCResponse.Response, unpublishNCResponse.UnpublishStatusCode)
 
 			// Construct response error and response from UnpublishNetworkContainerResponse received from CNS.
 			if unpublishNCResponse.UnpublishErrorStr != "" {
