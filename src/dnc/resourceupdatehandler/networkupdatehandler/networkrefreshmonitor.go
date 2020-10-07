@@ -240,8 +240,7 @@ func RefreshNetworkConfiguration(
 	subnetsInUpdatedResponse := make(map[string]nmagentcontracts.Subnet)
 	for _, subnet := range networkResponse.Subnets {
 		subnetsInUpdatedResponse[subnet.SubnetName] = subnet
-		ipSubnetMap[subnet.SubnetName] =
-			datamodel.GetSubnetKey(networkID, subnet.SubnetName)
+		ipSubnetMap[subnet.SubnetName] = datamodel.SubnetKeyPlaceholder
 	}
 
 	for subnetName := range subnetsToRemove {
@@ -255,7 +254,7 @@ func RefreshNetworkConfiguration(
 		} else if subnetConfig.UpdateStatus == datamodel.SubnetUpdatePending {
 			// Check if the subnet to remove has UpdateStatus set to pending. If yes, do not remove it but set the
 			// UpdateStatus as SubnetUpdateFailed
-			ipSubnetMap[subnetName] = datamodel.GetSubnetKey(networkID, subnetName)
+			ipSubnetMap[subnetName] = datamodel.SubnetKeyPlaceholder
 			logger.Debugf("Subnet %s in network %s has the update status as pending. Updating the status as UpdateFailed",
 				subnetName, networkID)
 			subnetConfig.UpdateStatus = datamodel.SubnetUpdateFailed
@@ -266,7 +265,7 @@ func RefreshNetworkConfiguration(
 				return false, false
 			}
 		} else if subnetConfig.UpdateStatus == datamodel.SubnetUpdateFailed {
-			ipSubnetMap[subnetName] = datamodel.GetSubnetKey(networkID, subnetName)
+			ipSubnetMap[subnetName] = datamodel.SubnetKeyPlaceholder
 		}
 	}
 
@@ -313,8 +312,7 @@ func RefreshNetworkConfiguration(
 	}
 
 	for subnetName, currentRepoSubnetCfg := range subnetsToUpdate {
-		subnetKey := datamodel.GetSubnetKey(networkID, subnetName)
-		ipSubnetMap[subnetName] = subnetKey
+		ipSubnetMap[subnetName] = datamodel.SubnetKeyPlaceholder
 		updatedSubnetCfg := subnetsInUpdatedResponse[subnetName]
 
 		currentRepoSubnetCfg.Tags = updatedSubnetCfg.Tags
@@ -428,7 +426,7 @@ func UpdateNetworkConfiguration(
 	subnetsInUpdatedResponse = make(map[string]nmagentcontracts.Subnet)
 	for _, subnet := range networkResponse.Subnets {
 		subnetsInUpdatedResponse[subnet.SubnetName] = subnet
-		ipSubnetMap[subnet.SubnetName] = datamodel.GetSubnetKey(networkID, subnet.SubnetName)
+		ipSubnetMap[subnet.SubnetName] = datamodel.SubnetKeyPlaceholder
 	}
 
 	// Commiting virtual network config in two phases.

@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+// SubnetKeyPlaceholder is an empty string which is used as subnet key
+// This is used as a value in subnet config map. It avoids adding redundant data
+// in the table where the max char count per entry is capped at 32K
+const SubnetKeyPlaceholder = ""
+
 // GetSubnetKey - Helper function to generate subnet configuration key.
 func GetSubnetKey(networkID string, ipSubnet string) string {
 	subnetCfgKey := fmt.Sprintf(subnetConfigurationKey, networkID, ipSubnet)

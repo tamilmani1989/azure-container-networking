@@ -1384,42 +1384,6 @@ func GetNetworkSubnets(networkID string) (map[string]string, error) {
 	return vnetSubnets, err
 }
 
-// updateNetworkSubnets - Update network subnets.
-func updateNetworkSubnets(networkID string, subnets map[string]string) *api.JsonErr {
-	networkConfiguration, err := QueryNetworkConfiguration(networkID)
-	if err != nil {
-		return err
-	}
-	networkConfiguration.Subnets = subnets
-	return PersistNetworkConfiguration(networkConfiguration)
-}
-
-// deleteVirtualNetworkSubnet = delete virtual network subnet.
-func deleteVirtualNetworkSubnet(networkID string, subnet string) error {
-	rowKey := GetNetworkKey(networkID)
-	properties, statusCode, err := dataStoreShim.Query(networkConfigurationTableName, rowKey)
-	if err != nil {
-		if statusCode == http.StatusNotFound {
-			return nil
-		}
-		return err
-	}
-
-	var vnetSubnets map[string]string
-	err = json.Unmarshal(properties.([]byte), &vnetSubnets)
-	if err != nil {
-		return err
-	}
-
-	delete(vnetSubnets, subnet)
-	if len(vnetSubnets) == 0 {
-		dataStoreShim.Delete(networkConfigurationTableName, rowKey)
-	} else {
-		updateNetworkSubnets(networkID, vnetSubnets)
-	}
-	return nil
-}
-
 // AddRequestToPendingQueue - Add request to pending work item queue.
 func AddRequestToPendingQueue(
 	requestKey string,
@@ -1882,7 +1846,7 @@ func UpdateSubnet(
 	if !subnetFound {
 		loggershim.LS.Debugf("Subnet %s not found in Network with ID %s. Refreshing network", subnet, networkID)
 		networkConfig.Status = Refreshing
-		networkConfig.Subnets[subnet] = GetSubnetKey(networkID, subnet)
+		networkConfig.Subnets[subnet] = SubnetKeyPlaceholder
 		if err = PersistNetworkConfiguration(networkConfig); err != nil {
 			return err
 		}

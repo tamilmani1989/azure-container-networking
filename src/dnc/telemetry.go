@@ -161,8 +161,8 @@ func reportNetworkConfiguration(nodeID, networkID string, allocations map[string
 	sessionManager.EndReadSession(sessionInfo)
 	if err == nil && networkConfig != nil {
 		allocations[networkID] = make(map[string]map[string][]string)
-		for subnetName, subnetKey := range networkConfig.Subnets {
-			subnetConfig, err := datamodel.TryQuerySubnetConfigurationByKey(subnetKey)
+		for subnetName := range networkConfig.Subnets {
+			subnetConfig, err := datamodel.TryQuerySubnetConfiguration(networkID, subnetName)
 			if err == nil && subnetConfig != nil {
 				for reservation, ip := range subnetConfig.Reservations {
 					if _, exists := allocations[networkID][subnetName]; !exists {
@@ -177,7 +177,8 @@ func reportNetworkConfiguration(nodeID, networkID string, allocations map[string
 				}
 			} else {
 				if subnetConfig == nil {
-					logger.Errorf("UNEXPECTED ERROR: subnet configuration not found for subnet: %s", subnetKey)
+					logger.Errorf("UNEXPECTED ERROR: subnet configuration not found for network: %s subnet: %s",
+						networkID, subnetName)
 				}
 
 				break
