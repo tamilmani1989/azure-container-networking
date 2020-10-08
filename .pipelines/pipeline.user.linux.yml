@@ -151,6 +151,7 @@ build:
             to: 'drop_dnc'
             include:
               - 'azure-dnc'
+              - 'azure-mdnc'
           - from: 'src/dnc/pubsubproxy/libs/'
             to: 'drop_dnc'
             include:

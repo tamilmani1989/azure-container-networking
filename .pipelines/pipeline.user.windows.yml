@@ -129,6 +129,16 @@ package:
           include:
             - '*AzureDNC.*.nupkg'
 
+    - !!buildcommand
+      name: 'Package MDNC for linux'
+      command: 'package_sign.cmd'
+      arguments: 'package drop_dnc MDNC drop_github'
+      artifacts:
+        - from: '.'
+          to: 'AzureMDNC'
+          include:
+            - '*AzureMDNC.*.nupkg'
+
     - !!buildcommand                                                    
       name: 'Package GODNC for SF'   
       command: 'package_sign.cmd'
