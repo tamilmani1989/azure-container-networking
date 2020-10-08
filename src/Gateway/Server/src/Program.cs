@@ -22,9 +22,12 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
         /// <param name="args"></param>
         public static void Main(string[] args)
         {
+            const string settingsFileName = "appsettings.json";
+            const string settingsFilePathEnvVar = "GATEWAY_CONFIG_PATH";
+
             var config = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: false)
+                .SetBasePath(AppInfo.GetFilePath(settingsFileName, new[] { settingsFilePathEnvVar }))
+                .AddJsonFile(settingsFileName, optional: false)
                 .AddCommandLine(args)
                 .Build();
 

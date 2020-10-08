@@ -23,9 +23,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public static void Main(string[] args)
         {
             const string settingsFileName = "appsettings.json";
+            const string settingsFilePathEnvVar = "DNCRP_CONFIG_PATH";
 
             var config = new ConfigurationBuilder()
-                .SetBasePath(AppInfo.GetFilePath(settingsFileName))
+                .SetBasePath(AppInfo.GetFilePath(settingsFileName, new[] { settingsFilePathEnvVar}))
                 .AddJsonFile(settingsFileName, optional: false)
                 .AddCommandLine(args)
                 .Build();

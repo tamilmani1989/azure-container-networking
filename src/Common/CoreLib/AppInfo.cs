@@ -8,7 +8,9 @@
 namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using System.Reflection;
 
     public static class AppInfo
@@ -63,7 +65,36 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <returns></returns>
         public static string GetFilePath(string fileName)
         {
-            string[] dirs = { FolderPath, Directory.GetCurrentDirectory() };
+            return GetFilePath(fileName, null);
+        }
+
+        /// <summary>
+        /// Search for file in known app base directories as well as the path
+        /// specified in environemnt variables and return full path to the directory where file resides
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <param name="pathEnvironmentVars">
+        /// List of environment variables that store path to be searched
+        /// </param>
+        /// <returns></returns>
+        public static string GetFilePath(string fileName, IEnumerable<string> pathEnvironmentVars)
+        {
+            List<string> dirs = new List<string>();
+
+            if (pathEnvironmentVars != null && pathEnvironmentVars.Any())
+            {
+                foreach (string e in pathEnvironmentVars)
+                {
+                    string envVarValue = Environment.GetEnvironmentVariable(e);
+                    if (!string.IsNullOrWhiteSpace(envVarValue))
+                    {
+                        dirs.Add(envVarValue);
+                    }
+                }
+            }
+
+            dirs.Add(FolderPath);
+            dirs.Add(Directory.GetCurrentDirectory());
 
             foreach (string d in dirs)
             {

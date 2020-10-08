@@ -2,9 +2,8 @@ version: '3'
 services:
   dnc-gateway:
     build:
-      context: ..\Server
-      args:
-        GATEWAY_BUILD_DIR: src/bin/Release/netcoreapp3.1/linux-x64
+      context: ../
+      dockerfile: ./Gateway/Dockerfile
     environment:
       AzureServicesAuthConnectionString:
       DNCIpAddress: "gateway-test-app"
@@ -17,7 +16,8 @@ services:
 
   gateway-test-app:
     build:
-      context: .\TestApp
+      context: ./Tests/TestApp
+      dockerfile: ./Dockerfile
     image: acndev.azurecr.io/gateway-test-app
     container_name: gateway-test-app
     ports:
