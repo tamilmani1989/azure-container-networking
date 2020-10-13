@@ -8,7 +8,6 @@ import (
 	"dnc/utils"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -51,6 +50,29 @@ func (azureStorage *AzureStorage) Init(
 	if len(strings.TrimSpace(azureStorage.AzureStorageInfo.RegionalStorageConnectionString)) > 0 {
 		azureStorage.initRegionalStorage()
 	}
+
+	loggershim.LS.Debugf("[Azure DNC] Ensuring table schema")
+	err = azureStorage.ensureSchema(tableToColumnMap)
+	utils.OnErrorFail(err, "Could not ensure table schema")
+}
+
+func (azureStorage *AzureStorage) ensureSchema(tables map[string]string) error {
+	for tableName := range tables {
+		tbl := azureStorage.tableClient.GetTableReference(tableName)
+		if err := tbl.Create(30, storage.EmptyPayload, nil); err != nil {
+			switch e := err.(type) {
+			case storage.AzureStorageServiceError:
+				if e.StatusCode == http.StatusConflict {
+					loggershim.LS.Debugf("[Azure DNC] Table %s already exists", tableName)
+					continue
+				}
+			default:
+				return fmt.Errorf("Could not create table %s: %v", tableName, err)
+			}
+		}
+		loggershim.LS.Debugf("[Azure DNC] Table %s created successfully", tableName)
+	}
+	return nil
 }
 
 // initRegionalStorage - Initialize the table client needed to access the regional storage
@@ -113,11 +135,6 @@ func sendDataStoreMetric(
 // Delete - Deletes a row in a given table.
 func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
 	defer recordProcessingTime(time.Now(), "Delete", tableName, azureStorage.PartitionKey, rowKey)
-	// utils.PanicRecover() cannot be inside anonymous defer func as recover() doesn't work as a part of anonymous func.
-	// e.g. following will not work
-	// defer func() {
-	//     utils.PanicRecover()
-	// }()
 	defer utils.PanicRecover()
 
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
@@ -133,11 +150,6 @@ func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
 // DeleteInPartition - Deletes a row in the partition of the given table.
 func (azureStorage *AzureStorage) DeleteInPartition(tableName, partitionKey, rowKey string) error {
 	defer recordProcessingTime(time.Now(), "DeleteInPartition", tableName, partitionKey, rowKey)
-	// utils.PanicRecover() cannot be inside anonymous defer func as recover() doesn't work as a part of anonymous func.
-	// e.g. following will not work
-	// defer func() {
-	//     utils.PanicRecover()
-	// }()
 	defer utils.PanicRecover()
 
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
@@ -329,9 +341,7 @@ func (azureStorage *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyN
 	if !ok {
 		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
-	table := *tableClient.GetTableReference(tableName)
-	// todo: should not attempt to create the table on every insert or update. move to app start up
-	table.Create(30, storage.EmptyPayload, nil)
+	table := tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(azureStorage.PartitionKey, rowKey)
 	properties := make(map[string]interface{})
 	properties[propertyName] = value
@@ -370,10 +380,7 @@ func (azureStorage *AzureStorage) insertRowInPartition(
 	if !ok {
 		return http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
-	table := *tableClient.GetTableReference(tableName)
-
-	// todo: should not attempt to create the table on every insert. move to app start up
-	table.Create(30, storage.EmptyPayload, nil)
+	table := tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(partitionKay, rowKey)
 	entity.Properties = properties
 
@@ -487,15 +494,4 @@ func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string,
 		returnContext = entitiesResult
 	}
 	return result, hasMoreRows, returnContext, http.StatusOK, nil
-}
-
-// getEnvVarOrExit returns the value of specified environment variable or terminates if it's not defined.
-func getEnvVarOrExit(varName string) string {
-	value := os.Getenv(varName)
-	if value == "" {
-		loggershim.LS.Errorf("Missing environment variable %s", varName)
-		os.Exit(1)
-	}
-
-	return value
 }
