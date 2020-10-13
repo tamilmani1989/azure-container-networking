@@ -54,7 +54,7 @@ func getNCConfig (nodeId string, containerType string) *datamodel.NCConfiguratio
 	return &currentNCState
 }
 
-func assertNCInPublishPending(t *testing.T, nc datamodel.NCConfiguration) {
+func assertMacAllocatedToNC(t *testing.T, nc datamodel.NCConfiguration) {
 	if nc.State != datamodel.Publish {
 		t.Errorf("expected NC to be in Publish state, got %s", nc.State)
 	}
@@ -65,6 +65,19 @@ func assertNCInPublishPending(t *testing.T, nc datamodel.NCConfiguration) {
 	// TODO: remove when MACAddress is properly populated.
 	if nc.MACAddress != "TempMAC" {
 		t.Error("MAC address was expected to be TempMAC.")
+	}
+}
+
+func assertMacDeallocatedFromNC(t *testing.T, nc datamodel.NCConfiguration) {
+	if nc.State != datamodel.UnReserve {
+		t.Errorf("expected NC to be in Unreserve state, got %s", nc.State)
+	}
+	if nc.Status != datamodel.Pending {
+		t.Errorf("expected NC to be in Pending status, got %s", nc.Status)
+	}
+
+	if nc.MACAddress != "" {
+		t.Error("MAC address was expected to be empty.")
 	}
 }
 
@@ -85,14 +98,52 @@ func TestAllocateMAC_HappyPath(t *testing.T){
 
 	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
 	if err != nil {
-		t.Errorf("did not expect error, got: %+v", err)
+		t.Errorf("Did not expect error from ProcessAllocateMAC, got: %+v", err)
 	}
 	if removeFromQueue {
-		t.Error("Did not expect removal from queue")
+		t.Error("Did not expect removal from queue from ProcessAllocateMAC")
 	}
 
-	// Assert network container.
-	assertNCInPublishPending(t, nextNCState)
+	// Assert that MAC is properly allocated to network container.
+	assertMacAllocatedToNC(t, nextNCState)
+}
+
+func TestDeallocateMAC_HappyPath(t *testing.T){
+	var nextNCState   datamodel.NCConfiguration
+
+	nodeId := "testNodeId"
+
+	macAllocator := MacAllocator{
+		PersistNC: func(nc *datamodel.NCConfiguration, _ bool) *api.JsonErr {
+			if nc != nil {
+				nextNCState = *nc
+			}
+			return nil
+		},
+		Logger: new(dummyLogger),
+	}
+
+	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
+	if err != nil {
+		t.Errorf("Did not expect error from ProcessAllocateMAC, got: %+v", err)
+	}
+	if removeFromQueue {
+		t.Error("Did not expect removal from queue from ProcessAllocateMAC")
+	}
+
+	// Assert that MAC is properly allocated to network container.
+	assertMacAllocatedToNC(t, nextNCState)
+
+	removeFromQueue, err = macAllocator.ProcessDeallocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
+	if err != nil {
+		t.Errorf("Did not expect error from ProcessDeallocateMAC, got: %+v", err)
+	}
+	if removeFromQueue {
+		t.Error("Did not expect removal from queue from ProcessDeallocateMAC")
+	}
+
+	// Assert that MAC is properly deallocated from network container.
+	assertMacDeallocatedFromNC(t, nextNCState)
 }
 
 func TestAllocateMAC_NonManagedDNC(t *testing.T){

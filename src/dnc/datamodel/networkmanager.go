@@ -1658,7 +1658,7 @@ func GetRevertState(ncState NetworkContainerState) (NetworkContainerState, *api.
 		return UnReserve, nil
 
 	case AllocateMAC:
-		return UnReserve, nil // TODO: introduce ned state for unreserve MAC address.
+		return DeallocateMAC, nil
 
 	case Associate:
 		return DisAssociate, nil

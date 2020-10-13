@@ -25,6 +25,19 @@ func (m *MacAllocator) ProcessAllocateMAC(ncConfig *datamodel.NCConfiguration) (
 	return false, err
 }
 
+// This function deallocates a MAC address.
+func (m *MacAllocator) ProcessDeallocateMAC(ncConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	if ncConfig.MACAddress == "" {
+		m.Logger.Debugf("MAC address is already empty.")
+	} else {
+		m.Logger.Debugf("Resetting MAC address to empty.")
+		ncConfig.MACAddress = ""
+	}
+
+	err := m.markNCToUnreserve(ncConfig)
+	return false, err
+}
+
 // This utility function sets the NC as Failed.
 func (m *MacAllocator) markNCFailed(ncConfig *datamodel.NCConfiguration, err api.JsonErr) (bool, *api.JsonErr){
 	ncConfig.Status = datamodel.Failed
@@ -38,6 +51,14 @@ func (m *MacAllocator) markNCFailed(ncConfig *datamodel.NCConfiguration, err api
 // This utility function sets the NC state as published.
 func (m *MacAllocator) markNCToPublish(ncConfig *datamodel.NCConfiguration) *api.JsonErr{
 	ncConfig.State = datamodel.Publish
+	ncConfig.Status = datamodel.Pending
+	ncConfig.FailureDetail = api.JsonErr{}
+	return m.PersistNC(ncConfig, datamodel.DontAddToPendingQ)
+}
+
+// This utility function sets the NC state as published.
+func (m *MacAllocator) markNCToUnreserve(ncConfig *datamodel.NCConfiguration) *api.JsonErr{
+	ncConfig.State = datamodel.UnReserve
 	ncConfig.Status = datamodel.Pending
 	ncConfig.FailureDetail = api.JsonErr{}
 	return m.PersistNC(ncConfig, datamodel.DontAddToPendingQ)

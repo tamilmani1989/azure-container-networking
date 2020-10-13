@@ -47,8 +47,11 @@ const (
 	// AllocateLocalIP - Allocate Local IP
 	AllocateLocalIP
 
-	// AllocateMAC - Allocate Local MAC address
+	// AllocateMAC - Allocate MAC address
 	AllocateMAC
+
+	// DeallocateMAC - Deallocate MAC address
+	DeallocateMAC
 )
 
 // IsNCCreateInProgress - True if nc is in creation states
@@ -68,6 +71,7 @@ func IsDeleteInProgress(ncState NetworkContainerState) bool {
 	return ncState == UnPublish ||
 		ncState == DisAssociate ||
 		ncState == UnReserve ||
+		ncState == DeallocateMAC ||
 		ncState == Purge
 }
 
@@ -93,6 +97,8 @@ func PromoteContainerState(ncConfig *NCConfiguration) *api.JsonErr {
 			ncConfig.State = UnPublish
 		case UnPublish:
 			ncConfig.State = DisAssociate
+		case DeallocateMAC:
+			ncConfig.State = UnReserve
 		}
 
 		ncConfig.FailureDetail = api.JsonErr{}
@@ -146,6 +152,9 @@ func (networkContainerState NetworkContainerState) String() string {
 
 	case AllocateMAC:
 		return "AllocateMAC"
+
+	case DeallocateMAC:
+		return "DeallocateMAC"
 	}
 
 	return "Unknown Status"

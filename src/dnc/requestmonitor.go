@@ -639,7 +639,15 @@ func processNetworkContainerDisAssociate(nc *datamodel.NCConfiguration, ncLock m
 	}
 
 	logger.Debugf("[CNS] DisAssociated NC %s from node %s", nc.NetworkContainerID, nc.GetAssociationInfo().NodeID)
-	nc.State = datamodel.UnReserve
+
+	// In baremetal containers first deallocate MAC before freeing the IP.
+	containerType := nc.GetAssociationInfo().ContainerType
+	if api.IsBareMetalContainer(containerType) {
+		nc.State = datamodel.DeallocateMAC
+	} else {
+		nc.State = datamodel.UnReserve
+	}
+
 	nc.Status = datamodel.Pending
 	nc.FailureDetail = api.JsonErr{}
 	return false, datamodel.PersistNCConfiguration(nc, datamodel.DontAddToPendingQ)
@@ -1212,7 +1220,13 @@ func unpublishNetworkContainerWithPubSubProxy(
 		}
 	}
 
-	repoNCConfig.State = datamodel.UnReserve
+	containerType := repoNCConfig.GetAssociationInfo().ContainerType
+	if api.IsBareMetalContainer(containerType) {
+		repoNCConfig.State = datamodel.DeallocateMAC
+	} else {
+		repoNCConfig.State = datamodel.UnReserve
+	}
+
 	repoNCConfig.Status = datamodel.Pending
 	repoNCConfig.FailureDetail = api.JsonErr{}
 
@@ -1589,6 +1603,9 @@ func processNetworkContainerRequest(
 
 		case datamodel.DisAssociate:
 			removeRequestFromPendingQueue, err = processNetworkContainerDisAssociate(repoNCConfig, sessionInfo)
+
+		case datamodel.DeallocateMAC:
+			removeRequestFromPendingQueue, err = macAllocator.ProcessDeallocateMAC(repoNCConfig)
 
 		case datamodel.UnReserve:
 			removeRequestFromPendingQueue = false // there is no obvious case where unreserving requires removing the item from the pending queue
