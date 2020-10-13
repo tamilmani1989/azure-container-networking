@@ -73,6 +73,9 @@ case $1 in
         cd $DIR/src/dnc
         export DNC_CONFIGURATION_PATH=$DIR/src/dnc/config_test.json
         go test -run "[^*TestCreateMultipleNetworks*]" -timeout 2000s -coverprofile coverage-dnc.out
+        (cd activedirectory && go test -v ./...)
+        (cd networkcontainer && go test -v ./...)
+        (cd requestcontroller && go test -v ./...)
         zip azure-dnc-test-logs.zip /var/log/azure-dnc*
         ;;
     "loadtest" )
