@@ -4,6 +4,7 @@ package requestcontroller
 
 import (
 	"context"
+	"os"
 	"sync"
 
 	"dnc/api"
@@ -19,7 +20,8 @@ const (
 	defaultConfigScalerRequestThresholdPercent = int64(50)
 	defaultConfigDNCClientRequestTimeout       = "15s"
 	defaultConfigDNCClientPollingInterval      = "3s"
-	defaultConfigDNCClientDNCEP                = "http://127.0.0.1:9000"
+	defaultConfigDNCClientDNCIPAddress         = "127.0.0.1"
+	defaultConfigDNCClientDNCPort              = "9000"
 	defaultConfigKubeconfigInfoMode            = "file"
 	defaultConfigKubeloginBinaryPath           = "/usr/local/bin/kubelogin"
 	defaultConfigClientCertificatesDirectory   = "/etc/dnc/client-certificates"
@@ -155,7 +157,18 @@ func (c *Config) ApplyDefaults() {
 	}
 
 	if c.DNCClientConfig.DNCEndpoint == "" {
-		c.DNCClientConfig.DNCEndpoint = defaultConfigDNCClientDNCEP
+		// Check to see if DNCIpAddress or DncPort is set as env variable during deployment
+		dncIPAddress := defaultConfigDNCClientDNCIPAddress
+		dncPort := defaultConfigDNCClientDNCPort
+
+		if ipAddress := os.Getenv("DNCIpAddress"); len(ipAddress) != 0 {
+			dncIPAddress = ipAddress
+		}
+
+		if port := os.Getenv("DNCPort"); len(port) != 0 {
+			dncPort = port
+		}
+		c.DNCClientConfig.DNCEndpoint = "http://" + dncIPAddress + ":" + dncPort
 	}
 
 	if c.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs == 0 {
