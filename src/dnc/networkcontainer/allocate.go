@@ -421,9 +421,12 @@ func (a *IPAllocator) DeallocateIPs(res datamodel.ReservationConfiguration, allo
 func (a *IPAllocator) RemoveAllAllocations(res datamodel.ReservationConfiguration) *api.JsonErr {
 	var rowKeys []string
 	for _, ipAddress := range res.SecondaryAllocations {
-		rowKey := datamodel.EncodeIPAllocationKey(ipAddress)
-		rowKeys = append(rowKeys, rowKey)
+		if ipAddress != "" {
+			rowKey := datamodel.EncodeIPAllocationKey(ipAddress)
+			rowKeys = append(rowKeys, rowKey)
+		}
 	}
+
 	return a.deleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
 }
 

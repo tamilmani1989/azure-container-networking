@@ -93,14 +93,19 @@ func (f *AllocationRepo) TryQueryAllIPAllocations(_, _ string, pageToken interfa
 func (f *AllocationRepo) DeleteIPAllocations(_, _ string, keys []string) *api.JsonErr {
 	tbd := make(map[string]struct{})
 	for _, key := range keys {
+		if key == "" {
+			return api.InternalServerError(api.StatusInternalServerError, "DeleteIPAllocation failed, key is empty")
+		}
 		tbd[key] = struct{}{}
 	}
+
 	for i := 0; i < len(f.Data); i++ {
 		if _, found := tbd[f.Data[i].Key]; found {
 			f.Data = append(f.Data[:i], f.Data[i+1:]...)
 			i--
 		}
 	}
+
 	return nil
 }
 
@@ -112,12 +117,12 @@ func (n *NodeRepo) QueryNodeConfiguration(nodeID string) (*datamodel.NodeConfigu
 	return &n.FakeNodeConfig, nil
 }
 
-func (n *NodeRepo) UpdateNodeConstrainedReservationSetByNodeID(nodeID, networkID, reservationID string, remove bool) *api.JsonErr{
+func (n *NodeRepo) UpdateNodeConstrainedReservationSetByNodeID(nodeID, networkID, reservationID string, remove bool) *api.JsonErr {
 	// TODO: implement to testing.
 	return nil
 }
 
-func (n *NodeRepo) UpdateNodeContainers(nodeID, networkID, ncID, reservationID, containerType string, updateVlan, remove bool, ncLimit int) *api.JsonErr{
+func (n *NodeRepo) UpdateNodeContainers(nodeID, networkID, ncID, reservationID, containerType string, updateVlan, remove bool, ncLimit int) *api.JsonErr {
 	// TODO: implement for testing.
 	return nil
 }

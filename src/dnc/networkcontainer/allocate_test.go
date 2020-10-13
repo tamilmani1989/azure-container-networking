@@ -201,6 +201,52 @@ func TestDeallocate(t *testing.T) {
 	}
 }
 
+func Test_RemoveSecondaryIpWithEmptyAllocations(t *testing.T) {
+	allocsRepo := fakes.AllocationRepo{
+		Data:        []fakes.RepoKV{},
+		MaxPageSize: 3,
+	}
+
+	subnetRepo := fakes.SubnetRepo{
+		Payload: datamodel.SubnetConfiguration{
+			NetworkID:  "network1",
+			SubnetName: "subnet1",
+			IPSubnet:   "172.16.0.0/24",
+		},
+	}
+
+	allocator := IPAllocator{
+		Allocations:            &allocsRepo,
+		Subnets:                &subnetRepo,
+		Reservations:           fakes.NewReservationRepo(),
+		EnableSubnetDelegation: true,
+	}
+
+	req := datamodel.ReservationConfiguration{
+		ReservationID: "reservation1",
+		NetworkID:     "network1",
+		AllocationRequest: api.AllocationRequest{
+			SubnetName: "subnet1",
+		},
+		SecondaryAllocations: map[string]string{
+			"alloc1": "",
+			"alloc2": "",
+			"alloc3": "",
+			"alloc4": "",
+			"alloc5": "",
+			"alloc6": "",
+			"alloc7": "",
+			"alloc8": "",
+			"alloc9": "",
+		},
+	}
+
+	err := allocator.RemoveAllAllocations(req)
+	if err != nil {
+		t.Fatalf("did not expect error: %+v", err)
+	}
+}
+
 func extractAllocationIDs(a fakes.AllocationRepo) map[string]struct{} {
 	allocIDs := make(map[string]struct{})
 	for _, kv := range a.Data {
