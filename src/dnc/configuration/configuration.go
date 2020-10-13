@@ -27,15 +27,6 @@ type AzureStorageInfo struct {
 	CosmosDBResourceID              string
 }
 
-// AzureSQLInfo - Details to connect to azure sql database.
-type AzureSQLInfo struct {
-	Host     string
-	Port     int
-	Database string
-	User     string
-	Password string
-}
-
 // TestPersistenceStoreInfo - Details to initialize testpersistencestore
 type TestPersistenceStoreInfo struct {
 	Test                         string
@@ -50,7 +41,6 @@ type OrchestratorStorageInfo struct {
 // DataStoreSettings - Details related to underlying data store.
 type DataStoreSettings struct {
 	AzureStorageInfo         AzureStorageInfo
-	AzureSQLInfo             AzureSQLInfo
 	TestPersistenceStoreInfo TestPersistenceStoreInfo
 	OrchestratorStorageInfo  OrchestratorStorageInfo
 }

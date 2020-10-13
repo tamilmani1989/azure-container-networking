@@ -2,7 +2,6 @@ package datastoreshim
 
 import (
 	"dnc/configuration"
-	"dnc/datastore/azuresql"
 	"dnc/datastore/azurestorage"
 	orchestratorstorage "dnc/datastore/orchestratorstore"
 	"dnc/datastore/testpersistencestore"
@@ -106,14 +105,6 @@ func (dataStoreShim *DataStoreShim) Init(
 			dataStoreShim.SupportedFeatures[configuration.RegionalStorageAccountUsage] = true
 		}
 		loggershim.LS.Debugf("RegionalStorageAccountUsage %v", dataStoreShim.SupportedFeatures[configuration.RegionalStorageAccountUsage])
-	} else if dataStoreShim.dataStoreSettings.AzureSQLInfo != (configuration.AzureSQLInfo{}) {
-		azSQL := azuresql.AzureSQL{AzureSQLInfo: dataStoreShim.dataStoreSettings.AzureSQLInfo}
-		azSQL.Init(tableToColumnMap)
-		dataStoreShim.Query = queryFunc(azSQL.Query)
-		dataStoreShim.Delete = deleteFunc(azSQL.Delete)
-		dataStoreShim.InsertOrUpdate = insertOrUpdateFunc(azSQL.InsertOrUpdate)
-		dataStoreShim.QueryAll = queryAllFunc(azSQL.QueryAllRows)
-		dataStoreShim.KeyExist = keyExistFunc(azSQL.KeyExist)
 	} else if dataStoreShim.dataStoreSettings.TestPersistenceStoreInfo != (configuration.TestPersistenceStoreInfo{}) {
 		tps := testpersistencestore.TestPersistenceStore{TestPersistenceStoreInfo: dataStoreShim.dataStoreSettings.TestPersistenceStoreInfo}
 		tps.Init(tableToColumnMap)
