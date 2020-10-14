@@ -71,7 +71,12 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <returns></returns>
         private static X509Certificate2 FetchCertificateFromKV(string keyVaultUrl, string certificateName)
         {
-            return Retry.WithRetryCount(3, TimeSpan.FromSeconds(10), () =>
+            Exception exception = null;
+            X509Certificate2 certificate = null;
+
+            Console.WriteLine("Fetching certificate {0} from keyvault: {1}", keyVaultUrl, certificateName);
+
+            bool success = Retry.WithRetryCountNoThrow(3, TimeSpan.FromSeconds(10), () =>
             {
                 // Instantiate a new KeyVaultClient object, with an access token to Key Vault
                 // https://docs.microsoft.com/en-us/azure/key-vault/general/service-to-service-authentication#connection-string-support
@@ -85,7 +90,16 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
 
                 return sslCert;
             },
+            out certificate,
+            out exception,
             null);
+
+            if (success)
+            {
+                return certificate;
+            }
+
+            throw new Exception($"Error accessing certificate: {certificateName} in KeyVault: {keyVaultUrl}. {exception}");
         }
     }
 }

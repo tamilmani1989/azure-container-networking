@@ -2,7 +2,7 @@
   "Logging": {
     "LogLevel": {
       "Default": "Information",
-      "Microsoft": "Warning",
+      "Microsoft": "Information",
       "Microsoft.Hosting.Lifetime": "Information"
     },
     "Console": {
@@ -19,7 +19,10 @@
         "Microsoft.Azure.ContainerNetworking.DncRP.DelegateSubnetController": "Information",
         "Microsoft.Azure.ContainerNetworking.DncRP.DncController": "Information",
         "Microsoft.Azure.ContainerNetworking.DncRP.ControllerConfiguration": "Information",
-        "Microsoft.Azure.ContainerNetworking.DncRP.TableOperations": "Information"
+        "Microsoft.Azure.ContainerNetworking.DncRP.TableOperations": "Information",
+        "Microsoft.Azure.ContainerNetworking.DncRP.CosmosDbDataStore": "Information",
+        "Microsoft.Azure.ContainerNetworking.DncRP.OrchestratorOperations": "Information",
+        "Microsoft.Azure.ContainerNetworking.DncRP.SubscriptionOperation": "Information"
       }
     }
   },
@@ -34,14 +37,15 @@
   "Imds": {
     "InstanceEndpoint": "http://169.254.169.254/metadata/instance?api-version=2019-08-15&format=json"
   },
-  "DataStoreSettings": [
-    {
+  "DataStoreSettings": {
       "Region": "__Location__", // Populated in Release pipeline by _Location_
       "SubscriptionId": "__SubscriptionId__", // Populated in Release pipeline by _SubscriptionId_
       "ResourceGroup": "__DncRpResourceGroup__", // Populated in Release pipeline by _RPResourceGroup_
       "DBAccountName": "__DncRpCosmosDbAccountName__" // Populated in Release pipeline by _RPCosmosDbAccountName_
-    }
-  ],
+   },
+  "ArmCertificatesSettings": {
+    "RefreshIntervalInSeconds": 3600
+  },
   "ClientIdentities": [
     {
       "IdentityType": "ManagedIdentity", // this comes from ClientIdentityType enum in CoreLib

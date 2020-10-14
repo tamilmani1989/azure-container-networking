@@ -22,16 +22,24 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
         /// <param name="args"></param>
         public static void Main(string[] args)
         {
-            const string settingsFileName = "appsettings.json";
+            // Even though ASP.NET implicitly reads appsettings.Development.json based on environment variable,
+            // we are setting its path explicitly here. This is on purpose since in prod scenario, we get it
+            // from a custom path and we want both dev/prod scenarios to work the same (pass settings file location explicitly)
             const string settingsFilePathEnvVar = "GATEWAY_CONFIG_PATH";
+            bool isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == Environments.Development;
+            string settingsFileName = isDevelopment ? "appsettings.Development.json" : "appsettings.json";
+
+            string settingsFileDirectory = AppInfo.GetFilePath(settingsFileName, new[] { settingsFilePathEnvVar });
+            string settingsFileFullPath = Path.Combine(settingsFileDirectory, settingsFileName);
+            Console.WriteLine("Gateway settings file path: {0}", settingsFileFullPath);
 
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppInfo.GetFilePath(settingsFileName, new[] { settingsFilePathEnvVar }))
-                .AddJsonFile(settingsFileName, optional: false)
+                .AddJsonFile(settingsFileFullPath, optional: false)
                 .AddCommandLine(args)
                 .Build();
 
-            CreateHostBuilder(args, config).Build().Run();
+            CreateHostBuilder(args, config, settingsFileFullPath).Build().Run();
         }
 
         /// <summary>
@@ -40,11 +48,12 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
         /// <param name="args"></param>
         /// <param name="config"></param>
         /// <returns></returns>
-        public static IHostBuilder CreateHostBuilder(string[] args, IConfiguration config) =>
+        public static IHostBuilder CreateHostBuilder(string[] args, IConfiguration config, string configPath) =>
             Host.CreateDefaultBuilder(args)
             .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder
+                    .ConfigureAppConfiguration(builder => builder.AddJsonFile(configPath))
                     .UseKestrel(options =>
                      {
                          options.ListenAnyIP(Convert.ToInt32(config["Port"]), listenOptions =>

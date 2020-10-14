@@ -15,13 +15,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using Microsoft.AspNetCore.Authentication.Certificate;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Hosting;
-    using Microsoft.AspNetCore.Http;
+    using Microsoft.AspNetCore.WebUtilities;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
-    using Microsoft.Azure.Cosmos.Table;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Hosting;
-    using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Primitives;
 
     public class Startup
@@ -40,53 +38,32 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public void ConfigureServices(IServiceCollection services)
         {
             // Add custom properties to telemetry (log)
-            IHttpUtility httpUtility = new HttpUtility(new HttpClient());
-            services.AddSingleton<IHttpUtility, HttpUtility>(provider =>
-            {
-                return (HttpUtility)httpUtility;
-            });
+            HttpUtility httpUtility = new HttpUtility(new HttpClient());
+            ImdsRetriever imdsRetriever = new ImdsRetriever(httpUtility);
+            KeyVaultUtility keyVaultUtility = new KeyVaultUtility();
 
-            IImdsRetriever imdsRetriever = new ImdsRetriever(httpUtility);
-            IKeyVaultUtility keyVaultUtility = new KeyVaultUtility();
+            services.AddSingleton<IHttpUtility, HttpUtility>(provider => httpUtility);
+            services.AddSingleton<IImdsRetriever, ImdsRetriever>(provider => imdsRetriever);
+            services.AddSingleton<IKeyVaultUtility, KeyVaultUtility>(provider => keyVaultUtility);
 
             // initialize context first
             ContextInitializer.InitializeContext(Configuration, imdsRetriever);
 
-            DatastoreSettings[] datastoreSettings = Configuration.GetSection("DataStoreSettings").Get<DatastoreSettings[]>();
-            DatastoreSettings currentDatastoreSettings = datastoreSettings.FindByRegion(CurrentContext.AzureRegion);
-            ClientIdentity clientIdentity = Configuration.GetSection("Identity").Get<ClientIdentity>();
-            IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
-                httpUtility, currentDatastoreSettings);
-
-            services.AddSingleton<ICertificateRetriever, ArmCertificateRetriever>(provider =>
+            // set up IOptions from configuration
+            services.Configure<DatastoreSettings>(Configuration.GetSection("DataStoreSettings"));
+            services.Configure<ArmCertificatesSettings>(Configuration.GetSection("ArmCertificatesSettings"));
+            services.Configure<CertificateValidatorSettings>(cvs =>
             {
-                // TODO: Use IOptions instead of directly passing in Configuration
-                ILogger<ArmCertificateRetriever> logger = provider.GetRequiredService<ILogger<ArmCertificateRetriever>>();
-                return new ArmCertificateRetriever(
-                    Configuration,
-                    imdsRetriever, httpUtility, logger, Configuration["AzureEnvironment"]);
+                cvs.Thumbprint = Configuration["Thumbprint"];
             });
 
-            services.AddSingleton<ICertificateValidator, CertificateValidator>(provider =>
-            {
-                // TODO: Use IOptions instead of directly passing in Configuration
-                ILogger<CertificateValidator> logger = provider.GetRequiredService<ILogger<CertificateValidator>>();
-                ICertificateRetriever retriever = provider.GetRequiredService<ICertificateRetriever>();
-                return new CertificateValidator(
-                    retriever, logger, Configuration["Thumbprint"]);
-            });
-
-            services.AddSingleton<ITableOperations, TableOperations>(provider =>
-            {
-                ILogger<TableOperations> tableOperationsLogger = provider.GetRequiredService<ILogger<TableOperations>>();
-                ILogger<CosmosDbDataStore> cosmosDbLogger = provider.GetRequiredService<ILogger<CosmosDbDataStore>>();
-
-                // Initiazlize the CosmosDbStore
-                ITableDataStore cosmosDbStore = new CosmosDbDataStore(connectionStringProvider, cosmosDbLogger);
-                cosmosDbStore.InitAsync().GetAwaiter().GetResult();
-
-                return new TableOperations(cosmosDbStore, tableOperationsLogger, httpUtility, keyVaultUtility);
-            });
+            services.AddSingleton<IConnectionStringProvider, ConnectionStringProvider>();
+            services.AddSingleton<ICertificateRetriever, ArmCertificateRetriever>();
+            services.AddSingleton<ICertificateValidator, CertificateValidator>();
+            services.AddSingleton<ITableDataStore, CosmosDbDataStore>();
+            services.AddSingleton<ITableOperations, TableOperations>();
+            // service to initialize cosmosdb and create table at startup
+            services.AddHostedService<TableStoreInitHostedService>();
 
             // The following line enables Application Insights telemetry collection.
             services.AddApplicationInsightsTelemetry();
@@ -128,20 +105,31 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                             else
                             {
                                 context.Fail("authentication failed");
-                                Console.WriteLine("OnCertificateValidated: failed");
+                                Console.WriteLine("OnCertificateValidated failed. {0}",
+                                    context.Result != null && context.Result.Failure != null
+                                    ? context.Result.Failure.ToString()
+                                    : "<emty>");
                             }
                         },
                         OnAuthenticationFailed = (context) =>
                         {
                             context.Fail("authentication failed");
-                            Console.WriteLine("OnAuthenticationFailed: {0}",
-                                context.Result != null ? context.Result.Failure.ToString() : "");
+                            Console.WriteLine("OnAuthenticationFailed: Result: {0}",
+                                context.Result != null && context.Result.Failure != null ? context.Result.Failure.ToString() : "<emty>");
+                            Console.WriteLine("OnAuthenticationFailed: Exception: {0}",
+                                context.Exception != null ? context.Exception.ToString() : "<empty>");
+                            Console.WriteLine("OnAuthenticationFailed: Body is {0}",
+                                context.HttpContext.Request != null ? "non-null" : "null");
+                            Console.WriteLine("OnAuthenticationFailed. Request content type: {0}, length: {1}",
+                                context.Request.ContentType, context.Request.ContentLength);
+
                             return Task.CompletedTask;
                         }
                     };
                 });
 
             services.AddControllers();
+            Console.WriteLine("Startup ConfigureServices done");
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

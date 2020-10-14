@@ -75,7 +75,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <param name="subscriptionId"></param>
         /// <returns></returns>
-        public async void ValidateSubscriptionRegistrationAsync(string subscriptionId)
+        public async Task ValidateSubscriptionRegistrationAsync(string subscriptionId)
         {
             await GetSubscriptionResourceAsync(subscriptionId);
         }

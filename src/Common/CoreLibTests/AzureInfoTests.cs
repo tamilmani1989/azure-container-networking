@@ -60,7 +60,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib.Unittests
                         expectedEndpoint = "https://management.azure.com";
                         break;
                     case "ppe":
-                        expectedEndpoint = "https://management.core.windows.net";
+                        expectedEndpoint = "https://management.azure.com";
                         break;
                     case "azurechinacloud":
                         expectedEndpoint = "https://management.chinacloudapi.cn";

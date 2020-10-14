@@ -117,7 +117,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string resourceGuid, createdDate;
             if (HttpStatusCodeCheck.IsResourceNotFound(result.HttpStatusCode))
             {
-                resourceGuid = Guid.NewGuid().ToString();
+                resourceGuid = mdncGuid;
                 createdDate = DateTime.UtcNow.ToString();
             }
             else

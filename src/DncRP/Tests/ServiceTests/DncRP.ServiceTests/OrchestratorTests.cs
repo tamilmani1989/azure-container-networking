@@ -25,7 +25,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     using Contracts = Microsoft.Azure.ContainerNetworking.DncRP;
     using Microsoft.Azure.ContainerNetworking.DncRP.Unittests;
     using global::Azure.Security.KeyVault.Secrets;
-
+    using Microsoft.Extensions.Options;
 
     [Collection("ServiceTestsSequential")]
     public class OrchestratorTests
@@ -38,6 +38,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         private DatastoreSettings datastoreSettings;
         private OrchestratorController orchController;
         private DncController dncController;
+        private ITableOperations tableOperations;
         private const string settingsFileName = "servicetests.settings.json";
         private const string connectStrRegex = "RunAs=App;AppId=(.*);TenantId=(.*);AppKey=(.*)";
         string location = "Test location";
@@ -88,9 +89,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             CurrentContext.SetArmAccessIdentity(azADIdentity);
             CurrentContext.SetKeyVaultUrl(this.configuration["KeyVaultUrl"]);
 
+            Mock<IOptionsMonitor<DatastoreSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<DatastoreSettings>>();
+            optionsMonitorMock.Setup(o => o.CurrentValue).Returns(datastoreSettings);
             IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
                 this.httpUtility,
-                datastoreSettings);
+                optionsMonitorMock.Object);
 
             Mock<ILogger<CosmosDbDataStore>> logger = new Mock<ILogger<CosmosDbDataStore>>();
             Mock<ILogger<TableOperations>> tableOpLogger = new Mock<ILogger<TableOperations>>();
@@ -99,11 +102,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             CosmosDbDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
             dataStore.InitAsync().GetAwaiter().GetResult();
-            ITableOperations tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
+            this.tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
             this.orchController = new OrchestratorController(tableOperations, orchLogger.Object);
             this.dncController = new DncController(tableOperations, dncCtrlLogger.Object);
-
-            SubscriptionRegistrationTests.RegisterSub(this.testConfig.SubscriptionId, tableOperations);
         }
 
         [Fact]
@@ -137,6 +138,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                         }
                     }
                 };
+
+                await SubscriptionRegistrationTests.RegisterSub(this.testConfig.SubscriptionId, this.tableOperations);
 
                 // Put controller resource and validate results
                 this.SetControllerHttpContext(dncController, this.testConfig.SubscriptionId, rgName, ctrlName, HttpMethod.Put, request);
@@ -184,6 +187,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             string orchName = strs[1];
             string ctrlName = strs[2];
 
+            await SubscriptionRegistrationTests.RegisterSub(this.testConfig.SubscriptionId, this.tableOperations);
+
             // Get controller resource and validate results
             ContentResult result = await orchController.GetOrchestratorResource(this.testConfig.SubscriptionId, rgName, orchName);
             Assert.True(HttpStatusCodeCheck.IsResourceNotFound((int)result.StatusCode));
@@ -218,6 +223,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 string orchName = strs[1];
                 string ctrlName = strs[2];
                 Orchestrator expectedOrch = new Orchestrator(this.testConfig.SubscriptionId, rgName, orchName);
+
+                await SubscriptionRegistrationTests.RegisterSub(this.testConfig.SubscriptionId, this.tableOperations);
 
                 // Get controller resource and validate results
                 ContentResult result = await dncController.GetDncResource(this.testConfig.SubscriptionId, rgName, ctrlName);

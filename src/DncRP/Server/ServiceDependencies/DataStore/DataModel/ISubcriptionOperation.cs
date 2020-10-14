@@ -34,7 +34,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <param name="subscriptionId"></param>
         /// <returns></returns>
-        void ValidateSubscriptionRegistrationAsync(string subscriptionId);
+        Task ValidateSubscriptionRegistrationAsync(string subscriptionId);
 
         /// <summary>
         /// Insert of update into SubscriptionResource table.

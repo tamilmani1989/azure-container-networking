@@ -21,6 +21,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     using Microsoft.Azure.ContainerNetworking.DncRP.Unittests;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Options;
     using Moq;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Converters;
@@ -88,9 +89,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             };
             CurrentContext.SetArmAccessIdentity(armAccessId);
 
+            Mock<IOptionsMonitor<DatastoreSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<DatastoreSettings>>();
+            optionsMonitorMock.Setup(o => o.CurrentValue).Returns(datastoreSettings);
             IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
                 this.httpUtility,
-                datastoreSettings);
+                optionsMonitorMock.Object);
 
             Mock<ILogger<CosmosDbDataStore>> logger = new Mock<ILogger<CosmosDbDataStore>>();
             Mock<ILogger<TableOperations>> tableOpLogger = new Mock<ILogger<TableOperations>>();

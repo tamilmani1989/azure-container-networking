@@ -13,7 +13,7 @@
     "azureusgovernment": "https://management.usgovcloudapi.net",
     "azuregermancloud": "https://management.microsoftazure.de",
     "dogfood": "https://api-dogfood-admin.resources.windows-int.net",
-    "ppe": "https://management.core.windows.net" //Pre production environment in first party portal
+    "ppe": "https://management.azure.com" //Pre production environment in first party portal
   },
   "AzureEnvironments": [
     "azurecloud",

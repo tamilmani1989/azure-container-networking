@@ -16,6 +16,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     using Microsoft.Azure.Cosmos.Table;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Options;
     using Moq;
     using Xunit;
     using Match = System.Text.RegularExpressions.Match;
@@ -68,9 +69,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             CurrentContext.SetContext(this.configuration["AzureEnvironment"], this.configuration["AzureRegion"]);
             CurrentContext.SetManagedIdentity(clientIdentity);
 
+            Mock<IOptionsMonitor<DatastoreSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<DatastoreSettings>>();
+            optionsMonitorMock.Setup(o => o.CurrentValue).Returns(datastoreSettings);
             IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
                 this.httpUtility,
-                datastoreSettings);
+                optionsMonitorMock.Object);
 
             Mock<ILogger<CosmosDbDataStore>> logger = new Mock<ILogger<CosmosDbDataStore>>();
             ITableDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);

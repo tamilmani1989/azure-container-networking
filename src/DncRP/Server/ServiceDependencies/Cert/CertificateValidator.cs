@@ -12,21 +12,26 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using System.Security.Cryptography.X509Certificates;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Options;
 
     public class CertificateValidator : ICertificateValidator
     {
         private ICertificateRetriever certsRetriever;
         private string allowedCustomThumbprint;
         private ILogger<CertificateValidator> logger;
+        private CertificateValidatorSettings certificateValidatorSettings;
 
         public CertificateValidator(
             ICertificateRetriever certificateRetriever,
             ILogger<CertificateValidator> logger,
-            string thumbprint)
+            IOptionsMonitor<CertificateValidatorSettings> certValidOptions)
         {
             this.certsRetriever = certificateRetriever;
-            this.allowedCustomThumbprint = thumbprint;
+            this.certificateValidatorSettings = certValidOptions.CurrentValue;
+            this.allowedCustomThumbprint = certValidOptions.CurrentValue.Thumbprint;
             this.logger = logger;
+
+            Console.WriteLine("CertificateValidator thumbprint: {0}", this.allowedCustomThumbprint);
         }
 
         /// <summary>
@@ -39,6 +44,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public async Task<bool> IsValid(X509Certificate2 certificate)
         {
             bool isValid;
+
+            Console.WriteLine("Cert validation starting. Thumbprint:{0}, Subject:{1}, Issuer:{2}",
+                certificate.Thumbprint, certificate.Subject, certificate.Issuer);
 
             if (!string.IsNullOrWhiteSpace(this.allowedCustomThumbprint))
             {
@@ -95,8 +103,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             if (!isValidCert)
             {
-                this.logger.LogInformation(
-                    "Cert validation failed. Thumbprint:{0}, Subject:{1}, Issuer:{2}", cert.Thumbprint, cert.Subject, cert.Issuer);
+                string message = string.Format("Cert validation failed. Thumbprint:{0}, Subject:{1}, Issuer:{2}",
+                    cert.Thumbprint, cert.Subject, cert.Issuer);
+
+                this.logger.LogInformation(message);
+                Console.WriteLine(message);
             }
 
             return isValidCert;

@@ -11,6 +11,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
+    using Microsoft.Extensions.Options;
 
     /// <summary>
     /// Note: This provider class will change once we settle on an approach to rotate key.
@@ -26,10 +27,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
         public ConnectionStringProvider(
             IHttpUtility httpUtility,
-            DatastoreSettings datastoreSettings)
+            IOptionsMonitor<DatastoreSettings> datastoreSettingsOptions)
         {
             this.httpUtility = httpUtility;
-            this.datastoreSettings = datastoreSettings;
+            this.datastoreSettings = datastoreSettingsOptions.CurrentValue;
             this.semaphoreSlim = new SemaphoreSlim(1, 1);
             this.connectionStringsList = null;
         }

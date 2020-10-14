@@ -143,9 +143,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             resourceEntity = result.Result as OrchestratorResourceEntity;
 
             // insert entity into controller config table
-            ControllerProperties ctrlProps = (ControllerProperties)controller.Properties;
             int httpCode = await this.InsertOrReplaceOchestratorConfigAsync(
-                ctrlProps.PropertiesList.DncAppId, resourceGuid, orchestratorType, orchProps, orchestratorRequest.Identity);
+                controller.Properties.ResourceGuid, resourceGuid, orchestratorType, orchProps, orchestratorRequest.Identity);
             if (!HttpStatusCodeCheck.IsSuccess(httpCode))
             {
                 return Orchestrator.CreateErrorResponse("Error in put orchestrator config", httpCode);
@@ -197,7 +196,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             ControllerProperties controllerProps = JsonUtility.Deserialize<ControllerProperties>(resourceEntity.ControllerProperties);
 
             // First delete entry in config table
-            int statusCode = await this.DeleteOchestratorConfigAsync(controllerProps.PropertiesList.DncAppId, resourceEntity.ResouceGuid);
+            int statusCode = await this.DeleteOchestratorConfigAsync(controllerProps.ResourceGuid, resourceEntity.ResouceGuid);
             if (!HttpStatusCodeCheck.IsSuccess(statusCode))
             {
                 return Orchestrator.CreateErrorResponse("Error in delete orchestrator config", result.HttpStatusCode);

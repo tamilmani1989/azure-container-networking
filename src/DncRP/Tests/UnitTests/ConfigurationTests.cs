@@ -49,22 +49,5 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             Assert.True(string.IsNullOrWhiteSpace(thumbprint),
                 $"Thumbprint is set in appsettings.Development.json in DncRP.csproj. Should be empty before check-in");
         }
-
-        [Fact]
-        public void Test_Client_Identities()
-        {
-            var config = new ConfigurationBuilder()
-              .SetBasePath(Directory.GetCurrentDirectory())
-              .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json"), optional: false)
-              .Build();
-
-            ClientIdentity[] clientIdentities = config.GetSection("ClientIdentities").Get<ClientIdentity[]>();
-            Assert.True(clientIdentities.Length == 2);
-
-            for (int i = 0; i < clientIdentities.Length; ++i)
-            {
-                Assert.True(clientIdentities[i] != null, $"client identity is null at index {i}");
-            }
-        }
     }
 }

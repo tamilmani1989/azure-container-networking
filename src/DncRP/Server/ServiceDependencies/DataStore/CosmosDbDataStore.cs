@@ -63,6 +63,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 if (this.storageAccount == null)
                 {
+                    logger.LogInformation($"Initializing CosmosDbDataStore connection");
+
                     IEnumerable<string> connectionStrs = await this.connectionStringProvider.GetConnectionStringsForTableAPI();
 
                     // For now, just use the first one. Since we are not rotating keys, any one of these should work
@@ -79,6 +81,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 this.tableClient = null;
 
                 logger.LogError($"Failed to initialize Storage Account: {ex}");
+                Console.WriteLine($"Failed to initialize CosmosDbDataStore connection: {ex}");
                 throw;
             }
             finally

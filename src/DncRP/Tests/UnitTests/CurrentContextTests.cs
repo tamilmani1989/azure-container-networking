@@ -20,7 +20,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
     [Collection("Sequential")]
     public class CurrentContextTests
     {
-        private const string prodAppSettingsFileName = "appsettings.json";
+        private const string prodAppSettingsFileName = "appsettings.Development.json";
         private const string settingsFileName = "unittests.settings.json";
         private const string emptySettingsFileName = "unittests.settings.nullvalues.json";
 
@@ -58,8 +58,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             IImdsRetriever imdsRetriever = new TestImdsRetriever(expectedEnv, expectedRegion);
             ContextInitializer.InitializeContext(configuration, imdsRetriever);
 
-            Assert.True(CurrentContext.AzureEnvironment.Equals(expectedEnv));
-            Assert.True(CurrentContext.AzureRegion.Equals(expectedRegion));
+            Assert.True(CurrentContext.AzureEnvironment.Equals(expectedEnv.ToLower()));
+            Assert.True(CurrentContext.AzureRegion.Equals(expectedRegion.ToLower()));
         }
 
         [Fact]

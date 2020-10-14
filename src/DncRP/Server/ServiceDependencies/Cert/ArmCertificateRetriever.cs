@@ -16,6 +16,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Options;
 
     /// <summary>
     /// TODO: Add an API in RP to trigger cert retrieval for any livesite scenario
@@ -24,18 +25,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     /// </summary>
     public class ArmCertificateRetriever : ICertificateRetriever
     {
-        private const int defaultRefreshTimeoutInSeconds = 3600;
-
-        private IConfiguration configuration;
-        private IImdsRetriever imdsRetriever;
         private IHttpUtility httpUtility;
 
         private readonly TimeSpan timeout;
         private readonly List<X509Certificate2> certificateList;
         private readonly SemaphoreSlim semaphoreSlim;
         private DateTime lastCertUpdateTime;
-        private string azureEnvironment;
         private ILogger<ArmCertificateRetriever> logger;
+        private ArmCertificatesSettings certificatesSettings;
 
         private const string certMetadataUri = "/metadata/authentication?api-version=2015-01-01";
         private const string certPort = "24582";
@@ -51,29 +48,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// - For any other scenario where RP doesn't run in container and is hosted on baremetal
         /// </param>
         public ArmCertificateRetriever(
-            IConfiguration configuration,
-            IImdsRetriever imdsRetriever,
             IHttpUtility httpUtility,
             ILogger<ArmCertificateRetriever> logger,
-            string azureEnvName = null,
-            int refreshCertPeriodInSeconds = 3600)
+            IOptionsMonitor<ArmCertificatesSettings> armCertSettingsOptions)
         {
-            this.configuration = configuration;
-            this.imdsRetriever = imdsRetriever;
             this.httpUtility = httpUtility;
             this.logger = logger;
+            certificatesSettings = armCertSettingsOptions.CurrentValue;
 
-            if (!string.IsNullOrWhiteSpace(azureEnvName))
-            {
-                this.azureEnvironment = azureEnvName.ToLower();
-            }
-
-            if (refreshCertPeriodInSeconds <= 0)
-            {
-                refreshCertPeriodInSeconds = defaultRefreshTimeoutInSeconds;
-            }
-
-            this.timeout = TimeSpan.FromSeconds(refreshCertPeriodInSeconds);
+            this.timeout = TimeSpan.FromSeconds(certificatesSettings.RefreshIntervalInSeconds);
             this.lastCertUpdateTime = DateTime.MinValue;
             this.certificateList = new List<X509Certificate2>();
             this.semaphoreSlim = new SemaphoreSlim(1, 1);
@@ -106,14 +89,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 try
                 {
-                    // todo: Should this be initialized in the startup?
-                    if (string.IsNullOrWhiteSpace(this.azureEnvironment))
-                    {
-                        InstanceResponse response = await this.imdsRetriever.GetInstanceMetadata(
-                            configuration["Imds:InstanceEndpoint"]);
-                        this.azureEnvironment = response.Compute.AzureEnvironment.ToLower();
-                    }
-
                     if (this.ShouldFetchCertificates(doNotUseCache))
                     {
                         // sample "https://management.azure.com:24582/metadata/authentication?api-version=2015-01-01",
@@ -160,10 +135,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <returns></returns>
         private string GetCertMetadataEndpoint()
         {
-            string armEndpoint = AzureInfo.GetArmEndpoint(this.azureEnvironment.ToLower());
+            string armEndpoint = AzureInfo.GetArmEndpoint(CurrentContext.AzureEnvironment);
 
             // Append the port 24582 for non-dogfood enviornments
-            if (this.azureEnvironment != "dogfood")
+            if (CurrentContext.AzureEnvironment != "dogfood")
             {
                 armEndpoint = armEndpoint + $":{certPort}";
             }

@@ -7,6 +7,7 @@
 
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
+    using System;
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
@@ -40,7 +41,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 region = response.Compute.AzureRegion;
             }
 
-            CurrentContext.SetContext(azEnv, region);
+            CurrentContext.SetContext(azEnv.ToLower(), region.ToLower());
 
             ClientIdentity[] clientIdentities = configuration.GetSection("ClientIdentities").Get<ClientIdentity[]>();
 
@@ -54,6 +55,36 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             CurrentContext.SetKeyVaultUrl(configuration["KeyVault:Url"]);
+
+            PrintContextAndConfigToConsole(configuration);
+        }
+
+        private static void PrintContextAndConfigToConsole(IConfiguration configuration)
+        {
+            Console.WriteLine("AzureEnvironment: {0}", CurrentContext.AzureEnvironment);
+            Console.WriteLine("AzureRegion: {0}", CurrentContext.AzureRegion);
+
+            if (CurrentContext.ManagedIdentity != null)
+            {
+                Console.WriteLine("ManagedIdentity: {0}", CurrentContext.ManagedIdentity.AppId);
+            }
+
+            if (CurrentContext.ArmAccessIdentity != null)
+            {
+                Console.WriteLine("ArmAccessIdentity AppID: {0}", CurrentContext.ArmAccessIdentity.AppId);
+                Console.WriteLine("ArmAccessIdentity KVCertPath: {0}", CurrentContext.ArmAccessIdentity.KeyVaultCertPath);
+            }
+
+            Console.WriteLine("Thumbprint: {0}", configuration["Thumbprint"]);
+
+            DatastoreSettings settings = configuration.GetSection("DataStoreSettings").Get<DatastoreSettings>();
+            if (settings != null)
+            {
+                Console.WriteLine("Datastore SubscriptionId: {0}", settings.SubscriptionId);
+                Console.WriteLine("Datastore DBAccountName: {0}", settings.DBAccountName);
+                Console.WriteLine("Datastore ResourceGroup: {0}", settings.ResourceGroup);
+                Console.WriteLine("Datastore Region: {0}", settings.Region);
+            }
         }
     }
 }

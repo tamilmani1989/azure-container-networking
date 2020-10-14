@@ -54,7 +54,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 response = await AsyncRetry.Retry<TResouce>(async () =>
                 {
-                    tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
+                    await tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
                     return (TResouce)await action();
                 },
                 3, TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(5), (e) => e is HttpRequestException).ConfigureAwait(false);

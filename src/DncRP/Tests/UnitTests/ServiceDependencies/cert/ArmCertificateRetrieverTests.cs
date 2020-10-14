@@ -17,6 +17,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Logging.Abstractions;
+    using Microsoft.Extensions.Options;
+    using Moq;
     using Xunit;
 
     public class CertRetrieverTestDependencies : IDisposable
@@ -25,7 +27,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         {
             this.Configuration = new ConfigurationBuilder()
                .SetBasePath(Directory.GetCurrentDirectory())
-               .AddJsonFile("appsettings.json", optional: false)
+               .AddJsonFile("appsettings.Development.json", optional: false)
                .Build();
         }
 
@@ -40,6 +42,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         }
     }
 
+    [Collection("Sequential")]
     public class ArmCertificateRetrieverTests : IClassFixture<CertRetrieverTestDependencies>
     {
         private CertRetrieverTestDependencies dependencies;
@@ -55,52 +58,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             string azEnvName = "dogfood";
             string expectedSubNamePrefix = $"CN={azEnvName}";
 
-            IImdsRetriever imdsRetriever = new TestImdsRetriever(azEnvName);
+            CurrentContext.SetContext(azEnvName, this.dependencies.Configuration["Region"]);
+
             IHttpUtility httpUtility = new TestHttpUtility();
             ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
+            Mock<IOptionsMonitor<ArmCertificatesSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<ArmCertificatesSettings>>();
+            optionsMonitorMock.Setup(o => o.CurrentValue).Returns(new ArmCertificatesSettings {  RefreshIntervalInSeconds = 3600 });
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
-            IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
-
-            Assert.True(certs.Count() != 0);
-            foreach (X509Certificate2 c in certs)
-            {
-                Assert.StartsWith(expectedSubNamePrefix, c.Subject);
-            }
-        }
-
-        [Fact]
-        public async void Test_AzureEnvironment_Not_Fetched_If_Specified()
-        {
-            string clientSpecifiedEnv = "dogfood";
-            string imdsFetchedEnv = "azurecloud";
-            string expectedSubNamePrefix = $"CN={clientSpecifiedEnv}";
-
-            IImdsRetriever imdsRetriever = new TestImdsRetriever(imdsFetchedEnv);
-            IHttpUtility httpUtility = new TestHttpUtility();
-            ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
-
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger, clientSpecifiedEnv);
-            IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
-
-            Assert.True(certs.Count() != 0);
-            foreach (X509Certificate2 c in certs)
-            {
-                Assert.StartsWith(expectedSubNamePrefix, c.Subject);
-            }
-        }
-
-        [Fact]
-        public async void Test_AzureEnvironment_Is_Fetched_If_Not_Specified()
-        {
-            string imdsFetchedEnv = "azurecloud";
-            string expectedSubNamePrefix = $"CN={imdsFetchedEnv}";
-
-            IImdsRetriever imdsRetriever = new TestImdsRetriever(imdsFetchedEnv);
-            IHttpUtility httpUtility = new TestHttpUtility();
-            ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
-
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(httpUtility, logger, optionsMonitorMock.Object);
             IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
 
             Assert.True(certs.Count() != 0);
@@ -113,13 +78,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         [Fact]
         public async void Test_Certificates_Are_Cached()
         {
-            string imdsFetchedEnv = "azurecloud";
+            string azEnvName = "azurecloud";
 
-            IImdsRetriever imdsRetriever = new TestImdsRetriever(imdsFetchedEnv);
+            CurrentContext.SetContext(azEnvName, this.dependencies.Configuration["Region"]);
             IHttpUtility httpUtility = new TestHttpUtility();
             ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
+            Mock<IOptionsMonitor<ArmCertificatesSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<ArmCertificatesSettings>>();
+            optionsMonitorMock.Setup(o => o.CurrentValue).Returns(new ArmCertificatesSettings { RefreshIntervalInSeconds = 3600 });
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(httpUtility, logger, optionsMonitorMock.Object);
 
             // Fetch certs and Validate that certs got fetched
             IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
@@ -144,13 +111,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         [Fact]
         public async void Test_Certificate_Cache_Is_Refreshed_Periodically()
         {
-            string imdsFetchedEnv = "azurecloud";
+            string azEnvName = "azurecloud";
 
-            IImdsRetriever imdsRetriever = new TestImdsRetriever(imdsFetchedEnv);
+            CurrentContext.SetContext(azEnvName, this.dependencies.Configuration["Region"]);
             IHttpUtility httpUtility = new TestHttpUtility();
             ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger, null, 30);
+            Mock<IOptionsMonitor<ArmCertificatesSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<ArmCertificatesSettings>>();
+            optionsMonitorMock.Setup(o => o.CurrentValue).Returns(new ArmCertificatesSettings { RefreshIntervalInSeconds = 30 });
+
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(httpUtility, logger, optionsMonitorMock.Object);
             IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
             Assert.True(certs.Count() != 0);
 
@@ -205,11 +175,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             {
                 string expectedSubNamePrefix = $"CN={e.ToLower()}";
 
-                IImdsRetriever imdsRetriever = new TestImdsRetriever(e);
+                CurrentContext.SetContext(e, this.dependencies.Configuration["AzureRegion"]);
                 IHttpUtility httpUtility = new TestHttpUtility();
                 ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
+                Mock<IOptionsMonitor<ArmCertificatesSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<ArmCertificatesSettings>>();
+                optionsMonitorMock.Setup(o => o.CurrentValue).Returns(new ArmCertificatesSettings { RefreshIntervalInSeconds = 3600 });
 
-                ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
+                ArmCertificateRetriever retriever = new ArmCertificateRetriever(httpUtility, logger, optionsMonitorMock.Object);
                 IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
 
                 Assert.True(certs.Count() != 0);
@@ -225,10 +197,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         {
             string invalidEnv = "AzureInvalid";
 
-            IImdsRetriever imdsRetriever = new TestImdsRetriever(invalidEnv);
+            CurrentContext.SetContext(invalidEnv, this.dependencies.Configuration["AzureRegion"]);
             IHttpUtility httpUtility = new TestHttpUtility();
             ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
+            Mock<IOptionsMonitor<ArmCertificatesSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<ArmCertificatesSettings>>();
+            optionsMonitorMock.Setup(o => o.CurrentValue).Returns(new ArmCertificatesSettings { RefreshIntervalInSeconds = 3600 });
+
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(httpUtility, logger, optionsMonitorMock.Object);
             await Assert.ThrowsAsync<InvalidAzureEnvironmentException>(async () => await retriever.GetCertificates());
         }
 
@@ -237,15 +212,18 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         {
             string invalidEnv = "AzureCloud";
 
-            IImdsRetriever imdsRetriever = new TestImdsRetriever(invalidEnv);
+            CurrentContext.SetContext(invalidEnv, this.dependencies.Configuration["AzureRegion"]);
             IHttpUtility httpUtility = new TestHttpUtility();
             ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
+            Mock<IOptionsMonitor<ArmCertificatesSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<ArmCertificatesSettings>>();
+            optionsMonitorMock.Setup(o => o.CurrentValue).Returns(new ArmCertificatesSettings { RefreshIntervalInSeconds = 3600 });
+
 
             // repeat the whole test multiple times
             for (int itr = 0; itr < 100; ++itr)
             {
                 // create 100 tasks for each iteration that will fetch certs
-                ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
+                ArmCertificateRetriever retriever = new ArmCertificateRetriever(httpUtility, logger, optionsMonitorMock.Object);
                 List<Task<IEnumerable<X509Certificate2>>> taskList = new List<Task<IEnumerable<X509Certificate2>>>();
                 for (int i = 0; i < 100; ++i)
                 {
@@ -282,11 +260,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
         {
             string imdsFetchedEnv = "azurecloud";
 
-            IImdsRetriever imdsRetriever = new TestImdsRetriever(imdsFetchedEnv);
+            CurrentContext.SetContext(imdsFetchedEnv, this.dependencies.Configuration["AzureRegion"]);
             IHttpUtility httpUtility = new TestHttpUtility();
             ILogger<ArmCertificateRetriever> logger = new NullLogger<ArmCertificateRetriever>();
+            Mock<IOptionsMonitor<ArmCertificatesSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<ArmCertificatesSettings>>();
+            optionsMonitorMock.Setup(o => o.CurrentValue).Returns(new ArmCertificatesSettings { RefreshIntervalInSeconds = 3600 });
 
-            ArmCertificateRetriever retriever = new ArmCertificateRetriever(this.dependencies.Configuration, imdsRetriever, httpUtility, logger);
+            ArmCertificateRetriever retriever = new ArmCertificateRetriever(httpUtility, logger, optionsMonitorMock.Object);
             IEnumerable<X509Certificate2> certs = await retriever.GetCertificates();
             Assert.True(certs.Count() != 0);
 

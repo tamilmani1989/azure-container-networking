@@ -102,10 +102,13 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             {
                 httpResponse.EnsureSuccessStatusCode(); // throws if not 200-299
 
-                if (httpResponse.Content != null)
+                if (httpResponse.Content != null && httpResponse.StatusCode != System.Net.HttpStatusCode.NoContent)
                 {
                     // This API is only expectig response Content to be in Json format.
-                    if (httpResponse.Content is object && httpResponse.Content.Headers.ContentType.MediaType == "application/json")
+                    if (httpResponse.Content is object &&
+                        httpResponse.Content.Headers != null &&
+                        httpResponse.Content.Headers.ContentType != null &&
+                        httpResponse.Content.Headers.ContentType.MediaType == "application/json")
                     {
                         var contentStream = await httpResponse.Content.ReadAsStringAsync();
                         if (deserializeSettings == null)
@@ -132,7 +135,11 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
                     $"internal exception: {ex}");
             }
 
-            throw new InvalidDataException($"Invalid content type '{httpResponse.Content.Headers.ContentType.MediaType}' returned. ");
+            string contentType = httpResponse.Content.Headers != null && httpResponse.Content.Headers.ContentType != null
+                ? httpResponse.Content.Headers.ContentType.MediaType
+                : string.Empty;
+
+            throw new InvalidDataException($"Invalid content type '{contentType}' returned. ");
         }
 
         /// <summary>

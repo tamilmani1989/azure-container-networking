@@ -58,7 +58,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             try
             {
                 // Check if SubnetConfiguration is already defined
-                tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
+                await tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
                 // Check if DelegatedSubnetConfiguration exists
                 DelegateSubnet delegatedSubnet = await tableOperations.DelegatedSubnetConfigurationOperations.TryGetDelegatedSubnetConfigurationAsync(
                     subscriptionId,
@@ -164,7 +164,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             try
             {
 
-                tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
+                await tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
                 await ExecuteDeleteDelegateSubnetAsync(subscriptionId, resourceGroup, resourceName);
 
                 ContentResult result = new ContentResult

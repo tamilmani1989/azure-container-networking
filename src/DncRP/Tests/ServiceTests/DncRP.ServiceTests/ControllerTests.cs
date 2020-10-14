@@ -18,6 +18,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Options;
     using Moq;
     using Newtonsoft.Json.Linq;
     using Xunit;
@@ -75,9 +76,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             CurrentContext.SetContext(this.configuration["AzureEnvironment"], this.configuration["AzureRegion"]);
             CurrentContext.SetManagedIdentity(clientIdentity);
 
+            Mock<IOptionsMonitor<DatastoreSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<DatastoreSettings>>();
+            optionsMonitorMock.Setup(o => o.CurrentValue).Returns(datastoreSettings);
             IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
                 this.httpUtility,
-                datastoreSettings);
+                optionsMonitorMock.Object);
 
             Mock<ILogger<CosmosDbDataStore>> logger = new Mock<ILogger<CosmosDbDataStore>>();
             Mock<ILogger<TableOperations>> tableOpLogger = new Mock<ILogger<TableOperations>>();
@@ -86,7 +89,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             CosmosDbDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
             dataStore.InitAsync().GetAwaiter().GetResult();
             ITableOperations tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
-            SubscriptionRegistrationTests.RegisterSub(this.testConfig.SubscriptionId, tableOperations);
+
+            await SubscriptionRegistrationTests.RegisterSub(this.testConfig.SubscriptionId, tableOperations);
             DncController dncController = new DncController(tableOperations, dncCtrlLogger.Object);
 
             string guid = Guid.NewGuid().ToString();
