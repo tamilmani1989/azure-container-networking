@@ -108,7 +108,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 resourceId: resourceId,
                 apiVersion: ApiVersion);
 
-            logger.LogInformation($"GetVirtualNetworkAsync: tenantId: {tenantId}, resourceId: {resourceId}, " +
+            logger.CLogInformation($"GetVirtualNetworkAsync: tenantId: {tenantId}, resourceId: {resourceId}, " +
                 $"VnetGuid: {virtualNetwork.ResourceGuid}, Response: {virtualNetwork}");
 
             return virtualNetwork;
@@ -147,7 +147,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                         .ConfigureAwait(continueOnCapturedContext: false);
 
                 // TODO: Handle response Provisioning State.
-                logger.LogInformation($"SAL Response: {salResponse}");
+                logger.CLogInformation($"SAL Response: {salResponse}");
 
                 detail = await TryGetServiceAssociationLinkDetailAsync(tenantId, subnetResourceId);
                 if (detail == null || String.IsNullOrEmpty(detail?.Properties?.PrimaryContextId))
@@ -235,7 +235,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             if (HttpStatusCodeCheck.IsResourceNotFound(httpResponse.StatusCode))
             {
-                logger.LogInformation($"GetServiceAssociationLinkDetail not found for subnetResourceId:{subnetResourceId}");
+                logger.CLogInformation($"GetServiceAssociationLinkDetail not found for subnetResourceId:{subnetResourceId}");
                 return null;
             }
 
@@ -284,7 +284,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             sal.Properties.Details[0].Properties.PrimaryContextRequestId = Guid.NewGuid().ToString();
             sal.Properties.Details[0].Properties.SecondaryContextRequestId = Guid.NewGuid().ToString();
 
-            logger.LogInformation($"Created ServiceAssociationLink: {sal}");
+            logger.CLogInformation($"Created ServiceAssociationLink: {sal}");
             return sal;
         }
     }

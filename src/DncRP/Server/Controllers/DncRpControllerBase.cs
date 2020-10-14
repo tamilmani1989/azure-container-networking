@@ -73,7 +73,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 message += $"InternalException: {ex}";
 
-                logger.LogError(message);
+                logger.CLogError(message);
                 return ConvertToExceptionResult(message, statusCode);
             }
 
@@ -111,7 +111,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 string jsonError = ErrorDetails.CreateErrorAsJson(
                     response.Error.Error, response.Error.StatusCode, apiErrorCode);
                 int errorCode = (int)response.Error.StatusCode;
-                logger.LogError("Error in API {0}. Code:{1}, ErrorMsg:{2}", methodNameForLogging, errorCode, jsonError);
+                logger.CLogError("Error in API {0}. Code:{1}, ErrorMsg:{2}", methodNameForLogging, errorCode, jsonError);
 
                 return new ContentResult
                 {
@@ -137,7 +137,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             string json = method == HttpMethod.Delete ? string.Empty : JsonUtility.Serialize(response);
 
-            logger.LogInformation("Success from API {0}. Code:{1}, Response:{2}", methodNameForLogging, statusCode, json);
+            logger.CLogInformation("Success from API {0}. Code:{1}, Response:{2}", methodNameForLogging, statusCode, json);
 
             return new ContentResult
             {
@@ -158,7 +158,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             using (StreamReader stream = new StreamReader(requestBody))
             {
                 string jsonBody = await stream.ReadToEndAsync();
-                this.logger.LogInformation($"{operationName} Request body: {jsonBody}");
+                this.logger.CLogInformation($"{operationName} Request body: {jsonBody}");
 
                 request = JsonUtility.Deserialize<TRequest>(jsonBody);
             }
@@ -179,53 +179,53 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             if (httpRequest.Headers.ContainsKey(urlHeader))
             {
                 identity.Url = httpRequest.Headers[urlHeader];
-                this.logger.LogInformation("{0}: {1}", urlHeader, httpRequest.Headers[urlHeader]);
+                this.logger.CLogInformation("{0}: {1}", urlHeader, httpRequest.Headers[urlHeader]);
             }
             else
             {
                 errorMsg = $"{urlHeader} header not found in the request";
                 sb.AppendLine(errorMsg);
-                this.logger.LogInformation(errorMsg);
+                this.logger.CLogInformation(errorMsg);
             }
 
             if (httpRequest.Headers.ContainsKey(principalIdHeader))
             {
                 identity.PrincipalId = httpRequest.Headers[principalIdHeader];
-                this.logger.LogInformation("{0}: {1}", principalIdHeader, httpRequest.Headers[principalIdHeader]);
+                this.logger.CLogInformation("{0}: {1}", principalIdHeader, httpRequest.Headers[principalIdHeader]);
             }
             else
             {
                 errorMsg = $"{principalIdHeader} header not found in the request";
                 sb.AppendLine(errorMsg);
-                this.logger.LogInformation(errorMsg);
+                this.logger.CLogInformation(errorMsg);
             }
 
             if (httpRequest.Headers.ContainsKey(homeTenantIdHeader))
             {
                 identity.HomeTenantId = httpRequest.Headers[homeTenantIdHeader];
-                this.logger.LogInformation("{0}: {1}", homeTenantIdHeader, httpRequest.Headers[homeTenantIdHeader]);
+                this.logger.CLogInformation("{0}: {1}", homeTenantIdHeader, httpRequest.Headers[homeTenantIdHeader]);
             }
             else
             {
                 errorMsg = $"{homeTenantIdHeader} header not found in the request";
                 sb.AppendLine(errorMsg);
-                this.logger.LogInformation(errorMsg);
+                this.logger.CLogInformation(errorMsg);
             }
 
             if (httpRequest.Headers.ContainsKey(clientTenantIdHeader))
             {
                 identity.ClientTenantId = httpRequest.Headers[clientTenantIdHeader];
-                this.logger.LogInformation("{0}: {1}", clientTenantIdHeader, httpRequest.Headers[clientTenantIdHeader]);
+                this.logger.CLogInformation("{0}: {1}", clientTenantIdHeader, httpRequest.Headers[clientTenantIdHeader]);
             }
             else
             {
                 errorMsg = $"{clientTenantIdHeader} header not found in the request";
                 sb.AppendLine(errorMsg);
-                this.logger.LogInformation(errorMsg);
+                this.logger.CLogInformation(errorMsg);
             }
 
             identity.Type = orchestratorRequest.Properties.Parameters.IdentityParameter.IdentityType;
-            this.logger.LogInformation($"Identity type: {identity.Type}");
+            this.logger.CLogInformation($"Identity type: {identity.Type}");
 
             if (!string.IsNullOrWhiteSpace(sb.ToString()))
             {

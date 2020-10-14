@@ -29,7 +29,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             ITableOperations tableOperations,
             ILogger<ListOperationsController> logger) : base(logger, tableOperations)
         {
-            logger.LogInformation("ListOperationsController initialized");
+            logger.CLogInformation("ListOperationsController initialized");
         }
 
         /// <summary>

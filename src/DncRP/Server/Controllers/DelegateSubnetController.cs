@@ -36,7 +36,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.httpUtility = httpUtility;
             IAzureAD azureAD = new AzureAD();
             this.azVnetBroker = new AzVNetBroker(httpUtility, logger, azureAD);
-            logger.LogInformation("DelegateSubnetController initialized");
+            logger.CLogInformation("DelegateSubnetController initialized");
         }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string resourceGroup,
             string resourceName)
         {
-            this.logger.LogInformation($"GetDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
+            this.logger.CLogInformation($"GetDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
 
             // TODO Validate arguments
             try
@@ -96,7 +96,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 message += $"InternalException: {ex}";
 
-                this.logger.LogError($"{message}, StatusCode: {statusCode}");
+                this.logger.CLogError($"{message}, StatusCode: {statusCode}");
 
                 return ConvertToExceptionResult(message, statusCode);
             }
@@ -115,7 +115,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string resourceGroup, 
             string resourceName)
         {
-            this.logger.LogInformation($"PutDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
+            this.logger.CLogInformation($"PutDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
 
             DelegateSubnetRequest delegateSubnetRequest = await GetRequestAsync<DelegateSubnetRequest>(HttpContext.Request.Body, "PutDelegateSubnet");
             return await this.ExecuteWithRetryAsync(subscriptionId, () =>
@@ -158,7 +158,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string resourceGroup,
             string resourceName)
         {
-            this.logger.LogInformation($"DeleteDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
+            this.logger.CLogInformation($"DeleteDelegateSubnet URI: {HttpContext.Request.GetDisplayUrl()}");
 
             // TODO Validate arguments
             try
@@ -190,7 +190,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 message += $"InternalException: {ex}";
 
-                this.logger.LogError($"{message}, StatusCode: {statusCode}");
+                this.logger.CLogError($"{message}, StatusCode: {statusCode}");
 
                 return ConvertToExceptionResult(message, statusCode);
             }
@@ -290,7 +290,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string vnetResourceGuid,
             string subnetResourceId)
         {
-            logger.LogInformation($"Creating SubnetToken for:subscriptionId {subnetSubId}, ResourceGroup: {subnetResourceGroupId}, " +
+            logger.CLogInformation($"Creating SubnetToken for:subscriptionId {subnetSubId}, ResourceGroup: {subnetResourceGroupId}, " +
                 $"delegatedSubnetGuid: {delegatedSubnetGuid}, vnetResourceGuid: {vnetResourceGuid}, SubnetId: {subnetResourceId}");
 
             string VNetResourceId = AzVNetBroker.GetVNetResourceId(subnetSubId, subnetResourceGroupId, vnetName);
@@ -403,7 +403,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             if (delegateSubnet == null)
             {
-                logger.LogInformation($"DelegateSubnet, Resource {HttpContext.Request.GetDisplayUrl()} is already deleted");
+                logger.CLogInformation($"DelegateSubnet, Resource {HttpContext.Request.GetDisplayUrl()} is already deleted");
                 return;
             }
 

@@ -88,7 +88,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public async Task<Orchestrator> InsertOrReplaceOrchestratorAsync(
             string subId, string resourceGroup, string resourceName, OrchestratorRequest orchestratorRequest)
         {
-            this.logger.LogInformation("Starting PUT orchestrator resource. Sub:{0}, RG:{1}, ResourceName:{2}",
+            this.logger.CLogInformation("Starting PUT orchestrator resource. Sub:{0}, RG:{1}, ResourceName:{2}",
                 subId, resourceGroup, resourceName);
 
             string controllerArmResouceId = orchestratorRequest.Properties.Parameters.Properties.ControllerDetails.Id;
@@ -176,7 +176,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <returns></returns>
         public async Task<Orchestrator> DeleteOrchestratorAsync(string subId, string resourceGroup, string resourceName)
         {
-            this.logger.LogInformation("Starting DELETE orchestrator resource. Sub:{0}, RG:{1}, ResourceName:{2}",
+            this.logger.CLogInformation("Starting DELETE orchestrator resource. Sub:{0}, RG:{1}, ResourceName:{2}",
                 subId, resourceGroup, resourceName);
 
             // Create Retrieve table operation
@@ -250,7 +250,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             else if (!HttpStatusCodeCheck.IsSuccess(result.HttpStatusCode))
             {
-                this.logger.LogError("Error in GET Orchestrator config. StatusCode:{0}", result.HttpStatusCode);
+                this.logger.CLogError("Error in GET Orchestrator config. StatusCode:{0}", result.HttpStatusCode);
                 return result.HttpStatusCode;
             }
             else
@@ -270,7 +270,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             result = await this.dataStore.InsertOrReplaceEntityAsync(configTableName, entity);
             if (!HttpStatusCodeCheck.IsSuccess(result.HttpStatusCode))
             {
-                this.logger.LogError("InsertOrReplaceOchestratorConfigAsync: Error in PUT Orchestrator config. StatusCode:{0}", result.HttpStatusCode);
+                this.logger.CLogError("InsertOrReplaceOchestratorConfigAsync: Error in PUT Orchestrator config. StatusCode:{0}", result.HttpStatusCode);
                 return result.HttpStatusCode;
             }
 
@@ -345,9 +345,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     if (HttpBearerChallenge.IsBearerChallenge(authenticateHeader.ToString()))
                     {
                         var challenge = new HttpBearerChallenge(requestMessage.RequestUri, authenticateHeader.ToString());
-                        this.logger.LogInformation("AuthorizationServer: {0}", challenge.AuthorizationServer);
-                        this.logger.LogInformation("Resource: {0}", challenge.Resource);
-                        this.logger.LogInformation("Scope: {0}", challenge.Scope);
+                        this.logger.CLogInformation("AuthorizationServer: {0}", challenge.AuthorizationServer);
+                        this.logger.CLogInformation("Resource: {0}", challenge.Resource);
+                        this.logger.CLogInformation("Scope: {0}", challenge.Scope);
 
                         string resource = $"{challenge.Resource}/.default";
                         IAzureAD azureAD = new AzureAD();
@@ -374,7 +374,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string msg = string.Format("GetOrchestratorIdentity: Unexpected response code: {0}. {1}",
                 response.StatusCode,
                 response.Content != null ? response.Content.ToString() : string.Empty);
-            this.logger.LogError(msg);
+            this.logger.CLogError(msg);
 
             throw new Exception(msg);
         }

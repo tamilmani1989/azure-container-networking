@@ -25,7 +25,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             ITableOperations tableOperations,
             ILogger<OrchestratorController> logger) : base(logger, tableOperations)
         {
-            logger.LogInformation("OrchestratorController initialized");
+            logger.CLogInformation("OrchestratorController initialized");
         }
 
         /// <summary>
@@ -55,7 +55,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             using (StreamReader stream = new StreamReader(HttpContext.Request.Body))
             {
                 string jsonBody = await stream.ReadToEndAsync();
-                this.logger.LogInformation("PutOrchestratorResource body: {0}", jsonBody);
+                this.logger.CLogInformation("PutOrchestratorResource body: {0}", jsonBody);
 
                 request = JsonUtility.Deserialize<OrchestratorRequest>(jsonBody);
                 request.Identity = this.GetIdentityFromRequestHeaders(HttpContext.Request, request);

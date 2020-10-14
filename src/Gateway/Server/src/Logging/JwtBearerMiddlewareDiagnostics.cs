@@ -10,6 +10,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
     using System.Threading.Tasks;
 
     using Microsoft.AspNetCore.Authentication.JwtBearer;
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Logging;
 
     /// <summary>
@@ -104,7 +105,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
         {
             if (!string.IsNullOrWhiteSpace(exception) && JwtEventLog != null)
             {
-                JwtEventLog.LogError("JwtBearerEvent:{0}, Error:{1}", eventName, exception);
+                JwtEventLog.CLogError("JwtBearerEvent:{0}, Error:{1}", eventName, exception);
             }
         }
 
@@ -112,7 +113,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
         {
             if (exception != null && JwtEventLog != null)
             {
-                JwtEventLog.LogError("JwtBearerEvent:{0}, Error:{1}", eventName, exception);
+                JwtEventLog.CLogError("JwtBearerEvent:{0}, Error:{1}", eventName, exception);
             }
         }
 
@@ -120,7 +121,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
         {
             if (JwtEventLog != null)
             {
-                JwtEventLog.LogInformation(format, args);
+                JwtEventLog.CLogInformation(format, args);
             }
         }
     }

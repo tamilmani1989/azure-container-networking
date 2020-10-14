@@ -11,6 +11,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using System.Collections.Generic;
     using System.Security.Cryptography.X509Certificates;
     using System.Threading.Tasks;
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
 
@@ -31,7 +32,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.allowedCustomThumbprint = certValidOptions.CurrentValue.Thumbprint;
             this.logger = logger;
 
-            Console.WriteLine("CertificateValidator thumbprint: {0}", this.allowedCustomThumbprint);
+            this.logger.CLogInformation("CertificateValidator thumbprint: {0}", this.allowedCustomThumbprint);
         }
 
         /// <summary>
@@ -45,7 +46,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             bool isValid;
 
-            Console.WriteLine("Cert validation starting. Thumbprint:{0}, Subject:{1}, Issuer:{2}",
+            this.logger.CLogInformation("Cert validation starting. Thumbprint:{0}, Subject:{1}, Issuer:{2}",
                 certificate.Thumbprint, certificate.Subject, certificate.Issuer);
 
             if (!string.IsNullOrWhiteSpace(this.allowedCustomThumbprint))
@@ -106,8 +107,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 string message = string.Format("Cert validation failed. Thumbprint:{0}, Subject:{1}, Issuer:{2}",
                     cert.Thumbprint, cert.Subject, cert.Issuer);
 
-                this.logger.LogInformation(message);
-                Console.WriteLine(message);
+                this.logger.CLogInformation(message);
             }
 
             return isValidCert;

@@ -47,7 +47,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             SubscriptionResourceEntity resourceEntity = await GetSubscriptionResourceAsync(subscriptionId);
 
             // TODO - Add Metric event
-            logger.LogInformation($"Subscription: {resourceEntity.PartitionKey}, TenantId: {resourceEntity.RowKey}");
+            logger.CLogInformation($"Subscription: {resourceEntity.PartitionKey}, TenantId: {resourceEntity.RowKey}");
             return resourceEntity.RowKey;
         }
 
@@ -104,7 +104,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             else
             {
-                logger.LogInformation($"Subscription is already registered:{resourceEntity}");
+                logger.CLogInformation($"Subscription is already registered:{resourceEntity}");
                 // Validate Tenant id is same
                 if (!string.Equals(resourceEntity.RowKey, tenantId))
                 {
@@ -128,7 +128,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             // TODO - Add Metric event
-            logger.LogInformation($"{tableName} - InsertorUpdate entity successful: {result.Result as SubscriptionResourceEntity}");
+            logger.CLogInformation($"{tableName} - InsertorUpdate entity successful: {result.Result as SubscriptionResourceEntity}");
         }
 
         /// <summary>
@@ -147,7 +147,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             SubscriptionResourceEntity resourceEntity = await TryGetSubscriptionResourceAsync(subscriptionId);
             if (resourceEntity == null)
             {
-                logger.LogInformation($"Subsctiption :{subscriptionId} doesnt exist, skip unregister");
+                logger.CLogInformation($"Subsctiption :{subscriptionId} doesnt exist, skip unregister");
                 return;
             }
 

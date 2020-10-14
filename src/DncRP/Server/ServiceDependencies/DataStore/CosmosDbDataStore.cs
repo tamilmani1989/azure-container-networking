@@ -15,6 +15,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Mvc.Filters;
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.Cosmos.Table;
     using Microsoft.Azure.KeyVault.WebKey;
     using Microsoft.Extensions.Logging;
@@ -63,7 +64,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 if (this.storageAccount == null)
                 {
-                    logger.LogInformation($"Initializing CosmosDbDataStore connection");
+                    logger.CLogInformation($"Initializing CosmosDbDataStore connection");
 
                     IEnumerable<string> connectionStrs = await this.connectionStringProvider.GetConnectionStringsForTableAPI();
 
@@ -80,8 +81,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 this.storageAccount = null;
                 this.tableClient = null;
 
-                logger.LogError($"Failed to initialize Storage Account: {ex}");
-                Console.WriteLine($"Failed to initialize CosmosDbDataStore connection: {ex}");
+                logger.CLogError($"Failed to initialize Storage Account: {ex}");
                 throw;
             }
             finally
@@ -102,7 +102,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     tableMap[tableName] != null &&
                     tableMap[tableName].Exists())
                 {
-                    logger.LogInformation($"Table: {tableName} is already created.");
+                    logger.CLogInformation($"Table: {tableName} is already created.");
                 }
                 else
                 {
@@ -114,15 +114,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     bool added = tableMap.TryAdd(tableName, cloudTable);
                     if (!added)
                     {
-                        logger.LogError($"TableName already exists: {cloudTable}");
+                        logger.CLogError($"TableName already exists: {cloudTable}");
                     }
 
-                    logger.LogInformation($"Created Table {tableName}");
+                    logger.CLogInformation($"Created Table {tableName}");
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError($"Failed to create table: {tableName}, ex:{ex}");
+                logger.CLogError($"Failed to create table: {tableName}, ex:{ex}");
                 throw;
             }
         }
@@ -147,7 +147,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             catch (Exception ex)
             {
-                logger.LogError($"Failed to Insert entry in table: {tableName}, entity :{entity} ex:{ex}");
+                logger.CLogError($"Failed to Insert entry in table: {tableName}, entity :{entity} ex:{ex}");
                 throw;
             }
         }
@@ -172,7 +172,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             catch (Exception ex)
             {
-                logger.LogError($"Failed to Insert entry in table: {tableName}, entity :{entity} ex:{ex}");
+                logger.CLogError($"Failed to Insert entry in table: {tableName}, entity :{entity} ex:{ex}");
                 throw;
             }
         }
@@ -197,7 +197,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             catch (Exception ex)
             {
-                logger.LogError($"Failed to Delete entry in table: {tableName}, entity :{entity} ex:{ex}");
+                logger.CLogError($"Failed to Delete entry in table: {tableName}, entity :{entity} ex:{ex}");
                 throw;
             }
         }
@@ -224,7 +224,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             catch (Exception ex)
             {
-                logger.LogError($"Failed to Get entry in table: {tableName}, partitionKey :{partitionKey}, rowKey: {rowKey}, ex:{ex}");
+                logger.CLogError($"Failed to Get entry in table: {tableName}, partitionKey :{partitionKey}, rowKey: {rowKey}, ex:{ex}");
                 throw;
             }
         }
@@ -262,7 +262,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             catch (Exception ex)
             {
-                logger.LogError($"Failed to Get entities in table: {tableName}, ex:{ex}");
+                logger.CLogError($"Failed to Get entities in table: {tableName}, ex:{ex}");
                 throw;
             }
         }
@@ -276,7 +276,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             if (tableResult.RequestCharge.HasValue)
             {
                 // TODO: Change it to a Metric event
-                logger.LogInformation($"{cloudTable.Name}: Request Charge of {opName} Operation: " + tableResult.RequestCharge);
+                logger.CLogInformation($"{cloudTable.Name}: Request Charge of {opName} Operation: " + tableResult.RequestCharge);
             }
 
             return tableResult;

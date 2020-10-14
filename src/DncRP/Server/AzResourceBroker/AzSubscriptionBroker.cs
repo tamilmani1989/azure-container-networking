@@ -82,7 +82,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 throw new Exception($"Expected 401 response from unauthorized request to ARM, got {httpResonseMessage.StatusCode} instead.");
             }
 
-            logger.LogInformation($"SubscriptionId: {subscriptionId}, TenantId {tenantId}");
+            logger.CLogInformation($"SubscriptionId: {subscriptionId}, TenantId {tenantId}");
             return tenantId;
         }
     }

@@ -25,7 +25,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             ITableOperations tableOperations,
             ILogger<DncController> logger) : base(logger, tableOperations)
         {
-            logger.LogInformation("DncController initialized");
+            logger.CLogInformation("DncController initialized");
         }
 
         /// <summary>
@@ -55,7 +55,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             using (StreamReader stream = new StreamReader(HttpContext.Request.Body))
             {
                 string jsonBody = await stream.ReadToEndAsync();
-                this.logger.LogInformation("PutControllerResource body: {0}", jsonBody);
+                this.logger.CLogInformation("PutControllerResource body: {0}", jsonBody);
 
                 request = JsonUtility.Deserialize<ControllerRequest>(jsonBody);
             }

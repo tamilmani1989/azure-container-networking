@@ -14,6 +14,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.AspNetCore.Mvc.WebApiCompatShim;
     using Microsoft.AspNetCore.Routing;
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Extensions.Logging;
 
     /// <summary>
@@ -52,7 +53,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
             {
                 using (HttpClient client = clientFactory.CreateClient(serviceName))
                 {
-                    logger.LogInformation("Incoming request. Host: {0}, Path: {1}, https: {2}",
+                    logger.CLogInformation("Incoming request. Host: {0}, Path: {1}, https: {2}",
                         HttpContext.Request.Host, HttpContext.Request.Path, HttpContext.Request.IsHttps);
 
                     HttpRequestMessageFeature hreqmf = new HttpRequestMessageFeature(HttpContext);
@@ -64,7 +65,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
 
                     httpRequestMessage.RequestUri = ub.Uri;
 
-                    logger.LogInformation("Outgoing request. Uri: {0}", httpRequestMessage.RequestUri.AbsoluteUri);
+                    logger.CLogInformation("Outgoing request. Uri: {0}", httpRequestMessage.RequestUri.AbsoluteUri);
 
                     ContentResult contentResult = await this.httpRequestWrapper.SendAsync(client, httpRequestMessage);
                     return contentResult;

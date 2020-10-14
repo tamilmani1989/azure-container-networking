@@ -77,7 +77,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             else
             {
-                logger.LogInformation($"Updating the existing SubnetTokenMapEntity:{subnetTokenMapEntity}");
+                logger.CLogInformation($"Updating the existing SubnetTokenMapEntity:{subnetTokenMapEntity}");
             }
 
             subnetTokenMapEntity.PrimaryTokenId = primaryTokenId;
@@ -87,7 +87,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             TableResult result = await dataStore.InsertOrMergeEntityAsync(tableName, subnetTokenMapEntity);
 
             // TODO - Add Metric event
-            logger.LogInformation($"{tableName} - InsertorUpdate entity successful: {result.Result as SubnetTokenMapEntity}");
+            logger.CLogInformation($"{tableName} - InsertorUpdate entity successful: {result.Result as SubnetTokenMapEntity}");
         }
 
         /// <summary>
@@ -137,7 +137,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             if (subnetTokenMapEntity == null)
             {
-                logger.LogInformation($"Subnet token doesnt exist for DelegatedSubnetId: {delegatedSubnetGuid}, SubnetName: {subnet}");
+                logger.CLogInformation($"Subnet token doesnt exist for DelegatedSubnetId: {delegatedSubnetGuid}, SubnetName: {subnet}");
                 return null;
             }
 

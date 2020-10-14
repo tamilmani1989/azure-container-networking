@@ -131,7 +131,6 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             {
                 throw new Exception($"ResponseMessage: {httpResponse.Content}, status code {httpResponse.StatusCode}, " +
                     $"Reason: {httpResponse.ReasonPhrase}, " +
-                    $"Request: {httpResponse.RequestMessage}, " +
                     $"internal exception: {ex}");
             }
 

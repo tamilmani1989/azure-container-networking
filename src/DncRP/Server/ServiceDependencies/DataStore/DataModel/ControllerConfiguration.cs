@@ -104,7 +104,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public async Task<Controller> InsertOrReplaceDncControllerAsync(
             string subId, string resourceGroup, string controllerName, ControllerRequest controllerRequest)
         {
-            this.logger.LogInformation("Starting PUT controller resource. Sub:{0}, RG:{1}, ResourceName:{2}",
+            this.logger.CLogInformation("Starting PUT controller resource. Sub:{0}, RG:{1}, ResourceName:{2}",
                 subId, resourceGroup, controllerName);
 
             // Create the InsertOrReplace table operation
@@ -188,7 +188,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <returns></returns>
         public async Task<Controller> DeleteDncControllerAsync(string subId, string resourceGroup, string controllerName)
         {
-            this.logger.LogInformation("Starting DELETE controller resource. Sub:{0}, RG:{1}, ResourceName:{2}",
+            this.logger.CLogInformation("Starting DELETE controller resource. Sub:{0}, RG:{1}, ResourceName:{2}",
                 subId, resourceGroup, controllerName);
 
             string resourceId = $"/subscriptions/{subId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/controller/{controllerName}";

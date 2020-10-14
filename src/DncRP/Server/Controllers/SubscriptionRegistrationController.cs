@@ -30,7 +30,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             : base(logger, tableOperations)
         {
             this.azSubscriptionBroker = new AzSubscriptionBroker(httpUtility, logger);
-            logger.LogInformation("SubscriptionRegistrationController initialized");
+            logger.CLogInformation("SubscriptionRegistrationController initialized");
         }
 
         /// <summary>
@@ -40,7 +40,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         [HttpPut]
         public async Task<ContentResult> PutSubscriptionRegistration(string subscriptionId)
         {
-            this.logger.LogInformation($"PutSubscriptionRegistration URI: {HttpContext.Request.GetDisplayUrl()}");
+            this.logger.CLogInformation($"PutSubscriptionRegistration URI: {HttpContext.Request.GetDisplayUrl()}");
 
             if (HttpContext.Request.Body == null)
             {
@@ -81,7 +81,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             using (StreamReader stream = new StreamReader(HttpContext.Request.Body))
             {
                 jsonBody = await stream.ReadToEndAsync();
-                this.logger.LogInformation("PutSubscriptionRegistration body: {0}", jsonBody);
+                this.logger.CLogInformation("PutSubscriptionRegistration body: {0}", jsonBody);
 
                 request = JsonUtility.Deserialize<SubscriptionRegistrationRequest>(jsonBody);
             }

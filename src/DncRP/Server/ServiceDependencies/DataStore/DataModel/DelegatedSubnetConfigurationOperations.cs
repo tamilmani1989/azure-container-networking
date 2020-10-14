@@ -82,7 +82,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             if (resourceEntity == null)
             {
-                logger.LogInformation($"Creating the existing DelegatedSubnetConfigurationEntity:{resourceEntity}");
+                logger.CLogInformation($"Creating the existing DelegatedSubnetConfigurationEntity:{resourceEntity}");
                 resourceEntity = new DelegatedSubnetResourceEntity(subscriptionId, resourceGroupName, resourceName);
                 resourceEntity.CreatedDateUtc = DateTime.UtcNow;
                 resourceEntity.VnetResourceGuid = vnetResourceGuid;
@@ -113,7 +113,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 // TODO: Validate AssociatedSubnet is not attached to any other subnet.
 
-                logger.LogInformation($"Updating the existing DelegatedSubnetConfigurationEntity:{resourceEntity}");
+                logger.CLogInformation($"Updating the existing DelegatedSubnetConfigurationEntity:{resourceEntity}");
             }
 
             // todo - Add this field
@@ -124,7 +124,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             DelegatedSubnetResourceEntity resultEntity = result.Result as DelegatedSubnetResourceEntity;
 
             // TODO - Add Metric event
-            logger.LogInformation($"{tableName} - InsertorUpdate entity: {resultEntity}");
+            logger.CLogInformation($"{tableName} - InsertorUpdate entity: {resultEntity}");
 
             return resourceEntity.ConvertToDelegateSubnet();
         }
@@ -147,7 +147,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             if (resultEntity == null)
             {
-                logger.LogInformation($"TryGetDelegatedSubnetConfigurationAsync: ResourceNotFound, subscriptionId:{subscriptionId}, resourceGroupName: {resourceGroupName}, " +
+                logger.CLogInformation($"TryGetDelegatedSubnetConfigurationAsync: ResourceNotFound, subscriptionId:{subscriptionId}, resourceGroupName: {resourceGroupName}, " +
                     $"resourceName: {resourceName}.");
                 return null;
             }
