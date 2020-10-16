@@ -12,6 +12,13 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
 
     public static class CustomLog
     {
+        private static string messagePrefix = null;
+
+        public static void SetPrefix(string prefix)
+        {
+            messagePrefix = prefix;
+        }
+
         public static void CLogInformation<T>(this ILogger<T> logger, string format, params object[] args)
         {
             string message = WriteToConsole(format, args);
@@ -57,6 +64,11 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
 
         private static string SafeFormat(string format, object[] args)
         {
+            if (!string.IsNullOrWhiteSpace(messagePrefix))
+            {
+                format = $"{messagePrefix} {format}";
+            }
+
             if (args == null || args.Length == 0)
             {
                 return format;

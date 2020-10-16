@@ -37,6 +37,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            // The following line enables Application Insights telemetry collection.
+            CustomLog.SetPrefix("[DNC RP]");
+            services.AddApplicationInsightsTelemetry(Configuration);
+
             // Add custom properties to telemetry (log)
             HttpUtility httpUtility = new HttpUtility(new HttpClient());
             ImdsRetriever imdsRetriever = new ImdsRetriever(httpUtility);
@@ -64,9 +68,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             services.AddSingleton<ITableOperations, TableOperations>();
             // service to initialize cosmosdb and create table at startup
             services.AddHostedService<TableStoreInitHostedService>();
-
-            // The following line enables Application Insights telemetry collection.
-            services.AddApplicationInsightsTelemetry();
 
             services.AddHttpContextAccessor();
 

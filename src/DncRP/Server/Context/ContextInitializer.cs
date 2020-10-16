@@ -76,6 +76,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             Console.WriteLine("Thumbprint: {0}", configuration["Thumbprint"]);
+            Console.WriteLine("InstrumentationKey: {0}", configuration["ApplicationInsights:InstrumentationKey"]);
 
             DatastoreSettings settings = configuration.GetSection("DataStoreSettings").Get<DatastoreSettings>();
             if (settings != null)
