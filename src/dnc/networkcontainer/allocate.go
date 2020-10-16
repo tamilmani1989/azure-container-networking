@@ -431,6 +431,10 @@ func (a *IPAllocator) RemoveAllAllocations(res datamodel.ReservationConfiguratio
 }
 
 func (a *IPAllocator) deleteAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
+	if len(keys) == 0 {
+		a.Logger.Debugf("deleteAllocations: no allocations to delete")
+		return nil
+	}
 	var batches [][]string
 	for len(keys) > azurestorage.MaxBatchSize {
 		keys, batches = keys[azurestorage.MaxBatchSize:], append(batches, keys[0:azurestorage.MaxBatchSize])

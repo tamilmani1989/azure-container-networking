@@ -690,7 +690,7 @@ func sendNCMetric(
 	metric.CustomDimensions[aiwrapper.NCOperationErrorCodeStr] = errorCode
 	go aiwrapper.SendMetric(metric)
 
-	loggershim.LS.Debugf("[DNCOperationStatus] OperationName: %s, NetworkContainerId: %s, Status: %s, ErrorCode: %s", ncState, repoNCConfig.NetworkContainerID, status, errorCode)
+	loggershim.LS.Debugf("[DNCOperationStatus] OperationName: %s, NetworkContainerId: %s, Status: %s, ErrorCode: %s, Err:%+v", ncState, repoNCConfig.NetworkContainerID, status, errorCode, err)
 }
 
 func publishNetworkContainerWithPubSubProxy(

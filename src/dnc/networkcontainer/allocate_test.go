@@ -220,6 +220,7 @@ func Test_RemoveSecondaryIpWithEmptyAllocations(t *testing.T) {
 		Subnets:                &subnetRepo,
 		Reservations:           fakes.NewReservationRepo(),
 		EnableSubnetDelegation: true,
+		Logger:                 &dummyLogger{},
 	}
 
 	req := datamodel.ReservationConfiguration{
