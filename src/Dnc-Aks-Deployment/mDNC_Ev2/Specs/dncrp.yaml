@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dncrp-deployment
+  labels:
+    app: dncrp
+spec:
+  selector:
+    matchLabels:
+      app: dncrp
+  replicas: __Replicas.INT__
+  template:
+    metadata:
+      labels:
+        app: dncrp
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - dncrp
+            topologyKey: kubernetes.io/hostname
+      hostNetwork: true
+      containers:
+      - name: dncrp-container
+        image: __ContainerRegistryName__.azurecr.io/dncrp:__DncRpBuildTag__
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: log
+          mountPath: /var/log
+        - name: dncrp-config
+          mountPath: /etc/dncrp 
+        ports:
+        - containerPort: 5002
+        env:
+        - name : DNCRP_CONFIG_PATH
+          value : /etc/dncrp                                    
+      volumes:
+      - name: log
+        hostPath:
+          path: /var/log
+          type: Directory
+      - name: dncrp-config
+        configMap:
+          name: dncrp-config
+---          
+kind: Service
+apiVersion: v1
+metadata:
+  name: dncrp-service
+spec:
+  selector:
+    app: dncrp
+  type: LoadBalancer
+  ports:
+  - name: dncrp-port
+    port: 443
+    targetPort: 5002
+    protocol: TCP          

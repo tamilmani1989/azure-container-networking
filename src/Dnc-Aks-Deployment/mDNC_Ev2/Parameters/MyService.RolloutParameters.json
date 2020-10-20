@@ -1,0 +1,66 @@
+{
+  "$schema": "https://ev2schema.azure.net/schemas/2020-01-01/rolloutParameters.json",
+  "contentVersion": "1.0.0.0",
+  "applications": [
+    {
+      "serviceResourceName": "myAksService1",
+      "applicationName": "dncConfig",
+      "authentication": {
+        "type": "CertificateAuthentication",
+        "properties": {
+          "AksRole": "User"
+        }
+      }
+    },
+    {
+      "serviceResourceName": "myAksService1",
+      "applicationName": "dnc",
+      "authentication": {
+        "type": "CertificateAuthentication",
+        "properties": {
+          "AksRole": "User"
+        }
+      }
+    },
+    {
+      "serviceResourceName": "myAksService1",
+      "applicationName": "dncRp",
+      "authentication": {
+        "type": "CertificateAuthentication",
+        "properties": {
+          "AksRole": "User"
+        }
+      }
+    },
+    {
+      "serviceResourceName": "myAksService1",
+      "applicationName": "dncrcConfig",
+      "authentication": {
+        "type": "CertificateAuthentication",
+        "properties": {
+          "AksRole": "User"
+        }
+      }
+    },
+    {
+      "serviceResourceName": "myAksService1",
+      "applicationName": "dncrpConfig",
+      "authentication": {
+        "type": "CertificateAuthentication",
+        "properties": {
+          "AksRole": "User"
+        }
+      }
+    },
+    {
+      "serviceResourceName": "myAksService1",
+      "applicationName": "gatewayConfig",
+      "authentication": {
+        "type": "CertificateAuthentication",
+        "properties": {
+          "AksRole": "User"
+        }
+      }
+    }
+  ]
+}

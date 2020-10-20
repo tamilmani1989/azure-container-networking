@@ -1,0 +1,24 @@
+{
+    "ServiceConfigReplacement": [
+        {
+            "Service" : "dnc",
+            "SourceConfigFile": "..\\..\\..\\dnc\\template.config.json",
+            "DestinationFile": "..\\specs\\dncConfig.yaml"
+        },
+        {
+            "Service" : "dncrc",
+            "SourceConfigFile": "..\\..\\..\\dnc\\requestcontroller\\template.requestcontroller.config.json",
+            "DestinationFile": "..\\specs\\dncrcConfig.yaml"
+        },
+        {
+            "Service" : "dncrp",
+            "SourceConfigFile": "..\\..\\..\\DncRP\\Server\\template.appsettings.json",
+            "DestinationFile": "..\\specs\\dncrpConfig.yaml"
+        },
+        {
+            "Service" : "gateway",
+            "SourceConfigFile": "..\\..\\..\\Gateway\\Server\\src\\template.appsettings.json",
+            "DestinationFile": "..\\specs\\gatewayConfig.yaml"
+        }
+    ]
+}

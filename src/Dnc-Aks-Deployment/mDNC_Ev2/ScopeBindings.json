@@ -1,0 +1,129 @@
+{
+  "scopeBindings": [
+    {
+      "scopeTagName": "regionalTags",
+      "bindings": [
+        {
+          "find": "__LOCATION__",
+          "replaceWith": "eastus"
+        },
+        {
+          "find": "__ResourceGroup__",
+          "replaceWith": "eastus"
+        },
+        {
+          "find": "__SubscriptionId__",
+          "replaceWith": "eastus"
+        },
+        {
+          "find": "__CLUSTERNAME__",
+          "replaceWith": "alegal-test-mdnc-e2e"
+        },
+        {
+          "find": "__CosmosDBResourceID__",
+          "replaceWith": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/testCosmosdb/providers/Microsoft.DocumentDB/databaseAccounts/acntestcosmosdb"
+        },
+        {
+          "find": "__AgentVmSize__",
+          "replaceWith": "Standard_D2_v2"
+        },
+        {
+          "find": "__AgentCount__",
+          "replaceWith": 1
+        },
+        {
+          "find": "__Replicas.INT__",
+          "replaceWith": "1"
+        },
+        {
+          "find": "__ContainerRegistryName__",
+          "replaceWith": "acndev"
+        },
+        {
+          "find": "__RegionalKeyVaultName__",
+          "replaceWith": "acnKv"
+        },
+        {
+          "find": "__DncBuildTag__",
+          "replaceWith": "latest"
+        },
+        {
+          "find": "__DncRpBuildTag__",
+          "replaceWith": "latest"
+        },
+        {
+          "find": "__GatewayBuildTag__",
+          "replaceWith": "latest"
+        },
+        {
+          "find": "__CosmosDbAccountName__",
+          "replaceWith": "acntestcosmosdb"
+        },
+        {
+          "find": "__MSIResourceID__",
+          "replaceWith": ""
+        },
+        {
+          "find": "__PartitionKey__",
+          "replaceWith": "ev2_test"
+        },
+        {
+          "find": "__RegionalKeyVaultResourceGroup__",
+          "replaceWith": "acnKeyVault"
+        },
+        {
+          "find": "__ContainerRegistryResourceGroup__",
+          "replaceWith": "acn-shared-resources"
+        },
+        {
+          "find": "__CosmosDbResourceGroup__",
+          "replaceWith": "testCosmosdb"
+        },
+        {
+          "find": "__RpCosmosDbResourceGroup__",
+          "replaceWith": "testCosmosdb"
+        },
+        {
+          "find": "__RpCosmosDbAccountName__",
+          "replaceWith": "testCosmosdb"
+        },
+        {
+          "find": "__RpCosmosDbResoureID__",
+          "replaceWith": "testCosmosdb"
+        },
+        {
+          "find": "__DncRcBuildTag__",
+          "replaceWith": "latest"
+        },
+        {
+          "find": "__TenantId__",
+          "replaceWith": "72f988bf-86f1-41af-91ab-2d7cd011db47"
+        },
+        {
+          "find": "__KeyVaultCertPath__",
+          "replaceWith": "72f988bf-86f1-41af-91ab-2d7cd011db47"
+        },
+        {
+          "find": "__ClusterClientId__",
+          "replaceWith": "72f988bf-86f1-41af-91ab-2d7cd011db47"
+        },
+        {
+          "find": "__ManagedDncGuid__",
+          "replaceWith": "72f988bf-86f1-41af-91ab-2d7cd011db47"
+        },
+        {
+          "find": "__PubsubCertName__",
+          "replaceWith": ""
+        },
+        {
+          "find": "__PubsubConnectionEndpoint__",
+          "replaceWith": ""
+        },
+        {
+          "find": "__PubsubVips__",
+          "replaceWith": ""
+        }
+      ]
+    }
+  ]
+}

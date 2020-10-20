@@ -1,0 +1,78 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "resourceName": {
+            "value": "__CLUSTERNAME__"
+        },
+        "location": {
+            "value": "__LOCATION__"
+        },
+        "dnsPrefix": {
+            "value": "__CLUSTERNAME__-dns"
+        },
+        "agentCount": {
+            "value": 1
+        },
+        "agentVMSize": {
+            "value": "__AgentVmSize__"
+        },
+        "servicePrincipalClientId": {
+            "value": "cb3b366e-9bf6-4459-b58a-4c78ad2e0cfe"
+        },
+        "kubernetesVersion": {
+            "value": "1.18.6"
+        },
+        "networkPlugin": {
+            "value": "kubenet"
+        },
+        "enableRBAC": {
+            "value": true
+        },
+        "enablePrivateCluster": {
+            "value": false
+        },
+        "enableHttpApplicationRouting": {
+            "value": false
+        },
+        "vmssNodePool": {
+            "value": true
+        },
+        "workspaceName": {
+            "value": "DefaultWorkspace-53012dcb-5039-4e96-8e6c-5d913da1cdb5-EUS"
+        },
+        "workspaceRegion": {
+            "value": "eastus"
+        },
+        "principalId": {
+            "value": "cb3b366e-9bf6-4459-b58a-4c78ad2e0cfe"
+        },
+        "regionalKeyvaultName": {
+            "value": "__RegionalKeyVaultName__"
+        },
+        "regionalKeyVaultResourceGroup": {
+            "value": "__RegionalKeyVaultResourceGroup__"
+        },
+        "defaultAcrName": {
+            "value": "__ContainerRegistryName__"
+        },
+        "defaultAcrResourceGroup": {
+            "value": "__ContainerRegistryResourceGroup__"
+        },
+        "cosmosDbResourceGroup": {
+            "value": "__CosmosDbResourceGroup__"
+        },
+        "cosmosDbAccountName": {
+            "value": "__CosmosDbAccountName__"
+        },
+        "rpcosmosDbResourceGroup": {
+            "value": "__RpCosmosDbResourceGroup__"
+        },
+        "rpcosmosDbAccountName": {
+            "value": "__RpCosmosDbAccountName__"
+        },
+        "tenantId": {
+            "value": "__TenantId__"
+        }
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "MasterKeyVault": 
+        {
+            "KeyvaultName" : "acnKV"
+        },
+       "Certificates": [
+        {
+            "CertificateName" : "AMEAADOnecert"
+        },
+        {
+            "CertificateName" : "dncSslCert3"
+        },
+        {
+            "CertificateName" : "genevaame"
+        },
+        {
+            "CertificateName" : "amecert"
+        }
+    ]
+}

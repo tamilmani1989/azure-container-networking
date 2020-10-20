@@ -1,22 +1,7 @@
 {
   "AzureAd": {
-    /*
-       Gateway will go to this instance to fetch public certs
-       and verify that token was signed with this certificate
-    */
     "Instance": "https://login.microsoftonline.com/",
     "ClientId": "https://dnc.azure.com",
-
-    /*
-      You need specify the TenantId only if you want to accept access tokens from a single tenant
-     (line-of-business app).
-      Otherwise, you can leave them set to common.
-      This can be:
-      - A GUID (Tenant ID = Directory ID)
-      - 'common' (any organization and personal accounts)
-      - 'organizations' (any organization)
-      - 'consumers' (Microsoft personal accounts)
-    */
     "TenantId": "common"
   },
   "Logging": {
@@ -33,12 +18,11 @@
     }
   },
   "KeyVault": {
-    "Url": "https://acnkv.vault.azure.net/",
-    "SslCertName": "dncSslCert2",
+    "Url": "https://__RegionalKeyVaultName__.vault.azure.net/",
+    "SslCertName": "dncSslCert3",
     "EncryptCertName": "AMEAADOnecert"
   },
   "ApplicationInsights": {
-    // iKey for testsub in acnAADTesting resource group
     "InstrumentationKey": "b90fb0a1-4cc8-4ad7-bd57-57a870f686ce"
   },
   "AllowedHosts": "*",

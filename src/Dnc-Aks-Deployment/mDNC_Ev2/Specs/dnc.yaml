@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dnc-deployment
+  labels:
+    app: dnc
+spec:
+  selector:
+    matchLabels:
+      app: dnc
+  minReadySeconds: 60    
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 2       
+  replicas: __Replicas.INT__
+  template:
+    metadata:
+      labels:
+        app: dnc
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - dnc
+            topologyKey: kubernetes.io/hostname
+      hostNetwork: true
+      containers:
+      - name: dnc-container
+        image: __ContainerRegistryName__.azurecr.io/dnc:__DncBuildTag__
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: log
+          mountPath: /var/log
+        - name: dnc-config
+          mountPath: /etc/dnc
+        args:
+        - -stderr=true           
+        ports:
+        - containerPort: 9000
+        env:
+        - name: DNCIpAddress
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name : DNC_CONFIGURATION_PATH
+          value : /etc/dnc/dnc_config.json      
+      - name: gateway-container
+        image: __ContainerRegistryName__.azurecr.io/dnc-gateway:__GatewayBuildTag__
+        volumeMounts:
+        - name: log
+          mountPath: /var/log
+        - name: gateway-config
+          mountPath: /etc/gateway     
+        ports:
+        - containerPort: 5001
+          name: gatewayport
+        env:
+        - name : GATEWAY_CONFIG_PATH
+          value : /etc/gateway
+        - name: DNCIpAddress
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP            
+      - name: dnc-rc
+        image: __ContainerRegistryName__.azurecr.io/dnc-request-controller:__DncRcBuildTag__
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: log
+          mountPath: /var/log
+        - name: dncrc-config
+          mountPath: /etc/dnc-rc        
+        args:
+        - -c=/etc/dnc-rc/dncrc_config.json
+        env:
+        - name: DNCIpAddress
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP                             
+      volumes:
+      - name: log
+        hostPath:
+          path: /var/log
+          type: Directory
+      - name: dnc-config
+        configMap:
+          name: dnc-config
+      - name: dncrc-config
+        configMap:
+          name: dncrc-config
+      - name: gateway-config
+        configMap:
+          name: gateway-config
+---          
+kind: Service
+apiVersion: v1
+metadata:
+  name: gateway-service
+spec:
+  selector:
+    app: dnc
+  type: LoadBalancer
+  ports:
+  - name: gatewayport
+    port: 443
+    targetPort: 5001
+    protocol: TCP               

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://ev2schema.azure.net/schemas/2020-01-01/rolloutSpecification.json",
+  "contentVersion": "1.0.0.0",
+  "rolloutMetadata": {
+    "serviceModelPath": "ServiceModel.json",
+    "scopeBindingsPath": "ScopeBindings.json",
+    "name": "myRolloutName 1.0.0.0",
+    "rolloutType": "Major",
+    "buildSource": {
+      "parameters": {
+        "versionFile": "buildver.txt"
+      }
+    }
+  },
+  "orchestratedSteps": [
+    {
+      "name": "aksAppDeploy",
+      "targetType": "application",
+      "applications": {
+        "names": [
+          "dncrpConfig",
+          "dncRp"
+        ],
+        "actions": [
+          "AppDeploy"
+        ],
+        "applyAcrossServiceResources": {
+          "definitionName": "myServiceResourceDef1",
+          "deployArmResources": false,
+          "names": [
+            "myAksService1"
+          ]
+        }
+      }
+    }
+  ]
+}

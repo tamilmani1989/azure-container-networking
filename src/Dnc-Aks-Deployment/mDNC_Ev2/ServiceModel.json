@@ -1,0 +1,126 @@
+{
+  "$schema": "https://ev2schema.azure.net/schemas/2020-01-01/serviceModel.json",
+  "contentVersion": "0.0.0.1",
+  "serviceMetadata": {
+    "serviceGroup": "myServiceGroup",
+    "environment": "test"
+  },
+  "serviceResourceGroupDefinitions": [
+    {
+      "name": "myServiceResourceGroupDef1",
+      "serviceResourceDefinitions": [
+        {
+          "name": "myServiceResourceDef1",
+          "composedOf": {
+            "arm": {
+              "templatePath": "Templates\\AksCluster.Template.json",
+              "parametersPath": "Parameters\\Aks.Cluster-mDNC.Parameters.json"
+            },
+            "application": {
+              "names": [
+                "dncConfigDef",
+                "dncDef"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "applicationDefinitions": [
+    {
+      "name": "dncDef",
+      "azureKubernetesService": {
+        "specPath": "specs\\dnc.yaml",
+        "namespace": "default"
+      }
+    },
+    {
+      "name": "dncConfigDef",
+      "azureKubernetesService": {
+        "specPath": "specs\\dncConfig.yaml",
+        "namespace": "default"
+      }
+    },
+    {
+      "name": "dncrcConfigDef",
+      "azureKubernetesService": {
+        "specPath": "specs\\dncrcConfig.yaml",
+        "namespace": "default"
+      }
+    },
+    {
+      "name": "dncrpDef",
+      "azureKubernetesService": {
+        "specPath": "specs\\dncrp.yaml",
+        "namespace": "default"
+      }
+    },
+    {
+      "name": "dncrpConfigDef",
+      "azureKubernetesService": {
+        "specPath": "specs\\dncrpConfig.yaml",
+        "namespace": "default"
+      }
+    },
+    {
+      "name": "gatewayConfigDef",
+      "azureKubernetesService": {
+        "specPath": "specs\\gatewayConfig.yaml",
+        "namespace": "default"
+      }
+    }
+  ],
+  "serviceResourceGroups": [
+    {
+      "azureResourceGroupName": "alegal-test-mdnc-e2e",
+      "location": "eastus",
+      "instanceOf": "myServiceResourceGroupDef1",
+      "azureSubscriptionId": "9b8218f9-902a-4d20-a65c-e98acec5362f",
+      "scopeTags": [
+        {
+          "name": "regionalTags"
+        }
+      ],
+      "serviceResources": [
+        {
+          "name": "myAksService1",
+          "instanceOf": "myServiceResourceDef1",
+          "rolloutParametersPath": "Parameters\\MyService.RolloutParameters.json",
+          "applications": [
+            {
+              "name": "dnc",
+              "instanceOf": "dncDef",
+              "armResourceName": ""
+            },
+            {
+              "name": "dncConfig",
+              "instanceOf": "dncConfigDef",
+              "armResourceName": ""
+            },
+            {
+              "name": "dncrcConfig",
+              "instanceOf": "dncrcConfigDef",
+              "armResourceName": ""
+            },
+            {
+              "name": "dncrpConfig",
+              "instanceOf": "dncrpConfigDef",
+              "armResourceName": ""
+            },
+            {
+              "name": "dncrp",
+              "instanceOf": "dncrpDef",
+              "armResourceName": ""
+            },
+            {
+              "name": "gatewayConfig",
+              "instanceOf": "gatewayConfigDef",
+              "armResourceName": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

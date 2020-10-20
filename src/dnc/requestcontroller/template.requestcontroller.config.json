@@ -1,0 +1,41 @@
+{
+    "kubernetesConfig": {
+        "kubeconfigInfo": {
+            "mode": "datastore",
+            "managedDNCGUID": "__ManagedDncGuid__",
+            "clientAppID": "1efe5bbf-d5b1-4fe9-99fa-f55ce1c88679",
+            "azureEnvironment": "AzurePublicCloud",
+            "clientCertificatesKeyvaultConfig": {
+                "keyvaultName": "__RegionalKeyVaultName__",
+                "secretName": "amecert",
+                "azureEnvironment": "AzurePublicCloud"
+            }
+        },
+        "namespace": "kube-system",
+        "clientTimeout": "10s"
+    },
+    "requestScalerConfig": {
+        "batchSize": 16,
+        "requestThresholdPercent": 50,
+        "releaseThresholdPercent": 150
+    },
+    "dncClientConfig": {
+        "requestTimeout": "10s",
+        "pollingInterval": "1s",
+        "dncEndpoint": "http://localhost:9000"
+
+    },
+    "DatastoreSettings": {
+        "AzureStorageInfo": {
+			"AccountName": "__RpCosmosDbAccountName__",
+			"IsUsingCosmosDb": true
+		}
+    },
+    "loggingConfig": {
+        "thresholdForLoggingDataStoreOpLatencyMs": 1000
+    },
+    "cosmosMSISettings": {
+        "azureEnvironment": "AzurePublicCloud",
+        "cosmosResourceID": "__RpCosmosDbResoureID__"
+    }
+}

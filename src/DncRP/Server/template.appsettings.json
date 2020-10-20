@@ -27,41 +27,39 @@
     }
   },
   "KeyVault": {
-    "Url": "https://acnkv.vault.azure.net",
+    "Url": "https://__RegionalKeyVaultName__.vault.azure.net",
     "SslCertName": "DncSslCert3"
   },
   "ApplicationInsights": {
-    // iKey for testsub in acnAADTesting resource group
-    "InstrumentationKey": "6f9518fc-9dc3-492e-87e2-b2b8941a0e92" // TODO: Populated in Release pipeline by _AppInsightsKey_
+    "InstrumentationKey": "6f9518fc-9dc3-492e-87e2-b2b8941a0e92"
   },
   "Imds": {
     "InstanceEndpoint": "http://169.254.169.254/metadata/instance?api-version=2019-08-15&format=json"
   },
-  "DataStoreSettings": {
-      "Region": "__Location__", // Populated in Release pipeline by _Location_
-      "SubscriptionId": "__SubscriptionId__", // Populated in Release pipeline by _SubscriptionId_
-      "ResourceGroup": "__DncRpResourceGroup__", // Populated in Release pipeline by _RPResourceGroup_
-      "DBAccountName": "__DncRpCosmosDbAccountName__" // Populated in Release pipeline by _RPCosmosDbAccountName_
-   },
-  "ArmCertificatesSettings": {
-    "RefreshIntervalInSeconds": 3600
-  },
+  "DataStoreSettings":
+    {
+      "Region": "__Location__",
+      "SubscriptionId": "__SubscriptionId__",
+      "ResourceGroup": "__ResourceGroup__",
+      "DBAccountName": "__RpCosmosDbAccountName__"
+    },
   "ClientIdentities": [
     {
-      "IdentityType": "ManagedIdentity", // this comes from ClientIdentityType enum in CoreLib
-      "AppId": "__ClusterClientId__", // Populated in Release pipeline by  _ClusterClientId_
-      "Tag": "ManagedIdentity" // this comes from ClientIdentityTags enum in CoreLib
+      "IdentityType": "ManagedIdentity",
+      "AppId": "__ClusterClientId__",
+      "Tag": "ManagedIdentity"
     },
     {
-      "IdentityType": "SpClientCertificate", // this comes from ClientIdentityType enum in CoreLib
+      "IdentityType": "SpClientCertificate",
       "AppId": "a91b1853-4403-4f54-b5cb-d1ea19d90c37",
       "TenantId": "",
-      "KeyVaultCertPath": "__KeyVaultCertPath__", // Populated by Release pipeline (ex: https://acnkv.vault.azure.net/secrets/AMEAADOnecert/0516cc85edd74b36b8908ab95eaadd0c)
-      "Tag": "AzureADArmToken" // this comes from ClientIdentityTags enum in CoreLib
+      "KeyVaultCertPath": "__KeyVaultCertPath__",
+      "Tag": "AzureADArmToken"
     }
   ],
   "AllowedHosts": "*",
   "Port": "5002",
-  "AzureEnvironment": "azurecloud", // Populated by _Environment- (ex: azurecloud)
-  "AzureRegion": "__Location__" // Populated by __Location__
+  "AzureEnvironment": "azurecloud",
+  "AzureRegion": "__Location__",
+  "Thumbprint": ""
 }
