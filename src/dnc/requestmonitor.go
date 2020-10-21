@@ -1692,6 +1692,7 @@ func monitorRequests() {
 	}
 
 	monitorTimerChannel := time.NewTicker(time.Millisecond * 1000).C
+	ExitLoop:
 	for {
 		select {
 		case <-monitorTimerChannel:
@@ -1700,18 +1701,26 @@ func monitorRequests() {
 			}
 			break
 
-		case <-startProcessing:
-			networkupdatehandler.NetworkMonitorStartProcessing <- true
-			refreshNCStartProcessing <- true
-			processPendingRequests(concurrentGoroutines, &inProcessRequestsMap)
-			break
-
 		case <-cancelProcessing:
-			networkupdatehandler.NetworkMonitorStopProcessing <- true
-			refreshNCStopProcessing <- true
-			telemetryStopProcessing <- true
+			if !config.PubSubProxySettings.EnablePubSubProxy {
+				networkupdatehandler.NetworkMonitorStopProcessing <- true
+			}
+
+			if !config.DNCSettings.Managed {
+				refreshNCStopProcessing <- true
+			}
+
+			if !disableTelemetry {
+				select {
+				case telemetryStopProcessing <- true:
+					break
+				default:
+					break
+				}
+			}
+
 			logger.Debugf("Received signal to exit")
-			break
+			break ExitLoop
 		}
 	}
 }

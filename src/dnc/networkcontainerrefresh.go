@@ -16,9 +16,6 @@ func monitorNetworkContainers() {
 				refreshNodes()
 			}
 			break
-		case <-refreshNCStartProcessing:
-			refreshNodes()
-			break
 		case <-refreshNCStopProcessing:
 			break
 		}

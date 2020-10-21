@@ -368,13 +368,52 @@ func TestContainer(t *testing.T) {
 	id, _ := uuid.NewUUID()
 	vnetID := id.String()
 
-	CreateNetworkContainer(t, nodeID, sfNodeReq, networkContainerReq6, dncEP, vnetID, ncID, apiVersion)
+	CreateNetworkContainer(t, nodeID, sfNodeReq, networkContainerReq6, dncEP, vnetID, ncID, apiVersion, false)
 	CreateNetworkContainerAndUpdateCnetSpace(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndAddCnetSpace(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndRemoveCnetSpace(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndAddNewDNSServer(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndUpdateToUseAzureDNSServers(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndUpdateToUseCustomDNSServers(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
+}
+
+func TestDeleteContainer(t *testing.T) {
+	cnsServer.SetupTest()
+	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
+
+	// skip delete
+	CreateNetworkContainer(t, nodeID, sfNodeReq, networkContainerReq6, dncEP, vnetID, ncID, apiVersion, true)
+
+	// cancel the background process to not process the pending queue
+	cancelProcessing <- true
+	time.Sleep(time.Millisecond * 2000)
+
+	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	deleteResource(t, ncURL, http.StatusOK)
+		t.Logf("NC %s delete will fail as RequestMonitor is not running", ncURL)
+	if WaitForResourceCleanup(t, ncURL, 1) {
+		t.Fatalf("Failed to cleanup network container %s", ncID)
+	}
+
+	t.Log("Now delete the entry in the PendingQueue")
+	requestKey := datamodel.GetNCKey(vnetID, ncID)
+	datamodel.RemovePendingRequest(requestKey)
+
+	request, err := datamodel.TryQueryRequestContext(requestKey)
+	if err != nil || request != nil {
+		t.Fatalf("Unexpected NC entry in PendingQ %s %+v, err: %s,", requestKey, request, err)
+	}
+
+	// Start the background refresh monitor again.
+	go monitorRequests()
+	DeleteNetworkContainer(t, nodeID, "", dncEP, vnetID, ncID, apiVersion)
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
@@ -1514,7 +1553,8 @@ func createNetworkContainer(
 	tagCount int,
 	allowHostToNCCommunication bool,
 	allowNCToHostCommunication bool,
-	endPointPolicies []cns.NetworkContainerRequestPolicies) {
+	endPointPolicies []cns.NetworkContainerRequestPolicies,
+	skipDelete bool) {
 	fmt.Println("****CreateNetworkContainer Test**********")
 
 	setupNetworkAndJoinSubnet(t, dncEP, vnetID, allocationRequest.SubnetName, apiVersion, true, tagCount)
@@ -1703,32 +1743,15 @@ func createNetworkContainer(
 		}
 	}
 
-	deleteResource(t, ncURL, http.StatusOK)
-	fmt.Printf("Waiting for delete NC Url:%s\n", ncURL)
-	<-cnsResponderContextMap.getContext(ncid).DeleteNCResponse.SignalInfo.Signal
-
-	if !WaitForResourceCleanup(t, ncURL, 4) {
-		t.Fatalf("Failed to cleanup network container %s\n", ncid)
+	if !skipDelete {
+		DeleteNetworkContainer(t, nodeID, reservationID, dncEP, vnetID, ncid, apiVersion)
 	}
-
-	if len(reservationID) > 0 {
-		fmt.Printf("Delete resource %s when reservation exist. Expected to fail\n", networkURL)
-		deleteErrResp := deleteResource(t, networkURL, http.StatusBadRequest)
-		if deleteErrResp.Code != api.NetworkInUse {
-			t.Fatalf("Delete network expected to fail with error %s, Error response %s \n", api.NetworkInUse.String(), deleteErrResp.String())
-		}
-
-		deleteResource(t, reservationURL, http.StatusOK)
-	}
-
-	deleteResource(t, networkURL, http.StatusOK)
-	deleteResource(t, nodeURL, http.StatusOK)
 }
 
 func CreateNetworkContainer(
 	t *testing.T,
 	nodeID string,
-	nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string) {
+	nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string, skipDelete bool) {
 	fmt.Println("****CreateNetworkContainer Test**********")
 	createNetworkContainer(
 		t,
@@ -1744,7 +1767,8 @@ func CreateNetworkContainer(
 		0,
 		networkcontainerreq.AllowHostToNCCommunication,
 		networkcontainerreq.AllowNCToHostCommunication,
-		networkcontainerreq.EndpointPolicies)
+		networkcontainerreq.EndpointPolicies,
+		skipDelete)
 }
 
 func createNetworkContainerAndUpdateNetworkConfig(
@@ -2128,6 +2152,35 @@ func CreateNetworkContainerAndUpdateToUseCustomDNSServers(t *testing.T, nodeID s
 		0)
 }
 
+func DeleteNetworkContainer(t *testing.T,
+	nodeID string,
+	reservationID, dncEP, vnetID, ncid, apiVersion string) {
+	networkURL := dncEP + "/networks/" + vnetID + apiVersion
+	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
+	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncid + apiVersion
+	reservationURL := dncEP + "/networks/" + vnetID + "/reservations/" + reservationID + apiVersion
+
+	deleteResource(t, ncURL, http.StatusOK)
+	t.Logf("Waiting for delete NC Url:%s", ncURL)
+
+	if !WaitForResourceCleanup(t, ncURL, 4) {
+		t.Fatalf("Failed to cleanup network container %s\n", ncid)
+	}
+
+	if len(reservationID) > 0 {
+		t.Logf("Delete resource %s when reservation exist. Expected to fail", networkURL)
+		deleteErrResp := deleteResource(t, networkURL, http.StatusBadRequest)
+		if deleteErrResp.Code != api.NetworkInUse {
+			t.Fatalf("Delete network expected to fail with error %s, Error response %s \n", api.NetworkInUse.String(), deleteErrResp.String())
+		}
+
+		deleteResource(t, reservationURL, http.StatusOK)
+	}
+
+	deleteResource(t, networkURL, http.StatusOK)
+	deleteResource(t, nodeURL, http.StatusOK)
+}
+
 type NCDeploymentRequest struct {
 	NCID              string
 	AllocationRequest api.AllocationRequest
@@ -2170,7 +2223,7 @@ func DeployNetworkContainers(
 
 		ncDeploymentRequestsMapByNetwork[deploymentInfo.NetworkDeploymentRequest.vnetID] = networkNCDeploymentRequests
 		for _, ncDeploymentRequest := range deploymentInfo.NCDeploymentRequests {
-			fmt.Printf("NC request:%+v", ncDeploymentRequest)
+			t.Logf("NC request:%+v", ncDeploymentRequest)
 			networkNCDeploymentRequests[index] = ncDeploymentRequest
 			index++
 			subnetMap, ok := networkSubnetsMap[deploymentInfo.NetworkDeploymentRequest.vnetID]

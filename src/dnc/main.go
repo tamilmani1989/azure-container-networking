@@ -36,11 +36,9 @@ import (
 
 var (
 	cancelProcessing         = make(chan bool)
-	startProcessing          = make(chan bool)
 	startChan                = make(chan bool)
 	doneChan                 = make(chan bool)
 	demoteChan               = make(chan bool)
-	refreshNCStartProcessing = make(chan bool)
 	refreshNCStopProcessing  = make(chan bool)
 	telemetryStopProcessing  = make(chan bool)
 	reports                  = make(chan telemetry.DNCReport)

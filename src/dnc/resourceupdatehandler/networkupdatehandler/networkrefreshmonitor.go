@@ -35,8 +35,6 @@ var (
 
 	// SleepIntervalBetweenNetworkRefresh
 	sleepIntervalBetweenNetworkRefresh time.Duration
-
-	NetworkMonitorStartProcessing = make(chan bool)
 	NetworkMonitorStopProcessing  = make(chan bool)
 )
 
@@ -65,10 +63,6 @@ func MonitorNetworkUpdates() {
 			if replicaInstance.IsReplicaPrimary() {
 				refreshNetworks()
 			}
-			break
-		case <-NetworkMonitorStartProcessing:
-			logger.Debugf("[MonitorNetworkUpdates]:Refreshing networks as replica became primary")
-			refreshNetworks()
 			break
 		case <-NetworkMonitorStopProcessing:
 			logger.Debugf("[MonitorNetworkUpdates]:Received stop processing of refresh networks")

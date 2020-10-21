@@ -1717,6 +1717,27 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 		}
 
 		return PersistNCConfiguration(networkContainerConfig, AddToPendingQ)
+	} else if networkContainerConfig.MarkedForDelete == true {
+		// There is a valid race where NC MarkedForDelete is set however adding the request to PendingQ is missing
+		// This is possible if call to DeleteNetworkContainer failed in interim. As a result caller will receive failure and
+		// retry the operation. So ensure NC entries exists in both NetworkContainer and PendingQ tables.
+		requestID := GetNCKey(networkContainerConfig.NetworkID, networkContainerConfig.NetworkContainerID)
+		pendingQItem, err := TryQueryRequestContext(requestID)
+		if err != nil {
+			return err
+		}
+
+		if pendingQItem != nil {
+			return nil
+		}
+
+		loggershim.LS.Debugf("NC %s is MarkedForDelete, requeue request to PendinqQueueTable", networkContainerID)
+		requestContext := RequestContext{
+			Type:      NetworkContainerRequest,
+			NetworkID: networkContainerConfig.NetworkID,
+			NodeID:    networkContainerConfig.GetAssociationInfo().NodeID}
+
+		return AddRequestToPendingQueue(requestID, &requestContext)
 	}
 
 	return nil
