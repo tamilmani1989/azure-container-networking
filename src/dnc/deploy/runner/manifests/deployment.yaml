@@ -1,0 +1,59 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: swift-runner
+  name: swift-runner-pod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: swift-runner
+  template:
+    metadata:
+      labels:
+        app: swift-runner
+    spec:
+      containers:
+      - env:
+        - name: STORAGE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: storage-key
+              key: value
+        - name: AUTHENTICATION_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: authentication-token
+              key: value
+        - name: AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT
+          valueFrom:
+            secretKeyRef:
+              name: authentication-token-cust-vnet-with-mnat
+              key: value
+        - name: AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTLB
+          valueFrom:
+            secretKeyRef:
+              name: authentication-token-cust-vnet-with-swiftlb
+              key: value
+        envFrom:
+        - configMapRef:
+            name: runner-env-vars
+        image: mcr.microsoft.com/containernetworking/swift-runner:20201027-4
+        imagePullPolicy: Always
+        name: swift-runner
+        ports:
+        - containerPort: 9009
+          hostPort: 9009
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      hostNetwork: true
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: runner-sa
+      serviceAccountName: runner-sa
+      terminationGracePeriodSeconds: 30

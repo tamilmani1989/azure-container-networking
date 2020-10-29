@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: runner-env-vars
+data:
+  CUST_VNET: 6a16ebf4-2ef6-472a-a774-03caa2ea5c7b
+  SERVICE_TUNNEL_EP: https://eastus2euapst0.blob.core.windows.net/swift/testblob.txt
+  PRIVATELINK_EP: https://eastus2euapplst0.blob.core.windows.net/swiftpl/testblob.txt
+  PARTITION_KEY: eastus2euap-sr-partition
+  BLOB: eastus2euap-sr-blob
+  CONTAINER: eastus2euap-sr-container
+  NODE1: k8s-agentpool1-14938606-0
+  NODE2: k8s-agentpool1-14938606-1
+  CUST_VNET_WITH_MNAT: b3f2b2b9-9660-4cbe-a902-18b0cc5dfe26
+  MNAT_PUBLIC_IP: 52.253.231.107
+  CUST_VNET_WITH_SWIFTLB: d449d3de-21d9-4bd5-8bd6-ef21bef589e6
+  SWIFTLB_PUBLIC_IP: 52.253.225.16

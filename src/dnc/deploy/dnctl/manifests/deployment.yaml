@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dnctl-deployment
+  labels:
+    app: dnctl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dnctl
+  template:
+    metadata:
+      labels:
+        app: dnctl
+    spec:
+      hostNetwork: true
+      containers:
+      - name: dnctl
+        image: acndev.azurecr.io/dnctl:alpine
+        command: ["sleep", "3600"]
+      imagePullSecrets:
+      - name: acndev.azurecr.io-key

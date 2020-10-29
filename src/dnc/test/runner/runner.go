@@ -779,9 +779,11 @@ func addNode(nodeID, ipaddr, orchestratorType, vnetID string) error {
 
 	receivedNodeCfg := nodeCfg.NodeInfo
 	expectedNodeCfg := api.NodeInfoRequest{
-		IPAddresses:      []string{ipaddr},
-		LocationType:     "",
-		OrchestratorType: orchestratorType}
+		IPAddresses:           []string{ipaddr},
+		LocationType:          "",
+		OrchestratorType:      orchestratorType,
+		InfrastructureNetwork: vnetID,
+	}
 	if receivedNodeCfg.String() != expectedNodeCfg.String() {
 		return fmt.Errorf("Register node %s failed;\nreceived %+v\nexpected %+v", nodeID, receivedNodeCfg, expectedNodeCfg)
 	}

@@ -41,10 +41,15 @@ spec:
       containers:
       - name: dnc-container
         image: msint.azurecr.io/containernetworking/dnc:latest
+        args: ["-stderr"]
         imagePullPolicy: Always
         volumeMounts:
         - name: log
           mountPath: /var/log
+        - name: dnc-config
+          mountPath: /etc/dnc
+        - name: telemetry
+          mountPath: /var/run/azure-vnet-telemetry.sock
         ports:
         - containerPort: 9000
         env:
@@ -52,6 +57,18 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
+        - name: DNC_CONFIGURATION_PATH
+          value: /etc/dnc/config.json
+        - name: DataStoreStorageKey
+          valueFrom:
+            secretKeyRef:
+              name: storage-key
+              key: value
+        - name: MasterElectionStorageKey
+          valueFrom:
+            secretKeyRef:
+              name: storage-key
+              key: value
       imagePullSecrets:
         - name: msint.azurecr.io-key
       volumes:
@@ -59,3 +76,10 @@ spec:
         hostPath:
           path: /var/log
           type: Directory
+      - name: dnc-config
+        configMap:
+          name: dnc-config
+      - name: telemetry
+        hostPath:
+          path: /var/run/azure-vnet-telemetry.sock
+          type: Socket
