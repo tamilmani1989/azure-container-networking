@@ -16,29 +16,27 @@ import (
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 	"github.com/Azure/go-autorest/autorest/azure"
-	cache "github.com/patrickmn/go-cache"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
 
 // NodeFinalizerName is the finalizer that is placed on Nodes
 const (
-	NNCFinalizerName              = "finalizers.acn.azure.com/dnc-operations"
-	DelegatedSubnetIDLabel        = "kubernetes.azure.com/podnetwork-delegationguid"
-	SubnetNameLabel               = "kubernetes.azure.com/podnetwork-subnet"
-	leaderElectionConfigmapSuffix = ".resourcelock.acn.azure.com"
+	NNCFinalizerName                        = "finalizers.acn.azure.com/dnc-operations"
+	DelegatedSubnetIDLabel                  = "kubernetes.azure.com/podnetwork-delegationguid"
+	SubnetNameLabel                         = "kubernetes.azure.com/podnetwork-subnet"
+	leaderElectionConfigmapSuffix           = ".resourcelock.acn.azure.com"
+	kubeconfigRefreshIntervalSeconds        = 300
+	kubeconfigRefreshOnErrorIntervalSeconds = 30
 )
 
 // RequestController implements requestcontroller.RequestController. RequestController watches Nodes and NetworkConfigs
 // and calls DNC functions as appropriate.
 type RequestController struct {
-	Managers map[string]manager.Manager
+	managerPool        *ManagerPool
+	kubeconfigProvider requestcontroller.KubeconfigProvider
 }
 
 var _ requestcontroller.RequestController = &RequestController{}
@@ -105,17 +103,6 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 		return nil, fmt.Errorf("Error creating kubeconfig provider from config mode: %s is not a valid mode for config.kubernetesConfig.kubeconfigInfo.mode", mode)
 	}
 
-	kubeconfigsBytes, err := kubeconfigProvider.GetBytesForAll(context.TODO())
-	if err != nil {
-		return nil, err
-	}
-
-	k8sClientTimeout, err := time.ParseDuration(config.KubernetesConfig.ClientTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	dncClientRequestTimeout, err := time.ParseDuration(config.DNCClientConfig.RequestTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -130,91 +117,33 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 	subnetInfoProvider := datastore.NewSubnetInfoProvider(config.DataStoreSettings, config.LoggingConfig)
 
 	requestController := RequestController{
-		Managers: make(map[string]manager.Manager),
-	}
-
-	// Get in-cluster config for leader election configmaps
-	var leaderElectionConfig *rest.Config
-	if config.LeaderElectionSettings.Enabled {
-		leaderElectionConfig = ctrl.GetConfigOrDie()
-	}
-
-	for orchestratorID, kubeconfigBytes := range kubeconfigsBytes {
-		// Create a REST config from the kubeconfig bytes
-		log.Printf("Creating client for orchestrator %s", orchestratorID)
-		restConfig, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigBytes)
-		if err != nil {
-			return nil, err
-		}
-
-		// Create a manager from the REST config and scheme
-		mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-			Scheme:                  scheme,
-			MetricsBindAddress:      "0", //disable metrics, TODO: make this configurable
-			LeaderElection:          config.LeaderElectionSettings.Enabled,
-			LeaderElectionNamespace: config.LeaderElectionSettings.Namespace,
-			LeaderElectionID:        fmt.Sprintf("%s%s", orchestratorID, leaderElectionConfigmapSuffix),
-			LeaderElectionConfig:    leaderElectionConfig,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		// Add the Node reconciler
-		nodeReconciler := &NodeReconciler{
-			Client:           mgr.GetClient(),
-			Namespace:        config.KubernetesConfig.Namespace,
-			InitialIPCount:   config.RequestScalerConfig.BatchSize,
-			K8sClientTimeout: k8sClientTimeout,
-		}
-		err = ctrl.NewControllerManagedBy(mgr).
-			For(&corev1.Node{}).
-			WithEventFilter(NodeEventFilter{}).
-			Complete(nodeReconciler)
-
-			// Add the NodeNetworkConfig reconciler
-		nodeNetworkConfigReconciler := &NodeNetworkConfigReconciler{
-			Client:             mgr.GetClient(),
-			DncClient:          syncDncClient,
-			ScalerConfig:       config.RequestScalerConfig,
-			SubnetInfoProvider: subnetInfoProvider,
-			NodeIDToNCID:       cache.New(cache.NoExpiration, cache.NoExpiration),
-			RegisteredNodes:    cache.New(cache.NoExpiration, cache.NoExpiration),
-			RegisteredVnets:    cache.New(cache.NoExpiration, cache.NoExpiration),
-			RegisteredSubnets:  cache.New(cache.NoExpiration, cache.NoExpiration),
-			ReconcileTimeout:   dncClientRequestTimeout,
-		}
-		err = ctrl.NewControllerManagedBy(mgr).
-			For(&acnv1alpha.NodeNetworkConfig{}).
-			WithEventFilter(NodeNetworkConfigEventFilter{}).
-			Complete(nodeNetworkConfigReconciler)
-
-		requestController.Managers[orchestratorID] = mgr
+		managerPool: &ManagerPool{
+			managers:           make(map[string]*manager),
+			scheme:             scheme,
+			config:             config,
+			subnetInfoProvider: subnetInfoProvider,
+			syncDNCClient:      syncDncClient,
+		},
+		kubeconfigProvider: kubeconfigProvider,
 	}
 
 	return &requestController, nil
 }
 
 // Start starts the RequestController and blocks until there is an error or exitChan is closed
-func (r *RequestController) Start(exitChan chan struct{}) error {
-	errChan := make(chan error)
-	defer close(errChan)
-	for controllerID, mgr := range r.Managers {
-		log.Printf("Starting manager for controller %s", controllerID)
-		go func(m manager.Manager) {
-			err := m.Start(exitChan)
-			if err != nil {
-				errChan <- err
-			}
-		}(mgr)
-	}
+func (r *RequestController) Start() {
+	exitChan := signals.SetupSignalHandler()
 
-	//block until error or exitChan is closed (which stops all managers)
+	// Register all managers
+	ctx, cancel := context.WithCancel(context.Background())
+	go r.registerAndStartManagersForever(ctx)
+
+	//block until exitChan is closed
 	select {
-	case err := <-errChan:
-		return err
 	case <-exitChan:
-		return nil
+		log.Printf("Stopping all managers")
+		cancel()
+		r.managerPool.UnregisterAll()
 	}
 }
 
@@ -260,4 +189,39 @@ func getKeyvaultClientFromMSI(ctx context.Context, keyvaultName, msiResourceID, 
 	}
 
 	return keyvaultClient, nil
+}
+
+func (r *RequestController) registerAndStartManagers(ctx context.Context) error {
+	kubeconfigsBytes, err := r.kubeconfigProvider.GetBytesForAll(ctx)
+	if err != nil {
+		return fmt.Errorf("Error getting kubeconfigs: %w", err)
+	}
+
+	// Register the orchestrators with the manager pool
+	r.managerPool.RegisterManagers(kubeconfigsBytes)
+
+	// Start all the managers (in case there are new ones)
+	r.managerPool.StartAll()
+
+	return nil
+}
+
+func (r *RequestController) registerAndStartManagersForever(ctx context.Context) {
+	err := r.registerAndStartManagers(ctx)
+	if err != nil {
+		log.Printf("Failed to get k8s clients: %v, will retry in 30s", err)
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			log.Printf("register managers loop was cancelled, no longer checking for new k8s clusters")
+			return
+		case <-time.After(30 * time.Second):
+			log.Printf("Refreshing k8s clients from kubeconfig provider")
+		}
+		err := r.registerAndStartManagers(ctx)
+		if err != nil {
+			log.Printf("Failed to get k8s clients: %v, will retry in 30s", err)
+		}
+	}
 }

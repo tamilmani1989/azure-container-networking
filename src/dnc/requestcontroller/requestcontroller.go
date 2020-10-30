@@ -38,7 +38,7 @@ var LoggershimMutex sync.Mutex
 
 // RequestController handles requests from CNS for IP allocations/deallocations and calls DNC functions
 type RequestController interface {
-	Start(chan struct{}) error
+	Start()
 }
 
 // Config config for RequestController
@@ -66,7 +66,7 @@ type KubeconfigInfo struct {
 	ManagedDNCGUID                   string       `json:"managedDNCGUID"`
 	ClientCertificatesDirectory      string       `json:"clientCertificatesDirectory"`
 	KubeloginBinaryPath              string       `json:"kubeloginBinaryPath"`
-	AzureEnvironment                 string       `json:"azureEnvironmment"`
+	AzureEnvironment                 string       `json:"azureEnvironment"`
 	ClientCertificatesKeyvaultConfig KeyvaultInfo `json:"clientCertificatesKeyvaultConfig"`
 }
 

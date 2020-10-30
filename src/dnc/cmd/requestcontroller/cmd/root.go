@@ -63,8 +63,5 @@ func runRequestController(configFile string) {
 	}
 
 	// Start the RequestController
-	exitChan := make(chan struct{})
-	defer close(exitChan)
-	err = requestController.Start(exitChan) // blocks
-	log.Fatalf("error running requestcontroller: %v", err)
+	requestController.Start() // blocks
 }
