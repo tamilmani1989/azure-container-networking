@@ -248,13 +248,23 @@ package:
 
     - !!dockerbuildcommand
         name: 'Build DNC Image'
-        context_folder: 'src/dnc'
-        dockerfile_name: 'Dockerfile'
+        context_folder: ''
+        dockerfile_name: 'src/dnc/builds/dnc/Dockerfile'
         repository_name: 'dnc'
         publish: true
         export_to_artifact_path: 'output/dnc-linux-amd64.tar.gz'
         metadata_file:
           artifact_path: 'output/dnc-linux-amd64-meta.json'
+
+    - !!dockerbuildcommand
+        name: 'Build DNC Request Controller Image'
+        context_folder: 'src/dnc'
+        dockerfile_name: 'builds/requestcontroller/Dockerfile'
+        repository_name: 'dnc-request-controller'
+        publish: true
+        export_to_artifact_path: 'output/dnc-request-controller-linux-amd64.tar.gz'
+        metadata_file:
+          artifact_path: 'output/dnc-request-controller-linux-amd64-meta.json'
 # An optional user defined stage for running tests that need network access. Note that unit tests and others that do not need network access
 # can be run in build or package stages itself. Any artifacts built in this stage will be separated out and will not be signed.
 # However, we recommend that tests always be run in the test stage.
