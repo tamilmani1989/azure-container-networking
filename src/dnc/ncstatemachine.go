@@ -1,7 +1,6 @@
 package main
 
 import (
-	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/networkcontainer"
 )
@@ -24,17 +23,17 @@ func initNetworkContainerStateMachine() {
 	}
 
 	ipAllocator = networkcontainer.IPAllocator{
-		Nodes:                  new(nodeRepo),
-		NCs:                    new(ncRepo),
-		Subnets:                new(subnetRepo),
-		Reservations:           new(reservationRepo),
-		Allocations:            new(allocationRepo),
-		EnableSubnetDelegation: datamodel.IsFeatureSupported(configuration.SharedSubnetDelegation),
-		Logger:                 logger,
+		Nodes:            new(nodeRepo),
+		NCs:              new(ncRepo),
+		Subnets:          new(subnetRepo),
+		Reservations:     new(reservationRepo),
+		Allocations:      new(allocationRepo),
+		IsFeatureEnabled: datamodel.IsFeatureSupported,
+		Logger:           logger,
 	}
 
 	macAllocator = networkcontainer.MacAllocator{
-		PersistNC:              datamodel.PersistNCConfiguration,
-		Logger:                 logger,
+		PersistNC: datamodel.PersistNCConfiguration,
+		Logger:    logger,
 	}
 }

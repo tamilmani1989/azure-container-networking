@@ -3,6 +3,7 @@ package networkcontainer
 import (
 	"dnc/allocationhelper"
 	"dnc/api"
+	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/datastore/azurestorage"
 	"dnc/logger/loggershim"
@@ -21,13 +22,13 @@ const (
 
 // IPAllocator can process different types of IP allocations for network containers
 type IPAllocator struct {
-	Nodes                  NodeRepo
-	NCs                    NCRepo
-	Subnets                SubnetRepo
-	Reservations           IPReservationRepo
-	Allocations            IPAllocationRepo
-	EnableSubnetDelegation bool
-	Logger                 loggershim.LoggerInterface
+	Nodes            NodeRepo
+	NCs              NCRepo
+	Subnets          SubnetRepo
+	Reservations     IPReservationRepo
+	Allocations      IPAllocationRepo
+	IsFeatureEnabled func(int) bool
+	Logger           loggershim.LoggerInterface
 }
 
 // ProcessIPReservationAllocationWithKey processes IP allocation for a given reservation key
@@ -61,7 +62,7 @@ func (a *IPAllocator) ProcessIPReservationAllocation(req *datamodel.ReservationC
 	}
 
 	var allocationState map[string]*net.IPNet
-	if !a.EnableSubnetDelegation {
+	if !a.IsFeatureEnabled(configuration.SharedSubnetDelegation) {
 		allocationState, err = a.getAllocationsFromSubnetConfig(subnetConfig)
 	} else {
 		allocationState, err = a.getAllocationsFromSubnetTable(req.NetworkID, req.AllocationRequest.SubnetName)
@@ -109,7 +110,7 @@ func (a *IPAllocator) ProcessIPReservationAllocation(req *datamodel.ReservationC
 		err := api.BadRequest(api.AllocationFailed, fmt.Sprintf("Failed to allocate address for request %s. Subnet is full", req.AllocationRequest.String()))
 		return a.markReservationAsFailed(req, err)
 	}
-	if !a.EnableSubnetDelegation {
+	if !a.IsFeatureEnabled(configuration.SharedSubnetDelegation) {
 		req.AllocatedSubnet = primaryIP.String()
 		return a.completeAllocation(req, subnetConfig)
 	}

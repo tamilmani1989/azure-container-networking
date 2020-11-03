@@ -2,6 +2,7 @@ package networkcontainer
 
 import (
 	"dnc/api"
+	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/networkcontainer/fakes"
 	"math/rand"
@@ -33,10 +34,10 @@ func Test_Allocate(t *testing.T) {
 	}
 
 	allocator := IPAllocator{
-		Allocations:            &allocsRepo,
-		Subnets:                &subnetRepo,
-		Reservations:           fakes.NewReservationRepo(),
-		EnableSubnetDelegation: true,
+		Allocations:      &allocsRepo,
+		Subnets:          &subnetRepo,
+		Reservations:     fakes.NewReservationRepo(),
+		IsFeatureEnabled: enableSubnetDelegation,
 	}
 
 	req := datamodel.ReservationConfiguration{
@@ -105,10 +106,10 @@ func TestIncompleteAllocation(t *testing.T) {
 	}
 
 	allocator := IPAllocator{
-		Allocations:            &allocsRepo,
-		Subnets:                &subnetRepo,
-		Reservations:           fakes.NewReservationRepo(),
-		EnableSubnetDelegation: true,
+		Allocations:      &allocsRepo,
+		Subnets:          &subnetRepo,
+		Reservations:     fakes.NewReservationRepo(),
+		IsFeatureEnabled: enableSubnetDelegation,
 	}
 
 	req := datamodel.ReservationConfiguration{
@@ -216,11 +217,11 @@ func Test_RemoveSecondaryIpWithEmptyAllocations(t *testing.T) {
 	}
 
 	allocator := IPAllocator{
-		Allocations:            &allocsRepo,
-		Subnets:                &subnetRepo,
-		Reservations:           fakes.NewReservationRepo(),
-		EnableSubnetDelegation: true,
-		Logger:                 &dummyLogger{},
+		Allocations:      &allocsRepo,
+		Subnets:          &subnetRepo,
+		Reservations:     fakes.NewReservationRepo(),
+		IsFeatureEnabled: enableSubnetDelegation,
+		Logger:           &dummyLogger{},
 	}
 
 	req := datamodel.ReservationConfiguration{
@@ -259,3 +260,6 @@ func extractAllocationIDs(a fakes.AllocationRepo) map[string]struct{} {
 	}
 	return allocIDs
 }
+
+// mock function to signal that subnet delegation is enabled
+func enableSubnetDelegation(i int) bool { return i == configuration.SharedSubnetDelegation }
