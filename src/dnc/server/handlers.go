@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/Azure/azure-container-networking/cns"
@@ -28,7 +27,6 @@ const (
 	reservationIDStr      = "reservationID"
 	subnetStr             = "subnet"
 	infraNetworkIDStr     = "infraNetworkID"
-	coresStr              = "cores"
 )
 
 // content types
@@ -716,24 +714,6 @@ func RegisterNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	coresStrFmt, ok := vars[coresStr]
-	if !ok {
-		setRequestFailed(w, &api.JsonErr{
-			Code:       api.InvalidNCLimit,
-			Text:       api.NCLimitMissing,
-			HTTPStatus: http.StatusBadRequest})
-		return
-	}
-
-	cores, atoiErr := strconv.Atoi(coresStrFmt)
-	if atoiErr != nil {
-		setRequestFailed(w, &api.JsonErr{
-			Code:       api.InvalidNCLimit,
-			Text:       fmt.Sprintf("Failed to convert %s with error %+v", coresStrFmt, atoiErr),
-			HTTPStatus: http.StatusBadRequest})
-		return
-	}
-
 	w.Header().Set(contentTypeStr, defaultContentType)
 
 	nodeConfig, err := ctrler.GetNodeConfiguration(nodeID)
@@ -760,7 +740,19 @@ func RegisterNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = ctrler.RegisterNode(nodeID, apiVersion, cores); err != nil {
+	var nodeRegistrationRequest api.NodeRegistrationRequest
+	if err := json.NewDecoder(r.Body).Decode(&nodeRegistrationRequest); err != nil {
+		setRequestFailed(w, api.BadRequest(api.InvalidNodeRegistrationRequest,
+			fmt.Sprintf("Could not parse node registration request body: %v", err)))
+		return
+	}
+
+	if validationErr := nodeRegistrationRequest.Validate(); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	if err = ctrler.RegisterNode(nodeID, apiVersion, &nodeRegistrationRequest); err != nil {
 		w.WriteHeader(err.HTTPStatus)
 		if err := json.NewEncoder(w).Encode(err); err != nil {
 			panic(err)
@@ -772,7 +764,7 @@ func RegisterNode(w http.ResponseWriter, r *http.Request) {
 		DncPartitionKey:  ctrler.GetConfig().DataStoreSettings.AzureStorageInfo.PartitionKey,
 		NodeID:           nodeID}
 
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(info); err != nil {
 		panic(err)
 	}
@@ -826,14 +818,7 @@ func SyncNodeNetworkContainers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var (
-		syncNodeInfo cns.NodeInfoResponse
-		config       = ctrler.GetConfig()
-	)
-
-	if config != nil {
-		syncNodeInfo.GetNCVersionURLFmt = config.HostAgentSettings.ConnectionStrings.GetNetworkContainerVersionURLFmt
-	}
+	var syncNodeInfo cns.NodeInfoResponse
 
 	for networkID, ncTuple := range nodeConfig.DeployedNetworkContainerMap {
 		for ncID := range ncTuple {

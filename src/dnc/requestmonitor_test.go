@@ -3349,16 +3349,22 @@ func TestManagedDncAPIs(t *testing.T) {
 		body         bytes.Buffer
 	)
 
-	// register network/subnet and add node
+	// Register network/subnet and add node
 	setupNetworkAndJoinSubnet(t, mdncEP, vnetID, networkContainerReq.AllocationRequest.SubnetName, apiVersion, true, 0)
 	if respErr := dnctl.AddNode(nodeID, iface, cns.Kubernetes, infraVnet); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Register node failed with error %+v", respErr)
 	}
 
-	// test RegisterNode API
-	response, err := http.Post(fmt.Sprintf("%s/%s/node/%s/cores/%d%s", mdncEP, infraVnet, nodeID, 2, apiVersion), "application/json", &body)
+	// Test RegisterNode API
+	nodeRegistrationRequest := api.NodeRegistrationRequest{
+		NumCores: 2,
+	}
+	json.NewEncoder(&body).Encode(nodeRegistrationRequest)
+
+	registerNodeURL := fmt.Sprintf("%s/networks/%s/node/%s%s", mdncEP, infraVnet, nodeID, apiVersion)
+	response, err := http.Post(registerNodeURL, "application/json", &body)
 	if err == nil {
-		if response.StatusCode == http.StatusCreated {
+		if response.StatusCode == http.StatusOK {
 			var req cns.SetOrchestratorTypeRequest
 			expectedReq := cns.SetOrchestratorTypeRequest{OrchestratorType: cns.Kubernetes, DncPartitionKey: "", NodeID: nodeID}
 			json.NewDecoder(response.Body).Decode(&req)
@@ -3386,7 +3392,8 @@ func TestManagedDncAPIs(t *testing.T) {
 		t.Fatalf("Get nc failed with error %+v", respErr)
 	}
 
-	response, err = http.Get(fmt.Sprintf("%s/%s/node/%s%s", mdncEP, infraVnet, nodeID, apiVersion))
+	syncNodeStatusURL := fmt.Sprintf("%s/networks/%s/node/%s/networkcontainers%s", mdncEP, infraVnet, nodeID, apiVersion)
+	response, err = http.Get(syncNodeStatusURL)
 	if err == nil {
 		if response.StatusCode == http.StatusOK {
 			var (
@@ -3414,8 +3421,7 @@ func TestManagedDncAPIs(t *testing.T) {
 						CnetAddressSpace:           make([]cns.IPSubnet, 0),
 						AllowHostToNCCommunication: false,
 						AllowNCToHostCommunication: false},
-					},
-					GetNCVersionURLFmt: "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/version/authenticationToken/%s/api-version/1"}
+					}}
 			)
 
 			json.NewDecoder(response.Body).Decode(&req)

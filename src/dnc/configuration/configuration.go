@@ -89,11 +89,10 @@ type TestDataElectionSettings struct {
 
 // HostAgentConnectionStrings NMagent connection strings
 type HostAgentConnectionStrings struct {
-	JoinNetworkURLFmt                string
-	GetNetworkConfigurationURLFmt    string
-	PutNetworkContainerURLFmt        string
-	DeleteNetworkContainerURLFmt     string
-	GetNetworkContainerVersionURLFmt string
+	JoinNetworkURLFmt             string
+	GetNetworkConfigurationURLFmt string
+	PutNetworkContainerURLFmt     string
+	DeleteNetworkContainerURLFmt  string
 }
 
 // HostAgentSettings NMAgent connection URL settings.

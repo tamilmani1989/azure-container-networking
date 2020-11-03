@@ -124,12 +124,12 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 }
 
 // RegisterNode - Register node
-func (c *Controller) RegisterNode(nodeID, apiVersion string, cores int) *api.JsonErr {
+func (c *Controller) RegisterNode(nodeID, apiVersion string, request *api.NodeRegistrationRequest) *api.JsonErr {
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	return datamodel.CreateOrUpdateNodeConfiguration(true, cores, nodeID, api.NodeInfoRequest{}, apiVersion)
+	return datamodel.CreateOrUpdateNodeConfiguration(true, request.NumCores, nodeID, api.NodeInfoRequest{}, apiVersion)
 }
 
 // DeleteNode - Delete node configuration

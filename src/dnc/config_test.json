@@ -25,8 +25,7 @@
       "JoinNetworkURLFmt": "http://%s/joinedVirtualNetworks/%s/api-version/1",
       "GetNetworkConfigurationURLFmt": "http://%s/joinedVirtualNetworks/%s/api-version/1",
       "PutNetworkContainerURLFmt": "http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
-      "DeleteNetworkContainerURLFmt": "http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
-      "GetNetworkContainerVersionURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/version/authenticationToken/%s/api-version/1"
+      "DeleteNetworkContainerURLFmt": "http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE"
     }
   },
   "CustomLoggerSettings": {

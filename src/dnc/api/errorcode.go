@@ -243,6 +243,9 @@ const (
 
 	// InvalidContainerPlacement - - Invalid node location type for the container Type
 	InvalidContainerPlacement
+
+	// InvalidNodeRegistrationRequest - Node Registration request is invalid
+	InvalidNodeRegistrationRequest
 )
 
 func (e ErrorCode) String() string {
@@ -486,6 +489,9 @@ func (e ErrorCode) String() string {
 
 	case InvalidContainerPlacement:
 		return "InvalidContainerPlacement"
+
+	case InvalidNodeRegistrationRequest:
+		return "InvalidNodeRegistrationRequest"
 	}
 
 	return "Unknown Status"
