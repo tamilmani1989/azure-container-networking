@@ -79,5 +79,32 @@
     "DisableTelemetry": false,
     "DebugMode": false,
     "DisableAiLogging": false
+  },
+  "PubSubProxySettings": {
+    "EnablePubSubProxy": false,
+    "MaxConcurrentRequests": 1000,
+    "RequestRetryBaseInterval": 1000,
+    "MaxRequestBackoffInterval": 16000,
+    "PublisherPort": "18605",
+    "SubscriberPort": "18600",
+    "PubsubCertName": "",
+    "PubsubCertKeyvaultName": "",
+    "PubsubCertFilePath": "",
+    "PubsubConnectionEndpoint": "",
+    "PubsubVips": [
+      {
+        "AzId": "AZ01",
+        "VIPs": "VIP1,VIP2,VIP3"
+      },
+      {
+        "AzId": "AZ02",
+        "VIPs": "VIP1,VIP2,VIP3"
+      },
+      {
+        "AzId": "AZ03",
+        "VIPs": "VIP1,VIP2,VIP3"
+      }
+    ],
+    "PubsubVipsString" : "[ { \"AzId\": \"AZ01\", \"VIPs\": \"52.180.178.120,52.180.182.213,52.180.177.155\" }, { \"AzId\": \"AZ02\", \"VIPs\": \"52.176.251.129,52.180.170.235\" } ]"
   }
 }

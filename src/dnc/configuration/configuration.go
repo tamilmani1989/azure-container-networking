@@ -244,6 +244,8 @@ type PubSubProxySettings struct {
 	SubscriberPort string
 	// List of PubSub VIPs
 	PubsubVips []PubsubVips
+	// String to represent PubSub VIPs
+	PubsubVipsString string
 }
 
 // Configuration - Details related to dnc configuration settings
@@ -289,6 +291,13 @@ func Load(configFile string) *Configuration {
 		log.Fatalf("Could not parse %s: %v", configFile, err)
 	}
 
+	if config.PubSubProxySettings.PubsubVipsString != "" {
+		var pubsubvips []PubsubVips
+		if err := json.Unmarshal([]byte(config.PubSubProxySettings.PubsubVipsString), &pubsubvips); err != nil {
+			log.Fatalf("Could not parse PubSub VIPs %s: %v", config.PubSubProxySettings.PubsubVipsString, err)
+		}
+		config.PubSubProxySettings.PubsubVips = pubsubvips
+	}
 	return &config
 }
 
