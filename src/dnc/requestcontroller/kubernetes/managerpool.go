@@ -3,15 +3,23 @@
 package kubernetes
 
 import (
+	"context"
 	"dnc/requestcontroller"
+	"dnc/retry"
 	"fmt"
 	"log"
+	"reflect"
+	"strings"
 	"sync"
 	"time"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 	cache "github.com/patrickmn/go-cache"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -186,6 +194,30 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 		return fmt.Errorf("Error building REST config from kubeconfig: %w", err)
 	}
 
+	// Ensure CRD definition is installed on cluster before starting up manager
+	log.Printf("Ensuring NodeNetworkConfig CRD definition exists on cluster")
+	clientSet, err := apiextensionsclientset.NewForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("Error creating client for CRD definition creation: %w", err)
+	}
+
+	retrier := retry.Retrier{
+		Attempts: 10,
+		Delay:    3 * time.Second,
+	}
+
+	// TODO: wire up this context with exitChan so we can immediately stop retrying when exitChan is closed
+	ctx := context.Background()
+	err = retrier.Do(ctx, func() error {
+		ctxWT, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		return m.registerCRD(ctxWT, clientSet)
+	})
+
+	if err != nil {
+		return fmt.Errorf("Failed to setup manager, failed to ensure CRD definition on cluster with error: %w", err)
+	}
+
 	// Get in-cluster config for leader election configmaps
 	var leaderElectionConfig *rest.Config
 	if config.LeaderElectionSettings.Enabled {
@@ -286,4 +318,147 @@ func getRemovedItems(prev, curr []string) []string {
 	}
 
 	return res
+}
+
+func (m *manager) registerCRD(ctx context.Context, clientSet *apiextensionsclientset.Clientset) error {
+	crd := &apiextensionsv1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nncPluralName + "." + acnv1alpha.GroupVersion.Group,
+		},
+		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
+			Group: acnv1alpha.GroupVersion.Group,
+			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
+				{
+					Name:    acnv1alpha.GroupVersion.Version,
+					Served:  true,
+					Storage: true,
+					Subresources: &apiextensionsv1.CustomResourceSubresources{
+						Status: &apiextensionsv1.CustomResourceSubresourceStatus{},
+					},
+					Schema: &apiextensionsv1.CustomResourceValidation{
+						OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
+							Description: "NodeNetworkConfig is the Schema for the nodenetworkconfigs API",
+							Type:        "object",
+							Properties: map[string]apiextensionsv1.JSONSchemaProps{
+								"apiVersion": {
+									Description: "APIVersion defines the versioned schema of this representation",
+									Type:        "string",
+								},
+								"kind": {
+									Description: "Kind is a string value representing the REST resource this object represents",
+									Type:        "string",
+								},
+								"metadata": {
+									Type: "object",
+								},
+								"spec": {
+									Type:        "object",
+									Description: "NodeNetworkConfigSpec defines the desired state of NetworkConfig",
+									Properties: map[string]apiextensionsv1.JSONSchemaProps{
+										"ipsNotInUse": {
+											Items: &apiextensionsv1.JSONSchemaPropsOrArray{
+												Schema: &apiextensionsv1.JSONSchemaProps{
+													Type: "string",
+												},
+											},
+											Type: "array",
+										},
+										"requestedIPCount": {
+											Format: "int64",
+											Type:   "integer",
+										},
+									},
+								},
+								"status": {
+									Type:        "object",
+									Description: "NodeNetworkConfigStatus defines the observed state of NetworkConfig",
+									Properties: map[string]apiextensionsv1.JSONSchemaProps{
+										"networkContainers": {
+											Type: "array",
+											Items: &apiextensionsv1.JSONSchemaPropsOrArray{
+												Schema: &apiextensionsv1.JSONSchemaProps{
+													Type: "object",
+													Properties: map[string]apiextensionsv1.JSONSchemaProps{
+														"defaultGateway": {
+															Type: "string",
+														},
+														"ipAssignments": {
+															Type: "array",
+															Items: &apiextensionsv1.JSONSchemaPropsOrArray{
+																Schema: &apiextensionsv1.JSONSchemaProps{
+																	Type: "object",
+																	Properties: map[string]apiextensionsv1.JSONSchemaProps{
+																		"ip": {
+																			Type: "string",
+																		},
+																		"name": {
+																			Type: "string",
+																		},
+																	},
+																},
+															},
+														},
+														"id": {
+															Type: "string",
+														},
+														"primaryIP": {
+															Type: "string",
+														},
+														"subnetAddressSpace": {
+															Type: "string",
+														},
+														"subnetName": {
+															Type: "string",
+														},
+														"version": {
+															Type:   "integer",
+															Format: "int64",
+														},
+													},
+												},
+											},
+										},
+										"scaler": {
+											Description: "Scaler groups IP request params together",
+											Type:        "object",
+											Properties: map[string]apiextensionsv1.JSONSchemaProps{
+												"batchSize": {
+													Type:   "integer",
+													Format: "int64",
+												},
+												"releaseThresholdPercent": {
+													Type:   "integer",
+													Format: "int64",
+												},
+												"requestThresholdPercent": {
+													Type:   "integer",
+													Format: "int64",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Scope: apiextensionsv1.NamespaceScoped,
+			Names: apiextensionsv1.CustomResourceDefinitionNames{
+				Plural:     nncPluralName,
+				Kind:       reflect.TypeOf(acnv1alpha.NodeNetworkConfig{}).Name(),
+				ListKind:   reflect.TypeOf(acnv1alpha.NodeNetworkConfig{}).Name() + "List",
+				Singular:   strings.ToLower(reflect.TypeOf(acnv1alpha.NodeNetworkConfig{}).Name()),
+				ShortNames: []string{nncShortName},
+			},
+		},
+	}
+
+	_, err := clientSet.ApiextensionsV1().CustomResourceDefinitions().Create(ctx, crd, metav1.CreateOptions{})
+
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("Error adding NNC CRD definition to cluster: %w", err)
+	}
+
+	return nil
 }

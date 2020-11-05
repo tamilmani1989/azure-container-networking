@@ -16,6 +16,7 @@ import (
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 	"github.com/Azure/go-autorest/autorest/azure"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,6 +31,8 @@ const (
 	leaderElectionConfigmapSuffix           = ".resourcelock.acn.azure.com"
 	kubeconfigRefreshIntervalSeconds        = 300
 	kubeconfigRefreshOnErrorIntervalSeconds = 30
+	nncPluralName                           = "nodenetworkconfigs"
+	nncShortName                            = "nnc"
 )
 
 // RequestController implements requestcontroller.RequestController. RequestController watches Nodes and NetworkConfigs
@@ -76,6 +79,13 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 		key, err := getCosmosKeyFromMSI(context.TODO(), config.CosmosMSISettings.MSIResourceID, config.CosmosMSISettings.CosmosResourceID, config.CosmosMSISettings.AzureEnvironment)
 		if err != nil {
 			return nil, err
+		}
+
+		/* Saw a strange error where if the subscription was incorrect in the CosmosResourceID string, the getCosmosKeyFromMSI function would return an empty key and nil error.
+		*  The following check ensures that RC doesn't get an empty key and nil error. TODO: We should investigate why the adal functions were not returning errors and failing silently
+		 */
+		if key == "" {
+			return nil, fmt.Errorf("Error getting Cosmos Key, key was empty")
 		}
 
 		config.DataStoreSettings.AzureStorageInfo.Key = key

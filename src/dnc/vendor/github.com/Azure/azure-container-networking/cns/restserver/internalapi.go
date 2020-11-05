@@ -16,6 +16,7 @@ import (
 	"github.com/Azure/azure-container-networking/cns/nmagentclient"
 	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/log"
+	nnc "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 )
 
 // This file contains the internal functions called by either HTTP APIs (api.go) or
@@ -101,15 +102,7 @@ func (service *HTTPRestService) SyncNodeStatus(dncEP, infraVnet, nodeID string, 
 		)
 
 		ncVersionURLs.Store(nc.NetworkContainerid, versionURL)
-		waitingForUpdate, tmpReturnCode, tmpErrStr := isNCWaitingForUpdate(nc.Version, nc.NetworkContainerid)
-		if tmpReturnCode != Success && bytes.Compare(nc.OrchestratorContext, contextFromCNI) == 0 {
-			returnCode = tmpReturnCode
-			errStr = tmpErrStr
-		}
-
-		if tmpReturnCode == UnexpectedError {
-			continue
-		}
+		waitingForUpdate, _, _ := service.isNCWaitingForUpdate(nc.Version, nc.NetworkContainerid)
 
 		body, _ = json.Marshal(nc)
 		req, _ = http.NewRequest(http.MethodPost, "", bytes.NewBuffer(body))
@@ -120,7 +113,7 @@ func (service *HTTPRestService) SyncNodeStatus(dncEP, infraVnet, nodeID string, 
 			if err = json.Unmarshal(w.Body.Bytes(), &resp); err == nil && resp.Response.ReturnCode == Success {
 				service.Lock()
 				ncstatus, _ := service.state.ContainerStatus[ncid]
-				ncstatus.WaitingForUpdate = waitingForUpdate
+				ncstatus.VfpUpdateComplete = !waitingForUpdate
 				service.state.ContainerStatus[ncid] = ncstatus
 				service.Unlock()
 			}
@@ -151,14 +144,14 @@ func (service *HTTPRestService) SyncNodeStatus(dncEP, infraVnet, nodeID string, 
 }
 
 // This API will be called by CNS RequestController on CRD update.
-func (service *HTTPRestService) ReconcileNCState(ncRequest *cns.CreateNetworkContainerRequest, podInfoByIp map[string]cns.KubernetesPodInfo) int {
+func (service *HTTPRestService) ReconcileNCState(ncRequest *cns.CreateNetworkContainerRequest, podInfoByIp map[string]cns.KubernetesPodInfo, scalar nnc.Scaler, spec nnc.NodeNetworkConfigSpec) int {
 	// check if ncRequest is null, then return as there is no CRD state yet
 	if ncRequest == nil {
 		log.Logf("CNS starting with no NC state, podInfoMap count %d", len(podInfoByIp))
 		return Success
 	}
 
-	returnCode := service.CreateOrUpdateNetworkContainerInternal(*ncRequest)
+	returnCode := service.CreateOrUpdateNetworkContainerInternal(*ncRequest, scalar, spec)
 
 	// If the NC was created successfully, then reconcile the allocated pod state
 	if returnCode != Success {
@@ -167,13 +160,8 @@ func (service *HTTPRestService) ReconcileNCState(ncRequest *cns.CreateNetworkCon
 
 	// now parse the secondaryIP list, if it exists in PodInfo list, then allocate that ip
 	for _, secIpConfig := range ncRequest.SecondaryIPConfigs {
-		if podInfo, exists := podInfoByIp[secIpConfig.IPSubnet.IPAddress]; exists {
+		if podInfo, exists := podInfoByIp[secIpConfig.IPAddress]; exists {
 			log.Logf("SecondaryIP %+v is allocated to Pod. %+v, ncId: %s", secIpConfig, podInfo, ncRequest.NetworkContainerid)
-
-			desiredIPConfig := cns.IPSubnet{
-				IPAddress:    secIpConfig.IPSubnet.IPAddress,
-				PrefixLength: secIpConfig.IPSubnet.PrefixLength,
-			}
 
 			kubernetesPodInfo := cns.KubernetesPodInfo{
 				PodName:      podInfo.PodName,
@@ -181,8 +169,8 @@ func (service *HTTPRestService) ReconcileNCState(ncRequest *cns.CreateNetworkCon
 			}
 			jsonContext, _ := json.Marshal(kubernetesPodInfo)
 
-			ipconfigRequest := cns.GetIPConfigRequest{
-				DesiredIPConfig:     desiredIPConfig,
+			ipconfigRequest := cns.IPConfigRequest{
+				DesiredIPAddress:    secIpConfig.IPAddress,
 				OrchestratorContext: jsonContext,
 			}
 
@@ -195,11 +183,17 @@ func (service *HTTPRestService) ReconcileNCState(ncRequest *cns.CreateNetworkCon
 		}
 	}
 
+	err := service.MarkExistingIPsAsPending(spec.IPsNotInUse)
+	if err != nil {
+		logger.Errorf("[Azure CNS] Error. Failed to mark IP's as pending %v", spec.IPsNotInUse)
+		return UnexpectedError
+	}
+
 	return 0
 }
 
 // This API will be called by CNS RequestController on CRD update.
-func (service *HTTPRestService) CreateOrUpdateNetworkContainerInternal(req cns.CreateNetworkContainerRequest) int {
+func (service *HTTPRestService) CreateOrUpdateNetworkContainerInternal(req cns.CreateNetworkContainerRequest, scalar nnc.Scaler, spec nnc.NodeNetworkConfigSpec) int {
 	if req.NetworkContainerid == "" {
 		logger.Errorf("[Azure CNS] Error. NetworkContainerid is empty")
 		return NetworkContainerNotSpecified
@@ -220,11 +214,10 @@ func (service *HTTPRestService) CreateOrUpdateNetworkContainerInternal(req cns.C
 	}
 
 	// Validate SecondaryIPConfig
-	for ipId, secIpconfig := range req.SecondaryIPConfigs {
+	for _, secIpconfig := range req.SecondaryIPConfigs {
 		// Validate Ipconfig
-		err := validateIPSubnet(secIpconfig.IPSubnet)
-		if err != nil {
-			logger.Errorf("[Azure CNS] Error. SecondaryIpConfig, Id:%s is invalid, SecondaryIPConfig: %v, ncId: %s", ipId, secIpconfig, req.NetworkContainerid)
+		if secIpconfig.IPAddress == "" {
+			logger.Errorf("Failed to add IPConfig to state: %+v, empty IPSubnet.IPAddress", secIpconfig)
 			return InvalidSecondaryIPConfig
 		}
 	}
@@ -248,6 +241,12 @@ func (service *HTTPRestService) CreateOrUpdateNetworkContainerInternal(req cns.C
 		logNCSnapshot(req)
 	} else {
 		logger.Errorf(returnMessage)
+	}
+
+	if err = service.IPAMPoolMonitor.Update(scalar, spec); err != nil {
+		logger.Errorf("[cns-rc] Error creating or updating IPAM Pool Monitor: %v", err)
+		// requeue
+		return UnexpectedError
 	}
 
 	return returnCode

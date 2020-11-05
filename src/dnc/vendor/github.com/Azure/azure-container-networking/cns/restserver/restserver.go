@@ -4,7 +4,6 @@
 package restserver
 
 import (
-	"encoding/json"
 	"sync"
 	"time"
 
@@ -37,12 +36,13 @@ var (
 type HTTPRestService struct {
 	*cns.Service
 	dockerClient                 *dockerclient.DockerClient
-	imdsClient                   *imdsclient.ImdsClient
+	imdsClient                   imdsclient.ImdsClientInterface
 	ipamClient                   *ipamclient.IpamClient
 	networkContainer             *networkcontainers.NetworkContainers
-	PodIPIDByOrchestratorContext map[string]string                // OrchestratorContext is key and value is Pod IP uuid.
-	PodIPConfigState             map[string]ipConfigurationStatus // seondaryipid(uuid) is key
-	AllocatedIPCount             map[string]allocatedIPCount      // key - ncid
+	PodIPIDByOrchestratorContext map[string]string                    // OrchestratorContext is key and value is Pod IP uuid.
+	PodIPConfigState             map[string]cns.IPConfigurationStatus // seondaryipid(uuid) is key
+	AllocatedIPCount             map[string]allocatedIPCount          // key - ncid
+	IPAMPoolMonitor              cns.IPAMPoolMonitor
 	routingTable                 *routes.RoutingTable
 	store                        store.KeyValueStore
 	state                        *httpRestServiceState
@@ -54,23 +54,13 @@ type allocatedIPCount struct {
 	Count int
 }
 
-// This is used for KubernetesCRD orchastrator Type where NC has multiple ips.
-// This struct captures the state for SecondaryIPs associated to a given NC
-type ipConfigurationStatus struct {
-	NCID                string
-	ID                  string //uuid
-	IPSubnet            cns.IPSubnet
-	State               string
-	OrchestratorContext json.RawMessage
-}
-
 // containerstatus is used to save status of an existing container
 type containerstatus struct {
 	ID                            string
 	VMVersion                     string
 	HostVersion                   string
 	CreateNetworkContainerRequest cns.CreateNetworkContainerRequest
-	WaitingForUpdate              bool // True when NC is waiting for NMA to sync versions/rules
+	VfpUpdateComplete             bool // True when VFP programming is completed for the NC
 }
 
 // httpRestServiceState contains the state we would like to persist.
@@ -93,25 +83,17 @@ type networkInfo struct {
 	Options     map[string]interface{}
 }
 
-// HTTPService describes the min API interface that every service should have.
-type HTTPService interface {
-	common.ServiceAPI
-	SendNCSnapShotPeriodically(int, chan bool)
-	SetNodeOrchestrator(*cns.SetOrchestratorTypeRequest)
-	SyncNodeStatus(string, string, string, json.RawMessage) (int, string)
-}
-
 // NewHTTPRestService creates a new HTTP Service object.
-func NewHTTPRestService(config *common.ServiceConfig) (HTTPService, error) {
+func NewHTTPRestService(config *common.ServiceConfig, imdsClientInterface imdsclient.ImdsClientInterface) (cns.HTTPService, error) {
 	service, err := cns.NewService(config.Name, config.Version, config.ChannelMode, config.Store)
 	if err != nil {
 		return nil, err
 	}
 
-	imdsClient := &imdsclient.ImdsClient{}
+	imdsClient := imdsClientInterface
 	routingTable := &routes.RoutingTable{}
 	nc := &networkcontainers.NetworkContainers{}
-	dc, err := dockerclient.NewDefaultDockerClient(imdsClient)
+	dc, err := dockerclient.NewDefaultDockerClient(imdsClientInterface)
 
 	if err != nil {
 		return nil, err
@@ -127,7 +109,7 @@ func NewHTTPRestService(config *common.ServiceConfig) (HTTPService, error) {
 	serviceState.joinedNetworks = make(map[string]struct{})
 
 	podIPIDByOrchestratorContext := make(map[string]string)
-	podIPConfigState := make(map[string]ipConfigurationStatus)
+	podIPConfigState := make(map[string]cns.IPConfigurationStatus)
 	allocatedIPCount := make(map[string]allocatedIPCount) // key - ncid
 
 	return &HTTPRestService{
@@ -194,6 +176,7 @@ func (service *HTTPRestService) Start(config *common.ServiceConfig) error {
 	listener.AddHandler(cns.UnpublishNetworkContainer, service.unpublishNetworkContainer)
 	listener.AddHandler(cns.RequestIPConfig, service.requestIPConfigHandler)
 	listener.AddHandler(cns.ReleaseIPConfig, service.releaseIPConfigHandler)
+	listener.AddHandler(cns.GetIPAddresses, service.getIPAddressesHandler)
 
 	// handlers for v0.2
 	listener.AddHandler(cns.V2Prefix+cns.SetEnvironmentPath, service.setEnvironment)
