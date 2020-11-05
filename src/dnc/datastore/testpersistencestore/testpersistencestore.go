@@ -3,6 +3,7 @@ package testpersistencestore
 import (
 	"dnc/configuration"
 	"dnc/logger/loggershim"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -211,6 +212,12 @@ func (testpersistencestore *TestPersistenceStore) QueryInPartition(tableName, pa
 		}
 	}
 	return value, status, err
+}
+
+// QueryFilter - Query rows using a filter
+func (testpersistencestore *TestPersistenceStore) QueryFilter(_, _ string) (map[string]interface{}, error) {
+	// todo: not a straightforward way to mock more sophisticated query functionality
+	return nil, errors.New("not implemented")
 }
 
 // QueryInPartitionWithEtag - Query a row in the given partition of the table. Returns etag along with first property

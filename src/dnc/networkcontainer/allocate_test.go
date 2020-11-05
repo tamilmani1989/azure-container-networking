@@ -249,6 +249,50 @@ func Test_RemoveSecondaryIpWithEmptyAllocations(t *testing.T) {
 	}
 }
 
+func Test_RemoveAllAllocations(t *testing.T) {
+	allocsRepo := fakes.AllocationRepo{
+		Data: []fakes.RepoKV{
+			{"172.16.0.13_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1", allocIDProperty: "alloc1"}},
+			{"172.16.0.14_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1", allocIDProperty: "alloc2"}},
+			{"172.16.0.15_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1", allocIDProperty: "alloc3"}},
+			{"172.16.0.16_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1", allocIDProperty: "alloc4"}},
+		},
+		MaxPageSize: 5,
+	}
+	subnetRepo := fakes.SubnetRepo{
+		Payload: datamodel.SubnetConfiguration{NetworkID: "network1", SubnetName: "subnet1", IPSubnet: "172.16.0.0/24"},
+	}
+
+	allocator := IPAllocator{
+		Allocations:      &allocsRepo,
+		Subnets:          &subnetRepo,
+		Reservations:     fakes.NewReservationRepo(),
+		IsFeatureEnabled: enableSubnetDelegation,
+	}
+
+	res := datamodel.ReservationConfiguration{
+		ReservationID: "reservation1",
+		NetworkID:     "network1",
+		AllocationRequest: api.AllocationRequest{
+			SubnetName: "subnet1",
+		},
+		SecondaryAllocations: map[string]string{
+			"alloc1": "",
+			"alloc2": "",
+			"alloc3": "",
+			"alloc4": "",
+		},
+	}
+
+	if err := allocator.RemoveAllAllocations(res); err != nil {
+		t.Fatalf("did not expect error: %+v", err)
+	}
+
+	if len(allocsRepo.Data) != 0 {
+		t.Fatalf("expected all allocations to be removed, but had %d left", len(allocsRepo.Data))
+	}
+}
+
 func extractAllocationIDs(a fakes.AllocationRepo) map[string]struct{} {
 	allocIDs := make(map[string]struct{})
 	for _, kv := range a.Data {

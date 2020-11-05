@@ -23,6 +23,7 @@ type deleteFunc func(tableName, rowKey string) error
 type deleteInPartitionFunc func(tableName, partitionKey, rowKey string) error
 type queryFunc func(tableName, rowKey string) (interface{}, int, error)
 type queryInPartitionFunc func(tableName, partitionKey, rowKey string) (interface{}, int, error)
+type queryFilterFunc func(tableName, filter string) (map[string]interface{}, error)
 type queryInPartitionWithEtagFunc func(tableName, partitionKey, rowKey string) (interface{}, string, int, error)
 type queryInPartitionWithEtagPropertiesFunc func(tableName, partitionKey, rowKey string) (map[string]interface{}, string, int, error)
 type queryAllFunc func(tableName string, context interface{}) (map[string]interface{}, bool, interface{}, int, error)
@@ -42,6 +43,7 @@ type DataStoreShim struct {
 	DeleteInPartition                  deleteInPartitionFunc
 	Query                              queryFunc
 	QueryInPartition                   queryInPartitionFunc
+	QueryFilter                        queryFilterFunc
 	QueryAll                           queryAllFunc
 	QueryAllInPartition                queryAllInPartitionFunc
 	KeyExist                           keyExistFunc
@@ -82,6 +84,7 @@ func (dataStoreShim *DataStoreShim) Init(
 		azStorage.Init(tableToColumnMap, thresholdForLoggingDataStoreOpLatencyMs)
 		dataStoreShim.Query = queryFunc(azStorage.Query)
 		dataStoreShim.QueryInPartition = queryInPartitionFunc(azStorage.QueryInPartition)
+		dataStoreShim.QueryFilter = queryFilterFunc(azStorage.QueryFilter)
 		dataStoreShim.Delete = deleteFunc(azStorage.Delete)
 		dataStoreShim.DeleteInPartition = deleteInPartitionFunc(azStorage.DeleteInPartition)
 		dataStoreShim.InsertOrUpdate = insertOrUpdateFunc(azStorage.InsertOrUpdate)
@@ -110,6 +113,7 @@ func (dataStoreShim *DataStoreShim) Init(
 		tps.Init(tableToColumnMap)
 		dataStoreShim.Query = queryFunc(tps.Query)
 		dataStoreShim.QueryInPartition = queryInPartitionFunc(tps.QueryInPartition)
+		dataStoreShim.QueryFilter = queryFilterFunc(tps.QueryFilter)
 		dataStoreShim.Delete = deleteFunc(tps.Delete)
 		dataStoreShim.DeleteInPartition = deleteInPartitionFunc(tps.DeleteInPartition)
 		dataStoreShim.InsertOrUpdate = insertOrUpdateFunc(tps.InsertOrUpdate)

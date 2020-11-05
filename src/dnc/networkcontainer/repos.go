@@ -34,6 +34,7 @@ type IPReservationRepo interface {
 // An IPAllocationRepo performs CRUD operations on IP allocations
 type IPAllocationRepo interface {
 	TryQueryAllIPAllocations(networkID, subnetName string, pageToken interface{}) (map[string]interface{}, bool, interface{}, *api.JsonErr)
+	QueryIPAllocationsByAllocationID(networkID, subnetName string, allocIDs []string) (map[string]interface{}, *api.JsonErr)
 	AddIPAllocations(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr
 	DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr
 }

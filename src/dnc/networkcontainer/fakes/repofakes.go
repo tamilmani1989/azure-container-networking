@@ -61,6 +61,30 @@ type AllocationRepo struct {
 	MaxPageSize int
 }
 
+func (f *AllocationRepo) QueryIPAllocationsByAllocationID(_, _ string, allocIDs []string) (map[string]interface{}, *api.JsonErr) {
+	ids := make(map[string]struct{})
+	for _, allocID := range allocIDs {
+		ids[allocID] = struct{}{}
+	}
+
+	results := make(map[string]interface{})
+	for _, d := range f.Data {
+		row, ok := d.Value.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		val := row["AllocationID"]
+		allocID, ok := val.(string)
+		if !ok {
+			continue
+		}
+		if _, found := ids[allocID]; found {
+			results[d.Key] = d.Value
+		}
+	}
+	return results, nil
+}
+
 func (f *AllocationRepo) AddIPAllocations(_, _ string, _ map[string]map[string]interface{}) *api.JsonErr {
 	return nil
 }

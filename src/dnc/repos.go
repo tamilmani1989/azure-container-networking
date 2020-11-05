@@ -61,6 +61,10 @@ func (*reservationRepo) PutIPReservationConfiguration(res *datamodel.Reservation
 
 type allocationRepo struct{}
 
+func (r *allocationRepo) QueryIPAllocationsByAllocationID(networkID, subnetName string, allocIDs []string) (map[string]interface{}, *api.JsonErr) {
+	return datamodel.QueryIPAllocationsByAllocationID(networkID, subnetName, allocIDs)
+}
+
 func (*allocationRepo) TryQueryAllIPAllocations(networkID, subnetName string, pageToken interface{}) (map[string]interface{}, bool, interface{}, *api.JsonErr) {
 	return datamodel.TryQueryAllIPAllocations(networkID, subnetName, pageToken)
 }

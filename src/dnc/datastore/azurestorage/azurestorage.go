@@ -22,6 +22,8 @@ const (
 	// maximum batch transaction size
 	// see https://docs.microsoft.com/en-us/rest/api/storageservices/performing-entity-group-transactions#requirements-for-entity-group-transactions
 	MaxBatchSize = 100
+	// default timeout for calls
+	defaultTimeout = 30
 )
 
 // AzureStorage = Storage object to manage tables in a partition
@@ -59,7 +61,7 @@ func (azureStorage *AzureStorage) Init(
 func (azureStorage *AzureStorage) ensureSchema(tables map[string]string) error {
 	for tableName := range tables {
 		tbl := azureStorage.tableClient.GetTableReference(tableName)
-		if err := tbl.Create(30, storage.EmptyPayload, nil); err != nil {
+		if err := tbl.Create(defaultTimeout, storage.EmptyPayload, nil); err != nil {
 			switch e := err.(type) {
 			case storage.AzureStorageServiceError:
 				if e.StatusCode == http.StatusConflict {
@@ -321,6 +323,46 @@ func (azureStorage *AzureStorage) QueryAllRowsInPartition(tableName, partitionKe
 	return azureStorage.getRows(tableName, partitionKey, context)
 }
 
+// QueryFilter - Query rows using a filter
+// todo: need to determine a max size for filter, since its sent over a GET call to the storage API and fails if it goes over
+func (azureStorage *AzureStorage) QueryFilter(tableName, filter string) (map[string]interface{}, error) {
+	defer recordProcessingTime(time.Now(), "QueryFilter", tableName, "NA", "NA")
+
+	table := azureStorage.tableClient.GetTableReference(tableName)
+	queryOptions := storage.QueryOptions{Filter: filter}
+
+	queryResult, err := table.QueryEntities(defaultTimeout, storage.FullMetadata, &queryOptions)
+	if err != nil {
+		return nil, err
+	}
+	entities := queryResult.Entities
+
+	for queryResult.NextLink != nil {
+		nextResults, err := queryResult.NextResults(nil)
+		if err != nil {
+			return nil, err
+		}
+		entities = append(entities, nextResults.Entities...)
+		queryResult = nextResults
+	}
+
+	results := make(map[string]interface{})
+	for _, entity := range entities {
+		switch len(entity.Properties) {
+		case 0:
+			return nil, fmt.Errorf("entity %v, table %v missing properties", entity.RowKey, tableName)
+		case 1:
+			for _, val := range entity.Properties {
+				results[entity.RowKey] = val
+			}
+		default:
+			results[entity.RowKey] = entity.Properties
+		}
+	}
+
+	return results, nil
+}
+
 // KeyExist - check if key exist in a given table.
 func (azureStorage *AzureStorage) KeyExist(tableName, rowKey string) (bool, error) {
 	defer recordProcessingTime(time.Now(), "KeyExist", tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
@@ -359,7 +401,7 @@ func (azureStorage *AzureStorage) updateRowWithEtag(
 	}
 	table := *tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(partitionKay, rowKey)
-	err := entity.Get(30, storage.FullMetadata, nil)
+	err := entity.Get(defaultTimeout, storage.FullMetadata, nil)
 	if err != nil {
 		return err
 	}
@@ -405,7 +447,7 @@ func (azureStorage *AzureStorage) getRowEtagProperties(
 	}
 	table := *tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(partitionKey, rowKey)
-	err := entity.Get(30, storage.FullMetadata, nil)
+	err := entity.Get(defaultTimeout, storage.FullMetadata, nil)
 	if err == nil {
 		return entity.Properties, entity.OdataEtag, http.StatusOK, nil
 	}
@@ -460,7 +502,7 @@ func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string,
 			Filter: "PartitionKey eq '" + partitionKey + "'",
 		}
 
-		entitiesResult, err = table.QueryEntities(30, storage.FullMetadata, &queryOptions)
+		entitiesResult, err = table.QueryEntities(defaultTimeout, storage.FullMetadata, &queryOptions)
 	} else {
 		entitiesResult = context.(*storage.EntityQueryResult)
 		entitiesResult, err = entitiesResult.NextResults(nil)

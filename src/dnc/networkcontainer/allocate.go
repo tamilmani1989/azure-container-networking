@@ -420,11 +420,29 @@ func (a *IPAllocator) DeallocateIPs(res datamodel.ReservationConfiguration, allo
 }
 
 func (a *IPAllocator) RemoveAllAllocations(res datamodel.ReservationConfiguration) *api.JsonErr {
-	var rowKeys []string
-	for _, ipAddress := range res.SecondaryAllocations {
+	var (
+		rowKeys  []string
+		allocIDs []string
+	)
+
+	for allocID, ipAddress := range res.SecondaryAllocations {
 		if ipAddress != "" {
 			rowKey := datamodel.EncodeIPAllocationKey(ipAddress)
 			rowKeys = append(rowKeys, rowKey)
+			continue
+		}
+		allocIDs = append(allocIDs, allocID)
+	}
+
+	// this is needed in cases where allocations were persisted correctly, but not back to the reservation
+	// we make sure that any allocation ids associated to the reservation don't have lingering records
+	if len(allocIDs) > 0 {
+		allocRows, err := a.Allocations.QueryIPAllocationsByAllocationID(res.NetworkID, res.AllocationRequest.SubnetName, allocIDs)
+		if err != nil {
+			return err
+		}
+		for row := range allocRows {
+			rowKeys = append(rowKeys, row)
 		}
 	}
 

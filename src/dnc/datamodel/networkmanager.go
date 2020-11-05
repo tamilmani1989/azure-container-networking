@@ -6,6 +6,7 @@ import (
 	"dnc/allocationhelper"
 	"dnc/api"
 	"dnc/configuration"
+	"dnc/datastore/azurestorage"
 	"dnc/datastoreshim"
 	"dnc/logger/loggershim"
 	"dnc/nmagentcontracts"
@@ -2877,6 +2878,19 @@ func TryQueryAllIPAllocations(networkID, subnetName string, context interface{})
 	}
 
 	return data, hasMoreRows, retContext, nil
+}
+
+const AllocationIDProperty = "AllocationID"
+
+func QueryIPAllocationsByAllocationID(networkID, subnetName string, allocationIDs []string) (map[string]interface{}, *api.JsonErr) {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+	filter := azurestorage.BuildFilterOnPartition(partitionKey, AllocationIDProperty, allocationIDs)
+
+	res, err := dataStoreShim.QueryFilter(ipAllocationsTableName, filter)
+	if err != nil {
+		return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+	return res, nil
 }
 
 // TryQueryIPAllocation - Query for IP allocations
