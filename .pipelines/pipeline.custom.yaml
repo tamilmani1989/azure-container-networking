@@ -47,7 +47,7 @@ stages:
               mkdir -p '$(modulePath)'
               shopt -s extglob
               shopt -s dotglob
-              mv ./src/dnc/* '$(modulePath)/'
+              cp -a ./src/dnc/* '$(modulePath)/'
               echo '##vso[task.prependpath]$(GOBIN)'
               echo '##vso[task.prependpath]$(GOROOT)/bin'
             name: "Env"
@@ -65,6 +65,16 @@ stages:
             workingDirectory: "$(modulePath)"
             name: "BuildDNC"
             displayName: "Build DNC Binaries"
+
+          - script: |
+              set -e
+              docker build -t $(PUSH_CONTAINER_REGISTRY)/$(DNC_IMAGE_PATH):$(Env.Tag) -f ./src/dnc/builds/dnc/Dockerfile . --no-cache
+              docker build -t $(PUSH_CONTAINER_REGISTRY)/$(DNC_RC_IMAGE_PATH):$(Env.Tag) -f ./src/dnc/builds/requestcontroller/Dockerfile ./src/dnc --no-cache
+              echo '$(PUSH_CONTAINER_REGISTRY_PASSWORD)' | docker login '$(PUSH_CONTAINER_REGISTRY)' -u '$(PUSH_CONTAINER_REGISTRY_USERNAME)' --password-stdin
+              docker push $(PUSH_CONTAINER_REGISTRY)/$(DNC_IMAGE_PATH):$(Env.Tag)
+              docker push $(PUSH_CONTAINER_REGISTRY)/$(DNC_RC_IMAGE_PATH):$(Env.Tag)
+            name: "BuildAndPushDirtyDNCDocker"
+            displayName: "Build and push dirty DNC / DNC-RC docker images"
 
           - task: AzureCLI@2
             inputs:
@@ -182,3 +192,17 @@ stages:
             condition: succeeded()
             name: "DeleteVM"
             displayName: Delete remote VM
+          
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(PUSH_CONTAINER_REGISTRY_SUBSCRIPTION)
+              scriptLocation: "inlineScript"
+              scriptType: bash
+              inlineScript: |
+                az acr repository delete --name $(PUSH_CONTAINER_REGISTRY) --image $(DNC_IMAGE_PATH):$(Env.Tag) --yes
+                az acr repository delete --name $(PUSH_CONTAINER_REGISTRY) --image $(DNC_RC_IMAGE_PATH):$(Env.Tag) --yes
+                docker rmi $(PUSH_CONTAINER_REGISTRY)/$(DNC_IMAGE_PATH):$(Env.Tag)
+                docker rmi $(PUSH_CONTAINER_REGISTRY)/$(DNC_RC_IMAGE_PATH):$(Env.Tag)
+            condition: always()
+            name: "RemoveDirtyDockerImages"
+            displayName: "Remove dirty DNC / DNC RC docker images"
