@@ -1,2 +1,0 @@
-# Add command-line for Microsoft.Build.Telemetry logger.
-%MSBUILDTELCMD%
