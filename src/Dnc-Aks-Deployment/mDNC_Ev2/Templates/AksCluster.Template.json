@@ -218,10 +218,14 @@
             "metadata": {
                 "description": "The cosmos db account name used by dncrp."
             }
+        },
+        "guid": {
+            "defaultValue": "[newGuid()]",
+            "type": "String"
         }
     },
     "variables": {
-        "acrPullRole": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/7f951dda-4ed3-4680-a7ca-43fe172d538d')]",
+        "acrPullRole": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/7f951dda-4ed3-4680-a7ca-43fe172d538d')]"
     },
     "resources": [
         {
@@ -282,7 +286,7 @@
                         {
                             "type": "Microsoft.ContainerRegistry/registries/providers/roleAssignments",
                             "apiVersion": "2018-09-01-preview",
-                            "name": "[concat(parameters('defaultAcrName'), '/Microsoft.Authorization/', guid(resourceGroup().id,parameters('resourceName')))]",
+                            "name": "[concat(parameters('defaultAcrName'), '/Microsoft.Authorization/', parameters('guid'))]",
                             "dependsOn": [],
                             "properties": {
                                 "roleDefinitionId": "[variables('acrPullRole')]",
@@ -311,7 +315,7 @@
                         {
                             "type": "Microsoft.DocumentDB/databaseAccounts/providers/roleAssignments",
                             "apiVersion": "2018-09-01-preview",
-                            "name": "[concat(parameters('cosmosDbAccountName'), '/Microsoft.Authorization/', guid(concat(resourceGroup().id,parameters('resourceName'))))]",
+                            "name": "[concat(parameters('cosmosDbAccountName'), '/Microsoft.Authorization/', parameters('guid'))]",
                             "dependsOn": [],
                             "properties": {
                                 "roleDefinitionId": "/subscriptions/[subscription().subscriptionId]/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
@@ -340,7 +344,7 @@
                         {
                             "type": "Microsoft.DocumentDB/databaseAccounts/providers/roleAssignments",
                             "apiVersion": "2018-09-01-preview",
-                            "name": "[concat(parameters('rpcosmosDbAccountName'), '/Microsoft.Authorization/', guid(concat(resourceGroup().id,parameters('resourceName'))))]",
+                            "name": "[concat(parameters('rpcosmosDbAccountName'), '/Microsoft.Authorization/', parameters('guid'))]",
                             "dependsOn": [],
                             "properties": {
                                 "roleDefinitionId": "/subscriptions/[subscription().subscriptionId]/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",

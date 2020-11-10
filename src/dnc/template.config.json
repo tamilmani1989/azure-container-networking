@@ -95,20 +95,6 @@
         "PubsubCertKeyvaultName": "__RegionalKeyVaultName__",
         "PubsubCertFilePath": "",
         "PubsubConnectionEndpoint": "__PubsubConnectionEndpoint__",
-        "PubsubVips": [
-            {
-                "AzId": "AZ01",
-                "VIPs": "VIP1,VIP2,VIP3"
-            },
-            {
-                "AzId": "AZ02",
-                "VIPs": "VIP1,VIP2,VIP3"
-            },
-            {
-                "AzId": "AZ03",
-                "VIPs": "VIP1,VIP2,VIP3"
-            }
-        ],
         "PubsubVipsString" : "__PubsubVips__"
     },
     "IdentitySettings": {
