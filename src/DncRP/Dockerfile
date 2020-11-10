@@ -8,6 +8,12 @@
 
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS builder
 
+RUN curl -L https://raw.githubusercontent.com/Microsoft/artifacts-credprovider/master/helpers/installcredprovider.sh  | sh
+
+ARG FEED_ACCESSTOKEN
+ENV VSS_NUGET_EXTERNAL_FEED_ENDPOINTS \
+    "{\"endpointCredentials\": [{\"endpoint\":\"https://msblox.pkgs.visualstudio.com/_packaging/AzureGenevaMonitoring/nuget/v3/index.json\", \"username\":\"vik\", \"password\":\"${FEED_ACCESSTOKEN}\"}]}"
+
 # Create directory for source
 WORKDIR /usr/local/Networking-Aquarius/src
 

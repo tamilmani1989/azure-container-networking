@@ -86,6 +86,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 Console.WriteLine("Datastore ResourceGroup: {0}", settings.ResourceGroup);
                 Console.WriteLine("Datastore Region: {0}", settings.Region);
             }
+
+            MdmMetricsConfig mdmMetricsConfig = configuration.GetSection("MdmMetrics").Get<MdmMetricsConfig>();
+            if (mdmMetricsConfig != null)
+            {
+                Console.WriteLine("MdmMetrics AccountName: {0}", mdmMetricsConfig.AccountName);
+                Console.WriteLine("MdmMetrics Namespace: {0}", mdmMetricsConfig.Namespace);
+                Console.WriteLine("MdmMetrics StatsDHost: {0}", mdmMetricsConfig.StatsDHost);
+                Console.WriteLine("MdmMetrics StatsDPort: {0}", mdmMetricsConfig.StatsDPort);
+                Console.WriteLine("MdmMetrics StatsDSocketProtocol: {0}", mdmMetricsConfig.StatsDSocketProtocol);
+            }
         }
     }
 }

@@ -12,6 +12,8 @@
     <PackageReference Include="Microsoft.Azure.Cosmos.Table" Version="1.0.8" />
     <PackageReference Include="Microsoft.Azure.Management.Network" Version="20.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" Version="3.1.7" />
+    <PackageReference Include="Microsoft.Cloud.InstrumentationFramework.Metrics.Extensions" Version="2.2020.1020.1339" />
+    <PackageReference Include="JustEat.StatsD" Version="4.1.0" />
   </ItemGroup>
   
   <ItemGroup>
@@ -19,6 +21,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Update="nuget.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Update="operationslist.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

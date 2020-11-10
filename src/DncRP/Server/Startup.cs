@@ -9,18 +9,26 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Net.Http;
+    using System.Net.Mime;
     using System.Security.Claims;
+    using System.Threading;
     using System.Threading.Tasks;
+    using JustEat.StatsD;
     using Microsoft.AspNetCore.Authentication.Certificate;
     using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.Diagnostics.HealthChecks;
     using Microsoft.AspNetCore.Hosting;
+    using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.WebUtilities;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
+    using Microsoft.Cloud.InstrumentationFramework.Metrics.Extensions;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Hosting;
     using Microsoft.Extensions.Primitives;
+    using Newtonsoft.Json;
 
     public class Startup
     {
@@ -53,6 +61,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // initialize context first
             ContextInitializer.InitializeContext(Configuration, imdsRetriever);
 
+            // Initialize MDM
+            MdmStatsDProvider metricsProvider = MdmStatsDProvider.CreateMdmStatsDProvider(Configuration);
+            services.AddSingleton<IMetricsProvider, MdmStatsDProvider>(provider => metricsProvider);
+
             // set up IOptions from configuration
             services.Configure<DatastoreSettings>(Configuration.GetSection("DataStoreSettings"));
             services.Configure<ArmCertificatesSettings>(Configuration.GetSection("ArmCertificatesSettings"));
@@ -70,6 +82,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             services.AddHostedService<TableStoreInitHostedService>();
 
             services.AddHttpContextAccessor();
+            services.AddHealthChecks().AddCheck<HealthCheck>("dncrp_health_check");
 
             services.AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme)
                 .AddCertificate(options =>
@@ -130,6 +143,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 });
 
             services.AddControllers();
+            StartLoggingServiceUpMetric(metricsProvider);
             Console.WriteLine("Startup ConfigureServices done");
         }
 
@@ -151,7 +165,43 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+
+                endpoints.MapHealthChecks("/health", new HealthCheckOptions
+                {
+                    ResponseWriter = async (context, report) =>
+                    {
+                        var result = JsonConvert.SerializeObject(
+                                         new HealthResult
+                                         {
+                                             Uptime = report.Entries.FirstOrDefault().Value.Description
+                                         },
+                                         Formatting.None,
+                                         new JsonSerializerSettings
+                                         {
+                                             NullValueHandling = NullValueHandling.Ignore
+                                         }); ; ;
+
+                        context.Response.ContentType = MediaTypeNames.Application.Json;
+                        await context.Response.WriteAsync(result);
+                    }
+                }).RequireAuthorization();
             });
+        }
+
+        private void StartLoggingServiceUpMetric(MdmStatsDProvider provider)
+        {
+            Thread thread = new Thread(ServiceUpMetricThread);
+            thread.Start(provider);
+        }
+
+        private void ServiceUpMetricThread(object data)
+        {
+            IMetricsProvider provider = (IMetricsProvider)data;
+            while (true)
+            {
+                provider.EmitMetric(MetricNames.DncRPUP, 1);
+                Thread.Sleep(TimeSpan.FromSeconds(60));
+            }
         }
     }
 }
