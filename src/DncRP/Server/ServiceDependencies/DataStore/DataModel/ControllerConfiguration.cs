@@ -8,6 +8,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.IO;
     using System.Net;
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
@@ -117,7 +118,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string resourceGuid, createdDate;
             if (HttpStatusCodeCheck.IsResourceNotFound(result.HttpStatusCode))
             {
-                resourceGuid = mdncGuid;
+                resourceGuid = this.GetControllerResourceGuid(controllerName);
                 createdDate = DateTime.UtcNow.ToString();
             }
             else
@@ -210,6 +211,27 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             return new Controller(subId, resourceGroup, controllerName);
+        }
+
+        private string GetControllerResourceGuid(string controllerName)
+        {
+            if (controllerName.StartsWith("AzureContainerNetworking_", StringComparison.OrdinalIgnoreCase))
+            {
+                string[] parts = controllerName.Split(new string[] { "_" }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 2)
+                {
+                    Guid ctrlGuid;
+                    if (Guid.TryParse(parts[1], out ctrlGuid))
+                    {
+                        // Parsing is done to make sure Guid format is correct
+                        return ctrlGuid.ToString();
+                    }
+                }
+
+                throw new InvalidDataException($"Invalid test controller name {controllerName}");
+            }
+
+            return mdncGuid;
         }
     }
 }

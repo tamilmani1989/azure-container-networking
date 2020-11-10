@@ -13,6 +13,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     using System.Net.Http;
     using System.Text;
     using System.Text.RegularExpressions;
+    using System.Threading.Tasks;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
@@ -35,6 +36,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         private DatastoreSettings datastoreSettings;
         private const string settingsFileName = "servicetests.settings.json";
         private const string connectStrRegex = "RunAs=App;AppId=(.*);TenantId=(.*);AppKey=(.*)";
+        private const string mdncGuid = "5c7e26be-7ff9-4aaf-9e16-0bc759605aea";
 
         public ControllerTests()
         {
@@ -73,6 +75,34 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         [Fact]
         public async void TestControllerResource_Get_Put_Delete()
         {
+            string guid = Guid.NewGuid().ToString();
+            string[] strs = guid.Split(new string[] { "-" }, StringSplitOptions.RemoveEmptyEntries);
+            string rgName = strs[0];
+            string ctrlName = strs[1];
+            string location = "Test location";
+
+            await this.TestControllerResouce_Get_Put_Delete_Internal(ctrlName, rgName, location, mdncGuid);
+        }
+
+        /// <summary>
+        /// Test controller API for test scenario. For test scenario,
+        /// controller name should be AzureContainerNetworking_<guid>
+        /// </summary>
+        [Fact]
+        public async void TestControllerResource_Get_Put_Delete_CustomControllerName()
+        {
+            string guid = Guid.NewGuid().ToString();
+            string[] strs = guid.Split(new string[] { "-" }, StringSplitOptions.RemoveEmptyEntries);
+            string rgName = strs[0];
+            string ctrlName = $"AzureContainerNetworking_{guid}";
+            string location = "Test location";
+
+            // Expected resource guid should be the one that is passed in the custom controller name
+            await this.TestControllerResouce_Get_Put_Delete_Internal(ctrlName, rgName, location, guid);
+        }
+
+        private async Task TestControllerResouce_Get_Put_Delete_Internal(string ctrlName, string rgName, string location, string expectedCtrlResouceGuid)
+        {
             CurrentContext.SetContext(this.configuration["AzureEnvironment"], this.configuration["AzureRegion"]);
             CurrentContext.SetManagedIdentity(clientIdentity);
 
@@ -93,11 +123,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             await SubscriptionRegistrationTests.RegisterSub(this.testConfig.SubscriptionId, tableOperations);
             DncController dncController = new DncController(tableOperations, dncCtrlLogger.Object);
 
-            string guid = Guid.NewGuid().ToString();
-            string[] strs = guid.Split(new string[] { "-" }, StringSplitOptions.RemoveEmptyEntries);
-            string rgName = strs[0];
-            string ctrlName = strs[1];
-            string location = "Test location";
             string expectedId = $"/subscriptions/{this.testConfig.SubscriptionId}/resourceGroups/{rgName}/providers/Microsoft.DelegatedNetwork/controller/{ctrlName}";
 
             // Get resource and validate results
@@ -131,7 +156,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Assert.True(jsonDeserialized["location"].ToString().Equals(location));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["type"].ToString()));
             Assert.True(jsonDeserialized["properties"]["provisioningState"].ToString().Equals(ProvisioningState.Succeeded.ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["resourceGuid"].ToString()));
+            Assert.True(string.Equals(jsonDeserialized["properties"]["resourceGuid"].ToString(), expectedCtrlResouceGuid));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["dncAppId"].ToString()));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["dncEndpoint"].ToString()));
 
@@ -146,7 +171,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Assert.True(jsonDeserialized["location"].ToString().Equals(location));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["type"].ToString()));
             Assert.True(jsonDeserialized["properties"]["provisioningState"].ToString().Equals(ProvisioningState.Succeeded.ToString()));
-            Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["resourceGuid"].ToString()));
+            Assert.True(string.Equals(jsonDeserialized["properties"]["resourceGuid"].ToString(), expectedCtrlResouceGuid));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["dncAppId"].ToString()));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["controllerProperties"]["dncEndpoint"].ToString()));
 
