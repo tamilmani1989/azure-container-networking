@@ -5,6 +5,9 @@
 #
 #   b. Run docker build as below
 #      docker build -t dnc-gateway:version -f Gateway/Dockerfile --no-cache .
+#
+#   ex1.  docker build -t acndev.azurecr.io/dnc-gateway:latest -f Gateway/Dockerfile --no-cache .
+#   ex2.  docker build -t acnprod.azurecr.io/dnc-gateway:latest -f Gateway/Dockerfile --no-cache .
 
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS builder
 

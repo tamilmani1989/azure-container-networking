@@ -1,10 +1,15 @@
 #   To build DncRP docker image, follow below steps
 #
-#   a. Change to src directory on your machine in networking aquarius repo
+#   a. Create a PAT (personal access token) for msblox feed in your devops profile. Copy out the value of PAT and use it in step c)
+#
+#   b. Change to src directory on your machine in networking aquarius repo
 #      cd Networking/Aquarius/src
 #
-#   b. Run docker build as below
-#      docker build -t dncrp:version -f DncRP/Dockerfile --no-cache .
+#   c. Run docker build as below
+#      docker build -t dncrp:version -f DncRP/Dockerfile --no-cache --build-arg FEED_ACCESSTOKEN=<PAT> .
+#
+#   ex1. docker build -t acnprod.azurecr.io/dncrp:latest -f DncRP/Dockerfile --no-cache --build-arg FEED_ACCESSTOKEN=abcdefghijk .
+#   ex2. docker build -t acndev.azurecr.io/dncrp:latest -f DncRP/Dockerfile --no-cache --build-arg FEED_ACCESSTOKEN=abcdefghijk .
 
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS builder
 

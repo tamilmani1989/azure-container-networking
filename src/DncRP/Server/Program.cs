@@ -58,9 +58,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 {
                     // Using AllowCertificate instead of RequireCertificate since with AllowCertificate, cert validation
                     // errors show up in asp.net logs and help with debugging. With Require, it shows up as SSL error
-                    // and can be bit harder to debug.
+                    // and can be bit harder to debug. Also, only tls1.2 and tls1.3 due to compliance
                     options.ConfigureHttpsDefaults(o =>
-                      o.ClientCertificateMode = ClientCertificateMode.AllowCertificate);
+                    {
+                        o.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
+                        o.SslProtocols = System.Security.Authentication.SslProtocols.Tls13 | System.Security.Authentication.SslProtocols.Tls12;
+                    });
 
                     options.ListenAnyIP(Convert.ToInt32(config["Port"]), listenOptions =>
                     {

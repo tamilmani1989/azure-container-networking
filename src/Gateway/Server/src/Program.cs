@@ -56,6 +56,12 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
                     .ConfigureAppConfiguration(builder => builder.AddJsonFile(configPath))
                     .UseKestrel(options =>
                      {
+                         // Only tls1.2 and tls1.3 due to compliance
+                         options.ConfigureHttpsDefaults(o =>
+                         {
+                             o.SslProtocols = System.Security.Authentication.SslProtocols.Tls13 | System.Security.Authentication.SslProtocols.Tls12;
+                         });
+
                          options.ListenAnyIP(Convert.ToInt32(config["Port"]), listenOptions =>
                          {
                              listenOptions.UseHttps(Certificates.GetKeyVaultCertificate(config["KeyVault:Url"], config["KeyVault:SslCertName"]));
