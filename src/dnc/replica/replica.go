@@ -1,6 +1,7 @@
 package replica
 
 import (
+	"crypto/tls"
 	"dnc/api"
 	"dnc/configuration"
 	"dnc/logger/loggershim"
@@ -15,7 +16,7 @@ import (
 	"time"
 )
 
-const httpScheme = "http://"
+const httpScheme = "http"
 
 // GetRefreshMonitorStatus
 type GetRefreshMonitorStatus func() api.RefreshMonitorStatus
@@ -67,24 +68,57 @@ func (replica *Replica) SetPrimaryIPEndpoint(ipEndpoint string) {
 	replica.setPrimaryReverseProxy(ipEndpoint)
 }
 
+// RoundTripperFunc function injects a https client into the reverse proxy
+type ReverseProxyRoundTripper struct {
+	reverseProxyHttpClient *http.Client
+}
+
+// Roundtrip below injects a https usuable httpclient into the reverse proxy
+func (fn *ReverseProxyRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Request URI set is treated as a error in client requests
+	// it uses the URL field instead
+	req.RequestURI = ""
+	return fn.reverseProxyHttpClient.Do(req)
+}
+
 // Set the reverse proxy to the primary to be used by this replica
-func (replica *Replica) setPrimaryReverseProxy(ipEndpoint string) {
-	target := httpScheme + ipEndpoint
-	url, err := url.ParseRequestURI(target)
+func (replica *Replica) setPrimaryReverseProxy(Endpoint string) {
+	url, err := url.ParseRequestURI(Endpoint)
+
 	if err != nil {
 		loggershim.LS.Errorf("Failed to parse target URL when creating reverseproxy with error: %v", err)
 		return
 	}
+
+	// during deployment, some primaries may mot post scheme and port combination
+	// as they have not been upgraded yet, check for this and default to http
+	if url.Scheme == "" {
+		url.Scheme = httpScheme
+	}
+
 	replica.reverseProxy = httputil.NewSingleHostReverseProxy(url)
 
+	// With the introduction of HTTPS in DNC
+	// need to set the below host tls client with servername to avoid
+	// tls connection errors due to hostname mismatch
 	transport := &http.Transport{
+		TLSClientConfig:     &tls.Config{ServerName: replica.serverSettings.TlsCertificateSubjectName},
 		MaxIdleConnsPerHost: replica.httpClientSettings.MaxIdleConnsPerHost,
 		IdleConnTimeout:     time.Duration(replica.httpClientSettings.IdleConnTimeout) * time.Second,
 		DialContext: (&net.Dialer{
 			Timeout: time.Duration(replica.httpClientSettings.ConnectionTimeout) * time.Second,
 		}).DialContext,
 	}
-	replica.reverseProxy.Transport = transport
+
+	reverseHttpClient := &http.Client{
+		Transport: transport,
+	}
+
+	roundTripper := &ReverseProxyRoundTripper{
+		reverseProxyHttpClient: reverseHttpClient,
+	}
+
+	replica.reverseProxy.Transport = roundTripper
 
 	// This is based on golang's reverseproxy, default error handler, only difference is
 	// it logs using our custom logger, rather standard one.
@@ -147,7 +181,17 @@ func (replica *Replica) GetReplicaIPEndpoint() (string, error) {
 		return "", err
 	}
 
-	return replicaIP + ":" + replica.serverSettings.Port, nil
+	return "http://" + replicaIP + ":" + replica.serverSettings.Port, nil
+}
+
+// GetReplicaTLSEndpoint - Method to return replicas TLS endpoint.
+func (replica *Replica) GetReplicaTLSEndpoint() (string, error) {
+	replicaIP, err := replica.getReplicaIPAddress()
+	if err != nil {
+		return "", err
+	}
+
+	return "https://" + replicaIP + ":" + replica.serverSettings.TlsPort, nil
 }
 
 func (replica *Replica) getReplicaIPAddress() (string, error) {

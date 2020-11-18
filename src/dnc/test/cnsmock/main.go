@@ -1,8 +1,11 @@
 package main
 
 import (
+	"crypto/tls"
+	localtls "github.com/Azure/azure-container-networking/server/tls"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"net/http"
 
 	"github.com/Azure/azure-container-networking/cns"
@@ -15,15 +18,69 @@ const defaultAddr = "localhost:10090"
 // Small mock of CNS for happy path testing of DNC API
 func main() {
 	addrFlag := flag.String("address", defaultAddr, "host:port")
+	tlsCertificatePath := flag.String("tlsCertificatePath", "", "Directory to PFX")
 	flag.Parse()
 
 	r := mux.NewRouter()
+	r.SkipClean(true)
 	registerRoutes(r)
 
 	srv := http.Server{Addr: *addrFlag, Handler: r}
 
-	logrus.Infof("cns mock server listening on %s", srv.Addr)
-	logrus.Fatal(srv.ListenAndServe())
+	if *tlsCertificatePath != ""{
+		logrus.Infof("cns mock tls server listening on %s", srv.Addr)
+		logrus.Fatal(StartTlsServer(*tlsCertificatePath,*addrFlag, r))
+	}else{
+		logrus.Infof("cns mock server listening on %s", srv.Addr)
+		logrus.Fatal(srv.ListenAndServe())
+	}
+}
+
+func StartTlsServer(tlsCertificatePath, address string, router *mux.Router) error {
+	settings := localtls.TlsSettings{
+		TLSCertificatePath: tlsCertificatePath,
+	}
+	tlsCertRetriever, err := localtls.GetTlsCertificateRetriever(settings)
+	if err != nil {
+		return fmt.Errorf("Failed to get certificate retriever", err)
+	}
+
+	leafCertificate, err := tlsCertRetriever.GetCertificate()
+
+	if err != nil {
+		return fmt.Errorf("Failed to get certificate", err)
+	}
+
+	logrus.Infof("Retrieved Leaf certificate")
+
+	privateKey, err := tlsCertRetriever.GetPrivateKey()
+
+	if err != nil {
+		return fmt.Errorf("Failed to get certificate private key", err)
+	}
+
+	logrus.Infof("Retrieved Private Key")
+	tlsCert := tls.Certificate{
+		Certificate: [][]byte{leafCertificate.Raw},
+		PrivateKey:  privateKey,
+		Leaf:        leafCertificate,
+	}
+
+	tlsConfig := &tls.Config{
+		MaxVersion: tls.VersionTLS12,
+		MinVersion: tls.VersionTLS12,
+		Certificates: []tls.Certificate{
+			tlsCert,
+		},
+	}
+
+	tlsServer :=  &http.Server{
+		Addr:      address,
+		TLSConfig: tlsConfig,
+		Handler: router,
+	}
+
+	return tlsServer.ListenAndServeTLS("", "")
 }
 
 // todo: add routes as needed

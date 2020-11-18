@@ -1,6 +1,6 @@
 # code.cloudfoundry.org/clock v1.0.0
 code.cloudfoundry.org/clock
-# github.com/Azure/azure-container-networking v1.1.9
+# github.com/Azure/azure-container-networking v1.2.0
 ## explicit
 github.com/Azure/azure-container-networking/aitelemetry
 github.com/Azure/azure-container-networking/cnm
@@ -22,6 +22,8 @@ github.com/Azure/azure-container-networking/log
 github.com/Azure/azure-container-networking/network/policy
 github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha
 github.com/Azure/azure-container-networking/platform
+github.com/Azure/azure-container-networking/server/tls
+github.com/Azure/azure-container-networking/server/tls/customcerttostore
 github.com/Azure/azure-container-networking/store
 github.com/Azure/azure-container-networking/telemetry
 # github.com/Azure/azure-sdk-for-go v40.6.0+incompatible
@@ -52,8 +54,6 @@ github.com/Azure/go-autorest/logger
 github.com/Azure/go-autorest/tracing
 # github.com/Masterminds/semver v1.5.0
 github.com/Masterminds/semver
-# github.com/Microsoft/ApplicationInsights-Go v0.4.2
-## explicit
 # github.com/Microsoft/go-winio v0.4.15-0.20190919025122-fc70bd9a86b5
 github.com/Microsoft/go-winio
 github.com/Microsoft/go-winio/pkg/guid
@@ -199,6 +199,7 @@ go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/tracestate
 # golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+## explicit
 golang.org/x/crypto/pkcs12
 golang.org/x/crypto/pkcs12/internal/rc2
 golang.org/x/crypto/ssh/terminal
@@ -214,6 +215,7 @@ golang.org/x/net/idna
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
 # golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
+## explicit
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
@@ -499,3 +501,5 @@ sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics
 sigs.k8s.io/structured-merge-diff/v3/value
 # sigs.k8s.io/yaml v1.2.0
 sigs.k8s.io/yaml
+# software.sslmate.com/src/go-pkcs12 v0.0.0-20201102150903-66718f75db0e
+## explicit

@@ -35,11 +35,12 @@
   },
   "CNSSettings": {
     "ChannelMode": "Direct",
+    "CnsTlsCertificateSubjectName": "",
     "ConnectionStrings": {
       "CreateOrUpdateNetworkContainerURLFmt": "http://%s:10090/network/createorupdatenetworkcontainer",
       "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
-      "GetNetworkContainerStatusURLFmt": "http://%s:10090/network/getnetworkcontainerstatus",
       "SetOrchestratorTypeURLFmt": "http://%s:10090/network/setorchestratortype",
+      "GetNetworkcontainerstatusURLFmt": "http://%s:10090/network/getnetworkcontainerstatus",
       "GetNumOfCPUCoresURLFmt": "http://%s:10090/hostcpucores",
       "PublishNetworkContainerURLFmt": "http://%s:10090/network/publishnetworkcontainer",
       "UnpublishNetworkContainerURLFmt": "http://%s:10090/network/unpublishnetworkcontainer"
@@ -65,7 +66,7 @@
     "ReverseProxyEnabled": false,
     "ThresholdForLoggingDataStoreOpLatencyMs": 1000,
     "Managed": false,
-    "BMMode" : true
+    "BMMode": true
   },
   "HttpClientSettings": {
     "ConnectionTimeout": 5,

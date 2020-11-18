@@ -37,6 +37,7 @@ var (
 	maxVlan                   uint16 = 2048
 	maxContainersPerNode             = 10
 	httpClient                *http.Client
+	cnsHttpClient             *http.Client
 	defaultDNSServer          string
 	enforceNICLimit           bool // zero value is false
 	nicsAllowedPerVirtualCore uint16
@@ -50,6 +51,7 @@ func Init(
 	dncSettings configuration.DNCSettings,
 	min, max uint16,
 	httpClientArg *http.Client,
+	cnsHttpClientArg *http.Client,
 	wireServerIP string) error {
 	requestBaseInterval = dncSettings.RequestRetryBaseInterval
 	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, dncSettings, TableToColumnMap)
@@ -70,6 +72,7 @@ func Init(
 	}
 
 	cnsSettings = cnsConfigSettings
+	cnsHttpClient = cnsHttpClientArg
 	httpClient = httpClientArg
 	enforceNICLimit = dncSettings.EnforceNICLimit
 	nicsAllowedPerVirtualCore = dncSettings.NICsAllowedPerVirtualCore
@@ -3271,7 +3274,7 @@ func GetNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 		cnsSettings.ConnectionStrings.GetNumOfCPUCoresURLFmt,
 		nodeIP)
 
-	w, respErr := httpClient.Get(getNumOfCoresURL)
+	w, respErr := cnsHttpClient.Get(getNumOfCoresURL)
 	if respErr != nil {
 		msg := fmt.Sprintf(
 			"Error encountered while querying number of cores for node IP %s with error %+v ",

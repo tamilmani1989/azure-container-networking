@@ -37,6 +37,7 @@
     },
     "CNSSettings": {
         "ChannelMode": "Disabled",
+        "CnsTlsCertificateSubjectName": "",
         "ConnectionStrings": {
             "CreateOrUpdateNetworkContainerURLFmt": "http://%s:10090/network/createorupdatenetworkcontainer",
             "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
@@ -67,7 +68,7 @@
         "ReverseProxyEnabled": false,
         "ThresholdForLoggingDataStoreOpLatencyMs": 1000,
         "Managed": true,
-        "BMMode" : false
+        "BMMode": false
     },
     "HttpClientSettings": {
         "ConnectionTimeout": 5,

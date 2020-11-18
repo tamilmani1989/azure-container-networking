@@ -16,6 +16,10 @@
    {
      "hash": "8SJVyu72WoeDoIWcgOzcqC9EUYhTxmiJJr4WNiQwCS0=",
      "_justification": "Suppress the false positive password reported in GAExtension AzureExtensionPackage"
+   },
+   {
+     "hash": "haTKonjbvVgn4/MndW71URp+AubCIuHdTZ6jT+3m1a8=",
+     "_justification": "False positive by using a pfx encoder package that has a constant poorly named"
    }
  ]
 }

@@ -22,6 +22,8 @@ function OverridePort-Config {
  param( [int]$Port, [string]$configFilePath)
     $dncConfigJson = Get-Content $configFilePath | ConvertFrom-Json
     $dncConfigJson.ServerSettings.Port = "" + $Port + ""
+    $Port++
+    $dncConfigJson.ServerSettings.TlsPort = "" + $Port + ""
 
     return $dncConfigJson
 }
@@ -33,13 +35,13 @@ function OutputDnc-Config {
    [System.IO.File]::WriteAllLines($destinationFilePath, $dncConfigJson)
 }
 
-$endPort = $StartingPort + $InstanceCount 
+$endPort = $StartingPort + ($InstanceCount * 2) 
 cd $SourceDirectory
 
 ##build each instance and assign it to a port
-for($i = $StartingPort; $i -lt $endPort; $i++)
+for($i = $StartingPort; $i -lt $endPort; $i = $i + 2)
 {
-    Write-Host "Building DNC with Port $i"
+    Write-Host "Building DNC with Port $i and TLSPort $($i + 1)"
     go build -o azure-dnc-port-$i.exe -ldflags "-X dnc/utils.Version=%VERSION%"
 
     $exists = Test-Path $DestinationDirectory\$i
@@ -56,6 +58,5 @@ for($i = $StartingPort; $i -lt $endPort; $i++)
     OutputDnc-Config -dncConfigJson $dncConfig -destinationFilePath $DestinationDirectory\$i\config_test.json
 
     Copy-Item azure-dnc-port-$i.exe -Destination $DestinationDirectory\$i\azure-dnc-port-$i.exe
-    Copy-Item azure-vnet-telemetry.exe -Destination $DestinationDirectory\$i\azure-vnet-telemetry.exe
     Remove-Item -Path $SourceDirectory\azure-dnc-port-$i.exe
 }

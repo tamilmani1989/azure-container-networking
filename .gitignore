@@ -341,3 +341,6 @@ debug.test
 
 # Local History for Visual Studio Code
 .history/
+
+# Ignore pkg folder
+**/pkg/*

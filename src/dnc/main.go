@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	ad "dnc/activedirectory"
 	"dnc/aiwrapper"
 	"dnc/cns"
@@ -35,13 +36,13 @@ import (
 )
 
 var (
-	cancelProcessing         = make(chan bool)
-	startChan                = make(chan bool)
-	doneChan                 = make(chan bool)
-	demoteChan               = make(chan bool)
-	refreshNCStopProcessing  = make(chan bool)
-	telemetryStopProcessing  = make(chan bool)
-	reports                  = make(chan telemetry.DNCReport)
+	cancelProcessing        = make(chan bool)
+	startChan               = make(chan bool)
+	doneChan                = make(chan bool)
+	demoteChan              = make(chan bool)
+	refreshNCStopProcessing = make(chan bool)
+	telemetryStopProcessing = make(chan bool)
+	reports                 = make(chan telemetry.DNCReport)
 
 	config             *configuration.Configuration
 	masterElectionShim *masterelectionshim.MasterElectionShim
@@ -64,6 +65,9 @@ var (
 
 	// HTTP client object to be reused wherever needed
 	httpClient *http.Client
+
+	// HTTP client object to be used by to call cns
+	cnsHttpClient *http.Client
 )
 
 const (
@@ -178,6 +182,19 @@ func main() {
 		doneChan,
 		demoteChan)
 
+	TlsClientConfig := &tls.Config{ServerName: config.CNSSettings.CnsTlsCertificateSubjectName}
+
+	// Creating a cns client that uses the tls servername to avoid hostname mismatch
+	cnsHttpClient = &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: TlsClientConfig,
+			DialContext: (&net.Dialer{
+				Timeout: time.Duration(config.HttpClientSettings.ConnectionTimeout) * time.Second,
+			}).DialContext,
+			ResponseHeaderTimeout: time.Duration(config.HttpClientSettings.ResponseHeaderTimeout) * time.Second,
+		},
+	}
+
 	// Creating http client object to be reused instead of creating one every time.
 	// This helps make use of the cached tcp connections.
 	// Clients are safe for concurrent use by multiple goroutines.
@@ -197,7 +214,7 @@ func main() {
 			EnforceNicLimit: config.DNCSettings.EnforceNICLimit,
 			CNSClient: &cns.Client{
 				Paths: config.CNSSettings.ConnectionStrings,
-				HTTP:  httpClient,
+				HTTP:  cnsHttpClient,
 			},
 			Logger: logger,
 		}
@@ -211,12 +228,13 @@ func main() {
 	}
 
 	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
-		masterElectionShim, config, httpClient)
+		masterElectionShim, config, httpClient, cnsHttpClient)
 	dncServer = server.Server{
 		ServerSettings:      config.ServerSettings,
 		Controller:          ctrler,
 		ReverseProxyEnabled: config.DNCSettings.ReverseProxyEnabled,
-		ConnectionTimeout:   config.HttpClientSettings.ConnectionTimeout}
+		ConnectionTimeout:   config.HttpClientSettings.ConnectionTimeout,
+		Logger:              logger}
 
 	if err := dncServer.Init(); err != nil {
 		log.Fatalln("Error initializing dnc server. Error:", err)
@@ -235,6 +253,7 @@ func main() {
 			config.VlanSettings.Min,
 			config.VlanSettings.Max,
 			httpClient,
+			cnsHttpClient,
 			config.HostAgentSettings.WireServerIP)
 		if err != nil {
 			log.Fatalln("Error initializing datamodel. Error:", err)

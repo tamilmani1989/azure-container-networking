@@ -47,8 +47,12 @@ type DataStoreSettings struct {
 
 // ServerSettings - Details related to listener settings.
 type ServerSettings struct {
-	IPAddress string
-	Port      string
+	IPAddress                 string
+	Port                      string
+	TlsCertificateSubjectName string
+	TlsCertificateFilePath    string
+	TlsPort                   string
+	UseHttps                  bool
 }
 
 // BlobStorageSettings - Details related to blob storage settings.
@@ -115,8 +119,9 @@ type CNSConnectionStrings struct {
 
 // CNSSettings CNS settings
 type CNSSettings struct {
-	ChannelMode       string
-	ConnectionStrings CNSConnectionStrings
+	ChannelMode                  string
+	CnsTlsCertificateSubjectName string
+	ConnectionStrings            CNSConnectionStrings
 }
 
 // VlanSettings - VLAN inventory

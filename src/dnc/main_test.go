@@ -82,6 +82,14 @@ func StartDnc(managed bool) {
 		},
 	}
 
+	cnsHttpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: time.Duration(config.HttpClientSettings.ConnectionTimeout) * time.Second,
+			}).DialContext,
+			ResponseHeaderTimeout: time.Duration(config.HttpClientSettings.ResponseHeaderTimeout) * time.Second,
+		},
+	}
 	switch config.CNSSettings.ChannelMode {
 	case cns.Direct:
 		cnsInterface = &cnsinterface.DirectChannel{
@@ -98,7 +106,7 @@ func StartDnc(managed bool) {
 	}
 
 	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
-		masterElectionShim, config, httpClient)
+		masterElectionShim, config, httpClient, cnsHttpClient)
 	dncServer = server.Server{
 		ServerSettings: config.ServerSettings,
 		Controller:     ctrler}
@@ -115,6 +123,7 @@ func StartDnc(managed bool) {
 			config.VlanSettings.Min,
 			config.VlanSettings.Max,
 			httpClient,
+			cnsHttpClient,
 			config.HostAgentSettings.WireServerIP)
 		ctrler.UpdateReplicaStatus(true)
 	}

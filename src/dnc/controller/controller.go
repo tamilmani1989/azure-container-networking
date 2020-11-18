@@ -31,6 +31,7 @@ type Controller struct {
 	Replica        *replica.Replica
 	SessionManager *utils.SessionManager
 	httpClient     *http.Client
+	cnsHttpClient  *http.Client
 }
 
 // NewController - Create a NewController
@@ -40,11 +41,13 @@ func NewController(
 	setOrchestratorTypeUrlFmt string,
 	electionShim *masterelectionshim.MasterElectionShim,
 	configuration *configuration.Configuration,
-	httpClient *http.Client) *Controller {
+	httpClient *http.Client,
+	cnsHttpClient *http.Client) *Controller {
 	controller := new(Controller)
 	controller.Replica = replica
 	controller.SessionManager = sessionsManager
 	controller.httpClient = httpClient
+	controller.cnsHttpClient = cnsHttpClient
 	setOrchestratorTypeURLFmt = setOrchestratorTypeUrlFmt
 	masterElectionShim = electionShim
 	config = configuration
@@ -79,7 +82,7 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 			nodeInfo.IPAddresses[0])
 		loggershim.LS.Debugf("[CNS] create/update %s", nodeInfo.String())
 
-		w, respErr := c.httpClient.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
+		w, respErr := c.cnsHttpClient.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
 		if respErr != nil {
 			msg := fmt.Sprintf("Post to URL %v for node %s failed with error %s",
 				setOrchestratorTypeURL,
@@ -617,6 +620,11 @@ func (c *Controller) GetReplicaIPEndpoint() (string, error) {
 	return c.Replica.GetReplicaIPEndpoint()
 }
 
+// GetReplicaIPEndpoint - Retrieves the tls endpoint of this replica.
+func (c *Controller) GetReplicaTLSEndpoint() (string, error) {
+	return c.Replica.GetReplicaTLSEndpoint()
+}
+
 // GetPrimaryReverseProxy - Get the reverse proxy to the primary used by this replica
 func (c *Controller) GetPrimaryReverseProxy() *httputil.ReverseProxy {
 	return c.Replica.GetPrimaryReverseProxy()
@@ -637,6 +645,7 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 		config.VlanSettings.Min,
 		config.VlanSettings.Max,
 		c.httpClient,
+		c.cnsHttpClient,
 		config.HostAgentSettings.WireServerIP)
 	c.UpdateReplicaStatus(true)
 
@@ -662,6 +671,7 @@ func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2)
 		config.VlanSettings.Min,
 		config.VlanSettings.Max,
 		c.httpClient,
+		c.cnsHttpClient,
 		config.HostAgentSettings.WireServerIP)
 	c.UpdateReplicaStatus(true)
 
@@ -688,6 +698,7 @@ func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, b
 		config.VlanSettings.Min,
 		config.VlanSettings.Max,
 		c.httpClient,
+		c.cnsHttpClient,
 		config.HostAgentSettings.WireServerIP)
 	c.UpdateReplicaStatus(true)
 

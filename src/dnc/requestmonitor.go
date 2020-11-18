@@ -527,7 +527,7 @@ func processNetworkContainerAssociate(
 
 	// todo: cns interface method
 	logger.Debugf("[CNS] create/update NC %s", ncGoalState.NetworkContainerID)
-	w, respErr := httpClient.Post(createOrUpdateNCURL, defaultContentType, &body)
+	w, respErr := cnsHttpClient.Post(createOrUpdateNCURL, defaultContentType, &body)
 
 	// Reacquire the session locks post calling in to cns
 	sessionManager.BeginWriteSession(sessionInfo)
@@ -921,7 +921,7 @@ func processNetworkContainerPublish(
 		sessionManager.EndWriteSession(sessionInfo)
 
 		respPublishCNS, respPublishCNSErr :=
-			httpClient.Post(publishNCURL, defaultContentType, &publishNCRequestBody)
+			cnsHttpClient.Post(publishNCURL, defaultContentType, &publishNCRequestBody)
 
 		// Reacquire the session locks after receiving response from CNS
 		sessionManager.BeginWriteSession(sessionInfo)
@@ -1312,7 +1312,7 @@ func processNetworkContainerUnPublish(
 		sessionManager.EndWriteSession(sessionInfo)
 
 		respUnpublishCNS, respUnpublishCNSErr :=
-			httpClient.Post(unpublishNCURL, defaultContentType, &unpublishNCRequestBody)
+			cnsHttpClient.Post(unpublishNCURL, defaultContentType, &unpublishNCRequestBody)
 
 		// Reacquire the session locks after receiving response from NMAgent
 		sessionManager.BeginWriteSession(sessionInfo)

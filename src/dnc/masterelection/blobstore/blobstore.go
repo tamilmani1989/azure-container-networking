@@ -84,9 +84,15 @@ func (b *BlobStore) Start() {
 		partitionKey == "" {
 		ipAddress, err := b.getIPAddress()
 		utils.OnErrorFail(err, "Failed to get local host IP")
-		ipEndpoint := ipAddress + ":" + b.serverSettings.Port
+
+		var endpoint string
+		if b.serverSettings.UseHttps{
+			endpoint = "https://" + ipAddress + ":" + b.serverSettings.TlsPort
+		} else {
+			endpoint = "http://" + ipAddress + ":" + b.serverSettings.Port
+		}
 		b.replicaChangeNotificationCallback(true)
-		b.primaryIPEndpointNotificationCallback(ipEndpoint)
+		b.primaryIPEndpointNotificationCallback(endpoint)
 	} else {
 		b.TryAcquireLease()
 	}

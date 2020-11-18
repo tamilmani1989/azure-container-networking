@@ -8,9 +8,14 @@ import (
 	"strings"
 )
 
+const (
+	HTTPS = "https://"
+	HTTP  = "http://"
+)
+
 var supportedAPIVersions = map[string]bool{"2018-03-01": true}
 
-func Logger(inner http.Handler, name string, reverseProxyEnabled bool, connectionTimeout int) http.Handler {
+func Logger(inner http.Handler, name string, reverseProxyEnabled, useHttps bool, connectionTimeout int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Validate if the API version is supported.
 		_, err := getandValidateAPIVersion(r)
@@ -52,8 +57,14 @@ func Logger(inner http.Handler, name string, reverseProxyEnabled bool, connectio
 
 					return
 				}
+				// if UseHttps is flipped, then primary/replica communication will communicate on https
+				var replicaEP string
+				if useHttps {
+					replicaEP, err = ctrler.GetReplicaTLSEndpoint()
+				} else {
+					replicaEP, err = ctrler.GetReplicaIPEndpoint()
+				}
 
-				replicaEP, err := ctrler.GetReplicaIPEndpoint()
 				if err != nil {
 					setRequestFailed(w, &api.JsonErr{
 						Code:       api.PrimaryNotAvailable,
@@ -74,7 +85,7 @@ func Logger(inner http.Handler, name string, reverseProxyEnabled bool, connectio
 					return
 				}
 
-				target := "http://" + primaryEP + r.URL.String()
+				target := primaryEP + r.URL.String()
 				if reverseProxyEnabled {
 					loggershim.LS.Debugf("Forwarding to %s", target)
 					reverseProxy := ctrler.GetPrimaryReverseProxy()

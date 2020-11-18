@@ -155,14 +155,15 @@ func (st *StorageTableLease) updatePrimaryIPEndpoint() error {
 	// Fetching IP from getReplicaIPEndpoint is optimization. It could have been
 	// read from lease table as well (saves us a call to storage), since this method
 	// is called from primary replica
-	ipEndpoint, err := st.getReplicaIPEndpoint()
+	// endpoint now includes http(s) scheme to support https migration
+	endpoint, err := st.getReplicaIPEndpoint()
 	if err != nil {
 		return err
 	}
 
-	loggershim.LS.Debugf("Replica %v [%s] got elected as primary. ", ipEndpoint, st.identity)
+	loggershim.LS.Debugf("Replica %v [%s] got elected as primary. ", endpoint, st.identity)
 	st.replicaChangeNotificationCallback(true)
-	st.primaryIPEndpointNotificationCallback(ipEndpoint)
+	st.primaryIPEndpointNotificationCallback(endpoint)
 
 	return nil
 }
@@ -562,7 +563,10 @@ func (st *StorageTableLease) getReplicaIPEndpoint() (string, error) {
 		return "", err
 	}
 
-	return replicaIP + ":" + st.serverSettings.Port, nil
+	if st.serverSettings.UseHttps{
+		return "https://" + replicaIP + ":" + st.serverSettings.TlsPort, nil
+	}
+	return "http://" + replicaIP + ":" + st.serverSettings.Port, nil
 }
 
 // getPartitionKey - Get endpoint of current replica

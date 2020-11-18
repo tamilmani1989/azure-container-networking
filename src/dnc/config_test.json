@@ -6,7 +6,11 @@
   },
   "ServerSettings": {
     "IPAddress": "127.0.0.1",
-    "Port": "9000"
+    "Port": "9000",
+    "TlsCertificateSubjectName": "",
+    "TlsCertificateFilePath" : "",
+    "TlsPort" : "9001",
+    "UseHttps": false
   },
   "MasterElectionSettings": {
     "UseDataStore": false,
@@ -34,6 +38,7 @@
   },
   "CNSSettings": {
     "ChannelMode": "Direct",
+    "CnsTlsCertificateSubjectName" : "",
     "ConnectionStrings": {
       "CreateOrUpdateNetworkContainerURLFmt": "http://%s:10090/network/createorupdatenetworkcontainer",
       "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",

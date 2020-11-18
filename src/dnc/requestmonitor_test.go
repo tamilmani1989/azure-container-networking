@@ -152,6 +152,7 @@ func Setup() error {
 	}
 
 	httpClient = http.DefaultClient
+	cnsHttpClient = http.DefaultClient
 	return nil
 }
 
