@@ -12,6 +12,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -19,6 +21,8 @@ const (
 	configFileEnvVar            = "CONFIG_FILE"
 	defaultConfigFile           = "testdata/config_test.json"
 )
+
+var logger logrus.FieldLogger = logrus.New()
 
 func TestGetBytesForAllWithCosmos(t *testing.T) {
 	if _, set := os.LookupEnv(enableIntegrationTestEnvVar); !set {
@@ -44,9 +48,18 @@ func TestGetBytesForAllWithCosmos(t *testing.T) {
 		t.Fatalf("Failed getting config with error: %v", err)
 	}
 
-	kubeconfigProvider := NewKubeconfigProvider(config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID, config.DataStoreSettings, config.LoggingConfig,
-		mockSecretProvider{}, config.KubernetesConfig.KubeconfigInfo.ClientCertificatesDirectory, config.KubernetesConfig.KubeconfigInfo.KubeloginBinaryPath,
-		config.KubernetesConfig.KubeconfigInfo.AzureEnvironment)
+	kubeconfigProviderOpts := KubeconfigProviderOptions{
+		DataStoreSettings:           config.DataStoreSettings,
+		LoggingConfig:               config.LoggingConfig,
+		SecretProvider:              mockSecretProvider{},
+		Logger:                      logger,
+		ClientCertificatesDirectory: config.KubernetesConfig.KubeconfigInfo.ClientCertificatesDirectory,
+		KubeloginBinaryPath:         config.KubernetesConfig.KubeconfigInfo.KubeloginBinaryPath,
+		AzureEnvironment:            config.KubernetesConfig.KubeconfigInfo.AzureEnvironment,
+		ManagedDNCGUID:              config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID,
+	}
+
+	kubeconfigProvider := NewKubeconfigProvider(kubeconfigProviderOpts)
 
 	kubeconfigs, err := kubeconfigProvider.GetBytesForAll(context.Background())
 	if err != nil {

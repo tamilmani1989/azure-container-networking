@@ -7,14 +7,13 @@ import (
 	"dnc/requestcontroller"
 	"dnc/retry"
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
-	cache "github.com/patrickmn/go-cache"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -26,6 +25,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
+// MaxBackoffSeconds is the maximum backoff between manager restarts
 const MaxBackoffSeconds = 16
 
 // ManagerPool contains a set of Managers (k8s clients) that RC will use to watch for Nodes/NNCs
@@ -36,6 +36,7 @@ type ManagerPool struct {
 	config             requestcontroller.Config
 	subnetInfoProvider requestcontroller.SubnetInfoProvider
 	syncDNCClient      requestcontroller.SynchronousDNCClient
+	logger             logrus.FieldLogger
 }
 
 type manager struct {
@@ -43,6 +44,7 @@ type manager struct {
 	kubeconfigBytes []byte
 	managerMutex    sync.Mutex
 	state           managerState
+	logger          logrus.FieldLogger
 }
 
 type managerState int
@@ -69,6 +71,9 @@ func (m *ManagerPool) RegisterManagers(kubeconfigs map[string][]byte) {
 				kubeconfigBytes: kubeconfigBytes,
 				exitChan:        make(chan struct{}),
 				state:           managerStopped,
+				logger: m.logger.WithFields(logrus.Fields{
+					"orchestratorID": orchestratorID,
+				}),
 			}
 			m.managers[orchestratorID] = mgr
 		}
@@ -91,14 +96,13 @@ func (m *ManagerPool) RegisterManagers(kubeconfigs map[string][]byte) {
 
 	removedMgrs := getRemovedItems(existingMgrs, newMgrs)
 	for _, mgrToDelete := range removedMgrs {
-		log.Printf("Stopping manager for orchestrator %s", mgrToDelete)
+		m.managers[mgrToDelete].logger.Infof("Stopping manager for orchestrator %s", mgrToDelete)
 		if m.managers[mgrToDelete].exitChan != nil {
 			close(m.managers[mgrToDelete].exitChan)
 		}
 
 		delete(m.managers, mgrToDelete)
 	}
-
 }
 
 // StartAll starts all managers in the pool
@@ -117,7 +121,7 @@ func (m *ManagerPool) UnregisterAll() {
 	defer m.poolMutex.Unlock()
 
 	for orchestratorID, mgr := range m.managers {
-		log.Printf("Stopping manager for orchestrator %s", orchestratorID)
+		mgr.logger.Infof("Stopping manager for orchestrator %s", orchestratorID)
 		if mgr.exitChan != nil {
 			close(mgr.exitChan)
 		}
@@ -145,7 +149,7 @@ func (m *manager) runForever(orchestratorID string, scheme *runtime.Scheme, conf
 
 loop:
 	for {
-		log.Printf("Starting manager for orchestrator %s", orchestratorID)
+		m.logger.Infof("Stopping manager for orchestrator %s", orchestratorID)
 		mgrExitChan := make(chan struct{})
 
 		go func() {
@@ -161,12 +165,14 @@ loop:
 			close(mgrExitChan)
 			backoffDuration = 0 // No backoff because no error
 		case err := <-errChan:
-			log.Printf("Manager for orchestrator %s failed with error: %v", orchestratorID, err)
+			m.logger.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Infof("Manager for orchestrator %s failed with error: %v", orchestratorID, err)
 			// Restart the manager after backoff
 			close(mgrExitChan)
 			backoffDuration = getNextBackoff(backoffDuration)
 		case <-m.exitChan:
-			log.Printf("Stopping manager for orchestrator %s", orchestratorID)
+			m.logger.Infof("Stopping manager for orchestrator %s", orchestratorID)
 			close(mgrExitChan)
 			// Exit loop since manager entity is now stopped
 			break loop
@@ -195,7 +201,7 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 	}
 
 	// Ensure CRD definition is installed on cluster before starting up manager
-	log.Printf("Ensuring NodeNetworkConfig CRD definition exists on cluster")
+	m.logger.Infof("Ensuring NodeNetworkConfig CRD definition exists on cluster")
 	clientSet, err := apiextensionsclientset.NewForConfig(restConfig)
 	if err != nil {
 		return fmt.Errorf("Error creating client for CRD definition creation: %w", err)
@@ -252,12 +258,15 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 	}
 
 	// Add the Node reconciler
-	nodeReconciler := &NodeReconciler{
-		Client:           mgr.GetClient(),
+	nodeReconciler := NewNodeReconciler(NodeReconcilerOptions{
+		K8sClient:        mgr.GetClient(),
+		DNCClient:        syncDNCClient,
 		Namespace:        config.KubernetesConfig.Namespace,
 		InitialIPCount:   config.RequestScalerConfig.BatchSize,
 		K8sClientTimeout: k8sClientTimeout,
-	}
+		Logger:           m.logger,
+	})
+
 	err = ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
 		WithEventFilter(NodeEventFilter{}).
@@ -267,17 +276,15 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 	}
 
 	// Add the NNC reconciler
-	nodeNetworkConfigReconciler := &NodeNetworkConfigReconciler{
-		Client:             mgr.GetClient(),
-		DncClient:          syncDNCClient,
+	nodeNetworkConfigReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{
+		K8sClient:          mgr.GetClient(),
+		DNCClient:          syncDNCClient,
 		ScalerConfig:       config.RequestScalerConfig,
 		SubnetInfoProvider: subnetInfoProvider,
-		NodeIDToNCID:       cache.New(cache.NoExpiration, cache.NoExpiration),
-		RegisteredNodes:    cache.New(cache.NoExpiration, cache.NoExpiration),
-		RegisteredVnets:    cache.New(cache.NoExpiration, cache.NoExpiration),
-		RegisteredSubnets:  cache.New(cache.NoExpiration, cache.NoExpiration),
+		Logger:             m.logger,
 		ReconcileTimeout:   dncClientRequestTimeout,
-	}
+	})
+
 	err = ctrl.NewControllerManagedBy(mgr).
 		For(&acnv1alpha.NodeNetworkConfig{}).
 		WithEventFilter(NodeNetworkConfigEventFilter{}).

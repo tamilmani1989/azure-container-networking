@@ -11,12 +11,15 @@ import (
 	"testing"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
-	cache "github.com/patrickmn/go-cache"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+//TODO: don't use a global here
+var logger logrus.FieldLogger = logrus.New()
 
 type mockSubnetInfoProvider struct {
 	subnetInfo map[string]map[string]requestcontroller.SubnetInfo // delegatedSubnetID -> {subnetName -> SubnetInfo, subnetName -> SubnetInfo}
@@ -49,9 +52,9 @@ func TestReconcileNewNNC(t *testing.T) {
 	k8sClient := newMockK8sClient()
 	dncClient := syncdncclient.MockSynchronousDNCClient{}
 
-	nncReconciler := NodeNetworkConfigReconciler{
-		Client:    k8sClient,
-		DncClient: &dncClient,
+	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{
+		K8sClient: k8sClient,
+		DNCClient: &dncClient,
 		ScalerConfig: requestcontroller.RequestScalerConfig{
 			BatchSize:               16,
 			ReleaseThresholdPercent: 50,
@@ -69,11 +72,8 @@ func TestReconcileNewNNC(t *testing.T) {
 				},
 			},
 		},
-		NodeIDToNCID:      cache.New(cache.NoExpiration, cache.NoExpiration),
-		RegisteredNodes:   cache.New(cache.NoExpiration, cache.NoExpiration),
-		RegisteredVnets:   cache.New(cache.NoExpiration, cache.NoExpiration),
-		RegisteredSubnets: cache.New(cache.NoExpiration, cache.NoExpiration),
-	}
+		Logger: logger,
+	})
 
 	nnc := acnv1alpha.NodeNetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{

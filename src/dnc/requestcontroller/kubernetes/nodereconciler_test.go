@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	syncdncclient "dnc/requestcontroller/dncclient"
+
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -20,15 +22,21 @@ func TestReconcileNewNode(t *testing.T) {
 	namespace := "test"
 	nodeName := "test-node"
 	mockClient := newMockK8sClient()
-	nodeReconciler := NodeReconciler{
-		Client:         mockClient,
+	nodeReconciler := NewNodeReconciler(NodeReconcilerOptions{
+		K8sClient:      mockClient,
+		DNCClient:      &syncdncclient.MockSynchronousDNCClient{},
 		Namespace:      namespace,
 		InitialIPCount: 8,
-	}
+		Logger:         logger,
+	})
 
 	node := corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
+			Labels: map[string]string{
+				DelegatedSubnetIDLabel: "b7806e74-9fd3-4ff8-8906-6e2278f4415b",
+				SubnetNameLabel:        "subnet1",
+			},
 		},
 	}
 
@@ -68,11 +76,13 @@ func TestReconcileDeletingNode(t *testing.T) {
 	namespace := "test"
 	nodeName := "test-node"
 	mockClient := newMockK8sClient()
-	nodeReconciler := NodeReconciler{
-		Client:         mockClient,
+	nodeReconciler := NewNodeReconciler(NodeReconcilerOptions{
+		K8sClient:      mockClient,
+		DNCClient:      &syncdncclient.MockSynchronousDNCClient{},
 		Namespace:      namespace,
 		InitialIPCount: 8,
-	}
+		Logger:         logger,
+	})
 
 	node := corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
@@ -129,11 +139,13 @@ func TestReconcileDeletedNode(t *testing.T) {
 	namespace := "test"
 	nodeName := "test-node"
 	mockClient := newMockK8sClient()
-	nodeReconciler := NodeReconciler{
-		Client:         mockClient,
+	nodeReconciler := NewNodeReconciler(NodeReconcilerOptions{
+		K8sClient:      mockClient,
+		DNCClient:      &syncdncclient.MockSynchronousDNCClient{},
 		Namespace:      namespace,
 		InitialIPCount: 8,
-	}
+		Logger:         logger,
+	})
 
 	nnc := acnv1alpha.NodeNetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{

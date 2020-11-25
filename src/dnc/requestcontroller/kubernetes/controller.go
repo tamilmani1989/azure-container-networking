@@ -5,17 +5,12 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
-	ad "dnc/activedirectory"
-	dncclient "dnc/client"
 	"dnc/requestcontroller"
-	"dnc/requestcontroller/datastore"
-	syncdncclient "dnc/requestcontroller/dncclient"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
-	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -40,6 +35,16 @@ const (
 type RequestController struct {
 	managerPool        *ManagerPool
 	kubeconfigProvider requestcontroller.KubeconfigProvider
+	logger             logrus.FieldLogger
+}
+
+// RequestControllerOptions options used to create requestcontroller instance
+type RequestControllerOptions struct {
+	KubeconfigProvider requestcontroller.KubeconfigProvider
+	DNCClient          requestcontroller.SynchronousDNCClient
+	SubnetInfoProvider requestcontroller.SubnetInfoProvider
+	Config             requestcontroller.Config
+	Logger             logrus.FieldLogger
 }
 
 var _ requestcontroller.RequestController = &RequestController{}
@@ -54,16 +59,11 @@ type K8sClient interface {
 	Status() client.StatusWriter
 }
 
-// NewRequestControllerWithConfigProvider creates a new RequestController from the given ConfigProvider
-func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider) (*RequestController, error) {
-	config, err := cp.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-
+// NewRequestController creates a new RequestController from the given ConfigProvider
+func NewRequestController(opts RequestControllerOptions) (*RequestController, error) {
 	// Add the CRD to the scheme
 	scheme := runtime.NewScheme()
-	err = clientgoscheme.AddToScheme(scheme)
+	err := clientgoscheme.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -73,68 +73,17 @@ func NewRequestControllerWithConfigProvider(cp requestcontroller.ConfigProvider)
 		return nil, err
 	}
 
-	// Get the Cosmos token via MSI if necessary
-	if config.DataStoreSettings.AzureStorageInfo.IsUsingCosmosDb && config.DataStoreSettings.AzureStorageInfo.Key == "" {
-		log.Printf("Getting key for CosmosDB with MSI")
-		key, err := getCosmosKeyFromMSI(context.TODO(), config.CosmosMSISettings.MSIResourceID, config.CosmosMSISettings.CosmosResourceID, config.CosmosMSISettings.AzureEnvironment)
-		if err != nil {
-			return nil, err
-		}
-
-		/* Saw a strange error where if the subscription was incorrect in the CosmosResourceID string, the getCosmosKeyFromMSI function would return an empty key and nil error.
-		*  The following check ensures that RC doesn't get an empty key and nil error. TODO: We should investigate why the adal functions were not returning errors and failing silently
-		 */
-		if key == "" {
-			return nil, fmt.Errorf("Error getting Cosmos Key, key was empty")
-		}
-
-		config.DataStoreSettings.AzureStorageInfo.Key = key
-	}
-
-	// Choose a kubeconfig provider
-	var kubeconfigProvider requestcontroller.KubeconfigProvider
-	kubeconfigInfo := config.KubernetesConfig.KubeconfigInfo //later code references properties a lot, so make future line shorter
-	log.Printf("Creating kubeconfig provider for config mode %s", kubeconfigInfo.Mode)
-
-	switch mode := kubeconfigInfo.Mode; mode {
-	case requestcontroller.KubeconfigFileMode:
-		kubeconfigProvider = requestcontroller.KubeconfigFromFileProvider{kubeconfigInfo.File}
-	case requestcontroller.KubeconfigDatastoreMode:
-		// Datastore mode requires secret from keyvault, so build keyvault client
-		keyvaultClient, err := getKeyvaultClientFromMSI(context.TODO(), kubeconfigInfo.ClientCertificatesKeyvaultConfig.KeyvaultName,
-			kubeconfigInfo.ClientCertificatesKeyvaultConfig.MSIResourceID, kubeconfigInfo.ClientCertificatesKeyvaultConfig.AzureEnvironment)
-		if err != nil {
-			return nil, err
-		}
-
-		kubeconfigProvider = datastore.NewKubeconfigProvider(kubeconfigInfo.ManagedDNCGUID, config.DataStoreSettings, config.LoggingConfig,
-			keyvaultClient, kubeconfigInfo.ClientCertificatesDirectory, kubeconfigInfo.KubeloginBinaryPath, kubeconfigInfo.AzureEnvironment)
-	default:
-		return nil, fmt.Errorf("Error creating kubeconfig provider from config mode: %s is not a valid mode for config.kubernetesConfig.kubeconfigInfo.mode", mode)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	dncClientPollingInterval, err := time.ParseDuration(config.DNCClientConfig.PollingInterval)
-	if err != nil {
-		return nil, err
-	}
-
-	syncDncClient := syncdncclient.NewSynchronousDNCClient(dncclient.NewDncClient(config.DNCClientConfig.DNCEndpoint), dncClientPollingInterval)
-
-	subnetInfoProvider := datastore.NewSubnetInfoProvider(config.DataStoreSettings, config.LoggingConfig)
-
 	requestController := RequestController{
 		managerPool: &ManagerPool{
 			managers:           make(map[string]*manager),
 			scheme:             scheme,
-			config:             config,
-			subnetInfoProvider: subnetInfoProvider,
-			syncDNCClient:      syncDncClient,
+			subnetInfoProvider: opts.SubnetInfoProvider,
+			config:             opts.Config,
+			syncDNCClient:      opts.DNCClient,
+			logger:             opts.Logger,
 		},
-		kubeconfigProvider: kubeconfigProvider,
+		kubeconfigProvider: opts.KubeconfigProvider,
+		logger:             opts.Logger,
 	}
 
 	return &requestController, nil
@@ -151,54 +100,10 @@ func (r *RequestController) Start() {
 	//block until exitChan is closed
 	select {
 	case <-exitChan:
-		log.Printf("Stopping all managers")
+		r.logger.Info("Stopping all managers")
 		cancel()
 		r.managerPool.UnregisterAll()
 	}
-}
-
-func getCosmosKeyFromMSI(ctx context.Context, msiResourceID, cosmosResourceID, azureEnvironment string) (string, error) {
-	tokenFetcher := &ad.MSITokenFetcher{ResourceID: msiResourceID}
-	azureEnv, err := azure.EnvironmentFromName(azureEnvironment)
-	if err != nil {
-		return "", err
-	}
-
-	armEndpoint := azureEnv.ResourceManagerEndpoint
-
-	spt, err := tokenFetcher.GetServicePrincipalToken(armEndpoint)
-	if err != nil {
-		return "", err
-	}
-
-	token, err := ad.GetFreshToken(ctx, spt)
-	if err != nil {
-		return "", err
-	}
-
-	keyFetcher := ad.CosmosKeyFetcher{ARMEndpoint: armEndpoint}
-	keys, err := keyFetcher.GetReadWriteKeys(ctx, token, cosmosResourceID)
-	if err != nil {
-		return "", err
-	}
-
-	// todo: rotation still needs to be figured out
-	return keys.PrimaryMasterKey, nil
-}
-
-func getKeyvaultClientFromMSI(ctx context.Context, keyvaultName, msiResourceID, azureEnvironmentName string) (*ad.KeyvaultClient, error) {
-	tokenFetcher := &ad.MSITokenFetcher{ResourceID: msiResourceID}
-	azureEnvironment, err := azure.EnvironmentFromName(azureEnvironmentName)
-	if err != nil {
-		return nil, fmt.Errorf("Error getting AzureEnvironment from string %s: %w", azureEnvironment, err)
-	}
-
-	keyvaultClient, err := ad.NewKeyvaultClient(tokenFetcher, azureEnvironment, keyvaultName)
-	if err != nil {
-		return nil, fmt.Errorf("Error getting keyvault client: %w", err)
-	}
-
-	return keyvaultClient, nil
 }
 
 func (r *RequestController) registerAndStartManagers(ctx context.Context) error {
@@ -219,19 +124,19 @@ func (r *RequestController) registerAndStartManagers(ctx context.Context) error 
 func (r *RequestController) registerAndStartManagersForever(ctx context.Context) {
 	err := r.registerAndStartManagers(ctx)
 	if err != nil {
-		log.Printf("Failed to get k8s clients: %v, will retry in 30s", err)
+		r.logger.Info("Failed to get k8s clients: %v, will retry in 30s", err)
 	}
 	for {
 		select {
 		case <-ctx.Done():
-			log.Printf("register managers loop was cancelled, no longer checking for new k8s clusters")
+			r.logger.Info("register managers loop was cancelled, no longer checking for new k8s clusters")
 			return
 		case <-time.After(30 * time.Second):
-			log.Printf("Refreshing k8s clients from kubeconfig provider")
+			r.logger.Info("Refreshing k8s clients from kubeconfig provider")
 		}
 		err := r.registerAndStartManagers(ctx)
 		if err != nil {
-			log.Printf("Failed to get k8s clients: %v, will retry in 30s", err)
+			r.logger.Info("Failed to get k8s clients: %v, will retry in 30s", err)
 		}
 	}
 }

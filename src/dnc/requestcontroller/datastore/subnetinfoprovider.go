@@ -83,9 +83,18 @@ func (s *SubnetInfoProvider) GetSubnetInfo(ctx context.Context, delegatedSubnetI
 
 	switch v := value.(type) {
 	case map[string]interface{}:
-		subnetInfo.VnetID = v[vnetGUIDPropertyName].(string)
-		subnetInfo.PrimaryToken = v[primaryTokenPropertyName].(string)
-		subnetInfo.SecondaryToken = v[secondaryTokenPropertyName].(string)
+		if v[vnetGUIDPropertyName] != nil {
+			subnetInfo.VnetID = v[vnetGUIDPropertyName].(string)
+		}
+
+		if v[primaryTokenPropertyName] != nil {
+			subnetInfo.PrimaryToken = v[primaryTokenPropertyName].(string)
+		}
+
+		if v[secondaryTokenPropertyName] != nil {
+			subnetInfo.SecondaryToken = v[secondaryTokenPropertyName].(string)
+		}
+
 	default:
 		return subnetInfo, fmt.Errorf("Unexpected type %v returned by Cosmos", v)
 	}

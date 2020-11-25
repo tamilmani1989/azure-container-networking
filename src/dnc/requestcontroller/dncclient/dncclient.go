@@ -12,21 +12,23 @@ import (
 	"dnc/retry"
 	"fmt"
 	"math"
-	"log"
 	"net/http"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 //SynchronousDNCClient is a DNC client wrapping async http calls into synchronous functions
 type SynchronousDNCClient struct {
 	dncClient *client.DncClient
 	retrier   retry.Retrier
+	logger    logrus.FieldLogger
 }
 
 var _ requestcontroller.SynchronousDNCClient = SynchronousDNCClient{}
 
 // NewSynchronousDNCClient returns a new SynchronousDNCClient
-func NewSynchronousDNCClient(dncClient *client.DncClient, pollingInterval time.Duration) SynchronousDNCClient {
+func NewSynchronousDNCClient(dncClient *client.DncClient, pollingInterval time.Duration, logger logrus.FieldLogger) SynchronousDNCClient {
 	retrier := retry.Retrier{
 		Attempts: math.MaxInt32,
 		Delay:    pollingInterval,
@@ -34,6 +36,7 @@ func NewSynchronousDNCClient(dncClient *client.DncClient, pollingInterval time.D
 	syncDNCClient := SynchronousDNCClient{
 		dncClient: dncClient,
 		retrier:   retrier,
+		logger:    logger,
 	}
 
 	return syncDNCClient
@@ -52,8 +55,15 @@ func (s SynchronousDNCClient) GetNode(ctx context.Context, nodeID string) (*api.
 
 // UpsertNode adds/updates the Node on DNC
 func (s SynchronousDNCClient) UpsertNode(ctx context.Context, nodeID, ipAddress, orchestratorType, infraVnet string) error {
+	logger := s.logger.WithFields(logrus.Fields{
+		"nodeID":             nodeID,
+		"ipAddress":          ipAddress,
+		"orchestratorType":   orchestratorType,
+		"infrastructureVnet": infraVnet,
+	})
+
 	// Send the AddNode request
-	log.Printf("DNC call to Add node: NodeID: %s, ipAddress:%s, orchType:%s, infravnet:%s", nodeID, ipAddress,
+	logger.Infof("DNC call to Add node: NodeID: %s, ipAddress:%s, orchType:%s, infravnet:%s", nodeID, ipAddress,
 		orchestratorType, infraVnet)
 	addNodeRespErr := s.dncClient.AddNode(nodeID, ipAddress, orchestratorType, infraVnet)
 	// http.StatusOK means request is accepted, anything else means there was an error
@@ -61,7 +71,7 @@ func (s SynchronousDNCClient) UpsertNode(ctx context.Context, nodeID, ipAddress,
 		return addNodeRespErr
 	}
 
-	log.Printf("Add Node succeeded for %s. Call dnc get node", nodeID)
+	logger.Infof("Add Node succeeded for %s. Call dnc get node", nodeID)
 
 	var respErr *api.JsonErr
 
@@ -75,7 +85,7 @@ func (s SynchronousDNCClient) UpsertNode(ctx context.Context, nodeID, ipAddress,
 		return respErr
 	})
 
-	log.Printf("UpsertNode: DNC call GetNode status for nodeID:%s is :%+v", nodeID, respErr)
+	logger.Infof("UpsertNode: DNC call GetNode status for nodeID:%s is :%+v", nodeID, respErr)
 	// If the context was cancelled or max attempts reached
 	if err != nil {
 		return err
@@ -90,15 +100,18 @@ func (s SynchronousDNCClient) UpsertNode(ctx context.Context, nodeID, ipAddress,
 
 //DeleteNode deletes the node
 func (s SynchronousDNCClient) DeleteNode(ctx context.Context, nodeID string) error {
+	logger := s.logger.WithFields(logrus.Fields{
+		"nodeID": nodeID,
+	})
 	// Send the DeleteNode request
-	log.Printf("DNC call to DeleteNode node: NodeID: %s", nodeID)
+	logger.Infof("DNC call to DeleteNode node: NodeID: %s", nodeID)
 	deleteNodeResp := s.dncClient.DeleteNode(nodeID)
 	// http.StatusOK means request is accepted, anything else means there was an error
 	if deleteNodeResp.HTTPStatus != http.StatusOK {
 		return deleteNodeResp
 	}
 
-	log.Printf("Delete Node succeeded for %s. Call dnc get node", nodeID)
+	logger.Infof("Delete Node succeeded for %s. Call dnc get node", nodeID)
 	var respErr *api.JsonErr
 
 	err := s.retrier.Do(ctx, func() error {
@@ -110,7 +123,7 @@ func (s SynchronousDNCClient) DeleteNode(ctx context.Context, nodeID string) err
 		return respErr
 	})
 
-	log.Printf("DeleteNode: DNC call GetNode status for nodeID:%s is :%+v", nodeID, respErr)
+	logger.Infof("DeleteNode: DNC call GetNode status for nodeID:%s is :%+v", nodeID, respErr)
 	// If the context was cancelled or max attempts reached
 	if err != nil {
 		return err
@@ -125,7 +138,11 @@ func (s SynchronousDNCClient) DeleteNode(ctx context.Context, nodeID string) err
 
 //GetNC wraps dnc/client's GetNC to present errors as standard error type
 func (s SynchronousDNCClient) GetNC(ctx context.Context, networkID, ncID string) (*api.NetworkContainerResponse, error) {
-	log.Printf("DNC call to Get NC ncID:%s, networkID:%s", ncID, networkID)
+	logger := s.logger.WithFields(logrus.Fields{
+		"vnetID": networkID,
+		"ncID":   ncID,
+	})
+	logger.Infof("DNC call to Get NC ncID:%s, networkID:%s", ncID, networkID)
 	// TODO: update this to use context when dnc/client functions accept context
 	ncResp, respErr := s.dncClient.GetNC(networkID, ncID)
 	if respErr != nil && respErr.HTTPStatus == http.StatusOK {
@@ -137,14 +154,18 @@ func (s SynchronousDNCClient) GetNC(ctx context.Context, networkID, ncID string)
 
 //UpsertNcV2 adds/updates an NC on DNC and returns an error if the processing fails
 func (s SynchronousDNCClient) UpsertNcV2(ctx context.Context, networkID, ncID string, req api.NetworkContainerRequestV2) error {
-	log.Printf("DNC call to Create NC ncID:%s, networkID:%s", ncID, networkID)
+	logger := s.logger.WithFields(logrus.Fields{
+		"vnetID": networkID,
+		"ncID":   ncID,
+	})
+	logger.Infof("DNC call to Create NC ncID:%s, networkID:%s", ncID, networkID)
 	upsertNCRespErr := s.dncClient.UpsertNcV2(networkID, ncID, req)
 	// http.StatusOK means request is accepted, anything else means there was an error
 	if upsertNCRespErr != nil && upsertNCRespErr.HTTPStatus != http.StatusOK {
 		return upsertNCRespErr
 	}
 
-	log.Printf("Create NC succeeded for %s. Call dnc get nc", ncID)
+	logger.Infof("Create NC succeeded for %s. Call dnc get nc", ncID)
 
 	var ncStatus *api.RequestStatus
 	var respErr *api.JsonErr
@@ -158,7 +179,7 @@ func (s SynchronousDNCClient) UpsertNcV2(ctx context.Context, networkID, ncID st
 		return respErr
 	})
 
-	log.Printf("UpsertNcV2: DNC call Get NC status for id %s is :%+v, resperr:%v", ncID, ncStatus, respErr)
+	logger.Infof("UpsertNcV2: DNC call Get NC status for id %s is :%+v, resperr:%v", ncID, ncStatus, respErr)
 	// If the context was cancelled or max attempts reached
 	if err != nil {
 		return err
@@ -177,13 +198,17 @@ func (s SynchronousDNCClient) UpsertNcV2(ctx context.Context, networkID, ncID st
 
 //DeleteNC deletes the NC on DNC
 func (s SynchronousDNCClient) DeleteNC(ctx context.Context, networkID, ncID string) error {
-	log.Printf("DNC call to Delete NC ncID:%s, networkID:%s", ncID, networkID)
+	logger := s.logger.WithFields(logrus.Fields{
+		"vnetID": networkID,
+		"ncID":   ncID,
+	})
+	logger.Infof("DNC call to Delete NC ncID:%s, networkID:%s", ncID, networkID)
 	deleteNCResp := s.dncClient.DeleteNC(networkID, ncID)
 	if deleteNCResp.HTTPStatus != http.StatusOK {
 		return deleteNCResp
 	}
 
-	log.Printf("Delete NC succeeded for %s. Call dnc get nc", ncID)
+	logger.Infof("Delete NC succeeded for %s. Call dnc get nc", ncID)
 
 	var respErr *api.JsonErr
 
@@ -196,7 +221,7 @@ func (s SynchronousDNCClient) DeleteNC(ctx context.Context, networkID, ncID stri
 		return respErr
 	})
 
-	log.Printf("DeleteNC: DNC call Get NC status for id %s, resperr:%v", ncID, respErr)
+	logger.Infof("DeleteNC: DNC call Get NC status for id %s, resperr:%v", ncID, respErr)
 	// If the context was cancelled or max attempts reached
 	if err != nil {
 		return err
@@ -211,14 +236,17 @@ func (s SynchronousDNCClient) DeleteNC(ctx context.Context, networkID, ncID stri
 
 //RegisterVnet registers the vnet on DNC
 func (s SynchronousDNCClient) RegisterVnet(ctx context.Context, networkID string) error {
-	log.Printf("DNC call to register vnet networkID:%s", networkID)
+	logger := s.logger.WithFields(logrus.Fields{
+		"vnetID": networkID,
+	})
+	logger.Infof("DNC call to register vnet networkID:%s", networkID)
 	addNetworkRespErr := s.dncClient.AddNetwork(networkID)
 	// http.StatusOK means request is accepted, anything else means there was an error
 	if addNetworkRespErr.HTTPStatus != http.StatusOK {
 		return addNetworkRespErr
 	}
 
-	log.Printf("Register Vnet succeeded for %s. Call dnc get vnet", networkID)
+	logger.Infof("Register Vnet succeeded for %s. Call dnc get vnet", networkID)
 
 	var vnetStatus *api.RequestStatus
 	var respErr *api.JsonErr
@@ -232,7 +260,7 @@ func (s SynchronousDNCClient) RegisterVnet(ctx context.Context, networkID string
 		return respErr
 	})
 
-	log.Printf("DNC call Get vnet status for id:%s is :%+v resperr:%v", networkID, vnetStatus, respErr)
+	logger.Infof("DNC call Get vnet status for id:%s is :%+v resperr:%v", networkID, vnetStatus, respErr)
 	// If the context was cancelled or max attempts reached
 	if err != nil {
 		return err
@@ -247,14 +275,18 @@ func (s SynchronousDNCClient) RegisterVnet(ctx context.Context, networkID string
 
 //RegisterSubnet registers the subnet on DNC
 func (s SynchronousDNCClient) RegisterSubnet(ctx context.Context, networkID, subnetID, authenticationToken string) error {
-	log.Printf("Dnc call to register subnet for networkID:%s subnetID:%s", networkID, subnetID)
+	logger := s.logger.WithFields(logrus.Fields{
+		"vnetID":   networkID,
+		"subnetID": subnetID,
+	})
+	logger.Infof("Dnc call to register subnet for networkID:%s subnetID:%s", networkID, subnetID)
 	addSubnetRespErr := s.dncClient.AddSubnet(networkID, subnetID, authenticationToken)
 	// http.StatusOK means request is accepted, anything else means there was an error
 	if addSubnetRespErr.HTTPStatus != http.StatusOK {
 		return addSubnetRespErr
 	}
 
-	log.Printf("Register Subnet succeeded for %s. Call dnc get subnet", subnetID)
+	logger.Infof("Register Subnet succeeded for %s. Call dnc get subnet", subnetID)
 
 	var subnetStatus *api.RequestStatus
 	var respErr *api.JsonErr
@@ -269,7 +301,7 @@ func (s SynchronousDNCClient) RegisterSubnet(ctx context.Context, networkID, sub
 		return respErr
 	})
 
-	log.Printf("DNC call GetSubnet response for subnetid %s is :%+v, resperr:%+v",subnetID, subnetStatus, respErr)
+	logger.Infof("DNC call GetSubnet response for subnetid %s is :%+v, resperr:%+v", subnetID, subnetStatus, respErr)
 
 	// If the context was cancelled or max attempts reached
 	if err != nil {

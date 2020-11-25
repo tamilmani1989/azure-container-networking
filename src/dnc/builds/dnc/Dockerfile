@@ -57,6 +57,14 @@ RUN cd ./src/BondDataSerializer && \
 # since the DNC source code is likely to be the thing that changes the most.
 COPY ./src/dnc ./src/dnc
 
+# Fix the issue when building this Docker image from a Windows host, the filesystem for the vendor directory will be messed up
+# We need the ApplicationInsights-Go module to be under vendor/github.com/microsoft
+RUN if [ -d ./src/dnc/vendor/github.com/Microsoft/ApplicationInsights-Go ]; then \
+	mkdir ./src/dnc/vendor/github.com/microsoft && \
+	cp -r ./src/dnc/vendor/github.com/Microsoft/ApplicationInsights-Go \
+	./src/dnc/vendor/github.com/microsoft/ApplicationInsights-Go; fi
+
+
 # Build DNC
 ARG VERSION=dirty
 ARG aiMetadata="4a542967-4721-4c64-a2a7-eb9428c634b4"

@@ -13,11 +13,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path"
 	"text/template"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -31,10 +32,22 @@ type KubeconfigProvider struct {
 	dataStoreShim               *datastoreshim.DataStoreShim
 	kubeconfigTemplate          *template.Template
 	secretProvider              requestcontroller.SecretProvider
+	logger                      logrus.FieldLogger
 	managedDNCGUID              string
 	clientCertificatesDirectory string
 	kubeloginBinaryPath         string
 	azureEnvironment            string
+}
+
+type KubeconfigProviderOptions struct {
+	DataStoreSettings           configuration.DataStoreSettings
+	LoggingConfig               requestcontroller.LoggingConfig
+	SecretProvider              requestcontroller.SecretProvider
+	Logger                      logrus.FieldLogger
+	ClientCertificatesDirectory string
+	KubeloginBinaryPath         string
+	AzureEnvironment            string
+	ManagedDNCGUID              string
 }
 
 type OrchestratorProperties struct {
@@ -56,8 +69,7 @@ OrchestratorType: <OrchestratorType>
 
 var _ requestcontroller.KubeconfigProvider = &KubeconfigProvider{}
 
-func NewKubeconfigProvider(managedDNCGUID string, dataStoreSettings configuration.DataStoreSettings, loggingConfig requestcontroller.LoggingConfig,
-	secretProvider requestcontroller.SecretProvider, clientCertificatesDirectory, kubeloginBinaryPath, azureEnvironment string) *KubeconfigProvider {
+func NewKubeconfigProvider(opts KubeconfigProviderOptions) *KubeconfigProvider {
 	//datastoreshim has a dependency on loggershim, and loggershim has a global that needs to be initialized with the NewLoggerShim function followed by Init
 	requestcontroller.LoggershimMutex.Lock()
 	if loggershim.LS == nil {
@@ -70,22 +82,26 @@ func NewKubeconfigProvider(managedDNCGUID string, dataStoreSettings configuratio
 	requestcontroller.LoggershimMutex.Unlock()
 
 	k := KubeconfigProvider{
-		managedDNCGUID: managedDNCGUID,
-		dataStoreShim: datastoreshim.NewDataStoreShim(dataStoreSettings, configuration.DNCSettings{
-			ThresholdForLoggingDataStoreOpLatencyMs: loggingConfig.ThresholdForLoggingDataStoreOpLatencyMs,
+		managedDNCGUID: opts.ManagedDNCGUID,
+		dataStoreShim: datastoreshim.NewDataStoreShim(opts.DataStoreSettings, configuration.DNCSettings{
+			ThresholdForLoggingDataStoreOpLatencyMs: opts.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs,
 		}, map[string]string{orchestratorInstancesConfigurationTableName: orchestratorPropertiesPropertyName}),
-		secretProvider:              secretProvider,
-		clientCertificatesDirectory: clientCertificatesDirectory,
-		kubeloginBinaryPath:         kubeloginBinaryPath,
+		secretProvider:              opts.SecretProvider,
+		clientCertificatesDirectory: opts.ClientCertificatesDirectory,
+		kubeloginBinaryPath:         opts.KubeloginBinaryPath,
 		kubeconfigTemplate:          template.Must(template.New("kubeconfig").Parse(kubeconfigTemplateString)),
-		azureEnvironment:            azureEnvironment,
+		azureEnvironment:            opts.AzureEnvironment,
+		logger: opts.Logger.WithFields(logrus.Fields{
+			"managedDNCGUID":   opts.ManagedDNCGUID,
+			"azureEnvironment": opts.AzureEnvironment,
+		}),
 	}
 
 	return &k
 }
 
 func (k *KubeconfigProvider) GetBytesForAll(ctx context.Context) (map[string][]byte, error) {
-	log.Printf("Getting kubeconfigs for all orchestrators")
+	k.logger.Info("Getting kubeconfigs for all orchestrators")
 	// Query the DB for all kubeconfig params
 	allKubeconfigs := make(map[string][]byte)
 
@@ -110,18 +126,28 @@ func (k *KubeconfigProvider) GetBytesForAll(ctx context.Context) (map[string][]b
 			case map[string]interface{}:
 				orchestratorType, exists := v[orchestratorTypePropertyName]
 				if !exists {
-					log.Printf("Row %s is missing column %s", rowKey, orchestratorTypePropertyName)
+					k.logger.WithFields(logrus.Fields{
+						"rowKey":        rowKey,
+						"missingColumn": orchestratorTypePropertyName,
+					}).Infof("Row %s is missing column %s", rowKey, orchestratorTypePropertyName)
 					continue
 				}
 
 				if orchestratorType != kubernetesOrchestratorType {
-					log.Printf("Skipping row %s because orchestrator type is %s, not %s", rowKey, orchestratorType, kubernetesOrchestratorType)
+					k.logger.WithFields(logrus.Fields{
+						"rowKey":                  rowKey,
+						"orchestratorType":        orchestratorType,
+						"desiredOrchestratorType": kubernetesOrchestratorType,
+					}).Infof("Skipping row %s because orchestrator type is %s, not %s", rowKey, orchestratorType, kubernetesOrchestratorType)
 					continue
 				}
 
 				controllerPropertiesJSONBlob, exists := v[orchestratorPropertiesPropertyName]
 				if !exists {
-					log.Printf("Row %s is missing column %s", rowKey, orchestratorPropertiesPropertyName)
+					k.logger.WithFields(logrus.Fields{
+						"rowKey":        rowKey,
+						"missingColumn": orchestratorPropertiesPropertyName,
+					}).Infof("Row %s is missing column %s", rowKey, orchestratorPropertiesPropertyName)
 					continue
 				}
 
@@ -129,19 +155,27 @@ func (k *KubeconfigProvider) GetBytesForAll(ctx context.Context) (map[string][]b
 				var orchestratorProperties OrchestratorProperties
 				err := json.Unmarshal([]byte(controllerPropertiesJSONBlob.(string)), &orchestratorProperties)
 				if err != nil {
-					log.Printf("Error unmarshalling controllerProperties json blob in row %s with error %v", rowKey, err)
+					k.logger.WithFields(logrus.Fields{
+						"rowKey": rowKey,
+						"error":  err.Error(),
+					}).Infof("Error unmarshalling controllerProperties json blob in row %s with error %v", rowKey, err)
 					continue
 				}
 
 				kubeconfig, err := k.getKubeconfigForOrchestratorProperties(ctx, orchestratorProperties)
 				if err != nil {
-					log.Printf("Error building kubeconfig for controller %s: %v", rowKey, err)
+					k.logger.WithFields(logrus.Fields{
+						"rowKey": rowKey,
+						"error":  err.Error(),
+					}).Infof("Error building kubeconfig for controller %s: %v", rowKey, err)
 					continue
 				}
 
 				allKubeconfigs[rowKey] = kubeconfig
 			default:
-				log.Printf("Unexpected result for row %s, expected type %s but received type %T", rowKey, "map[string]interface{}", v)
+				k.logger.WithFields(logrus.Fields{
+					"rowKey": rowKey,
+				}).Infof("Unexpected result for row %s, expected type %s but received type %T", rowKey, "map[string]interface{}", v)
 				continue
 			}
 		}
@@ -149,7 +183,7 @@ func (k *KubeconfigProvider) GetBytesForAll(ctx context.Context) (map[string][]b
 		pageToken = nextPageToken
 	}
 
-	log.Printf("Found %d orchestrators", len(allKubeconfigs))
+	k.logger.Infof("Found %d orchestrators", len(allKubeconfigs))
 
 	return allKubeconfigs, nil
 }
