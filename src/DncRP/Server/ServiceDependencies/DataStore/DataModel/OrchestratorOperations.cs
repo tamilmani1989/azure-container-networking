@@ -28,6 +28,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private IControllerConfiguration controllerOperations;
         private IHttpUtility httpUtility;
         private IKeyVaultUtility keyVaultUtility;
+        private bool deleteNotSupported = true;
 
         /// <summary>
         /// Create an instance of OrchestratorOperations
@@ -178,6 +179,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             this.logger.CLogInformation("Starting DELETE orchestrator resource. Sub:{0}, RG:{1}, ResourceName:{2}",
                 subId, resourceGroup, resourceName);
+
+            if (this.deleteNotSupported)
+            {
+                throw new NotSupportedException("Delete Orchestrator API is not supported yet");
+            }
 
             // Create Retrieve table operation
             string rowKey = $"{resourceGroup}_{resourceName}";

@@ -71,10 +71,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}";
                 }
 
+                // only return error message in response (instead stack trace) since this is public API
+                string externalMessage = $"{message}. {ex.Message}";
                 message += $"InternalException: {ex}";
 
                 logger.CLogError(message);
-                return ConvertToExceptionResult(message, statusCode);
+                return ConvertToExceptionResult(externalMessage, statusCode);
             }
 
             return this.ConvertToContentResult(response, method, methodNameForLogging);

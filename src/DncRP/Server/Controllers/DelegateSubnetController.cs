@@ -26,6 +26,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     {
         private IHttpUtility httpUtility;
         private AzVNetBroker azVnetBroker;
+        private bool deleteNotSupported = true;
 
         public DelegateSubnetController(
             ILogger<DelegateSubnetController> logger,
@@ -94,11 +95,13 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}";
                 }
 
+                // only return error message in response (instead stack trace) since this is public API
+                string externalMessage = $"{message}. {ex.Message}";
                 message += $"InternalException: {ex}";
 
                 this.logger.CLogError($"{message}, StatusCode: {statusCode}");
 
-                return ConvertToExceptionResult(message, statusCode);
+                return ConvertToExceptionResult(externalMessage, statusCode);
             }
         }
 
@@ -163,6 +166,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // TODO Validate arguments
             try
             {
+                if (this.deleteNotSupported)
+                {
+                    throw new NotSupportedException("Delete delegate API is not supported yet");
+                }
 
                 await tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
                 await ExecuteDeleteDelegateSubnetAsync(subscriptionId, resourceGroup, resourceName);
@@ -178,21 +185,23 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             catch (Exception ex)
             {
-                string message = $"Failed to process PutDelegateSubnet call.";
+                string message = $"Failed to process DeleteDelegateSubnet call.";
                 int statusCode = (int)HttpStatusCode.InternalServerError;
 
                 ErrorResponseMessageException errorException = ex as ErrorResponseMessageException;
                 if (errorException != null)
                 {
                     statusCode = (int)errorException.HttpStatus;
-                    message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}";
+                    message += errorException.Message + $"InternalErrorCode: {errorException.ErrorCode}.";
                 }
 
+                // only return error message in response (instead stack trace) since this is public API
+                string externalMessage = $"{message} {ex.Message}";
                 message += $"InternalException: {ex}";
 
                 this.logger.CLogError($"{message}, StatusCode: {statusCode}");
 
-                return ConvertToExceptionResult(message, statusCode);
+                return ConvertToExceptionResult(externalMessage, statusCode);
             }
         }
 
