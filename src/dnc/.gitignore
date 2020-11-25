@@ -2,3 +2,4 @@
 .vscode
 venv
 test/jmeter/jmeter/*.csv
+output/

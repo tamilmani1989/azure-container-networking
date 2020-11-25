@@ -1,31 +1,10 @@
-# Source files for building DNC plugin
-DNCFILES = \
-	$(wildcard *.go) \
-	$(wildcard aiwrapper/*.go) \
-	$(wildcard api/*.go) \
-	$(wildcard configuration/*.go) \
-	$(wildcard controller/*.go) \
-	$(wildcard datamodel/*.go) \
-	$(wildcard datastore/*.go) \
-	$(wildcard datastoreshim/*.go) \
-	$(wildcard logger/*.go) \
-	$(wildcard masterelection/*.go) \
-	$(wildcard nmagentcontracts/*.go) \
-	$(wildcard replica/*.go) \
-	$(wildcard server/*.go) \
-	$(wildcard utils/*.go) \
-	$(wildcard MadariClient/*.go) \
-	$(wildcard resourceupdatehandler/*.go) \
-	$(wildcard pubsubproxy/*.go)
-
-# Source files for building runner
-RUNNERFILES = \
-	$(wildcard test/runner/*.go)
-
-# Source files for LB Runner pod
-LBRUNNERNCFILES = \
-	$(wildcard test/lbrunnernc/*.go)
-
+# Cross-platform directory creation/deletion
+MKDIR := mkdir -p
+RMDIR := rm -rf
+ifeq ($(OS),Windows_NT)
+MKDIR := powershell.exe -NoProfile -Command New-Item -ItemType Directory -Force
+RMDIR := powershell.exe -NoProfile -Command Remove-Item -Recurse -Force
+endif
 
 # Build defaults
 GOOS ?= linux
@@ -41,6 +20,7 @@ DNCTL_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/dnctl
 LBRUNNERNC_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/lbrunnernc
 RUNNER_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/runner
 REQCTRL_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/requestcontroller
+REPO_ROOT := $(shell git rev-parse --show-toplevel)
 
 DNC_AI_ID = 4a542967-4721-4c64-a2a7-eb9428c634b4
 
@@ -59,101 +39,154 @@ endif
 #VERSION ?= $(shell git describe --tags --always --dirty)
 VERSION = latest
 
-ENSURE_OUTPUT_DIR_EXISTS := $(shell mkdir -p $(OUTPUT_DIR))
-
-# Archive file names.
+# Archive file names
 DNC_ARCHIVE_NAME = dnc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
+DNC_IMAGE_ARCHIVE_NAME = dnc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 DNCTL_ARCHIVE_NAME = dnctl-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 LBRUNNERNC_ARCHIVE_NAME = lbrunnernc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
-RUNNER_ARCHIVE_NAME = runner-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
-DNC_IMAGE_ARCHIVE_NAME = dnc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 LBRUNNERNC_IMAGE_ARCHIVE_NAME = lbrunnernc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
+RUNNER_ARCHIVE_NAME = runner-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 RUNNER_IMAGE_ARCHIVE_NAME = runner-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 REQCTRL_ARCHIVE_NAME = requestcontroller-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
+REQCTRL_IMAGE_ARCHIVE_NAME = requestcontroller-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 
-# Azure container networking service image paramters
+# Container image names
 DNC_IMAGE = containernetworking.azurecr.io/internal/containernetworking/dnc
 LBRUNNERNC_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-lbrunnernc
 RUNNER_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-runner
 REQCTRL_IMAGE = containernetworking.azurecr.io/internal/containernetworking/requestcontroller
 
+# Default target is "all"
+.PHONY: all
+all: dnc dnctl lbrunnernc runner requestcontroller
+
 # Shorthand target names for convenience.
-dnc: $(DNC_BUILD_DIR)/dnc$(EXE_EXT) dnc-archive
-dnctl: $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT) dnctl-archive
-lbrunnernc: $(LBRUNNERNC_BUILD_DIR)/lbrunnernc$(EXE_EXT) lbrunnernc-archive
-runner: $(RUNNER_BUILD_DIR)/runner$(EXE_EXT) runner-archive
-requestcontroller: $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT) requestcontroller-archive
+dnc: dnc-binary dnc-archive
+dnctl: dnctl-binary dnctl-archive
+lbrunnernc: lbrunnernc-binary lbrunnernc-archive
+runner: runner-binary runner-archive
+requestcontroller: requestcontroller-binary requestcontroller-archive
 
 # Clean all build artifacts
 .PHONY: clean
 clean:
-	rm -rf $(OUTPUT_DIR)
+	$(RMDIR) $(OUTPUT_DIR)
 
-# Build the Azure DNC Service
-$(DNC_BUILD_DIR)/dnc$(EXE_EXT): $(DNCFILES)
-	export CGO_ENABLED=0; \
-	go build -v -o $(DNC_BUILD_DIR)/dnc$(EXE_EXT) -ldflags "-X dnc/utils.Version=$(VERSION) -X dnc/aiwrapper.aiMetadata=$(DNC_AI_ID) -s -w" *.go
+########################### Binaries ###########################
+
+# Build the Azure DNC Service (TODO: enable pubsubproxy)
+.PHONY: dnc-binary
+dnc-binary: export CGO_ENABLED = 0
+dnc-binary:
+	go build -mod=vendor -v -o $(DNC_BUILD_DIR)/dnc$(EXE_EXT) -ldflags "-X dnc/utils.Version=$(VERSION) -X dnc/aiwrapper.aiMetadata=$(DNC_AI_ID) -s -w"
 
 # Build dnctl
-.PHONY: $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT)
-$(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT):
-	export CGO_ENABLED=0; \
-	go build -v -o $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT) $(DNCTL_DIR)/*.go
+.PHONY: dnctl-binary
+dnctl-binary: export CGO_ENABLED = 0
+dnctl-binary:
+	cd $(DNCTL_DIR) && go build -mod=vendor -v -o $(REPO_ROOT)/src/dnc/$(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT)
 
 # Build lb runner nc image
-$(LBRUNNERNC_BUILD_DIR)/lbrunnernc$(EXE_EXT): $(LBRUNNERNCFILES)
-	export CGO_ENABLED=0; \
-	go build -v -o $(LBRUNNERNC_BUILD_DIR)/runner$(EXE_EXT) $(LBRUNNERNC_DIR)/*.go
+.PHONY: lbrunnernc-binary
+lbrunnernc-binary: export CGO_ENABLED = 0
+lbrunnernc-binary:
+	cd $(LBRUNNERNC_DIR) && go build -mod=vendor -v -o $(REPO_ROOT)/src/dnc/$(LBRUNNERNC_BUILD_DIR)/lbrunnernc$(EXE_EXT)
 
 # Build runner
-$(RUNNER_BUILD_DIR)/runner$(EXE_EXT): $(RUNNERFILES)
-	export CGO_ENABLED=0; \
-	go build -v -o $(RUNNER_BUILD_DIR)/runner$(EXE_EXT) $(RUNNER_DIR)/*.go
+.PHONY: runner-binary
+runner-binary: export CGO_ENABLED = 0
+runner-binary:
+	cd $(RUNNER_DIR) && go build -mod=vendor -v -o $(REPO_ROOT)/src/dnc/$(RUNNER_BUILD_DIR)/runner$(EXE_EXT)
 
-.PHONY: $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT)
 # Build Request Controller
-$(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT):
-	export CGO_ENABLED=0; \
-	go build -v -o $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT) $(REQCTRL_DIR)/*.go
+.PHONY: requestcontroller-binary
+requestcontroller-binary: export CGO_ENABLED = 0
+requestcontroller-binary:
+	cd $(REQCTRL_DIR) && go build -mod=vendor -v -o $(REPO_ROOT)/src/dnc/$(REQCTRL_BUILD_DIR)/dnc-request-controller$(EXE_EXT)
+
+########################### Container Images ###########################
 
 # Build the Azure DNC image
 .PHONY: dnc-image
-dnc-image: dnc
-ifeq ($(GOOS),linux)
+dnc-image:
 	docker build --no-cache \
-	-f Dockerfile \
+	-f $(REPO_ROOT)/src/dnc/builds/dnc/Dockerfile \
 	-t $(DNC_IMAGE):$(VERSION) \
-	--build-arg DNC_BUILD_DIR=$(DNC_BUILD_DIR) \
-	--network=host \
-	.
+	$(REPO_ROOT)
+	$(MKDIR) $(DNC_BUILD_DIR)
 	docker save $(DNC_IMAGE):$(VERSION) | gzip -c > $(DNC_BUILD_DIR)/$(DNC_IMAGE_ARCHIVE_NAME)
-endif
+
+# Build the requstcontroller image
+.PHONY: requestcontroller-image
+requestcontroller-image:
+	docker build --no-cache \
+	-f builds/requestcontroller/Dockerfile \
+	-t $(REQCTRL_IMAGE):$(VERSION) \
+	.
+	$(MKDIR) $(REQCTRL_BUILD_DIR)
+	docker save $(REQCTRL_IMAGE):$(VERSION) | gzip -c > $(REQCTRL_BUILD_DIR)/$(REQCTRL_IMAGE_ARCHIVE_NAME)
 
 # Build the runner image
 .PHONY: runner-image
-runner-image: runner
-ifeq ($(GOOS),linux)
+runner-image: runner-binary
 	docker build --no-cache \
-	-f test/runner/Dockerfile \
+	-f builds/runner/Dockerfile \
 	-t $(RUNNER_IMAGE):$(VERSION) \
-	--build-arg RUNNER_BUILD_DIR=$(RUNNER_BUILD_DIR) \
-	--network=host \
 	.
+	$(MKDIR) $(RUNNER_BUILD_DIR)
 	docker save $(RUNNER_IMAGE):$(VERSION) | gzip -c > $(RUNNER_BUILD_DIR)/$(RUNNER_IMAGE_ARCHIVE_NAME)
-endif
 
-# Build the lb runner nc image
+# Build the lb runner nc image (TODO: multi-stage docker build)
 .PHONY: lbrunnernc-image
-lbrunnernc-image: lbrunnernc
+lbrunnernc-image: lbrunnernc-binary
 ifeq ($(GOOS),linux)
 	docker build --no-cache \
 	-f test/lbrunnernc/Dockerfile \
 	-t $(LBRUNNERNC_IMAGE):$(VERSION) \
 	--build-arg LBRUNNERNC_BUILD_DIR=$(LBRUNNERNC_BUILD_DIR) \
 	.
+	$(MKDIR) $(LBRUNNERNC_BUILD_DIR)
 	docker save $(LBRUNNERNC_IMAGE):$(VERSION) | gzip -c > $(LBRUNNERNC_BUILD_DIR)/$(LBRUNNERNC_IMAGE_ARCHIVE_NAME)
 endif
 
+########################### Archives ###########################
+
+# Create a dnc archive for the target platform
+$(DNC_BUILD_DIR)/$(DNC_ARCHIVE_NAME):
+	cd $(DNC_BUILD_DIR) && $(ARCHIVE_CMD) $(DNC_ARCHIVE_NAME) dnc$(EXE_EXT)
+
+.PHONY: dnc-archive
+dnc-archive: $(DNC_BUILD_DIR)/$(DNC_ARCHIVE_NAME)
+
+# Create a dnctl archive for the target platform
+$(DNCTL_BUILD_DIR)/$(DNCTL_ARCHIVE_NAME):
+	cd $(DNCTL_BUILD_DIR) && $(ARCHIVE_CMD) $(DNCTL_ARCHIVE_NAME) dnctl$(EXE_EXT)
+
+.PHONY: dnctl-archive
+dnctl-archive: $(DNCTL_BUILD_DIR)/$(DNCTL_ARCHIVE_NAME)
+
+# Create a lb runner nc archive for the target platform
+$(LBRUNNERNC_BUILD_DIR)/$(LBRUNNERNC_ARCHIVE_NAME):
+	cd $(LBRUNNERNC_BUILD_DIR) && $(ARCHIVE_CMD) $(LBRUNNERNC_ARCHIVE_NAME) lbrunnernc$(EXE_EXT)
+
+.PHONY: lbrunnernc-archive
+lbrunnernc-archive: $(LBRUNNERNC_BUILD_DIR)/$(LBRUNNERNC_ARCHIVE_NAME)
+
+# Create a runner archive for the target platform
+$(RUNNER_BUILD_DIR)/$(RUNNER_ARCHIVE_NAME):
+	cd $(RUNNER_BUILD_DIR) && $(ARCHIVE_CMD) $(RUNNER_ARCHIVE_NAME) runner$(EXE_EXT)
+
+.PHONY: runner-archive
+runner-archive: $(RUNNER_BUILD_DIR)/$(RUNNER_ARCHIVE_NAME)
+
+# Create a requetscontroller archive for the target platform
+$(REQCTRL_BUILD_DIR)/$(REQCTRL_ARCHIVE_NAME):
+	cd $(REQCTRL_BUILD_DIR) && $(ARCHIVE_CMD) $(REQCTRL_ARCHIVE_NAME) dnc-request-controller$(EXE_EXT)
+
+.PHONY: requestcontroller-archive
+requestcontroller-archive: $(REQCTRL_BUILD_DIR)/$(REQCTRL_ARCHIVE_NAME)
+
+########################### Tasks ###########################
 # Publish the Azure dnc image to a Docker registry
 .PHONY: publish-dnc-image
 publish-dnc-image:
@@ -168,41 +201,6 @@ publish-lbrunnernc-image:
 .PHONY: publish-runner-image
 publish-runner-image:
 	docker push $(RUNNER_IMAGE):$(VERSION)
-
-# Create a dnc archive for the target platform
-.PHONY: dnc-archive
-dnc-archive:
-	chmod 0755 $(DNC_BUILD_DIR)/dnc$(EXE_EXT)
-	cd $(DNC_BUILD_DIR) && $(ARCHIVE_CMD) $(DNC_ARCHIVE_NAME) dnc$(EXE_EXT)
-	chown $(BUILD_USER):$(BUILD_USER) $(DNC_BUILD_DIR)/$(DNC_ARCHIVE_NAME)
-
-# Create a dnctl archive for the target platform
-.PHONY: dnctl-archive
-dnctl-archive:
-	chmod 0755 $(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT)
-	cd $(DNCTL_BUILD_DIR) && $(ARCHIVE_CMD) $(DNCTL_ARCHIVE_NAME) dnctl$(EXE_EXT)
-	chown $(BUILD_USER):$(BUILD_USER) $(DNCTL_BUILD_DIR)/$(DNCTL_ARCHIVE_NAME)
-
-# Create a lb runner nc archive for the target platform
-.PHONY: lbrunnernc-archive
-lbrunnernc-archive:
-	chmod 0755 $(LBRUNNERNC_BUILD_DIR)/lbrunnernc$(EXE_EXT)
-	cd $(LBRUNNERNC_BUILD_DIR) && $(ARCHIVE_CMD) $(LBRUNNERNC_ARCHIVE_NAME) lbrunnernc$(EXE_EXT)
-	chown $(BUILD_USER):$(BUILD_USER) $(LBRUNNERNC_BUILD_DIR)/$(LBRUNNERNC_ARCHIVE_NAME)
-
-# Create a runner archive for the target platform
-.PHONY: runner-archive
-runner-archive:
-	chmod 0755 $(RUNNER_BUILD_DIR)/runner$(EXE_EXT)
-	cd $(RUNNER_BUILD_DIR) && $(ARCHIVE_CMD) $(RUNNER_ARCHIVE_NAME) runner$(EXE_EXT)
-	chown $(BUILD_USER):$(BUILD_USER) $(RUNNER_BUILD_DIR)/$(RUNNER_ARCHIVE_NAME)
-
-# Create a requetscontroller archive for the target platform
-.PHONY: requestcontroller-archive
-requestcontroller-archive:
-	chmod 0755 $(REQCTRL_BUILD_DIR)/requestcontroller$(EXE_EXT)
-	cd $(REQCTRL_BUILD_DIR) && $(ARCHIVE_CMD) $(REQCTRL_ARCHIVE_NAME) requestcontroller$(EXE_EXT)
-	chown $(BUILD_USER):$(BUILD_USER) $(REQCTRL_BUILD_DIR)/$(REQCTRL_ARCHIVE_NAME)
 
 # Create a dev environment to step through debug in an AKS cluster using Skaffold
 .PHONY: dev
