@@ -66,16 +66,6 @@ stages:
             name: "BuildDNC"
             displayName: "Build DNC Binaries"
 
-          - script: |
-              set -e
-              docker build -t $(PUSH_CONTAINER_REGISTRY)/$(DNC_IMAGE_PATH):$(Env.Tag) -f ./src/dnc/builds/dnc/Dockerfile . --no-cache
-              docker build -t $(PUSH_CONTAINER_REGISTRY)/$(DNC_RC_IMAGE_PATH):$(Env.Tag) -f ./src/dnc/builds/requestcontroller/Dockerfile ./src/dnc --no-cache
-              echo '$(PUSH_CONTAINER_REGISTRY_PASSWORD)' | docker login '$(PUSH_CONTAINER_REGISTRY)' -u '$(PUSH_CONTAINER_REGISTRY_USERNAME)' --password-stdin
-              docker push $(PUSH_CONTAINER_REGISTRY)/$(DNC_IMAGE_PATH):$(Env.Tag)
-              docker push $(PUSH_CONTAINER_REGISTRY)/$(DNC_RC_IMAGE_PATH):$(Env.Tag)
-            name: "BuildAndPushDirtyDNCDocker"
-            displayName: "Build and push dirty DNC / DNC-RC docker images"
-
           - task: AzureCLI@2
             inputs:
               azureSubscription: $(VM_SUBSCRIPTION)
@@ -139,12 +129,15 @@ stages:
                 sudo sh get-docker.sh;
                 sudo usermod -aG docker acn '
               ssh -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa acn@$(CreateVM.IP) '
-                export latestACNVersion=$(curl -L -s -H '"'"'Accept: application/json'"'"' https://github.com/Azure/azure-container-networking/releases/latest | jq .tag_name | tr -d '"'"'"'"'"' );
-                echo Installing CNI version - $latestACNVersion;
+                acn_release=$(ACN_RELEASE)
+                if [[ acn_release == latest ]]; then
+                  acn_release=$(curl -L -s -H '"'"'Accept: application/json'"'"' https://github.com/Azure/azure-container-networking/releases/latest | jq .tag_name | tr -d '"'"'"'"'"' );
+                fi;
+                echo Installing CNI version - $acn_release;
                 wget https://raw.githubusercontent.com/Azure/azure-container-networking/master/scripts/install-cni-multitenancy-plugin.sh;
                 chmod +x install-cni-multitenancy-plugin.sh;
-                sudo -E ./install-cni-multitenancy-plugin.sh $latestACNVersion;
-                wget https://github.com/Azure/azure-container-networking/releases/latest/download/azure-cns-linux-amd64-$latestACNVersion.tgz;
+                sudo -E ./install-cni-multitenancy-plugin.sh $acn_release;
+                wget https://github.com/Azure/azure-container-networking/releases/download/$acn_release/azure-cns-linux-amd64-$acn_release.tgz;
                 tar -zxvf *.tgz;
                 export DNC_CONFIGURATION_PATH=$(pwd)/config_test.json;
                 sudo -E ./azure-cns &> azure-cns-stdout.log &
@@ -192,17 +185,3 @@ stages:
             condition: succeeded()
             name: "DeleteVM"
             displayName: Delete remote VM
-          
-          - task: AzureCLI@2
-            inputs:
-              azureSubscription: $(PUSH_CONTAINER_REGISTRY_SUBSCRIPTION)
-              scriptLocation: "inlineScript"
-              scriptType: bash
-              inlineScript: |
-                az acr repository delete --name $(PUSH_CONTAINER_REGISTRY) --image $(DNC_IMAGE_PATH):$(Env.Tag) --yes
-                az acr repository delete --name $(PUSH_CONTAINER_REGISTRY) --image $(DNC_RC_IMAGE_PATH):$(Env.Tag) --yes
-                docker rmi $(PUSH_CONTAINER_REGISTRY)/$(DNC_IMAGE_PATH):$(Env.Tag)
-                docker rmi $(PUSH_CONTAINER_REGISTRY)/$(DNC_RC_IMAGE_PATH):$(Env.Tag)
-            condition: always()
-            name: "RemoveDirtyDockerImages"
-            displayName: "Remove dirty DNC / DNC RC docker images"
