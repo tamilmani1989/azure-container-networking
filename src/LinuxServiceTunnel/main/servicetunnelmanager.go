@@ -1,11 +1,11 @@
 package main
 
 import (
-	"LinuxServiceTunnel/configuration"
-	"LinuxServiceTunnel/servicetunnel"
 	"fmt"
 	"net"
 	"os"
+	"servicetunnel/configuration"
+	"servicetunnel/servicetunnel"
 	"strconv"
 	"strings"
 

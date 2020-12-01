@@ -4,9 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"servicetunnel/configuration"
 	"time"
-
-	"LinuxServiceTunnel/configuration"
 
 	"github.com/Azure/azure-container-networking/log"
 )
