@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/Azure/azure-container-networking/cns/hnsclient"
 	"github.com/Azure/azure-container-networking/cns/logger"
 	"github.com/Azure/azure-container-networking/cns/nmagentclient"
+	"github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/platform"
 )
 
@@ -951,66 +953,6 @@ func (service *HTTPRestService) deleteNetworkContainer(w http.ResponseWriter, r 
 	logger.Response(service.Name, reserveResp, resp.ReturnCode, ReturnCodeToString(resp.ReturnCode), err)
 }
 
-func (service *HTTPRestService) getNetworkContainerStatus(w http.ResponseWriter, r *http.Request) {
-	logger.Printf("[Azure CNS] getNetworkContainerStatus")
-
-	var req cns.GetNetworkContainerStatusRequest
-	returnMessage := ""
-	returnCode := 0
-
-	err := service.Listener.Decode(w, r, &req)
-	logger.Request(service.Name, &req, err)
-	if err != nil {
-		return
-	}
-
-	service.RLock()
-	defer service.RUnlock()
-	var ok bool
-	var containerDetails containerstatus
-
-	containerInfo := service.state.ContainerStatus
-	if containerInfo != nil {
-		containerDetails, ok = containerInfo[req.NetworkContainerid]
-	}
-
-	var hostVersion string
-	var vmVersion string
-
-	if ok {
-		savedReq := containerDetails.CreateNetworkContainerRequest
-		containerVersion, err := service.imdsClient.GetNetworkContainerInfoFromHost(
-			req.NetworkContainerid,
-			savedReq.PrimaryInterfaceIdentifier,
-			savedReq.AuthorizationToken, swiftAPIVersion)
-
-		if err != nil {
-			returnCode = CallToHostFailed
-			returnMessage = err.Error()
-		} else {
-			hostVersion = containerVersion.ProgrammedVersion
-		}
-	} else {
-		returnMessage = "[Azure CNS] Never received call to create this container."
-		returnCode = UnknownContainerID
-	}
-
-	resp := cns.Response{
-		ReturnCode: returnCode,
-		Message:    returnMessage,
-	}
-
-	networkContainerStatusReponse := cns.GetNetworkContainerStatusResponse{
-		Response:           resp,
-		NetworkContainerid: req.NetworkContainerid,
-		AzureHostVersion:   hostVersion,
-		Version:            vmVersion,
-	}
-
-	err = service.Listener.Encode(w, &networkContainerStatusReponse)
-	logger.Response(service.Name, networkContainerStatusReponse, resp.ReturnCode, ReturnCodeToString(resp.ReturnCode), err)
-}
-
 func (service *HTTPRestService) getInterfaceForContainer(w http.ResponseWriter, r *http.Request) {
 	logger.Printf("[Azure CNS] getInterfaceForContainer")
 
@@ -1138,6 +1080,16 @@ func getAuthTokenFromCreateNetworkContainerURL(
 	return strings.Split(strings.Split(createNetworkContainerURL, "authenticationToken/")[1], "/")[0]
 }
 
+var rgx = regexp.MustCompile("^http[s]?://(.*?)/joinedVirtualNetworks.*?$")
+
+func extractHostFromJoinNetworkURL(url string) string {
+	submatches := rgx.FindStringSubmatch(url)
+	if len(submatches) != 2 {
+		return ""
+	}
+	return submatches[1]
+}
+
 // Publish Network Container by calling nmagent
 func (service *HTTPRestService) publishNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	logger.Printf("[Azure-CNS] PublishNetworkContainer")
@@ -1198,8 +1150,15 @@ func (service *HTTPRestService) publishNetworkContainer(w http.ResponseWriter, r
 		// Store ncGetVersionURL needed for calling NMAgent to check if vfp programming is completed for the NC
 		primaryInterfaceIdentifier := getInterfaceIdFromCreateNetworkContainerURL(req.CreateNetworkContainerURL)
 		authToken := getAuthTokenFromCreateNetworkContainerURL(req.CreateNetworkContainerURL)
+
+		// we attempt to extract the wireserver IP to use from the request, otherwise default to the well-known IP.
+		hostIP := extractHostFromJoinNetworkURL(req.JoinNetworkURL)
+		if hostIP == "" {
+			hostIP = nmagentclient.WireserverIP
+		}
+
 		ncGetVersionURL := fmt.Sprintf(nmagentclient.GetNetworkContainerVersionURLFmt,
-			nmagentclient.WireserverIP,
+			hostIP,
 			primaryInterfaceIdentifier,
 			req.NetworkContainerID,
 			authToken)
@@ -1438,4 +1397,48 @@ func (service *HTTPRestService) deleteHostNCApipaEndpoint(w http.ResponseWriter,
 
 	err = service.Listener.Encode(w, &response)
 	logger.Response(service.Name, response, response.Response.ReturnCode, ReturnCodeToString(response.Response.ReturnCode), err)
+}
+
+// This function is used to query NMagents's supported APIs list
+func (service *HTTPRestService) nmAgentSupportedApisHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Request(service.Name, "nmAgentSupportedApisHandler", nil)
+	var (
+		err, retErr   error
+		req           cns.NmAgentSupportedApisRequest
+		returnCode    int
+		returnMessage string
+		supportedApis []string
+	)
+
+	err = service.Listener.Decode(w, r, &req)
+	logger.Request(service.Name, &req, err)
+	if err != nil {
+		return
+	}
+
+	switch r.Method {
+	case http.MethodPost:
+		supportedApis, retErr = nmagentclient.GetNmAgentSupportedApis(common.GetHttpClient(),
+			req.GetNmAgentSupportedApisURL)
+		if retErr != nil {
+			returnCode = NmAgentSupportedApisError
+			returnMessage = fmt.Sprintf("[Azure-CNS] %s", retErr.Error())
+		}
+		if supportedApis == nil {
+			supportedApis = []string{}
+		}
+
+	default:
+		returnMessage = "[Azure-CNS] NmAgentSupported API list expects a POST method."
+	}
+
+	resp := cns.Response{ReturnCode: returnCode, Message: returnMessage}
+	nmAgentSupportedApisResponse := &cns.NmAgentSupportedApisResponse{
+		Response:      resp,
+		SupportedApis: supportedApis,
+	}
+
+	serviceErr := service.Listener.Encode(w, &nmAgentSupportedApisResponse)
+
+	logger.Response(service.Name, nmAgentSupportedApisResponse, resp.ReturnCode, ReturnCodeToString(resp.ReturnCode), serviceErr)
 }

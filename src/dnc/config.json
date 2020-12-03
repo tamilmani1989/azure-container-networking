@@ -14,7 +14,8 @@
         "Port": "9000",
         "TlsCertificateSubjectName": "",
         "TlsCertificateFilePath" : "",
-        "UseHttps": false
+        "UseHttps": false,
+        "TlsPort" : ""
     },
     "MasterElectionSettings": {
         "UseDataStore": false,

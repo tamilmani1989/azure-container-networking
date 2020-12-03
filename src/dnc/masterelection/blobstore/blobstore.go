@@ -356,8 +356,11 @@ func (b *BlobStore) GetReplicaIPEndpoint() (string, error) {
 		return "", err
 	}
 
-	return replicaIP + ":" + b.serverSettings.Port, nil
-
+	if b.serverSettings.UseHttps {
+		return "https://" + replicaIP + ":" + b.serverSettings.TlsPort, nil
+	} else {
+		return "http://" + replicaIP + ":" + b.serverSettings.Port, nil
+	}
 }
 
 // IsPrimary - Method to check if the given replica is primary.
