@@ -206,6 +206,46 @@ func TestVlanGeneration(t *testing.T) {
 	fmt.Printf("vlanMap -> %+v\n", vlanMap)
 }
 
+func TestGreGeneration(t *testing.T) {
+	greMap := make(map[string]uint16)
+	greRefMap := make(map[string]uint16)
+
+	fmt.Println("Initializing greMap using GetNextGreKey")
+
+	for count := datamodel.MinGre; count <= datamodel.MaxGre; count++ {
+		var err *api.JsonErr
+		id, _ := uuid.NewUUID()
+		greRefMap[id.String()] = count
+		greMap[id.String()], err = datamodel.GetNextGreKey(greMap)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	fmt.Printf("gre -> %+v\n", greMap)
+
+	if !reflect.DeepEqual(greMap, greRefMap) {
+		t.Fatalf("greMap is not equal to greRefMap")
+	}
+}
+
+func TestOutOfGreKeys(t *testing.T) {
+	greMap := make(map[string]uint16)
+
+	fmt.Println("Testing outOfGreKeys using GetNextGreKey")
+
+	for count := datamodel.MinGre; count <= (datamodel.MaxGre + 1); count++ {
+		var err *api.JsonErr
+		id, _ := uuid.NewUUID()
+		greMap[id.String()], err = datamodel.GetNextGreKey(greMap)
+
+		if err == nil && count > datamodel.MaxGre {
+			fmt.Printf("gre -> %+v\n", greMap)
+			t.Fatal(fmt.Sprintf("greKeys exceeded %d", datamodel.MaxGre))
+		}
+	}
+}
+
 func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 	id, _ := uuid.NewUUID()
 	vnetID := id.String()
@@ -398,7 +438,7 @@ func TestDeleteContainer(t *testing.T) {
 
 	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
 	deleteResource(t, ncURL, http.StatusOK)
-		t.Logf("NC %s delete will fail as RequestMonitor is not running", ncURL)
+	t.Logf("NC %s delete will fail as RequestMonitor is not running", ncURL)
 	if WaitForResourceCleanup(t, ncURL, 1) {
 		t.Fatalf("Failed to cleanup network container %s", ncID)
 	}
@@ -3303,6 +3343,7 @@ func TestPublishingRequestMarshallingLogicForSuccess(t *testing.T) {
 	ncRequest.Version = strconv.FormatUint(5, 10)
 	ncRequest.VirtualNetworkID = "048622d9-49c2-4cad-94ff-7112e6f2ab5a"
 	ncRequest.VlanID = 1
+	ncRequest.GreKey = 257
 
 	var body bytes.Buffer
 	err := json.NewEncoder(&body).Encode(ncRequest)
@@ -3340,14 +3381,14 @@ func TestManagedDncAPIs(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	var (
-		mdncEP       = "http://127.0.0.1:9002"
-		dnctl        = cli.NewDncClient(mdncEP)
-		iface        = "127.0.0.1"
-		infraVnet    = "048622d9-49c2-4cad-94ff-7112e6f2ab5a"
-		ipConstraint = "10.0.0.4"
-		id, _        = uuid.NewUUID()
-		vnetID       = id.String()
-		body         bytes.Buffer
+		mdncEP              = "http://127.0.0.1:9002"
+		dnctl               = cli.NewDncClient(mdncEP)
+		iface               = "127.0.0.1"
+		infraVnet           = "048622d9-49c2-4cad-94ff-7112e6f2ab5a"
+		ipConstraint        = "10.0.0.4"
+		id, _               = uuid.NewUUID()
+		vnetID              = id.String()
+		body                bytes.Buffer
 	)
 
 	// Register network/subnet and add node
@@ -3358,7 +3399,8 @@ func TestManagedDncAPIs(t *testing.T) {
 
 	// Test RegisterNode API
 	nodeRegistrationRequest := api.NodeRegistrationRequest{
-		NumCores: 2,
+		NumCores:             2,
+		NmAgentSupportedApis: []string{},
 	}
 	json.NewEncoder(&body).Encode(nodeRegistrationRequest)
 

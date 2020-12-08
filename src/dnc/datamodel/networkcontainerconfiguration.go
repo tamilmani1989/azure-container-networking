@@ -25,6 +25,7 @@ type NCConfiguration struct {
 	APIVersion            string
 	LocalIP               string
 	MACAddress            string
+	GreKey                uint16
 }
 
 // GetAssociationInfo - Retrieves association info assocuated with NC.

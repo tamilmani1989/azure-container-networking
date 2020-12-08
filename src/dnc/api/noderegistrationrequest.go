@@ -8,12 +8,14 @@ import (
 // NodeRegistrationRequest - Struct to hold node registration request.
 type NodeRegistrationRequest struct {
 	NumCores int `json:"NumCores"`
+	NmAgentSupportedApis []string `json:"NmAgentSupportedApis"`
 }
 
 func (nodeRegistrationRequest *NodeRegistrationRequest) String() string {
 	return fmt.Sprintf(
-		"NodeRegistrationRequest: [NumCores: %d]",
-		nodeRegistrationRequest.NumCores)
+		"NodeRegistrationRequest: [NumCores: %d] [NmAgentSupportedApis: %v]",
+		nodeRegistrationRequest.NumCores,
+		nodeRegistrationRequest.NmAgentSupportedApis)
 }
 
 // Validate - Validates node registration request.

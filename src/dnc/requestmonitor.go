@@ -154,12 +154,7 @@ func processVirtualNetworksPendingJoin(networkID string) (bool, *api.JsonErr) {
 	return networkupdatehandler.ProcessVirtualNetworkJoin(networkID, repoNetworkConfiguration)
 }
 
-func getAllocatedLocalAddressesOnNode(nodeID string) (map[string]*net.IPNet, *api.JsonErr) {
-	nodeConfiguration, err := datamodel.QueryNodeConfiguration(nodeID)
-	if err != nil {
-		return nil, err
-	}
-
+func getAllocatedLocalAddressesOnNode(nodeConfiguration datamodel.NodeConfiguration) (map[string]*net.IPNet, *api.JsonErr) {
 	allocatedLocalAddresses := make(map[string]*net.IPNet)
 
 	if nodeConfiguration.DeployedNetworkContainerMap != nil {
@@ -197,7 +192,9 @@ func processAllocateLocalIP(
 		markProcessingFailed bool
 		allocatedIP          *net.IPNet
 		failureDetail        *api.JsonErr
-		allocationErr        error
+		greErr,
+		allocationErr error
+		vlanID uint16
 	)
 
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
@@ -220,8 +217,13 @@ func processAllocateLocalIP(
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
+	nodeConfiguration, err := datamodel.QueryNodeConfiguration(nodeID)
+	if err != nil {
+		return false, err
+	}
+
 	// get all allocated local addresses for a node
-	allocatedLocalIPAddresses, err := getAllocatedLocalAddressesOnNode(nodeID)
+	allocatedLocalIPAddresses, err := getAllocatedLocalAddressesOnNode(*nodeConfiguration)
 	if err != nil {
 		return false, err
 	}
@@ -259,6 +261,62 @@ func processAllocateLocalIP(
 			Text: fmt.Sprintf(
 				"Failed to allocate address from node local address space due to error:%s", allocationErr.Error())}
 		goto Cleanup
+	}
+	if nodeConfiguration.InterfaceGreKeyMap == nil {
+		nodeConfiguration.InterfaceGreKeyMap = make(map[string]map[string]uint16)
+	}
+
+	if nodeConfiguration.NetworkVlanIDMap != nil {
+		vlanID = nodeConfiguration.NetworkVlanIDMap[repoNCConfig.NetworkID]
+	}
+
+	greErr = datamodel.CheckGreConditions(
+		nodeConfiguration.NodeID,
+		repoNCConfig.NetworkContainerID,
+		nodeConfiguration.UpdateGreCapable,
+		repoNCConfig.GreKey,
+		vlanID)
+
+	//Allocate GRE Key for this NC
+	if greErr == nil {
+		interfaceID := ""
+		if !repoNCConfig.ImplicitReservation {
+			interfaceID = repoNCConfig.RequestV1.AssociationInfo.InterfaceID
+		} else {
+			interfaceID = repoNCConfig.RequestV2.AssociationInfo.InterfaceID
+		}
+
+		if interfaceID != "" {
+
+			if nodeConfiguration.InterfaceGreKeyMap[interfaceID] == nil {
+				nodeConfiguration.InterfaceGreKeyMap[interfaceID] = make(map[string]uint16)
+			}
+
+			greKey, nextGreErr := datamodel.GetNextGreKey(nodeConfiguration.InterfaceGreKeyMap[interfaceID])
+			if nextGreErr != nil {
+				markProcessingFailed = true
+				failureDetail = &api.JsonErr{
+					Code:       nextGreErr.Code,
+					HTTPStatus: http.StatusInternalServerError,
+					Text: fmt.Sprintf(
+						"%s NetworkContainer: %s, Node: %s", nextGreErr.Text, repoNCConfig.NetworkContainerID, nodeID)}
+				goto Cleanup
+
+			}
+			repoNCConfig.GreKey = greKey
+			nodeConfiguration.InterfaceGreKeyMap[interfaceID][repoNCConfig.ReservationID] = greKey
+
+			nodeErr := datamodel.PersistNodeConfiguration(nodeConfiguration)
+			if nodeErr != nil {
+				return false, nodeErr
+			}
+		} else {
+			logger.Debugf("Could not find Interface AssiciationInfo while assinging GreKey for NC: %s, Node: %s",
+				repoNCConfig.NetworkContainerID, nodeID)
+		}
+
+	} else {
+		logger.Debugf(greErr.Error())
 	}
 
 	if config.DNCSettings.Managed {
@@ -720,6 +778,7 @@ func publishNetworkContainerWithPubSubProxy(
 		Policies:         make([]string, 0),
 		VirtualNetworkID: ncGoalState.NetworkID,
 		VlanID:           ncGoalState.VlanID,
+		GreKey:           int(ncGoalState.GreKey),
 	}
 
 	publishError := pubsubproxy.PublishNetworkContainer(publishNcRequest)
@@ -862,6 +921,7 @@ func processNetworkContainerPublish(
 	ncRequest.Version = strconv.FormatUint(ncGoalState.Version, 10)
 	ncRequest.VirtualNetworkID = ncGoalState.NetworkID
 	ncRequest.VlanID = ncGoalState.VlanID
+	ncRequest.GreKey = int(ncGoalState.GreKey)
 
 	json.NewEncoder(&body).Encode(ncRequest)
 
@@ -876,8 +936,8 @@ func processNetworkContainerPublish(
 		publishViaCNS = true
 	}
 
-	logger.Debugf("[NMAgent] Creating NC: %s, publishViaCNS: %t, body:%s",
-		ncGoalState.NetworkContainerID, publishViaCNS, ncRequest.String())
+	logger.Debugf("[NMAgent] Creating NC: %s, publishViaCNS: %t, body:%s, bytes: %v",
+		ncGoalState.NetworkContainerID, publishViaCNS, ncRequest.String(), body.Bytes())
 
 	if publishViaCNS {
 		// Publish NC through CNS. CNS typically runs on the worker node and this path helps
@@ -916,7 +976,8 @@ func processNetworkContainerPublish(
 			config.CNSSettings.ConnectionStrings.PublishNetworkContainerURLFmt,
 			ncGoalState.NodeInterfaceID)
 
-		logger.Debugf("[CNS] Publish NC %s, body:%s", ncGoalState.NetworkContainerID, ncRequest.String())
+		logger.Debugf("[CNS] Publish NC %s, body:%s publishNCRequestBody: %v CreateNetworkContainerRequestBody: %v",
+			ncGoalState.NetworkContainerID, ncRequest.String(), publishNCRequestBody.Bytes(), body.Bytes())
 		// Release the session locks before making call to CNS
 		sessionManager.EndWriteSession(sessionInfo)
 
@@ -1692,7 +1753,7 @@ func monitorRequests() {
 	}
 
 	monitorTimerChannel := time.NewTicker(time.Millisecond * 1000).C
-	ExitLoop:
+ExitLoop:
 	for {
 		select {
 		case <-monitorTimerChannel:

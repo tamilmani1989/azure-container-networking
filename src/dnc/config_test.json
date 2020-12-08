@@ -53,6 +53,10 @@
     "Min": 1,
     "Max": 2048
   },
+  "GreSettings": {
+    "Min": 257,
+    "Max": 511
+  },
   "DNCSettings": {
     "RequestRetryBaseInterval": 1000,
     "MaxRequestBackoffInterval": 16000,

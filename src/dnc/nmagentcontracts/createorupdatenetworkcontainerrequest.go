@@ -16,6 +16,7 @@ type CreateOrUpdateNetworkContainerRequest struct {
 	Policies         []string `json:"policies"`
 	VirtualNetworkID string   `json:"virtualNetworkId"`
 	VlanID           int      `json:"vlanId"`
+	GreKey           int      `json:"greKey"`
 }
 
 func (ncRequest *CreateOrUpdateNetworkContainerRequest) String() string {
@@ -27,12 +28,13 @@ func (ncRequest *CreateOrUpdateNetworkContainerRequest) String() string {
 	}
 
 	return fmt.Sprintf(
-		"CreateOrUpdateNetworkContainerRequest:[IPV4Addresses:%s, SubnetName:%s, Version:%s, VirtualNetworkID:%s, VlanID:%d]",
+		"CreateOrUpdateNetworkContainerRequest:[IPV4Addresses:%s, SubnetName:%s, Version:%s, VirtualNetworkID:%s, VlanID:%d, GreKey:%d]",
 		ipAddressesString,
 		ncRequest.SubnetName,
 		ncRequest.Version,
 		ncRequest.VirtualNetworkID,
-		ncRequest.VlanID)
+		ncRequest.VlanID,
+		ncRequest.GreKey)
 }
 
 // MarshalJSON - Custom Marshal handler to enforce validation
@@ -67,6 +69,7 @@ func (ncRequest CreateOrUpdateNetworkContainerRequest) MarshalJSON() ([]byte, er
 	objectMap["policies"] = ncRequest.Policies
 	objectMap["virtualNetworkId"] = ncRequest.VirtualNetworkID
 	objectMap["vlanId"] = ncRequest.VlanID
+	objectMap["greKey"] = ncRequest.GreKey
 
 	return json.Marshal(objectMap)
 }

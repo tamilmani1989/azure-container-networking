@@ -122,8 +122,8 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
-	// pass false and 0 for non-registration calls
-	return datamodel.CreateOrUpdateNodeConfiguration(false, 0, nodeID, *nodeInfo, apiVersion)
+	// pass false, 0 and empty Apis slice for non-registration calls
+	return datamodel.CreateOrUpdateNodeConfiguration(false, 0, nodeID, *nodeInfo, apiVersion, []string{})
 }
 
 // RegisterNode - Register node
@@ -132,7 +132,7 @@ func (c *Controller) RegisterNode(nodeID, apiVersion string, request *api.NodeRe
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	return datamodel.CreateOrUpdateNodeConfiguration(true, request.NumCores, nodeID, api.NodeInfoRequest{}, apiVersion)
+	return datamodel.CreateOrUpdateNodeConfiguration(true, request.NumCores, nodeID, api.NodeInfoRequest{}, apiVersion, request.NmAgentSupportedApis)
 }
 
 // DeleteNode - Delete node configuration
@@ -642,8 +642,11 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 		config.CNSSettings,
 		config.DataStoreSettings,
 		config.DNCSettings,
+		config.HostAgentSettings,
 		config.VlanSettings.Min,
 		config.VlanSettings.Max,
+		config.GreSettings.Min,
+		config.GreSettings.Min,
 		c.httpClient,
 		c.cnsHttpClient,
 		config.HostAgentSettings.WireServerIP)
@@ -668,8 +671,11 @@ func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2)
 		config.CNSSettings,
 		config.DataStoreSettings,
 		config.DNCSettings,
+		config.HostAgentSettings,
 		config.VlanSettings.Min,
 		config.VlanSettings.Max,
+		config.GreSettings.Min,
+		config.GreSettings.Min,
 		c.httpClient,
 		c.cnsHttpClient,
 		config.HostAgentSettings.WireServerIP)
@@ -695,8 +701,11 @@ func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, b
 		config.CNSSettings,
 		config.DataStoreSettings,
 		config.DNCSettings,
+		config.HostAgentSettings,
 		config.VlanSettings.Min,
 		config.VlanSettings.Max,
+		config.GreSettings.Min,
+		config.GreSettings.Min,
 		c.httpClient,
 		c.cnsHttpClient,
 		config.HostAgentSettings.WireServerIP)

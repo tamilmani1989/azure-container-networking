@@ -29,12 +29,17 @@ import (
 	"github.com/Azure/azure-sdk-for-go/storage"
 )
 
+const (
+	networkManagementLBSupport string = "NetworkManagementLBSupport"
+)
+
 var (
 	dataStoreShim             *datastoreshim.DataStoreShim
 	cnsSettings               configuration.CNSSettings
+	hostAgentSettings         configuration.HostAgentSettings
 	requestBaseInterval              = 1000
-	minVlan                   uint16 = 1
-	maxVlan                   uint16 = 2048
+	MinVlan                   uint16 = 1
+	MaxVlan                   uint16 = 2048
 	maxContainersPerNode             = 10
 	httpClient                *http.Client
 	cnsHttpClient             *http.Client
@@ -42,6 +47,8 @@ var (
 	enforceNICLimit           bool // zero value is false
 	nicsAllowedPerVirtualCore uint16
 	managed                   bool
+	MinGre                    uint16 = 257
+	MaxGre                    uint16 = 511
 )
 
 // Init - Initialize repository.
@@ -49,7 +56,8 @@ func Init(
 	cnsConfigSettings configuration.CNSSettings,
 	dataStoreSettings configuration.DataStoreSettings,
 	dncSettings configuration.DNCSettings,
-	min, max uint16,
+	hostAgentCfgSettings configuration.HostAgentSettings,
+	min, max, greMin, greMax uint16,
 	httpClientArg *http.Client,
 	cnsHttpClientArg *http.Client,
 	wireServerIP string) error {
@@ -59,12 +67,20 @@ func Init(
 		RestoreState()
 	}
 
-	if min > minVlan {
-		minVlan = min
+	if min > MinVlan {
+		MinVlan = min
 	}
 
-	if max > minVlan {
-		maxVlan = max
+	if max > MinVlan {
+		MaxVlan = max
+	}
+
+	if greMin > MinGre {
+		MinGre = greMin
+	}
+
+	if greMax > MinGre {
+		MaxGre = greMax
 	}
 
 	if wireServerIP != "" {
@@ -77,6 +93,7 @@ func Init(
 	enforceNICLimit = dncSettings.EnforceNICLimit
 	nicsAllowedPerVirtualCore = dncSettings.NICsAllowedPerVirtualCore
 	managed = dncSettings.Managed
+	hostAgentSettings = hostAgentCfgSettings
 
 	return nil
 }
@@ -400,26 +417,34 @@ func UpdateNodeConstrainedReservationSet(
 		nodeConfiguration.ConstrainedReservations[reservationID] = networkID
 	}
 
-	return persistNodeConfiguration(nodeConfiguration)
+	return PersistNodeConfiguration(nodeConfiguration)
 }
 
-// GetNextVlanID - Generate new Vlan ID
-func GetNextVlanID(networkVlanIDMap map[string]uint16) (uint16, *api.JsonErr) {
-	v := make(utils.Uint16s, 0, len(networkVlanIDMap))
-	for _, value := range networkVlanIDMap {
+// GetNextVlanID - Helper fucntion to get next gre key
+func GetNextVlanID(vlanMap map[string]uint16) (uint16, *api.JsonErr) {
+	return findNextAvailable(vlanMap, MinVlan, MaxVlan, api.OutOfVlanIDs, "Exceeded maximum number of VLAN IDs")
+}
+
+// GetNextGreKey - Helper fucntion to get next gre key
+func GetNextGreKey(greMap map[string]uint16) (uint16, *api.JsonErr) {
+	return findNextAvailable(greMap, MinGre, MaxGre, api.OutOfGreKeys, "Exceeded maximum number of GRE Keys")
+}
+
+// findNextAvailable - helper function to get next item in integer map.
+func findNextAvailable(baseMap map[string]uint16,
+	next, max uint16,
+	errorCode api.ErrorCode,
+	errorText string) (uint16, *api.JsonErr) {
+
+	v := make(utils.Uint16s, 0, len(baseMap))
+	for _, value := range baseMap {
 		v = append(v, value)
 	}
 
 	sort.Sort(v)
-	var next = minVlan
-	for _, usedVlanID := range v {
-		if next != usedVlanID {
-			if next > maxVlan {
-				return 0, &api.JsonErr{
-					HTTPStatus: http.StatusInternalServerError,
-					Text:       "Exceeded maximum number of VLAN IDs",
-					Code:       api.OutOfVlanIDs}
-			}
+
+	for _, usedVlanOrgre := range v {
+		if next != usedVlanOrgre {
 
 			break
 		}
@@ -427,7 +452,60 @@ func GetNextVlanID(networkVlanIDMap map[string]uint16) (uint16, *api.JsonErr) {
 		next++
 	}
 
+	if next > max {
+		return 0, &api.JsonErr{
+			HTTPStatus: http.StatusInternalServerError,
+			Text:       errorText,
+			Code:       errorCode}
+	}
+
 	return next, nil
+}
+
+//deleteGreKeyAllocation will take care of only GREKey deletion
+func deleteGreKeyAllocation(
+	nodeConfig NodeConfiguration,
+	networkID, ncID string) *api.JsonErr {
+
+	if nodeConfig.InterfaceGreKeyMap == nil {
+		loggershim.LS.Debugf("InterfaceGreKeyMap is empty on node %s, NC: %s",
+			nodeConfig.NodeID, ncID)
+		return nil
+	}
+
+	ncConfig, ncErr := TryQueryNetworkContainer(networkID, ncID)
+	if ncErr != nil {
+		return ncErr
+	}
+
+	interfaceID := ""
+	if !ncConfig.ImplicitReservation {
+		interfaceID = ncConfig.RequestV1.AssociationInfo.InterfaceID
+	} else {
+		interfaceID = ncConfig.RequestV2.AssociationInfo.InterfaceID
+	}
+
+	if interfaceID == "" {
+		loggershim.LS.Debugf("No associated InterfaceID found for NC: %s on node %s ",
+			ncID, nodeConfig.NodeID)
+		return nil
+	}
+
+	if nodeConfig.InterfaceGreKeyMap[interfaceID] == nil {
+		nodeConfig.InterfaceGreKeyMap[interfaceID] = make(map[string]uint16)
+	}
+
+	// GreKey allocation will be deleted from InterfaceGreMap in the node
+	// since this will be called just before deleting NC container, GreKey need not be deleted from NCConfig
+	// DNC will delete GreKey for implicit reservations too as DNC cannot guarantee where this reservation be used.
+	delete(nodeConfig.InterfaceGreKeyMap[interfaceID], ncConfig.ReservationID)
+
+	if len(nodeConfig.InterfaceGreKeyMap[interfaceID]) == 0 {
+		delete(nodeConfig.InterfaceGreKeyMap, interfaceID)
+	}
+
+	return nil
+
 }
 
 // UpdateNodeConfigurationNetworkContainerSet - Remove NC from node configuration
@@ -471,6 +549,12 @@ func UpdateNodeConfigurationNetworkContainerSet(
 	}
 
 	if remove {
+		if nodeConfig.UpdateGreCapable == GreCapable {
+			greErr := deleteGreKeyAllocation(*nodeConfig, networkID, ncID)
+			if greErr != nil {
+				return greErr
+			}
+		}
 		delete(vnetMap, ncID)
 		if len(vnetMap) == 0 {
 			delete(nodeConfig.DeployedNetworkContainerMap, networkID)
@@ -518,7 +602,7 @@ func UpdateNodeConfigurationNetworkContainerSet(
 		}
 	}
 
-	return persistNodeConfiguration(nodeConfig)
+	return PersistNodeConfiguration(nodeConfig)
 }
 
 // UpdateNCToReservationAssociation :-
@@ -1258,7 +1342,8 @@ func CreateOrUpdateNodeConfiguration(
 	cores int,
 	nodeID string,
 	nodeInfo api.NodeInfoRequest,
-	apiVersion string) *api.JsonErr {
+	apiVersion string,
+	nmAgentSupportedApis []string) *api.JsonErr {
 	repositoryNodeConfiguration, err := TryQueryNodeConfiguration(nodeID)
 	if err != nil {
 		return err
@@ -1271,6 +1356,8 @@ func CreateOrUpdateNodeConfiguration(
 		repositoryNodeConfiguration.DeployedNetworkContainerMap = make(map[string]map[string]string)
 		repositoryNodeConfiguration.NetworkVlanIDMap = make(map[string]uint16)
 		repositoryNodeConfiguration.ConstrainedReservations = make(map[string]string)
+		repositoryNodeConfiguration.UpdateGreCapable = GreCapableNotSet
+		repositoryNodeConfiguration.InterfaceGreKeyMap = make(map[string]map[string]uint16)
 	} else if repositoryNodeConfiguration.NodeID == nodeID && len(repositoryNodeConfiguration.NetworkVlanIDMap) > 0 {
 		if len(nodeInfo.IPAddresses) > 0 && repositoryNodeConfiguration.NodeInfo.IPAddresses[0] != nodeInfo.IPAddresses[0] {
 			return &api.JsonErr{
@@ -1287,10 +1374,11 @@ func CreateOrUpdateNodeConfiguration(
 		repositoryNodeConfiguration.NodeInfo = nodeInfo
 	}
 
-	return persistNodeConfiguration(repositoryNodeConfiguration)
+	repositoryNodeConfiguration.UpdateGreCapable = updateGreKeyCapability(repositoryNodeConfiguration, nmAgentSupportedApis)
+	return PersistNodeConfiguration(repositoryNodeConfiguration)
 }
 
-func persistNodeConfiguration(nodeconfiguration *NodeConfiguration) *api.JsonErr {
+func PersistNodeConfiguration(nodeconfiguration *NodeConfiguration) *api.JsonErr {
 	jsonSerializedBytes, err := json.Marshal(nodeconfiguration)
 	if err != nil {
 		return &api.JsonErr{
@@ -3247,7 +3335,8 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 		ContainerType:         assocInfo.ContainerType,
 		OrchestratorContext:   assocInfo.OrchestratorContext,
 		VnetVersion:           repoNetworkConfiguration.Version,
-		LocalIP:               repoNCConfig.LocalIP}
+		LocalIP:               repoNCConfig.LocalIP,
+		GreKey:                repoNCConfig.GreKey}
 
 	// todo: temporary. find better way to skip from publishing to pubsub proxy if orchestrated by k8s crd
 	if repoNodeConfig.NodeInfo.OrchestratorType != cns.KubernetesCRD {
@@ -3539,4 +3628,161 @@ func getLocalIPGateway(ipsubnet string) (string, error) {
 	ipstart := utils.IP2Int(ipNet.IP)
 	ipstart = ipstart + 1
 	return utils.Int2IP(ipstart).String(), nil
+}
+
+//updateGreKeyCapability helps determine if a given Node is capable of getting GRE keys assigned
+func updateGreKeyCapability(nodeConfiguration *NodeConfiguration, nmAgentSupportedApis []string) GreSetting {
+	loggershim.LS.Debugf("updateGreKeyCapability: Node: %s",
+		nodeConfiguration.NodeID)
+
+	if nodeConfiguration.UpdateGreCapable != GreCapableNotSet {
+		loggershim.LS.Debugf("UpdateGreKey is enabled on Node: %s",
+			nodeConfiguration.NodeID)
+		return nodeConfiguration.UpdateGreCapable
+	}
+
+	// We are checking if any GREKeys are already assigned here
+	// returning if InterfaceGreKeyMap has more than one entry,
+	if len(nodeConfiguration.InterfaceGreKeyMap) > 0 {
+		for _, interfaceMap := range nodeConfiguration.InterfaceGreKeyMap {
+			if len(interfaceMap) > 0 {
+				loggershim.LS.Debugf("UpdateGreKey is enabled on Node: %s",
+					nodeConfiguration.NodeID)
+				return GreCapable
+			}
+		}
+	}
+
+	// if countOfNcs >0 then GreKey is not allocated for these NCs
+	countOfNcs := 0
+	for _, mapNCs := range nodeConfiguration.DeployedNetworkContainerMap {
+		countOfNcs += len(mapNCs)
+	}
+
+	if countOfNcs > 0 {
+		loggershim.LS.Debugf("UpdateGreKey: Node:%s has existing NCs without GRE allocations.",
+			nodeConfiguration.NodeID)
+		return ExistingNCsWithoutGRE
+	}
+
+	// In Managed DNC case, DNC cannot talk to CNS, CNS will solicit SupportedAPIs list while registering Node.
+	if !managed {
+		if len(nodeConfiguration.NodeInfo.IPAddresses) == 0 {
+			loggershim.LS.Debugf("UpdateGreKey: Node:%s has no IpAddresses in NodeConfig ",
+				nodeConfiguration.NodeID)
+			return GreCapableNotSet
+		}
+		//Check if NMAgent is capable
+		supportedApisList, errMsg := NmAgentSupportedApis(nodeConfiguration.NodeInfo.IPAddresses[0])
+		if errMsg != nil {
+			loggershim.LS.Debugf("UpdateGreKey: Node:%s error occured while getting supported Apis list from NMAgent %s",
+				nodeConfiguration.NodeID, errMsg.Error())
+			return GreCapableNotSet
+		}
+		nmAgentSupportedApis = supportedApisList
+	}
+
+	if len(nmAgentSupportedApis) > 0 {
+		for _, apiName := range nmAgentSupportedApis {
+			if apiName == networkManagementLBSupport {
+				loggershim.LS.Debugf("UpdateGreKey: Node:%s is capable for GRE Allocations",
+					nodeConfiguration.NodeID)
+				return GreCapable
+			}
+		}
+
+		return NmAgentIncapable
+	}
+
+	return GreCapableNotSet
+
+}
+
+// NmAgentSupportedApis queries CNS running on a node to get NMagent's Supported Apis list.
+// If this request fails, then DNC will skip assiging GRE key.
+// TODO check for Swift AKS case where DNC-CNS talk via k8s api server
+func NmAgentSupportedApis(nodeIP string) ([]string, error) {
+	loggershim.LS.Debugf("NMAgent supported Apis query at GetNmAgentSupportedApis: %s",
+		cnsSettings.ConnectionStrings.NmAgentSupportedApisURLFmt)
+
+	var (
+		resp               cns.NmAgentSupportedApisResponse
+		body               bytes.Buffer
+		retSupportedList   []string
+		defaultContentType string = "application/json; charset=UTF-8"
+	)
+
+	// Check configuration settings.
+	if cnsSettings.ConnectionStrings.NmAgentSupportedApisURLFmt == "" {
+		loggershim.LS.Debugf("No GetNmAgentSupportedApisFmt found. Returning default empty list")
+		return retSupportedList, fmt.Errorf("No GetNmAgentSupportedApisFmt found")
+	}
+
+	//This is a parameter sent to CNS
+	getNmAgentSupportedAPIURL := fmt.Sprintf(
+		hostAgentSettings.ConnectionStrings.GetNmAgentSupportedApiURLFmt,
+		hostAgentSettings.WireServerIP)
+
+	supportedApisreq := cns.NmAgentSupportedApisRequest{
+		GetNmAgentSupportedApisURL: getNmAgentSupportedAPIURL,
+	}
+
+	//CNS endpoint to get Node NMagent's SUported Apis
+	getCnsNmAgentApisURL := fmt.Sprintf(
+		cnsSettings.ConnectionStrings.NmAgentSupportedApisURLFmt,
+		nodeIP)
+
+	encodeErr := json.NewEncoder(&body).Encode(supportedApisreq)
+	if encodeErr != nil {
+		msg := fmt.Errorf(
+			"Error encountered while encoding NMAgent Supported Apis request to node IP %s with error %+v ",
+			nodeIP,
+			encodeErr.Error())
+		return retSupportedList, msg
+	}
+
+	w, err := httpClient.Post(getCnsNmAgentApisURL, defaultContentType, &body)
+	if err != nil {
+		msg := fmt.Errorf(
+			"Error encountered while querying NMAgent Supported Apis for node IP %s with error %+v ",
+			nodeIP,
+			err.Error())
+		return retSupportedList, msg
+	}
+	defer w.Body.Close()
+
+	// This is expected, in case cns used doesn't support the API
+	if w.StatusCode == http.StatusNotFound {
+		msg := fmt.Errorf(
+			"Error encountered while querying NMAgent Supported Apis for node IP %s with error %+v ",
+			nodeIP,
+			w.StatusCode)
+		return retSupportedList, msg
+	}
+
+	if w.StatusCode != http.StatusOK {
+		msg := fmt.Errorf(
+			"Error encountered while querying NMAgent Supported Apis for node IP %s with error %+v ",
+			nodeIP,
+			w.StatusCode)
+		return retSupportedList, msg
+	}
+
+	if respErr := utils.DecodeResponse(w, &resp); respErr != nil {
+		msg := fmt.Errorf("Error encountered while decoding the NmAgentSupportedApisResponse for node IP %s with error %+v",
+			nodeIP,
+			respErr.Error())
+		return retSupportedList, msg
+	}
+
+	if resp.Response.ReturnCode != 0 {
+		msg := fmt.Errorf(
+			"GetNmAgentSupportedApis for node IP %s failed with errorcode %v and msg %s",
+			nodeIP,
+			resp.Response.ReturnCode,
+			resp.Response.Message)
+		return retSupportedList, msg
+	}
+
+	return resp.SupportedApis, nil
 }

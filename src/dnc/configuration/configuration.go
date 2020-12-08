@@ -97,6 +97,7 @@ type HostAgentConnectionStrings struct {
 	GetNetworkConfigurationURLFmt string
 	PutNetworkContainerURLFmt     string
 	DeleteNetworkContainerURLFmt  string
+	GetNmAgentSupportedApiURLFmt  string
 }
 
 // HostAgentSettings NMAgent connection URL settings.
@@ -115,6 +116,7 @@ type CNSConnectionStrings struct {
 	GetNumOfCPUCoresURLFmt               string
 	PublishNetworkContainerURLFmt        string
 	UnpublishNetworkContainerURLFmt      string
+	NmAgentSupportedApisURLFmt           string
 }
 
 // CNSSettings CNS settings
@@ -126,6 +128,12 @@ type CNSSettings struct {
 
 // VlanSettings - VLAN inventory
 type VlanSettings struct {
+	Min uint16
+	Max uint16
+}
+
+// GreSettings - GRE inventory
+type GreSettings struct {
 	Min uint16
 	Max uint16
 }
@@ -268,6 +276,7 @@ type Configuration struct {
 	PubSubProxySettings    PubSubProxySettings
 	IdentitySettings       IdentitySettings
 	AzureEnvironment       AzureEnvironment
+	GreSettings            GreSettings
 }
 
 // Load the JSON config file

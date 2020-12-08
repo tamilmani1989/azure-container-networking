@@ -24,6 +24,7 @@ type PublishNetworkContainerRequest struct {
 	Policies         []string
 	VirtualNetworkID string
 	VlanID           int
+	GreKey           int
 }
 
 type UnpublishNetworkContainerRequest struct {

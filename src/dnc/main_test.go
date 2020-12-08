@@ -120,8 +120,11 @@ func StartDnc(managed bool) {
 			config.CNSSettings,
 			config.DataStoreSettings,
 			config.DNCSettings,
+			config.HostAgentSettings,
 			config.VlanSettings.Min,
 			config.VlanSettings.Max,
+			config.GreSettings.Min,
+			config.GreSettings.Min,
 			httpClient,
 			cnsHttpClient,
 			config.HostAgentSettings.WireServerIP)

@@ -123,6 +123,17 @@ func PrintMapKeyValues(m map[string]string) string {
 	return "[" + strings.Join(keyvalues, ", ") + "]"
 }
 
+// PrintMapKeyValuesUint16 - Print Key Values in a map
+func PrintMapKeyValuesUint16(m map[string]uint16) string {
+	keyvalues := make([]string, 0, len(m))
+	for k, v := range m {
+		kv := fmt.Sprintf("%s:%v", k, v)
+		keyvalues = append(keyvalues, kv)
+	}
+
+	return "[" + strings.Join(keyvalues, ", ") + "]"
+}
+
 // PrintMapValues - Print Values in a map
 func PrintMapValues(m map[string]string) string {
 	values := make([]string, 0, len(m))

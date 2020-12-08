@@ -246,6 +246,9 @@ const (
 
 	// InvalidNodeRegistrationRequest - Node Registration request is invalid
 	InvalidNodeRegistrationRequest
+
+	// OutOfGreKeys - GRE Key is not supported/exceeded range
+	OutOfGreKeys
 )
 
 func (e ErrorCode) String() string {
@@ -492,6 +495,9 @@ func (e ErrorCode) String() string {
 
 	case InvalidNodeRegistrationRequest:
 		return "InvalidNodeRegistrationRequest"
+
+	case OutOfGreKeys:
+		return "OutOfGreKeys"
 	}
 
 	return "Unknown Status"

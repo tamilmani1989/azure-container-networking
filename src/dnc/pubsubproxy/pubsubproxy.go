@@ -16,6 +16,7 @@ struct NC_DATA {
     char* RoleInstanceName;
     char* VnetId;
     char* VlanId;
+    char* NcSlbGreKey;
 };
 
 struct TagConfiguration {
@@ -131,6 +132,7 @@ type PublishNetworkContainerRequest struct {
 	Policies         []string
 	VirtualNetworkID string
 	VlanID           int
+	GreKey           int
 }
 
 type UnpublishNetworkContainerRequest struct {
@@ -193,6 +195,7 @@ func serializeNetworkContainerPublishData(
 	ncData.RoleInstanceName = C.CString(ncRoleInstanceName)
 	ncData.VnetId = C.CString(ncPublishRequest.VirtualNetworkID)
 	ncData.VlanId = C.CString(fmt.Sprintf("%d", ncPublishRequest.VlanID))
+	ncData.NcSlbGreKey = C.CString(fmt.Sprintf("%d", ncPublishRequest.GreKey))
 
 	defer func() {
 		// Free the C memory holding the serialized NC data and ncData allocated strings
@@ -204,6 +207,7 @@ func serializeNetworkContainerPublishData(
 		C.free(unsafe.Pointer(ncData.RoleInstanceName))
 		C.free(unsafe.Pointer(ncData.VnetId))
 		C.free(unsafe.Pointer(ncData.VlanId))
+		C.free(unsafe.Pointer(ncData.NcSlbGreKey))
 	}()
 
 	var resultStatus C.struct_ResultStatus

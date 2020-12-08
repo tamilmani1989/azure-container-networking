@@ -24,6 +24,7 @@ struct NC_DATA {
     char* RoleInstanceName;
     char* VnetId;
     char* VlanId;
+    char* NcSlbGreKey;
 };
 
 struct TagConfiguration {

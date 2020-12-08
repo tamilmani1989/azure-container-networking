@@ -10,6 +10,42 @@ import (
 // in the table where the max char count per entry is capped at 32K
 const SubnetKeyPlaceholder = ""
 
+//GreSetting type for UpdateGreCapable in NodeCfg
+type GreSetting int
+
+const (
+	// GreCapableNotSet is checked for Node
+	GreCapableNotSet GreSetting = iota
+
+	//NmAgentIncapable i.e. does not support GRE alloc by DNC
+	NmAgentIncapable
+
+	//ExistingNCsWithoutGRE i.e. Node has NCs without GRE allocs
+	ExistingNCsWithoutGRE
+
+	//GreCapable Node can get GRE alloc
+	GreCapable
+)
+
+func (gs GreSetting) String() string {
+	switch gs {
+	case GreCapableNotSet:
+		return "GreCapableNotSet"
+
+	case NmAgentIncapable:
+		return "NmAgentIncapable"
+
+	case ExistingNCsWithoutGRE:
+		return "ExistingNCsWithoutGRE"
+
+	case GreCapable:
+		return "GreCapable"
+
+	default:
+		return "UnknownSetting"
+	}
+}
+
 // GetSubnetKey - Helper function to generate subnet configuration key.
 func GetSubnetKey(networkID string, ipSubnet string) string {
 	subnetCfgKey := fmt.Sprintf(subnetConfigurationKey, networkID, ipSubnet)
@@ -70,4 +106,30 @@ func GetNCIdFromKey(key string) string {
 // GetNcPendingPublishContextKey - Helper function to generate key.
 func GetNcPendingPublishContextKey(networkID, ncID string, pubsubAzId string) string {
 	return fmt.Sprintf(ncPendingPublishContextKey, networkID, ncID, pubsubAzId)
+}
+
+//CheckGreConditions checks for conditions required to assign a GreKey
+func CheckGreConditions(
+	nodeID string,
+	ncID string,
+	nodeGreCapability GreSetting,
+	ncGreKey uint16,
+	vlanID uint16) error {
+
+	if nodeGreCapability != GreCapable {
+		return fmt.Errorf("Node is not capable of assigning Grekeys NodeID:%s NC:%s",
+			nodeID, ncID)
+	}
+
+	if ncGreKey != 0 {
+		return fmt.Errorf("NC has GreKey assigned NodeID:%s NC:%s GreKey:%v",
+			nodeID, ncID, ncGreKey)
+	}
+
+	if vlanID == 0 {
+		return fmt.Errorf("NC's network has no VLANID assigned NodeID:%s NC:%s",
+			nodeID, ncID)
+	}
+
+	return nil
 }

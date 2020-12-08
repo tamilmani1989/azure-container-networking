@@ -135,6 +135,7 @@ func (c *Controller) refreshNetworkContainerNMAgentGoalState(ncKey string,
 	ncRequest.Version = strconv.FormatUint(ncGoalState.VnetVersion, 10)
 	ncRequest.VirtualNetworkID = ncGoalState.NetworkID
 	ncRequest.VlanID = ncGoalState.VlanID
+	ncRequest.GreKey = int(ncGoalState.GreKey)
 
 	json.NewEncoder(&body).Encode(ncRequest)
 

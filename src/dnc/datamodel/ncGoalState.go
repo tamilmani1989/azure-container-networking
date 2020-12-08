@@ -29,4 +29,5 @@ type NCGoalState struct {
 	VlanID                int
 	VnetVersion           uint64
 	LocalIP               string
+	GreKey                uint16
 }
