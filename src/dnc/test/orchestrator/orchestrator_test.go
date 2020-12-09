@@ -184,22 +184,32 @@ func TestBasicNCAPIs(t *testing.T) {
 
 	if !devEnv {
 		// usage: docker-run.sh <container-name> <namespace> <image>
-		if _, err := exec.Command("/bin/sh", "-c", "./docker-run.sh "+podName+" "+podNamespace+" nginx:alpine").CombinedOutput(); err != nil {
-			t.Fatalf("Failed to start container with err %+v", err)
+		cmd := "/bin/sh"
+
+		args := []string{"-c", "./docker-run.sh " + podName + " " + podNamespace + " nginx:alpine"}
+		logExecCmd(t, cmd, args...)
+		output, err := exec.Command(cmd, args...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("Failed to start container with error code %+v: %s", err, string(output))
 		}
 
-		cmd := "docker exec " + podName + " ip a | grep \"global eth0\" | awk '{print $2}'"
-		if output, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput(); err != nil {
-			t.Fatalf("Failed to start container with err %+v", err)
-		} else {
-			ncIP := strings.TrimRight(string(output), "\n")
-			if ncIP != "10.0.1.4/24" {
-				t.Fatalf("Created container IP mismatch;\nreceived %+v\nexpected %+v", ncIP, "10.0.1.4/24")
-			}
+		args = []string{"-c", "docker exec " + podName + " ip a | grep \"global eth0\" | awk '{print $2}'"}
+		logExecCmd(t, cmd, args...)
+		output, err = exec.Command(cmd, args...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("Failed to get container ip config with error code %+v: %s", err, string(output))
 		}
 
-		if _, err := exec.Command("/bin/sh", "-c", "./docker-del.sh "+podName+" "+podNamespace).CombinedOutput(); err != nil {
-			t.Fatalf("Failed to delete container with err %+v", err)
+		ncIP := strings.TrimRight(string(output), "\n")
+		if ncIP != "10.0.1.4/24" {
+			t.Fatalf("Created container IP mismatch;\nreceived %s\nexpected %s", ncIP, "10.0.1.4/24")
+		}
+
+		args = []string{"-c", "./docker-del.sh " + podName + " " + podNamespace}
+		logExecCmd(t, cmd, args...)
+		output, err = exec.Command(cmd, args...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("Failed to delete container with error code %+v: %s", err, output)
 		}
 	}
 
@@ -212,6 +222,10 @@ func TestBasicNCAPIs(t *testing.T) {
 	deleteReservation(t, vnetID, reservationID)
 	deleteNetwork(t, vnetID, http.StatusNotFound)
 	deleteNode(t, nodeID, http.StatusNotFound)
+}
+
+func logExecCmd(t *testing.T, cmd string, args ...string) {
+	t.Logf(" executing command '%s %s'", cmd, strings.Join(args, " "))
 }
 
 func TestRetrieveDelegatedSubnets(t *testing.T) {

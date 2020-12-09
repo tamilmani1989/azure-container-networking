@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Azure/azure-container-networking/cns/nmagentclient"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -117,6 +119,18 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGet(w http.ResponseWriter, r *http.Request) {
+	if strings.Contains(r.RequestURI, "networkContainers") {
+		resp := nmagentclient.NMANetworkContainerResponse{
+			ResponseCode:       "200",
+			NetworkContainerID: "container1",
+			// todo: may need to change for testing changes in version. can use in-memory cache of POSTed network container requests
+			Version: "1",
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
 	if strings.Contains(r.RequestURI, "joinedVirtualNetworks") {
 		var (
 			vnet = regVnet.FindStringSubmatch(r.RequestURI)

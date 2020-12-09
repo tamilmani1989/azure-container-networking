@@ -130,7 +130,7 @@ stages:
                 sudo usermod -aG docker acn '
               ssh -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa acn@$(CreateVM.IP) '
                 acn_release=$(ACN_RELEASE)
-                if [[ acn_release == latest ]]; then
+                if [[ $acn_release == latest ]]; then
                   acn_release=$(curl -L -s -H '"'"'Accept: application/json'"'"' https://github.com/Azure/azure-container-networking/releases/latest | jq .tag_name | tr -d '"'"'"'"'"' );
                 fi;
                 echo Installing CNI version - $acn_release;
@@ -139,6 +139,7 @@ stages:
                 sudo -E ./install-cni-multitenancy-plugin.sh $acn_release;
                 wget https://github.com/Azure/azure-container-networking/releases/download/$acn_release/azure-cns-linux-amd64-$acn_release.tgz;
                 tar -zxvf *.tgz;
+                echo $(jq ".WireserverIP=\"127.0.0.1:9001\"" cns_config.json) > cns_config.json
                 export DNC_CONFIGURATION_PATH=$(pwd)/config_test.json;
                 sudo -E ./azure-cns &> azure-cns-stdout.log &
                 sudo -E ./dnc &> dnc-stdout.log &
