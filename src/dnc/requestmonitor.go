@@ -936,8 +936,8 @@ func processNetworkContainerPublish(
 		publishViaCNS = true
 	}
 
-	logger.Debugf("[NMAgent] Creating NC: %s, publishViaCNS: %t, body:%s, bytes: %v",
-		ncGoalState.NetworkContainerID, publishViaCNS, ncRequest.String(), body.Bytes())
+	logger.Debugf("[NMAgent] Creating NC: %s, publishViaCNS: %t, body:%s",
+		ncGoalState.NetworkContainerID, publishViaCNS, ncRequest.String())
 
 	if publishViaCNS {
 		// Publish NC through CNS. CNS typically runs on the worker node and this path helps
@@ -976,8 +976,8 @@ func processNetworkContainerPublish(
 			config.CNSSettings.ConnectionStrings.PublishNetworkContainerURLFmt,
 			ncGoalState.NodeInterfaceID)
 
-		logger.Debugf("[CNS] Publish NC %s, body:%s publishNCRequestBody: %v CreateNetworkContainerRequestBody: %v",
-			ncGoalState.NetworkContainerID, ncRequest.String(), publishNCRequestBody.Bytes(), body.Bytes())
+		logger.Debugf("[CNS] Publish NC %s, body:%s ",
+			ncGoalState.NetworkContainerID, ncRequest.String())
 		// Release the session locks before making call to CNS
 		sessionManager.EndWriteSession(sessionInfo)
 
