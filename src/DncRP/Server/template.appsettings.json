@@ -47,7 +47,7 @@
     "Namespace": "DncRP",
     "StatsDHost": "127.0.0.1",
     "StatsdPort": 8125,
-    "StatsdSocketProtocol": "Udp" // from enum JustEat.StatsD.SocketProtocol enum
+    "StatsdSocketProtocol": "Udp"
   },
   "ClientIdentities": [
     {
