@@ -8,21 +8,33 @@
 #
 #   cd Networking-Aquiarius/
 #   docker build -t dnc:version -f src/dnc/builds/dnc/Dockerfile .
+#
+# If building locally and you want to skip building bondserializer (since it takes too long to build), then use this.
+# It will use the checked-in version of bond serializer library rather than building it fresh.
+#   docker build -t dnc:version -f src/dnc/builds/dnc/Dockerfile --build-arg GENERATE_BOND_FILE=false .
 
 # Get a trusted CA cert bundle and go toolchain
 FROM alpine:latest as certs
 RUN apk --update add ca-certificates
 
-# Build the libBondDataSerializer.so file
+# Build the libBondDataSerializer.so file conditionally. Default behavior is to build this file.
+# However, if caller passes in GENERATE_BOND_FILE=false as build argument in docker cli, this file
+# won't be built and checked-in version of libBondDataSerializer.so be used from repo.
 FROM mcr.microsoft.com/containernetworking/gbc:9.0.3 AS bond-builder
 WORKDIR /usr/local/src/Networking-Aquarius
+ARG GENERATE_BOND_FILE=true
 COPY ./src/BondDataSerializer ./src/BondDataSerializer
-RUN cd ./src/BondDataSerializer && \
-    rm -rf build && \
-    mkdir build && \
-    cd build && \
-    cmake .. && \
-    make
+COPY ./src/dnc/pubsubproxy/libs ./src/dnc/pubsubproxy/libs
+RUN if [ "$GENERATE_BOND_FILE" = "true" ]; then \
+      cd ./src/BondDataSerializer && \
+      rm -rf build && \
+      mkdir build && \
+      cd build && \
+      cmake .. && \
+      make; \
+	else \
+	  cp -r ./src/dnc/pubsubproxy/libs ./src/BondDataSerializer/build ; \
+	fi
 
 # Build the DNC binary
 # golang:1.14 is based on debian 10
