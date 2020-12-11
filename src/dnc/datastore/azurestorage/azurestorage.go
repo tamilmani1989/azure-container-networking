@@ -113,10 +113,9 @@ func recordProcessingTime(
 	if timeElapsedMs > int64(thresholdForLoggingDataStoreOpLatencyMs) {
 		loggershim.LS.Debugf("[AzureStorage] Operation: %s, Table: %s, PartitionKey: %s,"+
 			" rowKey: %s, TimeMs: %v", operation, tableName, partitionKey, rowKey, timeElapsedMs)
-	}
 
-	sendDataStoreMetric(aiwrapper.DataStoreOperationTimeMetric, float64(timeElapsedMs),
-		operation, tableName)
+		sendDataStoreMetric(aiwrapper.DataStoreOperationTimeMetric, float64(timeElapsedMs), operation, tableName)
+	}
 }
 
 func sendDataStoreMetric(
