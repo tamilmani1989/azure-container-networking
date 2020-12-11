@@ -5,7 +5,10 @@ package store
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -109,20 +112,42 @@ func (kvs *jsonFileStore) Flush() error {
 
 // Lock-free flush for internal callers.
 func (kvs *jsonFileStore) flush() error {
-	file, err := os.Create(kvs.fileName)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
 	buf, err := json.MarshalIndent(&kvs.data, "", "\t")
 	if err != nil {
 		return err
 	}
 
-	if _, err := file.Write(buf); err != nil {
-		return err
+	dir, file := filepath.Split(kvs.fileName)
+	if dir == "" {
+		dir = "."
 	}
+
+	f, err := ioutil.TempFile(dir, file)
+	if err != nil {
+		return fmt.Errorf("cannot create temp file: %v", err)
+	}
+
+	tmpFileName := f.Name()
+
+	defer func(){
+		if err != nil {
+			// remove temp file after job is done
+			_ = os.Remove(tmpFileName)
+			f.Close()
+		}
+	}()
+
+	if err = ioutil.WriteFile(tmpFileName, buf, 0); err != nil {
+		return fmt.Errorf("ioutil.WriteFile failed with: %v", err)
+	}
+
+	f.Close()
+
+	log.Printf("renaming tmp file %v to state file", tmpFileName)
+	if err = os.Rename(tmpFileName, kvs.fileName); err != nil {
+		return fmt.Errorf("rename temp file to state file failed:%v", err)
+	}
+
 	return nil
 }
 
