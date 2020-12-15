@@ -457,6 +457,45 @@ Cleanup:
 	return markProcessingFailed, nil
 }
 
+func markNCAsFailed(ncConfig *datamodel.NCConfiguration, err api.JsonErr) (bool, *api.JsonErr) {
+	ncConfig.Status = datamodel.Failed
+	ncConfig.FailureDetail = err
+	if err := datamodel.PersistNCConfiguration(ncConfig, datamodel.DontAddToPendingQ); err != nil {
+		return false, err // don't remove from queue until failure can be persisted
+	}
+	return true, nil
+}
+
+func processNetworkContainerBatchReserve(nc *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	sessionInfo := map[string]string{datamodel.ReservationRepositoryName: nc.ReservationID}
+
+	sessionManager.BeginWriteSession(sessionInfo)
+	defer sessionManager.EndWriteSession(sessionInfo)
+
+	reservation, apiErr := datamodel.TryQueryIPReservation(nc.NetworkID, nc.ReservationID)
+	if apiErr != nil {
+		return false, apiErr
+	}
+
+	if reservation == nil {
+		return markNCAsFailed(nc, *api.NotFoundf(api.ReservationNotFound, "could not find reservation %s for nc %s", nc.NetworkContainerID, nc.ReservationID))
+	}
+
+	res, err := resDispatcher.Reserve(*reservation, nc.RequestV2.ToBeDeletedIPIds)
+	if err != nil {
+		return false, api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	switch res.Status {
+	case datamodel.Failed:
+		return markNCAsFailed(nc, res.FailureDetail)
+	case datamodel.Completed:
+		return false, transitionNCTo(nc, datamodel.AllocateLocalIP, datamodel.Pending)
+	default:
+		return false, api.InternalServerError(api.StatusInternalServerError, "unexpected reservation status")
+	}
+}
+
 func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.JsonErr {
 	if !ncConfig.ImplicitReservation {
 		sessionInfo := map[string]string{
@@ -494,6 +533,8 @@ func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.
 			return err
 		}
 	}
+
+	// todo: if allocated subnet is empty, the below fails
 
 	if err := datamodel.DeleteIPReservation(ncConfig.NetworkID, ncConfig.ReservationID, true); err != nil {
 		return err
@@ -1639,7 +1680,13 @@ func processNetworkContainerRequest(
 			removeRequestFromPendingQueue, err = preparer.PrepareNetworkContainer(repoNCConfig)
 
 		case datamodel.Reserve:
-			removeRequestFromPendingQueue, err = processNetworkContainerReserve(repoNCConfig)
+			// todo: batch functionality is not general enough yet for non-managed cases.
+			//   once specific cases have been ported, default to batch.
+			if config.DNCSettings.Managed {
+				removeRequestFromPendingQueue, err = processNetworkContainerBatchReserve(repoNCConfig)
+			} else {
+				removeRequestFromPendingQueue, err = processNetworkContainerReserve(repoNCConfig)
+			}
 
 		case datamodel.AllocateLocalIP:
 			removeRequestFromPendingQueue, err = processAllocateLocalIP(repoNCConfig)
@@ -1820,7 +1867,9 @@ func processPendingRequests(
 		}
 	}
 
-	logger.Debugf("Number of requests to process in the current batch: %d", currentBatchRequestCount)
+	if currentBatchRequestCount > 0 {
+		logger.Debugf("Number of requests to process in the current batch: %d", currentBatchRequestCount)
+	}
 
 	for i := 0; i < currentBatchRequestCount; i++ {
 		// Return if the replica is not primary

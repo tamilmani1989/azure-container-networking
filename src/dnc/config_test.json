@@ -2,7 +2,8 @@
   "DataStoreSettings": {
     "TestPersistenceStoreInfo": {
       "Test": "TestStore"
-    }
+    },
+    "MaxBatchSize": 100
   },
   "ServerSettings": {
     "IPAddress": "127.0.0.1",

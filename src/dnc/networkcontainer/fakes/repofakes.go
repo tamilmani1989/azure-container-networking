@@ -5,6 +5,30 @@ import (
 	"dnc/datamodel"
 )
 
+type NCRepo struct {
+	Data     map[string]datamodel.NCConfiguration
+	QueryErr *api.JsonErr
+	PutErr   *api.JsonErr
+}
+
+func (n *NCRepo) TryQueryNetworkContainer(networkID, ncID string) (*datamodel.NCConfiguration, *api.JsonErr) {
+	if n.QueryErr != nil {
+		return nil, n.QueryErr
+	}
+
+	ncKey := datamodel.GetNCKey(networkID, ncID)
+	nc, ok := n.Data[ncKey]
+	if !ok {
+		return nil, nil
+	}
+
+	return &nc, nil
+}
+
+func (n *NCRepo) PersistNCConfiguration(ncConfiguration *datamodel.NCConfiguration, addToPendingQueue bool) *api.JsonErr {
+	panic("implement me")
+}
+
 type ReservationRepo struct {
 	Data     map[string]datamodel.ReservationConfiguration
 	QueryErr *api.JsonErr
@@ -26,7 +50,12 @@ func (f *ReservationRepo) TryQueryIPReservationByKey(key string) (*datamodel.Res
 	if f.QueryErr != nil {
 		return nil, f.QueryErr
 	}
-	res := f.Data[key]
+
+	res, ok := f.Data[key]
+	if !ok {
+		return nil, nil
+	}
+
 	return &res, nil
 }
 
@@ -39,12 +68,49 @@ func (f *ReservationRepo) PutIPReservationConfiguration(res *datamodel.Reservati
 	return nil
 }
 
+func (f *ReservationRepo) GetReservations(networkID string, reservationIDs []string) ([]datamodel.ReservationConfiguration, *api.JsonErr) {
+	var out []datamodel.ReservationConfiguration
+
+	for _, resID := range reservationIDs {
+		key := datamodel.GetReservationKey(networkID, resID)
+		res, ok := f.Data[key]
+		if ok {
+			out = append(out, res)
+		}
+	}
+
+	return out, nil
+}
+
+func (f *ReservationRepo) UpdateReservations(reservations []datamodel.ReservationConfiguration) *api.JsonErr {
+	for _, reservation := range reservations {
+		key := datamodel.GetReservationKey(reservation.NetworkID, reservation.ReservationID)
+		f.Data[key] = reservation
+	}
+	return nil
+}
+
 type SubnetRepo struct {
-	Payload datamodel.SubnetConfiguration
+	Data     map[string]datamodel.SubnetConfiguration
+	QueryErr *api.JsonErr
+}
+
+func (f *SubnetRepo) PutSubnetConfiguration(subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr {
+	return nil
 }
 
 func (f *SubnetRepo) TryQuerySubnetConfiguration(networkID, subnetName string) (*datamodel.SubnetConfiguration, *api.JsonErr) {
-	return &f.Payload, nil
+	if f.QueryErr != nil {
+		return nil, f.QueryErr
+	}
+
+	key := datamodel.GetSubnetKey(networkID, subnetName)
+	sub, ok := f.Data[key]
+	if !ok {
+		return nil, nil
+	}
+
+	return &sub, nil
 }
 
 func (f *SubnetRepo) UpdateSubnetReservationSet(networkID, reservationID, allocatedSubnet string, remove bool, subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr {
@@ -56,6 +122,7 @@ type RepoKV struct {
 	Value interface{}
 }
 
+// todo: refactor to just use a map for data. fake pagination can be done via sorting and using key as page token
 type AllocationRepo struct {
 	Data        []RepoKV
 	MaxPageSize int
@@ -85,7 +152,10 @@ func (f *AllocationRepo) QueryIPAllocationsByAllocationID(_, _ string, allocIDs 
 	return results, nil
 }
 
-func (f *AllocationRepo) AddIPAllocations(_, _ string, _ map[string]map[string]interface{}) *api.JsonErr {
+func (f *AllocationRepo) AddIPAllocations(_, _ string, rows map[string]map[string]interface{}) *api.JsonErr {
+	for rowKey, rowData := range rows {
+		f.Data = append(f.Data, RepoKV{Key: rowKey, Value: rowData})
+	}
 	return nil
 }
 

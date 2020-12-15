@@ -7,7 +7,8 @@
             "Environment": "",
             "IsUsingCosmosDb": false,
             "CosmosDBResourceID": ""
-        }
+        },
+        "MaxBatchSize": 100
     },
     "ServerSettings": {
         "IPAddress": "",

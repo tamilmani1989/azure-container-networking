@@ -5,7 +5,8 @@
             "Key": "",
             "PartitionKey": "",
             "IsUsingCosmosDb": true
-        }
+        },
+        "MaxBatchSize": 1000
     },
     "ServerSettings": {
         "IPAddress": "",
@@ -37,8 +38,8 @@
         "Dll": ""
     },
     "CNSSettings": {
-        "ChannelMode": "direct",
         "CnsTlsCertificateSubjectName": "",
+        "ChannelMode": "disabled",
         "ConnectionStrings": {
             "CreateOrUpdateNetworkContainerURLFmt": "http://%s:10090/network/createorupdatenetworkcontainer",
             "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
@@ -56,18 +57,19 @@
     "DNCSettings": {
         "RequestRetryBaseInterval": 1000,
         "MaxRequestBackoffInterval": 16000,
-        "NetworkRefreshInterval": 30000,
+        "NetworkRefreshInterval": 30000000,
         "NetworkRefreshBatchSize": 3,
         "SleepIntervalBetweenNetworkBatches": 5000,
-        "SleepIntervalBetweenNetworkRefresh": 1000,
+        "SleepIntervalBetweenNetworkRefresh": 10000000,
         "TagRefreshInterval": 1000,
-        "NetworkContainerRefreshInterval": 1000,
+        "NetworkContainerRefreshInterval": 10000000,
         "ReportToHostInterval": 60000,
         "ConcurrentRequestsToProcess": 1000,
         "EnforceNICLimit": true,
         "NICsAllowedPerVirtualCore": 1,
         "ReverseProxyEnabled": false,
-        "ThresholdForLoggingDataStoreOpLatencyMs": 1000
+        "ThresholdForLoggingDataStoreOpLatencyMs": 1000,
+        "Managed": true
     },
     "HttpClientSettings": {
         "ConnectionTimeout": 5,
@@ -80,7 +82,7 @@
         "TelemetryBatchIntervalInSecs": 7,
         "RefreshIntervalInSecs": 15,
         "DisableMetadataRefreshThread": false,
-        "DisableTelemetry": false,
+        "DisableTelemetry": true,
         "DebugMode": false,
         "DisableAiLogging": false
     }

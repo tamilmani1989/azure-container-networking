@@ -15,13 +15,12 @@ import (
 	"github.com/Azure/azure-sdk-for-go/storage"
 )
 
-// Max time latency allowed for data store operations before recording the operation latency in the log.
-var thresholdForLoggingDataStoreOpLatencyMs int
+var (
+	// Max time latency allowed for data store operations before recording the operation latency in the log.
+	thresholdForLoggingDataStoreOpLatencyMs int
+)
 
 const (
-	// maximum batch transaction size
-	// see https://docs.microsoft.com/en-us/rest/api/storageservices/performing-entity-group-transactions#requirements-for-entity-group-transactions
-	MaxBatchSize = 100
 	// default timeout for calls
 	defaultTimeout = 30
 )
@@ -32,13 +31,15 @@ type AzureStorage struct {
 	tableClient               storage.TableServiceClient
 	regionalTableClient       storage.TableServiceClient
 	tableNameToTableClientMap map[string]*storage.TableServiceClient
+	maxBatchSize              int
 }
 
 // Init - Initialize azure storage.
 func (azureStorage *AzureStorage) Init(
 	tableToColumnMap map[string]string,
-	thresholdForLoggingDataStoreOpLatencyMsArg int) {
-	loggershim.LS.Debugf("Environment type for azure store settings %s", azureStorage.AzureStorageInfo.Environment)
+	thresholdForLoggingDataStoreOpLatencyMsArg int,
+	maxBatchSize int) {
+	loggershim.LS.Debugf("[Azure DNC] Environment type for azure store settings %s", azureStorage.AzureStorageInfo.Environment)
 	storageClient, err := utils.GetStorageClient(
 		azureStorage.AzureStorageInfo.AccountName,
 		azureStorage.AzureStorageInfo.Key,
@@ -52,6 +53,9 @@ func (azureStorage *AzureStorage) Init(
 	if len(strings.TrimSpace(azureStorage.AzureStorageInfo.RegionalStorageConnectionString)) > 0 {
 		azureStorage.initRegionalStorage()
 	}
+
+	azureStorage.maxBatchSize = maxBatchSize
+	loggershim.LS.Debugf("[Azure DNC] Max transaction batch size set to %d", maxBatchSize)
 
 	loggershim.LS.Debugf("[Azure DNC] Ensuring table schema")
 	err = azureStorage.ensureSchema(tableToColumnMap)
@@ -207,7 +211,7 @@ func (azureStorage *AzureStorage) InsertInPartitionProperties(
 
 // UpsertBatch inserts or replaces a batch of rows (row key to properties) for a given table and partition key
 // There is a limit of 100 items per batch
-func (azureStorage *AzureStorage) UpsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error {
+func (azureStorage *AzureStorage) UpsertBatch(tableName string, batchItems map[string]map[string]interface{}) error {
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("cannot find valid table client for table %s", tableName)
@@ -217,7 +221,7 @@ func (azureStorage *AzureStorage) UpsertBatch(tableName, partitionKey string, ba
 
 	batch := table.NewBatch()
 	for rowKey, rowProperties := range batchItems {
-		entity := table.GetEntityReference(partitionKey, rowKey)
+		entity := table.GetEntityReference(azureStorage.PartitionKey, rowKey)
 		entity.Properties = rowProperties
 		// todo: is it correct to always use If-Match:*? not providing an etag basically forces the upsert
 		// entity.OdataEtag = ""
@@ -230,10 +234,10 @@ func (azureStorage *AzureStorage) UpsertBatch(tableName, partitionKey string, ba
 // InsertBatch inserts a batch of rows for a given table and partition key
 // The key in the batch represents the row key
 // The value in the batch (map[string]interface{}) represents row properties and their respective values
-// There is a limit of 100 items per batch
+// Documented limit is 100, but in practice it is over 1000
 func (azureStorage *AzureStorage) InsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error {
-	if len(batchItems) > MaxBatchSize {
-		return fmt.Errorf("batch size %d exceeds limit of %d", len(batchItems), MaxBatchSize)
+	if len(batchItems) > azureStorage.maxBatchSize {
+		return fmt.Errorf("batch size %d exceeds limit of %d", len(batchItems), azureStorage.maxBatchSize)
 	}
 
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
@@ -256,8 +260,8 @@ func (azureStorage *AzureStorage) InsertBatch(tableName, partitionKey string, ba
 // DeleteBatch deletes a batch of rows in a given table based on the given partition and row keys
 // There is a limit of 100 items per batch
 func (azureStorage *AzureStorage) DeleteBatch(tableName, partitionKey string, rowKeys []string) error {
-	if len(rowKeys) > MaxBatchSize {
-		return fmt.Errorf("batch size should not exceed %d", MaxBatchSize)
+	if len(rowKeys) > azureStorage.maxBatchSize {
+		return fmt.Errorf("batch size should not exceed %d", azureStorage.maxBatchSize)
 	}
 
 	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
@@ -360,6 +364,15 @@ func (azureStorage *AzureStorage) QueryFilter(tableName, filter string) (map[str
 	}
 
 	return results, nil
+}
+
+// QueryRowKeys - Fetch rows for keys provided
+func (azureStorage *AzureStorage) QueryRowKeys(tableName string, keys []string) (map[string]interface{}, error) {
+	defer recordProcessingTime(time.Now(), "QueryRowKeys", tableName, azureStorage.PartitionKey, "NA")
+
+	filter := BuildFilterOnPartition(azureStorage.PartitionKey, "RowKey", keys)
+
+	return azureStorage.QueryFilter(tableName, filter)
 }
 
 // KeyExist - check if key exist in a given table.

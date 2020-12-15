@@ -1148,6 +1148,53 @@ func QueryIPReservation(networkID, reservationID string) (*ReservationConfigurat
 	return reservationConfiguration, nil
 }
 
+func QueryIPReservations(networkID string, reservationIDs []string) ([]ReservationConfiguration, *api.JsonErr) {
+	resKeys := make([]string, len(reservationIDs))
+	for i, resID := range reservationIDs {
+		resKeys[i] = GetReservationKey(networkID, resID)
+	}
+
+	rows, err := dataStoreShim.QueryRowKeys(ipReservationsTableName, resKeys)
+	if err != nil {
+		return nil, api.InternalServerErrorf(api.StatusInternalServerError, "could not retrieve reservations: %v", err)
+	}
+
+	reservations := make([]ReservationConfiguration, len(rows))
+	i := 0
+	for rowKey, value := range rows {
+		reservationJSON, ok := value.(string)
+		if !ok {
+			return nil, api.InternalServerErrorf(api.StatusInternalServerError, "invalid data format. expected string value, got %T", value)
+		}
+		var reservation ReservationConfiguration
+		if err := json.Unmarshal([]byte(reservationJSON), &reservation); err != nil {
+			return nil, api.InternalServerErrorf(api.StatusInternalServerError, "invalid json in reservation %s: %v", rowKey, err)
+		}
+		reservations[i] = reservation
+		i++
+	}
+
+	return reservations, nil
+}
+
+func UpdateIPReservations(reservations []ReservationConfiguration) *api.JsonErr {
+	rows := make(map[string]map[string]interface{})
+	for _, res := range reservations {
+		key := GetReservationKey(res.NetworkID, res.ReservationID)
+		resJSON, err := json.Marshal(res)
+		if err != nil {
+			return api.InternalServerErrorf(api.JsonMarshallingFailed, "could not serialize reservation %s: %v", res.ReservationID, err)
+		}
+		rows[key] = map[string]interface{}{reservationConfigurationTag: string(resJSON)}
+	}
+
+	if err := dataStoreShim.UpsertBatch(ipReservationsTableName, rows); err != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError, "could not persist reservation batch: %v", err)
+	}
+
+	return nil
+}
+
 // TryQueryRequestContext - Query request context.
 func TryQueryRequestContext(requestID string) (*RequestContext, *api.JsonErr) {
 	var repoRequestContext RequestContext

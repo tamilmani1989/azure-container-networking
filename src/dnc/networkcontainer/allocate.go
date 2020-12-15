@@ -5,7 +5,6 @@ import (
 	"dnc/api"
 	"dnc/configuration"
 	"dnc/datamodel"
-	"dnc/datastore/azurestorage"
 	"dnc/logger/loggershim"
 	"dnc/utils"
 	"fmt"
@@ -29,6 +28,7 @@ type IPAllocator struct {
 	Allocations      IPAllocationRepo
 	IsFeatureEnabled func(int) bool
 	Logger           loggershim.LoggerInterface
+	MaxBatchSize     int
 }
 
 // ProcessIPReservationAllocationWithKey processes IP allocation for a given reservation key
@@ -100,7 +100,7 @@ func (a *IPAllocator) ProcessIPReservationAllocation(req *datamodel.ReservationC
 			return a.markReservationAsFailed(req, api.InternalServerError(api.StatusInternalServerError, parseErr.Error()))
 		}
 	} else {
-		primaryIP, err = a.determinePrimaryIP(req, baseSubnet, addressesInUse)
+		primaryIP, err = determinePrimaryIP(req, baseSubnet, addressesInUse)
 		if err != nil {
 			return a.markReservationAsFailed(req, err)
 		}
@@ -218,7 +218,7 @@ func (a *IPAllocator) getAllAddressesInUse(baseSubnet *net.IPNet, allocationStat
 	return addressesInUse, nil
 }
 
-func (a *IPAllocator) determinePrimaryIP(req *datamodel.ReservationConfiguration, baseSubnet *net.IPNet, addressesInUse map[string]*net.IPNet) (*net.IPNet, *api.JsonErr) {
+func determinePrimaryIP(req *datamodel.ReservationConfiguration, baseSubnet *net.IPNet, addressesInUse map[string]*net.IPNet) (*net.IPNet, *api.JsonErr) {
 	if req.AllocationRequest.IPConstraint == "" { // can allocate from anywhere in subnet
 		allocatedSubnet, err := allocationhelper.AllocateSubnetFromNetworkSpace(baseSubnet, addressesInUse, 32)
 		if err != nil {
@@ -455,13 +455,37 @@ func (a *IPAllocator) deleteAllocations(networkID, subnetName string, keys []str
 		return nil
 	}
 	var batches [][]string
-	for len(keys) > azurestorage.MaxBatchSize {
-		keys, batches = keys[azurestorage.MaxBatchSize:], append(batches, keys[0:azurestorage.MaxBatchSize])
+	for len(keys) > a.MaxBatchSize {
+		keys, batches = keys[a.MaxBatchSize:], append(batches, keys[0:a.MaxBatchSize])
 	}
 	batches = append(batches, keys)
 
 	for i := 0; i < len(batches); i++ {
 		if err := a.Allocations.DeleteIPAllocations(networkID, subnetName, batches[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// todo: refactor to take a map of rows, not map of maps
+func (a *IPAllocator) saveAllocationBatch(vnetID, subnetName string, batchMap map[string]map[string]interface{}) *api.JsonErr {
+	var batches []map[string]map[string]interface{}
+
+	batch := make(map[string]map[string]interface{})
+	for k, v := range batchMap {
+		batch[k] = v
+		if len(batch) == a.MaxBatchSize {
+			batches = append(batches, batch)
+			batch = make(map[string]map[string]interface{})
+		}
+	}
+	if len(batch) > 0 {
+		batches = append(batches, batch)
+	}
+
+	for i := 0; i < len(batches); i++ {
+		if err := a.Allocations.AddIPAllocations(vnetID, subnetName, batches[i]); err != nil {
 			return err
 		}
 	}

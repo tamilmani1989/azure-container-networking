@@ -26,6 +26,10 @@ func NotFound(code ErrorCode, msg string) *JsonErr {
 	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusNotFound}
 }
 
+func NotFoundf(code ErrorCode, format string, args ...interface{}) *JsonErr {
+	return &JsonErr{Code: code, Text: fmt.Sprintf(format, args...), HTTPStatus: http.StatusNotFound}
+}
+
 func BadRequest(code ErrorCode, msg string) *JsonErr {
 	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusBadRequest}
 }

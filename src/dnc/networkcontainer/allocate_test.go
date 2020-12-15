@@ -26,10 +26,12 @@ func Test_Allocate(t *testing.T) {
 	}
 
 	subnetRepo := fakes.SubnetRepo{
-		Payload: datamodel.SubnetConfiguration{
-			NetworkID:  "network1",
-			SubnetName: "subnet1",
-			IPSubnet:   "172.16.0.0/24",
+		Data: map[string]datamodel.SubnetConfiguration{
+			datamodel.GetSubnetKey("network1", "subnet1"): {
+				NetworkID:  "network1",
+				SubnetName: "subnet1",
+				IPSubnet:   "172.16.0.0/24",
+			},
 		},
 	}
 
@@ -38,6 +40,7 @@ func Test_Allocate(t *testing.T) {
 		Subnets:          &subnetRepo,
 		Reservations:     fakes.NewReservationRepo(),
 		IsFeatureEnabled: enableSubnetDelegation,
+		MaxBatchSize:     100,
 	}
 
 	req := datamodel.ReservationConfiguration{
@@ -98,10 +101,12 @@ func TestIncompleteAllocation(t *testing.T) {
 	}
 
 	subnetRepo := fakes.SubnetRepo{
-		Payload: datamodel.SubnetConfiguration{
-			NetworkID:  "network1",
-			SubnetName: "subnet1",
-			IPSubnet:   "172.16.0.0/24",
+		Data: map[string]datamodel.SubnetConfiguration{
+			datamodel.GetSubnetKey("network1", "subnet1"): {
+				NetworkID:  "network1",
+				SubnetName: "subnet1",
+				IPSubnet:   "172.16.0.0/24",
+			},
 		},
 	}
 
@@ -110,6 +115,7 @@ func TestIncompleteAllocation(t *testing.T) {
 		Subnets:          &subnetRepo,
 		Reservations:     fakes.NewReservationRepo(),
 		IsFeatureEnabled: enableSubnetDelegation,
+		MaxBatchSize:     100,
 	}
 
 	req := datamodel.ReservationConfiguration{
@@ -177,7 +183,7 @@ func TestDeallocate(t *testing.T) {
 		reservation.SecondaryAllocations[allocID] = ips[i].String() + "/32"
 	}
 	allocRepo := fakes.AllocationRepo{Data: allocationRows, MaxPageSize: 100}
-	allocator := IPAllocator{Allocations: &allocRepo, Logger: new(dummyLogger)}
+	allocator := IPAllocator{Allocations: &allocRepo, Logger: new(dummyLogger), MaxBatchSize: 100}
 
 	// randomly select a number of ids to be deleted
 	rand.Shuffle(len(allocationIDs), func(i, j int) {
@@ -209,10 +215,12 @@ func Test_RemoveSecondaryIpWithEmptyAllocations(t *testing.T) {
 	}
 
 	subnetRepo := fakes.SubnetRepo{
-		Payload: datamodel.SubnetConfiguration{
-			NetworkID:  "network1",
-			SubnetName: "subnet1",
-			IPSubnet:   "172.16.0.0/24",
+		Data: map[string]datamodel.SubnetConfiguration{
+			datamodel.GetSubnetKey("network1", "subnet1"): {
+				NetworkID:  "network1",
+				SubnetName: "subnet1",
+				IPSubnet:   "172.16.0.0/24",
+			},
 		},
 	}
 
@@ -222,6 +230,7 @@ func Test_RemoveSecondaryIpWithEmptyAllocations(t *testing.T) {
 		Reservations:     fakes.NewReservationRepo(),
 		IsFeatureEnabled: enableSubnetDelegation,
 		Logger:           &dummyLogger{},
+		MaxBatchSize:     100,
 	}
 
 	req := datamodel.ReservationConfiguration{
@@ -259,8 +268,15 @@ func Test_RemoveAllAllocations(t *testing.T) {
 		},
 		MaxPageSize: 5,
 	}
+
 	subnetRepo := fakes.SubnetRepo{
-		Payload: datamodel.SubnetConfiguration{NetworkID: "network1", SubnetName: "subnet1", IPSubnet: "172.16.0.0/24"},
+		Data: map[string]datamodel.SubnetConfiguration{
+			datamodel.GetSubnetKey("network1", "subnet1"): {
+				NetworkID:  "network1",
+				SubnetName: "subnet1",
+				IPSubnet:   "172.16.0.0/24",
+			},
+		},
 	}
 
 	allocator := IPAllocator{
@@ -268,6 +284,7 @@ func Test_RemoveAllAllocations(t *testing.T) {
 		Subnets:          &subnetRepo,
 		Reservations:     fakes.NewReservationRepo(),
 		IsFeatureEnabled: enableSubnetDelegation,
+		MaxBatchSize:     100,
 	}
 
 	res := datamodel.ReservationConfiguration{

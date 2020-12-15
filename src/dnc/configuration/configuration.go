@@ -43,6 +43,7 @@ type DataStoreSettings struct {
 	AzureStorageInfo         AzureStorageInfo
 	TestPersistenceStoreInfo TestPersistenceStoreInfo
 	OrchestratorStorageInfo  OrchestratorStorageInfo
+	MaxBatchSize             int
 }
 
 // ServerSettings - Details related to listener settings.
@@ -170,8 +171,10 @@ type DNCSettings struct {
 	ThresholdForLoggingDataStoreOpLatencyMs int
 	// Bool to determine whether DNC is running in managed mode.
 	Managed bool
-	// Boool to determine if DNC is running in Baremetal mode (BM) mode.
+	// Bool to determine if DNC is running in Baremetal mode (BM) mode.
 	BMMode bool
+	// Max IP Reservation batch size
+	MaxIPReservationBatchSize int
 }
 
 // IdentitySettings - Information about managed identity for DNC
@@ -324,6 +327,10 @@ func SetDncConfigDefaults(config *Configuration) {
 	setBlobStorageSettings(&config.MasterElectionSettings.BlobStorageSettings)
 	setPubSubProxySettings(&config.PubSubProxySettings)
 	setAzureEnvironment(&config.AzureEnvironment)
+
+	if config.DataStoreSettings.MaxBatchSize == 0 {
+		config.DataStoreSettings.MaxBatchSize = 100
+	}
 }
 
 func setDNCSettingDefaults(dncSettings *DNCSettings) {
@@ -385,6 +392,11 @@ func setDNCSettingDefaults(dncSettings *DNCSettings) {
 	if dncSettings.ThresholdForLoggingDataStoreOpLatencyMs == 0 {
 		// Set default to 1 second
 		dncSettings.ThresholdForLoggingDataStoreOpLatencyMs = 1000
+	}
+
+	if dncSettings.MaxIPReservationBatchSize == 0 {
+		// Set default to 100 reservations that can be processed at a time per subnet
+		dncSettings.MaxIPReservationBatchSize = 100
 	}
 }
 

@@ -14,7 +14,7 @@ import (
 type insertInPartitionFunc func(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error)
 type insertInPartitionPropertiesFunc func(tableName, partitionKay, rowKey string, properties map[string]interface{}) (int, error)
 type insertOrUpdateFunc func(tableName, rowKey, propertyName string, value interface{}) error
-type upsertBatchFunc func(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
+type upsertBatchFunc func(tableName string, batchItems map[string]map[string]interface{}) error
 type insertBatchFunc func(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
 type deleteBatchFunc func(tableName, partitionKey string, rowKeys []string) error
 type updateInPartitionFunc func(tableName, partitionKay, rowKey string, properties map[string]interface{}) error
@@ -24,6 +24,7 @@ type deleteInPartitionFunc func(tableName, partitionKey, rowKey string) error
 type queryFunc func(tableName, rowKey string) (interface{}, int, error)
 type queryInPartitionFunc func(tableName, partitionKey, rowKey string) (interface{}, int, error)
 type queryFilterFunc func(tableName, filter string) (map[string]interface{}, error)
+type queryRowKeysFunc func(tableName string, rowKeys []string) (map[string]interface{}, error)
 type queryInPartitionWithEtagFunc func(tableName, partitionKey, rowKey string) (interface{}, string, int, error)
 type queryInPartitionWithEtagPropertiesFunc func(tableName, partitionKey, rowKey string) (map[string]interface{}, string, int, error)
 type queryAllFunc func(tableName string, context interface{}) (map[string]interface{}, bool, interface{}, int, error)
@@ -44,6 +45,7 @@ type DataStoreShim struct {
 	Query                              queryFunc
 	QueryInPartition                   queryInPartitionFunc
 	QueryFilter                        queryFilterFunc
+	QueryRowKeys                       queryRowKeysFunc
 	QueryAll                           queryAllFunc
 	QueryAllInPartition                queryAllInPartitionFunc
 	KeyExist                           keyExistFunc
@@ -81,10 +83,11 @@ func (dataStoreShim *DataStoreShim) Init(
 	thresholdForLoggingDataStoreOpLatencyMs int) {
 	if dataStoreShim.dataStoreSettings.AzureStorageInfo != (configuration.AzureStorageInfo{}) {
 		azStorage := azurestorage.AzureStorage{AzureStorageInfo: dataStoreShim.dataStoreSettings.AzureStorageInfo}
-		azStorage.Init(tableToColumnMap, thresholdForLoggingDataStoreOpLatencyMs)
+		azStorage.Init(tableToColumnMap, thresholdForLoggingDataStoreOpLatencyMs, dataStoreShim.dataStoreSettings.MaxBatchSize)
 		dataStoreShim.Query = queryFunc(azStorage.Query)
 		dataStoreShim.QueryInPartition = queryInPartitionFunc(azStorage.QueryInPartition)
 		dataStoreShim.QueryFilter = queryFilterFunc(azStorage.QueryFilter)
+		dataStoreShim.QueryRowKeys = queryRowKeysFunc(azStorage.QueryRowKeys)
 		dataStoreShim.Delete = deleteFunc(azStorage.Delete)
 		dataStoreShim.DeleteInPartition = deleteInPartitionFunc(azStorage.DeleteInPartition)
 		dataStoreShim.InsertOrUpdate = insertOrUpdateFunc(azStorage.InsertOrUpdate)

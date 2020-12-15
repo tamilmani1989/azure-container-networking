@@ -21,9 +21,9 @@ func (f *fakeCNSChannel) GetNCLimitForNode(_ string) (int, *api.JsonErr) {
 	return f.limit, f.err
 }
 
-type dummyLogger struct{}
-
-func (d *dummyLogger) Init(_ bool, _ chan telemetry.DNCReport) {}
+type dummyLogger struct {
+	noOpLogger
+}
 
 func (d *dummyLogger) Debugf(format string, args ...interface{}) {
 	fmt.Printf(format+"\n", args...)
@@ -33,6 +33,14 @@ func (d *dummyLogger) Errorf(format string, args ...interface{}) {
 	fmt.Printf(format+"\n", args...)
 }
 
-func (d *dummyLogger) Close() {}
+type noOpLogger struct{}
 
-func (d *dummyLogger) SetLogFileLimits(_, _ int) {}
+func (_ *noOpLogger) Init(_ bool, _ chan telemetry.DNCReport) {}
+
+func (_ *noOpLogger) Debugf(_ string, _ ...interface{}) {}
+
+func (_ *noOpLogger) Errorf(_ string, _ ...interface{}) {}
+
+func (_ *noOpLogger) Close() {}
+
+func (_ *noOpLogger) SetLogFileLimits(_, _ int) {}

@@ -1,14 +1,16 @@
 package main
 
 import (
+	"context"
 	"dnc/datamodel"
 	"dnc/networkcontainer"
 )
 
 var (
-	preparer     networkcontainer.Preparer
-	ipAllocator  networkcontainer.IPAllocator
-	macAllocator networkcontainer.MacAllocator
+	preparer      networkcontainer.Preparer
+	ipAllocator   networkcontainer.IPAllocator
+	macAllocator  networkcontainer.MacAllocator
+	resDispatcher *networkcontainer.IPReservationDispatcher
 )
 
 // todo: move other processing stages here
@@ -30,10 +32,27 @@ func initNetworkContainerStateMachine() {
 		Allocations:      new(allocationRepo),
 		IsFeatureEnabled: datamodel.IsFeatureSupported,
 		Logger:           logger,
+		MaxBatchSize:     config.DataStoreSettings.MaxBatchSize,
 	}
 
 	macAllocator = networkcontainer.MacAllocator{
 		PersistNC: datamodel.PersistNCConfiguration,
 		Logger:    logger,
+	}
+
+	if config.DNCSettings.Managed {
+		logger.Debugf("[mDNC] batch reservation enabled")
+		resDispatcher = networkcontainer.NewIPReservationDispatcher(
+			networkcontainer.DispatcherDependencies{
+				Logger:       logger,
+				Reservations: new(reservationRepo),
+				Allocator:    &ipAllocator,
+				Subnets:      new(subnetRepo),
+			},
+			sessionManager,
+			config.DNCSettings.MaxIPReservationBatchSize,
+		)
+
+		resDispatcher.Run(context.Background())
 	}
 }

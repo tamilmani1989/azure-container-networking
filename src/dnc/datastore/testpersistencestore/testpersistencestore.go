@@ -144,7 +144,7 @@ func (testpersistencestore *TestPersistenceStore) InsertInPartitionProperties(
 	return http.StatusOK, nil
 }
 
-func (testpersistencestore *TestPersistenceStore) UpsertBatch(tableName, _ string, batch map[string]map[string]interface{}) error {
+func (testpersistencestore *TestPersistenceStore) UpsertBatch(tableName string, batch map[string]map[string]interface{}) error {
 	testpersistencestore.locks[tableName].Lock()
 	defer func() {
 		testpersistencestore.locks[tableName].Unlock()
