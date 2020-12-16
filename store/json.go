@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-container-networking/log"
+	"github.com/Azure/azure-container-networking/platform"
 )
 
 const (
@@ -133,18 +134,23 @@ func (kvs *jsonFileStore) flush() error {
 		if err != nil {
 			// remove temp file after job is done
 			_ = os.Remove(tmpFileName)
+			// close is idempotent. just to catch if write returns error
 			f.Close()
 		}
 	}()
 
-	if err = ioutil.WriteFile(tmpFileName, buf, 0); err != nil {
-		return fmt.Errorf("ioutil.WriteFile failed with: %v", err)
+
+	if _, err = f.Write(buf); err != nil {
+		return fmt.Errorf("Temp file write failed with: %v", err)
 	}
 
-	f.Close()
+	if err = f.Close(); err != nil {
+		return fmt.Errorf("temp file close failed with: %v", err)
+	}
 
-	log.Printf("renaming tmp file %v to state file", tmpFileName)
-	if err = os.Rename(tmpFileName, kvs.fileName); err != nil {
+	log.Printf("renaming temp file %v to state file", tmpFileName)
+	// atomic replace
+	if err = platform.ReplaceFile(tmpFileName, kvs.fileName); err != nil {
 		return fmt.Errorf("rename temp file to state file failed:%v", err)
 	}
 
