@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"os"
 )
 
@@ -37,4 +38,33 @@ func ReadFileByLines(filename string) ([]string, error) {
 	}
 
 	return lineStrArr, nil
+}
+
+func CheckIfFileExists(filepath string) (bool, error) {
+	_, err := os.Stat(filepath)
+	if err == nil {
+		return true, nil
+	}
+
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+
+	return true, err
+}
+
+func CreateDirectory(dirPath string) error {
+	var err error
+
+	if dirPath == "" {
+		log.Printf("dirPath is empty, nothing to create.")
+		return nil
+	}
+
+	isExist, _ := CheckIfFileExists(dirPath)
+	if !isExist {
+		err = os.Mkdir(dirPath, os.ModePerm)
+	}
+
+	return err
 }
