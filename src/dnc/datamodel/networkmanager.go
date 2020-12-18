@@ -3682,12 +3682,6 @@ func updateGreKeyCapability(nodeConfiguration *NodeConfiguration, nmAgentSupport
 	loggershim.LS.Debugf("updateGreKeyCapability: Node: %s",
 		nodeConfiguration.NodeID)
 
-	if nodeConfiguration.UpdateGreCapable != GreCapableNotSet {
-		loggershim.LS.Debugf("UpdateGreKey is enabled on Node: %s",
-			nodeConfiguration.NodeID)
-		return nodeConfiguration.UpdateGreCapable
-	}
-
 	// We are checking if any GREKeys are already assigned here
 	// returning if InterfaceGreKeyMap has more than one entry,
 	if len(nodeConfiguration.InterfaceGreKeyMap) > 0 {
