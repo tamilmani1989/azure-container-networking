@@ -157,6 +157,7 @@ func Setup() error {
 }
 
 func TestVlanGeneration(t *testing.T) {
+	fmt.Println("****TestVlanGeneration**********")
 	vlanMap := make(map[string]uint16)
 	vlanRefMap := make(map[string]uint16)
 	vnetID := []string{"vnet1", "vnet2", "vnet3"}
@@ -204,9 +205,11 @@ func TestVlanGeneration(t *testing.T) {
 	}
 
 	fmt.Printf("vlanMap -> %+v\n", vlanMap)
+	fmt.Println("****TestVlanGeneration Succeed**********")
 }
 
 func TestGreGeneration(t *testing.T) {
+	fmt.Println("****TestGreGeneration**********")
 	greMap := make(map[string]uint16)
 	greRefMap := make(map[string]uint16)
 
@@ -227,9 +230,11 @@ func TestGreGeneration(t *testing.T) {
 	if !reflect.DeepEqual(greMap, greRefMap) {
 		t.Fatalf("greMap is not equal to greRefMap")
 	}
+	fmt.Println("****TestGreGeneration Succeed**********")
 }
 
 func TestOutOfGreKeys(t *testing.T) {
+	fmt.Println("****TestOutOfGreKeys**********")
 	greMap := make(map[string]uint16)
 
 	fmt.Println("Testing outOfGreKeys using GetNextGreKey")
@@ -244,9 +249,11 @@ func TestOutOfGreKeys(t *testing.T) {
 			t.Fatal(fmt.Sprintf("greKeys exceeded %d", datamodel.MaxGre))
 		}
 	}
+	fmt.Println("****TestOutOfGreKeys Succeed**********")
 }
 
 func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
+	fmt.Println("****TestSkipNodeCleanupForNetworkContainer**********")
 	id, _ := uuid.NewUUID()
 	vnetID := id.String()
 
@@ -396,9 +403,11 @@ func TestSkipNodeCleanupForNetworkContainer(t *testing.T) {
 	deleteResource(t, nodeURL, http.StatusOK)
 	// restart our CNS server for the following tests
 	cnsServer.SetupServer("127.0.0.1:10090")
+	fmt.Println("****TestSkipNodeCleanupForNetworkContainer Succeed**********")
 }
 
 func TestContainer(t *testing.T) {
+	fmt.Println("****TestContainer**********")
 	cnsServer.SetupTest()
 	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
 	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
@@ -416,9 +425,11 @@ func TestContainer(t *testing.T) {
 	CreateNetworkContainerAndAddNewDNSServer(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndUpdateToUseAzureDNSServers(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
 	CreateNetworkContainerAndUpdateToUseCustomDNSServers(t, nodeID, nodeReq, networkContainerReq, dncEP, vnetID, ncID, apiVersion)
+	fmt.Println("****TestContainer Succeed**********")
 }
 
 func TestDeleteContainer(t *testing.T) {
+	fmt.Println("****TestDeleteContainer**********")
 	cnsServer.SetupTest()
 	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
 	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
@@ -455,10 +466,11 @@ func TestDeleteContainer(t *testing.T) {
 	// Start the background refresh monitor again.
 	go monitorRequests()
 	DeleteNetworkContainer(t, nodeID, "", dncEP, vnetID, ncID, apiVersion)
+	fmt.Println("****TestDeleteContainer Succeed**********")
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
-	fmt.Println("****TestCreateMultipleNetworks Test**********")
+	fmt.Println("****TestCreateMultipleNetworks**********")
 	deploymentCount := 10   // Number of vnets
 	ncPerNetworkCount := 10 // Number of NCs per vnet
 	nodeCount := 200
@@ -503,6 +515,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	}
 
 	DeployNetworkContainers(t, dncEP, apiVersion, deploymentInfos, true, updatedNumCPUCoresForLoadTest)
+	fmt.Println("****TestCreateMultipleNetworks Succeed**********")
 }
 
 func addOrUpdateNode(
@@ -2609,7 +2622,7 @@ func DeleteDeployments(t *testing.T, deployedNetworkContainersInfo *DeployedNetw
 }
 
 func TestValidateSubnetExhaustion(t *testing.T) {
-	fmt.Println("****ValidateSubnetExhaustion Test**********")
+	fmt.Println("****ValidateSubnetExhaustion**********")
 
 	id, _ := uuid.NewUUID()
 	vnetID := id.String()
@@ -2673,10 +2686,11 @@ func TestValidateSubnetExhaustion(t *testing.T) {
 	}
 	fmt.Println("Cleaned up failed deployment")
 	DeleteDeployments(t, deployedNetworkContainersInfo)
+	fmt.Println("****ValidateSubnetExhaustion Succeed**********")
 }
 
 func TestValidateThrottlingOnGetNetwork(t *testing.T) {
-	fmt.Println("****ValidateThrottlingOnGetNetwork Test**********")
+	fmt.Println("****ValidateThrottlingOnGetNetwork**********")
 	vnetsCount := 5
 	networkDeploymentRequests := make([]*NetworkDeploymentRequest, 0)
 	for index := 0; index < vnetsCount; index++ {
@@ -2787,10 +2801,11 @@ func TestValidateThrottlingOnGetNetwork(t *testing.T) {
 		networkURL := dncEP + "/networks/" + networkDeploymentRequest.vnetID + apiVersion
 		deleteResource(t, networkURL, http.StatusOK)
 	}
+	fmt.Println("****ValidateThrottlingOnGetNetwork Succeed**********")
 }
 
 func TestValidateThrottlingOnJoin(t *testing.T) {
-	fmt.Println("****ValidateThrottlingOnJoin Test**********")
+	fmt.Println("****ValidateThrottlingOnJoin**********")
 	vnetsCount := 5
 	networkDeploymentRequests := make([]*NetworkDeploymentRequest, 0)
 	for index := 0; index < vnetsCount; index++ {
@@ -2910,10 +2925,11 @@ func TestValidateThrottlingOnJoin(t *testing.T) {
 		networkURL := dncEP + "/networks/" + networkDeploymentRequest.vnetID + apiVersion
 		deleteResource(t, networkURL, http.StatusOK)
 	}
+	fmt.Println("****ValidateThrottlingOnJoin Succeed**********")
 }
 
 func TestValidateBatching(t *testing.T) {
-	fmt.Println("****ValidateBatching Test**********")
+	fmt.Println("****ValidateBatching**********")
 	layout := "2006-01-02 15:04:05 -0700 MST"
 	configpath := "config_test.json"
 	config := configuration.Load(configpath)
@@ -3103,10 +3119,11 @@ func TestValidateBatching(t *testing.T) {
 		networkURL := dncEP + "/networks/" + networkDeploymentRequest.vnetID + apiVersion
 		deleteResource(t, networkURL, http.StatusOK)
 	}
+	fmt.Println("****ValidateBatching Succeed**********")
 }
 
 func TestRefreshNMAgentGoalState(t *testing.T) {
-	fmt.Println("****RefreshNMAgentGoalState Test**********")
+	fmt.Println("****RefreshNMAgentGoalState**********")
 	deploymentCount := 1
 	ncPerNetworkCount := 1
 	ipIndex := 0
@@ -3149,10 +3166,11 @@ func TestRefreshNMAgentGoalState(t *testing.T) {
 	time.Sleep(100 * time.Second)
 
 	DeleteDeployments(t, deployedNetworkContainersInfo)
+	fmt.Println("****RefreshNMAgentGoalState Succeed**********")
 }
 
 func TestNodeNicLimit(t *testing.T) {
-	fmt.Println("****ValidateNodeNicLimit Test**********")
+	fmt.Println("****ValidateNodeNicLimit**********")
 	ncDeploymentRequests := []*NCDeploymentRequest{&NCDeploymentRequest{
 		NCID: ncID}}
 
@@ -3225,6 +3243,7 @@ func TestNodeNicLimit(t *testing.T) {
 
 	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
 	deleteResource(t, nodeURL, http.StatusOK)
+	fmt.Println("****ValidateNodeNicLimit Succeed**********")
 }
 
 func TestNodeNicLimitReservationDelete(t *testing.T) {
@@ -3331,6 +3350,7 @@ func TestNodeNicLimitReservationDelete(t *testing.T) {
 
 	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
 	deleteResource(t, nodeURL, http.StatusOK)
+	fmt.Println("****TestNodeNicLimitReservationDelete Succeed**********")
 }
 
 func TestPublishingRequestMarshallingLogicForSuccess(t *testing.T) {
@@ -3353,6 +3373,7 @@ func TestPublishingRequestMarshallingLogicForSuccess(t *testing.T) {
 	}
 
 	fmt.Printf("Encoded string [%s]\n", body.String())
+	fmt.Println("****TestPublishingRequestMarshallingLogicForSuccess Succeed**********")
 }
 
 func TestPublishingRequestMarshallingLogicForFailure(t *testing.T) {
@@ -3372,23 +3393,32 @@ func TestPublishingRequestMarshallingLogicForFailure(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Marshalling was supposed to fail")
 	}
+	fmt.Println("****TestPublishingRequestMarshallingLogicForFailure Succeed**********")
 }
 
 func TestManagedDncAPIs(t *testing.T) {
+	fmt.Println("****TestManagedDncAPIs**********")
 	processExitCallback()
+
 	// start dnc in managed mode
 	go StartDnc(true)
 	time.Sleep(2 * time.Second)
 
+	fmt.Println("Started CNS Server", cnsServer.Server.URL)
+	cnsServer.SetupTest()
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Lock.Unlock()
+
 	var (
-		mdncEP              = "http://127.0.0.1:9002"
-		dnctl               = cli.NewDncClient(mdncEP)
-		iface               = "127.0.0.1"
-		infraVnet           = "048622d9-49c2-4cad-94ff-7112e6f2ab5a"
-		ipConstraint        = "10.0.0.4"
-		id, _               = uuid.NewUUID()
-		vnetID              = id.String()
-		body                bytes.Buffer
+		mdncEP       = "http://127.0.0.1:9002"
+		dnctl        = cli.NewDncClient(mdncEP)
+		iface        = "127.0.0.1"
+		infraVnet    = "048622d9-49c2-4cad-94ff-7112e6f2ab5a"
+		ipConstraint = "10.0.0.4"
+		id, _        = uuid.NewUUID()
+		vnetID       = id.String()
+		body         bytes.Buffer
 	)
 
 	// Register network/subnet and add node
@@ -3424,15 +3454,15 @@ func TestManagedDncAPIs(t *testing.T) {
 	}
 
 	// test SyncNodeNetworkContainers API
-	if respErr := dnctl.AddNc(nodeID, vnetID, ncID, "", networkContainerReq.AllocationRequest.SubnetName, ipConstraint, "", iface, networkContainerReq.AssociationInfo.ContainerType, podInfo.PodName, podInfo.PodNamespace, false, false); respErr.HTTPStatus != http.StatusOK {
+	if respErr := dnctl.AddNc(nodeID, vnetID, ncID, "", networkContainerReq.AllocationRequest.SubnetName, ipConstraint, "", iface, networkContainerReq.AssociationInfo.ContainerType, podInfo.PodName, podInfo.PodNamespace, false, false, 0); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Create nc failed with error %+v", respErr)
 	}
 
 	time.Sleep(4 * time.Second)
 
 	programmedNC, respErr := dnctl.GetNC(vnetID, ncID)
-	if respErr.HTTPStatus != http.StatusOK {
-		t.Fatalf("Get nc failed with error %+v", respErr)
+	if respErr.HTTPStatus != http.StatusOK || programmedNC.NCVersion != 0 {
+		t.Fatalf("Get nc failed with error %+v or NC version is not equal to expected. Expected version is 0 but got %d", respErr, programmedNC.NCVersion)
 	}
 
 	syncNodeStatusURL := fmt.Sprintf("%s/networks/%s/node/%s/networkcontainers%s", mdncEP, infraVnet, nodeID, apiVersion)
@@ -3475,6 +3505,40 @@ func TestManagedDncAPIs(t *testing.T) {
 
 		response.Body.Close()
 	}
+	fmt.Println("****TestManagedDncAPIs Succeed**********")
+
+	// TODO:Move this test into a separate test case.
+	// Currently separation got blocked by TestCreateMultipleNetworks timeout. Needs test case refactor when move it out.
+	fmt.Println("****TestNCUpdate**********")
+	context, _ := json.Marshal(podInfo)
+	associationInfo := api.AssociationInfo{
+		NodeID:              nodeID,
+		InterfaceID:         iface,
+		ContainerType:       networkContainerReq.AssociationInfo.ContainerType,
+		OrchestratorContext: context}
+	// Update secondary IP count from 0 to 1 to trigger NC update.
+	allocationReq := api.AllocationRequest{
+		SubnetName:       networkContainerReq.AllocationRequest.SubnetName,
+		IPConstraint:     ipConstraint,
+		NodeConstraint:   "",
+		SecondaryIPCount: 1}
+	ncReq := api.NetworkContainerRequestV2{
+		AllocationRequest:          allocationReq,
+		AssociationInfo:            associationInfo,
+		AllowHostToNCCommunication: false,
+		AllowNCToHostCommunication: false}
+	json.NewEncoder(&body).Encode(ncReq)
+
+	// Test Update NC
+	if respErr = dnctl.UpsertNcV2(vnetID, ncID, ncReq); respErr.HTTPStatus != http.StatusOK {
+		t.Fatalf("Update nc failed with error %+v", respErr)
+	}
+
+	// Update NC will result NC version changed from 0 to 1
+	if receivedNcResp, respErr := dnctl.GetNC(vnetID, ncID); respErr.HTTPStatus != http.StatusOK || receivedNcResp.NCVersion != 1 {
+		t.Fatalf("Update NC failed with error %v or NC version is not equal to expected. Expected version is 1 but got %d", respErr, receivedNcResp.NCVersion)
+	}
+	fmt.Println("****TestNCUpdate Succeed**********")
 
 	// todo: add following checks once mDNC cns interface delete is implemented:
 

@@ -2375,6 +2375,7 @@ func GetNetworkContainerResponse(
 		RequestStatus:              requestStatus,
 		VlanID:                     vlanID,
 		LocalIP:                    ncConfig.LocalIP,
+		NCVersion:                  int(ncConfig.CNSVersion),
 		AllowHostToNCCommunication: ncConfig.GetAllowHostToNCCommunicationStatus(),
 		AllowNCToHostCommunication: ncConfig.GetAllowNCToHostCommunicationStatus()}
 
@@ -2804,7 +2805,8 @@ func UpdateNCRequestV2(nc NCConfiguration, request api.NetworkContainerRequestV2
 	// race condition in which the updated records are persisted before current processing ends, and then
 	// at the end of the initial processing, the pending queue item is delete, without having processed the update.
 	if !(nc.Status == Completed || nc.Status == Failed) {
-		msg := fmt.Sprintf("Network container id %s currently being processed in state %v. Cannot update while processing", nc.NetworkContainerID, nc.State.String())
+		msg := fmt.Sprintf("Network container id %s currently being processed in state %v with status %v. Cannot update while processing",
+			nc.NetworkContainerID, nc.State.String(), nc.Status.String())
 		// 409 Conflict may not be the most accurate error for this condition, but should signal the client to retry the request later
 		return api.Conflict(api.ProcessingPending, msg)
 	}

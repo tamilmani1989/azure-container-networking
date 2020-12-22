@@ -1076,7 +1076,7 @@ func addNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeCons
 	)
 
 	logger.Printf("Create nc %s in subnet %s in network %s and node %s", ncID, subnetID, vnetID, nodeID)
-	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, "", subnetID, "", "", ifaceID, cns.AzureContainerInstance, podName, podNamespace, false, false); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, "", subnetID, "", "", ifaceID, cns.AzureContainerInstance, podName, podNamespace, false, false, 0); respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Create nc %s in subnet %s in network %s and node %s failed with error %+v",
 			ncID,
 			subnetID,

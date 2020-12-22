@@ -481,6 +481,7 @@ func (n *NodeNetworkConfigReconciler) getNNCStatusFromNCResponse(nc *api.Network
 			DefaultGateway:     nc.IPConfiguration.GatewayIP,
 			SubnetAddressSpace: nc.IPConfiguration.IPSubnet,
 			IPAssignments:      ipAssignments,
+			Version:            int64(nc.NCVersion),
 		},
 	}
 

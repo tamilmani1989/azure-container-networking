@@ -179,7 +179,7 @@ func (c *DncClient) AddSubnet(networkId, subnetId, authenticationToken string) (
 func (c *DncClient) AddNc(nodeId, networkId, ncId, reservationId, subnet,
 	ipConstraint, nodeConstraint, ifaceId,
 	containerType, podName, podNamespace string,
-	host2NC, NC2Host bool) (respErr *api.JsonErr) {
+	host2NC, NC2Host bool, secondaryIPCount int) (respErr *api.JsonErr) {
 	var (
 		body     bytes.Buffer
 		response *http.Response
@@ -199,9 +199,10 @@ func (c *DncClient) AddNc(nodeId, networkId, ncId, reservationId, subnet,
 	// if reservation ID is empty, this is a V2 request
 	if reservationId == "" {
 		allocationReq := api.AllocationRequest{
-			SubnetName:     subnet,
-			IPConstraint:   ipConstraint,
-			NodeConstraint: nodeConstraint}
+			SubnetName:       subnet,
+			IPConstraint:     ipConstraint,
+			NodeConstraint:   nodeConstraint,
+			SecondaryIPCount: secondaryIPCount}
 		ncReq := api.NetworkContainerRequestV2{
 			AllocationRequest:          allocationReq,
 			AssociationInfo:            associationInfo,

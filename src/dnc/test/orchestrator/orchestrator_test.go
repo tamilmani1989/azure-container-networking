@@ -24,6 +24,7 @@ var (
 	defaultSleep            = time.Second * 1
 	errdRequestTimeout      = time.Second * 30
 	devEnv                  bool
+	secondaryIPCount        = 0
 )
 
 func init() {
@@ -125,6 +126,7 @@ func TestBasicNCAPIs(t *testing.T) {
 		podName             = "container1"
 		podNamespace        = "default"
 		context             = []byte(`{"PodName":"` + podName + `","PodNamespace":"` + podNamespace + `"}`)
+		secondaryIPCount    = 0
 		receivedNcResp      *api.NetworkContainerResponse
 		expectedNcResp      = &api.NetworkContainerResponse{
 			NcID: ncID,
@@ -147,6 +149,7 @@ func TestBasicNCAPIs(t *testing.T) {
 				Status: "Completed"},
 			VlanID:                     1,
 			LocalIP:                    "169.254.128.4",
+			NCVersion:                  0,
 			AllowHostToNCCommunication: false,
 			AllowNCToHostCommunication: false}
 		respErr *api.JsonErr
@@ -155,19 +158,19 @@ func TestBasicNCAPIs(t *testing.T) {
 	addNode(t, nodeID, ipaddr, orchestratorType, "")
 	addNetwork(t, vnetID, defaultRequestTimeout)
 	addSubnet(t, vnetID, subnetID, authenticationToken)
-	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", nodeIface, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout)
-	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", nodeIface, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout)
+	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", nodeIface, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout, secondaryIPCount)
+	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", nodeIface, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout, secondaryIPCount)
 	// Adding another nc with the same orchestrator context on the same node should fail (v2)
 	// using GenericFailureNC here but this call will never reach NMAgent and is expected to fail in networkmanager.go
-	if respErr := dnctl.AddNc(nodeID, vnetID, utils.GenericFailureNC, "", subnetID, "", "", nodeIface, cns.AzureContainerInstance, podName, podNamespace, false, false); respErr == nil {
+	if respErr := dnctl.AddNc(nodeID, vnetID, utils.GenericFailureNC, "", subnetID, "", "", nodeIface, cns.AzureContainerInstance, podName, podNamespace, false, false, secondaryIPCount); respErr == nil {
 		t.Fatalf("Failed to block duplicate orchestrator contexts with different NC IDs")
 	}
 	// create nc with reservation
 	addReservation(t, nodeID, vnetID, subnetID, "", reservationID, defaultRequestTimeout)
-	addNc(t, nodeID, vnetID, ncID2, reservationID, subnetID, "", nodeID, nodeIface, containerType, podName+"2", podNamespace, false, false, defaultNCRequestTimeout)
+	addNc(t, nodeID, vnetID, ncID2, reservationID, subnetID, "", nodeID, nodeIface, containerType, podName+"2", podNamespace, false, false, defaultNCRequestTimeout, secondaryIPCount)
 	// Adding another nc with the same orchestrator context on the same node should fail (v1)
 	// Using the same reservationID over here but this is expected to fail before we persist nc configuration
-	if respErr := dnctl.AddNc(nodeID, vnetID, utils.GenericFailureNC, reservationID, subnetID, "", nodeID, nodeIface, cns.AzureContainerInstance, podName+"2", podNamespace, false, false); respErr == nil {
+	if respErr := dnctl.AddNc(nodeID, vnetID, utils.GenericFailureNC, reservationID, subnetID, "", nodeID, nodeIface, cns.AzureContainerInstance, podName+"2", podNamespace, false, false, secondaryIPCount); respErr == nil {
 		t.Fatalf("Failed to block duplicate orchestrator contexts with different NC IDs")
 	}
 
@@ -307,7 +310,7 @@ func testGenericFailureNc(t *testing.T) {
 		podNamespace  = "default"
 	)
 
-	addNc(t, nodeID, vnetID, ncID, "", utils.Subnet1, "", "", utils.NodeIface, containerType, podName, podNamespace, false, false, errdRequestTimeout)
+	addNc(t, nodeID, vnetID, ncID, "", utils.Subnet1, "", "", utils.NodeIface, containerType, podName, podNamespace, false, false, errdRequestTimeout, secondaryIPCount)
 	deleteNc(t, vnetID, ncID)
 }
 
@@ -322,7 +325,7 @@ func testThrottledNc(t *testing.T) {
 		podNamespace  = "default"
 	)
 
-	addNc(t, nodeID, vnetID, ncID, "", utils.Subnet1, "", "", utils.NodeIface, containerType, podName, podNamespace, false, false, errdRequestTimeout)
+	addNc(t, nodeID, vnetID, ncID, "", utils.Subnet1, "", "", utils.NodeIface, containerType, podName, podNamespace, false, false, errdRequestTimeout, secondaryIPCount)
 	deleteNc(t, vnetID, ncID)
 }
 
@@ -337,7 +340,7 @@ func testUnauthorizedNc(t *testing.T) {
 		podNamespace  = "default"
 	)
 
-	addNc(t, nodeID, vnetID, ncID, "", utils.Subnet1, "", "", utils.NodeIface, containerType, podName, podNamespace, false, false, errdRequestTimeout)
+	addNc(t, nodeID, vnetID, ncID, "", utils.Subnet1, "", "", utils.NodeIface, containerType, podName, podNamespace, false, false, errdRequestTimeout, secondaryIPCount)
 	deleteNc(t, vnetID, ncID)
 }
 
@@ -630,7 +633,7 @@ func deleteReservation(t *testing.T, vnetID, reservationID string) {
 	}
 }
 
-func addNc(t *testing.T, nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace string, host2NC, NC2Host bool, timeout time.Duration) {
+func addNc(t *testing.T, nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace string, host2NC, NC2Host bool, timeout time.Duration, secondaryIPCount int) {
 	var (
 		respErr          *api.JsonErr
 		ncStatus         *api.RequestStatus
@@ -639,7 +642,7 @@ func addNc(t *testing.T, nodeID, vnetID, ncID, reservationID, subnetID, ipConstr
 			Status: "Completed"}
 	)
 
-	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, host2NC, NC2Host); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, host2NC, NC2Host, secondaryIPCount); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Create nc failed with error %+v", respErr)
 	}
 
