@@ -39,7 +39,7 @@ spec:
         envFrom:
         - configMapRef:
             name: runner-env-vars
-        image: mcr.microsoft.com/containernetworking/swift-runner:20201027-4
+        image: mcr.microsoft.com/containernetworking/swift-runner:20201223-1
         imagePullPolicy: Always
         name: swift-runner
         ports:

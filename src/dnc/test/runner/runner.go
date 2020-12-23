@@ -1075,13 +1075,16 @@ func addNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeCons
 			Status: "Completed"}
 	)
 
-	logger.Printf("Create nc %s in subnet %s in network %s and node %s", ncID, subnetID, vnetID, nodeID)
-	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, "", subnetID, "", "", ifaceID, cns.AzureContainerInstance, podName, podNamespace, false, false, 0); respErr.HTTPStatus != http.StatusOK {
-		return fmt.Errorf("Create nc %s in subnet %s in network %s and node %s failed with error %+v",
+	logger.Printf("Create nc %s in subnet %s in network %s and node %s and ifaceID %s and podName %s and ipConstraint %s", ncID, subnetID, vnetID, nodeID, ifaceID, podName, ipConstraint)
+	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, false, false, 0); respErr.HTTPStatus != http.StatusOK {
+		return fmt.Errorf("Create nc %s in subnet %s in network %s and node %s and ifaceID %s and podName %s and ipConstraint %s failed with error %+v",
 			ncID,
 			subnetID,
 			vnetID,
-			nodeID,
+      nodeID,
+      ifaceID,
+      podName,
+      ipConstraint,
 			respErr)
 	}
 
@@ -1096,28 +1099,34 @@ func addNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeCons
 			continue
 		}
 
-		return fmt.Errorf("Create nc %s in subnet %s in network %s and node %s failed with error %+v",
+		return fmt.Errorf("Create nc %s in subnet %s in network %s and node %s and ifaceID %s and podName %s and ipConstraint %s failed with error %+v",
 			ncID,
 			subnetID,
 			vnetID,
-			nodeID,
+      nodeID,
+      ifaceID,
+      podName,
+      ipConstraint,
 			respErr)
 	}
 
 	if !reflect.DeepEqual(ncStatus, expectedNcStatus) {
 		expectedNcStatus.State = "RefreshAssociation"
 		if !reflect.DeepEqual(ncStatus, expectedNcStatus) {
-			return fmt.Errorf("Create nc %s in subnet %s in network %s and node %s failed;\nreceived %+v\nexpected %+v",
+			return fmt.Errorf("Create nc %s in subnet %s in network %s and node %s and ifaceID %s and podName %s and ipConstraint %s failed;\nreceived %+v\nexpected %+v",
 				ncID,
 				subnetID,
 				vnetID,
-				nodeID,
+        nodeID,
+        ifaceID,
+        podName,
+        ipConstraint,
 				ncStatus,
 				expectedNcStatus)
 		}
 	}
 
-	logger.Printf("Successfully created nc %s in subnet %s in network %s and node %s", ncID, subnetID, vnetID, nodeID)
+	logger.Printf("Successfully created nc %s in subnet %s in network %s and node %s and ifaceID %s and podName %s and ipConstraint %s", ncID, subnetID, vnetID, nodeID, ifaceID, podName, ipConstraint)
 	return nil
 }
 
