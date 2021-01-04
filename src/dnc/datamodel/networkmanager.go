@@ -526,6 +526,17 @@ func UpdateNodeConfigurationNetworkContainerSet(
 	}
 
 	if nodeConfig == nil {
+		// There can be a race if Node is deleted before this NC was even processed
+		// (DeployedNetworkContainerMap is Updated in NC prepare state).
+		// Thus, skip if Node is not found.
+		if remove {
+			loggershim.LS.Debugf("Node :%s is null, skipping removing NC :%s, NetworkId :%s association",
+				nodeID,
+				ncID,
+				networkID)
+			return nil
+		}
+
 		msg := fmt.Sprintf(
 			"Node:%s in the request is not found", nodeID)
 		return &api.JsonErr{

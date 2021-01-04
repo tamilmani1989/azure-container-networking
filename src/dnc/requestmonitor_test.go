@@ -469,6 +469,93 @@ func TestDeleteContainer(t *testing.T) {
 	fmt.Println("****TestDeleteContainer Succeed**********")
 }
 
+// Test the race scenario where Node Info gets deleted during NC create (Prepare state)
+// and the delete NC still goes through (as it skips if node is null)
+func TestDeleteContainerInPurgeState(t *testing.T) {
+	cnsServer.SetupTest()
+	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+	id, _ := uuid.NewUUID()
+	vnetID := id.String()
+
+	setupNetworkAndJoinSubnet(
+		t,
+		dncEP,
+		vnetID,
+		networkContainerReq6.AllocationRequest.SubnetName,
+		apiVersion,
+		true,
+		0)
+	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &sfNodeReq)
+
+	// cancel the background process to not process the pending queue
+	// adding a sleep to wait for all go routines to be cleanedup.
+	cancelProcessing <- true
+	time.Sleep(time.Millisecond * 2000)
+
+	t.Logf("Disable the background RequestMonitor to skip processing Create NC")
+
+	// Create NC
+	var body bytes.Buffer
+	var respErr api.JsonErr
+	json.NewEncoder(&body).Encode(networkContainerReq6)
+
+	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	response, err := http.Post(ncURL, "application/json", &body)
+	if err != nil {
+		t.Fatalf("CreateNetworkContainer failed with error: %+v\n", err)
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
+			t.Fatalf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
+		}
+	}
+
+	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + "/status" + apiVersion
+	WaitForResourceState(t, ncURLStatus, "Prepare", http.StatusOK, 2)
+
+	// Delete Node
+	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
+	deleteResource(t, nodeURL, http.StatusOK)
+
+	// Delete the NC and then restart the monitor to process NC cleanup during purge state
+	// Start the background refresh monitor again.
+	deleteResource(t, ncURL, http.StatusOK)
+	t.Logf("NC Url:%s deleted", ncURL)
+
+	go monitorRequests()
+	if !WaitForResourceCleanup(t, ncURL, 10) {
+		ncStatusResponse, err := http.Get(ncURLStatus)
+		if err != nil {
+			t.Fatalf("Failed to get network status for resource URL:%s. Error:%+v",
+				ncURLStatus,
+				err)
+		}
+
+		defer ncStatusResponse.Body.Close()
+
+		var operationStatus api.RequestStatus
+		err = utils.DecodeResponse(ncStatusResponse, &operationStatus)
+		if err != nil {
+			t.Fatalf("Failed to decode network response for resource URL:%s. Error:%+v",
+				ncURLStatus,
+				err)
+		}
+
+		t.Fatalf("Failed to cleanup network container %s\n, response %s %s", ncID, operationStatus.State, operationStatus.Status)
+	}
+
+	networkURL := dncEP + "/networks/" + vnetID + apiVersion
+	deleteResource(t, networkURL, http.StatusOK)
+}
+
 func TestCreateMultipleNetworks(t *testing.T) {
 	fmt.Println("****TestCreateMultipleNetworks**********")
 	deploymentCount := 10   // Number of vnets
