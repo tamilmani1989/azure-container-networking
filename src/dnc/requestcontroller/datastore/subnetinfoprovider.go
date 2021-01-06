@@ -21,7 +21,7 @@ const (
 )
 
 type SubnetInfoProvider struct {
-	dataStoreShim *datastoreshim.DataStoreShim
+	dataStoreShim datastoreshim.DataStoreShim
 	mutex         sync.Mutex
 	cache         map[string]map[string]requestcontroller.SubnetInfo // delegatedSubnetID -> {subnetName -> SubnetInfo, subnetName -> SubnetInfo}
 }
@@ -37,7 +37,7 @@ SecondaryTokenId: <Token> (optional)
 VnetResourceGuid: <VnetID>
 */
 
-func NewSubnetInfoProvider(dataStoreSettings configuration.DataStoreSettings, loggingConfig requestcontroller.LoggingConfig) *SubnetInfoProvider {
+func NewSubnetInfoProvider(dataStoreSettings configuration.DataStoreSettings, loggingConfig requestcontroller.LoggingConfig) (*SubnetInfoProvider, error) {
 	//datastoreshim has a dependency on loggershim, and loggershim has a global that needs to be initialized with the NewLoggerShim function followed by Init
 	if loggershim.LS == nil {
 		// loggershim.LS hasn't been initialized elsewhere, so do it here
@@ -45,14 +45,17 @@ func NewSubnetInfoProvider(dataStoreSettings configuration.DataStoreSettings, lo
 		loggershim.LS.Init(true, nil)
 	}
 
-	s := SubnetInfoProvider{
-		dataStoreShim: datastoreshim.NewDataStoreShim(dataStoreSettings, configuration.DNCSettings{
-			ThresholdForLoggingDataStoreOpLatencyMs: loggingConfig.ThresholdForLoggingDataStoreOpLatencyMs,
-		}, map[string]string{subnetTokenMapTableName: vnetGUIDPropertyName}),
-		cache: make(map[string]map[string]requestcontroller.SubnetInfo),
+	ds, err := datastoreshim.NewDataStoreShim(dataStoreSettings, loggingConfig.ThresholdForLoggingDataStoreOpLatencyMs, map[string]string{subnetTokenMapTableName: vnetGUIDPropertyName})
+	if err != nil {
+		return nil, err
 	}
 
-	return &s
+	s := SubnetInfoProvider{
+		dataStoreShim: ds,
+		cache:         make(map[string]map[string]requestcontroller.SubnetInfo),
+	}
+
+	return &s, nil
 }
 
 func (s *SubnetInfoProvider) GetSubnetInfo(ctx context.Context, delegatedSubnetID, subnetName string) (requestcontroller.SubnetInfo, error) {

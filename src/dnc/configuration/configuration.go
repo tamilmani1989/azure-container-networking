@@ -11,8 +11,7 @@ import (
 
 // Features supported by underlying data storage
 const (
-	SharedSubnetDelegation      = 0
-	RegionalStorageAccountUsage = 1
+	SharedSubnetDelegation = 0
 )
 
 // AzureStorageInfo - Details to connect to azure storage account.
@@ -33,16 +32,10 @@ type TestPersistenceStoreInfo struct {
 	EnableSharedSubnetDelegation bool
 }
 
-// OrchestratorStorageInfo - Details to initialize orchestratorstorage
-type OrchestratorStorageInfo struct {
-	Dll string
-}
-
 // DataStoreSettings - Details related to underlying data store.
 type DataStoreSettings struct {
 	AzureStorageInfo         AzureStorageInfo
 	TestPersistenceStoreInfo TestPersistenceStoreInfo
-	OrchestratorStorageInfo  OrchestratorStorageInfo
 	MaxBatchSize             int
 }
 

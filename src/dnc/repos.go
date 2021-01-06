@@ -63,10 +63,6 @@ func (*reservationRepo) PutIPReservationConfiguration(res *datamodel.Reservation
 	return datamodel.PutIPReservationConfiguration(res)
 }
 
-func (r *reservationRepo) GetReservations(networkID string, reservationIDs []string) ([]datamodel.ReservationConfiguration, *api.JsonErr) {
-	return datamodel.QueryIPReservations(networkID, reservationIDs)
-}
-
 func (r *reservationRepo) UpdateReservations(reservations []datamodel.ReservationConfiguration) *api.JsonErr {
 	return datamodel.UpdateIPReservations(reservations)
 }

@@ -59,7 +59,10 @@ func TestGetBytesForAllWithCosmos(t *testing.T) {
 		ManagedDNCGUID:              config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID,
 	}
 
-	kubeconfigProvider := NewKubeconfigProvider(kubeconfigProviderOpts)
+	kubeconfigProvider, err := NewKubeconfigProvider(kubeconfigProviderOpts)
+	if err != nil {
+		t.Fatalf("Failed getting kubeconfig provider, %v", err)
+	}
 
 	kubeconfigs, err := kubeconfigProvider.GetBytesForAll(context.Background())
 	if err != nil {

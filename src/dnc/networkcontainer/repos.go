@@ -30,8 +30,6 @@ type IPReservationRepo interface {
 	TryQueryIPReservation(networkID, reservationID string) (*datamodel.ReservationConfiguration, *api.JsonErr)
 	TryQueryIPReservationByKey(key string) (*datamodel.ReservationConfiguration, *api.JsonErr)
 	PutIPReservationConfiguration(res *datamodel.ReservationConfiguration) *api.JsonErr
-
-	GetReservations(networkID string, reservationIDs []string) ([]datamodel.ReservationConfiguration, *api.JsonErr)
 	UpdateReservations(reservations []datamodel.ReservationConfiguration) *api.JsonErr
 }
 

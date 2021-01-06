@@ -638,7 +638,7 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(
+	err := datamodel.Init(
 		config.CNSSettings,
 		config.DataStoreSettings,
 		config.DNCSettings,
@@ -650,6 +650,9 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 		c.httpClient,
 		c.cnsHttpClient,
 		config.HostAgentSettings.WireServerIP)
+	if err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
 	c.UpdateReplicaStatus(true)
 
 	// TODO: set the orchestrator for AI telemetry
@@ -667,7 +670,7 @@ func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2)
 	config.DataStoreSettings.AzureStorageInfo.RegionalStorageConnectionString = request.RegionalStorageConnectionString
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(
+	err := datamodel.Init(
 		config.CNSSettings,
 		config.DataStoreSettings,
 		config.DNCSettings,
@@ -679,6 +682,9 @@ func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2)
 		c.httpClient,
 		c.cnsHttpClient,
 		config.HostAgentSettings.WireServerIP)
+	if err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
 	c.UpdateReplicaStatus(true)
 
 	// TODO: set the orchestrator for AI telemetry
@@ -697,7 +703,7 @@ func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, b
 	config.MasterElectionSettings.BlobStorageSettings.ContainerName = containerName
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
-	datamodel.Init(
+	err := datamodel.Init(
 		config.CNSSettings,
 		config.DataStoreSettings,
 		config.DNCSettings,
@@ -709,6 +715,9 @@ func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, b
 		c.httpClient,
 		c.cnsHttpClient,
 		config.HostAgentSettings.WireServerIP)
+	if err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
 	c.UpdateReplicaStatus(true)
 
 	// TODO: set the orchestrator for AI telemetry

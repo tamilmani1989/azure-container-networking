@@ -29,7 +29,7 @@ const (
 )
 
 type KubeconfigProvider struct {
-	dataStoreShim               *datastoreshim.DataStoreShim
+	dataStoreShim               datastoreshim.DataStoreShim
 	kubeconfigTemplate          *template.Template
 	secretProvider              requestcontroller.SecretProvider
 	logger                      logrus.FieldLogger
@@ -69,7 +69,7 @@ OrchestratorType: <OrchestratorType>
 
 var _ requestcontroller.KubeconfigProvider = &KubeconfigProvider{}
 
-func NewKubeconfigProvider(opts KubeconfigProviderOptions) *KubeconfigProvider {
+func NewKubeconfigProvider(opts KubeconfigProviderOptions) (*KubeconfigProvider, error) {
 	//datastoreshim has a dependency on loggershim, and loggershim has a global that needs to be initialized with the NewLoggerShim function followed by Init
 	requestcontroller.LoggershimMutex.Lock()
 	if loggershim.LS == nil {
@@ -81,11 +81,14 @@ func NewKubeconfigProvider(opts KubeconfigProviderOptions) *KubeconfigProvider {
 
 	requestcontroller.LoggershimMutex.Unlock()
 
+	ds, err := datastoreshim.NewDataStoreShim(opts.DataStoreSettings, opts.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs, map[string]string{orchestratorInstancesConfigurationTableName: orchestratorPropertiesPropertyName})
+	if err != nil {
+		return nil, err
+	}
+
 	k := KubeconfigProvider{
-		managedDNCGUID: opts.ManagedDNCGUID,
-		dataStoreShim: datastoreshim.NewDataStoreShim(opts.DataStoreSettings, configuration.DNCSettings{
-			ThresholdForLoggingDataStoreOpLatencyMs: opts.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs,
-		}, map[string]string{orchestratorInstancesConfigurationTableName: orchestratorPropertiesPropertyName}),
+		managedDNCGUID:              opts.ManagedDNCGUID,
+		dataStoreShim:               ds,
 		secretProvider:              opts.SecretProvider,
 		clientCertificatesDirectory: opts.ClientCertificatesDirectory,
 		kubeloginBinaryPath:         opts.KubeloginBinaryPath,
@@ -97,7 +100,7 @@ func NewKubeconfigProvider(opts KubeconfigProviderOptions) *KubeconfigProvider {
 		}),
 	}
 
-	return &k
+	return &k, nil
 }
 
 func (k *KubeconfigProvider) GetBytesForAll(ctx context.Context) (map[string][]byte, error) {
@@ -109,7 +112,7 @@ func (k *KubeconfigProvider) GetBytesForAll(ctx context.Context) (map[string][]b
 	var pageToken interface{}
 	hasMoreData := true
 	for hasMoreData {
-		result, moreData, nextPageToken, status, err := k.dataStoreShim.QueryAllInPartition(orchestratorInstancesConfigurationTableName, k.managedDNCGUID, pageToken)
+		result, moreData, nextPageToken, status, err := k.dataStoreShim.QueryAllRowsInPartition(orchestratorInstancesConfigurationTableName, k.managedDNCGUID, pageToken)
 		hasMoreData = moreData
 		if err != nil {
 			return nil, fmt.Errorf("Error querying datastore for table %s: %w", orchestratorInstancesConfigurationTableName, err)

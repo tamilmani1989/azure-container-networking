@@ -15,11 +15,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/storage"
 )
 
-var (
-	// Max time latency allowed for data store operations before recording the operation latency in the log.
-	thresholdForLoggingDataStoreOpLatencyMs int
-)
-
 const (
 	// default timeout for calls
 	defaultTimeout = 30
@@ -27,105 +22,103 @@ const (
 
 // AzureStorage = Storage object to manage tables in a partition
 type AzureStorage struct {
-	configuration.AzureStorageInfo
-	tableClient               storage.TableServiceClient
-	regionalTableClient       storage.TableServiceClient
-	tableNameToTableClientMap map[string]*storage.TableServiceClient
+	partitionKey              string
+	tableNameToTableClientMap map[string]storage.TableServiceClient
 	maxBatchSize              int
+	latencyThresholdMs        int // Max time latency allowed for data store operations before recording the operation latency in the log.
+	logger                    loggershim.LoggerInterface
 }
 
 // Init - Initialize azure storage.
-func (azureStorage *AzureStorage) Init(
-	tableToColumnMap map[string]string,
-	thresholdForLoggingDataStoreOpLatencyMsArg int,
-	maxBatchSize int) {
-	loggershim.LS.Debugf("[Azure DNC] Environment type for azure store settings %s", azureStorage.AzureStorageInfo.Environment)
-	storageClient, err := utils.GetStorageClient(
-		azureStorage.AzureStorageInfo.AccountName,
-		azureStorage.AzureStorageInfo.Key,
-		azureStorage.AzureStorageInfo.Environment,
-		azureStorage.AzureStorageInfo.IsUsingCosmosDb)
+func NewAzureStorage(config configuration.AzureStorageInfo, logger loggershim.LoggerInterface, tableToColumnMap map[string]string, latencyThresholdMs int, maxBatchSize int) (*AzureStorage, error) {
+	logger.Debugf("[Azure Storage] Environment type for azure store settings %s", config.Environment)
 
-	utils.OnErrorFail(err, "Create client failed")
-	azureStorage.tableClient = storageClient.GetTableService()
-	azureStorage.initTableNameToTableClientMap(tableToColumnMap)
-	thresholdForLoggingDataStoreOpLatencyMs = thresholdForLoggingDataStoreOpLatencyMsArg
-	if len(strings.TrimSpace(azureStorage.AzureStorageInfo.RegionalStorageConnectionString)) > 0 {
-		azureStorage.initRegionalStorage()
+	storageClient, err := utils.GetStorageClient(config.AccountName, config.Key, config.Environment, config.IsUsingCosmosDb)
+	if err != nil {
+		return nil, fmt.Errorf("Create client failed: %v", err)
 	}
 
-	azureStorage.maxBatchSize = maxBatchSize
-	loggershim.LS.Debugf("[Azure DNC] Max transaction batch size set to %d", maxBatchSize)
+	tblCl := storageClient.GetTableService()
 
-	loggershim.LS.Debugf("[Azure DNC] Ensuring table schema")
-	err = azureStorage.ensureSchema(tableToColumnMap)
-	utils.OnErrorFail(err, "Could not ensure table schema")
+	azureStorage := AzureStorage{
+		partitionKey:       config.PartitionKey,
+		maxBatchSize:       maxBatchSize,
+		latencyThresholdMs: latencyThresholdMs,
+		logger:             logger,
+	}
+
+	logger.Debugf("[Azure Storage] Max transaction batch size set to %d", maxBatchSize)
+
+	azureStorage.initTableNameToTableClientMap(tblCl, tableToColumnMap)
+
+	if len(strings.TrimSpace(config.RegionalStorageConnectionString)) > 0 {
+		if err := azureStorage.initRegionalStorage(config.RegionalStorageConnectionString); err != nil {
+			return nil, fmt.Errorf("Could not init regional storage: %v", err)
+		}
+	}
+
+	logger.Debugf("[Azure Storage] Ensuring table schema")
+	if err := azureStorage.ensureSchema(tableToColumnMap); err != nil {
+		return nil, fmt.Errorf("Could not ensure table schema: %v", err)
+	}
+
+	return &azureStorage, nil
 }
 
-func (azureStorage *AzureStorage) ensureSchema(tables map[string]string) error {
+func (a *AzureStorage) ensureSchema(tables map[string]string) error {
 	for tableName := range tables {
-		tbl := azureStorage.tableClient.GetTableReference(tableName)
+		tblSvc := a.tableNameToTableClientMap[tableName]
+		tbl := tblSvc.GetTableReference(tableName)
 		if err := tbl.Create(defaultTimeout, storage.EmptyPayload, nil); err != nil {
 			switch e := err.(type) {
 			case storage.AzureStorageServiceError:
 				if e.StatusCode == http.StatusConflict {
-					loggershim.LS.Debugf("[Azure DNC] Table %s already exists", tableName)
+					a.logger.Debugf("[Azure Storage] Table %s already exists", tableName)
 					continue
 				}
 			default:
 				return fmt.Errorf("Could not create table %s: %v", tableName, err)
 			}
 		}
-		loggershim.LS.Debugf("[Azure DNC] Table %s created successfully", tableName)
+		a.logger.Debugf("[Azure Storage] Table %s created successfully", tableName)
 	}
 	return nil
 }
 
 // initRegionalStorage - Initialize the table client needed to access the regional storage
-func (azureStorage *AzureStorage) initRegionalStorage() {
-	loggershim.LS.Debugf("[Azure DNC] InitRegionalStorage with %x", sha256.Sum256([]byte(azureStorage.AzureStorageInfo.RegionalStorageConnectionString)))
-	regionalStorageClient, err := storage.NewClientFromConnectionString(
-		azureStorage.AzureStorageInfo.RegionalStorageConnectionString)
-	utils.OnErrorFail(err, "Create regional client failed")
+func (a *AzureStorage) initRegionalStorage(connectionString string) error {
+	a.logger.Debugf("[Azure Storage] InitRegionalStorage with %x", sha256.Sum256([]byte(connectionString)))
+	regionalStorageClient, err := storage.NewClientFromConnectionString(connectionString)
+	if err != nil {
+		return fmt.Errorf("Create regional client failed: %v", err)
+	}
 
-	azureStorage.regionalTableClient = regionalStorageClient.GetTableService()
-	azureStorage.updateTableNameToTableClientMap("IPAllocationsTable", &azureStorage.regionalTableClient)
-}
-
-// updateTableNameToTableClientMap - Update tableClient to use for the given table
-func (azureStorage *AzureStorage) updateTableNameToTableClientMap(tableName string, tableClient *storage.TableServiceClient) {
-	azureStorage.tableNameToTableClientMap[tableName] = tableClient
-	loggershim.LS.Debugf("[Azure DNC] Updated settings for table: %s to use regional storage", tableName)
+	regionalTableClient := regionalStorageClient.GetTableService()
+	a.tableNameToTableClientMap["IPAllocationsTable"] = regionalTableClient
+	a.logger.Debugf("[Azure Storage] Updated settings for table IPAllocationsTable to use regional storage")
+	return nil
 }
 
 // initTableNameToTableClientMap - Set tableClient as default client to all the tables
-func (azureStorage *AzureStorage) initTableNameToTableClientMap(tableToColumnMap map[string]string) {
-	azureStorage.tableNameToTableClientMap = make(map[string]*storage.TableServiceClient)
+func (a *AzureStorage) initTableNameToTableClientMap(tableClient storage.TableServiceClient, tableToColumnMap map[string]string) {
+	a.tableNameToTableClientMap = make(map[string]storage.TableServiceClient)
 	for tableName := range tableToColumnMap {
-		azureStorage.tableNameToTableClientMap[tableName] = &azureStorage.tableClient
+		a.tableNameToTableClientMap[tableName] = tableClient
 	}
 }
 
-// TODO: Move this processing time recording functionality in datastoreshim so that it runs irrespective
-// of the underlying storage. The current code is not set up to do that because the datastoreshim just sets
-// the function pointers to the selected underlying storage. datastoreshim implementation needs to be changed
-// to call recordProcessingTime first and then call the underlying storage function.
-func recordProcessingTime(
-	start time.Time,
-	operation, tableName, partitionKey, rowKey string) {
+func (a *AzureStorage) recordProcessingTime(start time.Time, operation, tableName, partitionKey, rowKey string) {
 	timeElapsedMs := time.Since(start).Milliseconds()
-	if timeElapsedMs > int64(thresholdForLoggingDataStoreOpLatencyMs) {
-		loggershim.LS.Debugf("[AzureStorage] Operation: %s, Table: %s, PartitionKey: %s,"+
+	if timeElapsedMs > int64(a.latencyThresholdMs) {
+		a.logger.Debugf("[AzureStorage] Operation: %s, Table: %s, PartitionKey: %s,"+
 			" rowKey: %s, TimeMs: %v", operation, tableName, partitionKey, rowKey, timeElapsedMs)
 
 		sendDataStoreMetric(aiwrapper.DataStoreOperationTimeMetric, float64(timeElapsedMs), operation, tableName)
 	}
 }
 
-func sendDataStoreMetric(
-	metricName string,
-	metricValue float64,
-	operation, tableName string) {
+// todo: ai wrapper should be passed as a dependency
+func sendDataStoreMetric(metricName string, metricValue float64, operation, tableName string) {
 	metric := aitelemetry.Metric{
 		Name:             metricName,
 		Value:            metricValue,
@@ -138,81 +131,75 @@ func sendDataStoreMetric(
 }
 
 // Delete - Deletes a row in a given table.
-func (azureStorage *AzureStorage) Delete(tableName, rowKey string) error {
-	defer recordProcessingTime(time.Now(), "Delete", tableName, azureStorage.PartitionKey, rowKey)
-	defer utils.PanicRecover()
+func (a *AzureStorage) Delete(tableName, rowKey string) error {
+	defer a.recordProcessingTime(time.Now(), "Delete", tableName, a.partitionKey, rowKey)
 
-	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
-	table := *tableClient.GetTableReference(tableName)
-	entity := table.GetEntityReference(azureStorage.PartitionKey, rowKey)
+	table := tableClient.GetTableReference(tableName)
+	entity := table.GetEntityReference(a.partitionKey, rowKey)
 
 	return entity.Delete(true, nil)
 }
 
 // DeleteInPartition - Deletes a row in the partition of the given table.
-func (azureStorage *AzureStorage) DeleteInPartition(tableName, partitionKey, rowKey string) error {
-	defer recordProcessingTime(time.Now(), "DeleteInPartition", tableName, partitionKey, rowKey)
-	defer utils.PanicRecover()
+func (a *AzureStorage) DeleteInPartition(tableName, partitionKey, rowKey string) error {
+	defer a.recordProcessingTime(time.Now(), "DeleteInPartition", tableName, partitionKey, rowKey)
 
-	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
-	table := *tableClient.GetTableReference(tableName)
+	table := tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(partitionKey, rowKey)
 	return entity.Delete(true, nil)
 }
 
 // InsertOrUpdate - InsertOrUpdate a row in a given table.
-func (azureStorage *AzureStorage) InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error {
-	defer recordProcessingTime(time.Now(), "InsertOrUpdate", tableName, azureStorage.PartitionKey, rowKey)
+func (a *AzureStorage) InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error {
+	defer a.recordProcessingTime(time.Now(), "InsertOrUpdate", tableName, a.partitionKey, rowKey)
 
-	return azureStorage.insertOrUpdateRow(tableName, rowKey, propertyName, value)
+	return a.insertOrUpdateRow(tableName, rowKey, propertyName, value)
 }
 
 // UpdateInPartition - Update (overwrite) a row in a given table if it exists.
-func (azureStorage *AzureStorage) UpdateInPartition(
-	tableName, partitionKay, rowKey string, properties map[string]interface{}) error {
-	defer recordProcessingTime(time.Now(), "UpdateInPartition", tableName, azureStorage.PartitionKey, rowKey)
+func (a *AzureStorage) UpdateInPartition(tableName, partitionKey, rowKey string, properties map[string]interface{}) error {
+	defer a.recordProcessingTime(time.Now(), "UpdateInPartition", tableName, a.partitionKey, rowKey)
 
-	return azureStorage.updateRowWithEtag(tableName, partitionKay, rowKey, "", properties)
+	return a.updateRowWithEtag(tableName, partitionKey, rowKey, "", properties)
 }
 
 // UpdateInPartitionWithEtag - Update (overwrite) a row in a given table if it exists.
 // Match with specified etag for update.
-func (azureStorage *AzureStorage) UpdateInPartitionWithEtag(
-	tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error {
-	defer recordProcessingTime(time.Now(), "UpdateInPartitionWithEtag", tableName, azureStorage.PartitionKey, rowKey)
+func (a *AzureStorage) UpdateInPartitionWithEtag(tableName, partitionKey, rowKey, etag string, properties map[string]interface{}) error {
+	defer a.recordProcessingTime(time.Now(), "UpdateInPartitionWithEtag", tableName, a.partitionKey, rowKey)
 
-	return azureStorage.updateRowWithEtag(tableName, partitionKay, rowKey, etag, properties)
+	return a.updateRowWithEtag(tableName, partitionKey, rowKey, etag, properties)
 }
 
 // InsertInPartition - Insert a row in the specific partition of the given table with one property
-func (azureStorage *AzureStorage) InsertInPartition(tableName, partitionKay, rowKey, propertyName string, value interface{}) (
-	int, error) {
-	defer recordProcessingTime(time.Now(), "InsertInPartition", tableName, partitionKay, rowKey)
+func (a *AzureStorage) InsertInPartition(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error) {
+	defer a.recordProcessingTime(time.Now(), "InsertInPartition", tableName, partitionKey, rowKey)
 
 	properties := make(map[string]interface{})
 	properties[propertyName] = value
-	return azureStorage.insertRowInPartition(tableName, partitionKay, rowKey, properties)
+	return a.insertRowInPartition(tableName, partitionKey, rowKey, properties)
 }
 
 // InsertInPartitionProperties - Insert a row in the specific partition of the given table
 // with multiple properties
-func (azureStorage *AzureStorage) InsertInPartitionProperties(
-	tableName, partitionKay, rowKey string, properties map[string]interface{}) (int, error) {
-	defer recordProcessingTime(time.Now(), "InsertInPartitionProperties", tableName, partitionKay, rowKey)
+func (a *AzureStorage) InsertInPartitionProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) (int, error) {
+	defer a.recordProcessingTime(time.Now(), "InsertInPartitionProperties", tableName, partitionKey, rowKey)
 
-	return azureStorage.insertRowInPartition(tableName, partitionKay, rowKey, properties)
+	return a.insertRowInPartition(tableName, partitionKey, rowKey, properties)
 }
 
 // UpsertBatch inserts or replaces a batch of rows (row key to properties) for a given table and partition key
 // There is a limit of 100 items per batch
-func (azureStorage *AzureStorage) UpsertBatch(tableName string, batchItems map[string]map[string]interface{}) error {
-	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+func (a *AzureStorage) UpsertBatch(tableName string, batchItems map[string]map[string]interface{}) error {
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("cannot find valid table client for table %s", tableName)
 	}
@@ -221,7 +208,7 @@ func (azureStorage *AzureStorage) UpsertBatch(tableName string, batchItems map[s
 
 	batch := table.NewBatch()
 	for rowKey, rowProperties := range batchItems {
-		entity := table.GetEntityReference(azureStorage.PartitionKey, rowKey)
+		entity := table.GetEntityReference(a.partitionKey, rowKey)
 		entity.Properties = rowProperties
 		// todo: is it correct to always use If-Match:*? not providing an etag basically forces the upsert
 		// entity.OdataEtag = ""
@@ -235,12 +222,12 @@ func (azureStorage *AzureStorage) UpsertBatch(tableName string, batchItems map[s
 // The key in the batch represents the row key
 // The value in the batch (map[string]interface{}) represents row properties and their respective values
 // Documented limit is 100, but in practice it is over 1000
-func (azureStorage *AzureStorage) InsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error {
-	if len(batchItems) > azureStorage.maxBatchSize {
-		return fmt.Errorf("batch size %d exceeds limit of %d", len(batchItems), azureStorage.maxBatchSize)
+func (a *AzureStorage) InsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error {
+	if len(batchItems) > a.maxBatchSize {
+		return fmt.Errorf("batch size %d exceeds limit of %d", len(batchItems), a.maxBatchSize)
 	}
 
-	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("cannot find valid table client for table %s", tableName)
 	}
@@ -259,12 +246,12 @@ func (azureStorage *AzureStorage) InsertBatch(tableName, partitionKey string, ba
 
 // DeleteBatch deletes a batch of rows in a given table based on the given partition and row keys
 // There is a limit of 100 items per batch
-func (azureStorage *AzureStorage) DeleteBatch(tableName, partitionKey string, rowKeys []string) error {
-	if len(rowKeys) > azureStorage.maxBatchSize {
-		return fmt.Errorf("batch size should not exceed %d", azureStorage.maxBatchSize)
+func (a *AzureStorage) DeleteBatch(tableName, partitionKey string, rowKeys []string) error {
+	if len(rowKeys) > a.maxBatchSize {
+		return fmt.Errorf("batch size should not exceed %d", a.maxBatchSize)
 	}
 
-	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("cannot find valid table client for table %s", tableName)
 	}
@@ -281,57 +268,62 @@ func (azureStorage *AzureStorage) DeleteBatch(tableName, partitionKey string, ro
 }
 
 // Query - Query a row in a given table.
-func (azureStorage *AzureStorage) Query(tableName, rowKey string) (interface{}, int, error) {
-	defer recordProcessingTime(time.Now(), "Query", tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
+func (a *AzureStorage) Query(tableName, rowKey string) (interface{}, int, error) {
+	defer a.recordProcessingTime(time.Now(), "Query", tableName, a.partitionKey, rowKey)
 
-	return azureStorage.getRow(tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
+	return a.getRow(tableName, a.partitionKey, rowKey)
 }
 
 // QueryInPartition - Query a row in the given partition of the table.
-func (azureStorage *AzureStorage) QueryInPartition(tableName, partitionKey, rowKey string) (interface{}, int, error) {
-	defer recordProcessingTime(time.Now(), "QueryInPartition", tableName, partitionKey, rowKey)
+func (a *AzureStorage) QueryInPartition(tableName, partitionKey, rowKey string) (interface{}, int, error) {
+	defer a.recordProcessingTime(time.Now(), "QueryInPartition", tableName, partitionKey, rowKey)
 
-	return azureStorage.getRow(tableName, partitionKey, rowKey)
+	return a.getRow(tableName, partitionKey, rowKey)
 }
 
 // QueryInPartitionWithEtag - Query a row in the given partition of the table. Returns etag along with first property
-func (azureStorage *AzureStorage) QueryInPartitionWithEtag(tableName, partitionKey, rowKey string) (interface{}, string, int, error) {
-	defer recordProcessingTime(time.Now(), "QueryInPartitionWithEtag", tableName, partitionKey, rowKey)
+func (a *AzureStorage) QueryInPartitionWithEtag(tableName, partitionKey, rowKey string) (interface{}, string, int, error) {
+	defer a.recordProcessingTime(time.Now(), "QueryInPartitionWithEtag", tableName, partitionKey, rowKey)
 
-	return azureStorage.getRowAndEtag(tableName, partitionKey, rowKey)
+	return a.getRowAndEtag(tableName, partitionKey, rowKey)
 }
 
 // QueryInPartitionWithEtagProperties - Query a row in the given partition of the table.
 // Returns etag along with all of the properties
-func (azureStorage *AzureStorage) QueryInPartitionWithEtagProperties(
-	tableName, partitionKey, rowKey string) (map[string]interface{}, string, int, error) {
-	defer recordProcessingTime(time.Now(), "QueryInPartitionWithEtagProperties", tableName, partitionKey, rowKey)
+func (a *AzureStorage) QueryInPartitionWithEtagProperties(tableName, partitionKey, rowKey string) (map[string]interface{}, string, int, error) {
+	defer a.recordProcessingTime(time.Now(), "QueryInPartitionWithEtagProperties", tableName, partitionKey, rowKey)
 
-	return azureStorage.getRowEtagProperties(tableName, partitionKey, rowKey)
+	return a.getRowEtagProperties(tableName, partitionKey, rowKey)
 }
 
 // QueryAllRows - Query a row in a given table.
-func (azureStorage *AzureStorage) QueryAllRows(tableName string, context interface{}) (
+func (a *AzureStorage) QueryAllRows(tableName string, context interface{}) (
 	map[string]interface{}, bool, interface{}, int, error) {
-	defer recordProcessingTime(time.Now(), "QueryAllRows", tableName, azureStorage.AzureStorageInfo.PartitionKey, "NA")
+	defer a.recordProcessingTime(time.Now(), "QueryAllRows", tableName, a.partitionKey, "NA")
 
-	return azureStorage.getRows(tableName, azureStorage.AzureStorageInfo.PartitionKey, context)
+	return a.getRows(tableName, a.partitionKey, context)
 }
 
 // QueryAllRowsInPartition - Query all rows in the specific partition of the given table.
-func (azureStorage *AzureStorage) QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) (
+func (a *AzureStorage) QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) (
 	map[string]interface{}, bool, interface{}, int, error) {
-	defer recordProcessingTime(time.Now(), "QueryAllRowsInPartition", tableName, partitionKey, "NA")
+	defer a.recordProcessingTime(time.Now(), "QueryAllRowsInPartition", tableName, partitionKey, "NA")
 
-	return azureStorage.getRows(tableName, partitionKey, context)
+	return a.getRows(tableName, partitionKey, context)
 }
 
 // QueryFilter - Query rows using a filter
 // todo: need to determine a max size for filter, since its sent over a GET call to the storage API and fails if it goes over
-func (azureStorage *AzureStorage) QueryFilter(tableName, filter string) (map[string]interface{}, error) {
-	defer recordProcessingTime(time.Now(), "QueryFilter", tableName, "NA", "NA")
+func (a *AzureStorage) QueryFilter(tableName, filter string) (map[string]interface{}, error) {
+	defer a.recordProcessingTime(time.Now(), "QueryFilter", tableName, "NA", "NA")
 
-	table := azureStorage.tableClient.GetTableReference(tableName)
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
+	if !ok {
+		return nil, fmt.Errorf("cannot find valid table client for table %s", tableName)
+	}
+
+	table := tableClient.GetTableReference(tableName)
+
 	queryOptions := storage.QueryOptions{Filter: filter}
 
 	queryResult, err := table.QueryEntities(defaultTimeout, storage.FullMetadata, &queryOptions)
@@ -367,18 +359,18 @@ func (azureStorage *AzureStorage) QueryFilter(tableName, filter string) (map[str
 }
 
 // QueryRowKeys - Fetch rows for keys provided
-func (azureStorage *AzureStorage) QueryRowKeys(tableName string, keys []string) (map[string]interface{}, error) {
-	defer recordProcessingTime(time.Now(), "QueryRowKeys", tableName, azureStorage.PartitionKey, "NA")
+func (a *AzureStorage) QueryRowKeys(tableName string, keys []string) (map[string]interface{}, error) {
+	defer a.recordProcessingTime(time.Now(), "QueryRowKeys", tableName, a.partitionKey, "NA")
 
-	filter := BuildFilterOnPartition(azureStorage.PartitionKey, "RowKey", keys)
+	filter := BuildFilterOnPartition(a.partitionKey, "RowKey", keys)
 
-	return azureStorage.QueryFilter(tableName, filter)
+	return a.QueryFilter(tableName, filter)
 }
 
 // KeyExist - check if key exist in a given table.
-func (azureStorage *AzureStorage) KeyExist(tableName, rowKey string) (bool, error) {
-	defer recordProcessingTime(time.Now(), "KeyExist", tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
-	property, status, err := azureStorage.getRow(tableName, azureStorage.AzureStorageInfo.PartitionKey, rowKey)
+func (a *AzureStorage) KeyExist(tableName, rowKey string) (bool, error) {
+	defer a.recordProcessingTime(time.Now(), "KeyExist", tableName, a.partitionKey, rowKey)
+	property, status, err := a.getRow(tableName, a.partitionKey, rowKey)
 	if property == nil {
 		if status == http.StatusNotFound {
 			return false, nil
@@ -389,14 +381,13 @@ func (azureStorage *AzureStorage) KeyExist(tableName, rowKey string) (bool, erro
 	return true, nil
 }
 
-func (azureStorage *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyName string, value interface{}) error {
-	defer utils.PanicRecover()
-	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+func (a *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyName string, value interface{}) error {
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
 	table := tableClient.GetTableReference(tableName)
-	entity := table.GetEntityReference(azureStorage.PartitionKey, rowKey)
+	entity := table.GetEntityReference(a.partitionKey, rowKey)
 	properties := make(map[string]interface{})
 	properties[propertyName] = value
 	entity.Properties = properties
@@ -404,15 +395,13 @@ func (azureStorage *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyN
 	return err
 }
 
-func (azureStorage *AzureStorage) updateRowWithEtag(
-	tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error {
-	defer utils.PanicRecover()
-	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+func (a *AzureStorage) updateRowWithEtag(tableName, partitionKey, rowKey, etag string, properties map[string]interface{}) error {
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
-	table := *tableClient.GetTableReference(tableName)
-	entity := table.GetEntityReference(partitionKay, rowKey)
+	table := tableClient.GetTableReference(tableName)
+	entity := table.GetEntityReference(partitionKey, rowKey)
 	err := entity.Get(defaultTimeout, storage.FullMetadata, nil)
 	if err != nil {
 		return err
@@ -427,15 +416,13 @@ func (azureStorage *AzureStorage) updateRowWithEtag(
 	return err
 }
 
-func (azureStorage *AzureStorage) insertRowInPartition(
-	tableName, partitionKay, rowKey string, properties map[string]interface{}) (int, error) {
-	defer utils.PanicRecover()
-	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+func (a *AzureStorage) insertRowInPartition(tableName, partitionKey, rowKey string, properties map[string]interface{}) (int, error) {
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
 	table := tableClient.GetTableReference(tableName)
-	entity := table.GetEntityReference(partitionKay, rowKey)
+	entity := table.GetEntityReference(partitionKey, rowKey)
 	entity.Properties = properties
 
 	if err := entity.Insert(storage.FullMetadata, nil); err != nil {
@@ -450,31 +437,28 @@ func (azureStorage *AzureStorage) insertRowInPartition(
 	return http.StatusOK, nil
 }
 
-func (azureStorage *AzureStorage) getRowEtagProperties(
-	tableName string, partitionKey string, rowKey string) (map[string]interface{}, string, int, error) {
-	defer utils.PanicRecover()
-	tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+func (a *AzureStorage) getRowEtagProperties(tableName string, partitionKey string, rowKey string) (map[string]interface{}, string, int, error) {
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return nil, "", http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
-	table := *tableClient.GetTableReference(tableName)
+	table := tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(partitionKey, rowKey)
 	err := entity.Get(defaultTimeout, storage.FullMetadata, nil)
 	if err == nil {
 		return entity.Properties, entity.OdataEtag, http.StatusOK, nil
 	}
 
-	storagErr, ok := err.(storage.AzureStorageServiceError)
+	storageErr, ok := err.(storage.AzureStorageServiceError)
 	if ok {
-		return nil, "", storagErr.StatusCode, err
+		return nil, "", storageErr.StatusCode, err
 	}
 
 	return nil, "", http.StatusInternalServerError, err
 }
 
-func (azureStorage *AzureStorage) getRowAndEtag(
-	tableName string, partitionKey string, rowKey string) (interface{}, string, int, error) {
-	properties, etag, status, err := azureStorage.getRowEtagProperties(tableName, partitionKey, rowKey)
+func (a *AzureStorage) getRowAndEtag(tableName string, partitionKey string, rowKey string) (interface{}, string, int, error) {
+	properties, etag, status, err := a.getRowEtagProperties(tableName, partitionKey, rowKey)
 	if err == nil {
 		switch len(properties) {
 		case 0:
@@ -491,21 +475,19 @@ func (azureStorage *AzureStorage) getRowAndEtag(
 	return nil, "", status, err
 }
 
-func (azureStorage *AzureStorage) getRow(tableName string, partitionKey string, rowKey string) (interface{}, int, error) {
-	property, _, statusCode, err := azureStorage.getRowAndEtag(tableName, partitionKey, rowKey)
+func (a *AzureStorage) getRow(tableName string, partitionKey string, rowKey string) (interface{}, int, error) {
+	property, _, statusCode, err := a.getRowAndEtag(tableName, partitionKey, rowKey)
 	return property, statusCode, err
 }
 
-func (azureStorage *AzureStorage) getRows(tableName string, partitionKey string, context interface{}) (
-	map[string]interface{}, bool, interface{}, int, error) {
-	defer utils.PanicRecover()
+func (a *AzureStorage) getRows(tableName string, partitionKey string, context interface{}) (map[string]interface{}, bool, interface{}, int, error) {
 	var (
 		entitiesResult *storage.EntityQueryResult
 		err            error
 	)
 
 	if context == nil {
-		tableClient, ok := azureStorage.tableNameToTableClientMap[tableName]
+		tableClient, ok := a.tableNameToTableClientMap[tableName]
 		if !ok {
 			return nil, false, nil, http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
 		}

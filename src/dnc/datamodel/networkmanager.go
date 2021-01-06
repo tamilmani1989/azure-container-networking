@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	dataStoreShim             *datastoreshim.DataStoreShim
+	dataStoreShim             datastoreshim.DataStoreShim
 	cnsSettings               configuration.CNSSettings
 	hostAgentSettings         configuration.HostAgentSettings
 	requestBaseInterval              = 1000
@@ -62,7 +62,11 @@ func Init(
 	cnsHttpClientArg *http.Client,
 	wireServerIP string) error {
 	requestBaseInterval = dncSettings.RequestRetryBaseInterval
-	dataStoreShim = datastoreshim.NewDataStoreShim(dataStoreSettings, dncSettings, TableToColumnMap)
+	ds, err := datastoreshim.NewDataStoreShim(dataStoreSettings, dncSettings.ThresholdForLoggingDataStoreOpLatencyMs, TableToColumnMap)
+	if err != nil {
+		return err
+	}
+	dataStoreShim = ds
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
 		RestoreState()
 	}
@@ -113,7 +117,7 @@ func DumpStorageState(partitionKey string) (err error) {
 		var hasMoreRows = true
 		var innerErr error
 		for hasMoreRows {
-			kvMap, hasMoreRows, context, _, innerErr = dataStoreShim.QueryAllInPartition(tableName, partitionKey, context)
+			kvMap, hasMoreRows, context, _, innerErr = dataStoreShim.QueryAllRowsInPartition(tableName, partitionKey, context)
 			if innerErr == nil {
 				jsonStr, _ := json.Marshal(kvMap)
 				fileName := tableName + ".db"
@@ -136,7 +140,7 @@ func DumpStorageState(partitionKey string) (err error) {
 // DumpState - Function to dump test state.
 func DumpState() {
 	for tableName := range TableToColumnMap {
-		kvMap, _, _, _, err := dataStoreShim.QueryAll(tableName, nil)
+		kvMap, _, _, _, err := dataStoreShim.QueryAllRows(tableName, nil)
 		if err == nil {
 			jsonStr, _ := json.Marshal(kvMap)
 			fileName := tableName + ".db"
@@ -927,7 +931,7 @@ func TryQueryAllNetworks() ([]string, error) {
 
 	for {
 		result, hasMoreData, returnContext, status, err =
-			dataStoreShim.QueryAll(networkConfigurationTableName, returnContext)
+			dataStoreShim.QueryAllRows(networkConfigurationTableName, returnContext)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return make([]string, 0), nil
@@ -1157,35 +1161,6 @@ func QueryIPReservation(networkID, reservationID string) (*ReservationConfigurat
 	}
 
 	return reservationConfiguration, nil
-}
-
-func QueryIPReservations(networkID string, reservationIDs []string) ([]ReservationConfiguration, *api.JsonErr) {
-	resKeys := make([]string, len(reservationIDs))
-	for i, resID := range reservationIDs {
-		resKeys[i] = GetReservationKey(networkID, resID)
-	}
-
-	rows, err := dataStoreShim.QueryRowKeys(ipReservationsTableName, resKeys)
-	if err != nil {
-		return nil, api.InternalServerErrorf(api.StatusInternalServerError, "could not retrieve reservations: %v", err)
-	}
-
-	reservations := make([]ReservationConfiguration, len(rows))
-	i := 0
-	for rowKey, value := range rows {
-		reservationJSON, ok := value.(string)
-		if !ok {
-			return nil, api.InternalServerErrorf(api.StatusInternalServerError, "invalid data format. expected string value, got %T", value)
-		}
-		var reservation ReservationConfiguration
-		if err := json.Unmarshal([]byte(reservationJSON), &reservation); err != nil {
-			return nil, api.InternalServerErrorf(api.StatusInternalServerError, "invalid json in reservation %s: %v", rowKey, err)
-		}
-		reservations[i] = reservation
-		i++
-	}
-
-	return reservations, nil
 }
 
 func UpdateIPReservations(reservations []ReservationConfiguration) *api.JsonErr {
@@ -1633,9 +1608,7 @@ func GetAllTagDefinitions() (map[string]TagDefinition, error) {
 	var status int
 	tagDefinitionsMap := make(map[string]TagDefinition)
 	for {
-		tagDefinitions, hasMoreData, context, status, err = dataStoreShim.QueryAll(
-			tagDefinitionTableName,
-			context)
+		tagDefinitions, hasMoreData, context, status, err = dataStoreShim.QueryAllRows(tagDefinitionTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return make(map[string]TagDefinition), nil
@@ -1673,9 +1646,7 @@ func GetPendingRequests() (map[string]RequestContext, error) {
 	var status int
 	requestsToProcess := make(map[string]RequestContext)
 	for {
-		requests, hasMoreData, context, status, err = dataStoreShim.QueryAll(
-			pendingWorkItemsTableName,
-			context)
+		requests, hasMoreData, context, status, err = dataStoreShim.QueryAllRows(pendingWorkItemsTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return make(map[string]RequestContext), nil
@@ -2951,9 +2922,7 @@ func GetAllNetworkIDs() (map[string]bool, error) {
 	var status int
 	networkIDs := make(map[string]bool)
 	for {
-		networksMap, hasMoreData, context, status, err = dataStoreShim.QueryAll(
-			networkConfigurationTableName,
-			context)
+		networksMap, hasMoreData, context, status, err = dataStoreShim.QueryAllRows(networkConfigurationTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return networkIDs, nil
@@ -2983,9 +2952,7 @@ func GetAllNodeIDs() (map[string]bool, error) {
 	var status int
 	nodeIDs := make(map[string]bool)
 	for {
-		nodesMap, hasMoreData, context, status, err = dataStoreShim.QueryAll(
-			nodeTableName,
-			context)
+		nodesMap, hasMoreData, context, status, err = dataStoreShim.QueryAllRows(nodeTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return nodeIDs, nil
@@ -3010,8 +2977,7 @@ func GetAllNodeIDs() (map[string]bool, error) {
 func TryQueryAllIPAllocations(networkID, subnetName string, context interface{}) (
 	map[string]interface{}, bool, interface{}, *api.JsonErr) {
 	partitionKey := GetSubnetKey(networkID, subnetName)
-	data, hasMoreRows, retContext, statusCode, err :=
-		dataStoreShim.QueryAllInPartition(ipAllocationsTableName, partitionKey, context)
+	data, hasMoreRows, retContext, statusCode, err := dataStoreShim.QueryAllRowsInPartition(ipAllocationsTableName, partitionKey, context)
 
 	if err != nil && statusCode != http.StatusNotFound {
 		msg := fmt.Sprintf(
@@ -3132,7 +3098,7 @@ func QueryAllIPReservations() ([]ReservationConfiguration, *api.JsonErr) {
 // TryQueryAllIPReservations - Query all IP Reservation configurations in the partition.
 func TryQueryAllIPReservations(context interface{}) (
 	map[string]interface{}, bool, interface{}, *api.JsonErr) {
-	data, hasMoreRows, retContext, statusCode, err := dataStoreShim.QueryAll(ipReservationsTableName, context)
+	data, hasMoreRows, retContext, statusCode, err := dataStoreShim.QueryAllRows(ipReservationsTableName, context)
 
 	if err != nil && statusCode != http.StatusNotFound {
 		msg := fmt.Sprintf(
@@ -3243,7 +3209,7 @@ func UpdateSharedSubnetDelegationMigration(completionStatus bool) *api.JsonErr {
 
 // IsFeatureSupported - Function to validate if the given feature is supported
 func IsFeatureSupported(featureID int) bool {
-	return dataStoreShim.IsFeatureSupported(featureID)
+	return true
 }
 
 // GetAllNetworkContainers - Retrieve all network containers
@@ -3255,9 +3221,7 @@ func GetAllNetworkContainers() (map[string]NCConfiguration, error) {
 	var status int
 	ncConfigs := make(map[string]NCConfiguration)
 	for {
-		networkConfigs, hasMoreData, context, status, err = dataStoreShim.QueryAll(
-			networkContainerTableName,
-			context)
+		networkConfigs, hasMoreData, context, status, err = dataStoreShim.QueryAllRows(networkContainerTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return ncConfigs, nil
@@ -3494,9 +3458,7 @@ func GetNcPendingPublishRequestContexts() (map[string]NcPendingPublishRequestCon
 	)
 
 	for hasMoreData {
-		requests, hasMoreData, context, status, err = dataStoreShim.QueryAll(
-			ncPendingPublishContextTableName,
-			context)
+		requests, hasMoreData, context, status, err = dataStoreShim.QueryAllRows(ncPendingPublishContextTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return make(map[string]NcPendingPublishRequestContext), nil

@@ -119,7 +119,11 @@ func runRequestController(configFile string) error {
 			ManagedDNCGUID:              kubeconfigInfo.ManagedDNCGUID,
 		}
 
-		kubeconfigProvider = datastore.NewKubeconfigProvider(kubeconfigProviderOpts)
+		kcp, err := datastore.NewKubeconfigProvider(kubeconfigProviderOpts)
+		if err != nil {
+			return fmt.Errorf("Error getting kubeconfig provider: %w", err)
+		}
+		kubeconfigProvider = kcp
 	default:
 		return fmt.Errorf("Error creating kubeconfig provider from config mode: %s is not a valid mode for config.kubernetesConfig.kubeconfigInfo.mode", mode)
 	}
@@ -132,7 +136,10 @@ func runRequestController(configFile string) error {
 
 	syncDncClient := syncdncclient.NewSynchronousDNCClient(dncclient.NewDncClient(config.DNCClientConfig.DNCEndpoint), dncClientPollingInterval, logger)
 
-	subnetInfoProvider := datastore.NewSubnetInfoProvider(config.DataStoreSettings, config.LoggingConfig)
+	subnetInfoProvider, err := datastore.NewSubnetInfoProvider(config.DataStoreSettings, config.LoggingConfig)
+	if err != nil {
+		return fmt.Errorf("Could not create subnet info provider: %w", err)
+	}
 
 	// Create the RequestController
 	requestController, err := kubernetes.NewRequestController(kubernetes.RequestControllerOptions{

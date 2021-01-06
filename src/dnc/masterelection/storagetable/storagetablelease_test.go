@@ -24,7 +24,7 @@ var (
 	logger           *loggershim.LoggerShim
 	stderr           bool
 	initialized      bool
-	dataStoreShim    *datastoreshim.DataStoreShim
+	dataStoreShim    datastoreshim.DataStoreShim
 )
 
 const (
@@ -328,7 +328,12 @@ func setup() error {
 	logger = loggershim.NewLoggerShim(config)
 	logger.Init(stderr, reports)
 	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
-	dataStoreShim = datastoreshim.NewDataStoreShim(config.DataStoreSettings, config.DNCSettings, datamodel.TableToColumnMap)
+	ds, err := datastoreshim.NewDataStoreShim(config.DataStoreSettings, config.DNCSettings.ThresholdForLoggingDataStoreOpLatencyMs, datamodel.TableToColumnMap)
+	if err != nil {
+		return err
+	}
+
+	dataStoreShim = ds
 
 	initialized = true
 	return nil

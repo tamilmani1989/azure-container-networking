@@ -42,7 +42,7 @@ type StorageTableLease struct {
 	demoteEvent                           chan bool
 	leaseID                               int64
 	mutex                                 *sync.RWMutex
-	dataStoreShim                         *datastoreshim.DataStoreShim
+	dataStoreShim                         datastoreshim.DataStoreShim
 	initialized                           bool
 	identity                              string
 	tableToColumnMap                      map[string]string
@@ -90,7 +90,11 @@ func (st *StorageTableLease) Init() {
 			" If you are using a datastore other than azure storage, you still need azure storage account for dnc lease")
 	}
 
-	st.dataStoreShim = datastoreshim.NewDataStoreShim(st.dataStoreSettings, st.dncSettings, st.tableToColumnMap)
+	ds, err := datastoreshim.NewDataStoreShim(st.dataStoreSettings, st.dncSettings.ThresholdForLoggingDataStoreOpLatencyMs, st.tableToColumnMap)
+	if err != nil {
+		panic(err) // todo: we should bubble up the error instead of panicking
+	}
+	st.dataStoreShim = ds
 	loggershim.LS.Debugf("StorageTableLease initialized")
 }
 
@@ -563,7 +567,7 @@ func (st *StorageTableLease) getReplicaIPEndpoint() (string, error) {
 		return "", err
 	}
 
-	if st.serverSettings.UseHttps{
+	if st.serverSettings.UseHttps {
 		return "https://" + replicaIP + ":" + st.serverSettings.TlsPort, nil
 	}
 	return "http://" + replicaIP + ":" + st.serverSettings.Port, nil
@@ -588,7 +592,7 @@ func TestNewStorageTableLease(
 	dataStoreSettings configuration.DataStoreSettings,
 	dataStoreLeaseSettings configuration.DataStoreLeaseSettings,
 	dncSettings configuration.DNCSettings,
-	dataStoreShim *datastoreshim.DataStoreShim,
+	dataStoreShim datastoreshim.DataStoreShim,
 	tableToColumnMap map[string]string,
 	replicaStatusNotificationCallback callbacks.ReplicaChangeNotification,
 	primaryIPNotificationCallback callbacks.PrimaryIPEndpointNotification,
