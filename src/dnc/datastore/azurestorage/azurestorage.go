@@ -27,6 +27,7 @@ type AzureStorage struct {
 	maxBatchSize              int
 	latencyThresholdMs        int // Max time latency allowed for data store operations before recording the operation latency in the log.
 	logger                    loggershim.LoggerInterface
+	isCosmosDb                bool
 }
 
 // Init - Initialize azure storage.
@@ -45,6 +46,7 @@ func NewAzureStorage(config configuration.AzureStorageInfo, logger loggershim.Lo
 		maxBatchSize:       maxBatchSize,
 		latencyThresholdMs: latencyThresholdMs,
 		logger:             logger,
+		isCosmosDb:         config.IsUsingCosmosDb,
 	}
 
 	logger.Debugf("[Azure Storage] Max transaction batch size set to %d", maxBatchSize)
@@ -113,7 +115,9 @@ func (a *AzureStorage) recordProcessingTime(start time.Time, operation, tableNam
 		a.logger.Debugf("[AzureStorage] Operation: %s, Table: %s, PartitionKey: %s,"+
 			" rowKey: %s, TimeMs: %v", operation, tableName, partitionKey, rowKey, timeElapsedMs)
 
-		sendDataStoreMetric(aiwrapper.DataStoreOperationTimeMetric, float64(timeElapsedMs), operation, tableName)
+		if a.isCosmosDb {
+			sendDataStoreMetric(aiwrapper.DataStoreOperationTimeMetric, float64(timeElapsedMs), operation, tableName)
+		}
 	}
 }
 
