@@ -438,6 +438,7 @@ func e2eTests() {
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "wget", blobEP, "-O", "testblob.txt").CombinedOutput()
 	if err != nil {
 		report.ServiceTunnel = false
+		logger.Errorf("ServiceTunnel failed: %+v: srcip:%s dstip:%s", err, podIP1, blobEp)
 		lastErr = fmt.Errorf("ServiceTunnel failed: %+v", err)
 	}
 
@@ -446,6 +447,7 @@ func e2eTests() {
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "ping", "-c", "3", podIP2).CombinedOutput()
 	if err != nil {
 		report.Nc2Nc = false
+		logger.Errorf("Nc2Nc failed: %+v srcip:%s dstip:%s", err, podIP1, podIP2)
 		lastErr = fmt.Errorf("Nc2Nc failed: %+v", err)
 	}
 
@@ -454,6 +456,7 @@ func e2eTests() {
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "ping", "-c", "3", "10.0.0.4").CombinedOutput()
 	if err != nil {
 		report.Nc2VM = false
+		logger.Errorf("Nc2VM failed: %+v srcip:%s dstip:10.0.0.4", err, podIP1)
 		lastErr = fmt.Errorf("Nc2VM failed: %+v", err)
 	}
 
@@ -462,6 +465,7 @@ func e2eTests() {
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "ping", "-c", "3", "20.0.0.4").CombinedOutput()
 	if err != nil {
 		report.Vnet2VnetGW = false
+		logger.Errorf("Vnet2VnetGW failed: %+v srcip:%s dstip:20.0.0.4", err, podIP1)
 		lastErr = fmt.Errorf("Vnet2VnetGW failed: %+v", err)
 	}
 
@@ -470,6 +474,7 @@ func e2eTests() {
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "ping", "-c", "3", "172.16.0.4").CombinedOutput()
 	if err != nil {
 		report.Vnet2VnetPeering = false
+		logger.Errorf("Vnet2VnetPeering failed: %+v srcip:%s dstip:172.16.0.4", err, podIP1)
 		lastErr = fmt.Errorf("Vnet2VnetPeering failed: %+v", err)
 	}
 
@@ -478,6 +483,7 @@ func e2eTests() {
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "ping", "-c", "3", "30.0.0.4").CombinedOutput()
 	if err != nil {
 		report.NonRFCVnet2VnetPeering = false
+		logger.Errorf("NonRFCVnet2VnetPeering failed: %+v srcip:%s dstip:30.0.0.4", err, podIP1)
 		lastErr = fmt.Errorf("NonRFCVnet2VnetPeering failed: %+v", err)
 	}
 
@@ -486,6 +492,7 @@ func e2eTests() {
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "ping", "-c", "3", "10.0.0.5").CombinedOutput()
 	if err == nil {
 		report.UDR = false
+		logger.Errorf("UDR failed: %+v srcip:%s dstip:10.0.0.5", err, podIP1)
 		lastErr = fmt.Errorf("UDR failed")
 	}
 
@@ -494,6 +501,7 @@ func e2eTests() {
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "wget", plblobEP, "-O", "testblob.txt").CombinedOutput()
 	if err != nil {
 		report.PrivateLink = false
+		logger.Errorf("Private Link failed with wget: %+v srcip:%s dstip:%s", err, podIP1, plblobEP)
 		lastErr = fmt.Errorf("Private Link failed: %+v", err)
 	}
 
@@ -502,6 +510,7 @@ func e2eTests() {
 	_, err = exec.Command("kubectl", "exec", pod2, "--", "ping", "-c", "3", "10.0.0.5").CombinedOutput()
 	if err == nil {
 		report.NSG = false
+		logger.Errorf("NSG failed: %+v srcip:%s dstip:10.0.0.5", err, podIP2)
 		lastErr = fmt.Errorf("NSG failed: %+v", err)
 	}
 
@@ -510,6 +519,7 @@ func e2eTests() {
 	_, err = exec.Command("kubectl", "exec", pod2, "--", "wget", "google.com", "-O", "index.html").CombinedOutput()
 	if err == nil {
 		report.NSGwTags = false
+		logger.Errorf("NSGwTags failed with wget: %+v srcip:%s dstip:google.com", err, podIP2)
 		lastErr = fmt.Errorf("NSGwTags failed: pod2 should not have outbound internet access")
 	}
 
@@ -518,9 +528,12 @@ func e2eTests() {
 	output, err = exec.Command("kubectl", "exec", srcPod, "--", "dig", "+short", "google.com").CombinedOutput()
 	if err != nil {
 		report.ExternalDNS = false
+		logger.Errorf("ExternalDNS failed: dig command failed with error: %+v srcip:%s dstip:google.com", err, podIP1)
 		lastErr = fmt.Errorf("ExternalDNS failed: dig command failed with error :%+v", err)
 	} else if net.ParseIP(string(output[1:len(output)-1])) == nil {
 		report.ExternalDNS = false
+		logger.Errorf("ExternalDNS failed: dig command output does not contain IP, Output received: %s",
+			string(output[1:len(output)-1]))
 		lastErr = fmt.Errorf("ExternalDNS failed: dig command output does not contain IP, Output received: %s",
 			string(output[1:len(output)-1]))
 	}
@@ -530,6 +543,11 @@ func e2eTests() {
 	output, err = exec.Command("kubectl", "exec", srcPod, "--", "dig", "+short", privateDNS[1]+privateLinkDomain).CombinedOutput()
 	if err != nil || net.ParseIP(string(output[1:len(output)-1])) == nil {
 		report.PrivateDNS = false
+		logger.Errorf("PrivateDNS failed from pod %s unable resolve %+v with err %+v, dig command output : %s",
+			podIP1,
+			privateDNS[1]+privateLinkDomain,
+			err,
+			string(output[1:len(output)-1]))
 		lastErr = fmt.Errorf("PrivateDNS failed: unable resolve %+v with err %+v, dig command output : %s",
 			privateDNS[1]+privateLinkDomain,
 			err,
@@ -541,6 +559,7 @@ func e2eTests() {
 	output, err = exec.Command("kubectl", "exec", pod3, "--", "curl", "https://api.ipify.org?format=json").CombinedOutput()
 	if err != nil {
 		report.MNAT = false
+		logger.Errorf("Managed NAT failed: MNAT verification command failed with error %+v", err)
 		lastErr = fmt.Errorf("Managed NAT failed: MNAT verification command failed with error %+v", err)
 	}
 
@@ -548,6 +567,7 @@ func e2eTests() {
 	logger.Printf("Checking output of the request sent via MNAT.")
 	if report.MNAT && len(output) == 0 {
 		report.MNAT = false
+		logger.Errorf("Managed NAT failed: MNAT verification command output is empty.")
 		lastErr = fmt.Errorf("Managed NAT failed: MNAT verification command output is empty.")
 	}
 
@@ -555,6 +575,9 @@ func e2eTests() {
 	logger.Printf("Validating output of request sent via MNAT to containt %s.", mnatPublicIP)
 	if report.MNAT && !strings.Contains(string(output[1:len(output)-1]), mnatPublicIP) {
 		report.MNAT = false
+		logger.Errorf("Managed NAT failed: MNAT verification command output: %s does not contain MNAT public IP %s",
+			string(output),
+			mnatPublicIP)
 		lastErr = fmt.Errorf("Managed NAT failed: MNAT verification command output: %s does not contain MNAT public IP %s",
 			string(output),
 			mnatPublicIP)
@@ -566,6 +589,7 @@ func e2eTests() {
 	response, err = http.Get(lbNCUrl)
 	if err != nil {
 		report.LB = false
+		logger.Errorf("LB scenario failed: Encountered error following HTTP GET request %s", err)
 		lastErr = fmt.Errorf("LB scenario failed: Encountered error following HTTP GET request %s", err)
 	} else {
 		defer response.Body.Close()
@@ -573,6 +597,8 @@ func e2eTests() {
 		// Check HTTP status code
 		if response.StatusCode != http.StatusOK {
 			report.LB = false
+			logger.Errorf("LB scenario failed: Encountered non-200 status code for reading HTTP GET request %d",
+				response.StatusCode)
 			lastErr = fmt.Errorf("LB scenario failed: Encountered non-200 status code for reading HTTP GET request %d",
 				response.StatusCode)
 		} else {
@@ -582,12 +608,14 @@ func e2eTests() {
 
 			if err != nil {
 				report.LB = false
+				logger.Errorf("LB scenario failed: Encountered error reading HTTP GET request %s", err)
 				lastErr = fmt.Errorf("LB scenario failed: Encountered error reading HTTP GET request %s", err)
 			} else {
 				logger.Printf("Checking LB request output")
 				// Check the length of output
 				if len(output) == 0 {
 					report.LB = false
+					logger.Errorf("LB scenario failed: Request output via VIP is empty.")
 					lastErr = fmt.Errorf("LB scenario failed: Request output via VIP is empty.")
 				}
 			}
@@ -596,6 +624,8 @@ func e2eTests() {
 			// Check if output contains
 			if report.LB && !strings.Contains(string(output), "LB") {
 				report.LB = false
+				logger.Errorf("LB scenario failed: Request output via VIP: %s does not contain string LB Works",
+					string(output))
 				lastErr = fmt.Errorf("LB scenario failed: Request output via VIP: %s does not contain string LB Works",
 					string(output))
 			}
@@ -1081,10 +1111,10 @@ func addNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeCons
 			ncID,
 			subnetID,
 			vnetID,
-      nodeID,
-      ifaceID,
-      podName,
-      ipConstraint,
+			nodeID,
+			ifaceID,
+			podName,
+			ipConstraint,
 			respErr)
 	}
 
@@ -1103,10 +1133,10 @@ func addNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeCons
 			ncID,
 			subnetID,
 			vnetID,
-      nodeID,
-      ifaceID,
-      podName,
-      ipConstraint,
+			nodeID,
+			ifaceID,
+			podName,
+			ipConstraint,
 			respErr)
 	}
 
@@ -1117,10 +1147,10 @@ func addNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeCons
 				ncID,
 				subnetID,
 				vnetID,
-        nodeID,
-        ifaceID,
-        podName,
-        ipConstraint,
+				nodeID,
+				ifaceID,
+				podName,
+				ipConstraint,
 				ncStatus,
 				expectedNcStatus)
 		}
