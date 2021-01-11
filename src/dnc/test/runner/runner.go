@@ -438,7 +438,7 @@ func e2eTests() {
 	_, err = exec.Command("kubectl", "exec", srcPod, "--", "wget", blobEP, "-O", "testblob.txt").CombinedOutput()
 	if err != nil {
 		report.ServiceTunnel = false
-		logger.Errorf("ServiceTunnel failed: %+v: srcip:%s dstip:%s", err, podIP1, blobEp)
+		logger.Errorf("ServiceTunnel failed: %+v: srcip:%s dstip:%s", err, podIP1, blobEP)
 		lastErr = fmt.Errorf("ServiceTunnel failed: %+v", err)
 	}
 
