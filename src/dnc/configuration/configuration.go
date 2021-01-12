@@ -9,11 +9,6 @@ import (
 	"path/filepath"
 )
 
-// Features supported by underlying data storage
-const (
-	SharedSubnetDelegation = 0
-)
-
 // AzureStorageInfo - Details to connect to azure storage account.
 type AzureStorageInfo struct {
 	AccountName                     string

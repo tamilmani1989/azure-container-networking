@@ -23,14 +23,13 @@ func TestDispatcher(t *testing.T) {
 	}
 
 	alloc := IPAllocator{
-		Nodes:            &fakes.NodeRepo{},
-		NCs:              &fakes.NCRepo{},
-		Allocations:      &fakes.AllocationRepo{},
-		Reservations:     fakes.NewReservationRepo(),
-		Subnets:          &subnets,
-		IsFeatureEnabled: enableSubnetDelegation,
-		Logger:           new(dummyLogger),
-		MaxBatchSize:     100,
+		Nodes:        &fakes.NodeRepo{},
+		NCs:          &fakes.NCRepo{},
+		Allocations:  &fakes.AllocationRepo{},
+		Reservations: fakes.NewReservationRepo(),
+		Subnets:      &subnets,
+		Logger:       new(dummyLogger),
+		MaxBatchSize: 100,
 	}
 
 	deps := DispatcherDependencies{

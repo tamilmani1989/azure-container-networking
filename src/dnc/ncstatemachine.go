@@ -25,14 +25,13 @@ func initNetworkContainerStateMachine() {
 	}
 
 	ipAllocator = networkcontainer.IPAllocator{
-		Nodes:            new(nodeRepo),
-		NCs:              new(ncRepo),
-		Subnets:          new(subnetRepo),
-		Reservations:     new(reservationRepo),
-		Allocations:      new(allocationRepo),
-		IsFeatureEnabled: datamodel.IsFeatureSupported,
-		Logger:           logger,
-		MaxBatchSize:     config.DataStoreSettings.MaxBatchSize,
+		Nodes:        new(nodeRepo),
+		NCs:          new(ncRepo),
+		Subnets:      new(subnetRepo),
+		Reservations: new(reservationRepo),
+		Allocations:  new(allocationRepo),
+		Logger:       logger,
+		MaxBatchSize: config.DataStoreSettings.MaxBatchSize,
 	}
 
 	macAllocator = networkcontainer.MacAllocator{

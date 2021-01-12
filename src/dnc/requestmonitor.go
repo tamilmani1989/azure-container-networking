@@ -28,8 +28,7 @@ import (
 )
 
 var (
-	initiateMigration = true
-	containerTypes    sync.Map
+	containerTypes sync.Map
 )
 
 const (
@@ -1837,14 +1836,6 @@ ExitLoop:
 func processPendingRequests(
 	concurrentGoroutines chan struct{},
 	inProcessRequestsMap *sync.Map) {
-	if initiateMigration {
-		if err := datamodel.ProcessSharedSubnetDelegationMigration(); err != nil {
-			logger.Errorf("ProcessSharedSubnetDelegationMigration failed %v", err)
-			return
-		}
-
-		initiateMigration = false
-	}
 
 	requests, _ := datamodel.GetPendingRequests()
 	if len(requests) == 0 {

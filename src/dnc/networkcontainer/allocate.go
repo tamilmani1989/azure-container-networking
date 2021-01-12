@@ -3,7 +3,6 @@ package networkcontainer
 import (
 	"dnc/allocationhelper"
 	"dnc/api"
-	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
 	"dnc/utils"
@@ -21,14 +20,13 @@ const (
 
 // IPAllocator can process different types of IP allocations for network containers
 type IPAllocator struct {
-	Nodes            NodeRepo
-	NCs              NCRepo
-	Subnets          SubnetRepo
-	Reservations     IPReservationRepo
-	Allocations      IPAllocationRepo
-	IsFeatureEnabled func(int) bool
-	Logger           loggershim.LoggerInterface
-	MaxBatchSize     int
+	Nodes        NodeRepo
+	NCs          NCRepo
+	Subnets      SubnetRepo
+	Reservations IPReservationRepo
+	Allocations  IPAllocationRepo
+	Logger       loggershim.LoggerInterface
+	MaxBatchSize int
 }
 
 // ProcessIPReservationAllocationWithKey processes IP allocation for a given reservation key
@@ -61,12 +59,7 @@ func (a *IPAllocator) ProcessIPReservationAllocation(req *datamodel.ReservationC
 		return a.markReservationAsFailed(req, err)
 	}
 
-	var allocationState map[string]*net.IPNet
-	if !a.IsFeatureEnabled(configuration.SharedSubnetDelegation) {
-		allocationState, err = a.getAllocationsFromSubnetConfig(subnetConfig)
-	} else {
-		allocationState, err = a.getAllocationsFromSubnetTable(req.NetworkID, req.AllocationRequest.SubnetName)
-	}
+	allocationState, err := a.getAllocationsFromSubnetTable(req.NetworkID, req.AllocationRequest.SubnetName)
 	if err != nil {
 		if err.HTTPStatus == http.StatusNotFound {
 			return a.markReservationAsFailed(req, err)
@@ -109,10 +102,6 @@ func (a *IPAllocator) ProcessIPReservationAllocation(req *datamodel.ReservationC
 	if primaryIP == nil {
 		err := api.BadRequest(api.AllocationFailed, fmt.Sprintf("Failed to allocate address for request %s. Subnet is full", req.AllocationRequest.String()))
 		return a.markReservationAsFailed(req, err)
-	}
-	if !a.IsFeatureEnabled(configuration.SharedSubnetDelegation) {
-		req.AllocatedSubnet = primaryIP.String()
-		return a.completeAllocation(req, subnetConfig)
 	}
 
 	// whether it's a single record or multiple, we can still use a batch for a single transaction

@@ -678,61 +678,29 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 
 // DeleteIPAllocation - Delete an IP allocation entry from IPAllocations table.
 func DeleteIPAllocation(networkID, subnetName, reservationKey, allocatedIP string) *api.JsonErr {
-	if IsFeatureSupported(configuration.SharedSubnetDelegation) {
-		allocatedIPKey := EncodeIPAllocationKey(allocatedIP)
-		allocation, err := TryQueryIPAllocation(networkID, subnetName, allocatedIPKey)
-		if err != nil {
-			return err
-		}
-
-		if allocation.IPAllocation != "" {
-			// Delete the entry if the saved reservation matches the current reservation
-			if reservationKey == allocation.IPAllocation {
-				partitionKey := GetSubnetKey(networkID, subnetName)
-				err := dataStoreShim.DeleteInPartition(ipAllocationsTableName, partitionKey, allocatedIPKey)
-				if err != nil {
-					return &api.JsonErr{
-						Code:       api.StatusInternalServerError,
-						HTTPStatus: http.StatusInternalServerError,
-						Text:       fmt.Sprintf("Cannot delete entry %s from IPAllocations table due to error: %+v", allocatedIPKey, err)}
-				}
-			} else {
-				return &api.JsonErr{
-					Code:       api.InvalidIPSubnet,
-					HTTPStatus: http.StatusInternalServerError,
-					Text:       fmt.Sprintf("Reservation key mismatch in IPAllocations table for IP %s", allocatedIP)}
-			}
-		} else {
-			loggershim.LS.Errorf("Error: Cannot find the ipAddress %s in IPAllocation table", allocatedIP)
-		}
-	}
-
-	return nil
-}
-
-// AddIPAllocation - Add the IP allocation to the specified partition of IPAllocations table.
-func AddIPAllocation(networkID, subnetName, allocatedIP, reservationKey string) *api.JsonErr {
-	partitionKey := GetSubnetKey(networkID, subnetName)
-	status, err := dataStoreShim.InsertInPartition(ipAllocationsTableName,
-		partitionKey,
-		allocatedIP,
-		TableToColumnMap[ipAllocationsTableName],
-		reservationKey)
+	allocatedIPKey := EncodeIPAllocationKey(allocatedIP)
+	savedReservationKey, err := TryQueryIPAllocation(networkID, subnetName, allocatedIPKey)
 	if err != nil {
-		jsonErr := &api.JsonErr{}
-		if status == http.StatusConflict {
-			jsonErr.Code = api.ReservationInUse
-			jsonErr.HTTPStatus = status
-			jsonErr.Text = fmt.Sprintf("IP %+v is unavailable for allocation for key: %s", allocatedIP, reservationKey)
-		} else {
-			jsonErr.Code = api.StatusInternalServerError
-			jsonErr.HTTPStatus = http.StatusInternalServerError
-			jsonErr.Text = fmt.Sprintf("Internal server error")
-		}
-		return jsonErr
+		return err
 	}
 
-	loggershim.LS.Debugf("Allocated IP: %s for reservation key: %s", allocatedIP, reservationKey)
+	if savedReservationKey.IPAllocation == "" {
+		loggershim.LS.Errorf("Error: Cannot find the ipAddress %s in IPAllocation table", allocatedIP)
+		return nil
+	}
+
+	if reservationKey != savedReservationKey.IPAllocation {
+		msg := fmt.Sprintf("Reservation key mismatch in IPAllocations table for IP %s", allocatedIP)
+		return api.InternalServerError(api.InvalidIPSubnet, msg)
+	}
+
+	// Delete the entry if the saved reservation matches the current reservation
+	partitionKey := GetSubnetKey(networkID, subnetName)
+	if err := dataStoreShim.DeleteInPartition(ipAllocationsTableName, partitionKey, allocatedIPKey); err != nil {
+		msg := fmt.Sprintf("Cannot delete entry %s from IPAllocations table due to error: %+v", allocatedIPKey, err)
+		return api.InternalServerError(api.StatusInternalServerError, msg)
+	}
+
 	return nil
 }
 
@@ -968,26 +936,6 @@ func TryQuerySubnetConfigurationByKey(subnetKey string) (*SubnetConfiguration, *
 	return &subnetConfiguration, nil
 }
 
-// QuerySubnetConfigurationByKey - Query subnet configuration.
-func QuerySubnetConfigurationByKey(subnetKey string) (*SubnetConfiguration, *api.JsonErr) {
-	subnetConfiguration, err := TryQuerySubnetConfigurationByKey(subnetKey)
-	if err != nil {
-		return nil, err
-	}
-
-	if subnetConfiguration == nil {
-		msg := fmt.Sprintf(
-			"Configuration for subnet key:[%s] not found.",
-			subnetKey)
-		return nil, &api.JsonErr{
-			Code:       api.SubnetNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusNotFound}
-	}
-
-	return subnetConfiguration, nil
-}
-
 // QuerySubnetConfiguration - Query subnet configuration.
 func QuerySubnetConfiguration(networkID, subnetName string) (*SubnetConfiguration, *api.JsonErr) {
 	subnetConfiguration, err := TryQuerySubnetConfiguration(networkID, subnetName)
@@ -1162,119 +1110,6 @@ func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr
 func TryQueryNetworkContainer(networkID, networkContainerID string) (*NCConfiguration, *api.JsonErr) {
 	ncKey := GetNCKey(networkID, networkContainerID)
 	return TryQueryNetworkContainerByKey(ncKey)
-}
-
-// QueryNetworkContainer - Query node configuration.
-func QueryNetworkContainer(networkID, networkContainerID string) (*NCConfiguration, *api.JsonErr) {
-	ncConfig, err := TryQueryNetworkContainer(networkID, networkContainerID)
-	if err != nil {
-		return nil, err
-	}
-
-	if ncConfig == nil {
-		msg := fmt.Sprintf(
-			"Configuration for network container with key:[%s] not found.",
-			ncKey)
-		return nil, &api.JsonErr{
-			Code:       api.NetworkContainerNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
-	}
-
-	return ncConfig, nil
-}
-
-// TryQueryTagDefinition - Query a tag defintion.
-func TryQueryTagDefinition(tagType, tagName string) (*TagDefinition, *api.JsonErr) {
-	tagDefintionKey := GetTagDefintionKey(tagType, tagName)
-	return TryQueryTagDefinitionByKey(tagDefintionKey)
-}
-
-// TryQueryTagDefinitionByKey - Query tag defintion by key.
-func TryQueryTagDefinitionByKey(tagDefinitionKey string) (*TagDefinition, *api.JsonErr) {
-	entity, status, err := dataStoreShim.Query(tagDefinitionTableName, tagDefinitionKey)
-	if err != nil && status != http.StatusNotFound {
-		msg := fmt.Sprintf(
-			"Failed to retrieve defintion for tag key:[%s] due to error:[%s]",
-			tagDefinitionKey,
-			err.Error())
-		return nil, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-	if entity == nil {
-		return nil, nil
-	}
-
-	serializedTagDefinition := entity.Properties[tagDefinitionsTag].(string)
-	var repoTagDefinition TagDefinition
-	err = json.Unmarshal([]byte(serializedTagDefinition), &repoTagDefinition)
-	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to unmarshal defintion for tag with key:[%s] due to error:[%s]",
-			tagDefinitionKey,
-			err)
-		return nil, &api.JsonErr{
-			Code:       api.JsonBodyUnMarshalFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	return &repoTagDefinition, nil
-}
-
-// CreateOrUpdateTagDefintion - Creates Or Updates a tag defintion.
-func CreateOrUpdateTagDefintion(
-	tagType string,
-	tagName string,
-	values []string) *api.JsonErr {
-	repositoryTagDefintion, err := TryQueryTagDefinition(tagType, tagName)
-	if err != nil {
-		return err
-	}
-
-	if repositoryTagDefintion == nil {
-		repositoryTagDefintion = &TagDefinition{
-			Name:            tagName,
-			Type:            tagType,
-			CreatedDateTime: time.Now()}
-	}
-	repositoryTagDefintion.Version++
-	repositoryTagDefintion.Values = values
-	repositoryTagDefintion.LastUpdatedDateTime = time.Now()
-
-	return persistTagDefinition(repositoryTagDefintion)
-}
-
-func persistTagDefinition(tagDefinition *TagDefinition) *api.JsonErr {
-	jsonSerializedBytes, err := json.Marshal(tagDefinition)
-	if err != nil {
-		return &api.JsonErr{
-			Code:       api.JsonMarshallingFailed,
-			HTTPStatus: http.StatusInternalServerError,
-			Text: fmt.Sprintf("Failed to serialize tag defintion for tag %s due to error %s",
-				tagDefinition.String(),
-				err.Error())}
-	}
-
-	tagDefintionKey := GetTagDefintionKey(tagDefinition.Type, tagDefinition.Name)
-	err = dataStoreShim.InsertOrUpdate(
-		tagDefinitionTableName,
-		tagDefintionKey,
-		TableToColumnMap[tagDefinitionTableName],
-		string(jsonSerializedBytes[:]))
-
-	if err != nil {
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			HTTPStatus: http.StatusInternalServerError,
-			Text: fmt.Sprintf("Failed to persist tag definition %s due to error %s",
-				tagDefinition.String(),
-				err.Error())}
-	}
-
-	return nil
 }
 
 // CreateOrUpdateNodeConfiguration - Creates Or Updates a node configuration. Register should be true if called from RegisterNode.
@@ -1891,15 +1726,6 @@ func UpdateSubnet(
 	return err
 }
 
-// GetNodeIDForNetworkContainer - Helper to retrieve node Id from NC configuration.
-func GetNodeIDForNetworkContainer(networkID, ncID string) (string, *api.JsonErr) {
-	networkContainerConfiguration, err := QueryNetworkContainer(networkID, ncID)
-	if err != nil {
-		return "", err
-	}
-	return networkContainerConfiguration.GetAssociationInfo().NodeID, nil
-}
-
 // PurgeNetworkContainerAssociations - Process relase of resevation associated with network container
 func PurgeNetworkContainerAssociations(ncConfiguration *NCConfiguration, updateVlan bool) *api.JsonErr {
 	associationInfo := ncConfiguration.GetAssociationInfo()
@@ -2328,31 +2154,6 @@ func GetReservationResponse(
 
 	response := translateRepoToContractReservationResponse(reservationConfiguration)
 	return &response, nil
-}
-
-// GetReservationStatus - Get reservation status
-func GetReservationStatus(networkID, reservationID string) (*api.RequestStatus, *api.JsonErr) {
-	repoReservationConfiguration, err := QueryIPReservation(networkID, reservationID)
-	if err != nil {
-		return nil, err
-	}
-
-	if repoReservationConfiguration == nil {
-		msg := fmt.Sprintf(
-			"Reservation %s in Network %s is not found", reservationID, networkID)
-		return nil, &api.JsonErr{
-			Code:       api.ReservationNotFound,
-			HTTPStatus: http.StatusNotFound,
-			Text:       msg}
-	}
-
-	var requestStatus *api.RequestStatus
-	requestStatus = &api.RequestStatus{
-		State:         repoReservationConfiguration.ReservationState.String(),
-		Status:        repoReservationConfiguration.Status.String(),
-		FailureDetail: repoReservationConfiguration.FailureDetail}
-
-	return requestStatus, nil
 }
 
 func sendNCCreationReqMetric(networkID, ncID, status string, associationInfo api.AssociationInfo) {
@@ -2885,162 +2686,6 @@ func EncodeIPAllocationKey(allocatedSubnet string) string {
 func DecodeIPAllocationKey(allocatedSubnet string) string {
 	charReplacer := strings.NewReplacer("_", "/")
 	return charReplacer.Replace(allocatedSubnet)
-}
-
-// QueryAllIPReservations - Query all IP Reservation configurations.
-func QueryAllIPReservations() ([]ReservationConfiguration, *api.JsonErr) {
-	var (
-		context      interface{}
-		reservations []ReservationConfiguration
-	)
-	for {
-		data, hasMoreRows, cx, err := TryQueryAllIPReservations(context)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, entity := range data {
-			serializedReservationConfiguration := entity.Properties[reservationConfigurationTag].(string)
-			var reservationConfiguration ReservationConfiguration
-			err := json.Unmarshal([]byte(serializedReservationConfiguration), &reservationConfiguration)
-			if err != nil {
-				msg := fmt.Sprintf(
-					"Failed to unmarshal configuration for reservation key:[%s] due to error:[%s]",
-					entity.RowKey,
-					err)
-				return nil, &api.JsonErr{
-					Code:       api.JsonBodyUnMarshalFailed,
-					Text:       msg,
-					HTTPStatus: http.StatusInternalServerError}
-			}
-
-			reservations = append(reservations, reservationConfiguration)
-		}
-
-		if !hasMoreRows {
-			break
-		}
-
-		context = cx
-	}
-
-	return reservations, nil
-}
-
-// TryQueryAllIPReservations - Query all IP Reservation configurations in the partition.
-func TryQueryAllIPReservations(context interface{}) ([]*storage.Entity, bool, interface{}, *api.JsonErr) {
-	data, hasMoreRows, retContext, statusCode, err := dataStoreShim.QueryAllRows(ipReservationsTableName, context)
-
-	if err != nil && statusCode != http.StatusNotFound {
-		msg := fmt.Sprintf(
-			"Failed to retrieve IP reservations due to error:[%s]",
-			err.Error())
-		return nil, false, nil, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	if data == nil {
-		return nil, false, nil, nil
-	}
-
-	return data, hasMoreRows, retContext, nil
-}
-
-// ProcessSharedSubnetDelegationMigration - Migrate IP allocations from IPReservations to IPAllocations table
-func ProcessSharedSubnetDelegationMigration() error {
-	if IsFeatureSupported(configuration.SharedSubnetDelegation) {
-		// check if the migration for shared subnet delegation is pending
-		migrationComplete, err := TryQuerySharedSubnetDelegationMigration()
-		if err != nil {
-			loggershim.LS.Errorf("sharedSubnetDelegationMigration table query failed due to error %v", err)
-			return fmt.Errorf("Error querying sharedSubnetDelegationMigration table")
-		}
-
-		if !migrationComplete {
-			loggershim.LS.Debugf("Triggering migration for shared subnet delegation")
-			reservationConfigurations, err := QueryAllIPReservations()
-			if err != nil {
-				loggershim.LS.Errorf("Failed to get all IP reservations due to error %v", err)
-				return fmt.Errorf("Failed to get all IP reservations with error %s", err.Text)
-			}
-
-			// Migrate IP allocations from IPReservations to IPAllocations table
-			for _, reservationConfiguration := range reservationConfigurations {
-				reservationKey := GetReservationKey(reservationConfiguration.NetworkID, reservationConfiguration.ReservationID)
-
-				if len(reservationConfiguration.AllocatedSubnet) != 0 {
-					if err = AddIPAllocation(reservationConfiguration.NetworkID,
-						reservationConfiguration.AllocationRequest.SubnetName,
-						EncodeIPAllocationKey(reservationConfiguration.AllocatedSubnet),
-						reservationKey); err != nil {
-						loggershim.LS.Errorf("addIPAllocation for %v failed due to %s",
-							reservationConfiguration.AllocatedSubnet, err.Text)
-						if err.Code == api.StatusInternalServerError {
-							return fmt.Errorf("Failed to add IP in IPAllocations table with err %s", err.Text)
-						}
-					}
-				}
-			}
-
-			if err = UpdateSharedSubnetDelegationMigration(true); err != nil {
-				loggershim.LS.Errorf("Failed to update SharedSubnetDelegationMigration table due to error %s", err)
-			} else {
-				loggershim.LS.Debugf("Migration for shared subnet delegation completed successfully")
-			}
-		} else {
-			loggershim.LS.Debugf("Migration for shared subnet delegation already completed")
-		}
-	}
-
-	return nil
-}
-
-// TryQuerySharedSubnetDelegationMigration - Query migration table in a specified partition.
-func TryQuerySharedSubnetDelegationMigration() (bool, *api.JsonErr) {
-	entity, status, err := dataStoreShim.Query(sharedSubnetDelegationMigrationTableName, "migration-status")
-	if err != nil && status != http.StatusNotFound {
-		msg := fmt.Sprintf(
-			"Failed to retrieve migration status due to error:[%s]", err)
-		return false, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	if entity == nil {
-		return false, nil
-	}
-	b, ok := entity.Properties[sharedSubnetDelegationMigrationTag].(bool)
-	if !ok {
-		return false, nil
-	}
-	return b, nil
-}
-
-// UpdateSharedSubnetDelegationMigration - Updates the migration table indicating the completion of the migration operation.
-func UpdateSharedSubnetDelegationMigration(completionStatus bool) *api.JsonErr {
-	err := dataStoreShim.InsertOrUpdate(sharedSubnetDelegationMigrationTableName,
-		"migration-status",
-		TableToColumnMap[sharedSubnetDelegationMigrationTableName],
-		completionStatus)
-	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to update SharedSubnetDelegationMigration table. Error:%s",
-			err.Error())
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	return nil
-}
-
-// IsFeatureSupported - Function to validate if the given feature is supported
-func IsFeatureSupported(featureID int) bool {
-	return true
 }
 
 // GetAllNetworkContainers - Retrieve all network containers
