@@ -14,15 +14,14 @@ import (
 
 func Test_Allocate(t *testing.T) {
 	allocsRepo := fakes.AllocationRepo{
-		Data: []fakes.RepoKV{
-			{"172.16.0.10_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1"}},
-			{"172.16.0.13_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res2", allocIDProperty: "uuid1"}},
-			{"172.16.0.20_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res2", allocIDProperty: "uuid2"}},
-			{"172.16.0.21_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res2", allocIDProperty: "uuid3"}},
-			{"172.16.0.22_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res2", allocIDProperty: "uuid4"}},
-			{"172.16.0.23_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res2", allocIDProperty: "uuid5"}},
+		Data: []datamodel.AllocationRow{
+			{RowKey: "172.16.0.10_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: ""},
+			{RowKey: "172.16.0.13_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid1"},
+			{RowKey: "172.16.0.20_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid2"},
+			{RowKey: "172.16.0.21_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid3"},
+			{RowKey: "172.16.0.22_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid4"},
+			{RowKey: "172.16.0.23_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid5"},
 		},
-		MaxPageSize: 3,
 	}
 
 	subnetRepo := fakes.SubnetRepo{
@@ -93,11 +92,10 @@ func TestIncompleteAllocation(t *testing.T) {
 
 	// this is the current state of the allocations table
 	allocsRepo := fakes.AllocationRepo{
-		Data: []fakes.RepoKV{
-			{"172.16.0.13_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1", allocIDProperty: reservationID}},
-			{"172.16.0.20_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1", allocIDProperty: allocationID1}},
+		Data: []datamodel.AllocationRow{
+			{RowKey: "172.16.0.13_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: reservationID},
+			{RowKey: "172.16.0.20_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: allocationID1},
 		},
-		MaxPageSize: 5,
 	}
 
 	subnetRepo := fakes.SubnetRepo{
@@ -163,7 +161,7 @@ func TestIncompleteAllocation(t *testing.T) {
 
 func TestDeallocate(t *testing.T) {
 	initialAllocCount := 240
-	allocationRows := make([]fakes.RepoKV, initialAllocCount)
+	allocationRows := make([]datamodel.AllocationRow, initialAllocCount)
 	allocationIDs := make([]string, initialAllocCount)
 	reservation := datamodel.ReservationConfiguration{
 		SecondaryAllocations: make(map[string]string),
@@ -178,11 +176,16 @@ func TestDeallocate(t *testing.T) {
 
 	for i := 0; i < len(allocationRows); i++ {
 		allocID := uuid.New().String()
-		allocationRows[i] = fakes.RepoKV{Key: ips[i].String() + "_32", Value: map[string]interface{}{allocIDProperty: allocID}}
+		//allocationRows[i] = fakes.RepoKV{Key: ips[i].String() + "_32", Value: map[string]interface{}{allocIDProperty: allocID}}
+		allocationRows[i] = datamodel.AllocationRow{
+			RowKey:       ips[i].String() + "_32",
+			IPAllocation: "", // todo: verify
+			AllocationID: allocID,
+		}
 		allocationIDs[i] = allocID
 		reservation.SecondaryAllocations[allocID] = ips[i].String() + "/32"
 	}
-	allocRepo := fakes.AllocationRepo{Data: allocationRows, MaxPageSize: 100}
+	allocRepo := fakes.AllocationRepo{Data: allocationRows}
 	allocator := IPAllocator{Allocations: &allocRepo, Logger: new(dummyLogger), MaxBatchSize: 100}
 
 	// randomly select a number of ids to be deleted
@@ -209,10 +212,7 @@ func TestDeallocate(t *testing.T) {
 }
 
 func Test_RemoveSecondaryIpWithEmptyAllocations(t *testing.T) {
-	allocsRepo := fakes.AllocationRepo{
-		Data:        []fakes.RepoKV{},
-		MaxPageSize: 3,
-	}
+	var allocsRepo fakes.AllocationRepo
 
 	subnetRepo := fakes.SubnetRepo{
 		Data: map[string]datamodel.SubnetConfiguration{
@@ -260,13 +260,12 @@ func Test_RemoveSecondaryIpWithEmptyAllocations(t *testing.T) {
 
 func Test_RemoveAllAllocations(t *testing.T) {
 	allocsRepo := fakes.AllocationRepo{
-		Data: []fakes.RepoKV{
-			{"172.16.0.13_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1", allocIDProperty: "alloc1"}},
-			{"172.16.0.14_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1", allocIDProperty: "alloc2"}},
-			{"172.16.0.15_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1", allocIDProperty: "alloc3"}},
-			{"172.16.0.16_32", map[string]interface{}{ipAllocProperty: "Network_network1_Reservation_res1", allocIDProperty: "alloc4"}},
+		Data: []datamodel.AllocationRow{
+			{RowKey: "172.16.0.13_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: "alloc1"},
+			{RowKey: "172.16.0.14_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: "alloc2"},
+			{RowKey: "172.16.0.15_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: "alloc3"},
+			{RowKey: "172.16.0.16_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: "alloc4"},
 		},
-		MaxPageSize: 5,
 	}
 
 	subnetRepo := fakes.SubnetRepo{
@@ -312,12 +311,10 @@ func Test_RemoveAllAllocations(t *testing.T) {
 
 func extractAllocationIDs(a fakes.AllocationRepo) map[string]struct{} {
 	allocIDs := make(map[string]struct{})
-	for _, kv := range a.Data {
-		allocID, ok := kv.Value.(map[string]interface{})[allocIDProperty].(string)
-		if !ok {
-			continue
+	for _, row := range a.Data {
+		if row.AllocationID != "" {
+			allocIDs[row.AllocationID] = struct{}{}
 		}
-		allocIDs[allocID] = struct{}{}
 	}
 	return allocIDs
 }

@@ -22,7 +22,7 @@ const (
 
 // AzureStorage = Storage object to manage tables in a partition
 type AzureStorage struct {
-	partitionKey              string
+	partitionKey              string // todo: this should not be within this wrapper, but passed by calling code
 	tableNameToTableClientMap map[string]storage.TableServiceClient
 	maxBatchSize              int
 	latencyThresholdMs        int // Max time latency allowed for data store operations before recording the operation latency in the log.
@@ -272,53 +272,36 @@ func (a *AzureStorage) DeleteBatch(tableName, partitionKey string, rowKeys []str
 }
 
 // Query - Query a row in a given table.
-func (a *AzureStorage) Query(tableName, rowKey string) (interface{}, int, error) {
+func (a *AzureStorage) Query(tableName, rowKey string) (*storage.Entity, int, error) {
 	defer a.recordProcessingTime(time.Now(), "Query", tableName, a.partitionKey, rowKey)
 
-	return a.getRow(tableName, a.partitionKey, rowKey)
+	return a.getEntity(tableName, a.partitionKey, rowKey)
 }
 
 // QueryInPartition - Query a row in the given partition of the table.
-func (a *AzureStorage) QueryInPartition(tableName, partitionKey, rowKey string) (interface{}, int, error) {
+func (a *AzureStorage) QueryInPartition(tableName, partitionKey, rowKey string) (*storage.Entity, int, error) {
 	defer a.recordProcessingTime(time.Now(), "QueryInPartition", tableName, partitionKey, rowKey)
 
-	return a.getRow(tableName, partitionKey, rowKey)
-}
-
-// QueryInPartitionWithEtag - Query a row in the given partition of the table. Returns etag along with first property
-func (a *AzureStorage) QueryInPartitionWithEtag(tableName, partitionKey, rowKey string) (interface{}, string, int, error) {
-	defer a.recordProcessingTime(time.Now(), "QueryInPartitionWithEtag", tableName, partitionKey, rowKey)
-
-	return a.getRowAndEtag(tableName, partitionKey, rowKey)
-}
-
-// QueryInPartitionWithEtagProperties - Query a row in the given partition of the table.
-// Returns etag along with all of the properties
-func (a *AzureStorage) QueryInPartitionWithEtagProperties(tableName, partitionKey, rowKey string) (map[string]interface{}, string, int, error) {
-	defer a.recordProcessingTime(time.Now(), "QueryInPartitionWithEtagProperties", tableName, partitionKey, rowKey)
-
-	return a.getRowEtagProperties(tableName, partitionKey, rowKey)
+	return a.getEntity(tableName, partitionKey, rowKey)
 }
 
 // QueryAllRows - Query a row in a given table.
-func (a *AzureStorage) QueryAllRows(tableName string, context interface{}) (
-	map[string]interface{}, bool, interface{}, int, error) {
+func (a *AzureStorage) QueryAllRows(tableName string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error) {
 	defer a.recordProcessingTime(time.Now(), "QueryAllRows", tableName, a.partitionKey, "NA")
 
-	return a.getRows(tableName, a.partitionKey, context)
+	return a.getEntities(tableName, a.partitionKey, context)
 }
 
 // QueryAllRowsInPartition - Query all rows in the specific partition of the given table.
-func (a *AzureStorage) QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) (
-	map[string]interface{}, bool, interface{}, int, error) {
+func (a *AzureStorage) QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error) {
 	defer a.recordProcessingTime(time.Now(), "QueryAllRowsInPartition", tableName, partitionKey, "NA")
 
-	return a.getRows(tableName, partitionKey, context)
+	return a.getEntities(tableName, partitionKey, context)
 }
 
 // QueryFilter - Query rows using a filter
 // todo: need to determine a max size for filter, since its sent over a GET call to the storage API and fails if it goes over
-func (a *AzureStorage) QueryFilter(tableName, filter string) (map[string]interface{}, error) {
+func (a *AzureStorage) QueryFilter(tableName, filter string) ([]*storage.Entity, error) {
 	defer a.recordProcessingTime(time.Now(), "QueryFilter", tableName, "NA", "NA")
 
 	tableClient, ok := a.tableNameToTableClientMap[tableName]
@@ -345,44 +328,17 @@ func (a *AzureStorage) QueryFilter(tableName, filter string) (map[string]interfa
 		queryResult = nextResults
 	}
 
-	results := make(map[string]interface{})
-	for _, entity := range entities {
-		switch len(entity.Properties) {
-		case 0:
-			return nil, fmt.Errorf("entity %v, table %v missing properties", entity.RowKey, tableName)
-		case 1:
-			for _, val := range entity.Properties {
-				results[entity.RowKey] = val
-			}
-		default:
-			results[entity.RowKey] = entity.Properties
-		}
-	}
-
-	return results, nil
-}
-
-// QueryRowKeys - Fetch rows for keys provided
-func (a *AzureStorage) QueryRowKeys(tableName string, keys []string) (map[string]interface{}, error) {
-	defer a.recordProcessingTime(time.Now(), "QueryRowKeys", tableName, a.partitionKey, "NA")
-
-	filter := BuildFilterOnPartition(a.partitionKey, "RowKey", keys)
-
-	return a.QueryFilter(tableName, filter)
+	return entities, nil
 }
 
 // KeyExist - check if key exist in a given table.
 func (a *AzureStorage) KeyExist(tableName, rowKey string) (bool, error) {
 	defer a.recordProcessingTime(time.Now(), "KeyExist", tableName, a.partitionKey, rowKey)
-	property, status, err := a.getRow(tableName, a.partitionKey, rowKey)
-	if property == nil {
-		if status == http.StatusNotFound {
-			return false, nil
-		}
-
+	_, status, err := a.getEntity(tableName, a.partitionKey, rowKey)
+	if err != nil {
 		return false, err
 	}
-	return true, nil
+	return status != http.StatusNotFound, nil
 }
 
 func (a *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyName string, value interface{}) error {
@@ -441,50 +397,27 @@ func (a *AzureStorage) insertRowInPartition(tableName, partitionKey, rowKey stri
 	return http.StatusOK, nil
 }
 
-func (a *AzureStorage) getRowEtagProperties(tableName string, partitionKey string, rowKey string) (map[string]interface{}, string, int, error) {
+func (a *AzureStorage) getEntity(tableName string, partitionKey string, rowKey string) (*storage.Entity, int, error) {
 	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
-		return nil, "", http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
+		return nil, http.StatusInternalServerError, fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
 	table := tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(partitionKey, rowKey)
 	err := entity.Get(defaultTimeout, storage.FullMetadata, nil)
-	if err == nil {
-		return entity.Properties, entity.OdataEtag, http.StatusOK, nil
-	}
-
-	storageErr, ok := err.(storage.AzureStorageServiceError)
-	if ok {
-		return nil, "", storageErr.StatusCode, err
-	}
-
-	return nil, "", http.StatusInternalServerError, err
-}
-
-func (a *AzureStorage) getRowAndEtag(tableName string, partitionKey string, rowKey string) (interface{}, string, int, error) {
-	properties, etag, status, err := a.getRowEtagProperties(tableName, partitionKey, rowKey)
-	if err == nil {
-		switch len(properties) {
-		case 0:
-			return nil, "", http.StatusInternalServerError, fmt.Errorf("entity %v in partition %v, table %v missing properties", rowKey, partitionKey, tableName)
-		case 1: // dnc pattern for most tables is one property per row
-			for _, val := range properties {
-				return val, etag, status, nil
-			}
-		default: // tables with possibly more than one property. property size may vary per row
-			return properties, etag, status, nil
+	if err != nil {
+		storageErr, ok := err.(storage.AzureStorageServiceError)
+		if ok {
+			return nil, storageErr.StatusCode, err
 		}
+
+		return nil, http.StatusInternalServerError, err
 	}
 
-	return nil, "", status, err
+	return entity, http.StatusOK, nil
 }
 
-func (a *AzureStorage) getRow(tableName string, partitionKey string, rowKey string) (interface{}, int, error) {
-	property, _, statusCode, err := a.getRowAndEtag(tableName, partitionKey, rowKey)
-	return property, statusCode, err
-}
-
-func (a *AzureStorage) getRows(tableName string, partitionKey string, context interface{}) (map[string]interface{}, bool, interface{}, int, error) {
+func (a *AzureStorage) getEntities(tableName string, partitionKey string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error) {
 	var (
 		entitiesResult *storage.EntityQueryResult
 		err            error
@@ -513,22 +446,10 @@ func (a *AzureStorage) getRows(tableName string, partitionKey string, context in
 		return nil, false, nil, http.StatusInternalServerError, err
 	}
 
-	result := make(map[string]interface{})
-	for _, entity := range entitiesResult.Entities {
-		switch len(entity.Properties) {
-		case 0:
-			return nil, false, nil, http.StatusInternalServerError, fmt.Errorf("entity %v in partition %v, table %v missing properties", entity.RowKey, partitionKey, tableName)
-		case 1: // dnc pattern for most tables is one property per row
-			for _, val := range entity.Properties {
-				result[entity.RowKey] = val
-			}
-		default: // tables with possibly more than one property. property size may vary per row
-			result[entity.RowKey] = entity.Properties
-		}
-	}
+	result := entitiesResult.Entities
+
 	var hasMoreRows = false
 	var returnContext interface{}
-
 	if entitiesResult.NextLink != nil {
 		hasMoreRows = true
 		returnContext = entitiesResult

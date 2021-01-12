@@ -109,20 +109,19 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 	}
 
 	allocsRepo := fakes.AllocationRepo{
-		Data: []fakes.RepoKV{
+		Data: []datamodel.AllocationRow{
 			// one reservation with complete allocations (primary and secondaries)
-			{"10.1.0.10_32", map[string]interface{}{ipAllocProperty: "Network_" + vnetID + "_Reservation_" + partialIDs[0], allocIDProperty: partialIDs[0]}},
-			{"10.1.0.11_32", map[string]interface{}{ipAllocProperty: "Network_" + vnetID + "_Reservation_" + partialIDs[0], allocIDProperty: allocIDs[partialIDs[0]][0]}},
-			{"10.1.0.12_32", map[string]interface{}{ipAllocProperty: "Network_" + vnetID + "_Reservation_" + partialIDs[0], allocIDProperty: allocIDs[partialIDs[0]][1]}},
-			{"10.1.0.13_32", map[string]interface{}{ipAllocProperty: "Network_" + vnetID + "_Reservation_" + partialIDs[0], allocIDProperty: allocIDs[partialIDs[0]][2]}},
-			{"10.1.0.14_32", map[string]interface{}{ipAllocProperty: "Network_" + vnetID + "_Reservation_" + partialIDs[0], allocIDProperty: allocIDs[partialIDs[0]][3]}},
-			{"10.1.0.15_32", map[string]interface{}{ipAllocProperty: "Network_" + vnetID + "_Reservation_" + partialIDs[0], allocIDProperty: allocIDs[partialIDs[0]][4]}},
+			{RowKey: "10.1.0.10_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[0], AllocationID: partialIDs[0]},
+			{RowKey: "10.1.0.11_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[0], AllocationID: allocIDs[partialIDs[0]][0]},
+			{RowKey: "10.1.0.12_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[0], AllocationID: allocIDs[partialIDs[0]][1]},
+			{RowKey: "10.1.0.13_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[0], AllocationID: allocIDs[partialIDs[0]][2]},
+			{RowKey: "10.1.0.14_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[0], AllocationID: allocIDs[partialIDs[0]][3]},
+			{RowKey: "10.1.0.15_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[0], AllocationID: allocIDs[partialIDs[0]][4]},
 			// one reservation with partial allocations (primary and only 2 secondaries)
-			{"10.1.0.20_32", map[string]interface{}{ipAllocProperty: "Network_" + vnetID + "_Reservation_" + partialIDs[1], allocIDProperty: partialIDs[1]}},
-			{"10.1.0.21_32", map[string]interface{}{ipAllocProperty: "Network_" + vnetID + "_Reservation_" + partialIDs[1], allocIDProperty: allocIDs[partialIDs[1]][0]}},
-			{"10.1.0.22_32", map[string]interface{}{ipAllocProperty: "Network_" + vnetID + "_Reservation_" + partialIDs[1], allocIDProperty: allocIDs[partialIDs[1]][1]}},
+			{RowKey: "10.1.0.20_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[1], AllocationID: partialIDs[1]},
+			{RowKey: "10.1.0.21_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[1], AllocationID: allocIDs[partialIDs[1]][0]},
+			{RowKey: "10.1.0.22_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[1], AllocationID: allocIDs[partialIDs[1]][1]},
 		},
-		MaxPageSize: 10, // todo: set default in fake
 	}
 	resRepo := fakes.NewReservationRepo()
 
@@ -182,16 +181,16 @@ func TestDeallocateBatch(t *testing.T) {
 	subnet := "subnet1"
 
 	allocsRepo := fakes.AllocationRepo{
-		Data: []fakes.RepoKV{
-			{"10.1.0.10_32", map[string]interface{}{ipAllocProperty: "Network_vnet1_Reservation_res1", allocIDProperty: "res1"}},
-			{"10.1.0.11_32", map[string]interface{}{ipAllocProperty: "Network_vnet1_Reservation_res1", allocIDProperty: "alloc1"}},
-			{"10.1.0.12_32", map[string]interface{}{ipAllocProperty: "Network_vnet1_Reservation_res1", allocIDProperty: "alloc2"}},
-			{"10.1.0.13_32", map[string]interface{}{ipAllocProperty: "Network_vnet1_Reservation_res1", allocIDProperty: "alloc3"}},
+		Data: []datamodel.AllocationRow{
+			{RowKey: "10.1.0.10_32", IPAllocation: "Network_vnet1_Reservation_res1", AllocationID: "res1"},
+			{RowKey: "10.1.0.11_32", IPAllocation: "Network_vnet1_Reservation_res1", AllocationID: "alloc1"},
+			{RowKey: "10.1.0.12_32", IPAllocation: "Network_vnet1_Reservation_res1", AllocationID: "alloc2"},
+			{RowKey: "10.1.0.13_32", IPAllocation: "Network_vnet1_Reservation_res1", AllocationID: "alloc3"},
 
-			{"10.1.0.20_32", map[string]interface{}{ipAllocProperty: "Network_vnet1_Reservation_res2", allocIDProperty: "res2"}},
-			{"10.1.0.21_32", map[string]interface{}{ipAllocProperty: "Network_vnet1_Reservation_res2", allocIDProperty: "alloc4"}},
-			{"10.1.0.22_32", map[string]interface{}{ipAllocProperty: "Network_vnet1_Reservation_res2", allocIDProperty: "alloc5"}},
-			{"10.1.0.23_32", map[string]interface{}{ipAllocProperty: "Network_vnet1_Reservation_res2", allocIDProperty: "alloc6"}},
+			{RowKey: "10.1.0.20_32", IPAllocation: "Network_vnet1_Reservation_res2", AllocationID: "res2"},
+			{RowKey: "10.1.0.21_32", IPAllocation: "Network_vnet1_Reservation_res2", AllocationID: "alloc4"},
+			{RowKey: "10.1.0.22_32", IPAllocation: "Network_vnet1_Reservation_res2", AllocationID: "alloc5"},
+			{RowKey: "10.1.0.23_32", IPAllocation: "Network_vnet1_Reservation_res2", AllocationID: "alloc6"},
 		},
 	}
 
@@ -253,7 +252,7 @@ func TestDeallocateBatch(t *testing.T) {
 
 	remainingKeys := make(map[string]struct{})
 	for _, row := range allocsRepo.Data {
-		remainingKeys[row.Key] = struct{}{}
+		remainingKeys[row.RowKey] = struct{}{}
 	}
 
 	expectedRemovedAllocKeys := []string{"10.1.0.12_32", "10.1.0.13_32", "10.1.0.21_32", "10.1.0.23_32"}

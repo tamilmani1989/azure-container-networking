@@ -122,65 +122,55 @@ func (k *KubeconfigProvider) GetBytesForAll(ctx context.Context) (map[string][]b
 			return nil, fmt.Errorf("Unexpected status %d returned by datastore", status)
 		}
 
-		// Result is map of row key -> {map of column name -> value}, or map of row key -> value if there is only one column
-		// We are expecting at least two columns, so assume result is map of row key -> {map of column name -> value}
-		for rowKey, rowVal := range result {
-			switch v := rowVal.(type) {
-			case map[string]interface{}:
-				orchestratorType, exists := v[orchestratorTypePropertyName]
-				if !exists {
-					k.logger.WithFields(logrus.Fields{
-						"rowKey":        rowKey,
-						"missingColumn": orchestratorTypePropertyName,
-					}).Infof("Row %s is missing column %s", rowKey, orchestratorTypePropertyName)
-					continue
-				}
-
-				if orchestratorType != kubernetesOrchestratorType {
-					k.logger.WithFields(logrus.Fields{
-						"rowKey":                  rowKey,
-						"orchestratorType":        orchestratorType,
-						"desiredOrchestratorType": kubernetesOrchestratorType,
-					}).Infof("Skipping row %s because orchestrator type is %s, not %s", rowKey, orchestratorType, kubernetesOrchestratorType)
-					continue
-				}
-
-				controllerPropertiesJSONBlob, exists := v[orchestratorPropertiesPropertyName]
-				if !exists {
-					k.logger.WithFields(logrus.Fields{
-						"rowKey":        rowKey,
-						"missingColumn": orchestratorPropertiesPropertyName,
-					}).Infof("Row %s is missing column %s", rowKey, orchestratorPropertiesPropertyName)
-					continue
-				}
-
-				// orchestratorProperties is json blob, so unmarshall it
-				var orchestratorProperties OrchestratorProperties
-				err := json.Unmarshal([]byte(controllerPropertiesJSONBlob.(string)), &orchestratorProperties)
-				if err != nil {
-					k.logger.WithFields(logrus.Fields{
-						"rowKey": rowKey,
-						"error":  err.Error(),
-					}).Infof("Error unmarshalling controllerProperties json blob in row %s with error %v", rowKey, err)
-					continue
-				}
-
-				kubeconfig, err := k.getKubeconfigForOrchestratorProperties(ctx, orchestratorProperties)
-				if err != nil {
-					k.logger.WithFields(logrus.Fields{
-						"rowKey": rowKey,
-						"error":  err.Error(),
-					}).Infof("Error building kubeconfig for controller %s: %v", rowKey, err)
-					continue
-				}
-
-				allKubeconfigs[rowKey] = kubeconfig
-			default:
+		for _, entity := range result {
+			orchestratorType, exists := entity.Properties[orchestratorTypePropertyName]
+			if !exists {
 				k.logger.WithFields(logrus.Fields{
-					"rowKey": rowKey,
-				}).Infof("Unexpected result for row %s, expected type %s but received type %T", rowKey, "map[string]interface{}", v)
+					"rowKey":        entity.RowKey,
+					"missingColumn": orchestratorTypePropertyName,
+				}).Infof("Row %s is missing column %s", entity.RowKey, orchestratorTypePropertyName)
 				continue
 			}
+
+			if orchestratorType != kubernetesOrchestratorType {
+				k.logger.WithFields(logrus.Fields{
+					"rowKey":                  entity.RowKey,
+					"orchestratorType":        orchestratorType,
+					"desiredOrchestratorType": kubernetesOrchestratorType,
+				}).Infof("Skipping row %s because orchestrator type is %s, not %s", entity.RowKey, orchestratorType, kubernetesOrchestratorType)
+				continue
+			}
+
+			controllerPropertiesJSONBlob, exists := entity.Properties[orchestratorPropertiesPropertyName]
+			if !exists {
+				k.logger.WithFields(logrus.Fields{
+					"rowKey":        entity.RowKey,
+					"missingColumn": orchestratorPropertiesPropertyName,
+				}).Infof("Row %s is missing column %s", entity.RowKey, orchestratorPropertiesPropertyName)
+				continue
+			}
+
+			// orchestratorProperties is json blob, so unmarshall it
+			var orchestratorProperties OrchestratorProperties
+			err := json.Unmarshal([]byte(controllerPropertiesJSONBlob.(string)), &orchestratorProperties)
+			if err != nil {
+				k.logger.WithFields(logrus.Fields{
+					"rowKey": entity.RowKey,
+					"error":  err.Error(),
+				}).Infof("Error unmarshalling controllerProperties json blob in row %s with error %v", entity.RowKey, err)
+				continue
+			}
+
+			kubeconfig, err := k.getKubeconfigForOrchestratorProperties(ctx, orchestratorProperties)
+			if err != nil {
+				k.logger.WithFields(logrus.Fields{
+					"rowKey": entity.RowKey,
+					"error":  err.Error(),
+				}).Infof("Error building kubeconfig for controller %s: %v", entity.RowKey, err)
+				continue
+			}
+
+			allKubeconfigs[entity.RowKey] = kubeconfig
 		}
 
 		pageToken = nextPageToken

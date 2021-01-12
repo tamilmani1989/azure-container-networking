@@ -354,41 +354,28 @@ func (a *IPAllocator) getAllocationsFromSubnetConfig(subnetConfig *datamodel.Sub
 
 func (a *IPAllocator) getAllocationsFromSubnetTable(networkID, subnetName string) (map[string]*net.IPNet, *api.JsonErr) {
 	allocations := make(map[string]*net.IPNet)
-	var pageToken interface{}
-	for {
-		results, hasNextPage, nextPageToken, err := a.Allocations.TryQueryAllIPAllocations(networkID, subnetName, pageToken)
-		if err != nil {
-			return nil, err
-		}
 
-		for rowKey, rowValue := range results {
-			ipAddressString := datamodel.DecodeIPAllocationKey(rowKey)
-			allocatedIPSubnet, err := utils.ParseIPNet(ipAddressString)
-			if err != nil {
-				return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
-			}
-
-			// different instances of DNC can have different property sizes for each row
-			// when available, we want to use the AllocationID property for uniqueness
-			// but if not, we can extract the reservation uuid from the encoded IPAllocation
-			switch v := rowValue.(type) {
-			case string:
-				resID := datamodel.GetReservationIDFromKey(v)
-				allocations[resID] = allocatedIPSubnet
-			case map[string]interface{}:
-				allocID, ok := v[allocIDProperty]
-				if !ok {
-					continue
-				}
-				allocations[allocID.(string)] = allocatedIPSubnet
-			}
-		}
-
-		if !hasNextPage {
-			break
-		}
-		pageToken = nextPageToken
+	rows, err := a.Allocations.TryQueryAllIPAllocations(networkID, subnetName)
+	if err != nil {
+		return nil, err
 	}
+
+	for _, row := range rows {
+		ipAddressString := datamodel.DecodeIPAllocationKey(row.RowKey)
+		allocatedIPSubnet, err := utils.ParseIPNet(ipAddressString)
+		if err != nil {
+			return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
+		}
+
+		switch {
+		case row.AllocationID != "":
+			allocations[row.AllocationID] = allocatedIPSubnet
+		case row.IPAllocation != "":
+			resID := datamodel.GetReservationIDFromKey(row.IPAllocation)
+			allocations[resID] = allocatedIPSubnet
+		}
+	}
+
 	return allocations, nil
 }
 
@@ -441,8 +428,8 @@ func (a *IPAllocator) RemoveAllAllocations(res datamodel.ReservationConfiguratio
 		if err != nil {
 			return err
 		}
-		for row := range allocRows {
-			rowKeys = append(rowKeys, row)
+		for _, row := range allocRows {
+			rowKeys = append(rowKeys, row.RowKey)
 		}
 	}
 

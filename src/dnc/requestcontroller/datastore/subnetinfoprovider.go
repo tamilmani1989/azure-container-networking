@@ -75,7 +75,7 @@ func (s *SubnetInfoProvider) GetSubnetInfo(ctx context.Context, delegatedSubnetI
 		DelegatedSubnetID: delegatedSubnetID,
 		SubnetName:        subnetName,
 	}
-	value, status, err := s.dataStoreShim.QueryInPartition(subnetTokenMapTableName, delegatedSubnetID, subnetName)
+	entity, status, err := s.dataStoreShim.QueryInPartition(subnetTokenMapTableName, delegatedSubnetID, subnetName)
 	if err != nil {
 		return subnetInfo, err
 	}
@@ -84,22 +84,16 @@ func (s *SubnetInfoProvider) GetSubnetInfo(ctx context.Context, delegatedSubnetI
 		return subnetInfo, fmt.Errorf("Unexpected status %d returned by cosmos", status)
 	}
 
-	switch v := value.(type) {
-	case map[string]interface{}:
-		if v[vnetGUIDPropertyName] != nil {
-			subnetInfo.VnetID = v[vnetGUIDPropertyName].(string)
-		}
+	if entity.Properties[vnetGUIDPropertyName] != nil {
+		subnetInfo.VnetID = entity.Properties[vnetGUIDPropertyName].(string)
+	}
 
-		if v[primaryTokenPropertyName] != nil {
-			subnetInfo.PrimaryToken = v[primaryTokenPropertyName].(string)
-		}
+	if entity.Properties[primaryTokenPropertyName] != nil {
+		subnetInfo.PrimaryToken = entity.Properties[primaryTokenPropertyName].(string)
+	}
 
-		if v[secondaryTokenPropertyName] != nil {
-			subnetInfo.SecondaryToken = v[secondaryTokenPropertyName].(string)
-		}
-
-	default:
-		return subnetInfo, fmt.Errorf("Unexpected type %v returned by Cosmos", v)
+	if entity.Properties[secondaryTokenPropertyName] != nil {
+		subnetInfo.SecondaryToken = entity.Properties[secondaryTokenPropertyName].(string)
 	}
 
 	// Add to the cache

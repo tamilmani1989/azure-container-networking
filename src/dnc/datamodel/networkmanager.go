@@ -3,7 +3,6 @@ package datamodel
 import (
 	"bytes"
 	"dnc/aiwrapper"
-	"dnc/allocationhelper"
 	"dnc/api"
 	"dnc/configuration"
 	"dnc/datastore/azurestorage"
@@ -109,32 +108,52 @@ func getNCLimitFromNumCores(numCPUCores int) int {
 	return int(math.Floor(totalNicsBasedOnCores) - 1) // -1 to account for VM management NIC
 }
 
+// todo: when is this used? it does not work for ip allocation state since that uses a different partition key
 // DumpStorageState - Function to dump storage state.
-func DumpStorageState(partitionKey string) (err error) {
+func DumpStorageState(partitionKey string) error {
 	for tableName := range TableToColumnMap {
-		var context interface{}
-		var kvMap map[string]interface{}
-		var hasMoreRows = true
-		var innerErr error
-		for hasMoreRows {
-			kvMap, hasMoreRows, context, _, innerErr = dataStoreShim.QueryAllRowsInPartition(tableName, partitionKey, context)
-			if innerErr == nil {
-				jsonStr, _ := json.Marshal(kvMap)
-				fileName := tableName + ".db"
-				fp, innerErr := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0664))
-				if innerErr == nil {
-					fp.Write(jsonStr)
-					fp.Close()
-				}
-			}
-
-			if innerErr != nil {
-				err = innerErr
-			}
+		if err := dumpTable(tableName, partitionKey); err != nil {
+			return err
 		}
 	}
 
-	return err
+	return nil
+}
+
+func dumpTable(tableName, partitionKey string) error {
+	fileName := tableName + ".db"
+
+	fp, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0664))
+	if err != nil {
+		return err
+	}
+	defer fp.Close()
+
+	var pageToken interface{}
+	for {
+		ee, hasMoreRows, nextPageToken, _, err := dataStoreShim.QueryAllRowsInPartition(tableName, partitionKey, pageToken)
+		if err != nil {
+			return err
+		}
+
+		kvMap := make(map[string]interface{})
+		for _, e := range ee {
+			kvMap[e.RowKey] = e.Properties
+		}
+
+		jsonStr, _ := json.Marshal(kvMap)
+		if _, err := fp.Write(jsonStr); err != nil {
+			return err
+		}
+
+		if !hasMoreRows {
+			break
+		}
+
+		pageToken = nextPageToken
+	}
+
+	return nil
 }
 
 // DumpState - Function to dump test state.
@@ -203,17 +222,6 @@ func PutSubnetConfiguration(subnetConfiguration *SubnetConfiguration) *api.JsonE
 	return nil
 }
 
-// UpdateAccessTokenOnSubnet - Update access token in a subnet configuration.
-func UpdateAccessTokenOnSubnet(networkID, subnetName, accessToken string) *api.JsonErr {
-	subnetConfiguration, err := QuerySubnetConfiguration(networkID, subnetName)
-	if err != nil {
-		return err
-	}
-
-	subnetConfiguration.AccessToken = accessToken
-	return PutSubnetConfiguration(subnetConfiguration)
-}
-
 // DeleteSubnetConfiguration - Delete an existing subnet configuration.
 func DeleteSubnetConfiguration(networkID, ipSubnet string) *api.JsonErr {
 	subnetKey := GetSubnetKey(networkID, ipSubnet)
@@ -261,105 +269,6 @@ func PutIPReservationConfiguration(ipReservation *ReservationConfiguration) *api
 	}
 
 	return nil
-}
-
-// ValidateAndUpdateIPReservationDependencies - Validate and persist IPReservation request.
-func ValidateAndUpdateIPReservationDependencies(
-	reservationConfiguration *ReservationConfiguration) *api.JsonErr {
-	var nodeConfiguration *NodeConfiguration
-	var subnetConfiguration *SubnetConfiguration
-	var networkContainerConfiguration *NCConfiguration
-	var err *api.JsonErr
-
-	defer func() {
-		if err != nil {
-			loggershim.LS.Errorf("ValidateAndUpdateIPReservationDependencies failed. Error: %v", err)
-		}
-	}()
-
-	subnetConfiguration, err = QuerySubnetConfiguration(
-		reservationConfiguration.NetworkID,
-		reservationConfiguration.AllocationRequest.SubnetName)
-	if err != nil {
-		return err
-	}
-
-	_, ipSubnet, parseErr := net.ParseCIDR(subnetConfiguration.IPSubnet)
-	if parseErr != nil {
-		msg := fmt.Sprintf(
-			"Failed to parse IPSubnet %s for subnet %s network:%s due to error:%s",
-			subnetConfiguration.IPSubnet,
-			reservationConfiguration.AllocationRequest.SubnetName,
-			reservationConfiguration.NetworkID,
-			parseErr.Error())
-		err = &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			HTTPStatus: http.StatusInternalServerError,
-			Text:       msg}
-		return err
-	}
-
-	if reservationConfiguration.AllocationRequest.IPConstraint != "" {
-		ipSubnetConstraint, err := allocationhelper.GetIPSubnetForIPAllocationConstraint(
-			reservationConfiguration.AllocationRequest.IPConstraint)
-		if err != nil {
-			return err
-		}
-
-		_, err = allocationhelper.IsSubnetContainedInBaseSubnet(ipSubnet, ipSubnetConstraint)
-		if err != nil {
-			loggershim.LS.Errorf("%s: %s.", utils.TracePrefix(2), err.String())
-		}
-	}
-
-	if len(reservationConfiguration.AllocationRequest.NodeConstraint) != 0 {
-		nodeConfiguration, err = QueryNodeConfiguration(
-			reservationConfiguration.AllocationRequest.NodeConstraint)
-		if err != nil {
-			return err
-		}
-
-		if len(reservationConfiguration.AssociatedNCID) > 0 {
-			networkContainerConfiguration, err = QueryNetworkContainer(
-				reservationConfiguration.NetworkID,
-				reservationConfiguration.AssociatedNCID)
-			if err != nil {
-				return err
-			}
-			if strings.Compare(
-				reservationConfiguration.AllocationRequest.NodeConstraint,
-				networkContainerConfiguration.GetAssociationInfo().NodeID) != 0 {
-				msg := fmt.Sprintf(
-					"Mismatch in node constraint associated with the reservation and network container. "+
-						"NodeConstraint:%s , NetworkContainer associated node :%s",
-					reservationConfiguration.AllocationRequest.NodeConstraint,
-					networkContainerConfiguration.GetAssociationInfo().NodeID)
-				err = &api.JsonErr{
-					Code:       api.NodeConstraintMismatch,
-					Text:       msg,
-					HTTPStatus: http.StatusBadRequest}
-				return err
-			}
-		}
-
-		err = UpdateNodeConstrainedReservationSet(
-			reservationConfiguration.NetworkID,
-			reservationConfiguration.ReservationID,
-			false,
-			nodeConfiguration)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = UpdateSubnetReservationSet(
-		reservationConfiguration.NetworkID,
-		reservationConfiguration.ReservationID,
-		"",
-		false,
-		subnetConfiguration)
-
-	return err
 }
 
 // UpdateSubnetReservationSet - Add/Remove reservation in subnet set
@@ -771,14 +680,14 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 func DeleteIPAllocation(networkID, subnetName, reservationKey, allocatedIP string) *api.JsonErr {
 	if IsFeatureSupported(configuration.SharedSubnetDelegation) {
 		allocatedIPKey := EncodeIPAllocationKey(allocatedIP)
-		savedReservationKey, err := TryQueryIPAllocation(networkID, subnetName, allocatedIPKey)
+		allocation, err := TryQueryIPAllocation(networkID, subnetName, allocatedIPKey)
 		if err != nil {
 			return err
 		}
 
-		if len(savedReservationKey) > 0 {
+		if allocation.IPAllocation != "" {
 			// Delete the entry if the saved reservation matches the current reservation
-			if reservationKey == savedReservationKey {
+			if reservationKey == allocation.IPAllocation {
 				partitionKey := GetSubnetKey(networkID, subnetName)
 				err := dataStoreShim.DeleteInPartition(ipAllocationsTableName, partitionKey, allocatedIPKey)
 				if err != nil {
@@ -868,7 +777,7 @@ func TryQueryNodeConfiguration(nodeID string) (*NodeConfiguration, *api.JsonErr)
 func TryQueryNodeConfigurationByKey(nodeKey string) (*NodeConfiguration, *api.JsonErr) {
 	var repositoryNodeConfiguration NodeConfiguration
 	nodeID := GetNodeIDFromKey(nodeKey)
-	property, status, err := dataStoreShim.Query(nodeTableName, nodeKey)
+	entity, status, err := dataStoreShim.Query(nodeTableName, nodeKey)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
 			"Failed to retrieve configuration for node:[%s] due to error:[%s]",
@@ -880,11 +789,11 @@ func TryQueryNodeConfigurationByKey(nodeKey string) (*NodeConfiguration, *api.Js
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	if property == nil {
+	if entity == nil {
 		return nil, nil
 	}
 
-	serializedNodeConfiguration := property.(string)
+	serializedNodeConfiguration := entity.Properties[nodeConfigurationTag].(string)
 	err = json.Unmarshal([]byte(serializedNodeConfiguration), &repositoryNodeConfiguration)
 	if err != nil {
 		msg := fmt.Sprintf(
@@ -923,15 +832,14 @@ func QueryNodeConfiguration(nodeID string) (*NodeConfiguration, *api.JsonErr) {
 // TryQueryAllNetworks queries for all networkconfigurations managed by this dnc and returns their IDs
 func TryQueryAllNetworks() ([]string, error) {
 	var hasMoreData bool
-	var result map[string]interface{}
+	var result []*storage.Entity
 	var returnContext interface{}
 	var status int
 	var err error
 	var networkGUIDs = make([]string, 0)
 
 	for {
-		result, hasMoreData, returnContext, status, err =
-			dataStoreShim.QueryAllRows(networkConfigurationTableName, returnContext)
+		result, hasMoreData, returnContext, status, err = dataStoreShim.QueryAllRows(networkConfigurationTableName, returnContext)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return make([]string, 0), nil
@@ -940,8 +848,8 @@ func TryQueryAllNetworks() ([]string, error) {
 			return nil, err
 		}
 
-		for _, value := range result {
-			serializedNetworkConfiguration := value.(string)
+		for _, entity := range result {
+			serializedNetworkConfiguration := entity.Properties[networkConfigurationTag].(string)
 			var networkConfiguration NetworkConfiguration
 			err = json.Unmarshal([]byte(serializedNetworkConfiguration), &networkConfiguration)
 			if err != nil {
@@ -966,7 +874,7 @@ func TryQueryNetworkConfiguration(networkID string) (*NetworkConfiguration, *api
 
 // TryQueryNetworkConfigurationByKey - Query network configuration.
 func TryQueryNetworkConfigurationByKey(networkKey string) (*NetworkConfiguration, *api.JsonErr) {
-	value, status, err := dataStoreShim.Query(networkConfigurationTableName, networkKey)
+	entity, status, err := dataStoreShim.Query(networkConfigurationTableName, networkKey)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
 			"Failed to retrieve configuration for network key:[%s] due to error:[%s]",
@@ -978,11 +886,11 @@ func TryQueryNetworkConfigurationByKey(networkKey string) (*NetworkConfiguration
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	if value == nil {
+	if entity == nil {
 		return nil, nil
 	}
 
-	serializedNetworkConfiguration := value.(string)
+	serializedNetworkConfiguration := entity.Properties[networkConfigurationTag].(string)
 	var networkConfiguration NetworkConfiguration
 	err = json.Unmarshal([]byte(serializedNetworkConfiguration), &networkConfiguration)
 	if err != nil {
@@ -1027,7 +935,7 @@ func TryQuerySubnetConfiguration(networkID, subnetName string) (*SubnetConfigura
 
 // TryQuerySubnetConfigurationByKey - Query subnet configuration.
 func TryQuerySubnetConfigurationByKey(subnetKey string) (*SubnetConfiguration, *api.JsonErr) {
-	value, status, err := dataStoreShim.Query(subnetConfigurationTableName, subnetKey)
+	entity, status, err := dataStoreShim.Query(subnetConfigurationTableName, subnetKey)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
 			"Failed to retrieve configuration for subnet key:[%s] due to error:[%s]",
@@ -1039,11 +947,11 @@ func TryQuerySubnetConfigurationByKey(subnetKey string) (*SubnetConfiguration, *
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	if value == nil {
+	if entity == nil {
 		return nil, nil
 	}
 
-	serializedSubnetConfiguration := value.(string)
+	serializedSubnetConfiguration := entity.Properties[subnetConfigurationTag].(string)
 	var subnetConfiguration SubnetConfiguration
 	err = json.Unmarshal([]byte(serializedSubnetConfiguration), &subnetConfiguration)
 	if err != nil {
@@ -1103,7 +1011,7 @@ func QuerySubnetConfiguration(networkID, subnetName string) (*SubnetConfiguratio
 
 // TryQueryIPReservationByKey - Query IP Reservation configuration.
 func TryQueryIPReservationByKey(reservationKey string) (*ReservationConfiguration, *api.JsonErr) {
-	value, status, err := dataStoreShim.Query(ipReservationsTableName, reservationKey)
+	entity, status, err := dataStoreShim.Query(ipReservationsTableName, reservationKey)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
 			"Failed to retrieve configuration for reservation key:[%s] due to error:[%s]",
@@ -1115,11 +1023,11 @@ func TryQueryIPReservationByKey(reservationKey string) (*ReservationConfiguratio
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	if value == nil {
+	if entity == nil {
 		return nil, nil
 	}
 
-	serializedReservationConfiguration := value.(string)
+	serializedReservationConfiguration := entity.Properties[reservationConfigurationTag].(string)
 	var reservationConfiguration ReservationConfiguration
 	err = json.Unmarshal([]byte(serializedReservationConfiguration), &reservationConfiguration)
 	if err != nil {
@@ -1183,8 +1091,7 @@ func UpdateIPReservations(reservations []ReservationConfiguration) *api.JsonErr 
 
 // TryQueryRequestContext - Query request context.
 func TryQueryRequestContext(requestID string) (*RequestContext, *api.JsonErr) {
-	var repoRequestContext RequestContext
-	value, status, err := dataStoreShim.Query(pendingWorkItemsTableName, requestID)
+	entity, status, err := dataStoreShim.Query(pendingWorkItemsTableName, requestID)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
 			"Failed to retrieve request context for key:[%s] due to error:[%s]",
@@ -1195,11 +1102,12 @@ func TryQueryRequestContext(requestID string) (*RequestContext, *api.JsonErr) {
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
 	}
-	if value == nil {
+	if entity == nil {
 		return nil, nil
 	}
 
-	serializedRequestContext := value.(string)
+	serializedRequestContext := entity.Properties[requestContextTag].(string)
+	var repoRequestContext RequestContext
 	err = json.Unmarshal([]byte(serializedRequestContext), &repoRequestContext)
 	if err != nil {
 		msg := fmt.Sprintf(
@@ -1217,8 +1125,7 @@ func TryQueryRequestContext(requestID string) (*RequestContext, *api.JsonErr) {
 
 // TryQueryNetworkContainerByKey - Query a network container by key.
 func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr) {
-	var repoNCConfiguration NCConfiguration
-	value, status, err := dataStoreShim.Query(networkContainerTableName, ncKey)
+	entity, status, err := dataStoreShim.Query(networkContainerTableName, ncKey)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
 			"Failed to retrieve configuration for network container key:[%s] due to error:[%s]",
@@ -1230,11 +1137,12 @@ func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	if value == nil {
+	if entity == nil {
 		return nil, nil
 	}
 
-	serializedNCConfiguration := value.(string)
+	serializedNCConfiguration := entity.Properties[networkContainerConfigurationTag].(string)
+	var repoNCConfiguration NCConfiguration
 	err = json.Unmarshal([]byte(serializedNCConfiguration), &repoNCConfiguration)
 	if err != nil {
 		msg := fmt.Sprintf(
@@ -1284,8 +1192,7 @@ func TryQueryTagDefinition(tagType, tagName string) (*TagDefinition, *api.JsonEr
 
 // TryQueryTagDefinitionByKey - Query tag defintion by key.
 func TryQueryTagDefinitionByKey(tagDefinitionKey string) (*TagDefinition, *api.JsonErr) {
-	var repoTagDefinition TagDefinition
-	value, status, err := dataStoreShim.Query(tagDefinitionTableName, tagDefinitionKey)
+	entity, status, err := dataStoreShim.Query(tagDefinitionTableName, tagDefinitionKey)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
 			"Failed to retrieve defintion for tag key:[%s] due to error:[%s]",
@@ -1296,12 +1203,13 @@ func TryQueryTagDefinitionByKey(tagDefinitionKey string) (*TagDefinition, *api.J
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
 	}
-	if value == nil {
+	if entity == nil {
 		return nil, nil
 	}
 
-	serializedTagDefintion := value.(string)
-	err = json.Unmarshal([]byte(serializedTagDefintion), &repoTagDefinition)
+	serializedTagDefinition := entity.Properties[tagDefinitionsTag].(string)
+	var repoTagDefinition TagDefinition
+	err = json.Unmarshal([]byte(serializedTagDefinition), &repoTagDefinition)
 	if err != nil {
 		msg := fmt.Sprintf(
 			"Failed to unmarshal defintion for tag with key:[%s] due to error:[%s]",
@@ -1492,23 +1400,6 @@ func DeleteNode(nodeID string) *api.JsonErr {
 	return nil
 }
 
-// GetNetworkSubnets = Query virtual network subnets.
-func GetNetworkSubnets(networkID string) (map[string]string, error) {
-	rowKey := GetNetworkKey(networkID)
-	properties, statusCode, err := dataStoreShim.Query(networkConfigurationTableName, rowKey)
-	if err != nil {
-		if statusCode == http.StatusNotFound {
-			vnetSubnets := make(map[string]string)
-			return vnetSubnets, nil
-		}
-		return nil, err
-	}
-	serializedSubnetString := properties.(string)
-	var vnetSubnets map[string]string
-	err = json.Unmarshal([]byte(serializedSubnetString), &vnetSubnets)
-	return vnetSubnets, err
-}
-
 // AddRequestToPendingQueue - Add request to pending work item queue.
 func AddRequestToPendingQueue(
 	requestKey string,
@@ -1563,90 +1454,12 @@ func AddRequestToPendingQueue(
 	return nil
 }
 
-// TryGetRequestFromPendingQueue - Try get request with given Id from pending queue.
-func TryGetRequestFromPendingQueue(requestKey string) (*RequestContext, *api.JsonErr) {
-	value, _, err := dataStoreShim.Query(
-		pendingWorkItemsTableName,
-		requestKey)
-	if err != nil {
-		loggershim.LS.Errorf("Failed to query pending work item queue due to error: %s", err.Error())
-		return nil, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			HTTPStatus: http.StatusInternalServerError,
-			Text: fmt.Sprintf(
-				"Failed to retrieve configuration for request key:%s. Error:%s",
-				requestKey,
-				err.Error())}
-	}
-	if value == nil {
-		return nil, nil
-	}
-	serializedRequestContext := value.(string)
-	var requestContext RequestContext
-	err = json.Unmarshal([]byte(serializedRequestContext), &requestContext)
-	if err != nil {
-		loggershim.LS.Errorf("Failed to qunmarshal requestdue to error: %s", err.Error())
-		return nil, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			HTTPStatus: http.StatusInternalServerError,
-			Text: fmt.Sprintf(
-				"Failed to unmarshal configuration for request key:%s, Request:%s. Error:%s",
-				requestKey,
-				serializedRequestContext,
-				err.Error())}
-	}
-
-	return &requestContext, nil
-}
-
-// GetAllTagDefinitions - Retrieve all tag defintitions
-func GetAllTagDefinitions() (map[string]TagDefinition, error) {
-	var hasMoreData bool
-	var context interface{}
-	var tagDefinitions map[string]interface{}
-	var err error
-	var status int
-	tagDefinitionsMap := make(map[string]TagDefinition)
-	for {
-		tagDefinitions, hasMoreData, context, status, err = dataStoreShim.QueryAllRows(tagDefinitionTableName, context)
-		if err != nil {
-			if status == http.StatusNotFound {
-				return make(map[string]TagDefinition), nil
-			}
-
-			return nil, err
-		}
-
-		for tagDefinitionsKey, value := range tagDefinitions {
-			serializedTagDefinition := value.(string)
-			var tagDefinition TagDefinition
-			err = json.Unmarshal([]byte(serializedTagDefinition), &tagDefinition)
-			if err != nil {
-				loggershim.LS.Errorf("Unmarshalling tag defintition %s failed with error %s", tagDefinition.String(), err.Error())
-				return nil, err
-			}
-
-			tagDefinitionsMap[tagDefinitionsKey] = tagDefinition
-		}
-
-		if !hasMoreData {
-			break
-		}
-	}
-
-	return tagDefinitionsMap, nil
-}
-
 // GetPendingRequests - Retrieve all request pending processing
 func GetPendingRequests() (map[string]RequestContext, error) {
-	var hasMoreData bool
-	var context interface{}
-	var requests map[string]interface{}
-	var err error
-	var status int
+	var context interface{} = nil
 	requestsToProcess := make(map[string]RequestContext)
 	for {
-		requests, hasMoreData, context, status, err = dataStoreShim.QueryAllRows(pendingWorkItemsTableName, context)
+		requests, hasMoreData, cx, status, err := dataStoreShim.QueryAllRows(pendingWorkItemsTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return make(map[string]RequestContext), nil
@@ -1655,16 +1468,17 @@ func GetPendingRequests() (map[string]RequestContext, error) {
 			return nil, err
 		}
 
-		for requestKey, value := range requests {
-			serializedRequestContext := value.(string)
+		for _, entity := range requests {
+			serializedRequestContext := entity.Properties[requestContextTag].(string)
 			var requestContext RequestContext
 			err = json.Unmarshal([]byte(serializedRequestContext), &requestContext)
-			requestsToProcess[requestKey] = requestContext
+			requestsToProcess[entity.RowKey] = requestContext
 		}
 
 		if !hasMoreData {
 			break
 		}
+		context = cx
 	}
 
 	return requestsToProcess, nil
@@ -2915,14 +2729,10 @@ func GetNetworkContainersInSubnet(
 
 // GetAllNetworkIDs - Retrieve all network IDs
 func GetAllNetworkIDs() (map[string]bool, error) {
-	var hasMoreData bool
 	var context interface{}
-	var networksMap map[string]interface{}
-	var err error
-	var status int
 	networkIDs := make(map[string]bool)
 	for {
-		networksMap, hasMoreData, context, status, err = dataStoreShim.QueryAllRows(networkConfigurationTableName, context)
+		entities, hasMoreData, cx, status, err := dataStoreShim.QueryAllRows(networkConfigurationTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return networkIDs, nil
@@ -2931,13 +2741,14 @@ func GetAllNetworkIDs() (map[string]bool, error) {
 			return nil, err
 		}
 
-		for networkKey := range networksMap {
-			networkIDs[networkKey] = true
+		for _, entity := range entities {
+			networkIDs[entity.RowKey] = true
 		}
 
 		if !hasMoreData {
 			break
 		}
+		context = cx
 	}
 
 	return networkIDs, nil
@@ -2945,14 +2756,10 @@ func GetAllNetworkIDs() (map[string]bool, error) {
 
 // GetAllNodeIDs - Retrieve all node IDs
 func GetAllNodeIDs() (map[string]bool, error) {
-	var hasMoreData bool
 	var context interface{}
-	var nodesMap map[string]interface{}
-	var err error
-	var status int
 	nodeIDs := make(map[string]bool)
 	for {
-		nodesMap, hasMoreData, context, status, err = dataStoreShim.QueryAllRows(nodeTableName, context)
+		entities, hasMoreData, cx, status, err := dataStoreShim.QueryAllRows(nodeTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return nodeIDs, nil
@@ -2961,88 +2768,111 @@ func GetAllNodeIDs() (map[string]bool, error) {
 			return nil, err
 		}
 
-		for nodeID := range nodesMap {
-			nodeIDs[nodeID] = true
+		for _, entity := range entities {
+			nodeIDs[entity.RowKey] = true
 		}
 
 		if !hasMoreData {
 			break
 		}
+
+		context = cx
 	}
 
 	return nodeIDs, nil
 }
 
+type AllocationRow struct {
+	RowKey       string
+	IPAllocation string
+	AllocationID string
+}
+
 // TryQueryAllIPAllocations - Query all IP allocations in the partition.
-func TryQueryAllIPAllocations(networkID, subnetName string, context interface{}) (
-	map[string]interface{}, bool, interface{}, *api.JsonErr) {
+func TryQueryAllIPAllocations(networkID, subnetName string) ([]AllocationRow, *api.JsonErr) {
 	partitionKey := GetSubnetKey(networkID, subnetName)
-	data, hasMoreRows, retContext, statusCode, err := dataStoreShim.QueryAllRowsInPartition(ipAllocationsTableName, partitionKey, context)
 
-	if err != nil && statusCode != http.StatusNotFound {
-		msg := fmt.Sprintf(
-			"Failed to retrieve IP allocations for partition key:[%s] due to error:[%s]",
-			partitionKey,
-			err.Error())
-		return nil, false, nil, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+	var (
+		rows      []AllocationRow
+		pageToken interface{}
+	)
+	for {
+		entities, hasNextPage, nextPageToken, _, err := dataStoreShim.QueryAllRowsInPartition(ipAllocationsTableName, partitionKey, pageToken)
+		if err != nil {
+			return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
+		}
+
+		for _, entity := range entities {
+			row := AllocationRow{
+				RowKey:       entity.RowKey, // todo: use metadata struct from different PR
+				AllocationID: entity.Properties[AllocationIDProperty].(string),
+				IPAllocation: entity.Properties[ipAllocationTag].(string),
+			}
+			rows = append(rows, row)
+		}
+
+		if !hasNextPage {
+			break
+		}
+		pageToken = nextPageToken
 	}
-
-	if data == nil {
-		return nil, false, nil, nil
-	}
-
-	return data, hasMoreRows, retContext, nil
+	return rows, nil
 }
 
 const AllocationIDProperty = "AllocationID"
 
-func QueryIPAllocationsByAllocationID(networkID, subnetName string, allocationIDs []string) (map[string]interface{}, *api.JsonErr) {
+func QueryIPAllocationsByAllocationID(networkID, subnetName string, allocationIDs []string) ([]AllocationRow, *api.JsonErr) {
 	partitionKey := GetSubnetKey(networkID, subnetName)
 	filter := azurestorage.BuildFilterOnPartition(partitionKey, AllocationIDProperty, allocationIDs)
 
-	res, err := dataStoreShim.QueryFilter(ipAllocationsTableName, filter)
+	entities, err := dataStoreShim.QueryFilter(ipAllocationsTableName, filter)
 	if err != nil {
 		return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
-	return res, nil
+	var rows []AllocationRow
+	for _, entity := range entities {
+		row := AllocationRow{
+			RowKey:       entity.RowKey, // todo: use metadata struct from different PR
+			AllocationID: entity.Properties[AllocationIDProperty].(string),
+			IPAllocation: entity.Properties[ipAllocationTag].(string),
+		}
+		rows = append(rows, row)
+	}
+
+	return rows, nil
 }
 
 // TryQueryIPAllocation - Query for IP allocations
-func TryQueryIPAllocation(networkID, subnetName, ipAddress string) (string, *api.JsonErr) {
+func TryQueryIPAllocation(networkID, subnetName, ipAddress string) (AllocationRow, *api.JsonErr) {
 	partitionKey := GetSubnetKey(networkID, subnetName)
 	return TryQueryIPAllocationByKey(partitionKey, ipAddress)
 }
 
 // TryQueryIPAllocationByKey - Query for IP allocations by the key in the specified partition
-func TryQueryIPAllocationByKey(partitionKey, ipAddress string) (string, *api.JsonErr) {
-	value, status, err := dataStoreShim.QueryInPartition(ipAllocationsTableName, partitionKey, ipAddress)
+func TryQueryIPAllocationByKey(partitionKey, ipAddress string) (AllocationRow, *api.JsonErr) {
+	entity, status, err := dataStoreShim.QueryInPartition(ipAllocationsTableName, partitionKey, ipAddress)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
 			"Failed to retrieve IP allocation for key:[%s] in partition:[%s] due to error:[%s]",
 			ipAddress,
 			partitionKey,
 			err.Error())
-		return "", &api.JsonErr{
+		return AllocationRow{}, &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			Text:       msg,
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	if value == nil {
-		return "", nil
+	if entity == nil {
+		return AllocationRow{}, nil
 	}
 
-	switch v := value.(type) {
-	case string:
-		return v, nil
-	case map[string]interface{}:
-		return v[ipAllocationTag].(string), nil
-	default:
-		return "", nil
+	row := AllocationRow{
+		AllocationID: entity.Properties[AllocationIDProperty].(string),
+		IPAllocation: entity.Properties[ipAllocationTag].(string),
 	}
+
+	return row, nil
 }
 
 // EncodeIPAllocationKey - Encodes the primary key for IP allocations table
@@ -3060,27 +2890,23 @@ func DecodeIPAllocationKey(allocatedSubnet string) string {
 // QueryAllIPReservations - Query all IP Reservation configurations.
 func QueryAllIPReservations() ([]ReservationConfiguration, *api.JsonErr) {
 	var (
-		err                       *api.JsonErr
-		reservationConfigurations []ReservationConfiguration
-		hasMoreRows               = true
-		context                   interface{}
-		data                      map[string]interface{}
+		context      interface{}
+		reservations []ReservationConfiguration
 	)
-
-	for hasMoreRows {
-		data, hasMoreRows, context, err = TryQueryAllIPReservations(context)
+	for {
+		data, hasMoreRows, cx, err := TryQueryAllIPReservations(context)
 		if err != nil {
 			return nil, err
 		}
 
-		for reservationKey, value := range data {
-			serializedReservationConfiguration := value.(string)
+		for _, entity := range data {
+			serializedReservationConfiguration := entity.Properties[reservationConfigurationTag].(string)
 			var reservationConfiguration ReservationConfiguration
 			err := json.Unmarshal([]byte(serializedReservationConfiguration), &reservationConfiguration)
 			if err != nil {
 				msg := fmt.Sprintf(
 					"Failed to unmarshal configuration for reservation key:[%s] due to error:[%s]",
-					reservationKey,
+					entity.RowKey,
 					err)
 				return nil, &api.JsonErr{
 					Code:       api.JsonBodyUnMarshalFailed,
@@ -3088,16 +2914,21 @@ func QueryAllIPReservations() ([]ReservationConfiguration, *api.JsonErr) {
 					HTTPStatus: http.StatusInternalServerError}
 			}
 
-			reservationConfigurations = append(reservationConfigurations, reservationConfiguration)
+			reservations = append(reservations, reservationConfiguration)
 		}
+
+		if !hasMoreRows {
+			break
+		}
+
+		context = cx
 	}
 
-	return reservationConfigurations, nil
+	return reservations, nil
 }
 
 // TryQueryAllIPReservations - Query all IP Reservation configurations in the partition.
-func TryQueryAllIPReservations(context interface{}) (
-	map[string]interface{}, bool, interface{}, *api.JsonErr) {
+func TryQueryAllIPReservations(context interface{}) ([]*storage.Entity, bool, interface{}, *api.JsonErr) {
 	data, hasMoreRows, retContext, statusCode, err := dataStoreShim.QueryAllRows(ipReservationsTableName, context)
 
 	if err != nil && statusCode != http.StatusNotFound {
@@ -3168,7 +2999,7 @@ func ProcessSharedSubnetDelegationMigration() error {
 
 // TryQuerySharedSubnetDelegationMigration - Query migration table in a specified partition.
 func TryQuerySharedSubnetDelegationMigration() (bool, *api.JsonErr) {
-	value, status, err := dataStoreShim.Query(sharedSubnetDelegationMigrationTableName, "migration-status")
+	entity, status, err := dataStoreShim.Query(sharedSubnetDelegationMigrationTableName, "migration-status")
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
 			"Failed to retrieve migration status due to error:[%s]", err)
@@ -3178,10 +3009,10 @@ func TryQuerySharedSubnetDelegationMigration() (bool, *api.JsonErr) {
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	if value == nil {
+	if entity == nil {
 		return false, nil
 	}
-	b, ok := value.(bool)
+	b, ok := entity.Properties[sharedSubnetDelegationMigrationTag].(bool)
 	if !ok {
 		return false, nil
 	}
@@ -3214,14 +3045,10 @@ func IsFeatureSupported(featureID int) bool {
 
 // GetAllNetworkContainers - Retrieve all network containers
 func GetAllNetworkContainers() (map[string]NCConfiguration, error) {
-	var hasMoreData bool
 	var context interface{}
-	var networkConfigs map[string]interface{}
-	var err error
-	var status int
 	ncConfigs := make(map[string]NCConfiguration)
 	for {
-		networkConfigs, hasMoreData, context, status, err = dataStoreShim.QueryAllRows(networkContainerTableName, context)
+		entities, hasMoreData, cx, status, err := dataStoreShim.QueryAllRows(networkContainerTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return ncConfigs, nil
@@ -3230,20 +3057,21 @@ func GetAllNetworkContainers() (map[string]NCConfiguration, error) {
 			return nil, err
 		}
 
-		for ncKey, value := range networkConfigs {
-			serializedNCConfig := value.(string)
+		for _, entity := range entities {
+			serializedNCConfig := entity.Properties[networkContainerConfigurationTag].(string)
 			var ncConfig NCConfiguration
 			err = json.Unmarshal([]byte(serializedNCConfig), &ncConfig)
 			if err != nil {
 				return nil, fmt.Errorf("Unmarshalling nc config %s failed with error %s", serializedNCConfig, err.Error())
 			}
 
-			ncConfigs[ncKey] = ncConfig
+			ncConfigs[entity.RowKey] = ncConfig
 		}
 
 		if !hasMoreData {
 			break
 		}
+		context = cx
 	}
 
 	return ncConfigs, nil
@@ -3449,16 +3277,12 @@ func GetNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 // GetNcPendingPublishRequestContexts - Retrieve all NC publish / unpublish pending request contexts
 func GetNcPendingPublishRequestContexts() (map[string]NcPendingPublishRequestContext, error) {
 	var (
-		hasMoreData       = true
 		context           interface{}
-		requests          map[string]interface{}
-		err               error
-		status            int
 		requestsToProcess = make(map[string]NcPendingPublishRequestContext)
 	)
 
-	for hasMoreData {
-		requests, hasMoreData, context, status, err = dataStoreShim.QueryAllRows(ncPendingPublishContextTableName, context)
+	for {
+		entities, hasMoreData, cx, status, err := dataStoreShim.QueryAllRows(ncPendingPublishContextTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return make(map[string]NcPendingPublishRequestContext), nil
@@ -3467,12 +3291,20 @@ func GetNcPendingPublishRequestContexts() (map[string]NcPendingPublishRequestCon
 			return nil, err
 		}
 
-		for requestKey, value := range requests {
-			serializedRequestContext := value.(string)
+		for _, entity := range entities {
+			serializedRequestContext := entity.Properties[ncPendingPublishContextTag].(string)
 			var requestContext NcPendingPublishRequestContext
-			err = json.Unmarshal([]byte(serializedRequestContext), &requestContext)
-			requestsToProcess[requestKey] = requestContext
+			if err := json.Unmarshal([]byte(serializedRequestContext), &requestContext); err != nil {
+				return nil, err
+			}
+			requestsToProcess[entity.RowKey] = requestContext
 		}
+
+		if !hasMoreData {
+			break
+		}
+
+		context = cx
 	}
 
 	return requestsToProcess, nil
@@ -3533,10 +3365,8 @@ func persistNcPendingPublishContext(
 	return nil
 }
 
-func QueryNcPendingPublishContext(
-	key string) (*NcPendingPublishRequestContext, *api.JsonErr) {
-	var pendingPublishContext NcPendingPublishRequestContext
-	value, status, err := dataStoreShim.Query(ncPendingPublishContextTableName, key)
+func QueryNcPendingPublishContext(key string) (*NcPendingPublishRequestContext, *api.JsonErr) {
+	entity, status, err := dataStoreShim.Query(ncPendingPublishContextTableName, key)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
 			"Failed to retrieve pending NC publish context for key:[%s] due to error:[%s]",
@@ -3548,13 +3378,13 @@ func QueryNcPendingPublishContext(
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	if value == nil {
+	if entity == nil {
 		return nil, nil
 	}
 
-	serializedContextData := value.(string)
-	err = json.Unmarshal([]byte(serializedContextData), &pendingPublishContext)
-	if err != nil {
+	serializedContextData := entity.Properties[ncPendingPublishContextTag].(string)
+	var pendingPublishContext NcPendingPublishRequestContext
+	if err := json.Unmarshal([]byte(serializedContextData), &pendingPublishContext); err != nil {
 		msg := fmt.Sprintf(
 			"Failed to unmarshal pending NC publish context for key:[%s] due to error:[%s]",
 			key,

@@ -25,7 +25,7 @@ func TestDispatcher(t *testing.T) {
 	alloc := IPAllocator{
 		Nodes:            &fakes.NodeRepo{},
 		NCs:              &fakes.NCRepo{},
-		Allocations:      &fakes.AllocationRepo{MaxPageSize: 100},
+		Allocations:      &fakes.AllocationRepo{},
 		Reservations:     fakes.NewReservationRepo(),
 		Subnets:          &subnets,
 		IsFeatureEnabled: enableSubnetDelegation,

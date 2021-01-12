@@ -1,7 +1,6 @@
 package testpersistencestore
 
 import (
-	"dnc/configuration"
 	"dnc/logger/loggershim"
 	"errors"
 	"fmt"
@@ -9,6 +8,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/Azure/azure-sdk-for-go/storage"
 )
 
 type rowProperties struct {
@@ -18,73 +19,67 @@ type rowProperties struct {
 
 // TestPersistenceStore :- datastore : map[ TableName ] map [ key ] value
 type TestPersistenceStore struct {
-	configuration.TestPersistenceStoreInfo
-	//datastore map[string]map[string]interface{}
 	datastore map[string]map[string]rowProperties
 	locks     map[string]*sync.RWMutex
+	logger    loggershim.LoggerInterface
 }
 
 const induceErrorPercent = 5 // Induce 5% error for a particular operation
 
 // Init :- Initialize a TestPersistenceStore struct for testing purposes.
-func (testpersistencestore *TestPersistenceStore) Init(tableToColumnMap map[string]string) {
-	loggershim.LS.Debugf("Initializing TestPersistenceDataStore.datastore : map[tableName]map[rowKey]value.")
-	//testpersistencestore.datastore = make(map[string]map[string]interface{})
-	testpersistencestore.datastore = make(map[string]map[string]rowProperties)
-	testpersistencestore.locks = make(map[string]*sync.RWMutex)
+func (s *TestPersistenceStore) Init(tableToColumnMap map[string]string, logger loggershim.LoggerInterface) {
+	s.datastore = make(map[string]map[string]rowProperties)
+	s.locks = make(map[string]*sync.RWMutex)
+	s.logger = logger
 
 	for tableName := range tableToColumnMap {
-		//testpersistencestore.datastore[tableName] = make(map[string]interface{})
-		testpersistencestore.datastore[tableName] = make(map[string]rowProperties)
-		testpersistencestore.locks[tableName] = &sync.RWMutex{}
+		s.datastore[tableName] = make(map[string]rowProperties)
+		s.locks[tableName] = &sync.RWMutex{}
 	}
 }
 
 // Delete :- Remove an element using rowKey and tableName.
-func (testpersistencestore *TestPersistenceStore) Delete(tableName, rowKey string) error {
-	testpersistencestore.locks[tableName].Lock()
-	delete(testpersistencestore.datastore[tableName], rowKey)
-	testpersistencestore.locks[tableName].Unlock()
-	loggershim.LS.Debugf("Deleted value with rowKey [%s] in %s.n", rowKey, tableName)
+func (s *TestPersistenceStore) Delete(tableName, rowKey string) error {
+	s.locks[tableName].Lock()
+	delete(s.datastore[tableName], rowKey)
+	s.locks[tableName].Unlock()
+	s.logger.Debugf("Deleted value with rowKey [%s] in %s.n", rowKey, tableName)
 	return nil
 }
 
 // DeleteInPartition - Deletes a row in the partition of the given table.
-func (testpersistencestore *TestPersistenceStore) DeleteInPartition(tableName, partitionKey, rowKey string) error {
-	return testpersistencestore.Delete(tableName, rowKey)
+func (s *TestPersistenceStore) DeleteInPartition(tableName, partitionKey, rowKey string) error {
+	return s.Delete(tableName, rowKey)
 }
 
-// InsertOrUpdate :- Insert or update an element using rowKey and tablName.
-func (testpersistencestore *TestPersistenceStore) InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error {
+// InsertOrUpdate :- Insert or update an element using rowKey and tableName.
+func (s *TestPersistenceStore) InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error {
 	props := make(map[string]interface{})
 	props[propertyName] = value
-	tag := testpersistencestore.getEtag()
+	tag := s.getEtag()
 
-	testpersistencestore.locks[tableName].Lock()
-	testpersistencestore.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: props}
-	testpersistencestore.locks[tableName].Unlock()
+	s.locks[tableName].Lock()
+	s.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: props}
+	s.locks[tableName].Unlock()
 
-	loggershim.LS.Debugf("Assigned [%+v] to [%s] with rowKey [%s].", value, tableName, rowKey)
+	s.logger.Debugf("Assigned [%+v] to [%s] with rowKey [%s].", value, tableName, rowKey)
 	return nil
 }
 
 // UpdateInPartition - Update a row in the given table, if row already exists
-func (testpersistencestore *TestPersistenceStore) UpdateInPartition(
-	tableName, partitionKay, rowKey string, properties map[string]interface{}) error {
-	return testpersistencestore.UpdateInPartitionWithEtag(tableName, partitionKay, rowKey, "", properties)
+func (s *TestPersistenceStore) UpdateInPartition(tableName, partitionKey, rowKey string, properties map[string]interface{}) error {
+	return s.UpdateInPartitionWithEtag(tableName, partitionKey, rowKey, "", properties)
 }
 
 // UpdateInPartitionWithEtag - Update (overwrite) a row in a given table if it exists.
 // Match with specified etag for update.
-func (testpersistencestore *TestPersistenceStore) UpdateInPartitionWithEtag(
-	tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error {
-
-	testpersistencestore.locks[tableName].Lock()
+func (s *TestPersistenceStore) UpdateInPartitionWithEtag(tableName, partitionKey, rowKey, etag string, properties map[string]interface{}) error {
+	s.locks[tableName].Lock()
 	defer func() {
-		testpersistencestore.locks[tableName].Unlock()
+		s.locks[tableName].Unlock()
 	}()
 
-	rowProps, retrieved := testpersistencestore.datastore[tableName][rowKey]
+	rowProps, retrieved := s.datastore[tableName][rowKey]
 	if !retrieved {
 		return fmt.Errorf("Row with key %s not found in table %s", rowKey, tableName)
 	}
@@ -93,240 +88,173 @@ func (testpersistencestore *TestPersistenceStore) UpdateInPartitionWithEtag(
 		return fmt.Errorf("Caller's Etag does not match with current etag. Row key: %s, table: %s", rowKey, tableName)
 	}
 
-	tag := testpersistencestore.getEtag()
-	testpersistencestore.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: properties}
-	loggershim.LS.Debugf("Update row to [%s] with rowKey [%s]. Caller's etag [%s]", tableName, rowKey, etag)
+	tag := s.getEtag()
+	s.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: properties}
+	s.logger.Debugf("Update row to [%s] with rowKey [%s]. Caller's etag [%s]", tableName, rowKey, etag)
 	return nil
 }
 
 // InsertInPartition - Insert a row in the specific partition of the given table.
-func (testpersistencestore *TestPersistenceStore) InsertInPartition(
-	tableName, partitionKay, rowKey, propertyName string, value interface{}) (int, error) {
-	// Induce error to simulate the collisions due to multiple DNCs trying to allocate the same IP
-	// in case of shared subnet delegation
-	if testpersistencestore.induceError(induceErrorPercent) {
-		loggershim.LS.Errorf("Data entry is already present in the table")
-		return http.StatusConflict, fmt.Errorf("Data entry is already present in the table")
-	}
-
+func (s *TestPersistenceStore) InsertInPartition(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error) {
 	props := make(map[string]interface{})
 	props[propertyName] = value
-	testpersistencestore.InsertInPartitionProperties(tableName, partitionKay, rowKey, props)
-
-	return http.StatusOK, nil
+	return s.InsertInPartitionProperties(tableName, partitionKey, rowKey, props)
 }
 
 // InsertInPartitionProperties - Insert a row in the specific partition of the given table with multiple properties
 // If row already exists, it will be updated (overwritten)
-func (testpersistencestore *TestPersistenceStore) InsertInPartitionProperties(
-	tableName, partitionKay, rowKey string, properties map[string]interface{}) (int, error) {
+func (s *TestPersistenceStore) InsertInPartitionProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) (int, error) {
 	// Induce error to simulate the collisions due to multiple DNCs trying to allocate the same IP
 	// in case of shared subnet delegation
-	if testpersistencestore.induceError(induceErrorPercent) {
-		loggershim.LS.Errorf("Data entry is already present in the table")
+	if s.induceError(induceErrorPercent) {
+		s.logger.Errorf("Data entry is already present in the table")
 		return http.StatusConflict, fmt.Errorf("Data entry is already present in the table")
 	}
 
-	testpersistencestore.locks[tableName].Lock()
+	s.locks[tableName].Lock()
 	defer func() {
-		testpersistencestore.locks[tableName].Unlock()
+		s.locks[tableName].Unlock()
 	}()
 
-	_, retrieved := testpersistencestore.datastore[tableName][rowKey]
+	_, retrieved := s.datastore[tableName][rowKey]
 	if retrieved {
 		return 0, fmt.Errorf("Row already exists with key %s in table %s", rowKey, tableName)
 	}
 
-	tag := testpersistencestore.getEtag()
-	testpersistencestore.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: properties}
-	loggershim.LS.Debugf("Inserted row to [%s] with rowKey [%s].", tableName, rowKey)
+	tag := s.getEtag()
+	s.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: properties}
+	s.logger.Debugf("Inserted row to [%s] with rowKey [%s].", tableName, rowKey)
 
 	return http.StatusOK, nil
 }
 
-func (testpersistencestore *TestPersistenceStore) UpsertBatch(tableName string, batch map[string]map[string]interface{}) error {
-	testpersistencestore.locks[tableName].Lock()
+func (s *TestPersistenceStore) UpsertBatch(tableName string, batch map[string]map[string]interface{}) error {
+	s.locks[tableName].Lock()
 	defer func() {
-		testpersistencestore.locks[tableName].Unlock()
+		s.locks[tableName].Unlock()
 	}()
 
 	for rowKey, rowProps := range batch {
-		tag := testpersistencestore.getEtag()
-		testpersistencestore.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: rowProps}
+		tag := s.getEtag()
+		s.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: rowProps}
 	}
 
 	return nil
 }
 
-func (testpersistencestore *TestPersistenceStore) InsertBatch(tableName, _ string, batch map[string]map[string]interface{}) error {
-	testpersistencestore.locks[tableName].Lock()
+func (s *TestPersistenceStore) InsertBatch(tableName, _ string, batch map[string]map[string]interface{}) error {
+	s.locks[tableName].Lock()
 	defer func() {
-		testpersistencestore.locks[tableName].Unlock()
+		s.locks[tableName].Unlock()
 	}()
 
 	for rowKey, rowProps := range batch {
-		tag := testpersistencestore.getEtag()
-		testpersistencestore.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: rowProps}
+		tag := s.getEtag()
+		s.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: rowProps}
 	}
 
 	return nil
 }
 
-func (testpersistencestore *TestPersistenceStore) DeleteBatch(tableName, _ string, rowKeys []string) error {
-	testpersistencestore.locks[tableName].Lock()
+func (s *TestPersistenceStore) DeleteBatch(tableName, _ string, rowKeys []string) error {
+	s.locks[tableName].Lock()
 	defer func() {
-		testpersistencestore.locks[tableName].Unlock()
+		s.locks[tableName].Unlock()
 	}()
 
 	for _, rowKey := range rowKeys {
-		delete(testpersistencestore.datastore[tableName], rowKey)
+		delete(s.datastore[tableName], rowKey)
 	}
 
 	return nil
 }
 
 // Query :- Query an element using rowKey and tableName.
-func (testpersistencestore *TestPersistenceStore) Query(tableName, rowKey string) (interface{}, int, error) {
-	value, _, status, err := testpersistencestore.queryAllPropertiesEtag(tableName, rowKey)
-	switch len(value) {
-	case 0:
-		return nil, status, err
-	case 1:
-		for _, v := range value {
-			return v, status, err
-		}
-	}
-	return value, status, err
+func (s *TestPersistenceStore) Query(tableName, rowKey string) (*storage.Entity, int, error) {
+	return s.queryAllPropertiesEtag(tableName, rowKey)
 }
 
 // QueryInPartition - Query a row in the given partition of the table.
-func (testpersistencestore *TestPersistenceStore) QueryInPartition(tableName, partitionKey, rowKey string) (
-	interface{}, int, error) {
-	value, _, status, err := testpersistencestore.queryAllPropertiesEtag(tableName, rowKey)
-	switch len(value) {
-	case 0:
-		return nil, status, err
-	case 1:
-		for _, v := range value {
-			return v, status, err
-		}
-	}
-	return value, status, err
+func (s *TestPersistenceStore) QueryInPartition(tableName, partitionKey, rowKey string) (*storage.Entity, int, error) {
+	return s.queryAllPropertiesEtag(tableName, rowKey)
 }
 
 // QueryFilter - Query rows using a filter
-func (testpersistencestore *TestPersistenceStore) QueryFilter(_, _ string) (map[string]interface{}, error) {
+func (s *TestPersistenceStore) QueryFilter(_, _ string) ([]*storage.Entity, error) {
 	// todo: not a straightforward way to mock more sophisticated query functionality
 	return nil, errors.New("not implemented")
 }
 
-// QueryInPartitionWithEtag - Query a row in the given partition of the table. Returns etag along with first property
-func (testpersistencestore *TestPersistenceStore) QueryInPartitionWithEtag(
-	tableName, partitionKey, rowKey string) (interface{}, string, int, error) {
-
-	return testpersistencestore.queryPropertyEtag(tableName, rowKey)
-}
-
-// QueryInPartitionWithEtagProperties - Query a row in the given partition of the table.
-// Returns etag along with all of the properties
-func (testpersistencestore *TestPersistenceStore) QueryInPartitionWithEtagProperties(
-	tableName, partitionKey, rowKey string) (map[string]interface{}, string, int, error) {
-
-	return testpersistencestore.queryAllPropertiesEtag(tableName, rowKey)
-}
-
 // QueryAllRows - Query all rows in a given table.
-func (testpersistencestore *TestPersistenceStore) QueryAllRows(tableName string, context interface{}) (
-	map[string]interface{}, bool, interface{}, int, error) {
+func (s *TestPersistenceStore) QueryAllRows(tableName string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error) {
 	var status = http.StatusNotFound
 
-	testpersistencestore.locks[tableName].RLock()
-	defer testpersistencestore.locks[tableName].RUnlock()
-	if _, err := testpersistencestore.datastore[tableName]; err {
+	s.locks[tableName].RLock()
+	defer s.locks[tableName].RUnlock()
+	if _, err := s.datastore[tableName]; err {
 		status = http.StatusOK
 	}
-	queriedTable := make(map[string]interface{})
-	for key, rowProps := range testpersistencestore.datastore[tableName] {
-		switch len(rowProps.properties) {
-		case 0:
-			return nil, false, nil, http.StatusExpectationFailed, fmt.Errorf("no properties found for key %v in table %v", key, tableName)
-		case 1:
-			for _, value := range rowProps.properties {
-				queriedTable[key] = value
-			}
-		default:
-			queriedTable[key] = rowProps.properties
+	var out []*storage.Entity
+	for key, rowProps := range s.datastore[tableName] {
+		e := storage.Entity{
+			Table:        &storage.Table{Name: tableName},
+			PartitionKey: "", // todo: should this be filled?
+			RowKey:       key,
+			OdataEtag:    rowProps.etag,
+			Properties:   rowProps.properties,
 		}
+
+		out = append(out, &e)
 	}
-	return queriedTable, false, nil, status, nil
+	return out, false, nil, status, nil
 }
 
 // QueryAllRowsInPartition - Query all rows in the specific partition of the given table.
-func (testpersistencestore *TestPersistenceStore) QueryAllRowsInPartition(
-	tableName, partitionKey string, context interface{}) (map[string]interface{}, bool, interface{}, int, error) {
-	return testpersistencestore.QueryAllRows(tableName, context)
-}
-
-// Query :- Query an element using rowKey and tableName. It returns ONLY the first property
-// found in the row as well as etag of the row
-func (testpersistencestore *TestPersistenceStore) queryPropertyEtag(tableName, rowKey string) (interface{}, string, int, error) {
-	props, tag, status, err := testpersistencestore.queryAllPropertiesEtag(tableName, rowKey)
-	if err == nil {
-		if len(props) != 1 {
-			return nil, "", http.StatusExpectationFailed, fmt.Errorf("More than one property found")
-		}
-
-		for _, val := range props {
-			return val, tag, status, nil
-		}
-	}
-
-	return nil, "", status, err
+func (s *TestPersistenceStore) QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error) {
+	return s.QueryAllRows(tableName, context)
 }
 
 // Query :- Query an element using rowKey and tableName. It returns all the properties
 // found in the row as well as etag of the row
-func (testpersistencestore *TestPersistenceStore) queryAllPropertiesEtag(
-	tableName, rowKey string) (map[string]interface{}, string, int, error) {
-	testpersistencestore.locks[tableName].RLock()
-	defer testpersistencestore.locks[tableName].RUnlock()
-	rowProps, success := testpersistencestore.datastore[tableName][rowKey]
-	var status = http.StatusNotFound
+func (s *TestPersistenceStore) queryAllPropertiesEtag(tableName, rowKey string) (*storage.Entity, int, error) {
+	s.locks[tableName].RLock()
+	defer s.locks[tableName].RUnlock()
 
-	if success {
-		status = http.StatusOK
-		if rowProps.properties == nil {
-			return nil, "", http.StatusExpectationFailed, fmt.Errorf("No properties found")
-		}
-
-		return rowProps.properties, rowProps.etag, status, nil
+	rowProps, found := s.datastore[tableName][rowKey]
+	if !found {
+		s.logger.Debugf("Failed to query from [%s] with rowKey [%s].", tableName, rowKey)
+		return nil, http.StatusNotFound, fmt.Errorf("Failed to query from [%s] with rowKey [%s]", tableName, rowKey)
 	}
 
-	loggershim.LS.Debugf("Failed to query from [%s] with rowKey [%s].", tableName, rowKey)
+	e := storage.Entity{
+		Table:        &storage.Table{Name: tableName},
+		PartitionKey: "", // todo: should this be filled?
+		RowKey:       rowKey,
+		OdataEtag:    rowProps.etag,
+		Properties:   rowProps.properties,
+	}
 
-	return nil, "", status, fmt.Errorf("Failed to query from [%s] with rowKey [%s]", tableName, rowKey)
+	return &e, http.StatusOK, nil
 }
 
 // KeyExist :- Check if key exists in a given table.
-func (testpersistencestore *TestPersistenceStore) KeyExist(tableName, rowKey string) (bool, error) {
-	testpersistencestore.locks[tableName].RLock()
-	_, retrieved := testpersistencestore.datastore[tableName][rowKey]
-	testpersistencestore.locks[tableName].RUnlock()
-	var existstr string
+func (s *TestPersistenceStore) KeyExist(tableName, rowKey string) (bool, error) {
+	s.locks[tableName].RLock()
+	_, retrieved := s.datastore[tableName][rowKey]
+	s.locks[tableName].RUnlock()
 
+	logStr := "does not exist"
 	if retrieved {
-		existstr = "exists"
-	} else {
-		existstr = "does not exist"
+		logStr = "exists"
 	}
 
-	loggershim.LS.Debugf("rowKey [%s] %s in [%s].", rowKey, existstr, tableName)
+	s.logger.Debugf("rowKey [%s] %s in [%s].", rowKey, logStr, tableName)
 	return retrieved, nil
 }
 
 // Induce error in the processing
 // This function induces error with provided percent probability
-func (testpersistencestore *TestPersistenceStore) induceError(percentProbability int) bool {
+func (s *TestPersistenceStore) induceError(percentProbability int) bool {
 	induceError := false
 	// Create a random num generator with a new seed every time to
 	// avoid deterministic number generation
@@ -340,7 +268,7 @@ func (testpersistencestore *TestPersistenceStore) induceError(percentProbability
 }
 
 // getEtag - Generate a unique tag (string)
-func (testpersistencestore *TestPersistenceStore) getEtag() string {
+func (s *TestPersistenceStore) getEtag() string {
 	etag := fmt.Sprintf("%d", time.Now().Add(time.Second*time.Duration(rand.Int63n(10000))).UnixNano())
 	return etag
 }

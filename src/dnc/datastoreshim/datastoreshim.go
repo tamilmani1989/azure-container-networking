@@ -7,17 +7,17 @@ import (
 	"dnc/logger/loggershim"
 	"errors"
 	"fmt"
+
+	"github.com/Azure/azure-sdk-for-go/storage"
 )
 
 // DataStore - Interface for storage operations
 type DataStoreShim interface {
-	Query(tableName, rowKey string) (interface{}, int, error)
-	QueryAllRows(tableName string, context interface{}) (map[string]interface{}, bool, interface{}, int, error)
-	QueryInPartition(tableName, partitionKey, rowKey string) (interface{}, int, error)
-	QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) (map[string]interface{}, bool, interface{}, int, error)
-	QueryFilter(tableName, filter string) (map[string]interface{}, error)
-	QueryInPartitionWithEtag(tableName, partitionKey, rowKey string) (interface{}, string, int, error)
-	QueryInPartitionWithEtagProperties(tableName, partitionKey, rowKey string) (map[string]interface{}, string, int, error)
+	Query(tableName, rowKey string) (*storage.Entity, int, error)
+	QueryAllRows(tableName string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error)
+	QueryInPartition(tableName, partitionKey, rowKey string) (*storage.Entity, int, error)
+	QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error)
+	QueryFilter(tableName, filter string) ([]*storage.Entity, error)
 	InsertInPartition(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error)
 	InsertInPartitionProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) (int, error)
 	InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error
@@ -43,8 +43,8 @@ func NewDataStoreShim(dataStoreSettings configuration.DataStoreSettings, latency
 	}
 
 	if dataStoreSettings.TestPersistenceStoreInfo != (configuration.TestPersistenceStoreInfo{}) {
-		tps := testpersistencestore.TestPersistenceStore{TestPersistenceStoreInfo: dataStoreSettings.TestPersistenceStoreInfo}
-		tps.Init(tableToColumnMap)
+		var tps testpersistencestore.TestPersistenceStore
+		tps.Init(tableToColumnMap, loggershim.LS)
 
 		return &tps, nil
 	}

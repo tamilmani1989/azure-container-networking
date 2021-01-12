@@ -122,7 +122,7 @@ func (st *StorageTableLease) SetDataStoreSettings(config *configuration.Configur
 
 // GetPrimaryIPEndpoint - Method to get the primary replica endpoint.
 func (st *StorageTableLease) getPrimaryIPEndpoint() (string, error) {
-	properties, _, _, err := st.dataStoreShim.QueryInPartitionWithEtagProperties(
+	entity, _, err := st.dataStoreShim.QueryInPartition(
 		datamodel.MasterElectionTableName,
 		st.getPartitionKey(),
 		leaseTableRowKey)
@@ -131,7 +131,7 @@ func (st *StorageTableLease) getPrimaryIPEndpoint() (string, error) {
 		return "", fmt.Errorf("%s: Failed to query MasterElectionTableName. %s", utils.TracePrefix(2), err.Error())
 	}
 
-	replicaEP, ok := st.getreplicaPrimaryEPProperty(properties)
+	replicaEP, ok := st.getreplicaPrimaryEPProperty(entity.Properties)
 	if !ok {
 		return "", fmt.Errorf("%s: Error in getreplicaPrimaryEPProperty", utils.TracePrefix(2))
 	}
@@ -320,7 +320,7 @@ func (st *StorageTableLease) tryAcquireLease() error {
 // lease duration is stored as unix epoch in storage and same epoch is interchangebly used as leaseID.
 func (st *StorageTableLease) AcquireLease(currentLeaseID int64) (int64, bool) {
 	// check if row exists and if not, try creating it
-	properties, etag, status, err := st.dataStoreShim.QueryInPartitionWithEtagProperties(
+	entity, status, err := st.dataStoreShim.QueryInPartition(
 		datamodel.MasterElectionTableName,
 		st.getPartitionKey(),
 		leaseTableRowKey)
@@ -353,7 +353,7 @@ func (st *StorageTableLease) AcquireLease(currentLeaseID int64) (int64, bool) {
 	}
 
 	// If row found, then read the lease time property and see if lease has expired.
-	leaseEpoch, ok := st.getLeaseDurationProperty(properties)
+	leaseEpoch, ok := st.getLeaseDurationProperty(entity.Properties)
 	if !ok {
 		return 0, false
 	}
@@ -376,7 +376,7 @@ func (st *StorageTableLease) AcquireLease(currentLeaseID int64) (int64, bool) {
 	}
 
 	updateErr := st.dataStoreShim.UpdateInPartitionWithEtag(
-		datamodel.MasterElectionTableName, st.getPartitionKey(), leaseTableRowKey, etag, props)
+		datamodel.MasterElectionTableName, st.getPartitionKey(), leaseTableRowKey, entity.OdataEtag, props)
 	if updateErr != nil {
 		loggershim.LS.Errorf(
 			"%s: Leasetime update error. %s", utils.TracePrefix(2), updateErr.Error())
@@ -390,8 +390,7 @@ func (st *StorageTableLease) AcquireLease(currentLeaseID int64) (int64, bool) {
 // currentLeaseID - leaseID of the current lease. If lease ID is invalid, function fails
 func (st *StorageTableLease) RevokeLease(currentLeaseID int64) bool {
 	// check if row exists for lease
-	properties, etag, _, err := st.dataStoreShim.QueryInPartitionWithEtagProperties(
-		datamodel.MasterElectionTableName, st.getPartitionKey(), leaseTableRowKey)
+	entity, _, err := st.dataStoreShim.QueryInPartition(datamodel.MasterElectionTableName, st.getPartitionKey(), leaseTableRowKey)
 	if err != nil {
 		loggershim.LS.Errorf(
 			"%s: Failed to query MasterElectionTableName for RevokeLease. %s", utils.TracePrefix(2), err.Error())
@@ -399,7 +398,7 @@ func (st *StorageTableLease) RevokeLease(currentLeaseID int64) bool {
 	}
 
 	// If row found, then read the lease time property and see if lease has expired.
-	leaseEpoch, ok := st.getLeaseDurationProperty(properties)
+	leaseEpoch, ok := st.getLeaseDurationProperty(entity.Properties)
 	if !ok {
 		return false
 	}
@@ -418,7 +417,7 @@ func (st *StorageTableLease) RevokeLease(currentLeaseID int64) bool {
 	// default lease properties are - leaseID = 0 and replica IP address with lease = ""
 	props := st.getLeaseRevokeProperties()
 	updateErr := st.dataStoreShim.UpdateInPartitionWithEtag(
-		datamodel.MasterElectionTableName, st.getPartitionKey(), leaseTableRowKey, etag, props)
+		datamodel.MasterElectionTableName, st.getPartitionKey(), leaseTableRowKey, entity.OdataEtag, props)
 	if updateErr != nil {
 		loggershim.LS.Errorf(
 			"%s: Revoke lease update error. %s", utils.TracePrefix(2), updateErr.Error())

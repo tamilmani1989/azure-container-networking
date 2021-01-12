@@ -69,12 +69,12 @@ func (r *reservationRepo) UpdateReservations(reservations []datamodel.Reservatio
 
 type allocationRepo struct{}
 
-func (r *allocationRepo) QueryIPAllocationsByAllocationID(networkID, subnetName string, allocIDs []string) (map[string]interface{}, *api.JsonErr) {
+func (r *allocationRepo) QueryIPAllocationsByAllocationID(networkID, subnetName string, allocIDs []string) ([]datamodel.AllocationRow, *api.JsonErr) {
 	return datamodel.QueryIPAllocationsByAllocationID(networkID, subnetName, allocIDs)
 }
 
-func (*allocationRepo) TryQueryAllIPAllocations(networkID, subnetName string, pageToken interface{}) (map[string]interface{}, bool, interface{}, *api.JsonErr) {
-	return datamodel.TryQueryAllIPAllocations(networkID, subnetName, pageToken)
+func (*allocationRepo) TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.AllocationRow, *api.JsonErr) {
+	return datamodel.TryQueryAllIPAllocations(networkID, subnetName)
 }
 
 func (*allocationRepo) AddIPAllocations(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr {

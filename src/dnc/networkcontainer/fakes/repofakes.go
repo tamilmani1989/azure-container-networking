@@ -117,36 +117,20 @@ func (f *SubnetRepo) UpdateSubnetReservationSet(networkID, reservationID, alloca
 	return nil
 }
 
-type RepoKV struct {
-	Key   string
-	Value interface{}
-}
-
-// todo: refactor to just use a map for data. fake pagination can be done via sorting and using key as page token
 type AllocationRepo struct {
-	Data        []RepoKV
-	MaxPageSize int
+	Data []datamodel.AllocationRow
 }
 
-func (f *AllocationRepo) QueryIPAllocationsByAllocationID(_, _ string, allocIDs []string) (map[string]interface{}, *api.JsonErr) {
+func (f *AllocationRepo) QueryIPAllocationsByAllocationID(_, _ string, allocIDs []string) ([]datamodel.AllocationRow, *api.JsonErr) {
 	ids := make(map[string]struct{})
 	for _, allocID := range allocIDs {
 		ids[allocID] = struct{}{}
 	}
 
-	results := make(map[string]interface{})
+	var results []datamodel.AllocationRow
 	for _, d := range f.Data {
-		row, ok := d.Value.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		val := row["AllocationID"]
-		allocID, ok := val.(string)
-		if !ok {
-			continue
-		}
-		if _, found := ids[allocID]; found {
-			results[d.Key] = d.Value
+		if _, found := ids[d.AllocationID]; found {
+			results = append(results, d)
 		}
 	}
 	return results, nil
@@ -154,34 +138,22 @@ func (f *AllocationRepo) QueryIPAllocationsByAllocationID(_, _ string, allocIDs 
 
 func (f *AllocationRepo) AddIPAllocations(_, _ string, rows map[string]map[string]interface{}) *api.JsonErr {
 	for rowKey, rowData := range rows {
-		f.Data = append(f.Data, RepoKV{Key: rowKey, Value: rowData})
+		allocID, _ := rowData[datamodel.AllocationIDProperty].(string)
+		ipAlloc, _ := rowData["IPAllocation"].(string)
+
+		row := datamodel.AllocationRow{
+			RowKey:       rowKey,
+			AllocationID: allocID,
+			IPAllocation: ipAlloc,
+		}
+
+		f.Data = append(f.Data, row)
 	}
 	return nil
 }
 
-func (f *AllocationRepo) TryQueryAllIPAllocations(_, _ string, pageToken interface{}) (map[string]interface{}, bool, interface{}, *api.JsonErr) {
-	index := 0
-	if pageToken != nil {
-		idx, ok := pageToken.(int)
-		if !ok {
-			return nil, false, nil, api.InternalServerError(0, "wrong token type")
-		}
-		index = idx
-	}
-	if index > len(f.Data)-1 {
-		return nil, false, nil, nil
-	}
-
-	out := make(map[string]interface{})
-	for ; index < len(f.Data) && len(out) < f.MaxPageSize; index++ {
-		out[f.Data[index].Key] = f.Data[index].Value
-	}
-	var nextPageToken interface{}
-	if index < len(f.Data) {
-		nextPageToken = index
-	}
-
-	return out, nextPageToken != nil, nextPageToken, nil
+func (f *AllocationRepo) TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.AllocationRow, *api.JsonErr) {
+	return f.Data, nil
 }
 
 func (f *AllocationRepo) DeleteIPAllocations(_, _ string, keys []string) *api.JsonErr {
@@ -194,7 +166,7 @@ func (f *AllocationRepo) DeleteIPAllocations(_, _ string, keys []string) *api.Js
 	}
 
 	for i := 0; i < len(f.Data); i++ {
-		if _, found := tbd[f.Data[i].Key]; found {
+		if _, found := tbd[f.Data[i].RowKey]; found {
 			f.Data = append(f.Data[:i], f.Data[i+1:]...)
 			i--
 		}
