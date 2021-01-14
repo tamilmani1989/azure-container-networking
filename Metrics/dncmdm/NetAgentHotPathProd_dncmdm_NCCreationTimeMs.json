@@ -1,0 +1,460 @@
+{
+  "bv": 10,
+  "component": "dncmdm",
+  "computedMetrics": [
+    {
+      "displayName": "Average",
+      "expression": "raw.Sum / (raw.Count || 1)",
+      "expressionEngine": "",
+      "higherNumberIs": null,
+      "id": "Average",
+      "isBuiltIn": true,
+      "minMaxMetricsEnabled": false,
+      "numberSuffix": "",
+      "numberType": null,
+      "percentileConfiguration": null
+    },
+    {
+      "displayName": "NullableAverage",
+      "expression": "raw.Count ? (raw.Sum / raw.Count) : null",
+      "expressionEngine": "",
+      "higherNumberIs": null,
+      "id": "NullableAverage",
+      "isBuiltIn": true,
+      "minMaxMetricsEnabled": false,
+      "numberSuffix": null,
+      "numberType": null,
+      "percentileConfiguration": null
+    },
+    {
+      "displayName": "Rate",
+      "expression": "raw.Sum / 60",
+      "expressionEngine": "",
+      "higherNumberIs": null,
+      "id": "Rate",
+      "isBuiltIn": true,
+      "minMaxMetricsEnabled": false,
+      "numberSuffix": null,
+      "numberType": null,
+      "percentileConfiguration": null
+    },
+    {
+      "displayName": "InSeconds",
+      "expression": "raw.Sum / ( (raw.Count || 1) * 1000 )",
+      "expressionEngine": "",
+      "higherNumberIs": "",
+      "id": "InSeconds",
+      "isBuiltIn": false,
+      "minMaxMetricsEnabled": false,
+      "numberSuffix": "",
+      "numberType": "",
+      "percentileConfiguration": null
+    }
+  ],
+  "deleted": false,
+  "description": "",
+  "dimensions": [
+    {
+      "id": "ContainerType"
+    },
+    {
+      "id": "Device.Browser"
+    },
+    {
+      "id": "Device.BrowserVersion"
+    },
+    {
+      "id": "Device.DeviceModel"
+    },
+    {
+      "id": "Device.DeviceName"
+    },
+    {
+      "id": "Device.OsVersion"
+    },
+    {
+      "id": "Device.RoleInstance"
+    },
+    {
+      "id": "Device.Type"
+    },
+    {
+      "id": "DNCVersion"
+    },
+    {
+      "id": "Location.City"
+    },
+    {
+      "id": "Location.Continent"
+    },
+    {
+      "id": "Location.Country"
+    },
+    {
+      "id": "Location.Province"
+    },
+    {
+      "id": "NetworkContainerID"
+    },
+    {
+      "id": "NodeID"
+    },
+    {
+      "id": "Orchestrator"
+    },
+    {
+      "id": "Region"
+    },
+    {
+      "id": "Session.IsFirst"
+    },
+    {
+      "id": "SubscriptionID"
+    },
+    {
+      "id": "User.IsAuthenticated"
+    },
+    {
+      "id": "VMName"
+    },
+    {
+      "id": "VnetID"
+    },
+    {
+      "id": "Status"
+    },
+    {
+      "id": "AppVersion"
+    },
+    {
+      "id": "ResourceGroup"
+    },
+    {
+      "id": "VMID"
+    }
+  ],
+  "displayName": null,
+  "enableClientEtwPublication": true,
+  "enableClientSideForking": true,
+  "enableClientSideLastSamplingMode": false,
+  "enableClientSidePublication": true,
+  "id": "NCCreationTimeMs",
+  "isFromNewPipeline": true,
+  "isQosMetric": false,
+  "metrics": [
+    {
+      "displayName": "Count",
+      "expression": null,
+      "expressionEngine": null,
+      "higherNumberIs": null,
+      "id": "Count",
+      "isBuiltIn": false,
+      "minMaxMetricsEnabled": false,
+      "numberSuffix": null,
+      "numberType": null,
+      "percentileConfiguration": null
+    },
+    {
+      "displayName": "Sum",
+      "expression": null,
+      "expressionEngine": null,
+      "higherNumberIs": null,
+      "id": "Sum",
+      "isBuiltIn": false,
+      "minMaxMetricsEnabled": false,
+      "numberSuffix": null,
+      "numberType": null,
+      "percentileConfiguration": null
+    }
+  ],
+  "monitors": null,
+  "pendingMetricsOrderingFix": false,
+  "preferQueryMetricsStore": null,
+  "replicationState": 0,
+  "scalingFactor": 1.0,
+  "tenant": "NetAgentHotPathProd",
+  "treatMissingSeriesAsZeros": false,
+  "version": 9,
+  "views": [
+    {
+      "dimensions": [],
+      "displayName": "Total",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": true,
+      "percentileMetricsEnabled": true,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Orchestrator"
+      ],
+      "displayName": "By-Orchestrator",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": true,
+      "percentileMetricsEnabled": true,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Region"
+      ],
+      "displayName": "By-Region",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "DNCVersion"
+      ],
+      "displayName": "By-DNCVersion",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "DNCVersion",
+        "Orchestrator"
+      ],
+      "displayName": "By-Orchestrator-DNCVersion",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Orchestrator",
+        "Region"
+      ],
+      "displayName": "By-Orchestrator-Region",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "VnetID"
+      ],
+      "displayName": "By-VnetID",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "ContainerType"
+      ],
+      "displayName": "By-ContainerType",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": true,
+      "percentileMetricsEnabled": true,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Status"
+      ],
+      "displayName": "By-Status",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": true,
+      "percentileMetricsEnabled": true,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Orchestrator",
+        "Status"
+      ],
+      "displayName": "By-Status-Orchestrator",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "NetworkContainerID"
+      ],
+      "displayName": "By-NetworkContainerID",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "NetworkContainerID",
+        "Orchestrator"
+      ],
+      "displayName": "By-Orchestrator-NetworkContainerID",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Region",
+        "SubscriptionID"
+      ],
+      "displayName": "By-SubscriptionID-Region",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Region",
+        "Status"
+      ],
+      "displayName": "By-Region-Status",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Status",
+        "SubscriptionID"
+      ],
+      "displayName": "By-SubscriptionID-Status",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Orchestrator",
+        "Region",
+        "Status"
+      ],
+      "displayName": "By-Region-Orchestrator-Status",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "NetworkContainerID",
+        "Status"
+      ],
+      "displayName": "By-NetworkContainerID-Status",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "standardDeviationMetricsEnabled": false,
+      "useMetricsStore": true
+    }
+  ]
+}

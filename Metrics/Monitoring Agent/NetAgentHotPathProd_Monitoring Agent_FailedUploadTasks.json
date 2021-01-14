@@ -1,0 +1,165 @@
+{
+  "bv": 10,
+  "component": "Monitoring Agent",
+  "computedMetrics": [
+    {
+      "displayName": "Average",
+      "expression": "raw.Sum / (raw.Count || 1)",
+      "expressionEngine": null,
+      "higherNumberIs": null,
+      "id": "Average",
+      "isBuiltIn": true,
+      "minMaxMetricsEnabled": false,
+      "numberSuffix": null,
+      "numberType": null,
+      "percentileConfiguration": null
+    },
+    {
+      "displayName": "NullableAverage",
+      "expression": "raw.Count ? (raw.Sum / raw.Count) : null",
+      "expressionEngine": null,
+      "higherNumberIs": null,
+      "id": "NullableAverage",
+      "isBuiltIn": true,
+      "minMaxMetricsEnabled": false,
+      "numberSuffix": null,
+      "numberType": null,
+      "percentileConfiguration": null
+    },
+    {
+      "displayName": "Rate",
+      "expression": "raw.Sum / 60",
+      "expressionEngine": null,
+      "higherNumberIs": null,
+      "id": "Rate",
+      "isBuiltIn": true,
+      "minMaxMetricsEnabled": false,
+      "numberSuffix": null,
+      "numberType": null,
+      "percentileConfiguration": null
+    }
+  ],
+  "deleted": false,
+  "description": null,
+  "dimensions": [
+    {
+      "id": "Cluster"
+    },
+    {
+      "id": "EventName"
+    },
+    {
+      "id": "Namespace"
+    },
+    {
+      "id": "Role"
+    },
+    {
+      "id": "Tenant"
+    }
+  ],
+  "displayName": null,
+  "enableClientEtwPublication": true,
+  "enableClientSideForking": true,
+  "enableClientSideLastSamplingMode": false,
+  "enableClientSidePublication": true,
+  "id": "FailedUploadTasks",
+  "isFromNewPipeline": true,
+  "isQosMetric": false,
+  "metrics": [
+    {
+      "displayName": "Count",
+      "expression": null,
+      "expressionEngine": null,
+      "higherNumberIs": null,
+      "id": "Count",
+      "isBuiltIn": false,
+      "minMaxMetricsEnabled": false,
+      "numberSuffix": null,
+      "numberType": null,
+      "percentileConfiguration": null
+    },
+    {
+      "displayName": "Sum",
+      "expression": null,
+      "expressionEngine": null,
+      "higherNumberIs": null,
+      "id": "Sum",
+      "isBuiltIn": false,
+      "minMaxMetricsEnabled": false,
+      "numberSuffix": null,
+      "numberType": null,
+      "percentileConfiguration": null
+    }
+  ],
+  "monitors": null,
+  "pendingMetricsOrderingFix": false,
+  "preferQueryMetricsStore": null,
+  "replicationState": 0,
+  "scalingFactor": 1.0,
+  "tenant": "NetAgentHotPathProd",
+  "treatMissingSeriesAsZeros": false,
+  "version": 2,
+  "views": [
+    {
+      "dimensions": [],
+      "displayName": "Total",
+      "distinctCountColumns": null,
+      "doNotUseCacheServer": true,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Namespace"
+      ],
+      "displayName": "AgentQOSPerNamespace",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Namespace",
+        "Tenant"
+      ],
+      "displayName": "AgentQOSPerTenant",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "useMetricsStore": true
+    },
+    {
+      "dimensions": [
+        "Namespace",
+        "Role",
+        "Tenant"
+      ],
+      "displayName": "AgentQOSPerRole",
+      "distinctCountColumns": [],
+      "doNotUseCacheServer": true,
+      "isFilterBased": false,
+      "isMStoreAggregated": true,
+      "minMaxMetricsEnabled": false,
+      "percentileMetricsEnabled": false,
+      "preaggregateThrottled": false,
+      "rollupsEnabled": false,
+      "useMetricsStore": true
+    }
+  ]
+}

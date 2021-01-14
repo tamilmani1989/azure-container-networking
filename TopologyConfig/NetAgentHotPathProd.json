@@ -1,0 +1,1002 @@
+{
+  "dmsConfiguration": null,
+  "icmConfig": {
+    "connectorId": "7cb1a394-6d49-4b1f-84a1-950926dc781a",
+    "tenantName": "NetAgentHotPathProd",
+    "url": "https://portal.microsofticm.com/Connector2/ConnectorIncidentManager.svc"
+  },
+  "resourceTypeConfigurations": [
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "MetricsNamespace",
+        "KustoQueryName"
+      ],
+      "incidentConfiguration": {
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "tsch",
+      "lastUpdateTime": "2019-04-30T12:08:42-07:00",
+      "name": "KustoToMetricsQos",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 44,
+      "viewConfiguration": {
+        "name": "KustoToMetricsQos",
+        "nodeNames": [
+          "{MetricsNamespace}",
+          "{KustoQueryName}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "Cloud",
+        "Cluster",
+        "ContainerId",
+        "Message"
+      ],
+      "incidentConfiguration": {
+        "environment": "{Cluster}",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "susharm",
+      "lastUpdateTime": "2018-12-13T16:48:20-08:00",
+      "name": "NetAgentInstallationHEalth",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 44,
+      "viewConfiguration": {
+        "name": "NetAgentHealthTree",
+        "nodeNames": [
+          "{Cloud}",
+          "{Cluster}",
+          "{ContainerId}",
+          "{Message}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "Cloud",
+        "Cluster"
+      ],
+      "incidentConfiguration": {
+        "environment": "{Cluster}",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "susharm",
+      "lastUpdateTime": "2018-12-13T17:30:48-08:00",
+      "name": "NetAgentInstallationFailuresByCluster",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 43,
+      "viewConfiguration": {
+        "name": "NetAgentHealthTreeByCluster",
+        "nodeNames": [
+          "{Cloud}",
+          "{Cluster}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "Cloud",
+        "Message"
+      ],
+      "incidentConfiguration": {
+        "environment": "{Cloud}",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "susharm",
+      "lastUpdateTime": "2018-12-13T19:18:09-08:00",
+      "name": "NetAgentInstallationFailureByReason",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 42,
+      "viewConfiguration": {
+        "name": "NetAgentInstallationFailureByReasonTree",
+        "nodeNames": [
+          "{Cloud}",
+          "{Message}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "Tenant",
+        "VMName"
+      ],
+      "incidentConfiguration": {
+        "environment": "{Tenant}",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "susharm",
+      "lastUpdateTime": "2018-12-21T14:33:02-08:00",
+      "name": "HostCallsArethrottled-DNC",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 39,
+      "viewConfiguration": {
+        "name": "HostCallsArethrottled-DNC-HealthTree",
+        "nodeNames": [
+          "{Tenant}",
+          "{VMName}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "Tenant",
+        "VMName"
+      ],
+      "incidentConfiguration": {
+        "environment": "{Tenant}",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "susharm",
+      "lastUpdateTime": "2018-12-21T14:34:45-08:00",
+      "name": "DisassociateFailuresInDNC",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 38,
+      "viewConfiguration": {
+        "name": "DisassociateFailuresInDNC-HealthTree",
+        "nodeNames": [
+          "{Tenant}",
+          "{VMName}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "Tenant",
+        "VMName"
+      ],
+      "incidentConfiguration": {
+        "environment": "{Tenant}",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "susharm",
+      "lastUpdateTime": "2018-12-25T14:00:19-08:00",
+      "name": "DNC-AssociateNetworkContainerFailures",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 37,
+      "viewConfiguration": {
+        "name": "DNC-AssociateNetworkContainerFailures-HealthTree",
+        "nodeNames": [
+          "{Tenant}",
+          "{VMName}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "CPUUsage",
+        "PartitionKey",
+        "ResourceGroupName",
+        "SubscriptionId"
+      ],
+      "incidentConfiguration": {
+        "environment": "PROD",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "tsch",
+      "lastUpdateTime": "2018-10-29T15:10:30-07:00",
+      "name": "DncPartition",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 55,
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "DncEndPoint",
+        "Environment",
+        "PartitionKey",
+        "RunnerInstance"
+      ],
+      "incidentConfiguration": {
+        "environment": "{Environment}",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "tsch",
+      "lastUpdateTime": "2019-01-17T09:30:47-08:00",
+      "name": "DatapathBroken",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": "SwiftMetricByRunnerInstance",
+        "parentResourceTypes": null
+      },
+      "version": 36,
+      "viewConfiguration": {
+        "name": "Canary",
+        "nodeNames": [
+          "{Environment}",
+          "{RunnerInstance}",
+          "{PartitionKey}",
+          "{DncEndPoint}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "WarmPathEnvironment",
+        "WarmPathAccount",
+        "WarmPathNamespace",
+        "AgentVersion",
+        "IdentityListMd5Hash"
+      ],
+      "incidentConfiguration": {},
+      "isSystemResource": false,
+      "lastUpdatedBy": "1411C91225216BA17DEF438736CA49908A32703E",
+      "lastUpdateTime": "2019-07-10T12:58:07-07:00",
+      "metadataProperties": [
+        "Cluster",
+        "Role",
+        "NodeIP",
+        "NodeId",
+        "IsAutoUpdateDisabled",
+        "ConfigVersion",
+        "BinaryVersion"
+      ],
+      "name": "genevamonitoringagents_5077d3d4993a6b8ebe3a6b79cc82b4d7",
+      "onboardActivityLog": false,
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 23,
+      "viewConfiguration": {
+        "name": "GenevaMonitoringAgents-5077d3d4993a6b8ebe3a6b79cc82b4d7",
+        "nodeNames": [
+          "{WarmPathEnvironment}",
+          "{WarmPathAccount}",
+          "{WarmPathNamespace}",
+          "{AgentVersion}",
+          "{Cluster}",
+          "{Role}",
+          "{NodeIP}",
+          "{NodeId}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "WarmPathEnvironment",
+        "WarmPathAccount",
+        "WarmPathNamespace",
+        "AgentVersion",
+        "IdentityListMd5Hash"
+      ],
+      "incidentConfiguration": {},
+      "isSystemResource": false,
+      "lastUpdatedBy": "8A086626C94B976403E08CF454339CEED7154BA9",
+      "lastUpdateTime": "2019-07-10T13:43:39-07:00",
+      "metadataProperties": [
+        "Tenant",
+        "Role",
+        "RoleInstance",
+        "IsAutoUpdateDisabled",
+        "ConfigVersion",
+        "BinaryVersion"
+      ],
+      "name": "genevamonitoringagents_fa6315c04c8b3fca23ddefd0c8bc2b42",
+      "onboardActivityLog": false,
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 23,
+      "viewConfiguration": {
+        "name": "GenevaMonitoringAgents-fa6315c04c8b3fca23ddefd0c8bc2b42",
+        "nodeNames": [
+          "{WarmPathEnvironment}",
+          "{WarmPathAccount}",
+          "{WarmPathNamespace}",
+          "{AgentVersion}",
+          "{Tenant}",
+          "{Role}",
+          "{RoleInstance}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "Location",
+        "PartitionKey",
+        "ResourceGroupName",
+        "SubscriptionId"
+      ],
+      "incidentConfiguration": {
+        "environment": "PROD",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "tsch",
+      "lastUpdateTime": "2019-09-09T13:40:01-07:00",
+      "name": "DNC",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 23,
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "NetworkContainerID",
+        "Status"
+      ],
+      "incidentConfiguration": {},
+      "isSystemResource": false,
+      "lastUpdatedBy": "asdeodha",
+      "lastUpdateTime": "2020-02-12T12:04:58-08:00",
+      "name": "NetworkContainerIDFailed",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 22,
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "NetworkContainerID",
+        "Status"
+      ],
+      "incidentConfiguration": {},
+      "isSystemResource": false,
+      "lastUpdatedBy": "asdeodha",
+      "lastUpdateTime": "2020-02-12T12:14:19-08:00",
+      "name": "NetworkContainerID",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 21,
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "Status"
+      ],
+      "incidentConfiguration": {},
+      "isSystemResource": false,
+      "lastUpdatedBy": "asdeodha",
+      "lastUpdateTime": "2020-02-12T14:06:49-08:00",
+      "name": "NetworkContainerStatus",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 20,
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "TableName"
+      ],
+      "incidentConfiguration": {
+        "environment": "PROD",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "sathyasi",
+      "lastUpdateTime": "2020-02-24T17:15:48-08:00",
+      "name": "DNCDataStoreOperationsTakingTooLongByTableResource",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 18,
+      "viewConfiguration": {
+        "name": "DNCDataStoreOperationsTakingTooLongByTable",
+        "nodeNames": [
+          "{TableName}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "AppVersion",
+        "NCState",
+        "ErrorCode"
+      ],
+      "incidentConfiguration": {
+        "environment": "PROD",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "sathyasi",
+      "lastUpdateTime": "2020-02-28T14:40:21-08:00",
+      "name": "DNCErrorsExceededThresholdResource",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 17,
+      "viewConfiguration": {
+        "name": "DNCErrorsExceededThreshold",
+        "nodeNames": [
+          "{AppVersion}",
+          "{NCState}",
+          "{ErrorCode}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        }
+      ],
+      "identifierProperties": [
+        "DncEndPoint",
+        "Environment",
+        "PartitionKey",
+        "RunnerInstance"
+      ],
+      "incidentConfiguration": {
+        "environment": "{Environment}",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "lastUpdatedBy": "matlong",
+      "lastUpdateTime": "2020-08-25T18:11:38-07:00",
+      "name": "SwiftRunnerNSMMetric",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": "SwiftNSMMetricByRunnerInstance",
+        "parentResourceTypes": null
+      },
+      "version": 9,
+      "viewConfiguration": {
+        "name": "SwiftRunnerNSMMetric",
+        "nodeNames": [
+          "{Environment}",
+          "{RunnerInstance}",
+          "{PartitionKey}",
+          "{DncEndPoint}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        },
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.UnhealthyChildrenHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "conditions": [
+            {
+              "annotation": "",
+              "createIncidentAtChild": false,
+              "forceSeverity": true,
+              "healthStatus": 1,
+              "incidentTitle": "",
+              "numberInsteadOfPercentage": false,
+              "percentageMax": 100,
+              "percentageMin": 0,
+              "severity": 4,
+              "suppressIncident": false,
+              "totalCountMax": 0,
+              "totalCountMin": 0,
+              "unhealthyCountMax": 100,
+              "unhealthyCountMin": 0
+            }
+          ],
+          "suppressIncident": false,
+          "type": 1
+        }
+      ],
+      "identifierProperties": [
+        "RunnerInstance"
+      ],
+      "incidentConfiguration": {
+        "environment": "PROD",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "name": "SwiftMetricByRunnerInstance",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 6,
+      "viewConfiguration": {
+        "name": "SwiftMetricByRunnerInstance",
+        "nodeNames": [
+          "{RunnerInstance}"
+        ]
+      },
+      "watchdogConfigurations": []
+    },
+    {
+      "automationWebhooks": [],
+      "capacity": 0.0,
+      "failureTimeout": 0,
+      "healthExpressions": [
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.AnyFailingWatchdogHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "forceSeverity": false,
+          "severity": 4,
+          "suppressIncident": false,
+          "type": 2
+        },
+        {
+          "$type": "Microsoft.Online.RecoveryService.Contract.Models.UnhealthyChildrenHealthExpression, Microsoft.Online.RecoveryService.Contract",
+          "conditions": [
+            {
+              "annotation": "",
+              "createIncidentAtChild": false,
+              "forceSeverity": true,
+              "healthStatus": 1,
+              "incidentTitle": "",
+              "numberInsteadOfPercentage": false,
+              "percentageMax": 100,
+              "percentageMin": 0,
+              "severity": 4,
+              "suppressIncident": false,
+              "totalCountMax": 0,
+              "totalCountMin": 0,
+              "unhealthyCountMax": 100,
+              "unhealthyCountMin": 0
+            }
+          ],
+          "suppressIncident": false,
+          "type": 1
+        }
+      ],
+      "identifierProperties": [
+        "RunnerInstance"
+      ],
+      "incidentConfiguration": {
+        "environment": "PROD",
+        "routingId": "mdm://acn"
+      },
+      "isSystemResource": false,
+      "name": "SwiftNSMMetricByRunnerInstance",
+      "recoveryRules": [],
+      "shouldEmitHealthMetrics": true,
+      "successTimeout": 0,
+      "tenantName": "NetAgentHotPathProd",
+      "topologyConfiguration": {
+        "dmsTargetResourceName": null,
+        "dmsTargetResourceType": null,
+        "leverageParentHealthStatus": null,
+        "logChildMetrics": false,
+        "parentResourceType": null,
+        "parentResourceTypes": null
+      },
+      "version": 5,
+      "viewConfiguration": {
+        "name": "SwiftNSMMetricByRunnerInstance",
+        "nodeNames": [
+          "{RunnerInstance}"
+        ]
+      },
+      "watchdogConfigurations": []
+    }
+  ],
+  "serviceBusConfiguration": null,
+  "tenant": "NetAgentHotPathProd",
+  "tenantSettings": {
+    "allowAlerting": true,
+    "environment": null,
+    "maximumResourcesCount": 2000000,
+    "routingId": "adrocs://Recovery/NetAgentHotPathProd",
+    "staleArtifactDeletionTime": "1.00:00:00",
+    "tenantName": "NetAgentHotPathProd",
+    "updateIncidentOnSeverityChange": false,
+    "useHealthStore": false,
+    "viewModelPartitionCount": 1
+  },
+  "version": 0
+}

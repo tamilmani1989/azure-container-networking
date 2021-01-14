@@ -1,0 +1,74 @@
+{
+  "bv": 10,
+  "component": "MdmQos",
+  "computedMetrics": null,
+  "deleted": false,
+  "description": null,
+  "dimensions": null,
+  "displayName": null,
+  "enableClientEtwPublication": true,
+  "enableClientSideForking": true,
+  "enableClientSideLastSamplingMode": false,
+  "enableClientSidePublication": true,
+  "id": "ClientAggregatedMetricCount",
+  "isFromNewPipeline": false,
+  "isQosMetric": false,
+  "metrics": null,
+  "monitors": [
+    {
+      "category": "",
+      "conditions": [],
+      "customLinks": [],
+      "customMessage": null,
+      "customTitle": null,
+      "description": "",
+      "desiredConditions": null,
+      "eventIdentifier": {
+        "component": "MdmQos",
+        "id": "ClientAggregatedMetricCount",
+        "tenant": "NetAgentHotPathProd"
+      },
+      "explicitPreAgg": null,
+      "frequency": "00:03:00",
+      "healthyCountToMitigateIncident": 3,
+      "healthyDurationToMitigateIncident": "00:06:00",
+      "hintsLookbackDuration": "1.00:00:00",
+      "id": "MetricsDropped",
+      "ingestionDelay": "00:00:00",
+      "inputResourceType": "",
+      "isDisabled": false,
+      "isRegularMonitor": true,
+      "isSilent": false,
+      "isThrottled": false,
+      "lastUpdatedBy": "internaladmin",
+      "lastUpdateTime": "2020-12-14T17:52:41.4614651Z",
+      "lookbackDuration": "00:10:00",
+      "metadata": [
+        {
+          "metadataKey": "RoutingId",
+          "metadataValue": "mdm://acn"
+        }
+      ],
+      "monitorDataSourceType": 0,
+      "raiseIncientOnMonitorFailure": null,
+      "resourceType": "VirtualMonitor",
+      "severityForMonitorFailure": 0,
+      "shouldMitigateIncident": false,
+      "shouldSendToAutomation": false,
+      "templateSpecificParameters": {
+        "jsSnippet": "JsFileRef:NetAgentHotPathProd_MdmQos_ClientAggregatedMetricCount_MetricsDropped.js"
+      },
+      "templateType": 1,
+      "tenantName": "",
+      "thresholds": [],
+      "version": 3
+    }
+  ],
+  "pendingMetricsOrderingFix": false,
+  "preferQueryMetricsStore": null,
+  "replicationState": 0,
+  "tenant": "NetAgentHotPathProd",
+  "treatMissingSeriesAsZeros": false,
+  "version": 0,
+  "views": null
+}

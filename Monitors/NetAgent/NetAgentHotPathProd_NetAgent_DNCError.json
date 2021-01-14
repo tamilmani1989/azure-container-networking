@@ -1,0 +1,267 @@
+{
+  "bv": 10,
+  "component": "NetAgent",
+  "computedMetrics": null,
+  "deleted": false,
+  "description": null,
+  "dimensions": null,
+  "displayName": null,
+  "enableClientEtwPublication": true,
+  "enableClientSideForking": true,
+  "enableClientSideLastSamplingMode": false,
+  "enableClientSidePublication": true,
+  "id": "DNCError",
+  "isFromNewPipeline": false,
+  "isQosMetric": false,
+  "metrics": null,
+  "monitors": [
+    {
+      "category": "Test",
+      "conditions": [
+        [
+          "CPUUsage",
+          "*",
+          ""
+        ],
+        [
+          "PartitionKey",
+          "*",
+          ""
+        ],
+        [
+          "ResourceGroupName",
+          "*",
+          ""
+        ],
+        [
+          "SubscriptionId",
+          "*",
+          ""
+        ]
+      ],
+      "customLinks": [
+        {
+          "$type": "Microsoft.Online.Metrics.Common.EventConfiguration.DGrepJarvisLink, Microsoft.Online.Metrics.Common",
+          "autoExecute": false,
+          "clientQuery": null,
+          "dGrepEndpoint": "https://dgrepv2-frontend-prod.trafficmanager.net/",
+          "endpointAlias": "Diagnostics PROD",
+          "endTime": "{EndTime}",
+          "eventFilters": [
+            {
+              "isScrubbed": false,
+              "monikerRegex": null,
+              "nameRegex": "DNCReport",
+              "namespaceRegex": "NetAgentCommon",
+              "versionRegex": null
+            }
+          ],
+          "eventInfos": null,
+          "executionDelay": "00:01:00",
+          "identityColumns": {},
+          "jarvisPathAndQuery": "?page=logs&be=DGrep&time={EndTime}&offset=~1&offsetUnit=Hours&ep=Diagnostics%20PROD&ns=NetAgentCommon&en=DNCReport&conditions=[[\"PartitionKey\",\"==\",\"{Monitor.Dimension.PartitionKey}\"]]&scopingConditions=[]&aggregatesVisible=false&aggregates=[]&chartsVisible=false&chartEditorVisible=true&chartType=Line&chartLayers=[[\"New%20Layer\",\"\"]]&UTC=false",
+          "lookback": "02:00:00",
+          "maxResultRowCount": 15,
+          "maxRowCount": 500000,
+          "mdsEndpoint": "https://production.diagnostics.monitoring.core.windows.net/",
+          "preIncidentQueryTimeout": "00:00:50",
+          "serverQuery": "PartitionKey.EqualsI(\"{Monitor.Dimension.PartitionKey}\")",
+          "serverQuerySimpleConditions": [
+            {
+              "comparand": "PartitionKey",
+              "operator": "==",
+              "values": "{Monitor.Dimension.PartitionKey}"
+            }
+          ],
+          "startTime": null,
+          "stepback": "-01:00:00",
+          "title": "2h Error Logs",
+          "type": "DGrep",
+          "uxParameters": [
+            {
+              "key": "aggregatesVisible",
+              "value": false
+            },
+            {
+              "key": "aggregates",
+              "value": []
+            },
+            {
+              "key": "chartsVisible",
+              "value": false
+            },
+            {
+              "key": "chartEditorVisible",
+              "value": true
+            },
+            {
+              "key": "chartType",
+              "value": "Line"
+            },
+            {
+              "key": "chartLayers",
+              "value": [
+                [
+                  "New Layer",
+                  ""
+                ]
+              ]
+            },
+            {
+              "key": "UTC",
+              "value": false
+            }
+          ]
+        }
+      ],
+      "customMessage": "Monitor {Monitor.Id} evaluated DNC partition {Monitor.Dimension.PartitionKey} unhealthy using data from {Monitor.DataStartTime} to {Monitor.DataEndTime}.",
+      "customTitle": "DNC partition {Monitor.Dimension.PartitionKey} is unhealthy",
+      "dashboardName": "",
+      "dashboardNamespace": "",
+      "description": "This monitor will alert whenever a DNC error is received.",
+      "desiredConditions": null,
+      "eventIdentifier": {
+        "component": "NetAgent",
+        "id": "DNCError",
+        "tenant": "NetAgentHotPathProd"
+      },
+      "explicitPreAgg": null,
+      "frequency": "00:30:00",
+      "healthyCountToMitigateIncident": 1,
+      "healthyDurationToMitigateIncident": "00:00:00",
+      "hintsLookbackDuration": "1.00:00:00",
+      "id": "DNCError",
+      "ingestionDelay": "00:00:00",
+      "inputResourceType": "",
+      "isDisabled": false,
+      "isRegularMonitor": true,
+      "isSilent": true,
+      "isThrottled": false,
+      "lastUpdatedBy": "internaladmin",
+      "lastUpdateTime": "2020-12-14T17:53:04.941223Z",
+      "lookbackDuration": "00:40:00",
+      "metadata": [
+        {
+          "metadataKey": "RoutingId",
+          "metadataValue": "mdm://acn"
+        }
+      ],
+      "metricsViewName": "",
+      "monitorActorConfiguration": {
+        "additionalDataForMonitorsEnabled": false,
+        "azureCacheTimeToExclude": "00:00:00",
+        "azureMonitorLatencyConfiguration": null,
+        "baselineConcurrentGetAnomalyCallsV2": 0,
+        "baselineFastServiceUri": null,
+        "baselineFastServiceUriForAzure": null,
+        "baselineIsAnomalyBatchProcessingSize": 0,
+        "baselineServiceUri": null,
+        "baselineServiceUriForAzure": null,
+        "baselineServiceUseQueryService": false,
+        "baselineUiFacingServiceUri": null,
+        "baselineUiFacingServiceUriForAzure": null,
+        "baseReportExpirationTimeInSeconds": 0,
+        "batchReportingMonitor": false,
+        "cacheTimeToExclude": "00:00:00",
+        "cadMaxCombinationsEvaluationThreshold": 0,
+        "certificateIdentifier": null,
+        "certificateThumbprint": null,
+        "combinationDeltaFetchLookback": "00:00:00",
+        "combinationRefreshMinInterval": "00:00:00",
+        "combinationsChunkSizePerConcurrentEvaluateBlock": 0,
+        "consecutiveMonitorTimeoutsForAlerting": 0,
+        "customizeSeverityForMonitorExecutionFailure": false,
+        "debug": false,
+        "disabled": false,
+        "disableMetricDataInAlerts": false,
+        "dqConcurrencyConfiguration": null,
+        "dynamicThresholdMaxCombinationsEvaluationThreshold": 0,
+        "enableCombinationsThrottlingForCad": false,
+        "enableCostReporting": false,
+        "enableDictionaryBasedMetricsSourceMatching": false,
+        "enableGroupingByCommonDimensions": false,
+        "enableHealthMonitors": false,
+        "enableMonitorTimeoutAlerts": false,
+        "enableQueryServiceQosMetricSupport": false,
+        "enableSelectPreaggregate": false,
+        "enableSubmitMetricsFromJs": false,
+        "enableThrowInvalidSeriesExceptionInMetricFetch": false,
+        "evaluatorTimeout": "00:00:00",
+        "fetchDeltaHints": false,
+        "hasUserConfigCacheTimeToExclude": null,
+        "hintLookbackDuration": "00:00:00",
+        "includeTimeSeriesInformationInWatchdogMetadata": false,
+        "isThirdPartyStamp": false,
+        "kenshoServiceUri": null,
+        "logCombinationsInfo": false,
+        "maxBufferSizeForRetrievedData": 0,
+        "maxCombinationsCountPerPartition": 0,
+        "maxCombinationsEvaluationThreshold": 0,
+        "maxCombinationsForDataSources": 0,
+        "maxCombinationsForHintingRetrieval": 0,
+        "maxCombinationsForMetricSources": 0,
+        "maxConcurrentRetrieveOperations": 0,
+        "maxDegreeOfParallelismForEvaluateBlock": 0,
+        "maxFetchMetricsInJs": 0,
+        "minCombinationsCountToRequirePartition": 0,
+        "notQueryMetricsSourceCombinationIfNoWildcard": false,
+        "overrideHealthDataValidation": false,
+        "overrideMetricDataValidation": false,
+        "partnerClientCertificateIdentifier": null,
+        "preferMetricsStore": false,
+        "preventCombinationsOverwriteByDeltaRefresh": false,
+        "previewWithHistoricData": false,
+        "removeExtraIngestionDelayInExecution": false,
+        "removeExtraQueryComparison": false,
+        "resourceTypeOverride": null,
+        "treatInheritNotAsWildcard": false,
+        "useAccountMigrationSupport": false,
+        "useDefaultAzureMonitorLatency": false,
+        "useExpressionEngineInBaseline": false,
+        "useHealthService": false,
+        "useInternalHintingApi": false,
+        "useLatestQueryRequestSerializationVersion": false,
+        "useLimitForHintingRetrieval": false,
+        "useLowLatencyPipelineDataQualityForAzureMonitor": false,
+        "useMetricsStoreMigrationSupport": false,
+        "useNewHintingApi": false,
+        "useNewMonitorTemplateInterface": false,
+        "useNewMonitorTemplateInterfaceForDynamicThreshold": false,
+        "useOptimizedMetricFetch": false,
+        "useQueryServiceBatching": false,
+        "useQueryServiceBatchingForJs": false,
+        "useQueryServiceForCrossStampQuery": false,
+        "useQueryServiceInMdmDataQualityClient": false,
+        "useResolutionForAnomalyTimeWindowLookback": false,
+        "zeroAsNoValueSentinel": false
+      },
+      "monitorDataSourceType": 0,
+      "raiseIncientOnMonitorFailure": null,
+      "resourceType": "DncPartition",
+      "severityForMonitorFailure": 0,
+      "shouldMitigateIncident": true,
+      "shouldSendToAutomation": false,
+      "templateSpecificParameters": {
+        "metric": "Count"
+      },
+      "templateType": 2,
+      "tenantName": "",
+      "thresholds": [
+        {
+          "comparator": ">",
+          "healthStatus": 2,
+          "severity": 4,
+          "value": 2.0
+        }
+      ],
+      "version": 24
+    }
+  ],
+  "pendingMetricsOrderingFix": false,
+  "preferQueryMetricsStore": null,
+  "replicationState": 0,
+  "tenant": "NetAgentHotPathProd",
+  "treatMissingSeriesAsZeros": false,
+  "version": 0,
+  "views": null
+}

@@ -1,0 +1,132 @@
+{
+  "allSeriesThrottleLimit": 480000,
+  "apPkiAcls": [
+    {
+      "acl": "APMF\\AzOrchestrator.*. *",
+      "description": "",
+      "role": "ReadOnly"
+    }
+  ],
+  "autoPreAggWarmPathMappings": [],
+  "certificates": [
+    {
+      "description": "AzDeployer-test-matlong",
+      "role": "ReadOnly",
+      "thumbprint": "8F22B244F93CE8BD76C5D21B74FE780383791360"
+    },
+    {
+      "description": "AzDeployer",
+      "role": "ReadOnly",
+      "thumbprint": "9A3C29B3E040FE52ABF5628F826C79E990DAD01C"
+    },
+    {
+      "description": "susrini prod4 LiveSite",
+      "role": "ConfigurationEditor",
+      "thumbprint": "8A086626C94B976403E08CF454339CEED7154BA9"
+    }
+  ],
+  "clientMetricCountPerMinuteLimit": 50000000,
+  "cloudReplicationType": "Public",
+  "contributors": [
+    {
+      "alias": "matlong",
+      "role": "Administrator"
+    },
+    {
+      "alias": "vivekagg",
+      "role": "Administrator"
+    },
+    {
+      "alias": "shchen",
+      "role": "Administrator"
+    },
+    {
+      "alias": "paujohns",
+      "role": "Administrator"
+    },
+    {
+      "alias": "caggar",
+      "role": "Administrator"
+    },
+    {
+      "alias": "asdeodha",
+      "role": "Administrator"
+    },
+    {
+      "alias": "tamanoha",
+      "role": "Administrator"
+    },
+    {
+      "alias": "tsch",
+      "role": "Administrator"
+    }
+  ],
+  "deleted": false,
+  "description": null,
+  "displayName": null,
+  "dsmsAcls": [
+    {
+      "acl": "c838f35086314cff2042b8d7e6d66aa5.metricsclient.geneva.core.usgovcloudapi.net",
+      "description": "/genevacustomers/monitoring/hotpath/fairfax/netagenthotpathprod/certificates/chained/netagentfairfaxcert.pfx",
+      "role": "MetricPublisher"
+    },
+    {
+      "acl": "b6753631d4471174a8cb66f86b3b3116.metricsclient.geneva.core.windows.net",
+      "description": "/genevacustomers/monitoring/warmpath/public/diagnosticsprod/netagent/certificates/chained/netagentmdscert.pfx",
+      "role": "Administrator"
+    },
+    {
+      "acl": "d898d63e87b5436eb7dc941a34bd834f.metricsclient.geneva.core.windows.net",
+      "description": "/genevacustomers/monitoring/hotpath/public/runnerservice/certificates/chained/runnersvcprodhealthcert.pfx",
+      "role": "MetricPublisher"
+    },
+    {
+      "acl": "b54a99cfb8e1c129c3e6a41452bec8fa.metricsclient.geneva.core.windows.net",
+      "description": "/genevacustomers/monitoring/prod/warmpath/diagnosticsprod/vnetmds/certificates/chained/vnetdsmdscert.pfx",
+      "role": "Administrator"
+    }
+  ],
+  "endpointForAlternateQuery": null,
+  "endpointForClientForking": "",
+  "endpointsForClientForking": [],
+  "globalSamplesThrottlingLimitThousandsPerMinute": null,
+  "globalSamplesWithHistogramThrottlingLimitThousandsPerMinute": null,
+  "homeStampGslbHostname": "an3.metrics.nsatc.net",
+  "isThirdPartyAccount": false,
+  "keyVaultAcls": [
+    {
+      "acl": "NetAgentHotPathProd.Health-1.automation.geneva.keyvault.com",
+      "description": "HealthConnector",
+      "role": "MetricPublisher"
+    }
+  ],
+  "lastUpdatedBy": "matlong",
+  "lastUpdateTime": "2020-12-21T16:12:25.0816166Z",
+  "maxMetricAge": "00:00:00",
+  "metricsStoreMigrationTimeUtcExceptPercentileDistinctCount": "2020-12-10T10:00:00-08:00",
+  "metricsStoreTimeSeriesThrottlingLimit": 5000000,
+  "mirrorAccountSyncFlagsTable": {},
+  "mirrorMonitoringAccountList": [],
+  "nameToIdMapForSecurityGroups": {
+    "redmonD\\admetricsadm": "d9333179-bb27-4285-828d-e73376daa8a6"
+  },
+  "newSeriesThrottleLimit": 400000,
+  "operationToGlobalThresholdWithFallback": {
+    "entries": {},
+    "fallbackValue": 0
+  },
+  "operationToLocalThresholdWithFallback": {
+    "entries": {},
+    "fallbackValue": 0
+  },
+  "preaggregateMergingEnabled": false,
+  "preferNewPreaggregateOnMetricsStore": true,
+  "priorHomeStampUrl": "https://prod4.metrics.nsatc.net",
+  "replicationState": 0,
+  "securityGroups": {
+    "amE\\AD-NET-AzureVMNetworkAgent": "Administrator"
+  },
+  "stampMigrationTime": "2020-12-15T07:00:00Z",
+  "tenant": "NetAgentHotPathProd",
+  "version": 39
+}
