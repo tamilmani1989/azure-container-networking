@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: image-cleanup
+  labels:
+    app: image-cleanup
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      name: image-cleanup
+  template:
+    metadata:
+      labels:
+        name: image-cleanup
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+        - name: image-cleanup-tool
+          image: {{ .Values.imagecleanup.repository }}:{{ .Values.imagecleanup.tag }}
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: docker-socket
+              mountPath: "/var/run/docker.sock"
+      volumes:
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock

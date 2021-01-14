@@ -1,0 +1,33 @@
+# Values for nonprod
+
+gcs_environment: DiagnosticsProd
+gcs_account: AzureContainerNetworking
+gcs_region: centralus
+gcs_namespace: AzureContainerNetworking
+gcs_config_version: "1.6" # Use string here otherwise helm will convert 1.0 to 1
+azsecpack_eventversion: 1
+azsecpackmoniker: azurecontainernetworkingsecurity
+# Leave metric_endpoint commented out for PROD environment. Uncomment it for INT environment.
+# metricEndpoint: https://az-int.metrics.nsatc.net/
+
+# You should override these with the latest version of the Geneva images available here:
+# https://genevamondocs.azurewebsites.net/collect/references/linuxcontainers.html
+mdsd:
+  repository: acndev.azurecr.io/genevamdsd
+  tag: master_20201210.1
+
+fluentd:
+  repository: acndev.azurecr.io/genevafluentd_td-agent
+  tag: master_20201210.1
+
+mdm:
+  repository: acndev.azurecr.io/genevamdm
+  tag: master_20201210.1
+
+secpack:
+  repository: acndev.azurecr.io/genevasecpackinstall
+  tag: master_20201210.1
+
+imagecleanup:
+  repository: acndev.azurecr.io/image-cleanup-tool
+  tag: "01132021"

@@ -1,0 +1,248 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-conf
+data:
+  fluentd.conf: {{ .Files.Get "config/fluentd.conf" | quote }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mdsd-auth
+type: Opaque
+data:
+  gcscert.pem: {{ .Values.gcscert.pem | b64enc }}
+  gcskey.pem: {{ .Values.gcskey.pem | b64enc }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mdm-auth
+type: Opaque
+data:
+  mdm-cert.pem: {{ .Values.gcscert.pem | b64enc }}
+  mdm-key.pem: {{ .Values.gcskey.pem | b64enc }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azsecpack-auth
+type: Opaque
+data:
+  azsecpack-cert.pem: {{ .Values.gcscert.pem | b64enc }}
+  azsecpack-key.pem: {{ .Values.gcskey.pem | b64enc }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: geneva-services
+  labels:
+    app: geneva-services
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      name: geneva-services
+  template:
+    metadata:
+      labels:
+        name: geneva-services
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      hostNetwork: true
+      containers:
+        # MDSD
+        - name: mdsd
+          image: {{ .Values.mdsd.repository }}:{{ .Values.mdsd.tag }}
+          env:
+          - name: TENANT
+            value: {{ .Values.gcs_region | quote }}
+          - name: ROLE
+            value: {{ .Values.gcs_account | quote }}
+          - name: ROLEINSTANCE
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: MONITORING_TENANT
+            value: {{ .Values.gcs_region | quote }}
+          - name: MONITORING_ROLE
+            value: {{ .Values.gcs_account | quote }}
+          - name: MONITORING_ROLE_INSTANCE
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: MONITORING_GCS_ENVIRONMENT
+            value: {{ .Values.gcs_environment | quote }}
+          - name: MONITORING_GCS_ACCOUNT
+            value: {{ .Values.gcs_account | quote }}
+          - name: MONITORING_GCS_REGION
+            value: {{ .Values.gcs_region | quote }}
+          - name: MONITORING_GCS_NAMESPACE
+            value: {{ .Values.gcs_namespace | quote }}
+          - name: MONITORING_CONFIG_VERSION
+            value: {{ .Values.gcs_config_version | quote }}
+          - name: DOCKER_LOGGING
+            value: "true"
+          volumeMounts:
+            - name: mdsd-auth-vol
+              mountPath: /geneva/geneva_auth
+            - name: var-log-vol
+              mountPath: /geneva/geneva_logs
+            - name: mdsd-run-vol
+              mountPath: /var/run/mdsd
+        # FluentD
+        - name: fluentd
+          image: {{ .Values.fluentd.repository }}:{{ .Values.fluentd.tag }}
+          env:
+            - name: FLUENTD_CONF
+              value: /etc/fluentd/fluentd.conf
+          volumeMounts:
+            - name: fluentd-conf-vol
+              mountPath: /etc/fluentd
+            - name: fluentd-buffer-vol
+              mountPath: "/var/log/td-agent"
+            - name: mdsd-run-vol
+              mountPath: "/var/run/mdsd"
+            - name: docker-log-vol
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: var-log-vol
+              mountPath: /var/log
+            - name: run-journal-vol
+              mountPath: /run/log/journal
+              readOnly: true
+        # MDM
+        - name: mdm
+          image: {{ .Values.mdm.repository }}:{{ .Values.mdm.tag }}
+          env:
+          - name: MDM_ACCOUNT
+            value: {{ .Values.gcs_account | quote }}
+          {{ if .Values.metricEndpoint }}
+          - name: METRIC_ENDPOINT
+            value: {{ .Values.metricEndpoint | quote }}
+          {{ end }}
+          - name: MDM_INPUT
+            value: statsd_udp
+          - name: MDM_LOG_LEVEL
+            value: "Info"
+          volumeMounts:
+            - name: mdm-auth-vol
+              mountPath: /tmp/geneva_mdm
+        # This container will initialize and start the Azure Security Pack
+        # on the host machine and validate that it is running.  It will fail
+        # if it can not run correctly
+        - name: azsecpack-initializer
+          image: {{ .Values.secpack.repository }}:{{ .Values.secpack.tag }}
+          imagePullPolicy: Always
+          env:
+            - name: AzSecPack_GCS_cert
+              value: /secrets/azsecpack-cert.pem
+            - name: AzSecPack_GCS_key
+              value: /secrets/azsecpack-key.pem
+            - name: AzSecPack_GCS_Environment
+              value: {{ .Values.gcs_environment | quote }}
+            - name: AzSecPack_GCS_Account
+              value: {{ .Values.gcs_account | quote }}
+            - name: AzSecPack_EventVersion
+              value: {{ .Values.azsecpack_eventversion | quote }}
+            - name: AzSecPack_Timestamp
+              value: '2019-01-28T00:00:00Z'
+            - name: AzSecPack_Namespace
+              value: {{ .Values.gcs_namespace | quote }}
+            - name: AzSecPack_Moniker
+              value: {{ .Values.azsecpackmoniker | quote }}
+            - name: AzSecPack_Tenant
+              value: {{ .Values.gcs_region | quote }}
+            - name: AzSecPack_Role
+              value: {{ .Values.gcs_account | quote }}
+            - name: AzSecPack_RoleInstance
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: AzSecPack_MachineName
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+              # This needs to be set to 1 in order to not exit the container
+              # unless there is an error or the AzSecPack fails
+            - name: AzSecPack_MonitorForFailure
+              value: '1'
+          volumeMounts:
+            - mountPath: /host
+              name: azsecpack-host
+              readOnly: false
+            - mountPath: /secrets
+              name: azsecpack-auth-vol
+      volumes:
+        - name: mdsd-run-vol
+          emptyDir: {}
+        - name: mdsd-auth-vol
+          secret:
+            secretName: mdsd-auth
+        - name: fluentd-conf-vol
+          configMap:
+            name: fluentd-conf
+        - name: fluentd-buffer-vol
+          emptyDir: {}
+        - name: mdm-auth-vol
+          secret:
+            secretName: mdm-auth
+        - name: azsecpack-host
+          hostPath:
+            path: /
+        - name: azsecpack-auth-vol
+          secret:
+            secretName: azsecpack-auth
+        - name: docker-log-vol
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: run-journal-vol
+          hostPath:
+            path: /run/log/journal
+        - name: var-log-vol
+          hostPath:
+            path: /var/log
+        - name: etw-vol
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: geneva-services
+  labels:
+    app: geneva-services
+spec:
+  type: ClusterIP
+  ports:
+    - name: mdm-statsd-udp
+      protocol: UDP
+      port: 8125
+      targetPort: 8125
+  selector:
+    name: geneva-services
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: geneva-reader
+rules:
+- apiGroups: [""]
+  resources: ["pods", "namespaces"]
+  verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: geneva-read-global
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: geneva-reader
+  apiGroup: rbac.authorization.k8s.io
