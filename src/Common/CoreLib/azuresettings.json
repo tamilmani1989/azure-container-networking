@@ -15,6 +15,14 @@
     "dogfood": "https://api-dogfood-admin.resources.windows-int.net",
     "ppe": "https://management.azure.com" //Pre production environment in first party portal
   },
+  "CosmosDbEndpoints": {
+    "azurecloud": "https://{0}.documents.azure.com",
+    "azurechinacloud": "https://{0}.documents.azure.cn",
+    "azureusgovernment": "https://{0}.documents.azure.us",
+    "azuregermancloud": "https://{0}.documents.cloudapi.de",
+    "dogfood": "https://{0}.documents.azure.com", // todo: see if there is a dogfood environment
+    "ppe": "https://{0}.documents.azure.com" // todo: see if there is a ppe environment
+  },
   "AzureEnvironments": [
     "azurecloud",
     "azurechinacloud",

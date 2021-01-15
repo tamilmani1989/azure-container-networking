@@ -18,6 +18,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         private static IConfigurationRoot config;
         private const string settingsFileName = "azuresettings.json";
         private const string armEndpoints = "ArmEndpoints";
+        private const string cosmosDbEndpoints = "CosmosDbEndpoints";
         private const string azureEnvironments = "AzureEnvironments";
         private const string azureAdInstances = "AzureAdInstances";
 
@@ -63,12 +64,36 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         {
             if (string.IsNullOrEmpty(azureEnvironment))
             {
-                throw new ArgumentNullException("azureEnvironment is set as null or empty");
+                throw new ArgumentNullException(nameof(azureEnvironment));
             }
 
             try
             {
                 return config.GetSection(armEndpoints).GetSection(azureEnvironment).Value;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidAzureEnvironmentException($"Invalid environment {azureEnvironment}, exception: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Gets the CosmosDB endpoint for a given Azure environment
+        /// </summary>
+        /// <param name="azureEnvironment"></param>
+        /// <returns>CosmosDB endpoint in templated form e.g. https://{0}.documents.azure.com,
+        /// where {0} represents the account name.</returns>
+        public static string GetCosmosDbEndpoint(
+            string azureEnvironment)
+        {
+            if (string.IsNullOrEmpty(azureEnvironment))
+            {
+                throw new ArgumentNullException(nameof(azureEnvironment));
+            }
+
+            try
+            {
+                return config.GetSection(cosmosDbEndpoints).GetSection(azureEnvironment).Value;
             }
             catch (Exception ex)
             {
@@ -87,7 +112,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         {
             if (string.IsNullOrEmpty(azureEnvironment))
             {
-                throw new ArgumentNullException("azureEnvironment is set as null or empty");
+                throw new ArgumentNullException(nameof(azureEnvironment));
             }
 
             try

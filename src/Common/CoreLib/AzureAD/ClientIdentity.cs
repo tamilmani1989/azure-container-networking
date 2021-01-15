@@ -5,6 +5,8 @@
 //
 // -----------------------------------------------------------------------------
 
+using System.Collections.Generic;
+
 namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
     /// <summary>
@@ -15,7 +17,8 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         Unknown = 0,
         ManagedIdentity,
         SpClientSecret,
-        SpClientCertificate
+        SpClientCertificate,
+        Developer
     }
 
     /// <summary>
@@ -34,11 +37,13 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
     /// Identity of client to request token from AzureAD
     /// For ManagedIdentity -
     ///     No parameter is mandatory for managed. App ID can be passed in and is recommended but is optional.
-    /// For ServicePrincipalAppKey -
+    /// For SpClientSecret -
     ///     AppId, TenantId, AppKey is needed. Only exception is when key is fetched from KeyVault.
     ///     In that case AppKey won't be validated.
-    /// For ServicePrincipalClientCertificate -
+    /// For SpClientCertificate -
     ///     AppId, TenantId, KeyVaultCertPath is needed. Certificate has to be stored in KeyVault
+    /// For Developer -
+    ///     DeveloperTool is set to DeveloperTool (AzureCli or VisualStudio)
     /// </summary>
     public class ClientIdentity
     {
@@ -70,6 +75,20 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         public ClientIdentityTags Tag
         {
             get; set;
+        }
+
+        public string DeveloperTool
+        {
+            get; set;
+        }
+    }
+
+    public class ClientIdentityCollection
+    {
+        public IReadOnlyCollection<ClientIdentity> Identities
+        {
+            get;
+            set;
         }
     }
 }

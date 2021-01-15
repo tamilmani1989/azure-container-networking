@@ -8,7 +8,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
-    using System.Collections.Generic;
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
 
     public static class ExtensionMethods
     {

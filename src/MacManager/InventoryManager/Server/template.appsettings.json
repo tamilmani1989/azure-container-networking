@@ -1,0 +1,22 @@
+{
+  "DataStoreSettings": {
+    "SubscriptionId": "__SubscriptionId__",
+    "ResourceGroup": "__ResourceGroup__",
+    "DBAccountName": "__RpCosmosDbAccountName__"
+  },
+  "AzureSettings": {
+    "AzureEnvironment": "azurecloud"
+  },
+  "ClientIdentities": [
+    {
+      "IdentityType": "ManagedIdentity", // this comes from ClientIdentityType enum in CoreLib
+      "AppId": "__ClusterClientId__",
+      "Tag": "ManagedIdentity" // this comes from ClientIdentityTags enum in CoreLib
+    }
+  ],
+  "KeyVault": {
+    "Url": "https://__RegionalKeyVaultName__.vault.azure.net",
+    "SslCertName": "MacInventoryManagerSslCert3"
+  },
+  "Port": "5004"
+}

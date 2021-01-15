@@ -269,6 +269,15 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
                 connectionString = string.Format(TokenProviderConnectionStringFormats.ServicePrincipalAppKeyFormat,
                     clientIdentity.AppId, clientIdentity.TenantId, clientIdentity.AppKey);
             }
+            else if (clientIdentity.IdentityType == ClientIdentityType.Developer)
+            {
+                if (string.IsNullOrWhiteSpace(clientIdentity.DeveloperTool))
+                {
+                    throw new ArgumentNullException(nameof(clientIdentity.DeveloperTool));
+                }
+
+                connectionString = $"RunAs=Developer;DeveloperTool={clientIdentity.DeveloperTool}";
+            }
             else
             {
                 throw new NotSupportedException($"identity type {clientIdentity.IdentityType} is not supported yet");
