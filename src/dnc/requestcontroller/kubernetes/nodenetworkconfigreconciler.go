@@ -8,6 +8,7 @@ import (
 	"dnc/requestcontroller"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -412,7 +413,7 @@ func (n *NodeNetworkConfigReconciler) getNCIDFromNodeID(nodeID string) (string, 
 		if err != nil {
 			var respErr *api.JsonErr
 			if errors.As(err, &respErr) {
-				if respErr.Code == api.NodeNotFound {
+				if respErr.HTTPStatus == http.StatusNotFound {
 					// Node isn't found, so NC isn't found
 					return "", nil
 				}
