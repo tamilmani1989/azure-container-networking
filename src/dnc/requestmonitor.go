@@ -342,6 +342,85 @@ Cleanup:
 	return markProcessingFailed, nil
 }
 
+// This function is to asynchronously handle IP Cleanup, by creating pubsub jobs that will be monitored by an separate
+// thread https://microsoft.sharepoint.com/:w:/t/Aznet/Ecr_mfKAJkRNsYVroicYfTYB5rps-2PVcF7wAqoZhQ3StQ?e=9ZVzBX
+func processPrepareCleanup(
+	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	var (
+		//failureDetail        *api.JsonErr
+		markProcessingFailed bool
+	)
+
+	// Get SessionInfo, taking a lock on the Reservation ID
+	sessionInfo := map[string]string{
+		datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
+	}
+
+	// get reservation
+	repoReservation, err := datamodel.TryQueryIPReservation(
+		repoNCConfig.NetworkID,
+		repoNCConfig.ReservationID)
+	if err != nil {
+		return false, err
+	}
+
+	if repoReservation == nil {
+		msg := fmt.Sprintf(
+			"Failed to retrieve IP reservation during PrepareCleanup for NCID %v",
+			repoNCConfig.NetworkContainerID,
+		)
+		return true, &api.JsonErr{
+			Code:       api.PrepareCleanupFailed,
+			Text:       msg,
+			HTTPStatus: http.StatusInternalServerError,
+		}
+	}
+
+	// Acquire Node lock if the ContainerType is WebApps
+	if repoNCConfig.GetAssociationInfo().ContainerType == cns.WebApps {
+		sessionInfo[datamodel.NodeRepositoryName] = repoNCConfig.GetAssociationInfo().NodeID
+	}
+
+	// retrieve NCGoalState for pubsub job creation
+	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
+	if ncGoalStateErr != nil {
+		if isRetriableError {
+			return false, ncGoalStateErr
+		}
+
+		repoNCConfig.Status = datamodel.Failed
+		repoNCConfig.FailureDetail = *ncGoalStateErr
+		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+	}
+
+	// Create PubSub Proxy job
+	// TODO: Persist this in state to access in Publish
+	if config.PubSubProxySettings.EnablePubSubProxy {
+		// Update IP Allocations Table with ToBeDeletedOwner ID, where ID is the NCID
+		// Note: don't delete the ToBeDeletedIP's from the NC here, only updating the IPAllocations table
+
+		ipsPendingCleanup := repoNCConfig.RequestV2.ToBeDeletedIPIds
+
+		// if the NC is marked for delete, also cleanup the primary IP
+		if repoNCConfig.MarkedForDelete {
+			ipsPendingCleanup = append(ipsPendingCleanup, strings.Split(ncGoalState.AllocatedIPSubnet, "/")[0])
+		}
+
+		if len(repoNCConfig.RequestV2.ToBeDeletedIPIds) > 0 {
+			if err := ipAllocator.MarkAllocationAsPendingCleanup(*repoReservation, ipsPendingCleanup); err != nil {
+				return false, err
+			}
+		}
+
+		// TODO: call new PubSub API and edit this logging line
+		logger.Debugf("Creating PrepareCleanup PubSubProxy job for", ncGoalState.NetworkContainerID)
+	}
+
+	// TODO call new pubsub api's to create jobs https://msazure.visualstudio.com/One/_workitems/edit/8992968/?workitem=9078044
+	// exit
+	return markProcessingFailed, nil
+}
+
 func processNetworkContainerReserve(
 	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	var (
@@ -1686,6 +1765,9 @@ func processNetworkContainerRequest(
 			} else {
 				removeRequestFromPendingQueue, err = processNetworkContainerReserve(repoNCConfig)
 			}
+
+		case datamodel.PrepareCleanup:
+			removeRequestFromPendingQueue, err = processPrepareCleanup(repoNCConfig)
 
 		case datamodel.AllocateLocalIP:
 			removeRequestFromPendingQueue, err = processAllocateLocalIP(repoNCConfig)

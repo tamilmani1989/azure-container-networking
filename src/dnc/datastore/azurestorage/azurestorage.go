@@ -271,6 +271,33 @@ func (a *AzureStorage) DeleteBatch(tableName, partitionKey string, rowKeys []str
 	return batch.ExecuteBatch()
 }
 
+// TODO: add test for MergeBatch function https://msazure.visualstudio.com/One/_workitems/edit/9077936
+// TODO: handle ETags for Merge https://msazure.visualstudio.com/One/_workitems/edit/9132517
+// If the entity's ETag differs from that specified with the merge request, the merge operation fails with status
+// code 412 (Precondition Failed). This error indicates that the entity has been changed on the server since it was
+// retrieved. To resolve this error, retrieve the entity again and reissue the request.
+func (a *AzureStorage) MergeBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error {
+	if len(batchItems) > a.maxBatchSize {
+		return fmt.Errorf("batch size %d exceeds limit of %d", len(batchItems), a.maxBatchSize)
+	}
+
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
+	if !ok {
+		return fmt.Errorf("cannot find valid table client for table %s", tableName)
+	}
+
+	table := tableClient.GetTableReference(tableName)
+
+	batch := table.NewBatch()
+	for rowKey, rowProperties := range batchItems {
+		entity := table.GetEntityReference(partitionKey, rowKey)
+		entity.Properties = rowProperties
+		batch.MergeEntity(entity)
+	}
+
+	return batch.ExecuteBatch()
+}
+
 // Query - Query a row in a given table.
 func (a *AzureStorage) Query(tableName, rowKey string) (*storage.Entity, int, error) {
 	defer a.recordProcessingTime(time.Now(), "Query", tableName, a.partitionKey, rowKey)

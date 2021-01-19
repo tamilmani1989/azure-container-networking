@@ -152,6 +152,10 @@ func (f *AllocationRepo) AddIPAllocations(_, _ string, rows map[string]map[strin
 	return nil
 }
 
+func (f *AllocationRepo) MarkIPAllocationsAsPendingCleanup(_, _ string, _ map[string]map[string]interface{}) *api.JsonErr {
+	return nil
+}
+
 func (f *AllocationRepo) TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.AllocationRow, *api.JsonErr) {
 	return f.Data, nil
 }

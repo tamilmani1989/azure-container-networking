@@ -23,6 +23,7 @@ type DataStoreShim interface {
 	InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error
 	InsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
 	UpsertBatch(tableName string, batchItems map[string]map[string]interface{}) error
+	MergeBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
 	UpdateInPartition(tableName, partitionKay, rowKey string, properties map[string]interface{}) error
 	UpdateInPartitionWithEtag(tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error
 	Delete(tableName, rowKey string) error

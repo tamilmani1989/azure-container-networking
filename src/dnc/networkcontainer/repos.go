@@ -38,5 +38,6 @@ type IPAllocationRepo interface {
 	TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.AllocationRow, *api.JsonErr)
 	QueryIPAllocationsByAllocationID(networkID, subnetName string, allocIDs []string) ([]datamodel.AllocationRow, *api.JsonErr)
 	AddIPAllocations(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr
+	MarkIPAllocationsAsPendingCleanup(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr
 	DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr
 }

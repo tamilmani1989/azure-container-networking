@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	ipAllocProperty = "IPAllocation"
-	allocIDProperty = "AllocationID"
+	ipAllocProperty     = "IPAllocation"
+	allocIDProperty     = "AllocationID"
+	toBeDeletedProperty = "ToBeDeletedOwner"
 )
 
 // IPAllocator can process different types of IP allocations for network containers
@@ -464,6 +465,34 @@ func (a *IPAllocator) saveAllocationBatch(vnetID, subnetName string, batchMap ma
 		if err := a.Allocations.AddIPAllocations(vnetID, subnetName, batches[i]); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (a *IPAllocator) MarkAllocationAsPendingCleanup(res datamodel.ReservationConfiguration, allocationIDs []string) *api.JsonErr {
+	batch := make(map[string]map[string]interface{})
+
+	allocIDsToDelete := make(map[string]struct{})
+	for _, allocID := range allocationIDs {
+		allocIDsToDelete[allocID] = struct{}{}
+	}
+
+	var rowKeys []string
+	for allocID := range allocIDsToDelete {
+		if ipAddress, found := res.SecondaryAllocations[allocID]; found {
+			rowKey := datamodel.EncodeIPAllocationKey(ipAddress)
+			rowKeys = append(rowKeys, rowKey)
+		}
+	}
+
+	// need to update the table with the NCID in the toBeDeletedProperty column
+	for _, rowKey := range rowKeys {
+		batch[rowKey] = map[string]interface{}{toBeDeletedProperty: res.AssociatedNCID}
+	}
+
+	if err := a.Allocations.MarkIPAllocationsAsPendingCleanup(res.NetworkID, res.AllocationRequest.SubnetName, batch); err != nil {
+		// whether it's a conflict or a network error, we should retry
+		return err
 	}
 	return nil
 }

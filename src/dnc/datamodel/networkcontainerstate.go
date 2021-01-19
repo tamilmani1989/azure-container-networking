@@ -14,7 +14,7 @@ const (
 	// Prepare - Prepare NC for allocation
 	Prepare
 
-	// Reserve - NC resevrve processing pending
+	// Reserve - NC reserve processing pending
 	Reserve
 
 	// Associate - NC is pending association.
@@ -52,6 +52,10 @@ const (
 
 	// DeallocateMAC - Deallocate MAC address
 	DeallocateMAC
+
+	// PrepareCleanup - NC is preparing cleanup for IP allocations asynchronously. Creates pubsubproxy job
+	// then scheduling the job in UnPublish/Publish
+	PrepareCleanup
 )
 
 // IsNCCreateInProgress - True if nc is in creation states

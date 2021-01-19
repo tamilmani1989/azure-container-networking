@@ -249,6 +249,12 @@ const (
 
 	// OutOfGreKeys - GRE Key is not supported/exceeded range
 	OutOfGreKeys
+
+	// UpdateIPAllocationFailed - Failed to update IP Allocation
+	UpdateIPAllocationFailed
+
+	// PrepareCleanup Failed - Error occurred during PrepareCleanup state
+	PrepareCleanupFailed
 )
 
 func (e ErrorCode) String() string {

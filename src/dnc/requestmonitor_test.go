@@ -108,7 +108,8 @@ var (
 		AllowHostToNCCommunication: true,
 		AllowNCToHostCommunication: true,
 		EndpointPolicies:           validEndPointPolicies}
-	ncID = "0e2f40cd-8fe1-420f-af43-1c4d5c5bb83b"
+	ncID  = "0e2f40cd-8fe1-420f-af43-1c4d5c5bb83b"
+	ncID2 = "0338b32f-914e-49a1-b58d-700430d63499"
 
 	localIPConfiguaration = cns.IPConfiguration{
 		IPSubnet: cns.IPSubnet{
@@ -504,7 +505,7 @@ func TestDeleteContainerInPurgeState(t *testing.T) {
 	var respErr api.JsonErr
 	json.NewEncoder(&body).Encode(networkContainerReq6)
 
-	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID2 + apiVersion
 	response, err := http.Post(ncURL, "application/json", &body)
 	if err != nil {
 		t.Fatalf("CreateNetworkContainer failed with error: %+v\n", err)
@@ -518,7 +519,7 @@ func TestDeleteContainerInPurgeState(t *testing.T) {
 		}
 	}
 
-	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + "/status" + apiVersion
+	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID2 + "/status" + apiVersion
 	WaitForResourceState(t, ncURLStatus, "Prepare", http.StatusOK, 2)
 
 	// Delete Node

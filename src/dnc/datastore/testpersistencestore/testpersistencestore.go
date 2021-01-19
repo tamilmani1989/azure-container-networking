@@ -169,6 +169,21 @@ func (s *TestPersistenceStore) DeleteBatch(tableName, _ string, rowKeys []string
 	return nil
 }
 
+// TODO: add tests for MergeBatch function https://msazure.visualstudio.com/One/_workitems/edit/9077936
+func (testpersistencestore *TestPersistenceStore) MergeBatch(tableName, _ string, batch map[string]map[string]interface{}) error {
+	testpersistencestore.locks[tableName].Lock()
+	defer func() {
+		testpersistencestore.locks[tableName].Unlock()
+	}()
+
+	for rowKey, rowProps := range batch {
+		tag := testpersistencestore.getEtag()
+		testpersistencestore.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: rowProps}
+	}
+
+	return nil
+}
+
 // Query :- Query an element using rowKey and tableName.
 func (s *TestPersistenceStore) Query(tableName, rowKey string) (*storage.Entity, int, error) {
 	return s.queryAllPropertiesEtag(tableName, rowKey)

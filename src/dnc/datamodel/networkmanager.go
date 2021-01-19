@@ -735,6 +735,27 @@ func DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonE
 	return nil
 }
 
+//TODO: Add tests for UpdateIPAllocations
+func UpdateIPAllocations(networkID, subnetName string, rows map[string]map[string]interface{}) *api.JsonErr {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+
+	if err := dataStoreShim.MergeBatch(ipAllocationsTableName, partitionKey, rows); err != nil {
+		storageErr, ok := err.(storage.AzureStorageServiceError)
+		if !ok {
+			return api.InternalServerError(api.StatusInternalServerError, err.Error())
+		}
+
+		switch storageErr.StatusCode {
+		case http.StatusPreconditionFailed:
+			return api.PreconditionFailed(api.UpdateIPAllocationFailed, storageErr.Message)
+		default:
+			return api.InternalServerError(api.StatusInternalServerError, storageErr.Message)
+		}
+	}
+
+	return nil
+}
+
 // TryQueryNodeConfiguration - Query node configuration.
 func TryQueryNodeConfiguration(nodeID string) (*NodeConfiguration, *api.JsonErr) {
 	nodeKey := GetNodeKey(nodeID)
@@ -2584,9 +2605,10 @@ func GetAllNodeIDs() (map[string]bool, error) {
 }
 
 type AllocationRow struct {
-	RowKey       string
-	IPAllocation string
-	AllocationID string
+	RowKey           string
+	IPAllocation     string
+	ToBeDeletedOwner string
+	AllocationID     string
 }
 
 // TryQueryAllIPAllocations - Query all IP allocations in the partition.

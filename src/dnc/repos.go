@@ -84,3 +84,7 @@ func (*allocationRepo) AddIPAllocations(networkID, subnetName string, batch map[
 func (*allocationRepo) DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
 	return datamodel.DeleteIPAllocations(networkID, subnetName, keys)
 }
+
+func (*allocationRepo) MarkIPAllocationsAsPendingCleanup(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr {
+	return datamodel.UpdateIPAllocations(networkID, subnetName, batch)
+}
