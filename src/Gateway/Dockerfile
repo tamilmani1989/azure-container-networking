@@ -9,8 +9,8 @@
 #   ex1.  docker build -t acndev.azurecr.io/dnc-gateway:latest -f Gateway/Dockerfile --no-cache .
 #   ex2.  docker build -t acnprod.azurecr.io/dnc-gateway:latest -f Gateway/Dockerfile --no-cache .
 
-FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS builder
-
+FROM mcr.microsoft.com/dotnet/sdk:5.0 AS builder
+RUN apt -y update && apt -y upgrade
 # Create directory for source
 WORKDIR /usr/local/Networking-Aquarius/src
 
@@ -22,10 +22,14 @@ COPY ./Common/CoreLib ./Common/CoreLib
 RUN mkdir -p /usr/local/Gateway
 
 WORKDIR /usr/local/Networking-Aquarius/src/Gateway/Server/src
-RUN dotnet publish -c Release -r linux-x64 -o /usr/local/Gateway --self-contained true
+RUN dotnet publish -c Release -r linux-musl-x64 -o /usr/local/Gateway --self-contained true
 
 # Build runtime image
-FROM mcr.microsoft.com/dotnet/core/aspnet:3.1
+FROM mcr.microsoft.com/dotnet/runtime:5.0-alpine-amd64
+ARG ASPNETCORE_ENVIRONMENT="Production"
+ENV ASPNETCORE_ENVIRONMENT $ASPNETCORE_ENVIRONMENT
+ARG AzureServicesAuthConnectionString=""
+ENV AzureServicesAuthConnectionString $AzureServicesAuthConnectionString 
 WORKDIR /app
 COPY --from=builder /usr/local/Gateway .
 
