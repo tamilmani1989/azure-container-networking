@@ -384,7 +384,7 @@ func (a *AzureStorage) insertOrUpdateRow(tableName, partitionKey, rowKey string,
 		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
 	table := tableClient.GetTableReference(tableName)
-	entity := table.GetEntityReference(a.partitionKey, rowKey)
+	entity := table.GetEntityReference(partitionKey, rowKey)
 	entity.Properties = properties
 	err := entity.InsertOrReplace(nil)
 	return err
@@ -397,6 +397,13 @@ func (a *AzureStorage) updateRowWithEtag(tableName, partitionKey, rowKey, etag s
 	}
 	table := tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(partitionKey, rowKey)
+
+	// todo: this method should always be called with a non-empty etag.
+	//  by fetching the entity when etag is not provided (wasteful operation if etag is non-empty)
+	//  a race condition arises, since the latest entity state could have been modified between the time
+	//  the properties passed to this function were computed and this fetch.
+	//  if the intention is to always update, then a force update should be used, and also made evident
+	//  to calling code up the stack.
 	err := entity.Get(defaultTimeout, storage.FullMetadata, nil)
 	if err != nil {
 		return err
