@@ -9,6 +9,11 @@ import (
 	"path/filepath"
 )
 
+// Supported feature constants
+const (
+	FeatureDisableReservationMapInSubnetConfig = "DisableReservationMapInSubnetConfig"
+)
+
 // AzureStorageInfo - Details to connect to azure storage account.
 type AzureStorageInfo struct {
 	AccountName                     string
@@ -163,6 +168,8 @@ type DNCSettings struct {
 	BMMode bool
 	// Max IP Reservation batch size
 	MaxIPReservationBatchSize int
+	// Flag to disable adding reservations under Subnet Configuration
+	DisableReservationMapInSubnetConfig bool
 }
 
 // IdentitySettings - Information about managed identity for DNC
@@ -666,5 +673,10 @@ func OverrideConfigFromEnv(config *Configuration) {
 
 	if azureEnvName := os.Getenv("AzureEnvironmentName"); azureEnvName != "" {
 		config.AzureEnvironment.EnvironmentName = azureEnvName
+	}
+
+	if disableReservationMapInSubnetConfig := os.Getenv("DisableReservationMapInSubnetConfig");
+	len(disableReservationMapInSubnetConfig) != 0 {
+		config.DNCSettings.DisableReservationMapInSubnetConfig = ParseBool(disableReservationMapInSubnetConfig)
 	}
 }

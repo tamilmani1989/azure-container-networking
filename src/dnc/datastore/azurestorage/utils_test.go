@@ -2,7 +2,7 @@ package azurestorage
 
 import "testing"
 
-func TestBuildFilterOnPartition(t *testing.T) {
+func TestBuildFilterOnProperty(t *testing.T) {
 	tests := []struct {
 		name     string
 		values   []string
@@ -23,10 +23,12 @@ func TestBuildFilterOnPartition(t *testing.T) {
 	for _, tt := range tests {
 		ts := tt
 		t.Run(ts.name, func(t *testing.T) {
-			filter := BuildFilterOnPartition("partition1", "property1", ts.values)
+			filter := BuildFilterOnProperty("partition1", "property1", ts.values)
 			if filter != ts.expected {
 				t.Fatalf("expected %s, got %s", ts.expected, filter)
 			}
 		})
 	}
+
+	//TODO: Add test for filterOnParition
 }

@@ -263,14 +263,6 @@ func RefreshNetworkConfiguration(
 		}
 	}
 
-	subnetNetworkContainersMap := make(map[string][]*datamodel.NetworkContainerInfo)
-	for subnetName, currentRepoSubnetCfg := range subnetsToUpdate {
-		subnetNetworkContainersMap[subnetName], err = datamodel.GetNetworkContainersInSubnet(currentRepoSubnetCfg, false)
-		if err != nil {
-			logger.Errorf("%s", err.String())
-		}
-	}
-
 	var dnsServers []string
 	if len(networkResponse.DNSServers) == 0 {
 		dnsServers = make([]string, 0)
@@ -653,8 +645,15 @@ func validateAndRetrieveNetworkConfigurationUpdate(
 		// If a subnet has been deleted outside of DNC,
 		// delete it only if there are no resources in them
 		if !exists {
-			if len(repoSubnetConfig.Reservations) > 0 {
-				logger.Errorf("Error: Leaked NC's detected: Subnet %s in network %s is removed but there are allocations.",
+			reservations, err := datamodel.GetReservationsInSubnet(repoSubnetConfig.NetworkID, subnetName)
+			if err != nil {
+				// Log the error but do not return as this cleanup is in non-critical path
+				logger.Errorf("could not retrieve reservations in subnet: %s, network: %s. Error: %v",
+					repoSubnetConfig.SubnetName, repoSubnetConfig.NetworkID, err)
+			}
+
+			if len(reservations) > 0 {
+				logger.Errorf("Error: Leaked NCs detected: Subnet %s in network %s is removed but there are allocations.",
 					repoSubnetConfig.SubnetName,
 					repoSubnetConfig.NetworkID)
 
@@ -713,7 +712,8 @@ func getNetworkConfigurationFromAgent(networkID string) (bool, *api.JsonErr, *nm
 			HTTPStatus: http.StatusInternalServerError}, nil, false
 	}
 
-	logger.Debugf("[NMAgent][Response] for network %s configuration:%s", networkID, networkConfigurationResponse.String())
+	//TODO: Printing the whole network config every min makes the log too chatty. Print the subset of the config
+	//logger.Debugf("[NMAgent][Response] for network %s configuration:%s", networkID, networkConfigurationResponse.String())
 	getNetworkResponseCode, parseErr := strconv.ParseInt(networkConfigurationResponse.ResponseCode, 10, 64)
 	if parseErr != nil {
 		msg := fmt.Sprintf(

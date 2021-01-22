@@ -21,14 +21,14 @@ type NCRepo interface {
 // A SubnetRepo performs CRUD operations on subnets
 type SubnetRepo interface {
 	TryQuerySubnetConfiguration(networkID, subnetName string) (*datamodel.SubnetConfiguration, *api.JsonErr)
-	UpdateSubnetReservationSet(networkID, reservationID, allocatedSubnet string, remove bool, subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr
+	UpdateSubnetReservationSet(reservationID, allocatedSubnet string, remove bool, subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr
 	PutSubnetConfiguration(subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr
 }
 
 // An IPReservationRepo performs CRUD operations on IP reservations
 type IPReservationRepo interface {
-	TryQueryIPReservation(networkID, reservationID string) (*datamodel.ReservationConfiguration, *api.JsonErr)
-	TryQueryIPReservationByKey(key string) (*datamodel.ReservationConfiguration, *api.JsonErr)
+	TryQueryIPReservation(networkID, reservationID string) (datamodel.ReservationRow, *api.JsonErr)
+	TryQueryIPReservationByKey(key string) (datamodel.ReservationRow, *api.JsonErr)
 	PutIPReservationConfiguration(res *datamodel.ReservationConfiguration) *api.JsonErr
 	UpdateReservations(reservations []datamodel.ReservationConfiguration) *api.JsonErr
 }

@@ -21,7 +21,6 @@ type subnetHandler struct {
 	inputCh      chan reservationRequest
 	subnetInfo   subnetInfo
 	maxBatchSize int
-	locker       *utils.SessionManager
 }
 
 type subnetKey struct {
@@ -40,7 +39,6 @@ type handlerDependencies struct {
 	subnets      SubnetRepo
 	allocator    *IPAllocator
 	logger       loggershim.LoggerInterface
-	locker       *utils.SessionManager
 }
 
 func newSubnetHandler(info subnetInfo, deps handlerDependencies, maxBatchSize int) *subnetHandler {
@@ -52,7 +50,6 @@ func newSubnetHandler(info subnetInfo, deps handlerDependencies, maxBatchSize in
 		inputCh:      make(chan reservationRequest),
 		subnetInfo:   info,
 		maxBatchSize: maxBatchSize,
-		locker:       deps.locker,
 	}
 }
 
@@ -157,13 +154,6 @@ func (s *subnetHandler) process(batch requestSet) {
 			batch.flushWithError(err)
 			return
 		}
-	}
-
-	s.logf("updating subnet with %d completed reservations", len(allocResult.completed))
-	if err := s.updateSubnet(allocResult.completed); err != nil {
-		s.logErrorf("could not update subnet: %v", err)
-		batch.flushWithError(err)
-		return
 	}
 
 	s.logf("updating reservations")
@@ -343,38 +333,6 @@ func (s *subnetHandler) cleanUpTBDs(batch requestSet) []datamodel.ReservationCon
 		}
 	}
 	return toReservationSlice(reservationSet)
-}
-
-func (s *subnetHandler) updateSubnet(reservations []datamodel.ReservationConfiguration) *api.JsonErr {
-	if len(reservations) == 0 {
-		return nil
-	}
-
-	// todo: this is needed because both reserve and unreserve update the subnet record.
-	//   once we index reservations with subnet, this can be removed.
-	session := map[string]string{
-		datamodel.NetworkRepositoryName: s.subnetInfo.vnetID,
-	}
-	s.locker.BeginWriteSession(session)
-	defer s.locker.EndWriteSession(session)
-
-	subnet, err := s.subnets.TryQuerySubnetConfiguration(s.subnetInfo.vnetID, s.subnetInfo.subnetName)
-	if err != nil {
-		return err
-	}
-	if subnet == nil {
-		return api.NotFoundf(api.SubnetNotFound, "vnet %s subnet name %s not found", s.subnetInfo.vnetID, s.subnetInfo.subnetName)
-	}
-
-	if subnet.Reservations == nil {
-		subnet.Reservations = make(map[string]string)
-	}
-
-	for _, res := range reservations {
-		subnet.Reservations[res.ReservationID] = res.AllocatedSubnet
-	}
-
-	return s.subnets.PutSubnetConfiguration(subnet)
 }
 
 func (s *subnetHandler) deallocateBatch(reservations []datamodel.ReservationConfiguration, tbdIDs map[string][]string) ([]datamodel.ReservationConfiguration, error) {

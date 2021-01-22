@@ -73,7 +73,8 @@
     "NICsAllowedPerVirtualCore": 1,
     "ReverseProxyEnabled": false,
     "ThresholdForLoggingDataStoreOpLatencyMs": 1000,
-    "Managed": false
+    "Managed": false,
+    "DisableReservationMapInSubnetConfig": false
   },
   "HttpClientSettings": {
     "ConnectionTimeout": 5,

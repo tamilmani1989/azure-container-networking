@@ -38,11 +38,11 @@ func (p *Preparer) PrepareNetworkContainerV2(ncConfig *datamodel.NCConfiguration
 		switch {
 		case err != nil:
 			return false, err
-		case existingRes == nil: // reservation id previously assigned, but no reservation created
+		case existingRes.Configuration == nil: // reservation id previously assigned, but no reservation created
 			res = newReservation(*ncConfig)
 		default: // reservation previously created, this is preparing an update
-			p.Logger.Debugf("processing update for nc id %s, reservation id %s", ncConfig.NetworkContainerID, existingRes.ReservationID)
-			res, err = getUpdatedReservation(ncConfig.RequestV2, *existingRes)
+			p.Logger.Debugf("processing update for nc id %s, reservation id %s", ncConfig.NetworkContainerID, existingRes.Configuration.ReservationID)
+			res, err = getUpdatedReservation(ncConfig.RequestV2, *existingRes.Configuration)
 			if err != nil {
 				return p.markNCAsFailed(ncConfig, *err)
 			}
@@ -227,7 +227,7 @@ func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration
 		return p.markNCAsFailed(ncConfig, *err)
 	}
 
-	reservationConfiguration, err := datamodel.QueryIPReservation(ncConfig.NetworkID, ncConfig.ReservationID)
+	reservation, err := datamodel.QueryIPReservation(ncConfig.NetworkID, ncConfig.ReservationID)
 	if err != nil {
 		if err.HTTPStatus == http.StatusInternalServerError {
 			return false, err
@@ -235,8 +235,8 @@ func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration
 		return p.markNCAsFailed(ncConfig, *err)
 	}
 
-	reservationConfiguration.AssociatedNCID = ncConfig.NetworkContainerID
-	if err := datamodel.PutIPReservationConfiguration(reservationConfiguration); err != nil {
+	reservation.Configuration.AssociatedNCID = ncConfig.NetworkContainerID
+	if err := datamodel.PutIPReservationConfiguration(reservation.Configuration); err != nil {
 		return false, err
 	}
 

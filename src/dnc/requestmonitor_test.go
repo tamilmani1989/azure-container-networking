@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -138,7 +139,18 @@ const (
 
 // Setup :- Set up the environment (if necessary).
 func Setup() error {
-	go StartDnc(false)
+	// Cleanup persistent store state
+	for tableName := range datamodel.TableToColumnMap {
+		dbFile := tableName + ".db"
+		if _, err := os.Stat(dbFile); err == nil {
+			err := os.Remove(dbFile)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	go StartDnc(ReadConfig())
 	time.Sleep(1 * time.Second)
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 1024
 	http.DefaultTransport.(*http.Transport).TLSHandshakeTimeout = 0 * time.Second
@@ -3484,12 +3496,217 @@ func TestPublishingRequestMarshallingLogicForFailure(t *testing.T) {
 	fmt.Println("****TestPublishingRequestMarshallingLogicForFailure Succeed**********")
 }
 
+func newGUID() string {
+	guid, _ := uuid.NewUUID()
+	return guid.String()
+}
+
+// This test can be removed once all the partners have switched to using the latest version of DNC which has
+// DisableReservationMapInSubnetConfig enabled.
+func TestDisableResMapInSubnetConfig(t *testing.T) {
+	fmt.Println("****TestDisableResMapInSubnetConfig**********")
+	networkID := newGUID()
+	subnetName := "subnet1"
+	setupNetworkAndJoinSubnet(t, dncEP, networkID, subnetName, apiVersion, true, 0)
+
+	// Add 5 pre-existing reservations that do not have subnet key added in IPReservation table.
+	var reservations []datamodel.ReservationRow
+	for i := 0; i < 5; i++ {
+		reservationID := newGUID()
+		allocRequest := api.AllocationRequest{SubnetName: subnetName, IPConstraint: "",	NodeConstraint: ""}
+		reservation := datamodel.ReservationRow{
+			RowKey: datamodel.GetReservationKey(networkID, reservationID),
+			Configuration: &datamodel.ReservationConfiguration{
+				NetworkID:         networkID,
+				ReservationID:     reservationID,
+				ReservationState:  datamodel.Allocate,
+				Status:            datamodel.Completed,
+				AllocationRequest: allocRequest,
+				APIVersion:        apiVersion},
+		}
+		reservations = append(reservations, reservation)
+
+		// Add reservation to the datastore
+		if err := datamodel.PutIPReservation(reservation); err != nil {
+			t.Fatalf("PutIPReservation failed with error: %v", err)
+		}
+	}
+
+	// Add reservation to reservation map under SubnetConfig
+	subnetConfig, err := datamodel.TryQuerySubnetConfiguration(networkID, subnetName)
+	if err != nil {
+		t.Fatalf("TryQuerySubnetConfiguration failed with error: %v", err)
+	}
+	subnetConfig.Reservations = make(map[string]string)
+
+	for _, res := range reservations {
+		subnetConfig.Reservations[res.Configuration.ReservationID] = "10.0.0.5" // dummy IP. Value is irrelevant for this test
+	}
+
+	if err := datamodel.PutSubnetConfiguration(subnetConfig); err != nil {
+		t.Fatalf("PutSubnetConfiguration failed with error: %v", err)
+	}
+
+	// Restart DNC with DisableReservationMapInSubnetConfig set to false
+	processExitCallback()
+	time.Sleep(1 * time.Second)
+	config := ReadConfig()
+	config.ServerSettings.Port = "9003"
+	config.DNCSettings.DisableReservationMapInSubnetConfig = false
+	go StartDnc(config)
+	time.Sleep(2 * time.Second)
+
+	// Create a reservation. This should add to the reservation map under subnet config as well as
+	// a newly added record to the IPReservation table should have valid subnetkey.
+	reservationID := newGUID()
+	reservation := datamodel.ReservationRow{
+		RowKey: datamodel.GetReservationKey(networkID, reservationID),
+		Configuration: &datamodel.ReservationConfiguration{
+			NetworkID:         networkID,
+			ReservationID:     reservationID,
+			ReservationState:  datamodel.Allocate,
+			Status:            datamodel.Completed,
+			AllocationRequest: api.AllocationRequest{SubnetName: subnetName, IPConstraint: "",	NodeConstraint: ""},
+			APIVersion:        apiVersion},
+	}
+	reservations = append(reservations, reservation)
+
+	// Add this reservation by calling DNC API.
+	createReservation(t, reservation.Configuration.AllocationRequest, dncEP, networkID, reservationID, apiVersion)
+	repoReservations, err := datamodel.GetReservationsInSubnet(networkID, subnetName)
+	if err != nil {
+		t.Fatalf("GetReservationsInSubnet failed with error: %v", err)
+	}
+
+	if len(repoReservations) != len(reservations) {
+		t.Fatalf("Reservation mismatch. Expected: %d, Got: %d", len(reservations), len(repoReservations))
+	}
+
+	// Validate that the newly added reservation when stored in datastore contains the subnetkey
+	repoReservation, err := datamodel.TryQueryIPReservation(networkID, reservationID)
+	if err != nil {
+		t.Fatalf("TryQueryIPReservation failed with error: %v", err)
+	}
+	expectedSubnetkey := datamodel.GetSubnetKey(networkID, subnetName)
+	if repoReservation.SubnetKey != expectedSubnetkey {
+		t.Fatalf("Subnetkey stored doesn't match the expected one. Expected: %s, Got: %s", expectedSubnetkey, repoReservation.SubnetKey)
+	}
+
+	// Get the subnetconfig response before the migration which updates the subnetconfig and reservations tables
+	subnetConfigResp := getSubnetConfiguration(t, dncEP, networkID, subnetName, apiVersion)
+
+	// Restart DNC with MaxBatchSize to 2 and DisableReservationMapInSubnetConfig set to true
+	processExitCallback()
+	time.Sleep(2 * time.Second)
+	config = ReadConfig()
+	config.ServerSettings.Port = "9004"
+	config.DNCSettings.DisableReservationMapInSubnetConfig = true
+	// Setting the Batch size to 2 to test the batching logic for 5 reservation updates
+	config.DataStoreSettings.MaxBatchSize = 2
+	go StartDnc(config)
+	time.Sleep(5 * time.Second)
+
+	// Validate that the FeatureMigration is complete by querying the table.
+	migrationComplete, err := datamodel.TryQueryFeatureMigrationStatus(configuration.FeatureDisableReservationMapInSubnetConfig)
+	if err != nil {
+		t.Fatalf("TryQueryFeatureMigrationStatus failed with error: %v", err)
+	}
+
+	if !migrationComplete {
+		t.Fatalf("could not complete the migration for feature: %s", configuration.FeatureDisableReservationMapInSubnetConfig)
+	}
+
+	// Get the subnetconfig response after the migration and validate if it matches the subnet config retrieved before the migration
+	subnetConfigRespMigrated := getSubnetConfiguration(t, dncEP, networkID, subnetName, apiVersion)
+	if !api.CompareSubnetConfigurationResponse(*subnetConfigResp, *subnetConfigRespMigrated) {
+		t.Fatalf("subnet config response changed post migration. Response before migration: %+v " +
+			"Response after migration: %+v", *subnetConfigResp, *subnetConfigRespMigrated)
+	}
+
+	// Validate that the number of reservations after migration still match the expected number
+	repoReservations, err = datamodel.GetReservationsInSubnet(networkID, subnetName)
+	if err != nil {
+		t.Fatalf("GetReservationsInSubnet failed with error: %v", err)
+	}
+
+	if len(repoReservations) != len(reservations) {
+		t.Fatalf("Reservation mismatch. Expected: %d, Got: %d", len(reservations), len(repoReservations))
+	}
+
+	// Validate that all the reservations now have subnetkey populated.
+	for _, reservation := range repoReservations {
+		expectedSubnetkey := datamodel.GetSubnetKey(reservation.Configuration.NetworkID, reservation.Configuration.AllocationRequest.SubnetName)
+		if reservation.SubnetKey != expectedSubnetkey {
+			t.Fatalf("Post migration subnetkey doesn't match the expected one. Expected: %s, Got: %s",
+				expectedSubnetkey, reservation.SubnetKey)
+		}
+	}
+
+	// Validate that subnet config table doesn't have reservation map anymore.
+	if subnetConfig, err := datamodel.TryQuerySubnetConfiguration(networkID, subnetName); err != nil {
+		t.Fatalf("TryQuerySubnetConfiguration failed with error: %v", err)
+	} else {
+		if len(subnetConfig.Reservations) != 0 {
+			t.Fatalf("SubnetConfig contains reservation map. Expected nil map")
+		}
+	}
+
+	// Add a new reservation. It should add a new reservation with subnetkey in IPReservations table and not add any
+	// entry to subnetconfig reservation map
+	reservationID = newGUID()
+	reservation = datamodel.ReservationRow{
+		RowKey: datamodel.GetReservationKey(networkID, reservationID),
+		Configuration: &datamodel.ReservationConfiguration{
+			NetworkID:         networkID,
+			ReservationID:     reservationID,
+			ReservationState:  datamodel.Process,
+			Status:            datamodel.Pending,
+			AllocationRequest: api.AllocationRequest{SubnetName: subnetName, IPConstraint: "",	NodeConstraint: ""},
+			APIVersion:        apiVersion},
+	}
+	reservations = append(reservations, reservation)
+
+	// Add this reservation by calling DNC API.
+	createReservation(t, reservation.Configuration.AllocationRequest, dncEP, networkID, reservationID, apiVersion)
+	repoReservations, err = datamodel.GetReservationsInSubnet(networkID, subnetName)
+	if err != nil {
+		t.Fatalf("GetReservationsInSubnet failed with error: %v", err)
+	}
+
+	// Validate that the reservation added contains the subnetkey
+	repoReservation, err = datamodel.TryQueryIPReservation(networkID, reservationID)
+	if err != nil {
+		t.Fatalf("TryQueryIPReservation failed with error: %v", err)
+	}
+
+	expectedSubnetkey = datamodel.GetSubnetKey(networkID, subnetName)
+	if repoReservation.SubnetKey != expectedSubnetkey {
+		t.Fatalf("Subnetkey stored doesn't match the expected one. Expected: %s, Got: %s", expectedSubnetkey, repoReservation.SubnetKey)
+	}
+
+	// Validate that subnet config table doesn't have reservation map anymore.
+	if subnetConfig, err := datamodel.TryQuerySubnetConfiguration(networkID, subnetName); err != nil {
+		t.Fatalf("TryQuerySubnetConfiguration failed with error: %v", err)
+	} else {
+		if len(subnetConfig.Reservations) != 0 {
+			t.Fatalf("SubnetConfig contains reservation map. Expected nil map")
+		}
+	}
+
+	fmt.Println("****TestDisableResMapInSubnetConfig Succeed**********")
+}
+
 func TestManagedDncAPIs(t *testing.T) {
 	fmt.Println("****TestManagedDncAPIs**********")
 	processExitCallback()
 
+	config := ReadConfig()
+	// Override config settings
+	config.ServerSettings.Port = "9002"
+	config.CNSSettings.ChannelMode = cns.Managed
+	config.DNCSettings.Managed = true
 	// start dnc in managed mode
-	go StartDnc(true)
+	go StartDnc(config)
 	time.Sleep(2 * time.Second)
 
 	fmt.Println("Started CNS Server", cnsServer.Server.URL)
@@ -3499,18 +3716,17 @@ func TestManagedDncAPIs(t *testing.T) {
 	cnsServer.Lock.Unlock()
 
 	var (
-		mdncEP       = "http://127.0.0.1:9002"
-		dnctl        = cli.NewDncClient(mdncEP)
+		dnctl        = cli.NewDncClient(dncEP)
 		iface        = "127.0.0.1"
 		infraVnet    = "048622d9-49c2-4cad-94ff-7112e6f2ab5a"
-		ipConstraint = "10.0.0.4"
+		ipConstraint = "10.0.0.6"
 		id, _        = uuid.NewUUID()
 		vnetID       = id.String()
 		body         bytes.Buffer
 	)
 
 	// Register network/subnet and add node
-	setupNetworkAndJoinSubnet(t, mdncEP, vnetID, networkContainerReq.AllocationRequest.SubnetName, apiVersion, true, 0)
+	setupNetworkAndJoinSubnet(t, dncEP, vnetID, networkContainerReq.AllocationRequest.SubnetName, apiVersion, true, 0)
 	if respErr := dnctl.AddNode(nodeID, iface, cns.Kubernetes, infraVnet); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Register node failed with error %+v", respErr)
 	}
@@ -3522,7 +3738,7 @@ func TestManagedDncAPIs(t *testing.T) {
 	}
 	json.NewEncoder(&body).Encode(nodeRegistrationRequest)
 
-	registerNodeURL := fmt.Sprintf("%s/networks/%s/node/%s%s", mdncEP, infraVnet, nodeID, apiVersion)
+	registerNodeURL := fmt.Sprintf("%s/networks/%s/node/%s%s", dncEP, infraVnet, nodeID, apiVersion)
 	response, err := http.Post(registerNodeURL, "application/json", &body)
 	if err == nil {
 		if response.StatusCode == http.StatusOK {
@@ -3553,7 +3769,7 @@ func TestManagedDncAPIs(t *testing.T) {
 		t.Fatalf("Get nc failed with error %+v or NC version is not equal to expected. Expected version is 0 but got %d", respErr, programmedNC.NCVersion)
 	}
 
-	syncNodeStatusURL := fmt.Sprintf("%s/networks/%s/node/%s/networkcontainers%s", mdncEP, infraVnet, nodeID, apiVersion)
+	syncNodeStatusURL := fmt.Sprintf("%s/networks/%s/node/%s/networkcontainers%s", dncEP, infraVnet, nodeID, apiVersion)
 	response, err = http.Get(syncNodeStatusURL)
 	if err == nil {
 		if response.StatusCode == http.StatusOK {

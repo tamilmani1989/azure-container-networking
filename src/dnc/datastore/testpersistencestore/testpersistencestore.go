@@ -2,7 +2,6 @@ package testpersistencestore
 
 import (
 	"dnc/logger/loggershim"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -104,13 +103,6 @@ func (s *TestPersistenceStore) InsertInPartition(tableName, partitionKey, rowKey
 // InsertInPartitionProperties - Insert a row in the specific partition of the given table with multiple properties
 // If row already exists, it will be updated (overwritten)
 func (s *TestPersistenceStore) InsertInPartitionProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) (int, error) {
-	// Induce error to simulate the collisions due to multiple DNCs trying to allocate the same IP
-	// in case of shared subnet delegation
-	if s.induceError(induceErrorPercent) {
-		s.logger.Errorf("Data entry is already present in the table")
-		return http.StatusConflict, fmt.Errorf("Data entry is already present in the table")
-	}
-
 	s.locks[tableName].Lock()
 	defer func() {
 		s.locks[tableName].Unlock()
@@ -126,6 +118,17 @@ func (s *TestPersistenceStore) InsertInPartitionProperties(tableName, partitionK
 	s.logger.Debugf("Inserted row to [%s] with rowKey [%s].", tableName, rowKey)
 
 	return http.StatusOK, nil
+}
+
+// InsertOrUpdateProperties - Inserts or updates a row of the given table with multiple properties
+func (s *TestPersistenceStore) InsertOrUpdateProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) error {
+	_, httpStatusCode, _ := s.Query(tableName, rowKey)
+	if httpStatusCode == http.StatusNotFound {
+		_, err := s.InsertInPartitionProperties(tableName, partitionKey, rowKey, properties)
+		return err
+	}
+
+	return s.UpdateInPartitionWithEtag(tableName, partitionKey, rowKey, "", properties)
 }
 
 func (s *TestPersistenceStore) UpsertBatch(tableName string, batch map[string]map[string]interface{}) error {
@@ -195,9 +198,11 @@ func (s *TestPersistenceStore) QueryInPartition(tableName, partitionKey, rowKey 
 }
 
 // QueryFilter - Query rows using a filter
-func (s *TestPersistenceStore) QueryFilter(_, _ string) ([]*storage.Entity, error) {
+func (s *TestPersistenceStore) QueryFilter(tableName, _ string) ([]*storage.Entity, error) {
 	// todo: not a straightforward way to mock more sophisticated query functionality
-	return nil, errors.New("not implemented")
+	// for now returning all the entries from the datastore.
+	entities, _, _, _, _ := s.QueryAllRows(tableName, nil)
+	return entities, nil
 }
 
 // QueryAllRows - Query all rows in a given table.

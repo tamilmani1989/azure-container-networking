@@ -89,7 +89,8 @@
         "ReverseProxyEnabled": false,
         "ThresholdForLoggingDataStoreOpLatencyMs": 1000,
         "Managed": false,
-        "BMMode": false
+        "BMMode": false,
+        "DisableReservationMapInSubnetConfig": false
     },
     "HttpClientSettings": {
         "ConnectionTimeout": 5,

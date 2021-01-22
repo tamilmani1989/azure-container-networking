@@ -41,7 +41,7 @@ var (
 
 // Setup :- Set up the environment (if necessary).
 func Setup() error {
-	go StartDnc(false)
+	go StartDnc(ReadConfig())
 	time.Sleep(1 * time.Second)
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 1024
 	http.DefaultTransport.(*http.Transport).TLSHandshakeTimeout = 0 * time.Second

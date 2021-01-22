@@ -196,16 +196,16 @@ func (c *Controller) GetReservationStatus(
 	// read operations to happen concurrently with writes in the same partition. It
 	// guarantees reads to see consistent data while updates are happening
 
-	reservationCfg, err := datamodel.QueryIPReservation(networkID, reservationID)
+	reservation, err := datamodel.QueryIPReservation(networkID, reservationID)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
 
 	requestStatus := &api.RequestStatus{
-		State:         reservationCfg.ReservationState.String(),
-		Status:        reservationCfg.Status.String(),
-		FailureDetail: reservationCfg.FailureDetail}
-	return requestStatus, generateStatus(reservationCfg.Status, &reservationCfg.FailureDetail), err
+		State:         reservation.Configuration.ReservationState.String(),
+		Status:        reservation.Configuration.Status.String(),
+		FailureDetail: reservation.Configuration.FailureDetail}
+	return requestStatus, generateStatus(reservation.Configuration.Status, &reservation.Configuration.FailureDetail), err
 }
 
 // DeleteReservation - Delete reservation configuration.
@@ -217,10 +217,10 @@ func (c *Controller) DeleteReservation(
 		datamodel.NetworkRepositoryName:     networkID,
 	}
 	// Check if the node session lock is required
-	reservationConfig, err := datamodel.TryQueryIPReservation(networkID, reservationID)
-	if reservationConfig != nil && err == nil {
-		if len(reservationConfig.AllocationRequest.NodeConstraint) != 0 {
-			sessionInfo[datamodel.NodeRepositoryName] = reservationConfig.AllocationRequest.NodeConstraint
+	reservation, err := datamodel.TryQueryIPReservation(networkID, reservationID)
+	if reservation.Configuration != nil && err == nil {
+		if len(reservation.Configuration.AllocationRequest.NodeConstraint) != 0 {
+			sessionInfo[datamodel.NodeRepositoryName] = reservation.Configuration.AllocationRequest.NodeConstraint
 		}
 	}
 
@@ -328,38 +328,17 @@ func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.
 		return nil, err
 	}
 
-	ipAllocationsData := make(api.IPAllocationsData, len(repoSubnetConfiguration.Reservations))
-	index := 0
-	for reservationID := range repoSubnetConfiguration.Reservations {
-		repoReservationConfiguration, err := datamodel.QueryIPReservation(networkID, reservationID)
-		if err != nil {
-			msg := fmt.Sprintf(
-				"Failed to retrieve reservation configuration for reservation:[%s] in network [%s] due to error:{%s}",
-				reservationID,
-				networkID,
-				err)
-			return nil, &api.JsonErr{
-				Code:       api.StatusInternalServerError,
-				Text:       msg,
-				HTTPStatus: http.StatusInternalServerError}
-		}
-		if repoReservationConfiguration == nil {
-			msg := fmt.Sprintf(
-				"Configuration for reservation {%s} associated with subnet:%s in network %s not found due to error:{%+v}",
-				reservationID,
-				subnetName,
-				networkID,
-				err)
-			return nil, &api.JsonErr{
-				Code:       api.StatusInternalServerError,
-				Text:       msg,
-				HTTPStatus: http.StatusInternalServerError}
-		}
-		ipAllocationsData[index] = api.IPAllocationData{
-			IPAddress:                    repoReservationConfiguration.AllocatedSubnet,
-			AssociatedNetworkContainerID: repoReservationConfiguration.AssociatedNCID,
-			ReservationID:                repoReservationConfiguration.ReservationID}
-		index++
+	reservations, err := datamodel.GetReservationsInSubnet(networkID, subnetName)
+	if err != nil {
+		return nil, err
+	}
+
+	ipAllocationsData := make(api.IPAllocationsData, len(reservations))
+	for i, reservation := range reservations {
+		ipAllocationsData[i] = api.IPAllocationData{
+			IPAddress:                    reservation.Configuration.AllocatedSubnet,
+			AssociatedNetworkContainerID: reservation.Configuration.AssociatedNCID,
+			ReservationID:                reservation.Configuration.ReservationID}
 	}
 
 	dnsServers, err := datamodel.GetSubnetDNSServers(repoSubnetConfiguration)
@@ -437,13 +416,18 @@ func (c *Controller) PersistSubnetDelegationRequest(
 	subnet string,
 	subnetInfo api.SubnetRequest,
 	isDelete bool) *api.JsonErr {
-	loggershim.LS.Debugf("[Request] Put Subnet %s for Vnet %s", subnet, networkID)
+	loggershim.LS.Debugf("[Request] Put Subnet: %s for network: %s isDelete: %t", subnet, networkID, isDelete)
 
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	return datamodel.UpdateSubnet(networkID, subnet, subnetInfo, isDelete)
+	err := datamodel.UpdateSubnet(networkID, subnet, subnetInfo, isDelete)
+	if err != nil {
+		loggershim.LS.Errorf("UpdateSubnet: subnet: %s failed. Error: %v", datamodel.GetSubnetKey(networkID, subnet), err)
+	}
+
+	return err
 }
 
 // GetNetwork - Get network configuration (e.g. delegated subnets in network)

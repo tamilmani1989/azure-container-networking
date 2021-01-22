@@ -30,33 +30,33 @@ func (n *NCRepo) PersistNCConfiguration(ncConfiguration *datamodel.NCConfigurati
 }
 
 type ReservationRepo struct {
-	Data     map[string]datamodel.ReservationConfiguration
+	Data     map[string]datamodel.ReservationRow
 	QueryErr *api.JsonErr
 	PutErr   *api.JsonErr
 }
 
 func NewReservationRepo() *ReservationRepo {
-	return &ReservationRepo{Data: make(map[string]datamodel.ReservationConfiguration)}
+	return &ReservationRepo{Data: make(map[string]datamodel.ReservationRow)}
 }
 
-func (f *ReservationRepo) TryQueryIPReservation(networkID, reservationID string) (*datamodel.ReservationConfiguration, *api.JsonErr) {
+func (f *ReservationRepo) TryQueryIPReservation(networkID, reservationID string) (datamodel.ReservationRow, *api.JsonErr) {
 	if f.QueryErr != nil {
-		return nil, f.QueryErr
+		return datamodel.ReservationRow{}, f.QueryErr
 	}
 	return f.TryQueryIPReservationByKey(datamodel.GetReservationKey(networkID, reservationID))
 }
 
-func (f *ReservationRepo) TryQueryIPReservationByKey(key string) (*datamodel.ReservationConfiguration, *api.JsonErr) {
+func (f *ReservationRepo) TryQueryIPReservationByKey(key string) (datamodel.ReservationRow, *api.JsonErr) {
 	if f.QueryErr != nil {
-		return nil, f.QueryErr
+		return datamodel.ReservationRow{}, f.QueryErr
 	}
 
 	res, ok := f.Data[key]
 	if !ok {
-		return nil, nil
+		return datamodel.ReservationRow{}, nil
 	}
 
-	return &res, nil
+	return res, nil
 }
 
 func (f *ReservationRepo) PutIPReservationConfiguration(res *datamodel.ReservationConfiguration) *api.JsonErr {
@@ -64,12 +64,17 @@ func (f *ReservationRepo) PutIPReservationConfiguration(res *datamodel.Reservati
 		return f.PutErr
 	}
 	key := datamodel.GetReservationKey(res.NetworkID, res.ReservationID)
-	f.Data[key] = *res
+	reservationRow := datamodel.ReservationRow{
+		RowKey: key,
+		Configuration: res,
+		SubnetKey: datamodel.GetSubnetKey(res.NetworkID, res.AllocationRequest.SubnetName),
+	}
+	f.Data[key] = reservationRow
 	return nil
 }
 
-func (f *ReservationRepo) GetReservations(networkID string, reservationIDs []string) ([]datamodel.ReservationConfiguration, *api.JsonErr) {
-	var out []datamodel.ReservationConfiguration
+func (f *ReservationRepo) GetReservations(networkID string, reservationIDs []string) ([]datamodel.ReservationRow, *api.JsonErr) {
+	var out []datamodel.ReservationRow
 
 	for _, resID := range reservationIDs {
 		key := datamodel.GetReservationKey(networkID, resID)
@@ -83,9 +88,14 @@ func (f *ReservationRepo) GetReservations(networkID string, reservationIDs []str
 }
 
 func (f *ReservationRepo) UpdateReservations(reservations []datamodel.ReservationConfiguration) *api.JsonErr {
-	for _, reservation := range reservations {
+	for i, reservation := range reservations {
 		key := datamodel.GetReservationKey(reservation.NetworkID, reservation.ReservationID)
-		f.Data[key] = reservation
+		reservationRow := datamodel.ReservationRow{
+			RowKey: key,
+			Configuration: &reservations[i],
+			SubnetKey: datamodel.GetSubnetKey(reservation.NetworkID, reservation.AllocationRequest.SubnetName),
+		}
+		f.Data[key] = reservationRow
 	}
 	return nil
 }
@@ -113,7 +123,7 @@ func (f *SubnetRepo) TryQuerySubnetConfiguration(networkID, subnetName string) (
 	return &sub, nil
 }
 
-func (f *SubnetRepo) UpdateSubnetReservationSet(networkID, reservationID, allocatedSubnet string, remove bool, subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr {
+func (f *SubnetRepo) UpdateSubnetReservationSet(reservationID, allocatedSubnet string, remove bool, subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr {
 	return nil
 }
 

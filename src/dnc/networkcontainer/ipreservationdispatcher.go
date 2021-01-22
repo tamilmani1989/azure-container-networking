@@ -18,7 +18,6 @@ type IPReservationDispatcher struct {
 	handlerMaxBatchSize int
 	inputCh             chan reservationRequest
 	subnetHandlers      map[subnetKey]*subnetHandler
-	locker              *utils.SessionManager
 }
 
 type reservationRequest struct {
@@ -52,7 +51,6 @@ func NewIPReservationDispatcher(deps DispatcherDependencies, locker *utils.Sessi
 			subnets:      deps.Subnets,
 			allocator:    deps.Allocator,
 			logger:       deps.Logger,
-			locker:       locker,
 		},
 		handlerMaxBatchSize: maxBatchSize,
 		inputCh:             make(chan reservationRequest),

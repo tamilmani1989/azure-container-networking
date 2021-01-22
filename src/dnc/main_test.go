@@ -23,7 +23,7 @@ import (
 
 var (
 	apiVersion = "?api-version=2018-03-01"
-	dncEP      = "http://127.0.0.1:9000"
+	dncEP     string
 )
 
 // TestMain :- main
@@ -35,8 +35,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// todo: this is the exact same logic as in main. extract to a single location
-func StartDnc(managed bool) {
+func ReadConfig() *configuration.Configuration {
 	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
 	if !found {
 		configpath = "config_test.json"
@@ -45,13 +44,13 @@ func StartDnc(managed bool) {
 	config = configuration.Load(configpath)
 	configuration.SetDncConfigDefaults(config)
 
-	config.DNCSettings.Managed = managed
-	if managed {
-		config.ServerSettings.IPAddress = "127.0.0.1"
-		config.ServerSettings.Port = "9002"
-		config.CNSSettings.ChannelMode = cns.Managed
-	}
+	return config
+}
 
+// todo: this is the exact same logic as in main. extract to a single location
+func StartDnc(config *configuration.Configuration) {
+	// Set dncEP as per config settings
+	dncEP = "http://" + config.ServerSettings.IPAddress + ":" + config.ServerSettings.Port
 	logger = loggershim.NewLoggerShim(config)
 	logger.Init(stderr, reports)
 	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)

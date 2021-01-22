@@ -165,12 +165,15 @@ func (a *AzureStorage) DeleteInPartition(tableName, partitionKey, rowKey string)
 func (a *AzureStorage) InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error {
 	defer a.recordProcessingTime(time.Now(), "InsertOrUpdate", tableName, a.partitionKey, rowKey)
 
-	return a.insertOrUpdateRow(tableName, rowKey, propertyName, value)
+	properties := map[string]interface{}{
+		propertyName: value,
+	}
+	return a.insertOrUpdateRow(tableName, a.partitionKey, rowKey, properties)
 }
 
 // UpdateInPartition - Update (overwrite) a row in a given table if it exists.
 func (a *AzureStorage) UpdateInPartition(tableName, partitionKey, rowKey string, properties map[string]interface{}) error {
-	defer a.recordProcessingTime(time.Now(), "UpdateInPartition", tableName, a.partitionKey, rowKey)
+	defer a.recordProcessingTime(time.Now(), "UpdateInPartition", tableName, partitionKey, rowKey)
 
 	return a.updateRowWithEtag(tableName, partitionKey, rowKey, "", properties)
 }
@@ -178,7 +181,7 @@ func (a *AzureStorage) UpdateInPartition(tableName, partitionKey, rowKey string,
 // UpdateInPartitionWithEtag - Update (overwrite) a row in a given table if it exists.
 // Match with specified etag for update.
 func (a *AzureStorage) UpdateInPartitionWithEtag(tableName, partitionKey, rowKey, etag string, properties map[string]interface{}) error {
-	defer a.recordProcessingTime(time.Now(), "UpdateInPartitionWithEtag", tableName, a.partitionKey, rowKey)
+	defer a.recordProcessingTime(time.Now(), "UpdateInPartitionWithEtag", tableName, partitionKey, rowKey)
 
 	return a.updateRowWithEtag(tableName, partitionKey, rowKey, etag, properties)
 }
@@ -198,6 +201,13 @@ func (a *AzureStorage) InsertInPartitionProperties(tableName, partitionKey, rowK
 	defer a.recordProcessingTime(time.Now(), "InsertInPartitionProperties", tableName, partitionKey, rowKey)
 
 	return a.insertRowInPartition(tableName, partitionKey, rowKey, properties)
+}
+
+// InsertOrUpdateProperties - Inserts or updates a row of the given table with multiple properties
+func (a *AzureStorage) InsertOrUpdateProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) error {
+	defer a.recordProcessingTime(time.Now(), "InsertOrUpdateProperties", tableName, partitionKey, rowKey)
+
+	return a.insertOrUpdateRow(tableName, partitionKey, rowKey, properties)
 }
 
 // UpsertBatch inserts or replaces a batch of rows (row key to properties) for a given table and partition key
@@ -368,15 +378,13 @@ func (a *AzureStorage) KeyExist(tableName, rowKey string) (bool, error) {
 	return status != http.StatusNotFound, nil
 }
 
-func (a *AzureStorage) insertOrUpdateRow(tableName, rowKey, propertyName string, value interface{}) error {
+func (a *AzureStorage) insertOrUpdateRow(tableName, partitionKey, rowKey string, properties map[string]interface{}) error {
 	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
 	}
 	table := tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(a.partitionKey, rowKey)
-	properties := make(map[string]interface{})
-	properties[propertyName] = value
 	entity.Properties = properties
 	err := entity.InsertOrReplace(nil)
 	return err

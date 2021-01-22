@@ -25,7 +25,7 @@ const (
 	// AllocationProcessFailedInternalError - Allocation processing failed due to internal error
 	AllocationProcessFailedInternalError
 
-	// AllocationFailed - Allocation failed due to unavailiabilty of resource
+	// AllocationFailed - Allocation failed due to unavailability of the resource
 	AllocationFailed
 
 	// NodeProcessingFailedDueToInternalError - Processing of node failed due to internal error
@@ -220,7 +220,7 @@ const (
 	// PropertyValueTooLargeStorageError - Storage operation failed due to large property value
 	PropertyValueTooLargeStorageError
 
-	// FailedToUpdateSubnetWithReservationInfo - Failed to updatr subnet configuration in storage with reservation info.
+	// FailedToUpdateSubnetWithReservationInfo - Failed to update subnet configuration in storage with reservation info.
 	FailedToUpdateSubnetWithReservationInfo
 
 	// StatusBadRequest - Bad request.

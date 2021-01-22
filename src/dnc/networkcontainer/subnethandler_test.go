@@ -3,7 +3,6 @@ package networkcontainer
 import (
 	"dnc/datamodel"
 	"dnc/networkcontainer/fakes"
-	"dnc/utils"
 	"net"
 	"testing"
 
@@ -37,7 +36,6 @@ func TestSubnetHandlerProcess_CreationFromScratch(t *testing.T) {
 			baseSubnet: baseSubnet,
 		},
 		maxBatchSize: 100,
-		locker:       utils.NewSessionManager(nil),
 	}
 
 	reservationCount := 100
@@ -51,10 +49,10 @@ func TestSubnetHandlerProcess_CreationFromScratch(t *testing.T) {
 
 	// inspect stored reservations
 	for _, rsv := range resRepo.Data {
-		assertCompleteReservation(t, rsv, secondaryIPCount)
+		assertCompleteReservation(t, *rsv.Configuration, secondaryIPCount)
 
-		reservationIPs[rsv.AllocatedSubnet] = struct{}{}
-		for _, ip := range rsv.SecondaryAllocations {
+		reservationIPs[rsv.Configuration.AllocatedSubnet] = struct{}{}
+		for _, ip := range rsv.Configuration.SecondaryAllocations {
 			reservationIPs[ip] = struct{}{}
 		}
 	}
@@ -144,7 +142,6 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 			baseSubnet: baseSubnet,
 		},
 		maxBatchSize: 100,
-		locker:       utils.NewSessionManager(nil),
 	}
 
 	sh.process(set)
@@ -153,10 +150,10 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 
 	// inspect stored reservations
 	for _, rsv := range resRepo.Data {
-		assertCompleteReservation(t, rsv, secondaryIPCount)
+		assertCompleteReservation(t, *rsv.Configuration, secondaryIPCount)
 
-		reservationIPs[rsv.AllocatedSubnet] = struct{}{}
-		for _, ip := range rsv.SecondaryAllocations {
+		reservationIPs[rsv.Configuration.AllocatedSubnet] = struct{}{}
+		for _, ip := range rsv.Configuration.SecondaryAllocations {
 			reservationIPs[ip] = struct{}{}
 		}
 	}
@@ -220,7 +217,12 @@ func TestDeallocateBatch(t *testing.T) {
 	resRepo := fakes.NewReservationRepo()
 	for _, res := range reservations {
 		key := datamodel.GetReservationKey(res.NetworkID, res.ReservationID)
-		resRepo.Data[key] = res
+		reservationRow := datamodel.ReservationRow{
+			RowKey: key,
+			Configuration: &res,
+			SubnetKey: datamodel.GetSubnetKey(res.NetworkID, res.AllocationRequest.SubnetName),
+		}
+		resRepo.Data[key] = reservationRow
 	}
 
 	sh := subnetHandler{
@@ -237,7 +239,6 @@ func TestDeallocateBatch(t *testing.T) {
 			baseSubnet: baseSubnet,
 		},
 		maxBatchSize: 100,
-		locker:       utils.NewSessionManager(nil),
 	}
 
 	tbds := map[string][]string{

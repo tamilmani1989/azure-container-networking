@@ -104,12 +104,14 @@ func TestPrepareNetworkContainer_CreateHappyPath(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected reservation with key %s, got none", expectedResKey)
 	}
-	assertReservationIn(t, nextReservationState, datamodel.Allocate, datamodel.Pending)
-	if len(nextReservationState.SecondaryAllocations) != secondaryIPCount {
-		t.Errorf("expected secondary allocation count to be %d, got %d", secondaryIPCount, len(nextReservationState.SecondaryAllocations))
+	assertReservationIn(t, *nextReservationState.Configuration, datamodel.Allocate, datamodel.Pending)
+	if len(nextReservationState.Configuration.SecondaryAllocations) != secondaryIPCount {
+		t.Errorf("expected secondary allocation count to be %d, got %d",
+			secondaryIPCount, len(nextReservationState.Configuration.SecondaryAllocations))
 	}
-	if nextReservationState.AllocationRequest.SecondaryIPCount != secondaryIPCount {
-		t.Errorf("expected ip count in allocation request to be %d, got %d", secondaryIPCount, nextReservationState.AllocationRequest.SecondaryIPCount)
+	if nextReservationState.Configuration.AllocationRequest.SecondaryIPCount != secondaryIPCount {
+		t.Errorf("expected ip count in allocation request to be %d, got %d",
+			secondaryIPCount, nextReservationState.Configuration.AllocationRequest.SecondaryIPCount)
 	}
 
 	// node assertions

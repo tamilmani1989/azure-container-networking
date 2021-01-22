@@ -41,11 +41,11 @@ func (a *IPAllocator) ProcessIPReservationAllocationWithKey(reservationKey strin
 	// if the parent reservation entry doesn't exist then it must have
 	// been deleted via separate delete reservation/container request,
 	// or if the subnet has already been allocated
-	if reservation == nil || reservation.AllocatedSubnet != "" {
+	if reservation.Configuration == nil || reservation.Configuration.AllocatedSubnet != "" {
 		return true, nil // don't add new pending work queue item, error
 	}
 
-	return a.ProcessIPReservationAllocation(reservation)
+	return a.ProcessIPReservationAllocation(reservation.Configuration)
 }
 
 // ProcessIPReservationAllocation processes IP allocation for the given reservation
@@ -239,7 +239,7 @@ func (a *IPAllocator) completeAllocation(request *datamodel.ReservationConfigura
 		}
 	}
 
-	if err := a.Subnets.UpdateSubnetReservationSet(request.NetworkID, request.ReservationID, request.AllocatedSubnet, false, subnetConfig); err != nil {
+	if err := a.Subnets.UpdateSubnetReservationSet(request.ReservationID, request.AllocatedSubnet, false, subnetConfig); err != nil {
 		err.Text = fmt.Sprintf("Failed to persist updating reservation request %s in subnet configuration due to error %s", request.String(), err.String())
 		if err.Code == api.PropertyValueTooLargeStorageError {
 			err := api.BadRequest(api.FailedToUpdateSubnetWithReservationInfo, err.Text)
@@ -302,44 +302,19 @@ func (a *IPAllocator) getAllocationsOnNode(nodeID string) (map[string]*net.IPNet
 }
 
 func (a *IPAllocator) getSubnetFromReservation(networkID, reservationID string) (*net.IPNet, *api.JsonErr) {
-	resConfig, err := a.Reservations.TryQueryIPReservation(networkID, reservationID)
+	reservation, err := a.Reservations.TryQueryIPReservation(networkID, reservationID)
 	if err != nil {
 		return nil, err
 	}
-	if resConfig == nil || resConfig.AllocatedSubnet == "" {
+	if reservation.Configuration == nil || reservation.Configuration.AllocatedSubnet == "" {
 		return nil, nil
 	}
 
-	allocatedIPSubnet, parseErr := utils.ParseIPNet(resConfig.AllocatedSubnet)
+	allocatedIPSubnet, parseErr := utils.ParseIPNet(reservation.Configuration.AllocatedSubnet)
 	if parseErr != nil {
 		return nil, api.InternalServerError(api.StatusInternalServerError, parseErr.Error())
 	}
 	return allocatedIPSubnet, nil
-}
-
-func (a *IPAllocator) getAllocationsFromSubnetConfig(subnetConfig *datamodel.SubnetConfiguration) (map[string]*net.IPNet, *api.JsonErr) {
-	allocations := make(map[string]*net.IPNet)
-	for reservationID := range subnetConfig.Reservations {
-		reservation, err := a.Reservations.TryQueryIPReservation(subnetConfig.NetworkID, reservationID)
-		if err != nil {
-			return nil, err
-		}
-		if reservation == nil {
-			msg := fmt.Sprintf("Configuration for reservation:[%s] in network [%s] not found.", reservationID, subnetConfig.NetworkID)
-			return nil, api.NotFound(api.ReservationNotFound, msg)
-		}
-
-		if reservation.AllocatedSubnet == "" {
-			continue
-		}
-
-		allocatedIPSubnet, parseErr := utils.ParseIPNet(reservation.AllocatedSubnet)
-		if parseErr != nil {
-			return nil, api.InternalServerError(api.StatusInternalServerError, parseErr.Error())
-		}
-		allocations[reservationID] = allocatedIPSubnet
-	}
-	return allocations, nil
 }
 
 func (a *IPAllocator) getAllocationsFromSubnetTable(networkID, subnetName string) (map[string]*net.IPNet, *api.JsonErr) {

@@ -19,8 +19,10 @@ type DataStoreShim interface {
 	QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error)
 	QueryFilter(tableName, filter string) ([]*storage.Entity, error)
 	InsertInPartition(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error)
+	//TODO: Accept storage entities rather than map of interfaces
 	InsertInPartitionProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) (int, error)
 	InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error
+	InsertOrUpdateProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) error
 	InsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
 	UpsertBatch(tableName string, batchItems map[string]map[string]interface{}) error
 	MergeBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error

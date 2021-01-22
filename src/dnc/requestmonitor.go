@@ -5,6 +5,7 @@ import (
 	"dnc/aiwrapper"
 	"dnc/allocationhelper"
 	"dnc/api"
+	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
 	"dnc/networkcontainer"
@@ -28,6 +29,7 @@ import (
 )
 
 var (
+	featureMigrationComplete bool
 	containerTypes sync.Map
 )
 
@@ -357,23 +359,14 @@ func processPrepareCleanup(
 	}
 
 	// get reservation
-	repoReservation, err := datamodel.TryQueryIPReservation(
-		repoNCConfig.NetworkID,
-		repoNCConfig.ReservationID)
+	repoReservation, err := datamodel.TryQueryIPReservation(repoNCConfig.NetworkID,	repoNCConfig.ReservationID)
 	if err != nil {
 		return false, err
 	}
 
-	if repoReservation == nil {
-		msg := fmt.Sprintf(
-			"Failed to retrieve IP reservation during PrepareCleanup for NCID %v",
-			repoNCConfig.NetworkContainerID,
-		)
-		return true, &api.JsonErr{
-			Code:       api.PrepareCleanupFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError,
-		}
+	if repoReservation.Configuration == nil {
+		return true, api.InternalServerErrorf(api.PrepareCleanupFailed,
+			"Failed to retrieve IP reservation during PrepareCleanup for NCID %v", repoNCConfig.NetworkContainerID)
 	}
 
 	// Acquire Node lock if the ContainerType is WebApps
@@ -407,7 +400,7 @@ func processPrepareCleanup(
 		}
 
 		if len(repoNCConfig.RequestV2.ToBeDeletedIPIds) > 0 {
-			if err := ipAllocator.MarkAllocationAsPendingCleanup(*repoReservation, ipsPendingCleanup); err != nil {
+			if err := ipAllocator.MarkAllocationAsPendingCleanup(*repoReservation.Configuration, ipsPendingCleanup); err != nil {
 				return false, err
 			}
 		}
@@ -427,7 +420,7 @@ func processNetworkContainerReserve(
 		err                  *api.JsonErr
 		failureDetail        *api.JsonErr
 		markProcessingFailed bool
-		repoReservation      *datamodel.ReservationConfiguration
+		repoReservation      datamodel.ReservationRow
 	)
 
 	sessionInfo := map[string]string{
@@ -443,14 +436,12 @@ func processNetworkContainerReserve(
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
-	repoReservation, err = datamodel.TryQueryIPReservation(
-		repoNCConfig.NetworkID,
-		repoNCConfig.ReservationID)
+	repoReservation, err = datamodel.TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
 	if err != nil {
 		return false, err
 	}
 
-	if repoReservation == nil {
+	if repoReservation.Configuration == nil {
 		markProcessingFailed = true
 		failureDetail = &api.JsonErr{
 			Code:       api.ReservationNotFound,
@@ -464,20 +455,20 @@ func processNetworkContainerReserve(
 	}
 
 	if len(repoNCConfig.RequestV2.ToBeDeletedIPIds) > 0 {
-		if err := ipAllocator.DeallocateIPs(*repoReservation, repoNCConfig.RequestV2.ToBeDeletedIPIds); err != nil {
+		if err := ipAllocator.DeallocateIPs(*repoReservation.Configuration, repoNCConfig.RequestV2.ToBeDeletedIPIds); err != nil {
 			return false, err
 		}
 		for _, allocID := range repoNCConfig.RequestV2.ToBeDeletedIPIds {
-			delete(repoReservation.SecondaryAllocations, allocID)
+			delete(repoReservation.Configuration.SecondaryAllocations, allocID)
 		}
-		if err := datamodel.PutIPReservationConfiguration(repoReservation); err != nil {
+		if err := datamodel.PutIPReservationConfiguration(repoReservation.Configuration); err != nil {
 			return false, err
 		}
 	}
 
 	// If the reservation status is pending, process IP allocation
-	if repoReservation.Status == datamodel.Pending {
-		ipReservationAllocationComplete, err := ipAllocator.ProcessIPReservationAllocation(repoReservation)
+	if repoReservation.Configuration.Status == datamodel.Pending {
+		ipReservationAllocationComplete, err := ipAllocator.ProcessIPReservationAllocation(repoReservation.Configuration)
 
 		// Return if the IP reservation allocation did not complete. This indicates that
 		// the operation ran into retriable error.
@@ -486,21 +477,21 @@ func processNetworkContainerReserve(
 		}
 	}
 
-	if repoReservation.Status == datamodel.Completed {
+	if repoReservation.Configuration.Status == datamodel.Completed {
 		repoNCConfig.State = datamodel.AllocateLocalIP
 		repoNCConfig.Status = datamodel.Pending
 		repoNCConfig.FailureDetail = api.JsonErr{}
 
 		repoSubnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
 			repoNCConfig.NetworkID,
-			repoReservation.AllocationRequest.SubnetName)
+			repoReservation.Configuration.AllocationRequest.SubnetName)
 		if err != nil {
 			return true, err
 		}
 		if repoSubnetConfiguration == nil {
 			msg := fmt.Sprintf(
 				"Configuration for Subnet %s in Network %v not found.",
-				repoReservation.AllocationRequest.SubnetName,
+				repoReservation.Configuration.AllocationRequest.SubnetName,
 				repoNCConfig.NetworkID)
 			markProcessingFailed = true
 			failureDetail = &api.JsonErr{
@@ -517,9 +508,9 @@ func processNetworkContainerReserve(
 		}
 	}
 
-	if repoReservation.Status == datamodel.Failed {
+	if repoReservation.Configuration.Status == datamodel.Failed {
 		markProcessingFailed = true
-		failureDetail = &repoReservation.FailureDetail
+		failureDetail = &repoReservation.Configuration.FailureDetail
 	}
 
 Cleanup:
@@ -555,11 +546,11 @@ func processNetworkContainerBatchReserve(nc *datamodel.NCConfiguration) (bool, *
 		return false, apiErr
 	}
 
-	if reservation == nil {
+	if reservation.Configuration == nil {
 		return markNCAsFailed(nc, *api.NotFoundf(api.ReservationNotFound, "could not find reservation %s for nc %s", nc.NetworkContainerID, nc.ReservationID))
 	}
 
-	res, err := resDispatcher.Reserve(*reservation, nc.RequestV2.ToBeDeletedIPIds)
+	res, err := resDispatcher.Reserve(*reservation.Configuration, nc.RequestV2.ToBeDeletedIPIds)
 	if err != nil {
 		return false, api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
@@ -599,15 +590,15 @@ func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.
 	if err != nil {
 		return err
 	}
-	if reservation != nil && len(reservation.AllocationRequest.NodeConstraint) != 0 {
+	if reservation.Configuration != nil && len(reservation.Configuration.AllocationRequest.NodeConstraint) != 0 {
 		sessionInfo[datamodel.NodeRepositoryName] = ncConfig.GetAssociationInfo().NodeID
 	}
 
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
-	if reservation != nil && len(reservation.SecondaryAllocations) > 0 {
-		if err := ipAllocator.RemoveAllAllocations(*reservation); err != nil {
+	if reservation.Configuration != nil && len(reservation.Configuration.SecondaryAllocations) > 0 {
+		if err := ipAllocator.RemoveAllAllocations(*reservation.Configuration); err != nil {
 			return err
 		}
 	}
@@ -1914,10 +1905,31 @@ ExitLoop:
 	}
 }
 
+// Process and complete the given feature migration
+func processFeatureMigration(feature string) {
+	if feature == configuration.FeatureDisableReservationMapInSubnetConfig && !featureMigrationComplete {
+		timerChannel := time.NewTicker(time.Second * 1).C
+		for {
+			select {
+			case <-timerChannel:
+				if replicaInstance.IsReplicaPrimary() {
+					if err := datamodel.ProcessDisableReservationMapInSubnetConfig(feature); err == nil {
+						featureMigrationComplete = true
+						return
+					}
+				}
+			}
+		}
+	}
+}
+
 // Monitor that periodically processes pending requests in the work item queue.
 func processPendingRequests(
 	concurrentGoroutines chan struct{},
 	inProcessRequestsMap *sync.Map) {
+	if config.DNCSettings.DisableReservationMapInSubnetConfig {
+		processFeatureMigration(configuration.FeatureDisableReservationMapInSubnetConfig)
+	}
 
 	requests, _ := datamodel.GetPendingRequests()
 	if len(requests) == 0 {

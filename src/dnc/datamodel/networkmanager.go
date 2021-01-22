@@ -48,6 +48,10 @@ var (
 	managed                   bool
 	MinGre                    uint16 = 257
 	MaxGre                    uint16 = 511
+	//TODO: refactor package level variables
+	disableResMapInSubnetConfig bool
+	dncPartitionKey           string
+	batchSize                 int
 )
 
 // Init - Initialize repository.
@@ -97,6 +101,9 @@ func Init(
 	nicsAllowedPerVirtualCore = dncSettings.NICsAllowedPerVirtualCore
 	managed = dncSettings.Managed
 	hostAgentSettings = hostAgentCfgSettings
+	disableResMapInSubnetConfig = dncSettings.DisableReservationMapInSubnetConfig
+	dncPartitionKey = dataStoreSettings.AzureStorageInfo.PartitionKey
+	batchSize = dataStoreSettings.MaxBatchSize
 
 	return nil
 }
@@ -159,9 +166,16 @@ func dumpTable(tableName, partitionKey string) error {
 // DumpState - Function to dump test state.
 func DumpState() {
 	for tableName := range TableToColumnMap {
-		kvMap, _, _, _, err := dataStoreShim.QueryAllRows(tableName, nil)
+		rows, _, _, _, err := dataStoreShim.QueryAllRows(tableName, nil)
+		kvMap := make(map[string]map[string]interface{})
+		for _, entity := range rows {
+			kvMap[entity.RowKey] = entity.Properties
+		}
 		if err == nil {
-			jsonStr, _ := json.Marshal(kvMap)
+			jsonStr, err := json.Marshal(kvMap)
+			if err != nil {
+				return
+			}
 			fileName := tableName + ".db"
 			fp, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0664))
 			if err == nil {
@@ -178,10 +192,11 @@ func RestoreState() {
 		fileName := tableName + ".db"
 		content, err := ioutil.ReadFile(fileName)
 		if err == nil {
-			var kvMap map[string]interface{}
-			if err = json.Unmarshal(content, &kvMap); err == nil {
+			var kvMap map[string]map[string]interface{}
+			err = json.Unmarshal(content, &kvMap)
+			if err == nil {
 				for k, v := range kvMap {
-					dataStoreShim.InsertOrUpdate(tableName, k, TableToColumnMap[tableName], v)
+					dataStoreShim.InsertOrUpdateProperties(tableName, "",k, v)
 				}
 			}
 		}
@@ -243,29 +258,32 @@ func DeleteSubnetConfiguration(networkID, ipSubnet string) *api.JsonErr {
 
 // PutIPReservationConfiguration - Persist IP Reservation configuration
 func PutIPReservationConfiguration(ipReservation *ReservationConfiguration) *api.JsonErr {
-	reservationKey := GetReservationKey(ipReservation.NetworkID, ipReservation.ReservationID)
-	jsonSerializedBytes, err := json.Marshal(ipReservation)
+	reservationRow := ReservationRow{
+		RowKey: GetReservationKey(ipReservation.NetworkID, ipReservation.ReservationID),
+		Configuration: ipReservation,
+		SubnetKey: GetSubnetKey(ipReservation.NetworkID, ipReservation.AllocationRequest.SubnetName),
+	}
+
+	return PutIPReservation(reservationRow)
+}
+
+// PutIPReservation - Persist IP Reservation
+func PutIPReservation(reservation ReservationRow) *api.JsonErr {
+	jsonSerializedBytes, err := json.Marshal(reservation.Configuration)
 	if err != nil {
 		return &api.JsonErr{
 			Code:       api.JsonMarshallingFailed,
 			HTTPStatus: http.StatusInternalServerError,
-			Text:       fmt.Sprintf("Failed to serialize node configuration for reservation:%s due to error %s", ipReservation.String(), err.Error())}
+			Text:       fmt.Sprintf("could not serialize reservation configuration: %s. Error: %v", reservation.Configuration.String(), err)}
 	}
 
-	err = dataStoreShim.InsertOrUpdate(ipReservationsTableName,
-		reservationKey,
-		TableToColumnMap[ipReservationsTableName],
-		string(jsonSerializedBytes[:]))
+	row := map[string]interface{}{
+		reservationConfigProperty: string(jsonSerializedBytes[:]),
+		subnetKeyProperty: reservation.SubnetKey}
+	err = dataStoreShim.InsertOrUpdateProperties(ipReservationsTableName, dncPartitionKey, reservation.RowKey, row)
 	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to persist updated configuration for reservation %s due to error: %s",
-			ipReservation.ReservationID,
-			err.Error())
-		loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		loggershim.LS.Errorf("could not persist reservation: %s. Error: %v", reservation.RowKey, err)
+		api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
 	return nil
@@ -273,11 +291,15 @@ func PutIPReservationConfiguration(ipReservation *ReservationConfiguration) *api
 
 // UpdateSubnetReservationSet - Add/Remove reservation in subnet set
 func UpdateSubnetReservationSet(
-	networkID,
 	reservationID string,
 	allocatedSubnet string,
 	remove bool,
 	subnetConfiguration *SubnetConfiguration) *api.JsonErr {
+	// Do not add the reservation in Subnet Configuration table if the config flag is enabled
+	if disableResMapInSubnetConfig {
+		return nil
+	}
+
 	if subnetConfiguration.Reservations == nil {
 		subnetConfiguration.Reservations = make(map[string]string)
 	}
@@ -533,9 +555,7 @@ func UpdateNodeConfigurationNetworkContainerSet(
 func UpdateNCToReservationAssociation(
 	ncConfiguration *NCConfiguration,
 	disassociate bool) *api.JsonErr {
-	reservationConfiguration, err := TryQueryIPReservation(
-		ncConfiguration.NetworkID,
-		ncConfiguration.ReservationID)
+	reservation, err := TryQueryIPReservation(ncConfiguration.NetworkID, ncConfiguration.ReservationID)
 	if err != nil {
 		msg := fmt.Sprintf(
 			"Failed to retrieve configuration for reservation %s in network: {%s} due to error:{%s}",
@@ -548,9 +568,9 @@ func UpdateNCToReservationAssociation(
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	if reservationConfiguration == nil {
+	if reservation.Configuration == nil {
 		msg := fmt.Sprintf(
-			"Reservation %s is not found", reservationConfiguration.ReservationID)
+			"Reservation %s is not found", reservation.Configuration.ReservationID)
 		return &api.JsonErr{
 			Code:       api.ReservationNotFound,
 			HTTPStatus: http.StatusNotFound,
@@ -559,99 +579,85 @@ func UpdateNCToReservationAssociation(
 
 	if disassociate {
 		if strings.Compare(
-			reservationConfiguration.AssociatedNCID,
+			reservation.Configuration.AssociatedNCID,
 			ncConfiguration.NetworkContainerID) != 0 {
 			return nil
 		}
-		reservationConfiguration.AssociatedNCID = ""
+		reservation.Configuration.AssociatedNCID = ""
 	} else {
-		if len(reservationConfiguration.AssociatedNCID) != 0 &&
-			strings.Compare(reservationConfiguration.AssociatedNCID,
+		if len(reservation.Configuration.AssociatedNCID) != 0 &&
+			strings.Compare(reservation.Configuration.AssociatedNCID,
 				ncConfiguration.NetworkContainerID) != 0 {
 			msg := fmt.Sprintf(
 				"Reservation %s is use with different network container %s. Request network container %s",
-				reservationConfiguration.ReservationID,
-				reservationConfiguration.AssociatedNCID,
+				reservation.Configuration.ReservationID,
+				reservation.Configuration.AssociatedNCID,
 				ncConfiguration.NetworkContainerID)
 			return &api.JsonErr{
 				Code:       api.ReservationInUse,
 				HTTPStatus: http.StatusBadRequest,
 				Text:       msg}
 		}
-		reservationConfiguration.AssociatedNCID = ncConfiguration.NetworkContainerID
+		reservation.Configuration.AssociatedNCID = ncConfiguration.NetworkContainerID
 	}
 
-	return PutIPReservationConfiguration(reservationConfiguration)
+	return PutIPReservationConfiguration(reservation.Configuration)
 }
 
 // DeleteIPReservation - Delete an IP Reservation.
 func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonErr {
-	reservationConfiguration, err := TryQueryIPReservation(networkID, reservationID)
+	reservation, err := TryQueryIPReservation(networkID, reservationID)
 	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to retrieve configuration for reservation %s in network: {%s} due to error:{%s}",
-			reservationID,
-			networkID,
-			err)
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not retrieve configuration for reservationKey: %s. Error: %s",
+			GetReservationKey(networkID, reservationID), err)
 	}
 
-	if reservationConfiguration == nil {
+	if reservation.Configuration == nil {
 		return nil
 	}
 
 	reservationKey := GetReservationKey(networkID, reservationID)
 
-	if err = DeleteIPAllocation(reservationConfiguration.NetworkID,
-		reservationConfiguration.AllocationRequest.SubnetName,
+	if err = DeleteIPAllocation(reservation.Configuration.NetworkID,
+		reservation.Configuration.AllocationRequest.SubnetName,
 		reservationKey,
-		reservationConfiguration.AllocatedSubnet); err != nil {
+		reservation.Configuration.AllocatedSubnet); err != nil {
 		loggershim.LS.Errorf("Failed to delete IP allocation due to error %+v", err)
 		return err
 	}
 
-	if len(reservationConfiguration.AssociatedNCID) != 0 && !force {
-		msg := fmt.Sprintf(
-			"Reservation %s is in use with container: [%s]",
-			reservationID, reservationConfiguration.AssociatedNCID)
-
-		loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
-
-		return &api.JsonErr{
-			Code:       api.ReservationInUse,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       msg}
+	if len(reservation.Configuration.AssociatedNCID) != 0 && !force {
+		return api.BadRequestf(api.ReservationInUse,
+			"Reservation for key: %s is in use with container: %s", reservationKey, reservation.Configuration.AssociatedNCID)
 	}
 
-	subnetConfiguration, err := TryQuerySubnetConfiguration(
-		reservationConfiguration.NetworkID,
-		reservationConfiguration.AllocationRequest.SubnetName)
-	if err != nil {
-		return err
-	}
+	// Delete the reservation from subnetConfig if the config flag to disable reservationMap is not set
+	if !disableResMapInSubnetConfig {
+		subnetConfiguration, err := TryQuerySubnetConfiguration(
+			reservation.Configuration.NetworkID,
+			reservation.Configuration.AllocationRequest.SubnetName)
+		if err != nil {
+			return err
+		}
 
-	if subnetConfiguration != nil {
-		if subnetConfiguration.Reservations != nil {
+		if subnetConfiguration != nil && subnetConfiguration.Reservations != nil {
 			delete(subnetConfiguration.Reservations, reservationID)
-			err = PutSubnetConfiguration(subnetConfiguration)
-			if err != nil {
+			if err = PutSubnetConfiguration(subnetConfiguration); err != nil {
 				return err
 			}
 		}
 	}
 
-	if len(reservationConfiguration.AllocationRequest.NodeConstraint) != 0 {
-		nodeConfiguration, err := TryQueryNodeConfiguration(reservationConfiguration.AllocationRequest.NodeConstraint)
+	if len(reservation.Configuration.AllocationRequest.NodeConstraint) != 0 {
+		nodeConfiguration, err := TryQueryNodeConfiguration(reservation.Configuration.AllocationRequest.NodeConstraint)
 		if err != nil {
 			return err
 		}
 		if nodeConfiguration != nil {
 			err := UpdateNodeConstrainedReservationSet(
-				reservationConfiguration.NetworkID,
-				reservationConfiguration.ReservationID,
+				reservation.Configuration.NetworkID,
+				reservation.Configuration.ReservationID,
 				true,
 				nodeConfiguration)
 			if err != nil {
@@ -662,15 +668,8 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 
 	deleteErr := dataStoreShim.Delete(ipReservationsTableName, reservationKey)
 	if deleteErr != nil {
-		msg := fmt.Sprintf(
-			"Failed to delete configuration for reservation key %s from data store. Error: %s",
-			reservationKey,
-			deleteErr.Error())
-		loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			HTTPStatus: http.StatusInternalServerError,
-			Text:       msg}
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not delete configuration for reservationKey: %s. Error: %s", reservationKey, deleteErr)
 	}
 
 	return err
@@ -978,66 +977,78 @@ func QuerySubnetConfiguration(networkID, subnetName string) (*SubnetConfiguratio
 	return subnetConfiguration, nil
 }
 
-// TryQueryIPReservationByKey - Query IP Reservation configuration.
-func TryQueryIPReservationByKey(reservationKey string) (*ReservationConfiguration, *api.JsonErr) {
-	entity, status, err := dataStoreShim.Query(ipReservationsTableName, reservationKey)
+// TryQueryFeatureMigrationStatus - Query the feature migration status.
+// Returns nil error if the key is not found in the storage.
+func TryQueryFeatureMigrationStatus(featureName string) (bool, *api.JsonErr) {
+	entity, status, err := dataStoreShim.Query(featureMigrationTableName, featureName)
 	if err != nil && status != http.StatusNotFound {
-		msg := fmt.Sprintf(
-			"Failed to retrieve configuration for reservation key:[%s] due to error:[%s]",
-			reservationKey,
-			err)
-		return nil, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		return false, api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not retrieve migration status for feature: %s", featureName)
 	}
 
 	if entity == nil {
-		return nil, nil
+		return false, nil
 	}
 
-	serializedReservationConfiguration := entity.Properties[reservationConfigurationTag].(string)
-	var reservationConfiguration ReservationConfiguration
-	err = json.Unmarshal([]byte(serializedReservationConfiguration), &reservationConfiguration)
-	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to unmarshal configuration for reservation key:[%s] due to error:[%s]",
-			reservationKey,
-			err)
-		return nil, &api.JsonErr{
-			Code:       api.JsonBodyUnMarshalFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+	prop, ok := entity.Properties[featureMigrationTag]
+	if !ok {
+		loggershim.LS.Errorf("could not find FeatureMigrationComplete property in the result entity")
+		return false, nil
 	}
 
-	return &reservationConfiguration, nil
+	return prop.(bool), nil
 }
 
-// TryQueryIPReservation - Query IP Reservation configuration.
-func TryQueryIPReservation(networkID, reservationID string) (*ReservationConfiguration, *api.JsonErr) {
+// TryQueryIPReservationByKey - Query IP Reservation configuration.
+func TryQueryIPReservationByKey(reservationKey string) (ReservationRow, *api.JsonErr) {
+	entity, status, err := dataStoreShim.Query(ipReservationsTableName, reservationKey)
+	if err != nil && status != http.StatusNotFound {
+		return ReservationRow{}, api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not retrieve configuration for reservation: %s Error: %v", reservationKey, err)
+	}
+
+	if entity == nil {
+		return ReservationRow{}, nil
+	}
+
+	var reservationConfiguration ReservationConfiguration
+	err = json.Unmarshal([]byte(entity.Properties[reservationConfigProperty].(string)), &reservationConfiguration)
+	if err != nil {
+		return ReservationRow{}, api.InternalServerErrorf(api.JsonBodyUnMarshalFailed,
+			"could not deserialize reservation %s: %v", reservationKey, err)
+	}
+
+	reservationRow := ReservationRow{
+		RowKey: reservationKey,
+		Configuration: &reservationConfiguration,
+	}
+
+	if entity.Properties[subnetKeyProperty] != nil {
+		reservationRow.SubnetKey = entity.Properties[subnetKeyProperty].(string)
+	}
+
+	return reservationRow, nil
+}
+
+// TryQueryIPReservation - Try querying an IP Reservation. No error is returned if the reservation record is not found in the storage.
+func TryQueryIPReservation(networkID, reservationID string) (ReservationRow, *api.JsonErr) {
 	reservationKey := GetReservationKey(networkID, reservationID)
 	return TryQueryIPReservationByKey(reservationKey)
 }
 
-// QueryIPReservation - Query IP Reservation configuration.
-func QueryIPReservation(networkID, reservationID string) (*ReservationConfiguration, *api.JsonErr) {
-	reservationConfiguration, err := TryQueryIPReservation(networkID, reservationID)
+// QueryIPReservation - Query IP Reservation. An error is returned if the reservation record is not found in the storage.
+func QueryIPReservation(networkID, reservationID string) (ReservationRow, *api.JsonErr) {
+	reservationRow, err := TryQueryIPReservation(networkID, reservationID)
 	if err != nil {
-		return nil, err
+		return ReservationRow{}, err
 	}
 
-	if reservationConfiguration == nil {
-		msg := fmt.Sprintf(
-			"Configuration for reservation:[%s] in network [%s] not found.",
-			reservationID,
-			networkID)
-		return nil, &api.JsonErr{
-			Code:       api.ReservationNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusNotFound}
+	if reservationRow.Configuration == nil {
+		return ReservationRow{}, api.NotFoundf(api.ReservationNotFound, "could not find reservation: %s in network: %s",
+			reservationID, networkID)
 	}
 
-	return reservationConfiguration, nil
+	return reservationRow, nil
 }
 
 func UpdateIPReservations(reservations []ReservationConfiguration) *api.JsonErr {
@@ -1048,7 +1059,9 @@ func UpdateIPReservations(reservations []ReservationConfiguration) *api.JsonErr 
 		if err != nil {
 			return api.InternalServerErrorf(api.JsonMarshallingFailed, "could not serialize reservation %s: %v", res.ReservationID, err)
 		}
-		rows[key] = map[string]interface{}{reservationConfigurationTag: string(resJSON)}
+		rows[key] = map[string]interface{}{
+			reservationConfigurationTag: string(resJSON),
+			subnetKeyProperty: GetSubnetKey(res.NetworkID, res.AllocationRequest.SubnetName)}
 	}
 
 	if err := dataStoreShim.UpsertBatch(ipReservationsTableName, rows); err != nil {
@@ -1616,36 +1629,18 @@ func UpdateSubnet(
 	subnet string,
 	subnetRequest api.SubnetRequest,
 	isDelete bool) *api.JsonErr {
-	var err *api.JsonErr
-	var networkConfig *NetworkConfiguration
-	defer func() {
-		if err != nil {
-			loggershim.LS.Errorf("UpdateSubnet failed. Error %v", err)
-		}
-	}()
-	networkConfig, err = TryQueryNetworkConfiguration(networkID)
+	networkConfig, err := TryQueryNetworkConfiguration(networkID)
 	if err != nil {
 		return err
 	}
 
 	if networkConfig == nil {
-		msg := fmt.Sprintf("Network with ID %s not found", networkID)
-		err = &api.JsonErr{
-			Code:       api.NetworkNotFound,
-			HTTPStatus: http.StatusNotFound,
-			Text:       msg}
-		return err
+		return api.NotFoundf(api.NetworkNotFound, "could not find network: %s", networkID)
 	}
 
 	if networkConfig.NetworkState == Join && networkConfig.Status != Completed {
-		msg := fmt.Sprintf("Network with ID %s join is not completed. Current Status: %s",
-			networkID,
-			networkConfig.Status.String())
-		err = &api.JsonErr{
-			Code:       api.NetworkStatusInvalid,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       msg}
-		return err
+		return api.BadRequestf(api.NetworkStatusInvalid,
+			"Network join for %s is not complete. Current status: %s", networkID, networkConfig.Status.String())
 	}
 
 	var subnetFound = true
@@ -1670,23 +1665,15 @@ func UpdateSubnet(
 			Joined:       true,
 			UpdateStatus: SubnetUpdatePending}
 		if failureDetail := PutSubnetConfiguration(&subnetConfig); failureDetail != nil {
-			msg := fmt.Sprintf("Subnet %s not found in Network with ID %s. Failure to insert subnet in config.",
-				subnet,
-				networkID)
-			err = &api.JsonErr{
-				Code:       api.SubnetNotFound,
-				HTTPStatus: http.StatusBadRequest,
-				Text:       msg}
-			return err
+			return api.BadRequestf(api.SubnetNotFound,
+				"could not find subnet: %s in network: %s. Failed to store subnet config", subnet, networkID)
 		}
 
 		requestContext := RequestContext{
 			Type:      VirtualNetworkRequest,
 			NetworkID: networkID}
 
-		err = AddRequestToPendingQueue(GetNetworkKey(networkID), &requestContext)
-
-		return err
+		return AddRequestToPendingQueue(GetNetworkKey(networkID), &requestContext)
 	}
 
 	subnetConfiguration, err := TryQuerySubnetConfiguration(networkID, subnet)
@@ -1695,14 +1682,8 @@ func UpdateSubnet(
 	}
 
 	if subnetConfiguration == nil {
-		msg := fmt.Sprintf("Subnet %s configuration not found. Network with ID %s",
-			subnet,
-			networkID)
-		err = &api.JsonErr{
-			Code:       api.SubnetConfigurationNotFound,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       msg}
-		return err
+		return api.BadRequestf(api.SubnetConfigurationNotFound,
+			"could not find subnet configuration: %s in network: %s", subnet, networkID)
 	}
 
 	if subnetConfiguration.UpdateStatus == SubnetUpdatePending {
@@ -1710,41 +1691,28 @@ func UpdateSubnet(
 		// the same request issued earlier is in process
 		return nil
 	} else if subnetConfiguration.UpdateStatus == SubnetUpdateFailed {
-		msg := fmt.Sprintf("Network %s does not contain the specified subnet %s",
-			networkID,
-			subnet)
-		err = &api.JsonErr{
-			Code:       api.SubnetNotFound,
-			HTTPStatus: http.StatusNotFound,
-			Text:       msg}
-		return err
+		return api.NotFoundf(api.SubnetNotFound, "could not find subnet: %s in network: %s", subnet, networkID)
 	}
 
 	if !subnetConfiguration.IsDelegatedSubnet {
-		msg := fmt.Sprintf("Subnet %s is not a delegated subnet. Network with ID %s",
-			subnet,
-			networkID)
-		err = &api.JsonErr{
-			Code:       api.SubnetIsNotDelegated,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       msg}
-		return err
+		return api.BadRequestf(api.SubnetIsNotDelegated, "subnet: %s in network: %s is not delegated", subnet, networkID)
 	}
 
-	if isDelete && len(subnetConfiguration.Reservations) > 0 {
-		msg := fmt.Sprintf("Cannot remove authentication token while subnet %s has allocations", subnet)
-		err = &api.JsonErr{
-			Code:       api.InvalidSubnetRequest,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       msg}
-		return err
+	if isDelete {
+		reservations, err := GetReservationsInSubnet(networkID, subnet)
+		if err != nil {
+			return api.InternalServerErrorf(api.StatusInternalServerError,
+				"could not retrieve reservations for subnet: %s. Error: %v", subnet, err)
+		}
+
+		if len(reservations) > 0 {
+			return api.BadRequestf(api.InvalidSubnetRequest, "cannot remove auth token as subnet: %s has allocations", subnet)
+		}
 	}
 
 	subnetConfiguration.Joined = !isDelete
 	subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken
-	err = PutSubnetConfiguration(subnetConfiguration)
-
-	return err
+	return PutSubnetConfiguration(subnetConfiguration)
 }
 
 // PurgeNetworkContainerAssociations - Process relase of resevation associated with network container
@@ -1832,7 +1800,6 @@ func DeleteNetworkConfiguration(networkID string) *api.JsonErr {
 	}
 
 	var subnetKeysToDelete []string
-
 	for subnetName := range networkConfiguration.Subnets {
 		subnetConfiguration, err := TryQuerySubnetConfiguration(networkID, subnetName)
 		if err != nil {
@@ -1843,41 +1810,34 @@ func DeleteNetworkConfiguration(networkID string) *api.JsonErr {
 			continue
 		}
 
-		if len(subnetConfiguration.Reservations) > 0 {
-			reservationsString := utils.PrintMapKeys(subnetConfiguration.Reservations)
-			msg := fmt.Sprintf(
-				"Subnet %s in network %s has allocations in use %s",
-				subnetName,
-				networkID,
-				reservationsString)
-			return &api.JsonErr{
-				Code:       api.NetworkInUse,
-				HTTPStatus: http.StatusBadRequest,
-				Text:       msg}
+		reservations, err := GetReservationsInSubnet(networkID, subnetName)
+		if err != nil {
+			return err
+		}
+
+		if len(reservations) > 0 {
+			reservationKeys := make([]string, 0, len(reservations))
+			for _, reservation := range reservations {
+				reservationKeys = append(reservationKeys, reservation.RowKey)
+			}
+			reservationsString := "[" + strings.Join(reservationKeys, ", ") + "]"
+			return api.BadRequestf(api.NetworkInUse,
+				"Subnet: %s in Network: %s has allocations: %s", subnetName, networkID, reservationsString)
 		}
 
 		subnetKeysToDelete = append(subnetKeysToDelete, subnetName)
 	}
 
 	for _, subnetName := range subnetKeysToDelete {
-		err := DeleteSubnetConfiguration(networkID, subnetName)
-		if err != nil {
+		if err := DeleteSubnetConfiguration(networkID, subnetName); err != nil {
 			return err
 		}
 	}
 
 	networkKey := GetNetworkKey(networkID)
-	deleteErr := dataStoreShim.Delete(networkConfigurationTableName, networkKey)
-	if deleteErr != nil {
-		msg := fmt.Sprintf(
-			"Failed to delete network configuration network-key: %s network-id: %s due to error %s",
-			networkKey,
-			networkID,
-			deleteErr.Error())
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			HTTPStatus: http.StatusInternalServerError,
-			Text:       msg}
+	if deleteErr := dataStoreShim.Delete(networkConfigurationTableName, networkKey); deleteErr != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not delete configuration for network: %s. Error: %s", networkKey, deleteErr)
 	}
 
 	return nil
@@ -1967,7 +1927,7 @@ func GetNetworkContainerResponse(
 		err                      *api.JsonErr
 		ipConfiguration          *api.IPConfiguration
 		nodeConfiguration        *NodeConfiguration
-		reservationConfiguration *ReservationConfiguration
+		reservation              ReservationRow
 	)
 
 	if ncConfig == nil {
@@ -1977,16 +1937,13 @@ func GetNetworkContainerResponse(
 			Text:       "GetNetworkContainerResponse on nil NCConfiguration"}
 	}
 
-	reservationConfiguration, err = QueryIPReservation(
-		ncConfig.NetworkID,
-		ncConfig.ReservationID)
-	if err != nil {
+	if reservation, err = QueryIPReservation(ncConfig.NetworkID, ncConfig.ReservationID); err != nil {
 		loggershim.LS.Errorf("Failed to get IP reservation in GetNetworkContainerResponse for NC: %s,"+
 			" NC state: %s. Error: %v", ncConfig.NetworkContainerID, ncConfig.State.String(), err)
 	}
 
-	if reservationConfiguration != nil {
-		ipConfiguration, err = getIPConfiguration(reservationConfiguration)
+	if reservation.Configuration != nil {
+		ipConfiguration, err = getIPConfiguration(reservation.Configuration)
 		if err != nil {
 			loggershim.LS.Errorf("Failed to get IP configuration for reservation: %s "+
 				"in GetNetworkContainerResponse for NC: %s. Error: %v",
@@ -2110,16 +2067,16 @@ func GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr) {
 
 	index = 0
 	for reservationID, networkID := range repoNodeConfiguration.ConstrainedReservations {
-		reservationConfiguration, err := QueryIPReservation(networkID, reservationID)
+		reservation, err := QueryIPReservation(networkID, reservationID)
 		if err != nil {
 			return nil, err
 		}
 
-		if reservationConfiguration == nil {
+		if reservation.Configuration == nil {
 			continue
 		}
 
-		constrainedReservations[index] = translateRepoToContractReservationResponse(reservationConfiguration)
+		constrainedReservations[index] = translateRepoToContractReservationResponse(reservation.Configuration)
 		index++
 	}
 
@@ -2137,12 +2094,12 @@ func PersistIPReservationRequest(networkID string,
 	allocationRequest api.AllocationRequest,
 	apiVersion string) *api.JsonErr {
 
-	reservationConfiguration, err := TryQueryIPReservation(networkID, reservationID)
-	if reservationConfiguration != nil {
+	reservation, err := TryQueryIPReservation(networkID, reservationID)
+	if reservation.Configuration != nil {
 		return nil
 	}
 
-	reservationConfiguration = &ReservationConfiguration{
+	reservation.Configuration = &ReservationConfiguration{
 		NetworkID:         networkID,
 		ReservationID:     reservationID,
 		ReservationState:  Process,
@@ -2150,15 +2107,15 @@ func PersistIPReservationRequest(networkID string,
 		AllocationRequest: allocationRequest,
 		APIVersion:        apiVersion}
 
-	err = PutIPReservationConfiguration(reservationConfiguration)
+	err = PutIPReservationConfiguration(reservation.Configuration)
 	if err != nil {
 		return err
 	}
 
 	requestContext := RequestContext{
 		Type:      ReservationRequest,
-		NetworkID: reservationConfiguration.NetworkID,
-		NodeID:    reservationConfiguration.AllocationRequest.NodeConstraint}
+		NetworkID: reservation.Configuration.NetworkID,
+		NodeID:    reservation.Configuration.AllocationRequest.NodeConstraint}
 
 	reservationKey := GetReservationKey(networkID, reservationID)
 	return AddRequestToPendingQueue(reservationKey, &requestContext)
@@ -2168,12 +2125,12 @@ func PersistIPReservationRequest(networkID string,
 func GetReservationResponse(
 	networkID string,
 	reservationID string) (*api.ReservationResponse, *api.JsonErr) {
-	reservationConfiguration, err := QueryIPReservation(networkID, reservationID)
+	reservation, err := QueryIPReservation(networkID, reservationID)
 	if err != nil {
 		return nil, err
 	}
 
-	response := translateRepoToContractReservationResponse(reservationConfiguration)
+	response := translateRepoToContractReservationResponse(reservation.Configuration)
 	return &response, nil
 }
 
@@ -2499,56 +2456,6 @@ type NetworkContainerInfo struct {
 	ProgrammedTagsInfo map[string]uint64
 }
 
-// GetNetworkContainersInSubnet - Get network containers in a subnet
-func GetNetworkContainersInSubnet(
-	repoSubnetConfiguration *SubnetConfiguration,
-	includePendingDeletes bool) ([]*NetworkContainerInfo, *api.JsonErr) {
-	networkContainersInfo := make([]*NetworkContainerInfo, len(repoSubnetConfiguration.Reservations))
-	containersCount := 0
-	for reservationID := range repoSubnetConfiguration.Reservations {
-		repoReservation, err := TryQueryIPReservation(repoSubnetConfiguration.NetworkID, reservationID)
-		if err != nil {
-			return nil, err
-		}
-
-		if repoReservation == nil {
-			continue
-		}
-
-		if len(repoReservation.AssociatedNCID) == 0 {
-			continue
-		}
-
-		repoNetworkContainerConfiguration, err := TryQueryNetworkContainer(
-			repoSubnetConfiguration.NetworkID,
-			repoReservation.AssociatedNCID)
-		if err != nil {
-			return nil, err
-		}
-
-		if repoNetworkContainerConfiguration == nil {
-			continue
-		}
-
-		if !includePendingDeletes && repoNetworkContainerConfiguration.MarkedForDelete {
-			continue
-		}
-
-		associationInfo := repoNetworkContainerConfiguration.GetAssociationInfo()
-		networkContainersInfo[containersCount] = &NetworkContainerInfo{
-			NetworkID:          repoSubnetConfiguration.NetworkID,
-			SubnetName:         repoSubnetConfiguration.SubnetName,
-			ReservationID:      repoReservation.ReservationID,
-			NetworkContainerID: repoNetworkContainerConfiguration.NetworkContainerID,
-			AssociationInfo:    associationInfo,
-			ProgrammedTagsInfo: repoNetworkContainerConfiguration.ProgrammedTagsInfo}
-
-		containersCount++
-	}
-
-	return networkContainersInfo[:containersCount], nil
-}
-
 // GetAllNetworkIDs - Retrieve all network IDs
 func GetAllNetworkIDs() (map[string]bool, error) {
 	var context interface{}
@@ -2611,6 +2518,12 @@ type AllocationRow struct {
 	AllocationID     string
 }
 
+type ReservationRow struct {
+	RowKey string
+	Configuration *ReservationConfiguration
+	SubnetKey string
+}
+
 // TryQueryAllIPAllocations - Query all IP allocations in the partition.
 func TryQueryAllIPAllocations(networkID, subnetName string) ([]AllocationRow, *api.JsonErr) {
 	partitionKey := GetSubnetKey(networkID, subnetName)
@@ -2628,9 +2541,13 @@ func TryQueryAllIPAllocations(networkID, subnetName string) ([]AllocationRow, *a
 		for _, entity := range entities {
 			row := AllocationRow{
 				RowKey:       entity.RowKey, // todo: use metadata struct from different PR
-				AllocationID: entity.Properties[AllocationIDProperty].(string),
 				IPAllocation: entity.Properties[ipAllocationTag].(string),
 			}
+
+			if entity.Properties[AllocationIDProperty] != nil {
+				row.AllocationID = entity.Properties[AllocationIDProperty].(string)
+			}
+
 			rows = append(rows, row)
 		}
 
@@ -2646,7 +2563,7 @@ const AllocationIDProperty = "AllocationID"
 
 func QueryIPAllocationsByAllocationID(networkID, subnetName string, allocationIDs []string) ([]AllocationRow, *api.JsonErr) {
 	partitionKey := GetSubnetKey(networkID, subnetName)
-	filter := azurestorage.BuildFilterOnPartition(partitionKey, AllocationIDProperty, allocationIDs)
+	filter := azurestorage.BuildFilterOnProperty(partitionKey, AllocationIDProperty, allocationIDs)
 
 	entities, err := dataStoreShim.QueryFilter(ipAllocationsTableName, filter)
 	if err != nil {
@@ -2663,6 +2580,126 @@ func QueryIPAllocationsByAllocationID(networkID, subnetName string, allocationID
 	}
 
 	return rows, nil
+}
+
+
+func getReservationsFromSubnetConfigTable(networkID, subnetName string) (map[string]ReservationRow, *api.JsonErr) {
+	repoSubnetConfiguration, err := QuerySubnetConfiguration(networkID,	subnetName)
+	if err != nil {
+		return nil, err
+	}
+
+	reservations := make(map[string]ReservationRow, len(repoSubnetConfiguration.Reservations))
+	for reservationID := range repoSubnetConfiguration.Reservations {
+		repoReservation, err := QueryIPReservation(networkID, reservationID)
+		if err != nil {
+			return nil, api.InternalServerErrorf(api.StatusInternalServerError,
+				"could not retrieve reservation for reservationID %s: %v", reservationID, err)
+		}
+
+		reservations[repoReservation.RowKey] = repoReservation
+	}
+
+	return reservations, nil
+}
+
+func GetReservationsInSubnet(networkID, subnetName string) ([]ReservationRow, *api.JsonErr) {
+	// Get the reservations from IPReservationsTable filtered on SubnetKey
+	reservationsFromIPReservationsTable, err := TryQueryAllReservationsInSubnet(networkID, subnetName)
+	if err != nil {
+		return nil, err
+	}
+
+	// If config flag is enabled, return reservations from IPReservations table
+	if disableResMapInSubnetConfig {
+		return reservationsFromIPReservationsTable, nil
+	}
+
+	// If the config flag is disabled, get the reservations from subnet config table too
+	// and return the union of reservations without duplicates
+	reservationMapFromSubnetConfigTable, err := getReservationsFromSubnetConfigTable(networkID, subnetName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a reservation slice with initial capacity equal to number of reservations found in IPReservationsTable
+	reservationsInSubnet := make([]ReservationRow, 0, len(reservationsFromIPReservationsTable))
+
+	// Take the union of the two sets of reservations without duplicates
+	for _, reservation := range reservationsFromIPReservationsTable {
+		// Include the reservation from IPReservationsTable only if it's not found in SubnetConfigTable
+		if _, duplicate := reservationMapFromSubnetConfigTable[reservation.RowKey]; !duplicate {
+			reservationsInSubnet = append(reservationsInSubnet, reservation)
+		}
+	}
+
+	// Include all the reservations from SubnetConfigTable
+	for _, reservation := range reservationMapFromSubnetConfigTable {
+		reservationsInSubnet = append(reservationsInSubnet, reservation)
+	}
+
+	return reservationsInSubnet, nil
+}
+
+// TryQueryAllReservationsInSubnet returns all the reservations in the given subnet
+func TryQueryAllReservationsInSubnet(networkID, subnetName string) ([]ReservationRow, *api.JsonErr) {
+	subnetKey := []string{GetSubnetKey(networkID, subnetName)}
+	filter := azurestorage.BuildFilterOnProperty(dncPartitionKey, subnetKeyProperty, subnetKey)
+	return tryQueryReservations(filter)
+}
+
+// TryQueryAllReservations returns all the reservations in the dnc partition
+func TryQueryAllReservations() ([]ReservationRow, *api.JsonErr) {
+	filter := azurestorage.BuildFilterOnPartition(dncPartitionKey)
+	return tryQueryReservations(filter)
+}
+
+func tryQueryReservations(filter string) ([]ReservationRow, *api.JsonErr) {
+	entities, err := dataStoreShim.QueryFilter(ipReservationsTableName, filter)
+	if err != nil {
+		return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	rows := make([]ReservationRow, len(entities))
+	for i, entity := range entities {
+		var reservationConfiguration ReservationConfiguration
+		if err = json.Unmarshal([]byte(entity.Properties[reservationConfigProperty].(string)), &reservationConfiguration); err != nil {
+			return []ReservationRow{}, api.InternalServerErrorf(api.JsonBodyUnMarshalFailed,
+				"could not deserialize reservation %s. Error: %v", entity.RowKey, err)
+		}
+
+		rows[i] = ReservationRow{
+			RowKey: entity.RowKey,
+			Configuration: &reservationConfiguration,
+		}
+
+		if entity.Properties[subnetKeyProperty] != nil {
+			rows[i].SubnetKey = entity.Properties[subnetKeyProperty].(string)
+		}
+	}
+
+	return rows, nil
+}
+
+func TryQueryAllSubnetConfigurations() ([]SubnetConfiguration, *api.JsonErr) {
+	filter := azurestorage.BuildFilterOnPartition(dncPartitionKey)
+	entities, err := dataStoreShim.QueryFilter(subnetConfigurationTableName, filter)
+	if err != nil {
+		return nil, api.InternalServerErrorf(api.StatusInternalServerError, err.Error())
+	}
+
+	subnetConfigs := make([]SubnetConfiguration, len(entities))
+	for i, entity := range entities {
+		var config SubnetConfiguration
+		if err := json.Unmarshal([]byte(entity.Properties[subnetConfigurationTag].(string)), &config); err != nil {
+			return []SubnetConfiguration{}, api.InternalServerErrorf(api.JsonBodyUnMarshalFailed,
+				"could not deserialize subnet config: %s. Error: %v", entity.RowKey, err)
+		}
+
+		subnetConfigs[i] = config
+	}
+
+	return subnetConfigs, nil
 }
 
 // TryQueryIPAllocation - Query for IP allocations
@@ -2751,52 +2788,37 @@ func GetAllNetworkContainers() (map[string]NCConfiguration, error) {
 // 3. Error.
 func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.JsonErr) {
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
-	repoReservationConfiguration, err := TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
+	repoReservation, err := TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
 	if err != nil {
 		return nil, true, err
-	} else if repoReservationConfiguration == nil {
-		msg := fmt.Sprintf(
-			"IPReservation for Id %s associated with Network Container %s in Network %s not found.",
-			repoNCConfig.ReservationID,
-			repoNCConfig.NetworkContainerID,
-			repoNCConfig.NetworkID)
+	}
 
-		return nil, false, &api.JsonErr{
-			Code:       api.ReservationNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+	if repoReservation.Configuration == nil {
+		return nil, false, api.BadRequestf(api.ReservationNotFound,
+			"reservation: %s not found. Associated NC: %s", repoNCConfig.ReservationID, repoNCConfig.NetworkContainerID)
 	}
 
 	// Query NodeConfiguration table with nodeid and handle errors.
 	repoNodeConfig, err := TryQueryNodeConfiguration(nodeID)
 	if err != nil {
 		return nil, true, err
-	} else if repoNodeConfig == nil {
-		msg := fmt.Sprintf(
-			"Configuration for Node %v associated with the NetworkContainer %v not found.",
-			nodeID,
-			repoNCConfig.NetworkContainerID)
+	}
 
-		return nil, false, &api.JsonErr{
-			Code:       api.NodeNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+	if repoNodeConfig == nil {
+		return nil, false, api.BadRequestf(api.NodeNotFound,
+			"configuration for node: %s not found. Associated NC: %s", nodeID, repoNCConfig.NetworkContainerID)
 	}
 
 	repoSubnetConfiguration, err := TryQuerySubnetConfiguration(
 		repoNCConfig.NetworkID,
-		repoReservationConfiguration.AllocationRequest.SubnetName)
+		repoReservation.Configuration.AllocationRequest.SubnetName)
 	if err != nil {
 		return nil, true, err
-	} else if repoSubnetConfiguration == nil {
-		msg := fmt.Sprintf(
-			"Configuration for Subnet %v in Network %v not found.",
-			repoReservationConfiguration.AllocationRequest.SubnetName,
-			repoNCConfig.NetworkID)
-		return nil, false, &api.JsonErr{
-			Code:       api.SubnetNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+	}
+
+	if repoSubnetConfiguration == nil {
+		return nil, false, api.BadRequestf(api.SubnetNotFound,"configuration for subnet: %s not found. Network: %s",
+			repoReservation.Configuration.AllocationRequest.SubnetName, repoNCConfig.NetworkID)
 	}
 
 	if repoSubnetConfiguration.Tags == nil {
@@ -2806,14 +2828,10 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 	repoNetworkConfiguration, err := TryQueryNetworkConfiguration(repoNCConfig.NetworkID)
 	if err != nil {
 		return nil, true, err
-	} else if repoNetworkConfiguration == nil {
-		msg := fmt.Sprintf(
-			"Configuration for Network %v not found.",
-			repoNCConfig.NetworkID)
-		return nil, false, &api.JsonErr{
-			Code:       api.NetworkNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
+	}
+
+	if repoNetworkConfiguration == nil {
+		return nil, false, api.BadRequestf(api.NetworkNotFound, "configuration for network: %s not found", repoNCConfig.NetworkID)
 	}
 
 	dnsServers, err := GetDNSServers(repoNetworkConfiguration, repoSubnetConfiguration)
@@ -2827,7 +2845,7 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 	}
 
 	secondaryIPs := make([]string, 0)
-	for _, ipAddress := range repoReservationConfiguration.SecondaryAllocations {
+	for _, ipAddress := range repoReservation.Configuration.SecondaryAllocations {
 		if ipAddress != "" {
 			secondaryIPs = append(secondaryIPs, ipAddress)
 		}
@@ -2838,7 +2856,7 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 		Version:               repoNCConfig.CNSVersion,
 		NetworkID:             repoNCConfig.NetworkID,
 		InfraNetworkID:        repoNodeConfig.NodeInfo.InfrastructureNetwork,
-		AllocatedIPSubnet:     repoReservationConfiguration.AllocatedSubnet,
+		AllocatedIPSubnet:     repoReservation.Configuration.AllocatedSubnet,
 		SecondaryIPs:          secondaryIPs,
 		BaseSubnet:            repoSubnetConfiguration.IPSubnet,
 		BaseSubnetName:        repoSubnetConfiguration.SubnetName,
@@ -3298,4 +3316,129 @@ func NmAgentSupportedApis(nodeIP string) ([]string, error) {
 	}
 
 	return resp.SupportedApis, nil
+}
+
+// Process and complete the feature migration for feature flag - DisableReservationMapInSubnetConfig
+func ProcessDisableReservationMapInSubnetConfig(feature string) *api.JsonErr {
+	featureMigrationComplete, err := TryQueryFeatureMigrationStatus(feature)
+	if err != nil {
+		loggershim.LS.Errorf("could not get the feature migration status for %s. Error: %v", feature, err)
+		return err
+	}
+
+	if featureMigrationComplete {
+		loggershim.LS.Debugf("Feature migration for %s is already completed", feature)
+		return nil
+	}
+
+	// Update the subnetkey column of reservation rows in IPReservations table
+	if err = updateIPReservationsTableWithSubnet(); err != nil {
+		loggershim.LS.Errorf("could not update all the reservation records with subnet keys. Error: %v", err)
+		return err
+	}
+
+	loggershim.LS.Debugf("successfully updated all reservations with subnet keys")
+
+	// Remove the reservation map from subnet configuration table
+	if err = removeReservationMapFromSubnetConfig(); err != nil {
+		loggershim.LS.Errorf("could not remove the reservation map from subnet config. Error: %v", err)
+		return err
+	}
+
+	loggershim.LS.Debugf("successfully removed reservation map from all subnet configuration records")
+
+	// Mark the feature migration complete in the FeatureMigration Table
+	if err := dataStoreShim.InsertOrUpdate(featureMigrationTableName, feature,
+		TableToColumnMap[featureMigrationTableName], true); err != nil {
+		loggershim.LS.Errorf("could not persist feature migration status for feature: %s. Error: %v", feature, err)
+		return api.InternalServerErrorf(api.StatusInternalServerError, err.Error())
+	}
+
+	loggershim.LS.Debugf("successfully completed feature migration for %s", feature)
+
+	return nil
+}
+
+// Remove the reservation map from subnet configuration table
+func removeReservationMapFromSubnetConfig() *api.JsonErr {
+	// Get all the subnet configurations in the DNC partition
+	subnetConfigs, err := TryQueryAllSubnetConfigurations()
+	if err != nil {
+		return err
+	}
+
+	updatedSubnetConfigs := make(map[string]map[string]interface{})
+	for _, subnetConfig := range subnetConfigs {
+		if subnetConfig.Reservations != nil {
+			subnetKey := GetSubnetKey(subnetConfig.NetworkID, subnetConfig.SubnetName)
+			subnetConfig.Reservations = nil
+			subnetJSON, err := json.Marshal(subnetConfig)
+			if err != nil {
+				return api.InternalServerErrorf(api.JsonMarshallingFailed,
+					"could not serialize config for subnet: %s. Error: %v", subnetKey, err)
+			}
+
+			updatedSubnetConfigs[subnetKey] = map[string]interface{}{
+				TableToColumnMap[subnetConfigurationTableName]: string(subnetJSON)}
+
+			if len(updatedSubnetConfigs) == batchSize {
+				if err := dataStoreShim.UpsertBatch(subnetConfigurationTableName, updatedSubnetConfigs); err != nil {
+					return api.InternalServerErrorf(api.StatusInternalServerError, "could not persist subnetconfig batch: %v", err)
+				}
+
+				updatedSubnetConfigs = make(map[string]map[string]interface{})
+			}
+		}
+	}
+
+	if len(updatedSubnetConfigs) > 0 {
+		if err := dataStoreShim.UpsertBatch(subnetConfigurationTableName, updatedSubnetConfigs); err != nil {
+			return api.InternalServerErrorf(api.StatusInternalServerError, "could not persist subnetconfig batch: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// Update the subnetkey column of reservation rows in IPReservations table
+func updateIPReservationsTableWithSubnet() *api.JsonErr {
+	// Get all the reservations in the DNC partition
+	reservations, err := TryQueryAllReservations()
+	if err != nil {
+		loggershim.LS.Errorf("could not get all the reservations. Error: %v", err)
+		return err
+	}
+
+	updatedReservations := make(map[string]map[string]interface{})
+	for _, reservation := range reservations {
+		// Update the reservation record only if the subnetKey is empty
+		if reservation.SubnetKey == "" {
+			resJSON, err := json.Marshal(reservation.Configuration)
+			if err != nil {
+				return api.InternalServerErrorf(api.JsonMarshallingFailed,
+					"could not serialize reservation %s. Error: %v", reservation.RowKey, err)
+			}
+
+			subnetKey := GetSubnetKey(reservation.Configuration.NetworkID, reservation.Configuration.AllocationRequest.SubnetName)
+			updatedReservations[reservation.RowKey] = map[string]interface{}{
+				reservationConfigProperty: string(resJSON),
+				subnetKeyProperty: subnetKey}
+
+			if len(updatedReservations) == batchSize {
+				if err := dataStoreShim.UpsertBatch(ipReservationsTableName, updatedReservations); err != nil {
+					return api.InternalServerErrorf(api.StatusInternalServerError, "could not persist reservation batch: %v", err)
+				}
+
+				updatedReservations = make(map[string]map[string]interface{})
+			}
+		}
+	}
+
+	if len(updatedReservations) > 0 {
+		if err := dataStoreShim.UpsertBatch(ipReservationsTableName, updatedReservations); err != nil {
+			return api.InternalServerErrorf(api.StatusInternalServerError, "could not persist reservation batch: %v", err)
+		}
+	}
+
+	return nil
 }

@@ -11,10 +11,9 @@ const (
 	ipAllocationsTableName                           = "IPAllocationsTable"
 	sharedSubnetDelegationMigrationTableName         = "SharedSubnetDelegationMigrationTable"
 	sharedSubnetDelegationMigrationRegionalTableName = "SharedSubnetDelegationMigrationRegionalTable"
-	// MasterElectionTableName - DNC master election table name
-	MasterElectionTableName = "MasterElectionTable"
-	// Table containing pending NC publish / unpublish context
-	ncPendingPublishContextTableName = "NcPendingPublishContextTable"
+	MasterElectionTableName                          = "MasterElectionTable" // MasterElectionTableName - DNC master election table name
+	ncPendingPublishContextTableName                 = "NcPendingPublishContextTable" // Table containing pending NC publish / unpublish context
+	featureMigrationTableName                        = "FeatureMigrationTable" // Holds the info about different features that need migration
 
 	networkKey                 = "Network_%s"
 	subnetConfigurationKey     = "Network_%s_Subnet_%s"
@@ -38,6 +37,7 @@ const (
 	sharedSubnetDelegationMigrationTag = "SharedSubnetDelegationMigrationComplete"
 	masterElectionTag                  = "MasterElection"
 	ncPendingPublishContextTag         = "NcPendingPublishContext"
+	featureMigrationTag                = "FeatureMigrationComplete"
 )
 
 const (
@@ -58,6 +58,9 @@ const (
 
 	// NCPendingPublishRepositoryName - Repository name for NC Pending publish/unpublish tasks
 	NCPendingPublishRepositoryName = "NCPendingPublishRepository"
+
+	// FeatureMigrationRespositoryName  - Repository name for FeatureMigration table
+	FeatureMigrationRespositoryName = "FeatureMigrationRespository"
 )
 
 const (
@@ -65,6 +68,13 @@ const (
 	AddToPendingQ = true
 	// DontAddToPendingQ - do not add to pending queue
 	DontAddToPendingQ = false
+)
+
+// Properties in tables
+const (
+	// Properties in the IPReservationsTable
+	reservationConfigProperty = "ReservationConfiguration"
+	subnetKeyProperty         = "SubnetKey"
 )
 
 // TableToColumnMap - Table name to column map
@@ -80,4 +90,5 @@ var TableToColumnMap = map[string]string{
 	sharedSubnetDelegationMigrationTableName:         sharedSubnetDelegationMigrationTag,
 	sharedSubnetDelegationMigrationRegionalTableName: sharedSubnetDelegationMigrationTag,
 	MasterElectionTableName:                          masterElectionTag,
-	ncPendingPublishContextTableName:                 ncPendingPublishContextTag}
+	ncPendingPublishContextTableName:                 ncPendingPublishContextTag,
+	featureMigrationTableName:                        featureMigrationTag}
