@@ -9,6 +9,7 @@ import (
 type CnsInterface interface {
 	GetNCLimitForNode(nodeID string) (int, *api.JsonErr)
 	DeleteNC(nc *datamodel.NCConfiguration, ncLock map[string]string) *api.JsonErr
+	SetOrchestratorType(nodeID, nodeAddress, orchestratorType string) *api.JsonErr
 }
 
 const (

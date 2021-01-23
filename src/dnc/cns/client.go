@@ -2,7 +2,9 @@ package cns
 
 import (
 	"bytes"
+	"dnc/api"
 	"dnc/configuration"
+	"dnc/utils"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -42,4 +44,36 @@ func (c *Client) DeleteNetworkContainer(nodeAddress, ncID string) (cns.DeleteNet
 		return cns.DeleteNetworkContainerResponse{}, err
 	}
 	return delResp, nil
+}
+
+func (c *Client) SetOrchestratorType(nodeID, nodeAddress, orchestratorType string) *api.JsonErr {
+	var (
+		info = &cns.SetOrchestratorTypeRequest{
+			OrchestratorType: orchestratorType,
+			NodeID:           nodeID}
+		body bytes.Buffer
+		resp cns.Response
+	)
+
+	json.NewEncoder(&body).Encode(info)
+	setOrchestratorTypeURL := fmt.Sprintf(c.Paths.SetOrchestratorTypeURLFmt, nodeAddress)
+	w, respErr := c.HTTP.Post(setOrchestratorTypeURL, jsonContentType, &body)
+	if respErr != nil {
+		return api.InternalServerErrorf(api.NodeProcessingFailedDueToInternalError,
+			"Post to URL %v for node %s failed. Error: %v", setOrchestratorTypeURL, nodeID, respErr)
+	}
+
+	defer w.Body.Close()
+
+	if respErr = utils.DecodeResponse(w, &resp); respErr != nil {
+		return api.InternalServerErrorf(api.NodeProcessingFailedDueToInternalError,
+			"SetOrchestratorType for node %s failed. Error: %v", nodeID, respErr)
+	}
+
+	if resp.ReturnCode != 0 {
+		return api.BadRequestf(api.NodeProcessingFailedDueToInternalError,
+			"SetOrchestratorType for node %s failed with code: %d. Error: %v", nodeID, resp.ReturnCode, respErr)
+	}
+
+	return nil
 }

@@ -765,6 +765,31 @@ func processNetworkContainerAssociate(
 	// If the NC gets marked for delete while calling CNS, in case of error that request needs to be
 	// marked as retriable error to avoid losing it and delete NC getting stuck
 	if resp.Response.ReturnCode != 0 && !repoNCConfig.MarkedForDelete {
+		// If the failure is due to Unsupported Orchestrator type, it indicates that the CNS state file is lost
+		// and doesn't have the orchestrator type. Try sending the orchestrator type to CNS.
+		if resp.Response.ReturnCode == restserver.UnsupportedOrchestratorType {
+			logger.Debugf("Calling SetOrchestratorType for node: %s as CNS returned UnsupportedOrchestratorType error",
+				repoNCConfig.GetAssociationInfo().NodeID)
+			err := cnsInterface.SetOrchestratorType(repoNCConfig.GetAssociationInfo().NodeID,
+				ncGoalState.NodeInterfaceID, ncGoalState.OrchestratorType)
+			// If the operation succeeds or fails due to internal error, mark the request as retriable. This will
+			// result in associate / refresh associate to be retried. If SetOrchestratorType succeeded, associate
+			// task will succeed in the subsequent attempt. If SetOrchestratorType failed with retriable error,
+			// If the operation fails due to error code returned by CNS, continue with marking the error as non-retriable
+			if err == nil || err.HTTPStatus == http.StatusInternalServerError {
+				if err == nil {
+					logger.Debugf("Successfully set the orchestrator type: %s for Node: %s",
+						ncGoalState.OrchestratorType, repoNCConfig.GetAssociationInfo().NodeID)
+				} else {
+					logger.Errorf("Failed to set the orchestrator type: %s for Node: %s due to error: %v",
+						ncGoalState.OrchestratorType, repoNCConfig.GetAssociationInfo().NodeID, err)
+				}
+				return false, api.InternalServerErrorf(api.AssociationFailed,
+					"Associate NC %v to node %v failed due to invalid orchestrator type set",
+					ncGoalState.NetworkContainerID, repoNCConfig.GetAssociationInfo().NodeID)
+			}
+		}
+
 		msg := fmt.Sprintf("Associate NC %v to node %v failed with response %+v",
 			ncGoalState.NetworkContainerID,
 			ncGoalState.NodeInterfaceID,

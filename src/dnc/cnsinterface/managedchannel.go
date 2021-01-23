@@ -55,3 +55,8 @@ func (client *ManagedChannel) GetNCLimitForNode(nodeID string) (int, *api.JsonEr
 func (client *ManagedChannel) DeleteNC(nc *datamodel.NCConfiguration, ncLock map[string]string) *api.JsonErr {
 	return nil
 }
+
+// SetOrchestratorType is not called by DNC in managed mode
+func (client *ManagedChannel) SetOrchestratorType(_, _, _ string) *api.JsonErr {
+	return nil
+}

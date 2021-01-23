@@ -17,3 +17,7 @@ func (n *DisabledChannel) GetNCLimitForNode(_ string) (int, *api.JsonErr) {
 func (n *DisabledChannel) DeleteNC(_ *datamodel.NCConfiguration, _ map[string]string) *api.JsonErr {
 	return nil
 }
+
+func (n *DisabledChannel) SetOrchestratorType(_, _, _ string) *api.JsonErr {
+	return nil
+}

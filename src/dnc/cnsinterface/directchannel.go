@@ -80,3 +80,7 @@ func (c *DirectChannel) GetNCLimitForNode(nodeID string) (int, *api.JsonErr) {
 
 	return ncLimit, nil
 }
+
+func (c *DirectChannel) SetOrchestratorType(nodeID, nodeAddress, orchestratorType string) *api.JsonErr {
+	return c.CNSClient.SetOrchestratorType(nodeID, nodeAddress, orchestratorType)
+}

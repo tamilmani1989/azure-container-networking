@@ -14,6 +14,7 @@ import (
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
+	"github.com/Azure/azure-container-networking/cns/restserver"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -971,6 +972,11 @@ type CnsUnpublishNetworkContainerResponse struct {
 	UnpublishNCResponse *cns.UnpublishNetworkContainerResponse
 }
 
+type CnsSetOrchestratorTypeResponse struct {
+	HTTPStatus int
+	SignalInfo
+}
+
 type GetNetworkResponse struct {
 	SignalInfo      SignalInfo
 	HTTPStatus      int
@@ -1000,6 +1006,7 @@ type CnsResponderContext struct {
 	PublishNCResponse        *CnsPublishNetworkContainerResponse
 	UnpublishNCResponse      *CnsUnpublishNetworkContainerResponse
 	NumOfCoresResponse       *CnsNumOfCPUCoresResponse
+	SetOrchestratorTypeResponse *CnsSetOrchestratorTypeResponse
 	NCDeploymentRequest      *NCDeploymentRequest
 }
 
@@ -1014,6 +1021,12 @@ func (cxtMap CnsResponderContextMap) getContext(id string) *CnsResponderContext 
 	cnsContextLock.RLock()
 	defer cnsContextLock.RUnlock()
 	return cxtMap[cns.SwiftPrefix+id]
+}
+
+func (cxtMap CnsResponderContextMap) getContextForNode(id string) *CnsResponderContext {
+	cnsContextLock.RLock()
+	defer cnsContextLock.RUnlock()
+	return cxtMap[id]
 }
 
 func (cxtMap NMAgentNetworkResponseMap) getContext(id string) *NMAgentNetworkResponse {
@@ -1281,7 +1294,6 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 		fmt.Printf("NCRequest:%+v\n", ncRequest)
 		cnsContextLock.RLock()
 		cnsResponderContext := cnsResponderContextMap[ncRequest.NetworkContainerid]
-
 		cnsContextLock.RUnlock()
 		if cnsResponderContext == nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -1338,6 +1350,15 @@ func CNSResponder(w http.ResponseWriter, r *http.Request, context interface{}) {
 			ReturnCode: 0,
 			Message:    "Successfully set orchestrator type"}
 		json.NewEncoder(w).Encode(cnsResponse)
+
+		cnsContextLock.RLock()
+		cnsResponderContext, ok := cnsResponderContextMap[otRequest.NodeID]
+		cnsContextLock.RUnlock()
+		if ok {
+			if signalTest(&cnsResponderContext.SetOrchestratorTypeResponse.SignalInfo, otRequest.NodeID) {
+				fmt.Println("Set signal for setorchestratortype")
+			}
+		}
 	}
 
 	if strings.Contains(r.RequestURI, "hostcpucores") &&
@@ -3696,6 +3717,151 @@ func TestDisableResMapInSubnetConfig(t *testing.T) {
 	fmt.Println("****TestDisableResMapInSubnetConfig Succeed**********")
 }
 
+func TestUnsupportedOrchTypeCNSResponse(t *testing.T) {
+	fmt.Println("****TestUnsupportedOrchTypeCNSResponse**********")
+	vnetID := newGUID()
+	ncID := newGUID()
+	nodeID := "dummyNode"
+	cnsServer.SetupTest()
+	ncDeploymentRequest := []*NCDeploymentRequest{{NCID: ncID}}
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequest)
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+
+	podInfo := OrchestratorContext{
+		PodName:      "testpodname1",
+		PodNamespace: "testpodnamespace1"}
+	orchContext, _        := json.Marshal(podInfo)
+	networkContainerReq := CreateNetworkContainerRequest{
+		AllocationRequest: api.AllocationRequest{
+			SubnetName:     "subnet1",
+			IPConstraint:   "10.0.0.16",
+			NodeConstraint: ""},
+		AssociationInfo: api.AssociationInfo{
+			NodeID:              nodeID,
+			InterfaceID:         "127.0.0.1",
+			ContainerType:       cns.AzureContainerInstance,
+			OrchestratorContext: orchContext}}
+	nodeReq := api.NodeInfoRequest{
+		IPAddresses:      []string{"127.0.0.1"},
+		LocationType:     "",
+		OrchestratorType: cns.Kubernetes,
+	}
+
+	setupNetworkAndJoinSubnet(t, dncEP, vnetID, networkContainerReq.AllocationRequest.SubnetName, apiVersion, true, 0)
+	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeReq)
+
+	nmAgentResponderContext := nmAgentServer.Context.(*NMAgentResponderContext)
+	allocatedIP := networkContainerReq.AllocationRequest.IPConstraint
+	var ipConfig cns.IPConfiguration
+	ipConfig.DNSServers = strings.Split(nmAgentResponderContext.NetworkResponseMap.getContext(vnetID).GetNetworkResponse.NetworkResponse.DNSServers, ",")
+	ipConfig.IPSubnet = cns.IPSubnet{
+		IPAddress:    allocatedIP,
+		PrefixLength: 24}
+	ipConfig.GatewayIPAddress = "10.0.0.1"
+	ncDeploymentRequests2 := []*NCDeploymentRequest{{
+		NCID: ncID}}
+	cnsResponderContextMap = generateDefaultCnsResponderContextMap(t, ncDeploymentRequests2)
+	ncRequestValidatorFunc := func(t *testing.T, req cns.CreateNetworkContainerRequest, ncDeploymentRequests *NCDeploymentRequest) bool {
+		podInfo := OrchestratorContext{
+			PodName:      "testpodname1",
+			PodNamespace: "testpodnamespace1"}
+		context, _ := json.Marshal(podInfo)
+		expectedReq := cns.CreateNetworkContainerRequest{
+			Version:                    req.Version,
+			NetworkContainerType:       networkContainerReq.AssociationInfo.ContainerType,
+			NetworkContainerid:         cns.SwiftPrefix + ncID,
+			PrimaryInterfaceIdentifier: networkContainerReq.AssociationInfo.InterfaceID,
+			IPConfiguration:            ipConfig,
+			AuthorizationToken:         "",
+			LocalIPConfiguration:       localIPConfiguaration,
+			CnetAddressSpace:           make([]cns.IPSubnet, 0),
+			OrchestratorContext:        context,
+			MultiTenancyInfo:           req.MultiTenancyInfo}
+		fmt.Printf("ReceivedResponse:%+v\n", req)
+		fmt.Printf("ExpectedResponse:%+v\n", expectedReq)
+
+		if !AreCnsRequestsEqual(expectedReq, req, nil) {
+			fmt.Printf("Mismatch in expected and received Cns create or update request.\nExpected:%+v\nReceived:%+v\n", expectedReq, req)
+			return false
+		}
+
+		fmt.Println("Response matches with the expected request")
+		return true
+	}
+
+	cnsResponderContextMap.getContext(ncID).CreateOrUpdateNCResponse.ValidateNCRequest = ncRequestValidatorFunc
+
+	// Set the CNS response to UnsupportedOrchestratorType and signal count to 2 to account for a success response after unsupportedOrchestratorType
+	cnsResponderContextMap.getContext(ncID).CreateOrUpdateNCResponse.CreateNCResponse.Response.ReturnCode = restserver.UnsupportedOrchestratorType
+	cnsResponderContextMap.getContext(ncID).CreateOrUpdateNCResponse.SignalCount = 2
+
+	// Set the signal count to 1 for SetOrchestratorTypeResponse to validate DNC sending it to CNS in case of unsupported Orchestrator type error
+	cnsSetOrchestratorTypeResponse := new(CnsResponderContext)
+	cnsSetOrchestratorTypeResponse.SetOrchestratorTypeResponse = &CnsSetOrchestratorTypeResponse{
+		HTTPStatus: http.StatusOK,
+		SignalInfo: SignalInfo{
+			Signal:             make(chan string, 5),
+			SignalCount:        1,
+			CurrentSignalCount: 0}}
+	cnsResponderContextMap[nodeID] = cnsSetOrchestratorTypeResponse
+
+	// Update responder context
+	cnsServer.Lock.Lock()
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+
+	// Issue create NC request
+	var body bytes.Buffer
+	var respErr api.JsonErr
+	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + apiVersion
+	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID + "/status" + apiVersion
+	json.NewEncoder(&body).Encode(networkContainerReq)
+	response, err := http.Post(ncURL, "application/json", &body)
+	if err != nil {
+		t.Fatalf("CreateNetworkContainer failed with error: %+v\n", err)
+	}
+
+	response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
+			t.Fatalf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
+		}
+	}
+
+	fmt.Printf("Waiting for create NC Url:%s\n", ncURL)
+
+	// CNS sends the Unsupported Orchestrator type to DNC
+	<-cnsResponderContextMap.getContext(ncID).CreateOrUpdateNCResponse.SignalInfo.Signal
+
+	// Validate that DNC sends SetOrchestratorType request to CNS. Below chan will unblock only if CNS gets the request.
+	<-cnsResponderContextMap.getContextForNode(nodeID).SetOrchestratorTypeResponse.SignalInfo.Signal
+
+	// Get NC state. Validate that it is stuck in Associate - Pending
+	time.Sleep(time.Millisecond * 1000)
+	ncConfig, errnc := datamodel.TryQueryNetworkContainer(vnetID, ncID)
+	if errnc != nil {
+		t.Fatalf("TryQueryNetworkContainer failed. Err:%+v", err)
+	}
+
+	if ncConfig.State != datamodel.Associate && ncConfig.Status != datamodel.Pending {
+		t.Fatalf("NC is expected to be stuck in Associate:Pending. Got %s:%s", ncConfig.State.String(), ncConfig.Status.String())
+	}
+
+	// Update the cns response to return success and NC should move to complete.
+	cnsResponderContextMap.getContext(ncID).CreateOrUpdateNCResponse.CreateNCResponse.Response.ReturnCode = restserver.Success
+	cnsServer.Lock.Lock()
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+
+	WaitForResourceState(t, ncURLStatus, "Completed", http.StatusOK, 2)
+
+	fmt.Println("****TestUnsupportedOrchTypeCNSResponse Succeed**********")
+}
+
 func TestManagedDncAPIs(t *testing.T) {
 	fmt.Println("****TestManagedDncAPIs**********")
 	processExitCallback()
@@ -3711,7 +3877,10 @@ func TestManagedDncAPIs(t *testing.T) {
 
 	fmt.Println("Started CNS Server", cnsServer.Server.URL)
 	cnsServer.SetupTest()
+	ncDeploymentRequest := []*NCDeploymentRequest{{NCID: ncID}}
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequest)
 	cnsServer.Lock.Lock()
+	cnsServer.Context = cnsResponderContextMap
 	cnsServer.ResponseFunc = CNSResponder
 	cnsServer.Lock.Unlock()
 

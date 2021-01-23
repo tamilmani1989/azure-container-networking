@@ -21,6 +21,10 @@ func (f *fakeCNSChannel) GetNCLimitForNode(_ string) (int, *api.JsonErr) {
 	return f.limit, f.err
 }
 
+func (f *fakeCNSChannel) SetOrchestratorType(_, _, _ string) *api.JsonErr {
+	return nil
+}
+
 type dummyLogger struct {
 	noOpLogger
 }

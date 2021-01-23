@@ -30,4 +30,5 @@ type NCGoalState struct {
 	VnetVersion           uint64
 	LocalIP               string
 	GreKey                uint16
+	OrchestratorType      string
 }
