@@ -4,6 +4,7 @@ import (
 	"context"
 	"dnc/api"
 	"dnc/datamodel"
+	"dnc/logger/loggermock"
 	"dnc/networkcontainer/fakes"
 	"dnc/utils"
 	"testing"
@@ -28,12 +29,12 @@ func TestDispatcher(t *testing.T) {
 		Allocations:  &fakes.AllocationRepo{},
 		Reservations: fakes.NewReservationRepo(),
 		Subnets:      &subnets,
-		Logger:       new(dummyLogger),
+		Logger:       loggermock.NewDummyLogger(),
 		MaxBatchSize: 100,
 	}
 
 	deps := DispatcherDependencies{
-		Logger:       new(noOpLogger),
+		Logger:       loggermock.NewDummyLogger(),
 		Reservations: fakes.NewReservationRepo(),
 		Allocator:    &alloc,
 		Subnets:      &subnets,

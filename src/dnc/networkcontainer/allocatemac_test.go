@@ -4,6 +4,7 @@ import (
 	"dnc/api"
 	"dnc/configuration"
 	"dnc/datamodel"
+	"dnc/logger/loggermock"
 	"dnc/networkcontainer/fakes"
 	"testing"
 )
@@ -93,7 +94,7 @@ func TestAllocateMAC_HappyPath(t *testing.T){
 			}
 			return nil
 		},
-		Logger: new(dummyLogger),
+		Logger: loggermock.NewDummyLogger(),
 	}
 
 	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
@@ -120,7 +121,7 @@ func TestDeallocateMAC_HappyPath(t *testing.T){
 			}
 			return nil
 		},
-		Logger: new(dummyLogger),
+		Logger: loggermock.NewDummyLogger(),
 	}
 
 	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
@@ -153,7 +154,7 @@ func TestAllocateMAC_NonManagedDNC(t *testing.T){
 		PersistNC: func(nc *datamodel.NCConfiguration, _ bool) *api.JsonErr {
 			return nil
 		},
-		Logger: new(dummyLogger),
+		Logger: loggermock.NewDummyLogger(),
 	}
 
 	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))

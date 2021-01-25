@@ -14,6 +14,9 @@ const (
 	MasterElectionTableName                          = "MasterElectionTable" // MasterElectionTableName - DNC master election table name
 	ncPendingPublishContextTableName                 = "NcPendingPublishContextTable" // Table containing pending NC publish / unpublish context
 	featureMigrationTableName                        = "FeatureMigrationTable" // Holds the info about different features that need migration
+	// Table containing pending cleanup request created for asynchronous cleanup of internal state
+	// For now it will be used to store IP cleanup request for a given NC during NC delete or secondary ips scale down.
+	pendingCleanupRequestTableName                   = "PendingCleanupRequestTable"
 
 	networkKey                 = "Network_%s"
 	subnetConfigurationKey     = "Network_%s_Subnet_%s"
@@ -38,6 +41,7 @@ const (
 	masterElectionTag                  = "MasterElection"
 	ncPendingPublishContextTag         = "NcPendingPublishContext"
 	featureMigrationTag                = "FeatureMigrationComplete"
+	pendingCleanupRequestTag           = "PendingCleanupRequest"
 )
 
 const (
@@ -91,4 +95,5 @@ var TableToColumnMap = map[string]string{
 	sharedSubnetDelegationMigrationRegionalTableName: sharedSubnetDelegationMigrationTag,
 	MasterElectionTableName:                          masterElectionTag,
 	ncPendingPublishContextTableName:                 ncPendingPublishContextTag,
-	featureMigrationTableName:                        featureMigrationTag}
+	featureMigrationTableName:                        featureMigrationTag,
+	pendingCleanupRequestTableName:                   pendingCleanupRequestTag}

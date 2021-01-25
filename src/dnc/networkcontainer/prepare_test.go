@@ -3,6 +3,7 @@ package networkcontainer
 import (
 	"dnc/api"
 	"dnc/datamodel"
+	"dnc/logger/loggermock"
 	"dnc/networkcontainer/fakes"
 	"dnc/utils"
 	"testing"
@@ -61,7 +62,7 @@ func TestPrepareNetworkContainer_CreateHappyPath(t *testing.T) {
 		},
 		CNS:    &fakeCNSChannel{limit: 3, err: nil},
 		Locks:  utils.NewSessionManager(nil),
-		Logger: new(dummyLogger),
+		Logger: loggermock.NewDummyLogger(),
 	}
 
 	ncID := "nc1"
@@ -281,7 +282,7 @@ func TestPrepareNetworkContainer_Error(t *testing.T) {
 				PersistNC:            func(_ *datamodel.NCConfiguration, _ bool) *api.JsonErr { return tt.ncErr },
 				CNS:                  &fakeCNSChannel{limit: 3, err: nil},
 				Locks:                utils.NewSessionManager(nil),
-				Logger:               new(dummyLogger),
+				Logger:               loggermock.NewDummyLogger(),
 			}
 
 			currentNCState := datamodel.NCConfiguration{

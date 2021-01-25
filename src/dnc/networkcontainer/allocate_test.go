@@ -3,6 +3,7 @@ package networkcontainer
 import (
 	"dnc/api"
 	"dnc/datamodel"
+	"dnc/logger/loggermock"
 	"dnc/networkcontainer/fakes"
 	"math/rand"
 	"net"
@@ -183,7 +184,7 @@ func TestDeallocate(t *testing.T) {
 		reservation.SecondaryAllocations[allocID] = ips[i].String() + "/32"
 	}
 	allocRepo := fakes.AllocationRepo{Data: allocationRows}
-	allocator := IPAllocator{Allocations: &allocRepo, Logger: new(dummyLogger), MaxBatchSize: 100}
+	allocator := IPAllocator{Allocations: &allocRepo, Logger: loggermock.NewDummyLogger(), MaxBatchSize: 100}
 
 	// randomly select a number of ids to be deleted
 	rand.Shuffle(len(allocationIDs), func(i, j int) {
@@ -225,7 +226,7 @@ func Test_RemoveSecondaryIpWithEmptyAllocations(t *testing.T) {
 		Allocations:  &allocsRepo,
 		Subnets:      &subnetRepo,
 		Reservations: fakes.NewReservationRepo(),
-		Logger:       &dummyLogger{},
+		Logger:       loggermock.NewDummyLogger(),
 		MaxBatchSize: 100,
 	}
 

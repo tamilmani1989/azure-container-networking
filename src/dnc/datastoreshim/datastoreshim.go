@@ -21,14 +21,17 @@ type DataStoreShim interface {
 	InsertInPartition(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error)
 	//TODO: Accept storage entities rather than map of interfaces
 	InsertInPartitionProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) (int, error)
+	Insert(tableName, rowKey, propertyName string, value interface{}) (int, error)
 	InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error
 	InsertOrUpdateProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) error
 	InsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
 	UpsertBatch(tableName string, batchItems map[string]map[string]interface{}) error
 	MergeBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
+	UpdateWithEtag(tableName, rowKey, etag string, propertyName string, value interface{}) error
 	UpdateInPartition(tableName, partitionKay, rowKey string, properties map[string]interface{}) error
 	UpdateInPartitionWithEtag(tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error
 	Delete(tableName, rowKey string) error
+	DeleteWithEtag(tableName, rowKey string, etag string) error
 	DeleteInPartition(tableName, partitionKey, rowKey string) error
 	DeleteBatch(tableName, partitionKey string, rowKeys []string) error
 	KeyExist(tableName, rowKey string) (bool, error)

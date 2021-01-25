@@ -2511,6 +2511,8 @@ func GetAllNodeIDs() (map[string]bool, error) {
 	return nodeIDs, nil
 }
 
+const AllocationIDProperty = "AllocationID"
+
 type AllocationRow struct {
 	RowKey           string
 	IPAllocation     string
@@ -2558,8 +2560,6 @@ func TryQueryAllIPAllocations(networkID, subnetName string) ([]AllocationRow, *a
 	}
 	return rows, nil
 }
-
-const AllocationIDProperty = "AllocationID"
 
 func QueryIPAllocationsByAllocationID(networkID, subnetName string, allocationIDs []string) ([]AllocationRow, *api.JsonErr) {
 	partitionKey := GetSubnetKey(networkID, subnetName)

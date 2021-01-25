@@ -46,6 +46,30 @@ func (s *TestPersistenceStore) Delete(tableName, rowKey string) error {
 	return nil
 }
 
+// DeleteWithEtag - Deletes a row in a given table if etag matches
+func (s *TestPersistenceStore) DeleteWithEtag(tableName, rowKey string, etag string) error {
+	s.locks[tableName].Lock()
+	defer func() {
+		s.locks[tableName].Unlock()
+	}()
+
+	rowProps, retrieved := s.datastore[tableName][rowKey]
+	if !retrieved {
+		s.logger.Debugf("Ignore the request, as value with rowKey [%s] in %s. doesnt exist", rowKey, tableName)
+		return nil
+	}
+
+	// Must match the etag
+	if etag != rowProps.etag {
+		return fmt.Errorf("Caller's Etag does not match with current etag. Row key: %s, table: %s", rowKey, tableName)
+	}
+
+	delete(s.datastore[tableName], rowKey)
+
+	s.logger.Debugf("Deleted value with rowKey [%s] in %s.n", rowKey, tableName)
+	return nil
+}
+
 // DeleteInPartition - Deletes a row in the partition of the given table.
 func (s *TestPersistenceStore) DeleteInPartition(tableName, partitionKey, rowKey string) error {
 	return s.Delete(tableName, rowKey)
@@ -91,6 +115,39 @@ func (s *TestPersistenceStore) UpdateInPartitionWithEtag(tableName, partitionKey
 	s.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: properties}
 	s.logger.Debugf("Update row to [%s] with rowKey [%s]. Caller's etag [%s]", tableName, rowKey, etag)
 	return nil
+}
+
+// UpdateWithEtag - Update (overwrite) a row in a given table if it exists.
+// Match with specified etag for update.
+func (s *TestPersistenceStore) UpdateWithEtag(tableName, rowKey, etag string, propertyName string, value interface{}) error {
+	s.locks[tableName].Lock()
+	defer func() {
+		s.locks[tableName].Unlock()
+	}()
+
+	rowProps, retrieved := s.datastore[tableName][rowKey]
+	if !retrieved {
+		return fmt.Errorf("Row with key %s not found in table %s", rowKey, tableName)
+	}
+
+	// todo fix this later to return specific error type so that caller can retry
+	if etag != rowProps.etag {
+		return fmt.Errorf("Caller's Etag does not match with current etag. Row key: %s, table: %s", rowKey, tableName)
+	}
+
+	props := make(map[string]interface{})
+	props[propertyName] = value
+	tag := s.getEtag()
+	s.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: props}
+	s.logger.Debugf("Update row to [%s] with rowKey [%s]. Caller's etag [%s]", tableName, rowKey, etag)
+	return nil
+}
+
+// Insert - Insert a row in the configured partition of the client
+func (s *TestPersistenceStore) Insert(tableName, rowKey, propertyName string, value interface{}) (int, error) {
+	props := make(map[string]interface{})
+	props[propertyName] = value
+	return s.InsertInPartitionProperties(tableName, "", rowKey, props)
 }
 
 // InsertInPartition - Insert a row in the specific partition of the given table.

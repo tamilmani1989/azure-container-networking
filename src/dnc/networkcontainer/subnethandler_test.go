@@ -2,11 +2,11 @@ package networkcontainer
 
 import (
 	"dnc/datamodel"
+	"dnc/logger/loggermock"
 	"dnc/networkcontainer/fakes"
+	"github.com/google/uuid"
 	"net"
 	"testing"
-
-	"github.com/google/uuid"
 )
 
 func TestSubnetHandlerProcess_CreationFromScratch(t *testing.T) {
@@ -26,10 +26,10 @@ func TestSubnetHandlerProcess_CreationFromScratch(t *testing.T) {
 		},
 		allocator: &IPAllocator{
 			Allocations:  &allocsRepo,
-			Logger:       new(dummyLogger),
+			Logger:       loggermock.NewDummyLogger(),
 			MaxBatchSize: 100,
 		},
-		logger: new(dummyLogger),
+		logger: loggermock.NewDummyLogger(),
 		subnetInfo: subnetInfo{
 			vnetID:     vnetID,
 			subnetName: subnet,
@@ -132,10 +132,10 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 		},
 		allocator: &IPAllocator{
 			Allocations:  &allocsRepo,
-			Logger:       new(dummyLogger),
+			Logger:       loggermock.NewDummyLogger(),
 			MaxBatchSize: 100,
 		},
-		logger: new(dummyLogger),
+		logger: loggermock.NewDummyLogger(),
 		subnetInfo: subnetInfo{
 			vnetID:     vnetID,
 			subnetName: subnet,
@@ -229,10 +229,10 @@ func TestDeallocateBatch(t *testing.T) {
 		reservations: resRepo,
 		allocator: &IPAllocator{
 			Allocations:  &allocsRepo,
-			Logger:       new(dummyLogger),
+			Logger:       loggermock.NewDummyLogger(),
 			MaxBatchSize: 100,
 		},
-		logger: new(dummyLogger),
+		logger: loggermock.NewDummyLogger(),
 		subnetInfo: subnetInfo{
 			vnetID:     vnetID,
 			subnetName: subnet,

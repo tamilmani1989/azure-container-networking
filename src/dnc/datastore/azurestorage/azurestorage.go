@@ -148,6 +148,25 @@ func (a *AzureStorage) Delete(tableName, rowKey string) error {
 	return entity.Delete(true, nil)
 }
 
+// DeleteWithEtag - Deletes a row in a given table if etag matches
+func (a *AzureStorage) DeleteWithEtag(tableName, rowKey string, etag string) error {
+	if etag == "" {
+		return fmt.Errorf("DeleteWithEtag Etag must not be empty %s, rowKey %s", tableName, rowKey)
+	}
+
+	defer a.recordProcessingTime(time.Now(), "DeleteWithEtag", tableName, a.partitionKey, rowKey)
+
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
+	if !ok {
+		return fmt.Errorf("Cannot find valid table client for table %s", tableName)
+	}
+	table := tableClient.GetTableReference(tableName)
+	entity := table.GetEntityReference(a.partitionKey, rowKey)
+	entity.OdataEtag = etag
+
+	return entity.Delete(false, nil)
+}
+
 // DeleteInPartition - Deletes a row in the partition of the given table.
 func (a *AzureStorage) DeleteInPartition(tableName, partitionKey, rowKey string) error {
 	defer a.recordProcessingTime(time.Now(), "DeleteInPartition", tableName, partitionKey, rowKey)
@@ -159,6 +178,16 @@ func (a *AzureStorage) DeleteInPartition(tableName, partitionKey, rowKey string)
 	table := tableClient.GetTableReference(tableName)
 	entity := table.GetEntityReference(partitionKey, rowKey)
 	return entity.Delete(true, nil)
+}
+
+// Insert only - Inserts a row in a given table.
+// This will fail if the entity already exists
+func (a *AzureStorage) Insert(tableName, rowKey, propertyName string, value interface{}) (int, error) {
+	defer a.recordProcessingTime(time.Now(), "Insert", tableName, a.partitionKey, rowKey)
+
+	properties := make(map[string]interface{})
+	properties[propertyName] = value
+	return a.insertRowInPartition(tableName, a.partitionKey, rowKey, properties)
 }
 
 // InsertOrUpdate - InsertOrUpdate a row in a given table.
@@ -208,6 +237,19 @@ func (a *AzureStorage) InsertOrUpdateProperties(tableName, partitionKey, rowKey 
 	defer a.recordProcessingTime(time.Now(), "InsertOrUpdateProperties", tableName, partitionKey, rowKey)
 
 	return a.insertOrUpdateRow(tableName, partitionKey, rowKey, properties)
+}
+
+// UpdateWithEtag - Update (overwrite) a row in a given table if it exists.
+// Match with specified etag for update.
+// todo export list of properties and instead of update, expose MergeWithEtag
+func (a *AzureStorage) UpdateWithEtag(tableName, rowKey, etag string, propertyName string, value interface{}) error {
+	if etag == "" {
+		return fmt.Errorf("UpdateWithEtag Etag must not be empty %s, rowKey %s", tableName, rowKey)
+	}
+	defer a.recordProcessingTime(time.Now(), "UpdateInPartitionWithEtag", tableName, a.partitionKey, rowKey)
+	properties := make(map[string]interface{})
+	properties[propertyName] = value
+	return a.updateRowWithEtag(tableName, a.partitionKey, rowKey, etag, properties)
 }
 
 // UpsertBatch inserts or replaces a batch of rows (row key to properties) for a given table and partition key

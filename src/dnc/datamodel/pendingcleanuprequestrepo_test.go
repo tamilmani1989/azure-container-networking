@@ -1,0 +1,185 @@
+package datamodel
+
+import (
+	"dnc/datastore/testpersistencestore"
+	"dnc/logger/loggermock"
+	"reflect"
+	"testing"
+)
+
+
+func TestCreateAndDeletePendingCleanupRequest(t *testing.T) {
+	pendingCleanupRepo := setup()
+	requestKey := "nc1"
+
+	ipCleanup := map[string][]string{
+		"vnet_v1_subnet_s1": {"10.0.0.1/32", "10.0.0.2/32"},
+		"vnet_v2_subnet_s2": {"10.0.0.1/32"}}
+
+	cleanupRequest := &CleanupRequestContext{
+		IPCleanupMap: ipCleanup,
+		Type:         IPCleanupRequest}
+
+	entity := validateCreateOrUpdate(t, pendingCleanupRepo, requestKey, cleanupRequest, cleanupRequest)
+
+	// Idempotent create, it will not fail again however it will
+	// update the etag
+	validateCreateOrUpdate(t, pendingCleanupRepo, requestKey, cleanupRequest, cleanupRequest)
+
+	// Now update the new cleanup map and update, udpate should merge all the entries
+	newIpCleanup := map[string][]string{
+		"vnet_v1_subnet_s1": {"10.0.0.3/32"}}
+
+	cleanupRequest = &CleanupRequestContext{
+		IPCleanupMap: newIpCleanup,
+		Type:         IPCleanupRequest}
+
+	var expectedIpCleanup map[string][]string = map[string][]string{
+		"vnet_v1_subnet_s1": {"10.0.0.1/32", "10.0.0.2/32", "10.0.0.3/32"},
+		"vnet_v2_subnet_s2": {"10.0.0.1/32"}}
+
+	expectedCleanupRequest := &CleanupRequestContext{
+		IPCleanupMap: expectedIpCleanup,
+		Type:         IPCleanupRequest}
+
+	latestEntity := validateCreateOrUpdate(t, pendingCleanupRepo, requestKey, cleanupRequest, expectedCleanupRequest)
+
+	// Now lets try to delete the entity using an old Tag
+	t.Logf("Delete entity using an old etag %s",
+		entity.Etag)
+	err := pendingCleanupRepo.DeleteCleanupRequest(requestKey, entity.Etag)
+	if err == nil {
+		t.Fatalf("Expected to fail in deleting Pending Cleanup Request for requestKey:%s, etag %+v, err %s",
+			requestKey,
+			entity.Etag,
+			err)
+	}
+
+	err = pendingCleanupRepo.DeleteCleanupRequest(requestKey, latestEntity.Etag)
+	if err != nil {
+		t.Fatalf("Failed to delete the Pending Cleanup Request for requestKey:%s, etag %+v, err %s",
+			requestKey,
+			entity.Etag,
+			err)
+	}
+}
+
+func TestGetAllPendingCleanupRequests(t *testing.T) {
+	pendingCleanupRepo := setup()
+
+	// Try to get all on emtpy collection
+	// Get All Pending requests
+	requests, err := pendingCleanupRepo.GetAllPendingCleanupRequests()
+	if err != nil {
+		t.Fatalf("Failed to get all pending requests, err %s",
+			err)
+	}
+
+	if requests != nil && len (requests) != 0 {
+		t.Fatalf("Expected to get an empty list, actual %+v",
+			requests)
+	}
+
+	request1Key := "nc3"
+	request2Key := "nc4"
+
+	ipCleanup1 := map[string][]string{
+		"vnet_v1_subnet_s1": {"10.0.0.1/32", "10.0.0.2/32"},
+		"vnet_v2_subnet_s2": {"10.0.0.1/32"}}
+
+	cleanupRequest1 := &CleanupRequestContext{
+		IPCleanupMap: ipCleanup1,
+		Type:         IPCleanupRequest}
+
+	entity1 := validateCreateOrUpdate(t, pendingCleanupRepo, request1Key, cleanupRequest1, cleanupRequest1)
+
+	ipCleanup2 := map[string][]string{
+		"vnet_v2_subnet_s2": {"192.168.0.1/32", "192.168.0.2/32"}}
+
+	cleanupRequest2 := &CleanupRequestContext{
+		IPCleanupMap: ipCleanup2,
+		Type:         IPCleanupRequest}
+
+	// Idempotent create, it will not fail again however it will
+	// update the etag
+	entity2:= validateCreateOrUpdate(t, pendingCleanupRepo, request2Key, cleanupRequest2, cleanupRequest2)
+
+	// Get All Pending requests
+	requests, err = pendingCleanupRepo.GetAllPendingCleanupRequests()
+	if err != nil {
+		t.Fatalf("Failed to get all pending requests, err %s",
+			err)
+	}
+
+	if len(requests) != 2 {
+		t.Fatalf("Failed to get all pending requests, count is not expected, actual %d",
+			len(requests))
+	}
+
+	for key, entity := range requests {
+		if key == request1Key {
+			if !reflect.DeepEqual(cleanupRequest1.IPCleanupMap, entity.CleanupRequestContext.IPCleanupMap) {
+				t.Fatalf("cleanupRequest not same for Key: %s, entity %s",
+					key,
+					entity.CleanupRequestContext)
+			}
+		} else if key == request2Key {
+			if !reflect.DeepEqual(cleanupRequest2.IPCleanupMap, entity.CleanupRequestContext.IPCleanupMap) {
+				t.Fatalf("cleanupRequest not same for Key: %s, entity %s",
+					key,
+					entity.CleanupRequestContext)
+			}
+		} else {
+			t.Fatalf("Unexpected entry found Key: %s, entity %+v",
+				key,
+				entity)
+		}
+	}
+
+	pendingCleanupRepo.DeleteCleanupRequest(request1Key, entity1.Etag)
+	pendingCleanupRepo.DeleteCleanupRequest(request2Key, entity2.Etag)
+}
+
+func setup() *PendingCleanupRepo{
+	d := testpersistencestore.TestPersistenceStore{}
+	d.Init(TableToColumnMap, loggermock.NewDummyLogger())
+	return &PendingCleanupRepo{
+		data:   &d,
+		logger: loggermock.NewDummyLogger()}
+}
+
+func validateCreateOrUpdate(t *testing.T, pendingCleanupRepo *PendingCleanupRepo, requestKey string, cleanupRequest *CleanupRequestContext, expectedRequest *CleanupRequestContext) *PendingCleanupRequestEntity {
+	t.Logf("Create Or Update Pending Cleanup request for key %s, request %s",
+		requestKey, cleanupRequest)
+	err := pendingCleanupRepo.CreateOrMergePendingCleanupRequest(requestKey, cleanupRequest)
+	if err != nil {
+		t.Fatalf("Failed to create the Pending Cleanup Request for requestKey:%s, cleanupRequest %+v",
+			requestKey,
+			cleanupRequest)
+	}
+
+	// Get the request and validate
+	t.Log("Validate request")
+	var entity *PendingCleanupRequestEntity
+	entity, err = pendingCleanupRepo.TryGetPendingCleanupRequest(requestKey)
+	if err != nil {
+		t.Fatalf("Failed to get the Pending Cleanup Request for requestKey:%s, cleanupRequest %+v",
+			requestKey,
+			cleanupRequest)
+	}
+
+	// validate
+	if entity.CleanupRequestContext.Type != expectedRequest.Type {
+		t.Fatalf( "Cleanuprequest, Type is not same, Expected %s, actual %s",
+			expectedRequest.Type,
+			entity.CleanupRequestContext.Type)
+	}
+
+	if !reflect.DeepEqual(entity.CleanupRequestContext.IPCleanupMap, expectedRequest.IPCleanupMap) {
+		t.Fatalf("Cleanup request is not same, Expected %s, actual %s",
+			expectedRequest,
+			entity.CleanupRequestContext)
+	}
+
+	return entity
+}

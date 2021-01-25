@@ -255,6 +255,9 @@ const (
 
 	// PrepareCleanup Failed - Error occurred during PrepareCleanup state
 	PrepareCleanupFailed
+
+	// Property not set - Storage operation failed as expected property is not set
+	PropertyNotSetInDb
 )
 
 func (e ErrorCode) String() string {
