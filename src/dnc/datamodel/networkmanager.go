@@ -1023,8 +1023,8 @@ func TryQueryIPReservationByKey(reservationKey string) (ReservationRow, *api.Jso
 		Configuration: &reservationConfiguration,
 	}
 
-	if entity.Properties[subnetKeyProperty] != nil {
-		reservationRow.SubnetKey = entity.Properties[subnetKeyProperty].(string)
+	if prop, ok := entity.Properties[subnetKeyProperty]; ok {
+		reservationRow.SubnetKey = prop.(string)
 	}
 
 	return reservationRow, nil
@@ -2546,8 +2546,10 @@ func TryQueryAllIPAllocations(networkID, subnetName string) ([]AllocationRow, *a
 				IPAllocation: entity.Properties[ipAllocationTag].(string),
 			}
 
-			if entity.Properties[AllocationIDProperty] != nil {
-				row.AllocationID = entity.Properties[AllocationIDProperty].(string)
+			/* TODO: Similar checks should be in place for all entity properties.
+			   create a helper func that reads entity.Property and returns a value */
+			if prop, ok := entity.Properties[AllocationIDProperty]; ok {
+				row.AllocationID = prop.(string)
 			}
 
 			rows = append(rows, row)
@@ -2573,9 +2575,13 @@ func QueryIPAllocationsByAllocationID(networkID, subnetName string, allocationID
 	for _, entity := range entities {
 		row := AllocationRow{
 			RowKey:       entity.RowKey, // todo: use metadata struct from different PR
-			AllocationID: entity.Properties[AllocationIDProperty].(string),
 			IPAllocation: entity.Properties[ipAllocationTag].(string),
 		}
+
+		if prop, ok := entity.Properties[AllocationIDProperty]; ok {
+			row.AllocationID = prop.(string)
+		}
+
 		rows = append(rows, row)
 	}
 
@@ -2673,8 +2679,8 @@ func tryQueryReservations(filter string) ([]ReservationRow, *api.JsonErr) {
 			Configuration: &reservationConfiguration,
 		}
 
-		if entity.Properties[subnetKeyProperty] != nil {
-			rows[i].SubnetKey = entity.Properties[subnetKeyProperty].(string)
+		if prop, ok := entity.Properties[subnetKeyProperty]; ok {
+			rows[i].SubnetKey = prop.(string)
 		}
 	}
 
@@ -2727,9 +2733,12 @@ func TryQueryIPAllocationByKey(partitionKey, ipAddress string) (AllocationRow, *
 		return AllocationRow{}, nil
 	}
 
-	row := AllocationRow{
-		AllocationID: entity.Properties[AllocationIDProperty].(string),
+	row := AllocationRow {
 		IPAllocation: entity.Properties[ipAllocationTag].(string),
+	}
+
+	if prop, ok := entity.Properties[AllocationIDProperty]; ok {
+		row.AllocationID = prop.(string)
 	}
 
 	return row, nil
