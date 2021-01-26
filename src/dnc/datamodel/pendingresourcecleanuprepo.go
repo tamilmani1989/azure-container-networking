@@ -12,61 +12,61 @@ import (
 	"time"
 )
 
-type PendingCleanupRepo struct {
+type PendingResourceCleanupRepo struct {
 	data   datastoreshim.DataStoreShim
 	logger loggershim.LoggerInterface
 }
 
-// CleanupRequestType - Type of the async cleanup request
-type CleanupRequestType int
+// ResourceCleanupType - Type of the async cleanup request
+type ResourceCleanupType int
 
 const (
-	// InvalidCleanupRequest - Not Used
-	InvalidCleanupRequest = iota
+	// InvalidResourceCleanupType - Not Used
+	InvalidResourceCleanupType = iota
 
-	// IPCleanupRequest
-	IPCleanupRequest
+	// IPCleanup
+	IPCleanup
 )
 
-func (c CleanupRequestType) String() string {
+func (c ResourceCleanupType) String() string {
 	switch c {
 
-	case IPCleanupRequest:
-		return "IPCleanupRequest"
+	case IPCleanup:
+		return "IPCleanup"
 
-	case InvalidCleanupRequest:
-		return "InvalidCleanupRequest"
+	case InvalidResourceCleanupType:
+		return "InvalidResourceCleanupType"
 	}
 
 	return "Unknown Status"
 }
 
-// PendingCleanupRequest - context
-type CleanupRequestContext struct {
-	IPCleanupMap    map[string][]string //Key:Network_Subnet: Value:List of Allocated IPs pending cleanup
-	Type            CleanupRequestType
-	CreatedDateTime time.Time
-	UpdatedDateTime time.Time
+// CleanupContext
+type CleanupContext struct {
+	Type                     ResourceCleanupType
+	ToBeDeletedIpAllocations map[string][]string //Key:Network_Subnet: Value:List of Allocated IPs pending cleanup
+	CreatedDateTime          time.Time
+	UpdatedDateTime          time.Time
 }
 
 // String - ToString implementation of request context.
-func (c *CleanupRequestContext) String() string {
-	return fmt.Sprintf("CleanupRequestContext:[IPCleanupMap:%+v, Type:%s, CreatedDateTime:%s, UpdatedDateTime:%s]",
-		c.IPCleanupMap,
+func (c *CleanupContext) String() string {
+	return fmt.Sprintf("CleanupContext:[Type:%s, ToBeDeletedIpAllocations:%+v, CreatedDateTime:%s, UpdatedDateTime:%s]",
 		c.Type,
+		c.ToBeDeletedIpAllocations,
 		c.CreatedDateTime.String(),
 		c.UpdatedDateTime.String())
 }
 
-type PendingCleanupRequestEntity struct {
+type PendingResourceCleanupEntity struct {
 	RowKey                string
-	CleanupRequestContext CleanupRequestContext
+	CleanupContext        CleanupContext
 	Etag                  string
 }
 
 // TryGetPendingCleanupRequest - Query a network container by key.
-func (p *PendingCleanupRepo) TryGetPendingCleanupRequest(requestKey string) (*PendingCleanupRequestEntity, *api.JsonErr) {
-	entity, status, err := p.data.Query(pendingCleanupRequestTableName, requestKey)
+func (p *PendingResourceCleanupRepo) TryGetPendingCleanupRequest(requestKey string) (*PendingResourceCleanupEntity, *api.JsonErr) {
+	entity, status, err := p.data.Query(pendingResourceCleanupTableName, requestKey)
 
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
@@ -87,11 +87,11 @@ func (p *PendingCleanupRepo) TryGetPendingCleanupRequest(requestKey string) (*Pe
 }
 
 // GetAllPendingCleanupRequests - Retrieve all request pending cleanup requests for a given partition
-func (p *PendingCleanupRepo) GetAllPendingCleanupRequests() (map[string]PendingCleanupRequestEntity, error) {
+func (p *PendingResourceCleanupRepo) GetAllPendingResourceCleanups() (map[string]PendingResourceCleanupEntity, error) {
 	var context interface{} = nil
-	requestsToProcess := make(map[string]PendingCleanupRequestEntity)
+	requestsToProcess := make(map[string]PendingResourceCleanupEntity)
 	for {
-		requests, hasMoreData, cx, status, err := p.data.QueryAllRows(pendingCleanupRequestTableName, context)
+		requests, hasMoreData, cx, status, err := p.data.QueryAllRows(pendingResourceCleanupTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return nil, nil
@@ -117,9 +117,9 @@ func (p *PendingCleanupRepo) GetAllPendingCleanupRequests() (map[string]PendingC
 }
 
 // Create Or Merge entry (if it matches the etag) else retry
-func (p *PendingCleanupRepo) CreateOrMergePendingCleanupRequest(
+func (p *PendingResourceCleanupRepo) CreateOrMergePendingCleanupRequest(
 	requestKey string,
-	cleanupRequestContext *CleanupRequestContext) *api.JsonErr {
+	cleanupContext *CleanupContext) *api.JsonErr {
 	// Todo: Add a retry loop in case there is any race condition
 
 	// Check if item exists, if yes then merge the CleanupRequestContext
@@ -132,12 +132,13 @@ func (p *PendingCleanupRepo) CreateOrMergePendingCleanupRequest(
 	// if no entry exists then create one, note this function will fail if
 	// entry gets created in the interim in which case caller has to retry
 	if existingRequestEntity == nil {
-		return p.createPendingCleanupRequest(requestKey, cleanupRequestContext)
+		return p.createPendingCleanupRequest(requestKey, cleanupContext)
 	}
 
 	// Merge the cleanupRequest and update the entity using the same etag
-	for allocationKey, ips := range cleanupRequestContext.IPCleanupMap {
-		if existingIps, found := existingRequestEntity.CleanupRequestContext.IPCleanupMap[allocationKey]; found {
+	// TODO: For now, Data is only IPCleanupMap but this can change later
+	for allocationKey, ips := range cleanupContext.ToBeDeletedIpAllocations {
+		if existingIps, found := existingRequestEntity.CleanupContext.ToBeDeletedIpAllocations[allocationKey]; found {
 			for _, newIp := range ips {
 				var skipAppend bool
 				for _, existingIp := range existingIps {
@@ -152,9 +153,9 @@ func (p *PendingCleanupRepo) CreateOrMergePendingCleanupRequest(
 				}
 			}
 
-			existingRequestEntity.CleanupRequestContext.IPCleanupMap[allocationKey] = existingIps
+			existingRequestEntity.CleanupContext.ToBeDeletedIpAllocations[allocationKey] = existingIps
 		} else {
-			existingRequestEntity.CleanupRequestContext.IPCleanupMap[allocationKey] = ips
+			existingRequestEntity.CleanupContext.ToBeDeletedIpAllocations[allocationKey] = ips
 		}
 	}
 
@@ -163,17 +164,17 @@ func (p *PendingCleanupRepo) CreateOrMergePendingCleanupRequest(
 }
 
 // Deletes the entity if etag matches
-func (p *PendingCleanupRepo) DeleteCleanupRequest(
+func (p *PendingResourceCleanupRepo) DeleteCleanupRequest(
 	requestKey string,
 	etag string) *api.JsonErr {
-	err := p.data.DeleteWithEtag(pendingCleanupRequestTableName, requestKey, etag)
+	err := p.data.DeleteWithEtag(pendingResourceCleanupTableName, requestKey, etag)
 
 	if err != nil {
 		msg := fmt.Sprintf(
 			"Failed to delete request associated with key %s with etag %s in table %s due to error:{%s}",
 			requestKey,
 			etag,
-			pendingCleanupRequestTableName,
+			pendingResourceCleanupTableName,
 			err.Error())
 		p.logger.Errorf("%s: %s", utils.TracePrefix(2), msg)
 		return &api.JsonErr{
@@ -187,16 +188,16 @@ func (p *PendingCleanupRepo) DeleteCleanupRequest(
 
 // Create entry (if entry exists, it will return failure)
 // For updates, caller is expected to call UpdatePendingCleanupRequest with etag
-func (p *PendingCleanupRepo) createPendingCleanupRequest(
+func (p *PendingResourceCleanupRepo) createPendingCleanupRequest(
 	requestKey string,
-	cleanupRequest *CleanupRequestContext) *api.JsonErr {
-	cleanupRequest.CreatedDateTime = time.Now().UTC()
-	jsonSerializedBytes, err := json.Marshal(cleanupRequest)
+	cleanupContext *CleanupContext) *api.JsonErr {
+	cleanupContext.CreatedDateTime = time.Now().UTC()
+	jsonSerializedBytes, err := json.Marshal(cleanupContext)
 	if err != nil {
 		msg := fmt.Sprintf(
 			"Failed to serialize cleanup request context. Key:%s RequestContext:%s , Error: %s",
 			requestKey,
-			cleanupRequest.String(),
+			cleanupContext.String(),
 			err.Error())
 		p.logger.Errorf("%s: %s", utils.TracePrefix(2), msg)
 
@@ -206,11 +207,11 @@ func (p *PendingCleanupRepo) createPendingCleanupRequest(
 			Text:       msg}
 	}
 
-	_, err = p.data.Insert(pendingCleanupRequestTableName, requestKey, TableToColumnMap[pendingCleanupRequestTableName], string(jsonSerializedBytes[:]))
+	_, err = p.data.Insert(pendingResourceCleanupTableName, requestKey, TableToColumnMap[pendingResourceCleanupTableName], string(jsonSerializedBytes[:]))
 	if err != nil {
 		msg := fmt.Sprintf(
 			"Failed to add request %s associated with key %s to pending cleanup table due to error:{%s}",
-			cleanupRequest.String(),
+			cleanupContext.String(),
 			requestKey,
 			err.Error())
 		p.logger.Errorf("%s: %s", utils.TracePrefix(2), msg)
@@ -225,16 +226,16 @@ func (p *PendingCleanupRepo) createPendingCleanupRequest(
 
 // Updates entry if it matches the etag
 // For updates, caller is expected to call UpdatePendingCleanupRequest with etag
-func (p *PendingCleanupRepo) updatePendingCleanupRequest(
+func (p *PendingResourceCleanupRepo) updatePendingCleanupRequest(
 	requestKey string,
-	pendingCleanupRequestEntity *PendingCleanupRequestEntity) *api.JsonErr {
-	pendingCleanupRequestEntity.CleanupRequestContext.UpdatedDateTime = time.Now().UTC()
-	jsonSerializedBytes, err := json.Marshal(pendingCleanupRequestEntity.CleanupRequestContext)
+	pendingCleanupRequestEntity *PendingResourceCleanupEntity) *api.JsonErr {
+	pendingCleanupRequestEntity.CleanupContext.UpdatedDateTime = time.Now().UTC()
+	jsonSerializedBytes, err := json.Marshal(pendingCleanupRequestEntity.CleanupContext)
 	if err != nil {
 		msg := fmt.Sprintf(
 			"Failed to serialize cleanup request context. Key:%s RequestContext:%s , Error: %s",
 			requestKey,
-			pendingCleanupRequestEntity.CleanupRequestContext.String(),
+			pendingCleanupRequestEntity.CleanupContext.String(),
 			err.Error())
 		p.logger.Errorf("%s: %s", utils.TracePrefix(2), msg)
 
@@ -244,7 +245,7 @@ func (p *PendingCleanupRepo) updatePendingCleanupRequest(
 			Text:       msg}
 	}
 
-	err = p.data.UpdateWithEtag(pendingCleanupRequestTableName, requestKey, pendingCleanupRequestEntity.Etag, TableToColumnMap[pendingCleanupRequestTableName], string(jsonSerializedBytes[:]))
+	err = p.data.UpdateWithEtag(pendingResourceCleanupTableName, requestKey, pendingCleanupRequestEntity.Etag, TableToColumnMap[pendingResourceCleanupTableName], string(jsonSerializedBytes[:]))
 	if err != nil {
 		msg := fmt.Sprintf(
 			"Failed to add request %+v associated with key %s to pending cleanup table due to error:{%s}",
@@ -261,8 +262,8 @@ func (p *PendingCleanupRepo) updatePendingCleanupRequest(
 	return nil
 }
 
-func deserializePendingCleanupRequestEntity(entity *storage.Entity) (*PendingCleanupRequestEntity, *api.JsonErr) {
-	prop, ok := entity.Properties[pendingCleanupRequestTag]
+func deserializePendingCleanupRequestEntity(entity *storage.Entity) (*PendingResourceCleanupEntity, *api.JsonErr) {
+	prop, ok := entity.Properties[pendingResourceCleanupTag]
 	if !ok { msg := fmt.Sprintf(
 		"CleanupRequestContext Property for NC key:[%s] is not set",
 		entity.RowKey)
@@ -272,8 +273,8 @@ func deserializePendingCleanupRequestEntity(entity *storage.Entity) (*PendingCle
 			HTTPStatus: http.StatusInternalServerError} }
 
 	serializedPendingCleanupRequest := prop.(string)
-	var cleanupRequest CleanupRequestContext
-	err := json.Unmarshal([]byte(serializedPendingCleanupRequest), &cleanupRequest)
+	var cleanupContext CleanupContext
+	err := json.Unmarshal([]byte(serializedPendingCleanupRequest), &cleanupContext)
 	if err != nil {
 		msg := fmt.Sprintf(
 			"Failed to unmarshal PendingCleanupRequest for NC key:[%s] due to error:[%s]",
@@ -285,8 +286,8 @@ func deserializePendingCleanupRequestEntity(entity *storage.Entity) (*PendingCle
 			HTTPStatus: http.StatusInternalServerError}
 	}
 
-	return &PendingCleanupRequestEntity{
+	return &PendingResourceCleanupEntity{
 		RowKey:                entity.RowKey,
-		CleanupRequestContext: cleanupRequest,
+		CleanupContext:        cleanupContext,
 		Etag:                  entity.OdataEtag}, nil
 }

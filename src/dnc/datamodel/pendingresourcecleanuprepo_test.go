@@ -16,9 +16,9 @@ func TestCreateAndDeletePendingCleanupRequest(t *testing.T) {
 		"vnet_v1_subnet_s1": {"10.0.0.1/32", "10.0.0.2/32"},
 		"vnet_v2_subnet_s2": {"10.0.0.1/32"}}
 
-	cleanupRequest := &CleanupRequestContext{
-		IPCleanupMap: ipCleanup,
-		Type:         IPCleanupRequest}
+	cleanupRequest := &CleanupContext{
+		ToBeDeletedIpAllocations: ipCleanup,
+		Type: IPCleanup}
 
 	entity := validateCreateOrUpdate(t, pendingCleanupRepo, requestKey, cleanupRequest, cleanupRequest)
 
@@ -30,17 +30,17 @@ func TestCreateAndDeletePendingCleanupRequest(t *testing.T) {
 	newIpCleanup := map[string][]string{
 		"vnet_v1_subnet_s1": {"10.0.0.3/32"}}
 
-	cleanupRequest = &CleanupRequestContext{
-		IPCleanupMap: newIpCleanup,
-		Type:         IPCleanupRequest}
+	cleanupRequest = &CleanupContext{
+		ToBeDeletedIpAllocations: newIpCleanup,
+		Type: IPCleanup}
 
 	var expectedIpCleanup map[string][]string = map[string][]string{
 		"vnet_v1_subnet_s1": {"10.0.0.1/32", "10.0.0.2/32", "10.0.0.3/32"},
 		"vnet_v2_subnet_s2": {"10.0.0.1/32"}}
 
-	expectedCleanupRequest := &CleanupRequestContext{
-		IPCleanupMap: expectedIpCleanup,
-		Type:         IPCleanupRequest}
+	expectedCleanupRequest := &CleanupContext{
+		ToBeDeletedIpAllocations: expectedIpCleanup,
+		Type: IPCleanup}
 
 	latestEntity := validateCreateOrUpdate(t, pendingCleanupRepo, requestKey, cleanupRequest, expectedCleanupRequest)
 
@@ -69,7 +69,7 @@ func TestGetAllPendingCleanupRequests(t *testing.T) {
 
 	// Try to get all on emtpy collection
 	// Get All Pending requests
-	requests, err := pendingCleanupRepo.GetAllPendingCleanupRequests()
+	requests, err := pendingCleanupRepo.GetAllPendingResourceCleanups()
 	if err != nil {
 		t.Fatalf("Failed to get all pending requests, err %s",
 			err)
@@ -87,25 +87,25 @@ func TestGetAllPendingCleanupRequests(t *testing.T) {
 		"vnet_v1_subnet_s1": {"10.0.0.1/32", "10.0.0.2/32"},
 		"vnet_v2_subnet_s2": {"10.0.0.1/32"}}
 
-	cleanupRequest1 := &CleanupRequestContext{
-		IPCleanupMap: ipCleanup1,
-		Type:         IPCleanupRequest}
+	cleanupRequest1 := &CleanupContext{
+		ToBeDeletedIpAllocations: ipCleanup1,
+		Type: IPCleanup}
 
 	entity1 := validateCreateOrUpdate(t, pendingCleanupRepo, request1Key, cleanupRequest1, cleanupRequest1)
 
 	ipCleanup2 := map[string][]string{
 		"vnet_v2_subnet_s2": {"192.168.0.1/32", "192.168.0.2/32"}}
 
-	cleanupRequest2 := &CleanupRequestContext{
-		IPCleanupMap: ipCleanup2,
-		Type:         IPCleanupRequest}
+	cleanupRequest2 := &CleanupContext{
+		ToBeDeletedIpAllocations: ipCleanup2,
+		Type: IPCleanup}
 
 	// Idempotent create, it will not fail again however it will
 	// update the etag
 	entity2:= validateCreateOrUpdate(t, pendingCleanupRepo, request2Key, cleanupRequest2, cleanupRequest2)
 
 	// Get All Pending requests
-	requests, err = pendingCleanupRepo.GetAllPendingCleanupRequests()
+	requests, err = pendingCleanupRepo.GetAllPendingResourceCleanups()
 	if err != nil {
 		t.Fatalf("Failed to get all pending requests, err %s",
 			err)
@@ -118,16 +118,16 @@ func TestGetAllPendingCleanupRequests(t *testing.T) {
 
 	for key, entity := range requests {
 		if key == request1Key {
-			if !reflect.DeepEqual(cleanupRequest1.IPCleanupMap, entity.CleanupRequestContext.IPCleanupMap) {
+			if !reflect.DeepEqual(cleanupRequest1.ToBeDeletedIpAllocations, entity.CleanupContext.ToBeDeletedIpAllocations) {
 				t.Fatalf("cleanupRequest not same for Key: %s, entity %s",
 					key,
-					entity.CleanupRequestContext)
+					entity.CleanupContext)
 			}
 		} else if key == request2Key {
-			if !reflect.DeepEqual(cleanupRequest2.IPCleanupMap, entity.CleanupRequestContext.IPCleanupMap) {
+			if !reflect.DeepEqual(cleanupRequest2.ToBeDeletedIpAllocations, entity.CleanupContext.ToBeDeletedIpAllocations) {
 				t.Fatalf("cleanupRequest not same for Key: %s, entity %s",
 					key,
-					entity.CleanupRequestContext)
+					entity.CleanupContext)
 			}
 		} else {
 			t.Fatalf("Unexpected entry found Key: %s, entity %+v",
@@ -140,15 +140,15 @@ func TestGetAllPendingCleanupRequests(t *testing.T) {
 	pendingCleanupRepo.DeleteCleanupRequest(request2Key, entity2.Etag)
 }
 
-func setup() *PendingCleanupRepo{
+func setup() *PendingResourceCleanupRepo{
 	d := testpersistencestore.TestPersistenceStore{}
 	d.Init(TableToColumnMap, loggermock.NewDummyLogger())
-	return &PendingCleanupRepo{
+	return &PendingResourceCleanupRepo{
 		data:   &d,
 		logger: loggermock.NewDummyLogger()}
 }
 
-func validateCreateOrUpdate(t *testing.T, pendingCleanupRepo *PendingCleanupRepo, requestKey string, cleanupRequest *CleanupRequestContext, expectedRequest *CleanupRequestContext) *PendingCleanupRequestEntity {
+func validateCreateOrUpdate(t *testing.T, pendingCleanupRepo *PendingResourceCleanupRepo, requestKey string, cleanupRequest *CleanupContext, expectedRequest *CleanupContext) *PendingResourceCleanupEntity {
 	t.Logf("Create Or Update Pending Cleanup request for key %s, request %s",
 		requestKey, cleanupRequest)
 	err := pendingCleanupRepo.CreateOrMergePendingCleanupRequest(requestKey, cleanupRequest)
@@ -160,7 +160,7 @@ func validateCreateOrUpdate(t *testing.T, pendingCleanupRepo *PendingCleanupRepo
 
 	// Get the request and validate
 	t.Log("Validate request")
-	var entity *PendingCleanupRequestEntity
+	var entity *PendingResourceCleanupEntity
 	entity, err = pendingCleanupRepo.TryGetPendingCleanupRequest(requestKey)
 	if err != nil {
 		t.Fatalf("Failed to get the Pending Cleanup Request for requestKey:%s, cleanupRequest %+v",
@@ -169,16 +169,16 @@ func validateCreateOrUpdate(t *testing.T, pendingCleanupRepo *PendingCleanupRepo
 	}
 
 	// validate
-	if entity.CleanupRequestContext.Type != expectedRequest.Type {
+	if entity.CleanupContext.Type != expectedRequest.Type {
 		t.Fatalf( "Cleanuprequest, Type is not same, Expected %s, actual %s",
 			expectedRequest.Type,
-			entity.CleanupRequestContext.Type)
+			entity.CleanupContext.Type)
 	}
 
-	if !reflect.DeepEqual(entity.CleanupRequestContext.IPCleanupMap, expectedRequest.IPCleanupMap) {
+	if !reflect.DeepEqual(entity.CleanupContext.ToBeDeletedIpAllocations, expectedRequest.ToBeDeletedIpAllocations) {
 		t.Fatalf("Cleanup request is not same, Expected %s, actual %s",
 			expectedRequest,
-			entity.CleanupRequestContext)
+			entity.CleanupContext)
 	}
 
 	return entity
