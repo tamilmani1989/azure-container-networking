@@ -7,9 +7,11 @@ import (
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
-	"github.com/Azure/azure-sdk-for-go/storage"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/Azure/azure-sdk-for-go/storage"
 )
 
 type PendingResourceCleanupRepo struct {
@@ -58,10 +60,25 @@ func (c *CleanupContext) String() string {
 		c.UpdatedDateTime.String())
 }
 
+func GetPendingResourceCleanupKey(cleanupType string, NCID string) string {
+	return fmt.Sprintf("%s_%s", cleanupType, NCID)
+}
+
+func GetNetworkContainerIDFromRowKey(rowKey string) string {
+	return strings.Split(rowKey, "_")[1]
+}
+
 type PendingResourceCleanupEntity struct {
-	RowKey                string
-	CleanupContext        CleanupContext
-	Etag                  string
+	RowKey         string
+	CleanupContext CleanupContext
+	Etag           string
+}
+
+func NewPendingResourceCleanupRepo(dataStore *datastoreshim.DataStoreShim, logger loggershim.LoggerInterface) *PendingResourceCleanupRepo {
+	return &PendingResourceCleanupRepo{
+		data:   dataStoreShim,
+		logger: logger,
+	}
 }
 
 // TryGetPendingCleanupRequest - Query a network container by key.
@@ -264,13 +281,15 @@ func (p *PendingResourceCleanupRepo) updatePendingCleanupRequest(
 
 func deserializePendingCleanupRequestEntity(entity *storage.Entity) (*PendingResourceCleanupEntity, *api.JsonErr) {
 	prop, ok := entity.Properties[pendingResourceCleanupTag]
-	if !ok { msg := fmt.Sprintf(
-		"CleanupRequestContext Property for NC key:[%s] is not set",
-		entity.RowKey)
+	if !ok {
+		msg := fmt.Sprintf(
+			"CleanupRequestContext Property for NC key:[%s] is not set",
+			entity.RowKey)
 		return nil, &api.JsonErr{
 			Code:       api.PropertyNotSetInDb,
 			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError} }
+			HTTPStatus: http.StatusInternalServerError}
+	}
 
 	serializedPendingCleanupRequest := prop.(string)
 	var cleanupContext CleanupContext
@@ -287,7 +306,7 @@ func deserializePendingCleanupRequestEntity(entity *storage.Entity) (*PendingRes
 	}
 
 	return &PendingResourceCleanupEntity{
-		RowKey:                entity.RowKey,
-		CleanupContext:        cleanupContext,
-		Etag:                  entity.OdataEtag}, nil
+		RowKey:         entity.RowKey,
+		CleanupContext: cleanupContext,
+		Etag:           entity.OdataEtag}, nil
 }

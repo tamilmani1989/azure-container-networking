@@ -36,6 +36,7 @@ var (
 	dataStoreShim             datastoreshim.DataStoreShim
 	cnsSettings               configuration.CNSSettings
 	hostAgentSettings         configuration.HostAgentSettings
+	PendingCleanupRepo        *PendingResourceCleanupRepo
 	requestBaseInterval              = 1000
 	MinVlan                   uint16 = 1
 	MaxVlan                   uint16 = 2048
@@ -50,8 +51,8 @@ var (
 	MaxGre                    uint16 = 511
 	//TODO: refactor package level variables
 	disableResMapInSubnetConfig bool
-	dncPartitionKey           string
-	batchSize                 int
+	dncPartitionKey             string
+	batchSize                   int
 )
 
 // Init - Initialize repository.
@@ -69,10 +70,13 @@ func Init(
 	if err != nil {
 		return err
 	}
+
 	dataStoreShim = ds
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
 		RestoreState()
 	}
+
+	PendingCleanupRepo = NewPendingResourceCleanupRepo(&ds, loggershim.LS)
 
 	if min > MinVlan {
 		MinVlan = min
@@ -196,7 +200,7 @@ func RestoreState() {
 			err = json.Unmarshal(content, &kvMap)
 			if err == nil {
 				for k, v := range kvMap {
-					dataStoreShim.InsertOrUpdateProperties(tableName, "",k, v)
+					dataStoreShim.InsertOrUpdateProperties(tableName, "", k, v)
 				}
 			}
 		}
@@ -259,9 +263,9 @@ func DeleteSubnetConfiguration(networkID, ipSubnet string) *api.JsonErr {
 // PutIPReservationConfiguration - Persist IP Reservation configuration
 func PutIPReservationConfiguration(ipReservation *ReservationConfiguration) *api.JsonErr {
 	reservationRow := ReservationRow{
-		RowKey: GetReservationKey(ipReservation.NetworkID, ipReservation.ReservationID),
+		RowKey:        GetReservationKey(ipReservation.NetworkID, ipReservation.ReservationID),
 		Configuration: ipReservation,
-		SubnetKey: GetSubnetKey(ipReservation.NetworkID, ipReservation.AllocationRequest.SubnetName),
+		SubnetKey:     GetSubnetKey(ipReservation.NetworkID, ipReservation.AllocationRequest.SubnetName),
 	}
 
 	return PutIPReservation(reservationRow)
@@ -279,7 +283,7 @@ func PutIPReservation(reservation ReservationRow) *api.JsonErr {
 
 	row := map[string]interface{}{
 		reservationConfigProperty: string(jsonSerializedBytes[:]),
-		subnetKeyProperty: reservation.SubnetKey}
+		subnetKeyProperty:         reservation.SubnetKey}
 	err = dataStoreShim.InsertOrUpdateProperties(ipReservationsTableName, dncPartitionKey, reservation.RowKey, row)
 	if err != nil {
 		loggershim.LS.Errorf("could not persist reservation: %s. Error: %v", reservation.RowKey, err)
@@ -1019,7 +1023,7 @@ func TryQueryIPReservationByKey(reservationKey string) (ReservationRow, *api.Jso
 	}
 
 	reservationRow := ReservationRow{
-		RowKey: reservationKey,
+		RowKey:        reservationKey,
 		Configuration: &reservationConfiguration,
 	}
 
@@ -1061,7 +1065,7 @@ func UpdateIPReservations(reservations []ReservationConfiguration) *api.JsonErr 
 		}
 		rows[key] = map[string]interface{}{
 			reservationConfigurationTag: string(resJSON),
-			subnetKeyProperty: GetSubnetKey(res.NetworkID, res.AllocationRequest.SubnetName)}
+			subnetKeyProperty:           GetSubnetKey(res.NetworkID, res.AllocationRequest.SubnetName)}
 	}
 
 	if err := dataStoreShim.UpsertBatch(ipReservationsTableName, rows); err != nil {
@@ -1924,10 +1928,10 @@ func getIPConfiguration(repoReservationConfiguration *ReservationConfiguration) 
 func GetNetworkContainerResponse(
 	ncConfig *NCConfiguration) (*api.NetworkContainerResponse, *api.JsonErr) {
 	var (
-		err                      *api.JsonErr
-		ipConfiguration          *api.IPConfiguration
-		nodeConfiguration        *NodeConfiguration
-		reservation              ReservationRow
+		err               *api.JsonErr
+		ipConfiguration   *api.IPConfiguration
+		nodeConfiguration *NodeConfiguration
+		reservation       ReservationRow
 	)
 
 	if ncConfig == nil {
@@ -2521,9 +2525,9 @@ type AllocationRow struct {
 }
 
 type ReservationRow struct {
-	RowKey string
+	RowKey        string
 	Configuration *ReservationConfiguration
-	SubnetKey string
+	SubnetKey     string
 }
 
 // TryQueryAllIPAllocations - Query all IP allocations in the partition.
@@ -2588,9 +2592,8 @@ func QueryIPAllocationsByAllocationID(networkID, subnetName string, allocationID
 	return rows, nil
 }
 
-
 func getReservationsFromSubnetConfigTable(networkID, subnetName string) (map[string]ReservationRow, *api.JsonErr) {
-	repoSubnetConfiguration, err := QuerySubnetConfiguration(networkID,	subnetName)
+	repoSubnetConfiguration, err := QuerySubnetConfiguration(networkID, subnetName)
 	if err != nil {
 		return nil, err
 	}
@@ -2675,7 +2678,7 @@ func tryQueryReservations(filter string) ([]ReservationRow, *api.JsonErr) {
 		}
 
 		rows[i] = ReservationRow{
-			RowKey: entity.RowKey,
+			RowKey:        entity.RowKey,
 			Configuration: &reservationConfiguration,
 		}
 
@@ -2733,7 +2736,7 @@ func TryQueryIPAllocationByKey(partitionKey, ipAddress string) (AllocationRow, *
 		return AllocationRow{}, nil
 	}
 
-	row := AllocationRow {
+	row := AllocationRow{
 		IPAllocation: entity.Properties[ipAllocationTag].(string),
 	}
 
@@ -2826,7 +2829,7 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 	}
 
 	if repoSubnetConfiguration == nil {
-		return nil, false, api.BadRequestf(api.SubnetNotFound,"configuration for subnet: %s not found. Network: %s",
+		return nil, false, api.BadRequestf(api.SubnetNotFound, "configuration for subnet: %s not found. Network: %s",
 			repoReservation.Configuration.AllocationRequest.SubnetName, repoNCConfig.NetworkID)
 	}
 
@@ -3432,7 +3435,7 @@ func updateIPReservationsTableWithSubnet() *api.JsonErr {
 			subnetKey := GetSubnetKey(reservation.Configuration.NetworkID, reservation.Configuration.AllocationRequest.SubnetName)
 			updatedReservations[reservation.RowKey] = map[string]interface{}{
 				reservationConfigProperty: string(resJSON),
-				subnetKeyProperty: subnetKey}
+				subnetKeyProperty:         subnetKey}
 
 			if len(updatedReservations) == batchSize {
 				if err := dataStoreShim.UpsertBatch(ipReservationsTableName, updatedReservations); err != nil {
