@@ -109,6 +109,13 @@ var routes = Routes{
 		"/networks/{networkID}/networkcontainer/{networkContainerID}/configuration",
 		GetNetworkContainerConfiguration,
 	},
+	// Returns nc cleanup status
+	Route{
+		"GetNetworkContainerCleanupStatus",
+		http.MethodGet,
+		"/networks/{networkID}/networkcontainercleanupstatus/{networkContainerID}",
+		GetNetworkContainerCleanupStatus,
+	},
 	// CNS registers the node in managed DNC mode
 	Route{
 		"RegisterNode",

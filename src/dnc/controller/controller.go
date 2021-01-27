@@ -548,6 +548,11 @@ func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*
 	return ncConfig, nil
 }
 
+// GetNetworkContainerCleanupStatus returns the cleanup status of the nc.
+func (c *Controller) GetNetworkContainerCleanupStatus(networkID, ncID string) (api.NetworkContainerCleanupResponse, *api.JsonErr) {
+	return datamodel.GetNetworkContainerCleanupStatus(networkID, ncID)
+}
+
 // GetNetworkContainerRequest - Retrieves cns.CreateNetworkContainerRequest
 func (c *Controller) GetNetworkContainerRequest(networkID, ncID string) (*cns.CreateNetworkContainerRequest, *api.JsonErr) {
 	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, ncID)

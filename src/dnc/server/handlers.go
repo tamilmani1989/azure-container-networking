@@ -691,6 +691,44 @@ func GetNetworkContainerConfiguration(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetNetworkContainerCleanupStatus returns nc cleanup status
+func GetNetworkContainerCleanupStatus(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	networkID, ok := vars[networkIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.InvalidNetworkID,
+			Text:       api.NetworkIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	ncID, ok := vars[networkContainerIDStr]
+	if !ok {
+		setRequestFailed(w, &api.JsonErr{
+			Code:       api.NetworkContainerNotFound,
+			Text:       api.NetworkContainerIDMissing,
+			HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	w.Header().Set(contentTypeStr, defaultContentType)
+
+	cleanupStatus, respErr := ctrler.GetNetworkContainerCleanupStatus(networkID, ncID)
+
+	if respErr != nil {
+		w.WriteHeader(respErr.HTTPStatus)
+		if err := json.NewEncoder(w).Encode(respErr); err != nil {
+			panic(err)
+		}
+	} else {
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(cleanupStatus); err != nil {
+			panic(err)
+		}
+	}
+}
+
 // RegisterNode - mark a node as registered
 func RegisterNode(w http.ResponseWriter, r *http.Request) {
 	apiVersion := r.URL.Query().Get("api-version")

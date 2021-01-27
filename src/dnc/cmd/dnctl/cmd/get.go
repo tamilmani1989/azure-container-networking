@@ -248,6 +248,7 @@ func getNetworkContainerCmd() *cobra.Command {
 	}
 	cmd.AddCommand(getNetworkContainerConfigCmd())
 	cmd.AddCommand(getNetworkContainerStatusCmd())
+	cmd.AddCommand(getNetworkContainerCleanupStatusCmd())
 	return cmd
 }
 
@@ -290,6 +291,29 @@ func getNetworkContainerStatusCmd() *cobra.Command {
 				return
 			}
 			fmt.Printf("%+v\n", vnet)
+		},
+	}
+	cmd.Flags().String("vnet-id", "", "vnet-id")
+	cmd.Flags().String("nc-id", "", "nc-id")
+	cmd.MarkFlagRequired("vnet-id")
+	cmd.MarkFlagRequired("nc-id")
+	return cmd
+}
+
+func getNetworkContainerCleanupStatusCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "cleanup",
+		Short: "Gets a nc's cleanup status",
+		Run: func(cmd *cobra.Command, args []string) {
+			vnetID, _ := cmd.Flags().GetString("vnet-id")
+			ncID, _ := cmd.Flags().GetString("nc-id")
+
+			cleanupStatus, err := DncClient.GetNetworkContainerCleanupStatus(vnetID, ncID)
+			if err != nil && err.HTTPStatus != http.StatusOK {
+				client.PrettyPrint(err)
+				return
+			}
+			fmt.Printf("%+v\n", cleanupStatus)
 		},
 	}
 	cmd.Flags().String("vnet-id", "", "vnet-id")

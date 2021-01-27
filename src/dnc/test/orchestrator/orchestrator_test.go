@@ -225,6 +225,14 @@ func TestBasicNCAPIs(t *testing.T) {
 	deleteReservation(t, vnetID, reservationID)
 	deleteNetwork(t, vnetID, http.StatusNotFound)
 	deleteNode(t, nodeID, http.StatusNotFound)
+
+	ncCleanupResp, respErr := dnctl.GetNetworkContainerCleanupStatus(vnetID, ncID)
+	if respErr != nil && respErr.HTTPStatus != http.StatusOK {
+		t.Fatalf("Failed to ensure NC %s was cleaned up with error: %+v", ncID, respErr)
+	}
+	if ncCleanupResp.Completed != true {
+		t.Fatalf("Failed to cleanup NC %s;\nreceived %+v\nexpected %s", ncID, ncCleanupResp, "{\"Completed\": true}")
+	}
 }
 
 func logExecCmd(t *testing.T, cmd string, args ...string) {

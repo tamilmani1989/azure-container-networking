@@ -26,6 +26,7 @@ const (
 	ncApi                      = "%s/networks/%s/networkcontainer/%s" + apiVersion
 	ncStatusApi                = "%s/networks/%s/networkcontainers/%s/status" + apiVersion
 	ncConfigurationApi         = "%s/networks/%s/networkcontainer/%s/configuration" + apiVersion
+	ncCleanupApi               = "%s/networks/%s/networkcontainercleanupstatus/%s" + apiVersion
 	promoteApi                 = "%s/promotenetworkcontainerstate/networks/%s/networkcontainer/%s" + apiVersion
 	isWaitingForNodeCleanupApi = "%s/iswaitingfornodecleanup/networks/%s/networkcontainer/%s" + apiVersion
 	skipNodeCleanupApi         = "%s/skipnodecleanupfornetworkcontainer/networks/%s/networkcontainer/%s" + apiVersion
@@ -530,6 +531,35 @@ func (c *DncClient) GetNCConfiguration(networkId, ncId string) (ncCfg *datamodel
 		reportClientErr(respErr, err)
 	}
 	return
+}
+
+// GetNetworkContainerCleanupStatus returns the cleanup status of the nc
+func (c *DncClient) GetNetworkContainerCleanupStatus(networkId, ncId string) (api.NetworkContainerCleanupResponse, *api.JsonErr) {
+	ncCleanupURL := fmt.Sprintf(ncCleanupApi, c.DncEP, networkId, ncId)
+
+	respErr := &api.JsonErr{HTTPStatus: http.StatusOK}
+	var cleanupResponse api.NetworkContainerCleanupResponse
+
+	response, err := httpc.Get(ncCleanupURL)
+	if err == nil {
+		defer response.Body.Close()
+		respErr.HTTPStatus = response.StatusCode
+
+		switch statusCode := response.StatusCode; statusCode {
+		case http.StatusOK:
+			if err := utils.DecodeResponse(response, &cleanupResponse); err != nil {
+				failedToDecodeResponse(respErr, Get, Subnet+" cleanup status", err)
+			}
+
+		default:
+			failedWithStatus(respErr, Get, Subnet+" cleanup status", statusCode)
+		}
+	} else {
+		// Some http error occurred
+		reportClientErr(respErr, err)
+	}
+
+	return cleanupResponse, respErr
 }
 
 func (c *DncClient) GetNCStatus(networkId, ncId string) (requestStatus *api.RequestStatus, respErr *api.JsonErr) {
