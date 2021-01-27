@@ -12,6 +12,7 @@ import (
 	"dnc/configuration"
 	"dnc/controller"
 	"dnc/datamodel"
+	"dnc/datastoreshim"
 	"dnc/logger/loggershim"
 	"dnc/masterelection/masterelectionshim"
 	"dnc/pubsubproxy"
@@ -44,9 +45,11 @@ var (
 	telemetryStopProcessing = make(chan bool)
 	reports                 = make(chan telemetry.DNCReport)
 
+	// todo: remove globals. inject as dependencies to types that need them.
 	config             *configuration.Configuration
 	masterElectionShim *masterelectionshim.MasterElectionShim
 	cnsInterface       cnsinterface.CnsInterface
+	datastore          datastoreshim.DataStoreShim
 	logger             *loggershim.LoggerShim
 	sessionManager     *utils.SessionManager
 	ctrler             *controller.Controller
@@ -261,6 +264,7 @@ func main() {
 		if err != nil {
 			log.Fatalln("Error initializing datamodel. Error:", err)
 		}
+
 		ctrler.UpdateReplicaStatus(true)
 		setOrchestratorForTelemetry()
 	}

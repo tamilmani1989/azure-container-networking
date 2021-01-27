@@ -3,6 +3,8 @@ package datamodel
 import (
 	"fmt"
 	"strings"
+
+	"github.com/Azure/azure-sdk-for-go/storage"
 )
 
 // SubnetKeyPlaceholder is an empty string which is used as subnet key
@@ -132,4 +134,17 @@ func CheckGreConditions(
 	}
 
 	return nil
+}
+
+func ExtractStringProperty(e *storage.Entity, propName string) string {
+	prop, ok := e.Properties[propName]
+	if !ok {
+		return ""
+	}
+
+	// checking the two returns from a type conversion avoids the panic.
+	// the first return is zero value of the target type even if the second return is false,
+	// so it's safe to just return it directly.
+	v, _ := prop.(string)
+	return v
 }

@@ -14,7 +14,7 @@ import (
 
 func Test_Allocate(t *testing.T) {
 	allocsRepo := fakes.AllocationRepo{
-		Data: []datamodel.AllocationRow{
+		Data: []datamodel.IPAllocationEntity{
 			{RowKey: "172.16.0.10_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: ""},
 			{RowKey: "172.16.0.13_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid1"},
 			{RowKey: "172.16.0.20_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid2"},
@@ -91,7 +91,7 @@ func TestIncompleteAllocation(t *testing.T) {
 
 	// this is the current state of the allocations table
 	allocsRepo := fakes.AllocationRepo{
-		Data: []datamodel.AllocationRow{
+		Data: []datamodel.IPAllocationEntity{
 			{RowKey: "172.16.0.13_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: reservationID},
 			{RowKey: "172.16.0.20_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: allocationID1},
 		},
@@ -159,7 +159,7 @@ func TestIncompleteAllocation(t *testing.T) {
 
 func TestDeallocate(t *testing.T) {
 	initialAllocCount := 240
-	allocationRows := make([]datamodel.AllocationRow, initialAllocCount)
+	allocationRows := make([]datamodel.IPAllocationEntity, initialAllocCount)
 	allocationIDs := make([]string, initialAllocCount)
 	reservation := datamodel.ReservationConfiguration{
 		SecondaryAllocations: make(map[string]string),
@@ -175,7 +175,7 @@ func TestDeallocate(t *testing.T) {
 	for i := 0; i < len(allocationRows); i++ {
 		allocID := uuid.New().String()
 		//allocationRows[i] = fakes.RepoKV{Key: ips[i].String() + "_32", Value: map[string]interface{}{allocIDProperty: allocID}}
-		allocationRows[i] = datamodel.AllocationRow{
+		allocationRows[i] = datamodel.IPAllocationEntity{
 			RowKey:       ips[i].String() + "_32",
 			IPAllocation: "", // todo: verify
 			AllocationID: allocID,
@@ -257,7 +257,7 @@ func Test_RemoveSecondaryIpWithEmptyAllocations(t *testing.T) {
 
 func Test_RemoveAllAllocations(t *testing.T) {
 	allocsRepo := fakes.AllocationRepo{
-		Data: []datamodel.AllocationRow{
+		Data: []datamodel.IPAllocationEntity{
 			{RowKey: "172.16.0.13_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: "alloc1"},
 			{RowKey: "172.16.0.14_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: "alloc2"},
 			{RowKey: "172.16.0.15_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: "alloc3"},

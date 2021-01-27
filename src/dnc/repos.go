@@ -66,25 +66,3 @@ func (*reservationRepo) PutIPReservationConfiguration(res *datamodel.Reservation
 func (r *reservationRepo) UpdateReservations(reservations []datamodel.ReservationConfiguration) *api.JsonErr {
 	return datamodel.UpdateIPReservations(reservations)
 }
-
-type allocationRepo struct{}
-
-func (r *allocationRepo) QueryIPAllocationsByAllocationID(networkID, subnetName string, allocIDs []string) ([]datamodel.AllocationRow, *api.JsonErr) {
-	return datamodel.QueryIPAllocationsByAllocationID(networkID, subnetName, allocIDs)
-}
-
-func (*allocationRepo) TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.AllocationRow, *api.JsonErr) {
-	return datamodel.TryQueryAllIPAllocations(networkID, subnetName)
-}
-
-func (*allocationRepo) AddIPAllocations(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr {
-	return datamodel.AddIPAllocations(networkID, subnetName, batch)
-}
-
-func (*allocationRepo) DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
-	return datamodel.DeleteIPAllocations(networkID, subnetName, keys)
-}
-
-func (*allocationRepo) MarkIPAllocationsAsPendingCleanup(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr {
-	return datamodel.UpdateIPAllocations(networkID, subnetName, batch)
-}

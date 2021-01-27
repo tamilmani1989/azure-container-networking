@@ -65,9 +65,9 @@ func (f *ReservationRepo) PutIPReservationConfiguration(res *datamodel.Reservati
 	}
 	key := datamodel.GetReservationKey(res.NetworkID, res.ReservationID)
 	reservationRow := datamodel.ReservationRow{
-		RowKey: key,
+		RowKey:        key,
 		Configuration: res,
-		SubnetKey: datamodel.GetSubnetKey(res.NetworkID, res.AllocationRequest.SubnetName),
+		SubnetKey:     datamodel.GetSubnetKey(res.NetworkID, res.AllocationRequest.SubnetName),
 	}
 	f.Data[key] = reservationRow
 	return nil
@@ -91,9 +91,9 @@ func (f *ReservationRepo) UpdateReservations(reservations []datamodel.Reservatio
 	for i, reservation := range reservations {
 		key := datamodel.GetReservationKey(reservation.NetworkID, reservation.ReservationID)
 		reservationRow := datamodel.ReservationRow{
-			RowKey: key,
+			RowKey:        key,
 			Configuration: &reservations[i],
-			SubnetKey: datamodel.GetSubnetKey(reservation.NetworkID, reservation.AllocationRequest.SubnetName),
+			SubnetKey:     datamodel.GetSubnetKey(reservation.NetworkID, reservation.AllocationRequest.SubnetName),
 		}
 		f.Data[key] = reservationRow
 	}
@@ -128,16 +128,16 @@ func (f *SubnetRepo) UpdateSubnetReservationSet(reservationID, allocatedSubnet s
 }
 
 type AllocationRepo struct {
-	Data []datamodel.AllocationRow
+	Data []datamodel.IPAllocationEntity
 }
 
-func (f *AllocationRepo) QueryIPAllocationsByAllocationID(_, _ string, allocIDs []string) ([]datamodel.AllocationRow, *api.JsonErr) {
+func (f *AllocationRepo) QueryIPAllocationsByAllocationID(_, _ string, allocIDs []string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
 	ids := make(map[string]struct{})
 	for _, allocID := range allocIDs {
 		ids[allocID] = struct{}{}
 	}
 
-	var results []datamodel.AllocationRow
+	var results []datamodel.IPAllocationEntity
 	for _, d := range f.Data {
 		if _, found := ids[d.AllocationID]; found {
 			results = append(results, d)
@@ -149,9 +149,9 @@ func (f *AllocationRepo) QueryIPAllocationsByAllocationID(_, _ string, allocIDs 
 func (f *AllocationRepo) AddIPAllocations(_, _ string, rows map[string]map[string]interface{}) *api.JsonErr {
 	for rowKey, rowData := range rows {
 		allocID, _ := rowData[datamodel.AllocationIDProperty].(string)
-		ipAlloc, _ := rowData["IPAllocation"].(string)
+		ipAlloc, _ := rowData[datamodel.IPAllocationProperty].(string)
 
-		row := datamodel.AllocationRow{
+		row := datamodel.IPAllocationEntity{
 			RowKey:       rowKey,
 			AllocationID: allocID,
 			IPAllocation: ipAlloc,
@@ -162,11 +162,11 @@ func (f *AllocationRepo) AddIPAllocations(_, _ string, rows map[string]map[strin
 	return nil
 }
 
-func (f *AllocationRepo) MarkIPAllocationsAsPendingCleanup(_, _ string, _ map[string]map[string]interface{}) *api.JsonErr {
+func (f *AllocationRepo) UpdateIPAllocations(_, _ string, _ map[string]map[string]interface{}) *api.JsonErr {
 	return nil
 }
 
-func (f *AllocationRepo) TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.AllocationRow, *api.JsonErr) {
+func (f *AllocationRepo) TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
 	return f.Data, nil
 }
 

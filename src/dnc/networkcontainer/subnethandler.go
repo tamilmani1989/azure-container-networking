@@ -254,7 +254,7 @@ func (s *subnetHandler) allocate(reservations []datamodel.ReservationConfigurati
 			reservation.AllocatedSubnet = primaryIP.String() + "/32"
 
 			rowKey := datamodel.EncodeIPAllocationKey(reservation.AllocatedSubnet)
-			result.rowBatch[rowKey] = map[string]interface{}{ipAllocProperty: reservationKey, allocIDProperty: reservation.ReservationID}
+			result.rowBatch[rowKey] = map[string]interface{}{datamodel.IPAllocationProperty: reservationKey, datamodel.AllocationIDProperty: reservation.ReservationID}
 		}
 
 		unallocated := make(map[string]struct{})
@@ -280,7 +280,7 @@ func (s *subnetHandler) allocate(reservations []datamodel.ReservationConfigurati
 			encodedSubnet := availableIPs[i].String() + utils.PrefixDelimiter + utils.IPV4DefaultPrefix
 
 			rowKey := datamodel.EncodeIPAllocationKey(encodedSubnet)
-			result.rowBatch[rowKey] = map[string]interface{}{ipAllocProperty: reservationKey, allocIDProperty: allocationID}
+			result.rowBatch[rowKey] = map[string]interface{}{datamodel.IPAllocationProperty: reservationKey, datamodel.AllocationIDProperty: allocationID}
 
 			if _, ok := addressesInUse[availableIPs[i].String()]; !ok {
 				ipsInUse = append(ipsInUse, availableIPs[i])

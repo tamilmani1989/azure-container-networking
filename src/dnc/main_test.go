@@ -12,6 +12,7 @@ import (
 	"dnc/resourceupdatehandler/networkupdatehandler"
 	"dnc/server"
 	"dnc/utils"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -23,7 +24,7 @@ import (
 
 var (
 	apiVersion = "?api-version=2018-03-01"
-	dncEP     string
+	dncEP      string
 )
 
 // TestMain :- main
@@ -115,7 +116,8 @@ func StartDnc(config *configuration.Configuration) {
 
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
-		datamodel.Init(
+
+		err := datamodel.Init(
 			config.CNSSettings,
 			config.DataStoreSettings,
 			config.DNCSettings,
@@ -127,6 +129,10 @@ func StartDnc(config *configuration.Configuration) {
 			httpClient,
 			cnsHttpClient,
 			config.HostAgentSettings.WireServerIP)
+		if err != nil {
+			log.Fatalln("Error initializing datastore. Error:", err)
+		}
+
 		ctrler.UpdateReplicaStatus(true)
 	}
 

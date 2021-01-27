@@ -8,15 +8,14 @@ const (
 	networkConfigurationTableName                    = "NetworkConfigurationTable"
 	networkContainerTableName                        = "NetworkContainerTable"
 	tagDefinitionTableName                           = "TagDefinitionsTable"
-	ipAllocationsTableName                           = "IPAllocationsTable"
 	sharedSubnetDelegationMigrationTableName         = "SharedSubnetDelegationMigrationTable"
 	sharedSubnetDelegationMigrationRegionalTableName = "SharedSubnetDelegationMigrationRegionalTable"
-	MasterElectionTableName                          = "MasterElectionTable" // MasterElectionTableName - DNC master election table name
+	MasterElectionTableName                          = "MasterElectionTable"          // MasterElectionTableName - DNC master election table name
 	ncPendingPublishContextTableName                 = "NcPendingPublishContextTable" // Table containing pending NC publish / unpublish context
-	featureMigrationTableName                        = "FeatureMigrationTable" // Holds the info about different features that need migration
+	featureMigrationTableName                        = "FeatureMigrationTable"        // Holds the info about different features that need migration
 	// Table containing pending resource cleanup jobs created for asynchronous cleanup of internal state
 	// For now it will be used to store IP cleanup request for a given NC during NC delete or secondary ips scale down.
-	pendingResourceCleanupTableName                  = "PendingResourceCleanupTable"
+	pendingResourceCleanupTableName = "PendingResourceCleanupTable"
 
 	networkKey                 = "Network_%s"
 	subnetConfigurationKey     = "Network_%s_Subnet_%s"
@@ -36,7 +35,6 @@ const (
 	requestContextTag                  = "RequestContext"
 	networkContainerConfigurationTag   = "NetworkContainerConfiguration"
 	tagDefinitionsTag                  = "TagDefinitions"
-	ipAllocationTag                    = "IPAllocation"
 	sharedSubnetDelegationMigrationTag = "SharedSubnetDelegationMigrationComplete"
 	masterElectionTag                  = "MasterElection"
 	ncPendingPublishContextTag         = "NcPendingPublishContext"
@@ -90,7 +88,7 @@ var TableToColumnMap = map[string]string{
 	networkConfigurationTableName:                    networkConfigurationTag,
 	networkContainerTableName:                        networkContainerConfigurationTag,
 	tagDefinitionTableName:                           tagDefinitionsTag,
-	ipAllocationsTableName:                           ipAllocationTag,
+	IPAllocationsTableName:                           IPAllocationProperty,
 	sharedSubnetDelegationMigrationTableName:         sharedSubnetDelegationMigrationTag,
 	sharedSubnetDelegationMigrationRegionalTableName: sharedSubnetDelegationMigrationTag,
 	MasterElectionTableName:                          masterElectionTag,

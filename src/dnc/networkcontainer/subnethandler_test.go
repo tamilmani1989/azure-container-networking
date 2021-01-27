@@ -4,9 +4,10 @@ import (
 	"dnc/datamodel"
 	"dnc/logger/loggermock"
 	"dnc/networkcontainer/fakes"
-	"github.com/google/uuid"
 	"net"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func TestSubnetHandlerProcess_CreationFromScratch(t *testing.T) {
@@ -107,7 +108,7 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 	}
 
 	allocsRepo := fakes.AllocationRepo{
-		Data: []datamodel.AllocationRow{
+		Data: []datamodel.IPAllocationEntity{
 			// one reservation with complete allocations (primary and secondaries)
 			{RowKey: "10.1.0.10_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[0], AllocationID: partialIDs[0]},
 			{RowKey: "10.1.0.11_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[0], AllocationID: allocIDs[partialIDs[0]][0]},
@@ -178,7 +179,7 @@ func TestDeallocateBatch(t *testing.T) {
 	subnet := "subnet1"
 
 	allocsRepo := fakes.AllocationRepo{
-		Data: []datamodel.AllocationRow{
+		Data: []datamodel.IPAllocationEntity{
 			{RowKey: "10.1.0.10_32", IPAllocation: "Network_vnet1_Reservation_res1", AllocationID: "res1"},
 			{RowKey: "10.1.0.11_32", IPAllocation: "Network_vnet1_Reservation_res1", AllocationID: "alloc1"},
 			{RowKey: "10.1.0.12_32", IPAllocation: "Network_vnet1_Reservation_res1", AllocationID: "alloc2"},
@@ -218,9 +219,9 @@ func TestDeallocateBatch(t *testing.T) {
 	for _, res := range reservations {
 		key := datamodel.GetReservationKey(res.NetworkID, res.ReservationID)
 		reservationRow := datamodel.ReservationRow{
-			RowKey: key,
+			RowKey:        key,
 			Configuration: &res,
-			SubnetKey: datamodel.GetSubnetKey(res.NetworkID, res.AllocationRequest.SubnetName),
+			SubnetKey:     datamodel.GetSubnetKey(res.NetworkID, res.AllocationRequest.SubnetName),
 		}
 		resRepo.Data[key] = reservationRow
 	}

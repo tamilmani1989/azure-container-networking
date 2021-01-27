@@ -1,0 +1,203 @@
+package datamodel
+
+import (
+	"dnc/api"
+	"dnc/datastore/azurestorage"
+	"dnc/datastoreshim"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/Azure/azure-sdk-for-go/storage"
+)
+
+const (
+	IPAllocationsTableName   = "IPAllocationsTable"
+	IPAllocationProperty     = "IPAllocation"
+	AllocationIDProperty     = "AllocationID"
+	ToBeDeletedOwnerProperty = "ToBeDeletedOwner"
+)
+
+// todo: the 3 properties that any row will have are partition key, row key, and etag.
+//  we should consider having a separate metadata struct that can be embedded within any struct representing a row.
+
+// An IPAllocationEntity holds the data for a record in the IPAllocationsTable, and represents an IP address within a subnet.
+type IPAllocationEntity struct {
+	// RowKey is a unique key within a partition. Encoded as "10.0.0.1_32".
+	RowKey string
+	// ETag is a metadata property used for optimistic locking.
+	ETag string
+	// IPAllocation is a property which contains the row key for a corresponding reservation in IPReservationsTable.
+	IPAllocation string
+	// AllocationID is a property which associates the allocation record to either a primary or secondary IP address in a reservation.
+	// If the allocation is for a primary IP, this UUID will be the same as the Reservation ID.
+	// If the allocation is for a secondary IP, this UUID will be contained within the secondary allocation keys in the reservation.
+	AllocationID string
+	// ToBeDeletedOwner is a property which is set during deletion of an NC, and contains the NC ID that owns the allocation.
+	ToBeDeletedOwner string
+}
+
+// EncodeIPAllocationKey encodes the primary key for IP allocations table
+func EncodeIPAllocationKey(allocatedSubnet string) string {
+	return strings.Replace(allocatedSubnet, "/", "_", 1)
+}
+
+// DecodeIPAllocationKey decodes the primary key for IP allocations table
+func DecodeIPAllocationKey(allocatedSubnet string) string {
+	return strings.Replace(allocatedSubnet, "_", "/", 1)
+}
+
+func EntityToAllocationRow(e *storage.Entity) IPAllocationEntity {
+	return IPAllocationEntity{
+		RowKey:           e.RowKey,
+		ETag:             e.OdataEtag,
+		IPAllocation:     ExtractStringProperty(e, IPAllocationProperty),
+		AllocationID:     ExtractStringProperty(e, AllocationIDProperty),
+		ToBeDeletedOwner: ExtractStringProperty(e, ToBeDeletedOwnerProperty),
+	}
+}
+
+// todo: we should consider keeping the partition in the row struct for completeness
+//  since it would better encapsulate the record and its metadata
+func (r *IPAllocationEntity) ToStorageEntity() storage.Entity {
+	return storage.Entity{
+		Table:        &storage.Table{Name: IPAllocationsTableName},
+		PartitionKey: "",
+		RowKey:       r.RowKey,
+		OdataEtag:    r.ETag,
+		Properties: map[string]interface{}{
+			IPAllocationProperty:     r.IPAllocation,
+			AllocationIDProperty:     r.AllocationID,
+			ToBeDeletedOwnerProperty: r.ToBeDeletedOwner,
+		},
+	}
+}
+
+// AllocationRepo performs CRUD operations on the IPAllocationsTable
+type AllocationRepo struct {
+	Datastore datastoreshim.DataStoreShim
+}
+
+func (a *AllocationRepo) TryQueryIPAllocation(networkID, subnetName, ipAddress string) (IPAllocationEntity, *api.JsonErr) {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+	return a.TryQueryIPAllocationByKey(partitionKey, ipAddress)
+}
+
+func (a *AllocationRepo) TryQueryIPAllocationByKey(partitionKey, ipAddress string) (IPAllocationEntity, *api.JsonErr) {
+	entity, status, err := a.Datastore.QueryInPartition(IPAllocationsTableName, partitionKey, ipAddress)
+	if err != nil && status != http.StatusNotFound {
+		msg := fmt.Sprintf("Failed to retrieve IP allocation for key:[%s] in partition:[%s] due to error:[%s]", ipAddress, partitionKey, err.Error())
+		return IPAllocationEntity{}, api.InternalServerError(api.StatusInternalServerError, msg)
+	}
+
+	if entity == nil {
+		return IPAllocationEntity{}, nil
+	}
+
+	return EntityToAllocationRow(entity), nil
+}
+
+func (a *AllocationRepo) TryQueryAllIPAllocations(networkID, subnetName string) ([]IPAllocationEntity, *api.JsonErr) {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+
+	var (
+		rows      []IPAllocationEntity
+		pageToken interface{}
+	)
+
+	for {
+		entities, hasNextPage, nextPageToken, _, err := a.Datastore.QueryAllRowsInPartition(IPAllocationsTableName, partitionKey, pageToken)
+		if err != nil {
+			return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
+		}
+
+		for _, entity := range entities {
+			rows = append(rows, EntityToAllocationRow(entity))
+		}
+
+		if !hasNextPage {
+			break
+		}
+
+		pageToken = nextPageToken
+	}
+
+	return rows, nil
+}
+
+func (a *AllocationRepo) QueryIPAllocationsByAllocationID(networkID, subnetName string, allocationIDs []string) ([]IPAllocationEntity, *api.JsonErr) {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+	filter := azurestorage.BuildFilterOnProperty(partitionKey, AllocationIDProperty, allocationIDs)
+
+	entities, err := a.Datastore.QueryFilter(IPAllocationsTableName, filter)
+	if err != nil {
+		return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	var rows []IPAllocationEntity
+	for _, entity := range entities {
+		rows = append(rows, EntityToAllocationRow(entity))
+	}
+
+	return rows, nil
+}
+
+func (a *AllocationRepo) AddIPAllocations(networkID, subnetName string, rows map[string]map[string]interface{}) *api.JsonErr {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+
+	if err := a.Datastore.InsertBatch(IPAllocationsTableName, partitionKey, rows); err != nil {
+		storageErr, ok := err.(storage.AzureStorageServiceError)
+		if !ok {
+			return api.InternalServerError(api.StatusInternalServerError, err.Error())
+		}
+
+		switch storageErr.StatusCode {
+		case http.StatusConflict:
+			return api.Conflict(api.AllocationFailed, storageErr.Message)
+		default:
+			return api.InternalServerError(api.StatusInternalServerError, storageErr.Message)
+		}
+	}
+
+	return nil
+}
+
+func (a *AllocationRepo) UpdateIPAllocations(networkID, subnetName string, rows map[string]map[string]interface{}) *api.JsonErr {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+
+	if err := a.Datastore.MergeBatch(IPAllocationsTableName, partitionKey, rows); err != nil {
+		storageErr, ok := err.(storage.AzureStorageServiceError)
+		if !ok {
+			return api.InternalServerError(api.StatusInternalServerError, err.Error())
+		}
+
+		switch storageErr.StatusCode {
+		case http.StatusPreconditionFailed:
+			return api.PreconditionFailed(api.UpdateIPAllocationFailed, storageErr.Message)
+		default:
+			return api.InternalServerError(api.StatusInternalServerError, storageErr.Message)
+		}
+	}
+
+	return nil
+}
+
+func (a *AllocationRepo) DeleteIPAllocation(networkID, subnetName, allocatedIPKey string) *api.JsonErr {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+	if err := a.Datastore.DeleteInPartition(IPAllocationsTableName, partitionKey, allocatedIPKey); err != nil {
+		msg := fmt.Sprintf("Cannot delete entry %s from IPAllocations table due to error: %+v", allocatedIPKey, err)
+		return api.InternalServerError(api.StatusInternalServerError, msg)
+	}
+
+	return nil
+}
+
+func (a *AllocationRepo) DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+
+	if err := a.Datastore.DeleteBatch(IPAllocationsTableName, partitionKey, keys); err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	return nil
+}

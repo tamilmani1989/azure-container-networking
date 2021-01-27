@@ -13,12 +13,6 @@ import (
 	"github.com/Azure/azure-container-networking/cns"
 )
 
-const (
-	ipAllocProperty     = "IPAllocation"
-	allocIDProperty     = "AllocationID"
-	toBeDeletedProperty = "ToBeDeletedOwner"
-)
-
 // IPAllocator can process different types of IP allocations for network containers
 type IPAllocator struct {
 	Nodes        NodeRepo
@@ -113,7 +107,7 @@ func (a *IPAllocator) ProcessIPReservationAllocation(req *datamodel.ReservationC
 	// we only add the primary ip for the reservation if it hadn't been found previously
 	if req.AllocatedSubnet == "" {
 		rowKey := datamodel.EncodeIPAllocationKey(primaryIP.String())
-		batch[rowKey] = map[string]interface{}{ipAllocProperty: reservationKey, allocIDProperty: req.ReservationID}
+		batch[rowKey] = map[string]interface{}{datamodel.IPAllocationProperty: reservationKey, datamodel.AllocationIDProperty: req.ReservationID}
 	}
 
 	// we keep track of all secondary allocations that have not been assigned an IP yet
@@ -147,7 +141,7 @@ func (a *IPAllocator) ProcessIPReservationAllocation(req *datamodel.ReservationC
 			encodedSubnet := availableIPs[i].String() + utils.PrefixDelimiter + utils.IPV4DefaultPrefix
 			unallocated[allocationID] = encodedSubnet
 			rowKey := datamodel.EncodeIPAllocationKey(encodedSubnet)
-			batch[rowKey] = map[string]interface{}{ipAllocProperty: reservationKey, allocIDProperty: allocationID}
+			batch[rowKey] = map[string]interface{}{datamodel.IPAllocationProperty: reservationKey, datamodel.AllocationIDProperty: allocationID}
 			i++
 		}
 	}
@@ -420,7 +414,6 @@ func (a *IPAllocator) deleteAllocations(networkID, subnetName string, keys []str
 	return nil
 }
 
-// todo: refactor to take a map of rows, not map of maps
 func (a *IPAllocator) saveAllocationBatch(vnetID, subnetName string, batchMap map[string]map[string]interface{}) *api.JsonErr {
 	var batches []map[string]map[string]interface{}
 
@@ -462,12 +455,9 @@ func (a *IPAllocator) MarkAllocationAsPendingCleanup(res datamodel.ReservationCo
 
 	// need to update the table with the NCID in the toBeDeletedProperty column
 	for _, rowKey := range rowKeys {
-		batch[rowKey] = map[string]interface{}{toBeDeletedProperty: res.AssociatedNCID}
+		batch[rowKey] = map[string]interface{}{datamodel.ToBeDeletedOwnerProperty: res.AssociatedNCID}
 	}
 
-	if err := a.Allocations.MarkIPAllocationsAsPendingCleanup(res.NetworkID, res.AllocationRequest.SubnetName, batch); err != nil {
-		// whether it's a conflict or a network error, we should retry
-		return err
-	}
-	return nil
+	// whether it's a conflict or a network error, we should retry
+	return a.Allocations.UpdateIPAllocations(res.NetworkID, res.AllocationRequest.SubnetName, batch)
 }

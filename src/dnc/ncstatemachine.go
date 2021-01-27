@@ -29,7 +29,7 @@ func initNetworkContainerStateMachine() {
 		NCs:          new(ncRepo),
 		Subnets:      new(subnetRepo),
 		Reservations: new(reservationRepo),
-		Allocations:  new(allocationRepo),
+		Allocations:  datamodel.AllocRepo,
 		Logger:       logger,
 		MaxBatchSize: config.DataStoreSettings.MaxBatchSize,
 	}

@@ -622,6 +622,7 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 	config.DataStoreSettings.AzureStorageInfo.PartitionKey = request.PartitionKey
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
+
 	err := datamodel.Init(
 		config.CNSSettings,
 		config.DataStoreSettings,
@@ -637,6 +638,7 @@ func (c *Controller) InitializeAzureStorage(request api.AzureStorageRequest) *ap
 	if err != nil {
 		return api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
+
 	c.UpdateReplicaStatus(true)
 
 	// TODO: set the orchestrator for AI telemetry
@@ -654,6 +656,7 @@ func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2)
 	config.DataStoreSettings.AzureStorageInfo.RegionalStorageConnectionString = request.RegionalStorageConnectionString
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
+
 	err := datamodel.Init(
 		config.CNSSettings,
 		config.DataStoreSettings,
@@ -669,6 +672,7 @@ func (c *Controller) InitializeAzureStorageV2(request api.AzureStorageRequestV2)
 	if err != nil {
 		return api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
+
 	c.UpdateReplicaStatus(true)
 
 	// TODO: set the orchestrator for AI telemetry
@@ -687,6 +691,7 @@ func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, b
 	config.MasterElectionSettings.BlobStorageSettings.ContainerName = containerName
 	masterElectionShim.SetDataStoreSettings(config)
 	masterElectionShim.Init()
+
 	err := datamodel.Init(
 		config.CNSSettings,
 		config.DataStoreSettings,
@@ -702,6 +707,7 @@ func (c *Controller) InitializeAzureStorageV3(request api.AzureStorageRequest, b
 	if err != nil {
 		return api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
+
 	c.UpdateReplicaStatus(true)
 
 	// TODO: set the orchestrator for AI telemetry

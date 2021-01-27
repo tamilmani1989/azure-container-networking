@@ -1,3 +1,6 @@
+// todo: package datamodel should be only for repo layer. we should extract service layer functionality (which
+//  depends and orchestrates repos, as well as other things like cns and nmagent clients) to a different package,
+//  possibly networkcontainer.
 package datamodel
 
 import (
@@ -32,27 +35,31 @@ const (
 	networkManagementLBSupport string = "NetworkManagementLBSupport"
 )
 
+// todo: convert these package level vars into a service struct
 var (
-	dataStoreShim             datastoreshim.DataStoreShim
-	cnsSettings               configuration.CNSSettings
-	hostAgentSettings         configuration.HostAgentSettings
-	PendingCleanupRepo        *PendingResourceCleanupRepo
-	requestBaseInterval              = 1000
-	MinVlan                   uint16 = 1
-	MaxVlan                   uint16 = 2048
-	maxContainersPerNode             = 10
-	httpClient                *http.Client
-	cnsHttpClient             *http.Client
-	defaultDNSServer          string
-	enforceNICLimit           bool // zero value is false
-	nicsAllowedPerVirtualCore uint16
-	managed                   bool
-	MinGre                    uint16 = 257
-	MaxGre                    uint16 = 511
-	//TODO: refactor package level variables
+	dataStoreShim               datastoreshim.DataStoreShim
+	cnsSettings                 configuration.CNSSettings
+	hostAgentSettings           configuration.HostAgentSettings
+	PendingCleanupRepo          *PendingResourceCleanupRepo
+	requestBaseInterval                = 1000
+	MinVlan                     uint16 = 1
+	MaxVlan                     uint16 = 2048
+	maxContainersPerNode               = 10
+	httpClient                  *http.Client
+	cnsHttpClient               *http.Client
+	defaultDNSServer            string
+	enforceNICLimit             bool // zero value is false
+	nicsAllowedPerVirtualCore   uint16
+	managed                     bool
+	MinGre                      uint16 = 257
+	MaxGre                      uint16 = 511
 	disableResMapInSubnetConfig bool
 	dncPartitionKey             string
 	batchSize                   int
+
+	// todo: repos can be initialized by a helper method and compose a struct that can be shared.
+	//  exporting variable temporarily, since this package is behaving as a singleton.
+	AllocRepo *AllocationRepo
 )
 
 // Init - Initialize repository.
@@ -66,12 +73,16 @@ func Init(
 	cnsHttpClientArg *http.Client,
 	wireServerIP string) error {
 	requestBaseInterval = dncSettings.RequestRetryBaseInterval
+
 	ds, err := datastoreshim.NewDataStoreShim(dataStoreSettings, dncSettings.ThresholdForLoggingDataStoreOpLatencyMs, TableToColumnMap)
 	if err != nil {
 		return err
 	}
 
 	dataStoreShim = ds
+
+	AllocRepo = &AllocationRepo{Datastore: ds}
+
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
 		RestoreState()
 	}
@@ -623,7 +634,7 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 
 	reservationKey := GetReservationKey(networkID, reservationID)
 
-	if err = DeleteIPAllocation(reservation.Configuration.NetworkID,
+	if err = ValidateAndDeleteIPAllocation(reservation.Configuration.NetworkID,
 		reservation.Configuration.AllocationRequest.SubnetName,
 		reservationKey,
 		reservation.Configuration.AllocatedSubnet); err != nil {
@@ -679,10 +690,10 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 	return err
 }
 
-// DeleteIPAllocation - Delete an IP allocation entry from IPAllocations table.
-func DeleteIPAllocation(networkID, subnetName, reservationKey, allocatedIP string) *api.JsonErr {
+// ValidateAndDeleteIPAllocation - Delete an IP allocation entry from IPAllocations table.
+func ValidateAndDeleteIPAllocation(networkID, subnetName, reservationKey, allocatedIP string) *api.JsonErr {
 	allocatedIPKey := EncodeIPAllocationKey(allocatedIP)
-	savedReservationKey, err := TryQueryIPAllocation(networkID, subnetName, allocatedIPKey)
+	savedReservationKey, err := AllocRepo.TryQueryIPAllocation(networkID, subnetName, allocatedIPKey)
 	if err != nil {
 		return err
 	}
@@ -697,66 +708,7 @@ func DeleteIPAllocation(networkID, subnetName, reservationKey, allocatedIP strin
 		return api.InternalServerError(api.InvalidIPSubnet, msg)
 	}
 
-	// Delete the entry if the saved reservation matches the current reservation
-	partitionKey := GetSubnetKey(networkID, subnetName)
-	if err := dataStoreShim.DeleteInPartition(ipAllocationsTableName, partitionKey, allocatedIPKey); err != nil {
-		msg := fmt.Sprintf("Cannot delete entry %s from IPAllocations table due to error: %+v", allocatedIPKey, err)
-		return api.InternalServerError(api.StatusInternalServerError, msg)
-	}
-
-	return nil
-}
-
-// AddIPAllocations adds a batch of allocations to the specified vnet and subnet name partition in IPAllocationsTable
-func AddIPAllocations(networkID, subnetName string, rows map[string]map[string]interface{}) *api.JsonErr {
-	partitionKey := GetSubnetKey(networkID, subnetName)
-
-	if err := dataStoreShim.InsertBatch(ipAllocationsTableName, partitionKey, rows); err != nil {
-		storageErr, ok := err.(storage.AzureStorageServiceError)
-		if !ok {
-			return api.InternalServerError(api.StatusInternalServerError, err.Error())
-		}
-
-		switch storageErr.StatusCode {
-		case http.StatusConflict:
-			return api.Conflict(api.AllocationFailed, storageErr.Message)
-		default:
-			return api.InternalServerError(api.StatusInternalServerError, storageErr.Message)
-		}
-	}
-
-	return nil
-}
-
-func DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
-	partitionKey := GetSubnetKey(networkID, subnetName)
-
-	if err := dataStoreShim.DeleteBatch(ipAllocationsTableName, partitionKey, keys); err != nil {
-		return api.InternalServerError(api.StatusInternalServerError, err.Error())
-	}
-
-	return nil
-}
-
-//TODO: Add tests for UpdateIPAllocations
-func UpdateIPAllocations(networkID, subnetName string, rows map[string]map[string]interface{}) *api.JsonErr {
-	partitionKey := GetSubnetKey(networkID, subnetName)
-
-	if err := dataStoreShim.MergeBatch(ipAllocationsTableName, partitionKey, rows); err != nil {
-		storageErr, ok := err.(storage.AzureStorageServiceError)
-		if !ok {
-			return api.InternalServerError(api.StatusInternalServerError, err.Error())
-		}
-
-		switch storageErr.StatusCode {
-		case http.StatusPreconditionFailed:
-			return api.PreconditionFailed(api.UpdateIPAllocationFailed, storageErr.Message)
-		default:
-			return api.InternalServerError(api.StatusInternalServerError, storageErr.Message)
-		}
-	}
-
-	return nil
+	return AllocRepo.DeleteIPAllocation(networkID, subnetName, allocatedIPKey)
 }
 
 // TryQueryNodeConfiguration - Query node configuration.
@@ -2515,81 +2467,10 @@ func GetAllNodeIDs() (map[string]bool, error) {
 	return nodeIDs, nil
 }
 
-const AllocationIDProperty = "AllocationID"
-
-type AllocationRow struct {
-	RowKey           string
-	IPAllocation     string
-	ToBeDeletedOwner string
-	AllocationID     string
-}
-
 type ReservationRow struct {
 	RowKey        string
 	Configuration *ReservationConfiguration
 	SubnetKey     string
-}
-
-// TryQueryAllIPAllocations - Query all IP allocations in the partition.
-func TryQueryAllIPAllocations(networkID, subnetName string) ([]AllocationRow, *api.JsonErr) {
-	partitionKey := GetSubnetKey(networkID, subnetName)
-
-	var (
-		rows      []AllocationRow
-		pageToken interface{}
-	)
-	for {
-		entities, hasNextPage, nextPageToken, _, err := dataStoreShim.QueryAllRowsInPartition(ipAllocationsTableName, partitionKey, pageToken)
-		if err != nil {
-			return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
-		}
-
-		for _, entity := range entities {
-			row := AllocationRow{
-				RowKey:       entity.RowKey, // todo: use metadata struct from different PR
-				IPAllocation: entity.Properties[ipAllocationTag].(string),
-			}
-
-			/* TODO: Similar checks should be in place for all entity properties.
-			   create a helper func that reads entity.Property and returns a value */
-			if prop, ok := entity.Properties[AllocationIDProperty]; ok {
-				row.AllocationID = prop.(string)
-			}
-
-			rows = append(rows, row)
-		}
-
-		if !hasNextPage {
-			break
-		}
-		pageToken = nextPageToken
-	}
-	return rows, nil
-}
-
-func QueryIPAllocationsByAllocationID(networkID, subnetName string, allocationIDs []string) ([]AllocationRow, *api.JsonErr) {
-	partitionKey := GetSubnetKey(networkID, subnetName)
-	filter := azurestorage.BuildFilterOnProperty(partitionKey, AllocationIDProperty, allocationIDs)
-
-	entities, err := dataStoreShim.QueryFilter(ipAllocationsTableName, filter)
-	if err != nil {
-		return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
-	}
-	var rows []AllocationRow
-	for _, entity := range entities {
-		row := AllocationRow{
-			RowKey:       entity.RowKey, // todo: use metadata struct from different PR
-			IPAllocation: entity.Properties[ipAllocationTag].(string),
-		}
-
-		if prop, ok := entity.Properties[AllocationIDProperty]; ok {
-			row.AllocationID = prop.(string)
-		}
-
-		rows = append(rows, row)
-	}
-
-	return rows, nil
 }
 
 func getReservationsFromSubnetConfigTable(networkID, subnetName string) (map[string]ReservationRow, *api.JsonErr) {
@@ -2709,54 +2590,6 @@ func TryQueryAllSubnetConfigurations() ([]SubnetConfiguration, *api.JsonErr) {
 	}
 
 	return subnetConfigs, nil
-}
-
-// TryQueryIPAllocation - Query for IP allocations
-func TryQueryIPAllocation(networkID, subnetName, ipAddress string) (AllocationRow, *api.JsonErr) {
-	partitionKey := GetSubnetKey(networkID, subnetName)
-	return TryQueryIPAllocationByKey(partitionKey, ipAddress)
-}
-
-// TryQueryIPAllocationByKey - Query for IP allocations by the key in the specified partition
-func TryQueryIPAllocationByKey(partitionKey, ipAddress string) (AllocationRow, *api.JsonErr) {
-	entity, status, err := dataStoreShim.QueryInPartition(ipAllocationsTableName, partitionKey, ipAddress)
-	if err != nil && status != http.StatusNotFound {
-		msg := fmt.Sprintf(
-			"Failed to retrieve IP allocation for key:[%s] in partition:[%s] due to error:[%s]",
-			ipAddress,
-			partitionKey,
-			err.Error())
-		return AllocationRow{}, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	if entity == nil {
-		return AllocationRow{}, nil
-	}
-
-	row := AllocationRow{
-		IPAllocation: entity.Properties[ipAllocationTag].(string),
-	}
-
-	if prop, ok := entity.Properties[AllocationIDProperty]; ok {
-		row.AllocationID = prop.(string)
-	}
-
-	return row, nil
-}
-
-// EncodeIPAllocationKey - Encodes the primary key for IP allocations table
-func EncodeIPAllocationKey(allocatedSubnet string) string {
-	charReplacer := strings.NewReplacer("/", "_")
-	return charReplacer.Replace(allocatedSubnet)
-}
-
-// DecodeIPAllocationKey - Decodes the primary key for IP allocations table
-func DecodeIPAllocationKey(allocatedSubnet string) string {
-	charReplacer := strings.NewReplacer("_", "/")
-	return charReplacer.Replace(allocatedSubnet)
 }
 
 // GetAllNetworkContainers - Retrieve all network containers
