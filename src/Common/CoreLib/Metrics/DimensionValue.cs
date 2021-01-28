@@ -5,7 +5,7 @@
 //
 // -----------------------------------------------------------------------------
 
-namespace Microsoft.Azure.ContainerNetworking.DncRP
+namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
     public class DimensionValue
     {

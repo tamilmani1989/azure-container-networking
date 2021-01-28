@@ -5,7 +5,7 @@
 //
 // -----------------------------------------------------------------------------
 
-namespace Microsoft.Azure.ContainerNetworking.DncRP
+namespace Microsoft.Azure.ContainerNetworking.CoreLib
 {
     using System.Collections.Generic;
     using Newtonsoft.Json;

@@ -64,9 +64,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
 
                     options.ListenLocalhost(Convert.ToInt32(config["Port"]), listenOptions =>
                     {
-                        listenOptions.UseHttps();
-                        // TODO: Enable SSL cert from KV
-                        // listenOptions.UseHttps(Certificates.GetKeyVaultCertificate(config["KeyVault:Url"], config["KeyVault:SslCertName"]));
+                        listenOptions.UseHttps(Certificates.GetKeyVaultCertificate(config["KeyVault:Url"], config["KeyVault:SslCertName"]));
                     });
                 })
                 .UseStartup<Startup>();

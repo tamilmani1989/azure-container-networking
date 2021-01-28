@@ -18,5 +18,12 @@
     "Url": "https://__RegionalKeyVaultName__.vault.azure.net",
     "SslCertName": "MacInventoryManagerSslCert3"
   },
-  "Port": "5004"
+  "Port": "5004",
+  "MdmMetrics": {
+    "AccountName": "AzureContainerNetworking",
+    "Namespace": "MacInventoryManager",
+    "StatsDHost": "127.0.0.1",
+    "StatsdPort": 8125,
+    "StatsdSocketProtocol": "Udp"
+  }
 }

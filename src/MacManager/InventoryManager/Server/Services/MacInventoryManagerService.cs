@@ -12,6 +12,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
     using System.Net;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.ContainerNetworking.MacInventoryManager.DataAccess;
     using Microsoft.Azure.ContainerNetworking.MacManager.Common;
     using Microsoft.Azure.Cosmos;
@@ -39,7 +40,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
 
         public async Task<MacAddressRange> UpdateRangeAsync(MacAddressRange range)
         {
-            this.logger.LogInformation($"Processing update of mac address range");
+            this.logger.CLogInformation($"Processing update of mac address range");
             try
             {
                 this.EnsureInitialized();
@@ -52,7 +53,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
 
                 range.Validate();
 
-                this.logger.LogInformation("MacAddress range validated successfully: {0}", range);
+                this.logger.CLogInformation("MacAddress range validated successfully: {0}", range);
 
                 await rangeLock.WaitAsync();
 
@@ -187,13 +188,13 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
                     rangeLock.Release();
                 }
 
-                this.logger.LogInformation("MacAddress range updated successfully");
+                this.logger.CLogInformation("MacAddress range updated successfully");
 
                 return range;
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error updating range");
+                this.logger.CLogError("Error updating range: {0}", ex);
                 throw;
             }
         }
@@ -214,7 +215,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
             }
             catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.PreconditionFailed)
             {
-                this.logger.LogInformation($"Hit precondition failed when updating mac address {macAddress.Address}");
+                this.logger.CLogInformation($"Hit precondition failed when updating mac address {macAddress.Address}");
                 failures.Add(macAddress.Address);
             }
         }

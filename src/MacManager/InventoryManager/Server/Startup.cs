@@ -68,7 +68,8 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
             //services.AddHealthChecks().AddCheck<HealthCheck>("dncrp_health_check");
 
             services.AddControllers();
-            //StartLoggingServiceUpMetric(metricsProvider);
+            services.AddMdmServices(Configuration);
+
             Console.WriteLine("Startup ConfigureServices done");
         }
 
