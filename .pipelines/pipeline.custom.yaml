@@ -14,7 +14,10 @@ stages:
       - job: unit_tests
         pool:
           name: Networking-ContainerNetworking
-          demands: agent.os -equals Linux
+          demands: 
+          - agent.os -equals Linux
+          - Role -equals Build
+
 
         container:
           image: "$(BUILD_IMAGE)"
