@@ -11,7 +11,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.Cosmos;
-
+    
     internal sealed class MacAddressComponent : IMacAddressComponent
     {
         private readonly Container container;
@@ -27,6 +27,20 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
                 .WithParameter("@rangeStart", rangeStart)
                 .WithParameter("@rangeEnd", rangeEnd);
 
+            List<MacAddress> addresses = new List<MacAddress>();
+            using (FeedIterator<MacAddress> iterator = this.container.GetItemQueryIterator<MacAddress>(query))
+            {
+                while (iterator.HasMoreResults)
+                {
+                    addresses.AddRange(await iterator.ReadNextAsync());
+                }
+            }
+
+            return addresses;
+        }
+
+        public async Task<List<MacAddress>> GetMacAddressesAsync(QueryDefinition query)
+        {
             List<MacAddress> addresses = new List<MacAddress>();
             using (FeedIterator<MacAddress> iterator = this.container.GetItemQueryIterator<MacAddress>(query))
             {

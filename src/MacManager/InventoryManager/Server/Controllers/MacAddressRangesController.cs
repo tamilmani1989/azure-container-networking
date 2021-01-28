@@ -12,7 +12,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager.Controllers
     using Microsoft.AspNetCore.Mvc;
 
     [ApiController]
-    [Route("/macaddressranges")]
+    [Route("/macinventory/macaddressranges")]
     public class MacAddressRangesController : ControllerBase
     {
         private readonly IMacInventoryManagerService service;

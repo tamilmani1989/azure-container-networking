@@ -13,7 +13,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager.Controllers
     using Microsoft.AspNetCore.Mvc;
 
     [ApiController]
-    [Route("/macaddressstats")]
+    [Route("/macinventory/macaddressstats")]
     public class MacAddressStatsController : ControllerBase
     {
         public Task<IEnumerable<MacAddressStats>> GetStatsAsync()
