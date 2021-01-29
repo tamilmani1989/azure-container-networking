@@ -23,7 +23,7 @@ if %OPERATION%=="package" (
     )
 
 ) else if %OPERATION%=="sign" (
- robocopy "%BUILD_SOURCESDIRECTORY%\artifacts\linux-phase\drop\linux_phase\outputs\build\%DROP%" "%~dp0%DROP%" /e /xf *.exe
+ robocopy "%BUILD_SOURCESDIRECTORY%\artifacts\linux-phase\drop\linux_phase\outputs\build\%DROP%" "%~dp0%DROP%" /e
 )
 )
 
