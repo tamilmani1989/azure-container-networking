@@ -19,20 +19,27 @@ type DataStoreShim interface {
 	QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error)
 	QueryFilter(tableName, filter string) ([]*storage.Entity, error)
 	InsertInPartition(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error)
-	//TODO: Accept storage entities rather than map of interfaces
 	InsertInPartitionProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) (int, error)
 	Insert(tableName, rowKey, propertyName string, value interface{}) (int, error)
 	InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error
 	InsertOrUpdateProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) error
+	// Deprecated: Use InsertEntityBatch
 	InsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
+	InsertEntityBatch(tableName string, entities []storage.Entity) error
+	UpdateEntityBatch(tableName string, entities []storage.Entity) error
+	// Deprecated: Use UpsertEntityBatch
 	UpsertBatch(tableName string, batchItems map[string]map[string]interface{}) error
+	UpsertEntityBatch(tableName string, entities []storage.Entity) error
+	// Deprecated: Use MergeEntityBatch
 	MergeBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
+	MergeEntityBatch(tableName string, entities []storage.Entity) error
 	UpdateWithEtag(tableName, rowKey, etag string, propertyName string, value interface{}) error
-	UpdateInPartition(tableName, partitionKay, rowKey string, properties map[string]interface{}) error
-	UpdateInPartitionWithEtag(tableName, partitionKay, rowKey, etag string, properties map[string]interface{}) error
+	UpdateInPartition(tableName, partitionKey, rowKey string, properties map[string]interface{}) error
+	UpdateInPartitionWithEtag(tableName, partitionKey, rowKey, etag string, properties map[string]interface{}) error
 	Delete(tableName, rowKey string) error
 	DeleteWithEtag(tableName, rowKey string, etag string) error
 	DeleteInPartition(tableName, partitionKey, rowKey string) error
+	// todo: do we need to delete with etags? Assuming we want our deletes to be idempotent, this may not be the case.
 	DeleteBatch(tableName, partitionKey string, rowKeys []string) error
 	KeyExist(tableName, rowKey string) (bool, error)
 }

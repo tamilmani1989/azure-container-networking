@@ -461,3 +461,31 @@ func (a *IPAllocator) MarkAllocationAsPendingCleanup(res datamodel.ReservationCo
 	// whether it's a conflict or a network error, we should retry
 	return a.Allocations.UpdateIPAllocations(res.NetworkID, res.AllocationRequest.SubnetName, batch)
 }
+
+func GenerateAllSubnetRows(subnet *net.IPNet) ([]datamodel.IPAllocationEntity, error) {
+	subnetBlockSize := subnetMaxHostCount(subnet)
+
+	loIPBound := int(utils.IP2Int(subnet.IP))
+	hiIPBound := loIPBound + subnetBlockSize - 1
+
+	reserved, err := allocationhelper.GetReservedAddressesInSubnet(subnet)
+	if err != nil {
+		return nil, err
+	}
+
+	var rows []datamodel.IPAllocationEntity
+	for i := loIPBound; i <= hiIPBound; i++ {
+		ip := utils.Int2IP(uint32(i)).String() + "/32"
+		rowKey := datamodel.EncodeIPAllocationKey(ip)
+		row := datamodel.IPAllocationEntity{RowKey: rowKey}
+
+		if _, isReserved := reserved[ip]; isReserved {
+			row.IPAllocation = "Azure Reserved Address"
+			row.AllocationID = "Azure Reserved Address"
+		}
+
+		rows = append(rows, row)
+	}
+
+	return rows, nil
+}

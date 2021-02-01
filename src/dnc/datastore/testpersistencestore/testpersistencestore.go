@@ -23,8 +23,6 @@ type TestPersistenceStore struct {
 	logger    loggershim.LoggerInterface
 }
 
-const induceErrorPercent = 5 // Induce 5% error for a particular operation
-
 // Init :- Initialize a TestPersistenceStore struct for testing purposes.
 func (s *TestPersistenceStore) Init(tableToColumnMap map[string]string, logger loggershim.LoggerInterface) {
 	s.datastore = make(map[string]map[string]rowProperties)
@@ -188,6 +186,7 @@ func (s *TestPersistenceStore) InsertOrUpdateProperties(tableName, partitionKey,
 	return s.UpdateInPartitionWithEtag(tableName, partitionKey, rowKey, "", properties)
 }
 
+// Deprecated: Use UpsertEntityBatch.
 func (s *TestPersistenceStore) UpsertBatch(tableName string, batch map[string]map[string]interface{}) error {
 	s.locks[tableName].Lock()
 	defer func() {
@@ -202,6 +201,7 @@ func (s *TestPersistenceStore) UpsertBatch(tableName string, batch map[string]ma
 	return nil
 }
 
+// Deprecated: Use InsertEntityBatch.
 func (s *TestPersistenceStore) InsertBatch(tableName, _ string, batch map[string]map[string]interface{}) error {
 	s.locks[tableName].Lock()
 	defer func() {
@@ -229,16 +229,123 @@ func (s *TestPersistenceStore) DeleteBatch(tableName, _ string, rowKeys []string
 	return nil
 }
 
+// Deprecated: Use MergeEntityBatch.
 // TODO: add tests for MergeBatch function https://msazure.visualstudio.com/One/_workitems/edit/9077936
-func (testpersistencestore *TestPersistenceStore) MergeBatch(tableName, _ string, batch map[string]map[string]interface{}) error {
-	testpersistencestore.locks[tableName].Lock()
+func (s *TestPersistenceStore) MergeBatch(tableName, _ string, batch map[string]map[string]interface{}) error {
+	s.locks[tableName].Lock()
 	defer func() {
-		testpersistencestore.locks[tableName].Unlock()
+		s.locks[tableName].Unlock()
 	}()
 
 	for rowKey, rowProps := range batch {
-		tag := testpersistencestore.getEtag()
-		testpersistencestore.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: rowProps}
+		tag := s.getEtag()
+		s.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: rowProps}
+	}
+
+	return nil
+}
+
+func (s *TestPersistenceStore) InsertEntityBatch(tableName string, entities []storage.Entity) error {
+	table, ok1 := s.datastore[tableName]
+	tableLock, ok2 := s.locks[tableName]
+	if !ok1 || !ok2 {
+		return fmt.Errorf("table %s not initialized", tableName)
+	}
+
+	tableLock.Lock()
+	defer tableLock.Unlock()
+
+	// todo: should error with conflict to simulate cosmos
+	for _, entity := range entities {
+		if _, ok := table[entity.RowKey]; ok {
+			return fmt.Errorf("entity with row key %s in table %s already exists", entity.RowKey, tableName)
+		}
+	}
+
+	for _, entity := range entities {
+		table[entity.RowKey] = rowProperties{etag: s.getEtag(), properties: entity.Properties}
+	}
+
+	return nil
+}
+
+func (s *TestPersistenceStore) UpdateEntityBatch(tableName string, entities []storage.Entity) error {
+	table, ok1 := s.datastore[tableName]
+	tableLock, ok2 := s.locks[tableName]
+	if !ok1 || !ok2 {
+		return fmt.Errorf("table %s not initialized", tableName)
+	}
+
+	tableLock.Lock()
+	defer tableLock.Unlock()
+
+	// todo: should error with precondition failed to simulate cosmos
+	for _, entity := range entities {
+		current, ok := table[entity.RowKey]
+		if !ok {
+			return fmt.Errorf("entity with row key %s in table %s cannot be updated as it doesn't exist", entity.RowKey, tableName)
+		}
+		if entity.OdataEtag != current.etag {
+			return fmt.Errorf("etag %s for row key %s does not match current etag %s in table %s", entity.OdataEtag, entity.RowKey, current.etag, tableName)
+		}
+	}
+
+	for _, entity := range entities {
+		table[entity.RowKey] = rowProperties{etag: s.getEtag(), properties: entity.Properties}
+	}
+
+	return nil
+}
+
+func (s *TestPersistenceStore) UpsertEntityBatch(tableName string, entities []storage.Entity) error {
+	table, ok1 := s.datastore[tableName]
+	tableLock, ok2 := s.locks[tableName]
+	if !ok1 || !ok2 {
+		return fmt.Errorf("table %s not initialized", tableName)
+	}
+
+	tableLock.Lock()
+	defer tableLock.Unlock()
+
+	// no double scan, since this method forces an insert or update
+	for _, entity := range entities {
+		table[entity.RowKey] = rowProperties{etag: s.getEtag(), properties: entity.Properties}
+	}
+
+	return nil
+}
+
+func (s *TestPersistenceStore) MergeEntityBatch(tableName string, entities []storage.Entity) error {
+	table, ok1 := s.datastore[tableName]
+	tableLock, ok2 := s.locks[tableName]
+	if !ok1 || !ok2 {
+		return fmt.Errorf("table %s not initialized", tableName)
+	}
+
+	tableLock.Lock()
+	defer tableLock.Unlock()
+
+	// todo: should error with precondition failed to simulate cosmos
+	for _, entity := range entities {
+		current, ok := table[entity.RowKey]
+		if !ok {
+			return fmt.Errorf("entity with row key %s in table %s cannot be updated as it doesn't exist", entity.RowKey, tableName)
+		}
+		if entity.OdataEtag != current.etag {
+			return fmt.Errorf("etag %s for row key %s does not match current etag %s in table %s", entity.OdataEtag, entity.RowKey, current.etag, tableName)
+		}
+	}
+
+	for _, entity := range entities {
+		mergedProps := table[entity.RowKey].properties
+		if mergedProps == nil {
+			mergedProps = make(map[string]interface{})
+		}
+		for prop, val := range entity.Properties {
+			mergedProps[prop] = val
+		}
+
+		table[entity.RowKey] = rowProperties{etag: s.getEtag(), properties: mergedProps}
 	}
 
 	return nil
@@ -329,23 +436,16 @@ func (s *TestPersistenceStore) KeyExist(tableName, rowKey string) (bool, error) 
 	return retrieved, nil
 }
 
-// Induce error in the processing
-// This function induces error with provided percent probability
-func (s *TestPersistenceStore) induceError(percentProbability int) bool {
-	induceError := false
-	// Create a random num generator with a new seed every time to
-	// avoid deterministic number generation
-	randNumGen := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	if randNumGen.Intn(100) < percentProbability {
-		induceError = true
-	}
-
-	return induceError
-}
-
 // getEtag - Generate a unique tag (string)
 func (s *TestPersistenceStore) getEtag() string {
 	etag := fmt.Sprintf("%d", time.Now().Add(time.Second*time.Duration(rand.Int63n(10000))).UnixNano())
 	return etag
+}
+
+// Seed is a utility to seed datastore for testing.
+// It should only be called before any accesses to the datastore.
+func (s *TestPersistenceStore) Seed(tableToEntities map[string][]storage.Entity) {
+	for tableName, entities := range tableToEntities {
+		_ = s.InsertEntityBatch(tableName, entities)
+	}
 }

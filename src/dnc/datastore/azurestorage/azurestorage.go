@@ -252,6 +252,7 @@ func (a *AzureStorage) UpdateWithEtag(tableName, rowKey, etag string, propertyNa
 	return a.updateRowWithEtag(tableName, a.partitionKey, rowKey, etag, properties)
 }
 
+// Deprecated: Use UpsertEntityBatch.
 // UpsertBatch inserts or replaces a batch of rows (row key to properties) for a given table and partition key
 // There is a limit of 100 items per batch
 func (a *AzureStorage) UpsertBatch(tableName string, batchItems map[string]map[string]interface{}) error {
@@ -274,6 +275,7 @@ func (a *AzureStorage) UpsertBatch(tableName string, batchItems map[string]map[s
 	return batch.ExecuteBatch()
 }
 
+// Deprecated: Use InsertEntityBatch.
 // InsertBatch inserts a batch of rows for a given table and partition key
 // The key in the batch represents the row key
 // The value in the batch (map[string]interface{}) represents row properties and their respective values
@@ -323,6 +325,7 @@ func (a *AzureStorage) DeleteBatch(tableName, partitionKey string, rowKeys []str
 	return batch.ExecuteBatch()
 }
 
+// Deprecated: Use MergeEntityBatch.
 // TODO: add test for MergeBatch function https://msazure.visualstudio.com/One/_workitems/edit/9077936
 // TODO: handle ETags for Merge https://msazure.visualstudio.com/One/_workitems/edit/9132517
 // If the entity's ETag differs from that specified with the merge request, the merge operation fails with status
@@ -345,6 +348,74 @@ func (a *AzureStorage) MergeBatch(tableName, partitionKey string, batchItems map
 		entity := table.GetEntityReference(partitionKey, rowKey)
 		entity.Properties = rowProperties
 		batch.MergeEntity(entity)
+	}
+
+	return batch.ExecuteBatch()
+}
+
+func (a *AzureStorage) InsertEntityBatch(tableName string, entities []storage.Entity) error {
+	return a.batchOperation(tableName, entities, storage.InsertOp)
+}
+
+/*
+	note: from https://docs.microsoft.com/en-us/rest/api/storageservices/update-entity2#remarks:
+	"If the If-Match header is missing from the request in versions 2011-08-18 and later, then the
+	service performs an Insert Or Replace Entity (upsert) operation."
+
+    This means if we use update, we must ALWAYS set an etag value in order to synchronize concurrent
+    requests properly. Failing to provide one will not result in failure, and will override any changes
+    made in other sessions (lost update problem).
+*/
+
+func (a *AzureStorage) UpdateEntityBatch(tableName string, entities []storage.Entity) error {
+	return a.batchOperation(tableName, entities, storage.ReplaceOp)
+}
+
+func (a *AzureStorage) UpsertEntityBatch(tableName string, entities []storage.Entity) error {
+	return a.batchOperation(tableName, entities, storage.InsertOrReplaceOp)
+}
+
+func (a *AzureStorage) MergeEntityBatch(tableName string, entities []storage.Entity) error {
+	return a.batchOperation(tableName, entities, storage.MergeOp)
+}
+
+func (a *AzureStorage) batchOperation(tableName string, entities []storage.Entity, op storage.Operation) error {
+	if len(entities) > a.maxBatchSize {
+		return fmt.Errorf("batch size %d exceeds limit of %d", len(entities), a.maxBatchSize)
+	}
+
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
+	if !ok {
+		return fmt.Errorf("cannot find valid table client for table %s", tableName)
+	}
+
+	table := tableClient.GetTableReference(tableName)
+
+	batch := table.NewBatch()
+	for i := range entities {
+		e := entities[i]
+		// ramiro's opinion: the partition in which we are storing things should be explicit at the repo layer.
+		// maintaining a partition in what otherwise should be a thin wrapper over the azure sdk is confusing, since
+		// we don't always use it, and will be troublesome as well if in the future we need to have repos that manage
+		// more than one partition (similar to ip allocations).
+		// todo: storage entities should be input with partitions, but since that may require more refactoring, we
+		//  use the wrapper's partition if the entity doesn't have one.
+		if e.PartitionKey == "" {
+			e.PartitionKey = a.partitionKey
+		}
+
+		switch op {
+		case storage.InsertOp:
+			batch.InsertEntity(&e)
+		case storage.ReplaceOp:
+			batch.ReplaceEntity(&e)
+		case storage.InsertOrReplaceOp:
+			batch.InsertOrReplaceEntity(&e, false) // second parameter not used by sdk
+		case storage.MergeOp:
+			batch.MergeEntity(&e)
+		default:
+			return fmt.Errorf("unsupported operation %v", op)
+		}
 	}
 
 	return batch.ExecuteBatch()
@@ -378,11 +449,22 @@ func (a *AzureStorage) QueryAllRowsInPartition(tableName, partitionKey string, c
 	return a.getEntities(tableName, partitionKey, context)
 }
 
-// QueryFilter - Query rows using a filter
-// todo: need to determine a max size for filter, since its sent over a GET call to the storage API and fails if it goes over
+// QueryFilter - Query rows using a filter.
 func (a *AzureStorage) QueryFilter(tableName, filter string) ([]*storage.Entity, error) {
 	defer a.recordProcessingTime(time.Now(), "QueryFilter", tableName, "NA", "NA")
 
+	return a.queryFilter(tableName, filter)
+}
+
+// QueryFilter - Query rows using a filter format and arguments.
+func (a *AzureStorage) QueryFilterf(tableName, filterFmt string, args ...interface{}) ([]*storage.Entity, error) {
+	defer a.recordProcessingTime(time.Now(), "QueryFilterf", tableName, "NA", "NA")
+
+	return a.queryFilter(tableName, fmt.Sprintf(filterFmt, args...))
+}
+
+// todo: need to determine a max size for filter, since its sent over a GET call to the storage API and fails if it goes over
+func (a *AzureStorage) queryFilter(tableName, filter string) ([]*storage.Entity, error) {
 	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return nil, fmt.Errorf("cannot find valid table client for table %s", tableName)
