@@ -455,7 +455,6 @@ func deleteGreKeyAllocation(
 	}
 
 	return nil
-
 }
 
 // UpdateNodeConfigurationNetworkContainerSet - Remove NC from node configuration
@@ -620,7 +619,7 @@ func UpdateNCToReservationAssociation(
 }
 
 // DeleteIPReservation - Delete an IP Reservation.
-func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonErr {
+func DeleteIPReservation(networkID, reservationID string, force bool, pubsubProxyEnabled bool) *api.JsonErr {
 	reservation, err := TryQueryIPReservation(networkID, reservationID)
 	if err != nil {
 		return api.InternalServerErrorf(api.StatusInternalServerError,
@@ -634,6 +633,8 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 
 	reservationKey := GetReservationKey(networkID, reservationID)
 
+	// TODO: After PendingResourceCleanupMonitor is working then instead of deleting the ip
+	// right away, Update the ToBeDeletedOwner and remove the ReservationId.
 	if err = ValidateAndDeleteIPAllocation(reservation.Configuration.NetworkID,
 		reservation.Configuration.AllocationRequest.SubnetName,
 		reservationKey,
@@ -645,6 +646,19 @@ func DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonE
 	if len(reservation.Configuration.AssociatedNCID) != 0 && !force {
 		return api.BadRequestf(api.ReservationInUse,
 			"Reservation for key: %s is in use with container: %s", reservationKey, reservation.Configuration.AssociatedNCID)
+	}
+
+	// If PubSubproxy is enabled, then create the PendingCleanupJob for IPs
+	if pubsubProxyEnabled {
+		// Create the BG Job to delete AllocatedIPs only after the associated unpublish
+		// task (Created in the unpublish state) is completed
+		err = PendingCleanupRepo.CreateOrMergeIPResourceCleanupRequest(reservation.Configuration)
+		if err != nil {
+			loggershim.LS.Errorf("DeleteIPReservation: Failed to create the cleanup request for allocated ips, reservationId :%s, err:  %+v",
+				reservationID,
+				err)
+			return err
+		}
 	}
 
 	// Delete the reservation from subnetConfig if the config flag to disable reservationMap is not set

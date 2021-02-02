@@ -1,12 +1,12 @@
 package datamodel
 
 import (
+	"dnc/api"
 	"dnc/datastore/testpersistencestore"
 	"dnc/logger/loggermock"
 	"reflect"
 	"testing"
 )
-
 
 func TestCreateAndDeletePendingCleanupRequest(t *testing.T) {
 	pendingCleanupRepo := setup()
@@ -18,7 +18,7 @@ func TestCreateAndDeletePendingCleanupRequest(t *testing.T) {
 
 	cleanupRequest := &CleanupContext{
 		ToBeDeletedIpAllocations: ipCleanup,
-		Type: IPCleanup}
+		Type:                     IPCleanup}
 
 	entity := validateCreateOrUpdate(t, pendingCleanupRepo, requestKey, cleanupRequest, cleanupRequest)
 
@@ -32,7 +32,7 @@ func TestCreateAndDeletePendingCleanupRequest(t *testing.T) {
 
 	cleanupRequest = &CleanupContext{
 		ToBeDeletedIpAllocations: newIpCleanup,
-		Type: IPCleanup}
+		Type:                     IPCleanup}
 
 	var expectedIpCleanup map[string][]string = map[string][]string{
 		"vnet_v1_subnet_s1": {"10.0.0.1/32", "10.0.0.2/32", "10.0.0.3/32"},
@@ -40,7 +40,7 @@ func TestCreateAndDeletePendingCleanupRequest(t *testing.T) {
 
 	expectedCleanupRequest := &CleanupContext{
 		ToBeDeletedIpAllocations: expectedIpCleanup,
-		Type: IPCleanup}
+		Type:                     IPCleanup}
 
 	latestEntity := validateCreateOrUpdate(t, pendingCleanupRepo, requestKey, cleanupRequest, expectedCleanupRequest)
 
@@ -64,6 +64,64 @@ func TestCreateAndDeletePendingCleanupRequest(t *testing.T) {
 	}
 }
 
+func TestCreateIpCleanupRequestFromReservationConfig(t *testing.T) {
+	pendingCleanupRepo := setup()
+
+	reserveConfig := &ReservationConfiguration{
+		ReservationID:   "R1",
+		NetworkID:       "v1",
+		AllocatedSubnet: "10.0.0.1/32",
+		AssociatedNCID:  "NC1",
+		AllocationRequest: api.AllocationRequest{
+			SubnetName: "sub1",
+		},
+		SecondaryAllocations: map[string]string{
+			"A1": "10.0.0.2/32",
+			"A2": "10.0.0.3/32",
+		},
+	}
+
+	expectedIpCleanup := make(map[string][]string)
+	expectedIpCleanup["Network_v1_Subnet_sub1"] = append(expectedIpCleanup["Network_v1_Subnet_sub1"], reserveConfig.AllocatedSubnet)
+	for _, allocatedIp := range reserveConfig.SecondaryAllocations {
+		expectedIpCleanup["Network_v1_Subnet_sub1"] = append(expectedIpCleanup["Network_v1_Subnet_sub1"], allocatedIp)
+	}
+
+	expectedCleanupRequest := &CleanupContext{
+		ToBeDeletedIpAllocations: expectedIpCleanup,
+		Type:                     IPCleanup}
+
+	entity := validateCreateIPCleanupRequest(t, pendingCleanupRepo, reserveConfig, expectedCleanupRequest)
+
+	reserveConfig = &ReservationConfiguration{
+		ReservationID:   "R1",
+		NetworkID:       "v1",
+		AllocatedSubnet: "10.0.0.1/32",
+		AssociatedNCID:  "NC1",
+		AllocationRequest: api.AllocationRequest{
+			SubnetName: "sub1",
+		},
+		SecondaryAllocations: map[string]string{
+			"A1": "10.0.0.5/32",
+		},
+	}
+	expectedIpCleanup["Network_v1_Subnet_sub1"] = append(expectedIpCleanup["Network_v1_Subnet_sub1"], "10.0.0.5/32")
+
+	expectedCleanupRequest = &CleanupContext{
+		ToBeDeletedIpAllocations: expectedIpCleanup,
+		Type:                     IPCleanup}
+	entity = validateCreateIPCleanupRequest(t, pendingCleanupRepo, reserveConfig, expectedCleanupRequest)
+
+	requestKey := GetPendingResourceCleanupKey(IPCleanup, reserveConfig.NetworkID, reserveConfig.AssociatedNCID)
+	err := pendingCleanupRepo.DeleteCleanupRequest(requestKey, entity.Etag)
+	if err != nil {
+		t.Fatalf("Failed to delete the Pending Cleanup Request for requestKey:%s, etag %+v, err %s",
+			requestKey,
+			entity.Etag,
+			err)
+	}
+}
+
 func TestGetAllPendingCleanupRequests(t *testing.T) {
 	pendingCleanupRepo := setup()
 
@@ -75,7 +133,7 @@ func TestGetAllPendingCleanupRequests(t *testing.T) {
 			err)
 	}
 
-	if requests != nil && len (requests) != 0 {
+	if requests != nil && len(requests) != 0 {
 		t.Fatalf("Expected to get an empty list, actual %+v",
 			requests)
 	}
@@ -89,7 +147,7 @@ func TestGetAllPendingCleanupRequests(t *testing.T) {
 
 	cleanupRequest1 := &CleanupContext{
 		ToBeDeletedIpAllocations: ipCleanup1,
-		Type: IPCleanup}
+		Type:                     IPCleanup}
 
 	entity1 := validateCreateOrUpdate(t, pendingCleanupRepo, request1Key, cleanupRequest1, cleanupRequest1)
 
@@ -98,11 +156,11 @@ func TestGetAllPendingCleanupRequests(t *testing.T) {
 
 	cleanupRequest2 := &CleanupContext{
 		ToBeDeletedIpAllocations: ipCleanup2,
-		Type: IPCleanup}
+		Type:                     IPCleanup}
 
 	// Idempotent create, it will not fail again however it will
 	// update the etag
-	entity2:= validateCreateOrUpdate(t, pendingCleanupRepo, request2Key, cleanupRequest2, cleanupRequest2)
+	entity2 := validateCreateOrUpdate(t, pendingCleanupRepo, request2Key, cleanupRequest2, cleanupRequest2)
 
 	// Get All Pending requests
 	requests, err = pendingCleanupRepo.GetAllPendingResourceCleanups()
@@ -140,7 +198,7 @@ func TestGetAllPendingCleanupRequests(t *testing.T) {
 	pendingCleanupRepo.DeleteCleanupRequest(request2Key, entity2.Etag)
 }
 
-func setup() *PendingResourceCleanupRepo{
+func setup() *PendingResourceCleanupRepo {
 	d := testpersistencestore.TestPersistenceStore{}
 	d.Init(TableToColumnMap, loggermock.NewDummyLogger())
 	return &PendingResourceCleanupRepo{
@@ -159,18 +217,34 @@ func validateCreateOrUpdate(t *testing.T, pendingCleanupRepo *PendingResourceCle
 	}
 
 	// Get the request and validate
-	t.Log("Validate request")
-	var entity *PendingResourceCleanupEntity
-	entity, err = pendingCleanupRepo.TryGetPendingCleanupRequest(requestKey)
+	return validateRequest(t, pendingCleanupRepo, requestKey, expectedRequest)
+}
+
+func validateCreateIPCleanupRequest(t *testing.T, pendingCleanupRepo *PendingResourceCleanupRepo, resConfig *ReservationConfiguration, expectedRequest *CleanupContext) *PendingResourceCleanupEntity {
+	t.Logf("Create Or Update Pending IPCleanup request for reservation request %s",
+		resConfig)
+	err := pendingCleanupRepo.CreateOrMergeIPResourceCleanupRequest(resConfig)
 	if err != nil {
-		t.Fatalf("Failed to get the Pending Cleanup Request for requestKey:%s, cleanupRequest %+v",
-			requestKey,
-			cleanupRequest)
+		t.Fatalf("Failed to create the Pending Cleanup Request for reservation request  %+v",
+			resConfig)
+	}
+
+	// Get the request and validate
+	requestKey := GetPendingResourceCleanupKey(IPCleanup, resConfig.NetworkID, resConfig.AssociatedNCID)
+	return validateRequest(t, pendingCleanupRepo, requestKey, expectedRequest)
+}
+
+func validateRequest(t *testing.T, pendingCleanupRepo *PendingResourceCleanupRepo, requestKey string, expectedRequest *CleanupContext) *PendingResourceCleanupEntity {
+	t.Log("Validate request")
+	entity, err := pendingCleanupRepo.TryGetPendingCleanupRequest(requestKey)
+	if err != nil {
+		t.Fatalf("Failed to get the Pending Cleanup Request for requestKey:%s",
+			requestKey)
 	}
 
 	// validate
 	if entity.CleanupContext.Type != expectedRequest.Type {
-		t.Fatalf( "Cleanuprequest, Type is not same, Expected %s, actual %s",
+		t.Fatalf("Cleanuprequest, Type is not same, Expected %s, actual %s",
 			expectedRequest.Type,
 			entity.CleanupContext.Type)
 	}

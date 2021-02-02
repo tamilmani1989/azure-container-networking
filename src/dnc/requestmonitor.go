@@ -30,7 +30,7 @@ import (
 
 var (
 	featureMigrationComplete bool
-	containerTypes sync.Map
+	containerTypes           sync.Map
 )
 
 const (
@@ -359,7 +359,7 @@ func processPrepareCleanup(
 	}
 
 	// get reservation
-	repoReservation, err := datamodel.TryQueryIPReservation(repoNCConfig.NetworkID,	repoNCConfig.ReservationID)
+	repoReservation, err := datamodel.TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
 	if err != nil {
 		return false, err
 	}
@@ -597,15 +597,20 @@ func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
+	// Todo:9201137 This should be moved inside DeleteIPReservation to consolidate all the cleanup logic during
+	// delete reservation (Implicit or Explicit)
 	if reservation.Configuration != nil && len(reservation.Configuration.SecondaryAllocations) > 0 {
+		// TODO: Instead of deleting the secondary ipallocations, update the ToBeDeletedOwner and remove the
+		// ReservationId from the entry.
+		// PS: This change will be done after Background thread changes gets checked in. So that intermediate
+		// checkins to Master branch wont break DNC state flow for existing Canary/Prod
 		if err := ipAllocator.RemoveAllAllocations(*reservation.Configuration); err != nil {
 			return err
 		}
 	}
 
 	// todo: if allocated subnet is empty, the below fails
-
-	if err := datamodel.DeleteIPReservation(ncConfig.NetworkID, ncConfig.ReservationID, true); err != nil {
+	if err := datamodel.DeleteIPReservation(ncConfig.NetworkID, ncConfig.ReservationID, true, config.PubSubProxySettings.EnablePubSubProxy); err != nil {
 		return err
 	}
 

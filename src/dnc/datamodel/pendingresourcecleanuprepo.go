@@ -26,8 +26,12 @@ const (
 	// InvalidResourceCleanupType - Not Used
 	InvalidResourceCleanupType = iota
 
-	// IPCleanup
+	// IP
 	IPCleanup
+)
+
+const (
+	pendingResourceCleanupKey = "Type_%s_Network_%s_NC_%s"
 )
 
 func (c ResourceCleanupType) String() string {
@@ -60,8 +64,8 @@ func (c *CleanupContext) String() string {
 		c.UpdatedDateTime.String())
 }
 
-func GetPendingResourceCleanupKey(cleanupType string, NCID string) string {
-	return fmt.Sprintf("%s_%s", cleanupType, NCID)
+func GetPendingResourceCleanupKey(cleanupType ResourceCleanupType, NetworkId string, NCID string) string {
+	return fmt.Sprintf(pendingResourceCleanupKey, cleanupType.String(), NetworkId, NCID)
 }
 
 func GetNetworkContainerIDFromRowKey(rowKey string) string {
@@ -131,6 +135,31 @@ func (p *PendingResourceCleanupRepo) GetAllPendingResourceCleanups() (map[string
 	}
 
 	return requestsToProcess, nil
+}
+
+// Create or Merge the PendingResourceCleanup Job
+func (p *PendingResourceCleanupRepo) CreateOrMergeIPResourceCleanupRequest(resConfig *ReservationConfiguration) *api.JsonErr {
+	// construct IPcleanup from the NCConfiguration and Reservation request
+	var ipCleanup = make(map[string][]string)
+	partitionKey := GetSubnetKey(resConfig.NetworkID, resConfig.AllocationRequest.SubnetName)
+
+	if resConfig.AllocatedSubnet != "" {
+		ipCleanup[partitionKey] = append(ipCleanup[partitionKey], resConfig.AllocatedSubnet)
+	}
+
+	for _, allocatedIp := range resConfig.SecondaryAllocations {
+		if allocatedIp != "" {
+			ipCleanup[partitionKey] = append(ipCleanup[partitionKey], allocatedIp)
+		}
+	}
+
+	// Created the CleanupContext
+	cleanupRequest := &CleanupContext{
+		ToBeDeletedIpAllocations: ipCleanup,
+		Type:                     IPCleanup}
+
+	rowKey := GetPendingResourceCleanupKey(IPCleanup, resConfig.NetworkID, resConfig.AssociatedNCID)
+	return p.CreateOrMergePendingCleanupRequest(rowKey, cleanupRequest)
 }
 
 // Create Or Merge entry (if it matches the etag) else retry
