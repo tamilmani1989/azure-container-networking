@@ -1,0 +1,13 @@
+{
+  "scopeBindings": [
+    {
+      "scopeTagName": "GenevaTags",
+      "bindings": [
+        {
+          "find": "__ContainerRegistryName__",
+          "replaceWith": "acndev.azurecr.io"
+        }
+      ]
+    }
+  ]
+}

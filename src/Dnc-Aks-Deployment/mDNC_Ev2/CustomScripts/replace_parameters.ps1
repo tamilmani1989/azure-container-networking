@@ -14,7 +14,10 @@ param(
     [string]$clusterName = $Env.clusterName, 
 
     [Parameter(Mandatory = $false)]
-    [string]$location = $Env.location
+    [string]$location = $Env.location,
+
+    [Parameter(Mandatory = $false)]
+    [string]$rolloutParameterFilePath = $Env.rolloutParameterFilePath
 )
 
 
@@ -24,7 +27,8 @@ function Override-ServiceModel {
         [string]$configFilePath,
         [string]$subscription,
         [string]$friendlyLocationName,
-        [string]$clusterName)
+        [string]$clusterName,
+        [string]$rolloutParameterFilePath)
 
     Write-Host "Updating ServiceModel.json located at $configFilePath"
 
@@ -33,6 +37,10 @@ function Override-ServiceModel {
     $serviceModelJson.serviceResourceGroups[0].azureResourceGroupName = $resourceGroup
     $serviceModelJson.serviceResourceGroups[0].location = $friendlyLocationName
     $serviceModelJson.serviceResourceGroups[0].azureSubscriptionId = $subscription
+
+    if(!$rolloutParameterFilePath){
+        $serviceModelJson.serviceResourceGroups[0].azureSubscriptionId = $subscription
+    }
 
     foreach($application in $serviceModelJson.serviceResourceGroups.serviceResources[0].applications)
     {
@@ -54,7 +62,7 @@ function Output-File {
     [System.IO.File]::WriteAllLines($destinationFilePath, $configJson)
 }
 
-$serviceModelJson = Override-ServiceModel -configFilePath $SourceDirectory\ServiceModel.json -resourceGroup $resourceGroup -subscription $subscriptionId -friendlyLocationName $location -clusterName $clusterName
+$serviceModelJson = Override-ServiceModel -configFilePath $SourceDirectory\ServiceModel.json -resourceGroup $resourceGroup -subscription $subscriptionId -friendlyLocationName $location -clusterName $clusterName -rolloutParameterFilePath $rolloutParameterFilePath
 
 
 Output-File -configJson $serviceModelJson -destinationFilePath $SourceDirectory\ServiceModel.json

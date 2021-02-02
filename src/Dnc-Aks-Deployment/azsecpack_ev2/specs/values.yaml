@@ -1,0 +1,29 @@
+# Values for AKSGenevaSample.
+
+gcs_environment: DiagnosticsProd
+gcs_account: AzureContainerNetworking
+gcs_region: westus
+gcs_namespace: AzureContainerNetworking
+gcs_config_version: "1.0" # Use string here otherwise helm will convert 1.0 to 1
+azsecpack_eventversion: 1
+azsecpackmoniker: azurecontainernetworkingsecurity
+# Leave metric_endpoint commented out for PROD environment. Uncomment it for INT environment.
+# metricEndpoint: https://az-int.metrics.nsatc.net/
+
+# You should override these with the latest version of the Geneva images available here:
+# https://genevamondocs.azurewebsites.net/collect/references/linuxcontainers.html
+mdsd:
+  dockerTag: master_20201210.1
+
+fluentd:
+  dockerTag: master_20201210.1
+
+mdm:
+  dockerTag: master_20201210.1
+
+secpack:
+  dockerTag: master_20201210.1
+
+gcscert: __gcscert__
+gcskey: __gcskey__
+containerregistry: __ContainerRegistryName__

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://ev2schema.azure.net/schemas/2020-01-01/serviceModel.json",
+  "contentVersion": "0.0.0.1",
+  "serviceMetadata": {
+    "serviceGroup": "myServiceGroup",
+    "environment": "test"
+  },
+  "serviceResourceGroupDefinitions": [
+    {
+      "name": "myServiceResourceGroupDef1",
+      "serviceResourceDefinitions": [
+        {
+          "name": "myServiceResourceDef1",
+          "composedOf": {
+            "application": {
+              "names": [
+                "myApp1Def"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "applicationDefinitions": [
+    {
+      "name": "myApp1Def",
+      "rollbackOnFailure": true,
+      "azureKubernetesService": {
+        "releaseName": "genevaservices",
+        "chart": {
+           "reference": { "path": "chart.zip" }
+        },
+        "tools": {
+          "helm": {
+            "version": "3.0"
+          }
+        },
+      "valuesPath": "Specs\\values.yaml"
+      }
+    }
+  ],
+  "serviceResourceGroups": [
+    {
+      "azureResourceGroupName": "",
+      "location": "",
+      "instanceOf": "myServiceResourceGroupDef1",
+      "azureSubscriptionId": "9b8218f9-902a-4d20-a65c-e98acec5362f",
+      "scopeTags": [
+        {
+          "name": "GenevaTags"
+        }
+      ],
+      "serviceResources": [
+        {
+          "name": "myAksService2",
+          "instanceOf": "myServiceResourceDef1",
+          "rolloutParametersPath": "Parameters\\Test\\GenevaService.RolloutParameters.json",
+          "applications": [
+            {
+              "name": "myApp1",
+              "instanceOf": "myApp1Def",
+              "armResourceName": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
