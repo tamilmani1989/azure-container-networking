@@ -5,6 +5,7 @@ import (
 	"dnc/datastore/testpersistencestore"
 	"dnc/logger/loggermock"
 	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -249,11 +250,27 @@ func validateRequest(t *testing.T, pendingCleanupRepo *PendingResourceCleanupRep
 			entity.CleanupContext.Type)
 	}
 
-	if !reflect.DeepEqual(entity.CleanupContext.ToBeDeletedIpAllocations, expectedRequest.ToBeDeletedIpAllocations) {
+	// Can't compare with reflect.DeepEqual here because ordering of list of allocated IPs pending cleanup is not guaranteed
+	if !ipAllocationsAreEqual(entity.CleanupContext.ToBeDeletedIpAllocations, expectedRequest.ToBeDeletedIpAllocations) {
 		t.Fatalf("Cleanup request is not same, Expected %s, actual %s",
 			expectedRequest,
 			entity.CleanupContext)
 	}
 
 	return entity
+}
+
+// ipAllocationsAreEqual compares two maps of {subnet: list of ips pending cleanup} and returns if they are equal
+func ipAllocationsAreEqual(ipAllocs1, ipAllocs2 map[string][]string) bool {
+	// Sort the ip allocations in ipAllocs1
+	for _, ipAllocs := range ipAllocs1 {
+		sort.Strings(ipAllocs)
+	}
+
+	// Sort the ip allocations in ipAllocs2
+	for _, ipAllocs := range ipAllocs2 {
+		sort.Strings(ipAllocs)
+	}
+
+	return reflect.DeepEqual(ipAllocs1, ipAllocs2)
 }
