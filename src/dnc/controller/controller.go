@@ -550,7 +550,35 @@ func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*
 
 // GetNetworkContainerCleanupStatus returns the cleanup status of the nc.
 func (c *Controller) GetNetworkContainerCleanupStatus(networkID, ncID string) (api.NetworkContainerCleanupResponse, *api.JsonErr) {
-	return datamodel.GetNetworkContainerCleanupStatus(networkID, ncID)
+	cleanupResp := api.NetworkContainerCleanupResponse{Completed: false}
+	// First, check the network container table to see if the NC exists
+	_, err := datamodel.GetNetworkContainerConfiguration(networkID, ncID)
+	if err == nil {
+		// no error means the nc exists, so cleanup isn't done
+		return cleanupResp, nil
+	}
+
+	if err.HTTPStatus != http.StatusNotFound {
+		// expecting a 404, anything else should be considered an error and passed back to caller
+		return cleanupResp, err
+	}
+
+	// NC doesn't exist. Now check pending cleanup jobs table to ensure there are no pending jobs for this NC
+	pendingKey := datamodel.GetPendingResourceCleanupKey(datamodel.IPCleanup, networkID, ncID)
+	entity, err := datamodel.PendingCleanupRepo.TryGetPendingCleanupRequest(pendingKey)
+	if err != nil {
+		// API returns error if it is not 404, bubble up the error to client
+		return cleanupResp, err
+	}
+
+	if entity != nil {
+		// Return as there still exists a pending Cleanup
+		return cleanupResp, nil
+	}
+
+	// there are no pending jobs left for this NC, it is safe to return with Completed status
+	cleanupResp.Completed = true
+	return cleanupResp, nil
 }
 
 // GetNetworkContainerRequest - Retrieves cns.CreateNetworkContainerRequest

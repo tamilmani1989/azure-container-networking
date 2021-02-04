@@ -1,6 +1,6 @@
 package api
 
-// NetworkContainerCleanupResponse - Struct to hold the subnet cleanup response.
+// NetworkContainerCleanupResponse - Struct to hold the NC cleanup response.
 type NetworkContainerCleanupResponse struct {
 	Completed bool
 }
