@@ -13,6 +13,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator.UnitTests
     using System.Collections.Generic;
     using System.Threading.Tasks;
 
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.ContainerNetworking.MacManager.Common;
     using Microsoft.Azure.Cosmos;
     using Microsoft.Extensions.Options;
@@ -25,17 +26,19 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator.UnitTests
         private readonly MacAllocatorService service;
         private readonly Mock<ILogger<MacAllocatorService>> mockLogger;
         private readonly Mock<IMacAddressComponent> addressComponentMock;
+        private readonly Mock<IMetricsProvider> metricsProvider;
 
         public MacAllocatorServiceUnitTest()
         {
             this.mockLogger = new Mock<ILogger<MacAllocatorService>>();
             this.addressComponentMock = new Mock<IMacAddressComponent>();
+            this.metricsProvider = new Mock<IMetricsProvider>();
             MacAllocatorSetting setting = new MacAllocatorSetting()
             {
                 AllocationRetryCount = "5",
             };
             IOptions<MacAllocatorSetting> options = Options.Create<MacAllocatorSetting>(setting);
-            this.service = new MacAllocatorService(this.mockLogger.Object, this.addressComponentMock.Object, options);
+            this.service = new MacAllocatorService(this.mockLogger.Object, this.addressComponentMock.Object, options, this.metricsProvider.Object);
         }
 
         [Fact]

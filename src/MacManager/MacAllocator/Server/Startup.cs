@@ -61,8 +61,11 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator
             services.AddSingleton<CosmosClientProvider>();
 
             services.AddHttpContextAccessor();
+            services.AddHealthChecks().AddCheck<HealthCheck>("macallocator_health_check");
 
             services.AddControllers();
+            services.AddMdmServices(Configuration);
+
             Console.WriteLine("Startup ConfigureServices done");
         }
 
@@ -103,7 +106,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator
                         context.Response.ContentType = MediaTypeNames.Application.Json;
                         await context.Response.WriteAsync(result);
                     }
-                }).RequireAuthorization();
+                });
             });
         }
     }

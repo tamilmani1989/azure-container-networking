@@ -9,43 +9,50 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator
 {
     using System;
     using System.Collections.Generic;
-    using System.Configuration;
     using System.Linq;
-    using System.Net;
+    using System.Threading;
     using System.Threading.Tasks;
 
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.ContainerNetworking.MacManager.Common;
     using Microsoft.Azure.Cosmos;
-    using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
 
     public sealed class MacAllocatorService : IMacAllocatorService
     {
+        private const string ServiceUpMetric = "MacAllocatorServiceUp";
+
         private readonly ILogger<MacAllocatorService> logger;
         private readonly IMacAddressComponent addressComponent;
         private readonly MacAllocatorSetting macAllocatorSetting;
+        private readonly IMetricsProvider metricsProvider;
+        private readonly Timer timer;
 
         public MacAllocatorService(
             ILogger<MacAllocatorService> logger,
             IMacAddressComponent addressComponent,
-            IOptions<MacAllocatorSetting> macAllocatorSetting)
+            IOptions<MacAllocatorSetting> macAllocatorSetting,
+            IMetricsProvider metricsProvider)
         {
             this.logger = logger;
             this.addressComponent = addressComponent;
             this.macAllocatorSetting = macAllocatorSetting.Value;
+            this.metricsProvider = metricsProvider;
+
+            this.timer = new Timer(this.SendServiceUpMetric, null, TimeSpan.Zero, TimeSpan.FromSeconds(60));
         }
 
         public async Task<MacAddress> AllocateMacAddressAsync(MacAllocatorRequest request)
         {
-            this.logger.LogInformation($"Allocating MAC address for {request.AllocationId}");
+            this.logger.CLogInformation($"Allocating MAC address for {request.AllocationId}");
             MacAddress address = await this.AllocateAsync(request, Convert.ToInt32(this.macAllocatorSetting.AllocationRetryCount));
             return address;
         }
 
         public async Task DeallocateMacAddressAsync(MacAllocatorRequest request)
         {
-            this.logger.LogInformation($"Deallocating MAC address for {request.AllocationId}");
+            this.logger.CLogInformation($"Deallocating MAC address for {request.AllocationId}");
 
             List<MacAddress> addresses = await this.GetMacAddressesReservedById(request.AllocationId);
             List<Exception> exceptions = new List<Exception>();
@@ -60,19 +67,19 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator
                 catch (Exception e)
                 {
                     exceptions.Add(e);
-                    logger.LogError($"Failed to deallocate MAC address {a.Address} for id {request.AllocationId}. Reason: {e.ToString()}");
+                    logger.CLogError($"Failed to deallocate MAC address {a.Address} for id {request.AllocationId}. Reason: {e.ToString()}");
                 }
             }
 
             if (exceptions.Any())
             {
                 string msg = $"Failed to deallocate {exceptions.Count} MAC addresses for Id {request.AllocationId}";
-                logger.LogError(msg);
+                logger.CLogError(msg);
                 throw new AggregateException(msg, exceptions);
             }
             else
             {
-                logger.LogInformation($"Successfully deallocated {addresses.Count} MAC addresses for id {request.AllocationId}.");
+                logger.CLogInformation($"Successfully deallocated {addresses.Count} MAC addresses for id {request.AllocationId}.");
             }
         }
 
@@ -119,17 +126,17 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator
                     address.ReservedDateTime = DateTime.UtcNow;
                     await this.addressComponent.UpsertMacAddressAsync(address);
 
-                    this.logger.LogInformation($"Successfully reserved MAC address {address.Address} for Allocation Id {request.AllocationId}");
+                    this.logger.CLogInformation($"Successfully reserved MAC address {address.Address} for Allocation Id {request.AllocationId}");
                     return address;
                 }
                 catch (Exception e)
                 {
-                    this.logger.LogError($"Failed to reserve MAC address {address.Address} for id {request.AllocationId}. Trying to reserve another MAC address. Reason: {e.ToString()}");
+                    this.logger.CLogError($"Failed to reserve MAC address {address.Address} for id {request.AllocationId}. Trying to reserve another MAC address. Reason: {e.ToString()}");
                 }
             }
 
             string msg = $"Failed to reserve MAC address after trying {shuffledAddresses.Count} times for id {request.AllocationId}.";
-            this.logger.LogError(msg);
+            this.logger.CLogError(msg);
             throw new InvalidOperationException(msg);
         }
 
@@ -138,6 +145,18 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator
             QueryDefinition query = new QueryDefinition($"SELECT * FROM {MacManagerConstants.MacAddressContainerName} m WHERE m.ReservedBy = @macReservedBy")
                 .WithParameter("@macReservedBy", allocationId);
             return await this.addressComponent.GetMacAddressesAsync(query);
+        }
+
+        private void SendServiceUpMetric(object state)
+        {
+            try
+            {
+                this.metricsProvider.EmitMetric(ServiceUpMetric, 1);
+            }
+            catch (Exception ex)
+            {
+                this.logger.CLogError("Caught error during sending metric: {0}", ex);
+            }
         }
     }
 }

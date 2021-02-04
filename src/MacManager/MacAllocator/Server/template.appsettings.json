@@ -22,5 +22,12 @@
     }
   ],
   "AllowedHosts": "*",
-  "Port": "5012"
+  "Port": "5012",
+  "MdmMetrics": {
+    "AccountName": "AzureContainerNetworking",
+    "Namespace": "MacAllocator",
+    "StatsDHost": "127.0.0.1",
+    "StatsdPort": 8125,
+    "StatsdSocketProtocol": "Udp"
+  }
 }
