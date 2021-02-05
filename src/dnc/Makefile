@@ -23,6 +23,7 @@ REQCTRL_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/requestcontroller
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 
 DNC_AI_ID = 4a542967-4721-4c64-a2a7-eb9428c634b4
+DNC_RP_AI_ID = 6f9518fc-9dc3-492e-87e2-b2b8941a0e92
 
 # Target OS specific parameters
 ifeq ($(GOOS),linux)
@@ -42,6 +43,7 @@ VERSION = latest
 # Archive file names
 DNC_ARCHIVE_NAME = dnc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 DNC_IMAGE_ARCHIVE_NAME = dnc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
+MDNC_IMAGE_ARCHIVE_NAME = mdnc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 DNCTL_ARCHIVE_NAME = dnctl-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 LBRUNNERNC_ARCHIVE_NAME = lbrunnernc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 LBRUNNERNC_IMAGE_ARCHIVE_NAME = lbrunnernc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
@@ -55,6 +57,7 @@ DNC_IMAGE = containernetworking.azurecr.io/internal/containernetworking/dnc
 LBRUNNERNC_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-lbrunnernc
 RUNNER_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-runner
 REQCTRL_IMAGE = containernetworking.azurecr.io/internal/containernetworking/requestcontroller
+MDNC_IMAGE = ancdev.azurecr.io/mdnc
 
 # Default target is "all"
 .PHONY: all
@@ -115,6 +118,16 @@ dnc-image:
 	$(REPO_ROOT)
 	$(MKDIR) $(DNC_BUILD_DIR)
 	docker save $(DNC_IMAGE):$(VERSION) | gzip -c > $(DNC_BUILD_DIR)/$(DNC_IMAGE_ARCHIVE_NAME)
+
+.PHONY: mdnc-image
+mdnc-image:
+	docker build --no-cache \
+	-f $(REPO_ROOT)/src/dnc/builds/dnc/Dockerfile \
+	-t $(MDNC_IMAGE):$(VERSION) \
+	--build-arg aiMetadata=$(DNC_RP_AI_ID) \
+	$(REPO_ROOT)
+	$(MKDIR) $(DNC_BUILD_DIR)
+	docker save $(MDNC_IMAGE):$(VERSION) | gzip -c > $(DNC_BUILD_DIR)/$(MDNC_IMAGE_ARCHIVE_NAME)
 
 # Build the requstcontroller image
 .PHONY: requestcontroller-image
