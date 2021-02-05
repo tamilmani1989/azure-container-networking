@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dnctl-deployment
+  labels:
+    app: dnctl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dnctl
+  template:
+    metadata:
+      labels:
+        app: dnctl
+    spec:
+      hostNetwork: true
+      containers:
+      - name: dnctl
+        image: {{ .Values.dnctl.image.repository }}:{{ .Values.dnctl.image.tag }}
+        imagePullPolicy: {{ .Values.dnctl.image.pullPolicy }}
+        command: ["sleep", "3600"]

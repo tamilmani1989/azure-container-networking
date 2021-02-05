@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cnsmock
+  labels:
+    app:  cnsmock
+spec:
+  selector:
+    matchLabels:
+      app: cnsmock
+  template:
+    metadata:
+      labels:
+        app: cnsmock
+    spec:
+      hostNetwork: true
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: cnsmock
+        image: {{ .Values.cnsmock.image.repository }}:{{ .Values.cnsmock.image.tag }}
+        imagePullPolicy: {{ .Values.cnsmock.image.pullPolicy }}
+        args:
+          - -address=0.0.0.0:10090
+        ports:
+        - name: http
+          containerPort: 10090
+          protocol: TCP

@@ -7,6 +7,11 @@ WORKDIR /usr/local/src/dnc
 
 COPY . .
 
+# Fix vendoring issue when building on Windows host
+RUN if [ -d ./vendor/github.com/Microsoft/ApplicationInsights-Go ]; then \
+    mkdir -p ./vendor/github.com/microsoft/ && \
+    mv ./vendor/github.com/Microsoft/ApplicationInsights-Go ./vendor/github.com/microsoft/; fi
+
 # Build
 RUN cd cmd/dnctl && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o /usr/local/bin/dnctl .

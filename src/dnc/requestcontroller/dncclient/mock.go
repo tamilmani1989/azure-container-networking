@@ -176,6 +176,15 @@ func (m *MockSynchronousDNCClient) RegisterVnet(ctx context.Context, networkID s
 	return nil
 }
 
+func (m *MockSynchronousDNCClient) UnregisterVnet(ctx context.Context, networkID string) error {
+	fmt.Printf("UnregisterVnet(ctx, %s)\n", networkID)
+	if m.vnets != nil {
+		delete(m.vnets, networkID)
+	}
+
+	return nil
+}
+
 func (m *MockSynchronousDNCClient) RegisterSubnet(ctx context.Context, networkID, subnetID, authenticationToken string) error {
 	fmt.Printf("RegisterSubnet(ctx, %s, %s, %s)\n", networkID, subnetID, authenticationToken)
 	// Not doing anything with this yet, but store it anyway
@@ -184,4 +193,17 @@ func (m *MockSynchronousDNCClient) RegisterSubnet(ctx context.Context, networkID
 	}
 	m.subnets[subnetID] = true
 	return nil
+}
+
+// GetVnets returns a list of registered networks
+func (m *MockSynchronousDNCClient) GetVnets(ctx context.Context) (*api.NetworksResponse, error) {
+	var networkInfos []api.NetworkInfo
+
+	for k, _ := range m.vnets {
+		networkInfos = append(networkInfos, api.NetworkInfo{GUID: k})
+	}
+
+	return &api.NetworksResponse{
+		NetworkInfos: networkInfos,
+	}, nil
 }

@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nmagentmock
+  labels:
+    app:  nmagentmock
+spec:
+  selector:
+    matchLabels:
+      app: nmagentmock
+  template:
+    metadata:
+      labels:
+        app: nmagentmock
+    spec:
+      hostNetwork: true
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: nmagentmock
+        image: {{ .Values.nmagentmock.image.repository }}:{{ .Values.nmagentmock.image.tag }}
+        imagePullPolicy: {{ .Values.nmagentmock.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 9001
+          protocol: TCP
+        volumeMounts:
+        - name: dnc-config
+          mountPath: /etc/dnc/
+        env:
+        - name: DNC_CONFIGURATION_PATH
+          value: /etc/dnc/config.json
+        - name: DNC_DEV
+          value: "true"
+      volumes:
+      - name: dnc-config
+        configMap:
+          name: dnc-config

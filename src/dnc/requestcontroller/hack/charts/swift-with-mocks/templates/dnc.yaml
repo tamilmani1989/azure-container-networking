@@ -1,0 +1,167 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dnc
+  labels:
+    app: dnc
+spec:
+  selector:
+    matchLabels:
+      app: dnc
+  template:
+    metadata:
+      labels:
+        app: dnc
+    spec:
+      hostNetwork: true
+      containers:
+      - name: dnc
+        image: "{{ .Values.dnc.image.repository }}:{{ .Values.dnc.image.tag }}"
+        imagePullPolicy: {{ .Values.dnc.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.dnc.service.targetPort }}
+          protocol: TCP
+        volumeMounts:
+        - name: dnc-config
+          mountPath: /etc/dnc/
+        env:
+        - name: DNC_CONFIGURATION_PATH
+          value: /etc/dnc/config.json
+        - name: DNC_DEV
+          value: "true"
+        args:
+        - -stderr=true
+      volumes:
+      - name: dnc-config
+        configMap:
+          name: dnc-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: dnc
+  name: {{ .Values.dnc.service.name }}
+spec:
+  selector:
+    app: dnc
+  type: ClusterIP
+  ports:
+  - name: http
+    port: {{ .Values.dnc.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.dnc.service.targetPort }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dnc-config
+data:
+  config.json: |
+    {
+      "DataStoreSettings": {
+        "TestPersistenceStoreInfo": {
+          "Test": "TestStore"
+        },
+        "MaxBatchSize": 100
+      },
+      "ServerSettings": {
+        "IPAddress": "0.0.0.0",
+        "Port": "{{ .Values.dnc.service.targetPort }}",
+        "TlsCertificateSubjectName": "",
+        "TlsCertificateFilePath" : "",
+        "TlsPort" : "9001",
+        "UseHttps": false
+      },
+      "MasterElectionSettings": {
+        "UseDataStore": false,
+        "TestDataElectionSettings": {
+          "Test": "TestStore"
+        },
+        "DataStoreLeaseSettings": {
+          "LeaseIntervalInSecs": 60,
+          "LeaseRenewIntervalInSecs": 30,
+          "AcquireRetryIntervalInSecs": 30
+        }
+      },
+      "HostAgentSettings": {
+        "WireServerIP": "127.0.0.1:9001",
+        "ConnectionStrings": {
+          "JoinNetworkURLFmt": "http://%s/joinedVirtualNetworks/%s/api-version/1",
+          "GetNetworkConfigurationURLFmt": "http://%s/joinedVirtualNetworks/%s/api-version/1",
+          "PutNetworkContainerURLFmt": "http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
+          "DeleteNetworkContainerURLFmt": "http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE"
+        }
+      },
+      "CustomLoggerSettings": {
+        "FnName": "",
+        "Dll": ""
+      },
+      "CNSSettings": {
+        "ChannelMode": "Disabled",
+        "CnsTlsCertificateSubjectName" : "",
+        "ConnectionStrings": {
+          "CreateOrUpdateNetworkContainerURLFmt": "http://%s:10090/network/createorupdatenetworkcontainer",
+          "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
+          "GetNetworkContainerStatusURLFmt": "http://%s:10090/network/getnetworkcontainerstatus",
+          "SetOrchestratorTypeURLFmt": "http://%s:10090/network/setorchestratortype",
+          "GetNumOfCPUCoresURLFmt": "http://%s:10090/hostcpucores",
+          "PublishNetworkContainerURLFmt": "http://%s:10090/network/publishnetworkcontainer",
+          "UnpublishNetworkContainerURLFmt": "http://%s:10090/network/unpublishnetworkcontainer"
+        }
+      },
+      "VlanSettings": {
+        "Min": 1,
+        "Max": 2048
+      },
+      "GreSettings": {
+        "Min": 257,
+        "Max": 511
+      },
+      "DNCSettings": {
+        "RequestRetryBaseInterval": 1000,
+        "MaxRequestBackoffInterval": 16000,
+        "NetworkRefreshInterval": 30000,
+        "NetworkRefreshBatchSize": 3,
+        "SleepIntervalBetweenNetworkBatches": 5000,
+        "SleepIntervalBetweenNetworkRefresh": 1000,
+        "TagRefreshInterval": 1000,
+        "NetworkContainerRefreshInterval": 1000,
+        "ReportToHostInterval": 60000,
+        "ConcurrentRequestsToProcess": 1000,
+        "EnforceNICLimit": false,
+        "NICsAllowedPerVirtualCore": 1,
+        "ReverseProxyEnabled": false,
+        "ThresholdForLoggingDataStoreOpLatencyMs": 1000,
+        "Managed": false
+      },
+      "HttpClientSettings": {
+        "ConnectionTimeout": 5,
+        "ResponseHeaderTimeout": 120,
+        "MaxIdleConnsPerHost": 100,
+        "IdleConnTimeout": 90
+      },
+      "TelemetrySettings": {
+        "TelemetryBatchSizeBytes": 16384,
+        "TelemetryBatchIntervalInSecs": 7,
+        "RefreshIntervalInSecs": 15,
+        "DisableMetadataRefreshThread": false,
+        "DisableTelemetry": true,
+        "DebugMode": false,
+        "DisableAiLogging": true
+      },
+      "PubSubProxySettings": {
+        "EnablePubSubProxy": false,
+        "MaxConcurrentRequests": 1000,
+        "RequestRetryBaseInterval": 1000,
+        "MaxRequestBackoffInterval": 16000,
+        "PublisherPort": "18605",
+        "SubscriberPort": "18600",
+        "PubsubCertName": "",
+        "PubsubCertKeyvaultName": "",
+        "PubsubCertFilePath": "",
+        "PubsubConnectionEndpoint": "",
+        "PubsubVips": []
+      }
+    }

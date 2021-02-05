@@ -20,6 +20,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -45,6 +47,7 @@ type manager struct {
 	managerMutex    sync.Mutex
 	state           managerState
 	logger          logrus.FieldLogger
+	orchestratorID  string
 }
 
 type managerState int
@@ -74,6 +77,7 @@ func (m *ManagerPool) RegisterManagers(kubeconfigs map[string][]byte) {
 				logger: m.logger.WithFields(logrus.Fields{
 					"orchestratorID": orchestratorID,
 				}),
+				orchestratorID: orchestratorID,
 			}
 			m.managers[orchestratorID] = mgr
 		}
@@ -121,13 +125,20 @@ func (m *ManagerPool) UnregisterAll() {
 	defer m.poolMutex.Unlock()
 
 	for orchestratorID, mgr := range m.managers {
-		mgr.logger.Infof("Stopping manager for orchestrator %s", orchestratorID)
-		if mgr.exitChan != nil {
-			close(mgr.exitChan)
-		}
-
+		mgr.stop()
 		delete(m.managers, orchestratorID)
 	}
+}
+
+func (m *manager) stop() {
+	m.logger.Infof("Stopping manager for orchestrator %s", m.orchestratorID)
+	m.managerMutex.Lock()
+	defer m.managerMutex.Unlock()
+	if m.exitChan != nil {
+		close(m.exitChan)
+		m.exitChan = nil
+	}
+	m.state = managerStopped
 }
 
 // runForever runs a manager until its exit channel is closed, restarting if necessary
@@ -154,6 +165,10 @@ loop:
 
 		go func() {
 			err := m.run(orchestratorID, scheme, config, subnetInfoProvider, syncDNCClient, mgrExitChan)
+			/* If the manager exits without error, that means it was cleaned up successfully. No need to send error on error chan, since we don't want it to restart.
+			   It is possible that runForever will restart it if the cluster wasn't removed from the kubeconfigprovider,
+			   or if RC wasn't terminated before the credential refresh loop, but since the cleanup configmap will still be present, the reconcilers won't restart.
+			*/
 			if err != nil {
 				errChan <- err
 			}
@@ -161,7 +176,7 @@ loop:
 
 		select {
 		case <-time.After(time.Hour):
-			// Restart the manager to refresh credentials
+			// Restart the manager to refresh credentials - TODO (matlong): Is this necessary?
 			close(mgrExitChan)
 			backoffDuration = 0 // No backoff because no error
 		case err := <-errChan:
@@ -193,6 +208,7 @@ loop:
 }
 
 func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requestcontroller.Config, subnetInfoProvider requestcontroller.SubnetInfoProvider, syncDNCClient requestcontroller.SynchronousDNCClient, exitChan chan struct{}) error {
+	m.logger.Infof("Starting manager for orchestrator: %s", orchestratorID)
 	m.managerMutex.Lock()
 	restConfig, err := clientcmd.RESTConfigFromKubeConfig(m.kubeconfigBytes)
 	m.managerMutex.Unlock()
@@ -202,7 +218,7 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 
 	// Ensure CRD definition is installed on cluster before starting up manager
 	m.logger.Infof("Ensuring NodeNetworkConfig CRD definition exists on cluster")
-	clientSet, err := apiextensionsclientset.NewForConfig(restConfig)
+	crdClientSet, err := apiextensionsclientset.NewForConfig(restConfig)
 	if err != nil {
 		return fmt.Errorf("Error creating client for CRD definition creation: %w", err)
 	}
@@ -217,7 +233,7 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 	err = retrier.Do(ctx, func() error {
 		ctxWT, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
-		return m.registerCRD(ctxWT, clientSet)
+		return m.registerCRD(ctxWT, crdClientSet)
 	})
 
 	if err != nil {
@@ -257,6 +273,11 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 		return fmt.Errorf("Error parsing dncClientRequestTimeout duration from %s: %w", config.DNCClientConfig.RequestTimeout, err)
 	}
 
+	cleanupPollingInterval, err := time.ParseDuration(config.CleanupConfig.PollingInterval)
+	if err != nil {
+		return fmt.Errorf("Error parsing cleanup polling interval from %s: %w", config.CleanupConfig.PollingInterval, err)
+	}
+
 	// Add the Node reconciler
 	nodeReconciler := NewNodeReconciler(NodeReconcilerOptions{
 		K8sClient:        mgr.GetClient(),
@@ -293,7 +314,61 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 		return fmt.Errorf("Error creating NNC reconciler: %w", err)
 	}
 
-	return mgr.Start(exitChan)
+	// Instantiate the cleaner
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("Error creating kube client for Cleaner: %w", err)
+	}
+
+	// Get untyped rest client for cleaner
+	crdClient, err := getRESTClientForCRD(restConfig, scheme)
+	if err != nil {
+		return err
+	}
+
+	cleaner := NewCleaner(CleanerOpts{
+		KubeCoreV1Client:    clientset.CoreV1(),
+		KubeRESTClient:      crdClient,
+		SyncDNCClient:       syncDNCClient,
+		Logger:              m.logger,
+		SignalCheckInterval: cleanupPollingInterval,
+		Signal: CleanupSignal{
+			ConfigMapName:        config.CleanupConfig.ConfigMapName,
+			ConfigMapNamespace:   config.CleanupConfig.ConfigMapNamespace,
+			ConfigMapSafetyValue: config.DataStoreSettings.AzureStorageInfo.PartitionKey, // TODO: (matlong) this is always set in AKS scenario, but what if other scenarios need cleanup signal?
+		},
+		NNCNamespace: config.KubernetesConfig.Namespace,
+	})
+
+	/* Check if cleanup signal exists. It is possible that this function is called after a credential refresh, after cleanup error, or that the cluster is deleted before the DNC-RC even starts. If so, we can just
+	   kick off the cleanup here instead of restarting the reconcilers.
+	*/
+	cleanupSignal := cleaner.HasCleanupSignal(ctx)
+	errChan := make(chan error)
+	if cleanupSignal {
+		// cleanup
+		return cleaner.Clean(ctx)
+	}
+
+	// start the reconcilers
+	go func() {
+		err := mgr.Start(exitChan)
+		errChan <- err
+	}()
+
+	// Wait for cleanup signal or error from reconcilers
+	cleanupCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	select {
+	case err := <-errChan:
+		// Manager was stopped, so return to restart
+		return err
+	case <-cleaner.WaitForCleanupSignal(cleanupCtx):
+		// Stop the manager, clean up cluster/DNC
+		m.stop()
+		return cleaner.Clean(cleanupCtx)
+	}
 }
 
 // getNextBackoff provides a helper for capped exponential backoff
@@ -468,4 +543,13 @@ func (m *manager) registerCRD(ctx context.Context, clientSet *apiextensionsclien
 	}
 
 	return nil
+}
+
+func getRESTClientForCRD(config *rest.Config, scheme *runtime.Scheme) (*rest.RESTClient, error) {
+	config.ContentConfig.GroupVersion = &acnv1alpha.GroupVersion
+	config.APIPath = "/apis"
+	config.NegotiatedSerializer = serializer.NewCodecFactory(scheme)
+	config.UserAgent = rest.DefaultKubernetesUserAgent()
+
+	return rest.UnversionedRESTClientFor(config)
 }

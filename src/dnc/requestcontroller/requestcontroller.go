@@ -4,11 +4,11 @@ package requestcontroller
 
 import (
 	"context"
-	"os"
-	"sync"
-
 	"dnc/api"
 	"dnc/configuration"
+	"fmt"
+	"os"
+	"sync"
 )
 
 const (
@@ -26,8 +26,14 @@ const (
 	defaultConfigKubeloginBinaryPath           = "/usr/local/bin/kubelogin"
 	defaultConfigClientCertificatesDirectory   = "/etc/dnc/client-certificates"
 	defaultAzureEnvironment                    = "AzurePublicCloud"
+	defaultCleanupMode                         = "configmap"
+	defaultCleanupPollingInterval              = "30s"
+	defaultCleanupConfigMapName                = "dnc-cleanup-signal"
+	defaultCleanupConfigMapNamespace           = "kube-system"
 	KubeconfigFileMode                         = "file"
 	KubeconfigDatastoreMode                    = "datastore"
+	SubnetInfoProviderDatastoreMode            = "datastore"
+	SubnetInfoProviderConfigMode               = "config"
 )
 
 /* Using a global lock since loggershim has a global var that needs to be initialized
@@ -43,13 +49,15 @@ type RequestController interface {
 
 // Config config for RequestController
 type Config struct {
-	KubernetesConfig       KubernetesConfig    `json:"kubernetesConfig,omitempty"`
-	RequestScalerConfig    RequestScalerConfig `json:"requestScalerConfig,omitempty"`
-	DNCClientConfig        DNCClientConfig     `json:"dncClientConfig,omitempty"`
-	DataStoreSettings      configuration.DataStoreSettings
-	LoggingConfig          LoggingConfig          `json:"loggingConfig,omitempty"`
-	CosmosMSISettings      CosmosMSISettings      `json:"cosmosMSISettings,omitempty"`
-	LeaderElectionSettings LeaderElectionSettings `json:"leaderElectionSettings,omitempty"`
+	KubernetesConfig         KubernetesConfig    `json:"kubernetesConfig,omitempty"`
+	RequestScalerConfig      RequestScalerConfig `json:"requestScalerConfig,omitempty"`
+	DNCClientConfig          DNCClientConfig     `json:"dncClientConfig,omitempty"`
+	DataStoreSettings        configuration.DataStoreSettings
+	LoggingConfig            LoggingConfig            `json:"loggingConfig,omitempty"`
+	CosmosMSISettings        CosmosMSISettings        `json:"cosmosMSISettings,omitempty"`
+	LeaderElectionSettings   LeaderElectionSettings   `json:"leaderElectionSettings,omitempty"`
+	SubnetInfoProviderConfig SubnetInfoProviderConfig `json:"subnetInfoProviderConfig,omitempty"`
+	CleanupConfig            CleanupConfig            `json:"cleanupConfig,omitempty"`
 }
 
 // KubernetesConfig config for interacting with kubernetes cluster
@@ -103,6 +111,23 @@ type CosmosMSISettings struct {
 type LeaderElectionSettings struct {
 	Namespace string `json:"namespace,omitempty"`
 	Enabled   bool   `json:"enabled,omitempty"`
+}
+
+type SubnetInfoProviderConfig struct {
+	// Mode is one of (config|datastore)
+	Mode             string `json:"mode,omitempty"`
+	PrimaryTokenID   string `json:"primaryTokenID,omitempty"`
+	SecondaryTokenID string `json:"secondaryTokenID,omitempty"`
+	VnetID           string `json:"vnetID,omitempty"`
+	SubnetName       string `json:"subnetName,omitempty"`
+}
+
+type CleanupConfig struct {
+	// Mode must be (configmap), no other mode is currently supported
+	Mode               string `json:"mode,omitempty"`
+	ConfigMapName      string `json:"configMapName,omitempty"`
+	ConfigMapNamespace string `json:"configMapNamespace,omitempty"`
+	PollingInterval    string `json:"pollingInterval,omitempty"`
 }
 
 // ConfigProvider provides a Config via GetConfig
@@ -186,6 +211,26 @@ func (c *Config) ApplyDefaults() {
 	if c.KubernetesConfig.KubeconfigInfo.AzureEnvironment == "" {
 		c.KubernetesConfig.KubeconfigInfo.AzureEnvironment = defaultAzureEnvironment
 	}
+
+	if c.SubnetInfoProviderConfig.Mode == "" {
+		c.SubnetInfoProviderConfig.Mode = SubnetInfoProviderDatastoreMode
+	}
+
+	if c.CleanupConfig.Mode == "" {
+		c.CleanupConfig.Mode = defaultCleanupMode
+	}
+
+	if c.CleanupConfig.ConfigMapName == "" {
+		c.CleanupConfig.ConfigMapName = defaultCleanupConfigMapName
+	}
+
+	if c.CleanupConfig.ConfigMapNamespace == "" {
+		c.CleanupConfig.ConfigMapNamespace = defaultCleanupConfigMapNamespace
+	}
+
+	if c.CleanupConfig.PollingInterval == "" {
+		c.CleanupConfig.PollingInterval = defaultCleanupPollingInterval
+	}
 }
 
 //SynchronousDNCClient is an idempotent, syncronous DNC client.
@@ -197,7 +242,9 @@ type SynchronousDNCClient interface {
 	UpsertNcV2(ctx context.Context, networkID, ncID string, req api.NetworkContainerRequestV2) error
 	DeleteNC(ctx context.Context, networkID, ncID string) error
 	RegisterVnet(ctx context.Context, networkID string) error
+	UnregisterVnet(ctx context.Context, networkID string) error
 	RegisterSubnet(ctx context.Context, networkID, subnetID, authenticationToken string) error
+	GetVnets(ctx context.Context) (*api.NetworksResponse, error)
 }
 
 //SubnetInfoProvider get vnet/subnet config for given node. A SubnetInfoProvider's GetSubnetInfo may be called by mutliple concurrent goroutines,
@@ -215,4 +262,22 @@ type KubeconfigProvider interface {
 //SecretProvider provides a named secret
 type SecretProvider interface {
 	GetLatestSecret(ctx context.Context, name string) (string, error)
+}
+
+type ConfigSubnetInfoProvider struct {
+	Config SubnetInfoProviderConfig
+}
+
+func (c *ConfigSubnetInfoProvider) GetSubnetInfo(ctx context.Context, delegatedSubnetID, subnetName string) (SubnetInfo, error) {
+	if delegatedSubnetID != c.Config.VnetID {
+		return SubnetInfo{}, fmt.Errorf("Info for delegeatedSubnetID %s not found, only have info for %s", delegatedSubnetID, c.Config.VnetID)
+	}
+
+	return SubnetInfo{
+		DelegatedSubnetID: c.Config.VnetID,
+		SubnetName:        c.Config.SubnetName,
+		PrimaryToken:      c.Config.PrimaryTokenID,
+		SecondaryToken:    c.Config.SecondaryTokenID,
+		VnetID:            c.Config.VnetID,
+	}, nil
 }

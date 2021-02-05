@@ -115,7 +115,7 @@ func (s SynchronousDNCClient) DeleteNode(ctx context.Context, nodeID string) err
 	var respErr *api.JsonErr
 
 	err := s.retrier.Do(ctx, func() error {
-		_, respErr := s.dncClient.GetNode(nodeID)
+		_, respErr = s.dncClient.GetNode(nodeID)
 		// http.StatusAccepted means request is still pending, anything else means it is done
 		if respErr.HTTPStatus != http.StatusAccepted {
 			return nil
@@ -205,6 +205,7 @@ func (s SynchronousDNCClient) DeleteNC(ctx context.Context, networkID, ncID stri
 	logger.Infof("DNC call to Delete NC ncID:%s, networkID:%s", ncID, networkID)
 	deleteNCResp := s.dncClient.DeleteNC(networkID, ncID)
 	if deleteNCResp.HTTPStatus != http.StatusOK {
+		logger.Infof("DeleteNC: DNC call resperr:%+v", deleteNCResp)
 		return deleteNCResp
 	}
 
@@ -273,6 +274,38 @@ func (s SynchronousDNCClient) RegisterVnet(ctx context.Context, networkID string
 	return nil
 }
 
+//UnregisterVnet unregisters the vnet on DNC
+func (s SynchronousDNCClient) UnregisterVnet(ctx context.Context, networkID string) error {
+	logger := s.logger.WithFields(logrus.Fields{
+		"vnetGUID": networkID,
+	})
+	logger.Infof("DNC call to unregister vnet networkID:%s", networkID)
+	deleteNetworkRespErr := s.dncClient.DeleteNetwork(networkID)
+	// http.StatusOK means request is accepted, anything else means there was an error
+	if deleteNetworkRespErr.HTTPStatus != http.StatusOK {
+		return deleteNetworkRespErr
+	}
+
+	logger.Infof("Unregister Vnet succeeded for %s. Call dnc get vnet", networkID)
+
+	var vnetStatus *api.RequestStatus
+	var respErr *api.JsonErr
+
+	err := s.retrier.Do(ctx, func() error {
+		vnetStatus, respErr = s.dncClient.GetNetworkStatus(networkID)
+		// http.StatusNotFound means it is done, anything else means it is not
+		if respErr.HTTPStatus == http.StatusNotFound {
+			return nil
+		}
+		return respErr
+	})
+
+	logger.Infof("DNC call Get vnet status for id:%s is :%+v resperr:%v", networkID, vnetStatus, respErr)
+
+	// If the context was cancelled or max attempts reached, err will be non-nil
+	return err
+}
+
 //RegisterSubnet registers the subnet on DNC
 func (s SynchronousDNCClient) RegisterSubnet(ctx context.Context, networkID, subnetID, authenticationToken string) error {
 	logger := s.logger.WithFields(logrus.Fields{
@@ -317,4 +350,15 @@ func (s SynchronousDNCClient) RegisterSubnet(ctx context.Context, networkID, sub
 	}
 
 	return nil
+}
+
+// GetVnets returns a list of registered networks
+func (s SynchronousDNCClient) GetVnets(ctx context.Context) (*api.NetworksResponse, error) {
+	s.logger.Infof("DNC call to get vnet ids")
+	vnetsResp, respErr := s.dncClient.GetNetworks()
+	if respErr != nil && respErr.HTTPStatus != http.StatusOK {
+		return nil, respErr
+	}
+
+	return vnetsResp, nil
 }

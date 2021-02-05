@@ -1,0 +1,6 @@
+apiVersion: v2
+name: swift-with-mocks
+description: DNC, CNS mock, NMAgent mock
+type: application
+version: 0.0.1
+appVersion: latest
