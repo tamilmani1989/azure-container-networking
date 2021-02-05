@@ -208,30 +208,30 @@ func (s SynchronousDNCClient) DeleteNC(ctx context.Context, networkID, ncID stri
 		return deleteNCResp
 	}
 
-	logger.Infof("Delete NC succeeded for %s. Call dnc get nc", ncID)
+	logger.Infof("Delete NC succeeded for %s. Call dnc get nc cleanup status nc", ncID)
 
 	var respErr *api.JsonErr
+	var getNCCleanupStatusResp api.NetworkContainerCleanupResponse
 
 	err := s.retrier.Do(ctx, func() error {
-		_, respErr = s.dncClient.GetNC(networkID, ncID)
-		// http.StatusAccepted means request is still pending, anything else means it is done
-		if respErr.HTTPStatus != http.StatusAccepted {
+		getNCCleanupStatusResp, respErr = s.dncClient.GetNetworkContainerCleanupStatus(networkID, ncID)
+		// 200 status code and {completed: true} body means cleanup is done, anything else means it is not
+		if respErr.HTTPStatus == http.StatusOK && getNCCleanupStatusResp.Completed {
 			return nil
 		}
+
+		// Log if we received a server error
+		if respErr.HTTPStatus == http.StatusInternalServerError {
+			logger.WithError(respErr).Errorf("Received an internal server error while polling for NC cleanup status: %+v", respErr)
+		}
+
 		return respErr
 	})
 
-	logger.Infof("DeleteNC: DNC call Get NC status for id %s, resperr:%v", ncID, respErr)
-	// If the context was cancelled or max attempts reached
-	if err != nil {
-		return err
-	}
+	logger.Infof("DeleteNC: DNC call Get NC cleanup status for id %s, resp: %+v, resperr: %+v", ncID, getNCCleanupStatusResp, respErr)
 
-	if respErr.HTTPStatus != http.StatusNotFound {
-		return fmt.Errorf("Delete nc %s failed with response: %+v", ncID, respErr)
-	}
-
-	return nil
+	// If the context was cancelled or max attempts reached, err will be non-nil
+	return err
 }
 
 //RegisterVnet registers the vnet on DNC
