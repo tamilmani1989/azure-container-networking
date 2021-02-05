@@ -37,6 +37,7 @@ type IPReservationRepo interface {
 type IPAllocationRepo interface {
 	TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
 	QueryIPAllocationsByAllocationID(networkID, subnetName string, allocIDs []string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
+	QueryIPAllocationsByToBeDeletedOwner(networkID, subnetName string, tobeDeletedOwnerId string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
 	// todo: mutation methods should take a batch of Allocation rows, not generic maps
 	// this will decouple implementations from having to know the map keys, and just use the specific row struct
 	AddIPAllocations(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr

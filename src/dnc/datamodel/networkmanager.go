@@ -1441,6 +1441,8 @@ func GetRevertState(ncState NetworkContainerState) (NetworkContainerState, *api.
 		fallthrough
 	case Publish:
 		fallthrough
+	case PrepareSecondaryIpCleanup:
+		fallthrough
 	case Program:
 		return UnPublish, nil
 

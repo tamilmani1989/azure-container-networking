@@ -55,7 +55,11 @@ const (
 
 	// PrepareCleanup - NC is preparing cleanup for IP allocations asynchronously. Creates pubsubproxy job
 	// then scheduling the job in UnPublish/Publish
+	// TODO: Deprecated, this state needs to be removed.
 	PrepareCleanup
+
+	// PrepareSecondaryIpCleanup
+	PrepareSecondaryIpCleanup
 )
 
 // IsNCCreateInProgress - True if nc is in creation states
@@ -67,7 +71,8 @@ func IsNCCreateInProgress(ncState NetworkContainerState) bool {
 		ncState == Associate ||
 		ncState == RefreshAssociation ||
 		ncState == Publish ||
-		ncState == Program
+		ncState == Program ||
+		ncState == PrepareSecondaryIpCleanup
 }
 
 // IsDeleteInProgress - True if nc is in termination states
@@ -159,6 +164,9 @@ func (networkContainerState NetworkContainerState) String() string {
 
 	case DeallocateMAC:
 		return "DeallocateMAC"
+
+	case PrepareSecondaryIpCleanup:
+		return "PrepareSecondaryIpCleanup"
 	}
 
 	return "Unknown Status"

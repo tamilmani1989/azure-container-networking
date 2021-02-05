@@ -414,6 +414,88 @@ func processPrepareCleanup(
 	return markProcessingFailed, nil
 }
 
+// This will create the pending IP cleanup job for ToBeDeleted Secondary IPs during NC update.
+func processPrepareSecondaryIpCleanup(
+	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+
+	if config.PubSubProxySettings.EnablePubSubProxy &&
+		len(repoNCConfig.RequestV2.ToBeDeletedIPIds) > 0 {
+		ncKey := datamodel.GetNCKey(repoNCConfig.NetworkID, repoNCConfig.NetworkContainerID)
+		loggershim.LS.Debugf("processPrepareSecondaryIpCleanup, NCKey %s", ncKey)
+
+		// get reservation
+		var subnetName = ""
+		if repoNCConfig.ImplicitReservation {
+			subnetName = repoNCConfig.RequestV2.AllocationRequest.SubnetName
+		} else {
+			loggershim.LS.Debugf("processPrepareSecondaryIpCleanup: Getting Subnet name from Reservation record, nckey %s, reservationId %s",
+				ncKey,
+				repoNCConfig.ReservationID)
+			repoReservation, err := datamodel.TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
+			if err != nil {
+				loggershim.LS.Errorf("processPrepareSecondaryIpCleanup: Failed to query associated Reservation repo, NcKey %s, reservationId %s, err %+v",
+					ncKey,
+					repoNCConfig.ReservationID,
+					err)
+				return false, err
+			}
+
+			if repoReservation.RowKey == "" {
+				loggershim.LS.Errorf("processPrepareSecondaryIpCleanup: associated Reservation config not found, NcKey %s, reservationId %s, err %+v",
+					ncKey,
+					repoNCConfig.ReservationID,
+					err)
+				return false, err
+			}
+
+			subnetName = repoReservation.Configuration.AllocationRequest.SubnetName
+		}
+
+		if subnetName == "" {
+			return true, api.InternalServerErrorf(api.InvalidSubnetName,
+				"ProcessPrepareSecondaryIpCleanup: associated subnetName is empty, NcKey %s, reservationId %s",
+				ncKey, repoNCConfig.ReservationID)
+		}
+
+		// We have already updated IpAllocations table with ToBeDeletedOwner for ToBeDeletedIpIds
+		// in Reserve state, thus it is safe to request all pending deleting IPs and
+		// create or Merge the PendingResourceCleanupJob
+		pendingDeletingIpAllocations, err := ipAllocator.Allocations.QueryIPAllocationsByToBeDeletedOwner(
+			repoNCConfig.NetworkID,
+			subnetName,
+			ncKey)
+		if err != nil {
+			loggershim.LS.Errorf("Failed to fetch IpAllocations (Network %s, Subnet %s) with ToBeDeletedOwner %s, err: %+v",
+				repoNCConfig.NetworkID,
+				subnetName,
+				ncKey,
+				err)
+			return false, err
+		}
+
+		// Create the BG Job to delete AllocatedIPs only after the associated Publish
+		// task is completed
+		err = datamodel.PendingCleanupRepo.CreateOrMergeIPResourceCleanupRequestFromIPAllocations(
+			repoNCConfig.NetworkID,
+			subnetName,
+			repoNCConfig.NetworkContainerID,
+			pendingDeletingIpAllocations)
+		if err != nil {
+			loggershim.LS.Errorf("processPrepareSecondaryIpCleanup: Failed to create the cleanup request for allocated ips :%+v, err:  %+v",
+				pendingDeletingIpAllocations,
+				err)
+			return false, err
+		}
+	}
+
+	if repoNCConfig.State == datamodel.PrepareSecondaryIpCleanup {
+		repoNCConfig.State = datamodel.Program
+	}
+	repoNCConfig.Status = datamodel.Pending
+	repoNCConfig.FailureDetail = api.JsonErr{}
+	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+}
+
 func processNetworkContainerReserve(
 	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	var (
@@ -1000,6 +1082,7 @@ func publishNetworkContainerWithPubSubProxy(
 	}
 
 	if repoNCConfig.State == datamodel.Publish {
+		// todo: From Publish we will go to PendingSecondaryIpCleanup state.
 		repoNCConfig.State = datamodel.Program
 	}
 	repoNCConfig.Status = datamodel.Pending
@@ -1787,9 +1870,6 @@ func processNetworkContainerRequest(
 				removeRequestFromPendingQueue, err = processNetworkContainerReserve(repoNCConfig)
 			}
 
-		case datamodel.PrepareCleanup:
-			removeRequestFromPendingQueue, err = processPrepareCleanup(repoNCConfig)
-
 		case datamodel.AllocateLocalIP:
 			removeRequestFromPendingQueue, err = processAllocateLocalIP(repoNCConfig)
 
@@ -1804,6 +1884,9 @@ func processNetworkContainerRequest(
 
 		case datamodel.Publish:
 			removeRequestFromPendingQueue, err = processNetworkContainerPublish(repoNCConfig, sessionInfo, stateTransitionDateTime, createdDateTime)
+
+		case datamodel.PrepareSecondaryIpCleanup:
+			removeRequestFromPendingQueue, err = processPrepareSecondaryIpCleanup(repoNCConfig)
 
 		case datamodel.Program:
 			removeRequestFromPendingQueue, err = processNetworkContainerProgram(repoNCConfig)
@@ -1820,6 +1903,9 @@ func processNetworkContainerRequest(
 		case datamodel.UnReserve:
 			removeRequestFromPendingQueue = false // there is no obvious case where unreserving requires removing the item from the pending queue
 			err = processNetworkContainerUnReserve(repoNCConfig)
+
+		case datamodel.PrepareCleanup:
+			removeRequestFromPendingQueue, err = processPrepareCleanup(repoNCConfig)
 
 		case datamodel.Purge:
 			removeRequestFromPendingQueue, err = processNetworkContainerPurge(repoNCConfig, createdDateTime)

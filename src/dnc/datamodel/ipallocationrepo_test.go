@@ -57,3 +57,109 @@ func TestTryQueryAllIPAllocations(t *testing.T) {
 		t.Error("expected tbd owner to be empty")
 	}
 }
+
+func TestQueryIpAllocationsByToBeDeletedOwner(t *testing.T) {
+	var store testpersistencestore.TestPersistenceStore
+	store.Init(TableToColumnMap, loggermock.NewDummyLogger())
+	partition := "Network_vnet1_Subnet_subnet1"
+	toBeDeletedOwnerId := "Network_vnet1_NC_nc1"
+	repo := AllocationRepo{Datastore: &store}
+
+	rows, err := repo.QueryIPAllocationsByToBeDeletedOwner("vnet1", "subnet1", toBeDeletedOwnerId)
+	if err != nil {
+		t.Fatalf("did not expect error: %v", err)
+	}
+
+	if len(rows) != 0 {
+		t.Fatalf("Expected empty ipAllocations with ToBeDeletedOwnerId %s", toBeDeletedOwnerId)
+	}
+
+	t.Logf("Create IpAllocations with no ToBeDeletedOwnerId")
+	ipallocationsWithoutTBD := map[string]map[string]interface{}{
+		"10.0.0.1_32": map[string]interface{}{IPAllocationProperty: "",
+			AllocationIDProperty: "alloc1"},
+		"10.0.0.2_32": map[string]interface{}{IPAllocationProperty: "res2",
+			AllocationIDProperty: "alloc2"},
+	}
+
+	for rowkey, properties := range ipallocationsWithoutTBD {
+		if _, err := store.InsertInPartitionProperties(IPAllocationsTableName, partition, rowkey, properties); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Logf("QueryIPAllocationsByToBeDeletedOwner should return empty rows")
+	rows, err = repo.QueryIPAllocationsByToBeDeletedOwner("vnet1", "subnet1", toBeDeletedOwnerId)
+	if err != nil {
+		t.Fatalf("did not expect error: %v", err)
+	}
+
+	if len(rows) != 0 {
+		t.Fatalf("Expected empty ipAllocations with ToBeDeletedOwnerId %s", toBeDeletedOwnerId)
+	}
+
+	t.Logf("Create ipAllocations with expected ToBeDeletedOwnerId %s", toBeDeletedOwnerId)
+	ipallocationsWithTBD := map[string]map[string]interface{}{
+		"10.0.0.3_32": map[string]interface{}{IPAllocationProperty: "",
+			AllocationIDProperty:     "alloc3",
+			ToBeDeletedOwnerProperty: toBeDeletedOwnerId},
+		"10.0.0.4_32": map[string]interface{}{IPAllocationProperty: "res2",
+			AllocationIDProperty:     "alloc4",
+			ToBeDeletedOwnerProperty: toBeDeletedOwnerId},
+	}
+
+	for rowkey, properties := range ipallocationsWithTBD {
+		if _, err := store.InsertInPartitionProperties(IPAllocationsTableName, partition, rowkey, properties); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Logf("QueryIPAllocationsByToBeDeletedOwner should return valid rows")
+	rows, err = repo.QueryIPAllocationsByToBeDeletedOwner("vnet1", "subnet1", toBeDeletedOwnerId)
+	if err != nil {
+		t.Fatalf("did not expect error: %v", err)
+	}
+
+	if len(rows) != 2 {
+		t.Fatalf("Expected valid ipAllocations with ToBeDeletedOwnerId %s, %+v", toBeDeletedOwnerId, rows)
+	}
+
+	for _, row := range rows {
+		if _, found := ipallocationsWithTBD[row.RowKey]; !found {
+			t.Fatalf("Unexpected RowKey in the result %s, %+v", row.RowKey, rows)
+		}
+	}
+
+	differentToBeDeletedOwnerId := "Network_vnet1_NC_nc2"
+	t.Logf("Create ipAllocations with some other ToBeDeletedOwnerId %s", differentToBeDeletedOwnerId)
+	ipallocationsWithOtherTBD := map[string]map[string]interface{}{
+		"10.0.0.5_32": map[string]interface{}{IPAllocationProperty: "",
+			AllocationIDProperty:     "alloc5",
+			ToBeDeletedOwnerProperty: differentToBeDeletedOwnerId},
+		"10.0.0.6_32": map[string]interface{}{IPAllocationProperty: "",
+			AllocationIDProperty:     "alloc6",
+			ToBeDeletedOwnerProperty: differentToBeDeletedOwnerId},
+	}
+
+	for rowkey, properties := range ipallocationsWithOtherTBD {
+		if _, err := store.InsertInPartitionProperties(IPAllocationsTableName, partition, rowkey, properties); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Logf("QueryIPAllocationsByToBeDeletedOwner should return valid rows, only with expected ToBeDeletedOwner")
+	rows, err = repo.QueryIPAllocationsByToBeDeletedOwner("vnet1", "subnet1", toBeDeletedOwnerId)
+	if err != nil {
+		t.Fatalf("did not expect error: %v", err)
+	}
+
+	if len(rows) != 2 {
+		t.Fatalf("Expected valid ipAllocations with ToBeDeletedOwnerId %s, %+v", toBeDeletedOwnerId, rows)
+	}
+
+	for _, row := range rows {
+		if _, found := ipallocationsWithTBD[row.RowKey]; !found {
+			t.Fatalf("Unexpected RowKey in the result %s, %+v", row.RowKey, rows)
+		}
+	}
+}

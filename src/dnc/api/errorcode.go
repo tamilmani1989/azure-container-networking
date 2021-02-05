@@ -258,6 +258,9 @@ const (
 
 	// Property not set - Storage operation failed as expected property is not set
 	PropertyNotSetInDb
+
+	// Property not set or empty
+	InvalidOrEmptyToBeDeletedOwner
 )
 
 func (e ErrorCode) String() string {

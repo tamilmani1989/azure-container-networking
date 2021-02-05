@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,6 +23,11 @@ type TestPersistenceStore struct {
 	locks     map[string]*sync.RWMutex
 	logger    loggershim.LoggerInterface
 }
+
+const (
+	IPAllocationsTableName   = "IPAllocationsTable"
+	ToBeDeletedOwnerProperty = "ToBeDeletedOwner"
+)
 
 // Init :- Initialize a TestPersistenceStore struct for testing purposes.
 func (s *TestPersistenceStore) Init(tableToColumnMap map[string]string, logger loggershim.LoggerInterface) {
@@ -362,10 +368,30 @@ func (s *TestPersistenceStore) QueryInPartition(tableName, partitionKey, rowKey 
 }
 
 // QueryFilter - Query rows using a filter
-func (s *TestPersistenceStore) QueryFilter(tableName, _ string) ([]*storage.Entity, error) {
+func (s *TestPersistenceStore) QueryFilter(tableName, filter string) ([]*storage.Entity, error) {
 	// todo: not a straightforward way to mock more sophisticated query functionality
 	// for now returning all the entries from the datastore.
 	entities, _, _, _, _ := s.QueryAllRows(tableName, nil)
+
+	switch tableName {
+	case IPAllocationsTableName:
+		if strings.Contains(filter, ToBeDeletedOwnerProperty) {
+			// todo: for now check with a constant ToBeDeletedOwnerId, improve it later
+			// to match with what is passed in filter.
+			tobeDeleteOwnerId := "Network_vnet1_NC_nc1"
+			filteredEntities := make([]*storage.Entity, 0)
+			for _, entity := range entities {
+				if val, found := entity.Properties[ToBeDeletedOwnerProperty]; found {
+					if val != "" && val == tobeDeleteOwnerId {
+						filteredEntities = append(filteredEntities, entity)
+					}
+				}
+			}
+
+			return filteredEntities, nil
+		}
+	}
+
 	return entities, nil
 }
 

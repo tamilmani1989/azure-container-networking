@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/azure-container-networking/log"
+
 	"github.com/Azure/azure-sdk-for-go/storage"
 )
 
@@ -140,17 +142,27 @@ func (p *PendingResourceCleanupRepo) GetAllPendingResourceCleanups() (map[string
 // Create or Merge the PendingResourceCleanup Job
 func (p *PendingResourceCleanupRepo) CreateOrMergeIPResourceCleanupRequest(resConfig *ReservationConfiguration) *api.JsonErr {
 	// construct IPcleanup from the NCConfiguration and Reservation request
-	var ipCleanup = make(map[string][]string)
-	partitionKey := GetSubnetKey(resConfig.NetworkID, resConfig.AllocationRequest.SubnetName)
+	cleanupRowKey := GetPendingResourceCleanupKey(IPCleanup, resConfig.NetworkID, resConfig.AssociatedNCID)
 
+	var ipCleanup = make(map[string][]string)
+	ipAllocPartitionKey := GetSubnetKey(resConfig.NetworkID, resConfig.AllocationRequest.SubnetName)
 	if resConfig.AllocatedSubnet != "" {
-		ipCleanup[partitionKey] = append(ipCleanup[partitionKey], resConfig.AllocatedSubnet)
+		ipAddressKey := EncodeIPAllocationKey(resConfig.AllocatedSubnet)
+		ipCleanup[ipAllocPartitionKey] = append(ipCleanup[ipAllocPartitionKey], ipAddressKey)
 	}
 
 	for _, allocatedIp := range resConfig.SecondaryAllocations {
 		if allocatedIp != "" {
-			ipCleanup[partitionKey] = append(ipCleanup[partitionKey], allocatedIp)
+			ipAddressKey := EncodeIPAllocationKey(allocatedIp)
+			ipCleanup[ipAllocPartitionKey] = append(ipCleanup[ipAllocPartitionKey], ipAddressKey)
 		}
+	}
+
+	if len(ipCleanup) == 0 {
+		log.Debugf("CreateOrMergeIPResourceCleanupRequest: Skipping creating"+
+			" PendingResourceCleanupJob as there are no ips associated to be cleaned up, cleanupRowKey %s, reservation %+v ",
+			cleanupRowKey, resConfig)
+		return nil
 	}
 
 	// Created the CleanupContext
@@ -158,8 +170,34 @@ func (p *PendingResourceCleanupRepo) CreateOrMergeIPResourceCleanupRequest(resCo
 		ToBeDeletedIpAllocations: ipCleanup,
 		Type:                     IPCleanup}
 
-	rowKey := GetPendingResourceCleanupKey(IPCleanup, resConfig.NetworkID, resConfig.AssociatedNCID)
-	return p.CreateOrMergePendingCleanupRequest(rowKey, cleanupRequest)
+	return p.CreateOrMergePendingCleanupRequest(cleanupRowKey, cleanupRequest)
+}
+
+// Create or Merge the PendingResourceCleanup Job from IpAllocations Entities
+func (p *PendingResourceCleanupRepo) CreateOrMergeIPResourceCleanupRequestFromIPAllocations(networkId string, subnetName string, ncId string, ipAllocationsEntities []IPAllocationEntity) *api.JsonErr {
+	cleanupRowKey := GetPendingResourceCleanupKey(IPCleanup, networkId, ncId)
+
+	if len(ipAllocationsEntities) == 0 {
+		log.Debugf("CreateOrMergeIPResourceCleanupRequestFromIPAllocations: Skipping creating"+
+			" PendingResourceCleanupJob as ipAllocationsEntities is empty, cleanupRowKey %s, networkId %s, subnetName %s ",
+			cleanupRowKey, networkId, subnetName)
+		return nil
+	}
+
+	// construct IPcleanup from list of ipAllocationEntities
+	var ipCleanup = make(map[string][]string)
+	ipAllocPartitionKey := GetSubnetKey(networkId, subnetName)
+	for _, ipAllocationEntity := range ipAllocationsEntities {
+		ipAddressKey := ipAllocationEntity.RowKey
+		ipCleanup[ipAllocPartitionKey] = append(ipCleanup[ipAllocPartitionKey], ipAddressKey)
+	}
+
+	// Created the CleanupContext
+	cleanupRequest := &CleanupContext{
+		ToBeDeletedIpAllocations: ipCleanup,
+		Type:                     IPCleanup}
+
+	return p.CreateOrMergePendingCleanupRequest(cleanupRowKey, cleanupRequest)
 }
 
 // Create Or Merge entry (if it matches the etag) else retry

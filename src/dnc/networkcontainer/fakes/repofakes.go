@@ -146,6 +146,16 @@ func (f *AllocationRepo) QueryIPAllocationsByAllocationID(_, _ string, allocIDs 
 	return results, nil
 }
 
+func (f *AllocationRepo) QueryIPAllocationsByToBeDeletedOwner(_, _ string, tobeDeletedOwnerId string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
+	var results []datamodel.IPAllocationEntity
+	for _, d := range f.Data {
+		if d.ToBeDeletedOwner == tobeDeletedOwnerId {
+			results = append(results, d)
+		}
+	}
+	return results, nil
+}
+
 func (f *AllocationRepo) AddIPAllocations(_, _ string, rows map[string]map[string]interface{}) *api.JsonErr {
 	for rowKey, rowData := range rows {
 		allocID, _ := rowData[datamodel.AllocationIDProperty].(string)

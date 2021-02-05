@@ -142,6 +142,31 @@ func (a *AllocationRepo) QueryIPAllocationsByAllocationID(networkID, subnetName 
 	return rows, nil
 }
 
+// Function to fetch all rows By PartitionKey and ToBeDeletedOwnerId property
+func (a *AllocationRepo) QueryIPAllocationsByToBeDeletedOwner(networkID, subnetName string, tobeDeletedOwnerId string) ([]IPAllocationEntity, *api.JsonErr) {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+	if tobeDeletedOwnerId == "" {
+		errMsg := fmt.Sprintf("QueryIPAllocationsByToBeDeletedOwner: "+
+			"tobeDeletedOwnerId cant be null for partitionKey %s", partitionKey)
+		return nil, api.BadRequest(api.InvalidOrEmptyToBeDeletedOwner, errMsg)
+	}
+
+	tobeDeleteOwnerKey := []string{tobeDeletedOwnerId}
+	filter := azurestorage.BuildFilterOnProperty(partitionKey, ToBeDeletedOwnerProperty, tobeDeleteOwnerKey)
+
+	entities, err := a.Datastore.QueryFilter(IPAllocationsTableName, filter)
+	if err != nil {
+		return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	var rows []IPAllocationEntity
+	for _, entity := range entities {
+		rows = append(rows, EntityToAllocationRow(entity))
+	}
+
+	return rows, nil
+}
+
 func (a *AllocationRepo) AddIPAllocations(networkID, subnetName string, rows map[string]map[string]interface{}) *api.JsonErr {
 	partitionKey := GetSubnetKey(networkID, subnetName)
 

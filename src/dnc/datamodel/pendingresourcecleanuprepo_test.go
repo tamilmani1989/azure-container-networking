@@ -83,9 +83,9 @@ func TestCreateIpCleanupRequestFromReservationConfig(t *testing.T) {
 	}
 
 	expectedIpCleanup := make(map[string][]string)
-	expectedIpCleanup["Network_v1_Subnet_sub1"] = append(expectedIpCleanup["Network_v1_Subnet_sub1"], reserveConfig.AllocatedSubnet)
+	expectedIpCleanup["Network_v1_Subnet_sub1"] = append(expectedIpCleanup["Network_v1_Subnet_sub1"], EncodeIPAllocationKey(reserveConfig.AllocatedSubnet))
 	for _, allocatedIp := range reserveConfig.SecondaryAllocations {
-		expectedIpCleanup["Network_v1_Subnet_sub1"] = append(expectedIpCleanup["Network_v1_Subnet_sub1"], allocatedIp)
+		expectedIpCleanup["Network_v1_Subnet_sub1"] = append(expectedIpCleanup["Network_v1_Subnet_sub1"], EncodeIPAllocationKey(allocatedIp))
 	}
 
 	expectedCleanupRequest := &CleanupContext{
@@ -106,7 +106,7 @@ func TestCreateIpCleanupRequestFromReservationConfig(t *testing.T) {
 			"A1": "10.0.0.5/32",
 		},
 	}
-	expectedIpCleanup["Network_v1_Subnet_sub1"] = append(expectedIpCleanup["Network_v1_Subnet_sub1"], "10.0.0.5/32")
+	expectedIpCleanup["Network_v1_Subnet_sub1"] = append(expectedIpCleanup["Network_v1_Subnet_sub1"], "10.0.0.5_32")
 
 	expectedCleanupRequest = &CleanupContext{
 		ToBeDeletedIpAllocations: expectedIpCleanup,
@@ -121,6 +121,44 @@ func TestCreateIpCleanupRequestFromReservationConfig(t *testing.T) {
 			entity.Etag,
 			err)
 	}
+}
+
+func TestCreateIpCleanupRequestFromIpAllocationEntities(t *testing.T) {
+	pendingCleanupRepo := setup()
+
+	networkId := "vnet1"
+	subnetName := "sub1"
+	ncId := "nc1"
+	subnetKey := GetSubnetKey(networkId, subnetName)
+	ncKey := GetNCKey(networkId, ncId)
+
+	ipEntities := make([]IPAllocationEntity, 0)
+	ipEntity := IPAllocationEntity{
+		RowKey:           "10.0.0.1_32",
+		IPAllocation:     "R1",
+		ToBeDeletedOwner: ncKey,
+		AllocationID:     "Alloc1",
+	}
+	ipEntities = append(ipEntities, ipEntity)
+
+	expectedIpCleanup := make(map[string][]string)
+	expectedIpCleanup[subnetKey] = append(expectedIpCleanup[subnetKey], ipEntity.RowKey)
+
+	expectedCleanupRequest := &CleanupContext{
+		ToBeDeletedIpAllocations: expectedIpCleanup,
+		Type:                     IPCleanup}
+
+	t.Logf("Create Or Update Pending IPCleanup request with IpAllocationEntities")
+	err := pendingCleanupRepo.CreateOrMergeIPResourceCleanupRequestFromIPAllocations(networkId, subnetName, ncId, ipEntities)
+	if err != nil {
+		t.Fatalf("Failed to create the Pending Cleanup Request with IpAllocationEntities, err  %+v",
+			err)
+	}
+
+	// Get the request and validate
+	requestKey := GetPendingResourceCleanupKey(IPCleanup, networkId, ncId)
+	entity := validateRequest(t, pendingCleanupRepo, requestKey, expectedCleanupRequest)
+	pendingCleanupRepo.DeleteCleanupRequest(requestKey, entity.Etag)
 }
 
 func TestGetAllPendingCleanupRequests(t *testing.T) {
