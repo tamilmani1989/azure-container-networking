@@ -53,6 +53,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
         /// <param name="services"></param>
         public void ConfigureServices(IServiceCollection services)
         {
+            CustomLog.SetPrefix("[DNC GW]");
             // Add custom properties to telemetry (log)
             services.AddSingleton<ITelemetryInitializer, CustomTelemetryProperties>();
 
@@ -146,7 +147,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
                                 .RequireAuthenticatedUser()
                                 .RequireAssertion(context =>
                                 {
-                                    return context.User.HasRoleClaim(Configuration["RoleClaim"]) || context.User.HasScpClaim(Configuration["ScopeClaim"]);
+                                    return context.User.HasAppIdClaim(Configuration["AppIdClaim"]);
                                 })
                                 .Build();
 

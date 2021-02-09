@@ -56,7 +56,7 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
         /// <returns></returns>
         public string GetHostName()
         {
-            string host = "localhost";
+            string host = "127.0.0.1";
 
             if (!string.IsNullOrWhiteSpace(this.Host))
             {

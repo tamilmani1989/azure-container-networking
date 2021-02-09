@@ -3,8 +3,8 @@
   "TenantId": "73073094-f051-4be0-b779-ce802dd3b910",
   "ClientId": "074fa96b-ed4e-4a85-8a5d-0e7c3ce4b5f4",
   "ClientSecret": "",
-  "BaseAddress": "https://localhost:5001",
-  "ResourceId": "https://dnc.azure.com/.default",
+  "BaseAddress": "https://localhost:5001/health",
+  "ResourceId": "a91b1853-4403-4f54-b5cb-d1ea19d90c37/.default",
   "DecryptToken": false,
   "DecryptTokenCertificatePath": ""
 }

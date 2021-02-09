@@ -23,10 +23,9 @@
     "EncryptCertName": "AMEAADOnecert"
   },
   "ApplicationInsights": {
-    "InstrumentationKey": "b90fb0a1-4cc8-4ad7-bd57-57a870f686ce"
+    "InstrumentationKey": "6f9518fc-9dc3-492e-87e2-b2b8941a0e92"
   },
   "AllowedHosts": "*",
   "Port": "5001",
-  "RoleClaim": "Dnc.Application.All",
-  "ScopeClaim": "Dnc.User.All"
+  "AppIdClaim": "__ClientAppIds__"
 }

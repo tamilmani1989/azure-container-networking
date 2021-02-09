@@ -53,8 +53,8 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
             {
                 using (HttpClient client = clientFactory.CreateClient(serviceName))
                 {
-                    logger.CLogInformation("Incoming request. Host: {0}, Path: {1}, https: {2}",
-                        HttpContext.Request.Host, HttpContext.Request.Path, HttpContext.Request.IsHttps);
+                    logger.CLogInformation("Incoming request. Host: {0}, Path: {1}, https: {2} method: {3}",
+                        HttpContext.Request.Host, HttpContext.Request.Path, HttpContext.Request.IsHttps, HttpContext.Request.Method);
 
                     HttpRequestMessageFeature hreqmf = new HttpRequestMessageFeature(HttpContext);
                     HttpRequestMessage httpRequestMessage = hreqmf.HttpRequestMessage;

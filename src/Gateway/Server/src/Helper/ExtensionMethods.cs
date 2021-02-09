@@ -89,5 +89,26 @@ namespace Microsoft.Azure.ContainerNetworking.Gateway
         {
             return claimsPrincipal.HasClaim("roles", validValue);
         }
+
+        /// <summary>
+        /// Validate appid claim
+        /// </summary>
+        /// <param name="claimsPrincipal"></param>
+        /// <param name="validValue"></param>
+        /// <returns></returns>
+        public static bool HasAppIdClaim(this ClaimsPrincipal claimsPrincipal, string validValue)
+        {
+            string[] appids = validValue.Split(",");
+
+            foreach (string id in appids)
+            {
+                if (claimsPrincipal.HasClaim("appid", id))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 }

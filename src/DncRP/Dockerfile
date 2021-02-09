@@ -20,12 +20,12 @@ RUN curl -L https://raw.githubusercontent.com/Microsoft/artifacts-credprovider/m
 
 ARG FEED_ACCESSTOKEN
 ENV VSS_NUGET_EXTERNAL_FEED_ENDPOINTS \
-    "{\"endpointCredentials\": [{\"endpoint\":\"https://msblox.pkgs.visualstudio.com/_packaging/AzureGenevaMonitoring/nuget/v3/index.json\", \"username\":\"vik\", \"password\":\"${FEED_ACCESSTOKEN}\"}]}"
+    "{\"endpointCredentials\": [{\"endpoint\":\"https://msazure.pkgs.visualstudio.com/one/_packaging/azureacnfeed/nuget/v3/index.json\", \"username\":\"tamanoha\", \"password\":\"${FEED_ACCESSTOKEN}\"}]}"
 # Create directory for source
 WORKDIR /usr/local/Networking-Aquarius/src
 
 # Copy DncRP code and its dependencies
-COPY ./DNCRP/Server/ ./DncRP/Server
+COPY ./DncRP/Server/ ./DncRP/Server
 COPY ./Common/CoreLib ./Common/CoreLib
 
 # Create out directory for binaries
