@@ -44,11 +44,7 @@ spec:
         - -stderr=true           
         ports:
         - containerPort: 9000
-        env:
-        - name: DNCIpAddress
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
+        env:   
         - name : DNC_CONFIGURATION_PATH
           value : /etc/dnc/dnc_config.json      
       - name: gateway-container
