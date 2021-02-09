@@ -10,7 +10,7 @@
         }
     },
     "ServerSettings": {
-        "IPAddress": "127.0.0.1",
+        "IPAddress": "0.0.0.0",
         "Port": "9000"
     },
     "MasterElectionSettings": {
@@ -36,7 +36,7 @@
         "Dll": ""
     },
     "CNSSettings": {
-        "ChannelMode": "direct",
+        "ChannelMode": "disabled",
         "ConnectionStrings": {
             "CreateOrUpdateNetworkContainerURLFmt": "http://%s:10090/network/createorupdatenetworkcontainer",
             "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
@@ -78,7 +78,7 @@
         "TelemetryBatchIntervalInSecs": 7,
         "RefreshIntervalInSecs": 15,
         "DisableMetadataRefreshThread": true,
-        "DisableTelemetry": true,
+        "DisableTelemetry": false,
         "DebugMode": false,
         "DisableAiLogging": true
     },
