@@ -718,8 +718,10 @@ func ValidateAndDeleteIPAllocation(networkID, subnetName, reservationKey, alloca
 	}
 
 	if reservationKey != savedReservationKey.IPAllocation {
-		msg := fmt.Sprintf("Reservation key mismatch in IPAllocations table for IP %s", allocatedIP)
-		return api.InternalServerError(api.InvalidIPSubnet, msg)
+		msgFmt := "Reservation key mismatch in IPAllocations table for IP address %s on vnet %s subnet %s " +
+			"during deletion of reservation key %s: allocation is associated to reservation key %s. Skipping allocation record deletion."
+		loggershim.LS.Errorf(msgFmt, allocatedIP, networkID, subnetName, reservationKey, savedReservationKey.IPAllocation)
+		return nil
 	}
 
 	return AllocRepo.DeleteIPAllocation(networkID, subnetName, allocatedIPKey)
