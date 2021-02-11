@@ -607,7 +607,7 @@ func OverrideConfigFromEnv(config *Configuration) {
 	}
 
 	if bmmode := os.Getenv("BMMode"); len(bmmode) != 0 {
-		config.DNCSettings.BMMode = ParseBool("BMMode")
+		config.DNCSettings.BMMode = ParseBool(bmmode)
 	}
 
 	if connectionTimeout := os.Getenv("ConnectionTimeout"); len(connectionTimeout) != 0 {
