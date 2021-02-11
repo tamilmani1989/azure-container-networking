@@ -41,6 +41,7 @@ var (
 	cnsSettings                 configuration.CNSSettings
 	hostAgentSettings           configuration.HostAgentSettings
 	PendingCleanupRepo          *PendingResourceCleanupRepo
+	NcPendingPublishRepo        *NcPendingPublishRequestRepo
 	requestBaseInterval                = 1000
 	MinVlan                     uint16 = 1
 	MaxVlan                     uint16 = 2048
@@ -87,7 +88,9 @@ func Init(
 		RestoreState()
 	}
 
-	PendingCleanupRepo = NewPendingResourceCleanupRepo(&ds, loggershim.LS)
+	PendingCleanupRepo = NewPendingResourceCleanupRepo(ds, loggershim.LS)
+
+	NcPendingPublishRepo = NewNcPendingPublishRequestRepo(ds)
 
 	if min > MinVlan {
 		MinVlan = min
@@ -2831,7 +2834,7 @@ func GetNcPendingPublishRequestContexts() (map[string]NcPendingPublishRequestCon
 	)
 
 	for {
-		entities, hasMoreData, cx, status, err := dataStoreShim.QueryAllRows(ncPendingPublishContextTableName, context)
+		entities, hasMoreData, cx, status, err := dataStoreShim.QueryAllRows(NcPendingPublishContextTableName, context)
 		if err != nil {
 			if status == http.StatusNotFound {
 				return make(map[string]NcPendingPublishRequestContext), nil
@@ -2841,7 +2844,7 @@ func GetNcPendingPublishRequestContexts() (map[string]NcPendingPublishRequestCon
 		}
 
 		for _, entity := range entities {
-			serializedRequestContext := entity.Properties[ncPendingPublishContextTag].(string)
+			serializedRequestContext := entity.Properties[NcPendingPublishContextTag].(string)
 			var requestContext NcPendingPublishRequestContext
 			if err := json.Unmarshal([]byte(serializedRequestContext), &requestContext); err != nil {
 				return nil, err
@@ -2864,7 +2867,7 @@ func RemoveNcPendingPublishContext(
 	networkID, networkContainerID string,
 	pubsubAzId string) {
 	key := GetNcPendingPublishContextKey(networkID, networkContainerID, pubsubAzId)
-	dataStoreShim.Delete(ncPendingPublishContextTableName, key)
+	dataStoreShim.Delete(NcPendingPublishContextTableName, key)
 }
 
 // CreateOrUpdateNcPendingPublishRequest - Creates or updates NC publish / unpublish context from the table.
@@ -2894,9 +2897,9 @@ func persistNcPendingPublishContext(
 	}
 
 	key := GetNcPendingPublishContextKey(context.NetworkID, context.NetworkContainerID, context.PubsubAzId)
-	err = dataStoreShim.InsertOrUpdate(ncPendingPublishContextTableName,
+	err = dataStoreShim.InsertOrUpdate(NcPendingPublishContextTableName,
 		key,
-		TableToColumnMap[ncPendingPublishContextTableName],
+		TableToColumnMap[NcPendingPublishContextTableName],
 		string(jsonSerializedBytes[:]))
 	if err != nil {
 		msg := fmt.Sprintf(
@@ -2915,7 +2918,7 @@ func persistNcPendingPublishContext(
 }
 
 func QueryNcPendingPublishContext(key string) (*NcPendingPublishRequestContext, *api.JsonErr) {
-	entity, status, err := dataStoreShim.Query(ncPendingPublishContextTableName, key)
+	entity, status, err := dataStoreShim.Query(NcPendingPublishContextTableName, key)
 	if err != nil && status != http.StatusNotFound {
 		msg := fmt.Sprintf(
 			"Failed to retrieve pending NC publish context for key:[%s] due to error:[%s]",
@@ -2931,7 +2934,7 @@ func QueryNcPendingPublishContext(key string) (*NcPendingPublishRequestContext, 
 		return nil, nil
 	}
 
-	serializedContextData := entity.Properties[ncPendingPublishContextTag].(string)
+	serializedContextData := entity.Properties[NcPendingPublishContextTag].(string)
 	var pendingPublishContext NcPendingPublishRequestContext
 	if err := json.Unmarshal([]byte(serializedContextData), &pendingPublishContext); err != nil {
 		msg := fmt.Sprintf(

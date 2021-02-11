@@ -362,7 +362,7 @@ func (a *IPAllocator) DeallocateIPs(res datamodel.ReservationConfiguration, allo
 		}
 	}
 
-	return a.deleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
+	return a.DeleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
 }
 
 func (a *IPAllocator) RemoveAllAllocations(res datamodel.ReservationConfiguration) *api.JsonErr {
@@ -392,12 +392,12 @@ func (a *IPAllocator) RemoveAllAllocations(res datamodel.ReservationConfiguratio
 		}
 	}
 
-	return a.deleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
+	return a.DeleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
 }
 
-func (a *IPAllocator) deleteAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
+func (a *IPAllocator) DeleteAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
 	if len(keys) == 0 {
-		a.Logger.Debugf("deleteAllocations: no allocations to delete")
+		a.Logger.Debugf("DeleteAllocations: no allocations to delete")
 		return nil
 	}
 	var batches [][]string
@@ -412,6 +412,27 @@ func (a *IPAllocator) deleteAllocations(networkID, subnetName string, keys []str
 		}
 	}
 	return nil
+}
+
+func (a *IPAllocator) DeleteAllocationsWithEtag(entities []datamodel.IPAllocationEntity) *api.JsonErr {
+	if len(entities) == 0 {
+		a.Logger.Debugf("DeleteAllocations: no allocations to delete")
+		return nil
+	}
+
+	for _, entity := range entities {
+		err := a.Allocations.DeleteIPAllocationEntityWithEtag(entity)
+		if err != nil {
+			a.Logger.Errorf("%s: %s", utils.TracePrefix(2), err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (a *IPAllocator) GetIPAllocationsWithToBeDeletedOwner(networkID, subnetName, ncid string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
+	return a.Allocations.QueryIPAllocationsByToBeDeletedOwner(networkID, subnetName, ncid)
 }
 
 func (a *IPAllocator) saveAllocationBatch(vnetID, subnetName string, batchMap map[string]map[string]interface{}) *api.JsonErr {

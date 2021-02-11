@@ -11,11 +11,11 @@ const (
 	sharedSubnetDelegationMigrationTableName         = "SharedSubnetDelegationMigrationTable"
 	sharedSubnetDelegationMigrationRegionalTableName = "SharedSubnetDelegationMigrationRegionalTable"
 	MasterElectionTableName                          = "MasterElectionTable"          // MasterElectionTableName - DNC master election table name
-	ncPendingPublishContextTableName                 = "NcPendingPublishContextTable" // Table containing pending NC publish / unpublish context
+	NcPendingPublishContextTableName                 = "NcPendingPublishContextTable" // Table containing pending NC publish / unpublish context
 	featureMigrationTableName                        = "FeatureMigrationTable"        // Holds the info about different features that need migration
 	// Table containing pending resource cleanup jobs created for asynchronous cleanup of internal state
 	// For now it will be used to store IP cleanup request for a given NC during NC delete or secondary ips scale down.
-	pendingResourceCleanupTableName = "PendingResourceCleanupTable"
+	PendingResourceCleanupTableName = "PendingResourceCleanupTable"
 
 	networkKey                 = "Network_%s"
 	subnetConfigurationKey     = "Network_%s_Subnet_%s"
@@ -37,9 +37,9 @@ const (
 	tagDefinitionsTag                  = "TagDefinitions"
 	sharedSubnetDelegationMigrationTag = "SharedSubnetDelegationMigrationComplete"
 	masterElectionTag                  = "MasterElection"
-	ncPendingPublishContextTag         = "NcPendingPublishContext"
+	NcPendingPublishContextTag         = "NcPendingPublishContext"
 	featureMigrationTag                = "FeatureMigrationComplete"
-	pendingResourceCleanupTag          = "PendingResourceCleanup"
+	PendingResourceCleanupTag          = "PendingResourceCleanup"
 )
 
 const (
@@ -92,6 +92,6 @@ var TableToColumnMap = map[string]string{
 	sharedSubnetDelegationMigrationTableName:         sharedSubnetDelegationMigrationTag,
 	sharedSubnetDelegationMigrationRegionalTableName: sharedSubnetDelegationMigrationTag,
 	MasterElectionTableName:                          masterElectionTag,
-	ncPendingPublishContextTableName:                 ncPendingPublishContextTag,
+	NcPendingPublishContextTableName:                 NcPendingPublishContextTag,
 	featureMigrationTableName:                        featureMigrationTag,
-	pendingResourceCleanupTableName:                  pendingResourceCleanupTag}
+	PendingResourceCleanupTableName:                  PendingResourceCleanupTag}

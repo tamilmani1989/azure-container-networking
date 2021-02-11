@@ -261,6 +261,9 @@ const (
 
 	// Property not set or empty
 	InvalidOrEmptyToBeDeletedOwner
+
+	// NcPendingPublishEntryNotFound is return when the a row in the NcPendingPublishTable is not found
+	NcPendingPublishEntryNotFound
 )
 
 func (e ErrorCode) String() string {
@@ -510,6 +513,9 @@ func (e ErrorCode) String() string {
 
 	case OutOfGreKeys:
 		return "OutOfGreKeys"
+
+	case NcPendingPublishEntryNotFound:
+		return "NcPendingPublishEntryNotFound"
 	}
 
 	return "Unknown Status"

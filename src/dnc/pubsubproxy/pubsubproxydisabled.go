@@ -50,6 +50,18 @@ func Init(
 func Deinit() {
 }
 
+type publisher struct {
+	pubsubAzId string
+}
+
+func getAllPublishers() map[string]*publisher {
+	return map[string]*publisher{
+		"disabled": &publisher{
+			pubsubAzId: "1",
+		},
+	}
+}
+
 func PublishNetworkContainer(
 	ncPublishRequest PublishNetworkContainerRequest) *api.JsonErr {
 	return &api.JsonErr{

@@ -350,7 +350,7 @@ func (s *subnetHandler) deallocateBatch(reservations []datamodel.ReservationConf
 		}
 	}
 
-	if err := s.allocator.deleteAllocations(s.subnetInfo.vnetID, s.subnetInfo.subnetName, rowKeys); err != nil {
+	if err := s.allocator.DeleteAllocations(s.subnetInfo.vnetID, s.subnetInfo.subnetName, rowKeys); err != nil {
 		return nil, err
 	}
 

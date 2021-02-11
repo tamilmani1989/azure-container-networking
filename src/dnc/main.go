@@ -13,6 +13,7 @@ import (
 	"dnc/controller"
 	"dnc/datamodel"
 	"dnc/datastoreshim"
+	monitor "dnc/internal/resourcecleanupmonitor"
 	"dnc/logger/loggershim"
 	"dnc/masterelection/masterelectionshim"
 	"dnc/pubsubproxy"
@@ -271,8 +272,9 @@ func main() {
 
 	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
 
-	pubSubCfg := config.PubSubProxySettings
+	initNetworkContainerStateMachine()
 
+	pubSubCfg := config.PubSubProxySettings
 	if pubSubCfg.EnablePubSubProxy {
 		certPath := pubSubCfg.PubsubCertFilePath
 		if certPath == "" {
@@ -291,9 +293,16 @@ func main() {
 		if err := pubsubproxy.Init(pubSubCfg, replicaInstance, certPath); err != nil {
 			log.Fatalln("Error initializing PubsubProxy. Error:", err)
 		}
-	}
 
-	initNetworkContainerStateMachine()
+		resourceCleanupMonitor := monitor.ResourceCleanupMonitor{
+			IsPrimary:          true, // todo: make this dynamic
+			IpAllocator:        &ipAllocator,
+			Logger:             logger,
+			PendingCleanupRepo: datamodel.PendingCleanupRepo,
+		}
+
+		go monitor.StartCleanupMonitor(&resourceCleanupMonitor, ctx)
+	}
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

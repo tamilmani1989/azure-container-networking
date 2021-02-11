@@ -16,9 +16,9 @@ const (
 )
 
 type publisher struct {
-	pubsubAzId string
-	vipList    []string
-	isHealthy  bool
+	pubsubAzId   string
+	vipList      []string
+	isHealthy    bool
 	connectedVip string
 	madariPublisher
 	sync.RWMutex
@@ -52,6 +52,10 @@ func getPublisher(
 	}
 
 	return publisherContext.publishers[pubsubAzId], nil
+}
+
+func getAllPublishers() map[string]*publisher {
+	return publisherContext.publishers
 }
 
 func (p *publisher) setupPublishStatusErrorChan(

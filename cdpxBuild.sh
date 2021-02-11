@@ -77,6 +77,7 @@ case $1 in
         (cd networkcontainer && go test -v ./...)
         (cd requestcontroller && go test -v ./...)
         (cd datamodel && go test -v ./...)
+        (cd internal && go test -v ./...)
         zip azure-dnc-test-logs.zip /var/log/azure-dnc*
         ;;
     "loadtest" )

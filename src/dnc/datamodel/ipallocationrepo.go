@@ -226,3 +226,35 @@ func (a *AllocationRepo) DeleteIPAllocations(networkID, subnetName string, keys 
 
 	return nil
 }
+
+// Deletes the entity if etag matches
+func (p *AllocationRepo) DeleteIPAllocationEntityWithEtag(entity IPAllocationEntity) *api.JsonErr {
+	err := p.Datastore.DeleteWithEtag(IPAllocationsTableName, entity.RowKey, entity.RowKey)
+
+	if err != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"Failed to delete request associated with key %s with etag %s in table %s due to error:{%s}",
+			entity.RowKey, entity.RowKey, IPAllocationsTableName, err.Error())
+
+	}
+
+	return nil
+}
+
+// todo: convert ipcleanup to a struct that can marshall/unmarshall itself to a string
+func GetSubnetFromIPAllocationsPartitionKey(key string) (string, *api.JsonErr) {
+	entries := strings.Split(key, "_")
+	if len(entries) != 2 {
+		return "", api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("failed to parse subnetkey from ipallocation resource cleanup key: %v", key))
+	}
+	return entries[1], nil
+}
+
+// todo: convert ipcleanup to a struct that can marshall/unmarshall itself to a string
+func GetNetworkIdFromIPAllocationsPartitionKey(key string) (string, *api.JsonErr) {
+	entries := strings.Split(key, "_")
+	if len(entries) != 2 {
+		return "", api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("failed to parse subnetkey from ipallocation resource cleanup key: %v", key))
+	}
+	return entries[0], nil
+}

@@ -199,6 +199,11 @@ func (f *AllocationRepo) DeleteIPAllocations(_, _ string, keys []string) *api.Js
 	return nil
 }
 
+func (f *AllocationRepo) DeleteIPAllocationEntityWithEtag(entity datamodel.IPAllocationEntity) *api.JsonErr {
+	// TODO: implement for testing.
+	return nil
+}
+
 type NodeRepo struct {
 	FakeNodeConfig datamodel.NodeConfiguration
 }
