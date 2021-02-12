@@ -78,8 +78,9 @@ func (a *AzureStorage) ensureSchema(tables map[string]string) error {
 					a.logger.Debugf("[Azure Storage] Table %s already exists", tableName)
 					continue
 				}
+				return fmt.Errorf("[Azure Storage] Could not create table %s: %+v", tableName, e)
 			default:
-				return fmt.Errorf("Could not create table %s: %v", tableName, err)
+				return fmt.Errorf("[Azure Storage] Could not create table %s: %v", tableName, err)
 			}
 		}
 		a.logger.Debugf("[Azure Storage] Table %s created successfully", tableName)

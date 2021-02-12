@@ -301,7 +301,7 @@ func PutIPReservation(reservation ReservationRow) *api.JsonErr {
 	err = dataStoreShim.InsertOrUpdateProperties(ipReservationsTableName, dncPartitionKey, reservation.RowKey, row)
 	if err != nil {
 		loggershim.LS.Errorf("could not persist reservation: %s. Error: %v", reservation.RowKey, err)
-		api.InternalServerError(api.StatusInternalServerError, err.Error())
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
 	return nil
@@ -1329,6 +1329,7 @@ func GetPendingRequests() (map[string]RequestContext, error) {
 }
 
 // RemovePendingRequest - Remove pending request from work item queue.
+// todo: bubble error up and handle
 func RemovePendingRequest(requestID string) {
 	dataStoreShim.Delete(pendingWorkItemsTableName, requestID)
 }
@@ -2072,6 +2073,10 @@ func PersistIPReservationRequest(networkID string,
 	apiVersion string) *api.JsonErr {
 
 	reservation, err := TryQueryIPReservation(networkID, reservationID)
+	if err != nil {
+		return err
+	}
+
 	if reservation.Configuration != nil {
 		return nil
 	}
@@ -2863,6 +2868,7 @@ func GetNcPendingPublishRequestContexts() (map[string]NcPendingPublishRequestCon
 }
 
 // RemoveNcPendingPublishContext - Remove pending NC publish / unpublish context from the table.
+// todo: bubble error up and handle
 func RemoveNcPendingPublishContext(
 	networkID, networkContainerID string,
 	pubsubAzId string) {
