@@ -16,9 +16,21 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager.Controllers
     [Route("/macinventory/macaddressstats")]
     public class MacAddressStatsController : ControllerBase
     {
-        public Task<IEnumerable<MacAddressStats>> GetStatsAsync()
+        private readonly IMacInventoryManagerService managerService;
+
+        public MacAddressStatsController(IMacInventoryManagerService managerService)
         {
-            throw new NotImplementedException();
+            this.managerService = managerService;
+        }
+
+        /// <summary>
+        /// Gets stats from the store.
+        /// Example: https://localhost:5004/macinventory/macaddressstats
+        /// </summary>
+        /// <returns></returns>
+        public async Task<IEnumerable<MacAddressStats>> GetStatsAsync()
+        {
+            return await this.managerService.GetMacAddressStatsAsync();
         }
     }
 }

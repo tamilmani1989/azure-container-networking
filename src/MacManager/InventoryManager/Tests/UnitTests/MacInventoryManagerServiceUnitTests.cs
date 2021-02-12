@@ -9,6 +9,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager.UnitTests
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.MacInventoryManager.DataAccess;
     using Microsoft.Azure.ContainerNetworking.MacManager.Common;
@@ -175,6 +176,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager.UnitTests
             {
                 Address = range.RangeStart,
                 ETag = "testetag",
+                IsBlocked = true
             });
 
             this.addressComponentMock
@@ -193,6 +195,61 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager.UnitTests
             this.initializationState.IsInitialized = false;
             await Assert.ThrowsAsync<InvalidOperationException>(() => { return service.UpdateRangeAsync(null); });
             await Assert.ThrowsAsync<InvalidOperationException>(() => { return service.GetRangesAsync(); });
+        }
+
+
+        [Fact]
+        public async Task UpdateIsNoOp()
+        {
+            MacAddressRange range = new MacAddressRange();
+            range.RangeStart = "AAAAAAAAAAAA";
+            range.RangeEnd = "AAAAAAAAAAAA";
+
+            List<MacAddress> addresses = new List<MacAddress>();
+            addresses.Add(new MacAddress()
+            {
+                Address = range.RangeStart,
+                ETag = "testetag",
+            });
+
+            this.addressComponentMock
+            .Setup(_ => _.GetMacAddressesAsync(range.RangeStart, range.RangeEnd))
+            .ReturnsAsync(addresses);
+
+            await service.UpdateRangeAsync(range);
+
+            this.addressComponentMock.Verify(_ => _.UpsertMacAddressAsync(addresses[0]), Times.Never);
+            this.addressComponentMock.Verify(_ => _.UpsertMacAddressAsync(It.IsAny<MacAddress>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GetStats()
+        {
+            MacAddressRange range = new MacAddressRange();
+            range.RangeStart = "AAAAAAAAAAAA";
+            range.RangeEnd = "BAAAAAAAAAAA";
+            range.BlockedReason = "test block";
+
+            List<MacAddressRange> ranges = new List<MacAddressRange>();
+            ranges.Add(range);
+            this.rangeComponentMock.Setup(_ => _.GetRangesAsync()).ReturnsAsync(ranges);
+
+            long reservedCount = new Random().Next();
+            this.addressComponentMock
+            .Setup(_ => _.GetReservedCountAsync(range.RangeStart, range.RangeEnd))
+            .ReturnsAsync(reservedCount);
+
+            IEnumerable<MacAddressStats> stats = await service.GetMacAddressStatsAsync();
+
+            Assert.Single(stats);
+            MacAddressStats stats1 = stats.First();
+            Assert.Equal(range.RangeStart, stats1.RangeStart);
+            Assert.Equal(range.RangeEnd, stats1.RangeEnd);
+            Assert.Equal(range.BlockedReason, stats1.BlockedReason);
+
+            (long start, long end) = range.ConvertRanges();
+            Assert.Equal((end - start) + 1, stats1.TotalCount);
+            Assert.Equal(reservedCount, stats1.ReservedCount);
         }
     }
 }

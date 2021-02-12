@@ -8,17 +8,28 @@
 namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
 {
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.Cosmos;
     
     internal sealed class MacAddressComponent : IMacAddressComponent
     {
-        private readonly Container container;
+        private readonly CosmosClientProvider clientProvider;
+        private Container container;
 
         public MacAddressComponent(CosmosClientProvider clientProvider)
         {
-            this.container = clientProvider.CosmosClient.GetContainer(MacManagerConstants.DatabaseName, MacManagerConstants.MacAddressContainerName);
+            this.clientProvider = clientProvider;
+        }
+
+        private Container GetContainer()
+        {
+            if (this.container == null)
+            {
+                this.container = clientProvider.CosmosClient.GetContainer(MacManagerConstants.DatabaseName, MacManagerConstants.MacAddressContainerName);
+            }
+            return this.container;
         }
 
         public async Task<List<MacAddress>> GetMacAddressesAsync(string rangeStart, string rangeEnd)
@@ -28,7 +39,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
                 .WithParameter("@rangeEnd", rangeEnd);
 
             List<MacAddress> addresses = new List<MacAddress>();
-            using (FeedIterator<MacAddress> iterator = this.container.GetItemQueryIterator<MacAddress>(query))
+            using (FeedIterator<MacAddress> iterator = this.GetContainer().GetItemQueryIterator<MacAddress>(query))
             {
                 while (iterator.HasMoreResults)
                 {
@@ -42,7 +53,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
         public async Task<List<MacAddress>> GetMacAddressesAsync(QueryDefinition query)
         {
             List<MacAddress> addresses = new List<MacAddress>();
-            using (FeedIterator<MacAddress> iterator = this.container.GetItemQueryIterator<MacAddress>(query))
+            using (FeedIterator<MacAddress> iterator = this.GetContainer().GetItemQueryIterator<MacAddress>(query))
             {
                 while (iterator.HasMoreResults)
                 {
@@ -53,9 +64,45 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
             return addresses;
         }
 
+        public async Task<long> GetReservedCountAsync(string rangeStart, string rangeEnd)
+        {
+            QueryDefinition query = new QueryDefinition($"SELECT VALUE COUNT(1) FROM {MacManagerConstants.MacAddressContainerName} m WHERE m.id >= @rangeStart AND m.id <= @rangeEnd AND m.ReservedBy <> null")
+            .WithParameter("@rangeStart", rangeStart)
+            .WithParameter("@rangeEnd", rangeEnd);
+
+            List<MacAddress> addresses = new List<MacAddress>();
+            using (FeedIterator<long> iterator = this.GetContainer().GetItemQueryIterator<long>(query))
+            {
+                while (iterator.HasMoreResults)
+                {
+                    return (await iterator.ReadNextAsync()).First();
+                }
+            }
+
+            return 0;
+        }
+
+        public async Task<long> GetCountAsync(string rangeStart, string rangeEnd)
+        {
+            QueryDefinition query = new QueryDefinition($"SELECT VALUE COUNT(1) FROM {MacManagerConstants.MacAddressContainerName} m WHERE m.id >= @rangeStart AND m.id <= @rangeEnd")
+            .WithParameter("@rangeStart", rangeStart)
+            .WithParameter("@rangeEnd", rangeEnd);
+
+            List<MacAddress> addresses = new List<MacAddress>();
+            using (FeedIterator<long> iterator = this.GetContainer().GetItemQueryIterator<long>(query))
+            {
+                while (iterator.HasMoreResults)
+                {
+                    return (await iterator.ReadNextAsync()).First();
+                }
+            }
+
+            return 0;
+        }
+
         public Task UpsertMacAddressAsync(MacAddress address)
         {
-            return this.container.UpsertItemAsync(address, requestOptions: new ItemRequestOptions { IfMatchEtag = address.ETag });
+            return this.GetContainer().UpsertItemAsync(address, requestOptions: new ItemRequestOptions { IfMatchEtag = address.ETag });
         }
     }
 }

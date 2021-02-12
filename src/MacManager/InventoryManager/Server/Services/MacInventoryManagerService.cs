@@ -159,6 +159,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
                         List<Task> tasks = new List<Task>();
                         foreach (string address in macAddressesToProcess)
                         {
+                            bool update = false;
                             if (!existingItems.TryGetValue(address, out MacAddress macAddress))
                             {
                                 macAddress = new MacAddress()
@@ -166,13 +167,18 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
                                     Address = address,
                                     IsBlocked = range.IsBlocked
                                 };
+                                update = true;
                             }
-                            else
+                            else if (macAddress.IsBlocked != range.IsBlocked)
                             {
                                 macAddress.IsBlocked = range.IsBlocked;
+                                update = true;
                             }
 
-                            tasks.Add(UpsertMacAddressWithRetryAsync(macAddress, failures));
+                            if (update)
+                            {
+                                tasks.Add(UpsertMacAddressWithRetryAsync(macAddress, failures));
+                            }
                         }
 
                         await Task.WhenAll(tasks);
@@ -224,6 +230,30 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
         {
             this.EnsureInitialized();
             return this.rangeComponent.GetRangesAsync();
+        }
+
+        public async Task<IEnumerable<MacAddressStats>> GetMacAddressStatsAsync()
+        {
+            this.EnsureInitialized();
+
+            List<MacAddressRange> ranges = await rangeComponent.GetRangesAsync();
+            List<MacAddressStats> stats = new List<MacAddressStats>(ranges.Count);
+
+            foreach (MacAddressRange range in ranges)
+            {
+                MacAddressStats stat = new MacAddressStats();
+                stat.BlockedReason = range.BlockedReason;
+                stat.RangeStart = range.RangeStart;
+                stat.RangeEnd = range.RangeEnd;
+
+                (long start, long end) = range.ConvertRanges();
+                stat.TotalCount = end - start + 1;
+                stat.ReservedCount = await addressComponent.GetReservedCountAsync(range.RangeStart, range.RangeEnd);
+
+                stats.Add(stat);
+            }
+
+            return stats;
         }
     }
 }

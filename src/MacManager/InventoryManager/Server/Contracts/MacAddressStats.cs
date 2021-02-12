@@ -20,13 +20,18 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
         public string RangeEnd { get; set; }
 
         /// <summary>
+        /// If set the range will not be used.
+        /// </summary>
+        public string BlockedReason { get; set; }
+
+        /// <summary>
         /// The total count of mac addresses in the range
         /// </summary>
-        public int TotalCount { get; set; }
+        public long TotalCount { get; set; }
 
         /// <summary>
         /// The reserved count of mac addresses in the range
         /// </summary>
-        public int ReservedCount { get; set; }
+        public long ReservedCount { get; set; }
     }
 }

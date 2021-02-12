@@ -65,7 +65,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
             services.AddMacManagerCommonServices();
 
             services.AddHttpContextAccessor();
-            //services.AddHealthChecks().AddCheck<HealthCheck>("dncrp_health_check");
+            services.AddHealthChecks().AddCheck<HealthCheck>("macinventorymanager_health_check");
 
             services.AddControllers();
             services.AddMdmServices(Configuration);
@@ -92,25 +92,25 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
             {
                 endpoints.MapControllers();
 
-                //endpoints.MapHealthChecks("/health", new HealthCheckOptions
-                //{
-                //    ResponseWriter = async (context, report) =>
-                //    {
-                //        var result = JsonConvert.SerializeObject(
-                //                         new HealthResult
-                //                         {
-                //                             Uptime = report.Entries.FirstOrDefault().Value.Description
-                //                         },
-                //                         Formatting.None,
-                //                         new JsonSerializerSettings
-                //                         {
-                //                             NullValueHandling = NullValueHandling.Ignore
-                //                         }); ; ;
+                endpoints.MapHealthChecks("/health", new HealthCheckOptions
+                {
+                    ResponseWriter = async (context, report) =>
+                    {
+                        var result = JsonConvert.SerializeObject(
+                                         new HealthResult
+                                         {
+                                             Uptime = report.Entries.FirstOrDefault().Value.Description
+                                         },
+                                         Formatting.None,
+                                         new JsonSerializerSettings
+                                         {
+                                             NullValueHandling = NullValueHandling.Ignore
+                                         }); ; ;
 
-                //        context.Response.ContentType = MediaTypeNames.Application.Json;
-                //        await context.Response.WriteAsync(result);
-                //    }
-                //}).RequireAuthorization();
+                        context.Response.ContentType = MediaTypeNames.Application.Json;
+                        await context.Response.WriteAsync(result);
+                    }
+                });
             });
         }
     }

@@ -25,7 +25,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager.Controllers
         /// <summary>
         /// Writes a MacAddressRange to the store and flattens it out, so it's available
         /// to the allocator. 
-        /// Example: PUT/POST https://localhost:5004/macaddressranges 
+        /// Example: PUT/POST https://localhost:5004/macinventory/macaddressranges 
         /// With JSON body: 
         /// { "RangeStart": "AAAAAAAAAAAA", "RangeEnd": "AAAAAAAAAAAA", "BlockedReason": "" }
         /// </summary>
@@ -40,7 +40,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager.Controllers
 
         /// <summary>
         /// Gets the ranges from the store.
-        /// Example: GET https://localhost:5004/macaddressranges
+        /// Example: GET https://localhost:5004/macinventorymacaddressranges
         /// </summary>
         /// <returns></returns>
         [HttpGet]

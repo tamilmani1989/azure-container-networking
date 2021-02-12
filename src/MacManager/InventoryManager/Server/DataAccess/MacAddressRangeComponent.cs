@@ -16,24 +16,35 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager.DataAccess
 
     internal sealed class MacAddressRangeComponent : IMacAddressRangeComponent
     {
-        private readonly Container container;
+        private readonly CosmosClientProvider clientProvider;
+        private Container container;
 
         public MacAddressRangeComponent(CosmosClientProvider clientProvider)
         {
-            this.container = clientProvider.CosmosClient.GetContainer(MacManagerConstants.DatabaseName, MacManagerConstants.MacAddressRangesContainerName);
+            this.clientProvider = clientProvider;
+        }
+
+        private Container GetContainer()
+        {
+            if (this.container == null)
+            {
+                this.container = clientProvider.CosmosClient.GetContainer(MacManagerConstants.DatabaseName, MacManagerConstants.MacAddressRangesContainerName);
+            }
+
+            return container;
         }
 
         public async Task UpsertRangeAsync(MacAddressRange range)
         {
             range.LastUpdated = DateTime.UtcNow;
-            await this.container.UpsertItemAsync(range);
+            await this.GetContainer().UpsertItemAsync(range);
         }
 
         public async Task<List<MacAddressRange>> GetRangesAsync()
         {
             List<MacAddressRange> ranges = new List<MacAddressRange>();
 
-            using (FeedIterator<MacAddressRange> iterator = this.container.GetItemQueryIterator<MacAddressRange>())
+            using (FeedIterator<MacAddressRange> iterator = this.GetContainer().GetItemQueryIterator<MacAddressRange>())
             {
                 while (iterator.HasMoreResults)
                 {

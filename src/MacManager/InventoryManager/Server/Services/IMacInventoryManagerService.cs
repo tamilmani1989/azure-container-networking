@@ -14,5 +14,6 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
     {
         Task<List<MacAddressRange>> GetRangesAsync();
         Task<MacAddressRange> UpdateRangeAsync(MacAddressRange range);
+        Task<IEnumerable<MacAddressStats>> GetMacAddressStatsAsync();
     }
 }

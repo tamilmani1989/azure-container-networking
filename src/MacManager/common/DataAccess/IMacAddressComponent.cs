@@ -17,5 +17,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
         Task<List<MacAddress>> GetMacAddressesAsync(string rangeStart, string rangeEnd);
         Task<List<MacAddress>> GetMacAddressesAsync(QueryDefinition query);
         Task UpsertMacAddressAsync(MacAddress address);
+        Task<long> GetReservedCountAsync(string rangeStart, string rangeEnd);
+        Task<long> GetCountAsync(string rangeStart, string rangeEnd);
     }
 }
