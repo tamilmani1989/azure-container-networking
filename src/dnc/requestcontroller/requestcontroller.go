@@ -128,6 +128,7 @@ type CleanupConfig struct {
 	ConfigMapName      string `json:"configMapName,omitempty"`
 	ConfigMapNamespace string `json:"configMapNamespace,omitempty"`
 	PollingInterval    string `json:"pollingInterval,omitempty"`
+	SuccessSafetyValue string `json:"successSafetyValue,omitempty"`
 }
 
 // ConfigProvider provides a Config via GetConfig

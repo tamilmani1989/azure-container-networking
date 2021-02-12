@@ -335,7 +335,7 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 		Signal: CleanupSignal{
 			ConfigMapName:        config.CleanupConfig.ConfigMapName,
 			ConfigMapNamespace:   config.CleanupConfig.ConfigMapNamespace,
-			ConfigMapSafetyValue: config.DataStoreSettings.AzureStorageInfo.PartitionKey, // TODO: (matlong) this is always set in AKS scenario, but what if other scenarios need cleanup signal?
+			ConfigMapSafetyValue: config.CleanupConfig.SuccessSafetyValue,
 		},
 		NNCNamespace: config.KubernetesConfig.Namespace,
 	})
