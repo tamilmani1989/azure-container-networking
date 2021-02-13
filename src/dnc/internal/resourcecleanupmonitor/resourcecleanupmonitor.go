@@ -124,10 +124,10 @@ func (m *ResourceCleanupMonitor) removeIPAllocations(ncid string, resource datam
 			return err
 		}
 
-		// construct a map for faster queries
+		// construct a map for faster queries based on RowKey (which is an IPAddress)
 		allocationsWithNCID := make(map[string]datamodel.IPAllocationEntity)
 		for _, entity := range allocationEntities {
-			allocationsWithNCID[entity.IPAllocation] = entity
+			allocationsWithNCID[entity.RowKey] = entity
 		}
 
 		// check to make sure that all IP's to be cleaned up have the matching ToBeDeletedOwner from the cleanup resource

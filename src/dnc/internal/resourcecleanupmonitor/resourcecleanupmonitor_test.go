@@ -39,7 +39,6 @@ func getTestDataStore() *testpersistencestore.TestPersistenceStore {
 
 // TODO: finish integration test with ncpendingpublish and ipallocation tables
 func TestResourceCleanupMonitor_ProcessResourceCleanup(t *testing.T) {
-
 	type fields struct {
 		IsPrimary                       bool
 		ipAllocator                     *networkcontainer.IPAllocator
@@ -70,7 +69,14 @@ func TestResourceCleanupMonitor_ProcessResourceCleanup(t *testing.T) {
 						QueryErr: nil,
 					},
 					Reservations: nil,
-					Allocations:  &fakes.AllocationRepo{},
+					Allocations: &fakes.AllocationRepo{
+						Data: []datamodel.IPAllocationEntity{
+							{RowKey: "192.168.0.1_32", IPAllocation: "", AllocationID: "uuid0", ToBeDeletedOwner: testNCID},
+							{RowKey: "192.168.0.2_32", IPAllocation: "", AllocationID: "uuid1", ToBeDeletedOwner: testNCID},
+							{RowKey: "172.16.0.20_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid2"},
+							{RowKey: "172.16.0.21_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid3"},
+						},
+					},
 					Logger:       logger,
 					MaxBatchSize: 0,
 				},
@@ -89,7 +95,7 @@ func TestResourceCleanupMonitor_ProcessResourceCleanup(t *testing.T) {
 						CleanupContext: datamodel.CleanupContext{
 							Type: datamodel.IPCleanup,
 							ToBeDeletedIpAllocations: map[string][]string{
-								fmt.Sprintf("%s_%s", testNetworkID, testSubnetName): {"192.168.0.1/32", "192.168.0.2/32"},
+								fmt.Sprintf("%s_%s", testNetworkID, testSubnetName): {"192.168.0.1_32", "192.168.0.2_32"},
 							},
 						},
 						Etag: testEtag,
@@ -118,7 +124,12 @@ func TestResourceCleanupMonitor_ProcessResourceCleanup(t *testing.T) {
 						QueryErr: nil,
 					},
 					Reservations: nil,
-					Allocations:  &fakes.AllocationRepo{},
+					Allocations: &fakes.AllocationRepo{
+						Data: []datamodel.IPAllocationEntity{
+							{RowKey: "192.168.0.1_32", IPAllocation: "", AllocationID: "uuid0", ToBeDeletedOwner: testNCID},
+							{RowKey: "192.168.0.2_32", IPAllocation: "", AllocationID: "uuid1", ToBeDeletedOwner: testNCID},
+							{RowKey: "172.16.0.20_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid2"},
+							{RowKey: "172.16.0.21_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid3"}}},
 					Logger:       logger,
 					MaxBatchSize: 0,
 				},
@@ -129,7 +140,7 @@ func TestResourceCleanupMonitor_ProcessResourceCleanup(t *testing.T) {
 						CleanupContext: datamodel.CleanupContext{
 							Type: datamodel.IPCleanup,
 							ToBeDeletedIpAllocations: map[string][]string{
-								fmt.Sprintf("%s_%s", testNetworkID, testSubnetName): {"192.168.0.1/32", "192.168.0.2/32"},
+								fmt.Sprintf("%s_%s", testNetworkID, testSubnetName): {"192.168.0.1_32", "192.168.0.2_32"},
 							},
 						},
 						Etag: testEtag,
