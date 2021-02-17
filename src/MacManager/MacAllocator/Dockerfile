@@ -8,7 +8,7 @@
 #   c. Run docker build as below
 #      docker build -t acnprod.azurecr.io/macallocator:version -f MacManager/MacAllocator/Dockerfile --no-cache --build-arg FEED_ACCESSTOKEN=<PAT> --build-arg USERNAME=<username>.
 #
-#   ex1. docker build -t acnprod.azurecr.io/macallocator:latest -f MacManager/MacAllocator/Dockerfile --no-cache --build-arg FEED_ACCESSTOKEN=abcdef --build-arg USERNAME=ghij
+#   ex1. docker build -t acnprod.azurecr.io/macallocator:latest -f MacManager/MacAllocator/Dockerfile --no-cache --build-arg FEED_ACCESSTOKEN=abcdef --build-arg USERNAME=ghij .
 #   ex2. docker build -t acndev.azurecr.io/macallocator:latest -f MacManager/MacAllocator/Dockerfile --no-cache --build-arg FEED_ACCESSTOKEN=abcdefghijk --build-arg USERNAME=ghij .
 #
 #   For local/dev testing, set ASPNETCORE_ENVIRONMENT to "Development" and also set AzureServicesAuthConnectionString retrieved from keyvault. you can set these values in --build arg.
