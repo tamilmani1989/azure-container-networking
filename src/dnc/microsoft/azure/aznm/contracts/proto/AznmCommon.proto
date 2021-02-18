@@ -1,0 +1,175 @@
+// -----------------------------------------------------------------------
+// <copyright file="Common.proto" company="Microsoft Corporation">
+//     Copyright (c) Microsoft Corporation. All rights reserved.
+// </copyright>
+// -----------------------------------------------------------------------
+
+// Generated code. DO NOT MODIFY MANUALLY
+
+syntax = "proto3";
+package Microsoft.Azure.AzNM.Contracts;
+
+option go_package = "microsoft/azure/aznm/contracts";
+
+// The request type.
+enum RequestType {
+    RequestType_Unknown = 0;
+    RequestType_Read = 1; // The read request type.
+    RequestType_Write = 2; // The write request type.
+    RequestType_Delete = 3; // The delete request type.
+}
+
+// The micro-service type.
+enum MicroserviceType {
+    MicroserviceType_Unknown = 0;
+    MicroserviceType_Gateway = 1; // The gateway type.
+    MicroserviceType_PartitionManager = 2; // The partition manager type.
+    MicroserviceType_NetworkContainerManager = 3; // The network container manager type.
+    MicroserviceType_NetworkInventoryManager = 4; // The network inventory manager type.
+}
+
+// The InfiniBandAdapter type.
+enum InfiniBandAdapterType {
+    InfiniBandAdapterType_Unknown = 0;
+    InfiniBandAdapterType_CX3Pro = 1; // The InfiniBandAdapter type for PF_GID.
+    InfiniBandAdapterType_CX5 = 2; // The InfiniBandAdapter type for VF_GID.
+}
+
+// The VLAN type.
+enum VlanType {
+    VlanType_Unknown = 0;
+    VlanType_Regular = 1; // The regular (front-end) VLAN type.
+    VlanType_Backend = 2; // The back-end VLAN type.
+}
+
+// The publishing type.
+enum PublishingType {
+    PublishingType_Unknown = 0;
+    PublishingType_CreateUpdate = 1; // The create update request type.
+    PublishingType_Delete = 2; // The write request type.
+    PublishingType_DeleteRecursively = 3; // The delete recursively request type.
+}
+
+// The IP address family. Enum values should match System.Net.Sockets.AddressFamily
+enum AddressFamily {
+    AddressFamily_Unknown = 0;
+    AddressFamily_InterNetwork = 2;
+    AddressFamily_InterNetworkV6 = 23;
+}
+
+// The GenericTaskStatus type. Used by GenericTask and GenericTaskGroup.
+enum GenericTaskStatus {
+    GenericTaskStatus_NotStarted = 0; // The object has not started being processed.
+    GenericTaskStatus_Running = 1; // The object is currently being processed.
+}
+
+// The data model object method type.
+enum DataModelObjectMethodType {
+    DataModelObjectMethodType_Unknown = 0;
+    DataModelObjectMethodType_Create = 1; // Create method.
+    DataModelObjectMethodType_Update = 2; // Update method.
+    DataModelObjectMethodType_Delete = 3; // Delete method.
+}
+
+// The state for on entry action in a state machine.
+enum StateMachineOnEntry {
+    StateMachineOnEntry_Unknown = 0; // Action state is unknown.
+    StateMachineOnEntry_Completed = 1; // Action has completed running.
+}
+
+// The universally unique identifier (also known as GUID).
+message Uuid {
+    uint64 HighBits = 10; // The higher 64 bits.
+    uint64 LowBits = 11; // The lower 64 bits.
+}
+
+// Identifier for GenericTask and GenericTaskGroup.
+message GenericKey {
+    string Context = 10; // The context for the key.
+    string Id = 11; // The id for the key.
+}
+
+// Blade information.
+message BladeInformation {
+    Uuid Id = 10; // Blade Id.
+    IPAddress IP = 11; // IP address.
+}
+
+// Publishing content.
+message PublishingContent {
+    bytes Content = 10; // Publishing content.
+}
+
+// The IPv4 or IPv6 address.
+message IPAddress {
+    AddressFamily AddressFamily = 10; // The address family.
+    uint64 HighBits = 11; // The higher 64 bits.
+    uint64 LowBits = 12; // The lower 64 bits.
+}
+
+// The IPv4 or IPv6 subnet.
+message IPSubnet {
+    IPAddress NetworkAddress = 10; // The IPv4 or IPv6 network address.
+    uint32 PrefixLength = 11; // The prefix length.
+}
+
+// The IPv4 or IPv6 address range.
+message IPAddressRange {
+    IPAddress FirstAddress = 10; // The first IP address.
+    IPAddress LastAddress = 11; // The last IP address.
+}
+
+// The MAC address.
+message MacAddress {
+    uint64 Address = 10; // The MAC address in uint64.
+}
+
+// The MAC address range.
+message MacAddressRange {
+    MacAddress FirstAddress = 10; // The first MAC address.
+    MacAddress LastAddress = 11; // The last MAC address.
+}
+
+// The request context used as the 1st field in all *Request messages for gRPC.
+message RequestContext {
+    repeated string ActivityIds = 10; // Collection of activity ids (used for OpenTelemetry tracing). The last activity id will be used as parent id when creating new activity for gRPC operation.
+}
+
+// The container identifier.
+message ContainerIdentifier {
+    Uuid LogicalContainerId = 10; // The logical container id.
+    Uuid ContainerId = 11; // The container id.
+}
+
+// The live migration (LM) context.
+message LiveMigrationContext {
+    Uuid SourceContainerId = 10; // The source container id.
+    Uuid TargetContainerId = 11; // The target container id.
+    Uuid SessionId = 12; // The session id.
+}
+
+// Holds the state of a state machine.
+message StateMachineState {
+    string State = 10; // The state of a state machine.
+    StateMachineOnEntry OnEntry = 11; // The state of the on entry action in the current state.
+}
+
+// The list of uint32 numbers.
+message Uint32List {
+    repeated uint32 Items = 10; // All uint32 numbers.
+}
+
+// The list of universally unique identifiers.
+message UuidList {
+    repeated Uuid Items = 10; // All Uuids.
+}
+
+// The list of blade information.
+message BladeList {
+    repeated BladeInformation Blades = 10; // All blades.
+}
+
+// The list of strings.
+message StringList {
+    repeated string Items = 10; // All strings.
+}

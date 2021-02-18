@@ -17,6 +17,14 @@ const (
 
 	// NetworkContainerUnpublishRequest - Unpublish NC request
 	NetworkContainerUnpublishRequest
+
+	// BareMetalNetworkContainerPublishRequest - Publish BM container
+	// (Different from regular NC, as this goes via AZNM)
+	BareMetalNetworkContainerPublishRequest
+
+	// BareMetalNetworkContainerUnpublishRequest - Unpublish BM container
+	// (Different from regular NC, as this goes via AZNM)
+	BareMetalNetworkContainerUnpublishRequest
 )
 
 func (operationType NcOperationType) String() string {
@@ -47,6 +55,15 @@ type NcPendingPublishRequestContext struct {
 	CreatedDateTime     time.Time
 	LastRetriedDateTime time.Time
 	RetryInterval       time.Duration
+	PodName             string
+	NetworkInterfaces   []NetworkInterfacesPublishingContext
+}
+
+// TO DO: Enhance this similar to PublishingJobContext
+type NetworkInterfacesPublishingContext struct {
+	Key  string
+	Path string
+	Data []byte
 }
 
 // String - ToString implementation of request context.

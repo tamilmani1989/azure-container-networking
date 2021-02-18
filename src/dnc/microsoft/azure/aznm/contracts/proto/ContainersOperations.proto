@@ -1,0 +1,49 @@
+// -----------------------------------------------------------------------
+// <copyright file="ContainersOperations.proto" company="Microsoft Corporation">
+//     Copyright (c) Microsoft Corporation. All rights reserved.
+// </copyright>
+// -----------------------------------------------------------------------
+
+syntax = "proto3";
+package Microsoft.Azure.AzNM.Contracts.ContainersProtocol;
+
+option go_package = "microsoft/azure/aznm/contracts/containersprotocol";
+
+import "AznmCommon.proto";
+import "Containers.proto";
+
+// -----------------------------------------------------------------------
+// Please implement <IRequestContext> interface for each request message
+// in ContainersOperations.cs
+// -----------------------------------------------------------------------
+
+message UpdateContainerRequest {
+    RequestContext Context = 1;
+    Container Container = 11;
+}
+
+message UpdateContainerResponse {
+}
+
+message DeleteContainerRequest {
+    RequestContext Context = 1;
+    ContainerIdentifier ContainerIdentifier = 11;
+}
+
+message DeleteContainerResponse {
+}
+
+message GetLegacyContainerConfigurationRequest {
+    RequestContext Context = 1;
+    ContainerIdentifier ContainerIdentifier = 11;
+}
+
+message GetLegacyContainerConfigurationResponse {
+    repeated LegacyInterfaceConfiguration InterfaceConfigurations = 11;
+}
+
+service NetworkContainerService {
+    rpc UpdateContainer(UpdateContainerRequest) returns (UpdateContainerResponse) {}
+    rpc DeleteContainer(DeleteContainerRequest) returns (DeleteContainerResponse) {}
+    rpc GetLegacyContainerConfiguration(GetLegacyContainerConfigurationRequest) returns (GetLegacyContainerConfigurationResponse) {}
+}

@@ -17,9 +17,9 @@ func (m *MacAllocator) ProcessAllocateMAC(ncConfig *datamodel.NCConfiguration) (
 	m.Logger.Debugf("The container type is : %s", containerType)
 
 	// TODO: assign the real MAC address here.
-	m.Logger.Debugf("Setting dummy MAC address.")
 	ncConfig.State = datamodel.Publish
-	ncConfig.MACAddress = "TempMAC"
+	ncConfig.MACAddress = "A1B1C1D1E1F1"
+	m.Logger.Debugf("Setting dummy MAC address: %s", ncConfig.MACAddress)
 
 	err := m.markNCToPublish(ncConfig)
 	return false, err

@@ -93,7 +93,21 @@ const (
 	VnetRegister
 	VnetUnregister
 	VnetUpdate
+	BareMetalContainerPublish
+	BareMetalContainerUnpublish
+	InvalidJobType // do not change the position
 )
+
+// TO DO: Consider make it as Context Selector, and
+// an array of relative path + data
+// this it is easy to process it as a batch, check/create context selector first,
+// and then publish data. for Unpublish, process this as unit in reverse
+// unpublish first, and then remove context selector.
+type PublishJobContext struct {
+	Key  string
+	Path string
+	Data []byte
+}
 
 // jobContext contains the info about the job
 type jobContext struct {
@@ -105,6 +119,7 @@ type jobContext struct {
 	lastRetriedDateTime time.Time
 	createdDateTime     time.Time
 	retryInterval       time.Duration
+	secondarys          []PublishJobContext
 }
 
 // Job define job interface
@@ -152,6 +167,12 @@ func (jobType jobType) String() string {
 
 	case VnetUpdate:
 		return "VnetUpdate"
+
+	case BareMetalContainerPublish:
+		return "BareMetalContainerPublish"
+
+	case BareMetalContainerUnpublish:
+		return "BareMetalContainerUnpublish"
 	}
 
 	return "Unknown Type"
@@ -200,8 +221,8 @@ func processNcPendingRequests() {
 		}
 
 		if time.Now().UTC().Sub(requestContext.LastRetriedDateTime) > requestContext.RetryInterval {
-			if (requestContext.Type != datamodel.NetworkContainerPublishRequest) &&
-				(requestContext.Type != datamodel.NetworkContainerUnpublishRequest) {
+			// Check the request type
+			if !isValidPubSubJob(requestContext.Type) {
 				loggershim.LS.Errorf("[PubSubProxy] Unknown type for NC pending publish context: %+v. "+
 					"Deleting the entry from the table.", requestContext)
 				datamodel.RemoveNcPendingPublishContext(requestContext.NetworkID,
@@ -211,31 +232,55 @@ func processNcPendingRequests() {
 
 			jobId := createNcJobId(requestContext.NetworkID,
 				requestContext.NetworkContainerID, requestContext.PubsubAzId)
+
+			// move this out the loop
+			var secondaryContext []PublishJobContext
+
+			// TO DO : Move this to a separate function
+			var contextSelector, path string
+			if (requestContext.Type == datamodel.BareMetalNetworkContainerPublishRequest) ||
+				(requestContext.Type == datamodel.BareMetalNetworkContainerUnpublishRequest) {
+				contextSelector = getAzContainerPublishingContextSelector(requestContext.PodName)
+				path = getAzContainerPublishingPath()
+
+				for _, networkInterface := range requestContext.NetworkInterfaces {
+					var pubJobContext PublishJobContext
+
+					// Add config Path
+					pubJobContext.Key = networkInterface.Key
+					pubJobContext.Path = networkInterface.Path
+					pubJobContext.Data = networkInterface.Data
+					secondaryContext = append(secondaryContext, pubJobContext)
+				}
+
+			} else {
+				contextSelector = generateVnetPartitionKey(requestContext.InfraNetworkID)
+				path = generateVnetNcPath(requestContext.NodeInterfaceIP, requestContext.NetworkContainerID)
+			}
+
+			loggershim.LS.Errorf("[PubSubProxy] Setting the context selector: Path : %s.",
+				contextSelector,
+				path)
 			jobContext := jobContext{
 				id:              jobId,
 				pubsubAzId:      requestContext.PubsubAzId,
-				partitionKey:    generateVnetPartitionKey(requestContext.InfraNetworkID),
-				relativePath:    generateVnetNcPath(requestContext.NodeInterfaceIP, requestContext.NetworkContainerID),
+				partitionKey:    contextSelector,
+				relativePath:    path,
 				createdDateTime: requestContext.CreatedDateTime,
 				retryInterval:   requestContext.RetryInterval,
+				secondarys:      secondaryContext,
 			}
 
+			// No need to check error, as the type has been validated above
+			pubsubJobType, _ := getJobType(requestContext.Type)
+
 			var job Job
-			if requestContext.Type == datamodel.NetworkContainerPublishRequest {
-				jobContext.jobType = NetworkContainerPublish
-				job = &ncJob{
-					context: jobContext,
-					ncId:    requestContext.NetworkContainerID,
-					vnetId:  requestContext.NetworkID,
-					ncData:  requestContext.NcData,
-				}
-			} else if requestContext.Type == datamodel.NetworkContainerUnpublishRequest {
-				jobContext.jobType = NetworkContainerUnpublish
-				job = &ncJob{
-					context: jobContext,
-					ncId:    requestContext.NetworkContainerID,
-					vnetId:  requestContext.NetworkID,
-				}
+			jobContext.jobType = pubsubJobType
+			job = &ncJob{
+				context: jobContext,
+				ncId:    requestContext.NetworkContainerID,
+				vnetId:  requestContext.NetworkID,
+				ncData:  requestContext.NcData,
 			}
 
 			workerPool().scheduleJob(job)
@@ -340,6 +385,146 @@ func (job *ncJob) process() error {
 		err = publishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath, job.ncData)
 	} else if jobContext.jobType == NetworkContainerUnpublish {
 		err = unpublishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath)
+	} else if jobContext.jobType == BareMetalContainerPublish {
+
+		loggershim.LS.Debugf("[PubSubProxy] JobId: %s. Creating context selector: %s",
+			jobContext.id, jobContext.partitionKey)
+
+		if err = createContextSelector(jobContext.pubsubAzId, jobContext.partitionKey); err == nil {
+			// wait for the context selector to complete
+			statusError := getPublishStatusError(jobContext.pubsubAzId, jobContext.partitionKey)
+			if statusError != nil {
+				err = statusError
+			} else {
+				loggershim.LS.Debugf("[PubSubProxy] JobId: %s. Publishing to context selector: %s, path: %s",
+					jobContext.id, jobContext.partitionKey, jobContext.relativePath)
+
+				err = publishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath, job.ncData)
+			}
+
+			statusError = getPublishStatusError(jobContext.pubsubAzId, path)
+			if statusError != nil {
+				err = statusError
+			} else {
+				keys := make(map[string]struct{})
+				// reset path
+				path = ""
+
+				for _, secondaryJob := range jobContext.secondarys {
+					// wait for publish job from the previous loop to finish (if paplicable)
+					if path != "" {
+						statusError = getPublishStatusError(jobContext.pubsubAzId, path)
+						if statusError != nil {
+							err = statusError
+							break
+						}
+					}
+
+					if _, ok := keys[secondaryJob.Key]; !ok {
+
+						loggershim.LS.Debugf("[PubSubProxy] JobId: %s. Creating context selector: %s",
+							jobContext.id, secondaryJob.Key)
+
+						if err = createContextSelector(jobContext.pubsubAzId, secondaryJob.Key); err == nil {
+							// wait for the context selector to complete
+							statusError = getPublishStatusError(jobContext.pubsubAzId, secondaryJob.Key)
+							if statusError != nil {
+								err = statusError
+								break
+							}
+
+							// put it in the context selector map
+							keys[secondaryJob.Key] = struct{}{}
+						} else {
+							break
+						}
+					}
+
+					loggershim.LS.Debugf("[PubSubProxy] JobId: %s. Publishing to context selector: %s, path: %s",
+						jobContext.id, secondaryJob.Key, secondaryJob.Path)
+
+					err = publishData(jobContext.pubsubAzId, secondaryJob.Key, secondaryJob.Path, secondaryJob.Data)
+					if err != nil {
+						break
+					}
+
+					path = secondaryJob.Key + secondaryJob.Path
+				}
+			}
+		}
+	} else if jobContext.jobType == BareMetalContainerUnpublish {
+
+		keys := make(map[string]struct{})
+		// reset path
+		path = ""
+
+		for _, secondaryJob := range jobContext.secondarys {
+			// wait for publish job from the previous loop to finish (if paplicable)
+			if path != "" {
+				statusError := getPublishStatusError(jobContext.pubsubAzId, path)
+				if statusError != nil {
+					err = statusError
+					break
+				}
+			}
+
+			loggershim.LS.Debugf("[PubSubProxy] JobId: %s. Unpublishing to context selector: %s, path: %s",
+				jobContext.id, secondaryJob.Key, secondaryJob.Path)
+
+			err = unpublishData(jobContext.pubsubAzId, secondaryJob.Key, secondaryJob.Path)
+			if err != nil {
+				break
+			}
+
+			keys[secondaryJob.Key] = struct{}{}
+			path = secondaryJob.Key + secondaryJob.Path
+		}
+
+		for partitionKey, _ := range keys {
+			// wait for publish job from the previous loop to finish (if paplicable)
+			if path != "" {
+				statusError := getPublishStatusError(jobContext.pubsubAzId, path)
+				if statusError != nil {
+					err = statusError
+					break
+				}
+			}
+
+			loggershim.LS.Debugf("[PubSubProxy] JobId: %s. Removing context selector: %s",
+				jobContext.id, partitionKey)
+
+			err = removeContextSelector(jobContext.pubsubAzId, partitionKey)
+			if err != nil {
+				break
+			}
+
+			path = partitionKey
+		}
+
+		statusError := getPublishStatusError(jobContext.pubsubAzId, path)
+		if statusError != nil {
+			err = statusError
+		} else {
+			// remove relative path first.
+			loggershim.LS.Debugf("[PubSubProxy] JobId: %s. Unpublishing to context selector: %s, path: %s",
+				jobContext.id, jobContext.partitionKey, jobContext.relativePath)
+
+			if err = unpublishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath); err == nil {
+				// wait for the context selector to complete
+				statusError := getPublishStatusError(jobContext.pubsubAzId, jobContext.partitionKey+jobContext.relativePath)
+				if statusError != nil {
+					err = statusError
+				} else {
+					// Need to reset the path, because by default we will look for partition key+ relative path
+					// but here there is no relative path, as we are
+					loggershim.LS.Debugf("[PubSubProxy] JobId: %s. Removing context selector: %s",
+						jobContext.id, jobContext.partitionKey)
+
+					path = jobContext.partitionKey
+					err = removeContextSelector(jobContext.pubsubAzId, jobContext.partitionKey)
+				}
+			}
+		}
 	} else {
 		err = fmt.Errorf("Unknown job type: %s for job: %s", jobContext.jobType, jobContext.id)
 	}
@@ -348,6 +533,7 @@ func (job *ncJob) process() error {
 		err = fmt.Errorf("%s: %s failed for NC: %s due to error: %v",
 			jobContext.jobType.String(), jobContext.id, job.ncId, err)
 	} else {
+		// This acts as an await for the async operation to finish.
 		statusError := getPublishStatusError(jobContext.pubsubAzId, path)
 		if statusError != nil {
 			err = statusError

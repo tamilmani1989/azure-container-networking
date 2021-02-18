@@ -5,6 +5,7 @@ package pubsubproxy
 import (
 	"dnc/api"
 	"dnc/configuration"
+	"dnc/datamodel"
 	"dnc/replica"
 	"fmt"
 	"net/http"
@@ -25,6 +26,7 @@ type PublishNetworkContainerRequest struct {
 	VirtualNetworkID string
 	VlanID           int
 	GreKey           int
+	PodName          string
 }
 
 type UnpublishNetworkContainerRequest struct {
@@ -76,6 +78,22 @@ func UnpublishNetworkContainer(
 		Code:       api.StatusInternalServerError,
 		HTTPStatus: http.StatusBadRequest,
 		Text:       fmt.Sprintf("PubSubProxy module build disabled. Build DNC using -tags enablePubsubProxy")}
+}
+
+func PublishBaremetalNetworkContainer(
+	ncGoalState *datamodel.NCGoalState,
+	repoNCConfig *datamodel.NCConfiguration) *api.JsonErr {
+	return api.InternalServerErrorf(
+		api.StatusBadRequest,
+		fmt.Sprintf("PubSubProxy module build disabled. Build DNC using -tags enablePubsubProxy"))
+}
+
+func UnpublishBaremetalNetworkContainer(
+	ncGoalState *datamodel.NCGoalState,
+	repoNCConfig *datamodel.NCConfiguration) *api.JsonErr {
+	return api.InternalServerErrorf(
+		api.StatusBadRequest,
+		fmt.Sprintf("PubSubProxy module build disabled. Build DNC using -tags enablePubsubProxy"))
 }
 
 // RegisterVnet subscribes for getting updates on the the vnet

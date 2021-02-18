@@ -200,20 +200,6 @@ func processAllocateLocalIP(
 
 	nodeID := repoNCConfig.GetAssociationInfo().NodeID
 
-	// Local IP allocation is not needed for bare-metal containers.
-	// In that case change the NC config state to AllocateMAC and return.
-	containerType := repoNCConfig.GetAssociationInfo().ContainerType
-	if api.IsBareMetalContainer(containerType) {
-		repoNCConfig.State = datamodel.AllocateMAC
-		repoNCConfig.Status = datamodel.Pending
-		repoNCConfig.FailureDetail = api.JsonErr{}
-		if err := datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ); err != nil {
-			return false, err
-		}
-
-		return true, nil
-	}
-
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
@@ -983,6 +969,8 @@ func publishNetworkContainerWithPubSubProxy(
 	sessionManager.EndWriteSession(sessionInfo)
 
 	var secondaryIPs []string
+	var publishError *api.JsonErr
+
 	for _, secIP := range ncGoalState.SecondaryIPs {
 		// split will always be at least len==1 with a non empty separator
 		secondaryIPs = append(secondaryIPs, strings.Split(secIP, "/")[0])
@@ -1003,7 +991,11 @@ func publishNetworkContainerWithPubSubProxy(
 		GreKey:           int(ncGoalState.GreKey),
 	}
 
-	publishError := pubsubproxy.PublishNetworkContainer(publishNcRequest)
+	if api.IsBareMetalContainer(repoNCConfig.GetAssociationInfo().ContainerType) {
+		publishError = pubsubproxy.PublishBaremetalNetworkContainer(ncGoalState, repoNCConfig)
+	} else {
+		publishError = pubsubproxy.PublishNetworkContainer(publishNcRequest)
+	}
 
 	// Reacquire the session locks after making call to PubSubProxy
 	sessionManager.BeginWriteSession(sessionInfo)
@@ -1444,6 +1436,9 @@ func unpublishNetworkContainerWithPubSubProxy(
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string,
 	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
+	var (
+		unpublishErr *api.JsonErr
+	)
 	// Release the session lock before making call to PubSubProxy
 	sessionManager.EndWriteSession(sessionInfo)
 
@@ -1457,7 +1452,11 @@ func unpublishNetworkContainerWithPubSubProxy(
 		SubnetAuthToken: ncGoalState.AccessToken,
 	}
 
-	unpublishErr := pubsubproxy.UnpublishNetworkContainer(unpublishNcRequest)
+	if api.IsBareMetalContainer(repoNCConfig.GetAssociationInfo().ContainerType) {
+		unpublishErr = pubsubproxy.UnpublishBaremetalNetworkContainer(ncGoalState, repoNCConfig)
+	} else {
+		unpublishErr = pubsubproxy.UnpublishNetworkContainer(unpublishNcRequest)
+	}
 
 	// Reacquire the session locks after making call to PubSubProxy
 	sessionManager.BeginWriteSession(sessionInfo)
@@ -1871,7 +1870,14 @@ func processNetworkContainerRequest(
 			}
 
 		case datamodel.AllocateLocalIP:
-			removeRequestFromPendingQueue, err = processAllocateLocalIP(repoNCConfig)
+
+			// Local IP allocation is not needed for bare-metal containers.
+			// In that case change the NC config state to AllocateMAC and return.
+			if api.IsBareMetalContainer(repoNCConfig.GetAssociationInfo().ContainerType) {
+				removeRequestFromPendingQueue, err = false, transitionNCTo(repoNCConfig, datamodel.AllocateMAC, datamodel.Pending)
+			} else {
+				removeRequestFromPendingQueue, err = processAllocateLocalIP(repoNCConfig)
+			}
 
 		case datamodel.AllocateMAC:
 			removeRequestFromPendingQueue, err = macAllocator.ProcessAllocateMAC(repoNCConfig)

@@ -1,0 +1,66 @@
+// -----------------------------------------------------------------------
+// <copyright file="Containers.proto" company="Microsoft Corporation">
+//     Copyright (c) Microsoft Corporation. All rights reserved.
+// </copyright>
+// -----------------------------------------------------------------------
+
+// Generated code. DO NOT MODIFY MANUALLY
+
+syntax = "proto3";
+package Microsoft.Azure.AzNM.Contracts.ContainersProtocol;
+
+option go_package = "microsoft/azure/aznm/contracts/containersprotocol";
+
+import "AznmCommon.proto";
+
+// The abstract base container type.
+message Container {
+    oneof Type {
+        VirtualMachineContainer VirtualMachineContainer = 10; // The virtual machine (VM) container.
+        NativeContainer NativeContainer = 11; // The native container (a physical machine).
+        BareMetalContainer BareMetalContainer = 12; // The bare-metal container.
+    }
+}
+
+// The virtual machine (VM) container.
+message VirtualMachineContainer {
+    Uuid Id = 1; // The container id.
+    Uuid LogicalContainerId = 10; // The logical container id.
+    uint64 Version = 11; // The configuration version.
+    Uuid BladeId = 12; // The blade id.
+    bool IsActivated = 14; // Whether the container is activated - whether the container should receive network traffic from SLB or VNET.
+    bool IsPreProvisioned = 101; // Whether the VM is pre-provisioned by the platform.
+    string SizePolicyName = 102; // The container size policy name.
+    LiveMigrationContext LiveMigrationContext = 104; // The live migration context.
+}
+
+// The native container (a physical machine).
+message NativeContainer {
+    Uuid Id = 1; // The container id.
+    Uuid LogicalContainerId = 10; // The logical container id.
+    uint64 Version = 11; // The configuration version.
+    Uuid BladeId = 12; // The blade id.
+    bool IsActivated = 14; // Whether the container is activated - whether the container should receive network traffic from SLB or VNET.
+}
+
+// The bare-metal container.
+message BareMetalContainer {
+    Uuid Id = 1; // The container id.
+    Uuid LogicalContainerId = 10; // The logical container id.
+    uint64 Version = 11; // The configuration version.
+    Uuid BladeId = 12; // The blade id.
+    bool IsActivated = 14; // Whether the container is activated - whether the container should receive network traffic from SLB or VNET.
+}
+
+// Legacy network interface configuration for N-CCF.
+message LegacyInterfaceConfiguration {
+    MacAddress MacAddress = 10; // The MAC address.
+    IPAddress IPv4Address = 11; // The IPv4 address.
+    IPAddress IPv6Address = 12; // The IPv6 address.
+    Uuid VnetId = 13; // The VNET id.
+    IPAddress CustomerIPv4Address = 14; // The primary IPv4 customer address.
+    uint32 InterfaceType = 15; // The interface type (0: Dip, 1: Drip, 2: Backend, 3: DipSecondary).
+    uint32 VlanTag = 16; // The Vlan tag. Keep this value as default (it is most likely deprecated).
+    bool AllowIPForwarding = 17; // Whether to allow IP forwarding. Keep this value as default (it is most likely deprecated).
+    bool UseAzureDns = 18; // Whether to use azure dns. Keep this value as default (it is most likely deprecated).
+}

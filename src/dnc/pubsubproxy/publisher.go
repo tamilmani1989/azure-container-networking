@@ -118,6 +118,46 @@ func (p *publisher) unpublishData(
 	return nil
 }
 
+func (p *publisher) createContextSelector(
+	partitionKey string) error {
+	p.Lock()
+	defer p.Unlock()
+
+	if p.isHealthy {
+		p.setupPublishStatusErrorChan(partitionKey)
+		if retCode := p.defaultPublisher.AddContextSelector(partitionKey); retCode != 0 {
+			p.deletePublishStatusErrorChan(partitionKey)
+			return fmt.Errorf("Failed to create context selector %s in pubsub %s due to error code %d",
+				partitionKey, p.pubsubAzId, retCode)
+		}
+	} else {
+		return fmt.Errorf("Unhealthy Publisher: %s. Failed to create context selector %s",
+			p.pubsubAzId, partitionKey)
+	}
+
+	return nil
+}
+
+func (p *publisher) removeContextSelector(
+	partitionKey string) error {
+	p.Lock()
+	defer p.Unlock()
+
+	if p.isHealthy {
+		p.setupPublishStatusErrorChan(partitionKey)
+		if retCode := p.defaultPublisher.RemoveContextSelector(partitionKey); retCode != 0 {
+			p.deletePublishStatusErrorChan(partitionKey)
+			return fmt.Errorf("Failed to delete context selector %s in pubsub %s due to error code %d",
+				partitionKey, p.pubsubAzId, retCode)
+		}
+	} else {
+		return fmt.Errorf("Unhealthy Publisher: %s. Failed to delete context selector %s",
+			p.pubsubAzId, partitionKey)
+	}
+
+	return nil
+}
+
 func (p *publisher) healthy() bool {
 	p.RLock()
 	defer p.RUnlock()
@@ -214,6 +254,36 @@ func unpublishData(
 	return publisher.unpublishData(partitionKey, relativePath)
 }
 
+func createContextSelector(
+	pubsubAzId string,
+	partitionKey string) error {
+	if _, found := publisherContext.publishers[pubsubAzId]; !found {
+		return fmt.Errorf("Invalid pubsubAzId: %s. Number of publishers: %d", pubsubAzId, publisherContext.numPublishers)
+	}
+
+	publisher, err := getPublisher(pubsubAzId)
+	if err != nil {
+		return err
+	}
+
+	return publisher.createContextSelector(partitionKey)
+}
+
+func removeContextSelector(
+	pubsubAzId string,
+	partitionKey string) error {
+	if _, found := publisherContext.publishers[pubsubAzId]; !found {
+		return fmt.Errorf("Invalid pubsubAzId: %s. Number of publishers: %d", pubsubAzId, publisherContext.numPublishers)
+	}
+
+	publisher, err := getPublisher(pubsubAzId)
+	if err != nil {
+		return err
+	}
+
+	return publisher.removeContextSelector(partitionKey)
+}
+
 func getPublishStatusError(
 	pubsubAzId string,
 	publishPath string) error {
@@ -262,6 +332,8 @@ func (callback madariPublisherCallback) OnLoggingMessageReceived(
 	traceLevel MadariTraceLevel,
 	message string) {
 	// Note: Empty implementation to satisfy the interface requirement
+	loggershim.LS.Errorf("[PubSubProxy] OnLoggingMessageReceived: Publisher: %s. Tracelevel: %v. Message: %s",
+	callback.pubsubAzId, traceLevel, message)
 }
 
 func (callback madariPublisherCallback) OnHealthNotificationReceived(

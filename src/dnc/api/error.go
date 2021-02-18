@@ -54,6 +54,10 @@ func UnprocessableEntity(code ErrorCode, msg string) *JsonErr {
 	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusUnprocessableEntity}
 }
 
+func UnprocessableEntityf(code ErrorCode, format string, args ...interface{}) *JsonErr {
+	return &JsonErr{Code: code, Text: fmt.Sprintf(format, args...), HTTPStatus: http.StatusUnprocessableEntity}
+}
+
 func PreconditionFailed(code ErrorCode, msg string) *JsonErr {
 	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusPreconditionFailed}
 }

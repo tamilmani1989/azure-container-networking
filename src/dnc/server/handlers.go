@@ -570,6 +570,8 @@ func getNetworkContainerRequestV1(body []byte) (*api.NetworkContainerRequestV1, 
 				fallthrough
 			case cns.JobObject:
 				fallthrough
+			case api.BareMetalContainerType:
+				fallthrough
 			case cns.COW:
 				return &ncRequestV1, nil
 			}
@@ -594,6 +596,8 @@ func getNetworkContainerRequestV2(body []byte) (*api.NetworkContainerRequestV2, 
 		case cns.Docker:
 			fallthrough
 		case cns.JobObject:
+			fallthrough
+		case api.BareMetalContainerType:
 			fallthrough
 		case cns.COW:
 			return &ncRequestV2, nil

@@ -64,7 +64,7 @@ func assertMacAllocatedToNC(t *testing.T, nc datamodel.NCConfiguration) {
 	}
 
 	// TODO: remove when MACAddress is properly populated.
-	if nc.MACAddress != "TempMAC" {
+	if nc.MACAddress != "A1B1C1D1E1F1" {
 		t.Error("MAC address was expected to be TempMAC.")
 	}
 }

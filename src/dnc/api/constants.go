@@ -4,4 +4,5 @@ package api
 const (
 	BareMetalNodeType      = "BareMetal"
 	BareMetalContainerType = "BareMetal"
+	ContainerIdDelimiter   = "_"
 )

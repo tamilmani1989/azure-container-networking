@@ -264,6 +264,12 @@ const (
 
 	// NcPendingPublishEntryNotFound is return when the a row in the NcPendingPublishTable is not found
 	NcPendingPublishEntryNotFound
+
+	// InvalidPubSubOperationType - - Invalid pub sub operation type
+	InvalidPubSubOperationType
+
+	// InvalidOrchestratorContext - Invalid orchestrator context
+	InvalidOrchestratorContext
 )
 
 func (e ErrorCode) String() string {
@@ -516,6 +522,12 @@ func (e ErrorCode) String() string {
 
 	case NcPendingPublishEntryNotFound:
 		return "NcPendingPublishEntryNotFound"
+
+    case InvalidPubSubOperationType:
+        return "InvalidPubSubOperationType"
+
+	case InvalidOrchestratorContext:
+		return "InvalidOrchestratorContext"
 	}
 
 	return "Unknown Status"
