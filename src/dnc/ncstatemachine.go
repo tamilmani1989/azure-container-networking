@@ -39,8 +39,8 @@ func initNetworkContainerStateMachine() {
 		Logger:    logger,
 	}
 
-	if config.DNCSettings.Managed {
-		logger.Debugf("[mDNC] batch reservation enabled")
+	if config.FeatureFlagSettings.EnableBatchAllocationProcessing {
+		logger.Debugf("batch allocation processing enabled")
 		resDispatcher = networkcontainer.NewIPReservationDispatcher(
 			networkcontainer.DispatcherDependencies{
 				Logger:       logger,

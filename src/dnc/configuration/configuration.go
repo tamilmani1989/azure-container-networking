@@ -171,6 +171,12 @@ type DNCSettings struct {
 	DisableReservationMapInSubnetConfig bool
 }
 
+// FeatureFlagSettings contains configuration for DNC features in alpha/beta
+type FeatureFlagSettings struct {
+	// Flag to enable batch processing of different NC requests during the allocation stage
+	EnableBatchAllocationProcessing bool
+}
+
 // IdentitySettings - Information about managed identity for DNC
 type IdentitySettings struct {
 	// Managed Identity Resource ID, used to fetch ARM tokens through MSI
@@ -274,6 +280,7 @@ type Configuration struct {
 	IdentitySettings       IdentitySettings
 	AzureEnvironment       AzureEnvironment
 	GreSettings            GreSettings
+	FeatureFlagSettings    FeatureFlagSettings
 }
 
 // Load the JSON config file
@@ -674,8 +681,7 @@ func OverrideConfigFromEnv(config *Configuration) {
 		config.AzureEnvironment.EnvironmentName = azureEnvName
 	}
 
-	if disableReservationMapInSubnetConfig := os.Getenv("DisableReservationMapInSubnetConfig");
-	len(disableReservationMapInSubnetConfig) != 0 {
+	if disableReservationMapInSubnetConfig := os.Getenv("DisableReservationMapInSubnetConfig"); len(disableReservationMapInSubnetConfig) != 0 {
 		config.DNCSettings.DisableReservationMapInSubnetConfig = ParseBool(disableReservationMapInSubnetConfig)
 	}
 }

@@ -1863,7 +1863,7 @@ func processNetworkContainerRequest(
 		case datamodel.Reserve:
 			// todo: batch functionality is not general enough yet for non-managed cases.
 			//   once specific cases have been ported, default to batch.
-			if config.DNCSettings.Managed {
+			if config.FeatureFlagSettings.EnableBatchAllocationProcessing {
 				removeRequestFromPendingQueue, err = processNetworkContainerBatchReserve(repoNCConfig)
 			} else {
 				removeRequestFromPendingQueue, err = processNetworkContainerReserve(repoNCConfig)
