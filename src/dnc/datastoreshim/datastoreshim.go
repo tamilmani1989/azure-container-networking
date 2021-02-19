@@ -17,7 +17,22 @@ type DataStoreShim interface {
 	QueryAllRows(tableName string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error)
 	QueryInPartition(tableName, partitionKey, rowKey string) (*storage.Entity, int, error)
 	QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error)
+	/*
+	  todo: passing an arbitrary filter string to these methods makes mocking difficult.
+	   we should consider a more constrained API surface once we have a good idea of the extent of our querying needs,
+	   so that we can have a well defined data type that represents predicates and limits.
+	   ex.
+	   type Filter struct {
+	       Partition  string
+	       Properties map[string][]string
+	       Count      int
+	   }
+	   QueryFilter(filter Filter) ([]*storage.Entity, error)
+	   from the above, implementations can either build a filter string for the cosmos API, or use the fields to find results
+	   in the in-memory datastore.
+	*/
 	QueryFilter(tableName, filter string) ([]*storage.Entity, error)
+	QueryFilterTopN(tableName, filter string, count int) ([]*storage.Entity, error)
 	InsertInPartition(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error)
 	InsertInPartitionProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) (int, error)
 	Insert(tableName, rowKey, propertyName string, value interface{}) (int, error)
@@ -41,7 +56,6 @@ type DataStoreShim interface {
 	DeleteInPartition(tableName, partitionKey, rowKey string) error
 	// todo: do we need to delete with etags? Assuming we want our deletes to be idempotent, this may not be the case.
 	DeleteBatch(tableName, partitionKey string, rowKeys []string) error
-	KeyExist(tableName, rowKey string) (bool, error)
 }
 
 // NewDataStoreShim - Create a new datastore shim

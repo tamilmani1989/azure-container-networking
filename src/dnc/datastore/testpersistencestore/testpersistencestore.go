@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -17,11 +16,20 @@ type rowProperties struct {
 	properties map[string]interface{}
 }
 
+type queryFilterPredicate func(rowKey string, properties map[string]interface{}) bool
+
+func defaultQueryFilterPredicate(_ string, _ map[string]interface{}) bool {
+	return true
+}
+
 // TestPersistenceStore :- datastore : map[ TableName ] map [ key ] value
 type TestPersistenceStore struct {
 	datastore map[string]map[string]rowProperties
 	locks     map[string]*sync.RWMutex
 	logger    loggershim.LoggerInterface
+	// predicates to use as filters for complex functions
+	QueryFilterFunc     queryFilterPredicate
+	QueryFilterTopNFunc queryFilterPredicate
 }
 
 const (
@@ -261,10 +269,12 @@ func (s *TestPersistenceStore) InsertEntityBatch(tableName string, entities []st
 	tableLock.Lock()
 	defer tableLock.Unlock()
 
-	// todo: should error with conflict to simulate cosmos
 	for _, entity := range entities {
 		if _, ok := table[entity.RowKey]; ok {
-			return fmt.Errorf("entity with row key %s in table %s already exists", entity.RowKey, tableName)
+			return storage.AzureStorageServiceError{
+				Message:    fmt.Sprintf("entity with row key %s in table %s already exists", entity.RowKey, tableName),
+				StatusCode: http.StatusConflict,
+			}
 		}
 	}
 
@@ -367,32 +377,53 @@ func (s *TestPersistenceStore) QueryInPartition(tableName, partitionKey, rowKey 
 	return s.queryAllPropertiesEtag(tableName, rowKey)
 }
 
-// QueryFilter - Query rows using a filter
-func (s *TestPersistenceStore) QueryFilter(tableName, filter string) ([]*storage.Entity, error) {
-	// todo: not a straightforward way to mock more sophisticated query functionality
-	// for now returning all the entries from the datastore.
-	entities, _, _, _, _ := s.QueryAllRows(tableName, nil)
+func (s *TestPersistenceStore) QueryFilter(tableName, _ string) ([]*storage.Entity, error) {
+	pred := defaultQueryFilterPredicate
+	if s.QueryFilterFunc != nil {
+		pred = s.QueryFilterFunc
+	}
+	return s.queryFilter(tableName, "", pred, 0)
+}
 
-	switch tableName {
-	case IPAllocationsTableName:
-		if strings.Contains(filter, ToBeDeletedOwnerProperty) {
-			// todo: for now check with a constant ToBeDeletedOwnerId, improve it later
-			// to match with what is passed in filter.
-			tobeDeleteOwnerId := "Network_vnet1_NC_nc1"
-			filteredEntities := make([]*storage.Entity, 0)
-			for _, entity := range entities {
-				if val, found := entity.Properties[ToBeDeletedOwnerProperty]; found {
-					if val != "" && val == tobeDeleteOwnerId {
-						filteredEntities = append(filteredEntities, entity)
-					}
-				}
-			}
+func (s *TestPersistenceStore) QueryFilterTopN(tableName, _ string, count int) ([]*storage.Entity, error) {
+	pred := defaultQueryFilterPredicate
+	if s.QueryFilterTopNFunc != nil {
+		pred = s.QueryFilterTopNFunc
+	}
+	return s.queryFilter(tableName, "", pred, count)
+}
 
-			return filteredEntities, nil
+func (s *TestPersistenceStore) queryFilter(tableName, _ string, pred queryFilterPredicate, count int) ([]*storage.Entity, error) {
+	table, ok1 := s.datastore[tableName]
+	tableLock, ok2 := s.locks[tableName]
+	if !ok1 || !ok2 {
+		return nil, fmt.Errorf("table %s not initialized", tableName)
+	}
+
+	tableLock.RLock()
+	defer tableLock.RUnlock()
+
+	var results []*storage.Entity
+	for key, rowProps := range table {
+		if !pred(key, rowProps.properties) {
+			continue
+		}
+
+		e := storage.Entity{
+			Table:        &storage.Table{Name: tableName},
+			PartitionKey: "",
+			RowKey:       key,
+			OdataEtag:    rowProps.etag,
+			Properties:   rowProps.properties,
+		}
+
+		results = append(results, &e)
+		if len(results) == count { // len will always be at least 1, passing count <1 returns all rows
+			break
 		}
 	}
 
-	return entities, nil
+	return results, nil
 }
 
 // QueryAllRows - Query all rows in a given table.

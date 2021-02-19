@@ -61,3 +61,7 @@ func UnprocessableEntityf(code ErrorCode, format string, args ...interface{}) *J
 func PreconditionFailed(code ErrorCode, msg string) *JsonErr {
 	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusPreconditionFailed}
 }
+
+func PreconditionFailedf(code ErrorCode, format string, args ...interface{}) *JsonErr {
+	return &JsonErr{Code: code, Text: fmt.Sprintf(format, args...), HTTPStatus: http.StatusPreconditionFailed}
+}

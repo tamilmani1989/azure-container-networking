@@ -382,7 +382,7 @@ func (a *AzureStorage) MergeEntityBatch(tableName string, entities []storage.Ent
 
 func (a *AzureStorage) batchOperation(tableName string, entities []storage.Entity, op storage.Operation) error {
 	if len(entities) > a.maxBatchSize {
-		return fmt.Errorf("batch size %d exceeds limit of %d", len(entities), a.maxBatchSize)
+		return fmt.Errorf("batch op %v: batch size %d exceeds limit of %d", op, len(entities), a.maxBatchSize)
 	}
 
 	tableClient, ok := a.tableNameToTableClientMap[tableName]
@@ -404,6 +404,8 @@ func (a *AzureStorage) batchOperation(tableName string, entities []storage.Entit
 		if e.PartitionKey == "" {
 			e.PartitionKey = a.partitionKey
 		}
+
+		e.Table = table
 
 		switch op {
 		case storage.InsertOp:
@@ -493,14 +495,47 @@ func (a *AzureStorage) queryFilter(tableName, filter string) ([]*storage.Entity,
 	return entities, nil
 }
 
-// KeyExist - check if key exist in a given table.
-func (a *AzureStorage) KeyExist(tableName, rowKey string) (bool, error) {
-	defer a.recordProcessingTime(time.Now(), "KeyExist", tableName, a.partitionKey, rowKey)
-	_, status, err := a.getEntity(tableName, a.partitionKey, rowKey)
-	if err != nil {
-		return false, err
+func (a *AzureStorage) QueryFilterTopN(tableName, filter string, count int) ([]*storage.Entity, error) {
+	defer a.recordProcessingTime(time.Now(), "QueryFilterTopN", tableName, "NA", "NA")
+
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
+	if !ok {
+		return nil, fmt.Errorf("cannot find valid table client for table %s", tableName)
 	}
-	return status != http.StatusNotFound, nil
+
+	table := tableClient.GetTableReference(tableName)
+
+	queryOptions := storage.QueryOptions{Filter: filter}
+
+	result, err := table.QueryEntities(defaultTimeout, storage.FullMetadata, &queryOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	var entities []*storage.Entity
+
+	for i := 0; i < len(result.Entities); i++ {
+		entities = append(entities, result.Entities[i])
+		if len(entities) == count {
+			return entities, nil
+		}
+	}
+
+	for result.NextLink != nil {
+		result, err = result.NextResults(nil)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := 0; i < len(result.Entities); i++ {
+			entities = append(entities, result.Entities[i])
+			if len(entities) == count {
+				return entities, nil
+			}
+		}
+	}
+
+	return entities, nil
 }
 
 func (a *AzureStorage) insertOrUpdateRow(tableName, partitionKey, rowKey string, properties map[string]interface{}) error {

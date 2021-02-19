@@ -127,8 +127,22 @@ func (f *SubnetRepo) UpdateSubnetReservationSet(reservationID, allocatedSubnet s
 	return nil
 }
 
+// note: fake allocation repo is not thread safe
 type AllocationRepo struct {
 	Data []datamodel.IPAllocationEntity
+}
+
+func (f *AllocationRepo) TryQueryIPAllocation(networkID, subnetName, rowKey string) (datamodel.IPAllocationEntity, *api.JsonErr) {
+	for _, alloc := range f.Data {
+		if alloc.RowKey == rowKey {
+			return alloc, nil
+		}
+	}
+	return datamodel.IPAllocationEntity{}, nil
+}
+
+func (f *AllocationRepo) UpdateIPAllocationEntities(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
+	return nil
 }
 
 func (f *AllocationRepo) QueryIPAllocationsByAllocationID(_, _ string, allocIDs []string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
@@ -154,6 +168,13 @@ func (f *AllocationRepo) QueryIPAllocationsByToBeDeletedOwner(_, _ string, tobeD
 		}
 	}
 	return results, nil
+}
+
+func (f *AllocationRepo) InsertIPAllocationEntities(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
+	for _, entity := range entities {
+		f.Data = append(f.Data, entity)
+	}
+	return nil
 }
 
 func (f *AllocationRepo) AddIPAllocations(_, _ string, rows map[string]map[string]interface{}) *api.JsonErr {
@@ -202,6 +223,38 @@ func (f *AllocationRepo) DeleteIPAllocations(_, _ string, keys []string) *api.Js
 func (f *AllocationRepo) DeleteIPAllocationEntityWithEtag(entity datamodel.IPAllocationEntity) *api.JsonErr {
 	// TODO: implement for testing.
 	return nil
+}
+
+func (f *AllocationRepo) QueryIPAllocationsByReservationKeys(networkID, subnetName string, reservationIDs []string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
+	reservationKeys := make(map[string]struct{})
+	for _, reservationID := range reservationIDs {
+		resKey := datamodel.GetReservationKey(networkID, reservationID)
+		reservationKeys[resKey] = struct{}{}
+	}
+
+	var results []datamodel.IPAllocationEntity
+	for _, d := range f.Data {
+		if _, found := reservationKeys[d.IPAllocation]; found {
+			results = append(results, d)
+		}
+	}
+	return results, nil
+}
+
+func (f *AllocationRepo) QueryUnreservedAllocations(networkID, subnetName string, count int) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
+	var results []datamodel.IPAllocationEntity
+
+	for _, d := range f.Data {
+		if d.IPAllocation == "" {
+			results = append(results, d)
+		}
+
+		if len(results) == count {
+			break
+		}
+	}
+
+	return results, nil
 }
 
 type NodeRepo struct {

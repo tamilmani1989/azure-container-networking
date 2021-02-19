@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"dnc/api"
+	"dnc/datamodel"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -19,14 +21,15 @@ import (
 )
 
 func main() {
-	var nodeNCCount, workerCount int
-	flag.IntVar(&nodeNCCount, "ncs", 50, "nc count")
-	flag.IntVar(&workerCount, "workers", 10, "worker count")
+	var nodeNCCount, concurrentRequests int
+	flag.IntVar(&nodeNCCount, "ncs", 500, "nc count")
+	flag.IntVar(&concurrentRequests, "c", 10, "number of concurrent requests")
 	flag.Parse()
 
-	logrus.Infof("testing %d ncs with %d workers", nodeNCCount, workerCount)
+	logrus.Infof("testing %d ncs with %d concurrent requests", nodeNCCount, concurrentRequests)
 
 	vnetID, vnetReq := generateVnet()
+	vnetID = "64da9c38-45c4-459d-bacb-21d8e1d17807"
 	vnetURL := fmt.Sprintf("http://localhost:9000/networks/%s?api-version=2018-03-01", vnetID)
 
 	logrus.Infof("creating vnet %s", vnetID)
@@ -91,7 +94,7 @@ func main() {
 	}()
 
 	var g sync.WaitGroup
-	for i := 0; i < workerCount; i++ {
+	for i := 0; i < concurrentRequests; i++ {
 		g.Add(1)
 		go func() {
 			defer g.Done()
@@ -143,7 +146,7 @@ func main() {
 		}
 	}()
 
-	for i := 0; i < workerCount; i++ {
+	for i := 0; i < concurrentRequests; i++ {
 		g.Add(1)
 		go func() {
 			defer g.Done()
@@ -188,38 +191,63 @@ func main() {
 
 	logrus.Info("verifying updates")
 
-	for i, wi := range workItems {
-		ncURL := fmt.Sprintf("http://localhost:9000/networks/%s/networkcontainer/%s?api-version=2018-03-01", vnetID, wi.ncID)
-		res, err := http.Get(ncURL)
-		if err != nil {
-			logrus.Errorf("%d: get nc", i, err)
-			continue
-		}
-		if res.StatusCode != http.StatusOK {
-			logrus.Errorf("%s: got error code: %d", wi.ncID, res.StatusCode)
-		}
-		bs, _ = ioutil.ReadAll(res.Body)
+	var wg sync.WaitGroup
+	var doneCount int64
 
-		var nc api.NetworkContainerResponse
-		if err := json.Unmarshal(bs, &nc); err != nil {
-			logrus.Errorf("%s: could not unmarshal: %v", wi.ncID, err)
+	go func() {
+		for range time.Tick(time.Second * 3) {
+			logrus.Printf("done verifying %d updates", atomic.LoadInt64(&doneCount))
 		}
-		res.Body.Close()
+	}()
 
-		if nc.IPConfiguration.IPAddress == "" {
-			logrus.Errorf("%s: did not have primary ip", wi.ncID)
-		}
-		if len(nc.IPConfiguration.SecondaryIPs) != 32 {
-			logrus.Errorf("%s: incomplete allocation ids, only got %d", wi.ncID, len(nc.IPConfiguration.SecondaryIPs))
-			logrus.Errorf("request status: %s", nc.RequestStatus.String())
-		}
-		for k, v := range nc.IPConfiguration.SecondaryIPs {
-			if v.IPAddress == "" {
-				logrus.Errorf("%s: incomplete allocation on key %v: %+v", wi.ncID, k, nc.IPConfiguration.SecondaryIPs)
-			}
-		}
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i, wi := range workItems {
+			func() {
+				defer atomic.AddInt64(&doneCount, 1)
+				ncURL := fmt.Sprintf("http://localhost:9000/networks/%s/networkcontainer/%s?api-version=2018-03-01", vnetID, wi.ncID)
+				res, err := http.Get(ncURL)
+				if err != nil {
+					logrus.Errorf("%d: get nc", i, err)
+					return
+				}
+				if res.StatusCode != http.StatusOK {
+					logrus.Errorf("%s: got error code: %d", wi.ncID, res.StatusCode)
+				}
+				bs, _ = ioutil.ReadAll(res.Body)
 
+				var nc api.NetworkContainerResponse
+				if err := json.Unmarshal(bs, &nc); err != nil {
+					logrus.Errorf("%s: could not unmarshal: %v", wi.ncID, err)
+				}
+				res.Body.Close()
+
+				if nc.RequestStatus.Status != datamodel.Completed.String() {
+					logrus.Errorf("%s: status is not completed: %s", wi.ncID, nc.RequestStatus.Status)
+				}
+
+				if nc.RequestStatus.State != datamodel.Program.String() {
+					logrus.Errorf("%s: state is not program: %s", wi.ncID, nc.RequestStatus.State)
+				}
+
+				if nc.IPConfiguration.IPAddress == "" {
+					logrus.Errorf("%s: did not have primary ip", wi.ncID)
+				}
+				if len(nc.IPConfiguration.SecondaryIPs) != 32 {
+					logrus.Errorf("%s: incomplete allocation ids, only got %d", wi.ncID, len(nc.IPConfiguration.SecondaryIPs))
+					logrus.Errorf("request status: %s", nc.RequestStatus.String())
+				}
+				for k, v := range nc.IPConfiguration.SecondaryIPs {
+					if v.IPAddress == "" {
+						logrus.Errorf("%s: incomplete allocation on key %v: %+v", wi.ncID, k, nc.IPConfiguration.SecondaryIPs)
+					}
+				}
+			}()
+		}
+	}()
+
+	wg.Wait()
 	logrus.Info("updates checked. see above for errors")
 }
 

@@ -2,11 +2,8 @@ package networkcontainer
 
 import (
 	"context"
-	"dnc/allocationhelper"
-	"dnc/api"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
-	"dnc/utils"
 	"fmt"
 	"net"
 	"time"
@@ -14,13 +11,24 @@ import (
 
 // subnetHandler processes batches of reservation requests for a given vnet and subnet name
 type subnetHandler struct {
-	reservations IPReservationRepo
-	subnets      SubnetRepo
-	allocator    *IPAllocator
-	logger       loggershim.LoggerInterface
-	inputCh      chan reservationRequest
-	subnetInfo   subnetInfo
-	maxBatchSize int
+	reservations  IPReservationRepo
+	allocator     *IPAllocator
+	logger        loggershim.LoggerInterface
+	inputCh       chan reservationRequest
+	subnetInfo    subnetInfo
+	maxBatchSize  int
+	scaleStrategy scalingStrategy
+}
+
+// scalingStrategy handles scale up and scale down of allocation requests.
+type scalingStrategy interface {
+	// scaleDown handles decreases in allocations (using corresponding tbdAllocationIDs) for reservations.
+	// It should return the new state of reservations after tbdAllocationIDs have been processed.
+	scaleDown(reservations []datamodel.ReservationConfiguration, tbdAllocationIDs map[string][]string) ([]datamodel.ReservationConfiguration, error)
+	// ScaleUp handles allocations for reservations where allocatedSubnet or secondary allocations don't have a corresponding IP.
+	// It should only be called with the output of ScaleDown.
+	// It should return the new state of reservations after any allocations have been processed.
+	scaleUp(reservations []datamodel.ReservationConfiguration) ([]datamodel.ReservationConfiguration, error)
 }
 
 type subnetKey struct {
@@ -36,20 +44,34 @@ type subnetInfo struct {
 
 type handlerDependencies struct {
 	reservations IPReservationRepo
-	subnets      SubnetRepo
 	allocator    *IPAllocator
 	logger       loggershim.LoggerInterface
 }
 
-func newSubnetHandler(info subnetInfo, deps handlerDependencies, maxBatchSize int) *subnetHandler {
+func newSubnetHandler(info subnetInfo, deps handlerDependencies, maxBatchSize int, reuseAllocations bool) *subnetHandler {
+	var scaleStrategy scalingStrategy
+	if !reuseAllocations {
+		scaleStrategy = &scanSubnetStrategy{
+			allocator:  deps.allocator,
+			subnetInfo: info,
+			logger:     deps.logger,
+		}
+	} else {
+		scaleStrategy = &prepopulatedStrategy{
+			allocator:  deps.allocator,
+			subnetInfo: info,
+			logger:     deps.logger,
+		}
+	}
+
 	return &subnetHandler{
-		reservations: deps.reservations,
-		subnets:      deps.subnets,
-		allocator:    deps.allocator,
-		logger:       deps.logger,
-		inputCh:      make(chan reservationRequest),
-		subnetInfo:   info,
-		maxBatchSize: maxBatchSize,
+		reservations:  deps.reservations,
+		allocator:     deps.allocator,
+		logger:        deps.logger,
+		inputCh:       make(chan reservationRequest),
+		subnetInfo:    info,
+		maxBatchSize:  maxBatchSize,
+		scaleStrategy: scaleStrategy,
 	}
 }
 
@@ -139,161 +161,22 @@ func (s *subnetHandler) process(batch requestSet) {
 
 	reservations := s.cleanUpTBDs(batch)
 
-	// todo: retry loop over read/reconcile/compute/store, which must consider partial successes on previous attempt
-	allocResult, err := s.allocate(reservations)
+	updatedReservations, err := s.scaleStrategy.scaleUp(reservations)
 	if err != nil {
-		s.logErrorf("could not get allocations from subnet table: %v", err)
-		batch.flushWithError(err)
-		return
-	}
-
-	if len(allocResult.rowBatch) > 0 {
-		s.logf("persisting %d allocations", len(allocResult.rowBatch))
-		if err := s.allocator.saveAllocationBatch(s.subnetInfo.vnetID, s.subnetInfo.subnetName, allocResult.rowBatch); err != nil {
-			s.logErrorf("could not save allocation batch: %v", err)
-			batch.flushWithError(err)
-			return
-		}
-	}
-
-	s.logf("updating reservations")
-	reservations = append(allocResult.completed, allocResult.failed...)
-	if err := s.reservations.UpdateReservations(reservations); err != nil {
 		s.logErrorf("could not update reservations: %v", err)
 		batch.flushWithError(err)
 		return
 	}
 
-	batch.complete(reservations)
+	s.logf("updating reservations")
+	if err := s.reservations.UpdateReservations(updatedReservations); err != nil {
+		s.logErrorf("could not update reservations: %v", err)
+		batch.flushWithError(err)
+		return
+	}
+
+	batch.complete(updatedReservations)
 	s.logf("batch completed in %s", time.Since(start).String())
-}
-
-type batchAllocationResult struct {
-	completed []datamodel.ReservationConfiguration
-	failed    []datamodel.ReservationConfiguration
-	rowBatch  map[string]map[string]interface{}
-}
-
-func (r *batchAllocationResult) reservationComplete(res datamodel.ReservationConfiguration) {
-	res.Status = datamodel.Completed
-	r.completed = append(r.completed, res)
-}
-
-func (r *batchAllocationResult) reservationFailed(res datamodel.ReservationConfiguration, err api.JsonErr) {
-	res.Status = datamodel.Failed
-	res.FailureDetail = err
-	r.failed = append(r.failed, res)
-}
-
-func (s *subnetHandler) allocate(reservations []datamodel.ReservationConfiguration) (batchAllocationResult, error) {
-	allocReadTime := time.Now()
-
-	s.logf("getting allocation state")
-	allocationState, err := s.allocator.getAllocationsFromSubnetTable(s.subnetInfo.vnetID, s.subnetInfo.subnetName)
-	if err != nil {
-		return batchAllocationResult{}, err
-	}
-
-	s.logf("fetched %d allocation rows in %s", len(allocationState), time.Since(allocReadTime).String())
-
-	var result batchAllocationResult
-	result.rowBatch = make(map[string]map[string]interface{})
-
-	for i := 0; i < len(reservations); i++ {
-		res := reservations[i]
-		isComplete := reconcileReservation(&res, allocationState)
-
-		if isComplete {
-			// if complete, add to completed list and remove from reservations that still need to be processed
-			result.reservationComplete(res)
-			reservations = append(reservations[:i], reservations[i+1:]...)
-			i--
-			continue
-		}
-
-		// otherwise, add the reconciled state to process list
-		reservations[i] = res
-	}
-
-	addressesInUse, _ := getAllAddressesInUse(s.subnetInfo.baseSubnet, allocationState)
-
-	s.logf("%d addresses in use in %s", len(addressesInUse), s.subnetInfo.baseSubnet.String())
-
-	var ipsInUse []net.IP
-	for _, ipAddress := range addressesInUse {
-		ipsInUse = append(ipsInUse, ipAddress)
-	}
-
-	s.logf("determining allocations")
-	for _, reservation := range reservations {
-		var primaryIP net.IP
-		if reservation.AllocatedSubnet != "" {
-			primIP, _, err := net.ParseCIDR(reservation.AllocatedSubnet)
-			if err != nil {
-				result.reservationFailed(reservation, *api.InternalServerError(api.StatusInternalServerError, err.Error()))
-				continue
-			}
-			primaryIP = primIP
-		} else {
-			ips, err := findAllocatableIPs(s.subnetInfo.baseSubnet, ipsInUse, 1)
-			if err != nil {
-				result.reservationFailed(reservation, *api.InternalServerError(api.StatusInternalServerError, err.Error()))
-				continue
-			}
-			primaryIP = ips[0]
-		}
-
-		if _, ok := addressesInUse[primaryIP.String()]; !ok {
-			ipsInUse = append(ipsInUse, primaryIP)
-			addressesInUse[primaryIP.String()] = primaryIP
-		}
-
-		reservationKey := datamodel.GetReservationKey(reservation.NetworkID, reservation.ReservationID)
-
-		if reservation.AllocatedSubnet == "" {
-			reservation.AllocatedSubnet = primaryIP.String() + "/32"
-
-			rowKey := datamodel.EncodeIPAllocationKey(reservation.AllocatedSubnet)
-			result.rowBatch[rowKey] = map[string]interface{}{datamodel.IPAllocationProperty: reservationKey, datamodel.AllocationIDProperty: reservation.ReservationID}
-		}
-
-		unallocated := make(map[string]struct{})
-		for allocationID, ipAddress := range reservation.SecondaryAllocations {
-			if ipAddress == "" {
-				unallocated[allocationID] = struct{}{}
-			}
-		}
-
-		if len(unallocated) == 0 {
-			result.reservationComplete(reservation)
-			continue
-		}
-
-		availableIPs, err := findAllocatableIPs(s.subnetInfo.baseSubnet, ipsInUse, len(unallocated))
-		if err != nil {
-			result.reservationFailed(reservation, *api.InternalServerError(api.StatusInternalServerError, err.Error()))
-			continue
-		}
-
-		i := 0
-		for allocationID := range unallocated {
-			encodedSubnet := availableIPs[i].String() + utils.PrefixDelimiter + utils.IPV4DefaultPrefix
-
-			rowKey := datamodel.EncodeIPAllocationKey(encodedSubnet)
-			result.rowBatch[rowKey] = map[string]interface{}{datamodel.IPAllocationProperty: reservationKey, datamodel.AllocationIDProperty: allocationID}
-
-			if _, ok := addressesInUse[availableIPs[i].String()]; !ok {
-				ipsInUse = append(ipsInUse, availableIPs[i])
-				addressesInUse[encodedSubnet] = availableIPs[i]
-			}
-			i++
-			reservation.SecondaryAllocations[allocationID] = encodedSubnet
-		}
-
-		result.reservationComplete(reservation)
-	}
-
-	return result, nil
 }
 
 func (s *subnetHandler) cleanUpTBDs(batch requestSet) []datamodel.ReservationConfiguration {
@@ -301,7 +184,7 @@ func (s *subnetHandler) cleanUpTBDs(batch requestSet) []datamodel.ReservationCon
 
 	reservations := batch.getAllReservations()
 	reservationSet := toReservationSet(reservations)
-	reservationToTBD := batch.getAllValidTBDAllocIDs()
+	reservationToTBD := batch.getAllValidTBDAllocIDs() // or, to be cleared ips
 
 	if len(reservationToTBD) == 0 {
 		return reservations
@@ -312,7 +195,7 @@ func (s *subnetHandler) cleanUpTBDs(batch requestSet) []datamodel.ReservationCon
 		resWithTBD = append(resWithTBD, reservationSet[resID])
 	}
 
-	deallocatedReservations, err := s.deallocateBatch(resWithTBD, reservationToTBD)
+	deallocatedReservations, err := s.scaleStrategy.scaleDown(resWithTBD, reservationToTBD)
 	if err != nil {
 		s.logErrorf("could not deallocate batch: %v", err)
 		for resID := range reservationToTBD {
@@ -333,50 +216,6 @@ func (s *subnetHandler) cleanUpTBDs(batch requestSet) []datamodel.ReservationCon
 		}
 	}
 	return toReservationSlice(reservationSet)
-}
-
-func (s *subnetHandler) deallocateBatch(reservations []datamodel.ReservationConfiguration, tbdIDs map[string][]string) ([]datamodel.ReservationConfiguration, error) {
-	// todo: should the input reservations be copied?
-	var rowKeys []string
-	for i := 0; i < len(reservations); i++ {
-		tbdIDs := tbdIDs[reservations[i].ReservationID]
-
-		for _, allocID := range tbdIDs {
-			if ipAddress, found := reservations[i].SecondaryAllocations[allocID]; found && ipAddress != "" {
-				rowKeys = append(rowKeys, datamodel.EncodeIPAllocationKey(ipAddress))
-			}
-
-			delete(reservations[i].SecondaryAllocations, allocID)
-		}
-	}
-
-	if err := s.allocator.DeleteAllocations(s.subnetInfo.vnetID, s.subnetInfo.subnetName, rowKeys); err != nil {
-		return nil, err
-	}
-
-	if err := s.reservations.UpdateReservations(reservations); err != nil {
-		return nil, err
-	}
-
-	return reservations, nil
-}
-
-func getAllAddressesInUse(baseSubnet *net.IPNet, allocationState map[string]*net.IPNet) (map[string]net.IP, error) {
-	addressesInUse := make(map[string]net.IP) // 10.0.0.4 key
-	for _, subnet := range allocationState {
-		addressesInUse[subnet.IP.String()] = subnet.IP
-	}
-
-	azureReserved, err := allocationhelper.GetReservedAddressesInSubnet(baseSubnet)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, reservedIPSubnet := range azureReserved {
-		addressesInUse[reservedIPSubnet.IP.String()] = reservedIPSubnet.IP
-	}
-
-	return addressesInUse, nil
 }
 
 func toReservationSet(rr []datamodel.ReservationConfiguration) map[string]datamodel.ReservationConfiguration {

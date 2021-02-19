@@ -33,15 +33,22 @@ type IPReservationRepo interface {
 	UpdateReservations(reservations []datamodel.ReservationConfiguration) *api.JsonErr
 }
 
+// todo: mutation methods should take a batch of Allocation rows, not generic maps
+// this will decouple implementations from having to know the map keys, and just use the specific row struct
 // An IPAllocationRepo performs CRUD operations on IP allocations
 type IPAllocationRepo interface {
+	TryQueryIPAllocation(networkID, subnetName, rowKey string) (datamodel.IPAllocationEntity, *api.JsonErr)
 	TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
 	QueryIPAllocationsByAllocationID(networkID, subnetName string, allocIDs []string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
 	QueryIPAllocationsByToBeDeletedOwner(networkID, subnetName string, tobeDeletedOwnerId string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
-	// todo: mutation methods should take a batch of Allocation rows, not generic maps
-	// this will decouple implementations from having to know the map keys, and just use the specific row struct
+	QueryUnreservedAllocations(networkID, subnetName string, count int) ([]datamodel.IPAllocationEntity, *api.JsonErr)
+	QueryIPAllocationsByReservationKeys(networkID, subnetName string, reservationIDs []string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
+	// deprecated: use InsertIPAllocationEntities
 	AddIPAllocations(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr
+	InsertIPAllocationEntities(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr
+	// deprecated: use UpdateIPAllocationEntities
 	UpdateIPAllocations(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr
+	UpdateIPAllocationEntities(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr
 	DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr
 	DeleteIPAllocationEntityWithEtag(entity datamodel.IPAllocationEntity) *api.JsonErr
 }

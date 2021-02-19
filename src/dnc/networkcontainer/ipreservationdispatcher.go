@@ -12,12 +12,13 @@ import (
 // It is a demuxer/router for reservation requests. It manages a pool of subnet
 // handlers, each for a distinct subnet.
 type IPReservationDispatcher struct {
-	logger              loggershim.LoggerInterface
-	subnets             SubnetRepo
-	handlerDeps         handlerDependencies
-	handlerMaxBatchSize int
-	inputCh             chan reservationRequest
-	subnetHandlers      map[subnetKey]*subnetHandler
+	logger                  loggershim.LoggerInterface
+	subnets                 SubnetRepo
+	handlerDeps             handlerDependencies
+	handlerMaxBatchSize     int
+	handlerReuseAllocations bool
+	inputCh                 chan reservationRequest
+	subnetHandlers          map[subnetKey]*subnetHandler
 }
 
 type reservationRequest struct {
@@ -38,23 +39,19 @@ type DispatcherDependencies struct {
 	Subnets      SubnetRepo
 }
 
-type BatchConfig struct {
-	MaxBatchSize int
-}
-
-func NewIPReservationDispatcher(deps DispatcherDependencies, locker *utils.SessionManager, maxBatchSize int) *IPReservationDispatcher {
+func NewIPReservationDispatcher(deps DispatcherDependencies, maxBatchSize int, reuseAllocations bool) *IPReservationDispatcher {
 	return &IPReservationDispatcher{
 		logger:  deps.Logger,
 		subnets: deps.Subnets,
 		handlerDeps: handlerDependencies{
 			reservations: deps.Reservations,
-			subnets:      deps.Subnets,
 			allocator:    deps.Allocator,
 			logger:       deps.Logger,
 		},
-		handlerMaxBatchSize: maxBatchSize,
-		inputCh:             make(chan reservationRequest),
-		subnetHandlers:      make(map[subnetKey]*subnetHandler),
+		handlerMaxBatchSize:     maxBatchSize,
+		handlerReuseAllocations: reuseAllocations,
+		inputCh:                 make(chan reservationRequest),
+		subnetHandlers:          make(map[subnetKey]*subnetHandler),
 	}
 }
 
@@ -140,5 +137,5 @@ func (d *IPReservationDispatcher) getNewHandler(key subnetKey) (*subnetHandler, 
 		baseSubnet: subnet,
 	}
 
-	return newSubnetHandler(subnetInfo, d.handlerDeps, d.handlerMaxBatchSize), nil
+	return newSubnetHandler(subnetInfo, d.handlerDeps, d.handlerMaxBatchSize, d.handlerReuseAllocations), nil
 }

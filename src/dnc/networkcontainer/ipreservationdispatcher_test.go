@@ -6,7 +6,6 @@ import (
 	"dnc/datamodel"
 	"dnc/logger/loggermock"
 	"dnc/networkcontainer/fakes"
-	"dnc/utils"
 	"testing"
 )
 
@@ -40,7 +39,9 @@ func TestDispatcher(t *testing.T) {
 		Subnets:      &subnets,
 	}
 
-	d := NewIPReservationDispatcher(deps, utils.NewSessionManager(nil), 100)
+	dispatcherMaxBatchSize := 100
+
+	d := NewIPReservationDispatcher(deps, dispatcherMaxBatchSize, false)
 
 	d.Run(context.Background())
 

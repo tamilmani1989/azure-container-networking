@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSubnetHandlerProcess_CreationFromScratch(t *testing.T) {
@@ -18,26 +19,23 @@ func TestSubnetHandlerProcess_CreationFromScratch(t *testing.T) {
 	vnetID := "vnet1"
 	subnet := "subnet1"
 
-	sh := subnetHandler{
+	subnetInfo := subnetInfo{
+		vnetID:     vnetID,
+		subnetName: subnet,
+		baseSubnet: baseSubnet,
+	}
+
+	deps := handlerDependencies{
 		reservations: resRepo,
-		subnets: &fakes.SubnetRepo{
-			Data: map[string]datamodel.SubnetConfiguration{
-				datamodel.GetSubnetKey(vnetID, subnet): {},
-			},
-		},
 		allocator: &IPAllocator{
 			Allocations:  &allocsRepo,
 			Logger:       loggermock.NewDummyLogger(),
 			MaxBatchSize: 100,
 		},
 		logger: loggermock.NewDummyLogger(),
-		subnetInfo: subnetInfo{
-			vnetID:     vnetID,
-			subnetName: subnet,
-			baseSubnet: baseSubnet,
-		},
-		maxBatchSize: 100,
 	}
+
+	sh := newSubnetHandler(subnetInfo, deps, 100, false)
 
 	reservationCount := 100
 	secondaryIPCount := 32
@@ -61,13 +59,8 @@ func TestSubnetHandlerProcess_CreationFromScratch(t *testing.T) {
 	expectedAllocationCount := reservationCount * (1 + secondaryIPCount) // accounting for primary ip
 
 	// all the ips stored in reservations, whether primary or secondary, should be unique
-	if len(reservationIPs) != expectedAllocationCount {
-		t.Fatalf("ips in same subnet reservations are not unique, expected %d, got %d", expectedAllocationCount, len(reservationIPs))
-	}
-
-	if len(allocsRepo.Data) != expectedAllocationCount {
-		t.Fatalf("expected %d allocations, got %d", expectedAllocationCount, len(allocsRepo.Data))
-	}
+	require.Len(t, reservationIPs, expectedAllocationCount)
+	require.Len(t, allocsRepo.Data, expectedAllocationCount)
 
 	assertCompleteResponses(t, respChans, secondaryIPCount)
 }
@@ -124,26 +117,23 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 	}
 	resRepo := fakes.NewReservationRepo()
 
-	sh := subnetHandler{
+	subnetInfo := subnetInfo{
+		vnetID:     vnetID,
+		subnetName: subnet,
+		baseSubnet: baseSubnet,
+	}
+
+	deps := handlerDependencies{
 		reservations: resRepo,
-		subnets: &fakes.SubnetRepo{
-			Data: map[string]datamodel.SubnetConfiguration{
-				datamodel.GetSubnetKey(vnetID, subnet): {},
-			},
-		},
 		allocator: &IPAllocator{
 			Allocations:  &allocsRepo,
 			Logger:       loggermock.NewDummyLogger(),
 			MaxBatchSize: 100,
 		},
 		logger: loggermock.NewDummyLogger(),
-		subnetInfo: subnetInfo{
-			vnetID:     vnetID,
-			subnetName: subnet,
-			baseSubnet: baseSubnet,
-		},
-		maxBatchSize: 100,
 	}
+
+	sh := newSubnetHandler(subnetInfo, deps, 100, false)
 
 	sh.process(set)
 
@@ -162,130 +152,17 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 	expectedAllocationCount := reservationCount * (1 + secondaryIPCount) // accounting for primary ip
 
 	// all the ips stored in reservations, whether primary or secondary, should be unique
-	if len(reservationIPs) != expectedAllocationCount {
-		t.Fatalf("ips in same subnet reservations are not unique, expected %d, got %d", expectedAllocationCount, len(reservationIPs))
-	}
-
-	if len(allocsRepo.Data) != expectedAllocationCount {
-		t.Fatalf("expected %d allocations, got %d", expectedAllocationCount, len(allocsRepo.Data))
-	}
+	require.Len(t, reservationIPs, expectedAllocationCount)
+	require.Len(t, allocsRepo.Data, expectedAllocationCount)
 
 	assertCompleteResponses(t, respChans, secondaryIPCount)
-}
-
-func TestDeallocateBatch(t *testing.T) {
-	_, baseSubnet, _ := net.ParseCIDR("10.1.0.0/16")
-	vnetID := "vnet1"
-	subnet := "subnet1"
-
-	allocsRepo := fakes.AllocationRepo{
-		Data: []datamodel.IPAllocationEntity{
-			{RowKey: "10.1.0.10_32", IPAllocation: "Network_vnet1_Reservation_res1", AllocationID: "res1"},
-			{RowKey: "10.1.0.11_32", IPAllocation: "Network_vnet1_Reservation_res1", AllocationID: "alloc1"},
-			{RowKey: "10.1.0.12_32", IPAllocation: "Network_vnet1_Reservation_res1", AllocationID: "alloc2"},
-			{RowKey: "10.1.0.13_32", IPAllocation: "Network_vnet1_Reservation_res1", AllocationID: "alloc3"},
-
-			{RowKey: "10.1.0.20_32", IPAllocation: "Network_vnet1_Reservation_res2", AllocationID: "res2"},
-			{RowKey: "10.1.0.21_32", IPAllocation: "Network_vnet1_Reservation_res2", AllocationID: "alloc4"},
-			{RowKey: "10.1.0.22_32", IPAllocation: "Network_vnet1_Reservation_res2", AllocationID: "alloc5"},
-			{RowKey: "10.1.0.23_32", IPAllocation: "Network_vnet1_Reservation_res2", AllocationID: "alloc6"},
-		},
-	}
-
-	reservations := []datamodel.ReservationConfiguration{
-		{
-			ReservationID:   "res1",
-			NetworkID:       "vnet1",
-			AllocatedSubnet: "10.1.0.10/32",
-			SecondaryAllocations: map[string]string{
-				"alloc1": "10.1.0.11/32",
-				"alloc2": "10.1.0.12/32",
-				"alloc3": "10.1.0.13/32",
-			},
-		},
-		{
-			ReservationID:   "res2",
-			NetworkID:       "vnet1",
-			AllocatedSubnet: "10.1.0.20/32",
-			SecondaryAllocations: map[string]string{
-				"alloc4": "10.1.0.21/32",
-				"alloc5": "10.1.0.22/32",
-				"alloc6": "10.1.0.23/32",
-			},
-		},
-	}
-
-	resRepo := fakes.NewReservationRepo()
-	for _, res := range reservations {
-		key := datamodel.GetReservationKey(res.NetworkID, res.ReservationID)
-		reservationRow := datamodel.ReservationRow{
-			RowKey:        key,
-			Configuration: &res,
-			SubnetKey:     datamodel.GetSubnetKey(res.NetworkID, res.AllocationRequest.SubnetName),
-		}
-		resRepo.Data[key] = reservationRow
-	}
-
-	sh := subnetHandler{
-		reservations: resRepo,
-		allocator: &IPAllocator{
-			Allocations:  &allocsRepo,
-			Logger:       loggermock.NewDummyLogger(),
-			MaxBatchSize: 100,
-		},
-		logger: loggermock.NewDummyLogger(),
-		subnetInfo: subnetInfo{
-			vnetID:     vnetID,
-			subnetName: subnet,
-			baseSubnet: baseSubnet,
-		},
-		maxBatchSize: 100,
-	}
-
-	tbds := map[string][]string{
-		"res1": {"alloc2", "alloc3"},
-		"res2": {"alloc4", "alloc6"},
-	}
-
-	output, err := sh.deallocateBatch(reservations, tbds)
-	if err != nil {
-		t.Fatalf("did not expect error: %v", err)
-	}
-
-	remainingKeys := make(map[string]struct{})
-	for _, row := range allocsRepo.Data {
-		remainingKeys[row.RowKey] = struct{}{}
-	}
-
-	expectedRemovedAllocKeys := []string{"10.1.0.12_32", "10.1.0.13_32", "10.1.0.21_32", "10.1.0.23_32"}
-	for _, key := range expectedRemovedAllocKeys {
-		if _, found := remainingKeys[key]; found {
-			t.Errorf("expected key %q to have been deleted from allocations", key)
-		}
-	}
-
-	modifiedReservations := make(map[string]datamodel.ReservationConfiguration)
-	for _, res := range output {
-		modifiedReservations[res.ReservationID] = res
-	}
-
-	for _, res := range modifiedReservations {
-		deletedAllocs := tbds[res.ReservationID]
-		for _, allocID := range deletedAllocs {
-			if _, found := res.SecondaryAllocations[allocID]; found {
-				t.Errorf("expected allocation id %s to have been removed from reservation %s", allocID, res.ReservationID)
-			}
-		}
-	}
 }
 
 func assertCompleteResponses(t *testing.T, respChans []chan response, expectedSecondaryIPCount int) {
 	for _, respChan := range respChans {
 		select {
 		case resp := <-respChan:
-			if resp.err != nil {
-				t.Fatalf("did not expect an error in response, got %v", resp.err)
-			}
+			require.NoError(t, resp.err)
 			assertCompleteReservation(t, resp.reservation, expectedSecondaryIPCount)
 		default: // don't block since we expect all channels to be buffered and contain a response
 			t.Fatal("response channel for request did not contain response")
@@ -294,16 +171,11 @@ func assertCompleteResponses(t *testing.T, respChans []chan response, expectedSe
 }
 
 func assertCompleteReservation(t *testing.T, rsv datamodel.ReservationConfiguration, expectedSecondaryIPCount int) {
-	if rsv.AllocatedSubnet == "" {
-		t.Fatal("expected allocated subnet (primary ip) to not be empty")
-	}
-	if len(rsv.SecondaryAllocations) != expectedSecondaryIPCount {
-		t.Fatalf("expected secondary ip count to be %d, got %d", expectedSecondaryIPCount, len(rsv.SecondaryAllocations))
-	}
+	require.NotEmptyf(t, rsv.AllocatedSubnet, "expected allocated subnet (primary ip) to not be empty. reservation %+v", rsv)
+	require.Len(t, rsv.SecondaryAllocations, expectedSecondaryIPCount)
+
 	for _, ip := range rsv.SecondaryAllocations {
-		if ip == "" {
-			t.Fatal("expected secondary allocation to not be empty")
-		}
+		require.NotEmpty(t, ip)
 	}
 }
 

@@ -19,7 +19,6 @@ type AzureStorageInfo struct {
 	AccountName                     string
 	Key                             string
 	PartitionKey                    string
-	EnableSharedSubnetDelegation    bool
 	RegionalStorageConnectionString string
 	Environment                     string
 	IsUsingCosmosDb                 bool

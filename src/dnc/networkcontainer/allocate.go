@@ -1,16 +1,24 @@
 package networkcontainer
 
 import (
+	"context"
 	"dnc/allocationhelper"
 	"dnc/api"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
+	"dnc/retry"
 	"dnc/utils"
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/Azure/azure-container-networking/cns"
+)
+
+const (
+	reservedAddress = "Azure Reserved Address"
 )
 
 // IPAllocator can process different types of IP allocations for network containers
@@ -338,6 +346,35 @@ func (a *IPAllocator) getAllocationsFromSubnetTable(networkID, subnetName string
 	return allocations, nil
 }
 
+func (a *IPAllocator) getAllocationsForReservationIDs(networkID, subnetName string, reservationIDs []string) (map[string]*net.IPNet, *api.JsonErr) {
+	allocations := make(map[string]*net.IPNet)
+
+	// we can only query the ip allocations table based on reservation key. since these are uuids, the encoded key might be redundant.
+	// we should consider only storing the reservation uuid.
+	// note: this path is currently only used by the subnet handler, which means batches of at most 100 (default config) ncs (1:1 w/ reservations)
+	// the resulting filters built to perform this query will work for this batch size, but can start breaking after around 130 (15k chars in filter)
+	reservationKeys := make([]string, len(reservationIDs))
+	for i, reservationID := range reservationIDs {
+		reservationKeys[i] = datamodel.GetReservationKey(networkID, reservationID)
+	}
+
+	entities, err := a.Allocations.QueryIPAllocationsByReservationKeys(networkID, subnetName, reservationKeys)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entity := range entities {
+		ipAddressString := datamodel.DecodeIPAllocationKey(entity.RowKey)
+		allocatedIPSubnet, err := utils.ParseIPNet(ipAddressString)
+		if err != nil {
+			return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
+		}
+		allocations[entity.AllocationID] = allocatedIPSubnet
+	}
+
+	return allocations, nil
+}
+
 func (a *IPAllocator) markReservationAsFailed(req *datamodel.ReservationConfiguration, err *api.JsonErr) (bool, *api.JsonErr) {
 	req.Status = datamodel.Failed
 	req.FailureDetail = *err
@@ -431,6 +468,45 @@ func (a *IPAllocator) DeleteAllocationsWithEtag(entities []datamodel.IPAllocatio
 	return nil
 }
 
+// clearAllocations will clear all properties for the given allocation ids
+func (a *IPAllocator) clearAllocations(networkID, subnetName string, allocationIDs []string) *api.JsonErr {
+	// todo: if the size of allocation ids is large enough, the method below could fail due to a large query filter generated.
+	//  need to determine what the maximum size for allocation ids should be and create batches.
+	entities, err := a.Allocations.QueryIPAllocationsByAllocationID(networkID, subnetName, allocationIDs)
+	if err != nil {
+		return err
+	}
+
+	if len(entities) == 0 {
+		a.Logger.Debugf("vnet ID %s subnet %s: the following allocation ids were not found in allocation table: %+v", networkID, subnetName, allocationIDs)
+		return nil
+	}
+
+	// will retain etags
+	for i := range entities {
+		entities[i].IPAllocation = ""
+		entities[i].AllocationID = ""
+		entities[i].ToBeDeletedOwner = ""
+	}
+
+	return a.UpdateAllocations(networkID, subnetName, entities)
+}
+
+func (a *IPAllocator) UpdateAllocations(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
+	var batches [][]datamodel.IPAllocationEntity
+	for len(entities) > a.MaxBatchSize {
+		entities, batches = entities[a.MaxBatchSize:], append(batches, entities[0:a.MaxBatchSize])
+	}
+
+	batches = append(batches, entities)
+	for i := 0; i < len(batches); i++ {
+		if err := a.Allocations.UpdateIPAllocationEntities(networkID, subnetName, batches[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (a *IPAllocator) GetIPAllocationsWithToBeDeletedOwner(networkID, subnetName, ncid string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
 	return a.Allocations.QueryIPAllocationsByToBeDeletedOwner(networkID, subnetName, ncid)
 }
@@ -483,7 +559,129 @@ func (a *IPAllocator) MarkAllocationAsPendingCleanup(res datamodel.ReservationCo
 	return a.Allocations.UpdateIPAllocations(res.NetworkID, res.AllocationRequest.SubnetName, batch)
 }
 
-func GenerateAllSubnetRows(subnet *net.IPNet) ([]datamodel.IPAllocationEntity, error) {
+// PrepopulateSubnet will persist all rows for a given partition and subnet CIDR range.
+// If the subnet is large enough, the operation may not be atomic since rows will need to be persisted in batches.
+// Given the batch slicing strategy (batches for a given subnet should always contain the same elements, conflicts
+// are handled), this operation is safe to retry.
+func (a *IPAllocator) PrepopulateSubnet(vnetID, subnetName, subnetCIDR string) *api.JsonErr {
+	_, subnet, err := net.ParseCIDR(subnetCIDR)
+	if err != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError, "vnet ID %s subnet %s: could not parse subnet CIDR: %v", vnetID, subnetName, err)
+	}
+
+	allAllocs, err := generateIPAllocationEntitiesForSubnet(subnet)
+	if err != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError, "vnet ID %s subnet %s: could not generate subnet rows: %v", vnetID, subnetName, err)
+	}
+
+	ch := a.rowBatchProducer(allAllocs)
+
+	if err := a.rowBatchConsumer(ch, vnetID, subnetName); err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	return nil
+}
+
+func (a *IPAllocator) rowBatchProducer(rows []datamodel.IPAllocationEntity) chan []datamodel.IPAllocationEntity {
+	out := make(chan []datamodel.IPAllocationEntity)
+
+	go func() {
+		defer close(out)
+		var batch []datamodel.IPAllocationEntity
+		for i, row := range rows {
+			batch = append(batch, row)
+
+			// send batch when it reaches max size or is the last one
+			if len(batch) == a.MaxBatchSize || i == len(rows)-1 {
+				out <- batch
+				batch = nil
+			}
+		}
+	}()
+
+	return out
+}
+
+// todo: retrier needs a jitter mode, otherwise multiple goroutines using the same one will retry all at the same time
+//  which can keep triggering throttling
+var cosmosThrottleRetrier = retry.Retrier{
+	Attempts:   5,
+	Delay:      time.Second,
+	ExpBackoff: true,
+}
+
+func (a *IPAllocator) rowBatchConsumer(in chan []datamodel.IPAllocationEntity, vnetID, subnetName string) error {
+	workerCount := 10
+	var g sync.WaitGroup
+	g.Add(workerCount)
+
+	var batchError rowBatchError
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			defer g.Done()
+			for entities := range in {
+				firstKey := entities[0].RowKey // batches are always len > 0
+
+				// errors returned by this closure will be retried
+				retryableFunc := func() error {
+					// first, cheap check to see if this batch has already been processed.
+					alloc, err := a.Allocations.TryQueryIPAllocation(vnetID, subnetName, firstKey)
+					if err != nil {
+						return err
+					}
+
+					// if we get a valid result (row key is populated), then the batch has already been processed.
+					if alloc.RowKey != "" {
+						a.Logger.Debugf("batch starting with key %s already persisted", firstKey)
+						return nil
+					}
+
+					// attempt to persist, but handle conflict since it is still possible.
+					if err := a.Allocations.InsertIPAllocationEntities(vnetID, subnetName, entities); err != nil {
+						if err.HTTPStatus == http.StatusConflict {
+							a.Logger.Debugf("batch starting with key %s already exists", firstKey)
+							return nil
+						}
+						return err
+					}
+
+					return nil
+				}
+
+				if err := cosmosThrottleRetrier.Do(context.TODO(), retryableFunc); err != nil {
+					a.Logger.Errorf("could not persist batch starting with key %s: %v", firstKey, err)
+					batchError.addKey(firstKey)
+				}
+			}
+		}()
+	}
+
+	g.Wait()
+
+	if len(batchError.keys) > 0 {
+		return &batchError
+	}
+
+	return nil
+}
+
+type rowBatchError struct {
+	keys []string
+	m    sync.Mutex
+}
+
+func (r *rowBatchError) Error() string {
+	return fmt.Sprintf("could not persist batches starting with keys: %+v", r.keys)
+}
+
+func (r *rowBatchError) addKey(key string) {
+	r.m.Lock()
+	r.keys = append(r.keys, key)
+	r.m.Unlock()
+}
+
+func generateIPAllocationEntitiesForSubnet(subnet *net.IPNet) ([]datamodel.IPAllocationEntity, error) {
 	subnetBlockSize := subnetMaxHostCount(subnet)
 
 	loIPBound := int(utils.IP2Int(subnet.IP))
@@ -501,8 +699,8 @@ func GenerateAllSubnetRows(subnet *net.IPNet) ([]datamodel.IPAllocationEntity, e
 		row := datamodel.IPAllocationEntity{RowKey: rowKey}
 
 		if _, isReserved := reserved[ip]; isReserved {
-			row.IPAllocation = "Azure Reserved Address"
-			row.AllocationID = "Azure Reserved Address"
+			row.IPAllocation = reservedAddress
+			row.AllocationID = reservedAddress
 		}
 
 		rows = append(rows, row)

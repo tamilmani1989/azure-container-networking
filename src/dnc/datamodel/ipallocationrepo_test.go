@@ -88,6 +88,13 @@ func TestQueryIpAllocationsByToBeDeletedOwner(t *testing.T) {
 		}
 	}
 
+	// datastore will use this predicate when performing QueryFilter.
+	// if QueryFilter is expected to perform a different match later on, func must be swapped.
+	store.QueryFilterFunc = func(rowKey string, properties map[string]interface{}) bool {
+		val := properties[ToBeDeletedOwnerProperty]
+		return val == toBeDeletedOwnerId
+	}
+
 	t.Logf("QueryIPAllocationsByToBeDeletedOwner should return empty rows")
 	rows, err = repo.QueryIPAllocationsByToBeDeletedOwner("vnet1", "subnet1", toBeDeletedOwnerId)
 	if err != nil {

@@ -3,11 +3,17 @@ package networkcontainer
 import (
 	"dnc/api"
 	"dnc/datamodel"
+	"dnc/datastore/testpersistencestore"
 	"dnc/logger/loggermock"
 	"dnc/networkcontainer/fakes"
 	"math/rand"
 	"net"
+	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/google/uuid"
 )
@@ -174,7 +180,6 @@ func TestDeallocate(t *testing.T) {
 
 	for i := 0; i < len(allocationRows); i++ {
 		allocID := uuid.New().String()
-		//allocationRows[i] = fakes.RepoKV{Key: ips[i].String() + "_32", Value: map[string]interface{}{allocIDProperty: allocID}}
 		allocationRows[i] = datamodel.IPAllocationEntity{
 			RowKey:       ips[i].String() + "_32",
 			IPAllocation: "", // todo: verify
@@ -313,4 +318,128 @@ func extractAllocationIDs(a fakes.AllocationRepo) map[string]struct{} {
 		}
 	}
 	return allocIDs
+}
+
+func TestGenerateAllRows(t *testing.T) {
+	_, subnet, _ := net.ParseCIDR("10.0.0.0/16")
+	rows, _ := generateIPAllocationEntitiesForSubnet(subnet)
+	if len(rows) != 65536 {
+		t.Fatalf("expected 65536 rows, got %d", len(rows))
+	}
+
+	count := 0
+	for _, row := range rows {
+		if row.IPAllocation == "Azure Reserved Address" {
+			count++
+		}
+	}
+
+	if count != 5 {
+		t.Fatalf("expected 5 reserved, got %d", count)
+	}
+}
+
+const slash16HostCount = 256 * 256
+
+func TestPrepopulateRows(t *testing.T) {
+	t.Run("happy path", func(t *testing.T) {
+		var ds testpersistencestore.TestPersistenceStore
+		ds.Init(datamodel.TableToColumnMap, loggermock.NewNoOpLogger())
+		allocRepo := datamodel.AllocationRepo{Datastore: &ds}
+
+		cidr := "10.0.0.0/16"
+		vnetID := "vnet1"
+		subnetName := "subnet1"
+
+		a := IPAllocator{
+			Allocations:  &allocRepo,
+			Logger:       loggermock.NewDummyLogger(),
+			MaxBatchSize: 1000,
+		}
+
+		err := a.PrepopulateSubnet(vnetID, subnetName, cidr)
+		require.Nil(t, err)
+
+		allocs, err := allocRepo.TryQueryAllIPAllocations(vnetID, subnetName)
+		require.Nil(t, err)
+
+		assert.Len(t, allocs, slash16HostCount)
+	})
+
+	t.Run("should be retryable", func(t *testing.T) {
+		var ds testpersistencestore.TestPersistenceStore
+		ds.Init(datamodel.TableToColumnMap, loggermock.NewNoOpLogger())
+		allocRepo := datamodel.AllocationRepo{Datastore: &ds}
+		maxBatchSize := 1000
+		cidr := "10.0.0.0/16"
+		vnetID := "vnet1"
+		subnetName := "subnet1"
+
+		a := IPAllocator{
+			Allocations:  &allocRepo,
+			Logger:       loggermock.NewNoOpLogger(),
+			MaxBatchSize: maxBatchSize,
+		}
+
+		_, subnet, _ := net.ParseCIDR(cidr)
+		allAllocs, _ := generateIPAllocationEntitiesForSubnet(subnet)
+		require.Len(t, allAllocs, slash16HostCount)
+
+		// simulate dispersed batch ranges from previous run that succeeded
+		partialAllocs := [][]datamodel.IPAllocationEntity{
+			allAllocs[maxBatchSize*2 : maxBatchSize*3],
+			allAllocs[maxBatchSize*15 : maxBatchSize*18],
+			allAllocs[maxBatchSize*32 : maxBatchSize*50],
+		}
+
+		for _, p := range partialAllocs {
+			_ = allocRepo.InsertIPAllocationEntities(vnetID, subnetName, p)
+		}
+
+		err := a.PrepopulateSubnet(vnetID, subnetName, cidr)
+		require.Nil(t, err)
+
+		allocs, err := allocRepo.TryQueryAllIPAllocations(vnetID, subnetName)
+		require.Nil(t, err)
+
+		assert.Len(t, allocs, slash16HostCount)
+	})
+
+	t.Run("can be called concurrently", func(t *testing.T) {
+		var ds testpersistencestore.TestPersistenceStore
+		ds.Init(datamodel.TableToColumnMap, loggermock.NewNoOpLogger())
+		allocRepo := datamodel.AllocationRepo{Datastore: &ds}
+		maxBatchSize := 1000
+		cidr := "10.0.0.0/16"
+		vnetID := "vnet1"
+		subnetName := "subnet1"
+
+		a := IPAllocator{
+			Allocations:  &allocRepo,
+			Logger:       loggermock.NewNoOpLogger(),
+			MaxBatchSize: maxBatchSize,
+		}
+
+		// simulate 10 DNCs working on the same subnet
+		var wg sync.WaitGroup
+		wg.Add(10)
+		for i := 0; i < 10; i++ {
+			go func(workerID int) {
+				defer wg.Done()
+				err := a.PrepopulateSubnet(vnetID, subnetName, cidr)
+				assert.Nilf(t, err, "worker %d: did not expect error", workerID)
+			}(i)
+		}
+		wg.Wait()
+
+		allocs, err := allocRepo.TryQueryAllIPAllocations(vnetID, subnetName)
+		require.Nil(t, err)
+
+		assert.Len(t, allocs, slash16HostCount)
+	})
+
+	t.Run("handles throttling", func(t *testing.T) {
+		// todo: tested manually, just no easy way to simulate with test data store at the moment
+		t.SkipNow()
+	})
 }

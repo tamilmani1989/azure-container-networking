@@ -48,8 +48,8 @@ func initNetworkContainerStateMachine() {
 				Allocator:    &ipAllocator,
 				Subnets:      new(subnetRepo),
 			},
-			sessionManager,
 			config.DNCSettings.MaxIPReservationBatchSize,
+			false, // todo: pass this from config
 		)
 
 		resDispatcher.Run(context.Background())
