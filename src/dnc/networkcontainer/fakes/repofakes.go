@@ -100,6 +100,14 @@ func (f *ReservationRepo) UpdateReservations(reservations []datamodel.Reservatio
 	return nil
 }
 
+func (f *ReservationRepo) DeleteReservation(reservationKey string) *api.JsonErr {
+	if _, found := f.Data[reservationKey]; found {
+		delete(f.Data, reservationKey)
+	}
+
+	return nil
+}
+
 type SubnetRepo struct {
 	Data     map[string]datamodel.SubnetConfiguration
 	QueryErr *api.JsonErr
@@ -142,6 +150,20 @@ func (f *AllocationRepo) TryQueryIPAllocation(networkID, subnetName, rowKey stri
 }
 
 func (f *AllocationRepo) UpdateIPAllocationEntities(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
+	for _, entity := range entities {
+		for i := 0; i < len(f.Data); i++ {
+			if f.Data[i].RowKey == entity.RowKey {
+				row := f.Data[i]
+				row.ToBeDeletedOwner = entity.ToBeDeletedOwner
+				row.IPAllocation = entity.IPAllocation
+				row.AllocationID = entity.AllocationID
+
+				f.Data[i] = row
+				break
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -154,6 +176,16 @@ func (f *AllocationRepo) QueryIPAllocationsByAllocationID(_, _ string, allocIDs 
 	var results []datamodel.IPAllocationEntity
 	for _, d := range f.Data {
 		if _, found := ids[d.AllocationID]; found {
+			results = append(results, d)
+		}
+	}
+	return results, nil
+}
+
+func (f *AllocationRepo) QueryIPAllocationsByReservationKey(networkID, subnetName string, reservationKey string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
+	var results []datamodel.IPAllocationEntity
+	for _, d := range f.Data {
+		if d.IPAllocation == reservationKey {
 			results = append(results, d)
 		}
 	}
@@ -193,10 +225,6 @@ func (f *AllocationRepo) AddIPAllocations(_, _ string, rows map[string]map[strin
 	return nil
 }
 
-func (f *AllocationRepo) UpdateIPAllocations(_, _ string, _ map[string]map[string]interface{}) *api.JsonErr {
-	return nil
-}
-
 func (f *AllocationRepo) TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
 	return f.Data, nil
 }
@@ -212,6 +240,17 @@ func (f *AllocationRepo) DeleteIPAllocations(_, _ string, keys []string) *api.Js
 
 	for i := 0; i < len(f.Data); i++ {
 		if _, found := tbd[f.Data[i].RowKey]; found {
+			f.Data = append(f.Data[:i], f.Data[i+1:]...)
+			i--
+		}
+	}
+
+	return nil
+}
+
+func (f *AllocationRepo) DeleteIPAllocation(networkID, subnetName, allocatedIPKey string) *api.JsonErr {
+	for i := 0; i < len(f.Data); i++ {
+		if f.Data[i].RowKey == allocatedIPKey {
 			f.Data = append(f.Data[:i], f.Data[i+1:]...)
 			i--
 		}
@@ -261,8 +300,17 @@ type NodeRepo struct {
 	FakeNodeConfig datamodel.NodeConfiguration
 }
 
+func (n *NodeRepo) TryQueryNodeConfiguration(nodeID string) (*datamodel.NodeConfiguration, *api.JsonErr) {
+	return &n.FakeNodeConfig, nil
+}
+
 func (n *NodeRepo) QueryNodeConfiguration(nodeID string) (*datamodel.NodeConfiguration, *api.JsonErr) {
 	return &n.FakeNodeConfig, nil
+}
+
+func (n *NodeRepo) UpdateNodeConstrainedReservationSet(networkID, reservationID string, remove bool, nodeConfiguration *datamodel.NodeConfiguration) *api.JsonErr {
+	// TODO: implement to testing.
+	return nil
 }
 
 func (n *NodeRepo) UpdateNodeConstrainedReservationSetByNodeID(nodeID, networkID, reservationID string, remove bool) *api.JsonErr {

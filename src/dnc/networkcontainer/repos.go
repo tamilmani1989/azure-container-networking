@@ -7,7 +7,9 @@ import (
 
 // A NodeRepo performs CRUD operations on network nodes
 type NodeRepo interface {
+	TryQueryNodeConfiguration(nodeID string) (*datamodel.NodeConfiguration, *api.JsonErr)
 	QueryNodeConfiguration(nodeID string) (*datamodel.NodeConfiguration, *api.JsonErr)
+	UpdateNodeConstrainedReservationSet(networkID, reservationID string, remove bool, nodeConfiguration *datamodel.NodeConfiguration) *api.JsonErr
 	UpdateNodeConstrainedReservationSetByNodeID(nodeID, networkID, reservationID string, remove bool) *api.JsonErr
 	UpdateNodeContainers(nodeID, networkID, ncID, reservationID, containerType string, updateVlan, remove bool, ncLimit int) *api.JsonErr
 }
@@ -31,6 +33,7 @@ type IPReservationRepo interface {
 	TryQueryIPReservationByKey(key string) (datamodel.ReservationRow, *api.JsonErr)
 	PutIPReservationConfiguration(res *datamodel.ReservationConfiguration) *api.JsonErr
 	UpdateReservations(reservations []datamodel.ReservationConfiguration) *api.JsonErr
+	DeleteReservation(reservationKey string) *api.JsonErr
 }
 
 // todo: mutation methods should take a batch of Allocation rows, not generic maps
@@ -39,6 +42,7 @@ type IPReservationRepo interface {
 type IPAllocationRepo interface {
 	TryQueryIPAllocation(networkID, subnetName, rowKey string) (datamodel.IPAllocationEntity, *api.JsonErr)
 	TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
+	QueryIPAllocationsByReservationKey(networkID, subnetName string, reservationKey string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
 	QueryIPAllocationsByAllocationID(networkID, subnetName string, allocIDs []string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
 	QueryIPAllocationsByToBeDeletedOwner(networkID, subnetName string, tobeDeletedOwnerId string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
 	QueryUnreservedAllocations(networkID, subnetName string, count int) ([]datamodel.IPAllocationEntity, *api.JsonErr)
@@ -46,9 +50,8 @@ type IPAllocationRepo interface {
 	// deprecated: use InsertIPAllocationEntities
 	AddIPAllocations(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr
 	InsertIPAllocationEntities(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr
-	// deprecated: use UpdateIPAllocationEntities
-	UpdateIPAllocations(networkID, subnetName string, batch map[string]map[string]interface{}) *api.JsonErr
-	UpdateIPAllocationEntities(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr
+	UpdateIPAllocationEntities(networkID, subnetName string, ipAllocationEntities []datamodel.IPAllocationEntity) *api.JsonErr
+	DeleteIPAllocation(networkID, subnetName, allocatedIPKey string) *api.JsonErr
 	DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr
 	DeleteIPAllocationEntityWithEtag(entity datamodel.IPAllocationEntity) *api.JsonErr
 }

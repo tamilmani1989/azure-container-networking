@@ -10,9 +10,10 @@ import (
 // for a subnet have already been created but not assigned to reservations, we can run efficient queries to determine
 // what ip addresses are available to be allocated.
 type prepopulatedStrategy struct {
-	allocator  *IPAllocator
-	subnetInfo subnetInfo
-	logger     loggershim.LoggerInterface
+	allocator          *IPAllocator
+	subnetInfo         subnetInfo
+	logger             loggershim.LoggerInterface
+	pubsubProxyEnabled bool
 }
 
 func (t *prepopulatedStrategy) logf(format string, args ...interface{}) {
@@ -23,6 +24,7 @@ func (t *prepopulatedStrategy) logErrorf(format string, args ...interface{}) {
 	t.logger.Errorf("[top n strategy] vnet %s subnet %s - %s", t.subnetInfo.vnetID, t.subnetInfo.subnetName, fmt.Sprintf(format, args...))
 }
 
+// todo: handle setting TBD for deleting ips, also need to update cleanup monitor to handle the cleanup
 func (t *prepopulatedStrategy) scaleDown(reservations []datamodel.ReservationConfiguration, tbdAllocationIDs map[string][]string) ([]datamodel.ReservationConfiguration, error) {
 	var allocIDs []string
 	for i := 0; i < len(reservations); i++ {

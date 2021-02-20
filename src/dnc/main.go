@@ -231,22 +231,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
-		masterElectionShim, config, httpClient, cnsHttpClient)
-	dncServer = server.Server{
-		ServerSettings:      config.ServerSettings,
-		Controller:          ctrler,
-		ReverseProxyEnabled: config.DNCSettings.ReverseProxyEnabled,
-		ConnectionTimeout:   config.HttpClientSettings.ConnectionTimeout,
-		Logger:              logger}
-
-	if err := dncServer.Init(); err != nil {
-		log.Fatalln("Error initializing dnc server. Error:", err)
-	}
-
-	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
-	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
-
+	// Initialize the datamodel before initializing controller
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
 		// TO DO : Pass config object itself.
@@ -265,14 +250,31 @@ func main() {
 		if err != nil {
 			log.Fatalln("Error initializing datamodel. Error:", err)
 		}
-
-		ctrler.UpdateReplicaStatus(true)
-		setOrchestratorForTelemetry()
 	}
 
 	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
-
 	initNetworkContainerStateMachine()
+
+	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
+		masterElectionShim, config, httpClient, cnsHttpClient, &ipAllocator)
+	dncServer = server.Server{
+		ServerSettings:      config.ServerSettings,
+		Controller:          ctrler,
+		ReverseProxyEnabled: config.DNCSettings.ReverseProxyEnabled,
+		ConnectionTimeout:   config.HttpClientSettings.ConnectionTimeout,
+		Logger:              logger}
+
+	if err := dncServer.Init(); err != nil {
+		log.Fatalln("Error initializing dnc server. Error:", err)
+	}
+
+	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
+	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
+
+	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
+		ctrler.UpdateReplicaStatus(true)
+		setOrchestratorForTelemetry()
+	}
 
 	pubSubCfg := config.PubSubProxySettings
 	if pubSubCfg.EnablePubSubProxy {

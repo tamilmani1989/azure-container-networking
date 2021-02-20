@@ -40,8 +40,7 @@ func TestDispatcher(t *testing.T) {
 	}
 
 	dispatcherMaxBatchSize := 100
-
-	d := NewIPReservationDispatcher(deps, dispatcherMaxBatchSize, false)
+	d := NewIPReservationDispatcher(deps, dispatcherMaxBatchSize, false, true)
 
 	d.Run(context.Background())
 

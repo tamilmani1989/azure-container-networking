@@ -21,15 +21,21 @@ const (
 	reservedAddress = "Azure Reserved Address"
 )
 
+// TODO: we should rename this as ReserveIpManager or something else instead of just IpAllocator
 // IPAllocator can process different types of IP allocations for network containers
 type IPAllocator struct {
-	Nodes        NodeRepo
-	NCs          NCRepo
-	Subnets      SubnetRepo
-	Reservations IPReservationRepo
-	Allocations  IPAllocationRepo
-	Logger       loggershim.LoggerInterface
-	MaxBatchSize int
+	Nodes              NodeRepo
+	NCs                NCRepo
+	Subnets            SubnetRepo
+	Reservations       IPReservationRepo
+	Allocations        IPAllocationRepo
+	PendingCleanupRepo *datamodel.PendingResourceCleanupRepo
+	Logger             loggershim.LoggerInterface
+
+	// TODO: These should not be exported and initialized only during startup
+	MaxBatchSize                int
+	DisableResMapInSubnetConfig bool
+	PubsubProxyEnabled          bool
 }
 
 // ProcessIPReservationAllocationWithKey processes IP allocation for a given reservation key
@@ -115,7 +121,9 @@ func (a *IPAllocator) ProcessIPReservationAllocation(req *datamodel.ReservationC
 	// we only add the primary ip for the reservation if it hadn't been found previously
 	if req.AllocatedSubnet == "" {
 		rowKey := datamodel.EncodeIPAllocationKey(primaryIP.String())
-		batch[rowKey] = map[string]interface{}{datamodel.IPAllocationProperty: reservationKey, datamodel.AllocationIDProperty: req.ReservationID}
+		batch[rowKey] = map[string]interface{}{
+			datamodel.IPAllocationProperty: reservationKey,
+			datamodel.AllocationIDProperty: req.ReservationID}
 	}
 
 	// we keep track of all secondary allocations that have not been assigned an IP yet
@@ -149,7 +157,9 @@ func (a *IPAllocator) ProcessIPReservationAllocation(req *datamodel.ReservationC
 			encodedSubnet := availableIPs[i].String() + utils.PrefixDelimiter + utils.IPV4DefaultPrefix
 			unallocated[allocationID] = encodedSubnet
 			rowKey := datamodel.EncodeIPAllocationKey(encodedSubnet)
-			batch[rowKey] = map[string]interface{}{datamodel.IPAllocationProperty: reservationKey, datamodel.AllocationIDProperty: allocationID}
+			batch[rowKey] = map[string]interface{}{
+				datamodel.IPAllocationProperty: reservationKey,
+				datamodel.AllocationIDProperty: allocationID}
 			i++
 		}
 	}
@@ -402,6 +412,23 @@ func (a *IPAllocator) DeallocateIPs(res datamodel.ReservationConfiguration, allo
 	return a.DeleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
 }
 
+func (a *IPAllocator) MarkIpsAsPendingCleanup(res datamodel.ReservationConfiguration, allocationIDs []string) *api.JsonErr {
+	allocIDsToDelete := make(map[string]struct{})
+	for _, allocID := range allocationIDs {
+		allocIDsToDelete[allocID] = struct{}{}
+	}
+
+	var rowKeys []string
+	for allocID := range allocIDsToDelete {
+		if ipAddress, found := res.SecondaryAllocations[allocID]; found {
+			rowKey := datamodel.EncodeIPAllocationKey(ipAddress)
+			rowKeys = append(rowKeys, rowKey)
+		}
+	}
+
+	return a.DeleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
+}
+
 func (a *IPAllocator) RemoveAllAllocations(res datamodel.ReservationConfiguration) *api.JsonErr {
 	var (
 		rowKeys  []string
@@ -420,6 +447,7 @@ func (a *IPAllocator) RemoveAllAllocations(res datamodel.ReservationConfiguratio
 	// this is needed in cases where allocations were persisted correctly, but not back to the reservation
 	// we make sure that any allocation ids associated to the reservation don't have lingering records
 	if len(allocIDs) > 0 {
+		// Todo: why cant query all ips by ReservationId/IpAllocationId only?
 		allocRows, err := a.Allocations.QueryIPAllocationsByAllocationID(res.NetworkID, res.AllocationRequest.SubnetName, allocIDs)
 		if err != nil {
 			return err
@@ -469,6 +497,7 @@ func (a *IPAllocator) DeleteAllocationsWithEtag(entities []datamodel.IPAllocatio
 }
 
 // clearAllocations will clear all properties for the given allocation ids
+// todo: handle IPCleanup for prepopulated strategy
 func (a *IPAllocator) clearAllocations(networkID, subnetName string, allocationIDs []string) *api.JsonErr {
 	// todo: if the size of allocation ids is large enough, the method below could fail due to a large query filter generated.
 	//  need to determine what the maximum size for allocation ids should be and create batches.
@@ -534,29 +563,37 @@ func (a *IPAllocator) saveAllocationBatch(vnetID, subnetName string, batchMap ma
 	return nil
 }
 
-func (a *IPAllocator) MarkAllocationAsPendingCleanup(res datamodel.ReservationConfiguration, allocationIDs []string) *api.JsonErr {
-	batch := make(map[string]map[string]interface{})
-
-	allocIDsToDelete := make(map[string]struct{})
-	for _, allocID := range allocationIDs {
-		allocIDsToDelete[allocID] = struct{}{}
+func (a *IPAllocator) SetToBeDeleteOwnerToDeletingIps(networkId, subnetName, reservationKey, tobeDeletedOwner string, allocIDsToDelete map[string]string) *api.JsonErr {
+	// Query the IpAllocations reserved for a given reservationKey (aka IpAllocationId)
+	ipAllocationEntities, err := a.Allocations.QueryIPAllocationsByReservationKey(networkId, subnetName, reservationKey)
+	if err != nil {
+		return err
 	}
 
-	var rowKeys []string
-	for allocID := range allocIDsToDelete {
-		if ipAddress, found := res.SecondaryAllocations[allocID]; found {
-			rowKey := datamodel.EncodeIPAllocationKey(ipAddress)
-			rowKeys = append(rowKeys, rowKey)
+	// Build a map for faster search
+	var ipEntities = make(map[string]datamodel.IPAllocationEntity)
+	for _, entity := range ipAllocationEntities {
+		ipEntities[entity.AllocationID] = entity
+	}
+
+	var ipEntitiesMarkedForDelete []datamodel.IPAllocationEntity
+	for allocationId, _ := range allocIDsToDelete {
+		if entity, found := ipEntities[allocationId]; found {
+			entity.ToBeDeletedOwner = tobeDeletedOwner
+			ipEntitiesMarkedForDelete = append(ipEntitiesMarkedForDelete, entity)
 		}
 	}
 
-	// need to update the table with the NCID in the toBeDeletedProperty column
-	for _, rowKey := range rowKeys {
-		batch[rowKey] = map[string]interface{}{datamodel.ToBeDeletedOwnerProperty: res.AssociatedNCID}
+	// whether it's a conflict or a network error, background monitor will retry
+	err = a.Allocations.UpdateIPAllocationEntities(networkId, subnetName, ipEntitiesMarkedForDelete)
+	if err != nil {
+		return err
 	}
 
-	// whether it's a conflict or a network error, we should retry
-	return a.Allocations.UpdateIPAllocations(res.NetworkID, res.AllocationRequest.SubnetName, batch)
+	a.Logger.Debugf("SetToBeDeleteOwnerToDeletingIps: Marked ToBeDeletedOwner for Ips, ReservationKey %s, ToBeDeletedOwner %s,ipEntitiesMarkedForDelete %+v",
+		reservationKey, tobeDeletedOwner, ipEntitiesMarkedForDelete)
+
+	return nil
 }
 
 // PrepopulateSubnet will persist all rows for a given partition and subnet CIDR range.
@@ -707,4 +744,169 @@ func generateIPAllocationEntitiesForSubnet(subnet *net.IPNet) ([]datamodel.IPAll
 	}
 
 	return rows, nil
+}
+
+// DeleteIPReservation - Delete an IP Reservation.
+func (a *IPAllocator) DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonErr {
+	reservation, err := a.Reservations.TryQueryIPReservation(networkID, reservationID)
+	if err != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not retrieve configuration for reservationKey: %s. Error: %s",
+			datamodel.GetReservationKey(networkID, reservationID), err)
+	}
+
+	if reservation.Configuration == nil {
+		return nil
+	}
+
+	reservationKey := datamodel.GetReservationKey(networkID, reservationID)
+	if reservation.Configuration.AssociatedNCID != "" && !force {
+		return api.BadRequestf(api.ReservationInUse,
+			"Reservation for key: %s is in use with container: %s", reservationKey, reservation.Configuration.AssociatedNCID)
+	}
+
+	if a.PubsubProxyEnabled && len(reservation.Configuration.AssociatedNCID) != 0 {
+		a.Logger.Debugf("DeleteIPReservation: Set ToBeDeletedOwner for Primary and Secondary Ips (if any), ReservationKey %s, NCID %s",
+			reservationKey, reservation.Configuration.AssociatedNCID)
+
+		// Update IP Allocations Table with ToBeDeletedOwner ID, where ID is the NCID
+		// Note: don't delete the ToBeDeletedIP's from the NC here, only updating the IPAllocations table
+		var ipsPendingCleanup = make(map[string]string)
+
+		// It is okay if the associated ips are empty, it will still get cleaned up by the background cleanup monitor
+		if len(reservation.Configuration.SecondaryAllocations) > 0 {
+			ipsPendingCleanup = reservation.Configuration.SecondaryAllocations
+		}
+
+		// Also mark ToBeDeletedOwner for primary IP.
+		ipsPendingCleanup[reservationID] = reservation.Configuration.AllocatedSubnet
+
+		err = a.SetToBeDeleteOwnerToDeletingIps(
+			reservation.Configuration.NetworkID,
+			reservation.Configuration.AllocationRequest.SubnetName,
+			reservationKey,
+			reservation.Configuration.AssociatedNCID,
+			ipsPendingCleanup)
+		if err != nil {
+			a.Logger.Errorf("DeleteIPReservation: Failed to mark ToBeDeletedOwner for associated ips, reservationKey %s, err %+v",
+				reservationKey, err)
+			return err
+		}
+
+		err = a.CreateIpCleanupRequest(
+			reservation.Configuration.NetworkID,
+			reservation.Configuration.AllocationRequest.SubnetName,
+			reservation.Configuration.AssociatedNCID)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Delete IPs from IpAllocations table and clean the Reservation table
+		// No need to wait for Pubsub job
+		if len(reservation.Configuration.SecondaryAllocations) > 0 {
+			if err := a.RemoveAllAllocations(*reservation.Configuration); err != nil {
+				return err
+			}
+		}
+
+		if err = a.validateAndDeleteIPAllocation(reservation.Configuration.NetworkID,
+			reservation.Configuration.AllocationRequest.SubnetName,
+			reservationKey,
+			reservation.Configuration.AllocatedSubnet); err != nil {
+			a.Logger.Errorf("Failed to delete IP allocation due to error %+v", err)
+			return err
+		}
+	}
+
+	// Delete the reservation from subnetConfig if the config flag to disable reservationMap is not set
+	if !a.DisableResMapInSubnetConfig {
+		subnetConfiguration, err := a.Subnets.TryQuerySubnetConfiguration(
+			reservation.Configuration.NetworkID,
+			reservation.Configuration.AllocationRequest.SubnetName)
+		if err != nil {
+			return err
+		}
+
+		if subnetConfiguration != nil && subnetConfiguration.Reservations != nil {
+			delete(subnetConfiguration.Reservations, reservationID)
+			if err = a.Subnets.PutSubnetConfiguration(subnetConfiguration); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(reservation.Configuration.AllocationRequest.NodeConstraint) != 0 {
+		nodeConfiguration, err := a.Nodes.TryQueryNodeConfiguration(reservation.Configuration.AllocationRequest.NodeConstraint)
+		if err != nil {
+			return err
+		}
+		if nodeConfiguration != nil {
+			err := a.Nodes.UpdateNodeConstrainedReservationSet(
+				reservation.Configuration.NetworkID,
+				reservation.Configuration.ReservationID,
+				true,
+				nodeConfiguration)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return a.Reservations.DeleteReservation(reservationKey)
+}
+
+// Creates the PendingCleanup Request for ips which are marked deleted for a given NcId (ToBeDeletedOwner)
+func (a *IPAllocator) CreateIpCleanupRequest(networkId, subnetName, tobeDeletedOwner string) *api.JsonErr {
+	// This API is called during Unreserve or Secondary IP scale down state
+	// Always fetch again all the ips which are marked with ToBeDeletedOwner as there can be a race if a delete
+	// NC is received while ScaleDown is getting processed. During scale down, we could have set TBD for a deleting IP
+	// and removed it from Reservation but missed creating the CleanupRequest
+	ipEntitiesMarkedForDelete, err := a.Allocations.QueryIPAllocationsByToBeDeletedOwner(networkId, subnetName, tobeDeletedOwner)
+	if err != nil {
+		a.Logger.Errorf("CreateIpCleanupRequest, failed to QueryIPAllocationsByToBeDeletedOwner for networkId %s, subnetName %s, tobeDeletedOwner %s, err %+v",
+			networkId, subnetName, tobeDeletedOwner, err)
+		return err
+	}
+
+	// Create the BG Job to delete AllocatedIPs only after the associated unpublish
+	// task (Created in the unpublish state) is completed
+	if len(ipEntitiesMarkedForDelete) > 0 {
+		a.Logger.Debugf("DeleteIPReservation: Creating CleanupJob for networkId %s, subnetName %s, tobeDeletedOwner %s, ipEntitiesMarkedForDelete count %d",
+			networkId, subnetName, tobeDeletedOwner, len(ipEntitiesMarkedForDelete))
+		err = a.PendingCleanupRepo.CreateOrMergeIPResourceCleanupRequestFromIPAllocations(
+			networkId,
+			subnetName,
+			tobeDeletedOwner,
+			ipEntitiesMarkedForDelete)
+		if err != nil {
+			a.Logger.Errorf("CreateIpCleanupRequest: failed to create IPCleanupRequest for networkId %s, subnetName %s, tobeDeletedOwner %s, err %+v",
+				networkId, subnetName, tobeDeletedOwner, err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateAndDeleteIPAllocation - Delete an IP allocation entry from IPAllocations table.
+func (a *IPAllocator) validateAndDeleteIPAllocation(networkID, subnetName, reservationKey, allocatedIP string) *api.JsonErr {
+	allocatedIPKey := datamodel.EncodeIPAllocationKey(allocatedIP)
+	savedReservationKey, err := a.Allocations.TryQueryIPAllocation(networkID, subnetName, allocatedIPKey)
+	if err != nil {
+		return err
+	}
+
+	if savedReservationKey.RowKey == "" {
+		a.Logger.Errorf("Error: Cannot find the ipAddress %s in IPAllocation table", allocatedIP)
+		return nil
+	}
+
+	if reservationKey != savedReservationKey.IPAllocation {
+		msgFmt := "Reservation key mismatch in IPAllocations table for IP address %s on vnet %s subnet %s " +
+			"during deletion of reservation key %s: allocation is associated to reservation key %s. Skipping allocation record deletion."
+		a.Logger.Errorf(msgFmt, allocatedIP, networkID, subnetName, reservationKey, savedReservationKey.IPAllocation)
+		return nil
+	}
+
+	return a.Allocations.DeleteIPAllocation(networkID, subnetName, allocatedIPKey)
 }

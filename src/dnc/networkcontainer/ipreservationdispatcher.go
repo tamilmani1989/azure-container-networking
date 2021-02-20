@@ -19,6 +19,7 @@ type IPReservationDispatcher struct {
 	handlerReuseAllocations bool
 	inputCh                 chan reservationRequest
 	subnetHandlers          map[subnetKey]*subnetHandler
+	pubsubProxyEnabled      bool
 }
 
 type reservationRequest struct {
@@ -39,7 +40,7 @@ type DispatcherDependencies struct {
 	Subnets      SubnetRepo
 }
 
-func NewIPReservationDispatcher(deps DispatcherDependencies, maxBatchSize int, reuseAllocations bool) *IPReservationDispatcher {
+func NewIPReservationDispatcher(deps DispatcherDependencies, maxBatchSize int, reuseAllocations bool, pubsubProxyEnabled bool) *IPReservationDispatcher {
 	return &IPReservationDispatcher{
 		logger:  deps.Logger,
 		subnets: deps.Subnets,
@@ -52,6 +53,7 @@ func NewIPReservationDispatcher(deps DispatcherDependencies, maxBatchSize int, r
 		handlerReuseAllocations: reuseAllocations,
 		inputCh:                 make(chan reservationRequest),
 		subnetHandlers:          make(map[subnetKey]*subnetHandler),
+		pubsubProxyEnabled:      pubsubProxyEnabled,
 	}
 }
 
@@ -137,5 +139,5 @@ func (d *IPReservationDispatcher) getNewHandler(key subnetKey) (*subnetHandler, 
 		baseSubnet: subnet,
 	}
 
-	return newSubnetHandler(subnetInfo, d.handlerDeps, d.handlerMaxBatchSize, d.handlerReuseAllocations), nil
+	return newSubnetHandler(subnetInfo, d.handlerDeps, d.handlerMaxBatchSize, d.handlerReuseAllocations, d.pubsubProxyEnabled), nil
 }

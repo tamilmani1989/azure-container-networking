@@ -122,6 +122,30 @@ func (a *AllocationRepo) TryQueryAllIPAllocations(networkID, subnetName string) 
 	return rows, nil
 }
 
+func (a *AllocationRepo) QueryIPAllocationsByReservationKey(networkID, subnetName string, reservationKey string) ([]IPAllocationEntity, *api.JsonErr) {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+	if reservationKey == "" {
+		errMsg := fmt.Sprintf("QueryIPAllocationsByReservationKey: "+
+			"reservationId cant be null for partitionKey %s", partitionKey)
+		return nil, api.BadRequest(api.InvalidOrEmptyToBeDeletedOwner, errMsg)
+	}
+
+	reservationIds := []string{reservationKey}
+	filter := azurestorage.BuildFilterOnProperty(partitionKey, IPAllocationProperty, reservationIds)
+
+	entities, err := a.Datastore.QueryFilter(IPAllocationsTableName, filter)
+	if err != nil {
+		return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	rows := make([]IPAllocationEntity, len(entities))
+	for i, entity := range entities {
+		rows[i] = StorageEntityToIPAllocationEntity(entity)
+	}
+
+	return rows, nil
+}
+
 func (a *AllocationRepo) QueryIPAllocationsByAllocationID(networkID, subnetName string, allocationIDs []string) ([]IPAllocationEntity, *api.JsonErr) {
 	partitionKey := GetSubnetKey(networkID, subnetName)
 	filter := azurestorage.BuildFilterOnProperty(partitionKey, AllocationIDProperty, allocationIDs)
@@ -131,9 +155,9 @@ func (a *AllocationRepo) QueryIPAllocationsByAllocationID(networkID, subnetName 
 		return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
-	var rows []IPAllocationEntity
-	for _, entity := range entities {
-		rows = append(rows, StorageEntityToIPAllocationEntity(entity))
+	rows := make([]IPAllocationEntity, len(entities))
+	for i, entity := range entities {
+		rows[i] = StorageEntityToIPAllocationEntity(entity)
 	}
 
 	return rows, nil
@@ -156,9 +180,9 @@ func (a *AllocationRepo) QueryIPAllocationsByToBeDeletedOwner(networkID, subnetN
 		return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
-	var rows []IPAllocationEntity
-	for _, entity := range entities {
-		rows = append(rows, StorageEntityToIPAllocationEntity(entity))
+	rows := make([]IPAllocationEntity, len(entities))
+	for i, entity := range entities {
+		rows[i] = StorageEntityToIPAllocationEntity(entity)
 	}
 
 	return rows, nil
@@ -209,29 +233,9 @@ func (a *AllocationRepo) InsertIPAllocationEntities(networkID, subnetName string
 	return nil
 }
 
-func (a *AllocationRepo) UpdateIPAllocations(networkID, subnetName string, rows map[string]map[string]interface{}) *api.JsonErr {
-	partitionKey := GetSubnetKey(networkID, subnetName)
-
-	if err := a.Datastore.MergeBatch(IPAllocationsTableName, partitionKey, rows); err != nil {
-		storageErr, ok := err.(storage.AzureStorageServiceError)
-		if !ok {
-			return api.InternalServerError(api.StatusInternalServerError, err.Error())
-		}
-
-		switch storageErr.StatusCode {
-		case http.StatusPreconditionFailed:
-			return api.PreconditionFailed(api.UpdateIPAllocationFailed, storageErr.Message)
-		default:
-			return api.InternalServerError(api.StatusInternalServerError, storageErr.Message)
-		}
-	}
-
-	return nil
-}
-
-func (a *AllocationRepo) UpdateIPAllocationEntities(networkID, subnetName string, entities []IPAllocationEntity) *api.JsonErr {
-	storageEntities := make([]storage.Entity, len(entities))
-	for i, entity := range entities {
+func (a *AllocationRepo) UpdateIPAllocationEntities(networkID, subnetName string, ipAllocationEntities []IPAllocationEntity) *api.JsonErr {
+	storageEntities := make([]storage.Entity, len(ipAllocationEntities))
+	for i, entity := range ipAllocationEntities {
 		se := entity.ToStorageEntity(networkID, subnetName)
 		storageEntities[i] = se
 	}

@@ -53,11 +53,6 @@ const (
 	// DeallocateMAC - Deallocate MAC address
 	DeallocateMAC
 
-	// PrepareCleanup - NC is preparing cleanup for IP allocations asynchronously. Creates pubsubproxy job
-	// then scheduling the job in UnPublish/Publish
-	// TODO: Deprecated, this state needs to be removed.
-	PrepareCleanup
-
 	// PrepareSecondaryIpCleanup
 	PrepareSecondaryIpCleanup
 )

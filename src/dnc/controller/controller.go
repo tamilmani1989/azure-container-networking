@@ -9,6 +9,7 @@ import (
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
 	"dnc/masterelection/masterelectionshim"
+	"dnc/networkcontainer"
 	"dnc/pubsubproxy"
 	"dnc/replica"
 	"dnc/utils"
@@ -32,6 +33,7 @@ type Controller struct {
 	SessionManager *utils.SessionManager
 	httpClient     *http.Client
 	cnsHttpClient  *http.Client
+	ipAllocator    *networkcontainer.IPAllocator
 }
 
 // NewController - Create a NewController
@@ -42,12 +44,14 @@ func NewController(
 	electionShim *masterelectionshim.MasterElectionShim,
 	configuration *configuration.Configuration,
 	httpClient *http.Client,
-	cnsHttpClient *http.Client) *Controller {
+	cnsHttpClient *http.Client,
+	ipAllocator *networkcontainer.IPAllocator) *Controller {
 	controller := new(Controller)
 	controller.Replica = replica
 	controller.SessionManager = sessionsManager
 	controller.httpClient = httpClient
 	controller.cnsHttpClient = cnsHttpClient
+	controller.ipAllocator = ipAllocator
 	setOrchestratorTypeURLFmt = setOrchestratorTypeUrlFmt
 	masterElectionShim = electionShim
 	config = configuration
@@ -227,7 +231,7 @@ func (c *Controller) DeleteReservation(
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	return datamodel.DeleteIPReservation(networkID, reservationID, false, config.PubSubProxySettings.EnablePubSubProxy)
+	return c.ipAllocator.DeleteIPReservation(networkID, reservationID, false)
 }
 
 func generateStatus(status datamodel.Status, errorInfo *api.JsonErr) int {

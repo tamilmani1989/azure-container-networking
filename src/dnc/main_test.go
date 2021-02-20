@@ -105,15 +105,6 @@ func StartDnc(config *configuration.Configuration) {
 		cnsInterface = cnsinterface.NewManagedChannel(sessionManager, true)
 	}
 
-	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
-		masterElectionShim, config, httpClient, cnsHttpClient)
-	dncServer = server.Server{
-		ServerSettings: config.ServerSettings,
-		Controller:     ctrler}
-	dncServer.Init()
-	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
-	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
-
 	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
 		masterElectionShim.Init()
 
@@ -132,12 +123,23 @@ func StartDnc(config *configuration.Configuration) {
 		if err != nil {
 			log.Fatalln("Error initializing datastore. Error:", err)
 		}
-
-		ctrler.UpdateReplicaStatus(true)
 	}
 
 	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
 	initNetworkContainerStateMachine()
+
+	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
+		masterElectionShim, config, httpClient, cnsHttpClient, &ipAllocator)
+	dncServer = server.Server{
+		ServerSettings: config.ServerSettings,
+		Controller:     ctrler}
+	dncServer.Init()
+	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
+	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
+
+	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
+		ctrler.UpdateReplicaStatus(true)
+	}
 
 	go startReplica(ctrler)
 	dncServer.Start()

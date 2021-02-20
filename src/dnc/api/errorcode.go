@@ -250,7 +250,7 @@ const (
 	// OutOfGreKeys - GRE Key is not supported/exceeded range
 	OutOfGreKeys
 
-	// UpdateIPAllocationFailed - Failed to update IP Allocation
+	// UpdateIPAllocationFailed - Failed to update IP Allocation entity
 	UpdateIPAllocationFailed
 
 	// PrepareCleanup Failed - Error occurred during PrepareCleanup state
@@ -523,8 +523,8 @@ func (e ErrorCode) String() string {
 	case NcPendingPublishEntryNotFound:
 		return "NcPendingPublishEntryNotFound"
 
-    case InvalidPubSubOperationType:
-        return "InvalidPubSubOperationType"
+	case InvalidPubSubOperationType:
+		return "InvalidPubSubOperationType"
 
 	case InvalidOrchestratorContext:
 		return "InvalidOrchestratorContext"

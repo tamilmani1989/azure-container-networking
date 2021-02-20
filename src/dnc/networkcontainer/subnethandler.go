@@ -48,19 +48,21 @@ type handlerDependencies struct {
 	logger       loggershim.LoggerInterface
 }
 
-func newSubnetHandler(info subnetInfo, deps handlerDependencies, maxBatchSize int, reuseAllocations bool) *subnetHandler {
+func newSubnetHandler(info subnetInfo, deps handlerDependencies, maxBatchSize int, reuseAllocations bool, pubsubProxyEnabled bool) *subnetHandler {
 	var scaleStrategy scalingStrategy
 	if !reuseAllocations {
 		scaleStrategy = &scanSubnetStrategy{
-			allocator:  deps.allocator,
-			subnetInfo: info,
-			logger:     deps.logger,
+			allocator:          deps.allocator,
+			subnetInfo:         info,
+			logger:             deps.logger,
+			pubsubProxyEnabled: pubsubProxyEnabled,
 		}
 	} else {
 		scaleStrategy = &prepopulatedStrategy{
-			allocator:  deps.allocator,
-			subnetInfo: info,
-			logger:     deps.logger,
+			allocator:          deps.allocator,
+			subnetInfo:         info,
+			logger:             deps.logger,
+			pubsubProxyEnabled: pubsubProxyEnabled,
 		}
 	}
 

@@ -13,6 +13,14 @@ import (
 
 type nodeRepo struct{}
 
+func (nodeRepo) TryQueryNodeConfiguration(nodeID string) (*datamodel.NodeConfiguration, *api.JsonErr) {
+	return datamodel.TryQueryNodeConfiguration(nodeID)
+}
+
+func (*nodeRepo) UpdateNodeConstrainedReservationSet(networkID, reservationID string, remove bool, nodeConfiguration *datamodel.NodeConfiguration) *api.JsonErr {
+	return datamodel.UpdateNodeConstrainedReservationSet(networkID, reservationID, remove, nodeConfiguration)
+}
+
 func (*nodeRepo) UpdateNodeContainers(nodeID, networkID, ncID, reservationID, containerType string, updateVlan, remove bool, ncLimit int) *api.JsonErr {
 	return datamodel.UpdateNodeConfigurationNetworkContainerSet(nodeID, networkID, ncID, reservationID, containerType, updateVlan, remove, ncLimit)
 }
@@ -47,22 +55,4 @@ func (*subnetRepo) UpdateSubnetReservationSet(reservationID, allocatedSubnet str
 
 func (*subnetRepo) PutSubnetConfiguration(subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr {
 	return datamodel.PutSubnetConfiguration(subnetConfig)
-}
-
-type reservationRepo struct{}
-
-func (*reservationRepo) TryQueryIPReservation(networkID, reservationID string) (datamodel.ReservationRow, *api.JsonErr) {
-	return datamodel.TryQueryIPReservation(networkID, reservationID)
-}
-
-func (*reservationRepo) TryQueryIPReservationByKey(key string) (datamodel.ReservationRow, *api.JsonErr) {
-	return datamodel.TryQueryIPReservationByKey(key)
-}
-
-func (*reservationRepo) PutIPReservationConfiguration(res *datamodel.ReservationConfiguration) *api.JsonErr {
-	return datamodel.PutIPReservationConfiguration(res)
-}
-
-func (r *reservationRepo) UpdateReservations(reservations []datamodel.ReservationConfiguration) *api.JsonErr {
-	return datamodel.UpdateIPReservations(reservations)
 }

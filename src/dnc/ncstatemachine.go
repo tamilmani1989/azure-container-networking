@@ -18,20 +18,23 @@ func initNetworkContainerStateMachine() {
 	preparer = networkcontainer.Preparer{
 		CNS:                  cnsInterface,
 		Locks:                sessionManager,
-		Reservations:         new(reservationRepo),
+		Reservations:         datamodel.IpReservationRepo,
 		UpdateNodeContainers: datamodel.UpdateNodeConfigurationNetworkContainerSet,
 		PersistNC:            datamodel.PersistNCConfiguration,
 		Logger:               logger,
 	}
 
 	ipAllocator = networkcontainer.IPAllocator{
-		Nodes:        new(nodeRepo),
-		NCs:          new(ncRepo),
-		Subnets:      new(subnetRepo),
-		Reservations: new(reservationRepo),
-		Allocations:  datamodel.AllocRepo,
-		Logger:       logger,
-		MaxBatchSize: config.DataStoreSettings.MaxBatchSize,
+		Nodes:                       new(nodeRepo),
+		NCs:                         new(ncRepo),
+		Subnets:                     new(subnetRepo),
+		Reservations:                datamodel.IpReservationRepo,
+		Allocations:                 datamodel.AllocRepo,
+		PendingCleanupRepo:          datamodel.PendingCleanupRepo,
+		Logger:                      logger,
+		MaxBatchSize:                config.DataStoreSettings.MaxBatchSize,
+		DisableResMapInSubnetConfig: config.DNCSettings.DisableReservationMapInSubnetConfig,
+		PubsubProxyEnabled:          config.PubSubProxySettings.EnablePubSubProxy,
 	}
 
 	macAllocator = networkcontainer.MacAllocator{
@@ -44,12 +47,13 @@ func initNetworkContainerStateMachine() {
 		resDispatcher = networkcontainer.NewIPReservationDispatcher(
 			networkcontainer.DispatcherDependencies{
 				Logger:       logger,
-				Reservations: new(reservationRepo),
+				Reservations: datamodel.IpReservationRepo,
 				Allocator:    &ipAllocator,
 				Subnets:      new(subnetRepo),
 			},
 			config.DNCSettings.MaxIPReservationBatchSize,
 			false, // todo: pass this from config
+			config.PubSubProxySettings.EnablePubSubProxy,
 		)
 
 		resDispatcher.Run(context.Background())

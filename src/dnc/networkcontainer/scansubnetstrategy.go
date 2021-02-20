@@ -14,9 +14,10 @@ import (
 // scanSubnetStrategy determines allocations by reading all currently existing allocation records and determining
 // what is currently free or in the process of deletion in order to scale up and down.
 type scanSubnetStrategy struct {
-	allocator  *IPAllocator
-	subnetInfo subnetInfo
-	logger     loggershim.LoggerInterface
+	allocator          *IPAllocator
+	subnetInfo         subnetInfo
+	logger             loggershim.LoggerInterface
+	pubsubProxyEnabled bool
 }
 
 type batchAllocationResult struct {
@@ -44,9 +45,12 @@ func (s *scanSubnetStrategy) logErrorf(format string, args ...interface{}) {
 	s.logger.Errorf("[scan subnet strategy] vnet %s subnet %s - %s", s.subnetInfo.vnetID, s.subnetInfo.subnetName, fmt.Sprintf(format, args...))
 }
 
+// Delete/Or unlink the associated Secondary ips and return the updated reservation config. Caller will own persisting the updated reservation configs.
 func (s *scanSubnetStrategy) scaleDown(reservations []datamodel.ReservationConfiguration, tbdAllocationIDs map[string][]string) ([]datamodel.ReservationConfiguration, error) {
 	var allocIDs []string
+	reservationMap := make(map[string]datamodel.ReservationConfiguration, len(reservations))
 	for i := 0; i < len(reservations); i++ {
+		reservationMap[reservations[i].ReservationID] = reservations[i]
 		tbdIDs := tbdAllocationIDs[reservations[i].ReservationID]
 
 		for _, allocID := range tbdIDs {
@@ -61,14 +65,35 @@ func (s *scanSubnetStrategy) scaleDown(reservations []datamodel.ReservationConfi
 		return nil, err
 	}
 
-	rowKeys := make([]string, len(tbdEntities))
-	for i, entity := range tbdEntities {
-		rowKeys[i] = entity.RowKey
-	}
+	if s.pubsubProxyEnabled {
+		updatedTBDEntities := make([]datamodel.IPAllocationEntity, len(tbdEntities))
+		for i, tbdEntity := range tbdEntities {
+			if reservation, found := reservationMap[tbdEntity.IPAllocation]; found {
+				// Set the ToBeDeletedOwner for deleting IP
+				tbdEntity.ToBeDeletedOwner = reservation.AssociatedNCID
+				updatedTBDEntities[i] = tbdEntity
+			} else {
+				return nil, fmt.Errorf("scaleDown: Reservation not found for a given IpAllocationEntity %+v", tbdEntity)
+			}
+		}
 
-	// todo: does this section need to set tbd owners instead of deleting?
-	if err := s.allocator.DeleteAllocations(s.subnetInfo.vnetID, s.subnetInfo.subnetName, rowKeys); err != nil {
-		return nil, err
+		if err := s.allocator.UpdateAllocations(s.subnetInfo.vnetID, s.subnetInfo.subnetName, updatedTBDEntities); err != nil {
+			s.logErrorf("Failed to set ToBeDeletedOwner for associated allocIds, allocId Count %d, err %+v",
+				len(allocIDs),
+				err)
+
+			return nil, err
+		}
+	} else {
+		rowKeys := make([]string, len(tbdEntities))
+		for i, entity := range tbdEntities {
+			rowKeys[i] = entity.RowKey
+		}
+
+		// todo: does this section need to set tbd owners instead of deleting?
+		if err := s.allocator.DeleteAllocations(s.subnetInfo.vnetID, s.subnetInfo.subnetName, rowKeys); err != nil {
+			return nil, err
+		}
 	}
 
 	return reservations, nil

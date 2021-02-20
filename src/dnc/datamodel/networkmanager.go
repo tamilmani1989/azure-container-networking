@@ -60,7 +60,8 @@ var (
 
 	// todo: repos can be initialized by a helper method and compose a struct that can be shared.
 	//  exporting variable temporarily, since this package is behaving as a singleton.
-	AllocRepo *AllocationRepo
+	AllocRepo         *AllocationRepo
+	IpReservationRepo *ReservationRepo
 )
 
 // Init - Initialize repository.
@@ -83,14 +84,13 @@ func Init(
 	dataStoreShim = ds
 
 	AllocRepo = &AllocationRepo{Datastore: ds}
+	IpReservationRepo = &ReservationRepo{Datastore: ds}
+	PendingCleanupRepo = NewPendingResourceCleanupRepo(ds, loggershim.LS)
+	NcPendingPublishRepo = NewNcPendingPublishRequestRepo(ds)
 
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
 		RestoreState()
 	}
-
-	PendingCleanupRepo = NewPendingResourceCleanupRepo(ds, loggershim.LS)
-
-	NcPendingPublishRepo = NewNcPendingPublishRequestRepo(ds)
 
 	if min > MinVlan {
 		MinVlan = min
@@ -619,115 +619,6 @@ func UpdateNCToReservationAssociation(
 	}
 
 	return PutIPReservationConfiguration(reservation.Configuration)
-}
-
-// DeleteIPReservation - Delete an IP Reservation.
-func DeleteIPReservation(networkID, reservationID string, force bool, pubsubProxyEnabled bool) *api.JsonErr {
-	reservation, err := TryQueryIPReservation(networkID, reservationID)
-	if err != nil {
-		return api.InternalServerErrorf(api.StatusInternalServerError,
-			"could not retrieve configuration for reservationKey: %s. Error: %s",
-			GetReservationKey(networkID, reservationID), err)
-	}
-
-	if reservation.Configuration == nil {
-		return nil
-	}
-
-	reservationKey := GetReservationKey(networkID, reservationID)
-
-	// TODO: After PendingResourceCleanupMonitor is working then instead of deleting the ip
-	// right away, Update the ToBeDeletedOwner and remove the ReservationId.
-	if err = ValidateAndDeleteIPAllocation(reservation.Configuration.NetworkID,
-		reservation.Configuration.AllocationRequest.SubnetName,
-		reservationKey,
-		reservation.Configuration.AllocatedSubnet); err != nil {
-		loggershim.LS.Errorf("Failed to delete IP allocation due to error %+v", err)
-		return err
-	}
-
-	if len(reservation.Configuration.AssociatedNCID) != 0 && !force {
-		return api.BadRequestf(api.ReservationInUse,
-			"Reservation for key: %s is in use with container: %s", reservationKey, reservation.Configuration.AssociatedNCID)
-	}
-
-	// If PubSubproxy is enabled, then create the PendingCleanupJob for IPs
-	if pubsubProxyEnabled {
-		// Create the BG Job to delete AllocatedIPs only after the associated unpublish
-		// task (Created in the unpublish state) is completed
-		err = PendingCleanupRepo.CreateOrMergeIPResourceCleanupRequest(reservation.Configuration)
-		if err != nil {
-			loggershim.LS.Errorf("DeleteIPReservation: Failed to create the cleanup request for allocated ips, reservationId :%s, err:  %+v",
-				reservationID,
-				err)
-			return err
-		}
-	}
-
-	// Delete the reservation from subnetConfig if the config flag to disable reservationMap is not set
-	if !disableResMapInSubnetConfig {
-		subnetConfiguration, err := TryQuerySubnetConfiguration(
-			reservation.Configuration.NetworkID,
-			reservation.Configuration.AllocationRequest.SubnetName)
-		if err != nil {
-			return err
-		}
-
-		if subnetConfiguration != nil && subnetConfiguration.Reservations != nil {
-			delete(subnetConfiguration.Reservations, reservationID)
-			if err = PutSubnetConfiguration(subnetConfiguration); err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(reservation.Configuration.AllocationRequest.NodeConstraint) != 0 {
-		nodeConfiguration, err := TryQueryNodeConfiguration(reservation.Configuration.AllocationRequest.NodeConstraint)
-		if err != nil {
-			return err
-		}
-		if nodeConfiguration != nil {
-			err := UpdateNodeConstrainedReservationSet(
-				reservation.Configuration.NetworkID,
-				reservation.Configuration.ReservationID,
-				true,
-				nodeConfiguration)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	deleteErr := dataStoreShim.Delete(ipReservationsTableName, reservationKey)
-	if deleteErr != nil {
-		return api.InternalServerErrorf(api.StatusInternalServerError,
-			"could not delete configuration for reservationKey: %s. Error: %s", reservationKey, deleteErr)
-	}
-
-	return err
-}
-
-// ValidateAndDeleteIPAllocation - Delete an IP allocation entry from IPAllocations table.
-func ValidateAndDeleteIPAllocation(networkID, subnetName, reservationKey, allocatedIP string) *api.JsonErr {
-	allocatedIPKey := EncodeIPAllocationKey(allocatedIP)
-	savedReservationKey, err := AllocRepo.TryQueryIPAllocation(networkID, subnetName, allocatedIPKey)
-	if err != nil {
-		return err
-	}
-
-	if savedReservationKey.IPAllocation == "" {
-		loggershim.LS.Errorf("Error: Cannot find the ipAddress %s in IPAllocation table", allocatedIP)
-		return nil
-	}
-
-	if reservationKey != savedReservationKey.IPAllocation {
-		msgFmt := "Reservation key mismatch in IPAllocations table for IP address %s on vnet %s subnet %s " +
-			"during deletion of reservation key %s: allocation is associated to reservation key %s. Skipping allocation record deletion."
-		loggershim.LS.Errorf(msgFmt, allocatedIP, networkID, subnetName, reservationKey, savedReservationKey.IPAllocation)
-		return nil
-	}
-
-	return AllocRepo.DeleteIPAllocation(networkID, subnetName, allocatedIPKey)
 }
 
 // TryQueryNodeConfiguration - Query node configuration.

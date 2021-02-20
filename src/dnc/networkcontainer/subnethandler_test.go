@@ -35,7 +35,7 @@ func TestSubnetHandlerProcess_CreationFromScratch(t *testing.T) {
 		logger: loggermock.NewDummyLogger(),
 	}
 
-	sh := newSubnetHandler(subnetInfo, deps, 100, false)
+	sh := newSubnetHandler(subnetInfo, deps, 100, false, true)
 
 	reservationCount := 100
 	secondaryIPCount := 32
@@ -133,7 +133,7 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 		logger: loggermock.NewDummyLogger(),
 	}
 
-	sh := newSubnetHandler(subnetInfo, deps, 100, false)
+	sh := newSubnetHandler(subnetInfo, deps, 100, false, true)
 
 	sh.process(set)
 

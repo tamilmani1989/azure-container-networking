@@ -330,82 +330,11 @@ Cleanup:
 	return markProcessingFailed, nil
 }
 
-// This function is to asynchronously handle IP Cleanup, by creating pubsub jobs that will be monitored by an separate
-// thread https://microsoft.sharepoint.com/:w:/t/Aznet/Ecr_mfKAJkRNsYVroicYfTYB5rps-2PVcF7wAqoZhQ3StQ?e=9ZVzBX
-func processPrepareCleanup(
-	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	var (
-		//failureDetail        *api.JsonErr
-		markProcessingFailed bool
-	)
-
-	// Get SessionInfo, taking a lock on the Reservation ID
-	sessionInfo := map[string]string{
-		datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
-	}
-
-	// get reservation
-	repoReservation, err := datamodel.TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
-	if err != nil {
-		return false, err
-	}
-
-	if repoReservation.Configuration == nil {
-		return true, api.InternalServerErrorf(api.PrepareCleanupFailed,
-			"Failed to retrieve IP reservation during PrepareCleanup for NCID %v", repoNCConfig.NetworkContainerID)
-	}
-
-	// Acquire Node lock if the ContainerType is WebApps
-	if repoNCConfig.GetAssociationInfo().ContainerType == cns.WebApps {
-		sessionInfo[datamodel.NodeRepositoryName] = repoNCConfig.GetAssociationInfo().NodeID
-	}
-
-	// retrieve NCGoalState for pubsub job creation
-	ncGoalState, isRetriableError, ncGoalStateErr := datamodel.GetNCGoalState(repoNCConfig)
-	if ncGoalStateErr != nil {
-		if isRetriableError {
-			return false, ncGoalStateErr
-		}
-
-		repoNCConfig.Status = datamodel.Failed
-		repoNCConfig.FailureDetail = *ncGoalStateErr
-		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
-	}
-
-	// Create PubSub Proxy job
-	// TODO: Persist this in state to access in Publish
-	if config.PubSubProxySettings.EnablePubSubProxy {
-		// Update IP Allocations Table with ToBeDeletedOwner ID, where ID is the NCID
-		// Note: don't delete the ToBeDeletedIP's from the NC here, only updating the IPAllocations table
-
-		ipsPendingCleanup := repoNCConfig.RequestV2.ToBeDeletedIPIds
-
-		// if the NC is marked for delete, also cleanup the primary IP
-		if repoNCConfig.MarkedForDelete {
-			ipsPendingCleanup = append(ipsPendingCleanup, strings.Split(ncGoalState.AllocatedIPSubnet, "/")[0])
-		}
-
-		if len(repoNCConfig.RequestV2.ToBeDeletedIPIds) > 0 {
-			if err := ipAllocator.MarkAllocationAsPendingCleanup(*repoReservation.Configuration, ipsPendingCleanup); err != nil {
-				return false, err
-			}
-		}
-
-		// TODO: call new PubSub API and edit this logging line
-		logger.Debugf("Creating PrepareCleanup PubSubProxy job for", ncGoalState.NetworkContainerID)
-	}
-
-	// TODO call new pubsub api's to create jobs https://msazure.visualstudio.com/One/_workitems/edit/8992968/?workitem=9078044
-	// exit
-	return markProcessingFailed, nil
-}
-
 // This will create the pending IP cleanup job for ToBeDeleted Secondary IPs during NC update.
 func processPrepareSecondaryIpCleanup(
 	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 
-	if config.PubSubProxySettings.EnablePubSubProxy &&
-		len(repoNCConfig.RequestV2.ToBeDeletedIPIds) > 0 {
+	if config.PubSubProxySettings.EnablePubSubProxy {
 		ncKey := datamodel.GetNCKey(repoNCConfig.NetworkID, repoNCConfig.NetworkContainerID)
 		loggershim.LS.Debugf("processPrepareSecondaryIpCleanup, NCKey %s", ncKey)
 
@@ -446,37 +375,15 @@ func processPrepareSecondaryIpCleanup(
 		// We have already updated IpAllocations table with ToBeDeletedOwner for ToBeDeletedIpIds
 		// in Reserve state, thus it is safe to request all pending deleting IPs and
 		// create or Merge the PendingResourceCleanupJob
-		pendingDeletingIpAllocations, err := ipAllocator.Allocations.QueryIPAllocationsByToBeDeletedOwner(
-			repoNCConfig.NetworkID,
-			subnetName,
-			ncKey)
+		err := ipAllocator.CreateIpCleanupRequest(repoNCConfig.NetworkID, subnetName, ncKey)
 		if err != nil {
-			loggershim.LS.Errorf("Failed to fetch IpAllocations (Network %s, Subnet %s) with ToBeDeletedOwner %s, err: %+v",
-				repoNCConfig.NetworkID,
-				subnetName,
-				ncKey,
-				err)
-			return false, err
-		}
-
-		// Create the BG Job to delete AllocatedIPs only after the associated Publish
-		// task is completed
-		err = datamodel.PendingCleanupRepo.CreateOrMergeIPResourceCleanupRequestFromIPAllocations(
-			repoNCConfig.NetworkID,
-			subnetName,
-			repoNCConfig.NetworkContainerID,
-			pendingDeletingIpAllocations)
-		if err != nil {
-			loggershim.LS.Errorf("processPrepareSecondaryIpCleanup: Failed to create the cleanup request for allocated ips :%+v, err:  %+v",
-				pendingDeletingIpAllocations,
+			loggershim.LS.Errorf("processPrepareSecondaryIpCleanup: Failed to create the cleanup request err:  %+v",
 				err)
 			return false, err
 		}
 	}
 
-	if repoNCConfig.State == datamodel.PrepareSecondaryIpCleanup {
-		repoNCConfig.State = datamodel.Program
-	}
+	repoNCConfig.State = datamodel.Program
 	repoNCConfig.Status = datamodel.Pending
 	repoNCConfig.FailureDetail = api.JsonErr{}
 	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
@@ -523,9 +430,42 @@ func processNetworkContainerReserve(
 	}
 
 	if len(repoNCConfig.RequestV2.ToBeDeletedIPIds) > 0 {
-		if err := ipAllocator.DeallocateIPs(*repoReservation.Configuration, repoNCConfig.RequestV2.ToBeDeletedIPIds); err != nil {
-			return false, err
+		loggershim.LS.Debugf("processNetworkContainerReserve: Process deleting secondary Ips NetworkId %s, ReservationId %s",
+			repoNCConfig.NetworkID, repoNCConfig.ReservationID)
+
+		// In case pubsub poxy is enabled, wait for publish job to finish before deleting the ips during scale down
+		// Thus set the ToBeDeletedOwner for the deleting ips
+		if config.PubSubProxySettings.EnablePubSubProxy {
+			// It is okay if the associated ips are empty, it will still get cleaned up by the background cleanup monitor
+			var ipsPendingCleanup = make(map[string]string)
+			for _, allocID := range repoNCConfig.RequestV2.ToBeDeletedIPIds {
+				if ipAddress, found := repoReservation.Configuration.SecondaryAllocations[allocID]; found {
+					ipsPendingCleanup[allocID] = ipAddress
+				}
+			}
+
+			reservationKey := datamodel.GetReservationKey(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
+			err = ipAllocator.SetToBeDeleteOwnerToDeletingIps(
+				repoReservation.Configuration.NetworkID,
+				repoReservation.Configuration.AllocationRequest.SubnetName,
+				reservationKey,
+				repoReservation.Configuration.AssociatedNCID,
+				ipsPendingCleanup)
+			if err != nil {
+				loggershim.LS.Errorf("processNetworkContainerReserve: Failed to set ToBeDeletedOwner for associated ips, reservationKey %s, deleting ips %+v, err %+v",
+					reservationKey,
+					ipsPendingCleanup,
+					err)
+				return false, err
+			}
+		} else {
+			err := ipAllocator.DeallocateIPs(*repoReservation.Configuration, repoNCConfig.RequestV2.ToBeDeletedIPIds)
+			if err != nil {
+				return false, err
+			}
 		}
+
+		// Now deleting
 		for _, allocID := range repoNCConfig.RequestV2.ToBeDeletedIPIds {
 			delete(repoReservation.Configuration.SecondaryAllocations, allocID)
 		}
@@ -665,20 +605,8 @@ func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
-	// Todo:9201137 This should be moved inside DeleteIPReservation to consolidate all the cleanup logic during
-	// delete reservation (Implicit or Explicit)
-	if reservation.Configuration != nil && len(reservation.Configuration.SecondaryAllocations) > 0 {
-		// TODO: Instead of deleting the secondary ipallocations, update the ToBeDeletedOwner and remove the
-		// ReservationId from the entry.
-		// PS: This change will be done after Background thread changes gets checked in. So that intermediate
-		// checkins to Master branch wont break DNC state flow for existing Canary/Prod
-		if err := ipAllocator.RemoveAllAllocations(*reservation.Configuration); err != nil {
-			return err
-		}
-	}
-
 	// todo: if allocated subnet is empty, the below fails
-	if err := datamodel.DeleteIPReservation(ncConfig.NetworkID, ncConfig.ReservationID, true, config.PubSubProxySettings.EnablePubSubProxy); err != nil {
+	if err := ipAllocator.DeleteIPReservation(ncConfig.NetworkID, ncConfig.ReservationID, true); err != nil {
 		return err
 	}
 
@@ -1074,8 +1002,7 @@ func publishNetworkContainerWithPubSubProxy(
 	}
 
 	if repoNCConfig.State == datamodel.Publish {
-		// todo: From Publish we will go to PendingSecondaryIpCleanup state.
-		repoNCConfig.State = datamodel.Program
+		repoNCConfig.State = datamodel.PrepareSecondaryIpCleanup
 	}
 	repoNCConfig.Status = datamodel.Pending
 	repoNCConfig.FailureDetail = api.JsonErr{}
@@ -1909,9 +1836,6 @@ func processNetworkContainerRequest(
 		case datamodel.UnReserve:
 			removeRequestFromPendingQueue = false // there is no obvious case where unreserving requires removing the item from the pending queue
 			err = processNetworkContainerUnReserve(repoNCConfig)
-
-		case datamodel.PrepareCleanup:
-			removeRequestFromPendingQueue, err = processPrepareCleanup(repoNCConfig)
 
 		case datamodel.Purge:
 			removeRequestFromPendingQueue, err = processNetworkContainerPurge(repoNCConfig, createdDateTime)
