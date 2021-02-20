@@ -7,7 +7,6 @@ import (
 	"dnc/networkcontainer"
 	"dnc/networkcontainer/fakes"
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -71,8 +70,8 @@ func TestResourceCleanupMonitor_ProcessResourceCleanup(t *testing.T) {
 					Reservations: nil,
 					Allocations: &fakes.AllocationRepo{
 						Data: []datamodel.IPAllocationEntity{
-							{RowKey: "192.168.0.1_32", IPAllocation: "", AllocationID: "uuid0", ToBeDeletedOwner: testNCID},
-							{RowKey: "192.168.0.2_32", IPAllocation: "", AllocationID: "uuid1", ToBeDeletedOwner: testNCID},
+							{RowKey: "192.168.0.1_32", IPAllocation: "", AllocationID: "uuid0", ToBeDeletedOwner: datamodel.GetNCKey(testNetworkID, testNCID)},
+							{RowKey: "192.168.0.2_32", IPAllocation: "", AllocationID: "uuid1", ToBeDeletedOwner: datamodel.GetNCKey(testNetworkID, testNCID)},
 							{RowKey: "172.16.0.20_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid2"},
 							{RowKey: "172.16.0.21_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid3"},
 						},
@@ -95,7 +94,7 @@ func TestResourceCleanupMonitor_ProcessResourceCleanup(t *testing.T) {
 						CleanupContext: datamodel.CleanupContext{
 							Type: datamodel.IPCleanup,
 							ToBeDeletedIpAllocations: map[string][]string{
-								fmt.Sprintf("%s_%s", testNetworkID, testSubnetName): {"192.168.0.1_32", "192.168.0.2_32"},
+								datamodel.GetSubnetKey(testNetworkID, testSubnetName): {"192.168.0.1_32", "192.168.0.2_32"},
 							},
 						},
 						Etag: testEtag,
@@ -115,7 +114,7 @@ func TestResourceCleanupMonitor_ProcessResourceCleanup(t *testing.T) {
 					NCs:   nil,
 					Subnets: &fakes.SubnetRepo{
 						Data: map[string]datamodel.SubnetConfiguration{
-							datamodel.GetSubnetKey("network1", "subnet1"): {
+							datamodel.GetSubnetKey(testNetworkID, testSubnetName): {
 								NetworkID:  testNCID,
 								SubnetName: testSubnetName,
 								IPSubnet:   ipSubnet,
@@ -126,8 +125,8 @@ func TestResourceCleanupMonitor_ProcessResourceCleanup(t *testing.T) {
 					Reservations: nil,
 					Allocations: &fakes.AllocationRepo{
 						Data: []datamodel.IPAllocationEntity{
-							{RowKey: "192.168.0.1_32", IPAllocation: "", AllocationID: "uuid0", ToBeDeletedOwner: testNCID},
-							{RowKey: "192.168.0.2_32", IPAllocation: "", AllocationID: "uuid1", ToBeDeletedOwner: testNCID},
+							{RowKey: "192.168.0.1_32", IPAllocation: "", AllocationID: "uuid0", ToBeDeletedOwner: datamodel.GetNCKey(testNetworkID, testNCID)},
+							{RowKey: "192.168.0.2_32", IPAllocation: "", AllocationID: "uuid1", ToBeDeletedOwner: datamodel.GetNCKey(testNetworkID, testNCID)},
 							{RowKey: "172.16.0.20_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid2"},
 							{RowKey: "172.16.0.21_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid3"}}},
 					Logger:       logger,
@@ -140,7 +139,7 @@ func TestResourceCleanupMonitor_ProcessResourceCleanup(t *testing.T) {
 						CleanupContext: datamodel.CleanupContext{
 							Type: datamodel.IPCleanup,
 							ToBeDeletedIpAllocations: map[string][]string{
-								fmt.Sprintf("%s_%s", testNetworkID, testSubnetName): {"192.168.0.1_32", "192.168.0.2_32"},
+								datamodel.GetSubnetKey(testNetworkID, testSubnetName): {"192.168.0.1_32", "192.168.0.2_32"},
 							},
 						},
 						Etag: testEtag,

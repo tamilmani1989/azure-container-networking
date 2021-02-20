@@ -295,21 +295,17 @@ func (a *AllocationRepo) DeleteIPAllocationEntityWithEtag(entity IPAllocationEnt
 }
 
 // todo: convert ipcleanup to a struct that can marshall/unmarshall itself to a string
+// SubnetKey parameter looks like: "Network_%s_Subnet_%s"
 func GetSubnetFromIPAllocationsPartitionKey(key string) (string, *api.JsonErr) {
 	entries := strings.Split(key, "_")
-	if len(entries) != 2 {
-		return "", api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("failed to parse subnetkey from ipallocation resource cleanup key: %v", key))
-	}
-	return entries[1], nil
+	return entries[3], nil
 }
 
 // todo: convert ipcleanup to a struct that can marshall/unmarshall itself to a string
+// SubnetKey parameter looks like: "Network_%s_Subnet_%s"
 func GetNetworkIdFromIPAllocationsPartitionKey(key string) (string, *api.JsonErr) {
 	entries := strings.Split(key, "_")
-	if len(entries) != 2 {
-		return "", api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("failed to parse subnetkey from ipallocation resource cleanup key: %v", key))
-	}
-	return entries[0], nil
+	return entries[1], nil
 }
 
 func (a *AllocationRepo) QueryUnreservedAllocations(networkID, subnetName string, count int) ([]IPAllocationEntity, *api.JsonErr) {

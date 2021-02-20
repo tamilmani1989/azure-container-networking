@@ -58,7 +58,7 @@ func (m *ResourceCleanupMonitor) pendingResourceCleanup() *api.JsonErr {
 		go func(entity datamodel.PendingResourceCleanupEntity, wg *sync.WaitGroup) {
 			defer wg.Done()
 			if err := m.processCleanupResource(entity); err != nil {
-				m.Logger.Debugf("%s Failed to process ResourceCleanup with err %+v", logPrefix(entity), err)
+				m.Logger.Errorf("%s Failed to process ResourceCleanup with err %+v", logPrefix(entity), err)
 			}
 			<-sem
 		}(cleanupResourceRow, &wg)
@@ -73,12 +73,12 @@ func (m *ResourceCleanupMonitor) processCleanupResource(cleanupResourceRow datam
 		m.Logger.Debugf("%s Starting Processing ResourceCleanup", logPrefix(cleanupResourceRow))
 
 		// only fetch pending jobs that belong to a specific NC
-		networkid, err := datamodel.GetNetworkIDFromCleanUpResourceKey(cleanupResourceRow.RowKey)
+		networkid, err := datamodel.GetNetworkIDFromPendingResourceCleanupKey(cleanupResourceRow.RowKey)
 		if err != nil {
 			return err
 		}
 
-		ncid, err := datamodel.GetNetworkContainerIDFromCleanupResourceKey(cleanupResourceRow.RowKey)
+		ncid, err := datamodel.GetNetworkContainerIDFromPendingResourceCleanupKey(cleanupResourceRow.RowKey)
 		if err != nil {
 			return err
 		}
@@ -90,7 +90,8 @@ func (m *ResourceCleanupMonitor) processCleanupResource(cleanupResourceRow datam
 
 		// check if there's a scheduled pubsub job matching the same NCID
 		if len(ncPendingPublish) == 0 {
-			err := m.removeIPAllocations(ncid, cleanupResourceRow)
+			ncKey := datamodel.GetNCKey(networkid, ncid)
+			err := m.removeIPAllocations(ncKey, cleanupResourceRow)
 			if err != nil {
 				return api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("Failed to remove IP Allocations for NC ID %v with error: %v", cleanupResourceRow, err))
 			}
@@ -105,45 +106,44 @@ func (m *ResourceCleanupMonitor) processCleanupResource(cleanupResourceRow datam
 	return nil
 }
 
-func (m *ResourceCleanupMonitor) removeIPAllocations(ncid string, resource datamodel.PendingResourceCleanupEntity) *api.JsonErr {
-	m.Logger.Debugf("%s Attempting to remove IP Allocations: [%+v]", logPrefix(resource), resource.CleanupContext.ToBeDeletedIpAllocations)
-	for cleanupkey, cleanupAllocations := range resource.CleanupContext.ToBeDeletedIpAllocations {
-		subnetName, err := datamodel.GetSubnetFromIPAllocationsPartitionKey(cleanupkey)
+func (m *ResourceCleanupMonitor) removeIPAllocations(ncKey string, resourceCleanupEntity datamodel.PendingResourceCleanupEntity) *api.JsonErr {
+	m.Logger.Debugf("%s Attempting to remove IP Allocations: [%+v]", logPrefix(resourceCleanupEntity), resourceCleanupEntity.CleanupContext.ToBeDeletedIpAllocations)
+	for ipAllocationsKey, cleanupAllocations := range resourceCleanupEntity.CleanupContext.ToBeDeletedIpAllocations {
+		subnetName, err := datamodel.GetSubnetFromIPAllocationsPartitionKey(ipAllocationsKey)
 		if err != nil {
 			return err
 		}
-
-		netid, err := datamodel.GetNetworkIdFromIPAllocationsPartitionKey(cleanupkey)
+		networkID, err := datamodel.GetNetworkIdFromIPAllocationsPartitionKey(ipAllocationsKey)
 		if err != nil {
 			return err
 		}
 
 		// get ip allocations with ToBeDeletedOwner matching the ncid
-		allocationEntities, err := m.IpAllocator.GetIPAllocationsWithToBeDeletedOwner(netid, subnetName, ncid)
+		allocationEntities, err := m.IpAllocator.GetIPAllocationsWithToBeDeletedOwner(networkID, subnetName, ncKey)
 		if err != nil {
 			return err
 		}
 
 		// construct a map for faster queries based on RowKey (which is an IPAddress)
-		allocationsWithNCID := make(map[string]datamodel.IPAllocationEntity)
+		ipAllocationsMap := make(map[string]datamodel.IPAllocationEntity, len(allocationEntities))
 		for _, entity := range allocationEntities {
-			allocationsWithNCID[entity.RowKey] = entity
+			ipAllocationsMap[entity.RowKey] = entity
 		}
 
 		// check to make sure that all IP's to be cleaned up have the matching ToBeDeletedOwner from the cleanup resource
 		entitiesToBeCleanedUp := []datamodel.IPAllocationEntity{}
 		for _, cleanupAllocation := range cleanupAllocations {
-			if entity, exists := allocationsWithNCID[cleanupAllocation]; exists {
+			if entity, exists := ipAllocationsMap[cleanupAllocation]; exists {
 
 				// keep a slice of entities with their etags that exist with the ToBeDeletedOwner set as the pending cleanup NCID
 				entitiesToBeCleanedUp = append(entitiesToBeCleanedUp, entity)
 			} else {
-				m.Logger.Errorf(fmt.Sprintf("%s Allocation [%s] not found in IPAllocations table with NCID [%s]", logPrefix(resource), cleanupAllocation, ncid))
+				m.Logger.Errorf(fmt.Sprintf("%s Allocation [%s] not found in IPAllocations table with NCKey [%s]", logPrefix(resourceCleanupEntity), cleanupAllocation, ncKey))
 			}
 		}
 
 		// safe to delete allocations
-		m.Logger.Debugf("%s Verified IP Allocations with correct ToBeDeletedOwner ID's set [%+v]", logPrefix(resource), entitiesToBeCleanedUp)
+		m.Logger.Debugf("%s Verified IP Allocations with correct ToBeDeletedOwner ID's set [%+v]", logPrefix(resourceCleanupEntity), entitiesToBeCleanedUp)
 		err = m.IpAllocator.DeleteAllocationsWithEtag(entitiesToBeCleanedUp)
 		if err != nil {
 			return err

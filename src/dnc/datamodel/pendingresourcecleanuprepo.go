@@ -71,20 +71,16 @@ func GetPendingResourceCleanupKey(cleanupType ResourceCleanupType, NetworkId str
 }
 
 // todo: convert ipcleanup to a struct that can marshall/unmarshall itself to a string
-func GetNetworkContainerIDFromCleanupResourceKey(rowKey string) (string, *api.JsonErr) {
+// rowkey is expected NCKey, as format Type_%s_Network_%s_ID_%s, CleanupResourceKey is NCKey
+func GetNetworkContainerIDFromPendingResourceCleanupKey(rowKey string) (string, *api.JsonErr) {
 	entries := strings.Split(rowKey, "_")
-	if len(entries) != 6 {
-		return "", api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("failed to parse networkcontainerid from resource cleanup row: %v", rowKey))
-	}
 	return entries[5], nil
 }
 
 // todo: convert ipcleanup to a struct that can marshall/unmarshall itself to a string
-func GetNetworkIDFromCleanUpResourceKey(rowKey string) (string, *api.JsonErr) {
+// rowkey is expected NCKey, as format Type_%s_Network_%s_ID_%s, CleanupResourceKey is NCKey
+func GetNetworkIDFromPendingResourceCleanupKey(rowKey string) (string, *api.JsonErr) {
 	entries := strings.Split(rowKey, "_")
-	if len(entries) != 6 {
-		return "", api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("failed to parse network id from resource cleanup row: %v", rowKey))
-	}
 	return entries[3], nil
 }
 

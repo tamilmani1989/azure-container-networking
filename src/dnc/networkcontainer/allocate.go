@@ -536,8 +536,8 @@ func (a *IPAllocator) UpdateAllocations(networkID, subnetName string, entities [
 	return nil
 }
 
-func (a *IPAllocator) GetIPAllocationsWithToBeDeletedOwner(networkID, subnetName, ncid string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
-	return a.Allocations.QueryIPAllocationsByToBeDeletedOwner(networkID, subnetName, ncid)
+func (a *IPAllocator) GetIPAllocationsWithToBeDeletedOwner(networkID, subnetName string, nckey string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
+	return a.Allocations.QueryIPAllocationsByToBeDeletedOwner(networkID, subnetName, nckey)
 }
 
 func (a *IPAllocator) saveAllocationBatch(vnetID, subnetName string, batchMap map[string]map[string]interface{}) *api.JsonErr {

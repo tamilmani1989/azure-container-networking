@@ -4,11 +4,12 @@ import (
 	"dnc/api"
 	"dnc/datastore/testpersistencestore"
 	"dnc/logger/loggermock"
-	"fmt"
 	"reflect"
 	"sort"
 	"testing"
 )
+
+const keyformat = "Network_%s_Subnet_%s"
 
 func TestCreateAndDeletePendingCleanupRequest(t *testing.T) {
 	pendingCleanupRepo := setup()
@@ -243,7 +244,7 @@ func TestGetNetworkContainerIDFromRowKey(t *testing.T) {
 	netid1 := "testnetid"
 	subnetid1 := "subnetid"
 	row := GetPendingResourceCleanupKey(IPCleanup, netid1, ncid1)
-	ncid2, err := GetNetworkContainerIDFromCleanupResourceKey(row)
+	ncid2, err := GetNetworkContainerIDFromPendingResourceCleanupKey(row)
 	if err != nil {
 		t.Fatalf("Failed to get NetworkConfigurationID from row, err: %v", err)
 	}
@@ -252,7 +253,7 @@ func TestGetNetworkContainerIDFromRowKey(t *testing.T) {
 		t.Fatalf("Failed to translate TestGetNetworkContainerIDFromRowKey, expected [%v], actual [%v]", ncid1, ncid2)
 	}
 
-	netid2, err := GetNetworkIDFromCleanUpResourceKey(row)
+	netid2, err := GetNetworkIDFromPendingResourceCleanupKey(row)
 	if err != nil {
 		t.Fatalf("Failed to get NetworkID from row, err: %v", err)
 	}
@@ -261,7 +262,7 @@ func TestGetNetworkContainerIDFromRowKey(t *testing.T) {
 		t.Fatalf("Failed to translate TestGetNetworkIDFromRowKey, expected [%v], actual [%v]", netid1, netid2)
 	}
 
-	key := fmt.Sprintf("%s_%s", netid1, subnetid1)
+	key := GetSubnetKey(netid1, subnetid1)
 	subnetkey, err := GetSubnetFromIPAllocationsPartitionKey(key)
 	if err != nil {
 		t.Fatalf("Failed to get SubnetID from key, err: %v", err)
