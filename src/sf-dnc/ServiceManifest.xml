@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ServiceManifest Name="DNCServicePkg"
-                 Version="2021.2.17.1"
+                 Version="2021.2.20.1"
                  xmlns="http://schemas.microsoft.com/2011/01/fabric"
                  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ServiceTypes>
     <StatelessServiceType ServiceTypeName="DNCServiceType" UseImplicitHost="true"/>
   </ServiceTypes>
-  <CodePackage Name="Code" Version="2021.2.17.1">
+  <CodePackage Name="Code" Version="2021.2.20.1">
     <EntryPoint>
       <ExeHost>
         <Program>azure-dnc.exe</Program>
@@ -61,7 +61,7 @@
       <EnvironmentVariable Name="ThresholdForLoggingDataStoreOpLatencyMs" Value=""/>
     </EnvironmentVariables>
   </CodePackage>
-  <ConfigPackage Name="Config" Version="2021.2.17.1" />
+  <ConfigPackage Name="Config" Version="2021.2.20.1" />
   <Resources>
     <Endpoints>
       <Endpoint Protocol="http" Name="ServiceEndpoint" Type="Input" />
