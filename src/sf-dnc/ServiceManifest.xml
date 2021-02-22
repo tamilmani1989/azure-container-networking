@@ -7,7 +7,7 @@
   <ServiceTypes>
     <StatelessServiceType ServiceTypeName="DNCServiceType" UseImplicitHost="true"/>
   </ServiceTypes>
-  <CodePackage Name="Code" Version="2021.2.20.1">
+  <CodePackage Name="Code" Version="2021.2.22.1">
     <EntryPoint>
       <ExeHost>
         <Program>azure-dnc.exe</Program>
@@ -61,7 +61,7 @@
       <EnvironmentVariable Name="ThresholdForLoggingDataStoreOpLatencyMs" Value=""/>
     </EnvironmentVariables>
   </CodePackage>
-  <ConfigPackage Name="Config" Version="2021.2.20.1" />
+  <ConfigPackage Name="Config" Version="2021.2.22.1" />
   <Resources>
     <Endpoints>
       <Endpoint Protocol="http" Name="ServiceEndpoint" Type="Input" />

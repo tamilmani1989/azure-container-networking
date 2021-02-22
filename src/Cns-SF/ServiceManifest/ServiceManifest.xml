@@ -5,7 +5,7 @@
     <StatelessServiceType ServiceTypeName="CnsWrapperServiceType">
     </StatelessServiceType>
   </ServiceTypes>
-  <CodePackage Name="Code" Version="2021.2.20.1">
+  <CodePackage Name="Code" Version="2021.2.22.1">
     <EntryPoint>
       <ExeHost>
         <Program>CnsWrapperService.exe</Program>
@@ -15,7 +15,7 @@
     </EntryPoint>
   </CodePackage>
 
-  <ConfigPackage Name="Config" Version="2021.2.20.1" />
+  <ConfigPackage Name="Config" Version="2021.2.22.1" />
 
   <Resources>
     <Endpoints>
