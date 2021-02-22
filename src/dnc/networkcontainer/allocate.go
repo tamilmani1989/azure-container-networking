@@ -563,7 +563,7 @@ func (a *IPAllocator) saveAllocationBatch(vnetID, subnetName string, batchMap ma
 	return nil
 }
 
-func (a *IPAllocator) SetToBeDeleteOwnerToDeletingIps(networkId, subnetName, reservationKey, tobeDeletedOwner string, allocIDsToDelete map[string]string) *api.JsonErr {
+func (a *IPAllocator) SetToBeDeleteOwnerToDeletingIps(networkId, subnetName, reservationKey, ncKey string, allocIDsToDelete map[string]string) *api.JsonErr {
 	// Query the IpAllocations reserved for a given reservationKey (aka IpAllocationId)
 	ipAllocationEntities, err := a.Allocations.QueryIPAllocationsByReservationKey(networkId, subnetName, reservationKey)
 	if err != nil {
@@ -579,7 +579,7 @@ func (a *IPAllocator) SetToBeDeleteOwnerToDeletingIps(networkId, subnetName, res
 	var ipEntitiesMarkedForDelete []datamodel.IPAllocationEntity
 	for allocationId, _ := range allocIDsToDelete {
 		if entity, found := ipEntities[allocationId]; found {
-			entity.ToBeDeletedOwner = tobeDeletedOwner
+			entity.ToBeDeletedOwner = ncKey
 			ipEntitiesMarkedForDelete = append(ipEntitiesMarkedForDelete, entity)
 		}
 	}
@@ -590,8 +590,8 @@ func (a *IPAllocator) SetToBeDeleteOwnerToDeletingIps(networkId, subnetName, res
 		return err
 	}
 
-	a.Logger.Debugf("SetToBeDeleteOwnerToDeletingIps: Marked ToBeDeletedOwner for Ips, ReservationKey %s, ToBeDeletedOwner %s,ipEntitiesMarkedForDelete %+v",
-		reservationKey, tobeDeletedOwner, ipEntitiesMarkedForDelete)
+	a.Logger.Debugf("SetToBeDeleteOwnerToDeletingIps: Marked ToBeDeletedOwner for Ips, ReservationKey %s, ncKey (ToBeDeletedOwner) %s,ipEntitiesMarkedForDelete %+v",
+		reservationKey, ncKey, ipEntitiesMarkedForDelete)
 
 	return nil
 }
@@ -781,11 +781,12 @@ func (a *IPAllocator) DeleteIPReservation(networkID, reservationID string, force
 		// Also mark ToBeDeletedOwner for primary IP.
 		ipsPendingCleanup[reservationID] = reservation.Configuration.AllocatedSubnet
 
+		ncKey := datamodel.GetNCKey(reservation.Configuration.NetworkID, reservation.Configuration.AssociatedNCID)
 		err = a.SetToBeDeleteOwnerToDeletingIps(
 			reservation.Configuration.NetworkID,
 			reservation.Configuration.AllocationRequest.SubnetName,
 			reservationKey,
-			reservation.Configuration.AssociatedNCID,
+			ncKey,
 			ipsPendingCleanup)
 		if err != nil {
 			a.Logger.Errorf("DeleteIPReservation: Failed to mark ToBeDeletedOwner for associated ips, reservationKey %s, err %+v",
@@ -856,31 +857,31 @@ func (a *IPAllocator) DeleteIPReservation(networkID, reservationID string, force
 }
 
 // Creates the PendingCleanup Request for ips which are marked deleted for a given NcId (ToBeDeletedOwner)
-func (a *IPAllocator) CreateIpCleanupRequest(networkId, subnetName, tobeDeletedOwner string) *api.JsonErr {
+func (a *IPAllocator) CreateIpCleanupRequest(networkId, subnetName, ncId string) *api.JsonErr {
 	// This API is called during Unreserve or Secondary IP scale down state
 	// Always fetch again all the ips which are marked with ToBeDeletedOwner as there can be a race if a delete
 	// NC is received while ScaleDown is getting processed. During scale down, we could have set TBD for a deleting IP
 	// and removed it from Reservation but missed creating the CleanupRequest
-	ipEntitiesMarkedForDelete, err := a.Allocations.QueryIPAllocationsByToBeDeletedOwner(networkId, subnetName, tobeDeletedOwner)
+	// ToBeDeletedOwner is always NCKey
+	ncKey := datamodel.GetNCKey(networkId, ncId)
+	ipEntitiesMarkedForDelete, err := a.Allocations.QueryIPAllocationsByToBeDeletedOwner(networkId, subnetName, ncKey)
 	if err != nil {
 		a.Logger.Errorf("CreateIpCleanupRequest, failed to QueryIPAllocationsByToBeDeletedOwner for networkId %s, subnetName %s, tobeDeletedOwner %s, err %+v",
-			networkId, subnetName, tobeDeletedOwner, err)
+			networkId, subnetName, ncKey, err)
 		return err
 	}
 
 	// Create the BG Job to delete AllocatedIPs only after the associated unpublish
 	// task (Created in the unpublish state) is completed
 	if len(ipEntitiesMarkedForDelete) > 0 {
-		a.Logger.Debugf("DeleteIPReservation: Creating CleanupJob for networkId %s, subnetName %s, tobeDeletedOwner %s, ipEntitiesMarkedForDelete count %d",
-			networkId, subnetName, tobeDeletedOwner, len(ipEntitiesMarkedForDelete))
 		err = a.PendingCleanupRepo.CreateOrMergeIPResourceCleanupRequestFromIPAllocations(
 			networkId,
 			subnetName,
-			tobeDeletedOwner,
+			ncId,
 			ipEntitiesMarkedForDelete)
 		if err != nil {
-			a.Logger.Errorf("CreateIpCleanupRequest: failed to create IPCleanupRequest for networkId %s, subnetName %s, tobeDeletedOwner %s, err %+v",
-				networkId, subnetName, tobeDeletedOwner, err)
+			a.Logger.Errorf("CreateIpCleanupRequest: failed to create IPCleanupRequest for networkId %s, subnetName %s, ncId %s, err %+v",
+				networkId, subnetName, ncId, err)
 			return err
 		}
 	}

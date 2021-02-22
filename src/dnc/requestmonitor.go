@@ -375,7 +375,7 @@ func processPrepareSecondaryIpCleanup(
 		// We have already updated IpAllocations table with ToBeDeletedOwner for ToBeDeletedIpIds
 		// in Reserve state, thus it is safe to request all pending deleting IPs and
 		// create or Merge the PendingResourceCleanupJob
-		err := ipAllocator.CreateIpCleanupRequest(repoNCConfig.NetworkID, subnetName, ncKey)
+		err := ipAllocator.CreateIpCleanupRequest(repoNCConfig.NetworkID, subnetName, repoNCConfig.NetworkContainerID)
 		if err != nil {
 			loggershim.LS.Errorf("processPrepareSecondaryIpCleanup: Failed to create the cleanup request err:  %+v",
 				err)
@@ -445,11 +445,12 @@ func processNetworkContainerReserve(
 			}
 
 			reservationKey := datamodel.GetReservationKey(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
+			ncKey := datamodel.GetNCKey(repoNCConfig.NetworkID, repoNCConfig.NetworkContainerID)
 			err = ipAllocator.SetToBeDeleteOwnerToDeletingIps(
 				repoReservation.Configuration.NetworkID,
 				repoReservation.Configuration.AllocationRequest.SubnetName,
 				reservationKey,
-				repoReservation.Configuration.AssociatedNCID,
+				ncKey,
 				ipsPendingCleanup)
 			if err != nil {
 				loggershim.LS.Errorf("processNetworkContainerReserve: Failed to set ToBeDeletedOwner for associated ips, reservationKey %s, deleting ips %+v, err %+v",

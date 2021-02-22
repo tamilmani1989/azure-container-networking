@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-container-networking/log"
-
 	"github.com/Azure/azure-sdk-for-go/storage"
 )
 
@@ -169,7 +167,7 @@ func (p *PendingResourceCleanupRepo) CreateOrMergeIPResourceCleanupRequest(resCo
 	}
 
 	if len(ipCleanup) == 0 {
-		log.Debugf("CreateOrMergeIPResourceCleanupRequest: Skipping creating"+
+		p.logger.Debugf("CreateOrMergeIPResourceCleanupRequest: Skipping creating"+
 			" PendingResourceCleanupJob as there are no ips associated to be cleaned up, cleanupRowKey %s, reservation %+v ",
 			cleanupRowKey, resConfig)
 		return nil
@@ -188,11 +186,14 @@ func (p *PendingResourceCleanupRepo) CreateOrMergeIPResourceCleanupRequestFromIP
 	cleanupRowKey := GetPendingResourceCleanupKey(IPCleanup, networkId, ncId)
 
 	if len(ipAllocationsEntities) == 0 {
-		log.Debugf("CreateOrMergeIPResourceCleanupRequestFromIPAllocations: Skipping creating"+
+		p.logger.Debugf("CreateOrMergeIPResourceCleanupRequestFromIPAllocations: Skipping creating"+
 			" PendingResourceCleanupJob as ipAllocationsEntities is empty, cleanupRowKey %s, networkId %s, subnetName %s ",
 			cleanupRowKey, networkId, subnetName)
 		return nil
 	}
+
+	p.logger.Debugf("CreateOrMergeIPResourceCleanupRequestFromIPAllocations: Creating CleanupJob for networkId %s, subnetName %s, cleanupRowKey %s, ipEntitiesMarkedForDelete count %d",
+		networkId, subnetName, cleanupRowKey, len(ipAllocationsEntities))
 
 	// construct IPcleanup from list of ipAllocationEntities
 	var ipCleanup = make(map[string][]string)

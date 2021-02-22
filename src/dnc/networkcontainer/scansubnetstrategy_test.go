@@ -23,6 +23,8 @@ func ValidateScanSubnetStrategyScaleDown(t *testing.T, pubsubProxyEnabled bool) 
 	_, baseSubnet, _ := net.ParseCIDR("10.1.0.0/16")
 	vnetID := "vnet1"
 	subnet := "subnet1"
+	nc1Id := "nc1"
+	nc2Id := "nc2"
 
 	allocsRepo := fakes.AllocationRepo{
 		Data: []datamodel.IPAllocationEntity{
@@ -41,9 +43,9 @@ func ValidateScanSubnetStrategyScaleDown(t *testing.T, pubsubProxyEnabled bool) 
 	reservations := []datamodel.ReservationConfiguration{
 		{
 			ReservationID:   "Network_vnet1_Reservation_res1",
-			NetworkID:       "vnet1",
+			NetworkID:       vnetID,
 			AllocatedSubnet: "10.1.0.10/32",
-			AssociatedNCID:  "nc1",
+			AssociatedNCID:  nc1Id,
 			SecondaryAllocations: map[string]string{
 				"alloc1": "10.1.0.11/32",
 				"alloc2": "10.1.0.12/32",
@@ -52,9 +54,9 @@ func ValidateScanSubnetStrategyScaleDown(t *testing.T, pubsubProxyEnabled bool) 
 		},
 		{
 			ReservationID:   "Network_vnet1_Reservation_res2",
-			NetworkID:       "vnet1",
+			NetworkID:       vnetID,
 			AllocatedSubnet: "10.1.0.20/32",
-			AssociatedNCID:  "nc2",
+			AssociatedNCID:  nc2Id,
 			SecondaryAllocations: map[string]string{
 				"alloc4": "10.1.0.21/32",
 				"alloc5": "10.1.0.22/32",
@@ -94,8 +96,8 @@ func ValidateScanSubnetStrategyScaleDown(t *testing.T, pubsubProxyEnabled bool) 
 	// if pubsub proxy is enabled then TBD Ips will be set with ToBeDeletedOwner
 	if pubsubProxyEnabled {
 		expectedUpdatedIps := map[string][]string{
-			"nc1": {"10.1.0.12_32", "10.1.0.13_32"},
-			"nc2": {"10.1.0.21_32", "10.1.0.23_32"}}
+			datamodel.GetNCKey(vnetID, nc1Id): {"10.1.0.12_32", "10.1.0.13_32"},
+			datamodel.GetNCKey(vnetID, nc2Id): {"10.1.0.21_32", "10.1.0.23_32"}}
 
 		for ncKey, ips := range expectedUpdatedIps {
 			for _, ipkey := range ips {

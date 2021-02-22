@@ -69,8 +69,8 @@ func (s *scanSubnetStrategy) scaleDown(reservations []datamodel.ReservationConfi
 		updatedTBDEntities := make([]datamodel.IPAllocationEntity, len(tbdEntities))
 		for i, tbdEntity := range tbdEntities {
 			if reservation, found := reservationMap[tbdEntity.IPAllocation]; found {
-				// Set the ToBeDeletedOwner for deleting IP
-				tbdEntity.ToBeDeletedOwner = reservation.AssociatedNCID
+				// Set the ToBeDeletedOwner as ncKey for deleting IP
+				tbdEntity.ToBeDeletedOwner = datamodel.GetNCKey(s.subnetInfo.vnetID, reservation.AssociatedNCID)
 				updatedTBDEntities[i] = tbdEntity
 			} else {
 				return nil, fmt.Errorf("scaleDown: Reservation not found for a given IpAllocationEntity %+v", tbdEntity)
