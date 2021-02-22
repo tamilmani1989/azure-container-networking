@@ -118,11 +118,6 @@ func CheckGreConditions(
 	ncGreKey uint16,
 	vlanID uint16) error {
 
-	if nodeGreCapability != GreCapable {
-		return fmt.Errorf("Node is not capable of assigning Grekeys NodeID:%s NC:%s",
-			nodeID, ncID)
-	}
-
 	if ncGreKey != 0 {
 		return fmt.Errorf("NC has GreKey assigned NodeID:%s NC:%s GreKey:%v",
 			nodeID, ncID, ncGreKey)
