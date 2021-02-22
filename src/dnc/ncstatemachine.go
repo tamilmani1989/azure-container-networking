@@ -51,7 +51,7 @@ func initNetworkContainerStateMachine() {
 				Allocator:    &ipAllocator,
 				Subnets:      new(subnetRepo),
 			},
-			config.DNCSettings.MaxIPReservationBatchSize,
+			config.FeatureFlagSettings.MaxIPReservationBatchSize,
 			false, // todo: pass this from config
 			config.PubSubProxySettings.EnablePubSubProxy,
 		)

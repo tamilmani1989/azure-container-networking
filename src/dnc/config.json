@@ -92,6 +92,10 @@
         "BMMode": false,
         "DisableReservationMapInSubnetConfig": false
     },
+    "FeatureFlagSettings": {
+        "EnableBatchAllocationProcessing": false,
+        "MaxIPReservationBatchSize": 100
+    },
     "HttpClientSettings": {
         "ConnectionTimeout": 5,
         "ResponseHeaderTimeout": 120,

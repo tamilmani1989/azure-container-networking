@@ -71,6 +71,10 @@
         "ThresholdForLoggingDataStoreOpLatencyMs": 1000,
         "Managed": true
     },
+    "FeatureFlagSettings": {
+        "EnableBatchAllocationProcessing": true,
+        "MaxIPReservationBatchSize": 100
+    },
     "HttpClientSettings": {
         "ConnectionTimeout": 5,
         "ResponseHeaderTimeout": 120,

@@ -165,8 +165,6 @@ type DNCSettings struct {
 	Managed bool
 	// Bool to determine if DNC is running in Baremetal mode (BM) mode.
 	BMMode bool
-	// Max IP Reservation batch size
-	MaxIPReservationBatchSize int
 	// Flag to disable adding reservations under Subnet Configuration
 	DisableReservationMapInSubnetConfig bool
 }
@@ -175,6 +173,8 @@ type DNCSettings struct {
 type FeatureFlagSettings struct {
 	// Flag to enable batch processing of different NC requests during the allocation stage
 	EnableBatchAllocationProcessing bool
+	// Max IP Reservation batch size. Only used when batch allocation is enabled.
+	MaxIPReservationBatchSize int
 }
 
 // IdentitySettings - Information about managed identity for DNC
@@ -332,6 +332,10 @@ func SetDncConfigDefaults(config *Configuration) {
 	if config.DataStoreSettings.MaxBatchSize == 0 {
 		config.DataStoreSettings.MaxBatchSize = 100
 	}
+
+	if config.FeatureFlagSettings.MaxIPReservationBatchSize == 0 {
+		config.FeatureFlagSettings.MaxIPReservationBatchSize = 100
+	}
 }
 
 func setDNCSettingDefaults(dncSettings *DNCSettings) {
@@ -393,11 +397,6 @@ func setDNCSettingDefaults(dncSettings *DNCSettings) {
 	if dncSettings.ThresholdForLoggingDataStoreOpLatencyMs == 0 {
 		// Set default to 1 second
 		dncSettings.ThresholdForLoggingDataStoreOpLatencyMs = 1000
-	}
-
-	if dncSettings.MaxIPReservationBatchSize == 0 {
-		// Set default to 100 reservations that can be processed at a time per subnet
-		dncSettings.MaxIPReservationBatchSize = 100
 	}
 }
 
