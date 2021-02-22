@@ -14,7 +14,6 @@ import (
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
-	"github.com/Azure/azure-container-networking/cns/restserver"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -25,6 +24,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Azure/azure-container-networking/cns/restserver"
 
 	"net/http"
 	"net/http/httptest"
@@ -229,7 +230,7 @@ func TestGreGeneration(t *testing.T) {
 
 	fmt.Println("Initializing greMap using GetNextGreKey")
 
-	for count := datamodel.MinGre; count <= datamodel.MaxGre; count++ {
+	for count := datamodel.MaxGre; count >= datamodel.MinGre; count-- {
 		var err *api.JsonErr
 		id, _ := uuid.NewUUID()
 		greRefMap[id.String()] = count
@@ -252,15 +253,14 @@ func TestOutOfGreKeys(t *testing.T) {
 	greMap := make(map[string]uint16)
 
 	fmt.Println("Testing outOfGreKeys using GetNextGreKey")
-
-	for count := datamodel.MinGre; count <= (datamodel.MaxGre + 1); count++ {
+	for count := datamodel.MaxGre; count >= datamodel.MinGre; count-- {
 		var err *api.JsonErr
 		id, _ := uuid.NewUUID()
 		greMap[id.String()], err = datamodel.GetNextGreKey(greMap)
 
-		if err == nil && count > datamodel.MaxGre {
+		if err == nil && count < datamodel.MinGre {
 			fmt.Printf("gre -> %+v\n", greMap)
-			t.Fatal(fmt.Sprintf("greKeys exceeded %d", datamodel.MaxGre))
+			t.Fatal(fmt.Sprintf("greKeys exceeded %d", datamodel.MinGre))
 		}
 	}
 	fmt.Println("****TestOutOfGreKeys Succeed**********")
@@ -1000,14 +1000,14 @@ type NMAgentResponderContext struct {
 }
 
 type CnsResponderContext struct {
-	T                        *testing.T
-	CreateOrUpdateNCResponse *CnsCreateOrUpdateNCResponse
-	DeleteNCResponse         *CnsDeleteNCResponse
-	PublishNCResponse        *CnsPublishNetworkContainerResponse
-	UnpublishNCResponse      *CnsUnpublishNetworkContainerResponse
-	NumOfCoresResponse       *CnsNumOfCPUCoresResponse
+	T                           *testing.T
+	CreateOrUpdateNCResponse    *CnsCreateOrUpdateNCResponse
+	DeleteNCResponse            *CnsDeleteNCResponse
+	PublishNCResponse           *CnsPublishNetworkContainerResponse
+	UnpublishNCResponse         *CnsUnpublishNetworkContainerResponse
+	NumOfCoresResponse          *CnsNumOfCPUCoresResponse
 	SetOrchestratorTypeResponse *CnsSetOrchestratorTypeResponse
-	NCDeploymentRequest      *NCDeploymentRequest
+	NCDeploymentRequest         *NCDeploymentRequest
 }
 
 type CnsResponderContextMap map[string]*CnsResponderContext
@@ -3534,7 +3534,7 @@ func TestDisableResMapInSubnetConfig(t *testing.T) {
 	var reservations []datamodel.ReservationRow
 	for i := 0; i < 5; i++ {
 		reservationID := newGUID()
-		allocRequest := api.AllocationRequest{SubnetName: subnetName, IPConstraint: "",	NodeConstraint: ""}
+		allocRequest := api.AllocationRequest{SubnetName: subnetName, IPConstraint: "", NodeConstraint: ""}
 		reservation := datamodel.ReservationRow{
 			RowKey: datamodel.GetReservationKey(networkID, reservationID),
 			Configuration: &datamodel.ReservationConfiguration{
@@ -3587,7 +3587,7 @@ func TestDisableResMapInSubnetConfig(t *testing.T) {
 			ReservationID:     reservationID,
 			ReservationState:  datamodel.Allocate,
 			Status:            datamodel.Completed,
-			AllocationRequest: api.AllocationRequest{SubnetName: subnetName, IPConstraint: "",	NodeConstraint: ""},
+			AllocationRequest: api.AllocationRequest{SubnetName: subnetName, IPConstraint: "", NodeConstraint: ""},
 			APIVersion:        apiVersion},
 	}
 	reservations = append(reservations, reservation)
@@ -3640,7 +3640,7 @@ func TestDisableResMapInSubnetConfig(t *testing.T) {
 	// Get the subnetconfig response after the migration and validate if it matches the subnet config retrieved before the migration
 	subnetConfigRespMigrated := getSubnetConfiguration(t, dncEP, networkID, subnetName, apiVersion)
 	if !api.CompareSubnetConfigurationResponse(*subnetConfigResp, *subnetConfigRespMigrated) {
-		t.Fatalf("subnet config response changed post migration. Response before migration: %+v " +
+		t.Fatalf("subnet config response changed post migration. Response before migration: %+v "+
 			"Response after migration: %+v", *subnetConfigResp, *subnetConfigRespMigrated)
 	}
 
@@ -3682,7 +3682,7 @@ func TestDisableResMapInSubnetConfig(t *testing.T) {
 			ReservationID:     reservationID,
 			ReservationState:  datamodel.Process,
 			Status:            datamodel.Pending,
-			AllocationRequest: api.AllocationRequest{SubnetName: subnetName, IPConstraint: "",	NodeConstraint: ""},
+			AllocationRequest: api.AllocationRequest{SubnetName: subnetName, IPConstraint: "", NodeConstraint: ""},
 			APIVersion:        apiVersion},
 	}
 	reservations = append(reservations, reservation)
@@ -3733,7 +3733,7 @@ func TestUnsupportedOrchTypeCNSResponse(t *testing.T) {
 	podInfo := OrchestratorContext{
 		PodName:      "testpodname1",
 		PodNamespace: "testpodnamespace1"}
-	orchContext, _        := json.Marshal(podInfo)
+	orchContext, _ := json.Marshal(podInfo)
 	networkContainerReq := CreateNetworkContainerRequest{
 		AllocationRequest: api.AllocationRequest{
 			SubnetName:     "subnet1",

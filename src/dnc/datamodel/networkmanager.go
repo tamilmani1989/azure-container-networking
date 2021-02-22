@@ -378,11 +378,6 @@ func GetNextVlanID(vlanMap map[string]uint16) (uint16, *api.JsonErr) {
 	return findNextAvailable(vlanMap, MinVlan, MaxVlan, api.OutOfVlanIDs, "Exceeded maximum number of VLAN IDs")
 }
 
-// GetNextGreKey - Helper fucntion to get next gre key
-func GetNextGreKey(greMap map[string]uint16) (uint16, *api.JsonErr) {
-	return findNextAvailable(greMap, MinGre, MaxGre, api.OutOfGreKeys, "Exceeded maximum number of GRE Keys")
-}
-
 // findNextAvailable - helper function to get next item in integer map.
 func findNextAvailable(baseMap map[string]uint16,
 	next, max uint16,
@@ -398,14 +393,47 @@ func findNextAvailable(baseMap map[string]uint16,
 
 	for _, usedVlanOrgre := range v {
 		if next != usedVlanOrgre {
-
 			break
 		}
-
 		next++
 	}
 
 	if next > max {
+		return 0, &api.JsonErr{
+			HTTPStatus: http.StatusInternalServerError,
+			Text:       errorText,
+			Code:       errorCode}
+	}
+
+	return next, nil
+}
+
+// GetNextGreKey - Helper fucntion to get next gre key
+func GetNextGreKey(greMap map[string]uint16) (uint16, *api.JsonErr) {
+	return findNextAvailableGrekey(greMap, MinGre, MaxGre, api.OutOfGreKeys, "Exceeded maximum number of GRE Keys")
+}
+
+// findNextAvailableGrekey - helper function to get next item in integer map.
+func findNextAvailableGrekey(baseMap map[string]uint16,
+	min, next uint16,
+	errorCode api.ErrorCode,
+	errorText string) (uint16, *api.JsonErr) {
+
+	v := make(utils.Uint16s, 0, len(baseMap))
+	for _, value := range baseMap {
+		v = append(v, value)
+	}
+
+	sort.Sort(v)
+
+	for i := len(v) - 1; i >= 0; i-- {
+		if next != v[i] {
+			break
+		}
+		next--
+	}
+
+	if next < min {
 		return 0, &api.JsonErr{
 			HTTPStatus: http.StatusInternalServerError,
 			Text:       errorText,
