@@ -1,0 +1,16 @@
+{
+  "$schema": "https://ev2schema.azure.net/schemas/2020-01-01/rolloutParameters.json",
+  "contentVersion": "1.0.0.0",
+  "applications": [      	
+    {
+      "serviceResourceName": "mdncservice",
+      "applicationName": "myApp1",
+      "authentication": {
+        "type": "CertificateAuthentication",
+        "properties": {
+            "AksRole": "User"
+        }
+      }
+    }
+  ]
+}

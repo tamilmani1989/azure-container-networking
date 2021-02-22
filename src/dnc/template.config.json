@@ -96,7 +96,7 @@
         "PubsubCertKeyvaultName": "__RegionalKeyVaultName__",
         "PubsubCertFilePath": "",
         "PubsubConnectionEndpoint": "__PubsubConnectionEndpoint__",
-        "PubsubVipsString" : "__PubsubVips__"
+        "PubsubVips" : __PubsubVips__
     },
     "IdentitySettings": {
         "MSIResourceID": "__MSIResourceID__"

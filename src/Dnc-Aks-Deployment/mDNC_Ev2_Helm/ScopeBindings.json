@@ -1,0 +1,41 @@
+{
+  "scopeBindings": [
+    {
+      "scopeTagName": "regionalTags",
+      "bindings": [
+        {
+          "find": "__Replicas.INT__",
+          "replaceWith": 3
+        },
+        {
+          "find": "__ContainerRegistryName__",
+          "replaceWith": ""
+        },
+        {
+          "find": "__DncBuildTag__",
+          "replaceWith": ""
+        },
+        {
+          "find": "__DncRpBuildTag__",
+          "replaceWith": ""
+        },
+        {
+          "find": "__GatewayBuildTag__",
+          "replaceWith": ""
+        },
+        {
+          "find": "__DncRcBuildTag__",
+          "replaceWith": ""
+        },
+        {
+          "find": "__MacAllocatorBuildTag__",
+          "replaceWith": ""
+        },
+        {
+          "find": "__MacInventoryBuildTag__",
+          "replaceWith": ""
+        }
+      ]
+    }
+  ]
+}

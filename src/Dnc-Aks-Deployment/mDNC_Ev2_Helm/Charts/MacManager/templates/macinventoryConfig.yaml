@@ -1,0 +1,8 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+        name: macinventory-config
+        namespace: default
+data:
+  appsettings.json: | 
+    <<config_replace>>

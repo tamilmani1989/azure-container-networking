@@ -8,17 +8,17 @@
     "AzureEnvironment": "azurecloud"
   },
   "KeyVault": {
-    "Url": "https://acnkv.vault.azure.net",
+    "Url": "https://__RegionalKeyVaultName__.vault.azure.net",
     "SslCertName": "DncSslCert3"
   },
   "MacAllocatorSetting": {
-    "AllocationRetryCount": "__AllocationRetyrCount__"
+    "AllocationRetryCount": "5"
   },
   "ClientIdentities": [
     {
-      "IdentityType": "ManagedIdentity", // this comes from ClientIdentityType enum in CoreLib
+      "IdentityType": "ManagedIdentity",
       "AppId": "__ClusterClientId__",
-      "Tag": "ManagedIdentity" // this comes from ClientIdentityTags enum in CoreLib
+      "Tag": "ManagedIdentity"
     }
   ],
   "AllowedHosts": "*",

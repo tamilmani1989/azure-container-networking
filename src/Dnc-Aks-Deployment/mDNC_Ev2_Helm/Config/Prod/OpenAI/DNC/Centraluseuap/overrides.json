@@ -1,0 +1,40 @@
+{
+    "Application": {
+        "PartitionKey": "ev2_test_1",
+        "ManagedDncGuid": "5c7e26be-7ff9-4aaf-9e16-0bc759605aea",
+        "PubsubCertName": "DncPubSubCert",
+        "PubsubConnectionEndpoint": "uscentraleuap-prod.sdnpubsub.core.windows.net",
+        "PubsubVips": '[
+            {
+                "AzId": "AZ01",
+                "VIPs": "52.180.178.120,52.180.182.213,52.180.177.155"
+            },
+            {
+                "AzId": "AZ02",
+                "VIPs": "52.176.251.129,52.180.170.235"
+            }
+        ]'
+    },
+    "Cluster": {
+        "LOCATION": "centraluseuap",
+        "CLUSTERNAME": "acncluster-dnc-centraluseuap",
+        "AgentVmSize": "Standard_DS2_v2",
+        "AgentCount": "3",
+        "ResourceGroup": "acn-rg-dnc-centraluseuap",
+        "SubscriptionId": "0895de50-30a3-4b75-aada-5b23ebd4e8bc",
+        "TenantId": "33e01921-4d64-4f8c-a055-5bdaffd5e33d",
+        "ClusterClientId": ""
+    },
+    "Dependencies": {
+        "ContainerRegistryName": "acnprod",
+        "RegionalKeyVaultName": "acnkv-centraluseuap",
+        "RegionalKeyVaultResourceGroup": "acn-rg-CentralUSEuap",
+        "ContainerRegistryResourceGroup": "ProductionACR",
+        "CosmosDbAccountName": "dbdnccentraluseuap",
+        "CosmosDbResourceGroup": "acn-rg-dnc-centraluseuap",
+        "RpCosmosDbResourceGroup": "acn-rg-dncrp-centraluseuap",
+        "RpCosmosDbAccountName": "dbdncrpcentraluseuap",
+        "RpCosmosDbResoureID": "/subscriptions/0895de50-30a3-4b75-aada-5b23ebd4e8bc/resourceGroups/acn-rg-dncrp-centraluseuap/providers/Microsoft.DocumentDB/databaseAccounts/dbdncrpcentraluseuap",
+        "CosmosDBResourceID": "/subscriptions/0895de50-30a3-4b75-aada-5b23ebd4e8bc/resourceGroups/acn-rg-dnc-centraluseuap/providers/Microsoft.DocumentDB/databaseAccounts/dbdnccentraluseuap"
+    }
+}

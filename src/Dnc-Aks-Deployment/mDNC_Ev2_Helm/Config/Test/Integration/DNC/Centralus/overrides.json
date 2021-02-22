@@ -1,0 +1,41 @@
+{
+    "Application": {
+        "PartitionKey": "ev2_test_1",
+        "ManagedDncGuid": "5c7e26be-7ff9-4aaf-9e16-0bc759605aea",
+        "KeyVaultCertPath": "https://acnkv-centraluseuap.vault.azure.net/secrets/AMEAADOnecert/32bcf981102e4789bb6dae083435291d",
+        "PubsubCertName": "DncPubSubCert",
+        "PubsubConnectionEndpoint": "uscentral-prod.sdnpubsub.core.windows.net",
+        "PubsubVips": '[
+            {
+                "AzId": "AZ01",
+                "VIPs": "52.180.178.120,52.180.182.213,52.180.177.155"
+            },
+            {
+                "AzId": "AZ02",
+                "VIPs": "52.176.251.129,52.180.170.235"
+            }
+        ]'
+    },
+    "Cluster": {
+        "LOCATION": "centralus",
+        "CLUSTERNAME": "test-e2e-rp-centralus",
+        "AgentVmSize": "Standard_DS2_v2",
+        "AgentCount": "3",
+        "ResourceGroup": "test-e2e-rp-centralus",
+        "SubscriptionId": "9b8218f9-902a-4d20-a65c-e98acec5362f",
+        "TenantId": "72f988bf-86f1-41af-91ab-2d7cd011db47",
+        "ClusterClientId": ""
+    },
+    "Dependencies": {
+        "ContainerRegistryName": "acndev",
+        "RegionalKeyVaultName": "acnkv",
+        "RegionalKeyVaultResourceGroup": "acn-rg-CentralUSEuap",
+        "ContainerRegistryResourceGroup": "acn-shared-resources",
+        "CosmosDbAccountName": "dbrptestcentralus",
+        "CosmosDbResourceGroup": "acn-rp-test-centralus",
+        "RpCosmosDbResourceGroup": "acn-rp-test-centralus",
+        "RpCosmosDbAccountName": "dbrptestcentralus",
+        "RpCosmosDbResoureID": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/acn-rp-test-centralus/providers/Microsoft.DocumentDB/databaseAccounts/dbrptestcentralus",
+        "CosmosDBResourceID": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/acn-rp-test-centralus/providers/Microsoft.DocumentDB/databaseAccounts/dbrptestcentralus"
+    }
+}

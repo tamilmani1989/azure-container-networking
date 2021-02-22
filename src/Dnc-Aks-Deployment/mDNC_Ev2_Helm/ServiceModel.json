@@ -1,0 +1,70 @@
+{
+  "$schema": "https://ev2schema.azure.net/schemas/2020-01-01/serviceModel.json",
+  "contentVersion": "0.0.0.1",
+  "serviceMetadata": {
+    "serviceGroup": "myServiceGroup",
+    "environment": "Test"
+  },
+  "serviceResourceGroupDefinitions": [
+    {
+      "name": "myServiceResourceGroupDef1",
+      "serviceResourceDefinitions": [
+        {
+          "name": "myServiceResourceDef1",
+          "composedOf": {
+            "application": {
+              "names": [
+                "myApp1Def"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "applicationDefinitions": [
+    {
+      "name": "myApp1Def",
+      "rollbackOnFailure": false,
+      "azureKubernetesService": {
+        "releaseName": "mdncservices",
+        "chart": {
+           "reference": { "path": "chart.zip" }
+        },
+        "tools": {
+          "helm": {
+            "version": "3.0"
+          }
+        },
+      "valuesPath": "Values\\values.yaml"
+      }
+    }
+  ],
+  "serviceResourceGroups": [
+    {
+      "azureResourceGroupName": "",
+      "location": "",
+      "instanceOf": "myServiceResourceGroupDef1",
+      "azureSubscriptionId": "",
+      "scopeTags": [
+        {
+          "name": "regionalTags"
+        }
+      ],
+      "serviceResources": [
+        {
+          "name": "mdncservice",
+          "instanceOf": "myServiceResourceDef1",
+          "rolloutParametersPath": "Parameters\\RolloutParameters.json",
+          "applications": [
+            {
+              "name": "myApp1",
+              "instanceOf": "myApp1Def",
+              "armResourceName": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

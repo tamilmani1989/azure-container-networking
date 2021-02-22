@@ -1,0 +1,9 @@
+# Values for mdnc.
+
+containerregistry: __ContainerRegistryName__
+dncbuildtag: __DncBuildTag__
+gatewaybuildtag: __GatewayBuildTag__
+dncrcbuildtag: __DncRcBuildTag__
+macallocatorbuildtag: __MacAllocatorBuildTag__
+macinventorybuildtag: __MacInventoryBuildTag__
+replicatcount : __Replicas.INT__

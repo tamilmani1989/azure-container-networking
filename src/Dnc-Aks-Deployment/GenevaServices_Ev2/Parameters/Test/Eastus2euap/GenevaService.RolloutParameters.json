@@ -1,0 +1,28 @@
+{
+  "$schema": "https://ev2schema.azure.net/schemas/2020-01-01/rolloutParameters.json",
+  "contentVersion": "1.0.0.0",
+  "applications": [      	
+    {
+      "serviceResourceName": "myAksService2",
+      "applicationName": "myApp1",
+      "authentication": {
+        "type": "CertificateAuthentication",
+        "properties": {
+            "AksRole": "User"
+        }
+      },
+      "applicationSecrets": {
+        "replacements": {  
+          "__gcscert__": {
+            "secretId": "https://acnkv.vault.azure.net/secrets/gcscert/a3ed19b4f6304142b00d170e3fce2dfd",
+            "convertToBase64": "true"
+          },
+          "__gcskey__": {
+            "secretId": "https://acnkv.vault.azure.net/secrets/gcskey/c4128c16bb8842d192feb2791de3fd07",
+            "convertToBase64": "true"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,8 +1,3 @@
-param(
-    [Parameter()]
-    [string]$PubsubVips
-)
-
 $configReplacementJson = Get-Content (Join-Path $PSScriptRoot \service_config_replacement.json) | ConvertFrom-Json
 
 foreach($configReplacement in $configReplacementJson.ServiceConfigReplacement)
@@ -16,6 +11,7 @@ foreach($configReplacement in $configReplacementJson.ServiceConfigReplacement)
         $config = $config.replace('__PubsubVips__', $PubsubVips)
     }
 
+    
 
     $destination.replace('<<config_replace>>', $config) | Set-Content (Join-Path $PSScriptRoot $configReplacement.DestinationFile)
 }

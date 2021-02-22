@@ -9,14 +9,14 @@
   },
   "ClientIdentities": [
     {
-      "IdentityType": "ManagedIdentity", // this comes from ClientIdentityType enum in CoreLib
+      "IdentityType": "ManagedIdentity",
       "AppId": "__ClusterClientId__",
-      "Tag": "ManagedIdentity" // this comes from ClientIdentityTags enum in CoreLib
+      "Tag": "ManagedIdentity"
     }
   ],
   "KeyVault": {
     "Url": "https://__RegionalKeyVaultName__.vault.azure.net",
-    "SslCertName": "MacInventoryManagerSslCert3"
+    "SslCertName": "DncSslCert3"
   },
   "Port": "5004",
   "MdmMetrics": {

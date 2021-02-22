@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dncrp-deployment
+  labels:
+    app: dncrp
+spec:
+  selector:
+    matchLabels:
+      app: dncrp
+  minReadySeconds: 100    
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0      
+  replicas: {{ .Values.replicacount }}  
+  template:
+    metadata:
+      annotations:
+        timestamp: "{{ date "20060102150405" .Release.Time }}"
+      labels:
+        app: dncrp
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - dncrp
+            topologyKey: kubernetes.io/hostname
+      hostNetwork: true
+      containers:
+      - name: dncrp-container
+        image: {{ .Values.containerregistry }}/{{ .Values.dncrcbuildtag }}
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: log
+          mountPath: /var/log
+        - name: dncrp-config
+          mountPath: /etc/dncrp 
+        ports:
+        - containerPort: 5002
+        env:
+        - name : DNCRP_CONFIG_PATH
+          value : /etc/dncrp
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+      volumes:
+      - name: log
+        hostPath:
+          path: /var/log
+          type: Directory
+      - name: dncrp-config
+        configMap:
+          name: dncrp-config
+---          
+kind: Service
+apiVersion: v1
+metadata:
+  name: dncrp-service
+spec:
+  selector:
+    app: dncrp
+  type: LoadBalancer
+  ports:
+  - name: dncrp-port
+    port: 443
+    targetPort: 5002
+    protocol: TCP          

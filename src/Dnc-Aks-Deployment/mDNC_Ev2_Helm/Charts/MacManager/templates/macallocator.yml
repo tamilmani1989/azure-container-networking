@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: macallocator-deployment
+  labels:
+    app: macallocator
+spec:
+  selector:
+    matchLabels:
+      app: macallocator
+  replicas: {{ .Values.replicacount }}  
+  template:
+    metadata:
+      annotations:
+        timestamp: "{{ date "20060102150405" .Release.Time }}"
+      labels:
+        app: macallocator
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - macallocator
+            topologyKey: kubernetes.io/hostname
+      hostNetwork: true
+      containers:
+      - name: macallocator-container
+        image: {{ .Values.containerregistry }}/{{ .Values.macallocatorbuildtag }}
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: macallocator-config
+          mountPath: /etc/macallocator
+        ports:
+        - containerPort: 5012
+        env:
+        - name : MACALLOCATOR_CONFIG_PATH
+          value : /etc/macallocator
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+      volumes:
+      - name: macallocator-config
+        configMap:
+          name: macallocator-config

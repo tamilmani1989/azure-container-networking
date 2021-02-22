@@ -1,0 +1,27 @@
+{
+    "Application": {
+        "KeyVaultCertPath": "https://acnkv-centraluseuap.vault.azure.net/secrets/AMEAADOnecert/32bcf981102e4789bb6dae083435291d"
+    },
+    "Cluster": {
+        "LOCATION": "centralus",
+        "CLUSTERNAME": "acncluster-dncrp-centraluseuap",
+        "AgentVmSize": "Standard_DS2_v2",
+        "AgentCount": "3",
+        "ResourceGroup": "acn-rg-dncrp-centraluseuap",
+        "SubscriptionId": "0895de50-30a3-4b75-aada-5b23ebd4e8bc",
+        "TenantId": "33e01921-4d64-4f8c-a055-5bdaffd5e33d",
+        "ClusterClientId": ""
+    },
+    "Dependencies": {
+        "ContainerRegistryName": "acnprod",
+        "RegionalKeyVaultName": "acnkv",
+        "RegionalKeyVaultResourceGroup": "acn-rg-CentralUSEuap",
+        "ContainerRegistryResourceGroup": "ProductionACR",
+        "CosmosDbAccountName": "dbdncrpcentraluseuap",
+        "CosmosDbResourceGroup": "acn-rg-dncrp-centraluseuap",
+        "RpCosmosDbResourceGroup": "acn-rg-dncrp-centraluseuap",
+        "RpCosmosDbAccountName": "dbdncrpcentraluseuap",
+        "RpCosmosDbResoureID": "/subscriptions/0895de50-30a3-4b75-aada-5b23ebd4e8bc/resourceGroups/acn-rg-dncrp-centraluseuap/providers/Microsoft.DocumentDB/databaseAccounts/dbdncrpcentraluseuap",
+        "CosmosDBResourceID": "/subscriptions/0895de50-30a3-4b75-aada-5b23ebd4e8bc/resourceGroups/acn-rg-dnc-centraluseuap/providers/Microsoft.DocumentDB/databaseAccounts/dbdncrpcentraluseuap"
+    }
+}

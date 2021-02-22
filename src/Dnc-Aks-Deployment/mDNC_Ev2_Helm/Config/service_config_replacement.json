@@ -1,0 +1,34 @@
+{
+    "ServiceConfigReplacement": [
+        {
+            "Service" : "dnc",
+            "SourceConfigFile": "..\\..\\..\\dnc\\template.config.json",
+            "DestinationFile": "..\\charts\\dnc\\templates\\dncConfig.yaml"
+        },
+        {
+            "Service" : "dncrc",
+            "SourceConfigFile": "..\\..\\..\\dnc\\requestcontroller\\template.requestcontroller.config.json",
+            "DestinationFile": "..\\charts\\dnc\\templates\\dncrcConfig.yaml"
+        },
+        {
+            "Service" : "dncrp",
+            "SourceConfigFile": "..\\..\\..\\DncRP\\Server\\template.appsettings.json",
+            "DestinationFile": "..\\Charts\\DNCRP\\templates\\dncrpConfig.yaml"
+        },
+        {
+            "Service" : "gateway",
+            "SourceConfigFile": "..\\..\\..\\Gateway\\Server\\src\\template.appsettings.json",
+            "DestinationFile": "..\\charts\\dnc\\templates\\gatewayConfig.yaml"
+        },
+        {
+            "Service" : "macallocator",
+            "SourceConfigFile": "..\\..\\..\\MacManager\\MacAllocator\\Server\\template.appsettings.json",
+            "DestinationFile": "..\\Charts\\MacManager\\templates\\macallocatorConfig.yaml"
+        },
+        {
+            "Service" : "macinventory",
+            "SourceConfigFile": "..\\..\\..\\MacManager\\InventoryManager\\Server\\template.appsettings.json",
+            "DestinationFile": "..\\Charts\\MacManager\\templates\\macinventoryConfig.yaml"
+        }
+    ]
+}

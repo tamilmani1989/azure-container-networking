@@ -17,7 +17,7 @@ param(
     [string]$location = $Env.location,
 
     [Parameter(Mandatory = $false)]
-    [string]$rolloutParameterFilePath = $Env.rolloutParameterFilePath
+    [string]$rolloutParameterFilePath
 )
 
 
@@ -38,8 +38,8 @@ function Override-ServiceModel {
     $serviceModelJson.serviceResourceGroups[0].location = $friendlyLocationName
     $serviceModelJson.serviceResourceGroups[0].azureSubscriptionId = $subscription
 
-    if(!$rolloutParameterFilePath){
-        $serviceModelJson.serviceResourceGroups[0].azureSubscriptionId = $subscription
+    if($rolloutParameterFilePath){
+        $serviceModelJson.serviceResourceGroups[0].serviceResources[0].rolloutParametersPath = $rolloutParameterFilePath
     }
 
     foreach($application in $serviceModelJson.serviceResourceGroups.serviceResources[0].applications)
