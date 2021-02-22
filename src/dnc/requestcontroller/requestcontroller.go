@@ -30,6 +30,12 @@ const (
 	defaultCleanupPollingInterval              = "30s"
 	defaultCleanupConfigMapName                = "dnc-cleanup-signal"
 	defaultCleanupConfigMapNamespace           = "kube-system"
+	defaultNNCReconcilerMetricPublishInterval  = "5m"
+	defaultTelemetryRefreshIntervalInSecs      = 15
+	defaultTelemetryBatchIntervalInSecs        = 7
+	defaultTelemetryBatchSizeBytes             = 16384
+	defaultGetEnvRetryWaitTimeInSecs           = 3
+	defaultGetEnvRetryCount                    = 5
 	KubeconfigFileMode                         = "file"
 	KubeconfigDatastoreMode                    = "datastore"
 	SubnetInfoProviderDatastoreMode            = "datastore"
@@ -58,6 +64,8 @@ type Config struct {
 	LeaderElectionSettings   LeaderElectionSettings   `json:"leaderElectionSettings,omitempty"`
 	SubnetInfoProviderConfig SubnetInfoProviderConfig `json:"subnetInfoProviderConfig,omitempty"`
 	CleanupConfig            CleanupConfig            `json:"cleanupConfig,omitempty"`
+	TelemetrySettings        configuration.TelemetrySettings
+	MetricsConfig            MetricsConfig `json:"metricsConfig,omitempty"`
 }
 
 // KubernetesConfig config for interacting with kubernetes cluster
@@ -129,6 +137,10 @@ type CleanupConfig struct {
 	ConfigMapNamespace string `json:"configMapNamespace,omitempty"`
 	PollingInterval    string `json:"pollingInterval,omitempty"`
 	SuccessSafetyValue string `json:"successSafetyValue,omitempty"`
+}
+
+type MetricsConfig struct {
+	NNCReconcilerMetricPublishInterval string `json:"nncReconcilerMetricPublishInterval,omitempty"`
 }
 
 // ConfigProvider provides a Config via GetConfig
@@ -231,6 +243,30 @@ func (c *Config) ApplyDefaults() {
 
 	if c.CleanupConfig.PollingInterval == "" {
 		c.CleanupConfig.PollingInterval = defaultCleanupPollingInterval
+	}
+
+	if c.MetricsConfig.NNCReconcilerMetricPublishInterval == "" {
+		c.MetricsConfig.NNCReconcilerMetricPublishInterval = defaultNNCReconcilerMetricPublishInterval
+	}
+
+	if c.TelemetrySettings.RefreshIntervalInSecs == 0 {
+		c.TelemetrySettings.RefreshIntervalInSecs = defaultTelemetryRefreshIntervalInSecs
+	}
+
+	if c.TelemetrySettings.TelemetryBatchIntervalInSecs == 0 {
+		c.TelemetrySettings.TelemetryBatchIntervalInSecs = defaultTelemetryBatchIntervalInSecs
+	}
+
+	if c.TelemetrySettings.TelemetryBatchSizeBytes == 0 {
+		c.TelemetrySettings.TelemetryBatchSizeBytes = defaultTelemetryBatchSizeBytes
+	}
+
+	if c.TelemetrySettings.GetEnvRetryWaitTimeInSecs == 0 {
+		c.TelemetrySettings.GetEnvRetryWaitTimeInSecs = defaultGetEnvRetryWaitTimeInSecs
+	}
+
+	if c.TelemetrySettings.RefreshIntervalInSecs == 0 {
+		c.TelemetrySettings.GetEnvRetryCount = defaultGetEnvRetryCount
 	}
 }
 

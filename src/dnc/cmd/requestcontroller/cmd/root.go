@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	ad "dnc/activedirectory"
+	"dnc/aiwrapper"
 	dncclient "dnc/client"
 	"dnc/requestcontroller"
 	"dnc/requestcontroller/buildinfo"
@@ -13,6 +14,8 @@ import (
 	"dnc/utils"
 	"fmt"
 	"time"
+
+	"github.com/Azure/azure-container-networking/aitelemetry"
 
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/sirupsen/logrus"
@@ -167,6 +170,28 @@ func runRequestController(configFile string) error {
 
 	if err != nil {
 		return fmt.Errorf("Error creating new RequestController: %w", err)
+	}
+
+	// Initialize the global AI Wrapper
+	// TODO: Metrics should be an interface instead of global
+	if !config.TelemetrySettings.DisableTelemetry {
+		aiConfig := aitelemetry.AIConfig{
+			BatchSize:                    config.TelemetrySettings.TelemetryBatchSizeBytes,
+			BatchInterval:                config.TelemetrySettings.TelemetryBatchIntervalInSecs,
+			RefreshTimeout:               config.TelemetrySettings.RefreshIntervalInSecs,
+			DisableMetadataRefreshThread: config.TelemetrySettings.DisableMetadataRefreshThread,
+			DebugMode:                    config.TelemetrySettings.DebugMode,
+			AppVersion:                   utils.Version,
+			AppName:                      aiwrapper.AppName,
+			GetEnvRetryCount:             config.TelemetrySettings.GetEnvRetryCount,
+			GetEnvRetryWaitTimeInSecs:    config.TelemetrySettings.GetEnvRetryWaitTimeInSecs,
+		}
+
+		err = aiwrapper.CreateTelemetryHandle(aiConfig)
+		if err != nil {
+			// Print message to be consistent with dnc, but might be worth exiting with error?
+			logger.WithError(err).Error("Error creating AITelemetry handle")
+		}
 	}
 
 	// Start the RequestController

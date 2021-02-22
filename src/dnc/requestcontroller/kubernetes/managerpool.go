@@ -278,6 +278,11 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 		return fmt.Errorf("Error parsing cleanup polling interval from %s: %w", config.CleanupConfig.PollingInterval, err)
 	}
 
+	nncReconcilerMetricPublishInterval, err := time.ParseDuration(config.MetricsConfig.NNCReconcilerMetricPublishInterval)
+	if err != nil {
+		return fmt.Errorf("Error parsing NNC Processed Metric publishing interval from %s: %w", config.MetricsConfig.NNCReconcilerMetricPublishInterval, err)
+	}
+
 	// Add the Node reconciler
 	nodeReconciler := NewNodeReconciler(NodeReconcilerOptions{
 		K8sClient:        mgr.GetClient(),
@@ -304,6 +309,7 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 		SubnetInfoProvider: subnetInfoProvider,
 		Logger:             m.logger,
 		ReconcileTimeout:   dncClientRequestTimeout,
+		OrchestratorID:     orchestratorID,
 	})
 
 	err = ctrl.NewControllerManagedBy(mgr).
@@ -359,6 +365,23 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 	// Wait for cleanup signal or error from reconcilers
 	cleanupCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	// Publish metrics
+	metricsCtx, metricsCancel := context.WithCancel(ctx)
+	defer metricsCancel()
+	if !config.TelemetrySettings.DisableTelemetry {
+		go func(ctx context.Context) {
+			nodeNetworkConfigReconciler.SendNNCReconcilerMetrics()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(nncReconcilerMetricPublishInterval):
+					nodeNetworkConfigReconciler.SendNNCReconcilerMetrics()
+				}
+			}
+		}(metricsCtx)
+	}
 
 	select {
 	case err := <-errChan:

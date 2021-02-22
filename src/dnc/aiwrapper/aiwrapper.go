@@ -10,7 +10,7 @@ const (
 
 var (
 	aiMetadata       string
-	OrchestratorType string
+	OrchestratorType string // TODO: this should be hidden behind a mutex, it is not threadsafe
 	th               aitelemetry.TelemetryHandle
 )
 

@@ -4,6 +4,7 @@ package kubernetes
 
 import (
 	"context"
+	"dnc/aiwrapper"
 	"dnc/api"
 	"dnc/requestcontroller"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Azure/azure-container-networking/aitelemetry"
 	"github.com/Azure/azure-container-networking/cns"
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 	"github.com/google/uuid"
@@ -24,6 +26,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+const (
+	processedNNCCountMetricName = "ProcessedNNCCount"
+	orchestratorIDDimensionName = "OrchestratorID"
 )
 
 // NodeNetworkConfigReconciler is a controller-runtime/pkg/reconcile Reconciler for NodeNetworkConfigs
@@ -41,6 +48,7 @@ type NodeNetworkConfigReconciler struct {
 	vnetGUID            string // TODO: make this a NC ID -> VnetGUID map to support multiple Vnets
 	registerVnetMutex   sync.Mutex
 	registerSubnetMutex sync.Mutex
+	orchestratorID      string // used for publishing metrics
 }
 
 // NodeNetworkConfigReconcilerOptions options to create NNC Reconciler
@@ -51,6 +59,7 @@ type NodeNetworkConfigReconcilerOptions struct {
 	SubnetInfoProvider requestcontroller.SubnetInfoProvider
 	Logger             logrus.FieldLogger
 	ReconcileTimeout   time.Duration
+	OrchestratorID     string
 }
 
 // NewNodeNetworkConfigReconciler returns a new NNC Reconciler based on the provided options
@@ -70,6 +79,7 @@ func NewNodeNetworkConfigReconciler(opts NodeNetworkConfigReconcilerOptions) *No
 		registeredVnets:    cache.New(cache.NoExpiration, cache.NoExpiration),
 		registeredSubnets:  cache.New(cache.NoExpiration, cache.NoExpiration),
 		reconcileTimeout:   opts.ReconcileTimeout,
+		orchestratorID:     opts.OrchestratorID,
 	}
 }
 
@@ -317,6 +327,14 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 	if ncID == "" {
 		// If there is no NC registered for the Node, then create a new one
 		ncID = uuid.New().String()
+
+		// UUID generation means first NC request for this NNC. Log time delta of NNC creation and NC creation
+		// TODO: This should be a metric instead of a log line
+		nncCreatedAt := nodeNetworkConfig.CreationTimestamp.Time
+		ncCreationDuration := time.Since(nncCreatedAt)
+		n.logger.WithFields(logrus.Fields{
+			"NNC": nodeNetworkConfig.Name,
+		}).Infof("Time to create NC request: %s", ncCreationDuration)
 	}
 
 	ncReq := api.NetworkContainerRequestV2{
@@ -507,4 +525,24 @@ func (n *NodeNetworkConfigReconciler) getNNCStatusFromNCResponse(nc *api.Network
 	nncStatus.Scaler = scaler
 
 	return nncStatus
+}
+
+// This is mainly a copy/paste of dnc's sendDatastoreMetric. When we revamp metrics, this should not use global, and should use contexts
+func (n *NodeNetworkConfigReconciler) SendNNCReconcilerMetrics() {
+	registeredNodesCount := n.registeredNodes.ItemCount()
+
+	n.logger.WithFields(logrus.Fields{
+		"MetricName":     processedNNCCountMetricName,
+		"Value":          fmt.Sprintf("%d", registeredNodesCount),
+		"OrchestratorID": n.orchestratorID,
+	}).Infof("Sending metric to AI")
+
+	metric := aitelemetry.Metric{
+		Name:             processedNNCCountMetricName,
+		Value:            float64(n.registeredNodes.ItemCount()),
+		CustomDimensions: make(map[string]string),
+	}
+
+	metric.CustomDimensions[orchestratorIDDimensionName] = n.orchestratorID
+	go aiwrapper.SendMetric(metric)
 }

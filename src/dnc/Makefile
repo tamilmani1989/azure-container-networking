@@ -37,8 +37,7 @@ else
 	EXE_EXT = .exe
 endif
 
-#VERSION ?= $(shell git describe --tags --always --dirty)
-VERSION = latest
+VERSION = $(shell git describe --tags --always --dirty)
 
 # Archive file names
 DNC_ARCHIVE_NAME = dnc-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
@@ -135,6 +134,8 @@ requestcontroller-image:
 	docker build --no-cache \
 	-f builds/requestcontroller/Dockerfile \
 	-t $(REQCTRL_IMAGE):$(VERSION) \
+	--build-arg aiMetadata=$(DNC_RP_AI_ID) \
+	--build-arg VERSION=$(VERSION) \
 	.
 	$(MKDIR) $(REQCTRL_BUILD_DIR)
 	docker save $(REQCTRL_IMAGE):$(VERSION) | gzip -c > $(REQCTRL_BUILD_DIR)/$(REQCTRL_IMAGE_ARCHIVE_NAME)

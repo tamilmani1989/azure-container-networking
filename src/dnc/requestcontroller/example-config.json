@@ -20,5 +20,8 @@
 		"secondaryTokenID": "92b714b6-0a70-4d65-830f-cbeab1826e01",
 		"vnetID": "576d174c-57b8-4688-9d53-1b74caa642ca",
 		"subnetName": "subnet1"
+	},
+	"metricsConfig": {
+		"nncReconcilerMetricPublishInterval": "30s"
 	}
 }

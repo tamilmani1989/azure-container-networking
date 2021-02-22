@@ -22,8 +22,11 @@ RUN if [[ -d vendor/github.com/Microsoft/ApplicationInsights-Go ]]; then \
 	vendor/github.com/microsoft/ApplicationInsights-Go; fi
 
 # Build
+ARG aiMetadata
+ARG VERSION=latest
 RUN cd cmd/requestcontroller && \
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=vendor -a -o /usr/local/bin/requestcontroller .
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=vendor -a -o /usr/local/bin/requestcontroller \
+	-ldflags "-X dnc/utils.Version=$VERSION -X dnc/aiwrapper.aiMetadata=$aiMetadata -s -w" .
 
 # Copy into final image
 # For now, using alpine for ease of debugging, but this can be switched to scratch for smaller image size
