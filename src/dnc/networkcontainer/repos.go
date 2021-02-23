@@ -53,5 +53,5 @@ type IPAllocationRepo interface {
 	UpdateIPAllocationEntities(networkID, subnetName string, ipAllocationEntities []datamodel.IPAllocationEntity) *api.JsonErr
 	DeleteIPAllocation(networkID, subnetName, allocatedIPKey string) *api.JsonErr
 	DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr
-	DeleteIPAllocationEntityWithEtag(entity datamodel.IPAllocationEntity) *api.JsonErr
+	DeleteIPAllocationEntityWithEtag(networkID, subnetName string, entity datamodel.IPAllocationEntity) *api.JsonErr
 }

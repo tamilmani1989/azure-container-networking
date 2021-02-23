@@ -54,6 +54,7 @@ type DataStoreShim interface {
 	Delete(tableName, rowKey string) error
 	DeleteWithEtag(tableName, rowKey string, etag string) error
 	DeleteInPartition(tableName, partitionKey, rowKey string) error
+	DeleteInPartitionWithEtag(tableName, partitionKey, rowKey, etag string) error
 	// todo: do we need to delete with etags? Assuming we want our deletes to be idempotent, this may not be the case.
 	DeleteBatch(tableName, partitionKey string, rowKeys []string) error
 }

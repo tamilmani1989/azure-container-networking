@@ -20,7 +20,7 @@ const (
 
 // todo: the 3 properties that any row will have are partition key, row key, and etag.
 //  we should consider having a separate metadata struct that can be embedded within any struct representing a row.
-
+// todo: Should store PartitionKey as well
 // An IPAllocationEntity holds the data for a record in the IPAllocationsTable, and represents an IP address within a subnet.
 type IPAllocationEntity struct {
 	// RowKey is a unique key within a partition. Encoded as "10.0.0.1_32".
@@ -281,13 +281,14 @@ func (a *AllocationRepo) DeleteIPAllocations(networkID, subnetName string, keys 
 }
 
 // Deletes the entity if etag matches
-func (a *AllocationRepo) DeleteIPAllocationEntityWithEtag(entity IPAllocationEntity) *api.JsonErr {
-	err := a.Datastore.DeleteWithEtag(IPAllocationsTableName, entity.RowKey, entity.RowKey)
+func (a *AllocationRepo) DeleteIPAllocationEntityWithEtag(networkID, subnetName string, entity IPAllocationEntity) *api.JsonErr {
+	partitionKey := GetSubnetKey(networkID, subnetName)
+	err := a.Datastore.DeleteInPartitionWithEtag(IPAllocationsTableName, partitionKey, entity.RowKey, entity.ETag)
 
 	if err != nil {
 		return api.InternalServerErrorf(api.StatusInternalServerError,
 			"Failed to delete request associated with key %s with etag %s in table %s due to error:{%s}",
-			entity.RowKey, entity.RowKey, IPAllocationsTableName, err.Error())
+			entity.RowKey, entity.ETag, IPAllocationsTableName, err.Error())
 
 	}
 

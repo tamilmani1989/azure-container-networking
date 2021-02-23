@@ -3,6 +3,8 @@ package fakes
 import (
 	"dnc/api"
 	"dnc/datamodel"
+	"fmt"
+	"time"
 )
 
 type NCRepo struct {
@@ -151,16 +153,31 @@ func (f *AllocationRepo) TryQueryIPAllocation(networkID, subnetName, rowKey stri
 
 func (f *AllocationRepo) UpdateIPAllocationEntities(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
 	for _, entity := range entities {
+		found := false
 		for i := 0; i < len(f.Data); i++ {
 			if f.Data[i].RowKey == entity.RowKey {
-				row := f.Data[i]
-				row.ToBeDeletedOwner = entity.ToBeDeletedOwner
-				row.IPAllocation = entity.IPAllocation
-				row.AllocationID = entity.AllocationID
+				found = true
+				if f.Data[i].ETag == entity.ETag {
+					row := f.Data[i]
+					row.ToBeDeletedOwner = entity.ToBeDeletedOwner
+					row.IPAllocation = entity.IPAllocation
+					row.AllocationID = entity.AllocationID
+					row.ETag = entity.ETag
 
-				f.Data[i] = row
-				break
+					f.Data[i] = row
+					break
+				} else {
+					return api.InternalServerError(api.StatusInternalServerError,
+						fmt.Sprintf("DeleteIPAllocationEntityWithEtag failed, etag not matched, actual %v, expected %v",
+							entity, f.Data[i]))
+				}
 			}
+		}
+
+		if !found {
+			return api.InternalServerError(api.StatusInternalServerError,
+				fmt.Sprintf("DeleteIPAllocationEntityWithEtag failed, entity not found %v",
+					entity))
 		}
 	}
 
@@ -204,6 +221,7 @@ func (f *AllocationRepo) QueryIPAllocationsByToBeDeletedOwner(_, _ string, tobeD
 
 func (f *AllocationRepo) InsertIPAllocationEntities(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
 	for _, entity := range entities {
+		entity.ETag = time.Now().UTC().String()
 		f.Data = append(f.Data, entity)
 	}
 	return nil
@@ -218,6 +236,7 @@ func (f *AllocationRepo) AddIPAllocations(_, _ string, rows map[string]map[strin
 			RowKey:       rowKey,
 			AllocationID: allocID,
 			IPAllocation: ipAlloc,
+			ETag:         time.Now().UTC().String(),
 		}
 
 		f.Data = append(f.Data, row)
@@ -259,8 +278,28 @@ func (f *AllocationRepo) DeleteIPAllocation(networkID, subnetName, allocatedIPKe
 	return nil
 }
 
-func (f *AllocationRepo) DeleteIPAllocationEntityWithEtag(entity datamodel.IPAllocationEntity) *api.JsonErr {
-	// TODO: implement for testing.
+func (f *AllocationRepo) DeleteIPAllocationEntityWithEtag(networkID, subnetName string, entity datamodel.IPAllocationEntity) *api.JsonErr {
+	found := false
+	for i := 0; i < len(f.Data); i++ {
+		if f.Data[i].RowKey == entity.RowKey {
+			found = true
+			if f.Data[i].ETag == entity.ETag {
+				f.Data = append(f.Data[:i], f.Data[i+1:]...)
+				i--
+			} else {
+				return api.InternalServerError(api.StatusInternalServerError,
+					fmt.Sprintf("DeleteIPAllocationEntityWithEtag failed, etag not matched, actual %v, expected %v",
+						entity, f.Data[i]))
+			}
+		}
+	}
+
+	if !found {
+		return api.InternalServerError(api.StatusInternalServerError,
+			fmt.Sprintf("DeleteIPAllocationEntityWithEtag failed, entity not found %v",
+				entity))
+	}
+
 	return nil
 }
 

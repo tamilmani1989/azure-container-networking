@@ -479,14 +479,16 @@ func (a *IPAllocator) DeleteAllocations(networkID, subnetName string, keys []str
 	return nil
 }
 
-func (a *IPAllocator) DeleteAllocationsWithEtag(entities []datamodel.IPAllocationEntity) *api.JsonErr {
+func (a *IPAllocator) DeleteAllocationsWithEtag(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
 	if len(entities) == 0 {
-		a.Logger.Debugf("DeleteAllocations: no allocations to delete")
+		a.Logger.Debugf("DeleteAllocations: no allocations to delete for networkID %s, subnetName %s",
+			networkID, subnetName)
 		return nil
 	}
 
+	// todo: Make it batch delete
 	for _, entity := range entities {
-		err := a.Allocations.DeleteIPAllocationEntityWithEtag(entity)
+		err := a.Allocations.DeleteIPAllocationEntityWithEtag(networkID, subnetName, entity)
 		if err != nil {
 			a.Logger.Errorf("%s: %s", utils.TracePrefix(2), err)
 			return err
