@@ -226,7 +226,11 @@ func GetStorageClient(accountName string, accountKey string, envName string, isU
 		return storageClient, fmt.Errorf("Storage Base Endpoint with UsingCosmosDb:%v for Env:'%s' not found", isUsingCosmosDb, envName)
 	}
 
-	storageClient, err = storage.NewClient(accountName, accountKey, endpointSuffix, StorageTableApiVersion, true)
+	if isUsingCosmosDb {
+		storageClient, err = storage.NewCosmosClient(accountName, accountKey, endpointSuffix, StorageTableApiVersion, true)
+	} else {
+		storageClient, err = storage.NewClient(accountName, accountKey, endpointSuffix, StorageTableApiVersion, true)
+	}
 
 	// CosmosDb Specific headers
 	if isUsingCosmosDb && err == nil {

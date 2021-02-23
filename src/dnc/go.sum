@@ -10,6 +10,8 @@ github.com/Azure/azure-container-networking v1.2.2-0.20201211215417-3c48a34df62e
 github.com/Azure/azure-container-networking v1.2.2-0.20201211215417-3c48a34df62e/go.mod h1:88xn4zDVYF7TDuXV15j+dAT3TYsn6LxcvSqf9YxYWd4=
 github.com/Azure/azure-sdk-for-go v40.6.0+incompatible h1:ULjp/a/UsBfnZcl45jjywhcBKex/k/A1cG9s9NapLFw=
 github.com/Azure/azure-sdk-for-go v40.6.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
+github.com/Azure/azure-sdk-for-go v51.3.0+incompatible h1:Y3wR7C5Sj0nZG3VhkePF5hK7zNCS5yeImN/k2CWB+u8=
+github.com/Azure/azure-sdk-for-go v51.3.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78/go.mod h1:LmzpDX56iTiv29bbRTIsUNlaFfuhWRQBWjQdVyAevI8=
 github.com/Azure/go-autorest v14.2.0+incompatible h1:V5VMDjClD3GiElqLWO7mz2MxNAK/vTfRHdAubSIPRgs=
 github.com/Azure/go-autorest v14.2.0+incompatible/go.mod h1:r+4oMnoxhatjLLJ6zxSWATqVooLgysK6ZNox3g/xq24=
