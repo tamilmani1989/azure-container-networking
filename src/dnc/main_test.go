@@ -132,7 +132,8 @@ func StartDnc(config *configuration.Configuration) {
 		masterElectionShim, config, httpClient, cnsHttpClient, &ipAllocator)
 	dncServer = server.Server{
 		ServerSettings: config.ServerSettings,
-		Controller:     ctrler}
+		Controller:     ctrler,
+		Logger:         logger}
 	dncServer.Init()
 	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond

@@ -46,6 +46,8 @@ func (server *Server) Init() error {
 	}
 	server.Router = NewRouter(server.ReverseProxyEnabled, server.ServerSettings.UseHttps, server.ConnectionTimeout)
 	SetController(server.Controller)
+	server.Logger.Debugf("Host=%s, Port=%s, ReverseProxyEnabled=%t, UseHttps=%t", server.ServerSettings.IPAddress,
+		server.ServerSettings.Port, server.ReverseProxyEnabled, server.ServerSettings.UseHttps)
 	return nil
 }
 
