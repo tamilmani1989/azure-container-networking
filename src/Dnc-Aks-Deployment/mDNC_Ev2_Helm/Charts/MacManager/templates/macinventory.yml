@@ -8,6 +8,11 @@ spec:
   selector:
     matchLabels:
       app: macinventory
+  minReadySeconds: 100    
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0      
   replicas: {{ .Values.replicacount }}  
   template:
     metadata:
