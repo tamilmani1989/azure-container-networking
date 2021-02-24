@@ -3,7 +3,7 @@ module dnc
 go 1.14
 
 require (
-	github.com/Azure/azure-container-networking v1.2.2-0.20201211215417-3c48a34df62e
+	github.com/Azure/azure-container-networking v1.2.6-0.20210223205849-d78002d3c042
 	github.com/Azure/azure-sdk-for-go v51.3.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.10.2
 	github.com/Azure/go-autorest/autorest/adal v0.9.2

@@ -8,6 +8,8 @@ github.com/Azure/azure-container-networking v1.2.2-0.20201202205621-16ce278beafd
 github.com/Azure/azure-container-networking v1.2.2-0.20201202205621-16ce278beafd/go.mod h1:88xn4zDVYF7TDuXV15j+dAT3TYsn6LxcvSqf9YxYWd4=
 github.com/Azure/azure-container-networking v1.2.2-0.20201211215417-3c48a34df62e h1:Xi2J2I/Lw/xPexRuwXszOmNVZpY8g8Cb47kFtlT7NbE=
 github.com/Azure/azure-container-networking v1.2.2-0.20201211215417-3c48a34df62e/go.mod h1:88xn4zDVYF7TDuXV15j+dAT3TYsn6LxcvSqf9YxYWd4=
+github.com/Azure/azure-container-networking v1.2.6-0.20210223205849-d78002d3c042 h1:j2yx7TjkUWT2OtC1As4X494I9gxyEVBEb+RcQZfwf2Q=
+github.com/Azure/azure-container-networking v1.2.6-0.20210223205849-d78002d3c042/go.mod h1:88xn4zDVYF7TDuXV15j+dAT3TYsn6LxcvSqf9YxYWd4=
 github.com/Azure/azure-sdk-for-go v40.6.0+incompatible h1:ULjp/a/UsBfnZcl45jjywhcBKex/k/A1cG9s9NapLFw=
 github.com/Azure/azure-sdk-for-go v40.6.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/azure-sdk-for-go v51.3.0+incompatible h1:Y3wR7C5Sj0nZG3VhkePF5hK7zNCS5yeImN/k2CWB+u8=

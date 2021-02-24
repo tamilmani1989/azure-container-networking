@@ -1,6 +1,6 @@
 # code.cloudfoundry.org/clock v1.0.0
 code.cloudfoundry.org/clock
-# github.com/Azure/azure-container-networking v1.2.2-0.20201211215417-3c48a34df62e
+# github.com/Azure/azure-container-networking v1.2.6-0.20210223205849-d78002d3c042
 ## explicit
 github.com/Azure/azure-container-networking/aitelemetry
 github.com/Azure/azure-container-networking/cnm
