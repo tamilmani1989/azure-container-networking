@@ -43,18 +43,22 @@ func initNetworkContainerStateMachine() {
 	}
 
 	if config.FeatureFlagSettings.EnableBatchAllocationProcessing {
-		logger.Debugf("batch allocation processing enabled")
-		resDispatcher = networkcontainer.NewIPReservationDispatcher(
-			networkcontainer.DispatcherDependencies{
-				Logger:       logger,
-				Reservations: datamodel.IpReservationRepo,
-				Allocator:    &ipAllocator,
-				Subnets:      new(subnetRepo),
-			},
-			config.FeatureFlagSettings.MaxIPReservationBatchSize,
-			false, // todo: pass this from config
-			config.PubSubProxySettings.EnablePubSubProxy,
-		)
+		dispatchCfg := networkcontainer.DispatcherConfig{
+			Logger:                     logger,
+			Subnets:                    new(subnetRepo),
+			Reservations:               datamodel.IpReservationRepo,
+			Allocator:                  &ipAllocator,
+			HandlerMaxBatchSize:        config.FeatureFlagSettings.MaxIPReservationBatchSize,
+			UsePrepopulatedAllocations: config.FeatureFlagSettings.UsePrepopulatedIPAllocations,
+		}
+
+		resDispatcher = networkcontainer.NewIPReservationDispatcher(dispatchCfg)
+
+		batchSettingsFmt := "batch allocation processing enabled with settings: " +
+			"datastore max batch size %d, " +
+			"max nc request batch size per subnet: %d, " +
+			"use prepopulated allocation strategy: %v"
+		logger.Debugf(batchSettingsFmt, ipAllocator.MaxBatchSize, dispatchCfg.HandlerMaxBatchSize, dispatchCfg.UsePrepopulatedAllocations)
 
 		resDispatcher.Run(context.Background())
 	}

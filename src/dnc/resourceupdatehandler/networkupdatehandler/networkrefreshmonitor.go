@@ -7,6 +7,7 @@ import (
 	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
+	"dnc/networkcontainer"
 	"dnc/nmagentcontracts"
 	"dnc/replica"
 	"dnc/utils"
@@ -20,12 +21,14 @@ import (
 	"github.com/Azure/azure-container-networking/aitelemetry"
 )
 
+// todo: convert into struct
 var (
 	networkRefreshMonitorData *api.RefreshMonitorStatus
 	config                    *configuration.Configuration
 	logger                    *loggershim.LoggerShim
 	replicaInstance           *replica.Replica
 	sessionManager            *utils.SessionManager
+	ipAllocator               *networkcontainer.IPAllocator
 
 	// HTTP client object to be reused wherever needed
 	httpClient *http.Client
@@ -35,7 +38,7 @@ var (
 
 	// SleepIntervalBetweenNetworkRefresh
 	sleepIntervalBetweenNetworkRefresh time.Duration
-	NetworkMonitorStopProcessing  = make(chan bool)
+	NetworkMonitorStopProcessing       = make(chan bool)
 )
 
 func Init(
@@ -43,12 +46,14 @@ func Init(
 	replicaInst *replica.Replica,
 	sessionMgr *utils.SessionManager,
 	httpC *http.Client,
+	allocator *networkcontainer.IPAllocator,
 	loggershim *loggershim.LoggerShim) {
 	config = cfg
 	replicaInstance = replicaInst
 	logger = loggershim
 	sessionManager = sessionMgr
 	httpClient = httpC
+	ipAllocator = allocator
 	sleepIntervalBetweenNetworkBatches = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkBatches) * time.Millisecond
 	sleepIntervalBetweenNetworkRefresh = time.Duration(config.DNCSettings.SleepIntervalBetweenNetworkRefresh) * time.Millisecond
 }
@@ -459,6 +464,16 @@ func UpdateNetworkConfiguration(
 			Gateway:           updatedSubnetCfg.DefaultGateway,
 			Tags:              tags,
 			UpdateStatus:      datamodel.SubnetUpdateCompleted}
+
+		if config.FeatureFlagSettings.UsePrepopulatedIPAllocations {
+			logger.Debugf("prepopulating vnet id %s subnet %s %s", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet)
+			if err := ipAllocator.PrepopulateSubnet(subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet); err != nil {
+				logger.Errorf("could not prepopulate vnet id %s subnet %s %s: %+v", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet, err)
+				return false, err // any error from this operation should be retryable
+			}
+			logger.Debugf("successfully persisted records for vnet id %s subnet %s %s", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet)
+		}
+
 		failureDetail = datamodel.PutSubnetConfiguration(&subnetConfig)
 		if failureDetail != nil {
 			goto Cleanup

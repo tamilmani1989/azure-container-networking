@@ -29,7 +29,6 @@ func main() {
 	logrus.Infof("testing %d ncs with %d concurrent requests", nodeNCCount, concurrentRequests)
 
 	vnetID, vnetReq := generateVnet()
-	vnetID = "64da9c38-45c4-459d-bacb-21d8e1d17807"
 	vnetURL := fmt.Sprintf("http://localhost:9000/networks/%s?api-version=2018-03-01", vnetID)
 
 	logrus.Infof("creating vnet %s", vnetID)

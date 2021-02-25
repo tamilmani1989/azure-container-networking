@@ -12,7 +12,6 @@ import (
 // subnetHandler processes batches of reservation requests for a given vnet and subnet name
 type subnetHandler struct {
 	reservations  IPReservationRepo
-	allocator     *IPAllocator
 	logger        loggershim.LoggerInterface
 	inputCh       chan reservationRequest
 	subnetInfo    subnetInfo
@@ -42,38 +41,22 @@ type subnetInfo struct {
 	baseSubnet *net.IPNet
 }
 
-type handlerDependencies struct {
-	reservations IPReservationRepo
-	allocator    *IPAllocator
-	logger       loggershim.LoggerInterface
+type handlerConfig struct {
+	subnetInfo    subnetInfo
+	reservations  IPReservationRepo
+	scaleStrategy scalingStrategy
+	logger        loggershim.LoggerInterface
+	maxBatchSize  int
 }
 
-func newSubnetHandler(info subnetInfo, deps handlerDependencies, maxBatchSize int, reuseAllocations bool, pubsubProxyEnabled bool) *subnetHandler {
-	var scaleStrategy scalingStrategy
-	if !reuseAllocations {
-		scaleStrategy = &scanSubnetStrategy{
-			allocator:          deps.allocator,
-			subnetInfo:         info,
-			logger:             deps.logger,
-			pubsubProxyEnabled: pubsubProxyEnabled,
-		}
-	} else {
-		scaleStrategy = &prepopulatedStrategy{
-			allocator:          deps.allocator,
-			subnetInfo:         info,
-			logger:             deps.logger,
-			pubsubProxyEnabled: pubsubProxyEnabled,
-		}
-	}
-
+func newSubnetHandler(config handlerConfig) *subnetHandler {
 	return &subnetHandler{
-		reservations:  deps.reservations,
-		allocator:     deps.allocator,
-		logger:        deps.logger,
+		reservations:  config.reservations,
+		logger:        config.logger,
 		inputCh:       make(chan reservationRequest),
-		subnetInfo:    info,
-		maxBatchSize:  maxBatchSize,
-		scaleStrategy: scaleStrategy,
+		subnetInfo:    config.subnetInfo,
+		maxBatchSize:  config.maxBatchSize,
+		scaleStrategy: config.scaleStrategy,
 	}
 }
 

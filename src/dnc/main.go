@@ -12,7 +12,6 @@ import (
 	"dnc/configuration"
 	"dnc/controller"
 	"dnc/datamodel"
-	"dnc/datastoreshim"
 	monitor "dnc/internal/resourcecleanupmonitor"
 	"dnc/logger/loggershim"
 	"dnc/masterelection/masterelectionshim"
@@ -50,7 +49,6 @@ var (
 	config             *configuration.Configuration
 	masterElectionShim *masterelectionshim.MasterElectionShim
 	cnsInterface       cnsinterface.CnsInterface
-	datastore          datastoreshim.DataStoreShim
 	logger             *loggershim.LoggerShim
 	sessionManager     *utils.SessionManager
 	ctrler             *controller.Controller
@@ -252,7 +250,7 @@ func main() {
 		}
 	}
 
-	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
+	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, &ipAllocator, logger)
 	initNetworkContainerStateMachine()
 
 	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,

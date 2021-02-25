@@ -125,7 +125,7 @@ func StartDnc(config *configuration.Configuration) {
 		}
 	}
 
-	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, logger)
+	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, nil, logger)
 	initNetworkContainerStateMachine()
 
 	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,

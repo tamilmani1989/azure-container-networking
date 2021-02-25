@@ -655,6 +655,10 @@ func (a *IPAllocator) rowBatchConsumer(in chan []datamodel.IPAllocationEntity, v
 	var g sync.WaitGroup
 	g.Add(workerCount)
 
+	logf := func(format string, args ...interface{}) {
+		a.Logger.Debugf("[prepopulate subnet] vnet %s subnet %s - %s", vnetID, subnetName, fmt.Sprintf(format, args...))
+	}
+
 	var batchError rowBatchError
 	for i := 0; i < workerCount; i++ {
 		go func() {
@@ -672,24 +676,25 @@ func (a *IPAllocator) rowBatchConsumer(in chan []datamodel.IPAllocationEntity, v
 
 					// if we get a valid result (row key is populated), then the batch has already been processed.
 					if alloc.RowKey != "" {
-						a.Logger.Debugf("batch starting with key %s already persisted", firstKey)
+						logf("batch starting with key %s already persisted", firstKey)
 						return nil
 					}
 
 					// attempt to persist, but handle conflict since it is still possible.
 					if err := a.Allocations.InsertIPAllocationEntities(vnetID, subnetName, entities); err != nil {
 						if err.HTTPStatus == http.StatusConflict {
-							a.Logger.Debugf("batch starting with key %s already exists", firstKey)
+							logf("batch starting with key %s already exists", firstKey)
 							return nil
 						}
 						return err
 					}
 
+					logf("batch starting with key %s successfully persisted", firstKey)
 					return nil
 				}
 
 				if err := cosmosThrottleRetrier.Do(context.TODO(), retryableFunc); err != nil {
-					a.Logger.Errorf("could not persist batch starting with key %s: %v", firstKey, err)
+					logf("could not persist batch starting with key %s: %v", firstKey, err)
 					batchError.addKey(firstKey)
 				}
 			}

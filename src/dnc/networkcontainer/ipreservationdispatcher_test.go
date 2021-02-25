@@ -32,15 +32,16 @@ func TestDispatcher(t *testing.T) {
 		MaxBatchSize: 100,
 	}
 
-	deps := DispatcherDependencies{
-		Logger:       loggermock.NewDummyLogger(),
-		Reservations: fakes.NewReservationRepo(),
-		Allocator:    &alloc,
-		Subnets:      &subnets,
+	dCfg := DispatcherConfig{
+		Logger:                     loggermock.NewDummyLogger(),
+		Subnets:                    &subnets,
+		Reservations:               fakes.NewReservationRepo(),
+		Allocator:                  &alloc,
+		HandlerMaxBatchSize:        100,
+		UsePrepopulatedAllocations: false,
 	}
 
-	dispatcherMaxBatchSize := 100
-	d := NewIPReservationDispatcher(deps, dispatcherMaxBatchSize, false, true)
+	d := NewIPReservationDispatcher(dCfg)
 
 	d.Run(context.Background())
 

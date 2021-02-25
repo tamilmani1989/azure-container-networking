@@ -175,6 +175,8 @@ type FeatureFlagSettings struct {
 	EnableBatchAllocationProcessing bool
 	// Max IP Reservation batch size. Only used when batch allocation is enabled.
 	MaxIPReservationBatchSize int
+	// Flag to enable an optimized IP allocation mode, where allocation rows are created ahead of time
+	UsePrepopulatedIPAllocations bool
 }
 
 // IdentitySettings - Information about managed identity for DNC

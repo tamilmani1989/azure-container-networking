@@ -78,7 +78,8 @@
   },
   "FeatureFlagSettings": {
     "EnableBatchAllocationProcessing": false,
-    "MaxIPReservationBatchSize": 100
+    "MaxIPReservationBatchSize": 100,
+    "UsePrepopulatedIPAllocations": false
   },
   "HttpClientSettings": {
     "ConnectionTimeout": 5,

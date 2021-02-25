@@ -19,23 +19,27 @@ func TestSubnetHandlerProcess_CreationFromScratch(t *testing.T) {
 	vnetID := "vnet1"
 	subnet := "subnet1"
 
+	logger := loggermock.NewDummyLogger()
+
 	subnetInfo := subnetInfo{
 		vnetID:     vnetID,
 		subnetName: subnet,
 		baseSubnet: baseSubnet,
 	}
 
-	deps := handlerDependencies{
+	cfg := handlerConfig{
+		subnetInfo:   subnetInfo,
 		reservations: resRepo,
-		allocator: &IPAllocator{
-			Allocations:  &allocsRepo,
-			Logger:       loggermock.NewDummyLogger(),
-			MaxBatchSize: 100,
+		scaleStrategy: &scanSubnetStrategy{
+			allocator:  &IPAllocator{Allocations: &allocsRepo, Logger: logger, MaxBatchSize: 100},
+			subnetInfo: subnetInfo,
+			logger:     logger,
 		},
-		logger: loggermock.NewDummyLogger(),
+		logger:       logger,
+		maxBatchSize: 100,
 	}
 
-	sh := newSubnetHandler(subnetInfo, deps, 100, false, true)
+	sh := newSubnetHandler(cfg)
 
 	reservationCount := 100
 	secondaryIPCount := 32
@@ -117,23 +121,27 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 	}
 	resRepo := fakes.NewReservationRepo()
 
+	logger := loggermock.NewDummyLogger()
+
 	subnetInfo := subnetInfo{
 		vnetID:     vnetID,
 		subnetName: subnet,
 		baseSubnet: baseSubnet,
 	}
 
-	deps := handlerDependencies{
+	cfg := handlerConfig{
+		subnetInfo:   subnetInfo,
 		reservations: resRepo,
-		allocator: &IPAllocator{
-			Allocations:  &allocsRepo,
-			Logger:       loggermock.NewDummyLogger(),
-			MaxBatchSize: 100,
+		scaleStrategy: &scanSubnetStrategy{
+			allocator:  &IPAllocator{Allocations: &allocsRepo, Logger: logger, MaxBatchSize: 100},
+			subnetInfo: subnetInfo,
+			logger:     logger,
 		},
-		logger: loggermock.NewDummyLogger(),
+		logger:       logger,
+		maxBatchSize: 100,
 	}
 
-	sh := newSubnetHandler(subnetInfo, deps, 100, false, true)
+	sh := newSubnetHandler(cfg)
 
 	sh.process(set)
 

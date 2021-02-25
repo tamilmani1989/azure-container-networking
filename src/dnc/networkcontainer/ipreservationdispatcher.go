@@ -12,14 +12,15 @@ import (
 // It is a demuxer/router for reservation requests. It manages a pool of subnet
 // handlers, each for a distinct subnet.
 type IPReservationDispatcher struct {
-	logger                  loggershim.LoggerInterface
-	subnets                 SubnetRepo
-	handlerDeps             handlerDependencies
-	handlerMaxBatchSize     int
-	handlerReuseAllocations bool
-	inputCh                 chan reservationRequest
-	subnetHandlers          map[subnetKey]*subnetHandler
-	pubsubProxyEnabled      bool
+	logger                     loggershim.LoggerInterface
+	subnets                    SubnetRepo
+	reservations               IPReservationRepo
+	allocator                  *IPAllocator
+	handlerMaxBatchSize        int
+	usePrepopulatedAllocations bool
+	pubsubProxyEnabled         bool
+	inputCh                    chan reservationRequest
+	subnetHandlers             map[subnetKey]*subnetHandler
 }
 
 type reservationRequest struct {
@@ -33,27 +34,27 @@ type response struct {
 	err         error
 }
 
-type DispatcherDependencies struct {
-	Logger       loggershim.LoggerInterface
-	Reservations IPReservationRepo
-	Allocator    *IPAllocator
-	Subnets      SubnetRepo
+type DispatcherConfig struct {
+	Logger                     loggershim.LoggerInterface
+	Subnets                    SubnetRepo
+	Reservations               IPReservationRepo
+	Allocator                  *IPAllocator
+	HandlerMaxBatchSize        int
+	UsePrepopulatedAllocations bool
+	PubSubProxyEnabled         bool
 }
 
-func NewIPReservationDispatcher(deps DispatcherDependencies, maxBatchSize int, reuseAllocations bool, pubsubProxyEnabled bool) *IPReservationDispatcher {
+func NewIPReservationDispatcher(config DispatcherConfig) *IPReservationDispatcher {
 	return &IPReservationDispatcher{
-		logger:  deps.Logger,
-		subnets: deps.Subnets,
-		handlerDeps: handlerDependencies{
-			reservations: deps.Reservations,
-			allocator:    deps.Allocator,
-			logger:       deps.Logger,
-		},
-		handlerMaxBatchSize:     maxBatchSize,
-		handlerReuseAllocations: reuseAllocations,
-		inputCh:                 make(chan reservationRequest),
-		subnetHandlers:          make(map[subnetKey]*subnetHandler),
-		pubsubProxyEnabled:      pubsubProxyEnabled,
+		logger:                     config.Logger,
+		subnets:                    config.Subnets,
+		reservations:               config.Reservations,
+		allocator:                  config.Allocator,
+		handlerMaxBatchSize:        config.HandlerMaxBatchSize,
+		usePrepopulatedAllocations: config.UsePrepopulatedAllocations,
+		pubsubProxyEnabled:         config.PubSubProxyEnabled,
+		inputCh:                    make(chan reservationRequest),
+		subnetHandlers:             make(map[subnetKey]*subnetHandler),
 	}
 }
 
@@ -139,5 +140,28 @@ func (d *IPReservationDispatcher) getNewHandler(key subnetKey) (*subnetHandler, 
 		baseSubnet: subnet,
 	}
 
-	return newSubnetHandler(subnetInfo, d.handlerDeps, d.handlerMaxBatchSize, d.handlerReuseAllocations, d.pubsubProxyEnabled), nil
+	handlerConfig := handlerConfig{
+		subnetInfo:   subnetInfo,
+		reservations: d.reservations,
+		logger:       d.logger,
+		maxBatchSize: d.handlerMaxBatchSize,
+	}
+
+	if d.usePrepopulatedAllocations {
+		handlerConfig.scaleStrategy = &prepopulatedStrategy{
+			allocator:          d.allocator,
+			subnetInfo:         subnetInfo,
+			logger:             d.logger,
+			pubsubProxyEnabled: d.pubsubProxyEnabled,
+		}
+	} else {
+		handlerConfig.scaleStrategy = &scanSubnetStrategy{
+			allocator:          d.allocator,
+			subnetInfo:         subnetInfo,
+			logger:             d.logger,
+			pubsubProxyEnabled: d.pubsubProxyEnabled,
+		}
+	}
+
+	return newSubnetHandler(handlerConfig), nil
 }
