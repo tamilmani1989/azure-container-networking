@@ -79,6 +79,7 @@ func createReservationCmd() *cobra.Command {
 		ipConstraint   string
 		nodeConstraint string
 		reservationID  string
+		requestType    string
 	)
 
 	var cmd = &cobra.Command{
@@ -86,7 +87,7 @@ func createReservationCmd() *cobra.Command {
 		Short: "Creates a reservation",
 		Run: func(cmd *cobra.Command, args []string) {
 
-			err := DncClient.AddReservation(networkID, subnet, ipConstraint, nodeConstraint, reservationID)
+			err := DncClient.AddReservation(networkID, subnet, ipConstraint, nodeConstraint, reservationID, requestType)
 			if err != nil {
 				client.PrettyPrint(err)
 			}
@@ -95,9 +96,10 @@ func createReservationCmd() *cobra.Command {
 	cmd.Aliases = []string{"res"}
 	cmd.Flags().StringVar(&networkID, "network-id", "", "Network ID")
 	cmd.Flags().StringVar(&subnet, "subnet", "", "Subnet Name")
-	cmd.Flags().StringVar(&subnet, "ipConstraint", "", "ipConstraint")
-	cmd.Flags().StringVar(&subnet, "nodeConstraint", "", "nodeConstraint")
-	cmd.Flags().StringVar(&subnet, "reservation-id", "", "reservation-id")
+	cmd.Flags().StringVar(&ipConstraint, "ipConstraint", "", "ipConstraint")
+	cmd.Flags().StringVar(&nodeConstraint, "nodeConstraint", "", "nodeConstraint")
+	cmd.Flags().StringVar(&reservationID, "reservation-id", "", "reservation-id")
+	cmd.Flags().StringVar(&requestType, "requestType", "", "requestType")
 	cmd.MarkFlagRequired("network-id")
 	cmd.MarkFlagRequired("reservation-id")
 

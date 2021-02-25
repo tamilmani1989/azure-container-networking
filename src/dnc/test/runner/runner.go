@@ -1018,7 +1018,7 @@ func addReservation(nodeID, vnetID, subnetID, ipConstraint, reservationID string
 		reservationID,
 		subnetID,
 		vnetID)
-	if respErr = dnctl.AddReservation(vnetID, subnetID, ipConstraint, nodeID, reservationID); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddReservation(vnetID, subnetID, ipConstraint, nodeID, reservationID, ""); respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Register reservation %s in subnet %s in network %s failed with error %+v",
 			reservationID,
 			subnetID,

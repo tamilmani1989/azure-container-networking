@@ -28,6 +28,7 @@ const (
 	GenericFailureNC = "6a8d7f5d-7fcc-4a25-a9e1-e828000bbafb"
 	ThrottledNC      = "acd1b609-763f-4dd6-9ca4-c4cb2c4a16d1"
 	UnauthorizedNC   = "617a3122-1ef6-481c-b6dc-9851fef130b2"
+	FrontendIPNC     = "b2ee1304-66bc-11eb-ae93-0242ac130002"
 )
 
 // defaults

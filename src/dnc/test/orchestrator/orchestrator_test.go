@@ -97,7 +97,7 @@ func TestBasicReservationAPIs(t *testing.T) {
 	addNode(t, nodeID, utils.LocalHost, cns.Kubernetes, "")
 	addNetwork(t, vnetID, defaultRequestTimeout)
 	addSubnet(t, vnetID, subnetID, authenticationToken)
-	addReservation(t, nodeID, vnetID, subnetID, "", reservationID, defaultRequestTimeout)
+	addReservation(t, nodeID, vnetID, subnetID, "", reservationID, "", defaultRequestTimeout)
 	// validate that delete network will fail when a reservation exists
 	deleteNetwork(t, vnetID, http.StatusBadRequest)
 	deleteReservation(t, vnetID, reservationID)
@@ -123,6 +123,7 @@ func TestBasicNCAPIs(t *testing.T) {
 		id5, _              = uuid.NewUUID()
 		reservationID       = id5.String()
 		subnetID            = utils.Subnet1
+		reservationForLBIP  = "39d810c2-669a-11eb-ae93-0242ac130002"
 		podName             = "container1"
 		podNamespace        = "default"
 		context             = []byte(`{"PodName":"` + podName + `","PodNamespace":"` + podNamespace + `"}`)
@@ -166,7 +167,7 @@ func TestBasicNCAPIs(t *testing.T) {
 		t.Fatalf("Failed to block duplicate orchestrator contexts with different NC IDs")
 	}
 	// create nc with reservation
-	addReservation(t, nodeID, vnetID, subnetID, "", reservationID, defaultRequestTimeout)
+	addReservation(t, nodeID, vnetID, subnetID, "", reservationID, "", defaultRequestTimeout)
 	addNc(t, nodeID, vnetID, ncID2, reservationID, subnetID, "", nodeID, nodeIface, containerType, podName+"2", podNamespace, false, false, defaultNCRequestTimeout, secondaryIPCount)
 	// Adding another nc with the same orchestrator context on the same node should fail (v1)
 	// Using the same reservationID over here but this is expected to fail before we persist nc configuration
@@ -183,6 +184,12 @@ func TestBasicNCAPIs(t *testing.T) {
 		if !reflect.DeepEqual(receivedNcResp, expectedNcResp) {
 			t.Fatalf("Create nc data mismatch;\nreceived %+v\nexpected %+v", receivedNcResp, expectedNcResp)
 		}
+	}
+
+	//create NC with reservation which has been assigned to front end IP, creation NC should fail
+	addReservation(t, nodeID, vnetID, subnetID, "", reservationForLBIP, "frontendIP", defaultRequestTimeout)
+	if respErr := dnctl.AddNc(nodeID, vnetID, utils.FrontendIPNC, reservationForLBIP, subnetID, "", nodeID, nodeIface, cns.AzureContainerInstance, podName+"3", podNamespace, false, false, secondaryIPCount); respErr == nil {
+		t.Fatalf("Failed to block NC creation on front end IP reservation")
 	}
 
 	if !devEnv {
@@ -222,7 +229,9 @@ func TestBasicNCAPIs(t *testing.T) {
 	deleteNc(t, vnetID, ncID)
 	t.Log("deleting second nc")
 	deleteNc(t, vnetID, ncID2)
+	deleteNc(t, vnetID, utils.FrontendIPNC)
 	deleteReservation(t, vnetID, reservationID)
+	deleteReservation(t, vnetID, reservationForLBIP)
 	deleteNetwork(t, vnetID, http.StatusNotFound)
 	deleteNode(t, nodeID, http.StatusNotFound)
 
@@ -577,7 +586,7 @@ func deleteSubnet(t *testing.T, vnetID, subnetID string) {
 	}
 }
 
-func addReservation(t *testing.T, nodeID, vnetID, subnetID, ipConstraint, reservationID string, timeout time.Duration) {
+func addReservation(t *testing.T, nodeID, vnetID, subnetID, ipConstraint, reservationID, requestType string, timeout time.Duration) {
 	var (
 		respErr                   *api.JsonErr
 		reservationStatus         *api.RequestStatus
@@ -586,7 +595,7 @@ func addReservation(t *testing.T, nodeID, vnetID, subnetID, ipConstraint, reserv
 			Status: "Completed"}
 	)
 
-	if respErr = dnctl.AddReservation(vnetID, subnetID, ipConstraint, nodeID, reservationID); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddReservation(vnetID, subnetID, ipConstraint, nodeID, reservationID, requestType); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Register reservation failed with error %+v", respErr)
 	}
 

@@ -1927,7 +1927,6 @@ func CreateNetworkContainer(
 	t *testing.T,
 	nodeID string,
 	nodeInfoReq api.NodeInfoRequest, networkcontainerreq CreateNetworkContainerRequest, dncEP, vnetID, ncid, apiVersion string, skipDelete bool) {
-	fmt.Println("****CreateNetworkContainer Test**********")
 	createNetworkContainer(
 		t,
 		nodeID,

@@ -7,18 +7,24 @@ import (
 	"strings"
 )
 
+const (
+	//FrontendIP is one kind of request type for IP reservation.
+	FrontendIP = "FrontendIp"
+)
+
 // AllocationRequest - Struct to hold allocation request.
 type AllocationRequest struct {
 	SubnetName       string `json:"SubnetName"`
 	IPConstraint     string `json:"IPConstraint"`
 	NodeConstraint   string `json:"NodeConstraint"`
+	RequestType      string `json:"RequestType"`
 	SecondaryIPCount int    `json:"SecondaryIPCount"`
 }
 
 func (allocationRequest *AllocationRequest) String() string {
 	return fmt.Sprintf(
-		"AllocationRequest:[IPSubnet:{%s} IPConstraint:{%s} NodeConstraint:{%s} SecondaryIPCount:{%d}]",
-		allocationRequest.SubnetName, allocationRequest.IPConstraint, allocationRequest.NodeConstraint, allocationRequest.SecondaryIPCount)
+		"AllocationRequest:[IPSubnet:{%s} IPConstraint:{%s} NodeConstraint:{%s} RequestType:{%s} SecondaryIPCount:{%d}]",
+		allocationRequest.SubnetName, allocationRequest.IPConstraint, allocationRequest.NodeConstraint, allocationRequest.RequestType, allocationRequest.SecondaryIPCount)
 }
 
 // Validate - Validates the allocation request

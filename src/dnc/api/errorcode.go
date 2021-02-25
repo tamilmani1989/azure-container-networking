@@ -270,6 +270,10 @@ const (
 
 	// InvalidOrchestratorContext - Invalid orchestrator context
 	InvalidOrchestratorContext
+
+	// ReservationTypeNotMatch means reservation request type doesn't match
+	// e.g. reservation has been used for LB front end IP, then no NC can create on it.
+	ReservationTypeNotMatch
 )
 
 func (e ErrorCode) String() string {

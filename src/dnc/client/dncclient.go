@@ -274,7 +274,8 @@ func (c *DncClient) UpsertNcV2(networkId, ncId string, req api.NetworkContainerR
 	return respErr
 }
 
-func (c *DncClient) AddReservation(networkId, subnet, ipConstraint, nodeConstraint, reservationId string) (respErr *api.JsonErr) {
+// AddReservation will call DNC client to create a IP reservation.
+func (c *DncClient) AddReservation(networkId, subnet, ipConstraint, nodeConstraint, reservationId, requestType string) (respErr *api.JsonErr) {
 	var (
 		body           bytes.Buffer
 		response       *http.Response
@@ -283,7 +284,8 @@ func (c *DncClient) AddReservation(networkId, subnet, ipConstraint, nodeConstrai
 		reservationReq = api.AllocationRequest{
 			SubnetName:     subnet,
 			IPConstraint:   ipConstraint,
-			NodeConstraint: nodeConstraint}
+			NodeConstraint: nodeConstraint,
+			RequestType:    requestType}
 	)
 
 	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}

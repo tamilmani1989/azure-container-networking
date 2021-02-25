@@ -8,6 +8,7 @@ import (
 	"dnc/utils"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -193,9 +194,27 @@ func (p *Preparer) PrepareNetworkContainer(repoNCConfig *datamodel.NCConfigurati
 	return p.PrepareNetworkContainerV2(repoNCConfig)
 }
 
+// PrepareNetworkContainerV1 prepare, validate the NC request v1.
 // todo: moved with minor changes from requestmonitor.go. need to clean up further and add tests
 func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	associationInfo := ncConfig.GetAssociationInfo()
+
+	// get reservation configuration
+	reservation, err := datamodel.QueryIPReservation(ncConfig.NetworkID, ncConfig.ReservationID)
+	if err != nil {
+		if err.HTTPStatus == http.StatusInternalServerError {
+			return false, err
+		}
+		return p.markNCAsFailed(ncConfig, *err)
+	}
+
+	//Compare with frontendIP in a case insensitive manner or any purpose tag defined, DNC should prevent create NC on this IP
+	requestType := reservation.Configuration.AllocationRequest.RequestType
+	if strings.EqualFold(requestType, api.FrontendIP) || requestType != "" {
+		err = api.BadRequestf(api.ReservationTypeNotMatch,
+			"Reservation has been reserved as %s, can't create container with it", requestType)
+		return p.markNCAsFailed(ncConfig, *err)
+	}
 
 	ncLimit, err := p.CNS.GetNCLimitForNode(associationInfo.NodeID)
 	if err != nil {
@@ -220,14 +239,6 @@ func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration
 		ncLimit,
 	)
 
-	if err != nil {
-		if err.HTTPStatus == http.StatusInternalServerError {
-			return false, err
-		}
-		return p.markNCAsFailed(ncConfig, *err)
-	}
-
-	reservation, err := datamodel.QueryIPReservation(ncConfig.NetworkID, ncConfig.ReservationID)
 	if err != nil {
 		if err.HTTPStatus == http.StatusInternalServerError {
 			return false, err
