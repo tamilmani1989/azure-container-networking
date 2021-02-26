@@ -78,7 +78,14 @@ spec:
         - name: DNCIpAddress
           valueFrom:
             fieldRef:
-              fieldPath: status.podIP                             
+              fieldPath: status.podIP
+        livenessProbe:
+          exec:
+            command:
+            - ping-dnc
+            - -c=/etc/dnc-rc/dncrc_config.json
+          initialDelaySeconds: 15
+          periodSeconds: 300
       volumes:
       - name: log
         hostPath:

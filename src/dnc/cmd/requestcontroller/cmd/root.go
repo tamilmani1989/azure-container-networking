@@ -57,6 +57,7 @@ var (
 func init() {
 	rootCmd.PersistentFlags().StringP(configFlag, "c", "", "Configuration file")
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(pingDNCCommand)
 }
 
 // Execute runs the root command
