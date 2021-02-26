@@ -31,7 +31,6 @@ spec:
                 values:
                 - dnc
             topologyKey: kubernetes.io/hostname
-      hostNetwork: true
       containers:
       - name: dnc-container
         image: {{ .Values.containerregistry }}/{{ .Values.dncbuildtag }}

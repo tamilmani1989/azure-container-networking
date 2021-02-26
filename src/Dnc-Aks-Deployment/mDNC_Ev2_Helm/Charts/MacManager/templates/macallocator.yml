@@ -31,7 +31,6 @@ spec:
                 values:
                 - macallocator
             topologyKey: kubernetes.io/hostname
-      hostNetwork: true
       containers:
       - name: macallocator-container
         image: {{ .Values.containerregistry }}/{{ .Values.macallocatorbuildtag }}

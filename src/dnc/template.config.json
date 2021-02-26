@@ -63,7 +63,7 @@
         "NetworkContainerRefreshInterval": 60000,
         "ReportToHostInterval": 60000,
         "ConcurrentRequestsToProcess": 1000,
-        "EnforceNICLimit": true,
+        "EnforceNICLimit": __EnforceNicLImit__,
         "NICsAllowedPerVirtualCore": 3,
         "ReverseProxyEnabled": false,
         "ThresholdForLoggingDataStoreOpLatencyMs": 1000,

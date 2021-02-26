@@ -1,0 +1,49 @@
+{
+    "Application": {
+        "PartitionKey": "ev2_test_1",
+        "ManagedDncGuid": "5c7e26be-7ff9-4aaf-9e16-0bc759605aea",
+        "PubsubCertName": "DncPubSubCert",
+        "PubsubConnectionEndpoint": "useast2euap-prod.sdnpubsub.core.windows.net",
+        "EnforceNicLimit" : "false",
+        "PubsubVips": '[
+            {
+                "AzId": "AZ01",
+                "VIPs": "52.232.150.61,52.232.150.60"
+            },
+            {
+                "AzId": "AZ02",
+                "VIPs": "52.225.160.60,52.225.160.62,52.225.160.61"
+            },
+            {
+                "AzId": "AZ03",
+                "VIPs": "52.225.185.199,52.138.65.29,52.225.190.130"
+            },
+            {
+                "AzId": "AZ03-02",
+                "VIPs": "40.89.67.127,52.138.72.224"
+            }
+        ]'
+    },
+    "Cluster": {
+        "LOCATION": "eastus2euap",
+        "CLUSTERNAME": "mdnc-bm-useast2euap",
+        "AgentVmSize": "Standard_DS2_v2",
+        "AgentCount": "3",
+        "ResourceGroup": "mdnc-bm-useast2euap-rg",
+        "SubscriptionId": "9b8218f9-902a-4d20-a65c-e98acec5362f",
+        "TenantId": "72f988bf-86f1-41af-91ab-2d7cd011db47",
+        "ClusterClientId": ""
+    },
+    "Dependencies": {
+        "ContainerRegistryName": "acndev",
+        "ContainerRegistryResourceGroup": "acn-shared-resources",
+        "RegionalKeyVaultName": "acnkv",
+        "RegionalKeyVaultResourceGroup": "acnKeyVault",
+        "CosmosDbAccountName": "mdncbmuseast2euap",
+        "CosmosDbResourceGroup": "mdnc-bm-useast2euap-rg",
+        "RpCosmosDbResourceGroup": "mdnc-bm-useast2euap-rg",
+        "RpCosmosDbAccountName": "mdncbmuseast2euap",
+        "RpCosmosDbResoureID": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/mdnc-bm-useast2euap-rg/providers/Microsoft.DocumentDB/databaseAccounts/mdncbmuseast2euap",
+        "CosmosDBResourceID": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/mdnc-bm-useast2euap-rg/providers/Microsoft.DocumentDB/databaseAccounts/mdncbmuseast2euap"
+    }
+}

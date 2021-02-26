@@ -14,7 +14,7 @@
     },
     "Dependencies": {
         "ContainerRegistryName": "acnprod",
-        "RegionalKeyVaultName": "acnkv",
+        "RegionalKeyVaultName": "acnkv-centralus",
         "RegionalKeyVaultResourceGroup": "acn-rg-CentralUS",
         "ContainerRegistryResourceGroup": "ProductionACR",
         "CosmosDbAccountName": "dbdncrpcentralus",

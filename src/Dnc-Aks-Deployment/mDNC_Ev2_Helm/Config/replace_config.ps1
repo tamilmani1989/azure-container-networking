@@ -5,7 +5,7 @@ param(
     [string]$Service
 )
 
-function Get-Value ([string]$Section, [string]$Key) {
+function Get-Value ([string]$Section, [string]$Key, [string] $defaultValue) {
     if (Test-Path env:$key) {
         write-host "Found environment variable for $key"
         return env:$key
@@ -15,6 +15,10 @@ function Get-Value ([string]$Section, [string]$Key) {
             write-host "Found $key in local configuration"
             return $overrides.$section.$key
         }
+    }
+
+    if ($defaultValue) {
+        return $defaultValue
     }
 
     throw "[Error] No environment variable or config value for $key found"
@@ -62,8 +66,13 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     $config = $config.replace('__ResourceGroup__', (Out-String -InputObject (Get-Value "Cluster" "ResourceGroup")).Trim())
     $config = $config.replace('__ClusterClientId__', (Out-String -InputObject (Get-Value "Cluster" "ClusterClientId")).Trim())
     $config = $config.replace('__Location__', (Out-String -InputObject (Get-Value "Cluster" "Location")).Trim())
-    
+
     ##gateway
+
+    ## baremetal
+    $config = $config.replace('__EnforceNicLImit__', (Out-String -InputObject (Get-Value "Application" "EnforceNicLimit" "true")).Trim())
+
+
     $destinationPath = Join-Path $PSScriptRoot $configReplacement.DestinationFile
     Write-Host "Writing file to $destinationPath"
 

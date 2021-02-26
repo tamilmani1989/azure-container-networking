@@ -31,10 +31,9 @@ spec:
                 values:
                 - dncrp
             topologyKey: kubernetes.io/hostname
-      hostNetwork: true
       containers:
       - name: dncrp-container
-        image: {{ .Values.containerregistry }}/{{ .Values.dncrcbuildtag }}
+        image: {{ .Values.containerregistry }}/{{ .Values.dncrpbuildtag }}
         imagePullPolicy: Always
         volumeMounts:
         - name: log

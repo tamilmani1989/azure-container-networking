@@ -31,7 +31,6 @@ spec:
                 values:
                 - macinventory
             topologyKey: kubernetes.io/hostname
-      hostNetwork: true
       containers:
       - name: macinventory-container
         image: {{ .Values.containerregistry }}/{{ .Values.macinventorybuildtag }}

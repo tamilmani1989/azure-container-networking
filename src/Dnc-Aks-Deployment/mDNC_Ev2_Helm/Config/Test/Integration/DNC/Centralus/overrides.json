@@ -2,7 +2,6 @@
     "Application": {
         "PartitionKey": "ev2_test_1",
         "ManagedDncGuid": "5c7e26be-7ff9-4aaf-9e16-0bc759605aea",
-        "KeyVaultCertPath": "https://acnkv-centraluseuap.vault.azure.net/secrets/AMEAADOnecert/32bcf981102e4789bb6dae083435291d",
         "PubsubCertName": "DncPubSubCert",
         "PubsubConnectionEndpoint": "uscentral-prod.sdnpubsub.core.windows.net",
         "PubsubVips": '[
