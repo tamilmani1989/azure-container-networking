@@ -9,11 +9,9 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator
 {
     using System.Threading.Tasks;
 
-    using Microsoft.Azure.ContainerNetworking.MacManager.Common;
-
     public interface IMacAllocatorService
     {
-        Task<MacAddress> AllocateMacAddressAsync(MacAllocatorRequest request);
-        Task DeallocateMacAddressAsync(MacAllocatorRequest request);
+        Task<MacAllocatorResponse> AllocateMacAddressAsync(MacAllocatorRequest request);
+        Task<MacAllocatorResponse> DeallocateMacAddressAsync(MacAllocatorRequest request);
     }
 }

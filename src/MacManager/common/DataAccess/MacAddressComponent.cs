@@ -9,6 +9,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
 {
     using System.Collections.Generic;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.Cosmos;
@@ -23,10 +24,11 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
             this.clientProvider = clientProvider;
         }
 
-        private Container GetContainer()
+        private async Task<Container> GetContainerAsync()
         {
             if (this.container == null)
             {
+                await clientProvider.InitializeAsync(CancellationToken.None);
                 this.container = clientProvider.CosmosClient.GetContainer(MacManagerConstants.DatabaseName, MacManagerConstants.MacAddressContainerName);
             }
             return this.container;
@@ -39,7 +41,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
                 .WithParameter("@rangeEnd", rangeEnd);
 
             List<MacAddress> addresses = new List<MacAddress>();
-            using (FeedIterator<MacAddress> iterator = this.GetContainer().GetItemQueryIterator<MacAddress>(query))
+            using (FeedIterator<MacAddress> iterator = (await this.GetContainerAsync()).GetItemQueryIterator<MacAddress>(query))
             {
                 while (iterator.HasMoreResults)
                 {
@@ -53,7 +55,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
         public async Task<List<MacAddress>> GetMacAddressesAsync(QueryDefinition query)
         {
             List<MacAddress> addresses = new List<MacAddress>();
-            using (FeedIterator<MacAddress> iterator = this.GetContainer().GetItemQueryIterator<MacAddress>(query))
+            using (FeedIterator<MacAddress> iterator = (await this.GetContainerAsync()).GetItemQueryIterator<MacAddress>(query))
             {
                 while (iterator.HasMoreResults)
                 {
@@ -71,7 +73,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
             .WithParameter("@rangeEnd", rangeEnd);
 
             List<MacAddress> addresses = new List<MacAddress>();
-            using (FeedIterator<long> iterator = this.GetContainer().GetItemQueryIterator<long>(query))
+            using (FeedIterator<long> iterator = (await this.GetContainerAsync()).GetItemQueryIterator<long>(query))
             {
                 while (iterator.HasMoreResults)
                 {
@@ -89,7 +91,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
             .WithParameter("@rangeEnd", rangeEnd);
 
             List<MacAddress> addresses = new List<MacAddress>();
-            using (FeedIterator<long> iterator = this.GetContainer().GetItemQueryIterator<long>(query))
+            using (FeedIterator<long> iterator = (await this.GetContainerAsync()).GetItemQueryIterator<long>(query))
             {
                 while (iterator.HasMoreResults)
                 {
@@ -100,9 +102,9 @@ namespace Microsoft.Azure.ContainerNetworking.MacManager.Common
             return 0;
         }
 
-        public Task UpsertMacAddressAsync(MacAddress address)
+        public async Task UpsertMacAddressAsync(MacAddress address)
         {
-            return this.GetContainer().UpsertItemAsync(address, requestOptions: new ItemRequestOptions { IfMatchEtag = address.ETag });
+            await (await this.GetContainerAsync()).UpsertItemAsync(address, requestOptions: new ItemRequestOptions { IfMatchEtag = address.ETag });
         }
     }
 }

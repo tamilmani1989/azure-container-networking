@@ -9,7 +9,6 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator.Controller
 {
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Mvc;
-    using Microsoft.Azure.ContainerNetworking.MacManager.Common;
 
     [ApiController]
     public class MacAllocatorController
@@ -34,10 +33,9 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator.Controller
         [HttpPost]
         [HttpPut]
         [Route("/macallocator/allocate")]
-        public async Task<string> AllocateMacAsync(MacAllocatorRequest request)
+        public async Task<MacAllocatorResponse> AllocateMacAsync(MacAllocatorRequest request)
         {
-            MacAddress address = await service.AllocateMacAddressAsync(request);
-            return address?.Address ?? string.Empty;
+            return await service.AllocateMacAddressAsync(request);
         }
 
         /// <summary>
@@ -50,9 +48,9 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator.Controller
         [HttpPost]
         [HttpPut]
         [Route("/macallocator/deallocate")]
-        public async Task DeallocateMacAsync(MacAllocatorRequest request)
+        public async Task<MacAllocatorResponse> DeallocateMacAsync(MacAllocatorRequest request)
         {
-            await service.DeallocateMacAddressAsync(request);
+            return await service.DeallocateMacAddressAsync(request);
         }
     }
 }

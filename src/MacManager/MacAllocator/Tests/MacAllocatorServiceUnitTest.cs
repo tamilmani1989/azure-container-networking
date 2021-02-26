@@ -64,10 +64,13 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator.UnitTests
                 AllocationId = "testid"
             };
 
-            MacAddress macAddress = await service.AllocateMacAddressAsync(r);
+            MacAllocatorResponse response = await service.AllocateMacAddressAsync(r);
 
-            Assert.Equal("AAAAAAAAAAAA", macAddress.Address);
-            Assert.Equal("testid", macAddress.ReservedBy);
+            Assert.True(response.IsSuccess);
+            Assert.Equal(r.AllocationId, response.AllocationId);
+            Assert.Equal("AAAAAAAAAAAA", response.MacAddress);
+            Assert.Null(response.ErrorMessage);
+            Assert.False(response.ShouldRetry);
             this.addressComponentMock.Verify(_ => _.UpsertMacAddressAsync(addresses[0]), Times.Once);
         }
 
@@ -99,7 +102,14 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator.UnitTests
                 AllocationId = "testid"
             };
 
-            await Assert.ThrowsAsync<InvalidOperationException>(async () => { await service.AllocateMacAddressAsync(r); });
+            MacAllocatorResponse response = await service.AllocateMacAddressAsync(r);
+
+            Assert.False(response.IsSuccess);
+            Assert.Equal(r.AllocationId, response.AllocationId);
+            Assert.Null(response.MacAddress);
+            Assert.NotNull(response.ErrorMessage);
+            Assert.True(response.ShouldRetry);
+
             this.addressComponentMock.Verify(_ => _.UpsertMacAddressAsync(It.IsAny<MacAddress>()), Times.Never);
         }
 
@@ -122,10 +132,14 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator.UnitTests
                 AllocationId = "testid"
             };
 
-            MacAddress macAddress = await service.AllocateMacAddressAsync(r);
+            MacAllocatorResponse response = await service.AllocateMacAddressAsync(r);
 
-            Assert.Equal("AAAAAAAAAAAA", macAddress.Address);
-            Assert.Equal("testid", macAddress.ReservedBy);
+            Assert.True(response.IsSuccess);
+            Assert.Equal(r.AllocationId, response.AllocationId);
+            Assert.Equal("AAAAAAAAAAAA", response.MacAddress);
+            Assert.Null(response.ErrorMessage);
+            Assert.False(response.ShouldRetry);
+
             this.addressComponentMock.Verify(_ => _.UpsertMacAddressAsync(It.IsAny<MacAddress>()), Times.Never);
         }
 
@@ -141,7 +155,13 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator.UnitTests
                 AllocationId = "testid"
             };
 
-            await Assert.ThrowsAsync<InvalidOperationException>(async () => { await service.AllocateMacAddressAsync(r); });
+            MacAllocatorResponse response = await service.AllocateMacAddressAsync(r);
+
+            Assert.False(response.IsSuccess);
+            Assert.Equal(r.AllocationId, response.AllocationId);
+            Assert.Null(response.MacAddress);
+            Assert.NotNull(response.ErrorMessage);
+            Assert.True(response.ShouldRetry);
         }
 
         [Fact]
@@ -164,7 +184,14 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator.UnitTests
                 AllocationId = "testid"
             };
 
-            await service.DeallocateMacAddressAsync(r);
+            MacAllocatorResponse response = await service.DeallocateMacAddressAsync(r);
+
+            Assert.True(response.IsSuccess);
+            Assert.Equal(r.AllocationId, response.AllocationId);
+            Assert.Null(response.MacAddress);
+            Assert.Null(response.ErrorMessage);
+            Assert.False(response.ShouldRetry);
+
             this.addressComponentMock.Verify(_ => _.UpsertMacAddressAsync(addresses[0]), Times.Once);
         }
 
@@ -217,7 +244,14 @@ namespace Microsoft.Azure.ContainerNetworking.MacAllocator.UnitTests
                 AllocationId = "testid"
             };
 
-            await Assert.ThrowsAsync<AggregateException>(async () => { await service.DeallocateMacAddressAsync(r); });
+            MacAllocatorResponse response = await service.DeallocateMacAddressAsync(r);
+
+            Assert.False(response.IsSuccess);
+            Assert.Equal(r.AllocationId, response.AllocationId);
+            Assert.Null(response.MacAddress);
+            Assert.NotNull(response.ErrorMessage);
+            Assert.True(response.ShouldRetry);
+
             this.addressComponentMock.Verify(_ => _.UpsertMacAddressAsync(addresses[0]), Times.Once);
         }
     }
