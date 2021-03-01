@@ -523,6 +523,7 @@ func (a *IPAllocator) clearAllocations(networkID, subnetName string, allocationI
 	return a.UpdateAllocations(networkID, subnetName, entities)
 }
 
+// todo: handle batch updates directly in the Repo* functions instead of creating a wrapper
 func (a *IPAllocator) UpdateAllocations(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
 	var batches [][]datamodel.IPAllocationEntity
 	for len(entities) > a.MaxBatchSize {
@@ -587,7 +588,7 @@ func (a *IPAllocator) SetToBeDeleteOwnerToDeletingIps(networkId, subnetName, res
 	}
 
 	// whether it's a conflict or a network error, background monitor will retry
-	err = a.Allocations.UpdateIPAllocationEntities(networkId, subnetName, ipEntitiesMarkedForDelete)
+	err = a.UpdateAllocations(networkId, subnetName, ipEntitiesMarkedForDelete)
 	if err != nil {
 		return err
 	}

@@ -38,6 +38,7 @@ func ValidateScanSubnetStrategyScaleDown(t *testing.T, pubsubProxyEnabled bool) 
 			{RowKey: "10.1.0.22_32", IPAllocation: "Network_vnet1_Reservation_res2", AllocationID: "alloc5"},
 			{RowKey: "10.1.0.23_32", IPAllocation: "Network_vnet1_Reservation_res2", AllocationID: "alloc6"},
 		},
+		MaxBatchSize: 100,
 	}
 
 	reservations := []datamodel.ReservationConfiguration{

@@ -6,6 +6,7 @@ import (
 	"dnc/datastore/testpersistencestore"
 	"dnc/logger/loggermock"
 	"dnc/networkcontainer/fakes"
+	"fmt"
 	"math/rand"
 	"net"
 	"sync"
@@ -28,6 +29,7 @@ func Test_Allocate(t *testing.T) {
 			{RowKey: "172.16.0.22_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid4"},
 			{RowKey: "172.16.0.23_32", IPAllocation: "Network_network1_Reservation_res2", AllocationID: "uuid5"},
 		},
+		MaxBatchSize: 100,
 	}
 
 	subnetRepo := fakes.SubnetRepo{
@@ -101,6 +103,7 @@ func TestIncompleteAllocation(t *testing.T) {
 			{RowKey: "172.16.0.13_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: reservationID},
 			{RowKey: "172.16.0.20_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: allocationID1},
 		},
+		MaxBatchSize: 100,
 	}
 
 	subnetRepo := fakes.SubnetRepo{
@@ -188,7 +191,7 @@ func TestDeallocate(t *testing.T) {
 		allocationIDs[i] = allocID
 		reservation.SecondaryAllocations[allocID] = ips[i].String() + "/32"
 	}
-	allocRepo := fakes.AllocationRepo{Data: allocationRows}
+	allocRepo := fakes.AllocationRepo{Data: allocationRows, MaxBatchSize: 100}
 	allocator := IPAllocator{Allocations: &allocRepo, Logger: loggermock.NewDummyLogger(), MaxBatchSize: 100}
 
 	// randomly select a number of ids to be deleted
@@ -268,6 +271,7 @@ func Test_RemoveAllAllocations(t *testing.T) {
 			{RowKey: "172.16.0.15_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: "alloc3"},
 			{RowKey: "172.16.0.16_32", IPAllocation: "Network_network1_Reservation_res1", AllocationID: "alloc4"},
 		},
+		MaxBatchSize: 100,
 	}
 
 	subnetRepo := fakes.SubnetRepo{
@@ -442,4 +446,92 @@ func TestPrepopulateRows(t *testing.T) {
 		// todo: tested manually, just no easy way to simulate with test data store at the moment
 		t.SkipNow()
 	})
+}
+
+func TestSetToBeDeletingIps(t *testing.T) {
+	vnetID := "vnet1"
+	subnetName := "subnet1"
+	ncId := "nc1"
+	resId := "res1"
+	ncKey := datamodel.GetNCKey(vnetID, ncId)
+	var resKey = datamodel.GetReservationKey(vnetID, resId)
+	allocsRepo := fakes.AllocationRepo{
+		Data: []datamodel.IPAllocationEntity{
+			{RowKey: "172.16.0.13_32", IPAllocation: resKey, AllocationID: "alloc1"},
+			{RowKey: "172.16.0.14_32", IPAllocation: resKey, AllocationID: "alloc2"},
+			{RowKey: "172.16.0.15_32", IPAllocation: resKey, AllocationID: "alloc3"},
+		},
+		MaxBatchSize: 100,
+	}
+
+	var allocIDsToDelete = make(map[string]string)
+	allocIDsToDelete["alloc1"] = "172.16.0.13_32"
+	allocIDsToDelete["alloc2"] = ""
+
+	a := IPAllocator{
+		Allocations:  &allocsRepo,
+		Logger:       loggermock.NewDummyLogger(),
+		MaxBatchSize: 100,
+	}
+
+	err := a.SetToBeDeleteOwnerToDeletingIps(vnetID, subnetName, resKey, ncKey, allocIDsToDelete)
+	require.Nil(t, err)
+
+	updatedAllocs, err := a.Allocations.TryQueryAllIPAllocations(vnetID, subnetName)
+	require.Nil(t, err)
+
+	for _, entity := range updatedAllocs {
+		if _, found := allocIDsToDelete[entity.AllocationID]; found {
+			if entity.ToBeDeletedOwner != ncKey {
+				t.Fatalf("ToBeDeletedOwner is not set in IpAllocation, entity %+v, nckey %s", entity, ncKey)
+			}
+		}
+	}
+}
+
+func TestMaxBatchLimitInSetToBeDeletingIps(t *testing.T) {
+	vnetID := "vnet1"
+	subnetName := "subnet1"
+	ncId := "nc1"
+	resId := "res1"
+	ncKey := datamodel.GetNCKey(vnetID, ncId)
+	var resKey = datamodel.GetReservationKey(vnetID, resId)
+
+	var entities []datamodel.IPAllocationEntity
+	allocIDsToDelete := make(map[string]string)
+	for i := 0; i < 200; i++ {
+		allocId := fmt.Sprintf("alloc%d", i)
+		ipaddress := fmt.Sprintf("10.0.0.%d_32", i)
+		entity := datamodel.IPAllocationEntity{
+			RowKey:       ipaddress,
+			IPAllocation: resKey,
+			AllocationID: allocId,
+		}
+
+		entities = append(entities, entity)
+		allocIDsToDelete[allocId] = ipaddress
+	}
+
+	allocsRepo := fakes.AllocationRepo{
+		Data:         entities,
+		MaxBatchSize: 100,
+	}
+
+	a := IPAllocator{
+		Allocations:  &allocsRepo,
+		Logger:       loggermock.NewDummyLogger(),
+		MaxBatchSize: 100,
+	}
+
+	err := a.SetToBeDeleteOwnerToDeletingIps(vnetID, subnetName, resKey, ncKey, allocIDsToDelete)
+	require.Nil(t, err)
+
+	updatedAllocs, err := a.Allocations.TryQueryAllIPAllocations(vnetID, subnetName)
+	require.Nil(t, err)
+
+	for _, entity := range updatedAllocs {
+		if entity.ToBeDeletedOwner != ncKey {
+			t.Fatalf("ToBeDeletedOwner is not set in IpAllocation, entity %+v, nckey %s", entity, ncKey)
+		}
+	}
 }

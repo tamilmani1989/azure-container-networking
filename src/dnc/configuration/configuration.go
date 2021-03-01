@@ -331,9 +331,22 @@ func SetDncConfigDefaults(config *Configuration) {
 	setPubSubProxySettings(&config.PubSubProxySettings)
 	setAzureEnvironment(&config.AzureEnvironment)
 
-	if config.DataStoreSettings.MaxBatchSize == 0 {
+	if config.DataStoreSettings.AzureStorageInfo.IsUsingCosmosDb {
+		if config.DataStoreSettings.MaxBatchSize == 0 {
+			// Default setting for cosmosDB is 100
+			config.DataStoreSettings.MaxBatchSize = 100
+		}
+		if config.DataStoreSettings.MaxBatchSize > 1000 {
+			// For CosmosDB storage, MaxBatchSize should not exceed 1000
+			config.DataStoreSettings.MaxBatchSize = 1000
+		}
+	} else if config.DataStoreSettings.MaxBatchSize == 0 ||
+		config.DataStoreSettings.MaxBatchSize > 100 {
+		// For other datastore, max batch size is 100
 		config.DataStoreSettings.MaxBatchSize = 100
 	}
+
+	log.Printf("config.DataStoreSettings.MaxBatchSize %d", config.DataStoreSettings.MaxBatchSize)
 
 	if config.FeatureFlagSettings.MaxIPReservationBatchSize == 0 {
 		config.FeatureFlagSettings.MaxIPReservationBatchSize = 100

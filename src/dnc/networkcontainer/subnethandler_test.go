@@ -118,6 +118,7 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 			{RowKey: "10.1.0.21_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[1], AllocationID: allocIDs[partialIDs[1]][0]},
 			{RowKey: "10.1.0.22_32", IPAllocation: "Network_" + vnetID + "_Reservation_" + partialIDs[1], AllocationID: allocIDs[partialIDs[1]][1]},
 		},
+		MaxBatchSize: 100,
 	}
 	resRepo := fakes.NewReservationRepo()
 

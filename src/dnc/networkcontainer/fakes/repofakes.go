@@ -139,7 +139,8 @@ func (f *SubnetRepo) UpdateSubnetReservationSet(reservationID, allocatedSubnet s
 
 // note: fake allocation repo is not thread safe
 type AllocationRepo struct {
-	Data []datamodel.IPAllocationEntity
+	Data         []datamodel.IPAllocationEntity
+	MaxBatchSize int
 }
 
 func (f *AllocationRepo) TryQueryIPAllocation(networkID, subnetName, rowKey string) (datamodel.IPAllocationEntity, *api.JsonErr) {
@@ -152,6 +153,12 @@ func (f *AllocationRepo) TryQueryIPAllocation(networkID, subnetName, rowKey stri
 }
 
 func (f *AllocationRepo) UpdateIPAllocationEntities(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
+	if len(entities) > f.MaxBatchSize {
+		return api.InternalServerError(api.StatusInternalServerError,
+			fmt.Sprintf("UpdateIPAllocationEntities cannnot not exceed maxBatch size networkID %s, subnetName %s",
+				networkID, subnetName))
+	}
+
 	for _, entity := range entities {
 		found := false
 		for i := 0; i < len(f.Data); i++ {
@@ -220,6 +227,12 @@ func (f *AllocationRepo) QueryIPAllocationsByToBeDeletedOwner(_, _ string, tobeD
 }
 
 func (f *AllocationRepo) InsertIPAllocationEntities(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
+	if len(entities) > f.MaxBatchSize {
+		return api.InternalServerError(api.StatusInternalServerError,
+			fmt.Sprintf("InsertIPAllocationEntities cannnot not exceed maxBatch size networkID %s, subnetName %s",
+				networkID, subnetName))
+	}
+
 	for _, entity := range entities {
 		entity.ETag = time.Now().UTC().String()
 		f.Data = append(f.Data, entity)
@@ -248,7 +261,13 @@ func (f *AllocationRepo) TryQueryAllIPAllocations(networkID, subnetName string) 
 	return f.Data, nil
 }
 
-func (f *AllocationRepo) DeleteIPAllocations(_, _ string, keys []string) *api.JsonErr {
+func (f *AllocationRepo) DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
+	if len(keys) > f.MaxBatchSize {
+		return api.InternalServerError(api.StatusInternalServerError,
+			fmt.Sprintf("InsertIPAllocationEntities cannnot not exceed maxBatch size networkID %s, subnetName %s",
+				networkID, subnetName))
+	}
+
 	tbd := make(map[string]struct{})
 	for _, key := range keys {
 		if key == "" {
