@@ -22,6 +22,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public string VNetResourceGuid { get; set; }
 
         /// <summary>
+        /// DNC subnet join state
+        /// </summary>
+        [JsonIgnore]
+        public string SubnetJoinState { get; set; }
+
+        /// <summary>
         ///  Initializes a new instance of the <see cref="DelegateSubnet"/> class.
         /// </summary>
         /// <param name="subscriptionId"></param>
@@ -42,7 +48,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.Name = resourceName;
             this.Location = location;
             this.Properties = delegateSubnetProperties;
-
+            this.SubnetJoinState = DncSubnetState.New;
             this.Type = DelegatedResourceType;
         }
 

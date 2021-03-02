@@ -1,0 +1,146 @@
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="DncClient.cs" company="Microsoft">
+//   © Microsoft Corporation. All rights reserved.
+// </copyright>
+// --------------------------------------------------------------------------------------------------------------------
+
+
+
+namespace Microsoft.Azure.ContainerNetworking.DncRP
+{
+    using Microsoft.Azure.ContainerNetworking.CoreLib;
+    using Microsoft.Azure.ContainerNetworking.DncRP;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Options;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Net;
+    using System.Net.Http;
+    using System.Net.Http.Headers;
+    using System.Threading.Tasks;
+    using System.Text;
+
+    public class DncClient : IDncClient
+    {
+        private IHttpUtility httpUtility;
+        private ILogger logger;
+        private string dncEndpoint;
+        private const string dncPutSubnetFormat = "{0}/networks/{1}/subnets/{2}?api-version=2021-02-24";
+        private const string dncGetSubnetFormat = "{0}/networks/{1}/subnets/{2}/status?api-version=2021-02-24";
+        public DncClient(
+            IHttpUtility httpUtility,
+            ILogger logger,
+            string dncEndpoint)
+        {
+            this.httpUtility = httpUtility;
+            this.logger = logger;
+            this.dncEndpoint = dncEndpoint;
+        }
+
+        /// <summary>
+        /// PutSubnetAsync - Calls dnc join subnet by http post.
+        /// </summary>
+        /// <param name="virtualNetworkId">vnet id</param>
+        /// <param name="subnetName">subnet name</param>
+        /// <param name="authToken">sal token</param>
+        /// <returns></returns>
+        public async Task PutSubnetAsync(
+            string virtualNetworkId,
+            string subnetName,
+            string authToken)
+        {
+            string accessToken = await GetDncAccessTokenAsync();
+
+            // send dnc post request for subnet join
+            string requestUri = string.Format(dncPutSubnetFormat, dncEndpoint, virtualNetworkId, subnetName);
+            using (HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri))
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue(scheme: "Bearer", parameter: accessToken);
+                SubnetJoinRequest request = new SubnetJoinRequest(authToken);
+                string json = JsonUtility.Serialize(request);
+                requestMessage.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                logger.CLogInformation($"Dnc Post subnet RequestMessage uri: { requestMessage.RequestUri.ToString() }");
+
+                HttpResponseMessage response = await this.httpUtility.SendAsync(requestMessage);
+                if (response.StatusCode != HttpStatusCode.Accepted)
+                {
+                    throw new ErrorResponseMessageException(
+                                           httpStatus: response.StatusCode,
+                                           errorCode: ErrorResponseCode.JoinSubnetFailed,
+                                           errorMessage: $"DNC Putsubnet failed to this endpoint: " +
+                                           $"{dncEndpoint}, , response content: {response.Content}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// DeleteSubnetAsync - Calls dnc delete subnet by http delete.
+        /// </summary>
+        /// <param name="virtualNetworkId">vnet id</param>
+        /// <param name="subnetName">subnet name</param>
+        /// <returns></returns>
+        public async Task DeleteSubnetAsync(
+            string virtualNetworkId,
+            string subnetName)
+        {
+            string accessToken = await GetDncAccessTokenAsync();
+
+            // send http delete for subnet
+            string requestUri = string.Format(dncPutSubnetFormat, dncEndpoint, virtualNetworkId, subnetName);
+            using (HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Delete, requestUri))
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue(scheme: "Bearer", parameter: accessToken);
+                logger.CLogInformation($"Dnc Delete subnet RequestMessage: {  requestMessage.RequestUri.ToString() }");
+
+                HttpResponseMessage response = await this.httpUtility.SendAsync(requestMessage);
+                if (response.StatusCode != HttpStatusCode.Accepted)
+                {
+                    throw new ErrorResponseMessageException(
+                                           httpStatus: response.StatusCode,
+                                           errorCode: ErrorResponseCode.DeleteSubnetFailed,
+                                           errorMessage: $"DNC Deletesubnet failed to this endpoint: " +
+                                           $"{dncEndpoint}, response content: {response.Content}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// GetSubnetAsync - Calls dnc get subnet
+        /// </summary>
+        /// <param name="virtualNetworkId">vnet id</param>
+        /// <param name="subnetName">subnet name</param>
+        /// <returns></returns>
+        public async Task<HttpResponseMessage> GetSubnetAsync(
+           string virtualNetworkId,
+           string subnetName)
+        {
+            string accessToken = await GetDncAccessTokenAsync();
+
+            // http get call to get subnet from dnc state
+            string requestUri = string.Format(dncGetSubnetFormat, dncEndpoint, virtualNetworkId, subnetName);
+            using (HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Get, requestUri))
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue(scheme: "Bearer", parameter: accessToken);
+                logger.CLogInformation($"DNC Get Subnet RequestMessage: {  requestMessage.RequestUri.ToString() }");
+                return await this.httpUtility.SendAsync(requestMessage);
+            }
+        }
+
+        private async Task<string> GetDncAccessTokenAsync()
+        {
+            IAzureAD azureAD = new AzureAD();
+            // get access token from dnc resource id to talk to gateway
+            string accessToken = await azureAD.GetAccessToken(CurrentContext.ManagedIdentity,
+                CurrentContext.ArmAccessIdentity.AppId,
+                CurrentContext.AzureEnvironment);
+            if (String.IsNullOrEmpty(accessToken))
+            {
+                throw new Exception($"Invalid accesstoken for resourceid: {CurrentContext.ArmAccessIdentity.AppId}");
+            }
+
+            return accessToken;
+        }
+    }
+}

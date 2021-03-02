@@ -89,6 +89,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             };
             CurrentContext.SetArmAccessIdentity(armAccessId);
 
+            DncSettings dncSettings = configuration.GetSection("DncSettings").Get<DncSettings>();
+            CurrentContext.SetDncSettings(dncSettings);
+
             Mock<IOptionsMonitor<DatastoreSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<DatastoreSettings>>();
             optionsMonitorMock.Setup(o => o.CurrentValue).Returns(datastoreSettings);
             IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
@@ -120,15 +123,56 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             string vnetName = $"testvnet_{testGuid}";
             string subnetName = $"testsubnet_{testGuid}";
             string resourceName = $"testresource_{testGuid}";
+            string controllerName = $"testcontroller_{testGuid}";
+            string location = "CentralUSEuap";
+
+            ControllerRequest controllerRequest = new ControllerRequest
+            {
+                Properties = new ArmProperties
+                {
+                    Parameters = new ControllerRequestParameters
+                    {
+                        Location = location
+                    }
+                }
+            };
+
+            await tableOperations.ControllerConfiguration.InsertOrReplaceDncControllerAsync(
+                subscriptionId,
+                resourceGroup,
+                controllerName,
+                controllerRequest
+            );
+
+            DncRP.Controller controller = await tableOperations.ControllerConfiguration.GetDncControllerAsync($"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/controller/{controllerName}");
+            Assert.True(controller != null);
+            ControllerProperties controllerProperties = (ControllerProperties)controller.Properties;
+            Assert.True(controllerProperties.PropertiesList.DncEndpoint == $"https://openai-{CurrentContext.AzureRegion}.dnc.azure.com");
 
             // Get resource and validate results
             await GetAndValidateDelegateSubnetAsync(delegateSubnetController, 
                 subscriptionId,
                 resourceGroup,
                 resourceName,
+                HttpStatusCode.NotFound,
+                DncSubnetState.New);
+
+           await PutAndValidateAsync(
+                delegateSubnetController,
+                subscriptionId,
+                resourceGroup,
+                vnetName,
+                subnetName,
+                resourceName,
+                controllerName+"bad",
                 HttpStatusCode.NotFound);
 
-            // Put resource and valudate results
+           await delegateSubnetController.DeleteDelegateSubnet(
+                subscriptionId,
+                resourceGroup,
+                resourceName);
+            
+			// Put resource and valudate results
             DelegateSubnetResponse response = await PutAndValidateAsync(
                 delegateSubnetController,
                 subscriptionId,
@@ -136,6 +180,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 vnetName,
                 subnetName,
                 resourceName,
+                controllerName,
                 HttpStatusCode.OK);
 
 
@@ -146,6 +191,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 resourceGroup,
                 resourceName,
                 HttpStatusCode.OK,
+                DncSubnetState.Completed,
                 response);
 
             // Idempotent Put
@@ -157,6 +203,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 vnetName,
                 subnetName,
                 resourceName,
+                controllerName,
                 HttpStatusCode.OK,
                 response);
 
@@ -182,7 +229,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 subscriptionId,
                 resourceGroup,
                 resourceName,
-                HttpStatusCode.NotFound);
+                HttpStatusCode.NotFound,
+                DncSubnetState.New);
         }
 
         private async Task<DelegateSubnetResponse> GetAndValidateDelegateSubnetAsync(
@@ -191,6 +239,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             string resourceGroup,
             string resourceName,
             HttpStatusCode expectedStatusCode,
+            string expectedSubnetState,
             DelegateSubnetResponse previousResponse = null)
         {
             this.SetHttpContext(delegateSubnetController, subscriptionId, resourceGroup, resourceName, HttpMethod.Get, null);
@@ -205,6 +254,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             if (expectedStatusCode == HttpStatusCode.OK)
             {
                 response = ValidateDelegateResponse(result, previousResponse);
+                DelegateSubnet delegateSubnet = await tableOperations.DelegatedSubnetConfigurationOperations.TryGetDelegatedSubnetConfigurationAsync(
+                                                 subscriptionId,
+                                                 resourceGroup,
+                                                 resourceName);
+                Assert.True(delegateSubnet.SubnetJoinState.Equals(expectedSubnetState));
             }
 
             return response;
@@ -217,6 +271,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             string vnetName, 
             string subnetName, 
             string resourceName, 
+            string controllerName,
             HttpStatusCode expectedStatusCode,
             DelegateSubnetResponse previousResponse = null)
         {
@@ -235,7 +290,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                             },
                             ControllerDetails = new ControllerDetails()
                             {
-                                Id = $"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/controller/TestController"
+                                Id = $"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/controller/{controllerName}"
                             }
                         }
                     }

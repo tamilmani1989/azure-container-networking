@@ -96,7 +96,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             return httpResponse;
         }
 
-        private async Task<T> ParseHttpResponse<T>(HttpResponseMessage httpResponse, JsonSerializerSettings deserializeSettings = null)
+        public async Task<T> ParseHttpResponse<T>(HttpResponseMessage httpResponse, JsonSerializerSettings deserializeSettings = null)
         {
             try
             {

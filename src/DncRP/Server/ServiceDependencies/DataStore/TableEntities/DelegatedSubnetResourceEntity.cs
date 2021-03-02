@@ -69,6 +69,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public string State { get; set; }
 
         /// <summary>
+        /// SubnetJoinState. This represents dnc state on subnet join
+        /// </summary>
+        public string SubnetJoinState { get; set; }
+
+        /// <summary>
         /// ResourceGroup Name
         /// </summary>
         public string ResourceGroup { get; set; }
@@ -121,7 +126,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 Location,
                 properties)
             {
-                VNetResourceGuid = VnetResourceGuid
+                VNetResourceGuid = VnetResourceGuid,
+                SubnetJoinState = SubnetJoinState
             };
         }
     }

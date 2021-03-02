@@ -26,7 +26,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     {
         private IHttpUtility httpUtility;
         private AzVNetBroker azVnetBroker;
-        private bool deleteNotSupported = true;
+        private bool deleteNotSupported = false;
 
         public DelegateSubnetController(
             ILogger<DelegateSubnetController> logger,
@@ -85,7 +85,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
             catch (Exception ex)
             {
-                string message = $"Failed to process PutDelegateSubnet call.";
+                string message = $"Failed to process GetDelegateSubnet call.";
                 int statusCode = (int)HttpStatusCode.InternalServerError;
 
                 ErrorResponseMessageException errorException = ex as ErrorResponseMessageException;
@@ -221,11 +221,24 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             DelegateSubnetRequest requestBody)
         {
             string associatedSubnetId = requestBody.Properties.Parameters.Properties.SubnetDetails.Id;
+            string controllerId = requestBody.Properties.Parameters.Properties.ControllerDetails.Id;
             string subnetSubId;
             string subnetResourceGroupId;
             string vnetName;
             string subnetName;
+
             ValidateAndGetSubnet(associatedSubnetId, out subnetSubId, out subnetResourceGroupId, out vnetName, out subnetName);
+
+            // check if controller exists
+            Controller controller = await tableOperations.ControllerConfiguration.GetDncControllerAsync(
+                                        controllerId);
+            if (controller.Error != null)
+            {
+                throw new ErrorResponseMessageException(
+                       httpStatus: HttpStatusCode.NotFound,
+                       errorCode: ErrorResponseCode.ControllerIdNotFound,
+                       errorMessage: controller.Error.Error);
+            }
 
             // Check if DelegatedSubnetConfiguration exists
             DelegateSubnet delegateSubnet = await tableOperations.DelegatedSubnetConfigurationOperations.TryGetDelegatedSubnetConfigurationAsync(
@@ -251,9 +264,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     resourceName,
                     delegatedSubnetGuid,
                     virtualNetwork.ResourceGuid,
+                    DncSubnetState.New,
                     requestBody);
 
-                await CreateSubnetTokenAsync(
+                string authToken = await CreateSubnetTokenAsync(
                     tenantId,
                     subnetSubId,
                     resourceGroup,
@@ -262,19 +276,32 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     delegatedSubnetGuid,
                     virtualNetwork.ResourceGuid,
                     associatedSubnetId);
+
+                // call dnc gateway for join subnet
+                await DncJoinSubnetAsync (
+                     subscriptionId,
+                     resourceGroup,
+                     resourceName,
+                     delegatedSubnetGuid,
+                     virtualNetwork.ResourceGuid,
+                     subnetName,
+                     authToken,
+                     controller,
+                     requestBody);
             }
             else
             {
                 // check if SubnetToken exists
                 string delegatedSubnetGuid = delegateSubnet.Properties.ResourceGuid;
-                bool exists = await tableOperations.SubnetTokenMapOperations.SubnetTokenExistsAsync(delegatedSubnetGuid, subnetName);
-                if (!exists)
+                string authToken = await tableOperations.SubnetTokenMapOperations.GetPrimarySubnetTokenAsync(delegatedSubnetGuid, subnetName);
+                if (authToken == null)
                 {
+                    logger.CLogInformation("Delegatedsubnet resource exists but token not found. Going to create token");
                     string tenantId = await tableOperations.SubscriptionOperation.GetTenantIdAsync(subnetSubId);
 
                     // Create if one is not created yet.
                     // TODO: Check if there is already an operation pending for this resource
-                    await CreateSubnetTokenAsync(
+                    authToken = await CreateSubnetTokenAsync(
                         tenantId,
                         subnetSubId,
                         resourceGroup,
@@ -284,12 +311,90 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                         delegateSubnet.VNetResourceGuid,
                         associatedSubnetId);
                 }
+
+                // if customer does multiple put subnet calls when dncsubnetstate in pending, RP calls
+                // dnc for each put call. 
+                if (delegateSubnet.SubnetJoinState != DncSubnetState.Completed)
+                {
+                    logger.CLogInformation("Put call. Token and delegated subnet resource exists. Dnc subnet join state:%s for subnet:%s",
+    delegateSubnet.SubnetJoinState, subnetName);
+                    // call dnc gateway for join subnet
+                    await DncJoinSubnetAsync(
+                         subscriptionId,
+                         resourceGroup,
+                         resourceName,
+                         delegatedSubnetGuid,
+                         delegateSubnet.VNetResourceGuid,
+                         subnetName,
+                         authToken,
+                         controller,
+                         requestBody);
+                }              
             }
 
             return delegateSubnet;
         }
 
-        private async Task CreateSubnetTokenAsync(
+        private async Task DncJoinSubnetAsync(
+            string subscriptionId,
+            string resourceGroup,
+            string resourceName,
+            string delegatedSubnetGuid,
+            string vnetId,
+            string subnetName,
+            string authToken,
+            Controller controller,
+            DelegateSubnetRequest dsRequest)
+        {
+            // get dnc endpoint from controller details
+            ControllerProperties controllerProperties = (ControllerProperties)controller.Properties;
+            logger.CLogInformation("Going to call join subnet for subnetname {0} vnetid{1} to dnc ep {2}", subnetName,
+                 vnetId, controllerProperties.PropertiesList.DncEndpoint);
+
+ 
+            // initialize dnc client with gateway endpoint
+            DncClient dncClient = new DncClient(this.httpUtility, this.logger,
+            controllerProperties.PropertiesList.DncEndpoint);
+
+            // call dnc join subnet
+            await dncClient.PutSubnetAsync(vnetId, subnetName, authToken);
+            await tableOperations.DelegatedSubnetConfigurationOperations.InsertOrUpdateAsync(
+                                 subscriptionId,
+                                 resourceGroup,
+                                 resourceName,
+                                 delegatedSubnetGuid,
+                                 vnetId,
+                                 DncSubnetState.Pending,
+                                 dsRequest);
+
+            // do dnc get subnet to check if join completed
+            DncSettings dncSettings = CurrentContext.DncSettings;
+            await AsyncRetry.Retry(() => CheckIfSubnetJoined(dncClient, vnetId, subnetName), dncSettings.RetryCount, 
+                TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
+            await tableOperations.DelegatedSubnetConfigurationOperations.InsertOrUpdateAsync(
+                      subscriptionId,
+                      resourceGroup,
+                      resourceName,
+                      delegatedSubnetGuid,
+                      vnetId,
+                      DncSubnetState.Completed,
+                      dsRequest);
+        }
+
+        private async Task CheckIfSubnetJoined(
+            IDncClient dncClient,
+            string vnetId,
+            string subnetName)
+        {
+            HttpResponseMessage response = await dncClient.GetSubnetAsync(vnetId, subnetName);
+            DncResponseStatus dncResponse = await this.httpUtility.ParseHttpResponse<DncResponseStatus>(response);
+            if (dncResponse == null || dncResponse.State != DncSubnetState.Completed)
+            {
+                throw new Exception($"DNC get subnet call returns {dncResponse}");
+            }
+        }
+
+        private async Task<string> CreateSubnetTokenAsync(
             string tenantId,
             string subnetSubId, 
             string subnetResourceGroupId,
@@ -323,6 +428,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     salDetail.Properties.PrimaryContextId,
                     salDetail.Properties.SecondaryContextId,
                     vnetResourceGuid);
+            return salDetail.Properties.PrimaryContextId;
         }
 
         private void ValidateAndGetSubnet(string subnetResourceId, 
@@ -425,6 +531,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string vnetName;
             string subnetName;
             ValidateAndGetSubnet(associatedSubnetId, out subnetSubId, out subnetResourceGroupId, out vnetName, out subnetName);
+            
+            string vnetId = AzVNetBroker.GetVNetResourceId(subnetSubId, subnetResourceGroupId, vnetName);
+            // call dnc and delete subnet
+            await DncDeleteSubnetAsync(
+                subscriptionId, 
+                resourceGroup, 
+                vnetId, 
+                subnetName, 
+                delegateSubnet);
 
             // Delete the SAL
             string tenantId = await tableOperations.SubscriptionOperation.GetTenantIdAsync(subscriptionId);
@@ -438,6 +553,60 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             // Delete the DelegateSubnetConfiguration
             await tableOperations.DelegatedSubnetConfigurationOperations.DeleteAsync(subscriptionId, resourceGroup, resourceName);
+        }
+
+        private async Task DncDeleteSubnetAsync(
+            string subscriptionId,
+            string resourceGroupName,
+            string vnetId,
+            string subnetName,
+            DelegateSubnet delegateSubnet)
+        {
+            // check if subnet join in progress or completed
+            if (delegateSubnet.SubnetJoinState == DncSubnetState.New)
+            {
+                logger.CLogInformation("Subnet not joined. Not calling dnc delete subnet");
+                return;
+            }
+
+            // Get dnc endpoint from controllerconfiguration
+            DelegateSubnetProperties dsProperties = (DelegateSubnetProperties)delegateSubnet.Properties;
+            Controller controller = await tableOperations.ControllerConfiguration.GetDncControllerAsync(
+                                        dsProperties.ControllerDetails.Id);
+            if (controller == null)
+            {
+                throw new ErrorResponseMessageException(
+                       httpStatus: HttpStatusCode.NotFound,
+                       errorCode: ErrorResponseCode.ControllerIdNotFound,
+                       errorMessage: $"ResourceId: {HttpContext.Request.GetDisplayUrl()} not found");
+            }
+
+            ControllerProperties controllerProperties = (ControllerProperties)controller.Properties;
+            logger.CLogInformation("Going to call dnc delete subnet for subnetname {0} vnet id {1} to dnc ep {2}", subnetName,
+                 vnetId, controllerProperties.PropertiesList.DncEndpoint);
+            // Initialize dnc client with gateway endpoint
+            DncClient dncClient = new DncClient(this.httpUtility, this.logger,
+                                      controllerProperties.PropertiesList.DncEndpoint);
+            
+            // call dnc delete subnet
+            await dncClient.DeleteSubnetAsync(vnetId, subnetName);
+
+            DncSettings dncSettings = CurrentContext.DncSettings;
+            // call dnc get subnet to check if subnet is deleted
+            await AsyncRetry.Retry(() => CheckIfSubnetDeleted(dncClient, vnetId, subnetName), dncSettings.RetryCount,
+                TimeSpan.FromSeconds(dncSettings.RetryIntervalInSeconds), TimeSpan.FromSeconds(dncSettings.RetryTimeoutInSeconds));
+        }
+
+        private async Task CheckIfSubnetDeleted(
+            IDncClient dncClient,
+            string vnetId,
+            string subnetName)   
+        {
+            HttpResponseMessage response = await dncClient.GetSubnetAsync(vnetId, subnetName);
+            if (response.StatusCode != HttpStatusCode.NotFound)
+            {
+                throw new Exception($"DNC Subnet Pending delete. status code{response.StatusCode}");
+            }
         }
     }
 }

@@ -11,6 +11,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using System.IO;
     using System.Net;
     using System.Threading.Tasks;
+    using System.Transactions;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
     using Microsoft.Azure.Cosmos.Table;
     using Microsoft.Extensions.Logging;
@@ -20,8 +21,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private ITableDataStore dataStore;
         private const string resourceTableName = "ControllerResource";
         private const string mdncGuid = "5c7e26be-7ff9-4aaf-9e16-0bc759605aea";
-        private const string mdncFirstPartyId = "1efe5bbf-d5b1-4fe9-99fa-f55ce1c88679";
-        private const string mdncUri = "https://openai.centralus.dnc.azure.com";
+        private const string mdncFirstPartyId = "a91b1853-4403-4f54-b5cb-d1ea19d90c37";
+        private const string dncUrlSuffix = "dnc.azure.com";
+        private const string mdncUri = "https://openai-{0}.{1}";
         private ILogger logger;
 
         /// <summary>
@@ -35,7 +37,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             this.dataStore = tableDataStore;
             this.logger = logger;
-
             this.dataStore.CreateTable(resourceTableName);
         }
 
@@ -64,6 +65,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             ControllerResourceEntity resourceEntity = result.Result as ControllerResourceEntity;
 
+            ControllerPropertiesDetails prop = JsonUtility.Deserialize<ControllerPropertiesDetails>(resourceEntity.Properties);
+
             return new Controller(
                 subId, resourceGroup, controllerName, resourceEntity.Location,
                 new ControllerProperties
@@ -72,8 +75,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     ResourceGuid = resourceEntity.ResouceGuid,
                     PropertiesList = new ControllerPropertiesDetails
                     {
-                        DncAppId = mdncFirstPartyId,
-                        DncEndpoint = mdncUri
+                        DncAppId = prop.DncAppId,
+                        DncEndpoint = prop.DncEndpoint
                     }
                 });
         }
@@ -128,10 +131,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 createdDate = entity.CreatedDateUtc;
             }
 
+            string dncEndpoint = this.ConfigureManagedDNCEndpoint(
+                controllerName,
+                resourceGuid,
+                CurrentContext.AzureRegion
+            );
+
             ControllerPropertiesDetails list = new ControllerPropertiesDetails
             {
                 DncAppId = mdncFirstPartyId,
-                DncEndpoint = mdncUri
+                DncEndpoint = dncEndpoint,
             };
 
             string propJson = JsonUtility.Serialize(list);
@@ -232,6 +241,19 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             return mdncGuid;
+        }
+
+        private string ConfigureManagedDNCEndpoint(string controllerName, string controllerId, string location)
+        {
+            string region = location.Replace(" ", "");
+            if (controllerName.StartsWith("AzureContainerNetworking_", StringComparison.OrdinalIgnoreCase))
+            {
+                return "https://" + controllerId + "-" + region + "." + dncUrlSuffix;
+            } 
+            else
+            {
+                return string.Format(mdncUri, region, dncUrlSuffix);
+            }
         }
     }
 }

@@ -153,6 +153,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             throw new NotImplementedException();
         }
 
+        public async Task<T> ParseHttpResponse<T>(HttpResponseMessage httpResponse, JsonSerializerSettings deserializeSettings = null)
+        {
+            return default(T);
+        }
+
         /// <summary>
         /// Set user specified certs in cache. These will be returned
         /// along with generated certs.

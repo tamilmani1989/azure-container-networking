@@ -42,6 +42,17 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string subnet);
 
         /// <summary>
+        /// Get primary subnet token for a given DelegatedSubnet.
+        /// Returns null if not found.
+        /// </summary>
+        /// <param name="delegatedSubnetId"></param>
+        /// <param name="subnet"></param>
+        /// <returns></returns>
+        Task<string> GetPrimarySubnetTokenAsync(
+             string delegatedSubnetGuid,
+             string subnet);
+
+        /// <summary>
         /// Delete the SubnetTokenMap entity if exists.
         /// </summary>
         /// <param name="delegatedSubnetId"></param>

@@ -47,18 +47,24 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             throw new NotSupportedException($"Type {typeof(T).Name} is not supported");
         }
 
-        /// <summary>
-        /// Send the specified Http request and deserialize the JSON response
-        /// into user specified type (T)
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="requestMessage"></param>
-        /// <returns></returns>
         public async Task<T> SendRequestAndGetJsonAsync<T>(HttpRequestMessage requestMessage)
         {
             return default(T);
         }
 
+        public async Task<T> ParseHttpResponse<T>(HttpResponseMessage httpResponse, JsonSerializerSettings deserializeSettings = null)
+        {
+            if (typeof(T) == typeof(DncResponseStatus))
+            {
+                object resp = new DncResponseStatus();
+                DncResponseStatus dncResponseStatus = resp as DncResponseStatus;
+                dncResponseStatus.State = DncSubnetState.Completed;
+                httpResponse.StatusCode = System.Net.HttpStatusCode.OK;
+                return (T)resp;
+            }
+
+            return default(T);
+        }
         /// <summary>
         /// Invoke Http request and deserialize its JSON result to caller specified object
         /// Deserialize it using the given settings
@@ -269,6 +275,18 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
                 HttpUtility httpUtility = new HttpUtility(new HttpClient());
                 return await httpUtility.SendAsync(message);
             };
+
+            if (message.RequestUri.ToString().Contains("dnc.azure.com"))
+            {
+                if (message.Method == HttpMethod.Get)
+                {
+                    httpResponseMessage.StatusCode = System.Net.HttpStatusCode.NotFound;
+                }
+                else if (message.Method == HttpMethod.Post || message.Method == HttpMethod.Delete)
+                {
+                    httpResponseMessage.StatusCode = System.Net.HttpStatusCode.Accepted;
+                }
+            }
 
             return httpResponseMessage;
         }

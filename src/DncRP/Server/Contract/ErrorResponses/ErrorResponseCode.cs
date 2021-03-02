@@ -91,5 +91,20 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// SubscriptionResourceDeleteFailed
         /// </summary>
         SubscriptionResourceDeleteFailed,
+
+        /// <summary>
+        /// ControllerIdNotFound
+        /// </summary>
+        ControllerIdNotFound,
+
+        /// <summary>
+        /// JoinSubnetFailed
+        /// </summary>
+        JoinSubnetFailed,
+
+        /// <summary>
+        /// DeleteSubnetFailed
+        /// </summary>
+        DeleteSubnetFailed
     }
 }

@@ -34,6 +34,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             get; private set;
         }
 
+        public static DncSettings DncSettings
+        {
+            get; private set;
+        }
+
         public static string KeyVaultUrl
         {
             get; private set;
@@ -53,6 +58,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public static void SetArmAccessIdentity(ClientIdentity armAccessIdentity)
         {
             ArmAccessIdentity = armAccessIdentity;
+        }
+
+        public static void SetDncSettings(DncSettings dncSettings)
+        {
+            DncSettings = dncSettings;
         }
 
         public static void SetKeyVaultUrl(string keyvaultUrl)

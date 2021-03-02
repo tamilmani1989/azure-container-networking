@@ -75,5 +75,14 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <returns></returns>
         Task<HttpResponseMessage> SendRequestAndGetHttpResponseAsync(
             HttpRequestMessage requestMessage, HttpCompletionOption option, CancellationToken token);
+
+        /// <summary>
+        /// Parse httpresponse message and deserialize its JSON result to caller specified object
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="httpResponse"></param>
+        /// <param name="deserializeSettings"></param>
+        /// <returns></returns>
+        Task<T> ParseHttpResponse<T>(HttpResponseMessage httpResponse, JsonSerializerSettings deserializeSettings = null);
     }
 }

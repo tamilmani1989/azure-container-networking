@@ -105,6 +105,25 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         }
 
         /// <summary>
+        /// Check if token exists for a given DelegatedSubnet.
+        /// </summary>
+        /// <param name="delegatedSubnetId"></param>
+        /// <param name="subnet"></param>
+        /// <returns></returns>
+        public async Task<string> GetPrimarySubnetTokenAsync(
+            string delegatedSubnetGuid,
+            string subnet)
+        {
+            SubnetTokenMapEntity subnetEntity = await TryGetSubnetTokenMapAsync(delegatedSubnetGuid, subnet);
+            if (subnetEntity == null) 
+            {
+                return null;
+            }
+
+            return subnetEntity.PrimaryTokenId;
+        }
+
+        /// <summary>
         /// Delete the SubnetTokenMap entity if exists.
         /// </summary>
         /// <param name="delegatedSubnetId"></param>
@@ -132,7 +151,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string delegatedSubnetGuid,
             string subnet)
         {
-            TableResult tableResult = await dataStore.GetEntityAsync<DelegatedSubnetResourceEntity>(tableName, delegatedSubnetGuid, subnet);
+            TableResult tableResult = await dataStore.GetEntityAsync<SubnetTokenMapEntity>(tableName, delegatedSubnetGuid, subnet);
             SubnetTokenMapEntity subnetTokenMapEntity = tableResult.Result as SubnetTokenMapEntity;
 
             if (subnetTokenMapEntity == null)

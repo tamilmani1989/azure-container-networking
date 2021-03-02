@@ -19,6 +19,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     /// </summary>
     public static class ContextInitializer
     {
+        private const int defaultDncRetryCount = 10;
+        private const int defaultDncRetryTimeoutInSeconds = 90;
+        private const int defaultDncRetryIntervalInSeconds = 4;
         /// <summary>
         /// Initialize context
         /// </summary>
@@ -53,6 +56,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 CurrentContext.SetManagedIdentity(managedIdetity);
                 CurrentContext.SetArmAccessIdentity(azureADArmTokenIdentity);
             }
+
+            DncSettings dncSettings = configuration.GetSection("DncSettings").Get<DncSettings>();
+            if (dncSettings == null)
+            {
+                Console.WriteLine("DncSettings is null. Initialize to default values");
+                dncSettings = new DncSettings(defaultDncRetryCount, defaultDncRetryIntervalInSeconds, defaultDncRetryTimeoutInSeconds);
+            }
+            CurrentContext.SetDncSettings(dncSettings);
 
             CurrentContext.SetKeyVaultUrl(configuration["KeyVault:Url"]);
 

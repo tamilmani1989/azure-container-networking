@@ -63,6 +63,11 @@
       "Tag": "AzureADArmToken"
     }
   ],
+  "DncSettings": {
+    "RetryCount": 10,
+    "RetryIntervalInSeconds": 4,
+    "RetryTimeoutInSeconds": 90
+  },
   "AllowedHosts": "*",
   "Port": "5002",
   "AzureEnvironment": "azurecloud",
