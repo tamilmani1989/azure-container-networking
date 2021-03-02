@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<ApplicationManifest xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ApplicationTypeName="DNCServiceApplicationType" ApplicationTypeVersion="2021.2.23.1" xmlns="http://schemas.microsoft.com/2011/01/fabric" ManifestId="71bac519-696c-4fcb-9423-226eda994978">
+<ApplicationManifest xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ApplicationTypeName="DNCServiceApplicationType" ApplicationTypeVersion="2021.3.02.1" xmlns="http://schemas.microsoft.com/2011/01/fabric" ManifestId="71bac519-696c-4fcb-9423-226eda994978">
   <Parameters>
     <Parameter Name="DNCService_InstanceCount" DefaultValue="3" />
     <Parameter Name="DNCService_DNSName" DefaultValue="sfdnc.app" />
@@ -48,7 +48,7 @@
     <Parameter Name="ThresholdForLoggingDataStoreOpLatencyMs" DefaultValue="1000"/>
   </Parameters>
   <ServiceManifestImport>
-    <ServiceManifestRef ServiceManifestName="DNCServicePkg" ServiceManifestVersion="2021.2.23.1" />
+    <ServiceManifestRef ServiceManifestName="DNCServicePkg" ServiceManifestVersion="2021.3.02.1" />
     <ConfigOverrides />
     <ResourceOverrides>
       <Endpoints>

@@ -51,8 +51,8 @@ version:
                                                                         # Currently unused, but will be used in the future to refer to the
                                                                         # artifacts as a group by name.
   major: 2021                                                           # The major version number.
-  minor: 2                                                              # The minor version number
-  tag: '23.1'                                                           # Tag to use for semantic versioning.
+  minor: 3                                                              # The minor version number
+  tag: '02.1'                                                           # Tag to use for semantic versioning.
   system: 'patch'                                                       # Versioning scheme to use.
                                                                         # patch         - 1.0.MMddyyrrrr will be generated
                                                                         # buildrevision - 1.0.MMddyy.rrrr will be generated.
