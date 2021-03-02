@@ -4,6 +4,7 @@
         "ManagedDncGuid": "5c7e26be-7ff9-4aaf-9e16-0bc759605aea",
         "PubsubCertName": "DncPubSubCert",
         "PubsubConnectionEndpoint": "uscentral-prod.sdnpubsub.core.windows.net",
+        "UsePrepopulatedIPAllocations": "true",
         "PubsubVips": '[
             {
                 "AzId": "AZ01",

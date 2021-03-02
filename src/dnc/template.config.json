@@ -68,7 +68,13 @@
         "ReverseProxyEnabled": false,
         "ThresholdForLoggingDataStoreOpLatencyMs": 1000,
         "Managed": true,
-        "BMMode": false
+        "BMMode": false,
+        "DisableReservationMapInSubnetConfig": true
+    },
+    "FeatureFlagSettings": {
+        "EnableBatchAllocationProcessing": __EnableBatchAllocationProcessing__,
+        "MaxIPReservationBatchSize": __MaxIPReservationBatchSize__,
+        "UsePrepopulatedIPAllocations": __UsePrepopulatedIPAllocations__
     },
     "HttpClientSettings": {
         "ConnectionTimeout": 5,

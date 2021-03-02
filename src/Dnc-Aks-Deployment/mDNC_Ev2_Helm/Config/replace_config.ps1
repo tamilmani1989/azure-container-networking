@@ -72,6 +72,11 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     ## baremetal
     $config = $config.replace('__EnforceNicLImit__', (Out-String -InputObject (Get-Value "Application" "EnforceNicLimit" "true")).Trim())
 
+    # dnc feature flags
+    $config = $config.replace('__EnableBatchAllocationProcessing__', (Out-String -InputObject (Get-Value "Application" "EnableBatchAllocationProcessing" "true")).Trim())
+    $config = $config.replace('__MaxIPReservationBatchSize__', (Out-String -InputObject (Get-Value "Application" "MaxIPReservationBatchSize" "100")).Trim())
+    $config = $config.replace('__UsePrepopulatedIPAllocations__', (Out-String -InputObject (Get-Value "Application" "UsePrepopulatedIPAllocations" "false")).Trim())
+
 
     $destinationPath = Join-Path $PSScriptRoot $configReplacement.DestinationFile
     Write-Host "Writing file to $destinationPath"
