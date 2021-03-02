@@ -292,6 +292,8 @@ func processAllocateLocalIP(
 			}
 			repoNCConfig.GreKey = greKey
 			nodeConfiguration.InterfaceGreKeyMap[interfaceID][repoNCConfig.ReservationID] = greKey
+			logger.Debugf("Assigning GreKey for NC: %s, Node: %s, interface ID is %s, reservation ID is %s, GreKey is %d",
+				repoNCConfig.NetworkContainerID, nodeID, interfaceID, repoNCConfig.ReservationID, greKey)
 
 			nodeErr := datamodel.PersistNodeConfiguration(nodeConfiguration)
 			if nodeErr != nil {

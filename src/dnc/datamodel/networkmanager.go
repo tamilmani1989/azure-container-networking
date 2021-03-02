@@ -426,12 +426,15 @@ func findNextAvailableGrekey(baseMap map[string]uint16,
 
 	sort.Sort(v)
 
-	for i := len(v) - 1; i >= 0; i-- {
+	len := len(v)
+	for i := len - 1; i >= 0; i-- {
 		if next != v[i] {
+			loggershim.LS.Debugf("Finished searching gre key, checked %d existing keys", len-i)
 			break
 		}
 		next--
 	}
+	loggershim.LS.Debugf("Finished getting a gre key, base map length is %d, gre key value is %d, min is %v, max is %v", len, next, min, MaxGre)
 
 	if next < min {
 		return 0, &api.JsonErr{
@@ -540,11 +543,9 @@ func UpdateNodeConfigurationNetworkContainerSet(
 	}
 
 	if remove {
-		if nodeConfig.UpdateGreCapable == GreCapable {
-			greErr := deleteGreKeyAllocation(*nodeConfig, networkID, ncID)
-			if greErr != nil {
-				return greErr
-			}
+		greErr := deleteGreKeyAllocation(*nodeConfig, networkID, ncID)
+		if greErr != nil {
+			return greErr
 		}
 		delete(vnetMap, ncID)
 		if len(vnetMap) == 0 {
