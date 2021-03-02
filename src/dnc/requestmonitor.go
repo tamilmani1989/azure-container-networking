@@ -593,7 +593,12 @@ func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.
 
 	sessionInfo := map[string]string{
 		datamodel.ReservationRepositoryName: ncConfig.ReservationID,
-		datamodel.NetworkRepositoryName:     ncConfig.NetworkID,
+	}
+
+	// Acquire the lock only if DisableReservationMapInSubnetConfig is set to false.
+	// Lock is required to update the SubnetConfiguration table which is required only if the flag is set to false
+	if !config.DNCSettings.DisableReservationMapInSubnetConfig {
+		sessionInfo[datamodel.NetworkRepositoryName] = ncConfig.NetworkID
 	}
 
 	// Acquire Node lock only if needed
@@ -609,7 +614,7 @@ func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.
 	defer sessionManager.EndWriteSession(sessionInfo)
 
 	// todo: if allocated subnet is empty, the below fails
-	if err := ipAllocator.DeleteIPReservation(ncConfig.NetworkID, ncConfig.ReservationID, true); err != nil {
+	if err := ipAllocator.DeleteIPReservation(ncConfig.NetworkID, reservation, true); err != nil {
 		return err
 	}
 

@@ -755,19 +755,14 @@ func generateIPAllocationEntitiesForSubnet(subnet *net.IPNet) ([]datamodel.IPAll
 }
 
 // DeleteIPReservation - Delete an IP Reservation.
-func (a *IPAllocator) DeleteIPReservation(networkID, reservationID string, force bool) *api.JsonErr {
-	reservation, err := a.Reservations.TryQueryIPReservation(networkID, reservationID)
-	if err != nil {
-		return api.InternalServerErrorf(api.StatusInternalServerError,
-			"could not retrieve configuration for reservationKey: %s. Error: %s",
-			datamodel.GetReservationKey(networkID, reservationID), err)
-	}
-
+func (a *IPAllocator) DeleteIPReservation(networkID string, reservation datamodel.ReservationRow, force bool) *api.JsonErr {
+	var err *api.JsonErr
 	if reservation.Configuration == nil {
 		return nil
 	}
 
-	reservationKey := datamodel.GetReservationKey(networkID, reservationID)
+	reservationKey := reservation.RowKey
+	reservationID := datamodel.GetReservationIDFromKey(reservationKey)
 	if reservation.Configuration.AssociatedNCID != "" && !force {
 		return api.BadRequestf(api.ReservationInUse,
 			"Reservation for key: %s is in use with container: %s", reservationKey, reservation.Configuration.AssociatedNCID)
