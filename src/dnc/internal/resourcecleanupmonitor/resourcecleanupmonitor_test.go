@@ -20,7 +20,7 @@ const (
 	testNCID         = "testncid1"
 	testNetworkID    = "testnet1"
 	testPubSubAZID   = "disabled"
-	testSubnetName   = "subnet1"
+	testSubnetName   = "subnetwithunderscore_-!~1"
 	ipSubnet         = "172.16.0.0/24"
 	testPartitionKey = "testpartitionkey"
 	testEtag         = "testetag"

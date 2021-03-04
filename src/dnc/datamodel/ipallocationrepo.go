@@ -164,8 +164,7 @@ func (a *AllocationRepo) QueryIPAllocationsByAllocationID(networkID, subnetName 
 }
 
 // Function to fetch all rows By PartitionKey and ToBeDeletedOwnerId property
-func (a *AllocationRepo) QueryIPAllocationsByToBeDeletedOwner(networkID, subnetName string, tobeDeletedOwnerId string) ([]IPAllocationEntity, *api.JsonErr) {
-	partitionKey := GetSubnetKey(networkID, subnetName)
+func (a *AllocationRepo) QueryIPAllocationsByToBeDeletedOwner(partitionKey string, tobeDeletedOwnerId string) ([]IPAllocationEntity, *api.JsonErr) {
 	if tobeDeletedOwnerId == "" {
 		errMsg := fmt.Sprintf("QueryIPAllocationsByToBeDeletedOwner: "+
 			"tobeDeletedOwnerId cant be null for partitionKey %s", partitionKey)
@@ -281,8 +280,7 @@ func (a *AllocationRepo) DeleteIPAllocations(networkID, subnetName string, keys 
 }
 
 // Deletes the entity if etag matches
-func (a *AllocationRepo) DeleteIPAllocationEntityWithEtag(networkID, subnetName string, entity IPAllocationEntity) *api.JsonErr {
-	partitionKey := GetSubnetKey(networkID, subnetName)
+func (a *AllocationRepo) DeleteIPAllocationEntityWithEtag(partitionKey string, entity IPAllocationEntity) *api.JsonErr {
 	err := a.Datastore.DeleteInPartitionWithEtag(IPAllocationsTableName, partitionKey, entity.RowKey, entity.ETag)
 
 	if err != nil {
@@ -293,20 +291,6 @@ func (a *AllocationRepo) DeleteIPAllocationEntityWithEtag(networkID, subnetName 
 	}
 
 	return nil
-}
-
-// todo: convert ipcleanup to a struct that can marshall/unmarshall itself to a string
-// SubnetKey parameter looks like: "Network_%s_Subnet_%s"
-func GetSubnetFromIPAllocationsPartitionKey(key string) (string, *api.JsonErr) {
-	entries := strings.Split(key, "_")
-	return entries[3], nil
-}
-
-// todo: convert ipcleanup to a struct that can marshall/unmarshall itself to a string
-// SubnetKey parameter looks like: "Network_%s_Subnet_%s"
-func GetNetworkIdFromIPAllocationsPartitionKey(key string) (string, *api.JsonErr) {
-	entries := strings.Split(key, "_")
-	return entries[1], nil
 }
 
 func (a *AllocationRepo) QueryUnreservedAllocations(networkID, subnetName string, count int) ([]IPAllocationEntity, *api.JsonErr) {

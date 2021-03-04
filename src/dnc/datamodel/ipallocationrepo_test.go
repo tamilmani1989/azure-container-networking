@@ -65,7 +65,7 @@ func TestQueryIpAllocationsByToBeDeletedOwner(t *testing.T) {
 	toBeDeletedOwnerId := "Network_vnet1_NC_nc1"
 	repo := AllocationRepo{Datastore: &store}
 
-	rows, err := repo.QueryIPAllocationsByToBeDeletedOwner("vnet1", "subnet1", toBeDeletedOwnerId)
+	rows, err := repo.QueryIPAllocationsByToBeDeletedOwner(GetSubnetKey("vnet1", "subnet1"), toBeDeletedOwnerId)
 	if err != nil {
 		t.Fatalf("did not expect error: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestQueryIpAllocationsByToBeDeletedOwner(t *testing.T) {
 	}
 
 	t.Logf("QueryIPAllocationsByToBeDeletedOwner should return empty rows")
-	rows, err = repo.QueryIPAllocationsByToBeDeletedOwner("vnet1", "subnet1", toBeDeletedOwnerId)
+	rows, err = repo.QueryIPAllocationsByToBeDeletedOwner(GetSubnetKey("vnet1", "subnet1"), toBeDeletedOwnerId)
 	if err != nil {
 		t.Fatalf("did not expect error: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestQueryIpAllocationsByToBeDeletedOwner(t *testing.T) {
 	}
 
 	t.Logf("QueryIPAllocationsByToBeDeletedOwner should return valid rows")
-	rows, err = repo.QueryIPAllocationsByToBeDeletedOwner("vnet1", "subnet1", toBeDeletedOwnerId)
+	rows, err = repo.QueryIPAllocationsByToBeDeletedOwner(GetSubnetKey("vnet1", "subnet1"), toBeDeletedOwnerId)
 	if err != nil {
 		t.Fatalf("did not expect error: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestQueryIpAllocationsByToBeDeletedOwner(t *testing.T) {
 	}
 
 	t.Logf("QueryIPAllocationsByToBeDeletedOwner should return valid rows, only with expected ToBeDeletedOwner")
-	rows, err = repo.QueryIPAllocationsByToBeDeletedOwner("vnet1", "subnet1", toBeDeletedOwnerId)
+	rows, err = repo.QueryIPAllocationsByToBeDeletedOwner(GetSubnetKey("vnet1", "subnet1"), toBeDeletedOwnerId)
 	if err != nil {
 		t.Fatalf("did not expect error: %v", err)
 	}

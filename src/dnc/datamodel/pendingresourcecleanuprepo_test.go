@@ -242,7 +242,6 @@ func TestGetAllPendingCleanupRequests(t *testing.T) {
 func TestGetNetworkContainerIDFromRowKey(t *testing.T) {
 	ncid1 := "testncid"
 	netid1 := "testnetid"
-	subnetid1 := "subnetid"
 	row := GetPendingResourceCleanupKey(IPCleanup, netid1, ncid1)
 	ncid2, err := GetNetworkContainerIDFromPendingResourceCleanupKey(row)
 	if err != nil {
@@ -260,25 +259,6 @@ func TestGetNetworkContainerIDFromRowKey(t *testing.T) {
 
 	if netid1 != netid2 {
 		t.Fatalf("Failed to translate TestGetNetworkIDFromRowKey, expected [%v], actual [%v]", netid1, netid2)
-	}
-
-	key := GetSubnetKey(netid1, subnetid1)
-	subnetkey, err := GetSubnetFromIPAllocationsPartitionKey(key)
-	if err != nil {
-		t.Fatalf("Failed to get SubnetID from key, err: %v", err)
-	}
-
-	if subnetid1 != subnetkey {
-		t.Fatalf("Failed to translate SubnetID in TestGetNetworkIDFromRowKey, expected [%v], actual [%v]", netid1, netid2)
-	}
-
-	netid2, err = GetNetworkIdFromIPAllocationsPartitionKey(key)
-	if err != nil {
-		t.Fatalf("Failed to get SubnetID from CleanupContext key, err: %v", err)
-	}
-
-	if netid1 != netid2 {
-		t.Fatalf("Failed to translate SubnetID in CleanupContext, expected [%v], actual [%v]", netid1, netid2)
 	}
 }
 

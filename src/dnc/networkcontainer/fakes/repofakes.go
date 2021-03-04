@@ -216,7 +216,7 @@ func (f *AllocationRepo) QueryIPAllocationsByReservationKey(networkID, subnetNam
 	return results, nil
 }
 
-func (f *AllocationRepo) QueryIPAllocationsByToBeDeletedOwner(_, _ string, tobeDeletedOwnerId string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
+func (f *AllocationRepo) QueryIPAllocationsByToBeDeletedOwner(partitionKey string, tobeDeletedOwnerId string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
 	var results []datamodel.IPAllocationEntity
 	for _, d := range f.Data {
 		if d.ToBeDeletedOwner == tobeDeletedOwnerId {
@@ -297,7 +297,7 @@ func (f *AllocationRepo) DeleteIPAllocation(networkID, subnetName, allocatedIPKe
 	return nil
 }
 
-func (f *AllocationRepo) DeleteIPAllocationEntityWithEtag(networkID, subnetName string, entity datamodel.IPAllocationEntity) *api.JsonErr {
+func (f *AllocationRepo) DeleteIPAllocationEntityWithEtag(partitionKey string, entity datamodel.IPAllocationEntity) *api.JsonErr {
 	found := false
 	for i := 0; i < len(f.Data); i++ {
 		if f.Data[i].RowKey == entity.RowKey {

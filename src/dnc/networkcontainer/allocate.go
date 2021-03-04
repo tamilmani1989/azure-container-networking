@@ -479,16 +479,15 @@ func (a *IPAllocator) DeleteAllocations(networkID, subnetName string, keys []str
 	return nil
 }
 
-func (a *IPAllocator) DeleteAllocationsWithEtag(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
+func (a *IPAllocator) DeleteAllocationsWithEtag(partitionKey string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
 	if len(entities) == 0 {
-		a.Logger.Debugf("DeleteAllocations: no allocations to delete for networkID %s, subnetName %s",
-			networkID, subnetName)
+		a.Logger.Debugf("DeleteAllocations: no allocations to delete for partitionKey %s", partitionKey)
 		return nil
 	}
 
 	// todo: Make it batch delete
 	for _, entity := range entities {
-		err := a.Allocations.DeleteIPAllocationEntityWithEtag(networkID, subnetName, entity)
+		err := a.Allocations.DeleteIPAllocationEntityWithEtag(partitionKey, entity)
 		if err != nil {
 			a.Logger.Errorf("%s: %s", utils.TracePrefix(2), err)
 			return err
@@ -539,8 +538,8 @@ func (a *IPAllocator) UpdateAllocations(networkID, subnetName string, entities [
 	return nil
 }
 
-func (a *IPAllocator) GetIPAllocationsWithToBeDeletedOwner(networkID, subnetName string, nckey string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
-	return a.Allocations.QueryIPAllocationsByToBeDeletedOwner(networkID, subnetName, nckey)
+func (a *IPAllocator) GetIPAllocationsWithToBeDeletedOwner(partitionKey string, nckey string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
+	return a.Allocations.QueryIPAllocationsByToBeDeletedOwner(partitionKey, nckey)
 }
 
 func (a *IPAllocator) saveAllocationBatch(vnetID, subnetName string, batchMap map[string]map[string]interface{}) *api.JsonErr {
@@ -867,7 +866,8 @@ func (a *IPAllocator) CreateIpCleanupRequest(networkId, subnetName, ncId string)
 	// and removed it from Reservation but missed creating the CleanupRequest
 	// ToBeDeletedOwner is always NCKey
 	ncKey := datamodel.GetNCKey(networkId, ncId)
-	ipEntitiesMarkedForDelete, err := a.Allocations.QueryIPAllocationsByToBeDeletedOwner(networkId, subnetName, ncKey)
+	subnetKey := datamodel.GetSubnetKey(networkId, subnetName)
+	ipEntitiesMarkedForDelete, err := a.Allocations.QueryIPAllocationsByToBeDeletedOwner(subnetKey, ncKey)
 	if err != nil {
 		a.Logger.Errorf("CreateIpCleanupRequest, failed to QueryIPAllocationsByToBeDeletedOwner for networkId %s, subnetName %s, tobeDeletedOwner %s, err %+v",
 			networkId, subnetName, ncKey, err)

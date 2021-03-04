@@ -108,20 +108,12 @@ func (m *ResourceCleanupMonitor) processCleanupResource(cleanupResourceRow datam
 }
 
 func (m *ResourceCleanupMonitor) removeIPAllocations(ncKey string, resourceCleanupEntity datamodel.PendingResourceCleanupEntity) *api.JsonErr {
-	for ipAllocationsKey, cleanupAllocations := range resourceCleanupEntity.CleanupContext.ToBeDeletedIpAllocations {
+	for ipAllocationsPartitionKey, cleanupAllocations := range resourceCleanupEntity.CleanupContext.ToBeDeletedIpAllocations {
 		m.Logger.Debugf("%s RemoveIPAllocations: Attempting to remove IP Allocations for PartitionKey %s and TobeDeletedOwner %s",
-			logPrefix(resourceCleanupEntity), ipAllocationsKey, ncKey)
-		subnetName, err := datamodel.GetSubnetFromIPAllocationsPartitionKey(ipAllocationsKey)
-		if err != nil {
-			return err
-		}
-		networkID, err := datamodel.GetNetworkIdFromIPAllocationsPartitionKey(ipAllocationsKey)
-		if err != nil {
-			return err
-		}
+			logPrefix(resourceCleanupEntity), ipAllocationsPartitionKey, ncKey)
 
 		// get ip allocations with ToBeDeletedOwner matching the ncid
-		allocationEntities, err := m.IpAllocator.GetIPAllocationsWithToBeDeletedOwner(networkID, subnetName, ncKey)
+		allocationEntities, err := m.IpAllocator.GetIPAllocationsWithToBeDeletedOwner(ipAllocationsPartitionKey, ncKey)
 		if err != nil {
 			return err
 		}
@@ -138,15 +130,15 @@ func (m *ResourceCleanupMonitor) removeIPAllocations(ncKey string, resourceClean
 			if entity, exists := ipAllocationsMap[cleanupAllocation]; exists {
 
 				// keep a slice of entities with their etags that exist with the ToBeDeletedOwner set as the pending cleanup NCID
-				m.Logger.Debugf("%s RemoveIPAllocations: Add IPAllocation for delete, PartitionKey %s, entity %v", logPrefix(resourceCleanupEntity), ipAllocationsKey, entity)
+				m.Logger.Debugf("%s RemoveIPAllocations: Add IPAllocation for delete, PartitionKey %s, entity %v", logPrefix(resourceCleanupEntity), ipAllocationsPartitionKey, entity)
 				entitiesToBeCleanedUp = append(entitiesToBeCleanedUp, entity)
 			} else {
-				m.Logger.Debugf("%s RemoveIPAllocations: Ignore delete, IPAllocation %s not found in IPAllocations table with PartitionKey %s and ToBeDeletedOwner %s", logPrefix(resourceCleanupEntity), cleanupAllocation, ipAllocationsKey, ncKey)
+				m.Logger.Debugf("%s RemoveIPAllocations: Ignore delete, IPAllocation %s not found in IPAllocations table with PartitionKey %s and ToBeDeletedOwner %s", logPrefix(resourceCleanupEntity), cleanupAllocation, ipAllocationsPartitionKey, ncKey)
 			}
 		}
 
 		// safe to delete allocations
-		err = m.IpAllocator.DeleteAllocationsWithEtag(networkID, subnetName, entitiesToBeCleanedUp)
+		err = m.IpAllocator.DeleteAllocationsWithEtag(ipAllocationsPartitionKey, entitiesToBeCleanedUp)
 		if err != nil {
 			return err
 		}

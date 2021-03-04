@@ -44,7 +44,7 @@ type IPAllocationRepo interface {
 	TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
 	QueryIPAllocationsByReservationKey(networkID, subnetName string, reservationKey string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
 	QueryIPAllocationsByAllocationID(networkID, subnetName string, allocIDs []string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
-	QueryIPAllocationsByToBeDeletedOwner(networkID, subnetName string, tobeDeletedOwnerId string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
+	QueryIPAllocationsByToBeDeletedOwner(partitionKey string, tobeDeletedOwnerId string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
 	QueryUnreservedAllocations(networkID, subnetName string, count int) ([]datamodel.IPAllocationEntity, *api.JsonErr)
 	QueryIPAllocationsByReservationKeys(networkID, subnetName string, reservationIDs []string) ([]datamodel.IPAllocationEntity, *api.JsonErr)
 	// deprecated: use InsertIPAllocationEntities
@@ -53,5 +53,5 @@ type IPAllocationRepo interface {
 	UpdateIPAllocationEntities(networkID, subnetName string, ipAllocationEntities []datamodel.IPAllocationEntity) *api.JsonErr
 	DeleteIPAllocation(networkID, subnetName, allocatedIPKey string) *api.JsonErr
 	DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr
-	DeleteIPAllocationEntityWithEtag(networkID, subnetName string, entity datamodel.IPAllocationEntity) *api.JsonErr
+	DeleteIPAllocationEntityWithEtag(partitionKey string, entity datamodel.IPAllocationEntity) *api.JsonErr
 }
