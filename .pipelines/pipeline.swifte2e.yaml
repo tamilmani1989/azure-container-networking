@@ -1,15 +1,15 @@
 # CUSTOM_E2E_ROLE
 # 
 
-pr:
-  branches:
-    include:
-      - master
+# pr:
+#   branches:
+#     include:
+#       - master
 
-trigger:
-  branches:
-    include:
-      - master
+# trigger:
+#   branches:
+#     include:
+#       - master
 
 stages:
   - stage: aks_swift_build_and_test
