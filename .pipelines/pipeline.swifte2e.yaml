@@ -1,0 +1,205 @@
+# CUSTOM_E2E_ROLE
+# 
+
+pr:
+  branches:
+    include:
+      - master
+
+trigger:
+  branches:
+    include:
+      - master
+
+stages:
+  - stage: aks_swift_build_and_test
+    jobs:
+      - job: aks_swift_build_test
+        pool:
+          name: Networking-ContainerNetworking
+          demands: 
+          - agent.os -equals Linux
+          - Role -equals $(CUSTOM_E2E_ROLE)
+
+        container:
+          image: "$(BUILD_IMAGE)"
+          options: "--privileged"
+
+        # Go setup for the vmImage:
+        # https://github.com/Microsoft/azure-pipelines-image-generation/blob/master/images/linux/scripts/installers/go.sh
+        variables:
+          GOPATH: "$(System.DefaultWorkingDirectory)/gopath" # Go workspace path
+          GOBIN: "$(GOPATH)/bin" # Go binaries path
+          modulePath: "$(GOPATH)/src/dnc" # $(build.repository.name)' # Path to the module's code
+
+        steps:
+          - bash: |
+              set -e
+              echo $UID
+              sudo rm -rf $(System.DefaultWorkingDirectory)/*
+              sudo rm /run/docker/plugins/test.sock || true
+              sudo ip link del dev dummy || true
+            displayName: "Set up OS environment"
+            condition: succeeded()
+
+          - checkout: self
+
+          - bash: |
+              set -e
+              go version
+              go env
+              mkdir -p '$(GOBIN)'
+              mkdir -p '$(GOPATH)/pkg'
+              mkdir -p '$(modulePath)'
+              shopt -s extglob
+              shopt -s dotglob
+              cp -a ./src/dnc/* '$(modulePath)/'
+              echo '##vso[task.prependpath]$(GOBIN)'
+              echo '##vso[task.prependpath]$(GOROOT)/bin'
+            name: "Env"
+            displayName: "Set up the Go environment"
+            condition: succeeded()
+
+          - script: |
+              set -e
+              echo "##vso[task.setvariable variable=ImageTag;isOutput=true]$(git describe --tags --always --dirty)-test"
+            workingDirectory: "$(modulePath)"
+            name: "EnvironmentalVariables"
+            displayName: "Set environmental variables"
+            condition: succeeded()
+
+          - script: |
+              set -e
+              make dnc-image VERSION=$(EnvironmentalVariables.ImageTag) DNC_IMAGE=$(IMAGE_REGISTRY)/dnc-pr
+            workingDirectory: "$(modulePath)"
+            name: "BuildDNC"
+            displayName: "Build DNC Image"
+            condition: succeeded()
+
+          - script: |
+              set -e
+              make requestcontroller-image VERSION=$(EnvironmentalVariables.ImageTag) REQCTRL_IMAGE=$(IMAGE_REGISTRY)/dnc-request-controller-pr
+            workingDirectory: "$(modulePath)"
+            name: "BuildDNCRC"
+            displayName: "Build DNC-RC Image"
+            condition: succeeded()
+
+          - script: |
+              echo '$(DOCKER_PASSWORD)' | docker login $IMAGE_REGISTRY -u '$(DOCKER_USERNAME)' --password-stdin
+              docker push $IMAGE_REGISTRY/dnc-pr:$(EnvironmentalVariables.ImageTag)
+              docker push $IMAGE_REGISTRY/dnc-request-controller-pr:$(EnvironmentalVariables.ImageTag)
+
+              function auto-retry()
+              {
+                  export i="1"
+                  export attempts="300"
+                  false
+                  while [[ $? -ne 0 ]] && [[ $i -lt $attempts ]]; do
+                    printf "Attempt $i/$attempts - " && "$@" && break ||  sleep 3 &&  i=$[$i+1] && false
+                  done
+              }
+
+              auto-retry docker pull $IMAGE_REGISTRY/dnc-pr:$(EnvironmentalVariables.ImageTag)
+              auto-retry docker pull $IMAGE_REGISTRY/dnc-request-controller-pr:$(EnvironmentalVariables.ImageTag)
+            workingDirectory: "$(modulePath)"
+            name: "dockerpush"
+            displayName: "Push images"
+            condition: succeeded()
+
+          - task: AzureCLI@1
+            inputs:
+              azureSubscription: $(ARTIFACT_SUBSCRIPTION)
+              scriptLocation: "inlineScript"
+              addSpnToEnvironment: true
+              inlineScript: |
+                set -e
+                mkdir -p ~/.kube/
+                echo "Dirty DNC Underlay config"
+                az keyvault secret show --name $(KV_DNC_UNDERLAY_SECRET_NAME) --vault-name $(KV_NAME) --query value | sed 's/\\n/\n/g' | sed -e 's/^"//' -e 's/"$//'
+                az keyvault secret show --name $(KV_DNC_UNDERLAY_SECRET_NAME) --vault-name $(KV_NAME) --query value | sed 's/\\n/\n/g' | sed -e 's/^"//' -e 's/"$//' > ~/.kube/dnc-underlay
+                echo "Stable ACN config"
+                az keyvault secret show --name $(KV_STABLE_ACN_SECRET_NAME) --vault-name $(KV_NAME) --query value | sed 's/\\n/\n/g' | sed -e 's/^"//' -e 's/"$//'
+                az keyvault secret show --name $(KV_STABLE_ACN_SECRET_NAME) --vault-name $(KV_NAME) --query value | sed 's/\\n/\n/g' | sed -e 's/^"//' -e 's/"$//' > ~/.kube/stable-acn-cx-cluster
+                
+            displayName: Pull Kubeconfig from Keyvault
+            condition: succeeded()
+          
+          - script: |
+              set -e
+              curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+              sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+              export KUBECONFIG=~/.kube/dnc-underlay
+              kubectl cluster-info
+              kubectl get po -n $(DIRTY_DNC_NAMESPACE) -owide
+              kubectl get deployment -n $(DIRTY_DNC_NAMESPACE) delegated-network-controller -o json
+              kubectl get deployment -n $(DIRTY_DNC_NAMESPACE) delegated-network-controller -o json > deployment.json
+              
+              echo "modifying deployment with dirty image versions"
+              cat deployment.json | jq --arg dncimage $IMAGE_REGISTRY/dnc-pr:$(EnvironmentalVariables.ImageTag) '.spec.template.spec.containers[0].image=$dncimage' > deployment-temp.json
+              cat deployment-temp.json | jq --arg dncrcimage $IMAGE_REGISTRY/dnc-request-controller-pr:$(EnvironmentalVariables.ImageTag) '.spec.template.spec.containers[1].image=$dncrcimage' > deployment.json
+              echo "modified deployment.json"
+              cat deployment.json
+              kubectl replace -f deployment.json
+              sleep 30
+
+              echo "Waiting for pod to be ready..."
+              export i="1"
+              export attempts="100"
+              while [[ $(kubectl get pods -n $(DIRTY_DNC_NAMESPACE) -l app=dnc -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do
+                sleep 3;
+                i=$[$i+1]
+                if [[ $i -gt $attempts ]]
+                then
+                  echo "Pod never showed up, exiting"
+                  exit 1
+                fi
+              done
+
+              echo "Pod is up and running"
+              kubectl get po -n $(DIRTY_DNC_NAMESPACE) -owide
+              echo "Deployment json"
+              kubectl get deployment -n $(DIRTY_DNC_NAMESPACE) delegated-network-controller -o json
+
+            workingDirectory: "$(modulePath)"
+            name: "replacedncdncrc"
+            displayName: "Replace DNC & DNC-RC for dirty versions"
+            condition: succeeded()
+
+          - script: |
+              set -e
+              # Vendoring doesn't include tests so we have to git clone the ACN github
+              git clone https://github.com/Azure/azure-container-networking.git
+              cd azure-container-networking/
+              cp ~/.kube/stable-acn-cx-cluster ~/.kube/config
+              export KUBECONFIG=~/.kube/config
+              kubectl cluster-info
+              kubectl get po -owide -A
+              kubectl get po -n kube-system -l k8s-app=azure-cns -oyaml | grep image
+              sudo -E env "PATH=$PATH" VERSION=$(EnvironmentalVariables.ImageTag) INSTALL_CNI=false INSTALL_CNS=false make test-integration
+
+            workingDirectory: "$(modulePath)"
+            name: "rungoldpinger"
+            displayName: "Run ACN goldpinger tests"
+            condition: succeeded()
+
+          - script: |
+              set -e
+              docker rmi -f $IMAGE_REGISTRY/dnc-pr:$(EnvironmentalVariables.ImageTag)
+              docker rmi -f $IMAGE_REGISTRY/dnc-request-controller-pr:$(EnvironmentalVariables.ImageTag)
+              export KUBECONFIG=~/.kube/dnc-underlay
+              echo "Restoring DNC and DNC RC to stable images (via pipeline variables)"
+              kubectl get deployment -n $(DIRTY_DNC_NAMESPACE) delegated-network-controller -o json
+              kubectl get deployment -n $(DIRTY_DNC_NAMESPACE) delegated-network-controller -o json > deployment.json
+              cat deployment.json | jq --arg dncimage $STABLE_DNC_IMAGE_FULL '.spec.template.spec.containers[0].image=$dncimage' > deployment-temp.json
+              cat deployment-temp.json | jq --arg dncrcimage $STABLE_DNC_RC_IMAGE_FULL '.spec.template.spec.containers[1].image=$dncrcimage' > deployment.json
+              echo "Stable deployment.json"
+              cat deployment.json
+              kubectl replace -f deployment.json
+          
+            workingDirectory: "$(modulePath)"
+            name: "cleanup"
+            displayName: "Clean up"
+            condition: always()
+
+  
+        

@@ -52,10 +52,10 @@ REQCTRL_ARCHIVE_NAME = requestcontroller-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_
 REQCTRL_IMAGE_ARCHIVE_NAME = requestcontroller-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 
 # Container image names
-DNC_IMAGE = containernetworking.azurecr.io/internal/containernetworking/dnc
+DNC_IMAGE ?= containernetworking.azurecr.io/internal/containernetworking/dnc
 LBRUNNERNC_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-lbrunnernc
 RUNNER_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-runner
-REQCTRL_IMAGE = containernetworking.azurecr.io/internal/containernetworking/requestcontroller
+REQCTRL_IMAGE ?= containernetworking.azurecr.io/internal/containernetworking/requestcontroller
 MDNC_IMAGE = ancdev.azurecr.io/mdnc
 
 # Default target is "all"
