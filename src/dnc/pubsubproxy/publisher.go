@@ -332,8 +332,6 @@ func (callback madariPublisherCallback) OnLoggingMessageReceived(
 	traceLevel MadariTraceLevel,
 	message string) {
 	// Note: Empty implementation to satisfy the interface requirement
-	loggershim.LS.Errorf("[PubSubProxy] OnLoggingMessageReceived: Publisher: %s. Tracelevel: %v. Message: %s",
-	callback.pubsubAzId, traceLevel, message)
 }
 
 func (callback madariPublisherCallback) OnHealthNotificationReceived(

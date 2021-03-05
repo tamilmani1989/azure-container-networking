@@ -347,8 +347,6 @@ func (callback subscriberCallback) OnLoggingMessageReceived(
 	traceLevel MadariTraceLevel,
 	message string) {
 	// Note: Empty implementation to satisfy the interface requirement
-	loggershim.LS.Errorf("[PubSubProxy] OnLoggingMessageReceived: Subscriber: %s. Tracelevel: %v. Message: %s",
-	callback.pubsubAzId, traceLevel, message)
 }
 
 func (callback subscriberCallback) OnHealthNotificationReceived(
