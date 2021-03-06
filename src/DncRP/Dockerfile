@@ -20,7 +20,7 @@ RUN curl -L https://raw.githubusercontent.com/Microsoft/artifacts-credprovider/m
 
 ARG FEED_ACCESSTOKEN
 ENV VSS_NUGET_EXTERNAL_FEED_ENDPOINTS \
-    "{\"endpointCredentials\": [{\"endpoint\":\"https://msazure.pkgs.visualstudio.com/one/_packaging/azureacnfeed/nuget/v3/index.json\", \"username\":\"tamanoha\", \"password\":\"${FEED_ACCESSTOKEN}\"}]}"
+    "{\"endpointCredentials\": [{\"endpoint\":\"https://msazure.pkgs.visualstudio.com/one/_packaging/networking-aquarius-Consumption/nuget/v3/index.json\", \"username\":\"tamanoha\", \"password\":\"${FEED_ACCESSTOKEN}\"}]}"
 # Create directory for source
 WORKDIR /usr/local/Networking-Aquarius/src
 
