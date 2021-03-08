@@ -119,6 +119,12 @@ type CNSSettings struct {
 	ConnectionStrings            CNSConnectionStrings
 }
 
+// MacManagerSettings CNS settings
+type MacManagerSettings struct {
+	AllocateMacURL   string
+	DeallocateMacURL string
+}
+
 // VlanSettings - VLAN inventory
 type VlanSettings struct {
 	Min uint16
@@ -274,6 +280,7 @@ type Configuration struct {
 	CustomLoggerSettings   CustomLoggerSettings
 	HostAgentSettings      HostAgentSettings
 	CNSSettings            CNSSettings
+	MacManagerSettings     MacManagerSettings
 	VlanSettings           VlanSettings
 	DNCSettings            DNCSettings
 	HttpClientSettings     HttpClientSettings
@@ -327,6 +334,7 @@ func SetDncConfigDefaults(config *Configuration) {
 	setHttpSettingDefaults(&config.HttpClientSettings)
 	setTelemetrySettingDefaults(&config.TelemetrySettings)
 	setCNSSettingsDefaults(&config.CNSSettings)
+	setMacManagerSettingsDefaults(&config.MacManagerSettings)
 	setBlobStorageSettings(&config.MasterElectionSettings.BlobStorageSettings)
 	setPubSubProxySettings(&config.PubSubProxySettings)
 	setAzureEnvironment(&config.AzureEnvironment)
@@ -467,6 +475,16 @@ func setTelemetrySettingDefaults(telemetrySettings *TelemetrySettings) {
 func setCNSSettingsDefaults(cnsSettings *CNSSettings) {
 	if cnsSettings.ChannelMode == "" {
 		cnsSettings.ChannelMode = "direct"
+	}
+}
+
+func setMacManagerSettingsDefaults(macManagerSettings *MacManagerSettings) {
+	if macManagerSettings.AllocateMacURL == "" {
+		macManagerSettings.AllocateMacURL = "https://macallocator-service:5012/macallocator/allocate"
+	}
+
+	if macManagerSettings.DeallocateMacURL == "" {
+		macManagerSettings.DeallocateMacURL = "https://macallocator-service:5012/macallocator/deallocate"
 	}
 }
 

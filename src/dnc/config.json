@@ -65,6 +65,10 @@
             "NmAgentSupportedApisURLFmt": "http://%s:10090/network/nmagentsupportedapis"
         }
     },
+    "MacManagerSettings": {
+        "AllocateMacURL": "https://macallocator-service:5012/macallocator/allocate",
+        "DeallocateMacURL": "https://macallocator-service:5012/macallocator/deallocate"
+    },
     "VlanSettings": {
         "Min": 1,
         "Max": 2048

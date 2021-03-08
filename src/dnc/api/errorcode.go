@@ -151,6 +151,12 @@ const (
 	// DisAssociationFailed - Disassociation failed.
 	DisAssociationFailed
 
+	// MacAllocationFailed - Failed to allocate MAC address for NC.
+	MacAllocationFailed
+
+	// MacDeallocationFailed - Failed to deallocate MAC address for NC.
+	MacDeallocationFailed
+
 	// JoinFailed - Network join failed.
 	JoinFailed
 
@@ -427,6 +433,12 @@ func (e ErrorCode) String() string {
 
 	case DisAssociationFailed:
 		return "DisAssociationFailed"
+
+	case MacAllocationFailed:
+		return "MacAllocationFailed"
+
+	case MacDeallocationFailed:
+		return "MacDeallocationFailed"
 
 	case UnpublishingFailed:
 		return "UnpublishingFailed"

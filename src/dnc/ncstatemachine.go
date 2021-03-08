@@ -3,14 +3,16 @@ package main
 import (
 	"context"
 	"dnc/datamodel"
+	"dnc/macmgr"
 	"dnc/networkcontainer"
 )
 
 var (
-	preparer      networkcontainer.Preparer
-	ipAllocator   networkcontainer.IPAllocator
-	macAllocator  networkcontainer.MacAllocator
-	resDispatcher *networkcontainer.IPReservationDispatcher
+	preparer         networkcontainer.Preparer
+	ipAllocator      networkcontainer.IPAllocator
+	macAllocator     networkcontainer.MacAllocator
+	macManagerClient macmgr.MacManagerClient
+	resDispatcher    *networkcontainer.IPReservationDispatcher
 )
 
 // todo: move other processing stages here
@@ -37,9 +39,15 @@ func initNetworkContainerStateMachine() {
 		PubsubProxyEnabled:          config.PubSubProxySettings.EnablePubSubProxy,
 	}
 
+	macManagerClient = &macmgr.MacManagerConnection{
+		HttpClient:        httpClient,
+		MacManagerSetting: &config.MacManagerSettings,
+	}
+
 	macAllocator = networkcontainer.MacAllocator{
-		PersistNC: datamodel.PersistNCConfiguration,
-		Logger:    logger,
+		PersistNC:        datamodel.PersistNCConfiguration,
+		Logger:           logger,
+		MacManagerClient: macManagerClient,
 	}
 
 	if config.FeatureFlagSettings.EnableBatchAllocationProcessing {

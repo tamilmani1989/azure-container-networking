@@ -64,6 +64,10 @@ data:
           "UnpublishNetworkContainerURLFmt": "http://%s:10090/network/unpublishnetworkcontainer"
         }
       },
+      "MacManagerSettings": {
+        "AllocateMacURL": "https://macallocator-service:5012/macallocator/allocate",
+        "DeallocateMacURL": "https://macallocator-service:5012/macallocator/deallocate"
+      },
       "VlanSettings": {
         "Min": 1,
         "Max": 2048

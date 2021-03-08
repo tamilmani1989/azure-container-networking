@@ -5,25 +5,51 @@ import (
 	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/logger/loggermock"
+	"dnc/macmgr"
 	"dnc/networkcontainer/fakes"
 	"testing"
 )
 
-func getConfiguration (isManaged bool) *configuration.Configuration  {
+type FakeMacManagerConnection struct {
+}
+
+func (m *FakeMacManagerConnection) AllocateMac(allocationId string) (*macmgr.MacAllocatorResponse, *api.JsonErr) {
+	resp := &macmgr.MacAllocatorResponse{
+		AllocationId: allocationId,
+		MacAddress:   "A1B1C1D1E1F1",
+		IsSuccess:    true,
+		ErrorMessage: "",
+		ShouldRetry:  false,
+	}
+	return resp, nil
+}
+
+func (m *FakeMacManagerConnection) DeallocateMac(allocationId string) (*macmgr.MacAllocatorResponse, *api.JsonErr) {
+	resp := &macmgr.MacAllocatorResponse{
+		AllocationId: allocationId,
+		MacAddress:   "",
+		IsSuccess:    true,
+		ErrorMessage: "",
+		ShouldRetry:  false,
+	}
+	return resp, nil
+}
+
+func getConfiguration() *configuration.Configuration {
 	config := configuration.Configuration{
 		DNCSettings: configuration.DNCSettings{
-			Managed: isManaged,
+			Managed: true,
 		},
 	}
 
 	return &config
 }
 
-func getNodeRepo (nodeId string, nodeType string) *fakes.NodeRepo  {
+func getNodeRepo(nodeId string, nodeType string) *fakes.NodeRepo {
 	nodeRepo := fakes.NodeRepo{
 		FakeNodeConfig: datamodel.NodeConfiguration{
-			NodeID:                      nodeId,
-			NodeInfo:                    api.NodeInfoRequest{
+			NodeID: nodeId,
+			NodeInfo: api.NodeInfoRequest{
 				NodeType: nodeType,
 			},
 		},
@@ -32,7 +58,7 @@ func getNodeRepo (nodeId string, nodeType string) *fakes.NodeRepo  {
 	return &nodeRepo
 }
 
-func getNCConfig (nodeId string, containerType string) *datamodel.NCConfiguration  {
+func getNCConfig(nodeId string, containerType string) *datamodel.NCConfiguration {
 	ncID := "nc1"
 	vnetID := "network1"
 	secondaryIPCount := 10
@@ -82,10 +108,12 @@ func assertMacDeallocatedFromNC(t *testing.T, nc datamodel.NCConfiguration) {
 	}
 }
 
-func TestAllocateMAC_HappyPath(t *testing.T){
-	var nextNCState   datamodel.NCConfiguration
+func TestAllocateMAC_HappyPath(t *testing.T) {
+	var nextNCState datamodel.NCConfiguration
 
 	nodeId := "testNodeId"
+
+	fakeMacMgrClient := FakeMacManagerConnection{}
 
 	macAllocator := MacAllocator{
 		PersistNC: func(nc *datamodel.NCConfiguration, _ bool) *api.JsonErr {
@@ -94,7 +122,8 @@ func TestAllocateMAC_HappyPath(t *testing.T){
 			}
 			return nil
 		},
-		Logger: loggermock.NewDummyLogger(),
+		Logger:           loggermock.NewDummyLogger(),
+		MacManagerClient: &fakeMacMgrClient,
 	}
 
 	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
@@ -109,10 +138,12 @@ func TestAllocateMAC_HappyPath(t *testing.T){
 	assertMacAllocatedToNC(t, nextNCState)
 }
 
-func TestDeallocateMAC_HappyPath(t *testing.T){
-	var nextNCState   datamodel.NCConfiguration
+func TestDeallocateMAC_HappyPath(t *testing.T) {
+	var nextNCState datamodel.NCConfiguration
 
 	nodeId := "testNodeId"
+
+	fakeMacMgrClient := FakeMacManagerConnection{}
 
 	macAllocator := MacAllocator{
 		PersistNC: func(nc *datamodel.NCConfiguration, _ bool) *api.JsonErr {
@@ -121,7 +152,8 @@ func TestDeallocateMAC_HappyPath(t *testing.T){
 			}
 			return nil
 		},
-		Logger: loggermock.NewDummyLogger(),
+		Logger:           loggermock.NewDummyLogger(),
+		MacManagerClient: &fakeMacMgrClient,
 	}
 
 	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
@@ -147,14 +179,17 @@ func TestDeallocateMAC_HappyPath(t *testing.T){
 	assertMacDeallocatedFromNC(t, nextNCState)
 }
 
-func TestAllocateMAC_NonManagedDNC(t *testing.T){
+func TestAllocateMAC_NonManagedDNC(t *testing.T) {
 	nodeId := "testNodeId"
+
+	fakeMacMgrClient := FakeMacManagerConnection{}
 
 	macAllocator := MacAllocator{
 		PersistNC: func(nc *datamodel.NCConfiguration, _ bool) *api.JsonErr {
 			return nil
 		},
-		Logger: loggermock.NewDummyLogger(),
+		Logger:           loggermock.NewDummyLogger(),
+		MacManagerClient: &fakeMacMgrClient,
 	}
 
 	removeFromQueue, err := macAllocator.ProcessAllocateMAC(getNCConfig(nodeId, api.BareMetalContainerType))
