@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 
 	"github.com/Azure/azure-container-networking/cns"
 )
@@ -271,19 +272,25 @@ func (c *Controller) GetNetworkStatus(networkID string) (*api.RequestStatus, int
 
 // GetSubnetStatus - Get subnet status
 func (c *Controller) GetSubnetStatus(networkID, subnetName string) (*api.RequestStatus, int, *api.JsonErr) {
-	var requestError *api.JsonErr
-	var requestReturnCode int
-	var requestStatus api.RequestStatus
+	var (
+		requestError *api.JsonErr
+		requestReturnCode int
+		requestStatus api.RequestStatus
+	)
+
 	requestStatus.State = datamodel.Join.String()
 
 	// No read lock is required because Azure Storage uses snapshot isolation to allow
 	// read operations to happen concurrently with writes in the same partition. It
 	// guarantees reads to see consistent data while updates are happening
-	subnetConfig, err := datamodel.QuerySubnetConfiguration(
-		networkID,
-		subnetName)
+	subnetConfig, err := datamodel.QuerySubnetConfiguration(networkID, subnetName)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
+	}
+
+	// If the subnet is not joined / registered, return StatusNotFound
+	if !subnetConfig.Joined {
+		return nil, http.StatusNotFound, api.NotFoundf(api.SubnetNotFound, "Subnet: %s in network: %s not found", subnetName, networkID)
 	}
 
 	switch subnetConfig.UpdateStatus {
@@ -295,26 +302,12 @@ func (c *Controller) GetSubnetStatus(networkID, subnetName string) (*api.Request
 	case datamodel.SubnetUpdateFailed:
 		requestStatus.Status = datamodel.Failed.String()
 		requestReturnCode = http.StatusNotFound
-		errMsg := fmt.Sprintf(
-			"Network %s does not contain the specified subnet %s",
-			networkID,
-			subnetName)
-		requestError = &api.JsonErr{
-			Code:       api.SubnetNotFound,
-			HTTPStatus: http.StatusNotFound,
-			Text:       errMsg}
+		requestError = api.NotFoundf(api.SubnetNotFound,"Network %s does not contain the specified subnet %s", networkID, subnetName)
 
 	case datamodel.SubnetUpdatePending:
 		requestStatus.Status = datamodel.Pending.String()
 		requestReturnCode = http.StatusAccepted
-		errMsg := fmt.Sprintf(
-			"Network %s does not contain the specified subnet %s",
-			networkID,
-			subnetName)
-		requestError = &api.JsonErr{
-			Code:       api.SubnetNotFound,
-			HTTPStatus: http.StatusNotFound,
-			Text:       errMsg}
+		requestError = api.NotFoundf(api.JoinPending, "Network: %s subnet: %s join pending", networkID, subnetName)
 	}
 
 	return &requestStatus, requestReturnCode, requestError
@@ -325,11 +318,14 @@ func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.
 	// No read lock is required because Azure Storage uses snapshot isolation to allow
 	// read operations to happen concurrently with writes in the same partition. It
 	// guarantees reads to see consistent data while updates are happening
-	repoSubnetConfiguration, err := datamodel.QuerySubnetConfiguration(
-		networkID,
-		subnetName)
+	repoSubnetConfiguration, err := datamodel.QuerySubnetConfiguration(networkID, subnetName)
 	if err != nil {
 		return nil, err
+	}
+
+	// If the subnet is not joined, return StatusNotFound
+	if !repoSubnetConfiguration.Joined {
+		return nil, api.NotFoundf(api.SubnetNotFound, "Configuration for subnet: %s in network: %s not found", subnetName, networkID)
 	}
 
 	reservations, err := datamodel.GetReservationsInSubnet(networkID, subnetName)
@@ -397,13 +393,13 @@ func (c *Controller) PersistNetworkJoinRequest(
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	var addRequestToPendingQueue = true
+	return joinNetwork(networkID, apiVersion)
+}
+
+func joinNetwork(networkID string, apiVersion string) *api.JsonErr {
 	if config.PubSubProxySettings.EnablePubSubProxy {
-		// If pubsubproxy is enabled, there is no need to add the vnet join request
-		// to the pending queue
-		addRequestToPendingQueue = false
-		err := datamodel.CreateNetwork(networkID, networkInfo, apiVersion, addRequestToPendingQueue)
-		if err != nil {
+		// If PubSubProxy is enabled, do not add the vnet join request to the pending queue
+		if err := datamodel.CreateNetwork(networkID, apiVersion, false); err != nil {
 			return err
 		}
 
@@ -411,10 +407,10 @@ func (c *Controller) PersistNetworkJoinRequest(
 		return nil
 	}
 
-	return datamodel.CreateNetwork(networkID, networkInfo, apiVersion, addRequestToPendingQueue)
+	return datamodel.CreateNetwork(networkID, apiVersion, true)
 }
 
-// PersistSubnetDelegationRequest - Persist subnet delgation info.
+// PersistSubnetDelegationRequest - Persist subnet delegation info.
 func (c *Controller) PersistSubnetDelegationRequest(
 	networkID,
 	subnet string,
@@ -432,6 +428,168 @@ func (c *Controller) PersistSubnetDelegationRequest(
 	}
 
 	return err
+}
+
+func (c *Controller) DeleteSubnetV2(networkID, subnetName string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] DeleteSubnetV2: Network: %s, Subnet: %s", networkID, subnetName)
+	if !config.PubSubProxySettings.EnablePubSubProxy {
+		// SubnetV2 API is supported with PubSubProxy only when DNC is running in managed mode
+		return api.BadRequestf(api.RequestNotsupported, "Request not supported")
+	}
+
+	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	c.SessionManager.BeginWriteSession(sessionInfo)
+	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	networkConfiguration, err := datamodel.TryQueryNetworkConfiguration(networkID)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to retrieve network configuration for network: %s. Error: %v", networkID, err)
+		return err
+	}
+
+	if networkConfiguration == nil {
+		loggershim.LS.Debugf("No network configuration for network: %s", networkID)
+		return nil
+	}
+
+	requestedSubnetConfig, err := datamodel.TryQuerySubnetConfiguration(networkID, subnetName)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to retrieve subnet configuration for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
+		return err
+	}
+
+	if requestedSubnetConfig == nil {
+		loggershim.LS.Debugf("No subnet configuration for subnet: %s in network: %s", subnetName, networkID)
+		return nil
+	}
+
+	reservations, err := datamodel.TryQueryAllReservationsInSubnet(networkID, subnetName)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to retrieve reservations for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
+		return err
+	}
+
+	// Do not delete the subnet if there are allocations in the subnet
+	if len(reservations) > 0 {
+		reservationKeys := make([]string, 0, len(reservations))
+		for _, reservation := range reservations {
+			reservationKeys = append(reservationKeys, reservation.RowKey)
+		}
+		reservationsString := "[" + strings.Join(reservationKeys, ", ") + "]"
+		return api.BadRequestf(api.SubnetInUse,
+			"Subnet: %s in Network: %s has allocations: %s", subnetName, networkID, reservationsString)
+	}
+
+	// Mark the subnet as 'not joined' anymore and persist the updated subnet config
+	requestedSubnetConfig.Joined = false
+	loggershim.LS.Debugf("Marking 'Joined as false' for subnet: %s in network: %s", subnetName, networkID)
+	if err := datamodel.PutSubnetConfiguration(requestedSubnetConfig); err != nil {
+		loggershim.LS.Errorf("Failed to persist subnet configuration for subnet: %s in network: %s. Error: %v", subnetName, networkID, err)
+		return err
+	}
+
+	subnetConfigs, err := datamodel.TryQueryAllSubnetConfigsInNetworkConfig(networkConfiguration)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to get all the subnet configs in network: %s. Error: %v", networkID, err)
+		return err
+	}
+
+	// Delete the network if there are no other 'Joined' subnets left in this network
+	for subnet, subnetConfig := range subnetConfigs {
+		// If there is at least one 'Joined' subnet left in this network, there is no further processing needed
+		if subnetConfig.Joined == true && subnet != subnetName {
+			loggershim.LS.Debugf("Cannot delete the network: %s as subnet: %s is in 'Joined' state", networkID, subnet)
+			return nil
+		}
+	}
+
+	loggershim.LS.Debugf("Deleting network: %s", networkID)
+	// Delete the network configuration and subnet configurations in the network
+	if err = datamodel.DeleteNetworkConfiguration(networkID); err == nil {
+		// Unsubscribe vnet notifications for PubSubProxy
+		pubsubproxy.UnregisterVnet(networkID)
+	}
+
+	return err
+}
+
+// PersistSubnetDelegationRequest - Persist subnet delegation info for V2 API.
+func (c *Controller) PersistSubnetDelegationRequestV2(networkID, subnet string, subnetRequest api.SubnetRequest, apiVersion string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] PutSubnetV2: Network: %s, Subnet: %s", networkID, subnet)
+	if !config.PubSubProxySettings.EnablePubSubProxy {
+		// SubnetV2 API is supported with PubSubProxy only when DNC is running in managed mode
+		return api.BadRequestf(api.RequestNotsupported, "Request not supported")
+	}
+
+	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
+	c.SessionManager.BeginWriteSession(sessionInfo)
+	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	networkConfig, err := datamodel.TryQueryNetworkConfiguration(networkID)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to retrieve network config for Network: %s, Subnet: %s", networkID, subnet)
+		return err
+	}
+
+	isNetworkJoined := true
+	if networkConfig == nil {
+		networkConfig = &datamodel.NetworkConfiguration {
+			NetworkID:    networkID,
+			NetworkState: datamodel.Join,
+			Status:       datamodel.Pending,
+			APIVersion:   apiVersion,
+			Subnets: make(map[string]string),
+		}
+		isNetworkJoined = false
+	}
+
+	// Add the subnet to the Network Configuration if not added already
+	if _, ok := networkConfig.Subnets[subnet]; !ok {
+		networkConfig.Subnets[subnet] = datamodel.SubnetKeyPlaceholder
+		if err := datamodel.PersistNetworkConfiguration(networkConfig); err != nil {
+			loggershim.LS.Errorf("Failed to persist network config for Network: %s, Subnet: %s", networkID, subnet)
+			return err
+		}
+	}
+
+	// Check if the Subnet Configuration for the subnet exists. If it doesn't exist, add a config with status SubnetUpdatePending
+	// else just update the auth token and joined flag
+	subnetConfig, err := datamodel.TryQuerySubnetConfiguration(networkID, subnet)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to retrieve subnet config for Network: %s, Subnet: %s", networkID, subnet)
+		return err
+	}
+
+	if subnetConfig == nil {
+		loggershim.LS.Debugf("Creating new subnet config for Network: %s, Subnet: %s", networkID, subnet)
+		subnetConfig = &datamodel.SubnetConfiguration{
+			NetworkID:    networkID,
+			SubnetName:   subnet,
+			AccessToken:  subnetRequest.AuthenticationToken,
+			Joined:       true,
+			UpdateStatus: datamodel.SubnetUpdatePending,
+		}
+	} else {
+		loggershim.LS.Debugf("Updating the subnet config for Network: %s, Subnet: %s with access token and marking it as Joined", networkID, subnet)
+		subnetConfig.AccessToken = subnetRequest.AuthenticationToken
+		subnetConfig.Joined = true
+	}
+
+	// Persist the subnet configuration
+	if err := datamodel.PutSubnetConfiguration(subnetConfig); err != nil {
+		loggershim.LS.Errorf("Failed to persist subnet config for Network: %s, Subnet: %s", networkID, subnet)
+		return err
+	}
+
+	// Subscribe after persisting the Subnet Configuration to make sure once pubsubproxy receives vnet data via
+	// notification, it will update the subnet configuration persisted above and updates the status to complete
+	if !isNetworkJoined {
+		loggershim.LS.Debugf("PutSubnetV2 Registering vnet with pubsubproxy: Network: %s, Subnet: %s", networkID, subnet)
+		pubsubproxy.RegisterVnet(networkID)
+	}
+
+	loggershim.LS.Debugf("PutSubnetV2 successfully persisted subnet config for Network: %s, Subnet: %s", networkID, subnet)
+	return nil
 }
 
 // GetNetwork - Get network configuration (e.g. delegated subnets in network)

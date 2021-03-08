@@ -271,6 +271,9 @@ const (
 	// InvalidOrchestratorContext - Invalid orchestrator context
 	InvalidOrchestratorContext
 
+	// SubnetInUse - Subnet in use with allocations
+	SubnetInUse
+
 	// ReservationTypeNotMatch means reservation request type doesn't match
 	// e.g. reservation has been used for LB front end IP, then no NC can create on it.
 	ReservationTypeNotMatch
@@ -532,6 +535,12 @@ func (e ErrorCode) String() string {
 
 	case InvalidOrchestratorContext:
 		return "InvalidOrchestratorContext"
+
+	case SubnetInUse:
+		return "SubnetInUse"
+
+	case ReservationTypeNotMatch:
+		return "ReservationTypeNotMatch"
 	}
 
 	return "Unknown Status"

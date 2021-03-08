@@ -305,7 +305,6 @@ func RefreshNetworkConfiguration(
 	for subnetName, currentRepoSubnetCfg := range subnetsToUpdate {
 		ipSubnetMap[subnetName] = datamodel.SubnetKeyPlaceholder
 		updatedSubnetCfg := subnetsInUpdatedResponse[subnetName]
-
 		currentRepoSubnetCfg.Tags = updatedSubnetCfg.Tags
 		currentRepoSubnetCfg.IPSubnet = updatedSubnetCfg.AddressPrefix
 		currentRepoSubnetCfg.Gateway = updatedSubnetCfg.DefaultGateway
@@ -384,20 +383,16 @@ func UpdateNetworkConfiguration(
 	repoNetworkConfiguration *datamodel.NetworkConfiguration,
 	networkResponse *nmagentcontracts.VirtualNetworkResponse) (bool, *api.JsonErr) {
 	var (
-		failureDetail            *api.JsonErr
-		isRetriableError         bool
-		subnetsToAdd             map[string]nmagentcontracts.Subnet
-		subnetsToRemove          map[string]bool
 		subnetsInUpdatedResponse map[string]nmagentcontracts.Subnet
 		ipSubnetMap              map[string]string
 		vnetVersion              uint64
 		dnsServers               []string
 	)
 
-	isRetriableError, failureDetail, subnetsToAdd, subnetsToRemove, _ =
-		validateAndRetrieveNetworkConfigurationUpdate(
-			repoNetworkConfiguration,
-			networkResponse)
+	/* This function compares the network configurations in the persistent store and the one retrieved from pubsub
+	   and returns the subnets that needs to be deleted, added and updated. */
+	isRetriableError, failureDetail, subnetsToAdd, subnetsToRemove, subnetsToUpdate :=
+		validateAndRetrieveNetworkConfigurationUpdate(repoNetworkConfiguration, networkResponse)
 
 	if failureDetail != nil {
 		if isRetriableError {
@@ -406,18 +401,41 @@ func UpdateNetworkConfiguration(
 		goto Cleanup
 	}
 
-	for subnetName := range subnetsToRemove {
-		failureDetail = datamodel.DeleteSubnetConfiguration(networkID, subnetName)
-		if failureDetail != nil {
-			goto Cleanup
-		}
-	}
-
+	// ipSubnetMap holds all the subnets including the ones which are marked for deletion
 	ipSubnetMap = make(map[string]string)
+	// subnetsInUpdatedResponse only holds the subnets which are returned by pubsub. These won't hold the deleted subnets
 	subnetsInUpdatedResponse = make(map[string]nmagentcontracts.Subnet)
 	for _, subnet := range networkResponse.Subnets {
 		subnetsInUpdatedResponse[subnet.SubnetName] = subnet
 		ipSubnetMap[subnet.SubnetName] = datamodel.SubnetKeyPlaceholder
+	}
+
+	for subnetName := range subnetsToRemove {
+		var subnetConfig *datamodel.SubnetConfiguration
+		subnetConfig, failureDetail = datamodel.TryQuerySubnetConfiguration(networkID, subnetName)
+		if failureDetail != nil {
+			goto Cleanup
+		}
+
+		if subnetConfig.UpdateStatus == datamodel.SubnetUpdateCompleted {
+			failureDetail = datamodel.DeleteSubnetConfiguration(networkID, subnetName)
+			if failureDetail != nil {
+				goto Cleanup
+			}
+		} else if subnetConfig.UpdateStatus == datamodel.SubnetUpdatePending {
+			// Check if the subnet to remove has UpdateStatus set to pending. If yes, do not remove it but set the
+			// UpdateStatus as SubnetUpdateFailed
+			logger.Debugf("Subnet %s in network %s has the update status as pending. Updating the status as UpdateFailed",
+				subnetName, networkID)
+			ipSubnetMap[subnetName] = datamodel.SubnetKeyPlaceholder
+			subnetConfig.UpdateStatus = datamodel.SubnetUpdateFailed
+			failureDetail = datamodel.PutSubnetConfiguration(subnetConfig)
+			if failureDetail != nil {
+				goto Cleanup
+			}
+		} else if subnetConfig.UpdateStatus == datamodel.SubnetUpdateFailed {
+			ipSubnetMap[subnetName] = datamodel.SubnetKeyPlaceholder
+		}
 	}
 
 	// Commiting virtual network config in two phases.
@@ -475,6 +493,20 @@ func UpdateNetworkConfiguration(
 		}
 
 		failureDetail = datamodel.PutSubnetConfiguration(&subnetConfig)
+		if failureDetail != nil {
+			goto Cleanup
+		}
+	}
+
+	for subnetName, currentRepoSubnetCfg := range subnetsToUpdate {
+		ipSubnetMap[subnetName] = datamodel.SubnetKeyPlaceholder
+		updatedSubnetCfg := subnetsInUpdatedResponse[subnetName]
+		currentRepoSubnetCfg.Tags = updatedSubnetCfg.Tags
+		currentRepoSubnetCfg.IPSubnet = updatedSubnetCfg.AddressPrefix
+		currentRepoSubnetCfg.Gateway = updatedSubnetCfg.DefaultGateway
+		currentRepoSubnetCfg.IsDelegatedSubnet = true
+		currentRepoSubnetCfg.UpdateStatus = datamodel.SubnetUpdateCompleted
+		datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
 		if failureDetail != nil {
 			goto Cleanup
 		}

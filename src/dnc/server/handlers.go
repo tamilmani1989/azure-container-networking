@@ -978,7 +978,7 @@ func GetNetworks(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, getErr)
 }
 
-// PutSubnet - Handler for put delgate subnet
+// PutSubnet - Handler for put delegated subnet
 func PutSubnet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	networkID, ok := vars[networkIDStr]
@@ -1000,7 +1000,6 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	isDelete := r.Method == http.MethodDelete
-	var subnetRequest api.SubnetRequest
 	w.Header().Set(contentTypeStr, defaultContentType)
 
 	if validationErr := ValidateNetworkRequest(networkID); validationErr != nil {
@@ -1008,11 +1007,9 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If method is DELETE, set the Auth Token to empty
-	// else decode the request body
-	if isDelete {
-		subnetRequest.AuthenticationToken = ""
-	} else {
+	var subnetRequest api.SubnetRequest
+	// Decode the request body if the request is not a delete request
+	if !isDelete {
 		if err := decodeRequestBody(r, &subnetRequest); err != nil {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			if err := json.NewEncoder(w).Encode(err); err != nil {
@@ -1027,12 +1024,37 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	t := ctrler.PersistSubnetDelegationRequest(networkID, strings.ToLower(subnet), subnetRequest, isDelete)
-	if t != nil {
-		setRequestFailed(w, t)
-	} else {
+	apiVersion := r.URL.Query().Get("api-version")
+	switch apiVersion {
+	case "2018-03-01":
+		// Set the Auth Token to empty if the request is of type Delete
+		if isDelete {
+			subnetRequest.AuthenticationToken = ""
+		}
+
+		if  err := ctrler.PersistSubnetDelegationRequest(networkID, strings.ToLower(subnet), subnetRequest, isDelete); err != nil {
+			setRequestFailed(w, err)
+			return
+		}
+
 		w.WriteHeader(http.StatusOK)
+
+	case "2021-02-24":
+		if isDelete {
+			if err := ctrler.DeleteSubnetV2(networkID, strings.ToLower(subnet)); err != nil {
+				setRequestFailed(w, err)
+				return
+			}
+		}  else {
+			if err := ctrler.PersistSubnetDelegationRequestV2(networkID, strings.ToLower(subnet), subnetRequest, apiVersion); err != nil {
+				setRequestFailed(w, err)
+				return
+			}
+		}
+
+		w.WriteHeader(http.StatusAccepted)
 	}
+
 }
 
 // GetSubnetStatus - Handler for retrieving the subnet status
@@ -1061,9 +1083,7 @@ func GetSubnetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subnetStatus, retCode, getErr := ctrler.GetSubnetStatus(
-		networkID,
-		strings.ToLower(subnet))
+	subnetStatus, retCode, getErr := ctrler.GetSubnetStatus(networkID, strings.ToLower(subnet))
 
 	w.Header().Set(contentTypeStr, defaultContentType)
 	if getErr == nil {
@@ -1105,9 +1125,7 @@ func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subnetConfiguration, getErr := ctrler.GetSubnetConfiguration(
-		networkID,
-		strings.ToLower(subnet))
+	subnetConfiguration, getErr := ctrler.GetSubnetConfiguration(networkID,	strings.ToLower(subnet))
 
 	w.Header().Set(contentTypeStr, defaultContentType)
 	if getErr == nil {

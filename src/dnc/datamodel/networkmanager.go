@@ -859,14 +859,7 @@ func QuerySubnetConfiguration(networkID, subnetName string) (*SubnetConfiguratio
 	}
 
 	if subnetConfiguration == nil {
-		msg := fmt.Sprintf(
-			"Configuration for subnet:[%s] in network [%s] not found.",
-			subnetName,
-			networkID)
-		return nil, &api.JsonErr{
-			Code:       api.SubnetNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusNotFound}
+		return nil, api.NotFoundf(api.SubnetNotFound, "Configuration for subnet: %s in network: %s not found", subnetName, networkID)
 	}
 
 	return subnetConfiguration, nil
@@ -1484,11 +1477,7 @@ func PersistNetworkConfiguration(
 }
 
 // CreateNetwork - Creates network configuration
-func CreateNetwork(
-	networkID string,
-	networkInfo api.NetworkInfoRequest,
-	apiVersion string,
-	addToPendingQueue bool) *api.JsonErr {
+func CreateNetwork(networkID, apiVersion string, addToPendingQueue bool) *api.JsonErr {
 	networkConfiguration, err := TryQueryNetworkConfiguration(networkID)
 	if err != nil {
 		return err
@@ -2533,6 +2522,27 @@ func TryQueryAllSubnetConfigurations() ([]SubnetConfiguration, *api.JsonErr) {
 		}
 
 		subnetConfigs[i] = config
+	}
+
+	return subnetConfigs, nil
+}
+
+// TryQueryAllSubnetConfigsInNetworkConfig - Retrieve all subnet configs in the network
+func TryQueryAllSubnetConfigsInNetworkConfig(networkConfig *NetworkConfiguration) (map[string]*SubnetConfiguration, *api.JsonErr) {
+	if networkConfig == nil {
+		return nil, api.BadRequestf(api.NetworkNotFound, "Null network configuration provided")
+	}
+
+	subnetConfigs := make(map[string]*SubnetConfiguration, len(networkConfig.Subnets))
+	for subnetName := range networkConfig.Subnets {
+		subnetConfig, err := TryQuerySubnetConfiguration(networkConfig.NetworkID, subnetName)
+		if err != nil {
+			return nil, err
+		}
+
+		if subnetConfig != nil {
+			subnetConfigs[subnetName] = subnetConfig
+		}
 	}
 
 	return subnetConfigs, nil
