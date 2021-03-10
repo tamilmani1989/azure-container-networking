@@ -22,7 +22,8 @@
     "dncClientConfig": {
         "requestTimeout": "10s",
         "pollingInterval": "1s",
-        "dncEndpoint": "http://localhost:9000"
+        "dncEndpoint": "http://localhost:9000",
+        "skipSubnetJoin": true
 
     },
     "DatastoreSettings": {
