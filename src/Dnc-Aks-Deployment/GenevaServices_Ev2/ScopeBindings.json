@@ -4,9 +4,13 @@
       "scopeTagName": "GenevaTags",
       "bindings": [
         {
-          "find": "__ContainerRegistryName__",
-          "replaceWith": "acndev.azurecr.io"
-        }
+          "find": "__Region__",
+          "replaceWith": ""
+        },
+        {
+          "find": "__MaConfigVersion__",
+          "replaceWith": ""
+        }     
       ]
     }
   ]

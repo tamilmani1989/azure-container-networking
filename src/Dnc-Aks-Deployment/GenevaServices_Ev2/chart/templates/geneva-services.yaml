@@ -3,9 +3,7 @@ kind: ConfigMap
 metadata:
   name: fluentd-conf
 data:
-  kubernetes.conf: {{ .Files.Get "fluentd/kubernetes.conf" | quote }}
-  systemd.conf: {{ .Files.Get "fluentd/systemd.conf" | quote }}
-  fluentd.conf: {{ .Files.Get "fluentd" | quote }}
+  fluentd.conf: {{ .Files.Get "fluentd/fluentd.conf" | quote }}
 ---
 apiVersion: v1
 kind: Secret
@@ -13,8 +11,8 @@ metadata:
   name: mdsd-auth
 type: Opaque
 data:
-  gcscert.pem: {{ .Values.gcscert }}
-  gcskey.pem: {{ .Values.gcskey}}
+  gcscert.pem: {{ .Values.gcscert}}
+  gcskey.pem: {{ .Values.gcskey }}
 ---
 apiVersion: v1
 kind: Secret
@@ -22,8 +20,8 @@ metadata:
   name: mdm-auth
 type: Opaque
 data:
-  mdm-cert.pem: {{ .Values.gcscert}}
-  mdm-key.pem: {{ .Values.gcskey}}
+  mdm-cert.pem: {{ .Values.gcscert }}
+  mdm-key.pem: {{ .Values.gcskey }}
 ---
 apiVersion: v1
 kind: Secret
@@ -32,14 +30,14 @@ metadata:
 type: Opaque
 data:
   azsecpack-cert.pem: {{ .Values.gcscert}}
-  azsecpack-key.pem: {{ .Values.gcskey}}
+  azsecpack-key.pem: {{ .Values.gcskey }}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: geneva-services
   labels:
-    app: geneva-services 
+    app: geneva-services
 spec:
   minReadySeconds: 100
   updateStrategy:
@@ -50,15 +48,14 @@ spec:
   template:
     metadata:
       annotations:
-        timestamp: "{{ date "20060102150405" .Release.Time }}"   
+        timestamp: "{{ date "20060102150405" .Release.Time }}"       
       labels:
         name: geneva-services
     spec:
-      hostNetwork: true
       containers:
         # MDSD
         - name: mdsd
-          image: {{ .Values.containerregistry }}/genevamdsd:{{ .Values.mdsd.dockerTag }}
+          image: {{ .Values.mdsd.repository }}:{{ .Values.mdsd.tag }}
           env:
           - name: TENANT
             value: {{ .Values.gcs_region | quote }}
@@ -97,7 +94,7 @@ spec:
               mountPath: /var/run/mdsd
         # FluentD
         - name: fluentd
-          image: {{ .Values.containerregistry }}/genevafluentd_td-agent:{{ .Values.fluentd.dockerTag }}
+          image: {{ .Values.fluentd.repository }}:{{ .Values.fluentd.tag }}
           env:
             - name: FLUENTD_CONF
               value: /etc/fluentd/fluentd.conf
@@ -118,7 +115,7 @@ spec:
               readOnly: true
         # MDM
         - name: mdm
-          image: {{ .Values.containerregistry }}/genevamdm:{{ .Values.mdm.dockerTag }}
+          image: {{ .Values.mdm.repository }}:{{ .Values.mdm.tag }}
           env:
           - name: MDM_ACCOUNT
             value: {{ .Values.gcs_account | quote }}
@@ -137,7 +134,7 @@ spec:
         # on the host machine and validate that it is running.  It will fail
         # if it can not run correctly
         - name: azsecpack-initializer
-          image: {{ .Values.containerregistry }}/genevasecpackinstall:{{ .Values.secpack.dockerTag }}
+          image: {{ .Values.secpack.repository }}:{{ .Values.secpack.tag }}
           imagePullPolicy: Always
           env:
             - name: AzSecPack_GCS_cert
@@ -247,3 +244,36 @@ roleRef:
   kind: ClusterRole
   name: geneva-reader
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: image-cleanup
+  labels:
+    app: image-cleanup
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      name: image-cleanup
+  template:
+    metadata:
+      labels:
+        name: image-cleanup
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+        - name: image-cleanup-tool
+          image: {{ .Values.imagecleanup.repository }}:{{ .Values.imagecleanup.tag }}
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: docker-socket
+              mountPath: "/var/run/docker.sock"
+      volumes:
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
