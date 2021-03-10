@@ -458,6 +458,7 @@ func UpdateNetworkConfiguration(
 	repoNetworkConfiguration.VNetSpace = networkResponse.VNetSpace
 	repoNetworkConfiguration.Subnets = ipSubnetMap
 	repoNetworkConfiguration.DNSServers = dnsServers
+	repoNetworkConfiguration.Status = datamodel.Pending
 
 	failureDetail = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
 	if failureDetail != nil {
@@ -506,7 +507,7 @@ func UpdateNetworkConfiguration(
 		currentRepoSubnetCfg.Gateway = updatedSubnetCfg.DefaultGateway
 		currentRepoSubnetCfg.IsDelegatedSubnet = true
 		currentRepoSubnetCfg.UpdateStatus = datamodel.SubnetUpdateCompleted
-		datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
+		failureDetail = datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
 		if failureDetail != nil {
 			goto Cleanup
 		}
