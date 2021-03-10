@@ -25,7 +25,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// DNC subnet join state
         /// </summary>
         [JsonIgnore]
-        public string SubnetJoinState { get; set; }
+        public string SubnetJoinStatus { get; set; }
 
         /// <summary>
         ///  Initializes a new instance of the <see cref="DelegateSubnet"/> class.
@@ -48,7 +48,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.Name = resourceName;
             this.Location = location;
             this.Properties = delegateSubnetProperties;
-            this.SubnetJoinState = DncSubnetState.New;
+            this.SubnetJoinStatus = DncSubnetStatus.New;
             this.Type = DelegatedResourceType;
         }
 

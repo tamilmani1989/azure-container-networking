@@ -195,11 +195,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceId">Resource id to be deleted</param>
         /// <param name="apiVersion">api version</param>
         /// <returns></returns>
-        protected async Task<T> DeleteResourceAsync<T>(string tenantId, string resourceId, string apiVersion) where T : class
+        protected async Task<HttpResponseMessage> DeleteResourceAsync<T>(string tenantId, string resourceId, string apiVersion) where T : class
         {
             Uri requestUri = GetResourceUri(resourceId.TrimEnd('/'), apiVersion);
 
-            return await this.CallServerAndGetAsync<T, T>(tenantId: tenantId, httpMethod: HttpMethod.Delete, requestUri: requestUri, requestBody: null)
+            return await this.CallServerAsync<T>(tenantId: tenantId, httpMethod: HttpMethod.Delete, requestUri: requestUri, requestBody: null)
                 .ConfigureAwait(continueOnCapturedContext: false);
         }
 

@@ -210,7 +210,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// </summary>
         /// <param name="subscriptionId">Subscription Id of the subnet.</param>
         /// <param name="subnetResourceId">The resourceId of the subnet.</param>
-        public async Task<ServiceAssociationLink> DeleteServiceAssociationLinkAsync(
+        public async Task<HttpResponseMessage> DeleteServiceAssociationLinkAsync(
             string tenantId, 
             string subnetResourceId)
         {

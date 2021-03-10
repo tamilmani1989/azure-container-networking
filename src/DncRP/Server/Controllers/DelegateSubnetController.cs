@@ -25,19 +25,36 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     public class DelegateSubnetController : DncRpControllerBase<DelegateSubnetController>
     {
         private IHttpUtility httpUtility;
+        private IHttpUtility dncHttpUtility;
         private AzVNetBroker azVnetBroker;
         private bool deleteNotSupported = false;
 
         public DelegateSubnetController(
             ILogger<DelegateSubnetController> logger,
             ITableOperations tableOperations,
-            IHttpUtility httpUtility)
+            IHttpUtility httpUtility,
+            bool initializeDncHttpUtlity=true
+        )
             : base (logger, tableOperations)
         {
             this.httpUtility = httpUtility;
             IAzureAD azureAD = new AzureAD();
             this.azVnetBroker = new AzVNetBroker(httpUtility, logger, azureAD);
-            logger.CLogInformation("DelegateSubnetController initialized");
+
+            if (initializeDncHttpUtlity)
+            {
+                dncHttpUtility = new HttpUtility(new HttpClient(new HttpClientHandler {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => {
+                        return true;
+                    }})
+                );
+            }
+            else
+            {
+                dncHttpUtility = httpUtility;
+            }
+
+            logger.CLogInformation("DelegateSubnetController initialized");          
         }
 
         /// <summary>
@@ -264,7 +281,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     resourceName,
                     delegatedSubnetGuid,
                     virtualNetwork.ResourceGuid,
-                    DncSubnetState.New,
+                    DncSubnetStatus.New,
                     requestBody);
 
                 string authToken = await CreateSubnetTokenAsync(
@@ -314,10 +331,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 // if customer does multiple put subnet calls when dncsubnetstate in pending, RP calls
                 // dnc for each put call. 
-                if (delegateSubnet.SubnetJoinState != DncSubnetState.Completed)
+                if (delegateSubnet.SubnetJoinStatus != DncSubnetStatus.Completed)
                 {
-                    logger.CLogInformation("Put call. Token and delegated subnet resource exists. Dnc subnet join state:%s for subnet:%s",
-    delegateSubnet.SubnetJoinState, subnetName);
+                    logger.CLogInformation("Put call. Token and delegated subnet resource exists. Dnc subnet join status:{0} for subnet:{1}", delegateSubnet.SubnetJoinStatus, subnetName);
                     // call dnc gateway for join subnet
                     await DncJoinSubnetAsync(
                          subscriptionId,
@@ -351,10 +367,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             logger.CLogInformation("Going to call join subnet for subnetname {0} vnetid{1} to dnc ep {2}", subnetName,
                  vnetId, controllerProperties.PropertiesList.DncEndpoint);
 
- 
             // initialize dnc client with gateway endpoint
-            DncClient dncClient = new DncClient(this.httpUtility, this.logger,
-            controllerProperties.PropertiesList.DncEndpoint);
+            DncClient dncClient = new DncClient(this.dncHttpUtility, this.logger, controllerProperties.PropertiesList.DncEndpoint);
 
             // call dnc join subnet
             await dncClient.PutSubnetAsync(vnetId, subnetName, authToken);
@@ -364,7 +378,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                                  resourceName,
                                  delegatedSubnetGuid,
                                  vnetId,
-                                 DncSubnetState.Pending,
+                                 DncSubnetStatus.Pending,
                                  dsRequest);
 
             // do dnc get subnet to check if join completed
@@ -377,7 +391,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                       resourceName,
                       delegatedSubnetGuid,
                       vnetId,
-                      DncSubnetState.Completed,
+                      DncSubnetStatus.Completed,
                       dsRequest);
         }
 
@@ -387,8 +401,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string subnetName)
         {
             HttpResponseMessage response = await dncClient.GetSubnetAsync(vnetId, subnetName);
-            DncResponseStatus dncResponse = await this.httpUtility.ParseHttpResponse<DncResponseStatus>(response);
-            if (dncResponse == null || dncResponse.State != DncSubnetState.Completed)
+            DncResponseStatus dncResponse = await this.dncHttpUtility.ParseHttpResponse<DncResponseStatus>(response);
+            if (dncResponse == null || dncResponse.Status != DncSubnetStatus.Completed)
             {
                 throw new Exception($"DNC get subnet call returns {dncResponse}");
             }
@@ -531,19 +545,25 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string vnetName;
             string subnetName;
             ValidateAndGetSubnet(associatedSubnetId, out subnetSubId, out subnetResourceGroupId, out vnetName, out subnetName);
+
+            string tenantId = await tableOperations.SubscriptionOperation.GetTenantIdAsync(subscriptionId);
+            string VNetResourceId = AzVNetBroker.GetVNetResourceId(subnetSubId, subnetResourceGroupId, vnetName);
+
+            NetworkModel.VirtualNetwork virtualNetwork = await azVnetBroker.GetVirtualNetworkAsync(tenantId, VNetResourceId);
+            ValidateVirtualNetwork(virtualNetwork, VNetResourceId);
             
-            string vnetId = AzVNetBroker.GetVNetResourceId(subnetSubId, subnetResourceGroupId, vnetName);
             // call dnc and delete subnet
             await DncDeleteSubnetAsync(
                 subscriptionId, 
                 resourceGroup, 
-                vnetId, 
+                virtualNetwork.ResourceGuid, 
                 subnetName, 
                 delegateSubnet);
 
+            logger.CLogInformation("Deleting ServiceAssociationLink for {0}", associatedSubnetId);
             // Delete the SAL
-            string tenantId = await tableOperations.SubscriptionOperation.GetTenantIdAsync(subscriptionId);
-            await azVnetBroker.DeleteServiceAssociationLinkAsync(tenantId, associatedSubnetId);
+            HttpResponseMessage response = await azVnetBroker.DeleteServiceAssociationLinkAsync(tenantId, associatedSubnetId);
+            response.EnsureSuccessStatusCode();
 
             // TODO handle deletion of Resourceownership if no other subnet has SAL created.
 
@@ -563,7 +583,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             DelegateSubnet delegateSubnet)
         {
             // check if subnet join in progress or completed
-            if (delegateSubnet.SubnetJoinState == DncSubnetState.New)
+            if (delegateSubnet.SubnetJoinStatus == DncSubnetStatus.New)
             {
                 logger.CLogInformation("Subnet not joined. Not calling dnc delete subnet");
                 return;
@@ -585,7 +605,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             logger.CLogInformation("Going to call dnc delete subnet for subnetname {0} vnet id {1} to dnc ep {2}", subnetName,
                  vnetId, controllerProperties.PropertiesList.DncEndpoint);
             // Initialize dnc client with gateway endpoint
-            DncClient dncClient = new DncClient(this.httpUtility, this.logger,
+            DncClient dncClient = new DncClient(this.dncHttpUtility, this.logger,
                                       controllerProperties.PropertiesList.DncEndpoint);
             
             // call dnc delete subnet
@@ -605,7 +625,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             HttpResponseMessage response = await dncClient.GetSubnetAsync(vnetId, subnetName);
             if (response.StatusCode != HttpStatusCode.NotFound)
             {
-                throw new Exception($"DNC Subnet Pending delete. status code{response.StatusCode}");
+                logger.CLogError("DNC Subnet Pending delete. status code:{0}", response.StatusCode);
+                throw new Exception($"DNC Subnet Pending delete. status code:{response.StatusCode}");
             }
         }
     }

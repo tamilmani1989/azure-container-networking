@@ -116,7 +116,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             SubscriptionRegistrationTests.RegisterSub(subscriptionId, tableOperations);
 
             // Pass TestHttpUtility for NRP operations.
-            DelegateSubnetController delegateSubnetController = new DelegateSubnetController(delSubLogger.Object, tableOperations, new TestHttpUtility());
+            DelegateSubnetController delegateSubnetController = new DelegateSubnetController(delSubLogger.Object, tableOperations, new TestHttpUtility(), false);
 
             Guid testGuid = Guid.NewGuid();
             string resourceGroup = $"testRG_{testGuid}";
@@ -155,7 +155,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 resourceGroup,
                 resourceName,
                 HttpStatusCode.NotFound,
-                DncSubnetState.New);
+                DncSubnetStatus.New);
 
            await PutAndValidateAsync(
                 delegateSubnetController,
@@ -191,7 +191,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 resourceGroup,
                 resourceName,
                 HttpStatusCode.OK,
-                DncSubnetState.Completed,
+                DncSubnetStatus.Completed,
                 response);
 
             // Idempotent Put
@@ -230,7 +230,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 resourceGroup,
                 resourceName,
                 HttpStatusCode.NotFound,
-                DncSubnetState.New);
+                DncSubnetStatus.New);
         }
 
         private async Task<DelegateSubnetResponse> GetAndValidateDelegateSubnetAsync(
@@ -258,7 +258,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                                                  subscriptionId,
                                                  resourceGroup,
                                                  resourceName);
-                Assert.True(delegateSubnet.SubnetJoinState.Equals(expectedSubnetState));
+                Assert.True(delegateSubnet.SubnetJoinStatus.Equals(expectedSubnetState));
             }
 
             return response;

@@ -21,45 +21,38 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
 
         public static void CLogInformation<T>(this ILogger<T> logger, string format, params object[] args)
         {
-            string message = WriteToConsole(format, args);
-            logger.LogInformation(message);
+            WriteToConsole(format, args);
         }
 
         public static void CLogInformation(this ILogger logger, string format, params object[] args)
         {
-            string message = WriteToConsole(format, args);
-            logger.LogInformation(message);
+            WriteToConsole(format, args);
         }
 
         public static void CLogWarning<T>(this ILogger<T> logger, string format, params object[] args)
         {
-            string message = WriteToConsole(format, args);
-            logger.LogWarning(message);
+            WriteToConsole(format, args);
         }
 
         public static void CLogWarning(this ILogger logger, string format, params object[] args)
         {
-            string message = WriteToConsole(format, args);
-            logger.LogWarning(message);
+            WriteToConsole(format, args);
         }
 
         public static void CLogError<T>(this ILogger<T> logger, string format, params object[] args)
         {
-            string message = WriteToConsole(format, args);
-            logger.LogError(message);
+            WriteToConsole(format, args);
         }
 
         public static void CLogError(this ILogger logger, string format, params object[] args)
         {
-            string message = WriteToConsole(format, args);
-            logger.LogError(message);
+            WriteToConsole(format, args);
         }
 
-        private static string  WriteToConsole(string format, params object[] args)
+        private static void  WriteToConsole(string format, params object[] args)
         {
             string message = SafeFormat(format, args);
             Console.WriteLine(message);
-            return message;
         }
 
         private static string SafeFormat(string format, object[] args)

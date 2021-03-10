@@ -1,7 +1,7 @@
 {
   "AzureAd": {
     "Instance": "https://login.microsoftonline.com/",
-    "ClientId": "https://dnc.azure.com",
+    "ClientId": "a91b1853-4403-4f54-b5cb-d1ea19d90c37",
     "TenantId": "common"
   },
   "Logging": {

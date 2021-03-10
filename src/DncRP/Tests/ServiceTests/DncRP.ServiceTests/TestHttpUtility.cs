@@ -58,7 +58,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.Unittests
             {
                 object resp = new DncResponseStatus();
                 DncResponseStatus dncResponseStatus = resp as DncResponseStatus;
-                dncResponseStatus.State = DncSubnetState.Completed;
+                dncResponseStatus.Status = DncSubnetStatus.Completed;
                 httpResponse.StatusCode = System.Net.HttpStatusCode.OK;
                 return (T)resp;
             }

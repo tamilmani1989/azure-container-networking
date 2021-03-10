@@ -17,7 +17,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             get; set;
         }
 
-        public string Location
+        public string Status
         {
             get; set;
         }
@@ -29,7 +29,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
         public override string ToString()
         {
-            return $"DncResponseStatus: State: {State}, Location: {Location} " +
+            return $"DncResponseStatus: State: {State}, Status: {Status} " +
                 $"FailureDetail: {FailureDetail}";
         }
     }
