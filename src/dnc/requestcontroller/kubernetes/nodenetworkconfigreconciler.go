@@ -296,25 +296,27 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 		return fmt.Errorf("Label %s not found for node %s", SubnetNameLabel, node.Name)
 	}
 
-	// Get subnet info, this is a threadsafe call
-	subnetInfo, err := n.subnetInfoProvider.GetSubnetInfo(ctx, delegatedSubnetID, subnetName)
-	if err != nil {
-		return err
-	}
+	// subnetInfoProvider will be nil if skipping the subnet/vnet join, so check for that first
+	if n.subnetInfoProvider != nil {
+		// Get subnet info, this is a threadsafe call
+		subnetInfo, err := n.subnetInfoProvider.GetSubnetInfo(ctx, delegatedSubnetID, subnetName)
+		if err != nil {
+			return err
+		}
 
-	// Register the vnet if not already registered
-	if err := n.ensureVnetIsRegistered(ctx, subnetInfo.VnetID); err != nil {
-		return err
-	}
+		// Register the vnet if not already registered
+		if err := n.ensureVnetIsRegistered(ctx, subnetInfo.VnetID); err != nil {
+			return err
+		}
 
-	//Register the subnet if not already registered
-	if err := n.ensureSubnetIsRegistered(ctx, subnetInfo.VnetID, subnetName, subnetInfo.PrimaryToken); err != nil {
-		return err
+		//Register the subnet if not already registered
+		if err := n.ensureSubnetIsRegistered(ctx, subnetInfo.VnetID, subnetName, subnetInfo.PrimaryToken); err != nil {
+			return err
+		}
 	}
 
 	// Register the Node if not already registered
-	err = n.ensureNodeIsRegistered(ctx, nodeID, internalIPAddress, cns.KubernetesCRD, n.vnetGUID)
-	if err != nil {
+	if err := n.ensureNodeIsRegistered(ctx, nodeID, internalIPAddress, cns.KubernetesCRD, n.vnetGUID); err != nil {
 		return err
 	}
 

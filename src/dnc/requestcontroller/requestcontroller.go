@@ -104,6 +104,7 @@ type DNCClientConfig struct {
 	RequestTimeout  string `json:"requestTimeout,omitempty"`
 	PollingInterval string `json:"pollingInterval,omitempty"`
 	DNCEndpoint     string `json:"dncEndpoint,omitempty"`
+	SkipSubnetJoin  bool   `json:"skipSubnetJoin,omitempty"`
 }
 
 type LoggingConfig struct {
