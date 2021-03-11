@@ -1,0 +1,3060 @@
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-1
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.1
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-2
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.2
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-3
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.3
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-4
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.4
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-5
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.5
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-6
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.6
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-7
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.7
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-8
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.8
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-9
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.9
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-10
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.10
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-11
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.11
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-12
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.12
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-13
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.13
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-14
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.14
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-15
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.15
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-16
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.16
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-17
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.17
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-18
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.18
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-19
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.19
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-20
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.20
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-21
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.21
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-22
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.22
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-23
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.23
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-24
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.24
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-25
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.25
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-26
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.26
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-27
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.27
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-28
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.28
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-29
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.29
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-30
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.30
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-31
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.31
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-32
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.32
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-33
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.33
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-34
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.34
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-35
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.35
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-36
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.36
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-37
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.37
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-38
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.38
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-39
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.39
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-40
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.40
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-41
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.41
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-42
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.42
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-43
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.43
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-44
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.44
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-45
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.45
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-46
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.46
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-47
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.47
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-48
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.48
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-49
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.49
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-50
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.50
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-51
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.51
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-52
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.52
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-53
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.53
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-54
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.54
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-55
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.55
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-56
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.56
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-57
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.57
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-58
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.58
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-59
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.59
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-60
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.60
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-61
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.61
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-62
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.62
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-63
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.63
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-64
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.64
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-65
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.65
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-66
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.66
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-67
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.67
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-68
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.68
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-69
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.69
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-70
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.70
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-71
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.71
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-72
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.72
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-73
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.73
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-74
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.74
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-75
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.75
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-76
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.76
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-77
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.77
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-78
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.78
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-79
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.79
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-80
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.80
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-81
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.81
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-82
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.82
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-83
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.83
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-84
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.84
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-85
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.85
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-86
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.86
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-87
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.87
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-88
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.88
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-89
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.89
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-90
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.90
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-91
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.91
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-92
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.92
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-93
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.93
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-94
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.94
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-95
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.95
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-96
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.96
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-97
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.97
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-98
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.98
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-99
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.99
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-100
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.100
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-101
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.101
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-102
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.102
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-103
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.103
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-104
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.104
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-105
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.105
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-106
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.106
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-107
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.107
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-108
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.108
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-109
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.109
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-110
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.110
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-111
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.111
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-112
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.112
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-113
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.113
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-114
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.114
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-115
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.115
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-116
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.116
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-117
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.117
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-118
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.118
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-119
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.119
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-120
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.120
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-121
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.121
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-122
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.122
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-123
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.123
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-124
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.124
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-125
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.125
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-126
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.126
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-127
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.127
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-128
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.128
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-129
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.129
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-130
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.130
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-131
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.131
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-132
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.132
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-133
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.133
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-134
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.134
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-135
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.135
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-136
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.136
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-137
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.137
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-138
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.138
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-139
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.139
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-140
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.140
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-141
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.141
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-142
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.142
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-143
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.143
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-144
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.144
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-145
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.145
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-146
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.146
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-147
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.147
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-148
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.148
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-149
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.149
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-150
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.150
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-151
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.151
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-152
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.152
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-153
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.153
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-154
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.154
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-155
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.155
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-156
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.156
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-157
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.157
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-158
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.158
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-159
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.159
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-160
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.160
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-161
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.161
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-162
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.162
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-163
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.163
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-164
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.164
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-165
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.165
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-166
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.166
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-167
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.167
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-168
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.168
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-169
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.169
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-170
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.170
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-171
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.171
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-172
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.172
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-173
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.173
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-174
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.174
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-175
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.175
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-176
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.176
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-177
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.177
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-178
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.178
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-179
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.179
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-180
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.180
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-181
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.181
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-182
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.182
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-183
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.183
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-184
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.184
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-185
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.185
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-186
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.186
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-187
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.187
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-188
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.188
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-189
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.189
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-190
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.190
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-191
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.191
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-192
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.192
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-193
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.193
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-194
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.194
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-195
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.195
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-196
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.196
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-197
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.197
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-198
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.198
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-199
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.199
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-200
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.200
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-201
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.201
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-202
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.202
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-203
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.203
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-204
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.204
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-205
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.205
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-206
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.206
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-207
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.207
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-208
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.208
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-209
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.209
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-210
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.210
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-211
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.211
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-212
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.212
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-213
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.213
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-214
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.214
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-215
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.215
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-216
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.216
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-217
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.217
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-218
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.218
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-219
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.219
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-220
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.220
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-221
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.221
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-222
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.222
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-223
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.223
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-224
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.224
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-225
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.225
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-226
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.226
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-227
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.227
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-228
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.228
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-229
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.229
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-230
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.230
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-231
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.231
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-232
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.232
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-233
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.233
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-234
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.234
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-235
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.235
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-236
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.236
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-237
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.237
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-238
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.238
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-239
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.239
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-240
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.240
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-241
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.241
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-242
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.242
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-243
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.243
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-244
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.244
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-245
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.245
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-246
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.246
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-247
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.247
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-248
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.248
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-249
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.249
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-250
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.250
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-251
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.251
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-252
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.252
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-253
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.253
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-254
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.254
+    type: InternalIP
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-7-255
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.7.255
+    type: InternalIP
+---

@@ -1,0 +1,46 @@
+{
+    "apiVersion": "vlabs",
+    "properties": {
+       "orchestratorProfile": {
+          "orchestratorType": "Kubernetes",
+          "orchestratorRelease": "1.18",
+          "kubernetesConfig": {
+             "networkPlugin": "azure",
+             "apiServerConfig": {
+                "--tls-min-version": "VersionTLS12",
+                "--tls-cipher-suites": "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"
+             },
+             "useManagedIdentity": true,
+             "userAssignedID": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourcegroups/dnc-rc-perf-test/providers/Microsoft.ManagedIdentity/userAssignedIdentities/swift-control-plane"
+          }
+       },
+       "masterProfile": {
+          "count": 1,
+          "dnsPrefix": "dnc-rc-test",
+          "vmSize": "Standard_D2_v2",
+          "vnetSubnetId": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/dnc-rc-perf-test/providers/Microsoft.Network/virtualNetworks/perf-test-vnet/subnets/node-subnet",
+          "firstConsecutiveStaticIP": "10.16.0.33"
+       },
+       "agentPoolProfiles": [
+          {
+             "name": "agentpool1",
+             "count": 1,
+             "vmSize": "Standard_D2_v2",
+             "availabilityProfile": "AvailabilitySet",
+             "osType": "Linux",
+             "distro": "aks-ubuntu-18.04",
+             "vnetSubnetId": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/dnc-rc-perf-test/providers/Microsoft.Network/virtualNetworks/perf-test-vnet/subnets/node-subnet"
+          }
+       ],
+       "linuxProfile": {
+          "adminUsername": "azureuser",
+          "ssh": {
+             "publicKeys": [
+                {
+                   "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC38x2WR10sttQ49rZ6nN6ScH/m7X8wBeJjcskJdkFSre5iAGgh/idTcNlHgKhBt7LWoa8zxH7jBzVWtbBnKOiM8pdU2OnfF9X3DJke0zvBdFZkFKonzno/ggMRDnLRJUihuIAec7u1qyll9BtAXLmXChPuHQpA7xGxVDYnVaZ2t2OA8QQ2DDnWT3XxQLjc2Bc8feSxMNyVwcAW01WrdjTQJlHslqlqfApMkuEVBQ7nq4cahq8M4hIGDwGepvOI6Dips+ntE4gr4012MHJYSO3+8vS9/sX9Kan04VPQ/nxXVUCPsXVnsYkEpCgJoE5rA2rmLzIsaYl+UrJ22Fq+0s4gaOpCRlpTroMgIHV8HUuI6jFgsl9tH4aEFwGXTybRhX7OdG1hwQMDJuI+QX/DM5oaU3z3XslNTutzy5RHh/lM2zTqUDUGX/8Qw9tGY4uNCQBgAJ+Efw/VQqaZQyBIxgRrGmHy4hNX2F3MShraNxycUgrveImnUlZ29V8yuXJj0RiBeCMbalTEKIMidrUlaeXEiCJeSGv6zzVjbtYJcHFLS3FLT2W+BfbO8xA/NDWfz1Zlup3BmIEftlWyPYhPZaE/jirrABuU6EwSgcepJJv+44SQlRAAOKT/BJM2X4KdKd+q1QrP+//nWCUeWt01bhlj3IdSUPXfxqAAnaGVIL2J0w== redmond\\matlong@LAPTOP-067SUKC0"
+                }
+             ]
+          }
+       }
+    }
+ }

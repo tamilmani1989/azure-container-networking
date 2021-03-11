@@ -2,8 +2,13 @@ package kubernetes
 
 import (
 	"context"
+	"dnc/api"
 	"dnc/requestcontroller"
+	"errors"
+	"fmt"
+	"net/http"
 	"reflect"
+	"sync"
 	"time"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
@@ -19,26 +24,93 @@ const (
 	defaultSignalCheckInterval = "30s"
 )
 
+const (
+	cleanupPending = iota
+	cleanupInProgress
+)
+
+type cleanupStatus int
+
+type cleanupPool struct {
+	items map[string]cleanupItem
+	mutex sync.Mutex
+}
+
+type cleanupItem struct {
+	cleanupStatus int
+	nnc           acnv1alpha.NodeNetworkConfig
+}
+
+func newCleanupPool() *cleanupPool {
+	return &cleanupPool{
+		items: make(map[string]cleanupItem),
+	}
+}
+
+func (c *cleanupPool) upsertItem(item cleanupItem) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.items[item.nnc.Name] = item
+}
+
+func (c *cleanupPool) deleteItem(item cleanupItem) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	delete(c.items, item.nnc.Name)
+}
+
+func (c *cleanupPool) upsertItems(items []cleanupItem) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	for _, item := range items {
+		c.items[item.nnc.Name] = item
+	}
+}
+
+func (c *cleanupPool) getPendingItem() (*cleanupItem, bool) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	// return true if map is empty
+	if len(c.items) == 0 {
+		return nil, true
+	}
+
+	// find an item in pending state
+	for key, item := range c.items {
+		if item.cleanupStatus == cleanupPending {
+			item.cleanupStatus = cleanupInProgress
+			c.items[key] = item
+
+			return &item, false
+		}
+	}
+
+	// no items found in pending state, but map isn't empty, so return nil, false
+	return nil, false
+}
+
 // Cleaner cleans a DNC partition and kubernetes cluster of all traces of SWIFT state
 type Cleaner struct {
-	kubeCoreV1Client    corev1.CoreV1Interface
-	kubeRESTClient      *rest.RESTClient
-	syncDNCClient       requestcontroller.SynchronousDNCClient
-	logger              logrus.FieldLogger
-	signalCheckInterval time.Duration
-	signal              CleanupSignal
-	nncNamespace        string
+	kubeCoreV1Client     corev1.CoreV1Interface
+	kubeRESTClient       *rest.RESTClient
+	syncDNCClient        requestcontroller.SynchronousDNCClient
+	logger               logrus.FieldLogger
+	signalCheckInterval  time.Duration
+	signal               CleanupSignal
+	nncNamespace         string
+	maxConcurrentThreads int
 }
 
 // CleanerOpts options to create Cleaner
 type CleanerOpts struct {
-	KubeCoreV1Client    corev1.CoreV1Interface
-	KubeRESTClient      *rest.RESTClient
-	SyncDNCClient       requestcontroller.SynchronousDNCClient
-	Logger              logrus.FieldLogger
-	SignalCheckInterval time.Duration
-	Signal              CleanupSignal
-	NNCNamespace        string
+	KubeCoreV1Client     corev1.CoreV1Interface
+	KubeRESTClient       *rest.RESTClient
+	SyncDNCClient        requestcontroller.SynchronousDNCClient
+	Logger               logrus.FieldLogger
+	SignalCheckInterval  time.Duration
+	Signal               CleanupSignal
+	NNCNamespace         string
+	MaxConcurrentThreads int
 }
 
 // CleanupSignal configmap settings for cleanup signal
@@ -65,14 +137,20 @@ func NewCleaner(opts CleanerOpts) *Cleaner {
 		opts.SignalCheckInterval = duration
 	}
 
+	// Add default maxConcurrentThreads if not set
+	if opts.MaxConcurrentThreads == 0 {
+		opts.MaxConcurrentThreads = 100 // TODO: make this configurable
+	}
+
 	return &Cleaner{
-		kubeCoreV1Client:    opts.KubeCoreV1Client,
-		kubeRESTClient:      opts.KubeRESTClient,
-		syncDNCClient:       opts.SyncDNCClient,
-		logger:              logger,
-		signalCheckInterval: opts.SignalCheckInterval,
-		signal:              opts.Signal,
-		nncNamespace:        opts.NNCNamespace,
+		kubeCoreV1Client:     opts.KubeCoreV1Client,
+		kubeRESTClient:       opts.KubeRESTClient,
+		syncDNCClient:        opts.SyncDNCClient,
+		logger:               logger,
+		signalCheckInterval:  opts.SignalCheckInterval,
+		signal:               opts.Signal,
+		nncNamespace:         opts.NNCNamespace,
+		maxConcurrentThreads: opts.MaxConcurrentThreads,
 	}
 }
 
@@ -125,25 +203,44 @@ func (c *Cleaner) WaitForCleanupSignal(ctx context.Context) chan struct{} {
 	return signalChan
 }
 
-// Clean cleans the cluster and entire DNC partition
-func (c *Cleaner) Clean(ctx context.Context) error {
-	// For now, make a best effort to clean everything up.
-	// TODO (matlong) Use DNC delete partition API for safer cleanup.
+func (c *Cleaner) getAllNNCs(ctx context.Context) (acnv1alpha.NodeNetworkConfigList, error) {
+	var nncs acnv1alpha.NodeNetworkConfigList
 
-	// Get all NNCs
-	c.logger.Info("Cleanup signal found, cleaning.")
-	defer c.logger.Info("Leaving cleanup")
-	var nncList acnv1alpha.NodeNetworkConfigList
 	err := c.kubeRESTClient.Get().
 		Namespace(c.nncNamespace).
 		Resource(nncPluralName).
 		Do(ctx).
-		Into(&nncList)
+		Into(&nncs)
 
+	return nncs, err
+}
+
+// Clean cleans the cluster and entire DNC partition
+func (c *Cleaner) Clean(ctx context.Context) error {
+	c.logger.Info("Cleanup signal found, cleaning.")
+	defer c.logger.Info("Leaving cleanup")
+
+	// For now, make a best effort to clean everything up.
+	// TODO (matlong) Use DNC delete partition API for safer cleanup.
+
+	// Get all NNCs
+	nncs, err := c.getAllNNCs(ctx)
 	if err != nil {
-		// empty collection still returns 200 (nil err), so an error here means something went wrong and cleanup cannot proceed
-		return err
+		return fmt.Errorf("Error getting all NNCs for cluster: %w", err)
 	}
+
+	c.logger.Infof("Cleaner found %d nncs to clean", len(nncs.Items))
+
+	// Create a cleanup pool with all nncs set to cleanupPending
+	cleanupPool := newCleanupPool()
+	items := make([]cleanupItem, len(nncs.Items))
+	for i, nnc := range nncs.Items {
+		items[i] = cleanupItem{
+			cleanupStatus: cleanupPending,
+			nnc:           nnc,
+		}
+	}
+	cleanupPool.upsertItems(items)
 
 	// Get vnet for cluster from dnc
 	vnetID, err := c.getNetworkID(ctx)
@@ -152,73 +249,21 @@ func (c *Cleaner) Clean(ctx context.Context) error {
 		return err
 	}
 
-	// Clean up each NNC
-	for _, nnc := range nncList.Items {
-		logger := c.logger.WithFields(logrus.Fields{
-			"nnc": nnc.Name,
-		})
-
-		if vnetID != "" {
-			// vnetID is only empty if there is no state to clean up on DNC. If there is state, clean it up.
-			logger.Infof("Cleaning up DNC state for NNC %s", nnc.Name)
-
-			// Delete the NCs from DNC
-			for _, nc := range nnc.Status.NetworkContainers {
-				logger.WithFields(logrus.Fields{
-					"nc": nc.ID,
-				}).Infof("Deleting NC %s from vnet %s", nc.ID, vnetID)
-
-				err := c.syncDNCClient.DeleteNC(ctx, vnetID, nc.ID)
-				if err != nil {
-					return err
-				}
-			}
-
-			logger.WithFields(logrus.Fields{
-				"node": nnc.Name,
-			}).Infof("Cleaning up Node %s", nnc.Name)
-
-			// Delete the Node from DNC
-			if err := c.syncDNCClient.DeleteNode(ctx, nnc.Name); err != nil {
-				return err
-			}
-		}
-
-		// Delete the NNC from the kube apiserver
-		logger.WithFields(logrus.Fields{
-			"nnc": nnc.Name,
-		}).Infof("Cleaning up NNC %s", nnc.Name)
-
-		// Remove finalizer from NNC if present so deletion can proceed on kube apiserver
-		if containsString(nnc.Finalizers, NNCFinalizerName) {
-			nnc.Finalizers = []string{}
-			err = c.kubeRESTClient.Put().
-				Resource(nncPluralName).
-				Namespace(c.nncNamespace).
-				Name(nnc.Name).
-				Body(&nnc).
-				Do(ctx).
-				Error()
-
-			if err != nil {
-				logger.WithError(err).Infof("Error removing finalizer from NNC %s: %v", nnc.Name, err)
-				return err
-			}
-		}
-
-		// Delete the NNC from the cluster
-		err = c.kubeRESTClient.Delete().
-			Resource(nncPluralName).
-			Namespace(c.nncNamespace).
-			Name(nnc.Name).
-			Do(ctx).
-			Error()
-
-		if err != nil {
-			logger.WithError(err).Infof("Error cleaning up NNC %s: %v", nnc.Name, err)
-			return err
-		}
+	if vnetID == "" {
+		c.logger.Info("No vnet was found on DNC, but DNC did not return error. Thus, there is no DNC state to clean.")
+	} else {
+		c.logger.Infof("Found vnetID %s on DNC", vnetID)
 	}
+
+	// Clean up each NNC, spawning as many goroutines as there are config.maxConcurrentThreads
+	var wg sync.WaitGroup
+	for i := 0; i < c.maxConcurrentThreads; i++ {
+		wg.Add(1)
+		go c.runCleanerWorker(ctx, cleanupPool, &wg, vnetID, i)
+	}
+
+	// wait for NNCs to be cleaned up before proceeding with vnet deletion
+	wg.Wait()
 
 	// if vnetID is empty, there is nothing to delete on DNC. If it isn't empty, delete it.
 	if vnetID != "" {
@@ -235,6 +280,154 @@ func (c *Cleaner) Clean(ctx context.Context) error {
 	}
 
 	return err
+}
+
+func (c *Cleaner) runCleanerWorker(ctx context.Context, pool *cleanupPool, wg *sync.WaitGroup, vnetID string, workerID int) {
+	defer wg.Done()
+
+	var delay time.Duration
+
+	item, isEmpty := pool.getPendingItem()
+	if isEmpty {
+		// All NNCs have been cleaned up. Exit this worker.
+		c.logger.Infof("status map is emtpy. Exiting worker. %d", workerID)
+		return
+	}
+
+	// if item is nil, there is no work to do right now. Check again after a delay.
+	if item == nil {
+		c.logger.Infof("no work to do for this worker %d", workerID)
+		delay = 5 * time.Second
+	} else {
+		// Item to clean exists, so clean it.
+		c.logger.WithField("nnc", item.nnc.Name).Infof("Cleaning up nnc with worker %d", workerID)
+		if err := c.cleanupNNC(ctx, item.nnc, vnetID); err != nil {
+			// There was an error cleaning up this nnc. Put it back into pending state.
+			c.logger.WithField("nnc", item.nnc.Name).WithError(err).Error("Error cleaning up NNC. Will retry.")
+			item.cleanupStatus = cleanupPending
+			pool.upsertItem(*item)
+		} else {
+			// cleanup was successful, so remove the NNC from the pool and move on
+			pool.deleteItem(*item)
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay):
+			// reset delay to 0 in case it was changed
+			delay = 0
+			item, isEmpty := pool.getPendingItem()
+			if isEmpty {
+				// All NNCs have been cleaned up. Exit this worker.
+				c.logger.Infof("status map is emtpy. Exiting worker. %d", workerID)
+				return
+			}
+
+			if item == nil {
+				c.logger.Infof("no work to do for this worker %d", workerID)
+				// There is no work for this worker to do right now, but that could change. Check again after a delay.
+				delay = 5 * time.Second
+				continue
+			}
+
+			if err := c.cleanupNNC(ctx, item.nnc, vnetID); err != nil {
+				// There was an error cleaning up this nnc. Put it back into pending state.
+				c.logger.WithField("nnc", item.nnc.Name).WithError(err).Error("Error cleaning up NNC, will retry")
+				item.cleanupStatus = cleanupPending
+				pool.upsertItem(*item)
+				continue
+			}
+
+			// cleanup was successful, so remove the NNC from the map and move on
+			pool.deleteItem(*item)
+		}
+	}
+}
+
+func (c *Cleaner) cleanupNNC(ctx context.Context, nnc acnv1alpha.NodeNetworkConfig, vnetID string) error {
+	logger := c.logger.WithFields(logrus.Fields{
+		"nnc": nnc.Name,
+	})
+
+	if vnetID != "" {
+		// vnetID is only empty if there is no state to clean up on DNC. If there is state, clean it up.
+		logger.Infof("Cleaning up DNC state for NNC %s", nnc.Name)
+
+		// Delete the NCs from DNC
+		ncs, err := c.getNCsForNNC(ctx, nnc)
+		if err != nil {
+			return err
+		}
+
+		for _, nc := range ncs {
+			logger.WithFields(logrus.Fields{
+				"nc": nc,
+			}).Infof("Deleting NC %s from vnet %s", nc, vnetID)
+
+			err := c.syncDNCClient.DeleteNC(ctx, vnetID, nc)
+			if err != nil {
+				return err
+			}
+		}
+
+		logger.WithFields(logrus.Fields{
+			"node": nnc.Name,
+		}).Infof("Cleaning up Node %s", nnc.Name)
+
+		// Delete the Node from DNC
+		if err := c.syncDNCClient.DeleteNode(ctx, nnc.Name); err != nil {
+			return err
+		}
+	}
+
+	// Delete the NNC from the kube apiserver
+	logger.WithFields(logrus.Fields{
+		"nnc": nnc.Name,
+	}).Infof("Cleaning up NNC %s", nnc.Name)
+
+	// Get the latest NNC from the apiserver so we don't run into resourceVersion issues
+	res := c.kubeRESTClient.Get().Resource(nncPluralName).Namespace(c.nncNamespace).Name(nnc.Name).Do(ctx)
+	var statusCode int
+	if res.StatusCode(&statusCode); statusCode == http.StatusNotFound {
+		// NNC is already gone, nothing to do
+		return nil
+	}
+
+	if err := res.Into(&nnc); err != nil {
+		logger.WithError(err).Error("Unable to get latest NNC version from apiserver.")
+		return err
+	}
+
+	// Remove finalizer from NNC if present so deletion can proceed on kube apiserver
+	if containsString(nnc.Finalizers, NNCFinalizerName) {
+		nnc.Finalizers = []string{}
+		if err := c.kubeRESTClient.Put().
+			Resource(nncPluralName).
+			Namespace(c.nncNamespace).
+			Name(nnc.Name).
+			Body(&nnc).
+			Do(ctx).
+			Error(); err != nil {
+			logger.WithError(err).Infof("Error removing finalizer from NNC %s: %v", nnc.Name, err)
+			return err
+		}
+	}
+
+	// Delete the NNC from the cluster
+	if err := c.kubeRESTClient.Delete().
+		Resource(nncPluralName).
+		Namespace(c.nncNamespace).
+		Name(nnc.Name).
+		Do(ctx).
+		Error(); err != nil {
+		logger.WithError(err).Infof("Error cleaning up NNC %s: %v", nnc.Name, err)
+		return err
+	}
+
+	return nil
 }
 
 func (c *Cleaner) reportCleanupDone(ctx context.Context) error {
@@ -299,4 +492,49 @@ func (c *Cleaner) getNetworkID(ctx context.Context) (string, error) {
 	}
 
 	return vnetID, nil
+}
+
+func (c *Cleaner) getNCsForNNC(ctx context.Context, nnc acnv1alpha.NodeNetworkConfig) ([]string, error) {
+	ncs := make(map[string]struct{})
+	// get ncs from nnc status
+	for _, nc := range nnc.Status.NetworkContainers {
+		ncs[nc.ID] = struct{}{}
+	}
+
+	// get ncs from dnc getNode
+	nodeInfoResponse, err := c.syncDNCClient.GetNode(ctx, nnc.Name)
+	if ignoreNotFound(err) != nil {
+		// Some unexpected error happened, so return it instead of proceeding
+		return nil, err
+	}
+
+	// nodeInfoResponse might be nil if the node wasn't found, so check it
+	if nodeInfoResponse != nil {
+		// Get all the NCs from the node
+		for _, ncResp := range nodeInfoResponse.NetworkContainers {
+			ncs[ncResp.NcID] = struct{}{}
+		}
+	}
+
+	// Put the NC IDs into a slice to return
+	res := make([]string, len(ncs))
+	i := 0
+	for ncID := range ncs {
+		res[i] = ncID
+		i++
+	}
+
+	return res, nil
+
+}
+
+func ignoreNotFound(err error) error {
+	var respErr *api.JsonErr
+	if errors.As(err, &respErr) {
+		if respErr.HTTPStatus == http.StatusNotFound {
+			return nil
+		}
+	}
+
+	return err
 }

@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 // MaxBackoffSeconds is the maximum backoff between manager restarts
@@ -296,6 +297,9 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 	err = ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
 		WithEventFilter(NodeEventFilter{}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: config.KubernetesConfig.ConcurrentNodeReconcilers,
+		}).
 		Complete(nodeReconciler)
 	if err != nil {
 		return fmt.Errorf("Error creating Node reconciler: %w", err)
@@ -315,6 +319,9 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 	err = ctrl.NewControllerManagedBy(mgr).
 		For(&acnv1alpha.NodeNetworkConfig{}).
 		WithEventFilter(NodeNetworkConfigEventFilter{}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: config.KubernetesConfig.ConcurrentNNCReconcilers,
+		}).
 		Complete(nodeNetworkConfigReconciler)
 	if err != nil {
 		return fmt.Errorf("Error creating NNC reconciler: %w", err)

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Node
+metadata:
+  name: fake-10-16-%PRE%-%IP%
+  labels:
+    kubernetes.azure.com/podnetwork-delegationguid: fdc87edc-45cb-492c-9003-7c442cf1fc13
+    kubernetes.azure.com/podnetwork-subnet: pod-subnet
+status:
+  addresses:
+  - address: 10.16.%PRE%.%IP%
+    type: InternalIP
+---

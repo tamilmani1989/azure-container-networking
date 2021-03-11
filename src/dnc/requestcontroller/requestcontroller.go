@@ -15,6 +15,8 @@ const (
 	defaultConfigKubeconfigPath                = "/etc/kubernetes/config.yaml"
 	defaultConfigNamespace                     = "default"
 	defaultConfigK8sClientTimeout              = "10s"
+	defaultConfigConcurrentNodeReconcilers     = 100
+	defaultConfigConcurrentNNCReconcilers      = 100
 	defaultConfigScalerBatchSize               = int64(16)
 	defaultConfigScalerReleaseThresholdPercent = int64(150)
 	defaultConfigScalerRequestThresholdPercent = int64(50)
@@ -70,9 +72,11 @@ type Config struct {
 
 // KubernetesConfig config for interacting with kubernetes cluster
 type KubernetesConfig struct {
-	KubeconfigInfo KubeconfigInfo `json:"kubeconfigInfo,omitempty"`
-	Namespace      string         `json:"namespace,omitempty"`
-	ClientTimeout  string         `json:"clientTimeout,omitempty"`
+	KubeconfigInfo            KubeconfigInfo `json:"kubeconfigInfo,omitempty"`
+	Namespace                 string         `json:"namespace,omitempty"`
+	ClientTimeout             string         `json:"clientTimeout,omitempty"`
+	ConcurrentNodeReconcilers int            `json:"concurrentNodeReconcilers,omitempty"`
+	ConcurrentNNCReconcilers  int            `json:"concurrentNNCReconcilers,omitempty"`
 }
 
 type KubeconfigInfo struct {
@@ -173,6 +177,14 @@ func (c *Config) ApplyDefaults() {
 
 	if c.KubernetesConfig.ClientTimeout == "" {
 		c.KubernetesConfig.ClientTimeout = defaultConfigK8sClientTimeout
+	}
+
+	if c.KubernetesConfig.ConcurrentNodeReconcilers == 0 {
+		c.KubernetesConfig.ConcurrentNodeReconcilers = defaultConfigConcurrentNodeReconcilers
+	}
+
+	if c.KubernetesConfig.ConcurrentNNCReconcilers == 0 {
+		c.KubernetesConfig.ConcurrentNNCReconcilers = defaultConfigConcurrentNNCReconcilers
 	}
 
 	if c.RequestScalerConfig.BatchSize == 0 {

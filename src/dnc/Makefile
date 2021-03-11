@@ -50,12 +50,15 @@ RUNNER_ARCHIVE_NAME = runner-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 RUNNER_IMAGE_ARCHIVE_NAME = runner-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 REQCTRL_ARCHIVE_NAME = requestcontroller-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 REQCTRL_IMAGE_ARCHIVE_NAME = requestcontroller-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
+MDNC_REQCTRL_ARCHIVE_NAME = mdnc-requestcontroller-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
+MDNC_REQCTRL_IMAGE_ARCHIVE_NAME = mdnc-requestcontroller-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 
 # Container image names
 DNC_IMAGE ?= containernetworking.azurecr.io/internal/containernetworking/dnc
 LBRUNNERNC_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-lbrunnernc
 RUNNER_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-runner
-REQCTRL_IMAGE ?= containernetworking.azurecr.io/internal/containernetworking/requestcontroller
+REQCTRL_IMAGE = containernetworking.azurecr.io/internal/containernetworking/requestcontroller
+MDNC_REQCTRL_IMAGE = containernetworking.azurecr.io/internal/containernetworking/mdnc-requestcontroller
 MDNC_IMAGE = ancdev.azurecr.io/mdnc
 
 # Default target is "all"
@@ -131,6 +134,17 @@ mdnc-image:
 # Build the requstcontroller image
 .PHONY: requestcontroller-image
 requestcontroller-image:
+	docker build --no-cache \
+	-f builds/requestcontroller/Dockerfile \
+	-t $(REQCTRL_IMAGE):$(VERSION) \
+	--build-arg VERSION=$(VERSION) \
+	.
+	$(MKDIR) $(REQCTRL_BUILD_DIR)
+	docker save $(REQCTRL_IMAGE):$(VERSION) | gzip -c > $(REQCTRL_BUILD_DIR)/$(REQCTRL_IMAGE_ARCHIVE_NAME)
+
+# Build the requstcontroller image
+.PHONY: mdnc-requestcontroller-image
+mdnc-requestcontroller-image:
 	docker build --no-cache \
 	-f builds/requestcontroller/Dockerfile \
 	-t $(REQCTRL_IMAGE):$(VERSION) \

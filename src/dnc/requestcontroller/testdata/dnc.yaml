@@ -1,0 +1,180 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "dnc"
+  namespace: "dnc"
+  labels:
+    app: "dnc"
+spec:
+  selector:
+    matchLabels:
+      app: "dnc"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: "dnc"
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+      containers:
+      - name: dnc
+        image: acndev.azurecr.io/dnc:20210301-matlong
+        ports:
+        - containerPort: 9000
+        env:
+        - name: DNC_CONFIGURATION_PATH
+          value: /etc/dnc/config.json
+        volumeMounts:
+        - name: dnc-config
+          mountPath: /etc/dnc/
+        args:
+        - -stderr=true
+      volumes:
+      - name: dnc-config
+        configMap:
+          name: dnc-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dnc-config
+  namespace: "dnc"
+data:
+  config.json: |
+    {
+      "DataStoreSettings": {
+        "AzureStorageInfo": {
+          "AccountName": "dncrcperftest",
+          "Key": "",
+          "PartitionKey": "matlong-test",
+          "IsUsingCosmosDb": true,
+          "CosmosDBResourceID": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/dnc-rc-perf-test/providers/Microsoft.DocumentDB/databaseAccounts/dncrcperftest"
+        },
+        "MaxBatchSize": 1000
+      },
+      "ServerSettings": {
+        "IPAddress": "0.0.0.0",
+        "Port": "9000"
+      },
+      "MasterElectionSettings": {
+        "UseDataStore": true,
+        "DataStoreLeaseSettings": {
+          "LeaseIntervalInSecs": 60,
+          "LeaseRenewIntervalInSecs": 30,
+          "AcquireRetryIntervalInSecs": 30
+        }
+      },
+      "HostAgentSettings": {
+        "WireServerIP": "168.63.129.16",
+        "ConnectionStrings": {
+          "JoinNetworkURLFmt": "http://%s/joinedVirtualNetworks/%s/api-version/1",
+          "GetNetworkConfigurationURLFmt": "http://%s/joinedVirtualNetworks/%s/api-version/1",
+          "PutNetworkContainerURLFmt": "http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
+          "DeleteNetworkContainerURLFmt": "http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
+          "GetSystemTagDefinitionURLFmt": "http://%s/systemTags/%s/ipVersion/%s/api-version/1",
+          "GetNetworkContainerVersionURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/version/authenticationToken/%s/api-version/1"
+        }
+      },
+      "CustomLoggerSettings": {
+        "FnName": "",
+        "Dll": ""
+      },
+      "CNSSettings": {
+        "ChannelMode": "disabled",
+        "ConnectionStrings": {
+          "CreateOrUpdateNetworkContainerURLFmt": "http://%s:10090/network/createorupdatenetworkcontainer",
+          "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
+          "GetNetworkContainerStatusURLFmt": "http://%s:10090/network/getnetworkcontainerstatus",
+          "SetOrchestratorTypeURLFmt": "http://%s:10090/network/setorchestratortype",
+          "GetNumOfCPUCoresURLFmt": "http://%s:10090/hostcpucores",
+          "PublishNetworkContainerURLFmt": "http://%s:10090/network/publishnetworkcontainer",
+          "UnpublishNetworkContainerURLFmt": "http://%s:10090/network/unpublishnetworkcontainer"
+        }
+      },
+      "VlanSettings": {
+        "Min": 1,
+        "Max": 2048
+      },
+      "DNCSettings": {
+        "RequestRetryBaseInterval": 1000,
+        "MaxRequestBackoffInterval": 16000,
+        "NetworkRefreshInterval": 30000,
+        "NetworkRefreshBatchSize": 3,
+        "SleepIntervalBetweenNetworkBatches": 5000,
+        "SleepIntervalBetweenNetworkRefresh": 1000,
+        "TagRefreshInterval": 1000,
+        "NetworkContainerRefreshInterval": 1000,
+        "ReportToHostInterval": 60000,
+        "ConcurrentRequestsToProcess": 1000,
+        "EnforceNICLimit": false,
+        "NICsAllowedPerVirtualCore": 1,
+        "ReverseProxyEnabled": true,
+        "ThresholdForLoggingDataStoreOpLatencyMs": 1000,
+        "Managed": true,
+        "DisableReservationMapInSubnetConfig": true
+      },
+      "HttpClientSettings": {
+        "ConnectionTimeout": 5,
+        "ResponseHeaderTimeout": 120
+      },
+      "TelemetrySettings": {
+        "TelemetryBatchSizeBytes": 16384,
+        "TelemetryBatchIntervalInSecs": 7,
+        "RefreshIntervalInSecs": 15,
+        "DisableMetadataRefreshThread": false,
+        "DisableTelemetry": true,
+        "DebugMode": false,
+        "DisableAiLogging": true
+      },
+      "PubSubProxySettings":{
+        "EnablePubSubProxy": true,
+        "MaxConcurrentRequests": 1000,
+        "RequestRetryBaseInterval": 1000,
+        "MaxRequestBackoffInterval": 16000,
+        "NumPubSubs": 3,
+        "PublisherPort": "18605",
+        "SubscriberPort": "18600",
+        "PubsubConnectionEndpoint": "useast2euap-prod.sdnpubsub.core.windows.net",
+        "PubsubCertName": "DncPubSubCert",
+        "PubsubCertKeyvaultName": "acnKV",
+        "PubsubVips": [{"AzId":"AZ01","VIPs":"52.225.185.199,52.138.65.29,52.225.190.130"},{"AzId":"AZ02","VIPs":"40.89.67.127,52.138.72.224"},{"AzId":"AZ03","VIPs":"52.225.160.60,52.225.160.62,52.225.160.61"}]
+      },
+      "IdentitySettings": {
+        "MSIResourceID": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/dnc-rc-perf-test/providers/Microsoft.ManagedIdentity/userAssignedIdentities/swift-control-plane"
+      },
+      "AzureEnvironment": {
+          "EnvironmentName": "AzurePublicCloud"
+      },
+      "FeatureFlagSettings": {
+        "EnableBatchAllocationProcessing": true,  
+        "MaxIPReservationBatchSize": 100,
+        "UsePrepopulatedIPAllocations": false
+      }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: dnc
+  name: dnc-service
+  namespace: dnc
+spec:
+  selector:
+    app: dnc
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 9000
+    protocol: TCP
+    targetPort: 9000

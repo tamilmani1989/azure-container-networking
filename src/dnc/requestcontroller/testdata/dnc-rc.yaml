@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dnc-rc
+  namespace: dnc
+  labels:
+    app: dnc-rc
+spec:
+  selector:
+    matchLabels:
+      app: "dnc-rc"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: "dnc-rc"
+    spec:
+      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+      containers:
+      - name: dnc-rc
+        image: acndev.azurecr.io/dnc-request-controller:20210310-cleanup
+        args: ["--config", "/etc/dnc-rc/config.json"]
+        volumeMounts:
+        - name: kubeconfig
+          readOnly: true
+          mountPath: "/etc/secrets"
+        - name: dnc-request-controller-config
+          mountPath: "/etc/dnc-rc"
+          readOnly: true
+      volumes:
+      - name: dnc-request-controller-config
+        configMap:
+          name: dnc-request-controller-config
+      - name: kubeconfig
+        secret:
+          secretName: kubeconfig-file
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dnc-request-controller-config
+  namespace: dnc
+data:
+  config.json: |
+    {
+      "kubernetesConfig": {
+        "kubeconfigInfo": {
+          "mode": "file",
+          "file": "/etc/secrets/config.json"
+        },
+        "namespace": "kube-system",
+        "clientTimeout": "20m",
+        "concurrentNodeReconcilers": 100,
+        "concurrentNNCReconcilers": 500
+      },
+      "requestScalerConfig": {
+          "batchSize": 32,
+          "releaseThresholdPercent": 150,
+          "requestThresholdPercent": 50
+      },
+      "dncClientConfig": {
+          "requestTimeout": "30m",
+          "waitBetweenAsyncCalls": "1s",
+          "dncEndpoint": "http://dnc-service:9000"
+      },
+      "DatastoreSettings": {
+        "AzureStorageInfo": {
+            "AccountName": "dncrcperftest",
+            "IsUsingCosmosDb": true
+        }
+      },
+      "cosmosMSISettings": {
+          "azureEnvironment": "AzurePublicCloud",
+          "msiResourceID": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/dnc-rc-perf-test/providers/Microsoft.ManagedIdentity/userAssignedIdentities/swift-control-plane",
+          "cosmosResourceID": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/dnc-rc-perf-test/providers/Microsoft.DocumentDB/databaseAccounts/dncrcperftest"
+      },
+      "cleanupConfig": {
+          "successSafetyValue": "matlong-test"
+      }
+    }

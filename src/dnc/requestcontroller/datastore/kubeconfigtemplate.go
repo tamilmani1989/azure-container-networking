@@ -16,7 +16,7 @@ type TemplateInfo struct {
 const kubeconfigTemplateString = `apiVersion: v1
 clusters:
 - cluster:
-    certificate-authority-data: {{ .CAData }}
+    insecure-skip-tls-verify: true
     server: {{ .Endpoint }}
   name: swift-cluster
 contexts:
