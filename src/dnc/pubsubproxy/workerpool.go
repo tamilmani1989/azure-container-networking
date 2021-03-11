@@ -849,5 +849,5 @@ func updateVnetConfiguration(
 		return true, nil
 	}
 
-	return networkupdatehandler.UpdateNetworkConfiguration(vnetID, repoNetworkConfiguration, &networkResponse)
+	return networkupdatehandler.UpdateNetworkConfiguration(repoNetworkConfiguration, &networkResponse)
 }

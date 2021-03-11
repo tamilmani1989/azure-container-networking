@@ -4,11 +4,12 @@ import (
 	"dnc/configuration"
 	"dnc/logger/acnlogger"
 	"dnc/logger/customlogger"
+
 	"github.com/Azure/azure-container-networking/telemetry"
 )
 
 // LS :- Global reference to loggershim
-var LS *LoggerShim
+var LS LoggerInterface
 
 // LoggerInterface :- Logging interface
 type LoggerInterface interface {
@@ -27,15 +28,17 @@ type LoggerShim struct {
 
 // NewLoggerShim :- Create a new LoggerShim
 func NewLoggerShim(cfg *configuration.Configuration) *LoggerShim {
-	LS = new(LoggerShim)
-	LS.loggerSettings = cfg.CustomLoggerSettings
-	if LS.loggerSettings != (configuration.CustomLoggerSettings{}) {
-		LS.loggerInterface = customlogger.NewCustomLogger(cfg.CustomLoggerSettings)
+	ls := new(LoggerShim)
+	ls.loggerSettings = cfg.CustomLoggerSettings
+	if ls.loggerSettings != (configuration.CustomLoggerSettings{}) {
+		ls.loggerInterface = customlogger.NewCustomLogger(cfg.CustomLoggerSettings)
 	} else {
-		LS.loggerInterface = acnlogger.NewAcnLogger(cfg)
+		ls.loggerInterface = acnlogger.NewAcnLogger(cfg)
 	}
 
-	return LS
+	LS = ls
+
+	return ls
 }
 
 // Init :- Initialize logger

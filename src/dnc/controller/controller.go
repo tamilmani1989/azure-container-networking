@@ -22,6 +22,7 @@ import (
 	"github.com/Azure/azure-container-networking/cns"
 )
 
+// todo: no need for these to be globals, should be part of struct
 var (
 	setOrchestratorTypeURLFmt string
 	masterElectionShim        *masterelectionshim.MasterElectionShim
@@ -273,9 +274,9 @@ func (c *Controller) GetNetworkStatus(networkID string) (*api.RequestStatus, int
 // GetSubnetStatus - Get subnet status
 func (c *Controller) GetSubnetStatus(networkID, subnetName string) (*api.RequestStatus, int, *api.JsonErr) {
 	var (
-		requestError *api.JsonErr
+		requestError      *api.JsonErr
 		requestReturnCode int
-		requestStatus api.RequestStatus
+		requestStatus     api.RequestStatus
 	)
 
 	requestStatus.State = datamodel.Join.String()
@@ -302,7 +303,7 @@ func (c *Controller) GetSubnetStatus(networkID, subnetName string) (*api.Request
 	case datamodel.SubnetUpdateFailed:
 		requestStatus.Status = datamodel.Failed.String()
 		requestReturnCode = http.StatusNotFound
-		requestError = api.NotFoundf(api.SubnetNotFound,"Network %s does not contain the specified subnet %s", networkID, subnetName)
+		requestError = api.NotFoundf(api.SubnetNotFound, "Network %s does not contain the specified subnet %s", networkID, subnetName)
 
 	case datamodel.SubnetUpdatePending:
 		requestStatus.Status = datamodel.Pending.String()
@@ -533,12 +534,12 @@ func (c *Controller) PersistSubnetDelegationRequestV2(networkID, subnet string, 
 
 	isNetworkJoined := true
 	if networkConfig == nil {
-		networkConfig = &datamodel.NetworkConfiguration {
+		networkConfig = &datamodel.NetworkConfiguration{
 			NetworkID:    networkID,
 			NetworkState: datamodel.Join,
 			Status:       datamodel.Pending,
 			APIVersion:   apiVersion,
-			Subnets: make(map[string]string),
+			Subnets:      make(map[string]string),
 		}
 		isNetworkJoined = false
 	}
@@ -573,6 +574,16 @@ func (c *Controller) PersistSubnetDelegationRequestV2(networkID, subnet string, 
 		loggershim.LS.Debugf("Updating the subnet config for Network: %s, Subnet: %s with access token and marking it as Joined", networkID, subnet)
 		subnetConfig.AccessToken = subnetRequest.AuthenticationToken
 		subnetConfig.Joined = true
+
+		// todo: how to handle updates to cidr size?
+		if config.FeatureFlagSettings.UsePrepopulatedIPAllocations {
+			loggershim.LS.Debugf("Prepopulating vnet id %s subnet %s %s", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet)
+			if err := c.ipAllocator.PrepopulateSubnet(subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet); err != nil {
+				loggershim.LS.Errorf("Could not prepopulate vnet id %s subnet %s %s: %+v", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet, err)
+				return err
+			}
+			loggershim.LS.Debugf("Successfully prepopulated vnet id %s subnet %s %s", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet)
+		}
 	}
 
 	// Persist the subnet configuration

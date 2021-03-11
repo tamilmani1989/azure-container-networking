@@ -25,7 +25,7 @@ import (
 var (
 	networkRefreshMonitorData *api.RefreshMonitorStatus
 	config                    *configuration.Configuration
-	logger                    *loggershim.LoggerShim
+	logger                    loggershim.LoggerInterface
 	replicaInstance           *replica.Replica
 	sessionManager            *utils.SessionManager
 	ipAllocator               *networkcontainer.IPAllocator
@@ -47,7 +47,7 @@ func Init(
 	sessionMgr *utils.SessionManager,
 	httpC *http.Client,
 	allocator *networkcontainer.IPAllocator,
-	loggershim *loggershim.LoggerShim) {
+	loggershim loggershim.LoggerInterface) {
 	config = cfg
 	replicaInstance = replicaInst
 	logger = loggershim
@@ -310,7 +310,7 @@ func RefreshNetworkConfiguration(
 		currentRepoSubnetCfg.Gateway = updatedSubnetCfg.DefaultGateway
 		currentRepoSubnetCfg.IsDelegatedSubnet = true
 		currentRepoSubnetCfg.UpdateStatus = datamodel.SubnetUpdateCompleted
-		datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
+		failureDetail = datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
 		if failureDetail != nil {
 			logger.Errorf("%s", failureDetail.String())
 			return false, false
@@ -378,91 +378,79 @@ func GetNetworkRefreshMonitorStatus() api.RefreshMonitorStatus {
 	return *networkRefreshMonitorData
 }
 
-func UpdateNetworkConfiguration(
-	networkID string,
-	repoNetworkConfiguration *datamodel.NetworkConfiguration,
-	networkResponse *nmagentcontracts.VirtualNetworkResponse) (bool, *api.JsonErr) {
-	var (
-		subnetsInUpdatedResponse map[string]nmagentcontracts.Subnet
-		ipSubnetMap              map[string]string
-		vnetVersion              uint64
-		dnsServers               []string
-	)
-
+func UpdateNetworkConfiguration(networkConfig *datamodel.NetworkConfiguration, pubsubResponse *nmagentcontracts.VirtualNetworkResponse) (bool, *api.JsonErr) {
 	/* This function compares the network configurations in the persistent store and the one retrieved from pubsub
 	   and returns the subnets that needs to be deleted, added and updated. */
-	isRetriableError, failureDetail, subnetsToAdd, subnetsToRemove, subnetsToUpdate :=
-		validateAndRetrieveNetworkConfigurationUpdate(repoNetworkConfiguration, networkResponse)
+	isRetriableError, err, subnetsToAdd, subnetsToRemove, subnetsToUpdate :=
+		validateAndRetrieveNetworkConfigurationUpdate(networkConfig, pubsubResponse)
 
-	if failureDetail != nil {
+	if err != nil {
 		if isRetriableError {
-			return false, failureDetail
+			return false, err
 		}
-		goto Cleanup
+		return handleFailure(networkConfig, err)
 	}
 
 	// ipSubnetMap holds all the subnets including the ones which are marked for deletion
-	ipSubnetMap = make(map[string]string)
+	ipSubnetMap := make(map[string]string)
 	// subnetsInUpdatedResponse only holds the subnets which are returned by pubsub. These won't hold the deleted subnets
-	subnetsInUpdatedResponse = make(map[string]nmagentcontracts.Subnet)
-	for _, subnet := range networkResponse.Subnets {
+	subnetsInUpdatedResponse := make(map[string]nmagentcontracts.Subnet)
+	for _, subnet := range pubsubResponse.Subnets {
 		subnetsInUpdatedResponse[subnet.SubnetName] = subnet
 		ipSubnetMap[subnet.SubnetName] = datamodel.SubnetKeyPlaceholder
 	}
 
 	for subnetName := range subnetsToRemove {
-		var subnetConfig *datamodel.SubnetConfiguration
-		subnetConfig, failureDetail = datamodel.TryQuerySubnetConfiguration(networkID, subnetName)
-		if failureDetail != nil {
-			goto Cleanup
+		subnetConfig, err := datamodel.TryQuerySubnetConfiguration(networkConfig.NetworkID, subnetName)
+		if err != nil {
+			return handleFailure(networkConfig, err)
 		}
 
-		if subnetConfig.UpdateStatus == datamodel.SubnetUpdateCompleted {
-			failureDetail = datamodel.DeleteSubnetConfiguration(networkID, subnetName)
-			if failureDetail != nil {
-				goto Cleanup
+		switch subnetConfig.UpdateStatus {
+		case datamodel.SubnetUpdateCompleted:
+			if err := datamodel.DeleteSubnetConfiguration(networkConfig.NetworkID, subnetName); err != nil {
+				return handleFailure(networkConfig, err)
 			}
-		} else if subnetConfig.UpdateStatus == datamodel.SubnetUpdatePending {
+		case datamodel.SubnetUpdatePending:
 			// Check if the subnet to remove has UpdateStatus set to pending. If yes, do not remove it but set the
 			// UpdateStatus as SubnetUpdateFailed
-			logger.Debugf("Subnet %s in network %s has the update status as pending. Updating the status as UpdateFailed",
-				subnetName, networkID)
+			logger.Debugf("[network update] Subnet %s in network %s has the update status as pending. Updating the status as UpdateFailed", subnetName, networkConfig.NetworkID)
 			ipSubnetMap[subnetName] = datamodel.SubnetKeyPlaceholder
 			subnetConfig.UpdateStatus = datamodel.SubnetUpdateFailed
-			failureDetail = datamodel.PutSubnetConfiguration(subnetConfig)
-			if failureDetail != nil {
-				goto Cleanup
+			if err := datamodel.PutSubnetConfiguration(subnetConfig); err != nil {
+				return handleFailure(networkConfig, err)
 			}
-		} else if subnetConfig.UpdateStatus == datamodel.SubnetUpdateFailed {
+		case datamodel.SubnetUpdateFailed:
 			ipSubnetMap[subnetName] = datamodel.SubnetKeyPlaceholder
 		}
 	}
 
-	// Commiting virtual network config in two phases.
+	// Committing virtual network config in two phases.
 	// First phase, update only the configuration and the subnet
 	// list and the state is still pending join.
 	// This helps in driving cleanup as we have handle to all the subnets
 	// and we can handle any failures that happens when persisting subnet
 	// configurations.
-	if len(networkResponse.DNSServers) == 0 {
+
+	var dnsServers []string
+	if len(pubsubResponse.DNSServers) == 0 {
 		dnsServers = make([]string, 0)
 	} else {
-		dnsServers = strings.Split(networkResponse.DNSServers, ",")
+		dnsServers = strings.Split(pubsubResponse.DNSServers, ",")
 	}
 
-	vnetVersion, _ = strconv.ParseUint(networkResponse.VnetVersion, 10, 64)
+	vnetVersion, _ := strconv.ParseUint(pubsubResponse.VnetVersion, 10, 64)
 
 	// Update the existing NetworkConfiguration with updated data
-	repoNetworkConfiguration.Version = vnetVersion
-	repoNetworkConfiguration.CNetSpace = networkResponse.CNetSpace
-	repoNetworkConfiguration.VNetSpace = networkResponse.VNetSpace
-	repoNetworkConfiguration.Subnets = ipSubnetMap
-	repoNetworkConfiguration.DNSServers = dnsServers
-	repoNetworkConfiguration.Status = datamodel.Pending
+	networkConfig.Version = vnetVersion
+	networkConfig.CNetSpace = pubsubResponse.CNetSpace
+	networkConfig.VNetSpace = pubsubResponse.VNetSpace
+	networkConfig.Subnets = ipSubnetMap
+	networkConfig.DNSServers = dnsServers
+	networkConfig.Status = datamodel.Pending
 
-	failureDetail = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
-	if failureDetail != nil {
-		goto Cleanup
+	if err := datamodel.PersistNetworkConfiguration(networkConfig); err != nil {
+		return handleFailure(networkConfig, err)
 	}
 
 	for subnetName := range subnetsToAdd {
@@ -476,7 +464,7 @@ func UpdateNetworkConfiguration(
 		}
 
 		subnetConfig := datamodel.SubnetConfiguration{
-			NetworkID:         networkID,
+			NetworkID:         networkConfig.NetworkID,
 			SubnetName:        subnetName,
 			IPSubnet:          updatedSubnetCfg.AddressPrefix,
 			IsDelegatedSubnet: true,
@@ -484,18 +472,8 @@ func UpdateNetworkConfiguration(
 			Tags:              tags,
 			UpdateStatus:      datamodel.SubnetUpdateCompleted}
 
-		if config.FeatureFlagSettings.UsePrepopulatedIPAllocations {
-			logger.Debugf("prepopulating vnet id %s subnet %s %s", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet)
-			if err := ipAllocator.PrepopulateSubnet(subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet); err != nil {
-				logger.Errorf("could not prepopulate vnet id %s subnet %s %s: %+v", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet, err)
-				return false, err // any error from this operation should be retryable
-			}
-			logger.Debugf("successfully persisted records for vnet id %s subnet %s %s", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet)
-		}
-
-		failureDetail = datamodel.PutSubnetConfiguration(&subnetConfig)
-		if failureDetail != nil {
-			goto Cleanup
+		if err := datamodel.PutSubnetConfiguration(&subnetConfig); err != nil {
+			return handleFailure(networkConfig, err)
 		}
 	}
 
@@ -507,31 +485,41 @@ func UpdateNetworkConfiguration(
 		currentRepoSubnetCfg.Gateway = updatedSubnetCfg.DefaultGateway
 		currentRepoSubnetCfg.IsDelegatedSubnet = true
 		currentRepoSubnetCfg.UpdateStatus = datamodel.SubnetUpdateCompleted
-		failureDetail = datamodel.PutSubnetConfiguration(currentRepoSubnetCfg)
-		if failureDetail != nil {
-			goto Cleanup
+
+		if config.FeatureFlagSettings.UsePrepopulatedIPAllocations {
+			logger.Debugf("[network update] prepopulating vnet id %s subnet %s %s", currentRepoSubnetCfg.NetworkID, currentRepoSubnetCfg.SubnetName, currentRepoSubnetCfg.IPSubnet)
+			if err := ipAllocator.PrepopulateSubnet(currentRepoSubnetCfg.NetworkID, currentRepoSubnetCfg.SubnetName, currentRepoSubnetCfg.IPSubnet); err != nil {
+				logger.Errorf("[network update] could not prepopulate vnet id %s subnet %s %s: %+v", currentRepoSubnetCfg.NetworkID, currentRepoSubnetCfg.SubnetName, currentRepoSubnetCfg.IPSubnet, err)
+				return false, err // any error from this operation should be retryable
+			}
+			logger.Debugf("[network update] successfully prepopulated vnet id %s subnet %s %s", currentRepoSubnetCfg.NetworkID, currentRepoSubnetCfg.SubnetName, currentRepoSubnetCfg.IPSubnet)
+		}
+
+		if err := datamodel.PutSubnetConfiguration(currentRepoSubnetCfg); err != nil {
+			return handleFailure(networkConfig, err)
 		}
 	}
 
 	// Mark the join operation as completed.
-	repoNetworkConfiguration.NetworkState = datamodel.Join
-	repoNetworkConfiguration.Status = datamodel.Completed
-	failureDetail = datamodel.PersistNetworkConfiguration(repoNetworkConfiguration)
+	networkConfig.NetworkState = datamodel.Join
+	networkConfig.Status = datamodel.Completed
+	if err := datamodel.PersistNetworkConfiguration(networkConfig); err != nil {
+		return handleFailure(networkConfig, err)
+	}
 
-Cleanup:
-	// If it is an unknown failure then we return with marking the
-	// operation has failed so we can retry later.
-	if failureDetail != nil {
-		if failureDetail.Code == api.StatusInternalServerError {
-			return false, failureDetail
-		}
+	return true, nil
+}
 
-		// Non retriable errors, mark the operation as failed.
-		repoNetworkConfiguration.Status = datamodel.Failed
-		repoNetworkConfiguration.FailureDetail = *failureDetail
-		if err := datamodel.PersistNetworkConfiguration(repoNetworkConfiguration); err != nil {
-			return false, err
-		}
+func handleFailure(networkConfig *datamodel.NetworkConfiguration, err *api.JsonErr) (bool, *api.JsonErr) {
+	if err.Code == api.StatusInternalServerError {
+		return false, err
+	}
+
+	// Non retriable errors, mark the operation as failed.
+	networkConfig.Status = datamodel.Failed
+	networkConfig.FailureDetail = *err
+	if err := datamodel.PersistNetworkConfiguration(networkConfig); err != nil {
+		return false, err
 	}
 
 	return true, nil
@@ -568,7 +556,7 @@ func ProcessVirtualNetworkJoin(
 		return true, nil
 	}
 
-	return UpdateNetworkConfiguration(networkID, repoNetworkConfiguration, networkResponse)
+	return UpdateNetworkConfiguration(repoNetworkConfiguration, networkResponse)
 }
 
 func validateAndRetrieveNetworkConfigurationUpdate(
