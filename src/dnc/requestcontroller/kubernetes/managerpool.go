@@ -314,6 +314,7 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 		Logger:             m.logger,
 		ReconcileTimeout:   dncClientRequestTimeout,
 		OrchestratorID:     orchestratorID,
+		SkipSubnetJoin:     config.DNCClientConfig.SkipSubnetJoin,
 	})
 
 	err = ctrl.NewControllerManagedBy(mgr).

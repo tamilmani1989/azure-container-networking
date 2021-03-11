@@ -140,27 +140,26 @@ func runRequestController(configFile string) error {
 
 	syncDncClient := syncdncclient.NewSynchronousDNCClient(dncclient.NewDncClient(config.DNCClientConfig.DNCEndpoint), dncClientPollingInterval, logger)
 
-	// Create the subnet info provider if necessary
+	// Create the subnet info provider
 	var subnetInfoProvider requestcontroller.SubnetInfoProvider
-	if !config.DNCClientConfig.SkipSubnetJoin {
-		switch mode := config.SubnetInfoProviderConfig.Mode; mode {
-		case requestcontroller.SubnetInfoProviderDatastoreMode:
-			subnetInfoProvider, err = datastore.NewSubnetInfoProvider(config.DataStoreSettings, config.LoggingConfig)
-			if err != nil {
-				return fmt.Errorf("Could not create subnet info provider: %w", err)
-			}
-		case requestcontroller.SubnetInfoProviderConfigMode:
-			subnetInfoProvider = &requestcontroller.ConfigSubnetInfoProvider{
-				Config: config.SubnetInfoProviderConfig,
-			}
-		default:
-			return fmt.Errorf("Unknown SubnetInfoProvider mode: %s", mode)
-		}
 
-		logger.WithFields(logrus.Fields{
-			"subnetInfoProviderMode": config.SubnetInfoProviderConfig.Mode,
-		}).Infof("Using subnetInfoProviderMode %s", config.SubnetInfoProviderConfig.Mode)
+	switch mode := config.SubnetInfoProviderConfig.Mode; mode {
+	case requestcontroller.SubnetInfoProviderDatastoreMode:
+		subnetInfoProvider, err = datastore.NewSubnetInfoProvider(config.DataStoreSettings, config.LoggingConfig)
+		if err != nil {
+			return fmt.Errorf("Could not create subnet info provider: %w", err)
+		}
+	case requestcontroller.SubnetInfoProviderConfigMode:
+		subnetInfoProvider = &requestcontroller.ConfigSubnetInfoProvider{
+			Config: config.SubnetInfoProviderConfig,
+		}
+	default:
+		return fmt.Errorf("Unknown SubnetInfoProvider mode: %s", mode)
 	}
+
+	logger.WithFields(logrus.Fields{
+		"subnetInfoProviderMode": config.SubnetInfoProviderConfig.Mode,
+	}).Infof("Using subnetInfoProviderMode %s", config.SubnetInfoProviderConfig.Mode)
 
 	// Create the RequestController
 	requestController, err := kubernetes.NewRequestController(kubernetes.RequestControllerOptions{

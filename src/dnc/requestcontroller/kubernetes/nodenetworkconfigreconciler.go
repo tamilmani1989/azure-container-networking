@@ -35,20 +35,22 @@ const (
 
 // NodeNetworkConfigReconciler is a controller-runtime/pkg/reconcile Reconciler for NodeNetworkConfigs
 type NodeNetworkConfigReconciler struct {
-	k8sClient           K8sClient
-	dncClient           requestcontroller.SynchronousDNCClient
-	scalerConfig        requestcontroller.RequestScalerConfig
-	subnetInfoProvider  requestcontroller.SubnetInfoProvider
-	logger              logrus.FieldLogger
-	nodeIDToNCID        *cache.Cache // map name of NNC to NC ID
-	registeredNodes     *cache.Cache // Keep a map of nodes and ips to know what has already been registered on DNC
-	registeredVnets     *cache.Cache // Keep a set of VNET GUIDs registered on DNC
-	registeredSubnets   *cache.Cache // Keep a set of Subnets registered on DNC
-	reconcileTimeout    time.Duration
-	vnetGUID            string // TODO: make this a NC ID -> VnetGUID map to support multiple Vnets
+	k8sClient                K8sClient
+	dncClient                requestcontroller.SynchronousDNCClient
+	scalerConfig             requestcontroller.RequestScalerConfig
+	subnetInfoProvider       requestcontroller.SubnetInfoProvider
+	logger                   logrus.FieldLogger
+	nodeIDToNCDetails        *cache.Cache // map name of NNC to NC ID
+	registeredNodes          *cache.Cache // Keep a map of nodes and ips to know what has already been registered on DNC
+	registeredVnets          *cache.Cache // Keep a set of VNET GUIDs registered on DNC
+	registeredSubnets        *cache.Cache // Keep a set of Subnets registered on DNC
+	delegationGUIDToVnetGUID *cache.Cache // Keep a map of delegation guid to vnet guid
+	reconcileTimeout         time.Duration
+
 	registerVnetMutex   sync.Mutex
 	registerSubnetMutex sync.Mutex
 	orchestratorID      string // used for publishing metrics
+	skipSubnetJoin      bool
 }
 
 // NodeNetworkConfigReconcilerOptions options to create NNC Reconciler
@@ -60,6 +62,12 @@ type NodeNetworkConfigReconcilerOptions struct {
 	Logger             logrus.FieldLogger
 	ReconcileTimeout   time.Duration
 	OrchestratorID     string
+	SkipSubnetJoin     bool
+}
+
+type ncDetails struct {
+	id       string
+	vnetGUID string
 }
 
 // NewNodeNetworkConfigReconciler returns a new NNC Reconciler based on the provided options
@@ -69,17 +77,19 @@ func NewNodeNetworkConfigReconciler(opts NodeNetworkConfigReconcilerOptions) *No
 	})
 
 	return &NodeNetworkConfigReconciler{
-		k8sClient:          opts.K8sClient,
-		dncClient:          opts.DNCClient,
-		scalerConfig:       opts.ScalerConfig,
-		subnetInfoProvider: opts.SubnetInfoProvider,
-		logger:             logger,
-		nodeIDToNCID:       cache.New(cache.NoExpiration, cache.NoExpiration),
-		registeredNodes:    cache.New(cache.NoExpiration, cache.NoExpiration),
-		registeredVnets:    cache.New(cache.NoExpiration, cache.NoExpiration),
-		registeredSubnets:  cache.New(cache.NoExpiration, cache.NoExpiration),
-		reconcileTimeout:   opts.ReconcileTimeout,
-		orchestratorID:     opts.OrchestratorID,
+		k8sClient:                opts.K8sClient,
+		dncClient:                opts.DNCClient,
+		scalerConfig:             opts.ScalerConfig,
+		subnetInfoProvider:       opts.SubnetInfoProvider,
+		logger:                   logger,
+		nodeIDToNCDetails:        cache.New(cache.NoExpiration, cache.NoExpiration),
+		registeredNodes:          cache.New(cache.NoExpiration, cache.NoExpiration),
+		registeredVnets:          cache.New(cache.NoExpiration, cache.NoExpiration),
+		registeredSubnets:        cache.New(cache.NoExpiration, cache.NoExpiration),
+		delegationGUIDToVnetGUID: cache.New(cache.NoExpiration, cache.NoExpiration),
+		reconcileTimeout:         opts.ReconcileTimeout,
+		orchestratorID:           opts.OrchestratorID,
+		skipSubnetJoin:           opts.SkipSubnetJoin,
 	}
 }
 
@@ -167,22 +177,24 @@ func (n *NodeNetworkConfigReconciler) reconcile(ctx context.Context, request rec
 // This function will clean up the Node and NC on DNC, and remove the finalizer from the NNC so it can be removed from kubernetes api-server
 func (n *NodeNetworkConfigReconciler) cleanUpNNC(ctx context.Context, nodeNetworkConfig *acnv1alpha.NodeNetworkConfig, nodeID string) error {
 	// Delete NC from DNC if it exists
-	ncID, err := n.getNCIDFromNodeID(ctx, nodeID)
+	ncInfo, err := n.getNCDetailsFromNodeID(ctx, nodeID)
 	if err != nil {
 		// Unexpected client error, so requeue
 		return err
 	}
 
+	ncID := ncInfo.id
+
 	// Delete NC if we have an NC ID to delete. Could be empty if there is no nc associated to this NNC.
 	if ncID != "" {
-		if err := n.dncClient.DeleteNC(ctx, n.vnetGUID, ncID); err != nil {
+		if err := n.dncClient.DeleteNC(ctx, ncInfo.vnetGUID, ncID); err != nil {
 			// Could not clean up NC, so requeue
 			return err
 		}
 	}
 
 	// Remove NC from cache if present
-	n.nodeIDToNCID.Delete(nodeID)
+	n.nodeIDToNCDetails.Delete(nodeID)
 
 	// Delete Node from DNC
 	err = n.dncClient.DeleteNode(ctx, nodeID)
@@ -230,11 +242,28 @@ func (n *NodeNetworkConfigReconciler) mustRecreateNNC(ctx context.Context, nodeN
 
 	// If we crash at this point, the NodeReconciler will create the NNC on restart because the reconcilers share a manager, so no resources are leaked
 
+	delegatedSubnetID, found := node.Labels[DelegatedSubnetIDLabel]
+	if !found {
+		return fmt.Errorf("Label %s not found for node %s", DelegatedSubnetIDLabel, node.Name)
+	}
+
+	subnetName, found := node.Labels[SubnetNameLabel]
+	if !found {
+		return fmt.Errorf("Label %s not found for node %s", SubnetNameLabel, node.Name)
+	}
+
+	// Get subnet info, this is a threadsafe call
+	subnetInfo, err := n.subnetInfoProvider.GetSubnetInfo(ctx, delegatedSubnetID, subnetName)
+	if err != nil {
+		return err
+	}
+
 	// Recreate the NNC from the NC on DNC
 	var ncResponse *api.NetworkContainerResponse
-	ncID, _ := n.getNCIDFromNodeID(ctx, nodeID) // If theres an error, we need to recreate the NC from scratch, so ignore it
+	ncInfo, _ := n.getNCDetailsFromNodeID(ctx, nodeID) // If theres an error, we need to recreate the NC from scratch, so ignore it
+	ncID := ncInfo.id
 	if ncID != "" {
-		ncResponse, _ = n.dncClient.GetNC(ctx, n.vnetGUID, ncID)
+		ncResponse, _ = n.dncClient.GetNC(ctx, subnetInfo.VnetID, ncID)
 	}
 
 	nnc := n.getNewNNCFromNCResponse(ncResponse, name, namespace)
@@ -296,35 +325,34 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 		return fmt.Errorf("Label %s not found for node %s", SubnetNameLabel, node.Name)
 	}
 
-	// subnetInfoProvider will be nil if skipping the subnet/vnet join, so check for that first
-	if n.subnetInfoProvider != nil {
-		// Get subnet info, this is a threadsafe call
-		subnetInfo, err := n.subnetInfoProvider.GetSubnetInfo(ctx, delegatedSubnetID, subnetName)
-		if err != nil {
-			return err
-		}
+	// Get subnet info, this is a threadsafe call
+	subnetInfo, err := n.subnetInfoProvider.GetSubnetInfo(ctx, delegatedSubnetID, subnetName)
+	if err != nil {
+		return err
+	}
 
-		// Register the vnet if not already registered
-		if err := n.ensureVnetIsRegistered(ctx, subnetInfo.VnetID); err != nil {
-			return err
-		}
+	// Store the delegationGUID -> vnetGUID mapping
+	n.delegationGUIDToVnetGUID.Set(delegatedSubnetID, subnetInfo.VnetID, cache.NoExpiration)
 
-		//Register the subnet if not already registered
+	// Register the subnet/vnet if not already registered and not skipped
+	if !n.skipSubnetJoin {
 		if err := n.ensureSubnetIsRegistered(ctx, subnetInfo.VnetID, subnetName, subnetInfo.PrimaryToken); err != nil {
 			return err
 		}
 	}
 
 	// Register the Node if not already registered
-	if err := n.ensureNodeIsRegistered(ctx, nodeID, internalIPAddress, cns.KubernetesCRD, n.vnetGUID); err != nil {
+	if err := n.ensureNodeIsRegistered(ctx, nodeID, internalIPAddress, cns.KubernetesCRD, subnetInfo.VnetID); err != nil {
 		return err
 	}
 
 	// Create or Update the NC on DNC
-	ncID, err := n.getNCIDFromNodeID(ctx, nodeID)
+	ncInfo, err := n.getNCDetailsFromNodeID(ctx, nodeID)
 	if err != nil {
 		return err
 	}
+
+	ncID := ncInfo.id
 
 	if ncID == "" {
 		// If there is no NC registered for the Node, then create a new one
@@ -337,6 +365,12 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 		n.logger.WithFields(logrus.Fields{
 			"NNC": nodeNetworkConfig.Name,
 		}).Infof("Time to create NC request: %s", ncCreationDuration)
+
+		// cache the nc id and vnet for later lookups
+		n.nodeIDToNCDetails.Set(nodeID, ncDetails{
+			id:       ncID,
+			vnetGUID: subnetInfo.VnetID,
+		}, cache.NoExpiration)
 	}
 
 	ncReq := api.NetworkContainerRequestV2{
@@ -351,13 +385,17 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 		ToBeDeletedIPIds: nodeNetworkConfig.Spec.IPsNotInUse,
 	}
 
-	err = n.dncClient.UpsertNcV2(ctx, n.vnetGUID, ncID, ncReq)
+	err = n.dncClient.UpsertNcV2(ctx, subnetInfo.VnetID, ncID, ncReq)
 	if err != nil {
 		//DNC client error, requeue
 		return err
 	}
 
-	ncResponse, err := n.dncClient.GetNC(ctx, n.vnetGUID, ncID)
+	ncResponse, err := n.dncClient.GetNC(ctx, subnetInfo.VnetID, ncID)
+	if err != nil {
+		// DNC client error, requeue
+		return err
+	}
 
 	// Publish k8s status
 	status := n.getNNCStatusFromNCResponse(ncResponse)
@@ -373,24 +411,30 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 
 func (n *NodeNetworkConfigReconciler) ensureVnetIsRegistered(ctx context.Context, vnetID string) error {
 	// Take lock on vnet so one goroutine registers and the rest wait
+	// TODO: This lock will prevent concurrent vnet joins when there are multiple vnets
 	n.registerVnetMutex.Lock()
 	defer n.registerVnetMutex.Unlock()
-	n.vnetGUID = vnetID
-	if _, found := n.registeredVnets.Get(n.vnetGUID); !found {
+	if _, found := n.registeredVnets.Get(vnetID); !found {
 		n.logger.WithFields(logrus.Fields{
 			"vnetID": vnetID,
 		}).Infof("Vnet %s not found in local cache, registering on DNC", vnetID)
-		err := n.dncClient.RegisterVnet(ctx, n.vnetGUID)
+		err := n.dncClient.RegisterVnet(ctx, vnetID)
 		if err != nil {
 			return err
 		}
-		n.registeredVnets.Set(n.vnetGUID, nil, cache.NoExpiration)
+		n.registeredVnets.Set(vnetID, nil, cache.NoExpiration)
 	}
 
 	return nil
 }
 
 func (n *NodeNetworkConfigReconciler) ensureSubnetIsRegistered(ctx context.Context, vnetID, subnetName, authToken string) error {
+	/// First, register the vnet
+	if err := n.ensureVnetIsRegistered(ctx, vnetID); err != nil {
+		return err
+	}
+
+	// Second, register the subnet
 	// Take lock on subnet so one goroutine registers and the rest wait
 	n.registerSubnetMutex.Lock()
 	defer n.registerSubnetMutex.Unlock()
@@ -420,7 +464,7 @@ func (n *NodeNetworkConfigReconciler) ensureNodeIsRegistered(ctx context.Context
 			"vnetID": vnetGUID,
 			"nodeID": nodeID,
 		}).Infof("Node %s not found in cache or IP doesn't match, registering on DNC", nodeID)
-		err := n.dncClient.UpsertNode(ctx, nodeID, ipAddress, cns.KubernetesCRD, n.vnetGUID)
+		err := n.dncClient.UpsertNode(ctx, nodeID, ipAddress, cns.KubernetesCRD, vnetGUID)
 		if err != nil {
 			// DNC client error, requeue
 			return err
@@ -433,9 +477,9 @@ func (n *NodeNetworkConfigReconciler) ensureNodeIsRegistered(ctx context.Context
 
 // get the NC for a given Node, either from cache or DNC. Caches the result if necessary. If the NC is not found, this returns and empty string and nil error.
 // This function only returns an error when there is a DNC client errror, such as an http transport error
-func (n *NodeNetworkConfigReconciler) getNCIDFromNodeID(ctx context.Context, nodeID string) (string, error) {
-	if ncID, found := n.nodeIDToNCID.Get(nodeID); found {
-		return ncID.(string), nil
+func (n *NodeNetworkConfigReconciler) getNCDetailsFromNodeID(ctx context.Context, nodeID string) (ncDetails, error) {
+	if ncInfo, found := n.nodeIDToNCDetails.Get(nodeID); found {
+		return ncInfo.(ncDetails), nil
 	}
 
 	// NC ID not found in cache (or was empty), try to query DNC for the node to get its NC (assuming one NC per node)
@@ -445,17 +489,17 @@ func (n *NodeNetworkConfigReconciler) getNCIDFromNodeID(ctx context.Context, nod
 		if errors.As(err, &respErr) {
 			if respErr.HTTPStatus == http.StatusNotFound {
 				// Node isn't found, so NC isn't found
-				return "", nil
+				return ncDetails{}, nil
 			}
 		}
 		// return any other api error
-		return "", err
+		return ncDetails{}, err
 	}
 
 	ncs := nodeInfoResponse.NetworkContainers
 	if len(ncs) == 0 {
 		// Node has no NCs, so NC not found
-		return "", nil
+		return ncDetails{}, nil
 	}
 
 	if len(ncs) > 1 {
@@ -467,10 +511,15 @@ func (n *NodeNetworkConfigReconciler) getNCIDFromNodeID(ctx context.Context, nod
 		}).Warnf("WARN: Node %s should have 1 NC but has %d: %v", nodeID, len(ncs), ncs)
 	}
 
-	// cache it for later lookups
-	n.nodeIDToNCID.Set(nodeID, ncs[0].NcID, cache.NoExpiration)
+	ncInfo := ncDetails{
+		id:       ncs[0].NcID,
+		vnetGUID: ncs[0].IPConfiguration.NetworkID,
+	}
 
-	return ncs[0].NcID, nil
+	// cache it for later lookups
+	n.nodeIDToNCDetails.Set(nodeID, ncInfo, cache.NoExpiration)
+
+	return ncInfo, nil
 }
 
 func (n *NodeNetworkConfigReconciler) getNewNNCFromNCResponse(nc *api.NetworkContainerResponse, name, namespace string) *acnv1alpha.NodeNetworkConfig {
