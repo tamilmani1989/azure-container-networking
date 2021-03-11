@@ -51,6 +51,8 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     $config = $config.replace('__CosmosDBResourceID__', (Out-String -InputObject (Get-Value "Dependencies" "CosmosDBResourceID")).Trim())
     $config = $config.replace('__RegionalKeyVaultName__', (Out-String -InputObject (Get-Value "Dependencies" "RegionalKeyVaultName")).Trim())
 
+    $config = $config.replace('__MaxBatchSize__', (Out-String -InputObject (Get-Value "Application" "MaxBatchSize" "1000")).Trim())
+
     ##dncrc
     
     $config = $config.replace('__RpCosmosDbAccountName__', (Out-String -InputObject (Get-Value "Dependencies" "RpCosmosDbAccountName")).Trim())
