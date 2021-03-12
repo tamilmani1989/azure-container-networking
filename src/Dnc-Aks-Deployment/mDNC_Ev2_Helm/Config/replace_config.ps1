@@ -8,8 +8,9 @@ param(
 function Get-Value ([string]$Section, [string]$Key, [string] $defaultValue) {
     if (Test-Path env:$key) {
         write-host "Found environment variable for $key"
-        return env:$key
+        return [System.Environment]::GetEnvironmentVariable($key)
     }
+    
     if ($overrides) {
         if (Get-Member -inputobject $overrides.$section -name $key -Membertype Properties) {
             write-host "Found $key in local configuration"
