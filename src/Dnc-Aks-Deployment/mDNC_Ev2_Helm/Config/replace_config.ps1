@@ -71,6 +71,7 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     $config = $config.replace('__Location__', (Out-String -InputObject (Get-Value "Cluster" "Location")).Trim())
 
     ##gateway
+    $config = $config.replace('__ClientAppIds__', (Out-String -InputObject (Get-Value "Application" "ClientAppIds")).Trim())
 
     ## baremetal
     $config = $config.replace('__EnforceNicLImit__', (Out-String -InputObject (Get-Value "Application" "EnforceNicLimit" "true")).Trim())
