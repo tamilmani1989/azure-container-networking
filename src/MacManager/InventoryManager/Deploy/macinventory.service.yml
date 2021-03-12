@@ -1,0 +1,13 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: macinventory-service
+spec:
+  selector:
+    app: macinventory
+  type: LoadBalancer
+  ports:
+  - name: macinv-port
+    port: 443
+    targetPort: 5004
+    protocol: TCP

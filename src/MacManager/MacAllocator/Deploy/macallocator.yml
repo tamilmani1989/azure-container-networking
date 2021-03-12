@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: macallocator-deployment
+  labels:
+    app: macallocator
+spec:
+  selector:
+    matchLabels:
+      app: macallocator
+  minReadySeconds: 100
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        timestamp: "20060102150405"
+      labels:
+        app: macallocator
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - macallocator
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: macallocator-container
+        image: acndev.azurecr.io/macallocator:latest
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: macallocator-config
+          mountPath: /etc/macallocator
+        ports:
+        - containerPort: 5012
+        env:
+        - name : MACALLOCATOR_CONFIG_PATH
+          value : /etc/macallocator
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+      volumes:
+      - name: macallocator-config
+        configMap:
+          name: macallocator-config

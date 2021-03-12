@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: macinventory-deployment
+  labels:
+    app: macinventory
+spec:
+  selector:
+    matchLabels:
+      app: macinventory
+  minReadySeconds: 100
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        timestamp: "20060102150405"
+      labels:
+        app: macinventory
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - macinventory
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: macinventory-container
+        image: acndev.azurecr.io/macinventorymanager:latest
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: macinventory-config
+          mountPath: /etc/macinventory
+        ports:
+        - containerPort: 5004
+        env:
+        - name : MACINVENTORYMANAGER_CONFIG_PATH
+          value : /etc/macinventory
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+      volumes:
+      - name: macinventory-config
+        configMap:
+          name: macinventory-config
