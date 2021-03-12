@@ -46,7 +46,7 @@ func PublishBaremetalNetworkContainer(
 	}
 
 	// We use reservation ID to uniquely identify the NC on front end network
-	ncId, _ := utils.ConvertGUIDStrToSdnContractGUID(repoNCConfig.ReservationID)
+	ncId, _ := utils.ConvertGuidStrToCSharpGUID(repoNCConfig.ReservationID)
 
 	// generate the array of interface ids in this container
 	networkInterfaceIds := make([]*sdn.Guid, 1)

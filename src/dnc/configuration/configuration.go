@@ -272,6 +272,11 @@ type PubSubProxySettings struct {
 	PubsubVipsString string
 }
 
+type AznmSettings struct {
+	// port where aznm service is listening at
+	Port int
+}
+
 // Configuration - Details related to dnc configuration settings
 type Configuration struct {
 	DataStoreSettings      DataStoreSettings
@@ -290,6 +295,7 @@ type Configuration struct {
 	AzureEnvironment       AzureEnvironment
 	GreSettings            GreSettings
 	FeatureFlagSettings    FeatureFlagSettings
+	AznmSettings           AznmSettings
 }
 
 // Load the JSON config file

@@ -116,6 +116,9 @@
         "DebugMode": false,
         "DisableAiLogging": false
     },
+    "AznmSettings": {
+        "Port": 444
+    },
     "PubSubProxySettings": {
         "EnablePubSubProxy": false,
         "MaxConcurrentRequests": 1000,

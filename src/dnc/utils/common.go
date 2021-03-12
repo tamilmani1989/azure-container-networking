@@ -259,3 +259,22 @@ func PanicRecoverAndExitWithStackTrace(context string) {
 		os.Exit(1)
 	}
 }
+
+// Remove hyphen from string
+func DehyphenString(guid string) string {
+	parts := strings.Split(guid, "-")
+	return strings.Join(parts, "")
+}
+
+// Reverse byte array
+func ReverseByteArray(s []byte) []byte {
+	a := make([]byte, len(s))
+	copy(a, s)
+
+	for i := len(a)/2 - 1; i >= 0; i-- {
+		opp := len(a) - 1 - i
+		a[i], a[opp] = a[opp], a[i]
+	}
+
+	return a
+}
