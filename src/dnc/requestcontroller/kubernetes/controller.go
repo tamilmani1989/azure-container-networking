@@ -132,11 +132,11 @@ func (r *RequestController) registerAndStartManagersForever(ctx context.Context)
 			r.logger.Info("register managers loop was cancelled, no longer checking for new k8s clusters")
 			return
 		case <-time.After(30 * time.Second):
-			r.logger.Info("Refreshing k8s clients from kubeconfig provider")
-		}
-		err := r.registerAndStartManagers(ctx)
-		if err != nil {
-			r.logger.Info("Failed to get k8s clients: %v, will retry in 30s", err)
+			// Refresh kubeconfigs after 30 seconds
+			err := r.registerAndStartManagers(ctx)
+			if err != nil {
+				r.logger.Info("Failed to get k8s clients: %v, will retry in 30s", err)
+			}
 		}
 	}
 }

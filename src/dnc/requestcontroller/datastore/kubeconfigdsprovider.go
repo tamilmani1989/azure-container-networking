@@ -104,7 +104,6 @@ func NewKubeconfigProvider(opts KubeconfigProviderOptions) (*KubeconfigProvider,
 }
 
 func (k *KubeconfigProvider) GetBytesForAll(ctx context.Context) (map[string][]byte, error) {
-	k.logger.Info("Getting kubeconfigs for all orchestrators")
 	// Query the DB for all kubeconfig params
 	allKubeconfigs := make(map[string][]byte)
 
@@ -175,8 +174,6 @@ func (k *KubeconfigProvider) GetBytesForAll(ctx context.Context) (map[string][]b
 
 		pageToken = nextPageToken
 	}
-
-	k.logger.Infof("Found %d orchestrators", len(allKubeconfigs))
 
 	return allKubeconfigs, nil
 }
