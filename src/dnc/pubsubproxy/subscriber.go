@@ -291,6 +291,10 @@ func (s *subscriber) rehydrateSubscriptions() {
 func (callback subscriberCallback) OnNotificationReceived(
 	notification *MadariNotify) {
 	switch notification.Type {
+	case MADARI_NOTIFY_NODE_CHILDREN_CHANGED:
+		fallthrough
+	case MADARI_NOTIFY_NODE_CREATED:
+		fallthrough
 	case MADARI_NOTIFY_NODE_INITIAL_STATE:
 		fallthrough
 	case MADARI_NOTIFY_NODE_DATA_CHANGED:
@@ -322,6 +326,9 @@ func (callback subscriberCallback) OnNotificationReceived(
 			loggershim.LS.Errorf("[PubSubProxy] Subscriber received delete notification for vnetId: %s on path: %s",
 				getVnetIdFromPartitionKey(notification.PartitionKey), notification.RelativePath)
 		}
+	default:
+		loggershim.LS.Errorf("[PubSubProxy] Subscriber received unknown notification of type: %d for vnetId: %s on path: %s",
+			notification.Type, getVnetIdFromPartitionKey(notification.PartitionKey), notification.RelativePath)
 	}
 }
 
