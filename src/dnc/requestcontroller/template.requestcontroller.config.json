@@ -12,15 +12,17 @@
             }
         },
         "namespace": "kube-system",
-        "clientTimeout": "10s"
+        "clientTimeout": "20m",
+        "concurrentNodeReconcilers": 100,
+        "concurrentNNCReconcilers": 500
     },
     "requestScalerConfig": {
-        "batchSize": 16,
-        "requestThresholdPercent": 50,
-        "releaseThresholdPercent": 150
+        "batchSize": 250,
+        "requestThresholdPercent": 0,
+        "releaseThresholdPercent": 100
     },
     "dncClientConfig": {
-        "requestTimeout": "10s",
+        "requestTimeout": "30m",
         "pollingInterval": "1s",
         "dncEndpoint": "http://localhost:9000",
         "skipSubnetJoin": true
