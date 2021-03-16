@@ -31,4 +31,5 @@ type NCGoalState struct {
 	LocalIP               string
 	GreKey                uint16
 	OrchestratorType      string
+	AZIdOrName            string
 }

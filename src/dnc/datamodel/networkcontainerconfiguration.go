@@ -63,3 +63,8 @@ func (ncConfiguration *NCConfiguration) GetEndpointPolicies() []cns.NetworkConta
 	}
 	return nil
 }
+
+// InstanceID is used for baremetal scenario which uses ncRequestV2. Should I add it in RequestV1 ?
+func (ncConfiguration *NCConfiguration) GetInstanceID() string {
+	return ncConfiguration.RequestV2.BmContainerPhysicalInstID
+}

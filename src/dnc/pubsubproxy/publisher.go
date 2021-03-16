@@ -5,7 +5,9 @@ package pubsubproxy
 import (
 	. "dnc/MadariClient"
 	"dnc/logger/loggershim"
+	sdn "dnc/microsoft/azure/sdncontracts"
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +25,7 @@ type publisher struct {
 	madariPublisher
 	sync.RWMutex
 	publishStatusError sync.Map
+	publishResults     sync.Map
 }
 
 type publisherContextStruct struct {
@@ -58,6 +61,7 @@ func getAllPublishers() map[string]*publisher {
 	return publisherContext.publishers
 }
 
+// use this method if you want to create a channel for a given path to get ONLY error from Madari (pubsub)
 func (p *publisher) setupPublishStatusErrorChan(
 	path string) {
 	if _, found := p.publishStatusError.Load(path); !found {
@@ -65,11 +69,26 @@ func (p *publisher) setupPublishStatusErrorChan(
 	}
 }
 
+// method to delete error channel for a given path
 func (p *publisher) deletePublishStatusErrorChan(
 	path string) {
 	if _, found := p.publishStatusError.Load(path); found {
 		p.publishStatusError.Delete(path)
 	}
+}
+
+// use this method if you want to create a channel for a given path to get results from Madari (pubsub)
+func (p *publisher) setupPublishResultsChan(
+	path string) {
+	if _, found := p.publishResults.Load(path); !found {
+		p.publishResults.Store(path, make(chan MadariResult, 1))
+	}
+}
+
+// method to delete result channel for a given path
+func (p *publisher) deletePublishResultsChan(
+	path string) {
+	p.publishResults.Delete(path)
 }
 
 func (p *publisher) publishData(
@@ -91,6 +110,11 @@ func (p *publisher) publishData(
 	} else {
 		return fmt.Errorf("Unhealthy Publisher: %s. Publishing failed for path: %s",
 			p.pubsubAzId, publishPath)
+	}
+
+	if verboseLogging {
+		loggershim.LS.Debugf("[PubSubProxy] Publisher: GetData");
+		p.defaultPublisher.GetData(partitionKey, relativePath)
 	}
 
 	return nil
@@ -153,6 +177,28 @@ func (p *publisher) removeContextSelector(
 	} else {
 		return fmt.Errorf("Unhealthy Publisher: %s. Failed to delete context selector %s",
 			p.pubsubAzId, partitionKey)
+	}
+
+	return nil
+}
+
+func (p *publisher) pathExists(
+	partitionKey string,
+	relativePath string) error {
+	p.Lock()
+	defer p.Unlock()
+
+	publishPath := fmt.Sprintf("%s%s", partitionKey, relativePath)
+	if p.isHealthy {
+		p.setupPublishResultsChan(publishPath)
+		if retCode := p.defaultPublisher.Exists(partitionKey, relativePath); retCode != 0 {
+			p.deletePublishResultsChan(publishPath)
+			return fmt.Errorf("pathExists check for %s failed for path: %s due to error code: %d",
+				p.pubsubAzId, publishPath, retCode)
+		}
+	} else {
+		return fmt.Errorf("Unhealthy Publisher: %s. pathExists check failed for path: %s",
+			p.pubsubAzId, publishPath)
 	}
 
 	return nil
@@ -221,6 +267,38 @@ func (p *publisher) getPublishStatusError(
 	return err
 }
 
+func (p *publisher) sendPublishResults(
+	publishPath string,
+	result MadariResult) {
+	p.Lock()
+	defer p.Unlock()
+	if p.isHealthy {
+		resultChan, found := p.publishResults.Load(publishPath)
+		if found && len(resultChan.(chan MadariResult)) == 0 {
+			resultChan.(chan MadariResult) <- result
+		}
+	}
+}
+
+func (p *publisher) getPublishResults(
+	publishPath string) (MadariResult, error) {
+	var result MadariResult
+	var err error
+	errChan, found := p.publishResults.Load(publishPath)
+	if found {
+		result = <-errChan.(chan MadariResult)
+		err = nil
+	} else {
+		result = MadariResult{}
+		err = fmt.Errorf("Publish result not found for pubsubAzId: %s. path: %s", p.pubsubAzId, publishPath)
+	}
+
+	p.Lock()
+	defer p.Unlock()
+	p.deletePublishStatusErrorChan(publishPath)
+	return result, err
+}
+
 func publishData(
 	pubsubAzId string,
 	partitionKey string,
@@ -284,6 +362,33 @@ func removeContextSelector(
 	return publisher.removeContextSelector(partitionKey)
 }
 
+func pathExists(
+	pubsubAzId string,
+	partitionKey string,
+	relativePath string) (bool, error) {
+
+	if _, found := publisherContext.publishers[pubsubAzId]; !found {
+		return false, fmt.Errorf("Invalid pubsubAzId: %s. Number of publishers: %d", pubsubAzId, publisherContext.numPublishers)
+	}
+
+	publisher, err := getPublisher(pubsubAzId)
+	if err != nil {
+		return false, err
+	}
+
+	if err = publisher.pathExists(partitionKey, relativePath); err != nil {
+		return false, err
+	}
+
+	path := fmt.Sprintf("%s%s", partitionKey, relativePath)
+	result, err := getPublishResults(pubsubAzId, path)
+	if err != nil {
+		return false, err
+	}
+
+	return result.StatIsValid, err
+}
+
 func getPublishStatusError(
 	pubsubAzId string,
 	publishPath string) error {
@@ -293,6 +398,17 @@ func getPublishStatusError(
 	}
 
 	return publisher.getPublishStatusError(publishPath)
+}
+
+func getPublishResults(
+	pubsubAzId string,
+	publishPath string) (MadariResult, error) {
+	publisher, err := getPublisher(pubsubAzId)
+	if err != nil {
+		return MadariResult{}, err
+	}
+
+	return publisher.getPublishResults(publishPath)
 }
 
 func createMadariPublisherCallback(
@@ -312,6 +428,11 @@ func (callback madariPublisherCallback) OnResultReceived(
 	publishPath := fmt.Sprintf("%s%s", result.PartitionKey, result.RelativePath)
 	publisher, _ := getPublisher(callback.pubsubAzId)
 	publisher.sendPublishStatusError(publishPath, nil)
+	publisher.sendPublishResults(publishPath, *result)
+
+	if verboseLogging {
+		displayMadariResult(result, callback.pubsubAzId)
+	}
 }
 
 func (callback madariPublisherCallback) OnFailureReceived(
@@ -331,7 +452,12 @@ func (callback madariPublisherCallback) OnFailureReceived(
 func (callback madariPublisherCallback) OnLoggingMessageReceived(
 	traceLevel MadariTraceLevel,
 	message string) {
-	// Note: Empty implementation to satisfy the interface requirement
+	// log only when verbose mode is enabled. Verbose logging can be enabled from config.json
+	// and is disabled by default as it can fill up the logs. Use it for debugging
+	if  verboseLogging{
+		loggershim.LS.Errorf("[PubSubProxy] OnLoggingMessageReceived: Publisher: %s. Tracelevel: %v. Message: %s",
+		callback.pubsubAzId, traceLevel, message)
+	}
 }
 
 func (callback madariPublisherCallback) OnHealthNotificationReceived(
@@ -431,5 +557,38 @@ func createOrUpdatePublisher(
 func deinitPublishers() {
 	for _, publisher := range publisherContext.publishers {
 		publisher.deinit()
+	}
+}
+
+func displayMadariResult(result *MadariResult, pubsubAzId string) {
+
+	if strings.HasPrefix(result.PartitionKey, "/containers") &&
+		strings.HasPrefix(result.RelativePath, "/config") {
+
+		bmContainer := &sdn.Container{}
+		err := proto.Unmarshal(result.Data, bmContainer)
+		if err != nil {
+			loggershim.LS.Errorf("[PubSubProxy] OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Error: %v",
+				pubsubAzId, result.PartitionKey, result.RelativePath, err)
+			return
+		}
+
+		loggershim.LS.Debugf("[PubSubProxy] OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Data: %v",
+			pubsubAzId, result.PartitionKey, result.RelativePath, bmContainer)
+	}
+
+	if strings.HasPrefix(result.PartitionKey, "/networkinterfaces") &&
+		strings.HasPrefix(result.RelativePath, "/config") {
+
+		nwInterface := &sdn.NetworkInterface{}
+		err := proto.Unmarshal(result.Data, nwInterface)
+		if err != nil {
+			loggershim.LS.Errorf("[PubSubProxy] OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Error: %v",
+				pubsubAzId, result.PartitionKey, result.RelativePath, err)
+			return
+		}
+
+		loggershim.LS.Debugf("[PubSubProxy] OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Data: %v",
+			pubsubAzId, result.PartitionKey, result.RelativePath, nwInterface)
 	}
 }

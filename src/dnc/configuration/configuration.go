@@ -248,6 +248,8 @@ type PubsubVips struct {
 type PubSubProxySettings struct {
 	// Flag to enable PubSubProxy. Default is false
 	EnablePubSubProxy bool
+	// Enable verbose logging
+	EnableVerboseLogging bool
 	// Max concurrent requests to process at any time. Default is 1000.
 	MaxConcurrentRequests int
 	// Base Back off interval on failure to process a request. Default is 1 sec

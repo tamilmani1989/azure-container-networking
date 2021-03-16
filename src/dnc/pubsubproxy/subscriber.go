@@ -353,7 +353,12 @@ func (callback subscriberCallback) OnFailureReceived(
 func (callback subscriberCallback) OnLoggingMessageReceived(
 	traceLevel MadariTraceLevel,
 	message string) {
-	// Note: Empty implementation to satisfy the interface requirement
+	// log only when verbose mode is enabled. Verbose logging can be enabled from config.json
+	// and is disabled by default as it can fill up the logs. Use it for debugging
+	if  verboseLogging{
+		loggershim.LS.Errorf("[PubSubProxy] OnLoggingMessageReceived: Subscriber: %s. Tracelevel: %v. Message: %s",
+		callback.pubsubAzId, traceLevel, message)
+	}
 }
 
 func (callback subscriberCallback) OnHealthNotificationReceived(

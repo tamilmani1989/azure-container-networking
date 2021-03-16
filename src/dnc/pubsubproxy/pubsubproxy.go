@@ -54,7 +54,9 @@ struct ResultStatus SerializeNetworkContainerPublishData(struct NC_DATA*, void**
 import "C"
 
 import (
+	"context"
 	"dnc/api"
+	"dnc/aznm"
 	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
@@ -145,12 +147,26 @@ type UnpublishNetworkContainerRequest struct {
 	SubnetAuthToken string
 }
 
+// AZNM client interface. Parameters are described below
+// reqContext - context
+// logicalId - logical container id. Should be Guid
+// physicalId - physicalId container id. Should be Guid
+// bladeId - Azure blade or node id. Should be Guid
+type AznmClient interface {
+	UpdateContainer(ctx context.Context, req aznm.AznmRequest, logicalId, physicalId, bladeId string) error
+	DeleteContainer(ctx context.Context, req aznm.AznmRequest, logicalId, physicalId string) error
+}
+
 var (
 	maxConcurrentRequests   int
 	baseRetryInterval       time.Duration
 	maxRetryBackoffInterval time.Duration
 	sessionManager          *utils.SessionManager
 	replicaInstance         *replica.Replica
+	azureEnvironmentName    string
+	aznmClient              AznmClient
+	aznmSettings            configuration.AznmSettings
+	verboseLogging          bool
 )
 
 func generateVnetPartitionKey(
@@ -439,14 +455,21 @@ func UnregisterVnet(
 // publisherContext, subscribers and worker pool.
 func Init(
 	configSettings configuration.PubSubProxySettings,
+	aznmConfigSettings configuration.AznmSettings,
 	replica *replica.Replica,
-	certPath string) error {
+	certPath string,
+	azureEnvName string,
+	client AznmClient) error {
 	maxConcurrentRequests = configSettings.MaxConcurrentRequests
 	baseRetryInterval = time.Duration(configSettings.RequestRetryBaseInterval) * time.Millisecond
 	maxRetryBackoffInterval = time.Duration(configSettings.MaxRequestBackoffInterval) * time.Millisecond
 	replicaInstance = replica
 	sessionManager = utils.NewSessionManager([]string{
 		datamodel.NCPendingPublishRepositoryName})
+	azureEnvironmentName = azureEnvName
+	aznmClient = client
+	aznmSettings = aznmConfigSettings
+	verboseLogging = configSettings.EnableVerboseLogging
 
 	numPubSubs := len(configSettings.PubsubVips)
 	if numPubSubs <= 0 {

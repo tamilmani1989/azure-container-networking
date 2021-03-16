@@ -233,6 +233,10 @@ func (a *AllocationRepo) InsertIPAllocationEntities(networkID, subnetName string
 }
 
 func (a *AllocationRepo) UpdateIPAllocationEntities(networkID, subnetName string, ipAllocationEntities []IPAllocationEntity) *api.JsonErr {
+	if len(ipAllocationEntities) == 0 {
+        return nil
+    }
+
 	storageEntities := make([]storage.Entity, len(ipAllocationEntities))
 	for i, entity := range ipAllocationEntities {
 		se := entity.ToStorageEntity(networkID, subnetName)

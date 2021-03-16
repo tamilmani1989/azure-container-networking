@@ -3,7 +3,9 @@
 package pubsubproxy
 
 import (
+	"context"
 	"dnc/api"
+	"dnc/aznm"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
 	"dnc/utils"
@@ -22,6 +24,12 @@ const (
 	// Version is unused field at this point. So are just using 1 for now.
 	version = 1
 	ipconfigName = "CA"
+)
+
+type aznmOperationType string
+const (
+	updateContainer aznmOperationType = "UpdateContainer"
+	deleteContainer = "DeleteContainer"
 )
 
 // TODO:  remove duplication by combining to one function
@@ -47,6 +55,7 @@ func PublishBaremetalNetworkContainer(
 
 	// We use reservation ID to uniquely identify the NC on front end network
 	ncId, _ := utils.ConvertGuidStrToCSharpGUID(repoNCConfig.ReservationID)
+	vnetId, _ := utils.ConvertGuidStrToCSharpGUID(repoNCConfig.NetworkID)
 
 	// generate the array of interface ids in this container
 	networkInterfaceIds := make([]*sdn.Guid, 1)
@@ -98,6 +107,7 @@ func PublishBaremetalNetworkContainer(
 
 	// prune /32 from assigned ca
 	ipAddress := strings.Split(ncGoalState.AllocatedIPSubnet, "/")[0]
+	loggershim.LS.Errorf("[PubSubProxy] AllocatedIPSubnet: %s", ipAddress)
 	sdnIpAddress, _ := utils.ConvertIPaddressToSdnContractIPAddress(ipAddress)
 
 	ipConfig := &sdn.IPConfiguration{
@@ -110,12 +120,14 @@ func PublishBaremetalNetworkContainer(
 	ipConfigs := make([]*sdn.IPConfiguration, 1)
 	ipConfigs[0] = ipConfig
 
+	// TODO: vnetSubetName needs to be a GUID from RNC rather than subnet name for BM scenario
 	networkInterfaceCompartment := &sdn.InterfaceCompartment{
 		Id:               ncId,
 		Version:          version,
 		VnetSubnetName:   ncGoalState.BaseSubnetName,
 		IsPrimary:        true,
 		IPConfigurations: ipConfigs,
+		VnetId:           vnetId,
 	}
 
 	networkInterfaceCompartmentBytes, err := proto.Marshal(networkInterfaceCompartment)
@@ -156,22 +168,6 @@ func PublishBaremetalNetworkContainer(
 			NetworkInterfaces:  networkInterfaces,
 		}
 
-		// move this out the loop
-		var secondaryContext []PublishJobContext
-
-		// TO DO : Considering moving everthing ( i.e /Containers and /network interface to
-		// secondarys fied, ( with TODO : Enhance Publish JobContext as a unit of context selector
-		// and an array of path+ data)
-		for _, networkInterface := range networkInterfaces {
-			var pubJobContext PublishJobContext
-
-			// Add config Path
-			pubJobContext.Key = networkInterface.Key
-			pubJobContext.Path = networkInterface.Path
-			pubJobContext.Data = networkInterface.Data
-			secondaryContext = append(secondaryContext, pubJobContext)
-		}
-
 		ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(
 			ncGoalState.NetworkID,
 			ncGoalState.NetworkContainerID,
@@ -187,27 +183,16 @@ func PublishBaremetalNetworkContainer(
 			loggershim.LS.Errorf(msg)
 			return api.InternalServerError(api.PublishingFailed, msg)
 		}
+	}
 
-		jobId := createNcJobId(ncGoalState.NetworkID, ncGoalState.NetworkContainerID, pubsubAzId)
-		ncDataPublishJob := &ncJob{
-			context: jobContext{
-				id:              jobId,
-				jobType:         BareMetalContainerPublish,
-				pubsubAzId:      pubsubAzId,
-				partitionKey:    getAzContainerPublishingContextSelector(podInfo.PodName),
-				relativePath:    getAzContainerPublishingPath(),
-				createdDateTime: ncPendingPublishRequestContext.CreatedDateTime,
-				retryInterval:   baseRetryInterval,
-				secondarys:      secondaryContext,
-			},
-			ncId:   ncGoalState.NetworkContainerID,
-			vnetId: ncGoalState.NetworkID,
-			// todo: centralize all C (de)ser logic to a single location
-			// we are currently declaring the same C structs here and in workerpool.go as well
-			ncData: ncDataBytes,
-		}
-
-		workerPool().scheduleJob(ncDataPublishJob)
+	assocInfo := repoNCConfig.GetAssociationInfo()
+	logicalId := RetrieveLogicalContainerIdFromPodName(podInfo.PodName)
+	jobId := createAznmJobId(repoNCConfig.NetworkID, repoNCConfig.NetworkContainerID)
+	err = InvokeAznmContainerApi(updateContainer, ncGoalState.AZIdOrName, assocInfo.NodeID,logicalId, repoNCConfig.GetInstanceID(), jobId)
+	if err != nil{
+		msg := fmt.Sprintf("PublishBareMetalNetworkContainer for NC: %s failed due to aznm error: %v",
+			repoNCConfig.NetworkContainerID, err)
+		return api.InternalServerError(api.PublishingFailed, msg)
 	}
 
 	return nil
@@ -285,36 +270,61 @@ func UnpublishBaremetalNetworkContainer(
 			loggershim.LS.Errorf(msg)
 			return api.InternalServerError(api.UnpublishingFailed, msg)
 		}
+	}
 
-		var secondaryContext []PublishJobContext
-
-		for _, networkInterface := range networkInterfaces {
-			var pubJobContext PublishJobContext
-
-			// Add config Path
-			pubJobContext.Key = networkInterface.Key
-			pubJobContext.Path = networkInterface.Path
-			secondaryContext = append(secondaryContext, pubJobContext)
-		}
-
-		jobId := createNcJobId(ncGoalState.NetworkID, ncGoalState.NetworkContainerID, pubsubAzId)
-		ncDataUnpublishJob := &ncJob{
-			context: jobContext{
-				id:              jobId,
-				jobType:         BareMetalContainerUnpublish,
-				pubsubAzId:      pubsubAzId,
-				partitionKey:    getAzContainerPublishingContextSelector(podInfo.PodName),
-				relativePath:    getAzContainerPublishingPath(),
-				createdDateTime: pendingNcUnpublishRequestContext.CreatedDateTime,
-				retryInterval:   baseRetryInterval,
-				secondarys:      secondaryContext,
-			},
-			ncId:   ncGoalState.NetworkContainerID,
-			vnetId: ncGoalState.NetworkID,
-		}
-
-		workerPool().scheduleJob(ncDataUnpublishJob)
+	assocInfo := repoNCConfig.GetAssociationInfo()
+	logicalId := RetrieveLogicalContainerIdFromPodName(podInfo.PodName)
+	jobId := createAznmJobId(repoNCConfig.NetworkID, repoNCConfig.NetworkContainerID)
+	err := InvokeAznmContainerApi(deleteContainer, ncGoalState.AZIdOrName, assocInfo.NodeID,logicalId, repoNCConfig.GetInstanceID(), jobId)
+	if err != nil{
+		msg := fmt.Sprintf("UnpublishNetworkContainer for NC: %s failed due to aznm error: %v",
+			repoNCConfig.NetworkContainerID, err)
+		return api.InternalServerError(api.UnpublishingFailed, msg)
 	}
 
 	return nil
+}
+
+func RetrieveLogicalContainerIdFromPodName(podName string) string {
+	var splits []string
+	splits = strings.Split(podName, api.ContainerIdDelimiter)
+
+	// Validation is not needed as it is already done during API call in handlers
+	return splits[1]
+}
+
+func InvokeAznmContainerApi(
+	operType aznmOperationType,
+	azIdOrName, nodeId, logicalId, physicalId, jobId string) error {
+
+	var err error
+	var aznmReq aznm.AznmRequest
+
+	if aznmReq, err = aznm.CreateAznmRequestWithAzName(azIdOrName, aznmSettings.Port, azureEnvironmentName); err != nil {
+		return err
+	}
+
+	loggershim.LS.Debugf("Starting %s in Aznm. ActivityId: %s, logicalId %s, physicalId %s, nodeId %s, Job %s",
+		operType, aznmReq.ActivityId, logicalId, physicalId, nodeId, jobId)
+
+	if operType == updateContainer {
+		err = aznmClient.UpdateContainer(
+			context.Background(), aznmReq, logicalId, physicalId, nodeId)
+	} else if  operType == deleteContainer {
+		err = aznmClient.DeleteContainer(
+			context.Background(), aznmReq, logicalId, physicalId)
+	} else  {
+		err = fmt.Errorf("invalid Aznm container api specified :%s", operType)
+	}
+
+	if  err != nil {
+		loggershim.LS.Debugf("%s in Aznm failed. ActivityId: %s, Job: %s, error: %s",
+			operType, aznmReq.ActivityId, jobId, err)
+
+		return err
+	}
+
+	loggershim.LS.Debugf("%s in Aznm succeeded. Job: %s, ActivityId: %s", operType, jobId, aznmReq.ActivityId)
+
+	return err
 }

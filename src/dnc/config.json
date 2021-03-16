@@ -121,6 +121,7 @@
     },
     "PubSubProxySettings": {
         "EnablePubSubProxy": false,
+        "EnableVerboseLogging": false,
         "MaxConcurrentRequests": 1000,
         "RequestRetryBaseInterval": 1000,
         "MaxRequestBackoffInterval": 16000,

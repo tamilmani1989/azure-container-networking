@@ -16,6 +16,7 @@ type NetworkContainerRequestV2 struct {
 	AllowNCToHostCommunication bool                                  `json:"AllowNCToHostCommunication"`
 	EndpointPolicies           []cns.NetworkContainerRequestPolicies `json:"EndpointPolicies,omitempty"`
 	ToBeDeletedIPIds           []string                              `json:"ToBeDeletedIPIds"`
+	BmContainerPhysicalInstID  string                                `json:"InstanceID"` // physical instance id of baremetal container
 }
 
 func (networkContainerRequestV2 *NetworkContainerRequestV2) String() string {

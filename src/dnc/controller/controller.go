@@ -782,6 +782,7 @@ func (c *Controller) GetNetworkContainerRequest(networkID, ncID string) (*cns.Cr
 
 // GetNetworkContainer - Retrieves the network container configuration
 func (c *Controller) GetNetworkContainer(networkID, ncID string) (*api.NetworkContainerResponse, *api.JsonErr) {
+	loggershim.LS.Debugf("[Request] GetNetworkContainer: %s", ncID)
 	ncConfig, err := c.GetNetworkContainerConfiguration(networkID, ncID)
 	if err != nil {
 		return nil, err

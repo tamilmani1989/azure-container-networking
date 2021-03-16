@@ -2675,7 +2675,8 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 		VnetVersion:           repoNetworkConfiguration.Version,
 		LocalIP:               repoNCConfig.LocalIP,
 		GreKey:                repoNCConfig.GreKey,
-		OrchestratorType:      repoNodeConfig.NodeInfo.OrchestratorType}
+		OrchestratorType:      repoNodeConfig.NodeInfo.OrchestratorType,
+		AZIdOrName:            repoNodeConfig.NodeInfo.AZID}
 
 	// todo: temporary. find better way to skip from publishing to pubsub proxy if orchestrated by k8s crd
 	if repoNodeConfig.NodeInfo.OrchestratorType != cns.KubernetesCRD {

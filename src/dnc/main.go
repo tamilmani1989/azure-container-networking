@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	ad "dnc/activedirectory"
 	"dnc/aiwrapper"
+	"dnc/aznm"
 	"dnc/cns"
 	"dnc/cnsinterface"
 	"dnc/configuration"
@@ -290,7 +291,11 @@ func main() {
 			certPath = path
 		}
 
-		if err := pubsubproxy.Init(pubSubCfg, replicaInstance, certPath); err != nil {
+		aznmClient := aznm.NewAznmGrpcClient(certPath, logger)
+
+		if err := pubsubproxy.Init(
+			pubSubCfg, config.AznmSettings, replicaInstance,
+			certPath, config.AzureEnvironment.EnvironmentName, aznmClient); err != nil {
 			log.Fatalln("Error initializing PubsubProxy. Error:", err)
 		}
 

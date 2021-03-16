@@ -3,6 +3,8 @@
 package pubsubproxy
 
 import (
+	"context"
+	"dnc/aznm"
 	"dnc/api"
 	"dnc/configuration"
 	"dnc/datamodel"
@@ -39,12 +41,26 @@ type UnpublishNetworkContainerRequest struct {
 	SubnetAuthToken string
 }
 
+// AZNM client interface. Parameters are described below
+// ctx - context
+// activityId - random unique id to log API requests on server side
+// logicalId - logical container id. Should be Guid
+// physicalId - physicalId container id. Should be Guid
+// bladeId - Azure blade or node id. Should be Guid
+type AznmClient interface {
+	UpdateContainer(ctx context.Context, req aznm.AznmRequest, logicalId, physicalId, bladeId string) error
+	DeleteContainer(ctx context.Context, req aznm.AznmRequest, logicalId, physicalId string) error
+}
+
 // Init initializes the pubsubproxy by creating
 // publisherContext, subscribers and worker pool.
 func Init(
 	configSettings configuration.PubSubProxySettings,
+	aznmSettings configuration.AznmSettings,
 	replica *replica.Replica,
-	certPath string) error {
+	certPath string,
+	azureEnvName string,
+	aznmClient AznmClient) error {
 	return fmt.Errorf("PubSubProxy module build disabled. Build DNC using -tags enablePubsubProxy")
 }
 
