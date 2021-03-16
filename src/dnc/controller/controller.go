@@ -577,12 +577,10 @@ func (c *Controller) PersistSubnetDelegationRequestV2(networkID, subnet string, 
 
 		// todo: how to handle updates to cidr size?
 		if config.FeatureFlagSettings.UsePrepopulatedIPAllocations {
-			loggershim.LS.Debugf("Prepopulating vnet id %s subnet %s %s", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet)
-			if err := c.ipAllocator.PrepopulateSubnet(subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet); err != nil {
-				loggershim.LS.Errorf("Could not prepopulate vnet id %s subnet %s %s: %+v", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet, err)
+			if err := c.handleSubnetPrepopulation(subnetConfig); err != nil {
+				loggershim.LS.Errorf("Could not prepopulate vnet id %s subnet %s %s: %v", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet, err)
 				return err
 			}
-			loggershim.LS.Debugf("Successfully prepopulated vnet id %s subnet %s %s", subnetConfig.NetworkID, subnetConfig.SubnetName, subnetConfig.IPSubnet)
 		}
 	}
 
@@ -600,6 +598,25 @@ func (c *Controller) PersistSubnetDelegationRequestV2(networkID, subnet string, 
 	}
 
 	loggershim.LS.Debugf("PutSubnetV2 successfully persisted subnet config for Network: %s, Subnet: %s", networkID, subnet)
+	return nil
+}
+
+func (c *Controller) handleSubnetPrepopulation(subnet *datamodel.SubnetConfiguration) *api.JsonErr {
+	if subnet.UpdateStatus != datamodel.SubnetUpdateCompleted {
+		loggershim.LS.Debugf("Cannot prepopulate vnet id %s subnet %s as subnet is still in pending status. Will be handled on network update", subnet.NetworkID, subnet.SubnetName)
+		return nil
+	}
+
+	vnetID := subnet.NetworkID
+	subnetName := subnet.SubnetName
+	subnetCIDR := subnet.IPSubnet
+
+	loggershim.LS.Debugf("Prepopulating vnet id %s subnet %s %s", vnetID, subnetName, subnetCIDR)
+	if err := c.ipAllocator.PrepopulateSubnet(vnetID, subnetName, subnetCIDR); err != nil {
+		return err
+	}
+
+	loggershim.LS.Debugf("Successfully prepopulated vnet id %s subnet %s %s", vnetID, subnetName, subnetCIDR)
 	return nil
 }
 
