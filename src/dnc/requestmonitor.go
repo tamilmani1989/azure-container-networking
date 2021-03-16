@@ -613,8 +613,7 @@ func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
-	// todo: if allocated subnet is empty, the below fails
-	if err := ipAllocator.DeleteIPReservation(ncConfig.NetworkID, reservation, true); err != nil {
+	if err := ipAllocator.DeleteIPReservation(reservation, true); err != nil {
 		return err
 	}
 

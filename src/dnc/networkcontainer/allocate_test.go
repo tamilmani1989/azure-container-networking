@@ -257,7 +257,7 @@ func Test_RemoveSecondaryIpWithEmptyAllocations(t *testing.T) {
 		},
 	}
 
-	err := allocator.RemoveAllAllocations(req)
+	err := allocator.DeleteReservationAllocations(req.NetworkID, req.AllocationRequest.SubnetName, datamodel.GetReservationKey(req.NetworkID, req.ReservationID))
 	if err != nil {
 		t.Fatalf("did not expect error: %+v", err)
 	}
@@ -288,11 +288,12 @@ func Test_RemoveAllAllocations(t *testing.T) {
 		Allocations:  &allocsRepo,
 		Subnets:      &subnetRepo,
 		Reservations: fakes.NewReservationRepo(),
+		Logger:       loggermock.NewDummyLogger(),
 		MaxBatchSize: 100,
 	}
 
 	res := datamodel.ReservationConfiguration{
-		ReservationID: "reservation1",
+		ReservationID: "res1",
 		NetworkID:     "network1",
 		AllocationRequest: api.AllocationRequest{
 			SubnetName: "subnet1",
@@ -305,7 +306,7 @@ func Test_RemoveAllAllocations(t *testing.T) {
 		},
 	}
 
-	if err := allocator.RemoveAllAllocations(res); err != nil {
+	if err := allocator.DeleteReservationAllocations(res.NetworkID, res.AllocationRequest.SubnetName, datamodel.GetReservationKey(res.NetworkID, res.ReservationID)); err != nil {
 		t.Fatalf("did not expect error: %+v", err)
 	}
 

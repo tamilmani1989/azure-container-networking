@@ -233,7 +233,7 @@ func (c *Controller) DeleteReservation(
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	return c.ipAllocator.DeleteIPReservation(networkID, reservation, false)
+	return c.ipAllocator.DeleteIPReservation(reservation, false)
 }
 
 func generateStatus(status datamodel.Status, errorInfo *api.JsonErr) int {

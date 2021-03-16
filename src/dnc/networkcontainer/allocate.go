@@ -412,52 +412,23 @@ func (a *IPAllocator) DeallocateIPs(res datamodel.ReservationConfiguration, allo
 	return a.DeleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
 }
 
-func (a *IPAllocator) MarkIpsAsPendingCleanup(res datamodel.ReservationConfiguration, allocationIDs []string) *api.JsonErr {
-	allocIDsToDelete := make(map[string]struct{})
-	for _, allocID := range allocationIDs {
-		allocIDsToDelete[allocID] = struct{}{}
+func (a *IPAllocator) DeleteReservationAllocations(networkID, subnetName, reservationKey string) *api.JsonErr {
+	associatedAllocations, err := a.Allocations.QueryIPAllocationsByReservationKey(networkID, subnetName, reservationKey)
+	if err != nil {
+		return err
 	}
 
-	var rowKeys []string
-	for allocID := range allocIDsToDelete {
-		if ipAddress, found := res.SecondaryAllocations[allocID]; found {
-			rowKey := datamodel.EncodeIPAllocationKey(ipAddress)
-			rowKeys = append(rowKeys, rowKey)
-		}
+	if len(associatedAllocations) == 0 {
+		a.Logger.Debugf("no allocations found for vnet %s subnet %s reservation key %s", networkID, subnetName, reservationKey)
+		return nil
 	}
 
-	return a.DeleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
-}
-
-func (a *IPAllocator) RemoveAllAllocations(res datamodel.ReservationConfiguration) *api.JsonErr {
-	var (
-		rowKeys  []string
-		allocIDs []string
-	)
-
-	for allocID, ipAddress := range res.SecondaryAllocations {
-		if ipAddress != "" {
-			rowKey := datamodel.EncodeIPAllocationKey(ipAddress)
-			rowKeys = append(rowKeys, rowKey)
-			continue
-		}
-		allocIDs = append(allocIDs, allocID)
+	keys := make([]string, len(associatedAllocations))
+	for i, allocation := range associatedAllocations {
+		keys[i] = allocation.RowKey
 	}
 
-	// this is needed in cases where allocations were persisted correctly, but not back to the reservation
-	// we make sure that any allocation ids associated to the reservation don't have lingering records
-	if len(allocIDs) > 0 {
-		// Todo: why cant query all ips by ReservationId/IpAllocationId only?
-		allocRows, err := a.Allocations.QueryIPAllocationsByAllocationID(res.NetworkID, res.AllocationRequest.SubnetName, allocIDs)
-		if err != nil {
-			return err
-		}
-		for _, row := range allocRows {
-			rowKeys = append(rowKeys, row.RowKey)
-		}
-	}
-
-	return a.DeleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
+	return a.DeleteAllocations(networkID, subnetName, keys)
 }
 
 func (a *IPAllocator) DeleteAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
@@ -579,7 +550,7 @@ func (a *IPAllocator) SetToBeDeleteOwnerToDeletingIps(networkId, subnetName, res
 	}
 
 	var ipEntitiesMarkedForDelete []datamodel.IPAllocationEntity
-	for allocationId, _ := range allocIDsToDelete {
+	for allocationId := range allocIDsToDelete {
 		if entity, found := ipEntities[allocationId]; found {
 			entity.ToBeDeletedOwner = ncKey
 			ipEntitiesMarkedForDelete = append(ipEntitiesMarkedForDelete, entity)
@@ -754,7 +725,7 @@ func generateIPAllocationEntitiesForSubnet(subnet *net.IPNet) ([]datamodel.IPAll
 }
 
 // DeleteIPReservation - Delete an IP Reservation.
-func (a *IPAllocator) DeleteIPReservation(networkID string, reservation datamodel.ReservationRow, force bool) *api.JsonErr {
+func (a *IPAllocator) DeleteIPReservation(reservation datamodel.ReservationRow, force bool) *api.JsonErr {
 	var err *api.JsonErr
 	if reservation.Configuration == nil {
 		return nil
@@ -806,17 +777,11 @@ func (a *IPAllocator) DeleteIPReservation(networkID string, reservation datamode
 	} else {
 		// Delete IPs from IpAllocations table and clean the Reservation table
 		// No need to wait for Pubsub job
-		if len(reservation.Configuration.SecondaryAllocations) > 0 {
-			if err := a.RemoveAllAllocations(*reservation.Configuration); err != nil {
-				return err
-			}
-		}
+		vnetID := reservation.Configuration.NetworkID
+		subnetName := reservation.Configuration.AllocationRequest.SubnetName
 
-		if err = a.validateAndDeleteIPAllocation(reservation.Configuration.NetworkID,
-			reservation.Configuration.AllocationRequest.SubnetName,
-			reservationKey,
-			reservation.Configuration.AllocatedSubnet); err != nil {
-			a.Logger.Errorf("Failed to delete IP allocation due to error %+v", err)
+		if err := a.DeleteReservationAllocations(vnetID, subnetName, reservationKey); err != nil {
+			a.Logger.Errorf("could not delete allocations for vnet %s subnet %s reservation key %s: %v", vnetID, subnetName, reservationKey, err)
 			return err
 		}
 	}
@@ -890,27 +855,4 @@ func (a *IPAllocator) CreateIpCleanupRequest(networkId, subnetName, ncId string)
 	}
 
 	return nil
-}
-
-// validateAndDeleteIPAllocation - Delete an IP allocation entry from IPAllocations table.
-func (a *IPAllocator) validateAndDeleteIPAllocation(networkID, subnetName, reservationKey, allocatedIP string) *api.JsonErr {
-	allocatedIPKey := datamodel.EncodeIPAllocationKey(allocatedIP)
-	savedReservationKey, err := a.Allocations.TryQueryIPAllocation(networkID, subnetName, allocatedIPKey)
-	if err != nil {
-		return err
-	}
-
-	if savedReservationKey.RowKey == "" {
-		a.Logger.Errorf("Error: Cannot find the ipAddress %s in IPAllocation table", allocatedIP)
-		return nil
-	}
-
-	if reservationKey != savedReservationKey.IPAllocation {
-		msgFmt := "Reservation key mismatch in IPAllocations table for IP address %s on vnet %s subnet %s " +
-			"during deletion of reservation key %s: allocation is associated to reservation key %s. Skipping allocation record deletion."
-		a.Logger.Errorf(msgFmt, allocatedIP, networkID, subnetName, reservationKey, savedReservationKey.IPAllocation)
-		return nil
-	}
-
-	return a.Allocations.DeleteIPAllocation(networkID, subnetName, allocatedIPKey)
 }
