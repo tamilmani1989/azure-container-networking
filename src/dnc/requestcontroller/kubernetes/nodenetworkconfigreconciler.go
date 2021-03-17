@@ -528,6 +528,10 @@ func (n *NodeNetworkConfigReconciler) getNewNNCFromNCResponse(nc *api.NetworkCon
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Labels: map[string]string{
+				DelegatedSubnetIDLabel: nc.IPConfiguration.NetworkID, // TODO: will this always be the case?
+				SubnetNameLabel:        nc.IPConfiguration.SubnetName,
+			},
 		},
 		Spec: acnv1alpha.NodeNetworkConfigSpec{
 			RequestedIPCount: n.scalerConfig.BatchSize,

@@ -101,8 +101,8 @@ func (n *NodeReconciler) Reconcile(request reconcile.Request) (reconcile.Result,
 		defer cancel()
 
 		// Check that the delegatedSubnetID label and subnetName label are present
-		_, delegatedSubnetLabelFound := node.Labels[DelegatedSubnetIDLabel]
-		_, subnetNameLabelFound := node.Labels[SubnetNameLabel]
+		delegatedSubnetLabel, delegatedSubnetLabelFound := node.Labels[DelegatedSubnetIDLabel]
+		subnetNameLabel, subnetNameLabelFound := node.Labels[SubnetNameLabel]
 
 		if !delegatedSubnetLabelFound {
 			logger.Infof("Label %s not found for node %s", DelegatedSubnetIDLabel, node.Name)
@@ -127,7 +127,13 @@ func (n *NodeReconciler) Reconcile(request reconcile.Request) (reconcile.Result,
 			return reconcile.Result{}, errors.New(msg)
 		}
 
-		if err := n.createNodeNetworkConfig(ctx, request.Name); err != nil {
+		// copy delegatedSubnetId, subnetName labels to NNC for easier debugging
+		nncLabels := map[string]string{
+			DelegatedSubnetIDLabel: delegatedSubnetLabel,
+			SubnetNameLabel:        subnetNameLabel,
+		}
+
+		if err := n.createNodeNetworkConfig(ctx, request.Name, nncLabels); err != nil {
 			// return error to requeue and try creating NetworkConfig again
 			logger.WithError(err).Infof("Error creating NNC: %v", err)
 			return reconcile.Result{}, err
@@ -139,23 +145,17 @@ func (n *NodeReconciler) Reconcile(request reconcile.Request) (reconcile.Result,
 }
 
 // This function is idempotent. If a NodeNetworkConfig already exists with this name, this will do nothing, and will return nil.
-func (n *NodeReconciler) createNodeNetworkConfig(ctx context.Context, name string) error {
+func (n *NodeReconciler) createNodeNetworkConfig(ctx context.Context, name string, labels map[string]string) error {
 	nodeNetworkConfig := acnv1alpha.NodeNetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: n.namespace,
+			Labels:    labels,
 		},
 		Spec: acnv1alpha.NodeNetworkConfigSpec{
 			RequestedIPCount: n.initialIPCount,
 		},
 	}
-
-	n.logger.WithFields(logrus.Fields{
-		"object":  fmt.Sprintf("%s/%s", n.namespace, name),
-		"ipCount": strconv.FormatInt(nodeNetworkConfig.Spec.RequestedIPCount, 10),
-	}).Infof("Creating NodeNetworkConfig %s in namespace %s with IP Count %d",
-		nodeNetworkConfig.ObjectMeta.Name, nodeNetworkConfig.ObjectMeta.Namespace,
-		nodeNetworkConfig.Spec.RequestedIPCount)
 
 	err := n.k8sClient.Create(ctx, &nodeNetworkConfig)
 	if err != nil {
@@ -164,6 +164,14 @@ func (n *NodeReconciler) createNodeNetworkConfig(ctx context.Context, name strin
 			return err
 		}
 	}
+
+	n.logger.WithFields(logrus.Fields{
+		"object":  fmt.Sprintf("%s/%s", n.namespace, name),
+		"ipCount": strconv.FormatInt(nodeNetworkConfig.Spec.RequestedIPCount, 10),
+	}).Infof("Created NodeNetworkConfig %s in namespace %s with IP Count %d",
+		nodeNetworkConfig.ObjectMeta.Name, nodeNetworkConfig.ObjectMeta.Namespace,
+		nodeNetworkConfig.Spec.RequestedIPCount)
+
 	return nil
 }
 
