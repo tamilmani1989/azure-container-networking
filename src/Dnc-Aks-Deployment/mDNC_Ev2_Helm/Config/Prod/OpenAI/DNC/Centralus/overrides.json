@@ -35,11 +35,11 @@
         "RegionalKeyVaultName": "acnkv-centralus",
         "RegionalKeyVaultResourceGroup": "acn-rg-CentralUS",
         "ContainerRegistryResourceGroup": "ProductionACR",
-        "CosmosDbAccountName": "dbdnccentralus",
-        "CosmosDbResourceGroup": "acn-rp-test-centralus",
+        "CosmosDbAccountName": "dnccentralus-openai-5c7e26be",
+        "CosmosDbResourceGroup": "acn-rg-dnc-centralus",
         "RpCosmosDbResourceGroup": "acn-rg-dncrp-centralus",
         "RpCosmosDbAccountName": "dbdncrpcentralus",
         "RpCosmosDbResoureID": "/subscriptions/0895de50-30a3-4b75-aada-5b23ebd4e8bc/resourceGroups/acn-rg-dncrp-centralus/providers/Microsoft.DocumentDB/databaseAccounts/dbdncrpcentralus",
-        "CosmosDBResourceID": "/subscriptions/0895de50-30a3-4b75-aada-5b23ebd4e8bc/resourceGroups/acn-rg-dnc-centralus/providers/Microsoft.DocumentDB/databaseAccounts/dbdnccentralus"
+        "CosmosDBResourceID": "/subscriptions/0895de50-30a3-4b75-aada-5b23ebd4e8bc/resourceGroups/acn-rg-dnc-centralus/providers/Microsoft.DocumentDB/databaseAccounts/dnccentralus-openai-5c7e26be"
     }
 }
