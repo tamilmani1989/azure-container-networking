@@ -184,7 +184,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                         context.Response.ContentType = MediaTypeNames.Application.Json;
                         await context.Response.WriteAsync(result);
                     }
-                }).RequireAuthorization();
+                });
             });
         }
 
