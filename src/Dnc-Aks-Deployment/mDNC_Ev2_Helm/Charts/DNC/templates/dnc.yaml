@@ -63,7 +63,15 @@ spec:
         - name: DNCIpAddress
           valueFrom:
             fieldRef:
-              fieldPath: status.podIP            
+              fieldPath: status.podIP
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: gatewayport
+            scheme: HTTPS
+          failureThreshold: 3
+          periodSeconds: 60
+          initialDelaySeconds: 15
       - name: dnc-rc
         image: {{ .Values.containerregistry }}/{{ .Values.dncrcbuildtag }}
         imagePullPolicy: Always
@@ -85,7 +93,8 @@ spec:
             - ping-dnc
             - -c=/etc/dnc-rc/dncrc_config.json
           initialDelaySeconds: 15
-          periodSeconds: 300
+          periodSeconds: 60
+          failureThreshold: 3
       volumes:
       - name: log
         hostPath:

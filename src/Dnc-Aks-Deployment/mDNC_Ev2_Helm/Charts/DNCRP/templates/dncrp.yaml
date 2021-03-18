@@ -49,6 +49,14 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5002
+            scheme: HTTPS
+          failureThreshold: 3
+          periodSeconds: 60
+          initialDelaySeconds: 15
       volumes:
       - name: log
         hostPath:
