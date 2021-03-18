@@ -49,7 +49,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             WriteToConsole(format, args);
         }
 
-        private static void  WriteToConsole(string format, params object[] args)
+        public static void  WriteToConsole(string format, params object[] args)
         {
             string message = SafeFormat(format, args);
             Console.WriteLine(message);

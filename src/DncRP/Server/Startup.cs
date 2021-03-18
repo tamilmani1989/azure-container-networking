@@ -27,8 +27,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Hosting;
+    using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Primitives;
     using Newtonsoft.Json;
+    using Microsoft.Extensions.Options;
 
     public class Startup
     {
@@ -45,18 +47,25 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+
             // The following line enables Application Insights telemetry collection.
             CustomLog.SetPrefix("[DNC RP]");
             services.AddApplicationInsightsTelemetry(Configuration);
 
-            // Add custom properties to telemetry (log)
             HttpUtility httpUtility = new HttpUtility(new HttpClient());
             ImdsRetriever imdsRetriever = new ImdsRetriever(httpUtility);
             KeyVaultUtility keyVaultUtility = new KeyVaultUtility();
-
+            
             services.AddSingleton<IHttpUtility, HttpUtility>(provider => httpUtility);
-            services.AddSingleton<IImdsRetriever, ImdsRetriever>(provider => imdsRetriever);
-            services.AddSingleton<IKeyVaultUtility, KeyVaultUtility>(provider => keyVaultUtility);
+
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            AmeCertificateValidator.IntializeAmeCertificateValidator(Configuration.GetSection("AmeCertValidationSettings").Get<AmeCertValidationSettings>(), httpUtility);
+            httpClientHandler.ServerCertificateCustomValidationCallback = AmeCertificateValidator.ValidateAmeRootCA;
+            // Add custom properties to telemetry (log)
+            var httpUtilityFactory = new HttpUtilityFactory();
+            httpUtilityFactory.Register(Constants.HttpUtility, new HttpUtility(new HttpClient()));
+            httpUtilityFactory.Register(Constants.DncHttpUtility, new HttpUtility(new HttpClient(httpClientHandler)));
+            services.AddSingleton<IHttpUtilityFactory>(httpUtilityFactory);
 
             // initialize context first
             ContextInitializer.InitializeContext(Configuration, imdsRetriever);
@@ -72,10 +81,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             {
                 cvs.Thumbprint = Configuration["Thumbprint"];
             });
-
+            
+            services.AddSingleton<IImdsRetriever, ImdsRetriever>(provider => imdsRetriever);
+            services.AddSingleton<IKeyVaultUtility, KeyVaultUtility>(provider => keyVaultUtility);
+            services.AddSingleton<ICertificateValidator, CertificateValidator>();
             services.AddSingleton<IConnectionStringProvider, ConnectionStringProvider>();
             services.AddSingleton<ICertificateRetriever, ArmCertificateRetriever>();
-            services.AddSingleton<ICertificateValidator, CertificateValidator>();
             services.AddSingleton<ITableDataStore, CosmosDbDataStore>();
             services.AddSingleton<ITableOperations, TableOperations>();
             // service to initialize cosmosdb and create table at startup

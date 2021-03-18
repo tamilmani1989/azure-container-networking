@@ -63,10 +63,17 @@
       "Tag": "AzureADArmToken"
     }
   ],
+  "ArmCertificatesSettings": {
+    "RefreshIntervalInSeconds": 3600
+  },
   "DncSettings": {
     "RetryCount": 10,
     "RetryIntervalInSeconds": 4,
     "RetryTimeoutInSeconds": 90
+  },
+  "AmeCertValidationSettings": {
+    "AmeAllowedSubjectNames": "dnc.azure.com",
+    "SkipAmeCertValidation": false
   },
   "AllowedHosts": "*",
   "Port": "5002",

@@ -33,6 +33,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     public class DelegateSubnetTests
     {
         private IHttpUtility httpUtility;
+        private IHttpUtility testHttpUtility;
+        private IHttpUtilityFactory httpUtilityFactory;
         private IKeyVaultUtility keyVaultUtility;
         private TestConfig testConfig;
         private IConfiguration configuration;
@@ -46,6 +48,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         {
             this.httpUtility = new HttpUtility(new HttpClient());
             this.keyVaultUtility = new KeyVaultUtility();
+            this.testHttpUtility = new TestHttpUtility();
+            this.httpUtilityFactory = new HttpUtilityFactory();
+            this.httpUtilityFactory.Register(Constants.HttpUtility, testHttpUtility);
+            this.httpUtilityFactory.Register(Constants.DncHttpUtility, testHttpUtility);
+
             var builder = new ConfigurationBuilder()
               .SetBasePath(Directory.GetCurrentDirectory())
               .AddJsonFile(settingsFileName);
@@ -116,7 +123,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             SubscriptionRegistrationTests.RegisterSub(subscriptionId, tableOperations);
 
             // Pass TestHttpUtility for NRP operations.
-            DelegateSubnetController delegateSubnetController = new DelegateSubnetController(delSubLogger.Object, tableOperations, new TestHttpUtility(), false);
+            DelegateSubnetController delegateSubnetController = new DelegateSubnetController(delSubLogger.Object, tableOperations, this.httpUtilityFactory);
 
             Guid testGuid = Guid.NewGuid();
             string resourceGroup = $"testRG_{testGuid}";

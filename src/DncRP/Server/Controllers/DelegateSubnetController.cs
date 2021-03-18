@@ -32,28 +32,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public DelegateSubnetController(
             ILogger<DelegateSubnetController> logger,
             ITableOperations tableOperations,
-            IHttpUtility httpUtility,
-            bool initializeDncHttpUtlity=true
+            IHttpUtilityFactory httpUtilityFactory
         )
             : base (logger, tableOperations)
         {
-            this.httpUtility = httpUtility;
             IAzureAD azureAD = new AzureAD();
             this.azVnetBroker = new AzVNetBroker(httpUtility, logger, azureAD);
-
-            if (initializeDncHttpUtlity)
-            {
-                dncHttpUtility = new HttpUtility(new HttpClient(new HttpClientHandler {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => {
-                        return true;
-                    }})
-                );
-            }
-            else
-            {
-                dncHttpUtility = httpUtility;
-            }
-
+            this.dncHttpUtility = httpUtilityFactory.Resolve(Constants.DncHttpUtility);
+            this.httpUtility = httpUtilityFactory.Resolve(Constants.HttpUtility);
             logger.CLogInformation("DelegateSubnetController initialized");          
         }
 
