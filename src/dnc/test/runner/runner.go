@@ -405,6 +405,10 @@ func e2eTests() {
 	logger.Printf("Running E2E tests!")
 	if err = swiftSetup(); err != nil {
 		logger.Printf("swift setup failed with error: %+v", err)
+		err = swiftTeardown()
+		if err != nil {
+			logger.Printf("Error happened while tearing down: %+v", err)
+		}
 		goto WriteJsonReport
 	}
 
@@ -414,16 +418,28 @@ func e2eTests() {
 	// get details to exec into pods and ping each other
 	srcPod, podIP1, err = getPodExecInfo(podName1)
 	if err != nil {
+		err = swiftTeardown()
+		if err != nil {
+			logger.Printf("Error happened while tearing down: %+v", err)
+		}
 		goto WriteJsonReport
 	}
 
 	pod2, podIP2, err = getPodExecInfo(podName2)
 	if err != nil {
+		err = swiftTeardown()
+		if err != nil {
+			logger.Printf("Error happened while tearing down: %+v", err)
+		}
 		goto WriteJsonReport
 	}
 
 	pod3, _, err = getPodExecInfo(podName3)
 	if err != nil {
+		err = swiftTeardown()
+		if err != nil {
+			logger.Printf("Error happened while tearing down: %+v", err)
+		}
 		goto WriteJsonReport
 	}
 
@@ -632,15 +648,14 @@ func e2eTests() {
 		}
 	}
 
+	// clean up all the NC states for next test
 	logger.Printf("E2E test cleanup.")
-	// clean up all the NC states for next test (we only clean up when datapath is healthy)
-	if lastErr == nil {
-		logger.Printf("E2E test tear down.")
-		err = swiftTeardown()
-		if err != nil {
-			logger.Printf("Error happened while tearing down: %+v", err)
-		}
-	} else {
+	err = swiftTeardown()
+	if err != nil {
+		logger.Printf("Error happened while tearing down: %+v", err)
+	}
+
+	if lastErr != nil {
 		report.LastError = lastErr.Error()
 	}
 
