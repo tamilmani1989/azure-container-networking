@@ -79,3 +79,22 @@ func NewDataStoreShim(dataStoreSettings configuration.DataStoreSettings, latency
 
 	return nil, errors.New("No data store settings found")
 }
+
+// NewDataStoreShimForCleanup - Create a new datastore shim using the shared StorageClient.
+// This is currently initialized by DNC cleanupService (used in AKSSwift scenario) per cluster partition.
+// Note for now StorageClient will be initialized by the main thread and will be shared across AzureStorage instances.
+func NewDataStoreShimEx(
+	partitionKey string,
+	isUsingCosmosDB bool,
+	storageClient storage.Client,
+	latencyThresholdMs int,
+	tableToColumnMap map[string]string,
+	maxBatchSize int) (DataStoreShim, error) {
+	loggershim.LS.Debugf("Initializing NewDataStoreShimEx for partitionKey %s, isUsingCosmosDB %s, maxBatchSize %d", partitionKey, isUsingCosmosDB, maxBatchSize)
+	azStorage, err := azurestorage.NewAzureStorageEx(partitionKey, isUsingCosmosDB, storageClient, loggershim.LS, tableToColumnMap, latencyThresholdMs, maxBatchSize)
+	if err != nil {
+		return nil, fmt.Errorf("could not initialize azure storage: %v", err)
+	}
+
+	return azStorage, nil
+}

@@ -67,6 +67,34 @@ func NewAzureStorage(config configuration.AzureStorageInfo, logger loggershim.Lo
 	return &azureStorage, nil
 }
 
+// Init - Initialize azure storage with shared StorageClient passed by the caller.
+// This is currently used by CleanupService which will initialize it per cluster partition to drive the cleanup
+func NewAzureStorageEx(
+	partitionKey string,
+	isUsingCosmosDB bool,
+	storageClient storage.Client,
+	logger loggershim.LoggerInterface,
+	tableToColumnMap map[string]string,
+	latencyThresholdMs int,
+	maxBatchSize int) (*AzureStorage, error) {
+	logger.Debugf("[Azure Storage] NewAzureStorageEx PartitionKey %s, isUsingCosmosDB %s", partitionKey, isUsingCosmosDB)
+
+	tblCl := storageClient.GetTableService()
+
+	azureStorage := AzureStorage{
+		partitionKey:       partitionKey,
+		maxBatchSize:       maxBatchSize,
+		latencyThresholdMs: latencyThresholdMs,
+		logger:             logger,
+		isCosmosDb:         isUsingCosmosDB,
+	}
+
+	logger.Debugf("[Azure Storage] Max transaction batch size set to %d", maxBatchSize)
+	azureStorage.initTableNameToTableClientMap(tblCl, tableToColumnMap)
+
+	return &azureStorage, nil
+}
+
 func (a *AzureStorage) ensureSchema(tables map[string]string) error {
 	for tableName := range tables {
 		tblSvc := a.tableNameToTableClientMap[tableName]

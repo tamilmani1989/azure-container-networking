@@ -31,18 +31,18 @@ func StartCleanupMonitor(monitor *ResourceCleanupMonitor, ctx context.Context) {
 			return
 		case <-ticker.C:
 			if monitor.IsPrimary {
-				if err := monitor.pendingResourceCleanup(); err != nil {
-					monitor.Logger.Errorf("ProcessCleanupResources failed with err: %v", err)
+				if err := monitor.ProcessPendingResourcesCleanup(); err != nil {
+					monitor.Logger.Errorf("ProcessPendingResourcesCleanup failed with err: %v", err)
 				}
 			}
 		}
 	}
 }
 
-// pendingResourceCleanup checks which resources are pending cleanup in the PendingResourceCleanup table,
+// ProcessPendingResourcesCleanup checks which resources are pending cleanup in the PendingResourceCleanup table,
 // and compares with the NcPendingPublish table to make sure there are no pending pubsubproxy jobs
 // If there are no pending pubsub proxy jobs, the resources in the PendingResourceCleanup job are cleaned up
-func (m *ResourceCleanupMonitor) pendingResourceCleanup() *api.JsonErr {
+func (m *ResourceCleanupMonitor) ProcessPendingResourcesCleanup() *api.JsonErr {
 	pendingResourcesCleanup, err := m.PendingCleanupRepo.GetAllPendingResourceCleanups()
 	if err != nil {
 		return api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf("Failed to get all resources pending cleanup with err: %v", err))
@@ -57,8 +57,8 @@ func (m *ResourceCleanupMonitor) pendingResourceCleanup() *api.JsonErr {
 		wg.Add(1)
 		go func(entity datamodel.PendingResourceCleanupEntity, wg *sync.WaitGroup) {
 			defer wg.Done()
-			if err := m.processCleanupResource(entity); err != nil {
-				m.Logger.Errorf("%s Failed to process ResourceCleanup with err %+v", logPrefix(entity), err)
+			if err := m.processResourceCleanup(entity); err != nil {
+				m.Logger.Errorf("ProcessPendingResourcesCleanup: %s Failed to process ResourceCleanup with err %+v", logPrefix(entity), err)
 			}
 			<-sem
 		}(cleanupResourceRow, &wg)
@@ -68,7 +68,7 @@ func (m *ResourceCleanupMonitor) pendingResourceCleanup() *api.JsonErr {
 	return nil
 }
 
-func (m *ResourceCleanupMonitor) processCleanupResource(cleanupResourceRow datamodel.PendingResourceCleanupEntity) *api.JsonErr {
+func (m *ResourceCleanupMonitor) processResourceCleanup(cleanupResourceRow datamodel.PendingResourceCleanupEntity) *api.JsonErr {
 	if cleanupResourceRow.CleanupContext.Type == datamodel.IPCleanup {
 		m.Logger.Debugf("%s Starting Processing ResourceCleanup", logPrefix(cleanupResourceRow))
 

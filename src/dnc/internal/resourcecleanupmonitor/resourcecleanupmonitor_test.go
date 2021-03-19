@@ -168,7 +168,7 @@ func TestResourceCleanupMonitor_ProcessResourceCleanup(t *testing.T) {
 				entry, err := c.PendingCleanupRepo.TryGetPendingCleanupRequest(cleanupRow.RowKey)
 				require.Nil(t, err)
 
-				err = c.processCleanupResource(*entry)
+				err = c.processResourceCleanup(*entry)
 				assert.Nil(t, err)
 			}
 			//Todo: verify ipcleanup has been called when NC's are unpublished`
