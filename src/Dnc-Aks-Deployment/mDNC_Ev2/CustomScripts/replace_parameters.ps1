@@ -42,15 +42,16 @@ function Override-ServiceModel {
     $serviceModelJson.serviceResourceGroups[0].location = $friendlyLocationName
     $serviceModelJson.serviceResourceGroups[0].azureSubscriptionId = $subscription
 
-    $serviceModelJson.applicationDefinitions[0].azureKubernetesService.releaseName = $releaseName
+    if ($releaseName) {
+        $serviceModelJson.applicationDefinitions[0].azureKubernetesService.releaseName = $releaseName
+    }
 
-    if($rolloutParameterFilePath){
+    if ($rolloutParameterFilePath) {
         $serviceModelJson.serviceResourceGroups[0].serviceResources[0].rolloutParametersPath = $rolloutParameterFilePath
     }
 
-    foreach($application in $serviceModelJson.serviceResourceGroups.serviceResources[0].applications)
-    {
-          $application.armResourceName = $clusterName
+    foreach ($application in $serviceModelJson.serviceResourceGroups.serviceResources[0].applications) {
+        $application.armResourceName = $clusterName
     }
 
     return $serviceModelJson
