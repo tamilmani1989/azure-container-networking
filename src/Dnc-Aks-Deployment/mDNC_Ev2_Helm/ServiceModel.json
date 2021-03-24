@@ -25,7 +25,7 @@
   "applicationDefinitions": [
     {
       "name": "myApp1Def",
-      "rollbackOnFailure": false,
+      "rollbackOnFailure": true,
       "azureKubernetesService": {
         "releaseName": "mdncservices",
         "chart": {
