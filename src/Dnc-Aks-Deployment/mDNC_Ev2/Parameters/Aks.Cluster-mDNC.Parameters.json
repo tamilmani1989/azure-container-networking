@@ -73,6 +73,9 @@
         },
         "tenantId": {
             "value": "__TenantId__"
+        },
+        "createSql": {
+            "value": "__CreateSql__"
         }
     }
 }

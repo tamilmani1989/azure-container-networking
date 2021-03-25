@@ -18,10 +18,10 @@ param(
     [string]$consistencyLevel = "Eventual",
 
     [Parameter(Mandatory = $false)]
-    [bool]$skipToSet = $false,
+    [string]$outputVariable = "testSetCosmosDbText",
 
     [Parameter(Mandatory = $false)]
-    [string]$outputVariable = "testSetCosmosDbText"
+    [string]$createSql = $Env.CreateSql
 )
 
 function Create-CosmosDB {
@@ -46,18 +46,38 @@ function Create-CosmosDB {
    }
 }
 
+function Create-Sql-CosmosDB {
+    
+   param([string]$resourceGroup)
+
+    Write-Host "CosmosDB $cosmosDbAccountName-sql in resource group $resourceGroup not found"
+    Write-Host "Creating CosmosDB SQL"
+   
+   New-AzCosmosDBAccount `
+    -ResourceGroupName $resourceGroup `
+    -Location $location `
+    -Name $cosmosDbSqlAccountName `
+    -ApiKind "Sql" `
+    -DefaultConsistencyLevel $consistencyLevel `
+    -ErrorAction SilentlyContinue `
+    -ErrorVariable ProcessError `
+
+   if($ProcessError)
+   {
+     write-host $ProcessError
+   }
+}
 . (Join-Path $PSScriptRoot \common.ps1)
 
 Login-Subscription
 
 Install-Module Az.CosmosDB -RequiredVersion 0.1.6 -Scope CurrentUser -Force
 Import-Module Az.CosmosDB
-
 $cosmosDB = Get-AzCosmosDBAccount -ResourceGroupName $resourceGroup -Name $cosmosDbAccountName -ErrorAction SilentlyContinue
 
-if(($cosmosDB.Id -eq $null) -and ($skipToSet -eq $false))
+if($cosmosDB.Id -eq $null)
 {
-   $resourceGroupResponse = Get-AzResourceGroup -Name $resourceGroup -Location $location -ErrorAction SilentlyContinue
+    $resourceGroupResponse = Get-AzResourceGroup -Name $resourceGroup -Location $location
    if($resourceGroupResponse.ResourceId -eq $null ){
      Create-ResourceGroup -resourceGroup $resourceGroup
    }
@@ -74,7 +94,26 @@ if(($cosmosDB.Id -eq $null) -and ($skipToSet -eq $false))
         Write-Host "$cosmosDB"
 }
 
+if($createSql -eq "true"){
+    $cosmosDbSqlAccountName = $cosmosDbAccountName+"-sql"
+    $cosmosDBSql = Get-AzCosmosDBAccount -ResourceGroupName $resourceGroup -Name $cosmosDbSqlAccountName -ErrorAction SilentlyContinue
+     
+    if($cosmosDBSql.Id -eq $null)
+    {
+      $resourceGroupResponse = Get-AzResourceGroup -Name $resourceGroup -Location $location
+      if($resourceGroupResponse.ResourceId -eq $null ){
+        Create-ResourceGroup -resourceGroup $resourceGroup
+      }
 
+      Create-Sql-CosmosDB -resourceGroup $resourceGroup
+    } else{
 
-
-
+        ## https://github.com/Microsoft/azure-pipelines-agent/blob/master/docs/preview/outputvariable.md
+        $resourceId = $cosmosDBSql.Id
+        Write-Host "CosmosDbSql exists, skipping creation"
+        Write-Host "Setting variable $outputVariable "
+        Write-Host "##vso[task.setvariable variable=$outputVariable;isSecret=false;isOutput=true;]$resourceId.Id"
+        $cosmosDBSql = $cosmosDBSql | Select *
+        Write-Host "$cosmosDBSql"
+    }
+}

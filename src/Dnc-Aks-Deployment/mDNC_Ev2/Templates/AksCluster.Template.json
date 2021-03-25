@@ -218,6 +218,13 @@
             "metadata": {
                 "description": "The cosmos db account name used by dncrp."
             }
+        },
+        "createSql": {
+            "type": "string",
+            "defaultValue": "false",
+            "metadata": {
+                "description": "SQL cosmos db is also created."
+            }
         }
     },
     "variables": {
@@ -312,6 +319,36 @@
                             "type": "Microsoft.DocumentDB/databaseAccounts/providers/roleAssignments",
                             "apiVersion": "2018-09-01-preview",
                             "name": "[concat(parameters('cosmosDbAccountName'), '/Microsoft.Authorization/', guid(resourceGroup().id,'clustercosmosdb',parameters('resourceName')))]",
+                            "dependsOn": [],
+                            "properties": {
+                                "roleDefinitionId": "/subscriptions/[subscription().subscriptionId]/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+                                "principalId": "[reference(resourceId('Microsoft.ContainerService/managedClusters', parameters('resourceName')), '2020-03-01').identityProfile.kubeletidentity.objectId]"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "condition": "[equals(parameters('createSql'),'true')]",
+            "type": "Microsoft.Resources/deployments",
+            "name": "cosmos-db-sql-nested-role-assignment",
+            "apiVersion": "2017-05-10",
+            "resourceGroup": "[parameters('cosmosDbResourceGroup')]",
+            "subscriptionId": "[subscription().subscriptionId]",
+            "dependsOn": [
+                "[resourceId('Microsoft.ContainerService/managedClusters', parameters('resourceName'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.DocumentDB/databaseAccounts/providers/roleAssignments",
+                            "apiVersion": "2018-09-01-preview",
+                            "name": "[concat(parameters('cosmosDbAccountName'),'-sql' , '/Microsoft.Authorization/', guid(resourceGroup().id,'clustercosmosdbsql',parameters('resourceName')))]",
                             "dependsOn": [],
                             "properties": {
                                 "roleDefinitionId": "/subscriptions/[subscription().subscriptionId]/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
