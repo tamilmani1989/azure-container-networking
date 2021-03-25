@@ -13,31 +13,35 @@ import (
 )
 
 var (
-	config      *configuration.Configuration
+	config     *configuration.Configuration
+	mockserver *mockServer
 )
 
 const (
 	maxLogFileSize  = 16 * 1024 * 1024 // Set 16MB as the max log file size
 	maxLogFileCount = 8                // Set 8 as max log file count.
-
-	// Note: Change this before running these tests
-	certFile = "/mnt/c/Code/Networking-RNM/Networking/Aquarius/src/dnc/acnkv-CertDncPubsub-20201001.pem"
-	azId     = "uscentraleuap-az01"
 )
 
 func TestMain(m *testing.M) {
 	setup()
 	code := m.Run()
+	teardown()
 	os.Exit(code)
 }
 
 func TestUpdateAndDeleteContainer(t *testing.T) {
+
+	// cert file needed if you are connecting to a real aznm server
+	certFile := config.AznmSettings.TestsSettings.CertPath
+	// azid where aznm server name is located
+	azId := config.AznmSettings.TestsSettings.AzId
 	client := NewAznmGrpcClient(certFile, loggermock.NewDummyLogger())
 
 	aznmReq, err := CreateAznmRequestWithAzName(azId, config.AznmSettings.Port, "AZUREPUBLICCLOUD")
 	if err != nil {
 		t.Fatalf("Error creating aznm request: %s", err)
 	}
+	aznmReq.InsecureConnection = config.AznmSettings.TestsSettings.InsecureConnection
 
 	t.Logf("Calling aznm endpoint: %s, activityId: %s \n", aznmReq.Endpoint, aznmReq.ActivityId)
 
@@ -60,6 +64,96 @@ func TestUpdateAndDeleteContainer(t *testing.T) {
 		t.Fatalf("Error calling TestDeleteContainer: %s", err)
 	}
 	t.Logf("TestDeleteContainer succeeded\n")
+}
+
+func TestUpdateContainerError(t *testing.T) {
+
+	// cert file needed if you are connecting to a real aznm server
+	certFile := config.AznmSettings.TestsSettings.CertPath
+	// azid where aznm server name is located
+	azId := config.AznmSettings.TestsSettings.AzId
+	client := NewAznmGrpcClient(certFile, loggermock.NewDummyLogger())
+
+	aznmReq, err := CreateAznmRequestWithAzName(azId, config.AznmSettings.Port, "AZUREPUBLICCLOUD")
+	if err != nil {
+		t.Fatalf("Error creating aznm request: %s", err)
+	}
+	aznmReq.InsecureConnection = config.AznmSettings.TestsSettings.InsecureConnection
+
+	t.Logf("Calling aznm endpoint: %s, activityId: %s \n", aznmReq.Endpoint, aznmReq.ActivityId)
+
+	logicalGuid := ""
+	physicalGuid := uuid.New().String()
+	nodeGuid := uuid.New().String()
+	t.Logf("logicalGuid; %s\n", logicalGuid)
+	t.Logf("physicalGuid; %s\n", physicalGuid)
+	t.Logf("nodeGuid; %s\n", nodeGuid)
+
+	err = client.UpdateContainer(context.Background(), aznmReq, logicalGuid, physicalGuid, nodeGuid)
+	if err == nil {
+		t.Fatalf("Expected error calling UpdateContainer due to empty logicalGuid but no error occured")
+	}
+
+	logicalGuid = uuid.New().String()
+	physicalGuid = ""
+	nodeGuid = uuid.New().String()
+	t.Logf("logicalGuid; %s\n", logicalGuid)
+	t.Logf("physicalGuid; %s\n", physicalGuid)
+	t.Logf("nodeGuid; %s\n", nodeGuid)
+
+	err = client.UpdateContainer(context.Background(), aznmReq, logicalGuid, physicalGuid, nodeGuid)
+	if err == nil {
+		t.Fatalf("Expected error calling UpdateContainer due to empty physicalGuid but no error occured")
+	}
+
+	logicalGuid = uuid.New().String()
+	physicalGuid = uuid.New().String()
+	nodeGuid = ""
+	t.Logf("logicalGuid; %s\n", logicalGuid)
+	t.Logf("physicalGuid; %s\n", physicalGuid)
+	t.Logf("nodeGuid; %s\n", nodeGuid)
+
+	err = client.UpdateContainer(context.Background(), aznmReq, logicalGuid, physicalGuid, nodeGuid)
+	if err == nil {
+		t.Fatalf("Expected error calling UpdateContainer due to empty nodeGuid but no error occured")
+	}
+}
+
+func TestDeleteContainerError(t *testing.T) {
+
+	// cert file needed if you are connecting to a real aznm server
+	certFile := config.AznmSettings.TestsSettings.CertPath
+	// azid where aznm server name is located
+	azId := config.AznmSettings.TestsSettings.AzId
+	client := NewAznmGrpcClient(certFile, loggermock.NewDummyLogger())
+
+	aznmReq, err := CreateAznmRequestWithAzName(azId, config.AznmSettings.Port, "AZUREPUBLICCLOUD")
+	if err != nil {
+		t.Fatalf("Error creating aznm request: %s", err)
+	}
+	aznmReq.InsecureConnection = config.AznmSettings.TestsSettings.InsecureConnection
+
+	t.Logf("Calling aznm endpoint: %s, activityId: %s \n", aznmReq.Endpoint, aznmReq.ActivityId)
+
+	logicalGuid := ""
+	physicalGuid := uuid.New().String()
+	t.Logf("logicalGuid; %s\n", logicalGuid)
+	t.Logf("physicalGuid; %s\n", physicalGuid)
+
+	err = client.DeleteContainer(context.Background(), aznmReq, logicalGuid, physicalGuid)
+	if err == nil {
+		t.Fatalf("Expected error calling DeleteContainer due to empty logicalGuid but no error occured")
+	}
+
+	logicalGuid = uuid.New().String()
+	physicalGuid = ""
+	t.Logf("logicalGuid; %s\n", logicalGuid)
+	t.Logf("physicalGuid; %s\n", physicalGuid)
+
+	err = client.DeleteContainer(context.Background(), aznmReq, logicalGuid, physicalGuid)
+	if err == nil {
+		t.Fatalf("Expected error calling DeleteContainer due to empty physicalGuid but no error occured")
+	}
 }
 
 func TestSdnContracts(t *testing.T) {
@@ -132,4 +226,17 @@ func setup() {
 
 	fmt.Printf("configpath: %s\n", configpath)
 	config = configuration.Load(configpath)
+
+	if config.AznmSettings.TestsSettings.UseMockAznmServer {
+		mockserver = newNnsMockServer()
+		go mockserver.StartGrpcServer(config.AznmSettings.Port)
+		fmt.Println("aznm mock server started")
+	}
+}
+
+func teardown() {
+	if mockserver != nil {
+		mockserver.StopGrpcServer()
+		fmt.Println("aznm mock server stopped")
+	}
 }

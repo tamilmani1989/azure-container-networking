@@ -17,12 +17,18 @@ const (
 // TODO: Get code/api to generate this. This is an requirement from telemetry API aznm is using
 func CreateAznmRequestWithAzName(azIdOrName string, aznmPort int, azureEnvName string) (AznmRequest, error) {
 
+	var url string
 	suffix := getEndpointSuffix(azureEnvName)
 	if suffix == "" {
 		return AznmRequest{}, fmt.Errorf("aznm url suffix not found for environment: %s", azureEnvName)
 	}
 
-	url := strings.Join([]string{azIdOrName, suffix}, ".")
+	if azIdOrName == "localhost" || azIdOrName == "" {
+		url = azIdOrName
+	} else {
+		url = strings.Join([]string{azIdOrName, suffix}, ".")
+	}
+
 	endpoint := strings.Join([]string{url, fmt.Sprintf("%d", aznmPort)}, ":")
 
 	return AznmRequest{

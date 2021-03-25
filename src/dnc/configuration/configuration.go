@@ -277,6 +277,15 @@ type PubSubProxySettings struct {
 type AznmSettings struct {
 	// port where aznm service is listening at
 	Port int
+	// settings to be used for tests only
+	TestsSettings AznmTestsSettings
+}
+
+type AznmTestsSettings struct {
+	AzId               string
+	CertPath           string
+	InsecureConnection bool
+	UseMockAznmServer  bool
 }
 
 // Configuration - Details related to dnc configuration settings

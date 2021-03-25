@@ -39,9 +39,11 @@ type AznmGrpcClient struct {
 //     example: uscentraleuap-az01.aznm.core.windows.net:444
 //     example: 13.104.208.31:444
 // activityId - random unique id to log requests on server side for API call.
+// InsecureConnection - create insecure connection without TLS credentials
 type AznmRequest struct {
-	Endpoint   string
-	ActivityId string
+	Endpoint           string
+	ActivityId         string
+	InsecureConnection bool
 }
 
 // certPath - cert needed to authenticate with aznm
@@ -50,7 +52,7 @@ func NewAznmGrpcClient(certPath string, logger loggershim.LoggerInterface) *Aznm
 	return &AznmGrpcClient{
 		certPath: certPath,
 		logger:   logger,
-		clients: make(map[string]containersprotocol.NetworkContainerServiceClient),
+		clients:  make(map[string]containersprotocol.NetworkContainerServiceClient),
 	}
 }
 
@@ -65,19 +67,19 @@ func (c *AznmGrpcClient) UpdateContainer(
 
 	bladeUuid, err := convertGuidStrToProtobufUuid(bladeId)
 	if err != nil {
-		return fmt.Errorf("AznmGrpcClient(UpdateContainer): Failed to convert bladeId %s to uuid: %s",
+		return fmt.Errorf("AznmGrpcClient(UpdateContainer): Failed to convert bladeId %s to uuid. %s",
 			bladeId, err)
 	}
 
 	logicalUuid, err := convertGuidStrToProtobufUuid(logicalId)
 	if err != nil {
-		return fmt.Errorf("AznmGrpcClient(UpdateContainer): Failed to convert logicalId %s to uuid: %s",
+		return fmt.Errorf("AznmGrpcClient(UpdateContainer): Failed to convert logicalId %s to uuid. %s",
 			logicalId, err)
 	}
 
 	physicalUuid, err := convertGuidStrToProtobufUuid(physicalId)
 	if err != nil {
-		return fmt.Errorf("AznmGrpcClient(UpdateContainer): Failed to convert physicalId %s to uuid: %s",
+		return fmt.Errorf("AznmGrpcClient(UpdateContainer): Failed to convert physicalId %s to uuid. %s",
 			physicalId, err)
 	}
 
@@ -181,16 +183,29 @@ func (c *AznmGrpcClient) newAznmGrpcClient(
 	ctx context.Context,
 	aznmReq AznmRequest) (containersprotocol.NetworkContainerServiceClient, error) {
 
-	tlsConfig, err := c.getTLSConfig()
-	if err != nil {
-		return nil, err
-	}
+	var conn *grpc.ClientConn
+	var err error
 
 	localCtx, cancel := context.WithTimeout(ctx, connectionTimeout)
 	defer cancel()
 
-	conn, err := grpc.DialContext(
-		localCtx, aznmReq.Endpoint, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)), grpc.WithBlock())
+	c.logger.Debugf("Creating grpc connection to endpoint :%s. InsecureConnection:%t",
+		aznmReq.Endpoint, aznmReq.InsecureConnection)
+
+	if aznmReq.InsecureConnection {
+		conn, err = grpc.DialContext(
+			localCtx, aznmReq.Endpoint, grpc.WithInsecure(), grpc.WithBlock())
+	} else  {
+
+		tlsConfig, err := c.getTLSConfig()
+		if err != nil {
+			return nil, err
+		}
+
+		conn, err = grpc.DialContext(
+			localCtx, aznmReq.Endpoint, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)), grpc.WithBlock())
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("grpc connect failed for endpoint %s with error: %s", aznmReq.Endpoint, err)
 	}

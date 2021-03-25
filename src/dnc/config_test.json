@@ -101,7 +101,13 @@
     "DisableAiLogging": false
   },
   "AznmSettings": {
-    "Port": 444
+    "Port": 444,
+    "TestsSettings": {
+      "AzId": "",
+      "CertPath": "",
+      "InsecureConnection": true,
+      "UseMockAznmServer": true
+    }
   },
   "PubSubProxySettings": {
     "EnablePubSubProxy": false,
