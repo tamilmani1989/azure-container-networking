@@ -12,6 +12,12 @@ type NodeRepo interface {
 	UpdateNodeConstrainedReservationSet(networkID, reservationID string, remove bool, nodeConfiguration *datamodel.NodeConfiguration) *api.JsonErr
 	UpdateNodeConstrainedReservationSetByNodeID(nodeID, networkID, reservationID string, remove bool) *api.JsonErr
 	UpdateNodeContainers(nodeID, networkID, ncID, reservationID, containerType string, updateVlan, remove bool, ncLimit int) *api.JsonErr
+	CreateOrUpdateNodeConfiguration(register bool, cores int, nodeID string, nodeInfo api.NodeInfoRequest, apiVersion string, nmAgentSupportedApis []string) *api.JsonErr
+	PersistNodeConfiguration(nodeconfiguration *datamodel.NodeConfiguration) *api.JsonErr
+	DeleteNode(nodeID string) *api.JsonErr
+	TryQueryNodeConfigurationByKey(nodeKey string) (*datamodel.NodeConfiguration, *api.JsonErr)
+	GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr)
+	UpdateNodeConfigurationNetworkContainerSet(nodeID, networkID, ncID, reservationID, containerType string, updateVlan, remove bool, ncLimit int) *api.JsonErr
 }
 
 // A NetworkContainerRepo performs CRUD operations on network containers

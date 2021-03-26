@@ -58,7 +58,7 @@ CONNECT:
 							nodeID := datamodel.GetNodeIDFromKey(nodeKey)
 							sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 							sessionManager.BeginReadSession(sessionInfo)
-							nodeConfig, jsonerr := datamodel.TryQueryNodeConfigurationByKey(nodeKey)
+							nodeConfig, jsonerr := datamodel.NodeConfigRepo.TryQueryNodeConfigurationByKey(nodeKey)
 
 							sessionManager.EndReadSession(sessionInfo)
 							if jsonerr == nil {
@@ -210,7 +210,7 @@ func setOrchestratorForTelemetry() {
 
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 	sessionManager.BeginReadSession(sessionInfo)
-	nodeConfig, jsonerr := datamodel.QueryNodeConfiguration(nodeID)
+	nodeConfig, jsonerr := datamodel.NodeConfigRepo.QueryNodeConfiguration(nodeID)
 	sessionManager.EndReadSession(sessionInfo)
 
 	if jsonerr != nil {

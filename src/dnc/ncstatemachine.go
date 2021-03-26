@@ -21,13 +21,13 @@ func initNetworkContainerStateMachine() {
 		CNS:                  cnsInterface,
 		Locks:                sessionManager,
 		Reservations:         datamodel.IpReservationRepo,
-		UpdateNodeContainers: datamodel.UpdateNodeConfigurationNetworkContainerSet,
+		UpdateNodeContainers: datamodel.NodeConfigRepo.UpdateNodeConfigurationNetworkContainerSet,
 		PersistNC:            datamodel.PersistNCConfiguration,
 		Logger:               logger,
 	}
 
 	ipAllocator = networkcontainer.IPAllocator{
-		Nodes:                       new(nodeRepo),
+		Nodes:                       datamodel.NodeConfigRepo,
 		NCs:                         new(ncRepo),
 		Subnets:                     new(subnetRepo),
 		Reservations:                datamodel.IpReservationRepo,

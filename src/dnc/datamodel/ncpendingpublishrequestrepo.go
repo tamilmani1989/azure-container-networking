@@ -19,6 +19,22 @@ func NewNcPendingPublishRequestRepo(dataStore datastoreshim.DataStoreShim) *NcPe
 	}
 }
 
+// RemoveNcPendingPublishContext - Remove pending NC publish / unpublish context from the table.
+func (p *NcPendingPublishRequestRepo) RemoveNcPendingPublishContext(
+	networkID, networkContainerID string,
+	pubsubAzId string) *api.JsonErr {
+	key := GetNcPendingPublishContextKey(networkID, networkContainerID, pubsubAzId)
+	err := p.data.Delete(NcPendingPublishContextTableName, key)
+	if err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, fmt.Sprintf(
+			"Failed to delete NcPendingPublishRequestContext for key:[%s] due to error:[%s]",
+			key,
+			err.Error()))
+	}
+
+	return nil
+}
+
 // TryGetPendingCleanupRequest - Query a network container by key.
 func (p *NcPendingPublishRequestRepo) TryGetNcPendingPublish(requestKey string) (*NcPendingPublishRequestContext, *api.JsonErr) {
 	entity, status, err := p.data.Query(NcPendingPublishContextTableName, requestKey)

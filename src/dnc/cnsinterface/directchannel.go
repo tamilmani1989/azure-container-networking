@@ -20,7 +20,7 @@ type DirectChannel struct {
 
 func (c *DirectChannel) DeleteNC(nc *datamodel.NCConfiguration, ncLock map[string]string) *api.JsonErr {
 	nodeID := nc.GetAssociationInfo().NodeID
-	nodeConfig, apiErr := datamodel.TryQueryNodeConfiguration(nodeID)
+	nodeConfig, apiErr := datamodel.NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -52,7 +52,7 @@ func (c *DirectChannel) GetNCLimitForNode(nodeID string) (int, *api.JsonErr) {
 		return utils.MaxContainersPerNode, nil
 	}
 
-	nodeConfig, err := datamodel.TryQueryNodeConfiguration(nodeID)
+	nodeConfig, err := datamodel.NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
 
 	if err != nil {
 		errMsg := fmt.Sprintf("Unable to get NC limit for the node because "+

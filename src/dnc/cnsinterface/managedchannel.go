@@ -29,7 +29,7 @@ func (client *ManagedChannel) GetNCLimitForNode(nodeID string) (int, *api.JsonEr
 		return utils.MaxContainersPerNode, nil
 	}
 
-	nodeConfig, err := datamodel.TryQueryNodeConfiguration(nodeID)
+	nodeConfig, err := datamodel.NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
 
 	var ncLimit int
 	if nodeConfig != nil && err == nil {

@@ -204,7 +204,7 @@ func processAllocateLocalIP(
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
-	nodeConfiguration, err := datamodel.QueryNodeConfiguration(nodeID)
+	nodeConfiguration, err := datamodel.NodeConfigRepo.QueryNodeConfiguration(nodeID)
 	if err != nil {
 		return false, err
 	}
@@ -295,7 +295,7 @@ func processAllocateLocalIP(
 			logger.Debugf("Assigning GreKey for NC: %s, Node: %s, interface ID is %s, reservation ID is %s, GreKey is %d",
 				repoNCConfig.NetworkContainerID, nodeID, interfaceID, repoNCConfig.ReservationID, greKey)
 
-			nodeErr := datamodel.PersistNodeConfiguration(nodeConfiguration)
+			nodeErr := datamodel.NodeConfigRepo.PersistNodeConfiguration(nodeConfiguration)
 			if nodeErr != nil {
 				return false, nodeErr
 			}

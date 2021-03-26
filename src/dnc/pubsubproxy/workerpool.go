@@ -225,8 +225,12 @@ func processNcPendingRequests() {
 			if !isValidPubSubJob(requestContext.Type) {
 				loggershim.LS.Errorf("[PubSubProxy] Unknown type for NC pending publish context: %+v. "+
 					"Deleting the entry from the table.", requestContext)
-				datamodel.RemoveNcPendingPublishContext(requestContext.NetworkID,
+				err := datamodel.NcPendingPublishRepo.RemoveNcPendingPublishContext(requestContext.NetworkID,
 					requestContext.NetworkContainerID, requestContext.PubsubAzId)
+				if err != nil {
+					loggershim.LS.Errorf("Failed to delete pending publish request %s for NC: %s. Error: %v",
+						requestContext.Type.String(), requestContext.NetworkContainerID, err)
+				}
 				continue
 			}
 
@@ -384,8 +388,8 @@ func (job *ncJob) process() error {
 		err = unpublishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath)
 	} else if jobContext.jobType == BareMetalContainerPublish || jobContext.jobType == BareMetalContainerUnpublish {
 
-		primary := pubsubContext {
-			Key: jobContext.partitionKey,
+		primary := pubsubContext{
+			Key:  jobContext.partitionKey,
 			Path: jobContext.relativePath,
 			Data: job.ncData,
 		}
@@ -443,7 +447,11 @@ func (job *ncJob) process() error {
 		// Delete the pending context table entry only if the timestamp matches.
 		// This avoids deletion of the updated entry
 		if jobContext.createdDateTime.Equal(pendingPublishContext.CreatedDateTime) {
-			datamodel.RemoveNcPendingPublishContext(job.vnetId, job.ncId, jobContext.pubsubAzId)
+			err = datamodel.NcPendingPublishRepo.RemoveNcPendingPublishContext(job.vnetId, job.ncId, jobContext.pubsubAzId)
+			if err != nil {
+				loggershim.LS.Errorf("Failed to delete pending publish request %s for NC: %s. Error: %v",
+					jobContext.jobType.String(), pendingPublishContext.NetworkContainerID, err)
+			}
 		}
 	}
 
@@ -731,14 +739,14 @@ func updateVnetConfiguration(
 	return networkupdatehandler.UpdateNetworkConfiguration(repoNetworkConfiguration, &networkResponse)
 }
 
-func createContextSelectorAndPublishData (
-	pubsubAzId string, primary pubsubContext, pubsubCtx[] pubsubContext, jobCtx *jobContext) error {
+func createContextSelectorAndPublishData(
+	pubsubAzId string, primary pubsubContext, pubsubCtx []pubsubContext, jobCtx *jobContext) error {
 
-	var  err error
+	var err error
 	keys := make(map[string]struct{})
 
 	// create a single slice where primary is the first element in this slice
-	localPubsubCtx := []pubsubContext {primary}
+	localPubsubCtx := []pubsubContext{primary}
 	localPubsubCtx = append(localPubsubCtx, pubsubCtx...)
 
 	for _, ctx := range localPubsubCtx {
@@ -770,7 +778,7 @@ func createContextSelectorAndPublishData (
 		}
 
 		path := ctx.Key + ctx.Path
-		if  err = getPublishStatusError(pubsubAzId, path); err != nil {
+		if err = getPublishStatusError(pubsubAzId, path); err != nil {
 			loggershim.LS.Debugf("Publishing data failed. AzId %s, context selector %s, path %s, publish err: %s",
 				pubsubAzId, ctx.Key, ctx.Path, err)
 			return err
@@ -780,8 +788,8 @@ func createContextSelectorAndPublishData (
 	return nil
 }
 
-func deleteContextSelectorAndUnPublishData (
-	pubsubAzId string, primary pubsubContext, pubsubCtx[] pubsubContext, jobCtx *jobContext) error {
+func deleteContextSelectorAndUnPublishData(
+	pubsubAzId string, primary pubsubContext, pubsubCtx []pubsubContext, jobCtx *jobContext) error {
 
 	// Remove secondary paths first
 	if err := removePubsubPaths(pubsubAzId, pubsubCtx, jobCtx); err != nil {
@@ -789,7 +797,7 @@ func deleteContextSelectorAndUnPublishData (
 	}
 
 	// Remove primary
-	primarySlice := [] pubsubContext {primary}
+	primarySlice := []pubsubContext{primary}
 	if err := removePubsubPaths(pubsubAzId, primarySlice, jobCtx); err != nil {
 		return err
 	}
@@ -797,8 +805,8 @@ func deleteContextSelectorAndUnPublishData (
 	return nil
 }
 
-func removePubsubPaths (
-	pubsubAzId string, pubsubCtx[] pubsubContext, jobCtx *jobContext) error {
+func removePubsubPaths(
+	pubsubAzId string, pubsubCtx []pubsubContext, jobCtx *jobContext) error {
 
 	var err error
 	var exists bool
@@ -807,7 +815,7 @@ func removePubsubPaths (
 	// unpublish the data first
 	for _, ctx := range pubsubCtx {
 
-		if  exists, err = pathExists(pubsubAzId, ctx.Key, ctx.Path); err == nil && exists == false {
+		if exists, err = pathExists(pubsubAzId, ctx.Key, ctx.Path); err == nil && exists == false {
 			loggershim.LS.Debugf("Skipping unpublishing data for AzId %s since path %s%s does not exist",
 				pubsubAzId, ctx.Key, ctx.Path)
 			continue

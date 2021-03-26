@@ -380,3 +380,39 @@ func (n *NodeRepo) UpdateNodeContainers(nodeID, networkID, ncID, reservationID, 
 	// TODO: implement for testing.
 	return nil
 }
+
+func (n *NodeRepo) CreateOrUpdateNodeConfiguration(
+	register bool,
+	cores int,
+	nodeID string,
+	nodeInfo api.NodeInfoRequest,
+	apiVersion string,
+	nmAgentSupportedApis []string) *api.JsonErr {
+	// TODO: implement for testing.
+	return nil
+}
+
+func (n *NodeRepo) PersistNodeConfiguration(nodeconfiguration *datamodel.NodeConfiguration) *api.JsonErr {
+	// TODO: implement for testing.
+	return nil
+}
+
+func (n *NodeRepo) DeleteNode(nodeID string) *api.JsonErr {
+	// TODO: implement for testing.
+	return nil
+}
+
+func (n *NodeRepo) TryQueryNodeConfigurationByKey(nodeKey string) (*datamodel.NodeConfiguration, *api.JsonErr) {
+	// TODO: implement for testing.
+	return nil, nil
+}
+
+func (n *NodeRepo) GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr) {
+	// TODO: implement for testing.
+	return nil, nil
+}
+
+func (n *NodeRepo) UpdateNodeConfigurationNetworkContainerSet(nodeID, networkID, ncID, reservationID, containerType string, updateVlan, remove bool, ncLimit int) *api.JsonErr {
+	// TODO: implement for testing.
+	return nil
+}

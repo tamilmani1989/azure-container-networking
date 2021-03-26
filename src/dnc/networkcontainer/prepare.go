@@ -228,7 +228,7 @@ func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration
 	p.Locks.BeginWriteSession(sessionInfoWrite)
 	defer p.Locks.EndWriteSession(sessionInfoWrite)
 
-	err = datamodel.UpdateNodeConfigurationNetworkContainerSet(
+	err = datamodel.NodeConfigRepo.UpdateNodeConfigurationNetworkContainerSet(
 		associationInfo.NodeID,
 		ncConfig.NetworkID,
 		ncConfig.NetworkContainerID,

@@ -40,8 +40,6 @@ var (
 	dataStoreShim               datastoreshim.DataStoreShim
 	cnsSettings                 configuration.CNSSettings
 	hostAgentSettings           configuration.HostAgentSettings
-	PendingCleanupRepo          *PendingResourceCleanupRepo
-	NcPendingPublishRepo        *NcPendingPublishRequestRepo
 	requestBaseInterval                = 1000
 	MinVlan                     uint16 = 1
 	MaxVlan                     uint16 = 2048
@@ -60,8 +58,12 @@ var (
 
 	// todo: repos can be initialized by a helper method and compose a struct that can be shared.
 	//  exporting variable temporarily, since this package is behaving as a singleton.
-	AllocRepo         *AllocationRepo
-	IpReservationRepo *ReservationRepo
+
+	AllocRepo            *AllocationRepo
+	IpReservationRepo    *ReservationRepo
+	PendingCleanupRepo   *PendingResourceCleanupRepo
+	NcPendingPublishRepo *NcPendingPublishRequestRepo
+	NodeConfigRepo       *NodeConfigurationRepo
 )
 
 // Init - Initialize repository.
@@ -87,6 +89,7 @@ func Init(
 	IpReservationRepo = &ReservationRepo{Datastore: ds}
 	PendingCleanupRepo = NewPendingResourceCleanupRepo(ds, loggershim.LS)
 	NcPendingPublishRepo = NewNcPendingPublishRequestRepo(ds)
+	NodeConfigRepo = &NodeConfigurationRepo{Datastore: ds}
 
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
 		RestoreState()
@@ -336,43 +339,6 @@ func UpdateSubnetReservationSet(
 	return err
 }
 
-// UpdateNodeConstrainedReservationSetByNodeID - Add/Remove reservation to constrained reservation set in node configuration
-func UpdateNodeConstrainedReservationSetByNodeID(
-	nodeID,
-	networkID,
-	reservationID string,
-	remove bool) *api.JsonErr {
-	nodeConfiguration, err := QueryNodeConfiguration(nodeID)
-	if err != nil {
-		return err
-	}
-
-	return UpdateNodeConstrainedReservationSet(
-		networkID,
-		reservationID,
-		remove,
-		nodeConfiguration)
-}
-
-// UpdateNodeConstrainedReservationSet - Add/Remove reservation to constrained reservation set in node configuration
-func UpdateNodeConstrainedReservationSet(
-	networkID,
-	reservationID string,
-	remove bool,
-	nodeConfiguration *NodeConfiguration) *api.JsonErr {
-	if nodeConfiguration.ConstrainedReservations == nil {
-		nodeConfiguration.ConstrainedReservations = make(map[string]string)
-	}
-
-	if remove {
-		delete(nodeConfiguration.ConstrainedReservations, reservationID)
-	} else {
-		nodeConfiguration.ConstrainedReservations[reservationID] = networkID
-	}
-
-	return PersistNodeConfiguration(nodeConfiguration)
-}
-
 // GetNextVlanID - Helper fucntion to get next gre key
 func GetNextVlanID(vlanMap map[string]uint16) (uint16, *api.JsonErr) {
 	return findNextAvailable(vlanMap, MinVlan, MaxVlan, api.OutOfVlanIDs, "Exceeded maximum number of VLAN IDs")
@@ -491,112 +457,6 @@ func deleteGreKeyAllocation(
 	return nil
 }
 
-// UpdateNodeConfigurationNetworkContainerSet - Remove NC from node configuration
-func UpdateNodeConfigurationNetworkContainerSet(
-	nodeID, networkID, ncID, reservationID, containerType string,
-	updateVlan, remove bool,
-	ncLimit int) *api.JsonErr {
-	nodeConfig, err := TryQueryNodeConfiguration(nodeID)
-	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to retrieve configuration for node %s due to error:%s",
-			nodeID,
-			err)
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	if nodeConfig == nil {
-		// There can be a race if Node is deleted before this NC was even processed
-		// (DeployedNetworkContainerMap is Updated in NC prepare state).
-		// Thus, skip if Node is not found.
-		if remove {
-			loggershim.LS.Debugf("Node :%s is null, skipping removing NC :%s, NetworkId :%s association",
-				nodeID,
-				ncID,
-				networkID)
-			return nil
-		}
-
-		msg := fmt.Sprintf(
-			"Node:%s in the request is not found", nodeID)
-		return &api.JsonErr{
-			Code:       api.NodeNotFound,
-			HTTPStatus: http.StatusNotFound,
-			Text:       msg}
-	}
-
-	if nodeConfig.DeployedNetworkContainerMap == nil {
-		if remove {
-			return nil
-		}
-
-		nodeConfig.DeployedNetworkContainerMap = make(map[string]map[string]string)
-	}
-
-	vnetMap, ok := nodeConfig.DeployedNetworkContainerMap[networkID]
-	// If remove and map doesn't exist, just return nil, otherwise operate on map.
-	if remove && !ok {
-		return nil
-	}
-
-	if remove {
-		greErr := deleteGreKeyAllocation(*nodeConfig, networkID, ncID)
-		if greErr != nil {
-			return greErr
-		}
-		delete(vnetMap, ncID)
-		if len(vnetMap) == 0 {
-			delete(nodeConfig.DeployedNetworkContainerMap, networkID)
-
-			// todo: this is hacky, but it prevents having to make another call in calling code to get the orchestrator type,
-			// which is only stored at the node level. clean up
-			if updateVlan && !(nodeConfig.NodeInfo.OrchestratorType == cns.KubernetesCRD) {
-				loggershim.LS.Debugf("Freeing VlanID:%d assigned to network %s on node %s",
-					nodeConfig.NetworkVlanIDMap[networkID],
-					networkID,
-					nodeID)
-				delete(nodeConfig.NetworkVlanIDMap, networkID)
-			}
-		}
-	} else { // Non remove operations.
-		if !ok {
-			vnetMap = make(map[string]string)
-			nodeConfig.DeployedNetworkContainerMap[networkID] = vnetMap
-
-			if updateVlan && !(nodeConfig.NodeInfo.OrchestratorType == cns.KubernetesCRD) {
-				nodeConfig.NetworkVlanIDMap[networkID], err = GetNextVlanID(nodeConfig.NetworkVlanIDMap)
-				if err != nil {
-					return err
-				}
-
-				loggershim.LS.Debugf("Assigning VlanID:%d to network %s on node %s",
-					nodeConfig.NetworkVlanIDMap[networkID],
-					networkID,
-					nodeID)
-			}
-		}
-
-		vnetMap[ncID] = reservationID
-
-		ncCount := 0
-		for _, ncToVnetMap := range nodeConfig.DeployedNetworkContainerMap {
-			ncCount += len(ncToVnetMap)
-		}
-
-		if ncCount > ncLimit {
-			return &api.JsonErr{
-				Code:       api.NodeContainerCapacityExhausted,
-				Text:       fmt.Sprintf("Node [%s] has reached maximum capacity [%d]", nodeConfig.NodeID, ncLimit),
-				HTTPStatus: http.StatusBadRequest}
-		}
-	}
-
-	return PersistNodeConfiguration(nodeConfig)
-}
-
 // UpdateNCToReservationAssociation :-
 func UpdateNCToReservationAssociation(
 	ncConfiguration *NCConfiguration,
@@ -648,68 +508,6 @@ func UpdateNCToReservationAssociation(
 	}
 
 	return PutIPReservationConfiguration(reservation.Configuration)
-}
-
-// TryQueryNodeConfiguration - Query node configuration.
-func TryQueryNodeConfiguration(nodeID string) (*NodeConfiguration, *api.JsonErr) {
-	nodeKey := GetNodeKey(nodeID)
-	return TryQueryNodeConfigurationByKey(nodeKey)
-}
-
-// TryQueryNodeConfigurationByKey - Query node configuration by node key.
-func TryQueryNodeConfigurationByKey(nodeKey string) (*NodeConfiguration, *api.JsonErr) {
-	var repositoryNodeConfiguration NodeConfiguration
-	nodeID := GetNodeIDFromKey(nodeKey)
-	entity, status, err := dataStoreShim.Query(nodeTableName, nodeKey)
-	if err != nil && status != http.StatusNotFound {
-		msg := fmt.Sprintf(
-			"Failed to retrieve configuration for node:[%s] due to error:[%s]",
-			nodeID,
-			err)
-		return nil, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	if entity == nil {
-		return nil, nil
-	}
-
-	serializedNodeConfiguration := entity.Properties[nodeConfigurationTag].(string)
-	err = json.Unmarshal([]byte(serializedNodeConfiguration), &repositoryNodeConfiguration)
-	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to unmarshal configuration for node:[%s] due to error:[%s]",
-			nodeID,
-			err)
-		return nil, &api.JsonErr{
-			Code:       api.JsonBodyUnMarshalFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	return &repositoryNodeConfiguration, nil
-}
-
-// QueryNodeConfiguration - Query node configuration
-func QueryNodeConfiguration(nodeID string) (*NodeConfiguration, *api.JsonErr) {
-	nodeConfiguration, err := TryQueryNodeConfiguration(nodeID)
-	if err != nil {
-		return nil, err
-	}
-
-	if nodeConfiguration == nil {
-		msg := fmt.Sprintf(
-			"Configuration for node:[%s] not found.",
-			nodeID)
-		return nil, &api.JsonErr{
-			Code:       api.NodeNotFound,
-			Text:       msg,
-			HTTPStatus: http.StatusBadRequest}
-	}
-
-	return nodeConfiguration, nil
 }
 
 // TryQueryAllNetworks queries for all networkconfigurations managed by this dnc and returns their IDs
@@ -1032,129 +830,6 @@ func TryQueryNetworkContainerByKey(ncKey string) (*NCConfiguration, *api.JsonErr
 func TryQueryNetworkContainer(networkID, networkContainerID string) (*NCConfiguration, *api.JsonErr) {
 	ncKey := GetNCKey(networkID, networkContainerID)
 	return TryQueryNetworkContainerByKey(ncKey)
-}
-
-// CreateOrUpdateNodeConfiguration - Creates Or Updates a node configuration. Register should be true if called from RegisterNode.
-func CreateOrUpdateNodeConfiguration(
-	register bool,
-	cores int,
-	nodeID string,
-	nodeInfo api.NodeInfoRequest,
-	apiVersion string,
-	nmAgentSupportedApis []string) *api.JsonErr {
-	repositoryNodeConfiguration, err := TryQueryNodeConfiguration(nodeID)
-	if err != nil {
-		return err
-	}
-
-	if repositoryNodeConfiguration == nil {
-		repositoryNodeConfiguration = new(NodeConfiguration)
-		repositoryNodeConfiguration.APIVersion = apiVersion
-		repositoryNodeConfiguration.NodeID = nodeID
-		repositoryNodeConfiguration.DeployedNetworkContainerMap = make(map[string]map[string]string)
-		repositoryNodeConfiguration.NetworkVlanIDMap = make(map[string]uint16)
-		repositoryNodeConfiguration.ConstrainedReservations = make(map[string]string)
-		repositoryNodeConfiguration.UpdateGreCapable = GreCapableNotSet
-		repositoryNodeConfiguration.InterfaceGreKeyMap = make(map[string]map[string]uint16)
-	} else if repositoryNodeConfiguration.NodeID == nodeID && len(repositoryNodeConfiguration.NetworkVlanIDMap) > 0 {
-		if len(nodeInfo.IPAddresses) > 0 && repositoryNodeConfiguration.NodeInfo.IPAddresses[0] != nodeInfo.IPAddresses[0] {
-			return &api.JsonErr{
-				Code:       api.NodeProcessingFailedDueToInternalError,
-				Text:       fmt.Sprintf("Failed to update node IP as there are allocations."),
-				HTTPStatus: http.StatusBadRequest}
-		}
-	}
-
-	if register {
-		repositoryNodeConfiguration.Registered = true
-		repositoryNodeConfiguration.NcLimit = getNCLimitFromNumCores(cores)
-	} else {
-		repositoryNodeConfiguration.NodeInfo = nodeInfo
-	}
-
-	repositoryNodeConfiguration.UpdateGreCapable = updateGreKeyCapability(repositoryNodeConfiguration, nmAgentSupportedApis)
-	return PersistNodeConfiguration(repositoryNodeConfiguration)
-}
-
-func PersistNodeConfiguration(nodeconfiguration *NodeConfiguration) *api.JsonErr {
-	jsonSerializedBytes, err := json.Marshal(nodeconfiguration)
-	if err != nil {
-		return &api.JsonErr{
-			Code:       api.JsonMarshallingFailed,
-			HTTPStatus: http.StatusInternalServerError,
-			Text:       fmt.Sprintf("%s: Failed to serialize node configuration %s due to error %s", utils.TracePrefix(2), nodeconfiguration.String(), err.Error())}
-	}
-
-	nodeKey := GetNodeKey(nodeconfiguration.NodeID)
-	err = dataStoreShim.InsertOrUpdate(
-		nodeTableName,
-		nodeKey,
-		TableToColumnMap[nodeTableName],
-		string(jsonSerializedBytes[:]))
-
-	if err != nil {
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			HTTPStatus: http.StatusInternalServerError,
-			Text:       fmt.Sprintf("%s: Failed to persist node configuration %s due to error %s", utils.TracePrefix(2), nodeconfiguration.String(), err.Error())}
-	}
-
-	return nil
-}
-
-// DeleteNode - Delete a node configuration.
-func DeleteNode(nodeID string) *api.JsonErr {
-	repositoryNodeConfiguration, err := TryQueryNodeConfiguration(nodeID)
-	if err != nil {
-		return nil
-	}
-
-	if repositoryNodeConfiguration == nil {
-		return nil
-	}
-
-	if repositoryNodeConfiguration.DeployedNetworkContainerMap != nil &&
-		len(repositoryNodeConfiguration.DeployedNetworkContainerMap) != 0 {
-		deployedNCString := repositoryNodeConfiguration.DumpDeployedNetworkContainers()
-		msg := fmt.Sprintf("Node %s has network containers deployed. Deployed containers: [%s]", nodeID, deployedNCString)
-		loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
-
-		return &api.JsonErr{
-			Code:       api.NodeInUse,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       msg}
-	}
-
-	if repositoryNodeConfiguration.ConstrainedReservations != nil &&
-		len(repositoryNodeConfiguration.ConstrainedReservations) != 0 {
-		constrainedReservationsString := utils.PrintMapKeys(
-			repositoryNodeConfiguration.ConstrainedReservations)
-		msg := fmt.Sprintf(
-			"Node %s has associated reservations. Reservations: [%s]",
-			nodeID,
-			constrainedReservationsString)
-		loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
-		return &api.JsonErr{
-			Code:       api.NodeInUse,
-			HTTPStatus: http.StatusBadRequest,
-			Text:       msg}
-	}
-
-	nodeKey := GetNodeKey(nodeID)
-	deleteErr := dataStoreShim.Delete(nodeTableName, nodeKey)
-	if deleteErr != nil {
-		msg := fmt.Sprintf(
-			"Failed to delete node configuration for node %s from data store. Error: %s",
-			nodeID,
-			deleteErr.Error())
-		loggershim.LS.Errorf("%s: %s", utils.TracePrefix(2), msg)
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			HTTPStatus: http.StatusInternalServerError,
-			Text:       msg}
-	}
-
-	return nil
 }
 
 // AddRequestToPendingQueue - Add request to pending work item queue.
@@ -1605,7 +1280,7 @@ func UpdateSubnet(
 // PurgeNetworkContainerAssociations - Process relase of resevation associated with network container
 func PurgeNetworkContainerAssociations(ncConfiguration *NCConfiguration, updateVlan bool) *api.JsonErr {
 	associationInfo := ncConfiguration.GetAssociationInfo()
-	err := UpdateNodeConfigurationNetworkContainerSet(
+	err := NodeConfigRepo.UpdateNodeConfigurationNetworkContainerSet(
 		associationInfo.NodeID,
 		ncConfiguration.NetworkID,
 		ncConfiguration.NetworkContainerID,
@@ -1838,7 +1513,7 @@ func GetNetworkContainerResponse(
 		}
 	}
 
-	nodeConfiguration, err = QueryNodeConfiguration(ncConfig.GetAssociationInfo().NodeID)
+	nodeConfiguration, err = NodeConfigRepo.QueryNodeConfiguration(ncConfig.GetAssociationInfo().NodeID)
 	if err != nil {
 		loggershim.LS.Errorf("Failed to get node configuration for node: %s in GetNetworkContainerResponse."+
 			"for NC: %s. Error: %v", ncConfig.GetAssociationInfo().NodeID, ncConfig.NetworkContainerID, err)
@@ -1913,66 +1588,6 @@ func validateNodeTypePlacement(containerType, nodeType string) *api.JsonErr {
 	}
 
 	return nil
-}
-
-// GetNodeInfo - Get node configuration for a given node.
-func GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr) {
-	repoNodeConfiguration, err := TryQueryNodeConfiguration(nodeID)
-	if err != nil {
-		return nil, err
-	}
-
-	if repoNodeConfiguration == nil {
-		return nil, &api.JsonErr{
-			Code:       api.NodeNotFound,
-			Text:       fmt.Sprintf("Node %s not found", nodeID),
-			HTTPStatus: http.StatusNotFound}
-	}
-
-	var networkContainerResponses []api.NetworkContainerResponse
-	constrainedReservations := make(
-		[]api.ReservationResponse,
-		len(repoNodeConfiguration.ConstrainedReservations))
-	index := 0
-
-	for networkID, ncMap := range repoNodeConfiguration.DeployedNetworkContainerMap {
-		for ncID := range ncMap {
-			ncConfig, err := GetNetworkContainerConfiguration(networkID, ncID)
-			if err != nil {
-				return nil, err
-			}
-
-			networkContainerResponse, err := GetNetworkContainerResponse(ncConfig)
-			if err != nil {
-				return nil, err
-			}
-
-			networkContainerResponses = append(networkContainerResponses, *networkContainerResponse)
-			index++
-		}
-	}
-
-	index = 0
-	for reservationID, networkID := range repoNodeConfiguration.ConstrainedReservations {
-		reservation, err := QueryIPReservation(networkID, reservationID)
-		if err != nil {
-			return nil, err
-		}
-
-		if reservation.Configuration == nil {
-			continue
-		}
-
-		constrainedReservations[index] = translateRepoToContractReservationResponse(reservation.Configuration)
-		index++
-	}
-
-	nodeConfiguration := api.NodeInfoResponse{
-		NodeInfo:                repoNodeConfiguration.NodeInfo,
-		NetworkContainers:       networkContainerResponses,
-		ConstrainedReservations: constrainedReservations}
-
-	return &nodeConfiguration, nil
 }
 
 // PersistIPReservationRequest :-
@@ -2076,7 +1691,7 @@ func CreateOrUpdateNCRequestV1(
 	}()
 
 	nodeID := ncRequestV1.AssociationInfo.NodeID
-	repoNodeConfiguration, err := TryQueryNodeConfiguration(nodeID)
+	repoNodeConfiguration, err := NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
 	if err != nil {
 		return err
 	}
@@ -2165,7 +1780,7 @@ func CreateOrUpdateNCRequestV2(
 	}()
 
 	nodeID := ncRequestV2.AssociationInfo.NodeID
-	repoNodeConfiguration, err := TryQueryNodeConfiguration(nodeID)
+	repoNodeConfiguration, err := NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
 	if err != nil {
 		return err
 	}
@@ -2600,7 +2215,7 @@ func GetNCGoalState(repoNCConfig *NCConfiguration) (*NCGoalState, bool, *api.Jso
 	}
 
 	// Query NodeConfiguration table with nodeid and handle errors.
-	repoNodeConfig, err := TryQueryNodeConfiguration(nodeID)
+	repoNodeConfig, err := NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
 	if err != nil {
 		return nil, true, err
 	}

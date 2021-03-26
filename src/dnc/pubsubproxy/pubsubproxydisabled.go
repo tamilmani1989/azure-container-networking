@@ -4,8 +4,8 @@ package pubsubproxy
 
 import (
 	"context"
-	"dnc/aznm"
 	"dnc/api"
+	"dnc/aznm"
 	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/replica"
@@ -64,6 +64,12 @@ func Init(
 	return fmt.Errorf("PubSubProxy module build disabled. Build DNC using -tags enablePubsubProxy")
 }
 
+//just make a seperate class? A little dangerous to have unitialized package variables that could be used
+//note since deleting is idempotent we don't need replica
+func InitCleanup(configSettings configuration.PubSubProxySettings, certPath string) error {
+	return fmt.Errorf("PubSubProxy module build disabled. Build using -tags enablePubsubProxy")
+}
+
 // Deinit deinitializes the pubsubproxy by deleting publisherContext and subscribers
 func Deinit() {
 }
@@ -120,4 +126,14 @@ func RegisterVnet(
 // UnregisterVnet deletes the subscription for the vnet
 func UnregisterVnet(
 	vnetId string) {
+}
+
+func ForceUnpublishInAz(infraVnetID, nodeInterfaceIP, ncID, pubsubAzId string) error {
+	//validateAuthToken
+	return fmt.Errorf("PubSubProxy module build disabled. Build using -tags enablePubsubProxy")
+}
+
+func ForceUnpublishInAllAzs(infraVnetID, nodeInterfaceIP, ncID string) error {
+	//validateAuthToken
+	return fmt.Errorf("PubSubProxy module build disabled. Build using -tags enablePubsubProxy")
 }

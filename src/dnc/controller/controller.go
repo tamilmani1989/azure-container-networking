@@ -129,7 +129,7 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 	// pass false, 0 and empty Apis slice for non-registration calls
-	return datamodel.CreateOrUpdateNodeConfiguration(false, 0, nodeID, *nodeInfo, apiVersion, []string{})
+	return datamodel.NodeConfigRepo.CreateOrUpdateNodeConfiguration(false, 0, nodeID, *nodeInfo, apiVersion, []string{})
 }
 
 // RegisterNode - Register node
@@ -138,7 +138,7 @@ func (c *Controller) RegisterNode(nodeID, apiVersion string, request *api.NodeRe
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	return datamodel.CreateOrUpdateNodeConfiguration(true, request.NumCores, nodeID, api.NodeInfoRequest{}, apiVersion, request.NmAgentSupportedApis)
+	return datamodel.NodeConfigRepo.CreateOrUpdateNodeConfiguration(true, request.NumCores, nodeID, api.NodeInfoRequest{}, apiVersion, request.NmAgentSupportedApis)
 }
 
 // DeleteNode - Delete node configuration
@@ -148,7 +148,7 @@ func (c *Controller) DeleteNode(nodeID string) *api.JsonErr {
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	return datamodel.DeleteNode(nodeID)
+	return datamodel.NodeConfigRepo.DeleteNode(nodeID)
 }
 
 // GetNodeInfo - Get node info
@@ -156,12 +156,12 @@ func (c *Controller) GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.Jso
 	// No read lock is required because Azure Storage uses snapshot isolation to allow
 	// read operations to happen concurrently with writes in the same partition. It
 	// guarantees reads to see consistent data while updates are happening
-	return datamodel.GetNodeInfo(nodeID)
+	return datamodel.NodeConfigRepo.GetNodeInfo(nodeID)
 }
 
 // GetNodeConfiguration - Get node configuration
 func (c *Controller) GetNodeConfiguration(nodeID string) (*datamodel.NodeConfiguration, *api.JsonErr) {
-	return datamodel.TryQueryNodeConfiguration(nodeID)
+	return datamodel.NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
 }
 
 // PersistIPReservationRequest - Persist reservation request

@@ -37,7 +37,7 @@ func refreshNodeNetworkContainers(nodeKey string) {
 	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
 
 	sessionManager.BeginReadSession(sessionInfo)
-	repoNodeConfiguration, err := datamodel.TryQueryNodeConfigurationByKey(nodeKey)
+	repoNodeConfiguration, err := datamodel.NodeConfigRepo.TryQueryNodeConfigurationByKey(nodeKey)
 	sessionManager.EndReadSession(sessionInfo)
 	// If the node gets deleted after DNC reads the node list using GetAllNodeIDs,
 	// the nodeConfiguration for the deleted node will be nil. The nil check below

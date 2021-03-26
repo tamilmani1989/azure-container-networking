@@ -1,3 +1,5 @@
+// +build enablePubsubProxy
+
 package pubsubproxy
 
 import (
