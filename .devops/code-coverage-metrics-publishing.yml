@@ -1,0 +1,19 @@
+pool:
+  name: Networking-ContainerNetworking
+  demands: 
+  - agent.os -equals Linux
+  - Report -equals CodeCoverage
+
+steps:
+  - script: python3.9 publish_build_metrics_driver.py -pipelines $(Pipelines) -publish storage
+    displayName: "Publish build metrics to table store"
+    workingDirectory: "$(Build.SourcesDirectory)/.devops/scripts/"
+    env:
+      BUILD_TELEMETRY_STORAGE_ACCOUNT_KEY: "$(BUILD_TELEMETRY_STORAGE_ACCOUNT_KEY)"
+      PAT: $(PAT)
+
+  - script: python3.9 clean_build_metrics.py
+    displayName: "Clean build metrics in table storage"
+    workingDirectory: "$(Build.SourcesDirectory)/.devops/scripts/"
+    env:
+      BUILD_TELEMETRY_STORAGE_ACCOUNT_KEY: "$(BUILD_TELEMETRY_STORAGE_ACCOUNT_KEY)"
