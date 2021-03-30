@@ -23,9 +23,9 @@ if __name__ == "__main__":
   max_finish_time_utc = ns.maxFinishTime
   min_finish_time_utc = ns.minFinishTime
   if not max_finish_time_utc:
-      max_finish_time_utc = time_to_str(datetime.datetime.utcnow()- datetime.timedelta(days=5))
+      max_finish_time_utc = time_to_str(datetime.datetime.utcnow())
   if not min_finish_time_utc:
-      min_finish_time_utc = time_to_str(datetime.datetime.utcnow() - datetime.timedelta(days=20))
+      min_finish_time_utc = time_to_str(datetime.datetime.utcnow() - datetime.timedelta(days=1))
   pipelines = ns.pipelines
   for pipeline_info in pipelines:
     driver(pipeline_info, min_finish_time_utc, max_finish_time_utc, target)
