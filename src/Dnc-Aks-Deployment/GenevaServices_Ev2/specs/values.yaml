@@ -30,5 +30,5 @@ secpack:
   tag: master_20210304.2
 
 imagecleanup:
-  repository: acnprod.azurecr.io/image-cleanup-tool
+  repository: __ContainerRegistryName__/image-cleanup-tool
   tag: "01132021"

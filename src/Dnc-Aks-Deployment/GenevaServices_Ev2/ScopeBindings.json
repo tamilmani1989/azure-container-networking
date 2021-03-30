@@ -10,7 +10,11 @@
         {
           "find": "__MaConfigVersion__",
           "replaceWith": ""
-        }     
+        },
+        {
+          "find": "__ContainerRegistryName__",
+          "replaceWith": ""
+        }       
       ]
     }
   ]
