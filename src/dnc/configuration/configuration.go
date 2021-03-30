@@ -371,8 +371,6 @@ func SetDncConfigDefaults(config *Configuration) {
 		config.DataStoreSettings.MaxBatchSize = 100
 	}
 
-	log.Printf("config.DataStoreSettings.MaxBatchSize %d", config.DataStoreSettings.MaxBatchSize)
-
 	if config.FeatureFlagSettings.MaxIPReservationBatchSize == 0 {
 		config.FeatureFlagSettings.MaxIPReservationBatchSize = 100
 	}

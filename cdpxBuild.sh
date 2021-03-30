@@ -78,6 +78,7 @@ case $1 in
         (cd requestcontroller && go test -v ./...)
         (cd datamodel && go test -v ./...)
         (cd resourceupdatehandler && go test -v ./...)
+        (cd server && go test -v ./...)
         (cd internal && go test -v ./...)
         (cd aznm && go test -v ./...)
         zip azure-dnc-test-logs.zip /var/log/azure-dnc*

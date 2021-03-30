@@ -256,12 +256,22 @@ func main() {
 
 	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
 		masterElectionShim, config, httpClient, cnsHttpClient, &ipAllocator)
+
+	probeRoutes := server.ProbeRoutes{
+		// todo: this doesn't work correctly in cases where datastore settings are provided after start up.
+		//  need to refactor to have the datastoreshim be instantiated in main and provided to other things as needed.
+		Querier: datamodel.GetDatastoreSingleton(),
+		Logger:  logger,
+	}
+
 	dncServer = server.Server{
 		ServerSettings:      config.ServerSettings,
 		Controller:          ctrler,
 		ReverseProxyEnabled: config.DNCSettings.ReverseProxyEnabled,
 		ConnectionTimeout:   config.HttpClientSettings.ConnectionTimeout,
-		Logger:              logger}
+		Logger:              logger,
+		ProbeRoutes:         &probeRoutes,
+	}
 
 	if err := dncServer.Init(); err != nil {
 		log.Fatalln("Error initializing dnc server. Error:", err)

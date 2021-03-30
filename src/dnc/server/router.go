@@ -6,14 +6,12 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func NewRouter(reverseProxyEnabled, useHttps bool, connectionTimeout int) *mux.Router {
-
+func NewRouter(reverseProxyEnabled, useHttps bool, probeRoutes *ProbeRoutes) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
-	for _, route := range routes {
-		var handler http.Handler
 
-		handler = route.HandlerFunc
-		handler = Logger(handler, route.Name, reverseProxyEnabled, useHttps, connectionTimeout)
+	// todo: routes should not be global and depend on other globals. they should be instantiated and have dependencies injected.
+	for _, route := range routes {
+		handler := Logger(route.HandlerFunc, reverseProxyEnabled, useHttps)
 
 		router.
 			Methods(route.Method).
@@ -21,6 +19,9 @@ func NewRouter(reverseProxyEnabled, useHttps bool, connectionTimeout int) *mux.R
 			Name(route.Name).
 			Handler(handler)
 	}
+
+	// replica specific methods
+	router.Methods(http.MethodGet).Path("/healthz").Handler(http.HandlerFunc(probeRoutes.Health))
 
 	return router
 }

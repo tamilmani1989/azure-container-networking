@@ -7,11 +7,12 @@ import (
 	"dnc/logger/loggershim"
 	"dnc/utils"
 	"fmt"
-	localtls "github.com/Azure/azure-container-networking/server/tls"
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"net/url"
+
+	localtls "github.com/Azure/azure-container-networking/server/tls"
+	"github.com/gorilla/mux"
 )
 
 type Server struct {
@@ -24,6 +25,7 @@ type Server struct {
 	ConnectionTimeout   int
 	TlsConfig           *tls.Config
 	Logger              *loggershim.LoggerShim
+	ProbeRoutes         *ProbeRoutes
 }
 
 func (server *Server) Init() error {
@@ -44,7 +46,7 @@ func (server *Server) Init() error {
 
 		server.TlsEndpoint = httpsUrl.Host
 	}
-	server.Router = NewRouter(server.ReverseProxyEnabled, server.ServerSettings.UseHttps, server.ConnectionTimeout)
+	server.Router = NewRouter(server.ReverseProxyEnabled, server.ServerSettings.UseHttps, server.ProbeRoutes)
 	SetController(server.Controller)
 	server.Logger.Debugf("Host=%s, Port=%s, ReverseProxyEnabled=%t, UseHttps=%t", server.ServerSettings.IPAddress,
 		server.ServerSettings.Port, server.ReverseProxyEnabled, server.ServerSettings.UseHttps)
@@ -88,17 +90,17 @@ func (server *Server) SetupTLS() error {
 	}
 	tlsCertRetriever, err := localtls.GetTlsCertificateRetriever(tlsSettings)
 	if err != nil {
-		return fmt.Errorf("Failed to get certificate retriever", err)
+		return fmt.Errorf("Failed to get certificate retriever: %v", err)
 	}
 
 	leafCertificate, err := tlsCertRetriever.GetCertificate()
 
 	if err != nil {
-		return fmt.Errorf("Failed to get certificate", err)
+		return fmt.Errorf("Failed to get certificate: %v", err)
 	}
 
 	if leafCertificate == nil {
-		return fmt.Errorf("Certificate retrival returned empty", err)
+		return fmt.Errorf("Certificate retrival returned empty: %v", err)
 	}
 
 	server.Logger.Debugf("Retrieved leaf certificate succesfully")
@@ -106,7 +108,7 @@ func (server *Server) SetupTLS() error {
 	privateKey, err := tlsCertRetriever.GetPrivateKey()
 
 	if err != nil {
-		return fmt.Errorf("Failed to get certificate private key", err)
+		return fmt.Errorf("Failed to get certificate private key: %v", err)
 	}
 
 	server.Logger.Debugf("Retrieved private key succesfully")

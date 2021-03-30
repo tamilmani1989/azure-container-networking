@@ -37,6 +37,7 @@ const (
 
 // todo: convert these package level vars into a service struct
 var (
+	// todo: Init is called by some endpoints which updates these vars at runtime, needs to be thread safe
 	dataStoreShim               datastoreshim.DataStoreShim
 	cnsSettings                 configuration.CNSSettings
 	hostAgentSettings           configuration.HostAgentSettings
@@ -127,6 +128,11 @@ func Init(
 	batchSize = dataStoreSettings.MaxBatchSize
 
 	return nil
+}
+
+// todo: this is only needed temporarily. having the datastore shim injected is a larger refactor.
+func GetDatastoreSingleton() datastoreshim.DataStoreShim {
+	return dataStoreShim
 }
 
 func getNCLimitFromNumCores(numCPUCores int) int {

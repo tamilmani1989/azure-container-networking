@@ -35,6 +35,7 @@ const (
 	defaultContentType = "application/json; charset=UTF-8"
 )
 
+// todo: remove global. create proper routes struct with controller as dependency
 var ctrler *controller.Controller
 
 // SetController - Cache handle to the controller object

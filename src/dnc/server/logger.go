@@ -8,14 +8,9 @@ import (
 	"strings"
 )
 
-const (
-	HTTPS = "https://"
-	HTTP  = "http://"
-)
-
 var supportedAPIVersions = map[string]bool{"2018-03-01": true, "2021-02-24": true}
 
-func Logger(inner http.Handler, name string, reverseProxyEnabled, useHttps bool, connectionTimeout int) http.Handler {
+func Logger(inner http.Handler, reverseProxyEnabled, useHttps bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Validate if the API version is supported.
 		_, err := getandValidateAPIVersion(r)

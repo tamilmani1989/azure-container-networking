@@ -130,10 +130,18 @@ func StartDnc(config *configuration.Configuration) {
 
 	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
 		masterElectionShim, config, httpClient, cnsHttpClient, &ipAllocator)
+
+	probeRoutes := server.ProbeRoutes{
+		Querier: datamodel.GetDatastoreSingleton(),
+		Logger:  logger,
+	}
+
 	dncServer = server.Server{
 		ServerSettings: config.ServerSettings,
 		Controller:     ctrler,
-		Logger:         logger}
+		Logger:         logger,
+		ProbeRoutes:    &probeRoutes,
+	}
 	dncServer.Init()
 	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
