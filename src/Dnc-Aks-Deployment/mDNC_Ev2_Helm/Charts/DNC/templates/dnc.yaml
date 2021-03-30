@@ -90,6 +90,7 @@ spec:
         livenessProbe:
           exec:
             command:
+            - /usr/local/bin/requestcontroller
             - ping-dnc
             - -c=/etc/dnc-rc/dncrc_config.json
           initialDelaySeconds: 15
