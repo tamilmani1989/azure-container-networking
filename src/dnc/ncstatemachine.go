@@ -37,6 +37,7 @@ func initNetworkContainerStateMachine() {
 		MaxBatchSize:                config.DataStoreSettings.MaxBatchSize,
 		DisableResMapInSubnetConfig: config.DNCSettings.DisableReservationMapInSubnetConfig,
 		PubsubProxyEnabled:          config.PubSubProxySettings.EnablePubSubProxy,
+		UsePrepopulatedAllocations:  config.FeatureFlagSettings.UsePrepopulatedIPAllocations,
 	}
 
 	macManagerClient = &macmgr.MacManagerConnection{

@@ -1,6 +1,7 @@
 package networkcontainer
 
 import (
+	"dnc/api"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
 	"fmt"
@@ -17,11 +18,11 @@ type prepopulatedStrategy struct {
 }
 
 func (t *prepopulatedStrategy) logf(format string, args ...interface{}) {
-	t.logger.Debugf("[top n strategy] vnet %s subnet %s - %s", t.subnetInfo.vnetID, t.subnetInfo.subnetName, fmt.Sprintf(format, args...))
+	t.logger.Debugf("[prepopulated strategy] vnet %s subnet %s - %s", t.subnetInfo.vnetID, t.subnetInfo.subnetName, fmt.Sprintf(format, args...))
 }
 
 func (t *prepopulatedStrategy) logErrorf(format string, args ...interface{}) {
-	t.logger.Errorf("[top n strategy] vnet %s subnet %s - %s", t.subnetInfo.vnetID, t.subnetInfo.subnetName, fmt.Sprintf(format, args...))
+	t.logger.Errorf("[prepopulated strategy] vnet %s subnet %s - %s", t.subnetInfo.vnetID, t.subnetInfo.subnetName, fmt.Sprintf(format, args...))
 }
 
 // todo: handle setting TBD for deleting ips, also need to update cleanup monitor to handle the cleanup
@@ -132,6 +133,7 @@ func (t *prepopulatedStrategy) allocateFromPrepopulated(reservations []datamodel
 			alloc, ok := stack.pop()
 			if !ok {
 				res.Status = datamodel.Failed
+				res.FailureDetail = *api.BadRequest(api.SubnetFull, "not enough free IP addresses to satisfy request")
 				failedReservations = append(failedReservations, res)
 				continue
 			}
@@ -149,6 +151,7 @@ func (t *prepopulatedStrategy) allocateFromPrepopulated(reservations []datamodel
 			alloc, ok := stack.pop()
 			if !ok {
 				res.Status = datamodel.Failed
+				res.FailureDetail = *api.BadRequest(api.SubnetFull, "not enough free IP addresses to satisfy request")
 				failedReservations = append(failedReservations, res)
 				break
 			}
@@ -159,8 +162,10 @@ func (t *prepopulatedStrategy) allocateFromPrepopulated(reservations []datamodel
 			updatedAllocations = append(updatedAllocations, alloc)
 		}
 
-		res.Status = datamodel.Completed
-		completedReservations = append(completedReservations, res)
+		if res.Status != datamodel.Failed {
+			res.Status = datamodel.Completed
+			completedReservations = append(completedReservations, res)
+		}
 	}
 
 	return batchEntityResult{

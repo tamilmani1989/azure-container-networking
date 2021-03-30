@@ -36,6 +36,7 @@ type IPAllocator struct {
 	MaxBatchSize                int
 	DisableResMapInSubnetConfig bool
 	PubsubProxyEnabled          bool
+	UsePrepopulatedAllocations  bool
 }
 
 // ProcessIPReservationAllocationWithKey processes IP allocation for a given reservation key
@@ -412,6 +413,27 @@ func (a *IPAllocator) DeallocateIPs(res datamodel.ReservationConfiguration, allo
 	return a.DeleteAllocations(res.NetworkID, res.AllocationRequest.SubnetName, rowKeys)
 }
 
+func (a *IPAllocator) ClearReservationAllocations(networkID, subnetName, reservationKey string) *api.JsonErr {
+	associatedAllocations, err := a.Allocations.QueryIPAllocationsByReservationKey(networkID, subnetName, reservationKey)
+	if err != nil {
+		return err
+	}
+
+	if len(associatedAllocations) == 0 {
+		a.Logger.Debugf("no allocations found for vnet %s subnet %s reservation key %s", networkID, subnetName, reservationKey)
+		return nil
+	}
+
+	for i, allocation := range associatedAllocations {
+		allocation.IPAllocation = ""
+		allocation.AllocationID = ""
+		allocation.ToBeDeletedOwner = ""
+		associatedAllocations[i] = allocation
+	}
+
+	return a.UpdateAllocations(networkID, subnetName, associatedAllocations)
+}
+
 func (a *IPAllocator) DeleteReservationAllocations(networkID, subnetName, reservationKey string) *api.JsonErr {
 	associatedAllocations, err := a.Allocations.QueryIPAllocationsByReservationKey(networkID, subnetName, reservationKey)
 	if err != nil {
@@ -780,9 +802,16 @@ func (a *IPAllocator) DeleteIPReservation(reservation datamodel.ReservationRow, 
 		vnetID := reservation.Configuration.NetworkID
 		subnetName := reservation.Configuration.AllocationRequest.SubnetName
 
-		if err := a.DeleteReservationAllocations(vnetID, subnetName, reservationKey); err != nil {
-			a.Logger.Errorf("could not delete allocations for vnet %s subnet %s reservation key %s: %v", vnetID, subnetName, reservationKey, err)
-			return err
+		if a.UsePrepopulatedAllocations {
+			if err := a.ClearReservationAllocations(vnetID, subnetName, reservationKey); err != nil {
+				a.Logger.Errorf("could not clear allocations for vnet %s subnet %s reservation key %s: %v", vnetID, subnetName, reservationKey, err)
+				return err
+			}
+		} else {
+			if err := a.DeleteReservationAllocations(vnetID, subnetName, reservationKey); err != nil {
+				a.Logger.Errorf("could not delete allocations for vnet %s subnet %s reservation key %s: %v", vnetID, subnetName, reservationKey, err)
+				return err
+			}
 		}
 	}
 

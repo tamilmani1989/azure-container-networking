@@ -1892,7 +1892,7 @@ func UpdateNCRequestV2(nc NCConfiguration, request api.NetworkContainerRequestV2
 		return api.Conflict(api.ProcessingPending, msg)
 	}
 
-	handling := getHandleLevel(nc.RequestV2, request)
+	handling := getHandleLevel(nc.RequestV2, request, nc.Status)
 	switch handling {
 	case noOp:
 		loggershim.LS.Debugf("update request for nc id %s received, nothing to update", nc.NetworkContainerID)
@@ -1923,10 +1923,10 @@ const (
 )
 
 // We will only process updates when there are differences between existing nc state and nc request
-// that should result in changes to IP allocations
+// that should result in changes to IP allocations, or after a failure.
 // Persist if requests are different
-func getHandleLevel(processed, requested api.NetworkContainerRequestV2) requestHandling {
-	if requested.AllocationRequest.SecondaryIPCount != processed.AllocationRequest.SecondaryIPCount {
+func getHandleLevel(processed, requested api.NetworkContainerRequestV2, ncStatus Status) requestHandling {
+	if requested.AllocationRequest.SecondaryIPCount != processed.AllocationRequest.SecondaryIPCount || ncStatus == Failed {
 		return process
 	}
 
