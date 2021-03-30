@@ -302,9 +302,9 @@ func main() {
 		}
 
 		aznmClient := aznm.NewAznmGrpcClient(certPath, logger)
-
+		// TODO: Too many args to a func. Change to a struct
 		if err := pubsubproxy.Init(
-			pubSubCfg, config.AznmSettings, replicaInstance,
+			pubSubCfg, config.AznmSettings, replicaInstance, logger,
 			certPath, config.AzureEnvironment.EnvironmentName, aznmClient); err != nil {
 			log.Fatalln("Error initializing PubsubProxy. Error:", err)
 		}

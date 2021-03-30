@@ -399,6 +399,9 @@ size_t OffsetMadariOpResultRunResultLength() {
 import "C"
 import "unsafe"
 
+// This MadariClient package is provided by pubsub team. Do not modify.
+// TODO: Move this to vendor
+
 const DefaultLoggingContextSubscriber = "GoSubscriber"
 const DefaultLoggingContextPublisher = "GoPublisher"
 

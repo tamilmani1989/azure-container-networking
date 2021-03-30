@@ -4,7 +4,6 @@ package pubsubproxy
 
 import (
 	. "dnc/MadariClient"
-	"dnc/logger/loggershim"
 	sdn "dnc/microsoft/azure/sdncontracts"
 	"fmt"
 	"google.golang.org/protobuf/proto"
@@ -18,11 +17,11 @@ const (
 )
 
 type publisher struct {
-	pubsubAzId   string
-	vipList      []string
-	isHealthy    bool
-	connectedVip string
-	madariPublisher
+	pubsubAzId      string
+	vipList         []string
+	isHealthy       bool
+	connectedVip    string
+	madariPublisher MadariPublisher
 	sync.RWMutex
 	publishStatusError sync.Map
 	publishResults     sync.Map
@@ -34,14 +33,57 @@ type publisherContextStruct struct {
 	publisherPort      string
 	pubsubCertName     string
 	pubsubConnectionEp string
+	madariClient       madariClientInterface
 }
 
-type madariPublisher struct {
-	defaultPublisher DefaultMadariPublisher
-	callback         madariPublisherCallback
+type madariClientInterface interface {
+	createPublisher(scheme string, identifier string, pubsubAzId string) MadariPublisher
+	deletePublisher(madariPublisher MadariPublisher)
+	createSubscriber(pubsubAzId string) MadariSubscriber
+	deleteSubscriber(madariSubscriber MadariSubscriber)
 }
 
-type madariPublisherCallback struct {
+type madariClient struct {
+}
+
+func newMadariClient() madariClientInterface {
+	return &madariClient{}
+}
+
+func (mc *madariClient) createPublisher(
+	scheme string,
+	identifier string,
+	pubsubAzId string) MadariPublisher {
+	madariPublisherCallback := publisherCallback{
+		pubsubAzId: pubsubAzId,
+	}
+
+	defaultPublisher := CreateDefaultMadariPublisher(scheme, identifier, madariPublisherCallback)
+	return &defaultPublisher
+}
+
+func (mc *madariClient) deletePublisher(
+	mp MadariPublisher) {
+	DeleteDefaultMadariPublisher(mp.(DefaultMadariPublisher))
+}
+
+func (mc *madariClient) createSubscriber(
+	pubsubAzId string) MadariSubscriber {
+	madariSubscriberCallback := subscriberCallback{
+		pubsubAzId: pubsubAzId,
+	}
+
+	defaultSubscriber := CreateDefaultMadariSubscriber(madariSubscriberCallback)
+	return &defaultSubscriber
+}
+
+func (mc *madariClient) deleteSubscriber(
+	ms MadariSubscriber) {
+	DeleteDefaultMadariSubscriber(ms.(DefaultMadariSubscriber))
+}
+
+// This type implements MadariClientCallback interface from MadariClient package
+type publisherCallback struct {
 	pubsubAzId string
 }
 
@@ -101,7 +143,7 @@ func (p *publisher) publishData(
 	publishPath := partitionKey + relativePath
 	if p.isHealthy {
 		p.setupPublishStatusErrorChan(publishPath)
-		if retCode := p.defaultPublisher.UpdateNode(partitionKey, relativePath,
+		if retCode := p.madariPublisher.UpdateNode(partitionKey, relativePath,
 			data, nil, MADARICREATEACTION_CREATEIFNOTEXISTS); retCode != 0 {
 			p.deletePublishStatusErrorChan(publishPath)
 			return fmt.Errorf("Publishing to pubsub: %s failed for path: %s due to error code: %d",
@@ -110,11 +152,6 @@ func (p *publisher) publishData(
 	} else {
 		return fmt.Errorf("Unhealthy Publisher: %s. Publishing failed for path: %s",
 			p.pubsubAzId, publishPath)
-	}
-
-	if verboseLogging {
-		loggershim.LS.Debugf("[PubSubProxy] Publisher: GetData");
-		p.defaultPublisher.GetData(partitionKey, relativePath)
 	}
 
 	return nil
@@ -129,7 +166,7 @@ func (p *publisher) unpublishData(
 	unpublishPath := partitionKey + relativePath
 	if p.isHealthy {
 		p.setupPublishStatusErrorChan(unpublishPath)
-		if retCode := p.defaultPublisher.RemoveNode(partitionKey, relativePath); retCode != 0 {
+		if retCode := p.madariPublisher.RemoveNode(partitionKey, relativePath); retCode != 0 {
 			p.deletePublishStatusErrorChan(unpublishPath)
 			return fmt.Errorf("Unpublishing to pubsub: %s failed for path: %s due to error code: %d",
 				p.pubsubAzId, unpublishPath, retCode)
@@ -149,7 +186,7 @@ func (p *publisher) createContextSelector(
 
 	if p.isHealthy {
 		p.setupPublishStatusErrorChan(partitionKey)
-		if retCode := p.defaultPublisher.AddContextSelector(partitionKey); retCode != 0 {
+		if retCode := p.madariPublisher.AddContextSelector(partitionKey); retCode != 0 {
 			p.deletePublishStatusErrorChan(partitionKey)
 			return fmt.Errorf("Failed to create context selector %s in pubsub %s due to error code %d",
 				partitionKey, p.pubsubAzId, retCode)
@@ -169,7 +206,7 @@ func (p *publisher) removeContextSelector(
 
 	if p.isHealthy {
 		p.setupPublishStatusErrorChan(partitionKey)
-		if retCode := p.defaultPublisher.RemoveContextSelector(partitionKey); retCode != 0 {
+		if retCode := p.madariPublisher.RemoveContextSelector(partitionKey); retCode != 0 {
 			p.deletePublishStatusErrorChan(partitionKey)
 			return fmt.Errorf("Failed to delete context selector %s in pubsub %s due to error code %d",
 				partitionKey, p.pubsubAzId, retCode)
@@ -191,7 +228,7 @@ func (p *publisher) pathExists(
 	publishPath := fmt.Sprintf("%s%s", partitionKey, relativePath)
 	if p.isHealthy {
 		p.setupPublishResultsChan(publishPath)
-		if retCode := p.defaultPublisher.Exists(partitionKey, relativePath); retCode != 0 {
+		if retCode := p.madariPublisher.Exists(partitionKey, relativePath); retCode != 0 {
 			p.deletePublishResultsChan(publishPath)
 			return fmt.Errorf("pathExists check for %s failed for path: %s due to error code: %d",
 				p.pubsubAzId, publishPath, retCode)
@@ -213,12 +250,12 @@ func (p *publisher) healthy() bool {
 func (p *publisher) deinit() {
 	p.Lock()
 	if p.isHealthy {
-		loggershim.LS.Debugf("[PubSubProxy] Deinitializing publisher: %s", p.pubsubAzId)
+		logDebugf("De-initializing publisher: %s", p.pubsubAzId)
 		p.isHealthy = false
 		p.updatePublishStatusErrorChan()
-		p.defaultPublisher.Close()
-		DeleteDefaultMadariPublisher(p.defaultPublisher)
-		loggershim.LS.Debugf("[PubSubProxy] Successfully deinitialized publisher: %s", p.pubsubAzId)
+		p.madariPublisher.Close()
+		publisherContext.madariClient.deletePublisher(p.madariPublisher)
+		logDebugf("Successfully de-initialized publisher: %s", p.pubsubAzId)
 	}
 	p.Unlock()
 }
@@ -229,8 +266,7 @@ func (p *publisher) updatePublishStatusErrorChan() {
 			found := false
 			errChan, found = p.publishStatusError.Load(publishPath)
 			if found && len(errChan.(chan error)) == 0 {
-				loggershim.LS.Debugf("[PubSubProxy] Publisher: %s sending error on status channel for path: %s",
-					p.pubsubAzId, publishPath.(string))
+				logDebugf("Publisher: %s sending error on status channel for path: %s", p.pubsubAzId, publishPath.(string))
 				errChan.(chan error) <- fmt.Errorf("Unhealthy Publisher: %s", p.pubsubAzId)
 			}
 			return true
@@ -412,21 +448,22 @@ func getPublishResults(
 }
 
 func createMadariPublisherCallback(
-	pubsubAzId string) madariPublisherCallback {
-	return madariPublisherCallback{
+	pubsubAzId string) publisherCallback {
+	return publisherCallback{
 		pubsubAzId: pubsubAzId,
 	}
 }
 
-func (callback madariPublisherCallback) OnNotificationReceived(
+func (callback publisherCallback) OnNotificationReceived(
 	notify *MadariNotify) {
 	// Note: Empty implementation to satisfy the interface requirement
 }
 
-func (callback madariPublisherCallback) OnResultReceived(
+func (callback publisherCallback) OnResultReceived(
 	result *MadariResult) {
 	publishPath := fmt.Sprintf("%s%s", result.PartitionKey, result.RelativePath)
 	publisher, _ := getPublisher(callback.pubsubAzId)
+	//TODO: Consolidate these 2 into just Result channel
 	publisher.sendPublishStatusError(publishPath, nil)
 	publisher.sendPublishResults(publishPath, *result)
 
@@ -435,7 +472,7 @@ func (callback madariPublisherCallback) OnResultReceived(
 	}
 }
 
-func (callback madariPublisherCallback) OnFailureReceived(
+func (callback publisherCallback) OnFailureReceived(
 	partitionKey string,
 	relativePath string,
 	reason string,
@@ -443,32 +480,29 @@ func (callback madariPublisherCallback) OnFailureReceived(
 	errorCode int32) {
 	path := fmt.Sprintf("%s%s", partitionKey, relativePath)
 	err := fmt.Errorf("FailureDetails: Code: %d, Src: %v, Cause: %s", errorCode, errorSource, reason)
-	loggershim.LS.Errorf("[PubSubProxy] OnFailureReceived: Publisher: %s. Path: %s. Error: %v",
-		callback.pubsubAzId, path, err)
+	logErrorf("OnFailureReceived: Publisher: %s. Path: %s. Error: %v", callback.pubsubAzId, path, err)
 	publisher, _ := getPublisher(callback.pubsubAzId)
 	publisher.sendPublishStatusError(path, err)
 }
 
-func (callback madariPublisherCallback) OnLoggingMessageReceived(
+func (callback publisherCallback) OnLoggingMessageReceived(
 	traceLevel MadariTraceLevel,
 	message string) {
 	// log only when verbose mode is enabled. Verbose logging can be enabled from config.json
 	// and is disabled by default as it can fill up the logs. Use it for debugging
-	if  verboseLogging{
-		loggershim.LS.Errorf("[PubSubProxy] OnLoggingMessageReceived: Publisher: %s. Tracelevel: %v. Message: %s",
-		callback.pubsubAzId, traceLevel, message)
+	if verboseLogging {
+		logDebugf("OnLoggingMessageReceived: Publisher: %s. Tracelevel: %v. Message: %s", callback.pubsubAzId, traceLevel, message)
 	}
 }
 
-func (callback madariPublisherCallback) OnHealthNotificationReceived(
+func (callback publisherCallback) OnHealthNotificationReceived(
 	health *MadariApplicationHealth) {
 	// Note: Recommendation from PubSub team is to ignore Health notification. They need to
 	// establish the usage of this and may deprecate it in future.
 }
 
-func (callback madariPublisherCallback) OnSessionTerminationReceived() {
-	loggershim.LS.Errorf("[PubSubProxy] OnSessionTerminationReceived: Publisher PubSubId: %s",
-		callback.pubsubAzId)
+func (callback publisherCallback) OnSessionTerminationReceived() {
+	logErrorf("OnSessionTerminationReceived: Publisher PubSubId: %s", callback.pubsubAzId)
 
 	// Deinitialize the publisher marking it unhealthy to avoid receiving
 	// any further publish/unpublish requests
@@ -482,8 +516,7 @@ func (callback madariPublisherCallback) OnSessionTerminationReceived() {
 				break
 			}
 
-			loggershim.LS.Errorf("[PubSubProxy] OnSessionTerminationReceived: "+
-				"createOrUpdatePublisher failed for pubsubAzId: %s due to error: %v", publisher.pubsubAzId, err)
+			logErrorf("OnSessionTerminationReceived: createOrUpdatePublisher failed for pubsubAzId: %s. Error: %v", publisher.pubsubAzId, err)
 			time.Sleep(time.Second * 1)
 			//TODO: This calls for a sev2
 		}
@@ -491,6 +524,7 @@ func (callback madariPublisherCallback) OnSessionTerminationReceived() {
 }
 
 func initPublishers(
+	mc madariClientInterface,
 	settings pubsubSettings) {
 	publisherContext = &publisherContextStruct{
 		numPublishers:      len(settings.pubsubVips),
@@ -498,6 +532,7 @@ func initPublishers(
 		publisherPort:      settings.publisherPort,
 		pubsubCertName:     settings.pubsubCertName,
 		pubsubConnectionEp: settings.pubsubConnectionEp,
+		madariClient:       mc,
 	}
 
 	// Initialize the publishers
@@ -518,7 +553,7 @@ func initPublishers(
 				if err == nil {
 					createdPublishers[pubsubAzId] = struct{}{}
 				} else {
-					loggershim.LS.Errorf("[PubSubProxy] Retriable error: %v", err)
+					logErrorf("Failed to create publisher: %s. Retriable Error: %v", pubsubAzId, err)
 					time.Sleep(pubsubConnectionRetryInterval)
 				}
 			}
@@ -533,22 +568,19 @@ func createOrUpdatePublisher(
 
 	// Loop through the available VIP list
 	for _, vip := range publisher.vipList {
-		madariPublisherCallback := createMadariPublisherCallback(publisher.pubsubAzId)
-		defaultPublisher := CreateDefaultMadariPublisher(scheme, identifier, madariPublisherCallback)
-		errorCode := defaultPublisher.Open(vip, publisherContext.publisherPort,
+		madariPublisher := publisherContext.madariClient.createPublisher(scheme, identifier, publisher.pubsubAzId)
+		errorCode := madariPublisher.Open(vip, publisherContext.publisherPort,
 			publisherContext.pubsubCertName, publisherContext.pubsubConnectionEp)
 		// TODO: Replace 0 with error code enum from pubsub
 		if errorCode == 0 {
-			loggershim.LS.Debugf("[PubSubProxy] Successfully created Publisher %s with pubsub VIP: %s", publisher.pubsubAzId, vip)
-			publisher.defaultPublisher = defaultPublisher
-			publisher.callback = madariPublisherCallback
+			logDebugf("Successfully created Publisher %s with pubsub VIP: %s", publisher.pubsubAzId, vip)
+			publisher.madariPublisher = madariPublisher
 			publisher.isHealthy = true
 			publisher.connectedVip = vip
 			return nil
 		}
 
-		loggershim.LS.Errorf("[PubSubProxy] Publisher %s failed to connect to VIP: %s due to error code: %v",
-			publisher.pubsubAzId, vip, errorCode)
+		logErrorf("Publisher %s failed to connect to VIP: %s due to error code: %v", publisher.pubsubAzId, vip, errorCode)
 	}
 
 	return fmt.Errorf("Failed to create publisher: %s", publisher.pubsubAzId)
@@ -561,19 +593,18 @@ func deinitPublishers() {
 }
 
 func displayMadariResult(result *MadariResult, pubsubAzId string) {
-
 	if strings.HasPrefix(result.PartitionKey, "/containers") &&
 		strings.HasPrefix(result.RelativePath, "/config") {
 
 		bmContainer := &sdn.Container{}
 		err := proto.Unmarshal(result.Data, bmContainer)
 		if err != nil {
-			loggershim.LS.Errorf("[PubSubProxy] OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Error: %v",
+			logErrorf("OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Error: %v",
 				pubsubAzId, result.PartitionKey, result.RelativePath, err)
 			return
 		}
 
-		loggershim.LS.Debugf("[PubSubProxy] OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Data: %v",
+		logDebugf("OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Data: %v",
 			pubsubAzId, result.PartitionKey, result.RelativePath, bmContainer)
 	}
 
@@ -583,12 +614,12 @@ func displayMadariResult(result *MadariResult, pubsubAzId string) {
 		nwInterface := &sdn.NetworkInterface{}
 		err := proto.Unmarshal(result.Data, nwInterface)
 		if err != nil {
-			loggershim.LS.Errorf("[PubSubProxy] OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Error: %v",
+			logErrorf("OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Error: %v",
 				pubsubAzId, result.PartitionKey, result.RelativePath, err)
 			return
 		}
 
-		loggershim.LS.Debugf("[PubSubProxy] OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Data: %v",
+		logDebugf("OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Data: %v",
 			pubsubAzId, result.PartitionKey, result.RelativePath, nwInterface)
 	}
 }

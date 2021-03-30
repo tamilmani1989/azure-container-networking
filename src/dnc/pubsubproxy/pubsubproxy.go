@@ -60,10 +60,10 @@ import (
 	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
+	repo "dnc/networkcontainer"
 	"dnc/replica"
 	"dnc/utils"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -163,11 +163,22 @@ var (
 	maxRetryBackoffInterval time.Duration
 	sessionManager          *utils.SessionManager
 	replicaInstance         *replica.Replica
+	logger                  loggershim.LoggerInterface
+	ncPendingPublishRequestContextRepo repo.NcPendingPublishRequestContextRepo
+	networkRepo             repo.NetworkRepo
 	azureEnvironmentName    string
 	aznmClient              AznmClient
 	aznmSettings            configuration.AznmSettings
 	verboseLogging          bool
 )
+
+func logDebugf(format string, args ...interface{}) {
+	logger.Debugf("[PubSubProxy] %s", fmt.Sprintf(format, args...))
+}
+
+func logErrorf(format string, args ...interface{}) {
+	logger.Errorf("[PubSubProxy] %s", fmt.Sprintf(format, args...))
+}
 
 func generateVnetPartitionKey(
 	vnetID string) string {
@@ -190,16 +201,12 @@ func serializeNetworkContainerPublishData(
 		serializedNcData        unsafe.Pointer
 	)
 
-	networkContainerVersion, err = strconv.ParseUint(ncPublishRequest.Version, 10, 64)
-	if err != nil {
-		loggershim.LS.Errorf("Failed to parse network container version. Error: %v", err)
-		return nil, err
+	if networkContainerVersion, err = strconv.ParseUint(ncPublishRequest.Version, 10, 64); err != nil {
+		return nil, fmt.Errorf("Failed to parse network container version. Error: %v", err)
 	}
 
-	cachedSubnetConfig, err := getActiveSubscriber().getCachedSubnetConfig(
-		ncPublishRequest.VirtualNetworkID, ncPublishRequest.SubnetName)
+	cachedSubnetConfig, err := getActiveSubscriber().getCachedSubnetConfig(ncPublishRequest.VirtualNetworkID, ncPublishRequest.SubnetName)
 	if err != nil {
-		loggershim.LS.Errorf("[PubSubProxy] %v", err)
 		return nil, err
 	}
 
@@ -231,36 +238,26 @@ func serializeNetworkContainerPublishData(
 		&ncData, &serializedNcData, &ncDataSize); resultStatus.ResultCode != 0 {
 		err = fmt.Errorf("Failed to serialize NC publish data for NC: %s due to error: %s",
 			ncPublishRequest.NcID, C.GoString(resultStatus.ErrorDetails))
-		loggershim.LS.Errorf("[PubSubProxy] %v", err)
 		return nil, err
 	}
 
 	return C.GoBytes(serializedNcData, C.int(ncDataSize)), nil
 }
 
-// Validate the auth token by comparing with the expected token
-// received from vnet config update notification
+// Validate the auth token by comparing with the expected token received from vnet config update notification
 func validateAuthToken(
 	vnetID string,
 	subnetName string,
 	accessToken string) *api.JsonErr {
 	cachedSubnetConfig, err := getActiveSubscriber().getCachedSubnetConfig(vnetID, subnetName)
 	if err != nil {
-		loggershim.LS.Errorf("[PubSubProxy] %v", err)
-		return &api.JsonErr{
-			Code: api.StatusInternalServerError,
-			Text: fmt.Sprintf("Failed to get subnetConfig for vnet: %s, subnet: %s. Error: %v",
-				vnetID, subnetName, err),
-			HTTPStatus: http.StatusInternalServerError}
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"Failed to get subnetConfig for vnet: %s, subnet: %s. Error: %v", vnetID, subnetName, err)
 	}
 
 	if accessToken != cachedSubnetConfig.expectedToken {
-		err := fmt.Errorf("Invalid Authentication token for vnet: %s, subnet: %s", vnetID, subnetName)
-		loggershim.LS.Errorf("[PubSubProxy] %v", err)
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       fmt.Sprintf("%v", err),
-			HTTPStatus: http.StatusUnauthorized}
+		return api.StatusUnauthorizedf(api.StatusInternalServerError,
+			"Invalid Authentication token for vnet: %s, subnet: %s", vnetID, subnetName)
 	}
 
 	return nil
@@ -271,15 +268,14 @@ func PublishNetworkContainer(
 	// Hide the auth token in the logs
 	subnetAuthToken := ncPublishRequest.SubnetAuthToken
 	ncPublishRequest.SubnetAuthToken = "<contents-hidden>"
-	loggershim.LS.Debugf("[PubSubProxy] PublishNetworkContainer: %s, %+v", ncPublishRequest.NcID, ncPublishRequest)
+	logDebugf("PublishNetworkContainer: %s, %+v", ncPublishRequest.NcID, ncPublishRequest)
 	ncPublishRequest.SubnetAuthToken = subnetAuthToken
 
 	if err := validateAuthToken(
 		ncPublishRequest.VirtualNetworkID,
 		ncPublishRequest.SubnetName,
 		ncPublishRequest.SubnetAuthToken); err != nil {
-		loggershim.LS.Errorf("[PubSubProxy] PublishNetworkContainer for NC: %s failed due to error: %v",
-			ncPublishRequest.NcID, err)
+		logErrorf("PublishNetworkContainer for NC: %s failed due to error: %v", ncPublishRequest.NcID, err)
 		return &api.JsonErr{
 			Code:       api.PublishingFailed,
 			Text:       fmt.Sprintf("PublishNetworkContainer for NC: %s failed due to error: %v", ncPublishRequest.NcID, err),
@@ -288,11 +284,9 @@ func PublishNetworkContainer(
 
 	ncDataBytes, err := serializeNetworkContainerPublishData(ncPublishRequest)
 	if err != nil {
-		loggershim.LS.Errorf("Failed to serialize NC Publish Data for NC: %s. Error: %v", ncPublishRequest.NcID, err)
-		return &api.JsonErr{
-			Code:       api.PublishingFailed,
-			Text:       fmt.Sprintf("PublishNetworkContainer for NC: %s failed due to error: %v", ncPublishRequest.NcID, err),
-			HTTPStatus: http.StatusInternalServerError}
+		logErrorf("Failed to serialize NC Publish Data for NC: %s. Error: %v", ncPublishRequest.NcID, err)
+		return api.InternalServerErrorf(api.PublishingFailed,
+			"PublishNetworkContainer for NC: %s failed due to error: %v", ncPublishRequest.NcID, err)
 	}
 
 	for pubsubAzId, _ := range publisherContext.publishers {
@@ -312,35 +306,14 @@ func PublishNetworkContainer(
 			ncPublishRequest.NcID, pubsubAzId)
 		sessionInfo := map[string]string{datamodel.NCPendingPublishRepositoryName: ncPendingPublishContextKey}
 		sessionManager.BeginWriteSession(sessionInfo)
-		err := datamodel.CreateOrUpdateNcPendingPublishRequest(&ncPendingPublishRequestContext)
+		err := ncPendingPublishRequestContextRepo.CreateOrUpdateNcPendingPublishRequest(&ncPendingPublishRequestContext)
 		sessionManager.EndWriteSession(sessionInfo)
 
 		if err != nil {
-			loggershim.LS.Errorf("Failed to persist pending NC Publish request for NC: %s. Error: %v", ncPublishRequest.NcID, err)
-			return &api.JsonErr{
-				Code:       api.PublishingFailed,
-				Text:       fmt.Sprintf("PublishNetworkContainer for NC: %s failed due to error: %v", ncPublishRequest.NcID, err),
-				HTTPStatus: http.StatusInternalServerError}
+			logErrorf("Failed to persist pending NC Publish request for NC: %s. Error: %v", ncPublishRequest.NcID, err)
+			return api.InternalServerErrorf(api.PublishingFailed,
+				"PublishNetworkContainer for NC: %s failed due to error: %v", ncPublishRequest.NcID, err)
 		}
-
-		ncDataPublishJob := &ncJob{
-			context: jobContext{
-				id:              createNcJobId(ncPublishRequest.VirtualNetworkID, ncPublishRequest.NcID, pubsubAzId),
-				jobType:         NetworkContainerPublish,
-				pubsubAzId:      pubsubAzId,
-				partitionKey:    generateVnetPartitionKey(ncPublishRequest.InfraVnetID),
-				relativePath:    generateVnetNcPath(ncPublishRequest.NodeInterfaceIP, ncPublishRequest.NcID),
-				createdDateTime: ncPendingPublishRequestContext.CreatedDateTime,
-				retryInterval:   baseRetryInterval,
-			},
-			ncId:   ncPublishRequest.NcID,
-			vnetId: ncPublishRequest.VirtualNetworkID,
-			// todo: centralize all C (de)ser logic to a single location
-			// we are currently declaring the same C structs here and in workerpool.go as well
-			ncData: ncDataBytes,
-		}
-
-		workerPool().scheduleJob(ncDataPublishJob)
 	}
 
 	return nil
@@ -348,13 +321,11 @@ func PublishNetworkContainer(
 
 func UnpublishNetworkContainer(
 	ncUnpublishRequest UnpublishNetworkContainerRequest) *api.JsonErr {
-	loggershim.LS.Debugf("[PubSubProxy] UnpublishNetworkContainer: %s", ncUnpublishRequest.NcID)
-
+	logDebugf("UnpublishNetworkContainer: %s", ncUnpublishRequest.NcID)
 	if err := validateAuthToken(ncUnpublishRequest.VnetID,
 		ncUnpublishRequest.SubnetName,
 		ncUnpublishRequest.SubnetAuthToken); err != nil {
-		loggershim.LS.Errorf("[PubSubProxy] UnpublishNetworkContainer for NC: %s failed due to error: %v",
-			ncUnpublishRequest.NcID, err)
+		logErrorf("UnpublishNetworkContainer for NC: %s failed due to error: %v", ncUnpublishRequest.NcID, err)
 		return &api.JsonErr{
 			Code:       api.UnpublishingFailed,
 			Text:       fmt.Sprintf("UnpublishNetworkContainer for NC: %s failed due to error: %v", ncUnpublishRequest.NcID, err),
@@ -377,33 +348,14 @@ func UnpublishNetworkContainer(
 			ncUnpublishRequest.NcID, pubsubAzId)
 		sessionInfo := map[string]string{datamodel.NCPendingPublishRepositoryName: ncPendingPublishContextKey}
 		sessionManager.BeginWriteSession(sessionInfo)
-		err := datamodel.CreateOrUpdateNcPendingPublishRequest(&pendingNcUnpublishRequestContext)
+		err := ncPendingPublishRequestContextRepo.CreateOrUpdateNcPendingPublishRequest(&pendingNcUnpublishRequestContext)
 		sessionManager.EndWriteSession(sessionInfo)
 
 		if err != nil {
-			loggershim.LS.Errorf("Failed to persist pending NC Unpublish request for NC: %s. Error: %v",
-				ncUnpublishRequest.NcID, err)
-			return &api.JsonErr{
-				Code:       api.UnpublishingFailed,
-				Text:       fmt.Sprintf("UnpublishNetworkContainer for NC: %s failed due to error: %v", ncUnpublishRequest.NcID, err),
-				HTTPStatus: http.StatusInternalServerError}
+			logErrorf("Failed to persist pending NC Unpublish request for NC: %s. Error: %v", ncUnpublishRequest.NcID, err)
+			return api.InternalServerErrorf(api.UnpublishingFailed,
+				"UnpublishNetworkContainer for NC: %s failed due to error: %v", ncUnpublishRequest.NcID, err)
 		}
-
-		ncDataUnpublishJob := &ncJob{
-			context: jobContext{
-				id:              createNcJobId(ncUnpublishRequest.VnetID, ncUnpublishRequest.NcID, pubsubAzId),
-				jobType:         NetworkContainerUnpublish,
-				pubsubAzId:      pubsubAzId,
-				partitionKey:    generateVnetPartitionKey(ncUnpublishRequest.InfraVnetID),
-				relativePath:    generateVnetNcPath(ncUnpublishRequest.NodeInterfaceIP, ncUnpublishRequest.NcID),
-				createdDateTime: pendingNcUnpublishRequestContext.CreatedDateTime,
-				retryInterval:   baseRetryInterval,
-			},
-			ncId:   ncUnpublishRequest.NcID,
-			vnetId: ncUnpublishRequest.VnetID,
-		}
-
-		workerPool().scheduleJob(ncDataUnpublishJob)
 	}
 
 	return nil
@@ -415,7 +367,7 @@ func RegisterVnet(
 	// Subscribe only if not subscribed already
 	if getActiveSubscriber().getCachedVnetConfig(vnetId) == nil ||
 		getActiveSubscriber().getCachedVnetConfig(vnetId).isSubscribed == false {
-		loggershim.LS.Debugf("[PubSubProxy] RegisterVnet: %s", vnetId)
+		logDebugf("RegisterVnet: %s", vnetId)
 		getActiveSubscriber().subscribeCachedVnetConfig(vnetId)
 		vnetRegister := &vnetJob{
 			context: jobContext{
@@ -433,48 +385,51 @@ func RegisterVnet(
 // UnregisterVnet deletes the subscription for the vnet
 func UnregisterVnet(
 	vnetId string) {
-	loggershim.LS.Debugf("[PubSubProxy] UnregisterVnet: %s", vnetId)
-	if getActiveSubscriber().getCachedVnetConfig(vnetId) != nil {
-		// Unsubscribe from vnet notifications
-		vnetUnregister := &vnetJob{
-			context: jobContext{
-				id:              createVnetJobId(vnetId),
-				jobType:         VnetUnregister,
-				createdDateTime: time.Now().UTC(),
-				retryInterval:   baseRetryInterval,
-			},
-			vnetId: vnetId,
-		}
-		workerPool().scheduleJob(vnetUnregister)
-	} else {
-		loggershim.LS.Debugf("[PubSubProxy] vnet: %s not found for unregistering", vnetId)
+	logDebugf("UnregisterVnet: %s", vnetId)
+	if getActiveSubscriber().getCachedVnetConfig(vnetId) == nil {
+		logErrorf("vnet: %s not found for unregistering", vnetId)
+		return
 	}
+
+	// Unsubscribe from vnet notifications
+	vnetUnregister := &vnetJob{
+		context: jobContext{
+			id:              createVnetJobId(vnetId),
+			jobType:         VnetUnregister,
+			createdDateTime: time.Now().UTC(),
+			retryInterval:   baseRetryInterval,
+		},
+		vnetId: vnetId,
+	}
+	workerPool().scheduleJob(vnetUnregister)
 }
 
-// Init initializes the pubsubproxy by creating
-// publisherContext, subscribers and worker pool.
+// Init initializes the PubSubProxy by creating publisherContext, subscribers and worker pool.
 func Init(
 	configSettings configuration.PubSubProxySettings,
 	aznmConfigSettings configuration.AznmSettings,
 	replica *replica.Replica,
+	lgr loggershim.LoggerInterface,
 	certPath string,
 	azureEnvName string,
 	client AznmClient) error {
+	if len(configSettings.PubsubVips) <= 0 {
+		return fmt.Errorf("Invalid number of pubsubs: %d", len(configSettings.PubsubVips))
+	}
+
 	maxConcurrentRequests = configSettings.MaxConcurrentRequests
 	baseRetryInterval = time.Duration(configSettings.RequestRetryBaseInterval) * time.Millisecond
 	maxRetryBackoffInterval = time.Duration(configSettings.MaxRequestBackoffInterval) * time.Millisecond
 	replicaInstance = replica
+	logger = lgr
 	sessionManager = utils.NewSessionManager([]string{
 		datamodel.NCPendingPublishRepositoryName})
+	ncPendingPublishRequestContextRepo = new(datamodel.NcPendingPublishRequestContextRepo)
+	networkRepo = new(datamodel.NetworkRepo)
 	azureEnvironmentName = azureEnvName
 	aznmClient = client
 	aznmSettings = aznmConfigSettings
 	verboseLogging = configSettings.EnableVerboseLogging
-
-	numPubSubs := len(configSettings.PubsubVips)
-	if numPubSubs <= 0 {
-		return fmt.Errorf("Invalid number of pubsubs: %d", numPubSubs)
-	}
 
 	pubsubSettings := pubsubSettings{
 		pubsubVips:         configSettings.PubsubVips,
@@ -484,20 +439,22 @@ func Init(
 		pubsubConnectionEp: configSettings.PubsubConnectionEndpoint,
 	}
 
-	go initPublishers(pubsubSettings)
-	go initSubscriber(pubsubSettings)
+	madariClient := newMadariClient()
+
+	go initPublishers(madariClient, pubsubSettings)
+	go initSubscriber(madariClient, pubsubSettings)
 
 	// Init worker pool
 	workerPool()
 
-	loggershim.LS.Errorf("[PubSubProxy] Successfully initialized")
+	logDebugf("Successfully initialized")
 
 	return nil
 }
 
-// Deinit deinitializes the pubsubproxy by deleting publisherContext and subscribers
+// De-init de-initializes the pubsubproxy by deleting publisherContext and subscribers
 func Deinit() {
 	deinitPublishers()
 	deinitSubscriber()
-	loggershim.LS.Debugf("[PubSubProxy] Successfully deinitialized")
+	logDebugf("Successfully de-initialized")
 }

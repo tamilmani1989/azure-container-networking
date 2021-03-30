@@ -72,6 +72,7 @@ case $1 in
     "test" )
         cd $DIR/src/dnc
         export DNC_CONFIGURATION_PATH=$DIR/src/dnc/config_test.json
+        cp pubsubproxy/libs/libBondDataSerializer.so pubsubproxy/libs/libMadariNativeClient.so /usr/lib/
         go test -run "[^*TestCreateMultipleNetworks*]" -timeout 2000s -coverprofile coverage-dnc.out
         (cd activedirectory && go test -v ./...)
         (cd networkcontainer && go test -v ./...)
@@ -80,6 +81,7 @@ case $1 in
         (cd resourceupdatehandler && go test -v ./...)
         (cd server && go test -v ./...)
         (cd internal && go test -v ./...)
+        (cd pubsubproxy && go test -tags enablePubsubProxy -v ./...)
         (cd aznm && go test -v ./...)
         zip azure-dnc-test-logs.zip /var/log/azure-dnc*
         ;;

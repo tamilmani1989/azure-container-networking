@@ -3,8 +3,10 @@ package fakes
 import (
 	"dnc/api"
 	"dnc/datamodel"
+	"net/http"
 	"fmt"
 	"time"
+	"sync"
 )
 
 type NCRepo struct {
@@ -260,6 +262,89 @@ func (f *AllocationRepo) AddIPAllocations(_, _ string, rows map[string]map[strin
 func (f *AllocationRepo) TryQueryAllIPAllocations(networkID, subnetName string) ([]datamodel.IPAllocationEntity, *api.JsonErr) {
 	return f.Data, nil
 }
+
+//TODO: Remove fake repos by accepting the DataStoreShim interface as a dependency in the Repo ( See AllocationRepo )
+type NetworkRepo struct {
+	Data map[string]datamodel.NetworkConfiguration
+}
+
+func NewNetworkRepo() *NetworkRepo {
+	return &NetworkRepo{Data: make(map[string]datamodel.NetworkConfiguration)}
+}
+
+func (f *NetworkRepo) TryQueryNetworkConfiguration(networkID string) (*datamodel.NetworkConfiguration, *api.JsonErr) {
+	networkConfig, found := f.Data[datamodel.GetNetworkKey(networkID)]
+	if !found {
+		return nil, nil
+	}
+
+	return &networkConfig, nil
+}
+
+func (f *NetworkRepo) GetAllNetworkIDs() (map[string]bool, error) {
+	networkIDs := make(map[string]bool)
+	for networkKey, _ := range f.Data {
+		networkIDs[networkKey] = true
+	}
+	return networkIDs, nil
+}
+
+func (f *NetworkRepo) TryQueryAllNetworks() ([]string, error) {
+	networks := []string{}
+	for _, network := range f.Data {
+		networks = append(networks, network.NetworkID)
+	}
+	return networks, nil
+}
+
+func (f *NetworkRepo) PersistNetworkConfiguration(networkConfig *datamodel.NetworkConfiguration) *api.JsonErr {
+	f.Data[datamodel.GetNetworkKey(networkConfig.NetworkID)] = *networkConfig
+	return nil
+}
+
+type NcPendingPublishRequestContextRepo struct {
+	// Data is a sync map to allow concurrent read, writes
+	Data sync.Map // This holds map[string]datamodel.NcPendingPublishRequestContext
+}
+
+func NewNcPendingPublishRequestContextRepo() *NcPendingPublishRequestContextRepo {
+	return &NcPendingPublishRequestContextRepo{}
+}
+
+func (f *NcPendingPublishRequestContextRepo) GetNcPendingPublishRequestContexts() (map[string]datamodel.NcPendingPublishRequestContext, error) {
+	m := make(map[string]datamodel.NcPendingPublishRequestContext)
+	f.Data.Range(func(key interface{}, value interface{}) bool {
+		m[key.(string)] = value.(datamodel.NcPendingPublishRequestContext)
+		return true
+	})
+
+	return m, nil
+}
+
+func (f *NcPendingPublishRequestContextRepo) RemoveNcPendingPublishContext(networkID, networkContainerID, pubsubAzID string) *api.JsonErr {
+	key := datamodel.GetNcPendingPublishContextKey(networkID, networkContainerID, pubsubAzID)
+	f.Data.Delete(key)
+	return nil
+}
+
+func (f *NcPendingPublishRequestContextRepo) CreateOrUpdateNcPendingPublishRequest(requestContext *datamodel.NcPendingPublishRequestContext) *api.JsonErr {
+	key := datamodel.GetNcPendingPublishContextKey(requestContext.NetworkID, requestContext.NetworkContainerID, requestContext.PubsubAzId)
+	f.Data.Store(key, *requestContext)
+	return nil
+}
+
+func (f *NcPendingPublishRequestContextRepo) QueryNcPendingPublishContext(key string) (*datamodel.NcPendingPublishRequestContext, *api.JsonErr) {
+	requestContextValue, found := f.Data.Load(key)
+	if !found {
+		return nil, &api.JsonErr{
+			Code:       api.StatusInternalServerError,
+			Text:       "data not found",
+			HTTPStatus: http.StatusInternalServerError}
+	}
+	requestContext := requestContextValue.(datamodel.NcPendingPublishRequestContext)
+	return &requestContext, nil
+}
+
 
 func (f *AllocationRepo) DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr {
 	if len(keys) > f.MaxBatchSize {

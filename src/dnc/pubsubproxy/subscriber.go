@@ -5,24 +5,18 @@ package pubsubproxy
 import (
 	. "dnc/MadariClient"
 	"dnc/datamodel"
-	"dnc/logger/loggershim"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 )
 
-const (
-	rehydrateSubscriptionInterval = time.Second
-)
-
 type subscriber struct {
-	pubsubAzId      string
-	vipList         []string
-	isHealthy       bool
-	stopRehydration chan bool
-	connectedVip    string
-	madariSubscriber
+	pubsubAzId       string
+	vipList          []string
+	isHealthy        bool
+	connectedVip     string
+	madariSubscriber MadariSubscriber
 	sync.RWMutex
 	subscribeStatusError sync.Map
 	cachedVnetConfigMap  sync.Map
@@ -33,13 +27,10 @@ type subscriberContextStruct struct {
 	subscriberPort     string
 	pubsubCertName     string
 	pubsubConnectionEp string
+	madariClient       madariClientInterface
 }
 
-type madariSubscriber struct {
-	defaultSubscriber DefaultMadariSubscriber
-	callback          subscriberCallback
-}
-
+// This type implements MadariClientCallback interface from MadariClient package
 type subscriberCallback struct {
 	pubsubAzId string
 }
@@ -58,13 +49,6 @@ type cachedSubnetConfig struct {
 }
 
 var subscriberContext *subscriberContextStruct
-
-func createSubscriberCallback(
-	pubsubAzId string) subscriberCallback {
-	return subscriberCallback{
-		pubsubAzId: pubsubAzId,
-	}
-}
 
 func (s *subscriber) setupSubscribeStatusErrorChan(
 	path string) {
@@ -89,7 +73,7 @@ func (s *subscriber) subscribe(
 	path := partitionKey + relativePath
 	if s.isHealthy {
 		s.setupSubscribeStatusErrorChan(path)
-		if retCode := s.defaultSubscriber.Subscribe(partitionKey, relativePath, true); retCode != 0 {
+		if retCode := s.madariSubscriber.Subscribe(partitionKey, relativePath, true); retCode != 0 {
 			s.deleteSubscribeStatusErrorChan(path)
 			return fmt.Errorf("Subscribing to pubsub: %s failed for path: %s due to error code: %d",
 				s.pubsubAzId, path, retCode)
@@ -110,7 +94,7 @@ func (s *subscriber) unsubscribe(
 
 	path := partitionKey + relativePath
 	if s.isHealthy {
-		if retCode := s.defaultSubscriber.Unsubscribe(partitionKey, relativePath); retCode != 0 {
+		if retCode := s.madariSubscriber.Unsubscribe(partitionKey, relativePath); retCode != 0 {
 			return fmt.Errorf("Unsubscribing to pubsub: %s failed for path: %s due to error code: %d",
 				s.pubsubAzId, path, retCode)
 		}
@@ -131,14 +115,13 @@ func (s *subscriber) healthy() bool {
 func (s *subscriber) deinit() {
 	s.Lock()
 	if s.isHealthy {
-		loggershim.LS.Debugf("[PubSubProxy] Deinitializing Subscriber: %s", s.pubsubAzId)
+		logDebugf("De-initializing Subscriber: %s", s.pubsubAzId)
 		s.isHealthy = false
 		s.updateSubscribeStatusErrorChan()
-		s.defaultSubscriber.Close()
-		DeleteDefaultMadariSubscriber(s.defaultSubscriber)
-		s.stopRehydration <- true
+		s.madariSubscriber.Close()
+		subscriberContext.madariClient.deleteSubscriber(s.madariSubscriber)
 		s.unsubscribeCachedVnetConfigs()
-		loggershim.LS.Debugf("[PubSubProxy] Successfully deinitialized Subscriber: %s", s.pubsubAzId)
+		logDebugf("Successfully de-initialized Subscriber: %s", s.pubsubAzId)
 	}
 	s.Unlock()
 }
@@ -149,8 +132,7 @@ func (s *subscriber) updateSubscribeStatusErrorChan() {
 			found := false
 			errChan, found = s.subscribeStatusError.Load(path)
 			if found && len(errChan.(chan error)) == 0 {
-				loggershim.LS.Debugf("[PubSubProxy] Subscriber: %s sending error on status channel for path: %s",
-					s.pubsubAzId, path.(string))
+				logDebugf("Subscriber: %s sending error on status channel for path: %s", s.pubsubAzId, path.(string))
 				errChan.(chan error) <- fmt.Errorf("Unhealthy Subscriber: %s", s.pubsubAzId)
 			}
 			return true
@@ -267,23 +249,19 @@ func (s *subscriber) updateCachedVnetConfig(
 }
 
 func (s *subscriber) rehydrateSubscriptions() {
-	loggershim.LS.Debugf("[PubSubProxy] Rehydrating subscriptions")
-	timerChannel := time.NewTicker(rehydrateSubscriptionInterval).C
+	logDebugf("Rehydrating vnet subscriptions")
 	for {
-		select {
-		case <-s.stopRehydration:
-			loggershim.LS.Debugf("[PubSubProxy] Stopping rehydration of subscriptions")
-			return
-		case <-timerChannel:
-			networksMap, err := datamodel.GetAllNetworkIDs()
-			if err == nil {
-				for networkKey := range networksMap {
-					networkID := datamodel.GetNetworkIdFromKey(networkKey)
-					RegisterVnet(networkID)
-				}
-			} else {
-				loggershim.LS.Errorf("[PubSubProxy] Failed to rehydrate vnets due to error %v", err)
+		networksMap, err := networkRepo.GetAllNetworkIDs()
+		if err == nil {
+			for networkKey := range networksMap {
+				networkID := datamodel.GetNetworkIdFromKey(networkKey)
+				RegisterVnet(networkID)
 			}
+			// Exit after rehydrating to all vnet subscriptions
+			return
+		} else {
+			logErrorf("Failed to rehydrate vnets. Error: %v", err)
+			time.Sleep(time.Second * 1)
 		}
 	}
 }
@@ -323,11 +301,11 @@ func (callback subscriberCallback) OnNotificationReceived(
 		// Log the notification for the data deletion
 		if strings.EqualFold(subnetConfigRelativePath, notification.RelativePath) ||
 			strings.EqualFold(vnetConfigRelativePath, notification.RelativePath) {
-			loggershim.LS.Errorf("[PubSubProxy] Subscriber received delete notification for vnetId: %s on path: %s",
+			logErrorf("Subscriber received delete notification for vnetId: %s on path: %s",
 				getVnetIdFromPartitionKey(notification.PartitionKey), notification.RelativePath)
 		}
 	default:
-		loggershim.LS.Errorf("[PubSubProxy] Subscriber received unknown notification of type: %d for vnetId: %s on path: %s",
+		logErrorf("Subscriber received unknown notification of type: %d for vnetId: %s on path: %s",
 			notification.Type, getVnetIdFromPartitionKey(notification.PartitionKey), notification.RelativePath)
 	}
 }
@@ -345,8 +323,7 @@ func (callback subscriberCallback) OnFailureReceived(
 	errorCode int32) {
 	path := fmt.Sprintf("%s%s", partitionKey, relativePath)
 	err := fmt.Errorf("FailureDetails: Code: %d, Src: %v, Cause: %s", errorCode, errorSource, reason)
-	loggershim.LS.Errorf("[PubSubProxy] OnFailureReceived: Subscriber: %s. Path: %s. Error: %v",
-		callback.pubsubAzId, path, err)
+	logErrorf("OnFailureReceived: Subscriber: %s. Path: %s. Error: %v", callback.pubsubAzId, path, err)
 	getActiveSubscriber().sendSubscribeStatusError(path, err)
 }
 
@@ -355,9 +332,8 @@ func (callback subscriberCallback) OnLoggingMessageReceived(
 	message string) {
 	// log only when verbose mode is enabled. Verbose logging can be enabled from config.json
 	// and is disabled by default as it can fill up the logs. Use it for debugging
-	if  verboseLogging{
-		loggershim.LS.Errorf("[PubSubProxy] OnLoggingMessageReceived: Subscriber: %s. Tracelevel: %v. Message: %s",
-		callback.pubsubAzId, traceLevel, message)
+	if verboseLogging {
+		logErrorf("OnLoggingMessageReceived: Subscriber: %s. Tracelevel: %v. Message: %s", callback.pubsubAzId, traceLevel, message)
 	}
 }
 
@@ -368,10 +344,9 @@ func (callback subscriberCallback) OnHealthNotificationReceived(
 }
 
 func (callback subscriberCallback) OnSessionTerminationReceived() {
-	loggershim.LS.Errorf("[PubSubProxy] OnSessionTerminationReceived: Subscriber PubSubId: %s",
-		callback.pubsubAzId)
+	logErrorf("OnSessionTerminationReceived: Subscriber PubSubId: %s", callback.pubsubAzId)
 
-	// Deinitialize the subscriber marking it unhealthy to avoid receiving
+	// De-initialize the subscriber marking it unhealthy to avoid receiving
 	// any further subscribe/unsubscribe requests
 	subscriber := getActiveSubscriber()
 	if subscriber.healthy() {
@@ -383,8 +358,7 @@ func (callback subscriberCallback) OnSessionTerminationReceived() {
 				break
 			}
 
-			loggershim.LS.Errorf("[PubSubProxy] OnSessionTerminationReceived: "+
-				"createOrUpdateSubscriber failed for pubsubAzId: %s due to error: %v", subscriber.pubsubAzId, err)
+			logErrorf("OnSessionTerminationReceived: createOrUpdateSubscriber failed for pubsubAzId: %s. Error: %v", subscriber.pubsubAzId, err)
 			time.Sleep(time.Second * 1)
 			//TODO: This calls for a sev2
 		}
@@ -403,11 +377,13 @@ func getActiveSubscriber() *subscriber {
 }
 
 func initSubscriber(
+	mc madariClientInterface,
 	settings pubsubSettings) {
 	subscriberContext = &subscriberContextStruct{
 		subscriberPort:     settings.subscriberPort,
 		pubsubCertName:     settings.pubsubCertName,
 		pubsubConnectionEp: settings.pubsubConnectionEp,
+		madariClient:       mc,
 	}
 
 	subscriberContext.subscriber = &subscriber{}
@@ -434,26 +410,22 @@ func createOrUpdateSubscriber(
 
 	// Loop through the available VIP list
 	for _, vip := range subscriber.vipList {
-		subscriberCallback := createSubscriberCallback(subscriber.pubsubAzId)
-		defaultSubscriber := CreateDefaultMadariSubscriber(subscriberCallback)
-		errorCode := defaultSubscriber.Open(vip, subscriberContext.subscriberPort,
+		madariSubscriber := subscriberContext.madariClient.createSubscriber(subscriber.pubsubAzId)
+		errorCode := madariSubscriber.Open(vip, subscriberContext.subscriberPort,
 			subscriberContext.pubsubCertName, subscriberContext.pubsubConnectionEp)
 		// TODO: Replace 0 with error code enum from pubsub
 		if errorCode == 0 {
-			loggershim.LS.Debugf("[PubSubProxy] Successfully created subscriber %s with pubsub VIP: %s", subscriber.pubsubAzId, vip)
-			subscriber.defaultSubscriber = defaultSubscriber
-			subscriber.callback = subscriberCallback
+			logDebugf("Successfully created subscriber %s with pubsub VIP: %s", subscriber.pubsubAzId, vip)
+			subscriber.madariSubscriber = madariSubscriber
 			subscriber.isHealthy = true
-			subscriber.stopRehydration = make(chan bool)
 			subscriber.connectedVip = vip
-			// Start the subscription rehydration loop
-			go subscriber.rehydrateSubscriptions()
+			// Rehydrate the subscriptions for the networks which are already joined
+			subscriber.rehydrateSubscriptions()
 
 			return nil
 		}
 
-		loggershim.LS.Errorf("[PubSubProxy] Subscriber %s failed to connect to VIP: %s due to error code: %v",
-			subscriber.pubsubAzId, vip, errorCode)
+		logErrorf("Subscriber %s failed to connect to VIP: %s due to error code: %v", subscriber.pubsubAzId, vip, errorCode)
 	}
 
 	return fmt.Errorf("Failed to create subscriber: %s", subscriber.pubsubAzId)

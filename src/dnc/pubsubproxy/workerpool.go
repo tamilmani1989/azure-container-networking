@@ -64,11 +64,9 @@ import "C"
 import (
 	"dnc/api"
 	"dnc/datamodel"
-	"dnc/logger/loggershim"
 	"dnc/nmagentcontracts"
 	"dnc/resourceupdatehandler/networkupdatehandler"
 	"fmt"
-	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -177,7 +175,7 @@ func (jobType jobType) String() string {
 
 	return "Unknown Type"
 }
-
+//TODO: replace with newWorkerPool
 func workerPool() *workerPoolContext {
 	once.Do(func() {
 		wp = &workerPoolContext{
@@ -190,8 +188,11 @@ func workerPool() *workerPoolContext {
 			wp.workerSem <- struct{}{}
 		}
 
+		//TODO: Recover in case of go routines exit and restart.
 		go wp.processNcPendingPublishRequests()
 		go wp.processFailedJobs()
+
+		logDebugf("WorkerPool successfully initialized")
 	})
 
 	return wp
@@ -210,7 +211,7 @@ func (wp *workerPoolContext) processNcPendingPublishRequests() {
 }
 
 func processNcPendingRequests() {
-	pendingPublishRequests, _ := datamodel.GetNcPendingPublishRequestContexts()
+	pendingPublishRequests, _ := ncPendingPublishRequestContextRepo.GetNcPendingPublishRequestContexts()
 	if len(pendingPublishRequests) == 0 {
 		return
 	}
@@ -223,19 +224,17 @@ func processNcPendingRequests() {
 		if time.Now().UTC().Sub(requestContext.LastRetriedDateTime) > requestContext.RetryInterval {
 			// Check the request type
 			if !isValidPubSubJob(requestContext.Type) {
-				loggershim.LS.Errorf("[PubSubProxy] Unknown type for NC pending publish context: %+v. "+
-					"Deleting the entry from the table.", requestContext)
-				err := datamodel.NcPendingPublishRepo.RemoveNcPendingPublishContext(requestContext.NetworkID,
+				logErrorf("Unknown type for NC pending publish context: %+v. Deleting the entry from the table.", requestContext)
+				err := ncPendingPublishRequestContextRepo.RemoveNcPendingPublishContext(requestContext.NetworkID,
 					requestContext.NetworkContainerID, requestContext.PubsubAzId)
 				if err != nil {
-					loggershim.LS.Errorf("Failed to delete pending publish request %s for NC: %s. Error: %v",
+					logErrorf("Failed to delete pending publish request %s for NC: %s. Error: %v",
 						requestContext.Type.String(), requestContext.NetworkContainerID, err)
 				}
 				continue
 			}
 
-			jobId := createNcJobId(requestContext.NetworkID,
-				requestContext.NetworkContainerID, requestContext.PubsubAzId)
+			jobId := createNcJobId(requestContext.NetworkID, requestContext.NetworkContainerID, requestContext.PubsubAzId)
 
 			// move this out the loop
 			var secondaryContext []pubsubContext
@@ -298,7 +297,7 @@ func (wp *workerPoolContext) isJobProcessingNeeded(
 	// This avoids processing stale updates and duplicate jobs
 	if (jobContext.createdDateTime.Equal(latestTimestamp) && isJobCompleted) ||
 		jobContext.createdDateTime.Before(latestTimestamp) {
-		loggershim.LS.Debugf("[PubSubProxy] Skipping job: %s-%s. LatestTs: %v, JobTs: %v, isCompleted: %t",
+		logDebugf("Skipping job: %s-%s. LatestTs: %v, JobTs: %v, isCompleted: %t",
 			jobContext.jobType.String(), jobContext.id, latestTimestamp, jobContext.createdDateTime, isJobCompleted)
 		return false
 	}
@@ -325,6 +324,8 @@ func (wp *workerPoolContext) processJob(
 
 	if err := job.process(); err == nil {
 		isJobCompleted = true
+	} else {
+		logErrorf("Failed to process the job: %s. Error: %v", jobContext.id, err)
 	}
 
 	wp.jobTsLock.UpdateStatusTimestamp(jobContext.id, jobContext.createdDateTime, isJobCompleted)
@@ -353,8 +354,7 @@ func (wp *workerPoolContext) processFailedJob(
 	}
 
 	if time.Now().UTC().Sub(jobContext.lastRetriedDateTime) > jobContext.retryInterval {
-		loggershim.LS.Debugf("[PubSubProxy] Picked up job %s: %s from failed job queue",
-			jobContext.jobType.String(), jobContext.id)
+		logDebugf("Picked up job %s: %s from failed job queue", jobContext.jobType.String(), jobContext.id)
 		wp.failedJobQueue.Delete(jobId)
 		wp.scheduleJob(job)
 	}
@@ -380,14 +380,13 @@ func (job *ncJob) process() error {
 		path       = jobContext.partitionKey + jobContext.relativePath
 	)
 
-	loggershim.LS.Debugf("[PubSubProxy] Process Job-%s: %s", jobContext.jobType.String(), jobContext.id)
+	logDebugf("Process Job-%s: %s", jobContext.jobType.String(), jobContext.id)
 
 	if jobContext.jobType == NetworkContainerPublish {
 		err = publishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath, job.ncData)
 	} else if jobContext.jobType == NetworkContainerUnpublish {
 		err = unpublishData(jobContext.pubsubAzId, jobContext.partitionKey, jobContext.relativePath)
 	} else if jobContext.jobType == BareMetalContainerPublish || jobContext.jobType == BareMetalContainerUnpublish {
-
 		primary := pubsubContext{
 			Key:  jobContext.partitionKey,
 			Path: jobContext.relativePath,
@@ -407,8 +406,7 @@ func (job *ncJob) process() error {
 	}
 
 	if err != nil {
-		err = fmt.Errorf("%s: %s failed for NC: %s due to error: %v",
-			jobContext.jobType.String(), jobContext.id, job.ncId, err)
+		err = fmt.Errorf("%s: %s failed for NC: %s due to error: %v", jobContext.jobType.String(), jobContext.id, job.ncId, err)
 	} else if path != "" {
 		// This acts as an await for the async operation to finish.
 		statusError := getPublishStatusError(jobContext.pubsubAzId, path)
@@ -422,34 +420,31 @@ func (job *ncJob) process() error {
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
-	pendingPublishContext, errDbOp := datamodel.QueryNcPendingPublishContext(ncPendingPublishContextKey)
+	pendingPublishContext, errDbOp := ncPendingPublishRequestContextRepo.QueryNcPendingPublishContext(ncPendingPublishContextKey)
 	if errDbOp != nil || pendingPublishContext == nil {
 		err = fmt.Errorf("%s: %s failed while querying NC pending publish context. "+
 			"Context: %+v. Error: %v", jobContext.jobType.String(), jobContext.id, pendingPublishContext, errDbOp)
-		loggershim.LS.Errorf("[PubSubProxy] %v", err)
 		// Return here since it won't be possible to update the table entry
 		return err
 	}
 
 	if err != nil {
-		loggershim.LS.Errorf("[PubSubProxy] %s: %s failed due to error: %v", jobContext.jobType.String(), jobContext.id, err)
+		logErrorf("Job %s: %s failed due to error: %v", jobContext.jobType.String(), jobContext.id, err)
 		pendingPublishContext.LastRetriedDateTime = time.Now().UTC()
-		if pendingPublishContext.RetryInterval < maxRetryBackoffInterval {
-			pendingPublishContext.RetryInterval *= 2
-		}
+		updateRetryInterval(&pendingPublishContext.RetryInterval, maxRetryBackoffInterval)
 
-		if errDbOp = datamodel.CreateOrUpdateNcPendingPublishRequest(pendingPublishContext); errDbOp != nil {
-			loggershim.LS.Errorf("Failed to persist pending %s request for NC: %s. Error: %v",
+		if errDbOp = ncPendingPublishRequestContextRepo.CreateOrUpdateNcPendingPublishRequest(pendingPublishContext); errDbOp != nil {
+			logErrorf("Failed to persist pending %s request for NC: %s. Error: %v",
 				jobContext.jobType.String(), pendingPublishContext.NetworkContainerID, errDbOp)
 		}
 	} else {
-		loggershim.LS.Debugf("[PubSubProxy] %s: %s succeeded", jobContext.jobType.String(), jobContext.id)
+		logDebugf("Job %s: %s succeeded", jobContext.jobType.String(), jobContext.id)
 		// Delete the pending context table entry only if the timestamp matches.
 		// This avoids deletion of the updated entry
 		if jobContext.createdDateTime.Equal(pendingPublishContext.CreatedDateTime) {
-			err = datamodel.NcPendingPublishRepo.RemoveNcPendingPublishContext(job.vnetId, job.ncId, jobContext.pubsubAzId)
+			err = ncPendingPublishRequestContextRepo.RemoveNcPendingPublishContext(job.vnetId, job.ncId, jobContext.pubsubAzId)
 			if err != nil {
-				loggershim.LS.Errorf("Failed to delete pending publish request %s for NC: %s. Error: %v",
+				logErrorf("Failed to delete pending publish request %s for NC: %s. Error: %v",
 					jobContext.jobType.String(), pendingPublishContext.NetworkContainerID, err)
 			}
 		}
@@ -462,32 +457,35 @@ func (job *ncJob) getContext() *jobContext {
 	return &job.context
 }
 
+// Update retry interval (by doubling it) unless it's greater than max back off interval
+func updateRetryInterval(retryInterval *time.Duration, maxRetryBackoffInterval time.Duration) {
+	if *retryInterval < maxRetryBackoffInterval {
+		*retryInterval *= 2
+	}
+}
+
 func (job *vnetJob) process() error {
 	var (
 		err        error
 		jobContext = job.getContext()
 	)
 
-	loggershim.LS.Debugf("[PubSubProxy] Process Job-%s: %s", jobContext.jobType.String(), jobContext.id)
+	logDebugf("Process Job %s: %s", jobContext.jobType.String(), jobContext.id)
 
 	defer func() {
 		if err != nil {
-			loggershim.LS.Errorf("[PubSubProxy] %s: %s failed due to error: %v",
-				jobContext.jobType.String(), jobContext.id, err)
+			logErrorf("Job %s: %s failed due to error: %v", jobContext.jobType.String(), jobContext.id, err)
 			jobContext.lastRetriedDateTime = time.Now().UTC()
-			if jobContext.retryInterval < maxRetryBackoffInterval {
-				jobContext.retryInterval *= 2
-			}
-
+			updateRetryInterval(&jobContext.retryInterval, maxRetryBackoffInterval)
 			workerPool().failedJobQueue.Store(jobContext.id, job)
 		} else {
-			loggershim.LS.Debugf("[PubSubProxy] %s: %s succeeded", jobContext.jobType.String(), jobContext.id)
+			logDebugf("Job %s: %s succeeded", jobContext.jobType.String(), jobContext.id)
 		}
 	}()
 
 	// Do not process further if the vnet is deleted
 	if getActiveSubscriber().getCachedVnetConfig(job.vnetId) == nil {
-		loggershim.LS.Debugf("[PubSubProxy] %s: %s abandoned as vnet is deleted", jobContext.jobType.String(), job.vnetId)
+		logDebugf("Job %s: %s abandoned as vnet is deleted", jobContext.jobType.String(), job.vnetId)
 		return err
 	}
 
@@ -517,7 +515,6 @@ func (job *vnetJob) processVnetUpdate() error {
 		err          error
 		vnetConfig   C.struct_VnetConfiguration
 		resultStatus C.struct_ResultStatus
-		jobContext   = job.getContext()
 	)
 
 	vnetUpdateDataCBytes := C.CBytes(job.vnetData)
@@ -525,7 +522,6 @@ func (job *vnetJob) processVnetUpdate() error {
 	if resultStatus.ResultCode != 0 {
 		err = fmt.Errorf("Failed to deserialize vnet config for vnet: %s due to error: %s",
 			job.vnetId, C.GoString(resultStatus.ErrorDetails))
-		loggershim.LS.Debugf("[PubSubProxy] %v", err)
 		return err
 	}
 
@@ -565,7 +561,7 @@ func (job *vnetJob) processVnetUpdate() error {
 	}
 
 	getActiveSubscriber().updateCachedVnetConfig(job.vnetId, &vnetConfiguration)
-	loggershim.LS.Debugf("[PubSubProxy] Successfully retrieved config for vnet: %s", job.vnetId)
+	logDebugf("Successfully retrieved config for vnet: %s", job.vnetId)
 
 	defer func() {
 		// release C memory
@@ -599,11 +595,9 @@ func (job *vnetJob) processVnetUpdate() error {
 	// Otherwise, return error which causes the workerpool to retry
 	success, errUpdate := updateVnetConfiguration(job.vnetId, &vnetConfiguration)
 	if !success || errUpdate != nil {
-		loggershim.LS.Errorf("[PubSubProxy] Retriable error while processing vnetUpdateJob: %s. Error: %v",
-			jobContext.id, errUpdate)
+		logErrorf("Retriable error while processing vnetUpdateJob: %s. Error: %v", job.getContext().id, errUpdate)
 		err = fmt.Errorf(fmt.Sprintf("vnetUpdateJob failed due to error: %v", errUpdate))
 	}
-
 	return err
 }
 
@@ -672,8 +666,7 @@ func createVnetJobId(
 func updateVnetConfiguration(
 	vnetID string,
 	vnetConfig *VnetConfiguration) (bool, *api.JsonErr) {
-	loggershim.LS.Debugf("[PubSubProxy] UpdateVnetConfiguration for vnet: %s, version: %s",
-		vnetID, vnetConfig.VnetVersion)
+	logDebugf("UpdateVnetConfiguration for vnet: %s, version: %s", vnetID, vnetConfig.VnetVersion)
 
 	networkResponse := nmagentcontracts.VirtualNetworkResponse{
 		VnetVersion: vnetConfig.VnetVersion,
@@ -700,38 +693,26 @@ func updateVnetConfiguration(
 
 	networkResponse.Subnets = subnets
 
-	networkVersion, errParsing := strconv.ParseUint(vnetConfig.VnetVersion, 10, 64)
-	if errParsing != nil {
-		errMsg := fmt.Sprintf("Failed to parse network version %s for network %s due to error %s",
-			networkResponse.VnetVersion,
-			vnetID,
-			errParsing.Error())
-		loggershim.LS.Errorf("[PubSubProxy] %s", errMsg)
-		return false, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       errMsg,
-			HTTPStatus: http.StatusInternalServerError}
+	networkVersion, errParse := strconv.ParseUint(vnetConfig.VnetVersion, 10, 64)
+	if errParse != nil {
+		return false, api.InternalServerErrorf(api.StatusInternalServerError,
+			"Failed to parse network version: %s for network: %s due to error: %v", networkResponse.VnetVersion, vnetID, errParse)
 	}
 
-	networkKey := datamodel.GetNetworkKey(vnetID)
-	repoNetworkConfiguration, err := datamodel.TryQueryNetworkConfigurationByKey(networkKey)
+	repoNetworkConfiguration, err := networkRepo.TryQueryNetworkConfiguration(vnetID)
 	if err != nil {
-		errMsg := fmt.Sprintf("Failed to retrieve network config: %s due to error: %v", vnetID, err)
-		loggershim.LS.Errorf("[PubSubProxy] %s", errMsg)
-		return false, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       errMsg,
-			HTTPStatus: http.StatusInternalServerError}
+		return false, api.InternalServerErrorf(api.StatusInternalServerError,
+			"Failed to retrieve network config: %s due to error: %v", vnetID, err)
 	}
 
 	if repoNetworkConfiguration == nil {
-		loggershim.LS.Debugf("[PubSubProxy] Configuration for Network %s not found.", vnetID)
+		logDebugf("Configuration for Network %s not found.", vnetID)
 		// Vnet update is not needed if the network is not there.
 		return true, nil
 	}
 
 	if repoNetworkConfiguration.Version >= networkVersion && repoNetworkConfiguration.Status == datamodel.Completed {
-		loggershim.LS.Debugf("[PubSubProxy] Vnet: %s version is the latest and processing is completed, no update necessary. "+
+		logDebugf("Vnet: %s version is the latest and processing is completed, no update necessary. "+
 			"RepoVnetVersion: %d UpdateVnetVersion: %d", vnetID, repoNetworkConfiguration.Version, networkVersion)
 		return true, nil
 	}
@@ -750,11 +731,10 @@ func createContextSelectorAndPublishData(
 	localPubsubCtx = append(localPubsubCtx, pubsubCtx...)
 
 	for _, ctx := range localPubsubCtx {
-
 		// Create context selector first. There could be same context selector in pubsubCtx array
 		// so skip duplicates with a map
 		if _, ok := keys[ctx.Key]; !ok {
-			loggershim.LS.Debugf("Creating context selector %s in AzId %s", ctx.Key, pubsubAzId)
+			logDebugf("Creating context selector %s in AzId %s", ctx.Key, pubsubAzId)
 			if err = createContextSelector(pubsubAzId, ctx.Key); err != nil {
 				return err
 			}
@@ -766,20 +746,20 @@ func createContextSelectorAndPublishData(
 
 			keys[ctx.Key] = struct{}{}
 		} else {
-			loggershim.LS.Debugf("Context selector %s in AzId %s exists already", ctx.Key, pubsubAzId)
+			logDebugf("Context selector %s in AzId %s exists already", ctx.Key, pubsubAzId)
 		}
 
-		loggershim.LS.Debugf("Publishing data. AzId %s, context selector %s, path %s", pubsubAzId, ctx.Key, ctx.Path)
+		logDebugf("Publishing data. AzId %s, context selector %s, path %s", pubsubAzId, ctx.Key, ctx.Path)
 
 		if err = publishData(pubsubAzId, ctx.Key, ctx.Path, ctx.Data); err != nil {
-			loggershim.LS.Debugf("Publishing data failed. AzId %s, context selector %s, path %s, err: %s",
+			logDebugf("Publishing data failed. AzId %s, context selector %s, path %s, err: %s",
 				pubsubAzId, ctx.Key, ctx.Path, err)
 			return err
 		}
 
 		path := ctx.Key + ctx.Path
-		if err = getPublishStatusError(pubsubAzId, path); err != nil {
-			loggershim.LS.Debugf("Publishing data failed. AzId %s, context selector %s, path %s, publish err: %s",
+		if  err = getPublishStatusError(pubsubAzId, path); err != nil {
+			logDebugf("Publishing data failed. AzId %s, context selector %s, path %s, publish err: %s",
 				pubsubAzId, ctx.Key, ctx.Path, err)
 			return err
 		}
@@ -814,15 +794,12 @@ func removePubsubPaths(
 
 	// unpublish the data first
 	for _, ctx := range pubsubCtx {
-
-		if exists, err = pathExists(pubsubAzId, ctx.Key, ctx.Path); err == nil && exists == false {
-			loggershim.LS.Debugf("Skipping unpublishing data for AzId %s since path %s%s does not exist",
-				pubsubAzId, ctx.Key, ctx.Path)
+		if  exists, err = pathExists(pubsubAzId, ctx.Key, ctx.Path); err == nil && exists == false {
+			logDebugf("Skipping unpublishing data for AzId %s since path %s%s does not exist", pubsubAzId, ctx.Key, ctx.Path)
 			continue
 		}
 
-		loggershim.LS.Debugf("unpublishing data. AzId %s, context selector %s, path %s",
-			pubsubAzId, ctx.Key, ctx.Path)
+		logDebugf("unpublishing data. AzId %s, context selector %s, path %s", pubsubAzId, ctx.Key, ctx.Path)
 		if err = unpublishData(pubsubAzId, ctx.Key, ctx.Path); err != nil {
 			return err
 		}
@@ -837,7 +814,7 @@ func removePubsubPaths(
 	for _, ctx := range pubsubCtx {
 
 		if _, ok := keys[ctx.Key]; !ok {
-			loggershim.LS.Debugf("Removing context selector %s in AzId %s", ctx.Key, pubsubAzId)
+			logDebugf("Removing context selector %s in AzId %s", ctx.Key, pubsubAzId)
 
 			if err = removeContextSelector(pubsubAzId, ctx.Key); err != nil {
 				return err
@@ -850,7 +827,7 @@ func removePubsubPaths(
 
 			keys[ctx.Key] = struct{}{}
 		} else {
-			loggershim.LS.Debugf("Context selector %s in AzId %s already removed", ctx.Key, pubsubAzId)
+			logDebugf("Context selector %s in AzId %s already removed", ctx.Key, pubsubAzId)
 		}
 	}
 

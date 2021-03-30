@@ -61,3 +61,19 @@ type IPAllocationRepo interface {
 	DeleteIPAllocations(networkID, subnetName string, keys []string) *api.JsonErr
 	DeleteIPAllocationEntityWithEtag(partitionKey string, entity datamodel.IPAllocationEntity) *api.JsonErr
 }
+
+// A NetworkRepo performs CRUD operations on networks
+type NetworkRepo interface {
+	TryQueryNetworkConfiguration(networkID string) (*datamodel.NetworkConfiguration, *api.JsonErr)
+	GetAllNetworkIDs() (map[string]bool, error)
+	TryQueryAllNetworks() ([]string, error)
+	PersistNetworkConfiguration(networkConfig *datamodel.NetworkConfiguration) *api.JsonErr
+}
+
+// A NcPendingPublishRequestContextRepo performs CRUD operations on NC pending publish request contexts
+type NcPendingPublishRequestContextRepo interface {
+	GetNcPendingPublishRequestContexts() (map[string]datamodel.NcPendingPublishRequestContext, error)
+	RemoveNcPendingPublishContext(networkID, networkContainerID, pubsubAzID string) *api.JsonErr
+	CreateOrUpdateNcPendingPublishRequest(requestContext *datamodel.NcPendingPublishRequestContext) *api.JsonErr
+	QueryNcPendingPublishContext(key string) (*datamodel.NcPendingPublishRequestContext, *api.JsonErr)
+}

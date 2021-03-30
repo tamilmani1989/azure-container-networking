@@ -7,6 +7,7 @@ import (
 	"dnc/api"
 	"dnc/aznm"
 	"dnc/configuration"
+	"dnc/logger/loggershim"
 	"dnc/datamodel"
 	"dnc/replica"
 	"fmt"
@@ -58,6 +59,7 @@ func Init(
 	configSettings configuration.PubSubProxySettings,
 	aznmSettings configuration.AznmSettings,
 	replica *replica.Replica,
+	logger loggershim.LoggerInterface,
 	certPath string,
 	azureEnvName string,
 	aznmClient AznmClient) error {

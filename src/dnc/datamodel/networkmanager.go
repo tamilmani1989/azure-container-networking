@@ -2420,12 +2420,16 @@ func GetNcPendingPublishRequestContexts() (map[string]NcPendingPublishRequestCon
 }
 
 // RemoveNcPendingPublishContext - Remove pending NC publish / unpublish context from the table.
-// todo: bubble error up and handle
 func RemoveNcPendingPublishContext(
 	networkID, networkContainerID string,
-	pubsubAzId string) {
+	pubsubAzId string) *api.JsonErr {
 	key := GetNcPendingPublishContextKey(networkID, networkContainerID, pubsubAzId)
-	dataStoreShim.Delete(NcPendingPublishContextTableName, key)
+	if err := dataStoreShim.Delete(NcPendingPublishContextTableName, key); err != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not delete pending pubsub job: %s. Error: %v", key, err)
+	}
+
+	return nil
 }
 
 // CreateOrUpdateNcPendingPublishRequest - Creates or updates NC publish / unpublish context from the table.
