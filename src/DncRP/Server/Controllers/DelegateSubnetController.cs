@@ -16,8 +16,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
     using Microsoft.Extensions.Logging;
     using Microsoft.Azure.Management.Network.Models;
     using Microsoft.Azure.ContainerNetworking.CoreLib;
-    using Newtonsoft.Json;
-    using System.IO;
     using System.Collections.Generic;
     using System.Net.Http;
 
@@ -37,9 +35,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             : base (logger, tableOperations)
         {
             IAzureAD azureAD = new AzureAD();
-            this.azVnetBroker = new AzVNetBroker(httpUtility, logger, azureAD);
             this.dncHttpUtility = httpUtilityFactory.Resolve(Constants.DncHttpUtility);
             this.httpUtility = httpUtilityFactory.Resolve(Constants.HttpUtility);
+            this.azVnetBroker = new AzVNetBroker(httpUtility, logger, azureAD);
             logger.CLogInformation("DelegateSubnetController initialized");          
         }
 
@@ -272,8 +270,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 string authToken = await CreateSubnetTokenAsync(
                     tenantId,
-                    subnetSubId,
-                    resourceGroup,
                     vnetName,
                     subnetName,
                     delegatedSubnetGuid,
@@ -306,8 +302,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                     // TODO: Check if there is already an operation pending for this resource
                     authToken = await CreateSubnetTokenAsync(
                         tenantId,
-                        subnetSubId,
-                        resourceGroup,
                         vnetName,
                         subnetName,
                         delegatedSubnetGuid,
@@ -396,18 +390,27 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
         private async Task<string> CreateSubnetTokenAsync(
             string tenantId,
-            string subnetSubId, 
-            string subnetResourceGroupId,
             string vnetName,
             string subnetName,
             string delegatedSubnetGuid, 
             string vnetResourceGuid,
             string subnetResourceId)
         {
-            logger.CLogInformation($"Creating SubnetToken for:subscriptionId {subnetSubId}, ResourceGroup: {subnetResourceGroupId}, " +
-                $"delegatedSubnetGuid: {delegatedSubnetGuid}, vnetResourceGuid: {vnetResourceGuid}, SubnetId: {subnetResourceId}");
+            string subnetSubId;
+            string subnetRg;
+            Dictionary<string, string> resources;
 
-            string VNetResourceId = AzVNetBroker.GetVNetResourceId(subnetSubId, subnetResourceGroupId, vnetName);
+            logger.CLogInformation($"Creating SubnetToken for delegatedSubnetGuid: {delegatedSubnetGuid}, vnetResourceGuid: {vnetResourceGuid}, SubnetId: {subnetResourceId}");
+
+            bool exists = ArmResourceIdParser.TryParseResourceId(subnetResourceId, "Microsoft.Network", out subnetSubId, out subnetRg, out resources);
+            if (!exists)
+            {
+                logger.CLogError("Invalid Subnet resourceid {0}", subnetResourceId);
+                throw new Exception($"Invalid subnet resourceId {subnetResourceId}");
+            }
+            logger.CLogInformation("Subnet subid:{0} subnet rg:{1}", subnetSubId, subnetRg);
+
+            string VNetResourceId = AzVNetBroker.GetVNetResourceId(subnetSubId, subnetRg, vnetName);
 
             // SetResourceOwnership is already set
             // Avoid this call if Ownership is already set on a VNet
