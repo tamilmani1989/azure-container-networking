@@ -612,11 +612,6 @@ func (job *vnetJob) processVnetRegister() error {
 		return err
 	}
 
-	if err = getActiveSubscriber().subscribe(
-		vnetPartitionKeyPrefix+job.vnetId, subnetConfigRelativePath); err != nil {
-		return err
-	}
-
 	return getActiveSubscriber().getSubscribeStatusError(vnetPath)
 }
 
@@ -626,11 +621,6 @@ func (job *vnetJob) processVnetUnregister() error {
 
 	if err = getActiveSubscriber().unsubscribe(
 		vnetPartitionKeyPrefix+job.vnetId, vnetConfigRelativePath); err != nil {
-		return err
-	}
-
-	if err = getActiveSubscriber().unsubscribe(
-		vnetPartitionKeyPrefix+job.vnetId, subnetConfigRelativePath); err != nil {
 		return err
 	}
 

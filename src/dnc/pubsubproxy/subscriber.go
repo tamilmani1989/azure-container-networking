@@ -277,8 +277,7 @@ func (callback subscriberCallback) OnNotificationReceived(
 		fallthrough
 	case MADARI_NOTIFY_NODE_DATA_CHANGED:
 		// Handle the notification for the data update
-		if strings.EqualFold(subnetConfigRelativePath, notification.RelativePath) ||
-			strings.EqualFold(vnetConfigRelativePath, notification.RelativePath) {
+		if strings.EqualFold(vnetConfigRelativePath, notification.RelativePath) {
 			// If the subscribeStatusError channel is setup, send nil error since
 			// the notification is received for that path
 			path := notification.PartitionKey + notification.RelativePath
@@ -299,8 +298,7 @@ func (callback subscriberCallback) OnNotificationReceived(
 		}
 	case MADARI_NOTIFY_NODE_DELETED:
 		// Log the notification for the data deletion
-		if strings.EqualFold(subnetConfigRelativePath, notification.RelativePath) ||
-			strings.EqualFold(vnetConfigRelativePath, notification.RelativePath) {
+		if strings.EqualFold(vnetConfigRelativePath, notification.RelativePath) {
 			logErrorf("Subscriber received delete notification for vnetId: %s on path: %s",
 				getVnetIdFromPartitionKey(notification.PartitionKey), notification.RelativePath)
 		}

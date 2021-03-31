@@ -80,7 +80,6 @@ const (
 	vnetInterfacePathPrefix  = "/interfaces/"
 	vnetNcPathPrefix         = "/ncs/"
 	vnetConfigRelativePath   = "/configurations/vnet"
-	subnetConfigRelativePath = "/configurations/subnets"
 
 	// NC publish constants
 	ncRoleInstanceId   = "WebFrontEnd_IN_0"
