@@ -54,6 +54,7 @@ type ServiceTunnel struct {
 	VethName2            string
 	VethMac              string
 	Routes               []*netlink.Route
+	PrimaryInterfaceMacAddr net.HardwareAddr
 }
 
 func (st *ServiceTunnel) GetPrimaryIP() error {
@@ -175,7 +176,11 @@ func (st *ServiceTunnel) CreateSTBridge() error {
 		},
 	}
 
-	return netlink.AddLink(link)
+	if err  := netlink.AddLink(link); err != nil {
+		return err
+	}
+
+	return netlink.SetLinkAddress(st.TargetInterfaceName, st.PrimaryInterfaceMacAddr)
 }
 
 func (st *ServiceTunnel) ApplyIPAddresses() error {
@@ -316,13 +321,13 @@ func (st *ServiceTunnel) GetVethMac() error {
 }
 
 func (st *ServiceTunnel) SetFakeIPv6Route() error {
-	if st.PrimaryInterfaceName == "" {
-		return fmt.Errorf("Primary Interface not specified")
+	if st.TargetInterfaceName == "" {
+		return fmt.Errorf("Target Interface not specified")
 	}
 
 	route := &netlink.Route{}
 
-	targetIf, err := net.InterfaceByName(st.PrimaryInterfaceName)
+	targetIf, err := net.InterfaceByName(st.TargetInterfaceName)
 	if err != nil {
 		return err
 	}
@@ -340,11 +345,11 @@ func (st *ServiceTunnel) SetFakeIPv6Route() error {
 }
 
 func (st *ServiceTunnel) SetFakeIPv6Neighbor() error {
-	if st.PrimaryInterfaceName == "" {
+	if st.TargetInterfaceName == "" {
 		return fmt.Errorf("Primary Interface not specified")
 	}
 
-	cmd := fmt.Sprintf("ip -6 neigh add %v lladdr %v dev %s", fakeGateway, hostMac, st.PrimaryInterfaceName)
+	cmd := fmt.Sprintf("ip -6 neigh add %v lladdr %v dev %s", fakeGateway, hostMac, st.TargetInterfaceName)
 	log.Printf("Executing cmd: %v", cmd)
 	_, err := platform.ExecuteCommand(cmd)
 
@@ -352,13 +357,13 @@ func (st *ServiceTunnel) SetFakeIPv6Neighbor() error {
 }
 
 func (st *ServiceTunnel) DeleteFakeIPv6Route() error {
-	if st.TargetInterfaceName == "" {
-		return fmt.Errorf("Primary Interface not specified")
+	if st.PrimaryInterfaceName == "" {
+		return fmt.Errorf("Target Interface not specified")
 	}
 
 	route := &netlink.Route{}
 
-	targetIf, err := net.InterfaceByName(st.TargetInterfaceName)
+	targetIf, err := net.InterfaceByName(st.PrimaryInterfaceName)
 	if err != nil {
 		return err
 	}
@@ -376,11 +381,11 @@ func (st *ServiceTunnel) DeleteFakeIPv6Route() error {
 }
 
 func (st *ServiceTunnel) DeleteFakeIPv6Neighbor() error {
-	if st.TargetInterfaceName == "" {
-		return fmt.Errorf("Primary Interface not specified")
+	if st.PrimaryInterfaceName == "" {
+		return fmt.Errorf("Target Interface not specified")
 	}
 
-	cmd := fmt.Sprintf("ip -6 neigh del %v lladdr %v dev %s", fakeGateway, hostMac, st.TargetInterfaceName)
+	cmd := fmt.Sprintf("ip -6 neigh del %v lladdr %v dev %s", fakeGateway, hostMac, st.PrimaryInterfaceName)
 	_, err := platform.ExecuteCommand(cmd)
 
 	return err

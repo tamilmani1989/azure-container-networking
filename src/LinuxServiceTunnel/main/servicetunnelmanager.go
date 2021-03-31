@@ -87,7 +87,17 @@ func CheckIfSTBridgeExists(name string) bool {
 func CreateServiceTunnel(stConfig configuration.ServiceTunnelConfig) error {
 	installTools()
 
-	st := &servicetunnel.ServiceTunnel{PrimaryInterfaceName: stConfig.PrimaryInterfaceName, TargetInterfaceName: stConfig.BridgeName}
+	primaryIface, err := net.InterfaceByName(stConfig.PrimaryInterfaceName)
+	if err != nil {
+		log.Errorf("Primary interface :%s not found", err)
+		os.Exit(1)
+	}
+
+	st := &servicetunnel.ServiceTunnel{
+		PrimaryInterfaceName: stConfig.PrimaryInterfaceName, 
+		TargetInterfaceName: stConfig.BridgeName,
+		PrimaryInterfaceMacAddr: primaryIface.HardwareAddr,
+	}
 
 	if err := st.GetPrimaryIP(); err != nil {
 		log.Printf("GetPrimaryIP failed with error %v", err)

@@ -90,25 +90,14 @@ const (
 	IpsetFlushFlag      string = "-F"
 	IpsetDestroyFlag    string = "-X"
 
-	IpsetExistFlag     string = "-exist"
-	IpsetFileFlag      string = "-file"
-	IPsetCheckListFlag string = "list"
-	IpsetTestFlag      string = "test"
+	IpsetExistFlag string = "-exist"
+	IpsetFileFlag  string = "-file"
 
-	IpsetSetListFlag    string = "setlist"
-	IpsetNetHashFlag    string = "nethash"
-	IpsetIPPortHashFlag string = "hash:ip,port"
-
-	IpsetUDPFlag  string = "udp:"
-	IpsetSCTPFlag string = "sctp:"
+	IpsetSetListFlag string = "setlist"
+	IpsetNetHashFlag string = "nethash"
 
 	AzureNpmFlag   string = "azure-npm"
 	AzureNpmPrefix string = "azure-npm-"
-
-	IpsetMaxelemName string = "maxelem"
-	IpsetMaxelemNum  string = "4294967295"
-
-	IpsetNomatch string = "nomatch"
 )
 
 //NPM telemetry constants.
@@ -124,28 +113,4 @@ const (
 	AddNetworkPolicyEvent    string = "Add network policy"
 	UpdateNetworkPolicyEvent string = "Update network policy"
 	DeleteNetworkPolicyEvent string = "Delete network policy"
-
-	ErrorMetric  string = "ErrorMetric"
-	PackageName  string = "PackageName"
-	FunctionName string = "FunctionName"
-	ErrorCode    string = "ErrorCode"
-
-	// Default batch size in AI telemetry
-	// Defined here https://docs.microsoft.com/en-us/azure/azure-monitor/app/pricing
-	BatchSizeInBytes          int = 32768
-	BatchIntervalInSecs       int = 30
-	RefreshTimeoutInSecs      int = 15
-	GetEnvRetryCount          int = 5
-	GetEnvRetryWaitTimeInSecs int = 3
-	AiInitializeRetryCount    int = 3
-	AiInitializeRetryInMin    int = 1
-	// These ID represents where did the error log generate from.
-	// It's for better query purpose.
-	NpmID  int = 1
-	IpsmID int = 2
-	IptmID int = 3
-
-	DebugMode bool = true
-
-	ErrorValue float64 = 1
 )
