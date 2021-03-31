@@ -1995,34 +1995,6 @@ func GetAllNetworkIDs() (map[string]bool, error) {
 	return networkIDs, nil
 }
 
-// GetAllNodeIDs - Retrieve all node IDs
-func GetAllNodeIDs() (map[string]bool, error) {
-	var context interface{}
-	nodeIDs := make(map[string]bool)
-	for {
-		entities, hasMoreData, cx, status, err := dataStoreShim.QueryAllRows(nodeTableName, context)
-		if err != nil {
-			if status == http.StatusNotFound {
-				return nodeIDs, nil
-			}
-
-			return nil, err
-		}
-
-		for _, entity := range entities {
-			nodeIDs[entity.RowKey] = true
-		}
-
-		if !hasMoreData {
-			break
-		}
-
-		context = cx
-	}
-
-	return nodeIDs, nil
-}
-
 type ReservationRow struct {
 	RowKey        string
 	Configuration *ReservationConfiguration

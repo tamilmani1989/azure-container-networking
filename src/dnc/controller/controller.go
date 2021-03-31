@@ -67,8 +67,8 @@ func (c *Controller) GetConfig() *configuration.Configuration {
 
 // PersistNodeInfo - Persist node configuration.
 func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoRequest, apiVersion string) *api.JsonErr {
-	// Can be used whenver we send logs/metric
-	aiwrapper.OrchestratorType = nodeInfo.OrchestratorType
+	// todo: can nodes for a DNC partition have different orchestrator types? if not, this should just be cached
+	aiwrapper.SetOrchestratorType(nodeInfo.OrchestratorType)
 
 	// Turn off the DNS-CNS for managed and baremetal node type
 	if !config.DNCSettings.Managed && !api.IsBareMetalNode(nodeInfo.NodeType) {

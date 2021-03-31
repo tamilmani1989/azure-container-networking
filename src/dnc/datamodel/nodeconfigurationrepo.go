@@ -395,3 +395,56 @@ func (n *NodeConfigurationRepo) UpdateNodeConstrainedReservationSetByNodeID(node
 func (n *NodeConfigurationRepo) UpdateNodeContainers(nodeID, networkID, ncID, reservationID, containerType string, updateVlan, remove bool, ncLimit int) *api.JsonErr {
 	return n.UpdateNodeConfigurationNetworkContainerSet(nodeID, networkID, ncID, reservationID, containerType, updateVlan, remove, ncLimit)
 }
+
+// GetAllNodeIDs - Retrieve all node IDs
+func (n *NodeConfigurationRepo) GetAllNodeIDs() (map[string]bool, error) {
+	var context interface{}
+	nodeIDs := make(map[string]bool)
+	for {
+		entities, hasMoreData, cx, status, err := n.Datastore.QueryAllRows(nodeTableName, context)
+		if err != nil {
+			if status == http.StatusNotFound {
+				return nodeIDs, nil
+			}
+
+			return nil, err
+		}
+
+		for _, entity := range entities {
+			nodeIDs[entity.RowKey] = true
+		}
+
+		if !hasMoreData {
+			break
+		}
+
+		context = cx
+	}
+
+	return nodeIDs, nil
+}
+
+// GetAnyNode - Retrieve any node
+func (n *NodeConfigurationRepo) GetAnyNode() (NodeConfiguration, *api.JsonErr) {
+	// todo: could have more efficient fetch by using $top=1
+	entities, _, _, _, err := n.Datastore.QueryAllRows(nodeTableName, nil)
+	if err != nil {
+		return NodeConfiguration{}, api.InternalServerErrorf(api.StatusInternalServerError, "could not query all nodes: %v", err)
+	}
+
+	if len(entities) < 1 {
+		return NodeConfiguration{}, api.NotFound(api.NodeNotFound, "no nodes found")
+	}
+
+	nodeJSON, ok := entities[0].Properties[nodeConfigurationTag].(string)
+	if !ok {
+		return NodeConfiguration{}, api.InternalServerErrorf(api.StatusInternalServerError, "node key %s does not contain string property %s", entities[0].RowKey, nodeConfigurationTag)
+	}
+
+	var node NodeConfiguration
+	if err := json.Unmarshal([]byte(nodeJSON), &node); err != nil {
+		return NodeConfiguration{}, api.InternalServerErrorf(api.StatusInternalServerError, "could not unmarshal node key %s: %v", entities[0].RowKey, err)
+	}
+
+	return node, nil
+}

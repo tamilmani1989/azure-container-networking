@@ -49,7 +49,7 @@ CONNECT:
 					numberOfNCs := 0
 					var containerTypesSlice []string
 					// get all nodes and their configurations
-					nodes, err := datamodel.GetAllNodeIDs()
+					nodes, err := datamodel.NodeConfigRepo.GetAllNodeIDs()
 					if err == nil {
 						numberOfNodes = len(nodes)
 						// allocations - mapping of networkID to subnet to nodeID to ncID:ip
@@ -194,30 +194,12 @@ func reportNetworkConfiguration(nodeID, networkID string, allocations map[string
 }
 
 func setOrchestratorForTelemetry() {
-	var nodeID string
-	nodes, err := datamodel.GetAllNodeIDs()
-	if err == nil {
-		for nodeKey := range nodes {
-			nodeID = datamodel.GetNodeIDFromKey(nodeKey)
-			break
-		}
-	}
-
-	if nodeID == "" {
-		logger.Debugf("No nodes added for DNC")
-		return
-	}
-
-	sessionInfo := map[string]string{datamodel.NodeRepositoryName: nodeID}
-	sessionManager.BeginReadSession(sessionInfo)
-	nodeConfig, jsonerr := datamodel.NodeConfigRepo.QueryNodeConfiguration(nodeID)
-	sessionManager.EndReadSession(sessionInfo)
-
-	if jsonerr != nil {
-		logger.Errorf("QueryNodeConfiguration returned error %v", jsonerr)
+	nodeConfig, err := datamodel.NodeConfigRepo.GetAnyNode()
+	if err != nil {
+		logger.Errorf("could not set orchestrator for telemetry: %v", err)
 		return
 	}
 
 	logger.Debugf("Orchestrator type: %v", nodeConfig.NodeInfo.OrchestratorType)
-	aiwrapper.OrchestratorType = nodeConfig.NodeInfo.OrchestratorType
+	aiwrapper.SetOrchestratorType(nodeConfig.NodeInfo.OrchestratorType)
 }

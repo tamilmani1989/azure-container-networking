@@ -1,17 +1,21 @@
 package aiwrapper
 
 import (
+	"sync"
+
 	"github.com/Azure/azure-container-networking/aitelemetry"
 )
 
-const (
-	timeout = 10
-)
-
 var (
-	aiMetadata       string
-	OrchestratorType string // TODO: this should be hidden behind a mutex, it is not threadsafe
-	th               aitelemetry.TelemetryHandle
+	// todo: assign through config, not at build time
+	aiMetadata string
+
+	// todo: implement proper wrapper type around the handle, so that callers don't depend on a global.
+	//  may need mutex as well.
+	th aitelemetry.TelemetryHandle
+
+	orchTypeLock     sync.RWMutex
+	orchestratorType string
 )
 
 func CreateTelemetryHandle(aiConfig aitelemetry.AIConfig) error {
@@ -29,8 +33,10 @@ func CreateTelemetryHandle(aiConfig aitelemetry.AIConfig) error {
 	return nil
 }
 
-func CloseTelemetryHandle() {
-	th.Close(timeout)
+func SetOrchestratorType(orchType string) {
+	orchTypeLock.Lock()
+	orchestratorType = orchType
+	orchTypeLock.Unlock()
 }
 
 func SendMetric(metric aitelemetry.Metric) {
@@ -38,7 +44,10 @@ func SendMetric(metric aitelemetry.Metric) {
 		return
 	}
 
-	metric.CustomDimensions[OrchestratorStr] = OrchestratorType
+	orchTypeLock.RLock()
+	metric.CustomDimensions[OrchestratorStr] = orchestratorType
+	orchTypeLock.RUnlock()
+
 	th.TrackMetric(metric)
 }
 
@@ -48,9 +57,12 @@ func Trace(report aitelemetry.Report) {
 		return
 	}
 
-	report.CustomDimensions[OrchestratorStr] = OrchestratorType
+	orchTypeLock.RLock()
+	report.CustomDimensions[OrchestratorStr] = orchestratorType
+	report.Context = orchestratorType
+	orchTypeLock.RUnlock()
+
 	report.CustomDimensions["Context"] = "AzureDNC"
-	report.Context = OrchestratorType
 	th.TrackLog(report)
 }
 
@@ -59,7 +71,10 @@ func Event(event aitelemetry.Event) {
 		return
 	}
 
-	event.Properties[OrchestratorStr] = OrchestratorType
+	orchTypeLock.RLock()
+	event.Properties[OrchestratorStr] = orchestratorType
+	orchTypeLock.RUnlock()
+
 	event.Properties["Context"] = "AzureDNC"
 	th.TrackEvent(event)
 }

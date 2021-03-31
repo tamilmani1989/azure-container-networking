@@ -23,7 +23,7 @@ func monitorNetworkContainers() {
 }
 
 func refreshNodes() {
-	nodesMap, err := datamodel.GetAllNodeIDs()
+	nodesMap, err := datamodel.NodeConfigRepo.GetAllNodeIDs()
 	if err != nil {
 		logger.Errorf("Failed to retrieve nodes from repository due to error %s", err.Error())
 	}
