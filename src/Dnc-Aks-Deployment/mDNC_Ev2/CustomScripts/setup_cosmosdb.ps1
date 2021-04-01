@@ -50,7 +50,7 @@ function Create-Sql-CosmosDB {
     
    param([string]$resourceGroup)
 
-    Write-Host "CosmosDB $cosmosDbAccountName-sql in resource group $resourceGroup not found"
+    Write-Host "CosmosDB $cosmosDbSqlAccountName in resource group $resourceGroup not found"
     Write-Host "Creating CosmosDB SQL"
    
    New-AzCosmosDBAccount `

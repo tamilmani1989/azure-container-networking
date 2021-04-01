@@ -17,6 +17,7 @@
         "RegionalKeyVaultName": "acnkv",
         "RegionalKeyVaultResourceGroup": "acnKeyVault",
         "CosmosDbAccountName": "mdnc-bm-useast2euap-db",
+        "CosmosDbSqlAccountName": "mdnc-bm-useast2euap-db-sql",
         "CosmosDbResourceGroup": "mdnc-bm-useast2euap-rg",
         "RpCosmosDbResourceGroup": "",
         "RpCosmosDbAccountName": "",

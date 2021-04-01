@@ -2,7 +2,7 @@
   "DataStoreSettings": {
     "SubscriptionId": "__SubscriptionId__",
     "ResourceGroup": "__ResourceGroup__",
-    "DBAccountName": "__CosmosDbAccountName__"
+    "DBAccountName": "__CosmosDbSqlAccountName__"
   },
   "AzureSettings": {
     "AzureEnvironment": "azurecloud"

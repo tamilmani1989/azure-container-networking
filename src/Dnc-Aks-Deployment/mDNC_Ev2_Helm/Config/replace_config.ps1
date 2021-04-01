@@ -44,10 +44,16 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     $config = $config.replace('__PartitionKey__', (Out-String -InputObject (Get-Value "Application" "PartitionKey")).Trim())
     $config = $config.replace('__PubsubConnectionEndpoint__', (Out-String -InputObject (Get-Value "Application" "PubsubConnectionEndpoint")).Trim())
     $config = $config.replace('__MSIResourceID__', (Out-String -InputObject (Get-Value "Cluster" "ClusterClientId")).Trim())
-
     $config = $config.replace('__ManagedDncGuid__', (Out-String -InputObject (Get-Value "Application" "ManagedDncGuid")).Trim())
+    ##gateway
+    $config = $config.replace('__ClientAppIds__', (Out-String -InputObject (Get-Value "Application" "ClientAppIds")).Trim())
     }
-
+    
+    ##macmanager
+    if ($Service -eq "macmanager") {
+        $config = $config.replace('__CosmosDbSqlAccountName__', (Out-String -InputObject (Get-Value "Dependencies" "CosmosDbSqlAccountName")).Trim())
+    }
+    
     $config = $config.replace('__CosmosDbAccountName__', (Out-String -InputObject (Get-Value "Dependencies" "CosmosDbAccountName")).Trim())
     $config = $config.replace('__CosmosDBResourceID__', (Out-String -InputObject (Get-Value "Dependencies" "CosmosDBResourceID")).Trim())
     $config = $config.replace('__RegionalKeyVaultName__', (Out-String -InputObject (Get-Value "Dependencies" "RegionalKeyVaultName")).Trim())
@@ -63,9 +69,6 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     $config = $config.replace('__ResourceGroup__', (Out-String -InputObject (Get-Value "Cluster" "ResourceGroup")).Trim())
     $config = $config.replace('__ClusterClientId__', (Out-String -InputObject (Get-Value "Cluster" "ClusterClientId")).Trim())
     $config = $config.replace('__Location__', (Out-String -InputObject (Get-Value "Cluster" "Location")).Trim())
-
-    ##gateway
-    $config = $config.replace('__ClientAppIds__', (Out-String -InputObject (Get-Value "Application" "ClientAppIds")).Trim())
 
     ## baremetal
     $config = $config.replace('__EnforceNicLImit__', (Out-String -InputObject (Get-Value "Application" "EnforceNicLimit" "true")).Trim())
