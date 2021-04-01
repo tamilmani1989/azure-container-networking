@@ -1,6 +1,5 @@
 {
     "Application": {
-        "KeyVaultCertPath": "https://acnkv-centralus.vault.azure.net/certificates/AMEAADOnecert/c2ac2f7c803b4087ae8d8aa53e86e0d0"
     },
     "Cluster": {
         "LOCATION": "centralus",

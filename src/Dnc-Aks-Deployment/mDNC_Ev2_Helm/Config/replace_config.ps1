@@ -59,12 +59,6 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     $config = $config.replace('__RpCosmosDbAccountName__', (Out-String -InputObject (Get-Value "Dependencies" "RpCosmosDbAccountName")).Trim())
     $config = $config.replace('__RpCosmosDbResoureID__', (Out-String -InputObject (Get-Value "Dependencies" "RpCosmosDbResoureID")).Trim())
 
-    ##dncrp 
-    if ($Service -eq "dncrp") {
-        $config = $config.replace('__KeyVaultCertPath__', (Out-String -InputObject (Get-Value "Application" "KeyVaultCertPath")).Trim())
-    }
-    
-
     $config = $config.replace('__SubscriptionId__', (Out-String -InputObject (Get-Value "Cluster" "SubscriptionId")).Trim())
     $config = $config.replace('__ResourceGroup__', (Out-String -InputObject (Get-Value "Cluster" "ResourceGroup")).Trim())
     $config = $config.replace('__ClusterClientId__', (Out-String -InputObject (Get-Value "Cluster" "ClusterClientId")).Trim())

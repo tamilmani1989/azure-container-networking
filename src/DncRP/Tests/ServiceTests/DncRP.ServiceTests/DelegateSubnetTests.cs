@@ -66,6 +66,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 throw new ArgumentException($"Invalid connection string {this.testConfig.KeyVaultConnectionString}");
             }
 
+            CurrentContext.SetKeyVaultUrl(this.testConfig.KeyVaultUrl);
+
             ClientIdentity clientIdentity = new ClientIdentity
             {
                 AppId = match.Groups[1].Value,
@@ -91,9 +93,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             ClientIdentity armAccessId = new ClientIdentity
             {
                 AppId = this.testConfig.DelegateSubnetClientCertificate.AppId,
-                KeyVaultCertPath = this.testConfig.DelegateSubnetClientCertificate.KeyVaultCertPath,
-                IdentityType = ClientIdentityType.SpClientCertificate
+                ClientCertificateName = this.testConfig.DelegateSubnetClientCertificate.ClientCertificateName,
+                IdentityType = ClientIdentityType.SpClientCertificate,
+                KeyVaultUrl = this.configuration["KeyVaultUrl"]
             };
+
             CurrentContext.SetArmAccessIdentity(armAccessId);
 
             DncSettings dncSettings = configuration.GetSection("DncSettings").Get<DncSettings>();

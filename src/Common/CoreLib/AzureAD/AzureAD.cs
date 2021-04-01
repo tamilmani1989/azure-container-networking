@@ -95,7 +95,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             // https://docs.microsoft.com/en-us/azure/key-vault/general/service-to-service-authentication#connection-string-support
             string kvConnString = this.GetTokenProviderConnectionString(keyVaultClientIdentity);
             X509Certificate2 cert = await this.FetchCertificateFromKV(
-                kvConnString, azureADClientIdentity.KeyVaultCertPath, azureEnvironment).ConfigureAwait(false);
+                kvConnString, azureADClientIdentity.ClientCertificateName, azureEnvironment, azureADClientIdentity.KeyVaultUrl).ConfigureAwait(false);
 
             Uri authority = new Uri(authorityUrl);
             IConfidentialClientApplication app = ConfidentialClientApplicationBuilder.Create(azureADClientIdentity.AppId)
@@ -293,10 +293,10 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             {
                 if (string.IsNullOrWhiteSpace(clientIdentity.AppId) ||
                    string.IsNullOrWhiteSpace(clientIdentity.TenantId) ||
-                   string.IsNullOrWhiteSpace(clientIdentity.KeyVaultCertPath))
+                   string.IsNullOrWhiteSpace(clientIdentity.ClientCertificateName))
                 {
                     throw new ArgumentException(
-                        $"For identity type '{ClientIdentityType.SpClientCertificate}' AppId,TenantId,KeyVaultCertPath are required in {paramName}");
+                        $"For identity type '{ClientIdentityType.SpClientCertificate}' AppId,TenantId,ClientCertificateName are required in {paramName}");
                 }
             }
             else
@@ -311,7 +311,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
         /// <param name="ConnString"></param>
         /// <param name="secretIdentifier"></param>
         /// <returns></returns>
-        private async Task<X509Certificate2> FetchCertificateFromKV(string ConnString, string secretIdentifier, string azureEnvironment)
+        private async Task<X509Certificate2> FetchCertificateFromKV(string ConnString, string certificateName, string azureEnvironment, string keyVaultUrl)
         {
             return await AsyncRetry.Retry<X509Certificate2>(async () =>
            {
@@ -322,7 +322,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
 
                KeyVaultClient client = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
 
-               SecretBundle secret = await client.GetSecretAsync(secretIdentifier).ConfigureAwait(false);
+               SecretBundle secret = await client.GetSecretAsync(keyVaultUrl,certificateName).ConfigureAwait(false);
 
                byte[] certBytes = Convert.FromBase64String(secret.Value);
                X509Certificate2 sslCert = new X509Certificate2(certBytes);

@@ -59,7 +59,7 @@
       "IdentityType": "SpClientCertificate",
       "AppId": "a91b1853-4403-4f54-b5cb-d1ea19d90c37",
       "TenantId": "",
-      "KeyVaultCertPath": "__KeyVaultCertPath__",
+      "ClientCertificateName": "amecert",
       "Tag": "AzureADArmToken"
     }
   ],

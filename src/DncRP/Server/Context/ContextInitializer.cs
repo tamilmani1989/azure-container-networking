@@ -47,6 +47,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             CurrentContext.SetContext(azEnv.ToLower(), region.ToLower());
 
             ClientIdentity[] clientIdentities = configuration.GetSection("ClientIdentities").Get<ClientIdentity[]>();
+            
+            CurrentContext.SetKeyVaultUrl(configuration["KeyVault:Url"]);
 
             if (clientIdentities != null)
             {
@@ -54,6 +56,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 ClientIdentity azureADArmTokenIdentity = clientIdentities.FirstOrDefault(x => x.Tag == ClientIdentityTags.AzureADArmToken);
 
                 CurrentContext.SetManagedIdentity(managedIdetity);
+                // add the KeyVault URL to fetch the aad certificate from KeyVault later
+                azureADArmTokenIdentity.KeyVaultUrl = configuration["KeyVault:Url"];
                 CurrentContext.SetArmAccessIdentity(azureADArmTokenIdentity);
             }
 
@@ -64,8 +68,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 dncSettings = new DncSettings(defaultDncRetryCount, defaultDncRetryIntervalInSeconds, defaultDncRetryTimeoutInSeconds);
             }
             CurrentContext.SetDncSettings(dncSettings);
-
-            CurrentContext.SetKeyVaultUrl(configuration["KeyVault:Url"]);
 
             PrintContextAndConfigToConsole(configuration);
         }
@@ -83,7 +85,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             if (CurrentContext.ArmAccessIdentity != null)
             {
                 Console.WriteLine("ArmAccessIdentity AppID: {0}", CurrentContext.ArmAccessIdentity.AppId);
-                Console.WriteLine("ArmAccessIdentity KVCertPath: {0}", CurrentContext.ArmAccessIdentity.KeyVaultCertPath);
+                Console.WriteLine("ArmAccessIdentity ClientCertificateName: {0}", CurrentContext.ArmAccessIdentity.ClientCertificateName);
             }
 
             Console.WriteLine("Thumbprint: {0}", configuration["Thumbprint"]);

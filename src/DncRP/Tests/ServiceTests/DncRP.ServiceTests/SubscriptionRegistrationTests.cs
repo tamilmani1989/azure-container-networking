@@ -83,7 +83,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             ClientIdentity armAccessId = new ClientIdentity
             {
                 AppId = this.testConfig.DelegateSubnetClientCertificate.AppId,
-                KeyVaultCertPath = this.testConfig.DelegateSubnetClientCertificate.KeyVaultCertPath,
+                ClientCertificateName = this.testConfig.DelegateSubnetClientCertificate.ClientCertificateName,
                 IdentityType = ClientIdentityType.SpClientCertificate
             };
             CurrentContext.SetArmAccessIdentity(armAccessId);

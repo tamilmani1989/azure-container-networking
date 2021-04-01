@@ -60,6 +60,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 throw new ArgumentException($"Invalid connection string {this.testConfig.KeyVaultConnectionString}");
             }
 
+            CurrentContext.SetKeyVaultUrl(this.testConfig.KeyVaultUrl);
+
             this.clientIdentity = new ClientIdentity
             {
                 AppId = match.Groups[1].Value,
@@ -68,12 +70,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 IdentityType = ClientIdentityType.SpClientSecret
             };
 
+
             ClientIdentity azADIdentity = new ClientIdentity
             {
                 AppId = "a91b1853-4403-4f54-b5cb-d1ea19d90c37", //DNC-RP APP ID
                 TenantId = this.testConfig.ClientIdentityCertificate.TenantId,
-                KeyVaultCertPath = this.testConfig.ClientIdentityCertificate.KeyVaultCertPath,
-                IdentityType = ClientIdentityType.SpClientCertificate
+                ClientCertificateName = this.testConfig.ClientIdentityCertificate.ClientCertificateName,
+                IdentityType = ClientIdentityType.SpClientCertificate,
+                KeyVaultUrl = this.configuration["KeyVaultUrl"]
             };
 
             this.datastoreSettings = new DatastoreSettings
@@ -86,6 +90,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             CurrentContext.SetContext(this.configuration["AzureEnvironment"], this.configuration["AzureRegion"]);
             CurrentContext.SetManagedIdentity(clientIdentity);
+
             CurrentContext.SetArmAccessIdentity(azADIdentity);
             CurrentContext.SetKeyVaultUrl(this.configuration["KeyVaultUrl"]);
 

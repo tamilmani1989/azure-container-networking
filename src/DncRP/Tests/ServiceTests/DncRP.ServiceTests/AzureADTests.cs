@@ -55,8 +55,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             {
                 AppId = this.testConfig.ClientIdentityCertificate.AppId,
                 TenantId = this.testConfig.ClientIdentityCertificate.TenantId,
-                KeyVaultCertPath = this.testConfig.ClientIdentityCertificate.KeyVaultCertPath,
-                IdentityType = ClientIdentityType.SpClientCertificate
+                ClientCertificateName = this.testConfig.ClientIdentityCertificate.ClientCertificateName,
+                IdentityType = ClientIdentityType.SpClientCertificate,
+                KeyVaultUrl = this.testConfig.KeyVaultUrl
             };
 
             string azEnvName = this.testConfig.ClientIdentityCertificate.AzureEnvironment;

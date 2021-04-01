@@ -19,7 +19,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             get; set;
         }
 
-        public string KeyVaultCertPath
+        public string ClientCertificateName
         {
             get; set;
         }
@@ -52,6 +52,10 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             get; set;
         }
 
+        public string KeyVaultUrl
+        {
+            get; set;
+        }
         public string AzureEnvironment
         {
             get; set;

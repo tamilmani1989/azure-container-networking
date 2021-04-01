@@ -41,7 +41,7 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
     ///     AppId, TenantId, AppKey is needed. Only exception is when key is fetched from KeyVault.
     ///     In that case AppKey won't be validated.
     /// For SpClientCertificate -
-    ///     AppId, TenantId, KeyVaultCertPath is needed. Certificate has to be stored in KeyVault
+    ///     AppId, TenantId, ClientCertificateName is needed. Certificate has to be stored in KeyVault
     /// For Developer -
     ///     DeveloperTool is set to DeveloperTool (AzureCli or VisualStudio)
     /// </summary>
@@ -67,11 +67,16 @@ namespace Microsoft.Azure.ContainerNetworking.CoreLib
             get; set;
         }
 
-        public string KeyVaultCertPath
+        public string ClientCertificateName
         {
             get; set;
         }
 
+        // Used to retrieve the client certificate for this identity
+        public string KeyVaultUrl
+        {
+            get; set;
+        }
         public ClientIdentityTags Tag
         {
             get; set;
