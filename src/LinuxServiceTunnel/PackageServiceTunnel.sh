@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-version="1.7"
+version="1.8"
 scriptdir=$(dirname "$0")
 outdir=$scriptdir/out/ServiceTunnelLinux
 zippath="$scriptdir/out/ServiceTunnelLinux_$version.zip"

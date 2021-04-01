@@ -22,7 +22,7 @@ go env
 
 cd "$SCRIPTDIR"/main
 
-VERSION="1.7"
+VERSION="1.8"
 go build -o servicetunnel -ldflags "-X main.version=$VERSION -s -w"
 chmod +x servicetunnel
 
