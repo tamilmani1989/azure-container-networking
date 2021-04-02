@@ -175,6 +175,7 @@ func (jobType jobType) String() string {
 
 	return "Unknown Type"
 }
+
 //TODO: replace with newWorkerPool
 func workerPool() *workerPoolContext {
 	once.Do(func() {
@@ -288,9 +289,8 @@ func processNcPendingRequests() {
 	}
 }
 
-func (wp *workerPoolContext) isJobProcessingNeeded(
-	jobContext *jobContext) bool {
-	latestTimestamp, isJobCompleted := wp.jobTsLock.ReadStatusTimestamp(jobContext.id)
+func (wp *workerPoolContext) isJobProcessingNeeded(jobContext *jobContext, tsl *tsLock) bool {
+	latestTimestamp, isJobCompleted := tsl.ReadStatusTimestamp()
 	// Do not process the job if -
 	// 1. The timestamp of the job ID is prior to the latest known timestamp for that job ID.
 	// 2. The job processing is already completed
@@ -312,13 +312,14 @@ func (wp *workerPoolContext) processJob(
 		jobContext     = job.getContext()
 	)
 
-	wp.jobTsLock.LockAcquire(jobContext.id)
+	tsl := wp.jobTsLock.GetTsLock(jobContext.id)
+	tsl.Lock()
 	defer func() {
-		wp.jobTsLock.LockRelease(jobContext.id)
+		tsl.Unlock()
 		wp.workerSem <- struct{}{}
 	}()
 
-	if !wp.isJobProcessingNeeded(jobContext) {
+	if !wp.isJobProcessingNeeded(jobContext, tsl) {
 		return
 	}
 
@@ -328,7 +329,7 @@ func (wp *workerPoolContext) processJob(
 		logErrorf("Failed to process the job: %s. Error: %v", jobContext.id, err)
 	}
 
-	wp.jobTsLock.UpdateStatusTimestamp(jobContext.id, jobContext.createdDateTime, isJobCompleted)
+	tsl.UpdateStatusTimestamp(jobContext.createdDateTime, isJobCompleted)
 }
 
 func (wp *workerPoolContext) scheduleJob(
@@ -345,10 +346,11 @@ func (wp *workerPoolContext) processFailedJob(
 	job := value.(Job)
 	jobContext := job.getContext()
 
-	wp.jobTsLock.LockAcquire(jobId)
-	defer wp.jobTsLock.LockRelease(jobId)
+	tsl := wp.jobTsLock.GetTsLock(jobId)
+	tsl.Lock()
+	defer tsl.Unlock()
 
-	if !wp.isJobProcessingNeeded(jobContext) {
+	if !wp.isJobProcessingNeeded(jobContext, tsl) {
 		wp.failedJobQueue.Delete(jobId)
 		return true
 	}
@@ -748,7 +750,7 @@ func createContextSelectorAndPublishData(
 		}
 
 		path := ctx.Key + ctx.Path
-		if  err = getPublishStatusError(pubsubAzId, path); err != nil {
+		if err = getPublishStatusError(pubsubAzId, path); err != nil {
 			logDebugf("Publishing data failed. AzId %s, context selector %s, path %s, publish err: %s",
 				pubsubAzId, ctx.Key, ctx.Path, err)
 			return err
@@ -784,7 +786,7 @@ func removePubsubPaths(
 
 	// unpublish the data first
 	for _, ctx := range pubsubCtx {
-		if  exists, err = pathExists(pubsubAzId, ctx.Key, ctx.Path); err == nil && exists == false {
+		if exists, err = pathExists(pubsubAzId, ctx.Key, ctx.Path); err == nil && exists == false {
 			logDebugf("Skipping unpublishing data for AzId %s since path %s%s does not exist", pubsubAzId, ctx.Key, ctx.Path)
 			continue
 		}
