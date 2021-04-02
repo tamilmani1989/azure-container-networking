@@ -62,7 +62,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
                         o.SslProtocols = System.Security.Authentication.SslProtocols.Tls13 | System.Security.Authentication.SslProtocols.Tls12;
                     });
 
-                    options.ListenLocalhost(Convert.ToInt32(config["Port"]), listenOptions =>
+                    options.ListenAnyIP(Convert.ToInt32(config["Port"]), listenOptions =>
                     {
                         listenOptions.UseHttps(Certificates.GetKeyVaultCertificate(config["KeyVault:Url"], config["KeyVault:SslCertName"]));
                     });
