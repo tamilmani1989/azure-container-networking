@@ -125,10 +125,9 @@ func (m *ResourceCleanupMonitor) removeIPAllocations(ncKey string, resourceClean
 		}
 
 		// check to make sure that all IP's to be cleaned up have the matching ToBeDeletedOwner from the cleanup resource
-		entitiesToBeCleanedUp := []datamodel.IPAllocationEntity{}
+		var entitiesToBeCleanedUp []datamodel.IPAllocationEntity
 		for _, cleanupAllocation := range cleanupAllocations {
 			if entity, exists := ipAllocationsMap[cleanupAllocation]; exists {
-
 				// keep a slice of entities with their etags that exist with the ToBeDeletedOwner set as the pending cleanup NCID
 				m.Logger.Debugf("%s RemoveIPAllocations: Add IPAllocation for delete, PartitionKey %s, entity %v", logPrefix(resourceCleanupEntity), ipAllocationsPartitionKey, entity)
 				entitiesToBeCleanedUp = append(entitiesToBeCleanedUp, entity)
@@ -137,10 +136,26 @@ func (m *ResourceCleanupMonitor) removeIPAllocations(ncKey string, resourceClean
 			}
 		}
 
-		// safe to delete allocations
-		err = m.IpAllocator.DeleteAllocationsWithEtag(ipAllocationsPartitionKey, entitiesToBeCleanedUp)
-		if err != nil {
-			return err
+		if m.IpAllocator.UsePrepopulatedAllocations {
+			for i, allocation := range entitiesToBeCleanedUp {
+				allocation.IPAllocation = ""
+				allocation.AllocationID = ""
+				allocation.ToBeDeletedOwner = ""
+				entitiesToBeCleanedUp[i] = allocation
+			}
+
+			k, err := datamodel.ParseIPAllocationPartitionKey(ipAllocationsPartitionKey)
+			if err != nil {
+				return api.InternalServerError(api.StatusInternalServerError, err.Error())
+			}
+
+			if err := m.IpAllocator.UpdateAllocations(k.Network, k.Subnet, entitiesToBeCleanedUp); err != nil {
+				return err
+			}
+		} else {
+			if err := m.IpAllocator.DeleteAllocationsWithEtag(ipAllocationsPartitionKey, entitiesToBeCleanedUp); err != nil {
+				return err
+			}
 		}
 	}
 

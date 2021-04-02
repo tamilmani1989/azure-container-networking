@@ -25,23 +25,87 @@ func (t *prepopulatedStrategy) logErrorf(format string, args ...interface{}) {
 	t.logger.Errorf("[prepopulated strategy] vnet %s subnet %s - %s", t.subnetInfo.vnetID, t.subnetInfo.subnetName, fmt.Sprintf(format, args...))
 }
 
-// todo: handle setting TBD for deleting ips, also need to update cleanup monitor to handle the cleanup
+// todo: most of this logic is very similar to other strategy and should be in a shared place. refactor
 func (t *prepopulatedStrategy) scaleDown(reservations []datamodel.ReservationConfiguration, tbdAllocationIDs map[string][]string) ([]datamodel.ReservationConfiguration, error) {
 	var allocIDs []string
+	allocationIDToNCID := make(map[string]string)
 	for i := 0; i < len(reservations); i++ {
 		tbdIDs := tbdAllocationIDs[reservations[i].ReservationID]
 
 		for _, allocID := range tbdIDs {
 			allocIDs = append(allocIDs, allocID)
+			allocationIDToNCID[allocID] = reservations[i].AssociatedNCID
 			delete(reservations[i].SecondaryAllocations, allocID)
 		}
 	}
 
-	if err := t.allocator.clearAllocations(t.subnetInfo.vnetID, t.subnetInfo.subnetName, allocIDs); err != nil {
+	// get all existing records that need to be cleared
+	tbdEntities, err := t.allocator.Allocations.QueryIPAllocationsByAllocationID(t.subnetInfo.vnetID, t.subnetInfo.subnetName, allocIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(tbdEntities) == 0 {
+		t.logf("the following allocation ids were not found in allocation table: %+v", allocIDs)
+		return reservations, nil
+	}
+
+	if t.pubsubProxyEnabled {
+		// don't delete the allocations, just mark them with a tbd owner to be handled by cleanup monitor
+		var updatedTBDEntities []datamodel.IPAllocationEntity
+		for _, tbdEntity := range tbdEntities {
+			ncID, ok := allocationIDToNCID[tbdEntity.AllocationID]
+			if !ok || ncID == "" {
+				t.logErrorf("scaleDown: no nc id found for allocation id %s, reservation key %s", tbdEntity.AllocationID, tbdEntity.IPAllocation)
+				continue
+			}
+
+			tbdEntity.ToBeDeletedOwner = datamodel.GetNCKey(t.subnetInfo.vnetID, ncID)
+			updatedTBDEntities = append(updatedTBDEntities, tbdEntity)
+		}
+
+		if err := t.allocator.UpdateAllocations(t.subnetInfo.vnetID, t.subnetInfo.subnetName, updatedTBDEntities); err != nil {
+			t.logErrorf("Failed to set ToBeDeletedOwner for associated allocIds, allocId Count %d, err %+v", len(allocIDs), err)
+			return nil, err
+		}
+
+		return reservations, nil
+	}
+
+	// will retain etags
+	for i := range tbdEntities {
+		tbdEntities[i].IPAllocation = ""
+		tbdEntities[i].AllocationID = ""
+		tbdEntities[i].ToBeDeletedOwner = ""
+	}
+
+	if err := t.allocator.UpdateAllocations(t.subnetInfo.vnetID, t.subnetInfo.subnetName, tbdEntities); err != nil {
 		return nil, err
 	}
 
 	return reservations, nil
+}
+
+// clearAllocations will clear all properties for the given allocation ids
+func (t *prepopulatedStrategy) clearAllocations(networkID, subnetName string, allocationIDs []string) *api.JsonErr {
+	entities, err := t.allocator.Allocations.QueryIPAllocationsByAllocationID(networkID, subnetName, allocationIDs)
+	if err != nil {
+		return err
+	}
+
+	if len(entities) == 0 {
+		t.logf("the following allocation ids were not found in allocation table: %+v", allocationIDs)
+		return nil
+	}
+
+	// will retain etags
+	for i := range entities {
+		entities[i].IPAllocation = ""
+		entities[i].AllocationID = ""
+		entities[i].ToBeDeletedOwner = ""
+	}
+
+	return t.allocator.UpdateAllocations(networkID, subnetName, entities)
 }
 
 func (t *prepopulatedStrategy) scaleUp(reservations []datamodel.ReservationConfiguration) ([]datamodel.ReservationConfiguration, error) {

@@ -45,55 +45,61 @@ func (s *scanSubnetStrategy) logErrorf(format string, args ...interface{}) {
 	s.logger.Errorf("[scan subnet strategy] vnet %s subnet %s - %s", s.subnetInfo.vnetID, s.subnetInfo.subnetName, fmt.Sprintf(format, args...))
 }
 
-// Delete/Or unlink the associated Secondary ips and return the updated reservation config. Caller will own persisting the updated reservation configs.
+// Delete or unlink the associated secondary ips and return the updated reservation config. Caller will own persisting the updated reservation configs.
+// tbdAllocationIDs is a map of reservation ID to a list of allocations IDs that should be removed from the reservation's stored configuration.
 func (s *scanSubnetStrategy) scaleDown(reservations []datamodel.ReservationConfiguration, tbdAllocationIDs map[string][]string) ([]datamodel.ReservationConfiguration, error) {
 	var allocIDs []string
-	reservationMap := make(map[string]datamodel.ReservationConfiguration, len(reservations))
+	allocationIDToNCID := make(map[string]string)
 	for i := 0; i < len(reservations); i++ {
-		reservationMap[reservations[i].ReservationID] = reservations[i]
 		tbdIDs := tbdAllocationIDs[reservations[i].ReservationID]
 
 		for _, allocID := range tbdIDs {
 			allocIDs = append(allocIDs, allocID)
+			allocationIDToNCID[allocID] = reservations[i].AssociatedNCID
 			delete(reservations[i].SecondaryAllocations, allocID)
 		}
 	}
 
-	// todo: might need to slice in batches
+	// get all existing records that need to be deleted/updated
 	tbdEntities, err := s.allocator.Allocations.QueryIPAllocationsByAllocationID(s.subnetInfo.vnetID, s.subnetInfo.subnetName, allocIDs)
 	if err != nil {
 		return nil, err
 	}
 
+	if len(tbdEntities) == 0 {
+		s.logf("the following allocation ids were not found in allocation table: %+v", allocIDs)
+		return reservations, nil
+	}
+
 	if s.pubsubProxyEnabled {
-		updatedTBDEntities := make([]datamodel.IPAllocationEntity, len(tbdEntities))
-		for i, tbdEntity := range tbdEntities {
-			if reservation, found := reservationMap[tbdEntity.IPAllocation]; found {
-				// Set the ToBeDeletedOwner as ncKey for deleting IP
-				tbdEntity.ToBeDeletedOwner = datamodel.GetNCKey(s.subnetInfo.vnetID, reservation.AssociatedNCID)
-				updatedTBDEntities[i] = tbdEntity
-			} else {
-				return nil, fmt.Errorf("scaleDown: Reservation not found for a given IpAllocationEntity %+v", tbdEntity)
+		// don't delete the allocations, just mark them with a tbd owner to be handled by cleanup monitor
+		var updatedTBDEntities []datamodel.IPAllocationEntity
+		for _, tbdEntity := range tbdEntities {
+			ncID, ok := allocationIDToNCID[tbdEntity.AllocationID]
+			if !ok || ncID == "" {
+				s.logErrorf("scaleDown: no nc id found for allocation id %s, reservation key %s", tbdEntity.AllocationID, tbdEntity.IPAllocation)
+				continue
 			}
+
+			tbdEntity.ToBeDeletedOwner = datamodel.GetNCKey(s.subnetInfo.vnetID, ncID)
+			updatedTBDEntities = append(updatedTBDEntities, tbdEntity)
 		}
 
 		if err := s.allocator.UpdateAllocations(s.subnetInfo.vnetID, s.subnetInfo.subnetName, updatedTBDEntities); err != nil {
-			s.logErrorf("Failed to set ToBeDeletedOwner for associated allocIds, allocId Count %d, err %+v",
-				len(allocIDs),
-				err)
-
+			s.logErrorf("Failed to set ToBeDeletedOwner for associated allocIds, allocId Count %d, err %+v", len(allocIDs), err)
 			return nil, err
 		}
-	} else {
-		rowKeys := make([]string, len(tbdEntities))
-		for i, entity := range tbdEntities {
-			rowKeys[i] = entity.RowKey
-		}
 
-		// todo: does this section need to set tbd owners instead of deleting?
-		if err := s.allocator.DeleteAllocations(s.subnetInfo.vnetID, s.subnetInfo.subnetName, rowKeys); err != nil {
-			return nil, err
-		}
+		return reservations, nil
+	}
+
+	rowKeys := make([]string, len(tbdEntities))
+	for i, entity := range tbdEntities {
+		rowKeys[i] = entity.RowKey
+	}
+
+	if err := s.allocator.DeleteAllocations(s.subnetInfo.vnetID, s.subnetInfo.subnetName, rowKeys); err != nil {
+		return nil, err
 	}
 
 	return reservations, nil

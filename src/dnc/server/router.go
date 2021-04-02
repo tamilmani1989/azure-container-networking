@@ -6,7 +6,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func NewRouter(reverseProxyEnabled, useHttps bool, probeRoutes *ProbeRoutes) *mux.Router {
+func NewRouter(reverseProxyEnabled, useHttps bool, probeRoutes *ProbeRoutes, debugRoutes *DebugRoutes) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 
 	// todo: routes should not be global and depend on other globals. they should be instantiated and have dependencies injected.
@@ -22,6 +22,9 @@ func NewRouter(reverseProxyEnabled, useHttps bool, probeRoutes *ProbeRoutes) *mu
 
 	// replica specific methods
 	router.Methods(http.MethodGet).Path("/healthz").Handler(http.HandlerFunc(probeRoutes.Health))
+
+	// debug methods
+	router.Methods(http.MethodPost).Path("/debug/rehydrateallocations").Handler(http.HandlerFunc(debugRoutes.RehydrateSubnetAllocations))
 
 	return router
 }

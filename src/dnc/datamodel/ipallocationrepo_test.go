@@ -3,7 +3,10 @@ package datamodel
 import (
 	"dnc/datastore/testpersistencestore"
 	"dnc/logger/loggermock"
+	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // todo:
@@ -168,5 +171,39 @@ func TestQueryIpAllocationsByToBeDeletedOwner(t *testing.T) {
 		if _, found := ipallocationsWithTBD[row.RowKey]; !found {
 			t.Fatalf("Unexpected RowKey in the result %s, %+v", row.RowKey, rows)
 		}
+	}
+}
+
+func TestParseIPAllocationPartitionKey(t *testing.T) {
+	tests := []struct {
+		partitionKey string
+		expected     IPAllocationPartitionKey
+	}{
+		{
+			partitionKey: "Network_536de5c4-c57c-49b2-8d96-f41875cde4ae_Subnet_subnet1",
+			expected: IPAllocationPartitionKey{
+				Network: "536de5c4-c57c-49b2-8d96-f41875cde4ae", Subnet: "subnet1",
+			},
+		},
+		{
+			partitionKey: "Network_536de5c4-c57c-49b2-8d96-f41875cde4ae_Subnet_subnet-1",
+			expected: IPAllocationPartitionKey{
+				Network: "536de5c4-c57c-49b2-8d96-f41875cde4ae", Subnet: "subnet-1",
+			},
+		},
+		{
+			partitionKey: "Network_536de5c4-c57c-49b2-8d96-f41875cde4ae_Subnet_subnet_1",
+			expected: IPAllocationPartitionKey{
+				Network: "536de5c4-c57c-49b2-8d96-f41875cde4ae", Subnet: "subnet_1",
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("test %d", i), func(t *testing.T) {
+			k, err := ParseIPAllocationPartitionKey(tt.partitionKey)
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, k)
+		})
 	}
 }

@@ -180,7 +180,7 @@ func buildIndex(entities []datamodel.IPAllocationEntity) map[string]map[string]s
 }
 
 func getPrepopulatedDatastore(baseSubnet *net.IPNet, vnetID, subnet string) (*testpersistencestore.TestPersistenceStore, error) {
-	rows, err := generateIPAllocationEntitiesForSubnet(baseSubnet)
+	rows, err := GenerateIPAllocationEntitiesForSubnet(baseSubnet)
 	if err != nil {
 		return nil, err
 	}

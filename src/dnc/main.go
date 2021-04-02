@@ -264,6 +264,11 @@ func main() {
 		Logger:  logger,
 	}
 
+	debugRoutes := server.DebugRoutes{
+		IPAllocator: &ipAllocator,
+		Logger:      logger,
+	}
+
 	dncServer = server.Server{
 		ServerSettings:      config.ServerSettings,
 		Controller:          ctrler,
@@ -271,6 +276,7 @@ func main() {
 		ConnectionTimeout:   config.HttpClientSettings.ConnectionTimeout,
 		Logger:              logger,
 		ProbeRoutes:         &probeRoutes,
+		DebugRoutes:         &debugRoutes,
 	}
 
 	if err := dncServer.Init(); err != nil {

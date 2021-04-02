@@ -26,6 +26,7 @@ type Server struct {
 	TlsConfig           *tls.Config
 	Logger              *loggershim.LoggerShim
 	ProbeRoutes         *ProbeRoutes
+	DebugRoutes         *DebugRoutes
 }
 
 func (server *Server) Init() error {
@@ -46,7 +47,7 @@ func (server *Server) Init() error {
 
 		server.TlsEndpoint = httpsUrl.Host
 	}
-	server.Router = NewRouter(server.ReverseProxyEnabled, server.ServerSettings.UseHttps, server.ProbeRoutes)
+	server.Router = NewRouter(server.ReverseProxyEnabled, server.ServerSettings.UseHttps, server.ProbeRoutes, server.DebugRoutes)
 	SetController(server.Controller)
 	server.Logger.Debugf("Host=%s, Port=%s, ReverseProxyEnabled=%t, UseHttps=%t", server.ServerSettings.IPAddress,
 		server.ServerSettings.Port, server.ReverseProxyEnabled, server.ServerSettings.UseHttps)

@@ -490,31 +490,6 @@ func (a *IPAllocator) DeleteAllocationsWithEtag(partitionKey string, entities []
 	return nil
 }
 
-// clearAllocations will clear all properties for the given allocation ids
-// todo: handle IPCleanup for prepopulated strategy
-func (a *IPAllocator) clearAllocations(networkID, subnetName string, allocationIDs []string) *api.JsonErr {
-	// todo: if the size of allocation ids is large enough, the method below could fail due to a large query filter generated.
-	//  need to determine what the maximum size for allocation ids should be and create batches.
-	entities, err := a.Allocations.QueryIPAllocationsByAllocationID(networkID, subnetName, allocationIDs)
-	if err != nil {
-		return err
-	}
-
-	if len(entities) == 0 {
-		a.Logger.Debugf("vnet ID %s subnet %s: the following allocation ids were not found in allocation table: %+v", networkID, subnetName, allocationIDs)
-		return nil
-	}
-
-	// will retain etags
-	for i := range entities {
-		entities[i].IPAllocation = ""
-		entities[i].AllocationID = ""
-		entities[i].ToBeDeletedOwner = ""
-	}
-
-	return a.UpdateAllocations(networkID, subnetName, entities)
-}
-
 // todo: handle batch updates directly in the Repo* functions instead of creating a wrapper
 func (a *IPAllocator) UpdateAllocations(networkID, subnetName string, entities []datamodel.IPAllocationEntity) *api.JsonErr {
 	var batches [][]datamodel.IPAllocationEntity
@@ -591,6 +566,9 @@ func (a *IPAllocator) SetToBeDeleteOwnerToDeletingIps(networkId, subnetName, res
 	return nil
 }
 
+// todo: make configurable
+const prepopulateDefaultWorkerCount = 10
+
 // PrepopulateSubnet will persist all rows for a given partition and subnet CIDR range.
 // If the subnet is large enough, the operation may not be atomic since rows will need to be persisted in batches.
 // Given the batch slicing strategy (batches for a given subnet should always contain the same elements, conflicts
@@ -601,14 +579,24 @@ func (a *IPAllocator) PrepopulateSubnet(vnetID, subnetName, subnetCIDR string) *
 		return api.InternalServerErrorf(api.StatusInternalServerError, "vnet ID %s subnet %s: could not parse subnet CIDR: %v", vnetID, subnetName, err)
 	}
 
-	allAllocs, err := generateIPAllocationEntitiesForSubnet(subnet)
+	allAllocs, err := GenerateIPAllocationEntitiesForSubnet(subnet)
 	if err != nil {
 		return api.InternalServerErrorf(api.StatusInternalServerError, "vnet ID %s subnet %s: could not generate subnet rows: %v", vnetID, subnetName, err)
 	}
 
 	ch := a.rowBatchProducer(allAllocs)
 
-	if err := a.rowBatchConsumer(ch, vnetID, subnetName); err != nil {
+	if err := a.rowBatchConsumer(ch, vnetID, subnetName, prepopulateDefaultWorkerCount); err != nil {
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	return nil
+}
+
+func (a *IPAllocator) InsertAllocations(vnetID, subnetName string, allocations []datamodel.IPAllocationEntity, workerCount int) *api.JsonErr {
+	ch := a.rowBatchProducer(allocations)
+
+	if err := a.rowBatchConsumer(ch, vnetID, subnetName, workerCount); err != nil {
 		return api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
@@ -643,8 +631,7 @@ var cosmosThrottleRetrier = retry.Retrier{
 	ExpBackoff: true,
 }
 
-func (a *IPAllocator) rowBatchConsumer(in chan []datamodel.IPAllocationEntity, vnetID, subnetName string) error {
-	workerCount := 10
+func (a *IPAllocator) rowBatchConsumer(in chan []datamodel.IPAllocationEntity, vnetID, subnetName string, workerCount int) error {
 	var g sync.WaitGroup
 	g.Add(workerCount)
 
@@ -718,7 +705,7 @@ func (r *rowBatchError) addKey(key string) {
 	r.m.Unlock()
 }
 
-func generateIPAllocationEntitiesForSubnet(subnet *net.IPNet) ([]datamodel.IPAllocationEntity, error) {
+func GenerateIPAllocationEntitiesForSubnet(subnet *net.IPNet) ([]datamodel.IPAllocationEntity, error) {
 	subnetBlockSize := subnetMaxHostCount(subnet)
 
 	loIPBound := int(utils.IP2Int(subnet.IP))

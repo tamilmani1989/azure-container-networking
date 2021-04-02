@@ -136,9 +136,6 @@ func (s *subnetHandler) logErrorf(format string, args ...interface{}) {
 	s.logger.Errorf("[subnet handler] vnet %s subnet %s - %s", s.subnetInfo.vnetID, s.subnetInfo.subnetName, fmt.Sprintf(format, args...))
 }
 
-// todo: batch processing is only enabled for managed DNC.
-//  as we onboard more scenarios onto mDNC, we also need to port certain functionality such as
-//  reading allocations from nodes, which is specific to WebApps.
 func (s *subnetHandler) process(batch requestSet) {
 	start := time.Now()
 

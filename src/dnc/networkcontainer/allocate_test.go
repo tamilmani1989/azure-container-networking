@@ -327,7 +327,7 @@ func extractAllocationIDs(a fakes.AllocationRepo) map[string]struct{} {
 
 func TestGenerateAllRows(t *testing.T) {
 	_, subnet, _ := net.ParseCIDR("10.0.0.0/16")
-	rows, _ := generateIPAllocationEntitiesForSubnet(subnet)
+	rows, _ := GenerateIPAllocationEntitiesForSubnet(subnet)
 	if len(rows) != 65536 {
 		t.Fatalf("expected 65536 rows, got %d", len(rows))
 	}
@@ -387,7 +387,7 @@ func TestPrepopulateRows(t *testing.T) {
 		}
 
 		_, subnet, _ := net.ParseCIDR(cidr)
-		allAllocs, _ := generateIPAllocationEntitiesForSubnet(subnet)
+		allAllocs, _ := GenerateIPAllocationEntitiesForSubnet(subnet)
 		require.Len(t, allAllocs, slash16HostCount)
 
 		// simulate dispersed batch ranges from previous run that succeeded

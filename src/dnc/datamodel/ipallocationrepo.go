@@ -6,6 +6,7 @@ import (
 	"dnc/datastoreshim"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
@@ -45,6 +46,25 @@ func EncodeIPAllocationKey(allocatedSubnet string) string {
 // DecodeIPAllocationKey decodes the primary key for IP allocations table
 func DecodeIPAllocationKey(allocatedSubnet string) string {
 	return strings.Replace(allocatedSubnet, "_", "/", 1)
+}
+
+type IPAllocationPartitionKey struct {
+	Network string
+	Subnet  string
+}
+
+var ipAllocPartitionKeyRegex = regexp.MustCompile(`^Network_(.*?)_Subnet_(.*?)$`)
+
+func ParseIPAllocationPartitionKey(partitionKey string) (IPAllocationPartitionKey, error) {
+	submatches := ipAllocPartitionKeyRegex.FindStringSubmatch(partitionKey)
+	if len(submatches) != 3 {
+		return IPAllocationPartitionKey{}, fmt.Errorf("string %q not in ip allocation partition key format %q", partitionKey, ipAllocPartitionKeyRegex.String())
+	}
+
+	return IPAllocationPartitionKey{
+		Network: submatches[1],
+		Subnet:  submatches[2],
+	}, nil
 }
 
 func StorageEntityToIPAllocationEntity(e *storage.Entity) IPAllocationEntity {
@@ -146,7 +166,35 @@ func (a *AllocationRepo) QueryIPAllocationsByReservationKey(networkID, subnetNam
 	return rows, nil
 }
 
+// todo: make configurable?
+//  testing showed that it's possible to query up to 250 distinct allocation ids with a query filter.
+//  making 200 to leave some wiggle room
+const maxQueryableAllocationIDs = 200
+
 func (a *AllocationRepo) QueryIPAllocationsByAllocationID(networkID, subnetName string, allocationIDs []string) ([]IPAllocationEntity, *api.JsonErr) {
+	if len(allocationIDs) == 0 {
+		return nil, nil
+	}
+
+	var batches [][]string
+	for len(allocationIDs) > maxQueryableAllocationIDs {
+		allocationIDs, batches = allocationIDs[maxQueryableAllocationIDs:], append(batches, allocationIDs[0:maxQueryableAllocationIDs])
+	}
+	batches = append(batches, allocationIDs)
+
+	var allEntities []IPAllocationEntity
+	for _, batch := range batches {
+		entities, err := a.queryIPAllocationsByAllocationID(networkID, subnetName, batch)
+		if err != nil {
+			return nil, err
+		}
+		allEntities = append(allEntities, entities...)
+	}
+
+	return allEntities, nil
+}
+
+func (a *AllocationRepo) queryIPAllocationsByAllocationID(networkID, subnetName string, allocationIDs []string) ([]IPAllocationEntity, *api.JsonErr) {
 	partitionKey := GetSubnetKey(networkID, subnetName)
 	filter := azurestorage.BuildFilterOnProperty(partitionKey, AllocationIDProperty, allocationIDs)
 
@@ -234,8 +282,8 @@ func (a *AllocationRepo) InsertIPAllocationEntities(networkID, subnetName string
 
 func (a *AllocationRepo) UpdateIPAllocationEntities(networkID, subnetName string, ipAllocationEntities []IPAllocationEntity) *api.JsonErr {
 	if len(ipAllocationEntities) == 0 {
-        return nil
-    }
+		return nil
+	}
 
 	storageEntities := make([]storage.Entity, len(ipAllocationEntities))
 	for i, entity := range ipAllocationEntities {
