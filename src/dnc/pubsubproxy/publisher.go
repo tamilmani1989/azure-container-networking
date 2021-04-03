@@ -59,7 +59,7 @@ func (mc *madariClient) createPublisher(
 	}
 
 	defaultPublisher := CreateDefaultMadariPublisher(scheme, identifier, madariPublisherCallback)
-	return &defaultPublisher
+	return defaultPublisher
 }
 
 func (mc *madariClient) deletePublisher(
@@ -74,7 +74,7 @@ func (mc *madariClient) createSubscriber(
 	}
 
 	defaultSubscriber := CreateDefaultMadariSubscriber(madariSubscriberCallback)
-	return &defaultSubscriber
+	return defaultSubscriber
 }
 
 func (mc *madariClient) deleteSubscriber(
