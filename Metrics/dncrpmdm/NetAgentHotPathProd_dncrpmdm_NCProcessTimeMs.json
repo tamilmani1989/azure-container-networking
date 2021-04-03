@@ -233,18 +233,19 @@
     },
     {
       "dimensions": [
+        "Region",
+        "SubscriptionID",
         "ErrorCode",
         "NCState",
         "Status"
       ],
       "disabledTimeInUtc": "",
-      "displayName": "ErrorCode-NCState-Status",
+      "displayName": "Region-SubscriptionID-ErrorCode-NCState-Status",
       "distinctCountColumns": [],
       "doNotUseCacheServer": true,
-      "effectiveTimeInUtc": "",
+      "effectiveTimeInUtc": "2021-04-03T17:38:12.5047065Z",
       "isFilterBased": false,
       "isMStoreAggregated": true,
-      "metricsStoreMigrationTimeUtc": "",
       "minMaxMetricsEnabled": false,
       "percentileMetricsEnabled": false,
       "preaggregateThrottled": false,
