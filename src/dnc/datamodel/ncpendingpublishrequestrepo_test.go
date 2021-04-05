@@ -71,7 +71,7 @@ func TestNcPendingPublishRequestRepo_TryFilterNcPendingPublish(t *testing.T) {
 			testDataStore := getTestDataStore()
 			hydrateTestNCPendingPublishRepo(testDataStore, tt.fields.tableData)
 			n := &NcPendingPublishRequestRepo{
-				data: testDataStore,
+				dataStore: testDataStore,
 			}
 			// TODO: testpersistencestore datastoreshim currently returns all on any QueryFilter,
 			// need to complete that implementation before this test is complete

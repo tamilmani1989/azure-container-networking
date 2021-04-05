@@ -72,7 +72,7 @@ type NetworkRepo interface {
 
 // A NcPendingPublishRequestContextRepo performs CRUD operations on NC pending publish request contexts
 type NcPendingPublishRequestContextRepo interface {
-	GetNcPendingPublishRequestContexts() (map[string]datamodel.NcPendingPublishRequestContext, error)
+	GetNcPendingPublishRequestContexts() (map[string]datamodel.NcPendingPublishRequestContext, *api.JsonErr)
 	RemoveNcPendingPublishContext(networkID, networkContainerID, pubsubAzID string) *api.JsonErr
 	CreateOrUpdateNcPendingPublishRequest(requestContext *datamodel.NcPendingPublishRequestContext) *api.JsonErr
 	QueryNcPendingPublishContext(key string) (*datamodel.NcPendingPublishRequestContext, *api.JsonErr)

@@ -517,6 +517,7 @@ func UpdateNCToReservationAssociation(
 }
 
 // TryQueryAllNetworks queries for all networkconfigurations managed by this dnc and returns their IDs
+// TODO: Change all the repo methods to return *api.JsonErr instead of error
 func TryQueryAllNetworks() ([]string, error) {
 	var hasMoreData bool
 	var result []*storage.Entity
@@ -2353,135 +2354,6 @@ func GetNCLimitForNode(nodeIP string) (int, *api.JsonErr) {
 	}
 
 	return getNCLimitFromNumCores(resp.NumOfCPUCores), nil
-}
-
-// GetNcPendingPublishRequestContexts - Retrieve all NC publish / unpublish pending request contexts
-func GetNcPendingPublishRequestContexts() (map[string]NcPendingPublishRequestContext, error) {
-	var (
-		context           interface{}
-		requestsToProcess = make(map[string]NcPendingPublishRequestContext)
-	)
-
-	for {
-		entities, hasMoreData, cx, status, err := dataStoreShim.QueryAllRows(NcPendingPublishContextTableName, context)
-		if err != nil {
-			if status == http.StatusNotFound {
-				return make(map[string]NcPendingPublishRequestContext), nil
-			}
-
-			return nil, err
-		}
-
-		for _, entity := range entities {
-			serializedRequestContext := entity.Properties[NcPendingPublishContextTag].(string)
-			var requestContext NcPendingPublishRequestContext
-			if err := json.Unmarshal([]byte(serializedRequestContext), &requestContext); err != nil {
-				return nil, err
-			}
-			requestsToProcess[entity.RowKey] = requestContext
-		}
-
-		if !hasMoreData {
-			break
-		}
-
-		context = cx
-	}
-
-	return requestsToProcess, nil
-}
-
-// RemoveNcPendingPublishContext - Remove pending NC publish / unpublish context from the table.
-func RemoveNcPendingPublishContext(
-	networkID, networkContainerID string,
-	pubsubAzId string) *api.JsonErr {
-	key := GetNcPendingPublishContextKey(networkID, networkContainerID, pubsubAzId)
-	if err := dataStoreShim.Delete(NcPendingPublishContextTableName, key); err != nil {
-		return api.InternalServerErrorf(api.StatusInternalServerError,
-			"could not delete pending pubsub job: %s. Error: %v", key, err)
-	}
-
-	return nil
-}
-
-// CreateOrUpdateNcPendingPublishRequest - Creates or updates NC publish / unpublish context from the table.
-func CreateOrUpdateNcPendingPublishRequest(
-	requestContext *NcPendingPublishRequestContext) *api.JsonErr {
-	return persistNcPendingPublishContext(requestContext)
-}
-
-func persistNcPendingPublishContext(
-	context *NcPendingPublishRequestContext) *api.JsonErr {
-	var (
-		jsonSerializedBytes []byte
-		err                 error
-	)
-
-	jsonSerializedBytes, err = json.Marshal(context)
-	if err != nil {
-		msg := fmt.Sprintf("Failed to serialize pending NC publish context for NC: %s, Error: %s",
-			context.NetworkContainerID,
-			err.Error())
-		loggershim.LS.Errorf("%s", msg)
-
-		return &api.JsonErr{
-			Code:       api.JsonMarshallingFailed,
-			HTTPStatus: http.StatusInternalServerError,
-			Text:       msg}
-	}
-
-	key := GetNcPendingPublishContextKey(context.NetworkID, context.NetworkContainerID, context.PubsubAzId)
-	err = dataStoreShim.InsertOrUpdate(NcPendingPublishContextTableName,
-		key,
-		TableToColumnMap[NcPendingPublishContextTableName],
-		string(jsonSerializedBytes[:]))
-	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to persist pending NC publish context for key: %s. Error: %s",
-			key,
-			err.Error())
-		loggershim.LS.Errorf("%s", msg)
-
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	return nil
-}
-
-func QueryNcPendingPublishContext(key string) (*NcPendingPublishRequestContext, *api.JsonErr) {
-	entity, status, err := dataStoreShim.Query(NcPendingPublishContextTableName, key)
-	if err != nil && status != http.StatusNotFound {
-		msg := fmt.Sprintf(
-			"Failed to retrieve pending NC publish context for key:[%s] due to error:[%s]",
-			key,
-			err.Error())
-		return nil, &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	if entity == nil {
-		return nil, nil
-	}
-
-	serializedContextData := entity.Properties[NcPendingPublishContextTag].(string)
-	var pendingPublishContext NcPendingPublishRequestContext
-	if err := json.Unmarshal([]byte(serializedContextData), &pendingPublishContext); err != nil {
-		msg := fmt.Sprintf(
-			"Failed to unmarshal pending NC publish context for key:[%s] due to error:[%s]",
-			key,
-			err)
-		return nil, &api.JsonErr{
-			Code:       api.JsonBodyUnMarshalFailed,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
-	}
-
-	return &pendingPublishContext, nil
 }
 
 // GetNetworkContainerRequest :- compile and retrieve cns.CreateNetworkContainerRequest to update CNS state

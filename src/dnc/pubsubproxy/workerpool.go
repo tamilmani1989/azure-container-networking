@@ -212,7 +212,12 @@ func (wp *workerPoolContext) processNcPendingPublishRequests() {
 }
 
 func processNcPendingRequests() {
-	pendingPublishRequests, _ := ncPendingPublishRequestContextRepo.GetNcPendingPublishRequestContexts()
+	pendingPublishRequests, err := ncPendingPublishRequestContextRepo.GetNcPendingPublishRequestContexts()
+	if err != nil {
+		logErrorf("could not get pending pubsub requests. error: %+v", err)
+		return
+	}
+
 	if len(pendingPublishRequests) == 0 {
 		return
 	}
@@ -444,10 +449,10 @@ func (job *ncJob) process() error {
 		// Delete the pending context table entry only if the timestamp matches.
 		// This avoids deletion of the updated entry
 		if jobContext.createdDateTime.Equal(pendingPublishContext.CreatedDateTime) {
-			err = ncPendingPublishRequestContextRepo.RemoveNcPendingPublishContext(job.vnetId, job.ncId, jobContext.pubsubAzId)
-			if err != nil {
-				logErrorf("Failed to delete pending publish request %s for NC: %s. Error: %v",
-					jobContext.jobType.String(), pendingPublishContext.NetworkContainerID, err)
+			errDbOp := ncPendingPublishRequestContextRepo.RemoveNcPendingPublishContext(job.vnetId, job.ncId, jobContext.pubsubAzId)
+			if errDbOp != nil {
+				err = fmt.Errorf("Failed to delete pending publish request %s for NC: %s. Error: %v",
+					jobContext.jobType.String(), pendingPublishContext.NetworkContainerID, errDbOp)
 			}
 		}
 	}

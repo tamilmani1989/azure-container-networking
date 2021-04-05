@@ -46,6 +46,10 @@ type madariClientInterface interface {
 type madariClient struct {
 }
 
+// Compile time check for type satisfying the interface
+var _ MadariPublisher = DefaultMadariPublisher{}
+var _ MadariSubscriber = DefaultMadariSubscriber{}
+
 func newMadariClient() madariClientInterface {
 	return &madariClient{}
 }

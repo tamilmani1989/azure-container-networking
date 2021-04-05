@@ -311,7 +311,7 @@ func NewNcPendingPublishRequestContextRepo() *NcPendingPublishRequestContextRepo
 	return &NcPendingPublishRequestContextRepo{}
 }
 
-func (f *NcPendingPublishRequestContextRepo) GetNcPendingPublishRequestContexts() (map[string]datamodel.NcPendingPublishRequestContext, error) {
+func (f *NcPendingPublishRequestContextRepo) GetNcPendingPublishRequestContexts() (map[string]datamodel.NcPendingPublishRequestContext, *api.JsonErr) {
 	m := make(map[string]datamodel.NcPendingPublishRequestContext)
 	f.Data.Range(func(key interface{}, value interface{}) bool {
 		m[key.(string)] = value.(datamodel.NcPendingPublishRequestContext)

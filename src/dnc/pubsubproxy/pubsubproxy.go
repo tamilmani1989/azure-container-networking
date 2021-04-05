@@ -423,7 +423,7 @@ func Init(
 	logger = lgr
 	sessionManager = utils.NewSessionManager([]string{
 		datamodel.NCPendingPublishRepositoryName})
-	ncPendingPublishRequestContextRepo = new(datamodel.NcPendingPublishRequestContextRepo)
+	ncPendingPublishRequestContextRepo = datamodel.NcPendingPublishRepo
 	networkRepo = new(datamodel.NetworkRepo)
 	azureEnvironmentName = azureEnvName
 	aznmClient = client
@@ -455,5 +455,5 @@ func Init(
 func Deinit() {
 	deinitPublishers()
 	deinitSubscriber()
-	logDebugf("Successfully de-initialized")
+	logDebugf("Successfully de-initialized all publishers and subscriber")
 }

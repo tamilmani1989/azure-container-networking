@@ -174,7 +174,7 @@ func PublishBaremetalNetworkContainer(
 			pubsubAzId)
 		sessionInfo := map[string]string{datamodel.NCPendingPublishRepositoryName: ncPendingPublishContextKey}
 		sessionManager.BeginWriteSession(sessionInfo)
-		err := datamodel.CreateOrUpdateNcPendingPublishRequest(&ncPendingPublishRequestContext)
+		err := datamodel.NcPendingPublishRepo.CreateOrUpdateNcPendingPublishRequest(&ncPendingPublishRequestContext)
 		sessionManager.EndWriteSession(sessionInfo)
 
 		if err != nil {
@@ -259,7 +259,7 @@ func UnpublishBaremetalNetworkContainer(
 			pubsubAzId)
 		sessionInfo := map[string]string{datamodel.NCPendingPublishRepositoryName: ncPendingPublishContextKey}
 		sessionManager.BeginWriteSession(sessionInfo)
-		err := datamodel.CreateOrUpdateNcPendingPublishRequest(&pendingNcUnpublishRequestContext)
+		err := datamodel.NcPendingPublishRepo.CreateOrUpdateNcPendingPublishRequest(&pendingNcUnpublishRequestContext)
 		sessionManager.EndWriteSession(sessionInfo)
 
 		if err != nil {
