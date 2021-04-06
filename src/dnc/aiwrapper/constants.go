@@ -24,6 +24,9 @@ const (
 	NCOperationErrorCodeStr = "ErrorCode"
 	SubNetStr               = "SubNet"
 	DNCNCSnapshotStr        = "DNCNCSnapshot"
+	AzIdorNameStr           = "AzId"
+	AznmAPINameStr          = "AznmAPIName"
+	AznmAPIResultStr        = "AznmAPIResult"
 
 	// DataStore operation dimensions
 	OperationStr = "DataStoreOperation"

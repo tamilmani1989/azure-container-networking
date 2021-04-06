@@ -4,6 +4,7 @@ package pubsubproxy
 
 import (
 	"context"
+	"dnc/aiwrapper"
 	"dnc/api"
 	"dnc/aznm"
 	"dnc/datamodel"
@@ -14,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/azure-container-networking/aitelemetry"
+
 	sdn "dnc/microsoft/azure/sdncontracts"
 
 	"github.com/Azure/azure-container-networking/cns"
@@ -22,14 +25,15 @@ import (
 
 const (
 	// Version is unused field at this point. So are just using 1 for now.
-	version = 1
+	version      = 1
 	ipconfigName = "CA"
 )
 
 type aznmOperationType string
+
 const (
 	updateContainer aznmOperationType = "UpdateContainer"
-	deleteContainer = "DeleteContainer"
+	deleteContainer                   = "DeleteContainer"
 )
 
 // TODO:  remove duplication by combining to one function
@@ -188,8 +192,8 @@ func PublishBaremetalNetworkContainer(
 	assocInfo := repoNCConfig.GetAssociationInfo()
 	logicalId := RetrieveLogicalContainerIdFromPodName(podInfo.PodName)
 	jobId := createAznmJobId(repoNCConfig.NetworkID, repoNCConfig.NetworkContainerID)
-	err = InvokeAznmContainerApi(updateContainer, ncGoalState.AZIdOrName, assocInfo.NodeID,logicalId, repoNCConfig.GetInstanceID(), jobId)
-	if err != nil{
+	err = InvokeAznmContainerApi(updateContainer, ncGoalState.AZIdOrName, assocInfo.NodeID, logicalId, repoNCConfig.GetInstanceID(), jobId)
+	if err != nil {
 		msg := fmt.Sprintf("PublishBareMetalNetworkContainer for NC: %s failed due to aznm error: %v",
 			repoNCConfig.NetworkContainerID, err)
 		return api.InternalServerError(api.PublishingFailed, msg)
@@ -275,8 +279,8 @@ func UnpublishBaremetalNetworkContainer(
 	assocInfo := repoNCConfig.GetAssociationInfo()
 	logicalId := RetrieveLogicalContainerIdFromPodName(podInfo.PodName)
 	jobId := createAznmJobId(repoNCConfig.NetworkID, repoNCConfig.NetworkContainerID)
-	err := InvokeAznmContainerApi(deleteContainer, ncGoalState.AZIdOrName, assocInfo.NodeID,logicalId, repoNCConfig.GetInstanceID(), jobId)
-	if err != nil{
+	err := InvokeAznmContainerApi(deleteContainer, ncGoalState.AZIdOrName, assocInfo.NodeID, logicalId, repoNCConfig.GetInstanceID(), jobId)
+	if err != nil {
 		msg := fmt.Sprintf("UnpublishNetworkContainer for NC: %s failed due to aznm error: %v",
 			repoNCConfig.NetworkContainerID, err)
 		return api.InternalServerError(api.UnpublishingFailed, msg)
@@ -293,6 +297,28 @@ func RetrieveLogicalContainerIdFromPodName(podName string) string {
 	return splits[1]
 }
 
+//sendAznmAPIMetric sends performance time metric for the AznmContainerAPI calls
+//Dimensions are - AzId or AzName, DNC Version, Call result (Success/Failure), ApiCallName - updateContainer/deleteContainer
+//Metric value it sends - Time taken for the AznmContainerAPI call
+func sendAznmAPIMetric(
+	metricName string,
+	metricValue float64,
+	azId, apiName, aznmApiResult string) {
+	customDimensions := make(map[string]string)
+	metric := aitelemetry.Metric{
+		Name:             metricName,
+		Value:            metricValue,
+		CustomDimensions: customDimensions,
+	}
+
+	metric.CustomDimensions[aiwrapper.AzIdorNameStr] = azId
+	metric.CustomDimensions[aiwrapper.DNCVersionStr] = utils.Version
+	metric.CustomDimensions[aiwrapper.AznmAPINameStr] = apiName
+	metric.CustomDimensions[aiwrapper.AznmAPIResultStr] = aznmApiResult
+
+	go aiwrapper.SendMetric(metric)
+}
+
 func InvokeAznmContainerApi(
 	operType aznmOperationType,
 	azIdOrName, nodeId, logicalId, physicalId, jobId string) error {
@@ -307,17 +333,33 @@ func InvokeAznmContainerApi(
 	loggershim.LS.Debugf("Starting %s in Aznm. ActivityId: %s, logicalId %s, physicalId %s, nodeId %s, Job %s",
 		operType, aznmReq.ActivityId, logicalId, physicalId, nodeId, jobId)
 
+	startTime := time.Now()
+	var apiCallTimeMs int64
+
 	if operType == updateContainer {
 		err = aznmClient.UpdateContainer(
 			context.Background(), aznmReq, logicalId, physicalId, nodeId)
-	} else if  operType == deleteContainer {
+	} else if operType == deleteContainer {
 		err = aznmClient.DeleteContainer(
 			context.Background(), aznmReq, logicalId, physicalId)
-	} else  {
+	} else {
 		err = fmt.Errorf("invalid Aznm container api specified :%s", operType)
 	}
+	apiCallTimeMs = time.Since(startTime).Milliseconds()
 
-	if  err != nil {
+	var aznmCallResult string
+	if err != nil {
+		aznmCallResult = aiwrapper.Failed
+	} else {
+		aznmCallResult = aiwrapper.Succeeded
+	}
+
+	//Emit Metric for AznmContainerAPI performance time if operation type is valid
+	if operType == updateContainer || operType == deleteContainer {
+		sendAznmAPIMetric("ApiCallTimeMetric", float64(apiCallTimeMs), azIdOrName, string(operType), aznmCallResult)
+	}
+
+	if err != nil {
 		loggershim.LS.Debugf("%s in Aznm failed. ActivityId: %s, Job: %s, error: %s",
 			operType, aznmReq.ActivityId, jobId, err)
 
