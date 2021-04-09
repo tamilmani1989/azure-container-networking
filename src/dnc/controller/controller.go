@@ -489,6 +489,13 @@ func (c *Controller) DeleteSubnetV2(networkID, subnetName string) *api.JsonErr {
 		return err
 	}
 
+	if config.FeatureFlagSettings.UsePrepopulatedIPAllocations {
+		if err := c.ipAllocator.DepopulateSubnet(networkID, subnetName); err != nil {
+			loggershim.LS.Errorf("Failed to delete prepopulated allocations for subnet %s in network %s: %v", subnetName, networkID, err)
+			return err
+		}
+	}
+
 	subnetConfigs, err := datamodel.TryQueryAllSubnetConfigsInNetworkConfig(networkConfiguration)
 	if err != nil {
 		loggershim.LS.Errorf("Failed to get all the subnet configs in network: %s. Error: %v", networkID, err)

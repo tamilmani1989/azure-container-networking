@@ -369,6 +369,15 @@ func TestPrepopulateRows(t *testing.T) {
 		require.Nil(t, err)
 
 		assert.Len(t, allocs, slash16HostCount)
+
+		t.Run("can be removed", func(t *testing.T) {
+			err := a.DepopulateSubnet(vnetID, subnetName)
+			require.Nil(t, err)
+
+			allocs, err := allocRepo.TryQueryAllIPAllocations(vnetID, subnetName)
+			require.Nil(t, err)
+			assert.Len(t, allocs, 0)
+		})
 	})
 
 	t.Run("should be retryable", func(t *testing.T) {

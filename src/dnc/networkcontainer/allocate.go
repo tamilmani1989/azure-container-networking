@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Azure/azure-container-networking/cns"
@@ -574,6 +575,8 @@ const prepopulateDefaultWorkerCount = 10
 // Given the batch slicing strategy (batches for a given subnet should always contain the same elements, conflicts
 // are handled), this operation is safe to retry.
 func (a *IPAllocator) PrepopulateSubnet(vnetID, subnetName, subnetCIDR string) *api.JsonErr {
+	logger := loggershim.WithPrefixf(a.Logger, "[prepopulate subnet] vnet %s subnet %s", vnetID, subnetName)
+
 	_, subnet, err := net.ParseCIDR(subnetCIDR)
 	if err != nil {
 		return api.InternalServerErrorf(api.StatusInternalServerError, "vnet ID %s subnet %s: could not parse subnet CIDR: %v", vnetID, subnetName, err)
@@ -584,6 +587,7 @@ func (a *IPAllocator) PrepopulateSubnet(vnetID, subnetName, subnetCIDR string) *
 		return api.InternalServerErrorf(api.StatusInternalServerError, "vnet ID %s subnet %s: could not generate subnet rows: %v", vnetID, subnetName, err)
 	}
 
+	logger.Debugf("persisting %d rows for cidr %s", len(allAllocs), subnetCIDR)
 	ch := a.rowBatchProducer(allAllocs)
 
 	if err := a.rowBatchConsumer(ch, vnetID, subnetName, prepopulateDefaultWorkerCount); err != nil {
@@ -597,7 +601,7 @@ func (a *IPAllocator) InsertAllocations(vnetID, subnetName string, allocations [
 	ch := a.rowBatchProducer(allocations)
 
 	if err := a.rowBatchConsumer(ch, vnetID, subnetName, workerCount); err != nil {
-		return api.InternalServerError(api.StatusInternalServerError, err.Error())
+		return api.InternalServerErrorf(api.StatusInternalServerError, "vnet ID %s subnet %s: could not persist subnet rows: %v", vnetID, subnetName, err)
 	}
 
 	return nil
@@ -635,9 +639,7 @@ func (a *IPAllocator) rowBatchConsumer(in chan []datamodel.IPAllocationEntity, v
 	var g sync.WaitGroup
 	g.Add(workerCount)
 
-	logf := func(format string, args ...interface{}) {
-		a.Logger.Debugf("[prepopulate subnet] vnet %s subnet %s - %s", vnetID, subnetName, fmt.Sprintf(format, args...))
-	}
+	logger := loggershim.WithPrefixf(a.Logger, "[prepopulate subnet] vnet %s subnet %s", vnetID, subnetName)
 
 	var batchError rowBatchError
 	for i := 0; i < workerCount; i++ {
@@ -656,25 +658,25 @@ func (a *IPAllocator) rowBatchConsumer(in chan []datamodel.IPAllocationEntity, v
 
 					// if we get a valid result (row key is populated), then the batch has already been processed.
 					if alloc.RowKey != "" {
-						logf("batch starting with key %s already persisted", firstKey)
+						logger.Debugf("batch starting with key %s already persisted", firstKey)
 						return nil
 					}
 
 					// attempt to persist, but handle conflict since it is still possible.
 					if err := a.Allocations.InsertIPAllocationEntities(vnetID, subnetName, entities); err != nil {
 						if err.HTTPStatus == http.StatusConflict {
-							logf("batch starting with key %s already exists", firstKey)
+							logger.Debugf("batch starting with key %s already exists", firstKey)
 							return nil
 						}
 						return err
 					}
 
-					logf("batch starting with key %s successfully persisted", firstKey)
+					logger.Debugf("batch starting with key %s successfully persisted", firstKey)
 					return nil
 				}
 
 				if err := cosmosThrottleRetrier.Do(context.TODO(), retryableFunc); err != nil {
-					logf("could not persist batch starting with key %s: %v", firstKey, err)
+					logger.Debugf("could not persist batch starting with key %s: %v", firstKey, err)
 					batchError.addKey(firstKey)
 				}
 			}
@@ -696,7 +698,7 @@ type rowBatchError struct {
 }
 
 func (r *rowBatchError) Error() string {
-	return fmt.Sprintf("could not persist batches starting with keys: %+v", r.keys)
+	return fmt.Sprintf("could not process batches starting with keys: %+v", r.keys)
 }
 
 func (r *rowBatchError) addKey(key string) {
@@ -731,6 +733,68 @@ func GenerateIPAllocationEntitiesForSubnet(subnet *net.IPNet) ([]datamodel.IPAll
 	}
 
 	return rows, nil
+}
+
+func (a *IPAllocator) DepopulateSubnet(vnetID, subnetName string) *api.JsonErr {
+	logger := loggershim.WithPrefixf(a.Logger, "[depopulate subnet] vnet %s subnet %s", vnetID, subnetName)
+
+	// todo: consider processing each page of results as soon as fetched, since this function call can be slow for large subnets
+	remainingAllocs, err := a.Allocations.TryQueryAllIPAllocations(vnetID, subnetName)
+	if err != nil {
+		return err
+	}
+
+	if len(remainingAllocs) == 0 {
+		logger.Debugf("no allocations to delete")
+		return nil
+	}
+
+	logger.Debugf("deleting %d rows", len(remainingAllocs))
+
+	inputCh := a.rowBatchProducer(remainingAllocs)
+
+	var (
+		errCount int64
+		wg       sync.WaitGroup
+	)
+
+	workerCount := 5
+	wg.Add(workerCount)
+
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			defer wg.Done()
+			for rows := range inputCh {
+				keys := getKeys(rows)
+				lenKeys := len(keys)
+
+				if err := a.Allocations.DeleteIPAllocations(vnetID, subnetName, keys); err != nil {
+					logger.Errorf("could not delete batch size %d: %v", lenKeys, err)
+					atomic.AddInt64(&errCount, int64(lenKeys))
+					continue
+				}
+
+				logger.Debugf("deleted batch size %d", lenKeys)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	if errCount > 0 {
+		msg := fmt.Sprintf("could not delete %d out of %d allocations remaining in vnet %s subnet %s", errCount, len(remainingAllocs), vnetID, subnetName)
+		return api.InternalServerError(api.StatusInternalServerError, msg)
+	}
+
+	return nil
+}
+
+func getKeys(rows []datamodel.IPAllocationEntity) []string {
+	keys := make([]string, len(rows))
+	for i, row := range rows {
+		keys[i] = row.RowKey
+	}
+	return keys
 }
 
 // DeleteIPReservation - Delete an IP Reservation.
