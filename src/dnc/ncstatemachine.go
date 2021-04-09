@@ -41,7 +41,7 @@ func initNetworkContainerStateMachine() {
 	}
 
 	macManagerClient = &macmgr.MacManagerConnection{
-		HttpClient:        httpClient,
+		HttpClient:        macAllocatorHttpClient,
 		MacManagerSetting: &config.MacManagerSettings,
 	}
 

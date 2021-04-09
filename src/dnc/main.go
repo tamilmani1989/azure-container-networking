@@ -71,6 +71,9 @@ var (
 
 	// HTTP client object to be used by to call cns
 	cnsHttpClient *http.Client
+
+	// HTTP client object to be used by DNC to call Mac Allocator
+	macAllocatorHttpClient *http.Client
 )
 
 const (
@@ -78,6 +81,7 @@ const (
 	maxLogFileCount           = 8                // Set 8 as max log file count.
 	maxKeyvaultRetrievalTime  = 10
 	tempPubSubCertFilePattern = "pubsubcert-*.pem"
+	sslCertServerName         = "dnc.azure.com"
 )
 
 func printVersion() {
@@ -207,6 +211,18 @@ func main() {
 				Timeout: time.Duration(config.HttpClientSettings.ConnectionTimeout) * time.Second,
 			}).DialContext,
 			ResponseHeaderTimeout: time.Duration(config.HttpClientSettings.ResponseHeaderTimeout) * time.Second,
+		},
+	}
+
+	// For MacAllocator communication certificate validation is diabled for now.
+	// this wil be enabled after generating new SSL cert for DNC.
+	macAllocatorHttpClient = &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: time.Duration(config.HttpClientSettings.ConnectionTimeout) * time.Second,
+			}).DialContext,
+			ResponseHeaderTimeout: time.Duration(config.HttpClientSettings.ResponseHeaderTimeout) * time.Second,
+			TLSClientConfig:       &tls.Config{ServerName: sslCertServerName},
 		},
 	}
 
