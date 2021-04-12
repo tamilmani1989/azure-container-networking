@@ -1,5 +1,4 @@
 {
-  "allSeriesThrottleLimit": 480000,
   "apPkiAcls": [
     {
       "acl": "APMF\\AzOrchestrator.*. *",
@@ -25,9 +24,11 @@
       "thumbprint": "8A086626C94B976403E08CF454339CEED7154BA9"
     }
   ],
-  "clientMetricCountPerMinuteLimit": 50000000,
-  "cloudReplicationType": "Public",
   "contributors": [
+    {
+      "alias": "kmurudi",
+      "role": "Administrator"
+    },
     {
       "alias": "matlong",
       "role": "Administrator"
@@ -61,7 +62,6 @@
       "role": "Administrator"
     }
   ],
-  "deleted": false,
   "description": null,
   "displayName": null,
   "dsmsAcls": [
@@ -86,13 +86,6 @@
       "role": "Administrator"
     }
   ],
-  "endpointForAlternateQuery": null,
-  "endpointForClientForking": "",
-  "endpointsForClientForking": [],
-  "globalSamplesThrottlingLimitThousandsPerMinute": null,
-  "globalSamplesWithHistogramThrottlingLimitThousandsPerMinute": null,
-  "homeStampGslbHostname": "an3.metrics.nsatc.net",
-  "isThirdPartyAccount": false,
   "keyVaultAcls": [
     {
       "acl": "NetAgentHotPathProd.Health-1.automation.geneva.keyvault.com",
@@ -102,31 +95,11 @@
   ],
   "lastUpdatedBy": "matlong",
   "lastUpdateTime": "2020-12-21T16:12:25.0816166Z",
-  "maxMetricAge": "00:00:00",
-  "metricsStoreMigrationTimeUtcExceptPercentileDistinctCount": "2020-12-10T10:00:00-08:00",
-  "metricsStoreTimeSeriesThrottlingLimit": 5000000,
   "mirrorAccountSyncFlagsTable": {},
   "mirrorMonitoringAccountList": [],
-  "nameToIdMapForSecurityGroups": {
-    "redmonD\\admetricsadm": "d9333179-bb27-4285-828d-e73376daa8a6"
-  },
-  "newSeriesThrottleLimit": 400000,
-  "operationToGlobalThresholdWithFallback": {
-    "entries": {},
-    "fallbackValue": 0
-  },
-  "operationToLocalThresholdWithFallback": {
-    "entries": {},
-    "fallbackValue": 0
-  },
-  "preaggregateMergingEnabled": false,
-  "preferNewPreaggregateOnMetricsStore": true,
-  "priorHomeStampUrl": "https://prod4.metrics.nsatc.net",
-  "replicationState": 0,
   "securityGroups": {
     "amE\\AD-NET-AzureVMNetworkAgent": "Administrator"
   },
-  "stampMigrationTime": "2020-12-15T07:00:00Z",
   "tenant": "NetAgentHotPathProd",
   "version": 39
 }
