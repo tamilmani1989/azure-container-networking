@@ -26,6 +26,7 @@ const (
 	orchestratorPropertiesPropertyName          = "Properties"
 	orchestratorTypePropertyName                = "OrchestratorType"
 	kubernetesOrchestratorType                  = "Kubernetes"
+	kubeconfigOutputDirectory                   = "/etc/kubeconfigs" // TODO: make this configurable
 )
 
 type KubeconfigProvider struct {
@@ -98,6 +99,13 @@ func NewKubeconfigProvider(opts KubeconfigProviderOptions) (*KubeconfigProvider,
 			"managedDNCGUID":   opts.ManagedDNCGUID,
 			"azureEnvironment": opts.AzureEnvironment,
 		}),
+	}
+
+	// Ensure the output directory exists
+	if _, err := os.Stat(kubeconfigOutputDirectory); os.IsNotExist(err) {
+		if mkdirErr := os.Mkdir(kubeconfigOutputDirectory, os.ModeDir); mkdirErr != nil {
+			return nil, mkdirErr
+		}
 	}
 
 	return &k, nil
@@ -222,5 +230,13 @@ func (k *KubeconfigProvider) getKubeconfigForOrchestratorProperties(ctx context.
 		return nil, fmt.Errorf("Error executing kubeconfig template: %w", err)
 	}
 
-	return buffer.Bytes(), nil
+	kubeconfigBytes := buffer.Bytes()
+
+	// Save to file for easier debugging
+	filename := fmt.Sprintf("%s/%s.yaml", kubeconfigOutputDirectory, orchestratorProperties.OrchestratorAppID)
+	if err := ioutil.WriteFile(filename, kubeconfigBytes, 0700); err != nil {
+		k.logger.Errorf("Error saving kubeconfig file to disk: %v", err)
+	}
+
+	return kubeconfigBytes, nil
 }

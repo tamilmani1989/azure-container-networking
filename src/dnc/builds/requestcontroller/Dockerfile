@@ -28,6 +28,10 @@ RUN cd cmd/requestcontroller && \
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=vendor -a -o /usr/local/bin/requestcontroller \
 	-ldflags "-X dnc/utils.Version=$VERSION -X dnc/aiwrapper.aiMetadata=$aiMetadata -s -w" .
 
+# Get kubectl
+RUN curl -Lo /usr/local/bin/kubectl https://storage.googleapis.com/kubernetes-release/release/v1.18.12/bin/linux/amd64/kubectl \
+	&& chmod +x /usr/local/bin/kubectl
+
 # Copy into final image
 # For now, using alpine for ease of debugging, but this can be switched to scratch for smaller image size
 FROM alpine:latest
@@ -35,5 +39,6 @@ COPY --from=builder /usr/local/bin/requestcontroller \
 	/usr/local/bin/requestcontroller
 COPY --from=builder /usr/local/kubelogin/bin/linux_amd64/kubelogin /usr/local/bin/kubelogin
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 
 ENTRYPOINT [ "/usr/local/bin/requestcontroller" ]
