@@ -44,9 +44,19 @@ spec:
         - -stderr=true           
         ports:
         - containerPort: 9000
+          name: dncport
         env:
         - name : DNC_CONFIGURATION_PATH
-          value : /etc/dnc/dnc_config.json      
+          value : /etc/dnc/dnc_config.json
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: dncport
+            scheme: HTTP
+          failureThreshold: 3
+          periodSeconds: 60
+          timeoutSeconds: 5
+          initialDelaySeconds: 30      
       - name: gateway-container
         image: {{ .Values.containerregistry }}/{{ .Values.gatewaybuildtag }}
         volumeMounts:
