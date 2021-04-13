@@ -18,6 +18,7 @@ const (
 const (
 	AzStorage        = "Azure Storage"
 	Node             = "Node"
+	Nodes            = "Nodes"
 	Network          = "Network"
 	Subnet           = "Subnet"
 	Reservation      = "Reservation"

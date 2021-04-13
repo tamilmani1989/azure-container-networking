@@ -37,6 +37,12 @@ var routes = Routes{
 		GetNode,
 	},
 	Route{
+		"GetNodes",
+		http.MethodGet,
+		"/nodes",
+		GetNodes,
+	},
+	Route{
 		"CreateNetwork",
 		http.MethodPost,
 		"/networks/{networkID}",

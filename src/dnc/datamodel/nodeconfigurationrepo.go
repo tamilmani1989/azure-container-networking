@@ -2,6 +2,7 @@ package datamodel
 
 import (
 	"dnc/api"
+	"dnc/datastore/azurestorage"
 	"dnc/datastoreshim"
 	"dnc/logger/loggershim"
 	"dnc/utils"
@@ -180,6 +181,27 @@ func (n *NodeConfigurationRepo) TryQueryNodeConfigurationByKey(nodeKey string) (
 	return &repositoryNodeConfiguration, nil
 }
 
+func (n *NodeConfigurationRepo) TryQueryAllNodeConfigurations() ([]NodeConfiguration, *api.JsonErr) {
+	filter := azurestorage.BuildFilterOnPartition(dncPartitionKey)
+	entities, err := n.Datastore.QueryFilter(nodeTableName, filter)
+	if err != nil {
+		return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
+	}
+
+	nodeConfigs := make([]NodeConfiguration, len(entities))
+	for i, entity := range entities {
+		serializedNodeConfig := entity.Properties[nodeConfigurationTag].(string)
+		var nodeConfiguration NodeConfiguration
+		if err := json.Unmarshal([]byte(serializedNodeConfig), &nodeConfiguration); err != nil {
+			return nil, api.InternalServerErrorf(api.JsonBodyUnMarshalFailed, "Could not deserialize node %s. Error: %v", entity.RowKey, err)
+		}
+
+		nodeConfigs[i] = nodeConfiguration
+	}
+
+	return nodeConfigs, nil
+}
+
 // GetNodeInfo - Get node configuration for a given node.
 func (n *NodeConfigurationRepo) GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.JsonErr) {
 	repoNodeConfiguration, err := n.TryQueryNodeConfiguration(nodeID)
@@ -238,6 +260,27 @@ func (n *NodeConfigurationRepo) GetNodeInfo(nodeID string) (*api.NodeInfoRespons
 		ConstrainedReservations: constrainedReservations}
 
 	return &nodeConfiguration, nil
+}
+
+// GetNodes - Get a slim node info for all nodes
+func (n *NodeConfigurationRepo) GetNodes() (*api.NodesResponse, *api.JsonErr) {
+	nodeConfigurations, err := n.TryQueryAllNodeConfigurations()
+	if err != nil {
+		return nil, err
+	}
+
+	slimNodeInfos := make([]api.SlimNodeInfo, len(nodeConfigurations))
+
+	// Build a slice of slim node infos to return based on query result
+	for i, nodeConfiguration := range nodeConfigurations {
+		slimNodeInfos[i] = api.SlimNodeInfo{Name: nodeConfiguration.NodeID}
+	}
+
+	nodes := api.NodesResponse{
+		Nodes: slimNodeInfos,
+	}
+
+	return &nodes, nil
 }
 
 // UpdateNodeConstrainedReservationSet - Add/Remove reservation to constrained reservation set in node configuration

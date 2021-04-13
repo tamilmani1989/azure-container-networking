@@ -124,6 +124,21 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, getErr)
 }
 
+// GetNodes - Handler for getting all registered nodes
+func GetNodes(w http.ResponseWriter, r *http.Request) {
+	nodes, getErr := ctrler.GetNodes()
+	w.Header().Set(contentTypeStr, defaultContentType)
+	if getErr == nil {
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(&nodes); err != nil {
+			panic(err)
+		}
+		return
+	}
+
+	setRequestFailed(w, getErr)
+}
+
 // DeleteNode - Handle to delete node configuration
 func DeleteNode(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -1033,7 +1048,7 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 			subnetRequest.AuthenticationToken = ""
 		}
 
-		if  err := ctrler.PersistSubnetDelegationRequest(networkID, strings.ToLower(subnet), subnetRequest, isDelete); err != nil {
+		if err := ctrler.PersistSubnetDelegationRequest(networkID, strings.ToLower(subnet), subnetRequest, isDelete); err != nil {
 			setRequestFailed(w, err)
 			return
 		}
@@ -1046,7 +1061,7 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 				setRequestFailed(w, err)
 				return
 			}
-		}  else {
+		} else {
 			if err := ctrler.PersistSubnetDelegationRequestV2(networkID, strings.ToLower(subnet), subnetRequest, apiVersion); err != nil {
 				setRequestFailed(w, err)
 				return
@@ -1126,7 +1141,7 @@ func GetSubnetConfiguration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subnetConfiguration, getErr := ctrler.GetSubnetConfiguration(networkID,	strings.ToLower(subnet))
+	subnetConfiguration, getErr := ctrler.GetSubnetConfiguration(networkID, strings.ToLower(subnet))
 
 	w.Header().Set(contentTypeStr, defaultContentType)
 	if getErr == nil {

@@ -159,6 +159,11 @@ func (c *Controller) GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.Jso
 	return datamodel.NodeConfigRepo.GetNodeInfo(nodeID)
 }
 
+// GetNodes - Get a list of slim node infos for all nodes
+func (c *Controller) GetNodes() (*api.NodesResponse, *api.JsonErr) {
+	return datamodel.NodeConfigRepo.GetNodes()
+}
+
 // GetNodeConfiguration - Get node configuration
 func (c *Controller) GetNodeConfiguration(nodeID string) (*datamodel.NodeConfiguration, *api.JsonErr) {
 	return datamodel.NodeConfigRepo.TryQueryNodeConfiguration(nodeID)

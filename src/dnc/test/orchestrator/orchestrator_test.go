@@ -51,8 +51,10 @@ func TestBasicNodeAPIs(t *testing.T) {
 		orchestratorType = cns.Kubernetes
 	)
 
+	getNodes(t, nil)
 	addNode(t, nodeID, ipaddr, orchestratorType, "")
 	addNode(t, nodeID, ipaddr, orchestratorType, "")
+	getNodes(t, []string{nodeID})
 	deleteNode(t, nodeID, http.StatusNotFound)
 }
 
@@ -410,6 +412,34 @@ func addNode(t *testing.T, nodeID, ipaddr, orchestratorType, infraVnet string) {
 			t.Fatalf("Register node failed;\nreceived %+v\nexpected %+v", receivedNodeCfg, expectedNodeCfg)
 		}
 	}
+}
+
+func getNodes(t *testing.T, expectedNodeNames []string) {
+	nodesResp, respErr := dnctl.GetNodes()
+	if respErr.HTTPStatus != http.StatusOK {
+		// Should always return 200 even if empty
+		t.Fatalf("GetNodes failed with error %+v", respErr)
+	}
+
+	// Check for matching size
+	if len(expectedNodeNames) != len(nodesResp.Nodes) {
+		t.Fatalf("GetNodes failed, received %d nodes but expected %d nodes: Resp:%+v", len(nodesResp.Nodes), len(expectedNodeNames), nodesResp)
+	}
+
+	// Check that each node is present in the list
+	for _, nodeName := range expectedNodeNames {
+		found := false
+		for _, nodeInfo := range nodesResp.Nodes {
+			if nodeName == nodeInfo.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("GetNodes failed, expected to find Node %s but it was not found: Resp: %+v", nodeName, nodesResp)
+		}
+	}
+
 }
 
 func deleteNode(t *testing.T, nodeID string, status int) {

@@ -15,6 +15,7 @@ func GetCmd() *cobra.Command {
 		Short: "Gets an item from DNC",
 	}
 	cmd.AddCommand(getNodeCmd())
+	cmd.AddCommand(getNodesCmd())
 	cmd.AddCommand(getVnetCmd())
 	cmd.AddCommand(getReservationCmd())
 	cmd.AddCommand(getSubnetCmd())
@@ -40,6 +41,23 @@ func getNodeCmd() *cobra.Command {
 	}
 	cmd.Flags().String("id", "", "Node id")
 	cmd.MarkFlagRequired("id")
+	return cmd
+}
+
+func getNodesCmd() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "nodes",
+		Short: "Gets slim info for all nodes",
+		Run: func(cmd *cobra.Command, args []string) {
+			nodeList, err := DncClient.GetNodes()
+			if err.HTTPStatus != http.StatusOK {
+				client.PrettyPrint(err)
+				return
+			}
+			fmt.Printf("%+v\n", nodeList)
+		},
+	}
+
 	return cmd
 }
 

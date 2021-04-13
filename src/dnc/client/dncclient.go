@@ -337,6 +337,33 @@ func (c *DncClient) GetNode(nodeId string) (nodeCfg *api.NodeInfoResponse, respE
 	return
 }
 
+func (c *DncClient) GetNodes() (*api.NodesResponse, *api.JsonErr) {
+	nodeURL := fmt.Sprintf(nodeApi, c.DncEP, "")
+	var nodes api.NodesResponse
+	respErr := &api.JsonErr{HTTPStatus: http.StatusOK}
+	var rawResponse *http.Response
+	var err error
+
+	if rawResponse, err = httpc.Get(nodeURL); err != nil {
+		reportClientErr(respErr, err)
+		return nil, respErr
+	}
+
+	defer rawResponse.Body.Close()
+	if rawResponse.StatusCode == http.StatusOK {
+		if err := utils.DecodeResponse(rawResponse, &nodes); err != nil {
+			failedToDecodeResponse(respErr, Get, Nodes, err)
+			return nil, respErr
+		}
+
+	} else {
+		failedWithStatus(respErr, Get, Nodes, rawResponse.StatusCode)
+		return nil, respErr
+	}
+
+	return &nodes, respErr
+}
+
 func (c *DncClient) GetNetworkConfiguration(networkId string) (networkCfg *api.NetworkConfigurationResponse, respErr *api.JsonErr) {
 	var (
 		response                     *http.Response
