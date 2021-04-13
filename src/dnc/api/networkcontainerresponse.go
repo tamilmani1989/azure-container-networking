@@ -12,6 +12,7 @@ type NetworkContainerResponse struct {
 	RequestStatus              RequestStatus   `json:"RequestStatus"`
 	VlanID                     uint16          `json:"VlanID"`
 	LocalIP                    string          `json:"LocalIP"`
+	MacAddress                 string          `json:"MacAddress"`
 	NCVersion                  int             `json:"NCVersion"`
 	AllowHostToNCCommunication bool            `json:"AllowHostToNCCommunication"`
 	AllowNCToHostCommunication bool            `json:"AllowNCToHostCommunication"`
@@ -20,7 +21,7 @@ type NetworkContainerResponse struct {
 func (r *NetworkContainerResponse) String() string {
 	return fmt.Sprintf(
 		`NetworkContainerResponse:[NetworkContainerID:%s, IPConfiguration:%s, AssociationInfo:%s,
-		RequestStatus:%s, VlanID:%d, LocalIP:%s, NCVersion:%d, AllowHostToNCCommunication:%t, AllowNCToHostCommunication:%t]`,
-		r.NcID, r.IPConfiguration.String(), r.AssociationInfo.String(), r.RequestStatus.String(), r.VlanID, r.LocalIP, r.NCVersion, r.AllowHostToNCCommunication,
+		RequestStatus:%s, VlanID:%d, LocalIP:%s, MacAddress:%s, NCVersion:%d, AllowHostToNCCommunication:%t, AllowNCToHostCommunication:%t]`,
+		r.NcID, r.IPConfiguration.String(), r.AssociationInfo.String(), r.RequestStatus.String(), r.VlanID, r.LocalIP, r.MacAddress, r.NCVersion, r.AllowHostToNCCommunication,
 		r.AllowNCToHostCommunication)
 }

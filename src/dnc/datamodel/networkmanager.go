@@ -1544,6 +1544,7 @@ func GetNetworkContainerResponse(
 		RequestStatus:              requestStatus,
 		VlanID:                     vlanID,
 		LocalIP:                    ncConfig.LocalIP,
+		MacAddress:                 ncConfig.MACAddress,
 		NCVersion:                  int(ncConfig.CNSVersion),
 		AllowHostToNCCommunication: ncConfig.GetAllowHostToNCCommunicationStatus(),
 		AllowNCToHostCommunication: ncConfig.GetAllowNCToHostCommunicationStatus()}
