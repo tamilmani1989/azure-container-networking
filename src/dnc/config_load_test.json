@@ -9,7 +9,7 @@
         "MaxBatchSize": 1000
     },
     "ServerSettings": {
-        "IPAddress": "",
+        "IPAddress": "127.0.0.1",
         "Port": "9000"
     },
     "MasterElectionSettings": {
@@ -26,16 +26,12 @@
     "HostAgentSettings": {
         "WireServerIP": "127.0.0.1:9001",
         "ConnectionStrings": {
-            "JoinNetworkURLFmt": "http://%s/joinedVirtualNetworks/%s/api-version/1",
-            "GetNetworkConfigurationURLFmt": "http://%s/joinedVirtualNetworks/%s/api-version/1",
-            "PutNetworkContainerURLFmt": "http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
-            "DeleteNetworkContainerURLFmt": "http://%s/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
-            "GetSystemTagDefinitionURLFmt": "http://%s/systemTags/%s/ipVersion/%s/api-version/1"
+            "JoinNetworkURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
+            "GetNetworkConfigurationURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
+            "PutNetworkContainerURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
+            "DeleteNetworkContainerURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
+            "GetNmAgentSupportedApiURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=GetSupportedApis"
         }
-    },
-    "CustomLoggerSettings": {
-        "FnName": "",
-        "Dll": ""
     },
     "CNSSettings": {
         "CnsTlsCertificateSubjectName": "",

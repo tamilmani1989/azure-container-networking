@@ -3,14 +3,19 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"dnc/api"
 	"dnc/datamodel"
+	"dnc/nmagentcontracts"
+	"dnc/retry"
+	"dnc/test/nmagentmock"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,6 +34,35 @@ func main() {
 	logrus.Infof("testing %d ncs with %d concurrent requests", nodeNCCount, concurrentRequests)
 
 	vnetID, vnetReq := generateVnet()
+
+	vnets := map[string]nmagentcontracts.VirtualNetworkResponse{
+		vnetID: {
+			ResponseCode: strconv.Itoa(http.StatusOK),
+			CNetSpace:    "10.0.0.0/8,172.16.0.0/16,192.168.1.0/24",
+			DNSServers:   "8.8.8.8,9.9.9.9",
+			Subnets: []nmagentcontracts.Subnet{
+				{
+					SubnetName:     "subnet1",
+					AddressPrefix:  "10.1.0.0/16",
+					DefaultGateway: "10.1.0.1",
+				},
+			},
+			VNetSpace:   "10.0.0.0/8",
+			VnetVersion: "1",
+		},
+	}
+
+	// todo: DNC should be able to be started and closed like this
+	nmagentServer := nmagentmock.NewServer("localhost:9001")
+	nmagentServer.StoreVnetResponses(vnets)
+	nmagentServer.Start()
+
+	defer func() {
+		if err := nmagentServer.Close(); err != nil {
+			logrus.Errorf("could not stop mock nmagent correctly: %v", err)
+		}
+	}()
+
 	vnetURL := fmt.Sprintf("http://localhost:9000/networks/%s?api-version=2018-03-01", vnetID)
 
 	logrus.Infof("creating vnet %s", vnetID)
@@ -53,12 +87,31 @@ func main() {
 	logrus.Info("posting subnet")
 
 	bs, _ = json.Marshal(subnetReq)
-	res, err = http.Post(subnetURL, "application/json", bytes.NewBuffer(bs))
+
+	err = retry.Retrier{
+		Attempts:   10,
+		Delay:      time.Second,
+		ExpBackoff: false,
+	}.Do(context.Background(), func() error {
+		res, err := http.Post(subnetURL, "application/json", bytes.NewBuffer(bs))
+		if err != nil {
+			return err
+		}
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			var apiErr api.JsonErr
+			_ = json.NewDecoder(res.Body).Decode(&apiErr)
+			logrus.Errorf("could not post subnet: %+v", apiErr)
+			return &apiErr
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		logrus.Fatal("post subnet", err)
 	}
-	defer res.Body.Close()
-	_, _ = ioutil.ReadAll(res.Body)
 
 	logrus.Infof("posted subnet %s", subnetReq.SubnetName)
 	time.Sleep(time.Second * 2)

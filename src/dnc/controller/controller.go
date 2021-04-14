@@ -428,12 +428,107 @@ func (c *Controller) PersistSubnetDelegationRequest(
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	err := datamodel.UpdateSubnet(networkID, subnet, subnetInfo, isDelete)
-	if err != nil {
+	if err := c.updateSubnetV1(networkID, subnet, subnetInfo, isDelete); err != nil {
 		loggershim.LS.Errorf("UpdateSubnet: subnet: %s failed. Error: %v", datamodel.GetSubnetKey(networkID, subnet), err)
+		return err
 	}
 
-	return err
+	return nil
+}
+
+func (c *Controller) updateSubnetV1(networkID, subnet string, subnetRequest api.SubnetRequest, isDelete bool) *api.JsonErr {
+	networkConfig, err := datamodel.TryQueryNetworkConfiguration(networkID)
+	if err != nil {
+		return err
+	}
+
+	if networkConfig == nil {
+		return api.NotFoundf(api.NetworkNotFound, "could not find network: %s", networkID)
+	}
+
+	if networkConfig.NetworkState == datamodel.Join && networkConfig.Status != datamodel.Completed {
+		return api.BadRequestf(api.NetworkStatusInvalid, "Network join for %s is not complete. Current status: %s", networkID, networkConfig.Status.String())
+	}
+
+	var subnetFound = true
+	if len(networkConfig.Subnets) == 0 {
+		subnetFound = false
+	}
+	if _, ok := networkConfig.Subnets[subnet]; !ok {
+		subnetFound = false
+	}
+
+	if !subnetFound {
+		loggershim.LS.Debugf("Subnet %s not found in Network with ID %s. Refreshing network", subnet, networkID)
+		networkConfig.Status = datamodel.Refreshing
+		networkConfig.Subnets[subnet] = datamodel.SubnetKeyPlaceholder
+		if err = datamodel.PersistNetworkConfiguration(networkConfig); err != nil {
+			return err
+		}
+
+		subnetConfig := datamodel.SubnetConfiguration{
+			NetworkID:    networkID,
+			SubnetName:   subnet,
+			AccessToken:  subnetRequest.AuthenticationToken,
+			Joined:       true,
+			UpdateStatus: datamodel.SubnetUpdatePending,
+		}
+		if err := datamodel.PutSubnetConfiguration(&subnetConfig); err != nil {
+			return api.BadRequestf(api.SubnetNotFound, "Failed to store subnet config %s in network %s: %v", subnet, networkID, err)
+		}
+
+		requestContext := datamodel.RequestContext{
+			Type:      datamodel.VirtualNetworkRequest,
+			NetworkID: networkID,
+		}
+
+		return datamodel.AddRequestToPendingQueue(datamodel.GetNetworkKey(networkID), &requestContext)
+	}
+
+	subnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(networkID, subnet)
+	if err != nil {
+		return err
+	}
+
+	if subnetConfiguration == nil {
+		return api.BadRequestf(api.SubnetConfigurationNotFound, "could not find subnet configuration: %s in network: %s", subnet, networkID)
+	}
+
+	if subnetConfiguration.UpdateStatus == datamodel.SubnetUpdatePending {
+		// No error is returned as the request is treated as idempotent while
+		// the same request issued earlier is in process
+		return nil
+	}
+
+	if subnetConfiguration.UpdateStatus == datamodel.SubnetUpdateFailed {
+		return api.NotFoundf(api.SubnetNotFound, "could not find subnet: %s in network: %s", subnet, networkID)
+	}
+
+	if !subnetConfiguration.IsDelegatedSubnet {
+		return api.BadRequestf(api.SubnetIsNotDelegated, "subnet: %s in network: %s is not delegated", subnet, networkID)
+	}
+
+	if isDelete {
+		reservations, err := datamodel.GetReservationsInSubnet(networkID, subnet)
+		if err != nil {
+			return api.InternalServerErrorf(api.StatusInternalServerError,
+				"could not retrieve reservations for subnet: %s. Error: %v", subnet, err)
+		}
+
+		if len(reservations) > 0 {
+			return api.BadRequestf(api.InvalidSubnetRequest, "cannot remove auth token as subnet: %s has allocations", subnet)
+		}
+	}
+
+	if config.FeatureFlagSettings.UsePrepopulatedIPAllocations && !isDelete {
+		if err := c.ipAllocator.PrepopulateSubnet(networkID, subnet, subnetConfiguration.IPSubnet); err != nil {
+			return err
+		}
+	}
+
+	subnetConfiguration.Joined = !isDelete
+	subnetConfiguration.AccessToken = subnetRequest.AuthenticationToken
+	return datamodel.PutSubnetConfiguration(subnetConfiguration)
 }
 
 func (c *Controller) DeleteSubnetV2(networkID, subnetName string) *api.JsonErr {
