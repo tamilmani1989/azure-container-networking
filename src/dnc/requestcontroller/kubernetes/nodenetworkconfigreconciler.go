@@ -131,7 +131,13 @@ func (n *NodeNetworkConfigReconciler) reconcile(ctx context.Context, request rec
 	err := n.k8sClient.Get(ctx, request.NamespacedName, &nodeNetworkConfig)
 	if err != nil {
 		// Ignore NotFound since an immediate requeue won't solve it
-		return client.IgnoreNotFound(fmt.Errorf("Error retrieving NNC: %w", err)) // IgnoreNotFound can handle wrapped errors
+		if apierrors.IsNotFound(err) {
+			n.logger.Warnf("Error retrieving NNC %s: %v, this will not be retried.", name, err)
+		} else {
+			n.logger.Errorf("Error retrieving NNC %s: %v", name, err)
+		}
+
+		return client.IgnoreNotFound(err)
 	}
 
 	// Get the corresponding Node

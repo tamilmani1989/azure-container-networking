@@ -9,6 +9,7 @@ endif
 # Build defaults
 GOOS ?= linux
 GOARCH ?= amd64
+GENERATE_BOND_FILE ?= true
 
 DNCTL_DIR = cmd/dnctl
 LBRUNNERNC_DIR = test/lbrunnernc
@@ -117,6 +118,7 @@ dnc-image:
 	docker build --no-cache \
 	-f $(REPO_ROOT)/src/dnc/builds/dnc/Dockerfile \
 	-t $(DNC_IMAGE):$(VERSION) \
+	--build-arg GENERATE_BOND_FILE=$(GENERATE_BOND_FILE) \
 	$(REPO_ROOT)
 	$(MKDIR) $(DNC_BUILD_DIR)
 	docker save $(DNC_IMAGE):$(VERSION) | gzip -c > $(DNC_BUILD_DIR)/$(DNC_IMAGE_ARCHIVE_NAME)
@@ -127,6 +129,7 @@ mdnc-image:
 	-f $(REPO_ROOT)/src/dnc/builds/dnc/Dockerfile \
 	-t $(MDNC_IMAGE):$(VERSION) \
 	--build-arg aiMetadata=$(DNC_RP_AI_ID) \
+	--build-arg GENERATE_BOND_FILE=$(GENERATE_BOND_FILE) \
 	$(REPO_ROOT)
 	$(MKDIR) $(DNC_BUILD_DIR)
 	docker save $(MDNC_IMAGE):$(VERSION) | gzip -c > $(DNC_BUILD_DIR)/$(MDNC_IMAGE_ARCHIVE_NAME)
