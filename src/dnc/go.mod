@@ -3,7 +3,7 @@ module dnc
 go 1.14
 
 require (
-	github.com/Azure/azure-container-networking v1.2.6-0.20210223205849-d78002d3c042
+	github.com/Azure/azure-container-networking v1.2.9-0.20210405165447-cf7d8a5ac31e
 	github.com/Azure/azure-sdk-for-go v51.3.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.10.2
 	github.com/Azure/go-autorest/autorest/adal v0.9.2
@@ -15,7 +15,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.4.3
 	github.com/google/uuid v1.1.2
-	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/mux v1.8.0
 	github.com/juju/ratelimit v1.0.2-0.20191002062651-f60b32039441 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/sirupsen/logrus v1.6.0

@@ -272,7 +272,7 @@ func (n *NodeNetworkConfigReconciler) mustRecreateNNC(ctx context.Context, nodeN
 		ncResponse, _ = n.dncClient.GetNC(ctx, subnetInfo.VnetID, ncID)
 	}
 
-	nnc := n.getNewNNCFromNCResponse(ncResponse, name, namespace)
+	nnc := n.getNewNNCFromNCResponse(ncResponse, name, namespace, node)
 
 	nncCreated := false
 	for retry := 0; retry < 30; retry++ {
@@ -404,7 +404,7 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 	}
 
 	// Publish k8s status
-	status := n.getNNCStatusFromNCResponse(ncResponse)
+	status := n.getNNCStatusFromNCResponse(ncResponse, node)
 	nodeNetworkConfig.Status = status
 	err = n.k8sClient.Status().Update(ctx, nodeNetworkConfig)
 	if err != nil {
@@ -528,7 +528,7 @@ func (n *NodeNetworkConfigReconciler) getNCDetailsFromNodeID(ctx context.Context
 	return ncInfo, nil
 }
 
-func (n *NodeNetworkConfigReconciler) getNewNNCFromNCResponse(nc *api.NetworkContainerResponse, name, namespace string) *acnv1alpha.NodeNetworkConfig {
+func (n *NodeNetworkConfigReconciler) getNewNNCFromNCResponse(nc *api.NetworkContainerResponse, name, namespace string, node *corev1.Node) *acnv1alpha.NodeNetworkConfig {
 	// Start with the standard empty NNC
 	nnc := acnv1alpha.NodeNetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
@@ -540,16 +540,16 @@ func (n *NodeNetworkConfigReconciler) getNewNNCFromNCResponse(nc *api.NetworkCon
 			},
 		},
 		Spec: acnv1alpha.NodeNetworkConfigSpec{
-			RequestedIPCount: n.scalerConfig.BatchSize,
+			RequestedIPCount: n.getBatchSize(*node),
 		},
-		Status: n.getNNCStatusFromNCResponse(nc),
+		Status: n.getNNCStatusFromNCResponse(nc, node),
 	}
 
 	return &nnc
 }
 
 // getNNCStatusFromNCResponse returns a NNC Status representing the NC response
-func (n *NodeNetworkConfigReconciler) getNNCStatusFromNCResponse(nc *api.NetworkContainerResponse) acnv1alpha.NodeNetworkConfigStatus {
+func (n *NodeNetworkConfigReconciler) getNNCStatusFromNCResponse(nc *api.NetworkContainerResponse, node *corev1.Node) acnv1alpha.NodeNetworkConfigStatus {
 	nncStatus := acnv1alpha.NodeNetworkConfigStatus{}
 	if nc == nil {
 		return nncStatus
@@ -579,13 +579,42 @@ func (n *NodeNetworkConfigReconciler) getNNCStatusFromNCResponse(nc *api.Network
 
 	// Populate scaler config with scaler config from n
 	scaler := acnv1alpha.Scaler{
-		BatchSize:               n.scalerConfig.BatchSize,
+		BatchSize:               n.getBatchSize(*node),
 		ReleaseThresholdPercent: n.scalerConfig.ReleaseThresholdPercent,
 		RequestThresholdPercent: n.scalerConfig.RequestThresholdPercent,
+		MaxIPCount:              n.getMaxIPCountOfNode(*node),
 	}
 	nncStatus.Scaler = scaler
 
 	return nncStatus
+}
+
+// getMaxIPCountOfNode gets the max ip count for a node
+// returns default max ip count if label is either not found or 0
+func (n *NodeNetworkConfigReconciler) getMaxIPCountOfNode(node corev1.Node) int64 {
+	// Returns 0 if label is not present
+	count := node.Status.Capacity.Pods().Value()
+
+	if count < maxIPCountLowerBound || count > maxIPCountUpperBound {
+		// Handles both if the count was not present, and if the count was out of bounds
+		// Return the system default max ip count
+		count = defaultMaxIPCount
+	}
+
+	return count
+}
+
+// getBatchSize gets the batch size
+// If the batch size is > than maxIPCount, make batch size = maxIPCount
+func (n *NodeNetworkConfigReconciler) getBatchSize(node corev1.Node) int64 {
+	maxIPCount := n.getMaxIPCountOfNode(node)
+	
+	batchSize := n.scalerConfig.BatchSize
+	if batchSize > maxIPCount {
+		batchSize = maxIPCount
+	}
+
+	return batchSize
 }
 
 // This is mainly a copy/paste of dnc's sendDatastoreMetric. When we revamp metrics, this should not use global, and should use contexts

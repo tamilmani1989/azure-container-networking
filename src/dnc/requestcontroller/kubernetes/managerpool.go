@@ -547,6 +547,10 @@ func (m *manager) registerCRD(ctx context.Context, clientSet *apiextensionsclien
 													Type:   "integer",
 													Format: "int64",
 												},
+												"maxIPCount": {
+													Type:   "integer",
+													Format: "int64",
+												},
 											},
 										},
 									},
@@ -568,9 +572,22 @@ func (m *manager) registerCRD(ctx context.Context, clientSet *apiextensionsclien
 	}
 
 	_, err := clientSet.ApiextensionsV1().CustomResourceDefinitions().Create(ctx, crd, metav1.CreateOptions{})
-
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("Error adding NNC CRD definition to cluster: %w", err)
+	if err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return fmt.Errorf("Error adding NNC CRD definition to cluster: %w", err)
+		}
+		
+		crdget, err := clientSet.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, nncPluralName + "." + acnv1alpha.GroupVersion.Group, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("Error adding NNC CRD definition to cluster when getting existing CRD: %w", err)
+		}
+		
+		// Update the CRD definition
+		crdget.Spec = crd.Spec
+		_, err = clientSet.ApiextensionsV1().CustomResourceDefinitions().Update(ctx, crdget, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("Error updating CRD definition : %w", err)
+		}
 	}
 
 	return nil

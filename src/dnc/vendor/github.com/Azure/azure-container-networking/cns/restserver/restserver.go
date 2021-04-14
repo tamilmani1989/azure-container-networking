@@ -130,8 +130,8 @@ func NewHTTPRestService(config *common.ServiceConfig, imdsClientInterface imdscl
 	}, nil
 }
 
-// Start starts the CNS listener.
-func (service *HTTPRestService) Start(config *common.ServiceConfig) error {
+// Init starts the CNS listener.
+func (service *HTTPRestService) Init(config *common.ServiceConfig) error {
 	err := service.Initialize(config)
 	if err != nil {
 		logger.Errorf("[Azure CNS]  Failed to initialize base service, err:%v.", err)
@@ -174,6 +174,7 @@ func (service *HTTPRestService) Start(config *common.ServiceConfig) error {
 	listener.AddHandler(cns.ReleaseIPConfig, service.releaseIPConfigHandler)
 	listener.AddHandler(cns.NmAgentSupportedApisPath, service.nmAgentSupportedApisHandler)
 	listener.AddHandler(cns.GetIPAddresses, service.getIPAddressesHandler)
+	listener.AddHandler(cns.GetPodIPOrchestratorContext, service.getPodIPIDByOrchestratorContexthandler)
 
 	// handlers for v0.2
 	listener.AddHandler(cns.V2Prefix+cns.SetEnvironmentPath, service.setEnvironment)
@@ -205,6 +206,19 @@ func (service *HTTPRestService) Start(config *common.ServiceConfig) error {
 
 	logger.SetContextDetails(service.state.OrchestratorType, service.state.NodeID)
 	logger.Printf("[Azure CNS]  Listening.")
+
+	return nil
+}
+
+// Start starts the CNS listener.
+func (service *HTTPRestService) Start(config *common.ServiceConfig) error {
+
+	// Start the listener.
+	// continue to listen on the normal endpoint for http traffic, this will be supported
+	// for sometime until partners migrate fully to https
+	if err := service.StartListener(config); err != nil {
+		return err
+	}
 
 	return nil
 }

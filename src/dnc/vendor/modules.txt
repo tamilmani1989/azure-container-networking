@@ -1,6 +1,6 @@
 # code.cloudfoundry.org/clock v1.0.0
 code.cloudfoundry.org/clock
-# github.com/Azure/azure-container-networking v1.2.6-0.20210223205849-d78002d3c042
+# github.com/Azure/azure-container-networking v1.2.9-0.20210405165447-cf7d8a5ac31e
 ## explicit
 github.com/Azure/azure-container-networking/aitelemetry
 github.com/Azure/azure-container-networking/cnm
@@ -142,7 +142,7 @@ github.com/google/uuid
 github.com/googleapis/gnostic/OpenAPIv2
 github.com/googleapis/gnostic/compiler
 github.com/googleapis/gnostic/extensions
-# github.com/gorilla/mux v1.7.4
+# github.com/gorilla/mux v1.8.0
 ## explicit
 github.com/gorilla/mux
 # github.com/hashicorp/golang-lru v0.5.4

@@ -7,12 +7,14 @@ import (
 	"dnc/requestcontroller"
 	syncdncclient "dnc/requestcontroller/dncclient"
 	"fmt"
+	"strconv"
 	"sync"
 	"testing"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -131,4 +133,110 @@ func TestReconcileNewNNC(t *testing.T) {
 		t.Fatalf("Expected %d IPs for NC but received %d", requestedIPCount, ipCount)
 	}
 
+}
+
+func TestGetMaxIPCountOfNodeOverLimit(t *testing.T) {
+	initialMaxPodIPCount := maxIPCountUpperBound + 1
+	expectedMaxPodIPCount := defaultMaxIPCount
+	base := 10
+	quantity, _ := resource.ParseQuantity(strconv.FormatInt(int64(initialMaxPodIPCount), base))
+	nodeName := "test-node"
+
+	// Instantiate a node with one more than the allowable maxIPCount
+	node := corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nodeName,
+		},
+		Status: corev1.NodeStatus{
+			Capacity: corev1.ResourceList{
+				corev1.ResourcePods: quantity,
+			},
+		},
+	}
+
+	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{Logger: logger})
+	givenMaxIPCount := nncReconciler.getMaxIPCountOfNode(node)
+
+	if givenMaxIPCount != int64(expectedMaxPodIPCount) {
+		t.Fatalf("When node label for max pod capacity is over allowable DNC limit %v, expected to set NNC scaler maxIpCount as default value %v, instead got %v", maxIPCountUpperBound, expectedMaxPodIPCount, givenMaxIPCount)
+	}
+}
+
+func TestGetMaxIPCountOfNodeUnderMin(t *testing.T) {
+	initialMaxPodIPCount := maxIPCountLowerBound - 1
+	expectedMaxPodIPCount := defaultMaxIPCount
+	base := 10
+	quantity, _ := resource.ParseQuantity(strconv.FormatInt(int64(initialMaxPodIPCount), base))
+	nodeName := "test-node"
+
+	// Instantiate a node with one less than the allowable minimum value for maxIPCount
+	node := corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nodeName,
+		},
+		Status: corev1.NodeStatus{
+			Capacity: corev1.ResourceList{
+				corev1.ResourcePods: quantity,
+			},
+		},
+	}
+		
+
+	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{Logger: logger})
+	givenMaxIPCount := nncReconciler.getMaxIPCountOfNode(node)
+
+	if givenMaxIPCount != int64(expectedMaxPodIPCount) {
+		t.Fatalf("When node label for max pod capacity is under allowable DNC limit %v, expected to set NNC scaler maxIpCount as default value %v, instead got %v", maxIPCountLowerBound, expectedMaxPodIPCount, givenMaxIPCount)
+	}
+}
+
+func TestGetMaxIPCountOfNodeLabelMissing(t *testing.T) {
+	expectedMaxPodIPCount := defaultMaxIPCount
+	nodeName := "test-node"
+
+	node := corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nodeName,
+		},
+	}
+
+	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{Logger: logger})
+	givenMaxIPCount := nncReconciler.getMaxIPCountOfNode(node)
+
+	if givenMaxIPCount != int64(expectedMaxPodIPCount) {
+		t.Fatalf("When node label for max pod capacity is missing, expected to set NNC scaler maxIpCount as default value %v, instead got %v", expectedMaxPodIPCount, givenMaxIPCount)
+	}
+}
+
+func TestGetBatchSizeWhenOverMaxIPCount(t *testing.T) {
+	maxIPCount := 30
+	expectedBatchSize := maxIPCount
+	initialBatchSize := 50
+	nodeName := "test-node"
+	base := 10
+	quantity, _ := resource.ParseQuantity(strconv.FormatInt(int64(maxIPCount), base))
+
+	node := corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nodeName,
+		},
+		Status: corev1.NodeStatus{
+			Capacity: corev1.ResourceList{
+				corev1.ResourcePods: quantity,
+			},
+		},
+	}
+
+	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{
+		ScalerConfig: requestcontroller.RequestScalerConfig{
+			BatchSize:               int64(initialBatchSize),
+		},
+		Logger: logger,
+	})
+
+	outputBatchSize := nncReconciler.getBatchSize(node)
+
+	if outputBatchSize != int64(expectedBatchSize) {
+		t.Fatalf("Expected batch size to be maxIPCount (%v) when batch size in CRD is over maxIPCount but got %v", expectedBatchSize, outputBatchSize)
+	}
 }

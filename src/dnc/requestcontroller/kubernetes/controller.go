@@ -28,6 +28,9 @@ const (
 	kubeconfigRefreshOnErrorIntervalSeconds = 30
 	nncPluralName                           = "nodenetworkconfigs"
 	nncShortName                            = "nnc"
+	defaultMaxIPCount                       = 250
+	maxIPCountLowerBound                    = 1
+	maxIPCountUpperBound                    = 250
 )
 
 // RequestController implements requestcontroller.RequestController. RequestController watches Nodes and NetworkConfigs
