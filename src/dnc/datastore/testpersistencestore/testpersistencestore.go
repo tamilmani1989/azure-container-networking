@@ -266,22 +266,6 @@ func (s *TestPersistenceStore) DeleteBatch(tableName, _ string, rowKeys []string
 	return nil
 }
 
-// Deprecated: Use MergeEntityBatch.
-// TODO: add tests for MergeBatch function https://msazure.visualstudio.com/One/_workitems/edit/9077936
-func (s *TestPersistenceStore) MergeBatch(tableName, _ string, batch map[string]map[string]interface{}) error {
-	s.locks[tableName].Lock()
-	defer func() {
-		s.locks[tableName].Unlock()
-	}()
-
-	for rowKey, rowProps := range batch {
-		tag := s.getEtag()
-		s.datastore[tableName][rowKey] = rowProperties{etag: tag, properties: rowProps}
-	}
-
-	return nil
-}
-
 func (s *TestPersistenceStore) InsertEntityBatch(tableName string, entities []storage.Entity) error {
 	table, ok1 := s.datastore[tableName]
 	tableLock, ok2 := s.locks[tableName]

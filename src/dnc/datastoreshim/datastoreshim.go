@@ -45,8 +45,6 @@ type DataStoreShim interface {
 	// Deprecated: Use UpsertEntityBatch
 	UpsertBatch(tableName string, batchItems map[string]map[string]interface{}) error
 	UpsertEntityBatch(tableName string, entities []storage.Entity) error
-	// Deprecated: Use MergeEntityBatch
-	MergeBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error
 	MergeEntityBatch(tableName string, entities []storage.Entity) error
 	UpdateWithEtag(tableName, rowKey, etag string, propertyName string, value interface{}) error
 	UpdateInPartition(tableName, partitionKey, rowKey string, properties map[string]interface{}) error

@@ -18,6 +18,8 @@ import (
 const (
 	// default timeout for calls
 	defaultTimeout = 30
+	// default to max batch size allowed by azure storage
+	defaultBatchSize = 100
 )
 
 // AzureStorage = Storage object to manage tables in a partition
@@ -33,6 +35,11 @@ type AzureStorage struct {
 // Init - Initialize azure storage.
 func NewAzureStorage(config configuration.AzureStorageInfo, logger loggershim.LoggerInterface, tableToColumnMap map[string]string, latencyThresholdMs int, maxBatchSize int) (*AzureStorage, error) {
 	logger.Debugf("[Azure Storage] Environment type for azure store settings %s", config.Environment)
+
+	if maxBatchSize == 0 {
+		logger.Debugf("storage max batch size cannot be 0, defaulting to %d", defaultBatchSize)
+		maxBatchSize = defaultBatchSize
+	}
 
 	storageClient, err := utils.GetStorageClient(config.AccountName, config.Key, config.Environment, config.IsUsingCosmosDb)
 	if err != nil {
@@ -305,18 +312,27 @@ func (a *AzureStorage) UpsertBatch(tableName string, batchItems map[string]map[s
 		return fmt.Errorf("cannot find valid table client for table %s", tableName)
 	}
 
-	table := tableClient.GetTableReference(tableName)
-
-	batch := table.NewBatch()
-	for rowKey, rowProperties := range batchItems {
-		entity := table.GetEntityReference(a.partitionKey, rowKey)
-		entity.Properties = rowProperties
-		// todo: is it correct to always use If-Match:*? not providing an etag basically forces the upsert
-		// entity.OdataEtag = ""
-		batch.InsertOrReplaceEntity(entity, false) // underlying sdk code does not ever use the second param
+	batches := sliceMaps(batchItems, a.maxBatchSize)
+	if len(batches) > 1 {
+		msgFmt := "table %s batch upsert: %d entities exceed max batch limit of %d, attempting to persist in multiple batches"
+		a.logger.Debugf(msgFmt, tableName, len(batchItems), a.maxBatchSize)
 	}
 
-	return batch.ExecuteBatch()
+	table := tableClient.GetTableReference(tableName)
+	for _, b := range batches {
+		var entities []storage.Entity
+		for rowKey, rowProperties := range b {
+			entity := table.GetEntityReference(a.partitionKey, rowKey)
+			entity.Properties = rowProperties
+			entities = append(entities, *entity)
+		}
+
+		if err := a.singleBatch(table, entities, storage.InsertOrReplaceOp); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Deprecated: Use InsertEntityBatch.
@@ -325,76 +341,91 @@ func (a *AzureStorage) UpsertBatch(tableName string, batchItems map[string]map[s
 // The value in the batch (map[string]interface{}) represents row properties and their respective values
 // Documented limit is 100, but in practice it is over 1000
 func (a *AzureStorage) InsertBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error {
-	if len(batchItems) > a.maxBatchSize {
-		return fmt.Errorf("batch size %d exceeds limit of %d", len(batchItems), a.maxBatchSize)
-	}
-
 	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("cannot find valid table client for table %s", tableName)
 	}
 
-	table := tableClient.GetTableReference(tableName)
-
-	batch := table.NewBatch()
-	for rowKey, rowProperties := range batchItems {
-		entity := table.GetEntityReference(partitionKey, rowKey)
-		entity.Properties = rowProperties
-		batch.InsertEntity(entity)
+	batches := sliceMaps(batchItems, a.maxBatchSize)
+	if len(batches) > 1 {
+		msgFmt := "table %s batch insert: %d entities exceed max batch limit of %d, attempting to persist in multiple batches"
+		a.logger.Debugf(msgFmt, tableName, len(batchItems), a.maxBatchSize)
 	}
 
-	return batch.ExecuteBatch()
+	table := tableClient.GetTableReference(tableName)
+	for _, b := range batches {
+		var entities []storage.Entity
+		for rowKey, rowProperties := range b {
+			entity := table.GetEntityReference(partitionKey, rowKey)
+			entity.Properties = rowProperties
+			entities = append(entities, *entity)
+		}
+
+		if err := a.singleBatch(table, entities, storage.InsertOp); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // DeleteBatch deletes a batch of rows in a given table based on the given partition and row keys
 // There is a limit of 100 items per batch
 func (a *AzureStorage) DeleteBatch(tableName, partitionKey string, rowKeys []string) error {
-	if len(rowKeys) > a.maxBatchSize {
-		return fmt.Errorf("batch size should not exceed %d", a.maxBatchSize)
-	}
-
 	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return fmt.Errorf("cannot find valid table client for table %s", tableName)
 	}
 
-	table := tableClient.GetTableReference(tableName)
-
-	batch := table.NewBatch()
-	for _, rowKey := range rowKeys {
-		entity := table.GetEntityReference(partitionKey, rowKey)
-		batch.DeleteEntityByForce(entity, true)
+	batches := sliceStrings(rowKeys, a.maxBatchSize)
+	if len(batches) > 1 {
+		msgFmt := "table %s batch delete: %d keys exceed max batch limit of %d, attempting to delete in multiple batches"
+		a.logger.Debugf(msgFmt, tableName, len(rowKeys), a.maxBatchSize)
 	}
 
-	return batch.ExecuteBatch()
+	table := tableClient.GetTableReference(tableName)
+
+	for _, b := range batches {
+		batch := table.NewBatch()
+		for _, rowKey := range b {
+			entity := table.GetEntityReference(partitionKey, rowKey)
+			batch.DeleteEntityByForce(entity, true)
+		}
+
+		if err := batch.ExecuteBatch(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// Deprecated: Use MergeEntityBatch.
-// TODO: add test for MergeBatch function https://msazure.visualstudio.com/One/_workitems/edit/9077936
-// TODO: handle ETags for Merge https://msazure.visualstudio.com/One/_workitems/edit/9132517
-// If the entity's ETag differs from that specified with the merge request, the merge operation fails with status
-// code 412 (Precondition Failed). This error indicates that the entity has been changed on the server since it was
-// retrieved. To resolve this error, retrieve the entity again and reissue the request.
-func (a *AzureStorage) MergeBatch(tableName, partitionKey string, batchItems map[string]map[string]interface{}) error {
-	if len(batchItems) > a.maxBatchSize {
-		return fmt.Errorf("batch size %d exceeds limit of %d", len(batchItems), a.maxBatchSize)
+// todo: added for deprecated paths, but should eventually remove
+func sliceMaps(batchMap map[string]map[string]interface{}, batchSize int) []map[string]map[string]interface{} {
+	var batches []map[string]map[string]interface{}
+
+	batch := make(map[string]map[string]interface{})
+	for k, v := range batchMap {
+		batch[k] = v
+		if len(batch) == batchSize {
+			batches = append(batches, batch)
+			batch = make(map[string]map[string]interface{})
+		}
 	}
 
-	tableClient, ok := a.tableNameToTableClientMap[tableName]
-	if !ok {
-		return fmt.Errorf("cannot find valid table client for table %s", tableName)
+	if len(batch) > 0 {
+		batches = append(batches, batch)
 	}
 
-	table := tableClient.GetTableReference(tableName)
+	return batches
+}
 
-	batch := table.NewBatch()
-	for rowKey, rowProperties := range batchItems {
-		entity := table.GetEntityReference(partitionKey, rowKey)
-		entity.Properties = rowProperties
-		batch.MergeEntity(entity)
+// todo: added for deprecated path, but should eventually remove
+func sliceStrings(keys []string, batchSize int) [][]string {
+	var batches [][]string
+	for len(keys) > batchSize {
+		keys, batches = keys[batchSize:], append(batches, keys[0:batchSize])
 	}
-
-	return batch.ExecuteBatch()
+	return append(batches, keys)
 }
 
 func (a *AzureStorage) InsertEntityBatch(tableName string, entities []storage.Entity) error {
@@ -424,8 +455,16 @@ func (a *AzureStorage) MergeEntityBatch(tableName string, entities []storage.Ent
 }
 
 func (a *AzureStorage) batchOperation(tableName string, entities []storage.Entity, op storage.Operation) error {
-	if len(entities) > a.maxBatchSize {
-		return fmt.Errorf("batch op %v: batch size %d exceeds limit of %d", op, len(entities), a.maxBatchSize)
+	if len(entities) == 0 {
+		a.logger.Debugf("table %s batch op %v: no entities to persist", tableName, op)
+		return nil
+	}
+
+	batches := sliceEntities(entities, a.maxBatchSize)
+
+	if len(batches) > 1 {
+		msgFmt := "table %s batch op %v: %d entities exceed max batch limit of %d, attempting to persist in multiple batches"
+		a.logger.Debugf(msgFmt, tableName, op, len(entities), a.maxBatchSize)
 	}
 
 	tableClient, ok := a.tableNameToTableClientMap[tableName]
@@ -435,6 +474,24 @@ func (a *AzureStorage) batchOperation(tableName string, entities []storage.Entit
 
 	table := tableClient.GetTableReference(tableName)
 
+	for i := 0; i < len(batches); i++ {
+		if err := a.singleBatch(table, batches[i], op); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func sliceEntities(entities []storage.Entity, batchSize int) [][]storage.Entity {
+	var batches [][]storage.Entity
+	for len(entities) > batchSize {
+		entities, batches = entities[batchSize:], append(batches, entities[0:batchSize])
+	}
+	return append(batches, entities)
+}
+
+func (a *AzureStorage) singleBatch(table *storage.Table, entities []storage.Entity, op storage.Operation) error {
 	batch := table.NewBatch()
 	for i := range entities {
 		e := entities[i]
@@ -448,6 +505,7 @@ func (a *AzureStorage) batchOperation(tableName string, entities []storage.Entit
 			e.PartitionKey = a.partitionKey
 		}
 
+		// entities need a more fleshed out table reference than assigned at higher levels in order to work in batch
 		e.Table = table
 
 		switch op {
