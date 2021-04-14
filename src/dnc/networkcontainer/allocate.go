@@ -535,6 +535,15 @@ func (a *IPAllocator) saveAllocationBatch(vnetID, subnetName string, batchMap ma
 }
 
 func (a *IPAllocator) SetToBeDeleteOwnerToDeletingIps(networkId, subnetName, reservationKey, ncKey string, allocIDsToDelete map[string]string) *api.JsonErr {
+	if len(allocIDsToDelete) == 0 {
+		a.Logger.Debugf("SetToBeDeleteOwnerToDeletingIps: Skip update as there are no allocations to delete for Reservation %s, ncKey %s, NetworkId %s, Subnet %s",
+			reservationKey,
+			ncKey,
+			networkId,
+			subnetName)
+		return nil
+	}
+
 	// Query the IpAllocations reserved for a given reservationKey (aka IpAllocationId)
 	ipAllocationEntities, err := a.Allocations.QueryIPAllocationsByReservationKey(networkId, subnetName, reservationKey)
 	if err != nil {
