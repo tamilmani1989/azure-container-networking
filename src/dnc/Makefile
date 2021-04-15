@@ -16,6 +16,7 @@ LBRUNNERNC_DIR = test/lbrunnernc
 RUNNER_DIR = test/runner
 REQCTRL_DIR = cmd/requestcontroller
 OUTPUT_DIR = output
+IMAGE_DIR = $(OUTPUT_DIR)/images
 DNC_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/dnc
 DNCTL_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/dnctl
 LBRUNNERNC_BUILD_DIR = $(OUTPUT_DIR)/$(GOOS)_$(GOARCH)/lbrunnernc
@@ -55,12 +56,12 @@ MDNC_REQCTRL_ARCHIVE_NAME = mdnc-requestcontroller-$(GOOS)-$(GOARCH)-$(VERSION).
 MDNC_REQCTRL_IMAGE_ARCHIVE_NAME = mdnc-requestcontroller-$(GOOS)-$(GOARCH)-$(VERSION).$(ARCHIVE_EXT)
 
 # Container image names
-DNC_IMAGE ?= containernetworking.azurecr.io/internal/containernetworking/dnc
+DNC_IMAGE ?= acndev.azurecr.io/dnc
 LBRUNNERNC_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-lbrunnernc
 RUNNER_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-runner
-REQCTRL_IMAGE = containernetworking.azurecr.io/internal/containernetworking/requestcontroller
-MDNC_REQCTRL_IMAGE = containernetworking.azurecr.io/internal/containernetworking/mdnc-requestcontroller
-MDNC_IMAGE = ancdev.azurecr.io/mdnc
+REQCTRL_IMAGE ?= acndev.azurecr.io/dnc-request-controller
+MDNC_REQCTRL_IMAGE = acndev.azurecr.io/mdnc-requestcontroller
+MDNC_IMAGE = acndev.azurecr.io/mdnc
 
 # Default target is "all"
 .PHONY: all
@@ -120,8 +121,8 @@ dnc-image:
 	-t $(DNC_IMAGE):$(VERSION) \
 	--build-arg GENERATE_BOND_FILE=$(GENERATE_BOND_FILE) \
 	$(REPO_ROOT)
-	$(MKDIR) $(DNC_BUILD_DIR)
-	docker save $(DNC_IMAGE):$(VERSION) | gzip -c > $(DNC_BUILD_DIR)/$(DNC_IMAGE_ARCHIVE_NAME)
+	$(MKDIR) $(IMAGE_DIR)
+	docker save $(DNC_IMAGE):$(VERSION) | gzip -c > $(IMAGE_DIR)/$(DNC_IMAGE_ARCHIVE_NAME)
 
 .PHONY: mdnc-image
 mdnc-image:
@@ -131,8 +132,8 @@ mdnc-image:
 	--build-arg aiMetadata=$(DNC_RP_AI_ID) \
 	--build-arg GENERATE_BOND_FILE=$(GENERATE_BOND_FILE) \
 	$(REPO_ROOT)
-	$(MKDIR) $(DNC_BUILD_DIR)
-	docker save $(MDNC_IMAGE):$(VERSION) | gzip -c > $(DNC_BUILD_DIR)/$(MDNC_IMAGE_ARCHIVE_NAME)
+	$(MKDIR) $(IMAGE_DIR)
+	docker save $(MDNC_IMAGE):$(VERSION) | gzip -c > $(IMAGE_DIR)/$(MDNC_IMAGE_ARCHIVE_NAME)
 
 # Build the requstcontroller image
 .PHONY: requestcontroller-image
@@ -142,20 +143,20 @@ requestcontroller-image:
 	-t $(REQCTRL_IMAGE):$(VERSION) \
 	--build-arg VERSION=$(VERSION) \
 	.
-	$(MKDIR) $(REQCTRL_BUILD_DIR)
-	docker save $(REQCTRL_IMAGE):$(VERSION) | gzip -c > $(REQCTRL_BUILD_DIR)/$(REQCTRL_IMAGE_ARCHIVE_NAME)
+	$(MKDIR) $(IMAGE_DIR)
+	docker save $(REQCTRL_IMAGE):$(VERSION) | gzip -c > $(IMAGE_DIR)/$(REQCTRL_IMAGE_ARCHIVE_NAME)
 
 # Build the requstcontroller image
 .PHONY: mdnc-requestcontroller-image
 mdnc-requestcontroller-image:
 	docker build --no-cache \
 	-f builds/requestcontroller/Dockerfile \
-	-t $(REQCTRL_IMAGE):$(VERSION) \
+	-t $(MDNC_REQCTRL_IMAGE):$(VERSION) \
 	--build-arg aiMetadata=$(DNC_RP_AI_ID) \
 	--build-arg VERSION=$(VERSION) \
 	.
-	$(MKDIR) $(REQCTRL_BUILD_DIR)
-	docker save $(REQCTRL_IMAGE):$(VERSION) | gzip -c > $(REQCTRL_BUILD_DIR)/$(REQCTRL_IMAGE_ARCHIVE_NAME)
+	$(MKDIR) $(IMAGE_DIR)
+	docker save $(MDNC_REQCTRL_IMAGE):$(VERSION) | gzip -c > $(IMAGE_DIR)/$(MDNC_REQCTRL_IMAGE_ARCHIVE_NAME)
 
 # Build the runner image
 .PHONY: runner-image
@@ -164,8 +165,8 @@ runner-image: runner-binary
 	-f builds/runner/Dockerfile \
 	-t $(RUNNER_IMAGE):$(VERSION) \
 	.
-	$(MKDIR) $(RUNNER_BUILD_DIR)
-	docker save $(RUNNER_IMAGE):$(VERSION) | gzip -c > $(RUNNER_BUILD_DIR)/$(RUNNER_IMAGE_ARCHIVE_NAME)
+	$(MKDIR) $(IMAGE_DIR)
+	docker save $(RUNNER_IMAGE):$(VERSION) | gzip -c > $(IMAGE_DIR)/$(RUNNER_IMAGE_ARCHIVE_NAME)
 
 # Build the lb runner nc image (TODO: multi-stage docker build)
 .PHONY: lbrunnernc-image
@@ -176,8 +177,8 @@ ifeq ($(GOOS),linux)
 	-t $(LBRUNNERNC_IMAGE):$(VERSION) \
 	--build-arg LBRUNNERNC_BUILD_DIR=$(LBRUNNERNC_BUILD_DIR) \
 	.
-	$(MKDIR) $(LBRUNNERNC_BUILD_DIR)
-	docker save $(LBRUNNERNC_IMAGE):$(VERSION) | gzip -c > $(LBRUNNERNC_BUILD_DIR)/$(LBRUNNERNC_IMAGE_ARCHIVE_NAME)
+	$(MKDIR) $(IMAGE_DIR)
+	docker save $(LBRUNNERNC_IMAGE):$(VERSION) | gzip -c > $(IMAGE_DIR)/$(LBRUNNERNC_IMAGE_ARCHIVE_NAME)
 endif
 
 ########################### Archives ###########################

@@ -1,0 +1,78 @@
+pr:
+  branches:
+    include:
+      - master
+
+trigger:
+  branches:
+    include:
+      - master
+
+stages:
+  - stage: build_docker_images
+    jobs:
+      - job: build_docker_images
+        pool:
+          name: Networking-ContainerNetworking
+          demands: 
+          - agent.os -equals Linux
+
+        container:
+          image: "$(BUILD_IMAGE)"
+          options: "--privileged"
+
+        steps:
+          - bash: |
+              set -e
+              echo $UID
+              sudo rm -rf $(System.DefaultWorkingDirectory)/*
+              sudo rm /run/docker/plugins/test.sock || true
+              sudo ip link del dev dummy || true
+            displayName: "Set up OS environment"
+            condition: succeeded()
+
+          - checkout: self
+
+          - script: |
+              set -e
+              make dnc-image
+            workingDirectory: "src/dnc"
+            name: "BuildDNC"
+            displayName: "Build DNC Image"
+            condition: succeeded()
+
+          - script: |
+              set -e
+              make requestcontroller-image
+            workingDirectory: "src/dnc"
+            name: "BuildDNCRC"
+            displayName: "Build DNC-RC Image"
+            condition: succeeded()
+
+          - script: |
+              set -e
+              make mdnc-image
+            workingDirectory: "src/dnc"
+            name: "BuildMDNC"
+            displayName: "Build MDNC Image"
+            condition: succeeded()
+
+          - script: |
+              set -e
+              make mdnc-requestcontroller-image
+            workingDirectory: "src/dnc"
+            name: "BuildMDNCRC"
+            displayName: "Build MDNC-RC Image"
+            condition: succeeded()
+
+          - task: CopyFiles@2
+            inputs:
+              sourceFolder: "src/dnc/output"
+              targetFolder: $(Build.ArtifactStagingDirectory)
+            condition: always()
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              artifactName: "output"
+              pathtoPublish: "$(Build.ArtifactStagingDirectory)"
+            condition: always()
