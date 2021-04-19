@@ -4,6 +4,7 @@ package kubernetes
 
 import (
 	"context"
+	"dnc/api"
 	"dnc/requestcontroller"
 	"dnc/retry"
 	"fmt"
@@ -369,6 +370,61 @@ func (m *manager) run(orchestratorID string, scheme *runtime.Scheme, config requ
 		err := mgr.Start(exitChan)
 		errChan <- err
 	}()
+
+	// Now that reconcilers are started, their k8s clients are hydrated, so we can rehydrate the NNCs from DNC Nodes in case any went missing
+	rehydrateCtx, rehydrateCancel := context.WithCancel(ctx)
+	defer rehydrateCancel()
+
+	go func(ctx context.Context) {
+		// Retry for 10 mins to list all nodes, with 30 sec interval
+		nodeListRetrier := retry.Retrier{
+			Attempts: 20,
+			Delay:    time.Second * 30,
+		}
+
+		var nodes *api.NodesResponse
+
+		err := nodeListRetrier.Do(ctx, func() error {
+			var err error
+			if nodes, err = syncDNCClient.GetNodes(ctx); err != nil {
+				m.logger.Errorf("Unable to get all nodes during cluster rehydrate due to error: %+v", err)
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			m.logger.Errorf("Restarting manager: Unable to get all nodes during cluster rehydrate due to error: %+v", err)
+			// stop the manager to restart it
+			m.stop()
+			return
+		}
+
+		// retry each node for 10 mins, with 30 sec interval
+		rehydrateRetrier := retry.Retrier{
+			Attempts: 20,
+			Delay:    time.Second * 30,
+		}
+
+		for _, node := range nodes.Nodes {
+			// Try to create the NNC object. This will return nil if the NNC already exists, so we don't have to check for that here
+			err := rehydrateRetrier.Do(ctx, func() error {
+				if err := nodeReconciler.createNodeNetworkConfig(ctx, node.Name, nil); err != nil {
+					m.logger.Errorf("Unable to create NNC for node %s due to error: %v", node.Name, err)
+					return err
+				}
+
+				return nil
+			})
+
+			if err != nil {
+				m.logger.Errorf("Restarting manager: Unable to create NNC for node %s due to error: %v", node.Name, err)
+				// stop the manager to restart it
+				m.stop()
+				return
+			}
+		}
+	}(rehydrateCtx)
 
 	// Wait for cleanup signal or error from reconcilers
 	cleanupCtx, cancel := context.WithCancel(ctx)

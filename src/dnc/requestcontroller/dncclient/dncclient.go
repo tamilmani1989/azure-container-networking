@@ -53,6 +53,17 @@ func (s SynchronousDNCClient) GetNode(ctx context.Context, nodeID string) (*api.
 	return nodeResp, respErr
 }
 
+//GetNodes wraps dnc/client's GetNodes to present errors as standard error type
+func (s SynchronousDNCClient) GetNodes(ctx context.Context) (*api.NodesResponse, error) {
+	// TODO: update this to use context when dnc/client functions accept context
+	nodesResp, respErr := s.dncClient.GetNodes()
+	if respErr != nil && respErr.HTTPStatus == http.StatusOK {
+		return nodesResp, nil
+	}
+
+	return nodesResp, respErr
+}
+
 // UpsertNode adds/updates the Node on DNC
 func (s SynchronousDNCClient) UpsertNode(ctx context.Context, nodeID, ipAddress, orchestratorType, infraVnet string) error {
 	logger := s.logger.WithFields(logrus.Fields{

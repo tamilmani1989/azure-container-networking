@@ -33,6 +33,19 @@ func (m *MockSynchronousDNCClient) GetNode(ctx context.Context, nodeID string) (
 	return node, nil
 }
 
+func (m *MockSynchronousDNCClient) GetNodes(ctx context.Context) (*api.NodesResponse, error) {
+	fmt.Println("GetNodes(ctx)")
+	var nodes []api.SlimNodeInfo
+
+	for name := range m.nodes {
+		nodes = append(nodes, api.SlimNodeInfo{Name: name})
+	}
+
+	return &api.NodesResponse{
+		Nodes: nodes,
+	}, nil
+}
+
 func (m *MockSynchronousDNCClient) UpsertNode(ctx context.Context, nodeID, ipAddress, orchestratorType, infraVnet string) error {
 	fmt.Printf("UpsertNode(ctx, %s, %s, %s, %s)\n", nodeID, ipAddress, orchestratorType, infraVnet)
 	node, found := m.nodes[nodeID]
