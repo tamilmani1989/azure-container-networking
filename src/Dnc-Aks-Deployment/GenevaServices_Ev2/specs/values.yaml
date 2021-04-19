@@ -15,19 +15,19 @@ gcskey: __gcskey__
 # https://genevamondocs.azurewebsites.net/collect/references/linuxcontainers.html
 mdsd:
   repository: linuxgeneva-microsoft.azurecr.io/genevamdsd
-  tag: master_20210304.2
+  tag: master_20210401.1
 
 fluentd:
   repository: linuxgeneva-microsoft.azurecr.io/genevafluentd_td-agent
-  tag: master_20210225.1
+  tag: master_20210401.1
 
 mdm:
   repository: linuxgeneva-microsoft.azurecr.io/genevamdm
-  tag: master_20210303.1
+  tag: master_20210401.1
 
 secpack:
   repository: linuxgeneva-microsoft.azurecr.io/genevasecpackinstall
-  tag: master_20210304.2
+  tag: master_20210401.1
 
 imagecleanup:
   repository: __ContainerRegistryName__/image-cleanup-tool
