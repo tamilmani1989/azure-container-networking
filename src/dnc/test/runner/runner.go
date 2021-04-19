@@ -24,6 +24,8 @@ import (
 	"github.com/google/uuid"
 )
 
+type OsEnvParseType string
+
 const (
 	cnsEP = "127.0.0.1"
 
@@ -31,6 +33,9 @@ const (
 	nc2IP = "10.0.1.5"
 	nc3IP = "10.0.1.4"
 	nc4IP = "192.168.1.4"
+	nc5IP = "192.100.1.4"
+	nc6IP = "192.110.1.4"
+	nc7IP = "192.120.1.4"
 
 	cnsyml = "cns.yaml"
 	dncyml = "dnc.yaml"
@@ -46,6 +51,12 @@ const (
 	podName3     = "container3mnat"
 	nc4          = "f67641a7-d746-433a-b654-89deff64a098"
 	podName4     = "container4lb"
+	nc5          = "2c6163ca-080e-4469-80ec-2ce85a07f656"
+	podName5     = "container5ilb"
+	nc6          = "ed02c024-c078-4195-9c99-4b9787956587"
+	podName6     = "container6lbmnat"
+	nc7          = "0ead0b27-df75-4099-9180-6ab4eea2ac1f"
+	podName7     = "container7ilbmnat"
 
 	defaultRequestTimeout   time.Duration = time.Second * 4
 	defaultNCRequestTimeout time.Duration = time.Second * 45
@@ -59,7 +70,12 @@ const (
 
 	privateLinkDomain = ".privatelink.blob.core.windows.net"
 
-	lbNCUrlFmt = "http://%s:9095/hello"
+	lbNCUrlFmt     = "http://%s:9095/hello"
+	lbMnatNCUrlFmt = "http://%s:9095/lbmnat"
+
+	TypeUIDParse   OsEnvParseType = "uid"
+	TypeNetIPParse OsEnvParseType = "ip"
+	TypeNone       OsEnvParseType = ""
 )
 
 // Runner - Listens to Jarvis runner (client) to run tests and retrieve results
@@ -84,6 +100,9 @@ type SwiftDatapath struct {
 	PrivateDNS             bool
 	MNAT                   bool
 	LB                     bool
+	ILB                    bool
+	LBMNAT                 bool
+	ILBMNAT                bool
 	LastError              string
 }
 
@@ -105,18 +124,30 @@ var (
 	iface1 string
 	iface2 string
 	// vnet vars
-	vnetID                   string
-	authenticationToken      string
-	vnetWithMNATID           string
-	authTokenForVnetWithMNAT string
-	vnetWithLBID             string
-	authTokenForVnetWithLB   string
+	vnetID                      string
+	authenticationToken         string
+	vnetWithMNATID              string
+	authTokenForVnetWithMNAT    string
+	vnetWithLBID                string
+	authTokenForVnetWithLB      string
+	vnetWithILBID               string
+	authTokenForVnetWithILB     string
+	vnetWithLBMNATID            string
+	authTokenForVnetWithLBMNAT  string
+	vnetWithILBMNATID           string
+	authTokenForVnetWithILBMNAT string
 
 	// NC context
 	context  = []byte(`{"PodName":"` + podName1 + `","PodNamespace":"` + podNamespace + `"}`)
 	context2 = []byte(`{"PodName":"` + podName2 + `","PodNamespace":"` + podNamespace + `"}`)
 	context3 = []byte(`{"PodName":"` + podName3 + `","PodNamespace":"` + podNamespace + `"}`)
 	context4 = []byte(`{"PodName":"` + podName4 + `","PodNamespace":"` + podNamespace + `"}`)
+	context5 = []byte(`{"PodName":"` + podName5 + `","PodNamespace":"` + podNamespace + `"}`)
+	context6 = []byte(`{"PodName":"` + podName6 + `","PodNamespace":"` + podNamespace + `"}`)
+	context7 = []byte(`{"PodName":"` + podName7 + `","PodNamespace":"` + podNamespace + `"}`)
+
+	podList = []string{podName1, podName2, podName3, podName4, podName5, podName6, podName7}
+
 	// blob endpoint
 	blobEP   string
 	plblobEP string
@@ -128,11 +159,48 @@ var (
 	// LB front end public ip
 	lbPublicIP string
 	lbNCUrl    string
-	response   *http.Response
+	// ILB private IP
+	ilbPrivateIP string
+	ilbNCUrl     string
+	// LP Public ip in LB + MNAT
+	lbPublicIPMnatLB string
+	// MNAT Public IP in LB + MNAT
+	mnatPublicIPMnatLB string
+	lbMnatNCUrl        string
+	// ILB private IP in ILB + MNAT
+	ilbPrivateIPMnatILB string
+	// MNAT Public IP in ILB + MNAT
+	mnatPublicIPMnatILB string
+	ilbMnatNCUrl        string
+
+	response *http.Response
 )
 
+func getOsEnvValue(envStr string, parseType OsEnvParseType, exitNum int) string {
+	osEnvValue, found := os.LookupEnv(envStr)
+	if !found {
+		log.Printf("Failed to lookup ENV variable:%s", envStr)
+		os.Exit(exitNum)
+	}
+	switch parseType {
+	case TypeUIDParse:
+		// Ensure it is a valid GUID
+		_, parseErr := uuid.Parse(osEnvValue)
+		if parseErr != nil {
+			log.Printf("Invalid value of %s: %s", envStr, osEnvValue)
+			os.Exit(exitNum + 1)
+		}
+	case TypeNetIPParse:
+		if len(net.ParseIP(osEnvValue)) <= 0 {
+			log.Printf("Invalid value for %s: %s", envStr, osEnvValue)
+			os.Exit(exitNum + 1)
+		}
+	default:
+	}
+	return osEnvValue
+}
+
 func init() {
-	var found bool
 	// clean up old services & start them again
 	exec.Command("kubectl", "delete", "-f", cnsyml).Run()
 	exec.Command("kubectl", "delete", "-f", dncyml).Run()
@@ -141,29 +209,11 @@ func init() {
 	exec.Command("kubectl", "apply", "-f", dncyml).Run()
 
 	// retrieve necessary values
-	blobEP, found = os.LookupEnv("SERVICE_TUNNEL_EP")
-	if !found {
-		log.Print("Failed to lookup ENV variable:SERVICE_TUNNEL_EP")
-		os.Exit(1)
-	}
+	blobEP = getOsEnvValue("SERVICE_TUNNEL_EP", TypeNone, 1)
+	blob = getOsEnvValue("BLOB", TypeNone, 2)
+	container = getOsEnvValue("CONTAINER", TypeNone, 3)
+	node1 = getOsEnvValue("NODE1", TypeNone, 4)
 
-	blob, found = os.LookupEnv("BLOB")
-	if !found {
-		log.Print("Failed to lookup ENV variable:BLOB")
-		os.Exit(2)
-	}
-
-	container, found = os.LookupEnv("CONTAINER")
-	if !found {
-		log.Print("Failed to lookup ENV variable: CONTAINER")
-		os.Exit(3)
-	}
-
-	node1, found = os.LookupEnv("NODE1")
-	if !found {
-		log.Print("Failed to lookup ENV variable: NODE1")
-		os.Exit(4)
-	}
 	jsonPath := "jsonpath=\"{.items[?(@.metadata.name==\"" + node1 + "\")].status.addresses[?(@.type==\"InternalIP\")].address}\""
 	output, _ := exec.Command("kubectl", "get", "nodes", "-o", jsonPath).CombinedOutput()
 	iface1 = string(output[1 : len(output)-1])
@@ -171,44 +221,16 @@ func init() {
 	dncEP = "http://" + iface1 + ":9000"
 
 	log.Printf("DNC Endpoint : %s", dncEP)
-	node2, found = os.LookupEnv("NODE2")
-	if !found {
-		log.Print("Failed to lookup ENV variable: NODE2")
-		os.Exit(5)
-	}
+	node2 = getOsEnvValue("NODE2", TypeNone, 5)
 	jsonPath = "jsonpath=\"{.items[?(@.metadata.name==\"" + node2 + "\")].status.addresses[?(@.type==\"InternalIP\")].address}\""
 	output, _ = exec.Command("kubectl", "get", "nodes", "-o", jsonPath).CombinedOutput()
 	iface2 = string(output[1 : len(output)-1])
 
-	vnetID, found = os.LookupEnv("CUST_VNET")
-	if !found {
-		log.Print("Failed to lookup ENV variable: CUST_VNET")
-		os.Exit(6)
-	}
-
-	partitionKey, found = os.LookupEnv("PARTITION_KEY")
-	if !found {
-		log.Print("Failed to lookup ENV variable: PARTITION_KEY")
-		os.Exit(7)
-	}
-
-	storageKey, found = os.LookupEnv("STORAGE_KEY")
-	if !found {
-		log.Print("Failed to lookup ENV variable: STORAGE_KEY")
-		os.Exit(8)
-	}
-
-	authenticationToken, found = os.LookupEnv("AUTHENTICATION_TOKEN")
-	if !found {
-		log.Print("Failed to lookup ENV variable: AUTHENTICATION_TOKEN")
-		os.Exit(9)
-	}
-
-	plblobEP, found = os.LookupEnv("PRIVATELINK_EP")
-	if !found {
-		log.Print("Failed to lookup ENV variable: PRIVATELINK_EP")
-		os.Exit(10)
-	}
+	vnetID = getOsEnvValue("CUST_VNET", TypeNone, 6)
+	partitionKey = getOsEnvValue("PARTITION_KEY", TypeNone, 7)
+	storageKey = getOsEnvValue("STORAGE_KEY", TypeNone, 8)
+	authenticationToken = getOsEnvValue("AUTHENTICATION_TOKEN", TypeNone, 9)
+	plblobEP = getOsEnvValue("PRIVATELINK_EP", TypeNone, 10)
 
 	privateDNS = regPrivateDNS.FindStringSubmatch(plblobEP)
 	if len(privateDNS) < 2 {
@@ -216,79 +238,27 @@ func init() {
 		os.Exit(11)
 	}
 
-	vnetWithMNATID, found = os.LookupEnv("CUST_VNET_WITH_MNAT")
-	if !found {
-		log.Print("Failed to lookup ENV variable: CUST_VNET_WITH_MNAT")
-		os.Exit(12)
-	}
+	vnetWithMNATID = getOsEnvValue("CUST_VNET_WITH_MNAT", TypeUIDParse, 12)
+	authTokenForVnetWithMNAT = getOsEnvValue("AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT", TypeUIDParse, 14)
+	mnatPublicIP = getOsEnvValue("MNAT_PUBLIC_IP", TypeNetIPParse, 16)
 
-	// Ensure it is a valid GUID
-	_, parseErr := uuid.Parse(vnetWithMNATID)
-	if parseErr != nil {
-		log.Printf("Invalid value of CUST_VNET_WITH_MNAT: %s", vnetWithMNATID)
-		os.Exit(13)
-	}
+	vnetWithLBID = getOsEnvValue("CUST_VNET_WITH_SWIFTLB", TypeUIDParse, 18)
+	authTokenForVnetWithLB = getOsEnvValue("AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTLB", TypeUIDParse, 20)
+	lbPublicIP = getOsEnvValue("SWIFTLB_PUBLIC_IP", TypeNetIPParse, 22)
 
-	authTokenForVnetWithMNAT, found = os.LookupEnv("AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT")
-	if !found {
-		log.Print("Failed to lookup ENV variable: AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT")
-		os.Exit(14)
-	}
+	vnetWithILBID = getOsEnvValue("CUST_VNET_WITH_SWIFTILB", TypeUIDParse, 24)
+	ilbPrivateIP = getOsEnvValue("SWIFTILB_PRIVATE_IP", TypeNetIPParse, 26)
+	authTokenForVnetWithILB = getOsEnvValue("AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTILB", TypeUIDParse, 28)
 
-	// Ensure it is a valid GUID
-	_, parseErr = uuid.Parse(authTokenForVnetWithMNAT)
-	if parseErr != nil {
-		log.Printf("Invalid value for AUTHENTICATION_TOKEN_CUST_VNET_WITH_MNAT: %s", authTokenForVnetWithMNAT)
-		os.Exit(15)
-	}
+	vnetWithLBMNATID = getOsEnvValue("CUST_VNET_WITH_SWIFTLBMNAT", TypeUIDParse, 30)
+	lbPublicIPMnatLB = getOsEnvValue("SWIFTLB_PUBLIC_IP_LBMNAT", TypeNetIPParse, 32)
+	authTokenForVnetWithLBMNAT = getOsEnvValue("AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTLBMNAT", TypeUIDParse, 34)
+	mnatPublicIPMnatLB = getOsEnvValue("MNAT_PUBLIC_IP_LBMNAT", TypeNetIPParse, 36)
 
-	mnatPublicIP, found = os.LookupEnv("MNAT_PUBLIC_IP")
-	if !found {
-		log.Print("Failed to lookup ENV variable:MNAT_PUBLIC_IP")
-		os.Exit(16)
-	}
-
-	if len(net.ParseIP(mnatPublicIP)) <= 0 {
-		log.Printf("Invalid value for MNAT_PUBLIC_IP : %s", mnatPublicIP)
-		os.Exit(17)
-	}
-
-	vnetWithLBID, found = os.LookupEnv("CUST_VNET_WITH_SWIFTLB")
-	if !found {
-		log.Print("Failed to lookup ENV variable:CUST_VNET_WITH_SWIFTLB")
-		os.Exit(18)
-	}
-
-	// Ensure it is a valid GUID
-	_, parseErr = uuid.Parse(vnetWithLBID)
-	if parseErr != nil {
-		log.Printf("Invalid value for CUST_VNET_WITH_SWIFTLB: %s", vnetWithLBID)
-		os.Exit(19)
-	}
-
-	authTokenForVnetWithLB, found = os.LookupEnv("AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTLB")
-	if !found {
-		log.Print("Failed to lookup ENV variable:AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTLB")
-		os.Exit(20)
-	}
-
-	// Ensure it is a valid GUID
-	_, parseErr = uuid.Parse(authTokenForVnetWithLB)
-	if parseErr != nil {
-		log.Printf("Invalid value for AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTLB: %s", authTokenForVnetWithLB)
-		os.Exit(21)
-	}
-
-	lbPublicIP, found = os.LookupEnv("SWIFTLB_PUBLIC_IP")
-	if !found {
-		log.Print("Failed to lookup ENV variable: SWIFTLB_PUBLIC_IP")
-		os.Exit(22)
-	}
-
-	if len(net.ParseIP(lbPublicIP)) <= 0 {
-		log.Printf("Invalid value for SWIFTLB_PUBLIC_IP: %s", lbPublicIP)
-		os.Exit(23)
-	}
+	vnetWithILBMNATID = getOsEnvValue("CUST_VNET_WITH_SWIFTILBMNAT", TypeUIDParse, 38)
+	ilbPrivateIPMnatILB = getOsEnvValue("SWIFTILB_PRIVATE_IP_ILBMNAT", TypeNetIPParse, 40)
+	authTokenForVnetWithILBMNAT = getOsEnvValue("AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTILBMNAT", TypeUIDParse, 42)
+	mnatPublicIPMnatILB = getOsEnvValue("MNAT_PUBLIC_IP_ILBMNAT", TypeNetIPParse, 44)
 
 	runner.responseFunc = responder
 	runner.setupServer(":9009")
@@ -397,7 +367,11 @@ func e2eTests() {
 			ExternalDNS:            true,
 			PrivateDNS:             true,
 			MNAT:                   true,
-			LB:                     true}
+			LB:                     true,
+			ILB:                    true,
+			LBMNAT:                 true,
+			ILBMNAT:                true,
+		}
 		srcPod, pod2, pod3, podIP1, podIP2 string
 		output                             []byte
 	)
@@ -602,49 +576,92 @@ func e2eTests() {
 	logger.Printf("Verifying LB scenario")
 	// test, LB scenario
 	lbNCUrl = fmt.Sprintf(lbNCUrlFmt, lbPublicIP)
-	response, err = http.Get(lbNCUrl)
+	output, err = sendGetRequest(lbNCUrl)
 	if err != nil {
 		report.LB = false
-		logger.Errorf("LB scenario failed: Encountered error following HTTP GET request %s", err)
-		lastErr = fmt.Errorf("LB scenario failed: Encountered error following HTTP GET request %s", err)
-	} else {
-		defer response.Body.Close()
-		logger.Printf("Checking HTTP status code of LB request")
-		// Check HTTP status code
-		if response.StatusCode != http.StatusOK {
+		logger.Errorf("LB scenario failed: Encountered error following HTTP GET request %+v", err)
+		lastErr = fmt.Errorf("LB scenario failed: Encountered error following HTTP GET request %+v", err)
+	}
+
+	if report.LB && len(output) >= 0 {
+		logger.Printf("Validating LB request output")
+		// Check if output contains
+		if !strings.Contains(string(output), "LB") {
 			report.LB = false
-			logger.Errorf("LB scenario failed: Encountered non-200 status code for reading HTTP GET request %d",
-				response.StatusCode)
-			lastErr = fmt.Errorf("LB scenario failed: Encountered non-200 status code for reading HTTP GET request %d",
-				response.StatusCode)
-		} else {
-			logger.Printf("Reading LB request response")
-			// Reading output
-			output, err = ioutil.ReadAll(response.Body)
+			logger.Errorf("LB scenario failed: Request output via VIP: %s does not contain string LB Works",
+				string(output))
+			lastErr = fmt.Errorf("LB scenario failed: Request output via VIP: %s does not contain string LB Works",
+				string(output))
+		}
+	}
 
-			if err != nil {
-				report.LB = false
-				logger.Errorf("LB scenario failed: Encountered error reading HTTP GET request %s", err)
-				lastErr = fmt.Errorf("LB scenario failed: Encountered error reading HTTP GET request %s", err)
-			} else {
-				logger.Printf("Checking LB request output")
-				// Check the length of output
-				if len(output) == 0 {
-					report.LB = false
-					logger.Errorf("LB scenario failed: Request output via VIP is empty.")
-					lastErr = fmt.Errorf("LB scenario failed: Request output via VIP is empty.")
-				}
-			}
+	logger.Printf("Verifying ILB scenario")
+	// test, ILB scenario
+	ilbNCUrl = fmt.Sprintf(lbNCUrlFmt, ilbPrivateIP)
+	output, err = sendGetRequest(ilbNCUrl)
+	if err != nil {
+		report.ILB = false
+		logger.Errorf("ILB scenario failed: Encountered error following HTTP GET request  %+v", err)
+		lastErr = fmt.Errorf("ILB scenario failed: Encountered error following HTTP GET request  %+v", err)
+	}
 
-			logger.Printf("Validating LB request output")
-			// Check if output contains
-			if report.LB && !strings.Contains(string(output), "LB") {
-				report.LB = false
-				logger.Errorf("LB scenario failed: Request output via VIP: %s does not contain string LB Works",
-					string(output))
-				lastErr = fmt.Errorf("LB scenario failed: Request output via VIP: %s does not contain string LB Works",
-					string(output))
-			}
+	if report.ILB && len(output) >= 0 {
+		logger.Printf("Validating ILB request output")
+		// Check if output contains
+		if !strings.Contains(string(output), "LB") {
+			report.LB = false
+			logger.Errorf("ILB scenario failed: Request output via VIP: %s does not contain string LB Works",
+				string(output))
+			lastErr = fmt.Errorf("ILB scenario failed: Request output via VIP: %s does not contain string LB Works",
+				string(output))
+		}
+	}
+
+	logger.Printf("Verifying LB + MNAT scenario")
+	// test, LB + MNAT scenario
+	lbMnatNCUrl = fmt.Sprintf(lbMnatNCUrlFmt, lbPublicIPMnatLB)
+	output, err = sendGetRequest(lbMnatNCUrl)
+	if err != nil {
+		report.LBMNAT = false
+		logger.Errorf("LBMNAT scenario failed: Encountered error following HTTP GET request  %+v", err)
+		lastErr = fmt.Errorf("LBMNAT scenario failed: Encountered error following HTTP GET request  %+v", err)
+	}
+
+	if report.LBMNAT && len(output) >= 0 {
+		// Check if the command output has MNAT public IP
+		logger.Printf("Validating output of request sent via MNAT to containt %s.", mnatPublicIPMnatLB)
+		if !strings.Contains(string(output[1:len(output)-1]), mnatPublicIPMnatLB) {
+			report.MNAT = false
+			logger.Errorf("LB + Managed NAT failed: MNAT verification command output: %s does not contain MNAT public IP %s",
+				string(output),
+				mnatPublicIPMnatLB)
+			lastErr = fmt.Errorf("LB + Managed NAT failed: MNAT verification command output: %s does not contain MNAT public IP %s",
+				string(output),
+				mnatPublicIPMnatLB)
+		}
+	}
+
+	logger.Printf("Verifying ILB + MNAT scenario")
+	// test, ILB + MNAT scenario
+	ilbMnatNCUrl = fmt.Sprintf(lbMnatNCUrlFmt, ilbPrivateIPMnatILB)
+	output, err = sendGetRequest(ilbMnatNCUrl)
+	if err != nil {
+		report.ILBMNAT = false
+		logger.Errorf("ILBMNAT scenario failed: Encountered error following HTTP GET request  %+v", err)
+		lastErr = fmt.Errorf("ILBMNAT scenario failed: Encountered error following HTTP GET request  %+v", err)
+	}
+
+	if report.ILBMNAT && len(output) >= 0 {
+		// Check if the command output has MNAT public IP
+		logger.Printf("Validating output of request sent via MNAT to containt %s.", mnatPublicIPMnatILB)
+		if !strings.Contains(string(output[1:len(output)-1]), mnatPublicIPMnatILB) {
+			report.MNAT = false
+			logger.Errorf("ILB + Managed NAT failed: MNAT verification command output: %s does not contain MNAT public IP %s",
+				string(output),
+				mnatPublicIPMnatILB)
+			lastErr = fmt.Errorf("ILB + Managed NAT failed: MNAT verification command output: %s does not contain MNAT public IP %s",
+				string(output),
+				mnatPublicIPMnatILB)
 		}
 	}
 
@@ -718,6 +735,18 @@ func swiftSetup() error {
 		return err
 	}
 
+	if err = addNetwork(vnetWithILBID, defaultNCRequestTimeout); err != nil {
+		return err
+	}
+
+	if err = addNetwork(vnetWithLBMNATID, defaultNCRequestTimeout); err != nil {
+		return err
+	}
+
+	if err = addNetwork(vnetWithILBMNATID, defaultNCRequestTimeout); err != nil {
+		return err
+	}
+
 	if err = addSubnet(vnetID, subnetID, authenticationToken); err != nil {
 		return err
 	}
@@ -727,6 +756,18 @@ func swiftSetup() error {
 	}
 
 	if err = addSubnet(vnetWithLBID, subnetID, authTokenForVnetWithLB); err != nil {
+		return err
+	}
+
+	if err = addSubnet(vnetWithILBID, subnetID, authTokenForVnetWithILB); err != nil {
+		return err
+	}
+
+	if err = addSubnet(vnetWithLBMNATID, subnetID, authTokenForVnetWithLBMNAT); err != nil {
+		return err
+	}
+
+	if err = addSubnet(vnetWithILBMNATID, subnetID, authTokenForVnetWithILBMNAT); err != nil {
 		return err
 	}
 
@@ -743,25 +784,30 @@ func swiftSetup() error {
 		return err
 	}
 
-	// NC for MNAT on node1 (10.0.1.5)
+	// NC for LB on node2 (192.168.1.4)
 	if err = addNc(node2, vnetWithLBID, nc4, "", subnetID, nc4IP, "", iface2, containerType, podName4, podNamespace, false, false, defaultNCRequestTimeout); err != nil {
 		return err
 	}
 
-	if err = createPod(podName1); err != nil {
+	// NC for ILB on node2 (192.100.1.4)
+	if err = addNc(node2, vnetWithILBID, nc5, "", subnetID, nc5IP, "", iface2, containerType, podName5, podNamespace, false, false, defaultNCRequestTimeout); err != nil {
 		return err
 	}
 
-	if err = createPod(podName2); err != nil {
+	// NC for LB + MNAT on node2 (192.110.1.4)
+	if err = addNc(node2, vnetWithLBMNATID, nc6, "", subnetID, nc6IP, "", iface2, containerType, podName6, podNamespace, false, false, defaultNCRequestTimeout); err != nil {
 		return err
 	}
 
-	if err = createPod(podName3); err != nil {
+	// NC for ILB + MNAT on node2 (192.120.1.4)
+	if err = addNc(node2, vnetWithILBMNATID, nc7, "", subnetID, nc7IP, "", iface2, containerType, podName7, podNamespace, false, false, defaultNCRequestTimeout); err != nil {
 		return err
 	}
 
-	if err = createPod(podName4); err != nil {
-		return err
+	for _, pod := range podList {
+		if err = createPod(pod); err != nil {
+			return err
+		}
 	}
 
 	logger.Printf("Successfully done with setup.")
@@ -772,10 +818,9 @@ func swiftTeardown() (err error) {
 	logger.Printf("Tearing down the runner setup.")
 	var lastErr error
 
-	deletePod(podName1)
-	deletePod(podName2)
-	deletePod(podName3)
-	deletePod(podName4)
+	for _, pod := range podList {
+		deletePod(pod)
+	}
 
 	if lastErr = deleteNc(vnetID, nc1); err != nil {
 		err = lastErr
@@ -790,6 +835,18 @@ func swiftTeardown() (err error) {
 	}
 
 	if lastErr = deleteNc(vnetWithLBID, nc4); err != nil {
+		err = lastErr
+	}
+
+	if lastErr = deleteNc(vnetWithILBID, nc5); err != nil {
+		err = lastErr
+	}
+
+	if lastErr = deleteNc(vnetWithLBMNATID, nc6); err != nil {
+		err = lastErr
+	}
+
+	if lastErr = deleteNc(vnetWithILBMNATID, nc7); err != nil {
 		err = lastErr
 	}
 
@@ -1279,4 +1336,34 @@ func getPodExecInfo(podName string) (containerID string, podIP string, err error
 
 	logger.Printf("Successfully retrieved the pod exec info for %s", podName)
 	return containerID, podIP, nil
+}
+
+func sendGetRequest(url string) ([]byte, error) {
+
+	response, err := http.Get(url)
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed: Encountered error following HTTP GET request %s", err)
+	}
+	defer response.Body.Close()
+	logger.Printf("Checking HTTP status code of Get request")
+	// Check HTTP status code
+	if response.StatusCode != http.StatusOK {
+		return []byte{}, fmt.Errorf("failed: Encountered non-200 status code for reading HTTP GET request %d",
+			response.StatusCode)
+	}
+	logger.Printf("Reading Get request response")
+	// Reading output
+	output, err := ioutil.ReadAll(response.Body)
+
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed: Encountered error reading HTTP GET request %s", err)
+	} else {
+		logger.Printf("Checking Get request output")
+		// Check the length of output
+		if len(output) == 0 {
+			return []byte{}, fmt.Errorf("failed: Request output via VIP is empty.")
+		}
+	}
+
+	return output, nil
 }

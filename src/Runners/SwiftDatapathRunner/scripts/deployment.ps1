@@ -34,6 +34,9 @@ $custcVnetName = "custc-vnet"
 $custdVnetName = "custd-vnet"
 $custVnetWithMNAT = "cust-mnat"
 $custVnetWithLB = "cust-lb"
+$custVnetWithILB = "cust-ilb"
+$custVnetWithLBMNAT = "cust-lbmnat"
+$custVnetWithILBMNAT = "cust-ilbmnat"
 $service = "default/runner-service"
 $sharedGWKey = "12d11bfe-9849-4e62-b6f2-bc8af37f7456"
 
@@ -42,6 +45,102 @@ if ($windows) {
     $resourceGroup += 'W'
     $runnerName += 'W'
     $partitionKey += 'W'
+}
+
+# Helper Functions to create Azure resources
+function CreateVNET {
+    Param ([string]$rg,[string]$region,[string]$custVnet,[string]$vnetPrefix,[string]$subnet,[string]$subnetPrefix)
+    
+    az network vnet create `
+        --resource-group $rg `
+        --location $region `
+        --name $custVnet `
+        --address-prefix $vnetPrefix `
+        --subnet-name $subnet `
+        --subnet-prefix $subnetPrefix
+}
+
+function CreatePublicIP {
+    Param ([string]$rg,[string]$name)
+
+    az network public-ip create `
+        --resource-group $rg `
+        --name $name `
+        --sku standard
+}
+
+function CreateILB {
+    Param ([string]$rg,[string]$name,[string]$fename,[string]$vnetname,[string]$subnetname)
+    
+    az network lb create `
+        --resource-group $rg `
+        --name $name `
+        --sku Standard `
+        --frontend-ip-name $fename `         
+        --vnet-name $vnetname `
+        --subnet $subnetname
+}
+
+function CreateELB {
+    Param ([string]$rg,[string]$name,[string]$fename,[string]$fepip)
+    
+    az network lb create `
+        --resource-group $rg `
+        --name $name `
+        --sku Standard `
+        --frontend-ip-name $fename ` 
+        --public-ip-address $fepip
+}
+
+function AddLBProperties {
+
+    Param ([string]$rg,[string]$name,[string]$fename,[string]$custVnetWithLB, [string]$beip)
+    
+    # Create backend pool
+    az network lb address-pool create `
+        --resource-group $rg `
+        --lb-name $name `
+        --name testaddresspool `
+        --vnet $custVnetWithLB `
+        --backend-address name=addr1 ip-address=$beip
+
+    # Create health probe
+    az network lb probe create `
+        --resource-group $rg `
+        --lb-name $name `
+        --name testProbe `
+        --protocol tcp `
+        --port 9095
+
+    # Create LB Rule
+    az network lb rule create `
+        --resource-group $rg `
+        --lb-name $name `
+        --name testlbrule `
+        --protocol Tcp `
+        --frontend-ip-name $fename `
+        --frontend-port 9095 `
+        --backend-pool-name testaddresspool `
+        --backend-port 9095 `
+        --probe-name testprobe
+}
+
+function CreateAndUpdateMNATGateway {
+
+    Param ([string]$rg,[string]$name,[string]$pipname,[string]$vnetName, [string]$subnetName)
+
+    ##  Create NAT Gateway resource     
+    az network nat gateway create `
+        --resource-group $rg `
+        --name $name `
+        --public-ip-addresses $pipname
+
+    ## Attach the subnet from NAT Gateway VNET to NAT gateway resource
+    az network vnet subnet update `
+        --resource-group $rg `
+        --vnet-name $vnetName  `
+        --name  $subnetName `
+        --nat-gateway $name
 }
 
 ## set storage key, partition key, blob and container in runner-conf.yaml
@@ -104,11 +203,7 @@ if ($?) {
         (Get-Content $configurationFilesPath\configure-master.sh) -replace "NODE-2", $agentVm2Name | Out-File $configurationFilesPath\configure-master.sh -Encoding ASCII
 
         ## create customer A vnet; create 'delegated' subnet; and deploy 2 VMs in it
-        az network vnet create -g $resourceGroup `
-            -n $custaVnetName `
-            --address-prefix 10.0.0.0/16 `
-            --subnet-name default `
-            --subnet-prefix 10.0.0.0/24
+        CreateVNET $resourceGroup $region $custaVnetName 10.0.0.0/16 default 10.0.0.0/24
         $subnetId = (az network vnet subnet create `
                         --address-prefix 10.0.1.0/24 `
                         -n $delegatedSubnet `
@@ -261,12 +356,7 @@ if ($?) {
         #     --settings $configurationFilesPath/enableFwd.json
 
         ## create customber B vnet; create gateway subnet; create vnet2vnet gateway subnet; and deploy a vm in it
-        az network vnet create `
-            -g $resourceGroup `
-            -n $custbVnetName `
-            --address-prefix 20.0.0.0/16 `
-            --subnet-name default `
-            --subnet-prefix 20.0.0.0/24
+        CreateVNET $resourceGroup $region $custbVnetName 20.0.0.0/16 default 20.0.0.0/24
         az network vnet subnet create `
             --address-prefix 20.0.255.0/27 `
             -n GatewaySubnet `
@@ -307,12 +397,8 @@ if ($?) {
             --vnet-gateway2 custaGW
 
         ## create custc vnet and VM (RFC1918 peering)
-        az network vnet create `
-            -g $resourceGroup `
-            -n $custcVnetName `
-            --address-prefix 172.16.0.0/16 `
-            --subnet-name default `
-            --subnet-prefix 172.16.0.0/24
+        CreateVNET $resourceGroup $region $custcVnetName 172.16.0.0/16 default 172.16.0.0/24
+
         az vm create `
             -n custc-vm1 `
             -g $resourceGroup `
@@ -345,12 +431,7 @@ if ($?) {
             --allow-vnet-access
 
         ## create custd vnet and VM (Non-RFC1918 peering)
-        az network vnet create `
-            -g $resourceGroup `
-            -n $custdVnetName `
-            --address-prefix 30.0.0.0/16 `
-            --subnet-name default `
-            --subnet-prefix 30.0.0.0/24
+        CreateVNET $resourceGroup $region $custdVnetName 30.0.0.0/16 default 30.0.0.0/24
         az vm create `
             -n custd-vm1 `
             -g $resourceGroup `
@@ -452,82 +533,90 @@ if ($?) {
             --vnet-name $custaVnetName `
             --network-security-group myNsg
 
+        #######################
+        # Base MNAT scenario
+        #######################
         ## Create public IP for NAT Gateway resource
-        az network public-ip create `
-            --resource-group $resourceGroup `
-            --name natGatewayIP `
-            --sku standard
-
-        ##  Create NAT Gateway resource
-        az network nat gateway create `
-            --resource-group $resourceGroup `
-            --name natgateway `
-            --public-ip-addresses natGatewayIP
+        CreatePublicIP $resourceGroup natGatewayIP
 
         ## Create Cust Vnet (exclusive) for NAT gateway
-        az network vnet create `
-            --resource-group $resourceGroup `
-            --location $region `
-            --name $custVnetWithMNAT `
-            --address-prefix 10.0.0.0/16 `
-            --subnet-name $delegatedSubnet `
-            --subnet-prefix 10.0.1.0/24
+        CreateVNET $resourceGroup $region $custVnetWithMNAT 10.0.0.0/16 $delegatedSubnet 10.0.1.0/24
 
-        ## Attach the subnet from NAT Gateway VNET to NAT gateway resource
-        az network vnet subnet update `
-            --resource-group $resourceGroup `
-            --vnet-name $custVnetWithMNAT  `
-            --name  $delegatedSubnet `
-            --nat-gateway natgateway
+        CreateAndUpdateMNATGateway $resourceGroup natgateway natGatewayIP $custVnetWithMNAT $delegatedSubnet
 
+        #######################
+        # Base ELB scenario
+        #######################
         ## Create Cust Vnet (exclusive) for LB
-        az network vnet create `
-            --resource-group $resourceGroup `
-            --location $region `
-            --name $custVnetWithLB `
-            --address-prefix 192.168.0.0/16 `
-            --subnet-name $delegatedSubnet `
-            --subnet-prefix 192.168.1.0/24
+        CreateVNET $resourceGroup $region $custVnetWithLB 192.168.0.0/16 $delegatedSubnet 192.168.1.0/24
 
         ## Create public IP for LB resource
-        az network public-ip create `
-            --resource-group $resourceGroup `
-            --name swiftlbfrontendip `
-            --sku standard
+        CreatePublicIP $resourceGroup swiftlbfrontendip
 
-       ## Create LB resource
-        az network lb create `
-            --resource-group $resourceGroup `
-            --name swiftlbforrunner `
-            --sku Standard `
-            --frontend-ip-name testfrontendip ` 
-            --public-ip-address swiftlbfrontendip
+        ## Create LB resource
+        CreateELB $resourceGroup swiftlbforrunner testfrontendip swiftlbfrontendip
 
-       ## Create LB address pool
-        az network lb address-pool create `
-            --resource-group $resourceGroup `
-            --lb-name swiftlbforrunner `
-            --name testaddresspool `
-            --vnet $custVnetWithLB `
-            --backend-address name=addr1 ip-address=192.168.1.4
+        ## Create LB address pool, probe and rule
+        AddLBProperties $resourceGroup swiftlbforrunner testfrontendip $custVnetWithLB 192.168.1.4
 
-        az network lb probe create `
-            --resource-group $resourceGroup `
-            --lb-name swiftlbforrunner `
-            --name testProbe `
-            --protocol tcp `
-            --port 9095
- 
-        az network lb rule create `
-            --resource-group $resourceGroup `
-            --lb-name swiftlbforrunner `
-            --name testlbrule `
-            --protocol Tcp `
-            --frontend-ip-name testfrontendip `
-            --frontend-port 9095 `
-            --backend-pool-name testaddresspool `
-            --backend-port 9095 `
-            --probe-name testprobe
+        #######################
+        # Base ILB scenario
+        #######################
+        ## Create Cust Vnet (exclusive) for LB
+        CreateVNET $resourceGroup $region $custVnetWithILB 192.100.0.0/16 $delegatedSubnet 192.100.1.0/24
+
+        az network vnet subnet create `
+            --address-prefix 192.100.2.0/24 `
+            -n ilbsubnet `
+            -g $resourceGroup `
+            --vnet-name $custVnetWithILB `
+        
+        # Created ILB for swift runner
+        CreateILB $resourceGroup silbforrunner privatefrontendip $custVnetWithILB ilbsubnet
+
+        ## Create ILB address pool, probe and rule
+        AddLBProperties $resourceGroup silbforrunner privatefrontendip $custVnetWithILB 192.100.1.4
+
+        #######################
+        # MNAT + ELB scenario
+        #######################
+        ## Create Cust Vnet for mNAT + LB
+        CreateVNET $resourceGroup $region $custVnetWithLBMNAT 192.110.0.0/16 $delegatedSubnet 192.110.1.0/24
+
+        ## Create public IP for LB and MNAT resource
+        CreatePublicIP $resourceGroup swiftlbmnatfrontendip
+        CreatePublicIP $resourceGroup lbmnatGatewayIP
+
+        ## Create LB resource
+        CreateELB $resourceGroup swiftlbmnatforrunner testfrontendip swiftlbmnatfrontendip
+        ## Create LB address pool, probe and rule
+        AddLBProperties $resourceGroup swiftlbmnatforrunner testfrontendip $custVnetWithLBMNAT 192.110.1.4
+
+        # Create and update NAT Gateway
+        CreateAndUpdateMNATGateway $resourceGroup lbmnatgateway lbmnatGatewayIP $custVnetWithLBMNAT $delegatedSubnet
+
+        #######################
+        # MNAT + ILB scenario
+        #######################
+        ## Create Cust Vnet (exclusive) for LB
+        CreateVNET $resourceGroup $region $custVnetWithILBMNAT 192.120.0.0/16 $delegatedSubnet 192.120.1.0/24
+
+        az network vnet subnet create `
+            --address-prefix 192.120.2.0/24 `
+            -n ilbsubnet `
+            -g $resourceGroup `
+            --vnet-name $custVnetWithILBMNAT `
+        
+        # Created ILB for swift runner
+        CreateILB $resourceGroup silbmnatforrunner privatefrontendip $custVnetWithILBMNAT ilbsubnet
+
+        ## Create ILB address pool, probe and rule
+        AddLBProperties $resourceGroup silbmnatforrunner privatefrontendip $custVnetWithILBMNAT 192.120.1.4
+
+        # Create Public IP for MNAT
+        CreatePublicIP $resourceGroup ilbmnatGatewayIP
+        # Create and update NAT Gateway
+        CreateAndUpdateMNATGateway $resourceGroup ilbmnatgateway ilbmnatGatewayIP $custVnetWithILBMNAT $delegatedSubnet
 
         ## Replace Cust Vnet with MNAT VNET id in runner-conf.yaml
         $natGwIp = (az network public-ip show -g $resourceGroup -n natGatewayIP | jq.exe -r '.ipAddress')
@@ -543,6 +632,31 @@ if ($?) {
         $custVnetWithLBId = (az network vnet show -g $resourceGroup -n $custVnetWithLB | jq.exe -r '.resourceGuid')
         (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_CUST_VNET_WITH_SWIFTLB_VNETID", $custVnetWithLBId | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
 
+        # Get Swift ILB Private front end IP
+        $swiftIlbPrivateip = (az network lb show -g $resourceGroup -n silbforrunner | jq.exe -r '.frontendIpConfigurations[0].privateIpAddress')
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_SWIFTILB_PRIVATE_IP", $swiftIlbPrivateip | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        $custVnetWithILBId = (az network vnet show -g $resourceGroup -n $custVnetWithILB | jq.exe -r '.resourceGuid')
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_CUST_VNET_WITH_SWIFTILB_VNETID", $custVnetWithILBId | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII 
+
+        ## Replace Cust Vnet with LB VNET id in runner-conf.yaml
+        $swiftmnatLbIp = (az network public-ip show -g $resourceGroup -n swiftlbmnatfrontendip | jq.exe -r '.ipAddress')
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_SWIFTLB_PUBLIC_IP_LBMNAT", $swiftmnatLbIp | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        $custVnetWithLBMNATId = (az network vnet show -g $resourceGroup -n $custVnetWithLBMNAT | jq.exe -r '.resourceGuid')
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_CUST_VNET_WITH_SWIFTLBMNAT_VNETID", $custVnetWithLBMNATId | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        ## replace private IP of ILB in ILB + MNAT scenario
+        $swiftIlbmnatPrivateip = (az network lb show -g $resourceGroup -n silbmnatforrunner | jq.exe -r '.frontendIpConfigurations[0].privateIpAddress')
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_SWIFTILB_PRIVATE_IP_ILBMNAT", $swiftIlbmnatPrivateip | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        ## Replace MNAT + ILB scneario NAT gateway PIP in runner-conf.yaml
+        $ilbnatGwIp = (az network public-ip show -g $resourceGroup -n ilbmnatGatewayIP | jq.exe -r '.ipAddress')
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_MNAT_PUBLIC_IP_ILBMNAT", $ilbnatGwIp | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        $custVnetWithILBMNATId = (az network vnet show -g $resourceGroup -n $custVnetWithILBMNAT | jq.exe -r '.resourceGuid')
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_CUST_VNET_WITH_SWIFTILBMNAT_VNETID", $custVnetWithILBMNATId | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+        
         ## SWITCH OVER TO SAW/JIT ACCESS -> swiftify and retrieve authToken using $infraVnet, $custVnet, $custVnetWithMNAT and $custVnetWithLB
         Write-Host "Values for delegation...`nInfraVnet: $infraVnet`nCustVnet: $custVnet`ncustVnetWithMNAT: $custVnetWithMNAT`custVnetWithLB: $custVnetWithLB`nDncEP: $k8sEP"
 
@@ -557,6 +671,18 @@ if ($?) {
         ## replace the authToken for cust vnet with LB in runner-conf.yaml and continue
         $authToken = "74a93c9f-4b49-4293-9e48-7b8c6d9bcd48"
         (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTLB", $authToken | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        ## replace the authToken for cust vnet with ILB in runner-conf.yaml and continue
+        $authToken = "773e737c-7c70-421c-a73f-278c7e4f35d7"
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTILB", $authToken | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        ## replace the authToken for cust vnet with LB + MNAT in runner-conf.yaml and continue
+        $authToken = "a32fc33c-ec70-483c-acf3-90e729ded58b"
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTLBMNAT", $authToken | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
+
+        ## replace the authToken for cust vnet with ILB + MNAT in runner-conf.yaml and continue
+        $authToken = "5e574773-60cd-4f5d-ab0f-e86dbaf0a22d"
+        (Get-Content $configurationFilesPath\runner-conf.yaml) -replace "REPLACE_WITH_AUTHENTICATION_TOKEN_CUST_VNET_WITH_SWIFTILBMNAT", $authToken | Out-File $configurationFilesPath\runner-conf.yaml -Encoding ASCII
 
         Read-Host 'Press any key to continue... (1/2)'
         Read-Host 'Press any key to confirm continuation... (2/2)'

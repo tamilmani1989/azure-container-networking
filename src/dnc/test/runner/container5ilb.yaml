@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: container5ilb
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: container5ilb
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: container5ilb
+    spec:
+      containers:
+      - name: container5ilb
+        image: mcr.microsoft.com/containernetworking/swift-lbrunnernc:latest
+        ports:
+        - containerPort: 9095
+      nodeSelector:
+        forPod: two
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - 168.63.129.16
