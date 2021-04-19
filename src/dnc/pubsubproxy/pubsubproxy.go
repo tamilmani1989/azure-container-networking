@@ -76,10 +76,10 @@ const (
 	identifier = "digest"
 
 	// PubSub paths
-	vnetPartitionKeyPrefix   = "/vnets/"
-	vnetInterfacePathPrefix  = "/interfaces/"
-	vnetNcPathPrefix         = "/ncs/"
-	vnetConfigRelativePath   = "/configurations/vnet"
+	vnetPartitionKeyPrefix  = "/vnets/"
+	vnetInterfacePathPrefix = "/interfaces/"
+	vnetNcPathPrefix        = "/ncs/"
+	vnetConfigRelativePath  = "/configurations/vnet"
 
 	// NC publish constants
 	ncRoleInstanceId   = "WebFrontEnd_IN_0"
@@ -157,18 +157,18 @@ type AznmClient interface {
 }
 
 var (
-	maxConcurrentRequests   int
-	baseRetryInterval       time.Duration
-	maxRetryBackoffInterval time.Duration
-	sessionManager          *utils.SessionManager
-	replicaInstance         *replica.Replica
-	logger                  loggershim.LoggerInterface
+	maxConcurrentRequests              int
+	baseRetryInterval                  time.Duration
+	maxRetryBackoffInterval            time.Duration
+	sessionManager                     *utils.SessionManager
+	replicaInstance                    *replica.Replica
+	logger                             loggershim.LoggerInterface
 	ncPendingPublishRequestContextRepo repo.NcPendingPublishRequestContextRepo
-	networkRepo             repo.NetworkRepo
-	azureEnvironmentName    string
-	aznmClient              AznmClient
-	aznmSettings            configuration.AznmSettings
-	verboseLogging          bool
+	networkRepo                        repo.NetworkRepo
+	azureEnvironmentName               string
+	aznmClient                         AznmClient
+	aznmSettings                       configuration.AznmSettings
+	verboseLogging                     bool
 )
 
 func logDebugf(format string, args ...interface{}) {
@@ -318,6 +318,32 @@ func PublishNetworkContainer(
 	return nil
 }
 
+func ForceUnpublishInAz(infraVnetID, nodeInterfaceIP, ncID, pubsubAzId string) *api.JsonErr {
+	partitionKey := generateVnetPartitionKey(infraVnetID)
+	relativePath := generateVnetNcPath(nodeInterfaceIP, ncID)
+	if err := unpublishDataAndWaitForStatus(pubsubAzId, partitionKey, relativePath); err != nil {
+		return api.InternalServerErrorf(api.UnpublishingFailed,
+			"UnpublishNetworkContainer for Key %s, Path %s, NC: %s in Az %s failed due to error: %v",
+			partitionKey, relativePath, ncID, pubsubAzId, err)
+	}
+
+	return nil
+}
+
+func ForceUnpublishInAllAzs(infraVnetID, nodeInterfaceIP, ncID string) *api.JsonErr {
+	partitionKey := generateVnetPartitionKey(infraVnetID)
+	relativePath := generateVnetNcPath(nodeInterfaceIP, ncID)
+
+	for pubsubAzId, _ := range publisherContext.publishers {
+		if err := unpublishDataAndWaitForStatus(pubsubAzId, partitionKey, relativePath); err != nil {
+			return api.InternalServerErrorf(api.UnpublishingFailed,
+				"UnpublishNetworkContainer for Key %s, Path %s, NC: %s in Az %s failed due to error: %v",
+				partitionKey, relativePath, ncID, pubsubAzId, err)
+		}
+	}
+	return nil
+}
+
 func UnpublishNetworkContainer(
 	ncUnpublishRequest UnpublishNetworkContainerRequest) *api.JsonErr {
 	logDebugf("UnpublishNetworkContainer: %s", ncUnpublishRequest.NcID)
@@ -343,6 +369,7 @@ func UnpublishNetworkContainer(
 			RetryInterval:      baseRetryInterval,
 		}
 
+		//can't use this in cleanup because we acccess data model here
 		ncPendingPublishContextKey := datamodel.GetNcPendingPublishContextKey(ncUnpublishRequest.VnetID,
 			ncUnpublishRequest.NcID, pubsubAzId)
 		sessionInfo := map[string]string{datamodel.NCPendingPublishRepositoryName: ncPendingPublishContextKey}
@@ -403,7 +430,31 @@ func UnregisterVnet(
 	workerPool().scheduleJob(vnetUnregister)
 }
 
-// Init initializes the PubSubProxy by creating publisherContext, subscribers and worker pool.
+//just make a seperate class? A little dangerous to have unitialized package variables that could be used
+//note since deleting is idempotent we don't need replica
+func InitCleanup(configSettings configuration.PubSubProxySettings, certPath string, lgr loggershim.LoggerInterface) error {
+	maxConcurrentRequests = configSettings.MaxConcurrentRequests
+	logger = lgr
+	numPubSubs := len(configSettings.PubsubVips)
+	if numPubSubs <= 0 {
+		return fmt.Errorf("Invalid number of pubsubs: %d", numPubSubs)
+	}
+	pubsubSettings := pubsubSettings{
+		pubsubVips:         configSettings.PubsubVips,
+		publisherPort:      configSettings.PublisherPort,
+		subscriberPort:     configSettings.SubscriberPort,
+		pubsubCertName:     certPath,
+		pubsubConnectionEp: configSettings.PubsubConnectionEndpoint,
+	}
+	go initPublishers(newMadariClient(), pubsubSettings)
+
+	logDebugf("InitCleanup: initialized pubsubproxy, pubsubSettings: %+v", pubsubSettings)
+
+	return nil
+}
+
+// Init initializes the pubsubproxy by creating
+// publisherContext, subscribers and worker pool.
 func Init(
 	configSettings configuration.PubSubProxySettings,
 	aznmConfigSettings configuration.AznmSettings,

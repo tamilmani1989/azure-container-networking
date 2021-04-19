@@ -7,8 +7,8 @@ import (
 	"dnc/api"
 	"dnc/aznm"
 	"dnc/configuration"
-	"dnc/logger/loggershim"
 	"dnc/datamodel"
+	"dnc/logger/loggershim"
 	"dnc/replica"
 	"fmt"
 	"net/http"
@@ -68,7 +68,7 @@ func Init(
 
 //just make a seperate class? A little dangerous to have unitialized package variables that could be used
 //note since deleting is idempotent we don't need replica
-func InitCleanup(configSettings configuration.PubSubProxySettings, certPath string) error {
+func InitCleanup(configSettings configuration.PubSubProxySettings, certPath string, logger loggershim.LoggerInterface) error {
 	return fmt.Errorf("PubSubProxy module build disabled. Build using -tags enablePubsubProxy")
 }
 
@@ -130,12 +130,16 @@ func UnregisterVnet(
 	vnetId string) {
 }
 
-func ForceUnpublishInAz(infraVnetID, nodeInterfaceIP, ncID, pubsubAzId string) error {
+func ForceUnpublishInAz(infraVnetID, nodeInterfaceIP, ncID, pubsubAzId string) *api.JsonErr {
 	//validateAuthToken
-	return fmt.Errorf("PubSubProxy module build disabled. Build using -tags enablePubsubProxy")
+	return api.InternalServerErrorf(
+		api.StatusBadRequest,
+		"PubSubProxy module build disabled. Build DNC using -tags enablePubsubProxy")
 }
 
-func ForceUnpublishInAllAzs(infraVnetID, nodeInterfaceIP, ncID string) error {
+func ForceUnpublishInAllAzs(infraVnetID, nodeInterfaceIP, ncID string) *api.JsonErr {
 	//validateAuthToken
-	return fmt.Errorf("PubSubProxy module build disabled. Build using -tags enablePubsubProxy")
+	return api.InternalServerErrorf(
+		api.StatusBadRequest,
+		"PubSubProxy module build disabled. Build DNC using -tags enablePubsubProxy")
 }

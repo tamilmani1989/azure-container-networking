@@ -266,6 +266,19 @@ func (s *TestPersistenceStore) DeleteBatch(tableName, _ string, rowKeys []string
 	return nil
 }
 
+func (s *TestPersistenceStore) WipePartition(tableName string) error {
+	s.locks[tableName].Lock()
+	defer func() {
+		s.locks[tableName].Unlock()
+	}()
+
+	for rowKey, _ := range s.datastore[tableName] {
+		delete(s.datastore[tableName], rowKey)
+	}
+
+	return nil
+}
+
 func (s *TestPersistenceStore) InsertEntityBatch(tableName string, entities []storage.Entity) error {
 	table, ok1 := s.datastore[tableName]
 	tableLock, ok2 := s.locks[tableName]
@@ -483,6 +496,22 @@ func (s *TestPersistenceStore) queryAllPropertiesEtag(tableName, rowKey string) 
 	}
 
 	return &e, http.StatusOK, nil
+}
+
+func (s *TestPersistenceStore) AnyRowExists(tableName string) (bool, error) {
+	s.locks[tableName].RLock()
+	defer s.locks[tableName].RUnlock()
+
+	_, found := s.datastore[tableName]
+	if !found {
+		return false, fmt.Errorf("tableName %s not found", tableName)
+	}
+
+	if len(s.datastore[tableName]) > 0 {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // KeyExist :- Check if key exists in a given table.

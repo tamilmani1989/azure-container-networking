@@ -399,6 +399,51 @@ func (a *AzureStorage) DeleteBatch(tableName, partitionKey string, rowKeys []str
 	return nil
 }
 
+// Deletes all rows for associated partition (a.partitionKey) from a given table.
+func (a *AzureStorage) WipePartition(tableName string) error {
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
+	if !ok {
+		return fmt.Errorf("cannot find valid table client for table %s", tableName)
+	}
+	table := tableClient.GetTableReference(tableName)
+
+	filter := BuildFilterOnPartition(a.partitionKey)
+	entities, err := a.queryFilter(tableName, storage.NoMetadata, filter)
+	if err != nil {
+		storageErr, ok := err.(storage.AzureStorageServiceError)
+		if ok && storageErr.StatusCode == http.StatusNotFound {
+			return nil
+		}
+
+		return err
+	}
+
+	if len(entities) == 0 {
+		return nil
+	}
+
+	var entitiesBatch [][]*storage.Entity
+	for len(entities) > a.maxBatchSize {
+		entities, entitiesBatch = entities[a.maxBatchSize:], append(entitiesBatch, entities[0:a.maxBatchSize])
+	}
+	entitiesBatch = append(entitiesBatch, entities)
+
+	for i := 0; i < len(entitiesBatch); i++ {
+		batch := table.NewBatch()
+		for _, storageEntity := range entitiesBatch[i] {
+			entity := table.GetEntityReference(a.partitionKey, storageEntity.RowKey)
+			batch.DeleteEntityByForce(entity, true)
+		}
+
+		err = batch.ExecuteBatch()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // todo: added for deprecated paths, but should eventually remove
 func sliceMaps(batchMap map[string]map[string]interface{}, batchSize int) []map[string]map[string]interface{} {
 	var batches []map[string]map[string]interface{}
@@ -553,22 +598,40 @@ func (a *AzureStorage) QueryAllRowsInPartition(tableName, partitionKey string, c
 	return a.getEntities(tableName, partitionKey, context)
 }
 
+// Checks if any row exists in an associated partition for a given table
+func (a *AzureStorage) AnyRowExists(tableName string) (bool, error) {
+	defer a.recordProcessingTime(time.Now(), "AnyRowExists", tableName, a.partitionKey, "NA")
+
+	filter := BuildFilterOnPartition(a.partitionKey)
+	entities, err := a.queryFilterTopN(tableName, storage.NoMetadata, filter, 1)
+	if err != nil {
+		storageErr, ok := err.(storage.AzureStorageServiceError)
+		if ok && storageErr.StatusCode == http.StatusNotFound {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return len(entities) > 0, nil
+}
+
 // QueryFilter - Query rows using a filter.
 func (a *AzureStorage) QueryFilter(tableName, filter string) ([]*storage.Entity, error) {
 	defer a.recordProcessingTime(time.Now(), "QueryFilter", tableName, "NA", "NA")
 
-	return a.queryFilter(tableName, filter)
+	return a.queryFilter(tableName, storage.FullMetadata, filter)
 }
 
 // QueryFilter - Query rows using a filter format and arguments.
 func (a *AzureStorage) QueryFilterf(tableName, filterFmt string, args ...interface{}) ([]*storage.Entity, error) {
 	defer a.recordProcessingTime(time.Now(), "QueryFilterf", tableName, "NA", "NA")
 
-	return a.queryFilter(tableName, fmt.Sprintf(filterFmt, args...))
+	return a.queryFilter(tableName, storage.FullMetadata, fmt.Sprintf(filterFmt, args...))
 }
 
 // todo: need to determine a max size for filter, since its sent over a GET call to the storage API and fails if it goes over
-func (a *AzureStorage) queryFilter(tableName, filter string) ([]*storage.Entity, error) {
+func (a *AzureStorage) queryFilter(tableName string, ml storage.MetadataLevel, filter string) ([]*storage.Entity, error) {
 	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return nil, fmt.Errorf("cannot find valid table client for table %s", tableName)
@@ -578,7 +641,7 @@ func (a *AzureStorage) queryFilter(tableName, filter string) ([]*storage.Entity,
 
 	queryOptions := storage.QueryOptions{Filter: filter}
 
-	queryResult, err := table.QueryEntities(defaultTimeout, storage.FullMetadata, &queryOptions)
+	queryResult, err := table.QueryEntities(defaultTimeout, ml, &queryOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -599,6 +662,10 @@ func (a *AzureStorage) queryFilter(tableName, filter string) ([]*storage.Entity,
 func (a *AzureStorage) QueryFilterTopN(tableName, filter string, count int) ([]*storage.Entity, error) {
 	defer a.recordProcessingTime(time.Now(), "QueryFilterTopN", tableName, "NA", "NA")
 
+	return a.queryFilterTopN(tableName, storage.FullMetadata, filter, count)
+}
+
+func (a *AzureStorage) queryFilterTopN(tableName string, ml storage.MetadataLevel, filter string, count int) ([]*storage.Entity, error) {
 	tableClient, ok := a.tableNameToTableClientMap[tableName]
 	if !ok {
 		return nil, fmt.Errorf("cannot find valid table client for table %s", tableName)
@@ -606,9 +673,10 @@ func (a *AzureStorage) QueryFilterTopN(tableName, filter string, count int) ([]*
 
 	table := tableClient.GetTableReference(tableName)
 
+	// todo: Why not using QueryOption Top?
 	queryOptions := storage.QueryOptions{Filter: filter}
 
-	result, err := table.QueryEntities(defaultTimeout, storage.FullMetadata, &queryOptions)
+	result, err := table.QueryEntities(defaultTimeout, ml, &queryOptions)
 	if err != nil {
 		return nil, err
 	}

@@ -17,6 +17,8 @@ type DataStoreShim interface {
 	QueryAllRows(tableName string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error)
 	QueryInPartition(tableName, partitionKey, rowKey string) (*storage.Entity, int, error)
 	QueryAllRowsInPartition(tableName, partitionKey string, context interface{}) ([]*storage.Entity, bool, interface{}, int, error)
+	AnyRowExists(tableName string) (bool, error)
+
 	/*
 	  todo: passing an arbitrary filter string to these methods makes mocking difficult.
 	   we should consider a more constrained API surface once we have a good idea of the extent of our querying needs,
@@ -55,6 +57,7 @@ type DataStoreShim interface {
 	DeleteInPartitionWithEtag(tableName, partitionKey, rowKey, etag string) error
 	// todo: do we need to delete with etags? Assuming we want our deletes to be idempotent, this may not be the case.
 	DeleteBatch(tableName, partitionKey string, rowKeys []string) error
+	WipePartition(tablename string) error
 }
 
 // NewDataStoreShim - Create a new datastore shim

@@ -266,7 +266,7 @@ func (p *PendingResourceCleanupRepo) DeleteCleanupRequest(
 
 	if err != nil {
 		msg := fmt.Sprintf(
-			"Failed to delete request associated with key %s with etag %s in table %s due to error:{%s}",
+			"Failed to delete request associated with key %s with etag %s in table %s due to error: %s",
 			requestKey,
 			etag,
 			PendingResourceCleanupTableName,
@@ -305,7 +305,7 @@ func (p *PendingResourceCleanupRepo) createPendingCleanupRequest(
 	_, err = p.data.Insert(PendingResourceCleanupTableName, requestKey, TableToColumnMap[PendingResourceCleanupTableName], string(jsonSerializedBytes[:]))
 	if err != nil {
 		msg := fmt.Sprintf(
-			"Failed to add request %s associated with key %s to pending cleanup table due to error:{%s}",
+			"Failed to add request %s associated with key %s to pending cleanup table due to error: %s",
 			cleanupContext.String(),
 			requestKey,
 			err.Error())
@@ -343,7 +343,7 @@ func (p *PendingResourceCleanupRepo) updatePendingCleanupRequest(
 	err = p.data.UpdateWithEtag(PendingResourceCleanupTableName, requestKey, pendingCleanupRequestEntity.Etag, TableToColumnMap[PendingResourceCleanupTableName], string(jsonSerializedBytes[:]))
 	if err != nil {
 		msg := fmt.Sprintf(
-			"Failed to add request %+v associated with key %s to pending cleanup table due to error:{%s}",
+			"Failed to add request %+v associated with key %s to pending cleanup table due to error: %s",
 			pendingCleanupRequestEntity,
 			requestKey,
 			err.Error())
@@ -374,7 +374,7 @@ func deserializePendingCleanupRequestEntity(entity *storage.Entity) (*PendingRes
 	err := json.Unmarshal([]byte(serializedPendingCleanupRequest), &cleanupContext)
 	if err != nil {
 		msg := fmt.Sprintf(
-			"Failed to unmarshal PendingCleanupRequest for NC key:[%s] due to error:[%s]",
+			"Failed to unmarshal PendingCleanupRequest for NC key: %s due to error: %s",
 			entity.RowKey,
 			err)
 		return nil, &api.JsonErr{
@@ -387,4 +387,26 @@ func deserializePendingCleanupRequestEntity(entity *storage.Entity) (*PendingRes
 		RowKey:         entity.RowKey,
 		CleanupContext: cleanupContext,
 		Etag:           entity.OdataEtag}, nil
+}
+
+func (p *PendingResourceCleanupRepo) AnyPendingResourceCleanupExists() (bool, *api.JsonErr) {
+	exists, err := p.data.AnyRowExists(PendingResourceCleanupTableName)
+	if err != nil {
+		return false, api.InternalServerErrorf(api.StatusInternalServerError,
+			"Failed to Query PendingResourceCleanupTableName due to error: %+v",
+			err)
+	}
+
+	return exists, nil
+}
+
+func (p *PendingResourceCleanupRepo) DeleteAllRows() *api.JsonErr {
+	err := p.data.WipePartition(PendingResourceCleanupTableName)
+	if err != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"Failed to wipe PendingResourceCleanupTableName due to error: %+v",
+			err)
+	}
+
+	return nil
 }

@@ -53,7 +53,7 @@ func (c *Controller) ReJoinAllNetworks(networksMap map[string]bool) {
 }
 
 func (c *Controller) RefreshNetworkContainersNMAgentGoalState() {
-	ncsMap, err := datamodel.GetAllNetworkContainers()
+	ncsMap, err := datamodel.NcRepo.GetAllNetworkContainers()
 	if err != nil {
 		loggershim.LS.Errorf("Failed to retrieve network containers from repository due to error %s", err.Error())
 		return

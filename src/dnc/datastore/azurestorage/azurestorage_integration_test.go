@@ -28,9 +28,11 @@ import (
 // test table to play with API operations. assume that it can be dropped at any time.
 const testTable = "TestTable"
 
-var client *AzureStorage
-
 func TestMain(m *testing.M) {
+	os.Exit(m.Run())
+}
+
+func initAzureStorage(partitionKey string) *AzureStorage {
 	cfg := configuration.AzureStorageInfo{
 		AccountName:     "",
 		Key:             "",
@@ -44,13 +46,13 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("could not initialize client for integration test: %v", err)
 	}
-	client = cl
 
-	os.Exit(m.Run())
+	return cl
 }
 
 func TestBatch(t *testing.T) {
 	partitionKey := "batch_operations_test_" + uuid.New().String()
+	client := initAzureStorage(partitionKey)
 
 	t.Logf("Starting batch operations test on partition %s", partitionKey)
 

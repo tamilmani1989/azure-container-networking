@@ -144,3 +144,25 @@ func (p *NcPendingPublishRequestRepo) QueryNcPendingPublishContext(key string) (
 
 	return &pendingPublishContext, nil
 }
+
+func (p *NcPendingPublishRequestRepo) AnyPendingPublishRequestExists() (bool, *api.JsonErr) {
+	exists, err := p.dataStore.AnyRowExists(NcPendingPublishContextTableName)
+	if err != nil {
+		return false, api.InternalServerErrorf(api.StatusInternalServerError,
+			"Failed to Query NcPendingPublishContextTableName due to error: %+v",
+			err)
+	}
+
+	return exists, nil
+}
+
+func (p *NcPendingPublishRequestRepo) DeleteAllRows() *api.JsonErr {
+	err := p.dataStore.WipePartition(NcPendingPublishContextTableName)
+	if err != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"Failed to wipe NcPendingPublishContextTableName due to error: %+v",
+			err)
+	}
+
+	return nil
+}

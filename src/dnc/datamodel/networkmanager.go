@@ -60,10 +60,11 @@ var (
 	// todo: repos can be initialized by a helper method and compose a struct that can be shared.
 	//  exporting variable temporarily, since this package is behaving as a singleton.
 
-	AllocRepo            *AllocationRepo
-	IpReservationRepo    *ReservationRepo
 	PendingCleanupRepo   *PendingResourceCleanupRepo
 	NcPendingPublishRepo *NcPendingPublishRequestRepo
+	AllocRepo            *AllocationRepo
+	IpReservationRepo    *ReservationRepo
+	NcRepo               *NetworkContainerRepo
 	NodeConfigRepo       *NodeConfigurationRepo
 )
 
@@ -90,6 +91,8 @@ func Init(
 	IpReservationRepo = &ReservationRepo{Datastore: ds}
 	PendingCleanupRepo = NewPendingResourceCleanupRepo(ds, loggershim.LS)
 	NcPendingPublishRepo = NewNcPendingPublishRequestRepo(ds)
+	NodeConfigRepo = &NodeConfigurationRepo{Datastore: ds}
+	NcRepo = NewNetworkContainerRepo(ds)
 	NodeConfigRepo = &NodeConfigurationRepo{Datastore: ds}
 
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
@@ -1976,12 +1979,6 @@ func TryQueryAllReservationsInSubnet(networkID, subnetName string) ([]Reservatio
 	return tryQueryReservations(filter)
 }
 
-// TryQueryAllReservations returns all the reservations in the dnc partition
-func TryQueryAllReservations() ([]ReservationRow, *api.JsonErr) {
-	filter := azurestorage.BuildFilterOnPartition(dncPartitionKey)
-	return tryQueryReservations(filter)
-}
-
 func tryQueryReservations(filter string) ([]ReservationRow, *api.JsonErr) {
 	entities, err := dataStoreShim.QueryFilter(ipReservationsTableName, filter)
 	if err != nil {
@@ -2049,40 +2046,6 @@ func TryQueryAllSubnetConfigsInNetworkConfig(networkConfig *NetworkConfiguration
 	}
 
 	return subnetConfigs, nil
-}
-
-// GetAllNetworkContainers - Retrieve all network containers
-func GetAllNetworkContainers() (map[string]NCConfiguration, error) {
-	var context interface{}
-	ncConfigs := make(map[string]NCConfiguration)
-	for {
-		entities, hasMoreData, cx, status, err := dataStoreShim.QueryAllRows(networkContainerTableName, context)
-		if err != nil {
-			if status == http.StatusNotFound {
-				return ncConfigs, nil
-			}
-
-			return nil, err
-		}
-
-		for _, entity := range entities {
-			serializedNCConfig := entity.Properties[networkContainerConfigurationTag].(string)
-			var ncConfig NCConfiguration
-			err = json.Unmarshal([]byte(serializedNCConfig), &ncConfig)
-			if err != nil {
-				return nil, fmt.Errorf("Unmarshalling nc config %s failed with error %s", serializedNCConfig, err.Error())
-			}
-
-			ncConfigs[entity.RowKey] = ncConfig
-		}
-
-		if !hasMoreData {
-			break
-		}
-		context = cx
-	}
-
-	return ncConfigs, nil
 }
 
 // GetNCGoalState - Get NC goal state from different tables.
@@ -2585,7 +2548,7 @@ func removeReservationMapFromSubnetConfig() *api.JsonErr {
 // Update the subnetkey column of reservation rows in IPReservations table
 func updateIPReservationsTableWithSubnet() *api.JsonErr {
 	// Get all the reservations in the DNC partition
-	reservations, err := TryQueryAllReservations()
+	reservations, err := IpReservationRepo.TryQueryAllReservations()
 	if err != nil {
 		loggershim.LS.Errorf("could not get all the reservations. Error: %v", err)
 		return err

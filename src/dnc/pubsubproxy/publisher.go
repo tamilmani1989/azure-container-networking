@@ -6,10 +6,11 @@ import (
 	. "dnc/MadariClient"
 	sdn "dnc/microsoft/azure/sdncontracts"
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"strings"
 	"sync"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -176,7 +177,7 @@ func (p *publisher) unpublishData(
 				p.pubsubAzId, unpublishPath, retCode)
 		}
 	} else {
-		return fmt.Errorf("Unhealthy Publisher: %s. Unublishing failed for path: %s",
+		return fmt.Errorf("Unhealthy Publisher: %s. Unpublishing failed for path: %s",
 			p.pubsubAzId, unpublishPath)
 	}
 
@@ -370,6 +371,26 @@ func unpublishData(
 	}
 
 	return publisher.unpublishData(partitionKey, relativePath)
+}
+
+// This makes a call to pubsub to unpublish and async wait for the status
+func unpublishDataAndWaitForStatus(
+	pubsubAzId string,
+	partitionKey string,
+	relativePath string) error {
+	publisher, err := getPublisher(pubsubAzId)
+	if err != nil {
+		return err
+	}
+
+	err = publisher.unpublishData(partitionKey, relativePath)
+	if err != nil {
+		return err
+	}
+
+	// This acts as an await for the async operation to finish.
+	publishPath := partitionKey + relativePath
+	return publisher.getPublishStatusError(publishPath)
 }
 
 func createContextSelector(
