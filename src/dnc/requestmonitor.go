@@ -499,16 +499,12 @@ func processNetworkContainerReserve(
 		if err != nil {
 			return true, err
 		}
+
 		if repoSubnetConfiguration == nil {
-			msg := fmt.Sprintf(
-				"Configuration for Subnet %s in Network %v not found.",
-				repoReservation.Configuration.AllocationRequest.SubnetName,
-				repoNCConfig.NetworkID)
 			markProcessingFailed = true
-			failureDetail = &api.JsonErr{
-				Code:       api.SubnetNotFound,
-				Text:       msg,
-				HTTPStatus: http.StatusBadRequest}
+			failureDetail = api.BadRequestf(api.SubnetNotFound, "Configuration for Subnet %s in Network %v not found.",
+				repoReservation.Configuration.AllocationRequest.SubnetName, repoNCConfig.NetworkID)
+			goto Cleanup
 		}
 
 		repoNCConfig.ProgrammedTagsInfo = make(map[string]uint64)
