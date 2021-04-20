@@ -47,6 +47,11 @@ func (associationInfo *AssociationInfo) Validate() *JsonErr {
 	if IsBareMetalContainer(associationInfo.ContainerType) {
 		// ragamarr (2/22/2021): the following pod info validations introduced a regression for AKS Swift since pod info
 		// was previously only optional. Moving under baremetal guard for now.
+		if !utils.IsValidUUID(associationInfo.NodeID) {
+			return BadRequestf(
+				InvalidNodeID, "Invalid nodeId %s for baremetal container. Should be guid", associationInfo.NodeID)
+		}
+
 		var podInfo cns.KubernetesPodInfo
 		if err := json.Unmarshal(associationInfo.OrchestratorContext, &podInfo); err != nil {
 			return BadRequestf(InvalidOrchestratorContext, "Invalid container context: %v", err)

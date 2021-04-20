@@ -1,6 +1,7 @@
 package api
 
 import (
+	"dnc/utils"
 	"fmt"
 	"net/http"
 	"strings"
@@ -38,6 +39,16 @@ func (networkContainerRequestV2 *NetworkContainerRequestV2) Validate() *JsonErr 
 	}
 	if err = networkContainerRequestV2.AssociationInfo.Validate(); err != nil {
 		return err
+	}
+
+	if IsBareMetalContainer(networkContainerRequestV2.AssociationInfo.ContainerType) {
+		if networkContainerRequestV2.BmContainerPhysicalInstID == "" ||
+			!utils.IsValidUUID(networkContainerRequestV2.BmContainerPhysicalInstID) {
+
+			return BadRequestf(InvalidNetworkContainerRequest,
+				"Invalid instanceID for baremetal container : %s",
+				networkContainerRequestV2.BmContainerPhysicalInstID)
+		}
 	}
 
 	if networkContainerRequestV2.EndpointPolicies != nil {
