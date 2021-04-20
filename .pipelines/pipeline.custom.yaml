@@ -13,15 +13,8 @@ stages:
     jobs:
       - job: unit_tests
         pool:
-          name: Networking-ContainerNetworking
-          demands: 
-          - agent.os -equals Linux
-          - Role -equals Build
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
 
-
-        container:
-          image: "$(BUILD_IMAGE)"
-          options: "--privileged"
 
         # Go setup for the vmImage:
         # https://github.com/Microsoft/azure-pipelines-image-generation/blob/master/images/linux/scripts/installers/go.sh
@@ -31,12 +24,6 @@ stages:
           modulePath: "$(GOPATH)/src/dnc" # $(build.repository.name)' # Path to the module's code
 
         steps:
-          - bash: |
-              echo $UID
-              sudo rm -rf $(System.DefaultWorkingDirectory)/*
-              sudo rm /run/docker/plugins/test.sock || true
-              sudo ip link del dev dummy || true
-            displayName: "Set up OS environment"
 
           - checkout: self
 
@@ -53,6 +40,8 @@ stages:
               cp -a ./src/dnc/* '$(modulePath)/'
               echo '##vso[task.prependpath]$(GOBIN)'
               echo '##vso[task.prependpath]$(GOROOT)/bin'
+              sudo apt update
+              sudo apt install -y --no-install-recommends clang cmake zlib1g-dev libboost-dev libboost-thread-dev gcc gdb build-essential libssl-dev jq gcc openvswitch-switch
             name: "Env"
             displayName: "Set up the Go environment"
 
@@ -60,115 +49,52 @@ stages:
               echo Build tag is $(Env.Tag)
               go build -v ./test/nmagent/
               go build -v -o dnctl-bin ./cmd/dnctl/
-              sudo apt update
-              sudo apt install -y --no-install-recommends clang cmake zlib1g-dev libboost-dev libboost-thread-dev gcc gdb build-essential libssl-dev
               export CGO_LDFLAGS="-L $(modulePath)/pubsubproxy/libs -lMadariNativeClient -lBondDataSerializer"
               export LD_LIBRARY_PATH=$(modulePath)/pubsubproxy/libs
               go build -v
             workingDirectory: "$(modulePath)"
             name: "BuildDNC"
-            displayName: "Build DNC Binaries"
-
-          - task: AzureCLI@2
-            inputs:
-              azureSubscription: $(VM_SUBSCRIPTION)
-              scriptLocation: "inlineScript"
-              scriptType: bash
-              inlineScript: |
-                az group create --location westus2 --name pipeline-build-$(Env.Date)-$(Env.Tag)
-                az vm create \
-                    --name buildvm-$(Env.Date)-$(Env.Tag) \
-                    --nsg-rule ssh \
-                    --resource-group pipeline-build-$(Env.Date)-$(Env.Tag) \
-                    --image UbuntuLTS \
-                    --admin-username acn \
-                    --generate-ssh-keys \
-                    --size Standard_B4ms
-                export IP=$(az vm list-ip-addresses -g pipeline-build-$(Env.Date)-$(Env.Tag) -n buildvm-$(Env.Date)-$(Env.Tag) --query "[].virtualMachine.network.publicIpAddresses[*].ipAddress" -o tsv)
-                echo "##vso[task.setvariable variable=IP;isOutput=true]$IP"
-                echo $VM created at IP $IP
-                mkdir -p $(Build.ArtifactStagingDirectory)/keys && cp ~/.ssh/* $(Build.ArtifactStagingDirectory)/keys
-              workingDirectory: "$(modulePath)"
-            name: "CreateVM"
-            displayName: Deploy Azure VM to test
-
-          - task: PublishBuildArtifacts@1
-            inputs:
-              artifactName: "vmkeys"
-              pathtoPublish: "$(Build.ArtifactStagingDirectory)/keys"
-            displayName: "Store VM keys to artifacts"
-            condition: succeeded()
+            displayName: "Build DNC binaries"
 
           - script: |
-              export IP=$(CreateVM.IP)
+              sudo mv dnctl-bin /usr/bin/
+              acn_release=$(ACN_RELEASE)
+              if [[ $acn_release == latest ]]; then
+                acn_release=$(curl -L -s -H 'Accept: application/json'  https://github.com/Azure/azure-container-networking/releases/latest | jq .tag_name | tr -d "\"" )
+              fi
+              echo Installing CNI version - $acn_release
+              wget https://raw.githubusercontent.com/Azure/azure-container-networking/master/scripts/install-cni-multitenancy-plugin.sh
+              chmod +x install-cni-multitenancy-plugin.sh
+              sudo -E ./install-cni-multitenancy-plugin.sh $acn_release
+              wget https://github.com/Azure/azure-container-networking/releases/download/$acn_release/azure-cns-linux-amd64-$acn_release.tgz
+              tar -zxvf *.tgz
+              echo $(jq ".WireserverIP=\"127.0.0.1:9001\"" cns_config.json) > cns_config.json
+              export DNC_CONFIGURATION_PATH=$(pwd)/config_test.json
+              sudo -E ./azure-cns &> azure-cns-stdout.log &
+              sudo -E ./dnc &> dnc-stdout.log &
+              sudo -E ./nmagent &> nmagent-mock-stdout.log & 
+            workingDirectory: "$(modulePath)"
+            name: "StartServices"
+            displayName: "Start services"
+
+          - script: |
               ls -lah
               pwd
-              function auto-retry()
-                {
-                    export i="0"
-                    false
-                    while [[ $? -ne 0 ]] && [[ $i -lt 5 ]]; do
-                        "$@" ||  sleep 3 &&  i=$[$i+1] && false
-                    done
-                }
-              auto-retry ssh -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa acn@$IP 'mkdir -p /home/acn/go/src/dnc' || (sleep 1;false)
-              echo Connecting to $IP...
-              scp -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa dnc acn@$IP:/home/acn
-              scp -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa nmagent acn@$IP:/home/acn
-              scp -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa dnctl-bin acn@$IP:/home/acn/dnctl
-              scp -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa config_test.json acn@$IP:/home/acn
-              scp -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa -r * acn@$IP:/home/acn/go/src/dnc
-            workingDirectory: "$(modulePath)"
-            name: "CopyRemote"
-            displayName: "Copy binaries to remote VM"
-
-          - script: |
-              ssh -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa acn@$(CreateVM.IP) '
-                sudo mv dnctl /usr/bin/
-                sudo snap install --classic go;
-                echo "GOPATH=$HOME/go" >> ~/.bashrc
-                sudo apt-get update -y && sudo apt-get install jq gcc openvswitch-switch -y;
-                curl -fsSL https://get.docker.com -o get-docker.sh;
-                sudo sh get-docker.sh;
-                sudo usermod -aG docker acn '
-              ssh -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa acn@$(CreateVM.IP) '
-                acn_release=$(ACN_RELEASE)
-                if [[ $acn_release == latest ]]; then
-                  acn_release=$(curl -L -s -H '"'"'Accept: application/json'"'"' https://github.com/Azure/azure-container-networking/releases/latest | jq .tag_name | tr -d '"'"'"'"'"' );
-                fi;
-                echo Installing CNI version - $acn_release;
-                wget https://raw.githubusercontent.com/Azure/azure-container-networking/master/scripts/install-cni-multitenancy-plugin.sh;
-                chmod +x install-cni-multitenancy-plugin.sh;
-                sudo -E ./install-cni-multitenancy-plugin.sh $acn_release;
-                wget https://github.com/Azure/azure-container-networking/releases/download/$acn_release/azure-cns-linux-amd64-$acn_release.tgz;
-                tar -zxvf *.tgz;
-                echo $(jq ".WireserverIP=\"127.0.0.1:9001\"" cns_config.json) > cns_config.json
-                export DNC_CONFIGURATION_PATH=$(pwd)/config_test.json;
-                sudo -E ./azure-cns &> azure-cns-stdout.log &
-                sudo -E ./dnc &> dnc-stdout.log &
-                sudo -E ./nmagent &> nmagent-mock-stdout.log & '
-            workingDirectory: "$(modulePath)"
-            name: "ConfigureRemoteVM"
-            displayName: "Configure remote VM"
-
-          - script: |
-              ssh -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa acn@$(CreateVM.IP) '
-                cd /home/acn/go/src/dnc/test/orchestrator;
-                wget -q -N https://raw.githubusercontent.com/Azure/azure-container-networking/master/scripts/docker-run.sh;
-                wget -q -N https://raw.githubusercontent.com/Azure/azure-container-networking/master/scripts/docker-del.sh;
-                chmod +x *.sh;
-                DNC_CONFIGURATION_PATH=/home/acn/config_test.json sudo -E /snap/bin/go test -v;
-                exit $?'
+              cd ./test/orchestrator
+              wget -q -N https://raw.githubusercontent.com/Azure/azure-container-networking/master/scripts/docker-run.sh
+              wget -q -N https://raw.githubusercontent.com/Azure/azure-container-networking/master/scripts/docker-del.sh
+              chmod +x *.sh
+              DNC_CONFIGURATION_PATH=../../config_test.json sudo -E go test -v
             workingDirectory: "$(modulePath)"
             name: "RunTests"
             displayName: "Run tests"
 
           - script: |
               mkdir -p $(Build.ArtifactStagingDirectory)/logs
-              scp -oStrictHostKeyChecking=no -i ~/.ssh/id_rsa -r acn@$(CreateVM.IP):/var/log/azure* $(Build.ArtifactStagingDirectory)/logs
+              cp -r /var/log/azure*.log $(Build.ArtifactStagingDirectory)/logs 
             workingDirectory: "$(modulePath)"
             name: "FetchLogs"
-            displayName: "Fetch logs from remote VM"
+            displayName: "Get logs from services"
             condition: always()
 
           - task: PublishBuildArtifacts@1
@@ -177,15 +103,3 @@ stages:
               pathtoPublish: "$(Build.ArtifactStagingDirectory)/logs"
             displayName: "Publish test logs"
             condition: always()
-
-          - task: AzureCLI@2
-            inputs:
-              azureSubscription: $(VM_SUBSCRIPTION)
-              scriptLocation: "inlineScript"
-              scriptType: bash
-              inlineScript: |
-                az group delete --name pipeline-build-$(Env.Date)-$(Env.Tag) --yes
-              workingDirectory: "$(modulePath)"
-            condition: succeeded()
-            name: "DeleteVM"
-            displayName: Delete remote VM

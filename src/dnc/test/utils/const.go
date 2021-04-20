@@ -1,5 +1,41 @@
 package utils
 
+import "net"
+
+func init() {
+	// Find the non-loopback interface for this node
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		panic("Could not retrieve network interfaces for node")
+	}
+
+	for _, i := range ifaces {
+		addrs, err := i.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			if !ip.IsLoopback() {
+				NodeIface = ip.String()
+				break
+			}
+		}
+	}
+
+	if NodeIface == "" {
+		panic("Could not find a non-loopback address for this node.")
+	}
+}
+
 // default vnet info
 const (
 	DefaultDNSServers = "8.8.8.8,9.9.9.9"
@@ -35,8 +71,9 @@ const (
 const (
 	StandardNode  = "Node1"
 	LocalHost     = "127.0.0.1"
-	NodeIface     = "10.0.0.4"
 	StandardVnet  = "6a7e5d77-1ab4-42c7-ac41-39c208db7d6c"
 	StandardVnet2 = "0b06abb8-3601-443a-a39f-61de40f474af"
 	StandardVnet3 = "3ea285c0-2c61-47d0-bcc0-1d7529f978f7"
 )
+
+var NodeIface string
