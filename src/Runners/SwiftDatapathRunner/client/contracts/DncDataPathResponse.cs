@@ -11,7 +11,7 @@
 namespace SwiftRunner
 {
     using Newtonsoft.Json;
-    
+
     namespace contracts
     {
         /// <summary>
@@ -104,6 +104,24 @@ namespace SwiftRunner
             public bool LB { get; private set; }
 
             /// <summary>
+            /// ILB
+            /// </summary>
+            [JsonProperty("ILB")]
+            public bool ILB { get; private set; }
+
+            /// <summary>
+            /// LBMNAT
+            /// </summary>
+            [JsonProperty("LBMNAT")]
+            public bool LBMNAT { get; private set; }
+
+            /// <summary>
+            /// ILBMNAT
+            /// </summary>
+            [JsonProperty("ILBMNAT")]
+            public bool ILBMNAT { get; private set; }
+
+            /// <summary>
             /// LastError
             /// </summary>
             [JsonProperty("LastError")]
@@ -117,7 +135,7 @@ namespace SwiftRunner
                 ServiceTunnel = false;
                 Nc2Nc = false;
                 Nc2VM = false;
-                Vnet2VnetGW =  false;
+                Vnet2VnetGW = false;
                 Vnet2VnetPeering = false;
                 NonRFCVnet2VnetPeering = false;
                 NSG = false;
@@ -128,6 +146,9 @@ namespace SwiftRunner
                 PrivateDNS = false;
                 MNAT = false;
                 LB = false;
+                ILB = false;
+                LBMNAT = false;
+                ILBMNAT = false;
                 LastError = "";
             }
 
@@ -151,6 +172,9 @@ namespace SwiftRunner
                 PrivateDNS = response.PrivateDNS;
                 MNAT = response.MNAT;
                 LB = response.LB;
+                ILB = response.ILB;
+                LBMNAT = response.LBMNAT;
+                ILBMNAT = response.ILBMNAT;
                 LastError = response.LastError;
             }
 
@@ -171,6 +195,9 @@ namespace SwiftRunner
             /// <param name="privateDNS"></param>
             /// <param name="MNAT"></param>
             /// <param name="LB"></param>
+            /// <param name="ILB"></param>
+            /// <param name="LBMNAT"></param>
+            /// <param name="ILBMNAT"></param>
             /// <param name="lastError"></param>
             public DncDataPathResponse(
                 bool serviceTunnel,
@@ -187,6 +214,9 @@ namespace SwiftRunner
                 bool privateDNS,
                 bool mnat,
                 bool lb,
+                bool ilb,
+                bool lbmnat,
+                bool ilbmnat,
                 string lastError)
             {
                 ServiceTunnel = serviceTunnel;
@@ -203,6 +233,9 @@ namespace SwiftRunner
                 PrivateDNS = privateDNS;
                 MNAT = mnat;
                 LB = lb;
+                ILB = ilb;
+                LBMNAT = lbmnat;
+                ILBMNAT = ilbmnat;
                 LastError = lastError;
             }
 
@@ -221,7 +254,10 @@ namespace SwiftRunner
                     ExternalDNS &&
                     PrivateDNS &&
                     MNAT &&
-                    LB;
+                    LB &&
+                    ILB &&
+                    LBMNAT &&
+                    ILBMNAT;
             }
 
             /// <summary>
@@ -233,7 +269,7 @@ namespace SwiftRunner
                 return $"[serviceTunnel:{ServiceTunnel} Nc2Nc:{Nc2Nc} Nc2VM:{Nc2VM} vnet2VnetGW:{Vnet2VnetGW} " +
                     $"vnet2VnetPeering:{Vnet2VnetPeering} nonRfcVnet2VnetPeering:{NonRFCVnet2VnetPeering} " +
                     $"nsg:{NSG} nsgwTags:{NSGwTags} udr:{UDR} privateLink:{PrivateLink} externalDNS:{ExternalDNS} " +
-                    $"privateDNS:{PrivateDNS} mnat:{MNAT} lb:{LB} lastError:{LastError}]";
+                    $"privateDNS:{PrivateDNS} mnat:{MNAT} lb:{LB} ilb:{ILB} lbmnat:{LBMNAT} ilbmnat:{ILBMNAT} lastError:{LastError}]";
             }
         }
     }

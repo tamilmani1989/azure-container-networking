@@ -47,6 +47,9 @@ namespace SwiftRunner
         private MeasureMetric4D PrivateDNSMetric;
         private MeasureMetric4D MNATMetric;
         private MeasureMetric4D LBMetric;
+        private MeasureMetric4D ILBMetric;
+        private MeasureMetric4D LBMNATMetric;
+        private MeasureMetric4D ILBMNATMetric;
         private MeasureMetric4D SetupMetric;
 
         public Runner(string[] args)
@@ -180,6 +183,36 @@ namespace SwiftRunner
                 "DncEndPoint",
                 "PartitionKey",
                 ref mdmErr);
+
+            ILBMetric = MeasureMetric4D.Create(
+                this.GetConfigurationValue(MDMAccountName),
+                this.GetConfigurationValue(Namespace),
+                "ILB",
+                "Environment",
+                "RunnerInstance",
+                "DncEndPoint",
+                "PartitionKey",
+                ref mdmErr);
+
+            LBMNATMetric = MeasureMetric4D.Create(
+                this.GetConfigurationValue(MDMAccountName),
+                this.GetConfigurationValue(Namespace),
+                "LBMNAT",
+                "Environment",
+                "RunnerInstance",
+                "DncEndPoint",
+                "PartitionKey",
+                ref mdmErr);
+
+            ILBMNATMetric = MeasureMetric4D.Create(
+                this.GetConfigurationValue(MDMAccountName),
+                this.GetConfigurationValue(Namespace),
+                "ILBMNAT",
+                "Environment",
+                "RunnerInstance",
+                "DncEndPoint",
+                "PartitionKey",
+                ref mdmErr);
             SetupMetric = MeasureMetric4D.Create(
                 this.GetConfigurationValue(MDMAccountName),
                 this.GetConfigurationValue(Namespace),
@@ -203,7 +236,7 @@ namespace SwiftRunner
             }
 
             // We trigger e2e tests every half an hour
-            for (;;)
+            for (; ; )
             {
                 SwiftRunner.contracts.DncDataPathResponse datapath = null;
 
@@ -222,10 +255,11 @@ namespace SwiftRunner
                     {
                         this.LogHealthy("SwiftDatapathRunner is healthy.");
 
-                        if ((datapath.LastError != null) && (datapath.LastError.Length != 0)){
+                        if ((datapath.LastError != null) && (datapath.LastError.Length != 0))
+                        {
                             this.LogDegraded("Logging error from tests: {0}", datapath.LastError);
                         }
-                        
+
                         if (!Nc2NcMetric.LogValue(datapath.Nc2Nc ? 1 : 2,
                                 this.Environment,
                                 this.RunnerInstance,
@@ -366,6 +400,36 @@ namespace SwiftRunner
                             Console.Error.WriteLine("Failed to emit LB metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
                         }
 
+                        if (!ILBMetric.LogValue(datapath.ILB ? 1 : 2,
+                            this.Environment,
+                            this.RunnerInstance,
+                            k8sEP,
+                            partitionKey,
+                            ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emitI ILB metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
+
+                        if (!LBMNATMetric.LogValue(datapath.LBMNAT ? 1 : 2,
+                            this.Environment,
+                            this.RunnerInstance,
+                            k8sEP,
+                            partitionKey,
+                            ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emit LBMNAT metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
+
+                        if (!ILBMNATMetric.LogValue(datapath.ILBMNAT ? 1 : 2,
+                            this.Environment,
+                            this.RunnerInstance,
+                            k8sEP,
+                            partitionKey,
+                            ref mdmErr))
+                        {
+                            Console.Error.WriteLine("Failed to emitI ILBMNAT metric, error code is {0:X}, error: {1}", mdmErr.ErrorCode, mdmErr.ErrorMessage);
+                        }
+
                         // If the error is setup related, we don't need a flurring incident, hence we just log a separate metric for setup error
                         // in case of setup error, every else metric will be true but error message will be non-empty.
                         // while in case of any scenario failure, one of the test case metric flag will be false, and errror message will be non-empty.
@@ -424,7 +488,8 @@ namespace SwiftRunner
                         case HttpStatusCode.OK:
                             HttpResponseMessage getResponse;
                             Console.WriteLine("Retrieving swift datapath results...");
-                            do {
+                            do
+                            {
                                 Thread.Sleep(5000);
                                 getResponse = Task.Run<HttpResponseMessage>(async () => await httpClient.GetAsync(triggerStatusUrl)).Result;
                             } while (getResponse.StatusCode == (HttpStatusCode)202);
@@ -456,15 +521,15 @@ namespace SwiftRunner
                 {
                     foreach (Exception aex in ae.InnerExceptions)
                     {
-                        Console.WriteLine("Inner Exception: Type : {0}, Message: {1}", 
-                            aex.GetType().Name, 
+                        Console.WriteLine("Inner Exception: Type : {0}, Message: {1}",
+                            aex.GetType().Name,
                             aex.Message);
                     }
 
                     throw new Exception($"Response :{ae.Message}");
                 }
             }
-            
+
             return null;
         }
 
@@ -503,6 +568,9 @@ namespace SwiftRunner
                 PrivateDNSMetric != null &&
                 MNATMetric != null &&
                 LBMetric != null &&
+                ILBMetric != null &&
+                LBMNATMetric != null &&
+                ILBMNATMetric != null &&
                 SetupMetric != null;
         }
 
@@ -523,7 +591,10 @@ namespace SwiftRunner
                 datapathResponse.ExternalDNS &&
                 datapathResponse.PrivateDNS &&
                 datapathResponse.MNAT &&
-                datapathResponse.LB;
+                datapathResponse.LB &&
+                datapathResponse.ILB &&
+                datapathResponse.LBMNAT &&
+                datapathResponse.ILBMNAT;
         }
     }
 }

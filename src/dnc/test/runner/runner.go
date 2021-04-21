@@ -36,6 +36,10 @@ const (
 	nc5IP = "192.100.1.4"
 	nc6IP = "192.110.1.4"
 	nc7IP = "192.120.1.4"
+	// same subnet as nc5
+	nc8IP = "192.100.1.5"
+	// same subnet as nc7
+	nc9IP = "192.120.1.5"
 
 	cnsyml = "cns.yaml"
 	dncyml = "dnc.yaml"
@@ -57,6 +61,12 @@ const (
 	podName6     = "container6lbmnat"
 	nc7          = "0ead0b27-df75-4099-9180-6ab4eea2ac1f"
 	podName7     = "container7ilbmnat"
+
+	// Helper NCs for ILB
+	nc8      = "227a77d7-9d5e-4fe2-8105-e61ecfac2e5a"
+	podName8 = "c8ilbhelper"
+	nc9      = "cb4ade2e-6163-460d-8a4c-f4c82f547a90"
+	podName9 = "c9ilbmnathelper"
 
 	defaultRequestTimeout   time.Duration = time.Second * 4
 	defaultNCRequestTimeout time.Duration = time.Second * 45
@@ -146,7 +156,7 @@ var (
 	context6 = []byte(`{"PodName":"` + podName6 + `","PodNamespace":"` + podNamespace + `"}`)
 	context7 = []byte(`{"PodName":"` + podName7 + `","PodNamespace":"` + podNamespace + `"}`)
 
-	podList = []string{podName1, podName2, podName3, podName4, podName5, podName6, podName7}
+	podList = []string{podName1, podName2, podName3, podName4, podName5, podName6, podName7, podName8, podName9}
 
 	// blob endpoint
 	blobEP   string
@@ -372,8 +382,8 @@ func e2eTests() {
 			LBMNAT:                 true,
 			ILBMNAT:                true,
 		}
-		srcPod, pod2, pod3, podIP1, podIP2 string
-		output                             []byte
+		srcPod, pod2, pod3, podIP1, podIP2, pod8, pod9 string
+		output                                         []byte
 	)
 
 	logger.Printf("Running E2E tests!")
@@ -409,6 +419,24 @@ func e2eTests() {
 	}
 
 	pod3, _, err = getPodExecInfo(podName3)
+	if err != nil {
+		err = swiftTeardown()
+		if err != nil {
+			logger.Printf("Error happened while tearing down: %+v", err)
+		}
+		goto WriteJsonReport
+	}
+
+	pod8, _, err = getPodExecInfo(podName8)
+	if err != nil {
+		err = swiftTeardown()
+		if err != nil {
+			logger.Printf("Error happened while tearing down: %+v", err)
+		}
+		goto WriteJsonReport
+	}
+
+	pod9, _, err = getPodExecInfo(podName9)
 	if err != nil {
 		err = swiftTeardown()
 		if err != nil {
@@ -598,7 +626,7 @@ func e2eTests() {
 	logger.Printf("Verifying ILB scenario")
 	// test, ILB scenario
 	ilbNCUrl = fmt.Sprintf(lbNCUrlFmt, ilbPrivateIP)
-	output, err = sendGetRequest(ilbNCUrl)
+	output, err = exec.Command("kubectl", "exec", pod8, "--", "curl", ilbNCUrl).CombinedOutput()
 	if err != nil {
 		report.ILB = false
 		logger.Errorf("ILB scenario failed: Encountered error following HTTP GET request  %+v", err)
@@ -644,7 +672,7 @@ func e2eTests() {
 	logger.Printf("Verifying ILB + MNAT scenario")
 	// test, ILB + MNAT scenario
 	ilbMnatNCUrl = fmt.Sprintf(lbMnatNCUrlFmt, ilbPrivateIPMnatILB)
-	output, err = sendGetRequest(ilbMnatNCUrl)
+	output, err = exec.Command("kubectl", "exec", pod9, "--", "curl", ilbMnatNCUrl).CombinedOutput()
 	if err != nil {
 		report.ILBMNAT = false
 		logger.Errorf("ILBMNAT scenario failed: Encountered error following HTTP GET request  %+v", err)
@@ -804,6 +832,16 @@ func swiftSetup() error {
 		return err
 	}
 
+	// NC for ILB HELPER on node1 (192.110.1.5)
+	if err = addNc(node1, vnetWithILBID, nc8, "", subnetID, nc8IP, "", iface1, containerType, podName8, podNamespace, false, false, defaultNCRequestTimeout); err != nil {
+		return err
+	}
+
+	// NC for ILB + MNAT helper on node1 (192.120.1.5)
+	if err = addNc(node1, vnetWithILBMNATID, nc9, "", subnetID, nc9IP, "", iface1, containerType, podName9, podNamespace, false, false, defaultNCRequestTimeout); err != nil {
+		return err
+	}
+
 	for _, pod := range podList {
 		if err = createPod(pod); err != nil {
 			return err
@@ -847,6 +885,14 @@ func swiftTeardown() (err error) {
 	}
 
 	if lastErr = deleteNc(vnetWithILBMNATID, nc7); err != nil {
+		err = lastErr
+	}
+
+	if lastErr = deleteNc(vnetWithILBID, nc8); err != nil {
+		err = lastErr
+	}
+
+	if lastErr = deleteNc(vnetWithILBMNATID, nc9); err != nil {
 		err = lastErr
 	}
 

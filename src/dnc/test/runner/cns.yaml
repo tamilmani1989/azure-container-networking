@@ -40,7 +40,8 @@ spec:
       hostNetwork: true
       containers:
       - name: cns-container
-        image: mcr.microsoft.com/containernetworking/azure-cns:latest
+        image: mcr.microsoft.com/containernetworking/azure-cns:v1.2.9
+        args: [ "-c", "tcp://$(CNSIpAddress):$(CNSPort)", "-t", "$(CNSLogTarget)"]
         imagePullPolicy: Always
         volumeMounts:
         - name: log
@@ -49,8 +50,10 @@ spec:
           mountPath: /opt/cni/bin
         - name: cniconfig
           mountPath: /etc/cni/net.d
-        - name: cnsconfig
+        - name: cns-state
           mountPath: /var/lib/azure-network
+        - name: cns-config
+          mountPath: /etc/azure-cns
         ports:
         - containerPort: 10090
         env:
@@ -58,6 +61,12 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
+        - name: CNSPort
+          value: "10090"
+        - name: CNSLogTarget
+          value: "stdoutfile"
+        - name: CNS_CONFIGURATION_PATH
+          value: /etc/azure-cns/cns_config.json
       volumes:
       - name: log
         hostPath:
@@ -71,7 +80,35 @@ spec:
         hostPath:
           path: /etc/cni/net.d
           type: Directory
-      - name: cnsconfig
+      - name: cns-state
         hostPath:
           path: /var/lib/azure-network
-          type: Directory
+          type: DirectoryOrCreate
+      - name: cns-config
+        configMap:
+          name: cns-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cns-config
+data:
+  cns_config.json: |
+    {
+      "TelemetrySettings": {
+          "TelemetryBatchSizeBytes": 16384,
+          "TelemetryBatchIntervalInSecs": 15,
+          "RefreshIntervalInSecs": 15,
+          "DisableAll": false,
+          "HeartBeatIntervalInMins": 30,
+          "DebugMode": false,
+          "SnapshotIntervalInMins": 60
+      },
+      "ManagedSettings": {
+          "PrivateEndpoint": "",
+          "InfrastructureNetworkID": "",
+          "NodeID": "",
+          "NodeSyncIntervalInSeconds": 30
+      },
+      "ChannelMode": "Direct"
+    }
