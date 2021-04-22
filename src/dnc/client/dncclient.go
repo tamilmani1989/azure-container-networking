@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"crypto/tls"
 	"dnc/api"
 	"dnc/datamodel"
 	"dnc/utils"
@@ -33,13 +34,19 @@ const (
 )
 
 const (
-	jsonContentType string = "application/json"
-	delete          string = "DELETE"
+	jsonContentType   string = "application/json"
+	delete            string = "DELETE"
+	sslCertServerName string = "dnc.azure.com"
 )
 
 var (
 	// our default http client with 30s timeout
-	httpc = &http.Client{Timeout: time.Second * 30}
+	httpc = &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{ServerName: sslCertServerName},
+		},
+		Timeout: time.Second * 30,
+	}
 )
 
 // OrchestratorContext - Struct to hold orchestrator context info
@@ -95,7 +102,7 @@ func (c *DncClient) InitAzStorage(accountName, key, partitionKey, blob, containe
  * Add APIs
  */
 
-func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType, infraVnet string) (respErr *api.JsonErr) {
+func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType, infraVnet, azId, nodeType string) (respErr *api.JsonErr) {
 	var (
 		body     bytes.Buffer
 		response *http.Response
@@ -105,7 +112,9 @@ func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType, infraVnet string) 
 			IPAddresses:           []string{ipaddr},
 			LocationType:          "",
 			OrchestratorType:      orchestratorType,
-			InfrastructureNetwork: infraVnet}
+			InfrastructureNetwork: infraVnet,
+			AZID:                  azId,
+			NodeType:              nodeType}
 	)
 
 	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
@@ -179,7 +188,7 @@ func (c *DncClient) AddSubnet(networkId, subnetId, authenticationToken string) (
 
 func (c *DncClient) AddNc(nodeId, networkId, ncId, reservationId, subnet,
 	ipConstraint, nodeConstraint, ifaceId,
-	containerType, podName, podNamespace string,
+	containerType, podName, podNamespace, instanceID string,
 	host2NC, NC2Host bool, secondaryIPCount int) (respErr *api.JsonErr) {
 	var (
 		body     bytes.Buffer
@@ -208,7 +217,9 @@ func (c *DncClient) AddNc(nodeId, networkId, ncId, reservationId, subnet,
 			AllocationRequest:          allocationReq,
 			AssociationInfo:            associationInfo,
 			AllowHostToNCCommunication: host2NC,
-			AllowNCToHostCommunication: NC2Host}
+			AllowNCToHostCommunication: NC2Host,
+			BmContainerPhysicalInstID:  instanceID}
+
 		json.NewEncoder(&body).Encode(ncReq)
 	} else {
 		ncReq := api.NetworkContainerRequestV1{

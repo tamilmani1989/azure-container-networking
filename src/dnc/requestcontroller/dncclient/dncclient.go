@@ -76,7 +76,7 @@ func (s SynchronousDNCClient) UpsertNode(ctx context.Context, nodeID, ipAddress,
 	// Send the AddNode request
 	logger.Infof("DNC call to Add node: NodeID: %s, ipAddress:%s, orchType:%s, infravnet:%s", nodeID, ipAddress,
 		orchestratorType, infraVnet)
-	addNodeRespErr := s.dncClient.AddNode(nodeID, ipAddress, orchestratorType, infraVnet)
+	addNodeRespErr := s.dncClient.AddNode(nodeID, ipAddress, orchestratorType, infraVnet, "", "")
 	// http.StatusOK means request is accepted, anything else means there was an error
 	if addNodeRespErr.HTTPStatus != http.StatusOK {
 		return addNodeRespErr

@@ -30,6 +30,7 @@ func createNetworkContainerCmd() *cobra.Command {
 		containerType    string
 		podName          string
 		podNamespace     string
+		instanceID       string
 		host2NC          bool
 		NC2host          bool
 		secondaryIPCount int
@@ -40,7 +41,7 @@ func createNetworkContainerCmd() *cobra.Command {
 		Short: "Creates a network container",
 		Run: func(cmd *cobra.Command, args []string) {
 
-			err := DncClient.AddNc(nodeID, networkID, ncID, reservationID, subnet, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, host2NC, NC2host, secondaryIPCount)
+			err := DncClient.AddNc(nodeID, networkID, ncID, reservationID, subnet, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, instanceID, host2NC, NC2host, secondaryIPCount)
 			if err != nil {
 				client.PrettyPrint(err)
 			}
@@ -57,6 +58,7 @@ func createNetworkContainerCmd() *cobra.Command {
 	cmd.Flags().StringVar(&containerType, "container-type", "", "Container type")
 	cmd.Flags().StringVar(&podName, "pod-name", "", "Pod name")
 	cmd.Flags().StringVar(&podNamespace, "pod-namespace", "", "Pod namespace")
+	cmd.Flags().StringVar(&instanceID, "instance-id", "", "Instance ID")
 	cmd.Flags().BoolVar(&host2NC, "host-to-nc", false, "Host to nc")
 	cmd.Flags().BoolVar(&NC2host, "nc-to-host", false, "NC to host")
 	cmd.Flags().IntVar(&secondaryIPCount, "secondaryIPCount", 0, "seconday IP count")

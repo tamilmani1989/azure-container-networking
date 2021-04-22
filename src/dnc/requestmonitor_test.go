@@ -3891,11 +3891,13 @@ func TestManagedDncAPIs(t *testing.T) {
 		id, _        = uuid.NewUUID()
 		vnetID       = id.String()
 		body         bytes.Buffer
+		azid         = ""
+		nodeType     = ""
 	)
 
 	// Register network/subnet and add node
 	setupNetworkAndJoinSubnet(t, dncEP, vnetID, networkContainerReq.AllocationRequest.SubnetName, apiVersion, true, 0)
-	if respErr := dnctl.AddNode(nodeID, iface, cns.Kubernetes, infraVnet); respErr.HTTPStatus != http.StatusOK {
+	if respErr := dnctl.AddNode(nodeID, iface, cns.Kubernetes, infraVnet, azid, nodeType); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Register node failed with error %+v", respErr)
 	}
 
@@ -3926,7 +3928,7 @@ func TestManagedDncAPIs(t *testing.T) {
 	}
 
 	// test SyncNodeNetworkContainers API
-	if respErr := dnctl.AddNc(nodeID, vnetID, ncID, "", networkContainerReq.AllocationRequest.SubnetName, ipConstraint, "", iface, networkContainerReq.AssociationInfo.ContainerType, podInfo.PodName, podInfo.PodNamespace, false, false, 0); respErr.HTTPStatus != http.StatusOK {
+	if respErr := dnctl.AddNc(nodeID, vnetID, ncID, "", networkContainerReq.AllocationRequest.SubnetName, ipConstraint, "", iface, networkContainerReq.AssociationInfo.ContainerType, podInfo.PodName, podInfo.PodNamespace, "", false, false, 0); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Create nc failed with error %+v", respErr)
 	}
 

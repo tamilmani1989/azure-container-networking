@@ -30,8 +30,10 @@ func registerNodeCmd() *cobra.Command {
 			ipaddr, _ := cmd.Flags().GetString("ip-address")
 			orchtype, _ := cmd.Flags().GetString("orchestrator-type")
 			infravnet, _ := cmd.Flags().GetString("infra-vnet")
+			azid, _ := cmd.Flags().GetString("az-id")
+			nodetype, _ := cmd.Flags().GetString("node-type")
 
-			err := DncClient.AddNode(nodeid, ipaddr, orchtype, infravnet)
+			err := DncClient.AddNode(nodeid, ipaddr, orchtype, infravnet, azid, nodetype)
 			if err != nil {
 				client.PrettyPrint(err)
 			}
@@ -41,6 +43,8 @@ func registerNodeCmd() *cobra.Command {
 	cmd.Flags().String("ip-address", "", "IP Address of the node")
 	cmd.Flags().String("orchestrator-type", "", "The orchestrator type of the node")
 	cmd.Flags().String("infra-vnet", "", "Node infrastructure network (guid)")
+	cmd.Flags().String("az-id", "", "Availability Zone ID")
+	cmd.Flags().String("node-type", "", "Node type")
 	cmd.MarkFlagRequired("id")
 	cmd.MarkFlagRequired("ip-address")
 	cmd.MarkFlagRequired("orchestrator-type")

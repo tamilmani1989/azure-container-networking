@@ -907,7 +907,7 @@ func addNode(nodeID, ipaddr, orchestratorType, vnetID string) error {
 
 	logger.Printf("Registering node %s", nodeID)
 
-	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, vnetID); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, vnetID, "", ""); respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Register node (create) : %s failed with error %+v", nodeID, respErr)
 	}
 
@@ -1224,7 +1224,7 @@ func addNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeCons
 	)
 
 	logger.Printf("Create nc %s in subnet %s in network %s and node %s and ifaceID %s and podName %s and ipConstraint %s", ncID, subnetID, vnetID, nodeID, ifaceID, podName, ipConstraint)
-	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, false, false, 0); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, "", false, false, 0); respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Create nc %s in subnet %s in network %s and node %s and ifaceID %s and podName %s and ipConstraint %s failed with error %+v",
 			ncID,
 			subnetID,

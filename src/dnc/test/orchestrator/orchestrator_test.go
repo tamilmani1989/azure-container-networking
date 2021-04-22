@@ -165,7 +165,7 @@ func TestBasicNCAPIs(t *testing.T) {
 	addNc(t, nodeID, vnetID, ncID, "", subnetID, "", "", nodeIface, containerType, podName, podNamespace, false, false, defaultNCRequestTimeout, secondaryIPCount)
 	// Adding another nc with the same orchestrator context on the same node should fail (v2)
 	// using GenericFailureNC here but this call will never reach NMAgent and is expected to fail in networkmanager.go
-	if respErr := dnctl.AddNc(nodeID, vnetID, utils.GenericFailureNC, "", subnetID, "", "", nodeIface, cns.AzureContainerInstance, podName, podNamespace, false, false, secondaryIPCount); respErr == nil {
+	if respErr := dnctl.AddNc(nodeID, vnetID, utils.GenericFailureNC, "", subnetID, "", "", nodeIface, cns.AzureContainerInstance, podName, podNamespace, "", false, false, secondaryIPCount); respErr == nil {
 		t.Fatalf("Failed to block duplicate orchestrator contexts with different NC IDs")
 	}
 	// create nc with reservation
@@ -173,7 +173,7 @@ func TestBasicNCAPIs(t *testing.T) {
 	addNc(t, nodeID, vnetID, ncID2, reservationID, subnetID, "", nodeID, nodeIface, containerType, podName+"2", podNamespace, false, false, defaultNCRequestTimeout, secondaryIPCount)
 	// Adding another nc with the same orchestrator context on the same node should fail (v1)
 	// Using the same reservationID over here but this is expected to fail before we persist nc configuration
-	if respErr := dnctl.AddNc(nodeID, vnetID, utils.GenericFailureNC, reservationID, subnetID, "", nodeID, nodeIface, cns.AzureContainerInstance, podName+"2", podNamespace, false, false, secondaryIPCount); respErr == nil {
+	if respErr := dnctl.AddNc(nodeID, vnetID, utils.GenericFailureNC, reservationID, subnetID, "", nodeID, nodeIface, cns.AzureContainerInstance, podName+"2", podNamespace, "", false, false, secondaryIPCount); respErr == nil {
 		t.Fatalf("Failed to block duplicate orchestrator contexts with different NC IDs")
 	}
 
@@ -190,7 +190,7 @@ func TestBasicNCAPIs(t *testing.T) {
 
 	//create NC with reservation which has been assigned to front end IP, creation NC should fail
 	addReservation(t, nodeID, vnetID, subnetID, "", reservationForLBIP, "frontendIP", defaultRequestTimeout)
-	if respErr := dnctl.AddNc(nodeID, vnetID, utils.FrontendIPNC, reservationForLBIP, subnetID, "", nodeID, nodeIface, cns.AzureContainerInstance, podName+"3", podNamespace, false, false, secondaryIPCount); respErr == nil {
+	if respErr := dnctl.AddNc(nodeID, vnetID, utils.FrontendIPNC, reservationForLBIP, subnetID, "", nodeID, nodeIface, cns.AzureContainerInstance, podName+"3", podNamespace, "", false, false, secondaryIPCount); respErr == nil {
 		t.Fatalf("Failed to block NC creation on front end IP reservation")
 	}
 
@@ -396,7 +396,7 @@ func addNode(t *testing.T, nodeID, ipaddr, orchestratorType, infraVnet string) {
 		nodeCfg *api.NodeInfoResponse
 	)
 
-	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, infraVnet); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, infraVnet, "", ""); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Register node failed with error %+v", respErr)
 	}
 
@@ -689,7 +689,7 @@ func addNc(t *testing.T, nodeID, vnetID, ncID, reservationID, subnetID, ipConstr
 			Status: "Completed"}
 	)
 
-	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, host2NC, NC2Host, secondaryIPCount); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, "", host2NC, NC2Host, secondaryIPCount); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Create nc failed with error %+v", respErr)
 	}
 
