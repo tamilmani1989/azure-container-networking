@@ -1,10 +1,28 @@
 pool:
-  name: Networking-ContainerNetworking
-  demands: 
-  - agent.os -equals Linux
-  - Report -equals CodeCoverage
+  name: "$(BUILD_POOL_NAME_DEFAULT)"
 
 steps:
+  - bash: |
+      set -e
+      wget https://www.python.org/ftp/python/3.9.0/Python-3.9.0.tar.xz
+      tar -xf Python-3.9.0.tar.xz
+      cd Python-3.9.0
+      ./configure
+      sudo make altinstall
+      python3.9 --version
+    name: "Python"
+    displayName: "Install python3.9"
+    condition: succeeded()
+
+  - bash: |
+      set -e
+      python3.9 -m pip install requests
+      python3.9 -m pip install azure-storage==0.36
+      python3.9 -m pip install pytz
+    name: "Modules"
+    displayName: "Install modules"
+    condition: succeeded()
+
   - script: python3.9 publish_build_metrics_driver.py -pipelines $(Pipelines) -publish storage
     displayName: "Publish build metrics to table store"
     workingDirectory: "$(Build.SourcesDirectory)/.devops/scripts/"

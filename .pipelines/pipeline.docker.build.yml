@@ -13,24 +13,9 @@ stages:
     jobs:
       - job: build_docker_images
         pool:
-          name: Networking-ContainerNetworking
-          demands: 
-          - agent.os -equals Linux
-
-        container:
-          image: "$(BUILD_IMAGE)"
-          options: "--privileged"
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
 
         steps:
-          - bash: |
-              set -e
-              echo $UID
-              sudo rm -rf $(System.DefaultWorkingDirectory)/*
-              sudo rm /run/docker/plugins/test.sock || true
-              sudo ip link del dev dummy || true
-            displayName: "Set up OS environment"
-            condition: succeeded()
-
           - checkout: self
 
           - script: |

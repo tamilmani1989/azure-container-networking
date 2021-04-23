@@ -25,14 +25,7 @@ stages:
     jobs:
       - job: aks_swift_build_test
         pool:
-          name: Networking-ContainerNetworking
-          demands: 
-          - agent.os -equals Linux
-          - Role -equals $(CUSTOM_E2E_ROLE)
-
-        container:
-          image: "$(BUILD_IMAGE)"
-          options: "--privileged"
+          name: "$(BUILD_POOL_NAME_AKS)"
 
         # Go setup for the vmImage:
         # https://github.com/Microsoft/azure-pipelines-image-generation/blob/master/images/linux/scripts/installers/go.sh
@@ -42,15 +35,6 @@ stages:
           modulePath: "$(GOPATH)/src/dnc" # $(build.repository.name)' # Path to the module's code
 
         steps:
-          - bash: |
-              set -e
-              echo $UID
-              sudo rm -rf $(System.DefaultWorkingDirectory)/*
-              sudo rm /run/docker/plugins/test.sock || true
-              sudo ip link del dev dummy || true
-            displayName: "Set up OS environment"
-            condition: succeeded()
-
           - checkout: self
 
           - bash: |
@@ -120,7 +104,7 @@ stages:
 
           - task: AzureCLI@1
             inputs:
-              azureSubscription: $(ARTIFACT_SUBSCRIPTION)
+              azureSubscription: $(BUILD_VALIDATIONS_SERVICE_CONNECTION)
               scriptLocation: "inlineScript"
               addSpnToEnvironment: true
               inlineScript: |
