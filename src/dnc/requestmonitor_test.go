@@ -682,43 +682,6 @@ func deleteResource(
 	return &errResponse
 }
 
-func validateNodeInfoResponse(
-	t *testing.T,
-	dncEP string,
-	nodeID string,
-	apiVersion string,
-	nodeInfoReq *api.NodeInfoRequest) {
-
-	response, err := http.Get(dncEP + "/nodes/" + nodeID + apiVersion)
-	var nodeInfoResponse api.NodeInfoResponse
-	err = utils.DecodeResponse(response, &nodeInfoResponse)
-	if err != nil {
-		t.Fatalf("Decoding NodeInfo failed. Response %+v Err:%+v", nodeInfoResponse, err)
-	}
-
-	defer response.Body.Close()
-
-	fmt.Printf("Retrieved response:%s\n", nodeInfoResponse.String())
-	expectedIPAddresses := make(map[uint32]bool)
-
-	for _, ipAddressString := range nodeInfoReq.IPAddresses {
-		expectedIPAddresses[utils.IP2Int(net.ParseIP(ipAddressString))] = true
-	}
-
-	if len(expectedIPAddresses) != len(nodeInfoResponse.NodeInfo.IPAddresses) {
-		t.Fatalf("Mismatch in count of expceted and received IP Addresses. Expected:%d, Received:%d",
-			len(expectedIPAddresses),
-			len(nodeInfoResponse.NodeInfo.IPAddresses))
-	}
-	for _, ipAddressString := range nodeInfoResponse.NodeInfo.IPAddresses {
-		receivedIPAddrUint32 := utils.IP2Int(net.ParseIP(ipAddressString))
-		ok := expectedIPAddresses[receivedIPAddrUint32]
-		if !ok {
-			t.Fatalf("Received IP Address %s not found in the expected list", ipAddressString)
-		}
-	}
-}
-
 func validateNetworkContainerInfoResponse(
 	t *testing.T,
 	dncEP string,
@@ -893,7 +856,7 @@ func getNetworkContainerConfiguration(
 	}
 
 	defer response.Body.Close()
-	fmt.Printf("Retrieved response:%s\n", networkContainerConfiguration.String())
+	fmt.Printf("Retrieved response: %+v\n", networkContainerConfiguration)
 	return &networkContainerConfiguration
 }
 

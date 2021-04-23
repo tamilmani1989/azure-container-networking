@@ -1449,6 +1449,16 @@ func GetNetworkContainerResponse(
 		Status:        ncConfig.Status.String(),
 		FailureDetail: ncConfig.FailureDetail}
 	associationInfo := ncConfig.GetAssociationInfo()
+
+	stateLog := make([]api.StateTransitionStats, 0, len(ncConfig.StateTransitionLog))
+	for k, v := range ncConfig.StateTransitionLog {
+		stateLog = append(stateLog, api.StateTransitionStats{State: k, CompletedOn: v.CompletedOn})
+	}
+
+	sort.Slice(stateLog, func(i, j int) bool {
+		return stateLog[j].CompletedOn.After(stateLog[i].CompletedOn)
+	})
+
 	response := api.NetworkContainerResponse{
 		NcID:                       ncConfig.NetworkContainerID,
 		AssociationInfo:            associationInfo,
@@ -1458,7 +1468,10 @@ func GetNetworkContainerResponse(
 		MacAddress:                 ncConfig.MACAddress,
 		NCVersion:                  int(ncConfig.CNSVersion),
 		AllowHostToNCCommunication: ncConfig.GetAllowHostToNCCommunicationStatus(),
-		AllowNCToHostCommunication: ncConfig.GetAllowNCToHostCommunicationStatus()}
+		AllowNCToHostCommunication: ncConfig.GetAllowNCToHostCommunicationStatus(),
+		CreatedDateTime:            ncConfig.CreatedDateTime,
+		StateTransitionLog:         stateLog,
+	}
 
 	if ipConfiguration != nil {
 		response.IPConfiguration = *ipConfiguration
@@ -1659,6 +1672,7 @@ func CreateOrUpdateNCRequestV1(
 		State:               Prepare,
 		Status:              Pending,
 		APIVersion:          apiVersion,
+		CreatedDateTime:     time.Now().UTC(),
 		CNSVersion:          0}
 
 	err = PersistNCConfiguration(&ncConfiguration, AddToPendingQ)
@@ -1793,6 +1807,7 @@ func CreateOrUpdateNCRequestV2(
 		State:               Prepare,
 		Status:              Pending,
 		APIVersion:          apiVersion,
+		CreatedDateTime:     time.Now().UTC(),
 		CNSVersion:          0}
 
 	err = PersistNCConfiguration(&ncConfiguration, AddToPendingQ)

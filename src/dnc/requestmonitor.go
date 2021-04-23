@@ -93,6 +93,7 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 	}
 
 	if err == nil && removeWorkItem {
+		// todo: bubble error up and handle
 		datamodel.RemovePendingRequest(requestID)
 	} else {
 		if err != nil {
@@ -104,7 +105,9 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 		}
 
 		logger.Errorf("Adding request: %+v back in pending queue due to error: %v", requestContext, err)
-		datamodel.AddRequestToPendingQueue(requestID, requestContext)
+		if err := datamodel.AddRequestToPendingQueue(requestID, requestContext); err != nil {
+			logger.Errorf("Could not add %s id %s to pending queue: %v", requestContext.Type.String(), requestID, err)
+		}
 	}
 }
 
@@ -308,19 +311,15 @@ func processAllocateLocalIP(
 		logger.Debugf(greErr.Error())
 	}
 
+	repoNCConfig.LocalIP = allocatedIP.IP.String()
 	if config.DNCSettings.Managed {
-		repoNCConfig.State = datamodel.Publish
+		return false, transitionNCStateAndLog(repoNCConfig, datamodel.AllocateLocalIP, datamodel.Publish, datamodel.Pending)
 	} else {
-		repoNCConfig.State = datamodel.Associate
+		return false, transitionNCStateAndLog(repoNCConfig, datamodel.AllocateLocalIP, datamodel.Associate, datamodel.Pending)
 	}
 
-	repoNCConfig.LocalIP = allocatedIP.IP.String()
-	repoNCConfig.Status = datamodel.Pending
-	repoNCConfig.FailureDetail = api.JsonErr{}
-
 Cleanup:
-
-	if markProcessingFailed {
+	if markProcessingFailed { // todo: this is always true once this is reached, clean once gotos are removed
 		repoNCConfig.Status = datamodel.Failed
 		repoNCConfig.FailureDetail = *failureDetail
 	}
@@ -333,9 +332,7 @@ Cleanup:
 }
 
 // This will create the pending IP cleanup job for ToBeDeleted Secondary IPs during NC update.
-func processPrepareSecondaryIpCleanup(
-	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-
+func processPrepareSecondaryIpCleanup(repoNCConfig *datamodel.NCConfiguration, createdDateTime time.Time) (bool, *api.JsonErr) {
 	if config.PubSubProxySettings.EnablePubSubProxy {
 		ncKey := datamodel.GetNCKey(repoNCConfig.NetworkID, repoNCConfig.NetworkContainerID)
 		loggershim.LS.Debugf("processPrepareSecondaryIpCleanup, NCKey %s", ncKey)
@@ -383,12 +380,16 @@ func processPrepareSecondaryIpCleanup(
 				err)
 			return false, err
 		}
+
+		creationTimeMs := time.Since(createdDateTime).Milliseconds()
+		sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(creationTimeMs), aiwrapper.Succeeded, "Container"+datamodel.Program.String(), repoNCConfig, nil)
+		aiwrapper.LogNCSnapsnot(repoNCConfig.NetworkContainerID, repoNCConfig.NetworkID, subnetName, repoNCConfig.GetAssociationInfo().NodeID)
 	}
 
-	repoNCConfig.State = datamodel.Program
-	repoNCConfig.Status = datamodel.Pending
-	repoNCConfig.FailureDetail = api.JsonErr{}
-	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+	// todo: we have to log program completion before transitioning state, since program can be transitioned to
+	//   from refresh but we don't want to log completion in those cases
+	repoNCConfig.LogStateCompletion(datamodel.Program)
+	return false, transitionNCStateAndLog(repoNCConfig, datamodel.PrepareSecondaryIpCleanup, datamodel.Program, datamodel.Pending)
 }
 
 func processNetworkContainerReserve(
@@ -489,10 +490,6 @@ func processNetworkContainerReserve(
 	}
 
 	if repoReservation.Configuration.Status == datamodel.Completed {
-		repoNCConfig.State = datamodel.AllocateLocalIP
-		repoNCConfig.Status = datamodel.Pending
-		repoNCConfig.FailureDetail = api.JsonErr{}
-
 		repoSubnetConfiguration, err := datamodel.TryQuerySubnetConfiguration(
 			repoNCConfig.NetworkID,
 			repoReservation.Configuration.AllocationRequest.SubnetName)
@@ -513,6 +510,8 @@ func processNetworkContainerReserve(
 			tagsDefinitionKey := datamodel.GetTagDefintionKey(tag.Type, tag.Name)
 			repoNCConfig.ProgrammedTagsInfo[tagsDefinitionKey] = 0
 		}
+
+		return false, transitionNCStateAndLog(repoNCConfig, datamodel.Reserve, datamodel.AllocateLocalIP, datamodel.Pending)
 	}
 
 	if repoReservation.Configuration.Status == datamodel.Failed {
@@ -531,15 +530,6 @@ Cleanup:
 	}
 
 	return markProcessingFailed, nil
-}
-
-func markNCAsFailed(ncConfig *datamodel.NCConfiguration, err api.JsonErr) (bool, *api.JsonErr) {
-	ncConfig.Status = datamodel.Failed
-	ncConfig.FailureDetail = err
-	if err := datamodel.PersistNCConfiguration(ncConfig, datamodel.DontAddToPendingQ); err != nil {
-		return false, err // don't remove from queue until failure can be persisted
-	}
-	return true, nil
 }
 
 func processNetworkContainerBatchReserve(nc *datamodel.NCConfiguration) (bool, *api.JsonErr) {
@@ -566,7 +556,7 @@ func processNetworkContainerBatchReserve(nc *datamodel.NCConfiguration) (bool, *
 	case datamodel.Failed:
 		return markNCAsFailed(nc, res.FailureDetail)
 	case datamodel.Completed:
-		return false, transitionNCTo(nc, datamodel.AllocateLocalIP, datamodel.Pending)
+		return false, transitionNCStateAndLog(nc, datamodel.Reserve, datamodel.AllocateLocalIP, datamodel.Pending)
 	default:
 		return false, api.InternalServerError(api.StatusInternalServerError, "unexpected reservation status")
 	}
@@ -584,7 +574,7 @@ func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.
 			return err
 		}
 
-		return transitionNCTo(ncConfig, datamodel.Purge, datamodel.Pending)
+		return transitionNCStateAndLog(ncConfig, datamodel.UnReserve, datamodel.Purge, datamodel.Pending)
 	}
 
 	sessionInfo := map[string]string{
@@ -613,15 +603,7 @@ func processNetworkContainerUnReserve(ncConfig *datamodel.NCConfiguration) *api.
 		return err
 	}
 
-	return transitionNCTo(ncConfig, datamodel.Purge, datamodel.Pending)
-}
-
-func transitionNCTo(nc *datamodel.NCConfiguration, state datamodel.NetworkContainerState, status datamodel.Status) *api.JsonErr {
-	nc.State = state
-	nc.Status = status
-	nc.FailureDetail = api.JsonErr{}
-
-	return datamodel.PersistNCConfiguration(nc, datamodel.DontAddToPendingQ)
+	return transitionNCStateAndLog(ncConfig, datamodel.UnReserve, datamodel.Purge, datamodel.Pending)
 }
 
 func processNetworkContainerPurge(
@@ -807,17 +789,14 @@ func processNetworkContainerAssociate(
 		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
+	repoNCConfig.ProgrammedVnetVersion = ncGoalState.VnetVersion
+
 	if repoNCConfig.State == datamodel.RefreshAssociation {
-		repoNCConfig.State = datamodel.Program
-	} else if repoNCConfig.State == datamodel.Associate {
-		repoNCConfig.State = datamodel.Publish
+		// processing time is not logged in NC when refreshed, since we want to only keep the initial processing time
+		return false, transitionNCState(repoNCConfig, datamodel.Program, datamodel.Pending)
 	}
 
-	repoNCConfig.ProgrammedVnetVersion = ncGoalState.VnetVersion
-	repoNCConfig.Status = datamodel.Pending
-	repoNCConfig.FailureDetail = api.JsonErr{}
-
-	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+	return false, transitionNCStateAndLog(repoNCConfig, datamodel.Associate, datamodel.Publish, datamodel.Pending)
 }
 
 func processNetworkContainerDisAssociate(nc *datamodel.NCConfiguration, ncLock map[string]string) (bool, *api.JsonErr) {
@@ -840,14 +819,10 @@ func processNetworkContainerDisAssociate(nc *datamodel.NCConfiguration, ncLock m
 	// In baremetal containers first deallocate MAC before freeing the IP.
 	containerType := nc.GetAssociationInfo().ContainerType
 	if api.IsBareMetalContainer(containerType) {
-		nc.State = datamodel.DeallocateMAC
-	} else {
-		nc.State = datamodel.UnReserve
+		return false, transitionNCStateAndLog(nc, datamodel.DisAssociate, datamodel.DeallocateMAC, datamodel.Pending)
 	}
 
-	nc.Status = datamodel.Pending
-	nc.FailureDetail = api.JsonErr{}
-	return false, datamodel.PersistNCConfiguration(nc, datamodel.DontAddToPendingQ)
+	return false, transitionNCStateAndLog(nc, datamodel.DisAssociate, datamodel.UnReserve, datamodel.Pending)
 }
 
 func getDimensions(repoNCConfig *datamodel.NCConfiguration) map[string]string {
@@ -894,8 +869,7 @@ func publishNetworkContainerWithPubSubProxy(
 	ncGoalState *datamodel.NCGoalState,
 	repoNCConfig *datamodel.NCConfiguration,
 	sessionInfo map[string]string,
-	stateTransitionDateTime time.Time,
-	createdDateTime time.Time) (bool, *api.JsonErr) {
+	stateTransitionDateTime time.Time) (bool, *api.JsonErr) {
 	// Release the session lock before making call to PubSubProxy
 	sessionManager.EndWriteSession(sessionInfo)
 
@@ -1004,21 +978,7 @@ func publishNetworkContainerWithPubSubProxy(
 		return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
 	}
 
-	if repoNCConfig.State == datamodel.Publish {
-		repoNCConfig.State = datamodel.PrepareSecondaryIpCleanup
-	}
-	repoNCConfig.Status = datamodel.Pending
-	repoNCConfig.FailureDetail = api.JsonErr{}
-
-	creationTimeMs := time.Since(createdDateTime).Milliseconds()
-	sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(creationTimeMs),
-		aiwrapper.Succeeded, "Container"+datamodel.Program.String(), repoNCConfig, nil)
-
-	// Log NC Snapshot
-	aiwrapper.LogNCSnapsnot(ncGoalState.NetworkContainerID, ncGoalState.NetworkID,
-		ncGoalState.BaseSubnetName, ncGoalState.AssociatedNodeID)
-
-	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+	return false, transitionNCStateAndLog(repoNCConfig, datamodel.Publish, datamodel.PrepareSecondaryIpCleanup, datamodel.Pending)
 }
 
 func processNetworkContainerPublish(
@@ -1046,8 +1006,7 @@ func processNetworkContainerPublish(
 	}
 
 	if config.PubSubProxySettings.EnablePubSubProxy {
-		return publishNetworkContainerWithPubSubProxy(ncGoalState, repoNCConfig, sessionInfo,
-			stateTransitionDateTime, createdDateTime)
+		return publishNetworkContainerWithPubSubProxy(ncGoalState, repoNCConfig, sessionInfo, stateTransitionDateTime)
 	}
 
 	var (
@@ -1345,20 +1304,16 @@ func processNetworkContainerPublish(
 			HTTPStatus: int(putNCResponseCode)}
 	}
 
-	if repoNCConfig.State == datamodel.Publish {
-		repoNCConfig.State = datamodel.Program
-	}
-	repoNCConfig.Status = datamodel.Pending
-	repoNCConfig.FailureDetail = api.JsonErr{}
+	// todo: we have to log program completion before transitioning state, since program can be transitioned to
+	//   from refresh but we don't want to log completion in those cases
+	repoNCConfig.LogStateCompletion(datamodel.Program)
+	transitionErr := transitionNCStateAndLog(repoNCConfig, datamodel.Publish, datamodel.Program, datamodel.Pending)
 
 	creationTimeMs := time.Since(createdDateTime).Milliseconds()
-	sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(creationTimeMs),
-		aiwrapper.Succeeded, "Container"+datamodel.Program.String(), repoNCConfig, nil)
-
-	// Log NC Snapshot
+	sendNCMetric(aiwrapper.NCProcessTimeMetric, float64(creationTimeMs), aiwrapper.Succeeded, "Container"+datamodel.Program.String(), repoNCConfig, nil)
 	aiwrapper.LogNCSnapsnot(ncGoalState.NetworkContainerID, ncGoalState.NetworkID, ncGoalState.BaseSubnetName, ncGoalState.AssociatedNodeID)
 
-	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+	return false, transitionErr
 }
 
 func unpublishNetworkContainerWithPubSubProxy(
@@ -1435,15 +1390,10 @@ func unpublishNetworkContainerWithPubSubProxy(
 
 	containerType := repoNCConfig.GetAssociationInfo().ContainerType
 	if api.IsBareMetalContainer(containerType) {
-		repoNCConfig.State = datamodel.DeallocateMAC
-	} else {
-		repoNCConfig.State = datamodel.UnReserve
+		return false, transitionNCStateAndLog(repoNCConfig, datamodel.UnPublish, datamodel.DeallocateMAC, datamodel.Pending)
 	}
 
-	repoNCConfig.Status = datamodel.Pending
-	repoNCConfig.FailureDetail = api.JsonErr{}
-
-	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+	return false, transitionNCStateAndLog(repoNCConfig, datamodel.UnPublish, datamodel.UnReserve, datamodel.Pending)
 }
 
 func processNetworkContainerUnPublish(
@@ -1708,18 +1658,13 @@ func processNetworkContainerUnPublish(
 			HTTPStatus: int(deleteNCResponseCode)}
 	}
 
-	repoNCConfig.State = datamodel.DisAssociate
-	repoNCConfig.Status = datamodel.Pending
-	repoNCConfig.FailureDetail = api.JsonErr{}
-	return false, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+	return false, transitionNCStateAndLog(repoNCConfig, datamodel.UnPublish, datamodel.DisAssociate, datamodel.Pending)
 }
 
-func processNetworkContainerProgram(
-	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
-	repoNCConfig.State = datamodel.Program
-	repoNCConfig.Status = datamodel.Completed
-	repoNCConfig.FailureDetail = api.JsonErr{}
-	return true, datamodel.PersistNCConfiguration(repoNCConfig, datamodel.DontAddToPendingQ)
+// todo: this could be removed, since all it does is add an extra db operation to change pending to completed.
+//   states that transition to program should just mark status as completed.
+func processNetworkContainerProgram(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
+	return true, transitionNCState(repoNCConfig, datamodel.Program, datamodel.Completed)
 }
 
 func processNetworkContainerRequest(
@@ -1791,8 +1736,6 @@ func processNetworkContainerRequest(
 			removeRequestFromPendingQueue, err = preparer.PrepareNetworkContainer(repoNCConfig)
 
 		case datamodel.Reserve:
-			// todo: batch functionality is not general enough yet for non-managed cases.
-			//   once specific cases have been ported, default to batch.
 			if config.FeatureFlagSettings.EnableBatchAllocationProcessing {
 				removeRequestFromPendingQueue, err = processNetworkContainerBatchReserve(repoNCConfig)
 			} else {
@@ -1804,7 +1747,7 @@ func processNetworkContainerRequest(
 			// Local IP allocation is not needed for bare-metal containers.
 			// In that case change the NC config state to AllocateMAC and return.
 			if api.IsBareMetalContainer(repoNCConfig.GetAssociationInfo().ContainerType) {
-				removeRequestFromPendingQueue, err = false, transitionNCTo(repoNCConfig, datamodel.AllocateMAC, datamodel.Pending)
+				removeRequestFromPendingQueue, err = false, transitionNCStateAndLog(repoNCConfig, datamodel.AllocateLocalIP, datamodel.AllocateMAC, datamodel.Pending)
 			} else {
 				removeRequestFromPendingQueue, err = processAllocateLocalIP(repoNCConfig)
 			}
@@ -1822,7 +1765,7 @@ func processNetworkContainerRequest(
 			removeRequestFromPendingQueue, err = processNetworkContainerPublish(repoNCConfig, sessionInfo, stateTransitionDateTime, createdDateTime)
 
 		case datamodel.PrepareSecondaryIpCleanup:
-			removeRequestFromPendingQueue, err = processPrepareSecondaryIpCleanup(repoNCConfig)
+			removeRequestFromPendingQueue, err = processPrepareSecondaryIpCleanup(repoNCConfig, createdDateTime)
 
 		case datamodel.Program:
 			removeRequestFromPendingQueue, err = processNetworkContainerProgram(repoNCConfig)
@@ -1864,7 +1807,10 @@ func processNetworkContainerRequest(
 			requestContext.RetryInterval = requestContextRetryInterval
 			requestContext.StateTransitionDateTime = time.Now().UTC()
 
-			datamodel.AddRequestToPendingQueue(requestID, requestContext)
+			// todo: return if error?
+			if err := datamodel.AddRequestToPendingQueue(requestID, requestContext); err != nil {
+				logger.Errorf("could not add %s id %s back to pending queue", requestContext.Type.String(), requestID, err)
+			}
 
 			// Update stateTransitionDateTime to be used during the successful state transition
 			stateTransitionDateTime = requestContext.StateTransitionDateTime

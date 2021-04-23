@@ -2,6 +2,7 @@ package datamodel
 
 import (
 	"dnc/api"
+	"time"
 
 	"github.com/Azure/azure-container-networking/cns"
 )
@@ -26,9 +27,22 @@ type NCConfiguration struct {
 	LocalIP               string
 	MACAddress            string
 	GreKey                uint16
+	CreatedDateTime       time.Time
+	StateTransitionLog    map[string]api.StateTransitionStats
 }
 
-// GetAssociationInfo - Retrieves association info assocuated with NC.
+func (ncConfiguration *NCConfiguration) LogStateCompletion(state NetworkContainerState) {
+	if ncConfiguration.StateTransitionLog == nil {
+		ncConfiguration.StateTransitionLog = make(map[string]api.StateTransitionStats)
+	}
+
+	ncConfiguration.StateTransitionLog[state.String()] = api.StateTransitionStats{
+		State:       state.String(),
+		CompletedOn: time.Now().UTC(),
+	}
+}
+
+// GetAssociationInfo - Retrieves association info associated with NC.
 func (ncConfiguration *NCConfiguration) GetAssociationInfo() api.AssociationInfo {
 	if len(ncConfiguration.RequestV1.AssociationInfo.NodeID) != 0 {
 		return ncConfiguration.RequestV1.AssociationInfo

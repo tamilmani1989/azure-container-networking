@@ -183,6 +183,7 @@ func (p *Preparer) moveNCToReserveState(ncConfig *datamodel.NCConfiguration) *ap
 	ncConfig.State = datamodel.Reserve
 	ncConfig.Status = datamodel.Pending
 	ncConfig.FailureDetail = api.JsonErr{}
+	ncConfig.LogStateCompletion(datamodel.Prepare)
 	return p.PersistNC(ncConfig, datamodel.DontAddToPendingQ)
 }
 

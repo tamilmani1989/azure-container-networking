@@ -181,6 +181,12 @@ func TestBasicNCAPIs(t *testing.T) {
 		t.Fatalf("Failed to retrieve nc response with error %+v", respErr)
 	}
 
+	// todo: refactor way of checking NC response
+	if receivedNcResp != nil {
+		receivedNcResp.StateTransitionLog = nil
+		receivedNcResp.CreatedDateTime = time.Time{}
+	}
+
 	if !reflect.DeepEqual(receivedNcResp, expectedNcResp) {
 		expectedNcResp.RequestStatus.State = "RefreshAssociation"
 		if !reflect.DeepEqual(receivedNcResp, expectedNcResp) {
