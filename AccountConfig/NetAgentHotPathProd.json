@@ -34,7 +34,7 @@
       "role": "Administrator"
     },
     {
-      "alias": "vivekagg",
+      "alias": "vakr",
       "role": "Administrator"
     },
     {
@@ -62,8 +62,6 @@
       "role": "Administrator"
     }
   ],
-  "description": null,
-  "displayName": null,
   "dsmsAcls": [
     {
       "acl": "c838f35086314cff2042b8d7e6d66aa5.metricsclient.geneva.core.usgovcloudapi.net",
@@ -93,8 +91,8 @@
       "role": "MetricPublisher"
     }
   ],
-  "lastUpdatedBy": "matlong",
-  "lastUpdateTime": "2020-12-21T16:12:25.0816166Z",
+  "lastUpdatedBy": "paujohns",
+  "lastUpdateTime": "2021-04-12T21:04:00.6807116Z",
   "mirrorAccountSyncFlagsTable": {},
   "mirrorMonitoringAccountList": [],
   "securityGroups": {
