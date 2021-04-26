@@ -40,7 +40,7 @@ spec:
       hostNetwork: true
       containers:
       - name: dnc-container
-        image: msint.azurecr.io/containernetworking/dnc:latest
+        image: acndev.azurecr.io/dnc:latest
         args: ["-stderr"]
         imagePullPolicy: Always
         volumeMounts:
@@ -70,7 +70,7 @@ spec:
               name: storage-key
               key: value
       imagePullSecrets:
-        - name: msint.azurecr.io-key
+        - name: acndev.azurecr.io-key
       volumes:
       - name: log
         hostPath:

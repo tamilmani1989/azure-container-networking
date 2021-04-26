@@ -13,9 +13,11 @@ spec:
       labels:
         app: container3mnat
     spec:
+      imagePullSecrets:
+        - name: acndev.azurecr.io-key
       containers:
       - name: container3mnat
-        image: mcr.microsoft.com/containernetworking/swift-nc:latest
+        image: acndev.azurecr.io/swift-nc:latest
         ports:
         - containerPort: 80
       nodeSelector:

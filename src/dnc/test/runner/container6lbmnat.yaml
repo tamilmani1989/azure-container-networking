@@ -13,9 +13,11 @@ spec:
       labels:
         app: container6lbmnat
     spec:
+      imagePullSecrets:
+        - name: acndev.azurecr.io-key
       containers:
       - name: container6lbmnat
-        image: mcr.microsoft.com/containernetworking/swift-lbrunnernc:latest
+        image: acndev.azurecr.io/swift-lbrunnernc:latest
         ports:
         - containerPort: 9095
       nodeSelector:

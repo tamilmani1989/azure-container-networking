@@ -57,8 +57,8 @@ MDNC_REQCTRL_IMAGE_ARCHIVE_NAME = mdnc-requestcontroller-$(GOOS)-$(GOARCH)-$(VER
 
 # Container image names
 DNC_IMAGE ?= acndev.azurecr.io/dnc
-LBRUNNERNC_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-lbrunnernc
-RUNNER_IMAGE = containernetworking.azurecr.io/public/containernetworking/swift-runner
+LBRUNNERNC_IMAGE = acndev.azurecr.io/swift-lbrunnernc
+RUNNER_IMAGE = acndev.azurecr.io/swift-runner
 REQCTRL_IMAGE ?= acndev.azurecr.io/dnc-request-controller
 MDNC_REQCTRL_IMAGE = acndev.azurecr.io/mdnc-requestcontroller
 MDNC_IMAGE = acndev.azurecr.io/mdnc

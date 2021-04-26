@@ -10,7 +10,7 @@ metadata:
   name: runner-role
 rules:
 - apiGroups: ["", "apps"]
-  resources: ["pods", "nodes", "services", "deployments", "containers", "pods/exec", "pods/log"]
+  resources: ["pods", "nodes", "services", "deployments", "containers", "pods/exec", "pods/log", "configmaps"]
   verbs: ["get", "create", "delete", "update", "list"]
 ---
 kind: ClusterRoleBinding
@@ -55,11 +55,13 @@ spec:
       labels:
         app: swift-runner
     spec:
+      imagePullSecrets:
+        - name: acndev.azurecr.io-key
       hostNetwork: true
       serviceAccountName: runner-sa
       containers:
       - name: swift-runner
-        image: mcr.microsoft.com/containernetworking/swift-runner:latest
+        image: acndev.azurecr.io/swift-runner:20210426
         imagePullPolicy: Always
         ports:
           - containerPort: 9009

@@ -351,9 +351,9 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		err := swiftTeardown()
-		if err != nil {
-			logger.Printf("Tearing down the runner setup failed with %+v", err)
+		tearDownErr := swiftTeardown()
+		if tearDownErr != nil {
+			logger.Printf("Tearing down the runner setup failed with %+v", tearDownErr)
 		}
 		testLock.Unlock()
 	}()
@@ -363,6 +363,7 @@ func e2eTests() {
 	var (
 		err     error
 		lastErr error
+		tearDownErr error
 		report  = SwiftDatapath{
 			ServiceTunnel:          true,
 			Nc2Nc:                  true,
@@ -389,9 +390,9 @@ func e2eTests() {
 	logger.Printf("Running E2E tests!")
 	if err = swiftSetup(); err != nil {
 		logger.Printf("swift setup failed with error: %+v", err)
-		err = swiftTeardown()
-		if err != nil {
-			logger.Printf("Error happened while tearing down: %+v", err)
+		tearDownErr = swiftTeardown()
+		if tearDownErr != nil {
+			logger.Printf("Error happened while tearing down: %+v", tearDownErr)
 		}
 		goto WriteJsonReport
 	}
@@ -402,45 +403,45 @@ func e2eTests() {
 	// get details to exec into pods and ping each other
 	srcPod, podIP1, err = getPodExecInfo(podName1)
 	if err != nil {
-		err = swiftTeardown()
-		if err != nil {
-			logger.Printf("Error happened while tearing down: %+v", err)
+		tearDownErr = swiftTeardown()
+		if tearDownErr != nil {
+			logger.Printf("Error happened while tearing down: %+v", tearDownErr)
 		}
 		goto WriteJsonReport
 	}
 
 	pod2, podIP2, err = getPodExecInfo(podName2)
 	if err != nil {
-		err = swiftTeardown()
-		if err != nil {
-			logger.Printf("Error happened while tearing down: %+v", err)
+		tearDownErr = swiftTeardown()
+		if tearDownErr != nil {
+			logger.Printf("Error happened while tearing down: %+v", tearDownErr)
 		}
 		goto WriteJsonReport
 	}
 
 	pod3, _, err = getPodExecInfo(podName3)
 	if err != nil {
-		err = swiftTeardown()
-		if err != nil {
-			logger.Printf("Error happened while tearing down: %+v", err)
+		tearDownErr = swiftTeardown()
+		if tearDownErr != nil {
+			logger.Printf("Error happened while tearing down: %+v", tearDownErr)
 		}
 		goto WriteJsonReport
 	}
 
 	pod8, _, err = getPodExecInfo(podName8)
 	if err != nil {
-		err = swiftTeardown()
-		if err != nil {
-			logger.Printf("Error happened while tearing down: %+v", err)
+		tearDownErr = swiftTeardown()
+		if tearDownErr != nil {
+			logger.Printf("Error happened while tearing down: %+v", tearDownErr)
 		}
 		goto WriteJsonReport
 	}
 
 	pod9, _, err = getPodExecInfo(podName9)
 	if err != nil {
-		err = swiftTeardown()
-		if err != nil {
-			logger.Printf("Error happened while tearing down: %+v", err)
+		tearDownErr = swiftTeardown()
+		if tearDownErr != nil {
+			logger.Printf("Error happened while tearing down: %+v", tearDownErr)
 		}
 		goto WriteJsonReport
 	}
@@ -695,9 +696,10 @@ func e2eTests() {
 
 	// clean up all the NC states for next test
 	logger.Printf("E2E test cleanup.")
-	err = swiftTeardown()
-	if err != nil {
-		logger.Printf("Error happened while tearing down: %+v", err)
+	tearDownErr = swiftTeardown()
+	if tearDownErr != nil {
+		logger.Printf("Error happened while tearing down: %+v", tearDownErr)
+		lastErr = tearDownErr //report the teardown error
 	}
 
 	if lastErr != nil {
@@ -854,49 +856,50 @@ func swiftSetup() error {
 
 func swiftTeardown() (err error) {
 	logger.Printf("Tearing down the runner setup.")
-	var lastErr error
+	var localErr error
+	var errToReturn error
 
 	for _, pod := range podList {
 		deletePod(pod)
 	}
 
-	if lastErr = deleteNc(vnetID, nc1); err != nil {
-		err = lastErr
+	if localErr = deleteNc(vnetID, nc1); localErr != nil {
+		errToReturn = localErr
 	}
 
-	if lastErr = deleteNc(vnetID, nc2); err != nil {
-		err = lastErr
+	if localErr = deleteNc(vnetID, nc2); localErr != nil {
+		errToReturn = localErr
 	}
 
-	if lastErr = deleteNc(vnetWithMNATID, nc3); err != nil {
-		err = lastErr
+	if localErr = deleteNc(vnetWithMNATID, nc3); localErr != nil {
+		errToReturn = localErr
 	}
 
-	if lastErr = deleteNc(vnetWithLBID, nc4); err != nil {
-		err = lastErr
+	if localErr = deleteNc(vnetWithLBID, nc4); localErr != nil {
+		errToReturn = localErr
 	}
 
-	if lastErr = deleteNc(vnetWithILBID, nc5); err != nil {
-		err = lastErr
+	if localErr = deleteNc(vnetWithILBID, nc5); localErr != nil {
+		errToReturn = localErr
 	}
 
-	if lastErr = deleteNc(vnetWithLBMNATID, nc6); err != nil {
-		err = lastErr
+	if localErr = deleteNc(vnetWithLBMNATID, nc6); localErr != nil {
+		errToReturn = localErr
 	}
 
-	if lastErr = deleteNc(vnetWithILBMNATID, nc7); err != nil {
-		err = lastErr
+	if localErr = deleteNc(vnetWithILBMNATID, nc7); localErr != nil {
+		errToReturn = localErr
 	}
 
-	if lastErr = deleteNc(vnetWithILBID, nc8); err != nil {
-		err = lastErr
+	if localErr = deleteNc(vnetWithILBID, nc8); localErr != nil {
+		errToReturn = localErr
 	}
 
-	if lastErr = deleteNc(vnetWithILBMNATID, nc9); err != nil {
-		err = lastErr
+	if localErr = deleteNc(vnetWithILBMNATID, nc9); localErr != nil {
+		errToReturn = localErr
 	}
 
-	return err
+	return errToReturn
 }
 
 func addNode(nodeID, ipaddr, orchestratorType, vnetID string) error {
