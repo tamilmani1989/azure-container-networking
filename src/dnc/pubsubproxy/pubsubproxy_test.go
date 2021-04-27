@@ -327,7 +327,7 @@ func TestMain(m *testing.M) {
 
 func TestInit(t *testing.T) {
 	testInitPublishers(t, settings, fakeMadariCl)
-	testInitSubscriber(t, settings, fakeMadariCl)
+	testInitSubscriber(t, settings, fakeMadariCl, &rnmDataContracts{})
 }
 
 var registeredNetworks = []string{"vnet-success", "vnet-success-2", "vnet-success-3"}
@@ -462,7 +462,7 @@ func TestDeinit(t *testing.T) {
 
 func initPubsubProxy() {
 	initPublishers(fakeMadariCl, settings)
-	initSubscriber(fakeMadariCl, settings)
+	initSubscriber(fakeMadariCl, &rnmDataContracts{}, settings)
 }
 
 func deinitPubsubProxy() {
@@ -541,8 +541,8 @@ func testInitPublishers(t *testing.T, pubsubSettings pubsubSettings, fakeMadariC
 	}
 }
 
-func testInitSubscriber(t *testing.T, pubsubSettings pubsubSettings, fakeMadariClient *fakeMadariClient) {
-	initSubscriber(fakeMadariClient, pubsubSettings)
+func testInitSubscriber(t *testing.T, pubsubSettings pubsubSettings, fakeMadariClient *fakeMadariClient, contracts *rnmDataContracts) {
+	initSubscriber(fakeMadariClient, contracts, pubsubSettings)
 	expectedSubscriberContext := &subscriberContextStruct{
 		subscriber: &subscriber{
 			pubsubAzId:   "AZ02",
@@ -552,6 +552,7 @@ func testInitSubscriber(t *testing.T, pubsubSettings pubsubSettings, fakeMadariC
 			madariSubscriber: &fakeMadariSubscriber{
 				callback: subscriberCallback{pubsubAzId: "AZ02"},
 			},
+			dataContracts: contracts,
 		},
 		subscriberPort:     "18600",
 		pubsubCertName:     "dummyCert",

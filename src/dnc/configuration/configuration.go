@@ -250,6 +250,8 @@ type PubSubProxySettings struct {
 	EnablePubSubProxy bool
 	// Enable verbose logging
 	EnableVerboseLogging bool
+	// Enable verbose logging
+	EnableRNC bool
 	// Max concurrent requests to process at any time. Default is 1000.
 	MaxConcurrentRequests int
 	// Base Back off interval on failure to process a request. Default is 1 sec
@@ -714,6 +716,10 @@ func OverrideConfigFromEnv(config *Configuration) {
 
 	if enablePubSubProxy := os.Getenv("EnablePubSubProxy"); len(enablePubSubProxy) != 0 {
 		config.PubSubProxySettings.EnablePubSubProxy = ParseBool(enablePubSubProxy)
+	}
+
+	if enableRnc := os.Getenv("EnableRNC"); len(enableRnc) != 0 {
+		config.PubSubProxySettings.EnableRNC = ParseBool(enableRnc)
 	}
 
 	if msiResourceID := os.Getenv("MSIResourceID"); msiResourceID != "" {

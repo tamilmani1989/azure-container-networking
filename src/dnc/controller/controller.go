@@ -22,11 +22,16 @@ import (
 	"github.com/Azure/azure-container-networking/cns"
 )
 
+type  joinNetworkFunction func(networkID string, apiVersion string) *api.JsonErr
+type  deleteNetworkFunction func(networkID string) *api.JsonErr
+
 // todo: no need for these to be globals, should be part of struct
 var (
 	setOrchestratorTypeURLFmt string
 	masterElectionShim        *masterelectionshim.MasterElectionShim
 	config                    *configuration.Configuration
+	joinNetworkFunc           joinNetworkFunction
+	deleteNetworkFunc         deleteNetworkFunction
 )
 
 // Controller - Controller for handling API calls
@@ -57,6 +62,15 @@ func NewController(
 	setOrchestratorTypeURLFmt = setOrchestratorTypeUrlFmt
 	masterElectionShim = electionShim
 	config = configuration
+
+	if config.PubSubProxySettings.EnableRNC {
+		joinNetworkFunc = joinNetworkViaRNC
+		deleteNetworkFunc = deleteNetworkViaRNC
+	} else {
+		joinNetworkFunc = joinNetworkViaRNM
+		deleteNetworkFunc = deleteNetworkViaRNM
+	}
+
 	return controller
 }
 
@@ -393,16 +407,15 @@ func (c *Controller) PersistNetworkJoinRequest(
 	networkID string,
 	networkInfo api.NetworkInfoRequest,
 	apiVersion string) *api.JsonErr {
-	loggershim.LS.Debugf("[Request] Join Vnet %s", networkID)
-
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	return joinNetwork(networkID, apiVersion)
+	return joinNetworkFunc(networkID, apiVersion)
 }
 
-func joinNetwork(networkID string, apiVersion string) *api.JsonErr {
+func joinNetworkViaRNM(networkID string, apiVersion string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] Join Vnet via RNM %s", networkID)
 	if config.PubSubProxySettings.EnablePubSubProxy {
 		// If PubSubProxy is enabled, do not add the vnet join request to the pending queue
 		if err := datamodel.CreateNetwork(networkID, apiVersion, false); err != nil {
@@ -414,6 +427,24 @@ func joinNetwork(networkID string, apiVersion string) *api.JsonErr {
 	}
 
 	return datamodel.CreateNetwork(networkID, apiVersion, true)
+}
+
+func joinNetworkViaRNC(networkID string, apiVersion string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] Join Vnet via RNC %s", networkID)
+	if !config.PubSubProxySettings.EnablePubSubProxy {
+		return api.PreconditionFailedf(api.InvalidNetworkRequest, "Pubsubproxy should be enabled for network join via RNC")
+	}
+
+	// If DNC is subscribing to RNC published paths, there is no need to subscribe to vnet via pubsub proxy. RNC publishes
+	// vnet and subnet data at different paths and DNC only needs subnet. Save the network for backward compatibility and
+	// return. Pubsub proxy should be enabled for RNC path though as subnet subscription will need to go through pubsub proxy.
+	// If PubSubProxy is enabled, do not add the vnet join request to the pending queue
+	err := datamodel.CreateNetworkCompleted(networkID, apiVersion, false)
+	if err == nil {
+		loggershim.LS.Debugf("[Request] Finished Join Vnet via RNC %s", networkID)
+	}
+
+	return err
 }
 
 // PersistSubnetDelegationRequest - Persist subnet delegation info.
@@ -747,10 +778,16 @@ func (c *Controller) GetNetworks() (*api.NetworksResponse, *api.JsonErr) {
 
 // DeleteNetwork - Delete a network
 func (c *Controller) DeleteNetwork(networkID string) *api.JsonErr {
-	loggershim.LS.Debugf("[Request] DeleteNetwork: %s", networkID)
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	return deleteNetworkFunc(networkID)
+}
+
+// DeleteNetwork - Delete a network
+func deleteNetworkViaRNM(networkID string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] DeleteNetworkViaRNM: %s", networkID)
 
 	err := datamodel.DeleteNetworkConfiguration(networkID)
 	if err == nil && config.PubSubProxySettings.EnablePubSubProxy {
@@ -759,6 +796,14 @@ func (c *Controller) DeleteNetwork(networkID string) *api.JsonErr {
 	}
 
 	return err
+}
+
+// DeleteNetwork - Delete a network
+func deleteNetworkViaRNC(networkID string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] DeleteNetworkViaRNC: %s", networkID)
+	// When RNC path is enabled, network is only deleted from Database. Since
+	// we don't subscribe to vnet for RNC path, no need to unsubscribe it from pubsub
+	return datamodel.DeleteNetworkConfiguration(networkID)
 }
 
 // PersistNetworkContainerRequestV1 - Persist network container request using dynamic allocation

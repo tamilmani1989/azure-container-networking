@@ -20,6 +20,7 @@ type subscriber struct {
 	sync.RWMutex
 	subscribeStatusError sync.Map
 	cachedVnetConfigMap  sync.Map
+	dataContracts       MadariDataContracts
 }
 
 type subscriberContextStruct struct {
@@ -376,6 +377,7 @@ func getActiveSubscriber() *subscriber {
 
 func initSubscriber(
 	mc madariClientInterface,
+	dc MadariDataContracts,
 	settings pubsubSettings) {
 	subscriberContext = &subscriberContextStruct{
 		subscriberPort:     settings.subscriberPort,
@@ -384,7 +386,7 @@ func initSubscriber(
 		madariClient:       mc,
 	}
 
-	subscriberContext.subscriber = &subscriber{}
+	subscriberContext.subscriber = &subscriber{ dataContracts: dc}
 
 	// Keep retrying until the subscriber is created successfully
 	for !getActiveSubscriber().isHealthy {
@@ -418,7 +420,7 @@ func createOrUpdateSubscriber(
 			subscriber.isHealthy = true
 			subscriber.connectedVip = vip
 			// Rehydrate the subscriptions for the networks which are already joined
-			subscriber.rehydrateSubscriptions()
+			subscriber.dataContracts.rehydrateSubscriptions()
 
 			return nil
 		}

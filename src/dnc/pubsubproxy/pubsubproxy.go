@@ -146,6 +146,10 @@ type UnpublishNetworkContainerRequest struct {
 	SubnetAuthToken string
 }
 
+type MadariDataContracts interface {
+	rehydrateSubscriptions()
+}
+
 // AZNM client interface. Parameters are described below
 // reqContext - context
 // logicalId - logical container id. Should be Guid
@@ -491,8 +495,15 @@ func Init(
 
 	madariClient := newMadariClient()
 
+	var dataContracts MadariDataContracts
+	if configSettings.EnableRNC {
+		dataContracts = &rncDataContracts{}
+	} else  {
+		dataContracts = &rnmDataContracts{}
+	}
+
 	go initPublishers(madariClient, pubsubSettings)
-	go initSubscriber(madariClient, pubsubSettings)
+	go initSubscriber(madariClient, dataContracts, pubsubSettings)
 
 	// Init worker pool
 	workerPool()

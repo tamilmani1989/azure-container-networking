@@ -1163,6 +1163,17 @@ func PersistNetworkConfiguration(
 
 // CreateNetwork - Creates network configuration
 func CreateNetwork(networkID, apiVersion string, addToPendingQueue bool) *api.JsonErr {
+	return createNetworkWithStateAndStatus(networkID, apiVersion, addToPendingQueue, Join, Pending)
+}
+
+// CreateNetwork - Creates network configuration
+func CreateNetworkCompleted(networkID, apiVersion string, addToPendingQueue bool) *api.JsonErr {
+	return createNetworkWithStateAndStatus(networkID, apiVersion, addToPendingQueue, Join, Completed)
+}
+
+// CreateNetwork - Creates network configuration
+func createNetworkWithStateAndStatus(
+	networkID, apiVersion string, addToPendingQueue bool, state NetworkState, status Status) *api.JsonErr {
 	networkConfiguration, err := TryQueryNetworkConfiguration(networkID)
 	if err != nil {
 		return err
@@ -1175,8 +1186,8 @@ func CreateNetwork(networkID, apiVersion string, addToPendingQueue bool) *api.Js
 	networkKey := GetNetworkKey(networkID)
 	networkConfiguration = &NetworkConfiguration{
 		NetworkID:    networkID,
-		NetworkState: Join,
-		Status:       Pending,
+		NetworkState: state,
+		Status:       status,
 		APIVersion:   apiVersion}
 
 	err = PersistNetworkConfiguration(networkConfiguration)
