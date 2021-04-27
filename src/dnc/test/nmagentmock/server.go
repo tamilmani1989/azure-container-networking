@@ -29,7 +29,6 @@ func NewServer(address string) *Server {
 	s := Server{
 		joinedVNets: make(map[string]nmagentcontracts.VirtualNetworkResponse),
 		ncs:         make(map[string]nmagentcontracts.CreateOrUpdateNetworkContainerRequest),
-		m:           sync.RWMutex{},
 	}
 
 	r := mux.NewRouter()
@@ -40,14 +39,9 @@ func NewServer(address string) *Server {
 	return &s
 }
 
-func (s *Server) Start() chan error {
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- s.httpS.ListenAndServe()
-	}()
-
-	logrus.Infof("mock nmagent started on %s", s.httpS.Addr)
-	return errChan
+func (s *Server) Start() error {
+	logrus.Infof("starting nmagent mock server on %s", s.httpS.Addr)
+	return s.httpS.ListenAndServe()
 }
 
 func (s *Server) Close() error {
@@ -77,11 +71,17 @@ func (s *Server) StoreNCRequests(requests map[string]nmagentcontracts.CreateOrUp
 	s.m.Unlock()
 }
 
-const machinePluginsRoute = "/machine/plugins/"
+const (
+	machinePluginsRoute            = "/machine/plugins/"
+	testJoinedVirtualNetworksRoute = "/test/joinedVirtualNetworks/"
+)
 
 func (s *Server) registerRoutes(r *mux.Router) {
 	r.HandleFunc(machinePluginsRoute, s.MachinePluginsGET).Methods(http.MethodGet)
 	r.HandleFunc(machinePluginsRoute, s.MachinePluginsPOST).Methods(http.MethodPost)
+
+	// these are not actual nmagent routes. they are used for test hydration purposes.
+	r.HandleFunc(testJoinedVirtualNetworksRoute, s.testJoinedVirtualNetworksPOST).Methods(http.MethodPost)
 }
 
 var (
@@ -156,9 +156,21 @@ func (s *Server) postNetworkContainer(ncID string, w http.ResponseWriter, r *htt
 	respondJSON(w, resp)
 }
 
-func (s *Server) joinVirtualNetwork(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
+// todo: could make auth'd vnet/token pairs configurable
+func (s *Server) joinVirtualNetwork(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+type joinedVnets map[string]nmagentcontracts.VirtualNetworkResponse
+
+func (s *Server) testJoinedVirtualNetworksPOST(w http.ResponseWriter, r *http.Request) {
+	var payload joinedVnets
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	s.StoreVnetResponses(payload)
 }
 
 const (
