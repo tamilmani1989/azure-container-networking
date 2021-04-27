@@ -337,6 +337,16 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 		return err
 	}
 
+	infraVnetId, found := node.Labels[InfraVnetIdLabel]
+	if !found {
+		n.logger.WithFields(logrus.Fields{
+			"vnetID": InfraVnetIdLabel,
+			"Node":   node.Name,
+		}).Infof("Label %s not found for node %s", InfraVnetIdLabel, node.Name)
+		// For now SetInfraVnetId same as DelegatedSubnetId
+		infraVnetId = subnetInfo.VnetID
+	}
+
 	// Store the delegationGUID -> vnetGUID mapping
 	n.delegationGUIDToVnetGUID.Set(delegatedSubnetID, subnetInfo.VnetID, cache.NoExpiration)
 
@@ -347,8 +357,8 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 		}
 	}
 
-	// Register the Node if not already registered
-	if err := n.ensureNodeIsRegistered(ctx, nodeID, internalIPAddress, cns.KubernetesCRD, subnetInfo.VnetID); err != nil {
+	// Register the Node if not already registered using the InfraVnetId
+	if err := n.ensureNodeIsRegistered(ctx, nodeID, internalIPAddress, cns.KubernetesCRD, infraVnetId); err != nil {
 		return err
 	}
 
@@ -608,7 +618,7 @@ func (n *NodeNetworkConfigReconciler) getMaxIPCountOfNode(node corev1.Node) int6
 // If the batch size is > than maxIPCount, make batch size = maxIPCount
 func (n *NodeNetworkConfigReconciler) getBatchSize(node corev1.Node) int64 {
 	maxIPCount := n.getMaxIPCountOfNode(node)
-	
+
 	batchSize := n.scalerConfig.BatchSize
 	if batchSize > maxIPCount {
 		batchSize = maxIPCount

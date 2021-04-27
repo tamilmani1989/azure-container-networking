@@ -21,6 +21,7 @@ import (
 // NodeFinalizerName is the finalizer that is placed on Nodes
 const (
 	NNCFinalizerName                        = "finalizers.acn.azure.com/dnc-operations"
+	InfraVnetIdLabel                        = "kubernetes.azure.com/nodenetwork-vnetguid"
 	DelegatedSubnetIDLabel                  = "kubernetes.azure.com/podnetwork-delegationguid"
 	SubnetNameLabel                         = "kubernetes.azure.com/podnetwork-subnet"
 	leaderElectionConfigmapSuffix           = ".resourcelock.acn.azure.com"
