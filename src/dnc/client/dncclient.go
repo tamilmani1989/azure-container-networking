@@ -13,6 +13,19 @@ import (
 	"time"
 )
 
+/*
+  todo:
+    - dnctl obfuscates transport or other errors unrelated to api (they are returned as 202 for some reason).
+      this makes it difficult for client code to correctly check on certain errors.
+      - error interface (not *api.JsonErr) should be returned by all methods. Actual api.JsonErrs can still be returned,
+        client just needs to type assert for them.
+      - errors returned should be nil if no issue.
+    - http client not be global and should be overridable by clients.
+    - function signatures need to change very time request parameter changes. they should just accept the actual
+      request structs.
+    - address linting warnings.
+*/
+
 // DNC API fmt
 const (
 	apiVersion                 = "?api-version=2018-03-01"
