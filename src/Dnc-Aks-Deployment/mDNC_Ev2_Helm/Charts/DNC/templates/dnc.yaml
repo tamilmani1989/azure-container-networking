@@ -8,7 +8,7 @@ spec:
   selector:
     matchLabels:
       app: dnc
-  minReadySeconds: 100    
+  minReadySeconds: 300     
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -56,7 +56,14 @@ spec:
           failureThreshold: 3
           periodSeconds: 60
           timeoutSeconds: 5
-          initialDelaySeconds: 30      
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: dncport
+            scheme: HTTP
+          failureThreshold: 1
+          timeoutSeconds: 5
+          initialDelaySeconds: 30                             
       - name: gateway-container
         image: {{ .Values.containerregistry }}/{{ .Values.gatewaybuildtag }}
         volumeMounts:
@@ -81,7 +88,14 @@ spec:
             scheme: HTTPS
           failureThreshold: 3
           periodSeconds: 60
-          initialDelaySeconds: 15
+        startupProbe:
+          httpGet:
+            path: /health
+            port: gatewayport
+            scheme: HTTPS
+          failureThreshold: 1
+          timeoutSeconds: 5
+          initialDelaySeconds: 10                      
       - name: dnc-rc
         image: {{ .Values.containerregistry }}/{{ .Values.dncrcbuildtag }}
         imagePullPolicy: Always
