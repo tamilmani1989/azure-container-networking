@@ -631,7 +631,7 @@ func addOrUpdateNode(
 	var response *http.Response
 
 	json.NewEncoder(&body).Encode(nodeInfoReq)
-	fmt.Printf("NodeID: %s, NodeInfo: %s", nodeID, nodeInfoReq.String())
+	fmt.Printf("NodeID: %s, NodeInfo: %+v", nodeID, nodeInfoReq)
 	response, err = http.Post(dncEP+"/nodes/"+nodeID+apiVersion, "application/json", &body)
 	if err != nil {
 		t.Fatalf("CreateNode failed with error: %+v\n", err)
@@ -3860,7 +3860,7 @@ func TestManagedDncAPIs(t *testing.T) {
 
 	// Register network/subnet and add node
 	setupNetworkAndJoinSubnet(t, dncEP, vnetID, networkContainerReq.AllocationRequest.SubnetName, apiVersion, true, 0)
-	if respErr := dnctl.AddNode(nodeID, iface, cns.Kubernetes, infraVnet, azid, nodeType); respErr.HTTPStatus != http.StatusOK {
+	if respErr := dnctl.AddNode(nodeID, iface, cns.Kubernetes, infraVnet, azid, nodeType, ""); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Register node failed with error %+v", respErr)
 	}
 

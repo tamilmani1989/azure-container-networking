@@ -402,7 +402,7 @@ func addNode(t *testing.T, nodeID, ipaddr, orchestratorType, infraVnet string) {
 		nodeCfg *api.NodeInfoResponse
 	)
 
-	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, infraVnet, "", ""); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, infraVnet, "", "", ""); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Register node failed with error %+v", respErr)
 	}
 
@@ -414,14 +414,14 @@ func addNode(t *testing.T, nodeID, ipaddr, orchestratorType, infraVnet string) {
 			IPAddresses:      []string{ipaddr},
 			LocationType:     "",
 			OrchestratorType: orchestratorType}
-		if receivedNodeCfg.String() != expectedNodeCfg.String() {
+		if !reflect.DeepEqual(receivedNodeCfg, expectedNodeCfg) {
 			t.Fatalf("Register node failed;\nreceived %+v\nexpected %+v", receivedNodeCfg, expectedNodeCfg)
 		}
 	}
 }
 
 func getNodes(t *testing.T, expectedNodeNames []string) {
-	nodesResp, respErr := dnctl.GetNodes()
+	nodesResp, respErr := dnctl.GetNodes("")
 	if respErr.HTTPStatus != http.StatusOK {
 		// Should always return 200 even if empty
 		t.Fatalf("GetNodes failed with error %+v", respErr)

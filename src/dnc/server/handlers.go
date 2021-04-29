@@ -126,7 +126,8 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 
 // GetNodes - Handler for getting all registered nodes
 func GetNodes(w http.ResponseWriter, r *http.Request) {
-	nodes, getErr := ctrler.GetNodes()
+	nodeSet := r.URL.Query().Get("node-set")
+	nodes, getErr := ctrler.GetNodes(nodeSet)
 	w.Header().Set(contentTypeStr, defaultContentType)
 	if getErr == nil {
 		w.WriteHeader(http.StatusOK)

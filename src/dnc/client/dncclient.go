@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -115,7 +116,7 @@ func (c *DncClient) InitAzStorage(accountName, key, partitionKey, blob, containe
  * Add APIs
  */
 
-func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType, infraVnet, azId, nodeType string) (respErr *api.JsonErr) {
+func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType, infraVnet, azId, nodeType, nodeSet string) (respErr *api.JsonErr) {
 	var (
 		body     bytes.Buffer
 		response *http.Response
@@ -127,7 +128,9 @@ func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType, infraVnet, azId, n
 			OrchestratorType:      orchestratorType,
 			InfrastructureNetwork: infraVnet,
 			AZID:                  azId,
-			NodeType:              nodeType}
+			NodeType:              nodeType,
+			NodeSet:               nodeSet,
+		}
 	)
 
 	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
@@ -361,12 +364,26 @@ func (c *DncClient) GetNode(nodeId string) (nodeCfg *api.NodeInfoResponse, respE
 	return
 }
 
-func (c *DncClient) GetNodes() (*api.NodesResponse, *api.JsonErr) {
+func (c *DncClient) GetNodes(nodeSet string) (*api.NodesResponse, *api.JsonErr) {
 	nodeURL := fmt.Sprintf(nodeApi, c.DncEP, "")
 	var nodes api.NodesResponse
 	respErr := &api.JsonErr{HTTPStatus: http.StatusOK}
 	var rawResponse *http.Response
 	var err error
+
+	// Add the node-set query param if necessary
+	if nodeSet != "" {
+		fullURL, err := url.Parse(nodeURL)
+		if err != nil {
+			reportClientErr(respErr, err)
+			return nil, respErr
+		}
+
+		q := fullURL.Query()
+		q.Add("node-set", nodeSet)
+		fullURL.RawQuery = q.Encode()
+		nodeURL = fullURL.String()
+	}
 
 	if rawResponse, err = httpc.Get(nodeURL); err != nil {
 		reportClientErr(respErr, err)

@@ -78,7 +78,7 @@ func addOrUpdateNodeOp(
 	var response *http.Response
 
 	json.NewEncoder(&body).Encode(nodeInfoReq)
-	fmt.Printf("NodeID: %s, NodeInfo: %s", nodeID, nodeInfoReq.String())
+	fmt.Printf("NodeID: %s, NodeInfo: %+v", nodeID, nodeInfoReq)
 	response, err = http.Post(dncEP+"/nodes/"+nodeID+apiVersion, "application/json", &body)
 	if err != nil {
 		t.Fatalf("CreateNode failed with error: %+v\n", err)

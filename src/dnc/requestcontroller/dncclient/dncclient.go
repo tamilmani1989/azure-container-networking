@@ -56,7 +56,7 @@ func (s SynchronousDNCClient) GetNode(ctx context.Context, nodeID string) (*api.
 //GetNodes wraps dnc/client's GetNodes to present errors as standard error type
 func (s SynchronousDNCClient) GetNodes(ctx context.Context) (*api.NodesResponse, error) {
 	// TODO: update this to use context when dnc/client functions accept context
-	nodesResp, respErr := s.dncClient.GetNodes()
+	nodesResp, respErr := s.dncClient.GetNodes("") // TODO: support nodeSets in DNC-RC
 	if respErr != nil && respErr.HTTPStatus == http.StatusOK {
 		return nodesResp, nil
 	}
@@ -76,7 +76,7 @@ func (s SynchronousDNCClient) UpsertNode(ctx context.Context, nodeID, ipAddress,
 	// Send the AddNode request
 	logger.Infof("DNC call to Add node: NodeID: %s, ipAddress:%s, orchType:%s, infravnet:%s", nodeID, ipAddress,
 		orchestratorType, infraVnet)
-	addNodeRespErr := s.dncClient.AddNode(nodeID, ipAddress, orchestratorType, infraVnet, "", "")
+	addNodeRespErr := s.dncClient.AddNode(nodeID, ipAddress, orchestratorType, infraVnet, "", "", "") // TODO: support nodeSets in DNC-RC
 	// http.StatusOK means request is accepted, anything else means there was an error
 	if addNodeRespErr.HTTPStatus != http.StatusOK {
 		return addNodeRespErr

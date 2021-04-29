@@ -28,7 +28,7 @@ upload-all-local: upload-dnc-local upload-cnsmock-local upload-nmagentmock-local
 .PHONY: upload-dnc-local
 upload-dnc-local:
 	make -C $(REPO_ROOT)/src/dnc dnc-image VERSION=latest GENERATE_BOND_FILE=false
-	$(PUSH_TO_MINIKUBE_CMD) containernetworking.azurecr.io/internal/containernetworking/dnc:latest dnc:latest
+	$(PUSH_TO_MINIKUBE_CMD) acndev.azurecr.io/dnc:latest dnc:latest
 
 .PHONY: cns-mock-image
 cns-mock-image:

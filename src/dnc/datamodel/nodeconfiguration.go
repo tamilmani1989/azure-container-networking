@@ -3,7 +3,6 @@ package datamodel
 import (
 	"dnc/api"
 	"dnc/utils"
-	"fmt"
 )
 
 // NodeConfiguration - struct to hold the node configuration.
@@ -36,36 +35,4 @@ func (n *NodeConfiguration) DumpDeployedNetworkContainers() string {
 	deployedNCs = deployedNCs + "]"
 
 	return deployedNCs
-}
-
-func (n *NodeConfiguration) String() string {
-	reservationKeys := ""
-	if n.ConstrainedReservations != nil {
-		reservationKeys = utils.PrintMapKeyValues(n.ConstrainedReservations)
-	}
-
-	deployedNCs := ""
-	if n.DeployedNetworkContainerMap != nil {
-		ncByVnets := make(map[string]string)
-		for networkID, ncMap := range n.DeployedNetworkContainerMap {
-			ncByVnets[networkID] = utils.PrintMapKeyValues(ncMap)
-		}
-
-		deployedNCs = utils.PrintMapKeyValues(ncByVnets)
-	}
-
-	interfaceGreMapString := ""
-	if n.InterfaceGreKeyMap != nil {
-		interfaceGreMap := make(map[string]string)
-		for interfaceID, greMap := range n.InterfaceGreKeyMap {
-			if greMap != nil {
-				interfaceGreMap[interfaceID] = utils.PrintMapKeyValuesUint16(greMap)
-			}
-		}
-		interfaceGreMapString = utils.PrintMapKeyValues(interfaceGreMap)
-	}
-
-	return fmt.Sprintf(
-		"[NodeID:%s, NodeInfo:%s NetworkContainers:%s ConstrainedReservations:%s Registered:%t NcLimit:%d GreMap:%s",
-		n.NodeID, n.NodeInfo.String(), deployedNCs, reservationKeys, n.Registered, n.NcLimit, interfaceGreMapString)
 }

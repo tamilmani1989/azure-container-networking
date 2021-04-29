@@ -361,10 +361,10 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 
 func e2eTests() {
 	var (
-		err     error
-		lastErr error
+		err         error
+		lastErr     error
 		tearDownErr error
-		report  = SwiftDatapath{
+		report      = SwiftDatapath{
 			ServiceTunnel:          true,
 			Nc2Nc:                  true,
 			Nc2VM:                  true,
@@ -910,7 +910,7 @@ func addNode(nodeID, ipaddr, orchestratorType, vnetID string) error {
 
 	logger.Printf("Registering node %s", nodeID)
 
-	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, vnetID, "", ""); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, vnetID, "", "", ""); respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Register node (create) : %s failed with error %+v", nodeID, respErr)
 	}
 
@@ -935,7 +935,7 @@ func addNode(nodeID, ipaddr, orchestratorType, vnetID string) error {
 		OrchestratorType:      orchestratorType,
 		InfrastructureNetwork: vnetID,
 	}
-	if receivedNodeCfg.String() != expectedNodeCfg.String() {
+	if !reflect.DeepEqual(receivedNodeCfg, expectedNodeCfg) {
 		return fmt.Errorf("Register node %s failed;\nreceived %+v\nexpected %+v", nodeID, receivedNodeCfg, expectedNodeCfg)
 	}
 

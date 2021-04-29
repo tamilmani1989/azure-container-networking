@@ -101,7 +101,7 @@ func (c *Controller) PersistNodeInfo(nodeID string, nodeInfo *api.NodeInfoReques
 		setOrchestratorTypeURL := fmt.Sprintf(
 			setOrchestratorTypeURLFmt,
 			nodeInfo.IPAddresses[0])
-		loggershim.LS.Debugf("[CNS] create/update %s", nodeInfo.String())
+		loggershim.LS.Debugf("[CNS] create/update %+v", nodeInfo)
 
 		w, respErr := c.cnsHttpClient.Post(setOrchestratorTypeURL, "application/json; charset=utf-8", &body)
 		if respErr != nil {
@@ -175,8 +175,8 @@ func (c *Controller) GetNodeInfo(nodeID string) (*api.NodeInfoResponse, *api.Jso
 }
 
 // GetNodes - Get a list of slim node infos for all nodes
-func (c *Controller) GetNodes() (*api.NodesResponse, *api.JsonErr) {
-	return datamodel.NodeConfigRepo.GetNodes()
+func (c *Controller) GetNodes(nodeSet string) (*api.NodesResponse, *api.JsonErr) {
+	return datamodel.NodeConfigRepo.GetNodes(nodeSet)
 }
 
 // GetNodeConfiguration - Get node configuration

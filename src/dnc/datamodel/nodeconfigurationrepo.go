@@ -17,6 +17,10 @@ type NodeConfigurationRepo struct {
 	Datastore datastoreshim.DataStoreShim
 }
 
+const (
+	NodeSetColumnName = "NodeSet"
+)
+
 // CreateOrUpdateNodeConfiguration - Creates Or Updates a node configuration. Register should be true if called from RegisterNode.
 func (n *NodeConfigurationRepo) CreateOrUpdateNodeConfiguration(
 	register bool,
@@ -65,21 +69,24 @@ func (n *NodeConfigurationRepo) PersistNodeConfiguration(nodeconfiguration *Node
 		return &api.JsonErr{
 			Code:       api.JsonMarshallingFailed,
 			HTTPStatus: http.StatusInternalServerError,
-			Text:       fmt.Sprintf("%s: Failed to serialize node configuration %s due to error %s", utils.TracePrefix(2), nodeconfiguration.String(), err.Error())}
+			Text:       fmt.Sprintf("%s: Failed to serialize node configuration %+v due to error %s", utils.TracePrefix(2), nodeconfiguration, err.Error())}
 	}
 
 	nodeKey := GetNodeKey(nodeconfiguration.NodeID)
-	err = n.Datastore.InsertOrUpdate(
-		nodeTableName,
-		nodeKey,
-		TableToColumnMap[nodeTableName],
-		string(jsonSerializedBytes[:]))
 
-	if err != nil {
+	if err := n.Datastore.InsertOrUpdateProperties(
+		nodeTableName,
+		dncPartitionKey,
+		nodeKey,
+		map[string]interface{}{
+			TableToColumnMap[nodeTableName]: string(jsonSerializedBytes),
+			NodeSetColumnName:               nodeconfiguration.NodeInfo.NodeSet,
+		},
+	); err != nil {
 		return &api.JsonErr{
 			Code:       api.StatusInternalServerError,
 			HTTPStatus: http.StatusInternalServerError,
-			Text:       fmt.Sprintf("%s: Failed to persist node configuration %s due to error %s", utils.TracePrefix(2), nodeconfiguration.String(), err.Error())}
+			Text:       fmt.Sprintf("%s: Failed to persist node configuration %+v due to error %s", utils.TracePrefix(2), nodeconfiguration, err.Error())}
 	}
 
 	return nil
@@ -181,8 +188,14 @@ func (n *NodeConfigurationRepo) TryQueryNodeConfigurationByKey(nodeKey string) (
 	return &repositoryNodeConfiguration, nil
 }
 
-func (n *NodeConfigurationRepo) TryQueryAllNodeConfigurations() ([]NodeConfiguration, *api.JsonErr) {
-	filter := azurestorage.BuildFilterOnPartition(dncPartitionKey)
+func (n *NodeConfigurationRepo) TryQueryAllNodeConfigurations(nodeSet string) ([]NodeConfiguration, *api.JsonErr) {
+	var filter string
+	if nodeSet != "" {
+		filter = azurestorage.BuildFilterOnProperty(dncPartitionKey, NodeSetColumnName, []string{nodeSet})
+	} else {
+		filter = azurestorage.BuildFilterOnPartition(dncPartitionKey)
+	}
+
 	entities, err := n.Datastore.QueryFilter(nodeTableName, filter)
 	if err != nil {
 		return nil, api.InternalServerError(api.StatusInternalServerError, err.Error())
@@ -263,8 +276,8 @@ func (n *NodeConfigurationRepo) GetNodeInfo(nodeID string) (*api.NodeInfoRespons
 }
 
 // GetNodes - Get a slim node info for all nodes
-func (n *NodeConfigurationRepo) GetNodes() (*api.NodesResponse, *api.JsonErr) {
-	nodeConfigurations, err := n.TryQueryAllNodeConfigurations()
+func (n *NodeConfigurationRepo) GetNodes(nodeSet string) (*api.NodesResponse, *api.JsonErr) {
+	nodeConfigurations, err := n.TryQueryAllNodeConfigurations(nodeSet)
 	if err != nil {
 		return nil, err
 	}

@@ -3,10 +3,8 @@ package api
 import (
 	"dnc/configuration"
 	"dnc/utils"
-	"fmt"
 	"net"
 	"net/http"
-	"strings"
 
 	"github.com/google/uuid"
 )
@@ -19,13 +17,7 @@ type NodeInfoRequest struct {
 	InfrastructureNetwork string   `json:"infrastructurenetwork"`
 	AZID                  string   `json:"azid"`     // Optional
 	NodeType              string   `json:"nodetype"` // Optional.
-}
-
-func (n *NodeInfoRequest) String() string {
-	ipAddresses := strings.Join(n.IPAddresses, ",")
-	return fmt.Sprintf(
-		"NodeInfoRequest:[IPAddresses:%s Locationtype:%s OrchestratorType:%s InfrastructureNetwork:%s AZID: %s NodeType: %s]",
-		ipAddresses, n.LocationType, n.OrchestratorType, n.InfrastructureNetwork, n.AZID, n.NodeType)
+	NodeSet               string   `json:"nodeSet"`  // Optional
 }
 
 // Validate - Validates the node info request
@@ -88,13 +80,3 @@ func (n *NodeInfoRequest) Validate(configuration *configuration.Configuration, n
 
 // NodeInfoRequests - Array of node info request
 type NodeInfoRequests []NodeInfoRequest
-
-func (nodeInfos NodeInfoRequests) String() string {
-	nodeInfosString := "NodeInfoRequests:["
-	for _, nodeInfo := range nodeInfos {
-		nodeInfosString += nodeInfo.String()
-	}
-	nodeInfosString += "]"
-
-	return nodeInfosString
-}

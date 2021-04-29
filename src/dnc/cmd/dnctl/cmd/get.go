@@ -49,7 +49,8 @@ func getNodesCmd() *cobra.Command {
 		Use:   "nodes",
 		Short: "Gets slim info for all nodes",
 		Run: func(cmd *cobra.Command, args []string) {
-			nodeList, err := DncClient.GetNodes()
+			nodeSet, _ := cmd.Flags().GetString("node-set")
+			nodeList, err := DncClient.GetNodes(nodeSet)
 			if err.HTTPStatus != http.StatusOK {
 				client.PrettyPrint(err)
 				return
@@ -57,6 +58,7 @@ func getNodesCmd() *cobra.Command {
 			fmt.Printf("%+v\n", nodeList)
 		},
 	}
+	cmd.Flags().String("node-set", "", "node set")
 
 	return cmd
 }
