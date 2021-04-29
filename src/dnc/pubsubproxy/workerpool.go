@@ -93,7 +93,10 @@ const (
 	VnetUpdate
 	BareMetalContainerPublish
 	BareMetalContainerUnpublish
-	InvalidJobType // do not change the position
+	SubnetRegister
+	SubnetUnregister
+	SubnetUpdate
+	InvalidJobType
 )
 
 // TO DO: Consider make it as Context Selector, and
@@ -141,6 +144,14 @@ type vnetJob struct {
 	vnetData []byte
 }
 
+// subnetJob
+type subnetJob struct {
+	context    jobContext
+	vnetId     string
+	subnetId   string
+	subnetData []byte
+}
+
 type workerPoolContext struct {
 	numWorkers     int
 	workerSem      chan struct{}
@@ -171,6 +182,16 @@ func (jobType jobType) String() string {
 
 	case BareMetalContainerUnpublish:
 		return "BareMetalContainerUnpublish"
+
+	case SubnetRegister:
+		return "SubnetRegister"
+
+	case SubnetUnregister:
+		return "SubnetUnregister"
+
+	case SubnetUpdate:
+		return "SubnetUpdate"
+
 	}
 
 	return "Unknown Type"
@@ -634,6 +655,86 @@ func (job *vnetJob) processVnetUnregister() error {
 	return nil
 }
 
+func (job *subnetJob) process() error {
+	var (
+		err        error
+		jobContext = job.getContext()
+	)
+
+	logDebugf("Process Job %s: %s", jobContext.jobType.String(), jobContext.id)
+
+	defer func() {
+		if err != nil {
+			logErrorf("Job %s: %s failed due to error: %v", jobContext.jobType.String(), jobContext.id, err)
+			jobContext.lastRetriedDateTime = time.Now().UTC()
+			updateRetryInterval(&jobContext.retryInterval, maxRetryBackoffInterval)
+			workerPool().failedJobQueue.Store(jobContext.id, job)
+		} else {
+			logDebugf("Job %s: %s succeeded", jobContext.jobType.String(), jobContext.id)
+		}
+	}()
+
+	// Do not process further if the vnet is deleted
+	if _, err := getActiveSubscriber().getCachedSubnetConfig(job.vnetId, job.subnetId); err != nil {
+		logDebugf("Job %s: %s abandoned as subnet is deleted", jobContext.jobType.String(), jobContext.id)
+		return err
+	}
+
+	switch jobContext.jobType {
+	case SubnetRegister:
+		return job.processSubnetRegister()
+
+	case SubnetUnregister:
+		return job.processSubnetUnregister()
+
+	case VnetUpdate:
+		return job.processSubnetUpdate()
+
+	default:
+		err = fmt.Errorf("Unknown job type: %s for job: %s", jobContext.jobType, jobContext.id)
+	}
+
+	return err
+}
+
+func (job *subnetJob) getContext() *jobContext {
+	return &job.context
+}
+
+func (job *subnetJob) processSubnetRegister() error {
+	var (
+		vnetPath = getActiveSubscriber().getSubnetPartitionKey(job.vnetId, job.subnetId)
+		subnetPath = getActiveSubscriber().getSubnetRelativePath(job.vnetId, job.subnetId)
+		fullPath = fmt.Sprintf("%s%s", vnetPath, subnetPath)
+	)
+
+	if err := getActiveSubscriber().subscribe(vnetPath, subnetPath); err != nil {
+		return err
+	}
+
+	return getActiveSubscriber().getSubscribeStatusError(fullPath)
+}
+
+func (job *subnetJob) processSubnetUnregister() error {
+	var (
+		vnetPath = getActiveSubscriber().getSubnetPartitionKey(job.vnetId, job.subnetId)
+		subnetPath = getActiveSubscriber().getSubnetRelativePath(job.vnetId, job.subnetId)
+	)
+
+	getActiveSubscriber().deleteCachedSubnetConfig(job.vnetId, job.subnetId)
+
+	if err := getActiveSubscriber().unsubscribe(vnetPath, subnetPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (job *subnetJob) processSubnetUpdate() error {
+	// TODO: Implement
+	return nil
+}
+
 func sizeofTagConfiguration() uintptr {
 	return uintptr(C.SizeofTagConfiguration())
 }
@@ -658,6 +759,11 @@ func createNcJobId(
 func createVnetJobId(
 	vnetId string) string {
 	return fmt.Sprintf("Vnet_%s", vnetId)
+}
+
+func createSubnetJobId(
+	vnetId, subnetId string) string {
+	return fmt.Sprintf("Vnet_%s_Subnet_%s", vnetId, subnetId)
 }
 
 func updateVnetConfiguration(

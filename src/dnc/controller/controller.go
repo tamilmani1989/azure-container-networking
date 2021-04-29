@@ -63,6 +63,7 @@ func NewController(
 	masterElectionShim = electionShim
 	config = configuration
 
+	// TODO: Create an interface for these
 	if config.PubSubProxySettings.EnableRNC {
 		joinNetworkFunc = joinNetworkViaRNC
 		deleteNetworkFunc = deleteNetworkViaRNC
@@ -432,7 +433,7 @@ func joinNetworkViaRNM(networkID string, apiVersion string) *api.JsonErr {
 func joinNetworkViaRNC(networkID string, apiVersion string) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] Join Vnet via RNC %s", networkID)
 	if !config.PubSubProxySettings.EnablePubSubProxy {
-		return api.PreconditionFailedf(api.InvalidNetworkRequest, "Pubsubproxy should be enabled for network join via RNC")
+		return api.BadRequestf(api.InvalidNetworkRequest, "Pubsubproxy should be enabled for network join via RNC")
 	}
 
 	// If DNC is subscribing to RNC published paths, there is no need to subscribe to vnet via pubsub proxy. RNC publishes

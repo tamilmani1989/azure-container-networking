@@ -146,8 +146,16 @@ type UnpublishNetworkContainerRequest struct {
 	SubnetAuthToken string
 }
 
-type MadariDataContracts interface {
+type madariDataContracts interface {
 	rehydrateSubscriptions()
+	// subnet related methods
+	getCachedSubnetConfig(vnetId string, subnetId string) (cachedSubnetConfig, error)
+	deleteCachedSubnetConfig(vnetId, subnetId string) error
+	updateCachedSubnetConfig(vnetId string, subnetId string, subnetConfig *SubnetConfiguration) error
+	subscribeCachedSubnetConfig(vnetId, subnetId string) error
+	unsubscribeCachedSubnetConfigs() error
+	getSubnetPartitionKey(vnetId, subnetId string) string
+	getSubnetRelativePath(vnetId, subnetId string) string
 }
 
 // AZNM client interface. Parameters are described below
@@ -434,6 +442,49 @@ func UnregisterVnet(
 	workerPool().scheduleJob(vnetUnregister)
 }
 
+// RegisterSubnet subscribes for getting updates on the subnet
+func RegisterSubnet(
+	vnetId, subnetId string) {
+	// Subscribe only if not subscribed already
+	cs, err := getActiveSubscriber().getCachedSubnetConfig(vnetId, subnetId)
+	if err != nil || !cs.isSubscribed {
+		logDebugf("RegisterSubnet. Vnet: %s, subnet:%s", vnetId, subnetId)
+		getActiveSubscriber().subscribeCachedSubnetConfig(vnetId, subnetId)
+		subnetRegister := &vnetJob{
+			context: jobContext{
+				id:              createSubnetJobId(vnetId, subnetId),
+				jobType:         SubnetRegister,
+				createdDateTime: time.Now().UTC(),
+				retryInterval:   baseRetryInterval,
+			},
+			vnetId: vnetId,
+		}
+		workerPool().scheduleJob(subnetRegister)
+	}
+}
+
+// UnregisterSubnet deletes the subscription for the subnet
+func UnregisterSubnet(
+	vnetId, subnetId string) {
+	logDebugf("UnregisterSubnet. Vnet: %s, subnet:%s", vnetId, subnetId)
+	if _, err := getActiveSubscriber().getCachedSubnetConfig(vnetId, subnetId); err != nil {
+		logErrorf("vnet: %s, subnet:%s not found for unregistering", vnetId, subnetId)
+		return
+	}
+
+	// Unsubscribe from vnet notifications
+	subnetUnregister := &vnetJob {
+		context: jobContext{
+			id:              createSubnetJobId(vnetId, subnetId),
+			jobType:         SubnetUnregister,
+			createdDateTime: time.Now().UTC(),
+			retryInterval:   baseRetryInterval,
+		},
+		vnetId: vnetId,
+	}
+	workerPool().scheduleJob(subnetUnregister)
+}
+
 //just make a seperate class? A little dangerous to have unitialized package variables that could be used
 //note since deleting is idempotent we don't need replica
 func InitCleanup(configSettings configuration.PubSubProxySettings, certPath string, lgr loggershim.LoggerInterface) error {
@@ -495,7 +546,7 @@ func Init(
 
 	madariClient := newMadariClient()
 
-	var dataContracts MadariDataContracts
+	var dataContracts madariDataContracts
 	if configSettings.EnableRNC {
 		dataContracts = &rncDataContracts{}
 	} else  {

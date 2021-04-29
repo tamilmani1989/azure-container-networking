@@ -20,7 +20,7 @@ type subscriber struct {
 	sync.RWMutex
 	subscribeStatusError sync.Map
 	cachedVnetConfigMap  sync.Map
-	dataContracts       MadariDataContracts
+	dataContracts       madariDataContracts
 }
 
 type subscriberContextStruct struct {
@@ -47,6 +47,7 @@ type cachedSubnetConfig struct {
 	addressPrefix string
 	expectedToken string
 	owningService string
+	isSubscribed  bool
 }
 
 var subscriberContext *subscriberContextStruct
@@ -174,18 +175,38 @@ func (s *subscriber) getSubscribeStatusError(
 func (s *subscriber) getCachedSubnetConfig(
 	vnetId string,
 	subnetName string) (cachedSubnetConfig, error) {
-	vnetConfig, found := s.cachedVnetConfigMap.Load(vnetId)
-	if !found {
-		return cachedSubnetConfig{}, fmt.Errorf("Configuration not found for VnetId: %s", vnetId)
-	}
 
-	for _, subnetConfig := range vnetConfig.(cachedVnetConfig).subnetConfigs {
-		if strings.EqualFold(subnetConfig.subnetName, subnetName) {
-			return subnetConfig, nil
-		}
-	}
+	return s.dataContracts.getCachedSubnetConfig(vnetId, subnetName)
+}
 
-	return cachedSubnetConfig{}, fmt.Errorf("Subnet: %s not found for VnetId: %s", subnetName, vnetId)
+func (s *subscriber) deleteCachedSubnetConfig(
+	vnetId, subnetId string) {
+	if err := s.dataContracts.deleteCachedSubnetConfig(vnetId, subnetId); err != nil {
+		logDebugf("deleteCachedSubnetConfig error: %s", err)
+	}
+}
+
+func (s *subscriber) updateCachedSubnetConfig(
+	vnetId string,
+	subnetId string,
+	subnetConfig *SubnetConfiguration) {
+	// If RNC path is enabled, delegate the call to data layer
+	if err := s.dataContracts.updateCachedSubnetConfig(vnetId, subnetId, subnetConfig); err != nil {
+		logDebugf("updateCachedSubnetConfig error: %s", err)
+	}
+}
+
+func (s *subscriber) subscribeCachedSubnetConfig(
+	vnetId, subnetId string) {
+	if err := s.dataContracts.subscribeCachedSubnetConfig(vnetId, subnetId); err != nil {
+		logDebugf("subscribeCachedSubnetConfig error: %s", err)
+	}
+}
+
+func (s *subscriber) unsubscribeCachedSubnetConfigs() {
+	if err := s.dataContracts.unsubscribeCachedSubnetConfigs(); err != nil {
+		logDebugf("unsubscribeCachedSubnetConfigs error: %s", err)
+	}
 }
 
 func (s *subscriber) getCachedVnetConfig(
@@ -265,6 +286,14 @@ func (s *subscriber) rehydrateSubscriptions() {
 			time.Sleep(time.Second * 1)
 		}
 	}
+}
+
+func (s *subscriber) getSubnetPartitionKey(vnetId, subnetId string) string {
+	return s.dataContracts.getSubnetPartitionKey(vnetId, subnetId)
+}
+
+func (s *subscriber) getSubnetRelativePath(vnetId, subnetId string) string {
+	return s.dataContracts.getSubnetRelativePath(vnetId, subnetId)
 }
 
 func (callback subscriberCallback) OnNotificationReceived(
@@ -377,7 +406,7 @@ func getActiveSubscriber() *subscriber {
 
 func initSubscriber(
 	mc madariClientInterface,
-	dc MadariDataContracts,
+	dc madariDataContracts,
 	settings pubsubSettings) {
 	subscriberContext = &subscriberContextStruct{
 		subscriberPort:     settings.subscriberPort,

@@ -250,7 +250,7 @@ type PubSubProxySettings struct {
 	EnablePubSubProxy bool
 	// Enable verbose logging
 	EnableVerboseLogging bool
-	// Enable verbose logging
+	// If this is true, then DNC switches to consuming data published by RNC
 	EnableRNC bool
 	// Max concurrent requests to process at any time. Default is 1000.
 	MaxConcurrentRequests int
