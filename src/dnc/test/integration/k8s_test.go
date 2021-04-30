@@ -4,6 +4,7 @@ import (
 	"context"
 	"dnc/retry"
 	"dnc/test/integration/goldpinger"
+	"dnc/test/k8s"
 	"errors"
 	"flag"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	v1 "k8s.io/client-go/kubernetes/typed/apps/v1"
+	"github.com/stretchr/testify/require"
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,7 +21,9 @@ import (
 )
 
 var (
-	defaultRetrier      = retry.Retrier{Attempts: 15, Delay: time.Second}
+	defaultRetrier = retry.Retrier{Attempts: 15, Delay: time.Second}
+	// todo: could use another method for more robust kubeconfig loading.
+	// See https://github.com/kubernetes-sigs/controller-runtime/blob/e10bf72058d349e9c5cdd177593c32c650065458/pkg/client/config/config.go#L59
 	kubeconfig          = flag.String("test-kubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	delegatedSubnetID   = flag.String("delegated-subnet-id", "", "delegated subnet id for node labeling")
 	delegatedSubnetName = flag.String("subnet-name", "", "subnet name for node labeling")
@@ -71,9 +74,12 @@ todo:
 */
 
 func TestPodScaling(t *testing.T) {
-	clientset := mustGetClientset(t)
-	restConfig := mustGetRestConfig(t)
-	deployment := mustParseDeployment(t, "testdata/goldpinger/deployment.yaml")
+	clientset, err := k8s.GetClientset(*kubeconfig)
+	require.NoError(t, err)
+	restConfig, err := k8s.GetRestConfig(*kubeconfig)
+	require.NoError(t, err)
+	deployment, err := k8s.ParseDeployment("testdata/goldpinger/deployment.yaml")
+	require.NoError(t, err)
 
 	ctx := context.Background()
 
@@ -83,15 +89,17 @@ func TestPodScaling(t *testing.T) {
 		t.Log("swift node labels not passed or set. skipping labeling")
 	}
 
-	rbacCleanUpFn := mustSetUpRBAC(t, ctx, clientset)
-	deploymentsClient := clientset.AppsV1().Deployments(deployment.Namespace)
-	mustCreateDeployment(t, ctx, deploymentsClient, deployment)
+	k8sShim := k8s.NewShim(clientset)
+
+	rbacCleanUpFn := mustSetUpRBAC(t, ctx, k8sShim)
+	err = k8sShim.CreateOrReplaceDeployment(ctx, deployment.Namespace, deployment)
+	require.NoError(t, err)
 
 	t.Cleanup(func() {
 		t.Log("cleaning up resources")
 		rbacCleanUpFn(t)
 
-		if err := deploymentsClient.Delete(ctx, deployment.Name, metav1.DeleteOptions{}); err != nil {
+		if err := k8sShim.DeleteDeployment(ctx, deployment.Namespace, deployment.Name); err != nil {
 			t.Log(err)
 		}
 	})
@@ -104,7 +112,10 @@ func TestPodScaling(t *testing.T) {
 			replicaCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			defer cancel()
 
-			if err := updateReplicaCount(t, replicaCtx, deploymentsClient, deployment.Name, count); err != nil {
+			scaleFunc := func() error {
+				return k8sShim.ScaleDeployment(replicaCtx, deployment.Namespace, deployment.Name, count)
+			}
+			if err := defaultRetrier.Do(replicaCtx, scaleFunc); err != nil {
 				t.Fatalf("could not scale deployment: %v", err)
 			}
 
@@ -143,7 +154,7 @@ func TestPodScaling(t *testing.T) {
 			})
 
 			t.Run("all pods can ping each other", func(t *testing.T) {
-				pf, err := NewPortForwarder(restConfig)
+				pf, err := k8s.NewPortForwarder(restConfig)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -151,7 +162,7 @@ func TestPodScaling(t *testing.T) {
 				portForwardCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
 
-				var streamHandle PortForwardStreamHandle
+				var streamHandle k8s.PortForwardStreamHandle
 				portForwardFn := func() error {
 					t.Log("attempting port forward")
 					handle, err := pf.Forward(ctx, "default", "app=goldpinger", 8080, 8080)
@@ -193,18 +204,4 @@ func TestPodScaling(t *testing.T) {
 			})
 		})
 	}
-}
-
-func updateReplicaCount(t *testing.T, ctx context.Context, deployments v1.DeploymentInterface, name string, replicas int) error {
-	return defaultRetrier.Do(ctx, func() error {
-		res, err := deployments.Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		t.Logf("setting deployment %s to %d replicas", name, replicas)
-		res.Spec.Replicas = int32ptr(int32(replicas))
-		_, err = deployments.Update(ctx, res, metav1.UpdateOptions{})
-		return err
-	})
 }

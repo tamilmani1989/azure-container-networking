@@ -3,9 +3,9 @@ package benchmark
 import (
 	"context"
 	"dnc/api"
+	"dnc/async"
 	"dnc/client"
 	"dnc/datamodel"
-	"dnc/pkg/async"
 	"dnc/retry"
 	"errors"
 	"math"

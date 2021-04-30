@@ -13,25 +13,30 @@ import (
 	"k8s.io/client-go/transport/spdy"
 )
 
+// PortForwarder can initiate port forwarding to a k8s pod.
 type PortForwarder struct {
 	clientset *kubernetes.Clientset
 	transport http.RoundTripper
 	upgrader  spdy.Upgrader
 }
 
+// PortForwardStreamHandle contains information about the port forwarding session and can terminate it.
 type PortForwardStreamHandle struct {
 	url      string
 	stopChan chan struct{}
 }
 
+// Stop terminates a port forwarding session.
 func (p *PortForwardStreamHandle) Stop() {
 	p.stopChan <- struct{}{}
 }
 
+// Url returns a url for communicating with the pod.
 func (p *PortForwardStreamHandle) Url() string {
 	return p.url
 }
 
+// NewPortForwarder creates a PortForwarder.
 func NewPortForwarder(restConfig *rest.Config) (*PortForwarder, error) {
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
@@ -49,6 +54,7 @@ func NewPortForwarder(restConfig *rest.Config) (*PortForwarder, error) {
 }
 
 // todo: can be made more flexible to allow a service to be specified
+// Forward attempts to initiate port forwarding to the specified pod and port using labels.
 func (p *PortForwarder) Forward(ctx context.Context, namespace, labelSelector string, localPort, destPort int) (PortForwardStreamHandle, error) {
 	pods, err := p.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
