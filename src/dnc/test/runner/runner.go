@@ -1074,7 +1074,7 @@ func addSubnet(vnetID, subnetID, authToken string) error {
 	)
 
 	logger.Printf("Registering subnet %s in network %s", subnetID, vnetID)
-	if respErr = dnctl.AddSubnet(vnetID, subnetID, authToken); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddSubnet(vnetID, subnetID, authToken, ""); respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Register subnet %s in network %s failed with error %+v", subnetID, vnetID, respErr)
 	}
 
@@ -1109,7 +1109,7 @@ func deleteSubnet(vnetID, subnetID string) error {
 
 	logger.Printf("Unregistering subnet %s in network %s", subnetID, vnetID)
 	for start := time.Now(); ; {
-		respErr = dnctl.DeleteSubnet(vnetID, subnetID)
+		respErr = dnctl.DeleteSubnet(vnetID, subnetID, "")
 		if respErr.HTTPStatus == http.StatusOK {
 			break
 		}

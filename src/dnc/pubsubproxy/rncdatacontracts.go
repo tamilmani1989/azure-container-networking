@@ -72,7 +72,8 @@ func (s *rncDataContracts) subscribeCachedSubnetConfig(
 	}
 
 	// If subnet config doesn't exist, create an entry as a subscribed vnet
-	s.cachedVnetSubnetMap.Store(vnetId, cachedSubnetConfig{
+	key := fmt.Sprintf("%s_%s", vnetId, subnetId)
+	s.cachedVnetSubnetMap.Store(key, cachedSubnetConfig{
 		isSubscribed: true,
 	})
 

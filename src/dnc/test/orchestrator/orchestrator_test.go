@@ -581,7 +581,7 @@ func addSubnet(t *testing.T, vnetID, subnetID, authToken string) {
 			Status: "Completed"}
 	)
 
-	if respErr = dnctl.AddSubnet(vnetID, subnetID, authToken); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddSubnet(vnetID, subnetID, authToken, ""); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Register subnet failed with error %+v", respErr)
 	}
 
@@ -608,7 +608,7 @@ func deleteSubnet(t *testing.T, vnetID, subnetID string) {
 	var respErr *api.JsonErr
 
 	for start := time.Now(); ; {
-		respErr = dnctl.DeleteSubnet(vnetID, subnetID)
+		respErr = dnctl.DeleteSubnet(vnetID, subnetID, "")
 		if respErr.HTTPStatus == http.StatusOK {
 			break
 		}

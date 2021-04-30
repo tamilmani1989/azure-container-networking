@@ -63,9 +63,10 @@ func unregisterSubnetCmd() *cobra.Command {
 		Short: "Unregisters a subnet",
 		Run: func(cmd *cobra.Command, args []string) {
 			vnetid, _ := cmd.Flags().GetString("vnet-id")
-			subnetid, _ := cmd.Flags().GetString("vnet-id")
+			subnetid, _ := cmd.Flags().GetString("subnet-id")
+			apiVer, _ := cmd.Flags().GetString("apiversion")
 
-			err := DncClient.DeleteSubnet(vnetid, subnetid)
+			err := DncClient.DeleteSubnet(vnetid, subnetid, apiVer)
 			if err != nil {
 				client.PrettyPrint(err)
 			}
@@ -73,6 +74,7 @@ func unregisterSubnetCmd() *cobra.Command {
 	}
 	cmd.Flags().String("vnet-id", "", "Vnet ID")
 	cmd.Flags().String("subnet-id", "", "Subnet ID")
+	cmd.Flags().String("apiversion", "", "apiversion")
 	cmd.MarkFlagRequired("vnet-id")
 	cmd.MarkFlagRequired("subnet-id")
 

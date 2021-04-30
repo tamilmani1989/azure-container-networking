@@ -81,8 +81,9 @@ func registerSubnetCmd() *cobra.Command {
 			vnetid, _ := cmd.Flags().GetString("vnet-id")
 			subnetid, _ := cmd.Flags().GetString("subnet-id")
 			authtoken, _ := cmd.Flags().GetString("auth-token")
+			apiVer, _ := cmd.Flags().GetString("apiversion")
 
-			err := DncClient.AddSubnet(vnetid, subnetid, authtoken)
+			err := DncClient.AddSubnet(vnetid, subnetid, authtoken, apiVer)
 			if err != nil && err.HTTPStatus != http.StatusOK {
 				client.PrettyPrint(err)
 				return
@@ -92,6 +93,7 @@ func registerSubnetCmd() *cobra.Command {
 	cmd.Flags().String("vnet-id", "", "vnet-id")
 	cmd.Flags().String("subnet-id", "", "subnet-id")
 	cmd.Flags().String("auth-token", "", "auth-token")
+	cmd.Flags().String("apiversion", "", "apiversion")
 	cmd.MarkFlagRequired("vnet-id")
 	cmd.MarkFlagRequired("subnet-id")
 	cmd.MarkFlagRequired("auth-id")

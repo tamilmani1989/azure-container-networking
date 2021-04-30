@@ -450,7 +450,7 @@ func RegisterSubnet(
 	if err != nil || !cs.isSubscribed {
 		logDebugf("RegisterSubnet. Vnet: %s, subnet:%s", vnetId, subnetId)
 		getActiveSubscriber().subscribeCachedSubnetConfig(vnetId, subnetId)
-		subnetRegister := &vnetJob{
+		subnetRegister := &subnetJob{
 			context: jobContext{
 				id:              createSubnetJobId(vnetId, subnetId),
 				jobType:         SubnetRegister,
@@ -458,6 +458,7 @@ func RegisterSubnet(
 				retryInterval:   baseRetryInterval,
 			},
 			vnetId: vnetId,
+			subnetId: subnetId,
 		}
 		workerPool().scheduleJob(subnetRegister)
 	}
@@ -473,7 +474,7 @@ func UnregisterSubnet(
 	}
 
 	// Unsubscribe from vnet notifications
-	subnetUnregister := &vnetJob {
+	subnetUnregister := &subnetJob {
 		context: jobContext{
 			id:              createSubnetJobId(vnetId, subnetId),
 			jobType:         SubnetUnregister,
@@ -481,6 +482,7 @@ func UnregisterSubnet(
 			retryInterval:   baseRetryInterval,
 		},
 		vnetId: vnetId,
+		subnetId: subnetId,
 	}
 	workerPool().scheduleJob(subnetUnregister)
 }

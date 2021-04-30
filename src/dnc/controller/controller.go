@@ -22,8 +22,10 @@ import (
 	"github.com/Azure/azure-container-networking/cns"
 )
 
-type  joinNetworkFunction func(networkID string, apiVersion string) *api.JsonErr
-type  deleteNetworkFunction func(networkID string) *api.JsonErr
+type joinNetworkFunction func(networkID string, apiVersion string) *api.JsonErr
+type deleteNetworkFunction func(networkID string) *api.JsonErr
+type registerSubnetFunction func(networkID, subnetID string, isRegistered bool)
+type deleteSubnetFunction func(networkID, subnetID string, networkConfig *datamodel.NetworkConfiguration) *api.JsonErr
 
 // todo: no need for these to be globals, should be part of struct
 var (
@@ -32,6 +34,8 @@ var (
 	config                    *configuration.Configuration
 	joinNetworkFunc           joinNetworkFunction
 	deleteNetworkFunc         deleteNetworkFunction
+	registerSubnetFunc        registerSubnetFunction
+	deleteSubnetFunc          deleteSubnetFunction
 )
 
 // Controller - Controller for handling API calls
@@ -67,9 +71,13 @@ func NewController(
 	if config.PubSubProxySettings.EnableRNC {
 		joinNetworkFunc = joinNetworkViaRNC
 		deleteNetworkFunc = deleteNetworkViaRNC
+		registerSubnetFunc = registerSubnetViaRNC
+		deleteSubnetFunc = deleteSubnetViaRNC
 	} else {
 		joinNetworkFunc = joinNetworkViaRNM
 		deleteNetworkFunc = deleteNetworkViaRNM
+		registerSubnetFunc = registerSubnetViaRNM
+		deleteSubnetFunc = deleteSubnetViaRNM
 	}
 
 	return controller
@@ -456,6 +464,10 @@ func (c *Controller) PersistSubnetDelegationRequest(
 	isDelete bool) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] Put Subnet: %s for network: %s isDelete: %t", subnet, networkID, isDelete)
 
+	if err := ValidateSubnetRequest(subnet, ""); err != nil {
+		return err
+	}
+
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
@@ -563,11 +575,15 @@ func (c *Controller) updateSubnetV1(networkID, subnet string, subnetRequest api.
 	return datamodel.PutSubnetConfiguration(subnetConfiguration)
 }
 
-func (c *Controller) DeleteSubnetV2(networkID, subnetName string) *api.JsonErr {
+func (c *Controller) DeleteSubnetV2(networkID, subnetName string, apiversion string) *api.JsonErr {
 	loggershim.LS.Debugf("[Request] DeleteSubnetV2: Network: %s, Subnet: %s", networkID, subnetName)
 	if !config.PubSubProxySettings.EnablePubSubProxy {
 		// SubnetV2 API is supported with PubSubProxy only when DNC is running in managed mode
 		return api.BadRequestf(api.RequestNotsupported, "Request not supported")
+	}
+
+	if err := ValidateSubnetRequest(subnetName, apiversion); err != nil {
+		return err
 	}
 
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
@@ -628,29 +644,7 @@ func (c *Controller) DeleteSubnetV2(networkID, subnetName string) *api.JsonErr {
 		}
 	}
 
-	subnetConfigs, err := datamodel.TryQueryAllSubnetConfigsInNetworkConfig(networkConfiguration)
-	if err != nil {
-		loggershim.LS.Errorf("Failed to get all the subnet configs in network: %s. Error: %v", networkID, err)
-		return err
-	}
-
-	// Delete the network if there are no other 'Joined' subnets left in this network
-	for subnet, subnetConfig := range subnetConfigs {
-		// If there is at least one 'Joined' subnet left in this network, there is no further processing needed
-		if subnetConfig.Joined == true && subnet != subnetName {
-			loggershim.LS.Debugf("Cannot delete the network: %s as subnet: %s is in 'Joined' state", networkID, subnet)
-			return nil
-		}
-	}
-
-	loggershim.LS.Debugf("Deleting network: %s", networkID)
-	// Delete the network configuration and subnet configurations in the network
-	if err = datamodel.DeleteNetworkConfiguration(networkID); err == nil {
-		// Unsubscribe vnet notifications for PubSubProxy
-		pubsubproxy.UnregisterVnet(networkID)
-	}
-
-	return err
+	return deleteSubnetFunc(networkID, subnetName, networkConfiguration)
 }
 
 // PersistSubnetDelegationRequest - Persist subnet delegation info for V2 API.
@@ -659,6 +653,10 @@ func (c *Controller) PersistSubnetDelegationRequestV2(networkID, subnet string, 
 	if !config.PubSubProxySettings.EnablePubSubProxy {
 		// SubnetV2 API is supported with PubSubProxy only when DNC is running in managed mode
 		return api.BadRequestf(api.RequestNotsupported, "Request not supported")
+	}
+
+	if err := ValidateSubnetRequest(subnet, apiVersion); err != nil {
+		return err
 	}
 
 	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: networkID}
@@ -729,13 +727,7 @@ func (c *Controller) PersistSubnetDelegationRequestV2(networkID, subnet string, 
 		return err
 	}
 
-	// Subscribe after persisting the Subnet Configuration to make sure once pubsubproxy receives vnet data via
-	// notification, it will update the subnet configuration persisted above and updates the status to complete
-	if !isNetworkJoined {
-		loggershim.LS.Debugf("PutSubnetV2 Registering vnet with pubsubproxy: Network: %s, Subnet: %s", networkID, subnet)
-		pubsubproxy.RegisterVnet(networkID)
-	}
-
+	registerSubnetFunc(networkID, subnet, isNetworkJoined)
 	loggershim.LS.Debugf("PutSubnetV2 successfully persisted subnet config for Network: %s, Subnet: %s", networkID, subnet)
 	return nil
 }
@@ -1122,4 +1114,92 @@ func (c *Controller) RefreshNMAgentGoalState() {
 // DumpStorageState - dumps DNC storage state
 func (c *Controller) DumpStorageState() error {
 	return datamodel.DumpStorageState(config.DataStoreSettings.AzureStorageInfo.PartitionKey)
+}
+
+func registerSubnetViaRNM(networkID, subnetNameorID string, isRegistered bool) {
+	// Subscribe after persisting the Subnet Configuration to make sure once pubsubproxy receives vnet data via
+	// notification, it will update the subnet configuration persisted above and updates the status to complete
+	if !isRegistered {
+		loggershim.LS.Debugf("PutSubnetV2 Registering vnet with pubsubproxy via RNM: Network: %s, Subnet: %s", networkID, subnetNameorID)
+		pubsubproxy.RegisterVnet(networkID)
+	}
+}
+
+func registerSubnetViaRNC(networkID, subnetNameorID string, isRegistered bool) {
+	loggershim.LS.Debugf("PutSubnetV2 Registering subnet with pubsubproxy via RNC: Network: %s, Subnet: %s", networkID, subnetNameorID)
+	pubsubproxy.RegisterSubnet(networkID, subnetNameorID)
+}
+
+func deleteSubnetViaRNM(networkID, subnetName string, networkConfiguration *datamodel.NetworkConfiguration) *api.JsonErr {
+	loggershim.LS.Debugf("deleteSubnetViaRNM: Deleting subnet %s in network %s", subnetName, networkID)
+	subnetConfigs, err := datamodel.TryQueryAllSubnetConfigsInNetworkConfig(networkConfiguration)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to get all the subnet configs in network: %s. Error: %v", networkID, err)
+		return err
+	}
+
+	// Delete the network if there are no other 'Joined' subnets left in this network
+	for subnet, subnetConfig := range subnetConfigs {
+		// If there is at least one 'Joined' subnet left in this network, there is no further processing needed
+		if subnetConfig.Joined == true && subnet != subnetName {
+			loggershim.LS.Debugf("Cannot delete the network: %s as subnet: %s is in 'Joined' state", networkID, subnet)
+			return nil
+		}
+	}
+
+	loggershim.LS.Debugf("deleteSubnetViaRNM: Deleting network: %s", networkID)
+	// Delete the network configuration and subnet configurations in the network
+	if err = datamodel.DeleteNetworkConfiguration(networkID); err == nil {
+		// Unsubscribe vnet notifications for PubSubProxy
+		pubsubproxy.UnregisterVnet(networkID)
+	}
+
+	return err
+}
+
+func deleteSubnetViaRNC(networkID, subnetId string, networkConfiguration *datamodel.NetworkConfiguration) *api.JsonErr {
+	// Delete the subnet configurations
+	loggershim.LS.Debugf("deleteSubnetViaRNC: Deleting subnet %s in network %s", subnetId, networkID)
+	if err := datamodel.DeleteSubnetConfiguration(networkID, subnetId); err == nil {
+		// Unsubscribe subnet notifications for PubSubProxy
+		pubsubproxy.UnregisterSubnet(networkID, subnetId)
+	}
+
+	subnetConfigs, err := datamodel.TryQueryAllSubnetConfigsInNetworkConfig(networkConfiguration)
+	if err != nil {
+		loggershim.LS.Errorf("Failed to get all the subnet configs in network: %s. Error: %v", networkID, err)
+		return err
+	}
+
+	// Delete the network if there are no other 'Joined' subnets left in this network
+	joinedSubnetFound := false
+	for subnet, subnetConfig := range subnetConfigs {
+		// If there is at least one 'Joined' subnet left in this network, there is no further processing needed
+		if subnetConfig.Joined == true && subnet != subnetId {
+			joinedSubnetFound = true
+			loggershim.LS.Debugf("deleteSubnetViaRNC: Not deleting network: %s as subnet: %s is in 'Joined' state", networkID, subnet)
+		}
+	}
+
+	if !joinedSubnetFound {
+		loggershim.LS.Debugf("deleteSubnetViaRNC: Deleting network: %s", networkID)
+		return datamodel.DeleteNetworkConfiguration(networkID)
+	}
+
+	return nil
+}
+
+func ValidateSubnetRequest(subnetNameOrId string, apiVersion string) *api.JsonErr {
+	if config.PubSubProxySettings.EnableRNC {
+
+		if apiVersion != "2021-02-24" {
+			return api.BadRequestf(api.RequestNotsupported, "Subnet request via RNC is only supported with API version 2021-02-24")
+		}
+
+		if !utils.IsValidUUID(subnetNameOrId) {
+			return api.BadRequestf(api.InvalidSubnetName, "SubnetId %s must be guid if RNC path is enabled", subnetNameOrId)
+		}
+	}
+
+	return nil
 }

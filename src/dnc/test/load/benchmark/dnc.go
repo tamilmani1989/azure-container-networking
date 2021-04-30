@@ -51,7 +51,7 @@ func (d *DNC) JoinSubnets(ctx context.Context, vnetIDToSubnets map[string][]stri
 		for _, subnet := range subnets {
 
 			subnetJoinFunc := func() error {
-				if err := d.Client.AddSubnet(vnetID, subnet, "foo"); err.HTTPStatus != http.StatusOK {
+				if err := d.Client.AddSubnet(vnetID, subnet, "foo", ""); err.HTTPStatus != http.StatusOK {
 					logrus.Errorf("could not persist vnet %s subnet %s, retrying: %v", vnetID, subnet, err)
 					return err
 				}

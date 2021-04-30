@@ -513,7 +513,7 @@ func (job *vnetJob) process() error {
 
 	// Do not process further if the vnet is deleted
 	if getActiveSubscriber().getCachedVnetConfig(job.vnetId) == nil {
-		logDebugf("Job %s: %s abandoned as vnet is deleted", jobContext.jobType.String(), job.vnetId)
+		logDebugf("Job %s: %s abandoned as vnet is deleted", jobContext.jobType.String(), jobContext.id)
 		return err
 	}
 
@@ -674,21 +674,25 @@ func (job *subnetJob) process() error {
 		}
 	}()
 
-	// Do not process further if the vnet is deleted
-	if _, err := getActiveSubscriber().getCachedSubnetConfig(job.vnetId, job.subnetId); err != nil {
+	// If subnet is not in cache, it means it has been unsubscribed. Any pending tasks in queue should ignore it
+	if _, getErr := getActiveSubscriber().getCachedSubnetConfig(job.vnetId, job.subnetId); getErr != nil {
 		logDebugf("Job %s: %s abandoned as subnet is deleted", jobContext.jobType.String(), jobContext.id)
-		return err
+	    // return nil as we don't want to add this task to failedQueue in defer function above
+		return nil
 	}
 
 	switch jobContext.jobType {
 	case SubnetRegister:
-		return job.processSubnetRegister()
+		// Make sure to set err variable. This is used in defer function above
+		err = job.processSubnetRegister()
 
 	case SubnetUnregister:
-		return job.processSubnetUnregister()
+		// Make sure to set err variable. This is used in defer function above
+		err = job.processSubnetUnregister()
 
-	case VnetUpdate:
-		return job.processSubnetUpdate()
+	case SubnetUpdate:
+		// Make sure to set err variable. This is used in defer function above
+		err = job.processSubnetUpdate()
 
 	default:
 		err = fmt.Errorf("Unknown job type: %s for job: %s", jobContext.jobType, jobContext.id)

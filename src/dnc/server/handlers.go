@@ -1058,7 +1058,7 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 
 	case "2021-02-24":
 		if isDelete {
-			if err := ctrler.DeleteSubnetV2(networkID, strings.ToLower(subnet)); err != nil {
+			if err := ctrler.DeleteSubnetV2(networkID, strings.ToLower(subnet), apiVersion); err != nil {
 				setRequestFailed(w, err)
 				return
 			}

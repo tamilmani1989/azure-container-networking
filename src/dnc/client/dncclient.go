@@ -36,7 +36,7 @@ const (
 	networkStatusApi           = "%s/networks/%s/status" + apiVersion
 	reservationApi             = "%s/networks/%s/reservations/%s" + apiVersion
 	reservationStatusApi       = "%s/networks/%s/reservations/%s/status" + apiVersion
-	subnetApi                  = "%s/networks/%s/subnets/%s" + apiVersion
+	subnetApi                  = "%s/networks/%s/subnets/%s"
 	subnetStatusApi            = "%s/networks/%s/subnets/%s/status" + apiVersion
 	ncApi                      = "%s/networks/%s/networkcontainer/%s" + apiVersion
 	ncStatusApi                = "%s/networks/%s/networkcontainers/%s/status" + apiVersion
@@ -61,6 +61,8 @@ var (
 		},
 		Timeout: time.Second * 30,
 	}
+
+	apiVersionMap map[string]string
 )
 
 // OrchestratorContext - Struct to hold orchestrator context info
@@ -75,6 +77,10 @@ type DncClient struct {
 }
 
 func NewDncClient(dncEP string) *DncClient {
+	apiVersionMap = make(map[string]string)
+	apiVersionMap["default"] = "?api-version=2018-03-01"
+	apiVersionMap["2021-02-24"] = "?api-version=2021-02-24"
+
 	return &DncClient{
 		DncEP: dncEP}
 }
@@ -176,22 +182,27 @@ func (c *DncClient) AddNetwork(networkId string) (respErr *api.JsonErr) {
 	return
 }
 
-func (c *DncClient) AddSubnet(networkId, subnetId, authenticationToken string) (respErr *api.JsonErr) {
+func (c *DncClient) AddSubnet(networkId, subnetId, authenticationToken, apiversion string) (respErr *api.JsonErr) {
 	var (
 		body      bytes.Buffer
 		response  *http.Response
 		err       error
-		subnetURL = fmt.Sprintf(subnetApi, c.DncEP, networkId, subnetId)
 		subnetReq = api.SubnetRequest{AuthenticationToken: authenticationToken}
 	)
 
+	subnetUrlFormat, err := getsubnetApiUri(apiversion)
+	if err != nil {
+		return api.BadRequestf(api.InvalidSubnetRequest, "AddSubnet error: %s", err)
+	}
+
+	subnetURL := fmt.Sprintf(subnetUrlFormat, c.DncEP, networkId, subnetId)
 	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
 	json.NewEncoder(&body).Encode(subnetReq)
 	response, err = httpc.Post(subnetURL, jsonContentType, &body)
 	if err == nil {
 		defer response.Body.Close()
 
-		if response.StatusCode != http.StatusOK {
+		if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusAccepted {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
 				failedToDecodeResponse(respErr, Register, Subnet, err)
 			}
@@ -495,7 +506,8 @@ func (c *DncClient) GetSubnetConfiguration(networkId, subnet string) (subnetCfg 
 	var (
 		response                    *http.Response
 		err                         error
-		subnetURL                   = fmt.Sprintf(subnetApi, c.DncEP, networkId, subnet)
+		subnetURLFormat, _          = getsubnetApiUri("")
+		subnetURL                   = fmt.Sprintf(subnetURLFormat, c.DncEP, networkId, subnet)
 		subnetConfigurationResponse api.SubnetConfigurationResponse
 	)
 
@@ -770,11 +782,12 @@ func (c *DncClient) DeleteNetwork(networkId string) (respErr *api.JsonErr) {
 	return
 }
 
-func (c *DncClient) DeleteSubnet(networkId, subnet string) (respErr *api.JsonErr) {
+func (c *DncClient) DeleteSubnet(networkId, subnet string, apiversion string) (respErr *api.JsonErr) {
 	var (
 		response  *http.Response
 		err       error
-		subnetURL = fmt.Sprintf(subnetApi, c.DncEP, networkId, subnet)
+		subnetURLFormat, _ = getsubnetApiUri(apiversion)
+		subnetURL = fmt.Sprintf(subnetURLFormat, c.DncEP, networkId, subnet)
 		req, _    = http.NewRequest(delete, subnetURL, nil)
 	)
 
@@ -783,7 +796,7 @@ func (c *DncClient) DeleteSubnet(networkId, subnet string) (respErr *api.JsonErr
 	if err == nil {
 		defer response.Body.Close()
 
-		if response.StatusCode != http.StatusOK {
+		if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusAccepted {
 			if err = utils.DecodeResponse(response, &respErr); err != nil {
 				failedToDecodeResponse(respErr, Delete, Subnet, err)
 			}
@@ -929,4 +942,18 @@ func failedWithStatus(respErr *api.JsonErr, action, resource string, statusCode 
 func reportClientErr(respErr *api.JsonErr, err error) {
 	respErr.HTTPStatus = http.StatusAccepted
 	respErr.Text = err.Error()
+}
+
+func getsubnetApiUri(version string) (string, error) {
+	apiVerKey := version
+	if apiVerKey == "" {
+		apiVerKey = "default"
+	}
+
+	verVal, ok := apiVersionMap[apiVerKey]
+	if  !ok {
+		return "", fmt.Errorf("invalid api version: %s", apiVerKey)
+	}
+
+    return subnetApi + verVal, nil
 }

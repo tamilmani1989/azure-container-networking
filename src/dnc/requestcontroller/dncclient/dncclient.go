@@ -324,7 +324,7 @@ func (s SynchronousDNCClient) RegisterSubnet(ctx context.Context, networkID, sub
 		"subnetID": subnetID,
 	})
 	logger.Infof("Dnc call to register subnet for networkID:%s subnetID:%s", networkID, subnetID)
-	addSubnetRespErr := s.dncClient.AddSubnet(networkID, subnetID, authenticationToken)
+	addSubnetRespErr := s.dncClient.AddSubnet(networkID, subnetID, authenticationToken, "")
 	// http.StatusOK means request is accepted, anything else means there was an error
 	if addSubnetRespErr.HTTPStatus != http.StatusOK {
 		return addSubnetRespErr

@@ -130,6 +130,16 @@ func UnregisterVnet(
 	vnetId string) {
 }
 
+// RegisterSubnet subscribes for getting updates on the subnet
+func RegisterSubnet(
+	vnetId, subnetId string) {
+}
+
+// UnregisterSubnet deletes the subscription for the subnet
+func UnregisterSubnet(
+	vnetId, subnetId string) {
+}
+
 func ForceUnpublishInAz(infraVnetID, nodeInterfaceIP, ncID, pubsubAzId string) *api.JsonErr {
 	//validateAuthToken
 	return api.InternalServerErrorf(
