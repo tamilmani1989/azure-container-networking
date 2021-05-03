@@ -6,8 +6,8 @@ import (
 	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/datastoreshim"
-	"dnc/logger/loggermock"
 	"dnc/logger/loggershim"
+	"dnc/logger/simplejson"
 	"dnc/pubsubproxy"
 	"dnc/utils"
 	"encoding/json"
@@ -264,7 +264,7 @@ func main() {
 	config = configuration.Load(configpath)
 	configuration.OverrideConfigFromEnv(config)
 	configuration.SetDncConfigDefaults(config)
-	loggershim.LS = loggermock.NewBoringLogger()
+	loggershim.LS = simplejson.NewLogger("DNCCleanupEvent")
 
 	tokenFetcher := &ad.MSITokenFetcher{ResourceID: config.IdentitySettings.MSIResourceID}
 	pubSubCfg := config.PubSubProxySettings
@@ -330,7 +330,7 @@ func main() {
 		Path("/healthz").
 		Handler(http.HandlerFunc(Health))
 
-	log.Println("Serving on port 9000")
+	loggershim.LS.Debugf("Serving on port 9000")
 	r := handlers.LoggingHandler(os.Stdout, handlers.RecoveryHandler()(router))
 	http.ListenAndServe(":9000", r)
 
