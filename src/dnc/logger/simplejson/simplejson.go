@@ -39,3 +39,8 @@ func (_ *simpleJSON) Init(_ bool, _ chan telemetry.DNCReport) {}
 func (_ *simpleJSON) Close() {}
 
 func (_ *simpleJSON) SetLogFileLimits(_, _ int) {}
+
+func (d *simpleJSON) Write(p []byte) (n int, err error) {
+	d.entry.Debugf(string(p))
+	return len(p), nil
+}

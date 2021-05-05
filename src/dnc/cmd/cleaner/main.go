@@ -15,9 +15,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"time"
-
-	"github.com/Azure/azure-container-networking/cns/logger"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 
@@ -135,7 +134,7 @@ func IsCleanupRequired(repo *partitionRepo) (bool, error) {
 	}
 
 	if cleanupRequired {
-		logger.Debugf("IsCleanupRequired: Pending NetworkContainers exists")
+		loggershim.LS.Debugf("IsCleanupRequired partition %s: Pending NetworkContainers exists", repo.partitionKey)
 		return true, nil
 	}
 
@@ -145,7 +144,7 @@ func IsCleanupRequired(repo *partitionRepo) (bool, error) {
 	}
 
 	if cleanupRequired {
-		logger.Debugf("IsCleanupRequired: Pending PublishRequests exists")
+		loggershim.LS.Debugf("IsCleanupRequired partition %s: Pending PublishRequests exists", repo.partitionKey)
 		return true, nil
 	}
 
@@ -157,7 +156,7 @@ func IsCleanupRequired(repo *partitionRepo) (bool, error) {
 	}
 
 	if cleanupRequired {
-		logger.Debugf("IsCleanupRequired: Pending ResourceCleanup exists")
+		loggershim.LS.Debugf("IsCleanupRequired partition %s: Pending ResourceCleanup exists", repo.partitionKey)
 		return true, nil
 	}
 
@@ -169,7 +168,7 @@ func IsCleanupRequired(repo *partitionRepo) (bool, error) {
 	}
 
 	if cleanupRequired {
-		logger.Debugf("IsCleanupRequired: Pending Reservations exists")
+		loggershim.LS.Debugf("IsCleanupRequired partition %s: Pending Reservations exists", repo.partitionKey)
 		return true, nil
 	}
 
@@ -239,6 +238,7 @@ func Health(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
 	entity, _, err := ds.QueryInPartition(datamodel.PendingResourceCleanupTableName, "dummy", "dummy")
 	if entity != nil {
 		loggershim.LS.Debugf("[health probe] unexpected row found: %+v", *entity)
@@ -264,7 +264,8 @@ func main() {
 	config = configuration.Load(configpath)
 	configuration.OverrideConfigFromEnv(config)
 	configuration.SetDncConfigDefaults(config)
-	loggershim.LS = simplejson.NewLogger("DNCCleanupEvent")
+	jsonlogger := simplejson.NewLogger("DNCCleanupEvent")
+	loggershim.LS = jsonlogger
 
 	tokenFetcher := &ad.MSITokenFetcher{ResourceID: config.IdentitySettings.MSIResourceID}
 	pubSubCfg := config.PubSubProxySettings
@@ -331,9 +332,25 @@ func main() {
 		Handler(http.HandlerFunc(Health))
 
 	loggershim.LS.Debugf("Serving on port 9000")
-	r := handlers.LoggingHandler(os.Stdout, handlers.RecoveryHandler()(router))
+	r := handlers.LoggingHandler(jsonlogger, panicHandler{router})
 	http.ListenAndServe(":9000", r)
 
+}
+
+type panicHandler struct {
+	handler http.Handler
+}
+
+func (p panicHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			stack := string(debug.Stack())
+			loggershim.LS.Errorf("Panic for request %s: %s", req.URL, stack)
+		}
+	}()
+
+	p.handler.ServeHTTP(w, req)
 }
 
 // getCertPath fetches a certificate from keyvault, writes it to a temporary file, and returns its file path
