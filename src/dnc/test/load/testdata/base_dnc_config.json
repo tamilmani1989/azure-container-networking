@@ -1,0 +1,79 @@
+{
+  "DataStoreSettings": {},
+  "ServerSettings": {
+    "IPAddress": "127.0.0.1",
+    "Port": "9000"
+  },
+  "MasterElectionSettings": {
+    "UseDataStore": false,
+    "TestDataElectionSettings": {},
+    "DataStoreLeaseSettings": {
+      "LeaseIntervalInSecs": 60,
+      "LeaseRenewIntervalInSecs": 30,
+      "AcquireRetryIntervalInSecs": 30
+    }
+  },
+  "HostAgentSettings": {
+    "WireServerIP": "127.0.0.1:9001",
+    "ConnectionStrings": {
+      "JoinNetworkURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
+      "GetNetworkConfigurationURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/joinedVirtualNetworks/%s/api-version/1",
+      "PutNetworkContainerURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1",
+      "DeleteNetworkContainerURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=NetworkManagement/interfaces/%s/networkContainers/%s/authenticationToken/%s/api-version/1/method/DELETE",
+      "GetNmAgentSupportedApiURLFmt": "http://%s/machine/plugins/?comp=nmagent&type=GetSupportedApis"
+    }
+  },
+  "CNSSettings": {
+    "CnsTlsCertificateSubjectName": "",
+    "ChannelMode": "disabled",
+    "ConnectionStrings": {
+      "CreateOrUpdateNetworkContainerURLFmt": "http://%s:10090/network/createorupdatenetworkcontainer",
+      "DeleteNetworkContainerURLFmt": "http://%s:10090/network/deletenetworkcontainer",
+      "SetOrchestratorTypeURLFmt": "http://%s:10090/network/setorchestratortype",
+      "GetNetworkcontainerstatusURLFmt": "http://%s:10090/network/getnetworkcontainerstatus",
+      "GetNumOfCPUCoresURLFmt": "http://%s:10090/hostcpucores",
+      "PublishNetworkContainerURLFmt": "http://%s:10090/network/publishnetworkcontainer",
+      "UnpublishNetworkContainerURLFmt": "http://%s:10090/network/unpublishnetworkcontainer"
+    }
+  },
+  "MacManagerSettings": {
+    "AllocateMacURL": "https://macallocator-service:5012/macallocator/allocate",
+    "DeallocateMacURL": "https://macallocator-service:5012/macallocator/deallocate"
+  },
+  "VlanSettings": {
+    "Min": 1,
+    "Max": 2048
+  },
+  "DNCSettings": {
+    "RequestRetryBaseInterval": 1000,
+    "MaxRequestBackoffInterval": 16000,
+    "NetworkRefreshInterval": 30000000,
+    "NetworkRefreshBatchSize": 3,
+    "SleepIntervalBetweenNetworkBatches": 5000,
+    "SleepIntervalBetweenNetworkRefresh": 10000000,
+    "TagRefreshInterval": 1000,
+    "NetworkContainerRefreshInterval": 10000000,
+    "ReportToHostInterval": 60000,
+    "ConcurrentRequestsToProcess": 1000,
+    "EnforceNICLimit": true,
+    "NICsAllowedPerVirtualCore": 1,
+    "ReverseProxyEnabled": false,
+    "ThresholdForLoggingDataStoreOpLatencyMs": 1000,
+    "Managed": false
+  },
+  "HttpClientSettings": {
+    "ConnectionTimeout": 5,
+    "ResponseHeaderTimeout": 120,
+    "MaxIdleConnsPerHost": 100,
+    "IdleConnTimeout": 90
+  },
+  "TelemetrySettings": {
+    "TelemetryBatchSizeBytes": 16384,
+    "TelemetryBatchIntervalInSecs": 7,
+    "RefreshIntervalInSecs": 15,
+    "DisableMetadataRefreshThread": false,
+    "DisableTelemetry": true,
+    "DebugMode": false,
+    "DisableAiLogging": false
+  }
+}

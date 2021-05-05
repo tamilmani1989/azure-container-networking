@@ -119,4 +119,37 @@ func (s *Shim) DeleteServiceAccount(ctx context.Context, namespace, name string)
 	return nil
 }
 
+// CreateOrReplaceConfigmap creates the provided configmap or replaces any existing one with the same name.
+func (s *Shim) CreateOrReplaceConfigmap(ctx context.Context, namespace string, configmap corev1.ConfigMap) error {
+	if err := s.DeleteConfigmap(ctx, namespace, configmap.Name); err != nil {
+		return err
+	}
+
+	_, err := s.Clientset.CoreV1().ConfigMaps(namespace).Create(ctx, &configmap, metav1.CreateOptions{})
+	return err
+}
+
+// DeleteConfigmap deletes a configmap.
+func (s *Shim) DeleteConfigmap(ctx context.Context, namespace, name string) error {
+	if err := s.Clientset.CoreV1().ConfigMaps(namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+// CreateNamespace creates a namespace.
+func (s *Shim) CreateNamespace(ctx context.Context, name string) error {
+	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}}
+
+	if _, err := s.Clientset.CoreV1().Namespaces().Create(ctx, &ns, metav1.CreateOptions{}); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func int32ptr(i int32) *int32 { return &i }

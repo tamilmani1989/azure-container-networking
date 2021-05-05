@@ -23,7 +23,7 @@ var defaultRetrier = retry.Retrier{
 }
 
 type DNC struct {
-	Client client.DncClient
+	Client *client.DncClient
 }
 
 /*
@@ -86,7 +86,7 @@ func (d *DNC) CreateNodes(ctx context.Context, workerCount int, nodeRequests []N
 			defer wg.Done()
 			for req := range nodeReqCh {
 				createNodeFunc := func() error {
-					err := d.Client.AddNode(req.NodeID, req.NodeReq.IPAddresses[0], req.NodeReq.OrchestratorType, req.NodeReq.InfrastructureNetwork, "", "")
+					err := d.Client.AddNode(req.NodeID, req.NodeReq.IPAddresses[0], req.NodeReq.OrchestratorType, req.NodeReq.InfrastructureNetwork, "", "", "")
 					if err.HTTPStatus != http.StatusOK {
 						return err
 					}
@@ -129,7 +129,7 @@ func (d *DNC) CreateNCs(ctx context.Context, workerCount int, ncRequests []NCReq
 				ncCreateStart := time.Now()
 				err := ncCreateRetry.Do(ctx, func() error {
 					err := d.Client.UpsertNcV2(req.VnetID, req.NCID, req.NCReq)
-					if err.HTTPStatus != http.StatusOK {
+					if err.HTTPStatus != http.StatusOK && err.HTTPStatus != http.StatusConflict {
 						return err
 					}
 					return nil
@@ -154,9 +154,6 @@ func (d *DNC) GetAllNCResponses(ctx context.Context, workerCount int, ncRequests
 		wg        sync.WaitGroup
 	)
 
-	collectCtx, cancel := context.WithTimeout(ctx, time.Minute*10)
-	defer cancel()
-
 	cancelLog := async.IntervalDo(time.Second*10, func() {
 		logrus.Infof("gathered %d nc responses", responses.Len())
 	})
@@ -168,7 +165,7 @@ func (d *DNC) GetAllNCResponses(ctx context.Context, workerCount int, ncRequests
 		go func() {
 			defer wg.Done()
 			for req := range ncVerifyCh {
-				stats, err := d.getNCResponse(collectCtx, req.VnetID, req.NCID)
+				stats, err := d.getNCResponse(ctx, req.VnetID, req.NCID)
 				if err != nil {
 					logrus.Errorf("could not verify nc %s: %v", req.NCID, err)
 					continue

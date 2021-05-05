@@ -22,9 +22,7 @@ func IntervalDoCtx(ctx context.Context, interval time.Duration, f func()) {
 	}()
 }
 
-type CancelFunc func()
-
-// Do executes a function asynchronously on a given interval, until caller executes the returned CancelFunc.
+// Do executes a function asynchronously on a given interval, until caller executes the returned context.CancelFunc.
 func IntervalDo(interval time.Duration, f func()) context.CancelFunc {
 	ctx, cancel := context.WithCancel(context.Background())
 	IntervalDoCtx(ctx, interval, f)
