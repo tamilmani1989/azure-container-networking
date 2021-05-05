@@ -398,6 +398,12 @@ func (n *NodeConfigurationRepo) UpdateNodeConfigurationNetworkContainerSet(nodeI
 
 		vnetMap[ncID] = reservationID
 
+		//Skip the NCLimit check if nodeType is BareMetal
+		if nodeConfig.NodeInfo.NodeType == api.BareMetalNodeType {
+			loggershim.LS.Debugf("Skipping NC Count Limit check for BareMetal Node %s.", nodeID)
+			return n.PersistNodeConfiguration(nodeConfig)
+		}
+
 		ncCount := 0
 		for _, ncToVnetMap := range nodeConfig.DeployedNetworkContainerMap {
 			ncCount += len(ncToVnetMap)
