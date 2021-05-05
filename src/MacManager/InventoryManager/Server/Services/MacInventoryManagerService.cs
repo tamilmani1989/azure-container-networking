@@ -25,6 +25,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
         private readonly IMacAddressRangeComponent rangeComponent;
         private readonly IMacAddressComponent addressComponent;
         private readonly MacInventoryInitializationState initializationState;
+        private readonly int macAddressStrLength = 12;
 
         public MacInventoryManagerService(
             ILogger<MacInventoryManagerService> logger,
@@ -144,6 +145,24 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
                     for (long i = start; i <= end; i++)
                     {
                         string address = i.ToString("X");
+
+                        // Right in the beginning of this method, we validate that start and end MACs in MAC range are
+                        // valid MAC addresses. Then these start/end MACs gets converted from string to long and it can lose its length
+                        // if it has zeros in front, in this conversion. For example - if MAC is 00125A00B000 in string format, after conversion
+                        // to long it will be 125A00B000. Add the missing octets here.
+                        if (address.Length != macAddressStrLength)
+                        {
+                            int diff = macAddressStrLength - address.Length;
+                            if (diff < 0)
+                            {
+                                this.logger.CLogInformation("Skip flattening MAC {0} as it is not of valid length {1}", address, macAddressStrLength);
+                                continue;
+                            }
+
+                            string zeros = new String('0', diff);
+                            address = string.Format("{0}{1}", zeros, address);
+                        }
+
                         macAddressesToProcess.Add(address);
                     }
 

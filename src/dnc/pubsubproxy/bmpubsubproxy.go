@@ -82,7 +82,15 @@ func PublishBaremetalNetworkContainer(
 	var networkingInterfacePubContext datamodel.NetworkInterfacesPublishingContext
 
 	// converts macaddress to proper format
-	macAddress, _ := utils.ConvertMacAddressToSdnContractMacAddress(repoNCConfig.MACAddress)
+	macAddress, err := utils.ConvertMacAddressToSdnContractMacAddress(repoNCConfig.MACAddress)
+	if err != nil {
+		return api.InternalServerErrorf(
+			api.PublishingFailed,
+			"PublishBareMetalNetworkContainer for NC: %s, Converting MAC %s to sdncontracts failed due to error: %s",
+			ncGoalState.NetworkContainerID,
+			repoNCConfig.MACAddress,
+			err)
+	}
 
 	// do this for all the interfaces
 	networkInterfaceConfiguration := &sdn.NetworkInterface{

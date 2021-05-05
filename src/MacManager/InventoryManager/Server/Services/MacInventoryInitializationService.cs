@@ -24,6 +24,7 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
         private static readonly TimeSpan delay1Hour = TimeSpan.FromSeconds(3600);
         private const string rangeStart = "";
         private const string rangeEnd = "FFFFFFFFFFFF";
+        private const int macAddressContainerThoughput = 5000; // RUs
         private readonly CosmosClientProvider clientProvider;
         private CancellationTokenSource stopTokenSource;
         private readonly CancellationToken stopToken;
@@ -73,7 +74,8 @@ namespace Microsoft.Azure.ContainerNetworking.MacInventoryManager
                         MacManagerConstants.MacAddressContainerName,
                         MacManagerConstants.MacAddressContainerPartitionKeyPath);
 
-                    await database.CreateContainerIfNotExistsAsync(addressContainer, cancellationToken: stopToken);
+                    await database.CreateContainerIfNotExistsAsync(
+                        addressContainer, throughput: macAddressContainerThoughput, cancellationToken: stopToken);
 
                     this.logger.CLogInformation("Creating range container if not exists");
                     ContainerProperties rangeContainer = new ContainerProperties(

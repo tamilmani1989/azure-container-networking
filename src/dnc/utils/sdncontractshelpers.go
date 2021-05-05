@@ -3,6 +3,7 @@ package utils
 import (
 	sdn "dnc/microsoft/azure/sdncontracts"
 	"encoding/hex"
+	"fmt"
 	"net"
 )
 
@@ -42,6 +43,11 @@ func ConvertMacAddressToSdnContractMacAddress(macAddress string) (*sdn.MacAddres
 	data, err := hex.DecodeString(deMac)
 	if err != nil {
 		return nil, err
+	}
+
+	macLen := len(data)
+	if macLen != 6 {
+		return nil, fmt.Errorf("MAC address %s has length %d bytes. It should be 6 bytes", macAddress, macLen)
 	}
 
 	x := &sdn.MacAddress{}
