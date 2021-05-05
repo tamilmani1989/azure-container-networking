@@ -6,9 +6,9 @@ import (
 	"dnc/aiwrapper"
 	dncclient "dnc/client"
 	"dnc/requestcontroller"
-	"dnc/requestcontroller/buildinfo"
 	"dnc/requestcontroller/datastore"
 	syncdncclient "dnc/requestcontroller/dncclient"
+	"dnc/requestcontroller/env"
 	"dnc/requestcontroller/json"
 	"dnc/requestcontroller/kubernetes"
 	"dnc/utils"
@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-container-networking/aitelemetry"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/sirupsen/logrus"
@@ -26,21 +27,42 @@ const (
 	shortDesc  = "Watches K8s api-server for SWIFT-based CNI deployment"
 	longDesc   = "Watches K8s api-server for Nodes, creates/deletes NodeNetworkConfigs, and responds to NodeNetworkConfig changes"
 	configFlag = "config"
+	executable = "requestcontroller"
 )
 
 var (
 	rootCmd = &cobra.Command{
-		Use:   buildinfo.ExecutableName,
+		Use:   executable,
 		Short: shortDesc,
 		Long:  longDesc,
 		Run: func(cmd *cobra.Command, args []string) {
+			// setup the signal handler
+			exitChan := signals.SetupSignalHandler()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			// read the command line flags
 			configFile, err := cmd.Flags().GetString(configFlag)
 			if err != nil {
 				logrus.Fatal(err, "Error getting config flag value")
 			}
-			err = runRequestController(configFile)
-			if err != nil {
-				logrus.Fatalf("Error starting requestcontroller: %v", err)
+
+			// run the request controller
+			errChan := make(chan error)
+			defer close(errChan)
+			go func(errChan chan error) {
+				if err := runRequestController(ctx, configFile); err != nil {
+					errChan <- err
+				}
+			}(errChan)
+
+			// wait for an exit signal or error
+			select {
+			case <-exitChan:
+				// return to cancel the context and exit
+				return
+			case err := <-errChan:
+				logrus.Fatalf("Error running request controller: %v", err)
 			}
 		},
 	}
@@ -65,17 +87,14 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-func runRequestController(configFile string) error {
+func runRequestController(ctx context.Context, configFile string) error {
 	logger := logrus.StandardLogger()
 	logger.SetFormatter(&logrus.JSONFormatter{})
 
-	// Read the config
-	jsonConfigProvider := json.ConfigProvider{
-		ConfigFile: configFile,
-	}
-	config, err := jsonConfigProvider.GetConfig()
+	// Get the config
+	config, err := getConfig(configFile)
 	if err != nil {
-		return fmt.Errorf("Error reading config: %w", err)
+		return fmt.Errorf("Error getting config: %w", err)
 	}
 
 	// Get the Cosmos token via MSI if necessary
@@ -162,12 +181,16 @@ func runRequestController(configFile string) error {
 	}).Infof("Using subnetInfoProviderMode %s", config.SubnetInfoProviderConfig.Mode)
 
 	// Create the RequestController
-	requestController, err := kubernetes.NewRequestController(kubernetes.RequestControllerOptions{
+	requestController := requestcontroller.NewRequestController(requestcontroller.RequestControllerOptions{
 		KubeconfigProvider: kubeconfigProvider,
-		DNCClient:          syncDncClient,
-		SubnetInfoProvider: subnetInfoProvider,
-		Config:             config,
-		Logger:             logger,
+		ManagerBuilder: &kubernetes.ClusterManagerBuilder{
+			Config:             config,
+			SyncDNCClient:      syncDncClient,
+			Logger:             logger,
+			SubnetInfoProvider: subnetInfoProvider,
+		},
+		Logger: logger,
+		Config: config,
 	})
 
 	if err != nil {
@@ -197,7 +220,7 @@ func runRequestController(configFile string) error {
 	}
 
 	// Start the RequestController
-	requestController.Start() // blocks
+	requestController.Start(ctx) // blocks
 
 	return nil
 }
@@ -244,4 +267,28 @@ func getKeyvaultClientFromMSI(ctx context.Context, keyvaultName, msiResourceID, 
 	}
 
 	return keyvaultClient, nil
+}
+
+func getConfig(configFile string) (requestcontroller.Config, error) {
+	// Start with a default config
+	config := requestcontroller.DefaultConfig()
+
+	// Apply config from file if necessary
+	if configFile != "" {
+		jsonConfigProvider := json.ConfigProvider{
+			ConfigFile: configFile,
+		}
+
+		if err := jsonConfigProvider.ApplyConfig(&config); err != nil {
+			return requestcontroller.Config{}, fmt.Errorf("Error reading the config file %s: %w", configFile, err)
+		}
+	}
+
+	// Apply config from the environment
+	envConfigProvider := env.ConfigProvider{}
+	if err := envConfigProvider.ApplyConfig(&config); err != nil {
+		return requestcontroller.Config{}, fmt.Errorf("Error getting config from environment: %w", err)
+	}
+
+	return config, nil
 }

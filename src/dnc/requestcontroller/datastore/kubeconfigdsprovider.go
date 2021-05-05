@@ -26,11 +26,14 @@ const (
 	orchestratorPropertiesPropertyName          = "Properties"
 	orchestratorTypePropertyName                = "OrchestratorType"
 	kubernetesOrchestratorType                  = "Kubernetes"
-	kubeconfigOutputDirectory                   = "/etc/kubeconfigs" // TODO: make this configurable
+)
+
+var (
+	kubeconfigOutputDirectory = "/etc/kubeconfigs" // TODO: make this configurable
 )
 
 type KubeconfigProvider struct {
-	dataStoreShim               datastoreshim.DataStoreShim
+	datastoreClient             datastoreClient
 	kubeconfigTemplate          *template.Template
 	secretProvider              requestcontroller.SecretProvider
 	logger                      logrus.FieldLogger
@@ -89,7 +92,7 @@ func NewKubeconfigProvider(opts KubeconfigProviderOptions) (*KubeconfigProvider,
 
 	k := KubeconfigProvider{
 		managedDNCGUID:              opts.ManagedDNCGUID,
-		dataStoreShim:               ds,
+		datastoreClient:             ds,
 		secretProvider:              opts.SecretProvider,
 		clientCertificatesDirectory: opts.ClientCertificatesDirectory,
 		kubeloginBinaryPath:         opts.KubeloginBinaryPath,
@@ -119,7 +122,7 @@ func (k *KubeconfigProvider) GetBytesForAll(ctx context.Context) (map[string][]b
 	var pageToken interface{}
 	hasMoreData := true
 	for hasMoreData {
-		result, moreData, nextPageToken, status, err := k.dataStoreShim.QueryAllRowsInPartition(orchestratorInstancesConfigurationTableName, k.managedDNCGUID, pageToken)
+		result, moreData, nextPageToken, status, err := k.datastoreClient.QueryAllRowsInPartition(orchestratorInstancesConfigurationTableName, k.managedDNCGUID, pageToken)
 		hasMoreData = moreData
 		if err != nil {
 			return nil, fmt.Errorf("Error querying datastore for table %s: %w", orchestratorInstancesConfigurationTableName, err)
@@ -186,6 +189,7 @@ func (k *KubeconfigProvider) GetBytesForAll(ctx context.Context) (map[string][]b
 	return allKubeconfigs, nil
 }
 
+// TODO: move file I/O out of this function
 func (k *KubeconfigProvider) getKubeconfigForOrchestratorProperties(ctx context.Context, orchestratorProperties OrchestratorProperties) ([]byte, error) {
 	// Get certificate from secretProvider
 	cert, err := k.secretProvider.GetLatestSecret(ctx, orchestratorProperties.ClientSecretName)

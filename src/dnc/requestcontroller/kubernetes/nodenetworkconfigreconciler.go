@@ -46,23 +46,24 @@ type NodeNetworkConfigReconciler struct {
 	registeredSubnets        *cache.Cache // Keep a set of Subnets registered on DNC
 	delegationGUIDToVnetGUID *cache.Cache // Keep a map of delegation guid to vnet guid
 	reconcileTimeout         time.Duration
-
-	registerVnetMutex   sync.Mutex
-	registerSubnetMutex sync.Mutex
-	orchestratorID      string // used for publishing metrics
-	skipSubnetJoin      bool
+	registerVnetMutex        sync.Mutex
+	registerSubnetMutex      sync.Mutex
+	orchestratorID           string // used for publishing metrics
+	skipSubnetJoin           bool
+	metricsPublishers        []requestcontroller.MetricsPublisher
 }
 
 // NodeNetworkConfigReconcilerOptions options to create NNC Reconciler
 type NodeNetworkConfigReconcilerOptions struct {
-	K8sClient          K8sClient
-	DNCClient          requestcontroller.SynchronousDNCClient
-	ScalerConfig       requestcontroller.RequestScalerConfig
-	SubnetInfoProvider requestcontroller.SubnetInfoProvider
-	Logger             logrus.FieldLogger
-	ReconcileTimeout   time.Duration
-	OrchestratorID     string
-	SkipSubnetJoin     bool
+	K8sClient                   K8sClient
+	DNCClient                   requestcontroller.SynchronousDNCClient
+	ScalerConfig                requestcontroller.RequestScalerConfig
+	SubnetInfoProvider          requestcontroller.SubnetInfoProvider
+	Logger                      logrus.FieldLogger
+	ReconcileTimeout            time.Duration
+	ProcessedNNCMetricsDuration time.Duration
+	OrchestratorID              string
+	SkipSubnetJoin              bool
 }
 
 type ncDetails struct {
@@ -76,20 +77,35 @@ func NewNodeNetworkConfigReconciler(opts NodeNetworkConfigReconcilerOptions) *No
 		"component": "NodeNetworkConfigReconciler",
 	})
 
+	// build caches
+	nodeIDToNCDetails := cache.New(cache.NoExpiration, cache.NoExpiration)
+	registeredNodes := cache.New(cache.NoExpiration, cache.NoExpiration)
+	registeredVnets := cache.New(cache.NoExpiration, cache.NoExpiration)
+	registeredSubnets := cache.New(cache.NoExpiration, cache.NoExpiration)
+	delegationGUIDToVnetGUID := cache.New(cache.NoExpiration, cache.NoExpiration)
+
 	return &NodeNetworkConfigReconciler{
 		k8sClient:                opts.K8sClient,
 		dncClient:                opts.DNCClient,
 		scalerConfig:             opts.ScalerConfig,
 		subnetInfoProvider:       opts.SubnetInfoProvider,
 		logger:                   logger,
-		nodeIDToNCDetails:        cache.New(cache.NoExpiration, cache.NoExpiration),
-		registeredNodes:          cache.New(cache.NoExpiration, cache.NoExpiration),
-		registeredVnets:          cache.New(cache.NoExpiration, cache.NoExpiration),
-		registeredSubnets:        cache.New(cache.NoExpiration, cache.NoExpiration),
-		delegationGUIDToVnetGUID: cache.New(cache.NoExpiration, cache.NoExpiration),
+		nodeIDToNCDetails:        nodeIDToNCDetails,
+		registeredNodes:          registeredNodes,
+		registeredVnets:          registeredVnets,
+		registeredSubnets:        registeredSubnets,
+		delegationGUIDToVnetGUID: delegationGUIDToVnetGUID,
 		reconcileTimeout:         opts.ReconcileTimeout,
 		orchestratorID:           opts.OrchestratorID,
 		skipSubnetJoin:           opts.SkipSubnetJoin,
+		metricsPublishers: []requestcontroller.MetricsPublisher{
+			&processedNNCMetricPublisher{
+				registeredNodes: registeredNodes,
+				orchestratorID:  opts.OrchestratorID,
+				duration:        opts.ProcessedNNCMetricsDuration,
+				logger:          logger,
+			},
+		},
 	}
 }
 
@@ -627,22 +643,38 @@ func (n *NodeNetworkConfigReconciler) getBatchSize(node corev1.Node) int64 {
 	return batchSize
 }
 
-// This is mainly a copy/paste of dnc's sendDatastoreMetric. When we revamp metrics, this should not use global, and should use contexts
-func (n *NodeNetworkConfigReconciler) SendNNCReconcilerMetrics() {
-	registeredNodesCount := n.registeredNodes.ItemCount()
+// Return all metrics publishers for this reconciler
+func (n *NodeNetworkConfigReconciler) getMetricsPublishers() []requestcontroller.MetricsPublisher {
+	return n.metricsPublishers
+}
 
-	n.logger.WithFields(logrus.Fields{
+type processedNNCMetricPublisher struct {
+	registeredNodes *cache.Cache
+	orchestratorID  string
+	duration        time.Duration
+	logger          logrus.FieldLogger
+}
+
+// This is mainly a copy/paste of dnc's sendDatastoreMetric. When we revamp metrics, this should not use global, and should use contexts
+func (p *processedNNCMetricPublisher) SendMetric() {
+	registeredNodesCount := p.registeredNodes.ItemCount()
+
+	p.logger.WithFields(logrus.Fields{
 		"MetricName":     processedNNCCountMetricName,
 		"Value":          fmt.Sprintf("%d", registeredNodesCount),
-		"OrchestratorID": n.orchestratorID,
+		"OrchestratorID": p.orchestratorID,
 	}).Infof("Sending metric to AI")
 
 	metric := aitelemetry.Metric{
 		Name:             processedNNCCountMetricName,
-		Value:            float64(n.registeredNodes.ItemCount()),
+		Value:            float64(p.registeredNodes.ItemCount()),
 		CustomDimensions: make(map[string]string),
 	}
 
-	metric.CustomDimensions[orchestratorIDDimensionName] = n.orchestratorID
+	metric.CustomDimensions[orchestratorIDDimensionName] = p.orchestratorID
 	go aiwrapper.SendMetric(metric)
+}
+
+func (p *processedNNCMetricPublisher) GetDuration() time.Duration {
+	return p.duration
 }

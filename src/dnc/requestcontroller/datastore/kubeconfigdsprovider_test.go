@@ -6,71 +6,102 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"dnc/requestcontroller/json"
-	"fmt"
+	"dnc/configuration"
+	"dnc/requestcontroller"
+	"encoding/base64"
+	"encoding/json"
 	"io"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/sirupsen/logrus"
 )
 
 const (
-	enableIntegrationTestEnvVar = "ENABLE_INTEGRATION_TESTS"
-	configFileEnvVar            = "CONFIG_FILE"
-	defaultConfigFile           = "testdata/config_test.json"
+	expectedKubeconfigFile       = "testdata/expected_kubeconfig.yaml"
+	expectedMGUID                = "01025494-6825-4200-af96-a69880326baf"
+	expectedOrchestratorID       = "0557d795-9553-4bb9-92a3-46d5052165e8"
+	expectedAPIServerEndpoint    = "https://kubernetes"
+	expectedClusterRootCA        = "cluster-ca-data"
+	expectedAzureEnvironment     = "AzurePublicCloud"
+	expectedKubeloginBinaryPath  = "/usr/local/bin/kubelogin"
+	expectedClientID             = "client-id"
+	expectedClientSecretName     = "client-secret-name"
+	expectedOrchestratorAppID    = "orchestrator-app-id"
+	expectedOrchestratorTenantID = "d4aabfe3-34f6-4c52-b7f2-922d78f6e18f"
+	testOutputDir                = "testdata/output"
 )
 
 var logger logrus.FieldLogger = logrus.New()
 
-func TestGetBytesForAllWithCosmos(t *testing.T) {
-	if _, set := os.LookupEnv(enableIntegrationTestEnvVar); !set {
-		t.Skip(fmt.Sprintf("Skipping integration test, set env var %s to enable", enableIntegrationTestEnvVar))
-	}
+func TestGetBytesForAll(t *testing.T) {
 
-	rowKey := "0557d795-9553-4bb9-92a3-46d5052165e8"
+	config := requestcontroller.DefaultConfig()
 
-	// Read the expected kubeconfig file, and drop the windows line endings if present
-	expectedKubeconfigBytes, err := readFileIgnoreCarriageReturn("testdata/expected_kubeconfig.yaml")
-	if err != nil {
-		t.Fatalf("Could not read testdata file, %v", err)
-	}
+	kubeconfigOutputDirectory = testOutputDir
 
-	configFile := os.Getenv(configFileEnvVar)
-	if configFile == "" {
-		configFile = defaultConfigFile
-	}
-
-	configProvider := json.ConfigProvider{ConfigFile: configFile}
-	config, err := configProvider.GetConfig()
-	if err != nil {
-		t.Fatalf("Failed getting config with error: %v", err)
-	}
-
-	kubeconfigProviderOpts := KubeconfigProviderOptions{
-		DataStoreSettings:           config.DataStoreSettings,
+	kubeconfigProvider, err := NewKubeconfigProvider(KubeconfigProviderOptions{
+		DataStoreSettings: configuration.DataStoreSettings{
+			TestPersistenceStoreInfo: configuration.TestPersistenceStoreInfo{
+				Test: "true",
+			},
+		},
 		LoggingConfig:               config.LoggingConfig,
 		SecretProvider:              mockSecretProvider{},
 		Logger:                      logger,
-		ClientCertificatesDirectory: config.KubernetesConfig.KubeconfigInfo.ClientCertificatesDirectory,
+		ClientCertificatesDirectory: testOutputDir,
 		KubeloginBinaryPath:         config.KubernetesConfig.KubeconfigInfo.KubeloginBinaryPath,
-		AzureEnvironment:            config.KubernetesConfig.KubeconfigInfo.AzureEnvironment,
-		ManagedDNCGUID:              config.KubernetesConfig.KubeconfigInfo.ManagedDNCGUID,
+		AzureEnvironment:            expectedAzureEnvironment,
+		ManagedDNCGUID:              expectedMGUID,
+	})
+	if err != nil {
+		t.Fatalf("could not build kubeconfig provider: %v", err)
 	}
 
-	kubeconfigProvider, err := NewKubeconfigProvider(kubeconfigProviderOpts)
+	orchestratorProps := OrchestratorProperties{
+		OrchestratorAppID:    expectedOrchestratorAppID,
+		OrchestratorTenantID: expectedOrchestratorTenantID,
+		ClusterRootCA:        base64.StdEncoding.EncodeToString([]byte(expectedClusterRootCA)),
+		APIServerEndpoint:    expectedAPIServerEndpoint,
+		ClientID:             expectedClientID,
+		ClientSecretName:     expectedClientSecretName,
+	}
+
+	jsonBlob, err := json.Marshal(orchestratorProps)
 	if err != nil {
-		t.Fatalf("Failed getting kubeconfig provider, %v", err)
+		t.Fatalf("could not marshal orchestratorProperties to json: %v", err)
+	}
+
+	// replace the datastoreClient with our mock
+	kubeconfigProvider.datastoreClient = &mockDatastoreClient{
+		rows: map[string]*storage.Entity{
+			expectedOrchestratorID: {
+				PartitionKey: expectedMGUID,
+				RowKey:       expectedOrchestratorID,
+				Properties: map[string]interface{}{
+					orchestratorTypePropertyName:       kubernetesOrchestratorType,
+					orchestratorPropertiesPropertyName: string(jsonBlob),
+				},
+			},
+		},
 	}
 
 	kubeconfigs, err := kubeconfigProvider.GetBytesForAll(context.Background())
 	if err != nil {
-		t.Fatalf("Failed getting kubeconfigs, %v", err)
+		t.Fatalf("failed getting kubeconfigs, %v", err)
 	}
 
-	if bytes.Compare(kubeconfigs[rowKey], expectedKubeconfigBytes) != 0 {
-		t.Fatalf("Generated kubeconfig doesn't match expected kubeconfig\nExpected: %s\nGenerated: %s", expectedKubeconfigBytes, kubeconfigs[rowKey])
+	// Read the expected kubeconfig file, and drop the windows line endings if present
+	expectedKubeconfigBytes, err := readFileIgnoreCarriageReturn(expectedKubeconfigFile)
+	if err != nil {
+		t.Fatalf("could not read testdata file, %v", err)
+	}
+
+	// kubeconfig files should match
+	if bytes.Compare(kubeconfigs[expectedOrchestratorID], expectedKubeconfigBytes) != 0 {
+		t.Fatalf("Generated kubeconfig doesn't match expected kubeconfig\nExpected: %s\nGenerated: %s", expectedKubeconfigBytes, kubeconfigs[expectedOrchestratorID])
 	}
 }
 

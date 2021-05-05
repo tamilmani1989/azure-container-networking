@@ -7,7 +7,6 @@ import (
 
 	dncclient "dnc/client"
 	syncdncclient "dnc/requestcontroller/dncclient"
-	"dnc/requestcontroller/json"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -42,14 +41,10 @@ var (
 )
 
 func pingDNC(configFile string) error {
-	// Read the config
-	jsonConfigProvider := json.ConfigProvider{
-		ConfigFile: configFile,
-	}
-
-	config, err := jsonConfigProvider.GetConfig()
+	// Get the config
+	config, err := getConfig(configFile)
 	if err != nil {
-		return fmt.Errorf("[dnc-rc] Error reading config: %w", err)
+		return fmt.Errorf("[dnc-rc] Error getting config: %w", err)
 	}
 
 	logrus.Infof("[dnc-rc] DNC Client Config: %+v", config.DNCClientConfig)

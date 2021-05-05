@@ -21,12 +21,10 @@ const (
 )
 
 type SubnetInfoProvider struct {
-	dataStoreShim datastoreshim.DataStoreShim
-	mutex         sync.Mutex
-	cache         map[string]map[string]requestcontroller.SubnetInfo // delegatedSubnetID -> {subnetName -> SubnetInfo, subnetName -> SubnetInfo}
+	datastoreClient datastoreClient
+	mutex           sync.Mutex
+	cache           map[string]map[string]requestcontroller.SubnetInfo // delegatedSubnetID -> {subnetName -> SubnetInfo, subnetName -> SubnetInfo}
 }
-
-var _ requestcontroller.SubnetInfoProvider = &SubnetInfoProvider{}
 
 /*
 Table:            SubnetTokenMap
@@ -51,8 +49,8 @@ func NewSubnetInfoProvider(dataStoreSettings configuration.DataStoreSettings, lo
 	}
 
 	s := SubnetInfoProvider{
-		dataStoreShim: ds,
-		cache:         make(map[string]map[string]requestcontroller.SubnetInfo),
+		datastoreClient: ds,
+		cache:           make(map[string]map[string]requestcontroller.SubnetInfo),
 	}
 
 	return &s, nil
@@ -75,7 +73,7 @@ func (s *SubnetInfoProvider) GetSubnetInfo(ctx context.Context, delegatedSubnetI
 		DelegatedSubnetID: delegatedSubnetID,
 		SubnetName:        subnetName,
 	}
-	entity, status, err := s.dataStoreShim.QueryInPartition(subnetTokenMapTableName, delegatedSubnetID, subnetName)
+	entity, status, err := s.datastoreClient.QueryInPartition(subnetTokenMapTableName, delegatedSubnetID, subnetName)
 	if err != nil {
 		return subnetInfo, err
 	}

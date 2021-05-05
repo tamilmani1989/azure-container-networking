@@ -21,6 +21,9 @@ endif
 .PHONY: start-env-local
 start-env-local:
 	minikube start $(MINKUBE_START_OPTS)
+	kubectl label nodes minikube kubernetes.azure.com/podnetwork-delegationguid=576d174c-57b8-4688-9d53-1b74caa642ca
+	kubectl label nodes minikube kubernetes.azure.com/podnetwork-subnet=subnet1
+	kubectl label nodes minikube kubernetes.azure.com/nodenetwork-vnetguid=576d174c-57b8-4688-9d53-1b74caa642ca
 
 .PHONY: upload-all-local
 upload-all-local: upload-dnc-local upload-cnsmock-local upload-nmagentmock-local upload-dnctl-local

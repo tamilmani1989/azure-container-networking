@@ -89,8 +89,8 @@ func (c *cleanupPool) getPendingItem() (*cleanupItem, bool) {
 	return nil, false
 }
 
-// Cleaner cleans a DNC partition and kubernetes cluster of all traces of SWIFT state
-type Cleaner struct {
+// ConfigmapCleaner cleans a DNC partition and kubernetes cluster of all traces of SWIFT state
+type ConfigmapCleaner struct {
 	kubeCoreV1Client     corev1.CoreV1Interface
 	kubeRESTClient       *rest.RESTClient
 	syncDNCClient        requestcontroller.SynchronousDNCClient
@@ -120,8 +120,8 @@ type CleanupSignal struct {
 	ConfigMapSafetyValue string
 }
 
-// NewCleaner creates a cleaner from the given options
-func NewCleaner(opts CleanerOpts) *Cleaner {
+// NewConfigmapCleaner creates a cleaner from the given options
+func NewConfigmapCleaner(opts CleanerOpts) *ConfigmapCleaner {
 	logger := opts.Logger.WithFields(logrus.Fields{
 		"component": "Cleaner",
 	})
@@ -142,7 +142,7 @@ func NewCleaner(opts CleanerOpts) *Cleaner {
 		opts.MaxConcurrentThreads = 100 // TODO: make this configurable
 	}
 
-	return &Cleaner{
+	return &ConfigmapCleaner{
 		kubeCoreV1Client:     opts.KubeCoreV1Client,
 		kubeRESTClient:       opts.KubeRESTClient,
 		syncDNCClient:        opts.SyncDNCClient,
@@ -155,7 +155,7 @@ func NewCleaner(opts CleanerOpts) *Cleaner {
 }
 
 // HasCleanupSignal checks the cluster for the cleanup signal and returns bool
-func (c *Cleaner) HasCleanupSignal(ctx context.Context) bool {
+func (c *ConfigmapCleaner) HasCleanupSignal(ctx context.Context) bool {
 	c.logger.WithFields(logrus.Fields{
 		"configMapName":      c.signal.ConfigMapName,
 		"configMapNamespace": c.signal.ConfigMapNamespace,
@@ -177,7 +177,7 @@ func (c *Cleaner) HasCleanupSignal(ctx context.Context) bool {
 }
 
 // WaitForCleanupSignal returns a channel that is closed when the cleanup signal is found or context is cancelled
-func (c *Cleaner) WaitForCleanupSignal(ctx context.Context) chan struct{} {
+func (c *ConfigmapCleaner) WaitForCleanupSignal(ctx context.Context) chan struct{} {
 	signalChan := make(chan struct{})
 
 	go func() {
@@ -203,7 +203,7 @@ func (c *Cleaner) WaitForCleanupSignal(ctx context.Context) chan struct{} {
 	return signalChan
 }
 
-func (c *Cleaner) getAllNNCs(ctx context.Context) (acnv1alpha.NodeNetworkConfigList, error) {
+func (c *ConfigmapCleaner) getAllNNCs(ctx context.Context) (acnv1alpha.NodeNetworkConfigList, error) {
 	var nncs acnv1alpha.NodeNetworkConfigList
 
 	err := c.kubeRESTClient.Get().
@@ -216,7 +216,7 @@ func (c *Cleaner) getAllNNCs(ctx context.Context) (acnv1alpha.NodeNetworkConfigL
 }
 
 // Clean cleans the cluster and entire DNC partition
-func (c *Cleaner) Clean(ctx context.Context) error {
+func (c *ConfigmapCleaner) Clean(ctx context.Context) error {
 	c.logger.Info("Cleanup signal found, cleaning.")
 	defer c.logger.Info("Leaving cleanup")
 
@@ -282,7 +282,7 @@ func (c *Cleaner) Clean(ctx context.Context) error {
 	return err
 }
 
-func (c *Cleaner) runCleanerWorker(ctx context.Context, pool *cleanupPool, wg *sync.WaitGroup, vnetID string, workerID int) {
+func (c *ConfigmapCleaner) runCleanerWorker(ctx context.Context, pool *cleanupPool, wg *sync.WaitGroup, vnetID string, workerID int) {
 	defer wg.Done()
 
 	var delay time.Duration
@@ -347,7 +347,7 @@ func (c *Cleaner) runCleanerWorker(ctx context.Context, pool *cleanupPool, wg *s
 	}
 }
 
-func (c *Cleaner) cleanupNNC(ctx context.Context, nnc acnv1alpha.NodeNetworkConfig, vnetID string) error {
+func (c *ConfigmapCleaner) cleanupNNC(ctx context.Context, nnc acnv1alpha.NodeNetworkConfig, vnetID string) error {
 	logger := c.logger.WithFields(logrus.Fields{
 		"nnc": nnc.Name,
 	})
@@ -430,7 +430,7 @@ func (c *Cleaner) cleanupNNC(ctx context.Context, nnc acnv1alpha.NodeNetworkConf
 	return nil
 }
 
-func (c *Cleaner) reportCleanupDone(ctx context.Context) error {
+func (c *ConfigmapCleaner) reportCleanupDone(ctx context.Context) error {
 	c.logger.Info("Reporting succesful cleanup")
 	successData := map[string]string{
 		"cleanup": "success",
@@ -479,7 +479,7 @@ func (c *Cleaner) reportCleanupDone(ctx context.Context) error {
 }
 
 // getNetworkID gets the network ID for the cluster. This assumes one vnet per cluster. Empty vnet and nil error means no vnet found.
-func (c *Cleaner) getNetworkID(ctx context.Context) (string, error) {
+func (c *ConfigmapCleaner) getNetworkID(ctx context.Context) (string, error) {
 	vnets, err := c.syncDNCClient.GetVnets(ctx)
 	if err != nil {
 		return "", err
@@ -494,7 +494,7 @@ func (c *Cleaner) getNetworkID(ctx context.Context) (string, error) {
 	return vnetID, nil
 }
 
-func (c *Cleaner) getNCsForNNC(ctx context.Context, nnc acnv1alpha.NodeNetworkConfig) ([]string, error) {
+func (c *ConfigmapCleaner) getNCsForNNC(ctx context.Context, nnc acnv1alpha.NodeNetworkConfig) ([]string, error) {
 	ncs := make(map[string]struct{})
 	// get ncs from nnc status
 	for _, nc := range nnc.Status.NetworkContainers {

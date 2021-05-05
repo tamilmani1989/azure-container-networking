@@ -133,11 +133,17 @@ func (n *NodeReconciler) Reconcile(request reconcile.Request) (reconcile.Result,
 			SubnetNameLabel:        subnetNameLabel,
 		}
 
-		if err := n.createNodeNetworkConfig(ctx, request.Name, nncLabels); err != nil {
+		if err := createNodeNetworkConfig(ctx, n.k8sClient, request.Name, n.namespace, n.initialIPCount, nncLabels); err != nil {
 			// return error to requeue and try creating NetworkConfig again
 			logger.WithError(err).Infof("Error creating NNC: %v", err)
 			return reconcile.Result{}, err
 		}
+
+		n.logger.WithFields(logrus.Fields{
+			"object":  fmt.Sprintf("%s/%s", n.namespace, name),
+			"ipCount": strconv.FormatInt(n.initialIPCount, 10),
+		}).Infof("Created NodeNetworkConfig %s in namespace %s with IP Count %d",
+			request.Name, n.namespace, n.initialIPCount)
 	}
 
 	// Encountered no errors, so reconcile can exit gracefully
@@ -145,32 +151,26 @@ func (n *NodeReconciler) Reconcile(request reconcile.Request) (reconcile.Result,
 }
 
 // This function is idempotent. If a NodeNetworkConfig already exists with this name, this will do nothing, and will return nil.
-func (n *NodeReconciler) createNodeNetworkConfig(ctx context.Context, name string, labels map[string]string) error {
+// This function is shared by the clusterManager, so it does not have a NodeReconciler receiver to make calling from clusterManager easier
+func createNodeNetworkConfig(ctx context.Context, k8sClient K8sClient, name, namespace string, ipCount int64, labels map[string]string) error {
 	nodeNetworkConfig := acnv1alpha.NodeNetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: n.namespace,
+			Namespace: namespace,
 			Labels:    labels,
 		},
 		Spec: acnv1alpha.NodeNetworkConfigSpec{
-			RequestedIPCount: n.initialIPCount,
+			RequestedIPCount: ipCount,
 		},
 	}
 
-	err := n.k8sClient.Create(ctx, &nodeNetworkConfig)
+	err := k8sClient.Create(ctx, &nodeNetworkConfig)
 	if err != nil {
 		// return the error unless it is an AlreadyExists error
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
-
-	n.logger.WithFields(logrus.Fields{
-		"object":  fmt.Sprintf("%s/%s", n.namespace, name),
-		"ipCount": strconv.FormatInt(nodeNetworkConfig.Spec.RequestedIPCount, 10),
-	}).Infof("Created NodeNetworkConfig %s in namespace %s with IP Count %d",
-		nodeNetworkConfig.ObjectMeta.Name, nodeNetworkConfig.ObjectMeta.Namespace,
-		nodeNetworkConfig.Spec.RequestedIPCount)
 
 	return nil
 }

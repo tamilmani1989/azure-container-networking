@@ -5,43 +5,11 @@ package requestcontroller
 import (
 	"context"
 	"dnc/api"
-	"dnc/configuration"
 	"fmt"
-	"os"
 	"sync"
-)
+	"time"
 
-const (
-	defaultConfigKubeconfigPath                = "/etc/kubernetes/config.yaml"
-	defaultConfigNamespace                     = "default"
-	defaultConfigK8sClientTimeout              = "10s"
-	defaultConfigConcurrentNodeReconcilers     = 100
-	defaultConfigConcurrentNNCReconcilers      = 100
-	defaultConfigScalerBatchSize               = int64(16)
-	defaultConfigScalerReleaseThresholdPercent = int64(150)
-	defaultConfigScalerRequestThresholdPercent = int64(50)
-	defaultConfigDNCClientRequestTimeout       = "15s"
-	defaultConfigDNCClientPollingInterval      = "3s"
-	defaultConfigDNCClientDNCIPAddress         = "127.0.0.1"
-	defaultConfigDNCClientDNCPort              = "9000"
-	defaultConfigKubeconfigInfoMode            = "file"
-	defaultConfigKubeloginBinaryPath           = "/usr/local/bin/kubelogin"
-	defaultConfigClientCertificatesDirectory   = "/etc/dnc/client-certificates"
-	defaultAzureEnvironment                    = "AzurePublicCloud"
-	defaultCleanupMode                         = "configmap"
-	defaultCleanupPollingInterval              = "30s"
-	defaultCleanupConfigMapName                = "dnc-cleanup-signal"
-	defaultCleanupConfigMapNamespace           = "kube-system"
-	defaultNNCReconcilerMetricPublishInterval  = "5m"
-	defaultTelemetryRefreshIntervalInSecs      = 15
-	defaultTelemetryBatchIntervalInSecs        = 7
-	defaultTelemetryBatchSizeBytes             = 16384
-	defaultGetEnvRetryWaitTimeInSecs           = 3
-	defaultGetEnvRetryCount                    = 5
-	KubeconfigFileMode                         = "file"
-	KubeconfigDatastoreMode                    = "datastore"
-	SubnetInfoProviderDatastoreMode            = "datastore"
-	SubnetInfoProviderConfigMode               = "config"
+	"github.com/sirupsen/logrus"
 )
 
 /* Using a global lock since loggershim has a global var that needs to be initialized
@@ -50,107 +18,127 @@ const (
 */
 var LoggershimMutex sync.Mutex
 
+const (
+	kubeconfigRefreshIntervalSeconds        = 300
+	kubeconfigRefreshOnErrorIntervalSeconds = 30
+)
+
 // RequestController handles requests from CNS for IP allocations/deallocations and calls DNC functions
-type RequestController interface {
-	Start()
+type RequestController struct {
+	KubeconfigProvider    KubeconfigProvider
+	ClusterManagerBuilder ClusterManagerBuilder
+	Logger                logrus.FieldLogger
+	Config                Config
+	clusterManagerPool    clusterManagerPool
+	orchestrators         map[string]struct{}
 }
 
-// Config config for RequestController
-type Config struct {
-	KubernetesConfig         KubernetesConfig    `json:"kubernetesConfig,omitempty"`
-	RequestScalerConfig      RequestScalerConfig `json:"requestScalerConfig,omitempty"`
-	DNCClientConfig          DNCClientConfig     `json:"dncClientConfig,omitempty"`
-	DataStoreSettings        configuration.DataStoreSettings
-	LoggingConfig            LoggingConfig            `json:"loggingConfig,omitempty"`
-	CosmosMSISettings        CosmosMSISettings        `json:"cosmosMSISettings,omitempty"`
-	LeaderElectionSettings   LeaderElectionSettings   `json:"leaderElectionSettings,omitempty"`
-	SubnetInfoProviderConfig SubnetInfoProviderConfig `json:"subnetInfoProviderConfig,omitempty"`
-	CleanupConfig            CleanupConfig            `json:"cleanupConfig,omitempty"`
-	TelemetrySettings        configuration.TelemetrySettings
-	MetricsConfig            MetricsConfig `json:"metricsConfig,omitempty"`
+type RequestControllerOptions struct {
+	KubeconfigProvider KubeconfigProvider
+	ManagerBuilder     ClusterManagerBuilder
+	Logger             logrus.FieldLogger
+	Config             Config
 }
 
-// KubernetesConfig config for interacting with kubernetes cluster
-type KubernetesConfig struct {
-	KubeconfigInfo            KubeconfigInfo `json:"kubeconfigInfo,omitempty"`
-	Namespace                 string         `json:"namespace,omitempty"`
-	ClientTimeout             string         `json:"clientTimeout,omitempty"`
-	ConcurrentNodeReconcilers int            `json:"concurrentNodeReconcilers,omitempty"`
-	ConcurrentNNCReconcilers  int            `json:"concurrentNNCReconcilers,omitempty"`
+func NewRequestController(opts RequestControllerOptions) *RequestController {
+	return &RequestController{
+		KubeconfigProvider:    opts.KubeconfigProvider,
+		ClusterManagerBuilder: opts.ManagerBuilder,
+		Logger:                opts.Logger,
+		Config:                opts.Config,
+		clusterManagerPool: clusterManagerPool{
+			clusterManagers: make(map[string]*ClusterManager),
+			logger:          opts.Logger,
+		},
+		orchestrators: make(map[string]struct{}),
+	}
 }
 
-type KubeconfigInfo struct {
-	// Mode is one of (file | datastore)
-	Mode                             string       `json:"mode"`
-	File                             string       `json:"file"`
-	ManagedDNCGUID                   string       `json:"managedDNCGUID"`
-	ClientCertificatesDirectory      string       `json:"clientCertificatesDirectory"`
-	KubeloginBinaryPath              string       `json:"kubeloginBinaryPath"`
-	AzureEnvironment                 string       `json:"azureEnvironment"`
-	ClientCertificatesKeyvaultConfig KeyvaultInfo `json:"clientCertificatesKeyvaultConfig"`
+// Start starts the request controller and blocks until the context is cancelled or until an unrecoverable error occurs
+func (r *RequestController) Start(ctx context.Context) error {
+	// start the kubeconfig refresh loop
+	go r.refreshKubeconfigsForever(ctx)
+
+	// Wait for context cancellation
+	<-ctx.Done()
+
+	// stop all the managers before returning
+	r.clusterManagerPool.removeAll()
+
+	return ctx.Err()
 }
 
-type KeyvaultInfo struct {
-	KeyvaultName     string `json:"keyvaultName"`
-	MSIResourceID    string `json:"msiResourceID"`
-	AzureEnvironment string `json:"azureEnvironment"`
+// refreshKubeconfigsForever will refresh the kubeconfigs every 30 seconds, updating the managerpool with the result, until the context is cancelled
+func (r *RequestController) refreshKubeconfigsForever(ctx context.Context) {
+	timeUntilNextRefresh := time.Second * kubeconfigRefreshIntervalSeconds
+	if err := r.refreshKubeconfigs(ctx); err != nil {
+		// nothing we can do except retry, so just log the error
+		r.Logger.Error("Unable to refresh kubeconfigs, will retry")
+		timeUntilNextRefresh = time.Second * kubeconfigRefreshOnErrorIntervalSeconds
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(timeUntilNextRefresh):
+			if err := r.refreshKubeconfigs(ctx); err != nil {
+				// nothing we can do except retry, so just log the error
+				r.Logger.Error("Unable to refresh kubeconfigs, will retry")
+				timeUntilNextRefresh = time.Second * kubeconfigRefreshOnErrorIntervalSeconds
+			} else {
+				timeUntilNextRefresh = time.Second * kubeconfigRefreshIntervalSeconds
+			}
+		}
+	}
 }
 
-// RequestScalerConfig config for CNS requests
-type RequestScalerConfig struct {
-	BatchSize               int64 `json:"batchSize,omitempty"`
-	ReleaseThresholdPercent int64 `json:"releaseThresholdPercent,omitempty"`
-	RequestThresholdPercent int64 `json:"requestThresholdPercent,omitempty"`
-}
+func (r *RequestController) refreshKubeconfigs(ctx context.Context) error {
+	// get the kubeconfigs
+	// TODO: make child ctx
+	kubeconfigs, err := r.KubeconfigProvider.GetBytesForAll(ctx)
+	if err != nil {
+		return err
+	}
 
-// DNCClientConfig config for DNC client
-type DNCClientConfig struct {
-	RequestTimeout  string `json:"requestTimeout,omitempty"`
-	PollingInterval string `json:"pollingInterval,omitempty"`
-	DNCEndpoint     string `json:"dncEndpoint,omitempty"`
-	SkipSubnetJoin  bool   `json:"skipSubnetJoin,omitempty"`
-}
+	// build a manager for each and add to the manager pool
+	for orchestratorID, kubeconfig := range kubeconfigs {
+		mgr, err := r.ClusterManagerBuilder.Build(ClusterManagerBuilderOptions{
+			Kubeconfig:     kubeconfig,
+			OrchestratorID: orchestratorID,
+		})
+		if err != nil {
+			return err
+		}
 
-type LoggingConfig struct {
-	ThresholdForLoggingDataStoreOpLatencyMs int `json:"thresholdForLoggingDataStoreOpLatencyMs,omitempty"`
-}
+		r.clusterManagerPool.add(mgr)
 
-type CosmosMSISettings struct {
-	AzureEnvironment string `json:"azureEnvironment,omitempty"`
-	MSIResourceID    string `json:"msiResourceID,omitempty"`
-	CosmosResourceID string `json:"cosmosResourceID,omitempty"`
-}
+		// save the orchestrator ID to compare against later
+		r.orchestrators[orchestratorID] = struct{}{}
+	}
 
-type LeaderElectionSettings struct {
-	Namespace string `json:"namespace,omitempty"`
-	Enabled   bool   `json:"enabled,omitempty"`
-}
+	// remove the managers that don't exist anymore
+	for orchestratorID := range r.orchestrators {
+		if _, found := kubeconfigs[orchestratorID]; !found {
+			r.clusterManagerPool.remove(orchestratorID)
+		}
+	}
 
-type SubnetInfoProviderConfig struct {
-	// Mode is one of (config|datastore)
-	Mode             string `json:"mode,omitempty"`
-	PrimaryTokenID   string `json:"primaryTokenID,omitempty"`
-	SecondaryTokenID string `json:"secondaryTokenID,omitempty"`
-	VnetID           string `json:"vnetID,omitempty"`
-	SubnetName       string `json:"subnetName,omitempty"`
-}
-
-type CleanupConfig struct {
-	// Mode must be (configmap), no other mode is currently supported
-	Mode               string `json:"mode,omitempty"`
-	ConfigMapName      string `json:"configMapName,omitempty"`
-	ConfigMapNamespace string `json:"configMapNamespace,omitempty"`
-	PollingInterval    string `json:"pollingInterval,omitempty"`
-	SuccessSafetyValue string `json:"successSafetyValue,omitempty"`
-}
-
-type MetricsConfig struct {
-	NNCReconcilerMetricPublishInterval string `json:"nncReconcilerMetricPublishInterval,omitempty"`
+	return nil
 }
 
 // ConfigProvider provides a Config via GetConfig
 type ConfigProvider interface {
-	GetConfig() (Config, error)
+	ApplyConfig(*Config) error
+}
+
+type ClusterManagerBuilder interface {
+	Build(ClusterManagerBuilderOptions) (*ClusterManager, error)
+}
+
+type ClusterManagerBuilderOptions struct {
+	Kubeconfig     []byte
+	OrchestratorID string
 }
 
 type SubnetInfo struct {
@@ -159,128 +147,6 @@ type SubnetInfo struct {
 	PrimaryToken      string
 	SecondaryToken    string
 	VnetID            string
-}
-
-// ApplyDefaults applies the default values for configs if they are not set
-func (c *Config) ApplyDefaults() {
-	if c.KubernetesConfig.KubeconfigInfo.Mode == "" {
-		c.KubernetesConfig.KubeconfigInfo.Mode = defaultConfigKubeconfigInfoMode
-	}
-
-	if c.KubernetesConfig.KubeconfigInfo.File == "" {
-		c.KubernetesConfig.KubeconfigInfo.File = defaultConfigKubeconfigPath
-	}
-
-	if c.KubernetesConfig.Namespace == "" {
-		c.KubernetesConfig.Namespace = "default"
-	}
-
-	if c.KubernetesConfig.ClientTimeout == "" {
-		c.KubernetesConfig.ClientTimeout = defaultConfigK8sClientTimeout
-	}
-
-	if c.KubernetesConfig.ConcurrentNodeReconcilers == 0 {
-		c.KubernetesConfig.ConcurrentNodeReconcilers = defaultConfigConcurrentNodeReconcilers
-	}
-
-	if c.KubernetesConfig.ConcurrentNNCReconcilers == 0 {
-		c.KubernetesConfig.ConcurrentNNCReconcilers = defaultConfigConcurrentNNCReconcilers
-	}
-
-	if c.RequestScalerConfig.BatchSize == 0 {
-		c.RequestScalerConfig.BatchSize = defaultConfigScalerBatchSize
-	}
-
-	if c.RequestScalerConfig.RequestThresholdPercent == 0 {
-		c.RequestScalerConfig.RequestThresholdPercent = defaultConfigScalerRequestThresholdPercent
-	}
-
-	if c.RequestScalerConfig.ReleaseThresholdPercent == 0 {
-		c.RequestScalerConfig.ReleaseThresholdPercent = defaultConfigScalerReleaseThresholdPercent
-	}
-
-	if c.DNCClientConfig.RequestTimeout == "" {
-		c.DNCClientConfig.RequestTimeout = defaultConfigDNCClientRequestTimeout
-	}
-
-	if c.DNCClientConfig.PollingInterval == "" {
-		c.DNCClientConfig.PollingInterval = defaultConfigDNCClientPollingInterval
-	}
-
-	if c.DNCClientConfig.DNCEndpoint == "" {
-		// Check to see if DNCIpAddress or DncPort is set as env variable during deployment
-		dncIPAddress := defaultConfigDNCClientDNCIPAddress
-		dncPort := defaultConfigDNCClientDNCPort
-
-		if ipAddress := os.Getenv("DNCIpAddress"); len(ipAddress) != 0 {
-			dncIPAddress = ipAddress
-		}
-
-		if port := os.Getenv("DNCPort"); len(port) != 0 {
-			dncPort = port
-		}
-		c.DNCClientConfig.DNCEndpoint = "http://" + dncIPAddress + ":" + dncPort
-	}
-
-	if c.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs == 0 {
-		c.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs = 1000 // 1 second
-	}
-
-	if c.KubernetesConfig.KubeconfigInfo.ClientCertificatesDirectory == "" {
-		c.KubernetesConfig.KubeconfigInfo.ClientCertificatesDirectory = defaultConfigClientCertificatesDirectory
-	}
-
-	if c.KubernetesConfig.KubeconfigInfo.KubeloginBinaryPath == "" {
-		c.KubernetesConfig.KubeconfigInfo.KubeloginBinaryPath = defaultConfigKubeloginBinaryPath
-	}
-
-	if c.KubernetesConfig.KubeconfigInfo.AzureEnvironment == "" {
-		c.KubernetesConfig.KubeconfigInfo.AzureEnvironment = defaultAzureEnvironment
-	}
-
-	if c.SubnetInfoProviderConfig.Mode == "" {
-		c.SubnetInfoProviderConfig.Mode = SubnetInfoProviderDatastoreMode
-	}
-
-	if c.CleanupConfig.Mode == "" {
-		c.CleanupConfig.Mode = defaultCleanupMode
-	}
-
-	if c.CleanupConfig.ConfigMapName == "" {
-		c.CleanupConfig.ConfigMapName = defaultCleanupConfigMapName
-	}
-
-	if c.CleanupConfig.ConfigMapNamespace == "" {
-		c.CleanupConfig.ConfigMapNamespace = defaultCleanupConfigMapNamespace
-	}
-
-	if c.CleanupConfig.PollingInterval == "" {
-		c.CleanupConfig.PollingInterval = defaultCleanupPollingInterval
-	}
-
-	if c.MetricsConfig.NNCReconcilerMetricPublishInterval == "" {
-		c.MetricsConfig.NNCReconcilerMetricPublishInterval = defaultNNCReconcilerMetricPublishInterval
-	}
-
-	if c.TelemetrySettings.RefreshIntervalInSecs == 0 {
-		c.TelemetrySettings.RefreshIntervalInSecs = defaultTelemetryRefreshIntervalInSecs
-	}
-
-	if c.TelemetrySettings.TelemetryBatchIntervalInSecs == 0 {
-		c.TelemetrySettings.TelemetryBatchIntervalInSecs = defaultTelemetryBatchIntervalInSecs
-	}
-
-	if c.TelemetrySettings.TelemetryBatchSizeBytes == 0 {
-		c.TelemetrySettings.TelemetryBatchSizeBytes = defaultTelemetryBatchSizeBytes
-	}
-
-	if c.TelemetrySettings.GetEnvRetryWaitTimeInSecs == 0 {
-		c.TelemetrySettings.GetEnvRetryWaitTimeInSecs = defaultGetEnvRetryWaitTimeInSecs
-	}
-
-	if c.TelemetrySettings.RefreshIntervalInSecs == 0 {
-		c.TelemetrySettings.GetEnvRetryCount = defaultGetEnvRetryCount
-	}
 }
 
 //SynchronousDNCClient is an idempotent, syncronous DNC client.
@@ -313,6 +179,11 @@ type KubeconfigProvider interface {
 //SecretProvider provides a named secret
 type SecretProvider interface {
 	GetLatestSecret(ctx context.Context, name string) (string, error)
+}
+
+type MetricsPublisher interface {
+	SendMetric()
+	GetDuration() time.Duration
 }
 
 type ConfigSubnetInfoProvider struct {

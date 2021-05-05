@@ -6,14 +6,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
-	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -23,19 +23,14 @@ import (
 // controller because it only interacts with nodes (no namespace) and NNCs (namespaced). This should not be used by any other project, and thus
 // is package-private.
 type mockK8sClient struct {
-	objects map[string]runtime.Object
-	scheme  *runtime.Scheme
+	objectMaps map[schema.GroupVersionResource]map[string]runtime.Object
 }
 
 func newMockK8sClient() *mockK8sClient {
-	s := runtime.NewScheme()
-	_ = clientgoscheme.AddToScheme(s)
-	_ = acnv1alpha.AddToScheme(s)
-	o := make(map[string]runtime.Object)
+	o := make(map[schema.GroupVersionResource]map[string]runtime.Object)
 
 	m := mockK8sClient{
-		objects: o,
-		scheme:  s,
+		objectMaps: o,
 	}
 
 	return &m
@@ -47,24 +42,33 @@ func (m *mockK8sClient) Create(ctx context.Context, obj runtime.Object, opts ...
 	if err != nil {
 		return err
 	}
-	_, exists := m.objects[key.String()]
+	objects, err := m.getMapForObjectType(obj)
+	if err != nil {
+		return err
+	}
+	_, exists := objects[key.String()]
 	if exists {
 		return apierrors.NewAlreadyExists(schema.GroupResource{}, key.String())
 	}
 
-	m.objects[key.String()] = obj
+	objects[key.String()] = obj
 
 	return nil
 }
 
 // Get an object from the map
 func (m *mockK8sClient) Get(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-	storedObj, exists := m.objects[key.String()]
+	objects, err := m.getMapForObjectType(obj)
+	if err != nil {
+		return err
+	}
+
+	storedObj, exists := objects[key.String()]
 	if !exists {
 		return apierrors.NewNotFound(schema.GroupResource{}, key.String())
 	}
 
-	gvk, err := apiutil.GVKForObject(obj, m.scheme)
+	gvk, err := apiutil.GVKForObject(obj, scheme)
 	if err != nil {
 		return err
 	}
@@ -80,7 +84,7 @@ func (m *mockK8sClient) Get(ctx context.Context, key client.ObjectKey, obj runti
 	if err != nil {
 		return err
 	}
-	decoder := scheme.Codecs.UniversalDecoder()
+	decoder := clientgoscheme.Codecs.UniversalDecoder()
 	_, _, err = decoder.Decode(jsonBytes, nil, obj)
 	return err
 
@@ -88,34 +92,66 @@ func (m *mockK8sClient) Get(ctx context.Context, key client.ObjectKey, obj runti
 
 // Update an object in the map
 func (m *mockK8sClient) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+	objects, err := m.getMapForObjectType(obj)
+	if err != nil {
+		return err
+	}
+
 	key, err := m.getKey(obj)
 	if err != nil {
 		return err
 	}
 
-	_, exists := m.objects[key.String()]
+	_, exists := objects[key.String()]
 	if !exists {
 		return apierrors.NewNotFound(schema.GroupResource{}, key.String())
 	}
 
-	m.objects[key.String()] = obj
+	// if deletion timestamp is non-zero and finalizers are removed, delete it
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		return err
+	}
+
+	if len(accessor.GetFinalizers()) == 0 && !accessor.GetDeletionTimestamp().IsZero() {
+		delete(objects, key.String())
+		return nil
+	}
+
+	objects[key.String()] = obj
 
 	return nil
 }
 
 // Delete an object from the map
 func (m *mockK8sClient) Delete(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error {
+	objects, err := m.getMapForObjectType(obj)
+	if err != nil {
+		return err
+	}
+
 	key, err := m.getKey(obj)
 	if err != nil {
 		return err
 	}
 
-	_, exists := m.objects[key.String()]
+	storedObj, exists := objects[key.String()]
 	if !exists {
 		return apierrors.NewNotFound(schema.GroupResource{}, key.String())
 	}
 
-	delete(m.objects, key.String())
+	accessor, err := meta.Accessor(storedObj)
+	if err != nil {
+		return err
+	}
+
+	// if there are finalizers, just mark it for deletion but don't remove
+	if len(accessor.GetFinalizers()) != 0 {
+		accessor.SetDeletionTimestamp(&metav1.Time{time.Now()})
+		return nil
+	}
+
+	delete(objects, key.String())
 
 	return nil
 }
@@ -145,11 +181,25 @@ func (m *mockK8sClient) getKey(obj runtime.Object) (types.NamespacedName, error)
 	}, nil
 }
 
-func getGVRFromObject(obj runtime.Object, scheme *runtime.Scheme) (schema.GroupVersionResource, error) {
+func (m *mockK8sClient) getGVRFromObject(obj runtime.Object) (schema.GroupVersionResource, error) {
 	gvk, err := apiutil.GVKForObject(obj, scheme)
 	if err != nil {
 		return schema.GroupVersionResource{}, err
 	}
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 	return gvr, nil
+}
+
+func (m *mockK8sClient) getMapForObjectType(obj runtime.Object) (map[string]runtime.Object, error) {
+	gvr, err := m.getGVRFromObject(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	if gvrMap, ok := m.objectMaps[gvr]; ok {
+		return gvrMap, nil
+	}
+
+	m.objectMaps[gvr] = make(map[string]runtime.Object)
+	return m.objectMaps[gvr], nil
 }
