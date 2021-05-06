@@ -2,6 +2,7 @@ package simplejson
 
 import (
 	"dnc/logger/loggershim"
+	"io"
 	"os"
 
 	"github.com/sirupsen/logrus"
@@ -13,10 +14,14 @@ type simpleJSON struct {
 	entry *logrus.Entry
 }
 
-var _ loggershim.LoggerInterface = &simpleJSON{}
+type ExpandableLogger interface {
+	loggershim.LoggerInterface
+	WithField(key, value string) ExpandableLogger
+	io.Writer
+}
 
 // using logrus to try and get json out to be captured in AKS svc-cluster
-func NewLogger(eventsource string) *simpleJSON {
+func NewLogger(eventsource string) ExpandableLogger {
 	logger := logrus.Logger{
 		Out:       os.Stdout,
 		Formatter: new(logrus.JSONFormatter),
@@ -43,4 +48,8 @@ func (_ *simpleJSON) SetLogFileLimits(_, _ int) {}
 func (d *simpleJSON) Write(p []byte) (n int, err error) {
 	d.entry.Debugf(string(p))
 	return len(p), nil
+}
+
+func (d *simpleJSON) WithField(key, value string) ExpandableLogger {
+	return &simpleJSON{d.entry.WithField(key, value)}
 }

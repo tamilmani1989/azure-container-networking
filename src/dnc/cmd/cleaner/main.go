@@ -26,7 +26,6 @@ import (
 )
 
 type partitionRepo struct {
-	partitionKey               string
 	dataStoreShim              datastoreshim.DataStoreShim
 	ncRepo                     *datamodel.NetworkContainerRepo
 	reservationRepo            *datamodel.ReservationRepo
@@ -35,6 +34,14 @@ type partitionRepo struct {
 	pendingResourceCleanupRepo *datamodel.PendingResourceCleanupRepo
 	nodeRepo                   *datamodel.NodeConfigurationRepo
 	MaxBatchSize               int
+}
+
+func Log(ctx context.Context) loggershim.LoggerInterface {
+	logger, ok := ctx.Value("logger").(loggershim.LoggerInterface)
+	if ok {
+		return logger
+	}
+	return loggershim.LS
 }
 
 // HTTP API to process /clean/partition API
@@ -47,7 +54,9 @@ func CleanPartition(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	loggershim.LS.Debugf("Cleaning %s", partition)
+
+	ctx := context.WithValue(r.Context(), "logger", jsonlogger.WithField("partition", partition))
+	Log(ctx).Debugf("Cleaning")
 
 	// Initialize AzStorage for this partition
 	ds, err := datastoreshim.NewDataStoreShimEx(
@@ -59,74 +68,73 @@ func CleanPartition(w http.ResponseWriter, r *http.Request) {
 		config.DataStoreSettings.MaxBatchSize)
 
 	if err != nil {
-		loggershim.LS.Errorf("could not initialize azure storage: %v", err)
+		Log(ctx).Errorf("could not initialize azure storage: %v", err)
 		json.NewEncoder(w).Encode(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	partitionRepo := &partitionRepo{
-		partitionKey:               partition,
 		dataStoreShim:              ds,
 		ncRepo:                     datamodel.NewNetworkContainerRepo(ds),
 		reservationRepo:            &datamodel.ReservationRepo{Datastore: ds},
 		ipAllocationRepo:           &datamodel.AllocationRepo{Datastore: ds},
 		pendingPublishRequestRepo:  datamodel.NewNcPendingPublishRequestRepo(ds),
-		pendingResourceCleanupRepo: datamodel.NewPendingResourceCleanupRepo(ds, loggershim.LS),
+		pendingResourceCleanupRepo: datamodel.NewPendingResourceCleanupRepo(ds, Log(ctx)),
 		nodeRepo:                   &datamodel.NodeConfigurationRepo{Datastore: ds},
 		MaxBatchSize:               config.DataStoreSettings.MaxBatchSize,
 	}
 
 	// check if work is still pending to unpublish the state and release ips
-	workRequired, err := IsCleanupRequired(partitionRepo)
+	workRequired, err := IsCleanupRequired(ctx, partitionRepo)
 	if err != nil {
-		loggershim.LS.Errorf("Issue checking cleanup %s: %s", partition, err)
+		Log(ctx).Errorf("Issue checking cleanup %s: %s", partition, err)
 		json.NewEncoder(w).Encode(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	loggershim.LS.Debugf("Work required for Partition: %s: %t", partition, workRequired)
+	Log(ctx).Debugf("Work required for Partition: %s: %t", partition, workRequired)
 
 	if workRequired {
 		// Work is required to unpublish and/or cleanup associated ips
 		// Do it asynchronously
 		go func() {
 			// todo: Unpublish and then release the associated ips
-			err := CleanupPartitionState(partitionRepo)
+			err := CleanupPartitionState(ctx, partitionRepo)
 			if err != nil {
-				loggershim.LS.Errorf("Issue with deleting unpublish or ipallocation state %s: %s", partition, err)
+				Log(ctx).Errorf("Issue with deleting unpublish or ipallocation state: %s", err)
 				return
 			}
 
-			loggershim.LS.Debugf("Now we can safely wipe all the tables for partition %s", partition)
+			Log(ctx).Debugf("Now we can safely wipe all the tables")
 			//we could just let the next call handle this
-			err = wipeAllAssociatedData(partitionRepo)
+			err = wipeAllAssociatedData(ctx, partitionRepo)
 			if err != nil {
-				loggershim.LS.Errorf("Issue with wiping %s: %s", partition, err)
+				Log(ctx).Errorf("Issue with wiping %s: %s", partition, err)
 				return
 			}
-			loggershim.LS.Debugf("Cleanup done for %s", partition)
+			Log(ctx).Debugf("Cleanup done for %s", partition)
 		}()
 
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
-	err = wipeAllAssociatedData(partitionRepo)
+	err = wipeAllAssociatedData(ctx, partitionRepo)
 	if err != nil {
 		json.NewEncoder(w).Encode(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	loggershim.LS.Debugf("Cleanup done for %s", partition)
+	Log(ctx).Debugf("Cleanup done for %s", partition)
 	// Safe to return 404, caller will treat this as success
 	w.WriteHeader(http.StatusNotFound)
 }
 
 // Check the key tables if data unpublish or IPAllocations cleanup is pending
-func IsCleanupRequired(repo *partitionRepo) (bool, error) {
+func IsCleanupRequired(ctx context.Context, repo *partitionRepo) (bool, error) {
 	// Check if this partition has some NC data which requires to be unpublished from PubSub
 	cleanupRequired, err := repo.ncRepo.AnyNetworkContainerExists()
 	if err != nil {
@@ -134,7 +142,7 @@ func IsCleanupRequired(repo *partitionRepo) (bool, error) {
 	}
 
 	if cleanupRequired {
-		loggershim.LS.Debugf("IsCleanupRequired partition %s: Pending NetworkContainers exists", repo.partitionKey)
+		Log(ctx).Debugf("IsCleanupRequired: Pending NetworkContainers exists")
 		return true, nil
 	}
 
@@ -144,7 +152,7 @@ func IsCleanupRequired(repo *partitionRepo) (bool, error) {
 	}
 
 	if cleanupRequired {
-		loggershim.LS.Debugf("IsCleanupRequired partition %s: Pending PublishRequests exists", repo.partitionKey)
+		Log(ctx).Debugf("IsCleanupRequired partition: Pending PublishRequests exists")
 		return true, nil
 	}
 
@@ -156,7 +164,7 @@ func IsCleanupRequired(repo *partitionRepo) (bool, error) {
 	}
 
 	if cleanupRequired {
-		loggershim.LS.Debugf("IsCleanupRequired partition %s: Pending ResourceCleanup exists", repo.partitionKey)
+		Log(ctx).Debugf("IsCleanupRequired partition: Pending ResourceCleanup exists")
 		return true, nil
 	}
 
@@ -168,7 +176,7 @@ func IsCleanupRequired(repo *partitionRepo) (bool, error) {
 	}
 
 	if cleanupRequired {
-		loggershim.LS.Debugf("IsCleanupRequired partition %s: Pending Reservations exists", repo.partitionKey)
+		Log(ctx).Debugf("IsCleanupRequired partition %s: Pending Reservations exists")
 		return true, nil
 	}
 
@@ -176,26 +184,22 @@ func IsCleanupRequired(repo *partitionRepo) (bool, error) {
 }
 
 // This will unpublish the pending NC state and then delete the associated ips
-func CleanupPartitionState(repo *partitionRepo) error {
-	err := UnpublishNCState(repo)
+func CleanupPartitionState(ctx context.Context, repo *partitionRepo) error {
+	err := UnpublishNCState(ctx, repo)
 	if err != nil {
-		loggershim.LS.Errorf("Failed to unpublish the NC goal state for partition %s, err %+v",
-			repo.partitionKey,
-			err)
+		Log(ctx).Errorf("Failed to unpublish the NC goal state, err %+v", err)
 		return err
 	}
 
-	err = DeleteAllocatedIpsForPartition(repo)
+	err = DeleteAllocatedIpsForPartition(ctx, repo)
 	if err != nil {
-		loggershim.LS.Errorf("Failed to delete associated allocatedIps for partition %s, err %+v",
-			repo.partitionKey,
-			err)
+		Log(ctx).Errorf("Failed to delete associated allocatedIps, err %+v", err)
 		return err
 	}
 	return nil
 }
 
-func wipeAllAssociatedData(repo *partitionRepo) error {
+func wipeAllAssociatedData(ctx context.Context, repo *partitionRepo) error {
 	// All the bg cleanup work is done, as a safe measure wipe all the tables again for this partition
 	// Skip IpAllocations table as that is not partitioned per Partition Key and has already been taken
 	// care
@@ -203,9 +207,7 @@ func wipeAllAssociatedData(repo *partitionRepo) error {
 		if tableName != datamodel.IPAllocationsTableName {
 			err := repo.dataStoreShim.WipePartition(tableName)
 			if err != nil {
-				loggershim.LS.Errorf("Failed to wipe table entities for partition %s, tableName %s, err %v",
-					repo.partitionKey, tableName, err)
-
+				Log(ctx).Errorf("Failed to wipe table entities for tableName %s, err %v", tableName, err)
 				//write the err to body
 				return err
 			}
@@ -216,6 +218,7 @@ func wipeAllAssociatedData(repo *partitionRepo) error {
 }
 
 var (
+	jsonlogger      simplejson.ExpandableLogger = simplejson.NewLogger("DNCCleanupEvent")
 	azStorageClient storage.Client
 	config          *configuration.Configuration
 )
@@ -233,7 +236,7 @@ func Health(w http.ResponseWriter, r *http.Request) {
 		config.DataStoreSettings.MaxBatchSize)
 
 	if err != nil {
-		loggershim.LS.Errorf("could not initialize azure storage: %v", err)
+		jsonlogger.Errorf("could not initialize azure storage: %v", err)
 		json.NewEncoder(w).Encode(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -241,7 +244,7 @@ func Health(w http.ResponseWriter, r *http.Request) {
 
 	entity, _, err := ds.QueryInPartition(datamodel.PendingResourceCleanupTableName, "dummy", "dummy")
 	if entity != nil {
-		loggershim.LS.Debugf("[health probe] unexpected row found: %+v", *entity)
+		jsonlogger.Debugf("[health probe] unexpected row found: %+v", *entity)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -264,7 +267,7 @@ func main() {
 	config = configuration.Load(configpath)
 	configuration.OverrideConfigFromEnv(config)
 	configuration.SetDncConfigDefaults(config)
-	jsonlogger := simplejson.NewLogger("DNCCleanupEvent")
+
 	loggershim.LS = jsonlogger
 
 	tokenFetcher := &ad.MSITokenFetcher{ResourceID: config.IdentitySettings.MSIResourceID}

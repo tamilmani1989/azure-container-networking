@@ -1,38 +1,34 @@
 package main
 
 import (
+	"context"
 	"dnc/api"
 	"dnc/datamodel"
-	"dnc/logger/loggershim"
 )
 
 // This will delete the allocated ips created for this DNC partition
-func DeleteAllocatedIpsForPartition(repo *partitionRepo) *api.JsonErr {
-	loggershim.LS.Debugf("DeleteAllocatedIpsForPartition: Delete pending ips from PendingResourceCleanup for partitionKey %s",
-		repo.partitionKey)
-
+func DeleteAllocatedIpsForPartition(ctx context.Context, repo *partitionRepo) *api.JsonErr {
+	Log(ctx).Debugf("DeleteAllocatedIpsForPartition: Delete pending ips from PendingResourceCleanup")
 	// First run the cleanupMonitor to delete the ips associated to ToBeDeleted NCs
-	err := deleteIpsFromPendingResourceCleanup(repo)
+	err := deleteIpsFromPendingResourceCleanup(ctx, repo)
 	if err != nil {
 		return err
 	}
 
-	loggershim.LS.Debugf("DeleteAllocatedIpsForPartition: Delete pending ips from Reservations for partitionKey %s",
-		repo.partitionKey)
+	Log(ctx).Debugf("DeleteAllocatedIpsForPartition: Delete pending ips from Reservations")
 
-	return deleteIpsFromReservationTable(repo)
+	return deleteIpsFromReservationTable(ctx, repo)
 }
 
 // Delete the allocated ips associated with pendingResourceCleanup on this partition
-func deleteIpsFromPendingResourceCleanup(repo *partitionRepo) *api.JsonErr {
+func deleteIpsFromPendingResourceCleanup(ctx context.Context, repo *partitionRepo) *api.JsonErr {
 	pendingResourcesCleanup, err := repo.pendingResourceCleanupRepo.GetAllPendingResourceCleanups()
 	if err != nil {
 		return api.InternalServerErrorf(api.StatusInternalServerError, "Failed to get all resources pending cleanup with err: %v", err)
 	}
 
 	if len(pendingResourcesCleanup) == 0 {
-		loggershim.LS.Debugf("Nothing to clean in PendingResourceCleanup for partition %s",
-			repo.partitionKey)
+		Log(ctx).Debugf("Nothing to clean in PendingResourceCleanup")
 		return nil
 	}
 
@@ -49,7 +45,7 @@ func deleteIpsFromPendingResourceCleanup(repo *partitionRepo) *api.JsonErr {
 		}
 
 		ncKey := datamodel.GetNCKey(networkid, ncid)
-		err = removeIPAllocations(repo, ncKey, entity)
+		err = removeIPAllocations(ctx, repo, ncKey, entity)
 		if err != nil {
 			return api.InternalServerErrorf(api.StatusInternalServerError,
 				"deleteIpsFromPendingResourceCleanup: Failed to remove IP Allocations for "+
@@ -62,9 +58,9 @@ func deleteIpsFromPendingResourceCleanup(repo *partitionRepo) *api.JsonErr {
 }
 
 // delete the allocated ips for a given PendingResourceCleanup resource
-func removeIPAllocations(repo *partitionRepo, ncKey string, resourceCleanupEntity datamodel.PendingResourceCleanupEntity) *api.JsonErr {
+func removeIPAllocations(ctx context.Context, repo *partitionRepo, ncKey string, resourceCleanupEntity datamodel.PendingResourceCleanupEntity) *api.JsonErr {
 	for ipAllocationsPartitionKey, cleanupAllocations := range resourceCleanupEntity.CleanupContext.ToBeDeletedIpAllocations {
-		loggershim.LS.Debugf("RemoveIPAllocations: Attempting to remove IP Allocations for PartitionKey %s and TobeDeletedOwner %s",
+		Log(ctx).Debugf("RemoveIPAllocations: Attempting to remove IP Allocations for PartitionKey %s and TobeDeletedOwner %s",
 			ipAllocationsPartitionKey, ncKey)
 
 		// get ip allocations with ToBeDeletedOwner matching the ncid
@@ -84,10 +80,10 @@ func removeIPAllocations(repo *partitionRepo, ncKey string, resourceCleanupEntit
 		for _, cleanupAllocation := range cleanupAllocations {
 			if entity, exists := ipAllocationsMap[cleanupAllocation]; exists {
 				// keep a slice of entities with their etags that exist with the ToBeDeletedOwner set as the pending cleanup NCID
-				loggershim.LS.Debugf("RemoveIPAllocations: Add IPAllocation for delete, PartitionKey %s, entity %v", ipAllocationsPartitionKey, entity)
+				Log(ctx).Debugf("RemoveIPAllocations: Add IPAllocation for delete, PartitionKey %s, entity %v", ipAllocationsPartitionKey, entity)
 				entitiesToBeCleanedUp = append(entitiesToBeCleanedUp, entity)
 			} else {
-				loggershim.LS.Debugf("RemoveIPAllocations: Ignore delete, IPAllocation %s not found in IPAllocations table with PartitionKey %s and ToBeDeletedOwner %s", cleanupAllocation, ipAllocationsPartitionKey, ncKey)
+				Log(ctx).Debugf("RemoveIPAllocations: Ignore delete, IPAllocation %s not found in IPAllocations table with PartitionKey %s and ToBeDeletedOwner %s", cleanupAllocation, ipAllocationsPartitionKey, ncKey)
 			}
 		}
 
@@ -95,7 +91,7 @@ func removeIPAllocations(repo *partitionRepo, ncKey string, resourceCleanupEntit
 		if parseErr != nil {
 			return api.InternalServerError(api.StatusInternalServerError, parseErr.Error())
 		}
-		err = deleteIPAllocations(repo, k.Network, k.Subnet, entitiesToBeCleanedUp)
+		err = deleteIPAllocations(ctx, repo, k.Network, k.Subnet, entitiesToBeCleanedUp)
 		if err != nil {
 			return err
 		}
@@ -105,15 +101,14 @@ func removeIPAllocations(repo *partitionRepo, ncKey string, resourceCleanupEntit
 }
 
 // This will delete the allocated ips associated with Reservations on this partition
-func deleteIpsFromReservationTable(repo *partitionRepo) *api.JsonErr {
+func deleteIpsFromReservationTable(ctx context.Context, repo *partitionRepo) *api.JsonErr {
 	reservationsRow, err := repo.reservationRepo.TryQueryAllReservations()
 	if err != nil {
 		return api.InternalServerErrorf(api.StatusInternalServerError, "Failed to get all resources pending cleanup with err: %v", err)
 	}
 
 	if len(reservationsRow) == 0 {
-		loggershim.LS.Debugf("RemoveIPAllocations: Nothing to clean in reservationsConfigs for partition %s",
-			repo.partitionKey)
+		Log(ctx).Debugf("RemoveIPAllocations: Nothing to clean in reservationsConfigs for partition")
 		return nil
 	}
 
@@ -125,7 +120,7 @@ func deleteIpsFromReservationTable(repo *partitionRepo) *api.JsonErr {
 			return err
 		}
 
-		err = deleteIPAllocations(repo, row.Configuration.NetworkID, row.Configuration.AllocationRequest.SubnetName, ipAllocationEntities)
+		err = deleteIPAllocations(ctx, repo, row.Configuration.NetworkID, row.Configuration.AllocationRequest.SubnetName, ipAllocationEntities)
 		if err != nil {
 			return err
 		}
@@ -136,12 +131,9 @@ func deleteIpsFromReservationTable(repo *partitionRepo) *api.JsonErr {
 }
 
 // Batch delete all the ipAllocations for a given partition key (Vnet + Subnet)
-func deleteIPAllocations(repo *partitionRepo, networkId string, subnetName string, entitiesToBeCleanedUp []datamodel.IPAllocationEntity) *api.JsonErr {
+func deleteIPAllocations(ctx context.Context, repo *partitionRepo, networkId string, subnetName string, entitiesToBeCleanedUp []datamodel.IPAllocationEntity) *api.JsonErr {
 	if len(entitiesToBeCleanedUp) == 0 {
-		loggershim.LS.Debugf("DeleteAllocations: no allocations to delete for a given NetworkId %s, Subnet %s, dncPartition %s",
-			networkId,
-			subnetName,
-			repo.partitionKey)
+		Log(ctx).Debugf("DeleteAllocations: no allocations to delete for a given NetworkId %s, Subnet %s", networkId, subnetName)
 		return nil
 	}
 
