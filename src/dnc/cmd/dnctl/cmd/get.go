@@ -173,9 +173,9 @@ func getSubnetConfigCmd() *cobra.Command {
 		Short: "Gets a subnet",
 		Run: func(cmd *cobra.Command, args []string) {
 			vnetid, _ := cmd.Flags().GetString("vnet-id")
-			ncid, _ := cmd.Flags().GetString("nc-id")
+			subnetid, _ := cmd.Flags().GetString("subnet-id")
 
-			vnet, err := DncClient.GetSubnetConfiguration(vnetid, ncid)
+			vnet, err := DncClient.GetSubnetConfiguration(vnetid, subnetid)
 			if err != nil && err.HTTPStatus != http.StatusOK {
 				client.PrettyPrint(err)
 				return

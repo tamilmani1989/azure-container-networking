@@ -34,3 +34,7 @@ func (*subnetRepo) UpdateSubnetReservationSet(reservationID, allocatedSubnet str
 func (*subnetRepo) PutSubnetConfiguration(subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr {
 	return datamodel.PutSubnetConfiguration(subnetConfig)
 }
+
+func (*subnetRepo) TryQueryAllSubnetConfigurations() ([]datamodel.SubnetConfiguration, *api.JsonErr) {
+	return datamodel.TryQueryAllSubnetConfigurations()
+}

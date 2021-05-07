@@ -64,3 +64,14 @@ func ConvertIPaddressToSdnContractIPAddress(ipadress string) (*sdn.IPAddress, er
 	x.Bytes = ip
 	return x, nil
 }
+
+// ConvertSdnContractIPAddressToString - converts the sdn ipaddress to string ipaddress
+func ConvertSdnContractIPAddressToString(ipadress *sdn.IPAddress, prefixLen uint32) (string, error) {
+	if len(ipadress.Bytes) != 4 {
+		return "", fmt.Errorf("IP address byte array length should be 4. Actual len:%d", len(ipadress.Bytes))
+	}
+
+	ip := net.IPv4(ipadress.Bytes[0], ipadress.Bytes[1], ipadress.Bytes[2], ipadress.Bytes[3])
+	ipStr := fmt.Sprintf("%s/%d", ip.String(), prefixLen)
+	return ipStr, nil
+}

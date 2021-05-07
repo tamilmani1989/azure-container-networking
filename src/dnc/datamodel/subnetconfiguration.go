@@ -30,6 +30,7 @@ type SubnetConfiguration struct {
 	Tags              []nmagentcontracts.Tag
 	APIVersion        string
 	UpdateStatus      SubnetUpdateStatus
+	Version           uint64
 }
 
 func (s *SubnetConfiguration) String() string {

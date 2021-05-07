@@ -111,6 +111,7 @@ type SubnetConfiguration struct {
 	DefaultGateway string
 	ExpectedToken  string
 	OwningService  string
+	SubnetVersion  uint64
 }
 
 type VnetConfiguration struct {
@@ -148,6 +149,8 @@ type UnpublishNetworkContainerRequest struct {
 
 type madariDataContracts interface {
 	rehydrateSubscriptions()
+	handleUpdateNotification(partitionKey, relativePath string, data []byte)
+
 	// subnet related methods
 	getCachedSubnetConfig(vnetId string, subnetId string) (cachedSubnetConfig, error)
 	deleteCachedSubnetConfig(vnetId, subnetId string) error
@@ -177,6 +180,7 @@ var (
 	logger                             loggershim.LoggerInterface
 	ncPendingPublishRequestContextRepo repo.NcPendingPublishRequestContextRepo
 	networkRepo                        repo.NetworkRepo
+	subnetRepo                         repo.SubnetRepo
 	azureEnvironmentName               string
 	aznmClient                         AznmClient
 	aznmSettings                       configuration.AznmSettings
@@ -467,13 +471,13 @@ func RegisterSubnet(
 // UnregisterSubnet deletes the subscription for the subnet
 func UnregisterSubnet(
 	vnetId, subnetId string) {
-	logDebugf("UnregisterSubnet. Vnet: %s, subnet:%s", vnetId, subnetId)
 	if _, err := getActiveSubscriber().getCachedSubnetConfig(vnetId, subnetId); err != nil {
 		logErrorf("vnet: %s, subnet:%s not found for unregistering", vnetId, subnetId)
 		return
 	}
 
 	// Unsubscribe from vnet notifications
+	logDebugf("UnregisterSubnet. Vnet: %s, subnet:%s", vnetId, subnetId)
 	subnetUnregister := &subnetJob {
 		context: jobContext{
 			id:              createSubnetJobId(vnetId, subnetId),
@@ -533,6 +537,7 @@ func Init(
 		datamodel.NCPendingPublishRepositoryName})
 	ncPendingPublishRequestContextRepo = datamodel.NcPendingPublishRepo
 	networkRepo = new(datamodel.NetworkRepo)
+	subnetRepo = new(datamodel.SubnetRepo)
 	azureEnvironmentName = azureEnvName
 	aznmClient = client
 	aznmSettings = aznmConfigSettings

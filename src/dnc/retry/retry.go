@@ -11,6 +11,7 @@ type Retrier struct {
 	Attempts   int
 	Delay      time.Duration
 	ExpBackoff bool
+	MaxDelay   time.Duration
 }
 
 func (r Retrier) Do(ctx context.Context, f func() error) error {
@@ -26,6 +27,10 @@ func (r Retrier) Do(ctx context.Context, f func() error) error {
 			time.Sleep(r.Delay)
 			if r.ExpBackoff {
 				r.Delay *= 2
+
+				if r.MaxDelay > 0 && r.Delay > r.MaxDelay {
+					r.Delay = r.MaxDelay
+				}
 			}
 		}
 	}()

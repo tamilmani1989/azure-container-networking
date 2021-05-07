@@ -64,9 +64,12 @@ import "C"
 import (
 	"dnc/api"
 	"dnc/datamodel"
+	sdn "dnc/microsoft/azure/sdncontracts"
 	"dnc/nmagentcontracts"
 	"dnc/resourceupdatehandler/networkupdatehandler"
+	"dnc/utils"
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"strconv"
 	"sync"
 	"time"
@@ -726,7 +729,6 @@ func (job *subnetJob) processSubnetUnregister() error {
 	)
 
 	getActiveSubscriber().deleteCachedSubnetConfig(job.vnetId, job.subnetId)
-
 	if err := getActiveSubscriber().unsubscribe(vnetPath, subnetPath); err != nil {
 		return err
 	}
@@ -735,8 +737,44 @@ func (job *subnetJob) processSubnetUnregister() error {
 }
 
 func (job *subnetJob) processSubnetUpdate() error {
-	// TODO: Implement
-	return nil
+
+	// Deserialize subnet data first
+	nwSubnet := &sdn.VirtualNetworkSubnet{}
+	err := proto.Unmarshal(job.subnetData, nwSubnet)
+	if err != nil {
+		err = fmt.Errorf("Failed to deserialize subnet config for vnet: %s, subnet %s due to error: %s",
+			job.vnetId, job.subnetId, err)
+		return err
+	}
+
+	var ipAddrWithPrefix string
+	if len(nwSubnet.IPSubnets) > 0 {
+		ipSubnet := nwSubnet.IPSubnets[0]
+		ipAddrWithPrefix, err = utils.ConvertSdnContractIPAddressToString(ipSubnet.NetworkAddress, ipSubnet.PrefixLength)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Skipping processSubnetUpdate as Vnet:%s Subnet %s has empty CIDR", job.vnetId, job.subnetId)
+	}
+
+	// TODO: Add owning service and token to subnetconfig
+	var subnetConfigInfo SubnetConfiguration
+	subnetConfigInfo.SubnetVersion = nwSubnet.Version
+	subnetConfigInfo.SubnetName = nwSubnet.Id.String()
+    subnetConfigInfo.AddressPrefix = ipAddrWithPrefix
+
+	// Update the cached subnet config
+	getActiveSubscriber().dataContracts.updateCachedSubnetConfig(job.vnetId, job.subnetId, &subnetConfigInfo)
+	logDebugf("Successfully updated cached config for subnet: %s, subnet; %s", job.vnetId, job.subnetId)
+
+	// If subnet update succeeds, no further processing is needed. Otherwise, return error which causes the workerpool to retry
+	errUpdate := updateSubnetConfiguration(job.vnetId, job.subnetId, &subnetConfigInfo)
+	if errUpdate != nil {
+		logErrorf("Retriable error while processing processSubnetUpdate: %s. Error: %v", job.getContext().id, errUpdate)
+		err = fmt.Errorf(fmt.Sprintf("processSubnetUpdate failed due to error: %v", errUpdate))
+	}
+	return err
 }
 
 func sizeofTagConfiguration() uintptr {
@@ -825,6 +863,43 @@ func updateVnetConfiguration(
 	}
 
 	return networkupdatehandler.UpdateNetworkConfiguration(repoNetworkConfiguration, &networkResponse)
+}
+
+func updateSubnetConfiguration(
+	vnetID string,
+	subnetId string,
+	subnetConfig *SubnetConfiguration) *api.JsonErr {
+	logDebugf("updateSubnetConfiguration for subnet. vnet:%s, subnet:%s, version: %d",
+		vnetID, subnetId, subnetConfig.SubnetVersion)
+
+	repoSubnetConfiguration, err := subnetRepo.TryQuerySubnetConfiguration(vnetID, subnetId)
+	if err != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"Failed to retrieve subnet config. vnet: %s, subnet:%s due to error: %v", vnetID, subnetId,  err)
+	}
+
+	if repoSubnetConfiguration == nil {
+		logDebugf("Configuration for subnet not found. vnet:%s, subnet:%s", vnetID, subnetId)
+		// subnet update is not needed if the subnet is not there.
+		return nil
+	}
+
+	if repoSubnetConfiguration.Version >= subnetConfig.SubnetVersion &&
+		repoSubnetConfiguration.UpdateStatus == datamodel.SubnetUpdateCompleted {
+		logDebugf("Subnet: %s version is the latest and processing is completed, no update necessary. "+
+			"RepoSubnetVersion: %d UpdateSubnetVersion: %d", vnetID, repoSubnetConfiguration.Version, subnetConfig.SubnetVersion)
+		return nil
+	}
+
+	dmSubnetConfig := datamodel.SubnetConfiguration{
+        SubnetName: subnetConfig.SubnetName,
+        IPSubnet: subnetConfig.AddressPrefix,
+        AccessToken: repoSubnetConfiguration.AccessToken,
+        Joined: repoSubnetConfiguration.Joined,
+        Version: subnetConfig.SubnetVersion,
+	}
+
+	return networkupdatehandler.UpdateSubnetConfiguration(vnetID, subnetId, &dmSubnetConfig)
 }
 
 func createContextSelectorAndPublishData(
@@ -940,3 +1015,43 @@ func removePubsubPaths(
 
 	return nil
 }
+
+/*
+//TODO: Test mock written for lack of RNC work not done. THis will be
+//TODO: deleted as soon as RNC team deploys the changes we requested and we can test with
+//TODO: actual pubsub.
+func testUpdateSubnetConfiguration(vnetId, subnetId string) {
+
+	partitionKey := getActiveSubscriber().getSubnetPartitionKey(vnetId, subnetId)
+	relativePath := getActiveSubscriber().getSubnetRelativePath(vnetId, subnetId)
+
+	subId, err := utils.ConvertGuidStrToCSharpGUID("79a54e9d-a159-42dd-ba20-768a5017368c")
+	if  err != nil {
+		logDebugf("testUpdateSubnetConfiguration.ConvertGuidStrToCSharpGUID: %s", err)
+		return
+	}
+
+	ipAddr, err := utils.ConvertIPaddressToSdnContractIPAddress("10.0.0.1")
+	if  err != nil {
+		logDebugf("testUpdateSubnetConfiguration.ConvertIPaddressToSdnContractIPAddress: %s", err)
+		return
+	}
+
+	ipSubnet := &sdn.IPSubnet{NetworkAddress: ipAddr, PrefixLength: 16}
+
+	subnet :=  &sdn.VirtualNetworkSubnet{
+		Version: 1,
+		Id:  subId,
+		Name: "bm-demo-delegated",
+		IPSubnets: []*sdn.IPSubnet {ipSubnet},
+	}
+
+	bytes, err := proto.Marshal(subnet)
+	if  err != nil {
+		logDebugf("testUpdateSubnetConfiguration.Marshal: %s", err)
+		return
+	}
+
+	getActiveSubscriber().dataContracts.handleUpdateNotification(partitionKey, relativePath, bytes)
+}
+*/

@@ -510,6 +510,32 @@ func UpdateNetworkConfiguration(networkConfig *datamodel.NetworkConfiguration, p
 	return true, nil
 }
 
+func UpdateSubnetConfiguration(vnetId, subnetId string,  subnetConfiguration *datamodel.SubnetConfiguration) *api.JsonErr {
+
+	subnet := &datamodel.SubnetConfiguration{
+		NetworkID:         vnetId,
+		SubnetName:        subnetId,
+		IPSubnet:          subnetConfiguration.IPSubnet,
+		IsDelegatedSubnet: true,
+		Gateway:           subnetConfiguration.Gateway,
+		Tags:              subnetConfiguration.Tags,
+		AccessToken:       subnetConfiguration.AccessToken,
+		Joined:            subnetConfiguration.Joined,
+		Version:           subnetConfiguration.Version,
+		UpdateStatus:      datamodel.SubnetUpdateCompleted}
+
+	if config.FeatureFlagSettings.UsePrepopulatedIPAllocations {
+		logger.Debugf("[subnet update] prepopulating vnet id %s subnet %s %s", subnet.NetworkID, subnet.SubnetName, subnet.IPSubnet)
+		if err := ipAllocator.PrepopulateSubnet(subnet.NetworkID, subnet.SubnetName, subnet.IPSubnet); err != nil {
+			logger.Errorf("[network update] could not prepopulate vnet id %s subnet %s %s: %+v", subnet.NetworkID, subnet.SubnetName, subnet.IPSubnet, err)
+			return err // any error from this operation should be retryable
+		}
+		logger.Debugf("[subnet update] successfully prepopulated vnet id %s subnet %s %s", subnet.NetworkID, subnet.SubnetName, subnet.IPSubnet)
+	}
+
+	return  datamodel.PutSubnetConfiguration(subnet)
+}
+
 func handleFailure(networkConfig *datamodel.NetworkConfiguration, err *api.JsonErr) (bool, *api.JsonErr) {
 	if err.Code == api.StatusInternalServerError {
 		return false, err

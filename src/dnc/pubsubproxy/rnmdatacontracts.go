@@ -34,6 +34,30 @@ func (r *rnmDataContracts) rehydrateSubscriptions() {
 	}
 }
 
+func (r *rnmDataContracts) handleUpdateNotification(partitionKey, relativePath string, data []byte) {
+	logDebugf("rnmDataContracts: handleMadariNotification for partitionKey:%s, path:%s", partitionKey, relativePath)
+	// Handle the notification for the data update
+	if strings.EqualFold(vnetConfigRelativePath, relativePath) {
+		// If the subscribeStatusError channel is setup, send nil error since
+		// the notification is received for that path
+		path := partitionKey + relativePath
+		getActiveSubscriber().sendSubscribeStatusError(path, nil)
+
+		vnetId := getVnetIdFromPartitionKey(partitionKey)
+		vnetUpdate := &vnetJob{
+			context: jobContext{
+				id:              createVnetJobId(vnetId),
+				jobType:         VnetUpdate,
+				createdDateTime: time.Now().UTC(),
+				retryInterval:   baseRetryInterval,
+			},
+			vnetId:   vnetId,
+			vnetData: data,
+		}
+		workerPool().scheduleJob(vnetUpdate)
+	}
+}
+
 func (r *rnmDataContracts) getCachedSubnetConfig(
 	vnetId string,
 	subnetName string) (cachedSubnetConfig, error) {

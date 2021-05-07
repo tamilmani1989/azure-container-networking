@@ -139,6 +139,10 @@ func (f *SubnetRepo) UpdateSubnetReservationSet(reservationID, allocatedSubnet s
 	return nil
 }
 
+func (*SubnetRepo) TryQueryAllSubnetConfigurations() ([]datamodel.SubnetConfiguration, *api.JsonErr) {
+	return nil, nil
+}
+
 // note: fake allocation repo is not thread safe
 type AllocationRepo struct {
 	Data         []datamodel.IPAllocationEntity

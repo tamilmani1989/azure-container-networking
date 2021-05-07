@@ -3,9 +3,14 @@
 package pubsubproxy
 
 import (
+	"context"
+	"dnc/retry"
+	"dnc/utils"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
+	"time"
 )
 
 // implementation of madariDataContracts interface. This struct
@@ -21,7 +26,71 @@ const (
 )
 
 func (s *rncDataContracts) rehydrateSubscriptions() {
-	// TODO: Add subnet subscription here
+	logDebugf("Rehydrating subnet subscriptions via RNC path")
+	retrier := retry.Retrier{
+		Attempts: math.MaxInt32,
+		Delay:    time.Second,
+		MaxDelay: 60 * time.Second,
+		ExpBackoff: true,
+	}
+
+	retrier.Do(context.Background(), func() error {
+		subnetConfigs, err := subnetRepo.TryQueryAllSubnetConfigurations()
+		if err != nil {
+			logErrorf("Failed to rehydrate subnets. Error: %v", err)
+			return err
+		}
+
+		for _, config := range subnetConfigs {
+			// if subnet name is not valid uuid, then skip
+			if !utils.IsValidUUID(config.SubnetName) {
+				logDebugf("Skip rehydrating subnet %s as it is not valid guid", config.SubnetName)
+				continue
+			}
+
+			RegisterSubnet(config.NetworkID, config.SubnetName)
+		}
+
+		// Return nil after rehydrating to all subnet subscriptions
+		return nil
+	})
+}
+
+func (r *rncDataContracts) handleUpdateNotification(partitionKey, relativePath string, data []byte) {
+	logDebugf("rncDataContracts: handleMadariNotification for partitionKey:%s, path:%s", partitionKey, relativePath)
+	// Handle the notification for the data update
+	if strings.HasPrefix(relativePath, "/subnets") &&
+	   strings.HasSuffix(relativePath, "/config") {
+		// If the subscribeStatusError channel is setup, send nil error since
+		// the notification is received for that path
+		path := partitionKey + relativePath
+		getActiveSubscriber().sendSubscribeStatusError(path, nil)
+
+		vnetId, verr := r.getVnetIdFromPartitionKey(partitionKey)
+		if verr != nil {
+			logDebugf("handleUpdateNotification: %s", verr)
+			return
+		}
+
+		subnetId, serr := r.getSubnetIdFromRelativePath(relativePath)
+		if serr != nil {
+			logDebugf("handleUpdateNotification: %s", serr)
+			return
+		}
+
+		subnetUpdate := &subnetJob{
+			context: jobContext{
+				id:              createSubnetJobId(vnetId, subnetId),
+				jobType:         SubnetUpdate,
+				createdDateTime: time.Now().UTC(),
+				retryInterval:   baseRetryInterval,
+			},
+			vnetId:   vnetId,
+			subnetId: subnetId,
+			subnetData: data,
+		}
+		workerPool().scheduleJob(subnetUpdate)
+	}
 }
 
 func (s *rncDataContracts) getCachedSubnetConfig(
@@ -107,4 +176,24 @@ func (s *rncDataContracts) getSubnetPartitionKey(vnetId, subnetId string) string
 
 func (s *rncDataContracts) getSubnetRelativePath(vnetId, subnetId string) string {
 	return fmt.Sprintf(rncSubnetRelativePathFormat, subnetId)
+}
+
+func (s *rncDataContracts) getVnetIdFromPartitionKey(partitionKey string) (string, error) {
+	// Example relative path : /virtualnetworks/db8baa97-1baf-4d16-aeb4-b2716665bd22
+	parts := strings.Split(partitionKey, "/")
+	if  len(parts) == 3 {
+		return parts[2], nil
+	}
+
+	return "", fmt.Errorf("rncDataContracts. Invalid subnet partitionKey:%s", partitionKey)
+}
+
+func (s *rncDataContracts) getSubnetIdFromRelativePath(relativePath string) (string, error) {
+	// Example relative path : /subnets/cb8baa97-1baf-4d16-aeb4-b2716665bd22/config
+	parts := strings.Split(relativePath, "/")
+	if  len(parts) == 4 {
+		return parts[2], nil
+	}
+
+	return "", fmt.Errorf("rncDataContracts. Invalid subnet relativePath:%s", relativePath)
 }

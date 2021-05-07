@@ -31,6 +31,7 @@ type SubnetRepo interface {
 	TryQuerySubnetConfiguration(networkID, subnetName string) (*datamodel.SubnetConfiguration, *api.JsonErr)
 	UpdateSubnetReservationSet(reservationID, allocatedSubnet string, remove bool, subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr
 	PutSubnetConfiguration(subnetConfig *datamodel.SubnetConfiguration) *api.JsonErr
+    TryQueryAllSubnetConfigurations() ([]datamodel.SubnetConfiguration, *api.JsonErr)
 }
 
 // An IPReservationRepo performs CRUD operations on IP reservations

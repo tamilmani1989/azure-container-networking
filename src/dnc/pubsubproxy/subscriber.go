@@ -307,25 +307,9 @@ func (callback subscriberCallback) OnNotificationReceived(
 		fallthrough
 	case MADARI_NOTIFY_NODE_DATA_CHANGED:
 		// Handle the notification for the data update
-		if strings.EqualFold(vnetConfigRelativePath, notification.RelativePath) {
-			// If the subscribeStatusError channel is setup, send nil error since
-			// the notification is received for that path
-			path := notification.PartitionKey + notification.RelativePath
-			getActiveSubscriber().sendSubscribeStatusError(path, nil)
+		getActiveSubscriber().dataContracts.handleUpdateNotification(
+			notification.PartitionKey, notification.RelativePath, notification.Data)
 
-			vnetId := getVnetIdFromPartitionKey(notification.PartitionKey)
-			vnetUpdate := &vnetJob{
-				context: jobContext{
-					id:              createVnetJobId(vnetId),
-					jobType:         VnetUpdate,
-					createdDateTime: time.Now().UTC(),
-					retryInterval:   baseRetryInterval,
-				},
-				vnetId:   vnetId,
-				vnetData: notification.Data,
-			}
-			workerPool().scheduleJob(vnetUpdate)
-		}
 	case MADARI_NOTIFY_NODE_DELETED:
 		// Log the notification for the data deletion
 		if strings.EqualFold(vnetConfigRelativePath, notification.RelativePath) {
