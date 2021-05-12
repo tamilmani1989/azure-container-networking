@@ -955,12 +955,17 @@ func (c *Controller) GetNetworkContainer(networkID, ncID string) (*api.NetworkCo
 
 // DeleteNetworkContainer - Deletes a network container.
 func (c *Controller) DeleteNetworkContainer(networkID, ncID string) *api.JsonErr {
-	loggershim.LS.Debugf("[Request] DeleteNetworkContainer: %s", ncID)
+	loggershim.LS.Debugf("[Request] DeleteNetworkContainer: vnet id %s nc id %s", networkID, ncID)
 	sessionInfo := map[string]string{datamodel.NCRepositoryName: ncID}
 	c.SessionManager.BeginWriteSession(sessionInfo)
 	defer c.SessionManager.EndWriteSession(sessionInfo)
 
-	return datamodel.ProcessNetworkContainerForRelease(networkID, ncID)
+	if err := datamodel.ProcessNetworkContainerForRelease(networkID, ncID); err != nil {
+		loggershim.LS.Debugf("[Request] DeleteNetworkContainer: could not process vnet id %s nc id %s for release: %v", networkID, ncID, err)
+		return err
+	}
+
+	return nil
 }
 
 // GetPrimaryIPEndpoint - Retrieves the current primary replica endpoint

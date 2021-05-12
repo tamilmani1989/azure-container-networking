@@ -1060,14 +1060,14 @@ func GetRevertState(ncState NetworkContainerState) (NetworkContainerState, *api.
 
 // ProcessNetworkContainerForRelease - Process network container configuration pending release.
 func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *api.JsonErr {
-	loggershim.LS.Debugf("ProcessNetworkContainerForRelease: %s", networkContainerID)
-	networkContainerConfig, err := TryQueryNetworkContainer(
-		networkID, networkContainerID)
+	loggershim.LS.Debugf("ProcessNetworkContainerForRelease: vnet id %s nc id %s", networkID, networkContainerID)
+	networkContainerConfig, err := TryQueryNetworkContainer(networkID, networkContainerID)
 	if err != nil {
 		return err
 	}
 
 	if networkContainerConfig == nil {
+		loggershim.LS.Debugf("ProcessNetworkContainerForRelease: vnet id %s nc id %s not found, nothing to process", networkID, networkContainerID)
 		return nil
 	}
 
@@ -1096,8 +1096,11 @@ func ProcessNetworkContainerForRelease(networkID, networkContainerID string) *ap
 			RemovePendingRequest(requestID)
 		}
 
+		loggershim.LS.Debugf("ProcessNetworkContainerForRelease: vnet %s nc id %s", networkID, networkContainerID)
 		return PersistNCConfiguration(networkContainerConfig, AddToPendingQ)
-	} else if networkContainerConfig.MarkedForDelete == true {
+	}
+
+	if networkContainerConfig.MarkedForDelete {
 		// There is a valid race where NC MarkedForDelete is set however adding the request to PendingQ is missing
 		// This is possible if call to DeleteNetworkContainer failed in interim. As a result caller will receive failure and
 		// retry the operation. So ensure NC entries exists in both NetworkContainer and PendingQ tables.
