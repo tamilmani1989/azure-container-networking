@@ -544,17 +544,32 @@ func e2eTests() {
 
 	// test external DNS resolution
 	logger.Printf("Test external dns resolution")
-	output, err = exec.Command("kubectl", "exec", srcPod, "--", "dig", "+short", "google.com").CombinedOutput()
+	output, err = exec.Command("kubectl", "exec", srcPod, "--", "dig", "+short", "microsoft.com").CombinedOutput()
+
 	if err != nil {
 		report.ExternalDNS = false
-		logger.Errorf("ExternalDNS failed: dig command failed with error: %+v srcip:%s dstip:google.com", err, podIP1)
+		logger.Errorf("ExternalDNS failed: dig command failed with error: %+v srcip: %s dstip: microsoft.com", err, podIP1)
 		lastErr = fmt.Errorf("ExternalDNS failed: dig command failed with error :%+v", err)
-	} else if net.ParseIP(string(output[1:len(output)-1])) == nil {
-		report.ExternalDNS = false
-		logger.Errorf("ExternalDNS failed: dig command output does not contain IP, Output received: %s",
-			string(output[1:len(output)-1]))
-		lastErr = fmt.Errorf("ExternalDNS failed: dig command output does not contain IP, Output received: %s",
-			string(output[1:len(output)-1]))
+	} else {
+		var splitOutput = strings.Fields(string(output))
+
+		if len(splitOutput) < 1 {
+			logger.Errorf("ExternalDNS failed: dig command output does not contain IP in the expected format, Output received: %s Bytes: %+v",
+				string(output), output)
+
+			lastErr = fmt.Errorf("ExternalDNS failed: dig command output does not contain IP in the expected format, Output received: %s Bytes: %+v",
+				string(output), output)
+
+			report.ExternalDNS = false
+		} else if net.ParseIP(splitOutput[0]) == nil {
+			logger.Errorf("ExternalDNS failed: dig command output does not contain IP, Output received: %+v",
+				splitOutput)
+
+			lastErr = fmt.Errorf("ExternalDNS failed: dig command output does not contain IP, Output received: %+v",
+				splitOutput)
+
+			report.ExternalDNS = false
+		}
 	}
 
 	// test private link DNS resolution

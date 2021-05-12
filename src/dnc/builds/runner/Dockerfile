@@ -5,6 +5,13 @@ WORKDIR /usr/local/src/dnc
 
 COPY . .
 
+# Fix the issue when building this Docker image from a Windows host, the filesystem for the vendor directory will be messed up
+# We need the ApplicationInsights-Go module to be under vendor/github.com/microsoft
+RUN if [[ -d vendor/github.com/Microsoft/ApplicationInsights-Go ]]; then \
+	mkdir vendor/github.com/microsoft && \
+	cp -r vendor/github.com/Microsoft/ApplicationInsights-Go \
+	vendor/github.com/microsoft/ApplicationInsights-Go; fi
+
 # Build
 RUN cd test/runner && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o /usr/local/bin/runner .
