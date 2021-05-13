@@ -28,7 +28,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private IControllerConfiguration controllerOperations;
         private IHttpUtility httpUtility;
         private IKeyVaultUtility keyVaultUtility;
-        private bool deleteNotSupported = true;
+        private bool deleteNotSupported = false;
 
         /// <summary>
         /// Create an instance of OrchestratorOperations
