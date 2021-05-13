@@ -13,7 +13,7 @@ import (
 
 // reserved address count at the beginning of a subnet
 // see https://docs.microsoft.com/en-us/azure/virtual-network/virtual-networks-faq#are-there-any-restrictions-on-using-ip-addresses-within-these-subnets
-const reservedIPCount = 4
+const ReservedIPCount = 4
 
 func AllocateSubnetFromNetworkSpace(
 	baseSubnet *net.IPNet,
@@ -110,7 +110,7 @@ func GetLastAdressAsUInt32InSubnet(ipSubnet *net.IPNet) uint32 {
 	return startingIPAddressAsUInt32 + subnetHostCount
 }
 
-func GetLastAdressInSubnet(ipSubnet *net.IPNet) net.IP {
+func GetLastAddressInSubnet(ipSubnet *net.IPNet) net.IP {
 	return utils.Int2IP(GetLastAdressAsUInt32InSubnet(ipSubnet))
 }
 
@@ -233,7 +233,7 @@ func GetReservedAddressesInSubnet(subnet *net.IPNet) (map[string]*net.IPNet, err
 	reservedAddresses := make(map[string]*net.IPNet)
 
 	start := utils.IP2Int(subnet.IP)
-	for i := 0; i < reservedIPCount; i++ {
+	for i := 0; i < ReservedIPCount; i++ {
 		reservedIP := fmt.Sprintf("%v/%s", utils.Int2IP(start+uint32(i)), utils.IPV4DefaultPrefix)
 		reservedSubnet, err := utils.ParseIPNet(reservedIP)
 		if err != nil {
@@ -242,7 +242,7 @@ func GetReservedAddressesInSubnet(subnet *net.IPNet) (map[string]*net.IPNet, err
 		reservedAddresses[reservedIP] = reservedSubnet
 	}
 
-	broadcastIP := fmt.Sprintf("%v/%s", GetLastAdressInSubnet(subnet), utils.IPV4DefaultPrefix)
+	broadcastIP := fmt.Sprintf("%v/%s", GetLastAddressInSubnet(subnet), utils.IPV4DefaultPrefix)
 	broadcastSubnet, err := utils.ParseIPNet(broadcastIP)
 	if err != nil {
 		return nil, err

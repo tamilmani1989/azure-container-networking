@@ -60,12 +60,7 @@ func (d *DebugRoutes) RehydrateSubnetAllocations(w http.ResponseWriter, r *http.
 		return
 	}
 
-	allAllocs, genErr := networkcontainer.GenerateIPAllocationEntitiesForSubnet(subnet)
-	if genErr != nil {
-		err := api.InternalServerErrorf(api.StatusInternalServerError, "could not generate rows: %v", genErr)
-		d.writeResponse(w, err.HTTPStatus, err)
-		return
-	}
+	allAllocs := networkcontainer.GenerateIPAllocationEntitiesForSubnet(subnet)
 
 	currentAllocs, err := d.IPAllocator.Allocations.TryQueryAllIPAllocations(req.VnetID, req.SubnetName)
 	if err != nil {

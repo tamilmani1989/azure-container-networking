@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	reservedAddress = "Azure Reserved Address"
+	reservedAddress  = "Azure Reserved Address"
+	slash16HostCount = 256 * 256
 )
 
 // TODO: we should rename this as ReserveIpManager or something else instead of just IpAllocator
@@ -591,11 +592,7 @@ func (a *IPAllocator) PrepopulateSubnet(vnetID, subnetName, subnetCIDR string) *
 		return api.InternalServerErrorf(api.StatusInternalServerError, "vnet ID %s subnet %s: could not parse subnet CIDR: %v", vnetID, subnetName, err)
 	}
 
-	allAllocs, err := GenerateIPAllocationEntitiesForSubnet(subnet)
-	if err != nil {
-		return api.InternalServerErrorf(api.StatusInternalServerError, "vnet ID %s subnet %s: could not generate subnet rows: %v", vnetID, subnetName, err)
-	}
-
+	allAllocs := GenerateIPAllocationEntitiesForSubnet(subnet)
 	logger.Debugf("persisting %d rows for cidr %s", len(allAllocs), subnetCIDR)
 	ch := a.rowBatchProducer(allAllocs)
 
@@ -716,32 +713,39 @@ func (r *rowBatchError) addKey(key string) {
 	r.m.Unlock()
 }
 
-func GenerateIPAllocationEntitiesForSubnet(subnet *net.IPNet) ([]datamodel.IPAllocationEntity, error) {
-	subnetBlockSize := subnetMaxHostCount(subnet)
-
-	loIPBound := int(utils.IP2Int(subnet.IP))
-	hiIPBound := loIPBound + subnetBlockSize - 1
-
-	reserved, err := allocationhelper.GetReservedAddressesInSubnet(subnet)
-	if err != nil {
-		return nil, err
+// GenerateIPAllocationEntitiesForSubnet generates allocation rows for the given subnet.
+// The maximum supported subnet mask is /16. For any larger subnets, at most 65536 (/16
+// max host count) rows will be produced, including those reserved by Azure.
+func GenerateIPAllocationEntitiesForSubnet(subnet *net.IPNet) []datamodel.IPAllocationEntity {
+	ipCount := subnetMaxHostCount(subnet)
+	if ipCount > slash16HostCount {
+		ipCount = slash16HostCount
 	}
 
-	var rows []datamodel.IPAllocationEntity
-	for i := loIPBound; i <= hiIPBound; i++ {
-		ip := utils.Int2IP(uint32(i)).String() + "/32"
-		rowKey := datamodel.EncodeIPAllocationKey(ip)
-		row := datamodel.IPAllocationEntity{RowKey: rowKey}
+	rows := make([]datamodel.IPAllocationEntity, ipCount)
+	offset := int(utils.IP2Int(subnet.IP))
 
-		if _, isReserved := reserved[ip]; isReserved {
+	lastIdx := ipCount - 1
+	for i := 0; i < ipCount; i++ {
+		ip := utils.Int2IP(uint32(i + offset))
+		if i == lastIdx {
+			ip = allocationhelper.GetLastAddressInSubnet(subnet)
+		}
+
+		row := datamodel.IPAllocationEntity{
+			RowKey: ip.String() + "_32",
+		}
+
+		// first 4 addresses and last address in a subnet are reserved
+		if i < allocationhelper.ReservedIPCount || i == lastIdx {
 			row.IPAllocation = reservedAddress
 			row.AllocationID = reservedAddress
 		}
 
-		rows = append(rows, row)
+		rows[i] = row
 	}
 
-	return rows, nil
+	return rows
 }
 
 func (a *IPAllocator) DepopulateSubnet(vnetID, subnetName string) *api.JsonErr {

@@ -326,25 +326,57 @@ func extractAllocationIDs(a fakes.AllocationRepo) map[string]struct{} {
 }
 
 func TestGenerateAllRows(t *testing.T) {
-	_, subnet, _ := net.ParseCIDR("10.0.0.0/16")
-	rows, _ := GenerateIPAllocationEntitiesForSubnet(subnet)
-	if len(rows) != 65536 {
-		t.Fatalf("expected 65536 rows, got %d", len(rows))
+	tests := []struct {
+		name             string
+		subnet           string
+		expectedRowCount int
+		expectedFirstKey string
+		expectedLastKey  string
+	}{
+		{
+			name:             "happy path",
+			subnet:           "10.0.0.0/24",
+			expectedRowCount: 256,
+			expectedFirstKey: "10.0.0.0_32",
+			expectedLastKey:  "10.0.0.255_32",
+		},
+		{
+			name:             "maximum subnet size",
+			subnet:           "10.0.0.0/16",
+			expectedRowCount: 65536,
+			expectedFirstKey: "10.0.0.0_32",
+			expectedLastKey:  "10.0.255.255_32",
+		},
+		{
+			name:             "over maximum subnet size",
+			subnet:           "10.0.0.0/12",
+			expectedRowCount: 65536,
+			expectedFirstKey: "10.0.0.0_32",
+			expectedLastKey:  "10.15.255.255_32",
+		},
 	}
 
-	count := 0
-	for _, row := range rows {
-		if row.IPAllocation == "Azure Reserved Address" {
-			count++
-		}
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, subnet, _ := net.ParseCIDR(tt.subnet)
+			rows := GenerateIPAllocationEntitiesForSubnet(subnet)
+			require.Len(t, rows, tt.expectedRowCount)
 
-	if count != 5 {
-		t.Fatalf("expected 5 reserved, got %d", count)
+			reservedRowCount := 0
+			for _, row := range rows {
+				if row.IPAllocation == reservedAddress {
+					reservedRowCount++
+				}
+			}
+			assert.Equal(t, reservedRowCount, 5)
+
+			firstKey := rows[0].RowKey
+			lastKey := rows[len(rows)-1].RowKey
+			assert.Equal(t, tt.expectedFirstKey, firstKey)
+			assert.Equal(t, tt.expectedLastKey, lastKey)
+		})
 	}
 }
-
-const slash16HostCount = 256 * 256
 
 func TestPrepopulateRows(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
@@ -380,6 +412,30 @@ func TestPrepopulateRows(t *testing.T) {
 		})
 	})
 
+	t.Run("does not persist more than the allowed limit", func(t *testing.T) {
+		var ds testpersistencestore.TestPersistenceStore
+		ds.Init(datamodel.TableToColumnMap, loggermock.NewNoOpLogger())
+		allocRepo := datamodel.AllocationRepo{Datastore: &ds}
+
+		cidr := "10.0.0.0/12"
+		vnetID := "vnet1"
+		subnetName := "subnet1"
+
+		a := IPAllocator{
+			Allocations:  &allocRepo,
+			Logger:       loggermock.NewDummyLogger(),
+			MaxBatchSize: 1000,
+		}
+
+		err := a.PrepopulateSubnet(vnetID, subnetName, cidr)
+		require.Nil(t, err)
+
+		allocs, err := allocRepo.TryQueryAllIPAllocations(vnetID, subnetName)
+		require.Nil(t, err)
+
+		assert.Len(t, allocs, slash16HostCount)
+	})
+
 	t.Run("should be retryable", func(t *testing.T) {
 		var ds testpersistencestore.TestPersistenceStore
 		ds.Init(datamodel.TableToColumnMap, loggermock.NewNoOpLogger())
@@ -396,7 +452,7 @@ func TestPrepopulateRows(t *testing.T) {
 		}
 
 		_, subnet, _ := net.ParseCIDR(cidr)
-		allAllocs, _ := GenerateIPAllocationEntitiesForSubnet(subnet)
+		allAllocs := GenerateIPAllocationEntitiesForSubnet(subnet)
 		require.Len(t, allAllocs, slash16HostCount)
 
 		// simulate dispersed batch ranges from previous run that succeeded
