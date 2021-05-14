@@ -178,7 +178,7 @@ func (s SynchronousDNCClient) UpsertNcV2(ctx context.Context, networkID, ncID st
 
 	logger.Infof("Create NC succeeded for %s. Call dnc get nc", ncID)
 
-	var ncStatus *api.RequestStatus
+	var ncStatus *api.NCRequestStatus
 	var respErr *api.JsonErr
 
 	err := s.retrier.Do(ctx, func() error {

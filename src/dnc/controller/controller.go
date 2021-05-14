@@ -386,7 +386,7 @@ func (c *Controller) GetSubnetConfiguration(networkID, subnetName string) (*api.
 
 // GetNetworkContainerStatus - Get network container status
 func (c *Controller) GetNetworkContainerStatus(
-	networkID, networkContainerID string) (*api.RequestStatus, int, *api.JsonErr) {
+	networkID, networkContainerID string) (*api.NCRequestStatus, int, *api.JsonErr) {
 	// No read lock is required because Azure Storage uses snapshot isolation to allow
 	// read operations to happen concurrently with writes in the same partition. It
 	// guarantees reads to see consistent data while updates are happening
@@ -404,9 +404,23 @@ func (c *Controller) GetNetworkContainerStatus(
 			Text:       msg}
 	}
 
-	requestStatus := &api.RequestStatus{
+	ncType := ncConfig.GetAssociationInfo().ContainerType
+	//nicStatus set by default to Not Applicable in case it is a non-Baremetal scenario
+	nicStatus := "N/A"
+	//checking if NC type is Baremetal to call GetNICProgammingStatus and to set the nicStatus
+	if ncType == api.BareMetalContainerType {
+		aznmNICStatusData, aznmstatusError := pubsubproxy.GetNICProgrammingStatus(ncConfig.ReservationID)
+		nicStatus = aznmNICStatusData
+		//if the aznm NIC status returned is not nil, return the error string to api
+		if aznmstatusError != nil {
+			nicStatus = aznmstatusError.Error()
+		}
+	}
+
+	var requestStatus = &api.NCRequestStatus{
 		State:         ncConfig.State.String(),
 		Status:        ncConfig.Status.String(),
+		NICStatus:     nicStatus,
 		FailureDetail: ncConfig.FailureDetail}
 
 	return requestStatus, generateStatus(ncConfig.Status, &ncConfig.FailureDetail), nil

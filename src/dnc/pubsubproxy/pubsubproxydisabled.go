@@ -153,3 +153,7 @@ func ForceUnpublishInAllAzs(infraVnetID, nodeInterfaceIP, ncID string) *api.Json
 		api.StatusBadRequest,
 		"PubSubProxy module build disabled. Build DNC using -tags enablePubsubProxy")
 }
+
+func GetNICProgrammingStatus(reservationID string) (string, error) {
+	return "", fmt.Errorf("PubSubProxy module build disabled. Build DNC using -tags enablePubsubProxy")
+}

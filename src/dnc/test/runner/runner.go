@@ -1235,10 +1235,12 @@ func deleteReservation(vnetID, reservationID string) error {
 func addNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace string, host2NC, NC2Host bool, timeout time.Duration) error {
 	var (
 		respErr          *api.JsonErr
-		ncStatus         *api.RequestStatus
-		expectedNcStatus = &api.RequestStatus{
-			State:  "Program",
-			Status: "Completed"}
+		ncStatus         *api.NCRequestStatus
+		expectedNcStatus = &api.NCRequestStatus{
+			State:     "Program",
+			Status:    "Completed",
+			NICStatus: "N/A",
+		}
 	)
 
 	logger.Printf("Create nc %s in subnet %s in network %s and node %s and ifaceID %s and podName %s and ipConstraint %s", ncID, subnetID, vnetID, nodeID, ifaceID, podName, ipConstraint)

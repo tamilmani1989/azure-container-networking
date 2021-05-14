@@ -644,12 +644,12 @@ func (c *DncClient) GetNetworkContainerCleanupStatus(networkId, ncId string) (ap
 	return cleanupResponse, respErr
 }
 
-func (c *DncClient) GetNCStatus(networkId, ncId string) (requestStatus *api.RequestStatus, respErr *api.JsonErr) {
+func (c *DncClient) GetNCStatus(networkId, ncId string) (requestStatus *api.NCRequestStatus, respErr *api.JsonErr) {
 	var (
 		response    *http.Response
 		err         error
 		ncStatusURL = fmt.Sprintf(ncStatusApi, c.DncEP, networkId, ncId)
-		reqStatus   api.RequestStatus
+		reqStatus   api.NCRequestStatus
 	)
 
 	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
@@ -784,11 +784,11 @@ func (c *DncClient) DeleteNetwork(networkId string) (respErr *api.JsonErr) {
 
 func (c *DncClient) DeleteSubnet(networkId, subnet string, apiversion string) (respErr *api.JsonErr) {
 	var (
-		response  *http.Response
-		err       error
+		response           *http.Response
+		err                error
 		subnetURLFormat, _ = getsubnetApiUri(apiversion)
-		subnetURL = fmt.Sprintf(subnetURLFormat, c.DncEP, networkId, subnet)
-		req, _    = http.NewRequest(delete, subnetURL, nil)
+		subnetURL          = fmt.Sprintf(subnetURLFormat, c.DncEP, networkId, subnet)
+		req, _             = http.NewRequest(delete, subnetURL, nil)
 	)
 
 	respErr = &api.JsonErr{HTTPStatus: http.StatusOK}
@@ -951,9 +951,9 @@ func getsubnetApiUri(version string) (string, error) {
 	}
 
 	verVal, ok := apiVersionMap[apiVerKey]
-	if  !ok {
+	if !ok {
 		return "", fmt.Errorf("invalid api version: %s", apiVerKey)
 	}
 
-    return subnetApi + verVal, nil
+	return subnetApi + verVal, nil
 }

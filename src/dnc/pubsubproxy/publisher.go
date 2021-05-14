@@ -162,6 +162,28 @@ func (p *publisher) publishData(
 	return nil
 }
 
+func (p *publisher) getData(
+	partitionKey string,
+	relativePath string) error {
+	p.Lock()
+	defer p.Unlock()
+
+	publishPath := partitionKey + relativePath
+	if p.isHealthy {
+		p.setupPublishStatusErrorChan(publishPath)
+		if retCode := p.madariPublisher.GetData(partitionKey, relativePath); retCode != 0 {
+			p.deletePublishStatusErrorChan(publishPath)
+			return fmt.Errorf("Publishing to pubsub: %s failed for path: %s due to error code: %d",
+				p.pubsubAzId, publishPath, retCode)
+		}
+	} else {
+		return fmt.Errorf("Unhealthy Publisher: %s. Publishing failed for path: %s",
+			p.pubsubAzId, publishPath)
+	}
+
+	return nil
+}
+
 func (p *publisher) unpublishData(
 	partitionKey string,
 	relativePath string) error {
@@ -635,6 +657,21 @@ func displayMadariResult(result *MadariResult, pubsubAzId string) {
 
 	if strings.HasPrefix(result.PartitionKey, "/networkinterfaces") &&
 		strings.HasPrefix(result.RelativePath, "/config") {
+
+		nwInterface := &sdn.NetworkInterface{}
+		err := proto.Unmarshal(result.Data, nwInterface)
+		if err != nil {
+			logErrorf("OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Error: %v",
+				pubsubAzId, result.PartitionKey, result.RelativePath, err)
+			return
+		}
+
+		logDebugf("OnResultReceived GetData: Publisher: %s. PartitionKey: %s. Path: %s. Data: %v",
+			pubsubAzId, result.PartitionKey, result.RelativePath, nwInterface)
+	}
+
+	if strings.HasPrefix(result.PartitionKey, "/networkinterfaces") &&
+		strings.HasPrefix(result.RelativePath, "/compartments") {
 
 		nwInterface := &sdn.NetworkInterface{}
 		err := proto.Unmarshal(result.Data, nwInterface)

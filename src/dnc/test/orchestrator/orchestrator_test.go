@@ -689,10 +689,12 @@ func deleteReservation(t *testing.T, vnetID, reservationID string) {
 func addNc(t *testing.T, nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace string, host2NC, NC2Host bool, timeout time.Duration, secondaryIPCount int) {
 	var (
 		respErr          *api.JsonErr
-		ncStatus         *api.RequestStatus
-		expectedNcStatus = &api.RequestStatus{
-			State:  "Program",
-			Status: "Completed"}
+		ncStatus         *api.NCRequestStatus
+		expectedNcStatus = &api.NCRequestStatus{
+			State:     "Program",
+			Status:    "Completed",
+			NICStatus: "N/A",
+		}
 	)
 
 	if respErr = dnctl.AddNc(nodeID, vnetID, ncID, reservationID, subnetID, ipConstraint, nodeConstraint, ifaceID, containerType, podName, podNamespace, "", host2NC, NC2Host, secondaryIPCount); respErr.HTTPStatus != http.StatusOK {
