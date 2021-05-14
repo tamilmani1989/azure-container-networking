@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"dnc/aiwrapper"
 	"dnc/api"
+	"dnc/client"
 	"dnc/configuration"
 	"dnc/datamodel"
 	"dnc/logger/loggershim"
@@ -876,8 +877,20 @@ func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*
 	// read operations to happen concurrently with writes in the same partition. It
 	// guarantees reads to see consistent data while updates are happening
 	ncConfig, err := datamodel.GetNetworkContainerConfiguration(networkID, ncID)
+
 	if err != nil {
 		return nil, err
+	}
+
+	if ncConfig.GetAssociationInfo().ContainerType == api.BareMetalContainerType {
+		context := client.OrchestratorContext{}
+		unmarshalErr := json.Unmarshal([]byte(ncConfig.GetAssociationInfo().OrchestratorContext), &context)
+		if unmarshalErr != nil {
+			loggershim.LS.Debugf("Unmarshalling OrchestratorContext Failed %+v", unmarshalErr)
+		}
+		//split string to take the latter part of PodName for LogicalContainerID
+		logicalContainerID := strings.Split(context.PodName, "_")
+		ncConfig.BMContainerInfo = fmt.Sprintf("Physical ContainerID: %s, Logical NICID: %s, Logical ContainerID: %s", ncConfig.GetInstanceID(), ncConfig.ReservationID, logicalContainerID[1])
 	}
 
 	return ncConfig, nil

@@ -12,6 +12,7 @@ type NCConfiguration struct {
 	NetworkContainerID    string
 	NetworkID             string
 	ReservationID         string
+	BMContainerInfo       string
 	ImplicitReservation   bool
 	RequestV1             api.NetworkContainerRequestV1
 	RequestV2             api.NetworkContainerRequestV2
