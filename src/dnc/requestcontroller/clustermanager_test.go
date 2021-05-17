@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/rest"
 )
 
 func TestManagerPoolAddRemove(t *testing.T) {
@@ -25,15 +26,15 @@ func TestManagerPoolAddRemove(t *testing.T) {
 		RunningContext:    NewCancellableContext(),
 		ControllerManager: mgr1,
 		OrchestratorID:    "mgr1",
-	})
+	}, mockClusterAuthConfig{})
 	managerPool.add(&ClusterManager{
 		RunningContext:    NewCancellableContext(),
 		ControllerManager: mgr2,
 		OrchestratorID:    "mgr2",
-	})
+	}, mockClusterAuthConfig{})
 
 	// Add a nil manager to ensure we don't get a panic in case this ever happens
-	managerPool.add(nil)
+	managerPool.add(nil, nil)
 
 	/* Since managers are started in goroutine we can't guarantee that it is started by the time this
 	   line is executed, so wrap it in a retrier */
@@ -90,12 +91,12 @@ func TestOnlyOneManagerPerOrchestratorWillRun(t *testing.T) {
 		RunningContext:    NewCancellableContext(),
 		ControllerManager: mgr1,
 		OrchestratorID:    "orchestrator",
-	})
+	}, mockClusterAuthConfig{})
 	managerPool.add(&ClusterManager{
 		RunningContext:    NewCancellableContext(),
 		ControllerManager: mgr2,
 		OrchestratorID:    "orchestrator",
-	})
+	}, mockClusterAuthConfig{})
 
 	/* Since managers are started in goroutine we can't guarantee that it is started by the time this
 	   line is executed, but sleeping for a second should be safe */
@@ -158,12 +159,12 @@ func TestManagerPoolRemoveAll(t *testing.T) {
 		RunningContext:    NewCancellableContext(),
 		ControllerManager: mgr1,
 		OrchestratorID:    "mgr1",
-	})
+	}, mockClusterAuthConfig{})
 	managerPool.add(&ClusterManager{
 		RunningContext:    NewCancellableContext(),
 		ControllerManager: mgr2,
 		OrchestratorID:    "mgr2",
-	})
+	}, mockClusterAuthConfig{})
 
 	/* Since managers are started in goroutine we can't guarantee that it is started by the time this
 	   line is executed, so wrap it in a retrier */
@@ -274,7 +275,7 @@ func TestFailingManagersAreRestarted(t *testing.T) {
 		RunningContext:    NewCancellableContext(),
 		ControllerManager: mgr1,
 		OrchestratorID:    "mgr1",
-	})
+	}, mockClusterAuthConfig{})
 
 	/* Since managers are started in goroutine, and this manager is eventually restarted after some backoff,
 	   we can't guarantee that it is started by the time this line is executed, so wrap it in a retrier. */
@@ -323,4 +324,18 @@ func TestGetNextBackoff(t *testing.T) {
 	if !reflect.DeepEqual(expected, got) {
 		t.Fatalf("expected %v, got %v", expected, got)
 	}
+}
+
+type mockClusterAuthConfig struct{}
+
+func (mockClusterAuthConfig) Refresh(context.Context) error {
+	return nil
+}
+
+func (mockClusterAuthConfig) RefreshForever(ctx context.Context) {
+	<-ctx.Done()
+}
+
+func (mockClusterAuthConfig) GetConfig() *rest.Config {
+	return &rest.Config{}
 }

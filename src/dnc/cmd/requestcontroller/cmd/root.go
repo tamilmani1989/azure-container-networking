@@ -5,14 +5,20 @@ import (
 	ad "dnc/activedirectory"
 	"dnc/aiwrapper"
 	dncclient "dnc/client"
+	"dnc/datastoreshim"
+	"dnc/logger/loggershim"
+	"dnc/logger/simplejson"
 	"dnc/requestcontroller"
+	"dnc/requestcontroller/aad"
 	"dnc/requestcontroller/datastore"
 	syncdncclient "dnc/requestcontroller/dncclient"
 	"dnc/requestcontroller/env"
+	"dnc/requestcontroller/filesystem"
 	"dnc/requestcontroller/json"
 	"dnc/requestcontroller/kubernetes"
 	"dnc/utils"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Azure/azure-container-networking/aitelemetry"
@@ -31,6 +37,12 @@ const (
 )
 
 var (
+	/* Using a global lock since loggershim has a global var that needs to be initialized
+	   in a threadsafe way. This will be removed when we refactor loggershim to remove the
+	   global pointer
+	*/
+	loggershimMutex sync.Mutex
+
 	rootCmd = &cobra.Command{
 		Use:   executable,
 		Short: shortDesc,
@@ -116,37 +128,68 @@ func runRequestController(ctx context.Context, configFile string) error {
 	}
 
 	// Choose a kubeconfig provider
-	var kubeconfigProvider requestcontroller.KubeconfigProvider
+	var kubeClusterAuthProvider requestcontroller.KubeClusterAuthProvider
 	kubeconfigInfo := config.KubernetesConfig.KubeconfigInfo //later code references these properties a lot, so make future lines shorter
 	logger.Infof("Creating kubeconfig provider for config mode %s", kubeconfigInfo.Mode)
 
 	switch mode := kubeconfigInfo.Mode; mode {
 	case requestcontroller.KubeconfigFileMode:
-		kubeconfigProvider = requestcontroller.KubeconfigFromFileProvider{Filename: kubeconfigInfo.File}
+		kubeClusterAuthProvider = requestcontroller.KubeconfigFromFileProvider{
+			Filename:       kubeconfigInfo.File,
+			OrchestratorID: "", //TODO: get this from config
+		}
 	case requestcontroller.KubeconfigDatastoreMode:
-		// Datastore mode requires secret from keyvault, so build keyvault client
-		keyvaultClient, err := getKeyvaultClientFromMSI(context.TODO(), kubeconfigInfo.ClientCertificatesKeyvaultConfig.KeyvaultName,
-			kubeconfigInfo.ClientCertificatesKeyvaultConfig.MSIResourceID, kubeconfigInfo.ClientCertificatesKeyvaultConfig.AzureEnvironment)
+		// Datastore mode requires a secret provider
+		var secretProvider requestcontroller.SecretProvider
+		switch mode := kubeconfigInfo.ClientCertificatesSecretMode; mode {
+		case requestcontroller.ClientCertificatesKeyvaultMode:
+			secretProvider, err = getKeyvaultClientFromMSI(context.TODO(), kubeconfigInfo.ClientCertificatesKeyvaultConfig.KeyvaultName,
+				kubeconfigInfo.ClientCertificatesKeyvaultConfig.MSIResourceID, kubeconfigInfo.ClientCertificatesKeyvaultConfig.AzureEnvironment)
+			if err != nil {
+				return fmt.Errorf("Error getting keyvault client from MSI: %w", err)
+			}
+		case requestcontroller.ClientCertificatesFilesystemMode:
+			secretProvider = &filesystem.SecretProvider{
+				SecretFilenames: config.KubernetesConfig.KubeconfigInfo.ClientCertificatesFromFileConfig,
+			}
+		default:
+			return fmt.Errorf("invalid secret provider: %s", mode)
+		}
+
+		//datastoreshim has a dependency on loggershim, and loggershim has a global that needs to be initialized
+		loggershimMutex.Lock()
+		if loggershim.LS == nil {
+			// loggershim.LS hasn't been initialized elsewhere, so do it here
+			loggershim.LS = simplejson.NewLogger("datastoreshim")
+		}
+		loggershimMutex.Unlock()
+
+		ds, err := datastoreshim.NewDataStoreShim(config.DataStoreSettings,
+			config.LoggingConfig.ThresholdForLoggingDataStoreOpLatencyMs,
+			map[string]string{
+				datastore.OrchestratorInstancesConfigurationTableName: datastore.OrchestratorPropertiesPropertyName,
+			},
+		)
 		if err != nil {
-			return fmt.Errorf("Error getting keyvault client from MSI: %w", err)
+			return fmt.Errorf("could not build datastoreshim client: %w", err)
 		}
 
-		kubeconfigProviderOpts := datastore.KubeconfigProviderOptions{
-			DataStoreSettings:           config.DataStoreSettings,
-			LoggingConfig:               config.LoggingConfig,
-			SecretProvider:              keyvaultClient,
-			Logger:                      logger,
-			ClientCertificatesDirectory: kubeconfigInfo.ClientCertificatesDirectory,
-			KubeloginBinaryPath:         kubeconfigInfo.KubeloginBinaryPath,
-			AzureEnvironment:            kubeconfigInfo.AzureEnvironment,
-			ManagedDNCGUID:              kubeconfigInfo.ManagedDNCGUID,
+		kubeClusterAuthProviderOpts := datastore.KubeClusterAuthProviderOptions{
+			DataStoreClient:  ds,
+			SecretProvider:   secretProvider,
+			Logger:           logger,
+			AzureEnvironment: kubeconfigInfo.AzureEnvironment,
+			ManagedDNCGUID:   kubeconfigInfo.ManagedDNCGUID,
+			TokenProvider: aad.NewTokenProvider(aad.TokenProviderOptions{
+				Logger: logger,
+			}),
 		}
 
-		kcp, err := datastore.NewKubeconfigProvider(kubeconfigProviderOpts)
+		kcp, err := datastore.NewKubeClusterAuthProvider(kubeClusterAuthProviderOpts)
 		if err != nil {
 			return fmt.Errorf("Error getting kubeconfig provider: %w", err)
 		}
-		kubeconfigProvider = kcp
+		kubeClusterAuthProvider = kcp
 	default:
 		return fmt.Errorf("Error creating kubeconfig provider from config mode: %s is not a valid mode for config.kubernetesConfig.kubeconfigInfo.mode", mode)
 	}
@@ -182,7 +225,7 @@ func runRequestController(ctx context.Context, configFile string) error {
 
 	// Create the RequestController
 	requestController := requestcontroller.NewRequestController(requestcontroller.RequestControllerOptions{
-		KubeconfigProvider: kubeconfigProvider,
+		KubeClusterAuthProvider: kubeClusterAuthProvider,
 		ManagerBuilder: &kubernetes.ClusterManagerBuilder{
 			Config:             config,
 			SyncDNCClient:      syncDncClient,

@@ -4,7 +4,7 @@ ifeq ($(OS),Windows_NT)
 PUSH_TO_MINIKUBE_CMD := powershell.exe -NoProfile -Command $(REPO_ROOT)/src/dnc/requestcontroller/hack/scripts/push_to_minikube.ps1
 endif
 HELM_CHART_DIR=$(REPO_ROOT)/src/dnc/requestcontroller/hack/charts
-MINKUBE_START_OPTS = --cni=flannel
+MINKUBE_START_OPTS = --extra-config=apiserver.oidc-issuer-url=https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0 --extra-config=apiserver.oidc-username-claim=azp --extra-config=apiserver.oidc-username-prefix=- --extra-config=apiserver.oidc-client-id=4daa1833-1fda-4c06-88b4-d0dcbe8cc169 --extra-config=kubelet.v=5
 SKIP_UPLOAD_IMAGES ?= false
 
 # TODO: Is there a better way to skip uploading images to minikube cluster?

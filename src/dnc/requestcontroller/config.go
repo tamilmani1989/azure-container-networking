@@ -5,23 +5,26 @@ import (
 )
 
 const (
-	CleanupConfigmapMode            = "configmap"
-	KubeconfigFileMode              = "file"
-	KubeconfigDatastoreMode         = "datastore"
-	SubnetInfoProviderDatastoreMode = "datastore"
-	SubnetInfoProviderConfigMode    = "config"
+	CleanupConfigmapMode             = "configmap"
+	KubeconfigFileMode               = "file"
+	KubeconfigDatastoreMode          = "datastore"
+	SubnetInfoProviderDatastoreMode  = "datastore"
+	SubnetInfoProviderConfigMode     = "config"
+	ClientCertificatesKeyvaultMode   = "keyvault"
+	ClientCertificatesFilesystemMode = "filesystem"
 )
 
 func DefaultConfig() Config {
 	return Config{
 		KubernetesConfig: KubernetesConfig{
 			KubeconfigInfo: KubeconfigInfo{
-				Mode:                        KubeconfigFileMode,
-				File:                        "/etc/kubernetes/config.yaml",
-				ManagedDNCGUID:              "",
-				ClientCertificatesDirectory: "/etc/dnc/client-certificates",
-				KubeloginBinaryPath:         "/usr/local/bin/kubelogin",
-				AzureEnvironment:            "AzurePublicCloud",
+				Mode:                         KubeconfigFileMode,
+				File:                         "/etc/kubernetes/config.yaml",
+				ManagedDNCGUID:               "",
+				TokenCacheDirectory:          "/etc/requestcontroller/tokencache",
+				TokenCacheFilename:           "tokenCache.json",
+				AzureEnvironment:             "AzurePublicCloud",
+				ClientCertificatesSecretMode: ClientCertificatesKeyvaultMode,
 				ClientCertificatesKeyvaultConfig: KeyvaultInfo{
 					KeyvaultName:     "",
 					MSIResourceID:    "",
@@ -105,6 +108,7 @@ type Config struct {
 	CleanupConfig            CleanupConfig            `json:"cleanupConfig,omitempty"`
 	TelemetrySettings        configuration.TelemetrySettings
 	MetricsConfig            MetricsConfig `json:"metricsConfig,omitempty"`
+	FeatureFlags             FeatureFlags  `json:"featureFlags,omitempty"`
 }
 
 // KubernetesConfig config for interacting with kubernetes cluster
@@ -118,13 +122,15 @@ type KubernetesConfig struct {
 
 type KubeconfigInfo struct {
 	// Mode is one of (file | datastore)
-	Mode                             string       `json:"mode"`
-	File                             string       `json:"file"`
-	ManagedDNCGUID                   string       `json:"managedDNCGUID"`
-	ClientCertificatesDirectory      string       `json:"clientCertificatesDirectory"`
-	KubeloginBinaryPath              string       `json:"kubeloginBinaryPath"`
-	AzureEnvironment                 string       `json:"azureEnvironment"`
-	ClientCertificatesKeyvaultConfig KeyvaultInfo `json:"clientCertificatesKeyvaultConfig"`
+	Mode                             string            `json:"mode"`
+	File                             string            `json:"file"`
+	ManagedDNCGUID                   string            `json:"managedDNCGUID"`
+	AzureEnvironment                 string            `json:"azureEnvironment"`
+	ClientCertificatesSecretMode     string            `json:"clientCertificatesSecretMode"`
+	ClientCertificatesKeyvaultConfig KeyvaultInfo      `json:"clientCertificatesKeyvaultConfig"`
+	ClientCertificatesFromFileConfig map[string]string `json:"clientCertificatesFromFileConfig"`
+	TokenCacheDirectory              string            `json:"tokenCacheDirectory,omitempty"`
+	TokenCacheFilename               string            `json:"tokenCacheFilename,omitempty"`
 }
 
 type KeyvaultInfo struct {
@@ -183,4 +189,8 @@ type CleanupConfig struct {
 
 type MetricsConfig struct {
 	NNCReconcilerMetricPublishInterval string `json:"nncReconcilerMetricPublishInterval,omitempty"`
+}
+
+type FeatureFlags struct {
+	EnableStartupNodeReconcile bool `json:"enableStartupNodeReconcile,omitempty"`
 }

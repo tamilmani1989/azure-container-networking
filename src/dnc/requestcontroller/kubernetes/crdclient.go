@@ -9,11 +9,12 @@ import (
 	"time"
 
 	acnv1alpha "github.com/Azure/azure-container-networking/nodenetworkconfig/api/v1alpha"
+	"github.com/sirupsen/logrus"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/rest"
 )
 
 // K8sCRDClient is an interface that wraps only the functions of a k8s crd client that the controller will use to ensure the CRD is installed
@@ -24,12 +25,7 @@ type K8sCRDClient interface {
 
 // getCRDClientforKubeconfig gets a K8sCRDClient for a given kubeconfig. Have to return a K8sClient (interface) here instead of a struct since the k8s libs
 // hide the structs from the caller
-func getCRDClientForKubeconfig(kubeconfig []byte) (K8sCRDClient, error) {
-	restConfig, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-
+func getCRDClientForRESTConfig(restConfig *rest.Config) (K8sCRDClient, error) {
 	crdClientSet, err := apiextensionsclientset.NewForConfig(restConfig)
 	if err != nil {
 		return nil, fmt.Errorf("Error creating client for CRD definition creation: %w", err)
@@ -38,7 +34,8 @@ func getCRDClientForKubeconfig(kubeconfig []byte) (K8sCRDClient, error) {
 	return crdClientSet.ApiextensionsV1().CustomResourceDefinitions(), nil
 }
 
-func ensureCRDIsRegistered(ctx context.Context, client K8sCRDClient) error {
+func ensureCRDIsRegistered(ctx context.Context, client K8sCRDClient, logger logrus.FieldLogger) error {
+	logger.Info("ensuring CRD definition exists on cluster")
 	retrier := retry.Retrier{
 		Attempts: 60,
 		Delay:    time.Second * 5,
@@ -181,7 +178,8 @@ func ensureCRDIsRegistered(ctx context.Context, client K8sCRDClient) error {
 		_, err := client.Create(ctx, crd, metav1.CreateOptions{})
 
 		if err != nil && !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("Error adding NNC CRD definition to cluster: %w", err)
+			logger.Errorf("could not add CRD definition to cluster: %v", err)
+			return err
 		}
 
 		return nil

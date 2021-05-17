@@ -1,0 +1,38 @@
+{
+	"kubernetesConfig": {
+		"kubeconfigInfo":  {
+			"mode": "datastore",
+			"managedDNCGUID": "f30f50e5-33bf-4d63-9117-85636e86bdc0",
+			"clientCertificatesSecretMode": "filesystem",
+			"clientCertificatesFromFileConfig": {
+				"matlongAADTest": "C:\\Users\\matlong\\OneDrive - Microsoft\\Documents\\matlongAADTest2.pfx.b64"
+			}
+		},
+		"namespace": "kube-system"
+	},
+	"requestScalerConfig": {
+		"batchSize": 16
+	},
+	"dncClientConfig": {
+		"requestTimeout": "10s",
+		"pollingInterval": "1s",
+		"dncEndpoint": "http://127.0.0.1:9000"
+	},
+	"subnetInfoProviderConfig": {
+		"mode": "config",
+		"primaryTokenID": "cbabdad0-f88a-4791-b6d2-f18078953d23",
+		"secondaryTokenID": "92b714b6-0a70-4d65-830f-cbeab1826e01",
+		"vnetID": "576d174c-57b8-4688-9d53-1b74caa642ca",
+		"subnetName": "subnet1"
+	},
+	"metricsConfig": {
+		"nncReconcilerMetricPublishInterval": "30s"
+	},
+	"DataStoreSettings": {
+		"AzureStorageInfo": {
+			"IsUsingCosmosDb": true,
+			"AccountName": "dbrptesteastus2euap",
+			"Key": ""
+		}
+	}
+}

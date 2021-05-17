@@ -5,47 +5,47 @@ package requestcontroller
 import (
 	"context"
 	"dnc/api"
+	"dnc/retry"
 	"fmt"
-	"sync"
 	"time"
 
+	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/rest"
 )
-
-/* Using a global lock since loggershim has a global var that needs to be initialized
-   in a threadsafe way. This will be removed when we refactor loggershim to remove the
-   global pointer
-*/
-var LoggershimMutex sync.Mutex
 
 const (
-	kubeconfigRefreshIntervalSeconds        = 300
-	kubeconfigRefreshOnErrorIntervalSeconds = 30
+	kubeClusterAuthConfigRefreshIntervalSeconds        = 300
+	kubeClusterAuthConfigRefreshOnErrorIntervalSeconds = 30
+	OrchestratorIDContextKey                           = "orchestratorID"
 )
+
+// ContextKey is used as a key to context.WithValue, which should not use built-in types
+type ContextKey string
 
 // RequestController handles requests from CNS for IP allocations/deallocations and calls DNC functions
 type RequestController struct {
-	KubeconfigProvider    KubeconfigProvider
-	ClusterManagerBuilder ClusterManagerBuilder
-	Logger                logrus.FieldLogger
-	Config                Config
-	clusterManagerPool    clusterManagerPool
-	orchestrators         map[string]struct{}
+	KubeClusterAuthProvider KubeClusterAuthProvider
+	ClusterManagerBuilder   ClusterManagerBuilder
+	Logger                  logrus.FieldLogger
+	Config                  Config
+	clusterManagerPool      clusterManagerPool
+	orchestrators           map[string]struct{}
 }
 
 type RequestControllerOptions struct {
-	KubeconfigProvider KubeconfigProvider
-	ManagerBuilder     ClusterManagerBuilder
-	Logger             logrus.FieldLogger
-	Config             Config
+	KubeClusterAuthProvider KubeClusterAuthProvider
+	ManagerBuilder          ClusterManagerBuilder
+	Logger                  logrus.FieldLogger
+	Config                  Config
 }
 
 func NewRequestController(opts RequestControllerOptions) *RequestController {
 	return &RequestController{
-		KubeconfigProvider:    opts.KubeconfigProvider,
-		ClusterManagerBuilder: opts.ManagerBuilder,
-		Logger:                opts.Logger,
-		Config:                opts.Config,
+		KubeClusterAuthProvider: opts.KubeClusterAuthProvider,
+		ClusterManagerBuilder:   opts.ManagerBuilder,
+		Logger:                  opts.Logger,
+		Config:                  opts.Config,
 		clusterManagerPool: clusterManagerPool{
 			clusterManagers: make(map[string]*ClusterManager),
 			logger:          opts.Logger,
@@ -57,7 +57,7 @@ func NewRequestController(opts RequestControllerOptions) *RequestController {
 // Start starts the request controller and blocks until the context is cancelled or until an unrecoverable error occurs
 func (r *RequestController) Start(ctx context.Context) error {
 	// start the kubeconfig refresh loop
-	go r.refreshKubeconfigsForever(ctx)
+	go r.refreshClusterAuthConfigsForever(ctx)
 
 	// Wait for context cancellation
 	<-ctx.Done()
@@ -68,13 +68,13 @@ func (r *RequestController) Start(ctx context.Context) error {
 	return ctx.Err()
 }
 
-// refreshKubeconfigsForever will refresh the kubeconfigs every 30 seconds, updating the managerpool with the result, until the context is cancelled
-func (r *RequestController) refreshKubeconfigsForever(ctx context.Context) {
-	timeUntilNextRefresh := time.Second * kubeconfigRefreshIntervalSeconds
-	if err := r.refreshKubeconfigs(ctx); err != nil {
+// refreshClusterAuthConfigsForever will refresh the kubeconfigs every 30 seconds, updating the managerpool with the result, until the context is cancelled
+func (r *RequestController) refreshClusterAuthConfigsForever(ctx context.Context) {
+	timeUntilNextRefresh := time.Second * kubeClusterAuthConfigRefreshIntervalSeconds
+	if err := r.refreshClusterAuthConfigs(ctx); err != nil {
 		// nothing we can do except retry, so just log the error
-		r.Logger.Error("Unable to refresh kubeconfigs, will retry")
-		timeUntilNextRefresh = time.Second * kubeconfigRefreshOnErrorIntervalSeconds
+		r.Logger.Errorf("Unable to refresh cluster auth configs due to error: %v, will retry", err)
+		timeUntilNextRefresh = time.Second * kubeClusterAuthConfigRefreshOnErrorIntervalSeconds
 	}
 
 	for {
@@ -82,36 +82,69 @@ func (r *RequestController) refreshKubeconfigsForever(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-time.After(timeUntilNextRefresh):
-			if err := r.refreshKubeconfigs(ctx); err != nil {
+			if err := r.refreshClusterAuthConfigs(ctx); err != nil {
 				// nothing we can do except retry, so just log the error
 				r.Logger.Error("Unable to refresh kubeconfigs, will retry")
-				timeUntilNextRefresh = time.Second * kubeconfigRefreshOnErrorIntervalSeconds
+				timeUntilNextRefresh = time.Second * kubeClusterAuthConfigRefreshOnErrorIntervalSeconds
 			} else {
-				timeUntilNextRefresh = time.Second * kubeconfigRefreshIntervalSeconds
+				timeUntilNextRefresh = time.Second * kubeClusterAuthConfigRefreshIntervalSeconds
 			}
 		}
 	}
 }
 
-func (r *RequestController) refreshKubeconfigs(ctx context.Context) error {
-	// get the kubeconfigs
-	// TODO: make child ctx
-	kubeconfigs, err := r.KubeconfigProvider.GetBytesForAll(ctx)
+func (r *RequestController) refreshClusterAuthConfigs(ctx context.Context) error {
+	// get the cluster auth configs
+	clusterAuthConfigs, err := r.KubeClusterAuthProvider.GetAllClusterAuthConfigs(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting all auth configs: %w", err)
 	}
 
-	// build a manager for each and add to the manager pool
-	for orchestratorID, kubeconfig := range kubeconfigs {
-		mgr, err := r.ClusterManagerBuilder.Build(ClusterManagerBuilderOptions{
-			Kubeconfig:     kubeconfig,
-			OrchestratorID: orchestratorID,
-		})
-		if err != nil {
-			return err
-		}
+	orchestratorIDs := make([]string, len(clusterAuthConfigs))
+	i := 0
+	for orchestratorID := range clusterAuthConfigs {
+		orchestratorIDs[i] = orchestratorID
+		i++
+	}
 
-		r.clusterManagerPool.add(mgr)
+	r.Logger.Infof("found %d orchestrators: %v", len(clusterAuthConfigs), orchestratorIDs)
+
+	// build a manager for each and add to the manager pool
+	for orchestratorID, clusterAuthConfig := range clusterAuthConfigs {
+		if r.clusterManagerPool.has(orchestratorID) {
+			// skip this orchestrator since it's already in the pool
+			continue
+		}
+		go func(orchestratorID string, clusterAuthConfig ClusterAuthConfig) {
+			retrier := retry.Retrier{
+				Attempts: 10,
+				Delay:    time.Second,
+			}
+
+			buildErr := retrier.Do(ctx, func() error {
+				mgr, err := r.ClusterManagerBuilder.Build(ClusterManagerBuilderOptions{
+					ClusterAuthConfig: clusterAuthConfig,
+					OrchestratorID:    orchestratorID,
+				})
+
+				if err != nil {
+					r.Logger.WithField("orchestratorID", orchestratorID).
+						WithError(err).
+						Error("error building cluster manager, will retry")
+					return err
+				}
+
+				r.clusterManagerPool.add(mgr, clusterAuthConfig)
+
+				return nil
+			})
+
+			if buildErr != nil {
+				r.Logger.WithField("orchestratorID", orchestratorID).
+					WithError(buildErr).
+					Error("error building cluster manager, and no more retries left. Will retry when cluster auth configs are refreshed.")
+			}
+		}(orchestratorID, clusterAuthConfig)
 
 		// save the orchestrator ID to compare against later
 		r.orchestrators[orchestratorID] = struct{}{}
@@ -119,8 +152,10 @@ func (r *RequestController) refreshKubeconfigs(ctx context.Context) error {
 
 	// remove the managers that don't exist anymore
 	for orchestratorID := range r.orchestrators {
-		if _, found := kubeconfigs[orchestratorID]; !found {
+		if _, found := clusterAuthConfigs[orchestratorID]; !found {
+			r.Logger.Infof("removing orchestrator %s from the pool", orchestratorID)
 			r.clusterManagerPool.remove(orchestratorID)
+			delete(r.orchestrators, orchestratorID)
 		}
 	}
 
@@ -137,8 +172,8 @@ type ClusterManagerBuilder interface {
 }
 
 type ClusterManagerBuilderOptions struct {
-	Kubeconfig     []byte
-	OrchestratorID string
+	ClusterAuthConfig ClusterAuthConfig
+	OrchestratorID    string
 }
 
 type SubnetInfo struct {
@@ -170,10 +205,15 @@ type SubnetInfoProvider interface {
 	GetSubnetInfo(ctx context.Context, delegatedSubnetID, subnetName string) (SubnetInfo, error)
 }
 
-//KubeconfigProvider gets all kubeconfig files as bytes that this RequestController will use to watch the API server
-type KubeconfigProvider interface {
-	//GetBytesForAll returns a map of {controller guid -> kubeconfig bytes} for each cluster that this RC watches
-	GetBytesForAll(ctx context.Context) (map[string][]byte, error)
+type KubeClusterAuthProvider interface {
+	//GetAllRESTConfigs returns a map of orchestratorID->ClusterAuthConfig for each cluster that this RC watches. The ClusterAuthConfig must be refreshed (see `Refresh(ctx) error`) before use.
+	GetAllClusterAuthConfigs(ctx context.Context) (map[string]ClusterAuthConfig, error)
+}
+
+type ClusterAuthConfig interface {
+	GetConfig() *rest.Config
+	Refresh(ctx context.Context) error
+	RefreshForever(ctx context.Context)
 }
 
 //SecretProvider provides a named secret
@@ -202,4 +242,16 @@ func (c *ConfigSubnetInfoProvider) GetSubnetInfo(ctx context.Context, delegatedS
 		SecondaryToken:    c.Config.SecondaryTokenID,
 		VnetID:            c.Config.VnetID,
 	}, nil
+}
+
+type TokenProvider interface {
+	GetToken(context.Context, TokenOptions) (adal.Token, error)
+}
+
+type TokenOptions struct {
+	ServerAppID              string
+	ClientAppID              string
+	ClientCertificateKeyPair []byte
+	ServerTenantID           string
+	AzureEnvironment         string
 }

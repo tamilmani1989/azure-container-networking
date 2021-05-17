@@ -15,7 +15,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	ctrlrun "sigs.k8s.io/controller-runtime"
 	ctrl "sigs.k8s.io/controller-runtime/pkg/controller"
 )
@@ -28,14 +27,13 @@ type ClusterManagerBuilder struct {
 }
 
 func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuilderOptions) (*requestcontroller.ClusterManager, error) {
-	// Build a REST config from the kubeconfig
-	restConfig, err := clientcmd.RESTConfigFromKubeConfig(opts.Kubeconfig)
-	if err != nil {
-		return nil, fmt.Errorf("Error building REST config from kubeconfig: %w", err)
+	// refresh the ClusterAuthConfig to make sure it is fresh
+	if err := opts.ClusterAuthConfig.Refresh(context.TODO()); err != nil {
+		return nil, fmt.Errorf("could not refresh cluster auth config: %w", err)
 	}
 
 	// Build a crd client
-	crdClient, err := getCRDClientForKubeconfig(opts.Kubeconfig)
+	crdClient, err := getCRDClientForRESTConfig(opts.ClusterAuthConfig.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("Error creating client for CRD definition creation: %w", err)
 	}
@@ -70,7 +68,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 	// resync reconcilers every hour
 	resyncPeriod := time.Hour
 
-	ctrlRuntimeMgr, err := ctrlrun.NewManager(restConfig, ctrlrun.Options{
+	ctrlRuntimeMgr, err := ctrlrun.NewManager(opts.ClusterAuthConfig.GetConfig(), ctrlrun.Options{
 		Scheme:                  scheme,
 		MetricsBindAddress:      "0", //disable metrics for now, TODO: enable via config
 		LeaderElection:          c.Config.LeaderElectionSettings.Enabled,
@@ -128,13 +126,13 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 	}
 
 	//build the ConfigMapCleaner
-	clientset, err := kubernetes.NewForConfig(restConfig)
+	clientset, err := kubernetes.NewForConfig(opts.ClusterAuthConfig.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("Error creating kube client for Cleaner: %w", err)
 	}
 
 	// Get untyped rest client for cleaner
-	unversionedRESTClient, err := getUnversionedRESTClient(opts.Kubeconfig)
+	unversionedRESTClient, err := getUnversionedRESTClient(opts.ClusterAuthConfig.GetConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +147,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 			ctrlRuntimeMgr:    ctrlRuntimeMgr,
 			crdClient:         crdClient,
 			syncDNCClient:     c.SyncDNCClient,
-			logger:            c.Logger,
+			logger:            c.Logger.WithField("orchestratorID", opts.OrchestratorID),
 			metricsPublishers: nodeNetworkConfigReconciler.getMetricsPublishers(),
 			cleaner: NewConfigmapCleaner(CleanerOpts{
 				KubeCoreV1Client:    clientset.CoreV1(),
@@ -164,21 +162,22 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 				},
 				NNCNamespace: c.Config.KubernetesConfig.Namespace,
 			}),
-			nncNamespace:   c.Config.KubernetesConfig.Namespace,
-			initialIPCount: c.Config.RequestScalerConfig.BatchSize,
+			nncNamespace:               c.Config.KubernetesConfig.Namespace,
+			initialIPCount:             c.Config.RequestScalerConfig.BatchSize,
+			enableStartupNodeReconcile: c.Config.FeatureFlags.EnableStartupNodeReconcile,
 		},
 		OrchestratorID: opts.OrchestratorID,
 	}, nil
 }
 
-func getUnversionedRESTClient(kubeconfig []byte) (*rest.RESTClient, error) {
+/* TODO: This will break in managed DNC scenario since we don't keep refreshing this copy of the config. But, we don't
+   use this in managed DNC scenario, so it's fine for now. We are planning to remove this code after AKS cleanupservice is
+   done, so this comment and code will be removed soon anyway */
+func getUnversionedRESTClient(restConfig *rest.Config) (*rest.RESTClient, error) {
 	/* When reusing the restConfig that is given to the managers, we see an issue where the scheme gets corrupted
 	   and starts dumping lots of errors to stdout. While these errors seem benign (rc keeps working), we can just build
 	   a new restConfig here so we don't dump a bunch of errors to stdout */
-	config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
-	if err != nil {
-		return nil, fmt.Errorf("Error building REST config from kubeconfig: %w", err)
-	}
+	config := rest.CopyConfig(restConfig)
 
 	newScheme := runtime.NewScheme()
 	if err := clientgoscheme.AddToScheme(newScheme); err != nil {

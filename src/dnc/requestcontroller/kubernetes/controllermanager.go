@@ -60,20 +60,21 @@ type Cleaner interface {
 
 // controllerManager is an implementation of requestcontroller.ControllerManager
 type controllerManager struct {
-	ctrlRuntimeMgr    ctrlmanager.Manager
-	crdClient         K8sCRDClient
-	syncDNCClient     requestcontroller.SynchronousDNCClient
-	logger            logrus.FieldLogger
-	metricsPublishers []requestcontroller.MetricsPublisher
-	cleaner           Cleaner
-	nncNamespace      string
-	initialIPCount    int64
+	ctrlRuntimeMgr             ctrlmanager.Manager
+	crdClient                  K8sCRDClient
+	syncDNCClient              requestcontroller.SynchronousDNCClient
+	logger                     logrus.FieldLogger
+	metricsPublishers          []requestcontroller.MetricsPublisher
+	cleaner                    Cleaner
+	nncNamespace               string
+	initialIPCount             int64
+	enableStartupNodeReconcile bool
 }
 
 // Start starts the controller and blocks until the exitchan is closed, or an unrecoverable error occurs
 func (c *controllerManager) Start(ctx context.Context) error {
 	// Ensure CRD definition is installed on cluster before starting up manager
-	if err := ensureCRDIsRegistered(ctx, c.crdClient); err != nil {
+	if err := ensureCRDIsRegistered(ctx, c.crdClient, c.logger); err != nil {
 		return err
 	}
 
@@ -99,15 +100,17 @@ func (c *controllerManager) Start(ctx context.Context) error {
 
 	// Reconcile the nodes from dnc list-nodes; client will become valid after controller is started
 
-	rehydrateCtx, rehydrateCancel := context.WithCancel(ctx)
-	defer rehydrateCancel()
-	go func(ctx context.Context) {
-		if err := c.reconcileDNCNodes(ctx); err != nil {
-			// TODO: Should this be a fatal error and passed back to caller?
-			// for now, just log the error instead of exiting the clusterManager
-			c.logger.Errorf("Error rehydrating nodes from DNC: %v", err)
-		}
-	}(rehydrateCtx)
+	if c.enableStartupNodeReconcile {
+		rehydrateCtx, rehydrateCancel := context.WithCancel(ctx)
+		defer rehydrateCancel()
+		go func(ctx context.Context) {
+			if err := c.reconcileDNCNodes(ctx); err != nil {
+				// TODO: Should this be a fatal error and passed back to caller?
+				// for now, just log the error instead of exiting the clusterManager
+				c.logger.Errorf("Error rehydrating nodes from DNC: %v", err)
+			}
+		}(rehydrateCtx)
+	}
 
 	// Start a metrics publisher loop for each metric
 	metricsCtx, metricsCancel := context.WithCancel(ctx)

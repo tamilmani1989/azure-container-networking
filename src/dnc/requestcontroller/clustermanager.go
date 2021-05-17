@@ -38,9 +38,16 @@ type ControllerManager interface {
 	Start(context.Context) error
 }
 
+func (c *clusterManagerPool) has(orchestratorID string) bool {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	_, exists := c.clusterManagers[orchestratorID]
+	return exists
+}
+
 // add adds a manager to the pool and starts it. It is an idempotent call - an existing manager is not restarted
 // TODO: support kubeconfigs bytes change
-func (c *clusterManagerPool) add(clusterManager *ClusterManager) {
+func (c *clusterManagerPool) add(clusterManager *ClusterManager, clusterAuthConfig ClusterAuthConfig) {
 	if clusterManager == nil {
 		return
 	}
@@ -52,7 +59,7 @@ func (c *clusterManagerPool) add(clusterManager *ClusterManager) {
 	// add the manager to the pool if it is not present and start it
 	if _, found := c.clusterManagers[clusterManager.OrchestratorID]; !found {
 		c.clusterManagers[clusterManager.OrchestratorID] = clusterManager
-		go c.runClusterManager(clusterManager)
+		go c.runClusterManager(clusterManager, clusterAuthConfig)
 	}
 }
 
@@ -83,11 +90,14 @@ func (c *clusterManagerPool) removeAll() {
 }
 
 // run runs the manager, restarting with exponential backoff if there is an error
-func (c *clusterManagerPool) runClusterManager(clusterManager *ClusterManager) {
+func (c *clusterManagerPool) runClusterManager(clusterManager *ClusterManager, clusterAuthConfig ClusterAuthConfig) {
 	errChan := make(chan error)
 	defer close(errChan)
 
 	var backoff time.Duration
+
+	// keep the auth config updated while the manager is running
+	go clusterAuthConfig.RefreshForever(clusterManager.RunningContext)
 
 	for {
 		// start the manager

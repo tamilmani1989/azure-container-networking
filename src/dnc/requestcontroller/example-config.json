@@ -23,5 +23,12 @@
 	},
 	"metricsConfig": {
 		"nncReconcilerMetricPublishInterval": "30s"
+	},
+	"DataStoreSettings": {
+		"AzureStorageInfo": {
+			"IsUsingCosmosDb": false,
+			"AccountName": "",
+			"Key": ""
+		}
 	}
 }
