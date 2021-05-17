@@ -2326,7 +2326,8 @@ func GetNetworkContainerRequest(ncGoalState *NCGoalState, ncConfig *NCConfigurat
 		MultiTenancyInfo:           cns.MultiTenancyInfo{EncapType: cns.Vlan, ID: ncGoalState.VlanID},
 		LocalIPConfiguration:       localIPConfiguaration,
 		AllowHostToNCCommunication: ncConfig.GetAllowHostToNCCommunicationStatus(),
-		AllowNCToHostCommunication: ncConfig.GetAllowNCToHostCommunicationStatus()}, false, nil
+		AllowNCToHostCommunication: ncConfig.GetAllowNCToHostCommunicationStatus(),
+		EndpointPolicies: ncConfig.GetEndpointPolicies()}, false, nil
 }
 
 func getLocalIPGateway(ipsubnet string) (string, error) {
