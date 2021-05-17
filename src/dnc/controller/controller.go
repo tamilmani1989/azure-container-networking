@@ -901,6 +901,10 @@ func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*
 		unmarshalErr := json.Unmarshal([]byte(ncConfig.GetAssociationInfo().OrchestratorContext), &context)
 		if unmarshalErr != nil {
 			loggershim.LS.Debugf("Unmarshalling OrchestratorContext Failed %+v", unmarshalErr)
+			return nil, &api.JsonErr{
+				Code:       api.StatusInternalServerError,
+				HTTPStatus: http.StatusInternalServerError,
+				Text:       unmarshalErr.Error()}
 		}
 		//split string to take the latter part of PodName for LogicalContainerID
 		logicalContainerID := strings.Split(context.PodName, "_")
