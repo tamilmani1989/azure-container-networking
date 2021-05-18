@@ -1,7 +1,6 @@
 package server
 
 import (
-	"dnc/datamodel"
 	"dnc/logger/loggershim"
 	"dnc/retry"
 	"encoding/json"
@@ -34,13 +33,19 @@ var retrier = retry.Retrier{
 }
 
 func (h *ProbeRoutes) Health(w http.ResponseWriter, r *http.Request) {
+	if h.Querier == nil {
+		h.Logger.Errorf("[health probe] data store not initialized")
+		h.writeResponse(w, http.StatusInternalServerError, DNCStatusJSON{StorageHealthy: false, StorageErrorMessage: "data store not initialized"})
+		return
+	}
+
 	var (
 		entity     *storage.Entity
 		storageErr storage.AzureStorageServiceError
 	)
 
 	retryFn := func() error {
-		e, _, err := h.Querier.Query(datamodel.IPAllocationsTableName, "dummy")
+		e, _, err := h.Querier.Query("NetworkConfigurationTable", "dummy")
 		if err != nil {
 			stErr, ok := err.(storage.AzureStorageServiceError)
 			if !ok || stErr.StatusCode == http.StatusInternalServerError {

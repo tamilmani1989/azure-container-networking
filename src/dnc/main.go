@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-container-networking/aitelemetry"
+
 	acncommon "github.com/Azure/azure-container-networking/common"
 	"github.com/Azure/azure-container-networking/telemetry"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -55,16 +56,12 @@ var (
 	ctrler             *controller.Controller
 	dncServer          server.Server
 	replicaInstance    *replica.Replica
-	stderr             bool
 
 	//  Base retry interval
 	requestContextRetryInterval time.Duration
 
 	//  Max request process backoff interval
 	maxRequestBackoffInterval time.Duration
-
-	// Flag to disable telemetry
-	disableTelemetry bool
 
 	// HTTP client object to be reused wherever needed
 	httpClient *http.Client
@@ -82,6 +79,8 @@ const (
 	maxKeyvaultRetrievalTime  = 10
 	tempPubSubCertFilePattern = "pubsubcert-*.pem"
 	sslCertServerName         = "dnc.azure.com"
+	configEnvVar              = "DNC_CONFIGURATION_PATH"
+	defaultConfigPath         = "config.json"
 )
 
 func printVersion() {
@@ -94,25 +93,41 @@ func main() {
 	vers := acncommon.GetArg(OptVersion).(bool)
 	if vers {
 		printVersion()
-		os.Exit(0)
+		return
 	}
 
-	stderr = acncommon.GetArg(OptLogTargetStderr).(bool)
-	configpath, found := os.LookupEnv("DNC_CONFIGURATION_PATH")
+	stdErr := acncommon.GetArg(OptLogTargetStderr).(bool)
+	config = mustReadConfig(defaultConfigPath)
+
+	startDNC(config, stdErr)
+}
+
+// mustReadConfig will attempt to determine config file path from environment
+// or default to the provided path if env var not set. It will then parse a
+// config or exit the process on failure.
+func mustReadConfig(defaultPath string) *configuration.Configuration {
+	configpath, found := os.LookupEnv(configEnvVar)
 	if !found {
-		configpath = "config.json"
+		configpath = defaultPath
 	}
 
-	config = configuration.Load(configpath)
+	config := configuration.Load(configpath)
 	configuration.OverrideConfigFromEnv(config)
 	configuration.SetDncConfigDefaults(config)
-	disableTelemetry = config.TelemetrySettings.DisableTelemetry
 
-	var aiTelemetryErr error
+	return config
+}
 
-	if disableTelemetry {
-		reports = nil
+func startDNC(config *configuration.Configuration, stdErr bool) {
+	logger = loggershim.NewLoggerShim(config)
+	if config.TelemetrySettings.DisableTelemetry {
+		logger.Init(stdErr, nil)
 	} else {
+		logger.Init(stdErr, reports)
+	}
+	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
+
+	if !config.TelemetrySettings.DisableTelemetry {
 		aiConfig := aitelemetry.AIConfig{
 			BatchSize:                    config.TelemetrySettings.TelemetryBatchSizeBytes,
 			BatchInterval:                config.TelemetrySettings.TelemetryBatchIntervalInSecs,
@@ -125,17 +140,11 @@ func main() {
 			GetEnvRetryWaitTimeInSecs:    config.TelemetrySettings.GetEnvRetryWaitTimeInSecs,
 		}
 
-		aiTelemetryErr = aiwrapper.CreateTelemetryHandle(aiConfig)
-	}
-
-	logger = loggershim.NewLoggerShim(config)
-	logger.Init(stderr, reports)
-	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
-
-	if aiTelemetryErr != nil {
-		logger.Errorf("Error initializing AI telemetry handle. %v", aiTelemetryErr)
-	} else {
-		logger.Debugf("Successfully initialized AI telemetry.")
+		if err := aiwrapper.CreateTelemetryHandle(aiConfig); err != nil {
+			logger.Errorf("Error initializing AI telemetry handle: %v", err)
+		} else {
+			logger.Debugf("Successfully initialized AI telemetry")
+		}
 	}
 
 	env, err := azure.EnvironmentFromName(config.AzureEnvironment.EnvironmentName)
@@ -247,7 +256,7 @@ func main() {
 	}
 
 	// Initialize the datamodel before initializing controller
-	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
+	if shouldInitDatamodel(config.DataStoreSettings) {
 		masterElectionShim.Init()
 		// TO DO : Pass config object itself.
 		err := datamodel.Init(
@@ -272,6 +281,11 @@ func main() {
 
 	ctrler = controller.NewController(replicaInstance, sessionManager, config.CNSSettings.ConnectionStrings.SetOrchestratorTypeURLFmt,
 		masterElectionShim, config, httpClient, cnsHttpClient, &ipAllocator)
+
+	if shouldInitDatamodel(config.DataStoreSettings) {
+		ctrler.UpdateReplicaStatus(true)
+		setOrchestratorForTelemetry()
+	}
 
 	probeRoutes := server.ProbeRoutes{
 		// todo: this doesn't work correctly in cases where datastore settings are provided after start up.
@@ -301,11 +315,6 @@ func main() {
 
 	requestContextRetryInterval = time.Duration(config.DNCSettings.RequestRetryBaseInterval) * time.Millisecond
 	maxRequestBackoffInterval = time.Duration(config.DNCSettings.MaxRequestBackoffInterval) * time.Millisecond
-
-	if config.DataStoreSettings != (configuration.DataStoreSettings{}) {
-		ctrler.UpdateReplicaStatus(true)
-		setOrchestratorForTelemetry()
-	}
 
 	pubSubCfg := config.PubSubProxySettings
 	if pubSubCfg.EnablePubSubProxy {
@@ -348,6 +357,18 @@ func main() {
 	dncServer.Start()
 }
 
+func shouldInitDatamodel(dsSettings configuration.DataStoreSettings) bool {
+	if dsSettings.AzureStorageInfo != (configuration.AzureStorageInfo{}) {
+		return true
+	}
+
+	if dsSettings.TestPersistenceStoreInfo != (configuration.TestPersistenceStoreInfo{}) {
+		return true
+	}
+
+	return false
+}
+
 func getTokenFetcher() (ad.TokenFetcher, error) {
 	switch {
 	case usePodIdentityThroughNMI():
@@ -379,18 +400,28 @@ func getCertPath(ctx context.Context, kvc *ad.KeyvaultClient, certName string) (
 }
 
 func processExitCallback() {
+	logger.Debugf("terminating DNC...")
+
 	if ctrler.IsReplicaReady() {
+		logger.Debugf("processing master election cleanup")
 		masterElectionShim.Cleanup()
 	}
 
 	// If using test persistence store, dump state
 	if config.DataStoreSettings.TestPersistenceStoreInfo.Test != "" {
+		logger.Debugf("dumping test store state")
 		datamodel.DumpState()
 	}
 
-	cancelProcessing <- true
+	select {
+	case cancelProcessing <- true:
+		logger.Debugf("request monitor cancellation signal sent")
+	default:
+		logger.Debugf("request monitor not started, continuing termination...")
+	}
 
 	if config.PubSubProxySettings.EnablePubSubProxy {
+		logger.Debugf("terminating pubsub proxy")
 		pubsubproxy.Deinit()
 	}
 }
@@ -424,7 +455,7 @@ func startReplica(c *controller.Controller) {
 		go monitorNetworkContainers()
 	}
 
-	if !disableTelemetry {
+	if !config.TelemetrySettings.DisableTelemetry {
 		go sendTelemetry()
 	}
 }

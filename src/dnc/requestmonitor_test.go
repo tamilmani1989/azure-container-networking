@@ -25,6 +25,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/stretchr/testify/require"
+
 	"github.com/Azure/azure-container-networking/cns/restserver"
 
 	"net/http"
@@ -152,7 +156,9 @@ func Setup() error {
 		}
 	}
 
-	go StartDnc(ReadConfig())
+	go startDNC(ReadConfig(), false)
+	dncEP = "http://" + config.ServerSettings.IPAddress + ":" + config.ServerSettings.Port
+
 	time.Sleep(1 * time.Second)
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 1024
 	http.DefaultTransport.(*http.Transport).TLSHandshakeTimeout = 0 * time.Second
@@ -3536,7 +3542,8 @@ func TestDisableResMapInSubnetConfig(t *testing.T) {
 	config := ReadConfig()
 	config.ServerSettings.Port = "9003"
 	config.DNCSettings.DisableReservationMapInSubnetConfig = false
-	go StartDnc(config)
+	go startDNC(config, false)
+	dncEP = "http://" + config.ServerSettings.IPAddress + ":" + config.ServerSettings.Port
 	time.Sleep(2 * time.Second)
 
 	// Create a reservation. This should add to the reservation map under subnet config as well as
@@ -3586,7 +3593,8 @@ func TestDisableResMapInSubnetConfig(t *testing.T) {
 	config.DNCSettings.DisableReservationMapInSubnetConfig = true
 	// Setting the Batch size to 2 to test the batching logic for 5 reservation updates
 	config.DataStoreSettings.MaxBatchSize = 2
-	go StartDnc(config)
+	go startDNC(config, false)
+	dncEP = "http://" + config.ServerSettings.IPAddress + ":" + config.ServerSettings.Port
 	time.Sleep(5 * time.Second)
 
 	// Validate that the FeatureMigration is complete by querying the table.
@@ -3824,6 +3832,38 @@ func TestUnsupportedOrchTypeCNSResponse(t *testing.T) {
 	fmt.Println("****TestUnsupportedOrchTypeCNSResponse Succeed**********")
 }
 
+func TestDNCStartWithEmptyConfig(t *testing.T) {
+	// build a sample config struct from file
+	config := mustReadConfig(testConfigFilePath)
+
+	// clear any values from file related to storage
+	config.DataStoreSettings = configuration.DataStoreSettings{}
+
+	// apply defaults. this is to account for any mutation on the config struct on future defaults.
+	configuration.SetDncConfigDefaults(config)
+
+	// todo: need to improve this approach. we can't keep adding ports any time we need to simulate DNC restart
+	config.ServerSettings.Port = "9010"
+
+	go startDNC(config, true)
+
+	time.Sleep(3 * time.Second) // wait for a bit for server to start listening
+
+	versionURL := fmt.Sprintf("http://%s:%s/%s", config.ServerSettings.IPAddress, config.ServerSettings.Port, apiVersion)
+	resp, err := http.Get(versionURL)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	var e api.JsonErr
+	err = json.NewDecoder(resp.Body).Decode(&e)
+	require.NoError(t, err)
+
+	assert.Equal(t, api.StorageNotInitialized, e.Code)
+	assert.Equal(t, http.StatusBadRequest, e.HTTPStatus)
+}
+
 func TestManagedDncAPIs(t *testing.T) {
 	fmt.Println("****TestManagedDncAPIs**********")
 	processExitCallback()
@@ -3834,7 +3874,8 @@ func TestManagedDncAPIs(t *testing.T) {
 	config.CNSSettings.ChannelMode = cns.Managed
 	config.DNCSettings.Managed = true
 	// start dnc in managed mode
-	go StartDnc(config)
+	go startDNC(config, false)
+	dncEP = "http://" + config.ServerSettings.IPAddress + ":" + config.ServerSettings.Port
 	time.Sleep(2 * time.Second)
 
 	fmt.Println("Started CNS Server", cnsServer.Server.URL)

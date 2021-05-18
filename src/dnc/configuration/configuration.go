@@ -27,8 +27,7 @@ type AzureStorageInfo struct {
 
 // TestPersistenceStoreInfo - Details to initialize testpersistencestore
 type TestPersistenceStoreInfo struct {
-	Test                         string
-	EnableSharedSubnetDelegation bool
+	Test string
 }
 
 // DataStoreSettings - Details related to underlying data store.

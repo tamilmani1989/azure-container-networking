@@ -1885,7 +1885,7 @@ ExitLoop:
 				refreshNCStopProcessing <- true
 			}
 
-			if !disableTelemetry {
+			if !config.TelemetrySettings.DisableTelemetry {
 				select {
 				case telemetryStopProcessing <- true:
 					break

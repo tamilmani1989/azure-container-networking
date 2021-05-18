@@ -9,7 +9,9 @@ type ExitCallback func()
 func ProcessExitMonitor(
 	osSignals chan os.Signal,
 	exitCallback ExitCallback) {
-	<-osSignals
+	sig := <-osSignals
+	logger.Debugf("received os signal %q. executing exit callback", sig.String())
 	exitCallback()
+	logger.Debugf("exit callback complete")
 	os.Exit(0)
 }
