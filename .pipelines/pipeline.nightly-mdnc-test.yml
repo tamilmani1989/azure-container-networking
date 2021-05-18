@@ -1,0 +1,170 @@
+pr: none
+trigger: none
+
+stages:
+  - stage: deploy_to_test_rp
+    jobs:
+      - job: build_container_images
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
+          - task: AzureCLI@1
+            inputs:
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -e
+                make mdnc-image VERSION=$(Build.SourceBranchName).$(git rev-parse --short HEAD)
+              workingDirectory: "src/dnc"
+            name: "BuildMDNC"
+            displayName: "Build MDNC Image"
+            condition: succeeded()
+          - task: AzureCLI@1
+            inputs:
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -e
+                make mdnc-requestcontroller-image VERSION=$(Build.SourceBranchName).$(git rev-parse --short HEAD)
+              workingDirectory: "src/dnc"
+            name: "BuildMDNCRC"
+            displayName: "Build MDNC-RC Image"
+            condition: succeeded()
+          - task: AzureCLI@1
+            inputs:
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -e
+                docker build -t acndev.azurecr.io/dncrp:$(Build.SourceBranchName).$(git rev-parse --short HEAD) -f DncRP/Dockerfile --no-cache --build-arg FEED_ACCESSTOKEN=$(System.AccessToken) .
+              workingDirectory: "src"
+            name: "BuildMDNCRP"
+            displayName: "Build DNC-RP Image"
+            condition: succeeded()
+          - task: AzureCLI@1
+            inputs:
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -e
+                docker build -t acndev.azurecr.io/dnc-gateway:$(Build.SourceBranchName).$(git rev-parse --short HEAD) -f Gateway/Dockerfile --no-cache .
+              workingDirectory: "src"
+            name: "BuildDNCGateway"
+            displayName: "Build DNC Gateway Image"
+            condition: succeeded()
+          - task: AzureCLI@1
+            inputs:
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -e
+                tag="$(Build.SourceBranchName).$(git rev-parse --short HEAD)"
+                az acr login -n acndev
+                docker push acndev.azurecr.io/mdnc:$tag
+                docker push acndev.azurecr.io/mdnc-requestcontroller:$tag
+                docker push acndev.azurecr.io/dncrp:$tag
+                docker push acndev.azurecr.io/dnc-gateway:$tag
+            name: "PublishContainerImages"
+            displayName: "Publish Container Images"
+            condition: succeeded()
+      - job: deploy_to_test_rp
+        dependsOn: build_container_images
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
+          - script: |
+              set -e
+              GIT_COMMIT_LONG=$(git rev-parse HEAD)
+              GIT_COMMIT_SHORT=$(git rev-parse --short HEAD)
+              GIT_COMMIT_TITLE=$(git log --format=%s --max-count=1 $GIT_COMMIT_LONG)
+              IMAGE_TAG="$(Build.SourceBranchName).$(git rev-parse --short HEAD)"
+              cat > release.json <<EOF
+                {
+                  "definitionId":30730,
+                  "isDraft":false,
+                  "description":"Nightly DNC-RP Test",
+                  "manualEnvironments":[],
+                  "artifacts":[
+                    {
+                      "alias":"_Networking-Aquarius",
+                      "instanceReference": {
+                        "id":"$GIT_COMMIT_LONG",
+                        "name":"$GIT_COMMIT_SHORT",
+                        "sourceBranch":"$(Build.SourceBranchName)",
+                        "commitMessage":"$GIT_COMMIT_TITLE"
+                      }
+                    }
+                  ],
+                  "variables": {
+                    "DncBuildTag": {
+                      "allowOverride":true,
+                      "isSecret":false,
+                      "value":"mdnc:$IMAGE_TAG"
+                    },
+                    "DncRcBuildTag":{
+                      "allowOverride":true,
+                      "isSecret":false,
+                      "value":"mdnc-requestcontroller:$IMAGE_TAG"
+                    },
+                    "DncRpBuildTag":{
+                      "allowOverride":true,
+                      "isSecret":false,
+                      "value":"dncrp:$IMAGE_TAG"
+                    },
+                    "GatewayBuildTag":{
+                      "allowOverride":true,
+                      "isSecret":false,
+                      "value":"dnc-gateway:$IMAGE_TAG"
+                    },
+                    "MaConfigVersion":{
+                      "allowOverride":true,
+                      "isSecret":false,
+                      "value":"1.7"
+                    }
+                  },
+                  "environmentsMetadata":[
+                    {
+                      "definitionEnvironmentId":193358,
+                      "variables":{}
+                    },
+                    {
+                      "definitionEnvironmentId":193375,
+                      "variables":{}
+                    }
+                  ]
+                }
+              EOF
+              curl -u :$(System.AccessToken) -X POST -d"@release.json" -H "Content-Type: application/json" 'https://msazure.vsrm.visualstudio.com/One/_apis/Release/releases?api-version=6.0' > release-request.json
+              echo "To see the newly created release, go to this link: https://msazure.visualstudio.com/One/_release?definitionId=30730&view=mine&_a=releases"
+            name: "CreateRelease"
+            displayName: "Create EV2 Release"
+            condition: succeeded()
+          - script: |
+              set -e
+              RELEASE_ID=$(jq -r '.id' ./release-request.json)
+              ENV_ID_1=$(jq -r '.environments[0].id' ./release-request.json)
+              ENV_ID_2=$(jq -r '.environments[1].id' ./release-request.json)
+              curl -u :$(System.AccessToken) -X PATCH -d'{"status":2,"scheduledDeploymentTime":null,"comment":""}' -H "Content-Type: application/json" -H "Accept: application/json;api-version=6.1-preview.7" "https://msazure.vsrm.visualstudio.com/One/_apis/Release/releases/$RELEASE_ID/environments/$ENV_ID_1"
+              curl -u :$(System.AccessToken) -X PATCH -d'{"status":2,"scheduledDeploymentTime":null,"comment":""}' -H "Content-Type: application/json" -H "Accept: application/json;api-version=6.1-preview.7" "https://msazure.vsrm.visualstudio.com/One/_apis/Release/releases/$RELEASE_ID/environments/$ENV_ID_2"
+              for i in $(seq 30); do
+                curl -u :$(System.AccessToken) https://msazure.vsrm.visualstudio.com/One/_apis/Release/releases/$RELEASE_ID > release-in-progress.json
+                progress_1=$(jq -r '.environments[0].status' release-in-progress.json)
+                progress_2=$(jq -r '.environments[1].status' release-in-progress.json)
+                if [[ "$progress_1" == "inProgress" ]] || [[ "$progress_2" == "inProgress" ]] || [[ "$progress_1" == "queued" ]] || [[ "$progress_2" == "queued" ]]; then
+                  sleep 2m
+                  continue
+                else
+                  break
+                fi
+              done
+              if [[ "$progress_1" == "succeeded" ]] && [[ "$progress_2" == "succeeded" ]]; then
+                exit 0
+              else
+                echo "Deployment failed, expected \"succeeded\" for both envs, but received env1: $progress_1, env2: $progress_2"
+                exit 1
+              fi
+            name: "DeployRelease"
+            displayName: "Deploy EV2 Release"
+            condition: succeeded()
