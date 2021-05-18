@@ -47,6 +47,7 @@ func TestUpdateNetworkConfiguration(t *testing.T) {
 		NetworkID:    vnetID,
 		SubnetName:   subnetName,
 		UpdateStatus: datamodel.SubnetUpdatePending,
+		Joined: true,
 	}
 
 	err := datamodel.PutSubnetConfiguration(&existingSubnetCfg)
@@ -84,6 +85,54 @@ func TestUpdateNetworkConfiguration(t *testing.T) {
 	allocs, err := datamodel.AllocRepo.TryQueryAllIPAllocations(vnetID, subnetName)
 	require.Nil(t, err)
 	assert.Len(t, allocs, 65536)
+}
+
+func TestUnregisteredSubnetPrepopulation(t *testing.T) {
+	cfg := configuration.Configuration{
+		DataStoreSettings: configuration.DataStoreSettings{
+			TestPersistenceStoreInfo: configuration.TestPersistenceStoreInfo{Test: "yes"},
+			MaxBatchSize:             1000,
+		},
+		FeatureFlagSettings: configuration.FeatureFlagSettings{UsePrepopulatedIPAllocations: true},
+	}
+
+	loggershim.LS = loggermock.NewNoOpLogger()
+	initErr := datamodel.Init(cfg.CNSSettings, cfg.DataStoreSettings, cfg.DNCSettings, cfg.HostAgentSettings, 0, 0, 0, 0, nil, nil, "")
+	require.NoError(t, initErr)
+	alloc := networkcontainer.IPAllocator{Allocations: datamodel.AllocRepo, Logger: loggermock.NewNoOpLogger(), MaxBatchSize: 1000}
+	Init(&cfg, nil, nil, nil, &alloc, loggermock.NewDummyLogger())
+
+	// Simulate a case where NMA response contains subnets which are not delegated so those are not registerd with
+	// DNC with register subnet API.
+	vnetID := "vnet1"
+	unregisteredSubnet := "unregisteredSubnet"
+	unregisteredsubnetPrefix := "10.2.0.0/16"
+	unregisteredSubnetDefaultGW := "10.2.0.1"
+	network := datamodel.NetworkConfiguration{
+		NetworkID: vnetID,
+		Version:   1,
+		Subnets:   map[string]string{},
+		Status:    datamodel.Pending,
+	}
+
+	nmagentResponse := nmagentcontracts.VirtualNetworkResponse{
+		Subnets: []nmagentcontracts.Subnet{
+			{
+				SubnetName:     unregisteredSubnet,
+				AddressPrefix:  unregisteredsubnetPrefix,
+				DefaultGateway: unregisteredSubnetDefaultGW,
+			},
+		},
+	}
+
+	shouldNotRetry, err := UpdateNetworkConfiguration(&network, &nmagentResponse)
+	assert.Nil(t, err)
+	assert.True(t, shouldNotRetry)
+
+	// There should be no prepopulated IPs from unregistered subnet
+	allocs, err := datamodel.AllocRepo.TryQueryAllIPAllocations(vnetID, unregisteredSubnet)
+	require.Nil(t, err)
+	assert.Len(t, allocs, 0)
 }
 
 // todo: test more scenarios

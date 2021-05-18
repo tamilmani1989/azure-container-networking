@@ -486,7 +486,8 @@ func UpdateNetworkConfiguration(networkConfig *datamodel.NetworkConfiguration, p
 		currentRepoSubnetCfg.IsDelegatedSubnet = true
 		currentRepoSubnetCfg.UpdateStatus = datamodel.SubnetUpdateCompleted
 
-		if config.FeatureFlagSettings.UsePrepopulatedIPAllocations {
+		// Prepopulate the subnet which is 'joined'. Subnet is joined when DNC gets join subnet call for that subnet.
+		if config.FeatureFlagSettings.UsePrepopulatedIPAllocations && currentRepoSubnetCfg.Joined {
 			logger.Debugf("[network update] prepopulating vnet id %s subnet %s %s", currentRepoSubnetCfg.NetworkID, currentRepoSubnetCfg.SubnetName, currentRepoSubnetCfg.IPSubnet)
 			if err := ipAllocator.PrepopulateSubnet(currentRepoSubnetCfg.NetworkID, currentRepoSubnetCfg.SubnetName, currentRepoSubnetCfg.IPSubnet); err != nil {
 				logger.Errorf("[network update] could not prepopulate vnet id %s subnet %s %s: %+v", currentRepoSubnetCfg.NetworkID, currentRepoSubnetCfg.SubnetName, currentRepoSubnetCfg.IPSubnet, err)
@@ -510,8 +511,7 @@ func UpdateNetworkConfiguration(networkConfig *datamodel.NetworkConfiguration, p
 	return true, nil
 }
 
-func UpdateSubnetConfiguration(vnetId, subnetId string,  subnetConfiguration *datamodel.SubnetConfiguration) *api.JsonErr {
-
+func UpdateSubnetConfiguration(vnetId, subnetId string, subnetConfiguration *datamodel.SubnetConfiguration) *api.JsonErr {
 	subnet := &datamodel.SubnetConfiguration{
 		NetworkID:         vnetId,
 		SubnetName:        subnetId,
@@ -524,7 +524,8 @@ func UpdateSubnetConfiguration(vnetId, subnetId string,  subnetConfiguration *da
 		Version:           subnetConfiguration.Version,
 		UpdateStatus:      datamodel.SubnetUpdateCompleted}
 
-	if config.FeatureFlagSettings.UsePrepopulatedIPAllocations {
+	// Prepopulate the subnet which is 'joined'. Subnet is joined when DNC gets join subnet call for that subnet.
+	if config.FeatureFlagSettings.UsePrepopulatedIPAllocations && subnet.Joined {
 		logger.Debugf("[subnet update] prepopulating vnet id %s subnet %s %s", subnet.NetworkID, subnet.SubnetName, subnet.IPSubnet)
 		if err := ipAllocator.PrepopulateSubnet(subnet.NetworkID, subnet.SubnetName, subnet.IPSubnet); err != nil {
 			logger.Errorf("[network update] could not prepopulate vnet id %s subnet %s %s: %+v", subnet.NetworkID, subnet.SubnetName, subnet.IPSubnet, err)

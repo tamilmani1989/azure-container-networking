@@ -11,6 +11,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/storage"
 )
 
+//todo: add partitionKey in rowProperties so that we can simulate partition level queries
 type rowProperties struct {
 	etag       string
 	properties map[string]interface{}
