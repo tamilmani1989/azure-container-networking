@@ -76,7 +76,7 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     # dnc feature flags
     $config = $config.replace('__EnableBatchAllocationProcessing__', (Out-String -InputObject (Get-Value "Application" "EnableBatchAllocationProcessing" "true")).Trim())
     $config = $config.replace('__MaxIPReservationBatchSize__', (Out-String -InputObject (Get-Value "Application" "MaxIPReservationBatchSize" "100")).Trim())
-    $config = $config.replace('__UsePrepopulatedIPAllocations__', (Out-String -InputObject (Get-Value "Application" "UsePrepopulatedIPAllocations" "false")).Trim())
+    $config = $config.replace('__UsePrepopulatedIPAllocations__', (Out-String -InputObject (Get-Value "Application" "UsePrepopulatedIPAllocations" "true")).Trim())
 
 
     $destinationPath = Join-Path $PSScriptRoot $configReplacement.DestinationFile
