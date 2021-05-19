@@ -17,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -28,6 +29,7 @@ type NodeReconciler struct {
 	initialIPCount   int64
 	k8sClientTimeout time.Duration
 	logger           logrus.FieldLogger
+	recorder         record.EventRecorder
 }
 
 type NodeReconcilerOptions struct {
@@ -37,6 +39,7 @@ type NodeReconcilerOptions struct {
 	InitialIPCount   int64
 	K8sClientTimeout time.Duration
 	Logger           logrus.FieldLogger
+	Recorder         record.EventRecorder
 }
 
 var _ reconcile.Reconciler = &NodeReconciler{}
@@ -53,6 +56,7 @@ func NewNodeReconciler(opts NodeReconcilerOptions) *NodeReconciler {
 		initialIPCount:   opts.InitialIPCount,
 		k8sClientTimeout: opts.K8sClientTimeout,
 		logger:           logger,
+		recorder:         opts.Recorder,
 	}
 }
 
@@ -134,11 +138,13 @@ func (n *NodeReconciler) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 
 		if err := createNodeNetworkConfig(ctx, n.k8sClient, request.Name, n.namespace, n.initialIPCount, nncLabels); err != nil {
+			n.recorder.Eventf(createEventNodeRef(node.Name), corev1.EventTypeWarning, "ErrorCreatingNNC", "Error creating NodeNetworkConfig %s, err = %s", request.Name, err)
 			// return error to requeue and try creating NetworkConfig again
 			logger.WithError(err).Infof("Error creating NNC: %v", err)
 			return reconcile.Result{}, err
 		}
 
+		n.recorder.Eventf(createEventNodeRef(node.Name), corev1.EventTypeNormal, "CreatedNNC", "Created NodeNetworkConfig %s", request.Name)
 		n.logger.WithFields(logrus.Fields{
 			"object":  fmt.Sprintf("%s/%s", n.namespace, name),
 			"ipCount": strconv.FormatInt(n.initialIPCount, 10),

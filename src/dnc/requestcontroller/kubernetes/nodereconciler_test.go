@@ -14,6 +14,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -28,6 +29,7 @@ func TestReconcileNewNode(t *testing.T) {
 		Namespace:      namespace,
 		InitialIPCount: 8,
 		Logger:         logger,
+		Recorder:       &record.FakeRecorder{},
 	})
 
 	node := corev1.Node{
@@ -82,6 +84,7 @@ func TestReconcileDeletingNode(t *testing.T) {
 		Namespace:      namespace,
 		InitialIPCount: 8,
 		Logger:         logger,
+		Recorder:       &record.FakeRecorder{},
 	})
 
 	node := corev1.Node{
@@ -145,6 +148,7 @@ func TestReconcileDeletedNode(t *testing.T) {
 		Namespace:      namespace,
 		InitialIPCount: 8,
 		Logger:         logger,
+		Recorder:       &record.FakeRecorder{},
 	})
 
 	nnc := acnv1alpha.NodeNetworkConfig{

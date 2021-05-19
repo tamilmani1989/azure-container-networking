@@ -90,6 +90,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 		InitialIPCount:   c.Config.RequestScalerConfig.BatchSize,
 		K8sClientTimeout: k8sClientTimeout,
 		Logger:           c.Logger,
+		Recorder:         ctrlRuntimeMgr.GetEventRecorderFor("dnc-rc/node-reconciler"),
 	})
 
 	if err := ctrlrun.NewControllerManagedBy(ctrlRuntimeMgr).
@@ -113,6 +114,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 		ProcessedNNCMetricsDuration: nncReconcilerMetricPublishInterval,
 		OrchestratorID:              opts.OrchestratorID,
 		SkipSubnetJoin:              c.Config.DNCClientConfig.SkipSubnetJoin,
+		Recorder:                    ctrlRuntimeMgr.GetEventRecorderFor("dnc-rc/nnc-reconciler"),
 	})
 
 	if err := ctrlrun.NewControllerManagedBy(ctrlRuntimeMgr).

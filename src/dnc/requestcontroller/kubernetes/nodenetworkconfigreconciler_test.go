@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -74,7 +75,8 @@ func TestReconcileNewNNC(t *testing.T) {
 				},
 			},
 		},
-		Logger: logger,
+		Logger:   logger,
+		Recorder: &record.FakeRecorder{},
 	})
 
 	nnc := acnv1alpha.NodeNetworkConfig{
@@ -154,7 +156,10 @@ func TestGetMaxIPCountOfNodeOverLimit(t *testing.T) {
 		},
 	}
 
-	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{Logger: logger})
+	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{
+		Logger:   logger,
+		Recorder: &record.FakeRecorder{},
+	})
 	givenMaxIPCount := nncReconciler.getMaxIPCountOfNode(node)
 
 	if givenMaxIPCount != int64(expectedMaxPodIPCount) {
@@ -180,9 +185,11 @@ func TestGetMaxIPCountOfNodeUnderMin(t *testing.T) {
 			},
 		},
 	}
-		
 
-	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{Logger: logger})
+	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{
+		Logger:   logger,
+		Recorder: &record.FakeRecorder{},
+	})
 	givenMaxIPCount := nncReconciler.getMaxIPCountOfNode(node)
 
 	if givenMaxIPCount != int64(expectedMaxPodIPCount) {
@@ -200,7 +207,10 @@ func TestGetMaxIPCountOfNodeLabelMissing(t *testing.T) {
 		},
 	}
 
-	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{Logger: logger})
+	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{
+		Logger:   logger,
+		Recorder: &record.FakeRecorder{},
+	})
 	givenMaxIPCount := nncReconciler.getMaxIPCountOfNode(node)
 
 	if givenMaxIPCount != int64(expectedMaxPodIPCount) {
@@ -229,9 +239,10 @@ func TestGetBatchSizeWhenOverMaxIPCount(t *testing.T) {
 
 	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{
 		ScalerConfig: requestcontroller.RequestScalerConfig{
-			BatchSize:               int64(initialBatchSize),
+			BatchSize: int64(initialBatchSize),
 		},
-		Logger: logger,
+		Logger:   logger,
+		Recorder: &record.FakeRecorder{},
 	})
 
 	outputBatchSize := nncReconciler.getBatchSize(node)

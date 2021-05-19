@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -51,6 +52,7 @@ type NodeNetworkConfigReconciler struct {
 	orchestratorID           string // used for publishing metrics
 	skipSubnetJoin           bool
 	metricsPublishers        []requestcontroller.MetricsPublisher
+	recorder                 record.EventRecorder
 }
 
 // NodeNetworkConfigReconcilerOptions options to create NNC Reconciler
@@ -64,6 +66,7 @@ type NodeNetworkConfigReconcilerOptions struct {
 	ProcessedNNCMetricsDuration time.Duration
 	OrchestratorID              string
 	SkipSubnetJoin              bool
+	Recorder                    record.EventRecorder
 }
 
 type ncDetails struct {
@@ -106,6 +109,7 @@ func NewNodeNetworkConfigReconciler(opts NodeNetworkConfigReconcilerOptions) *No
 				logger:          logger,
 			},
 		},
+		recorder: opts.Recorder,
 	}
 }
 
@@ -161,14 +165,17 @@ func (n *NodeNetworkConfigReconciler) reconcile(ctx context.Context, request rec
 	err = n.k8sClient.Get(ctx, client.ObjectKey{Name: name}, &node)
 	if err != nil && !apierrors.IsNotFound(err) {
 		// Requeue due to client error
-		return fmt.Errorf("Error getting Node from kubernetes API server: %w", err)
+		err = fmt.Errorf("Error getting Node from kubernetes API server: %w", err)
+		n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", err.Error())
+		return err
 	}
 
 	// If the corresponding Node isn't found or is being deleted, clean up this NNC
 	if (err != nil && apierrors.IsNotFound(err)) || !node.DeletionTimestamp.IsZero() {
-		err := n.cleanUpNNC(ctx, &nodeNetworkConfig, name)
+		err = n.cleanUpNNC(ctx, &nodeNetworkConfig, name)
 		if err != nil {
 			err = fmt.Errorf("Error while cleaning up NNC: %w", err)
+			n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", err.Error())
 		}
 		return err
 	}
@@ -397,6 +404,7 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 		n.logger.WithFields(logrus.Fields{
 			"NNC": nodeNetworkConfig.Name,
 		}).Infof("Time to create NC request: %s", ncCreationDuration)
+		n.recorder.Eventf(nodeNetworkConfig, corev1.EventTypeNormal, "CreatingNC", "Creating new NC %s for node %s", ncID, nodeID)
 
 		// cache the nc id and vnet for later lookups
 		n.nodeIDToNCDetails.Set(nodeID, ncDetails{
@@ -420,14 +428,32 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 	err = n.dncClient.UpsertNcV2(ctx, subnetInfo.VnetID, ncID, ncReq)
 	if err != nil {
 		//DNC client error, requeue
+		if jsonErr, ok := err.(*api.JsonErr); ok {
+			// don't push 500s because we don't know what if their contents is sensitive
+			if jsonErr.HTTPStatus == http.StatusInternalServerError {
+				n.recorder.Eventf(nodeNetworkConfig, corev1.EventTypeWarning, "ErrorUpdatingNC", "Failed to upsert NC %s, InternalServerError", ncID)
+			} else {
+				n.recorder.Eventf(nodeNetworkConfig, corev1.EventTypeWarning, "ErrorUpdatingNC", "Failed to upsert NC %s, err = %s", ncID, err)
+			}
+		}
 		return err
 	}
 
 	ncResponse, err := n.dncClient.GetNC(ctx, subnetInfo.VnetID, ncID)
 	if err != nil {
 		// DNC client error, requeue
+		if jsonErr, ok := err.(*api.JsonErr); ok {
+			// don't push 500s because we don't know what if their contents is sensitive
+			if jsonErr.HTTPStatus == http.StatusInternalServerError {
+				n.recorder.Eventf(nodeNetworkConfig, corev1.EventTypeWarning, "ErrorGettingNC", "Failed to get NC %s, InternalServerError", ncID)
+			} else {
+				n.recorder.Eventf(nodeNetworkConfig, corev1.EventTypeWarning, "ErrorGettingNC", "Failed to get NC %s, err = %s", ncID, err)
+			}
+		}
 		return err
 	}
+
+	n.recorder.Eventf(nodeNetworkConfig, corev1.EventTypeNormal, "UpdatedNC", "Published NC %s", ncID)
 
 	// Publish k8s status
 	status := n.getNNCStatusFromNCResponse(ncResponse, node)
