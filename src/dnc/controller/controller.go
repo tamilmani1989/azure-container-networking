@@ -27,6 +27,7 @@ type joinNetworkFunction func(networkID string, apiVersion string) *api.JsonErr
 type deleteNetworkFunction func(networkID string) *api.JsonErr
 type registerSubnetFunction func(networkID, subnetID string, isRegistered bool)
 type deleteSubnetFunction func(networkID, subnetID string, networkConfig *datamodel.NetworkConfiguration) *api.JsonErr
+type getNetworkStatusFunction func() datamodel.Status
 
 // todo: no need for these to be globals, should be part of struct
 var (
@@ -37,6 +38,7 @@ var (
 	deleteNetworkFunc         deleteNetworkFunction
 	registerSubnetFunc        registerSubnetFunction
 	deleteSubnetFunc          deleteSubnetFunction
+	getNetworkStatusFunc      getNetworkStatusFunction
 )
 
 // Controller - Controller for handling API calls
@@ -74,11 +76,13 @@ func NewController(
 		deleteNetworkFunc = deleteNetworkViaRNC
 		registerSubnetFunc = registerSubnetViaRNC
 		deleteSubnetFunc = deleteSubnetViaRNC
+		getNetworkStatusFunc = getNetworkStatusViaRNC
 	} else {
 		joinNetworkFunc = joinNetworkViaRNM
 		deleteNetworkFunc = deleteNetworkViaRNM
 		registerSubnetFunc = registerSubnetViaRNM
 		deleteSubnetFunc = deleteSubnetViaRNM
+		getNetworkStatusFunc = getNetworkStatusViaRNM
 	}
 
 	return controller
@@ -689,7 +693,7 @@ func (c *Controller) PersistSubnetDelegationRequestV2(networkID, subnet string, 
 		networkConfig = &datamodel.NetworkConfiguration{
 			NetworkID:    networkID,
 			NetworkState: datamodel.Join,
-			Status:       datamodel.Pending,
+			Status:       getNetworkStatusFunc(),
 			APIVersion:   apiVersion,
 			Subnets:      make(map[string]string),
 		}
@@ -908,7 +912,7 @@ func (c *Controller) GetNetworkContainerConfiguration(networkID, ncID string) (*
 		}
 		//split string to take the latter part of PodName for LogicalContainerID
 		logicalContainerID := strings.Split(context.PodName, "_")
-		ncConfig.BMContainerInfo = fmt.Sprintf("Physical ContainerID: %s, Logical NICID: %s, Logical ContainerID: %s", ncConfig.GetInstanceID(), ncConfig.ReservationID, logicalContainerID[1])
+		ncConfig.BMContainerInfo = fmt.Sprintf("{Physical ContainerID: %s, Logical NICID: %s, Logical ContainerID: %s}", ncConfig.GetInstanceID(), ncConfig.ReservationID, logicalContainerID[1])
 	}
 
 	return ncConfig, nil
@@ -1238,4 +1242,12 @@ func ValidateSubnetRequest(subnetNameOrId string, apiVersion string) *api.JsonEr
 	}
 
 	return nil
+}
+
+func getNetworkStatusViaRNM() datamodel.Status {
+	return datamodel.Pending
+}
+
+func getNetworkStatusViaRNC() datamodel.Status {
+	return datamodel.Completed
 }

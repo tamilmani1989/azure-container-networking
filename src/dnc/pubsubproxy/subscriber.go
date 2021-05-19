@@ -48,6 +48,7 @@ type cachedSubnetConfig struct {
 	expectedToken string
 	owningService string
 	isSubscribed  bool
+	subnetVersion uint64
 }
 
 var subscriberContext *subscriberContextStruct

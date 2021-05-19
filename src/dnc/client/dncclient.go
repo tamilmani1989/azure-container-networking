@@ -544,14 +544,18 @@ func (c *DncClient) GetSubnetStatus(networkId, subnet string) (requestStatus *ap
 	if err == nil {
 		defer response.Body.Close()
 
-		if response.StatusCode == http.StatusOK {
+		if response.StatusCode == http.StatusOK || response.StatusCode == http.StatusAccepted {
 			if err = utils.DecodeResponse(response, &reqStatus); err != nil {
 				failedToDecodeResponse(respErr, Get, Subnet+" status", err)
 			} else {
 				requestStatus = &reqStatus
 			}
 		} else {
-			failedWithStatus(respErr, Get, Subnet+" status", response.StatusCode)
+			if err = utils.DecodeResponse(response, &respErr); err == nil {
+				failedWithStatusAndError(respErr, Get, Subnet+" status", respErr.HTTPStatus, respErr.Text)
+			} else {
+				failedWithStatus(respErr, Get, Subnet+" status", response.StatusCode)
+			}
 		}
 	} else {
 		reportClientErr(respErr, err)
@@ -937,6 +941,11 @@ func failedToDecodeResponse(respErr *api.JsonErr, action, resource string, err e
 func failedWithStatus(respErr *api.JsonErr, action, resource string, statusCode int) {
 	respErr.HTTPStatus = statusCode
 	respErr.Text = fmt.Sprintf("[dnctl] failed to %s %s with status %d", action, resource, statusCode)
+}
+
+func failedWithStatusAndError(respErr *api.JsonErr, action, resource string, statusCode int, errorMsg string) {
+	respErr.HTTPStatus = statusCode
+	respErr.Text = fmt.Sprintf("[dnctl] failed to %s %s with status %d. Error: %s", action, resource, statusCode, errorMsg)
 }
 
 func reportClientErr(respErr *api.JsonErr, err error) {

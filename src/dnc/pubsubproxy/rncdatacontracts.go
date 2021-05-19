@@ -123,6 +123,8 @@ func (s *rncDataContracts) updateCachedSubnetConfig(
 		addressPrefix: subnetConfig.AddressPrefix,
 		expectedToken: subnetConfig.ExpectedToken,
 		owningService: subnetConfig.OwningService,
+		subnetVersion: subnetConfig.SubnetVersion,
+        isSubscribed: true,
 	}
 
 	key := fmt.Sprintf("%s_%s", vnetId, subnetId)

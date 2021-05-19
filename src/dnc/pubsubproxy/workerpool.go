@@ -758,14 +758,29 @@ func (job *subnetJob) processSubnetUpdate() error {
 		return fmt.Errorf("Skipping processSubnetUpdate as Vnet:%s Subnet %s has empty CIDR", job.vnetId, job.subnetId)
 	}
 
-	// TODO: Add owning service and token to subnetconfig
+	var sal *sdn.ServiceAssociationLink
+	if len(nwSubnet.ServiceAssociationLinks) > 0 {
+		sal = nwSubnet.ServiceAssociationLinks[0]
+		if sal.ContextId == "" {
+			return fmt.Errorf("Skipping processSubnetUpdate as Vnet:%s Subnet %s has empty contextId in SAL",
+				job.vnetId, job.subnetId)
+		}
+	} else {
+		return fmt.Errorf("Skipping processSubnetUpdate as Vnet:%s Subnet %s has empty SAL", job.vnetId, job.subnetId)
+	}
+
 	var subnetConfigInfo SubnetConfiguration
 	subnetConfigInfo.SubnetVersion = nwSubnet.Version
-	subnetConfigInfo.SubnetName = nwSubnet.Id.String()
+	subnetConfigInfo.SubnetName = job.subnetId
     subnetConfigInfo.AddressPrefix = ipAddrWithPrefix
+    subnetConfigInfo.OwningService = sal.Service
+	subnetConfigInfo.ExpectedToken = sal.ContextId
 
 	// Update the cached subnet config
-	getActiveSubscriber().dataContracts.updateCachedSubnetConfig(job.vnetId, job.subnetId, &subnetConfigInfo)
+	err = getActiveSubscriber().dataContracts.updateCachedSubnetConfig(job.vnetId, job.subnetId, &subnetConfigInfo)
+	if err != nil {
+		return err
+	}
 	logDebugf("Successfully updated cached config for subnet: %s, subnet; %s", job.vnetId, job.subnetId)
 
 	// If subnet update succeeds, no further processing is needed. Otherwise, return error which causes the workerpool to retry
