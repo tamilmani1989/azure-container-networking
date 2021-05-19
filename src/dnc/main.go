@@ -140,7 +140,7 @@ func startDNC(config *configuration.Configuration, stdErr bool) {
 			GetEnvRetryWaitTimeInSecs:    config.TelemetrySettings.GetEnvRetryWaitTimeInSecs,
 		}
 
-		if err := aiwrapper.CreateTelemetryHandle(aiConfig); err != nil {
+		if err := aiwrapper.CreateTelemetryHandle(config.TelemetrySettings.AIMetadata, aiConfig); err != nil {
 			logger.Errorf("Error initializing AI telemetry handle: %v", err)
 		} else {
 			logger.Debugf("Successfully initialized AI telemetry")

@@ -235,6 +235,8 @@ type TelemetrySettings struct {
 	GetEnvRetryWaitTimeInSecs int
 	// Retry count for AI telemetry.
 	GetEnvRetryCount int
+	// AIMetadata is the integration key for the AI resource
+	AIMetadata string
 }
 
 // PubsubVips holds the VIPs for the given AZ (Availability Zone)

@@ -18,19 +18,21 @@ var (
 	orchestratorType string
 )
 
-func CreateTelemetryHandle(aiConfig aitelemetry.AIConfig) error {
-	if aiMetadata == "" {
+// CreateTelemetryHandle creates a telemetry handle using param iKey or global variable aiMetadata, which is usually set at build time
+func CreateTelemetryHandle(iKey string, aiConfig aitelemetry.AIConfig) error {
+	if aiMetadata == "" && iKey == "" {
 		return nil
+	}
+
+	// if ikey was passed in, use it instead of build-time value stored in aiMetadata
+	if iKey != "" {
+		aiMetadata = iKey
 	}
 
 	var err error
 	th, err = aitelemetry.NewAITelemetry("", aiMetadata, aiConfig)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func SetOrchestratorType(orchType string) {

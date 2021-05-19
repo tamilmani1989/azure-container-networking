@@ -255,7 +255,7 @@ func runRequestController(ctx context.Context, configFile string) error {
 			GetEnvRetryWaitTimeInSecs:    config.TelemetrySettings.GetEnvRetryWaitTimeInSecs,
 		}
 
-		err = aiwrapper.CreateTelemetryHandle(aiConfig)
+		err = aiwrapper.CreateTelemetryHandle(config.TelemetrySettings.AIMetadata, aiConfig)
 		if err != nil {
 			// Print message to be consistent with dnc, but might be worth exiting with error?
 			logger.WithError(err).Error("Error creating AITelemetry handle")
