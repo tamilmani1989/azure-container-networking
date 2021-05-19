@@ -1,0 +1,77 @@
+variables:
+  dncRepository: dncload
+  dncImageTag: "$(Build.SourceBranchName)-$(Build.SourceVersion)"
+  dncImage: "$(ACN_CONTAINER_REGISTRY)/$(dncRepository):$(dncImageTag)"
+
+stages:
+- stage: build
+  displayName: "Build latest images"
+  jobs:
+  - job: build_latest_dnc_image
+    displayName: "Build latest DNC image"
+    pool:
+      name: "$(BUILD_POOL)"
+    steps:
+    - task: Docker@2
+      displayName: Login to ACR
+      inputs:
+        command: login
+        containerRegistry: "$(ACR_SERVICE_CONNECTION)"
+    - task: Docker@2
+      displayName: Build Image
+      inputs:
+        command: build
+        buildContext: $(Build.SourcesDirectory)
+        containerRegistry: "$(ACR_SERVICE_CONNECTION)"
+        repository: $(dncRepository)
+        dockerfile: src/dnc/builds/dnc/Dockerfile
+        arguments: --build-arg aiMetadata=$(DNC_RP_AI_ID)
+        tags: |
+          $(dncImageTag)
+          latest
+    - task: Docker@2
+      displayName: Push Image
+      inputs:
+        command: push
+        containerRegistry: "$(ACR_SERVICE_CONNECTION)"
+        repository: $(dncRepository)
+        tags: |
+          $(dncImageTag)
+          latest
+- stage: test
+  displayName: "Run Load Tests"
+  jobs:
+  - job: run_load_tests
+    displayName: "Run DNC Load Tests"
+    pool:
+      name: "$(BUILD_POOL)"
+    steps:
+    - task: Kubernetes@1
+      displayName: 'K8s Login'
+      inputs:
+        connectionType: 'Kubernetes Service Connection'
+        kubernetesServiceEndpoint: $(K8S_SERVICE_CONNECTION)
+        command: 'login'
+    - task: Bash@3
+      displayName: 'Run Go Tests'
+      env:
+        COSMOS_ACCOUNT_KEY: $(COSMOS_ACCOUNT_KEY)
+        DNC_IMAGE: $(dncImage)
+        MOCK_NMAGENT_IMAGE: $(MOCK_NMAGENT_IMAGE)
+      inputs:
+        targetType: 'inline'
+        script: |
+          go version
+          go env
+          echo "DNC_IMAGE=$DNC_IMAGE"
+          echo "MOCK_NMAGENT_IMAGE=$MOCK_NMAGENT_IMAGE"
+          go get -u github.com/jstemmer/go-junit-report
+          PATH=$PATH:"$(go env GOPATH)/bin"
+          echo "PATH=$PATH"
+          cd "$(Build.SourcesDirectory)/src/dnc/test/load"
+          go test -v -count=1 -tags=loadtest -timeout=30m . 2>&1 | tee >(go-junit-report > "$(Build.SourcesDirectory)/report.xml") | cat
+    - task: PublishTestResults@2
+      inputs:
+        testRunner: JUnit
+        testResultsFiles: report.xml
+        failTaskOnFailedTests: true
