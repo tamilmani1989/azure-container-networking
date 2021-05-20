@@ -136,7 +136,7 @@ func (n *NodeNetworkConfigReconciler) Reconcile(request reconcile.Request) (reco
 	if err != nil {
 		logger.WithError(err).Infof("Reconcile %s failed with error: %v", name, err)
 	} else {
-		logger.Infof("Reconcile %s was successful", name)
+		logger.Infof("Reconcile %s completed", name)
 	}
 
 	return reconcile.Result{}, err
@@ -292,7 +292,9 @@ func (n *NodeNetworkConfigReconciler) mustRecreateNNC(ctx context.Context, nodeN
 	ncInfo, _ := n.getNCDetailsFromNodeID(ctx, nodeID) // If theres an error, we need to recreate the NC from scratch, so ignore it
 	ncID := ncInfo.id
 	if ncID != "" {
-		ncResponse, _ = n.dncClient.GetNC(ctx, subnetInfo.VnetID, ncID)
+		if ncResponse, err = n.dncClient.GetNC(ctx, subnetInfo.VnetID, ncID); err != nil {
+			return err
+		}
 	}
 
 	nnc := n.getNewNNCFromNCResponse(ncResponse, name, namespace, node)
@@ -582,7 +584,7 @@ func (n *NodeNetworkConfigReconciler) getNCDetailsFromNodeID(ctx context.Context
 
 func (n *NodeNetworkConfigReconciler) getNewNNCFromNCResponse(nc *api.NetworkContainerResponse, name, namespace string, node *corev1.Node) *acnv1alpha.NodeNetworkConfig {
 	// Start with the standard empty NNC
-	nnc := acnv1alpha.NodeNetworkConfig{
+	return &acnv1alpha.NodeNetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -596,8 +598,6 @@ func (n *NodeNetworkConfigReconciler) getNewNNCFromNCResponse(nc *api.NetworkCon
 		},
 		Status: n.getNNCStatusFromNCResponse(nc, node),
 	}
-
-	return &nnc
 }
 
 // getNNCStatusFromNCResponse returns a NNC Status representing the NC response
