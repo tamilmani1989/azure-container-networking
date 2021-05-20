@@ -47,6 +47,7 @@
       <EnvironmentVariable Name="NICsAllowedPerVirtualCore" Value=""/>
       <EnvironmentVariable Name="ReverseProxyEnabled" Value=""/>
       <EnvironmentVariable Name="BMMode" Value=""/>
+      <EnvironmentVariable Name="DisableReservationMapInSubnetConfig" Value=""/>
       <EnvironmentVariable Name="ConnectionTimeout" Value=""/>
       <EnvironmentVariable Name="ResponseHeaderTimeout" Value=""/>
       <EnvironmentVariable Name="TelemetryBatchSizeBytes" Value=""/>
