@@ -21,7 +21,7 @@
             "value": "cb3b366e-9bf6-4459-b58a-4c78ad2e0cfe"
         },
         "kubernetesVersion": {
-            "value": "1.18.10"
+            "value": "1.19.9"
         },
         "networkPlugin": {
             "value": "kubenet"

@@ -1,0 +1,13 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: macallocator-service
+spec:
+  selector:
+    app: macallocator
+  type: ClusterIP
+  ports:
+  - name: maca-port
+    port: 5012
+    targetPort: 5012
+    protocol: TCP

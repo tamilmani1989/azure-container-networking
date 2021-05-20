@@ -23,7 +23,7 @@
         {
             "Service" : "macallocator",
             "SourceConfigFile": "..\\..\\..\\MacManager\\MacAllocator\\Server\\template.appsettings.json",
-            "DestinationFile": "..\\Charts\\MacManager\\templates\\macallocatorConfig.yaml"
+            "DestinationFile": "..\\Charts\\MacAllocator\\templates\\macallocatorConfig.yaml"
         },
         {
             "Service" : "macinventory",

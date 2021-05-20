@@ -49,8 +49,8 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     $config = $config.replace('__ClientAppIds__', (Out-String -InputObject (Get-Value "Application" "ClientAppIds")).Trim())
     }
     
-    ##macmanager
-    if ($Service -eq "macmanager") {
+    ##macmanager or macallactor condition
+    if (($Service -eq "macmanager") -or ($Service -eq "macallocator")) {
         $config = $config.replace('__CosmosDbSqlAccountName__', (Out-String -InputObject (Get-Value "Dependencies" "CosmosDbSqlAccountName")).Trim())
     }
     
