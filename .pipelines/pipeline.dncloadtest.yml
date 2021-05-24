@@ -1,3 +1,6 @@
+trigger: none
+pr: none
+
 variables:
   dncRepository: dncload
   dncImageTag: "$(Build.SourceBranchName)-$(Build.SourceVersion)"
@@ -65,13 +68,11 @@ stages:
           go env
           echo "DNC_IMAGE=$DNC_IMAGE"
           echo "MOCK_NMAGENT_IMAGE=$MOCK_NMAGENT_IMAGE"
-          go get -u github.com/jstemmer/go-junit-report
-          PATH=$PATH:"$(go env GOPATH)/bin"
-          echo "PATH=$PATH"
           cd "$(Build.SourcesDirectory)/src/dnc/test/load"
-          go test -v -count=1 -tags=loadtest -timeout=30m . 2>&1 | tee >(go-junit-report > "$(Build.SourcesDirectory)/report.xml") | cat
+          go test -v -count=1 -tags=loadtest -timeout=30m .
     - task: PublishTestResults@2
+      condition: succeededOrFailed()
       inputs:
         testRunner: JUnit
-        testResultsFiles: report.xml
-        failTaskOnFailedTests: true
+        testResultsFiles: "$(Build.SourcesDirectory)/src/dnc/test/load/report.xml"
+

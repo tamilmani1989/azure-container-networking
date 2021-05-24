@@ -3,6 +3,7 @@
 package load
 
 import (
+	"dnc/test/junit"
 	"dnc/test/k8s"
 	"flag"
 	"os"
@@ -22,6 +23,7 @@ const (
 	mockNMAgentImageEnvVar        = "MOCK_NMAGENT_IMAGE"
 	cosmosAccountNameEnvVar       = "COSMOS_ACCOUNT_NAME"
 	cosmosAccountKeyEnvVar        = "COSMOS_ACCOUNT_KEY"
+	junitXMLReportPath            = "report.xml"
 )
 
 var (
@@ -32,6 +34,7 @@ var (
 	mockNMAgentImage  string
 	cosmosAccountName string
 	cosmosAccountKey  string
+	suites            junit.TestSuites
 )
 
 func TestMain(m *testing.M) {
@@ -65,8 +68,25 @@ func TestMain(m *testing.M) {
 
 	osExitCode := m.Run()
 
-	// todo: any cleanup?
+	writeReport(junitXMLReportPath)
+
 	os.Exit(osExitCode)
+}
+
+func writeReport(path string) {
+	f, err := os.Create(path)
+	if err != nil {
+		logrus.Errorf("could not create/truncate file %s: %v", path, err)
+		return
+	}
+	defer f.Close()
+
+	if err := junit.WriteReport(suites, f); err != nil {
+		logrus.Errorf("could not write report to %s: %v", path, err)
+		return
+	}
+
+	logrus.Infof("report successfully written to %s", path)
 }
 
 func mustExtractEnvVar(envVar string) string {

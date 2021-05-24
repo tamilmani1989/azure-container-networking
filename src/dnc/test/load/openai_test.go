@@ -11,6 +11,7 @@ import (
 	"dnc/datamodel"
 	"dnc/nmagentcontracts"
 	"dnc/retry"
+	"dnc/test/junit"
 	"dnc/test/k8s"
 	"dnc/test/load/benchmark"
 	"encoding/json"
@@ -21,6 +22,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -37,6 +40,9 @@ func TestOpenAI(t *testing.T) {
 	nmagentPort := 9001
 	partition := generateRunPartition()
 	ctx := context.Background()
+	start := time.Now()
+
+	openAISuite := junit.TestSuite{Name: "DNCLoadTest/OpenAI"}
 
 	// func to mutate the base configuration as needed by this test
 	cfgFunc := func(dncCfg *configuration.Configuration) {
@@ -136,11 +142,40 @@ func TestOpenAI(t *testing.T) {
 		}
 	}
 
-	// todo: assertions
 	logStats(t, nodeCreationTimes, "create node", defaultPercentiles)
 	logStats(t, ncCreationTimes, "create (not process) NC", defaultPercentiles)
 	logStats(t, timesToProgram, "reach NC Program Complete state", defaultPercentiles)
 	logStats(t, timesToReserveComplete, "allocate all IPs", defaultPercentiles)
+
+	createNodeTestCases := assertStats(t, "create node", nodeCreationTimes, []percentileAssertion{
+		{percentile: 0.5, below: 5 * time.Second},
+		{percentile: 0.9, below: 5 * time.Second},
+		{percentile: 0.95, below: 5 * time.Second},
+		{percentile: 0.99, below: 5 * time.Second},
+		{percentile: 0.999, below: 5 * time.Second},
+	})
+
+	openAISuite.AddTestCases(createNodeTestCases)
+
+	reachProgramTestCases := assertStats(t, "reach NC Program Complete state", timesToProgram, []percentileAssertion{
+		{percentile: 0.5, below: 1 * time.Minute},
+		{percentile: 0.9, below: 2 * time.Minute},
+		{percentile: 0.95, below: 3 * time.Minute},
+		{percentile: 0.99, below: 4 * time.Minute},
+		{percentile: 0.999, below: 5 * time.Minute},
+	})
+
+	openAISuite.AddTestCases(reachProgramTestCases)
+
+	allocateIPTestCases := assertStats(t, "allocate 32 IPs", nodeCreationTimes, []percentileAssertion{
+		{percentile: 0.5, below: 10 * time.Second},
+		{percentile: 0.9, below: 20 * time.Second},
+		{percentile: 0.95, below: 30 * time.Second},
+		{percentile: 0.99, below: 1 * time.Minute},
+		{percentile: 0.999, below: 2 * time.Minute},
+	})
+
+	openAISuite.AddTestCases(allocateIPTestCases)
 
 	sort.Slice(programmedNCs, func(i, j int) bool {
 		return programmedNCs[i].StateDurations[datamodel.Program.String()] < programmedNCs[j].StateDurations[datamodel.Program.String()]
@@ -149,6 +184,15 @@ func TestOpenAI(t *testing.T) {
 
 	bs, _ := json.MarshalIndent(tailNC, "", "  ")
 	t.Logf("tail program time: nc id %s:\n%v", tailNC.NCResponse.NcID, string(bs))
+
+	// todo: find way to add tail program nc to suite output
+	openAISuite.Time = junit.FmtDuration(time.Since(start))
+	suites.Suites = append(suites.Suites, openAISuite)
+}
+
+type percentileAssertion struct {
+	percentile float64
+	below      time.Duration
 }
 
 func mustCreateK8sResources(ctx context.Context, t *testing.T, dncPort int, nmagentPort int, configFn func(*configuration.Configuration)) {
@@ -192,6 +236,32 @@ func logStats(t *testing.T, samples []time.Duration, action string, ths []float6
 	}
 }
 
+func assertStats(t *testing.T, action string, samples []time.Duration, pas []percentileAssertion) []junit.TestCase {
+	var tt []junit.TestCase
+
+	for _, pa := range pas {
+		name := fmt.Sprintf("%s: %vth percentile (%d samples) below %v", action, pa.percentile, len(samples), pa.below)
+		t.Run(name, func(t *testing.T) {
+			pTh := benchmark.Percentile(samples, pa.percentile)
+			pass := assert.LessOrEqual(t, pTh, pa.below)
+
+			tc := junit.TestCase{Classname: action, Name: name, Time: junit.FmtDuration(pTh)}
+
+			if !pass {
+				failure := junit.Failure{
+					Message:  "Failed",
+					Contents: fmt.Sprintf("%s: %vth percentile %v below %v", action, pa.percentile, pTh, pa.below),
+				}
+				tc.Failure = &failure
+			}
+
+			tt = append(tt, tc)
+		})
+	}
+
+	return tt
+}
+
 func extractVnetIDs(vnets map[string]nmagentcontracts.VirtualNetworkResponse) []string {
 	vnetIDs := make([]string, 0, len(vnets))
 	for vnetID := range vnets {
@@ -230,7 +300,6 @@ func hydrateNMAgent(ctx context.Context, t *testing.T, pf *k8s.PortForwarder, pf
 	}
 
 	t.Logf("successfully posted to mock nmagent: %+v", vnets)
-	pfHandle.Stop()
 	return nil
 }
 
