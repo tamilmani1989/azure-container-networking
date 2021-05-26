@@ -34,12 +34,11 @@ const (
 	InfraVnetIdLabel              = "kubernetes.azure.com/nodenetwork-vnetguid"
 	DelegatedSubnetIDLabel        = "kubernetes.azure.com/podnetwork-delegationguid"
 	SubnetNameLabel               = "kubernetes.azure.com/podnetwork-subnet"
+	MaxVnetPodsLabel              = "kubernetes.azure.com/podnetwork-max-pods"
 	leaderElectionConfigmapSuffix = ".resourcelock.acn.azure.com"
 	nncPluralName                 = "nodenetworkconfigs"
 	nncShortName                  = "nnc"
-	defaultMaxIPCount             = 250
-	maxIPCountLowerBound          = 1
-	maxIPCountUpperBound          = 250
+	swiftIPCountSystemMax         = 250
 )
 
 // K8sClient is an interface that wraps only the functions of controller-runtime/pkg/client.Client that the reconcilers use

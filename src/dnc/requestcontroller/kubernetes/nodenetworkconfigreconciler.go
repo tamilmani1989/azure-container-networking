@@ -644,16 +644,27 @@ func (n *NodeNetworkConfigReconciler) getNNCStatusFromNCResponse(nc *api.Network
 // getMaxIPCountOfNode gets the max ip count for a node
 // returns default max ip count if label is either not found or 0
 func (n *NodeNetworkConfigReconciler) getMaxIPCountOfNode(node corev1.Node) int64 {
+	// Get node capacity from node object
 	// Returns 0 if label is not present
-	count := node.Status.Capacity.Pods().Value()
-
-	if count < maxIPCountLowerBound || count > maxIPCountUpperBound {
-		// Handles both if the count was not present, and if the count was out of bounds
-		// Return the system default max ip count
-		count = defaultMaxIPCount
+	nodeCapacity := node.Status.Capacity.Pods().Value()
+	if nodeCapacity <= 0 {
+		// if node capacity not present or < 0, set it to system max
+		nodeCapacity = swiftIPCountSystemMax
 	}
 
-	return count
+	// Get max desired swift pods from label
+	// Start with system max, overwrite if label is found and parsed successfully
+	var maxDesiredPods int64 = swiftIPCountSystemMax
+	maxDesiredPodsString := node.Labels[MaxVnetPodsLabel]
+	if parsedNum, err := strconv.ParseInt(maxDesiredPodsString, 10, 0); err == nil {
+		// don't allow value <= 0
+		if parsedNum > 0 {
+			maxDesiredPods = parsedNum
+		}
+	}
+
+	// Take the min of nodeCapacity, maxDesiredPods, and systemMax
+	return minInt64(minInt64(nodeCapacity, maxDesiredPods), swiftIPCountSystemMax)
 }
 
 // getBatchSize gets the batch size
@@ -703,4 +714,12 @@ func (p *processedNNCMetricPublisher) SendMetric() {
 
 func (p *processedNNCMetricPublisher) GetDuration() time.Duration {
 	return p.duration
+}
+
+func minInt64(a, b int64) int64 {
+	if a <= b {
+		return a
+	}
+
+	return b
 }

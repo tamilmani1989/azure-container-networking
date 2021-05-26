@@ -138,10 +138,9 @@ func TestReconcileNewNNC(t *testing.T) {
 }
 
 func TestGetMaxIPCountOfNodeOverLimit(t *testing.T) {
-	initialMaxPodIPCount := maxIPCountUpperBound + 1
-	expectedMaxPodIPCount := defaultMaxIPCount
-	base := 10
-	quantity, _ := resource.ParseQuantity(strconv.FormatInt(int64(initialMaxPodIPCount), base))
+	initialMaxPodIPCount := swiftIPCountSystemMax + 1
+	expectedMaxPodIPCount := swiftIPCountSystemMax
+	quantity, _ := resource.ParseQuantity(strconv.Itoa(initialMaxPodIPCount))
 	nodeName := "test-node"
 
 	// Instantiate a node with one more than the allowable maxIPCount
@@ -163,15 +162,14 @@ func TestGetMaxIPCountOfNodeOverLimit(t *testing.T) {
 	givenMaxIPCount := nncReconciler.getMaxIPCountOfNode(node)
 
 	if givenMaxIPCount != int64(expectedMaxPodIPCount) {
-		t.Fatalf("When node label for max pod capacity is over allowable DNC limit %v, expected to set NNC scaler maxIpCount as default value %v, instead got %v", maxIPCountUpperBound, expectedMaxPodIPCount, givenMaxIPCount)
+		t.Fatalf("expected maxIpCount to be %d, got %d", expectedMaxPodIPCount, givenMaxIPCount)
 	}
 }
 
 func TestGetMaxIPCountOfNodeUnderMin(t *testing.T) {
-	initialMaxPodIPCount := maxIPCountLowerBound - 1
-	expectedMaxPodIPCount := defaultMaxIPCount
-	base := 10
-	quantity, _ := resource.ParseQuantity(strconv.FormatInt(int64(initialMaxPodIPCount), base))
+	initialMaxPodIPCount := 0
+	expectedMaxPodIPCount := swiftIPCountSystemMax
+	quantity, _ := resource.ParseQuantity(strconv.Itoa(initialMaxPodIPCount))
 	nodeName := "test-node"
 
 	// Instantiate a node with one less than the allowable minimum value for maxIPCount
@@ -193,12 +191,12 @@ func TestGetMaxIPCountOfNodeUnderMin(t *testing.T) {
 	givenMaxIPCount := nncReconciler.getMaxIPCountOfNode(node)
 
 	if givenMaxIPCount != int64(expectedMaxPodIPCount) {
-		t.Fatalf("When node label for max pod capacity is under allowable DNC limit %v, expected to set NNC scaler maxIpCount as default value %v, instead got %v", maxIPCountLowerBound, expectedMaxPodIPCount, givenMaxIPCount)
+		t.Fatalf("expected maxIpCount to be %d, got %d", expectedMaxPodIPCount, givenMaxIPCount)
 	}
 }
 
-func TestGetMaxIPCountOfNodeLabelMissing(t *testing.T) {
-	expectedMaxPodIPCount := defaultMaxIPCount
+func TestGetMaxIPCountOfNodeWithNoCapacity(t *testing.T) {
+	expectedMaxPodIPCount := swiftIPCountSystemMax
 	nodeName := "test-node"
 
 	node := corev1.Node{
@@ -214,7 +212,62 @@ func TestGetMaxIPCountOfNodeLabelMissing(t *testing.T) {
 	givenMaxIPCount := nncReconciler.getMaxIPCountOfNode(node)
 
 	if givenMaxIPCount != int64(expectedMaxPodIPCount) {
-		t.Fatalf("When node label for max pod capacity is missing, expected to set NNC scaler maxIpCount as default value %v, instead got %v", expectedMaxPodIPCount, givenMaxIPCount)
+		t.Fatalf("expected maxIpCount to be %d, got %d", expectedMaxPodIPCount, givenMaxIPCount)
+	}
+}
+
+func TestGetMaxIPCountOfNodeWithLabel(t *testing.T) {
+	nodeName := "test-node"
+	maxPodsLabelVal := 60
+
+	node := corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nodeName,
+			Labels: map[string]string{
+				MaxVnetPodsLabel: fmt.Sprintf("%d", maxPodsLabelVal),
+			},
+		},
+	}
+
+	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{
+		Logger:   logger,
+		Recorder: &record.FakeRecorder{},
+	})
+	givenMaxIPCount := nncReconciler.getMaxIPCountOfNode(node)
+
+	if givenMaxIPCount != int64(maxPodsLabelVal) {
+		t.Fatalf("expected maxIpCount to be %d, got %d", maxPodsLabelVal, givenMaxIPCount)
+	}
+}
+
+func TestGetMaxIPCountOfNodeWithLabelAndCapacity(t *testing.T) {
+	nodeName := "test-node"
+	maxPodsLabelVal := 60
+	nodeCapacity := 30
+	nodeCapacityQ, _ := resource.ParseQuantity(strconv.Itoa(nodeCapacity))
+
+	node := corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nodeName,
+			Labels: map[string]string{
+				MaxVnetPodsLabel: fmt.Sprintf("%d", maxPodsLabelVal),
+			},
+		},
+		Status: corev1.NodeStatus{
+			Capacity: corev1.ResourceList{
+				corev1.ResourcePods: nodeCapacityQ,
+			},
+		},
+	}
+
+	nncReconciler := NewNodeNetworkConfigReconciler(NodeNetworkConfigReconcilerOptions{
+		Logger:   logger,
+		Recorder: &record.FakeRecorder{},
+	})
+	givenMaxIPCount := nncReconciler.getMaxIPCountOfNode(node)
+
+	if givenMaxIPCount != int64(nodeCapacity) {
+		t.Fatalf("expected maxIpCount to be %d, got %d", nodeCapacity, givenMaxIPCount)
 	}
 }
 
@@ -223,8 +276,7 @@ func TestGetBatchSizeWhenOverMaxIPCount(t *testing.T) {
 	expectedBatchSize := maxIPCount
 	initialBatchSize := 50
 	nodeName := "test-node"
-	base := 10
-	quantity, _ := resource.ParseQuantity(strconv.FormatInt(int64(maxIPCount), base))
+	quantity, _ := resource.ParseQuantity(strconv.Itoa(maxIPCount))
 
 	node := corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
