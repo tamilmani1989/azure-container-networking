@@ -64,6 +64,9 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     
     $config = $config.replace('__RpCosmosDbAccountName__', (Out-String -InputObject (Get-Value "Dependencies" "RpCosmosDbAccountName")).Trim())
     $config = $config.replace('__RpCosmosDbResoureID__', (Out-String -InputObject (Get-Value "Dependencies" "RpCosmosDbResoureID")).Trim())
+    $config = $config.replace('__BatchSize__', (Out-String -InputObject (Get-Value "Application" "ScalerBatchSize" "30")).Trim())
+    $config = $config.replace('__RequestThresholdPercent__', (Out-String -InputObject (Get-Value "Application" "RequestThresholdPercent" "50")).Trim())
+    $config = $config.replace('__ReleaseThresholdPercent__', (Out-String -InputObject (Get-Value "Application" "ReleaseThresholdPercent" "150")).Trim())
 
     $config = $config.replace('__SubscriptionId__', (Out-String -InputObject (Get-Value "Cluster" "SubscriptionId")).Trim())
     $config = $config.replace('__ResourceGroup__', (Out-String -InputObject (Get-Value "Cluster" "ResourceGroup")).Trim())

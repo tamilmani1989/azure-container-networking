@@ -17,9 +17,9 @@
         "concurrentNNCReconcilers": 500
     },
     "requestScalerConfig": {
-        "batchSize": 250,
-        "requestThresholdPercent": 0,
-        "releaseThresholdPercent": 100
+        "batchSize": __BatchSize__,
+        "requestThresholdPercent": __RequestThresholdPercent__,
+        "releaseThresholdPercent": __ReleaseThresholdPercent__
     },
     "dncClientConfig": {
         "requestTimeout": "30m",

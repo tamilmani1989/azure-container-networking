@@ -24,7 +24,8 @@
                 "AzId": "AZ03-02",
                 "VIPs": "40.89.67.127,52.138.72.224"
             }
-        ]'
+        ]',
+        "ScalerBatchSize": "10"
     },
     "Cluster": {
         "LOCATION": "eastus2euap",
