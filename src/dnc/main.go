@@ -126,6 +126,7 @@ func startDNC(config *configuration.Configuration, stdErr bool) {
 		logger.Init(stdErr, reports)
 	}
 	logger.SetLogFileLimits(maxLogFileSize, maxLogFileCount)
+	logger.Debugf("Version: %v", utils.Version)
 
 	if !config.TelemetrySettings.DisableTelemetry {
 		aiConfig := aitelemetry.AIConfig{
