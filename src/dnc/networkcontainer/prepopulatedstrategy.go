@@ -26,16 +26,16 @@ func (t *prepopulatedStrategy) logErrorf(format string, args ...interface{}) {
 }
 
 // todo: most of this logic is very similar to other strategy and should be in a shared place. refactor
-func (t *prepopulatedStrategy) scaleDown(reservations []datamodel.ReservationConfiguration, tbdAllocationIDs map[string][]string) ([]datamodel.ReservationConfiguration, error) {
+func (t *prepopulatedStrategy) scaleDown(reservations []datamodel.ReservationRow, tbdAllocationIDs map[string][]string) ([]datamodel.ReservationRow, error) {
 	var allocIDs []string
 	allocationIDToNCID := make(map[string]string)
 	for i := 0; i < len(reservations); i++ {
-		tbdIDs := tbdAllocationIDs[reservations[i].ReservationID]
+		tbdIDs := tbdAllocationIDs[reservations[i].Configuration.ReservationID]
 
 		for _, allocID := range tbdIDs {
 			allocIDs = append(allocIDs, allocID)
-			allocationIDToNCID[allocID] = reservations[i].AssociatedNCID
-			delete(reservations[i].SecondaryAllocations, allocID)
+			allocationIDToNCID[allocID] = reservations[i].Configuration.AssociatedNCID
+			delete(reservations[i].Configuration.SecondaryAllocations, allocID)
 		}
 	}
 
@@ -108,7 +108,7 @@ func (t *prepopulatedStrategy) clearAllocations(networkID, subnetName string, al
 	return t.allocator.UpdateAllocations(networkID, subnetName, entities)
 }
 
-func (t *prepopulatedStrategy) scaleUp(reservations []datamodel.ReservationConfiguration) ([]datamodel.ReservationConfiguration, error) {
+func (t *prepopulatedStrategy) scaleUp(reservations []datamodel.ReservationRow) ([]datamodel.ReservationRow, error) {
 	allocResult, err := t.allocateFromPrepopulated(reservations)
 	if err != nil {
 		return nil, err
@@ -127,15 +127,15 @@ func (t *prepopulatedStrategy) scaleUp(reservations []datamodel.ReservationConfi
 }
 
 type batchEntityResult struct {
-	completed         []datamodel.ReservationConfiguration
-	failed            []datamodel.ReservationConfiguration
+	completed         []datamodel.ReservationRow
+	failed            []datamodel.ReservationRow
 	entitiesToPersist []datamodel.IPAllocationEntity
 }
 
-func (t *prepopulatedStrategy) allocateFromPrepopulated(reservations []datamodel.ReservationConfiguration) (batchEntityResult, error) {
+func (t *prepopulatedStrategy) allocateFromPrepopulated(reservations []datamodel.ReservationRow) (batchEntityResult, error) {
 	reservationIDs := make([]string, len(reservations))
 	for i, reservation := range reservations {
-		reservationIDs[i] = reservation.ReservationID
+		reservationIDs[i] = reservation.Configuration.ReservationID
 	}
 
 	// fetch only allocations that are associated to input, in order to reconcile reservations with existing allocation state in db
@@ -148,24 +148,24 @@ func (t *prepopulatedStrategy) allocateFromPrepopulated(reservations []datamodel
 	// some reservations may be considered completed right after reconciliation,
 	// or after all of its requested IPs have been populated.
 	var (
-		completedReservations []datamodel.ReservationConfiguration
-		reservationsToProcess []datamodel.ReservationConfiguration
+		completedReservations []datamodel.ReservationRow
+		reservationsToProcess []datamodel.ReservationRow
 	)
 
 	unallocatedCount := 0
 	for _, res := range reservations {
 		if isComplete := reconcileReservation(&res, allocationState); isComplete {
-			res.Status = datamodel.Completed
+			res.Configuration.Status = datamodel.Completed
 			completedReservations = append(completedReservations, res)
 			continue // no need to add to process list
 		}
 
 		// count missing allocations and add reconciled state to process list
-		if res.AllocatedSubnet == "" {
+		if res.Configuration.AllocatedSubnet == "" {
 			unallocatedCount++
 		}
 
-		for _, ipAddress := range res.SecondaryAllocations {
+		for _, ipAddress := range res.Configuration.SecondaryAllocations {
 			if ipAddress == "" {
 				unallocatedCount++
 			}
@@ -187,47 +187,47 @@ func (t *prepopulatedStrategy) allocateFromPrepopulated(reservations []datamodel
 	// if the reservation can only be processed partially, we consider it failed.
 	var (
 		updatedAllocations []datamodel.IPAllocationEntity
-		failedReservations []datamodel.ReservationConfiguration
+		failedReservations []datamodel.ReservationRow
 	)
 
 	for _, res := range reservationsToProcess {
-		reservationKey := datamodel.GetReservationKey(res.NetworkID, res.ReservationID)
+		reservationKey := datamodel.GetReservationKey(res.Configuration.NetworkID, res.Configuration.ReservationID)
 
-		if res.AllocatedSubnet == "" {
+		if res.Configuration.AllocatedSubnet == "" {
 			alloc, ok := stack.pop()
 			if !ok {
-				res.Status = datamodel.Failed
-				res.FailureDetail = *api.BadRequest(api.SubnetFull, "not enough free IP addresses to satisfy request")
+				res.Configuration.Status = datamodel.Failed
+				res.Configuration.FailureDetail = *api.BadRequest(api.SubnetFull, "not enough free IP addresses to satisfy request")
 				failedReservations = append(failedReservations, res)
 				continue
 			}
 			ipAddress := datamodel.DecodeIPAllocationKey(alloc.RowKey)
-			res.AllocatedSubnet = ipAddress
+			res.Configuration.AllocatedSubnet = ipAddress
 			alloc.IPAllocation = reservationKey
-			alloc.AllocationID = res.ReservationID
+			alloc.AllocationID = res.Configuration.ReservationID
 			updatedAllocations = append(updatedAllocations, alloc)
 		}
 
-		for allocationID, allocatedIP := range res.SecondaryAllocations {
+		for allocationID, allocatedIP := range res.Configuration.SecondaryAllocations {
 			if allocatedIP != "" {
 				continue
 			}
 			alloc, ok := stack.pop()
 			if !ok {
-				res.Status = datamodel.Failed
-				res.FailureDetail = *api.BadRequest(api.SubnetFull, "not enough free IP addresses to satisfy request")
+				res.Configuration.Status = datamodel.Failed
+				res.Configuration.FailureDetail = *api.BadRequest(api.SubnetFull, "not enough free IP addresses to satisfy request")
 				failedReservations = append(failedReservations, res)
 				break
 			}
 			ipAddress := datamodel.DecodeIPAllocationKey(alloc.RowKey)
-			res.SecondaryAllocations[allocationID] = ipAddress
+			res.Configuration.SecondaryAllocations[allocationID] = ipAddress
 			alloc.IPAllocation = reservationKey
 			alloc.AllocationID = allocationID
 			updatedAllocations = append(updatedAllocations, alloc)
 		}
 
-		if res.Status != datamodel.Failed {
-			res.Status = datamodel.Completed
+		if res.Configuration.Status != datamodel.Failed {
+			res.Configuration.Status = datamodel.Completed
 			completedReservations = append(completedReservations, res)
 		}
 	}

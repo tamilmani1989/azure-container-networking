@@ -72,13 +72,6 @@ const (
 	DontAddToPendingQ = false
 )
 
-// Properties in tables
-const (
-	// Properties in the IPReservationsTable
-	reservationConfigProperty = "ReservationConfiguration"
-	subnetKeyProperty         = "SubnetKey"
-)
-
 // TableToColumnMap - Table name to column map
 var TableToColumnMap = map[string]string{
 	subnetConfigurationTableName:                     subnetConfigurationTag,
@@ -94,4 +87,5 @@ var TableToColumnMap = map[string]string{
 	MasterElectionTableName:                          masterElectionTag,
 	NcPendingPublishContextTableName:                 NcPendingPublishContextTag,
 	featureMigrationTableName:                        featureMigrationTag,
-	PendingResourceCleanupTableName:                  PendingResourceCleanupTag}
+	PendingResourceCleanupTableName:                  PendingResourceCleanupTag,
+	reservationSetTableName:                          reservationSetIDProperty}

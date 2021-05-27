@@ -58,26 +58,26 @@ func subnetMaxHostCount(subnet *net.IPNet) int {
 
 // reconcileReservation reconciles a reservation with the latest allocation state, and returns whether it is ready for completion
 // if not ready, the reservation still contains the correct state with which to continue allocation
-func reconcileReservation(req *datamodel.ReservationConfiguration, currState map[string]*net.IPNet) bool {
-	allocatedIP := currState[req.ReservationID]
+func 	reconcileReservation(req *datamodel.ReservationRow, currState map[string]*net.IPNet) bool {
+	allocatedIP := currState[req.Configuration.ReservationID]
 	if allocatedIP != nil {
-		req.AllocatedSubnet = allocatedIP.String()
+		req.Configuration.AllocatedSubnet = allocatedIP.String()
 	}
 
 	incomplete := false
-	for allocID, ipAddress := range req.SecondaryAllocations {
+	for allocID, ipAddress := range req.Configuration.SecondaryAllocations {
 		secIP := currState[allocID]
 		if secIP != nil {
-			req.SecondaryAllocations[allocID] = secIP.String()
+			req.Configuration.SecondaryAllocations[allocID] = secIP.String()
 			continue
 		}
 		if ipAddress != "" {
 			// the allocation was removed, but the reservation was not mutated
-			delete(req.SecondaryAllocations, allocID)
+			delete(req.Configuration.SecondaryAllocations, allocID)
 			continue
 		}
 		incomplete = true
 	}
 
-	return req.AllocatedSubnet != "" && !incomplete
+	return req.Configuration.AllocatedSubnet != "" && !incomplete
 }

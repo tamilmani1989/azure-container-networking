@@ -1,8 +1,6 @@
 package api
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // ReservationResponse - Struct to hold reservation response.
 type ReservationResponse struct {
@@ -10,11 +8,12 @@ type ReservationResponse struct {
 	ReservationID     string            `json:"reservationid"`
 	AllocationRequest AllocationRequest `json:"AllocationRequest"`
 	AllocatedIPSubnet string            `json:"AllocatedIPSubnet"`
+	ReservationSetID  string            `json:"ReservationSetID"`
 	RequestStatus     RequestStatus     `json:"RequestStatus"`
 }
 
 func (r *ReservationResponse) String() string {
 	return fmt.Sprintf(
-		"ReservationResponse:[NetworkID:%s, ReservationID:%s, AllocationRequest:%s, AllocatedIPSubnet:%s, RequestStatus:%s]",
-		r.NetworkID, r.ReservationID, r.AllocationRequest.String(), r.AllocatedIPSubnet, r.RequestStatus.String())
+		"ReservationResponse:[NetworkID:%s, ReservationID:%s, AllocationRequest:%s, AllocatedIPSubnet:%s, SetID:%s RequestStatus:%s]",
+		r.NetworkID, r.ReservationID, r.AllocationRequest.String(), r.AllocatedIPSubnet, r.ReservationSetID, r.RequestStatus.String())
 }

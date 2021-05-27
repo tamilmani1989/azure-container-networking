@@ -11,6 +11,7 @@ import (
 
 func TestDispatcher(t *testing.T) {
 	vnetID := "vnet1"
+	reservationID := "key1"
 
 	subnets := fakes.SubnetRepo{
 		Data: map[string]datamodel.SubnetConfiguration{
@@ -47,7 +48,12 @@ func TestDispatcher(t *testing.T) {
 
 	for _, subnet := range subnets.Data {
 		for i := 0; i < 50; i++ {
-			res1 := datamodel.ReservationConfiguration{NetworkID: vnetID, AllocationRequest: api.AllocationRequest{SubnetName: subnet.SubnetName}}
+			res1 := datamodel.ReservationRow{
+				RowKey:        datamodel.GetReservationKey(vnetID, reservationID),
+				Configuration: &datamodel.ReservationConfiguration{NetworkID: vnetID, AllocationRequest: api.AllocationRequest{SubnetName: subnet.SubnetName}},
+				SubnetKey:     datamodel.GetSubnetKey(vnetID, subnet.SubnetName),
+				SetKey:        "",
+			}
 			_, _ = d.Reserve(res1, nil)
 		}
 	}

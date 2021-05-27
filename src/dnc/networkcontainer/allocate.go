@@ -56,84 +56,86 @@ func (a *IPAllocator) ProcessIPReservationAllocationWithKey(reservationKey strin
 		return true, nil // don't add new pending work queue item, error
 	}
 
-	return a.ProcessIPReservationAllocation(reservation.Configuration)
+	return a.ProcessIPReservationAllocation(reservation)
 }
 
 // ProcessIPReservationAllocation processes IP allocation for the given reservation
 // returns whether ip allocation is complete, and any errors in processing
-func (a *IPAllocator) ProcessIPReservationAllocation(req *datamodel.ReservationConfiguration) (bool, *api.JsonErr) {
-	subnetConfig, err := a.Subnets.TryQuerySubnetConfiguration(req.NetworkID, req.AllocationRequest.SubnetName)
+func (a *IPAllocator) ProcessIPReservationAllocation(reservation datamodel.ReservationRow) (bool, *api.JsonErr) {
+	subnetConfig, err := a.Subnets.TryQuerySubnetConfiguration(reservation.Configuration.NetworkID, reservation.Configuration.AllocationRequest.SubnetName)
 	if err != nil {
 		return false, err
 	}
 	if subnetConfig == nil {
-		err := api.NotFound(api.SubnetNotFound, fmt.Sprintf("Failed to find subnet for allocation request %s", req.AllocationRequest.SubnetName))
-		return a.markReservationAsFailed(req, err)
+		err := api.NotFound(api.SubnetNotFound, fmt.Sprintf("Failed to find subnet for allocation request %s",
+			reservation.Configuration.AllocationRequest.SubnetName))
+		return a.markReservationAsFailed(reservation, err)
 	}
 
-	allocationState, err := a.getAllocationsFromSubnetTable(req.NetworkID, req.AllocationRequest.SubnetName)
+	allocationState, err := a.getAllocationsFromSubnetTable(reservation.Configuration.NetworkID, reservation.Configuration.AllocationRequest.SubnetName)
 	if err != nil {
 		if err.HTTPStatus == http.StatusNotFound {
-			return a.markReservationAsFailed(req, err)
+			return a.markReservationAsFailed(reservation, err)
 		}
 		return false, nil
 	}
 
-	isComplete := reconcileReservation(req, allocationState)
+	isComplete := reconcileReservation(&reservation, allocationState)
 	if isComplete {
-		return a.completeAllocation(req, subnetConfig)
+		return a.completeAllocation(reservation, subnetConfig)
 	}
 
 	baseSubnet, parseErr := utils.ParseIPNet(subnetConfig.IPSubnet)
 	if parseErr != nil {
 		err := api.InternalServerError(api.StatusInternalServerError, parseErr.Error())
-		return a.markReservationAsFailed(req, err)
+		return a.markReservationAsFailed(reservation, err)
 	}
 
-	addressesInUse, err := a.getAllAddressesInUse(baseSubnet, allocationState, req)
+	addressesInUse, err := a.getAllAddressesInUse(baseSubnet, allocationState, reservation.Configuration)
 	if err != nil {
 		if err.HTTPStatus == http.StatusNotFound {
-			return a.markReservationAsFailed(req, err)
+			return a.markReservationAsFailed(reservation, err)
 		}
 		return false, nil
 	}
 
 	var primaryIP *net.IPNet
-	if req.AllocatedSubnet != "" {
-		_, primaryIP, parseErr = net.ParseCIDR(req.AllocatedSubnet)
+	if reservation.Configuration.AllocatedSubnet != "" {
+		_, primaryIP, parseErr = net.ParseCIDR(reservation.Configuration.AllocatedSubnet)
 		if parseErr != nil {
-			return a.markReservationAsFailed(req, api.InternalServerError(api.StatusInternalServerError, parseErr.Error()))
+			return a.markReservationAsFailed(reservation, api.InternalServerError(api.StatusInternalServerError, parseErr.Error()))
 		}
 	} else {
-		primaryIP, err = determinePrimaryIP(req, baseSubnet, addressesInUse)
+		primaryIP, err = determinePrimaryIP(reservation.Configuration, baseSubnet, addressesInUse)
 		if err != nil {
-			return a.markReservationAsFailed(req, err)
+			return a.markReservationAsFailed(reservation, err)
 		}
 	}
 
 	if primaryIP == nil {
-		err := api.BadRequest(api.AllocationFailed, fmt.Sprintf("Failed to allocate address for request %s. Subnet is full", req.AllocationRequest.String()))
-		return a.markReservationAsFailed(req, err)
+		err := api.BadRequest(api.AllocationFailed, fmt.Sprintf("Failed to allocate address for request %s. Subnet is full",
+			reservation.Configuration.AllocationRequest.String()))
+		return a.markReservationAsFailed(reservation, err)
 	}
 
 	// whether it's a single record or multiple, we can still use a batch for a single transaction
 	// reservation key is the same for all rows of the batch
 	batch := make(map[string]map[string]interface{})
-	reservationKey := datamodel.GetReservationKey(req.NetworkID, req.ReservationID)
+	reservationKey := datamodel.GetReservationKey(reservation.Configuration.NetworkID, reservation.Configuration.ReservationID)
 
 	// we only add the primary ip for the reservation if it hadn't been found previously
-	if req.AllocatedSubnet == "" {
+	if reservation.Configuration.AllocatedSubnet == "" {
 		rowKey := datamodel.EncodeIPAllocationKey(primaryIP.String())
 		batch[rowKey] = map[string]interface{}{
 			datamodel.IPAllocationProperty: reservationKey,
-			datamodel.AllocationIDProperty: req.ReservationID}
+			datamodel.AllocationIDProperty: reservation.Configuration.ReservationID}
 	}
 
 	// we keep track of all secondary allocations that have not been assigned an IP yet
 	// we only find IPs for these, and as the IPAllocation record is built and added to the batch, the value will be populated
 	// so we can merge back into the original reservation only after successful allocation
 	unallocated := make(map[string]string)
-	for allocationID, ipAddress := range req.SecondaryAllocations {
+	for allocationID, ipAddress := range reservation.Configuration.SecondaryAllocations {
 		if ipAddress == "" {
 			unallocated[allocationID] = ""
 		}
@@ -151,7 +153,8 @@ func (a *IPAllocator) ProcessIPReservationAllocation(req *datamodel.ReservationC
 		availableIPs, allocErr := findAllocatableIPs(baseSubnet, ipsInUse, len(unallocated))
 		if allocErr != nil {
 			if allocErr == errCapacityExceeded {
-				return false, api.BadRequest(api.AllocationFailed, fmt.Sprintf("Failed to allocate address for request %s. Subnet is full", req.AllocationRequest.String()))
+				return false, api.BadRequest(api.AllocationFailed,
+					fmt.Sprintf("Failed to allocate address for request %s. Subnet is full", reservation.Configuration.AllocationRequest.String()))
 			}
 			return false, api.InternalServerError(api.AllocationFailed, allocErr.Error())
 		}
@@ -167,21 +170,21 @@ func (a *IPAllocator) ProcessIPReservationAllocation(req *datamodel.ReservationC
 		}
 	}
 
-	if err := a.Allocations.AddIPAllocations(req.NetworkID, req.AllocationRequest.SubnetName, batch); err != nil {
+	if err := a.Allocations.AddIPAllocations(reservation.Configuration.NetworkID, reservation.Configuration.AllocationRequest.SubnetName, batch); err != nil {
 		// whether it's a conflict or a network error, we should retry
 		return false, err
 	}
 
 	// once successful, mutate the original reservation with new state
-	if req.AllocatedSubnet == "" {
-		req.AllocatedSubnet = primaryIP.String()
+	if reservation.Configuration.AllocatedSubnet == "" {
+		reservation.Configuration.AllocatedSubnet = primaryIP.String()
 	}
 	// no-op if unallocated is empty
 	for allocationID, ipAddress := range unallocated {
-		req.SecondaryAllocations[allocationID] = ipAddress
+		reservation.Configuration.SecondaryAllocations[allocationID] = ipAddress
 	}
 
-	return a.completeAllocation(req, subnetConfig)
+	return a.completeAllocation(reservation, subnetConfig)
 }
 
 func (a *IPAllocator) getAllAddressesInUse(baseSubnet *net.IPNet, allocationState map[string]*net.IPNet, req *datamodel.ReservationConfiguration) (map[string]*net.IPNet, *api.JsonErr) {
@@ -243,19 +246,21 @@ func determinePrimaryIP(req *datamodel.ReservationConfiguration, baseSubnet *net
 	return subnetConstraint, nil
 }
 
-func (a *IPAllocator) completeAllocation(request *datamodel.ReservationConfiguration, subnetConfig *datamodel.SubnetConfiguration) (bool, *api.JsonErr) {
-	request.Status = datamodel.Completed
+func (a *IPAllocator) completeAllocation(request datamodel.ReservationRow, subnetConfig *datamodel.SubnetConfiguration) (bool, *api.JsonErr) {
+	config := request.Configuration
+	config.Status = datamodel.Completed
 
-	if request.AllocationRequest.NodeConstraint != "" {
-		err := a.Nodes.UpdateNodeConstrainedReservationSetByNodeID(request.AllocationRequest.NodeConstraint, request.NetworkID, request.ReservationID, false)
+	if config.AllocationRequest.NodeConstraint != "" {
+		err := a.Nodes.UpdateNodeConstrainedReservationSetByNodeID(config.AllocationRequest.NodeConstraint, config.NetworkID, config.ReservationID, false)
 		if err != nil {
-			err.Text = fmt.Sprintf("Failed to associate reservation request %s to node %s due to error %s", request.String(), request.AllocationRequest.NodeConstraint, err.String())
+			err.Text = fmt.Sprintf("Failed to associate reservation request %s to node %s due to error %s",
+				config.String(), config.AllocationRequest.NodeConstraint, err.String())
 			return false, err
 		}
 	}
 
-	if err := a.Subnets.UpdateSubnetReservationSet(request.ReservationID, request.AllocatedSubnet, false, subnetConfig); err != nil {
-		err.Text = fmt.Sprintf("Failed to persist updating reservation request %s in subnet configuration due to error %s", request.String(), err.String())
+	if err := a.Subnets.UpdateSubnetReservationSet(config.ReservationID, config.AllocatedSubnet, false, subnetConfig); err != nil {
+		err.Text = fmt.Sprintf("Failed to persist updating reservation request %s in subnet configuration due to error %s", config.String(), err.String())
 		if err.Code == api.PropertyValueTooLargeStorageError {
 			err := api.BadRequest(api.FailedToUpdateSubnetWithReservationInfo, err.Text)
 			return a.markReservationAsFailed(request, err)
@@ -264,8 +269,8 @@ func (a *IPAllocator) completeAllocation(request *datamodel.ReservationConfigura
 		return false, err
 	}
 
-	if err := a.Reservations.PutIPReservationConfiguration(request); err != nil {
-		err.Text = fmt.Sprintf("Failed to mark reservation request %s as succeded due to error %s", request.String(), err.String())
+	if err := a.Reservations.PersistIPReservation(request); err != nil {
+		err.Text = fmt.Sprintf("Failed to mark reservation request %s as succeded due to error %s", config.String(), err.String())
 		return false, err
 	}
 
@@ -388,11 +393,11 @@ func (a *IPAllocator) getAllocationsForReservationIDs(networkID, subnetName stri
 	return allocations, nil
 }
 
-func (a *IPAllocator) markReservationAsFailed(req *datamodel.ReservationConfiguration, err *api.JsonErr) (bool, *api.JsonErr) {
-	req.Status = datamodel.Failed
-	req.FailureDetail = *err
-	a.Logger.Errorf("Failed to process reservation request {%s} due to error {%s}", req.String(), err.String())
-	if err := a.Reservations.PutIPReservationConfiguration(req); err != nil {
+func (a *IPAllocator) markReservationAsFailed(req datamodel.ReservationRow, err *api.JsonErr) (bool, *api.JsonErr) {
+	req.Configuration.Status = datamodel.Failed
+	req.Configuration.FailureDetail = *err
+	a.Logger.Errorf("Failed to process reservation request {%s} due to error {%s}", req.Configuration.String(), err.String())
+	if err := a.Reservations.PersistIPReservation(req); err != nil {
 		return false, err
 	}
 	return true, nil

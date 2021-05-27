@@ -24,13 +24,13 @@ type IPReservationDispatcher struct {
 }
 
 type reservationRequest struct {
-	reservation      datamodel.ReservationConfiguration
+	reservation      datamodel.ReservationRow
 	toBeDeletedIPIDs []string
 	responseCh       chan response
 }
 
 type response struct {
-	reservation datamodel.ReservationConfiguration
+	reservation datamodel.ReservationRow
 	err         error
 }
 
@@ -67,7 +67,7 @@ func (d *IPReservationDispatcher) logErrorf(format string, args ...interface{}) 
 }
 
 // Reserve processes an network container for reservation/allocation.
-func (d *IPReservationDispatcher) Reserve(res datamodel.ReservationConfiguration, toBeDeletedIPIDs []string) (datamodel.ReservationConfiguration, error) {
+func (d *IPReservationDispatcher) Reserve(res datamodel.ReservationRow, toBeDeletedIPIDs []string) (datamodel.ReservationRow, error) {
 	responseCh := make(chan response)
 
 	// todo: revisit passing a context. considered it initially, but tricky to determine what behavior
@@ -94,8 +94,8 @@ func (d *IPReservationDispatcher) Run(ctx context.Context) {
 				return
 			case req := <-d.inputCh:
 				key := subnetKey{
-					vnetID:     req.reservation.NetworkID,
-					subnetName: req.reservation.AllocationRequest.SubnetName,
+					vnetID:     req.reservation.Configuration.NetworkID,
+					subnetName: req.reservation.Configuration.AllocationRequest.SubnetName,
 				}
 				handler, found := d.subnetHandlers[key]
 				if !found {

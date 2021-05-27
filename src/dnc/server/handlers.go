@@ -25,6 +25,7 @@ const (
 	networkContainerIDStr = "networkContainerID"
 	nodeIDStr             = "nodeID"
 	reservationIDStr      = "reservationID"
+	reservationSetIDStr   = "reservationSetID"
 	subnetStr             = "subnet"
 	infraNetworkIDStr     = "infraNetworkID"
 )
@@ -163,16 +164,56 @@ func DeleteNode(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, deleteNodeErr)
 }
 
+// CreateOrUpdateReservationSet - Handler for creating or updating reservation set
+func CreateOrUpdateReservationSet(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	networkID, ok := vars[networkIDStr]
+	if !ok {
+		setRequestFailed(w, api.BadRequestf(api.InvalidNetworkID, api.NetworkIDMissing))
+		return
+	}
+
+	reservationSetID, ok := vars[reservationSetIDStr]
+	if !ok {
+		setRequestFailed(w, api.BadRequestf(api.InvalidReservationSetID, api.ReservationSetIDMissing))
+		return
+	}
+
+	if validationErr := ValidateReservationSetRequest(networkID, reservationSetID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	var request api.ReservationSetRequest
+	w.Header().Set(contentTypeStr, defaultContentType)
+	if err := decodeRequestBody(r, &request); err != nil {
+		jsonErr := api.UnprocessableEntityf(api.JsonBodyUnMarshalFailed, "could not unmarshal request body. error: %v", err)
+		setRequestFailed(w, jsonErr)
+		return
+	}
+
+	if validationErr := request.Validate(); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	apiVersion := r.URL.Query().Get("api-version")
+	err := ctrler.CreateOrUpdateReservationSetRequest(networkID, reservationSetID, request, apiVersion)
+	if err == nil {
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+
+	setRequestFailed(w, err)
+}
+
 // ReserveIP - Handler for IP reservation
 func ReserveIP(w http.ResponseWriter, r *http.Request) {
 	apiVersion := r.URL.Query().Get("api-version")
 	vars := mux.Vars(r)
 	networkID, ok := vars[networkIDStr]
 	if !ok {
-		setRequestFailed(w, &api.JsonErr{
-			Code:       api.InvalidNetworkID,
-			Text:       api.NetworkIDMissing,
-			HTTPStatus: http.StatusBadRequest})
+		setRequestFailed(w, api.BadRequestf(api.InvalidNetworkID, api.NetworkIDMissing))
 		return
 	}
 
@@ -260,6 +301,104 @@ func GetReservation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	setRequestFailed(w, getErr)
+}
+
+func GetReservationSetStatus(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	networkID, ok := vars[networkIDStr]
+	if !ok {
+		setRequestFailed(w, api.BadRequestf(api.InvalidNetworkID, api.NetworkIDMissing))
+		return
+	}
+
+	reservationSetID, ok := vars[reservationSetIDStr]
+	if !ok {
+		setRequestFailed(w, api.BadRequestf(api.InvalidReservationSetID, api.ReservationSetIDMissing))
+		return
+	}
+
+	if validationErr := ValidateReservationSetRequest(networkID, reservationSetID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	w.Header().Set(contentTypeStr, defaultContentType)
+
+	status, httpCode, errGet := ctrler.GetReservationSetStatus(networkID, reservationSetID)
+	if errGet == nil {
+		w.WriteHeader(httpCode)
+		if status != nil {
+			if err := json.NewEncoder(w).Encode(&status); err != nil {
+				// todo: this is copied from other GetStatus code. Revisit this.
+				panic(err)
+			}
+		}
+		return
+	}
+
+	setRequestFailed(w, errGet)
+}
+
+func DeleteReservationSet(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	networkID, ok := vars[networkIDStr]
+	if !ok {
+		setRequestFailed(w, api.BadRequestf(api.InvalidNetworkID, api.NetworkIDMissing))
+		return
+	}
+
+	reservationSetID, ok := vars[reservationSetIDStr]
+	if !ok {
+		setRequestFailed(w, api.BadRequestf(api.InvalidReservationSetID, api.ReservationSetIDMissing))
+		return
+	}
+
+	if validationErr := ValidateReservationSetRequest(networkID, reservationSetID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	w.Header().Set(contentTypeStr, defaultContentType)
+	err := ctrler.DeleteReservationSet(networkID, reservationSetID)
+	if err == nil {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	setRequestFailed(w, err)
+}
+
+func GetReservationSet(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	networkID, ok := vars[networkIDStr]
+	if !ok {
+		setRequestFailed(w, api.BadRequestf(api.InvalidNetworkID, api.NetworkIDMissing))
+		return
+	}
+
+	reservationSetID, ok := vars[reservationSetIDStr]
+	if !ok {
+		setRequestFailed(w, api.BadRequestf(api.InvalidReservationSetID, api.ReservationSetIDMissing))
+		return
+	}
+
+	if validationErr := ValidateReservationSetRequest(networkID, reservationSetID); validationErr != nil {
+		setRequestFailed(w, validationErr)
+		return
+	}
+
+	w.Header().Set(contentTypeStr, defaultContentType)
+
+	reservationSet, errGet := ctrler.GetReservationSet(networkID, reservationSetID)
+	if errGet == nil {
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(&reservationSet); err != nil {
+			panic(err)
+		}
+		return
+	}
+
+	setRequestFailed(w, errGet)
 }
 
 // GetReservationStatus - Handler for querying reservation status.
@@ -576,8 +715,9 @@ func getNetworkContainerRequestV1(body []byte) (*api.NetworkContainerRequestV1, 
 		return nil, err
 	}
 
+	//todo: revisit and make the logic to check if this is v1 / v2 more robust.
 	if !reflect.DeepEqual(ncRequestV1, (api.NetworkContainerRequestV1{})) {
-		if len(ncRequestV1.ReservationID) != 0 {
+		if len(ncRequestV1.ReservationID) != 0 || len(ncRequestV1.ReservationSetID) != 0 {
 			switch ncRequestV1.AssociationInfo.ContainerType {
 			case cns.AzureContainerInstance:
 				fallthrough

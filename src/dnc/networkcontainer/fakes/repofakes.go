@@ -91,13 +91,14 @@ func (f *ReservationRepo) GetReservations(networkID string, reservationIDs []str
 	return out, nil
 }
 
-func (f *ReservationRepo) UpdateReservations(reservations []datamodel.ReservationConfiguration) *api.JsonErr {
+func (f *ReservationRepo) UpdateReservations(reservations []datamodel.ReservationRow) *api.JsonErr {
 	for i, reservation := range reservations {
-		key := datamodel.GetReservationKey(reservation.NetworkID, reservation.ReservationID)
+		key := datamodel.GetReservationKey(reservation.Configuration.NetworkID, reservation.Configuration.ReservationID)
 		reservationRow := datamodel.ReservationRow{
 			RowKey:        key,
-			Configuration: &reservations[i],
-			SubnetKey:     datamodel.GetSubnetKey(reservation.NetworkID, reservation.AllocationRequest.SubnetName),
+			Configuration: reservations[i].Configuration,
+			SubnetKey:     datamodel.GetSubnetKey(reservation.Configuration.NetworkID, reservation.Configuration.AllocationRequest.SubnetName),
+			SetKey:        reservation.SetKey,
 		}
 		f.Data[key] = reservationRow
 	}
@@ -109,6 +110,15 @@ func (f *ReservationRepo) DeleteReservation(reservationKey string) *api.JsonErr 
 		delete(f.Data, reservationKey)
 	}
 
+	return nil
+}
+
+func (f *ReservationRepo) PersistIPReservation(reservation datamodel.ReservationRow) *api.JsonErr {
+	if f.PutErr != nil {
+		return f.PutErr
+	}
+	key := datamodel.GetReservationKey(reservation.Configuration.NetworkID, reservation.Configuration.ReservationID)
+	f.Data[key] = reservation
 	return nil
 }
 

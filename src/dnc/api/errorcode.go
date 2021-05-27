@@ -286,6 +286,24 @@ const (
 
 	// SubnetFull - All IPs in subnet are in use
 	SubnetFull
+
+	// InvalidReservationSetID -  Reservation Set ID specified is invalid.
+	InvalidReservationSetID
+
+	// InvalidNumReservations -  Number of reservations in the set is invalid.
+	InvalidNumReservations
+
+	// ReservationSetProcessingPending -  Reservation set processing is in pending state.
+	ReservationSetProcessingPending
+
+	// ReservationSetProcessingFailed -  Reservation set processing is in failed state.
+	ReservationSetProcessingFailed
+
+	// InvalidReservationRequest - Invalid reservation request
+	InvalidReservationRequest
+
+	// AzureStorageError - Error coming from Azure storage
+	AzureStorageError
 )
 
 func (e ErrorCode) String() string {
@@ -559,6 +577,24 @@ func (e ErrorCode) String() string {
 
 	case SubnetFull:
 		return "SubnetFull"
+
+	case InvalidReservationSetID:
+		return "InvalidReservationSetID"
+
+	case InvalidNumReservations:
+		return "InvalidNumReservations"
+
+	case ReservationSetProcessingPending:
+		return "ReservationSetProcessingPending"
+
+	case ReservationSetProcessingFailed:
+		return "ReservationSetProcessingFailed"
+
+	case InvalidReservationRequest:
+		return "InvalidReservationRequest"
+
+	case AzureStorageError:
+		return "AzureStorageError"
 	}
 
 	return "Unknown Status"

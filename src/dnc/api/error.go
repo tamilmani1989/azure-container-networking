@@ -46,10 +46,6 @@ func InternalServerErrorf(code ErrorCode, format string, args ...interface{}) *J
 	return &JsonErr{Code: code, Text: fmt.Sprintf(format, args...), HTTPStatus: http.StatusInternalServerError}
 }
 
-func Conflict(code ErrorCode, msg string) *JsonErr {
-	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusConflict}
-}
-
 func UnprocessableEntity(code ErrorCode, msg string) *JsonErr {
 	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusUnprocessableEntity}
 }
@@ -68,4 +64,12 @@ func StatusUnauthorizedf(code ErrorCode, format string, args ...interface{}) *Js
 
 func PreconditionFailedf(code ErrorCode, format string, args ...interface{}) *JsonErr {
 	return &JsonErr{Code: code, Text: fmt.Sprintf(format, args...), HTTPStatus: http.StatusPreconditionFailed}
+}
+
+func Conflict(code ErrorCode, msg string) *JsonErr {
+	return &JsonErr{Code: code, Text: msg, HTTPStatus: http.StatusConflict}
+}
+
+func Conflictf(code ErrorCode, format string, args ...interface{}) *JsonErr {
+	return &JsonErr{Code: code, Text: fmt.Sprintf(format, args...), HTTPStatus: http.StatusConflict}
 }

@@ -93,9 +93,9 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 
 	i := 0
 	for _, v := range set {
-		resID := v.reservation.ReservationID
+		resID := v.reservation.Configuration.ReservationID
 		partialIDs[i] = resID
-		for allocID := range v.reservation.SecondaryAllocations {
+		for allocID := range v.reservation.Configuration.SecondaryAllocations {
 			allocIDs[resID] = append(allocIDs[resID], allocID)
 		}
 		i++
@@ -172,7 +172,7 @@ func assertCompleteResponses(t *testing.T, respChans []chan response, expectedSe
 		select {
 		case resp := <-respChan:
 			require.NoError(t, resp.err)
-			assertCompleteReservation(t, resp.reservation, expectedSecondaryIPCount)
+			assertCompleteReservation(t, *resp.reservation.Configuration, expectedSecondaryIPCount)
 		default: // don't block since we expect all channels to be buffered and contain a response
 			t.Fatal("response channel for request did not contain response")
 		}
@@ -201,12 +201,17 @@ func generateBatch(reservationCount, secondaryIPCount int, vnetID string) (reque
 		// we buffer the response channel, so we don't have to spawn goroutines and can check sequentially
 		responseCh := make(chan response, 1)
 		chs = append(chs, responseCh)
-
+		reservationID := uuid.New().String()
 		set.put(reservationRequest{
-			reservation: datamodel.ReservationConfiguration{
-				ReservationID:        uuid.New().String(),
-				NetworkID:            vnetID,
-				SecondaryAllocations: secAllocs,
+			reservation: datamodel.ReservationRow{
+				RowKey: datamodel.GetReservationKey(vnetID, reservationID),
+				Configuration: &datamodel.ReservationConfiguration{
+					ReservationID:        reservationID,
+					NetworkID:            vnetID,
+					SecondaryAllocations: secAllocs,
+				},
+				SubnetKey: datamodel.GetSubnetKey(vnetID, "subnet1"),
+				SetKey: "",
 			},
 			responseCh: responseCh,
 		})

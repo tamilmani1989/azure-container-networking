@@ -58,7 +58,14 @@ func (p *Preparer) PrepareNetworkContainerV2(ncConfig *datamodel.NCConfiguration
 		return false, err
 	}
 
-	if err := p.Reservations.PutIPReservationConfiguration(&res); err != nil {
+	reservation := datamodel.ReservationRow{
+		RowKey: datamodel.GetReservationKey(ncConfig.NetworkID, ncConfig.ReservationID),
+		Configuration: &res,
+		SubnetKey: datamodel.GetSubnetKey(ncConfig.NetworkID, ncConfig.RequestV2.AllocationRequest.SubnetName),
+		SetKey: "",
+	}
+
+	if err := p.Reservations.PersistIPReservation(reservation); err != nil {
 		return false, api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
@@ -200,21 +207,25 @@ func (p *Preparer) PrepareNetworkContainer(repoNCConfig *datamodel.NCConfigurati
 func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	associationInfo := ncConfig.GetAssociationInfo()
 
-	// get reservation configuration
-	reservation, err := datamodel.QueryIPReservation(ncConfig.NetworkID, ncConfig.ReservationID)
-	if err != nil {
-		if err.HTTPStatus == http.StatusInternalServerError {
-			return false, err
+	// Process reservation if the reservation ID is specified in the NC config
+	// In case of reservation set, no reservation ID will be specified and the allocation of the unassigned reservation
+	// will be processed during reserve phase
+	if ncConfig.ReservationID != "" {
+		reservation, err := datamodel.QueryIPReservation(ncConfig.NetworkID, ncConfig.ReservationID)
+		if err != nil {
+			if err.HTTPStatus == http.StatusInternalServerError {
+				return false, err
+			}
+			return p.markNCAsFailed(ncConfig, *err)
 		}
-		return p.markNCAsFailed(ncConfig, *err)
-	}
 
-	//Compare with frontendIP in a case insensitive manner or any purpose tag defined, DNC should prevent create NC on this IP
-	requestType := reservation.Configuration.AllocationRequest.RequestType
-	if strings.EqualFold(requestType, api.FrontendIP) || requestType != "" {
-		err = api.BadRequestf(api.ReservationTypeNotMatch,
-			"Reservation has been reserved as %s, can't create container with it", requestType)
-		return p.markNCAsFailed(ncConfig, *err)
+		// Compare with frontendIP in a case insensitive manner or any purpose tag defined, DNC should prevent create NC on this IP
+		requestType := reservation.Configuration.AllocationRequest.RequestType
+		if strings.EqualFold(requestType, api.FrontendIP) || requestType != "" {
+			err = api.BadRequestf(api.ReservationTypeNotMatch,
+				"Reservation has been reserved as %s, can't create container with it", requestType)
+			return p.markNCAsFailed(ncConfig, *err)
+		}
 	}
 
 	ncLimit, err := p.CNS.GetNCLimitForNode(associationInfo.NodeID)
@@ -245,11 +256,6 @@ func (p *Preparer) PrepareNetworkContainerV1(ncConfig *datamodel.NCConfiguration
 			return false, err
 		}
 		return p.markNCAsFailed(ncConfig, *err)
-	}
-
-	reservation.Configuration.AssociatedNCID = ncConfig.NetworkContainerID
-	if err := datamodel.PutIPReservationConfiguration(reservation.Configuration); err != nil {
-		return false, err
 	}
 
 	err = p.moveNCToReserveState(ncConfig)

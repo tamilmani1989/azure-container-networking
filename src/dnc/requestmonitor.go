@@ -40,6 +40,8 @@ const (
 	unauthorizedErrRetryDurationSec       = 60
 	defaultMaxConcurrentRequestsToProcess = 1000
 	defaultContentType                    = "application/json; charset=UTF-8"
+	removeFromPendingQ                    = true
+	dontRemoveFromPendingQ                = false
 )
 
 func processRequest(requestID string, requestContext *datamodel.RequestContext) {
@@ -62,8 +64,6 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 
 		removeWorkItem, err = processVirtualNetworkRequest(requestContext)
 
-		break
-
 	case datamodel.ReservationRequest:
 		// Keep the NW and reservation lock while the current request completes the pending queue processing
 		sessionInfo := map[string]string{
@@ -74,7 +74,26 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 		defer sessionManager.EndWriteSession(sessionInfo)
 
 		removeWorkItem, err = ipAllocator.ProcessIPReservationAllocationWithKey(requestID)
-		break
+
+	case datamodel.ReservationSetRequest:
+		reservationSetID, parseErr := datamodel.GetSetIDFromReservationSetKey(requestID)
+		if parseErr != nil {
+			logger.Errorf("could not get reservationSetID from request key: %s. error: %v. Removing request from pending queue",
+				requestID, parseErr)
+			// Remove the request from pending queue as it will never succeed
+			datamodel.RemovePendingRequest(requestID)
+			//todo: add alerting on this error
+		}
+
+		// Keep the NW and reservationset lock while the current request completes the pending queue processing
+		sessionInfo := map[string]string{
+			datamodel.ReservationSetRepositoryName: reservationSetID,
+			datamodel.NetworkRepositoryName:     requestContext.NetworkID,
+		}
+		sessionManager.BeginWriteSession(sessionInfo)
+		defer sessionManager.EndWriteSession(sessionInfo)
+
+		removeWorkItem, err = processReservationSetWithKey(requestID)
 
 	case datamodel.NetworkContainerRequest:
 		// Acquire the NC lock while the current request completes the pending queue processing
@@ -88,8 +107,6 @@ func processRequest(requestID string, requestContext *datamodel.RequestContext) 
 		if err != nil && err.HTTPStatus == http.StatusProcessing {
 			requestContext.RetryInterval = requestContextRetryInterval
 		}
-		break
-
 	}
 
 	if err == nil && removeWorkItem {
@@ -392,6 +409,161 @@ func processPrepareSecondaryIpCleanup(repoNCConfig *datamodel.NCConfiguration, c
 	return false, transitionNCStateAndLog(repoNCConfig, datamodel.PrepareSecondaryIpCleanup, datamodel.Program, datamodel.Pending)
 }
 
+// validateAndGetExplicitReservationID - If the request has specified ReservationID, validate that reservation and use that reservationID.
+// If the request has instead specified ReservationSetID, find unassigned reservation from that set. If there is no unassigned reservation
+// left in that reservation set, return error
+func validateAndGetExplicitReservationID(
+	repoNCConfig *datamodel.NCConfiguration) (string, bool, *api.JsonErr) {
+	var (
+		reservation datamodel.ReservationRow
+		reservationSetID string
+		networkID = repoNCConfig.NetworkID
+		ncRequest = repoNCConfig.RequestV1
+		requestedReservationID = ncRequest.ReservationID
+		err *api.JsonErr
+	)
+
+	// Check if the provided reservation belongs to a reservation set
+	if requestedReservationID != "" {
+		reservation, err = datamodel.IpReservationRepo.TryQueryIPReservation(networkID, requestedReservationID)
+		if err != nil {
+			return "", true, api.InternalServerErrorf(api.StatusInternalServerError,
+				"could not retrieve reservation: %s. error: %v", requestedReservationID, err)
+		}
+
+		if reservation.Configuration == nil {
+			return "", false, api.BadRequestf(api.InvalidReservationID, "could not find reservation for ID: %s", requestedReservationID)
+		}
+
+		if reservation.SetKey != "" {
+			reservationSetID = datamodel.GetReservationIDFromKey(reservation.SetKey)
+		}
+	} else {
+		reservationSetID = ncRequest.ReservationSetID
+	}
+
+	// If the reservation belongs to a set find unassigned reservation from that set. If there is no unassigned reservation
+	// left in that reservation set, return error
+	if reservationSetID != "" {
+		return validateAndGetExplicitReservationIDFromSet(repoNCConfig, reservationSetID)
+	}
+
+	// If the reservation doesn't belong to a set, associate the NCID with the reservation if reservation is free
+	sessionInfo := map[string]string{datamodel.ReservationRepositoryName: requestedReservationID}
+	sessionManager.BeginWriteSession(sessionInfo)
+	defer sessionManager.EndWriteSession(sessionInfo)
+
+	ncID := repoNCConfig.NetworkContainerID
+	// Return error if the reservation is already associated with a different NC
+	if reservation.Configuration.AssociatedNCID != "" && reservation.Configuration.AssociatedNCID != ncID {
+		return "", false, api.BadRequestf(api.ReservationInUse, "specified reservation: %s is already assigned to NC: %s",
+			requestedReservationID, reservation.Configuration.AssociatedNCID)
+	}
+
+	// Associate the NCID if not already associated
+	if reservation.Configuration.AssociatedNCID != ncID {
+		reservation.Configuration.AssociatedNCID = ncID
+		if err = datamodel.IpReservationRepo.PersistIPReservation(reservation); err != nil {
+			return "", true, api.InternalServerErrorf(api.StatusInternalServerError,
+				"could not persist updated reservation: %+v. error: %v", reservation, err)
+		}
+		loggershim.LS.Debugf("Associated NCID: %s with reservation: %s", ncID, requestedReservationID)
+	}
+
+	return requestedReservationID, true, nil
+}
+
+func validateAndGetExplicitReservationIDFromSet(
+	repoNCConfig *datamodel.NCConfiguration,
+	reservationSetID string) (string, bool, *api.JsonErr) {
+	var (
+		sessionInfo = make(map[string]string)
+		ncID = repoNCConfig.NetworkContainerID
+		networkID = repoNCConfig.NetworkID
+		ncRequest = repoNCConfig.RequestV1
+		err *api.JsonErr
+	)
+
+	loggershim.LS.Debugf("NC request for ID: %s is using reservation set: %s", ncID, reservationSetID)
+	sessionInfo[datamodel.ReservationSetRepositoryName] = reservationSetID
+	sessionManager.BeginWriteSession(sessionInfo)
+	defer sessionManager.EndWriteSession(sessionInfo)
+
+	// Check if the reservation set is in a completed state
+	var reservationSet *datamodel.ReservationSet
+	reservationSet, err = datamodel.IpReservationSetRepo.TryQueryIPReservationSet(networkID, reservationSetID)
+	if err != nil {
+		return "", true, api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not retrieve reservation set: %s. error: %v", reservationSetID, err)
+	}
+
+	if reservationSet == nil {
+		return "", false, api.BadRequestf(api.InvalidReservationSetID, "could not find reservation set: %s", reservationSetID)
+	}
+
+	// Fail the request if the set is already marked for deletion
+	if reservationSet.MarkedForDelete {
+		return "", false, api.BadRequestf(api.InvalidReservationRequest,
+			"reservation set: %s is marked for deletion. Cannot use the reservations from that set", reservationSetID)
+	}
+
+	if reservationSet.Status != datamodel.Completed {
+		if reservationSet.Status == datamodel.Failed {
+			return "", false, api.BadRequestf(api.ReservationSetProcessingFailed, "reservation set: %s processing in failed state", reservationSetID)
+		}
+
+		return "", false, api.BadRequestf(api.ReservationSetProcessingPending, "reservation set: %s processing in pending state", reservationSetID)
+	}
+
+	// Handle the case where the request included a reservation ID that belongs to this set
+	if ncRequest.ReservationID != "" {
+		// Read the reservation again and verify that either it's still free or associated with this NC.
+		// This is needed after acquiring the reservationset lock as the reservation may have already been given out
+		var reservation datamodel.ReservationRow
+		if reservation, err = datamodel.IpReservationRepo.TryQueryIPReservation(networkID, ncRequest.ReservationID); err != nil {
+			return "", true, api.InternalServerErrorf(api.StatusInternalServerError, "could not retrieve reservation: %s. error: %v",
+				ncRequest.ReservationID, err)
+		}
+
+		if reservation.Configuration.AssociatedNCID != "" && reservation.Configuration.AssociatedNCID != ncID {
+			return "", false, api.BadRequestf(api.ReservationInUse, "specified reservation: %s is already assigned to NC: %s",
+				ncRequest.ReservationID, reservation.Configuration.AssociatedNCID)
+		}
+
+		if reservation.Configuration.AssociatedNCID != ncID {
+			reservation.Configuration.AssociatedNCID = ncID
+			if err = datamodel.IpReservationRepo.PersistIPReservation(reservation); err != nil {
+				return "", true, api.InternalServerErrorf(api.StatusInternalServerError,
+					"could not persist updated reservation: %+v. error: %v", reservation, err)
+			}
+			loggershim.LS.Debugf("Associated NCID: %s with reservation: %s from reservation set: %s",
+				ncID, reservation.Configuration.ReservationID, reservationSetID)
+		}
+
+		return reservation.Configuration.ReservationID, true, nil
+	}
+
+	// todo: optimize the logic to get a free reservation from the set to batch processing so that multiple NC requests
+	//  for the same reservation set can proceed in parallel without the need for lock.
+	//  Not a priority for the initial change to enable this feature.
+	// Associate NC with unassigned reservation
+	var reservationID string
+	reservationID, err = datamodel.IpReservationRepo.AssociateNCWithReservationInSet(networkID, ncID,  ncRequest.ReservationSetID)
+	if err != nil {
+		loggershim.LS.Errorf("NC: %s request failed. error: %v", ncID, err)
+		// Non-retryable error if the returned error indicates that there is no available reservation
+		if err.Code != api.ReservationNotFound {
+			return "", true, err
+		}
+
+		return "", false, err
+	}
+
+	loggershim.LS.Debugf("Associated NCID: %s with reservation: %s from reservation set: %s", ncID, reservationID, reservationSetID)
+
+	return reservationID, true, nil
+}
+
 func processNetworkContainerReserve(
 	repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	var (
@@ -399,36 +571,49 @@ func processNetworkContainerReserve(
 		failureDetail        *api.JsonErr
 		markProcessingFailed bool
 		repoReservation      datamodel.ReservationRow
+		reservationID = repoNCConfig.ReservationID
 	)
 
-	sessionInfo := map[string]string{
-		datamodel.ReservationRepositoryName: repoNCConfig.ReservationID,
-		datamodel.NetworkRepositoryName:     repoNCConfig.NetworkID,
-	}
+	sessionInfo := map[string]string{datamodel.NetworkRepositoryName: repoNCConfig.NetworkID}
 
 	// Acquire Node lock if the ContainerType is WebApps
 	if repoNCConfig.GetAssociationInfo().ContainerType == cns.WebApps {
 		sessionInfo[datamodel.NodeRepositoryName] = repoNCConfig.GetAssociationInfo().NodeID
 	}
 
+	if !repoNCConfig.ImplicitReservation {
+		var isErrRetryable bool
+		if reservationID, isErrRetryable, err = validateAndGetExplicitReservationID(repoNCConfig); err != nil {
+			loggershim.LS.Errorf("validateAndGetExplicitReservationID failed for NC: %s error: %+v", repoNCConfig.NetworkContainerID, err)
+			// If the error is retryable, do not remove the request from pending queue
+			if isErrRetryable {
+				return false, err
+			}
+
+			// If the error is non retryable mark the processing as failed
+			markProcessingFailed = true
+			failureDetail = err
+			goto Cleanup
+		}
+
+		// Update the reservation ID in network container config
+		repoNCConfig.ReservationID = reservationID
+	}
+
+	sessionInfo[datamodel.ReservationRepositoryName] = reservationID
+
 	sessionManager.BeginWriteSession(sessionInfo)
 	defer sessionManager.EndWriteSession(sessionInfo)
 
-	repoReservation, err = datamodel.TryQueryIPReservation(repoNCConfig.NetworkID, repoNCConfig.ReservationID)
+	repoReservation, err = datamodel.TryQueryIPReservation(repoNCConfig.NetworkID, reservationID)
 	if err != nil {
 		return false, err
 	}
 
 	if repoReservation.Configuration == nil {
 		markProcessingFailed = true
-		failureDetail = &api.JsonErr{
-			Code:       api.ReservationNotFound,
-			HTTPStatus: http.StatusBadRequest,
-			Text: fmt.Sprintf(
-				"Failed to find reservation %s associated with network container %s",
-				repoNCConfig.ReservationID,
-				repoNCConfig.NetworkContainerID)}
-
+		failureDetail = api.BadRequestf(api.ReservationNotFound, "Failed to find reservation %s associated with network container %s",
+			repoNCConfig.ReservationID, repoNCConfig.NetworkContainerID)
 		goto Cleanup
 	}
 
@@ -473,14 +658,14 @@ func processNetworkContainerReserve(
 		for _, allocID := range repoNCConfig.RequestV2.ToBeDeletedIPIds {
 			delete(repoReservation.Configuration.SecondaryAllocations, allocID)
 		}
-		if err := datamodel.PutIPReservationConfiguration(repoReservation.Configuration); err != nil {
+		if err := datamodel.IpReservationRepo.PersistIPReservation(repoReservation); err != nil {
 			return false, err
 		}
 	}
 
 	// If the reservation status is pending, process IP allocation
 	if repoReservation.Configuration.Status == datamodel.Pending {
-		ipReservationAllocationComplete, err := ipAllocator.ProcessIPReservationAllocation(repoReservation.Configuration)
+		ipReservationAllocationComplete, err := ipAllocator.ProcessIPReservationAllocation(repoReservation)
 
 		// Return if the IP reservation allocation did not complete. This indicates that
 		// the operation ran into retriable error.
@@ -547,14 +732,14 @@ func processNetworkContainerBatchReserve(nc *datamodel.NCConfiguration) (bool, *
 		return markNCAsFailed(nc, *api.NotFoundf(api.ReservationNotFound, "could not find reservation %s for nc %s", nc.NetworkContainerID, nc.ReservationID))
 	}
 
-	res, err := resDispatcher.Reserve(*reservation.Configuration, nc.RequestV2.ToBeDeletedIPIds)
+	res, err := resDispatcher.Reserve(reservation, nc.RequestV2.ToBeDeletedIPIds)
 	if err != nil {
 		return false, api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
-	switch res.Status {
+	switch res.Configuration.Status {
 	case datamodel.Failed:
-		return markNCAsFailed(nc, res.FailureDetail)
+		return markNCAsFailed(nc, res.Configuration.FailureDetail)
 	case datamodel.Completed:
 		return false, transitionNCStateAndLog(nc, datamodel.Reserve, datamodel.AllocateLocalIP, datamodel.Pending)
 	default:
@@ -1665,6 +1850,103 @@ func processNetworkContainerUnPublish(
 //   states that transition to program should just mark status as completed.
 func processNetworkContainerProgram(repoNCConfig *datamodel.NCConfiguration) (bool, *api.JsonErr) {
 	return true, transitionNCState(repoNCConfig, datamodel.Program, datamodel.Completed)
+}
+
+func processReservationSetWithKey(
+	reservationSetKey string) (bool, *api.JsonErr) {
+	var (
+		networkID string
+		reservationSetID string
+		parseErr error
+	)
+
+	if networkID, parseErr = datamodel.GetNetworkIDFromReservationSetKey(reservationSetKey); parseErr != nil {
+		loggershim.LS.Errorf("could not get networkID from reservation set key: %s. Error: %v", reservationSetKey, parseErr)
+		return removeFromPendingQ, nil
+	}
+
+	if reservationSetID, parseErr = datamodel.GetSetIDFromReservationSetKey(reservationSetKey); parseErr != nil {
+		loggershim.LS.Errorf("could not get reservationSetID from reservation set key: %s. Error: %v", reservationSetKey, parseErr)
+		return removeFromPendingQ, nil
+	}
+
+	reservationSet, err := datamodel.IpReservationSetRepo.TryQueryIPReservationSet(networkID, reservationSetID)
+	if err != nil {
+		return dontRemoveFromPendingQ, err
+	}
+
+	if reservationSet == nil {
+		loggershim.LS.Errorf("could not find reservation set: %s for processing. Removing from pending queue", reservationSetID)
+		return removeFromPendingQ, nil
+	}
+
+	if reservationSet.MarkedForDelete {
+		loggershim.LS.Debugf("reservation set: %s is marked for deletion. Removing from pending queue", reservationSetID)
+		return removeFromPendingQ, nil
+	}
+
+	existingReservations, err := datamodel.IpReservationRepo.TryQueryAllReservationsInSet(networkID, reservationSetID)
+	if err != nil {
+		return dontRemoveFromPendingQ, err
+	}
+
+	// Reservationset will be processed until there are no pending reservations in the set i.e. reservationset processing
+	// will be be completed when all the reservations in the set change their status to either Failed or Completed.
+	// The reservationset will be updated at this point with either Failed or Completed status
+	var (
+		successfulReservations []string
+		failedReservations     []string
+	)
+	for _, reservation := range existingReservations {
+		switch reservation.Configuration.Status {
+		case datamodel.Failed:
+			failedReservations = append(failedReservations, reservation.Configuration.ReservationID)
+
+		case datamodel.Completed:
+			successfulReservations = append(successfulReservations, reservation.Configuration.ReservationID)
+
+		default:
+			loggershim.LS.Debugf("reservation set: %s processing is in progress", reservationSetID)
+			return dontRemoveFromPendingQ, nil
+		}
+	}
+
+	processedReservationCount := len(successfulReservations) + len(failedReservations)
+	if processedReservationCount != len(existingReservations) {
+		// This code path should never be taken. Log the error. todo: add the alerting.
+		err := fmt.Errorf("mismatch between processed reservation count: %d and total number of reservations: %d",
+			processedReservationCount, len(existingReservations))
+		loggershim.LS.Errorf(err.Error())
+		return dontRemoveFromPendingQ, api.InternalServerErrorf(api.StatusInternalServerError, err.Error())
+	}
+
+	reservationSet.SuccessfulReservationCount = len(successfulReservations)
+
+	//todo: add setID in the reservation processing error logs
+	if len(failedReservations) > 0 {
+		loggershim.LS.Errorf("marking reservation set: %s processing as failed. Failed reservations: [%s]",
+			reservationSetID, strings.Join(failedReservations, ","))
+		// Update the reservation set status as failed
+		reservationSet.Status = datamodel.Failed
+		if err = datamodel.IpReservationSetRepo.PersistReservationSet(reservationSet); err != nil {
+			return dontRemoveFromPendingQ, err
+		}
+
+		return removeFromPendingQ, nil
+	}
+
+	loggershim.LS.Debugf("reservation set: %s processing completed successfully. Successful reservations: [%s]",
+		reservationSetID, strings.Join(successfulReservations, ","))
+
+	// Update the reservation set status as completed
+	reservationSet.Status = datamodel.Completed
+	if err = datamodel.IpReservationSetRepo.PersistReservationSet(reservationSet); err != nil {
+		return dontRemoveFromPendingQ, err
+	}
+
+	loggershim.LS.Debugf("successfully completed reservation set request: %s with total reservation count %d",
+		reservationSetID, len(successfulReservations))
+	return removeFromPendingQ, nil
 }
 
 func processNetworkContainerRequest(

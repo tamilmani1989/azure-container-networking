@@ -263,7 +263,7 @@ func (n *NodeConfigurationRepo) GetNodeInfo(nodeID string) (*api.NodeInfoRespons
 			continue
 		}
 
-		constrainedReservations[index] = translateRepoToContractReservationResponse(reservation.Configuration)
+		constrainedReservations[index] = translateRepoToContractReservationResponse(reservation)
 		index++
 	}
 

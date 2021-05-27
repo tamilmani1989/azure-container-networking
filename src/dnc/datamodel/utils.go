@@ -143,3 +143,31 @@ func ExtractStringProperty(e *storage.Entity, propName string) string {
 	v, _ := prop.(string)
 	return v
 }
+
+func ExtractFloat64Property(e *storage.Entity, propName string) (float64, error) {
+	prop, ok := e.Properties[propName]
+	if !ok {
+		return 0, fmt.Errorf("could not find %s in storage entity: %+v", propName, *e)
+	}
+
+	v, ok := prop.(float64)
+	if !ok {
+		return 0, fmt.Errorf("incorrect property type for %s. Expected float64", propName)
+	}
+
+	return v, nil
+}
+
+func ExtractBoolProperty(e *storage.Entity, propName string) (bool, error) {
+	prop, ok := e.Properties[propName]
+	if !ok {
+		return false, fmt.Errorf("could not find %s in storage entity: %+v", propName, *e)
+	}
+
+	v, ok := prop.(bool)
+	if !ok {
+		return false, fmt.Errorf("incorrect property type for %s. Expected bool", propName)
+	}
+
+	return v, nil
+}

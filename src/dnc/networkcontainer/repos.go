@@ -39,8 +39,9 @@ type IPReservationRepo interface {
 	TryQueryIPReservation(networkID, reservationID string) (datamodel.ReservationRow, *api.JsonErr)
 	TryQueryIPReservationByKey(key string) (datamodel.ReservationRow, *api.JsonErr)
 	PutIPReservationConfiguration(res *datamodel.ReservationConfiguration) *api.JsonErr
-	UpdateReservations(reservations []datamodel.ReservationConfiguration) *api.JsonErr
+	UpdateReservations(reservations []datamodel.ReservationRow) *api.JsonErr
 	DeleteReservation(reservationKey string) *api.JsonErr
+	PersistIPReservation(reservation datamodel.ReservationRow) *api.JsonErr
 }
 
 // todo: mutation methods should take a batch of Allocation rows, not generic maps

@@ -448,6 +448,146 @@ func TestContainer(t *testing.T) {
 	fmt.Println("****TestContainer Succeed**********")
 }
 
+// TestNCCreationWithV1Api creates NC by passing a reservationid exercising v1 api for create NC.
+func TestNCCreationWithV1Api(t *testing.T) {
+	cnsServer.SetupTest()
+	ncDeploymentRequests := make([]*NCDeploymentRequest, 0)
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+
+	vnetID := newGUID()
+	ncID := newGUID()
+	reservationID := newGUID()
+
+	//todo: too many args to func. Create a struct
+	createNetworkContainer(t, nodeID, nodeReq, &networkContainerReq.AllocationRequest, &networkContainerReq.AssociationInfo,
+		reservationID, dncEP, vnetID, ncID, apiVersion, 0, networkContainerReq.AllowHostToNCCommunication,
+		networkContainerReq.AllowNCToHostCommunication, networkContainerReq.EndpointPolicies,false)
+}
+
+// TestNCCreationWithInUseReservation creates NC by passing the reservationid which is already associated with another NC.
+// Such NC creation is expected to fail in reserve state as associating same reservation with multiple NCs is not allowed.
+func TestNCCreationWithInUseReservation(t *testing.T) {
+	ncID1 := newGUID()
+	ncIDDup := newGUID()
+	vnetID := newGUID()
+	reservationID := newGUID()
+
+	ncDeploymentRequests := []*NCDeploymentRequest{{NCID: ncID1}, {NCID: ncIDDup}}
+
+	cnsServer.SetupTest()
+	cnsResponderContextMap := generateDefaultCnsResponderContextMap(t, ncDeploymentRequests)
+	cnsServer.Lock.Lock()
+	cnsServer.ResponseFunc = CNSResponder
+	cnsServer.Context = cnsResponderContextMap
+	cnsServer.Lock.Unlock()
+
+	setupNetworkAndJoinSubnet(t, dncEP, vnetID, networkContainerReq.AllocationRequest.SubnetName, apiVersion, true, 0)
+	addOrUpdateNode(t, dncEP, nodeID, apiVersion, &nodeReq)
+	createReservation(t, networkContainerReq.AllocationRequest, dncEP, vnetID, reservationID, apiVersion)
+
+	var (
+		body bytes.Buffer
+		respErr api.JsonErr
+	)
+
+	ncReq1 := CreateNetworkContainerRequestV2{
+		AllocationRequest:          networkContainerReq.AllocationRequest,
+		AssociationInfo:            networkContainerReq.AssociationInfo,
+		ReservationID:              reservationID}
+	json.NewEncoder(&body).Encode(ncReq1)
+
+	ncURL := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID1 + apiVersion
+	ncURLStatus := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncID1 + "/status" + apiVersion
+	response, err := http.Post(ncURL, "application/json", &body)
+	if err != nil {
+		t.Fatalf("CreateNetworkContainer failed with error: %+v\n", err)
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
+			t.Fatalf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
+		}
+	}
+
+	fmt.Printf("Waiting for create NC Url:%s\n", ncURL)
+	<-cnsResponderContextMap.getContext(ncID1).CreateOrUpdateNCResponse.SignalInfo.Signal
+	WaitForResourceState(t, ncURLStatus, "Completed", http.StatusOK, 2)
+
+	// create another NC with the same reservation - this NC should fail as we cannot associate same reservation with multiple NCs
+	ncReq2 := CreateNetworkContainerRequestV2{
+		AllocationRequest:          networkContainerReq.AllocationRequest,
+		AssociationInfo:            networkContainerReq.AssociationInfo,
+		ReservationID:              reservationID}
+
+	// Update orchestrator context
+	podInfo := OrchestratorContext{PodName: "testpodname2", PodNamespace: "testpodnamespace2"}
+	orchContext, _ := json.Marshal(podInfo)
+	ncReq2.AssociationInfo.OrchestratorContext = orchContext
+	json.NewEncoder(&body).Encode(ncReq2)
+
+	ncURL2 := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncIDDup+ apiVersion
+	ncURLStatus2 := dncEP + "/networks/" + vnetID + "/networkcontainer/" + ncIDDup + "/status" + apiVersion
+	response, err = http.Post(ncURL2, "application/json", &body)
+	if err != nil {
+		t.Fatalf("CreateNetworkContainer failed with error: %+v\n", err)
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		if err = utils.DecodeResponse(response, &respErr); err != nil || respErr.Code != 0 {
+			t.Fatalf("CreateNetworkContainer failed with response %+v Err:%+v", respErr, err)
+		}
+	}
+
+	// Add sleep for NC processing before getting the status
+	time.Sleep(time.Second * 1)
+	fmt.Printf("Waiting for create NC Url:%s\n", ncURL)
+	response, err = http.Get(ncURLStatus2)
+	if err != nil {
+		t.Fatalf("Failed to get NC status for resource URL: %s. Error: %+v", ncURLStatus, err)
+	}
+
+	defer response.Body.Close()
+
+	var operationStatus api.RequestStatus
+	err = utils.DecodeResponse(response, &operationStatus)
+	if err != nil {
+		t.Fatalf("Failed to decode NC response for resource URL:%s. Error:%+v", ncURLStatus, err)
+	}
+
+	if operationStatus.State != "Reserve" && operationStatus.Status != "Failed" {
+		t.Fatalf("Expected NC to fail reservation. NC state: %s status: %s", operationStatus.State, operationStatus.Status)
+	}
+
+	// Clean up resources
+	deleteResource(t, ncURL, http.StatusOK)
+	t.Logf("Waiting for delete NC Url:%s", ncURL)
+	if !WaitForResourceCleanup(t, ncURL, 4) {
+		t.Fatalf("Failed to cleanup: %s", ncURL)
+	}
+
+	deleteResource(t, ncURL2, http.StatusOK)
+	t.Logf("Waiting for delete NC Url:%s", ncURL2)
+	if !WaitForResourceCleanup(t, ncURL2, 4) {
+		t.Fatalf("Failed to cleanup: %s", ncURL2)
+	}
+
+	reservationURL := dncEP + "/networks/" + vnetID + "/reservations/" + reservationID + apiVersion
+	deleteResource(t, reservationURL, http.StatusOK)
+
+	networkURL := dncEP + "/networks/" + vnetID + apiVersion
+	deleteResource(t, networkURL, http.StatusOK)
+	nodeURL := dncEP + "/nodes/" + nodeID + apiVersion
+	deleteResource(t, nodeURL, http.StatusOK)
+}
+
 func TestDeleteContainer(t *testing.T) {
 	fmt.Println("****TestDeleteContainer**********")
 	cnsServer.SetupTest()

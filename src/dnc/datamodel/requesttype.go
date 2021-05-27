@@ -15,11 +15,13 @@ const (
 
 	// VirtualNetworkRequest - Request to retrieve virtual network.
 	VirtualNetworkRequest
+
+	// ReservationSetRequest - Reservation set request
+	ReservationSetRequest
 )
 
 func (requestType RequestType) String() string {
 	switch requestType {
-
 	case ReservationRequest:
 		return "ReservationRequest"
 
@@ -28,6 +30,9 @@ func (requestType RequestType) String() string {
 
 	case VirtualNetworkRequest:
 		return "VirtualNetworkRequest"
+
+	case ReservationSetRequest:
+		return "ReservationSetRequest"
 
 	case InvalidRequest:
 		return "InvalidRequest"

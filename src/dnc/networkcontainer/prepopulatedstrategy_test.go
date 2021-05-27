@@ -57,7 +57,8 @@ func TestAllocateFromPrepopulated(t *testing.T) {
 	assert.Len(t, result.entitiesToPersist, expectedAllocationCount)
 
 	index := buildIndex(result.entitiesToPersist)
-	for _, completedReservation := range result.completed {
+	for _, completedReservationRow := range result.completed {
+		completedReservation := completedReservationRow.Configuration
 		allocationMap := index[completedReservation.ReservationID]
 		require.NotNil(t, allocationMap, "expected updated allocations for reservation")
 		require.NotEmpty(t, completedReservation.AllocatedSubnet, "expected reservation to contain a primary IP")
@@ -121,7 +122,8 @@ func TestAllocateFromPrepopulatedErrors(t *testing.T) {
 	assert.Len(t, result.entitiesToPersist, expectedAllocationCount)
 
 	index := buildIndex(result.entitiesToPersist)
-	for _, completedReservation := range result.completed {
+	for _, completedReservationRow := range result.completed {
+		completedReservation := completedReservationRow.Configuration
 		assert.True(t, completedReservation.Status == datamodel.Completed)
 		assert.Empty(t, completedReservation.FailureDetail)
 
@@ -139,7 +141,8 @@ func TestAllocateFromPrepopulatedErrors(t *testing.T) {
 		}
 	}
 
-	for _, failedReservation := range result.failed {
+	for _, failedReservationRow := range result.failed {
+		failedReservation := failedReservationRow.Configuration
 		assert.True(t, failedReservation.Status == datamodel.Failed)
 		assert.Equal(t, api.SubnetFull, failedReservation.FailureDetail.Code)
 		assert.Equal(t, http.StatusBadRequest, failedReservation.FailureDetail.HTTPStatus)

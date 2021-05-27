@@ -21,11 +21,13 @@ const (
 
 	// Refreshing - Request proecssing in refresh state.
 	Refreshing
+
+	// Undefined - Undefined / Invalid state.
+	Undefined
 )
 
 func (status Status) String() string {
 	switch status {
-
 	case NotStarted:
 		return "NotStarted"
 
@@ -45,5 +47,29 @@ func (status Status) String() string {
 		return "Refreshing"
 	}
 
-	return "Unknown Status"
+	return "Undefined / Invalid"
+}
+
+func StringToStatus(status string) Status {
+	switch status {
+	case "NotStarted":
+		return NotStarted
+
+	case "Pending":
+		return Pending
+
+	case "Failed":
+		return Failed
+
+	case "Denied":
+		return Denied
+
+	case "Completed":
+		return Completed
+
+	case "Refreshing":
+		return Refreshing
+	}
+
+	return Undefined
 }

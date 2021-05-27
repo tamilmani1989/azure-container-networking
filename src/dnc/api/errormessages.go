@@ -33,4 +33,10 @@ const (
 
 	// NCLimitMissing - nc limit parameter is missing from the URL.
 	NCLimitMissing string = "NC limit is missing"
+
+	// ReservationSetIDMissing - ReservationSet ID parameter is missing from the URL.
+	ReservationSetIDMissing string = "ReservationSet ID is missing"
+
+	// ReservationSetIDRequiresUUIDFormat - ReservationSet ID parameter has to follow UUID format.
+	ReservationSetIDRequiresUUIDFormat string = "ReservationSet ID must be a UUID"
 )

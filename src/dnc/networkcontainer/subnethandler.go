@@ -23,11 +23,11 @@ type subnetHandler struct {
 type scalingStrategy interface {
 	// scaleDown handles decreases in allocations (using corresponding tbdAllocationIDs) for reservations.
 	// It should return the new state of reservations after tbdAllocationIDs have been processed.
-	scaleDown(reservations []datamodel.ReservationConfiguration, tbdAllocationIDs map[string][]string) ([]datamodel.ReservationConfiguration, error)
+	scaleDown(reservations []datamodel.ReservationRow, tbdAllocationIDs map[string][]string) ([]datamodel.ReservationRow, error)
 	// ScaleUp handles allocations for reservations where allocatedSubnet or secondary allocations don't have a corresponding IP.
 	// It should only be called with the output of ScaleDown.
 	// It should return the new state of reservations after any allocations have been processed.
-	scaleUp(reservations []datamodel.ReservationConfiguration) ([]datamodel.ReservationConfiguration, error)
+	scaleUp(reservations []datamodel.ReservationRow) ([]datamodel.ReservationRow, error)
 }
 
 type subnetKey struct {
@@ -161,7 +161,7 @@ func (s *subnetHandler) process(batch requestSet) {
 	s.logf("batch completed in %s", time.Since(start).String())
 }
 
-func (s *subnetHandler) cleanUpTBDs(batch requestSet) []datamodel.ReservationConfiguration {
+func (s *subnetHandler) cleanUpTBDs(batch requestSet) []datamodel.ReservationRow {
 	s.logf("deallocating ips")
 
 	reservations := batch.getAllReservations()
@@ -172,7 +172,7 @@ func (s *subnetHandler) cleanUpTBDs(batch requestSet) []datamodel.ReservationCon
 		return reservations
 	}
 
-	var resWithTBD []datamodel.ReservationConfiguration
+	var resWithTBD []datamodel.ReservationRow
 	for resID := range reservationToTBD {
 		resWithTBD = append(resWithTBD, reservationSet[resID])
 	}
@@ -188,28 +188,28 @@ func (s *subnetHandler) cleanUpTBDs(batch requestSet) []datamodel.ReservationCon
 		s.logf("updating deallocated reservations")
 		if err := s.reservations.UpdateReservations(deallocatedReservations); err != nil {
 			for _, newRes := range deallocatedReservations {
-				batch.removeWithError(newRes.ReservationID, err)
-				delete(reservationSet, newRes.ReservationID)
+				batch.removeWithError(newRes.Configuration.ReservationID, err)
+				delete(reservationSet, newRes.Configuration.ReservationID)
 			}
 		}
 
 		for _, newRes := range deallocatedReservations {
-			reservationSet[newRes.ReservationID] = newRes
+			reservationSet[newRes.Configuration.ReservationID] = newRes
 		}
 	}
 	return toReservationSlice(reservationSet)
 }
 
-func toReservationSet(rr []datamodel.ReservationConfiguration) map[string]datamodel.ReservationConfiguration {
-	out := make(map[string]datamodel.ReservationConfiguration)
+func toReservationSet(rr []datamodel.ReservationRow) map[string]datamodel.ReservationRow {
+	out := make(map[string]datamodel.ReservationRow)
 	for _, r := range rr {
-		out[r.ReservationID] = r
+		out[r.Configuration.ReservationID] = r
 	}
 	return out
 }
 
-func toReservationSlice(set map[string]datamodel.ReservationConfiguration) []datamodel.ReservationConfiguration {
-	var out []datamodel.ReservationConfiguration
+func toReservationSlice(set map[string]datamodel.ReservationRow) []datamodel.ReservationRow {
+	var out []datamodel.ReservationRow
 	for _, v := range set {
 		out = append(out, v)
 	}

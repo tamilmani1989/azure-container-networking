@@ -21,19 +21,19 @@ type scanSubnetStrategy struct {
 }
 
 type batchAllocationResult struct {
-	completed []datamodel.ReservationConfiguration
-	failed    []datamodel.ReservationConfiguration
+	completed []datamodel.ReservationRow
+	failed    []datamodel.ReservationRow
 	rowBatch  map[string]map[string]interface{}
 }
 
-func (r *batchAllocationResult) reservationComplete(res datamodel.ReservationConfiguration) {
-	res.Status = datamodel.Completed
+func (r *batchAllocationResult) reservationComplete(res datamodel.ReservationRow) {
+	res.Configuration.Status = datamodel.Completed
 	r.completed = append(r.completed, res)
 }
 
-func (r *batchAllocationResult) reservationFailed(res datamodel.ReservationConfiguration, err api.JsonErr) {
-	res.Status = datamodel.Failed
-	res.FailureDetail = err
+func (r *batchAllocationResult) reservationFailed(res datamodel.ReservationRow, err api.JsonErr) {
+	res.Configuration.Status = datamodel.Failed
+	res.Configuration.FailureDetail = err
 	r.failed = append(r.failed, res)
 }
 
@@ -47,16 +47,16 @@ func (s *scanSubnetStrategy) logErrorf(format string, args ...interface{}) {
 
 // Delete or unlink the associated secondary ips and return the updated reservation config. Caller will own persisting the updated reservation configs.
 // tbdAllocationIDs is a map of reservation ID to a list of allocations IDs that should be removed from the reservation's stored configuration.
-func (s *scanSubnetStrategy) scaleDown(reservations []datamodel.ReservationConfiguration, tbdAllocationIDs map[string][]string) ([]datamodel.ReservationConfiguration, error) {
+func (s *scanSubnetStrategy) scaleDown(reservations []datamodel.ReservationRow, tbdAllocationIDs map[string][]string) ([]datamodel.ReservationRow, error) {
 	var allocIDs []string
 	allocationIDToNCID := make(map[string]string)
 	for i := 0; i < len(reservations); i++ {
-		tbdIDs := tbdAllocationIDs[reservations[i].ReservationID]
+		tbdIDs := tbdAllocationIDs[reservations[i].Configuration.ReservationID]
 
 		for _, allocID := range tbdIDs {
 			allocIDs = append(allocIDs, allocID)
-			allocationIDToNCID[allocID] = reservations[i].AssociatedNCID
-			delete(reservations[i].SecondaryAllocations, allocID)
+			allocationIDToNCID[allocID] = reservations[i].Configuration.AssociatedNCID
+			delete(reservations[i].Configuration.SecondaryAllocations, allocID)
 		}
 	}
 
@@ -105,7 +105,7 @@ func (s *scanSubnetStrategy) scaleDown(reservations []datamodel.ReservationConfi
 	return reservations, nil
 }
 
-func (s *scanSubnetStrategy) scaleUp(reservations []datamodel.ReservationConfiguration) ([]datamodel.ReservationConfiguration, error) {
+func (s *scanSubnetStrategy) scaleUp(reservations []datamodel.ReservationRow) ([]datamodel.ReservationRow, error) {
 	allocResult, err := s.allocate(reservations)
 	if err != nil {
 		s.logErrorf("could not get allocations from subnet table: %v", err)
@@ -123,7 +123,7 @@ func (s *scanSubnetStrategy) scaleUp(reservations []datamodel.ReservationConfigu
 	return append(allocResult.completed, allocResult.failed...), nil
 }
 
-func (s *scanSubnetStrategy) allocate(reservations []datamodel.ReservationConfiguration) (batchAllocationResult, error) {
+func (s *scanSubnetStrategy) allocate(reservations []datamodel.ReservationRow) (batchAllocationResult, error) {
 	allocReadTime := time.Now()
 
 	s.logf("getting allocation state")
@@ -168,8 +168,8 @@ func (s *scanSubnetStrategy) allocate(reservations []datamodel.ReservationConfig
 	s.logf("determining allocations")
 	for _, reservation := range reservations {
 		var primaryIP net.IP
-		if reservation.AllocatedSubnet != "" {
-			primIP, _, err := net.ParseCIDR(reservation.AllocatedSubnet)
+		if reservation.Configuration.AllocatedSubnet != "" {
+			primIP, _, err := net.ParseCIDR(reservation.Configuration.AllocatedSubnet)
 			if err != nil {
 				result.reservationFailed(reservation, *api.InternalServerError(api.StatusInternalServerError, err.Error()))
 				continue
@@ -189,17 +189,19 @@ func (s *scanSubnetStrategy) allocate(reservations []datamodel.ReservationConfig
 			addressesInUse[primaryIP.String()] = primaryIP
 		}
 
-		reservationKey := datamodel.GetReservationKey(reservation.NetworkID, reservation.ReservationID)
+		reservationKey := datamodel.GetReservationKey(reservation.Configuration.NetworkID, reservation.Configuration.ReservationID)
 
-		if reservation.AllocatedSubnet == "" {
-			reservation.AllocatedSubnet = primaryIP.String() + "/32"
+		if reservation.Configuration.AllocatedSubnet == "" {
+			reservation.Configuration.AllocatedSubnet = primaryIP.String() + "/32"
 
-			rowKey := datamodel.EncodeIPAllocationKey(reservation.AllocatedSubnet)
-			result.rowBatch[rowKey] = map[string]interface{}{datamodel.IPAllocationProperty: reservationKey, datamodel.AllocationIDProperty: reservation.ReservationID}
+			rowKey := datamodel.EncodeIPAllocationKey(reservation.Configuration.AllocatedSubnet)
+			result.rowBatch[rowKey] = map[string]interface{}{
+				datamodel.IPAllocationProperty: reservationKey,
+				datamodel.AllocationIDProperty: reservation.Configuration.ReservationID}
 		}
 
 		unallocated := make(map[string]struct{})
-		for allocationID, ipAddress := range reservation.SecondaryAllocations {
+		for allocationID, ipAddress := range reservation.Configuration.SecondaryAllocations {
 			if ipAddress == "" {
 				unallocated[allocationID] = struct{}{}
 			}
@@ -228,7 +230,7 @@ func (s *scanSubnetStrategy) allocate(reservations []datamodel.ReservationConfig
 				addressesInUse[encodedSubnet] = availableIPs[i]
 			}
 			i++
-			reservation.SecondaryAllocations[allocationID] = encodedSubnet
+			reservation.Configuration.SecondaryAllocations[allocationID] = encodedSubnet
 		}
 
 		result.reservationComplete(reservation)

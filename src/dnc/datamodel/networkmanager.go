@@ -66,6 +66,7 @@ var (
 	IpReservationRepo    *ReservationRepo
 	NcRepo               *NetworkContainerRepo
 	NodeConfigRepo       *NodeConfigurationRepo
+	IpReservationSetRepo *ReservationSetRepo
 )
 
 // Init - Initialize repository.
@@ -88,10 +89,11 @@ func Init(
 	dataStoreShim = ds
 
 	AllocRepo = &AllocationRepo{Datastore: ds}
-	IpReservationRepo = &ReservationRepo{Datastore: ds}
+	IpReservationRepo = NewReservationRepo(ds, dataStoreSettings.AzureStorageInfo.PartitionKey, loggershim.LS)
 	PendingCleanupRepo = NewPendingResourceCleanupRepo(ds, loggershim.LS)
 	NcPendingPublishRepo = NewNcPendingPublishRequestRepo(ds)
 	NodeConfigRepo = &NodeConfigurationRepo{Datastore: ds}
+	IpReservationSetRepo = NewReservationSetRepo(ds, dataStoreSettings.AzureStorageInfo.PartitionKey, loggershim.LS)
 	NcRepo = NewNetworkContainerRepo(ds)
 	NodeConfigRepo = &NodeConfigurationRepo{Datastore: ds}
 
@@ -309,7 +311,8 @@ func PutIPReservation(reservation ReservationRow) *api.JsonErr {
 
 	row := map[string]interface{}{
 		reservationConfigProperty: string(jsonSerializedBytes[:]),
-		subnetKeyProperty:         reservation.SubnetKey}
+		subnetKeyProperty:         reservation.SubnetKey,
+		setKeyProperty:            reservation.SetKey}
 	err = dataStoreShim.InsertOrUpdateProperties(ipReservationsTableName, dncPartitionKey, reservation.RowKey, row)
 	if err != nil {
 		loggershim.LS.Errorf("could not persist reservation: %s. Error: %v", reservation.RowKey, err)
@@ -472,24 +475,14 @@ func UpdateNCToReservationAssociation(
 	disassociate bool) *api.JsonErr {
 	reservation, err := TryQueryIPReservation(ncConfiguration.NetworkID, ncConfiguration.ReservationID)
 	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to retrieve configuration for reservation %s in network: {%s} due to error:{%s}",
-			ncConfiguration.ReservationID,
-			ncConfiguration.NetworkID,
-			err)
-		return &api.JsonErr{
-			Code:       api.StatusInternalServerError,
-			Text:       msg,
-			HTTPStatus: http.StatusInternalServerError}
+		return api.InternalServerErrorf(api.StatusInternalServerError,
+			"could not retrieve configuration for reservation: %s in vnet: %s. error: %s",
+			ncConfiguration.ReservationID, ncConfiguration.NetworkID, err)
 	}
 
+	// If the reservation is found, there is no need to throw an error as there is nothing to update
 	if reservation.Configuration == nil {
-		msg := fmt.Sprintf(
-			"Reservation %s is not found", reservation.Configuration.ReservationID)
-		return &api.JsonErr{
-			Code:       api.ReservationNotFound,
-			HTTPStatus: http.StatusNotFound,
-			Text:       msg}
+		return nil
 	}
 
 	if disassociate {
@@ -501,22 +494,15 @@ func UpdateNCToReservationAssociation(
 		reservation.Configuration.AssociatedNCID = ""
 	} else {
 		if len(reservation.Configuration.AssociatedNCID) != 0 &&
-			strings.Compare(reservation.Configuration.AssociatedNCID,
-				ncConfiguration.NetworkContainerID) != 0 {
-			msg := fmt.Sprintf(
-				"Reservation %s is use with different network container %s. Request network container %s",
-				reservation.Configuration.ReservationID,
-				reservation.Configuration.AssociatedNCID,
-				ncConfiguration.NetworkContainerID)
-			return &api.JsonErr{
-				Code:       api.ReservationInUse,
-				HTTPStatus: http.StatusBadRequest,
-				Text:       msg}
+			strings.Compare(reservation.Configuration.AssociatedNCID, ncConfiguration.NetworkContainerID) != 0 {
+			return api.BadRequestf(api.ReservationInUse,
+				"Reservation: %s is in use with different network container: %s. Request network container: %s",
+				reservation.Configuration.ReservationID, reservation.Configuration.AssociatedNCID, ncConfiguration.NetworkContainerID)
 		}
 		reservation.Configuration.AssociatedNCID = ncConfiguration.NetworkContainerID
 	}
 
-	return PutIPReservationConfiguration(reservation.Configuration)
+	return IpReservationRepo.PersistIPReservation(reservation)
 }
 
 // TryQueryAllNetworks queries for all networkconfigurations managed by this dnc and returns their IDs
@@ -723,6 +709,10 @@ func TryQueryIPReservationByKey(reservationKey string) (ReservationRow, *api.Jso
 		reservationRow.SubnetKey = prop.(string)
 	}
 
+	if prop, ok := entity.Properties[setKeyProperty]; ok {
+		reservationRow.SetKey = prop.(string)
+	}
+
 	return reservationRow, nil
 }
 
@@ -747,17 +737,19 @@ func QueryIPReservation(networkID, reservationID string) (ReservationRow, *api.J
 	return reservationRow, nil
 }
 
-func UpdateIPReservations(reservations []ReservationConfiguration) *api.JsonErr {
+func UpdateIPReservations(reservations []ReservationRow) *api.JsonErr {
 	rows := make(map[string]map[string]interface{})
 	for _, res := range reservations {
-		key := GetReservationKey(res.NetworkID, res.ReservationID)
+		key := GetReservationKey(res.Configuration.NetworkID, res.Configuration.ReservationID)
 		resJSON, err := json.Marshal(res)
 		if err != nil {
-			return api.InternalServerErrorf(api.JsonMarshallingFailed, "could not serialize reservation %s: %v", res.ReservationID, err)
+			return api.InternalServerErrorf(api.JsonMarshallingFailed, "could not serialize reservation %s: %v",
+				res.Configuration.ReservationID, err)
 		}
 		rows[key] = map[string]interface{}{
 			reservationConfigurationTag: string(resJSON),
-			subnetKeyProperty:           GetSubnetKey(res.NetworkID, res.AllocationRequest.SubnetName)}
+			subnetKeyProperty:           GetSubnetKey(res.Configuration.NetworkID, res.Configuration.AllocationRequest.SubnetName),
+			setKeyProperty:              res.SetKey}
 	}
 
 	if err := dataStoreShim.UpsertBatch(ipReservationsTableName, rows); err != nil {
@@ -891,6 +883,60 @@ func AddRequestToPendingQueue(
 			Code:       api.StatusInternalServerError,
 			HTTPStatus: http.StatusInternalServerError,
 			Text:       msg}
+	}
+
+	return nil
+}
+
+type PendingQueueRequest struct {
+	Key     string
+	Context *RequestContext
+}
+
+func (p *PendingQueueRequest) ToStorageEntity(dncPartitionKey string) (storage.Entity, *api.JsonErr) {
+	e := storage.Entity{
+		Table:         &storage.Table{Name: pendingWorkItemsTableName},
+		PartitionKey:  dncPartitionKey,
+		RowKey:        p.Key,
+		//todo: Add ETag
+		//OdataEtag:     p.ETag,
+	}
+
+	jsonSerializedBytes, err := json.Marshal(p.Context)
+	if err != nil {
+		return storage.Entity{}, api.InternalServerErrorf(api.JsonMarshallingFailed,
+			"could not serialize request context. key: %s, context: %s. error: %v", p.Key, p.Context, err)
+	}
+
+	e.Properties = map[string]interface{}{
+		requestContextTag: string(jsonSerializedBytes[:]),
+	}
+
+	return e, nil
+}
+
+// AddNewRequestsToPendingQueue - Add batch of new requests to pending work item queue.
+func AddNewRequestsToPendingQueue(
+	requests []PendingQueueRequest) *api.JsonErr {
+	storageEntities := make([]storage.Entity, len(requests))
+	for i, request := range requests {
+		se, err := request.ToStorageEntity(dncPartitionKey)
+		if err != nil {
+			return err
+		}
+		storageEntities[i] = se
+	}
+
+	if err := dataStoreShim.UpsertEntityBatch(pendingWorkItemsTableName, storageEntities); err != nil {
+		storageErr, ok := err.(storage.AzureStorageServiceError)
+		if ok {
+			return &api.JsonErr{
+				Code:       api.AzureStorageError,
+				Text:       storageErr.Message,
+				HTTPStatus: storageErr.StatusCode}
+		}
+
+		return api.InternalServerError(api.StatusInternalServerError, err.Error())
 	}
 
 	return nil
@@ -1209,7 +1255,7 @@ func createNetworkWithStateAndStatus(
 	return nil
 }
 
-// PurgeNetworkContainerAssociations - Process relase of resevation associated with network container
+// PurgeNetworkContainerAssociations - Process release of reservation associated with network container
 func PurgeNetworkContainerAssociations(ncConfiguration *NCConfiguration, updateVlan bool) *api.JsonErr {
 	associationInfo := ncConfiguration.GetAssociationInfo()
 	err := NodeConfigRepo.UpdateNodeConfigurationNetworkContainerSet(
@@ -1495,18 +1541,27 @@ func GetNetworkContainerResponse(
 }
 
 func translateRepoToContractReservationResponse(
-	reservationConfiguration *ReservationConfiguration) api.ReservationResponse {
+	reservation ReservationRow) api.ReservationResponse {
+	config := reservation.Configuration
 	requestStatus := api.RequestStatus{
-		State:         reservationConfiguration.ReservationState.String(),
-		Status:        reservationConfiguration.Status.String(),
-		FailureDetail: reservationConfiguration.FailureDetail}
+		State:         config.ReservationState.String(),
+		Status:        config.Status.String(),
+		FailureDetail: config.FailureDetail}
 
-	return api.ReservationResponse{
-		NetworkID:         reservationConfiguration.NetworkID,
-		ReservationID:     reservationConfiguration.ReservationID,
-		AllocationRequest: reservationConfiguration.AllocationRequest,
-		AllocatedIPSubnet: reservationConfiguration.AllocatedSubnet,
+	reservationSetID, _ := GetSetIDFromReservationSetKey(reservation.SetKey)
+	response := api.ReservationResponse{
+		NetworkID:         config.NetworkID,
+		ReservationID:     config.ReservationID,
+		AllocationRequest: config.AllocationRequest,
+		AllocatedIPSubnet: config.AllocatedSubnet,
+		ReservationSetID:  reservationSetID,
 		RequestStatus:     requestStatus}
+
+	if reservation.SetKey != "" {
+		response.ReservationID = GetReservationIDFromKey(reservation.SetKey)
+	}
+
+	return response
 }
 
 // getOrchestratorContextList - Returns the list of orchestrator contexts for all the NCs for a given node.
@@ -1541,7 +1596,6 @@ func PersistIPReservationRequest(networkID string,
 	reservationID string,
 	allocationRequest api.AllocationRequest,
 	apiVersion string) *api.JsonErr {
-
 	reservation, err := TryQueryIPReservation(networkID, reservationID)
 	if err != nil {
 		return err
@@ -1551,15 +1605,20 @@ func PersistIPReservationRequest(networkID string,
 		return nil
 	}
 
-	reservation.Configuration = &ReservationConfiguration{
-		NetworkID:         networkID,
-		ReservationID:     reservationID,
-		ReservationState:  Process,
-		Status:            Pending,
-		AllocationRequest: allocationRequest,
-		APIVersion:        apiVersion}
+	reservation = ReservationRow{
+		RowKey: GetReservationKey(networkID, reservationID),
+		SubnetKey: GetSubnetKey(networkID, allocationRequest.SubnetName),
+		Configuration: &ReservationConfiguration{
+			NetworkID:         networkID,
+			ReservationID:     reservationID,
+			ReservationState:  Process,
+			Status:            Pending,
+			AllocationRequest: allocationRequest,
+			APIVersion:        apiVersion},
+		SetKey: "",
+	}
 
-	err = PutIPReservationConfiguration(reservation.Configuration)
+	err = IpReservationRepo.PersistIPReservation(reservation)
 	if err != nil {
 		return err
 	}
@@ -1575,14 +1634,8 @@ func PersistIPReservationRequest(networkID string,
 
 // GetReservationResponse - Retrieve reservation response.
 func GetReservationResponse(
-	networkID string,
-	reservationID string) (*api.ReservationResponse, *api.JsonErr) {
-	reservation, err := QueryIPReservation(networkID, reservationID)
-	if err != nil {
-		return nil, err
-	}
-
-	response := translateRepoToContractReservationResponse(reservation.Configuration)
+	reservation ReservationRow) (*api.ReservationResponse, *api.JsonErr) {
+	response := translateRepoToContractReservationResponse(reservation)
 	return &response, nil
 }
 
@@ -1941,6 +1994,7 @@ type ReservationRow struct {
 	RowKey        string
 	Configuration *ReservationConfiguration
 	SubnetKey     string
+	SetKey        string
 }
 
 func getReservationsFromSubnetConfigTable(networkID, subnetName string) (map[string]ReservationRow, *api.JsonErr) {
@@ -2027,8 +2081,13 @@ func tryQueryReservations(filter string) ([]ReservationRow, *api.JsonErr) {
 			Configuration: &reservationConfiguration,
 		}
 
+		//todo: move this code to reservationrepo and use the utility func to convert between storage entity and reservation
 		if prop, ok := entity.Properties[subnetKeyProperty]; ok {
 			rows[i].SubnetKey = prop.(string)
+		}
+
+		if prop, ok := entity.Properties[setKeyProperty]; ok {
+			rows[i].SetKey = prop.(string)
 		}
 	}
 
@@ -2593,7 +2652,8 @@ func updateIPReservationsTableWithSubnet() *api.JsonErr {
 			subnetKey := GetSubnetKey(reservation.Configuration.NetworkID, reservation.Configuration.AllocationRequest.SubnetName)
 			updatedReservations[reservation.RowKey] = map[string]interface{}{
 				reservationConfigProperty: string(resJSON),
-				subnetKeyProperty:         subnetKey}
+				subnetKeyProperty:         subnetKey,
+				setKeyProperty:            reservation.SetKey}
 
 			if len(updatedReservations) == batchSize {
 				if err := dataStoreShim.UpsertBatch(ipReservationsTableName, updatedReservations); err != nil {

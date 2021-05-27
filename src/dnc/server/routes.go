@@ -73,6 +73,30 @@ var routes = Routes{
 		ReserveIP,
 	},
 	Route{
+		"CreateOrUpdateReservationSet",
+		http.MethodPut,
+		"/networks/{networkID}/reservationsets/{reservationSetID}",
+		CreateOrUpdateReservationSet,
+	},
+	Route{
+		"GetReservationSetStatus",
+		http.MethodGet,
+		"/networks/{networkID}/reservationsets/{reservationSetID}/status",
+		GetReservationSetStatus,
+	},
+	Route{
+		"GetReservationSet",
+		http.MethodGet,
+		"/networks/{networkID}/reservationsets/{reservationSetID}",
+		GetReservationSet,
+	},
+	Route{
+		"DeleteReservationSet",
+		http.MethodDelete,
+		"/networks/{networkID}/reservationsets/{reservationSetID}",
+		DeleteReservationSet,
+	},
+	Route{
 		"CreateNetworkContainer",
 		http.MethodPost,
 		"/networks/{networkID}/networkcontainer/{networkContainerID}",

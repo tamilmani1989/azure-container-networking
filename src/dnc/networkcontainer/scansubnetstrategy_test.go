@@ -41,28 +41,34 @@ func ValidateScanSubnetStrategyScaleDown(t *testing.T, pubsubProxyEnabled bool) 
 		MaxBatchSize: 100,
 	}
 
-	reservations := []datamodel.ReservationConfiguration{
+	reservations := []datamodel.ReservationRow{
 		{
-			ReservationID:   "Network_vnet1_Reservation_res1",
-			NetworkID:       vnetID,
-			AllocatedSubnet: "10.1.0.10/32",
-			AssociatedNCID:  nc1Id,
-			SecondaryAllocations: map[string]string{
-				"alloc1": "10.1.0.11/32",
-				"alloc2": "10.1.0.12/32",
-				"alloc3": "10.1.0.13/32",
-			},
+			RowKey: datamodel.GetReservationKey(vnetID, "Network_vnet1_Reservation_res1"),
+			Configuration: &datamodel.ReservationConfiguration{
+				ReservationID:   "Network_vnet1_Reservation_res1",
+				NetworkID:       vnetID,
+				AllocatedSubnet: "10.1.0.10/32",
+				AssociatedNCID:  nc1Id,
+				SecondaryAllocations: map[string]string{
+					"alloc1": "10.1.0.11/32",
+					"alloc2": "10.1.0.12/32",
+					"alloc3": "10.1.0.13/32"}},
+			SubnetKey: datamodel.GetSubnetKey(vnetID, subnet),
+			SetKey: "",
 		},
 		{
-			ReservationID:   "Network_vnet1_Reservation_res2",
-			NetworkID:       vnetID,
-			AllocatedSubnet: "10.1.0.20/32",
-			AssociatedNCID:  nc2Id,
-			SecondaryAllocations: map[string]string{
-				"alloc4": "10.1.0.21/32",
-				"alloc5": "10.1.0.22/32",
-				"alloc6": "10.1.0.23/32",
-			},
+			RowKey: datamodel.GetReservationKey(vnetID, "Network_vnet1_Reservation_res1"),
+			Configuration: &datamodel.ReservationConfiguration{
+				ReservationID:   "Network_vnet1_Reservation_res2",
+				NetworkID:       vnetID,
+				AllocatedSubnet: "10.1.0.20/32",
+				AssociatedNCID:  nc2Id,
+				SecondaryAllocations: map[string]string{
+					"alloc4": "10.1.0.21/32",
+					"alloc5": "10.1.0.22/32",
+					"alloc6": "10.1.0.23/32"}},
+			SubnetKey: datamodel.GetSubnetKey(vnetID, subnet),
+			SetKey: "",
 		},
 	}
 
@@ -121,15 +127,16 @@ func ValidateScanSubnetStrategyScaleDown(t *testing.T, pubsubProxyEnabled bool) 
 		}
 	}
 
-	modifiedReservations := make(map[string]datamodel.ReservationConfiguration)
+	modifiedReservations := make(map[string]datamodel.ReservationRow)
 	for _, res := range output {
-		modifiedReservations[res.ReservationID] = res
+		modifiedReservations[res.Configuration.ReservationID] = res
 	}
 
 	for _, res := range modifiedReservations {
-		deletedAllocs := tbds[res.ReservationID]
+		deletedAllocs := tbds[res.Configuration.ReservationID]
 		for _, allocID := range deletedAllocs {
-			assert.NotContainsf(t, res.SecondaryAllocations, allocID, "expected allocation id %s to have been removed from reservation %s", allocID, res.ReservationID)
+			assert.NotContainsf(t, res.Configuration.SecondaryAllocations, allocID, "expected allocation id %s to have been removed from reservation %s",
+				allocID, res.Configuration.ReservationID)
 		}
 	}
 }

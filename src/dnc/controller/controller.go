@@ -16,11 +16,11 @@ import (
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
+	"github.com/Azure/azure-container-networking/cns"
 	"net/http"
 	"net/http/httputil"
 	"strings"
-
-	"github.com/Azure/azure-container-networking/cns"
+	"time"
 )
 
 type joinNetworkFunction func(networkID string, apiVersion string) *api.JsonErr
@@ -197,6 +197,249 @@ func (c *Controller) GetNodeConfiguration(nodeID string) (*datamodel.NodeConfigu
 	return datamodel.NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
 }
 
+// createReservationSet creates reservation set and reservations associated with the set
+func (c *Controller) createReservationSet(
+	networkID string,
+	reservationSetID string,
+	request api.ReservationSetRequest,
+	apiVersion string) *api.JsonErr {
+	var err *api.JsonErr
+	if err = datamodel.IpReservationSetRepo.CreateReservationSet(networkID, reservationSetID, request); err != nil {
+		loggershim.LS.Errorf("failed to create reservation set: %s. Error: %v", reservationSetID, err)
+		return err
+	}
+
+	loggershim.LS.Debugf("creating reservation set: %s with count %d", reservationSetID, request.NumReservations)
+	// Create reservation records in the IPReservations table with each reservation tagged with the set ID.
+	if err = datamodel.IpReservationRepo.CreateReservationsInSet(networkID, request.SubnetName,
+		reservationSetID, request.NumReservations, apiVersion); err != nil {
+		loggershim.LS.Errorf("failed to create reservations in set: %s. Error: %v", reservationSetID, err)
+		return err
+	}
+
+	return nil
+}
+
+// updateReservationSet updates reservation set
+func (c *Controller) updateReservationSet(
+	networkID string,
+	reservationSetID string,
+	request api.ReservationSetRequest,
+	reservationSet *datamodel.ReservationSet,
+	apiVersion string) *api.JsonErr {
+	// Fail the request if the set is already marked for deletion
+	if reservationSet.MarkedForDelete {
+		return api.BadRequestf(api.InvalidReservationRequest,
+			"reservation set: %s is marked for deletion. Create/Update is not allowed.", reservationSetID)
+	}
+
+	// Return if there is no work to be done
+	if reservationSet.Status == datamodel.Completed &&
+		reservationSet.ReservationSetRequest.NumReservations == request.NumReservations {
+		loggershim.LS.Debugf("Nothing to update for the reservation set: %s", reservationSetID)
+		return nil
+	}
+
+	// Return error if the request is updating the num of reservations while the current request is pending
+	if reservationSet.Status == datamodel.Pending && reservationSet.ReservationSetRequest.NumReservations != request.NumReservations {
+		return api.Conflictf(api.ProcessingPending, "Reservation Set %s is currently being processed "+
+			"in state %v with status %v. Cannot update while being processed",
+			reservationSet.ReservationSetID, reservationSet.State.String(), reservationSet.Status.String())
+	}
+
+	// Fail the request if the network guid or subnet name is different than the the ones in the existing reservation set record
+	if reservationSet.NetworkID != networkID {
+		return api.BadRequestf(api.InvalidNetworkID, "network cannot be updated for existing reservation set")
+	}
+
+	if reservationSet.ReservationSetRequest.SubnetName != request.SubnetName {
+		return api.BadRequestf(api.InvalidIPSubnet, "subnet cannot be updated for existing reservation set")
+	}
+
+	reservations, err := datamodel.IpReservationRepo.TryQueryAllReservationsInSet(networkID, reservationSetID)
+	if err != nil {
+		loggershim.LS.Errorf("failed to retrieve reservations in set: %s. Error: %v", reservationSetID, err)
+		return err
+	}
+
+	// Delete all the failed reservations in this set
+	for _, reservation := range reservations {
+		if reservation.Configuration.Status == datamodel.Failed {
+			if err := c.ipAllocator.DeleteIPReservation(reservation, false); err != nil {
+				errMsg := fmt.Sprintf("could not delete failed reservation:%s in set: %s. Error: %v",
+					reservation.Configuration.ReservationID, reservationSetID, err)
+				loggershim.LS.Errorf(errMsg)
+				return api.InternalServerErrorf(api.StatusInternalServerError, errMsg)
+			}
+		}
+	}
+
+	// Update the reservation set state and status
+	if request.NumReservations > reservationSet.SuccessfulReservationCount {
+		reservationSet.State = datamodel.ScaleUp
+	} else {
+		reservationSet.State = datamodel.ScaleDown
+	}
+
+	reservationSet.ReservationSetRequest = request
+	reservationSet.Status = datamodel.Pending
+
+	// Persist the updated reservation set
+	if err = datamodel.IpReservationSetRepo.PersistReservationSet(reservationSet); err != nil {
+		return err
+	}
+
+	if reservationSet.State == datamodel.ScaleUp {
+		loggershim.LS.Debugf("attempting to scale up reservation set: %s to count %d", reservationSetID, request.NumReservations)
+		if err = datamodel.IpReservationRepo.CreateReservationsInSet(networkID, request.SubnetName,
+			reservationSetID, request.NumReservations, apiVersion); err != nil {
+			loggershim.LS.Errorf("failed to create reservations in set: %s. Error: %v", reservationSetID, err)
+			return err
+		}
+
+		return nil
+	}
+
+	loggershim.LS.Debugf("attempting to scale down reservation set: %s to count %d", reservationSetID, request.NumReservations)
+	numReservationsToDelete := reservationSet.SuccessfulReservationCount - request.NumReservations
+	numReservationsDeleted := 0
+	// Delete the unassigned reservations to match the requested reservation count
+	if numReservationsToDelete > 0 {
+		for _, reservation := range reservations {
+			if reservation.Configuration.AssociatedNCID == "" {
+				if err := c.ipAllocator.DeleteIPReservation(reservation, false); err != nil {
+					loggershim.LS.Errorf("failed to delete reservation: %s in set: %s. Error: %v",
+						reservation.Configuration.ReservationID, reservationSetID, err)
+					continue
+				}
+				numReservationsDeleted++
+				if numReservationsDeleted == numReservationsToDelete {
+					break
+				}
+			}
+		}
+	}
+
+	// Update the reservation set
+	reservationSet.SuccessfulReservationCount = reservationSet.SuccessfulReservationCount - numReservationsDeleted
+	if numReservationsDeleted == numReservationsToDelete {
+		reservationSet.Status = datamodel.Completed
+	} else {
+		reservationSet.Status = datamodel.Failed
+	}
+
+	if err = datamodel.IpReservationSetRepo.PersistReservationSet(reservationSet); err != nil {
+		errMsg := fmt.Sprintf("could not persist reservationset: %s. Error: %v", reservationSetID, err)
+		loggershim.LS.Errorf(errMsg)
+		return api.InternalServerErrorf(api.StatusInternalServerError, errMsg)
+	}
+
+	if numReservationsDeleted != numReservationsToDelete {
+		loggershim.LS.Errorf("failed to scale down reservation set: %s to count: %d. Existing reservation count: %d",
+			reservationSetID, request.NumReservations, reservationSet.SuccessfulReservationCount)
+		return api.BadRequestf(api.ReservationInUse, "could not delete the requested number of reservations. Requested: %d. Existing: %d",
+			request.NumReservations, reservationSet.SuccessfulReservationCount)
+	}
+
+	loggershim.LS.Debugf("successfully completed reservation set request: %s with total reservation count %d",
+		reservationSetID, request.NumReservations)
+	return nil
+}
+
+// CreateOrUpdateReservationSetRequest - Create or update reservation set request
+func (c *Controller) CreateOrUpdateReservationSetRequest(
+	networkID string,
+	reservationSetID string,
+	request api.ReservationSetRequest,
+	apiVersion string) (err *api.JsonErr) {
+	loggershim.LS.Debugf("[Request] %+v ReservationSetID: %s", request, reservationSetID)
+
+	defer func() {
+		if err != nil {
+			loggershim.LS.Errorf("CreateOrUpdateReservationSetRequest failed for reservation set: %s. error: %+v", reservationSetID, err)
+		}
+	}()
+
+	var subnetConfig *datamodel.SubnetConfiguration
+	if subnetConfig, err = datamodel.TryQuerySubnetConfiguration(networkID, request.SubnetName); err != nil {
+		return
+	}
+
+	if subnetConfig == nil {
+		err = api.BadRequestf(api.SubnetNotFound, "could not find subnet: %s in vnet: %s to create reservation set: %s",
+			request.SubnetName, networkID, reservationSetID)
+		return
+	}
+
+	// Allow creation of the reservation set only if the subnet is in joined state
+	if !subnetConfig.Joined {
+		err = api.BadRequestf(api.SubnetIsNotJoined, "cannot create reservation set: %s as the subnet: %s " +
+			"in vnet: %s is not registered with dnc", reservationSetID, request.SubnetName, networkID)
+		return
+	}
+
+	sessionInfo := map[string]string{datamodel.ReservationSetRepositoryName: reservationSetID}
+	c.SessionManager.BeginWriteSession(sessionInfo)
+	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	// Check if the reservation set exists
+	var reservationSet *datamodel.ReservationSet
+	if reservationSet, err = datamodel.IpReservationSetRepo.TryQueryIPReservationSet(networkID, reservationSetID); err != nil {
+		return
+	}
+
+	if reservationSet != nil {
+		// Update existing reservation set
+		if err = c.updateReservationSet(networkID, reservationSetID, request, reservationSet, apiVersion); err != nil {
+			return err
+		}
+	} else {
+		// Create new reservation set
+		if err = c.createReservationSet(networkID, reservationSetID, request, apiVersion); err != nil {
+			return err
+		}
+	}
+
+	var reservationsToCreate []datamodel.ReservationRow
+	reservationsToCreate, err = datamodel.IpReservationRepo.GetPendingReservationsInSet(networkID, reservationSetID)
+	if err != nil {
+		loggershim.LS.Errorf("failed to get pending reservations in set: %s. Error: %v", reservationSetID, err)
+		return err
+	}
+
+	// Create pending work items for all the reservations as well as reservation set
+	// todo: This should be in pendingworkitems repo. Move it there after separating that into a repo.
+	pendingQueueRequests := make([]datamodel.PendingQueueRequest, len(reservationsToCreate) + 1)
+	createDateTime := time.Now().UTC()
+	retryInterval := time.Second
+	for i, reservationToCreate :=  range reservationsToCreate {
+		pendingQueueRequests[i] = datamodel.PendingQueueRequest{
+			Key: reservationToCreate.RowKey,
+			Context: &datamodel.RequestContext{
+				Type:      datamodel.ReservationRequest,
+				NetworkID: networkID,
+				CreatedDateTime: createDateTime,
+				RetryInterval: retryInterval,
+				StateTransitionDateTime: createDateTime,
+			},
+		}
+	}
+
+	pendingQueueRequestReservationSet := datamodel.PendingQueueRequest{
+		Key: datamodel.GetReservationSetKey(networkID, reservationSetID),
+		Context: &datamodel.RequestContext{
+			Type:      datamodel.ReservationSetRequest,
+			NetworkID: networkID,
+			CreatedDateTime: createDateTime,
+			RetryInterval: retryInterval,
+			StateTransitionDateTime: createDateTime,
+		},
+	}
+
+	pendingQueueRequests[len(reservationsToCreate)] = pendingQueueRequestReservationSet
+	return datamodel.AddNewRequestsToPendingQueue(pendingQueueRequests)
+}
+
 // PersistIPReservationRequest - Persist reservation request
 func (c *Controller) PersistIPReservationRequest(
 	networkID string,
@@ -223,8 +466,84 @@ func (c *Controller) GetReservationConfiguration(
 	// No read lock is required because Azure Storage uses snapshot isolation to allow
 	// read operations to happen concurrently with writes in the same partition. It
 	// guarantees reads to see consistent data while updates are happening
+	reservation, err := datamodel.QueryIPReservation(networkID, reservationID)
+	if err != nil {
+		return nil, err
+	}
+	return datamodel.GetReservationResponse(reservation)
+}
 
-	return datamodel.GetReservationResponse(networkID, reservationID)
+// GetReservationSet - retrieves reservation set.
+func (c *Controller) GetReservationSet(
+	networkID string,
+	reservationSetID string) (*api.ReservationSetResponse, *api.JsonErr) {
+	reservationSet, err := datamodel.IpReservationSetRepo.TryQueryIPReservationSet(networkID, reservationSetID)
+	if err != nil {
+		return nil, err
+	}
+
+	if reservationSet == nil {
+		return nil, api.NotFoundf(api.InvalidReservationSetID, "could not find reservation set: %s", reservationSetID)
+	}
+
+	reservations, err := datamodel.IpReservationRepo.TryQueryAllReservationsInSet(networkID, reservationSetID)
+	if err != nil {
+		return nil, err
+	}
+
+	var successfulReservationCount int
+	reservationResponse := make([]api.ReservationResponse, len(reservations))
+	for i, reservation := range reservations {
+		response, err := datamodel.GetReservationResponse(reservation)
+		if err != nil {
+			return nil, err
+		}
+
+		reservationResponse[i] = *response
+
+		if reservation.Configuration.Status == datamodel.Completed {
+			successfulReservationCount++
+		}
+	}
+
+	response := api.ReservationSetResponse {
+		NetworkID: reservationSet.NetworkID,
+		SubnetName: reservationSet.SubnetName,
+		ReservationSetID: reservationSet.ReservationSetID,
+		RequestedReservationCount: reservationSet.ReservationSetRequest.NumReservations,
+		SuccessfulReservationCount: successfulReservationCount,
+		TotalReservationCount: len(reservations),
+		Reservations: reservationResponse,
+		RequestStatus: api.RequestStatus{
+			State:         reservationSet.State.String(),
+			Status:        reservationSet.Status.String(),
+			FailureDetail: reservationSet.FailureDetail,
+		},
+	}
+
+	return &response, nil
+}
+
+// GetReservationSetStatus - Get reservation set status
+func (c *Controller) GetReservationSetStatus(
+	networkID string,
+	reservationSetID string) (*api.RequestStatus, int, *api.JsonErr) {
+	reservationSet, err := datamodel.IpReservationSetRepo.TryQueryIPReservationSet(networkID, reservationSetID)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	if reservationSet == nil {
+		return nil, http.StatusNotFound, api.NotFoundf(api.InvalidReservationSetID, "could not find reservation set: %s", reservationSetID)
+	}
+
+	requestStatus := api.RequestStatus{
+		State:         reservationSet.State.String(),
+		Status:        reservationSet.Status.String(),
+		FailureDetail: reservationSet.FailureDetail,
+	}
+
+	return &requestStatus, generateStatus(reservationSet.Status, &reservationSet.FailureDetail), err
 }
 
 // GetReservationStatus - Get reservation status
@@ -251,12 +570,33 @@ func (c *Controller) GetReservationStatus(
 func (c *Controller) DeleteReservation(
 	networkID string,
 	reservationID string) *api.JsonErr {
-	sessionInfo := map[string]string{
-		datamodel.ReservationRepositoryName: reservationID,
-		datamodel.NetworkRepositoryName:     networkID,
-	}
-	// Check if the node session lock is required
+	// Prevent explicit deletion of the reservation if it belongs to a reservation set
 	reservation, err := datamodel.TryQueryIPReservation(networkID, reservationID)
+	if err != nil {
+		return err
+	}
+
+	if reservation.Configuration == nil {
+		return nil
+	}
+
+	if reservation.SetKey != "" {
+		return api.BadRequestf(api.InvalidReservationRequest, "reservation deletion is not allowed as it belongs to a set")
+	}
+
+	return c.deleteReservation(networkID, reservationID)
+}
+
+func (c *Controller) deleteReservation(
+	networkID string,
+	reservationID string) *api.JsonErr {
+	sessionInfo := map[string]string{
+		datamodel.NetworkRepositoryName: networkID,
+		datamodel.ReservationRepositoryName: reservationID,
+	}
+
+	reservation, err := datamodel.TryQueryIPReservation(networkID, reservationID)
+	// Check if the node session lock is required
 	if reservation.Configuration != nil && err == nil {
 		if len(reservation.Configuration.AllocationRequest.NodeConstraint) != 0 {
 			sessionInfo[datamodel.NodeRepositoryName] = reservation.Configuration.AllocationRequest.NodeConstraint
@@ -1154,6 +1494,74 @@ func (c *Controller) RefreshNMAgentGoalState() {
 // DumpStorageState - dumps DNC storage state
 func (c *Controller) DumpStorageState() error {
 	return datamodel.DumpStorageState(config.DataStoreSettings.AzureStorageInfo.PartitionKey)
+}
+
+// DeleteReservationSet - deletes reservation set
+func (c *Controller) DeleteReservationSet(
+	networkID string,
+	reservationSetID string) *api.JsonErr {
+	loggershim.LS.Debugf("[Request] Delete ReservationSetID: %s in vnet: %s", reservationSetID, networkID)
+	sessionInfo := map[string]string{datamodel.ReservationSetRepositoryName: reservationSetID}
+
+	c.SessionManager.BeginWriteSession(sessionInfo)
+	defer c.SessionManager.EndWriteSession(sessionInfo)
+
+	reservations, err := datamodel.IpReservationRepo.TryQueryAllReservationsInSet(networkID, reservationSetID)
+	if err != nil {
+		loggershim.LS.Errorf("could not retrieve reservations in set: %s error: %v", reservationSetID, err)
+		return err
+	}
+
+	// Check if any reservations are currently in use. If in use, return error
+	var reservationsInUse []string
+	for _, reservation := range reservations {
+		if reservation.Configuration.AssociatedNCID != "" {
+			reservationsInUse = append(reservationsInUse, reservation.Configuration.ReservationID)
+		}
+	}
+
+	if len(reservationsInUse) > 0 {
+		return api.BadRequestf(api.ReservationInUse,
+			"deletion of the set is not allowed as reservations are in use: [%s]", strings.Join(reservationsInUse, ","))
+	}
+
+	// Mark the reservation set for deletion. This will prevent any further processing / new NC creations
+	// in case the DNC fails in reservation deletion or restarts / crashes before completing this function and deleting the reservation set
+	reservationSet, err := datamodel.IpReservationSetRepo.TryQueryIPReservationSet(networkID, reservationSetID)
+	if err != nil {
+		loggershim.LS.Errorf("could not retrieve reservation set: %s", reservationSetID)
+		return err
+	}
+
+	if reservationSet == nil {
+		errMsg := fmt.Sprintf("could not find reservation set: %s for deletion", reservationSetID)
+		loggershim.LS.Errorf(errMsg)
+		return api.BadRequestf(api.InvalidReservationSetID, errMsg)
+	}
+
+	reservationSet.MarkedForDelete = true
+	if err = datamodel.IpReservationSetRepo.PersistReservationSet(reservationSet); err != nil {
+		loggershim.LS.Errorf("could not persist reservation set: %+v error: %v", reservationSet, err)
+		return err
+	}
+
+	// Delete all reservations
+	for _, reservation := range reservations {
+		reservationID := datamodel.GetReservationIDFromKey(reservation.RowKey)
+		if err := c.deleteReservation(networkID, reservationID); err != nil {
+			loggershim.LS.Errorf("could not delete reservation: %s in set: %s", reservationID, reservationSetID)
+			return err
+		}
+	}
+
+	if err := datamodel.IpReservationSetRepo.DeleteReservationSet(networkID, reservationSetID); err != nil {
+		loggershim.LS.Errorf("could not delete reservation set: %s error: %v", reservationSetID, err)
+		return err
+	}
+
+	loggershim.LS.Debugf("successfully deleted reservation set: %s", reservationSetID)
+
+	return nil
 }
 
 func registerSubnetViaRNM(networkID, subnetNameorID string, isRegistered bool) {

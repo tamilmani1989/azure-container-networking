@@ -49,36 +49,39 @@ func Test_Allocate(t *testing.T) {
 		MaxBatchSize: 100,
 	}
 
-	req := datamodel.ReservationConfiguration{
-		ReservationID: "reservation1",
-		NetworkID:     "network1",
-		AllocationRequest: api.AllocationRequest{
-			SubnetName: "subnet1",
-		},
-		SecondaryAllocations: map[string]string{
-			"alloc1": "",
-			"alloc2": "",
-			"alloc3": "",
-			"alloc4": "",
-			"alloc5": "",
-			"alloc6": "",
-			"alloc7": "",
-			"alloc8": "",
-			"alloc9": "",
-		},
+	req := datamodel.ReservationRow{
+		RowKey:        datamodel.GetReservationKey("vnet1", "key1"),
+		Configuration: &datamodel.ReservationConfiguration{
+			ReservationID: "reservation1",
+			NetworkID:     "network1",
+			AllocationRequest: api.AllocationRequest{
+				SubnetName: "subnet1",
+			},
+			SecondaryAllocations: map[string]string{
+				"alloc1": "",
+				"alloc2": "",
+				"alloc3": "",
+				"alloc4": "",
+				"alloc5": "",
+				"alloc6": "",
+				"alloc7": "",
+				"alloc8": "",
+				"alloc9": ""}},
+		SubnetKey:     datamodel.GetReservationKey("vnet1", "subnet1"),
+		SetKey:        "",
 	}
 	_, baseSubnet, _ := net.ParseCIDR("172.16.0.0/24")
-	complete, err := allocator.ProcessIPReservationAllocation(&req)
+	complete, err := allocator.ProcessIPReservationAllocation(req)
 	if err != nil {
 		t.Fatalf("did not expect error: %+v", err)
 	}
 	if !complete {
 		t.Fatal("expected allocation to be done")
 	}
-	if req.AllocatedSubnet != "172.16.0.4/32" {
-		t.Errorf("expected primary subnet to be 172.16.0.4/32, got %s", req.AllocatedSubnet)
+	if req.Configuration.AllocatedSubnet != "172.16.0.4/32" {
+		t.Errorf("expected primary subnet to be 172.16.0.4/32, got %s", req.Configuration.AllocatedSubnet)
 	}
-	for _, ip := range req.SecondaryAllocations {
+	for _, ip := range req.Configuration.SecondaryAllocations {
 		secIP, _, err := net.ParseCIDR(ip)
 		if err != nil {
 			t.Errorf("did not expect error: %+v", err)
@@ -123,37 +126,41 @@ func TestIncompleteAllocation(t *testing.T) {
 		MaxBatchSize: 100,
 	}
 
-	req := datamodel.ReservationConfiguration{
-		ReservationID:     reservationID,
-		NetworkID:         "network1",
-		AllocationRequest: api.AllocationRequest{SubnetName: "subnet1"},
-		// none of the allocations were saved to the reservation, but they do exist in the allocations table
-		AllocatedSubnet: "",
-		SecondaryAllocations: map[string]string{
-			allocationID1: "",
-			allocationID2: "",
-		},
+	req := datamodel.ReservationRow{
+		RowKey:        datamodel.GetReservationKey("vnet1", "key1"),
+		Configuration: &datamodel.ReservationConfiguration{
+			ReservationID:     reservationID,
+			NetworkID:         "network1",
+			AllocationRequest: api.AllocationRequest{SubnetName: "subnet1"},
+			// none of the allocations were saved to the reservation, but they do exist in the allocations table
+			AllocatedSubnet: "",
+			SecondaryAllocations: map[string]string{
+				allocationID1: "",
+				allocationID2: ""}},
+		SubnetKey:     datamodel.GetReservationKey("vnet1", "subnet1"),
+		SetKey:        "",
 	}
+
 	_, baseSubnet, _ := net.ParseCIDR("172.16.0.0/24")
-	complete, err := allocator.ProcessIPReservationAllocation(&req)
+	complete, err := allocator.ProcessIPReservationAllocation(req)
 	if err != nil {
 		t.Fatalf("did not expect error: %+v", err)
 	}
 	if !complete {
 		t.Fatal("expected allocation to be done")
 	}
-	if req.AllocatedSubnet != "172.16.0.13/32" {
-		t.Errorf("expected primary subnet to be 172.16.0.13/32, got %s", req.AllocatedSubnet)
+	if req.Configuration.AllocatedSubnet != "172.16.0.13/32" {
+		t.Errorf("expected primary subnet to be 172.16.0.13/32, got %s", req.Configuration.AllocatedSubnet)
 	}
 
-	allocatedIP1, ok := req.SecondaryAllocations[allocationID1]
+	allocatedIP1, ok := req.Configuration.SecondaryAllocations[allocationID1]
 	if !ok {
 		t.Error("expected previous allocation to be associated to reservation")
 	}
 	if allocatedIP1 != "172.16.0.20/32" {
 		t.Errorf("expected associated allocation %s to be 172.16.0.20/32, got %s", allocationID1, allocatedIP1)
 	}
-	allocatedIP2, ok := req.SecondaryAllocations[allocationID2]
+	allocatedIP2, ok := req.Configuration.SecondaryAllocations[allocationID2]
 	if !ok {
 		t.Error("expected previous allocation to be associated to reservation")
 	}
