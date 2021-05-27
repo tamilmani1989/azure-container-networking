@@ -1,5 +1,5 @@
-// -----------------------------------------------------------------------
-// <copyright file="Common.proto" company="Microsoft Corporation">
+﻿// -----------------------------------------------------------------------
+// <copyright file="AzNM.Contracts.Common.proto" company="Microsoft Corporation">
 //     Copyright (c) Microsoft Corporation. All rights reserved.
 // </copyright>
 // -----------------------------------------------------------------------
@@ -26,6 +26,8 @@ enum MicroserviceType {
     MicroserviceType_PartitionManager = 2; // The partition manager type.
     MicroserviceType_NetworkContainerManager = 3; // The network container manager type.
     MicroserviceType_NetworkInventoryManager = 4; // The network inventory manager type.
+    MicroserviceType_BackendNetworkManager = 5; // The backend network manager type.
+    MicroserviceType_BluebirdContainerManager = 6; // The bluebird container manager type.
 }
 
 // The InfiniBandAdapter type.
@@ -35,11 +37,37 @@ enum InfiniBandAdapterType {
     InfiniBandAdapterType_CX5 = 2; // The InfiniBandAdapter type for VF_GID.
 }
 
+// The client type which creates the container.
+enum ContainerClientType {
+    ContainerClientType_Unknown = 0;
+    ContainerClientType_AzCiM = 1; // The client type for AzCiM.
+    ContainerClientType_DNC = 2; // The client type for DNC.
+    ContainerClientType_AzDHM = 3; // The client type for AzDHM.
+    ContainerClientType_DRP = 4; // The client type for DRP.
+    ContainerClientType_ArtemisRP = 5; // The client type for ArtemisRP.
+    ContainerClientType_NetAppRP = 6; // The client type for NettAppRP.
+    ContainerClientType_AKVRP = 7; // The client type for AKVRP.
+    ContainerClientType_PHSMFM = 8; // The client type for PHSMFM.
+}
+
+// The Container workload type.
+enum WorkloadType {
+    WorkloadType_Unknown = 0;
+    WorkloadType_SmartTorDirectAttach = 1;
+}
+
 // The VLAN type.
 enum VlanType {
     VlanType_Unknown = 0;
     VlanType_Regular = 1; // The regular (front-end) VLAN type.
     VlanType_Backend = 2; // The back-end VLAN type.
+}
+
+// The Switch type.
+enum SwitchType {
+    SwitchType_Unknown = 0;
+    SwitchType_Arista = 1; // The Arista type.
+    SwitchType_Sonic = 2; // The Sonic type.
 }
 
 // The publishing type.
@@ -55,6 +83,13 @@ enum AddressFamily {
     AddressFamily_Unknown = 0;
     AddressFamily_InterNetwork = 2;
     AddressFamily_InterNetworkV6 = 23;
+}
+
+// The execution mode for GenericTaskGroup.
+enum ExecutionMode {
+    ExecutionMode_Sequential = 0; // Sequential mode. This is also the default mode.
+    ExecutionMode_Concurrent = 1; // Concurrent mode.
+    ExecutionMode_Batch = 2; // Batch mode.
 }
 
 // The GenericTaskStatus type. Used by GenericTask and GenericTaskGroup.
@@ -77,6 +112,13 @@ enum StateMachineOnEntry {
     StateMachineOnEntry_Completed = 1; // Action has completed running.
 }
 
+// The status of the DNS programming.
+enum DnsProgrammingStatus {
+    DnsProgrammingStatus_NotStarted = 0; // The DNS programming has not yet begun because either hostname or suffix is not received.
+    DnsProgrammingStatus_ProgrammingTaskCreated = 1; // The DNS programming task has been created.
+    DnsProgrammingStatus_ProgrammingCompleted = 2; // The DNS programming has been successfully completed.
+}
+
 // The universally unique identifier (also known as GUID).
 message Uuid {
     uint64 HighBits = 10; // The higher 64 bits.
@@ -89,10 +131,19 @@ message GenericKey {
     string Id = 11; // The id for the key.
 }
 
+// Identifier for program version mapping.
+message ProgramVersionMappingKey {
+    Uuid DataModelObjectId = 10; // The data object Id.
+    uint64 Version = 11; // The program version.
+}
+
 // Blade information.
 message BladeInformation {
     Uuid Id = 10; // Blade Id.
     IPAddress IP = 11; // IP address.
+    MacAddress Mac = 12; // Mac address.
+    string VlanId = 13; // VlanId
+    string BackendNetworkName = 14; // Backend network name.
 }
 
 // Publishing content.
@@ -132,13 +183,25 @@ message MacAddressRange {
 
 // The request context used as the 1st field in all *Request messages for gRPC.
 message RequestContext {
-    repeated string ActivityIds = 10; // Collection of activity ids (used for OpenTelemetry tracing). The last activity id will be used as parent id when creating new activity for gRPC operation.
+    repeated string ActivityIds = 10; // Collection of activity ids (used for OpenTelemetry tracing). The last activity id will be used to create parent activity context when creating new activity for gRPC operation. Last activity id in the collection needs to have a format of 'XX-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-XXXXXXXXXXXXXXXX-XX' where X is a hexadecimal value.
+    uint32 SliceNumber = 11; // Force request to use a specific slice. Slice number starts at 1. Value of zero lets Partition Manager decide the slice.
+    uint32 PartitionNumber = 12; // Force request to use a specific partition. Partition number starts at 1. Value of zero lets Partition Manager decide the partition.
 }
 
 // The container identifier.
 message ContainerIdentifier {
     Uuid LogicalContainerId = 10; // The logical container id.
     Uuid ContainerId = 11; // The container id.
+}
+
+// The VM container's DNS Fully Qualified Domain Name.
+message DnsFqdn {
+    string Hostname = 10; // The dynamic DNS (DDNS) name of the container.
+    string Suffix = 11; // The DNS suffix of the container.
+    Uuid VnetId = 12; // The Vnet Id of the primary frontend interface -> primary interface compartment of the container which is used for DNS programming.
+    DnsProgrammingStatus DnsProgrammingStatus = 13; // The DNS programming status of the container.
+    repeated string IPv4CustomerAddresses = 14; // IPv4 CAs that have been registered with IDNS. Used when deleting the DNS record.
+    repeated string IPv6CustomerAddresses = 15; // IPv6 CAs that have been registered with IDNS. Used when deleting the DNS record.
 }
 
 // The live migration (LM) context.
@@ -152,6 +215,20 @@ message LiveMigrationContext {
 message StateMachineState {
     string State = 10; // The state of a state machine.
     StateMachineOnEntry OnEntry = 11; // The state of the on entry action in the current state.
+}
+
+// The subnet service endpoint.
+message SubnetServiceEndpoint {
+    string Service = 10; // The service name.
+    repeated string IpTagIds = 11; // The IP tag Ids.
+}
+
+// The network resources.
+message NetworkResources {
+    repeated Uuid RouteTables = 10; // The route tables.
+    repeated Uuid NetworkSecurityGroups = 11; // The security groups.
+    repeated Uuid NatGateways = 12; // The gateways.
+    repeated Uuid ServiceEndpointPolicies = 13; // The service endpoint policies.
 }
 
 // The list of uint32 numbers.

@@ -1,5 +1,5 @@
-// -----------------------------------------------------------------------
-// <copyright file="Containers.proto" company="Microsoft Corporation">
+﻿// -----------------------------------------------------------------------
+// <copyright file="AzNM.Contracts.Containers.proto" company="Microsoft Corporation">
 //     Copyright (c) Microsoft Corporation. All rights reserved.
 // </copyright>
 // -----------------------------------------------------------------------
@@ -11,7 +11,7 @@ package Microsoft.Azure.AzNM.Contracts.ContainersProtocol;
 
 option go_package = "microsoft/azure/aznm/contracts/containersprotocol";
 
-import "AznmCommon.proto";
+import "AzNM.Contracts.Common.proto";
 
 // The abstract base container type.
 message Container {
@@ -27,8 +27,10 @@ message VirtualMachineContainer {
     Uuid Id = 1; // The container id.
     Uuid LogicalContainerId = 10; // The logical container id.
     uint64 Version = 11; // The configuration version.
-    Uuid BladeId = 12; // The blade id.
-    bool IsActivated = 14; // Whether the container is activated - whether the container should receive network traffic from SLB or VNET.
+    ContainerClientType ClientType = 12; // The client type which creates the container.
+    WorkloadType WorkloadType = 13; // The container workload type.
+    Uuid BladeId = 14; // The blade id.
+    bool IsActivated = 17; // Whether the container is activated - whether the container should receive network traffic from SLB or VNET.
     bool IsPreProvisioned = 101; // Whether the VM is pre-provisioned by the platform.
     string SizePolicyName = 102; // The container size policy name.
     LiveMigrationContext LiveMigrationContext = 104; // The live migration context.
@@ -39,8 +41,10 @@ message NativeContainer {
     Uuid Id = 1; // The container id.
     Uuid LogicalContainerId = 10; // The logical container id.
     uint64 Version = 11; // The configuration version.
-    Uuid BladeId = 12; // The blade id.
-    bool IsActivated = 14; // Whether the container is activated - whether the container should receive network traffic from SLB or VNET.
+    ContainerClientType ClientType = 12; // The client type which creates the container.
+    WorkloadType WorkloadType = 13; // The container workload type.
+    Uuid BladeId = 14; // The blade id.
+    bool IsActivated = 17; // Whether the container is activated - whether the container should receive network traffic from SLB or VNET.
 }
 
 // The bare-metal container.
@@ -48,8 +52,18 @@ message BareMetalContainer {
     Uuid Id = 1; // The container id.
     Uuid LogicalContainerId = 10; // The logical container id.
     uint64 Version = 11; // The configuration version.
-    Uuid BladeId = 12; // The blade id.
-    bool IsActivated = 14; // Whether the container is activated - whether the container should receive network traffic from SLB or VNET.
+    ContainerClientType ClientType = 12; // The client type which creates the container.
+    WorkloadType WorkloadType = 13; // The container workload type.
+    Uuid BladeId = 14; // The blade id.
+    bool IsActivated = 17; // Whether the container is activated - whether the container should receive network traffic from SLB or VNET.
+}
+
+// The switch port information.
+message SwitchPortInformation {
+}
+
+// The vnet settings.
+message VnetSettings {
 }
 
 // Legacy network interface configuration for N-CCF.

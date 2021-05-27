@@ -9,8 +9,8 @@ package Microsoft.Azure.AzNM.Contracts.ContainersProtocol;
 
 option go_package = "microsoft/azure/aznm/contracts/containersprotocol";
 
-import "AznmCommon.proto";
-import "Containers.proto";
+import "AzNM.Contracts.Common.proto";
+import "AzNM.Contracts.Containers.proto";
 
 // -----------------------------------------------------------------------
 // Please implement <IRequestContext> interface for each request message
@@ -20,9 +20,11 @@ import "Containers.proto";
 message UpdateContainerRequest {
     RequestContext Context = 1;
     Container Container = 11;
+    repeated SwitchPortConfiguration SwitchPortConfigurations = 12; // For Bluebird Scenarios
 }
 
 message UpdateContainerResponse {
+    repeated SwitchPortConfiguration SwitchPortConfigurations = 11; // For Bluebird Scenarios
 }
 
 message DeleteContainerRequest {
@@ -40,6 +42,18 @@ message GetLegacyContainerConfigurationRequest {
 
 message GetLegacyContainerConfigurationResponse {
     repeated LegacyInterfaceConfiguration InterfaceConfigurations = 11;
+}
+
+message SwitchPortConfiguration {
+    string SwitchName = 11;
+    string SwitchPort = 12;
+    repeated VnetOnSwitchPort VnetsOnSwitchPort = 13;
+}
+
+message VnetOnSwitchPort {
+    Uuid VnetId = 11;       // Required as part of request.
+    uint32 VlanNumber = 12; // Optionally passed as part of request.
+    IPAddress Gateway = 13; // Not passed as part of request.
 }
 
 service NetworkContainerService {
