@@ -2,6 +2,7 @@ package networkcontainer
 
 import (
 	"dnc/datamodel"
+	"dnc/datastore/testpersistencestore"
 	"dnc/logger/loggermock"
 	"dnc/networkcontainer/fakes"
 	"net"
@@ -12,14 +13,17 @@ import (
 )
 
 func TestSubnetHandlerProcess_CreationFromScratch(t *testing.T) {
+	logger := loggermock.NewDummyLogger()
 	allocsRepo := fakes.AllocationRepo{}
-	resRepo := fakes.NewReservationRepo()
+
+	var store testpersistencestore.TestPersistenceStore
+	store.Init(datamodel.TableToColumnMap, loggermock.NewDummyLogger())
+
+	resRepo := datamodel.NewReservationRepo(&store, "partition", logger)
 
 	_, baseSubnet, _ := net.ParseCIDR("10.1.0.0/16")
 	vnetID := "vnet1"
 	subnet := "subnet1"
-
-	logger := loggermock.NewDummyLogger()
 
 	subnetInfo := subnetInfo{
 		vnetID:     vnetID,
@@ -50,8 +54,11 @@ func TestSubnetHandlerProcess_CreationFromScratch(t *testing.T) {
 
 	reservationIPs := make(map[string]struct{})
 
+	rows, err := resRepo.TryQueryAllReservations()
+	require.Nil(t, err)
+
 	// inspect stored reservations
-	for _, rsv := range resRepo.Data {
+	for _, rsv := range rows {
 		assertCompleteReservation(t, *rsv.Configuration, secondaryIPCount)
 
 		reservationIPs[rsv.Configuration.AllocatedSubnet] = struct{}{}
@@ -120,9 +127,12 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 		},
 		MaxBatchSize: 100,
 	}
-	resRepo := fakes.NewReservationRepo()
 
 	logger := loggermock.NewDummyLogger()
+
+	var store testpersistencestore.TestPersistenceStore
+	store.Init(datamodel.TableToColumnMap, loggermock.NewDummyLogger())
+	resRepo := datamodel.NewReservationRepo(&store, "partition", logger)
 
 	subnetInfo := subnetInfo{
 		vnetID:     vnetID,
@@ -148,8 +158,11 @@ func TestSubnetHandlerProcess_RecoveringFromErrors(t *testing.T) {
 
 	reservationIPs := make(map[string]struct{})
 
+	rows, err := resRepo.TryQueryAllReservations()
+	require.Nil(t, err)
+
 	// inspect stored reservations
-	for _, rsv := range resRepo.Data {
+	for _, rsv := range rows {
 		assertCompleteReservation(t, *rsv.Configuration, secondaryIPCount)
 
 		reservationIPs[rsv.Configuration.AllocatedSubnet] = struct{}{}
@@ -211,7 +224,7 @@ func generateBatch(reservationCount, secondaryIPCount int, vnetID string) (reque
 					SecondaryAllocations: secAllocs,
 				},
 				SubnetKey: datamodel.GetSubnetKey(vnetID, "subnet1"),
-				SetKey: "",
+				SetKey:    "",
 			},
 			responseCh: responseCh,
 		})

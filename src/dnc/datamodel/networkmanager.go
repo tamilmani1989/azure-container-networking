@@ -737,28 +737,6 @@ func QueryIPReservation(networkID, reservationID string) (ReservationRow, *api.J
 	return reservationRow, nil
 }
 
-func UpdateIPReservations(reservations []ReservationRow) *api.JsonErr {
-	rows := make(map[string]map[string]interface{})
-	for _, res := range reservations {
-		key := GetReservationKey(res.Configuration.NetworkID, res.Configuration.ReservationID)
-		resJSON, err := json.Marshal(res)
-		if err != nil {
-			return api.InternalServerErrorf(api.JsonMarshallingFailed, "could not serialize reservation %s: %v",
-				res.Configuration.ReservationID, err)
-		}
-		rows[key] = map[string]interface{}{
-			reservationConfigurationTag: string(resJSON),
-			subnetKeyProperty:           GetSubnetKey(res.Configuration.NetworkID, res.Configuration.AllocationRequest.SubnetName),
-			setKeyProperty:              res.SetKey}
-	}
-
-	if err := dataStoreShim.UpsertBatch(ipReservationsTableName, rows); err != nil {
-		return api.InternalServerErrorf(api.StatusInternalServerError, "could not persist reservation batch: %v", err)
-	}
-
-	return nil
-}
-
 // TryQueryRequestContext - Query request context.
 func TryQueryRequestContext(requestID string) (*RequestContext, *api.JsonErr) {
 	entity, status, err := dataStoreShim.Query(pendingWorkItemsTableName, requestID)
@@ -895,9 +873,9 @@ type PendingQueueRequest struct {
 
 func (p *PendingQueueRequest) ToStorageEntity(dncPartitionKey string) (storage.Entity, *api.JsonErr) {
 	e := storage.Entity{
-		Table:         &storage.Table{Name: pendingWorkItemsTableName},
-		PartitionKey:  dncPartitionKey,
-		RowKey:        p.Key,
+		Table:        &storage.Table{Name: pendingWorkItemsTableName},
+		PartitionKey: dncPartitionKey,
+		RowKey:       p.Key,
 		//todo: Add ETag
 		//OdataEtag:     p.ETag,
 	}
@@ -1606,7 +1584,7 @@ func PersistIPReservationRequest(networkID string,
 	}
 
 	reservation = ReservationRow{
-		RowKey: GetReservationKey(networkID, reservationID),
+		RowKey:    GetReservationKey(networkID, reservationID),
 		SubnetKey: GetSubnetKey(networkID, allocationRequest.SubnetName),
 		Configuration: &ReservationConfiguration{
 			NetworkID:         networkID,
@@ -2382,7 +2360,7 @@ func GetNetworkContainerRequest(ncGoalState *NCGoalState, ncConfig *NCConfigurat
 		LocalIPConfiguration:       localIPConfiguaration,
 		AllowHostToNCCommunication: ncConfig.GetAllowHostToNCCommunicationStatus(),
 		AllowNCToHostCommunication: ncConfig.GetAllowNCToHostCommunicationStatus(),
-		EndpointPolicies: ncConfig.GetEndpointPolicies()}, false, nil
+		EndpointPolicies:           ncConfig.GetEndpointPolicies()}, false, nil
 }
 
 func getLocalIPGateway(ipsubnet string) (string, error) {

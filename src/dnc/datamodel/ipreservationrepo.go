@@ -6,9 +6,10 @@ import (
 	"dnc/datastoreshim"
 	"dnc/logger/loggershim"
 	"encoding/json"
+	"net/http"
+
 	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/google/uuid"
-	"net/http"
 )
 
 // Properties in tables
@@ -25,9 +26,9 @@ type ReservationRepo struct {
 }
 
 func NewReservationRepo(
-	dataStore       datastoreshim.DataStoreShim,
+	dataStore datastoreshim.DataStoreShim,
 	dncPartitionKey string,
-	logger          loggershim.LoggerInterface) *ReservationRepo {
+	logger loggershim.LoggerInterface) *ReservationRepo {
 	return &ReservationRepo{
 		dncPartitionKey: dncPartitionKey,
 		dataStore:       dataStore,
@@ -50,7 +51,20 @@ func (*ReservationRepo) PutIPReservationConfiguration(res *ReservationConfigurat
 }
 
 func (r *ReservationRepo) UpdateReservations(reservations []ReservationRow) *api.JsonErr {
-	return UpdateIPReservations(reservations)
+	entities := make([]storage.Entity, len(reservations))
+	for i, res := range reservations {
+		entity, apiErr := res.ToStorageEntity(r.dncPartitionKey)
+		if apiErr != nil {
+			return apiErr
+		}
+		entities[i] = entity
+	}
+
+	if err := r.dataStore.UpsertEntityBatch(ipReservationsTableName, entities); err != nil {
+		return api.InternalServerErrorf(api.StatusInternalServerError, "could not persist reservation batch: %v", err)
+	}
+
+	return nil
 }
 
 func (r *ReservationRepo) DeleteReservation(reservationKey string) *api.JsonErr {
@@ -65,7 +79,7 @@ func (r *ReservationRepo) DeleteReservation(reservationKey string) *api.JsonErr 
 
 //todo: move all reservation repo code here
 func (r *ReservationRepo) TryQueryAllReservationsInSet(
-	networkID        string,
+	networkID string,
 	reservationSetID string) ([]ReservationRow, *api.JsonErr) {
 	reservationSetKey := []string{GetReservationSetKey(networkID, reservationSetID)}
 	filter := azurestorage.BuildFilterOnProperty(dncPartitionKey, setKeyProperty, reservationSetKey)
@@ -155,8 +169,8 @@ func (r *ReservationRepo) AssociateNCWithReservationInSet(
 }
 
 func (r *ReservationRepo) GetNumReservationsToCreateInSet(
-	networkID                string,
-	reservationSetID         string,
+	networkID string,
+	reservationSetID string,
 	requestedNumReservations int) (int, *api.JsonErr) {
 	existingReservations, err := r.TryQueryAllReservationsInSet(networkID, reservationSetID)
 	if err != nil {
@@ -213,15 +227,15 @@ func (r *ReservationRepo) CreateReservationsInSet(
 		reservationsToCreate[i] = ReservationRow{
 			RowKey: GetReservationKey(networkID, reservationID),
 			Configuration: &ReservationConfiguration{
-				ReservationID:        reservationID,
-				NetworkID:            networkID,
-				ReservationState:     Process,
-				Status:               Pending,
-				AllocationRequest:    api.AllocationRequest{SubnetName: subnetName},
-				APIVersion:           apiVersion,
+				ReservationID:     reservationID,
+				NetworkID:         networkID,
+				ReservationState:  Process,
+				Status:            Pending,
+				AllocationRequest: api.AllocationRequest{SubnetName: subnetName},
+				APIVersion:        apiVersion,
 			},
 			SubnetKey: GetSubnetKey(networkID, subnetName),
-			SetKey: GetReservationSetKey(networkID, reservationSetID),
+			SetKey:    GetReservationSetKey(networkID, reservationSetID),
 		}
 	}
 
@@ -237,9 +251,9 @@ func (r *ReservationRepo) CreateReservationsInSet(
 
 func (r *ReservationRow) ToStorageEntity(dncPartitionKey string) (storage.Entity, *api.JsonErr) {
 	e := storage.Entity{
-		Table:         &storage.Table{Name: ipReservationsTableName},
-		PartitionKey:  dncPartitionKey,
-		RowKey:        r.RowKey,
+		Table:        &storage.Table{Name: ipReservationsTableName},
+		PartitionKey: dncPartitionKey,
+		RowKey:       r.RowKey,
 		//todo: Add ETag to ReservationRow
 		//OdataEtag:     r.ETag,
 	}
