@@ -77,7 +77,7 @@ func CleanPartition(w http.ResponseWriter, r *http.Request) {
 	partitionRepo := &partitionRepo{
 		dataStoreShim:              ds,
 		ncRepo:                     datamodel.NewNetworkContainerRepo(ds),
-		reservationRepo:            &datamodel.ReservationRepo{Datastore: ds},
+		reservationRepo:            datamodel.NewReservationRepo(ds, partition, Log(ctx)),
 		ipAllocationRepo:           &datamodel.AllocationRepo{Datastore: ds},
 		pendingPublishRequestRepo:  datamodel.NewNcPendingPublishRequestRepo(ds),
 		pendingResourceCleanupRepo: datamodel.NewPendingResourceCleanupRepo(ds, Log(ctx)),
