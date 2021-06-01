@@ -402,7 +402,7 @@ func addNode(t *testing.T, nodeID, ipaddr, orchestratorType, infraVnet string) {
 		nodeCfg *api.NodeInfoResponse
 	)
 
-	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, infraVnet, "", "", ""); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, infraVnet, "", "", "", 0); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Register node failed with error %+v", respErr)
 	}
 

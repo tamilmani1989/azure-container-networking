@@ -86,7 +86,7 @@ func (d *DNC) CreateNodes(ctx context.Context, workerCount int, nodeRequests []N
 			defer wg.Done()
 			for req := range nodeReqCh {
 				createNodeFunc := func() error {
-					err := d.Client.AddNode(req.NodeID, req.NodeReq.IPAddresses[0], req.NodeReq.OrchestratorType, req.NodeReq.InfrastructureNetwork, "", "", "")
+					err := d.Client.AddNode(req.NodeID, req.NodeReq.IPAddresses[0], req.NodeReq.OrchestratorType, req.NodeReq.InfrastructureNetwork, "", "", "", 0)
 					if err.HTTPStatus != http.StatusOK {
 						return err
 					}

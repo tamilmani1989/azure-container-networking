@@ -236,26 +236,6 @@ func startDNC(config *configuration.Configuration, stdErr bool) {
 		},
 	}
 
-	switch strings.ToLower(config.CNSSettings.ChannelMode) {
-	case cnsinterface.Direct:
-		cnsInterface = &cnsinterface.DirectChannel{
-			SessionManager:  sessionManager,
-			EnforceNicLimit: config.DNCSettings.EnforceNICLimit,
-			CNSClient: &cns.Client{
-				Paths: config.CNSSettings.ConnectionStrings,
-				HTTP:  cnsHttpClient,
-			},
-			Logger: logger,
-		}
-	case cnsinterface.Managed:
-		cnsInterface = cnsinterface.NewManagedChannel(sessionManager, config.DNCSettings.EnforceNICLimit)
-	case cnsinterface.Disabled:
-		cnsInterface = &cnsinterface.DisabledChannel{NCLimit: 1}
-	default:
-		logger.Errorf("did not set a valid CNS channel: '%s'", config.CNSSettings.ChannelMode)
-		os.Exit(1)
-	}
-
 	// Initialize the datamodel before initializing controller
 	if shouldInitDatamodel(config.DataStoreSettings) {
 		masterElectionShim.Init()
@@ -275,6 +255,31 @@ func startDNC(config *configuration.Configuration, stdErr bool) {
 		if err != nil {
 			log.Fatalln("Error initializing datamodel. Error:", err)
 		}
+	}
+
+	// in disabled mode, cnsinterface needs to be created after datamodel.Init
+	switch strings.ToLower(config.CNSSettings.ChannelMode) {
+	case cnsinterface.Direct:
+		cnsInterface = &cnsinterface.DirectChannel{
+			SessionManager:  sessionManager,
+			EnforceNicLimit: config.DNCSettings.EnforceNICLimit,
+			CNSClient: &cns.Client{
+				Paths: config.CNSSettings.ConnectionStrings,
+				HTTP:  cnsHttpClient,
+			},
+			Logger: logger,
+		}
+	case cnsinterface.Managed:
+		cnsInterface = cnsinterface.NewManagedChannel(sessionManager, config.DNCSettings.EnforceNICLimit)
+	case cnsinterface.Disabled:
+		cnsInterface = &cnsinterface.DisabledChannel{
+			NodeInfoFetcher:    datamodel.NodeConfigRepo,
+			NICsPerVirtualCore: int(config.DNCSettings.NICsAllowedPerVirtualCore),
+			DefaultNCLimit:     1, // Default to 1 NC for AKS scenario
+		}
+	default:
+		logger.Errorf("did not set a valid CNS channel: '%s'", config.CNSSettings.ChannelMode)
+		os.Exit(1)
 	}
 
 	networkupdatehandler.Init(config, replicaInstance, sessionManager, httpClient, &ipAllocator, logger)

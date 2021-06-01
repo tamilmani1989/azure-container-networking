@@ -122,7 +122,7 @@ func (c *DncClient) InitAzStorage(accountName, key, partitionKey, blob, containe
  * Add APIs
  */
 
-func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType, infraVnet, azId, nodeType, nodeSet string) (respErr *api.JsonErr) {
+func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType, infraVnet, azId, nodeType, nodeSet string, numCores int) (respErr *api.JsonErr) {
 	var (
 		body     bytes.Buffer
 		response *http.Response
@@ -136,6 +136,7 @@ func (c *DncClient) AddNode(nodeId, ipaddr, orchestratorType, infraVnet, azId, n
 			AZID:                  azId,
 			NodeType:              nodeType,
 			NodeSet:               nodeSet,
+			NumCores:              numCores,
 		}
 	)
 

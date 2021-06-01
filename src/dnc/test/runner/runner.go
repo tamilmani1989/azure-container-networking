@@ -925,7 +925,7 @@ func addNode(nodeID, ipaddr, orchestratorType, vnetID string) error {
 
 	logger.Printf("Registering node %s", nodeID)
 
-	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, vnetID, "", "", ""); respErr.HTTPStatus != http.StatusOK {
+	if respErr = dnctl.AddNode(nodeID, ipaddr, orchestratorType, vnetID, "", "", "", 0); respErr.HTTPStatus != http.StatusOK {
 		return fmt.Errorf("Register node (create) : %s failed with error %+v", nodeID, respErr)
 	}
 

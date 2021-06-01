@@ -4041,7 +4041,7 @@ func TestManagedDncAPIs(t *testing.T) {
 
 	// Register network/subnet and add node
 	setupNetworkAndJoinSubnet(t, dncEP, vnetID, networkContainerReq.AllocationRequest.SubnetName, apiVersion, true, 0)
-	if respErr := dnctl.AddNode(nodeID, iface, cns.Kubernetes, infraVnet, azid, nodeType, ""); respErr.HTTPStatus != http.StatusOK {
+	if respErr := dnctl.AddNode(nodeID, iface, cns.Kubernetes, infraVnet, azid, nodeType, "", 0); respErr.HTTPStatus != http.StatusOK {
 		t.Fatalf("Register node failed with error %+v", respErr)
 	}
 

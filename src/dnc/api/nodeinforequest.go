@@ -18,6 +18,7 @@ type NodeInfoRequest struct {
 	AZID                  string   `json:"azid"`     // Optional
 	NodeType              string   `json:"nodetype"` // Optional.
 	NodeSet               string   `json:"nodeSet"`  // Optional
+	NumCores              int      `json:"numcores"` // Optional
 }
 
 // Validate - Validates the node info request
