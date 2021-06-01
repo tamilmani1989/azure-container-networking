@@ -106,6 +106,7 @@
         "MaxRequestBackoffInterval": 16000,
         "PublisherPort": "18605",
         "SubscriberPort": "18600",
+        "EnableRNC": __EnableRNC__,
         "PubsubCertName": "__PubsubCertName__",
         "PubsubCertKeyvaultName": "__RegionalKeyVaultName__",
         "PubsubCertFilePath": "",

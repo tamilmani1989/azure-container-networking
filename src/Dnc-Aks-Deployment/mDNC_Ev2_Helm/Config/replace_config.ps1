@@ -47,6 +47,7 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     if ($Service -eq "dnc") {
     $config = $config.replace('__PubsubVips__', (Out-String -InputObject (Get-Value "Application" "PubsubVips")).Trim())
     $config = $config.replace('__PubsubCertName__', (Out-String -InputObject (Get-Value "Application" "PubsubCertName")).Trim())
+    $config = $config.replace('__EnableRNC__', (Out-String -InputObject (Get-Value "Application" "EnableRNC" "false")).Trim())
     $config = $config.replace('__PartitionKey__', (Out-String -InputObject (Get-Value "Application" "PartitionKey")).Trim())
     $config = $config.replace('__PubsubConnectionEndpoint__', (Out-String -InputObject (Get-Value "Application" "PubsubConnectionEndpoint")).Trim())
     $config = $config.replace('__MSIResourceID__', (Out-String -InputObject (Get-Value "Cluster" "ClusterClientId")).Trim())
