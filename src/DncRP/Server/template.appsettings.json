@@ -73,7 +73,7 @@
   },
   "AmeCertValidationSettings": {
     "AmeAllowedSubjectNames": "dnc.azure.com",
-    "SkipAmeCertValidation": false
+    "SkipAmeCertValidation": __SkipAMECertValidation__
   },
   "AllowedHosts": "*",
   "Port": "5002",

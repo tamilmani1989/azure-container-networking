@@ -37,6 +37,12 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     $config = Get-Content (Join-Path $PSScriptRoot $configReplacement.SourceConfigFile)
     $destination = Get-Content (Join-Path $PSScriptRoot $configReplacement.DestinationFile)
 
+    ## DNC-RP
+    if ($Service -eq "dncrp") {
+        # RP should skip AME Cert validation in Test Sub
+        $config = $config.replace('__SkipAMECertValidation__', (Out-String -InputObject (Get-Value "Application" "SkipAMECertValidation" "false")).Trim())
+    }
+
     ## DNC 
     if ($Service -eq "dnc") {
     $config = $config.replace('__PubsubVips__', (Out-String -InputObject (Get-Value "Application" "PubsubVips")).Trim())
@@ -80,7 +86,6 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     $config = $config.replace('__EnableBatchAllocationProcessing__', (Out-String -InputObject (Get-Value "Application" "EnableBatchAllocationProcessing" "true")).Trim())
     $config = $config.replace('__MaxIPReservationBatchSize__', (Out-String -InputObject (Get-Value "Application" "MaxIPReservationBatchSize" "100")).Trim())
     $config = $config.replace('__UsePrepopulatedIPAllocations__', (Out-String -InputObject (Get-Value "Application" "UsePrepopulatedIPAllocations" "true")).Trim())
-
 
     $destinationPath = Join-Path $PSScriptRoot $configReplacement.DestinationFile
     Write-Host "Writing file to $destinationPath"
