@@ -1,6 +1,6 @@
 # Build requestcontroller
 # docker build -t nmagentmock:latest -f builds/nmagentmock/Dockerfile .
-FROM golang:1.14-alpine AS builder
+FROM golang:1.16-alpine AS builder
 
 WORKDIR /usr/local/src/nmagentmock
 

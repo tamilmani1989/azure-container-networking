@@ -37,8 +37,8 @@ RUN if [ "$GENERATE_BOND_FILE" = "true" ]; then \
 	fi
 
 # Build the DNC binary
-# golang:1.14 is based on debian 10
-FROM golang:1.14 AS dnccleanup-builder
+# golang:1.16 is based on debian 10
+FROM golang:1.16 AS dnccleanup-builder
 WORKDIR /usr/local/src/Networking-Aquarius
 ENV LD_LIBRARY_PATH /usr/local/src/Networking-Aquarius/src/dnc/pubsubproxy/libs
 ENV CGO_LDFLAGS "-L ${LD_LIBRARY_PATH} -lMadariNativeClient -lBondDataSerializer"

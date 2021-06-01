@@ -1,5 +1,5 @@
 # Build requestcontroller
-FROM golang:1.14-alpine AS builder
+FROM golang:1.16-alpine AS builder
 
 # Get deps
 RUN apk --update add ca-certificates curl unzip
