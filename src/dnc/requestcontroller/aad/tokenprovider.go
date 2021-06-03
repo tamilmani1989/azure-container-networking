@@ -235,7 +235,7 @@ func parseKeyPairFromPEMBlock(pemBlock []byte) (*x509.Certificate, *rsa.PrivateK
 	}
 
 	if !found {
-		return nil, nil, fmt.Errorf("Unable to find a matching public certificate")
+		return nil, nil, fmt.Errorf("unable to find a matching public certificate")
 	}
 
 	return cert, privateKey, nil
@@ -261,7 +261,7 @@ func splitPEMBlock(pemBlock []byte) (certPEM []byte, keyPEM []byte) {
 func parseRsaPrivateKey(privateKeyPEM []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode(privateKeyPEM)
 	if block == nil {
-		return nil, fmt.Errorf("Failed to decode a pem block from private key")
+		return nil, fmt.Errorf("failed to decode a pem block from private key")
 	}
 
 	privatePkcs1Key, errPkcs1 := x509.ParsePKCS1PrivateKey(block.Bytes)

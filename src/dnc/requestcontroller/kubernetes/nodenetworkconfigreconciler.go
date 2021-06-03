@@ -165,7 +165,7 @@ func (n *NodeNetworkConfigReconciler) reconcile(ctx context.Context, request rec
 	err = n.k8sClient.Get(ctx, client.ObjectKey{Name: name}, &node)
 	if err != nil && !apierrors.IsNotFound(err) {
 		// Requeue due to client error
-		err = fmt.Errorf("Error getting Node from kubernetes API server: %w", err)
+		err = fmt.Errorf("error getting Node from kubernetes API server: %w", err)
 		n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", err.Error())
 		return err
 	}
@@ -174,7 +174,7 @@ func (n *NodeNetworkConfigReconciler) reconcile(ctx context.Context, request rec
 	if (err != nil && apierrors.IsNotFound(err)) || !node.DeletionTimestamp.IsZero() {
 		err = n.cleanUpNNC(ctx, &nodeNetworkConfig, name)
 		if err != nil {
-			err = fmt.Errorf("Error while cleaning up NNC: %w", err)
+			err = fmt.Errorf("error while cleaning up NNC: %w", err)
 			n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", err.Error())
 		}
 		return err
@@ -273,12 +273,12 @@ func (n *NodeNetworkConfigReconciler) mustRecreateNNC(ctx context.Context, nodeN
 
 	delegatedSubnetID, found := node.Labels[DelegatedSubnetIDLabel]
 	if !found {
-		return fmt.Errorf("Label %s not found for node %s", DelegatedSubnetIDLabel, node.Name)
+		return fmt.Errorf("label %s not found for node %s", DelegatedSubnetIDLabel, node.Name)
 	}
 
 	subnetName, found := node.Labels[SubnetNameLabel]
 	if !found {
-		return fmt.Errorf("Label %s not found for node %s", SubnetNameLabel, node.Name)
+		return fmt.Errorf("label %s not found for node %s", SubnetNameLabel, node.Name)
 	}
 
 	// Get subnet info, this is a threadsafe call
@@ -343,17 +343,17 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 	}
 
 	if internalIPAddress == "" {
-		return fmt.Errorf("Could not find InternalIP for Node %s", node.Name)
+		return fmt.Errorf("could not find InternalIP for Node %s", node.Name)
 	}
 
 	delegatedSubnetID, found := node.Labels[DelegatedSubnetIDLabel]
 	if !found {
-		return fmt.Errorf("Label %s not found for node %s", DelegatedSubnetIDLabel, node.Name)
+		return fmt.Errorf("label %s not found for node %s", DelegatedSubnetIDLabel, node.Name)
 	}
 
 	subnetName, found := node.Labels[SubnetNameLabel]
 	if !found {
-		return fmt.Errorf("Label %s not found for node %s", SubnetNameLabel, node.Name)
+		return fmt.Errorf("label %s not found for node %s", SubnetNameLabel, node.Name)
 	}
 
 	// Get subnet info, this is a threadsafe call

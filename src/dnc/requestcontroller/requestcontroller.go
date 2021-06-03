@@ -232,7 +232,7 @@ type ConfigSubnetInfoProvider struct {
 
 func (c *ConfigSubnetInfoProvider) GetSubnetInfo(ctx context.Context, delegatedSubnetID, subnetName string) (SubnetInfo, error) {
 	if delegatedSubnetID != c.Config.VnetID {
-		return SubnetInfo{}, fmt.Errorf("Info for delegeatedSubnetID %s not found, only have info for %s", delegatedSubnetID, c.Config.VnetID)
+		return SubnetInfo{}, fmt.Errorf("info for delegeatedSubnetID %s not found, only have info for %s", delegatedSubnetID, c.Config.VnetID)
 	}
 
 	return SubnetInfo{

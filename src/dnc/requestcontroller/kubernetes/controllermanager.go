@@ -151,7 +151,7 @@ func (c *controllerManager) Start(ctx context.Context) error {
 func (c *controllerManager) reconcileDNCNodes(ctx context.Context) error {
 	nodes, err := c.syncDNCClient.GetNodes(ctx)
 	if err != nil {
-		return fmt.Errorf("Unable to rehydrate cluster from DNC nodes due to error: %w", err)
+		return fmt.Errorf("unable to rehydrate cluster from DNC nodes due to error: %w", err)
 	}
 
 	k8sClient := c.ctrlRuntimeMgr.GetClient()

@@ -79,7 +79,7 @@ func (s *SubnetInfoProvider) GetSubnetInfo(ctx context.Context, delegatedSubnetI
 	}
 
 	if status != http.StatusOK {
-		return subnetInfo, fmt.Errorf("Unexpected status %d returned by cosmos", status)
+		return subnetInfo, fmt.Errorf("unexpected status %d returned by cosmos", status)
 	}
 
 	if entity.Properties[vnetGUIDPropertyName] != nil {

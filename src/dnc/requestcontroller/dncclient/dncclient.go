@@ -197,11 +197,11 @@ func (s SynchronousDNCClient) UpsertNcV2(ctx context.Context, networkID, ncID st
 	}
 
 	if respErr.HTTPStatus != http.StatusOK {
-		return fmt.Errorf("UpsertNC %s failed for vnet %s with error %+v", ncID, networkID, respErr)
+		return fmt.Errorf("upsertNC %s failed for vnet %s with error %+v", ncID, networkID, respErr)
 	}
 
 	if ncStatus.Status != "Completed" || (ncStatus.State != "Program" && ncStatus.State != "RefreshAssociation") {
-		return fmt.Errorf("UpsertNC %s failed for vnet %s with error %+v", ncID, networkID, ncStatus)
+		return fmt.Errorf("upsertNC %s failed for vnet %s with error %+v", ncID, networkID, ncStatus)
 	}
 
 	return nil
@@ -279,7 +279,7 @@ func (s SynchronousDNCClient) RegisterVnet(ctx context.Context, networkID string
 	}
 
 	if vnetStatus.State != "Join" || vnetStatus.Status != "Completed" {
-		return fmt.Errorf("Register network %s failed with response: %+v", networkID, vnetStatus)
+		return fmt.Errorf("register network %s failed with response: %+v", networkID, vnetStatus)
 	}
 
 	return nil
@@ -353,11 +353,11 @@ func (s SynchronousDNCClient) RegisterSubnet(ctx context.Context, networkID, sub
 	}
 
 	if subnetStatus == nil {
-		return fmt.Errorf("Unable to retrieve subnet status, error: %+v", respErr)
+		return fmt.Errorf("unable to retrieve subnet status, error: %+v", respErr)
 	}
 
 	if subnetStatus.State != "Join" || subnetStatus.Status != "Completed" {
-		return fmt.Errorf("Register subnet %s on network %s failed with response: %+v", subnetID, networkID, subnetStatus)
+		return fmt.Errorf("register subnet %s on network %s failed with response: %+v", subnetID, networkID, subnetStatus)
 	}
 
 	return nil

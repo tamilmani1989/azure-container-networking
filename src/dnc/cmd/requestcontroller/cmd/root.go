@@ -106,7 +106,7 @@ func runRequestController(ctx context.Context, configFile string) error {
 	// Get the config
 	config, err := getConfig(configFile)
 	if err != nil {
-		return fmt.Errorf("Error getting config: %w", err)
+		return fmt.Errorf("error getting config: %w", err)
 	}
 
 	// Get the Cosmos token via MSI if necessary
@@ -114,14 +114,14 @@ func runRequestController(ctx context.Context, configFile string) error {
 		logger.Info("Getting key for CosmosDB with MSI")
 		key, err := getCosmosKeyFromMSI(context.TODO(), config.CosmosMSISettings.MSIResourceID, config.CosmosMSISettings.CosmosResourceID, config.CosmosMSISettings.AzureEnvironment)
 		if err != nil {
-			return fmt.Errorf("Error getting Cosmos key from MSI: %w", err)
+			return fmt.Errorf("error getting Cosmos key from MSI: %w", err)
 		}
 
 		/* Saw a strange error where if the subscription was incorrect in the CosmosResourceID string, the getCosmosKeyFromMSI function would return an empty key and nil error.
 		*  The following check ensures that RC doesn't get an empty key and nil error. TODO: We should investigate why the adal functions were not returning errors and failing silently
 		 */
 		if key == "" {
-			return fmt.Errorf("Error getting Cosmos Key from MSI, key was empty")
+			return fmt.Errorf("error getting Cosmos Key from MSI, key was empty")
 		}
 
 		config.DataStoreSettings.AzureStorageInfo.Key = key
@@ -146,7 +146,7 @@ func runRequestController(ctx context.Context, configFile string) error {
 			secretProvider, err = getKeyvaultClientFromMSI(context.TODO(), kubeconfigInfo.ClientCertificatesKeyvaultConfig.KeyvaultName,
 				kubeconfigInfo.ClientCertificatesKeyvaultConfig.MSIResourceID, kubeconfigInfo.ClientCertificatesKeyvaultConfig.AzureEnvironment)
 			if err != nil {
-				return fmt.Errorf("Error getting keyvault client from MSI: %w", err)
+				return fmt.Errorf("error getting keyvault client from MSI: %w", err)
 			}
 		case requestcontroller.ClientCertificatesFilesystemMode:
 			secretProvider = &filesystem.SecretProvider{
@@ -187,17 +187,17 @@ func runRequestController(ctx context.Context, configFile string) error {
 
 		kcp, err := datastore.NewKubeClusterAuthProvider(kubeClusterAuthProviderOpts)
 		if err != nil {
-			return fmt.Errorf("Error getting kubeconfig provider: %w", err)
+			return fmt.Errorf("error getting kubeconfig provider: %w", err)
 		}
 		kubeClusterAuthProvider = kcp
 	default:
-		return fmt.Errorf("Error creating kubeconfig provider from config mode: %s is not a valid mode for config.kubernetesConfig.kubeconfigInfo.mode", mode)
+		return fmt.Errorf("error creating kubeconfig provider from config mode: %s is not a valid mode for config.kubernetesConfig.kubeconfigInfo.mode", mode)
 	}
 
 	// Create the DNC client
 	dncClientPollingInterval, err := time.ParseDuration(config.DNCClientConfig.PollingInterval)
 	if err != nil {
-		return fmt.Errorf("Could not parse config.DNCClientConfig.PollingInterval (%s) as duration: %w", config.DNCClientConfig.PollingInterval, err)
+		return fmt.Errorf("could not parse config.DNCClientConfig.PollingInterval (%s) as duration: %w", config.DNCClientConfig.PollingInterval, err)
 	}
 
 	syncDncClient := syncdncclient.NewSynchronousDNCClient(dncclient.NewDncClient(config.DNCClientConfig.DNCEndpoint), dncClientPollingInterval, logger)
@@ -209,14 +209,14 @@ func runRequestController(ctx context.Context, configFile string) error {
 	case requestcontroller.SubnetInfoProviderDatastoreMode:
 		subnetInfoProvider, err = datastore.NewSubnetInfoProvider(config.DataStoreSettings, config.LoggingConfig)
 		if err != nil {
-			return fmt.Errorf("Could not create subnet info provider: %w", err)
+			return fmt.Errorf("could not create subnet info provider: %w", err)
 		}
 	case requestcontroller.SubnetInfoProviderConfigMode:
 		subnetInfoProvider = &requestcontroller.ConfigSubnetInfoProvider{
 			Config: config.SubnetInfoProviderConfig,
 		}
 	default:
-		return fmt.Errorf("Unknown SubnetInfoProvider mode: %s", mode)
+		return fmt.Errorf("unknown SubnetInfoProvider mode: %s", mode)
 	}
 
 	logger.WithFields(logrus.Fields{
@@ -237,7 +237,7 @@ func runRequestController(ctx context.Context, configFile string) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Error creating new RequestController: %w", err)
+		return fmt.Errorf("error creating new RequestController: %w", err)
 	}
 
 	// Initialize the global AI Wrapper
@@ -301,12 +301,12 @@ func getKeyvaultClientFromMSI(ctx context.Context, keyvaultName, msiResourceID, 
 	tokenFetcher := &ad.MSITokenFetcher{ResourceID: msiResourceID}
 	azureEnvironment, err := azure.EnvironmentFromName(azureEnvironmentName)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting AzureEnvironment from string %s: %w", azureEnvironment, err)
+		return nil, fmt.Errorf("error getting AzureEnvironment from string %s: %w", azureEnvironment, err)
 	}
 
 	keyvaultClient, err := ad.NewKeyvaultClient(tokenFetcher, azureEnvironment, keyvaultName)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting keyvault client: %w", err)
+		return nil, fmt.Errorf("error getting keyvault client: %w", err)
 	}
 
 	return keyvaultClient, nil
@@ -323,14 +323,14 @@ func getConfig(configFile string) (requestcontroller.Config, error) {
 		}
 
 		if err := jsonConfigProvider.ApplyConfig(&config); err != nil {
-			return requestcontroller.Config{}, fmt.Errorf("Error reading the config file %s: %w", configFile, err)
+			return requestcontroller.Config{}, fmt.Errorf("error reading the config file %s: %w", configFile, err)
 		}
 	}
 
 	// Apply config from the environment
 	envConfigProvider := env.ConfigProvider{}
 	if err := envConfigProvider.ApplyConfig(&config); err != nil {
-		return requestcontroller.Config{}, fmt.Errorf("Error getting config from environment: %w", err)
+		return requestcontroller.Config{}, fmt.Errorf("error getting config from environment: %w", err)
 	}
 
 	return config, nil

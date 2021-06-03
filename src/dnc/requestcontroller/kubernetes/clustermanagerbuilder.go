@@ -35,7 +35,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 	// Build a crd client
 	crdClient, err := getCRDClientForRESTConfig(opts.ClusterAuthConfig.GetConfig())
 	if err != nil {
-		return nil, fmt.Errorf("Error creating client for CRD definition creation: %w", err)
+		return nil, fmt.Errorf("error creating client for CRD definition creation: %w", err)
 	}
 
 	// Get in-cluster config for leader election configmaps
@@ -47,22 +47,22 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 	// Parse durations for clients
 	k8sClientTimeout, err := time.ParseDuration(c.Config.KubernetesConfig.ClientTimeout)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing k8sClientTimeout duration from %s: %w", c.Config.KubernetesConfig.ClientTimeout, err)
+		return nil, fmt.Errorf("error parsing k8sClientTimeout duration from %s: %w", c.Config.KubernetesConfig.ClientTimeout, err)
 	}
 
 	dncClientRequestTimeout, err := time.ParseDuration(c.Config.DNCClientConfig.RequestTimeout)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing dncClientRequestTimeout duration from %s: %w", c.Config.DNCClientConfig.RequestTimeout, err)
+		return nil, fmt.Errorf("error parsing dncClientRequestTimeout duration from %s: %w", c.Config.DNCClientConfig.RequestTimeout, err)
 	}
 
 	nncReconcilerMetricPublishInterval, err := time.ParseDuration(c.Config.MetricsConfig.NNCReconcilerMetricPublishInterval)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing NNC Processed Metric publishing interval from %s: %w", c.Config.MetricsConfig.NNCReconcilerMetricPublishInterval, err)
+		return nil, fmt.Errorf("error parsing NNC Processed Metric publishing interval from %s: %w", c.Config.MetricsConfig.NNCReconcilerMetricPublishInterval, err)
 	}
 
 	cleanupPollingInterval, err := time.ParseDuration(c.Config.CleanupConfig.PollingInterval)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing cleanup polling interval from %s: %w", c.Config.CleanupConfig.PollingInterval, err)
+		return nil, fmt.Errorf("error parsing cleanup polling interval from %s: %w", c.Config.CleanupConfig.PollingInterval, err)
 	}
 
 	// resync reconcilers every hour
@@ -100,7 +100,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 			MaxConcurrentReconciles: c.Config.KubernetesConfig.ConcurrentNodeReconcilers,
 		}).
 		Complete(nodeReconciler); err != nil {
-		return nil, fmt.Errorf("Error creating Node reconciler: %w", err)
+		return nil, fmt.Errorf("error creating Node reconciler: %w", err)
 	}
 
 	// build the NNC reconciler and add it to the manager
@@ -124,13 +124,13 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 			MaxConcurrentReconciles: c.Config.KubernetesConfig.ConcurrentNNCReconcilers,
 		}).
 		Complete(nodeNetworkConfigReconciler); err != nil {
-		return nil, fmt.Errorf("Error creating NNC reconciler: %w", err)
+		return nil, fmt.Errorf("error creating NNC reconciler: %w", err)
 	}
 
 	//build the ConfigMapCleaner
 	clientset, err := kubernetes.NewForConfig(opts.ClusterAuthConfig.GetConfig())
 	if err != nil {
-		return nil, fmt.Errorf("Error creating kube client for Cleaner: %w", err)
+		return nil, fmt.Errorf("error creating kube client for Cleaner: %w", err)
 	}
 
 	// Get untyped rest client for cleaner

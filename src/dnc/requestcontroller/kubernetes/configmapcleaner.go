@@ -226,7 +226,7 @@ func (c *ConfigmapCleaner) Clean(ctx context.Context) error {
 	// Get all NNCs
 	nncs, err := c.getAllNNCs(ctx)
 	if err != nil {
-		return fmt.Errorf("Error getting all NNCs for cluster: %w", err)
+		return fmt.Errorf("error getting all NNCs for cluster: %w", err)
 	}
 
 	c.logger.Infof("Cleaner found %d nncs to clean", len(nncs.Items))

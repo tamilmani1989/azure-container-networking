@@ -158,7 +158,7 @@ func (m *mockK8sClient) Delete(ctx context.Context, obj runtime.Object, opts ...
 
 // Patch is not used but is here to satisfy the interface implementation
 func (m *mockK8sClient) Patch(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error {
-	return fmt.Errorf("Patch not implemented")
+	return fmt.Errorf("patch not implemented")
 }
 
 // Status returns a status writer, which we can reuse the mock client for

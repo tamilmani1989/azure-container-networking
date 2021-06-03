@@ -28,7 +28,7 @@ type K8sCRDClient interface {
 func getCRDClientForRESTConfig(restConfig *rest.Config) (K8sCRDClient, error) {
 	crdClientSet, err := apiextensionsclientset.NewForConfig(restConfig)
 	if err != nil {
-		return nil, fmt.Errorf("Error creating client for CRD definition creation: %w", err)
+		return nil, fmt.Errorf("error creating client for CRD definition creation: %w", err)
 	}
 
 	return crdClientSet.ApiextensionsV1().CustomResourceDefinitions(), nil
