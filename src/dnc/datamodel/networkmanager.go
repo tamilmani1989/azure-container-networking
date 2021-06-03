@@ -1536,7 +1536,7 @@ func translateRepoToContractReservationResponse(
 		RequestStatus:     requestStatus}
 
 	if reservation.SetKey != "" {
-		response.ReservationID = GetReservationIDFromKey(reservation.SetKey)
+		response.ReservationSetID = GetReservationIDFromKey(reservation.SetKey)
 	}
 
 	return response
