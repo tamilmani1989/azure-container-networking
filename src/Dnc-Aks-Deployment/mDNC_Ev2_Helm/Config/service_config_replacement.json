@@ -28,7 +28,7 @@
         {
             "Service" : "macinventory",
             "SourceConfigFile": "..\\..\\..\\MacManager\\InventoryManager\\Server\\template.appsettings.json",
-            "DestinationFile": "..\\Charts\\MacManager\\templates\\macinventoryConfig.yaml"
+            "DestinationFile": "..\\Charts\\MacInventory\\templates\\macinventoryConfig.yaml"
         }
     ]
 }
