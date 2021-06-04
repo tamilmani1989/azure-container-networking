@@ -3,10 +3,10 @@
     },
     "Cluster": {
         "LOCATION": "centralus",
-        "CLUSTERNAME": "acncluster-dncrp-centralus",
+        "CLUSTERNAME": "acncluster-dncrp-centralus-2",
         "AgentVmSize": "Standard_DS2_v2",
         "AgentCount": "3",
-        "ResourceGroup": "acn-rg-dncrp-centralus",
+        "ResourceGroup": "acn-rg-dncrp-centralus-2",
         "SubscriptionId": "0895de50-30a3-4b75-aada-5b23ebd4e8bc",
         "TenantId": "33e01921-4d64-4f8c-a055-5bdaffd5e33d",
         "ClusterClientId": ""
@@ -16,11 +16,11 @@
         "RegionalKeyVaultName": "acnkv-centralus",
         "RegionalKeyVaultResourceGroup": "acn-rg-CentralUS",
         "ContainerRegistryResourceGroup": "ProductionACR",
-        "CosmosDbAccountName": "dbdncrpcentralus",
-        "CosmosDbResourceGroup": "acn-rg-dncrp-centralus",
-        "RpCosmosDbResourceGroup": "acn-rg-dncrp-centralus",
-        "RpCosmosDbAccountName": "dbdncrpcentralus",
-        "RpCosmosDbResoureID": "/subscriptions/0895de50-30a3-4b75-aada-5b23ebd4e8bc/resourceGroups/acn-rg-dncrp-centralus/providers/Microsoft.DocumentDB/databaseAccounts/dbdncrpcentralus",
-        "CosmosDBResourceID": "/subscriptions/0895de50-30a3-4b75-aada-5b23ebd4e8bc/resourceGroups/acn-rg-dnc-centralus/providers/Microsoft.DocumentDB/databaseAccounts/dbdncrpcentralus"
+        "CosmosDbAccountName": "dbdncrpcentralus2",
+        "CosmosDbResourceGroup": "acn-rg-dncrp-centralus-2",
+        "RpCosmosDbResourceGroup": "acn-rg-dncrp-centralus-2",
+        "RpCosmosDbAccountName": "dbdncrpcentralus2",
+        "RpCosmosDbResoureID": "/subscriptions/0895de50-30a3-4b75-aada-5b23ebd4e8bc/resourceGroups/acn-rg-dncrp-centralus-2/providers/Microsoft.DocumentDB/databaseAccounts/dbdncrpcentralus2",
+        "CosmosDBResourceID": "/subscriptions/0895de50-30a3-4b75-aada-5b23ebd4e8bc/resourceGroups/acn-rg-dnc-centralus-2/providers/Microsoft.DocumentDB/databaseAccounts/dbdncrpcentralus2"
     }
 }

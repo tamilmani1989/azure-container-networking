@@ -126,6 +126,10 @@
         {
           "find": "__CreateSql__",
           "replaceWith": ""
+        },
+        {
+          "find": "__AvailabilityZones__",
+          "replaceWith": ""
         }
       ]
     }

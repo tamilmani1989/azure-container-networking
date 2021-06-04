@@ -225,6 +225,13 @@
             "metadata": {
                 "description": "SQL cosmos db is also created."
             }
+        },
+        "availabilityZones": {
+            "type": "string",
+            "defaultValue": "true",
+            "metadata": {
+                "description": "Enable/Disable AvailabilityZones."
+            }
         }
     },
     "variables": {
@@ -232,11 +239,58 @@
     },
     "resources": [
         {
+            "condition": "[equals(parameters('availabilityZones'),'true')]",
             "apiVersion": "2020-03-01",
             "dependsOn": [],
             "type": "Microsoft.ContainerService/managedClusters",
             "location": "[parameters('location')]",
             "name": "[parameters('resourceName')]",
+            "properties": {
+                "kubernetesVersion": "[parameters('kubernetesVersion')]",
+                "enableRBAC": "[parameters('enableRBAC')]",
+                "dnsPrefix": "[parameters('dnsPrefix')]",
+                "agentPoolProfiles": [
+                    {
+                        "name": "agentpool",
+                        "osDiskSizeGB": "[parameters('osDiskSizeGB')]",
+                        "count": "[parameters('agentCount')]",
+                        "vmSize": "[parameters('agentVMSize')]",
+                        "osType": "[parameters('osType')]",
+                        "storageProfile": "ManagedDisks",
+                        "type": "VirtualMachineScaleSets",
+                        "mode": "System",
+                        "availabilityZones": [
+                            "1",
+                            "2",
+                            "3"
+                        ]
+                    }
+                ],
+                "networkProfile": {
+                    "loadBalancerSku": "standard",
+                    "networkPlugin": "[parameters('networkPlugin')]"
+                },
+                "apiServerAccessProfile": {
+                    "enablePrivateCluster": "[parameters('enablePrivateCluster')]"
+                },
+                "addonProfiles": {
+                    "httpApplicationRouting": {
+                        "enabled": "[parameters('enableHttpApplicationRouting')]"
+                    }
+                }
+            },
+            "tags": {},
+            "identity": {
+                "type": "SystemAssigned"
+            }
+        },
+        {
+            "condition": "[equals(parameters('availabilityZones'),'false')]",
+            "apiVersion": "2020-03-01",
+            "dependsOn": [],
+            "type": "Microsoft.ContainerService/managedClusters",
+            "location": "[parameters('location')]",
+            "name": "[concat(parameters('resourceName'),'-nonaz')]",
             "properties": {
                 "kubernetesVersion": "[parameters('kubernetesVersion')]",
                 "enableRBAC": "[parameters('enableRBAC')]",
