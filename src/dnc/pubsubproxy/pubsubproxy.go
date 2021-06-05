@@ -363,16 +363,6 @@ func ForceUnpublishInAllAzs(infraVnetID, nodeInterfaceIP, ncID string) *api.Json
 func UnpublishNetworkContainer(
 	ncUnpublishRequest UnpublishNetworkContainerRequest) *api.JsonErr {
 	logDebugf("UnpublishNetworkContainer: %s", ncUnpublishRequest.NcID)
-	if err := validateAuthToken(ncUnpublishRequest.VnetID,
-		ncUnpublishRequest.SubnetName,
-		ncUnpublishRequest.SubnetAuthToken); err != nil {
-		logErrorf("UnpublishNetworkContainer for NC: %s failed due to error: %v", ncUnpublishRequest.NcID, err)
-		return &api.JsonErr{
-			Code:       api.UnpublishingFailed,
-			Text:       fmt.Sprintf("UnpublishNetworkContainer for NC: %s failed due to error: %v", ncUnpublishRequest.NcID, err),
-			HTTPStatus: err.HTTPStatus}
-	}
-
 	for pubsubAzId, _ := range publisherContext.publishers {
 		pendingNcUnpublishRequestContext := datamodel.NcPendingPublishRequestContext{
 			Type:               datamodel.NetworkContainerUnpublishRequest,
