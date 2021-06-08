@@ -131,13 +131,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             ControllerRequest request = new ControllerRequest
             {
-                Properties = new ArmProperties
-                {
-                    Parameters = new ControllerRequestParameters
-                    {
-                        Location = location
-                    }
-                }
+                Location = location
             };
 
             // Put resource and validate results

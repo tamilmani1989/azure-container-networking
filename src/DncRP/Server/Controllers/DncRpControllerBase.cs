@@ -226,7 +226,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 this.logger.CLogInformation(errorMsg);
             }
 
-            identity.Type = orchestratorRequest.Properties.Parameters.IdentityParameter.IdentityType;
+            identity.Type = orchestratorRequest.IdentityParameter.IdentityType;
             this.logger.CLogInformation($"Identity type: {identity.Type}");
 
             if (!string.IsNullOrWhiteSpace(sb.ToString()))

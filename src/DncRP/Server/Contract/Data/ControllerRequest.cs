@@ -8,29 +8,10 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using Newtonsoft.Json;
-
-    public class ControllerRequestParameters
+    public class ControllerRequest
     {
         [JsonProperty("location")]
         public string Location
-        {
-            get; set;
-        }
-    }
-
-    public class ArmProperties
-    {
-        [JsonProperty("parameters")]
-        public ControllerRequestParameters Parameters
-        {
-            get; set;
-        }
-    }
-
-    public class ControllerRequest
-    {
-        [JsonProperty("properties")]
-        public ArmProperties Properties
         {
             get; set;
         }

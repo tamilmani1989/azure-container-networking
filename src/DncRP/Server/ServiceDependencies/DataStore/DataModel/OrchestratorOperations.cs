@@ -92,7 +92,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             this.logger.CLogInformation("Starting PUT orchestrator resource. Sub:{0}, RG:{1}, ResourceName:{2}",
                 subId, resourceGroup, resourceName);
 
-            string controllerArmResouceId = orchestratorRequest.Properties.Parameters.Properties.ControllerDetails.Id;
+            string controllerArmResouceId = orchestratorRequest.Properties.ControllerDetails.Id;
             Controller controller = await this.controllerOperations.GetDncControllerAsync(controllerArmResouceId);
             if (controller.Error != null)
             {
@@ -117,9 +117,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 createdDate = entity.CreatedDateUtc;
             }
 
-            OrchestratorProperties orchProps = orchestratorRequest.Properties.Parameters.Properties;
+            OrchestratorProperties orchProps = orchestratorRequest.Properties;
             string propJson = JsonUtility.Serialize(orchProps);
-            OrchestratorKind orchestratorType = orchestratorRequest.Properties.Parameters.Kind;
+            OrchestratorKind orchestratorType = orchestratorRequest.Kind;
             ControllerProperties controllerProps = (ControllerProperties)controller.Properties;
             string identityMetadataJson = JsonUtility.Serialize<MSIIdentityMetadata>(orchestratorRequest.Identity);
 
@@ -130,7 +130,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             resourceEntity.State = ProvisioningState.Succeeded.ToString();
             resourceEntity.CreatedDateUtc = createdDate;
             resourceEntity.ControllerId = controllerArmResouceId;
-            resourceEntity.Location = orchestratorRequest.Properties.Parameters.Location;
+            resourceEntity.Location = orchestratorRequest.Location;
             resourceEntity.ControllerProperties = JsonUtility.Serialize<ControllerProperties>(controllerProps);
             resourceEntity.IdentityMetadata = identityMetadataJson;
 

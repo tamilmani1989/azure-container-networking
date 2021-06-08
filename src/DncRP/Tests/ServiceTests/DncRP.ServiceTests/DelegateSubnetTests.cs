@@ -139,13 +139,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             ControllerRequest controllerRequest = new ControllerRequest
             {
-                Properties = new ArmProperties
-                {
-                    Parameters = new ControllerRequestParameters
-                    {
-                        Location = location
-                    }
-                }
+                Location = location
             };
 
             await tableOperations.ControllerConfiguration.InsertOrReplaceDncControllerAsync(
@@ -161,29 +155,29 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Assert.True(controllerProperties.PropertiesList.DncEndpoint == $"https://openai-{CurrentContext.AzureRegion}.dnc.azure.com");
 
             // Get resource and validate results
-            await GetAndValidateDelegateSubnetAsync(delegateSubnetController, 
+            await GetAndValidateDelegateSubnetAsync(delegateSubnetController,
                 subscriptionId,
                 resourceGroup,
                 resourceName,
                 HttpStatusCode.NotFound,
                 DncSubnetStatus.New);
 
-           await PutAndValidateAsync(
-                delegateSubnetController,
-                subscriptionId,
-                resourceGroup,
-                vnetName,
-                subnetName,
-                resourceName,
-                controllerName+"bad",
-                HttpStatusCode.NotFound);
+            await PutAndValidateAsync(
+                 delegateSubnetController,
+                 subscriptionId,
+                 resourceGroup,
+                 vnetName,
+                 subnetName,
+                 resourceName,
+                 controllerName + "bad",
+                 HttpStatusCode.NotFound);
 
-           await delegateSubnetController.DeleteDelegateSubnet(
-                subscriptionId,
-                resourceGroup,
-                resourceName);
-            
-			// Put resource and valudate results
+            await delegateSubnetController.DeleteDelegateSubnet(
+                 subscriptionId,
+                 resourceGroup,
+                 resourceName);
+
+            // Put resource and valudate results
             DelegateSubnetResponse response = await PutAndValidateAsync(
                 delegateSubnetController,
                 subscriptionId,
@@ -277,33 +271,27 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
         private async Task<DelegateSubnetResponse> PutAndValidateAsync(
             DelegateSubnetController delegateSubnetController,
-            string subscriptionId, 
-            string resourceGroup, 
-            string vnetName, 
-            string subnetName, 
-            string resourceName, 
+            string subscriptionId,
+            string resourceGroup,
+            string vnetName,
+            string subnetName,
+            string resourceName,
             string controllerName,
             HttpStatusCode expectedStatusCode,
             DelegateSubnetResponse previousResponse = null)
         {
             DelegateSubnetRequest request = new DelegateSubnetRequest()
             {
-                Properties = new DeletagetSubnetArmProperties()
+                Location = CurrentContext.AzureRegion,
+                Properties = new DelegateSubnetRequestProperties()
                 {
-                    Parameters = new DelegateRequestParameters()
+                    SubnetDetails = new SubnetDetails()
                     {
-                        Location = CurrentContext.AzureRegion,
-                        Properties = new DelegateSubnetRequestProperties()
-                        {
-                            SubnetDetails = new SubnetDetails()
-                            {
-                                Id = $"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.Network/virtualNetworks/{vnetName}/subnets/{subnetName}"
-                            },
-                            ControllerDetails = new ControllerDetails()
-                            {
-                                Id = $"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/controller/{controllerName}"
-                            }
-                        }
+                        Id = $"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.Network/virtualNetworks/{vnetName}/subnets/{subnetName}"
+                    },
+                    ControllerDetails = new ControllerDetails()
+                    {
+                        Id = $"/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.DelegatedNetwork/controller/{controllerName}"
                     }
                 }
             };
@@ -348,11 +336,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
             if (request != null)
             {
-                Assert.True(properties.SubnetDetails.Id == request.Properties.Parameters.Properties.SubnetDetails.Id,
-                    $" Latest Subnet Id: {properties.SubnetDetails.Id}, Previous SubnetId Id: {request.Properties.Parameters.Properties.SubnetDetails.Id}");
+                Assert.True(properties.SubnetDetails.Id == request.Properties.SubnetDetails.Id,
+                    $" Latest Subnet Id: {properties.SubnetDetails.Id}, Previous SubnetId Id: {request.Properties.SubnetDetails.Id}");
 
-                Assert.True(properties.ControllerDetails.Id == request.Properties.Parameters.Properties.ControllerDetails.Id,
-                    $" Latest Controller Id: {properties.ControllerDetails.Id}, Previous Controller Id: {request.Properties.Parameters.Properties.ControllerDetails.Id}");
+                Assert.True(properties.ControllerDetails.Id == request.Properties.ControllerDetails.Id,
+                    $" Latest Controller Id: {properties.ControllerDetails.Id}, Previous Controller Id: {request.Properties.ControllerDetails.Id}");
             }
 
             if (previousResponse != null)
@@ -375,9 +363,9 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         }
 
         private void SetHttpContext(
-            DelegateSubnetController controller, 
-            string subId, 
-            string resourceGroup, 
+            DelegateSubnetController controller,
+            string subId,
+            string resourceGroup,
             string resourceName,
             HttpMethod method,
             DelegateSubnetRequest request)

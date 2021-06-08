@@ -19,27 +19,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         public ControllerDetails ControllerDetails { get; set; }
     }
 
-    public class DelegateRequestParameters
+    public class DelegateSubnetRequest
     {
         [JsonProperty("location")]
         public string Location { get; set; }
 
         [JsonProperty("properties")]
         public DelegateSubnetRequestProperties Properties { get; set; }
-    }
-
-    public class DeletagetSubnetArmProperties
-    {
-        [JsonProperty("parameters")]
-        public DelegateRequestParameters Parameters { get; set;  }
-    }
-
-    public class DelegateSubnetRequest
-    {
-        [JsonProperty("properties")]
-        public DeletagetSubnetArmProperties Properties
-        {
-            get; set;
-        }
     }
 }

@@ -135,13 +135,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
                 ControllerRequest request = new ControllerRequest
                 {
-                    Properties = new ArmProperties
-                    {
-                        Parameters = new ControllerRequestParameters
-                        {
-                            Location = location
-                        }
-                    }
+                    Location = location
                 };
 
                 await SubscriptionRegistrationTests.RegisterSub(this.testConfig.SubscriptionId, this.tableOperations);
@@ -237,13 +231,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
 
                 ControllerRequest request = new ControllerRequest
                 {
-                    Properties = new ArmProperties
-                    {
-                        Parameters = new ControllerRequestParameters
-                        {
-                            Location = location
-                        }
-                    }
+                    Location = location
                 };
 
                 // Put controller resource and validate results
@@ -345,27 +333,21 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         {
             return new OrchestratorRequest
             {
-                Properties = new OrchestratorArmProperties
+                Location = location,
+                Kind = OrchestratorKind.Kubernetes,
+                IdentityParameter = new OrchestratorIdentityParameter
                 {
-                    Parameters = new OrchestratorRequestParameters
+                    IdentityType = MSIIdentityType.SystemAssigned
+                },
+                Properties = new OrchestratorProperties
+                {
+                    AppId = "546192d7-503f-477a-9cfe-4efc3ee2b6e1", // AAD ID for k8s apiserver auth
+                    TenantId = "da6192d7-503f-477a-9cfe-4efc3ee2b6c3", // Tenant id of above AAD ID
+                    ClusterRootCA = "ddsadsad344mfdsfdl", // Root CA of k8s cluster
+                    ApiServerEndpoint = "https://testk8s.cloudapp.net",  //apiserver url that dnc needs to watch on
+                    ControllerDetails = new ControllerDetails
                     {
-                        Location = location,
-                        Kind = OrchestratorKind.Kubernetes,
-                        IdentityParameter = new OrchestratorIdentityParameter
-                        {
-                            IdentityType = MSIIdentityType.SystemAssigned
-                        },
-                        Properties = new OrchestratorProperties
-                        {
-                            AppId = "546192d7-503f-477a-9cfe-4efc3ee2b6e1", // AAD ID for k8s apiserver auth
-                            TenantId = "da6192d7-503f-477a-9cfe-4efc3ee2b6c3", // Tenant id of above AAD ID
-                            ClusterRootCA = "ddsadsad344mfdsfdl", // Root CA of k8s cluster
-                            ApiServerEndpoint = "https://testk8s.cloudapp.net",  //apiserver url that dnc needs to watch on
-                            ControllerDetails = new ControllerDetails
-                            {
-                                Id = controllerArmId
-                            }
-                        }
+                        Id = controllerArmId
                     }
                 }
             };
@@ -389,14 +371,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Assert.True(jsonDeserialized["name"].ToString().Equals(orch.Name));
             Assert.True(jsonDeserialized["location"].ToString().Equals(location));
             Assert.True(jsonDeserialized["type"].ToString().Equals(orch.Type));
-            Assert.True(jsonDeserialized["kind"].ToString().Equals(orchRequest.Properties.Parameters.Kind.ToString()));
+            Assert.True(jsonDeserialized["kind"].ToString().Equals(orchRequest.Kind.ToString()));
             Assert.True(jsonDeserialized["properties"]["provisioningState"].ToString().Equals(ProvisioningState.Succeeded.ToString()));
             Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["resourceGuid"].ToString()));
-            Assert.True(jsonDeserialized["properties"]["orchestratorAppId"].ToString().Equals(orchRequest.Properties.Parameters.Properties.AppId));
-            Assert.True(jsonDeserialized["properties"]["orchestratorTenantId"].ToString().Equals(orchRequest.Properties.Parameters.Properties.TenantId));
-            Assert.True(jsonDeserialized["properties"]["clusterRootCA"].ToString().Equals(orchRequest.Properties.Parameters.Properties.ClusterRootCA));
-            Assert.True(jsonDeserialized["properties"]["apiServerEndpoint"].ToString().Equals(orchRequest.Properties.Parameters.Properties.ApiServerEndpoint));
-            Assert.True(jsonDeserialized["properties"]["controllerDetails"]["id"].ToString().Equals(orchRequest.Properties.Parameters.Properties.ControllerDetails.Id));
+            Assert.True(jsonDeserialized["properties"]["orchestratorAppId"].ToString().Equals(orchRequest.Properties.AppId));
+            Assert.True(jsonDeserialized["properties"]["orchestratorTenantId"].ToString().Equals(orchRequest.Properties.TenantId));
+            Assert.True(jsonDeserialized["properties"]["clusterRootCA"].ToString().Equals(orchRequest.Properties.ClusterRootCA));
+            Assert.True(jsonDeserialized["properties"]["apiServerEndpoint"].ToString().Equals(orchRequest.Properties.ApiServerEndpoint));
+            Assert.True(jsonDeserialized["properties"]["controllerDetails"]["id"].ToString().Equals(orchRequest.Properties.ControllerDetails.Id));
         }
 
         private string GetOrchestratorResouceGuid(string jsonResponse)

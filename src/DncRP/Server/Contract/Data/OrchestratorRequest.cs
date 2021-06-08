@@ -24,7 +24,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         }
     }
 
-    public class OrchestratorRequestParameters
+    public class OrchestratorRequest
     {
         [JsonProperty("location")]
         public string Location
@@ -46,24 +46,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
         [JsonProperty("properties")]
         public OrchestratorProperties Properties
-        {
-            get; set;
-        }
-    }
-
-    public class OrchestratorArmProperties
-    {
-        [JsonProperty("parameters")]
-        public OrchestratorRequestParameters Parameters
-        {
-            get; set;
-        }
-    }
-
-    public class OrchestratorRequest
-    {
-        [JsonProperty("properties")]
-        public OrchestratorArmProperties Properties
         {
             get; set;
         }

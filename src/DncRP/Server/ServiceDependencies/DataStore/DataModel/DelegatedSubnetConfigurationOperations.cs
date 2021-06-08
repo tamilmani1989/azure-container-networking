@@ -73,8 +73,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 throw new Exception($"Invalid vnetResourceGuid, it is either null or empty Guid, subscriptionId: {subscriptionId}, resourceGroupName :{resourceGroupName}, resourceName: {resourceName}");
             }
 
-            string associatedSubnetId = delegateSubnetRequest.Properties.Parameters.Properties.SubnetDetails.Id;
-            string controllerId = delegateSubnetRequest.Properties.Parameters.Properties.ControllerDetails.Id;
+            string associatedSubnetId = delegateSubnetRequest.Properties.SubnetDetails.Id;
+            string controllerId = delegateSubnetRequest.Properties.ControllerDetails.Id;
 
             // Check if entry already exists.
             string rowKey = DelegatedSubnetResourceEntity.GetRowKey(resourceGroupName, resourceName);
@@ -120,7 +120,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // todo - Add this field
             resourceEntity.SubnetJoinStatus = subnetJoinStatus;
             resourceEntity.State = ProvisioningState.Succeeded.ToString();
-            resourceEntity.Location = delegateSubnetRequest.Properties.Parameters.Location;
+            resourceEntity.Location = delegateSubnetRequest.Location;
 
             TableResult result = await dataStore.InsertOrMergeEntityAsync(tableName, resourceEntity);
             DelegatedSubnetResourceEntity resultEntity = result.Result as DelegatedSubnetResourceEntity;

@@ -221,8 +221,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             string resourceName,
             DelegateSubnetRequest requestBody)
         {
-            string associatedSubnetId = requestBody.Properties.Parameters.Properties.SubnetDetails.Id;
-            string controllerId = requestBody.Properties.Parameters.Properties.ControllerDetails.Id;
+            string associatedSubnetId = requestBody.Properties.SubnetDetails.Id;
+            string controllerId = requestBody.Properties.ControllerDetails.Id;
             string subnetSubId;
             string subnetResourceGroupId;
             string vnetName;

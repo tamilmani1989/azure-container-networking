@@ -151,7 +151,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // become succeeded or failed depending on if dnc deployment succeeds.
             resourceEntity.State = ProvisioningState.Succeeded.ToString();
             resourceEntity.CreatedDateUtc = createdDate;
-            resourceEntity.Location = controllerRequest.Properties.Parameters.Location;
+            resourceEntity.Location = controllerRequest.Location;
             resourceEntity.Properties = propJson;
 
             // Execute the operation.
@@ -180,10 +180,15 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="resourceGroup"></param>
         /// <param name="controllerName"></param>
         /// <returns></returns>
-        public Task<Controller> MergeDncControllerAsync(
+        public async Task<Controller> MergeDncControllerAsync(
            string subId, string resourceGroup, string controllerName, ControllerRequest controllerRequest)
         {
-            throw new NotSupportedException();
+            return new Controller(
+                subId, resourceGroup, controllerName, "",
+                new ControllerProperties
+                {
+                    State = ProvisioningState.Succeeded,
+                });
         }
 
         /// <summary>
