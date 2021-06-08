@@ -10,11 +10,12 @@ import (
 	"github.com/google/uuid"
 	"os"
 	"testing"
+	aznmmock "dnc/cmd/aznm/mock"
 )
 
 var (
 	config     *configuration.Configuration
-	mockserver *mockServer
+	mockserver *aznmmock.MockServer
 )
 
 const (
@@ -228,7 +229,7 @@ func setup() {
 	config = configuration.Load(configpath)
 
 	if config.AznmSettings.TestsSettings.UseMockAznmServer {
-		mockserver = newNnsMockServer()
+		mockserver = aznmmock.NewMockServer()
 		go mockserver.StartGrpcServer(config.AznmSettings.Port)
 		fmt.Println("aznm mock server started")
 	}

@@ -1,4 +1,4 @@
-package aznm
+package mock
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"net"
 )
 
-type mockServer struct {
+type MockServer struct {
 	srv *grpc.Server
 }
 
@@ -36,7 +36,7 @@ func (s *serverApi) UpdateContainer(ctx context.Context, req *containersprotocol
 	return &containersprotocol.UpdateContainerResponse{}, nil
 }
 
-func  (s *serverApi) DeleteContainer(ctx context.Context, req *containersprotocol.DeleteContainerRequest) (*containersprotocol.DeleteContainerResponse, error) {
+func (s *serverApi) DeleteContainer(ctx context.Context, req *containersprotocol.DeleteContainerRequest) (*containersprotocol.DeleteContainerResponse, error) {
 
 	if req.ContainerIdentifier.LogicalContainerId == nil {
 		return nil, fmt.Errorf("LogicalContainerId is empty")
@@ -55,13 +55,13 @@ func (s *serverApi) GetLegacyContainerConfiguration(
 	return nil, nil
 }
 
-func newNnsMockServer() *mockServer {
-	return &mockServer{
+func NewMockServer() *MockServer {
+	return &MockServer{
 		srv: grpc.NewServer(),
 	}
 }
 
-func (s *mockServer)StartGrpcServer(port int) {
+func (s *MockServer) StartGrpcServer(port int) {
 
 	endpoint := fmt.Sprintf(":%d", port)
 	lis, err := net.Listen("tcp", endpoint)
@@ -75,7 +75,7 @@ func (s *mockServer)StartGrpcServer(port int) {
 	}
 }
 
-func (s *mockServer)StopGrpcServer() {
+func (s *MockServer) StopGrpcServer() {
 	if s.srv == nil {
 		fmt.Printf("s.srv is nil \n")
 	}
