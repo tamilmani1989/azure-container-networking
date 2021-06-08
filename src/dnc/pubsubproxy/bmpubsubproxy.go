@@ -69,9 +69,11 @@ func PublishBaremetalNetworkContainer(
 	networkInterfaceIds := make([]*sdn.Guid, 1)
 	networkInterfaceIds[0] = ncId
 
-	// create the container object that holds the mapping of nics.
-	bmContainer := &sdn.Container{}
-	bmContainer.NetworkInterfaceIds = networkInterfaceIds
+	// create the container object that holds the mapping of nics
+	bmContainer := &sdn.Container{
+		NetworkInterfaceIds: networkInterfaceIds,
+		ContainerType:       sdn.ContainerType_ContainerType_UtilityVirtualMachine,
+	}
 
 	ncDataBytes, err := proto.Marshal(bmContainer)
 	if err != nil {
