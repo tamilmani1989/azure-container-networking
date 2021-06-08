@@ -172,13 +172,13 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 	}, nil
 }
 
-/* TODO: This will break in managed DNC scenario since we don't keep refreshing this copy of the config. But, we don't
-   use this in managed DNC scenario, so it's fine for now. We are planning to remove this code after AKS cleanupservice is
-   done, so this comment and code will be removed soon anyway */
+// TODO: This will break in managed DNC scenario since we don't keep refreshing this copy of the config. But, we don't
+// use this in managed DNC scenario, so it's fine for now. We are planning to remove this code after AKS cleanupservice is
+// done, so this comment and code will be removed soon anyway.
 func getUnversionedRESTClient(restConfig *rest.Config) (*rest.RESTClient, error) {
-	/* When reusing the restConfig that is given to the managers, we see an issue where the scheme gets corrupted
-	   and starts dumping lots of errors to stdout. While these errors seem benign (rc keeps working), we can just build
-	   a new restConfig here so we don't dump a bunch of errors to stdout */
+	// When reusing the restConfig that is given to the managers, we see an issue where the scheme gets corrupted
+	// and starts dumping lots of errors to stdout. While these errors seem benign (rc keeps working), we can just build
+	// a new restConfig here so we don't dump a bunch of errors to stdout.
 	config := rest.CopyConfig(restConfig)
 
 	newScheme := runtime.NewScheme()

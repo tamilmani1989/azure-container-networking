@@ -563,8 +563,9 @@ func (n *NodeNetworkConfigReconciler) getNCDetailsFromNodeID(ctx context.Context
 	}
 
 	if len(ncs) > 1 {
-		/* Node has too many NCs, so choose the first and log a warning. This is a warning and not an error because requeuing will not solve the problem,
-		   so instead we'll make a best effort of using what is available */
+		// Node has too many NCs, so choose the first and log a warning.
+		// This is a warning and not an error because requeuing will not solve the problem,
+		// so instead we'll make a best effort of using what is available
 		n.logger.WithFields(logrus.Fields{
 			"nodeID":  nodeID,
 			"ncCount": strconv.Itoa(len(ncs)),

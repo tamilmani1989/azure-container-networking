@@ -26,14 +26,12 @@ type SubnetInfoProvider struct {
 	cache           map[string]map[string]requestcontroller.SubnetInfo // delegatedSubnetID -> {subnetName -> SubnetInfo, subnetName -> SubnetInfo}
 }
 
-/*
-Table:            SubnetTokenMap
-PartitionKey:     <DelegatedSubnetID>
-RowKey:           <SubnetName>
-PrimaryTokenId:   <Token>
-SecondaryTokenId: <Token> (optional)
-VnetResourceGuid: <VnetID>
-*/
+// Table:            SubnetTokenMap
+// PartitionKey:     <DelegatedSubnetID>
+// RowKey:           <SubnetName>
+// PrimaryTokenId:   <Token>
+// SecondaryTokenId: <Token> (optional)
+// VnetResourceGuid: <VnetID>
 
 func NewSubnetInfoProvider(dataStoreSettings configuration.DataStoreSettings, loggingConfig requestcontroller.LoggingConfig) (*SubnetInfoProvider, error) {
 	//datastoreshim has a dependency on loggershim, and loggershim has a global that needs to be initialized with the NewLoggerShim function followed by Init

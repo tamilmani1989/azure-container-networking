@@ -36,8 +36,8 @@ func TestManagerPoolAddRemove(t *testing.T) {
 	// Add a nil manager to ensure we don't get a panic in case this ever happens
 	managerPool.add(nil, nil)
 
-	/* Since managers are started in goroutine we can't guarantee that it is started by the time this
-	   line is executed, so wrap it in a retrier */
+	// Since managers are started in goroutine we can't guarantee that it is started by the time this
+	// line is executed, so wrap it in a retrier.
 	retrier := retry.Retrier{
 		Attempts: 5,
 		Delay:    time.Second,
@@ -61,8 +61,8 @@ func TestManagerPoolAddRemove(t *testing.T) {
 	managerPool.remove("mgr1")
 	managerPool.remove("mgr2")
 
-	/* Since managers are stopped by cancelling a context which happens asynchronously,
-	   we can't guarantee that it is stopped by the time this line is executed, so wrap it in a retrier */
+	// Since managers are stopped by cancelling a context which happens asynchronously,
+	// we can't guarantee that it is stopped by the time this line is executed, so wrap it in a retrier.
 	if err := retrier.Do(context.Background(), func() error {
 		if running := mgr1.isRunning(); running {
 			return errors.New("mgr1 is running")
@@ -98,8 +98,8 @@ func TestOnlyOneManagerPerOrchestratorWillRun(t *testing.T) {
 		OrchestratorID:    "orchestrator",
 	}, mockClusterAuthConfig{})
 
-	/* Since managers are started in goroutine we can't guarantee that it is started by the time this
-	   line is executed, but sleeping for a second should be safe */
+	// Since managers are started in goroutine we can't guarantee that it is started by the time this
+	// line is executed, but sleeping for a second should be safe.
 
 	time.Sleep(time.Second)
 
@@ -129,8 +129,8 @@ func TestOnlyOneManagerPerOrchestratorWillRun(t *testing.T) {
 	// stop the managers
 	managerPool.remove("orchestrator")
 
-	/* Since managers are stopped by cancelling a context which happens asynchronously,
-	   we can't guarantee that it is stopped by the time this line is executed, so wrap it in a retrier */
+	// Since managers are stopped by cancelling a context which happens asynchronously,
+	// we can't guarantee that it is stopped by the time this line is executed, so wrap it in a retrier.
 	if err := retrier.Do(context.Background(), func() error {
 		if running := mgr1.isRunning(); running {
 			return errors.New("mgr1 is running")
@@ -166,8 +166,8 @@ func TestManagerPoolRemoveAll(t *testing.T) {
 		OrchestratorID:    "mgr2",
 	}, mockClusterAuthConfig{})
 
-	/* Since managers are started in goroutine we can't guarantee that it is started by the time this
-	   line is executed, so wrap it in a retrier */
+	// Since managers are started in goroutine we can't guarantee that it is started by the time this
+	// line is executed, so wrap it in a retrier.
 	retrier := retry.Retrier{
 		Attempts: 5,
 		Delay:    time.Second,
@@ -190,8 +190,8 @@ func TestManagerPoolRemoveAll(t *testing.T) {
 	// stop the managers with remove all
 	managerPool.removeAll()
 
-	/* Since managers are stopped by cancelling a context which happens asynchronously,
-	   we can't guarantee that it is stopped by the time this line is executed, so wrap it in a retrier */
+	// Since managers are stopped by cancelling a context which happens asynchronously,
+	// we can't guarantee that it is stopped by the time this line is executed, so wrap it in a retrier.
 	if err := retrier.Do(context.Background(), func() error {
 		if running := mgr1.isRunning(); running {
 			return errors.New("mgr1 is running")
@@ -277,8 +277,8 @@ func TestFailingManagersAreRestarted(t *testing.T) {
 		OrchestratorID:    "mgr1",
 	}, mockClusterAuthConfig{})
 
-	/* Since managers are started in goroutine, and this manager is eventually restarted after some backoff,
-	   we can't guarantee that it is started by the time this line is executed, so wrap it in a retrier. */
+	// Since managers are started in goroutine, and this manager is eventually restarted after some backoff,
+	// we can't guarantee that it is started by the time this line is executed, so wrap it in a retrier.
 	retrier := retry.Retrier{
 		Attempts: 5,
 		Delay:    time.Second,
@@ -297,8 +297,8 @@ func TestFailingManagersAreRestarted(t *testing.T) {
 	// stop the manager
 	managerPool.removeAll()
 
-	/* Since managers are stopped by cancelling a context which happens asynchronously,
-	   we can't guarantee that it is stopped by the time this line is executed, so wrap it in a retrier */
+	// Since managers are stopped by cancelling a context which happens asynchronously,
+	// we can't guarantee that it is stopped by the time this line is executed, so wrap it in a retrier.
 	if err := retrier.Do(context.Background(), func() error {
 		if running := mgr1.isRunning(); running {
 			return errors.New("mgr1 is running")

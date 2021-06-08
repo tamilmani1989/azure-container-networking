@@ -117,9 +117,8 @@ func runRequestController(ctx context.Context, configFile string) error {
 			return fmt.Errorf("error getting Cosmos key from MSI: %w", err)
 		}
 
-		/* Saw a strange error where if the subscription was incorrect in the CosmosResourceID string, the getCosmosKeyFromMSI function would return an empty key and nil error.
-		*  The following check ensures that RC doesn't get an empty key and nil error. TODO: We should investigate why the adal functions were not returning errors and failing silently
-		 */
+		// Saw a strange error where if the subscription was incorrect in the CosmosResourceID string, the getCosmosKeyFromMSI function would return an empty key and nil error.
+		// The following check ensures that RC doesn't get an empty key and nil error. TODO: We should investigate why the adal functions were not returning errors and failing silently
 		if key == "" {
 			return fmt.Errorf("error getting Cosmos Key from MSI, key was empty")
 		}

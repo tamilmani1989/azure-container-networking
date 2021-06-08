@@ -166,9 +166,9 @@ func (c *ConfigmapCleaner) HasCleanupSignal(ctx context.Context) bool {
 		return true
 	}
 
-	/* Check err to see if we're detecting properly. Nothing we can really do at this point if it is not a 404 but
-	   we can at least log the error if it is anything else, in case of DRI investigation
-	*/
+	// Check err to see if we're detecting properly. Nothing we can really do at this point if it is not a 404 but
+	// we can at least log the error if it is anything else, in case of DRI investigation
+
 	if !apierrors.IsNotFound(err) {
 		c.logger.WithError(err).Warnf("Expected a 404 Not Found, but received a different error: %v", err)
 	}

@@ -52,8 +52,8 @@ func (*kubeconfigClusterAuthConfig) Refresh(context.Context) error {
 }
 
 func (*kubeconfigClusterAuthConfig) RefreshForever(context.Context) {
-	/* TODO: should we re-read the file each time we refresh? it probably won't change since it is generally a
-	   k8s Secret mounted to the filesystem, but probably wouldn't hurt */
+	// TODO: should we re-read the file each time we refresh? it probably won't change since it is generally a
+	// k8s Secret mounted to the filesystem, but probably wouldn't hurt.
 
 	// For now, do nothing and just return
 }

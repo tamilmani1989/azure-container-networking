@@ -31,13 +31,11 @@ type OrchestratorProperties struct {
 	ClientSecretName     string `json:"clientSecretName"`
 }
 
-/*
-Table:            OrchestratorInstancesConfiguration
-PartitionKey:     <ManagedDNCGuid>
-RowKey:           <OrchestratorGuid>
-Properties:       <json blob> (see OrchestratorProperties above)
-OrchestratorType: <OrchestratorType>
-*/
+// Table:            OrchestratorInstancesConfiguration
+// PartitionKey:     <ManagedDNCGuid>
+// RowKey:           <OrchestratorGuid>
+// Properties:       <json blob> (see OrchestratorProperties above)
+// OrchestratorType: <OrchestratorType>
 
 type KubeClusterAuthProvider struct {
 	datastoreClient    datastoreClient

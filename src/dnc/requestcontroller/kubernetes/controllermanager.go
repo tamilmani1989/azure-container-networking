@@ -77,9 +77,8 @@ func (c *controllerManager) Start(ctx context.Context) error {
 		return err
 	}
 
-	/* Check if cleanup signal exists. It is possible that this function is called after a credential refresh, after cleanup error, or that the cluster is deleted before the DNC-RC even starts. If so, we can just
-	   kick off the cleanup here instead of restarting the reconcilers.
-	*/
+	// Check if cleanup signal exists. It is possible that this function is called after a credential refresh, after cleanup error, or that the cluster is deleted before the DNC-RC even starts. If so, we can just
+	// kick off the cleanup here instead of restarting the reconcilers.
 	cleanupSignal := c.cleaner.HasCleanupSignal(ctx)
 	if cleanupSignal {
 		// cleanup

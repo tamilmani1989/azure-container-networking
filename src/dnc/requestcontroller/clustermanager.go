@@ -18,10 +18,10 @@ type clusterManagerPool struct {
 	logger          logrus.FieldLogger
 }
 
-/* CancellableContext holds a context and its cancel func. While contexts are typically passed to functions to represent
-   the scope of a request, in this case we are using a context to represent the scope of a manager. Since a manager
-   implementation typically has multiple long-lived functions, we can derive their contexts from this one, and cancel
-   this one to propagate the cancellation to all functions */
+// CancellableContext holds a context and its cancel func. While contexts are typically passed to functions to represent
+// the scope of a request, in this case we are using a context to represent the scope of a manager. Since a manager
+// implementation typically has multiple long-lived functions, we can derive their contexts from this one, and cancel
+// this one to propagate the cancellation to all functions.
 type CancellableContext struct {
 	context.Context
 	Cancel context.CancelFunc
