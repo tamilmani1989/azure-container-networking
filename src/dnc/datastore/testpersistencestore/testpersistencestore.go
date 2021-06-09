@@ -180,6 +180,29 @@ func (s *TestPersistenceStore) UpdateWithEtag(tableName, rowKey, etag string, pr
 }
 
 // Insert - Insert a row in the configured partition of the client
+func (s *TestPersistenceStore) InsertEntity(tableName string, entity storage.Entity) error {
+	table, ok1 := s.datastore[tableName]
+	tableLock, ok2 := s.locks[tableName]
+	if !ok1 || !ok2 {
+		return fmt.Errorf("table %s not initialized", tableName)
+	}
+
+	tableLock.Lock()
+	defer tableLock.Unlock()
+
+	if _, exists := table[entity.RowKey]; exists {
+		return storage.AzureStorageServiceError{StatusCode: http.StatusConflict}
+	}
+
+	table[entity.RowKey] = rowProperties{
+		etag:       s.getEtag(),
+		properties: entity.Properties,
+	}
+
+	return nil
+}
+
+// Insert - Insert a row in the configured partition of the client
 func (s *TestPersistenceStore) Insert(tableName, rowKey, propertyName string, value interface{}) (int, error) {
 	props := make(map[string]interface{})
 	props[propertyName] = value

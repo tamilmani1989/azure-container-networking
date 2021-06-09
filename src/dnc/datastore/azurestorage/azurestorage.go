@@ -231,6 +231,22 @@ func (a *AzureStorage) DeleteInPartitionWithEtag(tableName, partitionKey, rowKey
 	return entity.Delete(false, nil)
 }
 
+func (a *AzureStorage) InsertEntity(tableName string, entity storage.Entity) error {
+	tableClient, ok := a.tableNameToTableClientMap[tableName]
+	if !ok {
+		return fmt.Errorf("cannot find valid table client for table %s", tableName)
+	}
+
+	table := tableClient.GetTableReference(tableName)
+	entity.Table = table
+	if entity.PartitionKey == "" {
+		entity.PartitionKey = a.partitionKey
+	}
+
+	defer a.recordProcessingTime(time.Now(), "InsertEntity", tableName, entity.PartitionKey, entity.RowKey)
+	return entity.Insert(storage.FullMetadata, nil)
+}
+
 // Insert only - Inserts a row in a given table.
 // This will fail if the entity already exists
 func (a *AzureStorage) Insert(tableName, rowKey, propertyName string, value interface{}) (int, error) {

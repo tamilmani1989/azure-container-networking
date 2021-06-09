@@ -35,9 +35,13 @@ type DataStoreShim interface {
 	*/
 	QueryFilter(tableName, filter string) ([]*storage.Entity, error)
 	QueryFilterTopN(tableName, filter string, count int) ([]*storage.Entity, error)
+	// Deprecated: Use InsertEntity
 	InsertInPartition(tableName, partitionKey, rowKey, propertyName string, value interface{}) (int, error)
+	// Deprecated: Use InsertEntity
 	InsertInPartitionProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) (int, error)
+	// Deprecated: Use InsertEntity
 	Insert(tableName, rowKey, propertyName string, value interface{}) (int, error)
+	InsertEntity(tableName string, entity storage.Entity) error
 	InsertOrUpdate(tableName, rowKey, propertyName string, value interface{}) error
 	InsertOrUpdateProperties(tableName, partitionKey, rowKey string, properties map[string]interface{}) error
 	// Deprecated: Use InsertEntityBatch

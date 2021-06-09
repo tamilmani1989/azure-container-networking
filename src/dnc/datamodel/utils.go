@@ -171,3 +171,17 @@ func ExtractBoolProperty(e *storage.Entity, propName string) (bool, error) {
 
 	return v, nil
 }
+
+func ExtractInt64Property(e *storage.Entity, propName string) (int64, error) {
+	prop, ok := e.Properties[propName]
+	if !ok {
+		return 0, fmt.Errorf("could not find %s in storage entity: %+v", propName, *e)
+	}
+
+	v, ok := prop.(int64)
+	if !ok {
+		return 0, fmt.Errorf("incorrect property type for %s. expected int64, got %T", propName, prop)
+	}
+
+	return v, nil
+}
