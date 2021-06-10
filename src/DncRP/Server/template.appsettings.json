@@ -69,7 +69,12 @@
   "DncSettings": {
     "RetryCount": 10,
     "RetryIntervalInSeconds": 4,
-    "RetryTimeoutInSeconds": 90
+    "RetryTimeoutInSeconds": 90,
+    "SubscriptionId": "__SubscriptionId__",
+    "TenantId": "__TenantId__",
+    "ResourceGroupName": "__DNCResourceGroup__",
+    "VnetName": "__DNCVnetName__",
+    "SubnetName": "__DNCPrivateEndpointSubnetName__"
   },
   "AmeCertValidationSettings": {
     "AmeAllowedSubjectNames": "dnc.azure.com",

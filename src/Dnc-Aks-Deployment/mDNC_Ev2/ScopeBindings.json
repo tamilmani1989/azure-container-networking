@@ -131,6 +131,19 @@
           "find": "__AvailabilityZones__",
           "replaceWith": ""
         }
+        },
+        {
+          "find": "__DNCResourceGroup__",
+          "replaceWith": ""
+        },
+        {
+          "find": "__DNCVnetName__",
+          "replaceWith": ""
+        },
+        {
+          "find": "__DNCPrivateEndpointSubnetName__",
+          "replaceWith": "privateendpointsubnet"
+        },
       ]
     }
   ]

@@ -31,6 +31,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
     public class OrchestratorTests
     {
         private IHttpUtility httpUtility;
+        private IHttpUtilityFactory httpUtilityFactory;
         private IKeyVaultUtility keyVaultUtility;
         private TestConfig testConfig;
         private IConfiguration configuration;
@@ -46,6 +47,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
         public OrchestratorTests()
         {
             this.httpUtility = new HttpUtility(new HttpClient());
+            this.httpUtilityFactory = new HttpUtilityFactory();
+            this.httpUtilityFactory.Register(Constants.HttpUtility, httpUtility);
             this.keyVaultUtility = new KeyVaultUtility();
             var builder = new ConfigurationBuilder()
               .SetBasePath(Directory.GetCurrentDirectory())
@@ -94,6 +97,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             CurrentContext.SetArmAccessIdentity(azADIdentity);
             CurrentContext.SetKeyVaultUrl(this.configuration["KeyVaultUrl"]);
 
+            DncSettings dncSettings = configuration.GetSection("DncSettings").Get<DncSettings>();
+            if (dncSettings == null)
+            {
+                Console.WriteLine("DncSettings is null. Initialize to default values");
+                dncSettings = new DncSettings();
+            }
+            CurrentContext.SetDncSettings(dncSettings);
+
             Mock<IOptionsMonitor<DatastoreSettings>> optionsMonitorMock = new Mock<IOptionsMonitor<DatastoreSettings>>();
             optionsMonitorMock.Setup(o => o.CurrentValue).Returns(datastoreSettings);
             IConnectionStringProvider connectionStringProvider = new ConnectionStringProvider(
@@ -108,7 +119,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             CosmosDbDataStore dataStore = new CosmosDbDataStore(connectionStringProvider, logger.Object);
             dataStore.InitAsync().GetAwaiter().GetResult();
             this.tableOperations = new TableOperations(dataStore, tableOpLogger.Object, this.httpUtility, this.keyVaultUtility);
-            this.orchController = new OrchestratorController(tableOperations, orchLogger.Object);
+            this.orchController = new OrchestratorController(tableOperations, httpUtilityFactory, orchLogger.Object);
             this.dncController = new DncController(tableOperations, dncCtrlLogger.Object);
         }
 
@@ -120,7 +131,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 // Change environment to PPE before test and restore it back after test finishes. THis is needed
                 // since to access DB, we need to be in public cloud environment but to test orchestrator identity
                 // we need access to PPE environment
-                CurrentContext.SetContext("ppe", this.configuration["AzureRegion"]);
+                CurrentContext.SetContext("azurecloud", this.configuration["AzureRegion"]);
 
                 string guid = Guid.NewGuid().ToString();
                 string[] strs = guid.Split(new string[] { "-" }, StringSplitOptions.RemoveEmptyEntries);
@@ -150,7 +161,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 result = await orchController.GetOrchestratorResource(this.testConfig.SubscriptionId, rgName, orchName);
                 Assert.True(HttpStatusCodeCheck.IsResourceNotFound((int)result.StatusCode));
 
-                OrchestratorRequest orchRequest = this.GetOrchestratorObject(this.GetControllerArmId(this.testConfig.SubscriptionId, rgName, ctrlName));
+                OrchestratorRequest orchRequest = this.GetOrchestratorObject(this.GetControllerArmId(this.testConfig.SubscriptionId, rgName, ctrlName), this.testConfig.ResourceGroup);
 
                 // Put orchestrator resource and validate results
                 this.SetOrchestratorHttpContext(orchController, this.testConfig.SubscriptionId, rgName, orchName, HttpMethod.Put, orchRequest);
@@ -192,7 +203,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             ContentResult result = await orchController.GetOrchestratorResource(this.testConfig.SubscriptionId, rgName, orchName);
             Assert.True(HttpStatusCodeCheck.IsResourceNotFound((int)result.StatusCode));
 
-            OrchestratorRequest orchRequest = this.GetOrchestratorObject(this.GetInvalidControllerArmId());
+            OrchestratorRequest orchRequest = this.GetOrchestratorObject(this.GetInvalidControllerArmId(), this.testConfig.ResourceGroup);
 
             // Put orchestrator resource and validate results
             this.SetOrchestratorHttpContext(orchController, this.testConfig.SubscriptionId, rgName, orchName, HttpMethod.Put, orchRequest);
@@ -214,7 +225,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 // Change environment to PPE before test and restore it back after test finishes. THis is needed
                 // since to access DB, we need to be in public cloud environment but to test orchestrator identity
                 // we need access to PPE environment
-                CurrentContext.SetContext("ppe", this.configuration["AzureRegion"]);
+                // CurrentContext.SetContext("ppe", this.configuration["AzureRegion"]);
 
                 string guid = Guid.NewGuid().ToString();
                 string[] strs = guid.Split(new string[] { "-" }, StringSplitOptions.RemoveEmptyEntries);
@@ -244,7 +255,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                 result = await orchController.GetOrchestratorResource(this.testConfig.SubscriptionId, rgName, orchName);
                 Assert.True(HttpStatusCodeCheck.IsResourceNotFound((int)result.StatusCode));
 
-                OrchestratorRequest orchRequest = this.GetOrchestratorObject(this.GetControllerArmId(this.testConfig.SubscriptionId, rgName, ctrlName));
+                OrchestratorRequest orchRequest = this.GetOrchestratorObject(this.GetControllerArmId(this.testConfig.SubscriptionId, rgName, ctrlName), this.testConfig.ResourceGroup);
 
                 // Put orchestrator resource and validate results
                 this.SetOrchestratorHttpContext(orchController, this.testConfig.SubscriptionId, rgName, orchName, HttpMethod.Put, orchRequest);
@@ -329,7 +340,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             controller.ControllerContext.HttpContext.Request.Body = stream;
         }
 
-        private OrchestratorRequest GetOrchestratorObject(string controllerArmId)
+        private OrchestratorRequest GetOrchestratorObject(string controllerArmId, string resourceGroup)
         {
             return new OrchestratorRequest
             {
@@ -345,6 +356,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
                     TenantId = "da6192d7-503f-477a-9cfe-4efc3ee2b6c3", // Tenant id of above AAD ID
                     ClusterRootCA = "ddsadsad344mfdsfdl", // Root CA of k8s cluster
                     ApiServerEndpoint = "https://testk8s.cloudapp.net",  //apiserver url that dnc needs to watch on
+                    PrivateLinkId = $"/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/{resourceGroup}/providers/Microsoft.Network/privateLinkServices/pltest",
                     ControllerDetails = new ControllerDetails
                     {
                         Id = controllerArmId
@@ -377,7 +389,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP.ServiceTests
             Assert.True(jsonDeserialized["properties"]["orchestratorAppId"].ToString().Equals(orchRequest.Properties.AppId));
             Assert.True(jsonDeserialized["properties"]["orchestratorTenantId"].ToString().Equals(orchRequest.Properties.TenantId));
             Assert.True(jsonDeserialized["properties"]["clusterRootCA"].ToString().Equals(orchRequest.Properties.ClusterRootCA));
-            Assert.True(jsonDeserialized["properties"]["apiServerEndpoint"].ToString().Equals(orchRequest.Properties.ApiServerEndpoint));
+            if (orchRequest.Properties.PrivateLinkId == "")
+            {
+                Assert.True(jsonDeserialized["properties"]["apiServerEndpoint"].ToString().Equals(orchRequest.Properties.ApiServerEndpoint));
+            }
+            else
+            {
+                Assert.True(!string.IsNullOrWhiteSpace(jsonDeserialized["properties"]["apiServerEndpoint"].ToString()));
+            }
             Assert.True(jsonDeserialized["properties"]["controllerDetails"]["id"].ToString().Equals(orchRequest.Properties.ControllerDetails.Id));
         }
 

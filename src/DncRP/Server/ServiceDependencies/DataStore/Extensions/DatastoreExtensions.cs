@@ -46,7 +46,8 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 ApiServerEndpoint = properties.ApiServerEndpoint,
                 AppId = properties.AppId,
                 ClusterRootCA = properties.ClusterRootCA,
-                TenantId = properties.TenantId
+                TenantId = properties.TenantId,
+                PrivateLinkId = properties.PrivateLinkId
             };
         }
     }

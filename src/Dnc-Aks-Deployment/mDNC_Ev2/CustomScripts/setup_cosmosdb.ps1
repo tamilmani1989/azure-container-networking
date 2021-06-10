@@ -27,12 +27,11 @@ param(
 function Create-CosmosDB {
   param([string]$resourceGroup)
 
-  Write-Host "CosmosDB $cosmosDbAccountName in resource group $resourceGroup not found"
   Write-Host "Creating CosmosDB location obj"
 
   $locationObject = New-AzCosmosDBLocationObject -LocationName $location -FailoverPriority 0 -IsZoneRedundant 1
-
-  Write-Host "Creating CosmosDB"
+    Write-Host "CosmosDB $cosmosDbAccountName in resource group $resourceGroup not found"
+    Write-Host "Creating CosmosDB"
 
   New-AzCosmosDBAccount `
   -ResourceGroupName $resourceGroup `

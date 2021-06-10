@@ -28,7 +28,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private IControllerConfiguration controllerOperations;
         private IHttpUtility httpUtility;
         private IKeyVaultUtility keyVaultUtility;
-        private bool deleteNotSupported = false;
 
         /// <summary>
         /// Create an instance of OrchestratorOperations
@@ -87,7 +86,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="orchestratorRequest"></param>
         /// <returns></returns>
         public async Task<Orchestrator> InsertOrReplaceOrchestratorAsync(
-            string subId, string resourceGroup, string resourceName, OrchestratorRequest orchestratorRequest)
+            string subId, 
+            string resourceGroup, 
+            string resourceName, 
+            string privateEndpointName,
+            OrchestratorRequest orchestratorRequest)
         {
             this.logger.CLogInformation("Starting PUT orchestrator resource. Sub:{0}, RG:{1}, ResourceName:{2}",
                 subId, resourceGroup, resourceName);
@@ -145,7 +148,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
             // insert entity into controller config table
             int httpCode = await this.InsertOrReplaceOchestratorConfigAsync(
-                controller.Properties.ResourceGuid, resourceGuid, orchestratorType, orchProps, orchestratorRequest.Identity);
+                controller.Properties.ResourceGuid, resourceGuid, privateEndpointName, orchestratorType, orchProps, orchestratorRequest.Identity);
             if (!HttpStatusCodeCheck.IsSuccess(httpCode))
             {
                 return Orchestrator.CreateErrorResponse("Error in put orchestrator config", httpCode);
@@ -179,11 +182,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         {
             this.logger.CLogInformation("Starting DELETE orchestrator resource. Sub:{0}, RG:{1}, ResourceName:{2}",
                 subId, resourceGroup, resourceName);
-
-            if (this.deleteNotSupported)
-            {
-                throw new NotSupportedException("Delete Orchestrator API is not supported yet");
-            }
 
             // Create Retrieve table operation
             string rowKey = $"{resourceGroup}_{resourceName}";
@@ -231,6 +229,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private async Task<int> InsertOrReplaceOchestratorConfigAsync(
             string mdncId,
             string orchestratorResourceGuid,
+            string privateEndpointName,
             OrchestratorKind type,
             OrchestratorProperties orchRequestProperties,
             MSIIdentityMetadata metadata)
@@ -249,7 +248,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
                 orchProperties.ClientId = orchIdentity.ClientId;
                 orchProperties.ClientSecretName = orchestratorResourceGuid;
-
+                orchProperties.PrivateEndpointName = privateEndpointName;
                 clientsecret = orchIdentity.ClientSecret;
                 orchIdentity.ClientSecret = null; // We don't want to store client secret in Cosmos. It will be stored in KV
                 identityProps = JsonUtility.Serialize<MSIIdentity>(orchIdentity);
@@ -265,6 +264,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 OrchestratorPropertiesInternal props = JsonUtility.Deserialize<OrchestratorPropertiesInternal>(configEntity.Properties);
                 orchProperties.ClientId = props.ClientId;
                 orchProperties.ClientSecretName = props.ClientSecretName;
+                orchProperties.PrivateEndpointName = privateEndpointName;
                 identityProps = configEntity.IdentityProperties;
             }
 

@@ -29,7 +29,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <param name="orchestratorRequest"></param>
         /// <returns></returns>
         Task<Orchestrator> InsertOrReplaceOrchestratorAsync(
-            string subId, string resourceGroup, string resourceName, OrchestratorRequest orchestratorRequest);
+            string subId, string resourceGroup, string resourceName, string privateEndpointName, OrchestratorRequest orchestratorRequest);
 
         /// <summary>
         /// Modify an existing Orchestrator

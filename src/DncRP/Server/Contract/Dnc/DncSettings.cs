@@ -22,6 +22,31 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             get; set;
         }
 
+        public string SubscriptionId
+        {
+            get; set;
+        }
+
+        public string TenantId
+        {
+            get; set;
+        }
+
+        public string ResourceGroupName
+        {
+            get; set;
+        }
+
+        public string VnetName
+        {
+            get; set;
+        }
+
+        public string SubnetName
+        {
+            get; set;
+        }
+
         public DncSettings()
         {
 

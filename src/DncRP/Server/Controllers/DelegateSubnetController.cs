@@ -25,7 +25,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private IHttpUtility httpUtility;
         private IHttpUtility dncHttpUtility;
         private AzVNetBroker azVnetBroker;
-        private bool deleteNotSupported = false;
 
         public DelegateSubnetController(
             ILogger<DelegateSubnetController> logger,
@@ -167,11 +166,6 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             // TODO Validate arguments
             try
             {
-                if (this.deleteNotSupported)
-                {
-                    throw new NotSupportedException("Delete delegate API is not supported yet");
-                }
-
                 await tableOperations.SubscriptionOperation.ValidateSubscriptionRegistrationAsync(subscriptionId);
                 await ExecuteDeleteDelegateSubnetAsync(subscriptionId, resourceGroup, resourceName);
 

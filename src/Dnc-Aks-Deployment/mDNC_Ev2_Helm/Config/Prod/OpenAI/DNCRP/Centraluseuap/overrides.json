@@ -1,5 +1,8 @@
 {
     "Application": {
+        "DncResourceGroup": "MC_acn-rg-dnc-centraluseuap_acncluster-dnc-centraluseuap_centraluseuap",
+        "DncVnetName": "aks-vnet-30378346",
+        "DncPrivateEndpointSubnetName": "privateendpointsubnet"
     },
     "Cluster": {
         "LOCATION": "centralus",

@@ -8,6 +8,7 @@
 namespace Microsoft.Azure.ContainerNetworking.DncRP
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Net;
     using System.Net.Http;
@@ -32,6 +33,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         private const string VNetResourceType = "virtualNetworks";
 
         /// <summary>
+        /// Subnet resource type.
+        /// </summary>
+        private const string SubnetResourceType = "subnets";
+
+        /// <summary>
+        /// PrivateEndpoint resource type.
+        /// </summary>
+        private const string PrivateEndpointResourceType = "privateEndpoints";
+
+        /// <summary>
         /// The API version for azure VNet operations.
         /// </summary>
         private const string ApiVersion = "2018-04-01";
@@ -50,6 +61,11 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// Managed DNC linked resource type constant.
         /// </summary>
         private const string LinkedResourceType = "Microsoft.DelegatedNetwork/controller";
+
+        /// <summary>
+        /// Private Endpoint resource supported api version.
+        /// </summary>
+        private const string privateEndpointApiVersion = "2020-11-01";
 
         /// <summary>
         /// Initializes a new instance AzureVNetBroker class.
@@ -93,6 +109,20 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             return $"{subnetResourceId.TrimEnd('/')}/ServiceAssociationLinks/{SalName}/Details/{SalDetailName}";
         }
 
+        private string GetPrivateEndpointResourceId(
+            string privateEndpointName)
+        {
+            DncSettings s = CurrentContext.DncSettings;
+            s.ResourceGroupName = string.Format(s.ResourceGroupName, CurrentContext.AzureRegion);
+            return $"/subscriptions/{s.SubscriptionId}/resourceGroups/{s.ResourceGroupName}/providers/{ResourceProviderNamespace}/{PrivateEndpointResourceType}/{privateEndpointName}";
+        }
+
+        private string GetPrivateEndpointSubnetResourceId()
+        {
+            DncSettings s = CurrentContext.DncSettings;
+            s.ResourceGroupName = string.Format(s.ResourceGroupName, CurrentContext.AzureRegion);
+            return $"/subscriptions/{s.SubscriptionId}/resourceGroups/{s.ResourceGroupName}/providers/{ResourceProviderNamespace}/{VNetResourceType}/{s.VnetName}/{SubnetResourceType}/{s.SubnetName}";
+        }
         /// <summary>
         /// Get the virtual network.
         /// </summary>
@@ -256,6 +286,143 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             var contentStream = await httpResponse.Content.ReadAsStringAsync();
             return JsonUtility.Deserialize<ServiceAssociationLinkDetail>(contentStream, DeserializationSettings);
         }
+
+        public async Task<NetworkModel.PrivateEndpoint> GetOrCreatePrivateEndpoint(
+            string privateLinkResourceId,
+            string privateEndpointName)
+        {
+            string privateEndpointResourceId = GetPrivateEndpointResourceId(privateEndpointName);
+            logger.CLogInformation($"PrivateEndpointResourceId: {privateEndpointResourceId}");
+
+            DncSettings s = CurrentContext.DncSettings;
+            NetworkModel.PrivateEndpoint privateEndpoint = await this.TryGetPrivateEndpointAsync(
+                s.TenantId,
+                privateEndpointResourceId);
+            if (privateEndpoint == null)
+            {
+                logger.CLogError("Private endpoint doesn't exist. Create Private Endpoint:{0}", privateEndpointName);
+                PrivateEndpointRequest newPrivateEndpoint = new PrivateEndpointRequest();
+                newPrivateEndpoint.properties = new PrivateEndpointRequestProperties();
+                newPrivateEndpoint.properties.Subnet = new Subnet();
+                newPrivateEndpoint.properties.ManualPrivateLinkServiceConnections = new List<PrivateLinkServiceConnection>();
+                newPrivateEndpoint.Location = CurrentContext.AzureRegion;
+                newPrivateEndpoint.properties.Subnet.Id = GetPrivateEndpointSubnetResourceId();
+                PrivateLinkServiceConnection plService = new PrivateLinkServiceConnection();
+                plService.Properties = new PrivateLinkServiceConnectionProperties();
+                plService.Properties.PrivateLinkServiceId = privateLinkResourceId;
+                plService.Name = privateEndpointName;
+                newPrivateEndpoint.properties.ManualPrivateLinkServiceConnections.Add(plService);
+                PrivateEndpointRequest createdPE = await this.PutResourceAsync<PrivateEndpointRequest>(
+                    s.TenantId, privateEndpointResourceId, privateEndpointApiVersion, newPrivateEndpoint);
+                logger.CLogInformation("Created Private Endpoint: {0}", createdPE.Id);
+
+                privateEndpoint = await AsyncRetry.Retry(() => TryGetPrivateEndpointAsync(s.TenantId, privateEndpointResourceId), s.RetryCount,
+    TimeSpan.FromSeconds(s.RetryIntervalInSeconds), TimeSpan.FromSeconds(s.RetryTimeoutInSeconds));
+
+            }
+
+            logger.CLogInformation($"GetPrivateEndpointAsync: tenantId: {s.TenantId}, resourceid: {privateEndpointResourceId}, " +
+    $"response: PEID { privateEndpoint.Id} PESubnet: {privateEndpoint.Subnet.Id}");
+            
+            return privateEndpoint;
+        }
+
+        public async Task<HttpResponseMessage> DeletePrivateEndpoint(
+            string privateEndpointName)
+        {
+            string resourceId = GetPrivateEndpointResourceId(privateEndpointName);
+            this.logger.LogInformation("Delete private endpoint resource id:{0}", resourceId);
+            return await this.DeleteResourceAsync<PrivateEndpointRequest>(CurrentContext.DncSettings.TenantId, resourceId, privateEndpointApiVersion);
+        }
+
+        public async Task<string> GetPrivateEndpointIP(
+            NetworkModel.PrivateEndpoint privateEndpoint)
+        { 
+            string nwIfaceId = null;
+            foreach (var item in privateEndpoint.NetworkInterfaces)
+            {
+                if (item != null)
+                {
+                    logger.CLogInformation("Interface exists {0}", item.Id);
+                    nwIfaceId = item.Id;
+                    break;
+                }
+            }
+
+            if (nwIfaceId == "")
+            {
+                throw new Exception("Private Endpoint network interface not found");
+            }
+
+            HttpResponseMessage httpResponse = await this.TryGetResourceAsync<NetworkModel.NetworkInterface>(
+                                                tenantId: CurrentContext.DncSettings.TenantId,
+                                                resourceId: nwIfaceId,
+                                                apiVersion: privateEndpointApiVersion);
+
+            if (!HttpStatusCodeCheck.IsSuccess(httpResponse.StatusCode))
+            {
+                throw new Exception($"ResponseMessage: {httpResponse.Content}, status code {httpResponse.StatusCode}, " +
+                   $"Reason: {httpResponse.ReasonPhrase}, " +
+                   $"Request: {httpResponse.RequestMessage}, ");
+            }
+
+            if (httpResponse.Content == null || 
+                httpResponse.Content.Headers.ContentType.MediaType != "application/json")
+            {
+                throw new InvalidDataException($"Either Content is null or invalid content type '{httpResponse.Content}' returned. ");
+            }
+
+            var contentStream = await httpResponse.Content.ReadAsStringAsync();
+            NetworkModel.NetworkInterface iface = JsonUtility.Deserialize<NetworkModel.NetworkInterface>(contentStream, DeserializationSettings);
+
+            if (iface == null)
+            {
+                throw new InvalidDataException($"Private Endpoint interface is null");
+            }
+
+            string privateEndpointIP = null;
+            foreach(var ipconfig in iface.IpConfigurations)
+            {
+                privateEndpointIP = ipconfig.PrivateIPAddress;
+            }
+
+            return privateEndpointIP;
+        }
+
+
+        public async Task<NetworkModel.PrivateEndpoint> TryGetPrivateEndpointAsync(
+            string tenantId,
+            string privateEndpointResourceId)
+        {
+            HttpResponseMessage httpResponse = await this.TryGetResourceAsync<NetworkModel.PrivateEndpoint>(
+                tenantId: tenantId,
+                resourceId: privateEndpointResourceId,
+                apiVersion: privateEndpointApiVersion);
+
+            if (HttpStatusCodeCheck.IsResourceNotFound(httpResponse.StatusCode))
+            {
+                logger.CLogInformation($"GetPrivateEndpoint not found for privateEndpointResourceId:{privateEndpointResourceId}");
+                return null;
+            }
+
+            if (!HttpStatusCodeCheck.IsSuccess(httpResponse.StatusCode))
+            {
+                throw new Exception($"ResponseMessage: {httpResponse.Content}, status code {httpResponse.StatusCode}, " +
+                   $"Reason: {httpResponse.ReasonPhrase}, " +
+                   $"Request: {httpResponse.RequestMessage}, ");
+            }
+
+            // Parse the response
+            if (httpResponse.Content == null ||
+                httpResponse.Content.Headers.ContentType.MediaType != "application/json")
+            {
+                throw new InvalidDataException($"Either Content is null or invalid content type '{httpResponse.Content}' returned. ");
+            }
+
+            var contentStream = await httpResponse.Content.ReadAsStringAsync();
+            return JsonUtility.Deserialize<NetworkModel.PrivateEndpoint>(contentStream, DeserializationSettings);
+        }
+
 
         private ServiceAssociationLink CreateServiceAssociationLinkRequest(
             string vnetResourceId)

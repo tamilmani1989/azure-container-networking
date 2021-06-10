@@ -8,10 +8,10 @@
   "AzureRegion": "centraluseuap",
   "KeyVaultUrl": "https://acnkv.vault.azure.net",
   "ClientIdentityCertificate": {
-    "AppId": "1efe5bbf-d5b1-4fe9-99fa-f55ce1c88679", // DNC APP ID in first portal
-    "TenantId": "563c161a-f814-45eb-bac4-9d780e7f3ee6", // AzTestDnc@testdnc.ccsctp.net, AzurePPE, 563c161a-f814-45eb-bac4-9d780e7f3ee6, testdnc.ccsctp.net User
+    "AppId": "a91b1853-4403-4f54-b5cb-d1ea19d90c37", // DNC APP ID in first portal
+    "TenantId": "72f988bf-86f1-41af-91ab-2d7cd011db47", // AzTestDnc@testdnc.ccsctp.net, AzurePPE, 563c161a-f814-45eb-bac4-9d780e7f3ee6, testdnc.ccsctp.net User
     "ClientCertificateName": "amecert",
-    "AzureEnvironment": "ppe"
+    "AzureEnvironment": "public"
   },
   "DelegateSubnetClientCertificate": {
     "AppId": "a91b1853-4403-4f54-b5cb-d1ea19d90c37", // DNCRP App Id //  "1efe5bbf-d5b1-4fe9-99fa-f55ce1c88679", // DNC APP ID in first portal
@@ -20,6 +20,11 @@
   "DncSettings": {
     "RetryCount": 5,
     "RetryIntervalInSeconds": 3,
-    "RetryTimeoutInSeconds": 60
+    "RetryTimeoutInSeconds": 60,
+    "SubscriptionId": "9b8218f9-902a-4d20-a65c-e98acec5362f",
+    "TenantId": "72f988bf-86f1-41af-91ab-2d7cd011db47",
+    "ResourceGroupName": "testCosmosdb",
+    "VnetName": "pevnet",
+    "SubnetName": "pesubnet"
   }
 }

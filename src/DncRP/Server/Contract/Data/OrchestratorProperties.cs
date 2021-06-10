@@ -34,6 +34,12 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             get; set;
         }
 
+        [JsonProperty("privateLinkId")]
+        public string PrivateLinkId
+        {
+            get; set;
+        }
+
         [JsonProperty("controllerDetails")]
         public ControllerDetails ControllerDetails
         {
@@ -63,6 +69,18 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
 
         [JsonProperty("apiServerEndpoint")]
         public string ApiServerEndpoint
+        {
+            get; set;
+        }
+
+        [JsonProperty("privateLinkId")]
+        public string PrivateLinkId
+        {
+            get; set;
+        }
+
+        [JsonProperty("privateEndpointName")]
+        public string PrivateEndpointName
         {
             get; set;
         }
