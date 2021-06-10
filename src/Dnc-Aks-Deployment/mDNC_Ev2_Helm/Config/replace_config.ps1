@@ -41,10 +41,10 @@ foreach ($configReplacement in $configReplacementJson.ServiceConfigReplacement) 
     if ($Service -eq "dncrp") {
         # RP should skip AME Cert validation in Test Sub
         $config = $config.replace('__SkipAMECertValidation__', (Out-String -InputObject (Get-Value "Application" "SkipAMECertValidation" "false")).Trim())
-        $config = $config.replace('__DNCResourceGroup__', (Out-String -InputObject (Get-Value "Application" "DNCResourceGroup", "MC_acn-rg-dnc-centralus_acncluster-dnc-centralus_centralus")).Trim())
-        $config = $config.replace('__DNCVnetName__', (Out-String -InputObject (Get-Value "Application" "DNCVnetName", "aks-vnet-20527462")).Trim())
-        $config = $config.replace('__DNCPrivateEndpointSubnetName__', (Out-String -InputObject (Get-Value "Application" "DNCPrivateEndpointSubnetName", "privateendpointsubnet")).Trim())
-        $config = $config.replace('__TenantId__', (Out-String -InputObject (Get-Value "Cluster" "TenantId", "33e01921-4d64-4f8c-a055-5bdaffd5e33d")).Trim())         
+        $config = $config.replace('__DNCResourceGroup__', (Out-String -InputObject (Get-Value "Application" "DNCResourceGroup" "MC_acn-rg-dnc-centralus_acncluster-dnc-centralus_centralus")).Trim())
+        $config = $config.replace('__DNCVnetName__', (Out-String -InputObject (Get-Value "Application" "DNCVnetName" "aks-vnet-20527462")).Trim())
+        $config = $config.replace('__DNCPrivateEndpointSubnetName__', (Out-String -InputObject (Get-Value "Application" "DNCPrivateEndpointSubnetName" "privateendpointsubnet")).Trim())
+        $config = $config.replace('__TenantId__', (Out-String -InputObject (Get-Value "Cluster" "TenantId" "33e01921-4d64-4f8c-a055-5bdaffd5e33d")).Trim())         
     }
 
     ## DNC 
