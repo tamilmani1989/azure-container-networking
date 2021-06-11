@@ -1038,16 +1038,22 @@ func sendNCMetric(
 	metric.CustomDimensions[aiwrapper.StatusStr] = status
 	metric.CustomDimensions[aiwrapper.NCStateStr] = ncState
 
-	errorCode := "NoError"
+	var (
+		errCode = "NoError"
+		errHttpCode = "NoError"
+	)
 
 	if err != nil {
-		errorCode = err.Code.String()
+		errCode = err.Code.String()
+		errHttpCode = http.StatusText(err.HTTPStatus)
 	}
 
-	metric.CustomDimensions[aiwrapper.NCOperationErrorCodeStr] = errorCode
+	metric.CustomDimensions[aiwrapper.NCOperationErrorCodeStr] = errCode
+	metric.CustomDimensions[aiwrapper.NCOperationErrorHttpCodeStr] = errHttpCode
 	go aiwrapper.SendMetric(metric)
 
-	loggershim.LS.Debugf("[DNCOperationStatus] OperationName: %s, NetworkContainerId: %s, Status: %s, ErrorCode: %s, Err:%+v", ncState, repoNCConfig.NetworkContainerID, status, errorCode, err)
+	loggershim.LS.Debugf("[DNCOperationStatus] OperationName: %s, NetworkContainerId: %s, Status: %s, Err:%+v",
+		ncState, repoNCConfig.NetworkContainerID, status, err)
 }
 
 func publishNetworkContainerWithPubSubProxy(
