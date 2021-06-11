@@ -227,6 +227,7 @@ var (
 //but without
 func Health(w http.ResponseWriter, r *http.Request) {
 	// Initialize AzStorage for this partition
+	healthlogger := jsonlogger.WithField("healthprobe", r.URL.Path)
 	ds, err := datastoreshim.NewDataStoreShimEx(
 		"dummy",
 		config.DataStoreSettings.AzureStorageInfo.IsUsingCosmosDb,
@@ -236,7 +237,7 @@ func Health(w http.ResponseWriter, r *http.Request) {
 		config.DataStoreSettings.MaxBatchSize)
 
 	if err != nil {
-		jsonlogger.Errorf("could not initialize azure storage: %v", err)
+		healthlogger.Errorf("[health probe]  could not initialize azure storage: %v", err)
 		json.NewEncoder(w).Encode(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -244,7 +245,7 @@ func Health(w http.ResponseWriter, r *http.Request) {
 
 	entity, _, err := ds.QueryInPartition(datamodel.PendingResourceCleanupTableName, "dummy", "dummy")
 	if entity != nil {
-		jsonlogger.Debugf("[health probe] unexpected row found: %+v", *entity)
+		healthlogger.Debugf("[health probe] unexpected row found: %+v", *entity)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -252,6 +253,7 @@ func Health(w http.ResponseWriter, r *http.Request) {
 	stErr, ok := err.(storage.AzureStorageServiceError)
 	if !ok || stErr.StatusCode != http.StatusNotFound {
 		json.NewEncoder(w).Encode(err)
+		healthlogger.Errorf("[health probe] failed to query cosmos db %s: %s", config.DataStoreSettings.AzureStorageInfo.CosmosDBResourceID, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
