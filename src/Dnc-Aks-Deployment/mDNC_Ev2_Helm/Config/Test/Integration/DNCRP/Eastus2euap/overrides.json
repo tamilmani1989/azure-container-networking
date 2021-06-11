@@ -1,5 +1,11 @@
 {
     "Application": {
-        "SkipAMECertValidation": "true"
+        "SkipAMECertValidation": "true",
+        "DncResourceGroup": "MC_acncluster-rp-test-eastus2euap_acncluster-rp-test-eastus2euap_eastus2euap",
+        "DncVnetName": "aks-vnet-09837548",
+        "DncPrivateEndpointSubnetName": "privateendpointsubnet"
+    },
+    "Cluster": {
+        "TenantId": "72f988bf-86f1-41af-91ab-2d7cd011db47"
     }
 }
