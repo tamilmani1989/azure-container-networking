@@ -41,8 +41,9 @@ type NodeNetworkConfigReconciler struct {
 	scalerConfig             requestcontroller.RequestScalerConfig
 	subnetInfoProvider       requestcontroller.SubnetInfoProvider
 	logger                   logrus.FieldLogger
-	nodeIDToNCDetails        *cache.Cache // map name of NNC to NC ID
-	registeredNodes          *cache.Cache // Keep a map of nodes and ips to know what has already been registered on DNC
+	dncNodeNameToNCDetails   *cache.Cache // map name of NNC to NC ID
+	registeredDNCNodeToIP    *cache.Cache // Keep a map of nodes and ips to know what has already been registered on DNC
+	k8sNodetoDNCNode         *cache.Cache // Keep a map of k8s node name to DNC node name to know what we've registered and what it was called
 	registeredVnets          *cache.Cache // Keep a set of VNET GUIDs registered on DNC
 	registeredSubnets        *cache.Cache // Keep a set of Subnets registered on DNC
 	delegationGUIDToVnetGUID *cache.Cache // Keep a map of delegation guid to vnet guid
@@ -81,11 +82,12 @@ func NewNodeNetworkConfigReconciler(opts NodeNetworkConfigReconcilerOptions) *No
 	})
 
 	// build caches
-	nodeIDToNCDetails := cache.New(cache.NoExpiration, cache.NoExpiration)
-	registeredNodes := cache.New(cache.NoExpiration, cache.NoExpiration)
+	dncNodeNameToNCDetails := cache.New(cache.NoExpiration, cache.NoExpiration)
+	registeredDNCNodeToIP := cache.New(cache.NoExpiration, cache.NoExpiration)
 	registeredVnets := cache.New(cache.NoExpiration, cache.NoExpiration)
 	registeredSubnets := cache.New(cache.NoExpiration, cache.NoExpiration)
 	delegationGUIDToVnetGUID := cache.New(cache.NoExpiration, cache.NoExpiration)
+	k8sNodeToDNCNode := cache.New(cache.NoExpiration, cache.NoExpiration)
 
 	return &NodeNetworkConfigReconciler{
 		k8sClient:                opts.K8sClient,
@@ -93,8 +95,9 @@ func NewNodeNetworkConfigReconciler(opts NodeNetworkConfigReconcilerOptions) *No
 		scalerConfig:             opts.ScalerConfig,
 		subnetInfoProvider:       opts.SubnetInfoProvider,
 		logger:                   logger,
-		nodeIDToNCDetails:        nodeIDToNCDetails,
-		registeredNodes:          registeredNodes,
+		dncNodeNameToNCDetails:   dncNodeNameToNCDetails,
+		registeredDNCNodeToIP:    registeredDNCNodeToIP,
+		k8sNodetoDNCNode:         k8sNodeToDNCNode,
 		registeredVnets:          registeredVnets,
 		registeredSubnets:        registeredSubnets,
 		delegationGUIDToVnetGUID: delegationGUIDToVnetGUID,
@@ -103,7 +106,7 @@ func NewNodeNetworkConfigReconciler(opts NodeNetworkConfigReconcilerOptions) *No
 		skipSubnetJoin:           opts.SkipSubnetJoin,
 		metricsPublishers: []requestcontroller.MetricsPublisher{
 			&processedNNCMetricPublisher{
-				registeredNodes: registeredNodes,
+				registeredNodes: registeredDNCNodeToIP,
 				orchestratorID:  opts.OrchestratorID,
 				duration:        opts.ProcessedNNCMetricsDuration,
 				logger:          logger,
@@ -144,57 +147,67 @@ func (n *NodeNetworkConfigReconciler) Reconcile(request reconcile.Request) (reco
 
 // reconcile is wrapped by Reconcile to provide logging and context
 func (n *NodeNetworkConfigReconciler) reconcile(ctx context.Context, request reconcile.Request) error {
-	name := request.NamespacedName.Name
-
 	// Get the NodeNetworkConfig from the cache
 	nodeNetworkConfig := acnv1alpha.NodeNetworkConfig{}
-	err := n.k8sClient.Get(ctx, request.NamespacedName, &nodeNetworkConfig)
-	if err != nil {
+	if err := n.k8sClient.Get(ctx, request.NamespacedName, &nodeNetworkConfig); err != nil {
 		// Ignore NotFound since an immediate requeue won't solve it
 		if apierrors.IsNotFound(err) {
-			n.logger.Warnf("Error retrieving NNC %s: %v, this will not be retried.", name, err)
-		} else {
-			n.logger.Errorf("Error retrieving NNC %s: %v", name, err)
+			n.logger.Warnf("Error retrieving NNC %s: %v, this will not be retried.", request.NamespacedName, err)
+			return nil
 		}
 
-		return client.IgnoreNotFound(err)
+		n.logger.Errorf("Error retrieving NNC %s: %v", request.NamespacedName, err)
+		return err
 	}
 
 	// Get the corresponding Node
 	node := corev1.Node{}
-	err = n.k8sClient.Get(ctx, client.ObjectKey{Name: name}, &node)
-	if err != nil && !apierrors.IsNotFound(err) {
-		// Requeue due to client error
-		err = fmt.Errorf("error getting Node from kubernetes API server: %w", err)
-		n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", err.Error())
-		return err
+	nodeNotFound := false
+	// k8s node name matches NNC name, so query Node by NNC name
+	if err := n.k8sClient.Get(ctx, client.ObjectKey{Name: nodeNetworkConfig.Name}, &node); err != nil {
+		if apierrors.IsNotFound(err) {
+			nodeNotFound = true
+		} else {
+			// Requeue due to client error
+			err = fmt.Errorf("error getting Node from kubernetes API server: %w", err)
+			n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", err.Error())
+			return err
+		}
+	}
+
+	// get the dnc node name
+	dncNodeName, dncNodeNameErr := n.getDNCNodeNameFromNNCName(ctx, nodeNetworkConfig.Name)
+	if dncNodeNameErr != nil {
+		// unexpected error when trying to get the node name, so requeue
+		dncNodeNameErr = fmt.Errorf("unable to get DNC node name for nnc: %w", dncNodeNameErr)
+		n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", dncNodeNameErr.Error())
+		return dncNodeNameErr
 	}
 
 	// If the corresponding Node isn't found or is being deleted, clean up this NNC
-	if (err != nil && apierrors.IsNotFound(err)) || !node.DeletionTimestamp.IsZero() {
-		err = n.cleanUpNNC(ctx, &nodeNetworkConfig, name)
-		if err != nil {
+	if nodeNotFound || !node.DeletionTimestamp.IsZero() {
+		if err := n.cleanUpNNC(ctx, &nodeNetworkConfig, dncNodeName); err != nil {
 			err = fmt.Errorf("error while cleaning up NNC: %w", err)
 			n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", err.Error())
+			return err
 		}
-		return err
 	}
 
 	// Handle a create/update event
 	if nodeNetworkConfig.DeletionTimestamp.IsZero() {
 		// A zero deletionTimestamp means create/update event
-		err := n.publishCreateOrUpdateNC(ctx, &nodeNetworkConfig, &node, name)
-		if err != nil {
+		if err := n.publishCreateOrUpdateNC(ctx, &nodeNetworkConfig, &node, dncNodeName); err != nil {
 			err = fmt.Errorf("publishCreateOrUpdateNC error: %w", err)
+			n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", err.Error())
+			return err
 		}
-		return err
 	}
 
 	// Handle a deletion event
 	if !nodeNetworkConfig.DeletionTimestamp.IsZero() {
-		// The Node still exists, so we should let this NNC delete and then re-create it
-		err := n.mustRecreateNNC(ctx, &nodeNetworkConfig, &node, name)
-		if err != nil {
+		// If we get to this point, the k8s Node still exists, so we should let this NNC delete and then re-create it
+		if err := n.mustRecreateNNC(ctx, &nodeNetworkConfig, &node, dncNodeName); err != nil {
+			n.recorder.Event(&nodeNetworkConfig, corev1.EventTypeWarning, "ReconcileError", err.Error())
 			return fmt.Errorf("recreate NNC error: %w", err)
 		}
 	}
@@ -204,9 +217,9 @@ func (n *NodeNetworkConfigReconciler) reconcile(ctx context.Context, request rec
 
 // cleanUpNNC should be called when the NNC is being deleted and the corresponding Node either doesn't exist, or is being deleted.
 // This function will clean up the Node and NC on DNC, and remove the finalizer from the NNC so it can be removed from kubernetes api-server
-func (n *NodeNetworkConfigReconciler) cleanUpNNC(ctx context.Context, nodeNetworkConfig *acnv1alpha.NodeNetworkConfig, nodeID string) error {
+func (n *NodeNetworkConfigReconciler) cleanUpNNC(ctx context.Context, nodeNetworkConfig *acnv1alpha.NodeNetworkConfig, dncNodeName string) error {
 	// Delete NC from DNC if it exists
-	ncInfo, err := n.getNCDetailsFromNodeID(ctx, nodeID)
+	ncInfo, err := n.getNCDetailsFromDNCNodeName(ctx, dncNodeName)
 	if err != nil {
 		// Unexpected client error, so requeue
 		return err
@@ -223,10 +236,10 @@ func (n *NodeNetworkConfigReconciler) cleanUpNNC(ctx context.Context, nodeNetwor
 	}
 
 	// Remove NC from cache if present
-	n.nodeIDToNCDetails.Delete(nodeID)
+	n.dncNodeNameToNCDetails.Delete(dncNodeName)
 
 	// Delete Node from DNC
-	err = n.dncClient.DeleteNode(ctx, nodeID)
+	err = n.dncClient.DeleteNode(ctx, dncNodeName)
 	if err != nil {
 		// Error deleting Node, so requeue
 		return err
@@ -256,7 +269,7 @@ func (n *NodeNetworkConfigReconciler) cleanUpNNC(ctx context.Context, nodeNetwor
 
 // mustRecreateNNC should be called when the NNC is being deleted but the corresponding Node exists and isn't being deleted.
 // This function will remove the finalizer from the NNC to let the k8s api-server delete it, and then recreate it from a known good state.
-func (n *NodeNetworkConfigReconciler) mustRecreateNNC(ctx context.Context, nodeNetworkConfig *acnv1alpha.NodeNetworkConfig, node *corev1.Node, nodeID string) error {
+func (n *NodeNetworkConfigReconciler) mustRecreateNNC(ctx context.Context, nodeNetworkConfig *acnv1alpha.NodeNetworkConfig, node *corev1.Node, dncNodeName string) error {
 	name := nodeNetworkConfig.Name
 	namespace := nodeNetworkConfig.Namespace
 
@@ -289,7 +302,7 @@ func (n *NodeNetworkConfigReconciler) mustRecreateNNC(ctx context.Context, nodeN
 
 	// Recreate the NNC from the NC on DNC
 	var ncResponse *api.NetworkContainerResponse
-	ncInfo, _ := n.getNCDetailsFromNodeID(ctx, nodeID) // If theres an error, we need to recreate the NC from scratch, so ignore it
+	ncInfo, _ := n.getNCDetailsFromDNCNodeName(ctx, dncNodeName) // If theres an error, we need to recreate the NC from scratch, so ignore it
 	ncID := ncInfo.id
 	if ncID != "" {
 		if ncResponse, err = n.dncClient.GetNC(ctx, subnetInfo.VnetID, ncID); err != nil {
@@ -318,10 +331,10 @@ func (n *NodeNetworkConfigReconciler) mustRecreateNNC(ctx context.Context, nodeN
 		}).Panic("Cannot create NNC but DNC objects still exist. Exiting to trigger Reconcile loops for everything.")
 	}
 
-	return n.publishCreateOrUpdateNC(ctx, nnc, node, nodeID)
+	return n.publishCreateOrUpdateNC(ctx, nnc, node, dncNodeName)
 }
 
-func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Context, nodeNetworkConfig *acnv1alpha.NodeNetworkConfig, node *corev1.Node, nodeID string) error {
+func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Context, nodeNetworkConfig *acnv1alpha.NodeNetworkConfig, node *corev1.Node, dncNodeName string) error {
 	// Add finalizer before we start DNC operations if it is not present
 	finalizers := appendStringIfNotPresent(nodeNetworkConfig.Finalizers, NNCFinalizerName)
 	if len(finalizers) != len(nodeNetworkConfig.Finalizers) {
@@ -383,12 +396,12 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 	}
 
 	// Register the Node if not already registered using the InfraVnetId
-	if err := n.ensureNodeIsRegistered(ctx, nodeID, internalIPAddress, cns.KubernetesCRD, infraVnetId); err != nil {
+	if err := n.ensureNodeIsRegistered(ctx, dncNodeName, internalIPAddress, cns.KubernetesCRD, infraVnetId); err != nil {
 		return err
 	}
 
 	// Create or Update the NC on DNC
-	ncInfo, err := n.getNCDetailsFromNodeID(ctx, nodeID)
+	ncInfo, err := n.getNCDetailsFromDNCNodeName(ctx, dncNodeName)
 	if err != nil {
 		return err
 	}
@@ -406,10 +419,10 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 		n.logger.WithFields(logrus.Fields{
 			"NNC": nodeNetworkConfig.Name,
 		}).Infof("Time to create NC request: %s", ncCreationDuration)
-		n.recorder.Eventf(nodeNetworkConfig, corev1.EventTypeNormal, "CreatingNC", "Creating new NC %s for node %s", ncID, nodeID)
+		n.recorder.Eventf(nodeNetworkConfig, corev1.EventTypeNormal, "CreatingNC", "Creating new NC %s for node %s", ncID, dncNodeName)
 
 		// cache the nc id and vnet for later lookups
-		n.nodeIDToNCDetails.Set(nodeID, ncDetails{
+		n.dncNodeNameToNCDetails.Set(dncNodeName, ncDetails{
 			id:       ncID,
 			vnetGUID: subnetInfo.VnetID,
 		}, cache.NoExpiration)
@@ -421,7 +434,7 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 			SecondaryIPCount: int(nodeNetworkConfig.Spec.RequestedIPCount),
 		},
 		AssociationInfo: api.AssociationInfo{
-			NodeID:        nodeID,
+			NodeID:        dncNodeName,
 			ContainerType: cns.Docker,
 		},
 		ToBeDeletedIPIds: nodeNetworkConfig.Spec.IPsNotInUse,
@@ -512,8 +525,8 @@ func (n *NodeNetworkConfigReconciler) ensureSubnetIsRegistered(ctx context.Conte
 	return nil
 }
 
-func (n *NodeNetworkConfigReconciler) ensureNodeIsRegistered(ctx context.Context, nodeID, ipAddress, orchestratorType, vnetGUID string) error {
-	ipInCache, found := n.registeredNodes.Get(nodeID)
+func (n *NodeNetworkConfigReconciler) ensureNodeIsRegistered(ctx context.Context, dncNodeName, ipAddress, orchestratorType, infraVnetGUID string) error {
+	ipInCache, found := n.registeredDNCNodeToIP.Get(dncNodeName)
 	ip := ""
 	if found {
 		ip = ipInCache.(string)
@@ -521,15 +534,15 @@ func (n *NodeNetworkConfigReconciler) ensureNodeIsRegistered(ctx context.Context
 
 	if !found || ip != ipAddress {
 		n.logger.WithFields(logrus.Fields{
-			"vnetID": vnetGUID,
-			"nodeID": nodeID,
-		}).Infof("Node %s not found in cache or IP doesn't match, registering on DNC", nodeID)
-		err := n.dncClient.UpsertNode(ctx, nodeID, ipAddress, cns.KubernetesCRD, vnetGUID)
+			"infraVnetID": infraVnetGUID,
+			"dncNodeName": dncNodeName,
+		}).Infof("Node %s not found in cache or IP doesn't match, registering on DNC", dncNodeName)
+		err := n.dncClient.UpsertNode(ctx, dncNodeName, ipAddress, cns.KubernetesCRD, infraVnetGUID)
 		if err != nil {
 			// DNC client error, requeue
 			return err
 		}
-		n.registeredNodes.Set(nodeID, ipAddress, cache.NoExpiration)
+		n.registeredDNCNodeToIP.Set(dncNodeName, ipAddress, cache.NoExpiration)
 	}
 
 	return nil
@@ -537,13 +550,13 @@ func (n *NodeNetworkConfigReconciler) ensureNodeIsRegistered(ctx context.Context
 
 // get the NC for a given Node, either from cache or DNC. Caches the result if necessary. If the NC is not found, this returns and empty string and nil error.
 // This function only returns an error when there is a DNC client errror, such as an http transport error
-func (n *NodeNetworkConfigReconciler) getNCDetailsFromNodeID(ctx context.Context, nodeID string) (ncDetails, error) {
-	if ncInfo, found := n.nodeIDToNCDetails.Get(nodeID); found {
+func (n *NodeNetworkConfigReconciler) getNCDetailsFromDNCNodeName(ctx context.Context, dncNodeName string) (ncDetails, error) {
+	if ncInfo, found := n.dncNodeNameToNCDetails.Get(dncNodeName); found {
 		return ncInfo.(ncDetails), nil
 	}
 
 	// NC ID not found in cache (or was empty), try to query DNC for the node to get its NC (assuming one NC per node)
-	nodeInfoResponse, err := n.dncClient.GetNode(ctx, nodeID)
+	nodeInfoResponse, err := n.dncClient.GetNode(ctx, dncNodeName)
 	if err != nil {
 		var respErr *api.JsonErr
 		if errors.As(err, &respErr) {
@@ -567,9 +580,9 @@ func (n *NodeNetworkConfigReconciler) getNCDetailsFromNodeID(ctx context.Context
 		// This is a warning and not an error because requeuing will not solve the problem,
 		// so instead we'll make a best effort of using what is available
 		n.logger.WithFields(logrus.Fields{
-			"nodeID":  nodeID,
+			"nodeID":  dncNodeName,
 			"ncCount": strconv.Itoa(len(ncs)),
-		}).Warnf("WARN: Node %s should have 1 NC but has %d: %v", nodeID, len(ncs), ncs)
+		}).Warnf("WARN: Node %s should have 1 NC but has %d: %v", dncNodeName, len(ncs), ncs)
 	}
 
 	ncInfo := ncDetails{
@@ -578,7 +591,7 @@ func (n *NodeNetworkConfigReconciler) getNCDetailsFromNodeID(ctx context.Context
 	}
 
 	// cache it for later lookups
-	n.nodeIDToNCDetails.Set(nodeID, ncInfo, cache.NoExpiration)
+	n.dncNodeNameToNCDetails.Set(dncNodeName, ncInfo, cache.NoExpiration)
 
 	return ncInfo, nil
 }
@@ -640,6 +653,62 @@ func (n *NodeNetworkConfigReconciler) getNNCStatusFromNCResponse(nc *api.Network
 	nncStatus.Scaler = scaler
 
 	return nncStatus
+}
+
+// nodeExistsOnDNC checks if the Node is present on DNC and returns a non-404 error if encountered
+func (n *NodeNetworkConfigReconciler) nodeExistsOnDNC(ctx context.Context, nodeName string) (bool, error) {
+	if _, err := n.dncClient.GetNode(ctx, nodeName); err != nil {
+		// If we got a 404, just return false
+		var respErr *api.JsonErr
+		if errors.As(err, &respErr) {
+			if respErr.HTTPStatus == http.StatusNotFound {
+				return false, nil
+			}
+		}
+		// encountered an unexpected error, so return it
+		return false, err
+	}
+
+	// no error means we found the node
+	return true, nil
+}
+
+// getDNCNodeNameFromNNCName returns the dnc node name to use for this NNC
+// The node should be in <orchestrator_id>_<nnc name> format, but may just be <nnc name> if this cluster is old.
+func (n *NodeNetworkConfigReconciler) getDNCNodeNameFromNNCName(ctx context.Context, nncName string) (string, error) {
+	// Check if we've already seen this node before
+	if dncNodeName, found := n.k8sNodetoDNCNode.Get(nncName); found {
+		return dncNodeName.(string), nil
+	}
+
+	// Check if this node has been added to dnc with the <orchestrator id>_<node_id> format
+	dncNodeName := strings.Join([]string{n.orchestratorID, nncName}, "_")
+	found, err := n.nodeExistsOnDNC(ctx, dncNodeName)
+	if err != nil {
+		return "", err
+	}
+
+	if found {
+		// found the node, so set the cache and return it
+		n.k8sNodetoDNCNode.Set(nncName, dncNodeName, cache.NoExpiration)
+		return dncNodeName, nil
+	}
+
+	// Check if this node has been added to dnc with the legacy <node id> format
+	found, err = n.nodeExistsOnDNC(ctx, nncName)
+	if err != nil {
+		return "", err
+	}
+
+	if found {
+		// found the node, so set the cache and return it
+		n.k8sNodetoDNCNode.Set(nncName, nncName, cache.NoExpiration)
+		return nncName, nil
+	}
+
+	// If we haven't seen it before, use the new format and store it in the cache for quick lookups later
+	n.k8sNodetoDNCNode.Set(nncName, dncNodeName, cache.NoExpiration)
+	return dncNodeName, nil
 }
 
 // getMaxIPCountOfNode gets the max ip count for a node
