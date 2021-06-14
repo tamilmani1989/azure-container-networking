@@ -304,14 +304,14 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
                 PrivateEndpointRequest newPrivateEndpoint = new PrivateEndpointRequest();
                 newPrivateEndpoint.properties = new PrivateEndpointRequestProperties();
                 newPrivateEndpoint.properties.Subnet = new Subnet();
-                newPrivateEndpoint.properties.PrivateLinkServiceConnections = new List<PrivateLinkServiceConnection>();
+                newPrivateEndpoint.properties.ManualPrivateLinkServiceConnections = new List<PrivateLinkServiceConnection>();
                 newPrivateEndpoint.Location = CurrentContext.AzureRegion;
                 newPrivateEndpoint.properties.Subnet.Id = GetPrivateEndpointSubnetResourceId();
                 PrivateLinkServiceConnection plService = new PrivateLinkServiceConnection();
                 plService.Properties = new PrivateLinkServiceConnectionProperties();
                 plService.Properties.PrivateLinkServiceId = privateLinkResourceId;
                 plService.Name = privateEndpointName;
-                newPrivateEndpoint.properties.PrivateLinkServiceConnections.Add(plService);
+                newPrivateEndpoint.properties.ManualPrivateLinkServiceConnections.Add(plService);
                 PrivateEndpointRequest createdPE = await this.PutResourceAsync<PrivateEndpointRequest>(
                     s.TenantId, privateEndpointResourceId, privateEndpointApiVersion, newPrivateEndpoint);
                 logger.CLogInformation("Created Private Endpoint: {0}", createdPE.Id);
