@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	defaultRetrier = retry.Retrier{Attempts: 15, Delay: time.Second}
+	defaultRetrier = retry.Retrier{Attempts: 60, Delay: time.Second}
 	// todo: could use another method for more robust kubeconfig loading.
 	// See https://github.com/kubernetes-sigs/controller-runtime/blob/e10bf72058d349e9c5cdd177593c32c650065458/pkg/client/config/config.go#L59
 	kubeconfig          = flag.String("test-kubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -32,6 +32,7 @@ var (
 const (
 	subnetIDNodeLabelEnvVar   = "DELEGATED_SUBNET_ID_NODE_LABEL"
 	subnetNameNodeLabelEnvVar = "SUBNET_NAME_NODE_LABEL"
+	defaultTimeoutSeconds     = 120
 )
 
 func shouldLabelNodes() bool {
@@ -109,7 +110,7 @@ func TestPodScaling(t *testing.T) {
 	for _, c := range counts {
 		count := c
 		t.Run(fmt.Sprintf("replica count %d", count), func(t *testing.T) {
-			replicaCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			replicaCtx, cancel := context.WithTimeout(ctx, defaultTimeoutSeconds*time.Second)
 			defer cancel()
 
 			scaleFunc := func() error {
@@ -159,8 +160,11 @@ func TestPodScaling(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				portForwardCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				portForwardCtx, cancel := context.WithTimeout(ctx, defaultTimeoutSeconds*time.Second)
 				defer cancel()
+
+				//Sleep for a few seconds to allow pod scaling to happen
+				time.Sleep(10 * time.Second)
 
 				var streamHandle k8s.PortForwardStreamHandle
 				portForwardFn := func() error {
@@ -173,13 +177,13 @@ func TestPodScaling(t *testing.T) {
 					return nil
 				}
 				if err := defaultRetrier.Do(portForwardCtx, portForwardFn); err != nil {
-					t.Fatalf("could not start port forward within 30s: %v", err)
+					t.Fatalf("could not start port forward within %ds: %v", defaultTimeoutSeconds, err)
 				}
 				defer streamHandle.Stop()
 
 				gpClient := goldpinger.Client{Host: streamHandle.Url()}
 
-				clusterCheckCtx, cancel := context.WithTimeout(ctx, time.Minute)
+				clusterCheckCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 				defer cancel()
 				clusterCheckFn := func() error {
 					clusterState, err := gpClient.CheckAll(clusterCheckCtx)

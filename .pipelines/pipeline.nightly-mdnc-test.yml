@@ -3,8 +3,10 @@ trigger: none
 
 stages:
   - stage: deploy_to_test_rp
+    dependsOn: []
     jobs:
-      - job: build_container_images
+      - job: build_mdnc_image
+        dependsOn: []
         pool:
           name: "$(BUILD_POOL_NAME_DEFAULT)"
         steps:
@@ -14,68 +16,87 @@ stages:
               azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
               scriptLocation: "inlineScript"
               inlineScript: |
-                set -e
-                make mdnc-image VERSION=$(Build.SourceBranchName).$(git rev-parse --short HEAD)
+                set -ex
+                tag="$(Build.SourceBranchName).$(git rev-parse --short HEAD)"
+                make mdnc-image VERSION=$tag
+                az acr login -n acndev
+                docker push acndev.azurecr.io/mdnc:$tag
               workingDirectory: "src/dnc"
             name: "BuildMDNC"
             displayName: "Build MDNC Image"
+      - job: build_requestcontroller_image
+        dependsOn: []
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
             condition: succeeded()
           - task: AzureCLI@1
             inputs:
               azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
               scriptLocation: "inlineScript"
               inlineScript: |
-                set -e
-                make mdnc-requestcontroller-image VERSION=$(Build.SourceBranchName).$(git rev-parse --short HEAD)
+                set -ex
+                tag="$(Build.SourceBranchName).$(git rev-parse --short HEAD)"
+                make mdnc-requestcontroller-image VERSION=$tag
+                az acr login -n acndev
+                docker push acndev.azurecr.io/mdnc-requestcontroller:$tag
               workingDirectory: "src/dnc"
             name: "BuildMDNCRC"
             displayName: "Build MDNC-RC Image"
             condition: succeeded()
+      - job: build_rp_image
+        dependsOn: []
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
           - task: AzureCLI@1
             inputs:
               azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
               scriptLocation: "inlineScript"
               inlineScript: |
-                set -e
-                docker build -t acndev.azurecr.io/dncrp:$(Build.SourceBranchName).$(git rev-parse --short HEAD) -f DncRP/Dockerfile --no-cache --build-arg FEED_ACCESSTOKEN=$(System.AccessToken) .
+                set -ex
+                tag="$(Build.SourceBranchName).$(git rev-parse --short HEAD)"
+                docker build -t acndev.azurecr.io/dncrp:$tag -f DncRP/Dockerfile --no-cache --build-arg FEED_ACCESSTOKEN=$(System.AccessToken) .
+                az acr login -n acndev
+                docker push acndev.azurecr.io/dncrp:$tag
               workingDirectory: "src"
             name: "BuildMDNCRP"
             displayName: "Build DNC-RP Image"
             condition: succeeded()
+      - job: build_gateway_image
+        dependsOn: []
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
           - task: AzureCLI@1
             inputs:
               azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
               scriptLocation: "inlineScript"
               inlineScript: |
-                set -e
-                docker build -t acndev.azurecr.io/dnc-gateway:$(Build.SourceBranchName).$(git rev-parse --short HEAD) -f Gateway/Dockerfile --no-cache .
+                set -ex
+                tag="$(Build.SourceBranchName).$(git rev-parse --short HEAD)"
+                docker build -t acndev.azurecr.io/dnc-gateway:$tag -f Gateway/Dockerfile --no-cache .
+                az acr login -n acndev
+                docker push acndev.azurecr.io/dnc-gateway:$tag
               workingDirectory: "src"
             name: "BuildDNCGateway"
             displayName: "Build DNC Gateway Image"
             condition: succeeded()
-          - task: AzureCLI@1
-            inputs:
-              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
-              scriptLocation: "inlineScript"
-              inlineScript: |
-                set -e
-                tag="$(Build.SourceBranchName).$(git rev-parse --short HEAD)"
-                az acr login -n acndev
-                docker push acndev.azurecr.io/mdnc:$tag
-                docker push acndev.azurecr.io/mdnc-requestcontroller:$tag
-                docker push acndev.azurecr.io/dncrp:$tag
-                docker push acndev.azurecr.io/dnc-gateway:$tag
-            name: "PublishContainerImages"
-            displayName: "Publish Container Images"
-            condition: succeeded()
       - job: deploy_to_test_rp
-        dependsOn: build_container_images
+        dependsOn:
+          - build_mdnc_image
+          - build_requestcontroller_image
+          - build_rp_image
+          - build_gateway_image
         pool:
           name: "$(BUILD_POOL_NAME_DEFAULT)"
         steps:
           - checkout: self
           - script: |
-              set -e
+              set -ex
               GIT_COMMIT_LONG=$(git rev-parse HEAD)
               GIT_COMMIT_SHORT=$(git rev-parse --short HEAD)
               GIT_COMMIT_TITLE=$(git log --format=%s --max-count=1 $GIT_COMMIT_LONG)
@@ -92,7 +113,7 @@ stages:
                       "instanceReference": {
                         "id":"$GIT_COMMIT_LONG",
                         "name":"$GIT_COMMIT_SHORT",
-                        "sourceBranch":"$(Build.SourceBranchName)",
+                        "sourceBranch":"$(Build.SourceBranch)",
                         "commitMessage":"$GIT_COMMIT_TITLE"
                       }
                     }
@@ -142,7 +163,7 @@ stages:
             displayName: "Create EV2 Release"
             condition: succeeded()
           - script: |
-              set -e
+              set -ex
               RELEASE_ID=$(jq -r '.id' ./release-request.json)
               ENV_ID_1=$(jq -r '.environments[0].id' ./release-request.json)
               ENV_ID_2=$(jq -r '.environments[1].id' ./release-request.json)
@@ -167,4 +188,299 @@ stages:
               fi
             name: "DeployRelease"
             displayName: "Deploy EV2 Release"
+            condition: succeeded()
+  - stage: create_customer_cluster
+    dependsOn: []
+    jobs:
+      - job: create_aks_engine_cluster
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
+          - task: AzureCLI@1
+            inputs:
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -ex
+                resource_group=$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-cx-cluster
+                az group create -l eastus2euap -g "$resource_group"
+                curl -sSL https://raw.githubusercontent.com/Azure/aks-engine/master/scripts/get-akse.sh | bash
+                aks-engine deploy \
+                  -m aks-e-datamodel.json \
+                  --auth-method cli \
+                  -l eastus2euap \
+                  -s "9b8218f9-902a-4d20-a65c-e98acec5362f" \
+                  -g "$resource_group" \
+                  -p "$resource_group"
+                export KUBECONFIG="_output/${resource_group}/kubeconfig/kubeconfig.eastus2euap.json"
+                az keyvault secret set --name "kubeconfig-${resource_group}" --vault-name mdncnightlytestkv --file "$KUBECONFIG" > /dev/null
+                vnet_name=$(az resource list -g "$resource_group" --resource-type Microsoft.Network/virtualNetworks --query '[0].name' --output tsv)
+                az network vnet subnet create --name "pod-subnet" \
+                  -g "$resource_group" \
+                  --vnet-name "$vnet_name" \
+                  --address-prefixes "10.1.0.0/16" \
+                  --delegations "Microsoft.DelegatedNetwork/controller"
+                curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.18.17/bin/linux/amd64/kubectl
+                chmod +x ./kubectl
+                sudo mv ./kubectl /usr/local/bin/kubectl
+                kubectl apply -f https://raw.githubusercontent.com/thatmattlong/azure-container-networking/use-cns-1.4.0/cns/azure-cns.yaml
+                kubectl apply -f https://raw.githubusercontent.com/Azure/azure-container-networking/master/tools/acncli/deployment/manager_swift.yaml
+              workingDirectory: "src/DncRP/testdata"
+            name: "DeployAKSECluster"
+            displayName: "Deploy AKS-E Cluster"
+            condition: succeeded()
+  - stage: setup_customer_cluster
+    dependsOn:
+      - deploy_to_test_rp
+      - create_customer_cluster
+    jobs:
+      - job: create_rp_resources
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
+          - task: AzureCLI@1
+            inputs:
+              addSpnToEnvironment: true
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -ex
+                resource_group=$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-rp-resources
+                kubeconfig_secret="kubeconfig-$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-cx-cluster"
+                az keyvault secret download -f kubeconfig.json -n "$kubeconfig_secret" --vault-name mdncnightlytestkv
+                az group create -l eastus2euap -g "$resource_group"
+                az cloud register -n USEast2EUAP \
+                  --endpoint-active-directory https://login.microsoftonline.com \
+                  --endpoint-active-directory-graph-resource-id https://graph.windows.net/ \
+                  --endpoint-active-directory-resource-id https://management.core.windows.net/ \
+                  --endpoint-gallery https://gallery.azure.com/\
+                  --endpoint-management https://management.core.windows.net/ \
+                  --endpoint-resource-manager https://eastus2euap.management.azure.com/ \
+                  --suffix-storage-endpoint core.windows.net \
+                  --suffix-keyvault-dns ".vault.azure.net"
+                az cloud set -n USEast2EUAP
+                az login --service-principal -u $servicePrincipalId -p $servicePrincipalKey --tenant $tenantId
+                az account set -s "9b8218f9-902a-4d20-a65c-e98acec5362f"
+                az group deployment create \
+                  -n deploy-controller \
+                  -g "$resource_group" \
+                  -f controller.json
+                controller_arm_id=$(az resource list -g "$resource_group" --resource-type Microsoft.DelegatedNetwork/controller --query '[0].id' --output tsv)
+                ca_data=$(jq -r '.clusters[0].cluster["certificate-authority-data"]' kubeconfig.json)
+                apiserver=$(jq -r '.clusters[0].cluster.server' kubeconfig.json)
+                az group deployment create \
+                  -n deploy-orchestrator \
+                  -g "$resource_group" \
+                  -f orchestrator.json \
+                  --parameters clusterRootCA="$ca_data" apiServerEndpoint="$apiserver" controllerArmID="$controller_arm_id"
+                cx_resource_group=$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-cx-cluster
+                cx_vnet_id=$(az resource list -g "$cx_resource_group" --resource-type Microsoft.Network/virtualNetworks --query '[0].id' --output tsv)
+                cx_subnet_id=$(az network vnet show --ids $cx_vnet_id --query "subnets[?name=='pod-subnet']|[0].id" --output tsv)
+                az group deployment create \
+                  -n deploy-delegated-subnet \
+                  -g "$resource_group" \
+                  -f delegatedSubnet.json \
+                  --parameters controllerArmID="$controller_arm_id" subnetArmID="$cx_subnet_id"
+              workingDirectory: "src/DncRP/testdata"
+            name: "DeployRPResources"
+            displayName: "Deploy RP Resources"
+            condition: succeeded()
+      - job: swiftify_customer_cluster
+        dependsOn: create_rp_resources
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
+          - task: AzureCLI@1
+            inputs:
+              addSpnToEnvironment: true
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -ex
+                resource_group=$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-rp-resources
+                kubeconfig_secret="kubeconfig-$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-cx-cluster"
+                az keyvault secret download -f kubeconfig.json -n "$kubeconfig_secret" --vault-name mdncnightlytestkv
+                if [[ $(az cloud show --query "name" --output tsv) != "USEast2EUAP" ]]; then
+                  az cloud register -n USEast2EUAP \
+                    --endpoint-active-directory https://login.microsoftonline.com \
+                    --endpoint-active-directory-graph-resource-id https://graph.windows.net/ \
+                    --endpoint-active-directory-resource-id https://management.core.windows.net/ \
+                    --endpoint-gallery https://gallery.azure.com/\
+                    --endpoint-management https://management.core.windows.net/ \
+                    --endpoint-resource-manager https://eastus2euap.management.azure.com/ \
+                    --suffix-storage-endpoint core.windows.net \
+                    --suffix-keyvault-dns ".vault.azure.net"
+                  az cloud set -n USEast2EUAP
+                  az login --service-principal -u $servicePrincipalId -p $servicePrincipalKey --tenant $tenantId
+                  az account set -s "9b8218f9-902a-4d20-a65c-e98acec5362f"
+                fi
+                orchestrator_arm_id=$(az resource list -g "$resource_group" --resource-type Microsoft.DelegatedNetwork/orchestrators --query '[0].id' --output tsv)
+                principal_id=$(az resource show --id "$orchestrator_arm_id" --query "identity.principalId" --output tsv)
+                app_id=$(az ad sp show --id $principal_id --query "appId" --output tsv)
+                delegated_subnet_arm_id=$(az resource list -g "$resource_group" --resource-type Microsoft.DelegatedNetwork/delegatedSubnets --query '[0].id' --output tsv)
+                delegation_guid=$(az resource show --id "$delegated_subnet_arm_id" --query 'properties.resourceGuid' --output tsv)
+                sed -i "s/%ORCHESTRATOR_APP_ID%/$app_id/g" rbac.yaml
+                export KUBECONFIG=kubeconfig.json
+                kubectl label nodes --selector kubernetes.azure.com/role=agent kubernetes.azure.com/podnetwork-delegationguid=$delegation_guid
+                kubectl label nodes --selector kubernetes.azure.com/role=agent kubernetes.azure.com/podnetwork-subnet=pod-subnet
+                kubectl apply -f rbac.yaml
+              workingDirectory: "src/DncRP/testdata"
+            name: "SwiftifyCustomerCluster"
+            displayName: "Swiftify Customer Cluster"
+            condition: succeeded()
+  - stage: datapath_tests
+    dependsOn: setup_customer_cluster
+    jobs:
+      - job: run_datapath_tests
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
+          - task: AzureCLI@1
+            inputs:
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -ex
+                kubeconfig_secret="kubeconfig-$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-cx-cluster"
+                az keyvault secret download -f kubeconfig.json -n "$kubeconfig_secret" --vault-name mdncnightlytestkv
+                export KUBECONFIG="$(pwd)/kubeconfig.json"
+                go test -v . -args --test-kubeconfig="$KUBECONFIG"
+              workingDirectory: "src/dnc/test/integration"
+            name: "DatapathTest"
+            displayName: "Run Datapath Test"
+            condition: succeeded()
+  - stage: cleanup
+    dependsOn: datapath_tests
+    jobs:
+      - job: scale_down_cluster
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
+          - task: AzureCLI@1
+            inputs:
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -ex
+                resource_group=$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-cx-cluster
+                kubeconfig_secret="kubeconfig-${resource_group}"
+                az keyvault secret download -f kubeconfig.json -n "$kubeconfig_secret" --vault-name mdncnightlytestkv
+                availability_set_arm_id=$(az resource list -g "$resource_group" --resource-type Microsoft.Compute/availabilitySets --query "[?starts_with(name, 'agentpool1')]|[0].id" --output tsv)
+                az resource delete --ids $(az vm availability-set show --ids "$availability_set_arm_id" --query "virtualMachines[*].id" --output tsv)
+                nnc_count=$(kubectl --kubeconfig kubeconfig.json get nnc -n kube-system -ojsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | wc -l)
+                while [[ "$nnc_count" -ne 0 ]]; do
+                  echo "waiting for nnc count to reach 0: got $nnc_count"
+                  sleep 30s
+                  nnc_count=$(kubectl --kubeconfig kubeconfig.json get nnc -n kube-system -ojsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | wc -l)
+                done
+            name: "ScaleDownCustomerCluster"
+            displayName: "Scale Down Customer Cluster"
+            condition: succeeded()
+      - job: delete_kubeconfig_secret
+        dependsOn: scale_down_cluster
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
+          - task: AzureCLI@1
+            inputs:
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -ex
+                kubeconfig_secret="kubeconfig-$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-cx-cluster"
+                az keyvault secret delete -n "$kubeconfig_secret" --vault-name mdncnightlytestkv
+            name: "DeleteCustomerKubeconfig"
+            displayName: "Delete Customer Kubeconfig"
+            condition: succeeded()
+      - job: delete_delegated_subnet
+        dependsOn: scale_down_cluster
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
+          - task: AzureCLI@1
+            inputs:
+              addSpnToEnvironment: true
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -ex
+                resource_group=$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-rp-resources
+                if [[ $(az cloud show --query "name" --output tsv) != "USEast2EUAP" ]]; then
+                  az cloud register -n USEast2EUAP \
+                    --endpoint-active-directory https://login.microsoftonline.com \
+                    --endpoint-active-directory-graph-resource-id https://graph.windows.net/ \
+                    --endpoint-active-directory-resource-id https://management.core.windows.net/ \
+                    --endpoint-gallery https://gallery.azure.com/\
+                    --endpoint-management https://management.core.windows.net/ \
+                    --endpoint-resource-manager https://eastus2euap.management.azure.com/ \
+                    --suffix-storage-endpoint core.windows.net \
+                    --suffix-keyvault-dns ".vault.azure.net"
+                  az cloud set -n USEast2EUAP
+                  az login --service-principal -u $servicePrincipalId -p $servicePrincipalKey --tenant $tenantId
+                  az account set -s "9b8218f9-902a-4d20-a65c-e98acec5362f"
+                fi
+                delegated_subnet_arm_id=$(az resource list -g "$resource_group" --resource-type Microsoft.DelegatedNetwork/delegatedSubnets --query '[0].id' --output tsv)
+                az resource delete --ids "$delegated_subnet_arm_id"
+            name: "DeleteDelegatedSubnet"
+            displayName: "Delete Delegate Subnet"
+            condition: succeeded()
+      - job: delete_rp_resources
+        dependsOn: delete_delegated_subnet
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
+          - task: AzureCLI@1
+            inputs:
+              addSpnToEnvironment: true
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -ex
+                resource_group=$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-rp-resources
+                if [[ $(az cloud show --query "name" --output tsv) != "USEast2EUAP" ]]; then
+                  az cloud register -n USEast2EUAP \
+                    --endpoint-active-directory https://login.microsoftonline.com \
+                    --endpoint-active-directory-graph-resource-id https://graph.windows.net/ \
+                    --endpoint-active-directory-resource-id https://management.core.windows.net/ \
+                    --endpoint-gallery https://gallery.azure.com/\
+                    --endpoint-management https://management.core.windows.net/ \
+                    --endpoint-resource-manager https://eastus2euap.management.azure.com/ \
+                    --suffix-storage-endpoint core.windows.net \
+                    --suffix-keyvault-dns ".vault.azure.net"
+                  az cloud set -n USEast2EUAP
+                  az login --service-principal -u $servicePrincipalId -p $servicePrincipalKey --tenant $tenantId
+                  az account set -s "9b8218f9-902a-4d20-a65c-e98acec5362f"
+                fi
+                orchestrator_arm_id=$(az resource list -g "$resource_group" --resource-type Microsoft.DelegatedNetwork/orchestrators --query '[0].id' --output tsv)
+                az resource delete --ids "$orchestrator_arm_id"
+                controller_arm_id=$(az resource list -g "$resource_group" --resource-type Microsoft.DelegatedNetwork/controller --query '[0].id' --output tsv)
+                az resource delete --ids "$controller_arm_id"
+                az group delete -g "$resource_group" -y
+            name: "DeleteRPResources"
+            displayName: "Delete RP Resources"
+            condition: succeeded()
+      - job: delete_customer_cluster
+        dependsOn: delete_delegated_subnet
+        pool:
+          name: "$(BUILD_POOL_NAME_DEFAULT)"
+        steps:
+          - checkout: self
+          - task: AzureCLI@1
+            inputs:
+              azureSubscription: $(TEST_SUB_SERVICE_CONNECTION)
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                set -ex
+                resource_group=$(Build.SourceBranchName)-$(git rev-parse --short HEAD)-cx-cluster
+                az group delete -g "$resource_group" -y
+            name: "DeleteCustomerCluster"
+            displayName: "Delete Customer Cluster"
             condition: succeeded()

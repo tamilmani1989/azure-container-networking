@@ -1,0 +1,12 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "resources": [
+        {
+            "type": "Microsoft.DelegatedNetwork/controller",
+            "apiVersion": "2021-03-15",
+            "name": "mdnc-e2e-controller",
+            "location": "East US 2 Euap"
+        }
+    ]
+}

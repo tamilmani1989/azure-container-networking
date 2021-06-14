@@ -56,7 +56,10 @@ func NewPortForwarder(restConfig *rest.Config) (*PortForwarder, error) {
 // todo: can be made more flexible to allow a service to be specified
 // Forward attempts to initiate port forwarding to the specified pod and port using labels.
 func (p *PortForwarder) Forward(ctx context.Context, namespace, labelSelector string, localPort, destPort int) (PortForwardStreamHandle, error) {
-	pods, err := p.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+	pods, err := p.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+		FieldSelector: "status.phase=Running",
+	})
 	if err != nil {
 		return PortForwardStreamHandle{}, fmt.Errorf("could not list pods in %q with label %q: %v", namespace, labelSelector, err)
 	}

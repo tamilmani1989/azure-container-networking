@@ -1,0 +1,59 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "orchestratorAppID": {
+            "type": "string",
+            "defaultValue": "4daa1833-1fda-4c06-88b4-d0dcbe8cc169",
+            "metadata": {
+                "description": "orchestrator app ID"
+            }
+        },
+        "orchestratorTenantID": {
+            "type": "string",
+            "defaultValue": "72f988bf-86f1-41af-91ab-2d7cd011db47",
+            "metadata": {
+                "description": "orchestrator tenant ID"
+            }
+        },
+        "clusterRootCA": {
+            "type": "string",
+            "metadata": {
+                "description": "cluster root CA in base64 encoding"
+            }
+        },
+        "apiServerEndpoint": {
+            "type": "string",
+            "metadata": {
+                "description": "API server endpoint"
+            }
+        },
+        "controllerArmID": {
+            "type": "string",
+            "metadata": {
+                "description": "controller ARM ID"
+            }
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.DelegatedNetwork/orchestrators",
+            "apiVersion": "2021-03-15",
+            "name": "mdnc-e2e-cx-cluster",
+            "location": "East US 2 Euap",
+            "kind": "Kubernetes",
+            "identity": {
+                "type": "systemAssigned"
+            },
+            "properties": {
+                "orchestratorAppId": "[parameters('orchestratorAppID')]",
+                "orchestratorTenantId": "[parameters('orchestratorTenantID')]",
+                "clusterRootCA": "[parameters('clusterRootCA')]",
+                "apiServerEndpoint": "[parameters('apiServerEndpoint')]",
+                "controllerDetails": {
+                    "id": "[parameters('controllerArmID')]"
+                }
+            }
+        }
+    ]
+}

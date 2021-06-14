@@ -1,0 +1,55 @@
+{
+   "apiVersion": "vlabs",
+   "properties": {
+      "orchestratorProfile": {
+         "orchestratorType": "Kubernetes",
+         "orchestratorRelease": "1.19",
+         "kubernetesConfig": {
+            "networkPlugin": "azure",
+            "azureCNIVersion": "",
+            "azureCNIURLLinux": "",
+            "apiServerConfig": {
+               "--tls-min-version": "VersionTLS12",
+               "--tls-cipher-suites": "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
+               "--oidc-client-id": "4daa1833-1fda-4c06-88b4-d0dcbe8cc169",
+               "--oidc-issuer-url": "https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0",
+               "--oidc-username-claim": "azp",
+               "--oidc-username-prefix": "-"
+            },
+            "kubeletConfig": {
+               "--max-pods": "110"
+            },
+            "userAssignedID": "/subscriptions/9b8218f9-902a-4d20-a65c-e98acec5362f/resourceGroups/mdnc-nightly-test/providers/Microsoft.ManagedIdentity/userAssignedIdentities/kubernetes-sub-contributor",
+            "useManagedIdentity": true,
+            "addons": []
+         }
+      },
+      "masterProfile": {
+         "count": 1,
+         "vmSize": "Standard_D2_v2",
+         "availabilityProfile": "AvailabilitySet",
+         "platformUpdateDomainCount": 1
+      },
+      "agentPoolProfiles": [
+         {
+            "name": "agentpool1",
+            "count": 3,
+            "vmSize": "Standard_D2_v2",
+            "availabilityProfile": "AvailabilitySet",
+            "osType": "Linux",
+            "distro": "aks-ubuntu-18.04",
+            "platformUpdateDomainCount": 1
+         }
+      ],
+      "linuxProfile": {
+         "adminUsername": "azureuser",
+         "ssh": {
+            "publicKeys": [
+               {
+                  "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDZEWXPeZzdarCyLfk+TZPGnFlsbYL5pYwpgcaM2ramtkklESJAMrE1pNPGgaFT/TMXo++pIiqw87oeXCvKBnywVt8vA2+B8JjjmQMe/Zx8M/DcbWr+QgUI3OksFCPH2bXl8nwDRcl0pK9kdxQtTeFlgPeZ/wfP2BiH7eiapmyZb98dLKsrmp/U4wP5ccr58UqwOGhrJuZ9VjaGnAXUNHu5N/EC8QsrupL7TT2DYa6yN53/hfXiK4Q6zwHAaIAzFj2Kqek/T3emsQVNXLsCtnd+0hsOhBMo6xKcdEQSteUthJmWcTPJHnfTDbHosNHg0SGhVJ9ZUU1aDLl+LdW/77NwjxHdy0/IFlQyw5EGJfQNX/aJlS25Z+1iPPtt8r2WdaIBbKOxpGLZ+7ITsXyhDou68xHqas1g4QpKFbdrjAW+CNWXEYldK8c+WrAfM8ipgNal3Q+2w6oAGvq0GyICMmoPvQv6T9V7JL3D0/+8nCjGH3NlnCo9SobRGyvRbDMjQym8GhjxdC2QGDAHaV6UXHui5QgVrZ0GNfT32Tw+Wz2EMtsqLSv2kLz0t14Hna8f1ZMHx+abIAQQ5fyR5xYkarrvcDrZeDlukrf931TvO1T3q75jJL/zmMXNptmjxW2Qsw5V7yhqt49isHAXv3hGkhC1QAMAtmCCsxY/KTMjrp/I/w=="
+               }
+            ]
+         }
+      }
+   }
+}
