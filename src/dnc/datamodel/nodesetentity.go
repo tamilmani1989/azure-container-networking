@@ -18,6 +18,7 @@ const (
 	NodeSetFailureErrorCodeProperty = "FailureErrorCode"
 	NodeSetFailureErrorMsgProperty  = "FailureErrorMsg"
 	NodeSetFailureHTTPCodeProperty  = "FailureHttpCode"
+	NodeSetAPIVersion               = "ApiVersion"
 )
 
 // A NodeSetEntity represents a node set record in the NodeSetsTable.
@@ -38,6 +39,8 @@ type NodeSetEntity struct {
 	FailureDetail api.JsonErr
 	// MarkedForDelete is a flag that signals if the node set is being deleted.
 	MarkedForDelete bool
+	// APIVersion is the API version used when creating the node set.
+	APIVersion string
 }
 
 const nodeSetKeyFmt = "NodeSet_%s"
@@ -62,6 +65,7 @@ func (n *NodeSetEntity) ToStorageEntity() storage.Entity {
 			NodeSetFailureErrorCodeProperty: int64(n.FailureDetail.Code),
 			NodeSetFailureErrorMsgProperty:  n.FailureDetail.Text,
 			NodeSetFailureHTTPCodeProperty:  int64(n.FailureDetail.HTTPStatus),
+			NodeSetAPIVersion:               n.APIVersion,
 		},
 	}
 }

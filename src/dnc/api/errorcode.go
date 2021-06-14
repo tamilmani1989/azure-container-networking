@@ -304,6 +304,9 @@ const (
 
 	// AzureStorageError - Error coming from Azure storage
 	AzureStorageError
+
+	// EntityNotFound - Entity not found
+	EntityNotFound
 )
 
 func (e ErrorCode) String() string {
@@ -595,6 +598,9 @@ func (e ErrorCode) String() string {
 
 	case AzureStorageError:
 		return "AzureStorageError"
+
+	case EntityNotFound:
+		return "EntityNotFound"
 	}
 
 	return "Unknown Status"

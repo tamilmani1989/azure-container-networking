@@ -67,6 +67,7 @@ var (
 	NcRepo               *NetworkContainerRepo
 	NodeConfigRepo       *NodeConfigurationRepo
 	IpReservationSetRepo *ReservationSetRepo
+	NodeSetsRepo         *NodeSetRepo
 )
 
 // Init - Initialize repository.
@@ -86,16 +87,18 @@ func Init(
 		return err
 	}
 
+	dncPartitionKey = dataStoreSettings.AzureStorageInfo.PartitionKey
 	dataStoreShim = ds
 
 	AllocRepo = &AllocationRepo{Datastore: ds}
-	IpReservationRepo = NewReservationRepo(ds, dataStoreSettings.AzureStorageInfo.PartitionKey, loggershim.LS)
+	IpReservationRepo = NewReservationRepo(ds, dncPartitionKey, loggershim.LS)
 	PendingCleanupRepo = NewPendingResourceCleanupRepo(ds, loggershim.LS)
 	NcPendingPublishRepo = NewNcPendingPublishRequestRepo(ds)
 	NodeConfigRepo = &NodeConfigurationRepo{Datastore: ds}
-	IpReservationSetRepo = NewReservationSetRepo(ds, dataStoreSettings.AzureStorageInfo.PartitionKey, loggershim.LS)
+	IpReservationSetRepo = NewReservationSetRepo(ds, dncPartitionKey, loggershim.LS)
 	NcRepo = NewNetworkContainerRepo(ds)
 	NodeConfigRepo = &NodeConfigurationRepo{Datastore: ds}
+	NodeSetsRepo = &NodeSetRepo{Datastore: ds, PartitionKey: dncPartitionKey}
 
 	if dataStoreSettings.TestPersistenceStoreInfo.Test != "" {
 		RestoreState()
@@ -129,7 +132,6 @@ func Init(
 	managed = dncSettings.Managed
 	hostAgentSettings = hostAgentCfgSettings
 	disableResMapInSubnetConfig = dncSettings.DisableReservationMapInSubnetConfig
-	dncPartitionKey = dataStoreSettings.AzureStorageInfo.PartitionKey
 	batchSize = dataStoreSettings.MaxBatchSize
 
 	return nil

@@ -60,9 +60,6 @@ const (
 
 	// NCPendingPublishRepositoryName - Repository name for NC Pending publish/unpublish tasks
 	NCPendingPublishRepositoryName = "NCPendingPublishRepository"
-
-	// FeatureMigrationRespositoryName  - Repository name for FeatureMigration table
-	FeatureMigrationRespositoryName = "FeatureMigrationRespository"
 )
 
 const (
@@ -72,10 +69,15 @@ const (
 	DontAddToPendingQ = false
 )
 
+// todo: a value is only required if the table contains a single property that contains a json blob.
+//  in general, this is not an pattern we want to continue across the code, since it makes it difficult
+//  to leverage secondary indexes/more properties per row. this map will eventually be deprecated, and table
+//  properties will be contained in their specific repo files.
 // TableToColumnMap - Table name to column map
 var TableToColumnMap = map[string]string{
 	subnetConfigurationTableName:                     subnetConfigurationTag,
 	nodeTableName:                                    nodeConfigurationTag,
+	NodeSetsTableName:                                "",
 	ipReservationsTableName:                          reservationConfigurationTag,
 	pendingWorkItemsTableName:                        requestContextTag,
 	networkConfigurationTableName:                    networkConfigurationTag,

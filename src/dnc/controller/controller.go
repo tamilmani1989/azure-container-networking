@@ -16,11 +16,12 @@ import (
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
-	"github.com/Azure/azure-container-networking/cns"
 	"net/http"
 	"net/http/httputil"
 	"strings"
 	"time"
+
+	"github.com/Azure/azure-container-networking/cns"
 )
 
 type joinNetworkFunction func(networkID string, apiVersion string) *api.JsonErr
@@ -195,6 +196,42 @@ func (c *Controller) GetNodes(nodeSet string) (*api.NodesResponse, *api.JsonErr)
 // GetNodeConfiguration - Get node configuration
 func (c *Controller) GetNodeConfiguration(nodeID string) (*datamodel.NodeConfiguration, *api.JsonErr) {
 	return datamodel.NodeConfigRepo.TryQueryNodeConfiguration(nodeID)
+}
+
+// CreateNodeSet - Creates node set
+func (c *Controller) CreateNodeSet(nodeSetName, apiVersion string) (datamodel.NodeSetEntity, *api.JsonErr) {
+	nse := datamodel.NodeSetEntity{
+		PartitionKey: c.GetConfig().DataStoreSettings.AzureStorageInfo.PartitionKey,
+		RowKey:       datamodel.EncodeNodeSetRowKey(nodeSetName),
+		NodeSetName:  nodeSetName,
+		State:        datamodel.NodeSetCreate,
+		Status:       datamodel.Completed,
+		APIVersion:   apiVersion,
+	}
+
+	if err := datamodel.NodeSetsRepo.InsertNodeSet(nse); err != nil {
+		return datamodel.NodeSetEntity{}, err
+	}
+
+	return nse, nil
+}
+
+// GetNodeSet - Gets a node set by its name
+func (c *Controller) GetNodeSet(nodeSetName string) (*datamodel.NodeSetEntity, *api.JsonErr) {
+	return datamodel.NodeSetsRepo.TryQueryNodeSet(nodeSetName)
+}
+
+// CleanupNodeSet - Clean up a node set by its name
+func (c *Controller) CleanupNodeSet(nodeSetName string) *api.JsonErr {
+	// todo: this is temporary, clean up of a node set should create a pending item to process nodes/ncs deletion
+	//  and mark the node set as being in the process of deletion
+	return datamodel.NodeSetsRepo.DeleteNodeSet(nodeSetName)
+}
+
+// DeleteNodeSet - Delete a node set by its name
+func (c *Controller) DeleteNodeSet(nodeSetName string) *api.JsonErr {
+	// todo: add validation to check for any associated nodes, in which case this call should fail.
+	return datamodel.NodeSetsRepo.DeleteNodeSet(nodeSetName)
 }
 
 // createReservationSet creates reservation set and reservations associated with the set
@@ -373,7 +410,7 @@ func (c *Controller) CreateOrUpdateReservationSetRequest(
 
 	// Allow creation of the reservation set only if the subnet is in joined state
 	if !subnetConfig.Joined {
-		err = api.BadRequestf(api.SubnetIsNotJoined, "cannot create reservation set: %s as the subnet: %s " +
+		err = api.BadRequestf(api.SubnetIsNotJoined, "cannot create reservation set: %s as the subnet: %s "+
 			"in vnet: %s is not registered with dnc", reservationSetID, request.SubnetName, networkID)
 		return
 	}
@@ -409,17 +446,17 @@ func (c *Controller) CreateOrUpdateReservationSetRequest(
 
 	// Create pending work items for all the reservations as well as reservation set
 	// todo: This should be in pendingworkitems repo. Move it there after separating that into a repo.
-	pendingQueueRequests := make([]datamodel.PendingQueueRequest, len(reservationsToCreate) + 1)
+	pendingQueueRequests := make([]datamodel.PendingQueueRequest, len(reservationsToCreate)+1)
 	createDateTime := time.Now().UTC()
 	retryInterval := time.Second
-	for i, reservationToCreate :=  range reservationsToCreate {
+	for i, reservationToCreate := range reservationsToCreate {
 		pendingQueueRequests[i] = datamodel.PendingQueueRequest{
 			Key: reservationToCreate.RowKey,
 			Context: &datamodel.RequestContext{
-				Type:      datamodel.ReservationRequest,
-				NetworkID: networkID,
-				CreatedDateTime: createDateTime,
-				RetryInterval: retryInterval,
+				Type:                    datamodel.ReservationRequest,
+				NetworkID:               networkID,
+				CreatedDateTime:         createDateTime,
+				RetryInterval:           retryInterval,
 				StateTransitionDateTime: createDateTime,
 			},
 		}
@@ -428,10 +465,10 @@ func (c *Controller) CreateOrUpdateReservationSetRequest(
 	pendingQueueRequestReservationSet := datamodel.PendingQueueRequest{
 		Key: datamodel.GetReservationSetKey(networkID, reservationSetID),
 		Context: &datamodel.RequestContext{
-			Type:      datamodel.ReservationSetRequest,
-			NetworkID: networkID,
-			CreatedDateTime: createDateTime,
-			RetryInterval: retryInterval,
+			Type:                    datamodel.ReservationSetRequest,
+			NetworkID:               networkID,
+			CreatedDateTime:         createDateTime,
+			RetryInterval:           retryInterval,
 			StateTransitionDateTime: createDateTime,
 		},
 	}
@@ -506,14 +543,14 @@ func (c *Controller) GetReservationSet(
 		}
 	}
 
-	response := api.ReservationSetResponse {
-		NetworkID: reservationSet.NetworkID,
-		SubnetName: reservationSet.SubnetName,
-		ReservationSetID: reservationSet.ReservationSetID,
-		RequestedReservationCount: reservationSet.ReservationSetRequest.NumReservations,
+	response := api.ReservationSetResponse{
+		NetworkID:                  reservationSet.NetworkID,
+		SubnetName:                 reservationSet.SubnetName,
+		ReservationSetID:           reservationSet.ReservationSetID,
+		RequestedReservationCount:  reservationSet.ReservationSetRequest.NumReservations,
 		SuccessfulReservationCount: successfulReservationCount,
-		TotalReservationCount: len(reservations),
-		Reservations: reservationResponse,
+		TotalReservationCount:      len(reservations),
+		Reservations:               reservationResponse,
 		RequestStatus: api.RequestStatus{
 			State:         reservationSet.State.String(),
 			Status:        reservationSet.Status.String(),
@@ -591,7 +628,7 @@ func (c *Controller) deleteReservation(
 	networkID string,
 	reservationID string) *api.JsonErr {
 	sessionInfo := map[string]string{
-		datamodel.NetworkRepositoryName: networkID,
+		datamodel.NetworkRepositoryName:     networkID,
 		datamodel.ReservationRepositoryName: reservationID,
 	}
 

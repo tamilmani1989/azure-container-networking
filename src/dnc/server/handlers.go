@@ -5,6 +5,7 @@ package server
 import (
 	"dnc/api"
 	"dnc/controller"
+	"dnc/logger/loggershim"
 	"dnc/utils"
 	"encoding/json"
 	"fmt"
@@ -19,8 +20,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// url parameters
 const (
+	// url parameters
 	networkIDStr          = "networkID"
 	networkContainerIDStr = "networkContainerID"
 	nodeIDStr             = "nodeID"
@@ -28,10 +29,12 @@ const (
 	reservationSetIDStr   = "reservationSetID"
 	subnetStr             = "subnet"
 	infraNetworkIDStr     = "infraNetworkID"
-)
+	nodeSetName           = "nodeSetName"
 
-// content types
-const (
+	// query parameters
+	apiVersionQueryParam = "api-version"
+
+	// content types
 	contentTypeStr     = "Content-Type"
 	defaultContentType = "application/json; charset=UTF-8"
 )
@@ -62,7 +65,7 @@ func decodeRequestBody(request *http.Request, decodedBody interface{}) error {
 
 // CreateOrUpdateNode - Handle to create/update node.
 func CreateOrUpdateNode(w http.ResponseWriter, r *http.Request) {
-	apiVersion := r.URL.Query().Get("api-version")
+	apiVersion := r.URL.Query().Get(apiVersionQueryParam)
 	vars := mux.Vars(r)
 	nodeID, ok := vars[nodeIDStr]
 	if !ok {
@@ -197,7 +200,7 @@ func CreateOrUpdateReservationSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiVersion := r.URL.Query().Get("api-version")
+	apiVersion := r.URL.Query().Get(apiVersionQueryParam)
 	err := ctrler.CreateOrUpdateReservationSetRequest(networkID, reservationSetID, request, apiVersion)
 	if err == nil {
 		w.WriteHeader(http.StatusAccepted)
@@ -209,7 +212,7 @@ func CreateOrUpdateReservationSet(w http.ResponseWriter, r *http.Request) {
 
 // ReserveIP - Handler for IP reservation
 func ReserveIP(w http.ResponseWriter, r *http.Request) {
-	apiVersion := r.URL.Query().Get("api-version")
+	apiVersion := r.URL.Query().Get(apiVersionQueryParam)
 	vars := mux.Vars(r)
 	networkID, ok := vars[networkIDStr]
 	if !ok {
@@ -444,6 +447,117 @@ func GetReservationStatus(w http.ResponseWriter, r *http.Request) {
 	setRequestFailed(w, getErr)
 }
 
+func GetNodeSetStatus(w http.ResponseWriter, r *http.Request) {
+	nodeSetName, ok := mux.Vars(r)[nodeSetName]
+	if !ok {
+		out := api.BadRequest(api.StatusBadRequest, "node set name not found in url")
+		setRequestFailed(w, out)
+		return
+	}
+
+	nse, err := ctrler.GetNodeSet(nodeSetName)
+	if err != nil {
+		setRequestFailed(w, err)
+		return
+	}
+
+	if nse == nil {
+		out := api.NotFoundf(api.EntityNotFound, "node set %s not found", nodeSetName)
+		setRequestFailed(w, out)
+		return
+	}
+
+	status := api.RequestStatus{
+		State:         nse.State.String(),
+		Status:        nse.Status.String(),
+		FailureDetail: nse.FailureDetail,
+	}
+
+	w.Header().Set(contentTypeStr, defaultContentType)
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(status); err != nil {
+		loggershim.LS.Errorf("could not encode node set status: %v", err)
+	}
+}
+
+func CreateNodeSet(w http.ResponseWriter, r *http.Request) {
+	apiVersion := r.URL.Query().Get(apiVersionQueryParam)
+	nodeSetName, ok := mux.Vars(r)[nodeSetName]
+	if !ok {
+		setRequestFailed(w, api.BadRequest(api.InvalidNetworkID, api.NetworkIDMissing))
+		return
+	}
+
+	bs, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		setRequestFailed(w, api.InternalServerErrorf(api.StatusInternalServerError, "could not consume request body: %v", err))
+		return
+	}
+
+	// todo: currently there are no required fields in the body of a node set creation request.
+	//  until we add any required fields, we want to allow empty body or empty json object.
+	if len(bs) != 0 {
+		var m map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+			setRequestFailed(w, api.BadRequest(api.JsonBodyUnMarshalFailed, fmt.Sprintf("could not parse node set request body: %v", err)))
+			return
+		}
+	}
+
+	nse, apiErr := ctrler.CreateNodeSet(nodeSetName, apiVersion)
+	if apiErr != nil {
+		setRequestFailed(w, apiErr)
+		return
+	}
+
+	nseResp := api.NodeSetResponse{
+		NodeSetName: nse.NodeSetName,
+		RequestStatus: api.RequestStatus{
+			State:         nse.State.String(),
+			Status:        nse.Status.String(),
+			FailureDetail: nse.FailureDetail,
+		},
+	}
+
+	w.Header().Set(contentTypeStr, defaultContentType)
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(nseResp); err != nil {
+		loggershim.LS.Errorf("could not encode node set response: %v", err)
+	}
+}
+
+func DeleteNodeSet(w http.ResponseWriter, r *http.Request) {
+	nodeSetName, ok := mux.Vars(r)[nodeSetName]
+	if !ok {
+		out := api.BadRequest(api.StatusBadRequest, "node set name not found in url")
+		setRequestFailed(w, out)
+		return
+	}
+
+	if err := ctrler.DeleteNodeSet(nodeSetName); err != nil {
+		setRequestFailed(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func CleanupNodeSet(w http.ResponseWriter, r *http.Request) {
+	nodeSetName, ok := mux.Vars(r)[nodeSetName]
+	if !ok {
+		out := api.BadRequest(api.StatusBadRequest, "node set name not found in url")
+		setRequestFailed(w, out)
+		return
+	}
+
+	if err := ctrler.CleanupNodeSet(nodeSetName); err != nil {
+		setRequestFailed(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+}
+
 // DeleteReservation - Handler for deleting reservation request.
 func DeleteReservation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -570,7 +684,7 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var body []byte
 
-	apiVersion := r.URL.Query().Get("api-version")
+	apiVersion := r.URL.Query().Get(apiVersionQueryParam)
 	vars := mux.Vars(r)
 	networkID, ok := vars[networkIDStr]
 	if !ok {
@@ -669,7 +783,7 @@ func CreateNetworkContainer(w http.ResponseWriter, r *http.Request) {
 func CreateOrUpdateNetworkContainerV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(contentTypeStr, defaultContentType)
 
-	apiVersion := r.URL.Query().Get("api-version")
+	apiVersion := r.URL.Query().Get(apiVersionQueryParam)
 	pathVars := mux.Vars(r)
 
 	networkID, ok := pathVars[networkIDStr]
@@ -892,7 +1006,7 @@ func GetNetworkContainerCleanupStatus(w http.ResponseWriter, r *http.Request) {
 
 // RegisterNode - mark a node as registered
 func RegisterNode(w http.ResponseWriter, r *http.Request) {
-	apiVersion := r.URL.Query().Get("api-version")
+	apiVersion := r.URL.Query().Get(apiVersionQueryParam)
 	vars := mux.Vars(r)
 
 	nodeID, ok := vars[nodeIDStr]
@@ -1042,7 +1156,7 @@ func SyncNodeNetworkContainers(w http.ResponseWriter, r *http.Request) {
 
 // CreateNetwork - Handler for create network
 func CreateNetwork(w http.ResponseWriter, r *http.Request) {
-	apiVersion := r.URL.Query().Get("api-version")
+	apiVersion := r.URL.Query().Get(apiVersionQueryParam)
 	vars := mux.Vars(r)
 	networkID, ok := vars[networkIDStr]
 	if !ok {
@@ -1181,7 +1295,7 @@ func PutSubnet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	apiVersion := r.URL.Query().Get("api-version")
+	apiVersion := r.URL.Query().Get(apiVersionQueryParam)
 	switch apiVersion {
 	case "2018-03-01":
 		// Set the Auth Token to empty if the request is of type Delete

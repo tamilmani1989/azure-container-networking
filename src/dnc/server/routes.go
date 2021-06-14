@@ -97,6 +97,30 @@ var routes = Routes{
 		DeleteReservationSet,
 	},
 	Route{
+		"GetNodeSetStatus",
+		http.MethodGet,
+		"/nodesets/{nodeSetName}/status",
+		GetNodeSetStatus,
+	},
+	Route{
+		"CreateNodeSet",
+		http.MethodPut,
+		"/nodesets/{nodeSetName}",
+		CreateNodeSet,
+	},
+	Route{
+		"DeleteNodeSet",
+		http.MethodDelete,
+		"/nodesets/{nodeSetName}",
+		DeleteNodeSet,
+	},
+	Route{
+		"CleanupNodeSet",
+		http.MethodPost,
+		"/nodesets/{nodeSetName}/cleanup",
+		CleanupNodeSet,
+	},
+	Route{
 		"CreateNetworkContainer",
 		http.MethodPost,
 		"/networks/{networkID}/networkcontainer/{networkContainerID}",
