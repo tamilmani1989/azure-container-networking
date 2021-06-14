@@ -34,7 +34,7 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             get; set;
         }
 
-        [JsonProperty("privateLinkId")]
+        [JsonProperty("privateLinkResourceId")]
         public string PrivateLinkId
         {
             get; set;
