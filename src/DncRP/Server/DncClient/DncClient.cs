@@ -83,12 +83,18 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
         /// <returns></returns>
         public async Task DeleteSubnetAsync(
             string virtualNetworkId,
-            string subnetName)
+            string subnetName,
+            bool forceDelete)
         {
             string accessToken = await GetDncAccessTokenAsync();
 
             // send http delete for subnet
             string requestUri = string.Format(dncPutSubnetFormat, dncEndpoint, virtualNetworkId, subnetName);
+            if (forceDelete)
+            {
+                requestUri = requestUri + "&force-delete=true";
+            }
+
             using (HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Delete, requestUri))
             {
                 requestMessage.Headers.Authorization = new AuthenticationHeaderValue(scheme: "Bearer", parameter: accessToken);

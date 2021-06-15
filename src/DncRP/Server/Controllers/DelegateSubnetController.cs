@@ -585,14 +585,16 @@ namespace Microsoft.Azure.ContainerNetworking.DncRP
             }
 
             ControllerProperties controllerProperties = (ControllerProperties)controller.Properties;
-            logger.CLogInformation("Going to call dnc delete subnet for subnetname {0} vnet id {1} to dnc ep {2}", subnetName,
-                 vnetId, controllerProperties.PropertiesList.DncEndpoint);
+                 
             // Initialize dnc client with gateway endpoint
             DncClient dncClient = new DncClient(this.dncHttpUtility, this.logger,
                                       controllerProperties.PropertiesList.DncEndpoint);
-            
+
+            bool.TryParse(HttpContext.Request.Query["forceDelete"], out bool forceDelete);
             // call dnc delete subnet
-            await dncClient.DeleteSubnetAsync(vnetId, subnetName);
+            logger.CLogInformation("Going to call dnc delete subnet for subnetname {0} vnet id {1} to dnc ep {2} forceDelete{3}", 
+                subnetName, vnetId, controllerProperties.PropertiesList.DncEndpoint, forceDelete);
+            await dncClient.DeleteSubnetAsync(vnetId, subnetName, forceDelete);
 
             DncSettings dncSettings = CurrentContext.DncSettings;
             // call dnc get subnet to check if subnet is deleted
