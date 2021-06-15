@@ -221,8 +221,8 @@ func (c *Controller) GetNodeSet(nodeSetName string) (*datamodel.NodeSetEntity, *
 	return datamodel.NodeSetsRepo.TryQueryNodeSet(nodeSetName)
 }
 
-// CleanupNodeSet - Clean up a node set by its name
-func (c *Controller) CleanupNodeSet(nodeSetName string) *api.JsonErr {
+// ForceDeleteNodeSet - Force delete a node set by its name
+func (c *Controller) ForceDeleteNodeSet(nodeSetName string) *api.JsonErr {
 	// todo: this is temporary, clean up of a node set should create a pending item to process nodes/ncs deletion
 	//  and mark the node set as being in the process of deletion
 	return datamodel.NodeSetsRepo.DeleteNodeSet(nodeSetName)

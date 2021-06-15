@@ -115,12 +115,6 @@ var routes = Routes{
 		DeleteNodeSet,
 	},
 	Route{
-		"CleanupNodeSet",
-		http.MethodPost,
-		"/nodesets/{nodeSetName}/cleanup",
-		CleanupNodeSet,
-	},
-	Route{
 		"CreateNetworkContainer",
 		http.MethodPost,
 		"/networks/{networkID}/networkcontainer/{networkContainerID}",

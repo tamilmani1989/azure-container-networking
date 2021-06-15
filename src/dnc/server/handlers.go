@@ -32,7 +32,8 @@ const (
 	nodeSetName           = "nodeSetName"
 
 	// query parameters
-	apiVersionQueryParam = "api-version"
+	apiVersionQueryParam  = "api-version"
+	forceDeleteQueryParam = "force-delete"
 
 	// content types
 	contentTypeStr     = "Content-Type"
@@ -534,28 +535,29 @@ func DeleteNodeSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	forceDelete, err := extractBoolQueryParam(r.URL, forceDeleteQueryParam)
+	if err != nil {
+		out := api.BadRequestf(api.StatusBadRequest, "invalid boolean value for force-delete: %v", err)
+		setRequestFailed(w, out)
+		return
+	}
+
+	if forceDelete {
+		if err := ctrler.ForceDeleteNodeSet(nodeSetName); err != nil {
+			setRequestFailed(w, err)
+			return
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+
 	if err := ctrler.DeleteNodeSet(nodeSetName); err != nil {
 		setRequestFailed(w, err)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-}
-
-func CleanupNodeSet(w http.ResponseWriter, r *http.Request) {
-	nodeSetName, ok := mux.Vars(r)[nodeSetName]
-	if !ok {
-		out := api.BadRequest(api.StatusBadRequest, "node set name not found in url")
-		setRequestFailed(w, out)
-		return
-	}
-
-	if err := ctrler.CleanupNodeSet(nodeSetName); err != nil {
-		setRequestFailed(w, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusAccepted)
 }
 
 // DeleteReservation - Handler for deleting reservation request.
