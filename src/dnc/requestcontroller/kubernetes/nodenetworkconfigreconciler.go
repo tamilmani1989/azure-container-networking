@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -42,7 +43,7 @@ type NodeNetworkConfigReconciler struct {
 	subnetInfoProvider       requestcontroller.SubnetInfoProvider
 	logger                   logrus.FieldLogger
 	dncNodeNameToNCDetails   *cache.Cache // map name of NNC to NC ID
-	registeredDNCNodeToIP    *cache.Cache // Keep a map of nodes and ips to know what has already been registered on DNC
+	dncNodeNameToNodeInfo    *cache.Cache // Keep a map of nodes and ips to know what has already been registered on DNC
 	k8sNodetoDNCNode         *cache.Cache // Keep a map of k8s node name to DNC node name to know what we've registered and what it was called
 	registeredVnets          *cache.Cache // Keep a set of VNET GUIDs registered on DNC
 	registeredSubnets        *cache.Cache // Keep a set of Subnets registered on DNC
@@ -54,6 +55,7 @@ type NodeNetworkConfigReconciler struct {
 	skipSubnetJoin           bool
 	metricsPublishers        []requestcontroller.MetricsPublisher
 	recorder                 record.EventRecorder
+	nodeSet                  string
 }
 
 // NodeNetworkConfigReconcilerOptions options to create NNC Reconciler
@@ -68,11 +70,17 @@ type NodeNetworkConfigReconcilerOptions struct {
 	OrchestratorID              string
 	SkipSubnetJoin              bool
 	Recorder                    record.EventRecorder
+	NodeSet                     string
 }
 
 type ncDetails struct {
 	id       string
 	vnetGUID string
+}
+
+type cachedNodeInfo struct {
+	ipAddress string
+	nodeSet   string
 }
 
 // NewNodeNetworkConfigReconciler returns a new NNC Reconciler based on the provided options
@@ -83,7 +91,7 @@ func NewNodeNetworkConfigReconciler(opts NodeNetworkConfigReconcilerOptions) *No
 
 	// build caches
 	dncNodeNameToNCDetails := cache.New(cache.NoExpiration, cache.NoExpiration)
-	registeredDNCNodeToIP := cache.New(cache.NoExpiration, cache.NoExpiration)
+	dncNodeNameToNodeInfo := cache.New(cache.NoExpiration, cache.NoExpiration)
 	registeredVnets := cache.New(cache.NoExpiration, cache.NoExpiration)
 	registeredSubnets := cache.New(cache.NoExpiration, cache.NoExpiration)
 	delegationGUIDToVnetGUID := cache.New(cache.NoExpiration, cache.NoExpiration)
@@ -96,7 +104,7 @@ func NewNodeNetworkConfigReconciler(opts NodeNetworkConfigReconcilerOptions) *No
 		subnetInfoProvider:       opts.SubnetInfoProvider,
 		logger:                   logger,
 		dncNodeNameToNCDetails:   dncNodeNameToNCDetails,
-		registeredDNCNodeToIP:    registeredDNCNodeToIP,
+		dncNodeNameToNodeInfo:    dncNodeNameToNodeInfo,
 		k8sNodetoDNCNode:         k8sNodeToDNCNode,
 		registeredVnets:          registeredVnets,
 		registeredSubnets:        registeredSubnets,
@@ -106,13 +114,14 @@ func NewNodeNetworkConfigReconciler(opts NodeNetworkConfigReconcilerOptions) *No
 		skipSubnetJoin:           opts.SkipSubnetJoin,
 		metricsPublishers: []requestcontroller.MetricsPublisher{
 			&processedNNCMetricPublisher{
-				registeredNodes: registeredDNCNodeToIP,
+				registeredNodes: dncNodeNameToNodeInfo,
 				orchestratorID:  opts.OrchestratorID,
 				duration:        opts.ProcessedNNCMetricsDuration,
 				logger:          logger,
 			},
 		},
 		recorder: opts.Recorder,
+		nodeSet:  opts.NodeSet,
 	}
 }
 
@@ -396,7 +405,7 @@ func (n *NodeNetworkConfigReconciler) publishCreateOrUpdateNC(ctx context.Contex
 	}
 
 	// Register the Node if not already registered using the InfraVnetId
-	if err := n.ensureNodeIsRegistered(ctx, dncNodeName, internalIPAddress, cns.KubernetesCRD, infraVnetId); err != nil {
+	if err := n.ensureNodeIsRegistered(ctx, dncNodeName, internalIPAddress, cns.KubernetesCRD, infraVnetId, n.nodeSet); err != nil {
 		return err
 	}
 
@@ -525,24 +534,32 @@ func (n *NodeNetworkConfigReconciler) ensureSubnetIsRegistered(ctx context.Conte
 	return nil
 }
 
-func (n *NodeNetworkConfigReconciler) ensureNodeIsRegistered(ctx context.Context, dncNodeName, ipAddress, orchestratorType, infraVnetGUID string) error {
-	ipInCache, found := n.registeredDNCNodeToIP.Get(dncNodeName)
-	ip := ""
+func (n *NodeNetworkConfigReconciler) ensureNodeIsRegistered(ctx context.Context, dncNodeName, ipAddress, orchestratorType, infraVnetGUID, nodeSet string) error {
+	nodeInfoInCache, found := n.dncNodeNameToNodeInfo.Get(dncNodeName)
+	var nodeInfo cachedNodeInfo
 	if found {
-		ip = ipInCache.(string)
+		nodeInfo = nodeInfoInCache.(cachedNodeInfo)
 	}
 
-	if !found || ip != ipAddress {
+	newNodeInfo := cachedNodeInfo{
+		ipAddress: ipAddress,
+		nodeSet:   nodeSet,
+	}
+
+	if !reflect.DeepEqual(nodeInfo, newNodeInfo) {
 		n.logger.WithFields(logrus.Fields{
-			"infraVnetID": infraVnetGUID,
-			"dncNodeName": dncNodeName,
-		}).Infof("Node %s not found in cache or IP doesn't match, registering on DNC", dncNodeName)
-		err := n.dncClient.UpsertNode(ctx, dncNodeName, ipAddress, cns.KubernetesCRD, infraVnetGUID)
-		if err != nil {
+			"infraVnetID":    infraVnetGUID,
+			"dncNodeName":    dncNodeName,
+			"cachedNodeInfo": fmt.Sprintf("%+v", nodeInfo),
+			"newNodeInfo":    fmt.Sprintf("%+v", newNodeInfo),
+		}).Infof("Node %s not found in cache or info doesn't match, registering on DNC", dncNodeName)
+
+		if err := n.dncClient.UpsertNode(ctx, dncNodeName, ipAddress, cns.KubernetesCRD, infraVnetGUID, nodeSet); err != nil {
 			// DNC client error, requeue
 			return err
 		}
-		n.registeredDNCNodeToIP.Set(dncNodeName, ipAddress, cache.NoExpiration)
+
+		n.dncNodeNameToNodeInfo.Set(dncNodeName, newNodeInfo, cache.NoExpiration)
 	}
 
 	return nil

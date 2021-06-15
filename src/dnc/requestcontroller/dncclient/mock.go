@@ -5,7 +5,6 @@ package dncclient
 import (
 	"context"
 	"dnc/api"
-	"dnc/requestcontroller"
 	"fmt"
 	"net/http"
 
@@ -17,8 +16,6 @@ type MockSynchronousDNCClient struct {
 	subnets map[string]bool
 	nodes   map[string]*api.NodeInfoResponse
 }
-
-var _ requestcontroller.SynchronousDNCClient = &MockSynchronousDNCClient{}
 
 func (m *MockSynchronousDNCClient) GetNode(ctx context.Context, nodeID string) (*api.NodeInfoResponse, error) {
 	fmt.Printf("GetNode(ctx, %s)\n", nodeID)
@@ -33,12 +30,14 @@ func (m *MockSynchronousDNCClient) GetNode(ctx context.Context, nodeID string) (
 	return node, nil
 }
 
-func (m *MockSynchronousDNCClient) GetNodes(ctx context.Context) (*api.NodesResponse, error) {
-	fmt.Println("GetNodes(ctx)")
+func (m *MockSynchronousDNCClient) GetNodes(ctx context.Context, nodeSet string) (*api.NodesResponse, error) {
+	fmt.Printf("GetNodes(ctx, %s)", nodeSet)
 	var nodes []api.SlimNodeInfo
 
-	for name := range m.nodes {
-		nodes = append(nodes, api.SlimNodeInfo{Name: name})
+	for name, nodeInfo := range m.nodes {
+		if nodeInfo.NodeInfo.NodeSet == nodeSet || nodeSet == "" {
+			nodes = append(nodes, api.SlimNodeInfo{Name: name})
+		}
 	}
 
 	return &api.NodesResponse{
@@ -46,8 +45,8 @@ func (m *MockSynchronousDNCClient) GetNodes(ctx context.Context) (*api.NodesResp
 	}, nil
 }
 
-func (m *MockSynchronousDNCClient) UpsertNode(ctx context.Context, nodeID, ipAddress, orchestratorType, infraVnet string) error {
-	fmt.Printf("UpsertNode(ctx, %s, %s, %s, %s)\n", nodeID, ipAddress, orchestratorType, infraVnet)
+func (m *MockSynchronousDNCClient) UpsertNode(ctx context.Context, nodeID, ipAddress, orchestratorType, infraVnet, nodeSet string) error {
+	fmt.Printf("UpsertNode(ctx, %s, %s, %s, %s, %s)\n", nodeID, ipAddress, orchestratorType, infraVnet, nodeSet)
 	node, found := m.nodes[nodeID]
 	var ncs []api.NetworkContainerResponse
 	if found {
@@ -61,6 +60,7 @@ func (m *MockSynchronousDNCClient) UpsertNode(ctx context.Context, nodeID, ipAdd
 			IPAddresses:           []string{ipAddress},
 			OrchestratorType:      orchestratorType,
 			InfrastructureNetwork: infraVnet,
+			NodeSet:               nodeSet,
 		},
 		NetworkContainers: ncs,
 	}

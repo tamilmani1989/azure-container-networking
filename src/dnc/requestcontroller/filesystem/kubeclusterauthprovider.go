@@ -1,6 +1,6 @@
 // Copyright 2020 Microsoft. All rights reserved.
 
-package requestcontroller
+package filesystem
 
 import (
 	"context"
@@ -8,17 +8,19 @@ import (
 	"io/ioutil"
 	"sync"
 
+	"dnc/requestcontroller"
+
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-type KubeconfigFromFileProvider struct {
-	Filename       string
+type KubeClusterAuthProvider struct {
+	KubeconfigFile string
 	OrchestratorID string
 }
 
-func (k KubeconfigFromFileProvider) GetAllClusterAuthConfigs(ctx context.Context) (map[string]ClusterAuthConfig, error) {
-	kubeconfigBytes, err := ioutil.ReadFile(k.Filename)
+func (k KubeClusterAuthProvider) GetAllClusterAuthConfigs(ctx context.Context) (map[string]requestcontroller.ClusterAuthConfig, error) {
+	kubeconfigBytes, err := ioutil.ReadFile(k.KubeconfigFile)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +30,7 @@ func (k KubeconfigFromFileProvider) GetAllClusterAuthConfigs(ctx context.Context
 		return nil, fmt.Errorf("could not build REST config from kubeconfig file: %w", err)
 	}
 
-	return map[string]ClusterAuthConfig{
+	return map[string]requestcontroller.ClusterAuthConfig{
 		k.OrchestratorID: &kubeconfigClusterAuthConfig{
 			restConfig: restConfig,
 		},

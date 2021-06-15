@@ -79,22 +79,25 @@ runner: runner-binary runner-archive
 requestcontroller: requestcontroller-binary requestcontroller-archive
 
 ##@ Building
-GO_ENV := CGO_ENABLED=0
-
+dnc-binary: export CGO_ENABLED = 0
 dnc-binary: ## Build the Azure DNC Service (TODO: enable pubsubproxy)
-	$(GO_ENV) go build -mod=vendor -v -o $(DNC_BUILD_DIR)/dnc$(EXE_EXT) -ldflags "-X dnc/utils.Version=$(VERSION) -X dnc/aiwrapper.aiMetadata=$(DNC_AI_ID) -s -w"
+	go build -mod=vendor -v -o $(DNC_BUILD_DIR)/dnc$(EXE_EXT) -ldflags "-X dnc/utils.Version=$(VERSION) -X dnc/aiwrapper.aiMetadata=$(DNC_AI_ID) -s -w"
 
+dnctl-binary: export CGO_ENABLED = 0
 dnctl-binary: ## Build dnctl
-	cd $(DNCTL_DIR) && $(GO_ENV) go build -mod=vendor -v -o $(REPO_ROOT)/src/dnc/$(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT)
+	cd $(DNCTL_DIR) && go build -mod=vendor -v -o $(REPO_ROOT)/src/dnc/$(DNCTL_BUILD_DIR)/dnctl$(EXE_EXT)
 
+lbrunnernc-binary: export CGO_ENABLED = 0
 lbrunnernc-binary: ## Build lb runner nc image
-	cd $(LBRUNNERNC_DIR) && $(GO_ENV) go build -mod=vendor -v -o $(REPO_ROOT)/src/dnc/$(LBRUNNERNC_BUILD_DIR)/lbrunnernc$(EXE_EXT)
+	cd $(LBRUNNERNC_DIR) && go build -mod=vendor -v -o $(REPO_ROOT)/src/dnc/$(LBRUNNERNC_BUILD_DIR)/lbrunnernc$(EXE_EXT)
 
+runner-binary: export CGO_ENABLED = 0
 runner-binary: ## Build runner
-	cd $(RUNNER_DIR) && $(GO_ENV) go build -mod=vendor -v -o $(REPO_ROOT)/src/dnc/$(RUNNER_BUILD_DIR)/runner$(EXE_EXT)
+	cd $(RUNNER_DIR) && go build -mod=vendor -v -o $(REPO_ROOT)/src/dnc/$(RUNNER_BUILD_DIR)/runner$(EXE_EXT)
 
+requestcontroller-binary: export CGO_ENABLED = 0
 requestcontroller-binary: ## Build Request Controller
-	cd $(REQCTRL_DIR) && $(GO_ENV) go build -mod=vendor -v -o $(REPO_ROOT)/src/dnc/$(REQCTRL_BUILD_DIR)/dnc-request-controller$(EXE_EXT)
+	cd $(REQCTRL_DIR) && go build -mod=vendor -v -o $(REPO_ROOT)/src/dnc/$(REQCTRL_BUILD_DIR)/dnc-request-controller$(EXE_EXT)
 
 all: dnc dnctl lbrunnernc runner requestcontroller ## Build all binaries
 

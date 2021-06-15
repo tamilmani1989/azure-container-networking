@@ -56,7 +56,7 @@ var (
 			// read the command line flags
 			configFile, err := cmd.Flags().GetString(configFlag)
 			if err != nil {
-				logrus.Fatal(err, "Error getting config flag value")
+				logrus.Fatal(err, "error getting config flag value")
 			}
 
 			// run the request controller
@@ -74,7 +74,7 @@ var (
 				// return to cancel the context and exit
 				return
 			case err := <-errChan:
-				logrus.Fatalf("Error running request controller: %v", err)
+				logrus.Fatalf("error running request controller: %v", err)
 			}
 		},
 	}
@@ -133,9 +133,9 @@ func runRequestController(ctx context.Context, configFile string) error {
 
 	switch mode := kubeconfigInfo.Mode; mode {
 	case requestcontroller.KubeconfigFileMode:
-		kubeClusterAuthProvider = requestcontroller.KubeconfigFromFileProvider{
-			Filename:       kubeconfigInfo.File,
-			OrchestratorID: "", //TODO: get this from config
+		kubeClusterAuthProvider = filesystem.KubeClusterAuthProvider{
+			KubeconfigFile: kubeconfigInfo.File,
+			OrchestratorID: config.KubernetesConfig.KubeconfigInfo.OrchestratorID,
 		}
 	case requestcontroller.KubeconfigDatastoreMode:
 		// Datastore mode requires a secret provider
@@ -257,7 +257,7 @@ func runRequestController(ctx context.Context, configFile string) error {
 		err = aiwrapper.CreateTelemetryHandle(config.TelemetrySettings.AIMetadata, aiConfig)
 		if err != nil {
 			// Print message to be consistent with dnc, but might be worth exiting with error?
-			logger.WithError(err).Error("Error creating AITelemetry handle")
+			logger.WithError(err).Error("error creating AITelemetry handle")
 		}
 	}
 

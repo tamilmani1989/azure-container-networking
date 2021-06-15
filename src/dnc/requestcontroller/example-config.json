@@ -2,7 +2,8 @@
 	"kubernetesConfig": {
 		"kubeconfigInfo":  {
 			"mode": "file",
-			"file": "C:\\Users\\matlong\\.kube\\config"
+			"file": "C:\\Users\\matlong\\.kube\\config",
+			"orchestratorID": "minikube-orch"
 		},
 		"namespace": "kube-system"
 	},

@@ -187,8 +187,8 @@ type SubnetInfo struct {
 //SynchronousDNCClient is an idempotent, syncronous DNC client.
 type SynchronousDNCClient interface {
 	GetNode(ctx context.Context, nodeID string) (*api.NodeInfoResponse, error)
-	GetNodes(ctx context.Context) (*api.NodesResponse, error)
-	UpsertNode(ctx context.Context, nodeID, ipAddress, orchestratorType, infraVnet string) error
+	GetNodes(ctx context.Context, nodeSet string) (*api.NodesResponse, error)
+	UpsertNode(ctx context.Context, nodeID, ipAddress, orchestratorType, infraVnet, nodeSet string) error
 	DeleteNode(ctx context.Context, nodeID string) error
 	GetNC(ctx context.Context, networkID, ncID string) (*api.NetworkContainerResponse, error)
 	UpsertNcV2(ctx context.Context, networkID, ncID string, req api.NetworkContainerRequestV2) error

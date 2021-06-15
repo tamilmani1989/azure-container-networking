@@ -139,6 +139,11 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 		return nil, err
 	}
 
+	var nodeSet string
+	if c.Config.DNCClientConfig.UseNodeSets {
+		nodeSet = opts.OrchestratorID
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	return &requestcontroller.ClusterManager{
 		RunningContext: requestcontroller.CancellableContext{
@@ -167,6 +172,7 @@ func (c *ClusterManagerBuilder) Build(opts requestcontroller.ClusterManagerBuild
 			nncNamespace:               c.Config.KubernetesConfig.Namespace,
 			initialIPCount:             c.Config.RequestScalerConfig.BatchSize,
 			enableStartupNodeReconcile: c.Config.FeatureFlags.EnableStartupNodeReconcile,
+			nodeSet:                    nodeSet,
 		},
 		OrchestratorID: opts.OrchestratorID,
 	}, nil

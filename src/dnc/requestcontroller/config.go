@@ -46,6 +46,7 @@ func DefaultConfig() Config {
 			PollingInterval: "3s",
 			DNCEndpoint:     "http://127.0.0.1:9000",
 			SkipSubnetJoin:  false,
+			UseNodeSets:     false,
 		},
 		DataStoreSettings: configuration.DataStoreSettings{
 			AzureStorageInfo:         configuration.AzureStorageInfo{},
@@ -122,8 +123,10 @@ type KubernetesConfig struct {
 
 type KubeconfigInfo struct {
 	// Mode is one of (file | datastore)
-	Mode                             string            `json:"mode"`
-	File                             string            `json:"file"`
+	Mode string `json:"mode"`
+	File string `json:"file"`
+	// OrchestratorID is used in file mode to provide an orchestrator ID. Datastore mode discovers this from db.
+	OrchestratorID                   string            `json:"orchestratorID"`
 	ManagedDNCGUID                   string            `json:"managedDNCGUID"`
 	AzureEnvironment                 string            `json:"azureEnvironment"`
 	ClientCertificatesSecretMode     string            `json:"clientCertificatesSecretMode"`
@@ -152,6 +155,7 @@ type DNCClientConfig struct {
 	PollingInterval string `json:"pollingInterval,omitempty"`
 	DNCEndpoint     string `json:"dncEndpoint,omitempty"`
 	SkipSubnetJoin  bool   `json:"skipSubnetJoin,omitempty"`
+	UseNodeSets     bool   `json:"useNodeSets,omitempty"`
 }
 
 type LoggingConfig struct {

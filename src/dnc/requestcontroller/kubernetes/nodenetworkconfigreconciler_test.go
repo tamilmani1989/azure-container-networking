@@ -52,7 +52,7 @@ func TestReconcileNewNNC(t *testing.T) {
 	vnetGUID := "93ca9913-dc26-40fe-9e16-9164669590a0"
 	subnetName := "test-subnet"
 	subnetToken := "bd48a062-efa7-4c50-af4b-9c97add5b8cc"
-	orchestratorID := "c61a5610-8eb8-4e00-aacb-40a3e7b1379a"
+	orchestratorID := "a57a005f-f169-41b1-897a-ec47a6953279"
 
 	k8sClient := newMockK8sClient()
 	dncClient := syncdncclient.MockSynchronousDNCClient{}
@@ -80,6 +80,7 @@ func TestReconcileNewNNC(t *testing.T) {
 		Logger:         logger,
 		Recorder:       &record.FakeRecorder{},
 		OrchestratorID: orchestratorID,
+		NodeSet:        orchestratorID,
 	})
 
 	nnc := acnv1alpha.NodeNetworkConfig{
@@ -129,6 +130,15 @@ func TestReconcileNewNNC(t *testing.T) {
 		t.Fatalf("encountered error when getting dnc node name from k8s node name: %+v", err)
 	}
 
+	nodeIDs, err := dncClient.GetNodes(context.Background(), orchestratorID)
+	if err != nil {
+		t.Fatalf("error getting all nodes: %v", err)
+	}
+
+	if len(nodeIDs.Nodes) != 1 || nodeIDs.Nodes[0].Name != dncNodeName {
+		t.Fatalf("expected 1 node named %s, got %+v", dncNodeName, nodeIDs)
+	}
+
 	nodeInfoResp, err := dncClient.GetNode(context.Background(), dncNodeName)
 	if err != nil {
 		t.Fatalf("Expected to receive node from DNC but received error %+v", err)
@@ -161,7 +171,7 @@ func TestReconcileNNCWithLegacyNodeName(t *testing.T) {
 	dncClient := syncdncclient.MockSynchronousDNCClient{}
 
 	// Put the node on DNC with the legacy node name format, <nodeID>
-	if err := dncClient.UpsertNode(context.Background(), k8sNodeName, nodeIP, cns.KubernetesCRD, vnetGUID); err != nil {
+	if err := dncClient.UpsertNode(context.Background(), k8sNodeName, nodeIP, cns.KubernetesCRD, vnetGUID, ""); err != nil {
 		t.Fatalf("could not add node to dnc: %+v", err)
 	}
 
@@ -394,7 +404,7 @@ func TestGetMaxIPCountOfNodeWithLabelAndCapacity(t *testing.T) {
 func TestNodeExistsOnDNC(t *testing.T) {
 	infraVnet := "9e445b0d-961a-4378-b239-d92815b87334"
 	dncClient := &syncdncclient.MockSynchronousDNCClient{}
-	if err := dncClient.UpsertNode(context.Background(), "node1", "127.0.0.1", cns.KubernetesCRD, infraVnet); err != nil {
+	if err := dncClient.UpsertNode(context.Background(), "node1", "127.0.0.1", cns.KubernetesCRD, infraVnet, ""); err != nil {
 		t.Fatalf("could not add node to dnc: %+v", err)
 	}
 

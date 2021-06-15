@@ -68,6 +68,7 @@ type controllerManager struct {
 	nncNamespace               string
 	initialIPCount             int64
 	enableStartupNodeReconcile bool
+	nodeSet                    string
 }
 
 // Start starts the controller and blocks until the exitchan is closed, or an unrecoverable error occurs
@@ -148,7 +149,7 @@ func (c *controllerManager) Start(ctx context.Context) error {
 }
 
 func (c *controllerManager) reconcileDNCNodes(ctx context.Context) error {
-	nodes, err := c.syncDNCClient.GetNodes(ctx)
+	nodes, err := c.syncDNCClient.GetNodes(ctx, c.nodeSet)
 	if err != nil {
 		return fmt.Errorf("unable to rehydrate cluster from DNC nodes due to error: %w", err)
 	}
@@ -160,6 +161,7 @@ func (c *controllerManager) reconcileDNCNodes(ctx context.Context) error {
 	}
 	for _, node := range nodes.Nodes {
 		if err := retrier.Do(ctx, func() error {
+			// TODO make a best-effort to get these labels from the NNC
 			return createNodeNetworkConfig(ctx, k8sClient, node.Name, c.nncNamespace, c.initialIPCount, nil)
 		}); err != nil {
 			return err
